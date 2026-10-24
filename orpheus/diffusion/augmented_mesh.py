@@ -66,7 +66,8 @@ diffusion table does not admit (a source, a translation deck) each raise here.
 The promotion classmethod :meth:`from_material_mesh` takes the
 ``boundary_conditions`` keyword only (the tags are part of the data carrier, in
 the axes' roles; the CONDITIONS they name are the method's input, as in
-``SNProblem.from_material_mesh(mm, quadrature, scheme=..., boundary_conditions=...)``).
+``SNProblem.from_material_mesh(mm, quadrature, scheme=..., boundary_conditions=...)``), defaulting to the carrier's own
+``binding.declared`` when it has one.
 It has no quadrature to inject, so the promotion signatures still do not unify
 and should not.
 
@@ -96,7 +97,7 @@ from orpheus.diffusion.boundary_realizer import DIFFUSION_REALIZERS
 from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-from orpheus.transport.boundary_conditions import BoundaryConditions, bind, stamp_boundary_role
+from orpheus.transport.boundary_conditions import BoundaryConditions, bind
 from orpheus.transport.method import realize_boundary
 from orpheus.mesh import (
     axes_from_legacy_mesh,
@@ -261,7 +262,7 @@ class DiffusionMesh(MaterialMesh):
         cls,
         material_mesh: MaterialMesh,
         *,
-        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition]" = BoundaryConditions.empty(),
+        boundary_conditions: "BoundaryConditions | Mapping[int, BoundaryCondition] | None" = None,
     ) -> "DiffusionMesh":
         r"""Promote a :class:`MaterialMesh` to a solvable diffusion phase space.
 
@@ -269,18 +270,28 @@ class DiffusionMesh(MaterialMesh):
         (``SNProblem.from_material_mesh`` parity) — and the natural
         consumer of cross-section homogenization: a homogenized
         :class:`MaterialMesh` promotes here to re-solve the coarsened
-        problem in diffusion theory. NO extra parameters: the boundary
-        conditions come from the axes' own ``BC`` declarations, already
-        part of the data carrier (contrast SN's quadrature + scheme —
-        an honest asymmetry). The axes / mesh / mat_map / materials
-        pass through verbatim; ``_init_core`` re-derives the data block
-        bit-identically from them.
+        problem in diffusion theory. The axes carry only the TAGS; the
+        CONDITIONS they name are the method's input, given by
+        ``boundary_conditions``. ``None`` (the default) means "the carrier's
+        own": a carrier that has a binding (an
+        :class:`~orpheus.sn.problem.SNProblem`, a :class:`DiffusionMesh`)
+        passes its ``binding.declared``, so its conditions are re-read by the
+        diffusion table; any other carrier gets the empty set (every tag then
+        raises ``UnboundTagError``, a tagged carrier must say what its tags
+        mean). An explicit value always wins. The axes / mesh / mat_map /
+        materials pass through verbatim; ``_init_core`` re-derives the data
+        block bit-identically from them.
 
-        An :class:`~orpheus.sn.problem.SNProblem` promotes
-        directly (it IS a MaterialMesh) — the DSA construction path
-        (#2): the diffusion operator family assembles on the promoted
-        mesh, sharing geometry and BC declarations with the SN sweep.
+        An :class:`~orpheus.sn.problem.SNProblem` promotes directly (it IS a
+        MaterialMesh) — the DSA construction path (#2): the diffusion
+        operator family assembles on the promoted mesh, sharing geometry and
+        the declared conditions with the SN sweep. A condition the diffusion
+        table does not admit (a source, a translation deck) raises
+        ``BoundaryRefused`` at promotion.
         """
+        if boundary_conditions is None:
+            binding = getattr(material_mesh, "binding", None)
+            boundary_conditions = BoundaryConditions.empty() if binding is None else binding.declared
         obj = cls.__new__(cls)
         obj._init_core(
             axes=material_mesh.axes,
@@ -311,11 +322,12 @@ class DiffusionMesh(MaterialMesh):
         :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` at construction) and returns the operator
         :math:`\mathcal{A}` on the outflow partial current (1-arg ``apply``, consumed by
         :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`). A mixed wall realizes as the functor's SUM of its
-        chains' scalars, which is not itself stamped by the table, so the stamp is applied here to every realized operator
-        (it is idempotent).
+        chains' scalars; each summand is a leaf-stamped scaled identity, so the sum carries
+        :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` by the numerics role join and the stamp lives at ONE site
+        (:func:`~orpheus.diffusion.boundary_realizer._albedo_operator`).
         """
         method_space = DiffusionMethodSpace.for_face(trace=self.scalar_trace, face=face)
-        return stamp_boundary_role(self.boundary_realizers.realize(role, self.face_site(face), method_space))
+        return self.boundary_realizers.realize(role, self.face_site(face), method_space)
 
     def with_cross_sections(self, sigma_t_cell: np.ndarray) -> "DiffusionMesh":
         r"""A NEW diffusion phase space over the same mesh with the per-cell :math:`\sigma_t` datum replaced.

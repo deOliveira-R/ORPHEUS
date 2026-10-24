@@ -80,3 +80,37 @@ def test_the_two_verbs_are_not_typed_on_one_space() -> None:
     realize = inspect.signature(table.realize).parameters["space"].annotation
     sample = inspect.signature(table.sample_inflow).parameters["space"].annotation
     assert realize and sample and realize != sample, f"realize and sample_inflow both annotate space as {realize!r}"
+
+
+def test_an_embedded_source_is_admitted_at_site_level_and_a_bare_one_with_its_inflow_space() -> None:
+    r"""The two admission paths of one source pass the source realizer different spaces, as ``RealizerTable.admit`` documents: a
+    source embedded in a condition arrives with ``space=None`` (never the method space), a bare ``InflowTerms`` with the space it
+    was given. A recording source realizer on a fresh table observes both.
+
+    Red input: a table that handed the method space to the embedded source (the cast the review flagged) records it here.
+    Mutation: ``_admit_source(declared.source, site, space)`` in the condition path.
+    """
+    from orpheus.geometry.coord import CoordSystem
+
+    seen: list[object] = []
+    table = bc.RealizerTable("probe", state_cone=bc.StateCone.NONNEGATIVE_FLUX, unregistered_issue=1)
+
+    class Recorder(bc.SourceRealizer, table=table):
+        status = bc.Realized(True)
+
+        def admit(self, terms, site, space=None):
+            seen.append(space)
+            return self.status
+
+    class Vacuum(bc.ResponseRealizer, table=table, realizes=bc.ZeroNetwork):
+        status = bc.Realized(True)
+
+        def realize(self, unit, weight, site, space):
+            raise AssertionError("not called")
+
+    table.seal()
+    site = bc.FaceSite("xmin", CoordSystem.CARTESIAN, 1)
+    method_space, inflow_space = object(), object()
+    table.admit(bc.WallCondition.uniform(1.0), site, method_space)  # type: ignore[arg-type]
+    table.admit(bc.InflowTerms(1.0, ()), site, inflow_space)  # type: ignore[call-overload]
+    assert seen == [None, inflow_space], seen

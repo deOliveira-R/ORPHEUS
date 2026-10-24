@@ -19,8 +19,7 @@ freedom per face per group. A linear homogeneous boundary law therefore collapse
     J^- \;=\; \mathcal{A}\, J^+ ,
 
 and the realization of a unit is the composition of two maps: the unit to its scalar :math:`\mathcal{A}`, then the scalar to the
-operator (:func:`_albedo_operator`, the structure-keyed collapse: ``ZeroOperator`` at :math:`\mathcal{A}=0`, ``IdentityOperator``
-at :math:`\mathcal{A}=1`, :math:`\mathcal{A}\cdot I` otherwise; the operator is face-slot-shape-agnostic, a scalar multiple of the
+operator (:func:`_albedo_operator`, :math:`\mathcal{A}\cdot I` on a leaf-stamped identity, which the algebra collapses to ``ZeroOperator`` at :math:`\mathcal{A}=0` and ``IdentityOperator`` at :math:`\mathcal{A}=1`; the operator is face-slot-shape-agnostic, a scalar multiple of the
 identity on the ``(ng, *face_spatial)`` outflow data). The operator maps the outflow half of a face slot to the inflow half and is stamped
 :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` (the ``A_ss`` leaf of the composite state, consumed by
 :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`).
@@ -29,7 +28,12 @@ identity on the ``(ng, *face_spatial)`` outflow data). The operator maps the out
 angular redistribution that tells a specular return from a Lambertian one (a permutation against a cosine-weighted average in SN)
 is integrated out of the half-range :math:`\ell=0` moments. Both chains therefore realize as the scalar WEIGHT times the identity,
 and a sum of chains is the scalar sum, which is law L-L (realization is a functor on the response network) read on this table:
-the image of a mixed wall is :math:`\mathcal{A} = s + d`. The realization of one chain is EXACT and not faithful: this is the
+the image of a mixed wall is :math:`\mathcal{A} = s + d`. The table is OPERATOR-valued (the specification's section 2.7 binds it, and
+the done-when gates read operators from it), so the functor's sum is the operator sum: ``specular(.5) + white(.5)`` is a two-term
+``OperatorSum`` that acts as :math:`1\cdot I` and ``white(1)`` is the structural ``IdentityOperator``. Two structures for one
+:math:`\mathcal{A}` are harmless while no consumer reads an operator's structure (``[M]`` 2026-10-23: zero consumers in diffusion); the
+scalar-valued table (``OpT = float``, the scalar-to-operator map applied once in the mesh arm) is the form that removes them if a
+reflective or gauge predicate ever reads structure (that predicate reads the realized operator, never ``binding.decks``). The realization of one chain is EXACT and not faithful: this is the
 tier-2 case of :ref:`bc-method-realizability` (the projection cannot tell the laws apart, which is a different statement from
 approximating any of them), and it is stated as ``Realized(faithful=False)``.
 
@@ -110,7 +114,7 @@ from typing import assert_never
 from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.diffusion.zero_flux import ZeroFluxCondition
 from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
-from orpheus.numerics.operator import IdentityOperator, LinearOperator, ZeroOperator
+from orpheus.numerics.operator import IdentityOperator, LinearOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.boundary_conditions import (
     DeckRealizer,
@@ -143,16 +147,15 @@ __all__ = [
 def _albedo_operator(albedo: float) -> LinearOperator:
     r"""The structure-keyed collapse of :math:`J^- = \mathcal{A} J^+`.
 
-    Mirrors the SN realizer's scalar branch exactly: :math:`\mathcal{A} = 0` collapses to the structural :class:`ZeroOperator`,
-    :math:`\mathcal{A} = 1` to the structural :class:`IdentityOperator`, anything else to ``𝒜 · IdentityOperator()`` (the one-term
-    combination). The operator is face-slot-shape-agnostic: a scalar multiple of the identity on the ``(ng, *face_spatial)``
-    outflow data, whatever the face.
+    One body, the leaf-stamp shape of the SN realizer (``_attenuated_kernel_operator``, ruling 2026-10-20): the
+    :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` stamp goes on the LEAF ``IdentityOperator`` and the scalar then
+    scales it, so the algebra's own collapse supplies the structure (``ZeroOperator`` at :math:`\mathcal{A}=0`,
+    ``IdentityOperator`` at :math:`\mathcal{A}=1`, a scaled identity otherwise) and a SUM of such operators (the functor's sum
+    on a mixed wall) joins to ``BOUNDARY`` by the numerics role join. The stamp is therefore applied at this ONE site; the
+    mesh does not re-stamp. The operator is face-slot-shape-agnostic: a scalar multiple of the identity on the
+    ``(ng, *face_spatial)`` outflow data, whatever the face.
     """
-    if albedo == 0.0:
-        return ZeroOperator()
-    if albedo == 1.0:
-        return IdentityOperator()
-    return float(albedo) * IdentityOperator()
+    return float(albedo) * stamp_boundary_role(IdentityOperator())
 
 
 #: Diffusion's realizer table. ``SIGNED_CURRENT``: the trace state is a partial current, so a negative return fraction (zero flux) is
@@ -170,7 +173,7 @@ class DiffusionZero(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=ZeroNe
     status = Realized(True)
 
     def realize(self, unit: ZeroNetwork, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
-        return stamp_boundary_role(_albedo_operator(0.0))
+        return _albedo_operator(0.0)
 
 
 class DiffusionSpecularChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=SpecularChain):
@@ -179,7 +182,7 @@ class DiffusionSpecularChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realiz
     status = Realized(False)
 
     def realize(self, unit: SpecularChain, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
-        return stamp_boundary_role(_albedo_operator(weight))
+        return _albedo_operator(weight)
 
 
 class DiffusionDiffuseChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=DiffuseChain):
@@ -188,7 +191,7 @@ class DiffusionDiffuseChain(ResponseRealizer, table=DIFFUSION_REALIZERS, realize
     status = Realized(False)
 
     def realize(self, unit: DiffuseChain, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
-        return stamp_boundary_role(_albedo_operator(weight))
+        return _albedo_operator(weight)
 
 
 class DiffusionZeroFlux(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=ZeroFluxCondition):
@@ -197,7 +200,7 @@ class DiffusionZeroFlux(ResponseRealizer, table=DIFFUSION_REALIZERS, realizes=Ze
     status = Realized(True)
 
     def realize(self, unit: ZeroFluxCondition, weight: float, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
-        return stamp_boundary_role(_albedo_operator(unit.return_fraction))
+        return _albedo_operator(unit.return_fraction)
 
 
 class DiffusionSource(SourceRealizer[FunctionSpace], table=DIFFUSION_REALIZERS):
@@ -231,9 +234,9 @@ class DiffusionDecks(DeckRealizer, table=DIFFUSION_REALIZERS):
     def realize(self, deck: DeckTransformation, pairing: FacePairing, site: FaceSite, space: DiffusionMethodSpace) -> LinearOperator:
         match deck:
             case MirrorDeck():
-                return stamp_boundary_role(_albedo_operator(1.0))
+                return _albedo_operator(1.0)
             case TranslationDeck():
-                raise AssertionError("a translation deck is refused at admission, so it is never realized")  # noqa: S101
+                raise AssertionError("a translation deck is refused at admission, so it is never realized")
             case _:
                 assert_never(deck)
 

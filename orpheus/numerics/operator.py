@@ -476,8 +476,8 @@ class BoundaryOperator(metaclass=_BlockRoleMeta):
     :data:`~orpheus.sn.boundary.realizer.SN_REALIZERS`
     (vacuum / reflective / white / albedo / periodic / prescribed inflow)
     and
-    :meth:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer.realize`
-    (the albedo family incl. zero-flux, #290) — carry
+    :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`
+    (the albedo family incl. zero flux, #290) — carry
     :attr:`BlockRole.BOUNDARY` via
     :func:`~orpheus.transport.boundary_realization.stamp_boundary_role`.
 

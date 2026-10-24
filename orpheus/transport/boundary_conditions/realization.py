@@ -74,7 +74,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from enum import Enum
 from functools import reduce
-from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar, cast, get_args
+from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar, cast, get_args, overload
 
 import numpy as np
 
@@ -274,6 +274,10 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
             return Refused(RefusalAxis.PLUMBING, f"{self.method} registers no deck realizer", self.unregistered_issue)
         return self._deck.admit(deck, pairing_of(deck, site.face, dimension=site.dimension), site, space)
 
+    @overload
+    def admit(self, declared: DeckTransformation | BoundaryCondition, site: FaceSite, space: SpaceT | None = None) -> Admission: ...
+    @overload
+    def admit(self, declared: InflowTerms, site: FaceSite, space: SourceSpaceT | None = None) -> Admission: ...
     def admit(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | SourceSpaceT | None = None) -> Admission:
         """ONE door, per face and per value. ``space=None`` is the type- and site-level answer (the front end).
 
@@ -284,8 +288,14 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
         ``TypeError``: a refusal is a statement about a declaration.
 
         ``space`` is the space of the declaration's own verb: the method space for a deck or a condition, the source (inflow
-        half-)space for a bare ``InflowTerms``. The source of a condition is admitted at the site level (``space=None``): which
-        site accepts a source is a fact of the site, and the method space is not the space the source is sampled on.
+        half-)space for a bare ``InflowTerms``. The ``@overload`` pair types the two pairings and refuses the two crossed ones
+        (an ``InflowTerms`` with a method space, a deck or condition with an inflow space); the implementation's union and its
+        ``cast`` calls are the single place the pairing is trusted, because the runtime ``isinstance`` split below is what the
+        overloads state. The source EMBEDDED in a condition is admitted at the site level (``space=None``) and never with the
+        method space: which site accepts a source is a fact of the site, and the method space is not the space the source is
+        sampled on. A bare ``InflowTerms`` is admitted with its inflow space; both paths reach the same ``SourceRealizer.admit``,
+        which therefore receives ``space=None`` for an embedded source and the inflow space for a bare one (pinned by
+        ``test_realizer_table_source_space.py``).
         """
         self._require_sealed()
         if isinstance(declared, DeckTransformation):
@@ -303,6 +313,10 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
         message = f"{self.method} realizes {self._admitted_names}; not {type(declared).__name__} ({admission.axis.name}: {admission.reason})"
         return BoundaryRefused(message, declared, method=self.method, face=site.face, admission=admission)
 
+    @overload
+    def require(self, declared: DeckTransformation | BoundaryCondition, site: FaceSite, space: SpaceT | None = None) -> None: ...
+    @overload
+    def require(self, declared: InflowTerms, site: FaceSite, space: SourceSpaceT | None = None) -> None: ...
     def require(self, declared: DeckTransformation | BoundaryCondition | InflowTerms, site: FaceSite, space: SpaceT | SourceSpaceT | None = None) -> None:
         """:meth:`admit`, then the raise of :class:`BoundaryRefused` iff refused: the ONE definition of the refusal."""
         admission = self.admit(declared, site, space)

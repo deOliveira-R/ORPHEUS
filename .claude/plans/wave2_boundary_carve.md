@@ -1398,6 +1398,7 @@ Both are fixed in the integration commit.
 **For WF2.5 (the documentation pass).**
 - `docs/api/mesh.rst` describes `FaceLaws`, `face_laws`, `outer_law` and `BC` throughout. Its `.. automodule:: orpheus.mesh.face_laws` at line 325 is a `-W` build failure, not only a stale cross-reference.
 - `docs/api/geometry.rst` has 3 old spellings and `structured_geometry.rst` has 33.
+- `docs/theory/methods/diffusion_1d.rst` (S3 review, `[M]` 2026-10-23, a census over `orpheus`, `tests`, `docs`, `examples`): lines 196-204, 768-777, 1756 and 1797 cite the retired `resolve_boundary_conditions`, `realize_boundary_law` and `DiffusionBoundaryRealizer` and describe `BC("zero_flux")` string tags; they become `DIFFUSION_REALIZERS`, `ZeroFluxCondition` and `WallCondition`.
 
 **Follow-up.** `StructuredGeometry.wigner_seitz_pin_cell` is now `cylinder(outer=0)`, and the white face lives only in prose. It has 3 consumers: `cp/solver.py:979` and two examples. S3 binds tag 0 to white at the CP site, and each example binds it at its own call. A problem-level preset for a white cell has no issue. The S1 elegance review cited #529 for it, but #529 is the posing unit 6 and its body names no such preset (`gh issue view 529`, 2026-10-23). File one if S3 finds a second production consumer.
 

@@ -50,6 +50,7 @@ from orpheus.diffusion import ZeroFluxCondition
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck, TranslationDeck
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
+from orpheus.numerics.operator import BlockRole
 from orpheus.transport.boundary_conditions import BoundaryRefused, RefusalAxis, SubmarkovViolationError, UnboundTagError, WallCondition
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from tests.gates._exterior import declare_sides
@@ -215,3 +216,49 @@ class TestAdmissionRefusals:
         mesh, _ = _mesh1d(WallCondition.vacuum(), MirrorDeck())
         with pytest.raises(UnboundTagError):
             DiffusionMesh(mesh, _MATS)
+
+
+class TestPromotionFromABoundCarrier:
+    def test_a_tagged_sn_problem_promotes_with_its_own_declared_conditions(self):
+        """The DSA construction path: ``from_material_mesh(sn)`` with no keyword re-reads the SN problem's ``binding.declared``.
+
+        Mutation M-default-empty (the default back to ``BoundaryConditions.empty()``) raises ``UnboundTagError`` here, the
+        failure the review measured. An explicit keyword still wins (the second leg), so the default is a default and not a
+        replacement of the argument.
+        """
+        from orpheus.numerics.quadrature import Quadrature
+        from orpheus.sn.problem import SNProblem
+
+        mesh, conditions = _mesh1d(WallCondition.white(0.5), MirrorDeck())
+        sn = SNProblem.from_material_mesh(MaterialMesh(mesh, _MATS), Quadrature.gauss_legendre(4), boundary_conditions=conditions)
+        dm = DiffusionMesh.from_material_mesh(sn)
+        np.testing.assert_allclose(np.asarray(dm.bc["xmin"].apply(_PROBE)), 0.5 * _PROBE, rtol=1e-15)
+        np.testing.assert_array_equal(np.asarray(dm.bc["xmax"].apply(_PROBE)), _PROBE)
+        assert dm.binding.declared == sn.binding.declared
+        overridden = DiffusionMesh.from_material_mesh(sn, boundary_conditions={tag: WallCondition.vacuum() for tag in conditions})
+        np.testing.assert_array_equal(np.asarray(overridden.bc["xmin"].apply(_PROBE)), 0.0)
+
+    def test_a_bare_material_mesh_with_tags_is_still_refused_without_conditions(self):
+        """The default is the carrier's binding, and a bare carrier has none: control for the leg above (X1)."""
+        mesh, _ = _mesh1d(WallCondition.vacuum(), MirrorDeck())
+        with pytest.raises(UnboundTagError):
+            DiffusionMesh.from_material_mesh(MaterialMesh(mesh, _MATS))
+
+
+class TestConditionsAreThePhaseSpace:
+    def test_different_conditions_are_a_different_phase_space(self):
+        """Mutation M-key-drops-conditions (``conditions_key`` removed from ``_contractibility_key``) reddens the first leg."""
+        vac, white, white_again = _diffusion_mesh(WallCondition.vacuum()), _diffusion_mesh(WallCondition.white(0.5)), _diffusion_mesh(WallCondition.white(0.5))
+        assert vac != white and not vac.same_phase_space(white)
+        assert white == white_again and white.same_phase_space(white_again)
+
+
+class TestTheBoundaryStamp:
+    def test_every_realized_face_operator_is_a_boundary_leaf_mixed_wall_included(self):
+        """A mixed wall realizes as the functor's SUM of scaled leaves; the sum carries ``BOUNDARY`` (mutations M-leaf-unstamped
+        in ``_albedo_operator`` and the wrapper-stamp spelling, which loses the role at the sum, both redden here)."""
+        mixed = WallCondition.from_amplitudes(0.3, 0.5)
+        walls = [WallCondition.vacuum(), WallCondition.white(0.3), WallCondition.white(1.0), ZeroFluxCondition(), MirrorDeck(), mixed]
+        for wall in walls:
+            dm = _diffusion_mesh(wall)
+            assert dm.bc["xmin"].block_role is BlockRole.BOUNDARY, type(wall).__name__
