@@ -4573,12 +4573,13 @@ What stays
   rewritten :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.apply`
   (Gate 1.4, pinned to ``rtol=1e-13``) guarantees the transpose is
   correctly tracked.
-* The
-  :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` +
+* The realizer table ``SN_REALIZERS``
+  (``orpheus.sn.boundary.realizer``) +
   :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` +
   :class:`~orpheus.numerics.operator.LinearOperator`-1-arg
-  ``apply`` substrate (Issues #186 + #176 + #188, Waves 0–12) — the
-  BC trace law's realised 1-arg ``apply(outflow) → inflow``
+  ``apply`` substrate (Issues #186 + #176 + #188, Waves 0–12; the table
+  replaced the ``SNBoundaryRealizer`` ladder in the wave-2 carve) — the
+  realised boundary's 1-arg ``apply(outflow) → inflow``
   contract is exactly what the matvec consumes at the boundary
   edge.
 
@@ -4938,9 +4939,9 @@ cell centres. The boundary-edge sequence is:
    outflow_at_boundary[:, outgoing_mask] = psi_face_out
 
    # ── BC trace law at boundary edge ────────────────────────────
-   # bc_outer is the realised BC (BoundaryTraceLaw) from SNMethodSpace
-   # via SNBoundaryRealizer.realize() — a 1-arg LinearOperator
-   # whose apply maps Γ_+ → Γ_-, per the affine-bc-form contract.
+   # bc_outer is the realised boundary (a RealizedBoundary) that SN_REALIZERS
+   # builds from the face's declaration and SNMethodSpace — a 1-arg
+   # LinearOperator whose apply maps Γ_+ → Γ_-, per the affine-bc-form contract.
    inflow_full = bc_outer.apply(outflow_at_boundary.T)
 
    # ── Phase 2: inward sweep (μ < 0), i = nx-1 → 0 ──────────────
@@ -4980,15 +4981,17 @@ interior cell centres.
 **Gate 1.5** (foundation,
 :func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_vacuum_sphere` /
 :func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_reflective_sphere`)
-pins this contract: for each
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` concrete kind
-(``VacuumInflow`` / ``ReflectiveBoundary`` / ``WhiteBoundary`` /
-``AlbedoBoundary`` / ``PrescribedInflow``), the apply matvec's BC
-integration consumes the WDD-propagated outflow face value (not
-cell centres) and produces the inflow face value consistent with
-``bc.realize().apply(outflow_at_boundary)``. The assertion is
-bit-identical across 5 random :math:`\psi^{\text{cell}}` inputs per
-BC kind × geometry × ordinate count. ``apply(0) = 0`` is pinned
+pins this contract for the two walls of the sphere gates: the vacuum tag
+(bound to ``WallCondition.vacuum()``, realized as the ``ZeroMap``) and the
+reflective tag (bound to ``WallCondition.specular(1.0)``, realized as a
+``ScaledOrdinatePermutation`` at weight 1). The matvec consumes the WDD-propagated outflow face value
+(not cell centres) and does not apply the realized boundary itself:
+``test_bc_trace_contract_capture_and_compare_sphere`` counts zero calls of
+the boundary's ``apply`` per matvec and pins the emitted outflow trace
+against an independently reconstructed WDD chain to ``rtol = 1e-14``, for
+both walls. The diffuse chain, the partial wall and the inflow are not
+rows of Gate 1.5; they are pinned in the realized-boundary and the
+realizer-table gates (``tests/gates/sn/architecture/``). ``apply(0) = 0`` is pinned
 separately under vacuum + reflective BCs; under vacuum BC a flat
 cell-centre :math:`\psi` produces a **non-zero** residual (the BC
 physically removes the inflow), and that asymmetry is itself a

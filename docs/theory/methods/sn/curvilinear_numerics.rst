@@ -111,25 +111,35 @@ took two passes at the closure:
   gap that Round 2 identified: the FD operator's
   then-``solution_to_angular_flux*`` codec and the
   matvec helpers consumed the
-  :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` instances on
+  ``BoundaryTraceLaw`` instances on
   the :class:`~orpheus.sn.problem.SNProblem` (Wave B Issue 7
   tensor-decomposed BC algebra), dispatching boundary fills via the
   realiser-routed 1-arg :meth:`apply` on the resolved
   :class:`~orpheus.numerics.operator.LinearOperator`. Vacuum,
-  reflective, white, periodic, albedo, and mixed BCs are now
+  reflective, white, periodic, albedo, and mixed BCs were then
   plumbed uniformly through the FD operator; bit-identity to the
-  pre-Round 3 hard-coded reflective fill is preserved for
+  pre-Round 3 hard-coded reflective fill was preserved for
   ``ReflectiveBoundary(axis=…, albedo=1.0)``, as the mirror was then
-  spelled (it has had no albedo since 2026-10-01) (the standard
-  ``BC.reflective`` case), which is the load-bearing condition for
+  spelled (it had no albedo after 2026-10-01) (the standard
+  ``BC.reflective`` case), which was the load-bearing condition for
   the 11 frozen regression snapshots to stay green. (Note:
-  post Issue #186 / B3 + β2 the law itself is a pure descriptor;
-  ``BoundaryTraceLaw.apply`` no longer exists. The realiser
-  produces the 1-arg :class:`LinearOperator` whose :meth:`apply`
-  the matvec calls; the Wave-E Round-3 prose describes the
+  after Issue #186 / B3 + β2 the law itself was a pure descriptor;
+  ``BoundaryTraceLaw.apply`` no longer existed. The realiser
+  produced the 1-arg :class:`LinearOperator` whose :meth:`apply`
+  the matvec called; the Wave-E Round-3 prose describes the
   contract as it existed at the time, but the architectural
   conclusion — uniform BC consumption through a 1-arg
-  ``apply`` — is the same.)
+  ``apply`` — is the same.) The trace-law package retired in the
+  wave-2 carve (2026-10-24): the present consumption is the 1-arg
+  ``apply`` of a ``RealizedBoundary`` (``ZeroMap``,
+  ``ScaledOrdinatePermutation``, ``RankOneReemission`` or their sum)
+  realized by ``SN_REALIZERS`` (:ref:`bc-sn-resolution-table`). On a
+  **curved** outer face the table admits the vacuum and
+  ``WallCondition.specular(alpha)`` and refuses the diffuse chain and
+  every inflow (#653), so the "white, periodic, albedo and mixed"
+  plumbing above is realized only on a Cartesian face; the standard
+  curved case, a reflecting wall, is ``WallCondition.specular(1.0)``
+  (a curved face has no mirror deck).
 
 What is **still** open after Round 3: empirically the symmetric-
 closure FD operator at the curvilinear outer face uses cell-center

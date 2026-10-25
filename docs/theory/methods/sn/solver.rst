@@ -485,9 +485,10 @@ The leakage functional
    J_g \;=\; \sum_m (\Omega_m\cdot\hat n_f)\, w_m\, \psi_{m,g}
 
 is the face-area integral of the boundary trace's **net outward
-current**, summed over the faces whose law loses particles.
-:math:`\alpha_f` is the response amplitude of face :math:`f`'s law
-(``law.response_kernel.amplitude``), the partial-current return ratio
+current**, summed over the faces whose wall loses particles.
+:math:`\alpha_f` is the return fraction of face :math:`f`'s realized
+boundary (``RealizedBoundary.return_fraction``, a property of its type:
+the sum of the weights of its chains), the partial-current return ratio
 :math:`J^-/J^+`: 0 for a vacuum face and for a prescribed inflow (whose
 net current is the outflow minus the prescribed inflow), :math:`\alpha`
 for a partial reflector (whose net current is :math:`(1-\alpha)J^+`),
@@ -584,15 +585,17 @@ cancel).  A face with :math:`\alpha_f < 1` is summed.
 
    The skip is keyed on :math:`\alpha_f = 1`, never on the response
    being nonzero.  Summing only the faces that return nothing
-   (``response_kernel.is_zero``) agrees with it on every law a ``BC``
-   tag can declare, and drops the leakage of a partially reflecting
-   typed law: the reported :math:`k` of a one-group homogeneous slab
+   (the zero map, ``is_vacuum``) agrees with it on the vacuum, the
+   mirror and the unit white wall, and drops the leakage of a partially
+   reflecting wall: the reported :math:`k` of a one-group homogeneous slab
    whose faces return 70 % of their outflow specularly
-   (``AlbedoBoundary(0.7, SpecularReturn('x'))``) then comes out
+   (``WallCondition.specular(0.7)``) then comes out
    :math:`k_\infty = 0.96`, where the posed problem's is 0.830.  That
    was this predicate until 2026-09-30 (ERR-094, which measured it on
-   the same partial wall then spelled ``ReflectiveBoundary('x', 0.7)``;
-   the two spellings realized to one matrix).
+   the same partial wall then spelled ``AlbedoBoundary(0.7,
+   SpecularReturn('x'))`` and, before that, ``ReflectiveBoundary('x',
+   0.7)``; the spellings realized to one matrix, and ``specular(0.7)``
+   realizes to it too).
 
 This is a deliberate design choice with a bit-level payoff.  On an
 all-reflective (lattice) problem :math:`L` is a structural ``0.0``, and
@@ -760,11 +763,11 @@ on reflective; a leakage sign-flip crash-reds through the scale-bridge
 guard; and the old :math:`(n,2n)`-in-numerator convention reds the
 :math:`\Sigma_2\neq 0` leg.  The class ``TestPartialReturnLeakage`` in
 the same file extends the identity to faces that return a fraction
-:math:`0 < \alpha < 1` of their outflow (``AlbedoBoundary`` with a
-specular return, ``WhiteBoundary`` with an albedo; a slab and a
+:math:`0 < \alpha < 1` of their outflow (``WallCondition.specular(alpha)`` and
+``WallCondition.white(alpha)``; a slab and a
 sphere), with the edges :math:`\alpha = 0` (the vacuum problem,
 exactly; a cylinder row too) and :math:`\alpha = 1` (bitwise the
-lattice functional, whose mirror ``ReflectiveBoundary`` carries no
+lattice functional, whose mirror deck carries no
 amplitude and is the foundation that edge rests on, not a row): the face set of :eq:`sn-leakage-functional` is what those
 rows pin (ERR-094).
 

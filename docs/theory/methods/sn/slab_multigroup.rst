@@ -988,15 +988,18 @@ on the Protocol and stays.
 
 Wave E Round 3 (Issue #98 follow-up) extended the FD operator's
 boundary handling to consume the
-:class:`~orpheus.geometry.boundary.BoundaryTraceLaw` infrastructure
-(Wave B Issue 7), so the then-``solution_to_angular_flux*`` codec and the
+``BoundaryTraceLaw`` infrastructure
+(Wave B Issue 7, retired in the wave-2 carve of 2026-10-24; its
+successor is ``SN_REALIZERS``, :ref:`bc-sn-resolution-table`), so the then-``solution_to_angular_flux*`` codec and the
 matvec helpers dispatched boundary fills via the realiser-routed
 1-arg :meth:`apply` on the resolved
 :class:`~orpheus.numerics.operator.LinearOperator` — vacuum,
-reflective, white, albedo, periodic, and mixed BCs are honoured
-uniformly. (Post Issue #186 / B3 + β2, the law itself is a pure
-descriptor; the SN realiser produces the callable. See
-:ref:`bc-trace-law-descriptor-model`.)
+reflective, white, albedo, periodic, and mixed BCs were honoured
+uniformly. (After Issue #186 / B3 + β2, the law itself was a pure
+descriptor and the SN realiser produced the callable; see
+:ref:`bc-trace-law-descriptor-model`. The realized operator of a face is
+now a ``RealizedBoundary`` and the declared one a ``WallCondition`` or a
+deck: :ref:`bc-sn-resolution-table`.)
 
 
 .. _sn-mg-eigenvalue-posing:

@@ -118,20 +118,16 @@ is the **bulk-only / vacuum** special case of the composite source
 ``q = q_bulk ⊕ q_∂`` the solver also accepts (see
 :ref:`sn-composite-fixed-source`); this isotropic slab MMS is
 vacuum-automatic, so the boundary leaf is identically zero.  Vacuum
-boundary conditions are declared on the mesh and resolved by the
-mesh-level BC infrastructure described in :ref:`boundary-conditions`:
-the case's mesh declares
-:attr:`BC.vacuum <orpheus.geometry.boundary.BC.vacuum>` on both faces
-(the 2-D manufactured boxes of the same module declare it on all four),
-because the manufactured solution vanishes on the boundary, and
-:class:`SNProblem` resolves each to the ``"vacuum"`` kind string,
-which the sweep reads directly.  The entry supplies no law of its own
-(:ref:`structured-geometry-no-default-law`).  In the 1-D cumprod path, the
-recurrence starts from zero; in the 2-D wavefront path, the
-reflective-partner copy is skipped, leaving incoming-face angular
-fluxes at their zero initialisation (which is correct because no
-code path writes the incoming-face slot of any ordinate except the
-reflection step itself).
+boundary conditions are two declarations that :class:`SNProblem` joins, as
+described in :ref:`boundary-conditions`: the case's mesh carries the one
+vacuum tag on both faces (the 2-D manufactured boxes of the same module
+carry it on all four), because the manufactured solution vanishes on the
+boundary, and the caller binds that tag to ``WallCondition.vacuum()``, which
+the Problem realizes to the zero map on each face.  The entry supplies no
+condition of its own (:ref:`structured-geometry-no-default-law`).  In the
+1-D cumprod path, the recurrence starts from zero; in the 2-D wavefront
+path, the incoming-face angular fluxes stay at their zero initialisation
+(the zero map contributes nothing to them).
 
 .. note::
 
@@ -3541,8 +3537,10 @@ The composite fixed-source API — :math:`q = q_{\text{bulk}} \oplus q_\partial`
      slots of a prescribed inflow are physically meaningless →
      unrepresentable by construction, ``coding-elegance`` Pattern 4),
      leaving everything else zero. It is the known-per-face-array route;
-     the lazy ``InflowSourceSpec``-recipe route (``from_specs``) is a
-     distinct bridge that delegates its packing back to this method.
+     the declared route, ``AngularBoundarySourceSink.from_method``,
+     is a distinct bridge that delegates its packing to the same inflow-slot
+     rule (the lazy ``InflowSourceSpec``-recipe route, ``from_specs``,
+     retired in the wave-2 carve).
 
 The fixed-source right-hand side is a source on the whole phase space
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3745,36 +3743,40 @@ prescribed-inflow consumer (the non-vacuum MMS, the splitting-invariance
 probe) previously hand-rolled — the single source of truth for
 materialising a prescribed inflow onto the trace (Cardinal Rule 2).
 
-**The recipe → snapshot distinction (vs ``from_spec``).** There are two
-distinct routes to a boundary source, related as *recipe → snapshot*,
+**The declaration → snapshot distinction (vs ``from_method``).** There are two
+distinct routes to a boundary source, related as *declaration → snapshot*,
 not as duplicates:
 
-.. list-table:: Two routes to ``q_∂`` — known arrays vs lazy recipe
+.. list-table:: Two routes to ``q_∂`` — known arrays vs the declared source
    :header-rows: 1
    :widths: 28 36 36
 
    * -
      - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
-     - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
+     - ``AngularBoundarySourceSink.from_method``
    * - Input
      - known per-face ``(N, ng)`` arrays
-     - a lazy
-       :class:`~orpheus.geometry.boundary._source.InflowSourceSpec`
-       recipe (``evaluate(shape) -> ndarray``)
+     - the source of the ``WallCondition`` bound to each tagged face
+       (``WallCondition.uniform(v)`` or ``framed(profile)``), sampled on
+       :math:`\Gamma_-` of its face by ``SNSource.sample`` (which also checks
+       the placement, ERR-047)
    * - When
      - the inflow values are already computed (the MMS case)
-     - the inflow is described by a per-face recipe evaluated on demand
+     - the inflow is declared with the problem
+       (:meth:`SNProblem.declared_boundary_source
+       <orpheus.sn.problem.SNProblem.declared_boundary_source>`)
    * - Status
      - **shipped** — the route the 4.6 MMS and the T4 probe use
-     - **deferred** (``unify-after-two`` — no recipe-driven consumer
-       that drives a typed boundary-source sweep yet)
+     - **shipped** — the user's path; it replaced the lazy
+       ``InflowSourceSpec``-recipe route (``from_specs``), retired in the
+       wave-2 carve because a second sampling verb beside the realizer
+       table's ``sample_inflow`` would be two spellings of one quantity
 
 The 4.6 MMS uses
 :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
 because it has explicit per-face arrays
-(:math:`\gamma_-\psi = (A + \mu_n B)/W`); it does not need the lazy
-recipe bridge, which waits for its first genuine consumer per the
-``unify-after-two`` discipline.
+(:math:`\gamma_-\psi = (A + \mu_n B)/W`); it does not need the declared
+route.
 
 Why this is ergonomics, not new types
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -3850,8 +3852,8 @@ Non-vacuum prescribed-inflow MMS
      carried in the ``q.boundary`` slot
      (:class:`~orpheus.transport.fields.AngularBoundarySourceSink`) and
      consumed directly by :math:`(L+C)\text{.solve}` as the sweep
-     inflow seed. **No** :class:`~orpheus.geometry.boundary.PrescribedInflow`
-     mesh-BC bridge is touched, and **no** ``from_spec`` recipe bridge
+     inflow seed. **No** declared-inflow wall (``WallCondition.uniform`` /
+     ``framed``) is bound, and **no** ``from_method`` bridge
      is needed — the inflow is supplied as the boundary leaf of the
      **composite source** ``q = q_bulk ⊕ q_∂`` that
      :func:`~orpheus.sn.solver.solve_sn_fixed_source` now accepts
@@ -4299,11 +4301,12 @@ and the inflow term is consumed directly by :math:`(L+C)\text{.solve}`
 as the sweep inflow seed. This is the cleanest possible realisation:
 the inhomogeneous BC term is *just another source* on the RHS.
 
-**No ``from_spec`` / ``PrescribedInflow``-BC bridge is touched.** A
-:class:`~orpheus.geometry.boundary.PrescribedInflow` mesh-BC descriptor
-*does* exist (the rank-0 affine BC), but it is a *different surface* —
-it declares a prescribed inflow at mesh-construction time as a
-first-class boundary condition. The 4.6 MMS deliberately does **not**
+**No declared-inflow wall and no ``from_method`` bridge is touched.** A
+``WallCondition`` that carries a source (``WallCondition.uniform(v)`` or
+``framed(profile)``, the rank-0 affine wall over the zero network)
+*does* exist, but it is a *different surface* —
+it declares a prescribed inflow at problem-construction time as a
+first-class condition bound to a tag. The 4.6 MMS deliberately does **not**
 use it: the manufactured inflow is injected as the ``q.boundary``
 source slot, which is exactly the affine-:math:`q`-to-RHS path, and is
 the surface O.2b's field-role-typing work targets. The mesh BCs for the

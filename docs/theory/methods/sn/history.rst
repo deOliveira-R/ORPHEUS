@@ -42,6 +42,26 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-24
+     - **The boundary architecture is carved onto face roles, one wall
+       condition and one realizer table** — the trace-law package
+       (``BC`` tags, ``BoundaryTraceLaw`` and its concretes,
+       ``LawSum`` / ``LawScaled``, the ``SNBoundaryRealizer``
+       ``isinstance`` ladder, the string registries) retired. A face is a
+       deck or an integer tag; a tag is bound to a ``WallCondition`` (an
+       affine pair of a response network on a convex cone and an inflow);
+       ``SN_REALIZERS`` admits and realizes in one door, returning
+       ``ZeroMap``, ``ScaledOrdinatePermutation``, ``RankOneReemission``
+       or their ``RealizedSum``, whose facts (return fraction, closes its
+       axis, is the zero map) are properties of the type and are what
+       the leakage functional, the loss-kernel gauge and DSA read. The
+       hollow inner face is a tag with no trace (#511) and the diffuse
+       chain and every source are refused at a radial outer face (#653).
+       The present state is :ref:`bc-sn-resolution-table`; the retired
+       names are :ref:`bc-sn-retired-architecture`.
+     - —
+     - ``471c4737`` (the WF2.4 retirement tip of
+       ``refactor/wave2-boundary-carve``)
    * - 2026-10-05
      - **The Krylov preconditioner is a stated operator, and the inner
        GMRES record reads scipy's stopping quantity** —
@@ -2966,7 +2986,7 @@ them.  Trust ``git``, not this column.
        ``SNMesh`` / ``DiffusionMesh`` (instance surface only; neither
        mesh imports it — conformance is checked where each calls the
        shared body). The twin ``_resolve_bcs`` loops collapse into
-       :func:`~orpheus.transport.method.resolve_boundary_conditions`
+       ``orpheus.transport.method.resolve_boundary_conditions``
        (face loop + reflective default + tag → law parse, method-generic
        over each mesh's ``BOUNDARY_OPERATOR_REGISTRY``); each mesh keeps
        only its ``realize_boundary_law`` arm, and ``SNMesh`` builds its
@@ -3434,7 +3454,7 @@ them.  Trust ``git``, not this column.
      - **Rank-N boundary walker co-located** — ``realize_recursively``
        (the descriptor-tree → operator-tree walker) merged into
        :mod:`orpheus.sn.boundary.realizer` next to the
-       :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` it
+       ``orpheus.sn.boundary.realizer.SNBoundaryRealizer`` it
        dispatches to; the near-twin ``boundary_realize`` module retired.
        It stays honestly SN-specific; the method-agnostic generalization
        (registry-resolved leaf + ``MethodSpace`` Protocol, walker moves to

@@ -270,13 +270,14 @@ second layer has grown.
 
 1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` or
    :class:`~orpheus.mesh.structured.Mesh2D` stores cell edges, material IDs,
-   coordinate system, and **boundary condition declarations**.
-   A ``Mesh1D`` carries one declared law per boundary face
-   (``face_laws``, keyed by face name, ``xmin``/``xmax``), which the
+   coordinate system, and the **boundary face roles** (a deck, or an
+   integer tag whose condition the Problem binds).
+   A ``Mesh1D`` carries one role per boundary face
+   (``face_roles``, keyed by face name, ``xmin``/``xmax``), which the
    :class:`~orpheus.mesh.mesher.Mesher` lifts from the geometry. A
-   ``Mesh2D`` carries ``face_laws`` over ``xmin``/``xmax``/``ymin``/``ymax``;
-   both are one value, a :class:`~orpheus.mesh.face_laws.FaceLaws`. ``None`` is refused on both, and the solver supplies
-   no default law: every face is declared
+   ``Mesh2D`` carries ``face_roles`` over ``xmin``/``xmax``/``ymin``/``ymax``;
+   both are one value, a :class:`~orpheus.mesh.face_roles.FaceRoles`. ``None`` is refused on both, and the solver supplies
+   no default condition: every tag is bound
    (:ref:`structured-geometry-no-default-law`).
    See :ref:`boundary-conditions` for details.
 
@@ -298,16 +299,19 @@ second layer has grown.
    axis-native :math:`d \ge 3` Problem, which carries no legacy mesh at all.
    (A literal, not an ``:attr:``
    role: the base ``MaterialMesh`` sets it on the instance, so there is
-   no autodoc target to link.)  It also **resolves boundary
-   conditions**: each ``BC`` tag
-   on the mesh is looked up in :attr:`SNProblem.BOUNDARY_OPERATOR_REGISTRY` and converted
-   to a validated kind string (``"vacuum"`` or ``"reflective"``)
-   stored in the face-name-keyed :attr:`SNProblem.bc` dict
+   no autodoc target to link.)  It also **binds and realizes boundary
+   conditions**: the declared mapping from tag to condition is joined to
+   the mesh's tagged faces (:attr:`SNProblem.binding`), and each face's
+   declaration (its deck, or the condition its tag is bound to) is
+   realized by the SN realizer table ``SN_REALIZERS`` into a typed
+   ``RealizedBoundary``, stored in the face-name-keyed
+   :attr:`SNProblem.bc` dict
    (``problem.bc["xmin"]``, ``problem.bc["xmax"]``, ... — the dict
-   keys are the mesh's true boundary faces; see
-   :ref:`bc-face-name-carve`).
-   The sweep reads these resolved strings directly --- it never
-   inspects the raw :class:`~orpheus.geometry.boundary.BC` objects.  Precomputed
+   keys are the mesh's boundary faces that carry a trace; see
+   :ref:`bc-face-name-carve`). A declaration the table does not admit
+   on its face is refused at construction.
+   The operators read these realized boundaries --- never the
+   declared tags (:ref:`bc-sn-resolution-table`).  Precomputed
    stencil contents per coordinate system:
 
    - **Cartesian**: one per-axis array ``streaming(a)[n,i] =
@@ -784,12 +788,14 @@ Reproduce it by counting both constructors around a solve:
    import numpy as np
    from scipy.sparse import csr_matrix
    from orpheus.data.macro_xs.mixture import Mixture
-   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.geometry import StructuredGeometry
+   from orpheus.geometry.deck import MirrorDeck
    from orpheus.mesh import CellsByCount, Mesher
    from orpheus.numerics.quadrature import Quadrature
    from orpheus.sn.operators.streaming import StreamingOperator
    from orpheus.sn.solver import solve_sn
    from orpheus.sn.sweep.cache import StreamingCoefficientCache
+   from orpheus.transport.boundary_conditions import WallCondition
 
    S = csr_matrix(np.array([[0.30, 0.10], [0.0, 0.40]]))
    mats = {0: Mixture(SigT=np.array([0.60, 0.80]), SigC=np.array([0.10, 0.20]),
@@ -798,7 +804,7 @@ Reproduce it by counting both constructors around a solve:
                       Sig2=[csr_matrix(np.zeros((2, 2)))], chi=np.array([1.0, 0.0]))}
    nx = 200
    geometry = StructuredGeometry.slab(
-       (0.0, 10.0), (0,), left=BC("reflective"), right=BC("vacuum"),
+       (0.0, 10.0), (0,), left=MirrorDeck(), right=0,   # a mirror at x = 0, the vacuum tag 0 at x = 10
    )
    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
    quad = Quadrature.gauss_legendre(16)
@@ -813,7 +819,7 @@ Reproduce it by counting both constructors around a solve:
        lambda cls, m: (n.__setitem__("tab", n["tab"] + 1),
                        real_tab(cls, m))[1])
    try:
-       solve_sn(mats, mesh, quad)
+       solve_sn(mats, mesh, quad, boundary_conditions={0: WallCondition.vacuum()})
    finally:
        StreamingOperator.__init__ = real_init
        StreamingCoefficientCache.from_mesh_and_quad = classmethod(real_tab)
@@ -1100,10 +1106,10 @@ pairing predicate would have no witness at all
 The member list, once, so no second copy can drift:
 
 * **Contractibility key** — per spatial axis: the axis CLASS, the edge
-  array's bytes, both boundary laws (a
-  :class:`~orpheus.geometry.boundary.BC` tag and a frozen trace law
-  alike by the law itself, whose equality and hash are its content; a
-  callable-bearing law, which has no content, by type and object), both
+  array's bytes, both face roles (a
+  deck or an integer tag, each a value whose equality and hash are its
+  content; the condition a tag is bound to is the Problem's, not the
+  axis's), both
   face labels, and a radial axis's chart.  Then the ``mat_map``'s shape
   and bytes, and the materials as ``(id, mixture.content_digest)`` over
   sorted ids (:ref:`structured-geometry-content-identity`).  An
@@ -1242,7 +1248,7 @@ branchlessly.  (This replaced the pre-carve procedural branch on the
 ``SNProblem.curvature`` string tags and the since-retired operator-free
 ``transport_sweep`` entry; the full carve is documented in
 :doc:`/theory/methods/sn/loss_representation`.)  Boundary conditions are **not** passed as
-a parameter to the sweep --- it reads the resolved BC kind strings
+a parameter to the sweep --- it reads the realized boundaries
 directly from the face-name-keyed :attr:`SNProblem.bc` dict
 (``problem.bc["xmin"]``, ``problem.bc["xmax"]``, ...; see
 :ref:`bc-face-name-carve`).
