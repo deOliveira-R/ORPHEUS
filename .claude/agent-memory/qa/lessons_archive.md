@@ -6144,3 +6144,25 @@ operator, and at 0 < α < 1 that operator is now a one-term `OperatorSum`. `-op`
 (`S2_review/qa_probes/role_probe.py`). The same holds for `A_AA.system_role = A` under `-A_AA`. No production reader
 decides on either role today, so no gate reddened. Not covered by `vv-principles` #28 (a guard on optional metadata)
 or #33 (one fact, two jobs): the population is every `obj.<attr> = …` stamp on an operator the algebra may rebuild.
+
+## L-105a — a `.. implements:: :by:` naming a retired symbol is a `-W` red that no grep of the code or tests reaches (2026-10-23, W2.3 S4 qa, `0f5e1c5d`)
+
+S4 deleted `_cp_bc_vacuum`, `_cp_bc_white` and `_mc_bc_periodic` in the same commit as their replacements, and every
+code and test census read clean. Three `.. implements:: <label>` directives (`collision_probability.rst:463,466`,
+`monte_carlo.rst:678`) still name them in `:by:`. sphinxcontrib-nexus resolves `:by:` against the graph and logs
+`.. implements:: p-inf: target '...' not found in graph — skipping` (`directives.py:853-858`, type `nexus.directive`),
+and CI runs `sphinx-build -E -W --keep-going` with no `suppress_warnings` in `docs/conf.py`: a red CI on merge, and
+the equation silently loses 2 of its 4 declared implementers. `retirement-audit` A.2 lists the warning behaviour of
+`:doc:`, `:ref:` and the Python-domain roles, not of the nexus directive options, and the implementer's "docs are the
+archivist's" deferral read the site as stale prose. `[R]` (mechanism read; the docs build was not run).
+
+## L-105b — the session scratchpad is shared; a generic path is another agent's (2026-10-24, WF2.3 S5 qa, `db2a3871`)
+
+Not covered by `code-search` (quoted heredoc, PYTHONPATH, `__file__` first) nor by
+`process-discipline` (crash-safe restore names the copy, not its uniqueness). A
+`$S/p1.py` written by this review printed a different probe's output (another
+qa agent of the session had written the same name between the write and the run);
+`$S/cp/` already existed, so `git archive | tar -x` overlaid a foreign tree. A
+background battery hit the 30-minute default and was killed between restore
+steps; the per-arm `diff -q` against `git show` found `reference_body.py` dirty.
+Rule: digest H16.

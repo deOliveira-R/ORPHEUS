@@ -619,6 +619,10 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   not a test of downward closure; gate the law itself. → `L117`
 - **A guarantee resting on "a new process loads the code" owes a same-second same-size edit row** (forced by `os.utime`): timestamp pycs serve stale code. A fork warning is not a thread count. → `L115`
 
+- **Wave 2 S2b (the SN consumers):** a directory whose `conftest.py` imports a not-yet-carved module aborts the session and hides the gate's reason, so host the
+  gate where it collects; record the base red per file in a FRESH interpreter (the S2a helper's `sys.modules` stub contaminates the next file); `sum()` of floats is
+  compensated since 3.12 (spell the naive fold with `reduce`); a `scratch/` script imports the venv's MAIN checkout (set `PYTHONPATH`, print `orpheus.__file__`). → `L119`
+
 ## 9. Pointers
 
 - **Two instrument vocabularies, do not mix them.** THEOREM / REFERENCE / RECORD
@@ -634,3 +638,25 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   `feedback_cross_method_protocol.md` (`L8`). **Per-carve RECIPES** → `MEMORY.md`
   §3. **Measured scope costs and the serial-host gate** → `MEMORY.md` §2 and the
   main memory's `reference_test_execution_env`.
+
+## S3 diffusion gates (2026-10-23, W3) — two traps; extends `vv-principles` #17(f) and #17(c)
+
+- **A shared pin's "honest table" control silently depended on one method's column equalling the mechanism's.** `test_the_pin_has_teeth` ran
+  `pin_disagreements(mechanism_table, ROWS)` over ALL rows; it was green only because the SN columns copied the mechanism's. Appending a
+  differing method's column (diffusion) reddened it for a reason unrelated to the new table. When a pin file gains a method, re-scope every
+  control that ranges over `ROWS` to its own method's rows, and run the file BEFORE adding the table to see which controls were
+  coincidentally green.
+- **A package whose `__init__` raises half-imports: red reasons change by test order.** The first read per process is the `ImportError`
+  of the base's real break; later reads find the submodule already in `sys.modules` and read `AttributeError: no attribute <NewName>`. Both
+  are the base's red, but a log read by its first line only will misname the cause; classify by the full red set, and a
+  carve prototype in a scratch worktree (`git worktree add --detach`, run pytest from inside it, print `orpheus.__file__`) is what shows
+  each gate satisfiable and each arm biting (21 arms, 0 blind, `scratch/wave2_s3/battery.py`).
+
+## S4 CP / MoC / MC gates (2026-10-23, W3) — one trap; extends `vv-principles` #17 and the S3 prototype lesson
+
+- **A mixed-wall cell is the MEET of its units in CHAIN ORDER, so a plan table's "both chains" cell can contradict the meet law.** `Admission.meet`
+  keeps the FIRST refusal (specular chain before diffuse), so MC's radial "both chains" is `Refused(TOPOLOGY, #547)` where section 4.2's text read
+  `Refused(PLUMBING, #654)`. Before typing a mixed cell into a pin, read `meet` and `_units` for the order, and run a PROTOTYPE table on the shared
+  mechanism through the pin: the meet rows reddened on the plan's own cell, which no reading of the table text shows (`scratch/wave2_s4/proto_tables.py`, 6 arms bit).
+  A pin keyed on units a method's table does not register (CP hollow inner, decks on a radial face) is a cell the plan states nowhere: pin today's
+  behaviour in a file apart from the shared grid and say so in NEEDS, so one ruling edits one test.

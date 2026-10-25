@@ -4,7 +4,7 @@
 
 Two files, read at different times. Do **not** summarize lesson content here.
 
-- **[lessons.md](lessons.md)** — the HOT digest (**697 lines**; 16 rules that restated a clause retired 2026-09-22 by the agent-definitions audit).
+- **[lessons.md](lessons.md)** — the HOT digest (**708 lines**; 16 rules that restated a clause retired 2026-09-22 by the agent-definitions audit).
   Behavioral rules only: one imperative, the check that makes it decidable, and a
   `→ L-0NN` pointer. Ten sections: **A** mutation mechanics, **B** structural
   blindness, **C** structural independence, **D** re-baseline/bit-identity,
@@ -31,6 +31,8 @@ it (`process-discipline`).
 
 | review | lesson → digest rule |
 |---|---|
+| WF2.3 S5 references' exterior (2026-10-24) | L-105b → H16 |
+| W2.3 S4 boundary carve, cp/moc/mc (2026-10-23) | L-105a → G-NX |
 | W3 numerics-untangling S2 linear combination (2026-10-20) | L-104 → B21 |
 | W1 #405 P3 concept 2 door re-pose (2026-10-17) | L-103 → B20 |
 | W1 P3 step 3e axial lift (2026-10-12) | L-102 → A26 |

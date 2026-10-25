@@ -581,6 +581,11 @@ regenerated and the test file is untouched — on any regen, grep consumers for
 "frozen". A cited issue number can be wrong (trust git archaeology). A prose "the
 ERR-NNN class" citation is a nit; the same string inside `catches()` is a defect. → L-020, L-028, L-030, L-034
 
+
+**G-NX. After a retirement, grep `:by:` in `docs/` for every deleted name: a `.. implements::` / `.. verifies::`
+target that is gone is a `nexus.directive` WARNING, hence a red `-W` CI, not stale prose to defer to the archivist.**
+Re-point it at the successor in the same change. → L-105a
+
 ---
 
 ## H. Mechanics, environment, probe hygiene
@@ -656,6 +661,16 @@ assembly's sole quantitative blocker read "529 files reference the name"; **503
 of the 529 sat in eleven stale `docs/_build/html_*` trees, gitignored, 0 tracked
 files** — true radius **26**, 20× high, in the direction that made "don't rename"
 look forced. → L-090
+
+**H16. The session scratchpad is SHARED by every agent of the session — a copy or
+probe at a generic path (`cp/`, `p1.py`) may be another agent's.** `mkdir -p` and
+an overwrite both succeed silently, and a stale tree under the same name serves
+imports the extraction did not write. ⟹ every copy and probe lives under one
+fresh directory named for the review (`qa_<unit>_<hash>/`, `test -e` first), and
+a background battery's default 30-min limit is raised (`timeout`) or the battery
+split, then the mutated file is diffed against `git show <hash>:<path>` after a
+kill. `[M]` 2026-10-24, WF2.3 S5: `p1.py` printed another agent's probe output;
+the battery was killed at its limit with `reference_body.py` left mutated. → L-105b
 
 ---
 

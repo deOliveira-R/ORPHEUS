@@ -11842,3 +11842,26 @@ calculus: measure the unit cost a recommendation multiplies before using a relay
   globals, `setattr` the resulting classmethod on the LIVE class; all three S7 arms bit on the first run.
 - A field made content by a dataclass `compare` flag can be blinded in-process by flipping `field.compare` and
   clearing `content._DIGESTS` (L101's cache): the edges-blind arm on `CellLayout` reddened exactly H2 and H2b.
+
+## L119 — wave 2 S2b gates (the SN consumers of the conditions package): a red that hides its reason, a stub that contaminates the next file, and a `sum` that is not a left fold (2026-10-24)
+
+- **A directory whose `conftest.py` imports a not-yet-carved module cannot host a gate whose base red matters.** `tests/gates/sn/operators/conftest.py`
+  imports `tests/gates/sn/_test_helpers.py`, which still imported the retired `BC`: pytest aborts the SESSION ("ImportError while loading conftest"), so
+  the gate's own reason is invisible and every file of the same invocation dies with it. The typed-operator gates went to `tests/gates/sn/architecture/`
+  (no conftest) and reported 67 honest `ImportError`s from their own accessor line. The spec's directory is a default, not a constraint on the base red.
+- **Record a base red per file, in a fresh interpreter each.** The S2a helper's `load()` installs a bare `orpheus.transport` namespace into `sys.modules`
+  when the parent cannot import; a later file in the same process then imports submodules "successfully" and fails at the NEXT line (`AttributeError` on a
+  missing member instead of `ImportError`). One pytest process per file, or the red column reads three reasons for one defect.
+- **`sum(list_of_floats)` is compensated since Python 3.12**, so a fixture meant to separate `math.fsum` from naive addition must spell the naive fold with
+  `functools.reduce(operator.add, ...)`: `sum([0.1, 0.2, 0.3]) == fsum([0.1, 0.2, 0.3])` here, and the "bit-exact fsum" row was green for the wrong reason.
+- **A script in `scratch/` imports the venv's editable install, which is the MAIN checkout.** `python scratch/x.py` from a worktree put `orpheus.__file__` in
+  `/Users/.../ORPHEUS/orpheus` (the census printed 0 unequal pairs, for the wrong tree). Set `PYTHONPATH=<worktree root>` and print `orpheus.__file__` first; in a
+  symlinked sandbox use `os.path.abspath`, never `Path.resolve()`, to find the tree root (resolve follows the symlinks back into the worktree).
+- **A prototype sandbox buys a green for the gates that execute only the new types.** The throw-away `realized_operators.py` and SN table (a symlink tree with
+  `orpheus.geometry` re-exporting `BC` so the HEAD-spelled importers load) made 187 of the 189 gate rows runnable before the carve; the gates that pose a
+  whole `SNProblem` cannot be shown green, and the report says so. The 22-arm battery on it: every named mutation reddened its aimed row, the outflow-divisor
+  arm reddened exactly ONE row (the asymmetric trace, since `M_+ == M_-` bitwise on 70 of 70 registry pairs), the diffuse-rescale arm was inert on `(0.3, 0.7)`
+  and red on the other four points, the null (identity-edit) arm read 0 new reds.
+- **Capture the carry from the HEAD tree with a REFUSING script**: it prints `orpheus.__file__`, refuses when it is not under the HEAD worktree or the commit
+  is not the named one, records its own commit and the snapshots' sha256, and a second run is byte-equal (determinism control). A fixture captured from
+  the wrong tree is green by construction (X4).
