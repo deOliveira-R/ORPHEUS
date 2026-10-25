@@ -3361,51 +3361,149 @@ response-factor test alone would admit a sourced face, because its
 Layer 3 — the method realizer
 -----------------------------
 
-A single :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
-describes the physics at the boundary but is **not** by itself
-ready for consumption by a transport sweep. The conversion from
-method-agnostic law to method-specific
-:class:`~orpheus.numerics.operator.LinearOperator` is the job of a
-:class:`~orpheus.transport.boundary_realization.BoundaryRealizer`. Each transport
-method that has adopted the unified BC architecture (SN; diffusion
-since #290 P3) ships one realizer class, owned by its method-mesh:
-the mesh's ``realize_boundary_law`` arm — the per-method hook of the
-:class:`~orpheus.transport.method.TransportMethod` Protocol (#290
-P7b) — instantiates it directly.
+A declared wall condition
+(:class:`~orpheus.transport.boundary_conditions.WallCondition`, an affine
+pair of a response network and an inflow) or a deck describes the physics at
+a face but is **not** by itself ready for consumption by a transport sweep.
+The conversion from the method-agnostic declaration to a method-specific
+object is the job of the method's **realizer table**, a
+:class:`~orpheus.transport.boundary_conditions.RealizerTable`, and each
+transport method owns exactly one: ``SN_REALIZERS``,
+``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS`` and
+``MC_REALIZERS`` (:data:`~orpheus.sn.boundary.realizer.SN_REALIZERS` is the
+one this page follows; the others are built the same way and live in
+``orpheus/diffusion/boundary_realizer.py``, ``orpheus/cp/solver.py``,
+``orpheus/moc/geometry.py`` and ``orpheus/mc/solver.py``).
 
-The realizer's :meth:`realize` method takes the law plus a
-**method space** — a method-specific container holding the
-:term:`quadrature`, mesh, trace masks, and any other discretization
-metadata the realizer needs — and returns a 1-arg
-:class:`~orpheus.numerics.operator.LinearOperator` whose
-:meth:`apply` carries the method-specific realization of the
-affine BC :eq:`affine-bc-form`.
+**What a table is.** A table is keyed by the *unit* of a declaration and
+filled by realizer classes that register by a class keyword
+(``class SNSpecularChain(ResponseRealizer, table=SN_REALIZERS,
+realizes=SpecularChain)``); the defining module seals the table on its last
+line, so anyone holding it has executed every registration. The units are
+the two chains of the response network
+(:class:`~orpheus.transport.boundary_conditions.SpecularChain`, the
+permuting return, and
+:class:`~orpheus.transport.boundary_conditions.DiffuseChain`, the Lambertian
+return), the marker
+:class:`~orpheus.transport.boundary_conditions.ZeroNetwork` (the empty
+network, vacuum), the marker
+:class:`~orpheus.transport.boundary_conditions.InflowTerms` (the source
+channel :math:`q`, whose entry realizes to an array and never to an
+operator), and any condition type that belongs to one method alone (the
+diffusion zero flux). ``WallCondition`` itself is not a key: a wall is
+realized by a **functor** on its response network, the image of the empty
+network being the method's zero map, the image of ``s * SpecularChain`` and
+``d * DiffuseChain`` being those chains' realizers at weights :math:`s` and
+:math:`d`, and the image of a sum being the sum of the images, so a method
+never writes a branch over the shared family. A deck (a mirror plane or a
+translation wrap) meets the table's one
+:class:`~orpheus.transport.boundary_conditions.DeckRealizer`.
 
-Why this third layer? Because the same affine law is realized by
-**structurally different** linear operators in each transport
-method:
+**One door.** :meth:`RealizerTable.realize
+<orpheus.transport.boundary_conditions.realization.RealizerTable.realize>`
+takes the declaration, the face's
+:class:`~orpheus.transport.boundary_conditions.FaceSite` and the **method
+space** (for SN an :class:`~orpheus.sn.mesh.method_space.SNMethodSpace`, the
+container holding the :term:`quadrature` and the trace ladder the realizer
+reads), calls
+:meth:`~orpheus.transport.boundary_conditions.realization.RealizerTable.admit`
+first and raises
+:class:`~orpheus.transport.boundary_conditions.BoundaryRefused` iff the
+admission is a refusal, then returns the method's operator type (for SN a
+:class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`, a
+:math:`\Gamma_+ \to \Gamma_-` operator carrying
+:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` whose facts are
+properties of its type). Admission and realization are one table read, so
+the question "is this declaration admitted on this face" and the realization
+cannot disagree (the admission tables and their axes are
+:ref:`bc-method-realizability` and the refusal axes there). The per-method
+hook is the :class:`~orpheus.transport.method.TransportMethod` Protocol: a
+method-mesh declares its table as the class variable ``boundary_realizers``
+and implements ``realize_boundary_role``, and the one shared
+:func:`~orpheus.transport.method.realize_boundary` body owns the face loop
+and the choice of the declaration (a deck, or the condition the face's tag is
+bound to).
 
-* SN realizes vacuum as the **zero map**
-  :math:`\Gamma_+ \to \Gamma_-` on that face's two half-traces (a
-  :class:`~orpheus.numerics.operator.ZeroOperator` carrying both space
-  hooks, so the forward emits the zero of :math:`\Gamma_-` and the
-  transpose the zero of :math:`\Gamma_+` — see
-  :ref:`bc-domain-narrowing`).
-* Diffusion realizes vacuum as the albedo-family
-  :math:`\mathcal{A} = 0`, i.e. the Marshak zero-incoming-current
-  condition :math:`J^- = 0` on the scalar partial-current trace — the
-  *same* law, a structurally different operator.
-* MoC realizes vacuum by zeroing the entering boundary fluxes of
-  every track that intersects the face.
-* MC realizes vacuum by killing particle histories at the face.
-* CP realizes vacuum as zero rows in the boundary-to-region
-  coupling matrix.
+Why this third layer? Because the same affine wall is realized by
+**structurally different** operators in each transport method, and the
+table is where that difference is written down, once per method and per
+unit. The image of the empty network (vacuum) and the realizer of each chain,
+read off the five tables at this commit:
 
-Splitting the realizer out of the law makes each piece independently
-testable and gives every method a single bolt-in point for its BC
-treatment — see :ref:`bc-cross-method-stubs` for how a future method
-adopts the architecture (and for the Wave-5 stub scaffolding that was
-dissolved at #290 P7b).
+.. list-table:: What each method's table makes of a unit
+   :header-rows: 1
+   :widths: 12 22 22 22 22
+
+   * - Method
+     - ``ZeroNetwork`` (vacuum)
+     - ``SpecularChain``
+     - ``DiffuseChain``
+     - Decks
+   * - SN
+     - ``ZeroMap``: the zero map :math:`\Gamma_+ \to \Gamma_-` on that
+       face's two half-traces (the forward emits the zero of
+       :math:`\Gamma_-`, the transpose the zero of :math:`\Gamma_+`; see
+       :ref:`bc-domain-narrowing`)
+     - ``ScaledOrdinatePermutation``, :math:`s\,P_\pi`; refused on the
+       angular-resolution axis when the quadrature does not certify the
+       mirror
+     - ``RankOneReemission``, :math:`d\,(E\circ R_t)`; refused on a radial
+       outer face (#653)
+     - ``ScaledOrdinatePermutation`` at weight 1.0 (a mirror by
+       ``ordinate_pairing``, a wrap by its crossing check)
+   * - Diffusion
+     - the albedo :math:`\mathcal{A} = 0`, the Marshak
+       zero-incoming-current condition :math:`J^- = 0` on the scalar
+       partial-current trace: the *same* declaration, a structurally
+       different operator
+     - :math:`w\cdot I` (tier 2: the permutation is annihilated by the
+       :math:`P_1` projection)
+     - :math:`w\cdot I` (tier 2)
+     - mirror :math:`I`; translation refused (topology)
+   * - CP
+     - the vacuum closure: escaped neutrons are lost,
+       :math:`P_\infty = P_{\rm cell}`, a block of the boundary-to-region
+       coupling matrix
+     - refused (plumbing, #654)
+     - the white closure, at weight 1.0 only (below one the albedo would be
+       dropped, so it is refused, #654)
+     - a mirror only at a slab's left face; no wrap
+   * - MoC
+     - refused (#654): MoC links specular tracks only
+     - the track linking at the square cell's flat faces, weight 1 only;
+       a named domain approximation (#547)
+     - refused (#654)
+     - no deck realizer (unregistered door, #654)
+   * - MC
+     - refused (#654): MC wraps its faces periodically
+     - refused (topology on a solid cylinder, #547; plumbing at a Cartesian
+       face, #654)
+     - refused (#654)
+     - the translation wrap; a mirror is refused (#654)
+
+``[M]`` read at 471c4737 from the ``status`` and ``admit`` bodies of the
+realizer classes in those five modules
+(``grep -n 'status = \|realizes=' orpheus/sn/boundary/realizer.py
+orpheus/diffusion/boundary_realizer.py orpheus/cp/solver.py
+orpheus/moc/geometry.py orpheus/mc/solver.py`` lists them), not from the
+carve plan. The "refused (#654)" cells are the capability the table
+records as not built: the old string registries held one closure per method
+(CP the white wall and the vacuum, MoC the specular tracks, MC the periodic
+wrap), and the tables keep that coverage and state the rest as refusals that
+name the issue.
+
+Splitting the realization out of the declaration makes each piece
+independently testable and gives every method a single bolt-in point for its
+boundary treatment: a method adopts the architecture by building and sealing
+its own table (see :ref:`bc-cross-method-stubs`).
+
+This layer used to be a ``BoundaryRealizer`` Protocol, one realizer class per
+method that took a trace law and the method space, and a string-keyed
+registry that named which laws each method admitted, with the mesh's
+``realize_boundary_law`` arm as the per-method hook. Wave 2 (2026-10-24)
+retired that architecture with the trace laws it consumed; the present one is
+:ref:`bc-architecture-of-record`, and each retired name maps to its
+successor in :ref:`bc-wave2-crosswalk`.
 
 
 .. _bc-extraction:
@@ -3420,7 +3518,7 @@ narrative is documented at :ref:`g-adjoint` in
 Wave O step O.4a.2 (`Issue #208
 <https://github.com/deOliveira-R/ORPHEUS/issues/208>`_, three commits
 ``d7e1316`` / ``4c0ff96`` / ``2bdc66d``, 2026-06-03) made the realized
-boundary law :math:`B` a **first-class sibling** of the streaming +
+boundary condition :math:`B` a **first-class sibling** of the streaming +
 collision operator :math:`L + C`. The canonical SN transport algebra
 became
 
@@ -3538,8 +3636,8 @@ That identity diagonal is **load-bearing twice over** (Issue #298):
   substitution**: read the given inflow, sweep the bulk, define the
   outflow.
 * It is the diagonal the sibling :math:`-B` leans on: :math:`B`'s
-  :math:`A_{ss}` (:math:`R` the realized per-face law,
-  :ref:`bc-law-layer`) sits **strictly upper** on the same ordering —
+  :math:`A_{ss}` (:math:`R` the realized per-face operator of the wall's response
+  network, :ref:`bc-realizer-layer`) sits **strictly upper** on the same ordering —
   the inflow row reading the outflow column — the ONE up-edge that
   closes the boundary cycle. Vacuum kills it (:math:`B = 0`, pure
   forward substitution); SI/Krylov iterates it
@@ -3592,7 +3690,7 @@ off the block structure directly:
        (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`)
      - ``BOUNDARY``
      - Maps :math:`V_{\rm outflow} \to V_{\rm inflow}` via the
-       realized per-face law :math:`\psi.\text{inflow} =
+       realized per-face operator :math:`\psi.\text{inflow} =
        B\,\psi.\text{outflow}`.
      - :math:`A_{ss}` only — strictly upper on the trace splitting
        (:eq:`bc-extraction-trace-blocks`); emits on the **inflow row
@@ -3619,9 +3717,12 @@ simultaneously:
 
 .. vv-status: bc-extraction-two-residuals documented
 
-For vacuum :math:`B = 0` (no inflow); for reflective/white/albedo
-:math:`B` is the realized :math:`R\,G` reflection that the
-pre-extraction sweep applied at the boundary edge.
+For vacuum :math:`B = 0` (no inflow); for any other wall :math:`B` is the
+realized operator of that wall's response network, the reflection that the
+pre-extraction sweep applied at the boundary edge: a scaled ordinate
+permutation :math:`s\,P_\pi` for a specular return, the factored Lambertian
+re-emission :math:`d\,(E\circ R_t)` for a diffuse one, and the sum of the two
+images for a mixed wall (:ref:`bc-realizer-layer`).
 
 
 The deleted keystone
@@ -3873,14 +3974,17 @@ addition rather than a new named slot. Existing positional
 **Why** :math:`B` **is a SEPARATE gain, not folded into** :math:`S`.
 Two structural reasons forbid the old fold:
 
-#. **The adjoint metric lives on the trace.** :math:`B` lives on the
-   boundary trace (:attr:`domain <orpheus.sn.operators.boundary.SNBoundaryOperator.domain>`
-   ``= problem.angular_trace``), and the cosine-weighted
+#. **The adjoint metric lives on the trace.** :math:`B` acts only on the
+   boundary-trace block of the composite carrier (its
+   :attr:`domain <orpheus.sn.operators.boundary.SNBoundaryOperator.domain>`
+   and ``codomain`` are ``problem.full_field_space``, the space
+   :math:`L`, :math:`C`, :math:`S` and :math:`F` report, and its bulk output
+   is zero), and the cosine-weighted
    :math:`|\Omega\cdot\hat n|\,w` adjoint metric (Wave O step O.2 — the
    codomain inner product of :math:`L`'s boundary-trace block) lives on
-   that **trace** domain, not the bulk. Folding :math:`B` into the
-   bulk :math:`S` would erase the trace typing the future adjoint
-   ``.H`` needs.
+   that **trace** block, not the bulk. Folding :math:`B` into the
+   bulk :math:`S` would erase the trace typing the adjoint
+   ``.H`` reads.
 #. :math:`B` **cannot join the** :math:`L+C` **preconditioner.** A
    generic :class:`~orpheus.numerics.operator.OperatorSum` carries **no**
    direct-sweep ``solve`` — its inverse action is the *iterative*
@@ -4031,9 +4135,12 @@ The trace-only :math:`A_{ss}` core — ``_reflect_trace``
 V_{\rm inflow}`: it maps the *outflow* trace to the *inflow* trace.
 Both delivery routes ultimately need the same per-face action —
 restrict the face slot to :math:`\Gamma_+`, apply that face's realized
-law (a specular
-:class:`~orpheus.numerics.elementary_operators.PermutationOperator` on the
-**reduced** ordinate axis for reflective, the zero map for vacuum), and
+operator (the scaled ordinate permutation
+:class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation` for a
+specular wall, the factored Lambertian
+:class:`~orpheus.sn.boundary.realized_operators.RankOneReemission` for a diffuse
+one, the zero map :class:`~orpheus.sn.boundary.realized_operators.ZeroMap` for
+vacuum), and
 scatter the image back over :math:`\Gamma_-`. To guarantee
 they cannot drift, that action is the single
 :meth:`SNBoundaryOperator._reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
@@ -4492,7 +4599,7 @@ matvec output boundary as :class:`AngularBoundaryResidual`. That choice was
    halves of the same carve disagree on what an ``.apply`` output *is*.
 
 2. **It creates a "two-hat" tension that the class gate cannot
-   satisfy.** The realized boundary law
+   satisfy.** The realized boundary operator
    :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (:math:`B`)
    emits :math:`B\,\psi.\text{outflow}`, and that **same** emission is
    consumed two ways:
