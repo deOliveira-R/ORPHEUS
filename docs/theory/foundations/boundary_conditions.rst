@@ -7394,16 +7394,19 @@ So every case was **re-anchored against an expression derived from the
 mathematics** — :eq:`affine-bc-form`, the mirror isometry
 :math:`\Omega \mapsto \Omega - 2(\Omega\cdot\hat n)\hat n`, and the
 Lambertian partial-current balance :math:`J^- = \alpha J^+`. The
-generator now imports nothing from
-:mod:`orpheus.sn.boundary.realizer`, which makes it refactor-proof by
+generator imported nothing from
+:mod:`orpheus.sn.boundary.realizer`, which made it refactor-proof by
 construction, and the artefact **IS** the reference rather than a
-recording.
+recording (WF2.4 deleted the generator; see the file paragraph below).
 
 The file stays frozen for one reason: a reference the harness
 recomputed would let the generator's expression and production drift
 *together*. The committed artefact is the barrier — an expression
 change moves the gate only through a regeneration, which is a
-reviewable diff.
+reviewable diff; since wave 2 the carry fixture also records each file's
+sha256, and ``test_the_snapshots_were_not_rebaselined`` in
+:mod:`tests.gates.sn.architecture.test_wave2_carry` reddens on a file that
+no longer matches it.
 
 **What the migration measured.** Against the retired pre-B3.2
 recordings restricted to :math:`\Gamma_-`: ``vacuum``, ``specular_x``
@@ -7419,53 +7422,58 @@ changed is where they come from.
    :widths: 24 26 16 34
 
    * - Case
-     - BC
+     - Declaration today (the one the recording was made under, in parentheses)
      - Quadrature / face
      - Reference, and its tolerance
    * - ``vacuum_lebedev17``
-     - ``VacuumInflow()``
+     - ``WallCondition.vacuum()`` (``VacuumInflow()``)
      - Lebedev 17, ``xmin``
      - :math:`R = q = 0`, so the **zero map**: an image with
        :math:`\Gamma_-` shape, identically zero.
        ``assert_array_equal`` — no arithmetic is performed.
    * - ``specular_x_lebedev17``
-     - ``ReflectiveBoundary(axis="x")``
+     - ``WallCondition.specular(1.0)`` (``ReflectiveBoundary(axis="x")``); the same image is also asserted for a ``MirrorDeck()`` on the Cartesian face
      - Lebedev 17, ``xmax``
      - the mirror gather :math:`\psi^-(\Omega) = \psi^+(\Omega')`.
        ``assert_array_equal`` — reduction depth 0.
    * - ``specular_y_partial_07_LS6``
-     - ``AlbedoBoundary(0.7, SpecularReturn(axis="y"))``
+     - ``WallCondition.specular(0.7)`` (``AlbedoBoundary(0.7, SpecularReturn(axis="y"))``)
      - LevelSymmetricSN(6), ``ymax``
      - the same gather scaled by α — the α-fold row, and the only
        one on a non-``x`` axis. ``assert_array_equal``. The partially
-       specular wall is a response, so this row exercises the albedo
-       law's specular closure through the shared deck kernel; its
+       specular wall is a response, so this row exercises the wall's
+       specular chain: ``SNSpecularChain`` realizes it as α times the
+       ordinate permutation of the mirror, a
+       :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`
+       (the recording shared the deck kernel of the then-law); its
        frozen image is the one recorded when the row was spelled as
-       the then-attenuated mirror, bit-identical across the respelling
-       (:ref:`bc-history`).
+       the then-attenuated mirror, bit-identical across both
+       respellings (:ref:`bc-history`).
    * - ``white_xmax_LS4``
-     - ``WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)``
+     - ``WallCondition.white(1.0)`` (``WhiteBoundary(axis="x", outward_sign=+1, albedo=1.0)``)
      - LevelSymmetricSN(4), ``xmax``
      - isotropic re-emission with :math:`J^- = J^+` in the
        :math:`w_n|\Omega_n\cdot\hat n|` measure.
        ``rtol = |Γ₊|·ε``.
    * - ``white_xmin_partial_03_GL``
-     - ``WhiteBoundary(axis="x", outward_sign=-1, albedo=0.3)``
+     - ``WallCondition.white(0.3)`` (``WhiteBoundary(axis="x", outward_sign=-1, albedo=0.3)``)
      - GaussLegendre1D(8), ``xmin``
      - the same law at α = 0.3 on a quadrature whose :math:`\sum w`
        is 2, not :math:`4\pi` — the canary against a hard-coded
        normalisation. ``rtol = |Γ₊|·ε``.
    * - ``mixed_30spec_70white_LS4``
-     - ``0.3 * AlbedoBoundary(1.0, SpecularReturn("x")) + 0.7 * white``
-       (Wave-0 algebra over the realized leaves)
+     - ``WallCondition.from_amplitudes(0.3, 0.7)`` (``0.3 * AlbedoBoundary(1.0, SpecularReturn("x")) + 0.7 * white``,
+       the Wave-0 algebra over the realized leaves; the sum is now the wall's own, realized to a ``RealizedSum``)
      - LevelSymmetricSN(4), ``xmax``
      - the pointwise convex combination of the two images above.
        ``rtol = (|Γ₊| + 2)·ε``.
    * - ``periodic_lebedev17``
-     - ``PeriodicBoundary()``
+     - ``TranslationDeck()`` (``PeriodicBoundary()``)
      - Lebedev 17, ``xmin`` ← ``xmax``
-     - the PARTNER face's outflow at the same ordinates.
-       ``assert_array_equal``, inside ``xfail(strict=True)``.
+     - the PARTNER face's outflow at the same ordinates (the harness reads the stored
+       ``psi_out_partner`` when the realized face's ``domain_face`` is not the installation face).
+       ``assert_array_equal``; the row ran inside ``xfail(strict=True)`` until the partner-face
+       wrap landed, and passes plainly today.
 
 Every tolerance above is **derived, not measured-and-rounded-up**. The
 old ``nulp = 4`` / ``nulp = 64`` constants encoded no claim; the bound
@@ -7481,13 +7489,13 @@ Measured against those bounds: 1.9e-16 (2.7e-15), 1.2e-16 (8.9e-16),
 
 .. note::
 
-   **The periodic row is a deliberate strict xfail, not a passing
-   gate.** A translation identifies the two faces without touching
+   **The periodic row was a deliberate strict xfail, not a passing
+   gate, until the partner-face wrap landed.** A translation identifies the two faces without touching
    direction, so a particle leaving through ``xmax`` in direction
    :math:`\Omega` re-enters at ``xmin`` in the SAME :math:`\Omega`:
    :math:`\Gamma_-(\text{xmin})` and :math:`\Gamma_+(\text{xmax})` are
    the same ordinate SET, and the law is a **two-face coupling**.
-   Production realizes it as a per-face angular identity, so the
+   Production then realized it as a per-face angular identity, so the
    narrowed composition
    :math:`\iota_- \circ \text{law} \circ \gamma_+` hands it this
    face's own :math:`\Gamma_+ = \{\mu_x < 0\}` and it feeds
@@ -7496,13 +7504,16 @@ Measured against those bounds: 1.9e-16 (2.7e-15), 1.2e-16 (8.9e-16),
 
    The artefact therefore carries TWO probes, drawn from independent
    seeds: with one shared draw a per-face endomorphism would look
-   correct on the rows that coincide. **B3.4c** builds the partner-face
-   wrap; the marker's deletion is forced by the XPASS(strict) failure,
+   correct on the rows that coincide. **B3.4c** built the partner-face
+   wrap; the marker's deletion was forced by the XPASS(strict) failure,
    which is this campaign's standing technique — the xfail set IS the
    todo list. The body itself is already correct: a companion test
    shows the identity reproduces the reference exactly when fed the
-   PARTNER's :math:`\Gamma_+`, so the defect is entirely in which
-   half-trace the composition supplies.
+   PARTNER's :math:`\Gamma_+`, so the defect was entirely in which
+   half-trace the composition supplied. Today a ``TranslationDeck`` realizes to a face whose
+   :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.domain_face` is the PARTNER
+   (``pairing_of`` gives the pairing :math:`(f, f')` with :math:`f'` the opposite face), and the row
+   reads that partner's outflow.
 
 .. note::
 
@@ -7546,7 +7557,12 @@ Measured against those bounds: 1.9e-16 (2.7e-15), 1.2e-16 (8.9e-16),
       G6.3 step 7 on 2026-08-07), so the last clause is history: every
       leaf the realizer builds is narrowed, and the closure-free albedo
       that made this mix spellable is refused. The lesson above, that
-      the raise was never a safety property, stands.
+      the raise was never a safety property, stands. What replaces the
+      accident is a check: a mixed wall is a sum of realized chains, and
+      ``RealizedSum`` refuses at construction terms that fill different faces,
+      consume different outflows or live on different trace spaces
+      (``ValueError``), so a leaf that is not a :math:`\Gamma_+ \to
+      \Gamma_-` image on the same discretization cannot be summed.
 
 The specular rows are ``assert_array_equal`` and the choice is
 structural, not optimistic: a gather introduces no re-association and
@@ -7559,11 +7575,14 @@ rounding and wrong about its effect: the reference performs the same
 multiplication, so both sides round identically.)
 
 The ``.npz`` files live at
-``tests/gates/geometry/snapshots/bc_equivalence_*.npz`` and are committed to
+``tests/gates/sn/operators/snapshots/bc_equivalence_*.npz`` and are committed to
 the repository — the artefacts ARE the verification reference.
-``tests/gates/geometry/_generate_bc_equivalence_snapshots.py`` regenerates
-them; since the re-anchoring, regeneration is legitimate only when the
-reference EXPRESSION or the probe changes, never to make a red go
+``tests/gates/geometry/_generate_bc_equivalence_snapshots.py`` regenerated
+them until WF2.4 deleted it (recover it with ``git show
+197549f6:tests/gates/geometry/_generate_bc_equivalence_snapshots.py``); no generator is in the
+tree now, and the carry fixture's recorded sha256 of each file is the gate on a
+regeneration. Since the re-anchoring, regeneration was legitimate only when the
+reference EXPRESSION or the probe changed, never to make a red go
 away — that would re-anchor the gate on the very code it gates, which
 is the shape the inversion removed.
 
@@ -7571,23 +7590,35 @@ is the shape the inversion removed.
 
    **The** ``albedo_05_lebedev17`` **case was retired at B3.4b.** It
    pinned ``psi_in == 0.5 * psi_out`` on the WHOLE FACE, an artefact of
-   a law SN no longer realizes: a bare ``AlbedoBoundary(α)`` is refused
+   a law SN no longer realizes: a bare ``AlbedoBoundary(α)`` was refused
    because its :math:`R = \alpha I` is a :math:`\Gamma_+ \to \Gamma_+`
-   endomorphism and its :math:`G` supplies no crossing (see
-   :ref:`bc-method-realizability`). Its successor is the second method
-   on the ``specular_x_lebedev17`` case, which pins the same α-fold on
+   endomorphism and its :math:`G` supplies no crossing (the account
+   written then is :ref:`bc-method-realizability`). Today the closure-free
+   return is unspellable: every constructor of
+   :class:`~orpheus.transport.boundary_conditions.WallCondition` names a
+   closure (``specular``, ``white``, ``framed``), and each closure crosses. The
+   successor of the case is the second method
+   on the ``specular_x_lebedev17`` case, which pinned the same α-fold on
    the same quadrature through the theorem that
-   ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to :math:`\alpha`
-   times the matrix of the mirror ``ReflectiveBoundary(a)`` (it asserts
+   ``AlbedoBoundary(α, SpecularReturn(a))`` realized to :math:`\alpha`
+   times the matrix of the mirror ``ReflectiveBoundary(a)`` (it asserted
    ``array_equal`` against :math:`0.5` times the frozen mirror image) —
    and, since the re-anchoring, against the mirror isometry rather
-   than against a sibling implementation's recorded output.
+   than against a sibling implementation's recorded output. The live
+   harness keeps the α-fold on the ``specular_y_partial_07_LS6`` row
+   (``WallCondition.specular(0.7)``) and the mirror-equals-unit-wall
+   claim on ``specular_x_lebedev17`` (a ``MirrorDeck`` and
+   ``WallCondition.specular(1.0)`` give the same image,
+   ``array_equal``).
 
 
 .. _bc-two-bc-applies-per-matvec:
 
 Two BC apply calls per curvilinear matvec
 =========================================
+
+This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
 
 .. important::
 
@@ -7733,6 +7764,9 @@ content matching, not just shape matching.
 BC applies in the SI sweep path
 ===============================
 
+This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
+
 Phase D (Issue #168 Phase D, :ref:`bc-two-bc-applies-per-matvec`
 above) instituted the *two BC apply calls per curvilinear matvec*
 contract on the apply-matvec path (the within-group operator,
@@ -7858,22 +7892,26 @@ inputs subsumes the BC-apply-input pinning.
 Curvilinear realizer unification
 ================================
 
+This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
+
 The pre-cleanup architecture carried a **Cartesian / curvilinear
 split** at the hub-side resolver then named ``SNProblem._resolve_one``
-(retired at #290 P7b — the shipped hook is
-:meth:`~orpheus.sn.problem.SNProblem.realize_boundary_law`):
+(retired at #290 P7b — the shipped hook was
+``SNProblem.realize_boundary_law`` until wave 2 replaced it by
+:meth:`~orpheus.sn.problem.SNProblem.realize_boundary_role`):
 the slab and 2-D Cartesian
 paths constructed a trace space (then named ``InflowTraceSpace``,
 unified into :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
 post-#188 and made geometry-blind in C5.3) and routed the BC through
-:class:`SNBoundaryRealizer`, while spherical and cylindrical ``Mesh1D``
+``SNBoundaryRealizer``, while spherical and cylindrical ``Mesh1D``
 bypassed the realizer entirely because that factory
 (``from_mesh_and_quadrature``, since C5.3
 :meth:`AngularTraceSpace.from_quadrature_and_layout
 <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`)
 raised :class:`NotImplementedError` on those coord systems. The bypass
 wrapped the bare law instance in
-:class:`_BoundBoundaryOperator(law, quadrature=self.quad)`, a
+``_BoundBoundaryOperator(law, quadrature=self.quad)``, a
 dual-mode shim whose ``apply(psi)`` forwarded
 ``law.apply(psi, bound_quad)`` to the legacy 2-arg body.
 
@@ -7895,14 +7933,15 @@ adapter's :math:`\mu_x` as the direction cosine along that axis —
 identically to the slab case. The mask predicate
 :math:`\Omega \cdot \hat n < -\epsilon` therefore applies
 unchanged. The factory's curvilinear guard was lifted; only 2-D
-cylindrical :class:`Mesh2D` (which has no SN sweep in ORPHEUS
-today) continues to raise :class:`NotImplementedError`.
+cylindrical :class:`Mesh2D` (which has no SN sweep in ORPHEUS)
+continued to raise :class:`NotImplementedError` (C5.3 later made the
+factory geometry-blind, :ref:`sn-c5-geometry-blind-trace`).
 
 Issue #188 / C188.3 then collapsed ``SNProblem._resolve_one``
 to a single path: every supported mesh (1-D Cartesian / spherical
-/ cylindrical + 2-D Cartesian) builds an
-:class:`SNMethodSpace.for_face` and routes through
-:class:`SNBoundaryRealizer`. Issue #176 / C176.1 then dropped the
+/ cylindrical + 2-D Cartesian) built an
+``SNMethodSpace.for_face`` and routed through
+``SNBoundaryRealizer``. Issue #176 / C176.1 then dropped the
 ``quadrature=`` kwarg from the shim because no
 production-issued shim carried ``_quadrature is not None`` after
 C188.3. Issue #176 / C176.3+C176.4 then trimmed the concrete BC
@@ -7958,6 +7997,24 @@ admits exactly that 3-axis mesh — not via a hypothetical ``Mesh3D``
 dataclass but via the axes tuple directly — and the face-name keying
 built here carries it through unchanged.
 
+.. note::
+
+   **What wave 2 (2026-10-24) changed under this carve, and what it kept.**
+   The crosswalk, the face inventory as the key set of both the trace layout
+   and ``bc``, the structural absence of the pole and the key identity below
+   hold as written. What changed is the declaration side and the value side:
+   each face's declaration is its role (a deck, or an integer tag bound to a
+   :class:`~orpheus.transport.boundary_conditions.WallCondition`), joined by
+   :func:`~orpheus.transport.boundary_conditions.bind` into a
+   :class:`~orpheus.transport.boundary_conditions.Binding` and realized by
+   :func:`~orpheus.transport.method.realize_boundary` through the table
+   ``SN_REALIZERS``, and the values of :attr:`SNProblem.bc` are typed
+   :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary` operators.
+   The passages below that describe the C4-era resolver, its laws and its
+   shim are history and say so. The present architecture is
+   :ref:`bc-architecture-of-record`; each retired name maps to its successor
+   in :ref:`bc-wave2-crosswalk`.
+
 The three string-named layers and the single crosswalk
 -------------------------------------------------------
 
@@ -7987,10 +8044,12 @@ Three SN-side structures key on the same boundary-face string names
        reproduces the same names).
    * - **BC dict**
      - :attr:`SNProblem.bc`
-       (``dict[str, _BoundBoundaryOperator]``)
-     - The resolved boundary operator per face — the realized
-       1-arg law that maps an outgoing face trace to its incoming
-       partner.
+       (``dict[str, RealizedBoundary]``,
+       :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`)
+     - The realized boundary operator per face with a trace — the typed
+       :math:`\Gamma_+ \to \Gamma_-` map of the face's declaration (a deck,
+       or the condition its tag is bound to). At C4 the value was the
+       ``_BoundBoundaryOperator`` shim around the 1-arg realized law.
 
 Pre-C4 each of these grew its key set from its own per-geometry
 hand-list. The crosswalk knowledge — "axis 0 is ``x``; the
@@ -8002,8 +8061,8 @@ single-sourced rendering on the structural face key:
 
 .. code-block:: python
 
-   # orpheus/sn/axis.py
-   AXIS_NAMES = ("x", "y", "z")
+   # orpheus/mesh/axis.py
+   from orpheus.geometry.faces import AXIS_NAMES        # ("x", "y", "z")
    _ENDPOINT_SUFFIX = {"min": "min", "max": "max", "outer": "max"}
 
    @dataclass(frozen=True, slots=True)
@@ -8021,11 +8080,14 @@ single-sourced rendering on the structural face key:
 :attr:`FaceLabel.face_name <orpheus.mesh.axis.FaceLabel.face_name>`
 is THE rendering of the structural identity ``(axis_index,
 endpoint)`` into the ``"{axis}{min|max}"`` string world. Both
-producers — :attr:`SNProblem.boundary_face_layout` and
-:meth:`SNProblem.realize_boundary_law` — call it, so a key drift between the
-face layout and the BC dict is **unrepresentable by construction**:
-they cannot disagree because they read the same function over the
-same :func:`~orpheus.mesh.axis.face_labels` inventory.
+producers — :attr:`SNProblem.boundary_face_layout` and the shared
+:func:`~orpheus.transport.method.realize_boundary` body (its ``traced`` set
+is ``{label.face_name for label in face_labels(method.axes)}``) — read it, so
+a key drift between the face layout and the BC dict is **unrepresentable by
+construction**: they cannot disagree because they read the same function over
+the same :func:`~orpheus.mesh.axis.face_labels` inventory. (Until wave 2 the
+second producer was the C4-era ``SNProblem.realize_boundary_law`` hook, called
+per face by ``resolve_boundary_conditions``.)
 
 .. note::
 
@@ -8034,8 +8096,9 @@ same :func:`~orpheus.mesh.axis.face_labels` inventory.
    (then ``orpheus.transport.mesh.axis``, now :mod:`orpheus.mesh.axis`) in
    C4 — to the bottom of the SN dependency graph, next to the axis
    primitives it names; a later step moved it down again, to
-   :mod:`orpheus.numerics.face_layout` (below), and the axis module
-   re-exports it. ``sweep_graph`` re-exported it only outward;
+   :mod:`orpheus.numerics.face_layout` (below), and since layer DAG WP-B
+   (2026-10-22) it lives in :mod:`orpheus.geometry.faces`, from which the
+   axis module re-exports it. ``sweep_graph`` re-exported it only outward;
    ``sweep_schedule`` and ``loss_representation`` now import it
    downward. This puts the single source of the axis↔name crosswalk
    in the same module as :class:`~orpheus.mesh.axis.FaceLabel`, the
@@ -8088,65 +8151,80 @@ structure:
         │       named  label.face_name,  shaped (N, ng, *face_shape(label))
         │
         └─── bc : one entry per label,
-                keyed  label.face_name,  resolved from
-                axes[label.axis_index].bc[label.endpoint]
+                keyed  label.face_name,  realized from that face's role
+                axes[label.axis_index].roles[label.endpoint]
+                (a deck, or a tag bound to a condition)
 
-The BC **declaration** source for each face is the per-axis
-inventory ``axes[label.axis_index].bc[label.endpoint]`` — the
-*same* axes that ``face_labels`` derives the labels from. The face
-inventory **is** the BC inventory: a face that exists has exactly
-one declaration; a face that does not (the pole) has no label and no
-entry. The resolution is one loop over the labels, the body of
-:func:`~orpheus.transport.method.resolve_boundary_conditions` in
-``orpheus/transport/method.py``:
+The **declaration** source for each face is its role: each axis carries one
+role per endpoint (``AxisMesh.roles``, a deck or an ``int`` tag, on
+:class:`~orpheus.mesh.axis.AxisMesh`), keyed by the *same* axes that
+``face_labels`` derives the labels from, and the material mesh's ``face_roles``
+joins them under the face names. The face inventory **is** the role inventory:
+a face that exists has exactly one role; a face that does not (the pole) has no
+label and no role. A tag is bound to its condition by the problem's declared
+conditions: :func:`~orpheus.transport.boundary_conditions.bind` joins the two
+into a :class:`~orpheus.transport.boundary_conditions.Binding`, which is an
+exact cover of the tags (a tag no condition names, or a condition no face's tag
+names, is refused) and invariant under the problem's colouring group. The
+resolution is one loop over the binding's faces, the body of
+:func:`~orpheus.transport.method.realize_boundary` in
+``orpheus/transport/method.py`` (quoted with its annotations and docstring
+elided):
 
 .. code-block:: python
 
-   from orpheus.mesh.axis import face_labels
-   from orpheus.transport.method import _law_from_tag
+   def realize_boundary(method):
+       table, binding = method.boundary_realizers, method.binding
+       traced = {label.face_name for label in face_labels(method.axes)}
+       realized = {}
+       for face in binding.faces:
+           declared = binding.decks[face] if face in binding.decks else binding.condition_of(face)
+           if face in traced:
+               realized[face] = method.realize_boundary_role(declared, face)
+           else:
+               table.require(declared, method.face_site(face))
+       return realized
 
-   def resolve_boundary_conditions(method):
-       resolved = {}
-       for label in face_labels(method.axes):
-           tag = method.axes[label.axis_index].bc[label.endpoint]
-           law = _law_from_tag(method, tag, label)
-           resolved[label.face_name] = method.realize_boundary_law(
-               law, label.face_name,
-           )
-       return resolved
-
-Every axis declares a law on each of its endpoints (its constructor
-refuses ``None``), so the declaration is read verbatim and there is no
+A glued face is realized from its deck, a tagged face from the condition its tag
+is bound to. A face with a trace slot goes to the method's hook,
+:meth:`~orpheus.sn.problem.SNProblem.realize_boundary_role`; a face without one
+(the inner face of a hollow radial body: a tag with no inner-surface trace) only
+meets the table through ``require``, which raises the same refusal. Every axis
+carries a role on each endpoint (``None`` is not a role, and the axis
+constructors refuse it), so the declaration is read verbatim and there is no
 default to fall back on (:ref:`structured-geometry-no-default-law`).
-The C4-era body read ``… or default`` with ``default =
-BC("reflective")``, filling an undeclared axis law as reflective; P1
-step 3c of #405 (2026-09-30) retired that default together with
-``None`` as a declaration. Each declaration is
-realized by
-:meth:`~orpheus.sn.problem.SNProblem.realize_boundary_law`
-— the SN arm of the :class:`~orpheus.transport.method.TransportMethod`
-hook, driven per face by the shared
-:func:`~orpheus.transport.method.resolve_boundary_conditions` body
-(the C4-era spelling was the mesh-private ``SNProblem._resolve_one``,
-which owned the per-face loop itself; #290 P7b moved the loop up and
-renamed the hook). Its realizer plumbing
-(registry → ``SNMethodSpace.for_face`` →
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` →
-``_BoundBoundaryOperator``) is
-**unchanged** from the pre-C4 path — C4 changed only the *keying and
-storage*, not the *realization*. Hence the resolved operators are
-bit-identical objects to the pre-C4 ones (see
-:ref:`bc-face-name-carve-verification`).
+
+The C4-era body of this loop was ``resolve_boundary_conditions``: for each label
+it read ``axes[label.axis_index].bc[label.endpoint]``, turned the tag into a law
+with ``_law_from_tag`` and called ``method.realize_boundary_law(law,
+label.face_name)``. Wave 2 retired it with the string tables it read (see
+:ref:`bc-wave2-crosswalk`). Its first form was the mesh-private
+``SNProblem._resolve_one``, which owned the per-face loop itself (#290 P7b moved
+the loop up and renamed the hook), and it read ``… or default`` with ``default =
+BC("reflective")``, filling an undeclared axis law as reflective, until P1 step
+3c of #405 (2026-09-30) retired that default together with ``None`` as a
+declaration. The realizer plumbing it drove (registry →
+``SNMethodSpace.for_face`` → ``SNBoundaryRealizer`` → ``_BoundBoundaryOperator``)
+was **unchanged** from the pre-C4 path: C4 changed only the *keying and
+storage*, not the *realization*, so the resolved operators were bit-identical
+objects to the pre-C4 ones (see :ref:`bc-face-name-carve-verification`). Today
+the hook builds ``SNMethodSpace(quadrature, trace)`` and calls
+``SN_REALIZERS.realize(role, face_site(face), method_space)``, which admits the
+declaration on the face first and then returns the face's
+:class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`.
 
 The :attr:`boundary_face_layout` producer is the dual comprehension:
 
 .. code-block:: python
 
-   # orpheus/sn/geometry.py — boundary_face_layout (post-C4)
+   # orpheus/sn/problem.py — boundary_face_layout
    return FaceLayout.from_named_shapes([
-       (label.face_name, (N, self.ng, *self.face_shape(label)))
+       (label.face_name, (N, self.ng, *self.face_shape(label), *moment_tail))
        for label in self.face_labels
    ])
+
+(``moment_tail`` is the trailing transverse-moment axis of a multi-moment
+scheme, empty for diamond difference and step; it did not exist at C4.)
 
 The pre-C4 body of each producer was a 3-branch ``isinstance`` /
 coord-system split (1-D slab / 1-D curvilinear / 2-D Cartesian) that
@@ -8170,7 +8248,7 @@ at :math:`r=0` is the angular closure's regularity condition (the
 :math:`\mu=\pm 1`; the inward sweep seeds from a moment-folded
 source at :math:`\mu=-1` — see
 :ref:`sn-pole-angular-closure-protocol` in
-:doc:`/theory/methods/sn/curvilinear_one_group`), not a BC trace law.
+:doc:`/theory/methods/sn/curvilinear_one_group`), not a boundary condition.
 
 C4 **sharpens** the pre-existing Pattern-4 treatment of the pole.
 Pre-C4 the pole-as-non-BC was spelled by an explicit null:
@@ -8225,8 +8303,8 @@ wrong on a configuration the degenerate lower-dimensional test never
 reaches): it would produce a plausible-but-wrong converged flux on a
 3-D reflective problem, invisible to any :math:`d \le 2` test.
 
-C4 derives the axis from the label's own
-``AXIS_NAMES[label.axis_index]``, so the reflection partner is
+C4 derived the axis from the label's own
+``AXIS_NAMES[label.axis_index]``, so the reflection partner was
 correct at **any** dimension by construction::
 
     law = ReflectiveBoundary(axis=AXIS_NAMES[label.axis_index])
@@ -8236,6 +8314,15 @@ z-face never sheds in the in-plane projection — both are latent
 3-D correctness traps closed *before* ``Mesh3D`` exists, so that the
 N-D layout campaign reaches C5 with the boundary keying already
 3-D-correct.
+
+Wave 2 made the class unspellable instead of correct by derivation: no
+declaration carries an axis name. A reflecting Cartesian face is a
+``MirrorDeck()`` and a reflecting curved wall a ``WallCondition.specular(...)``;
+:func:`~orpheus.geometry.deck.pairing_of` reads the mirror's plane from the
+face's own name (``face_normal(face)``, then ``mirror_motion(AXIS_NAMES[axis],
+dimension)``), and the ordinate permutation is ``ordinate_pairing(quadrature,
+motion)``. The d=2 pin ``test_2d_reflective_y_face_builds_y_axis_permutation``
+(below) still asserts that the ``ymin`` / ``ymax`` faces get the y mirror.
 
 .. note::
 
@@ -8261,8 +8348,9 @@ a ``dict[FaceLabel, ...]`` keyed by the structural label directly.
 C4 chose **string-keyed**, isomorphic to
 :attr:`FaceLayout.faces <orpheus.numerics.face_layout.FaceLayout>`,
 for one reason: **every consumer iterates ``trace.layout.faces``
-(strings)**. The within-group operator's
-:meth:`SNBoundaryOperator._face_laws` and the schedule's
+(strings)**. The within-group operator
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` (it reads
+``problem.bc[face]``; its C4-era helper was ``_face_laws``) and the schedule's
 ``reflective_faces`` both walk the trace layout's face-name strings
 and index the BC by that string. A ``FaceLabel``-keyed dict would
 force a reverse ``name → label`` lookup at *every* consumer, re-deriving
@@ -8311,7 +8399,7 @@ very desync the carve removes):
 * **The degenerate 1-D y-face placeholders.** Pre-C4, a slab
   :class:`SNProblem` carried a pair of realized no-op
   ``ReflectiveBoundary(axis="y")`` operators at ``bc_ymin`` /
-  ``bc_ymax``, routed through :meth:`SNMethodSpace.minimal` so
+  ``bc_ymax``, routed through ``SNMethodSpace.minimal`` so
   cross-dimensional code could read them without coord-system
   gating. **No production code ever read them**: a 1-D Problem's
   ``trace.layout.faces`` is ``("xmin", "xmax")``, so the generic
@@ -8330,7 +8418,7 @@ very desync the carve removes):
   (``"y" if face in (...) else "x"``) — see
   :ref:`bc-face-name-latent-d3-bug`.
 
-Consumers migrated in C4: :meth:`SNBoundaryOperator._face_laws`
+Consumers migrated in C4: ``SNBoundaryOperator._face_laws``
 (within-group operator) and ``sweep_schedule.reflective_faces``
 (the schedule) both changed from ``getattr(mesh, f"bc_{face}")`` to
 ``mesh.bc[face]``, iterating over ``trace.layout.faces`` exactly as
@@ -8347,16 +8435,15 @@ strategy reflects that:
 
 * **Bit-identity by inheritance.** A BC realization is object
   construction; the realizer plumbing (registry →
-  ``SNMethodSpace.for_face`` →
-  :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` →
-  ``_BoundBoundaryOperator``) is unchanged — it is reached today
-  through
-  :meth:`~orpheus.sn.problem.SNProblem.realize_boundary_law`
-  rather than the C4-era ``_resolve_one``. The resolved
-  operators are the same objects as before, so every solver test
-  that exercises them inherits its prior verification. The affine
+  ``SNMethodSpace.for_face`` → ``SNBoundaryRealizer`` →
+  ``_BoundBoundaryOperator``) was unchanged — it was reached through
+  the C4-era ``_resolve_one`` (today through
+  :meth:`~orpheus.sn.problem.SNProblem.realize_boundary_role` and the
+  table ``SN_REALIZERS``). The resolved
+  operators were the same objects as before, so every solver test
+  that exercised them inherited its prior verification. The affine
   ``sha256`` goldens stayed byte-identical; the broad sweep /
-  operators / primitives / solve suite is green.
+  operators / primitives / solve suite was green.
 * **L0 crosswalk pins**
   (:mod:`tests.gates.sn.primitives.test_face_name_crosswalk`,
   foundation-tagged). An exhaustive **hand-transcribed**
@@ -8402,6 +8489,9 @@ the predecessor close-out below.
 Predecessor closure — curvilinear realizer unification (Issue #188 + #176 + #186)
 ---------------------------------------------------------------------------------
 
+This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
+
 The realizer path that C4 keys into was made uniform across geometries
 by the curvilinear-realizer-unification arc
 (:ref:`bc-curvilinear-realizer-unification`), closed by branch
@@ -8421,27 +8511,32 @@ by the curvilinear-realizer-unification arc
   ``f71a32c`` + ``da414eb`` + ``89d09a4`` + ``633cc69`` +
   ``bb674da`` + the test-migration trail). Retired the Option-A
   ``apply`` methods, dropped :class:`LinearOperator`
-  inheritance from :class:`BoundaryTraceLaw`, and formalised the
+  inheritance from ``BoundaryTraceLaw``, and formalised the
   descriptor-tree composition algebra via the new
-  :class:`LawSum` / :class:`LawScaled` types. The architectural
+  ``LawSum`` / ``LawScaled`` types. The architectural
   sequence is therefore Issue #188 → #176 → #186: each step
   unblocked the next.
 
-The :class:`_BoundBoundaryOperator` shim survives because a resolved BC
-must carry **both faces of its realization** — what it does
-(:attr:`inner`) and what it means (:attr:`law`, since phase B2.0). Its
-``kind``-string tag is the older, weaker reason: load-bearing for the
+The ``_BoundBoundaryOperator`` shim survived that closure because a resolved BC
+had to carry **both faces of its realization** — what it does
+(``inner``) and what it means (``law``, since phase B2.0). Its
+``kind``-string tag was the older, weaker reason: load-bearing for the
 BC-resolution diagnostic and several ``problem.bc["xmin"] ==
 "vacuum"``-style test sites (the dict-keyed spelling since C4 / #220;
-this was ``problem.bc_left == "vacuum"`` pre-C4), and now a read-through
-of ``law`` rather than a stored copy — phase B2.2 retires it, and the
-shim survives that retirement on the descriptor alone. The dual-mode
+this was ``problem.bc_left == "vacuum"`` pre-C4), and then a read-through
+of ``law`` rather than a stored copy — phase B2.2 retired it, and the
+shim survived that retirement on the descriptor alone. The dual-mode
 bound-quadrature
-backing is gone (#176), and the ``*_extra, **_kw`` swallow is
-gone (#186 / C-B3.4). Every supported mesh consumes a strict
+backing was gone (#176), and the ``*_extra, **_kw`` swallow was
+gone (#186 / C-B3.4). Every supported mesh consumed a strict
 1-arg :class:`LinearOperator` produced by
-:class:`SNBoundaryRealizer` for single BCs, or by
-:func:`realize_recursively` for rank-N descriptor trees.
+``SNBoundaryRealizer`` for single BCs, or by
+``realize_recursively`` for rank-N descriptor trees. Wave 2 retired the shim (see
+:ref:`bc-wave2-crosswalk`): its successor
+:class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary` is itself the
+operator, carries ``inner``, and answers the face's facts
+(``return_fraction``, ``permutes_ordinates``, ``domain_face``, ``is_vacuum``) as
+properties of its type, so no consumer asks for a law.
 
 Plan documents:
 
@@ -8453,11 +8548,14 @@ Plan documents:
 * ``.claude/plans/bc-trace-law-descriptor-cleanup.md`` — the
   Issue #186 B3 + β2 cleanup plan (descriptor-model landing).
 
-Grand Report v3 §16A.3 (the three-layer architecture) is now
-**enforced by the type system** — descriptors have no ``apply``,
-operators do. Grand Report v3 §16A.5 (the trace-correct vacuum
-representation) is uniform across coord systems and the legacy
-zeros-all path no longer exists.
+At this closure Grand Report v3 §16A.3 (the three-layer architecture) was
+**enforced by the type system** — descriptors had no ``apply``, operators did —
+and §16A.5 (the trace-correct vacuum representation) was uniform across coord
+systems, the legacy zeros-all path gone. Both hold under the wave-2 types: a
+:class:`~orpheus.transport.boundary_conditions.WallCondition` is data and has no
+``apply`` (the realized operator has), and a vacuum wall realizes to the zero
+map :math:`\Gamma_+ \to \Gamma_-` of the face it is installed on
+(``ZeroMap``, the image of the empty response network).
 
 
 .. _sn-axis-primary-c5:
@@ -8736,14 +8834,17 @@ from the quadrature (the :math:`\mu_x` / :math:`\mu_y` / :math:`\mu_z`
 cosines) and the layout's face names (the axis-aligned normals implied
 by the ``"{axis}{min|max}"`` convention).
 
-With the gate gone, :meth:`SNProblem.realize_boundary_law` builds the trace
-**unconditionally** (the pre-C5.3 ``isinstance`` gate excluded only the
-unconstructible 2-D cylindrical mesh), and :attr:`SNProblem.angular_trace` is typed
-and documented as **always non-None**.
-:meth:`SNMethodSpace.for_face <orpheus.sn.mesh.method_space.SNMethodSpace.for_face>`'s
-``mesh`` parameter becomes **optional metadata** — nothing in the
-realizer chain reads it, and an axis-native :class:`SNProblem` passes
-``None``.
+With the gate gone, the trace is built **unconditionally** (the pre-C5.3
+``isinstance`` gate excluded only the unconstructible 2-D cylindrical mesh): at
+C5.3 inside ``SNProblem.realize_boundary_law``, today in the :class:`SNProblem`
+constructor (``self._trace = AngularTraceSpace.from_quadrature_and_layout(...)``),
+ahead of the binding's realization. :attr:`SNProblem.angular_trace` is typed
+and documented as **always non-None**. The ``mesh`` parameter of
+``SNMethodSpace.for_face`` became **optional metadata** — nothing in the
+realizer chain read it, and an axis-native :class:`SNProblem` passed
+``None``; its successor
+:class:`~orpheus.sn.mesh.method_space.SNMethodSpace` is the plain pair
+``(quadrature, trace)`` and holds no mesh.
 
 .. note::
 
@@ -8877,17 +8978,18 @@ None``) on the d-generic
   tuple** — the *only* 3-D entry — through one inbound seam
   (``_as_problem``). A new ``mat_map`` keyword is the axes-entry
   material channel (it raises if combined with a legacy mesh, which
-  carries its own material map). The entry takes every face law from
-  the declaration, on both surfaces: each axis declares a law on each
-  endpoint, and no entry fills a face
+  carries its own material map). The entry takes every face's role from
+  the declaration, on both surfaces: each axis declares a role (a deck or a
+  tag) on each endpoint, the exterior conditions come from the
+  ``boundary_conditions`` keyword, and no entry fills a face
   (:ref:`structured-geometry-no-default-law`).
 
 .. note::
 
-   **Every law is declared.** The value gates below declare their
-   laws: every face reflective for the headline
+   **Every face is declared.** The value gates below declare their
+   faces: every face a mirror deck for the headline
    :math:`k_\infty` identity and the closed-form flux identities, and a
-   mixed declaration for the Mode-9 box.
+   mixed declaration (mirror decks and a vacuum tag) for the Mode-9 box.
    ``test_axes_declared_laws_are_taken_verbatim`` checks that the
    entry realises a mixed 3-D declaration face by face as declared.
    Until P1 step 3c of #405 (2026-09-30) an undeclared face had two
@@ -8994,10 +9096,15 @@ measured cost"):
   a peak-memory win — the :math:`d = 3` economics need separate
   numbers).
 
-Separately, the **multi-D adjoint** (``loss_action_transpose`` raises
-:class:`NotImplementedError` at any multi-D) is a **pre-existing
+Separately, the **multi-D adjoint** (``loss_action_transpose`` raised
+:class:`NotImplementedError` at any multi-D) was a **pre-existing
 deferral** orthogonal to C5 (G-adjoint campaign territory), noted here
-only so the :math:`d = 3` capability map is complete.
+only so the :math:`d = 3` capability map was complete. It is lifted for the
+registered loss representations: since #310 C4/C5 every registered leaf has a
+reverse walk (the ``has_transpose_walk`` docstring: every registered leaf overrides it to true), and the 2-D adjoint row
+is no longer excluded (:doc:`/theory/methods/sn/loss_representation` carries the
+account). [R] This page does not claim the :math:`d = 3` adjoint
+is value-gated; the four gates above are forward solves.
 
 C5 closure
 ----------
@@ -9020,7 +9127,8 @@ Anti-pattern catalog
 
 A short list of patterns the refactor's authors considered and
 rejected, with the reasoning preserved so future sessions don't
-re-attempt them:
+re-attempt them. Each entry says what, if anything, the wave-2 types
+(2026-10-24) made of it; a retired name is a literal.
 
 1. **Single ``BoundaryOperator`` ABC carrying both law and
    realizer responsibilities.** This is the pre-refactor shape.
@@ -9029,14 +9137,24 @@ re-attempt them:
    method-specific. Keeping them in one class would force every
    law to know about the SN sweep's half-trace plumbing (an inflow
    mask at the time; the :math:`\gamma_\pm` restrictions since B3.2),
-   which is precisely what Wave 0 / Wave 1 / Wave 2 was supposed to
-   abstract away.
+   which is precisely what Waves 0 to 2 of the twelve-wave
+   refactor were supposed to abstract away. The split survives wave 2 in
+   other objects: a boundary condition (a
+   :class:`~orpheus.transport.boundary_conditions.WallCondition`, or a deck)
+   is method-agnostic data, and each method's realizer table
+   (``SN_REALIZERS``, ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``,
+   ``MOC_REALIZERS``, ``MC_REALIZERS``) realizes it, so a condition cannot
+   know a sweep's plumbing.
 2. **Dedicated ``MixedBoundaryOperator`` class.** Pre-Wave-11
    shape. Rejected (deleted Wave 11) — the Wave-0 algebra dunders
-   on every :class:`BoundaryTraceLaw` already produce
-   :class:`OperatorSum` shapes; the dedicated class added a
+   on every ``BoundaryTraceLaw`` already produced
+   ``OperatorSum`` shapes; the dedicated class added a
    second realization path with no semantic difference. See
-   :ref:`bc-rank-n-algebra`.
+   :ref:`bc-rank-n-algebra`. Under wave 2 the sum of walls is
+   :class:`~orpheus.transport.boundary_conditions.WallCondition`'s own ``+`` and
+   ``*`` (``WallCondition.from_amplitudes(0.3, 0.7)`` spells the common pair),
+   and its realization is a ``RealizedSum``: one mixed-wall type at each
+   layer, no dedicated class.
 3. **Shared ``BoundaryRealizerBase`` ABC for cross-method
    realizers.** Considered Wave 5, when only one functional
    realizer existed. Rejected per the "Unify after two instances"
@@ -9046,14 +9164,27 @@ re-attempt them:
    method #2: the diffusion realizer (#290 P3) chose a DIFFERENT
    shape (law → albedo scalar → structure-keyed collapse, not an
    isinstance ladder over per-law primitives), and the structural
-   :class:`~orpheus.transport.boundary_realization.BoundaryRealizer` Protocol
-   remains the only shared contract — no ABC was ever needed.
+   ``BoundaryRealizer`` Protocol stayed the only shared contract through
+   wave 1. Wave 2 then minted the shared object, after the diffusion shape had
+   shown what SN's dispatch idiom lacked: the
+   :class:`~orpheus.transport.boundary_conditions.RealizerTable`, one per
+   method (five tables exist), which answers admission and realization
+   together and keys its realizers by the unit realized, not by an
+   ``isinstance`` ladder over the declaration. The lesson stands in the
+   corrected form: the abstraction was extracted when the instances had shown
+   what they share (a table keyed by the unit, a refusal that names the face),
+   and it does not have SN's shape.
 4. **Adding ``face`` to ``VacuumInflow``'s constructor for
    semantic correctness on the standalone-apply path.** Option (b)
    in :ref:`bc-vacuum-semantic-correction`. Rejected because it
    would have inflated every test signature for one wave to fix a
    path that the refactor was retiring anyway. The transitional
-   legacy-vacuum body is the right cost.
+   legacy-vacuum body was the right cost. Both the path and the constructor are
+   gone: vacuum is ``WallCondition.vacuum()``, a condition with no face
+   parameter, and a realized vacuum is the ``ZeroMap`` of the face it is
+   realized on, whose domain and codomain are read off that face's trace
+   ladder, so a vacuum built against the wrong half-trace is unspellable
+   (ERR-041 is the catalogued case).
 5. **Auto-importing every cross-method realizer at
    ``orpheus.geometry.boundary`` import time.** Considered in
    the registry era to make ``BoundaryRealizerRegistry.get("MoC")``
@@ -9075,7 +9206,8 @@ re-attempt them:
    "preserve flexibility" by keeping the dual mode after the
    curvilinear deferral lifts. The right move is to delete the
    bypass and consolidate on one path — see
-   :ref:`bc-curvilinear-realizer-unification`.
+   :ref:`bc-curvilinear-realizer-unification`. Wave 2 retired the shim too; the one
+   path is ``SNProblem.realize_boundary_role`` into ``SN_REALIZERS``.
 7. **Option A (keyword-optional ``quadrature=None`` on the
    concrete laws).** Landed Issue #176 / C176.3 as the interim
    form; **retired Issue #186 / B3 + β2** in favour of the
@@ -9087,31 +9219,51 @@ re-attempt them:
    to land curvilinear realizer unification (Issue #188 first)
    before the descriptor cleanup could ship. See
    :ref:`bc-trace-law-descriptor-model` for the full retrospective.
-8. **Calling ``apply`` on a raw BC descriptor.** Under the
+8. **Calling ``apply`` on a raw BC declaration.** Under the
    pre-#186 contract this either worked (with surprising
    semantics — see Option A entry above) or raised
-   :class:`BoundaryError`. Under post-#186 it's a **static type
-   error** — :class:`BoundaryTraceLaw` has no :meth:`apply`
-   method on the class, and neither do :class:`LawSum` /
-   :class:`LawScaled`. The correct contract is
-   ``SNBoundaryRealizer().realize(law, ms).apply(psi)`` for a
-   single BC, or
-   ``realize_recursively(tree, ms, SNBoundaryRealizer()).apply(psi)``
-   for a descriptor tree. The realizer is the **sole** bridge; the
-   §16A.3 three-layer split is enforced by the type system.
+   ``BoundaryError``. Under post-#186 it was a **static type
+   error** — ``BoundaryTraceLaw`` had no ``apply``
+   method on the class, and neither did ``LawSum`` /
+   ``LawScaled``. Wave 2 keeps the split in other types: a
+   :class:`~orpheus.transport.boundary_conditions.WallCondition` and the decks
+   are data and have no ``apply``, and the realized operator has. The correct
+   contract is the problem's own door, ``problem.bc[face].apply(psi)``
+   (the face's :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`,
+   on a :math:`\Gamma_+`-shaped argument), or, for a face outside a problem,
+   ``SN_REALIZERS.realize(declared, site, method_space).apply(psi)`` (the call
+   ``tests/gates/sn/architecture/test_wave2_carry.py`` makes as
+   ``H.sn_table().realize(declared, where, space)``). The table is the **sole**
+   bridge; the §16A.3 three-layer split is enforced by the type system.
 9. **In-tree Wave-0 operator algebra over unrealized
-   :class:`BoundaryTraceLaw` instances (β1 form).** Considered as
+   ``BoundaryTraceLaw`` instances (β1 form).** Considered as
    the rank-N composition mechanism during Issue #186 B3
    exploration. Rejected in favour of the separate-type-family
-   approach (β2 / :class:`LawSum` / :class:`LawScaled`). β1
-   produced :class:`OperatorSum` trees whose leaves were laws,
+   approach (β2 / ``LawSum`` / ``LawScaled``). β1
+   produced ``OperatorSum`` trees whose leaves were laws,
    not operators — the type checker could not distinguish a
    not-yet-realized "operator" from a real operator, and calling
-   :meth:`apply` on the β1 tree raised at the leaf realization
-   step. β2 makes the law-vs-operator distinction inspectable
-   statically: :class:`LawSum` has no :meth:`apply` method, full
+   ``apply`` on the β1 tree raised at the leaf realization
+   step. β2 made the law-vs-operator distinction inspectable
+   statically: ``LawSum`` had no ``apply`` method, full
    stop. See :ref:`bc-rank-n-algebra` for the detailed
-   comparison.
+   comparison. Wave 2 replaced the β2 family by one declared type: a sum of
+   walls is a :class:`~orpheus.transport.boundary_conditions.WallCondition`
+   (its ``+`` and ``*``; a combination that leaves the cone of walls is a
+   ``WallDisplacement``, which is never bindable), data with no ``apply``,
+   and its realization is a ``RealizedSum``. The law-vs-operator distinction
+   is still inspectable statically, and a sum is one type, not a type family.
+10. **A string registry beside the realizer, answering admission separately.**
+    Until wave 2 each method kept a registry of admitted tags
+    (``BOUNDARY_OPERATOR_REGISTRY``, ``BC_REGISTRY``) next to the realizer that
+    built the operator: the SN registry admitted two kinds while the realizer
+    realized six laws, so the query and the realization could disagree.
+    Rejected: the realizer table
+    (:class:`~orpheus.transport.boundary_conditions.RealizerTable`) answers
+    "is this declaration admitted on this face" and "realize it" from one set
+    of registrations, and a refusal is raised at construction naming the face
+    (``BoundaryRefused``). The registries are retired
+    (see :ref:`bc-wave2-crosswalk`).
 
 
 References
