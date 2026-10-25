@@ -141,37 +141,100 @@ Key Facts
 
      J^- \;=\; \mathcal{A}\,J^+ .
 
-  .. list-table:: Diffusion boundary laws (the albedo family)
-     :header-rows: 1
-     :widths: 20 10 70
+  Each row below is marked with the **tier** at which the diffusion
+  realizer table admits it (the admission lattice is
+  :ref:`bc-method-realizability`). Tier 1 means the condition is realized
+  faithfully (``Realized(True)``): the method's projection onto the
+  half-range moments tells it apart from every other condition. Tier 2
+  means it is realized exactly, but the projection cannot tell it from
+  another condition (``Realized(False)``): the realized operator is
+  correct, and two different declarations give the same operator.
 
-     * - Law (``BC`` tag)
+  .. list-table:: Diffusion exterior conditions (the albedo family)
+     :header-rows: 1
+     :widths: 24 8 68
+
+     * - Declaration (bound to a face tag)
        - :math:`\mathcal{A}`
        - Physics
-     * - ``"vacuum"``
+     * - ``WallCondition.vacuum()``
        - :math:`0`
-       - **Marshak**: zero incoming current :math:`J^- = 0`. In
+       - **Marshak**: zero incoming current :math:`J^- = 0` (the empty
+         response network, which realizes exactly: tier 1). In
          :math:`(\phi, J)` variables this is the Robin condition
          :math:`\phi + 2 D\,\partial_n\phi = 0` (Marshak 1947).
-     * - ``"reflective"``
+     * - ``WallCondition.specular(1.0)``, ``WallCondition.white(1.0)``, a
+         ``MirrorDeck`` face
        - :math:`1`
-       - zero net current :math:`J^+ = J^-` — a symmetry plane.
-     * - ``"albedo"`` (:math:`\alpha`)
+       - zero net current :math:`J^+ = J^-` — a symmetry plane. A mirror
+         deck, a unit specular chain and a unit white chain realize the
+         same operator (the identity), each admitted as tier 2.
+     * - ``WallCondition.specular(alpha)``, ``WallCondition.white(alpha)``
        - :math:`\alpha`
        - partial return :math:`J^- = \alpha J^+`, physical range
-         :math:`\alpha \in [0, 1]`.
-     * - ``"zero_flux"``
+         :math:`\alpha \in [0, 1]`, **enforced at construction**
+         (``WallCondition.specular(5.0)`` raises
+         ``SubmarkovViolationError``, so a super-Markov albedo is
+         unspellable). Diffusion cannot tell the two chains apart (the
+         angular redistribution integrates out of the half-range
+         moments), so both realize :math:`\alpha\,I` and are admitted as
+         ``Realized(False)``, tier 2. A mixed wall (``specular(s) +
+         white(d)``) realizes :math:`\mathcal{A} = s + d`.
+     * - ``ZeroFluxCondition()``
        - :math:`-1`
        - Dirichlet :math:`\phi_\Gamma = 0` (since
          :math:`\phi_\Gamma = 2(J^+ + J^-)`, this is
          :math:`J^- = -J^+`) — a mathematical idealisation, deliberately
-         outside the physical :math:`[0, 1]` range.
-     * - ``"white"``
-       - :math:`1`
-       - coincides with reflective at the P1 level (the angular
-         redistribution distinguishing them integrates out of the
-         half-range moments); deliberately **absent** from the diffusion
-         registry — declare ``reflective``.
+         outside the physical :math:`[0, 1]` range, tier 1, and the one
+         condition **only diffusion admits** (it is not a response
+         network, so it is not a ``WallCondition``; every other
+         method's table refuses it).
+
+  **[M]** 2026-10-24, one slab through five conditions on its right face.
+  The slab is :math:`[0, 4]` with 40 uniform-volume cells, a mirror deck
+  on the left face, the integer tag ``0`` on the right face, and the
+  two-group mixture ``"A"`` of
+  :func:`orpheus.derivations.common.xs_library.get_mixture`; the tag is
+  bound to each condition in turn through the ``boundary_conditions``
+  keyword of
+  :func:`~orpheus.diffusion.solver.solve_diffusion_1d`:
+
+  .. code-block:: python
+
+     from orpheus.geometry import StructuredGeometry, MirrorDeck
+     from orpheus.mesh import Mesher, CellsByCount
+     from orpheus.diffusion.solver import solve_diffusion_1d
+     from orpheus.diffusion.zero_flux import ZeroFluxCondition
+     from orpheus.transport.boundary_conditions import WallCondition
+     from orpheus.derivations.common.xs_library import get_mixture
+
+     geom = StructuredGeometry.slab((0.0, 4.0), (0,), left=MirrorDeck(), right=0)
+     mesh = Mesher(geom).partition((CellsByCount.uniform_volume(40),)).mesh
+     mix = {0: get_mixture("A", "2g")}
+     for label, c in [("ZeroFluxCondition()", ZeroFluxCondition()),
+                      ("WallCondition.vacuum()", WallCondition.vacuum()),
+                      ("WallCondition.specular(0.4)", WallCondition.specular(0.4)),
+                      ("WallCondition.white(0.4)", WallCondition.white(0.4)),
+                      ("WallCondition.specular(1.0)", WallCondition.specular(1.0))]:
+         r = solve_diffusion_1d(mix, mesh, boundary_conditions={0: c})
+         print(f"{label:30s} k = {r.keff!r}")
+
+  Output (run from outside the repository, with ``orpheus.__file__``
+  checked to resolve to the tree under test):
+
+  .. code-block:: text
+
+     ZeroFluxCondition()            k = 0.679988773445787
+     WallCondition.vacuum()         k = 0.9294063314980852
+     WallCondition.specular(0.4)    k = 1.1463729647961143
+     WallCondition.white(0.4)       k = 1.1463729647961143
+     WallCondition.specular(1.0)    k = 1.8750000000000058
+
+  The albedos are :math:`\mathcal{A} = -1, 0, 0.4, 0.4, 1` respectively,
+  and :math:`k` is strictly increasing in :math:`\mathcal{A}`. The
+  ``specular(0.4)`` and ``white(0.4)`` eigenvalues are bit-identical,
+  which is the tier-2 witness: diffusion cannot tell the two chains
+  apart.
 
   .. important::
 
@@ -181,8 +244,10 @@ Key Facts
      unfaithful naming (a zero-flux wall returns a *negative* incoming
      current, which no vacuum does). Ruling 3 of #290 corrected this:
      vacuum IS the Marshak zero-incoming-current condition, and the
-     zero-flux Dirichlet idealisation became its own honestly-named law
-     ``BC("zero_flux")`` (:math:`\mathcal{A} = -1`). The analytical
+     zero-flux Dirichlet idealisation became its own honestly-named law,
+     spelled ``BC("zero_flux")`` at the time and
+     :class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition` since wave 2
+     (:math:`\mathcal{A} = -1`). The analytical
      sine references on this page satisfy :math:`\phi = 0` and are
      therefore **zero-flux** references — re-attributed accordingly at
      #290 P6, with the mathematics unchanged (see
@@ -192,18 +257,37 @@ Key Facts
      between the zero-flux and reflective values); an analytical
      Robin-face reference is the close-out follow-up **#293**.
 
-  Boundary conditions are **declared on the mesh axes** — each endpoint
-  carries a :class:`~orpheus.geometry.boundary.BC` tag — and **realized at
-  construction**: promoting a mesh to a
-  :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` resolves each
-  face's tag into its typed law and then the albedo operator, through
-  the same shared
-  :func:`~orpheus.transport.method.resolve_boundary_conditions` body the
-  S\ :sub:`N` mesh uses (#290 P7). A solver never carries a boundary
-  registry; a diffusion phase space with unresolved boundary conditions
-  is unrepresentable. The three-layer decomposition (trace structure /
-  physical law / method realisation) is documented on
-  :doc:`/theory/foundations/boundary_conditions`.
+  Boundary conditions are **declared as integer face tags on the geometry**
+  (a face carries a deck or a tag, ``StructuredGeometry.slab(...,
+  right=0)``) and **bound to conditions at construction**: the
+  ``boundary_conditions`` keyword of
+  :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` and
+  :func:`~orpheus.diffusion.solver.solve_diffusion_1d` maps each tag to a
+  :class:`~orpheus.transport.boundary_conditions.BoundaryCondition`,
+  :func:`~orpheus.transport.boundary_conditions.bind` pairs the map with
+  the faces, and the shared
+  :func:`~orpheus.transport.method.realize_boundary` loop reads every
+  face's condition through the method's one realizer table,
+  :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`, which
+  answers admission and realization together and yields the albedo
+  operator. A solver never carries a boundary registry; a diffusion phase
+  space with an unadmitted or unrealizable condition is unrepresentable.
+  The table's refusals are typed: a prescribed inflow (an affine source)
+  is ``Refused(PLUMBING, #656)``; a translation (periodic) deck is
+  ``Refused(TOPOLOGY)``, since a per-face scalar has no slot for
+  cross-face coupling. Separately from the table, ``DiffusionMesh``
+  refuses a mesh that is not one-dimensional with a ``ValueError`` at
+  construction, before any boundary condition is bound.
+  **The inner face of a hollow radial body admits only a unit specular
+  return** (``Refused(PLUMBING, #511)`` otherwise): the stencil assembles
+  its boundary closures from the face inventory, which omits the hollow
+  axis's inner face, so that face's flow slot stays zero and diffusion
+  computes zero net current there whatever is declared; before the
+  refusal an inner ``vacuum()``, ``specular(1.0)`` and ``white(0.5)``
+  returned a bit-identical eigenvalue on a hollow sphere and a hollow
+  cylinder (S3 record, wave-2 plan 11.4). The architecture of record for
+  the whole boundary stack is :ref:`bc-architecture-of-record`; each
+  retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
 
 
 .. _diffusion-operator-family-section:
@@ -761,24 +845,30 @@ construction**. It is the structural sibling of
 :class:`~orpheus.sn.problem.SNProblem` (mesh + :term:`quadrature` +
 :term:`sweep` machinery + angular trace): one method-agnostic data carrier, one
 method layer per transport method. Every admission gate (1-D, bounded
-geometry, supported BC tags) fires at construction — an operator built
+geometry, admitted exterior conditions) fires at construction — an operator built
 on a bad phase space is action-at-a-distance otherwise — so a diffusion
-phase space with unresolved or unrealizable boundary conditions is
+phase space with unadmitted or unrealizable boundary conditions is
 **unrepresentable**.
 
 Both method-meshes are the two witnesses of the
 :class:`~orpheus.transport.method.TransportMethod` Protocol (#290 P7b),
-and BC resolution flows through the **one** shared
-:func:`~orpheus.transport.method.resolve_boundary_conditions` body — the
-same face loop and tag-to-law parse for S\ :sub:`N` and diffusion alike,
-with no default to fill: every face reads the law its axis declares, and
-an axis refuses ``None`` as a law (#405); only each mesh's ``realize_boundary_law`` arm
-differs (the diffusion arm builds the albedo operator via
-:class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`).
-Conformance is structural — neither mesh imports the Protocol. The
-realizer mechanics (the three-layer descriptor / law / realizer
-decomposition and the rank-N composition walker) live on
-:doc:`/theory/foundations/boundary_conditions`.
+and boundary realization flows through the **one** shared
+:func:`~orpheus.transport.method.realize_boundary` body. Every
+method-mesh realizes through it: ``SNProblem`` and ``DiffusionMesh``
+through ``MethodMesh``, and the collision-probability, characteristics
+and Monte Carlo meshes through ``Mesh1DMethodMesh``. The body is a face
+loop over the binding with no default to fill: each face reads its own
+deck, or else the condition its tag is bound to, and a tag with no bound
+condition is refused by
+:func:`~orpheus.transport.boundary_conditions.bind`. Only each method's
+realizer table differs (the diffusion table,
+:data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`, builds
+the albedo operator). Neither mesh subclasses the Protocol;
+``DiffusionMesh`` imports it only to dispatch on it in
+``DiffusionMesh.from_material_mesh``, where an ``isinstance`` test on
+``TransportMethod`` decides whether a mesh is already promoted. The
+realizer mechanics (the response network, the admission lattice and the
+realizer tables) live on :doc:`/theory/foundations/boundary_conditions`.
 
 .. _diffusion-solver-engines:
 
@@ -856,7 +946,7 @@ The construction path is direct: an
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
 (``DiffusionMesh.from_material_mesh(problem)`` — an SNProblem *is a*
 MaterialMesh), so :math:`A_{\rm diff}` assembles over the **same** axes,
-materials, and BC declarations as the SN sweep it accelerates. The
+materials, and declared boundary conditions as the SN sweep it accelerates. The
 SN\ :math:`\to`\ diffusion boundary restriction is the :math:`\ell = 0`
 half-range moment of the angular trace under the shared
 :math:`\lvert\Omega\cdot\hat n\rvert\,w` metric — the reason ruling 2
@@ -907,7 +997,7 @@ MMS gate are in :ref:`diffusion-2rg-verification` and
        retired island *past* its 200-outer cap to a converged
        comparison; the island's own driver never converged the PWR
        dominance ratio).
-   * - **Per-law trace semantics**
+   * - **Per-condition trace semantics**
      - at the solution, vacuum :math:`J^- = 0`, albedo
        :math:`J^- = \alpha J^+`, reflective :math:`J_{\rm net} = 0`,
        zero-flux :math:`\phi_\Gamma = 0` — all LU-exact; :math:`k`
@@ -916,7 +1006,7 @@ MMS gate are in :ref:`diffusion-2rg-verification` and
    * - **Demo**
      - :func:`~orpheus.diffusion.solver.solve_diffusion_1d` reproduces
        the MATLAB reference :math:`k = 1.022173` (at print precision)
-       under ``BC("zero_flux")``.
+       under ``{0: ZeroFluxCondition()}``.
 
 .. (vv-status rationale) The #290 operator-family labels are
    representational / definitional, NOT solver claims: the posing
@@ -931,7 +1021,7 @@ MMS gate are in :ref:`diffusion-2rg-verification` and
    object-level stencil gate (which monkeypatches the module-level
    ``_interior_conductance`` / ``_boundary_closure`` kernels), the
    cross-engine consistency gate, the field-construction foundation gates,
-   and the per-law trace-semantics gates in the table above (the vacuum
+   and the per-condition trace-semantics gates in the table above (the vacuum
    :math:`J^-=0` realization is asserted by
    ``tests/gates/diffusion/test_properties.py::test_vacuum_means_zero_incoming_current``);
    the k-value carries no new claim here (it is verified by those gates
@@ -954,7 +1044,7 @@ MMS gate are in :ref:`diffusion-2rg-verification` and
 
 The simplest verification configuration: a homogeneous slab of
 thickness :math:`L` with **zero-flux** boundaries
-(``BC("zero_flux")``, :math:`\phi = 0` — the honestly-named Dirichlet
+(``ZeroFluxCondition()``, :math:`\phi = 0` — the honestly-named Dirichlet
 law of ruling 3, *not* the Marshak vacuum) and a single energy group.
 The diffusion equation collapses to
 
@@ -1085,7 +1175,7 @@ multigroup eigenfunction callable.
 
 A more demanding verification problem: fuel surrounded by a
 reflector, both treated with 2-group diffusion, with **zero-flux**
-boundaries (:math:`\phi = 0`, ``BC("zero_flux")``) on the outer faces.
+boundaries (:math:`\phi = 0`, ``ZeroFluxCondition()``) on the outer faces.
 The eigenfunction is no longer
 a single sine — it is a linear combination of region-local
 exponential and/or trigonometric modes, matched across the
@@ -1704,7 +1794,7 @@ row (:math:`\phi_2 \not\propto \phi_1` — an :math:`\mathcal O(1)`
 mismatch against any transpose or sign confusion), and removal.
 Nulled, each with its covering gate elsewhere: fission (the L1
 eigenvalue anchors + the L2 infinite-medium gate), the
-non-zero-flux boundary laws (the per-law trace-semantics gates), and
+non-zero-flux boundary laws (the per-condition trace-semantics gates), and
 curvilinear area/volume factors (slab — pinned by the P4 hand-posed
 stencil gate).
 
@@ -1748,14 +1838,33 @@ issues for finer granularity.
    * - Phase
      - Architectural milestone (what + why)
      - Commit
+   * - **Wave 2 (S3)**
+     - **The trace-law boundary stack retired from diffusion** — the
+       string-tagged ``BC`` laws, ``BOUNDARY_OPERATOR_REGISTRY``,
+       ``DiffusionBoundaryRealizer`` and ``realize_boundary_law`` were
+       replaced by the one realizer table
+       :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`
+       (admission and realization together, six realizers) and the
+       diffusion-only
+       :class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition`
+       (``ZeroFluxBoundary`` was renamed so that no two classes share a
+       qualname); the vacuum condition (the empty response network) is tier 1 in
+       diffusion,
+       the two chains tier 2, a source ``Refused(PLUMBING, #656)``, and
+       the hollow inner face refuses every condition except
+       ``specular(1.0)`` (#511; a silent wrong answer before). The record
+       is section 11.4 of ``.claude/plans/wave2_boundary_carve.md``.
+     - ``9c0e8fde``
    * - **P7b**
      - **The** :class:`~orpheus.transport.method.TransportMethod`
        **Protocol + shared BC-resolution body + registry dissolution**
        — minted the structural Protocol over the two method-meshes and
        collapsed the twin ``_resolve_bcs`` loops into one
-       :func:`~orpheus.transport.method.resolve_boundary_conditions`
-       body; deleted the string-keyed realizer registry (you hold the
-       method-mesh, therefore you hold its realizer). Discharges the
+       ``resolve_boundary_conditions`` body (retired in wave 2; its
+       successor is
+       :func:`~orpheus.transport.method.realize_boundary`); deleted the
+       string-keyed realizer registry (you hold the method-mesh,
+       therefore you hold its realizer). Discharges the
        second ``TransportMethod`` witness.
      - ``44d583e``
    * - **P7a**
@@ -1771,7 +1880,8 @@ issues for finer granularity.
        deleted the MATLAB-port island (``CoreGeometry`` / ``TwoGroupXS``
        / BiCGSTAB); ``k_eigenvalue.py`` became ``solver.py``; the
        analytic :math:`\phi = 0` references were re-attributed to
-       ``BC("zero_flux")`` at unchanged tolerances (ruling 3); the
+       ``BC("zero_flux")`` (today ``ZeroFluxCondition``) at unchanged
+       tolerances (ruling 3); the
        heterogeneous-\ :math:`D` multigroup MMS gate landed (closes #93).
      - ``9104233``
    * - **P5**
@@ -1794,7 +1904,7 @@ issues for finer granularity.
    * - **P3**
      - **Boundary laws + functional realizer (closes #182)** — the
        ``ZeroFluxBoundary`` law and the
-       :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
+       ``DiffusionBoundaryRealizer``
        (law :math:`\to \mathcal{A} \to` operator), realizing every
        diffusion BC as an albedo-family scalar :math:`J^- = \mathcal{A}
        J^+`.

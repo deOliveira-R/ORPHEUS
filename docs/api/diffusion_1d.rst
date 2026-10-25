@@ -51,6 +51,11 @@ Boundary realization
    :show-inheritance:
    :noindex:
 
+.. automodule:: orpheus.diffusion.zero_flux
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 .. automodule:: orpheus.diffusion.method_space
    :members:
    :undoc-members:

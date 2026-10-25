@@ -32,7 +32,8 @@ where :math:`\mathbf{A}` includes the leakage term :math:`D B^2`.
 Continuous-reference verification
 =================================
 
-Both continuous references are solved under ``BC("zero_flux")`` (the
+Both continuous references are solved under ``ZeroFluxCondition()``
+(spelled ``BC("zero_flux")`` before wave 2; the
 ruling-3 re-attribution of the analytic :math:`\phi = 0` references —
 the mathematics is unchanged; only the law's name is corrected). The
 tests were rewired to the modern
