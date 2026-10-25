@@ -346,7 +346,7 @@ so that
    R \;=\; s\,P \;+\; d\,(E\circ R_t),
    \qquad s,\,d \ge 0,\; s + d \le 1,
 
-a point of the convex cone of walls, and the wall's return fraction is
+a point of the sub-Markov simplex of walls (a triangle, not a cone), and the wall's return fraction is
 :math:`\rho = s + d` (exact by the split pair :math:`R_t^{\rm in}\circ E = \mathrm{id}`
 and the measure preservation of :math:`P`; the derivation, the cone, and why a
 third chain is an edit of a closed sum are

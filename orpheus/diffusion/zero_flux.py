@@ -77,5 +77,5 @@ class ZeroFluxCondition(BoundaryCondition):
 
     @property
     def face_local(self) -> bool:
-        """Stated in the face's own frame: every isometry carries it from face to face."""
+        """Stated in the face's own frame, since every isometry carries it from face to face."""
         return True

@@ -19,7 +19,8 @@ realizes separately, into the boundary-source channel, as an array.
 **Registration is a class keyword plus ``seal()``.** ``class SNSpecularChain(ResponseRealizer, table=SN_REALIZERS,
 realizes=SpecularChain)`` registers at class creation and refuses a duplicate, a sealed table and a key that is not a
 legal unit. The table and every realizer that registers into it live in ONE module per method, and that module calls
-``table.seal()`` on its last line: anyone holding the table has executed every registration (this answers the
+``table.seal()`` at module level after its last registration (on the module's last line for SN, diffusion and MoC; in
+the middle of ``cp/solver.py`` and ``mc/solver.py``, whose later lines register nothing): anyone holding the table has executed every registration (this answers the
 registration-timing hazard of an empty registry in a fresh process). An UNSEALED table refuses ``admit``, ``realize``,
 ``require`` and ``catalogue`` with :class:`TableNotSealedError`; registering into a sealed one raises
 :class:`SealedTableError`. A new response for one method touches only that method's realizer module.
@@ -205,7 +206,7 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
 
     def _open(self) -> None:
         if self._sealed:
-            raise SealedTableError(f"{self.method}: the table is sealed; register before the defining module's last line")
+            raise SealedTableError(f"{self.method}: the table is sealed; register before the defining module seals it")
 
     def _register_response(self, key: type, realizer: ResponseRealizer) -> None:
         self._open()
@@ -229,7 +230,7 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
         self._deck = realizer
 
     def seal(self) -> None:
-        """Close the table: called on the last line of the defining module; later registration raises."""
+        """Close the table: called by the defining module after its last registration; later registration raises."""
         self._sealed = True
 
     def _require_sealed(self) -> None:
@@ -348,7 +349,7 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
 class ResponseRealizer(ABC, Generic[K, SpaceT, OpT]):
     """A method's realizer of one unit (a chain, ``ZeroNetwork`` or a method-only condition); registers by class keyword."""
 
-    #: The catalogue entry: the upper bound of :meth:`admit` over all values and sites.
+    #: The catalogue entry, the upper bound of :meth:`admit` over all values and sites.
     status: ClassVar[Admission]
 
     def __init_subclass__(cls, *, table: RealizerTable | None = None, realizes: type | None = None, **kwargs: object) -> None:

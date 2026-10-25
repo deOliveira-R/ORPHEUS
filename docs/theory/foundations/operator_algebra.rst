@@ -6435,7 +6435,7 @@ the empty network is the method's zero map, the image of one chain is that
 chain's realizer's operator, and the image of a sum is the sum of the images
 (``RealizedSum``, summed in the fixed chain order, so the operator does not
 depend on how the wall was built). A combination of conditions is arithmetic
-on a convex cone (a sum that leaves the cone is a
+on the sub-Markov simplex :math:`K` (a sum that leaves :math:`K` is a
 :class:`~orpheus.transport.boundary_conditions.WallDisplacement`, which is
 not bindable), and the descriptor-versus-operator type separation survives as
 the line between ``WallCondition`` and ``RealizedBoundary``: a condition has

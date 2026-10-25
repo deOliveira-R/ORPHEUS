@@ -207,14 +207,17 @@ class FaceSite:
 
     @property
     def site_class(self) -> SiteClass:
-        """The geometric class: Cartesian, radial outer or radial inner (the inner face has a negative outward sign)."""
+        """The geometric class of the face, one of Cartesian, radial outer or radial inner.
+
+        The inner face has a negative outward sign.
+        """
         if not self.is_curved:
             return SiteClass.CART
         return SiteClass.RAD_INNER if face_normal(self.face)[1] < 0 else SiteClass.RAD_OUTER
 
     @property
     def hollow_inner(self) -> bool:
-        """The face is the inner surface of a hollow radial body (derived: a solid body has no inner face at all)."""
+        """Whether the face is the inner surface of a hollow radial body (derived, since a solid body has no inner face at all)."""
         return self.site_class is SiteClass.RAD_INNER
 
 

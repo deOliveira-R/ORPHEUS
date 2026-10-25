@@ -387,13 +387,14 @@ class SNBoundaryOperator(LinearOperator):
         faces: "Iterable[str] | None" = None,
         rows: "Mapping[str, np.ndarray] | None" = None,
     ) -> "AngularBoundarySourceSink":
-        r"""Core ``A_ss`` action on the trace ALONE — apply each face's law
-        (``method`` ∈ {apply, apply_transpose}) to that face's slot, project onto
+        r"""Core ``A_ss`` action on the trace ALONE — apply each face's realized boundary
+        operator (``law``, the loop's local, a name kept from the trace-law architecture that
+        wave 2 retired; ``method`` ∈ {apply, apply_transpose}) to that face's slot, project onto
         the codomain row, and return a boundary-only
         :class:`~orpheus.transport.fields.AngularBoundarySourceSink`.
 
         ``B`` is the ``A_ss`` block ``V_outflow → V_inflow``, and **since
-        campaign phase B3.2 the realized per-face law is typed that way too**:
+        campaign phase B3.2 the realized per-face operator is typed that way too**:
         it consumes :math:`\Gamma_+` and produces :math:`\Gamma_-`. The face
         action is therefore the composition
 
@@ -427,7 +428,7 @@ class SNBoundaryOperator(LinearOperator):
           row-restricted operator per call to say something the whole-slot
           branch already says.
         * ⭐ **Periodic's check is LIVE — and it is the law the check was
-          designed for** (G6.3 step 7). A boundary law is a ``@``-chain
+          designed for** (G6.3 step 7). A realized boundary operator is a ``@``-chain
           :math:`\Gamma_+ \to \Gamma_-` whose deck-transformation case is
           degenerate at LENGTH ONE (:ref:`bc-deck-length-one-chain`), and
           every law's link is a typed arrow between the two half-traces —

@@ -49,7 +49,7 @@ them.  Trust ``git``, not this column.
        ``LawSum`` / ``LawScaled``, the ``SNBoundaryRealizer``
        ``isinstance`` ladder, the string registries) retired. A face is a
        deck or an integer tag; a tag is bound to a ``WallCondition`` (an
-       affine pair of a response network on a convex cone and an inflow);
+       affine pair of a response network in the sub-Markov simplex and an inflow);
        ``SN_REALIZERS`` admits and realizes in one door, returning
        ``ZeroMap``, ``ScaledOrdinatePermutation``, ``RankOneReemission``
        or their ``RealizedSum``, whose facts (return fraction, closes its

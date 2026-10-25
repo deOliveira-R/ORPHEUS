@@ -386,15 +386,19 @@ def test_the_declared_boundary_law_holds_on_the_answer(inner: str) -> None:
         np.testing.assert_array_equal(got, _VALUE)
     else:
         # ⚠ Krylov SOLVES the trace rows instead of copying a seed into them, so
-        # they carry the ITERATION RESIDUAL: `[M]` 2.500000000000008, i.e. 18 ULP
-        # at 2.5 (7.99e-15 absolute) on this fixture.
+        # they carry the ITERATION RESIDUAL. Exactness is not promised even where
+        # it is read: `[M]` 2026-08 (P3) this fixture read 18 ULP at 2.5, and
+        # `[M]` 2026-10-24 at 471c4737 it reads 0 ULP (in part the sweep-left
+        # preconditioner of #200; 11 ULP with it forced to the identity).
         #
-        # ⛔ The deviation scales with ``inner_tol``, NOT with machine epsilon.
-        # `[M]` across fixtures at tol=1e-13: 1, 7, 18, 23 ULP (GL-8 and GL-16,
-        # vacuum and reflective partner faces) — but at ``inner_tol = 1e-10`` the
-        # same fixture reads 1.2e-11, i.e. **27 580 ULP**. So ``nulp=64`` is a
-        # budget for THIS module's ``inner_tol = 1e-13`` (pinned in ``_solve``),
-        # not a universal floating-point claim. Loosening the solver tolerance
+        # ⛔ The deviation is bounded by ``inner_tol``, NOT by machine epsilon,
+        # and its ULP count is not monotone in the tolerance: `[M]` 2026-10-24,
+        # GL-8 ``vac|vac``, inner_tol 1e-13 … 1e-8 reads 0, 5, 104, 39,
+        # 196 894 ULP, every reading below 3.6e-3 × q·inner_tol (the table on
+        # the boundary-conditions theory page, :ref:`bc-architecture-of-record`
+        # links it). So ``nulp=64`` is a budget for THIS module's
+        # ``inner_tol = 1e-13`` (pinned in ``_solve``), not a universal
+        # floating-point claim. Loosening the solver tolerance
         # here without raising the budget is a legitimate red, and the right
         # response is to re-derive the budget from the new tolerance rather than
         # to inflate this number.
@@ -463,7 +467,8 @@ def test_the_two_user_paths_reach_the_same_fixed_point() -> None:
     tolerance again, the two channels have stopped being one program — which is
     the finding, not the noise.
 
-    ⚠ Distinguish this from the keystone's Krylov leg, which is NOT exact. That
+    ⚠ Distinguish this from the keystone's Krylov leg, which is not promised
+    exact (it reads 0 ULP at 471c4737 and 18 ULP read at P3, 2026-08). That
     leg compares ``γ₋ψ`` against the *literal* ``2.5``, and on Krylov the trace
     rows are SOLVED rather than copied, so they carry the iteration residual.
     Three different numbers, three different claims — conflating them is how a

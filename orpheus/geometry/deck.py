@@ -15,8 +15,9 @@ parameter beyond :math:`g`: it has no amplitude, no source, nothing to scale. Th
 the isometry classes, the two decks that are minted, the pairing a realizer reads of a deck, and the parse of a
 face role. It names no response and imports no transport vocabulary.
 
-**The classes of isometry (Chasles).** A non-identity isometry of :math:`E^n` (:math:`n \le 3`) is in exactly one
-of six conjugacy classes: translation, reflection, rotation, glide reflection, screw motion, rotoreflection.
+**The classes of isometry (Chasles).** A non-identity isometry of :math:`E^n` (:math:`n \le 3`) is of exactly one
+of six types: translation, reflection, rotation, glide reflection, screw motion, rotoreflection (a type, not a
+conjugacy class: translations of different lengths are not conjugate).
 Dimension 1 has two (translation, reflection), dimension 2 four (adding rotation and glide reflection),
 dimension 3 six. :class:`IsometryClass` enumerates them and :data:`ISOMETRY_CLASSES_BY_DIMENSION` records which
 exist where.
@@ -94,7 +95,7 @@ class DeckError(ValueError):
 
 
 class IsometryClass(Enum):
-    """The six conjugacy classes of non-identity isometries of :math:`E^n`, :math:`n \\le 3` (Chasles)."""
+    """The six types of non-identity isometries of :math:`E^n`, :math:`n \\le 3` (Chasles)."""
 
     TRANSLATION = "translation"
     REFLECTION = "reflection"

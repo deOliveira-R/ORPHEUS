@@ -45,7 +45,7 @@ IS the coordinates: weights are finite reals (``-0.0`` is ``0.0``), a zero weigh
 not content (a :class:`~orpheus.values.content.FrozenMapping` keyed by the field-less chains is order-free, and the
 mapping is stored in :data:`CHAIN_ORDER` so every reader sees one order). There is no collapse of a one-term sum to a
 leaf, so no stored value holds an intermediate rounding that a second addition rounds again. The weights ARE the point
-:math:`(s, d)` of the convex cone :math:`K = \{s, d \ge 0,\ s + d \le 1\}` that :attr:`ResponseNetwork.cone_point`
+:math:`(s, d)` of the sub-Markov simplex :math:`K = \{s, d \ge 0,\ s + d \le 1\}` that :attr:`ResponseNetwork.cone_point`
 reads, by one exhaustive match: the closed sum is the pair, so the chart is total and not lossy.
 
 **Why a marker for the empty network.** Realization is a functor on the network and the image of the empty sum is the

@@ -5287,7 +5287,12 @@ Registry consumer — Sood case::
     # the bare sphere's outer face is the tag 0; the wall is declared here, a vacuum
     result = solve_cp(case.materials, mesh, CPParams(),
                       boundary_conditions={0: WallCondition.vacuum()})
-    print(result.keff)   # 2.250000000000001
+    print(result.keff)   # 2.250000000000001: WRONG, the leakage is omitted (#546)
+    # [M] 2026-10-24, 471c4737 and main 437dec2a alike: the same call with
+    # WallCondition.white() reads 2.249999999999999, so vacuum and white give the
+    # infinite-medium value on this critical sphere, where the reference k is 1
+    # (the MomentSpace critical radius below). The spot check shows the call
+    # spelling; the number is #546's defect, not a CP result to trust.
 
 Reference solver direct — NO mesh, NO Mesher::
 

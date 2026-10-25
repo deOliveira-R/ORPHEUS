@@ -805,7 +805,8 @@ exactly one :class:`~orpheus.transport.boundary_conditions.DeckRealizer` per tab
   depend on how the wall was built (law L-L, ``test_the_functor_law`` and, on the SN table, ``test_the_realizer_is_a_homomorphism``).
 - **Registration is a class keyword plus** ``seal()``: ``class SNSpecularChain(ResponseRealizer, table=SN_REALIZERS,
   realizes=SpecularChain)`` registers at class creation and refuses a duplicate, a sealed table and a key that is not a legal unit.
-  The table and every realizer that registers into it live in one module per method, which calls ``table.seal()`` on its last line:
+  The table and every realizer that registers into it live in one module per method, which calls ``table.seal()`` after its last registration
+  (the module's last line for SN, diffusion and MoC; mid-module in ``cp/solver.py`` and ``mc/solver.py``):
   anyone holding the table has executed every registration. An unsealed table refuses ``admit``, ``realize``, ``require`` and
   ``catalogue`` with :class:`~orpheus.transport.boundary_conditions.TableNotSealedError`.
 - **Lookup is by exact type, never the MRO.** A subclass is a new declaration and owes its own entry; a method-only condition of
@@ -1623,7 +1624,7 @@ where:
   :math:`P` (a scalar amplitude on a mirror permutation, for a polished
   wall) and the diffuse chain :math:`E \circ Rt` (the rank-one angular kernel
   of Lambertian re-emission). The weights are a point :math:`(s, d)` of the
-  convex cone :math:`K = \{s, d \ge 0,\ s + d \le 1\}`, so the response is
+  sub-Markov simplex :math:`K = \{s, d \ge 0,\ s + d \le 1\}`, so the response is
   sub-Markov by construction. When it is the non-trivial factor it is the one
   that crosses, and every realized response in the tree is typed
   :math:`\Gamma_+ \to \Gamma_-` accordingly. A kernel outside the family (a
@@ -6462,7 +6463,7 @@ What took the two factor tiers' place is one split of a different kind. The
 deck of ``orpheus/geometry/deck.py`` (a face role, geometry's business); the
 :math:`R` tier and the source :math:`q` are the response network and the inflow
 of one shared exterior type in ``orpheus/transport/boundary_conditions/``
-(``WallCondition``, an affine pair on a convex cone). Both are realized through
+(``WallCondition``, an affine pair whose linear part lies in the sub-Markov simplex). Both are realized through
 one table per method, ``SN_REALIZERS`` for SN, into typed operators
 :math:`\Gamma_+ \to \Gamma_-` whose facts are properties of their types
 (:ref:`bc-worked-example`, Steps 4 and 5).
@@ -6896,7 +6897,7 @@ The successor drops the Protocol and the ladder together: a method owns one
 ``RealizerTable``, keyed by the TYPE of the unit it realizes (a chain of the
 response network, the zero-network marker, the inflow marker, or a method-only
 condition), filled by realizer classes that register by class keyword, and
-sealed on the last line of the module that defines them. Its one door,
+sealed by the module that defines them, after its last registration. Its one door,
 ``realize``, calls ``admit`` first, so the answer to "is it admitted" and the
 realization cannot disagree (``orpheus/transport/boundary_conditions/realization.py``;
 for SN, ``SN_REALIZERS`` in ``orpheus/sn/boundary/realizer.py``).
@@ -7213,7 +7214,8 @@ is one realizer table per method (``SN_REALIZERS``, ``DIFFUSION_REALIZERS``,
 ``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``), keyed by unit type and
 sealed. The registration-timing hazard named above is answered there by a
 rule stated in the table's own docstring: the table and every realizer that
-registers into it live in ONE module, whose last line calls ``seal()``, so
+registers into it live in ONE module, which calls ``seal()`` after its last
+registration, so
 anyone holding the table has executed every registration, and an unsealed table
 refuses ``admit``, ``realize``, ``require`` and ``catalogue``.
 
@@ -7459,7 +7461,7 @@ ordinates (:math:`\Omega\cdot\hat n < -\epsilon`, that is :math:`\mu_x > \epsilo
 rightward-pointing) are the indices ``[2 3]`` and the outflow ordinates ``[0 1]``,
 and each half-trace is a space named by its face and direction. Neither index set is
 the complement of the other: the tangential band belongs to neither
-(:ref:`bc-half-trace`; on ``gauss_legendre(4)`` it is empty). The method space the
+(:ref:`the half-trace <bc-half-trace>`; on ``gauss_legendre(4)`` it is empty). The method space the
 realizer receives is
 :class:`~orpheus.sn.mesh.method_space.SNMethodSpace`: the quadrature and this trace,
 two fields, and no face (the face is the ``FaceSite`` that travels beside it).
@@ -7894,10 +7896,10 @@ Descriptor-tree algebra for rank-N boundaries
 
 This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is :ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
 
-Rank-N (Marshak, partial-current) boundary conditions are **not** a special class: they are points of one convex cone, combined by the arithmetic of one type. Until wave 2 the combination was a closed **descriptor-tree algebra** over ``BoundaryTraceLaw | LawSum | LawScaled`` nodes, pure declarative structure with **no** ``apply`` method on any node. The dunders of the law (``+``, ``-``, ``*``, ``/``, unary ``-``) returned ``LawSum`` and ``LawScaled`` instances, never operators, and ``realize_recursively`` was the sole path from the descriptor tree to the operator tree (:ref:`bc-realize-recursively`). Wave 2 replaced the tree by the arithmetic of the declaration itself, and the replacement is a smaller object with a stronger guarantee:
+Rank-N (Marshak, partial-current) boundary conditions are **not** a special class: they are points of one sub-Markov simplex, combined by the arithmetic of one type. Until wave 2 the combination was a closed **descriptor-tree algebra** over ``BoundaryTraceLaw | LawSum | LawScaled`` nodes, pure declarative structure with **no** ``apply`` method on any node. The dunders of the law (``+``, ``-``, ``*``, ``/``, unary ``-``) returned ``LawSum`` and ``LawScaled`` instances, never operators, and ``realize_recursively`` was the sole path from the descriptor tree to the operator tree (:ref:`bc-realize-recursively`). Wave 2 replaced the tree by the arithmetic of the declaration itself, and the replacement is a smaller object with a stronger guarantee:
 
 * **A wall is a point, not a tree.** :class:`~orpheus.transport.boundary_conditions.WallCondition` is the affine pair (response network, inflow). The response :math:`R = s\,P + d\,(E\circ R_t)` has the weights :math:`(s, d)` of its two chains (the specular chain :math:`P`, a permutation of ordinates, and the diffuse chain :math:`E\circ R_t`, a partial-current average followed by a uniform re-emission), and the source :math:`q \ge 0` is the inflow.
-* **The cone is a value predicate** (decision 50 of the carve plan). The weights live in :math:`K = \{s, d \ge 0,\ s + d \le 1\}` and the inflow weights are non-negative; one function, ``_cone_refusal``, is the only definition of "inside", and ``__post_init__`` raises what it returns. A wall outside the cone (``specular(1.2)``, ``white(-0.1)``, a direct two-chain ``(0.6, 0.6)``) does not exist.
+* **Admissibility is a value predicate** (decision 50 of the carve plan). The weights live in :math:`K = \{s, d \ge 0,\ s + d \le 1\}` and the inflow weights are non-negative; one function, ``_cone_refusal``, is the only definition of "inside", and ``__post_init__`` raises what it returns. A wall outside :math:`K` (``specular(1.2)``, ``white(-0.1)``, a direct two-chain ``(0.6, 0.6)``) does not exist.
 * **The arithmetic exits through one function.** ``+``, ``-``, unary ``-`` and scalar ``*`` act on the pair and return, through ``_combine``, a ``WallCondition`` when the result lies in the cone and a :class:`~orpheus.transport.boundary_conditions.WallDisplacement` otherwise: a point of the affine hull of the cone times the source space, a direction in which a parameter may move (a sensitivity), never a wall and never bindable. The sign of a scalar and the presence of ``-`` decide nothing: ``x + h * delta`` for a finite difference re-enters the cone without re-typing.
 * **No tree shape is kept, because none exists.** There are no ``LawSum`` and ``LawScaled`` nodes to flatten; the network is a mapping from chain to weight, held in the canonical chain order, so ``a + b`` and ``b + a`` are one value.
 

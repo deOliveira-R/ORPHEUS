@@ -206,7 +206,7 @@ def test_a_certification_failure_names_its_axis() -> None:
 # ═════════════════════════════════════════════════════════════════════════════
 
 _CURVED = ("cylinder", "sphere")
-#: the declarations a radial outer face refuses at admit (the corner action is ruled only for a permuting law or a zero
+#: the declarations a radial outer face refuses at admit (the corner action is ruled only for a permuting wall or a zero
 #: return, #653): the diffuse chain, a mix with it, a source alone, a response over a source.
 _REFUSED_ON_A_RADIAL_OUTER = {
     "white 0.5": lambda w: w.white(0.5),

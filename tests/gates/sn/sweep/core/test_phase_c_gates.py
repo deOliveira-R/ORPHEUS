@@ -552,7 +552,7 @@ def test_bc_trace_contract_respected_by_matvec_vacuum_sphere():
     r"""Vacuum BC at outer face: inflow = realize().apply(outflow_face).
 
     The architectural-fix anchor for the §16A.3 contract. Pins that
-    under the sweep-frame matvec, the BC trace law consumes the
+    under the sweep-frame matvec, the realized boundary operator consumes the
     WDD-propagated outflow face values (not cell-centres) and
     produces the inflow face values that the inward sweep consumes.
 
@@ -644,27 +644,30 @@ def test_bc_trace_contract_respected_by_matvec_reflective_sphere():
 # the BC apply, then verify it bit-matches the independently-
 # reconstructed WDD-propagated outflow face value.
 #
-# Parametrised over BC kinds (Vacuum, Reflective) × geometries
-# (sphere, cylinder).  White / Albedo / PrescribedInflow are NOT
-# included in this parametrisation because their realizer output
-# structures differ (White returns AngularAverageOperator product;
-# Albedo is identity-scaled; PrescribedInflow has an inhomogeneous
-# affine component).  Those kinds are tested at unit level via
-# their own realizer-tests (`tests/gates/sn/test_sn_boundary_realizer.py`).
+# Parametrised over two walls (vacuum, the specular mirror) × geometries
+# (sphere, cylinder).  The diffuse chain, a scaled specular chain and an
+# inflow are not included because their realized operators differ in
+# structure (the diffuse chain is the rank-one Lambertian product; the
+# inflow is the affine part, not a map); they are tested at unit level in
+# ``tests/gates/sn/operators/test_sn_boundary_realizer.py``.
 #
-# D-K.5 migration (2026-05-29) — the composite ``StreamingOperator``
-# path's ``transport_operator_matvec_unified`` calls ``bc_outer.apply``
-# TWICE per matvec, matching the legacy ``transport_operator_matvec_
-# spherical`` 2-call pattern:
+# ⛔ HISTORY, not the present matvec.  Since Wave O O.4a.2 the matvec calls
+# the realized boundary ZERO times (the test below asserts it): the
+# reflection is the sibling ``−B``.  What follows records the D-K.5
+# migration (2026-05-29), when the composite ``StreamingOperator`` path's
+# ``transport_operator_matvec_unified`` called ``bc_outer.apply`` TWICE
+# per matvec, matching the legacy ``transport_operator_matvec_spherical``
+# 2-call pattern:
 #
 #   * call[0] — outer-inflow estimate for the Carlson seed.  The
-#     unified matvec passes the OUTER FACE flux (``boundary.face_view
+#     unified matvec passed the OUTER FACE flux (``boundary.face_view
 #     ("xmax")``) directly, not the cell-centre proxy at i=nx-1.
 #     When the test builds a TimedFullField with a zero boundary, the
 #     captured input is therefore zero (the L2 face-view, not the
 #     pre-D-H.2-C2 cell-centre-proxy synthesis the legacy path used).
-#   * call[1] — BC trace law on the WDD-propagated outward outflow at
-#     the outer face.  Same content as the legacy call.
+#   * call[1] — the BC trace law (retired in wave 2, 2026-10-24) on the
+#     WDD-propagated outward outflow at the outer face, the same content
+#     as the legacy call.
 
 
 def _outflow_at_boundary_for_sphere_from_bulk(

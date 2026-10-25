@@ -2,7 +2,7 @@ r"""The exterior conditions of a face (``condition.py`` of the conditions packag
 
 **The mathematics.** A face that ends the domain closes the transport equation with the affine trace map
 :math:`\gamma_-\psi|_f = R\,\gamma_+\psi|_f + q`: the linear part :math:`R` is a :class:`~.network.ResponseNetwork`
-(a point :math:`(s, d)` of the convex cone :math:`K = \{s, d \ge 0,\ s + d \le 1\}`, the weights of the specular chain
+(a point :math:`(s, d)` of the sub-Markov simplex :math:`K = \{s, d \ge 0,\ s + d \le 1\}`, the weights of the specular chain
 :math:`P` and the diffuse chain :math:`E\circ Rt`), and :math:`q \ge 0` is an :class:`~.inflow.InflowTerms`.
 
 **The types.**
@@ -19,10 +19,10 @@ r"""The exterior conditions of a face (``condition.py`` of the conditions packag
   ``WallCondition.specular(0.0)``, ``.white(0.0)`` and ``.vacuum()`` are one value with one digest, because
   :math:`R = 0` is one point of :math:`K` however it is reached.
 
-**The cone is a VALUE predicate (decision 50).** ``_cone_refusal(network, inflow)`` is the ONE definition of "inside
-the cone": every network weight is non-negative (``BoundaryResponseNotPositiveError``), the return fraction
+**Admissibility is a VALUE predicate (decision 50).** ``_cone_refusal(network, inflow)`` is the ONE definition of "inside"
+(the network in the simplex :math:`K`, the inflow in the cone :math:`q \ge 0`; the identifier keeps the older name "cone"): every network weight is non-negative (``BoundaryResponseNotPositiveError``), the return fraction
 (``ResponseNetwork.return_fraction``, the correctly rounded ``math.fsum``) is at most one (``SubmarkovViolationError``), and every inflow weight is non-negative
-(``BoundaryResponseNotPositiveError``). ``__post_init__`` raises what it returns, so a ``WallCondition`` outside the cone
+(``BoundaryResponseNotPositiveError``). ``__post_init__`` raises what it returns, so a ``WallCondition`` outside them
 (and a facade outside it: ``specular(1.2)``, ``white(-0.1)``, a direct two-chain ``(0.6, 0.6)``) does not exist. The
 arithmetic (``+``, ``-``, unary ``-``, scalar ``*``, shared with :class:`~.displacement.WallDisplacement` through
 ``_PairArithmetic``) computes the pair of the result and exits through ONE function, ``_combine``: a ``WallCondition``

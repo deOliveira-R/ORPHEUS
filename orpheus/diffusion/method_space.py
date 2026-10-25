@@ -10,7 +10,7 @@ carries a face label that no realizer reads (the same two-encodings
 exposure; #661 holds the collapse trigger). What it
 carries differs because the method does:
 
-* :attr:`face` -- the face label (``"xmin"`` / ``"xmax"`` / …).
+* :attr:`~orpheus.diffusion.method_space.DiffusionMethodSpace.face` -- the face label (``"xmin"`` / ``"xmax"`` / …).
   Identifies WHICH face the realized BC operates on.
 * :attr:`trace` -- the
   :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
