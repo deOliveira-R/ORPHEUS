@@ -17,8 +17,8 @@ documentation is the knowledge those agents work from.
 region-to-material map, the group count, the cell volumes and the
 cross-section field) is method-agnostic data, and a method's problem is that
 data plus the method's behaviour: `SNProblem` adds the quadrature, the spatial
-scheme, the angular closure and the boundary laws; `DiffusionMesh` adds the
-scalar trace and the realized albedo laws; `HomogeneousProblem` is posed from
+scheme, the angular closure and the wall conditions bound to its face tags; `DiffusionMesh` adds the
+scalar trace and the albedo operators realized from its wall conditions; `HomogeneousProblem` is posed from
 one mixture on the energy axis alone ("Problem" is a concept with three
 realizations and no shared type yet). Posing is a filtration: materials,
 geometry, mesh, state and the method head each commit one refinement of phase
@@ -80,13 +80,18 @@ define it, and imports flow only from more knowledge to less;
 
 | layer | packages | knows |
 |---|---|---|
-| values | `values/` | what a value is (the admitted reals) and when two values are the same (content identity); the bottom layer, importing nothing from `orpheus` |
-| L0 | `derivations/` | symbolic and high-precision references (Branch 1); below L2, may import `numerics/`, `geometry/`, `mesh/`, `data/` |
-| L1 | `numerics/` | mathematics only: spaces, measures, quadrature, operators; no neutrons |
-| input | `geometry/`, `mesh/`, `data/` | shapes and boundary conditions; the mesh, an overlay on the geometry that imports it and is never imported by it; nuclear data |
+| values | `values/` | what a value is (the admitted reals) and when two values are the same (content identity); imports nothing from `orpheus` |
+| geometry | `geometry/` | shapes, point groups, decks, face naming; imports only `values/`; gate forbids `numerics/`, `mesh/`, `specification/`, `reference/`, L2, L3 |
+| L1 | `numerics/` | mathematics only; no neutrons; imports `geometry/`; gate forbids `data/`, `mesh/`, `specification/`, `reference/`, L2, L3 |
+| data | `data/` | nuclear data; above `numerics/` |
+| input | `mesh/`, `specification/` | the mesh (an overlay on the geometry) and the specification (a question with its materials); siblings, above `data/` |
+| reference | `reference/` | reference solutions; above `specification/` |
 | L2 | `transport/` | the transport vocabulary every method shares; method-agnostic |
 | L3 | `sn/`, `diffusion/`, `homogeneous/`, `cp/`, `moc/`, `mc/`, `kinetics/`, `fuel/`, `thermal_hydraulics/` | one method's machinery each; no L3 package imports another |
+| L0 | `derivations/` | symbolic and high-precision references; above `specification/`, `reference/`, beside `numerics/`, `geometry/`, `data/`, `mesh/`; gate forbids it L2, L3 |
 | L4 | `plotting.py` | orchestration; consumes everything |
+
+Rows run bottom to top; the gate's `FORBIDDEN_EDGES` is the contract.
 
 The spine is the operator algebra `A = L + C − S − N_2n − B`: a solver is
 spelled as that expression over typed operators, and the code reads like the

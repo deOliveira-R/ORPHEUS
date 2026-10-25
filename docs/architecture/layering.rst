@@ -40,11 +40,15 @@ Two clauses, both load-bearing:
    :class:`AngularFlux` is defined using "ordinate" and "moment" — concepts
    from transport theory but not specific to any discretization; its home
    is therefore :mod:`orpheus.transport`, not :mod:`orpheus.sn`. The
-   SN boundary realizer ``SNBoundaryRealizer``
-   is defined using SN-specific face-coordinate decoding (the flat
+   SN realizer table :data:`~orpheus.sn.boundary.realizer.SN_REALIZERS`
+   is defined using SN-specific face-coordinate decoding (its admission
+   reads the ordinate pairing of the SN quadrature; the flat
    ``from_flat_with_traces`` codec that once illustrated this point has
    since moved up to the transport-layer :class:`~orpheus.transport.timed_full_field.TimedFullField`);
-   its home is therefore :mod:`orpheus.sn`.
+   its home is therefore :mod:`orpheus.sn`, while the table type it
+   instantiates, the wall condition it realizes and the contract every
+   method's table meets are method-agnostic and live in
+   :mod:`orpheus.transport.boundary_conditions`.
 
 2. *Imports flow only from more-knowledge to less-knowledge.* An L3
    method package may import an L1 primitive (the method *uses* the math);
@@ -62,8 +66,11 @@ the module belongs in N (the layer-N vocabulary is load-bearing).
 The layer table
 ---------------
 
-The layers, top-to-bottom in the import order (each layer may import only
-the layers below it):
+The layers, top to bottom. ``tests/gates/test_layer_imports.py`` enforces
+the table as the set of FORBIDDEN edges, the dictionary ``FORBIDDEN_EDGES``
+reproduced below: a package may import any package its row does not forbid,
+so "may import" in the right-hand column is what the gate admits and the
+measured edges are stated separately (the paragraph after the table).
 
 .. list-table::
    :header-rows: 1
@@ -77,38 +84,80 @@ the layers below it):
      - thin scripts; ``plotting.py``
    * - **L3** discretization
      - one method's machinery
-     - :mod:`orpheus.sn`, ``orpheus.pn`` (planned — no such package
-       exists yet),
+     - :mod:`orpheus.sn`, ``orpheus.pn`` (named in the gate's L3 set;
+       no such package exists yet),
        :mod:`orpheus.moc`, :mod:`orpheus.cp`, :mod:`orpheus.mc`,
        :mod:`orpheus.diffusion`, :mod:`orpheus.kinetics` (transitional —
        dissolves under P3.6), :mod:`orpheus.fuel`,
        :mod:`orpheus.thermal_hydraulics`, :mod:`orpheus.homogeneous`
    * - **L2** transport vocabulary
-     - the transport equation's objects; method-agnostic
-     - :mod:`orpheus.transport` (created by P3.3)
-   * - **(input)** mesh
-     - the discretisation overlay on the geometry: cells, subdivision,
-       per-axis primitives
-     - :mod:`orpheus.mesh`
-   * - **(input)** specification
-     - a question written with the materials and geometry it is asked of:
-       the reference specification, the key a reference cache stores under
-     - :mod:`orpheus.specification`
-   * - **(input)** geometry + data
-     - shapes, coordinate systems and boundary laws; nuclear data
-     - :mod:`orpheus.geometry`, :mod:`orpheus.data`
+     - the transport equation's objects, among them the wall condition
+       and the realizer-table contract; method-agnostic
+     - :mod:`orpheus.transport`
+   * - **(reference)**
+     - readings, published and reference solutions, the certificates
+     - :mod:`orpheus.reference`
+   * - **(input)** mesh, specification
+     - the mesh: the discretisation overlay on the geometry (cells,
+       subdivision, per-axis primitives). The specification: a question
+       written with the materials and geometry it is asked of, the key a
+       reference cache stores under. Siblings: neither imports the other
+     - :mod:`orpheus.mesh`, :mod:`orpheus.specification`
+   * - **(input)** data
+     - nuclear data
+     - :mod:`orpheus.data`
    * - **L1** mathematics
      - functional analysis, linear algebra, measure theory; no neutrons
      - :mod:`orpheus.numerics`
+   * - **(geometry)**
+     - shapes, coordinate systems, the point groups and the point sets
+       they act on, the decks and the face naming; declarative, and below
+       numerics
+     - :mod:`orpheus.geometry`
    * - **(values)**
      - what a value is (the admitted reals) and when two values are the
        same (content identity); imports nothing from ``orpheus``
      - :mod:`orpheus.values`
    * - **L0** references
      - Branch-1 analytical / SymPy / mpmath references; the one exception
-       to the top-to-bottom order: it may import L1 and the input layer
-       (see the notes below)
+       to the order: above ``specification`` and ``reference`` (which never
+       import it) and beside ``numerics``, ``geometry``, ``data`` and
+       ``mesh``; the gate forbids it only L2 and L3 (see the notes below)
      - :mod:`orpheus.derivations`
+
+**The measured order.** `[M]` 2026-10-24, ``scratch/layer_dag/layer_census.py``
+(an AST walk over the import statements of every module under ``orpheus/``,
+top-level, function-body and ``TYPE_CHECKING`` alike, at the carve tip
+471c4737): the package graph has no cycle at any depth (package SCCs over the
+three kinds: none), and the bottom of it is as the table reads. ``values``
+imports nothing from ``orpheus``. ``geometry`` imports ``values`` and no other
+package. ``numerics`` imports ``geometry`` and ``values`` (the 45 import
+statements naming geometry, 32 top-level, 6 function-body and 7
+``TYPE_CHECKING``, are the measures' supports: the point groups, the manifolds, the
+face naming). ``data`` imports ``numerics`` and ``values``; ``mesh`` imports
+``geometry``, ``numerics`` and ``values``; ``specification`` imports ``data``,
+``geometry``, ``numerics`` and ``values``; ``reference`` imports ``data``,
+``numerics``, ``specification`` and ``values``. There is no ``data`` to
+``geometry`` edge and no ``geometry`` to ``data`` edge: the gate orders
+neither, and that absence is a measurement, not a rule.
+
+The script reads ``FORBIDDEN_EDGES`` and the L3 set from the gate (it loads
+``tests/gates/test_layer_imports.py`` of the tree it censuses); the ranks
+behind its UP report are its own table (``values`` 0, ``geometry`` 1,
+``numerics`` 2, ``data`` 3, ``mesh`` and ``specification`` 4, ``reference``
+5, ``derivations`` 6, ``transport`` 7, L3 8), stricter than the gate, so it
+reports as upward some edges the gate admits (a planted
+``numerics`` to ``derivations`` import prints as UP with no FORBIDDEN line).
+It reports the package cycles, the UP edges and the edges ``FORBIDDEN_EDGES``
+forbids. Its positive
+control (`[M]` 2026-10-24, a copy of the tree with one planted
+``geometry`` to ``numerics`` import and one planted ``data`` to ``mesh``
+import): a ``{geometry, numerics}`` package cycle, both planted edges
+reported as upward and as forbidden; on the tree itself the three reports
+read empty. The script's earlier table
+ranked numerics below geometry and reported the 45 numerics to geometry
+statements as the single upward edge; that is the archivist's report of a
+run whose pre-edit script was not kept, so it cannot be re-run.
 
 A few notes the table is too compact to capture:
 
@@ -116,24 +165,47 @@ A few notes the table is too compact to capture:
   it provides primitive types that the layers above it consume.
   Geometries, meshes and nuclear-data structures are inputs in the same
   sense that a function argument is an input — they cross every layer
-  boundary but carry no algorithmic knowledge. The linter forbids
-  :mod:`orpheus.numerics` an edge to :mod:`orpheus.data`, guarded or not
-  (layer_dag.md P2, 2026-10: the energy axis is minted from its edges by
-  :meth:`~orpheus.numerics.axis.EnergyAxis.of_edges`, and the views that
-  read nuclear data as an axis, :meth:`EnergyGrid.as_axis
-  <orpheus.data.energy_grid.EnergyGrid.as_axis>` and
-  :func:`~orpheus.data.materials.energy_axis_of`, live in data), and one
-  to :mod:`orpheus.mesh`. It admits the edge to :mod:`orpheus.geometry`,
-  and that edge is the intended direction (layer_dag.md ruling 1): the
-  point groups (:mod:`orpheus.geometry.symmetry`), the point sets they act
-  on (:mod:`orpheus.geometry.manifold`) and the face naming
+  boundary but carry no algorithmic knowledge. One of its packages,
+  :mod:`orpheus.geometry`, sits **below** L1; :mod:`orpheus.data`,
+  :mod:`orpheus.mesh` and :mod:`orpheus.specification` sit above it.
+  :mod:`orpheus.geometry` is below :mod:`orpheus.numerics`: the gate's row for ``geometry`` forbids
+  ``numerics``, ``mesh``, ``specification``, ``reference``, L2 and L3, at
+  every import kind (``test_geometry_imports_nothing_from_numerics`` feeds
+  six import shapes, absolute, ``import a.b``, ``from orpheus.numerics
+  import space``, function-body, ``TYPE_CHECKING`` and relative, and
+  requires a violation from each; the gate never sees an
+  ``importlib.import_module`` string, which
+  ``test_geometry_never_imports_numerics_through_an_importlib_string``
+  reads). Until wave 2 of the layer DAG (the boundary carve, WF2.4,
+  2026-10-24) geometry held the boundary laws, which imported numerics, and
+  {geometry, numerics} was a package cycle; the trace laws retired;
+  their successor, the wall condition
+  :class:`~orpheus.transport.boundary_conditions.WallCondition`, lives in
+  :mod:`orpheus.transport.boundary_conditions`, geometry holds the decks
+  (the closed sum of face pairings) and the parser of a face's role (a deck,
+  or an integer tag), and the cycle
+  is gone. The reverse edge, :mod:`orpheus.numerics` importing
+  :mod:`orpheus.geometry`, is the intended direction (layer_dag.md ruling
+  1): the point groups (:mod:`orpheus.geometry.symmetry`), the point sets
+  they act on (:mod:`orpheus.geometry.manifold`) and the face naming
   (:mod:`orpheus.geometry.faces`) are geometry, and numerics' measures,
   quadratures and bases import them. Until layer DAG WP-B (2026-10-22) the
   first two were numerics modules importing
-  :mod:`orpheus.geometry.transformation`. The reverse edges, geometry's
-  boundary laws importing numerics, are what keeps
-  {geometry, numerics} a package cycle, pending layer_dag.md P1's boundary
-  carve.
+  :mod:`orpheus.geometry.transformation`. The discipline that made the
+  cycle survivable (an input-layer package imports :mod:`orpheus.numerics`
+  only by SUBMODULE, never the package, because the package's ``__init__``
+  imports ``measure``) stays as a rule for the packages that import
+  numerics (``test_input_layer_imports_numerics_only_by_submodule``); the
+  partial-initialisation state it guarded against no longer arises, since
+  geometry imports only ``values`` and numerics is forbidden ``data``,
+  ``mesh`` and ``specification``. :mod:`orpheus.data`
+  is above :mod:`orpheus.numerics`: the linter forbids numerics an edge to
+  data, guarded or not (layer_dag.md P2, 2026-10: the energy axis is minted
+  from its edges by :meth:`~orpheus.numerics.axis.EnergyAxis.of_edges`, and
+  the views that read nuclear data as an axis,
+  :meth:`EnergyGrid.as_axis <orpheus.data.energy_grid.EnergyGrid.as_axis>`
+  and :func:`~orpheus.data.materials.energy_axis_of`, live in data), and
+  one to :mod:`orpheus.mesh`.
 
 * The input layer has one internal order: :mod:`orpheus.mesh` sits
   **above** :mod:`orpheus.geometry`. A mesh is an overlay on a geometry
@@ -158,8 +230,11 @@ A few notes the table is too compact to capture:
   package or :mod:`orpheus.derivations`; :mod:`orpheus.data`,
   :mod:`orpheus.geometry`, :mod:`orpheus.numerics` and :mod:`orpheus.mesh`
   never import it. The mesh and the specification are therefore siblings:
-  neither imports the other. :mod:`orpheus.derivations` may import it,
-  because the reference registry will hold specifications. Its two
+  neither imports the other. :mod:`orpheus.reference` sits above it (the
+  gate forbids ``reference`` the mesh, L2, L3 and ``derivations``, and
+  forbids ``specification`` the reference package), and
+  :mod:`orpheus.derivations` imports both, because the reference registry
+  holds specifications and writes reference solutions. Its two
   coordinates live one level down, each in the package whose vocabulary
   defines it: :class:`~orpheus.data.cells.CellCoefficient` names a
   ``Mixture``'s channels and lives in :mod:`orpheus.data`;
@@ -167,24 +242,33 @@ A few notes the table is too compact to capture:
   lives in :mod:`orpheus.geometry`
   (:ref:`structured-geometry-specification-coordinates`).
 
-* **L0** sits below **L2**, beside **L1** and the input layer, not below
-  **L1**. The linter forbids :mod:`orpheus.derivations` exactly
-  :mod:`orpheus.transport` and every L3 package, the same set it forbids
-  :mod:`orpheus.mesh`; it forbids :mod:`orpheus.numerics`,
-  :mod:`orpheus.geometry` and :mod:`orpheus.data` that set plus
-  :mod:`orpheus.mesh`. So a reference may use the mathematics layer and
-  describe its problem in input-layer vocabulary (a geometry, a mesh, a
-  ``Mixture``, a boundary condition), and it may never name a transport object such as
-  ``MaterialMesh``; lifting a reference's problem to a method's problem is
-  a production verb at L2 and above. The derivations ship reference
-  solvers built from SymPy, ``mpmath``, or pure analytical closed forms.
-  Production code that needs a structurally independent reference
-  imports L0; the L3-uses-L0 pattern is documented in
+* **L0** sits below **L2**, above ``specification`` and ``reference``
+  (they never import it; it imports both, 8 statements each), and beside
+  ``numerics``, ``geometry``, ``data`` and ``mesh``, whose rows do not
+  forbid it. The gate's row for ``derivations`` forbids exactly
+  :mod:`orpheus.transport` and every L3 package; of the
+  edges INTO ``derivations`` it forbids those of ``values`` (which imports
+  nothing from ``orpheus``), ``specification`` and ``reference`` (a
+  specification never imports a reference's registry; the registry imports
+  the specification). The edges from ``numerics``,
+  ``geometry``, ``data`` and ``mesh`` to ``derivations`` are therefore
+  admitted by the gate; `[M]` 2026-10-24, the census script over the carve tip, none of
+  the four imports it, and the only importer of ``derivations`` outside
+  itself is :mod:`orpheus.cp` (3 top-level statements; a method may import L0,
+  which is the L3-uses-L0 pattern). So a reference may use the mathematics
+  layer and describe its problem in input-layer vocabulary (a geometry, a
+  mesh, a ``Mixture``, a specification, the face roles a deck or an integer
+  tag names), and it may never name a transport object such as
+  ``MaterialMesh`` or a wall condition; lifting a reference's problem to a
+  method's problem is a production verb at L2 and above. The derivations
+  ship reference solvers built from SymPy, ``mpmath``, or pure analytical
+  closed forms. Production code that needs a structurally independent
+  reference imports L0; the L3-uses-L0 pattern is documented in
   :doc:`/theory/verification/index`. Inside L0, the closed references
   (``derivations/continuous/`` and ``derivations/common/``) are held to a
   stricter rule than the layer table: they never import
   :mod:`orpheus.mesh`, and of :mod:`orpheus.numerics` they may import only
-  five interface modules (:ref:`architecture-reference-insulation`).
+  four interface modules (:ref:`architecture-reference-insulation`).
 
 * **L4** is permissible to import everything. It is the only layer
   where wiring a run can pull in transport types, method-specific
@@ -342,21 +426,25 @@ The forbidden-edge dictionary is:
        "values": ORPHEUS_TOP_LEVEL - VALUES_PACKAGES,
 
        # L1 imports nothing above itself; data sits strictly above it
-       # (layer_dag.md P2). Geometry is still admitted, pending P1.
+       # (layer_dag.md P2). Geometry is below it.
        "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES
                    | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
-       # Geometry and data never import the mesh overlay, the
-       # specification or the reference package above them.
-       "geometry": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-       "data":     MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       # Geometry is declarative and below numerics (wave 2, WF2.4); data
+       # never imports the mesh overlay, the specification or the
+       # reference package above it.
+       "geometry": NUMERICS_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES
+                   | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       "data":     MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES
+                   | L2_PACKAGES | L3_PACKAGES,
 
        # The mesh imports geometry, data and L1, never the specification,
        # the reference package, L2 or L3.
        "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
 
        # The specification imports data, geometry and L1 only.
-       "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
+       "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES
+                        | L3_PACKAGES | L0_PACKAGES,
 
        # The reference package sits above the specification, below
        # transport, L3 and derivations.
@@ -370,7 +458,7 @@ The forbidden-edge dictionary is:
        "pn":         L3_PACKAGES - {"pn"},
        # ... etc for every L3 package ...
 
-       # L0 (derivations) imports L1 + inputs only, as the input layers do.
+       # L0 (derivations) never imports transport or a method.
        "derivations": L2_PACKAGES | L3_PACKAGES,
    }
 

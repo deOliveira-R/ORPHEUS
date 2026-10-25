@@ -1112,8 +1112,8 @@ class TensorProductSpace(FunctionSpace):
     on this space (adjoint distributivity, composition distributivity,
     representation polymorphism) checkable at the type level. See grand-
     report §5.3, §15, §32.4 for the L1 motivation; see
-    ``.claude/plans/wave_t_tensor_network.md`` for the production
-    consumers being wired in Wave T.
+    ``.claude/plans/archive/wave_t_tensor_network.md`` for the Wave T
+    plan that wired the production consumers.
 
     Construction
     ------------
