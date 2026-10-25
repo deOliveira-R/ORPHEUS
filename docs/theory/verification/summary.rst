@@ -228,7 +228,7 @@ Diffusion Properties
 
 (``tests/gates/diffusion/test_properties.py``)
 
-- **Vacuum is the Marshak law, not zero flux**: ``BC("vacuum")``
+- **Vacuum is the Marshak law, not zero flux**: ``WallCondition.vacuum()``
   means zero *incoming current* — :math:`J^- = 0` is asserted at
   10⁻¹² of the boundary-trace scale, while the boundary-cell flux
   must stay strictly positive (vacuum is not the zero-flux Dirichlet

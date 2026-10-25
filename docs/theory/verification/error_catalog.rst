@@ -1377,16 +1377,20 @@ older entries classify against.
    extending ``solution_to_angular_flux*`` and
    ``transport_operator_matvec*`` to consume the ``BoundaryOperator``
    instances on the ``SNMesh`` (Wave B Issue 7 BC algebra).
-   Each function now dispatches through ``bc.apply_to_incoming(out, quad)``
-   so vacuum, reflective, white, periodic, albedo, and mixed BCs are all
+   Each function then dispatched through ``bc.apply_to_incoming(out, quad)``
+   so vacuum, reflective, white, periodic, albedo, and mixed BCs were all
    honoured uniformly. Bit-identity to the pre-Round-3 reflective-only
-   fill is preserved for ``SpecularBoundaryOperator`` (the standard
-   ``BC.reflective`` factory), which is the load-bearing condition for
-   the 11 frozen regression snapshots to stay green.
+   fill was preserved for ``SpecularBoundaryOperator`` (the standard
+   ``BC.reflective`` factory), which was the load-bearing condition for
+   the 11 frozen regression snapshots to stay green. (``BoundaryOperator``,
+   ``SpecularBoundaryOperator``, ``BC`` and ``bc.apply_to_incoming`` are all
+   retired: the wave-2 carve of 2026-10-24 replaced them by the affine
+   ``WallCondition`` and the SN realizer table, :ref:`bc-architecture-of-record`;
+   each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.)
 
-   This BC plumbing is the load-bearing infrastructure for any future
+   This BC plumbing was then the load-bearing infrastructure for any future
    ERR-026 closure on fixed-source MMS: the
-   ``SNStreamingOperator`` now solves the *correct* operator
+   ``SNStreamingOperator`` then solved the *correct* operator
    equation for any BC family, so a Krylov-on-``apply`` solve can give
    the right answer if the operator's discretization is otherwise
    2nd-order accurate. The constant-source flat-flux test in the
@@ -3791,10 +3795,9 @@ older entries classify against.
 
 
    **Status:** **TYPE SHIPPED Wave 3 2026-05-11** (refactor/sn-operator-algebra
-   → feature/bc-trace-law-abc). Concrete BC that fires the invariant lands
-   in Wave 7. This entry pins the error TYPE; the catching test ships
-   with the Wave 7 concrete that overrides
-   ``assert_inflow_outflow_classification`` to raise.
+   → feature/bc-trace-law-abc); **the error type retired in WF2.4 and the invariant is
+   carried by the trace ladder** (see "Catching test" below). The entry was written to pin the error
+   TYPE, with a catching test promised for a Wave 7 concrete; the marker now sits on the ladder's own gate.
 
    **Failure mode:** **#5 (index error)** — an ordinate with
    ``|Ω · n_f| <= eps`` (a quadrature node that grazes the face within
@@ -3824,14 +3827,14 @@ older entries classify against.
    cancels). The ERR fires only under non-trivial angular dependence
    AND a reflective BC contract. Caught by the Wave 7 invariant.
 
-   **Catching test (Wave 7):** the concrete ``ReflectiveBoundary``
-   ships a test that constructs a Lebedev-13 quadrature against a
-   face whose normal aligns with the tangential ordinate (i.e.,
-   ``mu_z`` for a ``zmin/zmax`` face on a Lebedev quadrature without
-   the ``(0, 0, ±1)`` node guard), then verifies
-   ``assert_inflow_outflow_classification`` raises
-   ``IncomingOutgoingTraceClassificationError``. To be tagged
-   ``@pytest.mark.catches("ERR-040")`` at Wave 7 ship.
+   **Catching test (as it stands):**
+   ``tests/gates/numerics/test_angular_trace_space.py::test_axis_aligned_ordinates_excluded_from_both_selectors``,
+   tagged ``@pytest.mark.catches("ERR-040")``. It builds the trace ladder on ``Quadrature.lebedev(11)``, finds the
+   ``(0, 0, ±1)`` ordinates (asserting there are at least two, so the fixture holds the tangential nodes) and requires
+   them in NEITHER ``inflow_indices_for_face("xmin")`` NOR ``outflow_indices_for_face("xmin")``. The law-side
+   test this entry originally promised (a concrete ``ReflectiveBoundary`` raising
+   ``IncomingOutgoingTraceClassificationError`` on a Lebedev-13 quadrature) went with the law family; the ladder's
+   gate is the catcher the marker names.
 
    **Lesson:** A strict-partition contract is part of the BC's TYPE
    SIGNATURE. The trace-space layer (Wave 2) excludes tangential
@@ -3843,8 +3846,8 @@ older entries classify against.
    :title: Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-)
 
 
-   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Concrete realiser
-   ships Wave 5.
+   **Status:** **TYPE SHIPPED Wave 3 2026-05-11**; the concrete realiser shipped in Wave 5. Both retired in WF2.4
+   (see "Catching test" below).
 
    **Failure mode:** **#6 (convention drift)** — a vacuum BC defined as
    "set γ\_- ψ = 0 on the INCOMING trace" gets constructed against an
@@ -4139,8 +4142,8 @@ older entries classify against.
    :title: Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-)
 
 
-   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
-   ships with Wave 7 prescribed-inflow BC.
+   **Status:** **TYPE SHIPPED Wave 3 2026-05-11**; the catching test is the one named under "Catching test"
+   below (the Wave 7 prescribed-inflow BC it was promised with retired with the law family in WF2.4).
 
    **Failure mode:** **#6 (convention drift)** — the source ``q`` in
    the affine form ``γ_- ψ = R G γ_+ ψ + q`` is constructed with
@@ -4153,8 +4156,9 @@ older entries classify against.
 
    **Mechanism:** The affine form's ``q`` lives on ``Γ_-`` by definition.
    If the user passes an array shaped like the full ordinate set but
-   populated uniformly (e.g. via ``ConstantInflowSource(value=2.0)``
-   without masking), the outflow ordinates get spurious ``+2.0``
+   populated uniformly (then, e.g. via ``ConstantInflowSource(value=2.0)`` of the retired law family, without
+   masking; the present spelling of a uniform inflow is ``WallCondition.uniform(2.0)``, whose recipe lands on the
+   inflow slots only), the outflow ordinates get spurious ``+2.0``
    entries that the sweep then discards. The total inflow current is
    SHORT by the masked-out fraction — a missing-source bug that
    masquerades as "boundary source is weaker than expected".
@@ -6260,10 +6264,10 @@ older entries classify against.
    **Date:** filed 2026-08-05 (affine-boundary-source campaign, P3 — found by
    asking ``B.apply(0)`` while auditing a *different* claim, not by a failing test).
 
-   **Where:** ``orpheus/sn/boundary/realizer.py`` (the ``PrescribedInflow`` arm) and
-   ``orpheus/sn/boundary/angular.py::IncomingSourceOperator`` (both retired at P3);
-   the un-filtering consumer is
-   ``orpheus/sn/operators/boundary.py::SNBoundaryOperator._face_laws``.
+   **Where:** ``orpheus/sn/boundary/realizer.py`` (the ``PrescribedInflow`` arm, retired with the law family in the
+   wave-2 carve) and ``orpheus/sn/boundary/angular.py::IncomingSourceOperator`` (retired at P3);
+   the un-filtering consumer was ``SNBoundaryOperator._face_laws``, a method of
+   ``orpheus/sn/operators/boundary.py`` that no longer exists.
 
    **The bug.** The affine boundary law is ``γ₋ψ = L γ₊ψ + q``. The realizer tier's
    contract is to realize ``L``. For prescribed inflow ``L = 0`` and the whole content
@@ -6332,8 +6336,8 @@ older entries classify against.
    existed.
 
    **Why it survived.** One real fence, misread as two. ``prescribed_inflow`` is not a
-   registered ``BC`` kind (``sn/problem.py``, #189), so no production driver
-   can install the law and only tests construct it — and **no test ran a full solve
+   registered ``BC`` kind (``sn/problem.py``, #189; the ``BC`` registry retired in the wave-2 carve), so no production driver
+   could install the law and only tests construct it — and **no test ran a full solve
    with a declared law.** The gates that existed stopped at
    ``_build_fixed_source_rhs``: they correctly verified the RHS receives ``q`` and were
    structurally blind to ``B`` also delivering it. This is ``verification-user-path``
@@ -6368,7 +6372,8 @@ older entries classify against.
 
    *Operator tier (added by campaign phase P5, 2026-08-06)* —
    ``tests/gates/sn/operators/test_declared_law_is_linear.py``, on a het-2G GL-8 slab
-   declaring ``PrescribedInflow`` at ``xmin`` and **reflective** at ``xmax`` (the partner
+   declaring the prescribed inflow (``PrescribedInflow`` when the row was written, ``WallCondition.uniform`` now) at
+   ``xmin`` and **reflective** at ``xmax`` (the partner
    is load-bearing: on an all-prescribed mesh ``B`` is identically the zero morphism
    and every linearity row is a Mode-8 tautology — measured ``|B(x)|_inf = 0.0``
    exactly there).
@@ -6414,7 +6419,7 @@ older entries classify against.
    **⭐ The generalizable lesson — a "it is fenced, so it cannot happen" argument is
    a claim about a CONSUMER and must be measured at the consumer.** Both fences here
    were read off the PRODUCER: the realizer returns an unstamped operator, the ``BC``
-   registry has no key. One of those (the registry) happened to be a genuine
+   registry had no key. One of those (the registry) happened to be a genuine
    consumer-side fact. The other was an *inference* about what ``SNBoundaryOperator``
    would do with an unstamped leaf, and the code it was an inference about is
    fourteen lines long and was never opened. The check costs one line —
@@ -6531,7 +6536,8 @@ older entries classify against.
 
 
    - **Where**: ``orpheus/numerics/operator.py`` (``TraceRestrictionOperator._checked_space``) ×
-     ``orpheus/sn/boundary/realizer.py`` (``_deck_kernel`` post-``0d99140c``).
+     ``orpheus/sn/boundary/realizer.py`` (``_deck_kernel`` post-``0d99140c``; ``_deck_kernel`` retired with the
+     isinstance ladder in the wave-2 carve, one body per builder).
    - **Class**: guard DEMOTION by relocation — the moved function's precondition
      (membership over the GATHER's own rows) was satisfied *by construction* at the old
      host and became a separate, uncheckable-at-the-call-site fact at the new one. The
@@ -9046,6 +9052,17 @@ older entries classify against.
    The tables in this entry record the measurement as it was made, under
    the retired spelling.
 
+   **Wave-2 carve 2026-10-24.** ``AlbedoBoundary``, ``SpecularReturn``,
+   ``IsotropicReturn``, ``WhiteBoundary`` and the ``BC`` tag registry retired
+   with the whole law family. A partially reflecting wall is now one affine
+   wall condition, ``WallCondition.specular(α)`` (a mirror response network
+   of return fraction :math:`\alpha`, :class:`~orpheus.transport.boundary_conditions.WallCondition`),
+   and the eigenvalue's leakage term, the curvilinear corner and the DSA
+   admission read its ``return_fraction`` and response network. Each spelling
+   below under the retired names is a measurement as it was made; the
+   catchers named under "Caught by" were re-spelled onto ``WallCondition``.
+   The map of every retired name is :ref:`bc-wave2-crosswalk`.
+
    **Module:** ``orpheus/sn/solver.py`` (``SNSolver._boundary_leakage_rate``,
    the eigenvalue's leakage term), ``orpheus/sn/operators/boundary.py``
    (``RadialCharacteristicBoundaryOperator._reflect_corner``, the
@@ -9355,9 +9372,10 @@ older entries classify against.
      (`[M]` 2026-10-10, qa, ``p1_step_d/qa_d/err094_mutant.log``: S\ :sub:`N`
      reads 1.82 on both bodies). One datum is shared, not independent:
      both sides read the wall's response factor from one object, the
-     law's ``SpecularReturn.kernel`` (S\ :sub:`N` through its leakage
-     predicate and its corner, the reference through
-     ``law.response_kernel`` in its walls). It is part of the posed
+     law's ``SpecularReturn.kernel`` of the retired law family (S\ :sub:`N`
+     through its leakage predicate and its corner, the reference through
+     ``law.response_kernel`` in its walls; the successor datum is the wall
+     condition's response network). It is part of the posed
      problem; halving it moves both sides' :math:`k` together and the slab
      row stays green (`[M]` 2026-10-10, qa), so its pin is external,
      ``tests/gates/derivations/test_characteristic_walls.py``, red three
@@ -9384,7 +9402,8 @@ older entries classify against.
      (the public route, ``solve_sn_fixed_source(..., acceleration="dsa")``).
      The divergence depends on the regime, as the first catcher's
      docstring records: on a one-group slab with
-     ``ReflectiveBoundary('x', 0.7)`` on both faces, DSA converged to the
+     ``ReflectiveBoundary('x', 0.7)`` (the retired spelling; now
+     ``WallCondition.specular(0.7)``) on both faces, DSA converged to the
      right fixed point at :math:`c = 0.9` and unit cell optical
      thickness, diverged at :math:`c = 0.99` and cell optical thickness
      5, and raised on a NaN at 20; the table above, with the partial
@@ -11629,3 +11648,80 @@ older entries classify against.
    right only for the layout it was written against, and a fused path that
    never calls the operator alone hides the error until the fusion is taken
    away.
+
+.. error-entry:: ERR-120
+   :title: A hollow cylinder's or sphere's declared inner boundary condition was dropped in silence, because the radial axis has one trace slot and a method assembled on the axes computed a reflective cavity whatever the inner face declared (SN until the P1 guard, diffusion again in the S3 draft)
+
+   **Status:** ✅ **GUARDED, NOT FIXED: the capability is owed under #511.** SN refused the declaration from P1
+   step 2 of the reference-architecture campaign (#405, ruling of 2026-09-29); the wave-2 carve (2026-10-24) re-homed
+   that refusal into the realizer tables, and the diffusion table refuses it since the S3 integration (2026-10-23).
+   The refusal is a declared scope boundary, ``SCOPE-BOUNDARY[guard]``, whose removing machinery is an inner-surface
+   trace on the radial axis (issue #511, still unresolved).
+
+   **Module:** ``transport`` and the two methods that read the axes' trace inventory: the single refusal constructor
+   :func:`~orpheus.transport.boundary_conditions.hollow_inner_refusal`
+   (``orpheus/transport/boundary_conditions/admission.py``), called by the SN table
+   (``orpheus/sn/boundary/realizer.py``) and the diffusion table (``orpheus/diffusion/boundary_realizer.py``).
+
+   **Failure mode:** **#6 (convention drift).** The declaration site says a boundary carries one condition per real
+   boundary, and a hollow shell has two surfaces; the usage site, the radial axis
+   (:class:`~orpheus.mesh.axis.RadialAxisMesh`), has one trace slot, the outer surface, and reads nothing else. No
+   arithmetic is missing and no index is off by one: a statement about how many surfaces carry a law held for the solid
+   body and was false for the hollow one.
+
+   **The defect.** On a hollow body, a method assembled on the axes' trace inventory has nowhere to put an inner
+   condition, so it computes the reflective cavity (a unit specular return, the void core's own answer) whatever the
+   inner face declares. Two independent measurements:
+
+   - **SN.** `[M]` 2026-09-25 (the test-architect's P1 probe ``scratch/reference_architecture/p1probe/hollow_inner_law.py``,
+     recorded in ``.claude/plans/wave2_boundary_carve.md`` section 11.1): on a cylinder and a sphere with inner radius
+     :math:`r_0 = 0.5`, an inner vacuum and an inner reflective law gave bit-identical SN fluxes; the slab control, the
+     same change of its left law, moved the flux. The cause in the code of that date was the geometry adapter
+     ``axes_from_legacy_mesh``, which mapped ``bc_right`` onto the radial axis's outer slot and read ``bc_left`` nowhere.
+   - **Diffusion.** `[M]` 2026-10-23 (the S3 build's probe, plan section 11.4): ``solve_diffusion_1d`` on a hollow
+     sphere and a hollow cylinder, material A in two groups, 8 cells on [0.5, 2.0], outer tag vacuum, returned a
+     bit-identical eigenvalue for an inner ``vacuum()``, ``specular(1.0)`` and ``white(0.5)``, 3 of 3 conditions on each of
+     2 of 2 coordinate systems. The stencil assembles its boundary closures from the trace inventory, which omits the inner
+     face, so that face's flow slot stays zero (zero net current, :math:`J^- = J^+`). The section-4.2 draft of the carve
+     had admitted diffusion at every site and so re-opened the defect the retired guard had closed.
+
+   **How it hid.** Two ways, one per method.
+
+   - In SN the only declared inner laws on record were reflective, the law the closure computes anyway: #511 counted
+     5 test sites that built a hollow curvilinear mesh with an inner law, and all 5 passed ``BC("reflective")``. A
+     wrong answer needed a declaration no test made.
+   - Diffusion's draft column admitted every site; the geometry-adapter guard that had refused the case was retired by
+     the carve, and nothing compared the column with the stencil's trace inventory until the S3 build probed it.
+
+   **Fix (the guard, and what it admits).** One refusal, ``hollow_inner_refusal(reason)``, returns
+   ``Refused(PLUMBING, reason, 511)``. Each table calls it at the hollow inner site with its own reason, so the admission
+   stays per method while the refusal has one definition. SN admits the inner site only at a unit specular return, the
+   perfect mirror ``WallCondition.specular(1.0)``, because that is what the closure computes (verified by
+   ``test_a_reflective_inner_law_is_a_void_cavity``: the hollow reflective body against a solid body whose core absorbs
+   :math:`\varepsilon`, the gap linear in :math:`\varepsilon` and its intercept at :math:`\varepsilon = 0` of order
+   :math:`10^{-10}`). Diffusion's table admits the same single condition and refuses every other inner declaration. CP
+   refuses every unit at a hollow inner face on its own guard (#513) and does not call the shared constructor, since the
+   reason for refusing is the method's.
+
+   **Catching tests.** In ``tests/gates/mesh/test_hollow_inner_law.py``:
+
+   - ``test_sn_refuses_a_declared_inner_law_it_would_drop`` (6 rows: vacuum, white(0.5) and specular(0.5) on a cylinder
+     and a sphere): ``SNProblem`` raises ``BoundaryRefused`` whose admission is ``RefusalAxis.PLUMBING`` with issue 511, on
+     the face ``"xmin"``;
+   - ``test_diffusion_refuses_it_too`` (3 rows, a sphere): ``DiffusionMesh`` raises ``BoundaryRefused`` citing 511.
+
+   Both carry ``@pytest.mark.catches("ERR-120")``. The positive controls beside them are
+   ``test_diffusion_admits_the_unit_specular_cavity_at_the_inner_site`` (the one admitted condition constructs, so the
+   refusal is the inner site's and the fixture is not broken) and ``test_a_reflective_inner_law_is_a_void_cavity``.
+   `[M]` 2026-10-24, the shared refusal replaced in-process by ``Realized(True)`` in both realizer modules at
+   ``pytest_configure`` (``python -O -m pytest`` on the module): 11 of 16 rows red, which are the 6 SN rows, the 3
+   diffusion rows and the 2 rows of ``test_a_direct_mesh_is_refused_too``; the 5 other rows stay green. The two
+   bit-identity measurements above (SN, diffusion) are the plan's records and the probes' outputs, relayed with their
+   dates: they cannot be re-run on this tree, because the refusal that guards the declaration now stands in the way
+   of the measurement (the in-process mutation above is what lifts it).
+
+   **Lesson.** ⭐ **A column of an admission table is a claim about what the method's assembly reads, so it is written
+   from the assembly's inventory and never by analogy with a sibling method's column.** A silent drop is the failure a
+   refusal is for: the cheapest check is to vary the declared condition and require the answer to move, one bit-identity
+   probe per (method, site class), and where the answer cannot move because the machinery is absent, refuse the
+   declaration and cite the issue that owns the machinery.

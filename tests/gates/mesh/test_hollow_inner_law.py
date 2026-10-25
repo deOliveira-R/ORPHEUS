@@ -85,6 +85,7 @@ def _direct_hollow_mesh(coord: CoordSystem, inner_role) -> Mesh1D:
     )
 
 
+@pytest.mark.catches("ERR-120")
 @pytest.mark.parametrize("coord", _CURVILINEAR, ids=lambda c: c.name.lower())
 @pytest.mark.parametrize("law", _REFUSED_INNER_LAWS, ids=str)
 def test_sn_refuses_a_declared_inner_law_it_would_drop(coord, law):
@@ -104,6 +105,7 @@ def test_a_direct_mesh_is_refused_too(coord):
     assert info.value.admission.issue == 511
 
 
+@pytest.mark.catches("ERR-120")
 @pytest.mark.parametrize("law", _REFUSED_INNER_LAWS, ids=str)
 def test_diffusion_refuses_it_too(law):
     """Diffusion reads the same axes, so it would drop the same condition: its table refuses it, citing #511 as SN's does."""

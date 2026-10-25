@@ -1012,11 +1012,14 @@ and a manufactured-solution driver needs a non-zero :math:`q`. Supplying
 it as :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
 straight into a composite source verifies the *channel* — the RHS carries
 it, the sweep consumes it — while saying nothing about whether **declaring**
-a :class:`~orpheus.geometry.boundary.PrescribedInflow` produces it. It did
+a a :class:`~orpheus.transport.boundary_conditions.WallCondition` carrying an
+:class:`~orpheus.transport.boundary_conditions.InflowTerms` produces it. It did
 not: until the mesh-BC bridge landed, a declared inflow realized into an
 operator nothing consumed, so the declaration was inert and no green test
-could tell. The honest driver declares the boundary condition and lets the
-machinery materialise :math:`q`.
+could tell (the declaration was then a ``PrescribedInflow`` of the retired
+``orpheus.geometry.boundary``; the wave-2 carve of 2026-10-24 replaced it by
+the affine ``WallCondition``). The honest driver declares the boundary
+condition and lets the machinery materialise :math:`q`.
 
 Test-owned machinery is a GAP SIGNAL
 ------------------------------------
@@ -1024,7 +1027,7 @@ Test-owned machinery is a GAP SIGNAL
 The rule has a second half, and it is the more useful one.
 
 A test may legitimately implement a production **Protocol** — an
-:class:`~orpheus.geometry.boundary._source.InflowSourceSpec` evaluating a
+:class:`~orpheus.transport.boundary_conditions.InflowSampler` sampling a
 manufactured solution on a face is using the machinery, not bypassing it.
 But when a test has to *build* something in order to exercise production,
 that is evidence the production shape is **missing**, not evidence the
