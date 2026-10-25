@@ -1,8 +1,8 @@
 .. _theory-boundary-conditions:
 
-============================================
-Boundary Conditions — Trace-Law Architecture
-============================================
+===============================================================
+Boundary Conditions — Face Roles, Wall Conditions and Admission
+===============================================================
 
 .. contents:: Contents
    :local:
@@ -12,239 +12,1520 @@ Boundary Conditions — Trace-Law Architecture
 Key Facts
 =========
 
-**Read this before touching anything in** ``orpheus.geometry.boundary``
-**or any** ``BoundaryRealizer``.
+**Read this before touching** the face roles of a geometry or a mesh (:mod:`orpheus.geometry.deck`), the conditions package
+(:mod:`orpheus.transport.boundary_conditions`) or any method's realizer table. The sections from
+:ref:`bc-architecture-of-record` to :ref:`bc-wave2-crosswalk` state the architecture as it stands. The sections after the
+crosswalk record the trace-law architecture that wave 2 of the layer DAG replaced (2026-10-24): their mathematics still holds
+where they re-spell it, and a name in double backticks there is retired.
 
-- A boundary condition is a **method-agnostic affine map** on the
-  transport equation's boundary trace:
-  :math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q`, where
-  :math:`\gamma_\pm` are the inflow / outflow trace operators,
-  :math:`G` is the **deck transformation** (a specular mirror, a
-  spatial wrap, a rotation), :math:`R` is the **constitutive response
-  kernel** (an :term:`albedo` amplitude, or a rank-one angular kernel
-  for diffuse re-emission), and :math:`q` is an optional prescribed
-  inflow source. **Membership in** :math:`G` **is decidable by
-  multiplicativity** — :math:`G(\psi\varphi) = (G\psi)(G\varphi)`
-  holds for a relabeling and never for an average, so an angular
-  average is an :math:`R`, not a :math:`G`. See :eq:`affine-bc-form`
-  and :ref:`bc-factor-roles`; campaign phase B3.0 corrected the
-  assignment (the Lambertian average had shipped in the geometry
-  slot).
-- **No shipped law has both** :math:`G` **and** :math:`R` **different
-  from the identity.** A **deck law** (``ReflectiveBoundary``,
-  ``PeriodicBoundary``) is a symmetry of the domain: :math:`G` a deck
-  element, :math:`R = I`, no amplitude; a **response** (vacuum, white,
-  albedo, zero-flux, prescribed inflow) has :math:`G = I`. A partially
-  specular wall is therefore ``AlbedoBoundary(α, SpecularReturn(axis))``,
-  never a scaled mirror, and the descriptor algebra's
-  :class:`~orpheus.geometry.boundary.LawSum` and
-  :class:`~orpheus.geometry.boundary.LawScaled` refuse a deck law as an
-  operand with a ``TypeError`` (:ref:`bc-deck-law-not-an-operand`).
-- **The** :math:`R\,G` **product is a TAXONOMY, not a computational
-  factorization** (:ref:`bc-taxonomy-vs-factorization`). It answers
-  *"is this law's content geometry or physics?"*; it does NOT say how
-  the law is evaluated. **Whichever factor is non-trivial carries the
-  crossing** :math:`\Gamma_+ \to \Gamma_-`, which is well defined
-  because at most one of them ever is (a law with neither crosses
-  nothing on an angular trace: the closure-free scalar albedo, which SN
-  refuses; see :ref:`bc-factor-roles`): for a **quotient** law the
-  crossing is geometric (:math:`G`), for a **constitutive** law the
-  response does it by integrating the outgoing flux and re-emitting an
-  incoming one — there is no ambient isometry at a wall to provide it.
-  This bullet read ":math:`G : \Gamma_+ \to \Gamma_-` … it carries the
-  crossing, because the mirror … is an ambient isometry" and
-  ":math:`R : \Gamma_- \to \Gamma_-`" until 2026-08-04; the first was
-  proven only for the mirror and the second is contradicted by every
-  realized response, all of which type :math:`\Gamma_+ \to \Gamma_-`.
-- The architecture has **three concrete layers**, connected by the
-  kind-keyed law registry (#290 P7b dissolved the Wave-5 realizer
-  registry — realizers are owned by their method-meshes):
-
-  +-------+-----------------------+-----------------------------------------------------+
-  | Layer | What                  | Where                                               |
-  +=======+=======================+=====================================================+
-  | 1     | Trace structure       | :mod:`orpheus.numerics.spaces.angular_trace_space`  |
-  |       | (Γ\_-, Γ\_+ + mask)   | (all Mesh1D coord systems + 2-D Cartesian;          |
-  |       |                       | 2-D cylindrical Mesh2D deferred)                    |
-  +-------+-----------------------+-----------------------------------------------------+
-  | 2     | Boundary law          | ``orpheus.geometry.boundary`` (ABC +                |
-  |       | (method-agnostic)     | 7 concrete laws, kind-keyed law registry)           |
-  +-------+-----------------------+-----------------------------------------------------+
-  | 3     | Method realizer       | per-method packages (SN + diffusion,                |
-  |       | (per-method strategy) | #290 P3), each owned by its method-mesh             |
-  |       |                       | via the ``TransportMethod`` hook (P7b)              |
-  +-------+-----------------------+-----------------------------------------------------+
-
-- Rank-N boundary conditions (Marshak, partial-current mixes) are
-  expressed via a **descriptor-tree algebra** on the unrealised laws
-  themselves. The :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
-  algebra dunders (``+``, ``-``, ``*``, ``/``, unary ``-``) return
-  :class:`~orpheus.geometry.boundary.LawSum` /
-  :class:`~orpheus.geometry.boundary.LawScaled` nodes — a closed
-  algebra over ``BoundaryTraceLaw | LawSum | LawScaled``. The tree is
-  a **pure descriptor** with no ``apply`` method; the
-  :func:`~orpheus.transport.boundary_realization.realize_recursively` type
-  transformer (method-blind; in ``orpheus.transport.boundary_realization``
-  since layer-DAG WP-E1, in ``geometry/boundary/`` from #290 P7b until
-  then; the leaf realizer is a required argument) walks it once per
-  face and emits the formal linear combination
-  (:class:`~orpheus.numerics.operator.OperatorSum`) of the realised 1-arg
-  leaves. See :ref:`bc-trace-law-descriptor-model` and
-  :ref:`bc-rank-n-algebra`. There is no dedicated
-  ``MixedBoundaryOperator`` class (retired Wave 11); there is also no
-  ``apply`` method on the raw law (retired Issue #186, B3 + β2).
-- TWO functional realizers exist:
-  :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` and
-  :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
-  (#290 P3 — every diffusion law collapses to the albedo-family
-  scalar :math:`\mathcal{A}` in :math:`J^- = \mathcal{A} J^+`). Each
-  is OWNED by its method-mesh: ``realize_boundary_law`` — the
-  per-method arm of the
-  :class:`~orpheus.transport.method.TransportMethod` Protocol —
-  instantiates it directly, and the shared
-  :func:`~orpheus.transport.method.resolve_boundary_conditions` body
-  drives the per-face resolution for every method. The Wave-5
-  ``BoundaryRealizerRegistry`` + the MoC/MC/CP
-  ``NotImplementedError`` stub realizers were **dissolved at #290
-  P7b**: no consumer ever resolved a realizer by name (you hold the
-  method-mesh → you have its realizer), and the string indirection
-  carried registration-timing hazards for zero payoff. A future
-  MoC / MC / CP modernization mints its method-mesh + realizer pair
-  directly — no central registration step.
-- **Whether a configuration sweeps in one pass is a property of the
-  whole face configuration, never of a single law.** No
-  :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` subclass
-  carries a sweep-cycle flag. The per-law ``ClassVar`` that once
-  claimed to — ``True`` on
-  :class:`~orpheus.geometry.boundary.ReflectiveBoundary` and
-  :class:`~orpheus.geometry.boundary.PeriodicBoundary` — was
-  **retired 2026-07-30**: a boolean on the boundary *kind* cannot
-  express a configuration-dependent property, since
-  ``reflective|vacuum`` is acyclic while ``reflective|reflective``
-  is not. The honest criterion is a strongly-connected-component
-  decomposition of the :math:`(\text{face}, \text{ordinate})` trace
-  digraph, computed by
-  :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` and gated
-  by ``tests/gates/sn/sweep/test_sweep_acyclicity.py``. See
+- **A boundary face closes the transport equation in exactly one of two ways, and each face carries one role saying which.**
+  Either the domain *continues* across the face (a deck: the inflow trace is the outflow trace of a partner face carried by an
+  isometry) or the domain *ends* there (the inflow trace is an affine function of the face's own outflow trace, supplied by an
+  exterior model bound to an integer tag). The role is the sum ``FaceRole = DeckTransformation | int``, parsed by
+  :func:`~orpheus.geometry.deck.parse_face_role` (a ``bool`` is not a tag) and stored once per face by
+  :class:`~orpheus.mesh.face_roles.FaceRoles`. Gates: ``tests/gates/geometry/test_deck.py``,
+  ``tests/gates/mesh/test_face_roles.py``. Derivation: :ref:`bc-aor-trace-closures`.
+- **A deck has no amplitude, no source and nothing to scale.** The decks are a closed sum of two types with no field,
+  :class:`~orpheus.geometry.deck.MirrorDeck` and :class:`~orpheus.geometry.deck.TranslationDeck`; each is the Koopman operator
+  of an isometry, invertible and measure preserving, so its return fraction is exactly one. The admissible decks of a chart are
+  :math:`W = N(G_c)/G_c`, which is trivial on the radial axis of a cylinder or a sphere: no 1-D curved face carries a deck, and a
+  reflecting curved wall is a condition, ``WallCondition.specular(1.0)``. Gates: ``test_a_curved_face_admits_no_deck`` and
+  ``test_every_deck_match_ends_in_assert_never`` in ``tests/gates/geometry/test_deck.py``. Derivation: :ref:`bc-aor-deck-family`.
+- **A wall is one affine trace map on a convex cone.** :class:`~orpheus.transport.boundary_conditions.WallCondition` is the pair
+  :math:`(R, q)` with :math:`\gamma_-\psi|_f = R\,\gamma_+\psi|_f + q`, the linear part
+  :math:`R = s\,P + d\,(E\circ R_t)` a point :math:`(s, d)` of :math:`K = \{s, d \ge 0,\ s + d \le 1\}` and :math:`q \ge 0`.
+  Vacuum, the specular wall, the white wall and a prescribed inflow are facade constructors over this one type, so
+  ``WallCondition.specular(0.0) == WallCondition.white(0.0) == WallCondition.vacuum()``, one value with one digest. Gates:
+  ``tests/gates/transport/test_wall_condition.py``, ``tests/gates/transport/test_response_network.py``. Derivation:
+  :ref:`bc-aor-wall-condition`.
+- **Whether an operator on the face trace is a deck or a response is decided by two tests** (:ref:`bc-factor-roles`).
+  *Multiplicativity* is necessary: the Koopman operator of a measure-preserving bijection satisfies
+  :math:`G(\psi\varphi) = (G\psi)(G\varphi)` and an average never does, so the Lambertian average is a response by this test
+  alone. A specular *wall* passes it (a permutation is multiplicative), and the second test, *is it a quotient of the physical
+  domain*, decides: a wall is not a quotient, so its mirror is constitutive. It is the chain
+  :class:`~orpheus.transport.boundary_conditions.SpecularChain` of a wall condition and never a deck. Gates:
+  ``test_a_condition_is_not_a_deck_slot`` and ``test_a_deck_is_not_an_operand`` in
+  ``tests/gates/transport/test_wall_condition_algebra.py``.
+- **The response carries the crossing** :math:`\Gamma_+ \to \Gamma_-`. For a deck the crossing is the isometry's. For a wall no
+  ambient isometry exists to provide it, so the response performs it: the permutation :math:`P` of the specular chain, or the
+  retraction :math:`R_t` followed by the section :math:`E` of the diffuse chain. Every realized SN response is typed
+  :math:`\Gamma_+ \to \Gamma_-` of its own face (:class:`~orpheus.sn.boundary.realized_operators.ZeroMap`,
+  :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`,
+  :class:`~orpheus.sn.boundary.realized_operators.RankOneReemission`). Gate:
+  ``TestVacuumRealizesOnTheTrace.test_the_zero_map_runs_outflow_to_inflow_of_its_own_face`` in
+  ``tests/gates/sn/operators/test_sn_boundary_realizer.py`` (``ERR-041``).
+- **The return fraction of a wall is** :math:`\rho = s + d` **exactly, by the split pair, and the trace measure is a left
+  eigenvector of the realized map**: :math:`R^{\mathsf T}(w|\mu|)_- = \rho\,(w|\mu|)_+`. The proof needs :math:`E` to divide by
+  the *inflow* mass, so that :math:`R_t^{\rm in}\circ E = \mathrm{id}`. Gates: ``test_the_left_eigenvector_rider_through_the_realizer``
+  and ``test_return_fraction_is_the_declared_and_the_measured`` in ``tests/gates/sn/architecture/test_sn_realizer_table.py``;
+  ``test_the_mass_census_inflow_equals_outflow_on_every_registry_rule`` in
+  ``tests/gates/sn/architecture/test_realized_boundary.py``. Derivation: :ref:`bc-aor-wall-condition`.
+- **The cone is a value predicate, so a wall outside it does not exist.** Direct construction outside :math:`K`
+  (``WallCondition.specular(1.2)``, ``WallCondition.white(-0.1)``) raises
+  :class:`~orpheus.transport.boundary_conditions.SubmarkovViolationError` or
+  :class:`~orpheus.transport.boundary_conditions.BoundaryResponseNotPositiveError` (``ERR-046``, ``ERR-043``). The arithmetic
+  ``+``, ``-``, unary ``-`` and scalar ``*`` returns a ``WallCondition`` if and only if the result lies in :math:`K`, and
+  otherwise a :class:`~orpheus.transport.boundary_conditions.WallDisplacement`: a sensitivity direction that is never
+  bindable. Gate: ``test_the_algebra_and_the_cone`` in ``tests/gates/transport/test_wall_condition_algebra.py``.
+- **A binding joins the declared conditions to a carrier's tags, and is lawful only if it is an exact cover that the colouring
+  group leaves invariant.** :func:`~orpheus.transport.boundary_conditions.bind` takes the carrier (which owns the faces and
+  their colouring symmetry) and the conditions
+  (:class:`~orpheus.transport.boundary_conditions.BoundaryConditions`, the exact twin of ``Materials``), refuses an unbound tag
+  and an unused condition, and refuses a condition that a non-identity element of the problem's colouring group moves. A 2-D
+  mesh has no group machinery yet, and refuses a non-face-local condition on a tag of several faces (#658). Gate:
+  ``tests/gates/transport/test_binding.py``. Derivation: :ref:`bc-aor-roles-binding`, :ref:`bc-aor-colouring`.
+- **Realization is a partial map and admission is its domain, and both are read from ONE table per method.**
+  :class:`~orpheus.transport.boundary_conditions.RealizerTable` answers :meth:`~orpheus.transport.boundary_conditions.RealizerTable.admit`
+  (``Realized(faithful)``, ``Approximated`` or ``Refused(axis, reason, issue)``) and
+  :meth:`~orpheus.transport.boundary_conditions.RealizerTable.realize` through one door, so ``admit`` is ``Refused`` if and only if
+  ``realize`` raises :class:`~orpheus.transport.boundary_conditions.BoundaryRefused`. Five tables exist (``SN_REALIZERS``,
+  ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``) and
+  ``tests/gates/transport/test_admission_matrix.py`` pins every cell (111 rows, 90 of them over the five real tables, read
+  at the carve tip). Gates: ``test_one_door`` in ``tests/gates/transport/test_admission_mechanism.py`` and the pin. Derivation and the
+  tables: :ref:`bc-aor-admission`.
+- **A refusal is a statement about the declaration, with its axis and its issue as data.** A refusal lies on one of three
+  axes (angular resolution, topology, state cone) or is *plumbing*, which has no theory behind it and therefore owes the issue
+  that tracks the missing machinery (``Refused(PLUMBING, ...)`` without an issue does not construct). Today's limits stand, and
+  a wrong answer stays a visible failure: CP's vacuum-bounded eigenvalue exceeds its white-bounded one (#546), carried by three
+  strict ``xfail`` rows in ``tests/gates/cp/test_cp_vacuum_not_above_white.py``, and MC on a cylinder is
+  ``Refused(TOPOLOGY, #547)``, carried by strict ``xfail`` rows in ``tests/gates/mc``.
+- **A forward solve and an adjoint solve share one binding.** Every shared kernel is reciprocal in the trace metric
+  :math:`M = \mathrm{diag}(w|\mu|)`, the adjoint of a deck is the deck of its partner face, and the inflow :math:`q` is not
+  adjointed: ``solve_sn_adjoint_fixed_source`` never reads it, while ``solve_sn`` and ``solve_sn_adjoint`` refuse a declared
+  source. Gates: ``test_pairing_of_and_its_adjoint`` in ``tests/gates/geometry/test_deck.py``, ``test_reciprocity`` in
+  ``tests/gates/sn/architecture/test_realized_boundary.py``, ``test_the_adjoint_ignores_q`` in
+  ``tests/gates/sn/architecture/test_sn_boundary_binding.py``. Statement: :ref:`bc-aor-adjoint`.
+- **The inflow** :math:`q` **travels the boundary-source channel, never an operator slot.** A source is an array on
+  :math:`\Gamma_-`, sampled by the method's table through the one verb
+  :meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow` and carried as the boundary leaf of the composite
+  source :class:`~orpheus.transport.fields.AngularBoundarySourceSink`. Vacuum and a prescribed inflow realize to the same zero
+  map and differ only in :math:`q`. Gates: ``test_the_functor_law`` and ``test_the_source_verb`` in ``tests/gates/transport/test_admission_mechanism.py``,
+  ``tests/gates/transport/test_boundary_source_from_specs.py``. Derivation: :ref:`bc-aor-inflow`, :ref:`bc-affine-source-channel`.
+- **The face ordinate partition is THREE-way**, not two: :math:`\{1..N\} = I_f \sqcup O_f \sqcup T_f` with
+  :math:`T_f = \{|\Omega\cdot\hat n| \le \texttt{TANGENTIAL\_EPS}\}` (:eq:`ordinate-partition-inflow-outflow`). **"Not inflow"
+  is NOT "outflow".** Measured: a cylinder under ``product(n_mu=2, n_phi=4)`` carries **4 of 8** ordinates tangential at
+  ``xmax``; ``gauss_legendre(5)`` carries 1; every ``lebedev`` carries 4 to 8; only ``gauss_legendre(4)`` is the clean two-way
+  case, so **the slab is the unrepresentative fixture.** Measured too: :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature and
+  face in the tree, so **a shape assertion cannot distinguish** :math:`\Gamma_+ \to \Gamma_+` **from**
+  :math:`\Gamma_+ \to \Gamma_-` (the measured functional has the error class in its stabiliser, ``vv-principles`` mode 12).
+- **The realized boundary is a first-class sibling operator** :math:`B` **in the SN algebra.** For every SN geometry the
+  realized per-face images are assembled into the whole-trace
+  :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`, the :math:`A_{ss}` boundary block of the canonical loss operator
+  :math:`(L_{\rm full} + C - S - F - B)`. The reflection :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` is not re-applied
+  inside the streaming sweep for any geometry; it is delivered as the off-diagonal :math:`-B` source term and the outer Krylov
+  or source-iteration loop drives the boundary consistency residual to zero. The block-matrix derivation is at
+  :ref:`bc-extraction`.
+- **Whether a configuration sweeps in one pass is a property of the whole face configuration, never of a single condition.**
+  No condition and no deck carries a sweep-cycle flag: a boolean on the boundary *kind* cannot express a
+  configuration-dependent property, since ``reflective|vacuum`` is acyclic while ``reflective|reflective`` is not. The criterion
+  is a strongly-connected-component decomposition of the :math:`(\text{face}, \text{ordinate})` trace digraph, computed by
+  :mod:`orpheus.derivations.discrete.sn.sweep_acyclicity` and gated by ``tests/gates/sn/sweep/test_sweep_acyclicity.py``. See
   :ref:`bc-sweep-cycle`.
-- The eight typed errors :class:`~orpheus.geometry.boundary.IncomingOutgoingTraceClassificationError`
-  through :class:`~orpheus.geometry.boundary.BoundarySourceNotOnIncomingTraceError`
-  (ERR-040..ERR-047 in the V&V error catalog at
-  ``docs/theory/verification/error_catalog.rst``) replace the
-  pre-refactor generic :class:`ValueError` raises; every one is
-  pinned by a ``@pytest.mark.catches("ERR-NNN")`` decorator on the
-  test that fires it.
-- **A realized SN law's DOMAIN is** :math:`\Gamma_+` **(campaign phase
-  B3.2).** It consumes the outflow :ref:`half-trace <bc-half-trace>`
-  and produces the inflow half-trace — exactly the shape :eq:`affine-bc-form` states and the
-  diffusion arm always had. The consumer composes
-  :math:`B_{\rm face} = \iota_- \circ \text{law} \circ \gamma_+`
-  (transpose :math:`\iota_+ \circ \text{law}^{\mathsf T} \circ
-  \gamma_-`) out of the trace restrictions
-  :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`; nothing
-  is computed and then discarded. Pre-B3.2 the law was handed the
-  **whole face slot** and the consumer threw the outflow rows away with
-  a slice-write — see :ref:`bc-domain-narrowing`, and
-  :ref:`bc-vacuum-semantic-correction` for what that removed.
-- **Vacuum realizes to the ZERO MAP** :math:`\Gamma_+ \to \Gamma_-`
-  (a :class:`~orpheus.numerics.operator.ZeroOperator` carrying both
-  space hooks). Vacuum's whole content is :math:`R = 0`; with the
-  domain narrowed there is nothing else to represent. Pre-B3.2 it
-  realized to an ``IncomingOrdinateMaskTensor``
-  — a full-face projector onto the *outflow* subspace whose preserved
-  rows the consumer then discarded. That mask, and the "which rows does
-  it preserve?" question two campaign phases had documented as having
-  "no consumer today", are gone from the vacuum path:
-  :ref:`bc-vacuum-semantic-correction`. The realizer path is uniform
-  across every supported mesh (1-D Cartesian / spherical / cylindrical
-  + 2-D Cartesian) since Issue #188 lifted the curvilinear deferral on
-  the boundary trace space (then named ``InflowTraceSpace``; since
-  #205 / #201 the unified
-  :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`).
-- **So does PRESCRIBED INFLOW — the same zero map, the same object**
-  (campaign phase **P3**, 2026-08-05). The realizer tier realizes the
-  law's LINEAR factor :math:`L = R\,G` and only that
-  (:eq:`bc-affine-linear-factor`); for prescribed inflow :math:`L = 0`,
-  so **vacuum and prescribed inflow differ only in** :math:`q`
-  (:eq:`bc-prescribed-zero-linear-factor`). The source travels the
-  typed boundary-source channel —
-  :class:`~orpheus.transport.fields.AngularBoundarySourceSink`,
-  the boundary leaf of the composite :math:`q = q_{\rm bulk} \oplus
-  q_\partial` — and :func:`~orpheus.sn.solver._build_fixed_source_rhs`
-  is its single construction point for both inner solvers. Until P3 this
-  law realized to an ``IncomingSourceOperator`` whose ``apply`` ignored
-  its input and returned :math:`q`: an **affine** map in a linear slot,
-  which the missing :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`
-  stamp was believed to fence out of :math:`B` and did not
-  (``SNBoundaryOperator._face_laws`` has no role filter — measured
-  :math:`\lVert B(0) \rVert_\infty = q`, a doubled delivery on source
-  iteration, and a raised
-  :class:`~orpheus.sn.solver.ConvergenceClaimError` on Krylov).
-  Full derivation, measurements and gotchas:
-  :ref:`bc-affine-source-channel`.
-- **The face ordinate partition is THREE-way**, not two:
-  :math:`\{1..N\} = I_f \sqcup O_f \sqcup T_f` with
-  :math:`T_f = \{|\Omega\cdot\hat n| \le \texttt{TANGENTIAL\_EPS}\}`
-  (:eq:`ordinate-partition-inflow-outflow`). **"Not inflow" is NOT
-  "outflow".** Measured: a cylinder under ``product(n_mu=2, n_phi=4)``
-  carries **4 of 8** ordinates tangential at ``xmax``; ``gauss_legendre(5)``
-  carries 1; every ``lebedev`` carries 4–8; only ``gauss_legendre(4)``
-  is the clean two-way case — **the slab is the unrepresentative
-  fixture.** Measured too: :math:`|\Gamma_+| = |\Gamma_-|` on every
-  quadrature × face in the tree, so **a shape assertion cannot
-  distinguish** :math:`\Gamma_+ \to \Gamma_+` **from**
-  :math:`\Gamma_+ \to \Gamma_-` (a vv Mode-12 invariance-group
-  blindness — the measured functional has the error class in its
-  stabiliser).
-- **The realized boundary law is a first-class sibling operator**
-  :math:`B` **in the SN algebra (Wave O steps O.4a.2 + O.4b, Issue
-  #208).** For **every** SN geometry (1-D slab / sphere / cylinder and
-  2-D Cartesian), the realized per-face law is assembled into the
-  whole-trace
-  :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` — the
-  :math:`A_{ss}` boundary block of the canonical loss operator
-  :math:`(L_{\rm full} + C - S - F - B)`. The reflection
-  :math:`\psi.\text{inflow} = B\,\psi.\text{outflow}` is **no longer
-  re-applied inside the streaming sweep** for any geometry (O.4a.2
-  made the 1-D sweep bare; O.4b made the 2-D wavefront sweep + matvec
-  bare); it is delivered as the off-diagonal :math:`-B` source term and
-  the outer Krylov / SI loop drives the boundary consistency residual
-  to zero. The full block-matrix derivation and design rationale live
-  at :ref:`bc-extraction`.
 
 .. admonition:: V&V status
 
-   This page is **L4-informational** with respect to correctness.
-   The architecture documented here is structural — it makes the
-   code understandable and composable but does not by itself verify
-   any equation. The verification load is carried by:
+   This page states structure, not a solver claim: its equations are definitional or are theorems about the types, and no
+   equation on it asks for a closed-form or MMS reference. The verification load is carried by three kinds of gate.
 
-   - L0 foundation tests on individual primitives
-     (:mod:`tests.gates.numerics`,
-     ``tests.gates.geometry.test_boundary_trace_law``,
-     ``tests.gates.geometry.test_bc_errors``).
-   - Foundation reference-image tests
-     (:mod:`tests.gates.sn.architecture.test_wave2_carry`, which took the seven frozen
-     images over from the retired ``test_bc_equivalence_snapshot`` at wave 2 slice S2b), which
-     compare each realised operator against a **frozen,
-     independently-derived** reference image — see
-     :ref:`bc-numerical-evidence`. Re-anchored on 2026-08-01: the
-     committed ``.npz`` artefacts used to be recordings of production
-     output (a drift lock, worth what the recorded code was right);
-     they now carry an image computed from the law's own equation, so
-     the gate states correctness rather than stability.
-   - L1 descriptor-tree algebra tests
-     (``tests.gates.geometry.test_law_composition``) pinning the
-     :class:`LawSum` / :class:`LawScaled` closed-algebra contract
-     (foundation + L1 coverage).
-   - L1 universal-invariant tests
-     (``tests.gates.geometry.test_bc_universal_invariants``) that fire
-     ERR-043 / ERR-044 / ERR-046 under fault-injection.
+   - **Foundation gates** pin the structural laws (the closed deck family, the closed chain sum, the cone as a value predicate,
+     one door for admission and realization, the exact cover of a binding): ``tests/gates/geometry/test_deck.py``,
+     ``tests/gates/geometry/test_colouring_symmetry.py``, ``tests/gates/transport/test_wall_condition.py``,
+     ``tests/gates/transport/test_wall_condition_algebra.py``, ``tests/gates/transport/test_response_network.py``,
+     ``tests/gates/transport/test_binding.py`` and ``tests/gates/transport/test_admission_mechanism.py``.
+   - **Reference rows** pin values typed by hand from the plan of record: the admission pin
+     ``tests/gates/transport/test_admission_matrix.py`` (every cell of every method's table), and the carry fixture
+     ``tests/gates/sn/architecture/test_wave2_carry.py``, a capture of ``main`` at ``5d04c296`` taken before the carve and
+     reproduced bit-equal after it (the eigenvalues and fluxes of SN on four bodies, the dense face matrices of an S16 slab).
+     The seven frozen reference images of the realized operators are the ones re-anchored from recording to reference on
+     2026-08-01 (:ref:`bc-snapshot-reanchoring`).
+   - **Honest reds**: a defect that the tree has and no fix addresses is carried by a strict ``xfail`` that fails when the
+     defect is repaired (#546, #547), never by a masked admission.
 
-   No equation on this page makes a claim that requires a closed-form
-   or MMS reference; all equations are **definitional** or
-   **structural-architecture** statements drawn from Grand Report v3
-   §16, §16A, §16A.10.
+   Last run at the carve tip ``471c4737``, serial, ``python -O -m pytest`` over the gate files named above together with
+   ``tests/gates/sn/architecture/test_sn_realizer_table.py``, ``tests/gates/sn/architecture/test_realized_boundary.py``,
+   ``tests/gates/sn/architecture/test_sn_boundary_binding.py``, ``tests/gates/cp/test_cp_vacuum_not_above_white.py``,
+   ``tests/gates/mc/test_mc_boundary_table.py``, ``tests/gates/mesh/test_face_roles.py``,
+   ``tests/gates/mesh/test_hollow_inner_law.py`` and ``tests/gates/numerics/test_ordinate_pairing.py``: 453 passed and
+   3 xfailed (the three CP rows of #546).
+
+.. _bc-architecture-of-record:
+
+The architecture of record
+==========================
+
+This section is the method-agnostic theory of how a transport problem closes its boundary, as the code of the carve tip states it.
+Everything in it is true of the tree at ``471c4737`` and is read from the code named beside each part. The older sections of the
+page, after the crosswalk, carry the mathematics that was found while the architecture was a family of string-tagged trace laws; the
+parts of that mathematics that still hold are cross-linked where this text leans on them.
+
+The architecture has five objects, each a type, and one rule that places them:
+
+- the **face role** (:class:`~orpheus.geometry.deck.MirrorDeck`, :class:`~orpheus.geometry.deck.TranslationDeck` or an integer
+  tag): what a boundary face *is*, a property of the geometry and of nothing else;
+- the **wall condition** (:class:`~orpheus.transport.boundary_conditions.WallCondition`): what the exterior behind a tag *does*,
+  one affine trace map on a cone, supplied where the method is known;
+- the **binding** (:func:`~orpheus.transport.boundary_conditions.bind`): the join of tags to conditions, lawful only when it is an
+  exact cover that the problem's colouring group leaves invariant;
+- the **realizer table** (:class:`~orpheus.transport.boundary_conditions.RealizerTable`): per method, the one partial map from
+  declarations to operators, whose domain *is* the admission;
+- the **inflow terms** (:class:`~orpheus.transport.boundary_conditions.InflowTerms`): the affine part :math:`q`, which realizes
+  into an array and never into an operator.
+
+The rule is the ontological one of the project: each concept sits in the lowest layer whose vocabulary defines it. A deck is
+geometry (it names isometries and faces), so it lives in ``orpheus/geometry/deck.py`` and imports no transport vocabulary. A
+condition is transport (it names half-traces, kernels and sources), so it lives in ``orpheus/transport/boundary_conditions/``. A
+realized operator is a method's, so it lives with its method. ``tests/gates/test_layer_imports.py`` enforces the layers.
+
+.. _bc-aor-trace-closures:
+
+The face trace and its two closures
+-----------------------------------
+
+Let :math:`F` be the set of boundary faces of a domain :math:`D`; a face is named by the vocabulary of
+``orpheus/geometry/faces.py`` (``xmin``, ``xmax``, ``ymin``, ...). For a face :math:`f` with outward unit normal :math:`\hat n_f`
+the **outflow half-trace** is :math:`\Gamma_+(f) = f \times \{\Omega : \Omega\cdot\hat n_f > 0\}` and the **inflow half-trace**
+:math:`\Gamma_-(f)` is its complement :math:`\{\Omega\cdot\hat n_f < 0\}`, both carrying the trace measure
+:math:`|\Omega\cdot\hat n_f|\,d\Omega\,dA`. Ordinates with :math:`|\Omega\cdot\hat n_f|` at most ``TANGENTIAL_EPS`` belong to neither
+half (:eq:`ordinate-partition-inflow-outflow`). A transport equation on :math:`D` is closed when :math:`\gamma_-\psi` is given on
+every face, and :math:`\gamma_-\psi|_f` is determined in exactly two ways, which are different objects.
+
+**The domain continues across the face (a deck).** There is an isometry :math:`g` of the covering space that carries the partner
+face :math:`f'` onto :math:`f` (:math:`f' = f` for a mirror), and
+
+.. math::
+
+   \gamma_-\psi|_f \;=\; G_g\,\gamma_+\psi|_{f'}, \qquad (G_g\varphi)(x) = \varphi(g^{-1}x),
+
+with :math:`G_g` the Koopman operator of :math:`g`. It is invertible, preserves the trace measure, and has no parameter beyond
+:math:`g`: no amplitude, no source, nothing to scale. Its return fraction is exactly one.
+
+**The domain ends at the face (a boundary condition).** The exterior is modelled by an affine map on the face's own half-traces,
+
+.. math::
+
+   \gamma_-\psi|_f \;=\; R\,\gamma_+\psi|_f + q, \qquad R : L^2(\Gamma_+) \to L^2(\Gamma_-),\quad q \ge 0 \text{ on } \Gamma_-,
+
+with :math:`R` a kernel and :math:`q` a function on the inflow half-trace. Every kernel the methods share is written with
+:math:`\hat n_f` alone, so it carries no axis and no outward sign: the face supplies both, and one condition object is correct on
+every face of its tag.
+
+.. list-table:: The two closures side by side
+   :header-rows: 1
+   :widths: 24 38 38
+
+   * - property
+     - deck (the domain continues)
+     - condition (the domain ends)
+   * - what it is
+     - the Koopman operator of an isometry; a relabelling of the trace
+     - an affine map :math:`(R, q)`; a kernel plus a source
+   * - parameters
+     - none (the face fixes the plane, the partner and the direction)
+     - the cone coordinates :math:`(s, d)` and the inflow weights
+   * - return fraction
+     - exactly 1
+     - :math:`\rho = s + d \le 1` for the shared family
+   * - source
+     - none
+     - :math:`q \ge 0` on :math:`\Gamma_-`
+   * - may be scaled or added
+     - no: ``0.5 * MirrorDeck()`` is Python's own ``TypeError``
+     - yes, inside the cone (:ref:`bc-aor-wall-condition`)
+   * - lives in
+     - ``orpheus/geometry/deck.py``
+     - ``orpheus/transport/boundary_conditions/``
+   * - declared by
+     - the geometry, as the role of a face
+     - the problem, bound to a tag where the method is known
+
+**The criterion that separates them is the two-test criterion of** :ref:`bc-factor-roles`. An operator that fails multiplicativity
+:math:`G(\psi\varphi) = (G\psi)(G\varphi)` is a kernel and belongs to a condition; one that passes it is still a condition unless
+it is the deck transformation of an actual quotient of the physical domain. A wall is not a quotient (the domain does not continue
+on its far side; the table of which boundary is an orbifold, a torus or neither is :ref:`bc-factor-quotients`), so its specular return,
+although a permutation, is constitutive. That is why a polished wall and a symmetry
+plane have the same matrix and different types, and why neither type can be written into the other's slot
+(``test_a_condition_is_not_a_deck_slot``, ``test_a_deck_is_not_an_operand`` in
+``tests/gates/transport/test_wall_condition_algebra.py``).
+
+.. _bc-aor-deck-family:
+
+The deck family is a theorem, not a choice
+------------------------------------------
+
+**Which isometries can glue a face.** The argument, `[R]` reasoned (the code states its result in ``admitted_decks`` and
+``test_a_curved_face_admits_no_deck`` pins that result as a table, which is not a proof): a deck is an isometry :math:`g` of the
+covering space. The chart of the problem is the
+quotient of that space by the chart's continuous symmetry group :math:`G_c` (translations tangent to a slab, rotations of a
+cylinder or a sphere), so :math:`g` must descend to the chart, that is, normalise :math:`G_c`; and :math:`G_c` itself acts
+trivially on the chart. The admissible decks are therefore
+
+.. math::
+
+   W \;=\; N(G_c)\,/\,G_c .
+
+On a Cartesian axis :math:`W` is generated by the reflection in the face's own plane and the translation to the opposite face; these
+are the two minted decks. On the radial axis of a cylinder or a sphere :math:`G_c` absorbs the rotational symmetry and :math:`W` is
+trivial. The consequence is a design rule: **no 1-D curved face carries a deck**. A void cavity gives, in the 1-D radial reduction, the same direction map as a
+specular wall (a ray leaving inward re-enters with the opposite cosine), but the cavity's surface is a true boundary, because what
+lies beyond it is not known to the geometry: it could be specular, a vacuum (an absorber in the centre) or a prescribed inflow
+(a beam through the centre). A reflecting curved wall, and the hollow cavity's inner face (ruling D5), are therefore *tags* bound to
+:meth:`~orpheus.transport.boundary_conditions.WallCondition.specular` at 1.0, never decks.
+
+.. list-table:: The classes of isometry and the decks that realize them (Chasles)
+   :header-rows: 1
+   :widths: 20 12 12 12 44
+
+   * - class
+     - :math:`E^1`
+     - :math:`E^2`
+     - :math:`E^3`
+     - the deck
+   * - translation
+     - yes
+     - yes
+     - yes
+     - :class:`~orpheus.geometry.deck.TranslationDeck` (minted)
+   * - reflection
+     - yes
+     - yes
+     - yes
+     - :class:`~orpheus.geometry.deck.MirrorDeck` (minted)
+   * - rotation
+     - no
+     - yes
+     - yes
+     - ``RotationDeck``, deferred: a rotation's partner face is not derivable from the face (a quarter turn about a corner pairs
+       ``xmin`` with ``ymin`` or ``ymax``)
+   * - glide reflection
+     - no
+     - yes
+     - yes
+     - ``GlideDeck``, deferred: it carries a translation part
+   * - screw motion
+     - no
+     - no
+     - yes
+     - ``ScrewDeck``, deferred: it carries an axis and a translation part
+   * - rotoreflection
+     - no
+     - no
+     - yes
+     - ``RotoreflectionDeck``, deferred: it carries an order
+
+The non-identity isometries of :math:`E^n` with :math:`n \le 3` fall into exactly six conjugacy classes (Chasles), two in dimension
+one, four in dimension two, six in dimension three. :class:`~orpheus.geometry.deck.IsometryClass` enumerates them and
+``ISOMETRY_CLASSES_BY_DIMENSION`` records which exist where. The classification is complete because the four classes without a
+minted type are rows of ``DEFERRED_DECKS``, keyed by the enumeration, each naming the type it will have and the machinery that mints
+it (``minted | deferred == set(IsometryClass)``, ``test_isometry_classification_is_closed`` in
+``tests/gates/geometry/test_deck.py``). Minting the four now would have minted four types with guessed fields and four unreachable
+arms in every method.
+
+**A deck has no field.** :class:`~orpheus.geometry.deck.MirrorDeck` and :class:`~orpheus.geometry.deck.TranslationDeck` store
+nothing and compare equal to themselves by type. The face fixes the mirror plane, the partner and the direction of the translation,
+so a deck that disagrees with its face (the class of defect in which a mirror carried an axis different from its face's) cannot be
+spelled. The position of a mirror plane is not stored either (a 1-D mirror acts on directions only, and the offset is invisible to
+every discrete quantity), and the length of a translation is not content (a deck does not know the domain's extent).
+
+**What a realizer reads of a deck** is its pairing, derived and never stored:
+:func:`~orpheus.geometry.deck.pairing_of` takes a deck, a face and a dimension and returns a
+:class:`~orpheus.geometry.deck.FacePairing` ``(face, partner, motion)`` through one exhaustive ``match`` that ends in
+``assert_never``, so the day a third deck is minted the type checker fails that match until it decides
+(``test_every_deck_match_ends_in_assert_never``). The motion is :func:`~orpheus.geometry.deck.mirror_motion` for a mirror (the
+reflection whose plane is normal to the face's axis; the partner is the face itself) and ``translation_motion`` for a translation
+(signed by the face, so ``xmin`` carries :math:`-\hat e_x` and ``xmax`` carries :math:`+\hat e_x`, and the partner is
+``face_opposite``). :class:`~orpheus.geometry.deck.FacePairing` states the whole law, so a hand-built value cannot spell what
+``pairing_of`` cannot: a face paired with itself carries exactly the reflection in its own plane; a pair of distinct faces joined by
+a translation is the periodic gluing, with the partner opposite and the translation along the face's axis with its outward sign; a
+distinct-face pair joined by anything else belongs to a deferred class and is refused. The pairing seen from the partner is the
+adjoint's pairing, :math:`G_g^\sharp = G_{g^{-1}}`:
+
+.. code-block:: python
+
+   from orpheus.geometry.coord import CoordSystem
+   from orpheus.geometry.deck import MirrorDeck, TranslationDeck, admitted_decks, pairing_of
+
+   for deck in (MirrorDeck(), TranslationDeck()):
+       for face in ("xmin", "xmax"):
+           pairing = pairing_of(deck, face, dimension=1)
+           partner_pairing = pairing_of(deck, pairing.partner, dimension=1)
+           print(type(deck).__name__, face, pairing.partner, pairing.motion.translation.tolist(), pairing.inverse == partner_pairing)
+   print(sorted(d.__name__ for d in admitted_decks(CoordSystem.CARTESIAN, 0)))
+   print(sorted(d.__name__ for d in admitted_decks(CoordSystem.CYLINDRICAL, 0)))
+
+.. code-block:: text
+
+   MirrorDeck xmin xmin [0.0] True
+   MirrorDeck xmax xmax [0.0] True
+   TranslationDeck xmin xmax [-1.0] True
+   TranslationDeck xmax xmin [1.0] True
+   ['MirrorDeck', 'TranslationDeck']
+   []
+
+The last two lines are :func:`~orpheus.geometry.deck.admitted_decks` on the first axis of a slab and of a cylinder: the quotient
+:math:`W` as a table. ``mirror_motion`` is the one axis-letter to mirror spelling; ``orpheus/geometry/symmetry.py`` delegates to it.
+
+**A face role is parsed once, at the chart.** :func:`~orpheus.geometry.deck.parse_face_role_on` is the one place a deck on a face
+whose axis admits none is refused, with a :class:`~orpheus.geometry.deck.DeckError` that names the quotient; the geometry, both
+meshes and both axis classes read their roles through it, and :func:`~orpheus.geometry.deck.check_pairings_close` requires that a
+deck gluing a face to a different face have the same deck type there.
+
+.. _bc-aor-wall-condition:
+
+The wall condition: an affine trace map on a cone
+-------------------------------------------------
+
+**The response is a tensor network of typed factors.** The linear part :math:`R` of a wall is a network of factor tensors on the
+rungs of one face's trace ladder, the ladder of :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`: the
+outflow half-trace :math:`\Gamma_+` (tier ``"outflow"``), the partial current :math:`S` (tier ``"current"``) and the inflow
+half-trace :math:`\Gamma_-` (tier ``"inflow"``); the tier marker is numerics' own ``TraceRole``, and "embedding" is not an
+operator name in this project (the reading of an operator as a tensor network is :doc:`/theory/foundations/operator_tensor_network`).
+The factors are field-less frozen dataclasses (a factor is a type, its realization is the method's):
+
+.. list-table:: The factors of the response network
+   :header-rows: 1
+   :widths: 24 12 12 52
+
+   * - factor
+     - from
+     - to
+     - action
+   * - :class:`~orpheus.transport.boundary_conditions.MirrorPermutation` :math:`P`
+     - :math:`\Gamma_+`
+     - :math:`\Gamma_-`
+     - :math:`(P\varphi)(x,\Omega) = \varphi(x, \Omega - 2(\Omega\cdot\hat n_f)\hat n_f)`: the ordinate permutation of the face's
+       mirror plane
+   * - :class:`~orpheus.transport.boundary_conditions.CurrentRetraction` :math:`R_t`
+     - :math:`\Gamma_+`
+     - :math:`S`
+     - :math:`R_t\varphi = \sum_{\Omega\cdot\hat n_f > 0} |\Omega\cdot\hat n_f|\,w\,\varphi`: integration against the trace measure
+   * - :class:`~orpheus.transport.boundary_conditions.IsotropicSection` :math:`E`
+     - :math:`S`
+     - :math:`\Gamma_-`
+     - :math:`E J = J / M_-`, with :math:`M_- = \sum_{\Omega\cdot\hat n_f < 0} |\Omega\cdot\hat n_f|\,w` the INFLOW mass: uniform in
+       :math:`\Omega`
+
+:math:`R_t` and :math:`E` are the project's canonical split pair, a retraction and its section with
+:math:`R_t^{\rm in}\circ E = \mathrm{id}` on :math:`\Gamma_-` (in production as ``AxisRetractionOperator`` and
+``AxisSectionOperator`` of ``orpheus/numerics/axis_marginal.py``), where :math:`R_t^{\rm in}` is the retraction over the inflow
+rung. Two chains compose from :math:`\Gamma_+` to :math:`\Gamma_-`, the **specular chain** :math:`P` and the **diffuse chain**
+:math:`E\circ R_t`
+(:class:`~orpheus.transport.boundary_conditions.SpecularChain`, :class:`~orpheus.transport.boundary_conditions.DiffuseChain`; the
+factors are listed in the order they are applied). The weights of the two chains are the scalars :math:`s` and :math:`d`. The linear
+part of a wall is the weighted sum
+
+.. math::
+
+   R \;=\; s\,P \;+\; d\,(E\circ R_t), \qquad (s, d) \in K = \{\,s, d \ge 0,\ s + d \le 1\,\},
+
+a point of the convex cone :math:`K`, with :math:`q \ge 0` a function on :math:`\Gamma_-`. The network is
+:class:`~orpheus.transport.boundary_conditions.ResponseNetwork`: a canonical weight map keyed by chain instances, whose weights
+*are* the point :math:`(s, d)` (``cone_point`` reads it by one exhaustive match, so the chart is total and not lossy), with no
+collapse of a one-term sum to a leaf and so no stored intermediate rounding.
+
+**Why the chains are a closed sum.** ``Chain = SpecularChain | DiffuseChain`` is a ``typing.Union``, which has no creation hook, so
+an open family could not be enforced. The family is closed the way the decks are: every reader of a chain does an exhaustive
+``match`` ending in ``assert_never``, so a third chain is an edit of the alias and every ``match`` reddens until it handles the
+new member; a chain enters with its declared ``unit_return`` (the return fraction at weight one) and the left-eigenvector gate
+below. :func:`~orpheus.transport.boundary_conditions.chain_composes` decides whether a tuple of factors composes from ``"outflow"``
+to ``"inflow"``, and the module applies it to every member of the closed sum when it is imported, so a chain such as
+``(IsotropicSection, CurrentRetraction)`` is unspellable (law L-M, ``test_chains_compose_and_the_family_is_closed`` in
+``tests/gates/transport/test_response_network.py``). A method-only kernel (the neutron-guide wall, an anisotropic SN kernel, zero
+flux) is another :class:`~orpheus.transport.boundary_conditions.BoundaryCondition` type and never a chain.
+
+**The return fraction, and why it is exact.** The partial current of the outflow trace is :math:`J^+(\varphi) = R_t\varphi` and that
+of an inflow trace is :math:`J^-(\chi) = R_t^{\rm in}\chi`. For :math:`\varphi \ge 0` on :math:`\Gamma_+`,
+
+.. math::
+
+   J^-(P\varphi) = J^+(\varphi), \qquad
+   J^-\big(E\,R_t\varphi\big) = R_t^{\rm in}E\,(R_t\varphi) = R_t\varphi = J^+(\varphi),
+
+the first because :math:`P` is a measure-preserving permutation (``ordinate_pairing`` certifies it at realization, below), the second
+because :math:`R_t^{\rm in}\circ E = \mathrm{id}`. Hence
+
+.. math::
+
+   J^-(R\varphi) \;=\; s\,J^+(\varphi) + d\,J^+(\varphi) \;=\; (s + d)\,J^+(\varphi) \;=\; \rho\,J^+(\varphi),
+   \qquad \rho = s + d .
+
+Written against the trace measure :math:`m_\pm = (w|\mu|)` on the two rungs, this says that :math:`m_-` is a *left eigenvector* of
+the realized map, :math:`R^{\mathsf T} m_- = \rho\,m_+`. For the shared family it holds by the construction, with one precondition
+the shipped code once failed to meet: :math:`E` must divide by the INFLOW mass :math:`M_-`. A section that divided by the outflow
+mass :math:`M_+` would give :math:`\rho_{\rm diffuse} = d\,M_-/M_+`, silently. The carry is bit-identical because the two masses
+agree bitwise on every quadrature in the registry (``test_the_mass_census_inflow_equals_outflow_on_every_registry_rule`` in
+``tests/gates/sn/architecture/test_realized_boundary.py``, which reads 70 of 70 (registry rule, face) pairs), so the repair moved no
+number. The consumers of :math:`\rho` (the curvilinear corner action of ``SNBoundaryOperator`` and the leakage term of the
+eigenvalue, whose omission for a partial reflector was ``ERR-094``) read it from the realized type
+(:attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.return_fraction`), never from the declaration. A ratio gate ("`J^-/J^+` of one positive
+outflow equals ``return_fraction``") cannot discriminate a wrong :math:`\rho`, since a type that reports the one measured ratio
+passes; the law is therefore gated as the array identity
+``inner.apply_transpose(w|mu| on Gamma_-) == rho * (w|mu| on Gamma_+)`` (``array_equal`` for the specular image; for the diffuse
+image up to the split pair's own residual, at most :math:`N/3` ulp for :math:`N` slots)
+(``test_the_left_eigenvector_rider_through_the_realizer`` in ``tests/gates/sn/architecture/test_sn_realizer_table.py``). A
+method-only kernel that is not built from this pair owes the same gate, and where it fails it has no scalar return fraction and its
+consumers must compute :math:`J^+ - J^-(R\psi)` on the actual outflow.
+
+**One type, with facades (rulings D1 and D2).** A general condition with a full parameter range is the type, and a conventional name
+is a thin named constructor over it, never a second type (ruling D1: white folds into the albedo family). Combinations of
+conditions are one normalised type with non-negative coefficients and total return at most one, checked at construction (ruling D2);
+signed combinations stay values but cannot be bound. The consequence is that the two spellings of one physical wall cannot differ:
+:math:`R = 0` is one point of :math:`K` however it is reached, so the vacuum has one value and one digest. The constructors of
+:class:`~orpheus.transport.boundary_conditions.WallCondition` are:
+
+.. list-table:: The facades of ``WallCondition``
+   :header-rows: 1
+   :widths: 34 26 40
+
+   * - constructor
+     - network and source
+     - note
+   * - ``vacuum()``
+     - empty network, no source
+     - the zero network :math:`(0, 0)`
+   * - ``specular(albedo=1.0)``
+     - :math:`s = \text{albedo}`
+     - ``specular(0.0)`` is the vacuum
+   * - ``white(albedo=1.0)``
+     - :math:`d = \text{albedo}`
+     - the first positional argument is the albedo; ``white(0.0)`` is the vacuum
+   * - ``uniform(value)``
+     - empty network, uniform ``q = value``
+     - a prescribed inflow; the facade is named after the coordinate ``InflowTerms.uniform``
+   * - ``framed(profile, weight=1.0)``
+     - empty network, sampled ``q = weight * profile``
+     - a prescribed inflow written as a profile (:ref:`bc-aor-inflow`)
+   * - ``from_amplitudes(specular, diffuse)``
+     - :math:`(s, d)`
+     - the plain-data edge: the section of ``cone_point``, taking two primitives and never the reference's ``WallAmplitudes``
+
+**The cone is a value predicate.** One function, ``_cone_refusal``, defines "inside the cone": every network weight is
+non-negative, the return fraction (:math:`\sum_c w_c\,\mathrm{unit\_return}(c)` by ``math.fsum``, correctly rounded) is at most one,
+and every inflow weight is non-negative. ``WallCondition.__post_init__`` raises what it returns, so a wall outside the cone does not
+exist, however it is spelled. The arithmetic ``+``, ``-``, unary ``-`` and scalar ``*`` (one definition, shared with
+:class:`~orpheus.transport.boundary_conditions.WallDisplacement`) computes the pair of the result and exits through one function,
+which returns a ``WallCondition`` if and only if the pair lies in the cone and otherwise a ``WallDisplacement``: a point of the affine
+hull of the cone times the source space, a sensitivity direction (the parameter coordinates of a perturbation study), never
+bindable, refused by :class:`~orpheus.transport.boundary_conditions.BoundaryConditions` with a ``TypeError`` naming the type. The
+sign of a scalar and the presence of ``-`` decide nothing: ``x + h * delta`` for a finite difference re-enters the cone without
+re-typing. There is no division (no consumer, and it would leave the dyadic coordinates), and a deck or a method-only condition
+defines no operator at all (``WallCondition.vacuum() + TranslationDeck()`` is Python's own ``TypeError``, law L-F). The code below
+was run at the carve tip, and its output is pasted:
+
+.. code-block:: python
+
+   from orpheus.geometry.coord import CoordSystem
+   from orpheus.sn.boundary.realizer import SN_REALIZERS
+   from orpheus.transport.boundary_conditions import BoundaryError, BoundaryRefused, FaceSite, WallCondition as W
+
+   print(W.specular(0.0) == W.white(0.0) == W.vacuum())
+   mixed = W.specular(0.5) + W.white(0.25)
+   print(type(mixed).__name__, mixed.cone_point, mixed.return_fraction)
+   print(type(2.0 * W.specular(0.6)).__name__)
+   try:
+       W.specular(1.2)
+   except BoundaryError as error:
+       print(type(error).__name__)
+   outer = FaceSite("xmax", CoordSystem.CYLINDRICAL, 1)
+   print(SN_REALIZERS.admit(W.specular(1.0), outer))
+   print(SN_REALIZERS.admit(W.white(0.5), outer).axis, SN_REALIZERS.admit(W.white(0.5), outer).issue)
+   try:
+       SN_REALIZERS.require(W.white(0.5), outer)
+   except BoundaryRefused as error:
+       print(error.method, error.face, error.admission.axis.name, error.admission.issue)
+
+.. code-block:: text
+
+   True
+   WallCondition (0.5, 0.25) 0.75
+   WallDisplacement
+   SubmarkovViolationError
+   Realized(faithful=True)
+   RefusalAxis.PLUMBING 653
+   sn xmax PLUMBING 653
+
+The first line is the ruling D1 ("one value, one digest"); the second shows that a mixed wall is an ordinary condition (the cone
+admits it, ruling D2); the third that ``2.0 * specular(0.6)`` leaves the cone and becomes a displacement; the last three are the
+admission of :ref:`bc-aor-admission` read through the door.
+
+**Method-only responses stay their own types** and are never terms of the shared family.
+:class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition` is the Dirichlet idealisation :math:`\phi_\Gamma = 0`, which in the
+partial-current basis is :math:`J^- = -J^+`, :math:`\mathcal{A} = -1`, so ``return_fraction == -1.0``, outside :math:`K`: no
+non-negative angular flux produces it, which is why it is not a wall and why a table whose state is a non-negative flux refuses
+it on the state-cone axis. It is face-local, has no fields (so every instance is equal to every other), and defines no arithmetic.
+A type under the old name could not be minted without two nameable classes sharing a qualname, which the content-identity
+relocation gate refuses and which takes no exemption, so the new type carries a fresh name.
+
+**Face-local, with no orientation field.** ``WallCondition`` and the factors hold no ``axis`` and no ``outward_sign``: the realizer
+reads the face's normal from the face name. Face-local means the content is stated in the face's own frame, so every isometry
+carries it from face to face (:ref:`bc-aor-colouring`).
+
+**What a reference may state (ruling D3).** The reference specification states a wall as
+``WallAmplitudes(specular, diffuse)`` (``orpheus/specification/exterior.py``), exactly the coordinate pair :math:`(s, d)`, as plain
+data; the one translation into production is ``WallCondition.from_amplitudes``, which imports neither the specification nor the
+derivations. The reference vocabulary is closed: vacuum :math:`(0, 0)`, specular :math:`(s, 0)` or diffuse :math:`(0, d)`. A combined
+wall (both coordinates positive), a prescribed inflow and zero flux are not stated by a reference; a combined pair raises
+``NotImplementedError`` naming #650, which widens the vocabulary. The production type is wider than the reference's: a combined wall
+is an ordinary ``WallCondition``.
+
+.. _bc-aor-roles-binding:
+
+Face roles, tags and the binding
+--------------------------------
+
+**A tag is a colour of the true boundary, the exact twin of a material id.** A geometry says which faces share an exterior model
+and never what the model is: a face carries an integer tag, as a cell carries an integer material id
+(``orpheus/data/materials.py``: an ``int``, not a ``bool``), and the model behind a tag is declared by the problem, where the method
+is known. The role of a face is the sum ``FaceRole = DeckTransformation | int``, parsed by
+:func:`~orpheus.geometry.deck.parse_face_role`: a deck, or an integer (numpy integers are coerced to ``int``, no sign restriction),
+and anything else is a ``TypeError`` naming where. A ``bool`` is not a tag, for the reason it is not a material id.
+
+The geometry declares its roles at its constructors, which take a role per end face:
+:meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.slab` takes ``left`` and ``right``, ``cylinder`` and ``sphere`` take
+``outer`` and, for a hollow body, ``inner``. The inner face of a hollow body is a tag (ruling D5: a deck folds the domain onto
+itself and the cavity's face does not, so it is a true boundary, and no void region stands in for it; in 1-D radial geometry no face
+is a deck at all). A mesh stores the same roles, one per face over the inventory the coordinate system and the extent determine
+(:class:`~orpheus.mesh.face_roles.FaceRoles`, built by ``FaceRoles.over``; ``face_inventory`` is the geometry's, written once in
+``orpheus/geometry/faces.py``): along the first axis the faces are the boundary points of its edges (both ends on a slab or a hollow
+body, the outer surface alone on a solid one, whose centre is an interior point and carries no role), and along every further
+axis both ends. A role per face, and not per side, is the seed for a side whose faces carry different roles.
+
+**The declaration of the exterior is a twin of** ``Materials``. :class:`~orpheus.transport.boundary_conditions.BoundaryConditions`
+maps a tag to a :class:`~orpheus.transport.boundary_conditions.BoundaryCondition`: keys are ``int`` (a ``bool`` is a ``TypeError``),
+every value must be a ``BoundaryCondition`` (a ``WallDisplacement``, a deck and a ``str`` are refused with a ``TypeError`` naming the
+type: the one narrowing site for displacements), and the mapping is stored in declared order as a frozen mapping. One difference from
+``Materials``: *empty is admitted*, because a carrier of decks only (a half-cell slab whose two faces are mirrors) has no tag.
+
+**Binding joins them.** A binding is a map :math:`\beta : T \to \text{BoundaryCondition}` from the set :math:`T` of tags the faces
+carry. :func:`~orpheus.transport.boundary_conditions.bind` takes a carrier, an object that owns the faces **and** their colouring
+symmetry (:class:`~orpheus.transport.boundary_conditions.BoundaryCarrier`: ``face_roles`` and ``symmetry``), and the conditions.
+Passing the carrier and not its two derived values makes a binding checked against another carrier's group unspellable (a G-set is
+the group together with the faces it acts on). It refuses, in this order:
+
+#. a tag a face carries with no condition: :class:`~orpheus.transport.boundary_conditions.UnboundTagError`, naming the face and the
+   tag;
+#. a condition whose tag no face carries: :class:`~orpheus.transport.boundary_conditions.UnusedConditionError` (the exact cover
+   catches a typo that a reachable-subset rule would hide);
+#. a condition that a non-identity element of the colouring group moves:
+   :class:`~orpheus.transport.boundary_conditions.NonInvariantConditionError` (:ref:`bc-aor-colouring`).
+
+The result, :class:`~orpheus.transport.boundary_conditions.Binding`, holds ``decks`` and ``tags`` (two typed maps with disjoint keys),
+the ``declared`` conditions and the ``symmetry``; the join of a face to its condition is *derived* from ``(tags, declared)`` and never
+stored, so a binding that joins a face to a condition of another tag cannot be built. The parse of the value re-checks the exact cover,
+the invariance and the face domain, so a direct ``Binding(...)`` cannot build a state that is not invariant under the group it was
+handed; that the group *is* the carrier's is ``bind``'s guarantee, not the type's. ``Binding.sources`` reads
+``BoundaryCondition.source`` of every condition type, with no ``isinstance`` on a leaf. Every refusal is a
+:class:`~orpheus.transport.boundary_conditions.BoundaryError`, a ``ValueError`` carrying ``.declaration``: the object, or its type,
+that was refused, so a test compares the object and not a spelling. The code below was run at the carve tip:
+
+.. code-block:: python
+
+   from orpheus.geometry import StructuredGeometry
+   from orpheus.geometry.deck import MirrorDeck
+   from orpheus.mesh import CellsByCount, Mesher
+   from orpheus.transport.boundary_conditions import WallCondition as W, bind, BoundaryError
+
+   def mesh(left, right):
+       geometry = StructuredGeometry.slab((0.0, 1.0, 2.0), (0, 1), left=left, right=right)
+       return Mesher(geometry).partition((CellsByCount.uniform_volume(2), CellsByCount.uniform_volume(2))).mesh
+
+   symmetric = StructuredGeometry.slab((0.0, 1.0, 2.0), (0, 0), left=0, right=0)
+   print(symmetric.face_roles, len(symmetric.symmetry.elements))
+   m = mesh(0, 1)
+   print(dict(m.face_roles), len(m.symmetry.elements))
+   b = bind(m, {0: W.vacuum(), 1: W.specular(1.0)})
+   print(dict(b.tags), type(b.condition_of("xmax")).__name__)
+   try:
+       bind(m, {0: W.vacuum()})
+   except BoundaryError as error:
+       print(type(error).__name__, error.tag, error.face)
+   print(dict(mesh(MirrorDeck(), 1).face_roles))
+
+.. code-block:: text
+
+   (0, 0) 2
+   {'xmin': 0, 'xmax': 1} 1
+   {'xmin': 0, 'xmax': 1} WallCondition
+   UnboundTagError 1 xmax
+   {'xmin': MirrorDeck(), 'xmax': 1}
+
+The first line is a symmetric slab with one tag on both faces, whose colouring group has two elements (the identity and the mirror
+:math:`x \mapsto 2 - x`); the second, the same slab with different tags on its two faces, whose group is the identity alone (the
+roles differ). The third and fourth are the binding and the refusal of an unbound tag, and the last is a slab whose left face is a
+mirror deck and whose right face a tag.
+
+.. _bc-aor-colouring:
+
+The colouring stabiliser, and when a binding is lawful
+------------------------------------------------------
+
+**The group.** The symmetry group of a problem is the subgroup of isometries that respect both the material colouring and the roles of
+the faces,
+
+.. math::
+
+   H \;=\; \{\,h \in \mathrm{Isom}(D) \;:\; \mathrm{mat}(h\,c) = \mathrm{mat}(c)\ \text{for every region } c,\quad
+   \mathrm{role}(h\,f) = h\cdot\mathrm{role}(f)\cdot h^{-1}\ \text{for every face } f\,\},
+
+with :math:`h \cdot t = t` for a tag :math:`t` and conjugation for a deck. It is computed from the GEOMETRY's material runs and end
+roles and never from the mesh's cell edges, so one ``(geometry, binding)`` pair is admitted or refused for every mesh, and refining a
+mesh cannot change admission (the raw partition of a geometry, a mesh or a material mesh is handed to
+:func:`~orpheus.geometry.colouring.colouring_symmetry`, which merges equal adjacent material ids once, so the group is a function of
+the colouring and not of the cell partition).
+
+**A binding is lawful** when, for every non-identity :math:`h \in H` that moves a face of tag :math:`t`,
+:math:`h_*\beta(t) = \beta(t)`. Every shared kernel is face-local, so the equation holds for it by a theorem; it can fail only for a
+condition whose content is stated in a frame the face does not supply, which is a prescribed inflow whose profile is written in
+laboratory directions (:class:`~orpheus.transport.boundary_conditions.LabFrameInflow`, whose ``face_local`` is False, so that
+``invariant_under`` holds for the identity alone). The test is conservative and deterministic: ``function o h == function`` is
+undecidable for an open callable, and sampling the two faces at a tolerance would be a check keyed on nothing numerical. The authored
+witness is the symmetric slab with tag 0 on both faces and ``WallCondition.framed(LabFrameInflow(f))``, refused at ``bind``; the
+controls (two tags, a one-face tag, an asymmetric slab, a uniform source, a face-frame source) bind
+(``test_bind_invariance`` in ``tests/gates/transport/test_binding.py``).
+
+**"Face-local implies invariant" is a one-dimensional theorem.** On a Cartesian slab the group acts on faces by the mirror
+:math:`x \mapsto a + b - x`, which has no tangential coordinate to reverse. In higher dimension a mirror fixing a face reverses or
+permutes its tangent frame, so a ``FaceFrameInflow`` reading a tangential coordinate would not be invariant.
+
+**What the value is.** :class:`~orpheus.geometry.colouring.ColouringSymmetry` holds ``elements`` with the identity first, one element
+or two for a slab: the *stabiliser of the fundamental domain* (a slab whose two faces carry a ``TranslationDeck`` has an orbifold that
+is a circle, which has more reflections than :math:`x \mapsto a + b - x`; the value stays the stabiliser until a full deck group
+lands). The reflection is in :math:`H` when all three of these hold, for the breakpoints :math:`b_0 < \dots < b_n` of the material
+*runs*:
+
+#. every mirrored breakpoint :math:`(b_0 + b_n) - b_{n-i}` agrees with :math:`b_i` under the geometry's one coordinate-agreement
+   convention, ``coordinates_agree``, at 64 ulp of the end magnitude :math:`\max(|b_0|, |b_n|)`;
+#. the material runs read the same reversed, compared exactly (integer ids);
+#. the two end roles are the same tag or the same deck type.
+
+`[M]` The float rule was measured at WF2.1 (the memo ``measure_float_rule.md``, untracked scratch, not re-run for this page): the
+exact comparison accepts 2 of 13 symmetric slabs, a width-relative tolerance refuses an offset slab, and 64 ulp at the end
+magnitude accepts 13 of 13 and refuses 6 of 6 asymmetric ones (the genuine ceiling being 3.0 ulp). The gate that pins the rule is
+``test_colouring_symmetry_float_rule`` in ``tests/gates/geometry/test_colouring_symmetry.py`` (it passes at the carve tip, in the
+453-passed run of the V&V admonition above). The activation is an interior breakpoint, so every row
+carries the palindromic id triple ``(0, 1, 0)`` (with one id the run merge deletes the interior breakpoints and the float rule has
+nothing to read). A radial chart returns the identity only (:math:`G_c` absorbs the rotation and the quotient is trivial).
+
+**The scope boundary, #658.** A multi-axis carrier (``Mesh2D``) has no group machinery yet and answers
+:class:`~orpheus.geometry.colouring.UncomputedSymmetries`, the typed pessimistic answer, never an optimistic :math:`\{e\}`. ``bind``
+then refuses, for any tag with two or more faces, a condition that is not face-local, with a message naming the 2-D colouring group as
+the missing machinery. This is a declared scope boundary (``SCOPE-BOUNDARY[guard]``, revisit when a consumer of the problem's group
+exists: a quotient or a cache): reducing the group instead of refusing is not built, because nothing consumes the problem's group
+today, so a reduced group would have no reader. The issue that tracks the 2-D group is #658.
+
+.. _bc-aor-admission:
+
+Realization is a partial map, and admission is its domain
+---------------------------------------------------------
+
+**The definition.** A transport method :math:`M` is a discretization of the trace, a projection :math:`\Pi_M : \Gamma \to \Gamma_h`
+onto whatever :math:`M` can represent (:ref:`bc-method-realizability`). Realization is then a partial map
+
+.. math::
+
+   \mathrm{real}_M : (\text{declared},\ \text{site},\ \text{method space}) \;\longmapsto\; B_f : \Gamma_{+,h}(f') \to \Gamma_{-,h}(f),
+
+with :math:`\mathrm{real}_M(g) = G_{g,h}` for a deck and :math:`\mathrm{real}_M(\beta) = R_{f,h}` for a condition, extended linearly
+over combinations. The face action that a consumer composes from a realized image is
+:math:`B_{\rm face} = \iota_-\circ\mathrm{real}\circ\gamma_+`, the narrowed trace maps of :ref:`bc-domain-narrowing` (nothing is
+computed on the outflow rows and then discarded). :math:`q` realizes separately into the boundary-source channel (:ref:`bc-aor-inflow`). **Admission answers the
+question "is** :math:`\mathrm{real}_M` **defined at this value on this face, and how good is it".** It uses the vocabulary of
+:ref:`bc-method-realizability` and :ref:`bc-refusal-axes`:
+
+.. list-table:: The admission lattice
+   :header-rows: 1
+   :widths: 30 16 54
+
+   * - member
+     - tier
+     - meaning
+   * - ``Realized(faithful=True)``
+     - 1
+     - exact and faithful: :math:`R = \alpha I` for any :math:`\alpha` (a scalar commutes with every projection), and :math:`\alpha`
+       is recoverable downstairs
+   * - ``Realized(faithful=False)``
+     - 2
+     - exact but not faithful: the projection identifies laws that differ upstairs (at :math:`P_1`, specular and Lambertian both
+       give :math:`J^- = \alpha J^+`)
+   * - ``Approximated(name, issue)``
+     - 3
+     - not exact: the law depends on structure the method does not represent; the member holds a set of ``(name, issue)`` pairs
+   * - ``Refused(axis, reason, issue)``
+     - none
+     - refused on exactly one axis of angular resolution, topology (spatial or topological) or state cone, or on ``PLUMBING``
+
+:class:`~orpheus.transport.boundary_conditions.Admission` is a sealed class with exactly these three direct subclasses
+(:class:`~orpheus.transport.boundary_conditions.Realized`, :class:`~orpheus.transport.boundary_conditions.Approximated`,
+:class:`~orpheus.transport.boundary_conditions.Refused`), so ``isinstance``, ``match`` and annotations read as for a union while
+``Admission.meet`` lives on the type. The lattice is ``Realized(True) > Realized(False) > Approximated > Refused``, and ``meet`` is
+its one spelling: the lesser member; the meet of two ``Approximated`` is the union of their ``(name, issue)`` pairs (a set, because
+a meet on a total order would drop one, and a pair, because which issue tracks which approximation is the information two separate
+sets would lose); the meet of two ``Refused`` is the first argument's; the meet of no members is ``Realized(True)``. **A wall's
+admission is the meet over its nonzero chains and its source**, so "both chains" is never an independent entry
+(``test_both_chains_is_the_meet`` in ``tests/gates/transport/test_admission_matrix.py``).
+
+``PLUMBING`` is the fourth thing, not an axis: *not built yet* has no theory behind it, so ``Refused(PLUMBING, reason)`` without an
+issue number does not construct (``test_plumbing_needs_an_issue``). The axes are about the METHOD'S CARRIER: topology asks "can
+its operator couple two faces" (diffusion's per-face scalar has no slot for a face pair, and refuses a translation deck however
+well it resolves angle), state cone asks whether the value is in the method's state cone (an angular flux is non-negative, so SN
+refuses :math:`\mathcal{A} = -1`; diffusion's partial current is signed and realizes it), angular resolution asks whether the
+method can represent the kernel's angular structure. The present instance of the third is the quadrature itself, below.
+
+**Two levels.** The *type level* is the front end's drop-down and the upper bound of the instance level:
+:meth:`~orpheus.transport.boundary_conditions.RealizerTable.catalogue` returns, per key of the table, its ``status``. The *instance
+level* is per face and per value: CP admits a mirror deck at a slab's ``xmin`` only; SN admits at a hollow cylinder's inner face only
+the cavity its closure computes; and the quadrature's equivariance is certified through ``ordinate_pairing``. Both levels read ONE
+table per method, the table the realizer dispatches through, so the query and the realization cannot disagree (law L-D).
+
+**The table and its one door.** A :class:`~orpheus.transport.boundary_conditions.RealizerTable` belongs to one method and is keyed
+by TYPE: the chain types ``SpecularChain`` and ``DiffuseChain`` (exactly the members of the closed sum), the marker ``ZeroNetwork`` (the
+key of the zero image), the marker ``InflowTerms`` (the source channel, whose entry is a
+:class:`~orpheus.transport.boundary_conditions.SourceRealizer`, the others
+:class:`~orpheus.transport.boundary_conditions.ResponseRealizer`) and the method-only condition types. ``WallCondition`` itself is not
+a key: it is realized generically by the functor, so a method never writes a branch over the shared family's cone point. Decks have
+exactly one :class:`~orpheus.transport.boundary_conditions.DeckRealizer` per table (an exhaustive match over ``DeckTransformation``).
+
+- **Realization is a functor on the network.** The image of the empty network is the method's zero map, the image of one chain is
+  that chain's realizer's, and the image of a sum is the sum of the images, summed in ``CHAIN_ORDER`` so the realization does not
+  depend on how the wall was built (law L-L, ``test_the_functor_law`` and, on the SN table, ``test_the_realizer_is_a_homomorphism``).
+- **Registration is a class keyword plus** ``seal()``: ``class SNSpecularChain(ResponseRealizer, table=SN_REALIZERS,
+  realizes=SpecularChain)`` registers at class creation and refuses a duplicate, a sealed table and a key that is not a legal unit.
+  The table and every realizer that registers into it live in one module per method, which calls ``table.seal()`` on its last line:
+  anyone holding the table has executed every registration. An unsealed table refuses ``admit``, ``realize``, ``require`` and
+  ``catalogue`` with :class:`~orpheus.transport.boundary_conditions.TableNotSealedError`.
+- **Lookup is by exact type, never the MRO.** A subclass is a new declaration and owes its own entry; a method-only condition of
+  another method is never realized silently as its parent.
+- **One door.** :meth:`~orpheus.transport.boundary_conditions.RealizerTable.realize` calls
+  :meth:`~orpheus.transport.boundary_conditions.RealizerTable.admit` (through ``require``) and raises
+  :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` if and only if the admission is ``Refused``; no realizer body
+  raises on its own for an admission reason (law L-D, ``test_one_door``). The refusal carries the method, the face and the
+  admission, so the axis and the issue are data. The one declared second door is POSING: the eigenvalue entries refuse a boundary
+  source before any realization, a refusal of the question and not of the declaration (``ERR-095``).
+- **The unregistered door.** A unit with no entry is ``Refused(STATE_CONE, ...)`` when its ``return_fraction`` is negative and the
+  table's :class:`~orpheus.transport.boundary_conditions.StateCone` is ``NONNEGATIVE_FLUX`` (so SN refuses diffusion's zero flux
+  without importing it: SN may not import diffusion), and ``Refused(PLUMBING, ..., table.unregistered_issue)`` otherwise, naming the
+  admitted keys. Which issue tracks a method's missing entries is the method's to say: CP, MoC and MC cite #654 (their tables hold
+  only what the retired string registries held), SN and diffusion cite #659 (their tables register every shared unit and meet
+  this door only with another method's own condition).
+
+The shared body that realizes a whole binding is :func:`~orpheus.transport.method.realize_boundary`: for each face of the binding in
+inventory order, the declaration is the face's deck if it is glued and otherwise the condition its tag is bound to; a face with a
+trace slot is realized through the method's :meth:`~orpheus.transport.method.TransportMethod.realize_boundary_role`, which calls
+the method's own table; a face with no trace slot (the inner face of a hollow radial body: a tag with no inner-surface trace) meets
+the table through ``require`` at the site level only, which raises the same refusal. The face inventory of the result is the trace
+inventory by construction.
+
+**The quadrature's equivariance is certified, and the certificate is the permutation.** The specular chain and the mirror deck
+realize through the ordinate permutation of the face's mirror plane. ``ordinate_pairing(quadrature, motion)``
+(``orpheus/numerics/quadrature/ordinate_pairing.py``) answers one question, keyed on that pair and nothing else: *is the ordinate
+permutation this motion induces a certified pairing?* It folds onto ``Quadrature.ordinate_permutation`` (no bijective,
+weight-preserving match becomes ``QuadratureNotClosedUnderMotionError``) and asserts three independent claims on the returned
+permutation: the trace measure :math:`m_n = w_n|\mu_{a,n}|` satisfies :math:`m_{\pi(n)} = m_n` (``ERR-042``), :math:`\pi\circ\pi =
+\mathrm{id}` (``ERR-044``), and every non-tangential ordinate pairs with the opposite sign class on the mirror's axis (``ERR-045``);
+each passes on a table the other two reject, which is why none is dropped for another. It returns the permutation, so the realizer
+uses the certified array and there is no certification beside a second derivation. A rule that is not closed under the mirror (an
+odd-``n_phi`` product rule has no x-mirror closure) is refused by SN's table on the angular-resolution axis when a method space
+is given, and admitted at site level without one (``test_a_certification_failure_names_its_axis_at_the_table`` in
+``tests/gates/sn/architecture/test_sn_realizer_table.py``). The oblique reflection is a declared scope boundary (#657).
+
+**What the five tables say today.** The notation of the cells is ``R(T)`` for ``Realized(faithful=True)``, ``R(F)`` for
+``Realized(faithful=False)``, ``A(#n)`` for ``Approximated`` citing issue ``n`` and ``F(axis, #n)`` for ``Refused``; the cells below
+were read from the live tables by one probe at the carve tip (:ref:`bc-aor-admission-probe`) and agree with the pin
+``tests/gates/transport/test_admission_matrix.py`` (111 rows and 13 further test items, 124 passed). The value classes are those of the
+pin: ``vacuum`` (the empty network, ``specular(0.0)`` and ``white(0.0)`` included), ``specular 1.0`` and ``specular 0.5``,
+``white 0.5`` and ``white 1.0``, ``both 0.3 0.5`` (``from_amplitudes(0.3, 0.5)``), ``inflow 1.0`` (``uniform(1.0)``) and
+``specular 0.5 over inflow 1.0`` (``specular(0.5) + uniform(1.0)``). The sites are the three geometric classes of
+:class:`~orpheus.transport.boundary_conditions.FaceSite` (``CART``, ``RAD_OUTER``, ``RAD_INNER``, derived from the face name and
+the coordinate system and never stored).
+
+.. list-table:: SN and diffusion (Cartesian, radial outer and hollow inner faces)
+   :header-rows: 1
+   :widths: 30 14 14 14 14 14
+
+   * - value class
+     - SN ``CART``
+     - SN ``RAD_OUTER``
+     - SN ``RAD_INNER``
+     - diffusion ``CART`` and ``RAD_OUTER``
+     - diffusion ``RAD_INNER``
+   * - vacuum
+     - R(T)
+     - R(T)
+     - F(PLUMBING, #511)
+     - R(T)
+     - F(PLUMBING, #511)
+   * - specular 1.0
+     - R(T)
+     - R(T)
+     - R(T)
+     - R(F)
+     - R(F)
+   * - specular 0.5
+     - R(T)
+     - R(T)
+     - F(PLUMBING, #511)
+     - R(F)
+     - F(PLUMBING, #511)
+   * - white 0.5, white 1.0
+     - R(T)
+     - F(PLUMBING, #653)
+     - F(PLUMBING, #511)
+     - R(F)
+     - F(PLUMBING, #511)
+   * - both 0.3 0.5
+     - R(T)
+     - F(PLUMBING, #653)
+     - F(PLUMBING, #511)
+     - R(F)
+     - F(PLUMBING, #511)
+   * - inflow 1.0, specular 0.5 over inflow 1.0
+     - R(T)
+     - F(PLUMBING, #653)
+     - F(PLUMBING, #511)
+     - F(PLUMBING, #656)
+     - F(PLUMBING, #511)
+   * - ``ZeroFluxCondition``
+     - F(STATE_CONE)
+     - F(STATE_CONE)
+     - F(STATE_CONE)
+     - R(T)
+     - F(PLUMBING, #511)
+
+.. list-table:: CP, MoC and MC
+   :header-rows: 1
+   :widths: 25 15 15 15 15 15
+
+   * - value class
+     - CP ``CART`` ``xmin``
+     - CP ``CART`` ``xmax``, and ``RAD_OUTER``
+     - MoC ``RAD_OUTER``
+     - MC ``CART``
+     - MC ``RAD_OUTER``
+   * - vacuum
+     - F(PLUMBING, #513)
+     - R(T)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+   * - specular 1.0
+     - F(PLUMBING, #513)
+     - F(PLUMBING, #654)
+     - A(#547)
+     - F(PLUMBING, #654)
+     - F(TOPOLOGY, #547)
+   * - specular 0.5
+     - F(PLUMBING, #513)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(TOPOLOGY, #547)
+   * - white 0.5
+     - F(PLUMBING, #513)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+   * - white 1.0
+     - F(PLUMBING, #513)
+     - R(T)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+   * - both 0.3 0.5
+     - F(PLUMBING, #513)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(TOPOLOGY, #547)
+   * - inflow 1.0
+     - F(PLUMBING, #513)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+   * - specular 0.5 over inflow 1.0
+     - F(PLUMBING, #513)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(PLUMBING, #654)
+     - F(TOPOLOGY, #547)
+
+.. list-table:: The decks, and the method-only unit, per table
+   :header-rows: 1
+   :widths: 18 82
+
+   * - declaration
+     - admission
+   * - ``MirrorDeck``
+     - SN: R(T) at a Cartesian face, certified by ``ordinate_pairing`` (else F(ANGULAR_RESOLUTION)). Diffusion: R(F) (a mirror plane
+       is :math:`\mathcal{A} = 1`, tier 2). CP: R(T) at a slab's ``xmin`` only, where its kernel's image term is a forced mirror, and
+       F(PLUMBING, #654) elsewhere. MC: F(PLUMBING, #654). MoC: no deck realizer (the unregistered door, #654)
+   * - ``TranslationDeck``
+     - SN: R(T), earned by the crossing check (a translation moves no direction and the outward normals of the two faces are
+       opposite), else F(TOPOLOGY) (a pair whose crossing sets differ is not a translation quotient; the realizer's docstring names #178 for
+       the explicit gluing map it would need). Diffusion: F(TOPOLOGY) (a per-face scalar has no slot for cross-face coupling). CP:
+       F(PLUMBING, #654), and F(PLUMBING, #513) at a face CP drops. MC: R(T) (the pitch is not compared with the declared extent,
+       #655). MoC: the unregistered door, #654
+   * - ``ZeroFluxCondition``
+     - diffusion: R(T), :math:`\mathcal{A} = -1`. Every other table: F(STATE_CONE) through the unregistered door
+
+This page states which declarations each table admits and why; what the realized operators do is the subject of the method pages:
+SN's :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`, ``ScaledOrdinatePermutation`` and ``RankOneReemission`` as terms of
+the boundary operator :math:`B` are in :doc:`/theory/methods/sn/boundary_conditions`, and diffusion's albedo operator on the
+scalar trace is in :doc:`/theory/methods/diffusion_1d`.
+
+The tables are the data of the following rulings and measurements, each of which is also a reason a cell is what it is.
+
+- **SN refuses on the radial outer face what its corner action cannot carry** (#653). The radial characteristic's corner action is
+  ruled only for a permuting return or a zero return, and a source is a free parameter that the corner block (a linear operator on
+  the ray alone) cannot carry. Before the carve the solve constructed and refused at the first sweep (12 of 12 solves, `[M]` the
+  WF2.1 measurement of plan section 4.3, the memo ``measure_admission_table.md``, untracked scratch and not re-run); the refusal is
+  now at admission. The zero network and the specular chain are realized there
+  (a deck on a radial face is not spellable).
+- **The hollow inner face has a refusal of its own** (#511). The radial axis carries one trace slot, the outer surface, so a method
+  assembled on the axes' trace inventory has nowhere to put an inner condition: it computes the reflective cavity (a unit specular
+  return) whatever is declared. SN and diffusion therefore refuse every inner declaration but ``specular(1.0)`` through the one
+  :func:`~orpheus.transport.boundary_conditions.hollow_inner_refusal`, with the method's reason. `[M]` 2026-10-23, the S3 build's
+  probe, recorded in the docstring of ``tests/gates/mesh/test_hollow_inner_law.py`` and not re-run for this page: before this admission an inner ``vacuum()``, ``specular(1.0)`` and ``white(0.5)`` gave a bit-identical eigenvalue on a hollow
+  sphere and on a hollow cylinder in diffusion (3 of 3 conditions on 2 of 2 coordinate systems); SN had dropped it until the P1 guard
+  of 2026-09-25. The admission is per table because the reason is per method: CP refuses a hollow body's inner face on its own guard
+  (#513: it reads only the outer face), MoC and MC refuse a hollow body outright (#514, #513), and a method that gains an
+  inner-surface trace lifts its own refusal alone. The gates are ``tests/gates/mesh/test_hollow_inner_law.py`` and, for CP,
+  ``tests/gates/cp/test_cp_realizer_table.py``.
+- **Today's limits stand (ruling D3).** The focus of the carve was reorganisation, not capability. A limit is a table cell citing
+  its issue; widening it is that issue's work (#650 for the reference's vocabulary, #653, #654, #656 for the tables).
+- **No masking (ruling D4).** CP realizes the vacuum as what it computes. Its eigenvalue omits the leakage term of the balance, so a
+  vacuum-bounded eigenvalue exceeds a white-bounded one on the same cell (#546); the admission is ``Realized(True)`` and the defect
+  is kept visible by three strict ``xfail`` rows asserting the physics (``k_vacuum <= k_white`` on the two-group ``A|B`` body, on
+  3 of 3 charts) with ``raises=AssertionError`` (a bare strict ``xfail`` would also swallow an ``ImportError``), which turn red
+  (XPASS) the day #546 is repaired. `[M]` the figures recorded in the docstring of
+  ``tests/gates/cp/test_cp_vacuum_not_above_white.py`` (``_probe_546_xfail.py`` at ``5d04c296``, ``CPParams(keff_tol=1e-11)``, not
+  re-run for this page): slab 1.4003162 against 1.2308420, cylinder 0.9354010 against 0.7393875, sphere
+  0.5854991 against 0.4140867. The CP table also refuses an albedo below one on a diffuse chain (F(PLUMBING, #654)): the retired
+  string registry keyed its closure by the word ``white`` whatever the albedo, a silent drop that is now a refusal.
+- **MC computes a torus, not the declared cylinder** (#547). MC samples a periodic equal-area square lattice cell, a translation
+  whose opposite faces are coupled by an image lattice, and the declared cylinder has no such coupling: its specular wall on a cylinder
+  is ``Refused(TOPOLOGY, #547)`` for every weight, and the three tests that declare it are strict ``xfail`` rows
+  (``tests/gates/mc/test_gaps.py``, ``tests/gates/mc/test_properties.py``) that turn red when MC takes a 2-D geometry value that
+  describes what it computes. The axis is topology and not plumbing because theory stands behind the refusal: the carrier MC answers
+  with and the declared body differ in exactly the question the topological axis asks. MoC realizes the same declaration as a named
+  domain approximation, ``A(#547)`` (a specular return on the equal-area square cell), for weight one only.
+- **The mixed cells follow the meet.** MC at ``RAD_OUTER``, "both chains" and "specular over a source", read
+  ``F(TOPOLOGY, #547)``, because the meet keeps the first refusal in ``CHAIN_ORDER`` (specular before diffuse, chains before the
+  source).
+
+.. _bc-aor-admission-probe:
+
+The probe behind the tables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+One probe produced the cells above. It read each of the five sealed tables (``SN_REALIZERS``, ``DIFFUSION_REALIZERS``,
+``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``) through ``admit`` at the sites above, with the value classes above, and
+printed one line per value class. `[M]` ``python -O`` run from outside the repository with ``PYTHONPATH`` set to the worktree and
+``orpheus.__file__`` printed first; the ``catalogue`` of each table printed beside it read: SN, all four keys R(T);
+diffusion: ``ZeroNetwork`` R(T), ``SpecularChain`` and ``DiffuseChain`` R(F), ``ZeroFluxCondition`` R(T), ``InflowTerms``
+F(PLUMBING, #656); CP: ``ZeroNetwork`` R(T), ``SpecularChain`` F(PLUMBING, #654), ``DiffuseChain`` R(T); MoC: ``ZeroNetwork``
+F(PLUMBING, #654), ``SpecularChain`` A(#547), ``DiffuseChain`` F(PLUMBING, #654); MC: ``ZeroNetwork`` and ``DiffuseChain``
+F(PLUMBING, #654), ``SpecularChain`` F(TOPOLOGY, #547). The catalogue is the upper bound of the instance level: no sampled cell above exceeds its key's entry
+(law L-D, ``test_catalogue_is_an_upper_bound`` samples the same property over a test-local table).
+
+.. _bc-aor-adjoint:
+
+The adjoint, stated once
+------------------------
+
+The adjoint entries of the SN solvers dagger the same objects the forward solve uses, so a forward and an adjoint solve share one
+binding. Four statements make that true, and the fourth is the one a consumer reads.
+
+#. **Every shared kernel is reciprocal in the trace metric** :math:`M = \mathrm{diag}(w|\mu|)`. The specular return is an
+   involutive measure-preserving permutation :math:`P`, so :math:`M^{-1}P^{\mathsf T}M = P`; the Lambertian is
+   :math:`u \otimes (w|\mu|)/\sum(w|\mu|)`, self-adjoint under :math:`M`. The adjoint of a shared condition's realization is
+   therefore its realization on the reversed ordinates (``test_reciprocity`` in
+   ``tests/gates/sn/architecture/test_realized_boundary.py``).
+#. **A deck's adjoint is its partner's deck**: :math:`G_g^\sharp = G_{g^{-1}}`, which is the deck on the partner face,
+   ``pairing_of(d, f).inverse == pairing_of(d, partner(f))``; it holds for a translation because ``translation_motion`` is signed by
+   the face (``test_pairing_of_and_its_adjoint`` in ``tests/gates/geometry/test_deck.py``; the code block of
+   :ref:`bc-aor-deck-family` prints the equality).
+#. **The inflow** :math:`q` **is not adjointed.** ``solve_sn_adjoint_fixed_source`` builds a zero ``AngularBoundarySourceSink`` and
+   never reads the declared :math:`q`, and the other two adjoint entries refuse a declared boundary source
+   (``_refuse_a_boundary_source``, ``ERR-095``). This is correct: :math:`q` enters the reciprocity identity as the inner product
+   :math:`\langle q, |\Omega\cdot n|\,\gamma_-\psi^\dagger\rangle` (`[R]` the identity is the plan's statement, not a gate's: the
+   gate pins the behaviour, not the identity), a term of the adjoint problem's functional and not of its operator. The statement
+   had never been written down; ``test_the_adjoint_ignores_q`` in
+   ``tests/gates/sn/architecture/test_sn_boundary_binding.py`` pins it (the same adjoint flux for a vacuum face, ``uniform(1.0)`` and
+   ``uniform(50.0)``, while ``solve_sn`` and ``solve_sn_adjoint`` refuse a bound source).
+#. **The left-eigenvector rider.** Reciprocity in :math:`M` is a statement about :math:`B^{\mathsf T}`. The scalar :math:`\rho` a
+   consumer reads exists exactly when the trace measure is a left eigenvector of the realized map: :math:`J^-(R\varphi) = \rho
+   J^+(\varphi)` for every :math:`\varphi \ge 0` if and only if :math:`R^{\mathsf T}(w|\mu|)_- = \rho\,(w|\mu|)_+`. It holds by
+   construction for the shared family (:ref:`bc-aor-wall-condition`); a method-only kernel owes it as a gate.
+
+The eigenvalue entries (:func:`~orpheus.sn.solver.solve_sn` and ``solve_sn_adjoint``) refuse a declared boundary source by posing:
+an eigenproblem is homogeneous, so a source has no term to land in, and answering the source-free problem would drop the declaration
+in silence.
+
+.. _bc-aor-inflow:
+
+The inflow channel, in brief
+----------------------------
+
+The affine part :math:`q \ge 0` is a function on the inflow half-trace :math:`\Gamma_-` and the one factor the realizer tier does not
+carry. :class:`~orpheus.transport.boundary_conditions.InflowTerms` states it as a weighted sum of profiles: ``uniform`` (every uniform
+contribution folded into one number, so ``uniform(1.0) + uniform(2.0) == uniform(3.0)`` with no profile object for a constant) plus
+``sampled``, a tuple of ``(weight, profile)`` in first-appearance order, whose parse drops a zero weight, merges equal profiles and
+refuses anything that is not an inflow profile. **The frame is the type and the content is open**: the profiles are Python callables
+over a space, not closed expressions, so what is decidable, and what the binding's invariance refusal needs, is the frame the profile
+is written in. :class:`~orpheus.transport.boundary_conditions.FaceFrameInflow` is written in the face's own frame and is face-local;
+:class:`~orpheus.transport.boundary_conditions.LabFrameInflow` is written in laboratory directions and is not. A profile
+implements the open protocol :class:`~orpheus.transport.boundary_conditions.InflowSampler` (``sample(space)`` returns an array with
+exactly ``space.shape``, in the units of :math:`\psi`).
+
+**Sampling is the method's, not the declaration's.** The single verb that evaluates :math:`q` on a method's trace is
+:meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow`: ``require`` the source (a source the method cannot carry
+is refused at the door, so the refusal and the sampling cannot disagree), then the table's registered
+:class:`~orpheus.transport.boundary_conditions.SourceRealizer`, whose default body is
+:func:`~orpheus.transport.boundary_conditions.sample_terms`: ``q = uniform * ones + sum_i w_i sampler_i.sample(space)``, with a
+``ValueError`` when a sampler returns anything but ``space.shape`` (a wrong-shape array would otherwise be broadcast silently). SN
+overrides ``sample`` to run the placement check of ``ERR-047``: the space sampled on must be the inflow half-trace of the face, since
+a source written anywhere else is discarded by the sweep. The sampled arrays are packed into the boundary leaf of the composite
+source :math:`q = q_{\rm bulk} \oplus q_\partial`,
+:class:`~orpheus.transport.fields.AngularBoundarySourceSink` (:meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_method`
+reads the faces whose bound condition carries a nonzero source), and
+:func:`~orpheus.sn.solver._build_fixed_source_rhs` is the single construction point of the right-hand side for both inner solvers.
+
+Two consequences follow, and both are derived and measured in the older sections. A prescribed inflow realizes to the **zero map**:
+the table consults the ``ZeroNetwork`` realizer for an empty network whatever the source, so vacuum and a prescribed inflow are the
+same operator and differ only in :math:`q` (:ref:`bc-affine-source-channel`). And :math:`q` never rides an operator slot, because an
+operator that ignores its input and returns :math:`q` is an affine map in a linear slot, which doubles the delivery under source
+iteration and raises a convergence-claim error under Krylov (:ref:`bc-affine-channel-the-defect`). The sites where the source is
+refused are table cells: diffusion has no channel for it (#656, plumbing), and SN refuses it on a radial outer face (#653) and on a
+hollow inner face (#511).
+
+.. _bc-aor-laws:
+
+The laws and the gates that pin them
+------------------------------------
+
+Each law below is a statement the types obey, with the gate that fails first when it is false. A law is a *claim* and the gate is its
+*instrument*; the gates were each re-run at the carve tip (the 453-passed run of the V&V admonition).
+
+.. list-table:: The laws of the architecture
+   :header-rows: 1
+   :widths: 14 46 40
+
+   * - law
+     - statement
+     - gate
+   * - L-A the adjoint
+     - reciprocity in the trace metric; a deck's adjoint is its partner's; :math:`q` is not adjointed; the left-eigenvector rider
+     - ``test_reciprocity``, ``test_pairing_of_and_its_adjoint``, ``test_the_adjoint_ignores_q``,
+       ``test_the_left_eigenvector_rider_through_the_realizer``
+   * - L-B the cone
+     - construction outside :math:`K` raises; arithmetic returns a condition if and only if the pair lies in :math:`K`; the albedo
+       twin is gone
+     - ``test_wall_condition_parse``, ``test_the_algebra_and_the_cone``
+   * - L-C invariance
+     - a condition a non-identity element of :math:`H` moves is refused at ``bind``
+     - ``test_bind_invariance``
+   * - L-D admission equals realization
+     - ``admit`` is ``Refused`` if and only if ``realize`` raises ``BoundaryRefused``; ``catalogue`` is an upper bound
+     - ``test_one_door``, ``test_catalogue_is_an_upper_bound``
+   * - L-E naturality of the mirror
+     - the slab mirror :math:`\sigma` carries the realization at ``xmin`` onto that at ``xmax``,
+       :math:`P_\sigma\,\mathrm{real}(\beta, \texttt{xmin})\,P_\sigma^{-1} = \mathrm{real}(\beta, \texttt{xmax})`, for every shared
+       unit: two realizations compared through a third object, so it does not read ``face_normal``
+     - ``test_mirror_naturality``
+   * - L-F a deck is not an operand, a condition is not a deck
+     - ``0.5 * MirrorDeck()`` and ``vacuum() + TranslationDeck()`` raise Python's own ``TypeError``; no value puts a response in the
+       deck slot or a deck in the condition slot
+     - ``test_a_deck_is_not_an_operand``, ``test_a_condition_is_not_a_deck_slot``
+   * - L-G one definition per quantity
+     - the coordinate-agreement convention has one definition; ``white(a)`` and ``from_amplitudes(0.0, a)`` have one digest; the
+       wall-bound message has one owner in transport and one in the references (the insulation ruling: references import no
+       production)
+     - ``test_white_is_a_facade``, ``test_one_agreement_convention``
+   * - L-H layering
+     - ``geometry`` imports nothing from numerics, mesh, specification, reference, transport or the L3 packages
+       (``FORBIDDEN_EDGES["geometry"]``)
+     - ``tests/gates/test_layer_imports.py``
+   * - L-I no string dispatch in the core
+     - no ``dict[str, ...]`` registry on a method class, no ``.kind`` read on a declaration, ``BC`` does not exist
+     - ``test_the_string_registries_and_the_typed_law_reads_are_gone`` in ``tests/gates/transport/test_wave2_s4_tables.py``
+   * - L-J identity
+     - equal declarations digest equal; every deck and condition type has its row in the content-identity rosters
+     - ``tests/gates/transport/test_content_identity_transport.py``, ``tests/gates/geometry/test_content_identity_geometry.py``
+   * - L-K the carried numbers
+     - every eigenvalue and flux the suite pins is unchanged by the carve except the declared exceptions
+     - ``tests/gates/sn/architecture/test_wave2_carry.py``
+   * - L-L the functor law
+     - realization is a homomorphism of the algebra: exact on parameters, within a few ulp on dense matrices
+     - ``test_the_functor_law``, ``test_the_realizer_is_a_homomorphism``
+   * - L-M chains compose, the family is closed
+     - every chain's factor tiers compose from outflow to inflow; every ``match`` over ``Chain`` ends in ``assert_never``
+     - ``test_chains_compose_and_the_family_is_closed``
+
+.. _bc-wave2-crosswalk:
+
+From the trace-law architecture to the architecture of record
+=============================================================
+
+Until 2026-10-24 a boundary condition was a *trace law*: a ``BoundaryTraceLaw`` subclass chosen by a string key, split into a
+geometry factor :math:`G` and a response factor :math:`R`, composed by a descriptor algebra (``LawSum``, ``LawScaled``), realized by a
+``BoundaryRealizer`` that a string registry reached, and declared on the geometry through the tag ``BC``. Wave 2 of the layer DAG
+replaced it, in five slices of one carve and a retirement, by the architecture of :ref:`bc-architecture-of-record`: face roles that
+are a deck or an integer tag, one affine wall condition on a cone, a binding with the colouring stabiliser, and one realizer table
+per method that answers admission and realization together. The record of what landed is the development-history row at the end of
+the page.
+
+**How to read the rest of the page.** The sections below this table record the architecture that wave 2 replaced. Their mathematics
+still holds where they re-spell it (the two-test criterion of :ref:`bc-factor-roles`, the quotient picture of
+:ref:`bc-factor-quotients`, the three tiers of :ref:`bc-method-realizability`, the trace maps of :ref:`bc-domain-narrowing`, the
+affine source channel of :ref:`bc-affine-source-channel`), and a name in double backticks there is retired. A section wholly about
+retired machinery says so in its first sentence and points back here. The table maps every retired symbol to its successor as a live
+role, or to ``none`` with the reason (a successor that is a property of a type, such as the trace ladder, has no symbol of its own).
+The steps ``R1`` to ``R20`` are the rows of the retirement's dependency table, in the order of deletion (leaves first); the row
+``R-ERR041`` is the one the retirement added.
+
+.. list-table:: Every retired symbol and its successor
+   :header-rows: 1
+   :widths: 8 34 58
+
+   * - step
+     - retired (``literal``)
+     - successor (a live role), or ``none`` and the reason
+   * - R1
+     - ``assert_specular_pairing_valid``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (the composition of the three checks)
+   * - R1
+     - ``assert_specular_pairing_involutive``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (its involution check,
+       ``PairingNotInvolutiveError``, ``ERR-044``)
+   * - R1
+     - ``assert_specular_pairing_measure_preserving``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (its measure check,
+       ``PairingNotMeasurePreservingError``, ``ERR-042``)
+   * - R1
+     - ``assert_specular_pairing_maps_inflow_to_outflow``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (its crossing check,
+       ``PairingDoesNotCrossError``, ``ERR-045``)
+   * - R1
+     - ``_specular_pairing``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (it returns the permutation the realizer
+       uses)
+   * - R1
+     - ``_axis_cosines``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` reads ``Quadrature.mean_axis_cosine``:
+       no successor symbol
+   * - R2
+     - ``IncomingOutgoingTraceClassificationError``
+     - none: the classification is carried by the trace ladder,
+       :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, whose half-spaces exclude the
+       tangential ordinates from both halves (``ERR-040``)
+   * - R2
+     - ``VacuumAppliedToOutgoingTraceError``
+     - none: the zero map reads both half-traces of its own face off the trace ladder, so the mismatch is unspellable
+       (``ERR-041``, :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`)
+   * - R2
+     - ``BoundaryGeometryMapNotMeasurePreservingError``
+     - :class:`~orpheus.numerics.quadrature.ordinate_pairing.PairingNotMeasurePreservingError` (``ERR-042``)
+   * - R2
+     - ``ReflectionNotInvolutiveError``
+     - :class:`~orpheus.numerics.quadrature.ordinate_pairing.PairingNotInvolutiveError` (``ERR-044``)
+   * - R2
+     - ``ReflectionDidNotMapInflowToOutflowError``
+     - :class:`~orpheus.numerics.quadrature.ordinate_pairing.PairingDoesNotCrossError` (``ERR-045``)
+   * - R2
+     - ``BoundarySourceNotOnIncomingTraceError (the old home)``
+     - :class:`~orpheus.sn.boundary.errors.BoundarySourceNotOnIncomingTraceError` (SN's own, rooted at the transport
+       :class:`~orpheus.transport.boundary_conditions.BoundaryError`; ``ERR-047``)
+   * - R3
+     - ``TAG_REGISTRY``
+     - :meth:`~orpheus.derivations.continuous.characteristic.walls.Walls.of` (the exterior of a reference is plain
+       data, ``Walls.of(geometry, exterior)``)
+   * - R3
+     - ``_law_of``
+     - :meth:`~orpheus.derivations.continuous.characteristic.walls.Walls.of`
+   * - R3
+     - ``_wall_of``
+     - :meth:`~orpheus.derivations.continuous.characteristic.walls.Walls.of`
+   * - R3
+     - ``_parameters``
+     - :meth:`~orpheus.derivations.continuous.characteristic.walls.Walls.of`
+   * - R3
+     - ``specular_albedo (the law form)``
+     - :func:`~orpheus.derivations.common.reference_body.specular_albedos` (``specular_albedos(geometry, exterior)``)
+   * - R3
+     - ``BC.to_alpha``
+     - :func:`~orpheus.derivations.common.reference_body.specular_albedos` (the amplitudes are read from
+       ``WallAmplitudes``)
+   * - R4
+     - ``BC_REGISTRY (CP)``
+     - ``CP_REALIZERS`` (``orpheus/cp/solver.py``)
+   * - R4
+     - ``bc_kind (CP)``
+     - ``CP_REALIZERS`` (``orpheus/cp/solver.py``)
+   * - R4
+     - ``BC_REGISTRY (MoC)``
+     - ``MOC_REALIZERS`` (``orpheus/moc/geometry.py``)
+   * - R4
+     - ``bc_kind (MoC)``
+     - ``MOC_REALIZERS`` (``orpheus/moc/geometry.py``)
+   * - R4
+     - ``BC_REGISTRY (MC)``
+     - ``MC_REALIZERS`` (``orpheus/mc/solver.py``)
+   * - R5
+     - ``BOUNDARY_OPERATOR_REGISTRY (SN)``
+     - ``SN_REALIZERS`` (``orpheus/sn/boundary/realizer.py``)
+   * - R5
+     - ``BOUNDARY_OPERATOR_REGISTRY (diffusion)``
+     - ``DIFFUSION_REALIZERS`` (``orpheus/diffusion/boundary_realizer.py``)
+   * - R5
+     - ``_law_from_tag``
+     - :func:`~orpheus.transport.boundary_conditions.bind`
+   * - R5
+     - ``resolve_boundary_conditions``
+     - :func:`~orpheus.transport.method.realize_boundary` after :func:`~orpheus.transport.boundary_conditions.bind`
+   * - R5
+     - ``realize_boundary_law``
+     - :meth:`~orpheus.transport.method.TransportMethod.realize_boundary_role`
+   * - R6
+     - ``assert_realizable``
+     - :meth:`~orpheus.transport.boundary_conditions.RealizerTable.admit` and
+       :meth:`~orpheus.transport.boundary_conditions.RealizerTable.require` (admission is the table's)
+   * - R6
+     - ``assert_inflow_outflow_classification``
+     - the trace ladder, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` (``ERR-040``)
+   * - R6
+     - ``assert_outgoing_leakage_unconstrained``
+     - none: a realized response is typed :math:`\Gamma_+ \to \Gamma_-`, so no outflow row is in its codomain
+   * - R6
+     - ``assert_geometry_map_measure_preserving``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (``ERR-042``)
+   * - R6
+     - ``assert_is_involutive``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (``ERR-044``)
+   * - R6
+     - ``assert_reflection_maps_inflow_to_outflow``
+     - :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` (``ERR-045``) and the crossing check of
+       :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`
+   * - R6
+     - ``assert_response_positive_if_declared``
+     - :class:`~orpheus.transport.boundary_conditions.BoundaryResponseNotPositiveError`, raised by the cone parse of
+       :class:`~orpheus.transport.boundary_conditions.WallCondition` (``ERR-043``)
+   * - R6
+     - ``assert_submarkov``
+     - :class:`~orpheus.transport.boundary_conditions.SubmarkovViolationError`, raised by the cone parse of
+       :class:`~orpheus.transport.boundary_conditions.WallCondition` (``ERR-046``)
+   * - R6
+     - ``assert_source_is_placeable``
+     - :meth:`~orpheus.sn.boundary.realizer.SNSource.sample` (the placement check, ``ERR-047``)
+   * - R6
+     - ``law_permutes_ordinates``
+     - :attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.permutes_ordinates`
+   * - R6
+     - ``geometry_map``
+     - :class:`~orpheus.geometry.deck.FacePairing`, read through :func:`~orpheus.geometry.deck.pairing_of`
+   * - R6
+     - ``response_kernel``
+     - :class:`~orpheus.transport.boundary_conditions.ResponseNetwork` and
+       :attr:`~orpheus.transport.boundary_conditions.WallCondition.return_fraction`
+   * - R7
+     - ``_BoundBoundaryOperator``
+     - :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`
+   * - R8
+     - ``realize_recursively``
+     - :meth:`~orpheus.transport.boundary_conditions.RealizerTable.realize` (realization is a functor on the response
+       network)
+   * - R8
+     - ``BoundaryRealizer (the Protocol)``
+     - :class:`~orpheus.transport.boundary_conditions.RealizerTable`
+   * - R8
+     - ``SNBoundaryRealizer``
+     - ``SN_REALIZERS``
+   * - R8
+     - ``DiffusionBoundaryRealizer``
+     - ``DIFFUSION_REALIZERS``
+   * - R8
+     - ``BoundaryRealizerRegistry (dissolved earlier, #290)``
+     - none: every method holds its own sealed table
+   * - R9
+     - ``LawSum``
+     - :meth:`~orpheus.transport.boundary_conditions.WallCondition.__add__` (a sum of conditions);
+       :class:`~orpheus.transport.boundary_conditions.WallDisplacement` outside the cone
+   * - R9
+     - ``LawScaled``
+     - :meth:`~orpheus.transport.boundary_conditions.WallCondition.__mul__` (a scalar multiple);
+       :class:`~orpheus.transport.boundary_conditions.WallDisplacement` outside the cone
+   * - R9
+     - ``LawNode``
+     - none: a condition or a displacement is the node
+   * - R9
+     - ``_admit_as_operand``
+     - none: a deck defines no operator, so Python's own ``TypeError`` refuses ``0.5 * MirrorDeck()`` (law L-F)
+   * - R10
+     - ``ScalarResponse``
+     - a weight of :class:`~orpheus.transport.boundary_conditions.ResponseNetwork`
+   * - R10
+     - ``LambertianReemission``
+     - :class:`~orpheus.transport.boundary_conditions.DiffuseChain`
+   * - R10
+     - ``SpecularReemission``
+     - :class:`~orpheus.transport.boundary_conditions.SpecularChain`
+   * - R10
+     - ``ReemissionClosure``
+     - the pair of chains, :class:`~orpheus.transport.boundary_conditions.SpecularChain` and
+       :class:`~orpheus.transport.boundary_conditions.DiffuseChain`
+   * - R10
+     - ``BoundaryResponseKernel``
+     - :class:`~orpheus.transport.boundary_conditions.ResponseNetwork` and
+       :attr:`~orpheus.transport.boundary_conditions.WallCondition.return_fraction`
+   * - R11
+     - ``NoSource``
+     - :meth:`~orpheus.transport.boundary_conditions.InflowTerms.empty`
+   * - R11
+     - ``ConstantInflowSource``
+     - :class:`~orpheus.transport.boundary_conditions.InflowTerms` (the ``uniform`` coordinate), spelled
+       ``WallCondition.uniform``
+   * - R11
+     - ``InflowSourceSpec``
+     - :class:`~orpheus.transport.boundary_conditions.InflowSampler` (``sample``), evaluated by
+       :meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow`
+   * - R12
+     - ``SelfPairedDeck``
+     - :class:`~orpheus.geometry.deck.MirrorDeck`
+   * - R12
+     - ``PairedDeck``
+     - :class:`~orpheus.geometry.deck.TranslationDeck`
+   * - R12
+     - ``BoundaryGeometryMap``
+     - :class:`~orpheus.geometry.deck.FacePairing`, read through :func:`~orpheus.geometry.deck.pairing_of`
+   * - R12
+     - ``_mirror_motion``
+     - :func:`~orpheus.geometry.deck.mirror_motion`
+   * - R13
+     - ``WhiteBoundary``
+     - :meth:`~orpheus.transport.boundary_conditions.WallCondition.white`
+   * - R13
+     - ``ReflectiveBoundary``
+     - :class:`~orpheus.geometry.deck.MirrorDeck` on a Cartesian face; on a curved face a tag bound to
+       :meth:`~orpheus.transport.boundary_conditions.WallCondition.specular` at 1.0
+   * - R13
+     - ``PeriodicBoundary``
+     - :class:`~orpheus.geometry.deck.TranslationDeck`
+   * - R13
+     - ``VacuumInflow``
+     - :meth:`~orpheus.transport.boundary_conditions.WallCondition.vacuum`
+   * - R13
+     - ``PrescribedInflow``
+     - :meth:`~orpheus.transport.boundary_conditions.WallCondition.uniform` and
+       :meth:`~orpheus.transport.boundary_conditions.WallCondition.framed`
+   * - R13
+     - ``AlbedoBoundary (the old type)``
+     - :meth:`~orpheus.transport.boundary_conditions.WallCondition.specular` or
+       :meth:`~orpheus.transport.boundary_conditions.WallCondition.white` at the albedo; ``albedo = 0`` is the vacuum
+   * - R13
+     - ``SpecularReturn (the old type)``
+     - :class:`~orpheus.transport.boundary_conditions.SpecularChain`
+   * - R13
+     - ``IsotropicReturn``
+     - :class:`~orpheus.transport.boundary_conditions.DiffuseChain`
+   * - R13
+     - ``ZeroFluxBoundary (the old type)``
+     - :class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition`
+   * - R13
+     - ``BoundaryTraceLaw``
+     - :class:`~orpheus.transport.boundary_conditions.BoundaryCondition` for a response and the ``FaceRole`` sum for a
+       deck
+   * - R13
+     - RegistryMixin ``key=``, ``kind`` and ``.registry`` on the seven laws
+     - none: dispatch is by type, through the realizer table
+   * - R14
+     - ``parse_boundary_law``
+     - :func:`~orpheus.geometry.deck.parse_face_role`
+   * - R14
+     - ``parse_boundary_laws``
+     - :func:`~orpheus.geometry.deck.parse_face_roles`
+   * - R14
+     - ``FaceLaws``
+     - :class:`~orpheus.mesh.face_roles.FaceRoles`
+   * - R14
+     - ``face_laws``
+     - ``face_roles`` (of a mesh, :class:`~orpheus.mesh.face_roles.FaceRoles`; of a geometry,
+       ``StructuredGeometry.face_roles``)
+   * - R14
+     - ``boundaries (of a geometry)``
+     - :attr:`~orpheus.geometry.structured_geometry.StructuredGeometry.face_roles`
+   * - R14
+     - ``bc_low``
+     - :attr:`~orpheus.mesh.axis.AxisMesh.role_low`
+   * - R14
+     - ``bc_high``
+     - :attr:`~orpheus.mesh.axis.AxisMesh.role_high`
+   * - R14
+     - ``bc_outer (of a radial axis)``
+     - :attr:`~orpheus.mesh.axis.RadialAxisMesh.role_outer`
+   * - R14
+     - ``outer_law (of a mesh)``
+     - :attr:`~orpheus.mesh.structured.Mesh1D.outer_role`
+   * - R15
+     - ``BoundaryError (the old home)``
+     - :class:`~orpheus.transport.boundary_conditions.BoundaryError` (carries ``.declaration``, the object, where the
+       old one carried a string ``.law``)
+   * - R15
+     - ``BoundaryResponseNotPositiveError (the old home)``
+     - :class:`~orpheus.transport.boundary_conditions.BoundaryResponseNotPositiveError`
+   * - R15
+     - ``SubmarkovViolationError (the old home)``
+     - :class:`~orpheus.transport.boundary_conditions.SubmarkovViolationError`
+   * - R16
+     - ``BC``
+     - integer tags (``FaceRole``) and :class:`~orpheus.transport.boundary_conditions.BoundaryConditions`
+   * - R17
+     - the package ``orpheus/geometry/boundary/`` (15 modules)
+     - ``orpheus/geometry/deck.py`` and ``orpheus/transport/boundary_conditions/``
+   * - R17
+     - ``orpheus/transport/boundary_realization.py``
+     - ``orpheus/transport/boundary_conditions/realization.py``
+       (:func:`~orpheus.transport.boundary_conditions.stamp_boundary_role`)
+   * - R17
+     - ``orpheus/sn/boundary/bound_compat.py``
+     - ``orpheus/sn/boundary/realized_operators.py``
+   * - R18
+     - the ``Literal`` alias ``BoundaryCondition`` of ``continuous_reference``
+     - ``ReferenceBoundaryKind`` (the reference's own string vocabulary)
+   * - R18
+     - ``ProblemSpec.boundary_conditions``
+     - :attr:`~orpheus.derivations.common.continuous_reference.ProblemSpec.boundary_kinds` (written by 19 cases and
+       read by none: #660)
+   * - R19
+     - the string arm of ``__eq__`` (``VacuumInflow() == "vacuum"``, #553)
+     - none: equality is content identity, and the string spelling retired with ``kind``
+   * - R20
+     - ``_narrowed_zero_operator``
+     - :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`
+   * - R20
+     - ``_deck_kernel``
+     - :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`
+   * - R20
+     - ``_specular_crossed_diagnosis``
+     - none: the crossing check of ``ScaledOrdinatePermutation`` at construction (``ERR-045``)
+   * - R20
+     - ``_checked_angular_average``
+     - :class:`~orpheus.sn.boundary.realized_operators.RankOneReemission`
+   * - R20
+     - ``_attenuated_kernel_operator (the realizer's)``
+     - moved to ``realized_operators.py`` as the one private helper
+   * - R20
+     - ``_outflow_restriction``
+     - the trace ladder's ``trace.outflow_space(face)``
+   * - R20
+     - ``_partner_outflow_restriction``
+     - the trace ladder's ``trace.outflow_space(partner)``
+   * - R-ERR041
+     - ``SNMethodSpace.inflow_indices and SNMethodSpace.outflow_indices``
+     - the trace ladder: ``trace.inflow_space(face)``, ``trace.outflow_space(face)``
+   * - R-ERR041
+     - ``SNMethodSpace.face, for_face, minimal and inflow_indices_for_face``
+     - :class:`~orpheus.sn.mesh.method_space.SNMethodSpace` is now ``(quadrature, trace)``; the face travels in the
+       :class:`~orpheus.transport.boundary_conditions.FaceSite`
 
 
 .. _bc-overview-three-layers:
@@ -9307,13 +10588,34 @@ References
 * The tensor decomposition equation :eq:`bc-tensor-decomposition`
   at :ref:`bc-tensor-decompositions` (in
   :doc:`/theory/methods/sn/boundary_conditions`) shows the algebra
-  :math:`B = \sum_\alpha G_\alpha \otimes A_\alpha` that this page
-  refines into the affine form :eq:`affine-bc-form`.
+  :math:`B = \sum_\alpha G_\alpha \otimes A_\alpha` that the older sections of this page refine into the trace-law affine form
+  :eq:`affine-bc-form`; the form of record is the pair :math:`(R, q)` of :ref:`bc-aor-trace-closures`.
 * :ref:`operator-algebra` for the Wave-0 primitives the realized
   BCs decompose into.
 * The V&V error catalog in the ``vv-principles`` skill
   (``docs/theory/verification/error_catalog.rst``) carries
   the ERR-040..ERR-047 entries in canonical form.
+
+The sources of :ref:`bc-architecture-of-record`:
+
+* Wave 2 of the layer DAG, the specification of record: ``.claude/plans/wave2_boundary_carve.md`` (section 1, the mathematics;
+  section 2, the types; section 3, the laws and their gates; section 4, the admission tables; section 7.2, the retirement's
+  dependency table; section 11, the records of the slices), and the rulings D1 to D5 and the thirteenth exchange of
+  ``.claude/plans/boundary_law_ontology.md``.
+* Chasles' classification of the non-identity isometries of :math:`E^n`, :math:`n \le 3`, into six conjugacy classes (translation,
+  reflection, rotation, glide reflection, screw motion, rotoreflection), as the code states and uses it
+  (``orpheus/geometry/deck.py``, ``IsometryClass``).
+* Marshak, R. E. (1947). "Note on the spherical harmonic method as applied to the Milne problem for a sphere". *Phys. Rev.* 71,
+  443; and Bell, G. I. & Glasstone, S. (1970), §3.4 (diffusion-theory boundary conditions): the :math:`P_1` closure that the
+  diffusion table's tier statements refer to, as cited in ``orpheus/diffusion/boundary_realizer.py``.
+* ``.claude/plans/diffusion_crosswalk.md``: the :math:`(J^+, J^-)` convention contract of the scalar trace.
+* The operator-as-tensor-network reading of the response :math:`R`: :doc:`/theory/foundations/operator_tensor_network`.
+* The issues the admission cells cite, each read as ``OPEN`` by ``gh issue list --state all --limit 700 --json number,state`` on 2026-10-24: #511 (the hollow shell's inner boundary law
+  is dropped), #513 (CP, MoC and MC ignore a slab's left boundary law), #514 (MoC ignores the mesh's coordinate system),
+  #546 (CP's vacuum eigenvalue omits leakage), #547 (MoC and MC realize their law on a square cell), #650 (the reference
+  vocabulary), #653 (the SN radial corner action), #654 (the CP, MoC and MC tables), #655 (MC's pitch), #656 (diffusion's inflow
+  channel), #657 (``RigidMotion`` reads its own reflection plane), #658 (the 2-D colouring group), #659 (the SN and diffusion
+  unregistered units), #660 (``ProblemSpec.boundary_kinds``) and #661 (``DiffusionMethodSpace.face``): 15 of 15 OPEN.
 
 
 .. _bc-history:
@@ -9321,7 +10623,7 @@ References
 Development history
 ===================
 
-Reverse-chronological changelog of the boundary-law architecture's
+Reverse-chronological changelog of the boundary architecture's
 milestones recorded since this table was opened (the earlier campaign
 phases, B1 to B3.4c and the Wave refactors, are recorded at the sections
 they concern). Entries marked *(in development)* live on an unmerged
@@ -9335,11 +10637,48 @@ branch; trust ``git`` over this table for merge status.
      - Milestone
      - Issue
      - Where
+   * - 2026-10-22 to 2026-10-24
+     - **A boundary condition is a face role, one wall condition on a cone, a binding and a realizer table (wave 2 of the layer
+       DAG, workflow WF2.5 documents it).** The trace-law architecture, ``BoundaryTraceLaw`` and its seven concretes chosen by
+       string, the tag ``BC``, the descriptor algebra ``LawSum`` and ``LawScaled``, the ``BoundaryRealizer`` Protocol and the
+       string registries, was replaced by the architecture of :ref:`bc-architecture-of-record`; every retired symbol and its
+       successor is in :ref:`bc-wave2-crosswalk`. What landed, from the plan of record (``.claude/plans/wave2_boundary_carve.md``,
+       section 11):
+
+       * *The leaves (WF2.2, additive, integrated 2026-10-23).* L1, the deck family, the colouring symmetry and the one
+         coordinate-agreement convention (``487d2d19``; amendments ``8a3e6c16`` and ``f6690aeb``). L4, ``ordinate_pairing`` and
+         the ``TraceRole`` ladder (``21a5e0e7``; ``afc8ed6d``). L5, ``WallAmplitudes``, the reference's plain-data wall
+         (``40aa15b5``).
+       * *The carve (WF2.3, sequential on one branch, no dual spelling).* S1, face roles in the geometry and the mesh
+         (``6b090ff9``, ``5b7f1dee``, ``4ec95bc6``). S2a, the conditions package (``f488034c``, ``7dcb9384``, ``cefc8339``). S2b,
+         the SN consumers and the typed realized operators (``a90d10c2``, ``be353f8c``, ``0757a8d9``). S3, diffusion
+         (``9c0e8fde``, ``508c6478``, ``d4da4328``). S4, CP, MoC and MC (``0f5e1c5d``, ``2a7ea40d``, ``de354496``). S5, the
+         references and the specification state their exterior as plain data (``25bae6a3``, ``96b5c675``).
+       * *The retirement (WF2.4).* ``ece6a281`` deleted ``orpheus/geometry/boundary/`` (15 modules),
+         ``orpheus/transport/boundary_realization.py`` and ``orpheus/sn/boundary/bound_compat.py``, carries ``Closes #551`` and
+         ``Closes #189``; `[M]` ``git show --shortstat ece6a281``: 96 files changed, 421 insertions and 12957 deletions. The amendments
+         are ``c2a14005`` and ``0707a332``, and ``8f2cefa4`` made Sphinx ``-W`` green at that tip.
+       * *The rulings that bind.* D1: a general condition is the type and a conventional name a facade over it. D2: one
+         normalised combination type, non-negative, total return at most one, signed combinations unbindable. D3: today's
+         limits stand and the reference states ``WallAmplitudes`` only (#650). D4: no masking, so CP's vacuum is realized and
+         #546 is a strict ``xfail``. D5: the hollow inner face is a tag. The standing rulings of the plan's section 0: the
+         thirteenth exchange (one shared exterior type whose response is a tensor network of typed factors; MC on a cylinder is
+         a strict ``xfail`` naming #547), plain data at the references edge with one translation that imports neither the
+         specification nor the derivations, and a sequential carve with no transit exemption on the qualname gate.
+       * *Departures from the draft, each ruled at integration.* The uniform-inflow facade is ``WallCondition.uniform``, not
+         ``inflow``; ``Admission`` is a sealed class and not a ``TypeAlias``; no ``OrdinatePairing`` carrier (the type checks its
+         own facts); the gauge reads the realized operator and not ``binding.decks``; diffusion and SN refuse the hollow inner face
+         except a unit specular return (#511), and CP refuses it (#513); the MC meets follow ``CHAIN_ORDER``.
+       * *State at the retirement tip.* `[M]` the plan's record (``python -O -m pytest -m "not slow"``, serial, per directory):
+         0 failed and 0 collection errors in 18 of 18 directories of ``tests/gates``; Sphinx ``-W`` exit 0 at ``8f2cefa4``; the
+         {geometry, numerics} package cycle gone from the layer census.
+     - #551, #189 (``Closes`` trailers of ``ece6a281``); #546, #547, #650, #653, #654, #655, #656, #658, #659, #660, #661 cited
+     - ``refactor/wave2-boundary-carve``; ``ece6a281`` (the retirement)
    * - 2026-10-20
      - **The walk is a homomorphism into the operator algebra, and the
        S\ :sub:`N` amplitude law has no branch.** With package S2 of the
        numerics untangling, ``+`` and ``α·`` build the normalised formal
-       linear combination, so :func:`~orpheus.transport.boundary_realization.realize_recursively`
+       linear combination, so ``realize_recursively``
        maps ``LawSum`` to ``+`` and ``LawScaled`` to ``α·`` and no longer
        keeps the law tree's shape (``0.5·(0.3X + 0.7Y)`` realizes as
        ``0.15X + 0.35Y``). The S\ :sub:`N` realizer's three α-regimes
@@ -9372,8 +10711,8 @@ branch; trust ``git`` over this table for merge status.
        and ``assert_response_positive_if_declared`` to the class; they
        retired with the field). The tag parser always built it at
        :math:`\alpha = 1`, so only a typed declaration reached it.
-       :class:`~orpheus.geometry.boundary.LawSum` and
-       :class:`~orpheus.geometry.boundary.LawScaled` now refuse a deck
+       ``LawSum`` and
+       ``LawScaled`` now refuse a deck
        law as a direct child (:ref:`bc-deck-law-not-an-operand`), on
        the new ``SelfPairedDeck.is_identity`` / ``PairedDeck.is_identity``
        read off ``RigidMotion.is_identity``; the refusal is tagged
