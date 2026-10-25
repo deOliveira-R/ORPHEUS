@@ -488,7 +488,7 @@ is the face-area integral of the boundary trace's **net outward
 current**, summed over the faces whose wall loses particles.
 :math:`\alpha_f` is the return fraction of face :math:`f`'s realized
 boundary (``RealizedBoundary.return_fraction``, a property of its type:
-the sum of the weights of its chains), the partial-current return ratio
+the sum of its chains' weights, and 1 for a deck), the partial-current return ratio
 :math:`J^-/J^+`: 0 for a vacuum face and for a prescribed inflow (whose
 net current is the outflow minus the prescribed inflow), :math:`\alpha`
 for a partial reflector (whose net current is :math:`(1-\alpha)J^+`),
@@ -763,9 +763,9 @@ on reflective; a leakage sign-flip crash-reds through the scale-bridge
 guard; and the old :math:`(n,2n)`-in-numerator convention reds the
 :math:`\Sigma_2\neq 0` leg.  The class ``TestPartialReturnLeakage`` in
 the same file extends the identity to faces that return a fraction
-:math:`0 < \alpha < 1` of their outflow (``WallCondition.specular(alpha)`` and
-``WallCondition.white(alpha)``; a slab and a
-sphere), with the edges :math:`\alpha = 0` (the vacuum problem,
+:math:`0 < \alpha < 1` of their outflow (``WallCondition.specular(alpha)`` on a slab and a sphere,
+``WallCondition.white(alpha)`` on the slab; the sphere refuses the diffuse
+chain, #653), with the edges :math:`\alpha = 0` (the vacuum problem,
 exactly; a cylinder row too) and :math:`\alpha = 1` (bitwise the
 lattice functional, whose mirror deck carries no
 amplitude and is the foundation that edge rests on, not a row): the face set of :eq:`sn-leakage-functional` is what those

@@ -70,8 +70,8 @@ inflow). Construction runs two steps:
    ``SNMethodSpace`` (the quadrature and the trace ladder, two fields and no
    face) and calls ``SN_REALIZERS.realize``, which admits first and realizes
    second. A declaration the table does not admit on that face raises
-   ``BoundaryRefused`` at construction, carrying the refusal's axis and the
-   issue that tracks it; an admitted one returns a typed
+   ``BoundaryRefused`` at construction, carrying the refusal's axis and, for a
+   plumbing refusal, the issue that tracks it; an admitted one returns a typed
    ``RealizedBoundary``. The results are stored face by face in
    :attr:`SNProblem.bc`, a ``dict[str, RealizedBoundary]`` over the faces that
    have a trace (the hollow inner tag has none, so it meets the table only
@@ -368,8 +368,13 @@ bindable. A mirror *deck* is not an operand of the arithmetic: it has no
 amplitude, and ``MirrorDeck() * 0.5`` and ``MirrorDeck() + MirrorDeck()`` are
 ``TypeError`` (``[M]`` 2026-10-24), the language's own refusal in place of a
 guard. A new condition of the shared family is a new chain in the closed sum, not a
-registry entry; the SN consequence is that every ``match`` over the chains
-(``SN_REALIZERS``' registrations) reddens until it handles the new member.
+registry entry. A third chain is an edit of the closed sum: the gate that reads
+``get_args(Chain)`` against the chain classes ``network.py`` defines
+(``tests/gates/transport/test_response_network.py``) reddens on it. SN then
+refuses the new chain on the PLUMBING axis at admission, through the table's
+unregistered-unit door (``Refused(PLUMBING, ...)``, #659), until a realizer
+registers for it; no gate asserts that ``SN_REALIZERS`` covers ``get_args(Chain)``,
+so the refusal is a runtime one and not a red.
 
 .. _bc-albedo-reemission-closure:
 
@@ -455,7 +460,8 @@ that check a mirror composed with a shift constructed, reported a return fractio
 ``realized_operators`` module docstring); the involution is not checked by the
 type because the gather uses the inverse and the facts do not depend on it. Both
 carriers of a specular return (the deck and the constitutive wall) therefore fire
-the same certification, because both are built by the same realizer.
+the same certification, because both are built by the same table, through one shared certification
+(``_SNSites.mirror_pairing``, called by the ``SNDecks`` and ``SNSpecularChain`` realizers).
 
 .. _bc-sn-resolution-table:
 
@@ -730,6 +736,9 @@ This section records the trace-law architecture that wave 2 retired (2026-10-24)
 the present architecture is :ref:`bc-architecture-of-record`, and each retired name
 maps to its successor in :ref:`bc-wave2-crosswalk`. Everything below is past tense
 and is kept because the reasons it records are why the present design is as it is.
+The closed algebra and the walker the retired design used are
+:ref:`bc-rank-n-algebra` and :ref:`bc-realize-recursively` on the foundations page,
+and the taxonomy-versus-factorization argument is :ref:`bc-taxonomy-vs-factorization`.
 
 **The two-stage declaration, as it was.** The laws were declared on the mesh as
 ``face_laws`` (a ``FaceLaws`` value keyed by face name), each law either a ``BC`` tag
@@ -805,7 +814,7 @@ descriptor-tree algebra). The Marshak mix was
 outward_sign=+1, albedo=1.0)``, a ``LawSum`` of ``LawScaled``, lowered by
 ``realize_recursively(tree, method_space, SNBoundaryRealizer())``; the mirror
 ``ReflectiveBoundary`` was refused as an operand of the composition nodes
-(``bc-deck-law-not-an-operand``), which the language's ``TypeError`` on a deck now
+(:ref:`bc-deck-law-not-an-operand`), which the language's ``TypeError`` on a deck now
 does. B3.0 had corrected a misfiling in the page's table: the cosine-weighted
 hemispheric average (``LambertianReemission``) was filed as a geometric operator, and an average is
 not multiplicative and not a bijection, so it is a response kernel and not a deck.

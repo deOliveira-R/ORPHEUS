@@ -4274,7 +4274,7 @@ The affine-BC-to-RHS framing
 
 Prescribed inflow is **not** a special solver mode — it is the
 inhomogeneous term of the universal affine boundary law
-(:ref:`affine-bc-form`). The general boundary trace law is
+(:ref:`affine-bc-form`). The general boundary trace map is
 
 .. math::
 
@@ -4309,8 +4309,8 @@ it declares a prescribed inflow at problem-construction time as a
 first-class condition bound to a tag. The 4.6 MMS deliberately does **not**
 use it: the manufactured inflow is injected as the ``q.boundary``
 source slot, which is exactly the affine-:math:`q`-to-RHS path, and is
-the surface O.2b's field-role-typing work targets. The mesh BCs for the
-4.6 cases are plain **vacuum** — the inflow lives entirely in
+the surface O.2b's field-role-typing work targets. The 4.6 meshes
+carry the vacuum tag, bound to ``WallCondition.vacuum()`` — the inflow lives entirely in
 ``q.boundary``.
 
 The public composite-source API drives the convergence rows

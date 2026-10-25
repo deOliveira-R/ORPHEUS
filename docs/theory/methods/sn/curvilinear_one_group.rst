@@ -146,7 +146,7 @@ re-derived.
    * The apply matvec is **one sweep iteration semantically**
      (:eq:`phase-c-wdd-recurrence`): apply and solve consume the
      same three primitives — the WDD closure, the direction-keyed
-     DAG walk, and the BC trace law at the boundary edge — so the
+     DAG walk, and the realized boundary at the boundary edge — so the
      two paths to the loss operator :math:`L+C` agree by
      construction.
    * The starting-direction flux :math:`\psi_{1/2}` is
@@ -3809,7 +3809,7 @@ flat-flux invariance, and asymptotic accuracy:
   B**, and it is exactly what Phase C then shipped: the matvec was rewritten
   into the sweep frame, so ``apply`` and ``solve`` now consume the **same
   three primitives** — the WDD closure :eq:`phase-c-wdd-recurrence`, the
-  direction-keyed DAG walk, and the BC trace law at the boundary edge — and
+  direction-keyed DAG walk, and the realized boundary at the boundary edge — and
   agree on what :math:`L + C` *is* by construction
   (:ref:`sn-apply-sweep-equivalence`).  No arithmetic-average face closure
   survives anywhere in ``orpheus``.  The sentence is preserved because it
@@ -4210,7 +4210,7 @@ Sweep-frame apply matvec
      The WDD diamond closure
      :math:`\psi^{\text{face}}_{\text{out}} = 2\,\psi^{\text{cell}}
      - \psi^{\text{face}}_{\text{in}}` propagates the face flux
-     cell-by-cell along the direction's DAG; the BC trace law owns
+     cell-by-cell along the direction's DAG; the realized boundary owns
      the boundary edge per :ref:`affine-bc-form`.
    * The pole-face initial condition is
      :math:`\psi^{\text{face}}_{\text{in}}(\text{pole}) =
@@ -4221,7 +4221,7 @@ Sweep-frame apply matvec
      ``BoundaryFaceFlux``
      Protocol (415 LOC + 21 foundation tests) **retires entirely**
      — the boundary-face closure is now inside the WDD propagation
-     chain, owned by the BC trace law at the boundary edge.
+     chain, owned by the realized boundary at the boundary edge.
    * Empirical Gate 1.1 (per-ordinate flat-flux residual on
      reflective curvilinear) finds **spherical** MMS with
      ``MorelMontryAngularSweep`` FAILS, **cylindrical** MMS PASSES.
@@ -4261,7 +4261,7 @@ resumed:
    face TRACE :math:`\gamma_+ \psi`. The cross-domain-attacker's
    "sweep / wavefront frame" naming gave the rewrite its
    architectural shape: the apply matvec is one sweep iteration
-   over the cell-visit DAG, with the BC trace law at the boundary
+   over the cell-visit DAG, with the realized boundary at the boundary
    edge owning the inflow trace.
 3. The Phase A
    ``BoundaryFaceFlux``
@@ -4277,7 +4277,7 @@ resumed:
    matvec's spatial closure (arithmetic interior average + DD
    extrapolation outer face). The fix at all three sites is the
    **same** — make every face closure consume the WDD-propagated
-   face value, and let the BC trace law own the boundary edge.
+   face value, and let the realized boundary own the boundary edge.
    "Two paths to the same discrete operator over different storage
    conventions" (cross-domain-attacker Smell 16) is the trigger for
    the unification.
@@ -4516,7 +4516,7 @@ to the same operator → unify after the second instance" (per the
 strategy; Phase B was the second (angular closure). With Phase C
 the **third** instance (the BC at the boundary edge) the unification
 has cleaner shape: every face value comes from the WDD recurrence
-or the BC trace law applied at the boundary edge, never from an
+or the realized boundary applied at the boundary edge, never from an
 algebraic extrapolation of cell centres. The retired symbols are:
 
 * ``orpheus.sn.spatial.boundary_face_flux.BoundaryFaceFlux`` (Protocol)
@@ -4817,7 +4817,7 @@ flagged this as the elegance-smell trigger that Phase C resolves:
    *Two paths to the same discrete operator over different storage
    conventions, with order-degradation at boundaries on one path.
    FRAME: Sweep / wavefront — recover the boundary as a DAG edge
-   consumed via the trace law, not as a cell-centre algebraic
+   consumed via the realized boundary, not as a cell-centre algebraic
    closure.*
 
 Under the sweep-frame architecture both paths consume the **same
@@ -4827,7 +4827,7 @@ three primitives**:
 #. The direction-keyed cell-visit DAG via
    :meth:`~orpheus.sn.problem.SNProblem.dag_walk` invoked with
    ``direction_sign=±1``.
-#. The BC trace law applied **once** at the boundary edge per
+#. The realized boundary applied **once** at the boundary edge per
    :ref:`affine-bc-form`.
 
 The face-flux propagation identity therefore holds **by
@@ -4939,9 +4939,9 @@ cell centres. The boundary-edge sequence is:
    outflow_at_boundary[:, outgoing_mask] = psi_face_out
 
    # ── BC trace law at boundary edge ────────────────────────────
-   # bc_outer is the realised boundary (a RealizedBoundary) that SN_REALIZERS
-   # builds from the face's declaration and SNMethodSpace — a 1-arg
-   # LinearOperator whose apply maps Γ_+ → Γ_-, per the affine-bc-form contract.
+   # bc_outer is the realised BC (``BoundaryTraceLaw``) from SNMethodSpace
+   # via ``SNBoundaryRealizer.realize()`` — a 1-arg LinearOperator
+   # whose apply maps Γ_+ → Γ_-, per the affine-bc-form contract.
    inflow_full = bc_outer.apply(outflow_at_boundary.T)
 
    # ── Phase 2: inward sweep (μ < 0), i = nx-1 → 0 ──────────────
@@ -4954,10 +4954,10 @@ cell centres. The boundary-edge sequence is:
 
 .. note::
 
-   **The sketch above is the Wave-8-era shape, before two changes.**
+   **The sketch above is the Wave-8-era shape, before three changes.**
    It is kept because it shows the *sequence* — sweep, apply the trace
    law at the boundary edge, seed the inward leg — which is what this
-   section is about. Two things about it are no longer literal:
+   section is about. Three things about it are no longer literal:
 
    * the sweep is **bare** since Wave O steps O.4a.2 / O.4b: it reads
      the given inflow trace instead of calling ``bc_outer.apply``, and
@@ -4966,7 +4966,11 @@ cell centres. The boundary-edge sequence is:
    * the realized law's **domain is** :math:`\Gamma_+` since campaign
      phase B3.2, so it is fed ``γ₊.apply(face_slot)`` — not the whole
      face — and its image *is* :math:`\Gamma_-`, scattered back by
-     :math:`\iota_-` (:ref:`bc-domain-narrowing`).
+     :math:`\iota_-` (:ref:`bc-domain-narrowing`);
+   * since wave 2 (2026-10-24) the ``BoundaryTraceLaw`` and its
+     ``SNBoundaryRealizer`` are retired: the realized boundary is a
+     ``RealizedBoundary`` from ``SN_REALIZERS``
+     (:ref:`bc-architecture-of-record`).
 
 Under that typing there are no "outflow slots in the output" left to
 be unspecified: the emission has :math:`|\Gamma_-|` rows and the rows
@@ -4979,20 +4983,22 @@ vector defined by the realised BC operator — not extrapolated from
 interior cell centres.
 
 **Gate 1.5** (foundation,
-:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_vacuum_sphere` /
-:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_reflective_sphere`)
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`,
+parametrised over the two walls)
 pins this contract for the two walls of the sphere gates: the vacuum tag
 (bound to ``WallCondition.vacuum()``, realized as the ``ZeroMap``) and the
 reflective tag (bound to ``WallCondition.specular(1.0)``, realized as a
 ``ScaledOrdinatePermutation`` at weight 1). The matvec consumes the WDD-propagated outflow face value
 (not cell centres) and does not apply the realized boundary itself:
-``test_bc_trace_contract_capture_and_compare_sphere`` counts zero calls of
+that test counts zero calls of
 the boundary's ``apply`` per matvec and pins the emitted outflow trace
 against an independently reconstructed WDD chain to ``rtol = 1e-14``, for
 both walls. The diffuse chain, the partial wall and the inflow are not
 rows of Gate 1.5; they are pinned in the realized-boundary and the
 realizer-table gates (``tests/gates/sn/architecture/``). ``apply(0) = 0`` is pinned
-separately under vacuum + reflective BCs; under vacuum BC a flat
+separately under vacuum + reflective BCs, by
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_vacuum_sphere` /
+:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_respected_by_matvec_reflective_sphere`; under vacuum BC a flat
 cell-centre :math:`\psi` produces a **non-zero** residual (the BC
 physically removes the inflow), and that asymmetry is itself a
 load-bearing acceptance criterion: a vacuum BC that left flat-flux
@@ -5555,7 +5561,7 @@ ERR-026 closure status after the matvec alignment
 -------------------------------------------------
 
 Phase C ships the architectural alignment — sweep-frame matvec
-with WDD spatial closure + BC trace law at the boundary edge +
+with WDD spatial closure + realized boundary at the boundary edge +
 retired Phase A
 ``BoundaryFaceFlux``
 Protocol — but per the empirical Gate 1.1 finding above the

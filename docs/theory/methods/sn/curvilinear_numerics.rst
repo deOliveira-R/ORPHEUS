@@ -198,7 +198,7 @@ companion array).
 
 **Phase C retired the Phase A Protocol entirely.** The sweep-frame
 apply matvec subsumes the boundary-face closure into the WDD
-propagation chain — the BC trace law owns the boundary edge per
+propagation chain — the realized boundary owns the boundary edge per
 the §16A.3 contract, no separate algebraic extrapolation is needed.
 The retired symbols are:
 
@@ -1065,38 +1065,37 @@ Phase C's Gate 1.5
 check: invoke ``bc.realize().apply(...)`` independently and
 compare against the matvec's observable output.  Phase D
 strengthens this to a **capture-and-compare** check that pins the
-exact value the matvec passes into the BC trace law:
+exact outflow trace the matvec produces at the boundary edge (at
+Phase D, the value it passed into the BC trace law; the present
+gate is the list below):
 
-#. Patch ``problem.bc["xmax"].apply`` (the outer radial face —
-   a sphere's ``"outer"`` endpoint renders as ``"xmax"`` since
-   C4 / #220, see :ref:`bc-face-name-carve`) to capture every input
-   array passed to it during one matvec call.
+#. Patch ``apply`` on the realized boundary's class (a
+   ``RealizedBoundary`` is frozen, so the instance cannot be patched;
+   the outer radial face of a sphere is the ``"xmax"`` face, see
+   :ref:`bc-face-name-carve`) to capture every input array passed to
+   it during one matvec call.
 #. Independently reconstruct the WDD-propagated outflow trace via
    a reference implementation
    (:func:`tests.gates.sn.sweep.core.test_phase_c_gates._outflow_at_boundary_for_sphere_from_bulk`).
-#. Assert the captured BC apply input matches the reference to
-   ``rtol=1e-14`` — exactly bit-equal up to FP non-associativity.
+#. Assert the emitted outflow trace matches the reference to
+   ``rtol=1e-14``, bit-equal up to FP non-associativity.
 
-The strengthening matters because the Phase D matvec now calls
-``bc["xmax"].apply`` **twice** per matvec:
+At Phase D the matvec called ``bc["xmax"].apply`` **twice** per
+matvec (history): once for the Carlson context, applied to the
+cell-centred outer-cell :math:`\psi` to build ``bc_outer_value``
+(see :ref:`bc-two-bc-applies-per-matvec`), and once for the trace
+law, applied to the WDD-propagated outflow face value (the
+:ref:`affine-bc-form` contract); the gate located the second call
+by shape and content matching.
 
-#. **Phase D Carlson context call** — applied to cell-centred
-   outer-cell :math:`\psi` to build ``bc_outer_value`` for the
-   ``CarlsonSweepContext``.  See the BC companion section
-   :ref:`bc-two-bc-applies-per-matvec`.
-#. **Phase C BC trace law call** — applied to the WDD-propagated
-   outflow face value at the boundary edge, per the
-   :ref:`affine-bc-form` contract.
-
-The capture-and-compare test
-:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`
-(parametrised over ``vacuum`` and ``reflective``) **locates the
-Phase C call by shape and content matching**: of the two captured
-inputs, the one whose shape matches ``(N, ng)`` and whose values
-match the independent reference is the Phase C trace law call.
-Both vacuum and reflective parametrised cases pass; the test is
-foundation-tagged because it pins a software invariant (the
-matvec's two-application sequence) rather than a math claim.
+Since Wave O O.4a.2 the matvec applies no boundary at all: the
+reflective coupling moved to the sibling :math:`-B`.  The gate
+(:func:`tests.gates.sn.sweep.core.test_phase_c_gates.test_bc_trace_contract_capture_and_compare_sphere`,
+parametrised over the vacuum tag and ``specular(1.0)``) asserts
+**zero** ``apply`` calls on the realized boundary's class and pins
+the emitted outflow trace against the reference above to
+``rtol=1e-14``.  It is foundation-tagged because it pins a software
+invariant rather than a math claim.
 
 .. _sn-phase-d-err-026-closure-narrative:
 

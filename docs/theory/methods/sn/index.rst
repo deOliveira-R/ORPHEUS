@@ -761,7 +761,7 @@ question, and the wrong answer is expensive.  A ``cached_property`` on
 the operator looks like the tidy home and is not, because the operator's
 lifetime is far shorter than a solve.
 
-.. list-table:: `[M]` 2026-08-28, this session — how many operators one solve builds
+.. list-table:: `[M]` 2026-10-24, the wave-2 tip, the counting block below run on each configuration from outside the repository — how many operators one solve builds
    :header-rows: 1
    :widths: 42 28 30
 
@@ -769,17 +769,26 @@ lifetime is far shorter than a solve.
      - ``StreamingOperator`` built
      - Stratum-1 table built
    * - slab, ``gauss_legendre(8)``, 8 cells
-     - 42
+     - 1
      - **1**
    * - sphere, ``gauss_legendre(8)``, 8 cells
-     - 38
+     - 1
      - **1**
    * - cylinder, ``folded_product(4, 6)``, 8 cells
-     - 40
+     - 1
      - **1**
    * - slab, ``gauss_legendre(16)``, 200 cells
-     - 43
+     - 1
      - **1**
+
+At the phase's own measurement (2026-08-28) the same four rows read 42, 38,
+40 and 43 operators per solve, and the argument below was written against those
+numbers.  They no longer hold: since consumers step 2 sub-step C3b (2026-09-13)
+the operator is built once and binds :math:`\sigma` once, as the
+interned table's strong holder (``StreamingCollisionOperator.sigma_stratum``),
+so the solve builds one operator per configuration.  The ``[M]`` table above
+is the present state; the paragraph after the code block is the original
+argument, re-read against it.
 
 Reproduce it by counting both constructors around a solve:
 
@@ -824,18 +833,27 @@ Reproduce it by counting both constructors around a solve:
        StreamingOperator.__init__ = real_init
        StreamingCoefficientCache.from_mesh_and_quad = classmethod(real_tab)
 
-   assert n["op"] > 10           # dozens of operators per solve
+   assert n["op"] == 1           # ONE operator per solve (42-43 at 2026-08-28)
    assert n["tab"] == 1          # ONE table — the interned lazy resolve
 
-`[M]` on the last row of the table above, one Stratum-1 build costs
-**8.84 ms** (minimum of five) against a **546.6 ms** whole solve.  A
-per-operator memo would therefore add the other 42 builds — **371 ms**,
-a **+68 %** wall-clock increase — to a solve whose answer would not
-change by one bit.  (The phase's own pre-carve reading, on a different
-fixture that converged in fewer outer iterations, was 6–10 operators per
-solve and up to 24.65 %; the *operator count scales with the outer
-iteration count*, which is why the stable claim is the ratio's sign and
-the build cost, not the percentage.)
+`[M]` 2026-10-24 (same probe, last row, minimum of five), one Stratum-1
+build costs **6.84 ms** against a **568.2 ms** whole solve.  At the original
+42 operators per solve a per-operator memo would have added 41 further builds
+(**about 280 ms**, roughly **+50 %**) to a solve whose answer would not change
+by one bit; the original reading was **371 ms** and **+68 %** against an
+8.84 ms build and a 546.6 ms solve.  Those arithmetic consequences do not hold
+at the tip, because the premise ("the operator's lifetime is far shorter than a
+solve") does not: with one operator per solve a per-operator memo would add
+**zero** builds.  What survives is the *separation*: the table is a performance
+weld and not algebra (the ruling quoted above), and it is shared by content
+across Problems, which an operator-lifetime memo could not do (two content-equal
+Problems read one table, :ref:`sn-sigma-is-a-problem-datum`).  The operator is
+now the table's strong holder, and the intern is its sharing half.  (The
+phase's own pre-carve reading, on a different fixture that converged in fewer
+outer iterations, was 6–10 operators per solve and up to 24.65 %; the
+*operator count scaled with the outer iteration count*, which is why the stable
+claim of the original argument was the ratio's sign and the build cost, not the
+percentage.)
 
 The ruled home is therefore **the strategy layer**, and specifically
 :func:`~orpheus.sn.loss_representation.geometry_cache_for`, a
