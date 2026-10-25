@@ -5401,17 +5401,22 @@ why nothing in the solver ever builds a digraph and nothing in the
 solver can detect a cycle.) For most BCs the boundary is the *root*
 of that order — inflow values come from the BC, get propagated
 through the cells, and exit as outflow values that the BC consumes
-but doesn't feed back. For two BC families this is no longer true:
+but doesn't feed back. For the wall conditions whose response network
+is not empty this is no longer true (a specular wall, a mirror deck and a
+diffuse wall at nonzero weight are the same-face case; a translation-wrap
+pair is the two-face case):
 
-* **Reflective.** The outflow flux at a face is mapped to an inflow
-  flux at the **same** face (under the reflection permutation), so
-  the law adds a *trace back-edge*: an outflow slot feeds an inflow
-  slot. Whether that edge closes a **cycle** depends on the rest of
-  the configuration — see the warning below.
-* **Periodic.** The edge spans two different faces (outflow at face
-  A maps to inflow at face B, **and vice versa**). Because the pair
-  of edges is mutually feeding, periodic closes a cycle from a
-  *single* law. The retired SN registry refused it outright (it admitted
+* **A specular wall, a mirror deck or a diffuse wall at nonzero weight.**
+  The outflow flux at a face is mapped to an inflow flux at the **same**
+  face (under the reflection permutation for the first two, under the
+  rank-one re-emission for the diffuse wall), so the condition adds a
+  *same-face trace back-edge*: an outflow slot feeds an inflow slot.
+  Whether that edge closes a **cycle** depends on the rest of the
+  configuration — see the warning below.
+* **A translation-wrap pair.** The edge spans two different faces (outflow
+  at face A maps to inflow at face B, **and vice versa**). Because the pair
+  of edges is mutually feeding, a translation wrap closes a cycle from a
+  *single pair of decks*. The retired SN registry refused it outright (it admitted
   only ``vacuum`` and ``reflective``), so no periodic problem was
   constructible from a tag; the realizer table that replaced the registry
   admits the translation deck, and both faces of a periodic slab realize as
@@ -5509,7 +5514,7 @@ Three findings retired it, in increasing order of importance.
 
 The general design rule, which is the reason to keep this record:
 
-.. admonition:: A law may carry only what is intrinsic to it
+.. admonition:: A face declaration may carry only what is intrinsic to it
    :class: tip
 
    A boundary law was a **descriptor of one face**. It could honestly
@@ -5747,11 +5752,13 @@ The successors of these rows are the three realized types of
 ``ScaledOrdinatePermutation`` is the reflective, specular-closure and periodic rows
 (a mirror deck, a unit specular wall and a translation wrap are the same type, at
 weight one); ``RankOneReemission`` is the white and isotropic-closure rows;
-``RealizedSum`` is the image of a sum of chains. They build a bare
-``PermutationOperator`` and the factored Lambertian ``emission @ contraction``
-from spaces read off the trace ladder, so the ``& IdentityOperator()``
-tensor-product spelling above is retired with the ladder's ``isinstance`` arms
-(``[M]`` the two ``_derive_inner`` bodies of ``realized_operators.py``).
+``RealizedSum`` is the image of a sum of chains. They build a
+``PermutationOperator`` (scaled and role-stamped by the realizer, not a tensor
+product with ``IdentityOperator``) and the factored Lambertian
+``emission @ contraction`` from spaces read off the trace ladder, so the
+``& IdentityOperator()`` tensor-product spelling above is retired with the
+ladder's ``isinstance`` arms (see ``ScaledOrdinatePermutation._derive_inner`` and
+``RankOneReemission._derive_inner`` in ``realized_operators.py``).
 
 .. note::
 
@@ -6182,8 +6189,8 @@ a refusal, so the question "is it admitted" and the realization read one table a
 cannot disagree. It is called per face by the shared
 :func:`~orpheus.transport.method.realize_boundary` body, through the SN arm
 ``SNProblem.realize_boundary_role``. The listing calls the table by hand on the left
-face, then realizes six spellings of an exterior on it and prints the refusal of the
-seventh kind, a condition that belongs to another method:
+face, then realizes five spellings of an exterior on it and prints the refusal of a sixth,
+a condition that belongs to another method:
 
 .. code-block:: python
 
@@ -6451,7 +6458,7 @@ the same composed operator's ``apply_transpose``: :math:`(\text{law}\circ\gamma_
    ``gamma_out.apply(...)``, and **reachable through** ``problem.bc[face].apply``.
    Both are narrowed; only one validates. Never read "narrowed" as "guarded", and never
    credit the weaker property as the stronger one. (Before the carve the same split
-   held across vacuum's ``ZeroOperator``, reflective's ``TensorProductOperator`` and the
+   held across vacuum's ``ZeroMorphism`` (a ``ZeroOperator`` before 2026-08-22), reflective's ``TensorProductOperator`` and the
    white chain; prescribed inflow ignored its input entirely, so it had nothing to
    validate against.)
 
