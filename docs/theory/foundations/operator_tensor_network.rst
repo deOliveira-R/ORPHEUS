@@ -68,7 +68,8 @@ the consumer side of the Wave-0 + Depth B D-B infrastructure
 commit ``bc1253e``, 2026-05-10;
 :class:`~orpheus.numerics.space.TensorProductSpace` shipped at commit
 ``c2f968a``, 2026-05-27; the first production consumer was the D-B+1
-specular BC at ``boundary_realizer.py:164-166``).
+specular BC at ``boundary_realizer.py:164-166``, a line of the SN
+realizer that retired in the wave-2 carve of 2026-10-24).
 
 What landed is **not** the uniform :math:`A = \sum_k A_x^{(k)} \otimes
 A_\omega^{(k)} \otimes A_g^{(k)}` aspiration of Grand Report v3
@@ -186,7 +187,13 @@ shape choice.
      - Why this shape
    * - BC realizers (vacuum,
        specular, white,
-       albedo, periodic)
+       albedo, periodic; since
+       2026-10-24 the typed
+       ``ZeroMap``,
+       ``ScaledOrdinatePermutation``,
+       ``RankOneReemission`` and
+       ``RealizedSum`` of
+       ``orpheus.sn.boundary.realized_operators``)
      - :class:`TensorProductOperator`
        (single TP), or a bare
        :class:`ZeroOperator` for
@@ -313,7 +320,7 @@ of these operators.
 .. (vv-status rationale) Master condition gate for Wave-O typing
    decisions. Verified by the absence of SOTP-shaped consumers in
    production after T.3 + T.4 land — exhaustively documented in
-   ``.claude/plans/wave_t_tensor_network.md`` §6 T.3 + T.4 deviations.
+   ``.claude/plans/archive/wave_t_tensor_network.md`` §6 T.3 + T.4 deviations.
 .. vv-status: tensor-network-ma-q1-master-condition documented
 
 .. math::
@@ -512,7 +519,7 @@ now-retired orchestrator; see :ref:`tensor-network-orchestrated-apply`.)
    *pre*-O.4a.2 mechanism, where the backward sweep's inflow was
    ``bc_outer.apply(forward_outflow)`` inside one matvec. Wave O step
    O.4a.2 (Issue #208) **deleted that intra-call reflective re-apply** —
-   the boundary law :math:`B` is now a sibling :math:`-B` operator and
+   the boundary operator :math:`B` is now a sibling :math:`-B` operator and
    the backward sweep reads the *given* outer inflow trace directly. The
    forward outflow today feeds the **outflow self-consistency defect** on
    the outflow trace row, not a reflected inflow seed.
@@ -1127,7 +1134,7 @@ Cross-references
 
 - **Wave T plan** (canonical reference for substep sequencing,
   architectural decisions, deviations from §15.2):
-  ``.claude/plans/wave_t_tensor_network.md``.
+  ``.claude/plans/archive/wave_t_tensor_network.md``.
 - **T.4 verification spec** (Q1-Q5 architectural decisions, risk
   register, test catalogue):
   ``.claude/agent-memory/test-architect/wave_t_t4_streaming_verification_spec.md``.
@@ -1148,8 +1155,14 @@ Cross-references
     :class:`orpheus.numerics.elementary_operators.RankOneOperator`,
     :class:`orpheus.numerics.operator.IdentityOperator`,
     :class:`orpheus.numerics.operator.ZeroOperator`.
-  - :class:`orpheus.sn.boundary.realizer.SNBoundaryRealizer` —
-    the BC realizer dispatching the T.1 lifts.
+  - ``ScaledOrdinatePermutation`` and ``RankOneReemission`` of
+    ``orpheus.sn.boundary.realized_operators`` — the BC realizers' T.1
+    lifts, built through the one private helper
+    ``_attenuated_kernel_operator`` that wraps a kernel as
+    ``kernel & IdentityOperator()``. The per-law realizer class that
+    first dispatched them (``SNBoundaryRealizer``) retired in the wave-2
+    carve of 2026-10-24; the table ``SN_REALIZERS`` in
+    ``orpheus.sn.boundary.realizer`` is now the one door.
   - :class:`orpheus.transport.operators.isotropic_transfer.IsotropicFission`
     and its
     :attr:`~orpheus.transport.operators.isotropic_transfer.IsotropicFission.kernel`

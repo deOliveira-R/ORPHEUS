@@ -156,7 +156,7 @@ is the pure shape of a 1-D problem: its coordinate system ``coord``
 one material id per interval in ``mat_ids``, and one role per boundary
 point in ``face_roles`` (a deck or an integer tag; ``None`` is refused). The boundary points are derived, not
 declared: two on a slab, the outer surface alone on a solid cylinder or
-sphere (whose centre is an interior point and carries no law), inner
+sphere (whose centre is an interior point and carries no role), inner
 and outer on a hollow one. It carries **no** cell counts. The reasons
 for each of these choices are on
 :doc:`/theory/foundations/structured_geometry`. Reference solution generators (``CharacteristicDerivation``, ``MomentSpace``,
@@ -180,20 +180,22 @@ ship as :class:`StructuredGeometry` classmethods:
 * :meth:`StructuredGeometry.pwr_slab_half_cell
   <orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell>`
   — Cartesian 3-region (fuel / clad / coolant) half-cell starting at
-  the reflective symmetry plane :math:`x = 0`. Both faces are
-  reflective, and that is part of the model (both are symmetry planes
-  of the lattice), not a parameter.
+  the symmetry plane :math:`x = 0`. Both faces are
+  :class:`~orpheus.geometry.deck.MirrorDeck` faces, and that is part of the
+  model (both are symmetry planes of the lattice), not a parameter.
 * :meth:`StructuredGeometry.wigner_seitz_pin_cell
   <orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell>`
   — cylindrical Wigner--Seitz equivalent pin cell. The square unit
   cell of side *pitch* is replaced by a cylinder of equal
   cross-sectional area, :math:`r_{\rm cell} = {\rm pitch} /
-  \sqrt{\pi}`. The outer law is white, and that is part of the model
-  (isotropic re-entry is what maps the lattice to one cylindrical
-  cell), not a parameter.
+  \sqrt{\pi}`. The outer face is tag ``0``, and the model binds that tag
+  to ``WallCondition.white()``: isotropic re-entry is what maps the lattice
+  to one cylindrical cell. The geometry names no response, so the binding is
+  made where the method is known, not here.
 
-Neither named cell takes a law: the same stack under another law is a
-different body, built with ``StructuredGeometry.slab`` or
+Neither named cell takes a role: the half-cell's two faces are mirror
+decks, and the pin cell's outer face is tag ``0``. The same stack under other
+faces is a different body, built with ``StructuredGeometry.slab`` or
 ``StructuredGeometry.cylinder``.
 
 **Material ID convention:**

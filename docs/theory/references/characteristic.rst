@@ -475,10 +475,18 @@ all the same. The wall's amplitudes are one
 refuses a wall with both a specular and a diffuse amplitude
 (``NotImplementedError``, *a wall is specular or diffuse*, naming #650),
 under a ``SCOPE-BOUNDARY[guard]`` tag, by the user's ruling of 2026-10-06
-on the third rung's sketch: the S\ :sub:`N` realizer refuses a
-``LawSum`` of two laws too, so production cannot pose such a wall and the
-reference, which conforms to production, has no consumer for it. The
-refusal is the reader's choice, not the formula's limit: the
+on the third rung's sketch: the S\ :sub:`N` realizer then refused a
+``LawSum`` of two laws too, so production could not pose such a wall and the
+reference, which conforms to production, had no consumer for it. Since the
+wave-2 carve (2026-10-24) production can pose it:
+``WallCondition.from_amplitudes(0.3, 0.5)`` is one condition at a point of
+the cone of walls, and the S\ :sub:`N` realizer table realizes it as the sum
+of a scaled ordinate permutation and a rank-one re-emission
+(``tests/gates/sn/architecture/test_sn_realizer_table.py``, the row
+``both 0.3 0.5`` and the ``RealizedSum`` identity). The refusal is therefore
+a scope boundary of the reference with a consumer waiting, #650, and no
+longer a conformance to production. It is also the reader's choice, not the
+formula's limit: the
 test-architect's prototype served a wall of specular 0.4 and diffuse 0.6
 through the unchanged coupling and it conserved to
 :math:`1.2 \times 10^{-12}` (`[M]` 2026-10-06). Serving it later is one
@@ -8344,20 +8352,22 @@ structural reason it fails, so that no later design re-derives it.
    * - A mirror deck with a partial ``ScalarResponse(a)`` read as a
        specular amplitude :math:`a` (the step's design table)
      - A mirror is a symmetry statement and returns everything; a
-       partial specular wall is a surface, the identity deck with
-       ``SpecularReemission(a)``. Reading the partial scalar under a
+       partial specular wall is a surface, a tag bound to
+       ``WallCondition.specular(a)`` (at the step, the identity deck with
+       ``SpecularReemission(a)``). Reading the partial scalar under a
        mirror would make "a symmetric body" and "a polished wall" one
        declaration with two meanings. The role table has no cell for it
        (:ref:`characteristic-walls-roles`).
    * - Deciding at build whether a wall summing a specular and a diffuse
        law (``LawSum``) is served
-     - Dissolved on the first rung: a geometry admits a ``BC`` tag or a
+     - Dissolved on the first rung: a geometry then admitted a ``BC`` tag or a
        ``BoundaryTraceLaw`` per boundary point, and ``LawSum`` and
-       ``LawScaled`` are content nodes, not laws, so no such wall can be
+       ``LawScaled`` were content nodes, not laws, so no such wall could be
        declared. On the third rung the user ruled the refusal at the type
        (2026-10-06): ``Wall`` refuses a wall that is both, as the
-       S\ :sub:`N` realizer refuses a ``LawSum``
-       (:ref:`characteristic-walls`).
+       S\ :sub:`N` realizer then refused a ``LawSum``; since the wave-2
+       carve production realizes a combined wall and the refusal waits on
+       #650 (:ref:`characteristic-walls`).
    * - Preferring the reversed candidate over the forward one
      - Not wrong in value (both candidates trace one orbit-space path),
        but it doubles the period on the radial charts, so the rank is no

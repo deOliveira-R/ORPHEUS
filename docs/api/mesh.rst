@@ -68,7 +68,7 @@ The package belongs to the input layer, one step above the geometry
 (:ref:`architecture-layering`):
 
 * :mod:`orpheus.mesh` may import :mod:`orpheus.geometry` (shapes,
-  coordinate systems, the boundary tag and laws),
+  coordinate systems, the face roles and decks),
   :mod:`orpheus.numerics` and :mod:`orpheus.data`, and never
   :mod:`orpheus.transport` or a method package.
 * :mod:`orpheus.geometry`, :mod:`orpheus.data` and
@@ -126,26 +126,31 @@ edge placement (7 on a slab, 9 on a cylinder, 11 on a sphere), and
 refuses a non-positive volume. The derivation and its measurements are
 on :ref:`structured-geometry-mesh`.
 
-**Boundary laws on the faces.**
-Each boundary face of a structured mesh carries a boundary law: a
-``BC`` tag or an already-typed law.
+**Boundary roles on the faces.**
+Each boundary face of a structured mesh carries a role: a deck (the
+domain continues across the face; :class:`~orpheus.geometry.deck.MirrorDeck`
+or :class:`~orpheus.geometry.deck.TranslationDeck`) or an integer tag (the
+domain ends there, and the problem binds the tag to an exterior condition
+later, in :mod:`orpheus.transport.boundary_conditions`).
 Both :class:`~orpheus.mesh.structured.Mesh1D` and
-:class:`~orpheus.mesh.structured.Mesh2D` store their laws as one value,
-``face_laws``, a ``FaceLaws``: a frozen,
-ordered, picklable mapping from face name to law over exactly the faces
+:class:`~orpheus.mesh.structured.Mesh2D` store their roles as one value,
+``face_roles``, a :class:`~orpheus.mesh.face_roles.FaceRoles`: a frozen,
+ordered, picklable mapping from face name to role over exactly the faces
 that :func:`~orpheus.mesh.face_roles.face_inventory` derives. A
 ``Mesh1D`` has ``xmin`` and ``xmax`` on a slab or a hollow body and
 ``xmax`` alone on a solid cylinder or sphere, whose centre is an
 interior point; ``boundary_points`` gives the faces' positions and
-``outer_law`` reads ``face_laws["xmax"]``. A ``Mesh2D`` adds ``ymin``
+``outer_role`` reads ``face_roles["xmax"]``. A ``Mesh2D`` adds ``ymin``
 and ``ymax``; a solid :math:`(r, z)` mesh has no ``xmin``, its axis
-:math:`r = 0` being interior. The axis primitives declare a law on each
-endpoint too. ``None`` is not a law on
+:math:`r = 0` being interior. The axis primitives declare a role on each
+endpoint too. ``None`` is not a role on
 any of them, as on a geometry: every declaration passes one element
-parser, and no consumer supplies a default law for an unstated face
-(:ref:`structured-geometry-no-default-law`). The tag, the laws and the
-deferred resolution of a tag by each method's hub are geometry-layer
-concepts, documented on :doc:`/api/geometry`.
+parser, :func:`~orpheus.geometry.deck.parse_face_roles`, and no consumer
+supplies a default for an unstated face
+(:ref:`structured-geometry-no-default-law`). The roles and the tags of a
+mesh are geometry-layer concepts, documented on :doc:`/api/geometry`; the
+condition each tag carries, and its realization by each method, are on
+:doc:`/api/transport`.
 
 
 Construction — the geometry to mesh path
@@ -154,7 +159,7 @@ Construction — the geometry to mesh path
 The 1-D construction path is **two-layered**: declare a
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
 (pure shape: a coordinate system, breakpoints, one material id per
-interval and one ``BC`` per boundary
+interval and one role per boundary
 point), then mesh it with a :class:`~orpheus.mesh.mesher.Mesher`:
 ``partition`` takes one interval rule for every interval, or a tuple of
 one rule per interval, builds the mesh and returns the mesher;
@@ -162,24 +167,24 @@ one rule per interval, builds the mesh and returns the mesher;
 (``k`` a power of two); ``mesh`` returns the current mesh. The mesh
 starts at the first breakpoint and ends at the last, every breakpoint
 is a cell edge, each cell takes the material of its interval, and the
-face laws are the geometry's boundary laws. The geometry carries
+face roles are the geometry's boundary roles. The geometry carries
 **no** cell counts; the discretisation enters at exactly one point,
 the rules handed to the mesher.
 
 .. code-block:: python
 
-   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.geometry import StructuredGeometry
    from orpheus.mesh import CellsByCount, Mesher
 
-   geom = StructuredGeometry.sphere((0.0, 5.0), (0,), outer=BC.vacuum)
+   geom = StructuredGeometry.sphere((0.0, 5.0), (0,), outer=0)
    mesher = Mesher(geom).partition(CellsByCount.uniform_volume(64))
    mesh = mesher.mesh
    finer = mesher.refine(2).mesh
    assert (mesh.N, finer.N) == (64, 128)
-   assert dict(mesh.face_laws) == {"xmax": BC.vacuum}
+   assert dict(mesh.face_roles) == {"xmax": 0}
 
 The general constructor
-``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)`` is what the
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_roles)`` is what the
 mesher calls, and what a relabelling
 (:meth:`~orpheus.mesh.structured.Mesh1D.with_distinct_cell_ids`) or the
 axis adapter calls; a test or a script builds its mesh through the
@@ -239,7 +244,8 @@ the candidates it replaced) is :ref:`structured-geometry-mesh`.
    ``Mesh1D.from_geometry``, ``RegionMesh``, the ``_subdivide_zone``
    helper, the ``precomputed_volumes`` field and the ``bc_left`` /
    ``bc_right`` fields in favour of the Mesher, the interval rules and
-   ``face_laws``.
+   the boundary roles of the face (stored then as ``face_laws``, and
+   since the wave-2 carve of 2026-10-24 as ``face_roles``).
 
 
 Structured meshes
@@ -277,30 +283,32 @@ The 2-D mesh and its factory
 
 There is no 2-D :class:`StructuredGeometry` yet, so a
 :class:`~orpheus.mesh.structured.Mesh2D` is constructed directly from
-its edges, its material map and its laws:
-``Mesh2D(edges_x, edges_y, mat_map, *, face_laws, coord=CARTESIAN)``.
-``face_laws`` is keyword-only and required: any mapping from face name
-to law whose keys are exactly the faces ``face_inventory`` derives
+its edges, its material map and its roles:
+``Mesh2D(edges_x, edges_y, mat_map, *, face_roles, coord=CARTESIAN)``.
+``face_roles`` is keyword-only and required: any mapping from face name
+to role whose keys are exactly the faces ``face_inventory`` derives
 (the rule ``Mesh1D`` uses, with both ends of the second axis added).
 The faces are named by :class:`~orpheus.mesh.axis.FaceLabel`, the names
-S\ :sub:`N`'s resolved ``bc`` table uses. A missing face, an extra face
-(``xmin`` on a solid :math:`(r, z)` mesh among them), ``None``, a
-non-law object and a non-mapping are refused. The laws are stored as a
-``FaceLaws`` in inventory order, so ``tuple(mesh.face_laws)`` is the
-inventory:
+S\ :sub:`N`'s realized boundary table (``SNProblem.bc``) uses. A missing
+face, an extra face (``xmin`` on a solid :math:`(r, z)` mesh among them),
+``None``, a non-role object and a non-mapping are refused, and so is a
+deck the face's axis does not admit on the coordinate system. The roles
+are stored as a :class:`~orpheus.mesh.face_roles.FaceRoles` in inventory
+order, so ``tuple(mesh.face_roles)`` is the inventory:
 
 .. code-block:: python
 
    import numpy as np
-   from orpheus.geometry import BC
+   from orpheus.geometry.deck import MirrorDeck
    from orpheus.mesh import Mesh2D
 
    mesh = Mesh2D(
        [0.0, 1.0, 2.0], [0.0, 1.0], np.zeros((2, 1), dtype=int),
-       face_laws={"xmin": BC.reflective, "xmax": BC.vacuum,
-                  "ymin": BC.reflective, "ymax": BC.reflective},
+       face_roles={"xmin": MirrorDeck(), "xmax": 0,
+                   "ymin": MirrorDeck(), "ymax": MirrorDeck()},
    )
-   assert tuple(mesh.face_laws) == ("xmin", "xmax", "ymin", "ymax")
+   assert tuple(mesh.face_roles) == ("xmin", "xmax", "ymin", "ymax")
+   assert mesh.face_roles.tags == {0}
 
 The design, the inventory table and the candidates it replaced are
 :ref:`structured-geometry-face-laws`.
@@ -308,7 +316,7 @@ The design, the inventory table and the candidates it replaced are
 The one 2-D factory, :func:`~orpheus.mesh.factories.pwr_pin_2d`, builds
 a Cartesian ``Mesh2D`` on a uniform grid with material IDs assigned by
 radial distance from the pin centre (by default ``2 = fuel``,
-``1 = clad``, ``0 = coolant``). Its keyword ``law``, the law on all four
+``1 = clad``, ``0 = coolant``). Its keyword ``role``, the role on all four
 faces, is required: a factory does not choose a physical boundary on
 the caller's behalf.
 
@@ -319,8 +327,8 @@ the caller's behalf.
    :noindex:
 
 
-Face laws
----------
+Face roles
+----------
 
 .. automodule:: orpheus.mesh.face_roles
    :members:
@@ -340,9 +348,12 @@ two boundary-bearing endpoints (``min`` and ``max``);
 :class:`~orpheus.mesh.axis.RadialAxisMesh` is a solid radial axis
 (sphere or cylinder) with one endpoint (``outer``), because the pole at
 :math:`r = 0` is a coordinate singularity and not a boundary face. Each
-endpoint's law is a required constructor argument (``bc_low`` and
-``bc_high``, or ``bc_outer``), parsed like every other declaration, so
-an axis's ``bc`` table holds a law on every endpoint and never ``None``.
+endpoint's role is a required constructor argument (``role_low`` and
+``role_high``, or ``role_outer``, with ``role_inner`` on a hollow radial
+axis, whose inner surface the trace inventory does not list), parsed like
+every other declaration, so an axis holds a role on every endpoint it has
+and never ``None``; ``role_inner`` is ``None`` only on a solid axis, where
+there is no inner surface.
 :class:`~orpheus.mesh.axis.AxisCoord` is the coordinate system of one
 axis, distinct from the whole-mesh
 :class:`~orpheus.geometry.coord.CoordSystem` because an

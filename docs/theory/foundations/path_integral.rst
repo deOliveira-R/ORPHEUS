@@ -880,17 +880,20 @@ Once the object is fixed and the splitting chosen, a method is located by
 - **A3 — the angular representation:** :term:`discrete ordinates
   <ordinate>`, spherical harmonics, a continuous direction (Monte Carlo),
   or the Case discrete-plus-continuum :math:`\nu`-spectrum. The angular
-  representation is also what fixes the **trace** of the boundary law:
-  ORPHEUS factors :math:`B` as a **method-invariant law composed with a
-  method-specific trace** (``orpheus/transport/method.py`` —
-  ``realize_boundary_law`` per method, one generic
-  ``resolve_boundary_conditions`` body), and the trace space is set by
+  representation is also what fixes the **trace** of the boundary condition:
+  ORPHEUS factors :math:`B` as a **method-invariant condition composed with a
+  method-specific trace** (``orpheus/transport/method.py`` — one generic
+  ``realize_boundary`` body over the problem's binding, a
+  ``realize_boundary_role`` hook per method, and the method's realizer table),
+  and the trace space is set by
   the *angular* representation — S\ :sub:`N`'s trace is angular
   (``SNProblem.angular_trace``), diffusion's is scalar
   (``DiffusionMesh.scalar_trace``) — **not** by how streaming is
   realized. Reflection, :term:`vacuum <vacuum boundary condition>` and
-  :term:`albedo` *laws* are shared physics; what
-  a method owns is only the space their traces act on
+  :term:`albedo` *conditions* are shared physics (one ``WallCondition``
+  type); what
+  a method owns is only the space their traces act on and the table that
+  says which declarations it realizes
   (:doc:`/theory/foundations/boundary_conditions`).
 
 Independent, and only partially populated

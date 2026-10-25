@@ -934,7 +934,9 @@ measurement is a field census.
 
    * - Precedent
      - What it actually is
-   * - :class:`~orpheus.geometry.boundary.BoundaryTraceLaw`
+   * - ``BoundaryTraceLaw`` (retired in the wave-2 carve of
+       2026-10-24; its successor is one ``WallCondition`` type with
+       facade constructors, not a hierarchy)
      - A **registered sibling hierarchy**: `[M]` 7 direct subclasses
        (``AlbedoBoundary``, ``PeriodicBoundary``, ``PrescribedInflow``,
        ``ReflectiveBoundary``, ``VacuumInflow``, ``WhiteBoundary``,
@@ -9702,10 +9704,16 @@ description of a capability rather than of a repair.
        no square root. That is the shape a section wants, and it is
        *derived from the pairing* rather than chosen, which is what
        makes it admissible on this page's own ruling. Two subsystems
-       already hand-roll the missing datum (the specular deck's
+       hand-rolled the missing datum (the specular deck's
        ``_mirror_motion``, MoC's ``_reflected_azi_index``), so the
-       consumer exists before the field does — the opposite of the
-       situation the lift was in.
+       consumer existed before the field did — the opposite of the
+       situation the lift was in. Since the wave-2 carve (2026-10-24)
+       the first is no longer a hand-rolled spelling: ``_mirror_motion``
+       retired into :func:`~orpheus.geometry.deck.mirror_motion`, the one
+       axis-letter to mirror spelling, and
+       :func:`~orpheus.geometry.deck.pairing_of` derives a minted deck's
+       :class:`~orpheus.geometry.deck.FacePairing` from it; MoC's
+       ``_reflected_azi_index`` is unchanged.
    * - A ``ManifoldMap`` for the ERR-080 forgery arm
      - ✅ **NEVER BUILT, and the arm it would have wrapped is now
        GONE** (2026-09-02, tracker 3.4). Recorded as written, verbatim:

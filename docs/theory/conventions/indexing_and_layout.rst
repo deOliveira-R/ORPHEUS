@@ -57,7 +57,7 @@ this page, this page is correct.
   :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
   the :math:`(n,2n)` emission
   :class:`~orpheus.transport.operators.n2n.N2NOperator`,
-  the boundary law :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
+  the realized boundary operator :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
   — a first-class **sibling**, *not* folded into :math:`L` —
   :class:`~orpheus.transport.operators.fission.FissionOperator`).
 - **Historical note (resolved 2026-05)**: a legacy FD-matvec
@@ -1242,7 +1242,7 @@ retired at package S2, 2026-10-20).
        :ref:`the two collision gains <operator-algebra-two-gains>`
    * - :math:`B`
      - :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
-     - The realized boundary law — a first-class **sibling** operator, *not*
+     - The realized boundary operator — a first-class **sibling** operator, *not*
        folded into :math:`L`.  Reports the same
        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` as
        :math:`L`/:math:`C`/:math:`S`/:math:`N_{2n}`/:math:`F`, so the
@@ -1289,7 +1289,15 @@ Boundary-trace vocabulary
 -------------------------
 
 Boundary handling has its own type vocabulary
-(``orpheus.geometry.boundary``).  These types are
+(:mod:`orpheus.geometry.deck` for the face roles,
+:mod:`orpheus.transport.boundary_conditions` for the conditions and the
+realizer tables).  Wave 2 (2026-10-24) retired the trace-law vocabulary
+this table used to name; the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its
+successor in :ref:`bc-wave2-crosswalk`.  The retired names (a
+``BoundaryTraceLaw`` per physical kind, a ``BoundaryRealizer`` Protocol, the
+``VacuumInflow`` and ``ReflectiveBoundary`` kinds) are replaced row by row in
+the table below.  These types are
 **orthogonal** to the index convention — they live on
 :math:`\Gamma_\pm` faces, not in the volume:
 
@@ -1300,16 +1308,19 @@ Boundary handling has its own type vocabulary
    * - Type
      - Code counterpart
      - Role
-   * - ``BoundaryTraceLaw``
-     - ``orpheus.geometry.boundary`` per-BC modules
-     - The discrete BC's algebraic action — the affine map
-       :math:`\gamma_-\psi = R\,G\,\gamma_+\psi + q`, i.e.
-       **outflow trace in, inflow trace out**
-   * - ``BoundaryRealizer``
-     - :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
-     - SN-side discretisation of the trace law. Since campaign phase
-       B3.2 a realized SN law is typed :math:`\Gamma_+ \to \Gamma_-`
-       (see :ref:`bc-domain-narrowing`)
+   * - :class:`~orpheus.transport.boundary_conditions.WallCondition`
+       (successor of ``BoundaryTraceLaw``)
+     - :mod:`orpheus.transport.boundary_conditions`
+     - The exterior condition's algebraic action — the affine map
+       :math:`\gamma_-\psi = R\,\gamma_+\psi + q`, i.e.
+       **outflow trace in, inflow trace out**, with :math:`R` a point of
+       the cone of response networks and :math:`q \ge 0` the inflow
+   * - :class:`~orpheus.transport.boundary_conditions.RealizerTable`
+       (successor of ``BoundaryRealizer``)
+     - ``SN_REALIZERS`` in ``orpheus.sn.boundary.realizer``
+     - SN-side discretisation of the condition, through one door that
+       answers admission and realization together. A realized SN face is
+       typed :math:`\Gamma_+ \to \Gamma_-` (see :ref:`bc-domain-narrowing`)
    * - ``AngularTraceSpace``
      - :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
      - **One** space carrying the whole boundary, with inflow /
@@ -1317,11 +1328,15 @@ Boundary handling has its own type vocabulary
        ``InflowTraceSpace`` / ``OutflowTraceSpace`` pair was collapsed
        at #205 / #201). The ordinate set at a face is a **three-way**
        partition — inflow ⊔ outflow ⊔ tangential
-   * - ``VacuumInflow`` /
-       ``ReflectiveBoundary``
-     - ``orpheus.geometry.boundary.vacuum`` /
-       ``orpheus.geometry.boundary.reflective``
-     - Physical BC kinds
+   * - :class:`~orpheus.geometry.deck.MirrorDeck` /
+       ``WallCondition.vacuum()``, ``WallCondition.specular(alpha)``,
+       ``WallCondition.white(alpha)`` (successors of ``VacuumInflow`` /
+       ``ReflectiveBoundary``)
+     - :mod:`orpheus.geometry.deck` /
+       :mod:`orpheus.transport.boundary_conditions`
+     - Physical boundary kinds: a reflecting Cartesian face is a mirror
+       deck (the domain continues across it), and a vacuum, white or
+       partially specular wall is a condition bound to an integer tag
    * - ``PermutationOperator`` /
        ``TraceRestrictionOperator``
      - :mod:`orpheus.numerics.operator`

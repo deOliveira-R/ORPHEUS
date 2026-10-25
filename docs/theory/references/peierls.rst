@@ -387,7 +387,9 @@ Five canonical BC choices fall out of :math:numref:`peierls-bc-general`:
        :math:`\alpha`-parameter of the retired
        ``solve_greens_function_sphere`` interpolated the full
        :math:`\alpha\in[0,1]` range; the characteristic reference reads
-       it from an ``AlbedoBoundary`` with a specular return.
+       it from the wall its exterior states for the face's tag,
+       ``WallAmplitudes(specular=α, diffuse=0)``
+       (:ref:`characteristic-walls-roles`).
    * - Periodic
      - n/a
      - n/a

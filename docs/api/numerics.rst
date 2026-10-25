@@ -217,9 +217,14 @@ since S2 an :class:`OperatorSum` of tensor-product words), and
      - Examples
      - Notes
    * - :class:`~orpheus.numerics.operator.TensorProductOperator`
-     - 6
+     - 6 (Wave T audit; not re-measured at the wave-2 carve)
      - 5 BC realizers (vacuum / specular / white / albedo / periodic
-       via Wave T T.1 ``& IdentityOperator()`` wrap); fission kernel
+       via Wave T T.1 ``& IdentityOperator()`` wrap; the five per-law
+       builders retired in the wave-2 carve of 2026-10-24, and the same wrap
+       is now one private helper of
+       ``orpheus.sn.boundary.realized_operators`` that
+       ``ScaledOrdinatePermutation`` and ``RankOneReemission`` share, so the
+       count of 6 predates the carve); fission kernel
        (Wave T T.2, ``IsotropicFission.kernel = outer(χ,
        ReactionRateFunctional(νΣ_f)) & IdentityOperator()`` — the
        energy binding since CS4c step 4)
@@ -561,6 +566,56 @@ table, is :ref:`spaces-collapse-pair` and :ref:`spaces-axis-unit`.
 
 .. automodule:: orpheus.numerics.axis_marginal
    :members: AxisRetractionOperator, AxisSectionOperator, AxisPullbackOperator
+
+Ordinate pairing — :mod:`orpheus.numerics.quadrature.ordinate_pairing`,
+the certification that a quadrature is equivariant under a mirror.
+:func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` is
+keyed on ``(quadrature, motion)`` and nothing else, and carries no boundary
+vocabulary: it asks whether the ordinate permutation a rigid motion induces
+(``Quadrature.ordinate_permutation``, the
+single source of that permutation) is a *certified pairing*. A mirror plane
+is stated once, by the motion (the axis whose diagonal entry of the linear
+part is :math:`-1`), so a motion and an axis argument that disagree are
+unspellable. On the returned permutation :math:`\pi` three claims are
+asserted independently, because the matcher's own certificate (a bijection
+with equal bare weights) subsumes none of them: the **measure** of the trace
+:math:`m_n = w_n\,|\mu_{a,n}|` satisfies :math:`m_{\pi(n)} = m_n` (ERR-042),
+:math:`\pi` is an **involution** (ERR-044), and every non-tangential ordinate
+**crosses** to the opposite sign class on the axis (ERR-045). Each passes on
+a table the other two reject, which is why none is dropped for another; a
+motion that is not an axis reflection, and a quadrature with no weight- and
+bijection-preserving match, raise a subclass of
+:class:`~orpheus.numerics.quadrature.ordinate_pairing.OrdinatePairingError`.
+The consumers are the S\ :sub:`N` realizer table's mirror entries and the
+typed realized operators of ``orpheus.sn.boundary.realized_operators``,
+which re-check the two facts their properties rest on at construction (see
+:doc:`/theory/foundations/boundary_conditions`).
+
+.. code-block:: python
+
+   import numpy as np
+   from orpheus.geometry.transformation import RigidMotion
+   from orpheus.numerics.quadrature import Quadrature, ordinate_pairing
+
+   quad = Quadrature.gauss_legendre(4)
+   mirror_x = RigidMotion.reflection(normal=np.array([1.0, 0.0, 0.0]))
+   pairing = ordinate_pairing(quad, mirror_x)
+   print(pairing.indices)          # [3 2 1 0]
+   assert pairing == quad.ordinate_permutation(mirror_x)
+
+The output is ``[3 2 1 0]``: the four Gauss-Legendre ordinates pair outermost
+to outermost across the plane :math:`\mu \to -\mu`. The same call on a
+reflection about the diagonal ``(1, 1, 0)/sqrt(2)`` raises
+``OrdinatePairingError`` ("the motion is not an axis reflection").
+
+The quadrature package is not rendered as a whole on any API page yet: the
+roles into ``orpheus.numerics.quadrature`` on :doc:`/api/discrete_ordinates`
+name members of a package that has no ``automodule`` here, so only this
+module is rendered.
+
+.. automodule:: orpheus.numerics.quadrature.ordinate_pairing
+   :members:
+   :show-inheritance:
 
 The traced memo — :mod:`orpheus.numerics.traced_memo`, a pure function of
 content-identified arguments memoised on disk under ``.cache/references/``

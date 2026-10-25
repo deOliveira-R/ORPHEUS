@@ -15,24 +15,111 @@ The TransportMethod Protocol
 
 The structural Protocol over the **method-mesh layer** (#290 P7b):
 ``SNProblem`` and ``DiffusionMesh`` conform without importing it, and the
-ONE shared ``resolve_boundary_conditions`` body turns each conformer's
-per-axis ``BC`` declarations into realized
-boundary operators through the per-method ``realize_boundary_law``
-hook.  ⚠ The layer keeps the name *method-mesh*, and only half of it is
+ONE shared :func:`~orpheus.transport.method.realize_boundary` body turns
+each conformer's binding (the declared exterior conditions joined to the
+carrier's tagged faces, with its decks) into realized boundary operators
+through the method's realizer table, by the per-method
+``realize_boundary_role`` hook.  ⚠ The layer keeps the name *method-mesh*, and only half of it is
 still a mesh: #412 (2026-09-18) renamed the SN conformer ``SNMesh`` →
 ``SNProblem`` on the ruling that the SN hub had outgrown "a mesh
 carrying a method's machinery", while ``DiffusionMesh`` (a genuinely
 mesh-shaped hub) keeps its name and its module
 :mod:`orpheus.diffusion.augmented_mesh`. The module docstring carries the
 full design record (the
-two-witness genesis, the instance-surface-only ruling, and the
-realizer-registry dissolution rationale); the boundary-architecture
-narrative lives at :doc:`/theory/foundations/boundary_conditions`.
+two-witness genesis, the instance-surface-only ruling, and what the
+wave-2 carve of 2026-10-24 changed: the string registry, the tag-parse
+helper and the per-axis ``BC`` declarations it walked were retired for the
+binding and the realizer tables of the next section); the
+boundary-architecture narrative lives at
+:doc:`/theory/foundations/boundary_conditions`.
 
 .. automodule:: orpheus.transport.method
    :members:
    :undoc-members:
    :show-inheritance:
+
+The exterior conditions (``transport.boundary_conditions``)
+-----------------------------------------------------------
+
+A face that ends the domain closes the transport equation with the affine
+trace map :math:`\gamma_-\psi|_f = R\,\gamma_+\psi|_f + q`. The package
+:mod:`orpheus.transport.boundary_conditions` holds the one shared type that
+spells it, and the machinery that joins it to a problem and to a method:
+
+* :class:`~orpheus.transport.boundary_conditions.WallCondition` is the affine
+  pair of a response network :math:`R` (a point :math:`(s, d)` of the convex
+  cone :math:`s, d \ge 0,\ s + d \le 1`: the weights of the specular chain
+  and of the diffuse chain, each a tensor network of typed factors on the
+  rungs of the face's trace ladder) and an inflow :math:`q \ge 0`
+  (:class:`~orpheus.transport.boundary_conditions.InflowTerms`). Vacuum,
+  white, specular and inflow (``vacuum``, ``white``, ``specular``,
+  ``uniform``, ``framed``, ``from_amplitudes``) are facade classmethods that return an *equal*
+  ``WallCondition``, never a second type, because :math:`R = 0` is one point
+  of the cone however it is reached. The cone is a value predicate: a
+  combination that leaves it is a
+  :class:`~orpheus.transport.boundary_conditions.WallDisplacement` (a
+  direction of a sensitivity study, not a wall), which a problem cannot bind.
+* :class:`~orpheus.transport.boundary_conditions.BoundaryConditions` is the twin
+  of the material table: a mapping from an integer tag to a condition.
+  :func:`~orpheus.transport.boundary_conditions.bind` joins it to a carrier
+  once, refusing a tag no condition covers, a condition no face carries and a
+  condition the carrier's colouring symmetry does not fix, and returns a
+  :class:`~orpheus.transport.boundary_conditions.Binding`.
+* :class:`~orpheus.transport.boundary_conditions.RealizerTable` is a method's
+  ONE door: it answers "is this declaration admitted on this face" (an
+  :class:`~orpheus.transport.boundary_conditions.Admission`: realized,
+  approximated or refused on a named axis) and "realize it" together, so the
+  query and the realization cannot disagree. The tables are
+  ``SN_REALIZERS`` (``orpheus.sn.boundary.realizer``),
+  ``DIFFUSION_REALIZERS`` (:mod:`orpheus.diffusion.boundary_realizer`),
+  ``CP_REALIZERS``, ``MOC_REALIZERS`` and ``MC_REALIZERS`` (in each method's
+  solver module). A table is keyed by exact type and is sealed by the last line of its
+  module.
+
+.. code-block:: python
+
+   from orpheus.transport.boundary_conditions import (
+       BoundaryConditions, WallCondition, WallDisplacement,
+   )
+
+   mixed = WallCondition.specular(0.5) + WallCondition.white(0.3)
+   assert isinstance(mixed, WallCondition) and mixed.return_fraction == 0.8
+   assert WallCondition.specular(0.0) == WallCondition.vacuum() == WallCondition.white(0.0)
+   step = WallCondition.white(0.3) - WallCondition.specular(0.5)
+   assert isinstance(step, WallDisplacement)        # outside the cone: not a wall
+   try:
+       BoundaryConditions({0: step})
+   except TypeError:
+       pass                                        # a displacement is unbindable
+
+The package is rendered by the package-level ``automodule`` (the names of its
+``__all__`` are indexed under ``orpheus.transport.boundary_conditions``), and
+each of its modules by an ``automodule`` without members, so that the module
+docstring, which holds that module's mathematics and its gotchas, is on the
+page. The admission matrix and the realization are on
+:doc:`/theory/foundations/boundary_conditions`.
+
+.. automodule:: orpheus.transport.boundary_conditions
+   :members:
+   :show-inheritance:
+
+.. automodule:: orpheus.transport.boundary_conditions.network
+
+.. automodule:: orpheus.transport.boundary_conditions.inflow
+
+.. automodule:: orpheus.transport.boundary_conditions.condition
+
+.. automodule:: orpheus.transport.boundary_conditions.displacement
+
+.. automodule:: orpheus.transport.boundary_conditions.errors
+
+.. automodule:: orpheus.transport.boundary_conditions.declared
+
+.. automodule:: orpheus.transport.boundary_conditions.binding
+
+.. automodule:: orpheus.transport.boundary_conditions.admission
+
+.. automodule:: orpheus.transport.boundary_conditions.realization
 
 The reaction-rate functionals
 -----------------------------

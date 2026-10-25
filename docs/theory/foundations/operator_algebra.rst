@@ -6420,25 +6420,41 @@ Boundary conditions as operators
 Every *realised* boundary condition IS a Wave-0
 :class:`~orpheus.numerics.operator.LinearOperator`, composable with the
 streaming / collision / scattering / fission operators through the same
-algebra dunders — which is why the boundary law :math:`B` enters
+algebra dunders — which is why the boundary operator :math:`B` enters
 :math:`A = L + C - S - N_{2n} - B` as a first-class sibling rather than
-being folded into streaming. A boundary *law* is a pure descriptor with **no**
-``apply``; only its *realisation* through
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` is a Wave-0
-operator.
+being folded into streaming. An exterior *condition*
+(:class:`~orpheus.transport.boundary_conditions.WallCondition`) is a pure
+descriptor with **no** ``apply``; only its *realisation* through the
+method's realizer table (for S\ :sub:`N`, ``SN_REALIZERS`` in
+``orpheus.sn.boundary.realizer``, whose images are the typed
+``RealizedBoundary`` operators of
+``orpheus.sn.boundary.realized_operators``) is a Wave-0 operator.
 
-The full treatment — the §15.2 :math:`G_\alpha` geometric realisation
-primitives (permutation, mask, average, wrap, source; the law→primitive
-map), the rank-N Marshak / partial-current **descriptor-tree algebra**
-(``LawSum`` / ``LawScaled`` realised by
-:func:`~orpheus.transport.boundary_realization.realize_recursively`), and the
-load-bearing **descriptor-tree vs operator-tree** type separation
-("mixing the two algebras is a type error") — is documented on the
+Realisation is a functor on the condition's response network: the image of
+the empty network is the method's zero map, the image of one chain is that
+chain's realizer's operator, and the image of a sum is the sum of the images
+(``RealizedSum``, summed in the fixed chain order, so the operator does not
+depend on how the wall was built). A combination of conditions is arithmetic
+on a convex cone (a sum that leaves the cone is a
+:class:`~orpheus.transport.boundary_conditions.WallDisplacement`, which is
+not bindable), and the descriptor-versus-operator type separation survives as
+the line between ``WallCondition`` and ``RealizedBoundary``: a condition has
+no ``apply``, and an operator is never handed back to the cone, so mixing the
+two algebras is a type error (`[M]` 2026-10-24: ``WallCondition.white(0.5) +
+IdentityOperator()`` and ``IdentityOperator() + WallCondition.white(0.5)`` each
+raise ``TypeError``, run in a script against the worktree's import).
+
+The retired architecture realised the same separation with a descriptor tree
+(``LawSum`` and ``LawScaled``) walked by ``realize_recursively``; that record,
+the §15.2 :math:`G_\alpha` geometric realisation primitives (permutation,
+mask, average, wrap, source) and the extraction narrative are on the
 boundary-condition page: see the :ref:`extraction narrative
-<bc-extraction>`, the :ref:`law→primitive realisation map
-<bc-tensor-primitives>`, and the :ref:`recursive realiser
+<bc-extraction>`, the :ref:`primitive realisation map
+<bc-tensor-primitives>` and the :ref:`recursive realiser
 <bc-realize-recursively>` in
-:doc:`/theory/foundations/boundary_conditions`.
+:doc:`/theory/foundations/boundary_conditions`, whose present architecture is
+:ref:`bc-architecture-of-record` and whose retired-name map is
+:ref:`bc-wave2-crosswalk`.
 
 Tensor-network decomposition
 ============================
@@ -6595,25 +6611,24 @@ NOT exhaustive.
 
 Three consumers read the mask today:
 
-* The SN realizer consumes **both** selectors: ``inflow_indices_for_face(face)``
-  gives a realized law's codomain :math:`\Gamma_-`, and
-  ``outflow_indices_for_face(face)`` its **domain** :math:`\Gamma_+` —
-  restricted through the
-  :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` the same
-  table caches (campaign phase B3.2; see
+* The SN realizer reads **both** halves of a face's trace from the trace
+  ladder (``trace.inflow_space(face)`` is a realized operator's codomain
+  :math:`\Gamma_-`, and ``trace.outflow_space(face)`` its **domain**
+  :math:`\Gamma_+`), whose half-spaces are the two selectors' index sets, and a
+  gathered ordinate is placed through the half-space's ``to_local``; the
+  narrowing is the one of campaign phase B3.2 (see
   :ref:`bc-domain-narrowing`).
-* The universal invariant
-  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_source_is_placeable`
-  reads the inflow selector as a **structural** check on a law carrying an
-  :class:`~orpheus.geometry.boundary.InflowSourceSpec` (ERR-047): a law with a
-  source, realized against a space that cannot name :math:`\Gamma_-`, is
-  refused. (Until campaign phase **P6** it was a *presence* check that first
-  probed the source's values — and a source could decline it by answering the
-  probe with zeros. A spec now receives :math:`\Gamma_-(f)` itself, so
-  :math:`q \in \Gamma_-` holds by construction and only the structural
-  precondition remains.) Where the face CAN name it, the
-  delivery is structural — since campaign phase B3.4a the realizer
-  sizes the source's block from :math:`|\Gamma_-|`, so
+* The SN source realizer's check (ERR-047), which replaced the retired
+  ``BoundaryTraceLaw.assert_source_is_placeable``: ``SNSource.sample`` refuses
+  a space that is not the inflow half-trace of the face, because a source
+  sampled on any other tier would write into slots the sweep silently
+  discards. (Until campaign phase **P6** the retired check was a *presence*
+  check that first probed the source's values — and a source could decline it
+  by answering the probe with zeros. A sampler now receives
+  :math:`\Gamma_-(f)` itself, so :math:`q \in \Gamma_-` holds by
+  construction and only the structural precondition remains.) Where the face
+  CAN name it, the delivery is structural — since campaign phase B3.4a the
+  realizer sizes the source's block from :math:`|\Gamma_-|`, so
   :math:`q \in \Gamma_-` holds by typing rather than by masking a
   full-face evaluation.
 * The SN curvilinear sweep (1-D spherical / cylindrical) consumes
@@ -6639,11 +6654,11 @@ direction cosine along that axis — and 2-D / 3-D Cartesian add the
 sweep exists), so the refusal lives at the :class:`SNProblem` construction
 surface, not the trace factory. See :ref:`sn-c5-geometry-blind-trace`.
 
-The two trace spaces and the
-:class:`~orpheus.geometry.boundary.InflowSourceSpec` Protocol
-together close the §16A.1 affine boundary form
-:math:`\gamma_- \psi = R\,G\,\gamma_+ \psi + q` documented in
-detail at :ref:`affine-bc-form`.
+The two trace spaces and the inflow terms
+(:class:`~orpheus.transport.boundary_conditions.InflowTerms`, which retired
+the ``InflowSourceSpec`` Protocol) together close the §16A.1 affine boundary
+form :math:`\gamma_- \psi = R\,\gamma_+ \psi + q` documented in detail at
+:ref:`affine-bc-form`.
 
 
 .. _eigenvalue-posing:

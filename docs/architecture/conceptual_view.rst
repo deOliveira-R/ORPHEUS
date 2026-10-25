@@ -11,7 +11,13 @@ package lives; this page says what the packages are, together. A concept
 whose definition the corpus does not yet carry is said to be owed, with
 the nearest page, rather than defined here.
 
-The tree it describes is ``main`` at ``b4865b5e`` (2026-09-21). Every
+The tree it describes is ``main`` at ``b4865b5e`` (2026-09-21), except
+that every row and paragraph on the boundary was rewritten at the tip of
+the wave-2 boundary carve, ``471c4737`` (2026-10-24), which replaced the
+trace-law architecture by the face role, the wall condition on a cone, the
+binding and the per-method realizer table (the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its
+successor in :ref:`bc-wave2-crosswalk`). Every
 class name is a live role, so a rename without an update here is a dead
 reference; the gate is the Nexus ``dead_references`` sweep, not the Sphinx
 build, which renders an unresolved role as plain text without a warning
@@ -82,12 +88,13 @@ count, the cell volumes and the cross-section field
 which is a Problem datum, :ref:`sn-sigma-is-a-problem-datum`), and a
 method's problem *is* a material mesh that adds one method's behaviour:
 :class:`~orpheus.sn.problem.SNProblem` adds the quadrature, the spatial
-scheme, the angular closure, the scattering order and the boundary laws;
+scheme, the angular closure, the scattering order and the declared boundary
+conditions (a map from each integer tag the faces carry to a wall condition);
 :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` adds the scalar
-trace and the realised albedo laws. The two are the witnesses of the
+trace and the realised albedo operators. The two are the witnesses of the
 :class:`~orpheus.transport.method.TransportMethod` Protocol, whose one
-body ``resolve_boundary_conditions`` walks
-the faces to a typed law and the method's realizer
+body :func:`~orpheus.transport.method.realize_boundary` walks the faces of
+the problem's binding to the method's realizer table
 (:ref:`bc-realizer-layer`). The third hub,
 :class:`~orpheus.homogeneous.solver.HomogeneousProblem`, is posed from
 one :class:`~orpheus.data.macro_xs.mixture.Mixture` on the energy axis
@@ -114,9 +121,9 @@ unknown is a ray in the cone plus a scalar;
 :class:`~orpheus.numerics.posing.SourcePosing` is the affine question
 :math:`A\psi = q`, whose unknown is a coset. A subcritical multiplying
 source is the composition ``SourcePosing(pencil.at(1), q)``, never a
-third type. The affine form itself is the boundary law's,
+third type. The affine form itself is the wall condition's,
 :eq:`affine-bc-form`, and there is no affine operator by ruling: every
-affine law is a linear operator plus a typed source.
+affine condition is a linear operator plus a typed source.
 
 The posings are the question *bound* to a pencil. What is asked exists
 before any pencil, as a physics-free value
@@ -139,7 +146,7 @@ type: :class:`~orpheus.specification.specification.InfiniteMediumSpecification`
 holds one material and is posed on energy alone, the infinite medium being
 the point in position and in direction (:ref:`infinite-medium-definition`),
 and :class:`~orpheus.specification.specification.GeometrySpecification`
-holds the materials and a geometry with its laws. Either is admitted in a
+holds the materials and a geometry with its face roles. Either is admitted in a
 canonical form: spectators dropped, every key resolved to a coordinate of
 the problem, the datum fitted to its groups, regions and readable
 coordinates. Nothing binds a question to a system's operators yet: deriving
@@ -281,13 +288,37 @@ extension by zero on the trace (:ref:`cs4c-ends-select-the-body`;
 :class:`~orpheus.transport.operators.lift.BulkLift`;
 :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`).
 
-A **boundary law** is a descriptor, not an operator: it carries the typed
-factors :math:`G` and :math:`R` of the affine form
-(``BoundaryTraceLaw``) and becomes an
-operator only through the method's realizer
+A face of the boundary has one **role**: a *deck*, which says the domain
+continues across the face (a rigid motion that glues it to a partner face,
+or to itself for a mirror), or an integer *tag*, which says the domain ends
+there and which only names a colour of the true boundary, the exact twin of
+a material id (:class:`~orpheus.geometry.deck.MirrorDeck`,
+:class:`~orpheus.geometry.deck.TranslationDeck`, :ref:`geometry-face-roles`).
+The geometry says which faces share an exterior model and never what the
+model is. A **wall condition** is what a tag is bound to: the affine pair
+of a response network :math:`R` and an inflow :math:`q`
+(:class:`~orpheus.transport.boundary_conditions.WallCondition`,
+:eq:`affine-bc-form`), a descriptor and not an operator. :math:`R = sP +
+d\,(E\circ Rt)` is a point :math:`(s, d)` of the convex cone
+:math:`s, d \ge 0,\ s + d \le 1`, so vacuum, white, specular and a
+prescribed inflow are facades over one type, and :math:`R = 0` is one value
+however it is reached; a combination that leaves the cone is a
+:class:`~orpheus.transport.boundary_conditions.WallDisplacement`, which a
+problem cannot bind. A **binding**
+(:func:`~orpheus.transport.boundary_conditions.bind`) joins the declared
+tag-to-condition map to the faces once, as an exact cover of the tags, and
+is lawful only when every condition is invariant under the **colouring
+stabiliser** of the problem, the group of isometries that map the material
+runs onto themselves and each face role onto an equal role
+(:func:`~orpheus.geometry.colouring.colouring_symmetry`, computed from the
+geometry and never from a mesh's cell edges). A method meets the binding
+through its **realizer table**, one per method, which answers admission (is
+the declaration realized exactly, approximated, or refused on a named axis
+and with the issue that tracks the refusal) and realization together,
+through one door, so a query and a realization cannot disagree
 (:ref:`bc-method-realizability`;
-``SNBoundaryRealizer``), which is why
-the sweep reads the inflow as a given and never re-applies the law.
+:class:`~orpheus.transport.boundary_conditions.RealizerTable`). This is why
+the sweep reads the inflow as a given and never re-applies the condition.
 
 
 The metric is an object, and the adjoint falls out
@@ -487,9 +518,24 @@ The concept table
    * - Lift; full-field space
      - :class:`~orpheus.transport.operators.lift.BulkLift`, :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
      - :ref:`cs4c-ends-select-the-body`
-   * - Boundary law; realizer
-     - ``BoundaryTraceLaw``, ``SNBoundaryRealizer``
-     - :eq:`affine-bc-form`, :ref:`bc-realizer-layer`, :ref:`bc-method-realizability`
+   * - Face role; deck; boundary tag
+     - ``FaceRole`` (a deck or an ``int``), :class:`~orpheus.geometry.deck.MirrorDeck`, :class:`~orpheus.geometry.deck.TranslationDeck`, :func:`~orpheus.geometry.deck.pairing_of` (the :class:`~orpheus.geometry.deck.FacePairing` a realizer reads), :func:`~orpheus.geometry.deck.parse_face_roles`; the value both meshes store, ``orpheus.mesh.face_roles.FaceRoles`` (``Mesh1D.face_roles``, ``outer_role``)
+     - :ref:`geometry-face-roles`, :ref:`bc-architecture-of-record`
+   * - Wall condition on the cone; response network; inflow; displacement
+     - :class:`~orpheus.transport.boundary_conditions.WallCondition` (the facades ``vacuum``, ``specular``, ``white``, ``uniform``, ``framed`` and ``from_amplitudes``), :class:`~orpheus.transport.boundary_conditions.ResponseNetwork`, :class:`~orpheus.transport.boundary_conditions.InflowTerms`, :class:`~orpheus.transport.boundary_conditions.WallDisplacement`; the method-only conditions share the base :class:`~orpheus.transport.boundary_conditions.BoundaryCondition` (zero flux is ``orpheus.diffusion.zero_flux.ZeroFluxCondition``)
+     - :eq:`affine-bc-form`, :ref:`bc-architecture-of-record`
+   * - Binding; declared conditions
+     - :class:`~orpheus.transport.boundary_conditions.BoundaryConditions` (the twin of ``Materials``), :class:`~orpheus.transport.boundary_conditions.Binding`, :func:`~orpheus.transport.boundary_conditions.bind`
+     - :ref:`bc-architecture-of-record`
+   * - Colouring stabiliser
+     - :func:`~orpheus.geometry.colouring.colouring_symmetry`, :class:`~orpheus.geometry.colouring.ColouringSymmetry`, :class:`~orpheus.geometry.colouring.UncomputedSymmetries` (the typed pessimistic answer of a carrier with no group machinery)
+     - :ref:`bc-architecture-of-record`
+   * - Admission; realizer table; realization
+     - :class:`~orpheus.transport.boundary_conditions.RealizerTable`, :class:`~orpheus.transport.boundary_conditions.Admission` (:class:`~orpheus.transport.boundary_conditions.Realized`, :class:`~orpheus.transport.boundary_conditions.Approximated`, :class:`~orpheus.transport.boundary_conditions.Refused`), :func:`~orpheus.transport.method.realize_boundary`; the tables ``SN_REALIZERS``, ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``; the typed SN operators ``RealizedBoundary`` and its arms ``ZeroMap``, ``ScaledOrdinatePermutation``, ``RankOneReemission``, ``RealizedSum`` (``orpheus.sn.boundary.realized_operators``); the certification :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing`
+     - :ref:`bc-realizer-layer`, :ref:`bc-method-realizability`, :ref:`bc-refusal-axes`
+   * - Retired 2026-10-24 (wave-2 carve): boundary law; realizer
+     - ``BoundaryTraceLaw`` and its concretes, ``LawSum`` and ``LawScaled``, the ``BC`` tag, ``SNBoundaryRealizer`` and the ``BoundaryRealizer`` Protocol, the string registries, ``FaceLaws`` and ``face_laws``. Successors: the rows above.
+     - :ref:`bc-wave2-crosswalk`
    * - Metric
      - :class:`~orpheus.numerics.metric.HilbertMetric`
      - :ref:`spaces-metric-object`
@@ -648,10 +694,11 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   ``Declared`` and carries no atoms (a gated contract, G6b); there is no ``Cone`` class, no
   embedding operator and no affine operator, each by ruling and so not
   debt.
-- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs six times
-  under ``orpheus/`` (`[M]` 2026-10-06, ``grep -rn`` over the working
-  tree of ``feature/characteristic-basis-transport``): the full-field
-  carrier (#457); the lock on withdrawn
+- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs 9 times in
+  9 sites under ``orpheus/`` (`[M]` 2026-10-24 at ``471c4737``, a Python
+  scan of every line of ``orpheus/**/*.py`` for the tag; positive control:
+  the scan finds the ``#457`` site in ``orpheus/transport/full_field.py``).
+  The sites: the full-field carrier (#457); the lock on withdrawn
   reference generators in ``orpheus/derivations/common/withdrawal.py``
   (#506, retired when each reference family's generator returns a
   :class:`~orpheus.reference.certificate.ReferenceCertificate` whose
@@ -659,18 +706,22 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   :class:`~orpheus.reference.withdrawal.Withdrawal`;
   :ref:`vv-withdrawn-generators`); the Sood registry's refusal of a case
   with no citation (#405, retired when a published solution replaces the
-  registry's case class); and the boundary composition's check on its
-  direct children (#551, retired when the composition's operands are typed
-  as responses); the 2-D mesh's cell integrals, refused where the code
+  registry's case class); the 2-D mesh's cell integrals, refused where the code
   would go (#569, retired when ``Mesh2D`` carries region labels and the
-  mesh-free function owns its second coordinate); and the characteristic
+  mesh-free function owns its second coordinate); the characteristic
   reference's refusal of a traversed slot whose 3-D length overflowed
-  (#582, retired when the kernel's chord refuses or resolves a line within
-  an underflow of parallel to the level sets). Since S5 of the numerics
-  untangling (2026-10-19) two more sites carry the tag, both #624: the
-  measure's G-space guards ``DiscreteMeasure._gspace`` and
-  ``_acted_on_in``, retired when a measure is typed by its support
-  (:ref:`manifold-gspace`). ``# TODO`` occurs once; ``raise NotImplementedError`` 72
+  (#582, two sites, retired when the kernel's chord refuses or resolves a line within
+  an underflow of parallel to the level sets) and its refusal of a slab
+  direction within the grazing bound, whose crossing parameters are
+  differences of large absolute positions (#585, retired when a slab line's
+  crossings are formed relative to a point inside the body); and the measure's
+  G-space guards ``DiscreteMeasure._gspace`` and ``_acted_on_in`` (#624,
+  two sites, retired when a measure is typed by its support,
+  :ref:`manifold-gspace`). The boundary composition's check on its direct
+  children (#551) retired with ``LawSum`` and ``LawScaled`` at the wave-2
+  carve: a combination of wall conditions is arithmetic on a cone, and an
+  operand that is not a condition is the language's own ``TypeError``.
+  ``# TODO`` occurs once; ``raise NotImplementedError`` 72
   times in 27 files under ``orpheus/`` excluding ``derivations/`` (119 in
   39 with it), the population a retirement audit walks (``[M]``
   2026-10-03, a line count over ``orpheus/**/*.py``).
