@@ -29,6 +29,15 @@ user's ruling, 2026-10-21). It carries the partition's per-axis EDGES, because t
 are the atoms a partition is made of, and atoms are content (ruling 71): two
 partitions with equal widths and shifted edges index two coefficient spaces.
 
+:class:`PolynomialLayout` is a polynomial family's index on an interval, one
+coefficient per degree :math:`0 \dots n-1` (the interval Legendre basis of a
+cell); it has degree structure but is NOT a :data:`DegreeLayout`, whose members
+are the angular moment heads' families (a spatial axis of the same shape must
+not pass for an angular head). :class:`TensorLayout` is the index of a tensor
+product of bases: the factors' indices flattened row-major, factor 0
+outermost (the Kronecker order), with the unit the Kronecker product of the
+factors' units.
+
 :class:`ModeLayout` is a basis computed from data, a row of mode amplitudes
 with no degree structure (the loss-kernel gauge's kernel modes); its unit is
 supplied by the basis and may be zero.
@@ -46,7 +55,10 @@ from numpy.typing import NDArray
 
 from orpheus.values.content import ContentIdentity
 
-__all__ = ["CellLayout", "CoefficientLayout", "DegreeLayout", "HarmonicLayout", "LegendreLayout", "ModeLayout"]
+__all__ = [
+    "CellLayout", "CoefficientLayout", "DegreeLayout", "HarmonicLayout", "LegendreLayout", "ModeLayout",
+    "PolynomialLayout", "TensorLayout",
+]
 
 
 def _e0(shape: tuple[int, ...]) -> NDArray:
@@ -218,8 +230,79 @@ class ModeLayout(ContentIdentity):
         return (int(self.unit.size),)
 
 
+@dataclass(frozen=True, eq=False)
+class PolynomialLayout(ContentIdentity):
+    r"""One coefficient per polynomial degree :math:`k = 0, \dots, n-1`, flat.
+
+    The index of a polynomial family on an interval (the interval Legendre
+    basis): ``n`` coefficients, the constant mode first, so the coefficients
+    of the constant function :math:`1` are :math:`e_0` (the family normalises
+    :math:`P_0 = 1`).
+    """
+
+    n: int
+
+    def __post_init__(self) -> None:
+        if int(self.n) != self.n or self.n < 1:
+            raise ValueError(f"PolynomialLayout: the coefficient count must be a positive integer, got {self.n!r}")
+        object.__setattr__(self, "n", int(self.n))
+
+    @property
+    def label(self) -> str:
+        return "polynomial"
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        return (self.n,)
+
+    @property
+    def unit(self) -> NDArray:
+        return _e0(self.shape)
+
+
+@dataclass(frozen=True, eq=False)
+class TensorLayout(ContentIdentity):
+    r"""The index of a tensor product of bases, flat, factor 0 outermost.
+
+    Coefficient :math:`(k_0, \dots, k_{d-1})` sits at the row-major flat index,
+    the Kronecker order of ``np.kron(c_0, c_1, ...)``. ``label`` names the
+    product (the factors' own labels name the families). The unit is the
+    Kronecker product of the factors' units: the constant function is the
+    product of the factors' constants.
+    """
+
+    factors: tuple["PolynomialLayout", ...]
+    label: str
+
+    def __post_init__(self) -> None:
+        if not self.factors:
+            raise ValueError("TensorLayout: a tensor product has at least one factor")
+        object.__setattr__(self, "factors", tuple(self.factors))
+
+    @property
+    def factor_shape(self) -> tuple[int, ...]:
+        """The per-factor coefficient counts, in factor order."""
+        return tuple(f.n for f in self.factors)
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        return (int(np.prod(self.factor_shape)),)
+
+    def multi_index(self, flat: int, /) -> tuple[int, ...]:
+        """The per-factor degrees ``(k_0, ..., k_{d-1})`` of the flat coefficient ``flat``."""
+        return tuple(int(k) for k in np.unravel_index(flat, self.factor_shape))
+
+    @property
+    def unit(self) -> NDArray:
+        unit = np.array([1.0])
+        for f in self.factors:
+            unit = np.kron(unit, f.unit)
+        unit.setflags(write=False)
+        return unit
+
+
 #: The layouts with degree structure: the moment heads' families.
 DegreeLayout = HarmonicLayout | LegendreLayout
 
 #: Every coefficient layout a basis carries (ruling 81).
-CoefficientLayout = DegreeLayout | CellLayout | ModeLayout
+CoefficientLayout = DegreeLayout | CellLayout | ModeLayout | PolynomialLayout | TensorLayout

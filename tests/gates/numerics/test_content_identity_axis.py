@@ -34,7 +34,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis, FromMeasure, Modal
-from orpheus.numerics.coefficient_layout import CellLayout, HarmonicLayout, LegendreLayout, ModeLayout
+from orpheus.numerics.coefficient_layout import CellLayout, HarmonicLayout, LegendreLayout, ModeLayout, PolynomialLayout, TensorLayout
 from orpheus.values.content import FrozenMapping
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
@@ -199,6 +199,27 @@ _MODE_LAYOUT = Entry(
     pairs=(("two builds", lambda: ModeLayout(np.array([0.5, 0.0]), "modes"), lambda: ModeLayout(np.array([0.5, 0.0]), "modes")),),
 )
 
+_POLYNOMIAL_LAYOUT = Entry(
+    cls=PolynomialLayout, base=lambda: PolynomialLayout(2), parts=("n",),
+    perturb={"n": (leg("another count", lambda: PolynomialLayout(3)),)},
+    pairs=(("two builds", lambda: PolynomialLayout(2), lambda: PolynomialLayout(2)),),
+)
+
+_TENSOR_LAYOUT = Entry(
+    cls=TensorLayout, base=lambda: TensorLayout((PolynomialLayout(2), PolynomialLayout(2)), "spatial_moment"),
+    parts=("factors", "label"),
+    perturb={
+        "factors": (
+            leg("another factor count", lambda: TensorLayout((PolynomialLayout(2), PolynomialLayout(3)), "spatial_moment")),
+            leg("one factor fewer", lambda: TensorLayout((PolynomialLayout(2),), "spatial_moment")),
+        ),
+        "label": (leg("another product", lambda: TensorLayout((PolynomialLayout(2), PolynomialLayout(2)), "other")),),
+    },
+    pairs=(("two builds",
+            lambda: TensorLayout((PolynomialLayout(2), PolynomialLayout(2)), "spatial_moment"),
+            lambda: TensorLayout((PolynomialLayout(2), PolynomialLayout(2)), "spatial_moment")),),
+)
+
 _MODAL = Entry(
     cls=Modal, base=lambda: Modal(_E0), parts=("unit",),
     perturb={"unit": (leg("the moments of one, not e0", lambda: Modal(np.array([2.0, 0.0]))),)},
@@ -226,7 +247,7 @@ _FROZEN_MAPPING = Entry(
 )
 
 ROSTER: tuple[Entry, ...] = (
-    _AXIS, _ENERGY, _MODAL, _HARMONIC_LAYOUT, _LEGENDRE_LAYOUT, _CELL_LAYOUT, _MODE_LAYOUT, _FROZEN_MAPPING,
+    _AXIS, _ENERGY, _MODAL, _HARMONIC_LAYOUT, _LEGENDRE_LAYOUT, _CELL_LAYOUT, _MODE_LAYOUT, _POLYNOMIAL_LAYOUT, _TENSOR_LAYOUT, _FROZEN_MAPPING,
 )
 
 

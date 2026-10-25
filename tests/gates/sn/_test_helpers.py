@@ -875,10 +875,11 @@ def g_bulk_measure(sn: "SNProblem") -> np.ndarray:
     On a multi-moment closure (LD) the bulk field carries the trailing
     ``2^d`` spatial-moment axis, and its Hilbert measure carries the moment
     mass ``∏_a θ^{o_a}`` (#310 C2 ruling 3): ``G_bulk = V·w_n ⊗ diag(1, θ,
-    …)``.  Rebuilt HERE from the raw ``sn.scheme.theta`` scalar with a
-    plain kron loop — structurally independent of the production
-    ``moment_mass_diagonal`` helper (anti-R1), so the metric cross-checks
-    pin the production θ-weighting against an independent spelling.
+    …)``.  Rebuilt HERE from θ typed as ``1.0 / 3.0`` (LM-1989 Eq. 4.3b)
+    with a plain kron loop. The scheme reads its θ and its mass from one
+    object, the cell basis's Gram, so reading ``sn.scheme.theta`` here would
+    move both sides of the metric cross-checks together; the typed value
+    keeps them independent of the production basis (anti-R1).
     """
     w_n = np.asarray(sn.quad.weights, dtype=float)
     V = np.asarray(sn.volumes, dtype=float)  # (*spatial,)
@@ -899,7 +900,7 @@ def g_bulk_measure(sn: "SNProblem") -> np.ndarray:
                 "LinearDiscontinuous (the θ carrier); got "
                 f"{type(sn.scheme).__name__}."
             )
-        theta = float(sn.scheme.theta)
+        theta = 1.0 / 3.0
         mm = np.array([1.0])
         for _ in range(sn.ndim):
             mm = np.kron(mm, np.array([1.0, theta]))

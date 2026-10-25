@@ -220,6 +220,9 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     np.testing.assert_equal(field.values.shape, field.space.shape)
     # CS4b S2: on an axis-built bulk space the tail is the scheme-owned
     # MODAL moment AXIS (mass-carrying) — the scheme's own, the ONE spelling of the tail (6.2c-iii).
+    # Since S3 (#423) the axis weights and the mass both read the cell basis's
+    # Gram: the leg pins that the tail carries the mass; the value pin is
+    # test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse.
     tail_axis = field.space.axes[-1]
     np.testing.assert_equal(tail_axis.label, SPATIAL_MOMENT_AXIS_LABEL)
     assert isinstance(tail_axis.kind, Modal)

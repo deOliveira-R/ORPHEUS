@@ -74,7 +74,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.numerics.moment_layout import cell_moment_count
+from orpheus.numerics.basis import IntervalLegendreBasis, spatial_moment_basis
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -87,10 +87,12 @@ from orpheus.numerics.moment_layout import cell_moment_count
 
 #: dimensionless 1-D streaming/stiffness ``∫B_i ∂_x B_j`` (per unit ``|μ|``).
 _GRAD_1D = np.array([[0.0, 0.0], [-2.0, 0.0]])
+#: The 1-D LD factor basis :math:`\{P_0, P_1\}` on the reference interval.
+_LD_FACTOR = IntervalLegendreBasis(2)
 #: dimensionless 1-D downstream-face ``outer(B(+1), B(+1))`` (per unit ``|μ|``).
-_FOUT_1D = np.array([[1.0, 1.0], [1.0, 1.0]])
+_FOUT_1D = np.outer(_LD_FACTOR.endpoint_values(+1), _LD_FACTOR.endpoint_values(+1))
 #: dimensionless 1-D upstream-face test-weighting ``B(-1)`` (per unit ``|μ|``).
-_FIN_TRACE = np.array([1.0, -1.0])
+_FIN_TRACE = _LD_FACTOR.endpoint_values(-1)
 
 
 def octant_moment_frame_signs(
@@ -118,6 +120,11 @@ def octant_moment_frame_signs(
         \mathrm{sign}[o_0,\dots,o_{d-1}] = \prod_{a=0}^{d-1}
             (\mathrm{octant\_signs}[a])^{o_a}.
 
+    This is the action of the mirrors :math:`\xi_a \mapsto -\xi_a` (one per
+    backward-sweeping axis) on the cell basis's coefficients,
+    :meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.reflection_signs`:
+    each mirrored factor contributes its parity :math:`(-1)^k`.
+
     The average moment (all ``o_a = 0``) is sign-invariant; a per-axis slope
     flips once if that axis sweeps backward; the d=2 cross moment ``x̂y`` flips
     when an ODD number of its active axes sweep backward.  The map is an
@@ -135,17 +142,8 @@ def octant_moment_frame_signs(
     """
     if spatial_basis_per_axis == 1:
         return None
-    d = len(octant_signs)
-    size = cell_moment_count(spatial_basis_per_axis, d)
-    signs = np.ones(size)
-    for flat in range(size):
-        factor = 1
-        for a in range(d):
-            o_a = (flat // (spatial_basis_per_axis ** (d - 1 - a))) % spatial_basis_per_axis
-            if o_a and octant_signs[a] < 0:
-                factor = -factor
-        signs[flat] = factor
-    return signs
+    basis = spatial_moment_basis(spatial_basis_per_axis, len(octant_signs))
+    return basis.reflection_signs(tuple(sign < 0 for sign in octant_signs))
 
 
 def mass_1d(h: np.ndarray, theta: float) -> np.ndarray:
@@ -229,7 +227,7 @@ def assemble_ubld(
     for k in range(1, d):
         M = _batched_kron(M, masses[k])
 
-    size = cell_moment_count(2, d)
+    size = M.shape[-1]
     batch_shape = M.shape[:-2]
     G = np.zeros(batch_shape + (size, size), dtype=np.float64)
     F_out = np.zeros(batch_shape + (size, size), dtype=np.float64)

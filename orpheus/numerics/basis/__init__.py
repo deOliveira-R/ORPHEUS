@@ -38,6 +38,7 @@ from __future__ import annotations
 from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
 from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
+from orpheus.numerics.basis.interval_legendre_basis import IntervalLegendreBasis, TensorProductBasis, spatial_moment_basis
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.basis.overlap_basis import OverlapBasis
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
@@ -48,9 +49,12 @@ __all__ = [
     "Descent",
     "GramStructure",
     "IndicatorBasis",
+    "IntervalLegendreBasis",
     "LegendreBasis",
     "OverlapBasis",
     "SphericalHarmonicBasis",
+    "TensorProductBasis",
     "TruncatedBasis",
     "WeightedIndicatorBasis",
+    "spatial_moment_basis",
 ]

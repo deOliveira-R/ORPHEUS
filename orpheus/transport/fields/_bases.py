@@ -100,6 +100,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.field import Field
 from orpheus.numerics.axis import EnergyAxis
+from orpheus.numerics.coefficient_layout import TensorLayout
 from orpheus.numerics.moment_layout import (
     SPATIAL_MOMENT_AXIS_LABEL,
     cell_moment_count,
@@ -519,23 +520,31 @@ class BulkField(RolePair, Field):
         if tail == ():
             return 1
         if space.axes is not None:
-            # The axis stores the CELL count (per_axis ** ndim); invert it.
-            # ndim is the spatial axis's rank — the ONE "spatial" axis
-            # carries the whole spatial shape (CS4b S4: the space answers
-            # every structural question; the mesh read died with the
-            # binding).
+            # The moment axis is the cell basis's head, so its layout names the
+            # basis's factors: one per spatial axis, each with the per-axis
+            # count. ndim is the spatial axis's rank (the ONE "spatial" axis
+            # carries the whole spatial shape, CS4b S4).
+            moment_axis = next(
+                ax for ax in space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL
+            )
             ndim = next(
                 len(ax.shape)
                 for ax in space.axes
                 if ax.label == "spatial"
             )
-            per_axis = round(tail[0] ** (1.0 / ndim))
-            if per_axis ** ndim != tail[0]:
+            layout = moment_axis.layout
+            if (
+                not isinstance(layout, TensorLayout)
+                or len(layout.factor_shape) != ndim
+                or len(set(layout.factor_shape)) != 1
+            ):
+                counts = layout.factor_shape if isinstance(layout, TensorLayout) else None
                 raise ValueError(
-                    f"moment axis carries {tail[0]} cell moments, which is "
-                    f"not a per-axis power for ndim={ndim}"
+                    f"the spatial-moment axis's basis has factor counts "
+                    f"{counts} on a {ndim}-D mesh: the cell basis has one "
+                    "factor per spatial axis, all of one count"
                 )
-            return per_axis
+            return layout.factor_shape[0]
         return 1  # unreachable in practice: a tail rides an axis-built space
 
     @classmethod

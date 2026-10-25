@@ -122,6 +122,9 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     assert tail == expected, "the tail IS the scheme's own moment axis"
     assert isinstance(tail.kind, Modal)
     assert tail.weights is not None
+    # Since S3 (#423) both sides read the cell basis's Gram, so this leg pins
+    # that the tail carries the scheme's mass, not its value; the value pin is
+    # test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse.
     np.testing.assert_array_equal(tail.weights, sn.scheme.moment_mass_diagonal(sn.axes))
     # the cell-group factor is the carrier's WIDENED bulk — the same space the scalar family mints
     assert space.factors[1] == BulkField.compose_spatial_moments(sn.bulk_space, sn, per_axis)

@@ -140,7 +140,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.typing import NDArray
 
-from .coefficient_layout import CellLayout, CoefficientLayout, HarmonicLayout, LegendreLayout, ModeLayout
+from .coefficient_layout import CellLayout, CoefficientLayout, HarmonicLayout, LegendreLayout, ModeLayout, PolynomialLayout, TensorLayout
 from orpheus.values.content import ContentIdentity
 
 if TYPE_CHECKING:
@@ -356,8 +356,8 @@ class FromBasis:
     domain, indexed by its layout (ruling 81).
 
     The kind is the layout's to say, one ``match``: a cell layout indexes
-    cell values (``NODAL``, a coordinate cone, unit ones); a degree or a mode
-    layout indexes spectral coefficients, ``Modal`` with the coefficients of
+    cell values (``NODAL``, a coordinate cone, unit ones); a degree, a mode,
+    a polynomial or a tensor layout indexes spectral coefficients, ``Modal`` with the coefficients of
     the constant function :math:`1` as its unit (ruling 37).
     """
 
@@ -368,7 +368,7 @@ class FromBasis:
         match self.basis.layout:
             case CellLayout():
                 return BasisKind.NODAL
-            case HarmonicLayout() | LegendreLayout() | ModeLayout() as coefficients:
+            case HarmonicLayout() | LegendreLayout() | ModeLayout() | PolynomialLayout() | TensorLayout() as coefficients:
                 return Modal(coefficients.unit)
             case layout:
                 raise TypeError(

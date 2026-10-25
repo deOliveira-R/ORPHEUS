@@ -387,6 +387,15 @@ class TestMomentAxisAdmission:
     """The scheme-side mint's ADMISSION pair (vv #11: both legs)."""
 
     def test_ld_mints_the_modal_mass_axis(self):
+        r"""The LD moment axis is MODAL, labelled, of shape ``(2,)``, and carries the scheme's mass.
+
+        Since S3 (#423) the axis weights and ``moment_mass_diagonal`` both read
+        the cell basis's Gram, so the weights leg compares one object with
+        itself: it pins that the axis carries the mass, not its value. The
+        value pin is
+        ``tests/gates/transport/spatial/test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse``
+        (a hand-typed table).
+        """
         scheme = LinearDiscontinuous()
         axis = scheme.moment_axis(_cart_axes())
         assert axis.label == "spatial_moment"

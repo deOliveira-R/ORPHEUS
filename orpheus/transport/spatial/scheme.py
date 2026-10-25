@@ -91,12 +91,13 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 
 import numpy as np
 
-from orpheus.numerics.moment_layout import cell_moment_count
+from orpheus.numerics.basis.interval_legendre_basis import spatial_moment_basis
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
     from ._ubld import D1ClosedForm
     from orpheus.numerics.axis import Axis
+    from orpheus.numerics.basis.interval_legendre_basis import TensorProductBasis
     from orpheus.mesh import Axis1D
 
 
@@ -515,7 +516,9 @@ def _face_transmission_matrix(
     algebra of record for this matrix, and the proof of every verdict it
     feeds, is :mod:`orpheus.derivations.discrete.sn.face_transmission`.
     """
-    moments_per_face = scheme.spatial_basis_per_axis ** (ndim - 1)
+    # Every face of the scheme's cell basis has one dimension: the basis is
+    # one interval factor repeated over the axes.
+    moments_per_face = scheme.cell_basis(ndim).face_dimension(0)
     face_shape = (
         (1, 1, 1, moments_per_face) if moments_per_face > 1 else (1, 1, 1)
     )
@@ -1103,6 +1106,21 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         ``moment_tail != ()`` width-presence test."""
         return self.spatial_basis_per_axis > 1
 
+    @classmethod
+    def cell_basis(cls, ndim: int) -> "TensorProductBasis":
+        r"""The closure's within-cell basis on a ``ndim``-dimensional cell.
+
+        The tensor product of ``ndim`` interval Legendre factors of
+        :attr:`spatial_basis_per_axis` polynomials each
+        (:func:`~orpheus.numerics.basis.interval_legendre_basis.spatial_moment_basis`):
+        the cell average alone for the slopeless closures, the average and the
+        slope per axis for linear discontinuous. The moment counts, the face
+        traces, the parity under a mirror and the moment mass are this
+        object's, read off it. Minted per call (the basis is a value), so a
+        read of its Gram is a read at use.
+        """
+        return spatial_moment_basis(cls.spatial_basis_per_axis, ndim)
+
     def face_transmission_spectrum(self, ndim: int) -> FaceTransmissionSpectrum:
         r"""Does this closure leave any face mode UNDAMPED? — ASKED, never declared.
 
@@ -1662,59 +1680,56 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
                 "non-Hadamard metric machinery exists (P7: a space can "
                 "carry a dense metric object); what remains is the VALUE "
                 "— see ORPHEUS #158 (the cell solve that gives the value "
-                "a consumer)."
+                "a consumer) and #612 (the cell-dependent moment metric)."
             )
 
     def moment_mass_diagonal(self, axes: "tuple[Axis1D, ...]") -> np.ndarray:
-        r"""Unit-volume Legendre mass diagonal over the ``2^d`` cell moments.
+        r"""The per-volume moment mass: the Gram diagonal of the cell basis, ``(p^d,)``.
 
-        ``d = len(axes)`` — the axes carry both the dimension and, per
-        axis, the volume-element behaviour the admission guard asks
-        (``has_constant_volume_element``); a separate ``ndim`` argument
-        would be the lossy-tuple smell.
+        ``d = len(axes)``: the axes carry both the dimension and, per axis, the
+        volume-element behaviour the admission guard asks
+        (``has_constant_volume_element``); a separate ``ndim`` argument would
+        be the lossy-tuple smell.
 
-        The per-moment mass weight ``M_ii/V = ∏_a θ^{o_a}`` of the scheme's
-        tensor-Legendre cell basis — ``(1,)`` for the slopeless closures
-        (the trivial average-only mass), ``[1, θ]`` for LD at d=1,
-        ``[1, θ, θ, θ²]`` at d=2.  The Hilbert-metric consumer:
-        the bulk measure of a moment-tailed field is
-        ``G_bulk = V·w_n ⊗ moment_mass_diagonal`` (#310 C2 ruling 3 — an
-        average-only ``V·w_n`` mis-weights the slope DOF, making ``.H`` a
-        WRONG adjoint on the slope rows AND reciprocity Mode-12-blind to a
-        slope-row transpose).  Single-sourced from the scheme because the
-        mass IS the scheme's (the same diagonal
-        :meth:`residual_kernel_batch` normalises by, ÷V).
+        The value is the ``coefficient_weights`` of :meth:`cell_basis`,
+        :math:`M_{ii}/V = \prod_a 1/(2 o_a + 1)` over the multi-index
+        :math:`(o_0, \dots, o_{d-1})` in the Kronecker order: ``(1,)`` for the
+        slopeless closures, ``[1, θ]`` for LD at d = 1 and ``[1, θ, θ, θ²]`` at
+        d = 2, with :math:`\theta = 1/3` the degree-1 Gram of the interval
+        basis. The bulk measure of a moment-tailed field is
+        ``G_bulk = V·w_n ⊗ moment_mass_diagonal`` (#310 C2 ruling 3: an
+        average-only ``V·w_n`` mis-weights the slope degrees of freedom and
+        makes ``.H`` a wrong adjoint on the slope rows). It is exact on a chart
+        whose volume element is constant across the cell, which the guard
+        refuses otherwise.
         """
         self._assert_moment_mass_is_expressible(axes)
-        return np.ones(
-            cell_moment_count(self.spatial_basis_per_axis, len(axes))
-        )
+        return self.cell_basis(len(axes)).coefficient_weights
 
     def moment_axis(self, axes: "tuple[Axis1D, ...]") -> "Axis":
-        r"""The within-cell spatial-moment factor as a typed space AXIS.
+        r"""The within-cell spatial-moment axis: the continuum head of :meth:`cell_basis`.
 
-        The :class:`~orpheus.numerics.axis.Axis` form of this scheme's
-        tensor-Legendre cell basis — label ``"spatial_moment"``, shape
-        ``(2^d,)``, ``weights = ``:meth:`moment_mass_diagonal`, kind
-        **MODAL** (expansion coefficients: a positive function has legally
-        signed slope coefficients, so per-component positivity is not a
-        meaningful predicate — ``has_coordinate_cone`` reads ``False``
-        through this factor, which is the honest answer campaign 1 CS4b
-        routes :meth:`~orpheus.numerics.field.Field.cone_violations`
-        through).
+        ``Axis.of_basis(self.cell_basis(len(axes)))``, origin
+        :class:`~orpheus.numerics.axis.FromBasis`: label ``"spatial_moment"``
+        (the cell basis's layout label), shape ``(p^d,)``, weights the basis's
+        Gram (:meth:`moment_mass_diagonal`), unit :math:`e_0` (the coefficients
+        of the constant function), kind **MODAL**. The moments are expansion
+        COEFFICIENTS (:math:`\psi \approx \bar\psi + \xi\hat\psi`,
+        contravariant), so the metric is the Gram :math:`G`, not the
+        :math:`G^{-1}` a frame's analysis face would install on covariant
+        moments. A positive function has legally signed slope coefficients, so
+        ``has_coordinate_cone`` reads ``False`` through this factor. Every
+        axis-built bulk space that carries the moment tail composes this one
+        object, so the field layer and the composite interior cannot spell the
+        mass twice (CS4b crosswalk B5).
 
-        Scheme-owned because the mass IS the scheme's (``θ`` enters
-        :meth:`moment_mass_diagonal` — basis ↔ mass single-sources here);
-        every axis-built bulk space that carries the moment tail composes
-        THIS object, so the field layer and the composite interior cannot
-        spell the mass twice (CS4b crosswalk B5,
-        ``.claude/plans/cs4b_crosswalk.md``).
-
-        **Refuses on a slopeless closure** (``is_multi_moment`` is False —
-        the same gate :meth:`moment_scan_closure` keys on): the moment-tail
-        policy appends NO factor at width 1 (the byte-identity invariant,
-        #240 D5b-S3-A0), so a trivial ``(1,)`` moment axis is a state no
-        composed space admits — minting one would invite it (Pattern 4).
+        Refused on a slopeless closure (``is_multi_moment`` is False): the
+        moment-tail rule appends no factor at width 1 (the byte-identity
+        invariant, #240 D5b-S3-A0), so a trivial ``(1,)`` moment axis is a state
+        no composed space admits (Pattern 4). Refused on a curved chart by
+        :meth:`_assert_moment_mass_is_expressible`: the machinery that retires
+        that refusal is a frame face for contravariant coefficients, the trial
+        coefficient space dressed by the cell Gram (#612).
         """
         if not self.is_multi_moment:
             raise NotImplementedError(
@@ -1723,21 +1738,10 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
                 "appends no factor at width 1, so there is no moment axis "
                 "to mint."
             )
-        from orpheus.numerics.axis import Axis, Declared, Modal
-        from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+        from orpheus.numerics.axis import Axis
 
-        n_moments = cell_moment_count(self.spatial_basis_per_axis, len(axes))
-        # The coefficients of the constant function 1 on the reference cell:
-        # the moment basis is Legendre per direction with P_0 = 1 at slot 0,
-        # so the unit is e_0 and the marginal is the cell average (ruling 37).
-        unit = np.zeros(n_moments)
-        unit[0] = 1.0
-        return Axis(
-            SPATIAL_MOMENT_AXIS_LABEL,
-            (n_moments,),
-            weights=self.moment_mass_diagonal(axes),
-            origin=Declared(Modal(unit)),
-        )
+        self._assert_moment_mass_is_expressible(axes)
+        return Axis.of_basis(self.cell_basis(len(axes)))
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────
     #
