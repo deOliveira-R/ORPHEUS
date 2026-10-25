@@ -4414,15 +4414,15 @@ along the axis times the marginal field, with no metric in it:
    equality itself, returning that operator as :math:`R^{\dagger}` (so
    ``R.H`` is the closed form, not the generic wrapper). The third site
    is a hand-written twin on the angular axis, where :math:`u = \mathbf
-   1`: ``ScalarSourceSink.__add__`` with an angular partner adds
-   ``self.values[None]``, the same broadcast spelled outside its type
+   1`: ``AngularSourceSink.__add__`` with an isotropic partner adds
+   ``other.values[None]``, the same broadcast spelled outside its type
    (:ref:`spaces-collapse-pair-pullback`, the warning).
 
 .. implements:: spaces-collapse-adjoint-is-pullback
    :by: py:method:orpheus.numerics.axis_marginal.AxisRetractionOperator.adjoint
 
 .. implements:: spaces-collapse-adjoint-is-pullback
-   :by: py:method:orpheus.transport.fields.scalar_source_sink.ScalarSourceSink.__add__
+   :by: py:method:orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__
 
 So :math:`(R, R^{\dagger}) = (\pi_*, \pi^{*})` is the discrete
 realization of the fibre-integration / pullback adjunction, and the
@@ -4920,8 +4920,8 @@ re-spelling would have moved 297 of 300 detectors by up to 3 ULP.
    a product with :math:`R` as a leaf) daggers through the generic
    sandwich, not through the leaf's pullback, so :math:`R^{\dagger}`
    has two spellings in the tree (#558). And
-   ``ScalarSourceSink.__add__`` with an ``AngularSourceSink`` partner
-   adds ``self.values[None]``, a hand-written :math:`\pi^{*}`
+   ``AngularSourceSink.__add__`` with a ``ScalarSourceSink`` partner
+   adds ``other.values[None]``, a hand-written :math:`\pi^{*}`
    (the dunder note in :doc:`/theory/foundations/operator_algebra`
    records that it is the pullback and not the section). Neither is
    wrong in value; both are the concept spelled outside its type.

@@ -1891,10 +1891,13 @@ that wrap the right-hand side of the transport equation
 The load-bearing dunder
 -----------------------
 
-The cross-type
-:meth:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink.__add__`
-accepting an
-:class:`~orpheus.transport.fields.AngularSourceSink` partner is
+The cross-type sum of a
+:class:`~orpheus.transport.fields.ScalarSourceSink` and an
+:class:`~orpheus.transport.fields.AngularSourceSink`, written once in the
+class of the containing space
+(:meth:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__`
+and its reflected add, which ``iso + aniso`` reaches because the scalar
+class defers to a class whose ``CONTAINS`` names it), is
 the load-bearing pattern of PR-TYPED-3.  It replaces the procedural
 broadcast-and-copy pattern with a single algebraic line::
 

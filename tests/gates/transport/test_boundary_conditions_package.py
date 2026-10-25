@@ -14,7 +14,7 @@ The claims (``vv-principles``), all STRUCTURE (an AST pass over the package), ea
   until slice S2b re-spells them). Imports at ANY nesting (function-local, ``if TYPE_CHECKING:``) and relative
   imports are resolved and read. The positive population: the package does import ``orpheus.numerics``,
   ``orpheus.values`` and the L1 geometry types (``orpheus.geometry.deck`` or ``colouring``), for real.
-* ``test_the_package_has_exactly_the_tabled_modules``: the file set is the ten modules of the table, and the
+* ``test_the_package_has_exactly_the_tabled_modules``: the file set is the nine modules of the table, and the
   ``__init__`` holds re-exports and nothing else (no residue, no extra module).
 * ``test_the_facade_exports_what_the_tables_name``: every name of the tables is exported by the package, defined in
   one of its modules (not in ``__init__``), and ``__all__`` lists them.
@@ -68,11 +68,10 @@ FORBIDDEN = (
 #: Every name the tables of section 2.4 name, by module (the spec's own words), plus the two table errors of the
 #: realization name check and the aliases the gates read.
 EXPORTS: dict[str, tuple[str, ...]] = {
-    "condition": ("BoundaryCondition", "WallCondition"),
+    "condition": ("BoundaryCondition", "WallCondition", "WallDisplacement"),
     "network": ("MirrorPermutation", "CurrentRetraction", "IsotropicSection", "Factor", "SpecularChain", "DiffuseChain", "Chain",
                 "CHAIN_ORDER", "chain_composes", "ZeroNetwork", "ResponseNetwork"),
     "inflow": ("InflowSampler", "FaceFrameInflow", "LabFrameInflow", "InflowTerms"),
-    "displacement": ("WallDisplacement",),
     "errors": ("BoundaryError", "SubmarkovViolationError", "BoundaryResponseNotPositiveError", "BoundaryRefused", "UnboundTagError",
                "UnusedConditionError", "NonInvariantConditionError"),
     "declared": ("BoundaryConditions",),
@@ -134,7 +133,7 @@ def test_the_package_imports_nothing_across() -> None:
     require(imports_of("from .errors import X\n", f"{PACKAGE}.binding") == [f"{PACKAGE}.errors", f"{PACKAGE}.errors.X"], "control: a sibling relative import does not resolve to the package")
 
     sources = _package_sources()
-    require(len(sources) == 10, f"the scan read {len(sources)} modules: {sorted(sources)}")
+    require(len(sources) == len(MODULES), f"the scan read {len(sources)} modules: {sorted(sources)}")
     all_imports: set[str] = set()
     problems: dict[str, list[str]] = {}
     for name, source in sources.items():

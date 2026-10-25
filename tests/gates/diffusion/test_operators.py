@@ -716,10 +716,10 @@ class TestSharedOperatorScalarArms:
         ffs = mesh.full_field_space
         for op in (
             IsotropicScattering.from_material_xs(
-                mat_xs, space=mat_xs.mesh.bulk_space,
+                mat_xs, space=mat_xs.space,
             ),
             IsotropicN2N.from_material_xs(
-                mat_xs, space=mat_xs.mesh.bulk_space,
+                mat_xs, space=mat_xs.space,
             ),
         ):
             composite = BulkLift(op, domain=ffs, codomain=ffs).apply(flux)
@@ -740,7 +740,7 @@ class TestSharedOperatorScalarArms:
         with no fission-, scatter- or diffusion-specific arithmetic."""
         ffs = mesh.full_field_space
         S = IsotropicScattering.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
         with pytest.raises(TypeError, match="BulkLift"):
             S.apply_transpose(flux)
@@ -969,8 +969,8 @@ class TestAssemblyMode:
         n = x.size
         for op, rtol in (
             (MultiplicationOperator(coef, domain=coef.space, codomain=coef.space), 0.0),
-            (IsotropicScattering.from_material_xs(mat_xs, space=mat_xs.mesh.bulk_space), 1e-11),
-            (IsotropicN2N.from_material_xs(mat_xs, space=mat_xs.mesh.bulk_space), 1e-11),
+            (IsotropicScattering.from_material_xs(mat_xs, space=mat_xs.space), 1e-11),
+            (IsotropicN2N.from_material_xs(mat_xs, space=mat_xs.space), 1e-11),
         ):
             assert op.is_assemblable
             emitted = assemble(op)

@@ -596,7 +596,6 @@ class Solution(SolutionBase[O]):
         from orpheus.numerics.basis import WeightedIndicatorBasis
         from orpheus.numerics.frame import PetrovGalerkinFrame
         from orpheus.transport.mesh.material_mesh import MaterialMesh
-        from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
         fine = self.problem
         trial = coarse.indicator_basis()       # coarse cell-indicator trial basis (n-D)
@@ -658,7 +657,7 @@ class Solution(SolutionBase[O]):
             # Project the WHOLE cross-section field as one object: the field owns
             # the channel → weighting taxonomy and routes Σ → sigma_frame,
             # χ → emission_frame.
-            homogenized = MaterialXSField.from_mesh(fine).project_through(
+            homogenized = fine.mat_xs.project_through(
                 sigma_frame, emission_frame,
             )
         else:
@@ -693,7 +692,7 @@ class Solution(SolutionBase[O]):
             rho = rho.reshape(ng, -1).T                                # (n_fine, ng)
 
             # The field owns the five-morphism bilinear taxonomy (T1/T1b/T2/T3).
-            homogenized = MaterialXSField.from_mesh(fine).project_through_bilinear(
+            homogenized = fine.mat_xs.project_through_bilinear(
                 trial, measure, phi=phi, phi_star=phi_star, rho=rho,
             )
 

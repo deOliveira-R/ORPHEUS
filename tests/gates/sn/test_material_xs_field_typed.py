@@ -45,7 +45,7 @@ def _mat_xs(nx: int = 4, ng: int = 2) -> tuple[MaterialXSField, SNProblem]:
     ).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=4)
     problem = SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-    return MaterialXSField.from_mesh(problem), problem
+    return problem.mat_xs, problem
 
 
 #: (typed view constructor, raw ndarray accessor name) for the three macroscopic

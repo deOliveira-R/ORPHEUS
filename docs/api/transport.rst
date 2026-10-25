@@ -111,8 +111,6 @@ page. The admission matrix and the realization are on
 
 .. automodule:: orpheus.transport.boundary_conditions.condition
 
-.. automodule:: orpheus.transport.boundary_conditions.displacement
-
 .. automodule:: orpheus.transport.boundary_conditions.errors
 
 .. automodule:: orpheus.transport.boundary_conditions.declared

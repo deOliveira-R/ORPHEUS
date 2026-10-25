@@ -660,3 +660,13 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   mechanism through the pin: the meet rows reddened on the plan's own cell, which no reading of the table text shows (`scratch/wave2_s4/proto_tables.py`, 6 arms bit).
   A pin keyed on units a method's table does not register (CP hollow inner, decks on a radial face) is a cell the plan states nowhere: pin today's
   behaviour in a file apart from the shared grid and say so in NEEDS, so one ruling edits one test.
+
+## Sub-cone re-measurement r2 (2026-10-25) — two instrument traps; extends `instrument-doctrine` "Draw-stable statistics" and X1's control rule
+
+- **A tie broken by `set` iteration order is a draw of `PYTHONHASHSEED`.** `static_closure.py` picked a test's home among incomparable
+  maxima with `max(maxima, key=share)` over a `set`, so tied homes moved between processes while the purity lines stayed identical: the
+  pair table differed run to run. Break every tie on a total key (`(share, name)`) and rerun twice with `cmp` before quoting a table.
+  `[M]` `scratch/verification_tree/subcones_r2/`, 6 of 6 outputs byte-identical after the fix.
+- **A pre-declared coverage control must be shown to EXECUTE a def before it is declared.** A test asserting a module constant runs its
+  line at import, under the empty context, so its per-test cone is empty and the control reads `NOT FOUND`, not pure. Print the
+  candidate's cone first (one `load()` call). `[M]` geometry `test_sqrt_half_constant_is_correctly_rounded`, 0 defs.

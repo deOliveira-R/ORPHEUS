@@ -90,6 +90,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
+from .sweep_operator import ScheduleTriangularForward, SweepOperator
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from orpheus.sn.loss_representation import SigmaStratum
@@ -109,9 +111,6 @@ if TYPE_CHECKING:
     )
     from ..loss_representation.sweep_schedule import SweepSchedule
     from ..loss_representation import LossRepresentation
-    # Type-only (the runtime construction is a late import inside ``inverse``
-    # to break the operator <-> inverse import cycle).
-    from .sweep_operator import SweepOperator
 
 __all__ = [
     "StreamingOperator",
@@ -419,7 +418,7 @@ class StreamingOperator(LinearOperator["FullField"]):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class StreamingCollisionOperator(FusedAtom["FullField"]):
+class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForward):
     r"""The sweep-invertible atom :math:`L + C`, carrying ``.solve`` = the WDD sweep.
 
     The SN-specific algebraic identity
@@ -704,8 +703,6 @@ class StreamingCollisionOperator(FusedAtom["FullField"]):
         (Distinct from the INVERSE-side twin noted on ``SweepOperator`` —
         Green/Matrix inverses grow that shape, not this one.)
         """
-        from orpheus.sn.operators.sweep_operator import SweepOperator
-
         return SweepOperator(self)
 
     def solve(

@@ -665,7 +665,7 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   :math:`4\pi`, where one Branch-1 measure object should derive it
   (#557); a composite holding a retraction daggers through the generic
   sandwich rather than the leaf pullback (#558), and
-  ``ScalarSourceSink.__add__`` adds a hand-written broadcast,
+  ``AngularSourceSink.__add__`` with an isotropic partner adds a hand-written broadcast,
   :math:`\pi^{*}` outside its type.
 - **Chords, point location and the measure on lines are spelled outside
   their kernel** (`[M]` 2026-10-05, the geometry census at ``a336bde4``,

@@ -40,9 +40,11 @@ ROOT = Path(_orpheus.__file__).parent.parent
 PACKAGE = "orpheus.transport.boundary_conditions"
 PACKAGE_DIR = Path(_orpheus.__file__).parent / "transport" / "boundary_conditions"
 
-#: The ten modules of section 2.4's table, exactly (``__init__`` re-exports and nothing else).
+#: The nine modules of the package, exactly (``__init__`` re-exports and nothing else). Section 2.4's table named
+#: ten; ``displacement`` folded into ``condition`` (2026-10-25: the arithmetic's one exit names both the wall and the
+#: displacement, so the two were one module split in two files, a cycle the recursive layer gate refuses).
 MODULES = (
-    "__init__", "admission", "binding", "condition", "declared", "displacement", "errors", "inflow", "network", "realization",
+    "__init__", "admission", "binding", "condition", "declared", "errors", "inflow", "network", "realization",
 )
 
 

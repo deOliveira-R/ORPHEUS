@@ -2222,7 +2222,7 @@ What retired, and what the gates are
    * - ``SNSolver.mat_xs``
      - the hub's ``mat_xs`` :func:`~functools.cached_property`
        (O-6).  ``TestLawOneFieldPerProblem`` counts
-       ``MaterialXSField.from_mesh`` over one :math:`k`-solve and reads
+       ``MaterialXSField`` constructions over one :math:`k`-solve and reads
        **1** — it read 2 before.
    * - ``MaterialMesh.material_xs_field()``
      - the same property.  It was a *builder*: every call minted a

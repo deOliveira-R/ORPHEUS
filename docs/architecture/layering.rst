@@ -141,6 +141,37 @@ face naming). ``data`` imports ``numerics`` and ``values``; ``mesh`` imports
 ``geometry`` edge and no ``geometry`` to ``data`` edge: the gate orders
 neither, and that absence is a measurement, not a rule.
 
+**The module grain.** Inside a package the same law holds one level down: a
+module imports only modules whose vocabulary is smaller, so the graph of a
+package's direct children (its modules and its subpackages) is acyclic at
+every import kind. The gate
+(``test_every_package_module_graph_is_acyclic_but_the_listed_cycles`` in
+``tests/gates/test_layer_imports.py``) checks this for every package at every
+depth, 76 packages, nested ones such as ``orpheus.transport.fields``
+included, and resolves an import of a package's facade through the facade's
+own imports. The cycles still open are listed exactly
+(``_OPEN_INTRA_PACKAGE_CYCLES``): a new cycle is red, and a listed cycle that
+no longer exists is red too. `[M]` 2026-10-25: two remain, the traced-memo
+bootstrap pair in ``numerics`` (a bootstrap by design) and the five ``sn``
+children around ``SNProblem``, which caches objects built from modules above
+it (#529 retires it). The cycles broken at the module grain so far took four shapes, each with
+its own repair:
+
+* **One concept in two files.** A sum type whose one constructor must name
+  both cases (the wall arithmetic's exit returns a ``WallCondition`` inside
+  the cone and a ``WallDisplacement`` outside it) is one module.
+* **An embedding written in the smaller class.** A sum across a canonical
+  containment belongs to the class of the larger space
+  (``AngularSourceSink`` answers ``iso + aniso``; the smaller class defers
+  through ``BulkField.CONTAINS``), so the smaller class names no larger one.
+* **A part that holds its whole.** A constituent that stores the hub that
+  owns it (the cross-section field once stored its ``MaterialMesh``) takes
+  the hub's parts instead, and the hub mints it.
+* **A downstream object typed by its upstream classes.** An inverse typed by
+  the union of its forwards is typed by the structural protocol it reads
+  (``ScheduleTriangularForward``), so the forwards import their inverse and
+  not the reverse.
+
 The script reads ``FORBIDDEN_EDGES`` and the L3 set from the gate (it loads
 ``tests/gates/test_layer_imports.py`` of the tree it censuses); the ranks
 behind its UP report are its own table (``values`` 0, ``geometry`` 1,
@@ -819,6 +850,15 @@ The earlier waves that converged on the contract:
 The Phase 3 refactor packages the convergence as an enforced contract;
 subsequent Phase 3 steps (P3.2 through P3.6) make further structural
 moves under the protection of the linter.
+
+The module-grain cycle gate checked only the direct children of each
+top-level package until 2026-10-25, so a cycle inside a nested package was
+invisible to it: its first run at every depth was red on four, the
+``transport`` pairs ``condition``/``displacement``,
+``angular_source_sink``/``scalar_source_sink`` and
+``material_mesh``/``material_xs_field``, and the ``sn.operators`` triad
+``streaming``/``scheduled_invertible``/``sweep_operator``, each broken in the
+same change by one of the four repairs above.
 
 The closed-reference contract (:ref:`architecture-reference-insulation`)
 was added on 2026-10-06 with the reference kernel, as the precursor of the

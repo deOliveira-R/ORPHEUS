@@ -33,9 +33,10 @@ The math reads cleanly as
 
     Q_{\text{total}} = Q_{\text{iso}} + Q_{\text{aniso}}
 
-with the dunder using ``isinstance`` dispatch (or
-:func:`functools.singledispatchmethod` — the formal version) to
-recognize the containment direction:
+with the sum written once, in the class of the LARGER space
+(:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
+declares ``CONTAINS = (ScalarSourceSink,)``, and ``BulkField.__add__``
+defers ``iso + aniso`` to its reflected add):
 
 .. code-block:: python
 
@@ -68,8 +69,8 @@ named factory is a Pattern 7 discipline concern, not a dunder concern.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, ClassVar, cast
+from dataclasses import dataclass
+from typing import ClassVar, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -78,8 +79,6 @@ from orpheus.numerics.units import SCALAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 
-if TYPE_CHECKING:
-    from orpheus.transport.fields.angular_source_sink import AngularSourceSink
 
 
 __all__ = ["ScalarSourceSink"]
@@ -120,67 +119,10 @@ class ScalarSourceSink(ScalarField, flux=ScalarFlux):
     #: gate is class identity). Metadata, not the gate.
     UNITS: ClassVar[Unit] = SCALAR_RATE_UNITS
 
-    # ── Algebra extensions (over Field) ──────────────────────────────
-
-    def __add__(self, other):
-        r"""Add a partner source — dispatches by partner type.
-
-        * :class:`ScalarSourceSink` partner → within-class add via
-          Field's inherited algebra.
-        * :class:`AngularSourceSink` partner → canonical subspace-
-          containment injection: broadcast ``self.values`` across the
-          Ω axis (the structural map ``iso → 1 ⊗ iso``) and add into
-          the per-ordinate operand's space. Returns
-          :class:`AngularSourceSink`. Commutative — see
-          :meth:`AngularSourceSink.__add__`.
-
-        See module docstring for the principled justification (refined
-        Issue #207: cross-class dunders permitted via canonical
-        subspace containment). DELIBERATELY untyped: the cross-class
-        arm returns the LARGER space's class, which no static spelling
-        can reconcile with :meth:`Field.__add__`'s Self-polymorphic
-        ``(T, T) -> T`` contract — the containment exception is a
-        principled LSP violation the type system cannot carry (#288).
-        """
-        from orpheus.transport.fields.angular_source_sink import (
-            AngularSourceSink,
-        )
-        if isinstance(other, AngularSourceSink):
-            # CS4b S3 (F2 re-key): coherence is the SPACE relation — the
-            # iso operand's space must BE the angular operand's non-angular
-            # marginal (drop axis 0), compared axis-wise by CONTENT. The
-            # retired mesh-identity arm refused twin carriers; this admits
-            # them and refuses exactly what the algebra forbids (mismatched
-            # energy/spatial/moment content between the two operands).
-            if (
-                other.space.axes is None
-                or self.space.axes is None
-                or other.space.axes[1:] != self.space.axes
-            ):
-                raise ValueError(
-                    "ScalarSourceSink + AngularSourceSink requires the iso "
-                    "operand's space to be the angular operand's non-angular "
-                    "marginal (energy ⊗ spatial[⊗ moment] content match); "
-                    f"got {self.space!r} vs the marginal of {other.space!r}."
-                )
-            # Canonical injection: broadcast iso → per-ordinate, add.
-            return replace(
-                other, values=self.values[None] + other.values,
-            )
-        # Within-class (and any other-type → NotImplemented) via Field.
-        return super().__add__(other)
-
-    def __radd__(self, other):
-        r"""Reflected add — Python falls here when
-        ``AngularSourceSink.__add__(ScalarSourceSink)`` returns
-        NotImplemented. Delegates to :meth:`__add__` (commutative).
-        """
-        from orpheus.transport.fields.angular_source_sink import (
-            AngularSourceSink,
-        )
-        if isinstance(other, AngularSourceSink):
-            return self.__add__(other)
-        return NotImplemented
+    # ── Algebra: the containment sum ``iso + aniso`` is answered by
+    # :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`,
+    # the class of the containing space (its ``CONTAINS`` names this class;
+    # ``BulkField.__add__`` defers to it). This class names no angular type.
 
     # ── Conversion — RETIRED (CS4b S4) ───────────────────────────────
     #

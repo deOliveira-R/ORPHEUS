@@ -54,32 +54,72 @@ class and :class:`~orpheus.numerics.operator.InverseOperator` recorded as
 their collapse trigger, fired by the 3rd sibling
 (:class:`~orpheus.numerics.green_operator.GreenOperator`, taxonomy §12
 step 4). This class keeps only :meth:`~SweepOperator.apply` (the sweep
-delegation, threading the Carlson seed) and ``__repr__``; its ctor guard
-is the ``SweepInvertible`` TYPE itself (schedule-triangularity is what
-makes the forward sweep-invertible — no value check needed).
+delegation; the canonical ``initial_guess`` keyword is accepted and dropped,
+since a direct sweep has nothing to seed) and ``__repr__``; its ctor guard is
+the nominal :class:`ScheduleTriangularForward` type (schedule-triangularity is
+what makes the forward sweep-invertible, and it is declared, not checked).
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Union
+from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, Any, Optional
 
 from orpheus.numerics.operator import InverseWrapMixin, LinearOperator
 
 if TYPE_CHECKING:
-    from orpheus.sn.operators.scheduled_invertible import (
-        ScheduledInvertibleOperator,
-    )
-    from orpheus.sn.operators.streaming import StreamingCollisionOperator
+    from orpheus.numerics.frame import FrameBase
+    from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.full_field import FullField
     from orpheus.transport.timed_full_field import TimedFullField
 
-    #: The sweep-invertible forwards this class inverts: the plain WDD
-    #: composite ``(L+C)`` and the schedule-folded ``M = (L+C−B_lower)``
-    #: (#226 step 2) — one wrapper for the whole schedule-triangular family.
-    SweepInvertible = Union[StreamingCollisionOperator, ScheduledInvertibleOperator]
+
+class ScheduleTriangularForward(ABC):
+    r"""The NOMINAL type of a forward :math:`A` whose inverse is ONE forward-substitution scan.
+
+    The schedule-triangular family: the plain WDD composite ``(L+C)``
+    (:class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`) and the
+    schedule-folded ``M = (L+C−B_lower)``
+    (:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
+    #226 step 2). Membership is declared by inheriting this class, never inferred
+    from the members, because no member witnesses triangularity: a structural
+    protocol over ``solve`` would admit any operator with a solve (a diagonal, a
+    generic inverse), which the sweep does not invert. The abstract members are
+    the ones the family's inverses read (the function-space pair the inverse
+    swaps, the forward matvec, the exact ``solve`` :class:`SweepOperator`
+    delegates to, and the composite solve body
+    :class:`~orpheus.sn.operators.windowing.WindowedSweep` emits its moments
+    through); the
+    mixin's transpose arms read the forward through its
+    :class:`~orpheus.numerics.operator.LinearOperator` face.
+
+    The forward is upstream of its inverse: each member imports this module and
+    its ``inverse()`` mints a :class:`SweepOperator` on itself, and this module
+    names no member.
+    """
+
+    @property
+    @abstractmethod
+    def domain(self) -> Optional["FunctionSpace"]: ...
+
+    @property
+    @abstractmethod
+    def codomain(self) -> Optional["FunctionSpace"]: ...
+
+    @abstractmethod
+    def apply(self, x: Any, /) -> Any: ...
+
+    @abstractmethod
+    def solve(self, b: Any, /) -> Any: ...
+
+    @abstractmethod
+    def _solve_timed_full_field(
+        self, rhs: "FullField", *, moment_frame: "FrameBase | None" = None,
+    ) -> "TimedFullField":
+        """The family's composite solve body, which the windowed sweep reads to emit its moment frame."""
 
 
 class SweepOperator(
-    InverseWrapMixin["SweepInvertible"], LinearOperator["FullField"],
+    InverseWrapMixin[ScheduleTriangularForward], LinearOperator["FullField"],
 ):
     r"""The inverse operator :math:`A^{-1}` of a schedule-triangular forward
     ``A`` — :class:`StreamingCollisionOperator` ``(L+C)`` or

@@ -37,7 +37,6 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.mesh import Mesh2D
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
 from orpheus.numerics.axis import Declared
 
@@ -77,13 +76,13 @@ def _mat_xs():
         mat_map=mat_map,
         face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
-    return MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
+    return MaterialMesh(mesh, materials).mat_xs
 
 
 def _op(mat_xs=None):
     mat_xs = mat_xs if mat_xs is not None else _mat_xs()
     return IsotropicFission.from_material_xs(
-        mat_xs, space=mat_xs.mesh.bulk_space,
+        mat_xs, space=mat_xs.space,
     )
 
 
@@ -178,7 +177,7 @@ class TestForward:
             values = phi
 
         with pytest.raises(TypeError, match=r"\.values"):
-            op.apply(ScalarFlux(values=phi, space=mat_xs.mesh.bulk_space))
+            op.apply(ScalarFlux(values=phi, space=mat_xs.space))
         with pytest.raises(TypeError, match="bare numpy arrays"):
             op.apply(_Carrier())
 
@@ -312,12 +311,12 @@ class TestAdmission:
 
         mat_xs = _mat_xs()
         via_classmethod = IsotropicFission.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
         via_ctor = IsotropicFission(
             FissionMaterialField.from_material_xs(mat_xs),
-            domain=mat_xs.mesh.bulk_space,
-            codomain=mat_xs.mesh.bulk_space,
+            domain=mat_xs.space,
+            codomain=mat_xs.space,
         )
         phi = np.random.default_rng(2).uniform(
             0.1, 1.0, size=(_NG, _NX, 1),

@@ -205,7 +205,7 @@ class TestLawTheDerivedEnergyBindingIsBitIdentical:
         hub = _slab_hub()
         mat_xs = hub.mat_xs
         forward = IsotropicFission.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
         angular = FissionOperator.from_solver_data(
             mat_xs=mat_xs, space=hub.full_field_space,
@@ -265,7 +265,7 @@ class TestLawTheCompositeRouteIsOneNulpAwayNotBitIdentical:
         hub = _slab_hub()
         mat_xs = hub.mat_xs
         forward = IsotropicFission.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
         angular = FissionOperator.from_solver_data(
             mat_xs=mat_xs, space=hub.full_field_space,

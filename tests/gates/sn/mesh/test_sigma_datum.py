@@ -161,18 +161,20 @@ class TestLawOneFieldPerProblem:
         hub = _sn()
         _require(hub.mat_xs is hub.mat_xs, "mat_xs is a cached_property")
         mints: list[int] = []
-        original = MaterialXSField.from_mesh.__func__
+        # The spy counts constructions: the hub's ``mat_xs`` is the one mint
+        # site, and any second site would construct the field again.
+        original = MaterialXSField.__init__
 
-        def spy(cls, mesh):  # noqa: ANN001, ANN202
-            mints.append(id(mesh))
-            return original(cls, mesh)
+        def spy(self, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003, ANN202
+            mints.append(id(self))
+            original(self, *args, **kwargs)
 
-        MaterialXSField.from_mesh = classmethod(spy)  # type: ignore[method-assign]
+        MaterialXSField.__init__ = spy  # type: ignore[method-assign]
         try:
             mats, mesh, quad = _mats(), _mesh(), Quadrature.gauss_legendre(4)
             solve_sn(mats, mesh, quad, max_outer=3, boundary_conditions=conditions_for(mesh, _CONDITIONS))
         finally:
-            MaterialXSField.from_mesh = classmethod(original)  # type: ignore[method-assign]
+            MaterialXSField.__init__ = original  # type: ignore[method-assign]
         _require(mints, "POSITIVE CONTROL: the spy must observe at least one mint")
         _require(len(mints) == 1, (
             f"ONE MaterialXSField per Problem: a k-solve minted {len(mints)} "

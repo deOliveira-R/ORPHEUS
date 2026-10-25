@@ -79,6 +79,7 @@ from orpheus.numerics.operator import FusedAtom, LinearOperator
 
 from .boundary import SNMaskedBoundaryOperator
 from .streaming import StreamingCollisionOperator
+from .sweep_operator import ScheduleTriangularForward, SweepOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.frame import FrameBase
@@ -91,13 +92,12 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
     from ..problem import SNProblem
     from .boundary import SNBoundaryOperator
-    from .sweep_operator import SweepOperator
 
 
 __all__ = ["ScheduledInvertibleOperator"]
 
 
-class ScheduledInvertibleOperator(FusedAtom["FullField"]):
+class ScheduledInvertibleOperator(FusedAtom["FullField"], ScheduleTriangularForward):
     r"""The sweep-invertible schedule-folded atom :math:`M = (L+C-B_{\rm lower})`.
 
     An atom with two named legs, :attr:`invertible` (the
@@ -202,8 +202,6 @@ class ScheduledInvertibleOperator(FusedAtom["FullField"]):
         machine precision (the W2-round-trip keystone), which the dissolved
         ``_GaussSeidelResolvent`` could not (its forward was ``(L+C)``).
         """
-        from .sweep_operator import SweepOperator
-
         return SweepOperator(self)
 
     def solve(

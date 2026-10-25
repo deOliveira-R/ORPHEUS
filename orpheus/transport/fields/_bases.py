@@ -93,7 +93,7 @@ from abc import abstractmethod
 from collections.abc import Hashable
 from dataclasses import dataclass, fields as dataclass_fields
 from enum import Enum
-from typing import TYPE_CHECKING, Generic, Mapping, Self, TypeVar, Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, ClassVar, Generic, Mapping, Self, TypeVar, Protocol, cast, runtime_checkable
 
 import numpy as np
 from numpy.typing import NDArray
@@ -332,6 +332,27 @@ class BulkField(RolePair, Field):
     """
 
     # ── Algebra extension (over Field) ───────────────────────────────
+
+    #: The bulk-field classes whose space embeds canonically into this class's
+    #: (an isotropic source is the angular source constant across the
+    #: ordinates: ``iso -> 1 (x) iso``). A sum with one of them is answered by
+    #: THIS class, the containing one, so the embedding is written once, in the
+    #: class of the larger space, and the smaller class names no larger one.
+    CONTAINS: ClassVar[tuple[type["BulkField"], ...]] = ()
+
+    def __add__(self, other):
+        """Defer to a partner whose space contains this one's (its reflected add answers); else the base algebra.
+
+        Deliberately untyped, like the containing class's dunder: the
+        containing partner is the one cross-class operand, the principled
+        exception the base algebra's ``(T, T) -> T`` cannot carry (#288).
+        """
+        partner: object = other  # narrowed alone, so ``other`` keeps the base algebra's type
+        containing = type(partner).CONTAINS if isinstance(partner, BulkField) else ()
+        if isinstance(self, containing):
+            return NotImplemented
+        return super().__add__(other)
+
 
     # CS4b S3 (F2 re-key): the mesh-identity override RETIRED. Partner
     # identity is the base gate's space CONTENT equality

@@ -36,7 +36,7 @@ body is ``sample_terms``.
 * Sampled terms keep first-appearance order (nothing sorts by digest: a digest of an open sampler raises), and two terms
   of EQUAL profile merge their weights.
 * ``NoSource`` retires: an inflow of zero is :meth:`InflowTerms.empty`.
-* Weights may be negative here: a displacement (:mod:`.displacement`) holds signed inflow. The positive cone is the
+* Weights may be negative here: a displacement (:class:`~.condition.WallDisplacement`) holds signed inflow. The positive cone is the
   condition's (``q >= 0``).
 
 Theory: :ref:`bc-architecture-of-record`.

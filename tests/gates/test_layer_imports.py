@@ -956,8 +956,14 @@ def _package_children(package_dir: pathlib.Path) -> set[str]:
 
 
 def _intra_package_graph(package_dir: pathlib.Path) -> dict[str, set[str]]:
-    """The import graph of one package's direct children, at every import kind."""
-    package = package_dir.name
+    """The import graph of one package's direct children, at every import kind.
+
+    The package may sit at any depth (`orpheus/transport/fields/`): its children
+    are named relative to it, and an import of its facade resolves through the
+    facade's own imports.
+    """
+    prefix = list(package_dir.relative_to(ORPHEUS_ROOT.parent).parts)
+    depth = len(prefix)
     children = _package_children(package_dir)
 
     def targets(path: pathlib.Path) -> tuple[set[str], bool]:
@@ -966,12 +972,12 @@ def _intra_package_graph(package_dir: pathlib.Path) -> dict[str, set[str]]:
         facade = False
         for module_name, _is_tc in _imports_of_source(rel, path.read_text(encoding="utf-8")):
             parts = module_name.split(".")
-            if parts[:2] != ["orpheus", package]:
+            if parts[:depth] != prefix:
                 continue
-            if len(parts) == 2:
+            if len(parts) == depth:
                 facade = True
-            elif parts[2] in children:
-                found.add(parts[2])
+            elif parts[depth] in children:
+                found.add(parts[depth])
         return found, facade
 
     facade_targets, _ = targets(package_dir / "__init__.py")
@@ -1033,16 +1039,23 @@ def test_the_cycle_finder_finds_a_planted_cycle() -> None:
 
 @pytest.mark.foundation
 def test_every_package_module_graph_is_acyclic_but_the_listed_cycles() -> None:
-    packages = sorted(p for p in ORPHEUS_ROOT.iterdir() if (p / "__init__.py").is_file())
+    # Every package at every depth: a cycle between the modules of a nested
+    # package (`orpheus/transport/fields/`) is as much a misplaced concept as one
+    # between top-level children, and a top-level scan cannot see it.
+    packages = sorted(p.parent for p in ORPHEUS_ROOT.rglob("__init__.py") if p.parent != ORPHEUS_ROOT)
     # The denominator is stated, so an empty walk cannot read as a clean tree.
-    assert len(packages) > 10, [p.name for p in packages]
+    assert len(packages) > 50, [p.name for p in packages]
+    assert any(p.parent != ORPHEUS_ROOT for p in packages), "the walk reached no nested package"
     new: list[str] = []
     stale: list[str] = []
     for package_dir in packages:
+        name = ".".join(package_dir.relative_to(ORPHEUS_ROOT).parts)
         found = _cycles(_intra_package_graph(package_dir))
-        listed = _OPEN_INTRA_PACKAGE_CYCLES.get(package_dir.name, frozenset())
-        new += [f"{package_dir.name}: {sorted(c)}" for c in found - listed]
-        stale += [f"{package_dir.name}: {sorted(c)}" for c in listed - found]
+        listed = _OPEN_INTRA_PACKAGE_CYCLES.get(name, frozenset())
+        new += [f"{name}: {sorted(c)}" for c in found - listed]
+        stale += [f"{name}: {sorted(c)}" for c in listed - found]
+    stale += [f"{name}: no such package" for name in _OPEN_INTRA_PACKAGE_CYCLES
+              if not (ORPHEUS_ROOT.joinpath(*name.split(".")) / "__init__.py").is_file()]
     assert not new, (
         "a module cycle inside a package (a concept sits in the wrong module): " + "; ".join(new)
     )

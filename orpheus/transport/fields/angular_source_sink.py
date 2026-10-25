@@ -59,15 +59,16 @@ goes through :meth:`from_isotropic` (named factory bakes it in).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
-from orpheus.transport.fields._bases import AngularField
+from orpheus.transport.fields._bases import AngularField, BulkField
 from orpheus.transport.fields.angular_flux import AngularFlux
+from orpheus.transport.fields.scalar_source_sink import ScalarSourceSink
 from orpheus.numerics.axis_marginal import AxisSectionOperator
 
 if TYPE_CHECKING:
@@ -108,32 +109,48 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
 
     # ── Algebra extensions (over Field) ──────────────────────────────
 
+    #: The isotropic source is the subspace where every ordinate carries the
+    #: same value (``iso -> 1 (x) iso``), so this class answers ``iso + aniso``.
+    CONTAINS: ClassVar[tuple[type[BulkField], ...]] = (ScalarSourceSink,)
+
     def __add__(self, other):
-        r"""Add a partner source — dispatches by partner type.
+        r"""Add a partner source, dispatched on the partner's type.
 
-        * :class:`AngularSourceSink` partner → within-class add via
-          Field's inherited algebra.
-        * :class:`ScalarSourceSink` partner → canonical subspace-
-          containment injection: broadcast the iso operand across the
-          Ω axis (the structural map ``iso → 1 ⊗ iso``) and add into
-          this per-ordinate operand's space. Returns
-          :class:`AngularSourceSink`. Commutative — delegates to
-          :meth:`ScalarSourceSink.__add__` for the broadcast-and-add
-          (single source of truth for the iso injection logic).
+        * An :class:`AngularSourceSink` partner: the within-class add, the
+          algebra :class:`~orpheus.numerics.field.Field` provides.
+        * A :class:`ScalarSourceSink` partner: the canonical subspace
+          containment. The iso operand is broadcast across the Ω axis (the
+          structural map ``iso → 1 ⊗ iso``) and added into this per-ordinate
+          operand's space, and the result is an :class:`AngularSourceSink`.
+          The sum is commutative: ``iso + aniso`` reaches :meth:`__radd__`,
+          because ``BulkField.__add__`` defers to the containing class.
 
-        See module docstring for the principled justification (refined
-        Issue #207: cross-class dunders permitted via canonical
-        subspace containment). DELIBERATELY untyped — see
-        :meth:`ScalarSourceSink.__add__` (the containment exception is
-        statically unspellable against Field's ``(T, T) -> T``; #288).
+        Coherence is the space relation: the iso operand's space must be this
+        operand's non-angular marginal (drop axis 0), compared axis-wise by
+        content.
+
+        The module docstring gives the justification (refined Issue #207:
+        cross-class dunders are permitted through a canonical subspace
+        containment). The dunder is deliberately untyped: its cross-class arm
+        returns the larger space's class, which no static spelling reconciles
+        with :meth:`Field.__add__`'s ``(T, T) -> T`` contract (#288).
         """
-        from orpheus.transport.fields.scalar_source_sink import ScalarSourceSink
         if isinstance(other, ScalarSourceSink):
-            # Delegate to ScalarSourceSink.__add__ — Pattern 2 (single
-            # source of truth for the broadcast-and-add).
-            return other + self
-        # Within-class (and any other-type → NotImplemented) via Field.
+            if other.space.axes is None or self.space.axes is None or self.space.axes[1:] != other.space.axes:
+                raise ValueError(
+                    "ScalarSourceSink + AngularSourceSink requires the iso "
+                    "operand's space to be the angular operand's non-angular "
+                    "marginal (energy ⊗ spatial[⊗ moment] content match); "
+                    f"got {other.space!r} vs the marginal of {self.space!r}."
+                )
+            return replace(self, values=other.values[None] + self.values)
         return super().__add__(other)
+
+    def __radd__(self, other):
+        r"""``iso + aniso``: the containment sum, commutative (:meth:`__add__`)."""
+        if isinstance(other, ScalarSourceSink):
+            return self.__add__(other)
+        return NotImplemented
 
     # ── Construction factories ───────────────────────────────────────
 
@@ -156,9 +173,9 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
         scalar sources (fixed-source problems) that must enter the
         per-ordinate SN transport equation
         :math:`(\Omega\cdot\nabla + \sigma_t)\psi_n = Q/W + q_{\rm aniso,n}`.
-        It is also the canonical migration path from the retired
-        cross-class :meth:`ScalarSourceSink.__add__(AngularSourceSink)`
-        dunder (see module docstring).
+        It differs from the containment dunder (``iso + aniso``, see
+        :meth:`__add__`) by the ``/sum_w`` normalisation, which the dunder,
+        the pure structural broadcast, does not apply.
 
         Parameters
         ----------

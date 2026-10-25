@@ -136,7 +136,7 @@ def _off_diagonal_nilpotent(n: int) -> np.ndarray:
     return N
 
 
-def _asymmetric_2g_mat_xs():
+def _asymmetric_2g_carrier():
     """2G mixture with ASYMMETRIC ``SigS`` AND non-zero asymmetric ``Sig2``
     on a unit one-cell carrier (Mode-6: a symmetric matrix is
     blind to the transpose-assembly mutation; zero ``Sig2`` would vacuum
@@ -152,8 +152,7 @@ def _asymmetric_2g_mat_xs():
         chi=np.zeros(2), sig_s=sig_s0,
     )
     m = replace(m, SigS=[csr_matrix(sig_s0)], Sig2=[csr_matrix(sig_2)])
-    mat_xs = unit_cell_carrier({0: m}).mat_xs
-    return mat_xs, sig_s0, sig_2, np.array([1.0, 1.5])
+    return unit_cell_carrier({0: m}), sig_s0, sig_2, np.array([1.0, 1.5])
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -204,14 +203,15 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
         MultiplicationOperator,
     )
 
-    mat_xs, sig_s0, sig_2, sig_t = _asymmetric_2g_mat_xs()
+    hub, sig_s0, sig_2, sig_t = _asymmetric_2g_carrier()
+    mat_xs = hub.mat_xs
     ng = 2
     for op in (
         IsotropicScattering.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         ),
         IsotropicN2N.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         ),
     ):
         got = op.as_matrix(basis_shape=(ng, 1))
@@ -222,13 +222,13 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
         )
     # The OperatorSum path — C − K_iso materialises as the fused storage oracle.
     loss = MultiplicationOperator.from_mesh(
-        CrossSectionField.total_of(mat_xs), mat_xs.mesh,
+        CrossSectionField.total_of(mat_xs), hub,
     ) - (
         IsotropicScattering.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
         + IsotropicN2N.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
     )
     ref_sum = np.diag(sig_t) - (sig_s0 + 2.0 * sig_2).T
@@ -291,16 +291,17 @@ def test_as_matrix_equals_retired_as_dense_loop():
 
     case = get("homo_2eg_n2n")  # asymmetric SigS + non-zero Sig2 (Mode-6)
     mix = next(iter(case.materials.values()))
-    mat_xs = unit_cell_carrier({0: mix}).mat_xs
+    hub = unit_cell_carrier({0: mix})
+    mat_xs = hub.mat_xs
     ng = mix.ng
     loss = MultiplicationOperator.from_mesh(
-        CrossSectionField.total_of(mat_xs), mat_xs.mesh,
+        CrossSectionField.total_of(mat_xs), hub,
     ) - (
         IsotropicScattering.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
         + IsotropicN2N.from_material_xs(
-            mat_xs, space=mat_xs.mesh.bulk_space,
+            mat_xs, space=mat_xs.space,
         )
     )
     # local oracle = the retired _as_dense loop, verbatim

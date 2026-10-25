@@ -1,4 +1,4 @@
-r"""The exterior conditions of a face (``condition.py`` of the conditions package).
+r"""The exterior conditions of a face (``condition.py`` of the conditions package: the walls and their arithmetic).
 
 **The mathematics.** A face that ends the domain closes the transport equation with the affine trace map
 :math:`\gamma_-\psi|_f = R\,\gamma_+\psi|_f + q`: the linear part :math:`R` is a :class:`~.network.ResponseNetwork`
@@ -24,13 +24,38 @@ r"""The exterior conditions of a face (``condition.py`` of the conditions packag
 (``ResponseNetwork.return_fraction``, the correctly rounded ``math.fsum``) is at most one (``SubmarkovViolationError``), and every inflow weight is non-negative
 (``BoundaryResponseNotPositiveError``). ``__post_init__`` raises what it returns, so a ``WallCondition`` outside them
 (and a facade outside it: ``specular(1.2)``, ``white(-0.1)``, a direct two-chain ``(0.6, 0.6)``) does not exist. The
-arithmetic (``+``, ``-``, unary ``-``, scalar ``*``, shared with :class:`~.displacement.WallDisplacement` through
+arithmetic (``+``, ``-``, unary ``-``, scalar ``*``, shared with :class:`WallDisplacement` through
 ``_PairArithmetic``) computes the pair of the result and exits through ONE function, ``_combine``: a ``WallCondition``
 iff the pair lies in the cone, else a ``WallDisplacement`` (a sensitivity, never bindable). The sign of a scalar and
 the presence of ``-`` decide nothing; what cannot be bound is a value outside :math:`K`, however it was spelled, and
 ``x + h * delta`` for finite differences re-enters :math:`K` without re-typing. There is no ``__truediv__`` (no
 consumer; division would leave the dyadic coordinates), and a method-only condition or a deck defines no operator at
 all (``ZeroFluxCondition() + x`` and ``0.5 * MirrorDeck()`` are Python's own ``TypeError``, law L-F).
+
+**What a displacement is.** The cone :math:`K` of walls (``s, d >= 0``, ``s + d <= 1``, every inflow weight ``>= 0``)
+is a convex set; a combination of conditions that leaves it (``white(0.3) - specular(0.5)``, ``0.6 * specular +
+0.6 * white``, a negative multiple) is a point of the AFFINE HULL of :math:`K` times the source space: a direction in
+which a parameter may move, the sensitivity coordinates of a perturbation study, not a wall. :class:`WallDisplacement`
+is that value. It is NOT a :class:`BoundaryCondition`, so it is never bindable: ``BoundaryConditions``
+refuses it with a ``TypeError`` naming the type, and that refusal is the one narrowing site (no consumer branches on
+the sort).
+
+**Why a separate type and not a flag.** The cone is a value predicate (decision 50): the result of arithmetic is a
+``WallCondition`` iff its coordinates lie in :math:`K`. Weights of a displacement are signed, which a ``WallCondition``
+cannot hold, so the two cannot share a type without a runtime flag that every consumer would have to read.
+
+**Same operators, one exit.** A displacement defines ``+``, ``-``, unary ``-`` and scalar ``*`` through the same
+``_PairArithmetic`` as the condition, exiting through ``_combine``: ``WallCondition + WallDisplacement`` is the
+condition of the summed pair iff the sum re-enters :math:`K` (a finite-difference step and its inverse returns to a
+condition), else a displacement.
+
+**Gotchas of the displacement.**
+
+* :meth:`WallDisplacement.of` ALWAYS builds a displacement, even when the combination lies in :math:`K` (then it is
+  still unbindable and unequal to the condition of the same coordinates, since the types differ). It is the
+  constructor tests use when the operand signs must not decide the type.
+* The network and the inflow of a displacement hold the same drop rule as a condition's (a zero weight is not
+  stored, ``-0.0`` is ``0.0``).
 
 **Face-local, no orientation field anywhere.** ``WallCondition`` and the factors hold no ``axis`` and no
 ``outward_sign``: the realizer reads the face's normal from the face name, so one condition object is correct on every
@@ -78,9 +103,8 @@ from orpheus.values.scalars import parse_finite_real
 
 if TYPE_CHECKING:
     from orpheus.geometry.colouring import FaceIsometry
-    from orpheus.transport.boundary_conditions.displacement import WallDisplacement
 
-__all__ = ["BoundaryCondition", "WallCondition"]
+__all__ = ["BoundaryCondition", "WallCondition", "WallDisplacement"]
 
 
 class BoundaryCondition(ContentIdentity, ABC):
@@ -123,8 +147,6 @@ def _cone_refusal(network: ResponseNetwork, inflow: InflowTerms) -> BoundaryErro
 
 def _combine(network: ResponseNetwork, inflow: InflowTerms) -> WallCondition | WallDisplacement:
     """The ONE exit of the arithmetic: a condition iff the pair lies in the cone, else a displacement."""
-    from orpheus.transport.boundary_conditions.displacement import WallDisplacement  # the displacement module imports this one
-
     if _cone_refusal(network, inflow) is None:
         return WallCondition(network, inflow)
     return WallDisplacement(network, inflow)
@@ -132,8 +154,6 @@ def _combine(network: ResponseNetwork, inflow: InflowTerms) -> WallCondition | W
 
 def _pair_of(operand: object) -> tuple[ResponseNetwork, InflowTerms] | None:
     """``(network, inflow)`` of a condition or a displacement; None for anything else (the operator then answers NotImplemented)."""
-    from orpheus.transport.boundary_conditions.displacement import WallDisplacement
-
     if isinstance(operand, WallCondition | WallDisplacement):
         return operand.network, operand.inflow
     return None
@@ -142,7 +162,7 @@ def _pair_of(operand: object) -> tuple[ResponseNetwork, InflowTerms] | None:
 class _PairArithmetic:
     """The affine arithmetic of a ``(network, inflow)`` pair: ``+``, ``-``, unary ``-`` and scalar ``*``, ONE definition.
 
-    Shared by :class:`WallCondition` and :class:`~.displacement.WallDisplacement`, so a chain of arithmetic needs no
+    Shared by :class:`WallCondition` and :class:`WallDisplacement`, so a chain of arithmetic needs no
     narrowing; every operator exits through :func:`_combine`. ``a - b`` adds ``b`` scaled by ``-1.0``, which negates
     each coordinate exactly, so it equals the coordinate-wise difference.
     """
@@ -255,3 +275,20 @@ class WallCondition(_PairArithmetic, BoundaryCondition):
         d = parse_finite_real(diffuse, "diffuse amplitude")
         return cls(ResponseNetwork(FrozenMapping({chain: _amplitude(chain, s, d) for chain in CHAIN_ORDER})))
 
+
+@dataclass(frozen=True, eq=False)
+class WallDisplacement(_PairArithmetic, ContentIdentity):
+    """A combination outside the cone: a point of the affine hull of the wall cone times the source space. Never bindable."""
+
+    network: ResponseNetwork
+    inflow: InflowTerms
+
+    @classmethod
+    def of(cls, *terms: tuple[float, WallCondition]) -> WallDisplacement:
+        """The signed combination ``sum_i c_i x_i`` of conditions, ALWAYS a displacement."""
+        network = ResponseNetwork(FrozenMapping({}))
+        inflow = InflowTerms.empty()
+        for coefficient, condition in terms:
+            network = network + condition.network * coefficient
+            inflow = inflow + condition.inflow * coefficient
+        return cls(network, inflow)

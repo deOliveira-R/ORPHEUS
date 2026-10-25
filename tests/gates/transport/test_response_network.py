@@ -54,6 +54,7 @@ from orpheus.numerics.spaces.angular_trace_space import TraceRole
 from orpheus.values.content import FrozenMapping, content_digest
 from tests.gates._content_identity_helpers import require
 from tests.gates.transport._boundary_conditions_helpers import (
+    MODULES,
     PACKAGE_DIR,
     ROOT,
     bc,
@@ -213,7 +214,7 @@ def test_chains_compose_and_the_family_is_closed() -> None:
     require(matches_naming(_PLANTED_MATCH_OUTSIDE, _CHAIN_NAMES) == (0, []), "control: a match naming no chain is in the population")
     population, violations, sites = 0, [], []
     files = sorted(PACKAGE_DIR.glob("*.py"))
-    require(len(files) == 10, f"the scan read {len(files)} package files, not the 10 of the table")
+    require(len(files) == len(MODULES), f"the scan read {len(files)} package files, not the {len(MODULES)} of the table")
     for path in files:
         n, bad = matches_naming(path.read_text(encoding="utf-8"), _CHAIN_NAMES)
         population += n

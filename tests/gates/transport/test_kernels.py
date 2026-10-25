@@ -266,10 +266,10 @@ def test_p0_and_emission_are_what_the_iso_pair_consumes():
     """
     mat_xs, mixtures = _two_material_carrier()
     iso_scatter = IsotropicScattering.from_material_xs(
-        mat_xs, space=mat_xs.mesh.bulk_space,
+        mat_xs, space=mat_xs.space,
     ).dense_per_material()
     iso_n2n = IsotropicN2N.from_material_xs(
-        mat_xs, space=mat_xs.mesh.bulk_space,
+        mat_xs, space=mat_xs.space,
     ).dense_per_material()
 
     for mid, mixture in mixtures.items():
@@ -1140,12 +1140,12 @@ def test_g_f2_operator_dyad_is_the_kernel_datum_per_material():
 
     mat_xs, mixtures = _two_material_carrier()
     op = IsotropicFission.from_material_xs(
-        mat_xs, space=mat_xs.mesh.bulk_space,
+        mat_xs, space=mat_xs.space,
     )
     rank_one = op.kernel.ops[0]
     chi_gathered = np.asarray(rank_one.reconstruction)
     nu_gathered = np.asarray(rank_one.functional.weight)
-    for mid, idx in mat_xs.mesh.cells_by_material.items():
+    for mid, idx in mat_xs.cells_by_material.items():
         k = FissionKernel.from_mixture(mixtures[mid])
         cells = (slice(None), *idx)
         np.testing.assert_array_equal(

@@ -211,8 +211,8 @@ def material_xs_from_raw(
     option 3): real :class:`Mixture` objects carry the given Legendre
     lists and (n,2n) matrices — or (n,2n) Legendre STACKS, a list per
     material, since #426 step 2 — a real ``Mesh2D`` paints ``cells_by_mat``
-    into its ``mat_map``, and the field is built by the production
-    ``MaterialXSField.from_mesh`` — so the per-material dispatch tests
+    into its ``mat_map``, and the field is the production
+    hub's own ``MaterialMesh.mat_xs`` — so the per-material dispatch tests
     exercise the true admission + lazy dense-cache path (including the
     EE-4 read-only cache freeze) instead of pre-populated caches on a
     duck-typed mesh stub, which the space-carrying accessors of CS4b
@@ -226,7 +226,6 @@ def material_xs_from_raw(
     """
     from orpheus.mesh import Mesh2D
     from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.data.macro_xs.mixture import Mixture
 
     mat_map = np.full((nx, ny), -1, dtype=int)
@@ -265,7 +264,7 @@ def material_xs_from_raw(
         mat_map=mat_map,
         face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
     )
-    return MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
+    return MaterialMesh(mesh, materials).mat_xs
 
 
 # ── B3.2: face-ful method spaces for mesh-less realizer tests ────────

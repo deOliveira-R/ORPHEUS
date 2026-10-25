@@ -65,12 +65,17 @@ def _mix(groups: str, edges: np.ndarray | None = None):
 
 
 
+def _carrier(groups: str, edges: np.ndarray | None = None):
+    """A GENUINE unit-width one-cell carrier — for the rows that exercise the
+    carrier path (``from_mesh``, ``mesh.bulk_space``). The solver itself
+    builds no carrier since the CS4c coda; until then this helper mirrored its
+    fabricated ``from_materials`` carrier."""
+    return unit_cell_carrier({0: _mix(groups, edges)})
+
+
 def _mat_xs(groups: str, edges: np.ndarray | None = None):
-    """A facade over a GENUINE unit-width one-cell carrier — for the rows that
-    exercise the carrier path (``from_mesh``, ``mesh.bulk_space``). The solver
-    itself builds no carrier since the CS4c coda; until then this helper
-    mirrored its fabricated ``from_materials`` carrier."""
-    return unit_cell_carrier({0: _mix(groups, edges)}).mat_xs
+    """The XS field of :func:`_carrier`'s carrier (the field does not know its carrier)."""
+    return _carrier(groups, edges).mat_xs
 
 
 def _fused_loss_matrix(mat_xs) -> np.ndarray:
@@ -98,7 +103,7 @@ def test_every_homogeneous_operator_reports_the_same_space(
     edges = {False: None, True: {"2g": _EDGES_2G, "4g": _EDGES_4G}[groups]}[with_eg]
     mix = _mix(groups, edges)
     mat_xs = unit_cell_carrier({0: mix}).mat_xs
-    ng = mat_xs.mesh.ng
+    ng = mat_xs.ng
     space = _pose_space(mix)
 
     _require(space.shape == (ng, 1), f"bulk_space shape {space.shape} != ({ng}, 1)")
@@ -151,10 +156,10 @@ def test_two_group_and_four_group_sum_is_REFUSED() -> None:
     established provenance fragment (the ``_agreed_space`` pins' shared
     vocabulary — do not invent new wording)."""
     c_2g = MultiplicationOperator.from_mesh(
-        CrossSectionField.total_of(_mat_xs("2g")), _mat_xs("2g").mesh,
+        CrossSectionField.total_of(_mat_xs("2g")), _carrier("2g"),
     )
     c_4g = MultiplicationOperator.from_mesh(
-        CrossSectionField.total_of(_mat_xs("4g")), _mat_xs("4g").mesh,
+        CrossSectionField.total_of(_mat_xs("4g")), _carrier("4g"),
     )
     _require(
         c_2g.domain is not None and c_4g.domain is not None,
@@ -170,7 +175,7 @@ def test_matrix_inverse_of_2g_loss_composed_with_4g_fission_is_REFUSED() -> None
     loss_2g = HomogeneousProblem(_mix("2g")).loss
     mat_4g = _mat_xs("4g")
     f_4g = IsotropicFission.from_material_xs(
-        mat_xs=mat_4g, space=mat_4g.mesh.bulk_space,
+        mat_xs=mat_4g, space=mat_4g.space,
     )
     with pytest.raises(
         IncompatibleOperatorComposition, match="OperatorProduct requires each factor's domain"
@@ -242,14 +247,15 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
     the whole suite. It is no longer "the control beside D4a"; it is the
     load-bearing instrument.
     """
-    mat_xs = _mat_xs("2g")
+    hub = _carrier("2g")
+    mat_xs = hub.mat_xs
     w_energy = np.array([2.0, 5.0])
     weighted_space = FunctionSpace.of_axes(
         Axis("energy", (2,), weights=w_energy, origin=Declared(BasisKind.NODAL)),
         Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
     )
     collision = MultiplicationOperator.from_mesh(
-        CrossSectionField.total_of(mat_xs), mat_xs.mesh, space=weighted_space,
+        CrossSectionField.total_of(mat_xs), hub, space=weighted_space,
     )
     k_iso = IsotropicScattering.from_material_xs(mat_xs, space=weighted_space) + IsotropicN2N.from_material_xs(
         mat_xs, space=weighted_space,
@@ -286,8 +292,8 @@ def test_bulk_space_energy_arm_distinguishes_gridded_from_synthetic() -> None:
     ``tests/gates/transport/test_kernels.py``); this row is kept as the
     carrier-level delegation proof.
     """
-    bare = _mat_xs("2g").mesh.bulk_space
-    gridded = _mat_xs("2g", _EDGES_2G).mesh.bulk_space
+    bare = _mat_xs("2g").space
+    gridded = _mat_xs("2g", _EDGES_2G).space
     _require(bare.shape == gridded.shape, "precondition: same index set")
     _require(
         bare != gridded,
@@ -304,9 +310,10 @@ def test_plain_multiplier_assembles_its_own_diagonal() -> None:
     C-ravel — so the surviving claim is the emission itself:
     ``assemble().as_matrix() == diag(Σ_t)`` exactly, and its matvec IS
     ``apply`` on a bare array of the bound shape."""
-    mat_xs = _mat_xs("2g")
+    hub = _carrier("2g")
+    mat_xs = hub.mat_xs
     collision = MultiplicationOperator.from_mesh(
-        CrossSectionField.total_of(mat_xs), mat_xs.mesh,
+        CrossSectionField.total_of(mat_xs), hub,
     )
     _require(collision.domain is not None, "precondition lost: C is unbound")
     _require(collision.is_assemblable, "the plain multiplier must be assemblable")

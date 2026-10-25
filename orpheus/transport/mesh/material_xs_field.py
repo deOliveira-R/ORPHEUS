@@ -98,25 +98,13 @@ if TYPE_CHECKING:
     from orpheus.numerics.basis.indicator_basis import IndicatorBasis
     from orpheus.numerics.frame import FrameBase
     from orpheus.numerics.measure import DiscreteMeasure
-    # ``mesh`` is typed against ``MaterialMesh`` (the method-agnostic
-    # mesh+materials carrier): MaterialXSField reads ONLY MaterialMesh data
-    # (``materials`` / ``mat_map`` / ``ng`` / ``spatial_shape``) — never the
-    # quadrature/trace an ``SNProblem`` adds. This is the #267 ``MaterialXSField``
-    # slice: the field is a STANDALONE dataclass (not a ``BulkField`` subclass),
-    # so it retypes independently of the full typed-field-hierarchy split (the
-    # bulk-data vs quad/trace-dependent ``AngularField``/``AngularBoundaryField`` base
-    # split remains the #267 back-half). The MaterialMesh dependency is the
-    # method-agnostic carrier: any MaterialMesh (an SNProblem, a DiffusionMesh,
-    # a bare carrier) is admitted. The infinite-medium problem builds none
-    # since the CS4c coda — its fields are born on ``HomogeneousProblem.space``
-    # (until then a mesh-less single-region carrier was admitted here, #276).
-    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.numerics.space import FunctionSpace
 
 
 __all__ = ["MaterialXSField"]
 
 
-@dataclass
+@dataclass(eq=False)
 class MaterialXSField:
     r"""Macroscopic cross-section field over a material mesh.
 
@@ -138,19 +126,31 @@ class MaterialXSField:
         material id.  All materials must agree on ``ng`` (already
         validated by :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
         at construction).
-    mesh : MaterialMesh
-        The mesh+materials carrier — supplies ``materials``, ``mat_map``,
-        ``ng``, ``spatial_shape``.  A method-agnostic
-        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` (NOT an
-        ``SNProblem``): this field reads no quadrature/trace, so any carrier
-        in the hierarchy is admitted (the infinite-medium problem no
-        longer builds one — CS4c coda, 2026-09-08).
+    mat_map : np.ndarray
+        The region-to-material map, shape ``spatial_shape``: the material
+        id of every cell.
+    sigma_t_cell : np.ndarray
+        The per-cell total cross section, the Problem's DATUM, shape
+        ``(ng, *spatial)``: derived from the materials by default, replaced
+        on a σ-variant Problem.
+    cells_by_material : dict[int, tuple[np.ndarray, ...]]
+        The material layout, ``{mid: np.where(mat_map == mid)}``, one index
+        array per mesh axis. The mesh computes it once and every
+        per-material field over the mesh shares that one object.
+    space : FunctionSpace
+        The scalar bulk space the per-cell views live on (energy ⊗ spatial);
+        ``ng`` and ``spatial_shape`` are read from it.
+
+    The field holds its constituents and never the carrier that minted it: a
+    :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` mints it once
+    (:attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.mat_xs`), so the
+    hub owns its field and the field does not know the hub.
 
     Attributes (cached)
     -------------------
     All lazy: populated on first read of the corresponding property
     via :meth:`__post_init__`-free direct construction.  Mutating
-    the underlying :attr:`materials` / :attr:`mesh` after construction
+    the underlying constituents after construction
     is undefined behaviour — :class:`MaterialXSField` is conceptually
     frozen but uses a non-frozen dataclass to make the lazy caches
     natural.
@@ -161,13 +161,16 @@ class MaterialXSField:
     because the lazy per-cell caches mutate ``self``.  The
     frozen-with-``object.__setattr__`` workaround would obscure the
     storage discipline and complicate testing.  The "frozenness" we
-    want is content-immutability of :attr:`materials` and :attr:`mesh`,
+    want is content-immutability of the constituents,
     which Python doesn't enforce structurally but which every consumer
     of this class respects by convention.
     """
 
     materials: "Materials | Mapping[int, Mixture]"
-    mesh: "MaterialMesh"
+    mat_map: np.ndarray
+    sigma_t_cell: np.ndarray
+    cells_by_material: dict[int, tuple[np.ndarray, ...]]
+    space: "FunctionSpace"
 
     # Lazy per-cell views — populated on first access.
     _sig_t_cell: np.ndarray | None = field(default=None, init=False, repr=False)
@@ -175,12 +178,6 @@ class MaterialXSField:
     _sig_p_cell: np.ndarray | None = field(default=None, init=False, repr=False)
     _chi_cell: np.ndarray | None = field(default=None, init=False, repr=False)
     _diffusion_cell: np.ndarray | None = field(default=None, init=False, repr=False)
-    # Variadic index tuple: ``np.where`` yields one index array PER MESH
-    # AXIS, so the arity is the mesh ndim (a 1-tuple on a 1-D mesh, a
-    # 2-tuple on 2-D) — declaring a fixed 2-tuple would lie for 1-D.
-    _cells_by_mat: dict[int, tuple[np.ndarray, ...]] | None = field(
-        default=None, init=False, repr=False,
-    )
     # Cached dense (n,2n) matrices to avoid repeated ``.todense()``
     # in the (n,2n) hot path.
     _n2n_dense: dict[int, np.ndarray] | None = field(
@@ -190,26 +187,6 @@ class MaterialXSField:
     _sig_s_dense: dict[int, list[np.ndarray]] | None = field(
         default=None, init=False, repr=False,
     )
-
-    # ── Construction helpers ──────────────────────────────────────────
-
-    @classmethod
-    def from_mesh(cls, mesh: "MaterialMesh") -> "MaterialXSField":
-        """Build the XS field directly from the mesh's authoritative materials.
-
-        Standard constructor — the materials dict already lives on the
-        mesh (Issue #197 PR-TYPED-0).  Reads only
-        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` data
-        (``mesh.materials`` / ``mesh.mat_map`` / ``mesh.ng`` /
-        ``mesh.spatial_shape``), so it accepts any
-        :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` — the
-        meshed SN :class:`~orpheus.sn.problem.SNProblem` (a
-        ``MaterialMesh`` subclass), a ``DiffusionMesh``, or a bare carrier
-        (until the CS4c coda also the retired mesh-less single-region
-        carrier of the 0-D homogeneous medium, #276).  The parameter is
-        honestly typed ``MaterialMesh`` (#267 slice).
-        """
-        return cls(materials=mesh.materials, mesh=mesh)
 
     # ── Homogenisation: project the whole field through coarse frames ──
 
@@ -416,7 +393,7 @@ class MaterialXSField:
 
     def _mat_of_fine(self) -> np.ndarray:
         """Material id per fine cell, ``(n_fine,)`` in "ij" flat order."""
-        return np.asarray(self.mesh.mat_map, dtype=int).ravel()
+        return np.asarray(self.mat_map, dtype=int).ravel()
 
     def _gather_vector(self, attr: str) -> np.ndarray:
         """Per-fine-cell view of a ``(ng,)`` Mixture channel — ``(n_fine, ng)``."""
@@ -529,8 +506,8 @@ class MaterialXSField:
         here (Pattern 2). Lazy + cached like the sibling views.
         """
         if self._diffusion_cell is None:
-            ng = self.mesh.ng
-            spatial = self.mesh.spatial_shape
+            ng = self.ng
+            spatial = self.spatial_shape
             # D = 1/(3 Σ_tr) per CELL from the hub's σ_t DATUM and the material's
             # P1 outflow (C3b-2, 2026-09-14): bit-identical to the per-material
             # ``Mixture.diffusion_coefficient`` gather on a non-overridden hub
@@ -540,7 +517,7 @@ class MaterialXSField:
                 mid: np.asarray(mix.p1_outflow, dtype=float)
                 for mid, mix in self.materials.items()
             }
-            flat_ids = np.asarray(self.mesh.mat_map, dtype=int).ravel()
+            flat_ids = np.asarray(self.mat_map, dtype=int).ravel()
             # (N_cells, ng) gather → the principled (ng, *spatial) layout
             # (the ``_ensure_cell_views`` .T.reshape convention).
             p1_outflow = np.array([per_material[int(m)] for m in flat_ids]).T.reshape(ng, *spatial)
@@ -564,45 +541,21 @@ class MaterialXSField:
         flat representation and the principled per-cell ``(ng, nx, ny)``
         layout.
         """
-        xs = assemble_cell_xs(self.materials, self.mesh.mat_map)
-        ng = self.mesh.ng
-        spatial = self.mesh.spatial_shape
+        xs = assemble_cell_xs(self.materials, self.mat_map)
+        ng = self.ng
+        spatial = self.spatial_shape
         # .T.reshape: producer emits (N_cells, ng); flip to (ng, N_cells)
         # then split N_cells back into (*spatial) — the principled
         # (ng, *spatial) layout (rank == ndim; no phantom ny=1 on 1-D).
         # σ_t is the Problem's DATUM (``MaterialMesh.sigma_t_cell`` — derived
         # from the materials by default, replaced on a σ-variant Problem);
         # the three other views are assembled from the materials here.
-        self._sig_t_cell = self.mesh.sigma_t_cell
+        self._sig_t_cell = self.sigma_t_cell
         self._sig_a_cell = xs.sig_a.T.reshape(ng, *spatial)
         self._sig_p_cell = xs.sig_p.T.reshape(ng, *spatial)
         self._chi_cell = xs.chi.T.reshape(ng, *spatial)
 
     # ── Per-material accessors (source of truth) ─────────────────────
-
-    @property
-    def cells_by_material(self) -> dict[int, tuple[np.ndarray, ...]]:
-        r"""Per-material cell-index arrays — cached.
-
-        For each material id, returns the ``np.where`` index tuple such
-        that ``mat_map[indices] == mid`` everywhere — one index array
-        PER MESH AXIS (``(ix,)`` on a 1-D mesh, ``(ix, iy)`` on 2-D).
-        This is the single index map the formerly-leaked per-material
-        dispatch loops keyed on.  Most consumers should NOT use this
-        directly — call one of the typed verbs
-        (the kernel fields' ``add_p0_source`` / ``moment_source``
-        family since CS4c step 3) that
-        encapsulates the loop.
-
-        Returns
-        -------
-        dict[int, tuple[np.ndarray, ...]]
-            ``{mid: indices}`` for every material id in
-            :attr:`materials`; the tuple arity is the mesh ndim.
-        """
-        # CS4c 3a: the partition moved to its native place — the mesh owns
-        # its layout machinery; this facade read-through rides until F-1.
-        return self.mesh.cells_by_material
 
     def sig_s_legendre(self, material_id: int) -> list[np.ndarray]:
         r"""Per-material list of dense Legendre scattering matrices.
@@ -671,18 +624,18 @@ class MaterialXSField:
 
     @property
     def ng(self) -> int:
-        """Energy group count — read-through from :attr:`mesh`."""
-        return self.mesh.ng
+        """Energy group count, the energy factor's width of :attr:`space`."""
+        return self.space.shape[0]
 
     @property
     def spatial_shape(self) -> tuple[int, ...]:
-        """Per-axis cell counts — read-through from :attr:`mesh`.
+        """Per-axis cell counts, the spatial factor's shape in :attr:`space`.
 
         C5.2 (#225): replaces the retired ``nx``/``ny`` pair — ONE
         rank-generic metadata read-through instead of two d-bound ones
         (``ny`` lied at d=1 and silently truncated at d≥3).
         """
-        return self.mesh.spatial_shape
+        return tuple(self.space.shape[1:])
 
     # ── The typed apply_* verbs LIVED here until CS4c step 3c ─────────
     # (O-6/R13): the eight per-material dispatch arms + add_n2n_to_group_rate

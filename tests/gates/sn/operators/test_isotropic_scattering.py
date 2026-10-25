@@ -78,7 +78,7 @@ def _space(mat, spatial_moments=0):
     spelling of what the LD rows were always exercising (the per-material
     einsum is spatial-moment-agnostic, #240 D5b-S3).
     """
-    bulk = mat.mesh.bulk_space
+    bulk = mat.space
     if spatial_moments == 0:
         return bulk
     return FunctionSpace.of_axes(
@@ -124,8 +124,8 @@ class TestApplyEqualsFastPath:
         accumulation (``0 + A`` is exact, so the OperatorSum reorders nothing)."""
         mat = _mat_xs()
         phi = _phi()
-        iso_op = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space)
-        n2n_op = IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space)
+        iso_op = IsotropicScattering.from_material_xs(mat, space=mat.space)
+        n2n_op = IsotropicN2N.from_material_xs(mat, space=mat.space)
         combined = iso_op.apply(phi) + n2n_op.apply(phi)
         inplace = np.zeros_like(phi)
         iso_op.transfer.add_p0_source(inplace, phi)
@@ -166,7 +166,7 @@ class TestTranspose:
         """
         mat = _mat_xs()
         chi = _phi(seed=3)
-        got = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space).apply_transpose(chi)
+        got = IsotropicScattering.from_material_xs(mat, space=mat.space).apply_transpose(chi)
         want = np.zeros_like(chi)
         for mid, (ix, iy), sig in [(0, mat.cells_by_material[0], _SIGS0_A),
                                    (1, mat.cells_by_material[1], _SIGS0_B)]:
@@ -184,7 +184,7 @@ class TestTranspose:
         carries the factor 2 (drop-factor-2 / fold-into-scatter would red)."""
         mat = _mat_xs()
         phi = _phi(seed=5)
-        iso, n2n = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space).apply(phi), IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space).apply(phi)
+        iso, n2n = IsotropicScattering.from_material_xs(mat, space=mat.space).apply(phi), IsotropicN2N.from_material_xs(mat, space=mat.space).apply(phi)
         require(not np.allclose(iso, n2n),
                 "IsotropicN2N must be a distinct channel from IsotropicScattering.")
         # factor 2: n2n.apply == 2 × (Σ_2nᵀ @ φ) per material
@@ -210,7 +210,7 @@ class TestDensePerMaterial:
     def test_iso_dense_is_operator_matrix(self, factory, xs):
         mat = _mat_xs()
         dense = factory.from_material_xs(
-            mat, space=mat.mesh.bulk_space,
+            mat, space=mat.space,
         ).dense_per_material()
         for mid, sig in xs.items():
             np.testing.assert_array_equal(
@@ -220,7 +220,7 @@ class TestDensePerMaterial:
 
     def test_n2n_dense_is_two_sig2_transpose(self):
         mat = _mat_xs()
-        dense = IsotropicN2N.from_material_xs(mat, space=mat.mesh.bulk_space).dense_per_material()
+        dense = IsotropicN2N.from_material_xs(mat, space=mat.space).dense_per_material()
         for mid, sig in {0: _SIG2_A, 1: _SIG2_B}.items():
             np.testing.assert_array_equal(dense[mid], 2.0 * sig.T)
 
@@ -228,7 +228,7 @@ class TestDensePerMaterial:
         r"""``M @ φ_cell`` (the LHS-fold consumption mode) ≡ ``apply(φ)_cell``."""
         mat = _mat_xs()
         phi = _phi(seed=7)
-        op = IsotropicScattering.from_material_xs(mat, space=mat.mesh.bulk_space)
+        op = IsotropicScattering.from_material_xs(mat, space=mat.space)
         dense, got = op.dense_per_material(), op.apply(phi)
         mat_of = {0: mat.cells_by_material[0], 1: mat.cells_by_material[1]}
         for mid, (ix, iy) in mat_of.items():
@@ -249,7 +249,7 @@ class TestPredicates:
     @pytest.mark.parametrize("factory", [IsotropicScattering, IsotropicN2N])
     def test_apply_and_transpose_not_solve(self, factory):
         op = factory.from_material_xs(
-            (_m := _mat_xs()), space=_m.mesh.bulk_space,
+            (_m := _mat_xs()), space=_m.space,
         )
         require(callable(getattr(op, "apply", None)), "must expose apply.")
         require(op.is_adjointable,

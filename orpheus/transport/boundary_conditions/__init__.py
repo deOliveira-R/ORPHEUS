@@ -11,16 +11,15 @@ the wave-2 crosswalk section of the same theory page.
 
 * :mod:`.network`: the factors, the closed chain sum, :class:`ResponseNetwork`;
 * :mod:`.inflow`: the affine part :math:`q`;
-* :mod:`.condition`, :mod:`.displacement`: the conditions and their cone arithmetic;
+* :mod:`.condition`: the conditions, the displacements outside the cone, and their arithmetic;
 * :mod:`.errors`, :mod:`.declared`, :mod:`.binding`: the refusals, the twin of ``Materials``, the binding;
 * :mod:`.admission`, :mod:`.realization`: the admission lattice and the realizer tables.
 """
 
 from orpheus.transport.boundary_conditions.admission import Admission, Approximated, FaceSite, Realized, RefusalAxis, Refused, SiteClass, hollow_inner_refusal
 from orpheus.transport.boundary_conditions.binding import Binding, BoundaryCarrier, bind
-from orpheus.transport.boundary_conditions.condition import BoundaryCondition, WallCondition
+from orpheus.transport.boundary_conditions.condition import BoundaryCondition, WallCondition, WallDisplacement
 from orpheus.transport.boundary_conditions.declared import BoundaryConditions
-from orpheus.transport.boundary_conditions.displacement import WallDisplacement
 from orpheus.transport.boundary_conditions.errors import (
     BoundaryError,
     BoundaryRefused,

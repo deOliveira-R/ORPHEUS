@@ -238,7 +238,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
                 mid: TransferKernel.scattering(mat_xs.materials[mid])
                 for mid in mat_xs.materials
             },
-            cells_by_material=mat_xs.mesh.cells_by_material,
+            cells_by_material=mat_xs.cells_by_material,
         )
 
     @classmethod
@@ -250,7 +250,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
                 mid: TransferKernel.n2n(mat_xs.materials[mid])
                 for mid in mat_xs.materials
             },
-            cells_by_material=mat_xs.mesh.cells_by_material,
+            cells_by_material=mat_xs.cells_by_material,
         )
 
     @property
@@ -448,7 +448,7 @@ class FissionMaterialField(MaterialField[FissionKernel]):
                 mid: FissionKernel.from_mixture(mat_xs.materials[mid])
                 for mid in mat_xs.materials
             },
-            cells_by_material=mat_xs.mesh.cells_by_material,
+            cells_by_material=mat_xs.cells_by_material,
         )
 
     def gather_chi(self, spatial_shape: tuple[int, ...]) -> np.ndarray:

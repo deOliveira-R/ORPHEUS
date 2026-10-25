@@ -258,7 +258,7 @@ class TestTruncationAndSharing:
 
     def test_mesh_layout_is_cached(self):
         mat_xs = _mat_xs()
-        if mat_xs.mesh.cells_by_material is not mat_xs.mesh.cells_by_material:
+        if mat_xs.cells_by_material is not mat_xs.cells_by_material:
             pytest.fail("MaterialMesh.cells_by_material must be cached")
 
 
@@ -562,7 +562,6 @@ class TestFissionIndependentReference:
         from orpheus.mesh import Mesh2D
         from orpheus.transport.material_field import FissionMaterialField
         from orpheus.transport.mesh.material_mesh import MaterialMesh
-        from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
         z = np.zeros(_NG)
         materials = {
@@ -586,7 +585,7 @@ class TestFissionIndependentReference:
             mat_map=mat_map,
             face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
         )
-        mat_xs = MaterialXSField.from_mesh(MaterialMesh(mesh, materials))
+        mat_xs = MaterialMesh(mesh, materials).mat_xs
         ff = FissionMaterialField.from_material_xs(mat_xs)
         np.testing.assert_array_equal(
             ff.gather_chi((_NX, 1)), mat_xs.emission_spectrum,

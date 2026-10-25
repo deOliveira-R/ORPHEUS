@@ -147,7 +147,7 @@ class TestSFamilyTierTwoEquivalence:
 
     def test_iso_pair_from_material_xs_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
-        space = mat_xs.mesh.bulk_space
+        space = mat_xs.space
         rich = IsotropicScattering.from_material_xs(mat_xs, space=space)
         exact = IsotropicScattering(
             TransferMaterialField.scattering(mat_xs).at_order(0),

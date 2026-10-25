@@ -131,14 +131,14 @@ class CrossSectionField(CoefficientRole, ScalarField):
     @classmethod
     def total_of(cls, xs: "MaterialXSField") -> "CrossSectionField":
         r""":math:`\Sigma_t` of ``xs`` as a typed field (1/cm)."""
-        return cls(values=xs.total_cross_section, space=xs.mesh.bulk_space)
+        return cls(values=xs.total_cross_section, space=xs.space)
 
     @classmethod
     def absorption_of(cls, xs: "MaterialXSField") -> "CrossSectionField":
         r""":math:`\Sigma_a` of ``xs`` as a typed field (1/cm)."""
-        return cls(values=xs.absorption_cross_section, space=xs.mesh.bulk_space)
+        return cls(values=xs.absorption_cross_section, space=xs.space)
 
     @classmethod
     def fission_production_of(cls, xs: "MaterialXSField") -> "CrossSectionField":
         r""":math:`\nu\Sigma_f` of ``xs`` as a typed field (1/cm)."""
-        return cls(values=xs.fission_production, space=xs.mesh.bulk_space)
+        return cls(values=xs.fission_production, space=xs.space)

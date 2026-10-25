@@ -16,10 +16,11 @@ and #2):
 * **G5.1 (the S5 retirement gate)** — the mesh-keyed sugar tier
   (``from_mesh`` / ``zeros_on`` / ``from_ndarray``) is GONE from every
   concrete field leaf, and the composite allocators are space-keyed.
-  The named survivors are the NON-field tiers: ``MaterialXSField.
-  from_mesh`` (mesh→container assembly), ``MultiplicationOperator.
-  from_mesh`` (operator tier), the BC factories, and the S6-pending
-  moment-family keyed factories.
+  The named survivors are the NON-field tiers: the hub's own
+  ``MaterialMesh.mat_xs`` (mesh→container assembly; the XS field takes its
+  constituents and holds no mesh, so ``MaterialXSField.from_mesh`` is
+  retired), ``MultiplicationOperator.from_mesh`` (operator tier), the BC
+  factories, and the S6-pending moment-family keyed factories.
 
 The Q1 flip's witness (the residual rides the operands' shared mint)
 lives with the residual tests (``test_typed_residuals`` /
@@ -30,6 +31,8 @@ witnesses live with the composite tests (the twin-carrier legs).
 from __future__ import annotations
 
 import dataclasses
+import functools
+import inspect
 
 import numpy as np
 import pytest
@@ -236,8 +239,12 @@ class TestG51SugarTierRetired:
             HarmonicMomentFlux,
         )
 
-        if not callable(getattr(MaterialXSField, "from_mesh", None)):
-            pytest.fail("MaterialXSField.from_mesh (assembly tier) missing")
+        from orpheus.transport.mesh.material_mesh import MaterialMesh
+
+        if not isinstance(inspect.getattr_static(MaterialMesh, "mat_xs", None), functools.cached_property):
+            pytest.fail("MaterialMesh.mat_xs (assembly tier, the hub mints its field) missing")
+        if hasattr(MaterialXSField, "from_mesh") or "mesh" in {f.name for f in dataclasses.fields(MaterialXSField)}:
+            pytest.fail("MaterialXSField knows its carrier again (from_mesh or a mesh field): the field takes its constituents")
         if not callable(getattr(MultiplicationOperator, "from_mesh", None)):
             pytest.fail("MultiplicationOperator.from_mesh (operator tier) missing")
         if not callable(getattr(HarmonicMomentFlux, "from_problem_and_L", None)):

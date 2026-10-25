@@ -71,6 +71,7 @@ from orpheus.mesh import (
 from orpheus.geometry.colouring import UncomputedSymmetries, colouring_symmetry
 from orpheus.mesh.axis import roles_of_axes
 from orpheus.transport.boundary_conditions.admission import FaceSite
+from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
@@ -78,7 +79,6 @@ if TYPE_CHECKING:
     from orpheus.geometry.colouring import Symmetries
     from orpheus.geometry.deck import FaceRole
     from orpheus.transport.boundary_conditions.declared import BoundaryConditions
-    from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
 __all__ = ["MaterialMesh", "conditions_key"]
@@ -361,18 +361,24 @@ class MaterialMesh:
         """The macroscopic XS field of THIS Problem — minted once per hub.
 
         A :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
-        wrapping the per-material :class:`Mixture` data plus this mesh's
-        ``mat_map`` and its :attr:`sigma_t_cell` datum — the single source of
-        truth for both per-cell and per-material XS access used by every
-        transport operator.  Cached on the hub (consumers campaign step 2,
-        O-6): every consumer of one Problem shares one field; a σ-variant
-        Problem (:meth:`with_cross_sections`) owns another.  Lazy import of
-        :mod:`.material_xs_field` to avoid a circular dependency at module
-        import time.
+        built from this hub's constituents: the per-material :class:`Mixture`
+        data, the ``mat_map``, the :attr:`sigma_t_cell` datum, the shared
+        :attr:`cells_by_material` layout and the :attr:`bulk_space` its
+        per-cell views live on. It is the single source of truth for both
+        per-cell and per-material XS access used by every transport operator.
+        Cached on the hub (consumers campaign step 2, O-6): every consumer of
+        one Problem shares one field; a σ-variant Problem
+        (:meth:`with_cross_sections`) owns another. The hub owns its field and
+        the field does not know the hub, so this module imports the field's
+        and not the reverse.
         """
-        from orpheus.transport.mesh.material_xs_field import MaterialXSField
-
-        return MaterialXSField.from_mesh(self)
+        return MaterialXSField(
+            materials=self.materials,
+            mat_map=self.mat_map,
+            sigma_t_cell=self.sigma_t_cell,
+            cells_by_material=self.cells_by_material,
+            space=self.bulk_space,
+        )
 
     def with_cross_sections(self, sigma_t_cell: np.ndarray) -> "MaterialMesh":
         """A NEW Problem over the same phase space with the per-cell
@@ -495,10 +501,10 @@ class MaterialMesh:
         machinery), cached once, and is SHARED by every per-material
         field built over this mesh
         (:class:`~orpheus.transport.material_field.MaterialField` — the
-        CS4c kernel fields — and, transitionally, the
+        CS4c kernel fields — and the
         :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`
-        facade's read-through) — no consumer recomputes the ``where``
-        partition.
+        facade, which receives this object as a constituent) — no consumer
+        recomputes the ``where`` partition.
 
         A material declared but UNUSED on the map yields empty index
         arrays — harmless to every accumulation verb (empty fancy

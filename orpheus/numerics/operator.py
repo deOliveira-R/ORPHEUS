@@ -2744,7 +2744,7 @@ class _WrappedForward(Protocol):
     algorithm need: :class:`InverseOperator` to
     :class:`_InvertibleForward`;
     :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` to the
-    schedule-triangular union;
+    nominal schedule-triangular family;
     :class:`~orpheus.numerics.green_operator.GreenOperator` to the
     difference :math:`M - N` of its split; ``MatrixInverseOperator`` to
     :class:`LinearOperator` (its guard needs :meth:`~LinearOperator.as_matrix`).
@@ -2811,9 +2811,8 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
     keyword: pyright rejects an override that drops it (LSP), and
     ``ABCMeta`` blocks instantiating a sibling that fails to implement
     it.  Members with no use for a start accept-and-ignore, documented
-    per type (an exact inverse has nothing to seed; the sweep threads it
-    into the curvilinear Carlson closure; the Green threads it as its
-    splitting iteration's start).
+    per type (an exact inverse, the direct sweep included, has nothing to
+    seed; the Green threads it as its splitting iteration's start).
 
     Siblings keep exactly three things of their own: the constructor
     GUARD (what makes their ``inner`` invertible — a value check, a
@@ -2994,9 +2993,9 @@ class InverseOperator(_KeyedEquality, InverseWrapMixin[_InvertibleForward], Line
         signature: iterative drivers thread the previous
         iterate uniformly, with no per-type signature probes.  An EXACT
         pointwise inverse has no use for a starting point — the argument is
-        accepted and unused (contrast
-        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, whose
-        sweep threads it into the curvilinear Carlson closure).
+        accepted and unused, as on the direct
+        :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` (the
+        curvilinear starting direction is computed from the source, #282).
         """
         del initial_guess  # exact inverse — no iterative start to seed
         return self.inner.solve(x)

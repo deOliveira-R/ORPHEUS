@@ -2114,9 +2114,9 @@ them.  Trust ``git``, not this column.
        <orpheus.sn.problem.SNProblem.angular_trial_space>`, the
        scheme-widened angular mint, ``is``-shared at every width.  Two
        survivors are NOT sugar and stay by design —
-       :meth:`MaterialXSField.from_mesh
-       <orpheus.transport.mesh.material_xs_field.MaterialXSField.from_mesh>`
-       (assembly tier) and :meth:`MultiplicationOperator.from_mesh
+       ``MaterialXSField.from_mesh`` (assembly tier; retired 2026-10-25,
+       when the field took its constituents and the hub's ``mat_xs`` became
+       the one mint) and :meth:`MultiplicationOperator.from_mesh
        <orpheus.transport.operators.multiplication_operator.MultiplicationOperator.from_mesh>`
        (operator tier).  **(4) The angular reduction and the isotropic
        source projection have ONE realization each** (S6): the space mints
