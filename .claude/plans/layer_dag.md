@@ -229,6 +229,13 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
 3. `git merge --ff-only refactor/wave2-boundary-carve` on `main`, then push and watch CI (`gh run watch`).
    - The main checkout holds uncommitted copies of the cross-domain-attacker's and the elegance-enforcer's memory, which are now committed on the branch. Back them up and `git checkout` those four files before the ff, or the merge refuses.
    - Then remove the carve worktree and delete the branch.
+**Close-out, done (2026-10-24, late night).** Steps 1 to 3 above are done:
+- the full suite at `a4992f00` was green (19 152 passed, 0 failed; plan §11.8);
+- the user's ruling on the trial: the surgical-carve exception STAYS as written; a request from the user to execute a dynamic workflow is itself the deliberate overrule; the trial's quality is judged together, and its outcome feeds the workflow templates;
+- wave 2 is merged @ `a4992f00` (`main` fast-forwarded to `2a3cdfed`). CI on `a4992f00` was red on the pyright ratchet (mesh 0 to 4), which the worktree's vacuous pyright (#640) let through; fixed at the root by `ae9779ee` (two annotations widened to accept a float array), and CI on `ae9779ee` is green on every step, Sphinx strict included.
+- The worktree is removed and the branch deleted; its scratch is copied to the main `scratch/` at the same paths.
+- The main checkout holds three stale bytecode-only directories (`orpheus/geometry/boundary`, `orpheus/transport/source_sinks`, `orpheus/transport/sources`) that import as namespace packages and redden `test_the_boundary_package_is_gone` and `test_the_boundary_tag_and_its_package_are_gone` LOCALLY (CI's clean checkout has none); delete them.
+
 4. Then the backlog this wave left open:
    - #546 (CP vacuum omits leakage; a new witness, the Sood sphere, commented 2026-10-24);
    - #547 (MC on a cylinder);
