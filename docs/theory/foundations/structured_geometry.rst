@@ -18,20 +18,32 @@ Key facts
   four keyword-only fields: the coordinate system ``coord`` (a
   :class:`~orpheus.geometry.coord.CoordSystem` member), the
   ``breakpoints`` :math:`r_0 < r_1 < \dots < r_R`, one material id per
-  interval :math:`[r_k, r_{k+1}]` in ``mat_ids``, and one boundary law
-  per boundary point in ``boundaries`` (a
-  :class:`~orpheus.geometry.boundary.BC` tag or a typed
-  ``BoundaryTraceLaw``). **No cell counts, no critical-dimension
-  scalars, no energy-group count, no infinite-medium kind.** The field
-  set is :ref:`structured-geometry-value`.
+  interval :math:`[r_k, r_{k+1}]` in ``mat_ids``, and one face role per
+  boundary point in ``face_roles``: a deck
+  (:class:`~orpheus.geometry.deck.MirrorDeck` or
+  :class:`~orpheus.geometry.deck.TranslationDeck`) where the domain
+  continues across the face, an ``int`` tag where it ends. **The
+  geometry names no boundary response**: a tag says which faces share an
+  exterior model and never what the model is, and the binding of tags to
+  conditions is supplied where the method is known. **No cell counts, no
+  critical-dimension scalars, no energy-group count, no infinite-medium
+  kind.** The field set is :ref:`structured-geometry-value`, and the two
+  kinds of role are :ref:`structured-geometry-face-role`.
 * **The boundary is derived, not declared.** The boundary points are
   the topological boundary of :math:`[r_0, r_R]` in the coordinate
   system, read by the derived property ``boundary_points``: two on a
   slab, one (the outer surface) on a solid cylinder or sphere, whose
-  centre :math:`r = 0` is an interior point and carries no law, and two
+  centre :math:`r = 0` is an interior point and carries no role, and two
   (inner, outer) on a hollow cylinder or sphere (:math:`r_0 > 0`). The
-  constructor refuses a law count that disagrees, and refuses ``None``
-  as a law (:ref:`structured-geometry-derived-boundary`).
+  constructor refuses a role count that disagrees, refuses ``None`` as a
+  role, and refuses a deck on a radial face
+  (:ref:`structured-geometry-derived-boundary`).
+* **The symmetry is the geometry's.** ``StructuredGeometry.symmetry`` is
+  the part of the mirror group :math:`x \mapsto (r_0 + r_R) - x` that the
+  material runs and the two end roles respect. It is computed from the
+  breakpoints, the material ids and the end roles, never from a mesh's
+  cells, so one (geometry, binding) pair is admitted or refused for every
+  mesh of it (:ref:`structured-geometry-colouring-symmetry`).
 * **Breakpoints are stored bit for bit, never re-derived.** Re-adding a
   stack's widths loses bits (``(0, .17, .45, .62, 1.0)`` comes back as
   ``(0.0, 0.17, 0.45000000000000007, 0.6200000000000001, 1.0)``), so a
@@ -40,7 +52,7 @@ Key facts
   the left fold :math:`r_{k+1} = r_k + t_k`
   (:ref:`structured-geometry-stored-breakpoints`).
 * **Equality and hash are content, through one encoder.** The geometry,
-  its boundary laws, the ``BC`` tags, the mesh, its ``FaceLaws``, the
+  its decks, the mesh, its :class:`~orpheus.mesh.face_roles.FaceRoles`, the
   mixtures and the ``Materials`` declaration all derive ``==`` and
   ``hash`` from one content digest,
   :func:`~orpheus.values.content.content_digest` (blake2b-256 of a
@@ -82,14 +94,17 @@ Key facts
   the mode law, the system) exists yet: #529
   (:ref:`structured-geometry-question-values`).
 * **Hollow cylinders and spheres are declarable, and every method
-  refuses a declared law it would drop.** S\ :sub:`N` and diffusion
-  admit only a reflective inner law on a hollow body (#511), which is
-  verified to be the void cavity it models; CP admits a slab only with
-  a reflective left law, the mirror its slab kernel computes at the left
-  face whatever is declared there, and no inner law (#513); MoC admits only a
-  solid cylinder (#514); MC admits only a slab or a solid cylinder, and
-  only a ``periodic`` left law (#513).
-  Each refusal is a ``NotImplementedError`` at the method's own door
+  refuses a role it would drop.** The inner face of a hollow body is a
+  tag. S\ :sub:`N` and diffusion admit at it only the unit specular wall
+  (a specular return of weight 1), verified to be the void cavity it models (#511); CP
+  admits a slab only with a ``MirrorDeck`` on the left face, the mirror
+  its slab kernel computes there whatever is declared, and no inner
+  condition (#513); MoC admits only a solid cylinder (#514); MC admits
+  only a slab or a solid cylinder, a slab only with the translation deck
+  on both faces (#513). A refused wall is a ``BoundaryRefused`` (a
+  ``ValueError`` that carries the face and the admission) raised by the
+  method's realizer table; the hollow-body guards of MoC and MC are a
+  ``NotImplementedError`` at the method's own door
   (:ref:`structured-geometry-hollow-inner-law`).
 * The geometry → mesh transition is **the single explicit point**
   where discretization information enters the pipeline. A
@@ -101,7 +116,7 @@ Key facts
   ``Mesher(geom).partition(rule).mesh``, whose first edge is
   :math:`r_0` and whose last is :math:`r_R`. The mesh holds the
   coordinate system, the cells, a region label per cell with the region →
-  material map, and a law per boundary face, and no geometry; the geometry owns the measure, which
+  material map, and a role per boundary face, and no geometry; the geometry owns the measure, which
   has one definition (:ref:`structured-geometry-mesh`).
 * Reference solvers (``MomentSpace``, ``Spectrum``, ``BasisSpace``)
   take ``(geometry: StructuredGeometry, materials,
@@ -117,13 +132,14 @@ Key facts
   are read by one function too,
   :func:`~orpheus.derivations.common.reference_body.specular_albedos`,
   as one specular albedo per boundary point. Each generator serves the
-  shapes and the laws its solvers solve and refuses the rest through
+  shapes and the face roles its solvers solve and refuses the rest through
   one door,
   :func:`~orpheus.derivations.common.reference_body.refuse_unserved`
-  (the table of which generator serves which shape under which laws:
+  (the table of which generator serves which shape under which roles:
   :ref:`structured-geometry-reference-body`). The characteristic
-  reference reads no body shape: it reads each boundary point's law
-  from the law's two factors, the deck and the response
+  reference reads no body shape: it reads each boundary point's face
+  role, a deck or a tag that the specification's exterior binds to
+  :class:`~orpheus.specification.exterior.WallAmplitudes`
   (:ref:`characteristic-walls`), and poses every concentric body, solid
   or hollow, of any number of regions.
 * Discrete production solvers take ``(materials, mesh, params)``
@@ -148,14 +164,17 @@ Key facts
   :class:`StructuredGeometry`:
   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.wigner_seitz_pin_cell`
   (a solid cylinder with the ``r_cell = pitch / √π`` equal-area
-  transformation, its radii stored as literal breakpoints)
+  transformation, its radii stored as literal breakpoints, and the tag
+  ``0`` on its outer surface: it is ``cylinder(outer=0)`` on the same
+  breakpoints, and the Wigner–Seitz model binds the tag to
+  ``WallCondition.white()`` where the method is known)
   and
   :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.pwr_slab_half_cell`
-  (a Cartesian half-cell from the reflective fuel-centre symmetry
-  plane, built by ``from_thicknesses``). Each carries its model's laws
-  and takes no law argument: white on the Wigner–Seitz cell's outer
-  surface, reflective on both faces of the half-cell (candidate 9 of
-  :ref:`structured-geometry-mesh-refuted`).
+  (a Cartesian half-cell from the fuel-centre symmetry plane, built by
+  ``from_thicknesses``, a ``MirrorDeck`` on both faces). Each carries its
+  model's roles and takes no role argument: the cell's white closure is
+  the consumer's binding and the half-cell's two mirrors are decks
+  (candidate 9 of :ref:`structured-geometry-mesh-refuted`).
 
 
 Architectural role
@@ -176,8 +195,8 @@ Phase F separates the three concerns into three layers:
 
 1. **Geometry layer** —
    :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`.
-   Pure shape and boundary laws: a coordinate system, breakpoints, a
-   material id per interval, a law per boundary point. No cell counts.
+   Pure shape and face roles: a coordinate system, breakpoints, a
+   material id per interval, a role per boundary point. No cell counts.
    No scalars from a published table.
 2. **Mesh layer** —
    :class:`~orpheus.mesh.structured.Mesh1D`, the
@@ -211,11 +230,11 @@ instead of carrying a cell count it never uses.
 
 .. _structured-geometry-value:
 
-The value: coordinate system, breakpoints, materials, laws
-==========================================================
+The value: coordinate system, breakpoints, materials, roles
+===========================================================
 
 A :class:`StructuredGeometry` is an interval of positions in one
-coordinate system, cut into material intervals, with a boundary law at
+coordinate system, cut into material intervals, with a face role at
 every point of its boundary. Its four fields are keyword-only, so every
 construction names each of them, and the dataclass is frozen:
 
@@ -251,31 +270,44 @@ construction names each of them, and the dataclass is frozen:
        the geometry. Inside-out on a cylinder or a sphere, left to
        right on a slab. Adjacent intervals may share a material (an
        interval boundary need not be a material boundary).
-   * - ``boundaries``
+   * - ``face_roles``
      - a sequence, stored as a ``tuple``, one entry per boundary point,
-       each a :class:`~orpheus.geometry.boundary.BC` tag or a typed
-       ``BoundaryTraceLaw``; a non-sequence (a string included) and a
-       ``None`` entry are a ``TypeError``
-     - The law each boundary point carries, paired one to one with
-       ``boundary_points`` in the order (inner, outer). A typed law is
-       admitted beside the tag because a tag cannot carry a function (a
-       prescribed inflow whose source is a manufactured solution), and
-       declaring such a law on the geometry is what makes it survive the
-       method-mesh rebuild every public solver entry performs.
+       each a deck (:class:`~orpheus.geometry.deck.MirrorDeck`,
+       :class:`~orpheus.geometry.deck.TranslationDeck`) or an ``int`` tag;
+       a non-sequence (a string included) is a ``TypeError``, and so is a
+       ``None`` or a ``bool`` entry
+     - The role each boundary point carries, paired one to one with
+       ``boundary_points`` in the order (inner, outer). A deck says the
+       domain continues across the face, a tag says it ends there and
+       names the exterior model the problem binds to it
+       (:ref:`structured-geometry-face-role`). A deck on a face of a
+       radial chart is a :class:`~orpheus.geometry.deck.DeckError`, and a
+       translation needs a translation on the opposite face. A tag is an
+       integer and never a typed function, so the geometry always has
+       content identity (:ref:`structured-geometry-content-identity`),
+       whatever the exterior model is.
 
-Three properties are derived, never stored: ``is_hollow`` and
-``boundary_points`` (the next section), and
+Five properties are derived, never stored: ``is_hollow`` and
+``boundary_points`` (the next sections), ``tags`` (the tags the faces
+carry, the decks excluded), ``symmetry``
+(:ref:`structured-geometry-colouring-symmetry`) and
 :attr:`StructuredGeometry.domain_extent_cm`, the width
 :math:`r_R - r_0` of the interval of positions. The three sequence
 fields are parsed alike: any sequence is canonicalised to a tuple (of
-``float``, of ``int``, of laws), and a non-sequence, a string included,
+``float``, of ``int``, of roles), and a non-sequence, a string included,
 is refused with a ``TypeError`` naming the field.
 
-**The geometry never interprets a law.** It checks that each entry is a
-law and that there is one per boundary point; what a ``BC`` tag means
-(what ``"white"`` does to the returning flux, whether a method supports
-``"albedo"``) is resolved by each method's mesh through its own
-admission table, at solver construction.
+**The geometry never interprets a role.** It checks that each entry is
+a deck or a tag, that the chart admits the deck and that there is one
+role per boundary point; what a tag means (what a white wall does to the
+returning flux, whether a method supports an albedo) is the binding's,
+a condition per tag supplied with the problem, and each method's
+realizer table, which answers admission and realization together at the
+method's own door (:ref:`bc-architecture-of-record`). The geometry layer
+cannot hold the response even if it wanted to: the response is the
+transport layer's vocabulary (an affine map on a face's half-traces),
+and imports flow only from more knowledge to less
+(:ref:`architecture-layering`).
 
 **What is not here, and where it lives instead.** No cell counts and no
 discretisation rule: those are the mesh layer's, the interval rules a
@@ -283,41 +315,179 @@ discretisation rule: those are the mesh layer's, the interval rules a
 truth record. No group count: that is the materials'. No infinite
 medium: an infinite medium is either a problem with no geometry
 (``solve_homogeneous_infinite``, ``MomentSpace.solve_kinf``) or a finite
-domain with reflective laws.
+domain with mirror decks.
 
 A declaration for each shape of boundary:
 
 .. code-block:: python
 
-   from orpheus.geometry import BC, CoordSystem, StructuredGeometry
+   from orpheus.geometry import CoordSystem, StructuredGeometry
 
-   # A bare sphere: one interval, one law at the outer surface.
+   # A bare sphere: one interval, one role at the outer surface (the tag 0).
    sphere = StructuredGeometry(
        coord=CoordSystem.SPHERICAL,
        breakpoints=(0.0, 2.872),
        mat_ids=(0,),
-       boundaries=(BC.vacuum,),
+       face_roles=(0,),
    )
    assert sphere.boundary_points == (2.872,)
 
-   # A reflected slab (reflector | core | reflector): two laws.
+   # A reflected slab (reflector | core | reflector): two roles, one tag.
    slab = StructuredGeometry(
        coord=CoordSystem.CARTESIAN,
        breakpoints=(0.0, 0.5, 2.5, 3.0),
        mat_ids=(1, 0, 1),
-       boundaries=(BC.vacuum, BC.vacuum),
+       face_roles=(0, 0),
    )
    assert slab.boundary_points == (0.0, 3.0)
 
-   # A hollow sphere: an inner and an outer law.
+   # A hollow sphere: an inner and an outer role, two tags.
    shell = StructuredGeometry(
        coord=CoordSystem.SPHERICAL,
        breakpoints=(0.5, 1.0, 2.0),
        mat_ids=(1, 0),
-       boundaries=(BC.reflective, BC.vacuum),
+       face_roles=(1, 0),
    )
    assert shell.boundary_points == (0.5, 2.0)
    assert shell.domain_extent_cm == 1.5
+   assert shell.tags == frozenset({0, 1})
+
+`[M]` 2026-10-24, run in a worktree at the carve tip (the import
+resolved to ``orpheus/__init__.py`` of that tree): the block above runs
+to its last assertion. Two faces carrying the same tag, as the slab's
+do, are two faces of one exterior model: the binding gives one
+condition to the tag, and the colouring symmetry
+(:ref:`structured-geometry-colouring-symmetry`) is what makes that a
+checked statement.
+
+
+.. _structured-geometry-face-role:
+
+The face role: a deck or a tag
+==============================
+
+Every boundary point carries exactly one **face role**,
+``FaceRole = DeckTransformation | int`` (:mod:`orpheus.geometry.deck`).
+The two kinds are the two ways a transport domain :math:`D` closes its
+boundary. The inflow trace :math:`\gamma_-\psi|_f` entering through a
+face :math:`f` is determined by the solution in exactly one of two ways,
+and they are different objects:
+
+* **The domain continues across** :math:`f`. The inflow trace is the
+  outflow trace at a partner face :math:`f'`, carried by an isometry
+  :math:`g` of the covering space (:math:`f' = f` for a mirror),
+
+  .. math::
+
+     \gamma_-\psi|_f = G_g\,\gamma_+\psi|_{f'},
+
+  with :math:`G_g` the Koopman operator of :math:`g`. :math:`G_g` is
+  invertible and measure preserving and has no parameter beyond
+  :math:`g`: no amplitude, no source, nothing to scale. That is a fact
+  about the shape of the domain, so the geometry holds it, as a
+  **deck**.
+* **The domain ends at** :math:`f`. The exterior is modelled by an
+  affine map on the face's own half-traces,
+  :math:`\gamma_-\psi|_f = R_f\,\gamma_+\psi|_f + q_f`, with
+  :math:`R_f` a kernel and :math:`q_f \ge 0` a source. That is a
+  boundary condition, the transport layer's vocabulary
+  (``orpheus.transport.boundary_conditions.WallCondition``), and
+  the geometry layer may not import it. The geometry holds only an
+  ``int`` **tag**: the colour of that stretch of the boundary.
+
+**A tag is the exact twin of a material id.** An ``int`` (a ``bool`` is
+refused, and so is any other type), with no sign restriction. Faces that
+carry one tag share one exterior model, and a face's tag says nothing
+else: *which* faces share a model is the declaration, and *what* the
+model is belongs to the problem, a map from the tags a carrier's faces
+carry to conditions, supplied where the method is known
+(:ref:`bc-architecture-of-record`). The same body under another
+exterior is the same geometry with another binding, which is why the
+Wigner–Seitz pin cell is ``cylinder(outer=0)`` and the white wall is its
+consumer's.
+
+**A deck holds no field.** :class:`~orpheus.geometry.deck.MirrorDeck`
+and :class:`~orpheus.geometry.deck.TranslationDeck` store nothing: the
+face fixes the plane of a mirror and the partner and the direction of a
+translation, so two mirror decks are equal whichever face they sit on,
+and a wrong axis (a mirror that carries an axis different from its
+face's) is unspellable. What a realizer reads of a deck is its
+:class:`~orpheus.geometry.deck.FacePairing`, derived by
+:func:`~orpheus.geometry.deck.pairing_of` from the deck and the face:
+the face, its partner and the rigid motion that carries the partner
+onto it. A pairing exists only for a minted deck.
+
+**Why only two decks are minted.** The decks a chart admits are
+:math:`W = N(G_c)/G_c`, the normaliser of the chart's own symmetry group
+modulo that group. On a Cartesian axis that is the mirror and the
+translation. A non-identity isometry of :math:`E^n` falls into one of
+six conjugacy classes (Chasles), two in one dimension and four in two,
+and the other four (rotation, glide reflection, screw motion,
+rotoreflection) are rows of ``DEFERRED_DECKS``, each naming the type it
+will have and the machinery that mints it: a rotation's partner face is
+not derivable from the face (a quarter turn glues ``xmin`` to ``ymin``
+or to ``ymax``), and the others carry a translation part or an order.
+Minting them now would mint four types with guessed fields and four
+unreachable arms in every method.
+
+**Why a curved face carries a tag, never a deck.** On the radial chart
+of a cylinder or a sphere :math:`G_c` absorbs the rotations and the
+quotient :math:`W` is trivial, so :func:`~orpheus.geometry.deck.admitted_decks`
+is empty for that axis: a reflecting curved wall is a response (a tagged
+face whose condition is the unit specular wall), never a deck. A deck on
+such a face is a :class:`~orpheus.geometry.deck.DeckError` that names the
+quotient. The further axes of a curvilinear mesh, the :math:`z` of
+:math:`(r, z)`, are Cartesian and admit both decks.
+
+**The pairings close.** A deck that glues a face to a different face
+needs the same deck type there: a translation on ``xmin`` with a tag on
+``xmax`` has no partner, and is a ``DeckError`` too.
+
+.. code-block:: python
+
+   from orpheus.geometry import (
+       CoordSystem, DeckError, MirrorDeck, StructuredGeometry, TranslationDeck,
+   )
+
+   # A slab between two mirror planes, and a periodic slab: the domain continues.
+   mirrored = StructuredGeometry.slab((0.0, 1.0, 3.0), (0, 1), left=MirrorDeck(), right=MirrorDeck())
+   periodic = StructuredGeometry.slab((0.0, 2.0), (0,), left=TranslationDeck(), right=TranslationDeck())
+   assert mirrored.tags == periodic.tags == frozenset()
+
+   # One end continues and the other ends: a mirror at the left, the tag 0 at the right.
+   half = StructuredGeometry.slab((0.0, 2.0), (0,), left=MirrorDeck(), right=0)
+   assert half.tags == frozenset({0})
+
+   # A translation needs its partner: a lone translation face is refused.
+   try:
+       StructuredGeometry.slab((0.0, 2.0), (0,), left=TranslationDeck(), right=0)
+   except DeckError as err:
+       assert "carries a TranslationDeck but its partner 'xmax' carries 0" in str(err)
+   else:
+       raise AssertionError("a lone translation face was admitted")
+
+   # A curved face carries a tag: the quotient W = N(G_c)/G_c is trivial on a radial chart.
+   try:
+       StructuredGeometry.sphere((0.0, 2.0), (0,), outer=MirrorDeck())
+   except DeckError as err:
+       assert "W = N(G_c)/G_c is trivial on the radial axis" in str(err)
+   else:
+       raise AssertionError("a mirror deck was admitted on a sphere")
+
+   # A bool is not a tag; a role is a deck or an int.
+   for bad in (True, None, "vacuum"):
+       try:
+           StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=bad)
+       except TypeError as err:
+           assert "a face role is a MirrorDeck, a TranslationDeck or an int tag" in str(err)
+       else:
+           raise AssertionError(f"{bad!r} was admitted as a role")
+
+`[M]` 2026-10-24, same worktree: the block runs to its last statement.
+The gates are ``tests/gates/geometry/test_deck.py`` (the deck family,
+the pairings, ``DEFERRED_DECKS``, the admitted decks per chart) and
+``TestTheBoundaryIsDerived`` in
+``tests/gates/geometry/test_structured_geometry.py``.
 
 
 .. _structured-geometry-derived-boundary:
@@ -325,12 +495,12 @@ A declaration for each shape of boundary:
 The boundary is derived, not declared
 =====================================
 
-The number of laws a geometry takes is not a property of its
+The number of roles a geometry takes is not a property of its
 coordinate system alone. The boundary of the region :math:`[r_0, r_R]`
 is its **topological boundary** in its coordinate system, and that
 depends on :math:`r_0`:
 
-.. list-table:: Boundary points, and so laws, per coordinate system
+.. list-table:: Boundary points, and so roles, per coordinate system
    :header-rows: 1
    :widths: 28 36 36
 
@@ -351,22 +521,25 @@ of radius :math:`r_R` with, when :math:`r_0 > 0`, the concentric disk
 or ball of radius :math:`r_0` removed. When :math:`r_0 = 0` nothing is
 removed: the centre :math:`r = 0` is a point of the region's
 **interior**, every neighbourhood of it lies inside the body, and a
-point of the interior carries no boundary law. The boundary is the
-outer surface alone. When :math:`r_0 > 0` the removed cavity has a
-surface, and that surface is a boundary point of the radial interval
-like any other, with its own law.
+point of the interior carries no role. The boundary is the outer
+surface alone. When :math:`r_0 > 0` the removed cavity has a surface,
+and that surface is a boundary point of the radial interval like any
+other, with its own role: a tag, never a deck.
 
-**Why the centre takes no law, not a reflective one.** In the radial
+**Why the centre takes no role, not a mirror deck.** In the radial
 chart the point :math:`r = 0` is where the chart itself degenerates
 (the areas :math:`2\pi r` and :math:`4\pi r^2` vanish there), and what a
 solution must satisfy at it is regularity: a finite flux, with the
 symmetry the chart imposes. That is a property of the **coordinate
 chart**, which the methods' curvilinear machinery carries (an
-S\ :sub:`N` radial axis, for one, has one law slot, the outer surface,
-and treats the pole as a coordinate singularity rather than an
-endpoint), not a choice the user makes. Declaring a law there would state a second,
-possibly contradictory, condition at a point where the chart already
-fixes one; the constructor therefore refuses it.
+S\ :sub:`N` radial axis, for one, has one role slot for the outer
+surface and treats the pole as a coordinate singularity rather than an
+endpoint), not a choice the user makes. Declaring a role there would
+state a second, possibly contradictory, condition at a point where the
+chart already fixes one; the constructor therefore refuses it. A deck
+there is also a type error of another kind: the quotient
+:math:`W = N(G_c)/G_c` of a radial chart is trivial
+(:ref:`structured-geometry-face-role`).
 
 Whether the centre is in the region is decided in one place,
 :meth:`CoordSystem.boundary_points <orpheus.geometry.coord.CoordSystem.boundary_points>`,
@@ -374,37 +547,39 @@ which lists the positions of the boundary of :math:`[r_0, r_R]`, inner
 first: both ends on a slab and on a cylinder or a sphere with
 :math:`r_0 > 0`, the outer end alone on a solid one. The geometry's
 ``boundary_points``, the mesh's ``boundary_points`` and the face
-inventory of both meshes (:ref:`structured-geometry-face-laws`) read it; the
+inventory of both meshes (:ref:`structured-geometry-face-laws`,
+``face_inventory`` in ``orpheus.geometry.faces``) read it; the
 derived property ``is_hollow`` is true exactly for a cylinder or a
 sphere with :math:`r_0 > 0`, and never for a slab, which has no centre.
-One check, ``parse_boundary_laws``, requires one law per boundary point
-of the geometry's ``boundaries`` (a mesh's ``face_laws`` are checked
-against the face inventory, with the same reasons in its messages). The
-refusals are keyed to the three ways a law count can be wrong, each
-naming the reason in its message:
+One check requires one role per boundary point of the geometry's
+``face_roles`` (a mesh's ``face_roles`` are checked against the face
+inventory, with the same reasons in its messages). The refusals are
+keyed to the three ways a role count can be wrong, each naming the
+reason in its message:
 
-* **a law at the centre** — two laws on a solid cylinder or sphere:
+* **a role at the centre** — two roles on a solid cylinder or sphere:
   *"the centre r = 0 of a solid … body is an interior point and
-  carries no law"*;
-* **a hollow body missing its inner law** — one law with
-  :math:`r_0 > 0`: *"a hollow … body … has an inner surface, which
-  needs its own law"*;
-* **a slab with one law**: *"a slab has two boundary points (left,
+  carries no role"*;
+* **a hollow body missing its inner role** — one role with
+  :math:`r_0 > 0`: *"a hollow … body has an inner surface, which needs
+  its own role"*;
+* **a slab with one role**: *"a slab has two boundary points (left,
   right)"*;
 
-and, before the count is read, ``None`` in any position, refused by
-the element parser ``parse_boundary_law`` that ``parse_boundary_laws``
-calls on each law: *"StructuredGeometry.boundaries[0] is None, and None
-is not a boundary law: declare the law the boundary carries."* ``None``
-is refused because it means nothing there: a geometry declares the
-problem, and a default is a method's, not the problem's. Every other
-boundary declaration in the tree (the face laws of
-:class:`~orpheus.mesh.structured.Mesh1D` and
-:class:`~orpheus.mesh.structured.Mesh2D`, and the endpoint laws of the
-S\ :sub:`N` axes) passes through the same parser and is refused the
-same way (:ref:`structured-geometry-no-default-law`).
+and, once the count is right, each role through the one element parser
+:func:`~orpheus.geometry.deck.parse_face_role_on` (the roles of a whole
+declaration through :func:`~orpheus.geometry.deck.parse_face_roles`,
+which then closes the pairings): *"StructuredGeometry.face_roles['xmax']:
+a face role is a MirrorDeck, a TranslationDeck or an int tag, got None of
+type NoneType"*. ``None`` is refused because it means nothing there: a
+geometry declares the problem, and a default is a method's, not the
+problem's. Every other boundary declaration in the tree (the face roles
+of :class:`~orpheus.mesh.structured.Mesh1D` and
+:class:`~orpheus.mesh.structured.Mesh2D`, and the role slots of the
+S\ :sub:`N` axes) passes through the same parser and is refused the same
+way (:ref:`structured-geometry-no-default-law`).
 
-The geometry's laws are indexed by boundary point, (inner, outer),
+The geometry's roles are indexed by boundary point, (inner, outer),
 never by a coordinate-specific name (``left``, ``centreline``,
 ``outer``), and the Mesher lifts them onto the mesh's named faces
 through the face inventory, pairing the tuple with the inventory in
@@ -412,24 +587,162 @@ order: two boundary points give the faces ``xmin`` and ``xmax``; one
 point gives ``xmax`` alone, since the centre is an interior point. The
 geometry keeps its positional tuple, so one declaration has two
 spellings across the lift, a tuple on the geometry and a
-:class:`~orpheus.mesh.face_laws.FaceLaws` on the mesh. The call site names each law through the named-face
-constructors, which build the indexed tuple:
+:class:`~orpheus.mesh.face_roles.FaceRoles` on the mesh. The call site
+names each role through the named-face constructors, which build the
+indexed tuple:
 ``StructuredGeometry.slab(breakpoints, mat_ids, left=, right=)``;
 ``cylinder(…)`` and ``sphere(…)`` with ``outer=`` and ``inner=``, the
 second given exactly when the body is hollow;
-``uniform_boundary(coord, breakpoints, mat_ids, law)``, one law on every
-boundary point in any coordinate system; and
+``uniform_boundary(coord, breakpoints, mat_ids, role)``, one role on
+every boundary point in any coordinate system; and
 ``from_homogeneous(width, boundary)``, a slab :math:`[0, w]` of
-material 0 with one law on both faces.
+material 0 with one role on both faces.
 
-The gates of these laws are the foundation rows
+The gates of these roles are the foundation rows
 ``tests/gates/geometry/test_structured_geometry.py::TestTheBoundaryIsDerived``
 (the six cells coordinate × {:math:`r_0 = 0`, :math:`r_0 > 0`} and the
 keyed refusals); the mesh routing is ``TestMeshingAGeometry`` in the
-same file, whose ``test_a_hollow_body_propagates_its_inner_law`` pins the
-two laws of a hollow body onto ``face_laws["xmin"]`` and
-``face_laws["xmax"]``, the positions onto ``boundary_points``
+same file, whose ``test_a_hollow_body_propagates_its_inner_role`` pins
+the two roles of a hollow body onto ``face_roles["xmin"]`` and
+``face_roles["xmax"]``, the positions onto ``boundary_points``
 :math:`= (r_0, r_R)`, and the first edge onto :math:`r_0`.
+
+
+.. _structured-geometry-colouring-symmetry:
+
+The colouring symmetry: read from the geometry, never from the mesh
+===================================================================
+
+A 1-D layered geometry is an interval :math:`[b_0, b_n]` coloured by
+material runs and closed at its two ends by face roles. The reflection
+:math:`x \mapsto (b_0 + b_n) - x` is a symmetry of the *problem* when it
+maps the colouring and the closure onto themselves. The group
+:math:`H` it generates (the identity first, then the reflection when it
+is admitted) is the **stabiliser of the fundamental domain**: the part
+of the mirror group that the colouring respects.
+:attr:`StructuredGeometry.symmetry <orpheus.geometry.structured_geometry.StructuredGeometry.symmetry>`
+returns it as a :class:`~orpheus.geometry.colouring.ColouringSymmetry`,
+a content value whose ``elements`` are
+:class:`~orpheus.geometry.colouring.FaceIsometry` objects: the rigid
+motion (a reflection about the slab's centre :math:`\tfrac12(b_0+b_n)`)
+together with the permutation it induces on the boundary faces, which
+exchanges ``xmin`` and ``xmax``. It is computed by one function,
+:func:`~orpheus.geometry.colouring.colouring_symmetry`, from the
+geometry's breakpoints, material ids and end roles.
+
+**When the reflection is in** :math:`H`. With the breakpoints of the
+*runs* :math:`b_0 < \dots < b_n` (adjacent equal material ids merged,
+so an interior breakpoint between two intervals of one material is not a
+colour boundary), all three must hold:
+
+1. every mirrored breakpoint :math:`m_i = (b_0 + b_n) - b_{n-i}` agrees
+   with :math:`b_i` under the geometry's one coordinate-agreement
+   convention,
+   :func:`~orpheus.geometry.chart.coordinates_agree`, at the scale
+   :math:`\max(|b_0|, |b_n|)`: 64 ulp at that magnitude;
+2. the material runs read the same reversed, compared exactly (integer
+   ids);
+3. the two end roles are the same tag, or the same deck type (a deck is
+   never the same as a tag, and a tag of value ``0`` is still a tag).
+
+The rule of the first condition is measured, not chosen: the record in
+the module's docstring (carried over from the specification's
+measurement ``measure_float_rule.md``, not re-measured here) is that the
+exact comparison accepts 2 of 13 symmetric slabs (the breakpoints of a
+symmetric layering rarely mirror to the bit), a width-relative tolerance
+refuses an offset slab, and 64 ulp at the end magnitude accepts 13 of 13
+and refuses every asymmetric one (6 of 6), the genuine ceiling being
+3.0 ulp.
+
+**A radial chart answers the identity only.** :math:`G_c`, the rotations
+of the chart, absorbs the symmetry and the quotient is trivial, so a
+cylinder or a sphere has no mirror in :math:`H`. A 2-D mesh has no group
+machinery yet: ``Mesh2D.symmetry`` answers
+:class:`~orpheus.geometry.colouring.UncomputedSymmetries`, the typed
+pessimistic answer ("not computed"), and never an optimistic
+:math:`\{e\}`; that answer is a ``SCOPE-BOUNDARY[guard]`` whose
+machinery is the wallpaper-group search over a cell's isometries, and it
+revisits when a 2-D geometry value exists to carry the group. For a slab
+whose two faces carry translation decks the orbifold is a circle, which
+has more reflections than :math:`x \mapsto a + b - x`, so the value is
+the stabiliser of the fundamental domain and stays that until a full
+deck group is built.
+
+**Why it is read from the geometry, and not from the mesh.** Three
+reasons, each load-bearing.
+
+* **Refinement cannot change admission.** The mesh stores its cells and
+  a region label per cell; its ``symmetry`` hands the cell edges and the
+  material of each cell to the same function, which merges adjacent
+  cells of one material itself, so a mesh and the geometry it refines
+  give one group whatever the cell partition. A group read from the
+  cells would depend on whether a mesh's edges happen to mirror, and a
+  (geometry, binding) pair admitted on one mesh would be refused on its
+  refinement.
+* **One group per carrier, with its faces.** A group acts on faces; the
+  carrier that owns the faces owns the group
+  (``orpheus.transport.boundary_conditions.BoundaryCarrier``),
+  so a binding checked against another carrier's group is unspellable:
+  ``orpheus.transport.boundary_conditions.bind`` receives the
+  carrier, never its two derived values.
+* **It decides what a binding may declare.** A binding of conditions to
+  tags is lawful when, for every non-identity element of :math:`H` that
+  moves a face of tag :math:`t`, the transported condition equals the
+  condition of :math:`t`. A condition written in a frame the face does
+  not supply (a prescribed inflow in laboratory directions) is refused
+  on a symmetric two-face tag with
+  ``NonInvariantConditionError``;
+  every face-local condition passes by a one-dimensional theorem.
+
+.. code-block:: python
+
+   from orpheus.geometry import MirrorDeck, StructuredGeometry
+   from orpheus.mesh import CellsByCount, Mesher
+
+
+   def order(geometry):
+       return len(geometry.symmetry.elements)
+
+
+   layers = (0.0, 0.5, 2.5, 3.0)  # reflector | core | reflector
+   # Palindromic runs and equal end roles: the mirror is in the group.
+   assert order(StructuredGeometry.slab(layers, (1, 0, 1), left=0, right=0)) == 2
+   # Unequal end tags, or a tag against a deck: it is not.
+   assert order(StructuredGeometry.slab(layers, (1, 0, 1), left=0, right=1)) == 1
+   assert order(StructuredGeometry.slab(layers, (1, 0, 1), left=MirrorDeck(), right=0)) == 1
+   # Two mirror decks are the same deck type, so the mirror stays.
+   assert order(StructuredGeometry.slab(layers, (1, 0, 1), left=MirrorDeck(), right=MirrorDeck())) == 2
+   # Runs that are not palindromic, or an off-centre interface: it is not.
+   assert order(StructuredGeometry.slab(layers, (1, 0, 2), left=0, right=0)) == 1
+   assert order(StructuredGeometry.slab((0.0, 0.5, 2.0, 3.0), (1, 0, 1), left=0, right=0)) == 1
+   # Adjacent intervals of one material are one run: a one-run slab is symmetric.
+   assert order(StructuredGeometry.slab((0.0, 1.0, 2.0, 3.0), (0, 0, 0), left=0, right=0)) == 2
+   # A radial chart has the identity only.
+   assert order(StructuredGeometry.sphere((0.0, 0.5, 2.5, 3.0), (1, 0, 1), outer=0)) == 1
+
+   # The mirror swaps the two faces.
+   mirror = StructuredGeometry.slab(layers, (1, 0, 1), left=0, right=0).symmetry.elements[1]
+   assert dict(mirror.faces) == {"xmin": "xmax", "xmax": "xmin"}
+
+   # Refining the mesh cannot change the group: the mesh answers what its geometry answers.
+   geometry = StructuredGeometry.slab(layers, (1, 0, 1), left=0, right=0)
+   for rule in (CellsByCount.uniform_width(2), CellsByCount.uniform_width(5), 4 * CellsByCount.uniform_volume(3)):
+       assert Mesher(geometry).partition(rule).mesh.symmetry == geometry.symmetry
+
+The gates are ``tests/gates/geometry/test_colouring_symmetry.py`` (the
+float rule on 13 symmetric and 6 asymmetric slabs, with an activation
+at the interior breakpoint; runs and roles; refinement independence; the
+one agreement convention) and ``TestTheSymmetryIsTheGeometrys`` in
+``tests/gates/mesh/test_face_roles.py`` (the mesh gives the geometry's
+group for every partition of the same geometry, the mirror swaps the
+faces, a radial mesh has the identity only, a 2-D mesh says it did not
+compute).
+
+`[M]` 2026-10-24, ``PYTHONPATH=<worktree> .venv/bin/python -O -m pytest
+--color=no -q`` over ``test_colouring_symmetry.py`` (22 collected),
+``test_deck.py`` (7), ``test_structured_geometry.py`` (74) and
+``mesh/test_face_roles.py`` (58): 161 passed, so the block above and the
+gates it summarises agree with the code at the carve tip.
 
 
 .. _structured-geometry-stored-breakpoints:
@@ -522,14 +835,14 @@ enters the pipeline. Four objects take part, each in its own place:
   geometry, which applies the rules, holds the mesh it built, and refines
   it;
 * the **mesh**, :class:`~orpheus.mesh.structured.Mesh1D`, which holds the
-  coordinate system, the cells, the material of each cell and the law on
+  coordinate system, the cells, the material of each cell and the role on
   each boundary face, and no geometry.
 
 A session reads like this:
 
 .. code-block:: python
 
-   from orpheus.geometry import BC, StructuredGeometry
+   from orpheus.geometry import StructuredGeometry
    from orpheus.mesh import CellEdges, CellsByCount, CellsByMaxWidth, EqualWidth, Mesher
 
    # The CP and MoC default pin cell: equal-volume cells, 10 / 3 / 7 per region.
@@ -546,7 +859,7 @@ A session reads like this:
 
    # One rule per interval, and the spacings may differ between intervals.
    slab = StructuredGeometry.slab(
-       (0.0, 0.5, 2.5, 3.0), (1, 0, 1), left=BC.vacuum, right=BC.reflective,
+       (0.0, 0.5, 2.5, 3.0), (1, 0, 1), left=0, right=1,
    )
    mesh = Mesher(slab).partition((
        CellsByCount.uniform_width(2),
@@ -555,7 +868,7 @@ A session reads like this:
    )).mesh
    assert mesh.N == 12
    assert mesh.mat_ids.tolist() == [1, 1] + [0] * 8 + [1, 1]
-   assert dict(mesh.face_laws) == {"xmin": BC.vacuum, "xmax": BC.reflective}
+   assert dict(mesh.face_roles) == {"xmin": 0, "xmax": 1}
    assert mesh.boundary_points == (0.0, 3.0)
 
 
@@ -600,12 +913,12 @@ step stored measures in a free-standing value and was refuted on exactly
 that point (:ref:`structured-geometry-mesh-refuted`).
 
 
-The mesh: cells, a region label per cell, a law per boundary face
+The mesh: cells, a region label per cell, a role per boundary face
 ------------------------------------------------------------------
 
 :class:`~orpheus.mesh.structured.Mesh1D` is constructed from exactly
 what a 1-D discretisation is:
-``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)``.
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_roles)``.
 It holds no geometry, and this is deliberate (the user's ruling of
 2026-10-03, #405 P2 step 7b.2): a mesh imported from an external mesher
 (Gmsh, Ansys) carries no originating geometry and usually no coordinate
@@ -618,9 +931,11 @@ composed its cell → interval map with the interval → material map and
 kept only the composite, so the two outer regions of an A|B|A body (one
 material) were one, and a weight given per region could not be read. The
 region → material map moves to the system with the posing work (#522);
-the geometry, when a mesh has one, is optional provenance (the future home
-of hints such as the symmetry group), never a required field. Its
-construction laws, each a refusal with a keyed message:
+the geometry, when a mesh has one, is optional provenance, never a required
+field: the colouring symmetry a mesh reports is computed from its own region
+edges, region labels and end roles
+(:ref:`structured-geometry-colouring-symmetry`), so a mesh with no geometry
+has one. Its construction laws, each a refusal with a keyed message:
 
 * ``edges`` are at least two finite, strictly increasing positions, and
   :math:`r_0 \ge 0` on a cylinder or a sphere;
@@ -638,26 +953,29 @@ construction laws, each a refusal with a keyed message:
   become one region, so the mesher and the adapter build unequal meshes
   for such a body (``slab((0, 1, 2), (0, 0))``: labels ``[0, 1]`` against
   ``[0, 0]``), where both once stored only ``mat_ids`` ``[0, 0]``;
-* ``face_laws`` are any mapping from face name to law over exactly the
+* ``face_roles`` are any mapping from face name to role over exactly the
   mesh's face inventory: ``xmin`` and ``xmax`` on a slab or a hollow
-  cylinder or sphere, ``xmax`` alone on a solid one. Each law is a
-  :class:`~orpheus.geometry.boundary.BC` tag or a typed
-  ``BoundaryTraceLaw``; ``None`` is refused with the message the
-  geometry gives (*"Mesh1D.face_laws['xmin'] is None, and None is not a
-  boundary law: declare the law the boundary carries."*), because every
-  declaration goes through one element parser, ``parse_boundary_law``.
-  The mesh stores a :class:`~orpheus.mesh.face_laws.FaceLaws`
+  cylinder or sphere, ``xmax`` alone on a solid one. Each role is a deck
+  or an ``int`` tag, a deck only where the face's axis admits one on the
+  coordinate system (none on the radial first axis of a cylinder or a
+  sphere); ``None`` is refused with the message the geometry gives
+  (*"Mesh1D.face_roles['xmin']: a face role is a MirrorDeck, a
+  TranslationDeck or an int tag, got None of type NoneType"*), because
+  every declaration goes through one element parser,
+  :func:`~orpheus.geometry.deck.parse_face_role_on`. The mesh stores a
+  :class:`~orpheus.mesh.face_roles.FaceRoles`
   (:ref:`structured-geometry-face-laws`).
 
 The derived quantities are ``widths``, ``centers``, ``areas``,
 ``boundary_points`` (the positions of the boundary faces, inner first,
-in the order of ``face_laws``) and ``outer_law``, which reads
-``face_laws["xmax"]`` (the law on :math:`r = r_R`, a slab's right face,
-the one law collision probability, characteristics and Monte Carlo
-read). Equality and hash are the content identity of the six fields
+in the order of ``face_roles``), ``outer_role``, which reads
+``face_roles["xmax"]`` (the role on :math:`r = r_R`, a slab's right face;
+the axis adapter reads it as the outer role of a radial axis) and
+``symmetry`` (:ref:`structured-geometry-colouring-symmetry`). Equality and
+hash are the content identity of the six fields
 (:ref:`structured-geometry-content-identity`): two meshes with the same
 coordinate system, edges, volumes, region labels, region → material map
-and face laws are equal and hash alike in every process, whatever
+and face roles are equal and hash alike in every process, whatever
 objects built them, and the derived ``mat_ids``, ``widths``,
 ``centers`` and ``areas`` are not content (``init=False,
 compare=False``), because they are functions of the six. The labels are
@@ -730,11 +1048,11 @@ answer: the coordinate system and the breakpoints only; the materials
 and the laws rode along, with about 30 and about 29 production reads
 going through the mesh. So the mesh stores the coordinate system, the
 cells, the region label of each cell with the region → material map,
-and the law of each face, and the geometry stays one layer down. The laws are **per face**, keyed by the
+and the role of each face, and the geometry stays one layer down. The roles are **per face**, keyed by the
 face's name (:ref:`structured-geometry-face-laws`): in 1-D each
 boundary point is one face, and the per-face form is the seed for 2-D,
 where one side of the boundary may be several faces carrying different
-laws. A specialised
+roles. A specialised
 ``(geometry, edges, volumes)`` constructor was considered and not built:
 its one consumer would be the Mesher's own lift, while a relabelling
 (``with_distinct_cell_ids``), an adaptation or the axis adapter starts
@@ -745,13 +1063,17 @@ from a mesh or from axes.
 
 .. _structured-geometry-mesh2d:
 
-The face laws: one inventory rule, one value, both meshes
----------------------------------------------------------
+The face roles: one inventory rule, one value, both meshes
+----------------------------------------------------------
 
-A mesh's boundary is a finite set of faces, each carrying one law. Both
-meshes, :class:`~orpheus.mesh.structured.Mesh1D` and
+A mesh's boundary is a finite set of faces, each carrying one role (a
+deck or a tag, :ref:`structured-geometry-face-role`). Both meshes,
+:class:`~orpheus.mesh.structured.Mesh1D` and
 :class:`~orpheus.mesh.structured.Mesh2D`, derive the set by one rule
-and store the laws in one value, both in :mod:`orpheus.mesh.face_roles`.
+and store the roles in one value, :class:`~orpheus.mesh.face_roles.FaceRoles`
+in :mod:`orpheus.mesh.face_roles`; the rule itself is the geometry's,
+``face_inventory`` in ``orpheus.geometry.faces``, which the mesh module
+re-exports.
 
 **The inventory rule.**
 ``face_inventory(coord, first_axis_edges, dimension)`` names the
@@ -762,7 +1084,7 @@ boundary faces of a mesh, axis by axis, inner face first:
   :meth:`~orpheus.geometry.coord.CoordSystem.boundary_points`, the rule
   the geometry uses: both ends on a slab and on a hollow cylinder or
   sphere, the outer surface alone on a solid one, whose centre or axis
-  :math:`r = 0` is interior and carries no law;
+  :math:`r = 0` is interior and carries no role;
 * along every further axis (the :math:`y` of :math:`(x, y)`, the
   :math:`z` of :math:`(r, z)`), both ends;
 * each face is named by the crosswalk
@@ -790,147 +1112,186 @@ boundary faces of a mesh, axis by axis, inner face first:
      - both ends of both axes bound the rectangle
    * - ``Mesh2D``, solid :math:`(r, z)`
      - ``xmax``, ``ymin``, ``ymax``
-     - the axis :math:`r = 0` is an interior line and carries no law
+     - the axis :math:`r = 0` is an interior line and carries no role
    * - ``Mesh2D``, hollow :math:`(r, z)`
      - ``xmin``, ``xmax``, ``ymin``, ``ymax``
      - the inner surface bounds the body
 
 The names are the ones S\ :sub:`N`'s resolved boundary table
 (``SNProblem.bc``) is keyed by, and the ones the axis adapter reads and
-writes (``axes_from_legacy_mesh`` reads ``face_laws["xmin"]`` and so on
-into the axes' endpoint slots; ``legacy_mesh_from_axes`` builds the
-mapping from ``face_labels(axes)``), so a face has one name from its
-declaration to its realised operator. A consumer that asks whether a
-body has an inner face asks ``"xmin" in mesh.face_laws``.
+writes (``axes_from_legacy_mesh`` reads ``face_roles["xmin"]`` and so on
+into the axes' role slots; ``legacy_mesh_from_axes`` builds the
+mapping from the axes' ``roles_of_axes``), so a face has one name from
+its declaration to its realised operator. A consumer that asks whether a
+body has an inner face asks ``"xmin" in mesh.face_roles``.
 
-**The value.** :class:`~orpheus.mesh.face_laws.FaceLaws` is a frozen,
-ordered, picklable mapping from face name to law, a subclass of
+**The value.** :class:`~orpheus.mesh.face_roles.FaceRoles` is a frozen,
+ordered, picklable mapping from face name to role, a subclass of
 :class:`~orpheus.values.content.FrozenMapping`. A mesh is given its
-laws as any mapping keyed by face name, and builds the value with
-``FaceLaws.over(inventory, laws, where, coord)``, which refuses, each
-with a keyed message:
+roles as any mapping keyed by face name, and builds the value with
+``FaceRoles.over(inventory, roles, where, coord=)``, whose ``coord`` is
+required (a default of ``CARTESIAN`` would admit a mirror on a radial face
+for a caller that omits it) and which refuses, each with a keyed message:
 
 * a declaration whose key set is not the inventory exactly, a missing
   face and an extra face alike; the message names the inventory, and
   adds the reason when the difference is ``xmin``: the centre of a solid
-  body carries no law, or a hollow body's inner surface needs its own;
-* ``None``, or any object that is not a ``BC`` tag or a
-  ``BoundaryTraceLaw``, on a face, through the one element parser
-  (*"Mesh2D.face_laws['xmin'] is None, and None is not a boundary law:
-  declare the law the boundary carries."*); a string such as
-  ``"vacuum"`` is not a tag and is refused too;
+  body carries no role, or a hollow body's inner surface needs its own;
+* ``None``, or any object that is not a deck or an ``int`` tag, on a
+  face, through the one element parser (*"Mesh2D.face_roles['xmax']: a
+  face role is a MirrorDeck, a TranslationDeck or an int tag, got None of
+  type NoneType"*); a string such as ``"vacuum"`` is not a tag and is
+  refused too;
+* a deck on a face whose axis admits none on the coordinate system (the
+  radial first axis of a cylinder or a sphere), and a deck whose partner
+  face carries another role: ``DeckError``;
 * a declaration that is not a mapping, the retired positional tuple
   among them.
 
 The value iterates the face names in inventory order, whatever the
-order of the caller's mapping, so ``tuple(mesh.face_laws)`` is the
+order of the caller's mapping, so ``tuple(mesh.face_roles)`` is the
 inventory; assigning to it raises. Its equality and hash are content
 identity (:ref:`structured-geometry-content-identity`): the same faces
-carrying equal laws, in any order, are one value. A ``FaceLaws`` is
-equal only to another ``FaceLaws``, never to a plain ``dict`` of its
+carrying equal roles, in any order, are one value. A ``FaceRoles`` is
+equal only to another ``FaceRoles``, never to a plain ``dict`` of its
 items; to compare its items with a dictionary, compare
-``dict(mesh.face_laws)``, as the examples below do.
+``dict(mesh.face_roles)``, as the examples below do.
 It is picklable because the reference-solution cache of #405
 pickles its entries, and a mesh is part of what it stores: `[M]` the
 read-only view the first 2-D spelling stored, a ``MappingProxyType``,
-raises ``TypeError: cannot pickle 'mappingproxy' object``.
+raises ``TypeError: cannot pickle 'mappingproxy' object``. The
+``tags`` property lists the tags among the roles, the decks excluded.
 
-``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_laws)`` passes
+``Mesh1D(coord, edges, volumes, region_ids, region_materials, face_roles)`` passes
 ``dimension=1`` to the rule, and
-``Mesh2D(edges_x, edges_y, mat_map, *, face_laws, coord=CARTESIAN)``,
-whose ``face_laws`` is keyword-only with no default, passes
+``Mesh2D(edges_x, edges_y, mat_map, *, face_roles, coord=CARTESIAN)``,
+whose ``face_roles`` is keyword-only with no default, passes
 ``dimension=2``. ``Mesh1D.boundary_points`` gives the positions of its
-faces (the vocabulary of ``CoordSystem``), and ``Mesh1D.outer_law``
-reads ``face_laws["xmax"]``.
+faces (the vocabulary of ``CoordSystem``), and ``Mesh1D.outer_role``
+reads ``face_roles["xmax"]``.
 
 .. code-block:: python
 
+   import pickle
+
    import numpy as np
-   from orpheus.geometry import BC, StructuredGeometry
-   from orpheus.geometry.coord import CoordSystem
+   from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
    from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 
-   rod1d = Mesher(StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=BC.white)).partition(
+   rod1d = Mesher(StructuredGeometry.cylinder((0.0, 1.0), (0,), outer=0)).partition(
        CellsByCount.uniform_volume(4)).mesh
-   assert tuple(rod1d.face_laws) == ("xmax",)
-   assert rod1d.outer_law == BC.white
+   assert tuple(rod1d.face_roles) == ("xmax",)
+   assert rod1d.outer_role == 0
 
    box = Mesh2D(
        [0.0, 1.0, 2.0], [0.0, 1.0], np.zeros((2, 1), dtype=int),
-       face_laws={"ymax": BC.vacuum, "xmin": BC.reflective,
-                  "xmax": BC.vacuum, "ymin": BC.reflective},
+       face_roles={"ymax": 0, "xmin": MirrorDeck(),
+                   "xmax": 0, "ymin": MirrorDeck()},
    )
-   assert tuple(box.face_laws) == ("xmin", "xmax", "ymin", "ymax")
-   assert dict(box.face_laws) == {"xmin": BC.reflective, "xmax": BC.vacuum,
-                                  "ymin": BC.reflective, "ymax": BC.vacuum}
+   assert tuple(box.face_roles) == ("xmin", "xmax", "ymin", "ymax")
+   assert dict(box.face_roles) == {"xmin": MirrorDeck(), "xmax": 0,
+                                   "ymin": MirrorDeck(), "ymax": 0}
+   assert box.face_roles.tags == frozenset({0})
 
-   # A solid (r, z) mesh: the axis r = 0 carries no law.
+   # A solid (r, z) mesh: the axis r = 0 carries no role.
    rod = Mesh2D(
        [0.0, 0.5, 1.0], [0.0, 2.0], np.zeros((2, 1), dtype=int),
-       face_laws={"xmax": BC.vacuum, "ymin": BC.reflective, "ymax": BC.reflective},
+       face_roles={"xmax": 0, "ymin": MirrorDeck(), "ymax": MirrorDeck()},
        coord=CoordSystem.CYLINDRICAL,
    )
-   assert tuple(rod.face_laws) == ("xmax", "ymin", "ymax")
+   assert tuple(rod.face_roles) == ("xmax", "ymin", "ymax")
 
-   import pickle
-   assert pickle.loads(pickle.dumps(rod.face_laws)) == rod.face_laws
+   assert pickle.loads(pickle.dumps(rod.face_roles)) == rod.face_roles
+
+`[M]` 2026-10-24, run in a worktree at the carve tip (the import
+resolved to that tree's ``orpheus/__init__.py``): the block runs to its
+last assertion, and each refusal named above was triggered on a
+``Mesh2D`` over a solid cylinder (a missing face, an extra ``xmin``, the
+string ``"vacuum"``, ``None`` and a positional tuple), with the
+messages quoted.
 
 A ``Mesh2D`` has no geometry value to be built from (there is no 2-D
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`), so
-it is constructed directly.
+it is constructed directly; its ``symmetry`` is
+:class:`~orpheus.geometry.colouring.UncomputedSymmetries`
+(:ref:`structured-geometry-colouring-symmetry`).
 
 The one 2-D factory, :func:`~orpheus.mesh.factories.pwr_pin_2d`, takes
-a required keyword ``law`` for its four faces, because a factory does
+a required keyword ``role`` for its four faces, because a factory does
 not choose a physical boundary on the caller's behalf: a lattice cell
-is reflective or periodic, an isolated cell vacuum.
+is a mirror or a translation, an isolated cell a tag whose condition the
+problem binds.
 
 
 .. _structured-geometry-no-default-law:
 
-No boundary law is undeclared
------------------------------
+No boundary role is undeclared
+------------------------------
 
 Every boundary declaration in the tree passes through one element
-parser, ``parse_boundary_law`` in
-:mod:`orpheus.geometry.structured_geometry`, which accepts a
-:class:`~orpheus.geometry.boundary.BC` tag or a ``BoundaryTraceLaw`` and
-refuses ``None`` and every other object. Its five callers are the five
-places a law is declared:
+parser, :func:`~orpheus.geometry.deck.parse_face_role_on` in
+:mod:`orpheus.geometry.deck`, which accepts a deck (where the chart
+admits it) or an ``int`` tag and refuses ``None`` and every other
+object. The places a role is declared are five classes:
 
-.. list-table:: Where a boundary law is declared
+.. list-table:: Where a boundary role is declared
    :header-rows: 1
    :widths: 34 66
 
    * - Declaration
-     - Laws
-   * - ``StructuredGeometry.boundaries``
-     - one per boundary point, through ``parse_boundary_laws``
-   * - ``Mesh1D.face_laws``
+     - Roles
+   * - ``StructuredGeometry.face_roles``
+     - one per boundary point, through ``parse_face_roles``
+   * - ``Mesh1D.face_roles``
      - one per boundary face, keyed by face name, through
-       ``FaceLaws.over``
-   * - ``Mesh2D.face_laws``
+       ``FaceRoles.over``
+   * - ``Mesh2D.face_roles``
      - one per boundary face, keyed by face name, through
-       ``FaceLaws.over``
-   * - ``AxisMesh.bc_low``, ``AxisMesh.bc_high``
+       ``FaceRoles.over``
+   * - ``AxisMesh.role_low``, ``AxisMesh.role_high``
      - both required, parsed at construction
-   * - ``RadialAxisMesh.bc_outer``
-     - required, parsed at construction
+   * - ``RadialAxisMesh.role_outer``, ``RadialAxisMesh.role_inner``
+     - the outer one required; the inner one required exactly when the
+       axis is hollow (``edges[0] > 0``) and refused on a solid one,
+       parsed at construction
 
-The consumers take the declaration verbatim. The shared resolution,
-:func:`~orpheus.transport.method.resolve_boundary_conditions`, reads the
-law each axis declares for each face and parses the tag into its typed
-law, with no default to fall back on; the S\ :sub:`N` entry points
-(``solve_sn``, ``solve_sn_adjoint``, ``solve_sn_fixed_source``,
-``solve_sn_adjoint_fixed_source``, ``solve_sn_multiplying_source``)
-have no parameter that supplies a law, and nothing fills a face. The law
-on a boundary is read from the problem's declaration alone.
+The consumers take the declaration verbatim. A method-mesh joins the
+conditions it is given to its carrier's faces
+(``orpheus.transport.boundary_conditions.bind``, which refuses a tag a
+face carries with no declared condition and a condition declared for a
+tag no face carries), and the shared body
+:func:`~orpheus.transport.method.realize_boundary` realizes the binding
+face by face, reading the deck a face carries or the condition its tag is
+bound to, through the method's realizer table; there is no default to
+fall back on. The S\ :sub:`N` entry points (``solve_sn``,
+``solve_sn_adjoint``, ``solve_sn_fixed_source``,
+``solve_sn_adjoint_fixed_source``, ``solve_sn_multiplying_source``) take
+one keyword, ``boundary_conditions``, a mapping from tag to condition
+(empty by default, which binds a carrier whose faces are all decks), and
+no parameter that supplies a role or fills a face. `[M]` 2026-10-24
+(``inspect.signature`` over the five entries, from a worktree at the
+carve tip): 5 of 5 have ``boundary_conditions`` and 0 of 5 have a
+``boundary_condition`` parameter; an ``SNProblem`` over a slab whose two
+faces carry the tags 0 and 1, given no conditions, raises
+``UnboundTagError: face 'xmin' carries tag 0 and no condition is
+declared for it``, and given a condition for a third tag
+``UnusedConditionError: a condition is declared for tag 2 and no face
+carries it (carried tags: [0, 1])``. The one place the tree binds a tag
+for the caller is the model's own: ``solve_cp`` with no mesh builds the
+Wigner–Seitz pin cell, whose outer tag ``0`` it binds to
+``WallCondition.white()`` (the model's closure, stated where the method
+is known); with a mesh and no conditions an unbound tag is refused,
+naming it.
 
-The one law the tree supplies is not a default: the inner surface of a
-hollow radial axis. :class:`~orpheus.mesh.axis.RadialAxisMesh` has no
-slot for it, so S\ :sub:`N` realises the cavity as reflective, and the
-geometry and the mesh refuse every other inner law at the axis adapter
-(:ref:`structured-geometry-hollow-inner-law`, #511). A declared
-``reflective`` inner law is therefore the only one that reaches it.
+The inner surface of a hollow radial axis has no trace slot, and the tree
+supplies no role for it: :class:`~orpheus.mesh.axis.RadialAxisMesh`
+carries the declared inner tag as ``role_inner``, which its trace
+inventory does not list, and the adapter synthesizes no cavity. The
+realizer tables of S\ :sub:`N` and diffusion then admit the inner site
+only at the unit specular wall and refuse every other condition
+(:ref:`structured-geometry-hollow-inner-law`, #511). A tag bound to
+``WallCondition.specular(1.0)`` is therefore the only inner declaration
+that reaches an operator.
 
 **Why there is no default.** A ``None`` that a consumer read as a law
 was a behavioural default, and a behavioural default hides a
@@ -962,7 +1323,9 @@ default is invisible to the static count) had to state their laws.
 
 Deciding what an undeclared face means is not the mesh's job, and not a
 method's either: a problem whose boundary is unstated is not yet a
-problem. The retirement therefore has no successor default anywhere.
+problem. The retirement therefore has no successor default anywhere,
+except the Wigner–Seitz model's own binding named above, which is a
+model's declaration and not a fill for an undeclared face.
 
 
 The Mesher: a meshing session
@@ -981,8 +1344,8 @@ previews:
 * ``mesh`` returns the current mesh.
 
 Building the mesh is the **lift** of the geometry onto the cells: each
-cell takes the material of the interval it lies in, and the face laws are
-the geometry's boundary laws, one per boundary point. The mesher
+cell takes the material of the interval it lies in, and the face roles are
+the geometry's, one per boundary point. The mesher
 asserts that every breakpoint is a cell edge, bit for bit, because an
 interval rule is an open protocol and a rule that misplaced an end edge
 would produce cells straddling two materials. So every cell lies in
@@ -1092,7 +1455,8 @@ What was tried, and why it was refuted
 --------------------------------------
 
 The design went through the candidates below before the one described
-above (candidates 1 to 4 for the 1-D mesh, 5 to 9 for the declared laws);
+above (candidates 1 to 4 for the 1-D mesh, 5 to 9 for the declared laws,
+10 for what the geometry declares);
 each is recorded with the structural reason it failed, so that a later
 session does not re-attempt it.
 
@@ -1167,7 +1531,29 @@ session does not re-attempt it.
    (a default a caller can inherit without seeing it). Another law is a
    different body, built with ``StructuredGeometry.cylinder`` or
    ``StructuredGeometry.slab``; `[M]` 2 test sites overrode the law
-   before the ruling.
+   before the ruling. The wave-2 carve kept the ruling and moved its
+   statement: the Wigner–Seitz cell carries the tag ``0`` and the white
+   closure is its consumer's binding, and the half-cell carries two
+   mirror decks.
+10. **A boundary model on the geometry**: a ``BC`` tag naming a kind and
+    its parameters, or a typed ``BoundaryTraceLaw`` (the seven registered
+    laws and their sum and scaling), declared per boundary point.
+    `[REFUTED 2026-10-24]` by the wave-2 carve, for the question *what
+    does a geometry declare at a face?*: the declaration mixed the two
+    ways a domain closes a face. A domain that continues across a face
+    (a mirror, a translation) is an isometry with no parameter, a fact
+    of the shape; a domain that ends at a face needs an exterior model,
+    the transport layer's affine wall condition, which the geometry layer
+    may not import. The string registries that carried the declaration
+    to the methods also disagreed with the realizers they fed (`[M]` the
+    carve specification, section 1.6, at the base tip: SN's registry
+    admitted two tags while its realizer realized six laws). The fact it
+    establishes: the geometry declares
+    a deck or an integer tag per face, and the model is bound to the tag
+    where the method is known, with one realizer table per method that
+    answers admission and realization together
+    (:ref:`structured-geometry-face-role`; the retired names and their
+    successors are in :ref:`bc-wave2-crosswalk`).
 
 Two smaller decisions went the same way. Bit identity of the
 equal-volume edges with the retired subdivision helper was dropped in
@@ -1179,11 +1565,13 @@ worst case sat within 0.38 ulp of it.
 What the mesh layer does not carry
 ----------------------------------
 
-* The inner surface of a hollow radial axis has no law slot on
-  :class:`~orpheus.mesh.axis.RadialAxisMesh`. The axis adapter gives the
-  adapter mesh of such an axis the reflective cavity S\ :sub:`N`
-  computes there (``SCOPE-BOUNDARY[guard]``, #511); the geometry and the
-  mesh refuse any other inner law before it reaches the axis.
+* The inner surface of a hollow radial axis has no trace slot on
+  :class:`~orpheus.mesh.axis.RadialAxisMesh`. The axis carries the
+  declared inner tag as ``role_inner`` and its trace inventory does not
+  list it; the S\ :sub:`N` and diffusion realizer tables admit only the
+  unit specular wall at that site, the cavity their closures compute,
+  and refuse every other condition with ``Refused(PLUMBING, #511)``
+  (:ref:`structured-geometry-hollow-inner-law`).
 * A ``Mesh2D`` has no geometry value to be built from, so no Mesher
   builds it.
 * A cache keyed on the mesh's digest. The digest exists
@@ -1200,29 +1588,36 @@ The gates
 (``TestConstructionLaws``, ``TestTheVolumeLaw`` with the band and the
 wrong-coordinate control, ``TestTheValue`` for equality,
 ``TestTheRetirements`` for the retired fields and constructors, and
-``TestTheDefaultsAreGone``: no S\ :sub:`N` entry takes a
-``boundary_condition``, the fill helper is gone, and the resolver
-neither completes an undeclared face nor constructs a law).
-``tests/gates/mesh/test_mesh2d_face_laws.py`` carries the face laws
+``TestTheDefaultsAreGone``: no S\ :sub:`N` entry takes a singular
+``boundary_condition`` (the declared conditions travel as the keyword
+``boundary_conditions``, keyed by tag), the fill helper is gone, and
+``realize_boundary`` completes no declaration by default).
+``tests/gates/mesh/test_mesh2d_face_roles.py`` carries the face roles
 (``test_the_inventory`` against hand-written 2-D inventories,
 ``TestRefusals``, the storage in inventory order,
 ``TestTheOneElementParser``, a route gate that every declaration of the
-five classes calls ``parse_boundary_law``; ``TestTheOneInventoryRule``,
+five classes calls the one element parser; ``TestTheOneInventoryRule``,
 that both meshes name the same first-axis faces and both constructors
-ask ``face_inventory``; ``TestFaceLaws`` for the value's order,
-immutability, content equality (equal to another ``FaceLaws`` of the
+ask ``face_inventory``; ``TestFaceRoles`` for the value's order,
+immutability, content equality (equal to another ``FaceRoles`` of the
 same items in any order, and not to a plain ``dict``) and pickle round
-trips of the value and
-of both meshes; and ``TestTheNamedCells``, that the two named cells take
-no law keyword and carry their model's laws).
+trips of the value and of both meshes; and ``TestTheNamedCells``, that
+the two named cells take no role keyword and carry their model's roles:
+a tag on the Wigner–Seitz cell's outer surface, two mirror decks on the
+half-cell). ``tests/gates/mesh/test_face_roles.py`` carries the parse
+(``TestFaceRolesOver``: the inventory rule, the deck admission per axis
+and chart, the pairing closure, the ``bool`` refusal), the storage of a
+role in both meshes and the mesh's symmetry
+(``TestTheSymmetryIsTheGeometrys``), and the structural row that
+``FaceLaws`` and ``orpheus.mesh.face_laws`` no longer exist.
 ``tests/gates/mesh/test_axis_adapter_laws.py`` carries the axes
-(``TestTheAxisLaws``: an omitted law and a non-law refused on both
-axis classes, the default-filling verb gone, no ``None`` in a ``bc``
-table; ``TestTheRoundTrip`` through the adapter in one and two
+(``TestTheAxisRoles``: an omitted role and a non-role refused on both
+axis classes, the default-filling verb gone, the role table is the roles
+given; ``TestTheRoundTrip`` through the adapter in one and two
 dimensions), and ``test_axes_declared_laws_are_taken_verbatim`` in
 ``tests/gates/sn/solve/test_d3_admission.py`` checks, face by face,
-that the S\ :sub:`N` entry realises a mixed declaration on a 3-D axis
-tuple as declared.
+that the S\ :sub:`N` entry realises a mixed declaration (a mirror deck
+beside a vacuum tag) on a 3-D axis tuple as declared.
 ``tests/gates/mesh/test_mesher.py`` carries the session (``TestTheLift``:
 every cell in exactly one interval, one rule meaning that rule on every
 interval; ``TestRefine``; ``TestEveryBreakpointIsAnEdge``, whose stub
@@ -1243,100 +1638,133 @@ that catch ERR-020; the other two are
 
 .. _structured-geometry-hollow-inner-law:
 
-Hollow bodies, and the laws each method reads (#511, #513, #514)
-================================================================
+Hollow bodies, and the roles each method reads (#511, #513, #514)
+=================================================================
 
 A hollow cylinder or sphere (:math:`r_0 > 0`) is a legal geometry:
-it declares two laws, and a ``Mesher`` builds a mesh whose first edge
-is :math:`r_0` and whose face law ``face_laws["xmin"]`` is the inner
-law. The same routing puts a slab's left law in ``face_laws["xmin"]``.
+it declares two roles, two tags and never decks (the quotient of a radial
+chart is trivial), and a ``Mesher`` builds a mesh whose first edge
+is :math:`r_0` and whose face role ``face_roles["xmin"]`` is the inner
+role. The same routing puts a slab's left role in ``face_roles["xmin"]``.
 
-The geometry never interprets a law, so what happens to the law on the
-first face is each method's. **No method in the tree today reads every
-law a geometry can declare**: S\ :sub:`N` and diffusion have no
-inner-surface slot on a curvilinear axis, collision probability (CP)
-and Monte Carlo (MC) read only the outer law (``outer_law``), and the method of
-characteristics (MoC) reads any mesh as a solid pin cell. Before P1
-step 2 each dropped the law it did not read, silently; since step 2,
-each **refuses a declared law it would drop, at its own door**, with
-``NotImplementedError`` naming the issue that tracks the missing
-machinery. Every such refusal is a **declared scope boundary**
-(``SCOPE-BOUNDARY[guard]`` in the code, with the machinery that would
-retire it, the ruling, and what would overturn it): the edge of what
-the method computes, not a defect in the declaration. In CP and MC
-the law the method reads is resolved first against its registry, and
-only then is the law it would drop refused, so an unsupported read law
-still reports the registry's own ``ValueError``; MoC's refusal is on the
-mesh itself and comes before any law is read.
+The geometry never interprets a role, so what happens to the condition
+bound to the first face is each method's. **No method in the tree today
+reads every face a geometry can declare**: S\ :sub:`N` and diffusion
+have no inner-surface trace on a curvilinear axis, collision probability
+(CP) reads the outer face and a mirror at a slab's left face, Monte
+Carlo (MC) applies one periodic wrap to every face of its unit cell, and
+the method of characteristics (MoC) reads any mesh as a solid pin cell.
+Before P1 step 2 each dropped what it did not read, silently; since step
+2, each **refuses a declaration it would drop, at its own door**. Since
+the wave-2 carve (2026-10-24) the refusal of a *wall* is the method's
+realizer table's: one table per method answers admission and realization
+together (``SN_REALIZERS``, ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``,
+``MOC_REALIZERS``, ``MC_REALIZERS``), so a refused wall is a
+``BoundaryRefused`` (a ``ValueError`` carrying the face, the method and
+the ``Refused`` admission, whose axis and issue are data), raised when
+the method-mesh binds and realizes its faces
+(:ref:`bc-architecture-of-record`). What stays a guard on the mesh
+itself, a ``NotImplementedError``, is the body the method cannot read at
+all: MoC's non-cylinder and MC's hollow cylinder, read before any role
+is. Every such refusal is a **declared scope boundary**
+(``SCOPE-BOUNDARY[guard]`` in the code, or a ``Refused`` row naming the
+issue that tracks the missing machinery): the edge of what the method
+computes, not a defect in the declaration.
 
 .. list-table:: What each method reads, and what it refuses
    :header-rows: 1
    :widths: 14 30 30 26
 
    * - Method
-     - Laws it reads
-     - Refused (``NotImplementedError``)
-     - Guard, issue
+     - Faces it reads
+     - Refused
+     - Where, issue
    * - S\ :sub:`N`, diffusion
-     - slab: left and right; solid cylinder or sphere: the outer law;
-       hollow: the outer law, and the cavity is reflective
-     - a hollow cylinder or sphere whose inner law is not
-       ``reflective``
-     - ``_refuse_an_inner_law_the_radial_axis_drops``
-       (``orpheus/mesh/legacy_adapter.py``), #511
+     - slab: left and right; solid cylinder or sphere: the outer face;
+       hollow: the outer face, and the inner tag only at the unit
+       specular wall (the cavity the closure computes)
+     - a hollow cylinder or sphere whose inner tag is bound to any other
+       condition: ``Refused(PLUMBING, #511)`` at ``xmin``
+     - ``hollow_inner_refusal`` (``orpheus/transport/boundary_conditions/admission.py``),
+       called by both realizer tables, #511
    * - CP
-     - the outer law; on a slab the left face is always a mirror (the
-       kernel's image term), which a reflective left law declares
-     - a slab whose left law is not ``reflective``; any inner law on a
-       hollow cylinder or sphere
+     - the outer face; on a slab the left face is always a mirror (the
+       kernel's image term), which a ``MirrorDeck`` on it declares
+     - a slab whose left face is not a ``MirrorDeck`` (a tag, whatever
+       is bound to it, included); any inner tag on a hollow cylinder or
+       sphere: ``Refused(PLUMBING, #513)``
      - ``_dropped_face`` (``orpheus/cp/solver.py``, the migrated guard
        ``_refuse_a_law_cp_drops``), #513
    * - MoC
-     - the outer law of a solid cylinder, read as the Wigner–Seitz
+     - the outer face of a solid cylinder, read as the Wigner–Seitz
        cylinder of a square pin cell
      - any mesh that is not a solid cylinder: a slab, a sphere, a hollow
-       cylinder
+       cylinder (``NotImplementedError``)
      - ``_refuse_a_mesh_moc_misreads`` (``orpheus/moc/geometry.py``),
        #514
    * - MC
-     - the outer law only; the periodic wrap (``MC_REALIZERS``), applied
-       to every face of the unit cell
-     - a hollow cylinder; a declared left or inner law that is not
-       ``periodic``
-     - ``_refuse_a_mesh_mc_misreads`` (``orpheus/mc/solver.py``), #513
+     - the translation deck, applied to every face of the unit cell: a
+       slab with a ``TranslationDeck`` on both faces
+     - a hollow cylinder (``NotImplementedError``); any other wall on a
+       slab, ``Refused(PLUMBING, #654)`` (a zero-flux wall,
+       ``Refused(STATE_CONE)``); a specular wall on a cylinder,
+       ``Refused(TOPOLOGY, #547)`` (MC samples a periodic equal-area
+       square cell, not the declared cylinder)
+     - ``_refuse_a_mesh_mc_misreads`` (``orpheus/mc/solver.py``), #513,
+       and ``MC_REALIZERS``, #654, #547
 
-Every guard reads declared laws only: since P1 step 3b a
-:class:`~orpheus.mesh.structured.Mesh1D` refuses ``None`` as a face law,
+Every refusal reads declared roles only: a
+:class:`~orpheus.mesh.structured.Mesh1D` refuses ``None`` as a face role,
 as the geometry does, so a mesh built directly from edges declares its
-laws too. Until then an undeclared law was admitted by every guard.
+roles too. Until P1 step 3b an undeclared law was admitted by every
+guard.
 
 **S**\ :sub:`N` **and diffusion (#511).** Both build their spatial axis
 through ``axes_from_legacy_mesh``, and the curvilinear axis it builds,
-:class:`~orpheus.mesh.axis.RadialAxisMesh`, has one law slot,
-``bc_outer``: it has no inner-surface trace. `[M]` 2026-09-25 (the P1
-specification's probe ``hollow_inner_law.py``): before the guard, on a
-cylinder and a sphere with :math:`r_0 = 0.5`, an inner ``vacuum`` law
-and an inner ``reflective`` law gave bit-identical S\ :sub:`N` fluxes,
-while the slab control, whose left law has a slot, moved. The guard
-sits at the one adapter, so it covers both routes to a hollow mesh (the
-geometry and a mesh built directly from edges) and both methods. It
-retires when the radial axis gains an inner-surface trace, which is the
-curvilinear S\ :sub:`N` build the user has deferred.
+:class:`~orpheus.mesh.axis.RadialAxisMesh`, has one trace slot, the outer
+surface: it has no inner-surface trace. The axis carries the declared
+inner tag as ``role_inner``, which it holds and its trace inventory does
+not list (required exactly when the axis is hollow), and the adapter
+synthesizes no cavity. `[M]` 2026-09-25 (the P1 specification's probe
+``hollow_inner_law.py``): before the guard, on a cylinder and a sphere
+with :math:`r_0 = 0.5`, an inner ``vacuum`` law and an inner
+``reflective`` law gave bit-identical S\ :sub:`N` fluxes, while the slab
+control, whose left law has a slot, moved. `[M]` 2026-10-23 (the S3
+build's probe, recorded in the docstring of
+``tests/gates/mesh/test_hollow_inner_law.py``): ``solve_diffusion_1d`` on
+a hollow sphere and cylinder, 8 cells on :math:`[0.5, 2.0]`, gave a
+bit-identical :math:`k` for an inner ``vacuum()``, ``specular(1.0)`` and
+``white(0.5)``, 3 of 3 conditions on 2 of 2 coordinate systems: the
+stencil assembles its boundary closures from the trace inventory, which
+omits the inner face, so that face's flow slot stays zero (zero net
+current) whatever is declared. So both methods compute a reflective
+cavity at the inner face, and the tables admit exactly that: at the inner
+site a unit specular wall is ``Realized`` and every other condition
+(vacuum, white, a partial specular wall, a source) is
+``Refused(PLUMBING, #511)``, one definition,
+``hollow_inner_refusal``, called by both tables with the method's
+reason. The admission stays per table because the reason is per method.
+The refusal retires when the radial axis gains an inner-surface trace,
+which is the curvilinear S\ :sub:`N` build the user has deferred.
 
 **The admitted inner law is a void cavity, verified as if derived.**
-Admitting ``reflective`` is correct only if what the methods compute
+Admitting the unit specular wall (``WallCondition.specular(1.0)``)
+is correct only if what the methods compute
 for it is a physical answer, and it is: in one-dimensional cylindrical
 or spherical symmetry, a ray that enters a void core crosses it along
 a chord and leaves at the same impact parameter with its radial
 direction cosine reversed, which is exactly specular reflection at
-:math:`r_0`. So a hollow body with a reflective inner law must equal a
-**solid** body whose core :math:`[0, r_0]` is empty. The gate
+:math:`r_0`. So a hollow body whose inner tag is bound to the unit
+specular wall must equal a **solid** body whose core :math:`[0, r_0]` is
+empty. The gate
 ``test_a_reflective_inner_law_is_a_void_cavity`` makes the core a pure
 absorber of total cross section :math:`\varepsilon` (no source in the
 core), measures the maximum relative gap between the two bodies' shell
 scalar fluxes at :math:`\varepsilon = 10^{-6}` and :math:`10^{-4}`, and
-extrapolates it linearly to :math:`\varepsilon = 0`. `[M]` 2026-09-29,
-the gate's own fixture (a 2-group material on the shell
+extrapolates it linearly to :math:`\varepsilon = 0`. `[M]` 2026-10-24
+(a script importing the gate's own helpers, from a worktree at the carve
+tip, re-measured; the first measurement, 2026-09-29, gave the same
+digits), the gate's own fixture (a 2-group material on the shell
 :math:`[0.5, 2.0]` meshed 8 cells, the core 4 cells, vacuum outer law;
 Gauss–Legendre 8 on the sphere, ``folded_product(n_mu=4, n_phi=8)`` on
 the cylinder):
@@ -1371,7 +1799,7 @@ of the larger gap) and the control (above 0.1). The gate's docstring
 records the same linearity on the sphere under Gauss–Legendre 8 and 16
 and core meshes of 2 and 8 cells.
 
-**CP (#513).** CP reads only the outer law, the outer cell surface.
+**CP (#513).** CP reads only the outer face, the outer cell surface.
 On a slab its kernel computes a mirror at the left face whatever is
 declared there. The slab's reduced collision probabilities carry, beside
 the direct path between cells :math:`i` and :math:`j`, a reflected path
@@ -1381,7 +1809,7 @@ the two cells' optical distances from that plane (the reflected path
 :doc:`/theory/methods/collision_probability`; ``gap_c = bnd_pos[i] +
 bnd_pos[j]`` in ``CPMesh._compute_slab_rcp``). So the slab CP
 computes is half of a slab symmetric about its left face, and a declared
-left law has no slot to enter. `[M]` 2026-09-25 (the specification's
+left role has no slot to enter. `[M]` 2026-09-25 (the specification's
 probe ``cp_slab_left_law.py``): a white, a vacuum and an undeclared left
 law gave the same :math:`k = 1.8749980808246423` to all sixteen digits.
 `[M]` 2026-09-30 (Census A's probe ``probe_cp_left.py``, re-measured on
@@ -1397,7 +1825,7 @@ on the left:
    * - Solve
      - fuel on the left
      - flipped
-   * - CP, left law ``reflective`` (bit-identical to the ``white`` left
+   * - CP, left face a mirror (bit-identical to the ``white`` left
        law CP was given before 2026-09-30)
      - 1.215476
      - 1.212883
@@ -1412,11 +1840,15 @@ CP agrees with the S\ :sub:`N` mirror to :math:`1.5\times10^{-5}` and
 :math:`8\times10^{-7}` relative, and differs from the white left face by
 :math:`2.4\times10^{-3}` and :math:`2.9\times10^{-4}`; and CP's value
 changes when the slab is flipped, which a white left face, symmetric
-under the flip, would not do. A reflective left law is therefore the
-only declaration that means what CP computes, and it is the one
-admitted; any other left law, an equal right law included, is refused.
-On a hollow cylinder or sphere what CP realises at the inner surface is
-not established, so no inner law is admitted.
+under the flip, would not do. A ``MirrorDeck`` on the left face is
+therefore the only declaration that means what CP computes, and it is
+the one admitted; a tag on the left face, whatever condition is bound to
+it (one equal to the right face's included), is refused with
+``Refused(PLUMBING, #513)`` at ``xmin``. On a hollow cylinder or sphere
+what CP realises at the inner surface is not established, so no inner
+tag is admitted: CP does not call ``hollow_inner_refusal``, which is the
+refusal of the methods whose trace omits the inner face, and has its own
+inner-surface geometry.
 
 .. dropdown:: What was admitted first, and why it was wrong
    :color: muted
@@ -1447,41 +1879,54 @@ and the pitch is ``edges[-1] * sqrt(pi)``. `[M]` 2026-09-25 (the probe
 gave exactly the cylinder's :math:`k`, and a hollow cylinder with
 :math:`r_0 = 0.1` was realised inconsistently (the region areas read
 ``edges[0]`` while the tracks treat region 0 as a disk). The refusal is
-on the mesh, before any law is read, and it retires with a 2-D
+on the mesh, before any role is read, and it retires with a 2-D
 geometry value for MoC to read.
 
-**MC (#513).** ``MCMesh`` reads only the outer law and applies its
-registry's one kind, ``periodic``, to every face of the unit cell.
-`[M]` 2026-09-25 (the same probe): a slab with a ``vacuum`` left law and
-a ``periodic`` right law constructed and ran as periodic. A declared
-left or inner law other than ``periodic`` is refused. So is a hollow
-cylinder: MC's material lookup clamps a radius below the first edge to
+**MC (#513).** ``MCMesh`` applies the periodic wrap to every face of its
+unit cell, so ``MC_REALIZERS`` realizes the translation deck and nothing
+else: a slab admits a ``TranslationDeck`` on both faces, and any other
+wall is a ``BoundaryRefused`` (``Refused(PLUMBING, #654)``, the retired
+string registry having held ``periodic`` only; a specular wall on a
+cylinder is ``Refused(TOPOLOGY, #547)``). A periodic right face beside a
+vacuum left face, which the pre-carve MC constructed and ran as periodic
+(`[M]` 2026-09-25, the probe ``partial_law_readers.py``: a slab with a
+``vacuum`` left law and a ``periodic`` right law), cannot be declared
+now: a lone translation face has no partner, and the geometry refuses it
+with ``DeckError`` before MC sees it. A hollow cylinder is refused by the
+guard: MC's material lookup clamps a radius below the first edge to
 region 0, so the cavity would be filled with the innermost material
-(`[M]` 2026-09-29, qa: breakpoints ``(0.5, 1.0, 2.0)`` returned
-material 7 at :math:`r = 0`).
+(`[M]` 2026-09-29, qa: breakpoints ``(0.5, 1.0, 2.0)`` returned material
+7 at :math:`r = 0`).
 
 The gates are ``tests/gates/mesh/test_hollow_inner_law.py`` (the
-S\ :sub:`N` refusal for the inner laws ``vacuum``, ``white`` and
-``albedo(0.5)`` on a cylinder and a sphere; the direct-mesh route;
-diffusion; ``test_an_undeclared_inner_law_is_the_reflective_one``,
-which until P1 step 3b recorded that an undeclared inner law and a
-declared ``reflective`` one gave the same S\ :sub:`N` flux bit for bit,
-and now asserts that ``None`` is refused, which leaves
-``inner=BC.reflective`` as the one spelling of the cavity; and the
-void-cavity witness above) and
-``tests/gates/mesh/test_dropped_laws_are_refused.py`` (CP: a slab whose
-left law is not the mirror refused, an equal white left law included,
-a reflective left law built under a white and a vacuum right law, a
-hollow cylinder and sphere with an inner law refused; MoC: a slab and a hollow
-cylinder refused, the solid pin cell built; MC: a ``vacuum`` or
-``reflective`` left law refused, a ``periodic`` one built, a hollow
-cylinder refused).
+S\ :sub:`N` refusal of an inner vacuum, a white wall of weight 0.5 and
+a specular wall of weight 0.5 on a cylinder and a sphere; the
+direct-mesh route; diffusion, with its positive control
+``test_diffusion_admits_the_unit_specular_cavity_at_the_inner_site``;
+``test_an_undeclared_inner_law_is_the_reflective_one``, which until P1
+step 3b recorded that an undeclared inner law and a declared reflective
+one gave the same S\ :sub:`N` flux bit for bit, and now asserts that
+``None`` is refused as a role, which leaves the inner tag bound to
+``WallCondition.specular(1.0)`` as the one spelling of the cavity; and
+the void-cavity witness above), ``tests/gates/mesh/test_radial_inner_role.py``
+(the geometry and the mesher carry the inner tag; the axis carries it as
+``role_inner`` and its trace inventory does not list it; the round trip
+through the adapter keeps it and the adapter synthesizes no cavity; the
+inner role is required exactly when the axis is hollow; no radial face is
+a deck) and ``tests/gates/mesh/test_dropped_laws_are_refused.py`` (CP: a
+slab whose left face is not a mirror refused under four conditions, an
+equal white pair included, and a mirror on the left built under a white
+and a vacuum right condition, a hollow cylinder and sphere with an inner
+condition refused; MoC: a slab and a hollow cylinder refused, the solid
+pin cell and the default mesh built; MC: a slab whose faces are a vacuum
+wall or two mirrors refused, a translation pair built, a lone translation
+face a ``DeckError``, a hollow cylinder refused).
 
 
 .. _structured-geometry-reference-body:
 
-Reference generators read one of four body shapes, and its laws
-================================================================
+Reference generators read one of four body shapes, and its face roles
+=====================================================================
 
 Three continuous reference generators take a geometry directly:
 ``Spectrum`` (singular eigenfunctions, :doc:`/theory/references/singular_eigenfunction`),
@@ -1498,8 +1943,8 @@ solver functions, and each solver function solves a few body shapes:
 the shapes the reference literature states its benchmarks on. A
 :class:`~orpheus.geometry.structured_geometry.StructuredGeometry` can
 describe more than any one generator solves, in its body and in its
-boundary laws, so a generator has to read which shape it was handed
-under which laws, route what it serves to the right solver, and refuse
+face roles, so a generator has to read which shape it was handed
+under which roles, route what it serves to the right solver, and refuse
 the rest with a stated scope. Read naively, a
 geometry of several materials would be solved as its first material
 alone, and a hollow cylinder or sphere, whose width :math:`r_R - r_0` is
@@ -1660,16 +2105,20 @@ admitted first as an exact cover of the geometry's tags):
 
 A refused role returns neutrons in an angular shape a specular albedo
 cannot express, so no value of :math:`\alpha` would be an honest
-reading of it. `[M]`, by calling the reader on each law:
-``ReflectiveBoundary`` reads 1 on each of the axes ``x``, ``y`` and ``z``
-and ``AlbedoBoundary(0.3, SpecularReturn())`` reads 0.3 (2026-10-01);
-``BC("white")``, ``BC("periodic")`` and
-``AlbedoBoundary(0.3, IsotropicReturn())`` are refused (2026-09-29). A
-partially specular face is declared as
-``AlbedoBoundary(α, SpecularReturn(axis))``; the mirror has no albedo to
-read (:ref:`bc-deck-law-not-an-operand`).
+reading of it. `[M]` 2026-10-24, by calling the reader on each
+declaration (a worktree at the carve tip, one group, a slab on
+:math:`[0, 2]` or a sphere of radius 2): the tag ``0`` bound to
+``WallAmplitudes.VACUUM`` reads ``(0.0, 0.0)``; two mirror decks read
+``(1.0, 1.0)``; a mirror deck beside a vacuum tag reads ``(1.0, 0.0)``; a
+sphere's tag bound to ``WallAmplitudes(0.3, 0.0)`` reads ``(0.3,)``; and
+three declarations raise ``NotImplementedError`` through the door: a tag
+bound to ``WallAmplitudes(0.0, 1.0)`` (white), a tag bound to
+``WallAmplitudes(0.0, 0.3)`` (a Lambertian return) and two
+``TranslationDeck`` faces (a wrap). A partially specular face is the tag
+bound to ``WallAmplitudes(a, 0)`` with ``0 < a < 1``; a mirror deck has
+no amplitude to read (:ref:`structured-geometry-face-role`).
 
-**Why the laws are part of what a generator serves.** Before the laws
+**Why the face roles are part of what a generator serves.** Before the roles
 were read, two generators answered a question they had not been asked,
 and neither said so. ``MomentSpace`` on a reflected slab whose outer
 faces were declared mirrors returned the vacuum core half-thickness, bit
@@ -1685,8 +2134,8 @@ geometry's laws the only declaration: ``Billiard``'s ``alpha``
 parameter and its ``with_alpha`` copy method retired, and each
 generator's served pattern names the laws as well as the shapes.
 
-Which generator serves which shape, under which laws
-----------------------------------------------------
+Which generator serves which shape, under which roles
+-----------------------------------------------------
 
 Each generator matches on the shape and the albedos and either routes
 them or refuses them. `[M]` 2026-09-29, by constructing each generator
@@ -1730,8 +2179,8 @@ unequal faces):
      - refused
      - refused
 
-In every column a law with no specular albedo (white, periodic, an
-isotropic return) is refused.
+In every column a face with no specular albedo (a white wall, a
+Lambertian return, a translation deck) is refused.
 
 **Billiard, retired.** The table measured on 2026-09-29 had a fourth
 column, ``Billiard``, the trajectory resolvent's generator, deleted with
@@ -1755,7 +2204,7 @@ hollow layered bodies, the layered slabs and the white walls that
 ``Billiard`` refused.
 
 **MomentSpace.** Its bare slab and sphere solvers and the reflected-slab
-solver all have vacuum outer faces, so every law must read as albedo 0
+solver all have vacuum outer faces, so every face must read as albedo 0
 (:func:`~orpheus.derivations.common.reference_body.require_vacuum`). A
 symmetric reflected slab routes to
 :func:`~orpheus.derivations.continuous.fn_method.slab.reflected.solve_fn_slab_reflected_critical`.
@@ -1787,7 +2236,7 @@ boundaries: the Galerkin-spectral method as shipped is bare-critical.
 A cylinder is refused for the same reason as in ``MomentSpace``.
 
 **Spectrum** serves a homogeneous body, and reads the reflection
-coefficient :math:`R` of Atalay (1997) from the laws. Atalay's slab
+coefficient :math:`R` of Atalay (1997) from the face roles. Atalay's slab
 solver puts one :math:`R` on both faces, so a slab whose two faces
 declare different albedos is refused; the sphere solver takes :math:`R`
 on the outer surface; the cylinder solver is bare (Westfall and Metcalf
@@ -1796,20 +2245,20 @@ cylinder of Westfall and Metcalf 1973 :cite:`WestfallMetcalf1973` is
 not built). :math:`R = 1` is admitted at construction and refused by
 the slab and sphere solvers when ``solve_critical`` runs: under perfect
 reflection the size drops out of the criticality condition, and Atalay
-omits :math:`R = 1` from his tables. The laws are read, and refused, at
+omits :math:`R = 1` from his tables. The roles are read, and refused, at
 construction. Reflected slabs and spheres as two media, and the reflected
 cylinder, are not built under ``Spectrum``; the refusal names them.
 
 The one door
 ------------
 
-Every refusal of a shape or a law goes through
+Every refusal of a shape or a face role goes through
 :func:`~orpheus.derivations.common.reference_body.refuse_unserved`
 ``(what, owner=, missing=)``, which raises ``NotImplementedError``
 worded *"<owner> does not solve a <what>: <missing> (#536)."* ``what``
 describes the refused configuration: a body shape
 (:func:`~orpheus.derivations.common.reference_body.describe`), a
-boundary law, or a precondition (for instance *"MomentSpace does not
+wall or a face role, or a precondition (for instance *"MomentSpace does not
 solve a body with reflecting boundaries (specular albedos (1.0, 1.0)):
 …"*). The
 ``MomentSpace`` and ``BasisSpace`` cylinder refusals, the reflected
@@ -1832,9 +2281,10 @@ well formed and the scope is the generator's.
 Gates and evidence
 ------------------
 
-``tests/gates/derivations/test_reference_body.py`` (47 rows, all
-``foundation``; `[M]` 2026-10-10, ``pytest --collect-only``, 47 collected;
-the file held 59 rows, 59 passed under ``python -O -m pytest`` on
+``tests/gates/derivations/test_reference_body.py`` (50 rows, all
+``foundation``; `[M]` 2026-10-24, ``pytest --collect-only``, 50 collected,
+the law reader's rows having grown from 8 to 11 at the carve; 47 on
+2026-10-10; the file held 59 rows, 59 passed under ``python -O -m pytest`` on
 2026-09-29, until P1 step (e2) of the characteristic reference campaign
 deleted ``Billiard``'s 12):
 
@@ -1848,9 +2298,10 @@ deleted ``Billiard``'s 12):
 * **The shape refusals** (14 rows): every owner on every shape it does
   not serve, each asserting the refusal starts with the owner's name
   and cites #536.
-* **The law reader** (8 rows): the six specular spellings read as their
-  albedo; white and an ``AlbedoBoundary`` with no stated re-emission
-  refused.
+* **The face reader** (11 rows): vacuum, the mirror and partial
+  albedos 0.3 and 0.7 read as their albedo on a slab and on a sphere (a
+  mirror is a deck on the slab and the tag bound to :math:`(1, 0)` on
+  the sphere); a white wall, a partially white wall and a wrap refused.
 * **The served laws** (6 rows): ``MomentSpace`` refuses a reflected
   slab with mirror faces (the witness of the silent vacuum answer
   above); ``MomentSpace`` and ``BasisSpace`` refuse a partially
@@ -1912,8 +2363,8 @@ Content identity: one encoder for every value a key covers
 ==========================================================
 
 Every value a reference question is posed from (the mixtures and the
-``Materials`` declaration, the geometry with its boundary laws, the
-mesh with its face laws) derives its equality and its hash from one
+``Materials`` declaration, the geometry with its face roles, the
+mesh with its face roles) derives its equality and its hash from one
 content digest. The digest is computed by one encoder,
 :mod:`orpheus.values.content`, whose module docstring is the design
 record; this section states the problem it solves, the canonical form
@@ -1935,7 +2386,7 @@ Why one content identity, and why it is the digest
 
 The reference-solution cache of #405 stores the answer to a question
 under a key computed from the question's content: the materials, the
-geometry with its laws, and the discretisation. The key must have two
+geometry with its roles, and the discretisation. The key must have two
 properties at once. Two values that are the same physics must give the
 same key in every process and on every platform, or a stored answer is
 never found again. Two values that differ in anything a consumer reads
@@ -2021,8 +2472,8 @@ ruling of 2026-10-02: the digest follows ``==``.
      - one IEEE-754 double, little-endian; ``-0.0`` becomes ``+0.0``;
        NaN is refused (``ValueError``, naming the path to it); an
        integer of magnitude above :math:`2^{53}` is refused
-     - ``True == 1 == 1.0`` in Python, so ``BC("albedo", {"albedo": 1})``
-       and ``{"albedo": 1.0}`` are one value; ``-0.0 == 0.0``; NaN is
+     - ``True == 1 == 1.0`` in Python, so the breakpoints ``(0, 1)`` and
+       ``(0.0, 1.0)`` are one geometry; ``-0.0 == 0.0``; NaN is
        not equal to itself, so a value holding it has no equality to
        encode; an integer beyond :math:`2^{53}` has no exact double, and
        ``==`` would separate it from the double it rounds to
@@ -2101,14 +2552,12 @@ the package's nameable classes to distinct qualified names.
 
    import numpy as np
 
-   from orpheus.geometry import BC, CoordSystem, StructuredGeometry
-   from orpheus.geometry.boundary import AlbedoBoundary, VacuumInflow
+   from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry, TranslationDeck
    from orpheus.values.content import ContentlessError, content_digest, encode
+   from orpheus.values.scalars import parse_real
 
    # A real scalar is its value: the digest follows ==.
-   assert BC("albedo", {"albedo": 1}) == BC("albedo", {"albedo": 1.0})
-   assert hash(BC("albedo", {"albedo": 1})) == hash(BC("albedo", {"albedo": 1.0}))
-   assert encode(-0.0) == encode(0.0) and encode(True) == encode(1)
+   assert encode(-0.0) == encode(0.0) and encode(True) == encode(1) == encode(1.0)
 
    # Containers keep the distinctions == keeps; a mapping's order is not content.
    assert encode((1,)) != encode([1])
@@ -2119,28 +2568,34 @@ the package's nameable classes to distinct qualified names.
    assert encode(np.array([1, 2])) == encode(np.array([1.0, 2.0]))
    assert encode(np.zeros((2, 1))) != encode(np.zeros((1, 2)))
 
-   # NaN is refused where the value is made, naming the parameter.
+   # NaN is refused where a value is made, naming the field.
    try:
-       AlbedoBoundary(float("nan"))
+       parse_real(float("nan"), "StructuredGeometry.breakpoints[0]")
    except ValueError as err:
-       assert "AlbedoBoundary.albedo" in str(err)
+       assert "StructuredGeometry.breakpoints[0]" in str(err) and "which is not a number" in str(err)
    else:
-       raise AssertionError("a NaN albedo was admitted")
+       raise AssertionError("a NaN was admitted")
 
-   # A tag and the typed law it resolves to are two declarations.
-   assert BC.vacuum != VacuumInflow()
+   # A deck and a tag are two declarations; two decks carry no field and the class name tells them apart.
+   assert MirrorDeck() != 1 and MirrorDeck() != TranslationDeck() and MirrorDeck() == MirrorDeck()
+   assert encode(MirrorDeck()) != encode(TranslationDeck())
 
    # Two geometries built apart are one value, in every process.
-   def sphere():
+   def shell():
        return StructuredGeometry(
            coord=CoordSystem.SPHERICAL, breakpoints=(0.25, 0.5, 1.0, 2.0),
-           mat_ids=(0, 1, 0), boundaries=(AlbedoBoundary(0.5), BC.vacuum),
+           mat_ids=(0, 1, 0), face_roles=(1, 0),
        )
 
-   a, b = sphere(), sphere()
+   a, b = shell(), shell()
    assert a is not b and a == b and hash(a) == hash(b)
    assert len(content_digest(a)) == 32
    assert pickle.loads(pickle.dumps(a)) == a
+   # The roles are content: the same body with its two faces' tags swapped is another value.
+   assert a != StructuredGeometry(
+       coord=CoordSystem.SPHERICAL, breakpoints=(0.25, 0.5, 1.0, 2.0),
+       mat_ids=(0, 1, 0), face_roles=(0, 1),
+   )
 
    # Anything else has no content.
    try:
@@ -2149,6 +2604,12 @@ the package's nameable classes to distinct qualified names.
        assert "has no content identity" in str(err)
    else:
        raise AssertionError("a function was encoded")
+
+`[M]` 2026-10-24, run in a worktree at the carve tip (the import
+resolved to that tree's ``orpheus/__init__.py``): the block runs to its
+last statement, and ``content_digest(shell())`` begins ``42c18f89``,
+the pin of the fingerprint's hollow sphere
+(:ref:`structured-geometry-content-identity-gates`).
 
 .. _structured-geometry-content-identity-schema:
 
@@ -2159,7 +2620,10 @@ An object encodes as its schema tag followed by its parts. The tag is
 the text ``<type name>|v<version>|<part names>``: the class's type name
 (the rule below), its ``__content_version__`` (a class attribute, 1
 unless the class raises it) and the names of its parts in order. `[M]`
-2026-10-22 the tag of a ``BC`` reads ``BC|v1|kind,params``. Adding,
+2026-10-24 the tag of a ``StructuredGeometry`` reads
+``StructuredGeometry|v1|coord,breakpoints,mat_ids,face_roles`` and that of
+a ``MirrorDeck`` reads ``MirrorDeck|v1|`` (``orpheus.values.content._schema_tag``,
+called on each class). Adding,
 removing, renaming or reordering a part, raising the version, and
 renaming the class each change every digest of that class.
 
@@ -2244,8 +2708,7 @@ its ``init`` fields and rebuilds it by calling the constructor: every law
 re-runs on load, the arrays are read-only copies again, and a pickle
 written under an older schema (a removed field) fails to load with a
 ``TypeError`` naming the field instead of loading as a value it is not.
-``FrozenMapping`` pickles as its items, and ``PrescribedInflow`` has its
-own ``__reduce__``. The key and the pickle therefore guard the schema
+``FrozenMapping`` pickles as its items. The key and the pickle therefore guard the schema
 twice, on the two routes a stored value can take.
 
 Three consequences follow, each a rule for whoever changes a class.
@@ -2262,13 +2725,16 @@ Three consequences follow, each a rule for whoever changes a class.
   A rename is a cache miss and a recomputation, never a wrong answer.
   A new class whose qualified name an existing nameable class already
   holds is refused by the uniqueness gate above; rename one of the two.
-* **The tag separates classes with no parts.** ``VacuumInflow`` and
-  ``ZeroFluxBoundary`` have no fields, so their parts are the same empty
-  sequence and only the class name distinguishes them; `[M]` the
-  test-architect's battery arm that drops the tag reddens the
-  ``LawSum`` row whose operand changes from one to the other (spec
-  §1.5, correction 10). The tag is load-bearing for these types, not
-  only for schema evolution.
+* **The tag separates classes with no parts.** ``MirrorDeck`` and
+  ``TranslationDeck`` have no fields, so their parts are the same empty
+  sequence and only the class name distinguishes them: `[M]` 2026-10-24
+  ``encode(MirrorDeck()) != encode(TranslationDeck())`` and
+  ``MirrorDeck() != TranslationDeck()``, in the block above. The tag is
+  load-bearing for these types, not only for schema evolution. (The
+  pre-carve instance was ``VacuumInflow`` and ``ZeroFluxBoundary``: the
+  test-architect's battery arm that dropped the tag reddened the row of
+  the law algebra whose operand changed from one to the other, spec
+  §1.5, correction 10.)
 
 .. _structured-geometry-content-identity-mixin:
 
@@ -2298,9 +2764,17 @@ no instance storage to a slotted class.
   prevent. The cache is sound only because the values are frozen and
   their arrays are read-only copies.
 
-`[M]` 22 concrete classes carry the mixin on this tree (23 with the
-abstract ``BoundaryTraceLaw``), walked through ``__subclasses__`` at
-runtime:
+`[M]` 2026-10-24, walking ``ContentIdentity.__subclasses__()`` at runtime
+after importing every module of the ``orpheus`` package (0 import
+failures; the import resolved to the worktree's tree): 64 subclasses,
+63 of them concrete (``inspect.isabstract`` false), by package 3 in
+``data``, 4 in ``derivations``, 1 in ``diffusion``, 9 in ``geometry``, 4
+in ``mesh``, 19 in ``numerics``, 13 in ``reference``, 3 in
+``specification``, 6 in ``transport`` and 1 in ``values``. (At the first
+pass, 2026-10-02, the count was 22 concrete classes and the abstract
+``BoundaryTraceLaw``; the retired law family left the walk at the wave-2
+carve and the decks, the colouring values and the transport conditions
+joined it.) The table lists the classes whose parts this page states:
 
 .. list-table:: The content classes, and their parts
    :header-rows: 1
@@ -2317,33 +2791,32 @@ runtime:
        ``Mixture``. The ids are coerced to ``int`` at admission (an
        ``np.int64`` id is the same id); the declared order is kept for
        iteration and is not content
-   * - ``BC``
-     - ``kind`` and ``params``, a ``FrozenMapping`` from parameter name
-       to real number; ``bc.params`` is never equal to a plain ``dict``,
-       so compare ``dict(bc.params)``
-   * - the seven registered boundary laws (``VacuumInflow``,
-       ``ReflectiveBoundary``, ``WhiteBoundary``, ``AlbedoBoundary``,
-       ``PeriodicBoundary``, ``PrescribedInflow``,
-       ``ZeroFluxBoundary``), and the law algebra's ``LawSum`` and
-       ``LawScaled``
-     - their dataclass fields; the parts of a law (``SpecularReturn``,
-       ``IsotropicReturn``, ``NoSource``, ``ConstantInflowSource``) are
-       frozen dataclasses, encoded by the same rule without carrying
-       the mixin
    * - ``StructuredGeometry``
-     - ``coord``, ``breakpoints``, ``mat_ids``, ``boundaries``
+     - ``coord``, ``breakpoints``, ``mat_ids``, ``face_roles``
+   * - ``MirrorDeck``, ``TranslationDeck``
+     - no parts: the class name is the content
+   * - ``ColouringSymmetry``, ``FaceIsometry``, ``UncomputedSymmetries``
+     - ``elements`` (the identity first); ``motion`` and ``faces``;
+       ``carrier``
+   * - ``WallCondition``, ``WallDisplacement``, ``BoundaryConditions``,
+       ``Binding``, ``ResponseNetwork``, ``InflowTerms``
+     - ``network`` and ``inflow``; ``conditions``; ``decks``, ``tags``,
+       ``declared`` and ``symmetry``; ``weights``; ``uniform`` and
+       ``sampled``. A sampled inflow term that is a plain object has
+       identity equality and no content, so a wall holding one, and a
+       binding holding that wall, has no digest
    * - ``Mesh1D``
      - ``coord``, ``edges``, ``volumes``, ``region_ids``,
-       ``region_materials``, ``face_laws``; the derived ``widths``,
+       ``region_materials``, ``face_roles``; the derived ``widths``,
        ``centers`` and ``areas`` are ``compare=False``, and so is
        ``mat_ids``, a derived ``init=False`` field read out from the labels
        and the map through ``per_cell``
    * - ``Mesh2D``
-     - ``edges_x``, ``edges_y``, ``mat_map``, ``face_laws``, ``coord``,
+     - ``edges_x``, ``edges_y``, ``mat_map``, ``face_roles``, ``coord``,
        stored as read-only copies with ``-0.0`` canonicalised
-   * - ``FaceLaws``
+   * - ``FaceRoles``
      - a ``FrozenMapping`` subclass: one part, ``items``, the mapping
-       from face name to law, so the order of the faces is not content
+       from face name to role, so the order of the faces is not content
    * - ``CellEdges``
      - ``edges``
    * - ``Axis``, ``EnergyAxis``
@@ -2366,30 +2839,30 @@ runtime:
        ``dict``. It is the one spelling of a frozen mapping in the
        content types
 
-**Two exceptions, both kept by ruling.** ``VacuumInflow`` and
-``ReflectiveBoundary`` keep a string arm in ``__eq__``:
-``VacuumInflow() == "vacuum"`` and ``ReflectiveBoundary("x") ==
-"reflective"`` are ``True``, and every other comparison is the mixin's.
-Retiring string equality is its own cleanup (the user, 2026-10-01).
-The cost is stated here so nobody relies on the opposite: `[M]`
-``hash(VacuumInflow()) != hash("vacuum")``, so the rule "equal values
-hash alike" does not hold across the string arm, and a law and its
-kind string must not be mixed as keys of one ``dict`` or members of one
-``set``.
+**A retired string arm.** This section recorded the trace-law architecture
+that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its
+successor in :ref:`bc-wave2-crosswalk`. Two of those laws, ``VacuumInflow``
+and ``ReflectiveBoundary``, kept a string arm in ``__eq__`` by the user's
+ruling of 2026-10-01 (``VacuumInflow() == "vacuum"`` was ``True``), at a
+cost stated then so nobody relied on the opposite: `[M]`
+``hash(VacuumInflow()) != hash("vacuum")``, so the rule "equal values hash
+alike" did not hold across the string arm. The string arm retired with
+the laws.
 
-**A tag is not its typed law.** ``BC.vacuum`` and ``VacuumInflow()``
-are different declarations and unequal (`[M]`), so two geometries that
+**A deck is not a tag.** ``MirrorDeck()`` and the tag ``1`` are different
+declarations and unequal (`[M]`, the block above), so two geometries that
 mean the same face but spell it differently have different digests. The
 failure this produces is a cache miss, never a wrong hit.
 
 **Where the in-process keys read it.**
 ``MaterialMesh._contractibility_key`` folds each mixture's
-``content_digest``, and ``MaterialMesh``'s boundary-law
-key is now the law itself for a ``BC`` tag as for a typed law, since
-both hash by content; only a law with no content keeps the key
-``(qualified class name, id(law))``, which is honest in process because
-a callable has no content to compare. These keys are hashed by Python
-and live inside one process; the persistent key is the digest.
+``content_digest``, the material map and each axis's key: the axis's
+edges, its coordinate system, its labels and its face roles (a deck's
+content or an ``int`` tag), so the roles reach the in-process identity
+through the axes. The boundary-law branch of that key retired with the
+laws. These keys are hashed by Python and live inside one process; the
+persistent key is the digest.
 
 .. _structured-geometry-content-identity-refusals:
 
@@ -2407,12 +2880,16 @@ throwaway ``Axis`` subclass admitting its provenance into the content,
 holding such a part has no digest. It is then equal only to itself
 (identity is the honest equality of a value with no content) and it is
 unhashable, because an identity hash would let it into a persistent
-key. The case in the tree is a ``PrescribedInflow`` whose source is a
-plain object or a function, such as the manufactured inflow of
+key. The case in the tree is a ``WallCondition`` whose inflow holds a
+sampled term that is a plain object (the ``FaceFrameInflow`` or
+``LabFrameInflow`` wrapper keys by its sampler, which has identity
+equality), such as the manufactured inflow of
 ``tests/gates/sn/verification/analytical/test_mms_declared_inflow.py``:
-two laws over one such source object are two values, and a geometry
-holding one inherits the refusal, with the path through
-``boundaries``.
+two walls over one such sampler object are two values, and a ``Binding``
+holding one inherits the refusal
+(``tests/gates/transport/test_binding.py``). A geometry cannot hold
+one: it carries a deck or an ``int`` tag, never a response, so a
+geometry always has a digest whatever exterior its tags are bound to.
 
 ⚠ The directional ``Quadrature`` is such a part today: it is a mutable
 dataclass (``frozen=False``) with a hand-written ``_identity_key``, so
@@ -2436,16 +2913,16 @@ naming the field or parameter:
   cannot carry, passes infinities (a caller needing a finite value asks
   :func:`~orpheus.values.scalars.parse_finite_real`), and returns
   ``+0.0`` for ``-0.0``;
-* ``BC`` parameters: each name must be a ``str`` and each value goes
-  through ``parse_real``, so a ``str`` or ``bool`` value is a
-  ``TypeError`` and NaN a ``ValueError``; the parsed parameters are
-  stored as a ``FrozenMapping``;
-* ``AlbedoBoundary.albedo``, ``WhiteBoundary.albedo``,
-  ``ConstantInflowSource.value``, ``LawScaled.scalar``, and the
-  ``alpha`` of ``ScalarResponse``, ``LambertianReemission`` and
-  ``SpecularReemission``, through ``parse_real``; the ``outward_sign`` of
-  ``WhiteBoundary``, ``LambertianReemission`` and ``IsotropicReturn`` is
-  an ``int``;
+* a wall condition's numbers, through
+  :func:`~orpheus.values.scalars.parse_finite_real` where the wall is
+  made: the weight of ``WallCondition.specular`` and
+  ``WallCondition.white``, the value of ``WallCondition.uniform``, the
+  two amplitudes of ``WallCondition.from_amplitudes``, the weights of a
+  ``ResponseNetwork`` and the uniform part and the sampled weights of an
+  ``InflowTerms``. `[M]` 2026-10-24: ``WallCondition.specular(float("nan"))``
+  raises ``ValueError: albedo is NaN, which is not a number`` and
+  ``WallCondition.white(float("inf"))`` ``albedo is infinite, not a
+  finite real number``;
 * ``Mesh2D``'s edges through ``parse_positions`` (an infinite or a
   ``bool`` edge is refused) and its material map through
   ``parse_integer``: a material id is an ``int``, so a float map, even
@@ -2468,8 +2945,8 @@ fold once, in :func:`~orpheus.values.scalars.canonical_real`.
 One definition of a real number, at the bottom of the package graph
 -------------------------------------------------------------------
 
-Every value a key covers admits numbers: a boundary law's albedo, a
-geometry's breakpoints, a mesh's edges, a mixture's cross sections, a
+Every value a key covers admits numbers: a wall condition's return
+fraction, a geometry's breakpoints, a mesh's edges, a mixture's cross sections, a
 table's entries, a question's offsets, and the encoder itself. Each
 admission must agree with the encoder on what a number *is*, or a value
 that constructs could carry bits the digest does not describe. That
@@ -2545,12 +3022,13 @@ the one beneath it:
      - the geometry's and the mesh's other inputs, each over the parsers
        above
 
-`[M]` 2026-10-22, 27 production modules import the module (``git grep -l
+`[M]` 2026-10-24, 25 production modules import the module (``git grep -l
 'orpheus.values.scalars import' -- orpheus``, its known member
-``values/content.py`` found): 10 in ``geometry``, 5 in ``reference``, 4 in
-``numerics``, 2 each in ``data``, ``mesh`` and ``derivations``, 1 in
-``specification`` and ``content.py`` in ``values``. (At #559, on
-2026-10-02, the same grep found 13.)
+``values/content.py`` found): 5 in ``reference``, 4 each in ``geometry``
+and ``numerics``, 3 in ``transport``, 2 each in ``data``, ``mesh`` and
+``specification``, 1 each in ``derivations``, ``sn`` and ``values``. (At
+#559, on 2026-10-02, the same grep found 13; on 2026-10-22, 27, 10 of
+them in the retired ``geometry/boundary`` package and its neighbours.)
 
 **Why the encoder admits** ``bool`` **and the parsers refuse it.** The
 two answer different questions. The encoder digests a value that already
@@ -2783,15 +3261,18 @@ fixes added rows, and their run of record is the full suite.
        and order, a pickled ``MaterialMesh``
    * - ``tests/gates/geometry/test_content_identity_geometry.py``
      - 101
-     - ``BC``, the seven registered laws and their parts, ``LawSum``,
-       ``LawScaled`` and ``StructuredGeometry``: S5.2 to S5.4, the
-       read-only ``BC.params``, the tag that is not its law, the kept
-       string arm, the NaN and non-real refusals at construction, and
-       the contentless law (S5.5)
+     - ``StructuredGeometry``, the decks, rigid motions, partitions
+       and the colouring values: S5.2 and S5.3. (The law rows of this
+       file, covering ``BC``, the registered laws, ``LawSum`` and
+       ``LawScaled``, the kept string arm, the NaN and non-real
+       refusals of the parameters and the contentless law of S5.5,
+       retired with their subject types at the wave-2 carve; their
+       successors are the transport layer's walls, gated in
+       ``tests/gates/transport/``)
    * - ``tests/gates/mesh/test_content_identity_mesh.py``
      - 37
-     - ``FaceLaws``, ``CellEdges``, ``Mesh1D`` and ``Mesh2D``: S5.2,
-       S5.3, ``FaceLaws`` is not a ``dict``, and ``Mesh2D``'s read-only
+     - ``FaceRoles``, ``CellEdges``, ``Mesh1D`` and ``Mesh2D``: S5.2,
+       S5.3, ``FaceRoles`` is not a ``dict``, and ``Mesh2D``'s read-only
        copies, canonical signed zero and equality (S5.10)
 
 The population is quantified, not listed: each file declares a roster
@@ -2816,10 +3297,17 @@ schema tag and the ``Enum`` encoding dropped the module of an
 ``orpheus`` type (layer DAG ruling 10): all 14 pins moved. `[M]` the old
 schema tag and the old ``Enum`` encoding swapped back in-process together
 reproduce each of the 14 old pins byte for byte, so those two are the
-only cause; the tag alone reproduces 11 of the 14. The three values are
+only cause; the tag alone reproduces 11 of the 14. It was re-pinned a
+third time at the wave-2 carve (slice S1, ``6b090ff9``, 2026-10-23): the
+geometry's boundary field became ``face_roles`` (the fingerprint's hollow
+sphere was an albedo specular inner law and a vacuum outer law, and is
+the tags 1 and 0), so one digest moved, the hollow sphere's
+(``eea5d62f`` to ``42c18f89``); `[M]` ``git show 6b090ff9 --
+tests/gates/values/test_content_identity.py`` changes that one pin line
+and no other. The three values are
 the 2-group mixture A of ``xs_library``, a hollow sphere of three
-intervals with an albedo specular inner law and a vacuum outer law, and
-a ``Materials`` of the 2-group mixtures A and B. Every cache key of the
+intervals with the tag 1 on its inner face and the tag 0 on its outer
+face, and a ``Materials`` of the 2-group mixtures A and B. Every cache key of the
 cache to come is a digest of this kind, so a moved digest invalidates
 every stored entry; the message says so, and a re-pin carries its
 reason in the commit message. The inputs are literals and IEEE-exact
@@ -2837,7 +3325,7 @@ Mesh-free functions: the source and the detector a specification states
 =======================================================================
 
 A reference question (the reference-solution cache of #405) is stated
-before any mesh exists: the materials, the geometry with its laws, and
+before any mesh exists: the materials, the geometry with its face roles, and
 the source and the detector of a fixed-source problem. The source and
 the detector therefore cannot be arrays on a discretised space; they are
 functions stated *intensionally*, by a rule a later projection evaluates
@@ -4139,7 +4627,7 @@ The reference specification: a question with its materials, keyed
 
 A reference (#405) answers one question about one system, and the
 **reference specification** is that question written down: the materials,
-the geometry with its boundary laws when the problem has one, and what is
+the geometry with its face roles when the problem has one, and what is
 asked (:ref:`structured-geometry-question-values`). It is never an answer.
 It is the key a reference cache stores an answer under, so it is a
 content value (:ref:`structured-geometry-content-identity`), admitted in a
@@ -4177,7 +4665,7 @@ keyed by, :class:`~orpheus.data.cells.CellCoefficient` and
    critical_radius.unreadable # (Symbolic.phi,): a sphere has no azimuth reference
 
 **Why this page is the home.** A specification composes the three values
-the chapters above define: the geometry with its laws, the content
+the chapters above define: the geometry with its face roles, the content
 encoder, the mesh-free functions and the question values. It is the
 consumer for which each of them was built. The specification of the step,
 with its rulings, its gates and its mutation battery, is
@@ -4195,7 +4683,7 @@ The layer a question is posed at is the type
 --------------------------------------------
 
 The posing filtration commits phase space in stages: the materials, then
-the geometry with its laws, then the mesh, then the method
+the geometry with its face roles, then the mesh, then the method
 (:doc:`/architecture/conceptual_view`). A reference question is posed at
 one of two of those stages, and each stage is a type:
 
@@ -4213,7 +4701,7 @@ one of two of those stages, and each stage is a type:
      - energy alone: the infinite medium, the point in position and in
        direction
      - a finite :class:`~orpheus.geometry.structured_geometry.StructuredGeometry`
-       with its boundary laws
+       with its face roles
    * - ``materials``
      - ``Materials({material_id: mixture})``, built on read
      - the given ``Materials``, restricted to the ids the geometry assigns
@@ -4522,24 +5010,29 @@ first when a cache calls ``hash``. The encoder is the one definition of
 "keyable", so a separate parse would be its twin (the first elegance
 review withdrew its own objection to digest-as-admission on that ground,
 and the digest is memoised, so the eager call costs nothing extra). What
-the earlier parses leave for the digest to refuse is the boundary-law
-payload: a geometry whose law holds a function, such as
-:class:`~orpheus.geometry.boundary.prescribed_inflow.PrescribedInflow`
-built from a callable, is refused with
-:class:`~orpheus.values.content.ContentlessError` naming
-``GeometrySpecification.geometry`` (S8.1 ``contentless_geometry``).
+the earlier parses leave for the digest to refuse is a payload with no
+content. A geometry cannot hold one (its roles are decks and integers, and
+the specification's exterior is plain data, a
+:class:`~orpheus.specification.exterior.WallAmplitudes` per tag), so the
+first pass's refusal of a geometry whose law held a function, named
+``GeometrySpecification.geometry``, has no spellable input now.
 
 .. warning::
 
-   **An obligation for phase P4, not met in P1.** The non-vacuum
-   manufactured-solution reference
-   (``orpheus/derivations/continuous/mms/sn.py``, its prescribed-inflow
-   branch) declares a callable-bearing inflow law, so a specification of
-   it cannot be built today. The census counts 13 manufactured-solution
-   case types among the fixed-source producers; before P4 stores their
-   references, the inflow needs a content-bearing law, a ``Symbolic``
-   boundary inflow on the trace. How many of the 13 carry a non-vacuum
-   face is not counted (`[R]`).
+   **Open: a non-vacuum manufactured-solution reference has no
+   specification.** A specification's exterior states a wall as two
+   amplitudes, with no function in it, so the prescribed, angle-varying
+   inflow a manufactured solution needs on a non-vacuum face cannot be
+   written there. The inflow is declared on the S\ :sub:`N` side, as a
+   wall condition framed on the face
+   (``WallCondition.framed(LabFrameInflow(...))``,
+   ``tests/gates/sn/verification/analytical/test_mms_declared_inflow.py``),
+   outside any specification. Before P4 stores the references of the
+   manufactured-solution cases, the inflow needs a content-bearing
+   exterior, a ``Symbolic`` boundary inflow on the trace. The census of
+   the first pass counted 13 manufactured-solution case types among the
+   fixed-source producers; how many of the 13 carry a non-vacuum face is
+   not counted (`[R]`).
 
 .. _structured-geometry-specification-group-count:
 
@@ -5964,6 +6457,36 @@ trust ``git`` over this table for merge status.
      - Milestone
      - Issue
      - Where
+   * - 2026-10-24
+     - **The geometry declares a deck or a tag per face, never a boundary
+       model.** ``StructuredGeometry.boundaries`` became ``face_roles``:
+       a ``MirrorDeck`` or a ``TranslationDeck`` where the domain
+       continues across a face, an ``int`` tag where it ends, the exact
+       twin of a material id. The ``BC`` tag, ``BoundaryTraceLaw``, the
+       seven registered laws with ``LawSum`` and ``LawScaled``, the
+       ``BoundaryRealizer`` Protocol and the string registries retired
+       from the geometry layer (``orpheus/geometry/boundary/``): the
+       exterior model is the transport layer's one affine wall condition,
+       bound to the tags where the method is known, with one realizer
+       table per method answering admission and realization together.
+       ``Mesh1D`` and ``Mesh2D`` store a ``FaceRoles`` (``FaceLaws``
+       retired, ``outer_law`` became ``outer_role``); the axis slots
+       became ``role_low``, ``role_high``, ``role_outer`` and
+       ``role_inner``, the last the hollow inner tag the radial axis
+       carries and its trace inventory does not list. The geometry gained
+       ``symmetry``, the colouring stabiliser read from its breakpoints,
+       material ids and end roles
+       (:ref:`structured-geometry-colouring-symmetry`), and
+       ``wigner_seitz_pin_cell`` became ``cylinder(outer=0)`` with the
+       white wall bound by its consumer. The hollow-body and CP guards
+       moved into the realizer tables as ``Refused`` rows. The
+       fingerprint's hollow-sphere digest moved (``eea5d62f`` to
+       ``42c18f89``). The retired names and their successors:
+       :ref:`bc-wave2-crosswalk`; the candidate refused:
+       :ref:`structured-geometry-mesh-refuted`, 10.
+     - #511, #513, #514
+     - ``6b090ff9`` (slice S1) on the carve branch *(in development)*;
+       specification ``.claude/plans/wave2_boundary_carve.md``
    * - 2026-10-10
      - **Three generators read the body classification.** ``Billiard``,
        the trajectory resolvent's generator, was deleted with its family
