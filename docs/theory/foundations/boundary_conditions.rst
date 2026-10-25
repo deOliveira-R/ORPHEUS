@@ -3378,8 +3378,10 @@ one this page follows; the others are built the same way and live in
 **What a table is.** A table is keyed by the *unit* of a declaration and
 filled by realizer classes that register by a class keyword
 (``class SNSpecularChain(ResponseRealizer, table=SN_REALIZERS,
-realizes=SpecularChain)``); the defining module seals the table on its last
-line, so anyone holding it has executed every registration. The units are
+realizes=SpecularChain)``); each table is sealed after its last registration (on the
+module's last line for SN, diffusion and MoC; at the end of the realizer
+block for CP and MC), so anyone holding the table has executed every
+registration. The units are
 the two chains of the response network
 (:class:`~orpheus.transport.boundary_conditions.SpecularChain`, the
 permuting return, and
@@ -3396,8 +3398,10 @@ network being the method's zero map, the image of ``s * SpecularChain`` and
 ``d * DiffuseChain`` being those chains' realizers at weights :math:`s` and
 :math:`d`, and the image of a sum being the sum of the images, so a method
 never writes a branch over the shared family. A deck (a mirror plane or a
-translation wrap) meets the table's one
-:class:`~orpheus.transport.boundary_conditions.DeckRealizer`.
+translation wrap) meets the table's
+:class:`~orpheus.transport.boundary_conditions.DeckRealizer`, at most one
+per table (MoC registers none, so a deck there meets the unregistered door,
+#654).
 
 **One door.** :meth:`RealizerTable.realize
 <orpheus.transport.boundary_conditions.realization.RealizerTable.realize>`
@@ -3461,9 +3465,9 @@ read off the five tables at this commit:
      - :math:`w\cdot I` (tier 2)
      - mirror :math:`I`; translation refused (topology)
    * - CP
-     - the vacuum closure: escaped neutrons are lost,
-       :math:`P_\infty = P_{\rm cell}`, a block of the boundary-to-region
-       coupling matrix
+     - the vacuum closure, :math:`P_\infty = P_{\rm cell}` (escaped
+       neutrons are lost), at the outer face only (the slab's left face and
+       a hollow inner face are refused, #513)
      - refused (plumbing, #654)
      - the white closure, at weight 1.0 only (below one the albedo would be
        dropped, so it is refused, #654)
@@ -3487,7 +3491,7 @@ realizer classes in those five modules
 orpheus/diffusion/boundary_realizer.py orpheus/cp/solver.py
 orpheus/moc/geometry.py orpheus/mc/solver.py`` lists them), not from the
 carve plan. The "refused (#654)" cells are the capability the table
-records as not built: the old string registries held one closure per method
+records as not built: the old string registries held a closed list per method
 (CP the white wall and the vacuum, MoC the specular tracks, MC the periodic
 wrap), and the tables keep that coverage and state the rest as refusals that
 name the issue.
@@ -3500,7 +3504,9 @@ its own table (see :ref:`bc-cross-method-stubs`).
 This layer used to be a ``BoundaryRealizer`` Protocol, one realizer class per
 method that took a trace law and the method space, and a string-keyed
 registry that named which laws each method admitted, with the mesh's
-``realize_boundary_law`` arm as the per-method hook. Wave 2 (2026-10-24)
+``realize_boundary_law`` arm as the per-method hook (SN first; diffusion
+adopted it at #290 P3; the hook and the dissolution of the Wave-5 stubs were
+#290 P7b). Wave 2 (2026-10-24)
 retired that architecture with the trace laws it consumed; the present one is
 :ref:`bc-architecture-of-record`, and each retired name maps to its
 successor in :ref:`bc-wave2-crosswalk`.
@@ -3722,7 +3728,9 @@ realized operator of that wall's response network, the reflection that the
 pre-extraction sweep applied at the boundary edge: a scaled ordinate
 permutation :math:`s\,P_\pi` for a specular return, the factored Lambertian
 re-emission :math:`d\,(E\circ R_t)` for a diffuse one, and the sum of the two
-images for a mixed wall (:ref:`bc-realizer-layer`).
+images for a mixed wall, and for a deck face the unit permutation of its
+mirror or its wrap (the wrap being :math:`B`'s only off-diagonal block)
+(:ref:`bc-realizer-layer`).
 
 
 The deleted keystone
@@ -4210,12 +4218,12 @@ outflow emission corrupts the outflow-definition residual
 :math:`r_{\rm outflow}` (which must carry **no** :math:`B` term —
 :ref:`bc-extraction-design-corrections`). The extraction achieved that
 by *projecting* a full-face law's image onto the inflow rows; since
-campaign phase **B3.2** it is achieved by *typing* — the realized law's
-domain is :math:`\Gamma_+` and its codomain is :math:`\Gamma_-`, so
+campaign phase **B3.2** it is achieved by *typing* — the realized face operator
+:math:`R`'s domain is :math:`\Gamma_+` and its codomain is :math:`\Gamma_-`, so
 :meth:`_reflect_trace <orpheus.sn.operators.boundary.SNBoundaryOperator>`
-composes :math:`\iota_-\circ\text{law}\circ\gamma_+` and there is no
+composes :math:`\iota_-\circ R\circ\gamma_+` and there is no
 wider image to project (:ref:`bc-domain-narrowing`). The transpose
-composes :math:`\iota_+\circ\text{law}^{\mathsf T}\circ\gamma_-`, so it
+composes :math:`\iota_+\circ R^{\mathsf T}\circ\gamma_-`, so it
 masks its INPUT to :math:`\Gamma_-` and scatters its OUTPUT over
 :math:`\Gamma_+` — the asymmetry that
 :ref:`correction 2's warning <bc-extraction-design-corrections>`
