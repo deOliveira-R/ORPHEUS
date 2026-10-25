@@ -376,6 +376,8 @@ For example, the first data record of H-1 looks like:
    |----11----|----11----|----11----|----11----|----11----|----11----| MAT|MF|MT |SEQ|
 
 
+.. _gendf-float-notation-parser:
+
 Compact Float Notation
 -----------------------
 
@@ -389,12 +391,21 @@ notation is omitted.  The exponent sign immediately follows the mantissa:
    2.407191-7  →  2.407191E-7  =  2.407191×10⁻⁷
 
 The parser ``_parse_gendf_field`` in ``gendf.py`` handles this
-by inserting ``E`` before any ``+`` or ``-`` sign that follows a digit:
+by inserting ``E`` before the ``+`` or ``-`` sign that follows a digit.
+A valid field has at most one such sign, the exponent's, and it is the
+field's last sign; the leading sign of a negative mantissa follows
+nothing and is left alone:
 
 .. code-block:: python
 
-   s = re.sub(r"(\d)([+-])", r"\1E\2", s)
+   j = max(s.rfind("+"), s.rfind("-"))
+   if j > 0 and s[j - 1].isdigit():
+       s = f"{s[:j]}E{s[j:]}"
    return float(s)
+
+The rule is spelled with string methods rather than a regular
+expression because it runs once per field, 4.7 million times on the
+U-235 tape (:ref:`gendf-reader-cost`).
 
 
 MF and MT Numbers
@@ -1715,15 +1726,39 @@ rather than four transcriptions that could drift apart.
 .. warning::
 
    **Regenerating is not optional after #426 step 1, and it is not
-   free.**  ``[M]`` 2026-09-03, one laptop, all 13 tapes: **7–8
-   minutes** wall clock (first to last output file, 7 min, plus the
-   leading parse of the first tape) and **438.5 MB** on disk.  Both
-   roughly doubled at step 1 — the store now holds seven Legendre
-   orders per
-   scattering section where it held three, and a
-   :math:`(n,2n)` stack where it held one matrix.  That cost was
-   priced before the change and accepted: the alternative is a data
-   layer that decides the solve's angular truncation for it.
+   free.**  ``[M]`` 2026-10-25, one laptop, all 13 tapes: **90 s**
+   and **438.5 MB** on disk (:ref:`gendf-reader-cost`).  The store
+   holds seven Legendre orders per scattering section and a
+   :math:`(n,2n)` stack, about twice the size of a three-order store
+   with one :math:`(n,2n)` matrix.  That cost was priced and accepted:
+   the alternative is a data layer that decides the solve's angular
+   truncation for it.
+
+.. _gendf-reader-cost:
+
+The reader's cost: a section is found once, not by scanning the tape
+---------------------------------------------------------------------
+
+An isotope's conversion reads one MF=6 section per reaction and
+temperature, 264 reads on O-16, and each read needs the rows of its own
+(MF, MT) section out of the whole parsed tape (338 583 records on
+O-16). ``_section_rows(m, mf, mt)`` finds them from one vectorised mask
+(the section's rows up to the tape-end record, ``MAT = -1``), and
+``_extract_mf6`` walks only those rows, jumping to the section's next
+row at or after its position. ``_extract_mf3``, the fission-spectrum
+reader and the temperature list find their rows the same way.
+
+The reason is the cost of the alternative: a Python walk of the whole
+tape for each read, which is what the MATLAB ``extract_mf6`` this
+reader ports does. ``[M]`` 2026-10-25, ``cProfile`` of
+``convert_gxs("O_016")`` in that form: 61 of 78 s were those walks.
+
+``[M]`` 2026-10-25, one laptop, serial: regenerating the whole store
+(``convert_one`` over the 13 tapes, HDF5 written) takes **90 s** and
+writes **438.5 MB**. The cost matters beyond a developer's first run:
+the documentation build on Read the Docs has Git LFS and no cached
+store, so it converts every tape the two spectrum figures on the
+infinite-medium page read, inside a 15-minute build limit.
 
 
 File Sizes
@@ -1826,9 +1861,9 @@ To regenerate the HDF5 files from the GENDF sources:
    .venv/bin/python orpheus/data/micro_xs/convert_gxs_to_hdf5.py
 
 This globs ``*.GXS`` in ``orpheus/data/micro_xs/`` — ``[M]`` **13**
-files — and writes the corresponding ``.h5`` files.  ``[M]`` 2026-09-03
-the run takes **7–8 minutes** and produces **438.5 MB**; before #426
-step 1 it was roughly half of each.  The command above is the one the
+files — and writes the corresponding ``.h5`` files.  ``[M]`` 2026-10-25
+the run takes **90 s** and produces **438.5 MB**
+(:ref:`gendf-reader-cost`).  The command above is the one the
 loader's own refusal message prints, so a stale-store failure can be
 copied straight from the traceback.
 
@@ -2408,3 +2443,22 @@ solver output.
    - :ref:`theory-collision-probability`, :ref:`theory-discrete-ordinates`,
      :ref:`theory-method-of-characteristics`, :ref:`theory-monte-carlo` — all
      transport solvers consume ``Mixture`` objects from this pipeline.
+
+
+History
+-------
+
+- 2026-10-25 — the GENDF reader finds each section's rows from one
+  vectorised mask instead of a Python walk of the tape per section, and
+  the field parser's regular expression becomes string methods; the
+  output is unchanged — ``[M]`` the 13 tapes, the pristine reader
+  imported beside the new one: the same ``Isotope`` at all 62
+  temperatures, 0 differences in 806 fields (exact arrays and dtypes;
+  every sparse matrix's ``indptr``, ``indices`` and ``data``), against
+  168 differences on ZR-96 for a reader with the sparsity epsilon
+  doubled; the parsed matrices identical on 13 of 13. ``convert_gxs``
+  over the 13 tapes went from 1213 s to 147 s before the parser change,
+  parsing from 123 s to 69 s. The page carried 7–8 minutes for a
+  regeneration, measured 2026-09-03 on that tree, and roughly half of
+  each figure before #426 step 1; the 90 s above supersedes it —
+  commit pending — no issue.

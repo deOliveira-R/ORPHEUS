@@ -15,7 +15,6 @@ e.g. ``1.001000+3`` means ``1.001E+3``.
 
 from __future__ import annotations
 
-import re
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
@@ -42,8 +41,12 @@ def _parse_gendf_field(s: str) -> float:
     s = s.strip()
     if not s:
         return 0.0
-    # Insert 'E' before +/- sign that follows a digit (but not at position 0)
-    s = re.sub(r"(\d)([+-])", r"\1E\2", s)
+    # The exponent's sign is the field's last '+' or '-'; a valid field has
+    # at most one sign that follows a digit, and only that one takes the 'E'
+    # (the leading sign of a negative mantissa follows nothing).
+    j = max(s.rfind("+"), s.rfind("-"))
+    if j > 0 and s[j - 1].isdigit():
+        s = f"{s[:j]}E{s[j:]}"
     return float(s)
 
 
@@ -91,24 +94,31 @@ def _extract_n_words(n: int, i_row: int, m: np.ndarray) -> tuple[np.ndarray, int
     return np.array(a), row
 
 
+def _section_rows(m: np.ndarray, mf: int, mt: int) -> np.ndarray:
+    """The row indices, ascending, of every record of the (MF, MT) section, up to the tape-end record.
+
+    A section's records are found from one vectorised mask instead of a
+    Python scan of the whole tape per section: on O-16 (338 583 records)
+    the per-section scans cost 61 of 78 s of a conversion, 264 full scans.
+    The tape-end record (MAT = -1) bounds the search, as the scans it
+    replaces stopped there.
+    """
+    tape_end = np.flatnonzero(m[:, 6] == -1)
+    n_row = int(tape_end[0]) if tape_end.size else m.shape[0]
+    head = m[:n_row]
+    return np.flatnonzero((head[:, 7] == mf) & (head[:, 8] == mt))
+
+
 def _extract_mf3(mt: int, temp_idx: int, m: np.ndarray) -> np.ndarray | None:
     """Extract MF=3 cross sections for reaction *mt* at temperature index *temp_idx*.
 
     Returns (n_sig0, NG) array, or None if the reaction is absent.
     """
     n_row = m.shape[0]
-    n_temp = 0
-    i_row_found = 0
-
-    for i in range(n_row):
-        if m[i, 7] == 3 and m[i, 8] == mt and m[i, 9] == 1:
-            n_temp += 1
-            if n_temp == temp_idx:
-                i_row_found = i + 1
-                break
-
-    if i_row_found == 0:
+    rows = np.flatnonzero((m[:, 7] == 3) & (m[:, 8] == mt) & (m[:, 9] == 1))
+    if not 1 <= temp_idx <= rows.size:
         return None
+    i_row_found = int(rows[temp_idx - 1]) + 1
 
     n_sig0 = int(m[i_row_found - 1, 3])
     n_lgn = int(m[i_row_found - 1, 2])
@@ -158,7 +168,7 @@ def _extract_mf6(mt: int, temp_idx: int, m: np.ndarray) -> _MF6Section | None:
     (#426 step 1; until then ``NL = 1`` was padded to three zero keys here and
     every channel was cut to three orders downstream).
     """
-    n_row = m.shape[0]
+    rows = _section_rows(m, 6, mt)
     i = 0
     n_temp = 0
     ifrom_list: list[int] = []
@@ -174,32 +184,34 @@ def _extract_mf6(mt: int, temp_idx: int, m: np.ndarray) -> _MF6Section | None:
     n_lgn = 0
     n_sig0 = 0
 
-    while i < n_row and m[i, 6] != -1:
-        if m[i, 7] == 6 and m[i, 8] == mt:
-            if m[i, 9] == 1:  # first record of this MF/MT section
-                n_lgn = int(m[i, 2])
-                n_sig0 = int(m[i, 3])
-                i += 1
-                n_temp += 1
-
-            ng2 = int(m[i, 2])      # number of secondary positions
-            ig2lo = int(m[i, 3])    # lowest nonzero group (1-based)
-            nw = int(m[i, 4])       # words to read
-            ig = int(m[i, 5])       # current group (1-based)
-
+    # Every row outside the section was a no-op step of the full scan, so
+    # jumping to the section's next row at or after ``i`` is the same walk.
+    while (k_row := int(np.searchsorted(rows, i))) < rows.size:
+        i = int(rows[k_row])
+        if m[i, 9] == 1:  # first record of this MF/MT section
+            n_lgn = int(m[i, 2])
+            n_sig0 = int(m[i, 3])
             i += 1
-            a, i_new = _extract_n_words(nw, i, m)
-            i = i_new
+            n_temp += 1
 
-            if n_temp == temp_idx:
-                k = n_lgn * n_sig0  # skip flux words
-                for i_to in range(ig2lo, ig2lo + ng2 - 1):
-                    ifrom_list.append(ig)
-                    ito_list.append(i_to)
-                    for i_sig0 in range(n_sig0):
-                        for i_lgn in range(n_lgn):
-                            k += 1
-                            sig.setdefault((i_lgn, i_sig0), []).append(a[k - 1])
+        ng2 = int(m[i, 2])      # number of secondary positions
+        ig2lo = int(m[i, 3])    # lowest nonzero group (1-based)
+        nw = int(m[i, 4])       # words to read
+        ig = int(m[i, 5])       # current group (1-based)
+
+        i += 1
+        a, i_new = _extract_n_words(nw, i, m)
+        i = i_new
+
+        if n_temp == temp_idx:
+            k = n_lgn * n_sig0  # skip flux words
+            for i_to in range(ig2lo, ig2lo + ng2 - 1):
+                ifrom_list.append(ig)
+                ito_list.append(i_to)
+                for i_sig0 in range(n_sig0):
+                    for i_lgn in range(n_lgn):
+                        k += 1
+                        sig.setdefault((i_lgn, i_sig0), []).append(a[k - 1])
         i += 1
 
     if n_temp == 0:
@@ -338,10 +350,7 @@ def convert_gxs(name: str) -> list[Isotope]:
     print(f"{m.shape[0]} records.", flush=True)
 
     # --- Header: temperatures, sigma-zeros, energy grid (MF=1, MT=451) ---
-    temps: list[float] = []
-    for i in range(m.shape[0]):
-        if m[i, 7] == 1 and m[i, 8] == 451 and m[i, 9] == 2:
-            temps.append(m[i, 0])
+    temps = list(m[(m[:, 7] == 1) & (m[:, 8] == 451) & (m[:, 9] == 2), 0])
 
     n_sig0 = int(m[1, 3])
     header_words = 1 + n_sig0 + (NG + 1)
@@ -540,16 +549,11 @@ def _to_canonical_group_order(iso: Isotope) -> Isotope:
 
 def _extract_chi(i_temp: int, m: np.ndarray) -> np.ndarray:
     """Extract the fission spectrum (chi) from MF=6, MT=18."""
-    # Find MF=6, MT=18
-    i = 0
-    while i < m.shape[0]:
-        if m[i, 7] == 6 and m[i, 8] == 18:
-            break
-        i += 1
-    else:
+    rows = np.flatnonzero((m[:, 7] == 6) & (m[:, 8] == 18))  # MF=6, MT=18
+    if not rows.size:
         return np.zeros(NG)
 
-    i += 1  # move to second record
+    i = int(rows[0]) + 1  # move to second record
     ig2lo = int(m[i, 3])
     nw = int(m[i, 4])
     i += 1
