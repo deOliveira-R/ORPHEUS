@@ -7558,11 +7558,14 @@ Measured against those bounds: 1.9e-16 (2.7e-15), 1.2e-16 (8.9e-16),
       leaf the realizer builds is narrowed, and the closure-free albedo
       that made this mix spellable is refused. The lesson above, that
       the raise was never a safety property, stands. What replaces the
-      accident is a check: a mixed wall is a sum of realized chains, and
-      ``RealizedSum`` refuses at construction terms that fill different faces,
-      consume different outflows or live on different trace spaces
-      (``ValueError``), so a leaf that is not a :math:`\Gamma_+ \to
-      \Gamma_-` image on the same discretization cannot be summed.
+      accident is two checks. First, ``RealizedSum`` refuses at
+      construction terms that fill different faces, consume different
+      outflows or live on different trace spaces (``ValueError``).
+      Second, every realized leaf is a :math:`\Gamma_+ \to \Gamma_-`
+      image by type: the realizer's leaves are the four realized
+      boundary types, each built from the outflow and inflow spaces of
+      the trace ladder, and the permutation leaf raises (ERR-045) on an
+      inflow ordinate whose partner is not an outflow ordinate.
 
 The specular rows are ``assert_array_equal`` and the choice is
 structural, not optimistic: a gather introduces no re-association and
@@ -7594,9 +7597,12 @@ is the shape the inversion removed.
    because its :math:`R = \alpha I` is a :math:`\Gamma_+ \to \Gamma_+`
    endomorphism and its :math:`G` supplies no crossing (the account
    written then is :ref:`bc-method-realizability`). Today the closure-free
-   return is unspellable: every constructor of
-   :class:`~orpheus.transport.boundary_conditions.WallCondition` names a
-   closure (``specular``, ``white``, ``framed``), and each closure crosses. The
+   return is unspellable, for a structural reason: the linear part of a
+   :class:`~orpheus.transport.boundary_conditions.WallCondition` is a
+   ``ResponseNetwork`` whose keys are members of the closed sum
+   ``Chain = SpecularChain | DiffuseChain``, and an import-time check
+   verifies that each chain composes from outflow to inflow, so no
+   chain spells a :math:`\Gamma_+ \to \Gamma_+` return. The
    successor of the case is the second method
    on the ``specular_x_lebedev17`` case, which pinned the same α-fold on
    the same quadrature through the theorem that
@@ -8100,11 +8106,13 @@ per face by ``resolve_boundary_conditions``.)
    (2026-10-22) it lives in :mod:`orpheus.geometry.faces`, from which the
    axis module re-exports it. ``sweep_graph`` re-exported it only outward;
    ``sweep_schedule`` and ``loss_representation`` now import it
-   downward. This puts the single source of the axis↔name crosswalk
+   downward. At C4 this put the single source of the axis↔name crosswalk
    in the same module as :class:`~orpheus.mesh.axis.FaceLabel`, the
    walk's in/outflow-face derivation, and the schedule's
-   outgoing-face derivation — no consumer hand-lists
-   ``("x", ...), ("y", ...)`` pairs any longer.
+   outgoing-face derivation. Today the crosswalk is single-sourced in
+   :mod:`orpheus.geometry.faces`; ``FaceLabel.face_name`` and the schedule
+   read it from there, and no consumer hand-lists
+   ``("x", ...), ("y", ...)`` pairs.
 
 The ``"outer" → "max"`` convention and fail-loud
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -8165,7 +8173,10 @@ label and no role. A tag is bound to its condition by the problem's declared
 conditions: :func:`~orpheus.transport.boundary_conditions.bind` joins the two
 into a :class:`~orpheus.transport.boundary_conditions.Binding`, which is an
 exact cover of the tags (a tag no condition names, or a condition no face's tag
-names, is refused) and invariant under the problem's colouring group. The
+names, is refused) and, where the colouring group is computed, invariant under
+it: a condition that is not face-local on a carrier whose group is not computed
+(``UncomputedSymmetries``, every ``Mesh2D``) is refused rather than checked
+(SCOPE-BOUNDARY, #658; ``binding.py``). The
 resolution is one loop over the binding's faces, the body of
 :func:`~orpheus.transport.method.realize_boundary` in
 ``orpheus/transport/method.py`` (quoted with its annotations and docstring
@@ -9099,12 +9110,21 @@ measured cost"):
 Separately, the **multi-D adjoint** (``loss_action_transpose`` raised
 :class:`NotImplementedError` at any multi-D) was a **pre-existing
 deferral** orthogonal to C5 (G-adjoint campaign territory), noted here
-only so the :math:`d = 3` capability map was complete. It is lifted for the
-registered loss representations: since #310 C4/C5 every registered leaf has a
-reverse walk (the ``has_transpose_walk`` docstring: every registered leaf overrides it to true), and the 2-D adjoint row
-is no longer excluded (:doc:`/theory/methods/sn/loss_representation` carries the
-account). [R] This page does not claim the :math:`d = 3` adjoint
-is value-gated; the four gates above are forward solves.
+only so the :math:`d = 3` capability map was complete. Its two arms
+differ and are discriminated. The transpose **matvec**
+(``loss_action_transpose``) is lifted: since #310 C4/C5 every registered
+loss representation has a reverse walk (the ``has_transpose_walk``
+docstring: every registered leaf overrides it to true), and the 2-D adjoint
+row is no longer excluded (:doc:`/theory/methods/sn/loss_representation`
+carries the account). At :math:`d = 3` it is gated by
+``tests/gates/sn/sweep/core/test_multi_d_reverse_walk.py::test_d3_dense_mt_and_pairing_on_the_spine``.
+``[M]`` 2026-10-24, ``python -O -m pytest`` on that node id from this
+worktree: ``1 passed, 1 warning in 5.47s``. The transpose **solve**
+(``has_transpose_sweep``, the sweep :math:`S^{H}`) of the multi-D wavefront
+is still deferred: the base class returns ``False`` and the multi-D
+representations (``FullFieldWavefront``, ``MovingFrontierWindow``,
+``ScanMarch``) do not override it; only the 1-D scan realises it. The four
+gates above are forward solves.
 
 C5 closure
 ----------
@@ -9169,8 +9189,9 @@ re-attempt them. Each entry says what, if anything, the wave-2 types
    shown what SN's dispatch idiom lacked: the
    :class:`~orpheus.transport.boundary_conditions.RealizerTable`, one per
    method (five tables exist), which answers admission and realization
-   together and keys its realizers by the unit realized, not by an
-   ``isinstance`` ladder over the declaration. The lesson stands in the
+   together and, after one split by declaration kind (deck, source, condition),
+   keys its realizers by the unit realized, not by an
+   ``isinstance`` ladder over the laws. The lesson stands in the
    corrected form: the abstraction was extracted when the instances had shown
    what they share (a table keyed by the unit, a refusal that names the face),
    and it does not have SN's shape.
