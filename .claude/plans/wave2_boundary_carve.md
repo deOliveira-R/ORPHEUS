@@ -1664,5 +1664,5 @@ The two Opus reviews raised 12 findings. The amend answered 11, and the verifier
   - the five Napoleon misreadings;
   - the cross-unit inconsistency on "cone", which 2 units' qa flagged and left to the orchestrator;
   - the 3 seal sentences outside the region of the unit that fixed its own.
-- **Escaped:** one, to CI: the pyright ratchet on `a4992f00` read mesh 0 to 4 (`face_inventory` and `colouring_symmetry` annotated `Sequence[float]` and handed numpy edges, from S2a/S3). No local gate could see it, because the worktree's pyright is vacuous (#640) and the build-units template's workaround landed only at close-out (`8112c92e`). Fixed at the root by `ae9779ee`; CI green there. The full suite found nothing (0 failed of 19 152 run).
+- **Escaped:** one, to CI: the pyright ratchet on `a4992f00` read mesh 0 to 4 (`face_inventory` and `colouring_symmetry` annotated `Sequence[float]` and handed numpy edges; the annotations are from WF2.2 `487d2d19` and S1 `5b7f1dee`, measured by `git log -S`). No local gate could see it, because the worktree's pyright is vacuous (#640) and the build-units template's workaround landed only at close-out (`8112c92e`). Fixed at the root by `ae9779ee`; CI green there. The full suite found nothing (0 failed of 19 152 run).
 - **Cost:** 42 agents and 10.2 M tokens for the pass, plus the orchestrator's integration.
