@@ -79,6 +79,11 @@ docs = [
     "sphinxcontrib-bibtex>=2.6",  # central refs.bib -> Nexus citation nodes (#231 D)
     "sphinx-design>=0.6",         # dropdowns/cards for machine header + gotchas (#231)
     "myst-parser>=5",             # docs/development/**.md — harness-independent source of .claude/ cores
+    # The build runs two generators (conf.py `_GENERATORS`: the verification
+    # matrix and the error-catalogue index) that collect the test registry
+    # through `tests._harness.audit`, which imports pytest. Without it each
+    # warns and the build keeps the committed copy, silently stale.
+    "pytest>=8",
 ]
 dev = [
     "orpheus[test,docs]",

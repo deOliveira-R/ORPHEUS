@@ -1,21 +1,34 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 
-# Required
 version: 2
 
-# Set the OS, Python version, and other tools you might need
 build:
   os: ubuntu-24.04
   tools:
-    python: "3.13"
+    # The interpreter CI and the project venv use.
+    python: "3.14"
+  jobs:
+    # The cross-section tapes (orpheus/data/micro_xs/*.GXS) are Git LFS
+    # objects, and Read the Docs clones without LFS: two figures on the
+    # infinite-medium page read them, and the build converts them to the
+    # HDF5 store (about 90 s on a laptop, docs/theory/foundations/
+    # cross_section_data.rst "The reader's cost"). The recipe is Read the
+    # Docs' own (build customization, "Support Git LFS"), at a current
+    # git-lfs; its tarball nests the binary one directory down.
+    post_checkout:
+      - wget -q https://github.com/git-lfs/git-lfs/releases/download/v3.8.1/git-lfs-linux-amd64-v3.8.1.tar.gz
+      - tar xzf git-lfs-linux-amd64-v3.8.1.tar.gz --strip-components=1 git-lfs-3.8.1/git-lfs
+      - git config filter.lfs.process "`pwd`/git-lfs filter-process"
+      - git config filter.lfs.smudge "`pwd`/git-lfs smudge -- %f"
+      - git config filter.lfs.clean "`pwd`/git-lfs clean -- %f"
+      - ./git-lfs install
+      - ./git-lfs fetch
+      - ./git-lfs checkout
 
-# Build documentation in the "docs/" directory with Sphinx
 sphinx:
   configuration: docs/conf.py
 
-# Declare the Python requirements required to build your documentation
-# See https://docs.readthedocs.io/en/stable/guides/reproducible-builds.html
 python:
   install:
     - method: pip

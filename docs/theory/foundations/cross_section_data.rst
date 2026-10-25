@@ -2461,4 +2461,4 @@ History
   parsing from 123 s to 69 s. The page carried 7–8 minutes for a
   regeneration, measured 2026-09-03 on that tree, and roughly half of
   each figure before #426 step 1; the 90 s above supersedes it —
-  commit pending — no issue.
+  ``194f6690`` — no issue.
