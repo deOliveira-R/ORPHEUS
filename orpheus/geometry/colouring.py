@@ -43,6 +43,7 @@ from dataclasses import dataclass
 from typing import TypeAlias
 
 import numpy as np
+from numpy.typing import NDArray
 
 from orpheus.geometry.chart import coordinates_agree
 from orpheus.geometry.coord import CoordSystem
@@ -113,7 +114,7 @@ def _same_role(low: FaceRole, high: FaceRole) -> bool:
 def colouring_symmetry(
     coord: CoordSystem,
     ends: tuple[float, float],
-    breaks: Sequence[float],
+    breaks: Sequence[float] | NDArray[np.floating],
     ids: Sequence[int],
     role_low: FaceRole,
     role_high: FaceRole,

@@ -29,8 +29,13 @@ This module imports only :mod:`orpheus.geometry.coord` (for the 1-D face invento
 from __future__ import annotations
 
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from orpheus.geometry.coord import CoordSystem
+
+if TYPE_CHECKING:
+    import numpy as np
+    from numpy.typing import NDArray
 
 __all__ = [
     "AXIS_INDEX",
@@ -211,7 +216,7 @@ FACE_NAMES: tuple[str, ...] = tuple(
 
 
 def face_inventory(
-    coord: CoordSystem, first_axis_edges: Sequence[float], dimension: int,
+    coord: CoordSystem, first_axis_edges: Sequence[float] | NDArray[np.floating], dimension: int,
 ) -> tuple[str, ...]:
     """The names of a domain's boundary faces, axis by axis, inner face first.
 
