@@ -74,8 +74,12 @@ docs = [
     # — and the Nexus MCP server then fails at import. The package still
     # installs and the CLI still works, so the only symptom is that every
     # graph tool silently disappears from the session. 0.16 targets the
-    # mcp 2.x API and requires it explicitly.
-    "sphinxcontrib-nexus>=0.16",
+    # mcp 2.x API and requires it explicitly. Raised to 0.18.1: earlier
+    # releases took the directory `python -m` puts on sys.path for a source
+    # root conf.py declared, so Read the Docs' `cd docs && python -m sphinx`
+    # analysed `docs/` alone (876 of 1243 modules, 409 `.. implements::`
+    # warnings), and they indexed the `build/lib` copy `pip install .` leaves.
+    "sphinxcontrib-nexus>=0.18.1",
     "sphinxcontrib-bibtex>=2.6",  # central refs.bib -> Nexus citation nodes (#231 D)
     "sphinx-design>=0.6",         # dropdowns/cards for machine header + gotchas (#231)
     "myst-parser>=5",             # docs/development/**.md — harness-independent source of .claude/ cores
