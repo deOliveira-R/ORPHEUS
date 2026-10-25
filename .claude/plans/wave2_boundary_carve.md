@@ -1651,7 +1651,7 @@ The two Opus reviews raised 12 findings. The amend answered 11, and the verifier
 - The markers: `verifies("bc-…")` is unchanged, 11 × `bc-response-factored-adjoint` and 1 × `bc-single-delivery`.
 - `pytest -O`: 2038 passed, 1 skipped, 2 xfailed. The set is `tests/gates/transport` plus the docstring cross-references, the elegance tags, the layer imports, the catalogue reconciliation, the generated-harness check and the SN binding gate. An earlier run over the docs gates and the 3 edited test files gave 767 passed and 4 xfailed.
 - `staleness`: 62 of 143 pages show timestamp drift (code modified after the page). It is not adjudicated here.
-- Not run: the full suite.
+- The full suite `[M]` 2026-10-24 at `a4992f00`: `python -O -m pytest -m "not slow" -p no:cacheprovider -q --color=no -rfE tests`, serial, gives 19 152 passed, 256 skipped, 287 deselected, 63 xfailed, 0 failed, 0 errors, in 78 min 46 s (log `scratch/wave2_r/wf25_full_suite.log`). The three commits after `a4992f00` change only agent memory, the workflow templates and plans.
 
 **The trial's tally for WF2.5.**
 - **Caught by qa:** 108 findings over 14 units, 2 of them high:
@@ -1664,5 +1664,5 @@ The two Opus reviews raised 12 findings. The amend answered 11, and the verifier
   - the five Napoleon misreadings;
   - the cross-unit inconsistency on "cone", which 2 units' qa flagged and left to the orchestrator;
   - the 3 seal sentences outside the region of the unit that fixed its own.
-- **Escaped:** none known at this writing. The full suite and CI have not run.
+- **Escaped:** none the full suite found (0 failed of 19 152 run). CI has not run at this writing.
 - **Cost:** 42 agents and 10.2 M tokens for the pass, plus the orchestrator's integration.
