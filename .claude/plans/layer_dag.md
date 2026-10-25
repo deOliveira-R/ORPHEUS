@@ -205,3 +205,35 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
   - an unhashable axis argument raising `TypeError` (it was `ValueError`) is accepted, being a type error.
 - Filed: #651 (MoC MMS still walks `MOCMesh` by shape and copies the production sweep kernel; under the MoC-later ruling) and #652 (the `IndexSet`/`EnergyGroups` twin).
 - Owed after the suite: the geometry modules' tests (`test_manifold`, `test_symmetry`, `test_roots_of_unity`, and any other test of a moved module) move from `tests/gates/numerics/` to `tests/gates/geometry/`, since the test tree mirrors the packages. The layering page's layer table is reordered when wave 2 removes the 8 `geometry/boundary` → numerics edges.
+
+## ⏸ COMPACTION POINT — 2026-10-24, night (wave 2 complete on its branch; close-out running)
+
+**State.** Read git for merge status, not this line.
+- Wave 2 (architecture E's cross-package part, P1) is complete on `refactor/wave2-boundary-carve`. The worktree is `.claude/worktrees/wave2-carve`, and the branch is 71 commits on `main` `437dec2a`. The phases:
+  - WF2.1, the specification `.claude/plans/wave2_boundary_carve.md`;
+  - WF2.2, the leaves;
+  - WF2.3, the slices S1 to S5;
+  - WF2.4, the retirement `ece6a281` (Closes #551, #189);
+  - WF2.5, the docs, integrated at `a4992f00`.
+  The record is that plan's section 11, with 11.8 for WF2.5.
+- P1 has closed by measurement (§11.7): the {geometry, numerics} package SCC is empty over every edge set, the layer table in `CLAUDE.md` and `layering.rst` is re-ordered, and `layer_census.py` reads its layering from the gate.
+- Close-out has started:
+  - agent memory is committed (`96975f71`);
+  - the template fixes are committed (`8112c92e`: docs-pass cuts from a named base and amends; honest trailers; the pyright workaround);
+  - the full suite `-m "not slow"` is running in the background, writing `scratch/wave2_r/wf25_full_suite.log` (the head it ran at is in `.head` beside it).
+- The owed test moves of wave 1 are done: `test_manifold`, `test_symmetry` and `test_roots_of_unity` are in `tests/gates/geometry/`.
+
+**Next, in order.**
+1. Read the suite's log. A red is fixed before the merge, at its root.
+2. The trial report to the user: the surgical-carve exception was recalibrated as a trial over WF2.2 to WF2.5. Per phase, plan §11 records what qa caught, what the orchestrator caught after qa, what escaped, and the cost. The user then rules whether the exception stays as written in the `workflows` rule.
+3. `git merge --ff-only refactor/wave2-boundary-carve` on `main`, then push and watch CI (`gh run watch`).
+   - The main checkout holds uncommitted copies of the cross-domain-attacker's and the elegance-enforcer's memory, which are now committed on the branch. Back them up and `git checkout` those four files before the ff, or the merge refuses.
+   - Then remove the carve worktree and delete the branch.
+4. Then the backlog this wave left open:
+   - #546 (CP vacuum omits leakage; a new witness, the Sood sphere, commented 2026-10-24);
+   - #547 (MC on a cylinder);
+   - #650 (widening today's admission limits);
+   - #654 (the unregistered-door plumbing);
+   - #658 (`Mesh2D` colouring);
+   - #529 (the sn cycle);
+   - the `numerics` to `derivations` opening that the layer gate admits and the census flags as UP (nonpage's NEEDS: a ruling for the user).
