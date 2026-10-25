@@ -27,6 +27,13 @@ orbifold is a circle, which has more reflections than :math:`x \mapsto a + b - x
 identity only (:math:`G_c` absorbs the rotation and the quotient is trivial). A multi-axis carrier has no group
 machinery yet and answers :class:`UncomputedSymmetries`, the typed pessimistic answer, never an optimistic
 :math:`\{e\}`.
+
+**Who reads it.** A carrier exposes the value as ``symmetry``: a geometry, a ``Mesh1D`` and a ``MaterialMesh`` call
+:func:`colouring_symmetry` on their raw partition, a ``Mesh2D`` answers :class:`UncomputedSymmetries`.
+:class:`~orpheus.transport.boundary_conditions.Binding` reads it to refuse a condition that is not invariant under a
+non-identity element moving a face of its tag (the realized conditions are face-local, so in one dimension the refusal
+is reachable only by a prescribed inflow written in laboratory directions). The architecture of record is
+:ref:`bc-architecture-of-record`.
 """
 
 from __future__ import annotations

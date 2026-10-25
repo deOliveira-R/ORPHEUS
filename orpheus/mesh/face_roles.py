@@ -19,6 +19,20 @@ its extent, by one rule, :func:`face_inventory`:
 and :class:`~orpheus.mesh.structured.Mesh2D` store: a mapping from face name
 to role over exactly the inventory, in inventory order. A role per face, rather
 than per side, is the seed for a side whose faces carry different roles.
+
+**What :meth:`FaceRoles.over` checks.** The declared faces are exactly the inventory (a keyed refusal names the faces the
+mesh has, and :func:`~orpheus.geometry.faces.why_faces_differ` says why a name is wrong); each role is a deck or an ``int``
+tag; a deck is one the face's axis admits on the coordinate system
+(:func:`~orpheus.geometry.deck.admitted_decks`: on a cylinder or a sphere the radial axis admits none, a reflecting curved
+wall is a tagged face with a specular condition) and the pairings close
+(:func:`~orpheus.geometry.deck.parse_face_roles`: a mirror pairs a face with itself, a translation pairs it with the
+opposite face, and the opposite face must carry the translation too). :attr:`FaceRoles.tags` is the set of tags the
+faces carry, which is what the binding's exact cover is taken over.
+
+**A carrier need not store a FaceRoles.** ``Mesh1D`` and ``Mesh2D`` store one; ``MaterialMesh`` derives the same mapping from
+its axes (``roles_of_axes``, a property), and all three satisfy the binding's carrier contract
+(:class:`~orpheus.transport.boundary_conditions.BoundaryCarrier`). The architecture of record is
+:ref:`bc-architecture-of-record`.
 """
 
 from __future__ import annotations

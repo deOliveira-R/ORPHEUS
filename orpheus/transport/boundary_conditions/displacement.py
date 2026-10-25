@@ -25,6 +25,8 @@ condition), else a displacement.
 * The network and the inflow of a displacement hold the same drop rule as a condition's (a zero weight is not
   stored, ``-0.0`` is ``0.0``).
 
+Theory: :ref:`bc-architecture-of-record`.
+
 Layer: ``transport`` (L2). Imports ``values`` and the sibling modules only.
 """
 

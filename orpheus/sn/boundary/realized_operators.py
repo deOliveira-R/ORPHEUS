@@ -95,7 +95,7 @@ Gotchas
 References
 ----------
 * ``.claude/plans/wave2_boundary_carve.md`` sections 2.6 and 3 (laws L-A, L-E, L-L) and 6.2 (S2b gates 14 to 18, 20).
-* ``docs/theory/foundations/boundary_conditions.rst`` (``bc-tensor-decomposition``, ``bc-method-realizability``).
+* ``docs/theory/foundations/boundary_conditions.rst`` (:ref:`bc-architecture-of-record`; ``bc-tensor-decomposition``, ``bc-method-realizability``).
 """
 
 from __future__ import annotations

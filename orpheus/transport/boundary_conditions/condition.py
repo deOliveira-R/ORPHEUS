@@ -8,7 +8,7 @@ r"""The exterior conditions of a face (``condition.py`` of the conditions packag
 **The types.**
 
 * :class:`BoundaryCondition`: the abstract base of every exterior condition, the shared family and the method-only
-  ones (zero flux, an anisotropic SN kernel). It is a ``ContentIdentity``. Its contract is three accessors, no storage:
+  ones (``ZeroFluxCondition`` is the one that ships; an anisotropic SN kernel would be another). It is a ``ContentIdentity``. Its contract is three accessors, no storage:
   :attr:`~BoundaryCondition.return_fraction` (:math:`\rho = J^-/J^+` of the linear part, the DECLARATION's closed form;
   a zero-flux condition reports ``-1.0``), :attr:`~BoundaryCondition.source` (the affine part :math:`q`, read by
   ``Binding.sources`` for EVERY condition type with no ``isinstance`` on a leaf) and
@@ -47,7 +47,7 @@ a ``FaceFrameInflow`` reading a tangential coordinate would not be invariant (no
   the facade of a uniform source is ``WallCondition.uniform(value)``, named after the coordinate
   ``InflowTerms.uniform``. The specification spelled the facade ``inflow(value)``, a name a class attribute cannot share
   with the field (it was installed after the dataclass was built, and a type checker saw only the field, so every
-  consumer was red); the rename is the S2a review's finding, reported in NEEDS.
+  consumer was red); the rename was a finding of the S2a review.
 * ``__radd__`` and ``__rsub__`` are not defined: the left operand of every pairing the arithmetic admits is itself a
   ``_PairArithmetic`` (a condition or a displacement), whose ``__add__`` / ``__sub__`` answers, so a reflected method
   is unreachable (measured: 0 calls across the three pairings). ``sum([...])`` from the integer ``0`` is therefore
@@ -57,6 +57,8 @@ a ``FaceFrameInflow`` reading a tangential coordinate would not be invariant (no
 * At the exact boundary of the cone two associations of one sum may differ by a rounding, one a condition and one a
   displacement (the binding door then refuses the latter); nothing in the tree builds a wall at :math:`\rho` within a
   few ulp of one other than by this arithmetic.
+
+Theory: :ref:`bc-architecture-of-record`.
 
 Layer: ``transport`` (L2). Imports ``numerics`` and ``values`` only; ``FaceIsometry`` is imported under
 ``TYPE_CHECKING``.

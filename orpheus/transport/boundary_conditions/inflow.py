@@ -39,6 +39,8 @@ body is ``sample_terms``.
 * Weights may be negative here: a displacement (:mod:`.displacement`) holds signed inflow. The positive cone is the
   condition's (``q >= 0``).
 
+Theory: :ref:`bc-architecture-of-record`.
+
 Layer: ``transport`` (L2). Imports ``numerics`` (the sampler's space, under ``TYPE_CHECKING``) and ``values`` only.
 """
 

@@ -1,9 +1,13 @@
 """The exterior conditions of a transport problem: declaration, binding, admission and realization tables.
 
-The package replaces the string-keyed boundary laws of ``orpheus.geometry.boundary`` with ONE shared exterior type
+The package is the successor of the string-keyed boundary laws of the retired ``orpheus.geometry.boundary`` (wave 2,
+2026-10-24): ONE shared exterior type
 (:class:`WallCondition`, an affine pair of a response network and an inflow), a binding of declared conditions to a
 carrier's tagged faces (:func:`bind`), and a per-method realizer table whose single door answers both "is it admitted"
-and "realize it". Each module's docstring holds its mathematics and its gotchas; this file only re-exports.
+and "realize it" (``SN_REALIZERS``, ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS`` and ``MC_REALIZERS``, each
+in its method's package). Each module's docstring holds its mathematics and its gotchas; this file only re-exports. The
+architecture of record is :ref:`bc-architecture-of-record`; each retired name maps to its successor in
+:ref:`bc-wave2-crosswalk`.
 
 * :mod:`.network`: the factors, the closed chain sum, :class:`ResponseNetwork`;
 * :mod:`.inflow`: the affine part :math:`q`;

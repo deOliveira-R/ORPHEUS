@@ -26,7 +26,7 @@ chains and its source.
 **Why a class and not a ``TypeAlias``.** The specification writes ``Admission: TypeAlias = Realized | Approximated |
 Refused`` AND ``Admission.meet``; a ``typing.Union`` carries no attributes, so the two statements cannot both hold. The
 sum is therefore a sealed base class (:class:`Admission`) with exactly three subclasses: ``isinstance``, ``match``
-and annotations read as for the union, and ``meet`` lives on the type (reported in NEEDS).
+and annotations read as for the union, and ``meet`` lives on the type.
 
 **Where a declaration is placed.** :class:`FaceSite` is derived from the carrier, computable before a method space
 exists: the ``face``, the ``coord`` system and the ``dimension`` (whether the face is the hollow inner face of a radial
@@ -50,6 +50,8 @@ CP's slab-left-face rule is CP's own predicate on ``site.face`` (decision 56).
   a face is the inner surface of a hollow radial body, because a solid body has no inner face (``face_inventory``
   omits it). A stored flag would be a second spelling of that fact, constructible in contradiction with it (the
   orchestrator's ruling, 2026-10-23, after the S2a review).
+
+Theory: :ref:`bc-architecture-of-record`.
 
 Layer: ``transport`` (L2). Imports ``geometry`` (``CoordSystem`` and the face vocabulary) only.
 """

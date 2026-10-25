@@ -1,6 +1,6 @@
 r"""The deck transformations: how a domain continues across one of its faces.
 
-A transport domain :math:`D` closes its boundary in exactly two ways (``wave2_boundary_carve.md`` section 1.1).
+A transport domain :math:`D` closes its boundary in exactly two ways (the architecture of record, :ref:`bc-architecture-of-record`).
 Either the domain *ends* at the face and an exterior model supplies the inflow (a boundary condition, a response
 kernel plus a source, which is the transport layer's), or the domain *continues* across the face: the inflow
 trace at :math:`f` is the outflow trace at a partner face :math:`f'` carried by an isometry :math:`g` of the
@@ -43,6 +43,12 @@ and they govern different things. BEHAVIOUR (what a deck does: its pairing) is a
 match until it decides. MEMBERSHIP (is this value a deck, which deck types does a chart admit) reads the alias
 itself, by ``isinstance(x, DeckTransformation)`` and ``get_args(DeckTransformation)``, so a minted deck is a member
 the moment the alias names it and no site re-spells the union by hand.
+
+**Who reads a deck.** The colouring (:mod:`orpheus.geometry.colouring`) compares the two end roles of a slab and reads
+which faces a deck pairs; the binding (:func:`orpheus.transport.boundary_conditions.bind`) partitions a carrier's roles
+into decks and tags; each method's realizer table holds one :class:`~orpheus.transport.boundary_conditions.DeckRealizer`
+that matches the sum exhaustively. The theory of the split between a deck (a symmetry of the domain, a gluing) and a
+response (a model of the exterior) is "+REF+".
 """
 
 from __future__ import annotations

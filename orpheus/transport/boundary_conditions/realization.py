@@ -63,6 +63,8 @@ different spaces, so one parameter could not type both and a typed call of the s
 * A pure inflow (empty network, nonzero source) consults the ``ZeroNetwork`` realizer: its linear image is the zero map.
 * ``realize_direction`` is NOT minted (no caller until #529's first signed-sum consumer).
 
+Theory: :ref:`bc-architecture-of-record`.
+
 Layer: ``transport`` (L2). Imports ``numerics`` (the ``BlockRole`` stamp), ``geometry`` (the deck vocabulary) and its
 siblings.
 """

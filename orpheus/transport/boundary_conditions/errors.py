@@ -24,8 +24,12 @@ The two names are kept from the retiring vocabulary (retirement-audit B.11: two 
   colouring group that moves a face of its tag; it carries the ``isometry`` (or ``None`` where the group is not
   computed) and the ``faces``.
 
-The three certification errors that check the SN realizer's OWN index sets stay SN-side (``orpheus/sn/boundary/errors.py``,
-slice S2b), rooted here. The three that certify the quadrature (ERR-042, 044, 045) become numerics' errors.
+One certification error stays SN-side, rooted here: ``BoundarySourceNotOnIncomingTraceError`` (ERR-047) in
+``orpheus/sn/boundary/errors.py``, because the support it checks is the SN realizer's own. The certifications of the
+quadrature (ERR-042, 044, 045) are numerics' errors, ``PairingNotMeasurePreservingError``, ``PairingNotInvolutiveError`` and
+``PairingDoesNotCrossError`` in ``orpheus/numerics/quadrature/ordinate_pairing.py``, under the root ``OrdinatePairingError``.
+
+Theory: :ref:`bc-architecture-of-record`.
 
 Layer: ``transport`` (L2). Imports nothing from ``orpheus`` (the types in the annotations are under ``TYPE_CHECKING``).
 """

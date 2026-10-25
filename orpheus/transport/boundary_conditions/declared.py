@@ -18,6 +18,8 @@ refused loudly, naming each tag.
 **No ``restrict``.** ``Materials.restrict`` has four production callers; the specification names none for a conditions
 twin, so it would be dead weight (decision 56).
 
+Theory: :ref:`bc-architecture-of-record`.
+
 Layer: ``transport`` (L2). Imports ``values`` and :mod:`.condition`.
 """
 

@@ -23,11 +23,16 @@ The vertices of K are named once, here: ``WallAmplitudes.VACUUM`` :math:`(0, 0)`
 walls behind a geometry's integer tags as a mapping ``exterior`` from tag to
 :class:`WallAmplitudes`, and that mapping must cover ``geometry.tags`` exactly: a tag
 without amplitudes and an entry without a tag are each refused, by tag number.
-:func:`admit_exterior` is that predicate, written once; the specification and every
-reference consumer of the pair (the walls reader, the spectrum, the moment space, the
-basis space, the albedo reader) call it, so a state the specification refuses cannot
+:func:`admit_exterior` is that predicate, written once; the specification
+(``GeometrySpecification``) and every reference consumer of the pair (the characteristic reference's ``Walls``, the
+singular-eigenfunction spectrum, the :math:`F_N` moment space, the Galerkin basis space and the shared reference body) call it, so a state the specification refuses cannot
 be built by a reference, and the frozen copy it returns cannot be changed by the
 caller's later mutation of the mapping it passed.
+
+**The production counterpart.** The production wall is ``WallCondition`` of
+:mod:`orpheus.transport.boundary_conditions`, the same point of K spelled as a response network, and
+``WallCondition.from_amplitudes(specular, diffuse)`` builds it from these two coordinates; this module is plain data so
+that a reference never imports the transport layer. The architecture of record is :ref:`bc-architecture-of-record`.
 """
 
 from __future__ import annotations

@@ -66,6 +66,8 @@ empty network, hence one value and one digest.
 * ``ResponseNetwork`` parses only its own keys and reals. The CONE (non-negative weights, return fraction at most one)
   is the condition's: a network with negative weights is the linear part of a displacement.
 
+Theory: :ref:`bc-architecture-of-record`.
+
 Layer: ``transport`` (L2). Imports ``numerics`` (the tier marker) and ``values`` only.
 """
 

@@ -15,7 +15,7 @@ whose content is stated in a frame the face does not supply (a prescribed inflow
   the carrier ruling of 2026-10-23). ``face_roles`` is a ``Mapping[str, FaceRole]`` (the contract is what ``bind``
   reads: it iterates face to role; the tags predicate the meshes' ``tags`` properties read is the free function ``orpheus.geometry.deck.tags_of``; ``bind`` partitions the roles once) and
   ``symmetry`` is the colouring group of THE SAME faces. ``Mesh1D`` and ``Mesh2D`` conform with no edit (they store a
-  ``FrozenMapping`` of roles), ``MaterialMesh`` conforms through ``roles_of_axes`` (slice S2b). Passing the carrier,
+  ``FrozenMapping`` of roles), ``MaterialMesh`` conforms through ``roles_of_axes``. Passing the carrier,
   not its two derived values, makes a binding checked against another carrier's group unspellable (a G-set is the
   group together with the faces it acts on).
 * :class:`Binding`: the result. ``decks`` and ``tags`` are two typed maps with disjoint keys; ``declared`` the
@@ -28,8 +28,9 @@ whose content is stated in a frame the face does not supply (a prescribed inflow
   is not invariant under the group it was handed. Whether that group IS the carrier's is :func:`bind`'s guarantee and
   not the type's: a direct ``Binding`` handed the trivial group of another carrier with the same faces builds (the
   S2a verify probe, 2026-10-23). The carrier is not held, because the type's readers need only the faces and the group.
-* :func:`bind`: the ONE shared body every method is to call (from slice S2b on, it replaces
-  ``resolve_boundary_conditions``, ``_law_from_tag`` and the six string tables). It coerces ``conditions`` once through ``BoundaryConditions.of`` and refuses, in this
+* :func:`bind`: the ONE shared body every method calls (``SNProblem``, the diffusion augmented mesh and the method head of
+  ``orpheus/transport/method.py`` each call it once, at construction). It replaced the retired
+  ``resolve_boundary_conditions``, ``_law_from_tag`` and the six string tables. It coerces ``conditions`` once through ``BoundaryConditions.of`` and refuses, in this
   order: a tag a face carries with no condition (:class:`~.errors.UnboundTagError`, naming the face and the tag); a
   condition whose tag no face carries (:class:`~.errors.UnusedConditionError`: the exact cover catches a typo that a
   reachable-subset rule would hide); then, in the constructor it calls, a condition that is not invariant
@@ -48,6 +49,8 @@ alternative) is not built: nothing consumes the problem's group today, so a redu
   method-only condition with a source is not missed.
 * ``Binding`` holds contentless inflow samplers by identity: its digest raises ``ContentlessError`` when a condition
   holds a sampled term (the uniform-only case is ordinary content).
+
+Theory: :ref:`bc-architecture-of-record`.
 
 Layer: ``transport`` (L2). Imports ``geometry`` (the deck and colouring types), ``values`` and its siblings.
 """

@@ -43,6 +43,8 @@ layering rulings refused for the package name.
   method's table is therefore the expected answer, not a defect.
 * It is not a response network: ``WallCondition.zero_flux`` does not exist and a mixed wall cannot carry it.
 
+Theory: :ref:`bc-architecture-of-record`.
+
 Layer: ``diffusion`` (L3). Imports ``transport`` (the condition base and the empty source).
 """
 

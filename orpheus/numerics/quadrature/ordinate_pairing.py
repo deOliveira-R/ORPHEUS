@@ -5,8 +5,11 @@ r"""Equivariance certification of a quadrature under a rigid motion.
 the ordinate permutation this motion induces a certified pairing?* It carries
 no law argument and no boundary vocabulary, so it lives in the mathematics
 layer. It is the single certified source of an axis reflection's ordinate
-pairing; it has no consumer yet (the realizer re-derives the pairing until
-slice S2b hands this array in).
+pairing. Its consumer is SN's realizer (``_SNSites.mirror_pairing`` in
+``orpheus/sn/boundary/realizer.py``), which reads the permutation of a face's mirror plane from it; the raw, uncertified
+``Quadrature.ordinate_permutation`` is still called directly by one SN reader of the loss representation
+(``orpheus/sn/loss_representation/__init__.py``) and by a derivation. The architecture of record is
+:ref:`bc-architecture-of-record`.
 
 Design
 ======
