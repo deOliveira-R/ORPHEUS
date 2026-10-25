@@ -1382,9 +1382,12 @@ older entries classify against.
    honoured uniformly. Bit-identity to the pre-Round-3 reflective-only
    fill was preserved for ``SpecularBoundaryOperator`` (the standard
    ``BC.reflective`` factory), which was the load-bearing condition for
-   the 11 frozen regression snapshots to stay green. (``BoundaryOperator``,
-   ``SpecularBoundaryOperator``, ``BC`` and ``bc.apply_to_incoming`` are all
-   retired: the wave-2 carve of 2026-10-24 replaced them by the affine
+   the 11 frozen regression snapshots to stay green. (None of the four names survives, and they retired at different
+   times. ``BoundaryOperator`` was merged into ``BoundaryTraceLaw`` at Wave 7
+   (C7.1, 2026-05-11, ``fa3e38a0``), and ``SpecularBoundaryOperator`` and
+   ``apply_to_incoming`` were gone from the code with that refactor, by
+   May 2026. The ``BC`` registry and the whole trace-law family retired in the
+   wave-2 carve of 2026-10-24, which replaced them by the affine
    ``WallCondition`` and the SN realizer table, :ref:`bc-architecture-of-record`;
    each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.)
 
@@ -3825,7 +3828,7 @@ older entries classify against.
    **How it hides:** A flat-flux test with uniform ψ across all
    ordinates makes the tangential count irrelevant (its contribution
    cancels). The ERR fires only under non-trivial angular dependence
-   AND a reflective BC contract. Caught by the Wave 7 invariant.
+   AND a reflective BC contract. Caught today by the trace ladder's gate (below).
 
    **Catching test (as it stands):**
    ``tests/gates/numerics/test_angular_trace_space.py::test_axis_aligned_ordinates_excluded_from_both_selectors``,
@@ -3836,11 +3839,13 @@ older entries classify against.
    ``IncomingOutgoingTraceClassificationError`` on a Lebedev-13 quadrature) went with the law family; the ladder's
    gate is the catcher the marker names.
 
-   **Lesson:** A strict-partition contract is part of the BC's TYPE
-   SIGNATURE. The trace-space layer (Wave 2) excludes tangential
-   ordinates from both masks; the law layer (Wave 3) must raise when
-   its contract requires a strict cover. The two layers' contracts
-   COMPOSE — neither alone is sufficient.
+   **Lesson:** A strict-partition contract is part of the boundary's TYPE
+   SIGNATURE. As written in Wave 3: the trace-space layer (Wave 2) excludes
+   tangential ordinates from both masks, and the law layer had to raise when
+   its contract required a strict cover; the two layers' contracts composed.
+   Today the law layer has retired (wave 2, 2026-10-24) and the strict
+   partition is carried by the trace half-spaces alone, which the ladder's gate
+   pins.
 
 .. error-entry:: ERR-041
    :title: Vacuum BC constructed against an outgoing trace (Γ_+ instead of Γ_-)
@@ -3898,10 +3903,12 @@ older entries classify against.
    The unknown-face refusal of the zero map is the sibling guarantee (``ZeroMap`` reads both half-traces at construction, so a face
    the trace does not hold is refused at ``realize``, as every other arm refuses it).
 
-   **Lesson:** Trace orientation is part of the BC's type signature.
-   When the realiser layer (Wave 5) wires a BC to a trace, it MUST
-   assert the orientation matches the BC's contract — silent
-   misorientation produces a silent zero where flux belongs.
+   **Lesson:** Trace orientation is part of the boundary's type signature.
+   As written in Wave 5, the realiser layer had to assert that the orientation
+   matched the contract, since a silent misorientation produces a silent zero
+   where flux belongs. Today the operators read their half-spaces off the
+   ladder, so the invariant is carried by the trace types and the
+   realizer-side witness named above.
 
 .. error-entry:: ERR-042
    :title: Reflection-index table inconsistent with quadrature weights (measure-non-preserving G)
@@ -6535,7 +6542,7 @@ older entries classify against.
    :title: relocating to_local from the restriction operator to the half-trace space (G6.5) turned an implicitly-closed membership check into TWO arrays cross-checked only by EXTENT: a hand-built method space whose outflow_indices diverge from the trace's declared ordinate_indices was ACCEPTED by the deck kernel, which emitted local_perm = [0, 1, 2, 3] against a gather row order the restriction never produces, where the pre-G6.5 operator-side to_local refused with the crossed-set message
 
 
-   - **Where**: ``orpheus/numerics/operator.py`` (``TraceRestrictionOperator._checked_space``) ×
+   - **Where**: ``orpheus/numerics/elementary_operators.py`` (``TraceRestrictionOperator._checked_space``) ×
      ``orpheus/sn/boundary/realizer.py`` (``_deck_kernel`` post-``0d99140c``; ``_deck_kernel`` retired with the
      isinstance ladder in the wave-2 carve, one body per builder).
    - **Class**: guard DEMOTION by relocation — the moved function's precondition
@@ -9046,8 +9053,8 @@ older entries classify against.
    identity), a second positional argument is a ``TypeError``, and the
    composition nodes refuse ``α * ReflectiveBoundary(axis)``, the same
    costume rebuilt through the descriptor algebra
-   (:ref:`bc-deck-law-not-an-operand`). A partially specular face has one
-   spelling, ``AlbedoBoundary(α, SpecularReturn(axis))``, and the catchers
+   (:ref:`bc-deck-law-not-an-operand`). A partially specular face had one
+   spelling until the wave-2 carve, ``AlbedoBoundary(α, SpecularReturn(axis))``, and the catchers
    below were re-spelled onto it with their frozen values bit-identical.
    The tables in this entry record the measurement as it was made, under
    the retired spelling.
@@ -9058,7 +9065,10 @@ older entries classify against.
    wall condition, ``WallCondition.specular(α)`` (a mirror response network
    of return fraction :math:`\alpha`, :class:`~orpheus.transport.boundary_conditions.WallCondition`),
    and the eigenvalue's leakage term, the curvilinear corner and the DSA
-   admission read its ``return_fraction`` and response network. Each spelling
+   admission read the facts of the *realized* boundary (``RealizedBoundary.return_fraction``,
+   ``permutes_ordinates`` and ``closes_axis``, in ``orpheus/sn/boundary/realized_operators.py``),
+   which the SN realizer table derives from the wall condition; none of them reads the wall
+   condition or its response network directly. Each spelling
    below under the retired names is a measurement as it was made; the
    catchers named under "Caught by" were re-spelled onto ``WallCondition``.
    The map of every retired name is :ref:`bc-wave2-crosswalk`.
@@ -9072,7 +9082,7 @@ older entries classify against.
    **Failure mode:** **#3 (missing factor)**, three times over one law: the
    factor :math:`\alpha` of a partially reflecting law, read by three
    consumers through predicates written for the only two laws a ``BC``
-   tag can declare, vacuum (:math:`R = 0`) and the perfect mirror
+   tag could declare, vacuum (:math:`R = 0`) and the perfect mirror
    (:math:`G` a permutation, :math:`R = 1`). The ERR-064 family: the same
    leakage term, omitted for a law the ERR-064 fix did not foresee.
 

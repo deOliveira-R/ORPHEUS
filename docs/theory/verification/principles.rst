@@ -1012,7 +1012,7 @@ and a manufactured-solution driver needs a non-zero :math:`q`. Supplying
 it as :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
 straight into a composite source verifies the *channel* — the RHS carries
 it, the sweep consumes it — while saying nothing about whether **declaring**
-a a :class:`~orpheus.transport.boundary_conditions.WallCondition` carrying an
+a :class:`~orpheus.transport.boundary_conditions.WallCondition` carrying an
 :class:`~orpheus.transport.boundary_conditions.InflowTerms` produces it. It did
 not: until the mesh-BC bridge landed, a declared inflow realized into an
 operator nothing consumed, so the declaration was inert and no green test
