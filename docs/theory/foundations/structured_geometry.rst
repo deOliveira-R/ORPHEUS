@@ -100,8 +100,10 @@ Key facts
   admits a slab only with a ``MirrorDeck`` on the left face, the mirror
   its slab kernel computes there whatever is declared, and no inner
   condition (#513); MoC admits only a solid cylinder (#514); MC admits
-  only a slab or a solid cylinder, a slab only with the translation deck
-  on both faces (#513). A refused wall is a ``BoundaryRefused`` (a
+  only a slab with the translation deck on both faces: every wall on a
+  cylinder is refused by its realizer table (#654 for vacuum and white,
+  #547 for specular), and a hollow cylinder is refused at the door
+  (#513). A refused wall is a ``BoundaryRefused`` (a
   ``ValueError`` that carries the face and the admission) raised by the
   method's realizer table; the hollow-body guards of MoC and MC are a
   ``NotImplementedError`` at the method's own door
@@ -119,8 +121,11 @@ Key facts
   material map, and a role per boundary face, and no geometry; the geometry owns the measure, which
   has one definition (:ref:`structured-geometry-mesh`).
 * Reference solvers (``MomentSpace``, ``Spectrum``, ``BasisSpace``)
-  take ``(geometry: StructuredGeometry, materials,
-  **method_kwargs)`` directly via ``__init__``; the characteristic
+  take ``(geometry: StructuredGeometry, exterior, materials,
+  **method_kwargs)`` directly via ``__init__``, ``exterior`` being a
+  :class:`~orpheus.specification.exterior.WallAmplitudes` per tag the
+  geometry's faces carry (required, since the tags bind to nothing in the
+  geometry); the characteristic
   reference takes the geometry inside a
   :class:`~orpheus.specification.specification.GeometrySpecification`.
   None of them sees a mesh or ``n_cells``. The three generators read
@@ -221,6 +226,7 @@ reference-solver call site read
 
    moment = MomentSpace(
        geometry=case.to_geometry(),
+       exterior={0: WallAmplitudes.VACUUM},
        materials=case.materials,
        fn_order=10,
    )
@@ -420,8 +426,8 @@ onto it. A pairing exists only for a minted deck.
 **Why only two decks are minted.** The decks a chart admits are
 :math:`W = N(G_c)/G_c`, the normaliser of the chart's own symmetry group
 modulo that group. On a Cartesian axis that is the mirror and the
-translation. A non-identity isometry of :math:`E^n` falls into one of
-six conjugacy classes (Chasles), two in one dimension and four in two,
+translation. A non-identity isometry of :math:`E^n` with :math:`n \le 3` is of one of
+six types (Chasles), two in one dimension and four in two,
 and the other four (rotation, glide reflection, screw motion,
 rotoreflection) are rows of ``DEFERRED_DECKS``, each naming the type it
 will have and the machinery that mints it: a rotation's partner face is
@@ -1717,7 +1723,8 @@ computes, not a defect in the declaration.
        slab with a ``TranslationDeck`` on both faces
      - a hollow cylinder (``NotImplementedError``); any other wall on a
        slab, ``Refused(PLUMBING, #654)`` (a zero-flux wall,
-       ``Refused(STATE_CONE)``); a specular wall on a cylinder,
+       ``Refused(STATE_CONE)``); white and vacuum on a cylinder,
+       ``Refused(PLUMBING, #654)``; a specular wall on a cylinder,
        ``Refused(TOPOLOGY, #547)`` (MC samples a periodic equal-area
        square cell, not the declared cylinder)
      - ``_refuse_a_mesh_mc_misreads`` (``orpheus/mc/solver.py``), #513,
@@ -1800,7 +1807,8 @@ the cylinder):
      - 0.55
 
 The gap is linear in :math:`\varepsilon` (its ratio to
-:math:`\varepsilon` is constant to four digits across two decades) and
+:math:`\varepsilon` is constant to three digits across two decades, four
+on the sphere) and
 extrapolates to zero at round-off, so the discrete void-cavity answer
 is the hollow reflective answer; a black core, which is not a void,
 differs at :math:`O(1)`. The gate asserts the growth (the larger gap
@@ -2777,12 +2785,13 @@ no instance storage to a slotted class.
 `[M]` 2026-10-24, walking ``ContentIdentity.__subclasses__()`` at runtime
 after importing every module of the ``orpheus`` package (0 import
 failures; the import resolved to the worktree's tree): 64 subclasses,
-63 of them concrete (``inspect.isabstract`` false), by package 3 in
+63 of them concrete (``inspect.isabstract`` false; the abstract one is
+``BoundaryCondition``), by package, of the 63 concrete: 3 in
 ``data``, 4 in ``derivations``, 1 in ``diffusion``, 9 in ``geometry``, 4
 in ``mesh``, 19 in ``numerics``, 13 in ``reference``, 3 in
 ``specification``, 6 in ``transport`` and 1 in ``values``. (At the first
 pass, 2026-10-02, the count was 22 concrete classes and the abstract
-``BoundaryTraceLaw``; the retired law family left the walk at the wave-2
+``BoundaryTraceLaw``, the predecessor of ``BoundaryCondition``; the retired law family left the walk at the wave-2
 carve and the decks, the colouring values and the transport conditions
 joined it.) The table lists the classes whose parts this page states:
 
@@ -3210,9 +3219,10 @@ reference's transport block is memoised on them
    code used a ``Mixture``, ``Materials``, ``BC``, ``StructuredGeometry``,
    ``Mesh1D`` or ``Mesh2D`` as a dictionary key. Two production keys
    changed meaning with the move: ``MaterialMesh``'s contractibility key
-   folds each mixture's canonical digest, so ``-0.0`` and an explicitly
-   stored zero no longer separate two mixtures there, and its law key
-   keys a ``BC`` tag by the tag itself.
+   folded each mixture's canonical digest, so ``-0.0`` and an explicitly
+   stored zero no longer separated two mixtures there, and its law key
+   keyed a ``BC`` tag by the tag itself (the law key is retired; the
+   conditions key replaced it at the carve).
 
 
 .. _structured-geometry-content-identity-gates:
@@ -4656,6 +4666,7 @@ keyed by, :class:`~orpheus.data.cells.CellCoefficient` and
    from orpheus.geometry import GeometryExtent
    from orpheus.numerics.question import Eigen
    from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
+   from orpheus.specification.exterior import WallAmplitudes
 
    k = Eigen(CellCoefficient.every(Channel.FISSION_EMISSION))
 
@@ -4668,6 +4679,7 @@ keyed by, :class:`~orpheus.data.cells.CellCoefficient` and
    sphere = SOOD2003_CASES["Ua-1-0-SP"]
    critical_radius = GeometrySpecification(
        Materials(sphere.materials), sphere.to_geometry(), Eigen(GeometryExtent(0)),
+       exterior={0: WallAmplitudes.VACUUM},
    )
 
    k_inf.question.parameter   # resolved: the one cell (0, FISSION_EMISSION), no quantifier
@@ -4706,7 +4718,10 @@ one of two of those stages, and each stage is a type:
      - :class:`~orpheus.specification.specification.GeometrySpecification`
    * - Fields
      - ``material_id``, ``mixture``, ``question``
-     - ``materials``, ``geometry``, ``question``
+     - ``materials``, ``geometry``, ``question``, ``exterior``: a
+       :class:`~orpheus.specification.exterior.WallAmplitudes` per tag the
+       geometry's faces carry (an exact cover of ``geometry.tags``, empty
+       by default for a geometry whose faces are all decks)
    * - Posed on
      - energy alone: the infinite medium, the point in position and in
        direction
@@ -5257,25 +5272,32 @@ Production user — no registry, no truth, no critical anything::
         CellsByCount.uniform_volume(3),
         CellsByCount.uniform_volume(7),
     )).mesh
-    materials: Materials = {2: uo2_fuel(), 1: zircaloy(), 0: borated_water()}
-    result = solve_cp(materials, mesh, CPParams())
-    print(result.keff)
+    materials = {i: get_mixture(name, "2g")        # orpheus.derivations.common.xs_library
+                 for i, name in zip((2, 1, 0), "ABC")}
+    # the Wigner-Seitz outer face carries the tag 0; the consumer binds it to a white wall
+    result = solve_cp(materials, mesh, CPParams(),
+                      boundary_conditions={0: WallCondition.white()})
+    print(result.keff)   # 0.4728886386798852 (mixtures A, B, C of the 2-group library)
 
 Registry consumer — Sood case::
 
     case = SOOD2003_CASES["Ua-1-0-SP"]
     geom = case.to_geometry()
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(64)).mesh
-    result = solve_cp(case.materials, mesh, CPParams())
+    # the bare sphere's outer face is the tag 0; the wall is declared here, a vacuum
+    result = solve_cp(case.materials, mesh, CPParams(),
+                      boundary_conditions={0: WallCondition.vacuum()})
+    print(result.keff)   # 2.250000000000001
 
 Reference solver direct — NO mesh, NO Mesher::
 
     moment = MomentSpace(
         geometry=case.to_geometry(),
+        exterior={0: WallAmplitudes.VACUUM},
         materials=case.materials,
         fn_order=10,
     )
-    ref_sol = moment.solve_critical()
+    ref_sol = moment.solve_critical()   # the critical radius, 2.424824944314952 mfp
 
 Infinite-medium ``k_inf`` — no geometry at all::
 
@@ -6323,7 +6345,7 @@ spelling and the prose paraphrase — counted as regex *occurrences* over
        "connection coefficient":   r"connection[ -]coefficient",
    }
    SUBJECTS = ["orpheus/moc", "orpheus/cp", "orpheus/mc"]
-   CONTROLS = ["orpheus/sn", "orpheus/geometry"]
+   CONTROLS = ["orpheus/sn"]
 
    def count(pkg, pat):
        return sum(len(re.findall(pat, f.read_text(encoding="utf-8")))
@@ -6336,9 +6358,14 @@ spelling and the prose paraphrase — counted as regex *occurrences* over
        # THE FINDING:
        assert all(count(p, pat) == 0 for p in SUBJECTS), name
 
-**Run as written on 2026-08-27 it passes: every one of the eight
-patterns is non-zero in both controls and exactly zero in all three
-subjects.**  The zeros are the finding and they are falsifiable — the
+**Run as written on 2026-10-24 (from the repository root, so the paths
+resolve) it passes: every one of the eight patterns is non-zero in the
+control and exactly zero in all three subjects.**  The control was
+``orpheus/sn`` and ``orpheus/geometry`` when the recipe was first run
+(2026-08-27); ``orpheus/geometry`` no longer names the primitive
+(``reduced_operator`` occurs 0 times there, against 15 under
+``orpheus/sn``, after the un-weld recorded below), so it left the
+control list, and the re-dated run is the one that holds.  The zeros are the finding and they are falsifiable — the
 day one of them stops being zero, the claim on this page is refuted and
 should be re-argued rather than patched.
 
@@ -6495,7 +6522,8 @@ trust ``git`` over this table for merge status.
        :ref:`bc-wave2-crosswalk`; the candidate refused:
        :ref:`structured-geometry-mesh-refuted`, 10.
      - #511, #513, #514
-     - ``6b090ff9`` (slice S1) on the carve branch *(in development)*;
+     - the carve's range ``6b090ff9`` (slice S1) to ``471c4737``, on the
+       carve branch *(in development)*;
        specification ``.claude/plans/wave2_boundary_carve.md``
    * - 2026-10-10
      - **Three generators read the body classification.** ``Billiard``,
