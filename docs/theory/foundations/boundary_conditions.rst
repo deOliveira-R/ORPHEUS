@@ -261,6 +261,21 @@ mathematical, physical, and architectural responsibilities. The split
 is taken verbatim from Grand Report v3 §16A.3 and the source-of-record
 plan ``.claude/plans/transient-giggling-cake.md``.
 
+The mathematics of this section holds; its type carriers are those of the
+trace-law architecture that wave 2 retired (2026-10-24). The present
+architecture is :ref:`bc-architecture-of-record`, and each retired name maps to
+its successor in :ref:`bc-wave2-crosswalk`. In that architecture one object,
+the ``BoundaryTraceLaw``, held the three factors below as three properties of
+one value; wave 2 split them by the dichotomy this section proves
+(:ref:`bc-factor-roles`): :math:`G` is the **face role** of a glued face, a
+deck (:class:`~orpheus.geometry.deck.MirrorDeck` or
+:class:`~orpheus.geometry.deck.TranslationDeck`); :math:`R` and :math:`q` are
+the two halves of one :class:`~orpheus.transport.boundary_conditions.WallCondition`,
+the condition a tag is bound to; and the realization of each is the method's
+realizer table (:ref:`bc-realizer-layer`). A face has exactly one role, the sum
+``FaceRole = DeckTransformation | int``, so a face carries a :math:`G` and no
+:math:`(R, q)`, or a tag and no :math:`G`.
+
 .. _affine-bc-form:
 
 Layer 2 — the affine law on the boundary trace
@@ -278,8 +293,13 @@ the **affine map**
    form of every boundary law (Grand Report §16A.3). Per this page's own note,
    its equations are definitional / structural-architecture statements; the
    concrete rank-0 / rank-n realisations (:eq:`bc-rank-n-tensor-decomposition`,
-   PrescribedInflow) are the tested forms. Not a solver claim.
+   ``WallCondition.uniform``) are the tested forms. Not a solver claim.
 .. vv-status: affine-bc-form documented
+
+On a face that ends the domain the factor :math:`G` is absent (the face's role is
+a tag); on a glued face :math:`R = I` and :math:`q = 0` (its role is a deck). The
+product form classifies the law's content; it is not the recipe by which the law
+is evaluated (:ref:`bc-taxonomy-vs-factorization`).
 
 where:
 
@@ -288,23 +308,38 @@ where:
   function space to the inflow / outflow boundary trace spaces
   :math:`\Gamma_\pm` (see :ref:`bc-trace-structure` below for the
   formal definition).
-* :math:`G` is the **deck transformation** — a measure-preserving
-  permutation, pushforward, or spatial wrap-around. It carries pure
-  geometry (it changes nothing about the physical interaction at the
-  boundary; it just relabels the angular fluxes that meet there). When
-  it is the non-trivial factor it is a map
-  :math:`\Gamma_+ \to \Gamma_-` and it carries the **crossing**,
-  because the mirror that exchanges the two hemispheres is an ambient
-  isometry — see :ref:`bc-factor-roles` below.
-* :math:`R` is the **response kernel** — the constitutive law. A scalar
-  amplitude in :math:`[0, 1]` for the standard sub-Markov BCs (albedo,
-  partial-current), or a rank-one angular kernel for diffuse
-  (Lambertian) re-emission. When it is the non-trivial factor it is
-  the one that crosses, and every realized response in the tree is
-  typed :math:`\Gamma_+ \to \Gamma_-` accordingly. The general
-  weak-form angular kernel remains deferred; see the
-  :class:`~orpheus.geometry.boundary.BoundaryError` catalog and
-  Issue #175 close-out follow-ups.
+* :math:`G` is the **deck transformation**: the composition (Koopman)
+  operator of an isometry :math:`g` of the covering space, a
+  measure-preserving permutation (the mirror) or spatial wrap-around (the
+  translation). It carries pure geometry (it changes nothing about the
+  physical interaction at the boundary; it just relabels the angular fluxes
+  that meet there). When it is the non-trivial factor it is a map
+  :math:`\Gamma_+(f') \to \Gamma_-(f)` (:math:`f' = f` for a mirror) and it
+  carries the **crossing**, because the mirror that exchanges the two
+  hemispheres is an ambient isometry — see :ref:`bc-factor-roles` below. It is
+  realized by two types that have no field and no parameter, because the face
+  fixes the plane, the partner and the direction of the motion
+  (:class:`~orpheus.geometry.deck.MirrorDeck`,
+  :class:`~orpheus.geometry.deck.TranslationDeck`, read through
+  :func:`~orpheus.geometry.deck.pairing_of`).
+
+* :math:`R` is the **response kernel** — the constitutive law, a
+  :class:`~orpheus.transport.boundary_conditions.ResponseNetwork`
+  :math:`R = s\,P + d\,(E \circ Rt)`: a weighted sum of the two chains
+  that compose from :math:`\Gamma_+` to :math:`\Gamma_-`, the specular chain
+  :math:`P` (a scalar amplitude on a mirror permutation, for a polished
+  wall) and the diffuse chain :math:`E \circ Rt` (the rank-one angular kernel
+  of Lambertian re-emission). The weights are a point :math:`(s, d)` of the
+  convex cone :math:`K = \{s, d \ge 0,\ s + d \le 1\}`, so the response is
+  sub-Markov by construction. When it is the non-trivial factor it is the one
+  that crosses, and every realized response in the tree is typed
+  :math:`\Gamma_+ \to \Gamma_-` accordingly. A kernel outside the family (a
+  general weak-form angular kernel, an angle-dependent reflectivity) is not a
+  chain: it would be another
+  :class:`~orpheus.transport.boundary_conditions.BoundaryCondition` type with
+  its own realizer. The one shipped today is diffusion's
+  :class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition`, with return
+  fraction :math:`-1`, outside :math:`K`.
 
   .. note::
 
@@ -319,15 +354,19 @@ where:
      :ref:`bc-taxonomy-vs-factorization` separates out.
 
 * :math:`q \in \Gamma_-` is the **prescribed inflow source** — a
-  vector-valued quantity on :math:`\Gamma_-` only. The empty case
+  vector-valued quantity on :math:`\Gamma_-` only, stored as the
+  :class:`~orpheus.transport.boundary_conditions.InflowTerms` of a
+  :class:`~orpheus.transport.boundary_conditions.WallCondition` and read for
+  every condition type through ``BoundaryCondition.source``. The empty case
   :math:`q \equiv 0` is the homogeneous BC; the inhomogeneous case
-  :math:`q \neq 0` is the rank-0 affine BC
-  :class:`~orpheus.geometry.boundary.PrescribedInflow`. It is **not**
-  realized as an operator: :math:`q` is the one factor the realizer
-  tier does not carry, travelling instead as the boundary leaf of the
-  composite source — see :ref:`bc-affine-source-channel`, which is also
-  where the consequence of that split (vacuum and prescribed inflow
-  realize to the *same* operator) is derived and measured.
+  :math:`q \neq 0` is the rank-0 affine BC, a nonzero source over the empty
+  network (``WallCondition.uniform(value)`` and ``WallCondition.framed(profile)``).
+  It is **not** realized as an operator: :math:`q` is the one factor the
+  realizer tier does not carry, travelling instead as the boundary leaf of the
+  composite source (the table's ``SourceRealizer.sample`` returns an array) —
+  see :ref:`bc-affine-source-channel`, which is also where the consequence of
+  that split (vacuum and prescribed inflow realize to the *same* operator) is
+  derived and measured.
 
 Three remarks make this form load-bearing:
 
@@ -341,28 +380,39 @@ Three remarks make this form load-bearing:
 2. **Affine, not linear.** The :math:`q` term is what makes the map
    affine. Most published transport-theory references treat the
    homogeneous case (:math:`q \equiv 0`) and never give the affine
-   form an explicit name; ORPHEUS does because two distinct rank-0
-   cases (:class:`~orpheus.geometry.boundary.VacuumInflow` with
-   :math:`R = q = 0` and
-   :class:`~orpheus.geometry.boundary.PrescribedInflow` with
-   :math:`R = 0` but :math:`q \neq 0`) need a single uniform
-   contract. Note that it is :math:`R` alone that vanishes in both:
-   :math:`G` is the **identity** deck element, not zero — the zero map
-   is not a bijection and so cannot be a geometry map at all. Writing
-   ":math:`R = G = 0`" spelled the same vanishing twice, once in the
-   wrong tier; campaign phase B3 corrected it.
-3. **The three operators are first-class.** The
-   :class:`~orpheus.geometry.boundary.BoundaryTraceLaw` ABC exposes
-   :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.geometry_map`,
-   :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.response_kernel`,
-   and :attr:`~orpheus.geometry.boundary.BoundaryTraceLaw.source`
-   as Python properties on every concrete subclass. The properties
-   default to ``None / None / NoSource()``; concrete laws override
-   when applicable. The split lets cross-method realizers introspect
-   the law's geometric and response components separately — the SN
-   realizer dispatches on the law's class today, but a future
-   weak-form realizer might dispatch on the geometry / response /
-   source independently.
+   form an explicit name; ORPHEUS does because the two rank-0 cases, the
+   vacuum (:math:`R = q = 0`, ``WallCondition.vacuum()``) and the prescribed
+   inflow (:math:`R = 0` but :math:`q \neq 0`, ``WallCondition.uniform(value)``
+   or ``.framed(profile)``), need a single uniform contract, and
+   ``WallCondition`` is that contract: one type over the pair
+   :math:`(\text{network}, \text{inflow})`. Note that it is :math:`R` alone
+   that vanishes in both. In the trace-law architecture :math:`G` was the
+   **identity** deck element there, not zero (the zero map is not a bijection
+   and so cannot be a geometry map at all); today a tagged face has no deck
+   element at all, and the same fact reads as "the face role is a tag".
+   Writing ":math:`R = G = 0`" once spelled the same vanishing twice, once in
+   the wrong tier; campaign phase B3 corrected it.
+3. **The three factors are three values, and no object holds all three.**
+   :math:`G` is the face's role (a deck), :math:`R` is
+   ``WallCondition.network`` and :math:`q` is ``WallCondition.source``. The
+   retired ``BoundaryTraceLaw`` ABC exposed ``geometry_map``,
+   ``response_kernel`` and ``source`` as properties on every concrete law,
+   defaulting to ``None / None / NoSource()``, so a cross-method realizer could
+   introspect the geometric and response components separately; the SN realizer
+   nevertheless dispatched on the law's class. The successor makes the
+   separation the type structure: a realizer table is keyed by UNIT, the chain
+   types of the response network, ``ZeroNetwork`` for the empty network,
+   ``InflowTerms`` for the source, a method-only condition type where a method has
+   one, and the one deck realizer for the decks, so a method never branches on
+   the cone point of a wall. `[M]` 2026-10-24: ``RealizerTable.catalogue()`` of
+   the five tables (``SN_REALIZERS``, ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``,
+   ``MC_REALIZERS``, ``MOC_REALIZERS``) lists only ``ZeroNetwork``, ``SpecularChain``
+   and ``DiffuseChain`` in all five, ``InflowTerms`` in SN and diffusion and
+   ``ZeroFluxCondition`` in diffusion; ``WallCondition in catalogue()`` is false for 5
+   of 5.
+   The geometric component, the response component and the source are therefore
+   dispatched independently, which is what the retired properties were meant to
+   allow and the dispatch on the law's class did not.
 
 .. _bc-factor-roles:
 
@@ -419,16 +469,32 @@ therefore **constitutive** — it is :math:`R`.
    It is the contrapositive of *"*:math:`R = I` *exactly when the BC is
    a pure symmetry statement adding no physics"* — a law that asserts
    any physics at all has :math:`G = \mathrm{id}`. See
-   :ref:`bc-factor-quotients` for the table, which every shipped law
-   satisfies, and :ref:`bc-deck-law-not-an-operand` for why the
-   descriptor algebra may not rebuild a violation by scaling a deck law.
+   :ref:`bc-factor-quotients` for the table, which every shipped value
+   satisfies, and :ref:`bc-deck-law-not-an-operand` for why the algebra of
+   conditions cannot rebuild a violation by scaling a deck.
+
+In the present architecture the law is the shape of the role sum, not a
+property each value is checked for. A face's role is a deck (:math:`G`, with
+:math:`R = I` and no :math:`q`) or an integer tag whose bound condition is
+:math:`(R, q)` (with :math:`G` absent), and ``FaceRole = DeckTransformation | int``
+has no member that holds both. Law L-F gates the disjointness of the two slots
+(``test_a_condition_is_not_a_deck_slot`` in
+``tests/gates/transport/test_wall_condition_algebra.py``). `[M]` 2026-10-24, a
+probe outside the suite that calls ``parse_face_role`` on seven condition values
+(``WallCondition.vacuum()``, ``.specular(1.0)``, ``.specular(0.4)``,
+``.white(0.4)``, ``.uniform(1.0)``, ``.from_amplitudes(0.3, 0.5)`` and
+diffusion's ``ZeroFluxCondition()``) and ``BoundaryConditions({1: deck})`` on both
+decks: 7 of 7 and 2 of 2 raise ``TypeError``; the positive controls
+``parse_face_role(MirrorDeck(), ...)`` and
+``BoundaryConditions({1: WallCondition.vacuum()})`` are accepted.
 
 Physically: a change of direction caused by the **geometry** is
 :math:`G`; a change of direction caused by the **constitutive
 assumption of the BC** is :math:`R`. Absorption, accommodation and
 diffusivity are :math:`R`. Mirrors, translations and rotations are
 :math:`G` — but only when they are mirrors *of the domain*, not of a
-wall standing in it.
+wall standing in it. (A rotation is a deck class that is named and not yet
+minted: ``DEFERRED_DECKS`` lists it, with the geometry value whose arrival mints it.)
 
 **Whichever factor is non-trivial carries the crossing.** For a
 **quotient** law the crossing is geometric, and the argument is exact:
@@ -445,38 +511,56 @@ is not a quotient — that is the sufficient test above — so nothing
 identifies an outgoing direction with an incoming one geometrically,
 and the crossing is performed by the *physics*: the response integrates
 the outgoing flux and re-emits an incoming one. The realization is the
-witness. The response :math:`R_{\text{diff}}` of the white /
-diffuse-albedo law realizes as a **two-link chain** whose links state
+witness. The diffuse chain :math:`E \circ Rt` of the response network (the
+white / diffuse-albedo wall) realizes as a **two-link chain** whose links state
 the crossing out loud:
 :class:`~orpheus.sn.boundary.angular.PartialCurrentOperator` collapses
 the *outflow* angle axis, and
 :class:`~orpheus.sn.boundary.angular.IsotropicEmissionOperator`
 broadcasts the result over the *inflow* one, so the composite types
 itself :math:`\Gamma_+ \to \Gamma_-` (:ref:`bc-response-adjoint`); the
-specular kernel behind
-:class:`~orpheus.geometry.boundary.SpecularReemission` is likewise a
-narrowed :math:`\Gamma_+ \to \Gamma_-` permutation. `[M]` **no realized
-response is an endomorphism of** :math:`\Gamma_-`.
+specular chain :math:`P` is likewise a
+:math:`\Gamma_+ \to \Gamma_-` permutation. `[M]` 2026-10-24: **no realized
+response is an endomorphism of** :math:`\Gamma_-`, because the declaration itself is
+typed by the rungs of the trace ladder, and ``chain_composes`` (the predicate
+"the factors' tiers compose from ``"outflow"`` to ``"inflow"``", evaluated at the
+import of ``orpheus.transport.boundary_conditions.network``, which raises
+``TypeError`` otherwise) is true of ``SpecularChain`` and ``DiffuseChain``, 2 of 2
+members of the closed sum ``Chain = SpecularChain | DiffuseChain``; the control
+``chain_composes((IsotropicSection, CurrentRetraction))`` is false. The claim about the
+*realized* operators is pinned by ``test_realized_law_has_gamma_plus_domain`` in
+``tests/gates/sn/operators/test_b3_domain_narrowing.py`` (leg A: the operator consumes
+:math:`\Gamma_+`; leg B: fed a full-face probe it does not emit ``N`` rows, which is what
+separates :math:`\Gamma_+ \to \Gamma_-` from :math:`\Gamma_+ \to \Gamma_+` when
+:math:`|\Gamma_+| = |\Gamma_-|`); `[M]` 2026-10-24, ``-k gamma_plus_domain`` gives 10 passed.
 
-Since at most one of :math:`G`, :math:`R` is non-trivial, "the
-non-trivial factor crosses" is well defined. (This read "exactly one"
-until 2026-10-01: ``AlbedoBoundary(1.0)``, closure-free, has
-:math:`G = I` and :math:`R = I`, the second case below at
-:math:`\alpha = 1`.) Two boundary cases sharpen it rather than break it:
+Since exactly one of :math:`G`, :math:`R` is non-trivial, "the
+non-trivial factor crosses" is well defined. (The law read "at most one" from
+2026-10-01 until the carve: the closure-free ``AlbedoBoundary(1.0)`` of the retired
+trace-law family had :math:`G = I` and :math:`R = I`, the second case below at
+:math:`\alpha = 1`, and so it was the one value the law had to be weakened for. That value
+has no successor, so "exactly one" holds again: a deck face has :math:`G \neq \mathrm{id}`
+and :math:`R = I`, and a tag face has :math:`G` absent and a response, which is never the
+identity, because the empty network is :math:`0` and every chain permutes or contracts.)
+Two boundary cases sharpen the law rather than break it:
 
-* **Rank-0 laws** (vacuum, prescribed inflow). :math:`R = 0`, so the
-  composite is the zero map on :math:`\Gamma_+` landing in
-  :math:`\Gamma_-`: it *does* cross, vacuously, because no pairing
+* **Rank-0 values** (the vacuum and the prescribed inflow, ``WallCondition.vacuum()``
+  and the inflow facades). :math:`R = 0`, the empty network, so the composite is
+  the zero map on :math:`\Gamma_+` landing in :math:`\Gamma_-`
+  (``ZeroMap`` in SN): it *does* cross, vacuously, because no pairing
   information is needed to emit nothing.
 * **A bare scalar response on an ANGULAR trace.** :math:`R = \alpha I`
   is non-trivial in *magnitude* and trivial in *angular structure* — it
   commutes with everything and therefore cannot pair directions — while
   :math:`G = \mathrm{id}` supplies no crossing either. So neither
-  factor crosses, and the law is genuinely under-determined: this is
-  exactly the closure-free ``AlbedoBoundary(α)`` spelling the SN
-  realizer **refuses**, and the same law is *complete* on a scalar
-  trace where :math:`J^- = \alpha J^+` exhausts the single degree of
-  freedom. See :ref:`bc-method-realizability` for that scalar-vs-angular
+  factor crosses, and the law is genuinely under-determined: this was
+  the closure-free ``AlbedoBoundary(α)`` spelling that the SN realizer
+  refused, and the same law is *complete* on a scalar trace, where
+  :math:`J^- = \alpha J^+` exhausts the single degree of freedom. The spelling
+  does not exist today: the linear part of a ``WallCondition`` is a combination
+  of the two chains, and each names its crossing (:math:`P` or
+  :math:`E \circ Rt`), so a response that crosses nothing cannot be written
+  on the shared type. See :ref:`bc-method-realizability` for the scalar-vs-angular
   axis, which is the same distinction one level up.
 
 .. note::
@@ -529,6 +613,13 @@ campaign phase B3 moved it to the response tier where it belongs. The
 same theorem is why that correction leaves the composite :math:`R\,G`
 unchanged by construction.
 
+In the present architecture the hiding place is gone, not merely policed: a tag
+face has no :math:`G` slot, and a deck face has no :math:`R`, so a response
+cannot be filed under geometry and the unobservability of :math:`G` is no longer a
+way for a misassignment to survive. The theorem stands as the explanation of why
+that slot was one.
+
+
 .. note::
 
    **This step concluded** ":math:`R \circ G = R`" **until 2026-08-04.**
@@ -574,110 +665,161 @@ physical domain is represented**:
    * - rotational (⅛-core)
      - by a finite rotation
      - the axis
-     - an **orbifold** (cone points)
+     - an **orbifold** (cone points); a deck class named in ``DEFERRED_DECKS``
+       and not minted
 
 The orbifold label therefore attaches to **reflective**, not to
 periodic — periodic is the free / covering-space case. And
 :math:`R = I` **exactly when** the BC is a pure symmetry statement
 adding no physics. Vacuum, white and albedo are not symmetry statements
-at all, which is why their :math:`G` is the identity deck element and
-all their content sits in :math:`R`.
+at all, which is why none of them is a deck: each is a wall bound to a tag,
+and all its content sits in :math:`R`.
 
 Read as a *test* rather than as a remark, that sentence is the
 sufficient criterion of :ref:`bc-factor-roles`, and it partitions every
-implemented law:
+implemented value:
 
-.. list-table:: Which tier owns each law's content
+.. list-table:: Which tier owns each value's content
    :header-rows: 1
-   :widths: 30 22 24 24
+   :widths: 28 22 26 24
 
-   * - law
-     - :math:`G`
-     - :math:`R`
+   * - value
+     - face role
+     - :math:`R` (and :math:`q`)
      - what it asserts
-   * - ``ReflectiveBoundary(axis)``
-     - ``SelfPairedDeck.mirror(axis)``
+   * - ``MirrorDeck()``
+     - the deck itself, :math:`G`
      - :math:`I`
      - a symmetry plane — a quotient, **zero physics**
-   * - ``PeriodicBoundary(axis)``
-     - ``PairedDeck.wrap(axis)``
+   * - ``TranslationDeck()``
+     - the deck itself, :math:`G`
      - :math:`I`
      - a torus — a quotient
-   * - ``AlbedoBoundary(α, SpecularReturn)``
-     - ``SelfPairedDeck.identity()``
-     - ``SpecularReemission``
+   * - ``WallCondition.specular(α)``
+     - an integer tag, :math:`G` absent
+     - :math:`\alpha P`
      - a **surface** returning :math:`\alpha` specularly
-   * - ``AlbedoBoundary(α, IsotropicReturn)``
-     - ``SelfPairedDeck.identity()``
-     - ``LambertianReemission``
-     - a surface returning :math:`\alpha` diffusely
-   * - ``WhiteBoundary(axis, sign, α)``
-     - ``SelfPairedDeck.identity()``
-     - ``LambertianReemission``
-     - the same diffuse surface, under its traditional name
-   * - ``VacuumInflow``
-     - ``SelfPairedDeck.identity()``
+   * - ``WallCondition.white(α)``
+     - an integer tag
+     - :math:`\alpha\,(E \circ Rt)`
+     - a surface returning :math:`\alpha` diffusely (Lambertian)
+   * - ``WallCondition.from_amplitudes(s, d)``
+     - an integer tag
+     - :math:`s\,P + d\,(E \circ Rt)`, :math:`s + d \le 1`
+     - a surface returning a specular fraction and a diffuse fraction (the Marshak mix)
+   * - ``WallCondition.vacuum()``
+     - an integer tag
      - :math:`0`
      - a surface returning nothing
+   * - ``WallCondition.uniform(v)``, ``.framed(profile)``
+     - an integer tag
+     - :math:`0`, with :math:`q \neq 0`
+     - a surface that emits inward and returns nothing
+   * - ``ZeroFluxCondition()`` (diffusion's)
+     - an integer tag
+     - a method-only response, return fraction :math:`-1`
+     - the Dirichlet idealization :math:`\phi = 0` at the face
 
-Two pairs of entries realize through one body each and are nonetheless
-different objects. ``AlbedoBoundary(α, SpecularReturn(a))`` realizes to
-:math:`\alpha` times the matrix of the mirror ``ReflectiveBoundary(a)``,
-and ``AlbedoBoundary(α, IsotropicReturn(a, s))`` realizes to the matrix
-of ``WhiteBoundary(a, s, α)``. At :math:`\alpha = 1` the polished wall
-and the mirror realize to one permutation matrix and are still two
-values: the wall states how a surface returns the neutrons that reach
-it, the mirror states that the solution beyond the plane is the mirror
-image of the solution inside it. Keeping the *types* distinct is what
-makes "put a wall's response in the geometry slot" unspellable, the
-exact error this section's earlier form permitted. In the code each
-pair shares one realization body (the specular pair the deck kernel
-``_deck_kernel``, the Lambertian pair ``_checked_angular_average``), so
-the equivalences hold by construction rather than by two transcriptions
-agreeing. The gate
-``tests/gates/geometry/test_reemission_closure.py::TestEquivalenceTheorems::test_specular_closure_equals_reflective``
-asserts the specular one with ``np.array_equal`` (`[M]` 2026-10-01, a
-probe outside the suite: 20 of 20 realized actions bitwise equal, five
-quadratures from ``gauss_legendre(4)`` to ``lebedev(17)`` on an x or y
-face, times :math:`\alpha \in \{0, 0.3, 0.7, 1\}`, on a random
-:math:`\Gamma_+` probe of shape ``(|Γ₊|, 4, 2)``).
+**One pair realizes to one matrix and is still two values.**
+``WallCondition.specular(α)`` realizes in SN to :math:`\alpha` times the matrix
+of the mirror deck ``MirrorDeck()``. At :math:`\alpha = 1` the polished wall and
+the mirror realize to one permutation matrix and are still two values: the wall
+states how a surface returns the neutrons that reach it, the mirror states that
+the solution beyond the plane is the mirror image of the solution inside it.
+Keeping the *types* distinct is what makes "put a wall's response in the
+geometry slot" unspellable, the exact error this section's earlier form
+permitted. `[M]` 2026-10-24, a probe outside the suite (the realization of both
+values through ``SN_REALIZERS.realize`` on the Cartesian ``xmin`` and ``xmax``
+faces, the dense matrices read as ``tests/gates/sn/architecture/_realized_boundary_helpers.py``
+reads them, compared with ``np.array_equal``): the realized matrix of
+``WallCondition.specular(α)`` equals :math:`\alpha` times that of ``MirrorDeck()``
+in 40 of 40 cases (five quadratures, ``gauss_legendre(8)``, ``gauss_legendre(16)``,
+``product(2,4)``, ``level_symmetric(6)`` and ``lebedev(17)``, times two faces,
+times :math:`\alpha \in \{0, 0.3, 0.7, 1\}`); the control, ``WallCondition.white(α)``
+against the same product, differs in 30 of 30 cases with :math:`\alpha > 0`. Two
+gates pin the equality against a reference that shares no code with the realizer:
+``TestRealizeSpecular`` in ``tests/gates/sn/operators/test_sn_boundary_realizer.py`` asserts, with
+``np.testing.assert_array_equal``, that ``WallCondition.specular(1.0)`` and ``MirrorDeck()`` each realize
+to the hand-computed narrowed gather of the mirror partner on ``lebedev(17)``
+(``test_specular_unit_weight_lebedev_matches_hand_computed``) and that the partial weight
+:math:`0.7` realizes to :math:`0.7` times it (``test_specular_partial_weight_matches_hand_computed``);
+`[M]` 2026-10-24, ``python -O -m pytest tests/gates/sn/operators/test_sn_boundary_realizer.py -k
+"TestRealizeSpecular or uncertified"`` gives 7 passed.
 
-Every shipped law satisfies the criterion: no law has both factors
-different from the identity. The two deck laws (``ReflectiveBoundary``,
-``PeriodicBoundary``) have :math:`R = I`, and the five responses
-(``AlbedoBoundary``, ``PrescribedInflow``, ``VacuumInflow``,
-``WhiteBoundary``, ``ZeroFluxBoundary``) have :math:`G = I`, 7 of 7
-registered law classes (`[M]` 2026-10-01, by reading both factors of one
-instance of each, with ``AlbedoBoundary`` under each closure). The one
-value on which both factors are the identity is the closure-free
-``AlbedoBoundary(1.0)``, which states no crossing at all and which the
-S\ :sub:`N` realizer refuses (:ref:`bc-method-realizability`). In particular ``ReflectiveBoundary`` has the
-single field ``axis``, and its :math:`R` is ``ScalarResponse(1.0)``, the
-same identity factor ``PeriodicBoundary`` declares; an albedo argument is
-a ``TypeError`` from the dataclass constructor. A mirror with an
-amplitude would have both factors non-trivial: it would be the partial
-wall ``AlbedoBoundary(α, SpecularReturn(axis))`` spelled a second time in
-the geometry slot, and a consumer that recognises a mirror by its type
-would read that second spelling as a perfect mirror. That is the defect
-class ERR-094 records (three such readers in S\ :sub:`N`); the history
-of the retired parameter is in :ref:`bc-history`.
+The retired architecture had three more spellings of two of these values, and the
+fold is one of the carve's decisions. ``AlbedoBoundary(α, SpecularReturn(a))`` was
+the specular wall, ``AlbedoBoundary(α, IsotropicReturn(a, s))`` and
+``WhiteBoundary(a, s, α)`` were the diffuse wall under two names, and each pair
+shared one realization body so that the equivalence held by construction; the
+gate ``tests/gates/geometry/test_reemission_closure.py::TestEquivalenceTheorems::test_specular_closure_equals_reflective``
+asserted the specular one with ``np.array_equal`` (`[M]` 2026-10-01, a probe outside
+the suite: 20 of 20 realized actions bitwise equal, five quadratures from
+``gauss_legendre(4)`` to ``lebedev(17)`` on an x or y face, times
+:math:`\alpha \in \{0, 0.3, 0.7, 1\}`). Today each pair is one value:
+``WallCondition.specular(α)`` and ``WallCondition.white(α)`` are the only
+spellings, and ``WallCondition.specular(0.0)``, ``.white(0.0)`` and ``.vacuum()``
+are one value with one digest (`[M]` 2026-10-24: ``specular(0.0) == white(0.0) == vacuum()``
+is true), because :math:`R = 0` is one point of the cone :math:`K` however it is
+reached.
+
+Every shipped value satisfies the criterion, by the shape of the role sum rather
+than by a check per class: a face's role is a deck or a tag, so no value has both
+factors different from the identity (the disjointness gate and its measurement are
+in :ref:`bc-factor-roles`). The two decks have :math:`R = I`, and every condition
+type, ``WallCondition`` and diffusion's ``ZeroFluxCondition``, has :math:`G`
+absent. The one value on which both factors were the identity, the closure-free
+``AlbedoBoundary(1.0)``, stated no crossing at all and the SN realizer refused it
+(:ref:`bc-method-realizability`); it has no successor, because a ``WallCondition``'s
+network is a combination of the two chains, each of which names its crossing. In
+particular ``MirrorDeck`` has no field (``test_a_deck_is_its_type_and_has_no_field``
+in ``tests/gates/geometry/test_deck.py``), so a mirror with an amplitude is not
+constructible: it would have both factors non-trivial, the partial wall
+``WallCondition.specular(α)`` spelled a second time in the geometry slot, and a
+consumer that recognises a mirror by its type would read that second spelling as a
+perfect mirror. That is the defect class ERR-094 records (three such readers in
+S\ :sub:`N`); the history of the retired parameter is in :ref:`bc-history`.
 
 .. _bc-deck-law-not-an-operand:
 
 A deck law is not an operand
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Retiring the parameter does not by itself retire the attenuated mirror,
-because the descriptor algebra of :ref:`bc-rank-n-algebra` could rebuild
-it: ``0.7 * ReflectiveBoundary("x")`` is a
-:class:`~orpheus.geometry.boundary.LawScaled` whose realization is
-:math:`0.7` times the mirror's permutation, the same matrix as the
-partial wall and the same type confusion. So the two composition nodes,
-:class:`~orpheus.geometry.boundary.LawScaled` and
-:class:`~orpheus.geometry.boundary.LawSum`, refuse a **deck law**, a law
-whose geometry factor :math:`G` is not the identity deck element
-(``ReflectiveBoundary`` and ``PeriodicBoundary`` among the shipped laws),
-with a ``TypeError`` naming the law and the spelling to use instead.
+A deck is a symmetry statement, and a symmetry has no amplitude. The first form of
+this page let the descriptor algebra of :ref:`bc-rank-n-algebra` rebuild an attenuated
+mirror even after the mirror's own albedo parameter was retired:
+``0.7 * ReflectiveBoundary("x")`` was a ``LawScaled`` whose realization was
+:math:`0.7` times the mirror's permutation, the same matrix as the partial wall and
+the same type confusion. The trace-law family closed that route with a guard: the two
+composition nodes, ``LawScaled`` and ``LawSum``, refused a **deck law** (a law whose
+geometry factor :math:`G` was not the identity deck element: ``ReflectiveBoundary`` and
+``PeriodicBoundary`` among the shipped laws) with a ``TypeError`` naming the law and
+the spelling to use instead. Wave 2 (2026-10-24) retired the family, and the refusal
+with it, because the successor makes the construction unspellable instead of
+refused.
+
+**The present structure.** A deck is a role, not a condition. ``MirrorDeck`` and
+``TranslationDeck`` define no operator, and the arithmetic of conditions
+(``+``, ``-``, unary ``-`` and scalar ``*``, one definition shared by
+``WallCondition`` and ``WallDisplacement``) accepts only a pair of that arithmetic
+and answers ``NotImplemented`` to anything else, so the scaled or summed deck is
+Python's own ``TypeError``, raised from the operator protocol with no frame of
+``orpheus`` in its traceback (law L-F; the gate is ``test_a_deck_is_not_an_operand``
+in ``tests/gates/transport/test_wall_condition_algebra.py``, which also holds the
+positive control ``0.5 * WallCondition.vacuum()``). `[M]` 2026-10-24, run from the
+worktree root of this commit:
+
+.. code-block:: text
+
+   0.7 * MirrorDeck()                    -> TypeError: unsupported operand type(s) for *: 'float' and 'MirrorDeck'
+   MirrorDeck() + MirrorDeck()           -> TypeError: unsupported operand type(s) for +: 'MirrorDeck' and 'MirrorDeck'
+   WallCondition.vacuum() + MirrorDeck() -> TypeError: unsupported operand type(s) for +: 'WallCondition' and 'MirrorDeck'
+   0.5 * WallCondition.specular(1.0)     -> WallCondition   (== WallCondition.specular(0.5))
+
+The induction that the retired nodes needed (below) is not needed here: the nodes could
+nest, so "no admitted tree holds a deck law at any depth" had to be proved on the
+height of the tree, whereas the operand set of the arithmetic is one closed set,
+``WallCondition``, ``WallDisplacement`` and the real scalars that are not ``bool``,
+and every result is a member of it. There is no tree to descend.
 
 **Why a symmetry cannot be scaled.** A deck law asserts that the domain
 is a fundamental domain of a symmetry group: the solution on the far
@@ -687,81 +829,90 @@ returned by anything; the face is not a surface at all. Scaling it by
 :math:`c` has two readings, and both are something else. Read as
 physics, :math:`c\,G` with :math:`c < 1` is a surface that loses a
 fraction :math:`1 - c` of its outflow and returns the rest along the
-mirrored direction, which is
-``AlbedoBoundary(c, SpecularReturn(axis))``, a response with
-:math:`G = I`. Read as a symmetry, it is nothing: the image of a
-solution under a rigid motion is the solution itself, not a fraction of
-it.
+mirrored direction, which is ``WallCondition.specular(c)``, a response
+whose role is a tag and whose :math:`G` is absent. Read as a symmetry, it is
+nothing: the image of a solution under a rigid motion is the solution itself,
+not a fraction of it.
 
-**Why a symmetry cannot be mixed.** A sum containing a deck law is one
-of two things. If the other terms are also deck laws on the same face,
+**Why a symmetry cannot be mixed.** A sum containing a deck is one
+of two things. If the other terms are also decks on the same face,
 the sum is a scaled deck in disguise (``0.5 * R + 0.5 * R`` with
-``R = ReflectiveBoundary("x")`` realizes to ``R``'s matrix and its type
-is a sum, the costume again). If any other term is a response, the sum
-is not sub-Markov in general: with ``W`` a white wall of albedo 1,
-``R + W`` returns the outflow twice, once specularly and once
-diffusely, so the incoming partial current is twice the outgoing one.
-A legitimate mix of specular and diffuse return (the Marshak boundary
-below) is a mix of two responses, each with its own amplitude, and the
-specular leaf is ``AlbedoBoundary(c, SpecularReturn(axis))``.
+``R`` the mirror realizes to ``R``'s matrix, the costume again). If any other
+term is a response, the sum is not sub-Markov in general: a mirror plus a white
+wall of albedo 1 returns the outflow twice, once specularly and once
+diffusely, so the incoming partial current is twice the outgoing one. The same
+arithmetic is what the cone predicate catches among responses: the sum
+``WallCondition.specular(1.0) + WallCondition.white(1.0)`` has return fraction
+:math:`2`, outside :math:`K`, so it is a ``WallDisplacement`` and never bindable,
+while a legitimate mix of specular and diffuse return (the Marshak boundary) is
+a mix of two responses with amplitudes inside the cone,
+``WallCondition.specular(0.5) + WallCondition.white(0.5)``, which equals
+``WallCondition.from_amplitudes(0.5, 0.5)`` and is a ``WallCondition``
+(`[M]` 2026-10-24, the probe of the code block above).
 
-**The predicate is the geometry factor, never the realized matrix.**
-``AlbedoBoundary(1.0, SpecularReturn("x"))`` permutes ordinates exactly
-as the mirror does and composes freely, because its :math:`G` is
-``SelfPairedDeck.identity()``. The test is
-``law.geometry_map.is_identity``, a property of
-:class:`~orpheus.geometry.boundary.SelfPairedDeck` and
-:class:`~orpheus.geometry.boundary.PairedDeck` read off the rigid motion
-(``RigidMotion.is_identity``, the
-conjunction of a linear part equal to :math:`I` and a zero translation).
-``PairedDeck.is_identity`` is ``False`` for every constructible value,
-since a paired deck that fixed every face pointwise would be the
-self-paired case its constructor refuses.
+**The predicate is the type, never the realized matrix.**
+``WallCondition.specular(1.0)`` permutes ordinates exactly as the mirror does and
+composes freely (``0.5 * WallCondition.specular(1.0)`` is ``specular(0.5)``), because
+it is a condition; the question "is this role a deck" is
+``isinstance(role, DeckTransformation)``, which ``parse_face_role`` asks. What a
+deck *does* is read off its pairing (``FacePairing.permutes_ordinates`` is derived
+from the rigid motion, ``not motion.is_translation``), and that property is for
+realizers to read, never for a consumer to decide what a deck is. The retired
+predicate was ``law.geometry_map.is_identity``, a property of ``SelfPairedDeck`` and
+``PairedDeck`` read off the rigid motion (``RigidMotion.is_identity``, the
+conjunction of a linear part equal to :math:`I` and a zero translation), with
+``PairedDeck.is_identity`` ``False`` for every constructible value, since a paired
+deck that fixed every face pointwise would be the self-paired case its constructor
+refused.
 
-**Why the check on direct children is enough.** Each node checks only
-its direct children, in ``__post_init__``. The claim "no admitted tree
-holds a deck law at any depth" follows by induction on the tree's
-height. A leaf law is a tree of height 0 and is not itself an
-operand, so the claim is vacuous for it. A node of height
-:math:`h + 1` is admitted only if each direct child is either a law
-that passed the check or a node of height at most :math:`h`, which by
-the induction hypothesis holds no deck law; so the node holds none.
-``0.5 * (R + W)`` therefore refuses at the inner sum, before the scaling
-is evaluated. The induction needs the check in the constructor, which
-every construction route to a node reaches (the arithmetic dunders, a
-direct ``LawSum(a, b)`` or ``LawScaled(c, x)``, ``dataclasses.replace``,
-``sum`` and ``functools.reduce``), and not in the dunders, which a
-direct construction bypasses. Two limits, both measured by the review
-(2026-10-01): the nodes do not type their children, so a child that is
-not a law at all (``sum()``'s starting ``0``) is admitted here and
-refused later, by ``realize_recursively``; and a route that bypasses
-construction (``object.__new__``, or loading a pickle written before
-this check existed) bypasses the check too.
+**The retired guard.** The refusal in the composition nodes was tagged
+``ELEGANCE-DEBT[guard] #551`` in ``orpheus.geometry.boundary._composition``: the deck
+laws were to leave the law family for the geometry (the boundary-law ontology's
+architecture E), after which the composition nodes would take responses only and
+scaling a symmetry would be unspellable rather than refused. Wave 2 is that
+retirement (issue #551 is the issue that tracked it). The retired check on direct
+children was sufficient by induction on the height of the tree: a leaf law is a tree
+of height 0 and is not itself an operand, and a node of height :math:`h + 1` was
+admitted only if each direct child was a law that passed the check or a node of height
+at most :math:`h`, which by the induction hypothesis held no deck law; the check had
+to live in ``__post_init__`` because every construction route reached it (the
+arithmetic dunders, a direct ``LawSum(a, b)`` or ``LawScaled(c, x)``,
+``dataclasses.replace``, ``sum`` and ``functools.reduce``) and a check in the dunders
+alone was bypassed by a direct construction. Two limits, both measured by the review
+(2026-10-01): the nodes did not type their children, so a child that was not a law at
+all (``sum()``'s starting ``0``) was admitted there and refused later, by
+``realize_recursively``; and a route that bypasses construction (``object.__new__``, or
+loading a pickle written before the check existed) bypassed the check too. The first
+limit does not survive: ``sum([...])`` from the integer ``0`` is a ``TypeError`` of the
+operator protocol (``WallCondition`` defines no ``__radd__``, `[M]` 2026-10-24:
+``sum([specular(1.0), white(1.0)])`` raises ``unsupported operand type(s) for +: 'int'
+and 'WallCondition'``). The second does: ``object.__new__`` skips ``__post_init__``, which
+is where the cone check of ``WallCondition`` lives, so a condition built that way can lie
+outside :math:`K` (`[M]` 2026-10-24: ``object.__new__(WallCondition)`` with a specular weight
+of ``1.5`` reports ``return_fraction`` 1.5, where ``WallCondition(network)`` with the same
+network raises ``SubmarkovViolationError``); the standing defence is that every constructor and every arithmetic
+operator goes through ``__post_init__`` or ``_combine``.
 
-**The refusal is a guard, and a guard owes a retirement.** It is tagged
-``ELEGANCE-DEBT[guard] #551`` in
-``orpheus.geometry.boundary._composition``: the deck laws are to
-leave the law family for the geometry (the boundary-law ontology's
-architecture E), after which the composition nodes take responses only
-and scaling a symmetry is unspellable rather than refused.
-
-Gates: ``tests/gates/geometry/test_reflective_is_a_mirror.py`` (36 rows:
-an albedo refused as a positional argument, as a keyword and through
-``dataclasses.replace``; ``axis`` the only field; ``kind`` the registry
-key on every axis; the two amplitude checks retired while the
-certification still runs; :math:`G` the mirror and :math:`R` the
-identity; value semantics, including that a mirror and a perfect
-specular wall are different values) and
-``tests/gates/geometry/test_deck_laws_do_not_compose.py`` (217 rows: three
-deck laws, ``ReflectiveBoundary``, ``PeriodicBoundary`` and a synthetic
-mirror, against 21 composition routes covering the arithmetic dunders of
-the laws and of both node types, the direct constructors and the nested
-spellings; ``dataclasses.replace``; the nested refusal located at the
-inner node; and the positive legs, seven responses including the
-polished wall composing on every route and a response mix realizing
-through S\ :sub:`N` and through diffusion as before).
-`[M]` 2026-10-01: before the carve 12 of 36 and 67 of 217 failed; after
-it, 253 of 253 pass.
+**Gates.** The successor gates are the L-F gates of
+``tests/gates/transport/test_wall_condition_algebra.py``
+(``test_a_condition_is_not_a_deck_slot`` and ``test_a_deck_is_not_an_operand``) and
+``tests/gates/geometry/test_deck.py`` (``test_a_deck_is_its_type_and_has_no_field``);
+`[M]` 2026-10-24: ``python -O -m pytest tests/gates/transport/test_wall_condition_algebra.py
+tests/gates/geometry/test_deck.py tests/gates/geometry/test_face_roles.py`` gives
+52 passed. The retired gates were ``tests/gates/geometry/test_reflective_is_a_mirror.py``
+(36 rows: an albedo refused as a positional argument, as a keyword and through
+``dataclasses.replace``; ``axis`` the only field; ``kind`` the registry key on every
+axis; the two amplitude checks retired while the certification still ran; :math:`G`
+the mirror and :math:`R` the identity; value semantics, including that a mirror and a
+perfect specular wall are different values) and
+``tests/gates/geometry/test_deck_laws_do_not_compose.py`` (217 rows: three deck laws,
+``ReflectiveBoundary``, ``PeriodicBoundary`` and a synthetic mirror, against 21
+composition routes covering the arithmetic dunders of the laws and of both node types,
+the direct constructors and the nested spellings; ``dataclasses.replace``; the nested
+refusal located at the inner node; and the positive legs, seven responses including the
+polished wall composing on every route and a response mix realizing through
+S\ :sub:`N` and through diffusion as before). `[M]` 2026-10-01: before that carve 12 of
+36 and 67 of 217 failed; after it, 253 of 253 passed.
 
 .. note::
 
@@ -806,9 +957,9 @@ the only question the taxonomy exists to answer. What makes the
 classification load-bearing is that it is **decidable** and that it
 makes "put a wall's response in the geometry slot" unspellable.
 
-**What it is NOT.** How a law is *evaluated* — and, decisively, how its
-adjoint is obtained — follows the law's **kind**, not the two-factor
-product:
+**What it is NOT.** How a face's condition is *evaluated* — and,
+decisively, how its adjoint is obtained — follows its **kind** (a deck, or a
+response), not the two-factor product:
 
 .. list-table:: Evaluation follows the KIND, not the classifying product
    :header-rows: 1
@@ -984,9 +1135,12 @@ index-pairing error would be invisible, and equal sizes are `[M]` what
 ``gauss_legendre(4)`` (2/2), ``gauss_legendre(8)`` (4/4),
 ``product(2,4)`` (2/2), ``product(4,4)`` (4/4),
 ``level_symmetric(6)`` (24/24) and ``lebedev(17)`` (49/49). That
-equality is an **accident, not a contract**, which is why
-``_narrowed_zero_operator`` refuses to lean on it and why a factored
-response — routed through :math:`S(f)` — never pairs by index at all.
+equality is an **accident, not a contract**, which is why the retired
+``_narrowed_zero_operator`` refused to lean on it, why the typed realized
+operators that replaced it read each half-space off the trace ladder
+(``trace.outflow_space(face)``, ``trace.inflow_space(face)``) and never cross-check an
+index set, and why a factored response — routed through :math:`S(f)` — never pairs
+by index at all.
 
 Two consequences to carry:
 
@@ -1032,8 +1186,8 @@ normalisation sits: in :math:`B`, not :math:`C`, because :math:`C`
 produces a *current* and :math:`B` must produce an *intensity* — which
 is what leaves :math:`S(f)` carrying an honest :math:`J^+` and lets an
 albedo enter as the pure scalar law :math:`J^- = \alpha J^+`.
-:attr:`~orpheus.geometry.boundary.LambertianReemission.is_adjointable`
-flipped to ``True`` in the same step.
+``LambertianReemission.is_adjointable`` (an attribute of the retired
+trace-law type) flipped to ``True`` in the same step.
 
 .. warning::
 
@@ -1058,6 +1212,47 @@ flipped to ``True`` in the same step.
    at :math:`\le` 1 ULP, on ``gauss_legendre(8)``, ``product(2,4)``,
    ``level_symmetric(6)`` and ``lebedev(17)`` at ``xmax``.
 
+**The adjoint of the shared family, stated once.**
+The factored adjoint above is the identity every response obeys; the family of wall
+conditions and decks adds four statements, each gated.
+
+* *Reciprocity.* Every shared kernel is reciprocal in the trace metric
+  :math:`M = \operatorname{diag}(w\,|\mu|)`: the specular return is an involutive
+  measure-preserving permutation :math:`P`, so :math:`M^{-1} P^{\mathsf T} M = P`,
+  and the Lambertian is :math:`u \otimes (w|\mu|)/\sum(w|\mu|)`, self-adjoint under
+  :math:`M`. The adjoint of a shared condition's realization is therefore its
+  realization on the reversed ordinates, and a forward solve and an adjoint solve
+  share one binding (law L-A (i), ``test_reciprocity`` in
+  ``tests/gates/sn/architecture/test_realized_boundary.py``).
+* *The left-eigenvector rider.* The scalar :math:`\rho` that consumers read (the
+  return fraction, read by DSA, the corner swap, the leakage term and ERR-094) exists
+  exactly when the trace measure is a left eigenvector of the realized map,
+  :math:`R^{\mathsf T}(w|\mu|)_- = \rho\,(w|\mu|)_+`, equivalently
+  :math:`J^-(R\varphi) = \rho\,J^+(\varphi)` for every :math:`\varphi \ge 0`. For
+  the shared family it holds by construction, because the section :math:`E` divides by the INFLOW
+  mass :math:`M_-` (so :math:`Rt_{\rm in} \circ E = \mathrm{id}`) and :math:`P` preserves the
+  partial current. It is gated as the array identity
+  ``op.apply_transpose(w|mu| on Gamma_-) == rho * (w|mu| on Gamma_+)``, which a wrong
+  :math:`\rho` cannot pass and a one-vector ratio can. `[M]` 2026-10-24, a probe outside the
+  suite that runs the gate's body (``test_the_left_eigenvector_rider_through_the_realizer``
+  in ``tests/gates/sn/architecture/test_sn_realizer_table.py``) through ``SN_REALIZERS.realize``:
+  the identity holds in 16 of 16 cases (four quadratures, ``gauss_legendre(8)``,
+  ``product(2,4)``, ``level_symmetric(6)`` and ``lebedev(17)``, times faces ``xmin`` and
+  ``xmax``, times ``specular(0.7)`` with ``array_equal`` and ``white(0.3)`` within
+  ``ceil(N/3)`` ulp; the maximum measured deviation of the white wall is 0 ulp); the
+  control, the same transposed image compared with :math:`0.5\,(w|\mu|)_+` for the
+  ``specular(0.7)`` wall, is not equal.
+* *The deck's adjoint is its partner's deck.* :math:`G_g^{\#} = G_{g^{-1}}`, which is the deck on
+  the partner face: ``pairing_of(d, f).inverse == pairing_of(d, partner(f))`` (law L-A (ii),
+  ``test_pairing_of_and_its_adjoint`` in ``tests/gates/geometry/test_deck.py``).
+* :math:`q` *is not adjointed.* ``solve_sn_adjoint_fixed_source`` builds a zero boundary
+  source and never reads the declared :math:`q`, and the two eigenvalue adjoint entries
+  refuse a declared boundary source (``_refuse_a_boundary_source``, ERR-095). This is correct,
+  because :math:`q` enters the reciprocity identity as
+  :math:`\langle q, |\Omega\cdot n|\,\gamma_-\psi^{+}\rangle` against the adjoint flux; the
+  gate is ``test_the_adjoint_ignores_q`` in
+  ``tests/gates/sn/architecture/test_sn_boundary_binding.py`` (law L-A (iii)).
+
 That is the campaign's thesis in one line: **the adjoint falls out of
 well-posedness instead of being hand-rolled.**
 
@@ -1078,6 +1273,16 @@ the same body as the Lambertian, bound to the same two spaces, and
 composed by the same ``@`` — there is no second path (G6.3 step 5, issue
 **#330**).
 
+The realizer tables state it in one type. The SN image of ``alpha * SpecularChain``,
+of ``MirrorDeck`` and of ``TranslationDeck`` is the one class
+``ScaledOrdinatePermutation`` (a mirror deck at ``alpha = 1.0``, the wrap at
+``alpha = 1.0`` with the identity permutation across the two faces, a partial specular
+wall with its weight), built through one crossing function bound to the same two trace
+spaces. A symmetry has no amplitude, so the deck is that type at weight one and
+nothing else distinguishes it from the unit specular wall at the level of the
+realized operator; what distinguishes them is the role they were declared in
+(:ref:`bc-factor-quotients`).
+
 .. _bc-narrowed-involution:
 
 The involution that isn't — a flag retired in favour of the algebra
@@ -1092,13 +1297,14 @@ involution, and until G6.3 step 5
 ``perm[perm] == np.arange(N)`` — to say so. **It could not, and the reason
 is structural rather than numerical.**
 
-The realizer does not build the full reflection table; it builds the
-table **narrowed to** :math:`\Gamma_+`-local indices, because the law was
-narrowed to :math:`\Gamma_+ \to \Gamma_-` in B3.4a. Whether that narrowed
+The realized operator does not carry the full reflection table; it carries the
+table **narrowed to** :math:`\Gamma_+`-local indices (today the crossing function
+of ``ScaledOrdinatePermutation`` reads it off the certified pairing), because the
+boundary map was narrowed to :math:`\Gamma_+ \to \Gamma_-` in B3.4a. Whether that narrowed
 array satisfies ``perm[perm] == arange`` depends on how ``to_local``'s
 ``searchsorted`` happens to order the locals — which is a property of the
-quadrature, not of the mirror. `[M]` for **one** law, a mirror about
-``x`` installed on ``xmin``:
+quadrature, not of the mirror. `[M]` for **one** value, a mirror about
+``x`` on ``xmin`` (in today's spelling, ``MirrorDeck()`` on ``xmin``):
 
 .. list-table::
    :header-rows: 1
@@ -1157,9 +1363,10 @@ Asking ``P @ P`` instead replaces a value that *can* be wrong with a
 composition that *cannot be formed*: the same claim, delivered by the
 algebra, with no second clause to keep in step. The involution that IS
 real lives one tier up, on the full-space mirror pairing
-(:meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`'s
-derived :math:`\pi`), where domain and codomain coincide — asserted there
-by the ERR-044 certification. **Two different claims had been sharing one
+(the permutation :math:`\pi` that
+:func:`~orpheus.numerics.quadrature.ordinate_pairing` returns,
+certified before it is returned), where domain and codomain coincide — asserted there
+by the ERR-044 involution check (``PairingNotInvolutiveError``). **Two different claims had been sharing one
 predicate name across two tiers**, and the fix is to make the tier
 explicit rather than to tune the value.
 
@@ -1208,40 +1415,50 @@ naturality square commutes:
 
 .. (vv-status rationale) Structural/definitional: the commuting square that
    DEFINES "this law realizes in this method". It is the framing statement the
-   two shipped realizers' dispatch and refusals instantiate; the verifiable
-   content is per-realizer (the diffusion 𝒜-table pinned law-by-law in
-   ``tests/gates/geometry/test_boundary_factors.py``, the SN narrowing pinned
+   realizer tables' dispatch and refusals instantiate; the verifiable
+   content is per-realizer (the diffusion 𝒜-table pinned unit-by-unit in
+   ``tests/gates/diffusion/test_diffusion_realizer_table.py`` and the admission rows
+   in ``tests/gates/transport/test_admission_matrix.py``, the SN narrowing pinned
    bit-identical in ``tests/gates/sn/operators/test_b3_domain_narrowing.py``), not a
    solver claim of this equation's own.
 .. vv-status: bc-realizability-square documented
 
-i.e. *does discretizing the law's action agree with acting with the
-discretized law?* Three tiers follow, and the middle one is the one
+i.e. *does discretizing the action of the face's factor agree with acting
+with the discretized factor?* (On a face exactly one of :math:`G`, :math:`R` is
+non-trivial, so :math:`R\,G` is that factor and the square is the square of the
+face's own factor.) Three tiers follow, and the middle one is the one
 that surprises readers.
 
-**Tier 1 — exact and faithful.** :math:`R = \alpha I` for **any**
-:math:`\alpha`, not merely :math:`0` or :math:`1`. A scalar commutes
-with every linear projection, so :eq:`bc-realizability-square` holds
-identically, and :math:`\alpha` is *recoverable downstairs* — the
-projected law still carries the number that distinguishes it. This is
-the whole reason
-:class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
-is one line: :math:`\mathcal{A} = \texttt{law.response\_kernel.amplitude}`.
+**Tier 1 — exact and faithful.** A scalar law :math:`R = \alpha I` for **any**
+:math:`\alpha`, not merely :math:`0` or :math:`1`, **when it is complete upstairs**. A
+scalar commutes with every linear projection, so :eq:`bc-realizability-square` holds
+identically, and :math:`\alpha` is *recoverable downstairs* — the projected law still
+carries the number that distinguishes it. On diffusion's scalar trace the members of
+tier 1 are the empty network (the vacuum, :math:`\mathcal{A} = 0`,
+``Realized(True)``) and the method-only
+:class:`~orpheus.diffusion.zero_flux.ZeroFluxCondition` (:math:`\mathcal{A} = -1`,
+``Realized(True)``): each is a complete scalar law, with nothing angular for the
+projection to lose. A wall of the shared family that is not empty is *not* in tier 1
+there, although its image is also :math:`\mathcal{A} I`: the response is angular
+upstairs (a permutation or a cosine-weighted average), so the projection loses
+something, and diffusion's table states the lower tier (below). The diffusion
+realization is the composition of two maps, the unit to its scalar :math:`\mathcal{A}`
+and the scalar to the operator :math:`\mathcal{A}\,I`, which is why one scalar read
+per unit is the whole realizer (``DIFFUSION_REALIZERS``).
 
 **Tier 2 — exact but NOT faithful.** The square commutes — the
 realization is *correct*, nothing is approximated — and the projection
 nonetheless **identifies laws that differ upstairs**. At P1, specular
 and Lambertian both give :math:`J^- = \alpha J^+`; diffusion simply
-cannot tell them apart. The diffusion realizer's own module docstring
-states it:
-
-    *"White coincides with reflective at P1 … specular and Lambertian
-    return differ only in the ANGULAR redistribution of the returned
-    particles, which the half-range* :math:`\ell = 0` *moments
-    integrate out — both preserve the returned current,*
-    :math:`J^- = \alpha J^+`. *The distinction is real in transport (SN
-    realizes them as a permutation vs a cosine-weighted average) and
-    vanishes in any P1-closed method by construction."*
+cannot tell them apart. The diffusion table's module docstring states it for the response network of a wall:
+*"Diffusion annihilates the shape. It sees* :math:`\Pi_{P_1}\colon (s, d) \mapsto s + d`
+*on the response network of a wall: the angular redistribution that tells a specular
+return from a Lambertian one (a permutation against a cosine-weighted average in SN) is
+integrated out of the half-range* :math:`\ell = 0` *moments. Both chains therefore realize
+as the scalar WEIGHT times the identity, and a sum of chains is the scalar sum."*
+Both chains are ``Realized(faithful=False)``. The distinction is real in transport (SN
+realizes them as a permutation against a cosine-weighted average) and vanishes in any
+P1-closed method by construction.
 
 This is the same fact as :ref:`the rank-one theorem <bc-factor-roles>`
 read from the other side. Where the response destroys directional
@@ -1251,50 +1468,67 @@ in the continuum. (That is the theorem's honest conclusion; the equality
 ":math:`R \circ G = R`" this sentence carried until 2026-08-04 does not
 type-check once the two half-traces are distinct spaces.) Tier 2 is the *method's*
 version of the same collapse: the projection, not the response, is what
-destroys the distinction. A reader who conflates "the realization is
-exact" with "the realization is a faithful record of the law" will
-mis-read the diffusion table's four identical-looking rows as a
-coincidence. They are not: they are the image of four distinct laws
-under a non-injective :math:`\Pi`.
+destroys the distinction. A reader who conflates "the realization is exact"
+with "the realization is a faithful record of the law" will mis-read the
+diffusion table's identical-looking rows (the mirror deck, the specular chain and
+the diffuse chain, each :math:`\mathcal{A}` times the identity) as a coincidence.
+They are not: they are the image of distinct values under a non-injective
+:math:`\Pi`.
 
 **Tier 3 — not exact.** The law's action depends on structure the
 method does not represent: an anisotropic response kernel below P1 is
 the canonical case. Here :eq:`bc-realizability-square` genuinely fails
-and no amount of care in the realizer recovers it.
+and no amount of care in the realizer recovers it. The table states it as
+``Approximated(names, issues)``, each approximation carried with the issue that tracks it. The
+one shipped row is MoC's unit specular wall on a cylinder, which MoC realizes on a different
+domain, an equal-area square cell with reflecting flat faces
+(``Approximated.of("an equal-area square cell with reflecting flat faces, not the declared
+cylinder", 547)``; `[M]` 2026-10-24, ``MOC_REALIZERS.admit(WallCondition.specular(1.0), ...)`` at
+the outer face of a cylinder returns it, while the same table refuses weight :math:`0.5`, the white
+wall and the vacuum as ``Refused(PLUMBING, ...)``).
 
 So the dividing line is **scalar vs angular**, NOT trivial vs
-non-trivial. An :math:`\alpha = 0.37` albedo is "non-trivial" and lands
-in tier 1; a Lambertian is "simple" and lands in tier 2.
+non-trivial. An :math:`\alpha = 0.37` **scalar** law (a complete scalar
+response, as zero flux's :math:`\mathcal{A} = -1` is) is "non-trivial" and
+lands in tier 1; a Lambertian wall is "simple" and lands in tier 2, at any
+weight.
 
-.. admonition:: Tier 2, measured — the re-emission closure is INVISIBLE to
-                diffusion
+.. admonition:: Tier 2, measured — the shape of a wall is INVISIBLE to diffusion
    :class: tip
 
-   Campaign phase B3.4b gave
-   :class:`~orpheus.geometry.boundary.AlbedoBoundary` an explicit
-   re-emission closure, which turns tier 2 from an argument into a
-   measurement. All three spellings realize identically on the scalar
-   trace `[M]`:
+   The retired re-emission closure turned tier 2 from an argument into a
+   measurement: ``AlbedoBoundary(0.4)``, ``AlbedoBoundary(0.4, SpecularReturn("x"))``
+   and ``AlbedoBoundary(0.4, IsotropicReturn(...))`` all realized to
+   ``0.4 · IdentityOperator()`` on the scalar trace (campaign phase B3.4b). The
+   successor states it on the shared type, `[M]` 2026-10-24, the diffusion table's
+   realization of each value on a Cartesian face, applied to one positive outflow
+   probe (the setup of ``tests/gates/diffusion/test_boundary_realizer.py``,
+   ``DiffusionMethodSpace.minimal()``):
 
    .. code-block:: text
 
-      AlbedoBoundary(0.4)                        -> 0.4 · IdentityOperator()
-      AlbedoBoundary(0.4, SpecularReturn("x"))   -> 0.4 · IdentityOperator()
-      AlbedoBoundary(0.4, IsotropicReturn(...))  -> 0.4 · IdentityOperator()
+      WallCondition.specular(0.4)  -> 0.4 · IdentityOperator()   action = 0.4 · J⁺
+      WallCondition.white(0.4)     -> 0.4 · IdentityOperator()   action = 0.4 · J⁺
+      MirrorDeck()                 -> IdentityOperator()         action = 1.0 · J⁺
+      WallCondition.vacuum()       -> ZeroOperator()             action = 0.0 · J⁺
+      ZeroFluxCondition()          -> -1.0 · IdentityOperator()  action = -1.0 · J⁺
 
-   Three distinct laws, one image. The closure is not *ignored* by the
-   diffusion realizer — it is **annihilated by** :math:`\Pi`, exactly as
-   :eq:`bc-realizability-square` permits. The same three laws are
-   pairwise distinguishable under SN, where the closure selects a
-   permutation, a cosine-weighted average, or a refusal.
+   ``specular(0.4)`` and ``white(0.4)`` give equal images (``np.array_equal`` of their
+   actions on the probe is true): two distinct values, one image. The shape is not
+   *ignored* by the diffusion realizer — it is **annihilated by** :math:`\Pi`, exactly as
+   :eq:`bc-realizability-square` permits. The same two values are pairwise
+   distinguishable under SN, where one selects a permutation and the other a
+   cosine-weighted average. The third retired spelling, the closure-free
+   ``AlbedoBoundary(0.4)``, is the one the SN realizer refused, and it has no successor.
 
-   Read the refusal in this frame too: the SN realizer rejects the
-   closure-free spelling not because :math:`\alpha\,I` is *wrong* but
-   because it is **under-determined** at SN's resolution. Tier 1's
-   guarantee — "a scalar commutes with every projection" — is a statement
-   about laws that are *complete* upstairs. A bare :math:`\alpha` is not a
-   complete angular law; it is a complete *scalar* one, and the tier
-   argument applies only where its own hypothesis holds.
+   Read that refusal in this frame too: the SN realizer rejected the closure-free
+   spelling not because :math:`\alpha\,I` is *wrong* but because it was
+   **under-determined** at SN's resolution. Tier 1's guarantee — "a scalar commutes with
+   every projection" — is a statement about laws that are *complete* upstairs. A bare
+   :math:`\alpha` is not a complete angular law; it is a complete *scalar* one, and the
+   tier argument applies only where its own hypothesis holds. The response network
+   closes the gap on the shared type by never offering the bare scalar on an angular
+   trace: its weights always multiply a chain that names its crossing.
 
 .. _bc-equivariance:
 
@@ -1320,36 +1554,37 @@ touches:
   only if the *quadrature* is symmetric under the reflection: there
   must be an index map :math:`\pi` with
   :math:`\Omega_{\pi(n)} = \Omega_n - 2(\Omega_n\cdot\hat n)\hat n` and
-  matching weights. That is precisely what the three reflective
-  invariants check —
-  :meth:`~orpheus.geometry.boundary.ReflectiveBoundary.assert_geometry_map_measure_preserving`
-  (**ERR-042**: the pushforward of the discrete face measure
-  :math:`m_n = w_n |\mu_{a,n}|` under :math:`\pi` is that measure,
-  :math:`m_{\pi(n)} = m_n`),
-  :meth:`~orpheus.geometry.boundary.ReflectiveBoundary.assert_is_involutive`
-  (**ERR-044**: :math:`\pi \circ \pi = \mathrm{id}`), and
-  :meth:`~orpheus.geometry.boundary.ReflectiveBoundary.assert_reflection_maps_inflow_to_outflow`
-  (**ERR-045**: every non-tangential ordinate's partner is
-  non-tangential with the opposite sign on the law's axis). Read them
-  correctly: they are **discretization-admits-the-symmetry** checks,
-  not physics checks. The physics — that specular reflection is an
-  isometry — is not in question; what is in question is whether *this
-  quadrature* can express it. All three are failure mode **#5 (index
-  error)** in the V&V taxonomy, and their independence is **measured,
-  not assumed**: the GL-8 neighbour-pair table passes involution while
-  redding the measure, and the identity table passes involution *and*
-  measure while redding only the inflow → outflow check. All three
-  fire at realization through
-  :meth:`~orpheus.geometry.boundary.BoundaryTraceLaw.assert_realizable`,
-  so every :class:`~orpheus.sn.problem.SNProblem` construction
-  certifies them.
+  matching weights. That is precisely what the three certification checks of
+  :func:`~orpheus.numerics.quadrature.ordinate_pairing` verify, each with its own error
+  class: **ERR-042** (``PairingNotMeasurePreservingError``: the pushforward of the
+  discrete face measure :math:`m_n = w_n |\mu_{a,n}|` under :math:`\pi` is that measure,
+  :math:`m_{\pi(n)} = m_n`), **ERR-044** (``PairingNotInvolutiveError``:
+  :math:`\pi \circ \pi = \mathrm{id}`) and **ERR-045** (``PairingDoesNotCrossError``:
+  every non-tangential ordinate's partner is non-tangential with the opposite sign on
+  the face's axis). A fourth refusal, ``QuadratureNotClosedUnderMotionError``, is the
+  case where no weight-preserving bijection exists at all (ERR-073). Read the three
+  correctly: they are **discretization-admits-the-symmetry** checks, not physics checks.
+  The physics — that specular reflection is an isometry — is not in question; what is
+  in question is whether *this quadrature* can express it. All three are failure mode
+  **#5 (index error)** in the V&V taxonomy, and their independence is **measured, not
+  assumed**: the GL-8 neighbour-pair table passes involution while redding the measure,
+  and the identity table passes involution *and* measure while redding only the
+  inflow → outflow check (``test_the_three_errors_keep_their_teeth`` in
+  ``tests/gates/numerics/test_ordinate_pairing.py``: each broken table raises exactly its own error class). The function takes the face's
+  mirror motion and no axis argument; the axis is the one the motion names
+  (``test_ordinate_pairing_takes_no_axis_argument``). The certification fires at the table's
+  door: the SN realizer table asks ``ordinate_pairing`` when it admits a ``SpecularChain`` or
+  a ``MirrorDeck`` and answers ``Refused(ANGULAR_RESOLUTION)`` when the quadrature is not
+  closed under the mirror, so every :class:`~orpheus.sn.problem.SNProblem` construction
+  certifies them (the problem realizes its boundary through the shared
+  ``realize_boundary`` body, which admits first).
 * **A spatial wrap acts only on the SPATIAL coordinate.** Ordinate
   :math:`n` at face :math:`f'` feeds ordinate :math:`n` at face
-  :math:`f`, untouched — which is why the wrap's
-  :class:`~orpheus.geometry.boundary.PairedDeck` answers
+  :math:`f`, untouched — which is why the wrap's pairing
+  (``pairing_of(TranslationDeck(), face, dimension=d)``) answers
   ``permutes_ordinates = False``, DERIVED from its motion's identity
-  linear part rather than declared. **Every angular discretization is
-  therefore trivially equivariant under it.** Periodic is the more
+  linear part (``not motion.is_translation``) rather than declared. **Every angular
+  discretization is therefore trivially equivariant under it.** Periodic is the more
   method-agnostic of the two deck transformations, and for a sharper
   reason than "it is a trace connection": there is no angular symmetry
   requirement to fail.
@@ -1359,10 +1594,13 @@ touches:
 Three independent axes of method-dependence
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Every realizer refusal in the codebase lies on exactly one of three
-axes. They are **independent** — a method can sit anywhere on each —
-and reading them as one axis ("this method is too coarse") is what kept
-the taxonomy invisible. Each shipped guard now names its axis in-place.
+Every refusal of a realizer table is a ``Refused(axis, reason, issue)`` whose axis is
+one of three **independent** axes, or the fourth thing that is not an axis, plumbing
+(``RefusalAxis``: ``ANGULAR_RESOLUTION``, ``TOPOLOGY``, ``STATE_CONE`` and ``PLUMBING``).
+A method can sit anywhere on each of the three, and reading them as one axis ("this method
+is too coarse") is what kept the taxonomy invisible. The table that realizes a declaration
+is the table that refuses it, so the refusal and its axis are read from the one door
+(``RealizerTable.admit``) and cannot disagree with the realization.
 
 .. list-table:: The three axes of method-dependence
    :header-rows: 1
@@ -1372,47 +1610,70 @@ the taxonomy invisible. Each shipped guard now names its axis in-place.
      - question
      - the refusal that shows it
    * - **angular resolution**
-     - can the method represent :math:`R`'s angular structure?
-     - tier 3 above — an anisotropic :math:`R` below P1. (No shipped
-       law is anisotropic yet; albedo's missing re-emission closure is
-       the near case — see the census note under
-       :ref:`bc-law-layer`.)
+     - can the method represent :math:`R`'s angular structure, or the symmetry
+       :math:`G` acts by?
+     - ``SN_REALIZERS`` refuses a ``SpecularChain`` or a ``MirrorDeck`` when
+       ``ordinate_pairing`` cannot certify the quadrature as closed under the face's
+       mirror, ``Refused(ANGULAR_RESOLUTION)``
+       (``test_a_certification_failure_names_its_axis_at_the_table``); tier 3
+       above is the other member, an anisotropic :math:`R` below P1, which no shipped
+       wall is.
    * - **spatial / topological**
      - can the method's operator express **cross-face** coupling?
-     - :class:`~orpheus.diffusion.boundary_realizer.DiffusionBoundaryRealizer`
-       **refuses periodic** — "the one geometry P1 cannot integrate
-       away into a per-face albedo :math:`J^- = \mathcal{A} J^+`". Its
-       codomain is a per-face scalar, a block-diagonal object with no
-       slot for a face *pair*. **Nothing to do with angle**: as above,
-       a translation is trivially equivariant for every angular
-       discretization. A method could resolve angle perfectly and still
-       refuse this.
+     - ``DIFFUSION_REALIZERS`` **refuses a** ``TranslationDeck`` — "the wrap couples
+       'xmin' to its opposite face 'xmax': a per-face scalar has no slot for cross-face
+       coupling", ``Refused(TOPOLOGY)``, the one geometry P1 cannot integrate away into a
+       per-face albedo :math:`J^- = \mathcal{A} J^+`. Its codomain is a per-face scalar,
+       a block-diagonal object with no slot for a face *pair*. **Nothing to do with
+       angle**: as above, a translation is trivially equivariant for every angular
+       discretization. A method could resolve angle perfectly and still refuse this. MC
+       refuses a specular wall on a cylinder on this axis for the converse reason (it
+       realizes a periodic square lattice cell, whose faces ARE coupled by an image
+       lattice, not the declared cylinder, #547).
    * - **state-cone / sign**
      - is the value representable in the method's **state cone**?
-     - :class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer`
-       **refuses zero-flux** — :math:`\mathcal{A} = -1` needs a
-       *signed* current, and the SN state is an angular flux with
-       :math:`\psi \ge 0`, which admits no negative angular inflow
-       (:math:`\psi \ge 0 \Rightarrow J^\pm \ge 0`). Diffusion realizes
-       the very same law without difficulty, as
-       ``-IdentityOperator()`` (the one-term combination
-       :math:`(-1)\,I`).
+     - ``SN_REALIZERS`` **refuses diffusion's** ``ZeroFluxCondition``:
+       :math:`\mathcal{A} = -1` needs a *signed* current, and the SN state is an angular
+       flux with :math:`\psi \ge 0`, which admits no negative angular inflow
+       (:math:`\psi \ge 0 \Rightarrow J^\pm \ge 0`). The table's own ``StateCone`` is
+       ``NONNEGATIVE_FLUX`` and the unit's return fraction is negative, so the unregistered-unit door
+       answers ``Refused(STATE_CONE)`` without SN importing the diffusion type. Diffusion realizes the
+       very same value without difficulty, as ``-IdentityOperator()`` (the one-term
+       combination :math:`(-1)\,I`, ``DiffusionZeroFlux``).
 
 Note the shape of that table: on the topological axis diffusion refuses
 what SN accepts, and on the state-cone axis SN refuses what diffusion
-accepts. Neither method is "coarser". They are incomparable.
+accepts. Neither method is "coarser". They are incomparable. `[M]` 2026-10-24, the
+admissions on a Cartesian ``xmin`` face read through ``SN_REALIZERS.admit`` and
+``DIFFUSION_REALIZERS.admit`` (SN, diffusion): ``TranslationDeck()``
+``Realized(True)`` and ``Refused(TOPOLOGY)``; ``ZeroFluxCondition()``
+``Refused(STATE_CONE)`` and ``Realized(True)``; ``MirrorDeck()`` ``Realized(True)`` and
+``Realized(False)``; ``WallCondition.specular(0.4)`` ``Realized(True)`` and
+``Realized(False)``. The two refusals of the pair are each read beside a ``Realized``
+answer of the other table for the same value, which is the control that the refusal is
+the method's and not the value's.
 
 :math:`q` **is a fourth thing, and not on any of these axes.** It is a
 **vector in** :math:`\Gamma_-`, not an operator, so the only question
 it asks of a method is whether :math:`\Gamma_-` is represented at the
-fidelity the source demands. Diffusion's refusal of
-:class:`~orpheus.geometry.boundary.PrescribedInflow` is therefore a
+fidelity the source demands. Diffusion's refusal of any nonzero source
+(``WallCondition.uniform`` or ``.framed``, ``DiffusionSource``) is therefore a
 **plumbing** refusal, not a representability one — :math:`\Gamma_-` on
 a scalar trace is one number per face, which the trace carries
-perfectly well. The realizer's guard says so in place: the refusal
-disappears the day the diffusion fixed-source arm is wired (#290 P5),
-**with no theory changing**. Stated explicitly so a future reader does
-not mis-file it beside the two structural refusals above.
+perfectly well. The table says so in place: ``Refused(PLUMBING, #656)``
+(`[M]` 2026-10-24: ``DIFFUSION_REALIZERS.admit(WallCondition.uniform(1.0), ...)`` on a
+Cartesian face returns it, while ``SN_REALIZERS.admit`` of the same value is
+``Realized(True)``), and the refusal disappears the day the diffusion fixed-source arm is
+wired, **with no theory changing**. Stated explicitly so a future reader does
+not mis-file it beside the three structural refusals above. Plumbing is the axis of
+every refusal that has no theory behind it, and ``Refused`` itself refuses to be built as
+``PLUMBING`` without the issue that tracks the missing machinery, so "not built yet"
+cannot be an unexplained refusal: the hollow radial body's inner face (#511), the
+radial characteristic's corner action for a diffuse return or a source (#653) and the
+missing registry entries of the CP, MoC and MC tables (#654) are the others, read from the
+same door (`[M]` 2026-10-24: ``SN_REALIZERS.admit(WallCondition.white(1.0), ...)`` on a cylinder's outer
+face is ``Refused(PLUMBING, #653)``, and on its inner face ``white(0.5)`` is
+``Refused(PLUMBING, #511)``).
 
 
 Layer 1 — trace structure
