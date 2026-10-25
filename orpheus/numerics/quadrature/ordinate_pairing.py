@@ -8,7 +8,7 @@ layer. It is the single certified source of an axis reflection's ordinate
 pairing. Its consumer is SN's realizer (``_SNSites.mirror_pairing`` in
 ``orpheus/sn/boundary/realizer.py``), which reads the permutation of a face's mirror plane from it; the raw, uncertified
 ``Quadrature.ordinate_permutation`` is still called directly by one SN reader of the loss representation
-(``orpheus/sn/loss_representation/__init__.py``) and by a derivation. The architecture of record is
+(``orpheus/sn/loss_representation/__init__.py``). The architecture of record is
 :ref:`bc-architecture-of-record`.
 
 Design

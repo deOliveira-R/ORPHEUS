@@ -7,7 +7,7 @@ carrier's tagged faces (:func:`bind`), and a per-method realizer table whose sin
 and "realize it" (``SN_REALIZERS``, ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS`` and ``MC_REALIZERS``, each
 in its method's package). Each module's docstring holds its mathematics and its gotchas; this file only re-exports. The
 architecture of record is :ref:`bc-architecture-of-record`; each retired name maps to its successor in
-:ref:`bc-wave2-crosswalk`.
+the wave-2 crosswalk section of the same theory page.
 
 * :mod:`.network`: the factors, the closed chain sum, :class:`ResponseNetwork`;
 * :mod:`.inflow`: the affine part :math:`q`;

@@ -46,9 +46,10 @@ the moment the alias names it and no site re-spells the union by hand.
 
 **Who reads a deck.** The colouring (:mod:`orpheus.geometry.colouring`) compares the two end roles of a slab and reads
 which faces a deck pairs; the binding (:func:`orpheus.transport.boundary_conditions.bind`) partitions a carrier's roles
-into decks and tags; each method's realizer table holds one :class:`~orpheus.transport.boundary_conditions.DeckRealizer`
-that matches the sum exhaustively. The theory of the split between a deck (a symmetry of the domain, a gluing) and a
-response (a model of the exterior) is "+REF+".
+into decks and tags; four of the five realizer tables (SN, diffusion, CP, MC) hold one
+:class:`~orpheus.transport.boundary_conditions.DeckRealizer` that matches the sum exhaustively; MoC registers none, so
+a deck meets that table's unregistered door (#654). The theory of the split between a deck (a symmetry of the domain,
+a gluing) and a response (a model of the exterior) is :ref:`bc-architecture-of-record`.
 """
 
 from __future__ import annotations
