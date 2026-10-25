@@ -1748,8 +1748,11 @@ second classifier of "incoming" and "outgoing". A realized face
 operator of :ref:`bc-realizer-layer` names its two half-traces by
 reading them off that ladder: its domain :math:`\Gamma_+` is
 ``trace.outflow_space(face)`` and its codomain :math:`\Gamma_-` is
-``trace.inflow_space(face)``, and the type holds ``(alpha, face, trace)``
-and no axis or outward sign of its own
+``trace.inflow_space(face)``, and each type holds its face, the trace and, where it has one, its
+amplitude and partner (``RankOneReemission`` holds ``(alpha, face,
+trace)``, ``ZeroMap`` ``(face, trace)``, ``ScaledOrdinatePermutation``
+``(alpha, permutation, face, partner, trace)``), and no axis or outward
+sign of its own
 (``orpheus/sn/boundary/realized_operators.py``). Of the two
 certifications that sat in the realizer, ERR-041 (vacuum fills the
 incoming trace only) moved to where the data lives and is witnessed on
@@ -1757,7 +1760,8 @@ the ladder, in
 ``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates``,
 and ERR-047 (a source lies on :math:`\Gamma_-`) remains the one SN-side
 check, :meth:`~orpheus.sn.boundary.realizer.SNSource.sample`, which
-refuses a space that is not the face's inflow half-trace.
+refuses a space that is not an inflow half-trace; the face's own
+:math:`\Gamma_-` is what ``from_method`` hands it.
 
 
 .. _bc-domain-narrowing:
@@ -1908,8 +1912,9 @@ sets have nothing to hand each other.
       are not a prefix, and right in 1-D. **1-D coverage is not
       sufficient and neither is 2-D.**
    2. **A shape assertion cannot detect a mis-typed domain.** Measured:
-      :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature × face in the
-      tree, so an un-narrowed endomorphism :math:`\Gamma_+ \to \Gamma_+`
+      :math:`|\Gamma_+| = |\Gamma_-|` on each of the 46 (rule, face) pairs
+      measured (9 rules; the census of the signed-projection gotcha
+      below), so an un-narrowed endomorphism :math:`\Gamma_+ \to \Gamma_+`
       has *exactly the right output shape*. This is a textbook vv
       **Mode 12** blindness — the measured functional (shape) has the
       error class in its invariance group — and it is what let three
@@ -1917,7 +1922,7 @@ sets have nothing to hand each other.
       anti-Mode-12 leg, which interrogates the emitted operator's
       declared spaces rather than its output shape, found them.
 
-This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+This passage records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
 :ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
 
 ⛔ **This passage, down to the partial-constructor paragraph, records
@@ -1968,7 +1973,7 @@ and its :math:`G = \mathrm{id}` supplies no crossing), so
 both then: they silently accepted a :math:`\Gamma_+` input and echoed it
 back — i.e. :math:`\Gamma_+ \to \Gamma_+`, the wrong codomain, invisible
 to a shape check (vv Mode 12 again). All four were unreachable in
-production — the SN registry admits only ``{vacuum, reflective}`` — so
+production — the SN registry admitted only ``{vacuum, reflective}`` — so
 the tree was green; they were pinned by strict xfails, each
 ``--runxfail``-verified to red for *its own* documented reason.
 
@@ -2092,7 +2097,7 @@ constructor that today refuses a full-face weight vector by name.
 
 **Prescribed inflow — the mask that dissolved.** An
 ``InflowSourceSpec`` filled whatever
-block *shape* it was handed; it carries no trace knowledge. So pre-B3.4a
+block *shape* it was handed; it carried no trace knowledge. So pre-B3.4a
 ``IncomingSourceOperator`` emitted a
 full-face block and then zeroed every non-inflow ordinate — outflow AND
 tangential — to make :math:`q \in \Gamma_-` hold. With the codomain
@@ -2697,8 +2702,17 @@ and a wrong linear factor reads :math:`q + L\gamma_+\psi \neq q`.
    Krylov rows. Seven of the eight Krylov rows are inexact. The first
    measurement of the same five fixtures (P3, 2026-08) read ``18``, ``7``,
    ``1``, ``23`` and ``27 580`` ULP; the tree at ``471c4737`` reads ``0``,
-   ``1``, ``2``, ``2`` and ``39``. Which change moved the readings has not
-   been established, and it does not matter to the gate below, which is
+   ``1``, ``2``, ``2`` and ``39``. The change that moved the readings
+   is in part the sweep-left preconditioner of #200 (2026-10-04,
+   ``orpheus/sn/solver.py``, ``Krylov(preconditioner=(L+C)^{-1})``):
+   ``[M]`` ``scratch/wf25_bcB_precond_probe.py``, run from outside the
+   repository under ``python -O`` with ``PYTHONPATH`` the worktree on the
+   keystone fixture (GL-8, ``xmin`` declaring ``WallCondition.uniform(2.5)``,
+   ``inner_tol`` ``1e-13``), reads ``0`` ULP with the sweep preconditioner
+   and ``11`` ULP (``dev = 4.88e-15``) with ``Krylov.__init__`` forced to
+   ``IdentityOperator()`` (2026-10-24). The remaining gap, 11 against the
+   ``18`` ULP of P3, is unattributed. This is one substitution on one
+   fixture, not a bisect. It does not matter to the gate below, which is
    built not to depend on the reading being exact.
 
    **What the gate ships, and why it is TWO legs.** A single
@@ -3249,8 +3263,8 @@ row that only asserted ``prescribed.domain is vacuum.domain`` would stay
 (:math:`\text{domain} := \Gamma_-`, :math:`\text{codomain} := \Gamma_+`),
 because it compares the two operators against each other and never
 against the trace; and a size check cannot catch the swap either:
-:math:`|\Gamma_+| = |\Gamma_-|` on every quadrature :math:`\times` face
-in the tree (``[M]`` section S7 of ``scratch/wf25_bcB_measurements.py``:
+:math:`|\Gamma_+| = |\Gamma_-|` on each of the 46 (rule, face) pairs
+measured (9 rules from five families; ``[M]`` section S7 of ``scratch/wf25_bcB_measurements.py``:
 46 of 46 (quadrature, face) pairs that build a signed-projection table,
 9 rules :math:`\times` 6 face names = 54 attempted and the 8 refused
 being the two one-dimensional rules on the four ``y``/``z`` faces;
