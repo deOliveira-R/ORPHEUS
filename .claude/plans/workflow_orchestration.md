@@ -37,7 +37,7 @@ Why the split: an Opus-class reviewer is fully capable of the adversarial first 
 | `design-panel` | N executor drafts from distinct angles (parallel) → M reviewer attacks, each reading every draft (parallel) | the ontology is being searched; the orchestrator synthesizes, and the user rules |
 | `spec-check` | one executor drafts a specification from given inputs, with measurement agents in parallel for its open items → a reviewer cold read (elegance) and a reviewer structural check (cross-domain) in parallel | turning ruled decisions into one executable specification |
 | `build-units` | per unit: executor test-architect writes the gates (red) in a worktree → executor implementer turns them green → reviewer qa and reviewer elegance in parallel → executor amend → reviewer verify of each disposition | additive or file-disjoint units in parallel |
-| `docs-pass` | per page section: executor archivist drafts → reviewer qa verifies the claims (each `[M]` re-run) | a theory page after a carve |
+| `docs-pass` | per page section, in a worktree the orchestrator cut from `args.base`: executor archivist drafts, reviewer qa verifies read-only (each `[M]` re-run, the code behind each present-tense claim read), executor archivist amends when findings remain | a theory page after a carve |
 
 Each template's `args` carry the units or sections, their briefs, the shared rules block, and the output directory. The scripts are reviewed by the orchestrator before their first use, and their `meta.description` states the stages.
 
