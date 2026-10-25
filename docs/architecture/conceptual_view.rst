@@ -309,12 +309,14 @@ problem cannot bind. A **binding**
 tag-to-condition map to the faces once, as an exact cover of the tags, and
 is lawful only when every condition is invariant under the **colouring
 stabiliser** of the problem, the group of isometries that map the material
-runs onto themselves and each face role onto an equal role
-(:func:`~orpheus.geometry.colouring.colouring_symmetry`, computed from the
-geometry and never from a mesh's cell edges). A method meets the binding
+runs onto themselves and each face role onto the same tag or the same deck
+type (:func:`~orpheus.geometry.colouring.colouring_symmetry`, computed from
+the material runs, so refining a mesh cannot change it: the three producers'
+raw partitions, a geometry's intervals, a mesh's regions and a material
+mesh's cells, are merged into runs at one site). A method meets the binding
 through its **realizer table**, one per method, which answers admission (is
-the declaration realized exactly, approximated, or refused on a named axis
-and with the issue that tracks the refusal) and realization together,
+the declaration realized exactly, approximated, or refused on a named axis;
+a plumbing refusal names the issue that tracks the missing machinery) and realization together,
 through one door, so a query and a realization cannot disagree
 (:ref:`bc-method-realizability`;
 :class:`~orpheus.transport.boundary_conditions.RealizerTable`). This is why
@@ -719,8 +721,11 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   two sites, retired when a measure is typed by its support,
   :ref:`manifold-gspace`). The boundary composition's check on its direct
   children (#551) retired with ``LawSum`` and ``LawScaled`` at the wave-2
-  carve: a combination of wall conditions is arithmetic on a cone, and an
-  operand that is not a condition is the language's own ``TypeError``.
+  carve: a combination of wall conditions is arithmetic on a cone. A wall condition
+  does not add to a non-condition (its ``__add__`` returns ``NotImplemented``,
+  so ``w + 3`` is Python's ``TypeError``), and an operator operand is refused
+  by the operand check of ``OperatorSum`` in ``numerics/operator.py``, which
+  raises ``TypeError``.
   ``# TODO`` occurs once; ``raise NotImplementedError`` 72
   times in 27 files under ``orpheus/`` excluding ``derivations/`` (119 in
   39 with it), the population a retirement audit walks (``[M]``

@@ -583,9 +583,10 @@ with equal bare weights) subsumes none of them: the **measure** of the trace
 :math:`\pi` is an **involution** (ERR-044), and every non-tangential ordinate
 **crosses** to the opposite sign class on the axis (ERR-045). Each passes on
 a table the other two reject, which is why none is dropped for another; a
-motion that is not an axis reflection, and a quadrature with no weight- and
-bijection-preserving match, raise a subclass of
-:class:`~orpheus.numerics.quadrature.ordinate_pairing.OrdinatePairingError`.
+motion that is not an axis reflection raises
+:class:`~orpheus.numerics.quadrature.ordinate_pairing.OrdinatePairingError`
+itself, and a quadrature with no weight- and bijection-preserving match raises
+its subclass ``QuadratureNotClosedUnderMotionError``.
 The consumers are the S\ :sub:`N` realizer table's mirror entries and the
 typed realized operators of ``orpheus.sn.boundary.realized_operators``,
 which re-check the two facts their properties rest on at construction (see

@@ -72,9 +72,11 @@ spells it, and the machinery that joins it to a problem and to a method:
   query and the realization cannot disagree. The tables are
   ``SN_REALIZERS`` (``orpheus.sn.boundary.realizer``),
   ``DIFFUSION_REALIZERS`` (:mod:`orpheus.diffusion.boundary_realizer`),
-  ``CP_REALIZERS``, ``MOC_REALIZERS`` and ``MC_REALIZERS`` (in each method's
-  solver module). A table is keyed by exact type and is sealed by the last line of its
-  module.
+  ``CP_REALIZERS`` (``orpheus.cp.solver``), ``MOC_REALIZERS``
+  (``orpheus.moc.geometry``) and ``MC_REALIZERS`` (``orpheus.mc.solver``). A
+  table is keyed by exact type and is sealed once all its realizers have
+  registered (the last line of the module, or of the registering block in cp
+  and mc).
 
 .. code-block:: python
 

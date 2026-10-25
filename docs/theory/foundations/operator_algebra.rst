@@ -36,7 +36,7 @@ They compose into the **within-group transport operator**
 posed either as an eigenvalue problem :math:`A\psi = \tfrac{1}{k}F\psi`
 or a fixed-source problem :math:`A\psi = q`. Here :math:`A` is the
 **loss operator** — removal and leakage net of the within-group gains —
-against the fission **gain** :math:`F`. The boundary law :math:`B` is a
+against the fission **gain** :math:`F`. The realized boundary operator :math:`B` is a
 **first-class sibling** (not folded into :math:`L`), and :math:`F` sits
 on the **right-hand side** — never inside :math:`A`. The invertible
 sub-composite :math:`L+C` — streaming leakage plus total collision — has
@@ -122,7 +122,7 @@ expands :math:`S` for anisotropy).
 Key Facts
 =========
 
-- **The realized boundary law** :math:`B` **is a first-class sibling
+- **The realized boundary operator** :math:`B` **is a first-class sibling
   operator** (Issue #208): the within-group transport
   operator is :math:`A = L + C - S - N_{2n} - B` on the **two-block** transport
   state :math:`V = V_{\rm bulk} \oplus V_{\rm boundary}` (the bulk
@@ -6062,7 +6062,7 @@ answer **by agreement** instead:
 
 and identically for the codomain. Silence is not disagreement: a factor
 that declares nothing contributes nothing, which is how
-:math:`K_\omega \otimes I` — every shipped SN boundary law, with the
+:math:`K_\omega \otimes I` — every shipped SN boundary operator, with the
 group factor an identity — is bound exactly where :math:`K_\omega` is.
 
 .. implements:: tensor-product-space-agreement
