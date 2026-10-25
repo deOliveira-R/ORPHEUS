@@ -1276,12 +1276,22 @@ faces carry the tags 0 and 1, given no conditions, raises
 ``UnboundTagError: face 'xmin' carries tag 0 and no condition is
 declared for it``, and given a condition for a third tag
 ``UnusedConditionError: a condition is declared for tag 2 and no face
-carries it (carried tags: [0, 1])``. The one place the tree binds a tag
-for the caller is the model's own: ``solve_cp`` with no mesh builds the
-Wigner–Seitz pin cell, whose outer tag ``0`` it binds to
-``WallCondition.white()`` (the model's closure, stated where the method
-is known); with a mesh and no conditions an unbound tag is refused,
-naming it.
+carries it (carried tags: [0, 1])``.
+
+Two entries bind a tag for the caller, each only when called with no
+mesh and no conditions: ``solve_cp`` builds the Wigner–Seitz pin cell and
+binds its outer tag ``0`` to ``WallCondition.white()`` (the model's
+closure, stated where the method is known), and ``solve_moc`` builds its
+default pin cell and binds the tag ``0`` to ``WallCondition.specular(1.0)``,
+the one wall its ray tracer links (the model's own white wall is refused by
+``MOCMesh``). `[M]` 2026-10-24, ``git grep -nE
+'WallCondition\.(white|specular|vacuum|uniform)\('`` over ``orpheus/`` less
+``orpheus/derivations`` and the conditions package itself, each hit read:
+the production sites that construct a wall are 2 (``orpheus/cp/solver.py``
+and ``orpheus/moc/solver.py``, each inside the ``mesh is None`` branch of
+its entry); the other 7 hits (9 in all) are docstrings and comments, and the S\ :sub:`N`,
+diffusion and MC entries construct none. With a mesh and no conditions
+each refuses an unbound tag, naming it.
 
 The inner surface of a hollow radial axis has no trace slot, and the tree
 supplies no role for it: :class:`~orpheus.mesh.axis.RadialAxisMesh`
@@ -1324,7 +1334,7 @@ default is invisible to the static count) had to state their laws.
 Deciding what an undeclared face means is not the mesh's job, and not a
 method's either: a problem whose boundary is unstated is not yet a
 problem. The retirement therefore has no successor default anywhere,
-except the Wigner–Seitz model's own binding named above, which is a
+except the two default pin cells' own bindings named above, each a
 model's declaration and not a fill for an undeclared face.
 
 
@@ -1747,7 +1757,7 @@ reason. The admission stays per table because the reason is per method.
 The refusal retires when the radial axis gains an inner-surface trace,
 which is the curvilinear S\ :sub:`N` build the user has deferred.
 
-**The admitted inner law is a void cavity, verified as if derived.**
+**The admitted inner wall is a void cavity, verified as if derived.**
 Admitting the unit specular wall (``WallCondition.specular(1.0)``)
 is correct only if what the methods compute
 for it is a physical answer, and it is: in one-dimensional cylindrical
@@ -1765,7 +1775,7 @@ extrapolates it linearly to :math:`\varepsilon = 0`. `[M]` 2026-10-24
 (a script importing the gate's own helpers, from a worktree at the carve
 tip, re-measured; the first measurement, 2026-09-29, gave the same
 digits), the gate's own fixture (a 2-group material on the shell
-:math:`[0.5, 2.0]` meshed 8 cells, the core 4 cells, vacuum outer law;
+:math:`[0.5, 2.0]` meshed 8 cells, the core 4 cells, vacuum outer wall;
 Gauss–Legendre 8 on the sphere, ``folded_product(n_mu=4, n_phi=8)`` on
 the cylinder):
 
@@ -1818,7 +1828,7 @@ the fixed tree): a one-group fuel | moderator slab on :math:`[0, 2]`
 :math:`S_{32}`), white on the right face; "flipped" puts the moderator
 on the left:
 
-.. list-table:: Which law CP computes at a slab's left face
+.. list-table:: Which condition CP computes at a slab's left face
    :header-rows: 1
    :widths: 40 20 20
 
@@ -2306,7 +2316,7 @@ deleted ``Billiard``'s 12):
   slab with mirror faces (the witness of the silent vacuum answer
   above); ``MomentSpace`` and ``BasisSpace`` refuse a partially
   reflecting sphere; ``Spectrum`` refuses a slab with unequal faces, a
-  reflected cylinder and a white law.
+  reflected cylinder and a white wall.
 * **The reflected slab's preconditions and route** (5 rows): unequal
   :math:`\Sigma_t`, two groups and flux reconstruction, each refused;
   the symmetry tolerance on the thicknesses ``(0.3, 1.1, 0.3)``, whose
