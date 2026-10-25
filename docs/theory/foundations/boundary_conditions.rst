@@ -31,9 +31,9 @@ where they re-spell it, and a name in double backticks there is retired.
   :math:`W = N(G_c)/G_c`, which is trivial on the radial axis of a cylinder or a sphere: no 1-D curved face carries a deck, and a
   reflecting curved wall is a condition, ``WallCondition.specular(1.0)``. Gates: ``test_a_curved_face_admits_no_deck`` and
   ``test_every_deck_match_ends_in_assert_never`` in ``tests/gates/geometry/test_deck.py``. Derivation: :ref:`bc-aor-deck-family`.
-- **A wall is one affine trace map on a convex cone.** :class:`~orpheus.transport.boundary_conditions.WallCondition` is the pair
+- **A wall is one affine trace map on the sub-Markov simplex.** :class:`~orpheus.transport.boundary_conditions.WallCondition` is the pair
   :math:`(R, q)` with :math:`\gamma_-\psi|_f = R\,\gamma_+\psi|_f + q`, the linear part
-  :math:`R = s\,P + d\,(E\circ R_t)` a point :math:`(s, d)` of :math:`K = \{s, d \ge 0,\ s + d \le 1\}` and :math:`q \ge 0`.
+  :math:`R = s\,P + d\,(E\circ R_t)` a point :math:`(s, d)` of the sub-Markov simplex :math:`K = \{s, d \ge 0,\ s + d \le 1\}` (compact, so not a cone: a positive multiple of a point of :math:`K` can leave it) and :math:`q \ge 0` (the source cone).
   Vacuum, the specular wall, the white wall and a prescribed inflow are facade constructors over this one type, so
   ``WallCondition.specular(0.0) == WallCondition.white(0.0) == WallCondition.vacuum()``, one value with one digest. Gates:
   ``tests/gates/transport/test_wall_condition.py``, ``tests/gates/transport/test_response_network.py``. Derivation:
@@ -57,10 +57,12 @@ where they re-spell it, and a name in double backticks there is retired.
 - **The return fraction of a wall is** :math:`\rho = s + d` **exactly, by the split pair, and the trace measure is a left
   eigenvector of the realized map**: :math:`R^{\mathsf T}(w|\mu|)_- = \rho\,(w|\mu|)_+`. The proof needs :math:`E` to divide by
   the *inflow* mass, so that :math:`R_t^{\rm in}\circ E = \mathrm{id}`. Gates: ``test_the_left_eigenvector_rider_through_the_realizer``
-  and ``test_return_fraction_is_the_declared_and_the_measured`` in ``tests/gates/sn/architecture/test_sn_realizer_table.py``;
-  ``test_the_mass_census_inflow_equals_outflow_on_every_registry_rule`` in
-  ``tests/gates/sn/architecture/test_realized_boundary.py``. Derivation: :ref:`bc-aor-wall-condition`.
-- **The cone is a value predicate, so a wall outside it does not exist.** Direct construction outside :math:`K`
+  and ``test_return_fraction_is_the_declared_and_the_measured`` in ``tests/gates/sn/architecture/test_sn_realizer_table.py`` pin the
+  identity on the registry rules, where the two masses agree bitwise, so they are blind to which mass ``E`` divides by. The divisor
+  has one witness, ``test_the_rider_on_a_trace_whose_masses_differ`` in ``tests/gates/sn/architecture/test_realized_boundary.py``
+  (`[M]` mutation, ``RankOneReemission._derive_inner`` dividing by the outflow mass: 1 failed, 17 passed, and the one red is that
+  test; the mass census of the same file is green under it). Derivation: :ref:`bc-aor-wall-condition`.
+- **Membership of :math:`K \times \{q \ge 0\}` is a value predicate, so a wall outside it does not exist.** Direct construction outside :math:`K`
   (``WallCondition.specular(1.2)``, ``WallCondition.white(-0.1)``) raises
   :class:`~orpheus.transport.boundary_conditions.SubmarkovViolationError` or
   :class:`~orpheus.transport.boundary_conditions.BoundaryResponseNotPositiveError` (``ERR-046``, ``ERR-043``). The arithmetic
@@ -80,7 +82,7 @@ where they re-spell it, and a name in double backticks there is retired.
   :meth:`~orpheus.transport.boundary_conditions.RealizerTable.realize` through one door, so ``admit`` is ``Refused`` if and only if
   ``realize`` raises :class:`~orpheus.transport.boundary_conditions.BoundaryRefused`. Five tables exist (``SN_REALIZERS``,
   ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``) and
-  ``tests/gates/transport/test_admission_matrix.py`` pins every cell (111 rows, 90 of them over the five real tables, read
+  ``tests/gates/transport/test_admission_matrix.py`` pins every shared value class at every site (111 rows, 90 of them over the five real tables, read
   at the carve tip). Gates: ``test_one_door`` in ``tests/gates/transport/test_admission_mechanism.py`` and the pin. Derivation and the
   tables: :ref:`bc-aor-admission`.
 - **A refusal is a statement about the declaration, with its axis and its issue as data.** A refusal lies on one of three
@@ -133,20 +135,29 @@ where they re-spell it, and a name in double backticks there is retired.
      ``tests/gates/transport/test_wall_condition_algebra.py``, ``tests/gates/transport/test_response_network.py``,
      ``tests/gates/transport/test_binding.py`` and ``tests/gates/transport/test_admission_mechanism.py``.
    - **Reference rows** pin values typed by hand from the plan of record: the admission pin
-     ``tests/gates/transport/test_admission_matrix.py`` (every cell of every method's table), and the carry fixture
-     ``tests/gates/sn/architecture/test_wave2_carry.py``, a capture of ``main`` at ``5d04c296`` taken before the carve and
-     reproduced bit-equal after it (the eigenvalues and fluxes of SN on four bodies, the dense face matrices of an S16 slab).
-     The seven frozen reference images of the realized operators are the ones re-anchored from recording to reference on
-     2026-08-01 (:ref:`bc-snapshot-reanchoring`).
+     ``tests/gates/transport/test_admission_matrix.py``, which covers every shared value class at every site of every method's
+     table (seven value classes; the "white 1.0" cells of SN and diffusion and the whole deck and ``ZeroFluxCondition`` table are
+     not in it, and their printed values were confirmed by a probe, :ref:`bc-aor-admission-probe`).
+   - **A regression capture** is not a reference: ``tests/gates/sn/architecture/test_wave2_carry.py`` holds the eigenvalues,
+     fluxes and dense face matrices (SN on four bodies, an S16 slab) captured from ``main`` at ``5d04c296`` by a script before the
+     carve and reproduced bit-equal after it. It detects drift and says nothing about correctness. Only its seven
+     ``bc_equivalence`` snapshot images are independent derivations from the law's equation: they are the ones re-anchored from
+     recording to reference on 2026-08-01 (:ref:`bc-snapshot-reanchoring`).
    - **Honest reds**: a defect that the tree has and no fix addresses is carried by a strict ``xfail`` that fails when the
-     defect is repaired (#546, #547), never by a masked admission.
+     defect is repaired (#546, #547), never by a masked admission. The two strict #654 xfails in ``tests/gates/mc/test_properties.py`` (a slab half-cell's mirror plane and a Wigner-Seitz cell's white outer face, both refused by MC's table; #180 tracks the capability) are honest reds too.
 
    Last run at the carve tip ``471c4737``, serial, ``python -O -m pytest`` over the gate files named above together with
    ``tests/gates/sn/architecture/test_sn_realizer_table.py``, ``tests/gates/sn/architecture/test_realized_boundary.py``,
    ``tests/gates/sn/architecture/test_sn_boundary_binding.py``, ``tests/gates/cp/test_cp_vacuum_not_above_white.py``,
    ``tests/gates/mc/test_mc_boundary_table.py``, ``tests/gates/mesh/test_face_roles.py``,
-   ``tests/gates/mesh/test_hollow_inner_law.py`` and ``tests/gates/numerics/test_ordinate_pairing.py``: 453 passed and
-   3 xfailed (the three CP rows of #546).
+   ``tests/gates/mesh/test_hollow_inner_law.py`` and ``tests/gates/numerics/test_ordinate_pairing.py`` (17 files in all): 494 passed and
+   3 xfailed (the three CP rows of #546). `[M]` command: ``python -O -m pytest -p no:cacheprovider -q`` over those 17 files, serial,
+   ``494 passed, 3 xfailed, 6 warnings in 41.96s``. The law gates of the laws section that are not among the 17 files
+   (``tests/gates/test_layer_imports.py``, ``tests/gates/transport/test_wave2_s4_tables.py``,
+   ``tests/gates/transport/test_content_identity_transport.py``, ``tests/gates/geometry/test_content_identity_geometry.py``,
+   ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, ``tests/gates/transport/test_boundary_source_from_specs.py``,
+   ``tests/gates/cp/test_cp_realizer_table.py``, ``tests/gates/sn/sweep/test_sweep_acyclicity.py``) are a second run of the same
+   invocation: ``785 passed, 1 warning in 19.52s``.
 
 .. _bc-architecture-of-record:
 
@@ -163,7 +174,7 @@ The architecture has five objects, each a type, and one rule that places them:
 - the **face role** (:class:`~orpheus.geometry.deck.MirrorDeck`, :class:`~orpheus.geometry.deck.TranslationDeck` or an integer
   tag): what a boundary face *is*, a property of the geometry and of nothing else;
 - the **wall condition** (:class:`~orpheus.transport.boundary_conditions.WallCondition`): what the exterior behind a tag *does*,
-  one affine trace map on a cone, supplied where the method is known;
+  one affine trace map on the sub-Markov simplex, supplied where the method is known;
 - the **binding** (:func:`~orpheus.transport.boundary_conditions.bind`): the join of tags to conditions, lawful only when it is an
   exact cover that the problem's colouring group leaves invariant;
 - the **realizer table** (:class:`~orpheus.transport.boundary_conditions.RealizerTable`): per method, the one partial map from
@@ -249,8 +260,8 @@ plane have the same matrix and different types, and why neither type can be writ
 
 .. _bc-aor-deck-family:
 
-The deck family is a theorem, not a choice
-------------------------------------------
+The deck family is derived, not chosen
+--------------------------------------
 
 **Which isometries can glue a face.** The argument, `[R]` reasoned (the code states its result in ``admitted_decks`` and
 ``test_a_curved_face_admits_no_deck`` pins that result as a table, which is not a proof): a deck is an isometry :math:`g` of the
@@ -271,7 +282,7 @@ lies beyond it is not known to the geometry: it could be specular, a vacuum (an 
 (a beam through the centre). A reflecting curved wall, and the hollow cavity's inner face (ruling D5), are therefore *tags* bound to
 :meth:`~orpheus.transport.boundary_conditions.WallCondition.specular` at 1.0, never decks.
 
-.. list-table:: The classes of isometry and the decks that realize them (Chasles)
+.. list-table:: The classes of isometry and the decks that realize them (Coxeter)
    :header-rows: 1
    :widths: 20 12 12 12 44
 
@@ -312,7 +323,7 @@ lies beyond it is not known to the geometry: it could be specular, a vacuum (an 
      - yes
      - ``RotoreflectionDeck``, deferred: it carries an order
 
-The non-identity isometries of :math:`E^n` with :math:`n \le 3` fall into exactly six conjugacy classes (Chasles), two in dimension
+The non-identity isometries of :math:`E^n` with :math:`n \le 3` fall into exactly six types (the classes up to conjugacy and parameter: a translation length, a rotation angle and so on; Coxeter, *Introduction to Geometry*, chapters 3 and 7), two in dimension
 one, four in dimension two, six in dimension three. :class:`~orpheus.geometry.deck.IsometryClass` enumerates them and
 ``ISOMETRY_CLASSES_BY_DIMENSION`` records which exist where. The classification is complete because the four classes without a
 minted type are rows of ``DEFERRED_DECKS``, keyed by the enumeration, each naming the type it will have and the machinery that mints
@@ -371,8 +382,8 @@ deck gluing a face to a different face have the same deck type there.
 
 .. _bc-aor-wall-condition:
 
-The wall condition: an affine trace map on a cone
--------------------------------------------------
+The wall condition: an affine trace map on the sub-Markov simplex
+-----------------------------------------------------------------
 
 **The response is a tensor network of typed factors.** The linear part :math:`R` of a wall is a network of factor tensors on the
 rungs of one face's trace ladder, the ladder of :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`: the
@@ -417,7 +428,7 @@ part of a wall is the weighted sum
 
    R \;=\; s\,P \;+\; d\,(E\circ R_t), \qquad (s, d) \in K = \{\,s, d \ge 0,\ s + d \le 1\,\},
 
-a point of the convex cone :math:`K`, with :math:`q \ge 0` a function on :math:`\Gamma_-`. The network is
+a point of the sub-Markov simplex :math:`K` (the positive quadrant cut by the sub-Markov constraint :math:`s + d \le 1`; a compact convex set, and not a cone, since :math:`2\,\mathrm{specular}(0.6)` leaves it), with :math:`q \ge 0` a function on :math:`\Gamma_-`, which is a cone. The code names the admissible set "the cone" (``_cone_refusal``, ``cone_point``, the state-cone axis); the name is inherited and the set is the simplex. The network is
 :class:`~orpheus.transport.boundary_conditions.ResponseNetwork`: a canonical weight map keyed by chain instances, whose weights
 *are* the point :math:`(s, d)` (``cone_point`` reads it by one exhaustive match, so the chart is total and not lossy), with no
 collapse of a one-term sum to a leaf and so no stored intermediate rounding.
@@ -452,16 +463,21 @@ Written against the trace measure :math:`m_\pm = (w|\mu|)` on the two rungs, thi
 the realized map, :math:`R^{\mathsf T} m_- = \rho\,m_+`. For the shared family it holds by the construction, with one precondition
 the shipped code once failed to meet: :math:`E` must divide by the INFLOW mass :math:`M_-`. A section that divided by the outflow
 mass :math:`M_+` would give :math:`\rho_{\rm diffuse} = d\,M_-/M_+`, silently. The carry is bit-identical because the two masses
-agree bitwise on every quadrature in the registry (``test_the_mass_census_inflow_equals_outflow_on_every_registry_rule`` in
-``tests/gates/sn/architecture/test_realized_boundary.py``, which reads 70 of 70 (registry rule, face) pairs), so the repair moved no
-number. The consumers of :math:`\rho` (the curvilinear corner action of ``SNBoundaryOperator`` and the leakage term of the
+agree bitwise on every quadrature the census reads (``test_the_mass_census_inflow_equals_outflow_on_every_registry_rule`` in
+``tests/gates/sn/architecture/test_realized_boundary.py``, which reads 70 of 70 (rule, face) pairs over 35 rules of four registry
+families, not every rule the families can build), so the repair moved no number. Because the masses agree on the registry, no registry
+fixture can see the divisor: the witness of the inflow-mass divisor at the three sites is
+``test_the_rider_on_a_trace_whose_masses_differ`` in the same file, the only gate that reddens when ``E`` divides by :math:`M_+`
+(`[M]` an in-process mutation of ``RankOneReemission._derive_inner`` to ``float(np.sum(out_weights))``: 1 failed, 17 passed over
+``test_sn_realizer_table.py`` and ``test_realized_boundary.py``; the same divisor scaled by :math:`1+10^{-7}` reddens 17 of 18,
+every rider row, and leaves the census green). The consumers of :math:`\rho` (the curvilinear corner action of ``SNBoundaryOperator`` and the leakage term of the
 eigenvalue, whose omission for a partial reflector was ``ERR-094``) read it from the realized type
-(:attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.return_fraction`), never from the declaration. A ratio gate ("`J^-/J^+` of one positive
+(:attr:`~orpheus.sn.boundary.realized_operators.RealizedBoundary.return_fraction`), never from the declaration. A ratio gate (":math:`J^-/J^+` of one positive
 outflow equals ``return_fraction``") cannot discriminate a wrong :math:`\rho`, since a type that reports the one measured ratio
 passes; the law is therefore gated as the array identity
 ``inner.apply_transpose(w|mu| on Gamma_-) == rho * (w|mu| on Gamma_+)`` (``array_equal`` for the specular image; for the diffuse
 image up to the split pair's own residual, at most :math:`N/3` ulp for :math:`N` slots)
-(``test_the_left_eigenvector_rider_through_the_realizer`` in ``tests/gates/sn/architecture/test_sn_realizer_table.py``). A
+(``test_the_left_eigenvector_rider_through_the_realizer`` in ``tests/gates/sn/architecture/test_sn_realizer_table.py``; it pins the identity on the registry rules and is blind to :math:`M_+` versus :math:`M_-`). A
 method-only kernel that is not built from this pair owes the same gate, and where it fails it has no scalar return fraction and its
 consumers must compute :math:`J^+ - J^-(R\psi)` on the actual outflow.
 
@@ -498,7 +514,7 @@ signed combinations stay values but cannot be bound. The consequence is that the
      - :math:`(s, d)`
      - the plain-data edge: the section of ``cone_point``, taking two primitives and never the reference's ``WallAmplitudes``
 
-**The cone is a value predicate.** One function, ``_cone_refusal``, defines "inside the cone": every network weight is
+**Membership is a value predicate.** One function, ``_cone_refusal``, defines "inside" (the simplex :math:`K` and the source cone :math:`q \ge 0`): every network weight is
 non-negative, the return fraction (:math:`\sum_c w_c\,\mathrm{unit\_return}(c)` by ``math.fsum``, correctly rounded) is at most one,
 and every inflow weight is non-negative. ``WallCondition.__post_init__`` raises what it returns, so a wall outside the cone does not
 exist, however it is spelled. The arithmetic ``+``, ``-``, unary ``-`` and scalar ``*`` (one definition, shared with
@@ -699,9 +715,9 @@ lands). The reflection is in :math:`H` when all three of these hold, for the bre
 
 `[M]` The float rule was measured at WF2.1 (the memo ``measure_float_rule.md``, untracked scratch, not re-run for this page): the
 exact comparison accepts 2 of 13 symmetric slabs, a width-relative tolerance refuses an offset slab, and 64 ulp at the end
-magnitude accepts 13 of 13 and refuses 6 of 6 asymmetric ones (the genuine ceiling being 3.0 ulp). The gate that pins the rule is
-``test_colouring_symmetry_float_rule`` in ``tests/gates/geometry/test_colouring_symmetry.py`` (it passes at the carve tip, in the
-453-passed run of the V&V admonition above). The activation is an interior breakpoint, so every row
+magnitude accepts 13 of 13 and refuses 6 of 6 asymmetric ones (the genuine ceiling being 3.0 ulp). The gates that pin the rule are
+the three ``test_colouring_symmetry_float_rule_*`` rows (``_accepts_the_symmetric``, ``_refuses_the_asymmetric``, ``_constant_is_64_ulp_at_the_end_magnitude``) in ``tests/gates/geometry/test_colouring_symmetry.py`` (they pass at the carve tip, in the
+494-passed run of the V&V admonition above). The activation is an interior breakpoint, so every row
 carries the palindromic id triple ``(0, 1, 0)`` (with one id the run merge deletes the interior breakpoints and the float rule has
 nothing to read). A radial chart returns the identity only (:math:`G_c` absorbs the rotation and the quotient is trivial).
 
@@ -830,7 +846,7 @@ is given, and admitted at site level without one (``test_a_certification_failure
 **What the five tables say today.** The notation of the cells is ``R(T)`` for ``Realized(faithful=True)``, ``R(F)`` for
 ``Realized(faithful=False)``, ``A(#n)`` for ``Approximated`` citing issue ``n`` and ``F(axis, #n)`` for ``Refused``; the cells below
 were read from the live tables by one probe at the carve tip (:ref:`bc-aor-admission-probe`) and agree with the pin
-``tests/gates/transport/test_admission_matrix.py`` (111 rows and 13 further test items, 124 passed). The value classes are those of the
+``tests/gates/transport/test_admission_matrix.py`` where the pin has the cell (it has no "white 1.0" cell of SN or diffusion and no deck row, which this probe alone reads) (111 rows and 13 further test items, 124 passed). The value classes are those of the
 pin: ``vacuum`` (the empty network, ``specular(0.0)`` and ``white(0.0)`` included), ``specular 1.0`` and ``specular 0.5``,
 ``white 0.5`` and ``white 1.0``, ``both 0.3 0.5`` (``from_amplitudes(0.3, 0.5)``), ``inflow 1.0`` (``uniform(1.0)``) and
 ``specular 0.5 over inflow 1.0`` (``specular(0.5) + uniform(1.0)``). The sites are the three geometric classes of
@@ -1004,7 +1020,7 @@ The tables are the data of the following rulings and measurements, each of which
   string registry keyed its closure by the word ``white`` whatever the albedo, a silent drop that is now a refusal.
 - **MC computes a torus, not the declared cylinder** (#547). MC samples a periodic equal-area square lattice cell, a translation
   whose opposite faces are coupled by an image lattice, and the declared cylinder has no such coupling: its specular wall on a cylinder
-  is ``Refused(TOPOLOGY, #547)`` for every weight, and the three tests that declare it are strict ``xfail`` rows
+  is ``Refused(TOPOLOGY, #547)`` for every weight, and the two tests that declare it are strict ``xfail`` rows
   (``tests/gates/mc/test_gaps.py``, ``tests/gates/mc/test_properties.py``) that turn red when MC takes a 2-D geometry value that
   describes what it computes. The axis is topology and not plumbing because theory stands behind the refusal: the carrier MC answers
   with and the declared body differ in exactly the question the topological axis asks. MoC realizes the same declaration as a named
@@ -1038,7 +1054,7 @@ binding. Four statements make that true, and the fourth is the one a consumer re
 
 #. **Every shared kernel is reciprocal in the trace metric** :math:`M = \mathrm{diag}(w|\mu|)`. The specular return is an
    involutive measure-preserving permutation :math:`P`, so :math:`M^{-1}P^{\mathsf T}M = P`; the Lambertian is
-   :math:`u \otimes (w|\mu|)/\sum(w|\mu|)`, self-adjoint under :math:`M`. The adjoint of a shared condition's realization is
+   :math:`u \otimes (w|\mu|)/M_-` with :math:`M_- = \sum_{\Omega\cdot n<0} w|\mu|`, self-adjoint under :math:`M`. The adjoint of a shared condition's realization is
    therefore its realization on the reversed ordinates (``test_reciprocity`` in
    ``tests/gates/sn/architecture/test_realized_boundary.py``).
 #. **A deck's adjoint is its partner's deck**: :math:`G_g^\sharp = G_{g^{-1}}`, which is the deck on the partner face,
@@ -1046,7 +1062,7 @@ binding. Four statements make that true, and the fourth is the one a consumer re
    the face (``test_pairing_of_and_its_adjoint`` in ``tests/gates/geometry/test_deck.py``; the code block of
    :ref:`bc-aor-deck-family` prints the equality).
 #. **The inflow** :math:`q` **is not adjointed.** ``solve_sn_adjoint_fixed_source`` builds a zero ``AngularBoundarySourceSink`` and
-   never reads the declared :math:`q`, and the other two adjoint entries refuse a declared boundary source
+   never reads the declared :math:`q`, and the two eigenvalue entries, ``solve_sn`` and ``solve_sn_adjoint``, refuse a declared boundary source
    (``_refuse_a_boundary_source``, ``ERR-095``). This is correct: :math:`q` enters the reciprocity identity as the inner product
    :math:`\langle q, |\Omega\cdot n|\,\gamma_-\psi^\dagger\rangle` (`[R]` the identity is the plan's statement, not a gate's: the
    gate pins the behaviour, not the identity), a term of the adjoint problem's functional and not of its operator. The statement
@@ -1105,7 +1121,7 @@ The laws and the gates that pin them
 ------------------------------------
 
 Each law below is a statement the types obey, with the gate that fails first when it is false. A law is a *claim* and the gate is its
-*instrument*; the gates were each re-run at the carve tip (the 453-passed run of the V&V admonition).
+*instrument*; the gates were re-run at the carve tip in the two runs of the V&V admonition (494 passed and 3 xfailed over its 17 files; 785 passed over the eight further law-gate files it names).
 
 .. list-table:: The laws of the architecture
    :header-rows: 1
@@ -1117,7 +1133,8 @@ Each law below is a statement the types obey, with the gate that fails first whe
    * - L-A the adjoint
      - reciprocity in the trace metric; a deck's adjoint is its partner's; :math:`q` is not adjointed; the left-eigenvector rider
      - ``test_reciprocity``, ``test_pairing_of_and_its_adjoint``, ``test_the_adjoint_ignores_q``,
-       ``test_the_left_eigenvector_rider_through_the_realizer``
+       ``test_the_left_eigenvector_rider_through_the_realizer`` (the identity on registry rules), and
+       ``test_the_rider_on_a_trace_whose_masses_differ`` (the inflow-mass divisor)
    * - L-B the cone
      - construction outside :math:`K` raises; arithmetic returns a condition if and only if the pair lies in :math:`K`; the albedo
        twin is gone
@@ -1171,7 +1188,7 @@ Until 2026-10-24 a boundary condition was a *trace law*: a ``BoundaryTraceLaw`` 
 geometry factor :math:`G` and a response factor :math:`R`, composed by a descriptor algebra (``LawSum``, ``LawScaled``), realized by a
 ``BoundaryRealizer`` that a string registry reached, and declared on the geometry through the tag ``BC``. Wave 2 of the layer DAG
 replaced it, in five slices of one carve and a retirement, by the architecture of :ref:`bc-architecture-of-record`: face roles that
-are a deck or an integer tag, one affine wall condition on a cone, a binding with the colouring stabiliser, and one realizer table
+are a deck or an integer tag, one affine wall condition on the sub-Markov simplex, a binding with the colouring stabiliser, and one realizer table
 per method that answers admission and realization together. The record of what landed is the development-history row at the end of
 the page.
 
@@ -10602,9 +10619,9 @@ The sources of :ref:`bc-architecture-of-record`:
   section 2, the types; section 3, the laws and their gates; section 4, the admission tables; section 7.2, the retirement's
   dependency table; section 11, the records of the slices), and the rulings D1 to D5 and the thirteenth exchange of
   ``.claude/plans/boundary_law_ontology.md``.
-* Chasles' classification of the non-identity isometries of :math:`E^n`, :math:`n \le 3`, into six conjugacy classes (translation,
-  reflection, rotation, glide reflection, screw motion, rotoreflection), as the code states and uses it
-  (``orpheus/geometry/deck.py``, ``IsometryClass``).
+* Coxeter, H. S. M. (1969). *Introduction to Geometry*, 2nd ed., Wiley, chapters 3 and 7: the classification of the non-identity
+  isometries of :math:`E^n`, :math:`n \le 3`, into six types (translation, reflection, rotation, glide reflection, screw motion,
+  rotoreflection), as the code states and uses it (``orpheus/geometry/deck.py``, ``IsometryClass``).
 * Marshak, R. E. (1947). "Note on the spherical harmonic method as applied to the Milne problem for a sphere". *Phys. Rev.* 71,
   443; and Bell, G. I. & Glasstone, S. (1970), §3.4 (diffusion-theory boundary conditions): the :math:`P_1` closure that the
   diffusion table's tier statements refer to, as cited in ``orpheus/diffusion/boundary_realizer.py``.
@@ -10638,7 +10655,7 @@ branch; trust ``git`` over this table for merge status.
      - Issue
      - Where
    * - 2026-10-22 to 2026-10-24
-     - **A boundary condition is a face role, one wall condition on a cone, a binding and a realizer table (wave 2 of the layer
+     - **A boundary condition is a face role, one wall condition on the sub-Markov simplex, a binding and a realizer table (wave 2 of the layer
        DAG, workflow WF2.5 documents it).** The trace-law architecture, ``BoundaryTraceLaw`` and its seven concretes chosen by
        string, the tag ``BC``, the descriptor algebra ``LawSum`` and ``LawScaled``, the ``BoundaryRealizer`` Protocol and the
        string registries, was replaced by the architecture of :ref:`bc-architecture-of-record`; every retired symbol and its
