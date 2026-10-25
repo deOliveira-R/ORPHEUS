@@ -1717,7 +1717,7 @@ exposes inflow / outflow as two directional **selectors** over it:
   selects :math:`\Gamma_- = \{(\mathbf{r}, \Omega) \in \partial\Omega
   \times S^2 : \Omega \cdot \hat n(\mathbf{r}) < 0\}` — the per-face
   directional half of the boundary on which the incoming angular flux
-  is constrained by the law.
+  is constrained by the boundary condition.
 * :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face`
   selects :math:`\Gamma_+` symmetrically — the boundary half on which
   the outgoing flux is *not* constrained by the BC but is *consumed* by
@@ -1738,11 +1738,26 @@ exposes inflow / outflow as two directional **selectors** over it:
    ``*_indices_for_face`` methods are selectors over it (see
    :ref:`bc-trace-structure`).
 
-The signed-projection table is what the
-:class:`~orpheus.sn.boundary.realizer.SNBoundaryRealizer` reads to name
-each face's two half-traces: the codomain :math:`\Gamma_-` it certifies
-the law against (ERR-041 / ERR-047) and — since campaign phase B3.2 —
-the **domain** :math:`\Gamma_+` it restricts the law to.
+The signed-projection table is read **once**.
+:func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`
+renders :math:`\Omega\cdot\hat n_f` from the quadrature and the face
+names, and
+:meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout`
+derives from it every half-space of every face, so no consumer holds a
+second classifier of "incoming" and "outgoing". A realized face
+operator of :ref:`bc-realizer-layer` names its two half-traces by
+reading them off that ladder: its domain :math:`\Gamma_+` is
+``trace.outflow_space(face)`` and its codomain :math:`\Gamma_-` is
+``trace.inflow_space(face)``, and the type holds ``(alpha, face, trace)``
+and no axis or outward sign of its own
+(``orpheus/sn/boundary/realized_operators.py``). Of the two
+certifications that sat in the realizer, ERR-041 (vacuum fills the
+incoming trace only) moved to where the data lives and is witnessed on
+the ladder, in
+``tests/gates/numerics/test_angular_trace_space.py::TestTheInflowHalfSpaceIsTheIncomingOrdinates``,
+and ERR-047 (a source lies on :math:`\Gamma_-`) remains the one SN-side
+check, :meth:`~orpheus.sn.boundary.realizer.SNSource.sample`, which
+refuses a space that is not the face's inflow half-trace.
 
 
 .. _bc-domain-narrowing:
@@ -1796,21 +1811,22 @@ The two named instances live on the trace space, cached per face
 :math:`= \gamma_+` and
 :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_restriction`
 :math:`= \gamma_-`), and the SN face action is their composition with
-the law:
+the face's realized response :math:`R_f` (the operator :math:`\Gamma_+ \to \Gamma_-`
+of :ref:`bc-realizer-layer`):
 
 .. math::
    :label: bc-face-action-narrowed
 
-   B_{\rm face} \;=\; \iota_- \circ \text{law} \circ \gamma_+ ,
+   B_{\rm face} \;=\; \iota_- \circ R_f \circ \gamma_+ ,
    \qquad
    B_{\rm face}^{\mathsf T}
-   \;=\; \iota_+ \circ \text{law}^{\mathsf T} \circ \gamma_- .
+   \;=\; \iota_+ \circ R_f^{\mathsf T} \circ \gamma_- .
 
 .. (vv-status rationale) Structural: the composition ``_reflect_trace`` spells
    for every face. Its verifiable content is the B3.2 bit-identity gate —
    the composition reproduces the retired full-face-then-slice expression
    exactly (``np.array_equal``, against a numpy reference materialised off the
-   law DESCRIPTOR, over slab-asym / slab-sym / sphere / cyl ``product(2,4)`` /
+   DECLARED kind, over slab-asym / slab-sym / sphere / cyl ``product(2,4)`` /
    2-D Cartesian LS4), in ``tests/gates/sn/operators/test_b3_domain_narrowing.py``.
    Not an independent solver claim.
 .. vv-status: bc-face-action-narrowed documented
@@ -1842,7 +1858,7 @@ own:
      - status
    * - the slice-write ``out[sel] = full[sel]`` in ``_reflect_trace``
      - :math:`\iota_- \circ \gamma_-` (:math:`= P_{\rm in}`)
-     - **dissolved** at B3.2 — the law's codomain *is*
+     - **dissolved** at B3.2 — the realized response's codomain *is*
        :math:`\Gamma_-`, so :math:`\iota_-` is the honest scatter, not
        a projection of a wider image
    * - ``IncomingSourceOperator``'s dense inflow-mask multiply
@@ -1851,10 +1867,10 @@ own:
      - **dissolved** at B3.4a — the operator was thereafter asked to
        fill :math:`|\Gamma_-|` rows directly, so nothing off
        :math:`\Gamma_-` was left to erase. That operator itself retired
-       at **P3**, and the spec is now evaluated at the same
+       at **P3**, and the declared inflow is now sampled at the same
        :math:`|\Gamma_-|` shape one tier out, by
-       :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
-       — see :ref:`bc-affine-source-channel`
+       :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_method`
+       through ``SNSource.sample`` — see :ref:`bc-affine-source-channel`
    * - ``IncomingOrdinateMaskTensor`` (**retired**)
      - :math:`I - \iota_- \circ \gamma_-`
      - taken **off the vacuum path** at B3.2 and **deleted at B3.3**.
@@ -1901,6 +1917,9 @@ sets have nothing to hand each other.
       anti-Mode-12 leg, which interrogates the emitted operator's
       declared spaces rather than its output shape, found them.
 
+This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
+
 ⛔ **This passage, down to the partial-constructor paragraph, records
 the state between B3.4a and B3.4b, and both of its deferrals have since
 landed as it predicted.** B3.4b (``943b37c1``, 2026-08-01) gave albedo
@@ -1908,14 +1927,16 @@ the explicit re-emission closure carried in :math:`R` that the passage
 calls for, and made the closure-free spelling a refusal; B3.4c
 (``79b5affe``, the same day) built periodic's partner-face channel, and
 G6.3 step 7 (``c3bb7341``, 2026-08-07) derived its arrow
-:math:`\Gamma_+(f') \to \Gamma_-(f)`. Every law the realizer admits is
-narrowed, and the strict xfails that pinned the deferred rows are
-retired (``tests/gates/sn/operators/test_b3_domain_narrowing.py``, `[M]`
-2026-09-22: 31 of 31 pass under ``python -O``). The first consequence
-below is moot for the same reason (a closure-free albedo cannot be
-built, so ``0.3·specular + 0.7·albedo`` cannot be spelled), and the
-second is re-measured in place. The design analysis is kept because it
-is why the two repairs took the shape they did.
+:math:`\Gamma_+(f') \to \Gamma_-(f)`. Every operator the realizer table
+builds is narrowed (domain :math:`\Gamma_+`, codomain :math:`\Gamma_-`),
+and the strict xfails that pinned the deferred rows are retired
+(``tests/gates/sn/operators/test_b3_domain_narrowing.py``, ``[M]``
+2026-10-24: 27 of 27 pass under ``python -O``, ``python -O -m pytest
+tests/gates/sn/operators/test_b3_domain_narrowing.py -q``, 471c4737). The
+first consequence below is moot for the same reason (a closure-free
+albedo cannot be built, so ``0.3·specular + 0.7·albedo`` cannot be
+spelled), and the second is re-measured in place. The design analysis is
+kept because it is why the two repairs took the shape they did.
 
 **Four of the seven laws were narrowed at B3.4a; two remained.** B3.2
 narrowed the two laws SN reaches from a Problem — ``vacuum`` and
@@ -1966,14 +1987,17 @@ Second, ``SNMethodSpace.minimal`` became a **partial constructor**: a
 quadrature alone cannot name a *face's* :math:`\Gamma_+`, so it stopped
 sufficing for each law as that law was narrowed. At B3.4a only
 ``albedo`` and ``periodic`` still realized from it, precisely because
-they had not been narrowed. Now it realizes **none**: `[M]` 2026-09-22
-(``scratch/_definitions/round2/minimal_probe.py``), 0 of 10 law
-spellings realize on ``SNMethodSpace.minimal(gauss_legendre(8))`` — the
-eight narrowed ones refuse for want of the face's inflow or outflow
-indices (periodic for want of a face), and so do ``zero_flux`` and the
-closure-free ``albedo``, which a face method space refuses as well —
-while the same ten on a face method space realize 8. No production code calls it (0 of
-352 modules under ``orpheus/``); 6 test modules do. Face orientation is a
+they had not been narrowed. By 2026-09-22 it realized **none**: ``[M]``
+2026-09-22 (``scratch/_definitions/round2/minimal_probe.py``), 0 of 10
+law spellings realized on ``SNMethodSpace.minimal(gauss_legendre(8))``,
+the eight narrowed ones refusing for want of the face's inflow or
+outflow indices (periodic for want of a face), and so did
+``zero_flux`` and the closure-free ``albedo``, which a face method
+space refused as well, while the same ten on a face method space
+realized 8. No production code called it (0 of 352 modules under
+``orpheus/``); 6 test modules did. The constructor retired in WF2.4
+(``c2a14005``): the SN method space is the pair ``(quadrature, trace)``,
+the face is an argument of the realization, and face orientation is a
 structural demand of realization, not an implementation detail.
 
 
@@ -1981,6 +2005,9 @@ structural demand of realization, not an implementation detail.
 
 B3.4a — narrowing white and prescribed inflow, and what dissolved
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
 
 The two laws B3.4a narrowed are the campaign's cleanest illustration of
 its thesis: **a too-wide codomain does not merely cost rows, it buys
@@ -2050,9 +2077,12 @@ B3.4a's fix was to route the classification through the codebase's
 :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`,
 which classifies against ``TANGENTIAL_EPS`` exactly as the trace space
 does. It landed on the welded operator's own ``from_quadrature``
-constructor, and since **G6.3 step 3b** retired that operator the same
-lines live one layer out, in the realizer's ``_checked_angular_average``
-factory. With the domain narrowed the kernel classifies **nothing**: it
+constructor, and after **G6.3 step 3b** retired that operator the same
+lines lived one layer out, in the realizer's ``_checked_angular_average``
+factory, until wave 2 replaced that factory by the typed
+:class:`~orpheus.sn.boundary.realized_operators.RankOneReemission`,
+whose hemisphere is ``trace.outflow_space(face)`` read off the ladder.
+With the domain narrowed the kernel classifies **nothing**: it
 is *handed* :math:`\Gamma_+`. The twin is not fixed, it is unspellable,
 and every ``cos_w`` entry is strictly positive by construction rather
 than mostly zero — which is why the guard tightened from ``>= 0`` to
@@ -2061,8 +2091,8 @@ than mostly zero — which is why the guard tightened from ``>= 0`` to
 constructor that today refuses a full-face weight vector by name.
 
 **Prescribed inflow — the mask that dissolved.** An
-:class:`~orpheus.geometry.boundary.InflowSourceSpec` fills whatever
-block *shape* it is handed; it carries no trace knowledge. So pre-B3.4a
+``InflowSourceSpec`` filled whatever
+block *shape* it was handed; it carries no trace knowledge. So pre-B3.4a
 ``IncomingSourceOperator`` emitted a
 full-face block and then zeroed every non-inflow ordinate — outflow AND
 tangential — to make :math:`q \in \Gamma_-` hold. With the codomain
@@ -2082,11 +2112,12 @@ unreachable on the realize path.
 
    **That operator no longer exists** (campaign phase **P3**,
    2026-08-05), so this paragraph is history — but the *typing* half of
-   it survives verbatim one tier out. The spec is still evaluated at
+   it survives verbatim one tier out. The inflow is still sampled at
    exactly ``(|Γ₋|,) + trailing``, now by
-   :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
-   on the way into the boundary-source channel, and ERR-047 is still
-   closed by the type rather than by an erasure. What B3.4a could not
+   :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_method`
+   (through ``SNSource.sample`` and ``sample_terms``) on the way into the
+   boundary-source channel, and ERR-047 is still closed by the type rather
+   than by an erasure. What B3.4a could not
    see is that the operator was ALSO affine — it returned :math:`q`
    whatever it was handed — and that this put an affine term inside the
    linear :math:`B` block, which the missing ``BlockRole.BOUNDARY``
@@ -2177,23 +2208,24 @@ composite hit.
    under any probe. The narrowing is justified structurally — one
    classifier, not two — not by the ULP table.
 
-**And one guard was added, not removed.**
-:class:`~orpheus.geometry.boundary.WhiteBoundary` declares its own
-``axis`` / ``outward_sign`` while the method space independently names
-the face — two encodings of ONE orientation, and until B3.4a nothing
-compared them. A white law declared for ``x`` and installed on
-``ymin`` averaged over the wrong hemisphere and reported nothing.
-``SNBoundaryRealizer``'s ``_checked_angular_average`` now cross-checks
-them, raising a :class:`~orpheus.geometry.boundary.BoundaryError` with
-``law="white"`` on a mismatch. It is the same shape as the vacuum arm's
-ERR-041 guard, and — critically — it compares index **SETS**, not
-sizes: :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature in the tree
-would make a size comparison Mode-12 blind. On the canonical
-:meth:`SNProblem.realize_boundary_law
-<orpheus.sn.problem.SNProblem.realize_boundary_law>` path both
-encodings derive from the same face label, so the guard is green by
-construction; it bites on hand-built method spaces and on a
-mis-declared law.
+**And one guard was added, not removed, and wave 2 then made it
+unspellable.** ``WhiteBoundary`` declared its own ``axis`` /
+``outward_sign`` while the method space independently named the face —
+two encodings of ONE orientation, and until B3.4a nothing compared them.
+A white law declared for ``x`` and installed on ``ymin`` averaged over
+the wrong hemisphere and reported nothing. B3.4a's helper
+``_checked_angular_average`` cross-checked them and raised a
+``BoundaryError`` with ``law="white"`` on a mismatch. It compared index
+**SETS**, not sizes, because :math:`|\Gamma_+| = |\Gamma_-|` on every
+quadrature in the tree would have made a size comparison Mode-12 blind.
+Wave 2 removed the second encoding rather than keep the guard: a
+``DiffuseChain`` carries no axis and no outward sign, the realized
+:class:`~orpheus.sn.boundary.realized_operators.RankOneReemission` holds
+``(alpha, face, trace)``, and its hemisphere is
+``trace.outflow_space(face)``, read from the one face name, so a
+declaration and a method space can no longer disagree about the
+orientation. The cross-check retired with the index sets (WF2.4, the
+realizer module's "Retired with the isinstance ladder").
 
 **Two things B3.4a deliberately did NOT do.** It did not type the
 Lambertian kernel as the rank-one :math:`u \otimes v` it now visibly is
@@ -2206,13 +2238,13 @@ mechanism: the kernel was *factored* into
 :math:`B \circ C` rather than typed as :math:`u \otimes v`, which
 dissolved the transpose question instead of answering it
 (:ref:`bc-response-adjoint`). And it did
-not give the narrowed laws a domain **validator**: white happens to
+not give the narrowed laws a domain **validator**: white happened to
 refuse a full-face input (because
 :meth:`PartialCurrentOperator.apply
 <orpheus.sn.boundary.angular.PartialCurrentOperator.apply>`, the
 chain's first link, checks
-``psi.shape[0]``), while prescribed inflow ignores its input entirely
-and so has nothing to validate against. Refusal and non-endomorphism
+``psi.shape[0]``), while prescribed inflow ignored its input entirely
+and so had nothing to validate against. Refusal and non-endomorphism
 are separate properties; see the warning at :ref:`bc-worked-example`.
 
 
@@ -2227,18 +2259,22 @@ halves. The realizer of :ref:`bc-realizer-layer` realizes the
 travels a separate, typed channel and is added by the solve. Campaign
 phase **P3** (2026-08-05) is the carve that made that sentence true of
 the code as well as of the design; before it, one law realized both
-halves into a single object that was declared linear and was not.
+halves into a single object that was declared linear and was not. The
+wave-2 carve (2026-10-24) then made the split the data model itself: the
+exterior of a face is the pair ``WallCondition(network, inflow)``, which
+**is** the affine pair :math:`(R, q)`, so the linear half is the realized
+``network``, the source half is the ``inflow``, and no object holds both.
 
-Write the law with the linear factor named:
+Write the affine trace condition with the linear factor named:
 
 .. math::
    :label: bc-affine-linear-factor
 
    \gamma_-\psi\big|_f
-   \;=\; \underbrace{R\,G}_{\textstyle L_f}\;\gamma_+\psi\big|_f
+   \;=\; L_f\;\gamma_+\psi\big|_{f'}
    \;+\; q_f ,
    \qquad
-   \operatorname{realize}(\text{law}_f) \;=\; L_f ,
+   \operatorname{realize}(\text{declaration}_f) \;=\; L_f ,
    \qquad
    q_f \in \Gamma_-(f).
 
@@ -2251,53 +2287,71 @@ Write the law with the linear factor named:
    definitional / structural-architecture statements.
 .. vv-status: bc-affine-linear-factor documented
 
-Then every law the SN realizer admits splits cleanly, and the split is
-the whole content of the carve (``zero_flux``, the seventh registered
-kind, has no SN ``isinstance`` arm at all and is REFUSED — a negative
-angular inflow is unrepresentable, so an angular method says ``vacuum``
-instead; it is realizable only on a scalar trace):
+Here :math:`L_f = R_f` and :math:`f' = f` for a wall (a
+:class:`~orpheus.transport.boundary_conditions.WallCondition`), while for
+a deck :math:`L_f` is the Koopman operator of the deck's isometry (unit
+weight, no amplitude) with :math:`f'` the partner face and
+:math:`q_f = 0`. Then every declaration the SN realizer table admits
+splits cleanly, and the split is the whole content of the carve.
+``ZeroFluxCondition``, diffusion's method-only condition, is REFUSED:
+its return fraction is :math:`-1`, outside the non-negative cone of an
+angular method, so it meets the table's unregistered-unit door on the
+state-cone axis (``[M]`` ``scratch/wf25_bcB_measurements.py`` section S8:
+``BoundaryRefused``, ``RefusalAxis.STATE_CONE``; a negative angular
+inflow is unrepresentable, so an angular method says ``vacuum``
+instead; zero flux is realizable only on a scalar trace).
 
-.. list-table:: Every SN-realizable law as a linear factor plus a source
+.. list-table:: Every SN-realizable declaration as a linear factor plus a source
    :header-rows: 1
-   :widths: 26 32 20 22
+   :widths: 28 30 14 28
 
-   * - law
-     - :math:`L = R\,G`
+   * - declaration
+     - :math:`L = R_f` (wall) or deck operator
      - :math:`q`
      - realized leaf
-   * - :class:`~orpheus.geometry.boundary.VacuumInflow`
-     - :math:`0` — the zero morphism
-       :math:`\Gamma_+ \to \Gamma_-`
+   * - :meth:`WallCondition.vacuum()
+       <orpheus.transport.boundary_conditions.WallCondition.vacuum>`
+     - :math:`0` — the zero morphism :math:`\Gamma_+ \to \Gamma_-`
      - :math:`0`
-     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
-       bound
-   * - :class:`~orpheus.geometry.boundary.PrescribedInflow`
+     - :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`, both
+       spaces bound (``ZeroMorphism`` over the face's two half-traces)
+   * - :meth:`WallCondition.uniform(v)
+       <orpheus.transport.boundary_conditions.WallCondition.uniform>` with
+       :math:`v \neq 0`, or :meth:`~orpheus.transport.boundary_conditions.WallCondition.framed`
      - :math:`0` — **the same zero morphism**
      - :math:`\neq 0`
-     - :class:`~orpheus.numerics.operator.ZeroOperator`, both spaces
-       bound
-   * - :class:`~orpheus.geometry.boundary.ReflectiveBoundary`
-     - :math:`P` — a permutation, unscaled (a symmetry has no
-       amplitude)
+     - :class:`~orpheus.sn.boundary.realized_operators.ZeroMap`, the same
+       type and the same two bound spaces
+   * - :class:`~orpheus.geometry.deck.MirrorDeck`
+     - :math:`P_\pi` — the ordinate permutation of the face's own mirror,
+       unscaled (a symmetry has no amplitude)
      - :math:`0`
-     - ``PermutationOperator & IdentityOperator``
-   * - :class:`~orpheus.geometry.boundary.WhiteBoundary` /
-       diffuse :class:`~orpheus.geometry.boundary.AlbedoBoundary`
-     - :math:`B \circ C` — emit :math:`\circ` contract, the factored
-       Lambertian
+     - :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`,
+       :math:`\alpha = 1`
+   * - :meth:`WallCondition.specular(a)
+       <orpheus.transport.boundary_conditions.WallCondition.specular>`
+     - :math:`a\,P_\pi` — the same permutation at the wall's own amplitude
      - :math:`0`
-     - ``(IsotropicEmissionOperator @ PartialCurrentOperator)
-       & IdentityOperator``
-   * - specular :class:`~orpheus.geometry.boundary.AlbedoBoundary`
-     - :math:`\alpha P` — the reflective body at its own
-       :math:`\alpha`
+     - :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`,
+       :math:`\alpha = a`
+   * - :meth:`WallCondition.white(d)
+       <orpheus.transport.boundary_conditions.WallCondition.white>`
+     - :math:`d\,(E \circ R_t)` — the factored Lambertian, emit
+       :math:`\circ` contract
      - :math:`0`
-     - ``α · <that TP>`` (the one-term combination)
-   * - :class:`~orpheus.geometry.boundary.PeriodicBoundary`
-     - the identity on the local index, fed the **partner** face's
-       :math:`\Gamma_+`
+     - :class:`~orpheus.sn.boundary.realized_operators.RankOneReemission`
+   * - a wall with both chains
+       (:meth:`~orpheus.transport.boundary_conditions.WallCondition.from_amplitudes`)
+     - the sum of the two images, in the canonical chain order
      - :math:`0`
-     - ``IdentityOperator & IdentityOperator``
+     - :class:`~orpheus.sn.boundary.realized_operators.RealizedSum`
+   * - :class:`~orpheus.geometry.deck.TranslationDeck`
+     - the identity relabelling between two distinct index sets,
+       :math:`\Gamma_+(f') \to \Gamma_-(f)`, **earned** by the crossing
+       check
+     - :math:`0`
+     - :class:`~orpheus.sn.boundary.realized_operators.ScaledOrdinatePermutation`,
+       :math:`\alpha = 1`, partner :math:`f'`
 
 **Vacuum and prescribed inflow differ ONLY in** :math:`q`. That is not
 a tidiness observation, it is what makes a separate affine operator
@@ -2305,32 +2359,34 @@ a tidiness observation, it is what makes a separate affine operator
 to distinguish them by, so a type that existed to carry prescribed
 inflow's realization was carrying an *empty* linear factor and a
 source that belongs to another tier. Measured on one
-:class:`~orpheus.sn.problem.SNProblem`, one face, both laws
-realized through :meth:`SNProblem.realize_boundary_law
-<orpheus.sn.problem.SNProblem.realize_boundary_law>`:
+:class:`~orpheus.sn.problem.SNProblem`, one face, both conditions
+realized through :meth:`SNProblem.realize_boundary_role
+<orpheus.sn.problem.SNProblem.realize_boundary_role>` (the problem's
+``bc[face]`` entry is that realization):
 
 .. math::
    :label: bc-prescribed-zero-linear-factor
 
-   \operatorname{realize}\bigl(\texttt{PrescribedInflow}(q)\bigr)
+   \operatorname{realize}\bigl(\texttt{WallCondition.uniform}(q)\bigr)
    \;=\;
-   \operatorname{realize}\bigl(\texttt{VacuumInflow}()\bigr)
+   \operatorname{realize}\bigl(\texttt{WallCondition.vacuum}()\bigr)
    \;=\;
    0_{\,\Gamma_+(f) \to \Gamma_-(f)}
    \qquad\text{for every } q .
 
 .. (vv-status rationale) Structural/typing identity, not a solver claim: the
-   two laws realize to the SAME expression, so it is verified by object- and
-   space-identity assertions, not by a value. Gated at the production tier by
-   ``tests/gates/sn/operators/test_operator_block_role.py``
+   two conditions realize to the SAME expression, so it is verified by object-
+   and space-identity assertions, not by a value. Gated at the production tier
+   by ``tests/gates/sn/operators/test_operator_block_role.py``
    (``test_prescribed_inflow_realizes_the_same_object_vacuum_does``:
-   ``type(...) is type(...)`` plus ``domain is`` / ``codomain is``) and by
+   ``type(...) is type(...)`` plus ``domain is`` / ``codomain is`` against the
+   TRACE's own ``outflow_space`` / ``inflow_space``) and by
    ``tests/gates/sn/operators/test_capability_survival.py``'s re-posed capability
-   rows; the ``ZeroOperator`` two-space contract itself is pinned by the
-   foundation suite ``tests/gates/numerics/test_zero_operator_spaces.py``. NOTE the
-   Mode-12 hole recorded in the gotchas below: an identity row proves the two
-   AGREE, not that either names the right END — see G5 of the P3 verification
-   plan.
+   rows; the ``ZeroMorphism`` two-space contract itself is pinned by the
+   foundation suite ``tests/gates/numerics/test_zero_operator_spaces.py``. An
+   identity row against a SIBLING operator would prove only that the two AGREE,
+   not that either names the right END; this row compares against the trace, so
+   the hole is closed (gotcha 5 below, with the swap mutation).
 .. vv-status: bc-prescribed-zero-linear-factor documented
 
 .. admonition:: The fixture every ``[M]`` on this page's section uses
@@ -2341,15 +2397,16 @@ realized through :meth:`SNProblem.realize_boundary_law
    ``A`` | ``D`` from the cross-section library at ``2g``
    (:math:`c \approx 0.90`–:math:`0.96`, with a non-symmetric
    :math:`\Sigma_{s0}` so the group transfer is transpose-active), 1.0
-   and 2.0 cm thick, 6 + 6 cells, vacuum ``BC`` tags on both faces,
-   ``Quadrature.gauss_legendre(n_ordinates=8)`` — hence
+   and 2.0 cm thick, 6 + 6 cells, each face a deck or an integer tag
+   bound to ``WallCondition.vacuum()`` unless a row says it declares an
+   inflow, ``Quadrature.gauss_legendre(n_ordinates=8)`` — hence
    :math:`|\Gamma_+| = |\Gamma_-| = 4` per face and a 32-value trace
    (2 faces :math:`\times` 8 ordinates :math:`\times` 2 groups). The
-   prescribed inflow is installed by constructing the law and calling
-   :meth:`SNProblem.realize_boundary_law
-   <orpheus.sn.problem.SNProblem.realize_boundary_law>` for
-   the face, which is what the Problem's own resolve body does — a ``BC``
-   tag cannot express this law (see the warning below). The bulk source
+   prescribed inflow is declared where a user declares it, as
+   ``SNProblem(mesh, quad, materials, boundary_conditions={tag:
+   WallCondition.uniform(2.5)})`` with the face's role that tag
+   (``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``,
+   ``_het_slab``, builds exactly this). The bulk source
    is a spatially uniform isotropic
    :math:`Q = 1` through
    :meth:`AngularSourceSink.from_isotropic
@@ -2363,24 +2420,29 @@ realized through :meth:`SNProblem.realize_boundary_law
    on it would be configuration-blind.
 
 ``[M]`` on that fixture, ``xmin`` declaring
-``PrescribedInflow(ConstantInflowSource(2.5))``:
-both leaves are a ``ZeroOperator``; ``type(prescribed) is
-type(vacuum)`` is ``True``; and on a single mesh instance
-``prescribed.domain is vacuum.domain`` and ``prescribed.codomain is
-vacuum.codomain`` are both ``True``, with
-``domain = AngularFaceTraceSpace('angular_trace[xmin:outflow]',
+``WallCondition.uniform(2.5)`` (``scratch/wf25_bcB_measurements.py``,
+section S1; the untracked script is re-run from outside the repository,
+``PYTHONPATH=<worktree>``): the realized leaf is a ``ZeroMap`` and so is
+the leaf of the vacuum face, ``type(prescribed) is type(vacuum)`` is
+``True``, and each leaf is bound to the TRACE's own half-spaces:
+``prescribed.domain is trace.outflow_space("xmin")`` and
+``prescribed.codomain is trace.inflow_space("xmin")`` are both ``True``,
+with ``domain = AngularFaceTraceSpace('angular_trace[xmin:outflow]',
 shape=(4, 2))`` and ``codomain = …[xmin:inflow]…`` — i.e. exactly
-:math:`\Gamma_+(f)` and :math:`\Gamma_-(f)`. The default-source
-spelling ``PrescribedInflow()`` realizes to the same object as the
-sourced one, which is the honest reading of ":math:`L` does not depend
-on :math:`q`".
+:math:`\Gamma_+(f)` and :math:`\Gamma_-(f)`. There is no "default-source
+spelling" to compare: ``WallCondition.uniform(0.0) ==
+WallCondition.vacuum()`` is ``True`` (the drop rule: a zero weight is not
+stored), the pair realizes to the same ``ZeroMap`` type, and its
+``q.linf`` is ``0.0``, which is the honest reading of ":math:`L` does not
+depend on :math:`q`".
 
 One consequence is worth stating before the mechanics, because it is
 the reason the collapse is *safe*: since the realized operator no
-longer distinguishes the two laws, **anything that must still
-distinguish them has to read the LAW**, not the operator. Two
-consumers do, and both were written that way before P3 — see
-:ref:`bc-affine-channel-law-tier-consumers`.
+longer distinguishes the two conditions, **anything that must still
+distinguish them has to read the DECLARATION** (the binding's sources),
+not the operator, or be protected at admission. Two consumers are in
+that position, and :ref:`bc-affine-channel-law-tier-consumers` says
+how each is.
 
 
 .. _bc-affine-channel-where-q-travels:
@@ -2429,40 +2491,47 @@ attachment could live. A caller may hand
 :class:`~orpheus.transport.timed_full_field.TimedFullField`; either
 way the helper normalises to :eq:`bc-composite-source`.
 
-The path from a declared law to a packed snapshot is a **ladder**, each
+The path from a declared condition to a packed snapshot is a **ladder**, each
 rung delegating to the next so the packing rule is stated exactly once:
 
-.. list-table:: The recipe → snapshot ladder on :class:`~orpheus.transport.fields.AngularBoundarySourceSink`
+.. list-table:: The declaration → snapshot ladder on :class:`~orpheus.transport.fields.AngularBoundarySourceSink`
    :header-rows: 1
    :widths: 30 44 26
 
    * - rung
      - takes the source in the form …
      - delegates to
-   * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_problem_laws`
+   * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_method`
      - **the form the problem holds** — a boundary condition someone
-       declared. Reads every face's ``mesh.bc[face].law`` and
-       materialises the
-       :class:`~orpheus.geometry.boundary.PrescribedInflow` sources
-       among them; every other law contributes nothing because its
-       whole content is :math:`L`
-     - ``from_specs``
-   * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
-     - **a lazy per-face recipe** — a mapping ``{face:
-       InflowSourceSpec}``, each evaluated at that face's
-       :math:`(|\Gamma_-(f)|,) + \text{trailing}` shape
-     - ``prescribed_inflow``
+       declared. Reads ``binding.sources`` (the tagged faces whose
+       condition has a non-zero source; vacuum, specular, white and every
+       deck contribute nothing because their whole content is
+       :math:`L`) and samples each face's
+       :class:`~orpheus.transport.boundary_conditions.InflowTerms` on
+       that face's own :math:`\Gamma_-(f)`
+     - ``sample_inflow``, then ``_pack_inflow``
+   * - :meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow`
+     - **the one source verb** — ``require`` the method table's admission
+       of the source on the face's site, then the registered
+       ``SourceRealizer.sample`` (SN: ``SNSource.sample``, which checks
+       the ERR-047 placement and calls ``sample_terms``,
+       ``q = uniform·1 + Σᵢ wᵢ samplerᵢ.sample(space)``), evaluated at
+       :math:`\Gamma_-(f)` itself with exactly ``space.shape``
+     - :func:`~orpheus.transport.boundary_conditions.realization.sample_terms`
    * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
-     - **known per-face arrays** — writes the **inflow** ordinate slots
-       of the named faces and leaves every other slot zero (a
-       prescribed source's outflow rows are physically meaningless, so
-       they are unrepresentable rather than overwritten)
+     - **known per-face arrays** — the inflow ordinate slots of the
+       named faces are written from them
+     - ``_pack_inflow``
+   * - ``_pack_inflow``
+     - **the one packing rule** — writes the **inflow** ordinate slots of
+       the named faces and leaves every other slot zero (a prescribed
+       source's outflow rows are physically meaningless, so they are
+       unrepresentable rather than overwritten)
      - ``zeros``
    * - :meth:`AngularBoundarySourceSink.zeros(mesh.angular_trace) <orpheus.numerics.field.Field.zeros>`
      - **nothing but the trace SPACE** — the all-zero source every
-       sourceless law needs, and the base every rung above allocates
-       before filling. Space-keyed since CS4b S5 (it was
-       ``zeros_on(mesh)`` until then); the shared
+       sourceless condition needs, and the base the rungs above allocate
+       before filling. The shared
        :meth:`Field.zeros <orpheus.numerics.field.Field.zeros>` body
        allocates ``np.zeros(space.shape)`` and nothing else
      - — (the bottom)
@@ -2481,14 +2550,15 @@ produced, and is therefore exercising a path no user travels — see
 source is.
 
 ``[M]`` the ladder is not decorative:
-``from_problem_laws(mesh)`` and ``from_specs(mesh, {face: spec})`` return
-**bit-identical** arrays for a declared ``ConstantInflowSource(2.5)``
-(``np.array_equal`` on the flat values), and ``from_problem_laws`` returns
-exactly the zero trace field
-``AngularBoundarySourceSink.zeros(mesh.angular_trace)`` —
-``q.linf == 0.0`` — for ``vacuum``,
-``reflective``, ``white``, and for ``PrescribedInflow(NoSource())``.
-Only ``PrescribedInflow(ConstantInflowSource(2.5))`` gives
+``from_method`` (``SNProblem.declared_boundary_source()``) and
+``prescribed_inflow(problem, {face: slot})`` return **bit-identical**
+arrays for a declared ``WallCondition.uniform(2.5)``
+(``np.array_equal`` on the flat values, section S8 of
+``scratch/wf25_bcB_measurements.py``), and ``from_method`` returns the
+zero trace field (``q.linf == 0.0``) for ``WallCondition.vacuum()``, a
+``MirrorDeck``, ``WallCondition.white(1.0)``,
+``WallCondition.specular(0.5)`` and ``WallCondition.uniform(0.0)``
+(section S1). Only ``WallCondition.uniform(2.5)`` gives
 ``q.linf == 2.5``. On the documented fixture the packed :math:`q` has 8
 non-zeros in 32 values: :math:`|\Gamma_-(\texttt{xmin})| = 4` inflow
 ordinates :math:`\times` 2 groups, and nothing anywhere else on the
@@ -2542,81 +2612,101 @@ and a wrong linear factor reads :math:`q + L\gamma_+\psi \neq q`.
 
 .. warning::
 
-   ⚠ **That reading is bit-exact on source iteration and is NOT
-   bit-exact on Krylov** — and the difference is a property of the
-   inner solver, not of the delivery. It is the one measurement on this
-   page most likely to be gated wrongly, in either direction.
+   ⚠ **That reading is bit-exact on source iteration; on Krylov it is
+   not guaranteed exact, and the gate bounds it.** The difference is a
+   property of the inner solver, not of the delivery. It is the one
+   measurement on this page most likely to be gated wrongly, in either
+   direction.
 
    The sweep *writes* the inflow seed into :math:`\gamma_-\psi`, so on
    SI the converged trace is :math:`q` **as a copy**: ``[M]``
    ``0x1.4000000000000p+1``, :math:`\lVert \gamma_-\psi - q
-   \rVert_\infty = 0.0` exactly, on every fixture below and at every
-   tolerance. GMRES instead *solves* for the trace rows along with
-   everything else, so the converged trace carries the iteration
-   residual:
+   \rVert_\infty = 0.0` exactly, on all five fixtures of section S2 below (SI reads
+   ``0.0`` on every one, at ``inner_tol`` ``1e-13`` and ``1e-10``).
+   GMRES instead *solves* for the trace rows along with everything else,
+   so the converged trace can carry the iteration residual:
 
-   .. list-table:: :math:`\lVert \gamma_-\psi - q \rVert_\infty` at :math:`q = 2.5`, post-P3
+   .. list-table:: :math:`\lVert \gamma_-\psi - q \rVert_\infty` at :math:`q = 2.5`, Krylov, at ``471c4737``
       :header-rows: 1
       :widths: 34 12 18 10 12 14
 
       * - fixture
-        - inner
+        - ``inner_tol``
         - :math:`\lVert \gamma_-\psi - q \rVert_\infty`
         - ULP
         - exact?
         - :math:`/\,(q\cdot\texttt{tol})`
-      * - GL-8, ``vac|vac``, ``inner_tol = 1e-13``
-        - SI
+      * - GL-8, ``vac|vac``
+        - ``1e-13``
         - ``0.0``
         - 0
         - **yes**
         - ``0.0``
-      * - GL-8, ``vac|vac``, ``inner_tol = 1e-13``
-        - Krylov
-        - ``7.994e-15``
-        - 18
-        - no
-        - ``0.032``
-      * - GL-16, ``vac|vac``, ``inner_tol = 1e-13``
-        - Krylov
-        - ``3.109e-15``
-        - 7
-        - no
-        - ``0.012``
-      * - GL-8, ``vac|refl``, ``inner_tol = 1e-13``
-        - Krylov
+      * - GL-16, ``vac|vac``
+        - ``1e-13``
         - ``4.441e-16``
         - 1
         - no
-        - ``0.002``
-      * - GL-8, 12+12 cells, ``inner_tol = 1e-13``
-        - Krylov
-        - ``1.021e-14``
-        - 23
+        - ``1.78e-3``
+      * - GL-8, ``vac|refl``
+        - ``1e-13``
+        - ``8.882e-16``
+        - 2
         - no
-        - ``0.041``
-      * - GL-8, ``vac|vac``, ``inner_tol = 1e-10``
-        - Krylov
-        - ``1.225e-11``
-        - **27 580**
+        - ``3.55e-3``
+      * - GL-8, 12+12 cells
+        - ``1e-13``
+        - ``8.882e-16``
+        - 2
         - no
-        - ``0.049``
+        - ``3.55e-3``
+      * - GL-8, ``vac|vac``
+        - ``1e-12``
+        - ``2.220e-15``
+        - 5
+        - no
+        - ``8.88e-4``
+      * - GL-8, ``vac|vac``
+        - ``1e-11``
+        - ``4.619e-14``
+        - 104
+        - no
+        - ``1.85e-3``
+      * - GL-8, ``vac|vac``
+        - ``1e-10``
+        - ``1.732e-14``
+        - 39
+        - no
+        - ``6.93e-5``
+      * - GL-8, ``vac|vac``
+        - ``1e-8``
+        - ``8.744e-11``
+        - 196 894
+        - no
+        - ``3.50e-3``
 
-   Read the last row: loosening ``inner_tol`` by :math:`10^{3}` moves
-   the deviation by :math:`10^{3}`, so it is the **iteration residual**
-   and not floating-point noise — the ULP count is not a stable
-   quantity, while the ratio to :math:`q \cdot \texttt{inner\_tol}` is
-   (measured ``0.002``–``0.049`` across the scan). ``[M]`` the
-   hand-supplied channel shows the *same* deviation to the last bit, so
-   this is not an artefact of the declaration route.
+   ``[M]`` ``scratch/wf25_bcB_measurements.py`` sections S2 (the five
+   fixtures, both solvers) and the tolerance sweep printed under it: the
+   fixture is the 2-group heterogeneous slab above, ``xmin`` declaring
+   ``WallCondition.uniform(2.5)``, run from outside the repository with
+   ``PYTHONPATH`` the worktree. Read the column of ULP counts down the
+   tolerance sweep: it is ``0, 5, 104, 39, 196 894`` as ``inner_tol``
+   goes from ``1e-13`` to ``1e-8``, not monotone, so the ULP count is
+   not a stable quantity of this fixture, while the ratio to
+   :math:`q\cdot\texttt{inner\_tol}` stayed below ``3.6e-3`` in all eight
+   Krylov rows. Seven of the eight Krylov rows are inexact. The first
+   measurement of the same five fixtures (P3, 2026-08) read ``18``, ``7``,
+   ``1``, ``23`` and ``27 580`` ULP; the tree at ``471c4737`` reads ``0``,
+   ``1``, ``2``, ``2`` and ``39``. Which change moved the readings has not
+   been established, and it does not matter to the gate below, which is
+   built not to depend on the reading being exact.
 
    **What the gate ships, and why it is TWO legs.** A single
-   ``assert_array_equal`` parameterized over both inner solvers — the
-   shape P3's verification plan first specified, on the strength of a
-   pre-carve measurement printed at 12 decimal places, which cannot
-   resolve :math:`8\times10^{-15}` at :math:`2.5` — is **red on
-   Krylov** for a reason that has nothing to do with the delivery
-   count. The keystone
+   ``assert_array_equal`` parameterized over both inner solvers asserts an
+   exactness GMRES does not promise: it is green on the keystone's own
+   fixture today (GL-8, ``vac|vac``, ``0`` ULP) and would be red on seven
+   of the eight Krylov rows above, for a reason that has nothing to do
+   with the delivery count. The keystone
    ``test_the_declared_boundary_law_holds_on_the_answer`` therefore
    splits the claim:
 
@@ -2625,20 +2715,20 @@ and a wrong linear factor reads :math:`q + L\gamma_+\psi \neq q`.
      ``2.5`` / ``5.0``, so the three cases stay exactly
      distinguishable while the failure message stays readable; and
    * **the exactness**, per path: ``assert_array_equal`` on SI, and
-     ``assert_array_almost_equal_nulp(nulp=64)`` on Krylov
-     (:math:`\approx 3.5\times` the measured 18 ULP).
+     ``assert_array_almost_equal_nulp(nulp=64)`` on Krylov, a budget
+     that admits every ``1e-13`` reading above (at most 2 ULP).
 
    Splitting is what keeps the two claims from eroding each other. Do
    **not** relax the SI leg to a tolerance to "match" Krylov: that
    discards the one exact reading in the whole claim. And note what the
-   scan above implies about the ULP budget — a **fixed** ``nulp`` is a
+   table above implies about the ULP budget — a **fixed** ``nulp`` is a
    floating-point claim about a quantity that is really an *iteration
    residual*, so it is stable only at the fixture's ``inner_tol``.
-   ``nulp=64`` has ample headroom at ``1e-13`` and would be exceeded by
-   three orders at ``1e-10``. That is a deliberate trade: a ULP budget
-   cannot be quietly loosened the way an ``rtol`` can, so if someone
-   changes the fixture's tolerance the row goes red and asks to be
-   re-derived, which is the intended conversation.
+   ``nulp=64`` has headroom at ``1e-13`` (at most 2 ULP) and is exceeded
+   at ``1e-11`` (104 ULP) and ``1e-8``. That is a deliberate trade: a ULP
+   budget cannot be quietly loosened the way an ``rtol`` can, so if
+   someone changes the fixture's tolerance the row may go red and asks
+   to be re-derived, which is the intended conversation.
 
 The pre-P3 double delivery is likewise exact on SI —
 ``5.000000000000``, i.e. :math:`2.5 + 2.5` in IEEE — and on Krylov it
@@ -2669,6 +2759,9 @@ and which assertion belongs there.
 The defect the collapse closed — an affine map in a linear slot
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+This section records the trace-law architecture that wave 2 retired (2026-10-24); the present architecture is
+:ref:`bc-architecture-of-record`, and each retired name maps to its successor in :ref:`bc-wave2-crosswalk`.
+
 Until P3 the SN realizer answered ``PrescribedInflow`` with an
 ``IncomingSourceOperator`` whose ``apply`` **ignored its input** and
 returned :math:`q`. That is an affine map declared as a
@@ -2676,12 +2769,12 @@ returned :math:`q`. That is an affine map declared as a
 :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` stamp, and the
 stamp's absence was *believed* to fence it out of the :math:`B` block.
 
-**It did not.** The property that assembles :math:`B` is
+**It did not.** The property that assembled :math:`B` was
 ``SNBoundaryOperator._face_laws``
 (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`), and it
-reads
+read
 
-.. code-block:: python
+.. code-block:: text
 
    return {
        face: self.problem.bc[face]
@@ -2689,15 +2782,18 @@ reads
    }
 
 — every face in the trace layout, with **no** ``block_role`` filter.
-:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` carries the
-stamp itself, applies every law it collected, and never asks a leaf
-what its role is. So the affine leaf reached the block, and :math:`B`
-stopped being linear.
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` carried the
+stamp itself, applied every law it collected, and never asked a leaf
+what its role was. So the affine leaf reached the block, and :math:`B`
+stopped being linear. Its successor, ``SNBoundaryOperator._face_operators``,
+reads ``self.problem.bc[face]`` over the same trace layout and still
+applies no ``block_role`` filter (gotcha 3 below).
 
 ``[M]`` in a worktree pinned at the pre-carve commit (``ef4c3537``,
 which already carried the P2′ source wiring), same 2-group
 heterogeneous slab, ``xmin`` declaring
-``PrescribedInflow(ConstantInflowSource(2.5))``:
+``PrescribedInflow(ConstantInflowSource(2.5))`` (today
+``WallCondition.uniform(2.5)``):
 
 .. list-table:: The operator tier, before and after the collapse
    :header-rows: 1
@@ -2706,7 +2802,7 @@ heterogeneous slab, ``xmin`` declaring
    * - measured on :math:`B`
      - pre-P3
      - post-P3
-   * - faces collected by ``_face_laws``
+   * - faces collected (``_face_laws``, today ``_face_operators``)
      - ``['xmax', 'xmin']``
      - ``['xmax', 'xmin']`` — **unchanged; there was never a filter**
    * - ``xmin`` leaf's ``block_role``
@@ -2714,7 +2810,7 @@ heterogeneous slab, ``xmin`` declaring
      - ``BlockRole.BOUNDARY``
    * - realized ``xmin`` leaf
      - ``IncomingSourceOperator``
-     - ``ZeroOperator``
+     - ``ZeroOperator`` at P3; ``ZeroMap`` at wave 2
    * - :math:`\lVert B(0) \rVert_\infty`, bulk block
      - ``0.0``
      - ``0.0``
@@ -2729,6 +2825,13 @@ heterogeneous slab, ``xmin`` declaring
        per-face intersection rule made the **whole** block
        non-adjointable
      - ``True``
+
+``[M]`` the post column re-read at ``471c4737``
+(``scratch/wf25_bcB_measurements.py`` section S4, the same fixture with the
+declaration bound to a tag): the leaf is a ``ZeroMap``, ``block_role`` is
+``BlockRole.BOUNDARY``, :math:`\lVert B(0) \rVert_\infty = 0.0` and
+:math:`\lVert B(2x) - 2B(x) \rVert_\infty = 0.0` on both faces, and
+``B.is_adjointable`` is ``True``.
 
 Two end-to-end consequences followed, and they are different on the
 two inner solvers.
@@ -2749,7 +2852,8 @@ no-inflow control (``V``):
      - pre-P3, SI
      - pre-P3, Krylov
      - post-P3, both
-   * - ``D`` — declared ``PrescribedInflow(2.5)``
+   * - ``D`` — declared ``PrescribedInflow(2.5)`` (today
+       ``WallCondition.uniform(2.5)``)
      - ``5.0`` (bit-exact: ``0x1.4000000000000p+2``)
      - raises (below)
      - ``2.5``
@@ -2820,19 +2924,24 @@ convergence-claim check is silent.
 .. warning::
 
    **Only one fence was ever real, and it is the reason a green suite
-   never saw any of this.** ``prescribed_inflow`` is **not a registered
-   ``BC`` kind** — :class:`~orpheus.geometry.boundary.BC`'s ``params`` is
-   ``dict[str, float]``, so a tag can carry ``{"albedo": 0.7}`` but
-   never an inflow distribution, and the SN tag registry admits only
-   ``{vacuum, reflective}``. A non-trivial prescribed inflow is
-   reachable **only** by constructing the law object and installing it,
-   which no production driver did. Issue **#189** tracks registering
-   the kind for the constant case; it is a separate, weaker question.
+   never saw any of this.** ``prescribed_inflow`` was not a registered
+   ``BC`` kind: the ``BC`` tag's ``params`` was ``dict[str, float]``, so a
+   tag could carry ``{"albedo": 0.7}`` but never an inflow distribution,
+   and the SN tag registry admitted only ``{vacuum, reflective}``. A
+   non-trivial prescribed inflow was reachable **only** by constructing
+   the law object and installing it, which no production driver did.
+   Issue **#189** was opened for registering the kind in the constant
+   case. Wave 2 removed the fence by removing the registry: a face's
+   role is a deck or an integer tag, the tag is bound to a
+   ``WallCondition`` at posing, and ``boundary_conditions={tag:
+   WallCondition.uniform(2.5)}`` **is** the declaration, so the path a
+   user travels now reaches the source channel and the solve (the gates
+   of ``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``).
 
    The two defects protected each other. The bypass — every existing
-   non-vacuum test supplied :math:`q_\partial` by hand — is why no test
+   non-vacuum test supplied :math:`q_\partial` by hand — was why no test
    could observe the law tier at all; and the law tier's inertness (as
-   far as any driver was concerned) is why the bypass looked harmless.
+   far as any driver was concerned) was why the bypass looked harmless.
    That is the :ref:`verification-user-path` doctrine's canonical
    instance: the gates were operator-tier or right-hand-side-tier, and
    never a *solve* started from a *declaration*.
@@ -2845,15 +2954,16 @@ The two channels, and what "equivalent" means
 
 There are two user-visible ways to put flux into :math:`\Gamma_-`:
 
-1. **Declare the law** — install
-   :class:`~orpheus.geometry.boundary.PrescribedInflow` on a face and
-   let :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_problem_laws`
-   find it. This is the user path.
+1. **Declare the condition** — bind a tag to
+   ``WallCondition.uniform(v)`` (or ``WallCondition.framed(profile)``) in the
+   problem's ``boundary_conditions`` and let
+   :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_method`
+   find it (``SNProblem.declared_boundary_source``). This is the user path.
 2. **Supply** :math:`q_\partial` **directly** — build the source with
    :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
    and pass the composite. This is what the existing non-vacuum
-   manufactured-solution coverage does, deliberately bypassing the law
-   tier.
+   manufactured-solution coverage does, deliberately bypassing the
+   declaration tier.
 
 Post-P3 the two reach the same fixed point, and the *strength* of that
 agreement is the sharpest single statement about what the carve did:
@@ -2893,9 +3003,18 @@ agreement is the sharpest single statement about what the carve did:
      - ``True``
      - ``1.0000000``
 
+``[M]`` re-measured at ``471c4737`` (section S3 of
+``scratch/wf25_bcB_measurements.py``, the declared problem against a
+vacuum problem handed the same :math:`q_\partial` by ``prescribed_inflow``):
+``array_equal`` is ``True`` and the maximum difference ``0.000e+00`` in
+all eight (fixture, inner solver) cells above, at :math:`\lVert \varphi
+\rVert_\infty = 6.838442` for the first fixture, and the delivery ratio
+:math:`\lVert \varphi_D - \varphi_V \rVert_\infty /
+\lVert \varphi_C - \varphi_V \rVert_\infty` is ``1.0000000000`` in each.
+
 **Bit-identical, on every fixture and both inner solvers — and that is
 structural, not luck.** Post-P3 the two configurations are the *same
-floating-point program*: the realized :math:`B` is a ``ZeroOperator``
+floating-point program*: the realized :math:`B` is a ``ZeroMap``
 in both (by :eq:`bc-prescribed-zero-linear-factor`), every other
 operator is built from the same ``(mesh, quadrature, materials)``, and
 the two right-hand sides carry bit-equal :math:`q_\partial` arrays. The
@@ -2903,9 +3022,10 @@ only precondition is that last one — the declared spec must *evaluate*
 to the same floats the hand-built slot was filled with, which holds by
 construction for a constant source compared against a constant slot,
 and is exactly the property
-:meth:`~orpheus.transport.fields.AngularBoundarySourceSink.from_specs`
-was built to guarantee (it evaluates at the same shape the inline path
-asked for).
+:func:`~orpheus.transport.boundary_conditions.realization.sample_terms`
+guarantees (it evaluates the declared terms at :math:`\Gamma_-(f)`
+itself and refuses any sample that is not exactly ``space.shape``, so
+the declared and the hand-built slot are the same array shape).
 
 .. warning::
 
@@ -2970,14 +3090,15 @@ directions and is easy to get backwards:
        see the warning above). A fixed ULP budget is chosen over an
        ``rtol`` precisely because it cannot be quietly loosened
    * - converged **flux**, declared versus hand-supplied
-     - ``np.array_equal`` post-P3 (measured), with the bit-equal
+     - ``np.array_equal`` post-P3 (measured on both inner solvers; the
+       gate asserts the SI leg), with the bit-equal
        :math:`q_\partial` precondition stated
      - the two solves are the same float program; a tolerance here is
        blind to the ``1.998e-13`` structural-difference signature
        above
    * - the operator tier: :math:`B(0) = 0`,
        :math:`B(2x) = 2B(x)`, :math:`B(x{+}y) = B(x){+}B(y)` over the
-       whole shipped law set
+       whole shipped declaration set
      - exact, and reachable **without a solve**
      - it catches an affine term anywhere in the block at
        *construction* time — the day the next affine operator is
@@ -3040,8 +3161,9 @@ supply the *identical* bulk spelling on both legs; building both legs'
 source through one helper makes the trap unspellable rather than
 avoided by care.
 
-**2. Double specification is REFUSED, not resolved.** If the mesh
-declares a ``PrescribedInflow`` **and** the composite
+**2. Double specification is REFUSED, not resolved.** If the problem
+declares a non-zero source (a tag bound to ``WallCondition.uniform(v)``
+with ``v != 0``) **and** the composite
 ``external_source`` carries a non-zero boundary leaf, there are two
 answers to one question.
 :func:`~orpheus.sn.solver._build_fixed_source_rhs` raises. Neither
@@ -3049,102 +3171,129 @@ alternative is acceptable: adding double-counts (the exact defect this
 section documents), and overriding makes one of the two inputs a silent
 no-op. **Both wrong answers are quiet**, which is why the refusal is
 loud. A composite whose boundary leaf is all-zero alongside a
-declaration is fine — that is the normal declared-law path.
+declaration is fine — that is the normal declared-condition path.
+``[M]`` section S8 of ``scratch/wf25_bcB_measurements.py``: the double
+specification raises ``ValueError`` ("specified TWICE"), the row
+``TestTheSourceCannotBeSpecifiedTwice`` of
+``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``.
 
 **3. The** ``BlockRole.BOUNDARY`` **stamp is honest metadata; it is
 NOT a fence.** ``[M]`` and stated plainly because a reader will
-otherwise assume it is load-bearing: ``_face_laws`` never filtered on
-``block_role``, so the stamp's presence or absence changes **nothing**
-about :math:`B`'s behaviour. Making
-:func:`~orpheus.transport.boundary_realization.stamp_boundary_role` a no-op for
-prescribed inflow reddens the direct stamp assertions and no numerical
-gate — the stamp claim needs its own assertion, and a value gate
+otherwise assume it is load-bearing: ``_face_operators`` (``_face_laws``
+before it) never filtered on ``block_role``, so the stamp's presence or
+absence changes **nothing** about :math:`B`'s behaviour. Making
+:func:`~orpheus.transport.boundary_conditions.realization.stamp_boundary_role`
+the identity in ``orpheus.sn.boundary.realized_operators`` reddens 12 of
+the 51 rows of
+``test_operator_block_role.py``, ``test_declared_inflow_reaches_the_rhs.py``
+and ``test_declared_law_is_linear.py`` (12 in the first, 0 in each of the
+other two): every red is a direct stamp assertion and none is numerical
+(``MUT=stamp PYTHONPATH=scratch:<worktree> python -O -m pytest -p
+wf25_bcB_mutplug <the three files>``; the control, unmutated, passes 51
+of 51). The stamp claim needs its own assertion, and a value gate
 structurally cannot supply one. What the stamp *does* do is describe a
 leaf's role for a reader and for the block-role marker classes; what it
 never did is keep anything out of the block. Post-P3 the stamp is also
-no longer an exception: every realizable law carries it, prescribed
-inflow included, because the leaf is now genuinely linear.
+no longer an exception: every realized face type carries it, the zero
+map of a prescribed inflow included, because the leaf is genuinely
+linear.
 
-**4. A declared prescribed inflow is REFUSED on a carrying
-(1-D curvilinear) mesh — and the hand-supplied channel is not.** This
-is the one place where the two channels of
-:ref:`bc-affine-channel-two-channels` are *not* interchangeable, and
-it is a deliberate loud deferral rather than a defect. ``[M]`` on a
-2-group heterogeneous sphere:
+**4. A declared prescribed inflow is REFUSED on a radial outer face
+(the carrying 1-D curvilinear mesh), at posing — and the hand-supplied
+channel is not.** This is the one place where the two channels of
+:ref:`bc-affine-channel-two-channels` are *not* interchangeable, and it
+is a deliberate loud deferral (issue #653) rather than a defect. ``[M]``
+section S4 of ``scratch/wf25_bcB_measurements.py``, a 2-group
+heterogeneous sphere with the outer tag bound to
+``WallCondition.uniform(2.5)``: ``SNProblem(...)`` raises
+``BoundaryRefused`` carrying ``issue == 653``, before any sweep:
 
 .. code-block:: text
 
-   declared law      : NotImplementedError
-       RadialCharacteristicBoundaryOperator: the outer-face law
-       PrescribedInflow (G=SelfPairedDeck, R=0.0) has no ruled corner
-       action yet (white / albedo / periodic / a prescribed source at
-       the off-quadrature μ = ±1 ray — loud-deferred, 2.5d
-       plan-of-record).
-   hand-supplied q_∂ : OK   γ₋(xmax) = [2.5]
+   BoundaryRefused: sn realizes ['DiffuseChain', 'InflowTerms',
+       'SpecularChain', 'ZeroNetwork']; not WallCondition (PLUMBING: the
+       radial characteristic's corner action is ruled only for a
+       permuting return or a zero return)
+
+while the hand-supplied channel delivers: section S5, the same sphere
+with a vacuum outer tag and ``q_∂`` handed to ``prescribed_inflow``,
+reads :math:`\gamma_-\psi(\texttt{xmax}) = [2.5, 2.5, 2.5, 2.5]` on both
+inner solvers.
 
 A seed-carrying mesh closes its ray boundary at the off-quadrature
 :math:`\mu = \pm 1` corner, and
 :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`'s
 corner block is a **linear** operator on the ray alone. A prescribed
 inflow's corner value is a free parameter, not a function of the
-outflow ray, so a linear corner block structurally cannot carry it —
+outflow ray, so a linear corner block structurally cannot carry it,
 whereas the *source* side has a ruled three-arm inflow-corner law and
-delivers it fine. The predicate is a **type** test on the
-prescribed-inflow family, by design: ``[M]``
-``_has_ruled_corner_action`` is ``False`` for both
-``PrescribedInflow(ConstantInflowSource(2.5))`` **and** the default
-``PrescribedInflow()`` at its zero source, and ``True`` for vacuum.
-Testing the source *value* instead would quietly admit the default
-spelling and then silently drop the source the day one was set.
+delivers it fine. The refusal is the realizer table's, keyed on the
+site class: ``SNSource.admit`` (and ``SNDiffuseChain.admit``) returns
+the corner refusal at ``SiteClass.RAD_OUTER`` (until wave 2 such a
+declaration constructed, and refused with ``NotImplementedError`` at the
+first sweep). What reaches the corner block is therefore never a
+sourced face, and its predicate, ``_has_ruled_corner_action``, asks only
+the realized TYPE (``permutes_ordinates or is_vacuum``). The family test
+the retired code made is not needed because a zero source is not a
+member of a family waiting for a value: ``WallCondition.uniform(0.0)``
+**is** the vacuum (``[M]`` section S4: ``uniform(0.0)`` and ``vacuum``
+both pose on the sphere and realize a ``ZeroMap``; ``uniform(2.5)``
+and ``white`` are refused with issue 653).
 
-**5. The identity row proves the two laws AGREE — not that either names
-the right END.** :eq:`bc-prescribed-zero-linear-factor` is gated by
-``test_prescribed_inflow_realizes_the_same_object_vacuum_does``, which
-asserts ``prescribed.domain is vacuum.domain`` and
-``prescribed.codomain is vacuum.codomain``. Read what that row cannot
-see: if **both** leaves were bound swapped —
-:math:`\text{domain} := \Gamma_-`,
-:math:`\text{codomain} := \Gamma_+` — the row stays **green**, because
-it compares the two operators against each other and never against the
-trace. And the construction-time guard cannot catch it either:
+**5. An identity row against a sibling proves the two conditions AGREE
+— not that either names the right END; the row that does is the one
+against the trace.** :eq:`bc-prescribed-zero-linear-factor` is gated
+by ``test_prescribed_inflow_realizes_the_same_object_vacuum_does``. A
+row that only asserted ``prescribed.domain is vacuum.domain`` would stay
+**green** if **both** leaves were bound swapped
+(:math:`\text{domain} := \Gamma_-`, :math:`\text{codomain} := \Gamma_+`),
+because it compares the two operators against each other and never
+against the trace; and a size check cannot catch the swap either:
 :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature :math:`\times` face
-in the tree (see the warning at :ref:`bc-narrowing-what-it-removed`), so
-a size check passes both ways. This is a textbook ``vv-principles``
-**Mode 12** blindness — the measured functional (mutual agreement) has
-the error class in its invariance group.
+in the tree (``[M]`` section S7 of ``scratch/wf25_bcB_measurements.py``:
+46 of 46 (quadrature, face) pairs that build a signed-projection table,
+9 rules :math:`\times` 6 face names = 54 attempted and the 8 refused
+being the two one-dimensional rules on the four ``y``/``z`` faces;
+control: a hand-built lopsided table reads unequal). This is a textbook
+``vv-principles`` **Mode 12** blindness: the measured functional (mutual
+agreement) has the error class in its invariance group.
 
-``[M]`` the binding is correct today: ``prescribed.domain`` **is**
-``trace.outflow_space("xmin")`` and ``prescribed.codomain`` **is**
-``trace.inflow_space("xmin")``, verified by object identity, and the
-same holds for the default-source spelling. But that measurement is not
-a gate. The gate that would close the hole is one ``is``-identity row
-per bound realized law naming *which* space is *which end* — asserting
-against the **trace's** ``outflow_space`` / ``inflow_space``, not
-against a sibling operator. It exists for the hand-built type
-(``tests/gates/numerics/test_zero_operator_spaces.py`` carries a
-``test_the_ends_are_not_swapped`` row on an intentionally *unequal*
-:math:`3 \times 7` fixture, which is what makes a swap observable
-there) and for the specular chain
-(``tests/gates/sn/operators/test_specular_deck_chain.py``); at the production
-tier it exists for **neither** vacuum nor prescribed inflow. It is item
-**G5** of P3's verification plan, and it is the reason the
-``vv-status`` rationale on
-:eq:`bc-prescribed-zero-linear-factor` records a known hole rather than
-claiming full coverage.
+The production row is not that row. It asserts ``op.domain is
+sn.angular_trace.outflow_space(face)`` and ``op.codomain is
+sn.angular_trace.inflow_space(face)`` for the vacuum face and the
+prescribed face, against the **trace's** own spaces and not against a
+sibling, and the ``ZeroMap`` derives its two ends from the trace ladder
+at one site (``_derive_inner``). ``[M]`` the swap mutation reddens it:
+``MUT=swap PYTHONPATH=scratch:<worktree> python -O -m pytest -p
+wf25_bcB_mutplug tests/gates/sn/operators/test_operator_block_role.py::TestBoundaryLeaves::test_prescribed_inflow_realizes_the_same_object_vacuum_does``
+passes unmutated (1 passed) and fails with
+``ZeroMap._derive_inner`` rebound to a ``ZeroMorphism`` of swapped ends
+(1 failed). The same discrimination for the hand-built type
+(``tests/gates/numerics/test_zero_operator_spaces.py``,
+``test_the_ends_are_not_swapped``, on an intentionally *unequal*
+:math:`3 \times 7` fixture, which is what makes a swap observable there)
+and for the specular chain
+(``tests/gates/sn/operators/test_specular_deck_chain.py``) stands beside
+it.
 
 
 .. _bc-affine-channel-law-tier-consumers:
 
-The two law-tier consumers that still discriminate
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The two consumers that must still tell a source apart
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Collapsing the operator raises an obvious question: what breaks in the
-consumers that needed to tell prescribed inflow apart? Nothing, and
-the reason is that **both of them read the LAW, not the realized
-operator** — and both said so, in their own comments, before P3 was
-planned. This was a prediction to check, not a reassurance to accept;
-``[M]`` it holds, and both refusals fire on the *family*, whatever
-:math:`q` currently holds:
+Until wave 2, collapsing the operator raised an obvious question: what
+breaks in the consumers that needed to tell prescribed inflow apart?
+Nothing did, because both read the LAW family (``isinstance(law,
+PrescribedInflow)``), not the realized operator, and both said so in
+their own comments before P3 was planned. The law objects are gone
+(:ref:`bc-wave2-crosswalk` maps each retired name to its successor, and
+:ref:`bc-architecture-of-record` states the present architecture), and
+so is that discriminator, but the question stays: the realized operator
+of a sourced face is the zero map of a vacuum face, so a consumer of the
+realized operator cannot see :math:`q`. Today each of the two is
+protected differently, and ``[M]`` both hold
+(``scratch/wf25_bcB_measurements.py``, sections S4 and S6):
 
 .. list-table::
    :header-rows: 1
@@ -3152,34 +3301,46 @@ planned. This was a prediction to check, not a reassurance to accept;
 
    * - consumer
      - what it asks
-     - post-P3
+     - now
    * - :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`'s
        corner block, via ``_has_ruled_corner_action``
-     - is the law outside the prescribed-inflow family, **and** either
-       :math:`R = 0` or the composite a specular pairing? The corner
-       block is linear on the off-quadrature ray, so a free-parameter
-       inflow has no expressible action there
-     - unchanged — ``isinstance(law, PrescribedInflow)`` disqualifies,
-       loud-deferred (gotcha 4 above)
+     - of the realized TYPE: does it permute ordinates, or is it the
+       zero map? The corner block is linear on the off-quadrature ray,
+       so a free-parameter inflow has no expressible action there
+     - **never reached by a source**: SN's table refuses every source
+       and the diffuse chain at a radial outer face at admission
+       (``SNSource.admit``, issue #653), at posing; ``uniform(2.5)``
+       and ``white(1.0)`` are refused there, ``uniform(0.0)`` and
+       ``vacuum()`` are admitted (gotcha 4 above)
    * - :class:`~orpheus.sn.acceleration.dsa.DSALowOrderSystem`
-     - is the law's low-order edge row proven? A zero response gives
-       the Marshak row and an ordinate-permuting law of amplitude 1 gives
-       the zero-net-current row (a partial specular reflector permutes
-       the ordinates too, but its net current is not zero, so it is
-       refused: ERR-094); a free-parameter inflow has **no row** in
-       the low-order edge system
-     - unchanged — excluded by family, because admitting it on a zero
-       default :math:`q` would build a Marshak row and silently drop
-       the source the day one was set
+     - is the face's low-order edge row proven? A zero response (a
+       ``ZeroMap``, ``is_vacuum``) gives the Marshak row and an
+       ordinate-permuting face that returns everything
+       (``closes_axis``) gives the zero-net-current row (a partial
+       specular reflector permutes the ordinates too, but its net current
+       is not zero, so it is refused: ERR-094); and a face whose
+       condition declares a SOURCE has **no row** in the low-order edge
+       system
+     - **the declaration is read**: the face is excluded when its name is
+       in ``problem.binding.sources``, because the realized operator is
+       the linear part only. ``[M]`` DSA admits ``vacuum()``,
+       ``MirrorDeck`` and ``uniform(0.0)`` and refuses ``uniform(2.5)``
+       (source in the binding), ``specular(0.5)`` and ``white(1.0)``
 
-Both are the same discipline in two places: **a type test on the family
-is the honest predicate when the disqualifying property belongs to the
-family whatever the current value is.** A response-factor test alone
-would admit prescribed inflow (its :math:`R` *is* zero) — measured
-while writing the DSA guard, and the reason the ``isinstance`` arm is
-there. Post-P3 that discipline is what carries the discrimination the
-operator tier deliberately gave up, and it is the reason the collapse
-does not leak into the accelerator or the ray corner.
+What changed with the carve is the discriminator, not the discipline.
+The family test existed because a ``PrescribedInflow`` at its default
+zero source was a different object from the vacuum, and a value test on
+:math:`q` would have admitted it and then silently dropped the source the
+day one was set. A condition is now a frozen value: ``WallCondition.uniform(0.0)
+== WallCondition.vacuum()`` (the drop rule: a zero weight is not stored;
+``[M]`` section S1: equal, both realize a ``ZeroMap``, ``q.linf`` is
+``0.0``), so there is no zero-source member of the family waiting to
+receive a source, and a different source is a different condition. The
+discipline that remains is the one the DSA row shows: **a consumer of
+the realized operator, which carries the linear part only, must read the
+declaration for the source and never infer it from the operator.** A
+response-factor test alone would admit a sourced face, because its
+:math:`R` *is* zero.
 
 .. _bc-realizer-layer:
 
