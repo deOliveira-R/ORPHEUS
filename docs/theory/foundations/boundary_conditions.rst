@@ -261,11 +261,11 @@ mathematical, physical, and architectural responsibilities. The split
 is taken verbatim from Grand Report v3 §16A.3 and the source-of-record
 plan ``.claude/plans/transient-giggling-cake.md``.
 
-The mathematics of this section holds; its type carriers are those of the
+The mathematics of this section holds; its type carriers were those of the
 trace-law architecture that wave 2 retired (2026-10-24). The present
 architecture is :ref:`bc-architecture-of-record`, and each retired name maps to
-its successor in :ref:`bc-wave2-crosswalk`. In that architecture one object,
-the ``BoundaryTraceLaw``, held the three factors below as three properties of
+its successor in :ref:`bc-wave2-crosswalk`. In the retired trace-law
+architecture one object, the ``BoundaryTraceLaw``, held the three factors below as three properties of
 one value; wave 2 split them by the dichotomy this section proves
 (:ref:`bc-factor-roles`): :math:`G` is the **face role** of a glued face, a
 deck (:class:`~orpheus.geometry.deck.MirrorDeck` or
@@ -295,11 +295,6 @@ the **affine map**
    concrete rank-0 / rank-n realisations (:eq:`bc-rank-n-tensor-decomposition`,
    ``WallCondition.uniform``) are the tested forms. Not a solver claim.
 .. vv-status: affine-bc-form documented
-
-On a face that ends the domain the factor :math:`G` is absent (the face's role is
-a tag); on a glued face :math:`R = I` and :math:`q = 0` (its role is a deck). The
-product form classifies the law's content; it is not the recipe by which the law
-is evaluated (:ref:`bc-taxonomy-vs-factorization`).
 
 where:
 
@@ -367,6 +362,11 @@ where:
   see :ref:`bc-affine-source-channel`, which is also where the consequence of
   that split (vacuum and prescribed inflow realize to the *same* operator) is
   derived and measured.
+
+On a face that ends the domain the factor :math:`G` is absent (the face's role is
+a tag); on a glued face :math:`R = I` and :math:`q = 0` (its role is a deck). The
+product form classifies the law's content; it is not the recipe by which the law
+is evaluated (:ref:`bc-taxonomy-vs-factorization`).
 
 Three remarks make this form load-bearing:
 
@@ -922,7 +922,7 @@ S\ :sub:`N` and through diffusion as before). `[M]` 2026-10-01: before that carv
    since deleted in the typed-field campaign (#197), their successor
    ``_transport_operator_matvec_unified`` in turn retired at the walk
    unification (#280 campaigns)) were rewritten as one sweep
-   iteration semantically: the BC trace law is applied **at least
+   iteration semantically: the realized boundary operator is applied **at least
    once** per matvec at the boundary edge on the WDD-propagated
    outflow face values (:math:`\gamma_+ \psi`), not on cell-centre
    approximations.  The live forward action is now
@@ -934,7 +934,7 @@ S\ :sub:`N` and through diffusion as before). `[M]` 2026-10-01: before that carv
    verification gate that pins this contract, and
    :ref:`bc-two-bc-applies-per-matvec` for the Phase D
    strengthening that audits **two** BC apply calls per matvec
-   (Phase D Carlson context + Phase C trace law).
+   (Phase D Carlson context + Phase C realized boundary operator).
 
 .. _bc-taxonomy-vs-factorization:
 
@@ -983,7 +983,7 @@ response), not the two-factor product:
      - :math:`N` **composed** operations
        :math:`\Gamma_+(f) \to \cdots \to \Gamma_-(f)`. The Lambertian is
        an outflow **angle contraction** :math:`C` followed by an
-       **isotropic broadcast** :math:`B`, so :math:`R = B \circ C`, with
+       **isotropic broadcast** :math:`B`, so :math:`R = B \circ C` (:math:`B` is the section :math:`E` and :math:`C` the current retraction :math:`R_t` of the response network of :ref:`bc-architecture-of-record`; the section writes :math:`E \circ R_t` and :math:`B \circ C` for the one chain), with
        an intermediate state in the angle-integrated per-face
        **scalar-current space** :math:`S(f)`. Constitutive — an
        assumption about a real surface.
@@ -1136,10 +1136,13 @@ index-pairing error would be invisible, and equal sizes are `[M]` what
 ``product(2,4)`` (2/2), ``product(4,4)`` (4/4),
 ``level_symmetric(6)`` (24/24) and ``lebedev(17)`` (49/49). That
 equality is an **accident, not a contract**, which is why the retired
-``_narrowed_zero_operator`` refused to lean on it, why the typed realized
-operators that replaced it read each half-space off the trace ladder
-(``trace.outflow_space(face)``, ``trace.inflow_space(face)``) and never cross-check an
-index set, and why a factored response — routed through :math:`S(f)` — never pairs
+``_narrowed_zero_operator`` refused to lean on it. Its successors take three positions.
+The zero image (``ZeroMap``) reads both half-spaces off the trace ladder
+(``trace.outflow_space(face)``, ``trace.inflow_space(face)``) and needs no index pairing. The
+permutation image (``ScaledOrdinatePermutation``) pairs by index and therefore ASSERTS the
+bijection at construction instead of assuming it from the accidental equality: equal sizes,
+inflow-to-outflow membership and measure carried (ERR-045 is the crossing check; a size
+mismatch raises ``ValueError``). A factored response, routed through :math:`S(f)`, never pairs
 by index at all.
 
 Two consequences to carry:
@@ -1216,14 +1219,26 @@ trace-law type) flipped to ``True`` in the same step.
 The factored adjoint above is the identity every response obeys; the family of wall
 conditions and decks adds four statements, each gated.
 
-* *Reciprocity.* Every shared kernel is reciprocal in the trace metric
-  :math:`M = \operatorname{diag}(w\,|\mu|)`: the specular return is an involutive
-  measure-preserving permutation :math:`P`, so :math:`M^{-1} P^{\mathsf T} M = P`,
-  and the Lambertian is :math:`u \otimes (w|\mu|)/\sum(w|\mu|)`, self-adjoint under
-  :math:`M`. The adjoint of a shared condition's realization is therefore its
-  realization on the reversed ordinates, and a forward solve and an adjoint solve
-  share one binding (law L-A (i), ``test_reciprocity`` in
-  ``tests/gates/sn/architecture/test_realized_boundary.py``).
+* *Reciprocity.* Every shared kernel is reciprocal through the reversal of the
+  ordinates. Write :math:`B` for the realized map :math:`\Gamma_+ \to \Gamma_-` of one
+  face, :math:`M_\pm = \operatorname{diag}(w\,|\mu|)` for the half-trace metrics read off
+  the ladder (:math:`M_+` on :math:`\Gamma_+`, :math:`M_-` on :math:`\Gamma_-`), and
+  :math:`P_{\rm rev}` for the :math:`\mu \to -\mu` reversal, built by matching direction
+  cosines and never from the realizer. The gated identity is
+  :math:`M_+^{-1} B^{\mathsf T} M_- = P_{\rm rev}\,B\,P_{\rm rev}` on each realized shared
+  image. For the specular return :math:`B = \alpha P_\pi`, and the identity is the
+  involutivity and the measure preservation of :math:`\pi`; for the Lambertian
+  :math:`B = d\,\mathbf 1_- \otimes (w|\mu|)_+ / M_-`, with :math:`M_- = \sum_{\Gamma_-} w|\mu|`
+  the INFLOW mass. (On the full space, where the certified mirror pairing :math:`\pi` maps
+  the trace to itself, the statement reads :math:`M^{-1} P^{\mathsf T} M = P`. That is a
+  statement about :math:`\pi`; the realized map goes between two different spaces and has no
+  self-adjointness of its own, which is the point of the retirement of the flag described
+  in :ref:`bc-narrowed-involution`.) The adjoint of a shared condition's
+  realization is therefore its realization on the reversed ordinates, and a forward solve
+  and an adjoint solve share one binding (law L-A (i), ``test_reciprocity`` in
+  ``tests/gates/sn/architecture/test_realized_boundary.py``: ``array_equal`` for the
+  specular image, ``1e-15`` for the Lambertian, with a non-reciprocal control,
+  :math:`R(\mu' \to \mu) \sim \mu'^2`, that reads a defect orders above the bound).
 * *The left-eigenvector rider.* The scalar :math:`\rho` that consumers read (the
   return fraction, read by DSA, the corner swap, the leakage term and ERR-094) exists
   exactly when the trace measure is a left eigenvector of the realized map,
@@ -1246,12 +1261,14 @@ conditions and decks adds four statements, each gated.
   the partner face: ``pairing_of(d, f).inverse == pairing_of(d, partner(f))`` (law L-A (ii),
   ``test_pairing_of_and_its_adjoint`` in ``tests/gates/geometry/test_deck.py``).
 * :math:`q` *is not adjointed.* ``solve_sn_adjoint_fixed_source`` builds a zero boundary
-  source and never reads the declared :math:`q`, and the two eigenvalue adjoint entries
-  refuse a declared boundary source (``_refuse_a_boundary_source``, ERR-095). This is correct,
-  because :math:`q` enters the reciprocity identity as
+  source (``AngularBoundarySourceSink.zeros``) and never reads the declared :math:`q`. This
+  is correct, because :math:`q` enters the reciprocity identity as
   :math:`\langle q, |\Omega\cdot n|\,\gamma_-\psi^{+}\rangle` against the adjoint flux; the
   gate is ``test_the_adjoint_ignores_q`` in
-  ``tests/gates/sn/architecture/test_sn_boundary_binding.py`` (law L-A (iii)).
+  ``tests/gates/sn/architecture/test_sn_boundary_binding.py`` (law L-A (iii)). The refusal
+  is a separate matter: the two eigenvalue entries, ``solve_sn`` and ``solve_sn_adjoint``,
+  refuse a declared boundary source because the pencil :math:`(A, F)` has no source term
+  (``_refuse_a_boundary_source``, ERR-095).
 
 That is the campaign's thesis in one line: **the adjoint falls out of
 well-posedness instead of being hand-rolled.**
@@ -1350,10 +1367,16 @@ expression at all, and ``@`` says so at construction:
 .. code-block:: text
 
    P @ P            -> IncompatibleOperatorComposition:
-                       A.domain=angular_trace[xmin:outflow]
-                       B.codomain=angular_trace[xmin:inflow]
-   P_xmin @ P_xmax  -> IncompatibleOperatorComposition   (cross-face)
-   P @ P.inverse()  -> composes: Γ₋ → Γ₊ → Γ₋
+                       OperatorProduct requires each factor's domain to equal the codomain of the
+                       factors to its right; ScaledOrdinatePermutation declares domain
+                       AngularFaceTraceSpace('angular_trace[xmin:outflow]', shape=(8,)) against
+                       AngularFaceTraceSpace('angular_trace[xmin:inflow]', shape=(8,)).
+   P_xmin @ P_xmax  -> IncompatibleOperatorComposition   (cross-face: ... against 'angular_trace[xmax:inflow]')
+   P @ P.inverse()  -> composes: OperatorProduct (Γ₋ → Γ₊ → Γ₋)
+
+   `[M]` 2026-10-24, ``P`` the specular ``ScaledOrdinatePermutation`` of ``gauss_legendre(16)`` on a slab
+   face (built with the helpers of ``tests/gates/sn/architecture/_realized_boundary_helpers.py``),
+   the three expressions evaluated, the messages printed.
 
 ⭐ So the flag was **retired rather than corrected**, and that is the
 load-bearing choice. A refined flag would have answered ``False`` for a
@@ -1507,11 +1530,15 @@ weight.
 
    .. code-block:: text
 
-      WallCondition.specular(0.4)  -> 0.4 · IdentityOperator()   action = 0.4 · J⁺
-      WallCondition.white(0.4)     -> 0.4 · IdentityOperator()   action = 0.4 · J⁺
-      MirrorDeck()                 -> IdentityOperator()         action = 1.0 · J⁺
-      WallCondition.vacuum()       -> ZeroOperator()             action = 0.0 · J⁺
-      ZeroFluxCondition()          -> -1.0 · IdentityOperator()  action = -1.0 · J⁺
+      declaration                  repr of the realized operator                                                  out / J⁺
+      WallCondition.specular(0.4)  (0.4·<IdentityOperator domain='?' codomain='?' invertible adjointable>)         [0.4]
+      WallCondition.white(0.4)     (0.4·<IdentityOperator domain='?' codomain='?' invertible adjointable>)         [0.4]
+      MirrorDeck()                 <IdentityOperator domain='?' codomain='?' invertible adjointable>               [1.]
+      WallCondition.vacuum()       <ZeroOperator domain='?' codomain='?' adjointable>                              [0.]
+      ZeroFluxCondition()          (-1.0·<IdentityOperator domain='?' codomain='?' invertible adjointable>)        [-1.]
+
+   (The last column is ``np.unique(realized.apply(J⁺) / J⁺)``: one value means the
+   operator acts as that scalar on the probe.)
 
    ``specular(0.4)`` and ``white(0.4)`` give equal images (``np.array_equal`` of their
    actions on the probe is true): two distinct values, one image. The shape is not
