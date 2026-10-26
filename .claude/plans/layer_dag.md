@@ -316,3 +316,34 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
 - the 3 `test_mixture` repairs.
 
 Then Phase 2, after the test-architect's spec, and then Phase 4.
+
+## Rulings, 2026-10-26 (the ten owed questions; the user: "2, 3, 4, 5, 6, 7, 8, 9, 10 agreed")
+
+27. **Q1, dynamic imports.** The user: "if we can eliminate the importlib on three exceptional ones, we can eliminate importlib on all 16, which seems preferable (because it is better to have an explicit import that is correctly parsed by AST, than not)."
+    - The population, re-measured `[M]` 2026-10-26 (AST over `tests/gates/`, calls named `import_module`, `__import__`, `find_spec`; scratchpad `imp2.py`): **102 calls in 52 files**, not 16. The 16 counted only cross-layer string targets.
+      - 36 calls, 21 files: a literal `orpheus`/`tests` path. 34 of the 36 targets exist today; the other 2 are absence checks.
+      - 8 calls, 8 files: an f-string over an enumerated family (`orpheus.sn.{name}`).
+      - 20 calls, 16 files: a variable that holds a constant module name (`_MODULE`, `_READING`, `_step5.mod(name)`).
+      - 27 calls, 16 files: a variable in a file that walks packages (a census over discovered modules).
+      - 7 calls, 5 files: `find_spec` (a retired module is absent).
+      - 4 calls, 3 files: stdlib (`__import__("json")`).
+    - **The rule adopted:** every import whose target is known when the test is written is an import statement. The late binding the adapters wanted (lesson L100) is kept by importing the MODULE and reading the attribute at call time (`from orpheus.numerics import enclosure`, then `enclosure.Enclosure`).
+    - **What stays dynamic, and why:** a package walk (its targets are discovered, not written); the traced-memo synthetic packages (created at test time); an absence check (`find_spec(old) is None`, a must-not-load census), since an import statement cannot assert that a module is absent.
+    - **The red-first reason the idiom existed:** a gate written before its module (`test_cp_realizer_table`: "Red input at the base tip: `orpheus.cp.solver` cannot be imported") imports lazily, so each test is red instead of one collection error. A collection error is also a red, so new gate-first specs use import statements too.
+    - **One production smell found:** `test_ordinate_pairing` imports by string because `orpheus.numerics.quadrature` re-exports the FUNCTION `ordinate_pairing` under its module's name, so the attribute shadows the submodule. Fix the shadow in production, not in the test.
+    - **Enforcement:** the test-layer gate refuses `import_module`/`__import__` whose argument is a constant or an f-string naming `orpheus`, with a first red planted. `find_spec` and package walks stay unjudged.
+28. **Q2:** a census of one layer's contract over every consumer lives at the `tests/gates/` root, beside `test_layer_imports.py`. `test_s5_9`, the qualname-uniqueness gate and `test_one_real_parser`'s 3 rows move there. `test_s5_6` and `test_s5_7` stay in values, re-built on synthetic content dataclasses.
+29. **Q3:** `derivations.common.xs_library` (synthetic cross sections, not a proof) moves to `data/`, beside `macro_xs`, with no re-export shim. `test_mixture_xs_balance`'s published-table sweep moves to the derivations tests. Then the data, mesh and numerics rows of `FORBIDDEN_EDGES` forbid `derivations`. Sizing: about 200 import re-points.
+30. **Q4:** delete `TestMesh1D`'s 5 views tests and `TestFaceRoles`' invalid-type row, after one mutation per pair shows the twin reddens with it.
+31. **Q5:** the measure c·(T(b) − T(a)) gets one test-side home in geometry's test helpers; `test_mesher` and `test_partition` import it.
+32. **Q6:** ERR-073 names its two catchers.
+33. **Q7:** `test_inverse_universal`'s ids are built from the `name` column.
+34. **Q8:** `TestR1AConnected…` methods 2 and 4 are re-posed on `roots_of_unity` directions and stay in geometry.
+35. **Q9:** geometry owns a 0-dimensional `Manifold` member; `SPHERE.quotient(O3)` returns it (#440's geometry part); the dimension-law test drops its borrowed `IndexSet`. Wiring CP waits for the CP campaign.
+36. **Q10:** the archivist re-checks every row of `harness.rst`'s non-physics table against today's tests.
+
+37. **The catalogue's name** (the user, 2026-10-26): `orpheus/data/macro_xs/synthetic.py`. Not `library`, which in data means an evaluated nuclear-data library. `[M]` 0 of 8531 cached memo entries name `xs_library` (control: `Mixture` in 5841), so the move regenerates nothing: the keys read the mixture's content, not the module that built it.
+38. **The thread count is fixed in the traced memo** (the user, 2026-10-26): `*_NUM_THREADS=1` joins `_FIXED_ENVIRONMENT` beside `PYTHONHASHSEED=0`, so every generation child runs single-threaded whatever the caller's shell, and the store holds one population.
+    - **Sizing, corrected** (`[M]` 2026-10-26, `_environment_digest` computed directly). The store's four environment populations are `e99f6137` 5593 (plain shell), `a196d6bb` 2430, `6fd57b33` 335 and `541a0606` 54. The detached drivers exported 4 of the 5 thread variables (`NUMEXPR_NUM_THREADS` missing); the old formula with those four reproduces `a196d6bb` exactly. Under the new code every shell gives `27cba1c2` (checked: plain, all five at 1, `OMP_NUM_THREADS=8`), which no entry carries. And editing `traced_memo.py` changes the memo's own source pin (`_MEMO_SOURCES`), which stales every entry regardless. So the whole store, 8531 entries, regenerates ONCE, not the 5593 first estimated.
+    - **Consequence for the order:** every 1b edit that touches a module a memo entry pins lands on the branch before the one regeneration driver runs.
+    - The witness (`[M]`, the fixed set reverted in place, crash-safe copy): `test_m3_16_…` and `test_e_the_environment_pin_…` red, E6 green (it now witnesses a passed variable, `TMPDIR`).

@@ -2139,9 +2139,20 @@ nested generations is also bounded, at 16
 
 **The environment is declared** (Q7, then the second review). The generating
 process receives only ``_CHILD_ENVIRONMENT`` (``PATH``, ``HOME``,
-``TMPDIR``, the locale variables and the BLAS and OpenMP thread counts,
-each when the parent has it) and ``PYTHONHASHSEED=0``, fixed so that
-iteration over a set of strings has one order in every generation. The
+``TMPDIR`` and the locale variables, each when the parent has it) and
+``_FIXED_ENVIRONMENT``, the variables it receives at one value whatever the
+caller set: ``PYTHONHASHSEED=0``, so that iteration over a set of strings
+has one order in every generation, and the five BLAS and OpenMP thread
+counts (``OMP_NUM_THREADS``, ``OPENBLAS_NUM_THREADS``,
+``MKL_NUM_THREADS``, ``NUMEXPR_NUM_THREADS`` and
+``VECLIB_MAXIMUM_THREADS``) at ``1``, so that a reduction is summed in one
+order. The thread counts were passed through from the caller and pinned
+until 2026-10-26; the store then held one population per shell (`[M]`
+5593 entries written under a plain shell, 4451 under
+``*_NUM_THREADS=1``), and a run in the other shell regenerated every
+entry. A thread count changes the order in which BLAS sums a product, so
+it belongs to the answer; fixing it, rather than dropping it from the
+pin, keeps it there and makes it one value. The
 pin, an :class:`~orpheus.numerics.traced_memo.EnvironmentPin`, holds the
 declared variables as the run RECEIVED them, ``PATH`` excluded: ``PATH``
 is passed (``uname`` is found through it) but the one program a

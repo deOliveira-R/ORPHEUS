@@ -399,14 +399,18 @@ def test_m3_16_the_generating_process_sees_no_orpheus_environment(package, monke
     reads an ``ORPHEUS_*`` switch, or any other undeclared variable, answers its default under the memo
     whatever the caller set, and a withdrawn generator (``ORPHEUS_RUN_WITHDRAWN``) refuses in the child rather
     than writing an entry a later caller without the switch would be served. A declared variable passes, and
-    ``PYTHONHASHSEED`` is fixed. The control: under ``bypass()`` the same call sees the caller's variable."""
+    ``PYTHONHASHSEED`` and the thread counts are fixed (``OMP_NUM_THREADS`` reads ``1`` where the caller set
+    ``3``; the layer-DAG plan, ruling 38). The control: under ``bypass()`` the same call sees the caller's
+    variable."""
     alpha = package.module("alpha")
     monkeypatch.setenv("ORPHEUS_P3_PROBE", "set-by-the-caller")
     monkeypatch.setenv("P3_PROBE_OTHER", "set-by-the-caller")
+    monkeypatch.setenv("TMPDIR", os.environ.get("TMPDIR", "/tmp").rstrip("/") + "/")
     monkeypatch.setenv("OMP_NUM_THREADS", "3")
     assert alpha.environment_probe("ORPHEUS_P3_PROBE") == "<unset>"
     assert alpha.environment_probe("P3_PROBE_OTHER") == "<unset>"
-    assert alpha.environment_probe("OMP_NUM_THREADS") == "3"
+    assert alpha.environment_probe("TMPDIR") == os.environ["TMPDIR"]
+    assert alpha.environment_probe("OMP_NUM_THREADS") == "1"
     assert alpha.environment_probe("PYTHONHASHSEED") == "0"
     with api.bypass():
         assert alpha.environment_probe("ORPHEUS_P3_PROBE") == "set-by-the-caller"

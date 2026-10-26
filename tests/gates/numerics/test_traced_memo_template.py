@@ -314,7 +314,8 @@ def test_e6_a_change_of_environment_working_directory_or_path_reaches_the_next_g
     assert reader.read_relative(0.5) == 1.5
     monkeypatch.chdir(tmp_path / "b")
     assert reader.read_relative(0.25) == 2.25, "the generation ran in the template's working directory"
-    monkeypatch.setenv("OMP_NUM_THREADS", "3" if os.environ.get("OMP_NUM_THREADS") != "3" else "2")
+    (tmp_path / "tmp").mkdir()
+    monkeypatch.setenv("TMPDIR", str(tmp_path / "tmp"))  # a declared variable that passes through (not a fixed one)
     assert reader.read_relative(0.125) == 2.125
     assert api.verdict_kind(reader.read_relative.lookup(0.125)) == "Hit", "the entry pins another environment"
     later = make(m="from orpheus.numerics.traced_memo import traced_memo\n\n\n@traced_memo\ndef g(x: float) -> float:\n    return x + 7.0\n").module()

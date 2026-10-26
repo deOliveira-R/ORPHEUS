@@ -770,7 +770,9 @@ def test_k_the_exact_key_cases_of_the_third_review():
 def test_e_the_environment_pin_follows_what_the_run_received(make, monkeypatch):
     """Third review, finding 5: PATH was pinned, so activating a virtual environment made every entry stale;
     and a generator that set a declared variable could never validate. The pin holds the declared variables
-    as the run RECEIVED them, PATH excluded."""
+    as the run RECEIVED them, PATH excluded. A fixed variable (a thread count, the layer-DAG plan's ruling 38)
+    is one value whatever the caller set, so changing it leaves the entry valid; a passed one (``TMPDIR``)
+    makes it stale."""
     package = make(m='''
         import os
         from orpheus.numerics.traced_memo import traced_memo
@@ -789,6 +791,8 @@ def test_e_the_environment_pin_follows_what_the_run_received(make, monkeypatch):
     monkeypatch.setenv("PATH", "/nonexistent-directory" + os.pathsep + os.environ.get("PATH", ""))
     assert _kind(m.plain.lookup(1.0)) == "Hit" and _kind(m.setter.lookup(1.0)) == "Hit"
     monkeypatch.setenv("OMP_NUM_THREADS", "5")
+    assert _kind(m.plain.lookup(1.0)) == "Hit"
+    monkeypatch.setenv("TMPDIR", os.environ.get("TMPDIR", "/tmp") + "-elsewhere")
     assert _kind(m.plain.lookup(1.0)) == "Stale"
 
 
