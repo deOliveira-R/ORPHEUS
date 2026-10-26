@@ -269,8 +269,8 @@ class GSpace(Manifold):
     :class:`Sphere`, :class:`Ball`, :class:`Circle`, :class:`Interval`,
     :class:`RealSpace` and :class:`Quotient`.
     :class:`~orpheus.numerics.index_set.EnergyGroups`,
-    :class:`~orpheus.numerics.index_set.IndexSet`, :class:`Product` and :class:`FundamentalDomain` are not
-    G-spaces and carry no :meth:`action` at all — asking a group index set how a
+    :class:`~orpheus.numerics.index_set.IndexSet`, :class:`Point`, :class:`Product` and
+    :class:`FundamentalDomain` are not G-spaces and carry no :meth:`action` at all — asking a group index set how a
     reflection moves it is a type error, not a ``None`` (the base class's rule;
     ruling 43 of the numerics untangling, 2026-10-19).  Until then
     ``invariance._orbit_space_of`` asked EVERY support on
@@ -978,7 +978,7 @@ class Quotient(GSpace):
     derived_by: str = "hand"
 
     def __post_init__(self) -> None:
-        r"""Three theorems, refused where the entry is WRITTEN, not where it is read.
+        r"""Five laws, refused where the entry is WRITTEN, not where it is read.
 
         1. **The group is the orbit space's STABILISER**
            (:func:`_assert_named_by_stabiliser`).  `[M]` 2026-09-02, before
@@ -1020,6 +1020,9 @@ class Quotient(GSpace):
            ``fundamental_domain=None`` besides; a σ_x forgery carrying
            the x-hemisphere, ``dim`` 2 against the interval's 1, would
            violate this clause too and still be refused by clause 2).
+        5. **The chart lands in the realization**
+           (:meth:`_assert_the_chart_lands_in_the_realization`), and a shipped
+           fundamental domain is carried in the base's columns.
         """
         if not isinstance(self.base, GSpace):
             raise TypeError(
@@ -1052,8 +1055,16 @@ class Quotient(GSpace):
                 f"reads to learn what it was handed must be the one the map "
                 f"actually lands in."
             )
+        self._assert_the_chart_lands_in_the_realization()
         if self.fundamental_domain is None:
             return
+        if self.fundamental_domain.ambient_dim != self.base.ambient_dim:
+            raise ValueError(
+                f"{self.name}: the fundamental domain "
+                f"{self.fundamental_domain.name!r} is a section in the BASE's "
+                f"coordinates ({self.base.ambient_dim} columns), but it has "
+                f"{self.fundamental_domain.ambient_dim}."
+            )
         if self.fundamental_domain.dim != self.realization.dim:
             raise ValueError(
                 f"{self.name}: the fundamental domain "
@@ -1063,6 +1074,28 @@ class Quotient(GSpace):
                 f"{self.realization.dim} — the two must describe the same "
                 f"orbit space. Check the normals: an antipodal PAIR spells "
                 f"an equality and drops a dimension; a lone normal does not."
+            )
+
+    def _assert_the_chart_lands_in_the_realization(self) -> None:
+        """Clause 5 of :meth:`__post_init__`: the chart maps the base ONTO the
+        realization, so its image of the base's points lies in it. On the trivial
+        group the chart is the identity and the realization must BE the base; on
+        any other group the base's generic points (:func:`_generic_points`) are
+        charted and asked :meth:`Manifold.contains`. `[M]` 2026-10-26 (elegance
+        review of #440): without it ``replace(S^2/O3, realization=IndexSet(n=5))``
+        and ``S^2/O2_x`` realized on ``[0, 1]`` both constructed."""
+        if self.by.is_trivial:
+            if self.realization != self.base:
+                raise ValueError(
+                    f"{self.name}: M/{{e}} is M, so the realization must be the "
+                    f"base {self.base.name}, not {self.realization.name!r}."
+                )
+            return
+        if not self.realization.contains(self.orbit_coordinates(_generic_points(self.base))):
+            raise ValueError(
+                f"{self.name}: the chart does not land in the realization "
+                f"{self.realization.name!r} on {self.base.name}'s generic points; "
+                f"a chart of an orbit space maps the base ONTO its realization."
             )
 
     @property
@@ -1760,10 +1793,11 @@ def _coordinate_chart(
     projector onto the span of those coordinate axes — which for a group
     whose fixed subspace IS that span is the Reynolds projector
     :math:`P_H = \int_H \rho(g)\,dg`, the orbit barycentre.  So the pair is
-    spelled ONCE, here, and the two sphere builders call it with their
+    spelled ONCE, here, and the sphere builders call it with their
     invariant columns: the axial entry with ``axis`` (fixed subspace
     :math:`\mathbb{R}\hat e_a`), the mirror entry with the two kept columns
-    (fixed subspace :math:`\{x_a = 0\}`).  An entry whose invariants are not
+    (fixed subspace :math:`\{x_a = 0\}`), and the point entry's LIFT with no
+    column (fixed subspace :math:`\{0\}`; its chart is :func:`_to_the_point`).  An entry whose invariants are not
     linear — :math:`S^2/C_n`, #439's :math:`\mathbb{RP}^2` — supplies its own
     pair; the fields are REQUIRED, so it cannot forget the lift.  Both halves
     are module-level functions partially applied, so an entry stays picklable
@@ -1828,9 +1862,10 @@ def _catalogued_quotient(base: GSpace, group: SubgroupOfO3) -> Quotient:
     # is the whole polynomial ring, generated by the coordinates
     # themselves, so P_ij = <grad x_i, grad x_j> = delta_ij, and
     # det P = 1 vanishes NOWHERE.  No vanishing locus means no
-    # singular stratum, which means the action is free — and the
-    # trivial action is free, vacuously, since its only element is
-    # the identity.  The procedure reproduces the known answer, so
+    # singular stratum (one orbit type; NOT in general a free action:
+    # S^2/O(3) has no stratum and O(2) stabilisers) — and the trivial
+    # action is also free, vacuously, since its only element is the
+    # identity.  The procedure reproduces the known answer, so
     # this case is also a positive control on the machinery.
     # The trivial group is admitted on EVERY G-space base, first: M/{e} is
     # the identity ENTRY (`_mod_trivial` — a derivation output and the
@@ -1962,10 +1997,7 @@ def _sphere_mod_o2(base: GSpace, group: SubgroupOfO3) -> Quotient:
     p1, p2 = sp.symbols("p1 p2", real=True)
 
     invariants = (x_a, x_b**2 + x_c**2)
-    grad = [[sp.diff(p, v) for v in coords] for p in invariants]
-    gram_xyz = sp.Matrix(
-        [[sum(gi * gj for gi, gj in zip(a, b)) for b in grad] for a in grad]
-    )
+    gram_xyz = _procesi_schwarz(invariants, coords)
     # Re-express in the invariants: <grad p2, grad p2> = 4(x_b^2+x_c^2) = 4 p2.
     gram = gram_xyz.subs({x_b**2 + x_c**2: p2}).applyfunc(sp.simplify)
     gram = gram.subs({x_b: sp.sqrt(p2), x_c: 0})  # on the orbit, wlog
@@ -2077,10 +2109,7 @@ def _sphere_mod_mirror(base: GSpace, group: SubgroupOfO3) -> Quotient:
     u = sp.symbols("u0:3", real=True)
 
     invariants = (kept[0], kept[1], x_a**2)
-    grad = [[sp.diff(q, v) for v in coords] for q in invariants]
-    gram_xyz = sp.Matrix(
-        [[sum(gi * gj for gi, gj in zip(a, b)) for b in grad] for a in grad]
-    )
+    gram_xyz = _procesi_schwarz(invariants, coords)
     # Re-express in the invariants: <grad p_3, grad p_3> = 4 x_a^2 = 4 p_3.
     gram = gram_xyz.subs({x_a**2: u[2]}).applyfunc(sp.simplify)
     det_gram = sp.simplify(gram.det())
@@ -2178,6 +2207,29 @@ def _mod_trivial(base: GSpace, group: SubgroupOfO3) -> Quotient:
     )
 
 
+def _procesi_schwarz(invariants: "tuple[Any, ...]", coords: "tuple[Any, ...]") -> Any:
+    r"""The Procesi–Schwarz matrix :math:`P_{ij} = \langle \nabla p_i, \nabla p_j
+    \rangle` of ``invariants`` in the ambient ``coords``, before each entry
+    re-expresses it in its invariants (a substitution that is the entry's own:
+    it depends on which polynomial each invariant is).  Spelled once for the
+    catalogue's builders (the axial, the mirror and the point entry)."""
+    import sympy as sp
+
+    grad = [[sp.diff(p, v) for v in coords] for p in invariants]
+    return sp.Matrix([[sum(gi * gj for gi, gj in zip(a, b)) for b in grad] for a in grad])
+
+
+def _to_the_point(points: NDArray) -> NDArray:
+    r"""The chart onto :data:`POINT`: every input row is the point, an ``(n, 0)``
+    array, whatever the input's width. Constant, so it is the map onto a point
+    from ANY space, which :func:`quotient_onto` needs: an axial orbit space's
+    nodes are ``(n,)`` chart coordinates, and the induced arrow
+    :math:`S^2/O(2)_a \to S^2/O(3)` applies this chart to them (`[M]`
+    2026-10-26, qa: the column selection ``points[:, []]`` raised
+    ``IndexError`` on the slab rule's ``(8,)`` nodes)."""
+    return np.empty((np.asarray(points).shape[0], 0))
+
+
 def _sphere_mod_o3(base: GSpace, group: SubgroupOfO3) -> Quotient:
     r"""``S^2 / O(3) = {pt}``, derived per the standard procedure (#440).
 
@@ -2195,7 +2247,7 @@ def _sphere_mod_o3(base: GSpace, group: SubgroupOfO3) -> Quotient:
     generic orbit is the whole sphere, and
     :math:`\dim S^2/O(3) = 2 - 2 = 0` (not :math:`2 - \dim O(3) = -1`).
 
-    The chart selects no column (``(n, 0)`` out); the lift is the orbit
+    The chart is constant (``(n, 0)`` out, :func:`_to_the_point`); the lift is the orbit
     barycentre, the Reynolds projector onto :math:`O(3)`'s fixed subspace of
     :math:`\mathbb{R}^3`, which is :math:`\{0\}`: every orbit's barycentre
     is the origin, which lies in the ball, not on the sphere. The action is
@@ -2211,20 +2263,23 @@ def _sphere_mod_o3(base: GSpace, group: SubgroupOfO3) -> Quotient:
     """
     import sympy as sp
 
-    x, y, z = sp.symbols("x y z", real=True)
+    coords = x, y, z = sp.symbols("x y z", real=True)
     p1 = sp.Symbol("p1", real=True)
-    chart, lift = _coordinate_chart([], base.ambient_dim)
+    invariant = x**2 + y**2 + z**2
+    # <grad p1, grad p1> = 4 |x|^2 = 4 p1, re-expressed in the invariant.
+    gram = _procesi_schwarz((invariant,), coords).subs(x**2, p1 - y**2 - z**2).applyfunc(sp.simplify)
+    _, lift = _coordinate_chart([], base.ambient_dim)
     return Quotient(
         base=base,
         by=group,
         realization=POINT,
-        orbit_coordinates=chart,
+        orbit_coordinates=_to_the_point,
         lift_coordinates=lift,
         lift_codomain=Ball(base.ambient_dim),
-        generators=(p1 - (x**2 + y**2 + z**2),),
+        generators=(p1 - invariant,),
         syzygy=(),
-        gram=sp.ImmutableMatrix([[4 * p1]]),
-        det_gram=4 * p1,
+        gram=sp.ImmutableMatrix(gram),
+        det_gram=sp.simplify(gram.det()),
         derived_by="hand",
         # The sphere itself is ONE orbit, so any single direction is a
         # section; none is distinguished, and none is shipped.

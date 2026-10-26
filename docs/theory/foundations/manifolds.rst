@@ -4085,12 +4085,18 @@ is weaker (:ref:`manifold-gotcha-is-free`).
 The chart, the lift, and the section that is not shipped
 --------------------------------------------------------
 
-**The chart selects no column.** ``orbit_coordinates`` is the shared
-column-selection helper called with an empty column list, so it maps an
-:math:`(n, 3)` array of directions to an :math:`(n, 0)` array. `[M]` on
-41 seeded unit vectors the output shape is ``(41, 0)``. Every row of an
-:math:`(n, 0)` array is the point, so the chart is the constant map, as
-the quotient map of a single orbit must be.
+**The chart is the constant map.** ``orbit_coordinates`` is
+``_to_the_point``, which maps any ``(n, …)`` input to an :math:`(n, 0)`
+array: every row of an :math:`(n, 0)` array is the point, as the quotient
+map of a single orbit must be. It was first the shared column-selection
+helper called with an empty column list, which reads only :math:`(n, 3)`
+directions; `[M]` 2026-10-26 (qa) the induced arrow
+:math:`S^2/O(2)_x \to S^2/O(3)` (``quotient_onto``) then raised
+``IndexError`` on the slab rule's own ``(8,)`` cosine nodes, because an
+axial orbit space's points are chart coordinates. The constant map
+accepts any width, and the arrow returns ``(8, 0)``
+(``test_the_arrow_from_an_axial_orbit_space_reads_its_chart_coordinates``).
+The LIFT still uses the shared helper's empty-column half.
 
 **The lift is the Reynolds projector onto** :math:`\{0\}`. A lift is the
 orbit barycentre, the orthogonal projector :math:`P_H` onto :math:`H`'s
@@ -4256,16 +4262,18 @@ yet.** The pushforward of the uniform measure on :math:`S^2` along the
 quotient map is one atom of weight :math:`4\pi` on the point. The
 geometry layer carries no measure (:ref:`manifold-pushforward-reference`
 records why the pushforward reference is a function of the measure
-layer, not a field of the entry), and the measure layer has not
-catalogued this one. `[M]`
-``pushforward_reference(SPHERE.quotient(SubgroupOfO3.O3))`` raises,
-verbatim:
-
-.. code-block:: text
-
-   no pushforward reference is catalogued for the orbit space S^2/O3:
-   the shipped quotients are S^2/O(2)_a (LEGENDRE), S^2/sigma_a and
-   M/{e} (None).
+layer, not a field of the entry). The ruling of 2026-10-26: `[M]`
+``pushforward_reference(SPHERE.quotient(SubgroupOfO3.O3))`` returns
+``None``, by an arm keyed on the realization (any orbit space realized on
+the point lands there). ``None`` keeps its one meaning, "no shipped
+``ReferenceMeasure`` spells this pushforward": none spells a point mass.
+A degree of exactness against it would be vacuous under the measure
+layer's convention that exactness is asked of the normalised measure
+(total mass is not checked), since every function on a point is a
+constant. What is owed to #440 is the one-node measure itself, named and
+catalogued, not an exactness reference. Before the arm (the first docs
+commit of the entry, ``3bb4f39a``) the call fell through to the default
+refusal, whose message listed the catalogue without :math:`S^2/O(3)`.
 
 The type does not block it. `[M]` 2026-10-26
 ``DiscreteMeasure(nodes=np.zeros((1, 0)), weights=[4π], support=SPHERE.quotient(SubgroupOfO3.O3))``
@@ -4286,11 +4294,16 @@ Both remainders, naming and cataloguing the one-node measure of weight
 with #440.
 
 **Gates.** ``tests/gates/geometry/test_manifold.py::TestTheSphereModO3IsAPoint``
-pins the entry in four ``foundation`` rows: the realization, dimensions,
-name and memo; the generator, the Procesi–Schwarz matrix and
-:math:`\det P = 4` on the sphere; the chart and lift on three directions
-(with an independent orbit sample, the octahedron's six vertices, whose
-mean is the origin); and the point's membership law. The dimension-law
+pins the entry in six ``foundation`` rows: the realization, dimensions,
+name, memo, lift codomain and provenance; the generator, the
+Procesi–Schwarz matrix and :math:`\det P = 4` on the sphere; the chart and
+the lift on three directions, against an independent Reynolds average (the
+mean of each direction's images under the 48 elements of :math:`O_h`, whose
+fixed subspace is also :math:`\{0\}`; until the review of 2026-10-26 the
+row compared a literal octahedron with the origin, which touched no code);
+the induced arrow from :math:`S^2/O(2)_x` on its own ``(8,)`` nodes; the
+refusal of a realization the chart misses (:class:`Quotient`'s fifth
+clause); and the point's membership law. The dimension-law
 row realizes on ``POINT``, and the member-roster and ambient-width
 tables include the point. The landing commit's body records two
 mutations, dropping the catalogue entry and realizing it on an interval,
@@ -6759,12 +6772,13 @@ the base's Lebesgue measure is a fact about measures, so the edge
 (``tests/gates/numerics/test_concept_order.py``).
 
 The function is a ``match`` on the (base, group) pair with an explicit
-default that raises, so an orbit space outside the three catalogued
-families is refused rather than read as "no reference". The orbit
-catalogue is the only door that mints a :class:`Quotient` (`[M]`
-2026-10-19: the three ``Quotient(...)`` constructions in ``orpheus/`` are
-the three derivation functions, and the catalogue plus the trivial arm of
-``_catalogued_quotient`` admit exactly those families).
+default that raises, so an orbit space outside the catalogued families is
+refused rather than read as "no reference". The orbit catalogue is the
+only door that mints a :class:`Quotient` (`[M]` 2026-10-19: the three
+``Quotient(...)`` constructions in ``orpheus/`` were the three derivation
+functions; `[M]` 2026-10-26 they are four, the point entry's
+``_sphere_mod_o3`` added, and the function gained the arm for an orbit
+space realized on the point).
 
 .. dropdown:: First got wrong: the reference as a field, with a function-scope import
 
@@ -9373,7 +9387,10 @@ shipped, because it is the only input that separates the cylinder's
    non-``None`` for **two** of the eight, the identity and
    :math:`X = S^2/O(3)`, because every orbit space of the sphere maps
    onto the point (:ref:`manifold-s2-o3-terminal`). The arrow tier is
-   therefore populated; the arm still has no witness because no
+   therefore populated, and the arrow applies to an axial rule's own
+   ``(n,)`` nodes since the point's chart became the constant map (`[M]`
+   2026-10-26, qa: before that it raised ``IndexError`` on them); the arm
+   still has no witness because no
    registered rule lives on the point (`[M]` 2026-10-26: 0 of the 4
    geometries' angular domains is :math:`S^2/O(3)`; the one-node measure of weight
    :math:`4\pi` is #440's remaining work,
@@ -10109,7 +10126,7 @@ vanishing nowhere), while every direction has a stabiliser conjugate to
 A property ``Quotient.is_free`` returned ``singular_stratum is None`` under
 the name of the stronger predicate, with the docstring *"the action has no
 fixed points, i.e. no stratum"*, false on this entry. It had no production
-reader (`[M]` 2026-10-26: 0 in ``orpheus/``; 5 test lines, all of which
+reader (`[M]` 2026-10-26: 0 in ``orpheus/``; 4 test lines, all of which
 asserted the stratum through it), so it was retired rather than renamed:
 the field states the weaker fact itself, and a second spelling of it under
 another name is what the name got wrong. Read ``singular_stratum is None``.

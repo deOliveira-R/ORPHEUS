@@ -802,9 +802,12 @@ def pushforward_reference(orbit_space: Quotient) -> ReferenceMeasure | None:
     * **An orbit space realized on the point** (:math:`S^2/O(3)`, #440: a
       transitive group has one orbit) gives ``None``.  The pushforward is a
       point mass carrying the base's whole measure (:math:`4\pi` on
-      :math:`S^2`); no shipped ``ReferenceMeasure`` spells a point mass, and
-      a degree of exactness against it is vacuous (every rule integrates a
-      constant on a point exactly).  Keyed on the REALIZATION, not the
+      :math:`S^2`); no shipped ``ReferenceMeasure`` spells a point mass. A
+      degree of exactness against it would be vacuous under this module's
+      convention that exactness is asked of the normalised measure (total
+      mass is not checked): every function on a point is a constant, which
+      every rule of the right total integrates exactly. The measure itself
+      (one node of weight :math:`4\pi`) is #440's, in the measure layer.  Keyed on the REALIZATION, not the
       group's name: any transitive action lands here.
 
     ``None`` keeps one meaning: no shipped ``ReferenceMeasure`` spells this

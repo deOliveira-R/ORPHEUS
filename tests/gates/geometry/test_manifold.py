@@ -61,6 +61,7 @@ import pytest
 from orpheus.geometry.manifold import (
     POINT,
     Point,
+    _to_the_point,
     CIRCLE,
     COSINE_INTERVAL,
     HALF_LINE,
@@ -452,7 +453,6 @@ class TestQuotient:
 
         assert q.realization == base
         assert sp.simplify(q.det_gram - 1) == 0
-        assert q.singular_stratum is None
         assert q.singular_stratum is None  # free, vacuously: the only element is the identity
         assert q.dim == base.dim
 
@@ -3239,6 +3239,11 @@ class TestR4TheDimensionLawIsAMaximumOverTheProbeSet:
 # arm `dim_law_reads_dim_H` reddened 0 rows without it) =====
 
 
+def _radius(points):
+    """The chart R^3 -> R^3/O(3) = [0, inf): the one invariant's square root, |x|."""
+    return np.linalg.norm(np.asarray(points, dtype=float), axis=1)
+
+
 @pytest.mark.foundation
 @pytest.mark.parametrize("case", ("S2_mod_O3_is_a_POINT", "R3_mod_O3_is_a_RAY"))
 def test_the_law_subtracts_the_ORBITS_dimension_not_dim_H(case: str) -> None:
@@ -3261,13 +3266,18 @@ def test_the_law_subtracts_the_ORBITS_dimension_not_dim_H(case: str) -> None:
     borrowed one-element ``IndexSet`` from numerics, because geometry had no
     0-dimensional member.
     """
+    # Each row carries its honest chart, because the chart must land in the
+    # realization (Quotient's clause 5): the constant map onto the point, and
+    # the radius |x| onto the ray.
     if case == "S2_mod_O3_is_a_POINT":
         base, realization, codomain = SPHERE, POINT, Ball(3)
+        chart = _to_the_point
     else:
         base, realization, codomain = RealSpace(3), HALF_LINE, RealSpace(3)
+        chart = _radius
     entry = Quotient(
         base=base, by=SubgroupOfO3.O3, realization=realization,
-        orbit_coordinates=_all_coordinates, lift_coordinates=_all_coordinates,
+        orbit_coordinates=chart, lift_coordinates=_all_coordinates,
         lift_codomain=codomain,
     )
     assert entry.dim == base.dim - 2, (
@@ -3297,6 +3307,10 @@ class TestTheSphereModO3IsAPoint:
         assert entry.realization == POINT
         assert (entry.dim, entry.ambient_dim) == (0, 0)
         assert entry.name == "S^2/O3"
+        # The barycentres leave the sphere (they are the origin), so the lift
+        # lands in the ball; and the entry is a hand derivation.
+        assert entry.lift_codomain == Ball(3)
+        assert entry.derived_by == "hand"
         assert entry is SPHERE.quotient(SubgroupOfO3.O3), "the catalogue memoises one entry"
 
     @pytest.mark.foundation
@@ -3313,22 +3327,49 @@ class TestTheSphereModO3IsAPoint:
         grad = [sp.diff(invariant, v) for v in (x, y, z)]
         assert sp.simplify(sum(g * g for g in grad) - 4 * invariant) == 0
         assert sp.simplify(entry.det_gram - 4 * p1) == 0
+        assert sp.simplify(entry.gram - sp.Matrix([[4 * p1]])) == sp.zeros(1, 1)
         assert entry.det_gram.subs(p1, 1) == 4
         # One orbit type, so no stratum; NOT a free action (every stabiliser is an O(2)).
         assert entry.syzygy == () and entry.singular_stratum is None
 
     @pytest.mark.foundation
     def test_every_direction_charts_to_the_point_and_lifts_to_the_origin(self, entry) -> None:
-        r"""The chart keeps no column; the lift is the orbit barycentre, which
-        for the whole sphere is the origin (the octahedron's six vertices, an
-        orbit sample of :math:`O(3)`, average to it independently)."""
+        r"""The chart is constant; the lift is the orbit barycentre. The
+        independent reference is a Reynolds average computed through the group
+        machinery, not through the lift: the mean of a direction's images under
+        the 48 elements of :math:`O_h \subset O(3)`, whose fixed subspace is
+        also :math:`\{0\}`, so each orbit sample averages to the origin."""
         directions = np.array([[1.0, 0.0, 0.0], [0.0, 0.6, 0.8], [-0.48, 0.6, 0.64]])
         chart = entry.orbit_coordinates(directions)
         assert chart.shape == (3, 0)
         assert entry.contains(chart)
-        octahedron = np.vstack([np.eye(3), -np.eye(3)])
-        np.testing.assert_array_equal(entry.lift_coordinates(chart), np.zeros((3, 3)))
-        np.testing.assert_array_equal(octahedron.mean(axis=0), np.zeros(3))
+        elements = SubgroupOfO3.OctahedralOh.realization.representatives
+        reynolds = np.array([np.mean([g.on_points(d[None])[0] for g in elements], axis=0) for d in directions])
+        np.testing.assert_allclose(entry.lift_coordinates(chart), reynolds, atol=1e-15)
+
+    @pytest.mark.foundation
+    def test_the_arrow_from_an_axial_orbit_space_reads_its_chart_coordinates(self, entry) -> None:
+        r""":math:`S^2/O(2)_x \to S^2/O(3)` exists (:math:`O(2)_x \subseteq O(3)`) and
+        applies the point's chart to the axial entry's OWN nodes, ``(n,)`` cosines.
+        `[M]` 2026-10-26 (qa): with the chart a column selection it raised
+        ``IndexError`` on the slab rule's ``(8,)`` nodes."""
+        from orpheus.geometry.manifold import quotient_onto
+
+        arrow = quotient_onto(SPHERE.quotient(SubgroupOfO3.O2("x")), entry)
+        assert arrow is not None
+        assert arrow(np.linspace(-1.0, 1.0, 8)).shape == (8, 0)
+
+    @pytest.mark.foundation
+    def test_a_realization_the_chart_misses_is_refused(self, entry) -> None:
+        r"""Clause 5: the chart maps the base ONTO the realization, so a realization
+        it does not land in is refused where the entry is written. `[M]` 2026-10-26
+        (elegance review): both forgeries below constructed before the clause."""
+        with pytest.raises(ValueError, match="does not land in the realization"):
+            dataclasses.replace(SPHERE.quotient(SubgroupOfO3.O2("x")), realization=UNIT_INTERVAL)
+        with pytest.raises(ValueError, match="realization must be the base"):
+            dataclasses.replace(SPHERE.quotient(SubgroupOfO3.Trivial), realization=Ball(2))
+        with pytest.raises(ValueError, match="BASE's coordinates"):
+            dataclasses.replace(SPHERE.quotient(SubgroupOfO3.Mirror("y")), fundamental_domain=POINT)
 
     @pytest.mark.foundation
     def test_a_point_is_zero_coordinates(self) -> None:
