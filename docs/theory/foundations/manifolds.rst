@@ -4268,8 +4268,23 @@ verbatim:
    the shipped quotients are S^2/O(2)_a (LEGENDRE), S^2/sigma_a and
    M/{e} (None).
 
-Both remainders, the one-node measure of weight :math:`4\pi` and the CP
-wiring, stay with #440.
+The type does not block it. `[M]` 2026-10-26
+``DiscreteMeasure(nodes=np.zeros((1, 0)), weights=[4π], support=SPHERE.quotient(SubgroupOfO3.O3))``
+constructs, and its ``is_invariant_under(SubgroupOfO3.O3)`` is ``True``;
+the same measure on the bare ``POINT`` also constructs, and its
+invariance question raises :exc:`TypeError` (*"point is not a G-space:
+no rigid motion acts on the Point point, so a measure on it has no
+invariance question to answer"*), which is the bare point's
+:ref:`G-space status <manifold-point>` read from the measure side. And
+nothing registers such a rule: `[M]` the quadrature registry holds 4
+families (``GaussLegendre1D``, ``LebedevSphere``, ``LevelSymmetricSN``,
+``ProductQuadrature``), and the angular domains of its 4 geometries are
+``S^2/O2_x`` (slab, sphere) and ``S^2`` (cylinder, cartesian2d), so 0 of
+4 geometries spends :math:`O(3)`.
+
+Both remainders, naming and cataloguing the one-node measure of weight
+:math:`4\pi` (with its pushforward reference) and the CP wiring, stay
+with #440.
 
 **Gates.** ``tests/gates/geometry/test_manifold.py::TestTheSphereModO3IsAPoint``
 pins the entry in four ``foundation`` rows: the realization, dimensions,
@@ -9360,7 +9375,8 @@ shipped, because it is the only input that separates the cylinder's
    :math:`X = S^2/O(3)`, because every orbit space of the sphere maps
    onto the point (:ref:`manifold-s2-o3-terminal`). The arrow tier is
    therefore populated; the arm still has no witness because no
-   registered rule lives on the point (the one-node measure of weight
+   registered rule lives on the point (`[M]` 2026-10-26: 0 of the 4
+   geometries' angular domains is :math:`S^2/O(3)`; the one-node measure of weight
    :math:`4\pi` is #440's remaining work,
    :ref:`manifold-s2-o3-consumers`), so on ``"slab"`` and ``"sphere"``
    stage 0 still admits exactly what equality admitted. It bites on
