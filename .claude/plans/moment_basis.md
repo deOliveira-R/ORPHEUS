@@ -139,3 +139,15 @@ Mode: W3 surgical carve. The carve crosses numerics, transport and sn, so the ma
   - Left as is: the `DiscretizationScheme` Protocol does not declare `cell_basis`. It is `runtime_checkable`, so a new member would change what `isinstance` admits for the duck-typed stubs. Consumers are typed against `DiscretizationSchemeBase`, and the pyright ratchet passes.
 - **S5 done** (archivist): a new section `spaces-cell-basis` in `docs/theory/foundations/spaces.rst`, and every `moment_layout` and `moment_mass_diagonal` reference re-pointed across 7 pages. `[M]` `-E -W` clean; `dead_references` 12 → 3 (the 3 left predate the carve). The archivist's NEEDS: a `derive_interval_legendre_gram()` in `derivations/`, and the merge hash for the two history rows.
 - `[M]` The scope after the review fixes: 1972 passed, 0 failed. The pyright ratchet passes.
+
+## ⏹ Landed (2026-10-25)
+
+Merged to `main` @ `d6055ba7` (fast-forward; `a838c31e` S1 and S3, `9a82e5b3` S4, S5 and the review fixes, `d6055ba7` the history hashes). #423 is closed by the `9a82e5b3` trailer.
+
+Open items, in GitHub:
+- #662: thread the cell basis, not the per-axis integer, through `spatial_moments=`. It retires the width guard.
+- #612: the curvilinear cell-dependent moment metric.
+
+Still unmeasured: the traced-memo regeneration cost, and a positive control for the "0 of 8064 valid" reading (S0 spec §1). That regeneration is owed whatever this carve did.
+
+Next on the layer DAG line: the per-layer test re-filing campaign (geometry, mesh, numerics first), per `layer_dag.md`.
