@@ -59,6 +59,8 @@ import numpy as np
 import pytest
 
 from orpheus.geometry.manifold import (
+    POINT,
+    Point,
     CIRCLE,
     COSINE_INTERVAL,
     HALF_LINE,
@@ -128,6 +130,7 @@ _ALL: tuple[Manifold, ...] = (
     SPHERE * COSINE_INTERVAL,
     Ball(2),
     FundamentalDomain(SPHERE, ((0.0, 1.0, 0.0),), "y>=0"),
+    POINT,
 )
 
 
@@ -746,8 +749,11 @@ def test_ambient_dimension_is_defined_for_every_variant():
     from outside this module, to check that its per-axis partition has one
     axis per coordinate of the manifold it partitions.
     """
+    # Every member is carried in at least one column except the point, whose
+    # chart keeps no invariant (S^2/O(3), #440): 0 columns is its answer.
     for m in _ALL:
-        assert m.ambient_dim >= 1
+        assert m.ambient_dim >= (0 if isinstance(m, Point) else 1)
+    assert POINT.ambient_dim == 0
     assert SPHERE.quotient(SubgroupOfO3.O2("x")).ambient_dim == 1
     assert (SPHERE * CIRCLE).ambient_dim == 5
 
@@ -763,6 +769,7 @@ class TestAmbientDimensionLaws:
 
     _ATOMS = {
         SPHERE: 3,
+        POINT: 0,
         CIRCLE: 2,
         COSINE_INTERVAL: 1,
         REAL_LINE: 1,
@@ -1793,7 +1800,7 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
         from orpheus.geometry.manifold import _ORBIT_CATALOGUE
 
         names = sorted(g for _, g in _ORBIT_CATALOGUE)
-        assert names == ["O2_x", "O2_y", "O2_z", "sigma_x", "sigma_y", "sigma_z"]
+        assert names == ["O2_x", "O2_y", "O2_z", "O3", "sigma_x", "sigma_y", "sigma_z"]
         with pytest.raises(NotImplementedError) as excinfo:
             SPHERE.quotient(SubgroupOfO3.Cn(4))
         for name in names:
@@ -3247,11 +3254,15 @@ def test_the_law_subtracts_the_ORBITS_dimension_not_dim_H(case: str) -> None:
     * :math:`\mathbb{R}^3/O(3)` is the radial RAY — ``3 − 2 = 1`` ✓, while
       ``dim H = 3`` gives ``0``.
 
-    Neither is catalogued (:math:`S^2/O(3)` is #440), so the row builds the
-    ``Quotient`` directly — which is exactly the tier the law lives at.
+    The row builds the ``Quotient`` directly, which is exactly the tier the
+    law lives at (:math:`S^2/O(3)` is also catalogued since #440, with the
+    same :data:`~orpheus.geometry.manifold.POINT` realization;
+    :class:`TestTheSphereModO3IsAPoint`).  Until 2026-10-26 the point was a
+    borrowed one-element ``IndexSet`` from numerics, because geometry had no
+    0-dimensional member.
     """
     if case == "S2_mod_O3_is_a_POINT":
-        base, realization, codomain = SPHERE, IndexSet(label="pt", n=1), Ball(3)
+        base, realization, codomain = SPHERE, POINT, Ball(3)
     else:
         base, realization, codomain = RealSpace(3), HALF_LINE, RealSpace(3)
     entry = Quotient(
@@ -3267,3 +3278,61 @@ def test_the_law_subtracts_the_ORBITS_dimension_not_dim_H(case: str) -> None:
         "dim H = 3 here, so a law written as dim M − dim H would refuse this "
         "entry — which is the whole reason the law is stated on the ORBIT"
     )
+
+
+# ===== S^2/O(3) is a point (#440; the layer DAG plan, ruling 35) =====
+
+
+class TestTheSphereModO3IsAPoint:
+    r""":math:`S^2/O(3)` is catalogued: :math:`O(3)` is transitive on the
+    sphere, so the orbit space is one point, realized on the 0-dimensional
+    :class:`~orpheus.geometry.manifold.Point`."""
+
+    @pytest.fixture(scope="class")
+    def entry(self):
+        return SPHERE.quotient(SubgroupOfO3.O3)
+
+    @pytest.mark.foundation
+    def test_the_orbit_space_is_the_point(self, entry) -> None:
+        assert entry.realization == POINT
+        assert (entry.dim, entry.ambient_dim) == (0, 0)
+        assert entry.name == "S^2/O3"
+        assert entry is SPHERE.quotient(SubgroupOfO3.O3), "the catalogue memoises one entry"
+
+    @pytest.mark.foundation
+    def test_the_procesi_schwarz_matrix_matches_the_hand_derivation(self, entry) -> None:
+        r"""One invariant, :math:`p_1 = |x|^2`, so :math:`P = 4 p_1`; on the
+        sphere :math:`p_1 = 1` and :math:`\det P = 4` vanishes nowhere: one
+        orbit type, no stratum."""
+        sp = pytest.importorskip("sympy")
+        p1 = sp.Symbol("p1", real=True)
+        x, y, z = sp.symbols("x y z", real=True)
+        (generator,) = entry.generators
+        invariant = sp.solve(generator, p1)[0]
+        assert sp.simplify(invariant - (x**2 + y**2 + z**2)) == 0
+        grad = [sp.diff(invariant, v) for v in (x, y, z)]
+        assert sp.simplify(sum(g * g for g in grad) - 4 * invariant) == 0
+        assert sp.simplify(entry.det_gram - 4 * p1) == 0
+        assert entry.det_gram.subs(p1, 1) == 4
+        assert entry.syzygy == () and entry.is_free
+
+    @pytest.mark.foundation
+    def test_every_direction_charts_to_the_point_and_lifts_to_the_origin(self, entry) -> None:
+        r"""The chart keeps no column; the lift is the orbit barycentre, which
+        for the whole sphere is the origin (the octahedron's six vertices, an
+        orbit sample of :math:`O(3)`, average to it independently)."""
+        directions = np.array([[1.0, 0.0, 0.0], [0.0, 0.6, 0.8], [-0.48, 0.6, 0.64]])
+        chart = entry.orbit_coordinates(directions)
+        assert chart.shape == (3, 0)
+        assert entry.contains(chart)
+        octahedron = np.vstack([np.eye(3), -np.eye(3)])
+        np.testing.assert_array_equal(entry.lift_coordinates(chart), np.zeros((3, 3)))
+        np.testing.assert_array_equal(octahedron.mean(axis=0), np.zeros(3))
+
+    @pytest.mark.foundation
+    def test_a_point_is_zero_coordinates(self) -> None:
+        assert (POINT.dim, POINT.ambient_dim, POINT.name) == (0, 0, "point")
+        assert POINT.contains(np.zeros((2, 0)))
+        with pytest.raises(ValueError, match="ambient dimension 0"):
+            POINT.contains(np.zeros((2, 1)))
+        assert Point() == POINT
