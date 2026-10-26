@@ -146,7 +146,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("data/test_group_permutation_invariance.py", "orpheus.mesh"),
         ("data/test_group_permutation_invariance.py", "orpheus.sn"),
         ("data/test_group_permutation_invariance.py", "orpheus.transport"),
-        ("data/test_mixture_xs_balance.py", "orpheus.derivations"),
         ("data/test_n2n_yield_convention.py", "orpheus.transport"),
         ("derivations/_characteristic_ladders.py", "tests.gates.sn"),
         ("derivations/test_characteristic_albedos.py", "tests.gates.sn"),

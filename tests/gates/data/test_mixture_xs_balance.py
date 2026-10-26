@@ -244,11 +244,11 @@ class TestAssertBalancedIntrinsic:
 # ══════════════════════════════════════════════════════════════════════
 #
 # Mode-7 honest scope: this pins the PHYSICAL synthetic tables only —
-# macro_xs.synthetic A/B/C/D × 1g/2g/4g, the Sood 2003 registry, and the
-# homogeneous derive builders. The Atalay criticality-parameter Mixtures,
-# the structural scaffolds, and the billiard carrier are deliberately
-# imbalanced and are EXCLUDED (Atalay is structurally absent from
-# SOOD2003_CASES — it lives in ATALAY1997_CASES — so no filter is needed).
+# macro_xs.synthetic A/B/C/D × 1g/2g/4g. The published tables (the Sood 2003
+# registry, the homogeneous derive builders) and the Atalay exemption rows
+# are claims about the derivations' data and live in
+# tests/gates/derivations/test_published_mixtures_balance.py (layer DAG
+# ruling 29, 2026-10-26).
 
 
 def _synthetic_mixtures():
@@ -261,45 +261,12 @@ def _synthetic_mixtures():
     ]
 
 
-def _sood2003_mixtures():
-    from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
-
-    out = []
-    for case_id, case in SOOD2003_CASES.items():
-        for mat_id, mix in case.materials.items():
-            out.append(pytest.param(mix, id=f"sood2003-{case_id}-m{mat_id}"))
-    return out
-
-
-def _homogeneous_mixtures():
-    from orpheus.derivations.continuous.analytical.homogeneous import (
-        derive_1g,
-        derive_2g,
-        derive_4g,
-    )
-
-    out = []
-    for fn in (derive_1g, derive_2g, derive_4g):
-        case = fn()
-        for mat_id, mix in case.materials.items():
-            out.append(pytest.param(mix, id=f"homog-{fn.__name__}-m{mat_id}"))
-    return out
-
-
 @_needs_api
 class TestPhysicalTableSweep:
     """Every PHYSICAL synthetic Mixture must balance. The typo-catcher."""
 
     @pytest.mark.parametrize("mix", _synthetic_mixtures())
     def test_synthetic_mixtures_balance(self, mix: Mixture) -> None:
-        mix.assert_balanced(atol=_ATOL)
-
-    @pytest.mark.parametrize("mix", _sood2003_mixtures())
-    def test_sood2003_balances(self, mix: Mixture) -> None:
-        mix.assert_balanced(atol=_ATOL)
-
-    @pytest.mark.parametrize("mix", _homogeneous_mixtures())
-    def test_homogeneous_balances(self, mix: Mixture) -> None:
         mix.assert_balanced(atol=_ATOL)
 
 
@@ -373,82 +340,38 @@ class TestExemptionIntegrity:
             err_msg="imbalanced Mixture must construct fine (no __post_init__ balance raise)",
         )
 
-    def test_atalay_criticality_mixture_constructs(self) -> None:
-        """Atalay νΣf=(c-1)Σt c>1 mixture (residual≈SigF) still builds.
-
-        Atalay is in ATALAY1997_CASES, NOT in SOOD2003_CASES, so gate 2 never
-        touches it. Confirm it constructs and IS imbalanced (the exemption is
-        real, not an accident of a balanced fixture).
-        """
-        from orpheus.derivations.continuous.sood_registry.atalay1997 import (
-            _mix_iso_at_c,
-        )
-
-        mix = _mix_iso_at_c(1.30)  # MUST NOT raise on construction
-        rowsum_s0 = np.array(mix.SigS[0].sum(axis=1)).ravel()
-        rowsum_2 = np.array(mix.Sig2[0].sum(axis=1)).ravel()
-        derived = mix.SigC + mix.SigL + mix.SigF + rowsum_s0 + rowsum_2
-        residual = float(np.max(np.abs(mix.SigT - derived)))
-        # It is INTENTIONALLY imbalanced (the c>1 criticality encoding).
-        np.testing.assert_array_less(
-            1e-3, residual,
-            err_msg=f"Atalay c=1.30 must be (intentionally) imbalanced; residual={residual}",
-        )
-
-    def test_atalay_not_in_sood2003_registry(self) -> None:
-        """Structural exemption: no Atalay case_id appears in SOOD2003_CASES.
-
-        This is WHY gate 2 needs no defensive filter — the swept registry
-        simply does not contain the exempt set. If a future edit adds Atalay
-        to SOOD2003_CASES, this reddens BEFORE gate 2 starts failing.
-        """
-        from orpheus.derivations.continuous.sood_registry import SOOD2003_CASES
-
-        atalay_ids = [cid for cid in SOOD2003_CASES if "atalay" in cid.lower()]
-        np.testing.assert_array_equal(
-            len(atalay_ids), 0,
-            err_msg=f"Atalay must stay out of SOOD2003_CASES; found {atalay_ids}",
-        )
-
 
 # ══════════════════════════════════════════════════════════════════════
 # Gate 5 — atol band justification (residuals separate balancers/violators)
 # ══════════════════════════════════════════════════════════════════════
 
 
+def _balance_residual(mix: Mixture) -> float:
+    """``max_g |SigT - (SigC + SigL + SigF + rowsum(SigS[0]) + rowsum(Sig2[0]))|``, spelled by hand (not
+    ``Mixture.balance_residual``, the API under test). Imported by the published-table rows of
+    ``tests/gates/derivations/test_published_mixtures_balance.py``."""
+    rowsum_s0 = np.array(mix.SigS[0].sum(axis=1)).ravel()
+    rowsum_2 = np.array(mix.Sig2[0].sum(axis=1)).ravel()
+    derived = mix.SigC + mix.SigL + mix.SigF + rowsum_s0 + rowsum_2
+    return float(np.max(np.abs(mix.SigT - derived)))
+
+
 class TestAtolBand:
     """atol=1e-9 sits in the dead-band between balancers (≤4.4e-16) and
-    violators (≥1.6e-2). This test pins the band so a future tightening of
-    the synthetic tables (or a regressed Atalay encoding) is caught."""
-
-    @staticmethod
-    def _residual(mix: Mixture) -> float:
-        rowsum_s0 = np.array(mix.SigS[0].sum(axis=1)).ravel()
-        rowsum_2 = np.array(mix.Sig2[0].sum(axis=1)).ravel()
-        derived = mix.SigC + mix.SigL + mix.SigF + rowsum_s0 + rowsum_2
-        return float(np.max(np.abs(mix.SigT - derived)))
+    violators (≥1.6e-2). This class pins the balancer side and the constant;
+    the violator side, a regressed Atalay encoding, is
+    ``tests/gates/derivations/test_published_mixtures_balance.py::TestAtolBand``."""
 
     def test_physical_tables_below_1e_12(self) -> None:
         from orpheus.data.macro_xs.synthetic import get_mixture
 
         for region in "ABCD":
             for ng in ("1g", "2g", "4g"):
-                r = self._residual(get_mixture(region, ng))
+                r = _balance_residual(get_mixture(region, ng))
                 np.testing.assert_array_less(
                     r, 1e-12,
                     err_msg=f"physical {region}-{ng} residual={r} should be at FP floor",
                 )
-
-    def test_atalay_violator_above_1e_3(self) -> None:
-        from orpheus.derivations.continuous.sood_registry.atalay1997 import (
-            _mix_iso_at_c,
-        )
-
-        r = self._residual(_mix_iso_at_c(1.30))
-        np.testing.assert_array_less(
-            1e-3, r,
-            err_msg=f"Atalay c=1.30 residual={r} should be ≫ atol (intentional)",
-        )
 
     def test_atol_sits_in_dead_band(self) -> None:
         """1e-9 is above every balancer floor and below every violator."""
