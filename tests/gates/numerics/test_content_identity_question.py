@@ -1,7 +1,7 @@
 r"""Content identity of the question values (#405 P1 step 7, S7.9-S7.12).
 
 Specified by the test-architect (2026-10-02). Its ``ROSTER`` joins the union
-in ``tests/gates/values/test_content_identity.py`` (S5.6's route gate reads
+in ``tests/gates/test_content_identity_census.py`` (S5.6's route gate reads
 it; S5.9 walks ``orpheus.numerics`` and reds while a class has no roster
 entry, ``[M]`` 2026-10-02 on the prototype).
 
@@ -43,6 +43,7 @@ pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_content_identity_question.py"
 _CI = "tests/gates/values/test_content_identity.py"
+_CENSUS = "tests/gates/test_content_identity_census.py"
 _MF = "tests/gates/numerics/test_content_identity_mesh_free.py"
 _ROOT = Path(__file__).resolve().parents[3]
 
@@ -166,7 +167,7 @@ ROSTER: tuple[Entry, ...] = (_EIGEN, _FIXED, _RESPONSE, _FUNDAMENTAL, _NEAREST)
 # ── S7.9: every part is content ─────────────────────────────────────────────
 
 
-@pytest.mark.rests_on(f"{_CI}::test_s5_9_the_population_is_the_roster")
+@pytest.mark.rests_on(f"{_CENSUS}::test_s5_9_the_population_is_the_roster")
 @pytest.mark.parametrize("entry", ROSTER, ids=lambda e: e.id)
 def test_s7_9_population(entry: Entry) -> None:
     check_population(entry)

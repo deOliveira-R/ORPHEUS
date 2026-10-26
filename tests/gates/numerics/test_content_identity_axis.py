@@ -22,7 +22,7 @@ params, ``FaceRoles``).
 
 The S5.2, S5.3 and pickle rows run the shared checkers of
 ``tests/gates/_content_identity_helpers.py`` over this roster; S5.9's
-population row (``tests/gates/values/test_content_identity.py``) reads it,
+population row (``tests/gates/test_content_identity_census.py``) reads it,
 so an ``Axis`` subclass added without an entry reds there.
 """
 

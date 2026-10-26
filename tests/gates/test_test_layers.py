@@ -371,18 +371,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("transport/test_timed_full_field.py", "orpheus.sn"),
         ("transport/test_timed_full_field.py", "tests.gates.sn"),
         ("transport/test_wave2_s4_tables.py", "orpheus.diffusion"),
-        ("values/test_content_identity.py", "orpheus.data"),
-        ("values/test_content_identity.py", "orpheus.diffusion"),
-        ("values/test_content_identity.py", "orpheus.geometry"),
-        ("values/test_content_identity.py", "orpheus.numerics"),
-        ("values/test_content_identity.py", "tests.gates.data"),
-        ("values/test_content_identity.py", "tests.gates.derivations"),
-        ("values/test_content_identity.py", "tests.gates.geometry"),
-        ("values/test_content_identity.py", "tests.gates.mesh"),
-        ("values/test_content_identity.py", "tests.gates.numerics"),
-        ("values/test_content_identity.py", "tests.gates.reference"),
-        ("values/test_content_identity.py", "tests.gates.specification"),
-        ("values/test_content_identity.py", "tests.gates.transport"),
     }
 )
 

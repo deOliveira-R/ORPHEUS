@@ -3260,22 +3260,31 @@ fixes added rows, and their run of record is the full suite.
        under ``PYTHONHASHSEED`` 1 and 2 agree, with a ``str`` hash as
        the control that the harness sees salting); the canonical forms
        (S5.4); the route gate (S5.6: a decoy rebound over the
-       encoder's one recursive entry must move the digest and the hash
-       of every roster type and every derived space name, so a type or
-       a space still hashing its own bytes reds as a second encoder);
-       the fingerprint (S5.7); the schema tag (S5.8: a field added,
-       renamed or reordered, a version raised, a class renamed each
-       move the digest; a class moved is the relocation file's); conformance (S5.9: every
-       content class takes ``__hash__`` from the mixin and ``__eq__``
-       from it or a declared override, a dataclass is ``eq=False`` and
-       frozen, and every concrete content class has a roster entry)
+       encoder's one recursive entry must move the digest, the hash
+       and the derived name of every synthetic subject, so a route
+       still hashing its own bytes reds as a second encoder);
+       the fingerprint (S5.7, of synthetic values since 2026-10-26);
+       the schema tag (S5.8: a field added, renamed or reordered, a
+       version raised, a class renamed each move the digest; a class
+       moved is the relocation file's)
    * - ``tests/gates/values/test_content_identity_relocation.py``
      - 17
      - the type-name rule: an ``orpheus`` class relocated between two
        modules keeps every key (three encoders, four negative
        controls); a foreign same-qualname pair keys apart at every
-       site; no two nameable ``orpheus`` classes share a qualified
-       name, with two positive controls
+       site
+   * - ``tests/gates/test_content_identity_census.py``
+     - (moved 2026-10-26)
+     - the censuses of the contract over every ``orpheus`` package,
+       moved from the two files above (layer DAG ruling 28):
+       conformance (S5.9: every content class takes ``__hash__`` from
+       the mixin and ``__eq__`` from it or a declared override, a
+       dataclass is ``eq=False`` and frozen, and every concrete content
+       class has a roster entry); the route gate over every roster type
+       and every derived space name; the production fingerprint (a
+       mixture, a hollow sphere and a material set); no two nameable
+       ``orpheus`` classes share a qualified name, with two positive
+       controls
    * - ``tests/gates/numerics/test_content_identity_axis.py``
      - 32
      - the ``Axis`` family: equal content is one value, a moved part
@@ -3340,7 +3349,11 @@ every stored entry; the message says so, and a re-pin carries its
 reason in the commit message. The inputs are literals and IEEE-exact
 arithmetic, with no output of libm or LAPACK, so the pinned bytes are
 the same on every platform (V&V anti-pattern 38, never pin a platform
-library's float output). The ``gates`` CI workflow runs the five files
+library's float output). Since 2026-10-26 (layer DAG ruling 28) these three
+pins are ``tests/gates/test_content_identity_census.py::test_s5_7_the_production_digest_bytes_are_recorded``,
+and the values file's own S5.7 pins four synthetic values of its module (an
+array, a sparse matrix, a frozen part with an ``Enum``, a ``FrozenMapping``).
+The ``gates`` CI workflow runs six files (the root census among them)
 under ``-O`` on its Linux runner, a step named "The content digests are
 the same bytes on this platform", so a platform difference in the
 encoding reddens there against the pins measured on the macOS host.

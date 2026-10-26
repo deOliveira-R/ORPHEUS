@@ -5,8 +5,8 @@ Not a test module (no ``test_`` prefix). Each owning tree (``tests/gates/data``,
 :class:`Entry` values, one per type whose identity is its content, and runs
 the per-type legs of S5.2 (equal content: equal ``==``, ``hash`` and digest)
 and S5.3 (a change to any part changes the digest) through the checkers here.
-``tests/gates/values/test_content_identity.py`` imports the three rosters for
-the population gate S5.9 and the route gate S5.6.
+``tests/gates/test_content_identity_census.py`` (the root census) imports every roster for
+the population gate S5.9 and the route gate S5.6 over the tree.
 
 The population is the TYPE, never a hand list (spec S5.3, ``instrument-doctrine``
 X2 STRUCTURAL-DENOMINATOR): an entry declares its expected part names, the gate
