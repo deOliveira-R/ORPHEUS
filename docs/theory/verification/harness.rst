@@ -124,15 +124,22 @@ docstring's ``:math:`transport-cartesian``` role is picked up by
 sphinxcontrib-nexus and written as a graph edge from the test node
 to ``math:equation:transport-cartesian`` on the next ``sphinx-build``.
 
-For file-level application (the most common shape in the repo —
-see ``test_cp_verification.py`` or ``test_homogeneous.py``), use
-``pytestmark`` at module scope:
+For file-level application, use ``pytestmark`` at module scope. It is
+the most common shape in the repository: `[M]` 2026-10-26, an AST pass
+over ``tests/``, 463 of the 688 files named ``test_*.py`` assign a
+module-level ``pytestmark``. The homogeneous suite,
+``tests/gates/homogeneous/test_homogeneous.py``, declares its level and
+its labels together (the block below abbreviates its label list):
 
 .. code-block:: python
 
    pytestmark = [pytest.mark.l1, pytest.mark.verifies(
-       "collision-rate", "p-inf", "matrix-eigenvalue", "mg-balance",
+       "one-group-kinf", "inf-hom-balance", "matrix-eigenvalue", "mg-balance",
    )]
+
+A file whose classes sit on different rungs declares only the labels at
+module scope and puts a level marker on each class:
+``tests/gates/cp/test_verification.py`` is that shape.
 
 Foundation tests use ``@pytest.mark.foundation`` instead of an
 ``lN`` marker and never declare ``verifies(...)``:
@@ -332,8 +339,8 @@ ever trips the scanner, the example is the thing to restructure.
 Foundation tests — software invariants outside the L0..L3 ladder
 -----------------------------------------------------------------
 
-The L0..L3 ladder (:ref:`vv-level-ladder`) is organized around
-Cardinal Rule 4 — "Are we solving the equations right?" Each rung
+The L0..L3 ladder (:ref:`vv-level-ladder`) is organized around the
+verification question, "Are we solving the equations right?" Each rung
 assumes there is a **physics equation** in a Sphinx theory page
 being verified: L0 checks a
 hand-calculation of a single term, L1 asserts measured convergence
@@ -350,30 +357,43 @@ But some tests exist that are **not** about physics:
 
    * - Example
      - What it verifies
-   * - ``test_geometry::test_cartesian_single_cell``
-     - ``compute_volumes_1d`` returns the right cell volume for
-       known edges — a data-structure contract of the
-       :class:`~orpheus.mesh.Mesh1D` factory.
+   * - ``test_geometry::TestVolumes1D``
+     - ``compute_volumes_1d`` returns the coordinate system's measure
+       of each cell, checked against hand-computed closed forms for the
+       slab, the cylinder and the sphere (``test_cartesian_single_cell``:
+       the slab interval ``[1, 3]`` has measure ``2``). This is the
+       geometry layer's mathematics, not neutron physics: the measure is
+       derived on :doc:`/theory/foundations/structured_geometry` in an
+       unlabelled ``.. math::`` block, so the test has no ``verifies(...)`` target.
    * - ``test_mesher::test_equal_volume_{cylindrical,spherical}_invariant``
-     - Every cell in an equal-volume zone has bit-identical volume
-       by construction (the algebraic invariant that caught
-       ERR-020). Not a physics claim — a round-trip
-       correctness property of the equal-volume spacing rule, which
-       stores each cell's volume as the equal share of its interval's
-       measure (``Mesh1D.from_geometry``'s subdivision until P1 step 3b
-       of #405).
+     - The cells of one equal-volume interval have exactly equal
+       volumes (asserted with ``==``, not a tolerance), and their sum is
+       the interval's closed-form measure to ``rtol=1e-14``. A violation
+       of this invariant was ERR-020, and both rows carry
+       ``catches("ERR-020")``. The property belongs to the equal-volume
+       rule, ``CellsByCount.uniform_volume`` (spacing ``EqualVolume`` in
+       ``orpheus/mesh/partition.py``), applied through
+       ``Mesher(geometry).partition(rule).mesh``: the rule stores each
+       cell's volume as the equal share of its interval's measure
+       instead of re-deriving it from the edges. Until P1 step 3b of
+       #405 (``3a6468e6``) the subdivision was ``Mesh1D.from_geometry``'s,
+       a method that no longer exists.
    * - ``test_factories::TestPWRPin2D``
      - ``pwr_pin_2d`` returns a 2-D mesh of the requested shape whose
        material map holds the fuel, the cladding and the coolant, with
        flat material ids. A factory contract, not transport physics.
-   * - ``test_mesh1d::TestMesh1D``
-     - ``Mesh1D`` instances are frozen, and their derived views
-       (widths, centres, total width, cell count) follow from the edges.
-       Language-level contract, not a reactor-physics equation.
+   * - ``test_mesh1d::TestTheValue::test_the_derived_views`` and
+       ``::test_frozen_and_read_only``
+     - A ``Mesh1D`` is a frozen value whose arrays are read-only, and
+       its derived views (widths, centres, face areas, cell count, total
+       width) follow from its edges on the slab, the cylinder and the
+       sphere. A language-level contract, not a reactor-physics equation.
 
 These tests **must** exist — every downstream solver depends on
 them — but there is no theory label for "volumes are computed
-correctly" or "the factory rejects non-monotone edges." Calling
+correctly" or "the mesh refuses edges that are not strictly
+increasing" (``test_mesh1d::TestConstructionLaws``, row
+``edges-decreasing``). Calling
 them L0 is a category error: L0 is term verification of a physics
 equation, and these tests don't have a physics equation to verify.
 
@@ -415,8 +435,11 @@ to the physics ladder. If two conflicting markers are applied
 level wins — see the tiebreak rule in ``_existing_level`` of
 ``tests/conftest.py``. The ``catches("ERR-NNN")`` decorator is
 orthogonal to the level bucket: a foundation test can absolutely
-be the catcher for an ERR entry (ERR-020 is caught by
-``TestZoneSubdivision``, which is foundation).
+be the catcher for an ERR entry. `[M]` 2026-10-26, ``git grep
+'catches("ERR-020")' -- tests``: ERR-020 has six catchers, four rows of
+``TestMeshingAGeometry`` in ``tests/gates/mesh/test_mesher.py`` and two
+of ``TestEqualVolume`` in ``tests/gates/mesh/test_partition.py``, and
+both files are foundation at module scope.
 
 **Audit reporting.** ``python -m tests._harness.audit`` reports
 foundation tests in their own row of the level breakdown and
