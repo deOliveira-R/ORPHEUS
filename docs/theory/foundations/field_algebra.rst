@@ -252,7 +252,7 @@ is exactly the inherited
 .. Rationale: this is the STRUCTURAL typing identity of a flux leaf, not a
 .. solver claim — there is no eigenvalue, flux shape, or convergence order
 .. in it. Its verifiable content is pinned bit-exactly by the foundation
-.. battery tests/gates/numerics/test_flux_vector_algebra.py across the four
+.. battery tests/gates/transport/fields/test_flux_vector_algebra.py across the four
 .. parameterized leaves (legality + exactness of the sum, commutativity,
 .. zero-is-the-identity with the copy contract, the signed difference, the
 .. round-trip and telescoping to 8 ULP, and scalar algebra), plus the
@@ -1012,7 +1012,7 @@ partial-current metric asserts.
 
 The carve owed this a **negative control**, and it has one, re-derived
 in place: ``test_fiber_guard_cross_mesh_refuses`` in
-``tests/gates/numerics/test_flux_vector_algebra.py`` now carries the
+``tests/gates/transport/fields/test_flux_vector_algebra.py`` now carries the
 correctly-blind leg (twin carriers ADD, with an activation guard
 asserting their spaces really do compare equal — so the leg cannot
 silently become vacuous), the refusal leg (a stretched carrier reds on
@@ -1579,7 +1579,7 @@ Numerical evidence
    * - Gate (test)
      - Level / pillar
      - What it proves
-   * - ``tests/gates/numerics/test_flux_vector_algebra.py``
+   * - ``tests/gates/transport/fields/test_flux_vector_algebra.py``
      - ``foundation``
      - The :math:`V` algebra of :eq:`flux-vector-algebra`, across four
        parameterized flux leaves (angular / scalar / moment /
@@ -1593,7 +1593,7 @@ Numerical evidence
        carve:** ``Field.__add__`` → subtraction reds 12 value legs while
        every type leg stays green, which is why the type legs alone are
        not the gate.
-   * - ``tests/gates/numerics/test_flux_vector_algebra.py``
+   * - ``tests/gates/transport/fields/test_flux_vector_algebra.py``
        (``test_fiber_guard_cross_mesh_refuses``)
      - ``foundation``, negative control
      - The fiber discipline lands on the **retained**

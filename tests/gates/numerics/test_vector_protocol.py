@@ -10,8 +10,12 @@ Protocol is satisfied — without any shared inheritance ancestor — by
 * :class:`~orpheus.transport.timed_full_field.TimedFullField` (the
   composite carrier),
 
-while objects lacking the vector-space dunders are rejected. These are
-the positive + negative type-gates of campaign step 1.
+while objects lacking the vector-space dunders are rejected. This module
+holds the numerics half of those type-gates: the ``np.ndarray`` positive, the
+negatives and the type variable's bound. The carrier positives (the transport
+flux leaves and ``TimedFullField``) are transport claims and live in
+``tests/gates/transport/fields/test_flux_vector_algebra.py``, section 5
+(moved there with the layer-DAG re-filing, 2026-10-25).
 
 This is a ``foundation`` gate — a software-invariant on the algebra's
 type surface, with no theory-page ``:label:`` (so it carries no
@@ -22,71 +26,20 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import V, Vector
-from orpheus.sn.problem import SNProblem
-from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
-from orpheus.transport.fields.scalar_flux import ScalarFlux
-from orpheus.transport.timed_full_field import TimedFullField
-
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
 
 
 pytestmark = [pytest.mark.foundation]
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
-    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
 # ───────────────────────────────────────────────────────────────────────
-# Positive — the three carrier families satisfy Vector for free
+# Positive — the wire format satisfies Vector for free
 # ───────────────────────────────────────────────────────────────────────
 
 
 def test_ndarray_is_vector() -> None:
     """The flat serialization wire format is a Vector."""
     assert isinstance(np.zeros(3), Vector)
-
-
-def test_field_leaves_are_vectors() -> None:
-    """Every Field leaf (bulk + boundary, flux + moment) satisfies Vector.
-
-    Covers all three storage families: angular (``AngularFlux``), scalar
-    (``ScalarFlux``), moment (``HarmonicMomentFlux`` — the carrier #256
-    closes the moment-state path around), and the boundary locus
-    (``AngularBoundaryFlux``).
-    """
-    m = _slab_mesh()
-    assert isinstance(AngularFlux.zeros(m.angular_bulk_space), Vector)
-    assert isinstance(ScalarFlux.zeros(m.bulk_space), Vector)
-    assert isinstance(HarmonicMomentFlux.zeros_for_problem_and_L(m, 1), Vector)
-    assert isinstance(AngularBoundaryFlux.zeros(m.angular_trace), Vector)
-
-
-def test_timed_full_field_is_vector() -> None:
-    """The composite carrier satisfies Vector via its delegate dunders.
-
-    This is the load-bearing positive case: ``TimedFullField`` conforms
-    to a numerics-level Protocol WITHOUT ``numerics`` importing
-    ``transport`` (the layering payoff of a structural Protocol).
-    """
-    m = _slab_mesh()
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
-    assert isinstance(state, Vector)
 
 
 # ───────────────────────────────────────────────────────────────────────

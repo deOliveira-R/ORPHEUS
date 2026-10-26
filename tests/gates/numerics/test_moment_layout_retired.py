@@ -11,6 +11,12 @@ anything print the same zero), and reports its input count.
 module exists; 14 production + 10 test ``ImportFrom`` statements name it; the
 float root at ``fields/_bases.py:533``; the Kronecker decode at
 ``_ubld.py:144``; the θ literal ``1.0 / 3.0`` at ``linear_discontinuous.py:331``.
+
+One row predates that carve: ``test_the_retired_class_is_unspellable`` witnesses the
+retirement of ``SpatialMomentSpace``, the Euclidean spelling of the moment tail, which
+landed at ``336b6394`` (2026-09-08); it is green at ``57f2d777`` and was moved here from
+``tests/gates/numerics/test_spatial_moment_tail_is_the_schemes_axis.py`` when that file's
+field rows moved to ``tests/gates/transport/spatial/`` (layer-DAG re-filing, 2026-10-25).
 """
 
 from __future__ import annotations
@@ -117,3 +123,15 @@ def test_the_tail_rule_lives_in_space_composition() -> None:
     assert rule.__module__ == module
     assert rule(1) == () and rule(2) == (2,) and rule(4) == (4,)
 
+
+def test_the_retired_class_is_unspellable() -> None:
+    """The retirement leaves no import path — a consumer reaching for the
+    class fails at import, loudly, rather than silently composing a
+    Euclidean tail beside the scheme's."""
+    import importlib
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("orpheus.numerics.spaces.spatial_moment_space")
+    import orpheus.numerics.spaces as spaces
+
+    assert not hasattr(spaces, "SpatialMomentSpace")

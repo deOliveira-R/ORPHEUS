@@ -310,10 +310,12 @@ Module × level grid
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
+   fields/test_flux_vector_algebra, 0, 0, 0, 0, 28, 0
    fields/test_harmonic_moment_flux, 0, 0, 0, 0, 26, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
    fields/test_role_partners, 0, 0, 0, 0, 23, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
+   fields/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
    frames/test_binding_tightness, 0, 0, 0, 0, 20, 0
    frames/test_frame_mints_refuse_a_moment_space, 0, 0, 0, 0, 4, 0
    frames/test_harmonic_frame, 0, 0, 0, 0, 29, 0
@@ -445,7 +447,6 @@ Module × level grid
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_fixed_point_step, 0, 0, 0, 0, 9, 0
-   numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0
    numerics/test_frame, 0, 18, 0, 0, 46, 5
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
    numerics/test_gauge, 0, 0, 0, 0, 15, 0
@@ -474,7 +475,7 @@ Module × level grid
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
-   numerics/test_moment_layout_retired, 0, 0, 0, 0, 6, 0
+   numerics/test_moment_layout_retired, 0, 0, 0, 0, 7, 0
    numerics/test_observable, 0, 0, 0, 0, 50, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
@@ -504,8 +505,6 @@ Module × level grid
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_space_identity_is_structural, 0, 0, 0, 0, 15, 0
    numerics/test_space_of_axes, 0, 0, 0, 0, 26, 0
-   numerics/test_spatial_moment_field_space, 0, 0, 0, 0, 12, 0
-   numerics/test_spatial_moment_tail_is_the_schemes_axis, 0, 0, 0, 0, 12, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 7, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_strategy_mints_green, 0, 0, 0, 0, 16, 0
@@ -525,7 +524,7 @@ Module × level grid
    numerics/test_traced_memo_source_index, 0, 0, 0, 0, 25, 0
    numerics/test_traced_memo_template, 0, 0, 0, 0, 45, 0
    numerics/test_traced_memo_validation, 0, 0, 0, 0, 27, 0
-   numerics/test_vector_protocol, 0, 0, 0, 0, 8, 0
+   numerics/test_vector_protocol, 0, 0, 0, 0, 6, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 8, 0
    numerics/test_zero_operator_spaces, 0, 0, 0, 0, 10, 0
    operators/test_apply_full_field_codomain, 0, 0, 0, 0, 15, 0
@@ -665,6 +664,7 @@ Module × level grid
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_no_angular_closure_twin, 0, 0, 0, 0, 1, 0
    spatial/test_scheme_reaction_rate_contract, 0, 0, 0, 0, 10, 0
+   spatial/test_spatial_moment_tail_is_the_schemes_axis, 0, 0, 0, 0, 11, 0
    specification/test_content_identity_specification, 0, 0, 0, 0, 58, 0
    specification/test_exterior, 0, 0, 0, 0, 28, 0
    specification/test_exterior_on_the_specification, 0, 0, 0, 0, 22, 0

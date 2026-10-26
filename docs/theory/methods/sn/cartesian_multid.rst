@@ -2474,7 +2474,7 @@ invariants, not an L0/L1/L2 solver claim — they carry no eigenvalue or flux
 assertion), in two test modules, joined by two more at the moment-basis
 carve:
 
-* ``tests/gates/numerics/test_spatial_moment_field_space.py`` — the factory
+* ``tests/gates/transport/fields/test_spatial_moment_field_space.py`` — the factory
   widening: the **byte-identity-at-default negative control** for DD AND LD on
   all three carriers (:class:`AngularField`, :class:`ScalarField`,
   :class:`HarmonicMomentFlux`), the widened :math:`d{=}1` / :math:`d{=}2`
@@ -2482,7 +2482,7 @@ carve:
   The mutation check — auto-reading the scheme turns the LD byte-identity
   cases red — is what proves the construct-general gate has teeth.
 
-* ``tests/gates/numerics/test_spatial_moment_tail_is_the_schemes_axis.py`` — the
+* ``tests/gates/transport/spatial/test_spatial_moment_tail_is_the_schemes_axis.py`` — the
   space layer, since item 6.2c-iii: that the widened moment product is
   axis-built with the scheme's own ``moment_axis`` as its tail (the axis
   compared to :meth:`DiscretizationSchemeBase.moment_axis
@@ -2495,9 +2495,10 @@ carve:
   (ruling O-5), that the tail's measure MOVES the pairing — Parseval
   across the tail, with a Euclidean-tail negative control that must
   differ — that width 1 appends nothing and a DD carrier REFUSES a
-  widened request, that a widened field self-derives its scalar flux and
-  truncates onto the hub's space, and that the retired class is
-  unspellable.
+  widened request, and that a widened field self-derives its scalar flux and
+  truncates onto the hub's space. The proof that the retired class is
+  unspellable is a numerics claim and lives in
+  ``tests/gates/numerics/test_moment_layout_retired.py``.
 
 * ``tests/gates/numerics/test_interval_legendre_basis.py`` and
   ``tests/gates/transport/spatial/test_cell_basis_head.py`` — since the

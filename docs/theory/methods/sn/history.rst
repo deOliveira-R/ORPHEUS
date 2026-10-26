@@ -1026,7 +1026,11 @@ them.  Trust ``git``, not this column.
        — the axis-built tail, the O-5 agreement at both widths, the
        Parseval row with a Euclidean-tail negative control, the
        slopeless refusal, the ``scalar_flux`` / ``truncate`` round trip,
-       and an import-level proof that the class is unspellable.  Full
+       and an import-level proof that the class is unspellable (moved
+       2026-10-25, the layer-DAG re-filing: the field rows to
+       ``tests/gates/transport/spatial/test_spatial_moment_tail_is_the_schemes_axis.py``,
+       the unspellability row to
+       ``tests/gates/numerics/test_moment_layout_retired.py``).  Full
        account: :ref:`the moment-factor section <spatial-moment-space>`,
        :ref:`spaces-moment-head-axis-built` and
        :ref:`frame-the-one-moment-space`.

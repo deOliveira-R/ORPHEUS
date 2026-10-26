@@ -48,11 +48,13 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.field import Field
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.vector import Vector
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.numerics import frame_faces
 from orpheus.transport.boundary_conditions import WallCondition
@@ -335,3 +337,45 @@ def test_scalar_algebra_unchanged(leaf, mesh, rng):
         if type(out) is not type(psi):
             raise AssertionError(f"{leaf}: scalar algebra changed the type")
         np.testing.assert_array_equal(out.values, expected)
+
+
+# ── 5. Every flux carrier is a numerics Vector ───────────────────────────
+#
+# Moved verbatim from ``tests/gates/numerics/test_vector_protocol.py`` (layer-DAG
+# re-filing, 2026-10-25): the carriers are transport objects, so their positive
+# rows of the Vector Protocol live here; the ``np.ndarray`` positive, the negatives
+# and the type variable's bound stay in that numerics module.
+
+
+def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
+    quad = Quadrature.gauss_legendre(n_ordinates=4)
+    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+
+
+def test_field_leaves_are_vectors() -> None:
+    """Every Field leaf (bulk + boundary, flux + moment) satisfies Vector.
+
+    Covers all three storage families: angular (``AngularFlux``), scalar
+    (``ScalarFlux``), moment (``HarmonicMomentFlux`` — the carrier #256
+    closes the moment-state path around), and the boundary locus
+    (``AngularBoundaryFlux``).
+    """
+    m = _slab_mesh()
+    assert isinstance(AngularFlux.zeros(m.angular_bulk_space), Vector)
+    assert isinstance(ScalarFlux.zeros(m.bulk_space), Vector)
+    assert isinstance(HarmonicMomentFlux.zeros_for_problem_and_L(m, 1), Vector)
+    assert isinstance(AngularBoundaryFlux.zeros(m.angular_trace), Vector)
+
+
+def test_timed_full_field_is_vector() -> None:
+    """The composite carrier satisfies Vector via its delegate dunders.
+
+    This is the load-bearing positive case: ``TimedFullField`` conforms
+    to a numerics-level Protocol WITHOUT ``numerics`` importing
+    ``transport`` (the layering payoff of a structural Protocol).
+    """
+    m = _slab_mesh()
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+    assert isinstance(state, Vector)

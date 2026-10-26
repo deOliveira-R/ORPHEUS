@@ -4830,7 +4830,7 @@ width 1 — ruling O-5 at both widths. So the tail's metric is no longer a gap:
 it is the scheme's cell mass, the same measure the *angular* field's tail
 carries, and the moment field's norm is its energy on every factor (ruling
 R-6.2c-1's ONE-space principle, applied to the tail). Gated in
-``tests/gates/numerics/test_spatial_moment_tail_is_the_schemes_axis.py``.
+``tests/gates/transport/spatial/test_spatial_moment_tail_is_the_schemes_axis.py``.
 
 Truncation is the same rule applied to a *lower* order.
 :meth:`HarmonicMomentFlux.truncate

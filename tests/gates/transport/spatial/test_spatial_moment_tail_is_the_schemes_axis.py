@@ -25,6 +25,12 @@ composer and the frame keeps the angular space's own axes, so:
 * ``SpatialMomentSpace`` is gone; its "append iff > 1" helper is the space
   composition rule :func:`orpheus.numerics.space.factor_tail`.
 
+The witness that ``SpatialMomentSpace`` is unspellable is a numerics claim, so it
+lives in ``tests/gates/numerics/test_moment_layout_retired.py``
+(``test_the_retired_class_is_unspellable``); this file moved from
+``tests/gates/numerics/`` to ``tests/gates/transport/spatial/`` with the layer-DAG
+re-filing (2026-10-25), its rows unchanged.
+
 Foundation mark: software invariants of the space layer; no physics claim.
 """
 
@@ -203,15 +209,3 @@ def test_a_widened_moment_field_self_derives_its_scalar_flux_and_truncates_on_th
     assert truncated.space == sn.moment_space(0, spatial_moments=2)
     assert truncated.spatial_moments == 2
 
-
-def test_the_retired_class_is_unspellable() -> None:
-    """The retirement leaves no import path — a consumer reaching for the
-    class fails at import, loudly, rather than silently composing a
-    Euclidean tail beside the scheme's."""
-    import importlib
-
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("orpheus.numerics.spaces.spatial_moment_space")
-    import orpheus.numerics.spaces as spaces
-
-    assert not hasattr(spaces, "SpatialMomentSpace")
