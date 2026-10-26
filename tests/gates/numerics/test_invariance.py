@@ -695,7 +695,8 @@ class TestR2Candidates:
     @pytest.mark.foundation
     @pytest.mark.parametrize("n", [2, 8, 16])
     def test_f4_a_polar_marginals_maximal_groups_are_O2x_and_D2h(self, n: int) -> None:
-        r"""⚠ **RE-KEY of ``test_symmetry.py``'s slab row.** `[M]` at HEAD the answer is
+        r"""⚠ **RE-KEY of ``test_symmetry.py``'s slab row** (re-filed 2026-10-25 as
+        ``test_invariance_verdicts.py::test_candidate_groups_offer_all_three_axial_rotation_groups``). `[M]` at HEAD the answer is
         :math:`\{O(2)_x, \sigma_x\}`; after R2 the candidate set is derived from the same
         barycentres the invariance test reads, so :math:`D_{2h}` is offered, is
         invariant, and ABSORBS :math:`\sigma_x`.

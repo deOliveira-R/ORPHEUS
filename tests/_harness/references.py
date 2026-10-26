@@ -75,8 +75,9 @@ def mirror_partner_indices(quad, axis: int | str) -> np.ndarray:
     # lift, the same pair the closure reads — a wider sharing, stated so that
     # a fold row is not read as an independent check of the lift. On a fold
     # the y-mirror's answer is the identity permutation, and it agrees with
-    # ``DiscreteMeasure.permutation_under`` (gated in test_manifold.py's R4
-    # rows); until R4 the two disagreed — this raised where the closure
+    # ``DiscreteMeasure.permutation_under`` (gated in
+    # test_invariance_verdicts.py::TestR4OrbitBarycentresIsOneConceptOnBothWidths::
+    # test_the_HARNESS_fold_answer_now_agrees_with_the_kernel); until R4 the two disagreed — this raised where the closure
     # answered.  The ambient points are the support's own verb,
     # ``GSpace.ambient_points`` (S5, ruling 46; until S5 the private
     # ``invariance._embedded_nodes``).

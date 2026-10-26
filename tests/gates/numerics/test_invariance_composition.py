@@ -110,7 +110,7 @@ _MATCHER_ROWS = (
     "test_o6_the_weighted_question_is_permutes_plus_exactly_one_weight_guard",
 )
 _HOMOMORPHISM = _MANIFOLD_ROW + "test_the_induced_action_is_a_GROUP_HOMOMORPHISM_on_the_chart"
-_DOWNWARD = "tests/gates/geometry/test_symmetry.py::test_invariance_is_downward_closed"
+_DOWNWARD = "tests/gates/numerics/test_invariance_verdicts.py::test_invariance_is_downward_closed"
 
 
 # ---------------------------------------------------------------------------
@@ -974,7 +974,7 @@ def test_walk_and_bruteforce_agree_on_a_predicate_that_is_NOT_downward_closed():
     failing node, so walk == bruteforce for EVERY predicate (`[M]` 2000 of 2000 random
     non-downward-closed predicates on LS8's 32 candidates, 0 disagreements). Their
     agreement is therefore no evidence of downward closure; that law has its own gate
-    (``test_symmetry.py::test_invariance_is_downward_closed``). This row pins the fact so
+    (``test_invariance_verdicts.py::test_invariance_is_downward_closed``). This row pins the fact so
     nobody re-credits the agreement."""
     maximal_satisfying = _api("orpheus.geometry.symmetry.maximal_satisfying")
     cands = [_groups()[n] for n in _LATTICE]

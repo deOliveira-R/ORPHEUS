@@ -1599,8 +1599,10 @@ the reason :class:`~orpheus.geometry.symmetry.SO2` is
    (the lattice edges of the table below, the exact invariance
    criterion, SubgroupOfO3.orbit_stabiliser's answers, and the
    Quotient.__post_init__ refusal), and
-   tests/gates/geometry/test_symmetry.py + tests/gates/geometry/test_manifold.py do
-   check those under @pytest.mark.foundation, which carries no
+   tests/gates/geometry/test_symmetry.py + tests/gates/geometry/test_manifold.py
+   (the lattice and the manifold laws) and
+   tests/gates/numerics/test_invariance_verdicts.py (the measure-level
+   invariance verdicts) do check those under @pytest.mark.foundation, which carries no
    verifies(...) marker by vv-principles' foundation-tier rule. Landing
    an edge here would mint a coverage claim of a class those gates do
    not make.
@@ -4169,7 +4171,7 @@ two questions.
 registry's answer exactly, which was the cheapest available evidence
 that the type is a *re-typing* of an existing fact and not a rival one.
 The pin is
-``tests/gates/geometry/test_manifold.py::TestQuotient::test_the_derived_orbit_space_agrees_with_the_hand_written_table``,
+``tests/gates/numerics/test_registry.py::TestQuotient::test_the_derived_orbit_space_agrees_with_the_hand_written_table``,
 and reading its docstring is worth more than reading this paragraph,
 because it records what the collapse did to its own claim class — twice,
 in opposite directions.
@@ -5460,7 +5462,7 @@ get wrong — is that the pushforward is a **functor**:
    of the arrow type, not a solver claim, so it carries no L0..L3
    ladder slot and no ``verifies(...)`` marker. It is gated by the
    ``foundation`` test
-   ``tests/gates/geometry/test_manifold.py::TestManifoldMap::test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards``
+   ``tests/gates/numerics/test_measure.py::TestManifoldMap::test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards``
    (nodes and weights by ``np.array_equal``, and the support by
    value), and re-measured on production objects by the shipped-fold
    table in this section.
@@ -9947,11 +9949,13 @@ Seven groups, and what each is for:
        interpolation; multiplying a non-manifold is refused;
        membership splits the coordinate blocks.
    * - Membership, **both legs**
-     - `[M]` **8 of the 9** tests in the ``TestMembership`` class
-       assert a positive verdict beside their negative one
+     - `[M]` **6 of the 7** tests in geometry's ``TestMembership`` class
+       assert a positive verdict beside their negative one, and so do
+       both rows of its numerics half (the index sets,
+       ``tests/gates/numerics/test_index_set.py``, re-filed 2026-10-25)
        (``vv-principles`` #11 — a contract predicate tested only
        against a broken instance validates the *raising*, not the
-       *claim*); the ninth is
+       *claim*); the seventh is
        ``test_a_wrong_ambient_dimension_is_a_typed_refusal``, which
        asserts a **raise** rather than a verdict and so has no positive
        leg to carry (:ref:`manifold-gotcha-shape-vs-verdict`). The

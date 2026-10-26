@@ -43,6 +43,9 @@ from orpheus.numerics.generating_measure import (
     jacobi,
     laguerre,
 )
+from orpheus.geometry.manifold import CIRCLE, COSINE_INTERVAL, SPHERE
+from orpheus.geometry.symmetry import SubgroupOfO3
+from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _ROSTER
 
 # Every shipped family, as (label, measure). Parameterised families are
 # sampled at a non-degenerate point so the general code path runs.
@@ -768,3 +771,49 @@ def test_a_node_newton_cannot_converge_is_refused(monkeypatch) -> None:
             LEGENDRE.gauss(6)
     finally:
         gm._correctly_rounded_rule.cache_clear()
+
+
+# =============================================================================
+# Re-filed from tests/gates/geometry/test_manifold.py (layer DAG ruling 23, 2026-10-25)
+# =============================================================================
+
+
+@pytest.mark.foundation
+class TestTheEntryCarriesItsQuotientMapAndItsReference:
+    """The numerics half of geometry's ``TestTheEntryCarriesItsQuotientMapAndItsReference``.
+
+    Re-filed 2026-10-25 from ``tests/gates/geometry/test_manifold.py`` (layer-DAG
+    ruling 23): the row below asserts a numerics object's verb, so it lives here; the class keeps its geometry name so the node id
+    changes only in its path.  The manifold rows of the class stay in geometry.
+    """
+
+    _AXES = list(_g22b_AXES)
+
+    def test_the_axial_entries_have_the_hat_box_reference_and_the_others_None(
+        self,
+    ) -> None:
+        r"""Archimedes: :math:`\mu_* d\Omega = 2\pi\,d\mu`, so the reference
+        is Lebesgue on :math:`[-1,1]` — ``LEGENDRE``, identically, on all
+        three axes.  ``None`` on the mirror (a weighted disk measure no
+        shipped realization spells) and on the trivial quotient (Lebesgue
+        on the BASE, whose orthogonal system the type does not carry)."""
+        from orpheus.numerics.generating_measure import LEGENDRE, pushforward_reference
+
+        for axis in self._AXES:
+            assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.O2(axis))) is LEGENDRE
+        assert LEGENDRE.support == COSINE_INTERVAL
+        for axis in self._AXES:
+            assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Mirror(axis))) is None
+        assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Trivial)) is None
+        assert pushforward_reference(CIRCLE.quotient(SubgroupOfO3.Trivial)) is None
+        # ⚠ A reference lives on the REALIZATION — the chart codomain, where
+        # the quotient map's image lands and where 2 pi d(mu) is written —
+        # never on the entry, which would demand a measure carry an axis it
+        # does not know.  `[M]` 2026-09-02 (archivist): nothing in orpheus/
+        # reads `reference.support`, so this is the only pin on it.
+        for group in _ROSTER:
+            q = SPHERE.quotient(group)
+            reference = pushforward_reference(q)
+            if reference is not None:
+                assert reference.support == q.realization
+                assert reference.support != q

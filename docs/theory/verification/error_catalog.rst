@@ -5934,7 +5934,11 @@ older entries classify against.
    **Which test catches it.** ⛔ This block read *"None today (the defect
    is filed, not yet fixed)"*, which was true when the entry was filed and
    is not true now. `[M]` 2026-09-01, three gates carry
-   ``catches("ERR-072")`` in ``tests/gates/geometry/test_symmetry.py``:
+   ``catches("ERR-072")`` in ``tests/gates/numerics/test_invariance_verdicts.py``
+   (in ``tests/gates/geometry/test_symmetry.py`` until the 2026-10-25 re-filing of
+   the measure claims; the four methods of
+   ``TestR1AConnectedGroupIsDecidedByItsLieAlgebra``, which carry the same marker on
+   ``IdentityComponent.fixes``, stay in geometry):
    ``test_no_discrete_cubature_is_so2_invariant`` (every shipped sphere
    rule must answer ``False``, because an off-axis orbit is a circle),
    ``test_so2_verdict_is_not_a_function_of_n_phi_mod_4`` (the signature

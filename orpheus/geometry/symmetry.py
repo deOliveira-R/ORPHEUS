@@ -1609,7 +1609,7 @@ def _vertical_mirrors(n: int) -> list[RigidMotion]:
     determinant, closure and group order are all preserved by a rotated
     mirror set, so none of those checks can see it. Two gates can, by
     different mechanisms: the plane-placement gate in
-    ``tests/gates/geometry/test_symmetry.py`` compares the placement against
+    ``tests/gates/numerics/test_invariance_verdicts.py`` compares the placement against
     the setting, and the mirror-accuracy gate in
     ``tests/gates/numerics/test_symmetry_exactness.py`` sees it as a RESIDUAL
     — rotating the planes takes the mirrors off the odd-``n`` rule
@@ -1984,7 +1984,7 @@ def maximal_satisfying(
         non-downward-closed predicates on LS8's 32 candidates, 0
         disagreements; S5's finding F2, 2026-10-19).  They are one definition
         evaluated twice; downward closure has its own law gate
-        (``test_symmetry.py::test_invariance_is_downward_closed``).
+        (``test_invariance_verdicts.py::test_invariance_is_downward_closed``).
     """
     cands = tuple(candidates)
     if method == "bruteforce":

@@ -1823,3 +1823,86 @@ def test_lebedev_order_13_is_not_positive_weighted() -> None:
     """The witness ERR-118 rests on: the flag read off Lebedev order 13 is False."""
     spec = next(s for s in quadrature_registry if s.name == "LebedevSphere")
     assert spec.structural_flags(spec.build({"order": 13}))["positive_weights"] is False
+
+
+# =============================================================================
+# Re-filed from tests/gates/geometry/test_manifold.py (layer DAG ruling 23, 2026-10-25)
+# =============================================================================
+
+
+@pytest.mark.foundation
+class TestQuotient:
+    """The numerics half of geometry's ``TestQuotient``.
+
+    Re-filed 2026-10-25 from ``tests/gates/geometry/test_manifold.py`` (layer-DAG
+    ruling 23): the row below asserts a numerics object's verb, so it lives here; the class keeps its geometry name so the node id
+    changes only in its path.  The manifold rows of the class stay in geometry.
+    """
+
+    def test_the_derived_orbit_space_agrees_with_the_hand_written_table(self):
+        r"""⭐ Two independent producers of one orbit space must agree.
+
+        ``AngularSymmetry.support`` (``quadrature/registry.py``) was a
+        **hand-written table** — ``SO2 -> COSINE_INTERVAL``,
+        ``Trivial -> SPHERE``, raise otherwise.  :meth:`GSpace.quotient`
+        **derives** the same orbit space from invariant theory (the
+        Procesi--Schwarz matrix of the invariant ring).  Neither read the
+        other, so this was a genuine two-implementation agreement and the
+        only check that either was right about :math:`S^2/G^0`.
+
+        ⛔ **RE-SCOPED 2026-09-01 by tracker 2.4, which single-sourced the
+        SO(2) row.** The registry now DERIVES its domain through
+        ``SPHERE.quotient(spent)`` — so for the axial row ``theirs`` is the
+        very object ``mine`` was built from, and asking whether they agree
+        is asking one call whether it equals itself (``coding-standards``:
+        single-sourcing a duplicate demotes every gate that compared its
+        copies, and the fix stays; the gate's DESCRIPTION is what moves).
+        What survives, and is asserted below: (i) the hand-written
+        ``expected`` column is still an INDEPENDENT pin on the derivation's
+        realization — the one input that could make it fail is a wrong
+        Procesi–Schwarz derivation; (ii) the ``Trivial`` row is still two
+        producers, because the registry answers ``SPHERE`` explicitly while
+        the catalogue re-derives ``M/{e}``; (iii) the axial row's registry
+        answer must be the ORBIT SPACE, carrying the spent group, not its
+        chart — the reading a spatial rule could share.
+
+        ⭐ **Strengthened 2026-09-01 by the very retype it was written to
+        pin** (tracker 2.0c).  It used to compare ``mine.name == theirs``
+        because ``theirs`` was a *string* — the strongest claim the string
+        vocabulary admitted.  Both sides are now ``Manifold``, so the gate
+        asserts **object equality**: not merely that two producers spell the
+        orbit space the same way, but that they produce the same point set.
+        A name gate is satisfied by any self-consistent lie; this one is not.
+        (``coding-standards``' mirror clause: a retirement can silently
+        PROMOTE a gate's claim class, and the docstring must move with it or
+        it goes on advertising the weaker claim.)
+
+        ⚠ If this ever reddens, do NOT re-baseline: one of the two is wrong
+        about a quotient, and which one is a mathematical question, not a
+        test-maintenance one.
+        """
+        from orpheus.numerics.quadrature.registry import AngularSymmetry
+
+        rows = {
+            SubgroupOfO3.O2("x"): COSINE_INTERVAL,
+            SubgroupOfO3.O2("z"): COSINE_INTERVAL,
+            SubgroupOfO3.Trivial: SPHERE,
+        }
+        for group, expected in rows.items():
+            derived = SPHERE.quotient(group)
+            mine = derived.realization
+            theirs = AngularSymmetry(
+                spent=group, unspent=SubgroupOfO3.Trivial, owed=SubgroupOfO3.Trivial,
+            ).support
+            # (i) the independent pin on the derivation
+            assert mine == expected, f"{group.name}: mine gave {mine.name}"
+            if group == SubgroupOfO3.Trivial:
+                # (ii) still two producers: an explicit SPHERE vs M/{e}
+                assert theirs == SPHERE and mine == theirs
+            else:
+                # (iii) the registry hands out the orbit space itself
+                assert isinstance(theirs, Quotient) and theirs == derived, (
+                    f"AngularSymmetry.support for S^2/{group.name} is "
+                    f"{theirs!r}, not the derived orbit space"
+                )
+                assert theirs.by == group and theirs.realization == expected

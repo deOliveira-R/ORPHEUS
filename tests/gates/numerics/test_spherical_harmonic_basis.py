@@ -32,6 +32,7 @@ from orpheus.geometry.manifold import SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.geometry.symmetry import SubgroupOfO3
+from tests.gates.geometry._lattice_fixtures import _generic_unit_directions
 
 
 def _unit(directions: np.ndarray) -> np.ndarray:
@@ -371,3 +372,53 @@ class TestEvenSlotMaskThroughTheEntry:
 
         assert np.array_equal(masked[:, mask == 0.0], np.zeros_like(masked[:, mask == 0.0]))
         assert np.array_equal(masked[:, mask == 1.0], parent[:, mask == 1.0])
+
+    # Re-filed 2026-10-25 from tests/gates/geometry/test_manifold.py::TestDescendingSlots
+    # (layer-DAG ruling 23): the class-level `verifies` there does not travel, so it is
+    # explicit here.
+    @pytest.mark.verifies("manifold-fibre-constancy")
+    def test_the_mirror_leg_reproduces_the_sigma_even_mask_bit_for_bit(self) -> None:
+        r"""The FINITE-group leg: for :math:`\sigma_a` the probe IS ``even_slot_mask``.
+
+        ``[M]`` 2026-09-02 ``array_equal`` on **15 of 15** (3 axes ×
+        :math:`L \in \{1..5\}`) rows, against a σ-parity classification
+        written here from the definition (evaluate at generic directions and
+        at their σ-images; even ⟺ equal). That reference shares no code with
+        the probe, so this is a check of the probe, not of its spelling.
+
+        NEGATIVE leg: the mask MOVES when the mirror axis moves — otherwise
+        "the probe reproduces the mask" would be compatible with a mask that
+        does not depend on the group at all.
+        """
+        from orpheus.numerics.basis.spherical_harmonic_basis import (
+            MirrorEvenSphericalHarmonicBasis,
+            SphericalHarmonicBasis,
+        )
+
+        probe = _generic_unit_directions()
+        for axis_index, axis_name in enumerate("xyz"):
+            for L in (1, 2, 3, 4, 5):
+                mask = MirrorEvenSphericalHarmonicBasis(
+                    L=L, mirror_axis=axis_index
+                ).even_slot_mask
+
+                mirrored = probe.copy()
+                mirrored[:, axis_index] *= -1.0
+                table = SphericalHarmonicBasis(L=L).evaluate(probe)
+                reflected = SphericalHarmonicBasis(L=L).evaluate(mirrored)
+                parity_even = np.all(
+                    np.isclose(table, reflected, rtol=0.0, atol=1e-12), axis=0
+                ).astype(float)
+
+                assert np.array_equal(mask, parity_even), (
+                    f"axis {axis_name}, L={L}: the entry's probe and a direct "
+                    f"parity classification disagree"
+                )
+                assert int(mask.sum()) == {1: 5, 2: 12, 3: 22, 4: 35, 5: 51}[L]
+
+                other = MirrorEvenSphericalHarmonicBasis(
+                    L=L, mirror_axis=(axis_index + 1) % 3
+                ).even_slot_mask
+                assert not np.array_equal(mask, other), (
+                    f"the mask must depend on the mirror AXIS (L={L})"
+                )

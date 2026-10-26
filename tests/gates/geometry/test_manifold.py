@@ -94,14 +94,20 @@ from orpheus.geometry.manifold import (
     barycentre,
     quotient_onto,
 )
-from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature.directional import Quadrature
-from orpheus.numerics.quadrature.registry import GEOMETRY_ANGULAR_SYMMETRY
 from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_mu,
     gauss_legendre_on_polar_orbit,
 )
 from orpheus.geometry.symmetry import SubgroupOfO3
+
+from tests.gates.geometry._lattice_fixtures import (
+    _g22b_AXES,
+    _g22b_mirror,
+    _ROSTER,
+    _generic_unit_directions,
+    _R4_I3,
+)
 
 pytestmark = pytest.mark.foundation
 
@@ -242,7 +248,15 @@ class TestProduct:
 
 
 class TestMembership:
-    """``contains`` is what makes a support claim falsifiable."""
+    """``contains`` is what makes a support claim falsifiable.
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): these rows assert a numerics object's verb,
+    so they moved to numerics, keeping this class's name:
+    ``test_index_sets_admit_integers_only``
+    is now in ``tests/gates/numerics/test_index_set.py``.
+    ``test_energy_groups_admit_group_indices``
+    is now in ``tests/gates/numerics/test_index_set.py``.
+    """
 
     def test_sphere_admits_unit_directions_and_refuses_the_err_080_forgery(self):
         r"""⭐ The load-bearing case: a 1-D rule's ordinates are not on :math:`S^2`.
@@ -300,16 +314,6 @@ class TestMembership:
         assert REAL_LINE.contains(np.array([-1e12, 0.0, 1e12]))
         assert not REAL_LINE.contains(np.array([np.inf]))
 
-    def test_index_sets_admit_integers_only(self):
-        assert IndexSet("angular", 8).contains(np.arange(8))
-        assert not IndexSet("angular", 8).contains(np.array([8.0]))
-        assert not IndexSet("angular", 8).contains(np.array([0.5]))
-        assert not IndexSet("angular").contains(np.array([-1.0]))
-
-    def test_energy_groups_admit_group_indices(self):
-        assert EnergyGroups(2).contains(np.array([0.0, 1.0]))
-        assert not EnergyGroups(2).contains(np.array([2.0]))
-
     def test_real_space_admits_any_finite_point(self):
         assert RealSpace(3).contains(np.zeros((4, 3)))
         assert not RealSpace(3).contains(np.full((1, 3), np.nan))
@@ -326,7 +330,13 @@ class TestMembership:
 
 
 class TestQuotient:
-    r"""``S^2/SO(2) = [-1,1]``, and the fields that derive it."""
+    r"""``S^2/SO(2) = [-1,1]``, and the fields that derive it.
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
+    so it moved to numerics, keeping this class's name:
+    ``test_the_derived_orbit_space_agrees_with_the_hand_written_table``
+    is now in ``tests/gates/numerics/test_registry.py``.
+    """
 
     @pytest.fixture(scope="class")
     def s2_mod_so2(self) -> Quotient:
@@ -443,74 +453,6 @@ class TestQuotient:
         assert q.is_free
         assert q.dim == base.dim
 
-    def test_the_derived_orbit_space_agrees_with_the_hand_written_table(self):
-        r"""⭐ Two independent producers of one orbit space must agree.
-
-        ``AngularSymmetry.support`` (``quadrature/registry.py``) was a
-        **hand-written table** — ``SO2 -> COSINE_INTERVAL``,
-        ``Trivial -> SPHERE``, raise otherwise.  :meth:`GSpace.quotient`
-        **derives** the same orbit space from invariant theory (the
-        Procesi--Schwarz matrix of the invariant ring).  Neither read the
-        other, so this was a genuine two-implementation agreement and the
-        only check that either was right about :math:`S^2/G^0`.
-
-        ⛔ **RE-SCOPED 2026-09-01 by tracker 2.4, which single-sourced the
-        SO(2) row.** The registry now DERIVES its domain through
-        ``SPHERE.quotient(spent)`` — so for the axial row ``theirs`` is the
-        very object ``mine`` was built from, and asking whether they agree
-        is asking one call whether it equals itself (``coding-standards``:
-        single-sourcing a duplicate demotes every gate that compared its
-        copies, and the fix stays; the gate's DESCRIPTION is what moves).
-        What survives, and is asserted below: (i) the hand-written
-        ``expected`` column is still an INDEPENDENT pin on the derivation's
-        realization — the one input that could make it fail is a wrong
-        Procesi–Schwarz derivation; (ii) the ``Trivial`` row is still two
-        producers, because the registry answers ``SPHERE`` explicitly while
-        the catalogue re-derives ``M/{e}``; (iii) the axial row's registry
-        answer must be the ORBIT SPACE, carrying the spent group, not its
-        chart — the reading a spatial rule could share.
-
-        ⭐ **Strengthened 2026-09-01 by the very retype it was written to
-        pin** (tracker 2.0c).  It used to compare ``mine.name == theirs``
-        because ``theirs`` was a *string* — the strongest claim the string
-        vocabulary admitted.  Both sides are now ``Manifold``, so the gate
-        asserts **object equality**: not merely that two producers spell the
-        orbit space the same way, but that they produce the same point set.
-        A name gate is satisfied by any self-consistent lie; this one is not.
-        (``coding-standards``' mirror clause: a retirement can silently
-        PROMOTE a gate's claim class, and the docstring must move with it or
-        it goes on advertising the weaker claim.)
-
-        ⚠ If this ever reddens, do NOT re-baseline: one of the two is wrong
-        about a quotient, and which one is a mathematical question, not a
-        test-maintenance one.
-        """
-        from orpheus.numerics.quadrature.registry import AngularSymmetry
-
-        rows = {
-            SubgroupOfO3.O2("x"): COSINE_INTERVAL,
-            SubgroupOfO3.O2("z"): COSINE_INTERVAL,
-            SubgroupOfO3.Trivial: SPHERE,
-        }
-        for group, expected in rows.items():
-            derived = SPHERE.quotient(group)
-            mine = derived.realization
-            theirs = AngularSymmetry(
-                spent=group, unspent=SubgroupOfO3.Trivial, owed=SubgroupOfO3.Trivial,
-            ).support
-            # (i) the independent pin on the derivation
-            assert mine == expected, f"{group.name}: mine gave {mine.name}"
-            if group == SubgroupOfO3.Trivial:
-                # (ii) still two producers: an explicit SPHERE vs M/{e}
-                assert theirs == SPHERE and mine == theirs
-            else:
-                # (iii) the registry hands out the orbit space itself
-                assert isinstance(theirs, Quotient) and theirs == derived, (
-                    f"AngularSymmetry.support for S^2/{group.name} is "
-                    f"{theirs!r}, not the derived orbit space"
-                )
-                assert theirs.by == group and theirs.realization == expected
-
     def test_an_uncatalogued_quotient_names_the_missing_WORK(self):
         """The engine's absence is a pick-up-able work item, not a wall.
 
@@ -528,7 +470,6 @@ class TestQuotient:
         # as such, since the request is named by MANIFOLD name).
         assert "Sphere/O2_x" in msg and "Sphere/O2_z" in msg
         assert "manifold CLASS" in msg
-
 
 
 # ---------------------------------------------------------------------------
@@ -917,6 +858,11 @@ class TestManifoldMap:
     lands INSIDE the ball and on the sphere only at the poles — which is the
     ERR-080 discriminator stated as a property of a map rather than of a
     quadrature — and refuses any orbit space that is not an axial one.
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
+    so it moved to numerics, keeping this class's name:
+    ``test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards``
+    is now in ``tests/gates/numerics/test_measure.py``.
     """
 
     def test_a_map_is_a_frozen_value_with_two_endpoints(self) -> None:
@@ -943,22 +889,6 @@ class TestManifoldMap:
             _ = phi @ phi
         with pytest.raises(TypeError):
             _ = phi @ "not a map"  # type: ignore[operator]
-
-    def test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards(
-        self,
-    ) -> None:
-        from orpheus.geometry.manifold import ManifoldMap
-        from orpheus.numerics.generating_measure import LEGENDRE
-
-        phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
-        psi = ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x * x)
-        mu = LEGENDRE.gauss(5)
-
-        at_once = mu.pushforward(psi @ phi)
-        stepwise = mu.pushforward(phi).pushforward(psi)
-        assert np.array_equal(at_once.nodes, stepwise.nodes)
-        assert np.array_equal(at_once.weights, stepwise.weights)
-        assert at_once.support == stepwise.support == UNIT_INTERVAL
 
     @pytest.mark.parametrize("axis", ["x", "y", "z"])
     def test_archimedes_lands_on_the_sphere_and_collapses_the_fibre_at_the_poles(
@@ -1089,15 +1019,6 @@ def _rotation_about(axis: int, theta: float) -> np.ndarray:
     return R
 
 
-#: Every shipped orbit space of the sphere: the six catalogue keys plus the
-#: derived identity quotient.  A universal below is a universal over THIS.
-_ROSTER = [
-    SubgroupOfO3.O2("x"), SubgroupOfO3.O2("y"), SubgroupOfO3.O2("z"),
-    SubgroupOfO3.Mirror("x"), SubgroupOfO3.Mirror("y"), SubgroupOfO3.Mirror("z"),
-    SubgroupOfO3.Trivial,
-]
-
-
 class TestTheEntryCarriesItsQuotientMapAndItsReference:
     r"""D0.1's last two derivation outputs are FIELDS of the entry.
 
@@ -1110,6 +1031,13 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
     and the pushforward identity :eq:`discrete-measure-pushforward` on a
     real sphere rule — then the reference, and that the registry reads it
     off ONE object.
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): these rows assert a numerics object's verb,
+    so they moved to numerics, keeping this class's name:
+    ``test_a_sphere_rule_pushed_along_pi_lands_on_the_entry_and_obeys_the_pullback_identity``
+    is now in ``tests/gates/numerics/test_measure.py``.
+    ``test_the_axial_entries_have_the_hat_box_reference_and_the_others_None``
+    is now in ``tests/gates/numerics/test_generating_measure.py``.
     """
 
     _AXES = ["x", "y", "z"]
@@ -1242,61 +1170,6 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
         assert Ball(3).contains(composite(omega))
         assert not SPHERE.contains(composite(omega))
 
-    def test_a_sphere_rule_pushed_along_pi_lands_on_the_entry_and_obeys_the_pullback_identity(
-        self,
-    ) -> None:
-        r"""The two induced arrows, on a REAL rule: :math:`\pi_*\mu` lives on
-        :math:`S^2/O(2)_x` because :math:`\pi` says so, and
-        :math:`\int f \, d(\pi_*\mu) = \int (f \circ \pi) \, d\mu`
-        (:eq:`discrete-measure-pushforward`) — checked on
-        :math:`f(\mu) = \mu^2`, whose sphere integral is :math:`4\pi/3`.
-        With the refusal leg: a rule on the chart cannot be pushed along a
-        map out of the sphere."""
-        from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
-        from orpheus.numerics.quadrature.rules_sphere import level_symmetric_sn
-
-        q = SPHERE.quotient(SubgroupOfO3.O2("x"))
-        rule, _ = level_symmetric_sn(4)
-        pushed = rule.pushforward(q.quotient_map)
-        assert pushed.support is q
-        assert np.array_equal(pushed.nodes, rule.nodes[:, 0])
-        assert np.array_equal(pushed.weights, rule.weights)
-        lhs = pushed.integrate(lambda mu: mu**2)
-        rhs = rule.integrate(lambda omega: omega[:, 0] ** 2)
-        assert lhs == rhs
-        assert np.isclose(lhs, 4.0 * np.pi / 3.0)
-        with pytest.raises(ValueError, match="map's domain must be the measure's support"):
-            gauss_legendre_on_mu(4).pushforward(q.quotient_map)
-
-    def test_the_axial_entries_have_the_hat_box_reference_and_the_others_None(
-        self,
-    ) -> None:
-        r"""Archimedes: :math:`\mu_* d\Omega = 2\pi\,d\mu`, so the reference
-        is Lebesgue on :math:`[-1,1]` — ``LEGENDRE``, identically, on all
-        three axes.  ``None`` on the mirror (a weighted disk measure no
-        shipped realization spells) and on the trivial quotient (Lebesgue
-        on the BASE, whose orthogonal system the type does not carry)."""
-        from orpheus.numerics.generating_measure import LEGENDRE, pushforward_reference
-
-        for axis in self._AXES:
-            assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.O2(axis))) is LEGENDRE
-        assert LEGENDRE.support == COSINE_INTERVAL
-        for axis in self._AXES:
-            assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Mirror(axis))) is None
-        assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Trivial)) is None
-        assert pushforward_reference(CIRCLE.quotient(SubgroupOfO3.Trivial)) is None
-        # ⚠ A reference lives on the REALIZATION — the chart codomain, where
-        # the quotient map's image lands and where 2 pi d(mu) is written —
-        # never on the entry, which would demand a measure carry an axis it
-        # does not know.  `[M]` 2026-09-02 (archivist): nothing in orpheus/
-        # reads `reference.support`, so this is the only pin on it.
-        for group in _ROSTER:
-            q = SPHERE.quotient(group)
-            reference = pushforward_reference(q)
-            if reference is not None:
-                assert reference.support == q.realization
-                assert reference.support != q
-
     def test_the_map_is_DERIVED_so_it_takes_no_part_in_equality_and_survives_a_pickle(
         self,
     ) -> None:
@@ -1394,6 +1267,11 @@ class TestDescendingSlots:
     component is one-dimensional in every degree, spanned by
     :math:`Y_\ell^0`), so the positive leg is checkable against
     :math:`\{(\ell, \ell)\}` written independently of the probe.
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
+    so it moved to numerics, keeping this class's name:
+    ``test_the_mirror_leg_reproduces_the_sigma_even_mask_bit_for_bit``
+    is now in ``tests/gates/numerics/test_spherical_harmonic_basis.py``.
     """
 
     def test_about_x_exactly_the_m_zero_slots_descend(self) -> None:
@@ -1515,52 +1393,6 @@ class TestDescendingSlots:
             f"defect in this row; read {degenerate}"
         )
 
-    def test_the_mirror_leg_reproduces_the_sigma_even_mask_bit_for_bit(self) -> None:
-        r"""The FINITE-group leg: for :math:`\sigma_a` the probe IS ``even_slot_mask``.
-
-        ``[M]`` 2026-09-02 ``array_equal`` on **15 of 15** (3 axes ×
-        :math:`L \in \{1..5\}`) rows, against a σ-parity classification
-        written here from the definition (evaluate at generic directions and
-        at their σ-images; even ⟺ equal). That reference shares no code with
-        the probe, so this is a check of the probe, not of its spelling.
-
-        NEGATIVE leg: the mask MOVES when the mirror axis moves — otherwise
-        "the probe reproduces the mask" would be compatible with a mask that
-        does not depend on the group at all.
-        """
-        from orpheus.numerics.basis.spherical_harmonic_basis import (
-            MirrorEvenSphericalHarmonicBasis,
-            SphericalHarmonicBasis,
-        )
-
-        probe = _generic_unit_directions()
-        for axis_index, axis_name in enumerate("xyz"):
-            for L in (1, 2, 3, 4, 5):
-                mask = MirrorEvenSphericalHarmonicBasis(
-                    L=L, mirror_axis=axis_index
-                ).even_slot_mask
-
-                mirrored = probe.copy()
-                mirrored[:, axis_index] *= -1.0
-                table = SphericalHarmonicBasis(L=L).evaluate(probe)
-                reflected = SphericalHarmonicBasis(L=L).evaluate(mirrored)
-                parity_even = np.all(
-                    np.isclose(table, reflected, rtol=0.0, atol=1e-12), axis=0
-                ).astype(float)
-
-                assert np.array_equal(mask, parity_even), (
-                    f"axis {axis_name}, L={L}: the entry's probe and a direct "
-                    f"parity classification disagree"
-                )
-                assert int(mask.sum()) == {1: 5, 2: 12, 3: 22, 4: 35, 5: 51}[L]
-
-                other = MirrorEvenSphericalHarmonicBasis(
-                    L=L, mirror_axis=(axis_index + 1) % 3
-                ).even_slot_mask
-                assert not np.array_equal(mask, other), (
-                    f"the mask must depend on the mirror AXIS (L={L})"
-                )
-
     def test_the_probe_refuses_points_off_the_base_and_an_unsupported_base(self) -> None:
         r"""Two refusals: a probe off the base, and a base with no default probe set."""
         from orpheus.numerics.basis.spherical_harmonic_basis import (
@@ -1611,12 +1443,6 @@ class TestDescendingSlots:
             # a rotation about x fixes the x-component — the property the
             # whole descent rests on.
             np.testing.assert_allclose(image[:, 0], points[:, 0], atol=1e-14)
-
-
-def _generic_unit_directions(seed: int = 20260902, n: int = 9) -> np.ndarray:
-    """Deterministic generic unit directions — no component zero, none related by a coordinate symmetry."""
-    raw = np.random.default_rng(seed).normal(size=(n, 3))
-    return raw / np.linalg.norm(raw, axis=1)[:, None]
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -1978,26 +1804,9 @@ class TestTheOrbitSpaceIsNamedByItsStabiliser:
 # 2.2b — the Γ-slot: gates drafted by the test-architect (2026-09-02)
 # =============================================================================
 
-_g22b_AXES = ("x", "y", "z")
-
-
-def _g22b_trivially_quotiented_product() -> DiscreteMeasure:
-    from dataclasses import replace
-
-    return replace(
-        Quadrature.product(4, 8).measure,
-        support=SPHERE.quotient(SubgroupOfO3.Trivial),
-    )
-
-
-
 
 def _g22b_rot(axis: str, theta: float) -> RigidMotion:
     return RigidMotion.rotation_about_axis(axis=np.eye(3)["xyz".index(axis)], angle=theta)
-
-
-def _g22b_mirror(axis: str) -> RigidMotion:
-    return RigidMotion.reflection(normal=np.eye(3)["xyz".index(axis)])
 
 
 #: Pairwise-incommensurate angles.  A right-angle sample of a continuous
@@ -2228,6 +2037,11 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
     reads ``measure.support.lift(nodes)``.  `[M]` that is ``array_equal`` to
     today's answer on all three axes, so the re-point is bit-identical AND
     single-sources the lift (Pattern 2).
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
+    so it moved to numerics, keeping this class's name:
+    ``test_ordinate_permutation_still_reads_the_axis_the_orbit_space_names``
+    is now in ``tests/gates/numerics/test_quadrature_directional.py``.
     """
 
     @pytest.mark.foundation
@@ -2240,21 +2054,6 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
             np.asarray(rule.support.ambient_points(rule.nodes), dtype=float),
             np.asarray(rule.support.lift(nodes), dtype=float),
         )
-
-    @pytest.mark.foundation
-    @pytest.mark.parametrize("axis", _g22b_AXES)
-    def test_ordinate_permutation_still_reads_the_axis_the_orbit_space_names(self, axis):
-        """The consumer a deleted axial arm would corrupt, pinned directly.
-
-        `[M]` the identity/flip pattern is diagonal in the axis: only the
-        mirror NORMAL to the orbit space's own axis moves the ordinates."""
-        rule = gauss_legendre_on_polar_orbit(8, axis)
-        quad = Quadrature(measure=rule)
-        for other in _g22b_AXES:
-            perm = quad.ordinate_permutation(_g22b_mirror(other))
-            assert perm is not None
-            moved = perm.indices.tolist() != list(range(rule.n_points))
-            assert moved is (other == axis), (axis, other)
 
     # ``test_a_BARE_interval_keeps_the_column_zero_convention`` was DELETED at S5 (ruling 44):
     # it pinned the zero-padding of a bare interval as the contract, and S5 retires the
@@ -2269,7 +2068,6 @@ class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
 # ===== R4 gates (test-architect, 2026-09-03) — the lift is a derivation output
 # =============================================================================
 
-_R4_I3 = np.eye(3)
 _R4_ATOL_EXACT = 1e-14          # C1 / B2: a 30x margin over the measured floors
 _R4_ATOL_NEAR_BIT = 1e-13       # C3's non-signed-permutation leg (measured 5.0e-16)
 _R4_O1 = 0.1                    # C2: the negative leg's floor (measured >= 5.5e-01)
@@ -2976,6 +2774,11 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
 
     * chart width → ``lift_coordinates(points)``
     * ambient width → ``lift_coordinates(orbit_coordinates(points))`` = ``P_H p``
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
+    so it moved to numerics, keeping this class's name:
+    ``test_the_HARNESS_fold_answer_now_agrees_with_the_kernel``
+    is now in ``tests/gates/numerics/test_invariance_verdicts.py``.
     """
 
     @pytest.mark.foundation
@@ -3062,40 +2865,6 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
         fold = SPHERE.quotient(SubgroupOfO3.Mirror("y"))
         with pytest.raises(ValueError, match="neither"):
             fold.orbit_barycentres(np.zeros((4, 7)))
-
-    @pytest.mark.foundation
-    def test_the_HARNESS_fold_answer_now_agrees_with_the_kernel(self) -> None:
-        r"""⭐ ``tests/_harness/references.py``'s partner map is derived from
-        ``_embedded_nodes`` (``GSpace.ambient_points`` since S5), so R4 moves ONE of its 33 (rule × axis) answers per
-        fold — and it moves it INTO agreement with the kernel.
-
-        ``[M]`` 2026-09-03: 31 of 33 answers unchanged; the 2 that move are
-        ``axis="y"`` on the two folds, where the harness RAISED (residual
-        ``1.19e+00``) and now returns the identity permutation (residual
-        ``0.00e+00``) — which is exactly what ``permutation_under`` has
-        answered since #429 tracker 2.2b.  ``[M]`` **no call site passes
-        ``axis="y"`` on a fold** (both pass ``"x"``: a literal at
-        ``test_snmesh_realizer_wiring.py:439,450``, and the CYL fold's only
-        realized face carries ``ReflectiveBoundary(axis='x')`` at
-        ``test_b3_domain_narrowing.py:164,175``), so no committed assertion
-        moved — which is why this capability needs a gate of its own or it
-        lands unrecorded.
-        """
-        from tests._harness.references import mirror_partner_indices
-
-        quad = Quadrature.folded_product(n_mu=4, n_phi=8)
-        reference = mirror_partner_indices(quad, "y")
-        np.testing.assert_array_equal(reference, np.arange(quad.n_ordinates))
-
-        kernel = quad.measure.permutation_under(RigidMotion.reflection(normal=_R4_I3[1]), atol=1e-9)
-        assert kernel is not None
-        np.testing.assert_array_equal(np.asarray(kernel.indices), reference)
-
-        # the axis the two folded CALL SITES actually pass is untouched
-        np.testing.assert_array_equal(
-            mirror_partner_indices(quad, "x"),
-            mirror_partner_indices(quad, "x"),
-        )
 
 
 # =====================================================================
@@ -3284,6 +3053,11 @@ class TestR4TheTrivialQuotientOfAnOrbitSpaceIsThatOrbitSpace:
     ``S^2/sigma_y/Trivial``, unequal to and not identical with its own base:
     the very class (one orbit space, two objects) that ``#432``'s naming law
     and ERR-080 exist to make unspellable.
+
+    Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
+    so it moved to numerics, keeping this class's name:
+    ``test_the_measure_level_verb_keeps_every_node_on_the_ENTRYS_OWN_support``
+    is now in ``tests/gates/numerics/test_measure.py``.
     """
 
     @pytest.mark.foundation
@@ -3293,19 +3067,6 @@ class TestR4TheTrivialQuotientOfAnOrbitSpaceIsThatOrbitSpace:
         the assertion.  ``[M]`` pre-carve ``is`` is False and ``==`` is False."""
         entry = _r4_entry(label)
         assert entry.quotient(SubgroupOfO3.Trivial) is entry
-
-    @pytest.mark.foundation
-    def test_the_measure_level_verb_keeps_every_node_on_the_ENTRYS_OWN_support(
-        self,
-    ) -> None:
-        """``[M]`` pre-carve the 16 nodes land on ``S^2/sigma_y/Trivial``; after
-        R4 they land on ``S^2/sigma_y``, which is where they already were."""
-        measure = Quadrature.folded_product(n_mu=4, n_phi=8).measure
-        folded = measure.quotient(SubgroupOfO3.Trivial)
-        assert folded.support is measure.support
-        assert folded.support.name == "S^2/sigma_y"
-        np.testing.assert_array_equal(folded.nodes, measure.nodes)
-        np.testing.assert_array_equal(folded.weights, measure.weights)
 
     @pytest.mark.foundation
     @pytest.mark.parametrize("label", ("S2", "CIRCLE", "COSINE_INTERVAL"))

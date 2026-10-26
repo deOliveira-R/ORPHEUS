@@ -38,6 +38,7 @@ from orpheus.geometry.manifold import (
 )
 from orpheus.numerics.index_set import IndexSet
 from orpheus.geometry.symmetry import SubgroupOfO3
+from orpheus.numerics.quadrature.directional import Quadrature
 
 
 # ============================================================================
@@ -1203,3 +1204,95 @@ def test_consolidate_preserves_the_generating_measure() -> None:
     # a rule that HAS one keeps it through consolidate.
     tagged = rule.consolidate()
     assert tagged.exactness.reference == LEGENDRE
+
+
+# =============================================================================
+# Re-filed from tests/gates/geometry/test_manifold.py (layer DAG ruling 23, 2026-10-25)
+# =============================================================================
+
+
+@pytest.mark.foundation
+class TestManifoldMap:
+    """The numerics half of geometry's ``TestManifoldMap``.
+
+    Re-filed 2026-10-25 from ``tests/gates/geometry/test_manifold.py`` (layer-DAG
+    ruling 23): the row below asserts a numerics object's verb, so it lives here; the class keeps its geometry name so the node id
+    changes only in its path.  The manifold rows of the class stay in geometry.
+    """
+
+    def test_functoriality_the_pushforward_of_a_composite_is_the_composite_of_pushforwards(
+        self,
+    ) -> None:
+        from orpheus.geometry.manifold import ManifoldMap
+        from orpheus.numerics.generating_measure import LEGENDRE
+
+        phi = ManifoldMap(COSINE_INTERVAL, UNIT_INTERVAL, lambda x: 0.5 * (x + 1.0))
+        psi = ManifoldMap(UNIT_INTERVAL, UNIT_INTERVAL, lambda x: x * x)
+        mu = LEGENDRE.gauss(5)
+
+        at_once = mu.pushforward(psi @ phi)
+        stepwise = mu.pushforward(phi).pushforward(psi)
+        assert np.array_equal(at_once.nodes, stepwise.nodes)
+        assert np.array_equal(at_once.weights, stepwise.weights)
+        assert at_once.support == stepwise.support == UNIT_INTERVAL
+
+
+
+@pytest.mark.foundation
+class TestTheEntryCarriesItsQuotientMapAndItsReference:
+    """The numerics half of geometry's ``TestTheEntryCarriesItsQuotientMapAndItsReference``.
+
+    Re-filed 2026-10-25 from ``tests/gates/geometry/test_manifold.py`` (layer-DAG
+    ruling 23): the row below asserts a numerics object's verb, so it lives here; the class keeps its geometry name so the node id
+    changes only in its path.  The manifold rows of the class stay in geometry.
+    """
+
+    def test_a_sphere_rule_pushed_along_pi_lands_on_the_entry_and_obeys_the_pullback_identity(
+        self,
+    ) -> None:
+        r"""The two induced arrows, on a REAL rule: :math:`\pi_*\mu` lives on
+        :math:`S^2/O(2)_x` because :math:`\pi` says so, and
+        :math:`\int f \, d(\pi_*\mu) = \int (f \circ \pi) \, d\mu`
+        (:eq:`discrete-measure-pushforward`) — checked on
+        :math:`f(\mu) = \mu^2`, whose sphere integral is :math:`4\pi/3`.
+        With the refusal leg: a rule on the chart cannot be pushed along a
+        map out of the sphere."""
+        from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
+        from orpheus.numerics.quadrature.rules_sphere import level_symmetric_sn
+
+        q = SPHERE.quotient(SubgroupOfO3.O2("x"))
+        rule, _ = level_symmetric_sn(4)
+        pushed = rule.pushforward(q.quotient_map)
+        assert pushed.support is q
+        assert np.array_equal(pushed.nodes, rule.nodes[:, 0])
+        assert np.array_equal(pushed.weights, rule.weights)
+        lhs = pushed.integrate(lambda mu: mu**2)
+        rhs = rule.integrate(lambda omega: omega[:, 0] ** 2)
+        assert lhs == rhs
+        assert np.isclose(lhs, 4.0 * np.pi / 3.0)
+        with pytest.raises(ValueError, match="map's domain must be the measure's support"):
+            gauss_legendre_on_mu(4).pushforward(q.quotient_map)
+
+
+
+@pytest.mark.foundation
+class TestR4TheTrivialQuotientOfAnOrbitSpaceIsThatOrbitSpace:
+    """The numerics half of geometry's ``TestR4TheTrivialQuotientOfAnOrbitSpaceIsThatOrbitSpace``.
+
+    Re-filed 2026-10-25 from ``tests/gates/geometry/test_manifold.py`` (layer-DAG
+    ruling 23): the row below asserts a numerics object's verb, so it lives here; the class keeps its geometry name so the node id
+    changes only in its path.  The manifold rows of the class stay in geometry.
+    """
+
+    @pytest.mark.foundation
+    def test_the_measure_level_verb_keeps_every_node_on_the_ENTRYS_OWN_support(
+        self,
+    ) -> None:
+        """``[M]`` pre-carve the 16 nodes land on ``S^2/sigma_y/Trivial``; after
+        R4 they land on ``S^2/sigma_y``, which is where they already were."""
+        measure = Quadrature.folded_product(n_mu=4, n_phi=8).measure
+        folded = measure.quotient(SubgroupOfO3.Trivial)
+        assert folded.support is measure.support
+        assert folded.support.name == "S^2/sigma_y"
+        np.testing.assert_array_equal(folded.nodes, measure.nodes)
+        np.testing.assert_array_equal(folded.weights, measure.weights)

@@ -1,7 +1,8 @@
 r"""Bit-exactness of the realized :math:`O(3)` operators (campaign step G4).
 
-A distinct claim class from :mod:`tests.gates.geometry.test_symmetry`, which
-gates the *group structure* — which subgroup contains which, and which
+A distinct claim class from ``tests/gates/geometry/test_symmetry.py``, which
+gates the *group structure* — which subgroup contains which — and from
+``tests/gates/numerics/test_invariance_verdicts.py``, which gates which
 rule is invariant under which group. This file gates the **floating-point
 realization** of the same operators: how exactly the matrices are built,
 and how exactly they carry a real quadrature's node set onto itself.

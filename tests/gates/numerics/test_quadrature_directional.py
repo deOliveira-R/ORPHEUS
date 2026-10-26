@@ -38,6 +38,8 @@ from orpheus.geometry.transformation import RigidMotion
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import LevelStructure, Quadrature
 from orpheus.numerics import frame_faces
+from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
+from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _g22b_mirror
 
 pytestmark = [pytest.mark.foundation]
 
@@ -770,3 +772,32 @@ def test_q9_5_the_flow_consumers_still_read_zero_on_a_suppressed_axis() -> None:
     leb = Quadrature.lebedev(17)
     for name, i in (("mu_x", 0), ("mu_y", 1), ("mu_z", 2)):
         np.testing.assert_array_equal(getattr(leb, name), leb.measure.nodes[:, i])
+
+
+# =============================================================================
+# Re-filed from tests/gates/geometry/test_manifold.py (layer DAG ruling 23, 2026-10-25)
+# =============================================================================
+
+
+class TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice:
+    """The numerics half of geometry's ``TestTheEmbeddingReadsTheLiftRatherThanSpellingItTwice``.
+
+    Re-filed 2026-10-25 from ``tests/gates/geometry/test_manifold.py`` (layer-DAG
+    ruling 23): the row below asserts a numerics object's verb, so it lives here; the class keeps its geometry name so the node id
+    changes only in its path.  The manifold rows of the class stay in geometry.
+    """
+
+    @pytest.mark.foundation
+    @pytest.mark.parametrize("axis", _g22b_AXES)
+    def test_ordinate_permutation_still_reads_the_axis_the_orbit_space_names(self, axis):
+        """The consumer a deleted axial arm would corrupt, pinned directly.
+
+        `[M]` the identity/flip pattern is diagonal in the axis: only the
+        mirror NORMAL to the orbit space's own axis moves the ordinates."""
+        rule = gauss_legendre_on_polar_orbit(8, axis)
+        quad = Quadrature(measure=rule)
+        for other in _g22b_AXES:
+            perm = quad.ordinate_permutation(_g22b_mirror(other))
+            assert perm is not None
+            moved = perm.indices.tolist() != list(range(rule.n_points))
+            assert moved is (other == axis), (axis, other)

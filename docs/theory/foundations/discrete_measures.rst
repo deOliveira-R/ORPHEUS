@@ -1063,7 +1063,7 @@ in a weight-preserving way:
    G-invariance of a discrete measure (every g permutes the support points in a
    weight-preserving way). The definition the quadrature-selection containment
    check :eq:`subgroup-of-o3-containment` builds on; its concrete instances are
-   the foundation gates in :file:`tests/gates/geometry/test_symmetry.py`
+   the foundation gates in :file:`tests/gates/numerics/test_invariance_verdicts.py`
    (``test_lebedev_is_octahedral_invariant`` positive +
    ``test_lebedev_is_NOT_icosahedral_invariant`` negative, via
    ``DiscreteMeasure.is_invariant_under`` — spelled
@@ -1720,7 +1720,7 @@ answering its reason.
   downward-closed, **0** disagreements. The fact it establishes: the two
   methods are one definition evaluated twice, and their agreement is an X4
   tautology. Downward closure keeps its own law gate,
-  ``test_symmetry.py::test_invariance_is_downward_closed``, and the row
+  ``test_invariance_verdicts.py::test_invariance_is_downward_closed``, and the row
   ``test_walk_and_bruteforce_agree_on_a_predicate_that_is_NOT_downward_closed``
   pins the fact so the agreement is not re-credited; the
   :func:`~orpheus.geometry.symmetry.maximal_satisfying` docstring says the
