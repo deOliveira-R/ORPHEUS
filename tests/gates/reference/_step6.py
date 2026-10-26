@@ -102,3 +102,18 @@ def medium_table() -> tuple[Any, TableDerivation, Any]:
     table = {s5.eigenvalue(): k, group_flux(0): f0, group_flux(1): f1}
     cert = s5.certificate({s5.eigenvalue(): exact_claim(k), group_flux(0): exact_claim(f0), group_flux(1): exact_claim(f1)})
     return spec, TableDerivation(table), cert
+
+
+def contains(enclosure: Any, exact: Fraction) -> bool:
+    """The enclosure contains the exact value."""
+    return abs(Fraction(enclosure.value) - exact) <= Fraction(enclosure.bound)
+
+
+def machin_zero() -> Any:
+    """``atan(1/2) + atan(1/3) - pi/4``: exactly 0 (Euler's Machin-like identity), which SymPy neither
+    simplifies to 0 nor evaluates in strict mode (cancellation), so ``Exact`` refuses it (``[M]``
+    2026-10-03 on ``7d0258d1``: the exact family raised ``NotCertified``; a denesting radical, a
+    squared surd, a cube-root sum and a log sum all simplified to 0 and were certified)."""
+    import sympy
+
+    return sympy.atan(sympy.Rational(1, 2)) + sympy.atan(sympy.Rational(1, 3)) - sympy.pi / 4
