@@ -39,7 +39,6 @@ import sympy as sp
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import InconsistentMaterialsError, Materials
 from orpheus.geometry import CoordSystem, GeometryExtent, MirrorDeck, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
 from orpheus.specification import (

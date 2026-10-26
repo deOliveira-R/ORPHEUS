@@ -599,7 +599,7 @@ Why each refusal is there:
   angular closure computes, and refuses the rest. ``[M]`` before the refusal an
   inner vacuum and an inner reflective law gave bit-identical SN fluxes on a
   cylinder and a sphere with :math:`r_0 = 0.5` (2026-09-25); the gates are
-  ``tests/gates/mesh/test_hollow_inner_law.py`` (``test_sn_refuses_a_declared_inner_law_it_would_drop``,
+  ``tests/gates/sn/architecture/test_sn_hollow_inner_law.py`` (``test_sn_refuses_a_declared_inner_law_it_would_drop``,
   ``test_a_direct_mesh_is_refused_too``, and the last gate, which verifies that the
   admitted ``specular(1.0)`` is the void-cavity answer). Diffusion's table refuses
   the same declarations with the same shared refusal.

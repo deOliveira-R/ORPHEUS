@@ -26,7 +26,7 @@ The behaviours the rows pin, each read at the line of today's code that makes it
   1.212883 against SN reflective|white 1.212884 and SN white|white 1.212537), so the slab CP computes is half of a symmetric slab. Today
   ``_refuse_a_law_cp_drops`` admits only a reflective left law and raises ``NotImplementedError`` otherwise (#513). After the carve
   the refusal is admission: the ``xmin`` face of a ``CART`` site admits ``MirrorDeck()`` only, a tag bound to ANY condition, and a
-  ``TranslationDeck``, are ``Refused(PLUMBING, #513)`` (the migrated ``tests/gates/mesh/test_dropped_laws_are_refused.py::TestCP``,
+  ``TranslationDeck``, are ``Refused(PLUMBING, #513)`` (the migrated ``tests/gates/cp/test_cp_dropped_laws_are_refused.py::TestCP``,
   whose ``NotImplementedError`` expectations become ``BoundaryRefused``; the ``wrong-axis-mirror`` row has no successor, because a
   ``MirrorDeck`` has no axis, rule R5). The right face of the slab and the outer face of a radial body: ``white(1.0)`` and the empty
   network are ``Realized(True)``, everything else is ``Refused(PLUMBING, #654)``.
@@ -37,7 +37,7 @@ The behaviours the rows pin, each read at the line of today's code that makes it
 * **The hollow inner face.** Section 4.2 states no CP ``RAD_INNER`` column; hand-off (b) of S3 says CP does not call
   ``hollow_inner_refusal`` (it is the SN and diffusion refusal, #511). TODAY a hollow CP mesh with a declared inner law is refused by
   ``_refuse_a_law_cp_drops`` with ``NotImplementedError`` citing #513 ("the declared inner law would be dropped"), for every law
-  (``tests/gates/mesh/test_dropped_laws_are_refused.py::TestCP::test_a_hollow_body_with_an_inner_law_is_refused``). Today's behaviour
+  (``tests/gates/cp/test_cp_dropped_laws_are_refused.py::TestCP::test_a_hollow_body_with_an_inner_condition_is_refused``). Today's behaviour
   re-keyed by face is ``Refused(PLUMBING, #513)`` for every unit at CP's ``RAD_INNER`` site, and the hollow-inner row below pins exactly
   that. It is the builder's to confirm or amend (the orchestrator's ruling: NEEDS 1 of the S4 gates report); the row is separate from the
   admission pin so that a ruling edits one test and not the grid.

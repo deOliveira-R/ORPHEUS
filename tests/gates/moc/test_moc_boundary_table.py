@@ -13,7 +13,7 @@ kind, ``reflective``, applied to every track). A specular wall of weight 1 on th
 shape: ``Approximated.of("an equal-area square cell with reflecting flat faces, not the declared cylinder", 547)`` (#547, section 4.2;
 the name is pinned character for character by the shared admission pin). Every other wall is ``Refused(PLUMBING, #654)``: the registry
 held nothing else (``BC_REGISTRY = {"reflective": ...}``). A slab, a hollow body and any non-cylinder are refused by MoC's own guard
-(#514, ``SCOPE-BOUNDARY[guard]``), not by admission, and the migrated ``tests/gates/mesh/test_dropped_laws_are_refused.py::TestMOC`` rows
+(#514, ``SCOPE-BOUNDARY[guard]``), not by admission, and the migrated ``tests/gates/moc/test_moc_dropped_laws_are_refused.py::TestMOC`` rows
 keep them.
 
 The ladder
