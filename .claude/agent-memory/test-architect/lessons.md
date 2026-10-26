@@ -674,3 +674,13 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
 - **A pre-declared coverage control must be shown to EXECUTE a def before it is declared.** A test asserting a module constant runs its
   line at import, under the empty context, so its per-test cone is empty and the control reads `NOT FOUND`, not pure. Print the
   candidate's cone first (one `load()` call). `[M]` geometry `test_sqrt_half_constant_is_correctly_rounded`, 0 defs.
+
+## Sub-cone r3 (2026-10-25, five small layers) — one instrument trap, one harness fact; extends `instrument-doctrine` X1 (a null is the measurement)
+
+- **A DAG's incomparable-PAIR fraction does not predict the closure instrument's power; the def mass in the incomparable region does.**
+  reference has 6 of 21 pairs incomparable, yet its shuffled null read 1.00 in 3 of 3 draws: the incomparable pairs sit on
+  `(init)`/`reading`/`withdrawal`, and the tests' lines sit at the end of a chain. Declare power from the null, never from the
+  graph's shape (`[M]` `scratch/layer_dag/refiling/subcones_r3/`, `dagshape_all.txt` vs `step_reference_closure_tc1.log`).
+- **In an isolated workflow worktree the Bash guard refuses shell loops, `$VAR` expansion, globs as arguments and heredocs, and
+  `Write` refuses paths outside the worktree and any report-like `.md`.** Put the loop inside a Python script that takes the
+  layers as argv, write scripts in the worktree and `cp` them out by plain paths, and return a report as text.

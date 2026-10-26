@@ -268,3 +268,51 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
     - The surgical-carve exception does not bind test moves.
     - The pattern: a census; a move spec per destination layer (test-architect); movers in disjoint worktrees, one per destination package; qa (collected counts, markers, `rests_on` targets, docs citations); archivist fixes for the docs citations.
 26. **The traced-memo regeneration runs now, in the background, in its own worktree** (the user). `[M]` 0 of 8064 entries validate on the tree (S0 spec, `scratch/layer_dag/moment_basis/gate_spec.md` §1). That zero has no positive control yet, and the regeneration supplies one: a freshly written entry must validate.
+
+## Phases 0, 1 and 3 landed, 2026-10-26 (`main` @ `ddb6ff41`)
+
+**What merged.** Six commits from `test/refile-integrated`, fast-forwarded onto `24c270e1`. CI `gates` run 40299724015 was green on `ddb6ff41`.
+- `2997a9bb`: numerics → cross_method (the family convergence contract; 41 tests).
+- `501166a3`: geometry → mesh (51 tests).
+- `55a6bc6b`: numerics → transport (51 tests).
+- `35787df7`: geometry → numerics (102 tests).
+- `a71d008f`: the test-layer gate, `tests/gates/test_test_layers.py`, and the `rests_on` resolution gate (`tests/_harness/rests_on_manifest.py`; `OPEN_UNRESOLVED_RESTS_ON` is empty).
+- `ddb6ff41`: qa's fixes. The diffuse `rests_on` target re-pointed to `TestRealizeWhite::test_white_partial_weight_matches_weight_times_the_closed_form`, because the first successor stayed green under an α → α² mutation. The gate docstring names the `derivations`/`plotting` contract gap (22 files).
+
+**The evidence.**
+- `[M]` The gate's open list counted 254 (file, package) rows over 121 files at `24c270e1`, and counts 235 rows over 116 files after the moves. The count is the committed scanner's.
+- `[M]` qa, `scratch/layer_dag/refiling/review_qa.md`:
+  - 157 defs and 79 methods are AST-identical across the moves;
+  - 246 moved test ids map one to one;
+  - a planted violation reddens the gate;
+  - 6 of 6 mutation arms are red.
+- `[M]` The full suite at `a71d008f`, run serially per directory with `*_NUM_THREADS=1` and `-m "not slow"` (`scratch/layer_dag/refiling/suite/driver.log`): every directory and root gate file is rc=0. The one exception is `test_pyright_ratchet.py` at rc=5, meaning everything was deselected as slow, the same as the baseline. `ddb6ff41` changed comments and strings only, and its touched gates gave 43 passed.
+
+**The memo regeneration (ruling 26), done.** This is the positive control the zero lacked.
+- `[M]` The run: the full suite including slow tests, at `24c270e1`, in `.claude/worktrees/memo-regen`, with `*_NUM_THREADS=1`. It took 25 085 s; derivations 9518 s, sn 9041 s, mc 4354 s. Every target was rc=0, and it wrote 2430 `.npz` entries.
+- `[M]` The positive control (`scratch/layer_dag/memo_regen/probe_validate.py`): `Store.lookup` read 2430 of 2430 entries as Hit against `main` @ `ddb6ff41`. Two conditions are needed, under the same environment as the generation and with the repository root first on `sys.path`, as pytest puts it.
+  - Without the root on `sys.path`, every def pin reads "gone".
+  - Without the thread variables, every entry reads "the generation's environment changed".
+- `[M]` 2021 entries exist in both the old and the new store, and their payload digests are identical, 0 differ. 409 entries are new.
+- Installed into the main `.cache/references/`, which went from 8122 to 8531 entries.
+- **A finding, `[M]` `probe_env.py`.** The environment pin covers `OMP/OPENBLAS/MKL/VECLIB_MAXIMUM/NUMEXPR_NUM_THREADS`. So the store holds one population per thread setting: 5593 old entries under a plain shell (`e99f6137`), and 4451 under `*_NUM_THREADS=1` (`a196d6bb`, every detached driver). A run in the other environment regenerates everything. Whether the thread count belongs in the pin is a question for the user: it does change BLAS summation order, so the pin is principled.
+
+**Rulings owed to the user** (from the Phase 3 report, `scratch/layer_dag/refiling/subcones_r3/report.md`, and the movers' NEEDS).
+1. Do `importlib` string imports count as imports for the test-layer gate? 16 files use them.
+2. Where does a tree-wide census of one layer's contract live?
+3. Do `data → derivations` and `mesh → derivations` stay admitted?
+4. Near-duplicate tests in `TestMesh1D` and `TestFaceRoles`: merge them, or keep both?
+5. An X4 twin: the `_MEASURE_*` constants against `test_partition`'s constants.
+6. `ERR-073` says "None today", which is false.
+7. The parametrise ids of `test_inverse_universal.py` embed memory addresses.
+8. `TestR1AConnected` methods 2 and 4: stay, or move?
+9. Should geometry own a point manifold?
+10. `harness.rst:353` is stale.
+
+**Next, in order.** Phase 1b, the Phase 3 candidates:
+- `mesh/test_partition` `TestTheOneMeasure` → geometry;
+- mesh's face-role inventory tests → geometry;
+- `mesh/test_dropped_laws_are_refused` `TestCP`/`TestMOC`/`TestMC` → cp/moc/mc;
+- the 3 `test_mixture` repairs.
+
+Then Phase 2, after the test-architect's spec, and then Phase 4.
