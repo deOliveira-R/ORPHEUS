@@ -1269,9 +1269,10 @@ class TestDescendingSlots:
     :math:`\{(\ell, \ell)\}` written independently of the probe.
 
     Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
-    so it moved to numerics, keeping this class's name:
+    so it moved to numerics:
     ``test_the_mirror_leg_reproduces_the_sigma_even_mask_bit_for_bit``
-    is now in ``tests/gates/numerics/test_spherical_harmonic_basis.py``.
+    is now in ``tests/gates/numerics/test_spherical_harmonic_basis.py``, class
+    ``TestEvenSlotMaskThroughTheEntry``.
     """
 
     def test_about_x_exactly_the_m_zero_slots_descend(self) -> None:

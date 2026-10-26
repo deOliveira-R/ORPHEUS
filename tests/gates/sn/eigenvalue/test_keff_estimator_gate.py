@@ -522,10 +522,13 @@ _THE_MIRROR_ACTION = (
     "test_specular_partial_weight_matches_hand_computed"
 )
 _THE_DIFFUSE_ACTION = (
-    # The cosine-weighted re-emission: the re-emitted current equals the received one
-    # (it left the retired geometry/test_reemission_closure.py in wave 2's slice S3, 210ccf16).
-    "tests/gates/sn/operators/test_lambertian_chain.py::"
-    "TestCosineWeightedCurrentConservation"
+    # The realized white wall at partial weight against a hand-written cosine-weighted
+    # reference (it left the retired geometry/test_reemission_closure.py in wave 2's
+    # slice S3, 210ccf16). [M] 2026-10-25, qa: it reddens under a white amplitude
+    # alpha -> alpha^2, which the rows resting on it do not see.
+    "tests/gates/sn/operators/test_sn_boundary_realizer.py::"
+    "TestRealizeWhite::"
+    "test_white_partial_weight_matches_weight_times_the_closed_form"
 )
 _THE_CORNER_ACTION = (
     "tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::"

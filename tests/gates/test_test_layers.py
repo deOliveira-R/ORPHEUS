@@ -26,6 +26,14 @@ and the files at the root of ``tests/gates/`` (this one included). A
 ``tests.gates`` target that is not a layered directory (a root helper such as
 ``tests.gates._exterior``, or ``cross_method``) is not judged.
 
+Not judged, the contract's gap: ``FORBIDDEN_EDGES`` has no row for
+``orpheus.derivations`` (L0) or ``plotting`` in the rows of ``numerics``,
+``data``, ``mesh`` and ``specification``, so a test there importing a
+derivation reads as allowed although ruling 22's "at or below" refuses it
+(``[M]`` 2026-10-25, qa: 22 files, numerics 15, data 6, mesh 1). Whether those
+production edges are admitted is a ruling owed to the user (``layer_dag.md``,
+the numerics to derivations opening); the gate follows the table.
+
 Not seen, the declared blind spots: a module name handed to
 ``importlib.import_module`` or ``__import__`` as a string; an import spelled
 inside a string literal (a subprocess source); and the TRANSITIVE cone of a
