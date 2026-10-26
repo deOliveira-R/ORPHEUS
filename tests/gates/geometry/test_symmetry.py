@@ -29,8 +29,7 @@ import pytest
 
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.geometry.manifold import SPHERE
-from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.quadrature.directional import Quadrature
+from orpheus.geometry.roots_of_unity import roots_of_unity
 from orpheus.geometry.symmetry import IdentityComponent, Realization, SubgroupOfO3, _ELEMENT_ATOL
 
 from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _g22b_mirror, _every_spellable_group
@@ -2064,10 +2063,34 @@ class TestR1TheNormaliserIsExactAndComputed:
 # --------------------------------------------------------------------------
 
 
-def _r1_sphere_measure(q) -> DiscreteMeasure:
-    return DiscreteMeasure(
-        nodes=np.column_stack([q.mu_x, q.mu_y, q.mu_z]), weights=q.weights, support=SPHERE,
-    )
+#: Four polar cosines written by hand: off every coordinate axis and symmetric under ``z -> -z``.
+_r1_POLAR = (-0.8, -0.3, 0.3, 0.8)
+
+
+def _r1_product_directions(n_phi: int) -> np.ndarray:
+    r"""The product set of every shipped azimuthal rule's shape, built in geometry's vocabulary.
+
+    The polar cosines ``_r1_POLAR`` times the azimuths :math:`2\pi k / n_\phi`, ``k = 0 .. n_phi - 1`` (the azimuth
+    convention of ``Quadrature.product``), with the cosines and sines of the azimuths from
+    :func:`~orpheus.geometry.roots_of_unity.roots_of_unity`, so the set's dihedral symmetries hold bit-exactly. Until the
+    layer-DAG re-filing (2026-10-26, ruling 34) these rows read ``Quadrature.product(4, n_phi)`` and a
+    ``DiscreteMeasure`` verdict, both numerics; the measure verdict's own ERR-072 catchers are
+    ``tests/gates/numerics/test_invariance_verdicts.py``.
+    """
+    cos, sin = roots_of_unity(np.arange(n_phi), n_phi)
+    rows = []
+    for mu in _r1_POLAR:
+        rho = float(np.sqrt(1.0 - mu * mu))
+        rows.append(np.column_stack([rho * cos, rho * sin, np.full(n_phi, mu)]))
+    return np.vstack(rows)
+
+
+def _r1_permuted_by_every_element(points: np.ndarray, group: SubgroupOfO3) -> bool:
+    """Every element of the finite ``group`` maps the point set onto itself (``RigidMotion.permutes``)."""
+    realization = group.realization
+    if not realization.is_finite:
+        raise ValueError(f"{group.name} is continuous: it has no finite element set to permute by")
+    return all(g.permutes(points, atol=1e-13) is not None for g in realization.elements)
 
 
 class TestR1AConnectedGroupIsDecidedByItsLieAlgebra:
@@ -2119,17 +2142,19 @@ class TestR1AConnectedGroupIsDecidedByItsLieAlgebra:
 
         The ladder deliberately BREAKS its own arithmetic pattern
         (``vv-principles`` #13): two residues mod 4, an odd, a prime.
+
+        The nodes are the product set built from roots of unity
+        (``_r1_product_directions``), the shape of every shipped azimuthal
+        rule. The regime leg makes the ``False`` non-vacuous: the four quarter
+        turns about :math:`z` permute the set exactly when ``4 | n_phi``, the
+        cases the sampled check certified.
         """
         for n_phi in (3, 4, 5, 6, 8, 12, 16):
-            nodes = np.column_stack([
-                (q := Quadrature.product(4, n_phi)).mu_x, q.mu_y, q.mu_z,
-            ])
+            nodes = _r1_product_directions(n_phi)
+            assert _r1_permuted_by_every_element(nodes, SubgroupOfO3.Cn(4)) is (n_phi % 4 == 0), n_phi
             for axis in _r1_AXES:
                 component = SubgroupOfO3.SO2(axis).realization.component
                 assert not component.fixes(nodes, atol=1e-13), (n_phi, axis)
-                assert not _r1_sphere_measure(q).is_invariant_under(SubgroupOfO3.SO2(axis)), (
-                    n_phi, axis,
-                )
 
     @pytest.mark.foundation
     @pytest.mark.catches("ERR-072")
@@ -2155,14 +2180,14 @@ class TestR1AConnectedGroupIsDecidedByItsLieAlgebra:
         — the honest way to show the exact criterion is not merely
         self-consistent.
 
-        ``product(4, 8)`` is closed under the four right-angle rotations about
-        :math:`z`, so the retired sample certified it :math:`SO(2)_z`-invariant.
-        `[M]` the sampled predicate says **True**, ``fixes`` says **False**, and
-        the true azimuthal group is the finite :math:`D_{8h}` — which the
-        module does report.
+        The product set with ``n_phi = 8`` (``_r1_product_directions``, the
+        shape of ``product(4, 8)``) is closed under the four right-angle
+        rotations about :math:`z`, so the retired sample certified it
+        :math:`SO(2)_z`-invariant. `[M]` the sampled predicate says **True**,
+        ``fixes`` says **False**, and the true azimuthal group is the finite
+        :math:`D_{8h}`: every one of its 32 elements permutes the set.
         """
-        q = Quadrature.product(4, 8)
-        nodes = np.column_stack([q.mu_x, q.mu_y, q.mu_z])
+        nodes = _r1_product_directions(8)
 
         def sampled_so2_z_invariant(points: np.ndarray) -> bool:
             """The retired {0, 90, 180, 270} degree check — C_4, not SO(2)."""
@@ -2175,8 +2200,8 @@ class TestR1AConnectedGroupIsDecidedByItsLieAlgebra:
 
         assert sampled_so2_z_invariant(nodes) is True
         assert SubgroupOfO3.SO2("z").realization.component.fixes(nodes, atol=1e-13) is False
-        assert _r1_sphere_measure(q).is_invariant_under(SubgroupOfO3.SO2("z")) is False
-        assert _r1_sphere_measure(q).is_invariant_under(SubgroupOfO3.Dnh(8)) is True
+        assert len(SubgroupOfO3.Dnh(8).realization.elements) == 32
+        assert _r1_permuted_by_every_element(nodes, SubgroupOfO3.Dnh(8)) is True
 
 
 # --------------------------------------------------------------------------
