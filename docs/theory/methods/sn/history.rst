@@ -75,7 +75,7 @@ them.  Trust ``git``, not this column.
        refusal stays, naming the machinery that retires it (#612). Account:
        :ref:`spaces-cell-basis` and :ref:`spatial-moment-space`.
      - #423
-     - branch ``refactor/moment-basis`` (S1 and S3 at ``a838c31e``)
+     - ``a838c31e`` (S1, S3), ``9a82e5b3`` (S4, S5 and the review fixes)
    * - 2026-10-24
      - **The boundary architecture is carved onto face roles, one wall
        condition and one realizer table** — the trace-law package

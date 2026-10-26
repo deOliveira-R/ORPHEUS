@@ -6524,8 +6524,8 @@ status.
        predicates moved to the field layer. Why the head and not a frame:
        :ref:`spaces-cell-basis`.
      - #423
-     - *(in development)* branch ``refactor/moment-basis`` (S1 and S3 at
-       ``a838c31e``)
+     - ``a838c31e`` (S1, S3), ``9a82e5b3`` (S4, S5 and the review
+       fixes)
    * - 2026-10-22
      - **An axis is identified by what fixes its space, and a space by
        one key** (numerics untangling, package S7, halves S7a and S7b;
