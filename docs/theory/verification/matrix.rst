@@ -130,6 +130,7 @@ Module × level grid
    cp/test_white_boundary_infinite_medium, 0, 103, 0, 0, 2, 0
    cross_method/test_convergence, 0, 0, 1, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
+   cross_method/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
@@ -440,7 +441,6 @@ Module × level grid
    numerics/test_face_layout_typed_key, 0, 0, 0, 0, 5, 0
    numerics/test_face_streaming_normal, 0, 0, 0, 0, 5, 0
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
-   numerics/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_fixed_point_step, 0, 0, 0, 0, 9, 0
    numerics/test_flux_vector_algebra, 0, 0, 0, 0, 26, 0

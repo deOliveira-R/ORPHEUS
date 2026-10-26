@@ -1397,7 +1397,7 @@ class TestTheWarningBlamesTheCallerAtEverySNEntry:
     it rots the moment a helper is interposed.
 
     ⚠ The companion source gate
-    (``tests/gates/numerics/test_family_convergence_contract.py::
+    (``tests/gates/cross_method/test_family_convergence_contract.py::
     TestEveryEntryCallsTheHelperCorrectly``) refuses a call from a private
     function outright.  `[M]` run against ``git show HEAD:`` before the fix, it
     fails on both arms — so the pair is: this class sees the SYMPTOM, that one

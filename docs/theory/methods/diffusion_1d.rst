@@ -1707,7 +1707,7 @@ open is an unsatisfiable tolerance (``keff_tol = 0.0``, which
 :class:`~orpheus.numerics.convergence.StoppingCriterion` documents as its
 never-clears input). A method whose failure mode is *hard to provoke* is a
 good method and a badly-covered one; the fixture is spelled out in
-``tests/gates/numerics/test_family_convergence_contract.py`` so the next reader
+``tests/gates/cross_method/test_family_convergence_contract.py`` so the next reader
 does not rediscover all three dead ends.
 
 The general lesson **transfers** to any iterative solver even though

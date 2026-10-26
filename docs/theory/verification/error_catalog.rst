@@ -8422,7 +8422,7 @@ older entries classify against.
    is silence has no value gate anywhere that can fail on it.
 
    (b) ⚠ **The silence was GATED AS CORRECT.**
-   ``tests/gates/numerics/test_family_convergence_contract.py``'s
+   ``tests/gates/cross_method/test_family_convergence_contract.py``'s
    ``test_every_call_site_is_public_and_states_its_balance`` is an AST
    census of ``warn_if_unconverged`` call sites across the four families,
    and it asserted ``len(sites) == 7`` with the comment *"4 SN
@@ -8466,7 +8466,7 @@ older entries classify against.
    ``::test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling``
    on the dilute-fissile :math:`(3,4)` box, which is the only fixture
    where both preconditions hold at once.  The emission-site census
-   (``tests/gates/numerics/test_family_convergence_contract.py``) is the
+   (``tests/gates/cross_method/test_family_convergence_contract.py``) is the
    *structural* companion, and its count now reads 8.
 
    ⚠ Neither catcher may assert on the balance defect's **magnitude**: it

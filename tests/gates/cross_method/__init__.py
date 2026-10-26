@@ -18,7 +18,14 @@ The package contains:
   fixed-source). Each case carries truth + per-solver tolerances +
   pillar tag.
 * ``test_eigenvalue.py`` — parametrised cross-method gates.
-* ``test_fixed_source.py`` — fixed-source one-sided coverage cases.
+* ``test_convergence.py`` — SN against CP on shared reference values.
+* ``test_polymorphism.py`` — the foundation net for direct construction
+  of the math-heart classes.
+* ``test_family_convergence_contract.py`` — the #340 convergence
+  contract read across the CP, MoC and diffusion families (each result
+  carries its ``IterationRecord``; a starved level is audible once and
+  blames the caller). It uses none of the protocol above: it lives here
+  because its claim is quantified over several methods.
 
 See :doc:`/theory/verification/cross_method` for the architecture rationale.
 """
