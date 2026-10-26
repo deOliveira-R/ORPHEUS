@@ -9,7 +9,7 @@ rung: API sketch", item 1). Verification spec
 ``derivations``, which this layer does not import).
 
 The measure has one definition, ``c (T(b) - T(a))`` with ``T(r) = r^p``
-(``tests/gates/mesh/test_partition.py::TestTheOneMeasure``). Its density
+(``tests/gates/geometry/test_coord.py::TestTheOneMeasure``). Its density
 ``c T'(r)`` is that definition's derivative, and by the coarea formula the area
 of the level set at ``r``: ``4 pi r^2`` (sphere), ``2 pi r`` per unit height
 (cylinder), 1 per unit transverse area (slab).
@@ -38,7 +38,7 @@ from orpheus.geometry.chart import Chart
 from orpheus.geometry.coord import CoordSystem, MeasureCoordinate
 
 _EPS = float(np.finfo(float).eps)
-_ONE_MEASURE = "tests/gates/mesh/test_partition.py::TestTheOneMeasure::test_the_measure_is_c_times_the_difference_of_T"
+_ONE_MEASURE = "tests/gates/geometry/test_coord.py::TestTheOneMeasure::test_the_measure_is_c_times_the_difference_of_T"
 _HERE = "tests/gates/geometry/test_measure_density.py::"
 
 #: (coordinate system, the density by hand, the measure's constant by hand, the exponent p)

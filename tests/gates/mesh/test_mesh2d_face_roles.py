@@ -11,8 +11,9 @@ on a slab, on (x, y) and on a hollow body; only the outer surface on a solid
 radial body, whose centre is interior), along every further axis both ends,
 each named by ``FaceLabel(axis_index, endpoint).face_name``. The positional
 tuple, ``Mesh1D.boundary_faces`` (now ``boundary_points``) and
-``Mesh2D.boundary_faces`` are retired. The named cells carry the model's role
-(``TestTheNamedCells``). Wave 2 renamed ``face_laws`` to ``face_roles``, the law arm to ``Deck | int``,
+``Mesh2D.boundary_faces`` are retired. Two geometry claims that lived here, the inventory rule itself and the
+named cells' roles, moved to ``tests/gates/geometry/test_geometry_faces.py`` in the layer-DAG re-filing (2026-10-26);
+the two-mesh rows of ``TestTheOneInventoryRule`` stay. Wave 2 renamed ``face_laws`` to ``face_roles``, the law arm to ``Deck | int``,
 and the one parser ``parse_boundary_law`` to :func:`~orpheus.geometry.deck.parse_face_role`; the deck rows and the
 retirement rows live in ``test_face_roles.py``.
 
@@ -51,7 +52,8 @@ import pytest
 import orpheus.geometry.deck as deck_module
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry, TranslationDeck
 from orpheus.mesh import AxisCoord, AxisMesh, Mesh1D, Mesh2D, RadialAxisMesh
-from orpheus.mesh.face_roles import FaceRoles, face_inventory
+from orpheus.mesh.face_roles import FaceRoles
+from tests.gates.geometry._face_fixtures import FIRST_AXIS as _FIRST_AXIS
 
 pytestmark = pytest.mark.foundation
 
@@ -335,12 +337,9 @@ class TestTheOneElementParser:
 # one FaceRoles value for Mesh1D and Mesh2D)
 # ─────────────────────────────────────────────────────────────────────
 
-#: (coord, first-axis edges, the first-axis faces written by hand).
-_FIRST_AXIS = {
-    "slab": (_CART, (0.0, 1.0, 2.0), ("xmin", "xmax")),
-    "solid-cylinder": (_CYL, (0.0, 0.5, 1.0), ("xmax",)),
-    "hollow-cylinder": (_CYL, (0.25, 0.5, 1.0), ("xmin", "xmax")),
-}
+#: (coord, first-axis edges, the first-axis faces written by hand): ``_FIRST_AXIS``, imported from
+#: ``tests/gates/geometry/_face_fixtures.py``, which the rule's own row
+#: (``tests/gates/geometry/test_geometry_faces.py::TestTheOneInventoryRule``) reads too.
 
 
 def _mesh1d(coord, edges, roles):
@@ -389,12 +388,6 @@ class TestTheOneInventoryRule:
         _mesh2d()
         assert dimensions == [1, 2], dimensions
 
-    @pytest.mark.parametrize("case", list(_FIRST_AXIS))
-    def test_the_rule_itself(self, case):
-        coord, edges, faces = _FIRST_AXIS[case]
-        assert face_inventory(coord, np.asarray(edges), 1) == faces
-        assert face_inventory(coord, np.asarray(edges), 2) == faces + ("ymin", "ymax")
-        assert face_inventory(coord, np.asarray(edges), 3) == faces + ("ymin", "ymax", "zmin", "zmax")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -472,27 +465,3 @@ class TestFaceRoles:
         assert back2.coord is two.coord
         for name in ("edges_x", "edges_y", "mat_map"):
             np.testing.assert_array_equal(getattr(back2, name), getattr(two, name))
-
-
-# ─────────────────────────────────────────────────────────────────────
-# The named cells: the role is the model's (the user's ruling of 2026-09-30)
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestTheNamedCells:
-    """``wigner_seitz_pin_cell`` is the cylindricalised lattice cell, tag 0 on
-    its outer surface (the model binds it to a white wall elsewhere);
-    ``pwr_slab_half_cell`` is bounded by two symmetry planes, a mirror deck on
-    both. Another role is another body (``StructuredGeometry.cylinder`` /
-    ``.slab``). First reds: a ``face_roles=`` or ``boundaries=`` keyword
-    re-added (the signature row); the model's role changed (the role row)."""
-
-    @pytest.mark.parametrize("name", ["wigner_seitz_pin_cell", "pwr_slab_half_cell"])
-    def test_no_role_keyword(self, name):
-        parameters = inspect.signature(getattr(StructuredGeometry, name)).parameters
-        assert not {"boundaries", "face_roles"} & set(parameters), name
-        assert inspect.Parameter.VAR_KEYWORD not in {p.kind for p in parameters.values()}, name
-
-    def test_the_models_roles(self):
-        assert StructuredGeometry.wigner_seitz_pin_cell().face_roles == (0,)
-        assert StructuredGeometry.pwr_slab_half_cell().face_roles == (MirrorDeck(), MirrorDeck())

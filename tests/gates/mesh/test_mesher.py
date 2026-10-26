@@ -22,6 +22,9 @@ equal-volume interval the stored cell volumes are bitwise equal and sum to the
 closed-form volume of the interval, and the equal-volume edges bound the
 stored volumes. It lived in ``tests/gates/geometry/test_structured_geometry.py``
 until the layer-DAG re-filing (`.claude/plans/layer_dag.md`, ruling 21).
+The closed-form volume of an interval those rows compare with is the tests' one
+oracle of the measure, ``tests/gates/geometry/_measure.py`` (ruling 31), which
+also serves ``test_partition.py`` and ``tests/gates/geometry/test_coord.py``.
 """
 from __future__ import annotations
 
@@ -41,6 +44,8 @@ from orpheus.mesh import (
     Mesh1D,
     Mesher,
 )
+from tests.gates.geometry._measure import EXPONENT as _EXPONENT
+from tests.gates.geometry._measure import measure as _measure
 
 pytestmark = pytest.mark.foundation
 
@@ -378,28 +383,8 @@ def test_the_rules_cover_the_population():
 # ─────────────────────────────────────────────────────────────────────
 
 
-# The power of ``r`` in the cell measure: ``V ∝ x_out - x_in`` with
-# ``x = r**p`` (slab p=1, cylinder p=2, sphere p=3).
-_MEASURE_POWER = {
-    CoordSystem.CARTESIAN: 1,
-    CoordSystem.CYLINDRICAL: 2,
-    CoordSystem.SPHERICAL: 3,
-}
-
-# The volume (per unit transverse area / height) of the region between
-# two radii: the closed form, written from geometry, not from the mesh.
-_MEASURE_PREFACTOR = {
-    CoordSystem.CARTESIAN: 1.0,
-    CoordSystem.CYLINDRICAL: np.pi,
-    CoordSystem.SPHERICAL: 4.0 / 3.0 * np.pi,
-}
-
-
-def _closed_form_region_volume(
-    coord: CoordSystem, inner: float, outer: float,
-) -> float:
-    p = _MEASURE_POWER[coord]
-    return _MEASURE_PREFACTOR[coord] * (outer**p - inner**p)
+# The cell measure's exponent and the measure of an interval come from the tests' one oracle of the
+# measure, written from geometry and not from the mesh (``tests/gates/geometry/_measure.py``, ruling 31).
 
 
 def _assert_equal_volume_regions(
@@ -437,7 +422,7 @@ def _assert_equal_volume_regions(
         )
         np.testing.assert_allclose(
             volumes.sum(),
-            _closed_form_region_volume(mesh.coord, radii[k], radii[k + 1]),
+            float(_measure(mesh.coord, (radii[k], radii[k + 1]))[0]),
             rtol=1e-14,
             err_msg=f"region {k} ({mesh.coord.name}): total volume",
         )
@@ -684,7 +669,7 @@ class TestMeshingAGeometry:
         magnitude.
         """
         mesh = _three_region_mesh(coord)
-        p = _MEASURE_POWER[mesh.coord]
+        p = _EXPONENT[mesh.coord]
         eps = np.finfo(float).eps
         rederived = compute_volumes_1d(mesh.coord, mesh.edges)
         start = 0

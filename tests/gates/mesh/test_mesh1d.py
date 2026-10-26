@@ -4,11 +4,15 @@ r"""The bare 1-D mesh: its construction laws, its equality, its retirements (P1 
 discretisation IS (the user's ruling of 2026-09-29, option A: the mesh holds
 no geometry; it knows its cells, each cell's material, and each boundary
 face's ROLE: a deck or an ``int`` tag, wave 2 S2b re-pose of the face laws). The mesher (:mod:`orpheus.mesh.mesher`) is the one call site that
-lifts a geometry onto it; this file gates the constructor itself and the
-derived views of a mesher-built mesh (``TestMesh1D``: widths, centres, total
-width, cell count, immutability and the constructor's coercion, which moved
-here from ``tests/gates/geometry/test_geometry.py`` in the layer-DAG re-filing,
-`.claude/plans/layer_dag.md`, ruling 21).
+lifts a geometry onto it; this file gates the constructor itself, its derived
+views and its immutability (``TestTheValue``), and the constructor's coercion
+(``TestMesh1D``, which moved here from ``tests/gates/geometry/test_geometry.py``
+in the layer-DAG re-filing, `.claude/plans/layer_dag.md`, ruling 21). The five
+rows ``TestMesh1D`` also held (widths, centres, total width, cell count,
+immutability, through a mesher-built mesh) were deleted at ruling 30
+(2026-10-26): ``TestTheValue::test_the_derived_views`` and
+``::test_frozen_and_read_only`` reddened with each under its one mutation,
+and the mesher route they added is ``test_mesher.py``'s claim.
 
 Gate ids (``.claude/plans/reference_p1_spec.md`` §1.3, §1.3a): S3.8 (the
 constructor's laws, re-posed on the bare constructor), S3.10 (the retired
@@ -33,22 +37,22 @@ import pytest
 
 import orpheus.mesh
 import orpheus.mesh.structured as structured_module
-from orpheus.geometry import CoordSystem, StructuredGeometry, compute_areas_1d
+from orpheus.geometry import CoordSystem, compute_areas_1d
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
+from orpheus.mesh import Mesh1D
+from tests.gates.geometry._measure import EXPONENT as _EXPONENT
 
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/mesh/test_mesh1d.py"
 _ONE_MEASURE = (
-    "tests/gates/mesh/test_partition.py::TestTheOneMeasure::"
+    "tests/gates/geometry/test_coord.py::TestTheOneMeasure::"
     "test_the_measure_is_c_times_the_difference_of_T"
 )
 
 _SLAB = CoordSystem.CARTESIAN
 _CYLINDER = CoordSystem.CYLINDRICAL
 _SPHERE = CoordSystem.SPHERICAL
-_EXPONENT = {_SLAB: 1, _CYLINDER: 2, _SPHERE: 3}
 
 
 def _mesh(coord=_SLAB, edges=(0.0, 0.5, 2.0), volumes=None, region_ids=None, region_materials=None, face_roles=None) -> Mesh1D:
@@ -346,8 +350,9 @@ class TestTheRetirements:
     """S3.10: the retired fields, constructor and descriptor are gone (the
     witness of the retirement, ``retirement-audit`` D.18). ``None`` as a face
     law is refused by ``TestConstructionLaws`` (row ``none-role``); the SN
-    ``boundary_condition=`` leg and the resolver's default are step 3c's,
-    ``TestTheDefaultsAreGone``."""
+    ``boundary_condition=`` leg and the resolver's default are step 3c's: the
+    two SN rows in ``tests/gates/sn/solve/test_no_entry_takes_a_boundary_condition.py``
+    and the realization row in ``TestTheDefaultsAreGone``."""
 
     @pytest.mark.parametrize(
         "name", ["bc_left", "bc_right", "precomputed_volumes", "from_geometry", "boundary_faces", "face_laws", "outer_law"],
@@ -379,15 +384,6 @@ class TestTheRetirements:
 # S3.10, step 3c's leg — no boundary law is filled in for the caller
 # ─────────────────────────────────────────────────────────────────────
 
-_SN_ENTRIES = (
-    "solve_sn_fixed_source",
-    "solve_sn_adjoint_fixed_source",
-    "solve_sn_multiplying_source",
-    "solve_sn",
-    "solve_sn_adjoint",
-    "_as_problem",
-)
-
 
 class TestTheDefaultsAreGone:
     """S3.10, step 3c (the user's ruling of 2026-09-29: ``None`` retires as a
@@ -402,27 +398,12 @@ class TestTheDefaultsAreGone:
     vocabulary; the keyed refusal of a ``None`` role is gated at construction
     (``tests/gates/mesh/test_mesh2d_face_roles.py::TestTheOneElementParser``).
 
-    First reds: a ``boundary_condition`` parameter re-added to any entry (the
-    signature row); ``_apply_default_bcs`` re-added (the name row); a default
-    ``WallCondition`` constructed in ``realize_boundary`` (the structural row).
+    First red: a default ``WallCondition`` constructed in ``realize_boundary``
+    (the structural row). The signature row and the name row (no SN entry takes
+    ``boundary_condition``; ``_apply_default_bcs`` is gone) are SN claims and moved
+    to ``tests/gates/sn/solve/test_no_entry_takes_a_boundary_condition.py`` in the
+    layer-DAG re-filing (2026-10-26).
     """
-
-    @pytest.mark.parametrize("name", _SN_ENTRIES)
-    def test_no_entry_takes_a_boundary_condition(self, name):
-        import inspect
-
-        import orpheus.sn.solver as solver
-
-        parameters = inspect.signature(getattr(solver, name)).parameters
-        assert "boundary_condition" not in parameters, name
-        # a ``**kwargs`` would swallow the retired keyword in silence
-        kinds = {p.kind for p in parameters.values()}
-        assert inspect.Parameter.VAR_KEYWORD not in kinds, name
-
-    def test_the_default_filler_is_gone(self):
-        import orpheus.sn.solver as solver
-
-        assert not hasattr(solver, "_apply_default_bcs")
 
     # ``test_the_resolver_completes_no_undeclared_face`` is RETIRED with its subject (wave 2 S2b). It built an axis around its
     # constructor holding ``None`` in a law slot and required ``resolve_boundary_conditions`` to realise no law on that face. The
@@ -468,32 +449,11 @@ class TestTheDefaultsAreGone:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestMesh1D:
-    """Mesh1D derived properties. The construction refusals (edges, volumes,
-    material ids, face roles) are the keyed table of this file (S3.8 and
-    S3.11, re-posed at P1 step 3b from the rows this class held while it
-    lived in ``tests/gates/geometry/test_geometry.py``)."""
-
-    def test_widths(self):
-        mesh = _mesh_with_edges((0.0, 1.0, 3.0, 6.0))
-        np.testing.assert_allclose(mesh.widths, [1.0, 2.0, 3.0])
-
-    def test_centers(self):
-        mesh = _mesh_with_edges((0.0, 2.0, 6.0))
-        np.testing.assert_allclose(mesh.centers, [1.0, 4.0])
-
-    def test_total_width(self):
-        mesh = _mesh_with_edges((1.0, 3.0, 7.0))
-        assert mesh.total_width == 6.0
-
-    def test_N(self):
-        geometry = StructuredGeometry.from_homogeneous(5.0, MirrorDeck())
-        mesh = Mesher(geometry).partition(CellEdges(np.arange(6.0))).mesh
-        assert mesh.N == 5
-
-    def test_frozen(self):
-        mesh = _mesh_with_edges((0.0, 1.0))
-        with pytest.raises(AttributeError):
-            mesh.edges = np.array([0.0, 2.0])  # type: ignore[misc]  # the frozen field is the subject
+    """The constructor's coercion of its inputs. The construction refusals
+    (edges, volumes, material ids, face roles) are the keyed table of this file
+    (S3.8 and S3.11, re-posed at P1 step 3b from the rows this class held while
+    it lived in ``tests/gates/geometry/test_geometry.py``); the derived views and
+    immutability are ``TestTheValue``'s."""
 
     def test_coerces_to_float_and_int(self):
         """The bare constructor accepts lists; edges become float, region labels and mat_ids int."""
@@ -505,13 +465,3 @@ class TestMesh1D:
         assert mesh.edges.dtype == float
         assert mesh.region_ids.dtype == int
         assert mesh.mat_ids.dtype == int
-
-
-def _mesh_with_edges(breakpoints: tuple[float, ...]) -> Mesh1D:
-    """One cell per interval, a distinct material in each, mirror faces:
-    the literal edges ARE the geometry's breakpoints."""
-    geometry = StructuredGeometry.slab(
-        breakpoints, tuple(range(len(breakpoints) - 1)),
-        left=MirrorDeck(), right=MirrorDeck(),
-    )
-    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh

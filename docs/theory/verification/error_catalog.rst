@@ -5938,7 +5938,9 @@ older entries classify against.
    (in ``tests/gates/geometry/test_symmetry.py`` until the 2026-10-25 re-filing of
    the measure claims; the four methods of
    ``TestR1AConnectedGroupIsDecidedByItsLieAlgebra``, which carry the same marker on
-   ``IdentityComponent.fixes``, stay in geometry):
+   ``IdentityComponent.fixes``, stay in geometry; since 2026-10-26 two of them build
+   their product directions from ``roots_of_unity`` instead of a quadrature, so the
+   file asks no numerics verdict):
    ``test_no_discrete_cubature_is_so2_invariant`` (every shipped sphere
    rule must answer ``False``, because an off-axis orbit is a circle),
    ``test_so2_verdict_is_not_a_function_of_n_phi_mod_4`` (the signature

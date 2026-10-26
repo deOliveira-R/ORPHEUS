@@ -15,6 +15,13 @@ coordinate system, :math:`m_j = c\,(T(r_{j+1}) - T(r_j))` with
 so the whole-geometry legs (nesting across intervals, every cell in exactly
 one interval, the mesh-level #495 law) are step 3b's, on the mesh.
 
+The definition of the measure itself (``TestTheOneMeasure`` but its route
+row) moved to ``tests/gates/geometry/test_coord.py`` in the layer-DAG
+re-filing (``.claude/plans/layer_dag.md``, 2026-10-26): it is the coordinate
+system's claim. The tests' oracle of the measure (``_EXPONENT``, ``_measure``,
+``_r2_edges``) and the interval populations are imported from
+``tests/gates/geometry/_measure.py``, its one test-side home (ruling 31).
+
 The gate ids S3.1 to S3.7 are those of the P1 verification specification
 (``.claude/plans/reference_p1_spec.md`` §1.3, placed per step in §1.3a). Every
 test is ``foundation`` (no theory-page label, so no ``verifies``) and states
@@ -39,7 +46,6 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-import orpheus.geometry.coord as coord_module
 from orpheus.geometry import CoordSystem, StructuredGeometry, compute_volumes_1d
 from orpheus.geometry.coord import MeasureCoordinate
 from orpheus.mesh import (
@@ -53,6 +59,14 @@ from orpheus.mesh import (
     Refined,
     Spacing,
 )
+from tests.gates.geometry._measure import EXPONENT as _EXPONENT
+from tests.gates.geometry._measure import INTERVALS as _INTERVALS
+from tests.gates.geometry._measure import LAW_INTERVALS as _LAW_INTERVALS
+from tests.gates.geometry._measure import measure as _measure
+from tests.gates.geometry._measure import r2_edges as _r2_edges
+from tests.gates.geometry._measure import report as _report
+from tests.gates.geometry._measure import require as _require
+from tests.gates.geometry._measure import uniform_geometry as _geometry
 
 pytestmark = pytest.mark.foundation
 
@@ -61,7 +75,7 @@ _GEOMETRY = "tests/gates/geometry/test_structured_geometry.py"
 _NAMED = "tests/gates/geometry/test_named_face_constructors.py"
 _S2_1 = f"{_GEOMETRY}::TestBreakpointLaws::test_refusal"
 _UNIFORM_BOUNDARY = f"{_NAMED}::TestUniformBoundary::test_equals_the_bare_constructor"
-_ONE_MEASURE = f"{_HERE}::TestTheOneMeasure::test_the_measure_is_c_times_the_difference_of_T"
+_ONE_MEASURE = "tests/gates/geometry/test_coord.py::TestTheOneMeasure::test_the_measure_is_c_times_the_difference_of_T"
 
 _SLAB = CoordSystem.CARTESIAN
 _CYLINDER = CoordSystem.CYLINDRICAL
@@ -71,42 +85,10 @@ _CURVILINEAR = (_CYLINDER, _SPHERE)
 _SPACINGS = (EqualWidth(), EqualVolume())
 _SPACING_IDS = {EqualWidth: "equal-width", EqualVolume: "equal-volume"}
 
-#: The measure's exponent d and constant c, written from geometry here and
-#: never read from ``CoordSystem``.
-_EXPONENT = {_SLAB: 1, _CYLINDER: 2, _SPHERE: 3}
-_CONSTANT = {_SLAB: 1.0, _CYLINDER: np.pi, _SPHERE: (4.0 / 3.0) * np.pi}
-
-
-def _measure(coord: CoordSystem, edges) -> np.ndarray:
-    """The ruled definition, written in the test: ``c * diff(edges**d)`` on arrays."""
-    e = np.asarray(edges, dtype=float)
-    return _CONSTANT[coord] * np.diff(e ** _EXPONENT[coord])
-
-
-def _r2_edges(p: int, a: float, b: float, n: int) -> np.ndarray:
-    """The ruled R2 body ``T^-1(T(a) + f_j (T(b) - T(a)))``, ends pinned, on arrays.
-
-    The definition pin, not an independent reference (a rule and this copy
-    agree if both are transcribed from the ruling); the independent anchors
-    are the sum law, the refinement law and the ERR-020 invariant.
-    """
-    t_a, t_b = np.array([a, b]) ** p
-    t = t_a + np.linspace(0.0, 1.0, n + 1) * (t_b - t_a)
-    edges = {1: t.copy(), 2: np.sqrt(t), 3: np.cbrt(t)}[p]
-    edges[0], edges[-1] = a, b
-    return edges
-
 
 def _power(spacing: Spacing, coord: CoordSystem) -> int:
     """The spacing's exponent, from the ruling (not read from the SUT)."""
     return 1 if isinstance(spacing, EqualWidth) else _EXPONENT[coord]
-
-
-def _geometry(coord: CoordSystem, breakpoints: tuple[float, ...]) -> StructuredGeometry:
-    """A geometry with one material per interval and tag 0 on every face (a tag cannot be a deck on a curved face)."""
-    return StructuredGeometry.uniform_boundary(
-        coord, breakpoints, tuple(range(len(breakpoints) - 1)), 0,
-    )
 
 
 def _cells(rule: IntervalRule, coord: CoordSystem, interval: tuple[float, float]):
@@ -115,22 +97,6 @@ def _cells(rule: IntervalRule, coord: CoordSystem, interval: tuple[float, float]
 
 def _ulp(x: float) -> float:
     return float(np.spacing(abs(x)))
-
-
-def _require(condition: bool, message: str) -> None:
-    """A helper's assertion that survives ``python -O``."""
-    if not condition:
-        raise AssertionError(message)
-
-
-def _report(failures: list[str], population: int, what: str) -> None:
-    """Fail with ``k of N`` and the first failures; an empty population is a
-    broken harness, never a pass."""
-    _require(population > 0, f"{what}: the population is empty")
-    _require(
-        not failures,
-        f"{what}: {len(failures)} of {population} cases fail; first: " + "; ".join(failures[:5]),
-    )
 
 
 def _coord_spacing_params() -> list:
@@ -146,27 +112,8 @@ def _coord_spacing_params() -> list:
 
 _COUNTS = (1, 2, 3, 5, 8, 13, 64, 100, 1000, 4096)
 
-#: The probe's own interval population (S3.6), hollow bodies included.
-_INTERVALS: tuple[tuple[float, float], ...] = (
-    (0.0, 1.0), (0.0, 3.0), (0.0, 2.872), (0.9, 1.1), (1.1, 1.8),
-    (0.0, 0.41), (0.01, 2.0), (2.0, 7.0),
-)
-
-
-def _seeded_intervals(k: int, seed: int) -> tuple[tuple[float, float], ...]:
-    """``k`` intervals, half from the origin, drawn from one fixed seed."""
-    rng = np.random.default_rng(seed)
-    out = []
-    for _ in range(k):
-        a = float(rng.uniform(0.0, 3.0)) if rng.random() < 0.5 else 0.0
-        out.append((a, a + float(rng.uniform(0.01, 5.0))))
-    return tuple(out)
-
-
-#: ``(0.3, 0.7)``: on a sphere ``c * (b**3 - a**3)`` and ``c * b**3 - c * a**3``
-#: differ there, so a re-association of the measure is visible (spec §1.3a,
-#: premise 6).
-_LAW_INTERVALS = _INTERVALS + ((0.3, 0.7),) + _seeded_intervals(8, seed=405)
+#: The interval populations (``_INTERVALS``, ``_LAW_INTERVALS``) are the measure laws' too, so they live with the
+#: measure's oracle in ``tests/gates/geometry/_measure.py`` (layer DAG ruling 31).
 
 #: The S3.6 counts: the probe's ``ns`` up to 500.
 _REFINE_COUNTS = tuple(range(1, 65)) + (100, 127, 128, 200, 255, 256)
@@ -178,23 +125,19 @@ _REFINE_COUNTS = tuple(range(1, 65)) + (100, 127, 128, 200, 255, 256)
 
 
 class TestTheOneMeasure:
-    r"""The measure has one definition, owned by the coordinate system (the
-    ruling of 2026-09-29): ``coord.measure(edges) = c * diff(T(edges))``,
-    ``T`` numpy's power; the geometry asks it; ``compute_volumes_1d`` is it.
+    r"""The route leg of the one measure: every MESH reader asks it.
+
+    The definition (``coord.measure(edges) = c * diff(T(edges))``,
+    ``compute_volumes_1d`` its delegate, the measure coordinate, the geometry
+    asking it) is geometry's claim and is pinned in
+    ``tests/gates/geometry/test_coord.py::TestTheOneMeasure`` (re-filed by the
+    layer DAG, 2026-10-26). This row stays here because two of its readers are
+    the interval rules' equal shares and realised shells.
 
     Claim kind: THEOREM. The route row swaps the definition for a decoy and
     requires every reader to move (a second spelling left anywhere stays
     unmoved and reds).
     """
-
-    @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
-    def test_the_measure_is_c_times_the_difference_of_T(self, coord):
-        failures = []
-        for (a, b), n in itertools.product(_LAW_INTERVALS, (1, 5, 64)):
-            edges = _r2_edges(1, a, b, n)
-            if not np.array_equal(coord.measure(edges), _measure(coord, edges)):
-                failures.append(f"[{a}, {b}] n={n}")
-        _report(failures, 3 * len(_LAW_INTERVALS), f"{coord.name} measure")
 
     @pytest.mark.rests_on(_ONE_MEASURE)
     def test_every_reader_asks_the_one_definition(self, monkeypatch):
@@ -222,39 +165,6 @@ class TestTheOneMeasure:
             np.testing.assert_array_equal(
                 decoyed[reader], 2.0 * value, err_msg=f"{reader} does not read CoordSystem.measure",
             )
-
-    def test_compute_volumes_1d_is_a_delegate(self):
-        """RECORD of the retirement's residue: the legacy name survives only
-        as a one-line delegate (3b's migration retires it)."""
-        import inspect
-
-        body = inspect.getsource(coord_module.compute_volumes_1d)
-        assert "coord.measure(edges)" in body
-        assert "match" not in body
-
-    @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
-    def test_the_measure_coordinate_is_the_systems(self, coord):
-        T = coord.measure_coordinate
-        assert T == MeasureCoordinate(_EXPONENT[coord])
-        r = np.array([0.0, 0.3, 1.7, 2.0])
-        np.testing.assert_array_equal(T(r), r ** _EXPONENT[coord])
-        np.testing.assert_allclose(T.inverse(T(r)), r, rtol=4 * np.finfo(float).eps, atol=0.0)
-        assert coord.measure_constant == _CONSTANT[coord]
-
-    def test_the_identity_inverse_does_not_alias(self):
-        t = np.array([0.0, 1.0])
-        assert MeasureCoordinate(1).inverse(t) is not t
-
-    @pytest.mark.parametrize("exponent", [0, 4, -1, 1.5], ids=["0", "4", "-1", "1.5"])
-    def test_a_measure_coordinate_is_r_r2_or_r3(self, exponent):
-        with pytest.raises(ValueError, match=re.escape("a measure coordinate is r, r**2 or r**3")):
-            MeasureCoordinate(exponent)  # type: ignore[arg-type]  # a refusal input
-
-    def test_the_geometry_s_intervals_and_measure(self):
-        g = _geometry(_CYLINDER, (0.0, 0.5, 1.5, 2.0))
-        assert g.intervals == ((0.0, 0.5), (0.5, 1.5), (1.5, 2.0))
-        edges = np.array([0.0, 0.5, 1.5, 2.0])
-        np.testing.assert_array_equal(g.measure(edges), _CYLINDER.measure(edges))
 
 
 # ─────────────────────────────────────────────────────────────────────
