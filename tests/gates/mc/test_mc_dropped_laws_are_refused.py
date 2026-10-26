@@ -4,13 +4,13 @@ MC applies the periodic wrap to every face of a slab, so any other face (a wall,
 S4) the refusal is the admission table's: a slab admits the translation deck only, everything else ``Refused(PLUMBING, #654)``.
 The cavity of a hollow cylinder stays a scope guard (``NotImplementedError``): MC's lookup would fill it with the innermost
 material (the specification's S3.14). The geometry's half of the old rows (a translation deck needs its partner, ``DeckError``)
-is the geometry's pairing rule and stayed in ``tests/gates/mesh/test_dropped_laws_are_refused.py``.
+is the geometry's pairing rule, pinned by
+``tests/gates/geometry/test_face_roles.py::TestACurvedFaceCarriesNoDeck::test_the_slab_admits_both_decks_and_closes_the_pairing`` (a mesh duplicate was deleted on 2026-10-26).
 
 Dispositions of the rows of the pre-wave-2 file, each with its reason (``retirement-audit`` D.14 and D.16):
 
 * the MC rows "a non-periodic left law is refused" on a slab with a periodic right face: a periodic face needs a periodic partner (the
-  geometry refuses a lone ``TranslationDeck`` with ``DeckError``), so the subject splits into the geometry's pairing rule (the row that stayed in
-  ``tests/gates/mesh/test_dropped_laws_are_refused.py``) and the table's refusal of every non-translation face (the rows here).
+  geometry refuses a lone ``TranslationDeck`` with ``DeckError``), so the subject splits into the geometry's pairing rule (pinned in geometry's ``test_face_roles.py``) and the table's refusal of every non-translation face (the rows here).
 
 Moved from ``tests/gates/mesh/test_dropped_laws_are_refused.py`` by the layer-DAG re-filing (Phase 1b, 2026-10-26): the
 refusal is MC's, so the row lives with MC's gates; the bodies are unchanged. The two mesh builders the three methods share

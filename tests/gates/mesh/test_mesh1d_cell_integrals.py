@@ -34,6 +34,7 @@ import sympy
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
+from tests.gates.geometry._measure import measure as _measure
 
 pytestmark = pytest.mark.foundation
 
@@ -42,12 +43,11 @@ _LABELS = "tests/gates/mesh/test_mesh1d_regions.py::test_r7b2_0_4_aba_regions_0_
 _SLAB, _CYLINDER, _SPHERE = CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL
 _COORDS = (_SLAB, _CYLINDER, _SPHERE)
 
-#: The measure of [a, b] in closed form, written from the geometry (not read off the mesh).
-_SHELL = {
-    _SLAB: lambda a, b: b - a,
-    _CYLINDER: lambda a, b: math.pi * (b * b - a * a),
-    _SPHERE: lambda a, b: 4.0 / 3.0 * math.pi * (b**3 - a**3),
-}
+def _shell(coord: CoordSystem, a: float, b: float) -> float:
+    """The measure of [a, b], from the tests' one hand-written oracle (``tests/gates/geometry/_measure.py``, ruling 31), not read off the mesh."""
+    return float(_measure(coord, (a, b))[0])
+
+
 #: The integral of r over [a, b] in the same measure, closed form (catches an exponent error the constant hides).
 _FIRST_MOMENT = {
     _SLAB: lambda a, b: (b * b - a * a) / 2.0,
@@ -78,7 +78,7 @@ def test_r7b2_8_1_the_layout_and_the_indicator_of_each_cell(coord) -> None:
     assert out.shape == (2, mesh.N)
     edges = np.asarray(mesh.edges)
     for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
-        assert _close(float(out[0, i]), _SHELL[coord](a, b)), (i, out[0, i], _SHELL[coord](a, b))
+        assert _close(float(out[0, i]), _shell(coord, a, b)), (i, out[0, i], _shell(coord, a, b))
     np.testing.assert_array_equal(out[1], np.zeros(mesh.N))
 
 
@@ -88,7 +88,7 @@ def test_r7b2_8_2_the_sum_over_cells_is_the_geometry_volume(coord) -> None:
     """Σ_i ∫ 1 dV is the body's measure, 4π R³/3, π R² or R (closed form), to N·8 ulp."""
     mesh = _aba(coord)
     total = float(np.sum(mesh.cell_integrals(Symbolic.of(1, 1))[0]))
-    assert _close(total, _SHELL[coord](0.0, 2.0), ulps=8 * mesh.N)
+    assert _close(total, _shell(coord, 0.0, 2.0), ulps=8 * mesh.N)
 
 
 @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
@@ -118,9 +118,9 @@ def test_r7b2_8_4_a_step_inside_a_cell_integrates_exactly(coord) -> None:
     out = mesh.cell_integrals(Symbolic.of(step, 0))[0]
     edges = np.asarray(mesh.edges)
     for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
-        expected = _SHELL[coord](a, b) if b <= 0.6 else (_SHELL[coord](a, 0.6) if a < 0.6 else 0.0)
+        expected = _shell(coord, a, b) if b <= 0.6 else (_shell(coord, a, 0.6) if a < 0.6 else 0.0)
         assert _close(float(out[i]), expected), (i, out[i], expected)
-    assert 0.0 < out[2] < _SHELL[coord](0.5, 0.75)  # activation: the straddling cell is the third
+    assert 0.0 < out[2] < _shell(coord, 0.5, 0.75)  # activation: the straddling cell is the third
 
 
 @pytest.mark.rests_on(_LABELS)
@@ -137,7 +137,7 @@ def test_r7b2_8_5_a_region_table_reads_through_the_labels(coord) -> None:
     edges = np.asarray(mesh.edges)
     for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
         for g in range(2):
-            assert _close(float(out[g, i]), table[region[i], g] * _SHELL[coord](a, b)), (g, i)
+            assert _close(float(out[g, i]), table[region[i], g] * _shell(coord, a, b)), (g, i)
     fuel = mesh.mat_ids == 0
     assert set(np.round(out[0, fuel] / np.asarray(mesh.volumes)[fuel], 12).tolist()) == {1.0, 3.0}
 
@@ -211,7 +211,7 @@ def test_r7b2_8_7_polynomial_arguments_are_admitted_and_exact(coord) -> None:
         out = mesh.cell_integrals(Symbolic.of(expression, 0))[0]
         for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
             expected = _quad_reference(coord, f, float(a), float(b), kinks)
-            assert abs(float(out[i]) - expected) <= 1e-12 * max(abs(expected), _SHELL[coord](a, b)), (expression, i)
+            assert abs(float(out[i]) - expected) <= 1e-12 * max(abs(expected), _shell(coord, a, b)), (expression, i)
 
 
 def test_r7b2_8_7_an_unintegrable_weight_gets_the_keyed_refusal() -> None:
@@ -236,5 +236,5 @@ def test_r7b2_8_8_a_hollow_body(coord) -> None:
     moments = mesh.cell_integrals(Symbolic.of(Symbolic.r))[0]
     edges = np.asarray(mesh.edges)
     for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
-        assert _close(float(ones[i]), _SHELL[coord](a, b)) and _close(float(moments[i]), _FIRST_MOMENT[coord](a, b)), i
-    assert _close(float(np.sum(ones)), _SHELL[coord](0.5, 2.0), ulps=8 * mesh.N)
+        assert _close(float(ones[i]), _shell(coord, a, b)) and _close(float(moments[i]), _FIRST_MOMENT[coord](a, b)), i
+    assert _close(float(np.sum(ones)), _shell(coord, 0.5, 2.0), ulps=8 * mesh.N)

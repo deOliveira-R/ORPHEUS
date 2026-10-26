@@ -31,7 +31,7 @@ from orpheus.geometry import (
 # software invariant of orpheus.geometry (the closed-form volume and
 # area formulas and one refusal) rather than a physics equation
 # labelled in docs/theory/*.rst. Foundation tests are orthogonal to
-# the L0..L3 physics-verification ladder (Cardinal Rule 4) and never
+# the L0..L3 physics-verification ladder (vv-principles) and never
 # carry @pytest.mark.verifies decorators — they have no theory
 # label to verify.
 #

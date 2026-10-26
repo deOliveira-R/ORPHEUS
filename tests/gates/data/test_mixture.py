@@ -48,10 +48,12 @@ from scipy.sparse import csr_matrix
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
 from orpheus.data.micro_xs.isotope import NG, Isotope
 
-pytestmark = [
-    pytest.mark.l0,
-    pytest.mark.verifies("macro-sum"),
-]
+pytestmark = pytest.mark.l0
+
+#: The rows that compute the sum carry the claim; the Mixture round-trip row does not (it never sums), so the
+#: mark is per row, not module-wide (qa, the layer-DAG re-filing, 2026-10-26: a marker on a row the sum's
+#: defect cannot redden is prose, X3).
+_VERIFIES_MACRO_SUM = pytest.mark.verifies("macro-sum")
 
 
 #: The scaling of the hand table per summed channel: distinct powers of two, exact in binary arithmetic.
@@ -94,6 +96,7 @@ def _assert_every_channel(macro: dict[str, np.ndarray], expected: np.ndarray) ->
         np.testing.assert_allclose(macro[name], scale * expected, rtol=1e-14, err_msg=name)
 
 
+@_VERIFIES_MACRO_SUM
 def test_macro_sum_two_isotope_two_group_hand_calc():
     """Σᵢ Nᵢ·σᵢ for an asymmetric 2-isotope, 2-group mixture.
 
@@ -130,6 +133,7 @@ def test_macro_sum_two_isotope_two_group_hand_calc():
     _assert_every_channel(macro, expected)
 
 
+@_VERIFIES_MACRO_SUM
 def test_macro_sum_three_isotope_three_group_asymmetric():
     """Σᵢ Nᵢ·σᵢ for a 3-isotope, 3-group asymmetric mixture.
 
@@ -157,6 +161,7 @@ def test_macro_sum_three_isotope_three_group_asymmetric():
     _assert_every_channel(macro, expected)
 
 
+@_VERIFIES_MACRO_SUM
 def test_macro_sum_single_isotope_reduces_to_scaling():
     """Σ = N₁·σ₁ for n_iso=1: every macro is just N scaled.
 

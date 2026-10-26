@@ -1606,9 +1606,10 @@ The gates
 ``tests/gates/mesh/test_mesh1d.py`` carries the constructor's laws
 (``TestConstructionLaws``, ``TestTheVolumeLaw`` with the band and the
 wrong-coordinate control, ``TestTheValue`` for equality,
-``TestTheRetirements`` for the retired fields and constructors, and
-``TestTheDefaultsAreGone``: ``realize_boundary`` completes no declaration
-by default); ``tests/gates/sn/solve/test_no_entry_takes_a_boundary_condition.py``
+and ``TestTheRetirements`` for the retired fields and constructors);
+``tests/gates/transport/test_realize_boundary_fills_no_default.py`` carries
+the transport half of step 3c's retirement (``realize_boundary`` completes no
+declaration by default); ``tests/gates/sn/solve/test_no_entry_takes_a_boundary_condition.py``
 carries the S\ :sub:`N` half of that retirement: no S\ :sub:`N` entry takes
 a singular ``boundary_condition`` (the declared conditions travel as the
 keyword ``boundary_conditions``, keyed by tag), and the fill helper is gone.
@@ -1953,9 +1954,12 @@ condition refused), ``tests/gates/moc/test_moc_dropped_laws_are_refused.py``
 (a slab and a hollow cylinder refused, the solid pin cell and the default
 mesh built), ``tests/gates/mc/test_mc_dropped_laws_are_refused.py`` (a
 slab whose faces are a vacuum wall or two mirrors refused, a translation
-pair built, a hollow cylinder refused) and
-``tests/gates/mesh/test_dropped_laws_are_refused.py`` (a lone translation
-face is a ``DeckError``, the geometry's pairing rule).
+pair built, a hollow cylinder refused). A lone translation face is a
+``DeckError``, the geometry's pairing rule, pinned by
+``tests/gates/geometry/test_face_roles.py::TestACurvedFaceCarriesNoDeck::test_the_slab_admits_both_decks_and_closes_the_pairing`` (a mesh copy of that row, under
+``tests/gates/mesh/test_dropped_laws_are_refused.py``, was deleted as its
+duplicate on 2026-10-26: making ``check_pairings_close`` a no-op reddens
+both).
 
 
 .. _structured-geometry-reference-body:

@@ -707,7 +707,7 @@ class TestTheLGe1TermIsLive:
         lib_mesh = _solve("slab_vac", _L_ANISO).problem
         lib_solver = SNSolver(lib_mesh)
         assert lib_solver.problem.system.factors.n2n.is_isotropic, (
-            "an macro_xs.synthetic arm now carries an anisotropic (n,2n) binding — "
+            "a macro_xs.synthetic arm now carries an anisotropic (n,2n) binding — "
             "the library gained Sig2 data, so this file's claim that only "
             "slab_vac_n2n witnesses the (n,2n) leg is stale."
         )

@@ -166,7 +166,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("geometry/test_symmetry.py", "orpheus.numerics"),
         ("geometry/test_transformation.py", "orpheus.numerics"),
         ("mc/test_cross_verification.py", "orpheus.cp"),
-        ("mesh/test_mesh1d.py", "orpheus.transport"),
         ("moc/test_verification.py", "orpheus.cp"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.data"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.mesh"),

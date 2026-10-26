@@ -116,6 +116,8 @@ _CONSUMERS = (
     "tests/gates/mesh/test_partition.py",
     "tests/gates/mesh/test_mesher.py",
     "tests/gates/mesh/test_mesh1d.py",
+    "tests/gates/mesh/test_mesh1d_cell_integrals.py",
+    "tests/gates/cp/test_cp_first_collision.py",
 )
 _ORACLE = "tests/gates/geometry/_measure.py"
 _ORACLE_MODULE = "tests.gates.geometry._measure"
@@ -194,7 +196,9 @@ class TestTheMeasureOracleHasOneHome:
     the production definition it pins (which would demote every gate that
     compares with it, ``retirement-audit`` D.14).
 
-    Population: the four consumer files of ``_CONSUMERS``, not the tree.
+    Population: the six consumer files of ``_CONSUMERS``, not the tree
+    (``tests/gates/geometry/test_measure_density.py``'s table is the one known
+    copy outside it).
     Claim kind: THEOREM over that population, each scan with its positive
     control.
     """
@@ -218,7 +222,7 @@ class TestTheMeasureOracleHasOneHome:
             }
             if _ORACLE_MODULE not in imported:
                 missing_import.append(rel)
-        assert len(_CONSUMERS) == 4
+        assert len(_CONSUMERS) == 6
         assert not copies, "a consumer writes the measure again:\n  " + "\n  ".join(copies)
         assert not missing_import, f"consumers not reading {_ORACLE_MODULE}: {missing_import}"
 

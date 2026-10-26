@@ -3,9 +3,11 @@ r"""The one measure of a coordinate system, written in the test from the geometr
 The measure of an interval :math:`[a, b]` of a 1-D coordinate system is :math:`m = c\,(T(b) - T(a))`, :math:`T(r) = r^d`:
 :math:`d = 1, 2, 3` and :math:`c = 1, \pi, 4\pi/3` for the slab, the cylinder (per unit height) and the sphere. Production
 owns the definition (``CoordSystem.measure``, ``orpheus/geometry/coord.py``); this module is the tests' hand-written oracle
-of it, and the ONE place the tests write it: ``tests/gates/geometry/test_coord.py`` (the definition pin),
+of it, and the one place six test files take it from: ``tests/gates/geometry/test_coord.py`` (the definition pin),
 ``tests/gates/mesh/test_partition.py`` (the interval rules), ``tests/gates/mesh/test_mesher.py`` (the meshes of named
-geometries) and ``tests/gates/mesh/test_mesh1d.py`` (the volume band) import it. Until 2026-10-26 the first two wrote it
+geometries), ``tests/gates/mesh/test_mesh1d.py`` (the volume band), ``tests/gates/mesh/test_mesh1d_cell_integrals.py``
+(its ``_SHELL`` table until 2026-10-26) and ``tests/gates/cp/test_cp_first_collision.py`` (its ``_VOLUME`` table).
+One known copy remains outside them, the table in ``tests/gates/geometry/test_measure_density.py`` (`[M]` 2026-10-26, qa). Until 2026-10-26 the first two wrote it
 twice (``_EXPONENT``, ``_CONSTANT``, ``_measure`` and ``_MEASURE_POWER``, ``_MEASURE_PREFACTOR``,
 ``_closed_form_region_volume``) and the third wrote the exponent a third time.
 

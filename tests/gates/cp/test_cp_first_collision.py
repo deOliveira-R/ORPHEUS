@@ -48,11 +48,11 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates.cp._cp_geometry import cp_body
 from tests.gates.derivations import _characteristic_mp as closed
+from tests.gates.geometry._measure import CONSTANT as _MEASURE_CONSTANT
 
 _HERE = "tests/gates/cp/test_cp_first_collision.py::"
 _CHART = {CoordSystem.SPHERICAL: "sphere", CoordSystem.CYLINDRICAL: "cylinder", CoordSystem.CARTESIAN: "slab"}
 _KIND = {CoordSystem.SPHERICAL: "sphere-1d", CoordSystem.CYLINDRICAL: "cylinder-1d", CoordSystem.CARTESIAN: "slab"}
-_VOLUME = {CoordSystem.SPHERICAL: 4.0 / 3.0 * np.pi, CoordSystem.CYLINDRICAL: np.pi, CoordSystem.CARTESIAN: 1.0}
 
 
 class _NoClosure(fsg.FlatSourceCPGeometry):
@@ -78,7 +78,7 @@ def _production_pc(coord: CoordSystem, tau: float) -> float:
 
 def _reference_pc(coord: CoordSystem, tau: float) -> float:
     P = fsg.build_cp_matrix(_NoClosure(kind=_KIND[coord]), np.array([[tau]]), np.array([1.0]),
-                            np.array([_VOLUME[coord]]), 1.0)
+                            np.array([_MEASURE_CONSTANT[coord]]), 1.0)
     return float(P[0, 0, 0])
 
 
