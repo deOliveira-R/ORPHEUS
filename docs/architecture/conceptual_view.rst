@@ -387,8 +387,9 @@ and its invariance cannot disagree. The support must be a **G-space**,
 one of the families a rigid motion acts on, and the action is one law:
 :math:`g` acts iff :math:`g(M) = M` (:ref:`manifold-gspace`,
 :eq:`manifold-gspace-action-law`;
-:class:`~orpheus.geometry.manifold.GSpace`); energy groups, an index set
-and a product are not G-spaces and refuse the question. Every invariance
+:class:`~orpheus.geometry.manifold.GSpace`); energy groups, an index set,
+a point, a product and a fundamental domain are not G-spaces and refuse
+the question. Every invariance
 verb is a composition of the measure's pushforward with that action
 through one group-free relabelling (:eq:`manifold-invariance-composition`,
 :ref:`discrete-measure-invariance-module`;
