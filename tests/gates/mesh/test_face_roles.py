@@ -15,12 +15,16 @@ partition. Claims, with layer and kind (``vv-principles``):
   function of the colouring and the end roles) against a REFERENCE that shares nothing with the mesh route, a direct
   call of ``colouring_symmetry`` on the geometry's raw breakpoints, ids and roles; the activation is a palindromic
   triple ``(0, 1, 0)`` whose interior breakpoints are the regions' edges, with an UNSYMMETRIC cell partition, so a
-  reading of the cell edges instead of the region edges is a different group;
+  reading of the cell edges instead of the region edges is a different group. The geometry half (the geometry's
+  group is the direct call's) moved to ``tests/gates/geometry/test_geometry_faces.py`` in the layer-DAG re-filing
+  (2026-10-26), with the slabs table (``tests/gates/geometry/_face_fixtures.py``); the mesh rows rest on it;
 * ``TestFaceLawsIsRetired``: STRUCTURE (no dual spelling);
 * ``TestFaceRoles``: THEOREM rows of a mesh's stored roles, through the mesher (1-D) and the bare constructor (2-D):
-  one role per face, a deck beside a tag, every 2-D face admitting a tag, the frozen field, and the refusal of a
+  one role per face, a deck beside a tag, every 2-D face admitting a tag, the frozen field, and the 2-D refusal of a
   string role. It lived in ``tests/gates/geometry/test_geometry.py`` until the layer-DAG re-filing
-  (``.claude/plans/layer_dag.md``, ruling 21).
+  (``.claude/plans/layer_dag.md``, ruling 21). Its 1-D string-role refusal was deleted at ruling 30 (2026-10-26): it
+  duplicated ``tests/gates/mesh/test_mesh1d.py::TestConstructionLaws::test_refusal[string-role]``, which reddened with
+  it under the one mutation of the pair.
 
 Every new attribute is read at run time, so each row's red is its own. First reds at the base tip ``dec1f9ff``:
 ``orpheus.mesh.face_roles`` does not exist (every ``TestFaceRolesOver`` row); ``Mesh1D(... face_roles=...)`` is an
@@ -53,11 +57,13 @@ import pytest
 
 import orpheus.mesh as mesh_package
 from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.geometry.colouring import UncomputedSymmetries, colouring_symmetry
+from orpheus.geometry.colouring import UncomputedSymmetries
 from orpheus.geometry.deck import DeckError, MirrorDeck, TranslationDeck, tags_of
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import require
+from tests.gates.geometry._face_fixtures import SLABS as _SLABS
+from tests.gates.geometry._face_fixtures import slab_geometry as _geometry
 
 pytestmark = pytest.mark.foundation
 
@@ -245,10 +251,6 @@ class TestMeshesStoreFaceRoles:
 
 # ── gate 6 ───────────────────────────────────────────────────────────────────
 
-def _geometry(breakpoints: tuple[float, ...], ids: tuple[int, ...], low: object, high: object) -> StructuredGeometry:
-    return StructuredGeometry.slab(breakpoints, ids, left=low, right=high)  # type: ignore[arg-type]
-
-
 def _meshed(geometry: StructuredGeometry, how: str) -> Mesh1D:
     n = len(geometry.intervals)
     if how == "refined":
@@ -259,39 +261,16 @@ def _meshed(geometry: StructuredGeometry, how: str) -> Mesh1D:
     return Mesher(geometry).partition(rule).mesh
 
 
-def _reference(geometry: StructuredGeometry) -> Any:
-    """The expected group, by a direct call on the geometry's raw data (no mesh anywhere on this route)."""
-    return colouring_symmetry(
-        _CART, (geometry.breakpoints[0], geometry.breakpoints[-1]), geometry.breakpoints, geometry.mat_ids,
-        geometry.face_roles[0], geometry.face_roles[1],
-    )
-
-
-#: (label, breakpoints, ids, low role, high role, number of group elements). The counts are written by hand:
-#: a palindromic colouring with equal end roles has the identity and the mirror, anything else the identity only.
-_SLABS = [
-    ("one material, one tag", (0.0, 1.0, 2.0), (0, 0), 1, 1, 2),
-    ("palindrome, equal tags", (0.0, 1.0, 2.0, 3.0), (0, 1, 0), 1, 1, 2),
-    ("palindrome, two mirrors", (0.0, 1.0, 2.0, 3.0), (0, 1, 0), MirrorDeck(), MirrorDeck(), 2),
-    ("the float trap (0, .1, .2, .3)", (0.0, 0.1, 0.2, 0.3), (0, 1, 0), 1, 1, 2),
-    ("asymmetric materials", (0.0, 1.0, 2.0, 3.0), (0, 1, 2), 1, 1, 1),
-    ("asymmetric breakpoints", (0.0, 1.0, 2.5, 3.0), (0, 1, 0), 1, 1, 1),
-    ("unequal tags", (0.0, 1.0, 2.0, 3.0), (0, 1, 0), 1, 2, 1),
-    ("a mirror and a tag", (0.0, 1.0, 2.0, 3.0), (0, 1, 0), MirrorDeck(), 1, 1),
-]
-
-
-@pytest.mark.rests_on(_HERE + "::TestMeshesStoreFaceRoles::test_the_mesher_lifts_the_geometrys_roles", "tests/gates/geometry/test_colouring_symmetry.py::test_colouring_symmetry_reads_runs_and_roles")
+@pytest.mark.rests_on(
+    _HERE + "::TestMeshesStoreFaceRoles::test_the_mesher_lifts_the_geometrys_roles",
+    "tests/gates/geometry/test_geometry_faces.py::TestTheSymmetryIsTheGeometrys::test_the_geometry_gives_the_reference_group",
+)
 class TestTheSymmetryIsTheGeometrys:
-    """Gate 6: ``Mesh1D.symmetry == StructuredGeometry.symmetry`` for every partition of the same geometry."""
+    """Gate 6: ``Mesh1D.symmetry == StructuredGeometry.symmetry`` for every partition of the same geometry.
 
-    @pytest.mark.parametrize("label", [row[0] for row in _SLABS])
-    def test_the_geometry_gives_the_reference_group(self, label: str) -> None:
-        (_, breakpoints, ids, low, high, count), = [row for row in _SLABS if row[0] == label]
-        geometry = _geometry(breakpoints, ids, low, high)
-        require(len(geometry.symmetry.elements) == count, f"{label}: {len(geometry.symmetry.elements)} elements, expected {count}")
-        require(geometry.symmetry == _reference(geometry), f"{label}: the geometry's group is the direct call's")
-        require(geometry.symmetry.elements[0].is_identity, "the identity is first")
+    The geometry half (the geometry's group is the direct call's, of the hand-counted order) is
+    ``tests/gates/geometry/test_geometry_faces.py::TestTheSymmetryIsTheGeometrys``, which these rows rest on; the slabs
+    are its table (``tests/gates/geometry/_face_fixtures.py``)."""
 
     @pytest.mark.parametrize("how", ["uniform", "unsymmetric", "refined"])
     @pytest.mark.parametrize("label", [row[0] for row in _SLABS])
@@ -385,18 +364,11 @@ class TestFaceRoles:
         with pytest.raises(AttributeError):
             mesh.face_roles = {"xmin": 0, "xmax": 0}  # type: ignore[misc]  # the frozen field is the subject
 
-    def test_mesh1d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match="a face role is a MirrorDeck, a TranslationDeck or an int tag"):
-            Mesh1D(
-                coord=CoordSystem.CARTESIAN, edges=np.array([0.0, 1.0]),
-                volumes=np.array([1.0]), region_ids=np.array([0]), region_materials=(0,),
-                face_roles={"xmin": "vacuum", "xmax": 0},  # type: ignore[dict-item]  # a refusal input
-            )
-
     def test_mesh1d_bc_accepts_a_deck_beside_a_tag(self):
         """The declaration channel: a deck and a tag are both legal face roles.
 
-        The positive leg of the row above (``vv`` anti-pattern #11). A prescribed
+        The positive leg of ``tests/gates/mesh/test_mesh1d.py::TestConstructionLaws::test_refusal[string-role]``
+        (``vv`` anti-pattern #11). A prescribed
         inflow, whose content is a function, has no role spelling: the problem
         binds it to a tag (a response is not the geometry's).
         """

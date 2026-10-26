@@ -366,10 +366,11 @@ But some tests exist that are **not** about physics:
      - ``pwr_pin_2d`` returns a 2-D mesh of the requested shape whose
        material map holds the fuel, the cladding and the coolant, with
        flat material ids. A factory contract, not transport physics.
-   * - ``test_mesh1d::TestMesh1D``
-     - ``Mesh1D`` instances are frozen, and their derived views
-       (widths, centres, total width, cell count) follow from the edges.
-       Language-level contract, not a reactor-physics equation.
+   * - ``test_mesh1d::TestTheValue``
+     - ``Mesh1D`` instances are frozen and read-only, and their derived
+       views (widths, centres, face areas, total width, cell count) follow
+       from the edges. Language-level contract, not a reactor-physics
+       equation.
 
 These tests **must** exist — every downstream solver depends on
 them — but there is no theory label for "volumes are computed

@@ -739,11 +739,13 @@ reasons, each load-bearing.
 The gates are ``tests/gates/geometry/test_colouring_symmetry.py`` (the
 float rule on 13 symmetric and 6 asymmetric slabs, with an activation
 at the interior breakpoint; runs and roles; refinement independence; the
-one agreement convention) and ``TestTheSymmetryIsTheGeometrys`` in
-``tests/gates/mesh/test_face_roles.py`` (the mesh gives the geometry's
-group for every partition of the same geometry, the mirror swaps the
-faces, a radial mesh has the identity only, a 2-D mesh says it did not
-compute).
+one agreement convention), ``TestTheSymmetryIsTheGeometrys`` in
+``tests/gates/geometry/test_geometry_faces.py`` (the geometry's group is
+the direct call's on its raw data, of the order counted by hand) and
+``TestTheSymmetryIsTheGeometrys`` in ``tests/gates/mesh/test_face_roles.py``
+(the mesh gives the geometry's group for every partition of the same
+geometry, the mirror swaps the faces, a radial mesh has the identity only,
+a 2-D mesh says it did not compute).
 
 `[M]` 2026-10-24, ``PYTHONPATH=<worktree> .venv/bin/python -O -m pytest
 --color=no -q`` over ``test_colouring_symmetry.py`` (22 collected),
@@ -1605,23 +1607,26 @@ The gates
 (``TestConstructionLaws``, ``TestTheVolumeLaw`` with the band and the
 wrong-coordinate control, ``TestTheValue`` for equality,
 ``TestTheRetirements`` for the retired fields and constructors, and
-``TestTheDefaultsAreGone``: no S\ :sub:`N` entry takes a singular
-``boundary_condition`` (the declared conditions travel as the keyword
-``boundary_conditions``, keyed by tag), the fill helper is gone, and
-``realize_boundary`` completes no declaration by default).
+``TestTheDefaultsAreGone``: ``realize_boundary`` completes no declaration
+by default); ``tests/gates/sn/solve/test_no_entry_takes_a_boundary_condition.py``
+carries the S\ :sub:`N` half of that retirement: no S\ :sub:`N` entry takes
+a singular ``boundary_condition`` (the declared conditions travel as the
+keyword ``boundary_conditions``, keyed by tag), and the fill helper is gone.
 ``tests/gates/mesh/test_mesh2d_face_roles.py`` carries the face roles
 (``test_the_inventory`` against hand-written 2-D inventories,
 ``TestRefusals``, the storage in inventory order,
 ``TestTheOneElementParser``, a route gate that every declaration of the
 five classes calls the one element parser; ``TestTheOneInventoryRule``,
 that both meshes name the same first-axis faces and both constructors
-ask ``face_inventory``; ``TestFaceRoles`` for the value's order,
+ask ``face_inventory``; and ``TestFaceRoles`` for the value's order,
 immutability, content equality (equal to another ``FaceRoles`` of the
 same items in any order, and not to a plain ``dict``) and pickle round
-trips of the value and of both meshes; and ``TestTheNamedCells``, that
-the two named cells take no role keyword and carry their model's roles:
-a tag on the Wigner–Seitz cell's outer surface, two mirror decks on the
-half-cell). ``tests/gates/mesh/test_face_roles.py`` carries the parse
+trips of the value and of both meshes).
+``tests/gates/geometry/test_geometry_faces.py`` carries the geometry's
+half: ``TestTheOneInventoryRule``, the rule ``face_inventory`` itself in
+one, two and three dimensions, and ``TestTheNamedCells``, that the two
+named cells take no role keyword and carry their model's roles: a tag on
+the Wigner–Seitz cell's outer surface, two mirror decks on the half-cell. ``tests/gates/mesh/test_face_roles.py`` carries the parse
 (``TestFaceRolesOver``: the inventory rule, the deck admission per axis
 and chart, the pairing closure, the ``bool`` refusal), the storage of a
 role in both meshes and the mesh's symmetry
@@ -1639,8 +1644,14 @@ beside a vacuum tag) on a 3-D axis tuple as declared.
 every cell in exactly one interval, one rule meaning that rule on every
 interval; ``TestRefine``; ``TestEveryBreakpointIsAnEdge``, whose stub
 rules miss their interval and are refused; ``TestSessionRefusals``;
-``TestIssue495Mesh``). ``tests/gates/mesh/test_partition.py`` carries
-the rules and the measure (``TestTheOneMeasure``, ``TestNesting``,
+``TestIssue495Mesh``). ``tests/gates/geometry/test_coord.py`` carries the
+measure (``TestTheOneMeasure``: the measure is ``c * diff(T(edges))``,
+``compute_volumes_1d`` its delegate, the measure coordinate, a geometry
+asking it) and the witness that the tests' oracle of it is written once
+(``TestTheMeasureOracleHasOneHome``, the oracle being
+``tests/gates/geometry/_measure.py``). ``tests/gates/mesh/test_partition.py``
+carries the rules and the route of the measure through them
+(``TestTheOneMeasure``, every mesh reader asks it; ``TestNesting``,
 ``TestSumLaw``, ``TestEqualVolume``, ``TestEqualWidth``,
 ``TestIssue495``, ``TestRefinement``, ``TestRefinementRefusals``,
 ``TestMaxWidthCount``, ``TestRuleRefusals``, ``TestCellEdges``).
