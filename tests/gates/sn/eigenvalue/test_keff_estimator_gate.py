@@ -515,14 +515,17 @@ class TestGateTeeth:
 _HERE = "tests/gates/sn/eigenvalue/test_keff_estimator_gate.py"
 _POSED = f"{_HERE}::TestReportedKeffIsThePosedEigenvalue"
 _THE_MIRROR_ACTION = (
-    "tests/gates/geometry/test_reemission_closure.py::"
-    "TestSpecularAgainstAnIndependentExpression::"
-    "test_matches_the_hand_written_mirror_gather"
+    # The hand-written mirror gather at partial weight, bit-exact (it left the retired
+    # geometry/test_reemission_closure.py in wave 2's slice S3, 210ccf16).
+    "tests/gates/sn/operators/test_sn_boundary_realizer.py::"
+    "TestRealizeSpecular::"
+    "test_specular_partial_weight_matches_hand_computed"
 )
 _THE_DIFFUSE_ACTION = (
-    "tests/gates/geometry/test_reemission_closure.py::"
-    "TestDiffuseAgainstAnIndependentExpression::"
-    "test_matches_the_hand_written_cosine_weighted_average"
+    # The cosine-weighted re-emission: the re-emitted current equals the received one
+    # (it left the retired geometry/test_reemission_closure.py in wave 2's slice S3, 210ccf16).
+    "tests/gates/sn/operators/test_lambertian_chain.py::"
+    "TestCosineWeightedCurrentConservation"
 )
 _THE_CORNER_ACTION = (
     "tests/gates/sn/operators/test_psi_half_coupling.py::TestB_b_RayBoundary::"

@@ -123,17 +123,24 @@ def _top_level_package(rel_path: pathlib.Path) -> str:
     return rel_path.parts[0]
 
 
-def _absolute_module(rel_path: pathlib.PurePosixPath, node: ast.ImportFrom) -> str | None:
+def _absolute_module(
+    rel_path: pathlib.PurePosixPath, node: ast.ImportFrom, root_package: tuple[str, ...] = ("orpheus",),
+) -> str | None:
     """The absolute dotted name an ``ImportFrom`` reads, relative imports resolved.
 
     ``from ..transport import x`` in ``orpheus/mesh/axis.py`` is
     ``orpheus.transport``: a relative import of level ``n`` climbs ``n - 1``
     packages above the one holding the module. Without this the linter reads
     the bare ``transport`` and drops it at the ``orpheus.`` prefix test.
+    ``rel_path`` is relative to ``root_package``'s directory: ``("orpheus",)``
+    for a production module, ``("tests", "gates")`` for a gate file (the
+    test-layer gate, ``tests/gates/test_test_layers.py``), so a gate's
+    ``from . import _fixtures`` resolves under ``tests.gates`` and not under
+    ``orpheus``.
     """
     if node.level == 0:
         return node.module
-    package = ("orpheus", *rel_path.parts[:-1])
+    package = (*root_package, *rel_path.parts[:-1])
     if node.level - 1 > len(package) - 1:
         return None
     base = package[: len(package) - (node.level - 1)]
@@ -149,32 +156,53 @@ def _is_orpheus_module(dotted: str) -> bool:
     return path.with_suffix(".py").is_file() or (path / "__init__.py").is_file()
 
 
+def _is_gate_module(dotted: str) -> bool:
+    """Whether ``dotted`` names a module or package file under ``tests/gates/``."""
+    parts = dotted.split(".")
+    if parts[:2] != ["tests", "gates"] or len(parts) < 3:
+        return False
+    path = ORPHEUS_ROOT.parent.joinpath(*parts)
+    return path.with_suffix(".py").is_file() or (path / "__init__.py").is_file()
+
+
+def _is_type_checking_guard(test: ast.expr) -> bool:
+    """``if TYPE_CHECKING:`` or ``if typing.TYPE_CHECKING:``."""
+    return (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
+        isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING"
+    )
+
+
 def _imports_of_source(
-    rel_path: pathlib.PurePosixPath, src: str,
+    rel_path: pathlib.PurePosixPath, src: str, root_package: tuple[str, ...] = ("orpheus",),
 ) -> list[tuple[str, bool]]:
-    """Parse imports, marking TYPE_CHECKING-guarded ones."""
+    """Parse imports, marking TYPE_CHECKING-guarded ones.
+
+    Every import statement at every depth: module top level, a function or
+    class body, a ``TYPE_CHECKING`` block. ``root_package`` is the package
+    ``rel_path`` is relative to (``_absolute_module``).
+    """
     tree = ast.parse(src, filename=str(rel_path))
     results: list[tuple[str, bool]] = []
 
     def _visit(node: ast.AST, in_tc: bool) -> None:
-        if (
-            isinstance(node, ast.If)
-            and isinstance(node.test, ast.Name)
-            and node.test.id == "TYPE_CHECKING"
-        ):
+        if isinstance(node, ast.If) and _is_type_checking_guard(node.test):
             for child in node.body:
                 _visit(child, True)
             for child in node.orelse:
                 _visit(child, in_tc)
             return
         if isinstance(node, ast.ImportFrom):
-            module = _absolute_module(rel_path, node)
+            module = _absolute_module(rel_path, node, root_package)
             if module:
                 # A name that is itself a module (`from orpheus import sn`,
                 # `from orpheus.numerics import operator`) is an edge to THAT
                 # module; recording only `node.module` would let the package
                 # root stand in for it and hide the edge.
-                submodules = [f"{module}.{a.name}" for a in node.names if _is_orpheus_module(f"{module}.{a.name}")]
+                submodules = [
+                    f"{module}.{a.name}"
+                    for a in node.names
+                    if _is_orpheus_module(f"{module}.{a.name}") or _is_gate_module(f"{module}.{a.name}")
+                ]
                 other_names = len(submodules) < len(node.names)
                 if other_names or not submodules:
                     results.append((module, in_tc))

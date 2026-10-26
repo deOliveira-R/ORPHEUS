@@ -56,7 +56,7 @@ from orpheus.mesh.face_roles import FaceRoles, face_inventory
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/mesh/test_mesh2d_face_roles.py"
-_NONE_IN_MESH1D = "tests/gates/mesh/test_mesh1d.py::TestConstructionLaws::test_refusal[none-law]"
+_NONE_IN_MESH1D = "tests/gates/mesh/test_mesh1d.py::TestConstructionLaws::test_refusal[none-role]"
 
 _CART = CoordSystem.CARTESIAN
 _CYL = CoordSystem.CYLINDRICAL

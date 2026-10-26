@@ -123,9 +123,11 @@ _REFERENCE_IMAGES = (
     "test_the_inflow_is_the_unfolded_wall_by_wall_sum[a0.3_0.6-2]"
 )
 _MIRROR_ACTION = (
-    "tests/gates/geometry/test_reemission_closure.py::"
-    "TestSpecularAgainstAnIndependentExpression::"
-    "test_matches_the_hand_written_mirror_gather"
+    # The hand-written mirror gather at partial weight, bit-exact (it left the retired
+    # geometry/test_reemission_closure.py in wave 2's slice S3, 210ccf16).
+    "tests/gates/sn/operators/test_sn_boundary_realizer.py::"
+    "TestRealizeSpecular::"
+    "test_specular_partial_weight_matches_hand_computed"
 )
 
 #: SN's relative error in k at each row's fixture (slab 80 cells / GL32, sphere 40 / GL16), against the joint

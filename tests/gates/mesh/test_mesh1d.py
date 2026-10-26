@@ -345,7 +345,7 @@ class TestTheValue:
 class TestTheRetirements:
     """S3.10: the retired fields, constructor and descriptor are gone (the
     witness of the retirement, ``retirement-audit`` D.18). ``None`` as a face
-    law is refused by ``TestConstructionLaws`` (row ``none-law``); the SN
+    law is refused by ``TestConstructionLaws`` (row ``none-role``); the SN
     ``boundary_condition=`` leg and the resolver's default are step 3c's,
     ``TestTheDefaultsAreGone``."""
 

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19859**
+Total tests collected: **19874**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2914, 14.7%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14915, 75.1%
+   foundation, 14930, 75.1%
    unmarked, 56, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19724
+   explicit, 19739
    class-name, 46
    func-name, 0
    case, 33
@@ -340,13 +340,13 @@ Module × level grid
    geometry/test_line, 0, 0, 0, 0, 9, 0
    geometry/test_line_domain, 3, 5, 0, 0, 22, 0
    geometry/test_line_measure, 0, 12, 0, 0, 0, 0
-   geometry/test_manifold, 0, 0, 0, 0, 250, 0
+   geometry/test_manifold, 0, 0, 0, 0, 238, 0
    geometry/test_measure_density, 6, 0, 0, 0, 0, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_rays, 16, 0, 0, 0, 7, 0
    geometry/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 58, 0
-   geometry/test_symmetry, 0, 0, 0, 0, 215, 2
+   geometry/test_symmetry, 0, 0, 0, 0, 125, 2
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
@@ -452,15 +452,17 @@ Module × level grid
    numerics/test_gauge, 0, 0, 0, 0, 15, 0
    numerics/test_gauss_rule_fingerprint, 0, 14, 0, 0, 7, 0
    numerics/test_gauss_rules_correctly_rounded, 0, 234, 0, 0, 43, 0
-   numerics/test_generating_measure, 0, 78, 0, 0, 181, 0
+   numerics/test_generating_measure, 0, 78, 0, 0, 182, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_harmonic_axis, 0, 0, 0, 0, 10, 0
    numerics/test_heads_on_the_axis, 0, 0, 0, 0, 24, 0
+   numerics/test_index_set, 0, 0, 0, 0, 2, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_interval_legendre_basis, 0, 0, 0, 0, 68, 0
    numerics/test_invariance, 0, 0, 0, 0, 111, 0
    numerics/test_invariance_composition, 0, 0, 0, 0, 1079, 0
+   numerics/test_invariance_verdicts, 0, 0, 0, 0, 91, 0
    numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 42, 0
@@ -469,7 +471,7 @@ Module × level grid
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_linear_combination, 46, 0, 0, 0, 0, 0
    numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
-   numerics/test_measure, 0, 17, 0, 0, 48, 0
+   numerics/test_measure, 0, 17, 0, 0, 51, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
@@ -487,10 +489,10 @@ Module × level grid
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_posing, 0, 0, 0, 0, 8, 0
    numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
-   numerics/test_quadrature_directional, 0, 0, 0, 0, 78, 0
+   numerics/test_quadrature_directional, 0, 0, 0, 0, 81, 0
    numerics/test_question, 0, 0, 0, 0, 66, 0
    numerics/test_quotient_metric, 0, 0, 0, 0, 32, 0
-   numerics/test_registry, 0, 0, 0, 0, 111, 0
+   numerics/test_registry, 0, 0, 0, 0, 112, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 10, 0
    numerics/test_registry_rule_list, 0, 0, 0, 0, 12, 1
    numerics/test_retraction_adjoint_is_the_pullback, 0, 0, 0, 0, 30, 0
@@ -505,7 +507,7 @@ Module × level grid
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_space_identity_is_structural, 0, 0, 0, 0, 15, 0
    numerics/test_space_of_axes, 0, 0, 0, 0, 26, 0
-   numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 7, 0
+   numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 8, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
    numerics/test_strategy_mints_green, 0, 0, 0, 0, 16, 0
    numerics/test_symbolic_steps, 0, 0, 0, 0, 5, 0
@@ -685,6 +687,7 @@ Module × level grid
    test_layer_imports, 0, 0, 0, 0, 524, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
+   test_test_layers, 0, 0, 0, 0, 15, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
    test_wave2_retirement, 0, 0, 0, 0, 21, 0
    test_withdrawal, 0, 0, 0, 0, 47, 0

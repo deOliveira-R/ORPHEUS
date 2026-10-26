@@ -64,7 +64,7 @@ pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/specification/test_specification.py"
 _Q = "tests/gates/numerics/test_question.py"
-_MF = "tests/gates/numerics/test_mesh_free_function.py"
+_MF = "tests/gates/numerics/test_mesh_free_depends_on.py"
 _CELLS = "tests/gates/data/test_cells.py"
 _EXT = "tests/gates/geometry/test_geometry_extent.py"
 
