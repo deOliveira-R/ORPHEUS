@@ -249,3 +249,22 @@ S7 merged @ `e80ec738`. Next: the sub-cone measurement on numerics (`verificatio
    - #658 (`Mesh2D` colouring);
    - #529 (the sn cycle);
    - the `numerics` to `derivations` opening that the layer gate admits and the census flags as UP (nonpage's NEEDS: a ruling for the user).
+
+## Rulings, 2026-10-25 (after the moment-basis carve, `d6055ba7`)
+
+22. **A test-layer gate lands before any test moves** (the user: "agreed"). It is Phase 0 of the re-filing.
+    - A file under `tests/gates/<layer>/` imports only `orpheus` packages at or below that layer.
+    - Today's violations are an exact list that only shrinks: a new violation is red, and so is a listed row that no longer violates.
+    - Every `rests_on` target must resolve to a collected test.
+    - A move is then measured as rows deleted from the list, with the collected-test count conserved.
+23. **The sequencing** (the user: "I agree with the sequencing").
+    - Phase 0, the gate.
+    - Phase 1, the pure moves named by the sub-cone report: geometry's mesh classes to `mesh/`; the measure-invariance group of `test_symmetry` and the measure rows of `test_manifold` to numerics; the family convergence contract to `cross_method/`; the four transport-claim files to `transport/`.
+    - Phase 3 in parallel with Phase 1: measure the sub-cones of `mesh`, `data`, `specification`, `reference` and `values` in a worktree.
+    - Phase 2 after a test-architect spec: re-base the numerics law tests (`test_gauge`, `test_outcome`, `test_posing`, `test_pencil`, `test_inverse_metric_operator`) onto fixtures built in numerics; their SN rows go to `sn/`.
+    - Phase 4: the transport spaces.
+24. **Phase 4 is on this line** (the user: "let's follow your recommendation and bring it in scope"). The angular bulk space, the angular trial space and the full-field space get raw constructors in transport, from ingredients below L3. `SNProblem` (and `DiffusionMesh`) keep them as cached specialised mints, and the transport tests re-base onto them. This applies ruling 20 at L2. #611's wider question, the SN constituents, stays with #611.
+25. **The re-filing runs as dynamic workflows** (the user: "I was planning on doing it in dynamic mode. It worked well for the production reorganization").
+    - The surgical-carve exception does not bind test moves.
+    - The pattern: a census; a move spec per destination layer (test-architect); movers in disjoint worktrees, one per destination package; qa (collected counts, markers, `rests_on` targets, docs citations); archivist fixes for the docs citations.
+26. **The traced-memo regeneration runs now, in the background, in its own worktree** (the user). `[M]` 0 of 8064 entries validate on the tree (S0 spec, `scratch/layer_dag/moment_basis/gate_spec.md` §1). That zero has no positive control yet, and the regeneration supplies one: a freshly written entry must validate.
