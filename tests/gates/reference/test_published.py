@@ -5,7 +5,10 @@ Specified by the test-architect (2026-10-03, ``.claude/plans/reference_p2_spec.m
 
 * ``Withdrawal(reason, issue)`` has ONE home, ``orpheus/reference/withdrawal.py``;
   P0's lock in ``derivations/common/withdrawal.py`` imports it; no re-export
-  shim; every module that binds the name binds that one object;
+  shim; every module that binds the name binds that one object (that census
+  of its binders in the layers above lives at the root,
+  ``tests/gates/test_withdrawal_binders.py``, since the layer-DAG re-filing of
+  2026-10-26);
 * ``Standing = Current | Withdrawal``, one sum for a publication and a
   certificate;
 * ``PublishedSolution(specification, printed, standing)``: each printed value
@@ -76,38 +79,12 @@ def test_r5w_1_withdrawal_is_defined_once_in_the_reference_package() -> None:
     require(defined.get("Withdrawal") == ["orpheus/reference/withdrawal.py"], f"Withdrawal defined at {defined.get('Withdrawal')}")
 
 
-_BINDERS = (
-    "orpheus.derivations.common.withdrawal",
-    "orpheus.derivations.continuous.peierls_nystrom",
-    "tests._harness.registry",
-    "tests.conftest",
-)
-
-
-@pytest.mark.rests_on(f"{_HERE}::test_r5w_1_withdrawal_is_defined_once_in_the_reference_package")
-def test_r5w_2_every_binding_is_the_one_object() -> None:
-    """Every module that binds the name ``Withdrawal`` (the lock, the
-    withdrawn Peierls family, the test registry, the root conftest) binds the
-    reference package's class, by identity: one type, so a reference
-    certificate's ``Withdrawal`` standing and P0's lock agree by construction.
-    The lock's own machinery (``withdrawn_generator``, ``GeneratorWithdrawn``)
-    stays in derivations."""
-    import importlib
-
-    one = s5.c(s5.WITHDRAWAL, "Withdrawal")
-    for name in _BINDERS:
-        bound = getattr(importlib.import_module(name), "Withdrawal", None)
-        require(bound is one, f"{name}.Withdrawal is {bound!r}, not {one!r}")
-    lock = importlib.import_module("orpheus.derivations.common.withdrawal")
-    require(hasattr(lock, "withdrawn_generator") and hasattr(lock, "GeneratorWithdrawn"), "the lock moved with the type")
-
-
 def test_r5w_3_the_law_is_unchanged() -> None:
     """Positive and negative legs of the moved law (its full gate is
     ``tests/gates/test_withdrawal.py``, re-pointed): a reason and a positive
     issue construct; an empty reason, a ``bool`` issue and a zero issue are
     refused naming the field."""
-    W = s5.c(s5.WITHDRAWAL, "Withdrawal")
+    W = s5.WITHDRAWAL.Withdrawal
     w = W("a reason", 12)
     require((w.reason, w.issue) == ("a reason", 12), f"{w!r}")
     for args, fragment in ((("", 1), "reason"), (("r", True), "issue"), (("r", 0), "issue")):
@@ -131,7 +108,7 @@ def test_r5e_the_printed_interval_lies_inside_its_enclosure(text: str) -> None:
     one outward step). The centre is the printed value's double."""
     p = s5.printed(text)
     e = p.enclosure()
-    require(type(e) is s5.c(s5.ENCLOSURE, "Enclosure"), f"enclosure() returned a {type(e).__name__}")
+    require(type(e) is s5.ENCLOSURE.Enclosure, f"enclosure() returned a {type(e).__name__}")
     t, h = Fraction(Decimal(p.text)), Fraction(p.half_unit)
     lo, hi = Fraction(e.value) - Fraction(e.bound), Fraction(e.value) + Fraction(e.bound)
     require(lo <= t - h and t + h <= hi, f"{text}: [{float(t - h)}, {float(t + h)}] not inside [{float(lo)}, {float(hi)}]")
@@ -154,7 +131,7 @@ def test_r5p_1_read_returns_the_printed_value_and_refuses_an_unprinted_one() -> 
     pub = s5.published()
     require(pub.read(s5.eigenvalue()) == s5.printed("1.00000"), "the eigenvalue reads another value")
     require(pub.read(s5.flux()) == s5.printed("0.6123", "Table 11"), "an equal-content flux integral reads another value")
-    not_printed = s5.c(s5.PUBLISHED, "NotPrinted")
+    not_printed = s5.PUBLISHED.NotPrinted
     require(issubclass(not_printed, LookupError), "NotPrinted is not a LookupError")
     with pytest.raises(not_printed, match="does not print"):
         pub.read(s5.flux(((2.0, 0.5), (0.0, 2.0))))
@@ -223,10 +200,8 @@ def test_r5p_5_the_admission_is_the_specifications_one_function(monkeypatch: pyt
     POSABLE publication must now raise the decoy's error (the publication
     calls the function), and an unposable one too (no second admission
     refuses first). Activation: the decoy's call count is positive."""
-    import importlib
-
-    module_name, name = s5.ADMISSION
-    honest = getattr(importlib.import_module(module_name), name)
+    module, name = s5.ADMISSION
+    honest = getattr(module, name)
     calls: list[Any] = []
 
     def decoy(*args: Any, **kwargs: Any) -> None:
@@ -251,14 +226,14 @@ def test_r5p_5_the_admission_is_the_specifications_one_function(monkeypatch: pyt
 # ═════════════════════════════════════════════════════════════════════════════
 
 ROSTER: tuple[Entry, ...] = (
-    Entry(cls=s5.c("orpheus.reference.withdrawal", "Withdrawal"), base=s5.withdrawal, parts=("reason", "issue"),
-          perturb={"reason": (leg("another reason", lambda: s5.c("orpheus.reference.withdrawal", "Withdrawal")("another reason", 999)),),
-                   "issue": (leg("another issue", lambda: s5.c("orpheus.reference.withdrawal", "Withdrawal")("the publication was found unfit as a whole", 1000)),)},
+    Entry(cls=s5.WITHDRAWAL.Withdrawal, base=s5.withdrawal, parts=("reason", "issue"),
+          perturb={"reason": (leg("another reason", lambda: s5.WITHDRAWAL.Withdrawal("another reason", 999)),),
+                   "issue": (leg("another issue", lambda: s5.WITHDRAWAL.Withdrawal("the publication was found unfit as a whole", 1000)),)},
           pairs=(("two builds", s5.withdrawal, s5.withdrawal),)),
-    Entry(cls=s5.c(s5.PUBLISHED, "Current"), base=s5.current, parts=(), perturb={},
+    Entry(cls=s5.PUBLISHED.Current, base=s5.current, parts=(), perturb={},
           pairs=(("two builds", s5.current, s5.current),)),
     Entry(
-        cls=s5.c(s5.PUBLISHED, "PublishedSolution"),
+        cls=s5.PUBLISHED.PublishedSolution,
         base=s5.published,
         parts=("specification", "printed", "standing"),
         perturb={

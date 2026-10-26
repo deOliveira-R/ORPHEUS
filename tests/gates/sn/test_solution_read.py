@@ -55,7 +55,7 @@ _VACUUM = {0: WallCondition.vacuum()}
 
 _HERE = "tests/gates/sn/test_solution_read.py"
 _CELLS = "tests/gates/mesh/test_mesh1d_cell_integrals.py"
-_RATIO_RULE = "tests/gates/reference/test_verification.py::test_r7_19_every_answer_reads_a_ratio_through_the_one_quotient"
+_RATIO_RULE = "tests/gates/homogeneous/test_homogeneous_verification.py::test_r7_19_every_answer_reads_a_ratio_through_the_one_quotient"
 _REGIONS = (0.5, 1.5, 2.0)
 
 

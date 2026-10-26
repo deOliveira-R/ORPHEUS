@@ -17,7 +17,13 @@ the reading verb is the only producer of a production reading):
   ``NotApplicable`` refused as unestablished), every error resolved above the
   tolerance, the observed orders returned and held against the caller's order
   and band;
-* the first production reading: ``HomogeneousResult.read``.
+* the first production reading, ``HomogeneousResult.read`` (R7.8), the first
+  verification of it (R7.9) and the one-quotient route over two answers
+  (R7.19) are posed on the homogeneous answer, so they live in
+  ``tests/gates/homogeneous/test_homogeneous_verification.py``; the quotient
+  of two measurements (R7.20's first row) is a numerics law, in
+  ``tests/gates/numerics/test_measured_quotient.py`` (the layer-DAG
+  re-filing, 2026-10-26).
 
 * step 7b.1 (the user's ruling of 2026-10-03): a reference reading an
   observable ``Uncertified`` (its family derives no bound) is refused by both
@@ -43,7 +49,6 @@ from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pytest
 
 from orpheus.numerics.outcome import Asserted, Measured, NotApplicable
@@ -51,7 +56,6 @@ from tests.gates._content_identity_helpers import require
 from tests.gates.reference import _step5 as s5
 from tests.gates.reference import _step6 as s6
 from tests.gates.reference import _step7 as s7
-from tests.gates.specification import _fixtures as sf
 
 pytestmark = pytest.mark.foundation
 
@@ -164,7 +168,7 @@ def test_r7_2_no_argument_has_a_default() -> None:
     import inspect
 
     for name in ("verify_agreement", "verify_order"):
-        params = inspect.signature(s5.c(s7.VERIFICATION, name)).parameters.values()
+        params = inspect.signature(getattr(s7.VERIFICATION, name)).parameters.values()
         defaulted = [p.name for p in params if p.default is not inspect.Parameter.empty]
         require(not defaulted, f"{name} defaults {defaulted}")
 
@@ -320,7 +324,7 @@ def test_r7_7_the_verdicts_are_returned_values_not_stored_ones() -> None:
     from orpheus.values.content import ContentIdentity
 
     for name, derived in (("VerificationCertificate", ("floor_holds", "agrees")), ("OrderVerification", ("holds",))):
-        cls: type = s5.c(s7.VERIFICATION, name)
+        cls: type = getattr(s7.VERIFICATION, name)
         params = getattr(cls, "__dataclass_params__", None)
         require(params is not None and params.frozen, f"{name} is not a frozen dataclass")
         require(not issubclass(cls, ContentIdentity), f"{name} is a content value")
@@ -330,119 +334,6 @@ def test_r7_7_the_verdicts_are_returned_values_not_stored_ones() -> None:
             require(isinstance(getattr(cls, prop, None), property), f"{name}.{prop} is not a property")
     a, b = _cert(1.0), _cert(1.0)
     require(a is not b, "the verb returned a stored object")
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# R7.8 — the first production reading: HomogeneousResult.read
-# ═════════════════════════════════════════════════════════════════════════════
-
-
-def _flux(weights: Any) -> Any:
-    return s5.flux((tuple(weights),))
-
-
-def test_r7_8_the_homogeneous_result_reads_its_own_answer() -> None:
-    # The ONLY guard of production's weight reading against a hand computation:
-    # production and the reference read a weight through one shared function,
-    # values_without_position, so R7.9's agreement cannot see that function
-    # reverse the groups (qa of step 7a, finding 4).
-    """``read`` returns ``Measured``: the eigenvalue is ``k_inf``; a group's
-    indicator flux integral is that group's flux; a weighted flux integral is
-    the weighted sum (per unit volume, the result's gauge); a ratio is the
-    quotient of its operands' readings; a constant ``Symbolic`` weight reads
-    as its table twin. 2 groups (a 1-group fixture cannot tell a transposed
-    weight, lessons ``L86d``)."""
-    from orpheus.numerics.mesh_free_function import Symbolic
-
-    result = s7.solve_homogeneous(sf.fuel())
-    k = result.read(s5.eigenvalue())
-    require(type(k) is Measured and k.value == result.k_inf, f"{k!r}")
-    for g in range(2):
-        phi = result.read(s6.group_flux(g))
-        require(type(phi) is Measured and phi.value == float(result.flux[g]), f"group {g}: {phi!r}")
-    w = (0.25, 3.0)
-    weighted = result.read(_flux(w)).value
-    require(abs(weighted - (w[0] * result.flux[0] + w[1] * result.flux[1])) <= 4 * math.ulp(weighted), f"{weighted!r}")
-    ratio = result.read(s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0), s6.group_flux(1))).value
-    require(ratio == float(result.flux[0]) / float(result.flux[1]), f"ratio {ratio!r}")
-    constant = s5.c(s5.OBSERVABLE, "FluxIntegral")(Symbolic.of(0.25, 3))
-    require(abs(result.read(constant).value - weighted) <= 4 * math.ulp(weighted), "a constant Symbolic weight reads differently from its table")
-
-
-_REFUSED_READS = (
-    ("point-value", lambda: s5.point(0.5, 0), "position"),
-    ("three-groups", lambda: _flux((1.0, 1.0, 1.0)), "group"),
-    ("two-regions", lambda: s6.group_flux(0, regions=2), "region"),
-)
-
-
-@pytest.mark.parametrize("make, fragment", [r[1:] for r in _REFUSED_READS], ids=[r[0] for r in _REFUSED_READS])
-def test_r7_8_what_a_zero_dimensional_answer_cannot_read_is_refused(make: Any, fragment: str) -> None:
-    result = s7.solve_homogeneous(sf.fuel())
-    with pytest.raises(ValueError, match=fragment):
-        result.read(make())
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# R7.9 — the first verification: production homogeneous against the exact medium
-# ═════════════════════════════════════════════════════════════════════════════
-
-def _library_a_4g() -> Any:
-    from orpheus.data.macro_xs.synthetic import get_mixture
-
-    return get_mixture("A", "4g")
-
-
-# fuel(4) has four identical groups, so it cannot see a group reversal; library
-# mixture A in 4 groups has distinct group fluxes (qa of step 7a, finding 3)
-_MIXTURES = (("fuel-2g", sf.fuel), ("fission-only-2g", sf.fission_only), ("fuel-4g", lambda: sf.fuel(4)),
-             ("library-A-4g", _library_a_4g))
-#: The tolerance, relative: ``[M]`` 2026-10-03 the production k and group fluxes
-#: sit within 1.65e-16 relative of the exact ones over these three mixtures
-#: (600x margin), and the exact reference's bound (half an ulp, ~1.1e-16
-#: relative) meets the floor tol/10 with 90x margin.
-_REL_TOL = 1e-13
-
-
-def _medium(mixture: Any) -> Any:
-    from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.numerics.question import Eigen
-    from orpheus.specification import InfiniteMediumSpecification
-
-    # The fission gauge is DECLARED (the user's ruling of 2026-10-08: the default production counts the (n,2n)
-    # emission too): these rows judge the homogeneous solver, fission-gauged at the density 100 until #517 moves it onto the declaration.
-    fission = CellCoefficient.every(Channel.FISSION_EMISSION)
-    return InfiniteMediumSpecification(0, mixture, Eigen(fission, gauge=fission))
-
-
-@pytest.mark.parametrize("make", [m for _, m in _MIXTURES], ids=[n for n, _ in _MIXTURES])
-def test_r7_9_the_homogeneous_solver_agrees_with_the_exact_medium(make: Any) -> None:
-    """REFERENCE (exact rationals) at L1: the production 0-D solve of each
-    mixture agrees with the exact infinite medium on k, on each group's flux
-    and on the first two groups' ratio, at 1e-13 relative, the algebraic error
-    ``NotApplicable`` (a direct solve). This is the step's own positive leg;
-    the next row is the instrument's negative one."""
-    mixture = make()
-    reference = s6.exact_medium_reference(_medium(mixture))
-    result = s7.solve_homogeneous(mixture)
-    groups = len(result.flux)
-    ratio = s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0, groups=groups), s6.group_flux(1, groups=groups))
-    for observable in [s5.eigenvalue(), ratio] + [s6.group_flux(g, groups=groups) for g in range(groups)]:
-        scale = abs(reference.read(observable).value)
-        cert = s7.verify_agreement(result, observable, reference, _REL_TOL * scale, s7.DIRECT)
-        cert.require()
-
-
-def test_r7_9_a_perturbed_production_disagrees() -> None:
-    """X1, the negative: production solved with ``nu Sigma_f`` scaled by
-    ``1 + 1e-11`` (k moves by 1e-11 relative, 100x the tolerance) DISAGREES
-    with the exact reference of the unperturbed mixture, on k."""
-    mixture = sf.fuel()
-    perturbed = dataclasses.replace(mixture, SigP=np.asarray(mixture.SigP) * (1.0 + 1e-11))
-    reference = s6.exact_medium_reference(_medium(mixture))
-    cert = s7.verify_agreement(s7.solve_homogeneous(perturbed), s5.eigenvalue(), reference,
-                               _REL_TOL * abs(reference.read(s5.eigenvalue()).value), s7.DIRECT)
-    require(cert.floor_holds and not cert.agrees, f"{cert!r}")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -482,7 +373,7 @@ def test_r7_review_a_certificate_cannot_be_built_against_an_invalid_reference() 
     """The certificate holds the answer and the reference and reads both at
     construction, so building one directly against an Invalid reference is
     refused, not read as "agrees" (built directly, it read agrees=True)."""
-    certificate_class = s5.c(s7.VERIFICATION, "VerificationCertificate")
+    certificate_class = s7.VERIFICATION.VerificationCertificate
     answer = s7.FixedAnswer({s5.eigenvalue(): 1.4})
     with pytest.raises(s7.not_valid(), match="invalid"):
         certificate_class(answer, s5.eigenvalue(), s7.reference_of(Fraction(7, 5), "invalid"), 1e-6, s7.Measured(0.0))
@@ -493,11 +384,11 @@ def test_r7_review_the_failures_are_typed() -> None:
     the comparison, both AssertionErrors."""
     loose = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 1.4}), s5.eigenvalue(),
                                 s7.reference_with_bound(1.4, 1e-3), 1e-3, s7.Measured(0.0))
-    with pytest.raises(s5.c(s7.VERIFICATION, "ReferenceTooLoose")):
+    with pytest.raises(s7.VERIFICATION.ReferenceTooLoose):
         loose.require()
     off = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 1.5}), s5.eigenvalue(),
                               s7.reference_of(Fraction(7, 5)), 1e-6, s7.Measured(0.0))
-    with pytest.raises(s5.c(s7.VERIFICATION, "Disagreement")):
+    with pytest.raises(s7.VERIFICATION.Disagreement):
         off.require()
 
 
@@ -510,7 +401,7 @@ def test_r7_review_an_order_verification_admits_its_refinement(resolutions: Any,
     Refinement does (one admission: at least two, positive, decreasing
     strictly) and one error per resolution; equal resolutions crashed in log,
     and 3 resolutions with 1 error held vacuously, before the review."""
-    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    order_class = s7.VERIFICATION.OrderVerification
     with pytest.raises(ValueError):
         order_class(s5.eigenvalue(), resolutions, errors, tuple(Fraction(0) for _ in errors), 2.0, 0.1)
 
@@ -520,7 +411,7 @@ def test_r7_review_the_order_interval_refuses_a_wrong_order_hidden_by_the_floors
     floors near their limit read 1.963 as a point estimate, inside 2 ± 0.1 (qa
     of step 7a, finding 1). With the errors known only within the floors the
     order interval is wide, and the verdict does not hold."""
-    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    order_class = s7.VERIFICATION.OrderVerification
     tol = Fraction(1, 10**6)
     fine = Fraction(12, 10) * tol  # the true errors of an order-1.7 method: coarse / fine = 2**1.7
     coarse = fine * Fraction(32490, 10000)
@@ -535,10 +426,10 @@ def test_r7_review_the_order_interval_refuses_a_wrong_order_hidden_by_the_floors
 def test_r7_review_a_sign_change_is_not_convergence() -> None:
     """Errors +0.04 then -0.01 read as a clean order 2, but the answers cross
     the reference: not monotone convergence, so the verdict does not hold."""
-    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    order_class = s7.VERIFICATION.OrderVerification
     verdict = order_class(s5.eigenvalue(), (0.2, 0.1), (Fraction(4, 100), Fraction(-1, 100)), (Fraction(0), Fraction(0)), 2.0, 0.1)
     require(not verdict.monotone and not verdict.holds, f"{verdict!r}")
-    with pytest.raises(s5.c(s7.VERIFICATION, "OrderNotObserved")):
+    with pytest.raises(s7.VERIFICATION.OrderNotObserved):
         verdict.require()
 
 
@@ -563,7 +454,7 @@ _U_K = 1.40625  # dyadic: the uncertified value of k in the fixtures below
 
 def _u_ratio() -> Any:
     """The ratio group-0 flux (exact 30/7) over group-1 flux (uncertified): uncertified through its denominator."""
-    return s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0), s6.group_flux(1))
+    return s5.OBSERVABLE.Ratio(s6.group_flux(0), s6.group_flux(1))
 
 
 def test_r7_11_verify_agreement_refuses_an_uncertified_reading_of_a_valid_reference() -> None:
@@ -584,7 +475,7 @@ def test_r7_11_verify_agreement_refuses_an_uncertified_reading_of_a_valid_refere
     reference = s7.uncertified_reference(_U_K, "valid")
     require(s5.state_kind(reference.certificate) == "Valid", f"activation: {reference.certificate.state!r}")
     for build in (lambda a: s7.verify_agreement(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET),
-                  lambda a: s5.c(s7.VERIFICATION, "VerificationCertificate")(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET)):
+                  lambda a: s7.VERIFICATION.VerificationCertificate(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET)):
         answer = s7.FixedAnswer({s5.eigenvalue(): _U_K})
         reference.derivation.calls.clear()
         with pytest.raises(s7.reading_uncertified(), match="uncertified"):
@@ -713,7 +604,7 @@ def test_r7_13_an_enclosed_reading_of_a_reference_without_a_certificate_is_compa
     reference = make()
     require(reference.certificate is None, "activation: the reference has a certificate")
     enclosure = reference.read(observable())
-    require(type(enclosure) is s5.c(s5.ENCLOSURE, "Enclosure"), f"activation: the reading is {enclosure!r}")
+    require(type(enclosure) is s5.ENCLOSURE.Enclosure, f"activation: the reading is {enclosure!r}")
     require(enclosure.value == value, f"activation: the enclosure's value {enclosure.value!r} is not {value!r}")
     tolerance = _UT * value
     near = s7.compare_uncertified(s7.FixedAnswer({observable(): value + tolerance / 2}), observable(), reference, tolerance)
@@ -841,7 +732,7 @@ def test_r7_17_no_argument_has_a_default() -> None:
     tolerance a migrated test keeps is stated at its call."""
     import inspect
 
-    for target in (s5.c(s7.VERIFICATION, "compare_uncertified"), s5.c(s7.VERIFICATION, "UncertifiedComparison")):
+    for target in (s7.VERIFICATION.compare_uncertified, s7.VERIFICATION.UncertifiedComparison):
         params = list(inspect.signature(target).parameters.values())
         names = [p.name for p in params]
         require(names == ["answer", "observable", "reference", "tolerance"], f"{target.__name__} takes {names}")
@@ -858,12 +749,12 @@ def test_r7_18_the_comparison_is_returned_not_stored_and_is_not_a_certificate() 
     objects."""
     from orpheus.values.content import ContentIdentity
 
-    cls: type = s5.c(s7.VERIFICATION, "UncertifiedComparison")
+    cls: type = s7.VERIFICATION.UncertifiedComparison
     params = getattr(cls, "__dataclass_params__", None)
     require(params is not None and params.frozen, "UncertifiedComparison is not a frozen dataclass")
     require(getattr(cls, "__final__", False) is True, "UncertifiedComparison is not @final")
     require(not issubclass(cls, ContentIdentity), "UncertifiedComparison is a content value")
-    require(not issubclass(cls, s5.c(s7.VERIFICATION, "VerificationCertificate")), "an uncertified comparison is a certificate")
+    require(not issubclass(cls, s7.VERIFICATION.VerificationCertificate), "an uncertified comparison is a certificate")
     fields = {f.name: f.init for f in dataclasses.fields(cls)}
     require(fields == {"answer": True, "observable": True, "reference": True, "tolerance": True,
                        "reading": False, "reference_reading": False}, f"fields {fields}")
@@ -874,63 +765,15 @@ def test_r7_18_the_comparison_is_returned_not_stored_and_is_not_a_certificate() 
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# R7.19-R7.20 — the ratio rule, spelled once (#405 P2 step 7b.2 prerequisite)
+# R7.20 — a production reading never combines with a reference reading
 # ═════════════════════════════════════════════════════════════════════════════
-
-
-def test_r7_19_every_answer_reads_a_ratio_through_the_one_quotient(monkeypatch: pytest.MonkeyPatch) -> None:
-    """ROUTE (the one-definition witness, X4): ``Ratio.quotient(read)`` is the
-    ratio rule for every answer. Rebinding it to a decoy that divides the
-    other way moves the readings of BOTH the production homogeneous answer and
-    the exact reference at once, each calling it once, so neither keeps a
-    private rule. Activation: honestly, both read the group-0/group-1 ratio
-    (not its reciprocal), and it is not 1."""
-    mixture = sf.fuel()
-    result = s7.solve_homogeneous(mixture)
-    reference = s6.exact_medium_reference(_medium(mixture))
-    Ratio = s5.c(s5.OBSERVABLE, "Ratio")
-    ratio = Ratio(s6.group_flux(0), s6.group_flux(1))
-    honest = (result.read(ratio).value, reference.read(ratio).value)
-    require(abs(honest[0] - float(result.flux[0]) / float(result.flux[1])) <= 4 * math.ulp(honest[0]) and honest[0] != 1.0,
-            f"activation: the production ratio {honest[0]!r}")
-    calls: list[str] = []
-
-    def reversed_quotient(self: Any, read: Any) -> Any:
-        calls.append(type(read.__self__).__name__)
-        return read(self.denominator) / read(self.numerator)
-
-    monkeypatch.setattr(Ratio, "quotient", reversed_quotient)
-    moved = (result.read(ratio).value, reference.read(ratio).value)
-    require(sorted(calls) == ["HomogeneousResult", "ReferenceSolution"], f"the quotient was called by {calls}")
-    for h, m, who in zip(honest, moved, ("production", "reference")):
-        require(abs(m * h - 1.0) <= 1e-14, f"the {who} reading did not move with the rule: {h!r} -> {m!r}")
-
-
-_MEASURED_QUOTIENTS = (
-    ("dyadic", lambda: Measured(3.0) / Measured(2.0), 1.5),
-    ("non-dyadic", lambda: Measured(1.0) / Measured(3.0), 1.0 / 3.0),
-    ("negative", lambda: Measured(-3.0) / Measured(2.0), -1.5),
-)
-
-
-@pytest.mark.parametrize("quotient, value", [r[1:] for r in _MEASURED_QUOTIENTS], ids=[r[0] for r in _MEASURED_QUOTIENTS])
-def test_r7_20_the_quotient_of_two_measurements_is_a_measurement(quotient: Any, value: float) -> None:
-    """A ratio observable's production reading: ``Measured / Measured`` is
-    ``Measured(a.value / b.value)``, the float quotient."""
-    q = quotient()
-    require(type(q) is Measured and q.value == value, f"{q!r}")
-
-
-def _untyped(value: Any) -> Any:
-    """A value the type checker does not narrow (the row tests a RUNTIME refusal)."""
-    return value
 
 
 _NOT_MEASURED_OPERANDS = (
     ("over-an-enclosure", lambda: Measured(1.0) / s5.enclosure(2.0, 0.0)),
     ("an-enclosure-over", lambda: s5.enclosure(2.0, 0.0) / Measured(1.0)),
     ("over-an-uncertified", lambda: Measured(1.0) / s6.uncertified(2.0)),
-    ("over-a-bare-float", lambda: Measured(1.0) / _untyped(2.0)),
+    ("over-a-bare-float", lambda: Measured(1.0) / s5.untyped(2.0)),
 )
 
 

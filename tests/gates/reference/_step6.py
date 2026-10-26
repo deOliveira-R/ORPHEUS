@@ -1,9 +1,12 @@
 """The step-6 gates' adapter and fixtures (#405 P2, ``.claude/plans/reference_p2_spec.md`` §1.6 and §1.7b.1).
 
-Every production name the step-6 gates reach is spelled ONCE here, resolved on
-its module at call time (a rebinding battery arm reaches every row, lessons
-``L100``); a rename is one edit in this file. The step-5 adapter supplies the
-observables, readings and certificate builders.
+Every production module the step-6 gates reach is imported ONCE here, as a
+module, and each name is read off it at call time (a rebinding battery arm
+reaches every row, lessons ``L100``; layer-DAG ruling 27). The step-5 adapter
+supplies the observables, readings and certificate builders. The exact
+infinite medium's adapters left with the rows that use it
+(``tests/gates/derivations/test_exact_medium_reference.py``, 2026-10-26): the
+reference layer cannot import a derivation.
 """
 
 from __future__ import annotations
@@ -14,40 +17,29 @@ from typing import Any
 import numpy as np
 
 from orpheus.numerics.mesh_free_function import RegionwiseConstant
+from orpheus.reference import solution as SOLUTION
 from tests.gates.reference import _step5 as s5
 
-SOLUTION = "orpheus.reference.solution"
-EXACT_MEDIUM = "orpheus.derivations.common.exact_homogeneous"
-
-
 def reference(specification: Any, derivation: Any, certificate: Any) -> Any:
-    return s5.c(SOLUTION, "ReferenceSolution")(specification, derivation, certificate)
+    return SOLUTION.ReferenceSolution(specification, derivation, certificate)
 
 
 def uncertified(value: Any) -> Any:
     """``Uncertified(value)``: a reference's value with no derived bound (step 7b.1)."""
-    return s5.c(s5.READING, "Uncertified")(value)
+    return s5.READING.Uncertified(value)
 
 
 def uncertified_class() -> type:
-    return s5.c(s5.READING, "Uncertified")
+    return s5.READING.Uncertified
 
 
 def evaluation() -> Any:
     """The ``Evaluation`` sum a derivation returns: ``Exact | DerivedBound | Uncertified``."""
-    return s5.c(SOLUTION, "Evaluation")
+    return SOLUTION.Evaluation
 
 
 def derivation_protocol() -> Any:
-    return s5.c(SOLUTION, "Derivation")
-
-
-def exact_medium_reference(specification: Any) -> Any:
-    return s5.c(EXACT_MEDIUM, "exact_infinite_medium_reference")(specification)
-
-
-def exact_medium_of(mixture: Any) -> Any:
-    return s5.c(EXACT_MEDIUM, "exact_infinite_medium_of")(mixture)
+    return SOLUTION.Derivation
 
 
 # ── a test-side derivation ──────────────────────────────────────────────────
@@ -88,7 +80,7 @@ def group_flux(group: int, groups: int = 2, regions: int = 1) -> Any:
     """The flux integral whose weight is the indicator of one group (on ``regions`` regions)."""
     w = np.zeros((regions, groups))
     w[:, group] = 1.0
-    return s5.c(s5.OBSERVABLE, "FluxIntegral")(RegionwiseConstant(w))
+    return s5.OBSERVABLE.FluxIntegral(RegionwiseConstant(w))
 
 
 def exact_claim(value: Fraction, target: float = 1e-12) -> Any:
@@ -102,3 +94,18 @@ def medium_table() -> tuple[Any, TableDerivation, Any]:
     table = {s5.eigenvalue(): k, group_flux(0): f0, group_flux(1): f1}
     cert = s5.certificate({s5.eigenvalue(): exact_claim(k), group_flux(0): exact_claim(f0), group_flux(1): exact_claim(f1)})
     return spec, TableDerivation(table), cert
+
+
+def contains(enclosure: Any, exact: Fraction) -> bool:
+    """The enclosure contains the exact value."""
+    return abs(Fraction(enclosure.value) - exact) <= Fraction(enclosure.bound)
+
+
+def machin_zero() -> Any:
+    """``atan(1/2) + atan(1/3) - pi/4``: exactly 0 (Euler's Machin-like identity), which SymPy neither
+    simplifies to 0 nor evaluates in strict mode (cancellation), so ``Exact`` refuses it (``[M]``
+    2026-10-03 on ``7d0258d1``: the exact family raised ``NotCertified``; a denesting radical, a
+    squared surd, a cube-root sum and a log sum all simplified to 0 and were certified)."""
+    import sympy
+
+    return sympy.atan(sympy.Rational(1, 2)) + sympy.atan(sympy.Rational(1, 3)) - sympy.pi / 4

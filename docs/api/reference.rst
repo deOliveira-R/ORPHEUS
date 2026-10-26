@@ -97,7 +97,11 @@ theory, the design's reasons and the error ontology it rests on are
 :ref:`verification-reference-architecture`; the rulings are the plan of record
 ``.claude/plans/reference_cache.md`` (issue #405, phase P2), with the
 specification ``.claude/plans/reference_p2_spec.md``; the gates are under
-``tests/gates/reference/``.
+``tests/gates/reference/``, except the rows posed on a consumer the reference
+layer cannot import, which live with it: the exact infinite medium's
+(``tests/gates/derivations/test_exact_medium_reference.py``), the homogeneous
+answer's (``tests/gates/homogeneous/test_homogeneous_verification.py``) and the
+census of ``Withdrawal``'s binders (``tests/gates/test_withdrawal_binders.py``).
 
 Readings
 --------

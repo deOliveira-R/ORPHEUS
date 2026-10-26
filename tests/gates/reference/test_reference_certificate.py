@@ -98,7 +98,7 @@ def test_r5c_1_two_spellings_sympy_canonicalises_alike_are_one_value() -> None:
     the canonical text, a cache miss never a wrong hit."""
     import sympy
 
-    E = s5.c(s5.CERTIFICATE, "Exact")
+    E = s5.CERTIFICATE.Exact
     a, b = E("Rational(2, 6)", "x"), E(sympy.srepr(sympy.Rational(1, 3)), "x")
     require(a == b and content_digest(a) == content_digest(b), f"{a.expression!r} vs {b.expression!r}")
 
@@ -120,7 +120,7 @@ def test_r5c_1_exact_admission(args: tuple[Any, Any], error: type[BaseException]
     bare ``eval``), a free symbol, a non-finite or non-real value, an empty
     provenance, a bare float."""
     with pytest.raises(error):
-        s5.c(s5.CERTIFICATE, "Exact")(*args)
+        s5.CERTIFICATE.Exact(*args)
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -132,9 +132,9 @@ def test_r5c_2_a_derived_bound_is_its_enclosure_and_its_method() -> None:
     d = s5.derived(1.25, 1e-9, "Nystrom residual bound")
     require(d.enclosure() == s5.enclosure(1.25, 1e-9), f"{d.enclosure()!r}")
     with pytest.raises(ValueError, match="method"):
-        s5.c(s5.CERTIFICATE, "DerivedBound")(s5.enclosure(1.0, 0.0), " ")
+        s5.CERTIFICATE.DerivedBound(s5.enclosure(1.0, 0.0), " ")
     with pytest.raises(TypeError, match="Enclosure"):
-        s5.c(s5.CERTIFICATE, "DerivedBound")((1.0, 1e-9), "m")
+        s5.CERTIFICATE.DerivedBound(s5.untyped((1.0, 1e-9)), "m")
 
 
 _TARGETS = (
@@ -159,7 +159,7 @@ _BAD_CLAIMS = (
     ("non-positive-target", lambda: s5.claim(0.0, s5.derived()), ValueError),
     ("infinite-target", lambda: s5.claim(math.inf, s5.derived()), ValueError),
     ("established-by-an-enclosure", lambda: s5.claim(1e-8, s5.enclosure(1.0, 0.0)), TypeError),
-    ("established-by-a-measured", lambda: s5.claim(1e-8, s5.mod("orpheus.numerics.outcome").Measured(1.0)), TypeError),
+    ("established-by-a-measured", lambda: s5.claim(1e-8, s5.OUTCOME.Measured(1.0)), TypeError),
     ("no-claims", lambda: s5.certificate({}), ValueError),
     ("claim-key-not-an-observable", lambda: s5.certificate({"k": s5.claim(1e-8, s5.derived())}), TypeError),
 )
@@ -212,7 +212,7 @@ _BAD_ANCHORS = (
     ("an-enclosure", lambda: s5.corroboration(s5.enclosure(1.4, 1e-6)), TypeError),
     ("a-float", lambda: s5.corroboration(1.4), TypeError),
     ("a-printed-value", lambda: s5.corroboration(s5.printed("1.40000")), TypeError),
-    ("a-production-reading", lambda: s5.corroboration(s5.mod("orpheus.numerics.outcome").Measured(1.4)), TypeError),
+    ("a-production-reading", lambda: s5.corroboration(s5.OUTCOME.Measured(1.4)), TypeError),
 )
 
 
@@ -335,7 +335,7 @@ def test_r5c_8_the_state_is_derived_never_stored() -> None:
     """``dataclasses.fields(ReferenceCertificate)`` is exactly ``(claims,
     corroborations, refinements, standing)``: no stored state, verdict or
     validity flag (a stored verdict drifts from its evidence)."""
-    names = tuple(f.name for f in dataclasses.fields(s5.c(s5.CERTIFICATE, "ReferenceCertificate")))
+    names = tuple(f.name for f in dataclasses.fields(s5.CERTIFICATE.ReferenceCertificate))
     require(names == ("claims", "corroborations", "refinements", "standing"), f"fields {names}")
 
 
@@ -361,7 +361,7 @@ def test_r5c_9_no_ladder_certifies() -> None:
     require(found.get("DerivedBound") == ["orpheus/reference/certificate.py"], f"control: {found.get('DerivedBound')}")
     struck = {n: found[n] for n in _STRUCK if n in found}
     require(not struck, f"struck establishment classes defined: {struck}")
-    members = {k.__name__ for k in typing.get_args(s5.c(s5.CERTIFICATE, "Establishment"))}
+    members = {k.__name__ for k in typing.get_args(s5.CERTIFICATE.Establishment)}
     require(members == {"Exact", "DerivedBound"}, f"Establishment names {sorted(members)}")
 
 
@@ -378,36 +378,36 @@ def _cert(**changes: Any) -> Any:
 
 
 ROSTER: tuple[Entry, ...] = (
-    Entry(cls=s5.c(s5.CERTIFICATE, "Exact"), base=s5.exact, parts=("expression", "by"),
+    Entry(cls=s5.CERTIFICATE.Exact, base=s5.exact, parts=("expression", "by"),
           perturb={"expression": (leg("another rational", lambda: s5.exact("2/7")),),
                    "by": (leg("another identity", lambda: s5.exact(by="derive_other")),)},
           pairs=(("two builds", s5.exact, s5.exact),)),
-    Entry(cls=s5.c(s5.CERTIFICATE, "DerivedBound"), base=s5.derived, parts=("derived", "method"),
+    Entry(cls=s5.CERTIFICATE.DerivedBound, base=s5.derived, parts=("derived", "method"),
           perturb={"derived": (leg("bound one ULP", lambda: s5.derived(bound=math.nextafter(1e-9, 1.0))),),
                    "method": (leg("another method", lambda: s5.derived(method="series tail")),)},
           pairs=(("two builds", s5.derived, s5.derived),)),
-    Entry(cls=s5.c(s5.CERTIFICATE, "Claim"), base=lambda: s5.claim(1e-3, s5.derived()), parts=("target", "established"),
+    Entry(cls=s5.CERTIFICATE.Claim, base=lambda: s5.claim(1e-3, s5.derived()), parts=("target", "established"),
           perturb={"target": (leg("one ULP", lambda: s5.claim(math.nextafter(1e-3, 1.0), s5.derived())),),
                    "established": (leg("exact instead", lambda: s5.claim(1e-3, s5.exact())),)},
           pairs=(("int-like target", lambda: s5.claim(1, s5.derived()), lambda: s5.claim(1.0, s5.derived())),)),
-    Entry(cls=s5.c(s5.CERTIFICATE, "Corroboration"), base=lambda: s5.corroboration(_anchor("1.40000")),
+    Entry(cls=s5.CERTIFICATE.Corroboration, base=lambda: s5.corroboration(_anchor("1.40000")),
           parts=("anchor", "independence"),
           perturb={"anchor": (leg("another printed digit", lambda: s5.corroboration(_anchor("1.40001"))),),
                    "independence": (leg("another note", lambda: s5.corroboration(_anchor("1.40000"), "another method")),)},
           pairs=(("two builds", lambda: s5.corroboration(_anchor("1.40000")), lambda: s5.corroboration(_anchor("1.40000"))),)),
-    Entry(cls=s5.c(s5.CERTIFICATE, "Refinement"),
+    Entry(cls=s5.CERTIFICATE.Refinement,
           base=lambda: s5.refinement(s5.eigenvalue(), _members((0.2, 1.04, 0.08), (0.1, 1.01, 0.02))),
           parts=("observable", "members"),
           perturb={"observable": (leg("a point value", lambda: s5.refinement(s5.point(), _members((0.2, 1.04, 0.08), (0.1, 1.01, 0.02)))),),
                    "members": (leg("one value by one ULP", lambda: s5.refinement(s5.eigenvalue(), _members((0.2, math.nextafter(1.04, 2.0), 0.08), (0.1, 1.01, 0.02)))),)},
           pairs=(("two builds", lambda: s5.refinement(s5.eigenvalue(), _members((0.2, 1.04, 0.08), (0.1, 1.01, 0.02))),
                   lambda: s5.refinement(s5.eigenvalue(), _members((0.2, 1.04, 0.08), (0.1, 1.01, 0.02)))),)),
-    Entry(cls=s5.c(s5.CERTIFICATE, "Valid"), base=lambda: s5.c(s5.CERTIFICATE, "Valid")(), parts=(), perturb={},
-          pairs=(("two builds", lambda: s5.c(s5.CERTIFICATE, "Valid")(), lambda: s5.c(s5.CERTIFICATE, "Valid")()),)),
-    Entry(cls=s5.c(s5.CERTIFICATE, "Invalid"), base=lambda: s5.c(s5.CERTIFICATE, "Invalid")(("a reason",)), parts=("reasons",),
-          perturb={"reasons": (leg("another reason", lambda: s5.c(s5.CERTIFICATE, "Invalid")(("another reason",))),)},
-          pairs=(("two builds", lambda: s5.c(s5.CERTIFICATE, "Invalid")(("a reason",)), lambda: s5.c(s5.CERTIFICATE, "Invalid")(("a reason",))),)),
-    Entry(cls=s5.c(s5.CERTIFICATE, "ReferenceCertificate"), base=_cert,
+    Entry(cls=s5.CERTIFICATE.Valid, base=lambda: s5.CERTIFICATE.Valid(), parts=(), perturb={},
+          pairs=(("two builds", lambda: s5.CERTIFICATE.Valid(), lambda: s5.CERTIFICATE.Valid()),)),
+    Entry(cls=s5.CERTIFICATE.Invalid, base=lambda: s5.CERTIFICATE.Invalid(("a reason",)), parts=("reasons",),
+          perturb={"reasons": (leg("another reason", lambda: s5.CERTIFICATE.Invalid(("another reason",))),)},
+          pairs=(("two builds", lambda: s5.CERTIFICATE.Invalid(("a reason",)), lambda: s5.CERTIFICATE.Invalid(("a reason",))),)),
+    Entry(cls=s5.CERTIFICATE.ReferenceCertificate, base=_cert,
           parts=("claims", "corroborations", "refinements", "standing"),
           perturb={"claims": (leg("another target", lambda: _cert(claims={s5.eigenvalue(): s5.claim(2e-3, s5.derived(1.4, 1e-9))})),),
                    "corroborations": (leg("none", lambda: _cert(corroborations=[])),),
@@ -487,4 +487,4 @@ def test_r5c_7_anchors_and_refinements_must_agree_with_each_other() -> None:
 @pytest.mark.parametrize("reasons", [(), ("",), (1,)], ids=["empty", "blank", "not-text"])
 def test_r5c_8_an_invalid_state_names_a_reason(reasons: Any) -> None:
     with pytest.raises(ValueError):
-        s5.c(s5.CERTIFICATE, "Invalid")(reasons)
+        s5.CERTIFICATE.Invalid(reasons)
