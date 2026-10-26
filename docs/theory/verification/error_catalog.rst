@@ -9048,7 +9048,7 @@ older entries classify against.
    one group (111 s).
 
    **Caught by:**
-   ``tests/gates/mesh/test_dropped_laws_are_refused.py::TestMOC::test_the_default_mesh_builds``
+   ``tests/gates/moc/test_moc_dropped_laws_are_refused.py::TestMOC::test_the_default_mesh_builds``
    (builds :class:`MOCMesh` on the default mesh). First red measured on
    the old default, in process.
 
@@ -10909,10 +10909,12 @@ older entries classify against.
    uniform scale of :math:`T`, and the functional reads only the flux
    shape, so a scale defect of :math:`T` (ERR-107) lies in its stabiliser
    (Mode 12) and the vacuum probe of ERR-107 was inconclusive. (c) A
-   docstring recorded the wrong value as the expected one
-   (``tests/gates/mesh/test_dropped_laws_are_refused.py``, ``test_the_slab_kernel_drops_the_left_law``,
-   1.2301755431553738, where the eigenvalue is 0.5016); the row asserts
-   equality between two left laws, so it stays green.
+   docstring recorded the wrong value as the expected one: the retired row
+   ``test_the_slab_kernel_drops_the_left_law`` recorded 1.2301755431553738,
+   where the eigenvalue is 0.5016, and asserted only that two left laws
+   gave the same :math:`k`, so it was green. Its record is kept, with this
+   correction beside it, in the docstring of
+   ``tests/gates/cp/test_cp_dropped_laws_are_refused.py``.
 
    **Repair, validated and not landed.** The balance with the escape term,
    :math:`r_{ig} = \sum_j P^\infty_{ij,g}` the row sum:
@@ -11733,12 +11735,12 @@ older entries classify against.
    refuses every unit at a hollow inner face on its own guard (#513) and does not call the shared constructor, since the
    reason for refusing is the method's.
 
-   **Catching tests.** In ``tests/gates/mesh/test_hollow_inner_law.py``:
+   **Catching tests.**
 
-   - ``test_sn_refuses_a_declared_inner_law_it_would_drop`` (6 rows: vacuum, white(0.5) and specular(0.5) on a cylinder
+   - ``tests/gates/sn/architecture/test_sn_hollow_inner_law.py::test_sn_refuses_a_declared_inner_law_it_would_drop`` (6 rows: vacuum, white(0.5) and specular(0.5) on a cylinder
      and a sphere): ``SNProblem`` raises ``BoundaryRefused`` whose admission is ``RefusalAxis.PLUMBING`` with issue 511, on
      the face ``"xmin"``;
-   - ``test_diffusion_refuses_it_too`` (3 rows, a sphere): ``DiffusionMesh`` raises ``BoundaryRefused`` citing 511.
+   - ``tests/gates/diffusion/test_diffusion_hollow_inner_law.py::test_diffusion_refuses_it_too`` (3 rows, a sphere): ``DiffusionMesh`` raises ``BoundaryRefused`` citing 511.
 
    Both carry ``@pytest.mark.catches("ERR-120")``. The positive controls beside them are
    ``test_diffusion_admits_the_unit_specular_cavity_at_the_inner_site`` (the one admitted condition constructs, so the

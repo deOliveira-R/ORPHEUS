@@ -1,11 +1,14 @@
-r"""The assembly rung of the specification (#405 P1 step 8, S8.4).
+"""The infinite-medium k of a specification is the dense pencil's k, through the 0-D and the SN lift (#405 P1 step 8, S8.4 (ii)).
 
-Specified by the test-architect (2026-10-02, ``.claude/plans/reference_p1_spec.md``
-§1.8). An integration rung: green on arrival (no first red of its own), it
-shows that a specification carries what a method needs, through the test's own
-lift, since posing a method from a specification is P4's (no solver change in
-P1). Its teeth are the reference side's activation legs and the battery arms
-named in the spec.
+Specified by the test-architect (2026-10-02, ``.claude/plans/reference_p1_spec.md`` §1.8, S8.4) as one of the two rows of the
+specification's assembly rung, an integration rung green on arrival (no first red of its own): it shows that a specification
+carries what a method needs, through the test's own lift, since posing a method from a specification is P4's. Its teeth are the
+reference side's activation legs and the battery arms named in the spec. Moved from
+``tests/gates/specification/test_specification_assembly.py`` by the layer-DAG re-filing (Phase 1b, 2026-10-26), body unchanged:
+one claim (``InfiniteMediumSpecification`` asks k-infinity of its one material) read through two methods, the homogeneous
+baseline and an SN reflective slab, each against one reference independent of every operator, so the row lives with the
+cross-method comparisons (``tests/gates/cross_method/``, which may import every method). The other row of the rung is
+``tests/gates/transport/test_specification_material_mesh.py``.
 """
 
 from __future__ import annotations
@@ -14,30 +17,16 @@ import numpy as np
 import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
-from orpheus.data.materials import Materials
 from orpheus.geometry import MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.question import Eigen
-from orpheus.specification import GeometrySpecification, InfiniteMediumSpecification
+from orpheus.specification import InfiniteMediumSpecification
 from tests.gates._content_identity_helpers import require
-from tests.gates.specification._fixtures import fuel, moderator, slab2, vacuum_exterior
+from tests.gates.specification._fixtures import every_fission as _k, fuel
 
 pytestmark = pytest.mark.l1
 
 F = Channel.FISSION_EMISSION
-
-
-def _k() -> CellCoefficient:
-    return CellCoefficient.every(F)
-
-
-def _two_materials() -> Materials:
-    return Materials({0: fuel(), 1: moderator()})
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# S8.4 — the assembly rung
-# ═════════════════════════════════════════════════════════════════════════════
 
 
 def _dense_k_inf(mixture) -> float:
@@ -46,19 +35,6 @@ def _dense_k_inf(mixture) -> float:
     a = np.diag(mixture.SigT) - mixture.SigS[0].toarray().T - 2.0 * mixture.Sig2[0].toarray().T
     f = np.outer(mixture.chi, mixture.SigP)
     return float(max(abs(np.linalg.eigvals(np.linalg.solve(a, f)))))
-
-
-def test_s8_4_a_two_interval_specification_assembles_a_material_mesh() -> None:
-    from orpheus.transport.mesh import MaterialMesh
-
-    spec = GeometrySpecification(Materials({**_two_materials(), 9: moderator()}), slab2(), Eigen(_k()), exterior=vacuum_exterior(slab2()))
-    require(sorted(spec.materials.ids) == [0, 1], f"the spectator 9 was kept: {sorted(spec.materials.ids)}")
-    mesh = Mesher(spec.geometry).partition(CellsByCount.uniform_width(3)).mesh
-    mm = MaterialMesh(mesh, spec.materials)
-    require(mm.ng == spec.materials.uniform_group_count() == 2, f"ng {mm.ng}")
-    require(mm.materials == spec.materials, "the mesh holds another declaration")
-    occupied = sorted(m for m, idx in mm.cells_by_material.items() if idx[0].size)
-    require(occupied == [0, 1], f"occupied materials {occupied}")
 
 
 @pytest.mark.rests_on(

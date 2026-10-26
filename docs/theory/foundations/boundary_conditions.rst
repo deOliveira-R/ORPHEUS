@@ -1002,11 +1002,11 @@ The tables are the data of the following rulings and measurements, each of which
   assembled on the axes' trace inventory has nowhere to put an inner condition: it computes the reflective cavity (a unit specular
   return) whatever is declared. SN and diffusion therefore refuse every inner declaration but ``specular(1.0)`` through the one
   :func:`~orpheus.transport.boundary_conditions.hollow_inner_refusal`, with the method's reason. `[M]` 2026-10-23, the S3 build's
-  probe, recorded in the docstring of ``tests/gates/mesh/test_hollow_inner_law.py`` and not re-run for this page: before this admission an inner ``vacuum()``, ``specular(1.0)`` and ``white(0.5)`` gave a bit-identical eigenvalue on a hollow
+  probe, recorded in the docstring of ``tests/gates/diffusion/test_diffusion_hollow_inner_law.py`` and not re-run for this page: before this admission an inner ``vacuum()``, ``specular(1.0)`` and ``white(0.5)`` gave a bit-identical eigenvalue on a hollow
   sphere and on a hollow cylinder in diffusion (3 of 3 conditions on 2 of 2 coordinate systems); SN had dropped it until the P1 guard
   of 2026-09-25. The admission is per table because the reason is per method: CP refuses a hollow body's inner face on its own guard
   (#513: it reads only the outer face), MoC and MC refuse a hollow body outright (#514, #513), and a method that gains an
-  inner-surface trace lifts its own refusal alone. The gates are ``tests/gates/mesh/test_hollow_inner_law.py`` and, for CP,
+  inner-surface trace lifts its own refusal alone. The gates are ``tests/gates/sn/architecture/test_sn_hollow_inner_law.py``, ``tests/gates/diffusion/test_diffusion_hollow_inner_law.py`` and, for CP,
   ``tests/gates/cp/test_cp_realizer_table.py``.
 - **Today's limits stand (ruling D3).** The focus of the carve was reorganisation, not capability. A limit is a table cell citing
   its issue; widening it is that issue's work (#650 for the reference's vocabulary, #653, #654, #656 for the tables).

@@ -12,7 +12,9 @@ from __future__ import annotations
 import numpy as np
 from scipy.sparse import csr_matrix
 
+from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.data.materials import Materials
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.specification.exterior import WallAmplitudes
 
@@ -61,6 +63,16 @@ def n2n_only() -> Mixture:
 def fission_only() -> Mixture:
     """Carries the fission emission only."""
     return _mixture(fission=True, scattering=False, n2n=False)
+
+
+def every_fission() -> CellCoefficient:
+    """The k question's parameter: the fission emission in every cell."""
+    return CellCoefficient.every(Channel.FISSION_EMISSION)
+
+
+def two_materials() -> Materials:
+    """Fuel as material 0 and moderator as material 1."""
+    return Materials({0: fuel(), 1: moderator()})
 
 
 def slab2(mat_ids: tuple[int, int] = (0, 1)) -> StructuredGeometry:

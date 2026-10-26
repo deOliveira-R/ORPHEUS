@@ -1760,7 +1760,7 @@ with :math:`r_0 = 0.5`, an inner ``vacuum`` law and an inner
 ``reflective`` law gave bit-identical S\ :sub:`N` fluxes, while the slab
 control, whose left law has a slot, moved. `[M]` 2026-10-23 (the S3
 build's probe, recorded in the docstring of
-``tests/gates/mesh/test_hollow_inner_law.py``): ``solve_diffusion_1d`` on
+``tests/gates/diffusion/test_diffusion_hollow_inner_law.py``): ``solve_diffusion_1d`` on
 a hollow sphere and cylinder, 8 cells on :math:`[0.5, 2.0]`, gave a
 bit-identical :math:`k` for an inner ``vacuum()``, ``specular(1.0)`` and
 ``white(0.5)``, 3 of 3 conditions on 2 of 2 coordinate systems: the
@@ -1928,29 +1928,34 @@ region 0, so the cavity would be filled with the innermost material
 (`[M]` 2026-09-29, qa: breakpoints ``(0.5, 1.0, 2.0)`` returned material
 7 at :math:`r = 0`).
 
-The gates are ``tests/gates/mesh/test_hollow_inner_law.py`` (the
+The gates are ``tests/gates/sn/architecture/test_sn_hollow_inner_law.py`` (the
 S\ :sub:`N` refusal of an inner vacuum, a white wall of weight 0.5 and
 a specular wall of weight 0.5 on a cylinder and a sphere; the
-direct-mesh route; diffusion, with its positive control
-``test_diffusion_admits_the_unit_specular_cavity_at_the_inner_site``;
-``test_an_undeclared_inner_law_is_the_reflective_one``, which until P1
+direct-mesh route; and the void-cavity witness above),
+``tests/gates/diffusion/test_diffusion_hollow_inner_law.py`` (diffusion's refusal, with its positive control
+``test_diffusion_admits_the_unit_specular_cavity_at_the_inner_site``),
+``tests/gates/mesh/test_hollow_inner_law.py``
+(``test_an_undeclared_inner_law_is_the_reflective_one``, which until P1
 step 3b recorded that an undeclared inner law and a declared reflective
 one gave the same S\ :sub:`N` flux bit for bit, and now asserts that
 ``None`` is refused as a role, which leaves the inner tag bound to
-``WallCondition.specular(1.0)`` as the one spelling of the cavity; and
-the void-cavity witness above), ``tests/gates/mesh/test_radial_inner_role.py``
+``WallCondition.specular(1.0)`` as the one spelling of the cavity),
+``tests/gates/mesh/test_radial_inner_role.py``
 (the geometry and the mesher carry the inner tag; the axis carries it as
 ``role_inner`` and its trace inventory does not list it; the round trip
 through the adapter keeps it and the adapter synthesizes no cavity; the
 inner role is required exactly when the axis is hollow; no radial face is
-a deck) and ``tests/gates/mesh/test_dropped_laws_are_refused.py`` (CP: a
+a deck), ``tests/gates/cp/test_cp_dropped_laws_are_refused.py`` (a
 slab whose left face is not a mirror refused under four conditions, an
 equal white pair included, and a mirror on the left built under a white
 and a vacuum right condition, a hollow cylinder and sphere with an inner
-condition refused; MoC: a slab and a hollow cylinder refused, the solid
-pin cell and the default mesh built; MC: a slab whose faces are a vacuum
-wall or two mirrors refused, a translation pair built, a lone translation
-face a ``DeckError``, a hollow cylinder refused).
+condition refused), ``tests/gates/moc/test_moc_dropped_laws_are_refused.py``
+(a slab and a hollow cylinder refused, the solid pin cell and the default
+mesh built), ``tests/gates/mc/test_mc_dropped_laws_are_refused.py`` (a
+slab whose faces are a vacuum wall or two mirrors refused, a translation
+pair built, a hollow cylinder refused) and
+``tests/gates/mesh/test_dropped_laws_are_refused.py`` (a lone translation
+face is a ``DeckError``, the geometry's pairing rule).
 
 
 .. _structured-geometry-reference-body:

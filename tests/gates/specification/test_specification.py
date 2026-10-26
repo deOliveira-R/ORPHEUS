@@ -39,7 +39,6 @@ import sympy as sp
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import InconsistentMaterialsError, Materials
 from orpheus.geometry import CoordSystem, GeometryExtent, MirrorDeck, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
 from orpheus.specification import (
@@ -51,12 +50,14 @@ from orpheus.specification import (
 from tests.gates._content_identity_helpers import require
 from tests.gates.specification._fixtures import (
     body,
+    every_fission as _k,
     fission_only,
     fuel,
     moderator,
     n2n_only,
     slab2,
     slab3_repeated,
+    two_materials as _two_materials,
     vacuum_exterior,
 )
 
@@ -72,16 +73,8 @@ F, S, N2 = Channel.FISSION_EMISSION, Channel.SCATTERING_EMISSION, Channel.N2N_EM
 r, mu, phi = Symbolic.r, Symbolic.mu, Symbolic.phi
 
 
-def _k() -> CellCoefficient:
-    return CellCoefficient.every(F)
-
-
 def _table(regions: int = 2, groups: int = 2) -> RegionwiseConstant:
     return RegionwiseConstant(np.arange(1.0, 1.0 + regions * groups).reshape(regions, groups))
-
-
-def _two_materials() -> Materials:
-    return Materials({0: fuel(), 1: moderator()})
 
 
 def _im(question: Any, mixture: Any = None, material_id: Any = 0) -> InfiniteMediumSpecification:

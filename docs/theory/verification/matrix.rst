@@ -71,6 +71,7 @@ Module × level grid
    architecture/test_realized_boundary, 0, 51, 0, 0, 18, 0
    architecture/test_sn_boundary_binding, 0, 15, 0, 0, 0, 0
    architecture/test_sn_boundary_sources, 0, 0, 0, 0, 4, 0
+   architecture/test_sn_hollow_inner_law, 0, 0, 0, 0, 10, 0
    architecture/test_sn_realizer_table, 0, 70, 0, 0, 0, 0
    architecture/test_splitting_value, 0, 0, 0, 0, 13, 0
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
@@ -111,6 +112,7 @@ Module × level grid
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 3, 0
    cp/test_cp_boundary_carry, 0, 7, 0, 0, 1, 0
+   cp/test_cp_dropped_laws_are_refused, 0, 0, 0, 0, 8, 0
    cp/test_cp_first_collision, 0, 24, 0, 0, 1, 0
    cp/test_cp_realizer_table, 0, 12, 0, 0, 2, 0
    cp/test_cp_vacuum_not_above_white, 0, 6, 0, 0, 1, 0
@@ -131,7 +133,9 @@ Module × level grid
    cross_method/test_convergence, 0, 0, 1, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
+   cross_method/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
+   cross_method/test_specification_infinite_medium_k, 0, 2, 0, 0, 0, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_alpha_defect_normalization, 0, 0, 0, 0, 8, 0
@@ -160,9 +164,8 @@ Module × level grid
    data/test_content_identity_data, 0, 0, 0, 0, 38, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
    data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
-   data/test_energy_grid, 0, 0, 0, 0, 31, 0
+   data/test_energy_grid, 0, 0, 0, 0, 29, 0
    data/test_gendf_canonical_order, 0, 0, 0, 0, 7, 0
-   data/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    data/test_hdf5_store, 0, 0, 0, 0, 13, 0
    data/test_ingest_ledger, 0, 0, 0, 0, 43, 0
    data/test_materials, 0, 0, 0, 0, 10, 0
@@ -292,6 +295,7 @@ Module × level grid
    diffusion/test_boundary_realizer, 4, 0, 0, 0, 27, 0
    diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0
    diffusion/test_diffusion_boundary_carry, 0, 16, 0, 0, 1, 0
+   diffusion/test_diffusion_hollow_inner_law, 0, 0, 0, 0, 4, 0
    diffusion/test_diffusion_realizer_table, 0, 6, 0, 0, 2, 0
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
    diffusion/test_n2n_witness, 0, 2, 0, 0, 0, 0
@@ -360,16 +364,17 @@ Module × level grid
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 10, 0, 0, 0, 0
    mc/test_mc_boundary_table, 0, 5, 0, 0, 3, 0
+   mc/test_mc_dropped_laws_are_refused, 0, 0, 0, 0, 4, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 25, 0, 0, 0, 0, 0
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
    mesh/test_axis_adapter_laws, 0, 0, 0, 0, 18, 0
    mesh/test_content_identity_mesh, 0, 0, 0, 0, 40, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
-   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 17, 0
+   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 1, 0
    mesh/test_face_roles, 0, 0, 0, 0, 65, 0
    mesh/test_factories, 0, 0, 0, 0, 4, 0
-   mesh/test_hollow_inner_law, 0, 0, 0, 0, 16, 0
+   mesh/test_hollow_inner_law, 0, 0, 0, 0, 2, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 12, 0
    mesh/test_mesh1d, 0, 0, 0, 0, 69, 0
@@ -408,6 +413,7 @@ Module × level grid
    moc/test_mms, 0, 3, 0, 0, 0, 0
    moc/test_moc, 0, 3, 0, 0, 0, 0
    moc/test_moc_boundary_table, 0, 3, 0, 0, 2, 0
+   moc/test_moc_dropped_laws_are_refused, 0, 0, 0, 0, 4, 0
    moc/test_properties, 4, 0, 0, 0, 0, 0
    moc/test_quadrature, 44, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 27, 0, 0, 0, 0, 0
@@ -458,6 +464,7 @@ Module × level grid
    numerics/test_heads_on_the_axis, 0, 0, 0, 0, 24, 0
    numerics/test_index_set, 0, 0, 0, 0, 2, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
+   numerics/test_indicator_basis_orientation, 0, 0, 0, 0, 2, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
    numerics/test_interval_legendre_basis, 0, 0, 0, 0, 68, 0
    numerics/test_invariance, 0, 0, 0, 0, 111, 0
@@ -671,7 +678,6 @@ Module × level grid
    specification/test_exterior, 0, 0, 0, 0, 28, 0
    specification/test_exterior_on_the_specification, 0, 0, 0, 0, 22, 0
    specification/test_specification, 0, 0, 0, 0, 97, 0
-   specification/test_specification_assembly, 0, 3, 0, 0, 0, 0
    specification/test_specification_layer, 0, 0, 0, 0, 2, 0
    sweep/test_angular_cell_partition, 0, 0, 0, 0, 56, 0
    sweep/test_assembly_mode, 7, 0, 4, 0, 6, 0
@@ -724,6 +730,7 @@ Module × level grid
    transport/test_realizer_table_source_space, 0, 0, 0, 0, 4, 0
    transport/test_refusing_realizer, 0, 0, 0, 0, 2, 0
    transport/test_response_network, 0, 0, 0, 0, 4, 0
+   transport/test_specification_material_mesh, 0, 1, 0, 0, 0, 0
    transport/test_tier2_equivalence_s_family, 0, 0, 0, 0, 8, 0
    transport/test_timed_full_field, 0, 0, 0, 0, 38, 0
    transport/test_transfer_kernel, 0, 0, 0, 0, 21, 0
