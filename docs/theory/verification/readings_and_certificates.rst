@@ -454,13 +454,39 @@ non-strict value at the working precision, which a derivation may read
 as uncertified. Every other refusal (not a constant, not real, not
 provably finite) is a defect of the expression and propagates. The
 working precision is not a guarantee: at SymPy's default 15 digits a
-cancelling sum reads its rounding noise, sign included (`[M]` gate R6.8:
-the weight :math:`(z + 10^{-130}, 0)` reads :math:`-1.21\times10^{-122}`
-against the true :math:`3.34\times10^{-128}` at 15 digits, and within
-:math:`7.9\times10^{-17}` relative at 60), and any fixed precision fails
-for a deep enough offset (the strict xfail at :math:`10^{-250}`; #568
-certifies such a value with an absolute radius from SymPy's accuracy
-record).
+cancelling sum reads its rounding noise, sign included, and any fixed
+precision fails for a deep enough offset. `[M]` 2026-10-26, a probe run
+from outside the tree with ``PYTHONPATH=<repo> OMP_NUM_THREADS=1
+.venv/bin/python`` (``orpheus.__file__`` printed, the main checkout at
+``bf349a7a``), :math:`z` the Machin zero, on the fixtures of the R6.8
+gates:
+
+- On ``Exact`` itself
+  (``tests/gates/reference/test_reference_solution.py::test_r6_8_the_uncertified_value_is_evaluated_at_the_working_precision``),
+  the expression :math:`\tfrac{17}{23}(z + 10^{-k})` read at 15 digits is
+  :math:`5.0\times10^{3}` and :math:`8.0\times10^{34}` times off at
+  :math:`k = 130` and :math:`160`; ``Uncertifiable.approximation``, at the
+  working precision, is within :math:`3.3\times10^{-17}` and
+  :math:`7.2\times10^{-17}` relative.
+- On the exact medium's derivation
+  (``tests/gates/derivations/test_exact_medium_reference.py::test_r6_8_the_derivation_forwards_the_working_precision_approximation``,
+  which pins that the derivation forwards the approximation rather than
+  re-evaluating), the group weight :math:`(0, z + 10^{-130})` reads
+  :math:`-1.21\times10^{-122}` against the true
+  :math:`3.34\times10^{-128}` at 15 digits (:math:`3.6\times10^{5}`
+  times off; the same :math:`-1.21\times10^{-122}` at :math:`10^{-160}`,
+  :math:`3.6\times10^{35}` times off), and its reading carries the value
+  within :math:`1.7\times10^{-18}` and :math:`5.5\times10^{-17}`
+  relative. The weight :math:`(z + 10^{-130}, 0)` on the other group
+  does not cancel at either precision (within :math:`7.9\times10^{-17}`
+  relative at both;
+  ``test_r6_8_an_uncertified_value_is_the_value_of_its_expression`` in
+  the same file, which pins that the reading is not 0).
+- The strict xfail
+  ``test_r6_8_the_uncertified_value_survives_a_deep_cancellation``
+  reads :math:`\tfrac{17}{23}(z + 10^{-250})`, whose approximation is
+  :math:`4.7\times10^{58}` times off at 60 digits; #568 certifies such a
+  value with an absolute radius from SymPy's accuracy record.
 
 **DerivedBound.** :class:`~orpheus.reference.certificate.DerivedBound`
 ``(enclosure, method)`` is an a posteriori bound with computable constants.

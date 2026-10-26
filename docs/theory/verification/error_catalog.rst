@@ -5939,8 +5939,9 @@ older entries classify against.
    the measure claims; the four methods of
    ``TestR1AConnectedGroupIsDecidedByItsLieAlgebra``, which carry the same marker on
    ``IdentityComponent.fixes``, stay in geometry; since 2026-10-26 two of them build
-   their product directions from ``roots_of_unity`` instead of a quadrature, so the
-   file asks no numerics verdict):
+   their product directions from ``roots_of_unity`` instead of a quadrature, so
+   these rows ask no numerics verdict, though the file still imports
+   ``orpheus.numerics`` for its ``SphericalHarmonicBasis`` row):
    ``test_no_discrete_cubature_is_so2_invariant`` (every shipped sphere
    rule must answer ``False``, because an off-axis orbit is a circle),
    ``test_so2_verdict_is_not_a_function_of_n_phi_mod_4`` (the signature
@@ -5951,6 +5952,20 @@ older entries classify against.
    them green is the **exact** criterion: a finite point set is
    :math:`SO(2)`-closed iff every node lies ON the axis, which the last
    clause of this entry's Lesson had already stated.
+
+   Since the 2026-10-26 re-pose, the four geometry methods ask
+   ``IdentityComponent.fixes`` directly (``tests/gates/geometry/test_symmetry.py``
+   names ``is_invariant_under`` 0 times, `[M]` 2026-10-26 ``grep``), so
+   they no longer exercise the
+   ``component.fixes`` clause of :meth:`DiscreteMeasure.is_invariant_under
+   <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>`; that
+   path's guard is the three numerics catchers just named. `[M]`
+   2026-10-26, the qa review of the re-filing (arm
+   ``drop_component_in_measure`` in
+   ``scratch/layer_dag/refiling/specs_1b/qa_mesh-geom_probes/qa_arms.py``,
+   the clause skipped): the re-posed geometry class stays green, and
+   ``tests/gates/numerics/test_invariance_verdicts.py`` reads 20 failed,
+   77 passed, the three catchers among the reds.
 
    ⭐ **The live defence, since 2026-09-03 (#434 R1), is one method.**
    That criterion is now spelled once, as :meth:`IdentityComponent.fixes

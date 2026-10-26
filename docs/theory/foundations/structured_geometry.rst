@@ -747,11 +747,14 @@ the direct call's on its raw data, of the order counted by hand) and
 geometry, the mirror swaps the faces, a radial mesh has the identity only,
 a 2-D mesh says it did not compute).
 
-`[M]` 2026-10-24, ``PYTHONPATH=<worktree> .venv/bin/python -O -m pytest
---color=no -q`` over ``test_colouring_symmetry.py`` (22 collected),
-``test_deck.py`` (7), ``test_structured_geometry.py`` (74) and
-``mesh/test_face_roles.py`` (58): 161 passed, so the block above and the
-gates it summarises agree with the code at the carve tip.
+`[M]` 2026-10-26, on the main checkout at ``bf349a7a``, with the
+``*_NUM_THREADS=1``, ``.venv/bin/python -O -m pytest --color=no -q -p
+no:cacheprovider`` over ``geometry/test_colouring_symmetry.py`` (22
+collected), ``geometry/test_deck.py`` (7),
+``geometry/test_structured_geometry.py`` (58),
+``geometry/test_geometry_faces.py`` (14) and ``mesh/test_face_roles.py``
+(56): 157 passed, so the block above and the gates it summarises agree
+with the code.
 
 
 .. _structured-geometry-stored-breakpoints:
@@ -1627,7 +1630,8 @@ trips of the value and of both meshes).
 half: ``TestTheOneInventoryRule``, the rule ``face_inventory`` itself in
 one, two and three dimensions, and ``TestTheNamedCells``, that the two
 named cells take no role keyword and carry their model's roles: a tag on
-the Wigner–Seitz cell's outer surface, two mirror decks on the half-cell. ``tests/gates/mesh/test_face_roles.py`` carries the parse
+the Wigner–Seitz cell's outer surface, two mirror decks on the half-cell.
+``tests/gates/mesh/test_face_roles.py`` carries the parse
 (``TestFaceRolesOver``: the inventory rule, the deck admission per axis
 and chart, the pairing closure, the ``bool`` refusal), the storage of a
 role in both meshes and the mesh's symmetry
@@ -3275,10 +3279,14 @@ fixes added rows, and their run of record is the full suite.
      - What it holds
    * - ``tests/gates/values/test_content_identity.py``
      - 45
-     - the encoder and the type population: seed stability (S5.1:
-       digests, hashes and a space name printed by two interpreters
-       under ``PYTHONHASHSEED`` 1 and 2 agree, with a ``str`` hash as
-       the control that the harness sees salting); the canonical forms
+     - the encoder, witnessed on synthetic values of the file (the
+       population of production types is the root census's, below):
+       seed stability (S5.1: digests, hashes and a space name printed
+       by two interpreters under ``PYTHONHASHSEED`` 1 and 2 agree, with
+       a ``str`` hash as the control that the harness sees salting; its
+       subprocess still builds one production value per layer from a
+       source string, which the test-layer gate does not read); the
+       canonical forms
        (S5.4); the route gate (S5.6: a decoy rebound over the
        encoder's one recursive entry must move the digest, the hash
        and the derived name of every synthetic subject, so a route
