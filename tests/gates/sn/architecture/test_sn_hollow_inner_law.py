@@ -18,9 +18,9 @@ The perfect mirror, ``WallCondition.specular(1.0)`` (rule R2: a curved face has 
 methods compute, and that is the void-cavity answer (the last gate). ``None`` is no role: a mesh refuses it on every face.
 
 Moved from ``tests/gates/mesh/test_hollow_inner_law.py`` by the layer-DAG re-filing (Phase 1b, 2026-10-26): the refusal is
-SN's, so the rows live with SN's gates; the bodies are unchanged. The hollow body, its tags and the refused conditions shared
-with diffusion are in ``tests/gates/transport/_hollow_inner_helpers.py``; the ``None``-role refusal of the mesh stayed in
-``tests/gates/mesh/test_hollow_inner_law.py``.
+SN's, so the rows live with SN's gates; the bodies are unchanged. The hollow body and the refused conditions shared with
+diffusion are in ``tests/gates/transport/_hollow_inner_helpers.py``; the body's tags, its coordinate systems, its bare-constructor
+spelling ``_direct_hollow_mesh`` and the ``None``-role refusal of the mesh are in ``tests/gates/mesh/test_hollow_inner_law.py``.
 
 Diffusion's refusal of the same condition is ``tests/gates/diffusion/test_diffusion_hollow_inner_law.py``."""
 from __future__ import annotations
@@ -30,20 +30,13 @@ import pytest
 
 from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesh1D, Mesher
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn_fixed_source
 from orpheus.transport.boundary_conditions import BoundaryRefused, RefusalAxis, WallCondition
-from tests.gates.transport._hollow_inner_helpers import (
-    _CURVILINEAR,
-    _INNER,
-    _OUTER,
-    _REFUSED_INNER_LAWS,
-    _conditions,
-    _hollow_mesh,
-    _materials,
-)
+from tests.gates.mesh.test_hollow_inner_law import _CURVILINEAR, _INNER, _OUTER, _direct_hollow_mesh
+from tests.gates.transport._hollow_inner_helpers import _REFUSED_INNER_LAWS, _conditions, _hollow_mesh, _materials
 
 pytestmark = pytest.mark.foundation
 
@@ -52,15 +45,6 @@ def _quadrature(coord: CoordSystem) -> Quadrature:
     if coord is CoordSystem.CYLINDRICAL:
         return Quadrature.folded_product(n_mu=4, n_phi=8)
     return Quadrature.gauss_legendre(n_ordinates=8)
-
-
-def _direct_hollow_mesh(coord: CoordSystem, inner_role) -> Mesh1D:
-    """The same body built by the bare constructor, with no geometry."""
-    edges = np.linspace(0.5, 2.0, 9)
-    return Mesh1D(
-        coord=coord, edges=edges, volumes=coord.measure(edges),
-        region_ids=np.zeros(8, int), region_materials=(0,), face_roles={"xmin": inner_role, "xmax": _OUTER},
-    )
 
 
 @pytest.mark.catches("ERR-120")

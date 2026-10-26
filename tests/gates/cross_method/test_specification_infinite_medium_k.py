@@ -22,17 +22,11 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.question import Eigen
 from orpheus.specification import InfiniteMediumSpecification
 from tests.gates._content_identity_helpers import require
-from tests.gates.specification._fixtures import fuel
+from tests.gates.specification._fixtures import every_fission as _k, fuel
 
 pytestmark = pytest.mark.l1
 
 F = Channel.FISSION_EMISSION
-
-
-
-def _k() -> CellCoefficient:
-    return CellCoefficient.every(F)
-
 
 
 def _dense_k_inf(mixture) -> float:
@@ -41,7 +35,6 @@ def _dense_k_inf(mixture) -> float:
     a = np.diag(mixture.SigT) - mixture.SigS[0].toarray().T - 2.0 * mixture.Sig2[0].toarray().T
     f = np.outer(mixture.chi, mixture.SigP)
     return float(max(abs(np.linalg.eigvals(np.linalg.solve(a, f)))))
-
 
 
 @pytest.mark.rests_on(

@@ -9,7 +9,7 @@ NOT break the partition (row-sums stay 1, because searchsorted+clip
 always returns an in-range bin) — it silently REVERSES the coarse-group
 order (fast fine groups land in the thermal coarse column). So the
 ``overlap_to`` law that MUST be pinned is the coarse-group ORDER
-(fast-first), not merely partition completeness. ``test_orientation_trap``
+(fast-first), not merely partition completeness. ``TestOrientationTrap``
 *demonstrates* the reversal directly against the live ``IndicatorBasis``
 (it needs no SUT), so the implementer cannot ship a condensation whose
 coarse groups are silently thermal-first.
@@ -17,7 +17,7 @@ coarse groups are silently thermal-first.
 These two rows exercise only :class:`~orpheus.numerics.basis.indicator_basis.IndicatorBasis` (numerics): they moved from
 ``tests/gates/data/test_energy_grid.py`` by the layer-DAG re-filing (Phase 1b, 2026-10-26), bodies unchanged, and the data-side law
 they motivate (``EnergyGrid.overlap_to`` keeps the coarse groups fast-first) stays there as
-``TestOverlapToIntrinsic::test_coarse_group_order_is_fast_first``. The descending grid ``_EG_DESC`` is that file's, copied.
+``TestOverlapToIntrinsic::test_coarse_group_order_is_fast_first``. The descending grid ``_EG_DESC`` is defined here, the lower layer, and that file imports it.
 
 vv Mode-8: every assertion is ``np.testing.*`` (the suite runs ``-O``; bare ``assert`` is stripped).
 """

@@ -10907,11 +10907,12 @@ older entries classify against.
    uniform scale of :math:`T`, and the functional reads only the flux
    shape, so a scale defect of :math:`T` (ERR-107) lies in its stabiliser
    (Mode 12) and the vacuum probe of ERR-107 was inconclusive. (c) A
-   docstring recorded the wrong value as the expected one
-   (the retired row ``test_the_slab_kernel_drops_the_left_law``, whose record is carried in the docstring of
-   ``tests/gates/cp/test_cp_dropped_laws_are_refused.py``,
-   1.2301755431553738, where the eigenvalue is 0.5016); the row asserts
-   equality between two left laws, so it stays green.
+   docstring recorded the wrong value as the expected one: the retired row
+   ``test_the_slab_kernel_drops_the_left_law`` recorded 1.2301755431553738,
+   where the eigenvalue is 0.5016, and asserted only that two left laws
+   gave the same :math:`k`, so it was green. Its record is kept, with this
+   correction beside it, in the docstring of
+   ``tests/gates/cp/test_cp_dropped_laws_are_refused.py``.
 
    **Repair, validated and not landed.** The balance with the escape term,
    :math:`r_{ig} = \sum_j P^\infty_{ij,g}` the row sum:

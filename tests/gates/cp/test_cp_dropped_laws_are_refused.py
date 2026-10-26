@@ -17,8 +17,10 @@ Dispositions of the rows of the pre-wave-2 file, each with its reason (``retirem
   ``_refuse_a_law_cp_drops``): DEAD. The guard is an admission cell of the table, and a bypass of an admission would test the
   monkeypatch and not CP. The measured numbers it recorded (``[M]`` 2026-09-30, two groups, fuel A on [0, 1] cm and moderator B on
   [1, 2.5] cm, 8 cells: ``k = 1.0402206390766764`` with a white right face and ``1.2301755431553738`` with a vacuum one, to the last bit,
-  for every left law) move to the docstring of ``tests/gates/cp/test_cp_realizer_table.py::test_cp_left_face_is_a_forced_mirror``, and the
-  claim it witnessed (a left face the kernel replaces by a mirror is refused) is that gate and the CP rows of the admission pin.
+  for every left law) are kept here. The vacuum figure is the ``k`` that ``solve_cp`` reports, not the eigenvalue of the CP pencil it
+  iterates, which is 0.5016: ``compute_keff`` omits the leakage term (ERR-110, #546). The claim the row witnessed (a left face the
+  kernel replaces by a mirror is refused) is ``tests/gates/cp/test_cp_realizer_table.py::test_cp_left_face_is_a_forced_mirror`` and the
+  CP rows of the admission pin.
 
 Moved from ``tests/gates/mesh/test_dropped_laws_are_refused.py`` by the layer-DAG re-filing (Phase 1b, 2026-10-26): the
 refusal is CP's, so the row lives with CP's gates; the bodies are unchanged. The two mesh builders the three methods share

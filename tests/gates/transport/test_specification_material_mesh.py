@@ -14,28 +14,20 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.question import Eigen
 from orpheus.specification import GeometrySpecification
 from tests.gates._content_identity_helpers import require
-from tests.gates.specification._fixtures import fuel, moderator, slab2, vacuum_exterior
+from tests.gates.specification._fixtures import (
+    every_fission as _k,
+    moderator,
+    slab2,
+    two_materials as _two_materials,
+    vacuum_exterior,
+)
 
 pytestmark = pytest.mark.l1
-
-F = Channel.FISSION_EMISSION
-
-
-
-def _k() -> CellCoefficient:
-    return CellCoefficient.every(F)
-
-
-
-def _two_materials() -> Materials:
-    return Materials({0: fuel(), 1: moderator()})
-
 
 
 def test_s8_4_a_two_interval_specification_assembles_a_material_mesh() -> None:

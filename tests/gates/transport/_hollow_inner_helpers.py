@@ -4,8 +4,8 @@ SN and diffusion both build on the radial axis, which has one trace slot (the ou
 condition through the one ``hollow_inner_refusal`` of ``orpheus/transport/boundary_conditions/admission.py``. Their gates,
 ``tests/gates/sn/architecture/test_sn_hollow_inner_law.py`` and ``tests/gates/diffusion/test_diffusion_hollow_inner_law.py``, were
 one file, ``tests/gates/mesh/test_hollow_inner_law.py``, until the re-filing; the two methods may not import each other, so the
-body, its tags and the table of refused conditions they share live here, at the layer of the shared refusal. The definitions are
-that file's, unchanged.
+body and the table of refused conditions they share live here, at the layer of the shared refusal. The definitions are that file's,
+unchanged; the body's tags ``_INNER`` and ``_OUTER`` stay the mesh gate's and are imported from it.
 """
 from __future__ import annotations
 
@@ -13,12 +13,7 @@ from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.transport.boundary_conditions import WallCondition
-
-_CURVILINEAR = (CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL)
-
-#: The inner face of a hollow body is the tag 1 and the outer face the tag 0 (rule R6: an ``inner=`` declaration is a tag, face-inventory order is
-#: inner first); the outer wall is vacuum.
-_INNER, _OUTER = 1, 0
+from tests.gates.mesh.test_hollow_inner_law import _INNER, _OUTER
 
 _REFUSED_INNER_LAWS = {
     "vacuum": WallCondition.vacuum(),

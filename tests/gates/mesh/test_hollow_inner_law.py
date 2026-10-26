@@ -9,8 +9,8 @@ This file held SN's and diffusion's refusals of a declared inner condition (#511
 re-filing (Phase 1b, 2026-10-26). Each refusal is one method's claim, so those rows moved, bodies unchanged:
 ``tests/gates/sn/architecture/test_sn_hollow_inner_law.py`` (SN's refusal and the void-cavity verification of the admitted unit
 specular wall) and ``tests/gates/diffusion/test_diffusion_hollow_inner_law.py``, with their shared body in
-``tests/gates/transport/_hollow_inner_helpers.py``. ``_direct_hollow_mesh`` is also defined in the SN file, which builds the same
-bare mesh with a legal role (a mesh gate may not import a transport helper).
+``tests/gates/transport/_hollow_inner_helpers.py``. The body's tags, its coordinate systems and ``_direct_hollow_mesh`` are
+defined here once, at the lowest layer that uses them, and the SN gates and the transport helper import them from here.
 """
 from __future__ import annotations
 
@@ -23,8 +23,9 @@ from orpheus.mesh import Mesh1D
 pytestmark = pytest.mark.foundation
 
 _CURVILINEAR = (CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL)
-#: The outer face of the hollow body is the tag 0 (rule R6).
-_OUTER = 0
+#: The inner face of a hollow body is the tag 1 and the outer face the tag 0 (rule R6: an ``inner=`` declaration is a tag, face-inventory order is
+#: inner first); the outer wall is vacuum.
+_INNER, _OUTER = 1, 0
 
 
 def _direct_hollow_mesh(coord: CoordSystem, inner_role) -> Mesh1D:

@@ -49,12 +49,9 @@ import pytest
 
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.numerics.axis import EnergyAxis
+from tests.gates.numerics.test_indicator_basis_orientation import _EG_DESC  # the small descending grid, 4 groups fast-first
 
 pytestmark = pytest.mark.foundation
-
-
-# A small DESCENDING energy grid: 4 groups, fast-first (group 0 fastest).
-_EG_DESC = np.array([1.0e7, 1.0e6, 1.0e3, 1.0e0, 1.0e-5])  # 5 edges → 4 groups
 
 
 # ══════════════════════════════════════════════════════════════════════
