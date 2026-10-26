@@ -332,7 +332,7 @@ Module × level grid
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 57, 0
    geometry/test_deck, 0, 0, 0, 0, 7, 0
    geometry/test_face_roles, 0, 0, 0, 0, 38, 0
-   geometry/test_geometry, 0, 0, 0, 0, 39, 0
+   geometry/test_geometry, 0, 0, 0, 0, 14, 0
    geometry/test_geometry_extent, 0, 0, 0, 0, 8, 0
    geometry/test_kernel_corroboration, 0, 0, 0, 0, 0, 4
    geometry/test_line, 0, 0, 0, 0, 9, 0
@@ -340,11 +340,10 @@ Module × level grid
    geometry/test_line_measure, 0, 12, 0, 0, 0, 0
    geometry/test_manifold, 0, 0, 0, 0, 250, 0
    geometry/test_measure_density, 6, 0, 0, 0, 0, 0
-   geometry/test_mesh, 0, 0, 0, 0, 10, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_rays, 16, 0, 0, 0, 7, 0
    geometry/test_roots_of_unity, 0, 0, 0, 0, 251, 0
-   geometry/test_structured_geometry, 0, 0, 0, 0, 74, 0
+   geometry/test_structured_geometry, 0, 0, 0, 0, 58, 0
    geometry/test_symmetry, 0, 0, 0, 0, 215, 2
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
@@ -366,15 +365,17 @@ Module × level grid
    mesh/test_content_identity_mesh, 0, 0, 0, 0, 40, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
    mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 17, 0
-   mesh/test_face_roles, 0, 0, 0, 0, 58, 0
+   mesh/test_face_roles, 0, 0, 0, 0, 65, 0
+   mesh/test_factories, 0, 0, 0, 0, 4, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 16, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 12, 0
-   mesh/test_mesh1d, 0, 0, 0, 0, 63, 0
+   mesh/test_mesh1d, 0, 0, 0, 0, 69, 0
    mesh/test_mesh1d_cell_integrals, 0, 0, 0, 0, 25, 0
    mesh/test_mesh1d_regions, 0, 0, 0, 0, 31, 0
+   mesh/test_mesh2d, 0, 0, 0, 0, 8, 0
    mesh/test_mesh2d_face_roles, 0, 0, 0, 0, 58, 0
-   mesh/test_mesher, 0, 0, 0, 0, 101, 0
+   mesh/test_mesher, 0, 0, 0, 0, 117, 0
    mesh/test_module_layout, 0, 0, 0, 0, 7, 0
    mesh/test_partition, 0, 0, 0, 0, 193, 0
    mesh/test_problem_identity_anchors, 0, 0, 0, 0, 26, 0
@@ -386,6 +387,7 @@ Module × level grid
    mesh/test_reduced_operator, 0, 0, 0, 0, 53, 0
    mesh/test_reflective_axis_pairs, 0, 0, 0, 0, 7, 0
    mesh/test_sigma_datum, 0, 0, 0, 0, 20, 0
+   mesh/test_volume_measure, 0, 0, 0, 0, 10, 0
    mms/test_curvilinear_aniso_convergence, 0, 7, 0, 0, 0, 0
    mms/test_curvilinear_aniso_scattering_p1, 2, 0, 0, 0, 0, 0
    mms/test_curvilinear_operator_admits_anisotropic_mms, 0, 2, 0, 0, 0, 0

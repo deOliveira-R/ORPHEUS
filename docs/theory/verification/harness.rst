@@ -354,7 +354,7 @@ But some tests exist that are **not** about physics:
      - ``compute_volumes_1d`` returns the right cell volume for
        known edges — a data-structure contract of the
        :class:`~orpheus.mesh.Mesh1D` factory.
-   * - ``test_structured_geometry::test_equal_volume_{cylindrical,spherical}_invariant``
+   * - ``test_mesher::test_equal_volume_{cylindrical,spherical}_invariant``
      - Every cell in an equal-volume zone has bit-identical volume
        by construction (the algebraic invariant that caught
        ERR-020). Not a physics claim — a round-trip
@@ -362,12 +362,13 @@ But some tests exist that are **not** about physics:
        stores each cell's volume as the equal share of its interval's
        measure (``Mesh1D.from_geometry``'s subdivision until P1 step 3b
        of #405).
-   * - ``test_geometry::TestPWRPin2D``
-     - ``StructuredGeometry.wigner_seitz_pin_cell`` returns the
-       correct cell radius from the Wigner-Seitz identity. Geometric
-       primitive, not transport physics.
-   * - ``test_geometry::TestMesh1D``
-     - ``Mesh1D`` instances are frozen and reject invalid inputs.
+   * - ``test_factories::TestPWRPin2D``
+     - ``pwr_pin_2d`` returns a 2-D mesh of the requested shape whose
+       material map holds the fuel, the cladding and the coolant, with
+       flat material ids. A factory contract, not transport physics.
+   * - ``test_mesh1d::TestMesh1D``
+     - ``Mesh1D`` instances are frozen, and their derived views
+       (widths, centres, total width, cell count) follow from the edges.
        Language-level contract, not a reactor-physics equation.
 
 These tests **must** exist — every downstream solver depends on

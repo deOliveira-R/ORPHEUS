@@ -805,18 +805,18 @@ older entries classify against.
    (:ref:`structured-geometry-mesh`).
 
    **Test that catches it:**
-   ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_multi_region_invariant``
+   ``tests/gates/mesh/test_mesher.py::TestMeshingAGeometry::test_equal_volume_multi_region_invariant``
    (parametrised over the coordinate systems, ids ``cartesian``,
    ``cylindrical`` and ``spherical``),
-   ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_multi_region_cylinder_equal_volume``
+   ``tests/gates/mesh/test_mesher.py::TestMeshingAGeometry::test_multi_region_cylinder_equal_volume``
    and
-   ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_{cylindrical,spherical}_invariant``
+   ``tests/gates/mesh/test_mesher.py::TestMeshingAGeometry::test_equal_volume_{cylindrical,spherical}_invariant``
    (``@pytest.mark.foundation`` at module level + ``@pytest.mark.catches("ERR-020")``;
    the class was named ``TestMesh1DFromGeometry`` until P1 step 3b), and, at
    the rule level,
    ``tests/gates/mesh/test_partition.py::TestEqualVolume::test_measures_are_the_interval_measure_over_n``
    and ``::TestEqualVolume::test_each_interval_takes_its_own_share``.
-   The four in ``test_structured_geometry.py`` build their mesh through a
+   The four in ``test_mesher.py`` build their mesh through a
    ``StructuredGeometry`` and a ``Mesher`` (``Mesh1D.from_geometry`` until
    P1 step 3b), as production does, and assert region by region
    that the cell volumes are EXACTLY equal (``==``, not a tolerance) and sum to

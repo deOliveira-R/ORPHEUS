@@ -1,16 +1,16 @@
-"""Comprehensive tests for the geometry module.
+"""The geometry's measure formulas: cell volumes and face areas.
 
-Tests cover:
-- Volume and surface formulas for all coordinate systems (1-D and 2-D)
-- Mesh validation (monotonicity, shape, frozen immutability)
-- the mesh's face roles (the ``BC`` declaration dataclass retired with the boundary package, WF2.4)
-- :func:`pwr_pin_2d` (2-D Cartesian factory — kept as a non-trivial
-  helper after Phase F retired the 1-D Zone/factories surface)
+Tests cover the closed-form volume of a cell and area of a face for every
+coordinate system: :func:`compute_volumes_1d` and :func:`compute_areas_1d` in
+1-D (slab, cylinder, sphere), :func:`compute_volumes_2d` in 2-D (Cartesian and
+cylindrical ``(r, z)``), and the refusal of a spherical 2-D chart.
 
-The 1-D ``Zone`` / ``mesh1d_from_zones`` / ``pwr_*`` / ``homogeneous_1d``
-/ ``slab_fuel_moderator`` factories were retired in Phase F. Their
-equal-volume invariants and discretization correctness are now
-exercised by :mod:`tests.gates.geometry.test_structured_geometry` and
+The mesh classes this file held (``TestMesh1D``, ``TestMesh2D``,
+``TestFaceRoles``, ``TestPWRPin2D``, ``TestPWRPin2DEdgeCases``) moved to
+``tests/gates/mesh/`` in the layer-DAG re-filing (`.claude/plans/layer_dag.md`,
+ruling 21): ``test_mesh1d.py``, ``test_mesh2d.py``, ``test_face_roles.py`` and
+``test_factories.py``. The equal-volume invariants of a mesh built from a
+geometry are exercised by :mod:`tests.gates.mesh.test_mesher` and
 :mod:`tests.gates.mesh.test_partition` via the mesher,
 ``Mesher(geometry).partition(rule).mesh``.
 """
@@ -22,29 +22,18 @@ import pytest
 
 from orpheus.geometry import (
     CoordSystem,
-    MirrorDeck,
     compute_areas_1d,
     compute_volumes_1d,
     compute_volumes_2d,
-    StructuredGeometry,
 )
-from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesh2D, Mesher, pwr_pin_2d
 
 # Every test in this file is a FOUNDATION test — it verifies a
-# software invariant of orpheus.geometry (volume formulas, factory
-# outputs, frozen immutability, input validation, algebraic
-# subdivision identities) rather than a physics equation labelled
-# in docs/theory/*.rst. Foundation tests are orthogonal to the
-# L0..L3 physics-verification ladder (Cardinal Rule 4) and never
+# software invariant of orpheus.geometry (the closed-form volume and
+# area formulas and one refusal) rather than a physics equation
+# labelled in docs/theory/*.rst. Foundation tests are orthogonal to
+# the L0..L3 physics-verification ladder (Cardinal Rule 4) and never
 # carry @pytest.mark.verifies decorators — they have no theory
 # label to verify.
-#
-# The ERR-020 bit-exact equal-volume tests in TestZoneSubdivision
-# are the canonical foundation test: they assert that every cell
-# in an equal-volume zone has bit-identical volume by construction,
-# which is an algebraic invariant of Mesh1D.volumes, not a physics
-# claim. The catches("ERR-020") decorators on those specific tests
-# stay — ERR catalogue coverage is orthogonal to the marker type.
 #
 # See docs/theory/verification/harness.rst ("Foundation tests — software
 # invariants outside the L0..L3 ladder") for the taxonomy.
@@ -154,272 +143,3 @@ class TestVolumes2D:
         edges = np.array([0.0, 1.0])
         with pytest.raises(ValueError, match="2-D volumes not defined"):
             compute_volumes_2d(CoordSystem.SPHERICAL, edges, edges)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# pwr_pin_2d — 2-D Cartesian PWR pin factory (post-Phase-F survivor)
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestPWRPin2D:
-    """:func:`pwr_pin_2d` 2-D factory invariants."""
-
-    def test_pin_2d_shape(self):
-        mesh = pwr_pin_2d(n_cells=10, role=MirrorDeck())
-        assert mesh.nx == 10
-        assert mesh.ny == 10
-        assert mesh.mat_map.shape == (10, 10)
-
-    def test_pin_2d_has_all_materials(self):
-        mesh = pwr_pin_2d(n_cells=20, role=MirrorDeck())
-        mats = set(mesh.mat_map.ravel())
-        assert mats == {0, 1, 2}
-
-    def test_pin_2d_mat_ids_flat(self):
-        """mat_ids returns flat array for assemble_cell_xs."""
-        mesh = pwr_pin_2d(n_cells=5, role=MirrorDeck())
-        assert mesh.mat_ids.shape == (25,)
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Mesh1D properties and validation
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestMesh1D:
-    """Mesh1D derived properties. The construction refusals (edges, volumes,
-    material ids, face roles) are the keyed table of
-    ``tests/gates/mesh/test_mesh1d.py`` (S3.8 and S3.11, re-posed there at P1
-    step 3b from the rows that lived here)."""
-
-    def test_widths(self):
-        mesh = _mesh_with_edges((0.0, 1.0, 3.0, 6.0))
-        np.testing.assert_allclose(mesh.widths, [1.0, 2.0, 3.0])
-
-    def test_centers(self):
-        mesh = _mesh_with_edges((0.0, 2.0, 6.0))
-        np.testing.assert_allclose(mesh.centers, [1.0, 4.0])
-
-    def test_total_width(self):
-        mesh = _mesh_with_edges((1.0, 3.0, 7.0))
-        assert mesh.total_width == 6.0
-
-    def test_N(self):
-        geometry = StructuredGeometry.from_homogeneous(5.0, MirrorDeck())
-        mesh = Mesher(geometry).partition(CellEdges(np.arange(6.0))).mesh
-        assert mesh.N == 5
-
-    def test_frozen(self):
-        mesh = _mesh_with_edges((0.0, 1.0))
-        with pytest.raises(AttributeError):
-            mesh.edges = np.array([0.0, 2.0])  # type: ignore[misc]  # the frozen field is the subject
-
-    def test_coerces_to_float_and_int(self):
-        """The bare constructor accepts lists; edges become float, region labels and mat_ids int."""
-        mesh = Mesh1D(
-            coord=CoordSystem.CARTESIAN, edges=[0, 1, 2], volumes=[1, 1],  # type: ignore[arg-type]  # the coercion is the subject
-            region_ids=[0, 1], region_materials=(0, 1),  # type: ignore[arg-type]  # the coercion is the subject
-            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck()},
-        )
-        assert mesh.edges.dtype == float
-        assert mesh.region_ids.dtype == int
-        assert mesh.mat_ids.dtype == int
-
-
-def _mesh_with_edges(breakpoints: tuple[float, ...]) -> Mesh1D:
-    """One cell per interval, a distinct material in each, mirror faces:
-    the literal edges ARE the geometry's breakpoints."""
-    geometry = StructuredGeometry.slab(
-        breakpoints, tuple(range(len(breakpoints) - 1)),
-        left=MirrorDeck(), right=MirrorDeck(),
-    )
-    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Mesh2D properties and validation
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestMesh2D:
-    """Mesh2D derived properties and input validation."""
-
-    def test_dx_dy(self):
-        mesh = Mesh2D(
-            edges_x=np.array([0.0, 1.0, 3.0]),
-            edges_y=np.array([0.0, 0.5]),
-            mat_map=np.array([[0], [1]]),
-            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-        )
-        np.testing.assert_allclose(mesh.dx, [1.0, 2.0])
-        np.testing.assert_allclose(mesh.dy, [0.5])
-
-    def test_volumes_cartesian(self):
-        mesh = Mesh2D(
-            edges_x=np.array([0.0, 2.0]),
-            edges_y=np.array([0.0, 3.0]),
-            mat_map=np.array([[0]]),
-            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-        )
-        np.testing.assert_allclose(mesh.volumes, [[6.0]])
-
-    def test_volumes_cylindrical_rz(self):
-        mesh = Mesh2D(
-            edges_x=np.array([0.0, 1.0]),  # radial
-            edges_y=np.array([0.0, 5.0]),   # axial
-            mat_map=np.array([[0]]),
-            coord=CoordSystem.CYLINDRICAL,
-            face_roles={"xmax": 0, "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-        )
-        np.testing.assert_allclose(mesh.volumes, [[np.pi * 5.0]])
-
-    def test_mat_ids_flat(self):
-        mat_map = np.array([[0, 1], [2, 3]])
-        mesh = Mesh2D(
-            edges_x=np.array([0.0, 1.0, 2.0]),
-            edges_y=np.array([0.0, 1.0, 2.0]),
-            mat_map=mat_map,
-            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-        )
-        np.testing.assert_array_equal(mesh.mat_ids, [0, 1, 2, 3])
-
-    def test_nx_ny(self):
-        mesh = Mesh2D(
-            edges_x=np.linspace(0, 1, 4),
-            edges_y=np.linspace(0, 1, 6),
-            mat_map=np.zeros((3, 5), dtype=int),
-            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-        )
-        assert mesh.nx == 3
-        assert mesh.ny == 5
-
-    def test_frozen(self):
-        mesh = Mesh2D(
-            edges_x=np.array([0.0, 1.0]),
-            edges_y=np.array([0.0, 1.0]),
-            mat_map=np.array([[0]]),
-            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-        )
-        with pytest.raises(AttributeError):
-            mesh.edges_x = np.array([0.0, 2.0])
-
-    def test_wrong_mat_map_shape_raises(self):
-        with pytest.raises(ValueError, match="mat_map shape"):
-            Mesh2D(
-                edges_x=np.array([0.0, 1.0, 2.0]),
-                edges_y=np.array([0.0, 1.0]),
-                mat_map=np.array([[0, 1]]),  # should be (2, 1)
-                face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-            )
-
-    def test_spherical_2d_raises(self):
-        with pytest.raises(ValueError, match="CARTESIAN or CYLINDRICAL"):
-            Mesh2D(
-                edges_x=np.array([0.0, 1.0]),
-                edges_y=np.array([0.0, 1.0]),
-                mat_map=np.array([[0]]),
-                coord=CoordSystem.SPHERICAL,
-                face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-            )
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# The mesh's face roles
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestFaceRoles:
-    """The mesh's face roles (the ``BC`` declaration dataclass and its ``to_alpha`` bridge retired in WF2.4)."""
-
-    # ── Mesh1D face roles ────────────────────────────────────────────
-    # RE-POSED at P1 step 3b: ``bc_left``/``bc_right`` and the ``None``
-    # default retired; a mesh carries one role per boundary face (a deck or a tag, wave 2 S1). The
-    # ``None`` default row and the "backward compatible" row are deleted
-    # (their subject was the retired default); ``None`` is refused on a face
-    # by ``tests/gates/mesh/test_mesh1d.py`` (S3.10).
-
-    def test_mesh1d_bc_explicit(self):
-        mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=0,
-        )).partition(CellsByCount.uniform_width(1)).mesh
-        assert dict(mesh.face_roles) == {"xmin": MirrorDeck(), "xmax": 0}
-        assert mesh.outer_role == 0
-        assert mesh.boundary_points == (0.0, 2.0)
-
-    def test_mesh1d_bc_frozen(self):
-        mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=MirrorDeck(),
-        )).partition(CellsByCount.uniform_width(1)).mesh
-        with pytest.raises(AttributeError):
-            mesh.face_roles = {"xmin": 0, "xmax": 0}  # type: ignore[misc]  # the frozen field is the subject
-
-    def test_mesh1d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match="a face role is a MirrorDeck, a TranslationDeck or an int tag"):
-            Mesh1D(
-                coord=CoordSystem.CARTESIAN, edges=np.array([0.0, 1.0]),
-                volumes=np.array([1.0]), region_ids=np.array([0]), region_materials=(0,),
-                face_roles={"xmin": "vacuum", "xmax": 0},  # type: ignore[dict-item]  # a refusal input
-            )
-
-    def test_mesh1d_bc_accepts_a_deck_beside_a_tag(self):
-        """The declaration channel: a deck and a tag are both legal face roles.
-
-        The positive leg of the row above (``vv`` anti-pattern #11). A prescribed
-        inflow, whose content is a function, has no role spelling: the problem
-        binds it to a tag (a response is not the geometry's).
-        """
-        mesh = Mesher(StructuredGeometry.slab(
-            (0.0, 1.0), (0,), left=7, right=MirrorDeck(),
-        )).partition(CellsByCount.uniform_width(1)).mesh
-        assert mesh.face_roles["xmin"] == 7 and mesh.face_roles["xmax"] == MirrorDeck()
-
-    # ── Mesh2D face roles ────────────────────────────────────────────
-
-    def test_mesh2d_bc_explicit(self):
-        mesh = Mesh2D(
-            edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-            face_roles={
-                "xmin": MirrorDeck(),
-                "xmax": 0,
-                "ymin": MirrorDeck(),
-                "ymax": 0,
-            },
-        )
-        assert mesh.face_roles["xmin"] == MirrorDeck()
-        assert mesh.face_roles["xmax"] == 0
-
-    def test_mesh2d_bc_invalid_type_raises(self):
-        with pytest.raises(TypeError, match=r"face_roles\['xmin'\]: a face role is a MirrorDeck"):
-            Mesh2D(
-                edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-                face_roles={
-                    "xmin": "reflective",  # type: ignore[dict-item]  # the refusal input
-                    "xmax": MirrorDeck(),
-                    "ymin": MirrorDeck(),
-                    "ymax": MirrorDeck(),
-                },
-            )
-
-    def test_mesh2d_bc_accepts_a_tag_on_every_face(self):
-        """The 2-D arm of the declaration channel — all four faces.
-
-        Parameterised over every face because the four roles were validated
-        by a hand-written loop until the channel landed; a widening that
-        reached only ``xmin`` would pass a single-face row.
-        """
-        for face in ("xmin", "xmax", "ymin", "ymax"):
-            face_roles: dict[str, object] = dict.fromkeys(("xmin", "xmax", "ymin", "ymax"), MirrorDeck())
-            face_roles[face] = 5
-            mesh = Mesh2D(
-                edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
-                face_roles=face_roles,
-            )
-            assert mesh.face_roles[face] == 5, face
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# pwr_pin_2d edge cases
-# ═══════════════════════════════════════════════════════════════════════
-
-class TestPWRPin2DEdgeCases:
-    """Edge cases for :func:`pwr_pin_2d`."""
-
-    def test_pin_2d_wrong_mat_ids_length_raises(self):
-        with pytest.raises(ValueError, match="len\\(mat_ids\\)"):
-            pwr_pin_2d(radii=[1.0], mat_ids=[0, 1, 2], role=MirrorDeck())

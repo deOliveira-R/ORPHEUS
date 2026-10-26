@@ -607,8 +607,9 @@ material 0 with one role on both faces.
 The gates of these roles are the foundation rows
 ``tests/gates/geometry/test_structured_geometry.py::TestTheBoundaryIsDerived``
 (the six cells coordinate × {:math:`r_0 = 0`, :math:`r_0 > 0`} and the
-keyed refusals); the mesh routing is ``TestMeshingAGeometry`` in the
-same file, whose ``test_a_hollow_body_propagates_its_inner_role`` pins
+keyed refusals); the mesh routing is
+``tests/gates/mesh/test_mesher.py::TestMeshingAGeometry``, whose
+``test_a_hollow_body_propagates_its_inner_role`` pins
 the two roles of a hollow body onto ``face_roles["xmin"]`` and
 ``face_roles["xmax"]``, the positions onto ``boundary_points``
 :math:`= (r_0, r_R)`, and the first edge onto :math:`r_0`.
@@ -1644,7 +1645,7 @@ the rules and the measure (``TestTheOneMeasure``, ``TestNesting``,
 ``TestIssue495``, ``TestRefinement``, ``TestRefinementRefusals``,
 ``TestMaxWidthCount``, ``TestRuleRefusals``, ``TestCellEdges``).
 ``TestMeshingAGeometry`` in
-``tests/gates/geometry/test_structured_geometry.py`` meshes named
+``tests/gates/mesh/test_mesher.py`` meshes named
 geometries the way production does, and holds four of the six tests
 that catch ERR-020; the other two are
 ``TestEqualVolume::test_measures_are_the_interval_measure_over_n`` and

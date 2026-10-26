@@ -16,7 +16,11 @@ partition. Claims, with layer and kind (``vv-principles``):
   call of ``colouring_symmetry`` on the geometry's raw breakpoints, ids and roles; the activation is a palindromic
   triple ``(0, 1, 0)`` whose interior breakpoints are the regions' edges, with an UNSYMMETRIC cell partition, so a
   reading of the cell edges instead of the region edges is a different group;
-* ``TestFaceLawsIsRetired``: STRUCTURE (no dual spelling).
+* ``TestFaceLawsIsRetired``: STRUCTURE (no dual spelling);
+* ``TestFaceRoles``: THEOREM rows of a mesh's stored roles, through the mesher (1-D) and the bare constructor (2-D):
+  one role per face, a deck beside a tag, every 2-D face admitting a tag, the frozen field, and the refusal of a
+  string role. It lived in ``tests/gates/geometry/test_geometry.py`` until the layer-DAG re-filing
+  (``.claude/plans/layer_dag.md``, ruling 21).
 
 Every new attribute is read at run time, so each row's red is its own. First reds at the base tip ``dec1f9ff``:
 ``orpheus.mesh.face_roles`` does not exist (every ``TestFaceRolesOver`` row); ``Mesh1D(... face_roles=...)`` is an
@@ -350,3 +354,96 @@ class TestFaceLawsIsRetired:
                     names = [node.name.split(".")[-1]]
                 found += [f"{path.name}:{getattr(node, 'lineno', '?')} {n}" for n in names if n in {"FaceLaws", "face_laws", "outer_law", "bc_low", "bc_high", "bc_outer"}]
         require(not found, "retired identifiers remain:\n  " + "\n  ".join(found))
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The mesh's face roles
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestFaceRoles:
+    """The mesh's face roles (the ``BC`` declaration dataclass and its ``to_alpha`` bridge retired in WF2.4)."""
+
+    # ── Mesh1D face roles ────────────────────────────────────────────
+    # RE-POSED at P1 step 3b: ``bc_left``/``bc_right`` and the ``None``
+    # default retired; a mesh carries one role per boundary face (a deck or a tag, wave 2 S1). The
+    # ``None`` default row and the "backward compatible" row are deleted
+    # (their subject was the retired default); ``None`` is refused on a face
+    # by ``tests/gates/mesh/test_mesh1d.py`` (S3.10).
+
+    def test_mesh1d_bc_explicit(self):
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=0,
+        )).partition(CellsByCount.uniform_width(1)).mesh
+        assert dict(mesh.face_roles) == {"xmin": MirrorDeck(), "xmax": 0}
+        assert mesh.outer_role == 0
+        assert mesh.boundary_points == (0.0, 2.0)
+
+    def test_mesh1d_bc_frozen(self):
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0, 2.0), (0, 1), left=MirrorDeck(), right=MirrorDeck(),
+        )).partition(CellsByCount.uniform_width(1)).mesh
+        with pytest.raises(AttributeError):
+            mesh.face_roles = {"xmin": 0, "xmax": 0}  # type: ignore[misc]  # the frozen field is the subject
+
+    def test_mesh1d_bc_invalid_type_raises(self):
+        with pytest.raises(TypeError, match="a face role is a MirrorDeck, a TranslationDeck or an int tag"):
+            Mesh1D(
+                coord=CoordSystem.CARTESIAN, edges=np.array([0.0, 1.0]),
+                volumes=np.array([1.0]), region_ids=np.array([0]), region_materials=(0,),
+                face_roles={"xmin": "vacuum", "xmax": 0},  # type: ignore[dict-item]  # a refusal input
+            )
+
+    def test_mesh1d_bc_accepts_a_deck_beside_a_tag(self):
+        """The declaration channel: a deck and a tag are both legal face roles.
+
+        The positive leg of the row above (``vv`` anti-pattern #11). A prescribed
+        inflow, whose content is a function, has no role spelling: the problem
+        binds it to a tag (a response is not the geometry's).
+        """
+        mesh = Mesher(StructuredGeometry.slab(
+            (0.0, 1.0), (0,), left=7, right=MirrorDeck(),
+        )).partition(CellsByCount.uniform_width(1)).mesh
+        assert mesh.face_roles["xmin"] == 7 and mesh.face_roles["xmax"] == MirrorDeck()
+
+    # ── Mesh2D face roles ────────────────────────────────────────────
+
+    def test_mesh2d_bc_explicit(self):
+        mesh = Mesh2D(
+            edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
+            face_roles={
+                "xmin": MirrorDeck(),
+                "xmax": 0,
+                "ymin": MirrorDeck(),
+                "ymax": 0,
+            },
+        )
+        assert mesh.face_roles["xmin"] == MirrorDeck()
+        assert mesh.face_roles["xmax"] == 0
+
+    def test_mesh2d_bc_invalid_type_raises(self):
+        with pytest.raises(TypeError, match=r"face_roles\['xmin'\]: a face role is a MirrorDeck"):
+            Mesh2D(
+                edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
+                face_roles={
+                    "xmin": "reflective",  # type: ignore[dict-item]  # the refusal input
+                    "xmax": MirrorDeck(),
+                    "ymin": MirrorDeck(),
+                    "ymax": MirrorDeck(),
+                },
+            )
+
+    def test_mesh2d_bc_accepts_a_tag_on_every_face(self):
+        """The 2-D arm of the declaration channel — all four faces.
+
+        Parameterised over every face because the four roles were validated
+        by a hand-written loop until the channel landed; a widening that
+        reached only ``xmin`` would pass a single-face row.
+        """
+        for face in ("xmin", "xmax", "ymin", "ymax"):
+            face_roles: dict[str, object] = dict.fromkeys(("xmin", "xmax", "ymin", "ymax"), MirrorDeck())
+            face_roles[face] = 5
+            mesh = Mesh2D(
+                edges_x=[0, 1], edges_y=[0, 1], mat_map=np.array([[0]]),
+                face_roles=face_roles,
+            )
+            assert mesh.face_roles[face] == 5, face

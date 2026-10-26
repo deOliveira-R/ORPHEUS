@@ -2587,7 +2587,7 @@ stepping evenly in the coordinate system's measure coordinate
 .. radius for cylindrical zone subdivision. Its verifiable content — that
 .. the edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
-.. ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_edges_bound_the_volumes``
+.. ``tests/gates/mesh/test_mesher.py::TestMeshingAGeometry::test_equal_volume_edges_bound_the_volumes``
 .. (its ``cylindrical`` row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is
@@ -2616,7 +2616,7 @@ For :math:`R_0 = 0`: :math:`R_k = R_N\sqrt{k/N}`.
 .. :eq:`equal-volume-radius-cylindrical`. Its verifiable content — that the
 .. edges R_k bound cells of equal volume — is pinned by the FOUNDATION
 .. invariant
-.. ``tests/gates/geometry/test_structured_geometry.py::TestMeshingAGeometry::test_equal_volume_edges_bound_the_volumes``
+.. ``tests/gates/mesh/test_mesher.py::TestMeshingAGeometry::test_equal_volume_edges_bound_the_volumes``
 .. (its ``spherical`` row), which by design carries no ``verifies(...)``: the radius
 .. formula replaced by equally spaced radii reddens it and no volume-equality
 .. gate ([M] 2026-09-22, #489). The bit-identical cell volume beside it is

@@ -4,12 +4,16 @@ r"""The bare 1-D mesh: its construction laws, its equality, its retirements (P1 
 discretisation IS (the user's ruling of 2026-09-29, option A: the mesh holds
 no geometry; it knows its cells, each cell's material, and each boundary
 face's ROLE: a deck or an ``int`` tag, wave 2 S2b re-pose of the face laws). The mesher (:mod:`orpheus.mesh.mesher`) is the one call site that
-lifts a geometry onto it; this file gates the constructor itself.
+lifts a geometry onto it; this file gates the constructor itself and the
+derived views of a mesher-built mesh (``TestMesh1D``: widths, centres, total
+width, cell count, immutability and the constructor's coercion, which moved
+here from ``tests/gates/geometry/test_geometry.py`` in the layer-DAG re-filing,
+`.claude/plans/layer_dag.md`, ruling 21).
 
 Gate ids (``.claude/plans/reference_p1_spec.md`` §1.3, §1.3a): S3.8 (the
 constructor's laws, re-posed on the bare constructor), S3.10 (the retired
-fields and ``None``), S3.11 (the re-posed refusals of the old
-``tests/gates/geometry/test_geometry.py::TestMesh1D`` rows). Every test is
+fields and ``None``), S3.11 (the refusal rows ``TestMesh1D`` held while it
+lived in ``geometry/test_geometry.py``, re-posed here). Every test is
 ``foundation``; claim kind THEOREM unless marked RECORD.
 
 The volume law. Each stored volume must be the coordinate system's measure of
@@ -29,9 +33,9 @@ import pytest
 
 import orpheus.mesh
 import orpheus.mesh.structured as structured_module
-from orpheus.geometry import CoordSystem, compute_areas_1d
+from orpheus.geometry import CoordSystem, StructuredGeometry, compute_areas_1d
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.mesh import Mesh1D
+from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 
 pytestmark = pytest.mark.foundation
 
@@ -457,3 +461,57 @@ class TestTheDefaultsAreGone:
 # (every declared law of the five owners passes ``parse_boundary_law``) and
 # ``::TestTheOneInventoryRule`` (both meshes derive their faces from
 # ``face_inventory``).
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Mesh1D properties and validation
+# ═══════════════════════════════════════════════════════════════════════
+
+class TestMesh1D:
+    """Mesh1D derived properties. The construction refusals (edges, volumes,
+    material ids, face roles) are the keyed table of this file (S3.8 and
+    S3.11, re-posed at P1 step 3b from the rows this class held while it
+    lived in ``tests/gates/geometry/test_geometry.py``)."""
+
+    def test_widths(self):
+        mesh = _mesh_with_edges((0.0, 1.0, 3.0, 6.0))
+        np.testing.assert_allclose(mesh.widths, [1.0, 2.0, 3.0])
+
+    def test_centers(self):
+        mesh = _mesh_with_edges((0.0, 2.0, 6.0))
+        np.testing.assert_allclose(mesh.centers, [1.0, 4.0])
+
+    def test_total_width(self):
+        mesh = _mesh_with_edges((1.0, 3.0, 7.0))
+        assert mesh.total_width == 6.0
+
+    def test_N(self):
+        geometry = StructuredGeometry.from_homogeneous(5.0, MirrorDeck())
+        mesh = Mesher(geometry).partition(CellEdges(np.arange(6.0))).mesh
+        assert mesh.N == 5
+
+    def test_frozen(self):
+        mesh = _mesh_with_edges((0.0, 1.0))
+        with pytest.raises(AttributeError):
+            mesh.edges = np.array([0.0, 2.0])  # type: ignore[misc]  # the frozen field is the subject
+
+    def test_coerces_to_float_and_int(self):
+        """The bare constructor accepts lists; edges become float, region labels and mat_ids int."""
+        mesh = Mesh1D(
+            coord=CoordSystem.CARTESIAN, edges=[0, 1, 2], volumes=[1, 1],  # type: ignore[arg-type]  # the coercion is the subject
+            region_ids=[0, 1], region_materials=(0, 1),  # type: ignore[arg-type]  # the coercion is the subject
+            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck()},
+        )
+        assert mesh.edges.dtype == float
+        assert mesh.region_ids.dtype == int
+        assert mesh.mat_ids.dtype == int
+
+
+def _mesh_with_edges(breakpoints: tuple[float, ...]) -> Mesh1D:
+    """One cell per interval, a distinct material in each, mirror faces:
+    the literal edges ARE the geometry's breakpoints."""
+    geometry = StructuredGeometry.slab(
+        breakpoints, tuple(range(len(breakpoints) - 1)),
+        left=MirrorDeck(), right=MirrorDeck(),
+    )
+    return Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
