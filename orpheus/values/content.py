@@ -68,7 +68,7 @@ type by ``module:qualname``. A value's identity is its type and its parts, and
 the file its class lives in is neither, so moving an ``orpheus`` class between
 modules (the layer-DAG carves move whole files) keeps every digest and every
 exact key that names it. The qualified name is then the class's whole name in
-the key, so the gate ``tests/gates/values/test_content_identity_relocation.py``
+the key, so the gate ``tests/gates/test_content_identity_census.py``
 holds the package's nameable classes to distinct qualified names: every
 ``ContentIdentity`` subclass, frozen dataclass and ``Enum``, and every subclass
 of ``str``, ``bytes``, ``int``, ``float``, ``ndarray``, a builtin container or

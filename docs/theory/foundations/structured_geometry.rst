@@ -2676,7 +2676,9 @@ other type by ``module:qualname``.
   foreign class ``B`` of a module ``A``.
 
 ``tests/gates/values/test_content_identity_relocation.py`` holds the
-rule:
+rule's first two parts, and ``tests/gates/test_content_identity_census.py``
+its census over every package (moved to the ``tests/gates/`` root on
+2026-10-26, layer DAG ruling 28):
 
 * relocation: one source (a frozen dataclass, a ``ContentIdentity``
   subclass, an ``Enum``, a ``NamedTuple``, a ``str`` and an ``int``
