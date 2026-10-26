@@ -806,6 +806,9 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
             assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Mirror(axis))) is None
         assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.Trivial)) is None
         assert pushforward_reference(CIRCLE.quotient(SubgroupOfO3.Trivial)) is None
+        # S^2/O(3) is the point (#440): the pushforward is a point mass of 4 pi, which
+        # no shipped reference spells.
+        assert pushforward_reference(SPHERE.quotient(SubgroupOfO3.O3)) is None
         # ⚠ A reference lives on the REALIZATION — the chart codomain, where
         # the quotient map's image lands and where 2 pi d(mu) is written —
         # never on the entry, which would demand a measure carry an axis it

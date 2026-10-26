@@ -403,7 +403,7 @@ class TestQuotient:
 
         roots = sorted(sp.solve(sp.Eq(det_on_sphere, 0), mu))
         assert [float(r) for r in roots] == [-1.0, 1.0]
-        assert not s2_mod_so2.is_free
+        assert s2_mod_so2.singular_stratum is not None
 
         # The stratum is a LOCUS in the realization's coordinate, and it
         # is the SAME locus det P cuts out — 1 - u0^2, vanishing at the
@@ -453,7 +453,7 @@ class TestQuotient:
         assert q.realization == base
         assert sp.simplify(q.det_gram - 1) == 0
         assert q.singular_stratum is None
-        assert q.is_free
+        assert q.singular_stratum is None  # free, vacuously: the only element is the identity
         assert q.dim == base.dim
 
     def test_an_uncatalogued_quotient_names_the_missing_WORK(self):
@@ -512,7 +512,7 @@ class TestTheSigmaYFoldIsExpressibleAndDiscriminating:
         ) == sp.zeros(3, 3)
         assert fold.realization == Ball(2)
         assert fold.dim == 2  # H is FINITE: no dimension drop
-        assert not fold.is_free
+        assert fold.singular_stratum is not None
 
     def test_the_stratum_is_a_CIRCLE_not_a_point_set(self, fold):
         """⛔ The field that could not hold this is why it was retyped.
@@ -3090,7 +3090,7 @@ class TestR4TheTrivialQuotientOfAnOrbitSpaceIsThatOrbitSpace:
         assert entry is not base
         assert entry.realization == base
         assert entry.dim == base.dim
-        assert entry.singular_stratum is None and entry.is_free
+        assert entry.singular_stratum is None
 
 
 # =====================================================================
@@ -3314,7 +3314,8 @@ class TestTheSphereModO3IsAPoint:
         assert sp.simplify(sum(g * g for g in grad) - 4 * invariant) == 0
         assert sp.simplify(entry.det_gram - 4 * p1) == 0
         assert entry.det_gram.subs(p1, 1) == 4
-        assert entry.syzygy == () and entry.is_free
+        # One orbit type, so no stratum; NOT a free action (every stabiliser is an O(2)).
+        assert entry.syzygy == () and entry.singular_stratum is None
 
     @pytest.mark.foundation
     def test_every_direction_charts_to_the_point_and_lifts_to_the_origin(self, entry) -> None:

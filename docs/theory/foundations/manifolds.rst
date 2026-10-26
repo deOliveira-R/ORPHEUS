@@ -1544,8 +1544,8 @@ that identified them would re-admit exactly the confusion
      - ``1`` / ``2``
    * - ``entry.syzygy``
      - ``()`` — empty, as derived
-   * - ``entry.singular_stratum`` / ``entry.is_free``
-     - ``1 - u0**2`` / ``False``. The stratum is a **locus**, and
+   * - ``entry.singular_stratum``
+     - ``1 - u0**2``. The stratum is a **locus**, and
        solving it gives :math:`\{-1, +1\}` — the poles
        (:ref:`manifold-stratum-is-a-locus`)
    * - ``entry.fundamental_domain``
@@ -3350,12 +3350,12 @@ purely **meridional** directions.
 *shape* had silently become the field's *type*: a stratum is a locus,
 and two poles are merely a locus that happens to be finite. The field
 is now a SymPy expression in the realization's coordinates whose
-vanishing set is the stratum, with ``None`` for a free action — so
+vanishing set is the stratum, with ``None`` when there is one orbit type — so
 `[M]` :math:`O(2)_a` stores ``1 - u0**2`` (solving to
 :math:`\{-1,+1\}`, unchanged in content) and :math:`\sigma_a` stores
 ``1 - u0**2 - u1**2``, whose solution set is a one-parameter family.
-:attr:`is_free <orpheus.geometry.manifold.Quotient.is_free>` reads
-``is None`` rather than ``== ()``.
+A property ``is_free`` read ``is None`` rather than ``== ()``; it was
+retired on 2026-10-26 (:ref:`manifold-gotcha-is-free`).
 
 ⭐ **Why the stratum is STORED at all, when** ``det_gram`` **already
 determines it.** This looks like a Pattern-2 twin and is not, and the
@@ -4075,11 +4075,10 @@ orbit type: the stabiliser of :math:`\hat e_z` is :math:`O(2)_z`, and by
 transitivity every stabiliser is conjugate to it. There is one orbit
 type, hence no singular stratum, and :math:`\det P = 4` vanishes nowhere
 on the sphere, which is the same fact read off the invariants. `[M]`
-``entry.singular_stratum`` is ``None`` and ``entry.is_free`` is
-``True``. ⚠ The action is **not free** in the textbook sense (a free
-action has trivial stabilisers, and these are whole :math:`O(2)`
-copies); the field reads ``True`` because ``is_free`` is defined as "no
-singular stratum" (:ref:`manifold-gotcha-is-free`).
+``entry.singular_stratum`` is ``None``. ⚠ The action is **not free**
+(a free action has trivial stabilisers, and these are whole
+:math:`O(2)` copies): "no singular stratum" means one orbit type, which
+is weaker (:ref:`manifold-gotcha-is-free`).
 
 .. _manifold-s2-o3-chart-lift:
 
@@ -4154,8 +4153,8 @@ left to whoever needs it.
      - ``(p1 - x**2 - y**2 - z**2,)`` / ``()``
    * - ``entry.gram`` / ``entry.det_gram``
      - ``Matrix([[4*p1]])`` / ``4*p1`` (``4`` on the sphere)
-   * - ``entry.singular_stratum`` / ``entry.is_free``
-     - ``None`` / ``True`` (one orbit type; not a free action,
+   * - ``entry.singular_stratum``
+     - ``None`` (one orbit type; not a free action,
        :ref:`manifold-gotcha-is-free`)
    * - ``entry.fundamental_domain``
      - ``None`` (every direction is a section; none is distinguished)
@@ -10095,23 +10094,27 @@ borrowed ``IndexSet(label="pt", n=1)`` (:ref:`manifold-third-entry-before`).
 
 .. _manifold-gotcha-is-free:
 
-``is_free`` means "no singular stratum", and :math:`S^2/O(3)` is where that parts from "free"
----------------------------------------------------------------------------------------------
+"No singular stratum" is not "free", and :math:`S^2/O(3)` is where they part
+-----------------------------------------------------------------------------
 
-An action is **free** in the textbook sense when every stabiliser is
-trivial. :attr:`Quotient.is_free <orpheus.geometry.manifold.Quotient.is_free>`
-asks something weaker: it returns ``True`` iff ``singular_stratum`` is
-``None``, that is, iff the action has **one orbit type**. On the first
-two entries the two readings agree in verdict (both read ``False``:
-the poles and the mirror's great circle are strata). On
-:math:`S^2/O(3)` they part: `[M]` 2026-10-26 ``is_free`` is ``True``,
-while every direction has a stabiliser conjugate to :math:`O(2)`, so the
-action is not free. The field is right for its own question (one orbit
-type, :math:`\det P = 4` vanishing nowhere); a reader who takes the name
-literally is not. ⚠ The property's docstring glosses it as *"the action
-has no fixed points"*, which is false on this entry, since every point is
-fixed by its own :math:`O(2)`; the docstring is code and is owed a
-correction, not this page.
+An action is **free** when every stabiliser is trivial. An orbit space has
+**no singular stratum** when every orbit has one orbit type, which is
+weaker. On the first two entries the two agree in verdict (the poles and the
+mirror's great circle are strata, and those actions are not free). On the
+trivial entry both hold. On :math:`S^2/O(3)` they part: `[M]` 2026-10-26
+``singular_stratum`` is ``None`` (one orbit type, :math:`\det P = 4`
+vanishing nowhere), while every direction has a stabiliser conjugate to
+:math:`O(2)`, so the action is not free.
+
+A property ``Quotient.is_free`` returned ``singular_stratum is None`` under
+the name of the stronger predicate, with the docstring *"the action has no
+fixed points, i.e. no stratum"*, false on this entry. It had no production
+reader (`[M]` 2026-10-26: 0 in ``orpheus/``; 5 test lines, all of which
+asserted the stratum through it), so it was retired rather than renamed:
+the field states the weaker fact itself, and a second spelling of it under
+another name is what the name got wrong. Read ``singular_stratum is None``.
+The commit that catalogued the entry (``6b386a09``) calls the action "free";
+that wording is wrong and is corrected here and in the builder's docstring.
 
 
 .. _manifold-seams:

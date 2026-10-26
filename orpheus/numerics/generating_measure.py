@@ -214,6 +214,7 @@ from orpheus.geometry.manifold import (
     HALF_LINE,
     Interval,
     Manifold,
+    Point,
     Quotient,
     REAL_LINE,
     Sphere,
@@ -798,15 +799,23 @@ def pushforward_reference(orbit_space: Quotient) -> ReferenceMeasure | None:
       orthogonal system (spherical harmonics on :math:`S^2`, Fourier on
       :math:`S^1`, polynomials on an interval) is a property of the base that
       :class:`~orpheus.geometry.manifold.Manifold` does not carry.
+    * **An orbit space realized on the point** (:math:`S^2/O(3)`, #440: a
+      transitive group has one orbit) gives ``None``.  The pushforward is a
+      point mass carrying the base's whole measure (:math:`4\pi` on
+      :math:`S^2`); no shipped ``ReferenceMeasure`` spells a point mass, and
+      a degree of exactness against it is vacuous (every rule integrates a
+      constant on a point exactly).  Keyed on the REALIZATION, not the
+      group's name: any transitive action lands here.
 
     ``None`` keeps one meaning: no shipped ``ReferenceMeasure`` spells this
     pushforward.  Every other (base, group) pair is refused, so an
     uncatalogued orbit space cannot silently read as "no reference".
     The orbit catalogue (``manifold._ORBIT_CATALOGUE`` plus the trivial arm
     of ``_catalogued_quotient``) is the only door that mints a ``Quotient``,
-    and it admits exactly the three families above (`[M]` 2026-10-19, the
-    only ``Quotient(...)`` constructions in ``orpheus/`` are the three
-    derivation functions).
+    and it admits exactly the four families above (`[M]` 2026-10-26, the
+    only ``Quotient(...)`` constructions in ``orpheus/`` are the four
+    derivation functions: the axial, the mirror, the point and the trivial
+    one).
     """
     match orbit_space.base, orbit_space.by:
         case Sphere(), group if group.rotation_axis is not None:
@@ -815,11 +824,13 @@ def pushforward_reference(orbit_space: Quotient) -> ReferenceMeasure | None:
             return None
         case _, group if group.is_trivial:
             return None
+        case _ if isinstance(orbit_space.realization, Point):
+            return None
         case _:
             raise NotImplementedError(
                 f"no pushforward reference is catalogued for the orbit space "
                 f"{orbit_space.name}: the shipped quotients are S^2/O(2)_a "
-                "(LEGENDRE), S^2/sigma_a and M/{e} (None)."
+                "(LEGENDRE), S^2/sigma_a, S^2/O3 and M/{e} (None)."
             )
 
 
