@@ -93,7 +93,7 @@ def _assert_close(actual, expected, nulp, msg):
         np.testing.assert_array_almost_equal_nulp(actual, expected, nulp=nulp)
 
 
-@pytest.mark.parametrize("name,A,closed,x,nulp", _rows(), ids=lambda r: str(r))
+@pytest.mark.parametrize("name,A,closed,x,nulp", [pytest.param(*row, id=row[0]) for row in _rows()])
 def test_i1_roundtrip_and_closed_form(name, A, closed, x, nulp):
     """I1 both ways + the structurally-independent closed-form anchor (§12.1)."""
     inv = A.inverse()
@@ -102,7 +102,7 @@ def test_i1_roundtrip_and_closed_form(name, A, closed, x, nulp):
     _assert_close(inv.apply(x), closed(x), nulp, f"{name}: A⁻¹ ≠ closed form")
 
 
-@pytest.mark.parametrize("name,A,closed,x,nulp", _rows(), ids=lambda r: str(r))
+@pytest.mark.parametrize("name,A,closed,x,nulp", [pytest.param(*row, id=row[0]) for row in _rows()])
 def test_i1_inverse_apply_is_solve_bit_identical(name, A, closed, x, nulp):
     """``inverse().apply ≡ solve`` BIT-IDENTICALLY where solve EXISTS (§12.0).
 

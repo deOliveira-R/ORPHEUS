@@ -6157,10 +6157,24 @@ older entries classify against.
    the fix costs nothing and buys nothing *until* a caller consumes the
    permutation — which is exactly what the pending carve does.
 
-   **Which test catches it.** None today. The catcher is the duplicate
-   construction above (``invariant rule + one duplicated node ⟹ must be
-   rejected``), plus ``sorted(perm) == list(range(n))`` asserted on the
-   carve's returned permutation.
+   **Which test catches it.** ⛔ This block read *"None today"*, which was
+   true when the entry was filed and is not true now. `[M]` 2026-10-26, two
+   gates carry ``catches("ERR-073")``:
+   ``tests/gates/numerics/test_invariance_verdicts.py::test_duplicated_node_breaks_oh_invariance``
+   (the duplicate construction above on ``level_symmetric(sn_order=4)``: the
+   invariance verdict must reject it, with the mass at ``p0`` and at its
+   mirror image as the independent ground truth) and
+   ``tests/gates/geometry/test_transformation.py::test_o4_a_duplicated_point_is_refused_and_guard_two_is_the_one_that_fires``
+   (a duplicated cube vertex, with guard isolation: the bijection guard, not
+   the partner guard, is the one that refuses). The guard itself now lives in
+   :meth:`RigidMotion.permutes
+   <orpheus.geometry.transformation.RigidMotion.permutes>`, which RETURNS the
+   permutation (``None`` when the match is not a bijection), so the
+   ``-> bool`` that hid the defect is gone from the primitive; the measure's
+   verdict, :meth:`DiscreteMeasure.is_invariant_under
+   <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>`, composes
+   it. The ``_orbit_closure`` home named above (2026-09-03) has since been
+   retired.
 
    **Lesson.** "Every image has a matching partner" is **not** "the map
    is a bijection" — the second is what invariance means, the first is
