@@ -45,7 +45,7 @@ from orpheus.derivations.continuous.mms.sn import (
 )
 from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh2D
-from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+from orpheus.numerics.basis import AVERAGE_MOMENT
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn import solve_sn_fixed_source
 from orpheus.sn.problem import SNProblem

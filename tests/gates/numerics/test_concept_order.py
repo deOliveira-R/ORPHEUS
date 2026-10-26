@@ -40,7 +40,7 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # sets, members of geometry's ``Manifold`` sum, and imports no numerics module;
     # ``tangential`` holds the one grazing tolerance both ``spaces`` and ``quadrature``
     # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
-    ("face_layout", "gauge", "index_set", "instance_cache", "metric", "moment_layout",
+    ("face_layout", "gauge", "index_set", "instance_cache", "metric",
      "recurrence", "registry", "tangential", "units", "vector"),
     # the coefficient layouts are content values a basis carries (ruling 81)
     ("_traced_memo_boot", "coefficient_layout", "enclosure", "mesh_free_function"),
@@ -132,6 +132,19 @@ def _modules() -> set[str]:
 def test_every_module_has_a_rank():
     unranked = sorted(_modules() - RANK.keys())
     assert not unranked, f"numerics modules with no place in the concept order: {unranked}"
+
+
+def test_the_concept_order_names_only_modules_that_exist():
+    r"""The other half of :func:`test_every_module_has_a_rank`: no rank names a module that is gone.
+
+    That test refuses an unranked module; this one refuses a ranked module
+    that no longer exists, which would otherwise stay silent after a
+    retirement (``moment_layout`` left tier 0 at the moment-basis carve, #423).
+    """
+    present = _modules()
+    assert "frame" in present and "basis" in present, "the module walk lost known members (positive control)"
+    stale = sorted(RANK.keys() - present)
+    assert not stale, f"the concept order ranks modules that do not exist: {stale}"
 
 
 def test_import_edges_follow_the_concept_order():

@@ -13,17 +13,19 @@ Kinds
 -----
 * REFERENCE rows compare the head with tables typed by hand from
   :math:`\theta = 1/3` (``1.0 / 3.0``, the spelling every LD consumer has used
-  since #310), so they stay independent after S3 makes the scheme and the
-  basis one object (``retirement-audit`` D.14/D.16: the old
-  ``weights == moment_mass_diagonal`` rows DEMOTE to a self-comparison once
-  the mass reads the Gram; these rows are their surviving pin).
+  since #310), so they stay independent of the basis the scheme and the
+  kernels now share (``retirement-audit`` D.14/D.16: the old rows comparing
+  the axis weights with the scheme's ``moment_mass_diagonal`` compared one
+  object with itself once both read the Gram, and the method retired; these
+  rows are their surviving pin).
 * ROUTE rows (``test-architect`` lessons, the route gate): swap the basis's
-  Gram for a decoy and require the scheme's θ and mass to MOVE.
-* First reds on today's tree (``[M]`` 2026-10-25, HEAD ``57f2d777`` plus the
-  uncommitted S1 code): ``test_the_ld_moment_axis_is_the_cell_basis_head``
+  Gram for a decoy and require θ, the axis mass and the UBLD kernel mass to
+  MOVE.
+* First reds (``[M]`` 2026-10-25, HEAD ``57f2d777`` plus the S1 code, before
+  S3 landed at ``a838c31e``): ``test_the_ld_moment_axis_is_the_cell_basis_head``
   (origin ``Declared``), ``test_theta_and_the_mass_are_read_from_the_basis_gram``
   (θ a class literal), ``test_a_moment_basis_of_the_wrong_dimension_is_refused``
-  (the float root accepts it).
+  (the float root accepted it).
 """
 
 from __future__ import annotations
@@ -53,8 +55,8 @@ _HAND_MASS = {
 
 
 def _ld_1d():
-    # Inlined (not imported from test_spatial_moment_tail_is_the_schemes_axis.py, which imports moment_layout and
-    # goes uncollectable mid-S4).
+    # Inlined, so this file stands on its own (it was written while the sibling LD fixtures' module imported
+    # the retired moment_layout).
     from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
@@ -87,12 +89,13 @@ def _cart(d: int):
     return tuple(AxisMesh(edges=np.array([0.0, 1.0]), role_low=MirrorDeck(), role_high=MirrorDeck()) for _ in range(d))
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_tensor_gram_is_the_exact_product_integral", "tests/gates/numerics/test_interval_legendre_basis.py::test_the_constant_mode_is_slot_zero")
 @pytest.mark.parametrize("d", (1, 2, 3))
 def test_the_ld_moment_axis_is_the_cell_basis_head(d: int) -> None:
     r"""Origin ``FromBasis(spatial_moment_basis(2, d))``, and the axis IS ``Axis.of_basis`` of it.
 
-    First red: today's mint is ``Declared(Modal(e_0))`` (``scheme.py:1726-1740``)
-    with ``support`` and ``layout`` both ``None``. The equality leg is content
+    First red (before S3): the mint was ``Declared(Modal(e_0))``, with
+    ``support`` and ``layout`` both ``None``. The equality leg is content
     identity (label, shape, weights, kind, support, layout), so a head minted
     with the right origin and a hand-spelled support is still refused.
     """
@@ -109,6 +112,7 @@ def test_the_ld_moment_axis_is_the_cell_basis_head(d: int) -> None:
     assert ax.layout == spatial_moment_basis(2, d).layout and ax.layout.label == "spatial_moment"
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_tensor_gram_is_the_exact_product_integral")
 @pytest.mark.parametrize("d", (1, 2, 3))
 def test_the_moment_axis_metric_is_the_gram_not_its_inverse(d: int) -> None:
     r"""``weights`` equal the hand-typed LD mass bit for bit, and are not the Parseval inverse.
@@ -127,6 +131,7 @@ def test_the_moment_axis_metric_is_the_gram_not_its_inverse(d: int) -> None:
     assert not np.allclose(ax.weights, 1.0 / _HAND_MASS[d]), "the head carries the inverse Gram (the frame's covariant metric)"
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_constant_mode_is_slot_zero")
 @pytest.mark.parametrize("d", (1, 2, 3))
 def test_the_moment_axis_unit_is_the_constant_mode(d: int) -> None:
     r"""The unit is :math:`e_0` bitwise and the kind is ``Modal`` (``AVERAGE_MOMENT = 0`` as a basis fact)."""
@@ -150,23 +155,33 @@ def test_the_per_axis_count_is_the_basis_count() -> None:
     assert all(f.n == LinearDiscontinuous.spatial_basis_per_axis for f in ax.origin.basis.factors)
 
 
-def test_theta_and_the_mass_are_read_from_the_basis_gram(monkeypatch: pytest.MonkeyPatch) -> None:
-    r"""ROUTE: a decoy interval Gram ``[1, 1/4]`` must move θ and the LD mass; the honest Gram restores them.
+@pytest.mark.rests_on("tests/gates/transport/spatial/test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse")
 
-    Ruling 3 of the plan: θ is read from the Gram, one definition. The decoy is
-    installed on the class, so every basis instance minted after the patch
-    reads it; the activation leg (the honest values before the patch) is what
-    makes a green reading mean "routed" rather than "cached". First red today:
-    ``LinearDiscontinuous.theta`` is the class literal ``1.0 / 3.0``.
-    ⚠ The row presumes θ is read at USE and the basis is minted per call. If S3
-    computes θ once at class creation, or caches ``spatial_moment_basis``
-    (a module constant, ``lru_cache``, ``instance_cache``), the class-level decoy
-    never reaches the cached object and the row reds for the wrong reason
-    (lessons L114): then install the decoy before the cache fills, or keep the
-    retirement draft's theta-literal row as θ's only witness and say so here.
+
+def test_theta_and_the_mass_are_read_from_the_basis_gram(monkeypatch: pytest.MonkeyPatch) -> None:
+    r"""ROUTE: a decoy interval Gram ``[1, 1/4]`` must move θ, the axis mass and the UBLD kernel mass.
+
+    Ruling 3 of the plan: θ is read from the Gram, one definition, and the
+    kernels' mass is the same Gram read off the same basis (the elegance
+    review of the carve, B1: until then the kernel mass was rebuilt from θ
+    alone). The decoy keeps the degree-0 Gram at 1, the value every interval
+    Legendre factor has (:math:`\int P_0^2\,\mathrm d\xi/2 = 1`), so it stays
+    inside the algebraic class. It is installed on the class, so every basis
+    minted after the patch reads it; the activation leg (the honest values
+    first) is what makes a green reading mean "routed" rather than "cached".
+    The row needs θ read at use and the basis minted per call
+    (``DiscretizationSchemeBase.cell_basis``); a cached basis would keep the
+    honest Gram and red this row for the wrong reason (lessons L114).
     """
-    honest_mass = LinearDiscontinuous().moment_mass_diagonal(_cart(2))
-    np.testing.assert_array_equal(honest_mass, _HAND_MASS[2])
+    from orpheus.transport.spatial._ubld import assemble_ubld
+
+    def kernel_mass(d: int) -> np.ndarray:
+        ones = [np.ones(())] * d
+        assembled = assemble_ubld(ones, ones, np.ones(()), LinearDiscontinuous.cell_basis(d))
+        return np.diagonal(assembled["M"])
+
+    np.testing.assert_array_equal(LinearDiscontinuous().moment_axis(_cart(2)).weights, _HAND_MASS[2])
+    np.testing.assert_array_equal(kernel_mass(2), _HAND_MASS[2])
     assert LinearDiscontinuous().theta == _T
 
     decoy = np.array([1.0, 0.25])
@@ -174,7 +189,8 @@ def test_theta_and_the_mass_are_read_from_the_basis_gram(monkeypatch: pytest.Mon
     monkeypatch.setattr(IntervalLegendreBasis, "gram_per_degree", property(lambda self: decoy[: self.n]))
     assert IntervalLegendreBasis(2).coefficient_weights[1] == 0.25, "precondition: the decoy did not install"
     assert LinearDiscontinuous().theta == 0.25, "theta is not read from the interval basis's Gram"
-    np.testing.assert_array_equal(LinearDiscontinuous().moment_mass_diagonal(_cart(2)), np.kron(decoy, decoy))
+    np.testing.assert_array_equal(LinearDiscontinuous().moment_axis(_cart(2)).weights, np.kron(decoy, decoy))
+    np.testing.assert_array_equal(kernel_mass(2), np.kron(decoy, decoy))
 
 
 @pytest.mark.parametrize("d", (1, 2))
@@ -183,9 +199,9 @@ def test_a_moment_basis_of_the_wrong_dimension_is_refused(d: int) -> None:
 
     ``fields/_bases.py:533`` recovers the per-axis width as
     ``round(n ** (1/ndim))``. A one-factor basis of 4 polynomials on a 2-D mesh
-    passes it (``4 ** (1/2) = 2``) and is read as LD's bilinear basis. After S3
+    passes it (``4 ** (1/2) = 2``) and is read as LD's bilinear basis. Since S3
     the width is read from the layout (``factor_shape``), so the mismatch is
-    visible and must be refused. First red today: the root returns 2.
+    visible and is refused. First red (before S3): the root returned 2.
     """
     from orpheus.numerics.space import FunctionSpace
     from orpheus.transport.fields._bases import BulkField
@@ -200,6 +216,7 @@ def test_a_moment_basis_of_the_wrong_dimension_is_refused(d: int) -> None:
         BulkField.spatial_moments_per_axis_of(space)
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_face_dimension_is_the_product_of_the_other_counts")
 @pytest.mark.parametrize("ndim", (1, 2))
 def test_the_face_transmission_matrix_is_sized_by_the_face_basis(ndim: int) -> None:
     r"""``_face_transmission_matrix`` is square of side ``ndim * dim(face basis)`` (``scheme.py:518``).

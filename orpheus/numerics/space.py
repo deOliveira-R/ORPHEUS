@@ -96,6 +96,7 @@ __all__ = [
     "FunctionSpace",
     "TensorProductSpace",
     "angular_flux_space",
+    "factor_tail",
     "scalar_flux_space",
 ]
 
@@ -1319,6 +1320,19 @@ class DualSpace(FunctionSpace):
 # every solver instance carries its own (n_cells, n_ordinates, n_groups)
 # triple. Factories give the caller named, well-typed construction
 # sites without forcing premature commitment to a global instance.
+
+
+def factor_tail(width: int) -> tuple[int, ...]:
+    r"""The shape suffix a factor of ``width`` coefficients adds to a composed space.
+
+    ``()`` for a one-dimensional factor, ``(width,)`` otherwise. A
+    one-dimensional factor is :math:`\mathbb R`, and
+    :math:`V \otimes \mathbb R \cong V`, so composing with it leaves the space
+    (and every buffer on it) unchanged: a cell-average closure's bulk and face
+    buffers stay byte-identical to the moment-free ones (#240 D5b). The one rule
+    behind every trailing spatial-moment axis, on cells and on faces alike.
+    """
+    return () if width == 1 else (width,)
 
 
 def angular_flux_space(

@@ -92,6 +92,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.numerics.basis.interval_legendre_basis import spatial_moment_basis
+from orpheus.numerics.space import factor_tail
 from orpheus.numerics.registry import RegistryMixin
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -516,12 +517,8 @@ def _face_transmission_matrix(
     algebra of record for this matrix, and the proof of every verdict it
     feeds, is :mod:`orpheus.derivations.discrete.sn.face_transmission`.
     """
-    # Every face of the scheme's cell basis has one dimension: the basis is
-    # one interval factor repeated over the axes.
-    moments_per_face = scheme.cell_basis(ndim).face_dimension(0)
-    face_shape = (
-        (1, 1, 1, moments_per_face) if moments_per_face > 1 else (1, 1, 1)
-    )
+    moments_per_face = scheme.face_moment_count(ndim)
+    face_shape = (1, 1, 1) + factor_tail(moments_per_face)
     s_axes_batch = tuple(np.full((1, 1, 1), float(s_axes[a])) for a in range(ndim))
     reaction_xs = np.full((1, 1), float(sigma_t))
     q_cells = np.zeros((1, 1))
@@ -1121,6 +1118,29 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         """
         return spatial_moment_basis(cls.spatial_basis_per_axis, ndim)
 
+    @classmethod
+    def moment_tail(cls, ndim: int) -> tuple[int, ...]:
+        r"""The trailing moment-axis shape of a bulk buffer on a ``ndim``-dimensional cell.
+
+        The tail rule :func:`~orpheus.numerics.space.factor_tail` applied to the
+        dimension of :meth:`cell_basis`: ``()`` for the slopeless closures (their
+        buffers stay byte-identical to the moment-free ones, #240 D5b),
+        ``(p^d,)`` otherwise.
+        """
+        return factor_tail(cls.cell_basis(ndim).dimension)
+
+    @classmethod
+    def face_moment_count(cls, ndim: int) -> int:
+        r"""The dimension of the trace space on every face of a ``ndim``-dimensional cell.
+
+        :meth:`cell_basis` repeats one interval factor over the axes, so the
+        face normal to every axis has the same trace dimension, :math:`p^{d-1}`
+        (1 on a 1-D cell, whose faces are points). The one site that relies on
+        that isotropy: the face cochains, the boundary trace layout and the
+        face-transmission probe size their faces from here.
+        """
+        return cls.cell_basis(ndim).face_dimension(0)
+
     def face_transmission_spectrum(self, ndim: int) -> FaceTransmissionSpectrum:
         r"""Does this closure leave any face mode UNDAMPED? — ASKED, never declared.
 
@@ -1683,37 +1703,27 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
                 "a consumer) and #612 (the cell-dependent moment metric)."
             )
 
-    def moment_mass_diagonal(self, axes: "tuple[Axis1D, ...]") -> np.ndarray:
-        r"""The per-volume moment mass: the Gram diagonal of the cell basis, ``(p^d,)``.
-
-        ``d = len(axes)``: the axes carry both the dimension and, per axis, the
-        volume-element behaviour the admission guard asks
-        (``has_constant_volume_element``); a separate ``ndim`` argument would
-        be the lossy-tuple smell.
-
-        The value is the ``coefficient_weights`` of :meth:`cell_basis`,
-        :math:`M_{ii}/V = \prod_a 1/(2 o_a + 1)` over the multi-index
-        :math:`(o_0, \dots, o_{d-1})` in the Kronecker order: ``(1,)`` for the
-        slopeless closures, ``[1, θ]`` for LD at d = 1 and ``[1, θ, θ, θ²]`` at
-        d = 2, with :math:`\theta = 1/3` the degree-1 Gram of the interval
-        basis. The bulk measure of a moment-tailed field is
-        ``G_bulk = V·w_n ⊗ moment_mass_diagonal`` (#310 C2 ruling 3: an
-        average-only ``V·w_n`` mis-weights the slope degrees of freedom and
-        makes ``.H`` a wrong adjoint on the slope rows). It is exact on a chart
-        whose volume element is constant across the cell, which the guard
-        refuses otherwise.
-        """
-        self._assert_moment_mass_is_expressible(axes)
-        return self.cell_basis(len(axes)).coefficient_weights
-
     def moment_axis(self, axes: "tuple[Axis1D, ...]") -> "Axis":
         r"""The within-cell spatial-moment axis: the continuum head of :meth:`cell_basis`.
 
         ``Axis.of_basis(self.cell_basis(len(axes)))``, origin
         :class:`~orpheus.numerics.axis.FromBasis`: label ``"spatial_moment"``
         (the cell basis's layout label), shape ``(p^d,)``, weights the basis's
-        Gram (:meth:`moment_mass_diagonal`), unit :math:`e_0` (the coefficients
-        of the constant function), kind **MODAL**. The moments are expansion
+        Gram, unit :math:`e_0` (the coefficients of the constant function), kind
+        **MODAL**.
+
+        The weights are the per-volume moment mass
+        :math:`M_{ii}/V = \prod_a 1/(2 o_a + 1)` over the multi-index
+        :math:`(o_0, \dots, o_{d-1})` in the Kronecker order: ``[1, θ]`` for LD
+        at d = 1 and ``[1, θ, θ, θ²]`` at d = 2, with :math:`\theta = 1/3`. The
+        bulk measure of a moment-tailed field is ``G_bulk = V·w_n ⊗ weights``
+        (#310 C2 ruling 3: an average-only ``V·w_n`` mis-weights the slope
+        degrees of freedom and makes ``.H`` a wrong adjoint on the slope rows).
+        This axis is the one spelling of that mass: the UBLD kernels read the
+        same Gram off the same basis (``_ubld.mass_1d``). Until the moment-basis
+        carve (#423) the scheme also exposed it as ``moment_mass_diagonal``.
+
+        The moments are expansion
         COEFFICIENTS (:math:`\psi \approx \bar\psi + \xi\hat\psi`,
         contravariant), so the metric is the Gram :math:`G`, not the
         :math:`G^{-1}` a frame's analysis face would install on covariant

@@ -1580,8 +1580,8 @@ class SN2DCartesianLDStressMMSCase:
         face-trace :math:`\gamma_-\psi` of the manufactured angular flux,
         sampled on ``mesh``'s transverse cells at the closure width
         ``n_face_moments`` (the per-face transverse moment count,
-        :func:`~orpheus.numerics.moment_layout.face_moment_count` of the
-        scheme the paired solve runs). These two inputs are all a face sample
+        :meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.face_dimension`
+        of the cell basis of the scheme the paired solve runs). These two inputs are all a face sample
         depends on, so the reference reads no production problem: the wrap of
         these values into the solver's boundary source lives with the test
         that pairs this case with a solve (since 2026-10-22; the ruling that a
@@ -1666,7 +1666,7 @@ class SN2DCartesianLDStressMMSCase:
                 face_values[face] = vals
             else:
                 # LD (moment-resolved) — full transverse moment slot
-                # (N, ng, n_t, face_moment_count): slot 0 the transverse cell
+                # (N, ng, n_t, n_face_moments): slot 0 the transverse cell
                 # AVERAGE, slot 1 the bare transverse P₁ slope.
                 face_values[face] = self._project_inflow_to_face_moments(
                     const_axis, const_val, t_edges, n_face_moments,
@@ -1709,7 +1709,7 @@ class SN2DCartesianLDStressMMSCase:
         """
         from numpy.polynomial.legendre import leggauss
 
-        from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+        from orpheus.numerics.basis import AVERAGE_MOMENT
 
         W = float(self.quadrature.weights.sum())
         mu_x = self.quadrature.mu_x

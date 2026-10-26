@@ -173,10 +173,15 @@ spans a coefficient space, :meth:`FunctionSpace.of_basis(basis)
 <orpheus.numerics.space.FunctionSpace.of_basis>`: one axis on the basis's
 domain, indexed by the coefficient layout the basis carries
 (:mod:`orpheus.numerics.coefficient_layout`: the rectangular harmonic
-table, the flat Legendre row, one coefficient per cell of a partition, or
-a row of computed modes) and measured by its continuum Gram, modal for a
-spectral family and nodal for a partition
-(:ref:`spaces-moment-head-axis-built`). There is one generic coefficient
+table, the flat Legendre row, one coefficient per cell of a partition, a
+row of computed modes, a polynomial row on an interval, or a tensor
+product's Kronecker-flattened row) and measured by its continuum Gram,
+modal for a spectral family and nodal for a partition
+(:ref:`spaces-moment-head-axis-built`). The within-cell basis of a
+spatial scheme is one of them: the interval Legendre polynomials and their
+tensor product, whose coefficients are contravariant, so its head carries
+the Gram and not the inverse Gram a frame's analysis face installs
+(:ref:`spaces-cell-basis`). There is one generic coefficient
 axis; the family is its layout, not a subclass. The energy axis is a
 one-dimensional mesh in energy whose one-cell limit persists
 (:ref:`spaces-counting-measure-theorem`, :ref:`spaces-energy-grid-is-a-mesh`;
@@ -220,8 +225,10 @@ are not), and
 transport realisation minting carrier-typed faces. The spatial
 **scheme** (:ref:`discretization-closures`;
 :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`)
-plays the same role for the spatial axis: it mints the modal moment axis
-with its own mass diagonal, so the trial space and the sweep kernels
+plays the same role for the spatial axis: it holds its cell basis
+(:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis`)
+and mints the modal moment axis as that basis's continuum head, whose
+weights are the mass diagonal, so the trial space and the sweep kernels
 cannot spell the mass twice.
 
 Both are **stage-2 generators**: they induce structure on the space and
@@ -491,8 +498,8 @@ The concept table
      - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.geometry.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
      - :eq:`discrete-measure-definition`
    * - Basis
-     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`. On the reference side of the branch line, which imports none of these (:ref:`architecture-reference-insulation`): :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`, discontinuous nodal Lagrange panels over a body's orbit coordinate, graded toward walls and interfaces and even (polynomials in :math:`c^2`) on the panel touching a singular stratum, with its Gram matrix in the chart's volume measure, whose density is the kernel's :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`, the derivative of :meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`'s one definition. No production basis is nodal Lagrange, so it has no twin.
-     - :ref:`spaces-basis`, :ref:`manifold-three-levels`; :ref:`characteristic-panel-basis`
+     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`; the cell basis :class:`~orpheus.numerics.basis.interval_legendre_basis.IntervalLegendreBasis`, :class:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis` (:func:`~orpheus.numerics.basis.interval_legendre_basis.spatial_moment_basis`). On the reference side of the branch line, which imports none of these (:ref:`architecture-reference-insulation`): :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`, discontinuous nodal Lagrange panels over a body's orbit coordinate, graded toward walls and interfaces and even (polynomials in :math:`c^2`) on the panel touching a singular stratum, with its Gram matrix in the chart's volume measure, whose density is the kernel's :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`, the derivative of :meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`'s one definition. No production basis is nodal Lagrange, so it has no twin.
+     - :ref:`spaces-basis`, :ref:`manifold-three-levels`; :ref:`spaces-cell-basis`, :eq:`spaces-interval-legendre-gram`; :ref:`characteristic-panel-basis`
    * - Cone
      - :meth:`~orpheus.numerics.field.Field.cone_violations`
      - :ref:`cone-ordered-vector-space`, :eq:`positive-cone-definition`, :ref:`cone-membership-is-a-predicate`
@@ -503,7 +510,7 @@ The concept table
      - :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`
      - :ref:`frame-analysis-is-the-gram-section`, :eq:`frame-discrete-gram`, :ref:`frame-parseval-metric`
    * - Scheme
-     - :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`
+     - :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`, its :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis` and :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
      - :ref:`discretization-closures`
    * - Unit of an axis (the constant function's coordinates); covector of integration
      - :attr:`~orpheus.numerics.axis.Axis.unit`, :attr:`~orpheus.numerics.axis_marginal.AxisRetractionOperator.covector`

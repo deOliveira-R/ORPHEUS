@@ -120,4 +120,22 @@ Mode: W3 surgical carve. The carve crosses numerics, transport and sn, so the ma
   - Re-spelled: `scheme.py:518` (face count), `fields/_bases.py` (the float root becomes the layout's `factor_shape`, refusing a factor count other than the mesh dimension), `_ubld.octant_moment_frame_signs` (`reflection_signs`), `_FOUT_1D`/`_FIN_TRACE` (`endpoint_values`), `assemble_ubld`'s size (the mass's dimension), the LD statics' literal `2` (the basis's `factor_shape`, `face_dimension`, `endpoint_values(+1)`).
   - Gates landed: `tests/gates/numerics/test_interval_legendre_basis.py` (64), `tests/gates/transport/spatial/test_cell_basis_head.py` (16). The face-table row and the reflection row's leg 2 were re-pinned on the hand tables they replaced (kept in the test), so they did not demote. The three demoted rows carry docstrings naming the value pin; `g_bulk_measure` types θ = 1/3.
   - The curvilinear refusal names #612.
-- **S4 not started.** The retirement draft is parked at `scratch/layer_dag/moment_basis/test_moment_layout_retired.py` (red by design until S4; it lands with the retirement commit).
+- **S4 done** (rulings of the user, 2026-10-25: the tail rule is `factor_tail`; the counts are read off the basis; `AVERAGE_MOMENT` is a constant in the basis module). The dependency audit is `.claude/plans/moment_basis_dependency_audit.md`.
+  - `moment_layout.py` is deleted.
+  - `factor_tail` is in `orpheus/numerics/space.py`, and `TensorProductBasis.dimension` is added.
+  - The rank predicates are in `transport/fields/_bases.py`.
+  - Two more hand spellings of the tail rule were re-pointed (`assembly.py`, `scheme.py`).
+  - The retirement gates landed (`test_moment_layout_retired.py`, the stale-rank row in `test_concept_order.py`).
+  - The pyright canary of `session-health.sh` is now `coefficient_layout.py`.
+- **Review** (qa: every re-spelled site bit-identical, `[M]` 1200 of 1200 face-trace comparisons; elegance: two blockers). Fixed in the carve:
+  - B1, the cell mass spelled twice. The UBLD kernels (`assemble_ubld`, `assemble_inflow_axis`, its transpose, `mass_1d`) take the cell basis instead of θ: the mass is `h·diag(Gram)` and the face traces are `endpoint_values`. `_FOUT_1D` and `_FIN_TRACE` retire. `_GRAD_1D` stays hand-typed, pinned by integration by parts.
+    - Refuted FOR the gate design: the reviewer's decoy `[0.5, 0.25]`. It changes the degree-0 Gram, which is 1 for every interval Legendre factor, so it is outside the algebraic class.
+    - The FACT the review established: the two spellings agreed only through that theorem. They are now one spelling, and the route row requires the kernel mass to move with the decoy.
+  - B2: `moment_mass_diagonal` retired (0 production callers). The axis weights are the one spelling of the mass.
+  - Scheme reads: `moment_tail(ndim)` and `face_moment_count(ndim)`, the one site stating that every face of the cell basis has one dimension.
+  - `face`/`face_dimension` refuse an out-of-range axis, and the factors must be interval bases.
+  - Leg 1 of the reflection row runs over n = 2, 3, 4: the parity rule and the old "flip every nonzero degree" rule differ from n = 3.
+  - The width read matches `FromBasis(TensorProductBasis)` and carries `ELEGANCE-DEBT[guard]` #662 (filed: thread the cell basis, not the integer, through `spatial_moments=`).
+  - Left as is: the `DiscretizationScheme` Protocol does not declare `cell_basis`. It is `runtime_checkable`, so a new member would change what `isinstance` admits for the duck-typed stubs. Consumers are typed against `DiscretizationSchemeBase`, and the pyright ratchet passes.
+- **S5 done** (archivist): a new section `spaces-cell-basis` in `docs/theory/foundations/spaces.rst`, and every `moment_layout` and `moment_mass_diagonal` reference re-pointed across 7 pages. `[M]` `-E -W` clean; `dead_references` 12 → 3 (the 3 left predate the carve). The archivist's NEEDS: a `derive_interval_legendre_gram()` in `derivations/`, and the merge hash for the two history rows.
+- `[M]` The scope after the review fixes: 1972 passed, 0 failed. The pyright ratchet passes.

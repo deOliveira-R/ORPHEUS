@@ -30,7 +30,7 @@ from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
-from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+from orpheus.numerics.basis import AVERAGE_MOMENT
 from orpheus.transport.spatial.scheme import CellResult, DiscretizationSchemeBase, CellVisit
 
 
@@ -374,7 +374,7 @@ class TestLDKernel:
             reaction_xs=sig[:, None], Q_cells=q_bar[None, :, None],
         )
         psi_avg2_bar = psi_avg2[..., AVERAGE_MOMENT]          # (1, 2, 1) scalar avg
-        # The d=1 outgoing face carries NO moment axis (face_moment_tail(1) ==
+        # The d=1 outgoing face carries NO moment axis (factor_tail(1) ==
         # () — the walk's scalar d=1 cochain convention), so it is already the
         # scalar face (1, 2, 1).
         psi_out2_bar = psi_out2

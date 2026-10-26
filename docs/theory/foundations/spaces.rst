@@ -25,7 +25,7 @@ Function Spaces: Axes, Measure, and the Collapse Doctrine
       role: "the space layer — a function space as the ordered product of its AXES (label, index shape, factor measure, kind, support, atoms and coefficient layout, all derived from the axis's ORIGIN, which is provenance and excluded from identity), one identity key per space, the counting-measure theorem on the energy axis, and the collapse doctrine that decides which axes survive a degeneracy and why"
       depends_on: [field_algebra, frame]
       related: [manifolds, discrete_measures, operator_algebra, operator_adjoint]
-      status: "seeded at campaign-1 CS1 (the Energy axis); the generator slot landed at CS5 (2026-08-29); the densifying half of the `*` product retired at CS4c step 6 item 6.2a (2026-09-07); the metric became a DERIVED object over the axes, with a dense form positioned on it as an overlay, at item 6.2c-i (2026-09-08); the Harmonic and Legendre axis subclasses landed at item 6.2c-ii (2026-09-08), so both moment heads are axis-built; the spatial-moment tail became the discretization scheme's own MODAL moment axis at item 6.2c-iii (2026-09-08), so every space that carries a tail is axis-built too; the Spatial / Quadrature subclasses stay CS2 and unscheduled; the axis gained its unit, and the marginal over a MODAL head became an integral, at S1 of the numerics untangling (2026-10-19); at S7 (2026-10-22) the generator slot became the Origin closed sum, the axis content gained support, atoms and layout, a space's identity became one key, the two head classes and the two family axis subclasses retired onto one generic coefficient axis carrying the basis's layout, and every basis's coefficient space became axis-built (FunctionSpace.of_basis)"
+      status: "seeded at campaign-1 CS1 (the Energy axis); the generator slot landed at CS5 (2026-08-29); the densifying half of the `*` product retired at CS4c step 6 item 6.2a (2026-09-07); the metric became a DERIVED object over the axes, with a dense form positioned on it as an overlay, at item 6.2c-i (2026-09-08); the Harmonic and Legendre axis subclasses landed at item 6.2c-ii (2026-09-08), so both moment heads are axis-built; the spatial-moment tail became the discretization scheme's own MODAL moment axis at item 6.2c-iii (2026-09-08), so every space that carries a tail is axis-built too; the Spatial / Quadrature subclasses stay CS2 and unscheduled; the axis gained its unit, and the marginal over a MODAL head became an integral, at S1 of the numerics untangling (2026-10-19); at S7 (2026-10-22) the generator slot became the Origin closed sum, the axis content gained support, atoms and layout, a space's identity became one key, the two head classes and the two family axis subclasses retired onto one generic coefficient axis carrying the basis's layout, and every basis's coefficient space became axis-built (FunctionSpace.of_basis); at the moment-basis carve (2026-10-25) the spatial-moment axis became the FromBasis head of the scheme's cell basis (the interval Legendre basis and its tensor product)"
 
 
 This page develops the **space layer**: what a discrete function space
@@ -305,7 +305,8 @@ read off the origin at construction (``kind``, ``support``, ``nodes``,
        untangling): all ones on a ``NODAL`` axis; on a modal axis the unit
        the ``Modal`` arm carries: :math:`e_0` on a continuum head, the
        moments :math:`\Phi^{\mathsf T} w` on a head a frame has dressed,
-       :math:`e_0` on the LD spatial-moment axis, and a declared zero on
+       :math:`e_0` on the LD spatial-moment axis (itself a continuum head
+       since 2026-10-25, :ref:`spaces-cell-basis`), and a declared zero on
        the loss-kernel gauge's modes (rulings 86 and 87). The marginal over
        the axis integrates against :math:`m = G_k u` (:ref:`spaces-axis-unit`).
    * - ``support``
@@ -1079,17 +1080,21 @@ a :class:`~orpheus.numerics.basis.base.GramStructure`):
 The base class answers ``DENSE``, the safe refusal: a new basis earns the
 shortcut only by declaring, having checked its Gram, that it may use it.
 
-**The family, measured.** `[M]` 2026-09-22, every concrete ``Basis``
+**The family, measured.** `[M]` 2026-10-25, every concrete ``Basis``
 subclass in ``orpheus/`` (an AST census of class definitions whose
-bases name a basis class, seven production members, which a runtime
-``__subclasses__`` walk reproduces once
-``orpheus.sn.operators.loss_kernel_gauge`` is imported; the three test
-doubles the same census finds under ``tests/`` are excluded, one of them
-nested inside a test function, where a header grep anchored at column 0
-misses it). The coefficient-space column is `[M]` 2026-10-22
-(``archivist_probe.py``) for the four members constructed there, and read
-from the code (each class's ``layout`` and ``coefficient_weights``) for
-the other three:
+bases name a basis class, closed transitively over the bases, 395 files,
+``scratch/layer_dag/moment_basis/s5/archivist_census.py``): **nine**
+production members. The census of 2026-09-22 read seven, and the two
+added since are the cell basis's (:ref:`spaces-cell-basis`); that census
+also excluded three test doubles under ``tests/``, one of them nested
+inside a test function, where a header grep anchored at column 0 misses
+it, and found that a runtime ``__subclasses__`` walk reproduces the
+production count once ``orpheus.sn.operators.loss_kernel_gauge`` is
+imported. The coefficient-space column is `[M]` 2026-10-22
+(``archivist_probe.py``) for the four members constructed there, `[M]`
+2026-10-25 for the two cell-basis rows (the S5 probe beside the census),
+and read from the code (each class's ``layout`` and
+``coefficient_weights``) for the other three:
 
 .. list-table:: The concrete bases
    :header-rows: 1
@@ -1127,6 +1132,19 @@ the other three:
      - ``DIAGONAL``
      - one ``Modal`` axis, :class:`~orpheus.numerics.coefficient_layout.LegendreLayout`,
        support :math:`S^2/O(2)_a` (cone ``False``)
+   * - :class:`~orpheus.numerics.basis.interval_legendre_basis.IntervalLegendreBasis`
+     - the reference interval :math:`[-1, 1]`
+     - ``DIAGONAL``
+     - one ``Modal`` axis, :class:`~orpheus.numerics.coefficient_layout.PolynomialLayout`,
+       measure :math:`1/(2k+1)` (:eq:`spaces-interval-legendre-gram`), support
+       ``Interval(-1, 1)``, unit :math:`e_0`
+   * - :class:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis`
+     - the product of its factors' intervals
+     - ``DIAGONAL`` (a product of orthogonal families)
+     - one ``Modal`` axis, :class:`~orpheus.numerics.coefficient_layout.TensorLayout`
+       of the factors' layouts, measure the Kronecker product of the factors'
+       Grams, support the nested ``Product``; the LD scheme's spatial-moment
+       axis (:ref:`spaces-cell-basis`)
    * - :class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelBasis`
      - an index set of trace degrees of freedom
      - ``DIAGONAL``, a theorem: the table is :math:`G`-orthonormal
@@ -1144,10 +1162,10 @@ coefficients is a sign test on the function), ``MODAL`` when it is an
 :ref:`spaces-nodal-modal`). A basis enters that slot through its layout:
 ``FromBasis(basis).kind`` is one exhaustive ``match`` on
 ``basis.layout``, ``NODAL`` for a cell layout (unit ones) and
-``Modal(layout.unit)`` for a degree or mode layout. So every one of the
-7 members has a kind on its coefficient axis: the three indicator
-members ``NODAL``, the three harmonic members and the loss-kernel basis
-modal. The kind of a frame-dressed head is the frame's to say
+``Modal(layout.unit)`` for a degree, mode, polynomial or tensor layout. So
+every one of the 9 members has a kind on its coefficient axis: the three
+indicator members ``NODAL``, the three harmonic members, the two cell-basis
+members and the loss-kernel basis modal. The kind of a frame-dressed head is the frame's to say
 (``FromFrame``): a dressed head holds moments, so it is
 ``Modal`` with unit :math:`\Phi^{\mathsf T} w`, and the dressed
 indicator head is ``Modal(masses)`` until S6c (ruling 83, #633).
@@ -1160,6 +1178,369 @@ what a consumer asks for when it needs "the coefficient space of order
 :math:`L`" without naming one class; and
 :class:`~orpheus.numerics.basis.descent.Descent` pulls a basis back along
 a quotient map (:ref:`manifold-descent`).
+
+.. _spaces-cell-basis:
+
+The cell basis: the Legendre polynomials on an interval, and their tensor product
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A spatial discretization that carries more than the cell average expands
+the flux *within* a cell in a polynomial basis on the reference cell. The
+linear-discontinuous scheme (LD, :ref:`discretization-ld`) is the shipped
+member: it carries the average and one slope per axis. That basis is two
+numerics objects and their composition, all in
+``orpheus/numerics/basis/interval_legendre_basis.py``:
+
+- :class:`~orpheus.numerics.basis.interval_legendre_basis.IntervalLegendreBasis`
+  ``(n)``, the polynomials :math:`P_0, \dots, P_{n-1}` on the reference
+  interval;
+- :class:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis`
+  ``(factors, label)``, the product of one interval basis per coordinate;
+- :func:`~orpheus.numerics.basis.interval_legendre_basis.spatial_moment_basis`
+  ``(p, d)``, the product of :math:`d` copies of the :math:`p`-term interval
+  basis, labelled ``"spatial_moment"``
+  (:data:`~orpheus.numerics.basis.interval_legendre_basis.SPATIAL_MOMENT_AXIS_LABEL`).
+
+A scheme reads its own through
+:meth:`DiscretizationSchemeBase.cell_basis(d)
+<orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis>`,
+which is ``spatial_moment_basis(spatial_basis_per_axis, d)``: :math:`p = 1`
+for diamond difference and step, :math:`p = 2` for LD. Every fact the
+scheme and the sweep kernels use about the within-cell moments (their count,
+their order, the face traces, the mirror signs, the mass, the constant mode's
+slot) is read off this object; until 2026-10-25 they were spelled as scheme
+constants and as the counting functions of a layout module (#423; the
+history is :ref:`sn-development-history`).
+
+**The reference coordinate and the measure.** A cell
+:math:`[x_j - h/2,\ x_j + h/2]` is mapped to :math:`\xi = 2(x - x_j)/h \in
+[-1, 1]`, so :math:`\mathrm{d}x/h = \mathrm{d}\xi/2`. The basis is measured
+against :math:`\mathrm{d}\xi/2`, the normalised measure of total mass 1: an
+integral against it is a **per-volume** average over the cell, which is the
+convention of every cell moment in the corpus
+(:eq:`discretization-ld-moments`). The polynomials are generated by Bonnet's
+recurrence (DLMF Eq. 18.9.1) and normalised by :math:`P_k(1) = 1` (
+``IntervalLegendreBasis.evaluate`` tabulates them through
+:func:`~orpheus.numerics.basis.legendre_basis.legendre_table`).
+
+**The Gram, derived.** Rodrigues' formula (DLMF §18.5(ii)) writes
+:math:`P_k = \frac{1}{2^k k!}\,\frac{\mathrm{d}^k}{\mathrm{d}\xi^k}(\xi^2-1)^k`.
+The polynomial :math:`(\xi^2-1)^k` has a zero of order :math:`k` at each
+end, so integrating :math:`\int_{-1}^{1} P_l\,P_k\,\mathrm{d}\xi` by parts
+:math:`k` times leaves no boundary term:
+
+.. math::
+
+   \int_{-1}^{1} P_l\,P_k\,\mathrm{d}\xi
+   \;=\; \frac{(-1)^k}{2^k k!}\int_{-1}^{1}
+         \frac{\mathrm{d}^k P_l}{\mathrm{d}\xi^k}\,(\xi^2-1)^k\,\mathrm{d}\xi .
+
+For :math:`l < k` the :math:`k`-th derivative of :math:`P_l` vanishes, so the
+family is orthogonal. For :math:`l = k` the :math:`k`-th derivative is
+:math:`k!` times the leading coefficient :math:`(2k)!/\bigl(2^k (k!)^2\bigr)`,
+and the remaining integral is a beta integral,
+:math:`\int_{-1}^{1}(1-\xi^2)^k\,\mathrm{d}\xi = 2^{2k+1}(k!)^2/(2k+1)!`:
+
+.. math::
+
+   \int_{-1}^{1} P_k^2\,\mathrm{d}\xi
+   \;=\; \frac{(2k)!}{2^{2k}(k!)^2}\cdot\frac{2^{2k+1}(k!)^2}{(2k+1)!}
+   \;=\; \frac{2}{2k+1} ,
+
+which is DLMF Table 18.3.1's normalisation for Legendre. Halving the measure
+gives the Gram of the cell basis:
+
+.. math::
+   :label: spaces-interval-legendre-gram
+
+   G_{kl} \;=\; \int_{-1}^{1} P_k(\xi)\,P_l(\xi)\,\frac{\mathrm{d}\xi}{2}
+   \;=\; \frac{\delta_{kl}}{2k+1},
+   \qquad
+   G = \operatorname{diag}\Bigl(1,\ \tfrac13,\ \tfrac15,\ \dots\Bigr).
+
+.. (vv-status rationale) A definitional identity of the reference-interval
+   Legendre family: the Gram against the normalised measure dξ/2. Not a
+   solver claim. Its executable content is
+   tests/gates/numerics/test_interval_legendre_basis.py
+   ::test_the_gram_is_the_exact_integral_correctly_rounded (SymPy integrals,
+   n = 1..5, compared with array_equal to the correctly rounded Fraction).
+.. vv-status: spaces-interval-legendre-gram documented
+
+The two lowest entries can be read at a glance:
+:math:`\int 1\,\mathrm{d}\xi/2 = 1`, :math:`\int \xi\,\mathrm{d}\xi/2 = 0` (an
+odd integrand) and :math:`\int \xi^2\,\mathrm{d}\xi/2 = [\xi^3/6]_{-1}^{1} =
+1/3`. The last is LD's :math:`\theta = 1/3` (Larsen and Morel 1989,
+Eqs. 4.3a-b, as :ref:`discretization-ld` transcribes them):
+:attr:`LinearDiscontinuous.theta
+<orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.theta>` is a
+property that reads the degree-1 entry of its cell basis's factor Gram at use
+(``cell_basis(1).factors[0].coefficient_weights[1]``), so the scheme's
+:math:`\theta` and the basis's Gram are one definition. The basis
+stores :math:`G` as ``gram_per_degree`` (equal to ``coefficient_weights``) and
+its inverse :math:`2k + 1` as ``dual_factor``, the canonical-dual factor
+``reconstruct`` applies. ``[M]`` 2026-10-25
+(``scratch/layer_dag/moment_basis/s5/archivist_probe.py``): ``gram_per_degree``
+equals ``float(Fraction(1, 2k+1))`` bitwise for :math:`n = 1, \dots, 5`, and
+``LinearDiscontinuous().theta == 1.0/3.0``.
+
+⚠ **Not the angular Legendre basis.** The angular
+:class:`~orpheus.numerics.basis.legendre_basis.LegendreBasis` is
+:math:`P_\ell(\Omega\cdot e_a)` on the orbit space :math:`S^2/O(2)_a`, measured
+by the pushforward of :math:`\mathrm{d}\Omega`, so its Gram is
+:math:`4\pi/(2\ell+1)` (:ref:`spaces-moment-head-axis-built`). The two families
+are the same polynomials on two different domains with two different measures,
+and at :math:`d = 1` their coefficient shapes are both :math:`(2,)`. If the
+spatial basis reused the angular one's layout, the angular head's door
+(:func:`~orpheus.numerics.spaces.moment_head.head_layout`) would accept the
+spatial axis. So the interval basis carries its own layout,
+:class:`~orpheus.numerics.coefficient_layout.PolynomialLayout`, which has degree
+structure but is not a ``DegreeLayout`` (the union of the angular heads'
+layouts). The witness is
+``tests/gates/numerics/test_interval_legendre_basis.py``
+``::test_the_interval_layout_is_not_an_angular_moment_head``.
+
+**The endpoint values and the parity.** Rodrigues' formula differentiates the
+even polynomial :math:`(\xi^2-1)^k` :math:`k` times, so :math:`P_k` has the
+parity of :math:`k`, and with the normalisation :math:`P_k(1) = 1`
+(DLMF §18.6(i)):
+
+.. math::
+   :label: spaces-interval-legendre-endpoints
+
+   P_k(-\xi) \;=\; (-1)^k\,P_k(\xi),
+   \qquad
+   P_k(1) = 1,
+   \qquad
+   P_k(-1) = (-1)^k .
+
+.. (vv-status rationale) A definitional identity of the Legendre family (its
+   parity and its values at the ends of the interval). Not a solver claim.
+   Its executable content is tests/gates/numerics/test_interval_legendre_basis.py
+   ::test_the_endpoint_values_are_plus_minus_one_to_the_degree and
+   ::test_the_parity_is_the_mirrors_action.
+.. vv-status: spaces-interval-legendre-endpoints documented
+
+The endpoint values are the **trace** of an expansion on a cell face:
+``endpoint_values(+1)`` is :math:`[1, 1]` for LD, so the outflow reconstruction
+is :math:`\psi_{\rm out} = \bar\psi + \hat\psi` (:eq:`discretization-ld-face`),
+and ``endpoint_values(-1)`` is :math:`[1, -1]`, the inflow-face weight. The
+UBLD assembler (``orpheus/transport/spatial/_ubld.py``) reads its face terms
+off these values, the outflow term from the outer product of :math:`B(+1)`
+with itself and the inflow trace from :math:`B(-1)`, where it once held them
+as typed tables, and its mass as :math:`h` times the factor's Gram, where it
+once took a float :math:`\theta`.
+``::test_the_ubld_face_terms_are_the_hand_tables`` compares the assembled
+terms with the tables they replaced. The one table still typed by hand, the
+streaming table ``_GRAD_1D``, is pinned by the integration-by-parts identity
+it must satisfy with the endpoint traces
+(``::test_the_streaming_table_and_the_face_traces_satisfy_integration_by_parts``). The parity is the action of the mirror
+:math:`\xi \mapsto -\xi` on the coefficients, which a sweep that runs
+backwards along an axis applies (``IntervalLegendreBasis.parity``).
+
+**The tensor product.** On a :math:`d`-dimensional cell the basis is
+
+.. math::
+
+   \phi_{(k_0, \dots, k_{d-1})}(\xi_0, \dots, \xi_{d-1})
+   \;=\; \prod_{a=0}^{d-1} P^{(a)}_{k_a}(\xi_a),
+   \qquad 0 \le k_a < n_a ,
+
+flattened row-major with **factor 0 outermost**: the multi-index
+:math:`(k_0, \dots, k_{d-1})` sits at
+:math:`\sum_a k_a \prod_{b > a} n_b`, which is the order of
+``np.kron(c_0, c_1, ...)``. For the Cartesian axes :math:`x, y, z` as factors
+0, 1, 2 this is the order :eq:`spatial-moment-kronecker-order` records
+(:math:`x` outer, the cell average in slot 0), and
+:meth:`TensorLayout.multi_index
+<orpheus.numerics.coefficient_layout.TensorLayout.multi_index>` inverts it
+(``[M]`` at :math:`d = 2`: ``[(0, 0), (0, 1), (1, 0), (1, 1)]``). The
+consequences, each a property of the object:
+
+- **The dimension** is :math:`\prod_a n_a`, so :math:`p^d` for
+  :func:`~orpheus.numerics.basis.interval_legendre_basis.spatial_moment_basis`
+  (:eq:`spatial-moment-space-size`; ``TensorProductBasis.dimension``).
+- **The Gram factorises.** The measure :math:`\prod_a \mathrm{d}\xi_a/2` and the
+  integrand both factorise (Fubini), so the Gram is the Kronecker product of
+  the factors' Grams, diagonal with entries :math:`\prod_a 1/(2k_a+1)`: for LD,
+  :math:`[1, \theta]`, :math:`[1, \theta, \theta, \theta^2]` and the eight
+  entries at :math:`d = 3`. In floating point the contract is "the Kronecker
+  product of the factors' correctly rounded Grams", within :math:`(2d-1)u`
+  of the exact product (:math:`u` the unit roundoff); at :math:`p = 2,\ d \le 3`
+  it is bitwise the exact product rounded once, and at :math:`p = 3` it is not
+  (``[M]`` 2026-10-25, the test-architect's S0 spec,
+  ``scratch/layer_dag/moment_basis/gate_spec.md`` §1: 1 of 9 entries differ at
+  :math:`d = 2` and 7 of 27 at :math:`d = 3`). The gate is
+  ``::test_the_tensor_gram_is_the_exact_product_integral``.
+- **The constant mode is slot 0.** :math:`P_0 = 1` on every factor and the
+  all-zero multi-index is first, so the coefficients of the constant function
+  are :math:`e_0`, the Kronecker product of the factors' units. Every moment
+  buffer reads its cell average (and its face average) at
+  :data:`~orpheus.numerics.basis.interval_legendre_basis.AVERAGE_MOMENT`
+  :math:`= 0`, which is that slot.
+- **The face basis.** On the face :math:`\xi_a = \pm 1` an expansion
+  :math:`\sum_k c_k \phi_k` restricts to
+  :math:`\sum_k c_k\,P_{k_a}(\pm 1)\prod_{b \ne a} P_{k_b}(\xi_b)`: factor
+  :math:`a` is contracted with its endpoint values and the result is an
+  expansion in the product of the **other** factors, in their order
+  (:meth:`TensorProductBasis.face(a)
+  <orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.face>`).
+  Its dimension is :math:`\prod_{b \ne a} n_b = p^{d-1}`
+  (:meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.face_dimension`),
+  the per-face transverse moment count of the boundary trace and the face
+  cochain. The scheme reads it as
+  :meth:`DiscretizationSchemeBase.face_moment_count(d)
+  <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_moment_count>`,
+  one count for every face because the cell basis repeats one factor over the
+  axes. At :math:`d = 1` the face is a point: ``face`` refuses (a point
+  carries no basis), while ``face_dimension`` is total and returns the empty
+  product, 1, which is the count every consumer needs. Both refuse an axis
+  outside the product (``::test_an_axis_outside_the_product_is_refused``),
+  and a ``TensorProductBasis`` admits only ``IntervalLegendreBasis`` factors.
+- **The mirror signs.** Mirroring the axes in a set :math:`S` acts
+  diagonally on the coefficients by the Kronecker product of
+  :math:`(-1)^{k}` on each mirrored factor and ones on the others
+  (:meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.reflection_signs`).
+  ``[M]`` at :math:`d = 2`: mirroring :math:`y` alone gives
+  :math:`[1, -1, 1, -1]`, :math:`x` alone :math:`[1, 1, -1, -1]`, both
+  :math:`[1, -1, -1, 1]`. This is the octant sign map
+  ``orpheus.transport.spatial._ubld.octant_moment_frame_signs`` reads, which
+  until this carve decoded the Kronecker index by hand.
+
+:class:`~orpheus.numerics.coefficient_layout.TensorLayout` is the product's
+index: its ``factors`` (one ``PolynomialLayout`` each), its ``label``, its
+``factor_shape`` and its unit. The field layer reads the per-axis count off
+the axis's origin, the cell basis itself:
+:meth:`BulkField.spatial_moments_per_axis_of
+<orpheus.transport.fields._bases.BulkField.spatial_moments_per_axis_of>`
+returns the count of the first factor and refuses an axis whose origin is
+not a ``TensorProductBasis`` with one factor per spatial axis, all of one
+count (the float root it replaced accepted a one-factor basis of four on a
+2-D mesh; ``tests/gates/transport/spatial/test_cell_basis_head.py``
+``::test_a_moment_basis_of_the_wrong_dimension_is_refused``). The refusal is
+tagged elegance debt: it exists because the field layer still threads the
+width as a per-axis integer, and it retires when the field layer threads the
+cell basis instead (#662).
+
+**Coefficients and moments: why the spatial-moment axis is the basis's head.**
+A polynomial :math:`f = \sum_k c_k \phi_k` has two coordinate vectors. Its
+**coefficients** :math:`c` (contravariant) are the expansion weights. Its
+**moments** :math:`\varphi_k = \langle \phi_k, f\rangle = \sum_l G_{kl} c_l`
+(covariant) are what analysis against the basis computes. The norm in each:
+
+.. math::
+   :label: spaces-cell-basis-two-coordinates
+
+   \varphi = G\,c,
+   \qquad
+   \|f\|^2 = \int f^2\,\frac{\mathrm{d}\xi}{2}
+   \;=\; c^{\mathsf T} G\,c \;=\; \varphi^{\mathsf T} G^{-1} \varphi .
+
+.. (vv-status rationale) A definitional identity (the two coordinate systems
+   of a finite-dimensional inner-product space and the metric each carries).
+   Not a solver claim. Its executable content is
+   tests/gates/numerics/test_interval_legendre_basis.py
+   ::test_reconstruction_inverts_analysis_on_the_span (analysis is G c,
+   reconstruction inverts it) and, for the axis that follows from it,
+   tests/gates/transport/spatial/test_cell_basis_head.py
+   ::test_the_moment_axis_metric_is_the_gram_not_its_inverse.
+.. vv-status: spaces-cell-basis-two-coordinates documented
+
+LD's two numbers are **coefficients**. The literature's definitions
+(:eq:`discretization-ld-moments`) say so directly: the expansion is
+:math:`\psi \approx \bar\psi + \xi\,\hat\psi`, and substituting
+:math:`x - x_j = h\xi/2`, :math:`\mathrm{d}x = h\,\mathrm{d}\xi/2` into
+:math:`\hat\psi = (6/h^2)\int (x - x_j)\,\psi\,\mathrm{d}x` gives
+
+.. math::
+
+   \hat\psi \;=\; \frac{6}{h^2}\cdot\frac{h^2}{2}\int \xi\,\psi\,\frac{\mathrm{d}\xi}{2}
+   \;=\; 3\,\langle P_1, \psi\rangle \;=\; G_{11}^{-1}\,\varphi_1 ,
+   \qquad
+   \bar\psi = \langle P_0, \psi \rangle = \varphi_0 ,
+
+so :math:`(\bar\psi, \hat\psi) = G^{-1}\varphi = c`. The per-volume energy of
+the cell's linear is therefore
+:math:`\int(\bar\psi + \xi\hat\psi)^2\,\mathrm{d}\xi/2 = \bar\psi^2 +
+\hat\psi^2/3 = c^{\mathsf T} G c`, and the metric on the moment axis is
+:math:`G`, which is the mass diagonal the bulk measure
+:math:`G_{\rm bulk} = V\,w_n \otimes G` needs (#310 C2 ruling 3; an
+average-only metric mis-weights the slope degrees of freedom and makes ``.H``
+the wrong adjoint on the slope rows).
+
+So the axis is the basis's **continuum head**,
+:meth:`Axis.of_basis(cell_basis) <orpheus.numerics.axis.Axis.of_basis>`, origin
+:class:`~orpheus.numerics.axis.FromBasis`: weights :math:`G`, unit
+:math:`e_0`, kind ``Modal`` (a positive function has legally signed slope
+coefficients, so the factor has no coordinate cone), support the reference cell
+(``Interval(-1, 1)`` or the nested ``Product`` of them), layout the tensor
+layout. The user ruled it on 2026-10-25 (#423, ruling 2 of
+``.claude/plans/moment_basis.md``), first as a frame-dressed head and then,
+the same day, as this one, once the frame face had been read. Two measured
+reasons rule out the frame:
+
+- **The metric would invert.** The frame face
+  :func:`~orpheus.numerics.frame_faces.basis_space` dresses a trial coefficient
+  space with the inverse discrete Gram, the Parseval metric of COVARIANT
+  moments (:ref:`frame-parseval-metric`). ``[M]`` 2026-10-25
+  (``archivist_probe.py``): ``basis_space`` of a
+  :class:`~orpheus.numerics.frame.GalerkinFrame` on
+  ``IntervalLegendreBasis(2)`` and a 4-point Gauss–Legendre rule with halved
+  weights has axis weights :math:`[1, 3]`, where the continuum head has
+  :math:`[1, 1/3]`. The slope rows would read 3.
+- **The bits would move.** A Gram summed by a Gauss–Legendre product rule is
+  not the closed form: ``[M]`` 2026-10-25 (``archivist_probe.py``, reproducing the
+  S0 spec §1), at most 5 / 12 / 13 ulp off with 4 points and 4 / 8 / 22 ulp with
+  8 points at :math:`d = 1 / 2 / 3`, and the analysed unit
+  :math:`\Phi^{\mathsf T} w` is off :math:`e_0` by up to :math:`2.3\times10^{-15}`
+  (8 points, :math:`d = 3`). The continuum head's weights and unit are bitwise
+  those of the axis it replaced (a ``Declared(Modal(e_0))`` axis whose weights
+  were the scheme's typed :math:`\theta` products): ``[M]`` the same probe, for
+  :math:`d = 1, 2, 3` against the Kronecker products of ``[1.0, 1.0/3.0]``.
+
+The new origin adds the support and the layout to the axis's content, so every
+LD-widened space has a new content identity, by design; ``[M]`` the S0 spec
+§1: 0 of 1262 rows over the 43 test files that reach the LD scheme turned red
+under the new identity, and the traced memos are invalidated by the numerics
+module skeletons, not by the LD identity. The first red of the origin is
+``tests/gates/transport/spatial/test_cell_basis_head.py``
+``::test_the_ld_moment_axis_is_the_cell_basis_head``, red on the tree before
+the carve with "the LD moment axis is still Declared".
+
+**The unbuilt sibling: a curved cell.** On a chart whose volume element varies
+across the cell (an LD scheme on a cylinder or a sphere) the per-volume Gram
+depends on the cell, so no fixed reference basis carries it, and the
+scheme's moment mass refuses
+(``DiscretizationSchemeBase._assert_moment_mass_is_expressible``). The
+machinery that retires that refusal is a frame face for contravariant
+coefficients: the trial coefficient space dressed by the cell's own Gram, the
+:math:`\sharp`-image of ``basis_space``. It is #612.
+
+**What is not a basis fact.** Whether a composed space gains a trailing axis
+for a factor is a rule of space composition, and it lives there:
+:func:`~orpheus.numerics.space.factor_tail` returns ``()`` for a factor of
+width 1 and ``(width,)`` otherwise, because a one-dimensional factor is
+:math:`\mathbb R` and :math:`V \otimes \mathbb R \cong V`
+(:eq:`spatial-moment-append-policy`); the scheme states it once for its bulk
+buffers as :meth:`DiscretizationSchemeBase.moment_tail(d)
+<orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_tail>`,
+``factor_tail(cell_basis(d).dimension)``. The rank predicates that tell a moment
+buffer from a flat one test a buffer against a space and live in the field
+layer (:func:`~orpheus.transport.fields._bases.is_moment_valued_by_rank`,
+:func:`~orpheus.transport.fields._bases.is_moment_valued_by_flat_rank`).
+
+**The gates.** ``tests/gates/numerics/test_interval_legendre_basis.py`` (68
+rows, ``foundation``) pins the interval laws against SymPy, NumPy's Clenshaw
+evaluation and ``fractions.Fraction``, and the tensor laws (dimension, order,
+Gram, unit, face trace, face drop, face dimension, mirror signs, the UBLD
+face terms) against hand-written tables;
+``tests/gates/transport/spatial/test_cell_basis_head.py`` (16 rows) pins the
+scheme's axis as this head, its metric against a hand-typed :math:`\theta`
+table, the route by which :math:`\theta` and the mass are read from the Gram,
+and the wrong-dimension refusal. The row counts are ``[M]`` 2026-10-25,
+``pytest --collect-only``. The test-architect's mutation battery over both
+files (S0 spec §2, §8) reddened a row for every one of its 11 basis arms and
+11 site arms; the arm that drops the wrong factor in ``face`` reddens only the
+face-drop row, because on the LD basis every factor is the same.
 
 .. _spaces-axis-generator:
 
@@ -1206,7 +1587,8 @@ generating object and the axis cannot disagree about them:
      - none
    * - :class:`~orpheus.numerics.axis.FromBasis` — a basis :math:`b`
      - the layout's: ``NODAL`` for a cell layout, :class:`Modal(unit)
-       <orpheus.numerics.axis.Modal>` for a degree or mode layout
+       <orpheus.numerics.axis.Modal>` for a degree, mode, polynomial or tensor
+       layout
      - :math:`b`'s domain
      - none
      - :math:`b`'s layout
@@ -1246,13 +1628,18 @@ cited rather than copied:
   moment head a frame dresses is ``FromFrame``
   (:func:`~orpheus.numerics.frame_faces.basis_space`;
   ``tests/gates/numerics/test_heads_on_the_axis.py`` H0c, H2c);
-- four axes are ``Declared`` because no generating object exists, or none
+- the linear-discontinuous scheme's spatial-moment axis is ``FromBasis``
+  too, the continuum head of the scheme's cell basis, with weights the Gram
+  and unit :math:`e_0` (:ref:`spaces-cell-basis`;
+  ``tests/gates/transport/spatial/test_cell_basis_head.py``
+  ``::test_the_ld_moment_axis_is_the_cell_basis_head``). It was ``Declared``
+  ``Modal(e_0)`` until 2026-10-25 (#423), when numerics had no basis for it
+  to point at;
+- three axes are ``Declared`` because no generating object exists, or none
   may be imported into the numerics layer (ruling 82): every
   :class:`~orpheus.numerics.axis.EnergyAxis` (its content is its edges), the
-  homogeneous pose's one-point counting axis, the rank-:math:`d` spatial
-  axis of a :math:`d \ge 2` carrier, and the linear-discontinuous scheme's
-  spatial-moment axis, which is ``Modal(e_0)`` and whose generator, the
-  scheme, lives in the transport layer
+  homogeneous pose's one-point counting axis, and the rank-:math:`d` spatial
+  axis of a :math:`d \ge 2` carrier
   (``tests/gates/numerics/test_axis_generator.py``
   ``::TestG5TheQuadratureRefusalIsOneSpelling::test_G5_6a_the_shipped_atomless_axes_are_Declared``,
   ``tests/gates/numerics/test_space_of_axes.py``
@@ -3546,10 +3933,11 @@ whose layout has no degree structure is refused by name rather than
 contracted wrongly. The frame-side account is :ref:`frame-g0-descent-arrow`.
 
 The spatial-moment TAIL of a widened moment space (LD,
-``spatial_moments > 1``) is the discretization scheme's own ``Declared``
-``Modal(e_0)`` :meth:`moment_axis
-<orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis>`
-(:ref:`the account in the SN chapter <spatial-moment-space>`). `[M]`
+``spatial_moments > 1``) is the discretization scheme's own :meth:`moment_axis
+<orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis>`, the
+``FromBasis`` head of its cell basis since 2026-10-25 and a ``Declared``
+``Modal(e_0)`` axis before (:ref:`spaces-cell-basis`;
+:ref:`the account in the SN chapter <spatial-moment-space>`). `[M]`
 2026-09-08, 1-D LD under ``gauss_legendre(2)``: the widened product's
 axes read ``[legendre, energy, spatial, spatial_moment]`` at :math:`L = 1`
 and :math:`L = 2` alike.
@@ -6122,6 +6510,22 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-25
+     - **The spatial-moment axis points at a basis** (layer DAG ruling 19,
+       the moment-basis carve). Numerics gained the interval Legendre basis
+       and the tensor product of bases, with their layouts
+       ``PolynomialLayout`` and ``TensorLayout`` (which joined
+       ``FromBasis.kind``'s match), and the composition rule
+       :func:`~orpheus.numerics.space.factor_tail`. The linear-discontinuous
+       scheme's moment axis moved from ``Declared(Modal(e_0))`` to the
+       ``FromBasis`` head of its cell basis, so ``Declared`` keeps three
+       shipped axes; the layout module ``orpheus.numerics.moment_layout``
+       retired, its counting functions read off the basis and its rank
+       predicates moved to the field layer. Why the head and not a frame:
+       :ref:`spaces-cell-basis`.
+     - #423
+     - *(in development)* branch ``refactor/moment-basis`` (S1 and S3 at
+       ``a838c31e``)
    * - 2026-10-22
      - **An axis is identified by what fixes its space, and a space by
        one key** (numerics untangling, package S7, halves S7a and S7b;

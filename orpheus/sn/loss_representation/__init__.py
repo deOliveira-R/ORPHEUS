@@ -116,11 +116,9 @@ import numpy as np
 # one home, so the historical load-time import cycle is gone.
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.deck import mirror_motion
-from orpheus.numerics.moment_layout import (
-    AVERAGE_MOMENT,
-    cell_moment_count,
-    face_moment_count,
-    face_moment_tail,
+from orpheus.numerics.basis import AVERAGE_MOMENT
+from orpheus.numerics.space import factor_tail
+from orpheus.transport.fields._bases import (
     is_moment_valued_by_flat_rank,
     is_moment_valued_by_rank,
 )
@@ -730,10 +728,10 @@ class _LossRepresentation:
         per face for the selected scheme: ``1`` for the slopeless cell-average
         closures (DD/Step → byte-identical scalar faces) and ``2^{d-1}`` for the
         bilinear UBLD Linear-Discontinuous closure (#240 D5b — d=2: 2).  Reads
-        the multi-moment face-cochain width from the single-source
-        :func:`~orpheus.numerics.moment_layout.face_moment_count` (shared with the
-        trace producer :meth:`~orpheus.sn.problem.SNProblem.boundary_face_layout`)."""
-        return face_moment_count(self.spatial_closure.spatial_basis_per_axis, self.problem.ndim)
+        the multi-moment face-cochain width from the cell basis,
+        :meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.face_dimension`
+        (shared with the trace producer :meth:`~orpheus.sn.problem.SNProblem.boundary_face_layout`)."""
+        return self.problem.n_face_moments
 
     def _moment_frame_signs(
         self, signs_eff: tuple[int, ...],
@@ -763,11 +761,10 @@ class _LossRepresentation:
         spatial-moment iterate ``φ̂`` travels between sweeps (#240 D5b-S3 — the
         unified moment matvec).  DD/Step (``per_axis == 1``) → ``()`` (no axis;
         every buffer stays byte-identical — the negative control).  Single
-        source via :func:`~orpheus.numerics.moment_layout.face_moment_tail` (the same
-        "append iff > 1" policy ``spatial_moment_tail`` delegates to), fed the
-        per-CELL count ``per_axis^d``."""
-        per_axis = self.spatial_closure.spatial_basis_per_axis
-        return face_moment_tail(cell_moment_count(per_axis, self.problem.ndim))
+        source via :func:`~orpheus.numerics.space.factor_tail` (the one
+        "append iff > 1" rule for cells and faces), fed the per-CELL count
+        ``per_axis^d``."""
+        return self.spatial_closure.moment_tail(self.problem.ndim)
 
     def _inflow_to_moments(
         self, inflow: tuple["np.ndarray", ...],
@@ -1058,7 +1055,7 @@ def _moment_broadcast_sigma(
     sweep arm (:math:`Q/σ_t`) and the matvec arm (:math:`σ_t·ψ̄`) call this, so
     the L21 twin (sweep ≡ matvec are two applications of the same collision-only
     operator) CANNOT diverge on the moment-axis reshape.  The moment-axis
-    discriminator is :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_rank`
+    discriminator is :func:`~orpheus.transport.fields._bases.is_moment_valued_by_rank`
     (single-sourced with the ``_CellSolve`` cell-solve source-reframe gate).
     """
     return sig[..., None] if is_moment_valued_by_rank(moment_valued, sig) else sig
@@ -1324,8 +1321,7 @@ class _OctantWalk:
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The tail
         # is read OFF the probe (its space already carries the scheme's
         # spatial-moment axis — the iterate is the single source of truth for the width).
-        per_axis = self.spatial_closure.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, ndim))
+        moment_tail = self.spatial_closure.moment_tail(ndim)
         operands = _ApplyOperands(
             probe=probe,
             sig_t=sigma,
@@ -1452,8 +1448,7 @@ class _OctantWalk:
                 "pair (residual_kernel_batch_transpose) — the adjoint "
                 "matvec on this scheme is a typed deferral (#310)."
             )
-        per_axis = scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, ndim))
+        moment_tail = scheme.moment_tail(ndim)
         res_bar = phi.interior.values             # (N, ng, *spatial[, 2^d])
         if res_bar.shape[2 + ndim:] != tuple(moment_tail):
             # Pattern-4 backstop (mirror of the 1-D reverse): a cotangent
@@ -2111,7 +2106,7 @@ class FullFieldWavefront(_DAGWavefront):
         """
         N_oct, ng = inflow[0].shape[0], inflow[0].shape[1]
         ndim = len(spatial)
-        tail = face_moment_tail(n_face_moments)
+        tail = factor_tail(n_face_moments)
         # A scalar face is (N_oct, ng, *transverse) — rank 2 + (d−1) = ndim + 1;
         # a moment-resolved face carries one MORE trailing axis (#251).
         flat_face_ndim = ndim + 1
@@ -3411,8 +3406,7 @@ class _OneDimScanWalk:
         # (scalar), so only the cell probe / residual carries the axis.  DD/Step
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.  The width
         # is read OFF the iterate's space (the single source of truth).
-        per_axis = self.spatial_closure.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, problem.ndim))
+        moment_tail = self.spatial_closure.moment_tail(problem.ndim)
         out_g_first = np.zeros((ng, N, nx, *moment_tail))
 
         V = problem.volumes
@@ -3792,8 +3786,7 @@ class _OneDimScanWalk:
         # axis on the incoming cotangent and the ψ̄-cotangent buffer; the d=1
         # FACE cochain is scalar (2^{d-1} = 1) for every closure.  DD/Step
         # (per_axis == 1) → ``()`` tail, every buffer byte-identical.
-        per_axis = scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, problem.ndim))
+        moment_tail = scheme.moment_tail(problem.ndim)
         is_moment_valued = scheme.is_multi_moment
         frame_signs_by_dir = {
             ds: frame_signs_for(scheme, (ds,)) for ds in (+1, -1)
@@ -4161,9 +4154,8 @@ class _OneDimScanWalk:
         # spatial-moment axis on the iterate / source / output so the within-cell
         # slope iterate ``φ̂`` travels between sweeps.  DD/Step (``per_axis == 1``)
         # → ``()`` tail, every buffer + every recurrence byte-identical (the
-        # negative control).  Single source via ``face_moment_tail``.
-        per_axis = scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, self.problem.ndim))
+        # negative control).  Single source via ``factor_tail``.
+        moment_tail = scheme.moment_tail(self.problem.ndim)
         is_moment = moment_tail != ()
 
         # A multi-moment closure lifts a FLAT scalar source onto the average
@@ -4712,8 +4704,7 @@ class _OneDimScanWalk:
                 "streaming_cell_transpose for a curvilinear scheme) — the "
                 "reverse-scan is a typed deferral (#310)."
             )
-        per_axis = scheme.spatial_basis_per_axis
-        moment_tail = face_moment_tail(cell_moment_count(per_axis, self.problem.ndim))
+        moment_tail = scheme.moment_tail(self.problem.ndim)
         is_moment = moment_tail != ()
         if bulk_cot.shape[3:] != tuple(moment_tail):
             # Pattern-4 backstop (mirror of loss_action_transpose's): a
@@ -5117,9 +5108,7 @@ def _sweep_scheduled(
     # D5b-S3) — both the angular field (FFW oracle / non-windowed) and the
     # harmonic-moment tensor (windowed production).  DD/Step (per_axis == 1) →
     # ``()`` tail, every buffer byte-identical (the negative control).
-    moment_tail = face_moment_tail(
-        cell_moment_count(spatial_closure.spatial_basis_per_axis, problem.ndim)
-    )
+    moment_tail = spatial_closure.moment_tail(problem.ndim)
     emit: "_SweepEmitAngular | _SweepEmitMoment"
     if moment_frame is None:
         emit = _SweepEmitAngular(

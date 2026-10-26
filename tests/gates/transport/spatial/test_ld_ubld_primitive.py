@@ -47,7 +47,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn.mesh.reduced_operator import slab_streaming
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
-from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+from orpheus.numerics.basis import AVERAGE_MOMENT, spatial_moment_basis
 from orpheus.transport.spatial._ubld import (
     assemble_inflow_axis,
     assemble_inflow_axis_transpose,
@@ -59,6 +59,9 @@ from orpheus.transport.spatial.scheme import CellVisit, DiscretizationSchemeBase
 
 
 THETA = 1.0 / 3.0
+#: The LD cell bases the numpy kernels take, by dimension (the symbolic mirror
+#: keeps the symbol θ, so the cross-check stays independent of the basis).
+_LD = {d: spatial_moment_basis(2, d) for d in (1, 2, 3)}
 
 cell_average = DiscretizationSchemeBase.cell_average
 source_emission = DiscretizationSchemeBase.source_emission
@@ -91,7 +94,7 @@ class TestPrimitiveMatchesSymbolic:
         mu, h, sig_t = sp.symbols("mu h Sigma_t", positive=True)
         sasm = sym.assemble_ubld([h], [mu], sig_t, sym.THETA)
         subs = {mu: mu_v, h: h_v, sig_t: sig_v, sym.THETA: sp.Rational(1, 3)}
-        nasm = assemble_ubld([np.array(h_v)], [np.array(mu_v)], np.array(sig_v), THETA)
+        nasm = assemble_ubld([np.array(h_v)], [np.array(mu_v)], np.array(sig_v), _LD[1])
         for key in ("A", "M", "G", "F_out"):
             sym_mat = np.array(sasm[key].subs(subs)).astype(float)
             np.testing.assert_allclose(
@@ -118,7 +121,7 @@ class TestPrimitiveMatchesSymbolic:
 
         # numpy dense (same flat-source moment convention).
         nasm = assemble_ubld(
-            [np.array(h_v)], [np.array(mu_v)], np.array(sig_v), THETA,
+            [np.array(h_v)], [np.array(mu_v)], np.array(sig_v), _LD[1],
         )
         Svec = np.array([Q_v, 0.0])            # per-volume source moments
         R_n = np.einsum("...ij,...j->...i", nasm["M"], Svec)
@@ -160,7 +163,7 @@ class TestPrimitiveMatchesSymbolic:
         nasm = assemble_ubld(
             [np.array(hx_v), np.array(hy_v)],
             [np.array(mx), np.array(my)],
-            np.array(sig_v), THETA,
+            np.array(sig_v), _LD[2],
         )
         for key in ("A", "M", "G", "F_out"):
             sym_mat = np.array(sasm[key].subs(subs)).astype(float)
@@ -179,7 +182,7 @@ class TestPrimitiveMatchesSymbolic:
         sig = rng.uniform(0.3, 2.0, shape)
         Qbar = rng.uniform(0.2, 2.0, shape)
         psi_in = rng.uniform(0.05, 0.6, shape)
-        asm = assemble_ubld([h], [mu], sig, THETA)
+        asm = assemble_ubld([h], [mu], sig, _LD[1])
         _require(asm["A"].shape == shape + (2, 2), f"batched A wrong shape: {asm['A'].shape}")
         Svec = np.stack([Qbar, np.zeros_like(Qbar)], axis=-1)
         R = np.einsum("...ij,...j->...i", asm["M"], Svec)
@@ -260,10 +263,10 @@ class TestPrimitiveMatchesSymbolic:
         trace_y = a + b * xx + c * y0 + d * xx * y0   # ψ(x, y0) upstream-y
         hs = [np.array(hx), np.array(hy)]
         mus = [np.array(mu_x), np.array(mu_y)]
-        asm = assemble_ubld(hs, mus, np.array(sig), THETA)
+        asm = assemble_ubld(hs, mus, np.array(sig), _LD[len(hs)])
         R_moment = np.einsum("...ij,...j->...i", asm["M"], S_moments)
-        Fin_x = assemble_inflow_axis(hs, mus, 0, y_face(trace_x), THETA)
-        Fin_y = assemble_inflow_axis(hs, mus, 1, x_face(trace_y), THETA)
+        Fin_x = assemble_inflow_axis(hs, mus, 0, y_face(trace_x), _LD[len(hs)])
+        Fin_y = assemble_inflow_axis(hs, mus, 1, x_face(trace_y), _LD[len(hs)])
         psi_solved = per_cell_solve(asm, R_moment + Fin_x + Fin_y)
         np.testing.assert_allclose(psi_solved, psi_exact, rtol=1e-12, atol=1e-13)
 
@@ -278,7 +281,7 @@ def _dense_d1_reference(
     mu: np.ndarray, h: np.ndarray, sig: np.ndarray, Qbar: np.ndarray, psi_in: np.ndarray,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""Batched dense d=1 solve (flat Q̂ = 0) → (ψ̄, ψ_out) — the reference."""
-    asm = assemble_ubld([h], [mu], sig, THETA)
+    asm = assemble_ubld([h], [mu], sig, _LD[1])
     Svec = np.stack([Qbar, np.zeros_like(Qbar)], axis=-1)
     R = np.einsum("...ij,...j->...i", asm["M"], Svec)
     R = R + mu[..., None] * np.array([1.0, -1.0]) * psi_in[..., None]
@@ -504,9 +507,9 @@ class TestTransposeHelpersAreVJPs:
         mus = [rng.uniform(0.05, 1.0, batch) for _ in range(d)]
         face = rng.standard_normal(batch + (2 ** (d - 1),))
         cot = rng.standard_normal(batch + (2**d,))
-        rhs_vec = assemble_inflow_axis(hs, mus, axis, face, THETA)
+        rhs_vec = assemble_inflow_axis(hs, mus, axis, face, _LD[len(hs)])
         lhs = np.sum(cot * rhs_vec)
-        face_cot = assemble_inflow_axis_transpose(hs, mus, axis, cot, THETA)
+        face_cot = assemble_inflow_axis_transpose(hs, mus, axis, cot, _LD[len(hs)])
         rhs = np.sum(face_cot * face)
         np.testing.assert_allclose(rhs, lhs, rtol=1e-12)
 
@@ -538,7 +541,7 @@ class TestTransposeHelpersAreVJPs:
         )
         gb = g + np.zeros((K, ng, nx))
         asm = assemble_ubld(
-            [np.ones_like(gb)], [gb], sig + np.zeros_like(gb), THETA,
+            [np.ones_like(gb)], [gb], sig + np.zeros_like(gb), _LD[1],
         )
         mdiag = np.diagonal(asm["M"], axis1=-2, axis2=-1)
         r = res_bar / mdiag                          # mass-inverse FIRST

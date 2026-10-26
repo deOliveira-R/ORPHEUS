@@ -38,13 +38,21 @@ from __future__ import annotations
 from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
 from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-from orpheus.numerics.basis.interval_legendre_basis import IntervalLegendreBasis, TensorProductBasis, spatial_moment_basis
+from orpheus.numerics.basis.interval_legendre_basis import (
+    AVERAGE_MOMENT,
+    SPATIAL_MOMENT_AXIS_LABEL,
+    IntervalLegendreBasis,
+    TensorProductBasis,
+    spatial_moment_basis,
+)
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.basis.overlap_basis import OverlapBasis
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.basis.weighted_indicator_basis import WeightedIndicatorBasis
 
 __all__ = [
+    "AVERAGE_MOMENT",
+    "SPATIAL_MOMENT_AXIS_LABEL",
     "Basis",
     "Descent",
     "GramStructure",

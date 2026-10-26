@@ -11,7 +11,7 @@ What the block IS (and is not)
 
 ``M`` acts on ONE ordinate's, ONE group's bulk DOFs — the C-ravel of the
 spatial axes ⊗ the closure's per-cell moment vector (DOF index
-``cell·cm + moment`` with ``cm = cell_moment_count(per_axis, d)``, the
+``cell·cm + moment`` with ``cm = scheme.cell_basis(d).dimension``, the
 #253 single-sourced count; DD's ``cm = 1`` degenerates to the plain cell
 ravel) — at **zero boundary inflow**: the Cartesian ``L + C`` is
 per-ordinate per-group block-diagonal on the bulk (no angular or energy
@@ -53,7 +53,7 @@ make the kernel's products coefficient reads):
   ``m`` of the per-cell diagonal block :math:`\bar A` and ``ψ_out_a`` =
   column ``m`` of the outgoing-trace map :math:`T_a`;
 * face probes ``ψ_in_b = e_f ⊗ 1_cells`` (``d·fm`` of them, ``fm =
-  face_moment_count``) → ``r`` = −column ``f`` of the inflow coupling
+  scheme.face_moment_count(d)``) → ``r`` = −column ``f`` of the inflow coupling
   :math:`C_b` and ``ψ_out_a`` = column ``f`` of the face-memory map
   :math:`\alpha_{ab}`.
 
@@ -109,11 +109,7 @@ import numpy as np
 from scipy import sparse
 
 from orpheus.numerics.assembled_operator import MissingAssembly, SparseAssembledOperator
-from orpheus.numerics.moment_layout import (
-    cell_moment_count,
-    face_moment_count,
-    face_moment_tail,
-)
+from orpheus.numerics.space import factor_tail
 from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
@@ -209,14 +205,14 @@ def _probe_coefficient_blocks(
 
     Shape conventions follow the batched-kernel contract exactly: the
     cell moment axis is PRESENT iff ``cm > 1`` and the face moment tail
-    iff ``fm > 1`` (:func:`face_moment_tail` — the #240 D5b cochain
+    iff ``fm > 1`` (:func:`~orpheus.numerics.space.factor_tail` — the #240 D5b cochain
     policy the walks share).
     """
     d = len(s_axes_k)
     ng = reaction_flat.shape[0]
     zeros_q = np.zeros((1, ng, n_cells))
-    cell_tail = (cm,) if cm > 1 else ()
-    face_tail = face_moment_tail(fm)
+    cell_tail = factor_tail(cm)
+    face_tail = factor_tail(fm)
 
     def cell_field(slot: "int | None") -> np.ndarray:
         field = np.zeros((1, ng, n_cells) + cell_tail)
@@ -324,8 +320,8 @@ def assemble_ordinate_blocks(
             f"{type(scheme).__name__} declares otherwise."
         )
     per_axis = int(scheme.spatial_basis_per_axis)
-    cm = cell_moment_count(per_axis, d)
-    fm = face_moment_count(per_axis, d)
+    cm = scheme.cell_basis(d).dimension
+    fm = scheme.face_moment_count(d)
     n_dof = n_cells * cm
 
     # ── The raw data every mode shares ────────────────────────────────

@@ -88,12 +88,8 @@ from orpheus.transport.radial_characteristic_field import (
 from .problem import SNProblem
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 from .sweep.cache import CollisionCache, StreamingCoefficientCache
-from orpheus.numerics.moment_layout import (
-    AVERAGE_MOMENT,
-    cell_moment_count,
-    face_moment_tail,
-    is_moment_valued_by_flat_rank,
-)
+from orpheus.numerics.basis import AVERAGE_MOMENT
+from orpheus.transport.fields._bases import is_moment_valued_by_flat_rank
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
@@ -3051,9 +3047,7 @@ def _build_fixed_source_rhs(
     # 2^d moment axis).  Reject everything else, INCLUDING a moment axis whose
     # length ≠ per_axis**ndim, and (for DD/Step where there is no moment axis) a
     # moment-resolved input outright (only flat is valid at per_axis == 1).
-    n_cell_moments = cell_moment_count(
-        problem.scheme.spatial_basis_per_axis, problem.ndim
-    )
+    n_cell_moments = problem.scheme.cell_basis(problem.ndim).dimension
     moment_expected = (*expected, n_cell_moments)
     is_flat = bulk_values.shape == expected
     is_moment_resolved = (
@@ -3132,7 +3126,7 @@ def _lift_external_source_to_moments(
     reuses the same lift/thread policy.
     ``bulk_values`` is a typed union of TWO ndarray ranks, discriminated by RANK
     (NOT trailing-size —
-    :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_flat_rank` against
+    :func:`~orpheus.transport.fields._bases.is_moment_valued_by_flat_rank` against
     the flat ``(N, ng, *spatial)`` rank; a coincidental spatial dim could equal
     ``2^d``):
 
@@ -3150,8 +3144,8 @@ def _lift_external_source_to_moments(
       ``octant_moment_frame_signs``) re-signs the external slopes global→sweep
       EXACTLY as it does the scattering slopes — no new cell branch."""
     per_axis = problem.scheme.spatial_basis_per_axis
-    n_cell_moments = cell_moment_count(per_axis, problem.ndim)
-    tail = face_moment_tail(n_cell_moments)
+    n_cell_moments = problem.scheme.cell_basis(problem.ndim).dimension
+    tail = problem.scheme.moment_tail(problem.ndim)
     if tail == ():
         return bulk_values, per_axis
     flat_ndim = 2 + len(problem.spatial_shape)  # (N, ng, *spatial)

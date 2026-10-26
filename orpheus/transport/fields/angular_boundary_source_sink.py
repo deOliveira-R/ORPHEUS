@@ -134,7 +134,7 @@ from typing import TYPE_CHECKING, ClassVar, Protocol
 
 import numpy as np
 
-from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+from orpheus.numerics.basis import AVERAGE_MOMENT
 from orpheus.numerics.units import ANGULAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import AngularBoundaryField
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux

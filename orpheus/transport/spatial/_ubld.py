@@ -74,7 +74,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from orpheus.numerics.basis import IntervalLegendreBasis, spatial_moment_basis
+from orpheus.numerics.basis import IntervalLegendreBasis, TensorProductBasis, spatial_moment_basis
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -85,14 +85,12 @@ from orpheus.numerics.basis import IntervalLegendreBasis, spatial_moment_basis
 # ``orpheus.derivations.discrete.sn.ld_ubld``.  ``mass_1d`` scales with the
 # cell width ``h``; the streaming / face factors are dimensionless ``×|μ|``.
 
-#: dimensionless 1-D streaming/stiffness ``∫B_i ∂_x B_j`` (per unit ``|μ|``).
+#: dimensionless 1-D streaming/stiffness ``−∫ ∂_ξ B_i B_j dξ`` of the two-term
+#: interval factor (per unit ``|μ|``). Hand-tabulated: the interval basis holds
+#: no derivative pairing yet. Its link to the endpoint values is integration by
+#: parts, ``G + Gᵀ = −(B(+1)B(+1)ᵀ − B(−1)B(−1)ᵀ)``, pinned in
+#: ``tests/gates/numerics/test_interval_legendre_basis.py``.
 _GRAD_1D = np.array([[0.0, 0.0], [-2.0, 0.0]])
-#: The 1-D LD factor basis :math:`\{P_0, P_1\}` on the reference interval.
-_LD_FACTOR = IntervalLegendreBasis(2)
-#: dimensionless 1-D downstream-face ``outer(B(+1), B(+1))`` (per unit ``|μ|``).
-_FOUT_1D = np.outer(_LD_FACTOR.endpoint_values(+1), _LD_FACTOR.endpoint_values(+1))
-#: dimensionless 1-D upstream-face test-weighting ``B(-1)`` (per unit ``|μ|``).
-_FIN_TRACE = _LD_FACTOR.endpoint_values(-1)
 
 
 def octant_moment_frame_signs(
@@ -146,16 +144,19 @@ def octant_moment_frame_signs(
     return basis.reflection_signs(tuple(sign < 0 for sign in octant_signs))
 
 
-def mass_1d(h: np.ndarray, theta: float) -> np.ndarray:
-    r"""Batched 1-D LD mass ``diag(h, θh)`` — shape ``(..., 2, 2)``.
+def mass_1d(h: np.ndarray, factor: IntervalLegendreBasis) -> np.ndarray:
+    r"""Batched 1-D mass ``h · diag(G)``, ``G`` the factor's Gram — shape ``(..., n, n)``.
 
-    The numpy mirror of :func:`orpheus.derivations.discrete.sn.ld_ubld.mass_1d`.
-    ``h`` is broadcast over a leading batch (cells / anti-diagonal slots).
+    ``diag(h, θh)`` for the two-term LD factor (:math:`G = [1, 1/3]`). The
+    numpy mirror of :func:`orpheus.derivations.discrete.sn.ld_ubld.mass_1d`,
+    which spells the same matrix from the symbol θ. ``h`` is broadcast over a
+    leading batch (cells / anti-diagonal slots).
     """
     h = np.asarray(h, dtype=np.float64)
-    out = np.zeros(h.shape + (2, 2), dtype=np.float64)
-    out[..., 0, 0] = h
-    out[..., 1, 1] = theta * h
+    gram = factor.coefficient_weights
+    out = np.zeros(h.shape + (factor.n, factor.n), dtype=np.float64)
+    for k in range(factor.n):
+        out[..., k, k] = gram[k] * h
     return out
 
 
@@ -182,7 +183,7 @@ def assemble_ubld(
     hs: list[np.ndarray],
     mus: list[np.ndarray],
     sig_t: np.ndarray,
-    theta: float,
+    basis: TensorProductBasis,
 ) -> dict:
     r"""Assemble the d-generic UBLD cell matrices via batched Kronecker products.
 
@@ -208,8 +209,11 @@ def assemble_ubld(
         ``d`` arrays each broadcastable to the batch.
     sig_t :
         Local :math:`\Sigma_t`, broadcastable to the batch.
-    theta :
-        The slope-moment weight :math:`\theta` (SN-exact ``1/3``).
+    basis :
+        The cell basis, one interval factor per axis
+        (:func:`~orpheus.numerics.basis.interval_legendre_basis.spatial_moment_basis`):
+        the mass is its Gram, the downstream face its endpoint values
+        :math:`B(+1)`.
 
     Returns
     -------
@@ -218,9 +222,12 @@ def assemble_ubld(
         ``F_out`` are ``(..., 2^d, 2^d)`` batched matrices.
     """
     d = len(hs)
-    if len(mus) != d:
-        raise ValueError(f"hs and mus must agree on d; got {d} and {len(mus)}.")
-    masses = [mass_1d(np.asarray(h, dtype=np.float64), theta) for h in hs]
+    if len(mus) != d or basis.ndim != d:
+        raise ValueError(
+            f"hs, mus and the cell basis must agree on d; got {d}, {len(mus)} "
+            f"and {basis.ndim} factor(s)."
+        )
+    masses = [mass_1d(np.asarray(h, dtype=np.float64), f) for h, f in zip(hs, basis.factors)]
 
     # Mass = Kronecker product of all 1-D masses.
     M = masses[0]
@@ -239,8 +246,10 @@ def assemble_ubld(
             np.broadcast_to(_GRAD_1D, batch_shape + (2, 2)) if k == a else masses[k]
             for k in range(d)
         ]
+        downstream = basis.factors[a].endpoint_values(+1)
         face_factors = [
-            np.broadcast_to(_FOUT_1D, batch_shape + (2, 2)) if k == a else masses[k]
+            np.broadcast_to(np.outer(downstream, downstream), batch_shape + (2, 2))
+            if k == a else masses[k]
             for k in range(d)
         ]
         Ga = grad_factors[0]
@@ -260,7 +269,7 @@ def assemble_inflow_axis(
     mus: list[np.ndarray],
     axis: int,
     upstream_face_moments: np.ndarray,
-    theta: float,
+    basis: TensorProductBasis,
 ) -> np.ndarray:
     r"""Inflow (upwind) RHS contribution from one upstream face — batched.
 
@@ -276,7 +285,7 @@ def assemble_inflow_axis(
     the general interior-axis interleave is deferred (S2, the d≥3 cell kernel).
     """
     d = len(hs)
-    masses = [mass_1d(np.asarray(h, dtype=np.float64), theta) for h in hs]
+    masses = [mass_1d(np.asarray(h, dtype=np.float64), f) for h, f in zip(hs, basis.factors)]
     # Transverse mass over the (2^{d-1}) upstream-face moment vector.
     transverse_mass = None
     for k in range(d):
@@ -294,7 +303,7 @@ def assemble_inflow_axis(
         else np.einsum("...ij,...j->...i", transverse_mass, face)
     )
     mu_axis = np.asarray(mus[axis], dtype=np.float64)
-    trace = _FIN_TRACE  # B(-1) = [1, -1]
+    trace = basis.factors[axis].endpoint_values(-1)  # B(-1) = [1, -1]
     batch_shape = weighted_face.shape[:-1]
     if axis == 0:
         # kron(trace, weighted_face): outer = active axis, inner = transverse.
@@ -316,7 +325,7 @@ def assemble_inflow_axis_transpose(
     mus: list[np.ndarray],
     axis: int,
     cotangent_moments: np.ndarray,
-    theta: float,
+    basis: TensorProductBasis,
 ) -> np.ndarray:
     r"""Adjoint of :func:`assemble_inflow_axis` — the upstream-face pullback.
 
@@ -335,20 +344,22 @@ def assemble_inflow_axis_transpose(
     d = len(hs)
     cot = np.asarray(cotangent_moments, dtype=np.float64)
     batch_shape = cot.shape[:-1]
-    n_trans = cot.shape[-1] // 2
+    active = basis.factors[axis]
+    trace = active.endpoint_values(-1)                   # B(-1) = [1, -1]
+    n_trans = cot.shape[-1] // active.n
     if axis == 0:
-        c = cot.reshape(*batch_shape, 2, n_trans)
-        contracted = c[..., 0, :] - c[..., 1, :]         # B(-1)ᵀ = [1, -1]
+        c = cot.reshape(*batch_shape, active.n, n_trans)
+        contracted = np.einsum("...kt,k->...t", c, trace)
     elif axis == d - 1:
-        c = cot.reshape(*batch_shape, n_trans, 2)
-        contracted = c[..., :, 0] - c[..., :, 1]
+        c = cot.reshape(*batch_shape, n_trans, active.n)
+        contracted = np.einsum("...tk,k->...t", c, trace)
     else:
         raise NotImplementedError(
             "assemble_inflow_axis_transpose supports axis in {0, d-1}; the "
             f"general interior-axis interleave (d={d}, axis={axis}) is "
             "deferred (S2), mirroring the forward."
         )
-    masses = [mass_1d(np.asarray(h, dtype=np.float64), theta) for h in hs]
+    masses = [mass_1d(np.asarray(h, dtype=np.float64), f) for h, f in zip(hs, basis.factors)]
     transverse_mass = None
     for k in range(d):
         if k == axis:

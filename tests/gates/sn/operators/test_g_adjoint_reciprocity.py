@@ -356,8 +356,8 @@ def _make_ld_2d(ng: int = 2, sigma: float = 0.5):
     * the BULK metric carries the d=2 moment-mass Kronecker
       ``V·w_n ⊗ [1, θ, θ, θ²]`` (ruling 3's d-generic kron, first
       instantiated at d=2 here — :func:`g_bulk_measure`'s independent
-      spelling vs the production ``moment_mass_diagonal``, pinned equal by
-      the metric cross-check row);
+      spelling vs the production moment axis's weights (the cell basis's
+      Gram), pinned equal by the metric cross-check row);
     * the TRACE is the moment-resolved ``[avg, transverse-slope]`` face
       (#251), whose partial-current metric ``|Ω·n|·w_n`` broadcasts
       UNIFORMLY over the moment axis — the purely-ANGULAR Wave-O

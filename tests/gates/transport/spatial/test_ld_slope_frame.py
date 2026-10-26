@@ -52,6 +52,7 @@ _CONDITIONS = {0: WallCondition.vacuum()}
 THETA = 1.0 / 3.0
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_reflection_signs_are_the_mirrors_action_and_the_octant_frame_map")
 @pytest.mark.l1
 @pytest.mark.verifies("ld-ubld-d1-reduction", "ld-ubld-slope-angular-reduction")
 @pytest.mark.catches("ERR-061")

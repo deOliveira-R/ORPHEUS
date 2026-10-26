@@ -43,6 +43,7 @@ from orpheus.derivations.discrete.sn.ld_ubld import (
     derive_d1_transpose_equals_At_Minv,
     derive_d2_exact_on_bilinear,
     derive_d3_assembles,
+    derive_interval_legendre_gram,
     derive_octant_frame_sign_is_involution,
     fin_trace_weight,
     per_cell_solve,
@@ -238,6 +239,12 @@ class TestTransposeOracles:
         )
         _require_zero_matrix(result["diff_inflow_pullback"], "diff_inflow_pullback")
         _require_zero_matrix(result["diff_face_pullback"], "diff_face_pullback")
+
+    @pytest.mark.foundation
+    def test_interval_legendre_gram(self) -> None:
+        """V_gram: the Gram 1/(2k+1), the endpoint values (±1)^k, the parity, θ = 1/3 (n = 5)."""
+        result = derive_interval_legendre_gram()
+        _require(result["pass"], f"V_gram failed: {result}")
 
     @pytest.mark.foundation
     def test_octant_frame_sign_is_involution(self) -> None:

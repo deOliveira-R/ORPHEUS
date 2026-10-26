@@ -33,7 +33,7 @@ py="$root/.venv/bin/python"
 echo "=== ENVIRONMENT HEALTH (SessionStart gate — #226 pyright + Nexus) ==="
 
 # ── Gate 1: PYRIGHT (the CLI is the oracle, not the LSP stream) ──────────────
-canary="$root/orpheus/numerics/moment_layout.py"   # leaf, fast, first-party imports
+canary="$root/orpheus/numerics/coefficient_layout.py"   # leaf, fast; imports orpheus.values (a first-party import the gate can count)
 pyright_status="UNKNOWN — npx/canary unavailable; pyright UNTRUSTED until a CLI run confirms clean."
 if command -v npx >/dev/null 2>&1 && [ -f "$canary" ]; then
   out=$(cd "$root" && npx --no-install pyright --outputjson "$canary" 2>/dev/null) || out=""
@@ -46,7 +46,7 @@ except Exception:
     print("err")' 2>/dev/null)
     case "$missing" in
       0)   pyright_status="OK — CLI resolves first-party imports (pyrightconfig.json correct). TRUST the CLI (npx pyright), NOT the streamed <new-diagnostics>: the IDE/LSP stream's import/'not defined'/cross-tree noise is a langserver artifact (#226), advisory only." ;;
-      err|"") pyright_status="UNKNOWN — could not parse pyright output; verify by hand: npx pyright orpheus/numerics/moment_layout.py" ;;
+      err|"") pyright_status="UNKNOWN — could not parse pyright output; verify by hand: npx pyright orpheus/numerics/coefficient_layout.py" ;;
       *)   pyright_status="PROBLEM — CLI reports ${missing} reportMissingImports on the canary → the config is NOT resolving first-party orpheus.*. REMEDIATION: (1) bash .claude/hooks/regen-pyrightconfig.sh ; (2) ensure the venv exists: bash scripts/setup.sh --no-docs ; (3) re-run the canary. Until clean, EVERY pyright import diagnostic is suspect." ;;
     esac
   else

@@ -1523,7 +1523,9 @@ are GATED on the single scheme trait
 of :eq:`ld-ubld-n-spatial-moments`.  At ``per_axis == 1`` (DD / Step) the tail
 is the EMPTY tuple (:eq:`spatial-moment-append-policy`), so the scalar face and
 the rank-3 ``psi_avg`` emit are kept byte-identical — DD backward-compatibility
-falls out of the ``face_moment_tail`` formula, NOT an ``if scheme is DD`` branch.
+falls out of the ``face_moment_tail`` formula (since 2026-10-25 the one
+composition rule :func:`~orpheus.numerics.space.factor_tail`), NOT an
+``if scheme is DD`` branch.
 This is the negative control: the DD/Step gate stays at its exact pre-S2 golden.
 
 S2 scope boundaries
@@ -2067,10 +2069,25 @@ The within-cell spatial-moment factor: a first-class DG moment carrier (S3-A0)
      :meth:`DiscretizationSchemeBase.moment_axis
      <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis>`
      — label ``"spatial_moment"``, shape :math:`(2^d,)`, and
-     ``weights`` the scheme's own :meth:`moment_mass_diagonal
-     <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_mass_diagonal>`
+     ``weights`` the scheme's own cell mass (at that step the scheme's
+     ``moment_mass_diagonal``, retired at the moment-basis carve below, since
+     which the weights are the cell basis's Gram)
      — composed on by :meth:`BulkField.compose_spatial_moments
      <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>`.
+   * **The moment-basis carve** (2026-10-25, #423, layer DAG ruling 19)
+     gave the axis a generating object. The axis is the continuum head of
+     the scheme's cell basis,
+     ``Axis.of_basis(scheme.cell_basis(d))`` (:meth:`cell_basis
+     <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis>`,
+     the tensor product of :math:`d` interval Legendre factors), with origin
+     :class:`~orpheus.numerics.axis.FromBasis`, where it had been
+     ``Declared(Modal(e_0))`` with typed :math:`\theta` weights. Its weights
+     and unit are bitwise unchanged; its identity gained the reference cell
+     as support and the tensor layout. :math:`\theta` is now read from the
+     interval basis's Gram, and the counting functions of the layout module
+     are properties of the basis. The account, with the derivation and the
+     measured reason it is the basis's head and not a frame's, is
+     :ref:`spaces-cell-basis`.
 
    ⛔ **Why the class had to go: it was a SECOND spelling of a factor
    that already existed.** Since CS4b the widened *angular* and *scalar*
@@ -2095,8 +2112,14 @@ The within-cell spatial-moment factor: a first-class DG moment carrier (S3-A0)
    **What is unchanged and still normative:** the Kronecker ordering and
    the slot-0 cell-average convention, the ``(per_axis)^d`` count law,
    and the "append iff > 1" byte-identity policy. That doctrine was
-   never the class's — it lives in
-   :mod:`orpheus.numerics.moment_layout`, and it did not move.
+   never the class's. From item 6.2c-iii until 2026-10-25 it was spelled
+   in a layout module, ``orpheus.numerics.moment_layout``; since the
+   moment-basis carve the order, the slot and the count are properties
+   of the cell basis
+   (:class:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis`,
+   :ref:`spaces-cell-basis`), the "append iff > 1" policy is the space
+   composition rule :func:`~orpheus.numerics.space.factor_tail`, and the
+   layout module is retired. The doctrine's content did not change.
 
 The typed-field-space half of S3-A (the half the scattering-lift TODO above
 flagged as a hard prerequisite).  The within-cell tensor-Legendre DG moment
@@ -2127,7 +2150,8 @@ less — they are two axes, side by side, of the same product.
 .. (vv-status rationale) Named-field-typing dimension identity
    dim = per_axis^d. Foundation-gated by test_spatial_moment_field_space
    and test_spatial_moment_tail_is_the_schemes_axis (the tail axis's shape
-   against cell_moment_count).
+   against per_axis ** ndim); the basis's own dimension law is
+   test_interval_legendre_basis::test_the_dimension_is_the_count_to_the_dimension.
 .. vv-status: spatial-moment-space-size documented
 
 The factor composes into the bulk-field spaces EXACTLY as the angular
@@ -2141,11 +2165,14 @@ factor does.
    closed #207 (see the note below). Since item 6.2c-iii it is an
    :class:`~orpheus.numerics.axis.Axis` of an axis-built space and is
    recovered by LABEL —
-   :data:`~orpheus.numerics.moment_layout.SPATIAL_MOMENT_AXIS_LABEL` —
+   :data:`~orpheus.numerics.basis.interval_legendre_basis.SPATIAL_MOMENT_AXIS_LABEL` —
    which is what
    :meth:`BulkField.spatial_moments_per_axis_of
    <orpheus.transport.fields._bases.BulkField.spatial_moments_per_axis_of>`
-   reads off the space.
+   reads off the space. Since the moment-basis carve (2026-10-25) it reads
+   the per-axis count off the axis's origin, the cell basis, instead of
+   taking a float root of the axis's length, and refuses a basis whose
+   factor count is not the mesh dimension (:ref:`spaces-cell-basis`).
    ``TensorProductSpace.find_factor``, minted by this step as the typed
    bridge from a composed space back to a factor's metadata, retired at
    S7 of the numerics untangling: its last queries, the harmonic head's
@@ -2163,11 +2190,11 @@ field-space factories of the day (``AngularField.from_mesh``,
 factory did not)
 gained an OPTIONAL ``spatial_moments`` parameter (default ``1``) that
 appends the factor **iff the within-cell count exceeds 1** — the
-"append iff > 1" gate single-sourced from
-:func:`~orpheus.numerics.moment_layout.spatial_moment_tail`
-(the cell analogue that delegates to
-:func:`orpheus.numerics.moment_layout.face_moment_tail`, so the cell-moment tail
-and the per-face cochain tail can never disagree).  At the default the
+"append iff > 1" gate, single-sourced at this step from
+``spatial_moment_tail`` (a cell analogue that delegated to
+``face_moment_tail``, so the cell-moment tail and the per-face cochain tail
+could never disagree), and since 2026-10-25 the one composition rule
+:func:`~orpheus.numerics.space.factor_tail` for cells and faces alike.  At the default the
 field space is BYTE-IDENTICAL to its pre-S3 shape for EVERY scheme (DD,
 Step, AND LD): this step builds the CAPABILITY only (construct-general /
 select-narrow), and no production field selects the axis yet.
@@ -2236,8 +2263,8 @@ field legal:
    items 6.2c-ii and 6.2c-iii made the angular head an axis too. The one
    thing the axis adds, which the class never had, is the MEASURE: the
    axis carries the scheme's own cell mass
-   (:meth:`moment_mass_diagonal
-   <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_mass_diagonal>`),
+   (the cell basis's Gram since 2026-10-25, spelled once, on the axis;
+   until then the scheme also exposed it as ``moment_mass_diagonal``),
    so the moment field's norm is its energy on the tail as well as on
    the head. That is why the class could not simply be renamed.
 
@@ -2273,7 +2300,10 @@ The Kronecker moment ordering
 
 The within-cell basis is the tensor (Kronecker) product of the per-axis 1-D
 Legendre basis, ordered **x-outer / y-inner** (matching the UBLD assembler
-:func:`orpheus.transport.spatial._ubld.assemble_ubld`).  The convention is fixed so
+:func:`orpheus.transport.spatial._ubld.assemble_ubld`).  Since 2026-10-25 it is
+an object, the scheme's
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis`
+(factor 0 outermost; :ref:`spaces-cell-basis`).  The convention is fixed so
 that the all-:math:`P_0` cell average is ALWAYS slot 0:
 
 .. math::
@@ -2292,10 +2322,11 @@ that the all-:math:`P_0` cell average is ALWAYS slot 0:
 .. vv-status: spatial-moment-kronecker-order documented
 
 The slot-0 (cell-average) convention is single-sourced from
-:data:`orpheus.numerics.moment_layout.AVERAGE_MOMENT` (the constant every moment
-consumer reduces on) rather than re-spelling the literal ``0``, so a
-layout change happens in ONE place and not at the scattered ``[..., 0]``
-call sites.
+:data:`~orpheus.numerics.basis.interval_legendre_basis.AVERAGE_MOMENT`
+(exported by ``orpheus.numerics.basis``; the constant every moment consumer
+reduces on, and the slot of the tensor layout's unit :math:`e_0`) rather than
+re-spelling the literal ``0``, so a layout change happens in ONE place and not
+at the scattered ``[..., 0]`` call sites.
 
 .. note::
 
@@ -2303,13 +2334,18 @@ call sites.
    an ``average_moment_index`` accessor.  Item 6.2c-iii retired the class
    and the accessor with it; every consumer imports the constant
    directly.  `[M]` 2026-09-08, by AST over ``orpheus/``: **5** modules
-   import :data:`~orpheus.numerics.moment_layout.AVERAGE_MOMENT` and
+   imported ``AVERAGE_MOMENT`` from the layout module of the day and
    read it at **10** sites (``sn/loss_representation`` 5, ``sn/solver``
    2, and one each in ``transport/spatial/linear_discontinuous``,
    ``transport/fields/angular_boundary_source_sink`` and
    ``derivations/continuous/mms/sn``), and ``average_moment_index``
-   appears **nowhere** in the tree.  The convention did not move — only
-   the spelling of who hands it out.
+   appeared **nowhere** in the tree.  `[M]` 2026-10-25, the same predicate
+   (an ``ImportFrom`` naming the constant, and every load of the name, over
+   the 395 files under ``orpheus/``;
+   ``scratch/layer_dag/moment_basis/s5/archivist_census.py``): **6**
+   consumer modules (the five above and ``sn/problem``) import it from
+   ``orpheus.numerics.basis`` and read it at **10** sites.  The convention
+   did not move — only the spelling of who hands it out.
 
 Slot 0 is the link
 between the two scales: the cell-average moment :math:`\bar\psi` is what the
@@ -2343,18 +2379,25 @@ The critical detail is that ``n == 1`` returns the EMPTY tuple, NOT
 broadcast-equal the old shape numerically but would change ``ndarray.shape``
 and ``ndim``, breaking every byte-identity gate and every consumer that reads
 ``.ndim``.  The empty-tuple branch keeps the DD/Step field space *literally
-identical* to its pre-S3 self.  :func:`orpheus.numerics.moment_layout.face_moment_tail`
-owns the policy; the cell analogue
-:func:`~orpheus.numerics.moment_layout.spatial_moment_tail`
-delegates to it (Pattern 7 — normalise the convention at one site), and
+identical* to its pre-S3 self.  :func:`orpheus.numerics.space.factor_tail`
+owns the policy for cells and faces alike (Pattern 7 — normalise the
+convention at one site), the scheme applies it to its cell basis once,
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_tail`, and
 :meth:`BulkField.compose_spatial_moments
 <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>`
-returns the space UNCHANGED when the
-tail is ``()``.  The cell analogue lived beside the ``SpatialMomentSpace``
-class until item 6.2c-iii and is now homed in
-:mod:`orpheus.numerics.moment_layout` beside the face policy it delegates
-to — the two halves of one "append iff > 1" rule in one module, which is
-where the policy always belonged.
+returns the space UNCHANGED when the tail is ``()``.  The rule is a fact of
+space composition, not of any basis: a factor of width 1 is
+:math:`\mathbb R`, and :math:`V \otimes \mathbb R \cong V`, so composing with
+it must leave the space, and every buffer on it, unchanged.
+
+Where the rule has lived: until item 6.2c-iii the cell half beside the
+``SpatialMomentSpace`` class and the face half, ``face_moment_tail``, in the
+layout module; from 6.2c-iii both halves in that module,
+``orpheus.numerics.moment_layout``, the cell half ``spatial_moment_tail``
+delegating to the face half; and since the moment-basis carve (2026-10-25)
+one function beside :meth:`FunctionSpace.of_axes
+<orpheus.numerics.space.FunctionSpace.of_axes>`, with the layout module
+retired (:ref:`spaces-cell-basis`).
 
 Construct-general, select-narrow — what this step did and did NOT do
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2428,7 +2471,8 @@ Verification (foundation-level)
 The space and the factory widening are software invariants, so they are
 verified at the **foundation** level (data-structure / factory-output
 invariants, not an L0/L1/L2 solver claim — they carry no eigenvalue or flux
-assertion), in two test modules:
+assertion), in two test modules, joined by two more at the moment-basis
+carve:
 
 * ``tests/gates/numerics/test_spatial_moment_field_space.py`` — the factory
   widening: the **byte-identity-at-default negative control** for DD AND LD on
@@ -2443,9 +2487,10 @@ assertion), in two test modules:
   axis-built with the scheme's own ``moment_axis`` as its tail (the axis
   compared to :meth:`DiscretizationSchemeBase.moment_axis
   <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis>`
-  and its weights to
-  :meth:`moment_mass_diagonal
-  <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_mass_diagonal>`),
+  and, until 2026-10-25, its weights to the scheme's
+  ``moment_mass_diagonal``; since the moment-basis carve the axis is the one
+  spelling of the mass, so the row asserts that the tail carries weights and
+  defers their value to the hand-typed pin named below),
   that the hub and the frame agree at width 2 exactly as at width 1
   (ruling O-5), that the tail's measure MOVES the pairing — Parseval
   across the tail, with a Euclidean-tail negative control that must
@@ -2453,6 +2498,16 @@ assertion), in two test modules:
   widened request, that a widened field self-derives its scalar flux and
   truncates onto the hub's space, and that the retired class is
   unspellable.
+
+* ``tests/gates/numerics/test_interval_legendre_basis.py`` and
+  ``tests/gates/transport/spatial/test_cell_basis_head.py`` — since the
+  moment-basis carve (2026-10-25): the cell basis's laws (the Gram, the
+  endpoint values, the parity, the Kronecker order against the
+  :eq:`spatial-moment-kronecker-order` block of this page, the face trace,
+  the mirror signs) and the scheme's axis as its head, with the VALUE pin of
+  the axis weights against a hand-typed :math:`\theta` table
+  (``::test_the_moment_axis_metric_is_the_gram_not_its_inverse``) that the
+  comparison in the previous bullet no longer is (:ref:`spaces-cell-basis`).
 
 .. note::
 
@@ -2462,14 +2517,14 @@ assertion), in two test modules:
    :math:`(\text{per\_axis})^d` size law, the
    ``TensorProductSpace.find_factor``
    round-trip, the composition shape, the ``per_axis == 1`` no-widening
-   case, and ``average_moment_index`` :math:`==`
-   :data:`~orpheus.numerics.moment_layout.AVERAGE_MOMENT`.  Item
+   case, and ``average_moment_index`` :math:`==` ``AVERAGE_MOMENT``.  Item
    6.2c-iii retired the class, so that module retired with it and its
    surviving claims were re-keyed onto the successors: the size law and
-   the no-widening case are asserted against
-   :func:`~orpheus.numerics.moment_layout.cell_moment_count` and
-   :func:`~orpheus.numerics.moment_layout.spatial_moment_tail` in the
-   new module, the composition shape lives in both field-space modules,
+   the no-widening case were asserted against the layout module's
+   ``cell_moment_count`` and ``spatial_moment_tail`` in the new module
+   (since 2026-10-25 against ``per_axis ** ndim`` and
+   :func:`~orpheus.numerics.space.factor_tail`), the composition shape lives
+   in both field-space modules,
    and the slot-0 identity is now the constant itself, imported
    directly by every consumer.  The head's ``find_factor`` round-trip
    survived in ``tests/gates/numerics/test_moment_head_axis_built_premise.py``

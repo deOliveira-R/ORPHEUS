@@ -113,11 +113,8 @@ from typing import ClassVar
 
 import numpy as np
 
-from orpheus.numerics.basis import IntervalLegendreBasis
-from orpheus.numerics.moment_layout import (
-    AVERAGE_MOMENT,
-    face_moment_tail,
-)
+from orpheus.numerics.basis import AVERAGE_MOMENT
+from orpheus.numerics.space import factor_tail
 
 from ._ubld import (
     D1ClosedForm,
@@ -326,17 +323,18 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
 
     @property
     def theta(self) -> float:
-        r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b): the degree-1 Gram of the interval basis.
+        r"""The slope-moment weight :math:`\theta` (LM-1989 Eq. 4.3b): the degree-1 Gram of the cell basis's factor.
 
-        :math:`\theta = \int_{-1}^{1} P_1^2 \,\mathrm d\xi/2 = 1/3`, read from
-        :attr:`~orpheus.numerics.basis.interval_legendre_basis.IntervalLegendreBasis.coefficient_weights`
-        at use, so the mass and the kernels hold one definition. It is the
-        SN-exact consistent linear-discontinuous closure (LM-1989 sets it for the
-        consistent LD; it is a free parameter only in their asymptotic
-        analysis); the mass-lumped (LLD) value is a different scheme, not a
-        different θ.
+        :math:`\theta = \int_{-1}^{1} P_1^2 \,\mathrm d\xi/2 = 1/3`, read from the
+        cell basis at use. The d = 1 closed forms (:func:`~orpheus.transport.spatial._ubld.d1_closed_form`,
+        the scan coefficients) are parameterised by θ alone because the
+        degree-0 Gram is 1 for every interval Legendre factor
+        (:math:`\int P_0^2\,\mathrm d\xi/2 = 1`); the dense kernels read the
+        whole Gram off the basis. It is the SN-exact consistent
+        linear-discontinuous closure; the mass-lumped (LLD) value is a
+        different scheme, not a different θ.
         """
-        return float(IntervalLegendreBasis(self.spatial_basis_per_axis).coefficient_weights[1])
+        return float(self.cell_basis(1).factors[0].coefficient_weights[1])
 
     # ── Schur-complement scalar intermediates (single source for both
     #    update and residual — Pattern 2, Cardinal Rule 2) ────────────────
@@ -486,14 +484,15 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         average-moment slot index is the single-sourced :data:`AVERAGE_MOMENT`.
         """
         d = len(s_axes)
-        size = self.cell_basis(d).layout.shape[0]
+        basis = self.cell_basis(d)
+        size = basis.dimension
         # g_a = s_axes[a] (N_oct, 1, n_diag); broadcast to (N_oct, ng, n_diag)
         # against reaction_xs (ng, n_diag).
         sig_b = np.asarray(reaction_xs)
         gs = [np.asarray(s) + np.zeros_like(sig_b) for s in s_axes]
         sig_full = sig_b + np.zeros_like(gs[0])
         ones = [np.ones_like(g) for g in gs]
-        assembled = assemble_ubld(ones, gs, sig_full, self.theta)
+        assembled = assemble_ubld(ones, gs, sig_full, basis)
         batch = assembled["A"].shape[:-2]   # (N_oct, ng, n_diag) — the cell stack
         Q = np.asarray(Q_cells)
         # Discriminate moment vs flat by RANK against the cell-stack batch
@@ -526,12 +525,12 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         transverse mass, times ``g_a`` (the ÷V streaming, ``mus[axis]``).
 
         At d=1 the transverse-moment count is ``2^{d-1} = 1`` and the walk's
-        face cochain carries NO explicit moment axis (``face_moment_tail(1) ==
+        face cochain carries NO explicit moment axis (``factor_tail(1) ==
         ()``), so each face arrives as ``(N_oct, ng, n_diag)``.  The dense
         inflow assembler needs the transverse-moment axis EXPLICIT (it is the
         face's LAST axis), so a trailing length-1 axis is appended here at d=1
         (#240 D5b-S3 — the unified moment matvec routes d=1 LD through the dense
-        primitive).  The decision keys on ``face_moment_tail(2^{d-1}) == ()``
+        primitive).  The decision keys on ``factor_tail(2^{d-1}) == ()``
         (deterministic on ``d``, NOT on a shape probe — a scalar face's
         trailing ``n_diag == 1`` is indistinguishable from a length-1 moment
         axis by shape alone).  This is LD-only (DD never reaches this method),
@@ -545,12 +544,12 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         # (d = 1, where the face is a point and its trace space has dimension 1).
         faces = [
             np.asarray(psi_in[a])[..., None]
-            if face_moment_tail(basis.face_dimension(a)) == ()
+            if factor_tail(basis.face_dimension(a)) == ()
             else np.asarray(psi_in[a])
             for a in range(d)
         ]
         terms = [
-            assemble_inflow_axis(ones, gs, a, faces[a], self.theta)
+            assemble_inflow_axis(ones, gs, a, faces[a], basis)
             for a in range(d)
         ]
         R = terms[0]                                # d ≥ 1 ⇒ ≥ 1 axis, never empty
@@ -589,7 +588,7 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
             # in-of-next-cell (#240 D5b-S3, the unified moment matvec).
             trace = basis.factors[a].endpoint_values(+1)
             face = np.tensordot(tensor, trace, axes=([len(batch) + a], [0]))
-            faces.append(face.reshape(*batch, *face_moment_tail(basis.face_dimension(a))))
+            faces.append(face.reshape(*batch, *factor_tail(basis.face_dimension(a))))
         return tuple(faces)
 
     @classmethod
@@ -613,12 +612,12 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         basis = cls.cell_basis(d)
         factor_shape = basis.layout.factor_shape
         first = np.asarray(faces_bar[0], dtype=np.float64)
-        batch = first.shape[: first.ndim - len(face_moment_tail(basis.face_dimension(0)))]
+        batch = first.shape[: first.ndim - len(factor_tail(basis.face_dimension(0)))]
         out = np.zeros(batch + basis.layout.shape)
         tensor = out.reshape(*batch, *factor_shape)
         for a in range(d):
             fb = np.asarray(faces_bar[a], dtype=np.float64)
-            if face_moment_tail(basis.face_dimension(a)) == ():
+            if factor_tail(basis.face_dimension(a)) == ():
                 fb = fb[..., None]                 # d=1: re-append the moment axis
             fb_t = fb.reshape(*batch, *(factor_shape[:a] + factor_shape[a + 1:]))
             # The adjoint of the trace contraction: each face cotangent spread
@@ -760,9 +759,9 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         psi_in_cots = []
         for a in range(d):
             face_cot = assemble_inflow_axis_transpose(
-                ones, gs, a, r_bar, self.theta,
+                ones, gs, a, r_bar, basis,
             )
-            if face_moment_tail(basis.face_dimension(a)) == ():
+            if factor_tail(basis.face_dimension(a)) == ():
                 face_cot = face_cot[..., 0]
             psi_in_cots.append(-face_cot)
         return psi_bar_cot, tuple(psi_in_cots)

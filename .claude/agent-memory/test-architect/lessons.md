@@ -623,6 +623,10 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   gate where it collects; record the base red per file in a FRESH interpreter (the S2a helper's `sys.modules` stub contaminates the next file); `sum()` of floats is
   compensated since 3.12 (spell the naive fold with `reduce`); a `scratch/` script imports the venv's MAIN checkout (set `PYTHONPATH`, print `orpheus.__file__`). → `L119`
 
+- **⛔ Price a traced-memo regeneration by PARTITIONING the cache with `validate()` on the current tree, never by reasoning from the carve.** Memo
+  entries are pinned by module SKELETONS (any new import, class or module-level statement in a pinned module re-validates every entry), and the
+  cache may already be entirely stale for other reasons (0 of 8064 valid, 2026-10-25). → `L120`
+
 ## 9. Pointers
 
 - **Two instrument vocabularies, do not mix them.** THEOREM / REFERENCE / RECORD

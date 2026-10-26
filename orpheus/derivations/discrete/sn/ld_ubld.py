@@ -655,6 +655,41 @@ def derive_d1_transpose_equals_At_Minv() -> dict:
     }
 
 
+def derive_interval_legendre_gram(n: int = 5) -> dict:
+    r"""V_gram — the interval Legendre basis: Gram, endpoint values, parity, and θ.
+
+    The algebra of record of
+    :class:`orpheus.numerics.basis.interval_legendre_basis.IntervalLegendreBasis`
+    (the moment-basis carve, #423). For :math:`P_k` on :math:`\xi \in [-1, 1]`
+    (SymPy's ``legendre``, :math:`P_k(1) = 1`), against the normalised measure
+    :math:`\mathrm d\xi/2`, proves for :math:`k, l < n`:
+
+    * the Gram :math:`\int_{-1}^{1} P_k P_l\,\mathrm d\xi/2 = \delta_{kl}/(2k+1)`
+      (DLMF Eq. 18.3, Table 18.3.1, with the measure halved);
+    * the endpoint values :math:`P_k(\pm 1) = (\pm 1)^k`;
+    * the parity :math:`P_k(-\xi) = (-1)^k P_k(\xi)`;
+    * the slope-moment weight :math:`\theta = 1/3` (LM-1989 Eq. 4.3b) is the
+      degree-1 Gram, and the degree-0 Gram is 1 (why the d = 1 closed forms
+      are parameterised by θ alone).
+    """
+    xi = sp.Symbol("xi", real=True)
+    P = [sp.legendre(k, xi) for k in range(n)]
+    gram = sp.Matrix(n, n, lambda k, l: sp.integrate(P[k] * P[l], (xi, -1, 1)) / 2)
+    gram_ok = sp.simplify(gram - sp.diag(*[sp.Rational(1, 2 * k + 1) for k in range(n)])).is_zero_matrix
+    endpoints_ok = all(P[k].subs(xi, 1) == 1 and P[k].subs(xi, -1) == (-1) ** k for k in range(n))
+    parity_ok = all(sp.expand(P[k].subs(xi, -xi) - (-1) ** k * P[k]) == 0 for k in range(n))
+    theta_ok = gram[0, 0] == 1 and gram[1, 1] == sp.Rational(1, 3)
+    return {
+        "name": "V_gram: interval Legendre Gram, endpoint values, parity, theta",
+        "gram": gram,
+        "gram_ok": gram_ok,
+        "endpoints_ok": endpoints_ok,
+        "parity_ok": parity_ok,
+        "theta_ok": theta_ok,
+        "pass": bool(gram_ok and endpoints_ok and parity_ok and theta_ok),
+    }
+
+
 def derive_octant_frame_sign_is_involution() -> dict:
     r"""V_frame_T — the octant moment-frame sign map: involution, transpose-preserved.
 

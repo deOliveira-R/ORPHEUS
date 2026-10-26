@@ -76,7 +76,8 @@ from types import MappingProxyType
 
 import numpy as np
 
-from orpheus.numerics.moment_layout import face_moment_tail, is_moment_valued_by_rank
+from orpheus.numerics.space import factor_tail
+from orpheus.transport.fields._bases import is_moment_valued_by_rank
 from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase
 
@@ -296,7 +297,7 @@ class _MovingFrontier:
         # the rank-r face buffers byte-identical.  The seed/incoming/emit/shed
         # selectors index the leading (N_oct, ng, parity, *slab) axes only, so a
         # trailing moment axis rides along untouched.
-        tail = face_moment_tail(n_face_moments)
+        tail = factor_tail(n_face_moments)
         win = []
         for a, n_a in enumerate(plan.spatial_shape):
             shp = list(free)
@@ -913,7 +914,7 @@ class _CellSolve(ABC):
         # slot 0 itself).  A flat source has only the sign-invariant average
         # moment, so it must NOT be reframed.  Discriminate by RANK against
         # ``reaction_xs`` via the shared S4-safe
-        # :func:`~orpheus.numerics.moment_layout.is_moment_valued_by_rank`
+        # :func:`~orpheus.transport.fields._bases.is_moment_valued_by_rank`
         # (single-sourced with ``_moment_broadcast_sigma``; a coincidental
         # ``n_diag == 2^d`` would mis-fire a trailing-length probe, the rank
         # cannot).  At DD/Step ``frame_signs`` is None → no-op regardless.

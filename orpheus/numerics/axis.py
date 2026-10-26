@@ -43,8 +43,9 @@ The slots, precisely
   consumer that needs a quadrature names that need in its own refusal.
   ``Declared`` is the honest arm where no generating object exists or may
   be imported here: the energy axes (their content is their edges), the
-  homogeneous one-point axis, the rank-``d`` spatial arm (contract G6b) and
-  the LD scheme's spatial-moment axis (``Modal(e₀)``; ruling 82).
+  homogeneous one-point axis and the rank-``d`` spatial arm (contract G6b;
+  ruling 82). The LD scheme's spatial-moment axis is ``FromBasis``, the
+  continuum head of its cell basis (#423).
 * ``kind``, ``support``, ``nodes``, ``layout`` — **derived from the origin**, never
   passed: :attr:`Axis.kind` is the closed sum ``BasisKind.NODAL |``
   :class:`Modal` ``(unit)`` (ruling 41), so ``Axis(kind=NODAL,
@@ -261,11 +262,9 @@ class Declared:
     r"""The origin of an axis no generating object minted: the kind is declared.
 
     Used where the content is complete without atoms — the energy axes
-    (their edges are their content), the homogeneous one-point axis, the
+    (their edges are their content), the homogeneous one-point axis and the
     rank-``d`` spatial arm (contract G6b: no rank-``d`` measure-to-axis
-    pairing exists yet) and the LD scheme's spatial-moment axis, which is
-    ``Modal(e₀)`` and whose generator, the scheme, lives in the transport
-    layer (ruling 82).
+    pairing exists yet; ruling 82).
     """
 
     declared: AxisKind

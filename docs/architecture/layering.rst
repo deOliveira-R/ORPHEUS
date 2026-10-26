@@ -698,8 +698,9 @@ and ``derivations/common/`` (the user's ruling on the gate's scope,
   reason in the gate. The S\ :sub:`N` manufactured-solution harness poses
   production meshes: ``derivations/continuous/mms/sn.py`` imports
   :mod:`orpheus.mesh` and the production
-  :mod:`orpheus.numerics.quadrature` and
-  :mod:`orpheus.numerics.moment_layout` to pose S\ :sub:`N` meshes (it
+  :mod:`orpheus.numerics.quadrature` and, in one function body,
+  ``orpheus.numerics.basis`` (for the cell-average slot ``AVERAGE_MOMENT``)
+  to pose S\ :sub:`N` meshes (it
   imports nothing from :mod:`orpheus.transport` since layer DAG P4c,
   2026-10-22). ``derivations/continuous/mms/moc.py`` was the second exempt
   module until layer DAG P4b (2026-10-22), when its MoC problem posing
@@ -770,7 +771,14 @@ kernel's tree it returns none. Every other non-interface import of
 same day, ``git grep`` over the import lines of ``orpheus/derivations``,
 4 import lines in 2 files): ``Quadrature`` and ``moment_layout`` in
 ``continuous/mms/sn.py``, and ``roots_of_unity`` in
-``discrete/sn/balance.py``. The production-machinery rule's first red is
+``discrete/sn/balance.py``. `[M]` 2026-10-25, the gate's own target
+resolver (``_imported_targets``, ``_numerics_submodule``) over the 145
+modules under ``orpheus/derivations/``, with a synthetic
+``from orpheus.numerics.basis import ...`` line as its positive control: 2
+non-interface targets in 1 file, ``orpheus.numerics.quadrature`` and
+``orpheus.numerics.basis`` in ``continuous/mms/sn.py``. The roots of unity
+left numerics at layer DAG WP-B and the layout module retired into the
+basis on 2026-10-25. The production-machinery rule's first red is
 the Sood builder without its exemption (`[M]` 2026-10-06, the gate's
 predicate run with the entry removed): two violations for
 :mod:`orpheus.mesh` and one for ``orpheus.cp.solver``; on the tree with the
@@ -859,6 +867,18 @@ invisible to it: its first run at every depth was red on four, the
 ``material_mesh``/``material_xs_field``, and the ``sn.operators`` triad
 ``streaming``/``scheduled_invertible``/``sweep_operator``, each broken in the
 same change by one of the four repairs above.
+
+The layout module ``orpheus.numerics.moment_layout`` retired on 2026-10-25
+(layer DAG ruling 19, #423). It encoded the linear-discontinuous scheme's
+polynomial cell basis in a layer that held no basis for it: 14 production
+import statements in 11 files, none inside numerics, all from the transport
+and S\ :sub:`N` layers and the S\ :sub:`N` manufactured-solution harness
+(``[M]`` the explorer's census of 2026-10-25,
+``scratch/layer_dag/moment_basis/context.md``). Its facts became properties
+of a numerics basis (the interval Legendre basis and the tensor product,
+:ref:`spaces-cell-basis`), its tail rule a rule of space composition, and its
+rank predicates members of the field layer, which is where each one's
+vocabulary lives.
 
 The closed-reference contract (:ref:`architecture-reference-insulation`)
 was added on 2026-10-06 with the reference kernel, as the precursor of the

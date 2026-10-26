@@ -694,7 +694,7 @@ REFERENCE_FORBIDDEN_PACKAGES: frozenset[str] = MESH_PACKAGES | L2_PACKAGES | L3_
 # of record of a production discretization).
 _REFERENCE_INSULATION_EXEMPT: frozenset[str] = frozenset(
     {
-        "derivations/continuous/mms/sn.py",  # the MMS harness that poses SN meshes (mesh, quadrature, moment layout; no transport since P4c)
+        "derivations/continuous/mms/sn.py",  # the MMS harness that poses SN meshes (mesh, quadrature, the cell-average slot from numerics.basis; no transport since P4c)
     }
 )
 

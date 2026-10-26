@@ -99,14 +99,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.field import Field
-from orpheus.numerics.axis import EnergyAxis
-from orpheus.numerics.coefficient_layout import TensorLayout
-from orpheus.numerics.moment_layout import (
-    SPATIAL_MOMENT_AXIS_LABEL,
-    cell_moment_count,
-    spatial_moment_tail,
-)
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.axis import EnergyAxis, FromBasis
+from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL, TensorProductBasis, spatial_moment_basis
+from orpheus.numerics.space import FunctionSpace, factor_tail
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.spaces.radial_characteristic_space import (
@@ -298,6 +293,42 @@ def spatial_moments_per_axis_of(space: FunctionSpace) -> int:
     its audience — the elegance review's N1)."""
     return BulkField.spatial_moments_per_axis_of(space)
 
+
+def is_moment_valued_by_flat_rank(array: NDArray, flat_ndim: int) -> bool:
+    r"""Does ``array`` carry the trailing spatial-moment axis, judged against the flat rank ``flat_ndim``?
+
+    ``True`` iff ``array`` has more axes than a flat ``(N…, ng, *spatial)``
+    buffer, whose rank is ``flat_ndim``: it then carries the trailing
+    :math:`p^d` moment axis. The rank core both moment-valued discriminators
+    reduce to: :func:`is_moment_valued_by_rank` (which derives ``flat_ndim``
+    from a per-ordinate-stripped reference array) and the external-source
+    lift (:func:`orpheus.sn.solver._lift_external_source_to_moments`, which
+    knows only the flat rank). One rank test (#246, #247), so an open-coded
+    ``array.ndim == flat_ndim`` cannot diverge from it.
+
+    Rank, not trailing size: a d = 2 anti-diagonal of exactly 4 cells has a
+    trailing size equal to :math:`2^2`, but a flat buffer's rank never equals
+    a moment buffer's.
+    """
+    return array.ndim > flat_ndim
+
+
+def is_moment_valued_by_rank(array: NDArray, reference: NDArray) -> bool:
+    r"""Does ``array`` carry the trailing spatial-moment axis, judged by rank against ``reference``?
+
+    A moment buffer is ``(N…, ng, *spatial, p^d)`` while its scalar reference
+    (:math:`\Sigma_t`, ``reaction_xs``) is the per-ordinate-stripped
+    ``(ng, *spatial)``, so a moment buffer has more than one axis beyond the
+    reference, whereas a flat ``(N…, ng, *spatial)`` buffer (a matvec zero, a
+    flat external source) has exactly one. Delegates to
+    :func:`is_moment_valued_by_flat_rank` at the flat rank
+    ``reference.ndim + 1``. Consumed by the matvec moment broadcast
+    (:func:`orpheus.sn.loss_representation._moment_broadcast_sigma`) and the
+    cell-solve source reframe
+    (``orpheus.sn.loss_representation.sweep_graph._CellSolve``).
+    """
+    return is_moment_valued_by_flat_rank(array, reference.ndim + 1)
+
 # ═══════════════════════════════════════════════════════════════════════
 # Bulk locus
 # ═══════════════════════════════════════════════════════════════════════
@@ -380,8 +411,8 @@ class BulkField(RolePair, Field):
         * **Axis-built base** (the carrier-cached bulk spaces): the tail is
           the scheme-owned MODAL
           :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`,
-          carrying ``moment_mass_diagonal`` as the axis measure — basis ↔
-          mass single-sourced at the scheme (``θ`` enters the mass, so a
+          the head of the scheme's cell basis, whose Gram is the axis measure
+          — basis ↔ mass single-sourced at the scheme (``θ`` enters the mass, so a
           carrier that binds no scheme cannot host a moment tail; the
           scheme binds at transport-method augmentation).
         * **Axes-less base** (the harmonic family's
@@ -402,12 +433,10 @@ class BulkField(RolePair, Field):
         **Gated on ``spatial_moments_per_axis > 1`` (construct-general /
         select-narrow, #240 D5b-S3-A0).** The total within-cell moment
         count is ``spatial_moments_per_axis ** mesh.ndim``. When the count
-        is ``1``, the ``spatial_moment_tail`` policy returns ``()`` and
-        this method returns ``space`` UNCHANGED — the field space stays
-        BYTE-IDENTICAL to its pre-S3 shape (the backward-compat invariant,
-        single-sourced from
-        :func:`orpheus.numerics.moment_layout.face_moment_tail` via
-        :func:`~orpheus.numerics.moment_layout.spatial_moment_tail`).
+        is ``1``, the tail rule :func:`~orpheus.numerics.space.factor_tail`
+        returns ``()`` and this method returns ``space`` UNCHANGED — the
+        field space stays BYTE-IDENTICAL to its pre-S3 shape (the
+        backward-compat invariant).
 
         ``spatial_moments_per_axis`` is an EXPLICIT parameter (the
         ``spatial_moments`` factory parameter, default ``1`` everywhere),
@@ -422,9 +451,9 @@ class BulkField(RolePair, Field):
         also FILL the axis — a Pattern-4 concern (an axis no producer
         fills is an illegal state).
         """
-        n_moments = cell_moment_count(spatial_moments_per_axis, mesh.ndim)
+        n_moments = spatial_moment_basis(spatial_moments_per_axis, mesh.ndim).dimension
         # "append iff > 1" — single-sourced; () at n==1 → no factor, byte-id.
-        if spatial_moment_tail(n_moments) == ():
+        if factor_tail(n_moments) == ():
             return space
         if space.axes is not None:
             # The width thread behind space_on's admission re-mint (and,
@@ -437,7 +466,7 @@ class BulkField(RolePair, Field):
             if scheme is None:
                 raise TypeError(
                     "a within-cell moment tail needs the discretization "
-                    "scheme's mass (θ enters moment_mass_diagonal), and "
+                    "scheme's cell basis (its Gram is the moment mass), and "
                     f"this carrier ({type(mesh).__name__}) binds no scheme "
                     "— moment-tailed fields live on a transport-method "
                     "mesh (the scheme binds at augmentation)."
@@ -467,7 +496,7 @@ class BulkField(RolePair, Field):
         r"""The trailing spatial-moment shape suffix carried by ``space``, or ``()``.
 
         Reads the optional scheme-owned spatial-moment axis (labelled
-        :data:`~orpheus.numerics.moment_layout.SPATIAL_MOMENT_AXIS_LABEL`)
+        :data:`~orpheus.numerics.basis.interval_legendre_basis.SPATIAL_MOMENT_AXIS_LABEL`)
         OFF a composed space — the space is the single source of
         truth for the moment width, so the shape validation (Field's
         values-vs-space check — the pre-S4 ``_phase_space_shape``
@@ -481,7 +510,7 @@ class BulkField(RolePair, Field):
         Returns ``()`` for a non-composed / DD-default space (no factor →
         byte-identical validation prefix), and ``(per_axis ** ndim,)`` when
         the moment factor is present — the
-        :data:`~orpheus.numerics.moment_layout.SPATIAL_MOMENT_AXIS_LABEL`
+        :data:`~orpheus.numerics.basis.interval_legendre_basis.SPATIAL_MOMENT_AXIS_LABEL`
         axis of an axis-built space (every tailed space is one since CS4c
         step 6 item 6.2c-iii; an axes-less space carries no tail).
         """
@@ -520,10 +549,15 @@ class BulkField(RolePair, Field):
         if tail == ():
             return 1
         if space.axes is not None:
-            # The moment axis is the cell basis's head, so its layout names the
-            # basis's factors: one per spatial axis, each with the per-axis
-            # count. ndim is the spatial axis's rank (the ONE "spatial" axis
-            # carries the whole spatial shape, CS4b S4).
+            # The moment axis is the cell basis's head: read its basis. ndim is
+            # the spatial axis's rank (the ONE "spatial" axis carries the whole
+            # spatial shape, CS4b S4).
+            #
+            # ELEGANCE-DEBT[guard] #662: the refusal below exists because the
+            # width travels as the per-axis integer, so a hand-built axis whose
+            # basis is not one interval factor per spatial axis can reach here.
+            # Retires when the field layer threads the cell basis (or the axis)
+            # instead of the integer, making the mismatch unspellable.
             moment_axis = next(
                 ax for ax in space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL
             )
@@ -532,19 +566,17 @@ class BulkField(RolePair, Field):
                 for ax in space.axes
                 if ax.label == "spatial"
             )
-            layout = moment_axis.layout
-            if (
-                not isinstance(layout, TensorLayout)
-                or len(layout.factor_shape) != ndim
-                or len(set(layout.factor_shape)) != 1
-            ):
-                counts = layout.factor_shape if isinstance(layout, TensorLayout) else None
-                raise ValueError(
-                    f"the spatial-moment axis's basis has factor counts "
-                    f"{counts} on a {ndim}-D mesh: the cell basis has one "
-                    "factor per spatial axis, all of one count"
-                )
-            return layout.factor_shape[0]
+            match moment_axis.origin:
+                case FromBasis(basis=TensorProductBasis() as basis) if (
+                    basis.ndim == ndim
+                    and len({f.n for f in basis.factors}) == 1
+                ):
+                    return basis.factors[0].n
+            raise ValueError(
+                f"the spatial-moment axis's origin {moment_axis.origin!r} is not "
+                f"a cell basis with one factor per axis of the {ndim}-D mesh, "
+                "all of one count"
+            )
         return 1  # unreachable in practice: a tail rides an axis-built space
 
     @classmethod
@@ -820,7 +852,7 @@ class MomentField(BulkField):
     #: on every moment so the in-sweep ``moment_buf`` can carry the
     #: within-cell slopes the diffusion-limit-consistent scattering source
     #: needs between sweeps. Single-sourced "append iff > 1" via
-    #: :func:`~orpheus.numerics.moment_layout.spatial_moment_tail`.
+    #: :func:`~orpheus.numerics.space.factor_tail`.
     spatial_moments: int = 1
 
     # ── Metadata read-through (the axes-less family's own ng) ────────

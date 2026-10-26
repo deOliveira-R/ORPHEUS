@@ -141,7 +141,7 @@ class TestG1UnitIsTheConstant:
         axis is the average slot, the cell average. The second leg reads slot 0 of the
         array directly, never through the lift. Added after the S1 qa review (F1): the arm
         ``ld_unit_ones`` (u := ones) reddened nothing in 524 tests."""
-        from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+        from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
 
         V, label = resolve("slab GL8 LD angular_trial", SPATIAL_MOMENT_AXIS_LABEL)
         ax = V.axis(label)

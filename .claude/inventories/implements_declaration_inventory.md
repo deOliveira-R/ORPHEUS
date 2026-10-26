@@ -571,7 +571,7 @@ note: The d=1 specialization of the multi-D UBLD closure. Production implementat
 
 ## ld-ubld-octant-moment-frame-signs
 verdict: DECLARABLE
-implementers: orpheus.transport.spatial._ubld.D1ClosedForm, orpheus.transport.spatial._ubld.octant_moment_frame_signs, orpheus.numerics.moment_layout.face_moment_tail, orpheus.numerics.moment_layout.face_moment_count
+implementers: orpheus.transport.spatial._ubld.D1ClosedForm, orpheus.transport.spatial._ubld.octant_moment_frame_signs, orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.reflection_signs (the sign map is its action since the moment-basis carve, 2026-10-25)
 confidence: medium
 evidence: docs/theory/methods/sn/cartesian_multid.rst:2347; tests/gates/sn/verification/mms/test_mms_ld_slab.py exercises octant moment frame calculations; orpheus/transport/spatial/_ubld.py:octant_moment_frame_signs is the production implementation
 note: Formula for frame signs applied to octant moments in LD/UBLD. Computed by octant_moment_frame_signs function and integrated in D1ClosedForm.

@@ -11865,3 +11865,17 @@ calculus: measure the unit cost a recommendation multiplies before using a relay
 - **Capture the carry from the HEAD tree with a REFUSING script**: it prints `orpheus.__file__`, refuses when it is not under the HEAD worktree or the commit
   is not the named one, records its own commit and the snapshots' sha256, and a second run is byte-equal (determinism control). A fixture captured from
   the wrong tree is green by construction (X4).
+
+## L120 — moment-basis S0 (#423): pricing a traced-memo regeneration, and the cache that was already stale (2026-10-25)
+
+- The plan's hazard said "the axis gains support and layout, so LD spaces re-digest and the traced memos regenerate". Measured: no memo
+  entry pins a def the carve edits (DefPins on the 10 carve files: only `Declared.__post_init__`, untouched). The entries are pinned by MODULE
+  SKELETONS (`ModulePin`: imports, signatures, class and module-level statements; def bodies and docstrings excluded): `basis/__init__.py` and
+  `space.py` in 8064 of 8064 entries, `coefficient_layout.py` in 6065. `skeleton_digest` on a carve-shaped edit (a new import, a new class, a
+  widened union, a new function) CHANGES; a body-only edit (a new `case` inside `FromBasis.kind`) does not (the positive control).
+- Then `validate(Manifest.from_json(entry["manifest"]))` over all 8064 entries on the current tree: 0 valid, 7373 stale for unrelated reasons,
+  691 unreadable (an older manifest schema, `DistributionPin` without `record`). The regeneration was already owed; the carve adds nothing.
+- Lesson: price a memo regeneration by partitioning the CACHE (valid / stale only via the carve's files / stale otherwise / old schema), not by
+  reasoning from what the carve changes. Scripts: `scratch/layer_dag/moment_basis/ta/probe_memo_{pins,s1}.py`, `probe_skeleton.py`.
+- Also: a tensor product of IDENTICAL factors is a Mode-12 space-side stabiliser for "which factor does `face(a)` drop" (an arm moving it
+  reddened 0 rows of the face-trace law); gate it on distinguishable factors.

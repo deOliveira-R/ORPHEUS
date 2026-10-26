@@ -2240,7 +2240,8 @@ see the honest-scope note below.
      :math:`2^{d-1}` transverse face-moments per face per ordinate per group
      (a moment-resolved slot ``(N, ng, *face_shape, 2^{d-1})`` minted by
      :attr:`orpheus.sn.problem.SNProblem.boundary_face_layout`, appending the
-     single-source :func:`orpheus.numerics.moment_layout.face_moment_tail`),
+     single-source tail rule, since 2026-10-25
+     :func:`orpheus.numerics.space.factor_tail`),
      so a moment-resolved prescribed inflow can carry the along-face
      (transverse) Legendre slope, the sweep outflow STORES the
      :math:`2^{d-1}` moments (the capture is no longer collapsed to the
@@ -2258,7 +2259,7 @@ see the honest-scope note below.
      near-boundary at ``nc=16``, ~5.6 orders above the consumption tolerance;
      linear in the slope magnitude — genuine consumption), while the SCALAR
      inflow gate stays byte-identical (the Mode-10 asymmetry).  DD/Step
-     (``per_axis == 1`` → ``face_moment_tail(1) == ()``) leaves the trace
+     (``per_axis == 1`` → ``factor_tail(1) == ()``) leaves the trace
      byte-identical (the negative control); a 1-D slab face is a point
      (``face_shape == ()``), so the transverse face-moment is a 2-D-and-higher
      concern by construction.
@@ -2458,8 +2459,9 @@ misclassify a flat bulk whose last spatial dim is 4.  The rank is unambiguous: a
 flat bulk has :math:`2 + |{\rm spatial}|` axes, a moment-resolved bulk has one
 more.  ``_lift_external_source_to_moments`` makes the same rank decision
 (``bulk_values.ndim == 2 + len(spatial_shape)`` is the flat-rank test) — the
-moment-layout primitive :func:`orpheus.numerics.moment_layout.is_moment_valued_by_rank`
-is the canonical discriminator for the cell-internal path.
+field-layer primitive :func:`orpheus.transport.fields._bases.is_moment_valued_by_rank`
+(in the layout module ``orpheus.numerics.moment_layout`` until that module retired
+on 2026-10-25) is the canonical discriminator for the cell-internal path.
 
 **Why DD/Step rejects a moment bulk.**  At a flat closure
 (:math:`\text{per\_axis} = 1`, hence :math:`n_{\rm cell\ moments} = 1`) there is
@@ -2772,7 +2774,7 @@ Three properties make this the clean lever:
 
 * **DD/Step is byte-identical (the negative control).**  At a flat closure
   :math:`\text{per\_axis} = 1`, so :math:`n_{\rm face} = 1^{\,d-1} = 1` and
-  :func:`~orpheus.numerics.moment_layout.face_moment_tail` returns ``()`` (the
+  :func:`~orpheus.numerics.space.factor_tail` returns ``()`` (the
   "append iff > 1" policy — NO length-1 axis).  Every DD/Step slot shape is
   untouched, so every buffer, snapshot, and metric is bit-for-bit unchanged.
   This is the SAME single-source tail policy the interior cell cochain keys on
@@ -2804,7 +2806,10 @@ axis.  The cochain consumes the upstream face's moments through
 :math:`2^{d-1}`-moment face vector by the **transverse mass** — the Kronecker
 product of the per-transverse-axis :func:`~orpheus.transport.spatial._ubld.mass_1d`
 :math:`= \mathrm{diag}(h_t,\,\theta h_t)`, :math:`\theta = 1/3` — before applying
-the active-axis trace :math:`B(-1) = [1, -1]` and :math:`|\mu_{\rm axis}|`.  The
+the active-axis trace :math:`B(-1) = [1, -1]` and :math:`|\mu_{\rm axis}|`
+(since 2026-10-25 both kernels take the cell basis: the mass is :math:`h_t` times
+the factor's Gram and the trace is the factor's ``endpoint_values(-1)``,
+:ref:`spaces-cell-basis`).  The
 mass therefore ALREADY supplies the transverse :math:`h_t` and :math:`\theta`
 weighting; the trace must NOT duplicate it.
 
@@ -2899,7 +2904,7 @@ incoming face against the FLAT (moment-free) face rank :math:`d + 1` — a scala
 face :math:`(N_{\rm oct}, n_g, *\text{transverse})` has rank
 :math:`2 + (d-1) = d + 1`, since the transverse part carries :math:`d-1` axes —
 using the same single-source primitive Leg A introduced,
-:func:`orpheus.numerics.moment_layout.is_moment_valued_by_flat_rank` (no third
+:func:`orpheus.transport.fields._bases.is_moment_valued_by_flat_rank` (no third
 rank spelling — the layout-shift hazard is an open-coded ``ndim == flat_ndim``
 that silently diverges from its sibling consumers).  Three arms:
 
@@ -3139,7 +3144,8 @@ principled ranks and nothing in between.
 bit-identical after the trace widening, verified three ways: the strict
 ``DriftWarning`` regression gate over ``tests/gates/sn/sweep/core`` and
 ``tests/gates/sn/solve`` (no golden moved — the moment-tail widening leaves the
-DD/Step and scalar-inflow trace untouched, because ``face_moment_tail(1) == ()``
+DD/Step and scalar-inflow trace untouched, because the tail rule maps a width of
+1 to ``()``, today ``factor_tail(1) == ()``
 is the negative control); the existing 1-D prescribed-inflow MMS (byte-identical
 by construction — a 1-D face has :math:`n_{\rm face} = 1`); and the explicit
 scalar no-op leg above.
@@ -3174,7 +3180,7 @@ Sources and gates
 
 The production change spans three files: the storage lever in
 :attr:`orpheus.sn.problem.SNProblem.boundary_face_layout` (appending
-:func:`~orpheus.numerics.moment_layout.face_moment_tail`); the inflow lift
+:func:`~orpheus.numerics.space.factor_tail` since 2026-10-25); the inflow lift
 :meth:`_LossRepresentation._inflow_to_moments`, the oracle seed
 :meth:`FullFieldWavefront._octant_face_cochain`, and the four outflow
 capture-collapse DROP sites in :mod:`orpheus.sn.loss_representation`; and the
@@ -3312,23 +3318,26 @@ builds the scalar or the moment-resolved trace from the closure width
 ``n_face_moments`` it is given (the case reads no production problem since
 2026-10-22). The test-side pairing helper ``mms_prescribed_inflow``
 (``tests/gates/sn/_test_helpers.py``) passes
-:attr:`~orpheus.sn.problem.SNProblem.n_face_moments`, the
-:func:`~orpheus.numerics.moment_layout.face_moment_count` of the problem's
-scheme and the SAME attribute
+:attr:`~orpheus.sn.problem.SNProblem.n_face_moments`, the face dimension of
+the problem's cell basis (:meth:`scheme.face_moment_count(ndim)
+<orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_moment_count>`,
+which reads
+:meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.face_dimension`)
+and the SAME attribute
 :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` packs the slot width
 from, so the case's trace and the producer's slot agree by construction. The
 case refuses a width outside ``{1, 2}``; a width of 1 on an LD problem is
 accepted by the producer and seeds slot 0 only, which is why the width is read
 from the problem and never passed by hand:
 
-* When ``face_moment_count == 1`` (DD/Step) it builds the SCALAR per-face trace
+* When ``n_face_moments == 1`` (DD/Step) it builds the SCALAR per-face trace
   ``(N, ng, n_t)`` by cell-CENTRE evaluation of :math:`(A + \mu_x B + \mu_y
   C)/W`, hits the producer's scalar branch, and is **byte-identical** to the
   pre-S9 build (proven: ``np.array_equal`` against the legacy ``face_coords``
   construction holds — DD/Step has no moment axis, the slots are bit-for-bit
   the old build).
-* When ``face_moment_count > 1`` (LD) it builds the FULL moment slot
-  ``(N, ng, n_t, face_moment_count)`` via a new case-owned
+* When ``n_face_moments > 1`` (LD) it builds the FULL moment slot
+  ``(N, ng, n_t, n_face_moments)`` via a new case-owned
   :meth:`~orpheus.derivations.continuous.mms.sn.SN2DCartesianLDStressMMSCase._project_inflow_to_face_moments`
   and hits the producer's full-slot branch.
 

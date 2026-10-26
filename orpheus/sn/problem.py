@@ -1116,14 +1116,10 @@ class SNProblem(MethodMesh):
         private ``_average_moment_scalar``, which the Solution could not reach
         without a cyclic import).
         """
-        from orpheus.numerics.moment_layout import (
-            AVERAGE_MOMENT,
-            cell_moment_count,
-            face_moment_tail,
-        )
+        from orpheus.numerics.basis import AVERAGE_MOMENT
+        from orpheus.numerics.space import factor_tail
 
-        per_axis = self.scheme.spatial_basis_per_axis
-        if face_moment_tail(cell_moment_count(per_axis, self.ndim)) == ():
+        if self.scheme.moment_tail(self.ndim) == ():
             return values
         return values[..., AVERAGE_MOMENT]
 
@@ -1490,9 +1486,7 @@ class SNProblem(MethodMesh):
         tail from this attribute, so a consumer that sizes a face trace from it
         agrees with the trace layout by construction (layer DAG P4c).
         """
-        from orpheus.numerics.moment_layout import face_moment_count
-
-        return face_moment_count(self.scheme.spatial_basis_per_axis, self.ndim)
+        return self.scheme.face_moment_count(self.ndim)
 
     @property
     def boundary_face_layout(self) -> "FaceLayout[str]":
@@ -1528,11 +1522,11 @@ class SNProblem(MethodMesh):
         those ``2^{d-1}`` moments instead of collapsing to the average
         (slot 0).  The width is the scheme's per-face count
         ``per_axis^{d-1}``, appended via the single-source
-        :func:`~orpheus.numerics.moment_layout.face_moment_tail` (the
+        :func:`~orpheus.numerics.space.factor_tail` (the
         same "append iff > 1" policy the cell-cochain
         :attr:`_LossRepresentation._n_face_moments` /
         :attr:`_spatial_moment_tail` key on).  DD/Step
-        (``per_axis == 1`` → ``per_axis^{d-1} == 1`` → ``face_moment_tail
+        (``per_axis == 1`` → ``per_axis^{d-1} == 1`` → ``factor_tail(1)
         == ()``) leaves every slot shape untouched, so the trace stays
         byte-identical — the negative control.  A 1-D slab face is a
         point (``face_shape == ()`` → ``per_axis^0 == 1`` → no tail even
@@ -1561,15 +1555,15 @@ class SNProblem(MethodMesh):
         conflation D-G was dissolving.
         """
         from orpheus.numerics.face_layout import FaceLayout
-        from orpheus.numerics.moment_layout import face_moment_tail
+        from orpheus.numerics.space import factor_tail
 
         N = self.quad.n_ordinates
         # Per-face transverse moment count per_axis^{d-1} (#251) — the FACE
         # tail (the CELL tail is per_axis^d).  DD/Step → () → byte-identical.
-        # Single-sourced with the cochain's ``_n_face_moments`` via
-        # ``face_moment_count`` (read through :attr:`n_face_moments`) so the
+        # Single-sourced with the cochain's ``_n_face_moments`` via the cell
+        # basis's ``face_dimension`` (read through :attr:`n_face_moments`) so the
         # producer and the consumer cannot drift.
-        moment_tail = face_moment_tail(self.n_face_moments)
+        moment_tail = factor_tail(self.n_face_moments)
         return FaceLayout.from_named_shapes([
             (label.face_name, (N, self.ng, *self.face_shape(label), *moment_tail))
             for label in self.face_labels

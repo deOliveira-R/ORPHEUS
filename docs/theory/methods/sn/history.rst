@@ -42,6 +42,40 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-25
+     - **The within-cell moment axis is the head of a basis** (the
+       moment-basis carve, layer DAG ruling 19). Numerics had no object for
+       the polynomial cell basis the linear-discontinuous scheme expands in,
+       so the scheme minted its moment axis as ``Declared(Modal(e_0))`` with
+       typed :math:`\theta` weights, and the basis's facts were spelled at
+       separate sites: a layout module, ``orpheus.numerics.moment_layout``
+       (the counts :math:`p^d` and :math:`p^{d-1}`, the average slot, the
+       axis label, the "append iff > 1" tail rule and two rank predicates),
+       the scheme constants ``spatial_basis_per_axis`` and ``theta``, a
+       float root recovering the per-axis count, a hand decode of the
+       Kronecker index for the octant signs, and a typed count of 2 in the LD
+       kernels. The carve minted the object: the interval Legendre basis
+       and the tensor product of bases
+       (:class:`~orpheus.numerics.basis.interval_legendre_basis.IntervalLegendreBasis`,
+       :class:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis`),
+       read by the scheme as
+       :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis`.
+       The moment axis is ``Axis.of_basis(cell_basis)``, origin
+       ``FromBasis``, with weights and unit bitwise unchanged; :math:`\theta`
+       is read from the basis's Gram; the counts, the face traces and the
+       mirror signs are read off the basis, and the axis's weights are the
+       one spelling of the moment mass (the scheme's ``moment_mass_diagonal``
+       retired); the tail rule moved to space
+       composition (:func:`~orpheus.numerics.space.factor_tail`) and the rank
+       predicates to the field layer; the layout module is deleted. The
+       axis is the basis's continuum head and not a frame's because LD's
+       moments are expansion coefficients, whose metric is the Gram, while a
+       frame's analysis face measures covariant moments with the inverse
+       Gram (``[M]`` slope weight 3 instead of 1/3). The curvilinear
+       refusal stays, naming the machinery that retires it (#612). Account:
+       :ref:`spaces-cell-basis` and :ref:`spatial-moment-space`.
+     - #423
+     - branch ``refactor/moment-basis`` (S1 and S3 at ``a838c31e``)
    * - 2026-10-24
      - **The boundary architecture is carved onto face roles, one wall
        condition and one realizer table** — the trace-law package
@@ -915,9 +949,9 @@ them.  Trust ``git``, not this column.
        SCALAR spaces carried the scheme-owned ``MODAL``
        :meth:`moment_axis
        <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis>`
-       — mass-weighted, because :math:`\theta` enters
-       :meth:`moment_mass_diagonal
-       <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_mass_diagonal>`,
+       — mass-weighted, because :math:`\theta` entered the scheme's
+       ``moment_mass_diagonal`` (retired 2026-10-25 onto the axis's own
+       weights, the cell basis's Gram),
        appended BY LABEL by the fields' own composer.  The
        harmonic-MOMENT product carried something else: a separate
        Euclidean, axes-less ``SpatialMomentSpace`` class, appended with
@@ -956,9 +990,9 @@ them.  Trust ``git``, not this column.
        stopped filtering the tail out of ``axes[1:]``, so it threads the
        angular space's own axis object through.  And the "append iff > 1"
        cell policy, ``spatial_moment_tail``, is re-homed in
-       :mod:`orpheus.numerics.moment_layout` beside the
-       :func:`~orpheus.numerics.moment_layout.face_moment_tail` it
-       delegates to.
+       ``orpheus.numerics.moment_layout`` beside the
+       ``face_moment_tail`` it delegates to (both since retired into
+       :func:`~orpheus.numerics.space.factor_tail`, the 2026-10-25 row).
        **(4) What the tree gains.**  The widened moment product is
        axis-built and its tail IS the scheme's axis, so hub and frame
        agree structurally at width 2 exactly as at width 1 (ruling O-5) —
@@ -982,7 +1016,7 @@ them.  Trust ``git``, not this column.
        deleted and no longer exported, so the mistake is unspellable
        rather than merely refused; with it went its
        ``average_moment_index`` accessor, whose constant
-       (:data:`~orpheus.numerics.moment_layout.AVERAGE_MOMENT`) every
+       (``AVERAGE_MOMENT``) every
        consumer already imported directly (``[M]`` 5 modules, 10 read
        sites).  Its gate module retired too and its surviving claims were
        re-keyed rather than deleted (the corpus account is

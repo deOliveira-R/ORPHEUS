@@ -4,7 +4,7 @@ spelling of the factor on every side (CS4c step 6 item 6.2c-iii, 2026-09-08).
 Until this item the tree spelled the within-cell spatial-moment factor two
 ways: the widened ANGULAR and SCALAR spaces carried the scheme-owned MODAL
 :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
-(mass-weighted — :math:`\theta` enters ``moment_mass_diagonal``; the field
+(mass-weighted — its weights are the cell basis's Gram; the field
 layer's composer appends it by label), while the harmonic-MOMENT product
 appended a separate Euclidean, axes-less ``SpatialMomentSpace`` class — so a
 widened moment space was axes-less (its ``*`` product left the axis arm), its
@@ -22,8 +22,8 @@ composer and the frame keeps the angular space's own axes, so:
   the tail factor;
 * the widened ``scalar_flux`` self-derive is honest (the product's cell-group
   factor IS the carrier's widened bulk), so its S4 refusal retired;
-* ``SpatialMomentSpace`` is gone; its "append iff > 1" helper lives in
-  :mod:`orpheus.numerics.moment_layout`.
+* ``SpatialMomentSpace`` is gone; its "append iff > 1" helper is the space
+  composition rule :func:`orpheus.numerics.space.factor_tail`.
 
 Foundation mark: software invariants of the space layer; no physics claim.
 """
@@ -36,13 +36,9 @@ import pytest
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.axis import BasisKind
-from orpheus.numerics.moment_layout import (
-    SPATIAL_MOMENT_AXIS_LABEL,
-    cell_moment_count,
-    spatial_moment_tail,
-)
+from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import FunctionSpace, TensorProductSpace, factor_tail
 from orpheus.numerics.coefficient_layout import HarmonicLayout
 from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.sn.problem import SNProblem
@@ -116,22 +112,20 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     space = sn.moment_space(L, spatial_moments=per_axis)
     assert isinstance(space, TensorProductSpace)
     assert space.axes is not None and space.inner_product_weights is None
-    assert space.shape[-1] == cell_moment_count(per_axis, sn.ndim)
+    assert space.shape[-1] == per_axis ** sn.ndim
     (tail,) = _tail_axes(space)
     expected = sn.scheme.moment_axis(sn.axes)
     assert tail == expected, "the tail IS the scheme's own moment axis"
     assert isinstance(tail.kind, Modal)
     assert tail.weights is not None
-    # Since S3 (#423) both sides read the cell basis's Gram, so this leg pins
-    # that the tail carries the scheme's mass, not its value; the value pin is
+    # The mass value is pinned in
     # test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse.
-    np.testing.assert_array_equal(tail.weights, sn.scheme.moment_mass_diagonal(sn.axes))
     # the cell-group factor is the carrier's WIDENED bulk — the same space the scalar family mints
     assert space.factors[1] == BulkField.compose_spatial_moments(sn.bulk_space, sn, per_axis)
     assert space.factors[0] == frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L))
     # width reads
     assert BulkField.spatial_moments_per_axis_of(space) == per_axis
-    assert BulkField._spatial_moment_tail_of(space) == (cell_moment_count(per_axis, sn.ndim),)
+    assert BulkField._spatial_moment_tail_of(space) == (per_axis ** sn.ndim,)
     # one object per (L, width) within the owner
     assert sn.moment_space(L, spatial_moments=per_axis) is space
 
@@ -177,13 +171,13 @@ def test_the_moment_norm_carries_the_cell_mass_on_its_tail(label: str) -> None:
     assert not np.isclose(got, euclidean), "the mass must move the pairing, or the tail carries none"
 
 
-def test_width_one_appends_nothing_and_the_policy_lives_in_the_layout_module() -> None:
+def test_width_one_appends_nothing_and_the_tail_rule_is_space_composition() -> None:
     sn = _dd_2d()
     space = sn.moment_space(1)
     assert _tail_axes(space) == []
     assert BulkField.spatial_moments_per_axis_of(space) == 1
     assert sn.moment_space(1, spatial_moments=1) is space
-    assert spatial_moment_tail(1) == () and spatial_moment_tail(4) == (4,)
+    assert factor_tail(1) == () and factor_tail(4) == (4,)
     # a DD carrier mints no moment axis, so a widened request is refused by the scheme
     with pytest.raises(NotImplementedError, match="no moment axis"):
         sn.moment_space(1, spatial_moments=2)

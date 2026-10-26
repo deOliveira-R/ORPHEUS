@@ -14,9 +14,9 @@ Every row is **L0, foundation, THEOREM** against a ground the code does not
 share: SymPy exact integration and SymPy's own ``legendre`` (closed form), the
 ``numpy.polynomial.legendre`` Clenshaw evaluator (a different algorithm from
 the Bonnet recurrence production calls), ``fractions.Fraction`` for the
-correctly rounded Gram, and the hand-typed LD tables of the UBLD assembler
-(``_FOUT_1D``, ``_FIN_TRACE``) where the face trace must reproduce them. No row
-reads ``moment_layout`` or the scheme: the scheme-side rows are
+correctly rounded Gram, and the hand-typed LD face tables (Larsen and Morel
+1989) that the UBLD assembler's face terms must reproduce. No row reads the
+scheme: the scheme-side rows are
 ``tests/gates/transport/spatial/test_cell_basis_head.py``.
 
 Bit-identity rows (``array_equal``) are bit-exact for a stated reason in each
@@ -228,6 +228,7 @@ def test_the_kronecker_order_is_the_recorded_one() -> None:
         assert line in window, f"the theory page no longer records {line!r} under its label"
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_gram_is_the_exact_integral_correctly_rounded")
 @pytest.mark.parametrize("n,d", list(product((1, 2, 3), _DIMS)))
 def test_the_tensor_gram_is_the_exact_product_integral(n: int, d: int) -> None:
     r"""The tensor Gram equals :math:`\prod_a 1/(2k_a+1)` within ``d - 1`` roundings, and is the kron of the factors.
@@ -271,6 +272,7 @@ def test_the_constant_mode_is_slot_zero(d: int) -> None:
     np.testing.assert_array_equal(b.synthesize(e0, table), np.ones(33))
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_endpoint_values_are_plus_minus_one_to_the_degree", "tests/gates/numerics/test_interval_legendre_basis.py::test_the_kronecker_order_is_the_recorded_one")
 @pytest.mark.parametrize("d", (2, 3))
 @pytest.mark.parametrize("side", (1, -1))
 def test_the_face_trace_is_one_factor_evaluated_at_its_end(d: int, side: int) -> None:
@@ -279,7 +281,7 @@ def test_the_face_trace_is_one_factor_evaluated_at_its_end(d: int, side: int) ->
     For random coefficients :math:`c`: evaluating the cell expansion at points
     with :math:`\xi_a = \pm 1` equals ``face(a)`` evaluated at the transverse
     coordinates, applied to :math:`c` contracted on factor ``a`` with
-    ``endpoint_values(±1)``. Face dimension ``2**(d-1)`` (``face_moment_count``).
+    ``endpoint_values(±1)``. Face dimension ``2**(d-1)`` (``face_dimension``).
     Band: the two sides sum the same products in different orders, ``[R]``
     ``2**d`` terms of magnitude ``|c|``, so ``1e-14`` absolute on unit draws.
     Tooth: the endpoint pairing taken at the other end, or the face keeping
@@ -332,17 +334,63 @@ def test_the_face_of_a_one_factor_product_is_refused() -> None:
         spatial_moment_basis(2, 1).face(0)
 
 
-def test_the_endpoint_values_reproduce_the_ubld_face_tables() -> None:
-    r"""``_FOUT_1D = outer(B(+1), B(+1))`` and ``_FIN_TRACE = B(-1)`` are the interval basis at its ends.
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_endpoint_values_are_plus_minus_one_to_the_degree")
 
-    Bit-exact: both sides are the integers ±1. Since S3 the UBLD module spells
-    its tables from the basis, so the reference is the hand-typed tables they
-    replaced (Larsen and Morel 1989, the LD face traces), kept here.
+
+def test_the_ubld_face_terms_are_the_hand_tables() -> None:
+    r"""The UBLD assembler's face terms, read off the basis, are the LD hand tables.
+
+    At d = 1, unit width, unit :math:`|\mu|`: the downstream-face matrix is
+    ``outer(B(+1), B(+1)) = [[1, 1], [1, 1]]`` and the inflow of a unit
+    upstream face is ``B(-1) = [1, -1]`` (Larsen and Morel 1989, the LD face
+    traces; typed here). Bit-exact: products of ±1. Since the moment-basis
+    carve the assembler reads these from ``endpoint_values``, so this row is
+    the production pin; the endpoint row above is the basis-side law.
     """
-    from orpheus.transport.spatial import _ubld
+    from orpheus.transport.spatial._ubld import assemble_inflow_axis, assemble_ubld
 
-    np.testing.assert_array_equal(_ubld._FOUT_1D, np.array([[1.0, 1.0], [1.0, 1.0]]))
-    np.testing.assert_array_equal(_ubld._FIN_TRACE, np.array([1.0, -1.0]))
+    one = [np.ones(())]
+    basis = spatial_moment_basis(2, 1)
+    np.testing.assert_array_equal(assemble_ubld(one, one, np.zeros(()), basis)["F_out"], np.array([[1.0, 1.0], [1.0, 1.0]]))
+    np.testing.assert_array_equal(assemble_inflow_axis(one, one, 0, np.ones(1), basis), np.array([1.0, -1.0]))
+
+
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_endpoint_values_are_plus_minus_one_to_the_degree")
+
+
+def test_the_streaming_table_and_the_face_traces_satisfy_integration_by_parts() -> None:
+    r"""``G + Gᵀ = −(B(+1)B(+1)ᵀ − B(−1)B(−1)ᵀ)`` for the hand-tabulated UBLD streaming table ``G``.
+
+    ``_GRAD_1D`` is :math:`-\int_{-1}^{1} \partial_\xi B_i\, B_j \,\mathrm d\xi`
+    for :math:`B = (P_0, P_1)`, typed by hand (the interval basis holds no
+    derivative pairing); integration by parts ties it to the endpoint values
+    the face terms read. Bit-exact: small integers. Tooth: a sign or a slot of
+    the hand table changed.
+    """
+    from orpheus.transport.spatial._ubld import _GRAD_1D
+
+    b = IntervalLegendreBasis(2)
+    plus, minus = b.endpoint_values(1), b.endpoint_values(-1)
+    np.testing.assert_array_equal(_GRAD_1D + _GRAD_1D.T, -(np.outer(plus, plus) - np.outer(minus, minus)))
+    # and one entry against SymPy, so the identity cannot hold for a wrong antisymmetric part
+    xi = sp.symbols("xi")
+    g10 = -sp.integrate(sp.diff(xi, xi) * 1, (xi, -1, 1))
+    assert float(g10) == _GRAD_1D[1, 0]
+
+
+@pytest.mark.parametrize("axis", (-1, 2, 5))
+def test_an_axis_outside_the_product_is_refused(axis: int) -> None:
+    r"""``face`` and ``face_dimension`` refuse an axis that is not one of the factor axes.
+
+    Before the refusal, ``face(-1)`` on a two-factor product returned three
+    factors and ``face_dimension(5)`` the cell dimension (the carve's QA
+    review, F1, ``[M]`` 2026-10-25).
+    """
+    b = spatial_moment_basis(2, 2)
+    with pytest.raises(ValueError, match="is not one of the"):
+        b.face(axis)
+    with pytest.raises(ValueError, match="is not one of the"):
+        b.face_dimension(axis)
 
 
 def _hand_octant_signs(octant: tuple[int, ...]) -> np.ndarray:
@@ -356,6 +404,7 @@ def _hand_octant_signs(octant: tuple[int, ...]) -> np.ndarray:
     return signs
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_parity_is_the_mirrors_action", "tests/gates/numerics/test_interval_legendre_basis.py::test_the_kronecker_order_is_the_recorded_one")
 @pytest.mark.parametrize("d", _DIMS)
 def test_the_reflection_signs_are_the_mirrors_action_and_the_octant_frame_map(d: int) -> None:
     r"""``reflection_signs(mirrored)`` is the action of :math:`\xi_a \mapsto -\xi_a`, and equals ``octant_moment_frame_signs``.
@@ -369,12 +418,16 @@ def test_the_reflection_signs_are_the_mirrors_action_and_the_octant_frame_map(d:
     """
     from orpheus.transport.spatial._ubld import octant_moment_frame_signs
 
-    b = spatial_moment_basis(2, d)
     x = np.random.default_rng(d).uniform(-1.0, 1.0, (19, d))
+    for n in (2, 3, 4):
+        # n >= 3 separates the parity (-1)^k from "flip every nonzero degree" (the
+        # rule the octant map used before the carve; the two agree at n = 2).
+        b = spatial_moment_basis(n, d)
+        for octant in product((1, -1), repeat=d):
+            mirrored = tuple(s < 0 for s in octant)
+            signs = b.reflection_signs(mirrored)
+            np.testing.assert_array_equal(b.evaluate(x * np.array(octant, dtype=float)), b.evaluate(x) * signs)
     for octant in product((1, -1), repeat=d):
-        mirrored = tuple(s < 0 for s in octant)
-        signs = b.reflection_signs(mirrored)
-        np.testing.assert_array_equal(b.evaluate(x * np.array(octant, dtype=float)), b.evaluate(x) * signs)
         np.testing.assert_array_equal(octant_moment_frame_signs(octant, 2), _hand_octant_signs(octant))
 
 

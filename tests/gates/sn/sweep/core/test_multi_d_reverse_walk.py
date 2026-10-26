@@ -1241,7 +1241,7 @@ def test_tail_mismatch_refuses_loudly():
     # hand-composed widened space — exactly the off-scheme input the VJP
     # backstop exists to refuse.
     from orpheus.numerics.axis import Axis, BasisKind
-    from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+    from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
     from orpheus.numerics.space import FunctionSpace
 
     assert sn.angular_bulk_space.axes is not None

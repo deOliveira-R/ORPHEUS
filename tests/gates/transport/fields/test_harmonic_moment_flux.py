@@ -273,7 +273,7 @@ class TestViews:
         npt.assert_array_equal(s.values, f.values[_head(sn).isotropic_slot])
         if s.space != f.space.factors[1]:  # type: ignore[union-attr]
             pytest.fail("scalar target must be the product's widened bulk factor")
-        from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+        from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
         assert s.space.axes is not None
         tail = [ax for ax in s.space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL]
         if len(tail) != 1 or tail[0] != sn.scheme.moment_axis(sn.axes):

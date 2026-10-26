@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19757**
+Total tests collected: **19859**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1889, 9.6%
+   L0, 1889, 9.5%
    L1, 2914, 14.7%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14814, 75.0%
-   unmarked, 55, 0.3%
+   foundation, 14915, 75.1%
+   unmarked, 56, 0.3%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19623
+   explicit, 19724
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 55
+   unmarked, 56
 
 Module × level grid
 -------------------
@@ -421,8 +421,8 @@ Module × level grid
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 316, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
-   numerics/test_concept_order, 0, 0, 0, 0, 0, 4
-   numerics/test_content_identity_axis, 0, 0, 0, 0, 56, 0
+   numerics/test_concept_order, 0, 0, 0, 0, 0, 5
+   numerics/test_content_identity_axis, 0, 0, 0, 0, 66, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
@@ -455,6 +455,7 @@ Module × level grid
    numerics/test_heads_on_the_axis, 0, 0, 0, 0, 24, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
+   numerics/test_interval_legendre_basis, 0, 0, 0, 0, 68, 0
    numerics/test_invariance, 0, 0, 0, 0, 111, 0
    numerics/test_invariance_composition, 0, 0, 0, 0, 1079, 0
    numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
@@ -471,6 +472,7 @@ Module × level grid
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
+   numerics/test_moment_layout_retired, 0, 0, 0, 0, 6, 0
    numerics/test_observable, 0, 0, 0, 0, 50, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
@@ -650,12 +652,13 @@ Module × level grid
    solve/test_subcritical_multiplying_source, 0, 8, 0, 0, 0, 0
    solve/test_windowed_si_diagnostic_trajectory, 0, 0, 0, 0, 6, 0
    spatial/test_affine_closure, 0, 0, 0, 0, 5, 0
+   spatial/test_cell_basis_head, 0, 0, 0, 0, 16, 0
    spatial/test_face_transmission_damping, 0, 0, 0, 0, 9, 0
    spatial/test_face_transmission_symbolic, 0, 0, 0, 0, 107, 0
    spatial/test_face_transmission_xverif, 0, 72, 0, 0, 1, 0
    spatial/test_ld_slope_frame, 0, 1, 0, 0, 1, 0
    spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 18, 0
-   spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 8, 0
+   spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 9, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 21, 0
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 6, 0
    spatial/test_no_angular_closure_twin, 0, 0, 0, 0, 1, 0
@@ -1151,7 +1154,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **593** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **596** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1685,10 +1688,13 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``spaces-axis-forgetful-map``
 - ``spaces-axis-generator-section``
 - ``spaces-axis-product``
+- ``spaces-cell-basis-two-coordinates``
 - ``spaces-collapse-adjoint-is-pullback``
 - ``spaces-collapse-rank-one-gram``
 - ``spaces-collapse-retraction``
 - ``spaces-collapse-section``
+- ``spaces-interval-legendre-endpoints``
+- ``spaces-interval-legendre-gram``
 - ``spaces-legendre-pushforward-gram``
 - ``spaces-pseudo-inverse-parseval``
 - ``spaces-riesz-round-trip``
@@ -1796,7 +1802,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**55 tests** have no V&V level marker.
+**56 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1811,9 +1817,9 @@ taxonomy.
    ``tests/gates/derivations/test_reference_exterior_admission.py``, 17
    ``tests/gates/numerics/test_riesz_legs.py``, 8
    ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 6
+   ``tests/gates/numerics/test_concept_order.py``, 5
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4
-   ``tests/gates/numerics/test_concept_order.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4
    ``tests/gates/geometry/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2

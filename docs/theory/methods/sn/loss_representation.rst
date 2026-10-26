@@ -1018,7 +1018,10 @@ denominator, :math:`C` the :math:`2|\mu|/\Delta x` coupling,
 makes DD's assembled block carry dense upstream chains. LD's bilinear
 faces give the :math:`2^d\times 2^d` UBLD cell system with an **upwind**
 outgoing trace, so :math:`\alpha = 0` — no memory, a block tri-diagonal
-sparsity. The moment stride is the #253 single-sourced
+sparsity. The moment stride is single-sourced (#253): since 2026-10-25 it is
+the dimension and the face dimension of the scheme's cell basis,
+``scheme.cell_basis(d).dimension`` and ``scheme.face_moment_count(d)``
+(:ref:`spaces-cell-basis`), where it had been the layout module's
 ``cell_moment_count`` / ``face_moment_count`` (DD's ``cm = 1``
 degenerates to the plain cell ravel).
 

@@ -16,7 +16,7 @@ Conventions gated (CS4b crosswalk B1/B5, ``.claude/plans/cs4b_crosswalk.md``):
   (object identity — the energy-arm rule is spelled once);
 * the Gram of the axis product equals the hand-built dense ``V·w_n``
   oracle on both the DD and the LD arm (LD composes the scheme-owned MODAL
-  ``moment_axis`` carrying ``moment_mass_diagonal``), and since S2b the
+  ``moment_axis``, whose weights are the cell basis's Gram), and since S2b the
   composite's interior IS the cached mint (identity on DD, ``==`` on LD);
 * the derived space NAME is never pinned (R4: CS2's typed axis subclasses
   change the digest — every assertion here is per-axis content or relative
@@ -315,7 +315,7 @@ class TestG14GramEquivalenceLD:
         # test-side fuller-view reference).
         w = np.asarray(sn.quad.weights, dtype=float)
         V = np.asarray(sn.volumes, dtype=float)
-        mass = np.asarray(sn.scheme.moment_mass_diagonal(sn.axes), dtype=float)
+        mass = np.array([1.0, 1.0 / 3.0])  # LD's d = 1 moment mass, typed (LM-1989 Eq. 4.3b)
         g = (w.reshape(-1, 1, 1) * V.reshape(1, 1, -1))[..., None] * mass
         dense = FunctionSpace(
             name="dense_oracle_ld",
@@ -386,15 +386,14 @@ def _radial_axes(kind: AxisCoord):
 class TestMomentAxisAdmission:
     """The scheme-side mint's ADMISSION pair (vv #11: both legs)."""
 
-    def test_ld_mints_the_modal_mass_axis(self):
-        r"""The LD moment axis is MODAL, labelled, of shape ``(2,)``, and carries the scheme's mass.
+    @pytest.mark.rests_on("tests/gates/transport/spatial/test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse")
 
-        Since S3 (#423) the axis weights and ``moment_mass_diagonal`` both read
-        the cell basis's Gram, so the weights leg compares one object with
-        itself: it pins that the axis carries the mass, not its value. The
-        value pin is
-        ``tests/gates/transport/spatial/test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse``
-        (a hand-typed table).
+    def test_ld_mints_the_modal_mass_axis(self):
+        r"""The LD moment axis is MODAL, labelled, of shape ``(2,)``, and carries the d = 1 mass ``[1, 1/3]``.
+
+        The mass is typed here (LM-1989 Eq. 4.3b), independent of the cell
+        basis the axis is the head of; the d = 1, 2, 3 tables are pinned in
+        ``tests/gates/transport/spatial/test_cell_basis_head.py``.
         """
         scheme = LinearDiscontinuous()
         axis = scheme.moment_axis(_cart_axes())
@@ -402,10 +401,7 @@ class TestMomentAxisAdmission:
         assert axis.shape == (2,)
         assert isinstance(axis.kind, Modal)
         assert axis.weights is not None
-        assert np.array_equal(
-            axis.weights,
-            scheme.moment_mass_diagonal(_cart_axes()),
-        )
+        assert np.array_equal(axis.weights, np.array([1.0, 1.0 / 3.0]))
 
     def test_slopeless_closure_refuses(self):
         with pytest.raises(NotImplementedError, match="no moment axis"):
@@ -441,8 +437,6 @@ class TestMomentAxisAdmission:
         #158's cell solve is what gives a chosen ``G`` a consumer.
         """
         with pytest.raises(NotImplementedError, match="no moment mass"):
-            LinearDiscontinuous().moment_mass_diagonal(_radial_axes(kind))
-        with pytest.raises(NotImplementedError, match="no moment mass"):
             LinearDiscontinuous().moment_axis(_radial_axes(kind))
 
     @pytest.mark.parametrize(
@@ -462,7 +456,7 @@ class TestMomentAxisAdmission:
         rewording.
         """
         with pytest.raises(NotImplementedError, match="no moment mass") as exc:
-            LinearDiscontinuous().moment_mass_diagonal(_radial_axes(kind))
+            LinearDiscontinuous().moment_axis(_radial_axes(kind))
         message = str(exc.value)
         assert "158" in message, "the VALUE blocker (#158) must stay named"
         assert "409" not in message, (
@@ -484,7 +478,7 @@ class TestMomentAxisAdmission:
         with pytest.raises(
             NotImplementedError, match="mass on a radial_cylindrical axis",
         ):
-            LinearDiscontinuous().moment_mass_diagonal(axes)
+            LinearDiscontinuous().moment_axis(axes)
 
     @pytest.mark.parametrize(
         "kind", [AxisCoord.RADIAL_SPHERICAL, AxisCoord.RADIAL_CYLINDRICAL]
@@ -499,10 +493,9 @@ class TestMomentAxisAdmission:
         this leg the refusal above is compatible with a guard that simply
         rejects every curvilinear chart.
         """
-        assert np.array_equal(
-            DiamondDifference().moment_mass_diagonal(_radial_axes(kind)),
-            np.ones(1),
-        )
+        # DD mints no moment axis (its width-1 tail is absent), so the guard is
+        # asked directly: on a curved chart it must admit a slopeless closure.
+        DiamondDifference()._assert_moment_mass_is_expressible(_radial_axes(kind))
 
 
 class TestAngularTrialSpace:

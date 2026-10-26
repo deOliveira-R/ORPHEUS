@@ -478,7 +478,7 @@ def test_g2_ld_block_triangular_and_lapack_solve_equals_sweep(geometry):
     cm = 2 ** d
     n_cells = int(np.prod(problem.spatial_shape))
     rng = np.random.default_rng(20260707)
-    from orpheus.numerics.moment_layout import AVERAGE_MOMENT
+    from orpheus.numerics.basis import AVERAGE_MOMENT
     from scipy.linalg import lu_factor, lu_solve
 
     for n in (0, problem.quad.n_ordinates - 1):

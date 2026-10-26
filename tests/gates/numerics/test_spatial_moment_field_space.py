@@ -30,7 +30,7 @@ from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.axis import BasisKind
-from orpheus.numerics.moment_layout import SPATIAL_MOMENT_AXIS_LABEL
+from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import head_layout
 from orpheus.transport.fields._bases import BulkField
@@ -220,15 +220,12 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     np.testing.assert_equal(field.values.shape, field.space.shape)
     # CS4b S2: on an axis-built bulk space the tail is the scheme-owned
     # MODAL moment AXIS (mass-carrying) — the scheme's own, the ONE spelling of the tail (6.2c-iii).
-    # Since S3 (#423) the axis weights and the mass both read the cell basis's
-    # Gram: the leg pins that the tail carries the mass; the value pin is
+    # The mass value is pinned in
     # test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse.
     tail_axis = field.space.axes[-1]
     np.testing.assert_equal(tail_axis.label, SPATIAL_MOMENT_AXIS_LABEL)
     assert isinstance(tail_axis.kind, Modal)
-    np.testing.assert_array_equal(
-        tail_axis.weights, mesh.scheme.moment_mass_diagonal(mesh.axes),
-    )
+    assert tail_axis == mesh.scheme.moment_axis(mesh.axes), "the tail is the scheme's own axis"
     np.testing.assert_equal(field.spatial_moments_per_axis, per_axis)
 
 

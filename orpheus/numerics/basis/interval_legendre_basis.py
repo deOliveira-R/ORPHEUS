@@ -33,8 +33,8 @@ factors (:meth:`TensorProductBasis.face`).
 The linear-discontinuous cell basis is the tensor product of ``d`` copies of the
 two-term interval basis (:func:`spatial_moment_basis`): coefficients
 :math:`(\bar\psi, \hat\psi)` per axis, :math:`\psi \approx \bar\psi + \xi\hat\psi`
-(:ref:`discretization-ld-moments`, Lewis and Miller 1984 Eq. 4.1), in the order
-:ref:`spatial-moment-kronecker-order` records.
+(:eq:`discretization-ld-moments`, Larsen and Morel 1989 Eq. 4.1), in the order
+:eq:`spatial-moment-kronecker-order` records.
 """
 
 from __future__ import annotations
@@ -55,6 +55,7 @@ if TYPE_CHECKING:
     from orpheus.geometry.manifold import Manifold
 
 __all__ = [
+    "AVERAGE_MOMENT",
     "IntervalLegendreBasis",
     "SPATIAL_MOMENT_AXIS_LABEL",
     "TensorProductBasis",
@@ -68,6 +69,12 @@ _REFERENCE_INTERVAL = Interval(-1.0, 1.0)
 #: tensor layout, so the axis that :meth:`~orpheus.numerics.axis.Axis.of_basis`
 #: mints from it carries this label.
 SPATIAL_MOMENT_AXIS_LABEL = "spatial_moment"
+
+#: The flat slot of the constant function in a tensor Legendre layout: the
+#: index of the layout's unit :math:`e_0`, since :math:`P_0 = 1` on every
+#: factor and the all-zero multi-index is first in the Kronecker order. The
+#: slot of the cell average (and of the face average) in every moment buffer.
+AVERAGE_MOMENT = 0
 
 
 def _kron_all(vectors: list[NDArray]) -> NDArray:
@@ -190,12 +197,19 @@ class TensorProductBasis(Basis):
     def __post_init__(self) -> None:
         if not self.factors:
             raise ValueError("TensorProductBasis: a tensor product has at least one factor")
+        if not all(isinstance(f, IntervalLegendreBasis) for f in self.factors):
+            raise TypeError("TensorProductBasis: every factor is an IntervalLegendreBasis")
         object.__setattr__(self, "factors", tuple(self.factors))
 
     @property
     def ndim(self) -> int:
         """The number of factors, the product domain's dimension."""
         return len(self.factors)
+
+    @property
+    def dimension(self) -> int:
+        """The number of coefficients: the product of the factors' counts."""
+        return self.layout.shape[0]
 
     def face(self, axis: int, /) -> TensorProductBasis:
         r"""The basis of the face normal to ``axis``: the product of the other factors, in their order.
@@ -205,6 +219,7 @@ class TensorProductBasis(Basis):
         transverse coefficients in this order. Refused on a one-factor product,
         whose face is a point.
         """
+        self._require_axis(axis)
         if self.ndim == 1:
             raise ValueError("TensorProductBasis.face: the face of a one-factor product is a point, which carries no basis")
         return TensorProductBasis(self.factors[:axis] + self.factors[axis + 1:], self.label)
@@ -216,7 +231,12 @@ class TensorProductBasis(Basis):
         point, whose function space is the constants alone, so its dimension is
         the empty product, 1.
         """
+        self._require_axis(axis)
         return int(np.prod([f.n for a, f in enumerate(self.factors) if a != axis], dtype=int))
+
+    def _require_axis(self, axis: int) -> None:
+        if not 0 <= axis < self.ndim:
+            raise ValueError(f"TensorProductBasis: axis {axis} is not one of the {self.ndim} factor axes")
 
     def reflection_signs(self, mirrored: tuple[bool, ...], /) -> NDArray:
         r"""The diagonal action of the mirrors :math:`\xi_a \mapsto -\xi_a` on the coefficients.
