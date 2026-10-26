@@ -124,7 +124,7 @@ class Mixture(ContentIdentity):
         the upstream nuclear-data library and is genuinely defined.
 
         For synthetic / Sood-style abstract cross sections (built via
-        :func:`orpheus.derivations.common.xs_library.make_mixture` or
+        :func:`orpheus.data.macro_xs.synthetic.make_mixture` or
         constructed directly in MMS / verification harnesses), ``eg`` is
         ``None``: there is no real grid. Downstream consumers (lethargy
         widths, per-energy plotting, spectrum-weighted condensation) MUST

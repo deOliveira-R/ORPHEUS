@@ -388,7 +388,7 @@ def test_r7_8_what_a_zero_dimensional_answer_cannot_read_is_refused(make: Any, f
 # ═════════════════════════════════════════════════════════════════════════════
 
 def _library_a_4g() -> Any:
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     return get_mixture("A", "4g")
 

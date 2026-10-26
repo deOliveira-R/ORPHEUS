@@ -49,7 +49,7 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.operator import (
     LinearOperator,

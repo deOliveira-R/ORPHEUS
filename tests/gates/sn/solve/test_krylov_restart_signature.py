@@ -94,7 +94,7 @@ def _solve_kinf(
     Homogeneous reflective sphere, ``A`` 2g mixture, GL n_ord=8.
     Returns ``Solution.keff``.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
@@ -228,7 +228,7 @@ def test_one_full_restart_cycle_solves_a_diffusive_infinite_medium() -> None:
 
     One group and a flat solution null every spatial and group-coupling term; the row's threat is the Krylov
     truncation, which they do not touch. The infinite-medium answer is the structurally independent reference."""
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
     from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature

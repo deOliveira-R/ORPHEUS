@@ -1,4 +1,4 @@
-"""Cross-section library for verification cases.
+"""Synthetic macroscopic cross sections for verification cases.
 
 Four abstract regions (A, B, C, D) in 1, 2, and 4 energy groups.
 All XS satisfy the consistency relation Σ_t = Σ_c + Σ_f + Σ_s(row sum).
@@ -9,7 +9,11 @@ Region semantics:
     C — non-fissile absorber (cladding-like)
     D — thin, low-opacity scatterer (gap-like)
 
-Shared by all derivation modules to avoid duplication.
+The derivations and the tests pose their cases on these mixtures, so a
+reference and the solver it verifies read the same numbers. It is data, not a
+derivation (it needs only :class:`~orpheus.data.macro_xs.mixture.Mixture`), so
+it lives in ``data``; it was ``orpheus.derivations.common.xs_library`` until
+2026-10-26 (the layer DAG campaign, ruling 29).
 """
 
 from __future__ import annotations

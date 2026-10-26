@@ -58,7 +58,7 @@ from ...common.continuous_reference import (
     ProblemSpec,
     Provenance,
 )
-from ...common.xs_library import LAYOUTS, get_mixture, get_xs
+from orpheus.data.macro_xs.synthetic import LAYOUTS, get_mixture, get_xs
 from ...common.withdrawal import withdrawn_generator
 from . import PEIERLS_NYSTROM_WITHDRAWAL
 

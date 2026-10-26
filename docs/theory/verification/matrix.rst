@@ -173,6 +173,7 @@ Module × level grid
    data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
    data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
    data/test_n2n_yield_convention, 7, 0, 0, 0, 23, 0
+   data/test_synthetic_xs, 0, 0, 0, 0, 2, 0
    derivations/test_adjoint_spectrum_reference, 0, 0, 0, 0, 6, 0
    derivations/test_angular_measure_symbolic, 0, 0, 0, 0, 4, 0
    derivations/test_atkinson_product_nystrom, 0, 6, 0, 0, 5, 0
@@ -287,7 +288,6 @@ Module × level grid
    derivations/test_sood_registry_wide_bare_critical, 0, 17, 0, 0, 2, 0
    derivations/test_sood_registry_wide_kinf, 0, 0, 0, 0, 49, 0
    derivations/test_walls_of_reads_decks_and_amplitudes, 0, 0, 0, 0, 72, 0
-   derivations/test_xs_library_validation, 0, 0, 0, 0, 2, 0
    diffusion/test_augmented_mesh, 0, 0, 0, 0, 17, 0
    diffusion/test_boundary_realizer, 4, 0, 0, 0, 27, 0
    diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0

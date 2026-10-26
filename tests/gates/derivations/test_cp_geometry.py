@@ -29,7 +29,7 @@ from orpheus.derivations.continuous.flat_source_cp.geometry import (
     SPHERE_1D,
     build_cp_matrix,
 )
-from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+from orpheus.data.macro_xs.synthetic import LAYOUTS, get_xs
 
 
 # ═══════════════════════════════════════════════════════════════════════

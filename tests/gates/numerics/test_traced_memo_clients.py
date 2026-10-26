@@ -31,7 +31,7 @@ REPO = Path(__file__).resolve().parents[3]
 
 def _exact_specification():
     from orpheus.data.cells import CellCoefficient, Channel
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.numerics.question import Eigen
     from orpheus.specification.specification import InfiniteMediumSpecification
 
@@ -131,7 +131,7 @@ def test_m4_10_the_default_store_is_gitignored():
 _CHARACTERISTIC_DRIVER_SETUP = '''
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
-from orpheus.derivations.common.xs_library import get_xs, make_mixture
+from orpheus.data.macro_xs.synthetic import get_xs, make_mixture
 from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution, TransportResolution
 from orpheus.geometry import StructuredGeometry
 from orpheus.numerics.question import Eigen

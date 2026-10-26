@@ -18,7 +18,7 @@ import warnings
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
@@ -154,7 +154,7 @@ def _dilute_fissile(ng: int = 2):
     """Fissile enough to be ADMITTED (k_eff > 0), dilute enough to stay SUBCRITICAL on
     an all-reflective box — a library mixture there is supercritical (k∞ = 1.875 for A)
     and the entry would refuse."""
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
     sig_t = np.linspace(0.8, 1.6, ng)
     sig_f = 0.05 * np.ones(ng)
     return make_mixture(

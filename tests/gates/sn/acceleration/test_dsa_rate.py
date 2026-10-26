@@ -57,7 +57,7 @@ from scipy.linalg import lu_factor
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.xs_library import get_mixture, make_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature

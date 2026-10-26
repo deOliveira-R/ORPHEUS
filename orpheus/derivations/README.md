@@ -32,8 +32,6 @@ Shared utilities that no single path owns. The four most-imported:
   Gauss–Laguerre) and `AdaptiveQuadrature1D` for `mpmath.quad` rules.
 - `quadrature_recipes.py` — geometry-aware recipes
   (`chord_quadrature`, `observer_angular_quadrature`).
-- `xs_library.py` — synthetic cross-section library shared between
-  derivations and tests.
 
 Plus the type root (`verification_case.py`,
 `continuous_reference.py`), the eigenvalue helpers (`eigenvalue.py`),

@@ -26,7 +26,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import Materials
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import (
     Entry,

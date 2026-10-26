@@ -35,7 +35,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.exact_homogeneous import exact_pencil_eigenpair
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.homogeneous.solver import (
     HomogeneousProblem,
     _pose_space,

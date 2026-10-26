@@ -41,6 +41,21 @@ Mixture
    :undoc-members:
    :show-inheritance:
 
+Synthetic cross sections
+------------------------
+
+:mod:`~orpheus.data.macro_xs.synthetic` is the catalogue of synthetic
+macroscopic cross sections that the derivations and the tests pose their
+cases on: four abstract regions (A fissile, B scatterer, C absorber, D thin
+scatterer) in 1, 2 and 4 groups, each built into a
+:class:`~orpheus.data.macro_xs.mixture.Mixture`. It is data, not a
+derivation: it needs only the ``Mixture`` vocabulary, so it lives in
+``data`` (the layer DAG campaign, ruling 29; it was
+``orpheus.derivations.common.xs_library`` until 2026-10-26).
+
+.. automodule:: orpheus.data.macro_xs.synthetic
+   :members:
+
 The declaration: ``Materials``
 ------------------------------
 

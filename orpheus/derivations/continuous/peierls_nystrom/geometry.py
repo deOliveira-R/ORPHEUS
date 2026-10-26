@@ -5791,7 +5791,7 @@ def solve_peierls_mg(
         is the rate of scatter **from** group ``g_src`` **into** group
         ``g_dst`` at region ``r`` — i.e., the first group index is
         the source and the second is the destination. This matches
-        the XS library (:mod:`orpheus.derivations.common.xs_library`) and
+        the XS library (:mod:`orpheus.data.macro_xs.synthetic`) and
         the slab driver
         :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`.
         Under this convention downscatter (fast → thermal, i.e.,

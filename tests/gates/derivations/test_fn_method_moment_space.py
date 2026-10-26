@@ -23,7 +23,7 @@ from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.fn_method.multi_group.k_inf import (
     compute_kinf_1g,

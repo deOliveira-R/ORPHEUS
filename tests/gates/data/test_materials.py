@@ -18,7 +18,7 @@ import numpy as np
 import pytest
 
 from orpheus.data.materials import Materials
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 
 pytestmark = pytest.mark.foundation
 

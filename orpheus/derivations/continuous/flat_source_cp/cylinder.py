@@ -29,7 +29,7 @@ import numpy as np
 from . import geometry as _cpg
 from ...common.eigenvalue import kinf_from_cp
 from ...common.verification_case import VerificationCase
-from ...common.xs_library import LAYOUTS, get_xs, get_mixture
+from orpheus.data.macro_xs.synthetic import LAYOUTS, get_xs, get_mixture
 
 
 # ═══════════════════════════════════════════════════════════════════════

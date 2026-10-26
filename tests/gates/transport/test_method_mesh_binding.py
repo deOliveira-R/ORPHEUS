@@ -136,7 +136,7 @@ def test_the_duties_are_spelled_once_in_the_method_layer() -> None:
 
 
 def _sn(condition: Any) -> Any:
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import StructuredGeometry
     from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellsByCount, Mesher
@@ -148,7 +148,7 @@ def _sn(condition: Any) -> Any:
 
 
 def _diffusion(condition: Any) -> Any:
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.geometry import StructuredGeometry
     from orpheus.geometry.deck import MirrorDeck

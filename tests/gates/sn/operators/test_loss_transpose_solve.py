@@ -37,7 +37,7 @@ import numpy as np
 import pytest
 from scipy.linalg import solve_triangular
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature

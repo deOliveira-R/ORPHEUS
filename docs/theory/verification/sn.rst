@@ -4883,7 +4883,7 @@ All modes are bounded by :math:`\mathcal O(1)`, so
 
 **The Phase 2.1b diagnostic configuration.** The canonical
 test problem is the ``A`` + ``B`` 1-group mixture pair from
-:mod:`orpheus.derivations.common.xs_library`:
+:mod:`orpheus.data.macro_xs.synthetic`:
 
 .. list-table::
    :header-rows: 1

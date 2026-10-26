@@ -611,7 +611,7 @@ def _slab_for_snapshot_arm(*, ng: int, left: FaceRole, right: FaceRole) -> SNPro
     """
     from scipy.sparse import csr_matrix
 
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
 
     if ng == 1:
         mix = make_mixture(

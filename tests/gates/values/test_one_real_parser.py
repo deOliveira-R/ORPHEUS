@@ -52,7 +52,7 @@ def _sites_writing_the_fragment() -> list[str]:
 def _mixture_with_nan():
     from dataclasses import replace
 
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     mixture = get_mixture("A", "2g")
     sig_t = np.array(mixture.SigT)

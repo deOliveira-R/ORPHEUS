@@ -122,7 +122,7 @@ def test_the_empty_default_is_safe() -> None:
         S.problem(mesh, quad, {0: B.WallCondition.vacuum(), 1: B.WallCondition.vacuum(), 5: B.WallCondition.vacuum()}, mats)
     assert unused.value.tag == 5
 
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
 

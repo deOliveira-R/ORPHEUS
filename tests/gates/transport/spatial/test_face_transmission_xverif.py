@@ -62,7 +62,7 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.derivations.discrete.sn.face_transmission import (
     LAMBDA,
     Closure,

@@ -105,7 +105,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.homogeneous.solver import solve_homogeneous_infinite

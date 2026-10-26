@@ -35,7 +35,7 @@ import pytest
 import orpheus.transport.kernels as kernels_module
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import energy_axis_of
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.transport.kernels import FissionKernel, TransferKernel
 from tests.gates.transport._carrier_helpers import unit_cell_carrier

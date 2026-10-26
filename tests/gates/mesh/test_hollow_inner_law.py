@@ -29,7 +29,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture, make_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher

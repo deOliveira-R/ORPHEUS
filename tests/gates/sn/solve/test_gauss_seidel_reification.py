@@ -42,7 +42,7 @@ import pytest
 
 from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperator
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.loss_representation.sweep_schedule import (

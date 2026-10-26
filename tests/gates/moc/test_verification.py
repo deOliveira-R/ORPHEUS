@@ -33,7 +33,7 @@ from scipy.sparse import csr_matrix
 from orpheus.geometry import StructuredGeometry
 from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.derivations.common.xs_library import make_mixture, get_mixture, get_xs
+from orpheus.data.macro_xs.synthetic import make_mixture, get_mixture, get_xs
 from orpheus.derivations.common.eigenvalue import kinf_homogeneous
 from orpheus.moc.geometry import MOCMesh
 from orpheus.moc.quadrature import MOCQuadrature

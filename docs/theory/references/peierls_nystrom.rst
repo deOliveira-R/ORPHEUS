@@ -511,7 +511,7 @@ closure math → Stamm'ler Eq. 34.
 with first index = **source** group, second = **destination**. See
 :ref:`peierls-scattering-convention` in the multi-group driver
 section for the authoritative statement and its cross-check against
-the physical fixture in :mod:`orpheus.derivations.common.xs_library`.
+the physical fixture in :mod:`orpheus.data.macro_xs.synthetic`.
 
 **Boundary string → closure semantics**. The ``boundary=`` (a.k.a.
 ``closure=``) argument to :func:`~orpheus.derivations.continuous.peierls_nystrom.geometry.solve_peierls_1g`
@@ -1357,7 +1357,7 @@ The project-wide energy-group ordering is stated once in
 destination. Downscatter (fast → thermal with group 0 = fast) sits
 in the **upper-triangular** entries; the physical fixture
 ``_A_2G["sig_s"] = [[0.38, 0.10], [0.00, 0.90]]`` in
-:mod:`orpheus.derivations.common.xs_library` has ``sig_s[0, 1] = 0.10``
+:mod:`orpheus.data.macro_xs.synthetic` has ``sig_s[0, 1] = 0.10``
 (fast-to-thermal downscatter) and ``sig_s[1, 0] = 0`` (no
 upscatter), which is the physical sanity-check this convention
 must pass. Both Peierls drivers
@@ -1366,7 +1366,7 @@ for slab/cylinder/sphere via ``geometry`` binding, and
 :func:`~orpheus.derivations.continuous.peierls_nystrom.slab.solve_peierls_eigenvalue`
 for the verification-of-verification slab native path) follow this
 convention — see their docstrings and the
-:func:`~orpheus.derivations.common.xs_library.get_xs` module note. The
+:func:`~orpheus.data.macro_xs.synthetic.get_xs` module note. The
 2G slab parity test (:class:`TestMGSlabPolarMatchesNativeSlabMG`)
 is the definitive cross-check: if the two drivers agree on a 2G
 eigenvalue with genuinely directional (non-symmetric) scatter, the
@@ -4067,7 +4067,7 @@ Test cell: solid cyl / sph, ``radii = cp_module._RADII[n_regions]``
 from :mod:`orpheus.derivations.continuous.flat_source_cp.cylinder` /
 :mod:`orpheus.derivations.continuous.flat_source_cp.sphere` (``[1.0]`` for 1R,
 ``[0.5, 1.0]`` for 2R), with the
-:mod:`orpheus.derivations.common.xs_library` ``LAYOUTS`` mapping
+:mod:`orpheus.data.macro_xs.synthetic` ``LAYOUTS`` mapping
 (``LAYOUTS = {1: ["A"], 2: ["A", "B"], 4: ["A", "D", "C", "B"]}``).
 Material A is fuel (:math:`\nu\Sigma_f > 0`), material B is
 moderator (:math:`\nu\Sigma_f = 0`, :math:`\sigma_s = 1.9`). The

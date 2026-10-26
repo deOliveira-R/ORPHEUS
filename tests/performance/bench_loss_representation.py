@@ -31,7 +31,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature

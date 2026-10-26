@@ -247,7 +247,7 @@ class TestHebertCylinderInsufficient:
         without updating this gate.
         """
         from orpheus.derivations.continuous.flat_source_cp import cylinder as cp_cylinder
-        from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+        from orpheus.data.macro_xs.synthetic import LAYOUTS, get_xs
         from orpheus.derivations.continuous.peierls_nystrom.geometry import (
             CYLINDER_1D, solve_peierls_mg,
         )

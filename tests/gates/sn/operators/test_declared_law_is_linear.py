@@ -194,7 +194,7 @@ def _slab(xmin=_PRESCRIBED, xmax=None) -> SNProblem:
     make ``− S`` the zero operator and quietly drop a third of the algebra
     under test).
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     roles: list = []
     conditions: dict[int, WallCondition] = {}

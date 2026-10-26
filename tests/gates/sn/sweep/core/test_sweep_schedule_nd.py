@@ -228,7 +228,7 @@ def test_gs_d3_schedule_from_real_mesh():
     are pinned synthetically above.)
     """
     import numpy as np
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.mesh import AxisMesh
     from orpheus.sn.problem import SNProblem

@@ -72,7 +72,7 @@ import math
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.derivations.continuous.analytical.homogeneous import (
     derive_2g_continuous,
 )

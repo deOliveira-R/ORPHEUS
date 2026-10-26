@@ -13,8 +13,6 @@ The four utilities most consumers import directly:
   contract (:class:`Quadrature1D`, :class:`AdaptiveQuadrature1D`).
 - :mod:`~orpheus.derivations.common.quadrature_recipes` —
   geometry-aware recipes (chord, observer-angular).
-- :mod:`~orpheus.derivations.common.xs_library` — synthetic
-  cross-section library shared between derivations and tests.
 
 The entry point for the math root is
 :mod:`~orpheus.derivations.common.transport_equation`, which lays

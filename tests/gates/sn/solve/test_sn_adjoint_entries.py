@@ -49,7 +49,7 @@ import pytest
 from orpheus.derivations.common.eigenvalue import (
     kinf_and_adjoint_spectrum_homogeneous,
 )
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature

@@ -689,7 +689,7 @@ where
   chapter proves about :math:`S` holds for :math:`N_{2n}` with
   :math:`y = 2`.  It contributes exactly nothing wherever
   :math:`\Sigma_{2n} \equiv 0`, which is how this chapter's fixtures are
-  built — ``[M]`` 2026-09-07 all 12 ``xs_library`` mixtures carry a
+  built — ``[M]`` 2026-09-07 all 12 ``macro_xs.synthetic`` mixtures carry a
   :math:`\Sigma_{2n}` with zero non-zeros, and the MMS mixtures are
   minted ``Sig2 = csr_matrix(zeros((ng, ng)))``
   (:mod:`orpheus.derivations.continuous.mms.sn`) — so writing it out

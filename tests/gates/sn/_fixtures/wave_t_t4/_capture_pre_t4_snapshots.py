@@ -61,7 +61,7 @@ from scipy.sparse import csr_matrix
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry import StructuredGeometry
@@ -94,7 +94,7 @@ SEED_BASE = 20260531  # Wave T T.4a capture date
 
 # ─────────────────────────────────────────────────────────────────────
 # Material builders — hardcoded so the snapshots are independent of
-# the xs_library state.  Mixture A (2G) parameters from xs_library
+# the macro_xs.synthetic state.  Mixture A (2G) parameters from macro_xs.synthetic
 # region A 2G entry (asymmetric SigS; non-zero P1).
 # ─────────────────────────────────────────────────────────────────────
 

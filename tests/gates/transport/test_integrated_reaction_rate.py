@@ -13,7 +13,7 @@ Three legs:
   ``IRR(νΣf)/IRR(Σa) == k∞`` (the volume measure CANCELS in the ratio — so this
   pins the fold is consistent between numerator and denominator). 4G mandatory
   (A 2G's spectrum is coincidentally flat).
-* **C — (n,2n) activation in the SN production rate**: every ``xs_library``
+* **C — (n,2n) activation in the SN production rate**: every ``macro_xs.synthetic``
   mixture has ``Sig2 = 0``, so a library fixture would null the (n,2n) term
   vacuously — this uses ``_make_mixture_with_n2n`` to genuinely activate it and
   assert it ADDS to the IRR fission production.
@@ -28,7 +28,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesh2D, Mesher
 from orpheus.numerics.functional import Functional
@@ -269,7 +269,7 @@ class TestN2NActivationInProductionRate:
     def test_production_includes_n2n_when_sig2_nonzero(self):
         from tests.gates.cp.test_verification import _make_mixture_with_n2n
 
-        mat = _make_mixture_with_n2n("2g")  # Sig2 ≠ 0 (xs_library mixtures are all Sig2=0)
+        mat = _make_mixture_with_n2n("2g")  # Sig2 ≠ 0 (macro_xs.synthetic mixtures are all Sig2=0)
         mesh = Mesh2D(
             edges_x=np.linspace(0.0, 0.8, 5), edges_y=np.linspace(0.0, 0.6, 4),
             mat_map=np.zeros((4, 3), dtype=int),
@@ -288,5 +288,5 @@ class TestN2NActivationInProductionRate:
             total > fission_only * (1.0 + 1e-9),
             f"(n,2n) must ADD to production when Sig2≠0: total={total!r}, "
             f"fission-only IRR={fission_only!r}. Guards the Mode-10 vacuity — every "
-            f"xs_library mixture has Sig2=0, so a library fixture would null the term.",
+            f"macro_xs.synthetic mixture has Sig2=0, so a library fixture would null the term.",
         )

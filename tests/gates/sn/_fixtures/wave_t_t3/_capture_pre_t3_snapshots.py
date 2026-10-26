@@ -63,7 +63,7 @@ from orpheus.numerics import frame_faces
 _REPO_ROOT = Path(__file__).resolve().parents[5]
 sys.path.insert(0, str(_REPO_ROOT))
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem

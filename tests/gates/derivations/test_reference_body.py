@@ -27,7 +27,7 @@ from orpheus.derivations.common.reference_body import (
     ReflectedSlab,
     reference_body,
 )
-from orpheus.derivations.common.xs_library import get_mixture, make_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.galerkin_spectral.basis_space import BasisSpace
 from orpheus.derivations.continuous.singular_eigenfunction.spectrum import Spectrum

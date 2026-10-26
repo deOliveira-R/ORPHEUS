@@ -18,7 +18,7 @@ import pytest
 
 from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations import reference_values
-from orpheus.derivations.common.xs_library import LAYOUTS, get_mixture
+from orpheus.data.macro_xs.synthetic import LAYOUTS, get_mixture
 from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.transport.boundary_conditions import WallCondition

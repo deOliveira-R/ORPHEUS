@@ -440,7 +440,7 @@ def test_quotient_point_and_a_genuine_one_cell_mesh_are_DIFFERENT_spaces() -> No
     # CS1.5 re-point: ``bulk_space`` moves to Medium; this gate re-points
     # with it.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import StructuredGeometry
     from orpheus.geometry.deck import MirrorDeck
     from orpheus.homogeneous.solver import _pose_space
@@ -481,7 +481,7 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     # CS1.5 re-point: ``bulk_space`` moves to Medium; this gate re-points
     # with it.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.diffusion import DiffusionMesh
     from orpheus.geometry import StructuredGeometry
     from orpheus.geometry.deck import MirrorDeck
@@ -528,7 +528,7 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     back from the mesh — so the mesh→measure→axis chain has a pin that
     is structurally independent of every array it threads.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import StructuredGeometry
     from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellEdges, Mesher
@@ -607,7 +607,7 @@ def test_bulk_space_is_cached_and_content_stable() -> None:
     # CS1.5 re-point: ``bulk_space`` moves to Medium; this gate re-points
     # with it.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from tests.gates.transport._carrier_helpers import unit_cell_carrier
 
     mix = get_mixture("A", "2g")

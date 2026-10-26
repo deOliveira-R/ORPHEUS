@@ -31,7 +31,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.boundary_realizer import DIFFUSION_REALIZERS
 from orpheus.diffusion.method_space import DiffusionMethodSpace

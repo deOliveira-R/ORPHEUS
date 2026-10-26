@@ -1227,7 +1227,7 @@ Cross-Section Library
 ~~~~~~~~~~~~~~~~~~~~~
 
 All verification cases use **abstract synthetic cross sections** from
-``orpheus/derivations/common/xs_library.py``.  Four regions are defined, each with
+``orpheus/data/macro_xs/synthetic.py``.  Four regions are defined, each with
 {1G, 2G, 4G} variants:
 
 - **Region A** (fissile): fuel-like, with fission and moderate scattering
@@ -1264,7 +1264,7 @@ intended to match real nuclear data. Production runs always use the
 real library from ``orpheus/data/micro_xs/``.
 
 The definitive values and per-group arrays live in
-``orpheus/derivations/common/xs_library.py`` (see the ``_MU_BAR`` dict at
+``orpheus/data/macro_xs/synthetic.py`` (see the ``_MU_BAR`` dict at
 the top of the file). Changing them there automatically propagates
 to every verification case because all derivation modules import
 ``make_mixture`` from the same module.

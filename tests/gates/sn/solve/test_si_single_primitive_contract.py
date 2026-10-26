@@ -35,7 +35,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.sn import solve_sn_fixed_source

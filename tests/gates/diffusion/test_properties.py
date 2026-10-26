@@ -16,7 +16,7 @@ Three defining properties of the converged fundamental mode:
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
+from orpheus.data.macro_xs.synthetic import mixture_from_diffusion_tables
 from orpheus.diffusion import ZeroFluxCondition, solve_diffusion_1d
 from orpheus.geometry import StructuredGeometry
 from orpheus.transport.boundary_conditions import BoundaryCondition, WallCondition

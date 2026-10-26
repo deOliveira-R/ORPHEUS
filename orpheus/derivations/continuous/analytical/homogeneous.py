@@ -74,7 +74,7 @@ def _make_mixture(
     non-zero ``sig_2`` makes the (n,2n) channel — folded into the loss
     matrix as :math:`2\\Sigma_2^T` — materially affect :math:`k_\\infty`,
     de-vacuuming the n2n verification path. Mirrors the ``sig_2=``
-    parameter on the sibling :func:`orpheus.derivations.common.xs_library.make_mixture`.
+    parameter on the sibling :func:`orpheus.data.macro_xs.synthetic.make_mixture`.
     """
     ng = len(sig_t)
     return Mixture(

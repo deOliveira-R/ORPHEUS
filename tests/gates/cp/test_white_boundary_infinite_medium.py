@@ -89,7 +89,7 @@ import pytest
 from orpheus.cp.solver import CPParams, CPResult, solve_cp
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations import get as get_case
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
@@ -125,7 +125,7 @@ class WhiteCell:
     radius: float  # outer radius or slab width [cm]
     mesh: str  # "uniform", "graded" or "one-cell"
     n_cells: int
-    groups: str  # xs_library group key, "2g" or "4g"
+    groups: str  # macro_xs.synthetic group key, "2g" or "4g"
 
     @property
     def id(self) -> str:

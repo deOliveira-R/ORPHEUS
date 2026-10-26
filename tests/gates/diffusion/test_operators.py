@@ -46,7 +46,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.diffusion import (
     DiffusionBoundaryOperator,
     DiffusionMesh,

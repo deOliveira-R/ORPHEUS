@@ -42,7 +42,7 @@ import numpy as np
 import pytest
 from orpheus.numerics.outcome import Asserted, Measured
 
-from orpheus.derivations.common.xs_library import get_mixture, make_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.numerics.convergence import (
     ESCALATION_FLAG,
     ConvergenceWarning,

@@ -148,7 +148,7 @@ def cp_546_mesh(chart: str, outer: Any = 0) -> Any:
 
 def mixtures_546() -> dict[int, Any]:
     """``{2: A, 0: B}`` of the 2-group library, the materials of the #546 body."""
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     return {2: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
 

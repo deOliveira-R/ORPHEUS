@@ -38,7 +38,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.numerics.functional import Functional, InnerProductFunctional
 from orpheus.numerics.operator import LinearOperator
 from orpheus.transport.reaction_rate_functional import ReactionRateFunctional

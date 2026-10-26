@@ -748,7 +748,7 @@ See :ref:`peierls-scattering-convention` (in the Peierls unified
 theory page) for the canonical, project-wide statement of the
 ``sig_s[g_src, g_dst]`` convention, which the CP / Peierls
 drivers and the XS library
-(:mod:`orpheus.derivations.common.xs_library`) all follow. In the Peierls
+(:mod:`orpheus.data.macro_xs.synthetic`) all follow. In the Peierls
 slab assembly loop
 (:func:`orpheus.derivations.continuous.peierls_nystrom.slab._build_system_matrices`)
 the scatter kernel for the equation in group ``ge`` sums over

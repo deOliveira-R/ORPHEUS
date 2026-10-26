@@ -50,7 +50,7 @@ pytestmark = PEIERLS_NYSTROM_WITHDRAWN
 
 
 # Canonical synthetic XS used elsewhere in the verification campaign
-# (orpheus/derivations/_xs_library.py, material "A", 1-group):
+# (orpheus/data/macro_xs/synthetic.py, material "A", 1-group):
 #   Σ_t = 1, Σ_s = 0.5, νΣ_f = 0.75 → k_inf = 1.5
 _SIG_T = np.array([1.0])
 _SIG_S = np.array([0.5])

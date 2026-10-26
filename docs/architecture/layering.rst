@@ -176,9 +176,13 @@ The script reads ``FORBIDDEN_EDGES`` and the L3 set from the gate (it loads
 ``tests/gates/test_layer_imports.py`` of the tree it censuses); the ranks
 behind its UP report are its own table (``values`` 0, ``geometry`` 1,
 ``numerics`` 2, ``data`` 3, ``mesh`` and ``specification`` 4, ``reference``
-5, ``derivations`` 6, ``transport`` 7, L3 8), stricter than the gate, so it
-reports as upward some edges the gate admits (a planted
-``numerics`` to ``derivations`` import prints as UP with no FORBIDDEN line).
+5, ``derivations`` 6, ``transport`` 7, L3 8). Until 2026-10-26 they were
+stricter than the gate, so the script reported as upward some edges the gate
+admitted (a planted ``numerics`` to ``derivations`` import printed UP with no
+FORBIDDEN line). Since the contract closed its ``derivations`` and
+``plotting`` rows, `[R]` every edge from a lower rank to a higher one is also
+one the gate forbids, read off the table row by row; the siblings ``mesh``
+and ``specification`` share rank 4.
 It reports the package cycles, the UP edges and the edges ``FORBIDDEN_EDGES``
 forbids. Its positive
 control (`[M]` 2026-10-24, a copy of the tree with one planted
@@ -273,18 +277,22 @@ A few notes the table is too compact to capture:
   lives in :mod:`orpheus.geometry`
   (:ref:`structured-geometry-specification-coordinates`).
 
-* **L0** sits below **L2**, above ``specification`` and ``reference``
-  (they never import it; it imports both, 8 statements each), and beside
-  ``numerics``, ``geometry``, ``data`` and ``mesh``, whose rows do not
-  forbid it. The gate's row for ``derivations`` forbids exactly
-  :mod:`orpheus.transport` and every L3 package; of the
-  edges INTO ``derivations`` it forbids those of ``values`` (which imports
-  nothing from ``orpheus``), ``specification`` and ``reference`` (a
-  specification never imports a reference's registry; the registry imports
-  the specification). The edges from ``numerics``,
-  ``geometry``, ``data`` and ``mesh`` to ``derivations`` are therefore
-  admitted by the gate; `[M]` 2026-10-24, the census script over the carve tip, none of
-  the four imports it, and the only importer of ``derivations`` outside
+* **L0** sits below **L2** and above every layer beneath it: ``values``,
+  ``geometry``, ``numerics``, ``data``, the input layer (``mesh`` and
+  ``specification``) and ``reference``. None of them imports it; it imports
+  each (``specification`` and ``reference`` 8 statements each). The gate's
+  row for ``derivations`` forbids exactly :mod:`orpheus.transport`, every L3
+  package and ``plotting``; the edges INTO ``derivations`` are forbidden in
+  every row below it. Until 2026-10-26 the rows of ``numerics``,
+  ``geometry``, ``data`` and ``mesh`` did not forbid it, so L0 was
+  "beside" those four. `[M]` 2026-10-24, no module of the four imported it,
+  so the production edge was unused. The admitted edge was used only by tests,
+  `[M]` 2026-10-25: 22 test files (numerics 15, data 6, mesh 1), most of them
+  importing the synthetic cross-section catalogue
+  ``derivations.common.xs_library``. That catalogue is data, not a
+  derivation: it needs only the ``Mixture`` vocabulary. It moved to
+  :mod:`orpheus.data.macro_xs.synthetic`, and the four rows were closed
+  (``layer_dag.md`` ruling 29). The only importer of ``derivations`` outside
   itself is :mod:`orpheus.cp` (3 top-level statements; a method may import L0,
   which is the L3-uses-L0 pattern). So a reference may use the mathematics
   layer and describe its problem in input-layer vocabulary (a geometry, a
@@ -301,7 +309,9 @@ A few notes the table is too compact to capture:
   :mod:`orpheus.mesh`, and of :mod:`orpheus.numerics` they may import only
   four interface modules (:ref:`architecture-reference-insulation`).
 
-* **L4** is permissible to import everything. It is the only layer
+* **L4** is permissible to import everything, and no layer imports it:
+  every row of the gate forbids ``plotting`` (``L4_PACKAGES``, since
+  2026-10-26; before that only the ``values`` row did). It is the only layer
   where wiring a run can pull in transport types, method-specific
   problems, and the math layer simultaneously. The single-file
   ``plotting.py`` is an L4 example; entry-point scripts in
@@ -459,38 +469,41 @@ The forbidden-edge dictionary is:
        # L1 imports nothing above itself; data sits strictly above it
        # (layer_dag.md P2). Geometry is below it.
        "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES
-                   | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+                   | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES
+                   | L0_PACKAGES | L4_PACKAGES,
 
        # Geometry is declarative and below numerics (wave 2, WF2.4); data
        # never imports the mesh overlay, the specification or the
        # reference package above it.
-       "geometry": NUMERICS_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES
-                   | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       "geometry": NUMERICS_PACKAGES | DATA_PACKAGES | MESH_PACKAGES
+                   | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES
+                   | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
        "data":     MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES
-                   | L2_PACKAGES | L3_PACKAGES,
+                   | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
 
        # The mesh imports geometry, data and L1, never the specification,
        # the reference package, L2 or L3.
-       "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
+       "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES
+               | L0_PACKAGES | L4_PACKAGES,
 
        # The specification imports data, geometry and L1 only.
        "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES
-                        | L3_PACKAGES | L0_PACKAGES,
+                        | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
 
        # The reference package sits above the specification, below
        # transport, L3 and derivations.
-       "reference": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
+       "reference": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
 
        # L2 imports L1 + inputs only.
-       "transport": L3_PACKAGES,
+       "transport": L3_PACKAGES | L4_PACKAGES,
 
        # L3 methods cannot import sibling L3 packages.
-       "sn":         L3_PACKAGES - {"sn"},
-       "pn":         L3_PACKAGES - {"pn"},
+       "sn":         L3_PACKAGES - {"sn"} | L4_PACKAGES,
+       "pn":         L3_PACKAGES - {"pn"} | L4_PACKAGES,
        # ... etc for every L3 package ...
 
        # L0 (derivations) never imports transport or a method.
-       "derivations": L2_PACKAGES | L3_PACKAGES,
+       "derivations": L2_PACKAGES | L3_PACKAGES | L4_PACKAGES,
    }
 
 A failing test names the offending module in the parametrised test ID,

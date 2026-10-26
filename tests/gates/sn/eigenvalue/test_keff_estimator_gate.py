@@ -47,7 +47,7 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
@@ -120,7 +120,7 @@ def _map_ratio_kstar(solver, phi):
 def _mixture_with_n2n():
     """Library fuel + an asymmetric injected Sig2 (the #269 fixture idiom).
 
-    Every xs_library mixture has Sig2 = 0, so the (n,2n) convention leg
+    Every macro_xs.synthetic mixture has Sig2 = 0, so the (n,2n) convention leg
     would be vacuously green on library data (vv Mode 10); the asymmetry
     also catches a g_from↔g_to swap.
     """

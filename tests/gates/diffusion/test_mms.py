@@ -45,7 +45,7 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.diffusion import DiffusionMesh, DiffusionSolver, ZeroFluxCondition
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher

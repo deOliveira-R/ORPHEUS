@@ -15,7 +15,7 @@ import sympy as sp
 
 from ...common.eigenvalue import kinf_homogeneous, kinf_from_cp
 from ...common.verification_case import VerificationCase
-from ...common.xs_library import LAYOUTS, get_xs, get_mixture
+from orpheus.data.macro_xs.synthetic import LAYOUTS, get_xs, get_mixture
 
 # Cylindrical radii and mat_ids (matching cp_cylinder)
 _RADII = {

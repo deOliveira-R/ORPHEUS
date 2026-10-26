@@ -41,7 +41,7 @@ import pytest
 
 from orpheus.cp.solver import CPMesh, CPParams, solve_cp
 from orpheus.data.cell_xs import assemble_cell_xs
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.derivations.continuous.flat_source_cp import geometry as fsg
 from orpheus.geometry import CoordSystem
 from orpheus.mesh import CellsByCount, Mesher

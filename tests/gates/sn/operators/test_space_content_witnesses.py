@@ -90,7 +90,7 @@ def _composite(sn: SNProblem) -> FullField:
 class TestO4DiffusionBoundaryOperator:
     def test_apply_refuses_content_differing_interior(self):
         from orpheus.diffusion import DiffusionBoundaryOperator, DiffusionMesh
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
         from orpheus.transport.fields.scalar_boundary_flux import (
             ScalarBoundaryFlux,
         )

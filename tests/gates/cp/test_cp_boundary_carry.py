@@ -106,7 +106,7 @@ def test_the_default_pin_cell_outer_face_is_bound_to_white() -> None:
     the equality fails by the full gap of the inverted order, not by rounding.
     """
     from orpheus.cp.solver import CPParams, solve_cp
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.transport.boundary_conditions import WallCondition

@@ -46,7 +46,7 @@ import math
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.convergence import default_iteration_budget

@@ -99,7 +99,7 @@ def _scalar_composite_cotangent():
     ``DiffusionMesh`` is 1-D by design — so the composite leg builds its own
     mesh rather than promoting this one.
     """
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
     from orpheus.diffusion import DiffusionMesh
     from orpheus.geometry import StructuredGeometry
     from orpheus.transport.boundary_conditions import WallCondition

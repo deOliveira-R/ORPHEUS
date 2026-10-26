@@ -26,13 +26,13 @@ and the files at the root of ``tests/gates/`` (this one included). A
 ``tests.gates`` target that is not a layered directory (a root helper such as
 ``tests.gates._exterior``, or ``cross_method``) is not judged.
 
-Not judged, the contract's gap: ``FORBIDDEN_EDGES`` has no row for
-``orpheus.derivations`` (L0) or ``plotting`` in the rows of ``numerics``,
-``data``, ``mesh`` and ``specification``, so a test there importing a
-derivation reads as allowed although ruling 22's "at or below" refuses it
-(``[M]`` 2026-10-25, qa: 22 files, numerics 15, data 6, mesh 1). Whether those
-production edges are admitted is a ruling owed to the user (``layer_dag.md``,
-the numerics to derivations opening); the gate follows the table.
+The contract's former gap, closed 2026-10-26 (``layer_dag.md`` ruling 29):
+``FORBIDDEN_EDGES`` had no ``derivations`` (L0) entry in the rows of
+``numerics``, ``data``, ``mesh`` and ``geometry``, and no ``plotting`` (L4)
+entry below the values row, so a test there importing a derivation read as
+allowed (``[M]`` 2026-10-25, qa: 22 files, numerics 15, data 6, mesh 1). Most
+of those edges were the synthetic cross-section catalogue, which moved to
+``orpheus.data.macro_xs.synthetic``; the rest are listed below.
 
 Not seen, the declared blind spots: a module name handed to
 ``importlib.import_module`` or ``__import__`` as a string; an import spelled
@@ -130,7 +130,8 @@ def _list_diff(
 
 # Today's violations, exact: minted by this gate's scanner on 2026-10-25, after the four Phase 1 moves
 # of the re-filing campaign (geometry -> mesh, geometry -> numerics, numerics -> cross_method,
-# numerics -> transport). The list only shrinks.
+# numerics -> transport), and re-minted on 2026-10-26 when the contract closed its derivations and plotting
+# gap (ruling 29): the synthetic catalogue's numerics importers now read numerics -> data. The list only shrinks.
 OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
     {
         ("cp/test_cp_vacuum_not_above_white.py", "orpheus.sn"),
@@ -140,10 +141,12 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("data/test_cells.py", "tests.gates.specification"),
         ("data/test_content_identity_data.py", "orpheus.mesh"),
         ("data/test_content_identity_data.py", "orpheus.transport"),
+        ("data/test_group_permutation_invariance.py", "orpheus.derivations"),
         ("data/test_group_permutation_invariance.py", "orpheus.homogeneous"),
         ("data/test_group_permutation_invariance.py", "orpheus.mesh"),
         ("data/test_group_permutation_invariance.py", "orpheus.sn"),
         ("data/test_group_permutation_invariance.py", "orpheus.transport"),
+        ("data/test_mixture_xs_balance.py", "orpheus.derivations"),
         ("data/test_n2n_yield_convention.py", "orpheus.transport"),
         ("derivations/_characteristic_ladders.py", "tests.gates.sn"),
         ("derivations/test_characteristic_albedos.py", "tests.gates.sn"),
@@ -179,6 +182,7 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("mesh/test_mesh1d.py", "orpheus.sn"),
         ("mesh/test_mesh1d.py", "orpheus.transport"),
         ("moc/test_verification.py", "orpheus.cp"),
+        ("numerics/_axis_marginal_lift_support.py", "orpheus.data"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.mesh"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.sn"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.transport"),
@@ -192,12 +196,14 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("numerics/test_angular_symmetry.py", "orpheus.sn"),
         ("numerics/test_angular_symmetry.py", "orpheus.transport"),
         ("numerics/test_angular_trace_space.py", "orpheus.mesh"),
+        ("numerics/test_assembly_functor.py", "orpheus.derivations"),
         ("numerics/test_assembly_functor.py", "orpheus.diffusion"),
         ("numerics/test_assembly_functor.py", "orpheus.homogeneous"),
         ("numerics/test_assembly_functor.py", "orpheus.transport"),
         ("numerics/test_assembly_functor.py", "tests.gates.diffusion"),
         ("numerics/test_assembly_functor.py", "tests.gates.homogeneous"),
         ("numerics/test_assembly_functor.py", "tests.gates.transport"),
+        ("numerics/test_axis.py", "orpheus.data"),
         ("numerics/test_axis_identity.py", "orpheus.sn"),
         ("numerics/test_axis_identity.py", "orpheus.transport"),
         ("numerics/test_axis_identity.py", "tests.gates.sn"),
@@ -210,16 +216,20 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("numerics/test_basis_domain.py", "orpheus.mesh"),
         ("numerics/test_basis_domain.py", "orpheus.sn"),
         ("numerics/test_dual_metric.py", "orpheus.transport"),
+        ("numerics/test_gauge.py", "orpheus.data"),
         ("numerics/test_gauge.py", "orpheus.homogeneous"),
         ("numerics/test_gauge.py", "orpheus.mesh"),
         ("numerics/test_gauge.py", "orpheus.sn"),
         ("numerics/test_gauge.py", "orpheus.transport"),
         ("numerics/test_indicator_basis.py", "orpheus.mesh"),
         ("numerics/test_interval_legendre_basis.py", "orpheus.transport"),
+        ("numerics/test_inverse_metric_operator.py", "orpheus.data"),
         ("numerics/test_inverse_metric_operator.py", "orpheus.mesh"),
         ("numerics/test_inverse_metric_operator.py", "orpheus.sn"),
         ("numerics/test_inverse_universal.py", "orpheus.sn"),
         ("numerics/test_inverse_universal.py", "tests.gates.sn"),
+        ("numerics/test_iteration.py", "orpheus.data"),
+        ("numerics/test_iteration.py", "orpheus.derivations"),
         ("numerics/test_iteration.py", "orpheus.mesh"),
         ("numerics/test_iteration.py", "orpheus.sn"),
         ("numerics/test_iteration.py", "orpheus.transport"),
@@ -227,19 +237,25 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("numerics/test_linear_combination.py", "orpheus.sn"),
         ("numerics/test_linear_combination.py", "orpheus.transport"),
         ("numerics/test_linear_combination.py", "tests.gates.sn"),
+        ("numerics/test_matrix_inverse_operator.py", "orpheus.data"),
+        ("numerics/test_matrix_inverse_operator.py", "orpheus.derivations"),
         ("numerics/test_matrix_inverse_operator.py", "orpheus.transport"),
         ("numerics/test_matrix_inverse_operator.py", "tests.gates.transport"),
         ("numerics/test_moment_head_axis_built_premise.py", "orpheus.transport"),
+        ("numerics/test_outcome.py", "orpheus.data"),
         ("numerics/test_outcome.py", "orpheus.homogeneous"),
         ("numerics/test_outcome.py", "orpheus.mesh"),
         ("numerics/test_outcome.py", "orpheus.sn"),
         ("numerics/test_outcome.py", "orpheus.transport"),
+        ("numerics/test_pencil.py", "orpheus.data"),
         ("numerics/test_pencil.py", "orpheus.homogeneous"),
         ("numerics/test_pencil.py", "orpheus.sn"),
         ("numerics/test_pencil.py", "tests.gates.sn"),
+        ("numerics/test_posing.py", "orpheus.data"),
         ("numerics/test_posing.py", "orpheus.homogeneous"),
         ("numerics/test_registry_mixin.py", "orpheus.sn"),
         ("numerics/test_registry_mixin.py", "orpheus.transport"),
+        ("numerics/test_retraction_adjoint_is_the_pullback.py", "orpheus.data"),
         ("numerics/test_retraction_adjoint_is_the_pullback.py", "orpheus.mesh"),
         ("numerics/test_retraction_adjoint_is_the_pullback.py", "orpheus.sn"),
         ("numerics/test_retraction_adjoint_is_the_pullback.py", "orpheus.transport"),
@@ -247,6 +263,7 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("numerics/test_si_diagnostic_trajectory.py", "orpheus.mesh"),
         ("numerics/test_si_diagnostic_trajectory.py", "orpheus.sn"),
         ("numerics/test_si_diagnostic_trajectory.py", "orpheus.transport"),
+        ("numerics/test_space_of_axes.py", "orpheus.data"),
         ("numerics/test_space_of_axes.py", "orpheus.diffusion"),
         ("numerics/test_space_of_axes.py", "orpheus.homogeneous"),
         ("numerics/test_space_of_axes.py", "orpheus.mesh"),
@@ -259,10 +276,12 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("numerics/test_tensor_product_metric_is_factored.py", "orpheus.transport"),
         ("numerics/test_tensor_product_metric_is_factored.py", "tests.gates.sn"),
         ("numerics/test_traced_memo_clients.py", "orpheus.data"),
+        ("numerics/test_traced_memo_clients.py", "orpheus.derivations"),
         ("numerics/test_traced_memo_clients.py", "orpheus.specification"),
         ("numerics/test_traced_memo_findings.py", "orpheus.data"),
+        ("numerics/test_traced_memo_ownership.py", "orpheus.derivations"),
+        ("numerics/test_traced_memo_source_index.py", "orpheus.derivations"),
         ("numerics/test_traced_memo_source_index.py", "orpheus.specification"),
-        ("reference/test_verification.py", "orpheus.derivations"),
         ("sn/mesh/test_hub_owns_the_moment_space.py", "orpheus.diffusion"),
         ("sn/operators/test_isotropic_fission.py", "orpheus.diffusion"),
         ("sn/operators/test_space_content_witnesses.py", "orpheus.diffusion"),
@@ -354,7 +373,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("transport/test_timed_full_field.py", "tests.gates.sn"),
         ("transport/test_wave2_s4_tables.py", "orpheus.diffusion"),
         ("values/test_content_identity.py", "orpheus.data"),
-        ("values/test_content_identity.py", "orpheus.derivations"),
         ("values/test_content_identity.py", "orpheus.diffusion"),
         ("values/test_content_identity.py", "orpheus.geometry"),
         ("values/test_content_identity.py", "orpheus.numerics"),
@@ -366,7 +384,7 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("values/test_content_identity.py", "tests.gates.reference"),
         ("values/test_content_identity.py", "tests.gates.specification"),
         ("values/test_content_identity.py", "tests.gates.transport"),
-        ("values/test_one_real_parser.py", "orpheus.derivations"),
+        ("values/test_one_real_parser.py", "orpheus.data"),
         ("values/test_one_real_parser.py", "orpheus.numerics"),
     }
 )

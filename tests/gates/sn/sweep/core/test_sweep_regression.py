@@ -74,7 +74,7 @@ class TestScatteringConvergence:
         scattering iteration to diverge while 1-group was unaffected.
         Catches that failure mode at the SNSolver end-to-end level.
         """
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
         from orpheus.sn.solver import SNSolver
 
         mix = get_mixture("A", "2g")
@@ -285,7 +285,7 @@ class TestSNProblem:
         the 2-D y-wavefront on the ``ny=1`` mesh is actually exercised —
         the exact code path #214 was about.
         """
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
         from orpheus.sn.solver import SNSolver
 
         mix = get_mixture("A", "1g")

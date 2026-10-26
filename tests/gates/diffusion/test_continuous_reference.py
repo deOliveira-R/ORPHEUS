@@ -48,7 +48,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations import continuous_get
-from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
+from orpheus.data.macro_xs.synthetic import mixture_from_diffusion_tables
 from orpheus.diffusion import solve_diffusion_1d
 from orpheus.diffusion import ZeroFluxCondition
 from orpheus.geometry import CoordSystem, StructuredGeometry

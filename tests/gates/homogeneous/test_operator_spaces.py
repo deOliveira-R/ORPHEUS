@@ -24,7 +24,7 @@ import numpy as np
 import pytest
 
 from orpheus.data.materials import energy_axis_of
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem, _pose_space
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator

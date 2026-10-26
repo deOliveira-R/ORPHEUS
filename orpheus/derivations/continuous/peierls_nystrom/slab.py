@@ -46,7 +46,7 @@ from ...common.continuous_reference import (
     ProblemSpec,
     Provenance,
 )
-from ...common.xs_library import LAYOUTS, get_mixture, get_xs
+from orpheus.data.macro_xs.synthetic import LAYOUTS, get_mixture, get_xs
 from .geometry import (
     gl_nodes_weights,
     lagrange_basis_on_panels,
@@ -461,7 +461,7 @@ def solve_peierls_eigenvalue(
         (first index = source group, second = destination). Matches
         the project-wide ``sig_s`` convention documented in
         Sphinx §theory-peierls-multigroup and exposed by
-        :func:`orpheus.derivations.common.xs_library.get_xs`.
+        :func:`orpheus.data.macro_xs.synthetic.get_xs`.
     nu_sig_f_all : list of (ng,) arrays
         :math:`\nu\Sigma_f` per region.
     chi_all : list of (ng,) arrays

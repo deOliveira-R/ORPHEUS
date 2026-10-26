@@ -32,7 +32,7 @@ import pytest
 
 from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature

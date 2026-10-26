@@ -24,7 +24,7 @@ from orpheus.geometry import StructuredGeometry, TranslationDeck
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.transport.boundary_conditions import BoundaryRefused, WallCondition
 from orpheus.derivations import get
-from orpheus.derivations.common.xs_library import get_xs, get_mixture
+from orpheus.data.macro_xs.synthetic import get_xs, get_mixture
 
 pytestmark = pytest.mark.l0  # MC algorithmic term checks (L0-MC-NNN in docstrings)
 

@@ -83,7 +83,7 @@ EXPORTS: dict[str, tuple[str, ...]] = {
 
 _PLANTED = {
     "absolute, in a specification": ("from orpheus.specification import exterior\n", ["orpheus.specification", "orpheus.specification.exterior"]),
-    "import statement, a derivation": ("import orpheus.derivations.common.xs_library\n", ["orpheus.derivations.common.xs_library"]),
+    "import statement, a derivation": ("import orpheus.data.macro_xs.synthetic\n", ["orpheus.data.macro_xs.synthetic"]),
     "relative, climbing to derivations": ("from ...derivations import common\n", ["orpheus.derivations", "orpheus.derivations.common"]),
     "function-local, a method package": ("def f():\n    from orpheus.sn import problem\n    return problem\n", ["orpheus.sn", "orpheus.sn.problem"]),
     "under TYPE_CHECKING, the old vocabulary": (

@@ -22,7 +22,7 @@ import numpy as np
 from numpy.polynomial import legendre as npleg
 from scipy.special import lpmv
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics import frame_faces

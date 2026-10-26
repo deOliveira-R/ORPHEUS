@@ -15,7 +15,7 @@ Each case now carries:
 * **`materials: dict[int, Mixture]`** — keyed by integer material ID,
   exactly what :func:`orpheus.cp.solver.solve_cp` and
   :func:`orpheus.sn.solver.solve_sn` consume. Built via
-  :func:`orpheus.derivations.common.xs_library.make_mixture` from the
+  :func:`orpheus.data.macro_xs.synthetic.make_mixture` from the
   raw Sood XS components (ν, Σ_f, Σ_c, Σ_s, χ).
 * **`geometry_kind: str`** — one of ``"slab"``, ``"sphere"``,
   ``"cylinder"`` (finite cases) or ``"infinite"`` (k_inf cases).
@@ -62,7 +62,7 @@ import numpy as np
 
 from orpheus.data.citation import Citation
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 
 from .case import La13511Case, La13511Truth
 

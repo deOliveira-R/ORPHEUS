@@ -96,7 +96,7 @@ pytestmark = pytest.mark.verifies(
     # r_ij = (delta_d + delta_c)/2 assembly reds it:
     "rcp-slab-total",
 )
-from orpheus.derivations.common.xs_library import (
+from orpheus.data.macro_xs.synthetic import (
     XS, get_xs, get_mixture, get_materials, make_mixture,
 )
 from orpheus.derivations.common.eigenvalue import kinf_from_cp
@@ -309,7 +309,7 @@ class TestDirectPinfComparison:
         errors that happen to cancel in eigenvalue but not in matrix.
         Closes: G-1.
         """
-        from orpheus.derivations.common.xs_library import LAYOUTS
+        from orpheus.data.macro_xs.synthetic import LAYOUTS
         layout = LAYOUTS[n_regions]
         ng = int(ng_key[0])
 

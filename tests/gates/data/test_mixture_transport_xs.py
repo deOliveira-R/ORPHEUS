@@ -22,7 +22,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.xs_library import get_mixture, get_xs
+from orpheus.data.macro_xs.synthetic import get_mixture, get_xs
 
 
 @pytest.mark.foundation

@@ -40,7 +40,7 @@ Key Facts
   the :math:`(n,2n)` row sum is in there ONCE (one neutron removed per
   event); see :eq:`sigT-computed` and :ref:`n2n-handled`
 - ``load_isotope()`` auto-selects HDF5 or fallback .m parser
-- Verification uses synthetic XS from ``orpheus/derivations/common/xs_library.py`` (regions A/B/C/D), NOT this pipeline
+- Verification uses synthetic XS from ``orpheus/data/macro_xs/synthetic.py`` (regions A/B/C/D), NOT this pipeline
 
 
 Overview
@@ -223,7 +223,7 @@ Three reasons, in order of weight:
 1. **It converges the codebase onto one convention.** Before the flip
    the GENDF pipeline was the *lone* group-0-thermal outlier. The
    synthetic verification cross sections
-   (:mod:`~orpheus.derivations.common.xs_library`), the Sood benchmark
+   (:mod:`~orpheus.data.macro_xs.synthetic`), the Sood benchmark
    registry (:doc:`/theory/references/sood_registry`), the :mod:`~orpheus.diffusion`
    solver, the test fixtures, and **every theory page** were already
    group-0-fast. Reversing the GENDF data on ingest makes the production
@@ -1488,10 +1488,10 @@ None of these are current ORPHEUS use cases. The V&V suite
 (:doc:`/theory/verification/index`) exclusively verifies thermal-spectrum
 analytical benchmarks; ``[M]`` **0 of the 12** synthetic
 ``(region, group-count)`` mixtures in
-``orpheus/derivations/common/xs_library.py`` carries a nonzero
+``orpheus/data/macro_xs/synthetic.py`` carries a nonzero
 :math:`\Sigma_{2n}`, and none carries an :math:`(n,xn)` term of any
 order — although
-:func:`~orpheus.derivations.common.xs_library.make_mixture` does accept
+:func:`~orpheus.data.macro_xs.synthetic.make_mixture` does accept
 a ``sig_2=`` argument, which is how the :math:`(n,2n)` fixtures in
 ``tests/`` are built.
 

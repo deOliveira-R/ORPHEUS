@@ -178,7 +178,7 @@ from orpheus.transport.fields.radial_characteristic_interior_source_sink import 
     RadialCharacteristicInteriorSourceSink,
 )
 from orpheus.transport.fields.angular_source_sink import AngularSourceSink
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from tests.gates.sn.operators._composite_operand import bulk_apply
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition

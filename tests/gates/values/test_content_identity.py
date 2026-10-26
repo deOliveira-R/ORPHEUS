@@ -93,7 +93,7 @@ _SEED_SCRIPT = textwrap.dedent(
     import numpy as np
     import orpheus
     from orpheus.data.materials import Materials
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import CoordSystem, StructuredGeometry
     from orpheus.mesh import Mesh2D
     from orpheus.numerics.axis import EnergyAxis
@@ -372,7 +372,7 @@ class TestS58Schema:
         """On a production type, through a FRESH instance (a cached digest
         would mask the bump: the activation half of a route gate)."""
         from orpheus.data.macro_xs.mixture import Mixture
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
 
         before = content_digest(get_mixture("A", "2g"))
         monkeypatch.setattr(Mixture, "__content_version__", 2, raising=False)
@@ -569,7 +569,7 @@ def test_s5_6_one_encoder_is_the_only_route(monkeypatch: pytest.MonkeyPatch) -> 
 # ═════════════════════════════════════════════════════════════════════════════
 
 #: Pinned 2026-10-02 at #405 P1 step 5 (macOS, Python 3.14). The three values are
-#: built from literals and IEEE-exact arithmetic (mixture A is ``xs_library``
+#: built from literals and IEEE-exact arithmetic (mixture A is ``macro_xs.synthetic``
 #: literals; no libm or LAPACK output enters), so the pin is platform-free (AP38).
 _PIN_AFTER_5B = "PIN-AFTER-5B"
 # Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag and the Enum encoding dropped the module of an orpheus
@@ -584,7 +584,7 @@ _PINNED: dict[str, str] = {
 
 def _fingerprint_values() -> dict[str, object]:
     from orpheus.data.materials import Materials
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import CoordSystem, StructuredGeometry
 
     return {

@@ -45,7 +45,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.derivations.continuous.sood_registry import (
     PUA_1_0_SL,
     PUB_1_0_SL,

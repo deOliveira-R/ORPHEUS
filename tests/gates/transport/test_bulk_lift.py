@@ -33,7 +33,7 @@ import numpy as np
 import pytest
 from scipy import sparse
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck

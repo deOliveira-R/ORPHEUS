@@ -18,7 +18,7 @@ import numpy as np
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.derivations import get
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 
 #: The eg-bearing variant's grid (the one homogeneous eg idiom in the tree,
 #: ``test_homogeneous.py`` eg-block).

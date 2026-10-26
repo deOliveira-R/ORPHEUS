@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 

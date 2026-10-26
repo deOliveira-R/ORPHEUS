@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -62,7 +62,7 @@ def solver_2g():
 def solver_2g_n2n():
     """Like :func:`solver_2g` but the fuel carries a NON-ZERO (n,2n) matrix.
 
-    #269 (Mode-10 cure): every ``xs_library`` mixture has ``Sig2 = 0``, so
+    #269 (Mode-10 cure): every ``macro_xs.synthetic`` mixture has ``Sig2 = 0``, so
     an (n,2n)-term test built on :func:`solver_2g` runs the (n,2n) code
     path but the ``2·Σ_2n`` term contributes exactly 0 — a sign/factor
     error in it does not move the measured value (vacuous green).  This
@@ -307,7 +307,7 @@ class TestComputeGroupRates:
         """Independent reference: homogeneous reflective slab has k_eff = k_inf
         regardless of FP reduction order, mesh resolution, or quadrature.
         """
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
         from orpheus.geometry import StructuredGeometry
         from orpheus.mesh import CellsByCount, Mesher
         from orpheus.numerics.quadrature import Quadrature
@@ -500,7 +500,7 @@ class TestQuadratureWeightConservation:
 
     def test_homogeneous_scalar_flux_equals_Q_over_sigt(self, solver_2g):
         """In a homogeneous infinite medium, converged φ = Q / Σ_t."""
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
 
         mix = get_mixture("A", "2g")
         materials = {0: mix}
@@ -538,7 +538,7 @@ class TestAbsorptionXS:
     """Verify that absorption_xs includes fission (not just capture)."""
 
     def test_absorption_xs_includes_fission(self):
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
 
         mix = get_mixture("A", "2g")
         sig_a = mix.absorption_xs
@@ -548,7 +548,7 @@ class TestAbsorptionXS:
 
     def test_absorption_equals_removal(self):
         """absorption_xs must equal Σ_t - rowsum(Σ_s) (total removal)."""
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
 
         mix = get_mixture("A", "2g")
         removal = np.array(mix.SigT) - np.asarray(mix.SigS[0].sum(axis=1)).ravel()
@@ -569,7 +569,7 @@ class TestAnisotropicScattering:
     def test_p1_homogeneous_same_as_p0(self):
         """On a homogeneous infinite medium with isotropic flux,
         P1 scattering gives the same keff as P0."""
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
 
         fuel = get_mixture("A", "2g")  # only has P0
         if len(fuel.SigS) < 2:
@@ -577,7 +577,7 @@ class TestAnisotropicScattering:
 
     def test_p1_request_limited_by_data(self):
         """If scattering_order > available data, it must be clamped."""
-        from orpheus.derivations.common.xs_library import make_mixture
+        from orpheus.data.macro_xs.synthetic import make_mixture
 
         mix_p0_only = make_mixture(
             sig_t=np.array([0.5, 1.0]),
@@ -677,7 +677,7 @@ class TestAnisotropicScattering:
 
     def test_aniso_source_zero_for_isotropic_flux(self):
         """For isotropic angular flux (all ordinates equal), P1+ source = 0."""
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
 
         mix = get_mixture("A", "2g")
         if len(mix.SigS) < 2:

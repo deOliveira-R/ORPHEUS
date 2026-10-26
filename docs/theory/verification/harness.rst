@@ -991,7 +991,7 @@ expression language doesn't parse marker arguments).
        mutation_batteries/    # hand-written, hazard-named mutation batteries
 
 ``xs.py`` re-exports the canonical cross-section helpers from
-``orpheus.derivations.common.xs_library`` (``make_mixture``, ``get_mixture``,
+``orpheus.data.macro_xs.synthetic`` (``make_mixture``, ``get_mixture``,
 ``get_xs``, ``get_materials``, ``validate_all``) so tests can import
 them from a single stable path. The Wigner-Seitz mesh builders
 (``_ws_mesh``, ``_homogeneous_ws_mesh``, ``_two_region_ws_mesh``) are

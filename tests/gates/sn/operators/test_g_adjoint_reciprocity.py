@@ -67,7 +67,7 @@ import pytest
 
 from scipy.sparse import csr_matrix
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.sn.operators.boundary import SNBoundaryOperator

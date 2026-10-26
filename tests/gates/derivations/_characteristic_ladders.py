@@ -391,7 +391,7 @@ def edge_kinf(body: str) -> float:
     import numpy as np
 
     from orpheus.derivations.common.eigenvalue import kinf_homogeneous
-    from orpheus.derivations.common.xs_library import get_xs
+    from orpheus.data.macro_xs.synthetic import get_xs
 
     xs = get_xs("A", {"sphere_2g": "2g", "cylinder_1g": "1g"}[body])
     return float(kinf_homogeneous(np.asarray(xs["sig_t"]), np.asarray(xs["sig_s"]), np.asarray(xs["nu"] * xs["sig_f"]),

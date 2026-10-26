@@ -719,7 +719,7 @@ isotropic):
 .. code-block:: python
 
    import numpy as np
-   from orpheus.derivations.common.xs_library import make_mixture
+   from orpheus.data.macro_xs.synthetic import make_mixture
    from orpheus.derivations.continuous.singular_eigenfunction import (
        Spectrum,
    )

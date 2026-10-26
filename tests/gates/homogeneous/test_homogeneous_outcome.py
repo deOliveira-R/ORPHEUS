@@ -18,7 +18,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.homogeneous.solver import solve_homogeneous_infinite
 from orpheus.numerics.outcome import EigenOutcome
 from orpheus.numerics.posing import K_MAP

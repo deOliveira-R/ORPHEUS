@@ -78,6 +78,9 @@ L3_PACKAGES: frozenset[str] = frozenset(
     }
 )
 
+#: L4, orchestration: it consumes every layer, so no layer imports it (the layer DAG plan, ruling 29).
+L4_PACKAGES: frozenset[str] = frozenset({"plotting"})
+
 #: Every top-level name under ``orpheus/``: its packages and its modules (``plotting``).
 ORPHEUS_TOP_LEVEL: frozenset[str] = frozenset(
     path.stem if path.suffix == ".py" else path.name
@@ -87,24 +90,24 @@ ORPHEUS_TOP_LEVEL: frozenset[str] = frozenset(
 
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
     "values": ORPHEUS_TOP_LEVEL - VALUES_PACKAGES,
-    "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "geometry": NUMERICS_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES,
-    "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
-    "reference": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES,
-    "transport": L3_PACKAGES,
-    "sn": L3_PACKAGES - {"sn"},
-    "pn": L3_PACKAGES - {"pn"},
-    "moc": L3_PACKAGES - {"moc"},
-    "cp": L3_PACKAGES - {"cp"},
-    "mc": L3_PACKAGES - {"mc"},
-    "diffusion": L3_PACKAGES - {"diffusion"},
-    "kinetics": L3_PACKAGES - {"kinetics"},
-    "fuel": L3_PACKAGES - {"fuel"},
-    "thermal_hydraulics": L3_PACKAGES - {"thermal_hydraulics"},
-    "homogeneous": L3_PACKAGES - {"homogeneous"},
-    "derivations": L2_PACKAGES | L3_PACKAGES,
+    "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
+    "geometry": NUMERICS_PACKAGES | DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
+    "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
+    "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
+    "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
+    "reference": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
+    "transport": L3_PACKAGES | L4_PACKAGES,
+    "sn": L3_PACKAGES - {"sn"} | L4_PACKAGES,
+    "pn": L3_PACKAGES - {"pn"} | L4_PACKAGES,
+    "moc": L3_PACKAGES - {"moc"} | L4_PACKAGES,
+    "cp": L3_PACKAGES - {"cp"} | L4_PACKAGES,
+    "mc": L3_PACKAGES - {"mc"} | L4_PACKAGES,
+    "diffusion": L3_PACKAGES - {"diffusion"} | L4_PACKAGES,
+    "kinetics": L3_PACKAGES - {"kinetics"} | L4_PACKAGES,
+    "fuel": L3_PACKAGES - {"fuel"} | L4_PACKAGES,
+    "thermal_hydraulics": L3_PACKAGES - {"thermal_hydraulics"} | L4_PACKAGES,
+    "homogeneous": L3_PACKAGES - {"homogeneous"} | L4_PACKAGES,
+    "derivations": L2_PACKAGES | L3_PACKAGES | L4_PACKAGES,
 }
 
 # Empty since layer DAG P4b and P4c (2026-10-22): the two MMS harnesses pose no

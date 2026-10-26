@@ -104,7 +104,7 @@ loudly, so a face cannot be left undeclared
 
 .. code-block:: python
 
-   from orpheus.derivations.common.xs_library import get_mixture
+   from orpheus.data.macro_xs.synthetic import get_mixture
    from orpheus.geometry import CoordSystem, StructuredGeometry
    from orpheus.geometry.deck import MirrorDeck
    from orpheus.mesh import CellsByCount, Mesher
@@ -680,7 +680,7 @@ three declarations over the cylinder (a solid body ``(0, 1)`` and a hollow one
 
 .. code-block:: python
 
-   from orpheus.derivations.common.xs_library import get_mixture
+   from orpheus.data.macro_xs.synthetic import get_mixture
    from orpheus.geometry import CoordSystem, StructuredGeometry
    from orpheus.geometry.deck import MirrorDeck
    from orpheus.mesh import CellsByCount, Mesher

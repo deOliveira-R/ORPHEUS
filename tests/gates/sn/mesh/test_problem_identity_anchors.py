@@ -37,7 +37,7 @@ docstring before touching a row.**
   "strengthens" ``same_phase_space`` by folding the closure in reds here.
 
 ⚠ **Two activation facts every order row asserts in-test.** ``[M]`` all
-twelve ``xs_library`` mixtures ship ``len(SigS) == 2``, so the clamp
+twelve ``macro_xs.synthetic`` mixtures ship ``len(SigS) == 2``, so the clamp
 ``min(L, len(SigS) − 1)`` maps **every** request ≥ 1 to **1**: a row spelled
 "P2 vs P3" asserts ``1 != 1`` and is a false green. The only non-vacuous
 abstract-library pair is ``(0, ≥ 1)``. And ``[M]`` the P1 block is non-zero
@@ -54,7 +54,7 @@ import numpy as np
 import pytest
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature
@@ -308,7 +308,7 @@ class TestProblemIdentityIsEveryGeneratingDatum:
         r"""R-cc4's headline: a P0 forward and a P3 adjoint are DIFFERENT problems.
 
         ⚠ The pair is ``(0, 3)`` and NOT ``(2, 3)`` for a measured reason:
-        ``[M]`` every ``xs_library`` mixture has ``len(SigS) == 2``, so the
+        ``[M]`` every ``macro_xs.synthetic`` mixture has ``len(SigS) == 2``, so the
         clamp maps both 2 and 3 to **1** and a ``(2, 3)`` row would assert
         ``1 != 1`` — a false green. The clamped values are asserted below so
         the row cannot decay into one.

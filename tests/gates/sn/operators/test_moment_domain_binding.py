@@ -54,7 +54,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -543,7 +543,7 @@ def _sn_mesh_with_n2n() -> SNProblem:
     fixture ``N2N`` is honestly the zero morphism (`[M]` ``is_isotropic``
     True, emission ``max|·| = 0.0``) and a row comparing its two ends
     compares 0.0 with 0.0 (the qa review's F-2)."""
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
 
     sig_s = np.array([[0.38, 0.10], [0.05, 0.90]])
     sig_2 = np.array([[0.02, 0.01], [0.0, 0.03]])       # asymmetric, non-zero

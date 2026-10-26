@@ -111,7 +111,7 @@ def test_g2_4c_a_carrier_that_owns_no_angular_bulk_space_is_refused_by_name():
     the SN carrier is admitted and handed its OWN cached space (the control:
     the gate admits the carrier it exists for).
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.diffusion.augmented_mesh import DiffusionMesh
     from orpheus.geometry import StructuredGeometry
     from orpheus.geometry.deck import MirrorDeck

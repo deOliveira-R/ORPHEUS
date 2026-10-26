@@ -328,7 +328,7 @@ def test_krylov_restart_covers_augmented_composite(n_cells: int) -> None:
     production plumbing is pinned by the ``test_g_d3_3_*`` site gates
     below, which redden on both.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import CoordSystem
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.sn.problem import SNProblem

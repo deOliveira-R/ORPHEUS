@@ -22,7 +22,7 @@ from orpheus.derivations.common.solution_types import (
     CriticalSolution,
     FluxSolution,
 )
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.derivations.continuous.singular_eigenfunction import Spectrum
 from orpheus.derivations.continuous.singular_eigenfunction.cylinder.one_group import (
     solve_singular_eigenfunction_cylinder_bare_critical,

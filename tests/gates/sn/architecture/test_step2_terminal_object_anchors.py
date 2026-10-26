@@ -145,7 +145,7 @@ def _fissile_slab() -> "tuple[dict[int, Mixture], Mesh1D, Quadrature, int]":
     ``[M]`` ``probes2/p1_counts.py`` — converges in 4 outer steps at the
     default tolerances, so the ``n_outer > 1`` non-vacuity guard holds.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     materials = {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
     geometry = StructuredGeometry.slab(
@@ -165,7 +165,7 @@ def _fissile_cart2d() -> "tuple[dict[int, Mixture], Mesh2D, Quadrature, int]":
     no fission.  ``[M]`` converges in 17 outer steps per schedule, 6.50 s for
     the pair.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     nx, ny = 4, 5
     mat_map = np.zeros((nx, ny), dtype=int)

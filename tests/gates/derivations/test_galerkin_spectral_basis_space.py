@@ -20,7 +20,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.solution_types import CriticalSolution
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.derivations.continuous.galerkin_spectral import BasisSpace
 from orpheus.derivations.continuous.galerkin_spectral.slab import (
     solve_galerkin_spectral_slab,

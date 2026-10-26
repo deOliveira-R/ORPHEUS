@@ -16,7 +16,7 @@ build a zero-initialised :class:`AngularBoundaryFlux` via
 below for non-SNProblem callers).
 
 Tests that DO need realistic cross sections continue to use
-``orpheus.derivations.common.xs_library.get_mixture`` etc. — this
+``orpheus.data.macro_xs.synthetic.get_mixture`` etc. — this
 helper is for the geometry-only call sites.
 """
 from __future__ import annotations
@@ -1292,7 +1292,7 @@ def mixture_from_transport_data(sigma_t, sigma_s, nu_sigma_f, chi):
     hand-built mixtures of the SN gates (it had four α-equivalent copies, `_make_2g_mixture`, until
     #405 P2 step 7b.2.3).
     """
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
 
     sigma_t = np.asarray(sigma_t, dtype=float)
     sig_s = np.asarray(sigma_s, dtype=float)

@@ -126,7 +126,7 @@ def face_key(declaration: Declaration, face: str) -> str:
 
 def materials() -> dict[int, Any]:
     """``{1: fuel, 0: moderator}``, the 2-group library mixtures (the data layer, unchanged by the carve)."""
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     return {1: get_mixture("A", "2g"), 0: get_mixture("B", "2g")}
 

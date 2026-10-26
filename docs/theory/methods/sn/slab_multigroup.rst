@@ -26,7 +26,7 @@ new axis:
    :math:`A = L + C - S - N_{2n} - B`
    (:eq:`sn-within-group-with-n2n`) keeps its shape — the
    :math:`(n,2n)` term contributes nothing to this chapter's *derivation*
-   fixtures (``[M]`` 2026-09-07, all 12 ``xs_library`` mixtures carry a
+   fixtures (``[M]`` 2026-09-07, all 12 ``macro_xs.synthetic`` mixtures carry a
    :math:`\Sigma_{2n}` with zero non-zeros), so writing it out moves no
    number here; the numbers that *do* need a live channel are injected
    deliberately and live at :ref:`n2n-reactions` — and its

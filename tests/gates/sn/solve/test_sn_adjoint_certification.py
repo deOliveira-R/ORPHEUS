@@ -66,7 +66,7 @@ from orpheus.derivations.common.eigenvalue import (
     kinf_and_spectrum_homogeneous,
     kinf_homogeneous,
 )
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.geometry import StructuredGeometry
 from orpheus.numerics.quadrature import Quadrature

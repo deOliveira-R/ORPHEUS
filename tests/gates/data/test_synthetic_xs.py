@@ -1,4 +1,4 @@
-"""Positive + negative gates for :func:`xs_library.validate_all`.
+"""Positive + negative gates for :func:`orpheus.data.macro_xs.synthetic.validate_all`.
 
 Issue #228 (vv-principles Mode 8): ``validate_all`` used to be a bare
 ``assert`` in a production module — stripped to a NO-OP under the
@@ -24,7 +24,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common import xs_library
+from orpheus.data.macro_xs import synthetic
 
 
 pytestmark = pytest.mark.foundation
@@ -32,7 +32,7 @@ pytestmark = pytest.mark.foundation
 
 def test_shipped_tables_pass_validation():
     """The hardcoded XS tables satisfy Σ_t = Σ_c + Σ_f + ΣΣ_s."""
-    xs_library.validate_all()  # MUST NOT raise
+    synthetic.validate_all()  # MUST NOT raise
 
 
 def test_inconsistent_sig_t_raises(monkeypatch):
@@ -51,6 +51,6 @@ def test_inconsistent_sig_t_raises(monkeypatch):
             },
         },
     }
-    monkeypatch.setattr(xs_library, "XS", {**xs_library.XS, **broken})
+    monkeypatch.setattr(synthetic, "XS", {**synthetic.XS, **broken})
     with pytest.raises(ValueError, match="XS imbalance"):
-        xs_library.validate_all()
+        synthetic.validate_all()

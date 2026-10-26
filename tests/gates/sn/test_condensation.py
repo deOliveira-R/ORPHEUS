@@ -25,7 +25,7 @@ import numpy as np
 import pytest
 
 from orpheus.data.energy_grid import EnergyGrid
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature

@@ -35,7 +35,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.axis_marginal import AxisPullbackOperator

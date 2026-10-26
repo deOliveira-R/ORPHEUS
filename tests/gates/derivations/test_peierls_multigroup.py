@@ -636,7 +636,7 @@ class TestSlabViaUnifiedDiscrepancyDiagnostic:
 
     def test_2eg_2rg_parity_bit_exact(self):
         import numpy as _np
-        from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+        from orpheus.data.macro_xs.synthetic import LAYOUTS, get_xs
         from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
         from orpheus.derivations.continuous.peierls_nystrom.geometry import (
             SLAB_POLAR_1D, solve_peierls_mg,
@@ -808,7 +808,7 @@ class TestSlabMultiRegionVacuumParity:
         here while that passes (or vice versa) cleanly isolates MG ×
         multi-region handling from the white-BC closure.
         """
-        from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+        from orpheus.data.macro_xs.synthetic import LAYOUTS, get_xs
         from orpheus.derivations.continuous.flat_source_cp.slab import _THICKNESSES
         from orpheus.derivations.continuous.peierls_nystrom.geometry import (
             SLAB_POLAR_1D,

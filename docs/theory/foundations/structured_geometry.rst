@@ -2416,7 +2416,8 @@ Python's ``hash`` has neither property across processes. The hash of a
 ``str`` or ``bytes`` is salted per interpreter (``PYTHONHASHSEED``), so
 a tuple key built from them changes from one run to the next. `[M]` at
 ``1dc31163``, the hash of the 2-group mixture A of
-``orpheus.derivations.common.xs_library`` was 2365733758199073423 under
+``orpheus.derivations.common.xs_library`` (now
+:mod:`orpheus.data.macro_xs.synthetic`) was 2365733758199073423 under
 ``PYTHONHASHSEED=1`` and -2362898479209405550 under ``PYTHONHASHSEED=2``
 (the test-architect's probe, ``.claude/plans/reference_p1_spec.md``
 §1.5, correction 7).
@@ -3326,7 +3327,7 @@ the tags 1 and 0), so one digest moved, the hollow sphere's
 (``eea5d62f`` to ``42c18f89``); `[M]` ``git show 6b090ff9 --
 tests/gates/values/test_content_identity.py`` changes that one pin line
 and no other. The three values are
-the 2-group mixture A of ``xs_library``, a hollow sphere of three
+the 2-group mixture A of ``macro_xs.synthetic``, a hollow sphere of three
 intervals with the tag 1 on its inner face and the tag 0 on its outer
 face, and a ``Materials`` of the 2-group mixtures A and B. Every cache key of the
 cache to come is a digest of this kind, so a moved digest invalidates
@@ -5273,7 +5274,7 @@ Production user — no registry, no truth, no critical anything::
         CellsByCount.uniform_volume(3),
         CellsByCount.uniform_volume(7),
     )).mesh
-    materials = {i: get_mixture(name, "2g")        # orpheus.derivations.common.xs_library
+    materials = {i: get_mixture(name, "2g")        # orpheus.data.macro_xs.synthetic
                  for i, name in zip((2, 1, 0), "ABC")}
     # the Wigner-Seitz outer face carries the tag 0; the consumer binds it to a white wall
     result = solve_cp(materials, mesh, CPParams(),

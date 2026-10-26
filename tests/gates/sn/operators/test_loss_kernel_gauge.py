@@ -94,7 +94,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.index_set import IndexSet
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.numerics.basis import GramStructure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system

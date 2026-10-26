@@ -18,7 +18,7 @@ from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.cp.solver import CPMesh
 from orpheus.transport.boundary_conditions import WallCondition
-from orpheus.derivations.common.xs_library import get_xs
+from orpheus.data.macro_xs.synthetic import get_xs
 from tests.gates.cp._cp_geometry import cp_body
 
 # CP matrix algebraic invariants (row sums, reciprocity, non-negativity).

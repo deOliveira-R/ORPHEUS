@@ -244,15 +244,15 @@ class TestAssertBalancedIntrinsic:
 # ══════════════════════════════════════════════════════════════════════
 #
 # Mode-7 honest scope: this pins the PHYSICAL synthetic tables only —
-# xs_library A/B/C/D × 1g/2g/4g, the Sood 2003 registry, and the
+# macro_xs.synthetic A/B/C/D × 1g/2g/4g, the Sood 2003 registry, and the
 # homogeneous derive builders. The Atalay criticality-parameter Mixtures,
 # the structural scaffolds, and the billiard carrier are deliberately
 # imbalanced and are EXCLUDED (Atalay is structurally absent from
 # SOOD2003_CASES — it lives in ATALAY1997_CASES — so no filter is needed).
 
 
-def _xs_library_mixtures():
-    from orpheus.derivations.common.xs_library import get_mixture
+def _synthetic_mixtures():
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     return [
         pytest.param(get_mixture(region, ng), id=f"xslib-{region}-{ng}")
@@ -290,8 +290,8 @@ def _homogeneous_mixtures():
 class TestPhysicalTableSweep:
     """Every PHYSICAL synthetic Mixture must balance. The typo-catcher."""
 
-    @pytest.mark.parametrize("mix", _xs_library_mixtures())
-    def test_xs_library_balances(self, mix: Mixture) -> None:
+    @pytest.mark.parametrize("mix", _synthetic_mixtures())
+    def test_synthetic_mixtures_balance(self, mix: Mixture) -> None:
         mix.assert_balanced(atol=_ATOL)
 
     @pytest.mark.parametrize("mix", _sood2003_mixtures())
@@ -429,7 +429,7 @@ class TestAtolBand:
         return float(np.max(np.abs(mix.SigT - derived)))
 
     def test_physical_tables_below_1e_12(self) -> None:
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
 
         for region in "ABCD":
             for ng in ("1g", "2g", "4g"):

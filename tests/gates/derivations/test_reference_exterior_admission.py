@@ -29,7 +29,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.reference_body import amplitudes_at, specular_albedos
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.derivations.continuous.characteristic.walls import Walls
 from orpheus.derivations.continuous.fn_method.moment_space import MomentSpace
 from orpheus.derivations.continuous.galerkin_spectral.basis_space import BasisSpace

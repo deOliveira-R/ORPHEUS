@@ -27,7 +27,7 @@ from typing import Any
 
 import numpy as np
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.coupled_system import CoupledField, CoupledOperator

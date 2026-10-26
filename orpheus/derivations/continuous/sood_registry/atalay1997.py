@@ -40,7 +40,7 @@ import numpy as np
 
 from orpheus.data.citation import Citation
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 
 from .case import La13511Case, La13511Truth
 

@@ -159,7 +159,7 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.sn.problem import SNProblem
@@ -814,7 +814,7 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     )
     # "C" mixture = strong absorber, minimal scattering — closest
     # decoupling to a pure-absorber per-group identity in the
-    # xs_library set.  We use 2G to comply with vv-principles Cardinal
+    # macro_xs.synthetic set.  We use 2G to comply with vv-principles Cardinal
     # Rule 6 (no 1G eigenvalue / equilibrium tests).  For "C" 2G the
     # scattering matrix is small but nonzero, so the analytical
     # reference uses the full per-group balance:
@@ -832,7 +832,7 @@ def _case_7_closed_form_anchor() -> _ClosedFormAnchorInputs:
     ).copy()
     # Build the (Σ_t,g - Σ_s,g→g)·δ_{gg'} - Σ_s,g'→g (off-diag) matrix.
     # ``mix.sig_s[0]`` is the P0 scattering matrix with ``[g_src, g_dst]``
-    # convention (xs_library docstring).  The transport balance reads:
+    # convention (macro_xs.synthetic docstring).  The transport balance reads:
     #     Σ_t,g φ_g = Q_g + Σ_{g_src} Σ_s[g_src, g] φ_{g_src}
     # i.e.   (Σ_t δ_{gg'} - Σ_s^T) φ = Q.
     sig_t_vec = mix.SigT                        # (2,)

@@ -12,7 +12,7 @@ incoming current, the Marshak condition; the MATLAB reference used the
 Reference MATLAB result: keff = 1.022173.
 
 The legacy cross sections encode bit-identically (campaign ruling 4)
-through :func:`~orpheus.derivations.common.xs_library.
+through :func:`~orpheus.data.macro_xs.synthetic.
 mixture_from_diffusion_tables` — ``sig_t := transport`` with no P1
 moment, so ``Σ_tr = Σ_t`` exactly and ``D = 1/(3·transport)``; see its
 docstring for the full encoding. The physical-P1 re-baseline is the
@@ -26,7 +26,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from orpheus.derivations.common.xs_library import mixture_from_diffusion_tables
+from orpheus.data.macro_xs.synthetic import mixture_from_diffusion_tables
 from orpheus.diffusion import ZeroFluxCondition, solve_diffusion_1d
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher

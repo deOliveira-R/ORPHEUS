@@ -32,7 +32,7 @@ import pytest
 
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.derivations.common.exact_homogeneous import exact_infinite_medium_reference
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic

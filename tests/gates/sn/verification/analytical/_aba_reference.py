@@ -7,7 +7,7 @@ reference cross-check rows. It is posed as a
 ISOTROPIC (P0) mixtures: the reference solves isotropic scattering only (the
 characteristic reference refuses an anisotropic emission; the trajectory
 resolvent before it read P0 alone), and the SN rows run at
-``scattering_order=0``, while the xs_library's ``get_mixture("B", "2g")``
+``scattering_order=0``, while the macro_xs.synthetic's ``get_mixture("B", "2g")``
 carries a P1 moment (mean cosine 0.6). A specification built from those would
 pose a problem neither side solves.
 
@@ -33,7 +33,7 @@ import sympy
 from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import Materials
-from orpheus.derivations.common.xs_library import get_xs, make_mixture
+from orpheus.data.macro_xs.synthetic import get_xs, make_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
@@ -55,7 +55,7 @@ ABA_MATERIAL_IDS = (0, 1, 0)
 
 
 def isotropic_mixture(key: str, groups: str = "2g") -> Mixture:
-    """The xs_library's mixture ``key`` at ``groups`` with its P0 scattering only (no ``sig_s1``)."""
+    """The macro_xs.synthetic's mixture ``key`` at ``groups`` with its P0 scattering only (no ``sig_s1``)."""
     xs = get_xs(key, groups)
     return make_mixture(sig_t=xs["sig_t"], sig_c=xs["sig_c"], sig_f=xs["sig_f"], nu=xs["nu"], chi=xs["chi"], sig_s=xs["sig_s"])
 

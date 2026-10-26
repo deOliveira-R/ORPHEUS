@@ -32,7 +32,7 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.diffusion import DiffusionMesh, DiffusionSolver, solve_diffusion_1d
 from orpheus.diffusion import ZeroFluxCondition
 from orpheus.geometry import StructuredGeometry

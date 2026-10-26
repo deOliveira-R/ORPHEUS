@@ -38,7 +38,7 @@ from typing import cast
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture, make_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.coupled_system import CoupledField

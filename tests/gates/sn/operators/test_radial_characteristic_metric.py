@@ -66,7 +66,7 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
 

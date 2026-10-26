@@ -25,7 +25,7 @@ import numpy as np
 import pytest
 
 from orpheus.data.cell_xs import assemble_cell_xs
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature

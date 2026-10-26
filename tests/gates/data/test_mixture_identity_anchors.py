@@ -40,7 +40,7 @@ import pytest
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 
 pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-084")]
 
@@ -160,7 +160,7 @@ class TestContentIdentity:
     def test_the_p1_block_is_in_the_key(self) -> None:
         """``SigS[1]`` alone moved — the row a ``stack[0]``-only key fails.
 
-        ``[M]`` every shipped ``xs_library`` mixture has ``len(SigS) == 2``,
+        ``[M]`` every shipped ``macro_xs.synthetic`` mixture has ``len(SigS) == 2``,
         so the P1 block exists on every fixture in this file and the row is
         never vacuous. Asserted in-test.
         """

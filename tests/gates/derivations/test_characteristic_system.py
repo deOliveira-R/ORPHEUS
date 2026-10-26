@@ -191,7 +191,7 @@ def test_the_cross_sections_are_the_mixtures_tables() -> None:
     The same three float operations as the assembly site (one add, one
     transpose, one outer product), so the comparison is bitwise. The (n,2n)
     leg is live only because ``_UP2N`` carries a non-zero Sig2: every Sood and
-    ``xs_library`` mixture ships Sig2 = 0. First reds: scattering not
+    ``macro_xs.synthetic`` mixture ships Sig2 = 0. First reds: scattering not
     transposed; the (n,2n) multiplicity 1; ``outer(nu Sigma_f, chi)``.
     """
     mixtures = [_UP2N, _PU2, _ABS, _FAST_CHI]

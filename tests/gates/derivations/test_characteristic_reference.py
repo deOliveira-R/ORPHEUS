@@ -50,7 +50,7 @@ from orpheus.data.cells import CellCoefficient, Channel
 from orpheus.data.materials import Materials
 from orpheus.derivations.common.dense_pencil import NoLeastSolution
 from orpheus.derivations.common.exact_homogeneous import exact_infinite_medium_reference
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.derivations.continuous.characteristic import (
     CharacteristicDerivation, GalerkinSystem, PanelBasis, RegionCrossSections, Resolution, TransportResolution,
     characteristic_reference,

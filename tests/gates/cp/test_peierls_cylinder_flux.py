@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 
 from orpheus.cp.solver import CPParams, solve_cp
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.derivations.continuous.peierls_nystrom.cylinder import GEOMETRY
 from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     PeierlsSolution,

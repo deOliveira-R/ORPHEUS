@@ -141,7 +141,7 @@ def _asymmetric_2g_carrier():
     on a unit one-cell carrier (Mode-6: a symmetric matrix is
     blind to the transpose-assembly mutation; zero ``Sig2`` would vacuum
     the ``IsotropicN2N`` oracle row)."""
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
     from tests.gates.transport._carrier_helpers import unit_cell_carrier
 
     sig_s0 = np.array([[0.30, 0.08], [0.01, 0.45]])  # [g_from, g_to], asymmetric

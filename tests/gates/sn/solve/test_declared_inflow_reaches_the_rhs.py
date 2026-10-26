@@ -239,7 +239,7 @@ def _het_slab(n_ord: int = 8, xmin=None) -> SNProblem:
     off the converged flux would be config-blind — and ``c ≈ 0.90–0.96`` here
     means the inflow actually propagates through the scattering source.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     (left, right), conditions = _faces(xmin, None)
     geom = StructuredGeometry.from_thicknesses(

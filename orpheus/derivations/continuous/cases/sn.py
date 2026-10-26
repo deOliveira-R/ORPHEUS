@@ -79,7 +79,7 @@ from ...common.continuous_reference import (
     Provenance,
 )
 from ...common.verification_case import VerificationCase
-from ...common.xs_library import get_mixture, get_xs
+from orpheus.data.macro_xs.synthetic import get_mixture, get_xs
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -682,7 +682,7 @@ def _xs_1g_dict(mixture) -> dict:
 
     Convenience adapter so the Case-method primitives can work with the
     same numeric inputs regardless of whether they were pulled from
-    :func:`orpheus.derivations.common.xs_library.get_mixture` or built
+    :func:`orpheus.data.macro_xs.synthetic.get_mixture` or built
     manually for testing. Fails loudly if the mixture is not 1-group.
     """
     if mixture.ng != 1:
@@ -720,7 +720,7 @@ def derive_sn_heterogeneous_continuous(
     Parameters
     ----------
     mat_A_name, mat_B_name : str
-        Names in the :mod:`orpheus.derivations.common.xs_library` library.
+        Names in the :mod:`orpheus.data.macro_xs.synthetic` library.
         Default ``"A"`` (fuel) and ``"B"`` (moderator) reproduce the
         Phase 2.1b diagnostic configuration used to catch ERR-025.
     H_A, H_B : float

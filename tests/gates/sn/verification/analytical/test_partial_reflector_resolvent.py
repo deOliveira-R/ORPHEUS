@@ -94,7 +94,7 @@ import pytest
 
 import inspect
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.observable import Eigenvalue
 from orpheus.numerics.quadrature import Quadrature

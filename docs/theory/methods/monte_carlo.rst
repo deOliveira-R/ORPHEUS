@@ -72,7 +72,7 @@ are computed independently by the derivation scripts.  These are the
   probability (:func:`~orpheus.derivations.common.eigenvalue.kinf_homogeneous`),
   heterogeneous eigenvalues from CP cylinder reference
   (:func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp`).
-- ``orpheus/derivations/common/xs_library.py`` --- synthetic cross-section library
+- ``orpheus/data/macro_xs/synthetic.py`` --- synthetic cross-section library
   (regions A/B/C/D in {1G, 2G, 4G}).
 
 Every numerical value cited in this chapter was produced by these scripts.

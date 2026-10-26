@@ -38,7 +38,7 @@ ROOT = Path(os.path.abspath(orpheus.__file__)).parent
 
 
 def _materials(ids: tuple[int, ...]) -> dict:
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     return {i: get_mixture(("A", "B", "C")[i % 3], "2g") for i in ids}
 

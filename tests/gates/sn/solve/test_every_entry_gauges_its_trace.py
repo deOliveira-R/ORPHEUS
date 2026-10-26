@@ -69,7 +69,7 @@ import numpy as np
 import pytest
 from orpheus.numerics.outcome import Measured
 
-from orpheus.derivations.common.xs_library import get_mixture, make_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.geometry.faces import face_normal
 from orpheus.numerics.quadrature import Quadrature

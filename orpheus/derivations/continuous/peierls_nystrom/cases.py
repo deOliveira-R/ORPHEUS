@@ -244,7 +244,7 @@ def _build_peierls_slab_case_via_unified(
     """
     import numpy as _np
 
-    from ...common.xs_library import LAYOUTS, get_mixture, get_xs
+    from orpheus.data.macro_xs.synthetic import LAYOUTS, get_mixture, get_xs
     from ...common.continuous_reference import ProblemSpec, Provenance
     from ..flat_source_cp.slab import _THICKNESSES
     from .geometry import SLAB_POLAR_1D, solve_peierls_mg

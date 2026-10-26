@@ -26,7 +26,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame

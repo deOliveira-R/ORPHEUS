@@ -202,7 +202,7 @@ CONFIG-BLINDNESS DECLARATION (``AGENT.md`` §0.6, run row by row)
   so ``TestTheLGe1TermIsLive`` is a committed ACTIVATION leg on every arm:
   it asserts the operator's own ``is_isotropic`` predicate reads ``False``
   at ``L = 1``, i.e. the ℓ ≥ 1 body genuinely runs.
-* **NOT (n,2n)-blind** — every ``orpheus.derivations.common.xs_library``
+* **NOT (n,2n)-blind** — every ``orpheus.data.macro_xs.synthetic``
   mixture ships ``Sig2 = 0``, so the library arms exercise the ℓ ≥ 1
   SCATTERING leg only.  ``slab_vac_n2n`` manufactures a two-moment
   :math:`\Sigma_{2n}` stack (and the ``be_reflected`` row reads the real
@@ -335,7 +335,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
 from orpheus.data.micro_xs import load_isotope
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.mesh import Mesh2D
@@ -690,7 +690,7 @@ class TestTheLGe1TermIsLive:
     def test_the_n2n_binding_is_anisotropic_on_the_n2n_arm(self):
         """The ℓ ≥ 1 **(n,2n)** leg has a fast witness — and only here.
 
-        `[M]` every ``xs_library`` mixture ships ``Sig2 = 0``, so the six
+        `[M]` every ``macro_xs.synthetic`` mixture ships ``Sig2 = 0``, so the six
         library arms are structurally blind to the (n,2n) half of #448.  This
         row is what makes ``slab_vac_n2n`` worth its 1.1 s, and its failure
         means the manufactured stack stopped reaching the binding.
@@ -707,7 +707,7 @@ class TestTheLGe1TermIsLive:
         lib_mesh = _solve("slab_vac", _L_ANISO).problem
         lib_solver = SNSolver(lib_mesh)
         assert lib_solver.problem.system.factors.n2n.is_isotropic, (
-            "an xs_library arm now carries an anisotropic (n,2n) binding — "
+            "an macro_xs.synthetic arm now carries an anisotropic (n,2n) binding — "
             "the library gained Sig2 data, so this file's claim that only "
             "slab_vac_n2n witnesses the (n,2n) leg is stale."
         )

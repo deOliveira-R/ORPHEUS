@@ -403,7 +403,7 @@ _THIN_MIN_AMPLIFICATION = 10.0
 
 
 def _thin_mixture(scale: float):
-    from orpheus.derivations.common.xs_library import make_mixture
+    from orpheus.data.macro_xs.synthetic import make_mixture
 
     sig_t = np.array([1.0, 2.0]) * scale
     sig_s = np.array([[0.5, 0.4], [0.05, 1.5]]) * scale

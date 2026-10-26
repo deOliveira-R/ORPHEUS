@@ -38,7 +38,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.derivations.continuous.mms.sn import (
     build_2d_cartesian_heterogeneous_mms_case,
     build_2d_cartesian_ld_stress_mms_case,

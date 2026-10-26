@@ -89,7 +89,7 @@ def test_the_preset_declares_a_unit_specular_wall() -> None:
     solver = importlib.import_module("orpheus.moc.solver")
     mesh = solver.default_pin_cell_mesh()
     assert dict(mesh.face_roles) == {"xmax": 0}, f"the preset's roles are {dict(mesh.face_roles)}, not the tag 0 on the outer face"
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     materials = {2: get_mixture("A", "2g"), 1: get_mixture("B", "2g"), 0: get_mixture("B", "2g")}
     with H.quiet():
@@ -108,7 +108,7 @@ def test_an_explicit_condition_overrides_the_preset() -> None:
     """
     solver = importlib.import_module("orpheus.moc.solver")
     B = H.bc()
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
 
     materials = {2: get_mixture("A", "2g"), 1: get_mixture("B", "2g"), 0: get_mixture("B", "2g")}
     with pytest.raises(B.BoundaryRefused) as info, H.quiet():

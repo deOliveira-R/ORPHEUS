@@ -416,7 +416,7 @@ class TestL0TermVerification:
     @pytest.mark.catches("ERR-002")
     def test_scattering_source_magnitude(self):
         """L0-SN-009: Scattering source = SigS^T @ φ, hand-calculated."""
-        from orpheus.derivations.common.xs_library import get_mixture
+        from orpheus.data.macro_xs.synthetic import get_mixture
         mix = get_mixture("A", "2g")
         phi = np.array([1.0, 2.0])
         sig_s = mix.SigS[0]

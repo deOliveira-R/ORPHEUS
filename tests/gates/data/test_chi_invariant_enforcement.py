@@ -164,7 +164,7 @@ class TestMixturePostInit:
 
         This is the leg that the 77 ``get_mixture("B"/"C"/"D")`` call
         sites would trip TODAY (region B/C/D carry chi=[1.0] / [1,0] /
-        [.6,.35,.05,0]). See the gate spec §Precursor — the xs_library
+        [.6,.35,.05,0]). See the gate spec §Precursor — the macro_xs.synthetic
         regions MUST be zeroed before this branch is enabled in
         production, or the SN/CP/MoC suites red en masse.
         """

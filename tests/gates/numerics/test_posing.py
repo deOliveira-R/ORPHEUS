@@ -14,7 +14,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem, solve_homogeneous_infinite
 from orpheus.numerics.pencil import OperatorPencil
 from orpheus.numerics.elementary_operators import DiagonalOperator

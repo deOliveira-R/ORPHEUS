@@ -257,7 +257,7 @@ def test_collision_cache_invariance_under_source_iteration() -> None:
     stronger — but that changes the assertion, not just the budget, so it
     is deliberately out of scope for an R2 declaration pass.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.sn.solver import solve_sn
 
     fuel = get_mixture("A", "2g")

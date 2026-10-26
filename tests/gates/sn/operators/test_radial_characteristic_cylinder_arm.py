@@ -44,7 +44,7 @@ import pytest
 
 from tests.gates.sn._test_helpers import rc_march
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.quadrature import Quadrature

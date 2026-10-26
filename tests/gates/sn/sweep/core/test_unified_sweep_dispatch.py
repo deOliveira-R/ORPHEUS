@@ -392,7 +392,7 @@ class TestD3SupportsMatrix:
         a real 3-axis Cartesian mesh on FullFieldWavefront, the
         never-stuck any-d spine."""
         import numpy as np
-        from orpheus.derivations.common.xs_library import make_mixture
+        from orpheus.data.macro_xs.synthetic import make_mixture
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.mesh import AxisMesh
         from orpheus.sn.problem import SNProblem
@@ -513,7 +513,7 @@ class TestD3SupportsMatrix:
         D5-0 misroute would have given DD≡LD).  Inverts the former
         ``test_2d_ld_sweep_raises_not_silently_dd`` (#240 D5b)."""
         import numpy as np
-        from orpheus.derivations.common.xs_library import make_mixture
+        from orpheus.data.macro_xs.synthetic import make_mixture
         from orpheus.sn import solve_sn_fixed_source
         from orpheus.transport.spatial import DiamondDifference
 

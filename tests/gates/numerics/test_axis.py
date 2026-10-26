@@ -26,7 +26,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.axis import Modal
 

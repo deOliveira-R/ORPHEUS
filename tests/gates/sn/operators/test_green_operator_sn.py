@@ -53,7 +53,7 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.derivations.common.xs_library import make_mixture
+from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.green_operator import ConvergenceFailure, GreenOperator

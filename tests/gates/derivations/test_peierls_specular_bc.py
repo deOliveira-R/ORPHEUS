@@ -54,7 +54,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
-from orpheus.derivations.common.xs_library import get_xs
+from orpheus.data.macro_xs.synthetic import get_xs
 from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     CYLINDER_1D,
     SLAB_POLAR_1D,

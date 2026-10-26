@@ -108,10 +108,6 @@ Submodules
        concentric annular geometries) and
        :func:`observer_angular_quadrature` (kink-aware ω-sweeps from
        an internal observer).
-   * - :mod:`~orpheus.derivations.common.xs_library`
-     - Synthetic cross-section library (``_FUEL_XS``, ``_REFL_XS``, …)
-       that guarantees derivation cases and solver tests use the exact
-       same numbers.
    * - :mod:`~orpheus.derivations.common.verification_case`
      - :class:`VerificationCase` dataclass + ``VVLevel`` literal.
    * - :mod:`~orpheus.derivations.reference_values`
@@ -290,10 +286,4 @@ Quadrature recipes (geometry-aware)
 -----------------------------------
 
 .. automodule:: orpheus.derivations.common.quadrature_recipes
-   :members:
-
-Cross-section library
----------------------
-
-.. automodule:: orpheus.derivations.common.xs_library
    :members:

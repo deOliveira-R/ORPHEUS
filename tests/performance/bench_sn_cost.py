@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature

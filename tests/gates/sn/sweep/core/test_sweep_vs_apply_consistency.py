@@ -134,7 +134,7 @@ def test_solve_sn_si_vs_krylov_consistency_homogeneous_sphere():
     ``tests/gates/sn/solve/test_krylov_restart_signature.py::
     test_one_full_restart_cycle_solves_a_diffusive_infinite_medium``.
     """
-    from orpheus.derivations.common.xs_library import get_mixture
+    from orpheus.data.macro_xs.synthetic import get_mixture
     from orpheus.geometry import CoordSystem, StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature

@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import pytest
 
-from orpheus.derivations.common.xs_library import get_mixture
+from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.diffusion import DiffusionMesh
 from orpheus.diffusion import ZeroFluxCondition
 from orpheus.geometry import StructuredGeometry

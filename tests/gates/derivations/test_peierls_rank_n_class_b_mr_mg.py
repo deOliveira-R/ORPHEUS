@@ -51,7 +51,7 @@ import numpy as np
 import pytest
 
 from orpheus.derivations.continuous.flat_source_cp import cylinder as cp_cylinder, sphere as cp_sphere
-from orpheus.derivations.common.xs_library import LAYOUTS, get_xs
+from orpheus.data.macro_xs.synthetic import LAYOUTS, get_xs
 from orpheus.derivations.continuous.peierls_nystrom.geometry import (
     CYLINDER_1D,
     SPHERE_1D,

@@ -95,7 +95,7 @@ def anisotropic_mixture(
     r"""A ``Mixture`` built DIRECTLY — never through ``make_mixture``.
 
     **The campaign's one mixture builder.** ``make_mixture``
-    (``xs_library.py:56``) hardcodes ``SigL = 0`` and defaults ``Sig2`` to an
+    (``macro_xs/synthetic.py:56``) hardcodes ``SigL = 0`` and defaults ``Sig2`` to an
     all-zero sparse matrix — and the SHIPPED tables pass no ``sig_s1``, so
     every channel the shipped pairs null goes *vacuously green* in a
     mutation catcher (lessons L1). (Wording corrected at CS4a-R QA-F7:

@@ -140,7 +140,7 @@ eigenvalue problem is
 
    The pass changed **no measured value** — every edit is an algebra
    spelling — and it could not have: ``[M]`` 2026-09-07, all **12**
-   ``xs_library`` mixtures (regions A–D :math:`\times` 1/2/4 groups)
+   ``macro_xs.synthetic`` mixtures (regions A–D :math:`\times` 1/2/4 groups)
    carry a :math:`\Sigma_{2n}` with **zero** non-zeros, and every MMS
    mixture is minted ``Sig2 = csr_matrix(zeros((ng, ng)))``
    (:mod:`orpheus.derivations.continuous.mms.sn`), so the chapter's
@@ -1217,7 +1217,7 @@ longer a second place an order could disagree.
    ``min(L, min_materials(len(SigS) − 1))``, and it reads the
    **scattering** stack alone — a short :math:`(n,2n)` channel can never
    lower the solve's order.  `[M]` all twelve
-   :mod:`~orpheus.derivations.common.xs_library` mixtures ship
+   :mod:`~orpheus.data.macro_xs.synthetic` mixtures ship
    ``len(SigS) == 2``, so on the abstract library requests **1, 2, 3 and
    5 are the same problem** (retained 1) and only :math:`(0, \ge 1)`
    separates.  A discrimination row spelled "``P2`` vs ``P3``" therefore

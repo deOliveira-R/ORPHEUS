@@ -194,7 +194,7 @@ Key Facts
   The slab is :math:`[0, 4]` with 40 uniform-volume cells, a mirror deck
   on the left face, the integer tag ``0`` on the right face, and the
   two-group mixture ``"A"`` of
-  :func:`orpheus.derivations.common.xs_library.get_mixture`; the tag is
+  :func:`orpheus.data.macro_xs.synthetic.get_mixture`; the tag is
   bound to each condition in turn through the ``boundary_conditions``
   keyword of
   :func:`~orpheus.diffusion.solver.solve_diffusion_1d`:
@@ -206,7 +206,7 @@ Key Facts
      from orpheus.diffusion.solver import solve_diffusion_1d
      from orpheus.diffusion.zero_flux import ZeroFluxCondition
      from orpheus.transport.boundary_conditions import WallCondition
-     from orpheus.derivations.common.xs_library import get_mixture
+     from orpheus.data.macro_xs.synthetic import get_mixture
 
      geom = StructuredGeometry.slab((0.0, 4.0), (0,), left=MirrorDeck(), right=0)
      mesh = Mesher(geom).partition((CellsByCount.uniform_volume(40),)).mesh
@@ -821,7 +821,7 @@ Legacy diffusion tables (the MATLAB ``CORE1D`` schema — per-group
 ``transport`` / ``absorption`` / ``fission`` / ``chi`` / ``scattering``
 vectors) are mapped onto the canonical
 :class:`~orpheus.data.macro_xs.mixture.Mixture` by the **one** encoder
-:func:`~orpheus.derivations.common.xs_library.mixture_from_diffusion_tables`.
+:func:`~orpheus.data.macro_xs.synthetic.mixture_from_diffusion_tables`.
 Ruling 4 of #290 fixed this encoding to be **bit-identical**:
 ``SigT := transport`` with **no** P1 moment, so
 :math:`\Sigma_{\text{tr}} = \Sigma_t` and :math:`D = 1/(3\cdot\text{transport})`
