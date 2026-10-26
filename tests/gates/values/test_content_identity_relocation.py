@@ -4,7 +4,8 @@ A value's identity is its type and its parts; the module a class is defined in i
 :func:`orpheus.values.content._type_name`, the one spelling of a type's name inside a key, names a type of
 ``orpheus`` by its ``__qualname__`` and any other type by ``module:qualname``; it is used at all five sites a key
 names a type (the schema tag, an ``Enum`` member, and the exact encoder's container, subclass and sparse tags).
-Three gates:
+Three gates; the third, a census over every ``orpheus`` package, lives at the root since 2026-10-26
+(``tests/gates/test_content_identity_census.py``, layer DAG ruling 28):
 
 * RELOCATION. One source defines a frozen dataclass, a ``ContentIdentity`` subclass, an ``Enum``, a
   ``NamedTuple``, a ``str`` and an ``int`` subclass and a scipy sparse subclass; it is imported as two modules
@@ -40,26 +41,21 @@ not its base also carries the subclass tag, which names the type again.
 
 from __future__ import annotations
 
-import enum
 import gc
 import importlib
 import importlib.util
-import pkgutil
 import sys
 import textwrap
 import warnings
-from collections import Counter
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterator
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import numpy as np
 import pytest
-import scipy.sparse as sp
 
-import orpheus
-from orpheus.values.content import ContentIdentity, content_digest, encode, encode_exact
+from orpheus.values.content import content_digest, encode, encode_exact
 from tests.gates._content_identity_helpers import require
 
 pytestmark = pytest.mark.foundation
@@ -126,8 +122,8 @@ class Stencil(sp.csr_matrix):
 @pytest.fixture(autouse=True)
 def _no_synthetic_class_outlives_its_test() -> Iterator[None]:
     """The synthetic ``orpheus._wp0_*`` classes are collected once their modules leave ``sys.modules``, so no
-    population walk of a later test (S5.9's roster, this file's uniqueness gate) meets them as ``orpheus``
-    classes. Autouse fixtures are set up before ``monkeypatch``, so this teardown runs after it restores
+    population walk of a later test (the root census ``tests/gates/test_content_identity_census.py``: S5.9's
+    roster and the qualname uniqueness gate) meets them as ``orpheus`` classes. Autouse fixtures are set up before ``monkeypatch``, so this teardown runs after it restores
     ``sys.modules``."""
     yield
     gc.collect()
@@ -249,7 +245,7 @@ def test_a_foreign_type_keeps_its_module_in_the_key(tmp_path: Path, monkeypatch:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
-# UNIQUENESS — no two nameable orpheus classes share a qualname
+# The subclass walk (the fixture above; the uniqueness census at the root imports it)
 # ═════════════════════════════════════════════════════════════════════════════
 
 
@@ -266,78 +262,3 @@ def _subclasses(root: type) -> set[type]:
                     found.add(cls)
                     stack.append(cls)
     return found
-
-
-def _resolved(cls: type) -> type:
-    """The class its module holds under its qualname (a ``slots=True`` dataclass's discarded original resolves to
-    the class that replaced it); a class its module does not hold (``<locals>``) is itself."""
-    holder: Any = sys.modules.get(cls.__module__)
-    for part in cls.__qualname__.split("."):
-        holder = getattr(holder, part, None)
-    return holder if isinstance(holder, type) else cls
-
-
-def _orpheus_classes() -> set[type]:
-    """Every class defined in a module ``pkgutil.walk_packages`` finds under ``orpheus``, after importing each
-    (a module this file registers under ``orpheus.`` is not walked, so it is not counted)."""
-    walked = {orpheus.__name__}
-    for info in pkgutil.walk_packages(orpheus.__path__, prefix="orpheus."):
-        importlib.import_module(info.name)
-        walked.add(info.name)
-    defined = {cls for cls in _subclasses(object) if vars(cls).get("__module__") in walked}
-    return {_resolved(cls) for cls in defined}
-
-
-_NAMED_BASES: tuple[type, ...] = (str, bytes, int, float, np.ndarray, tuple, list, dict, set, frozenset,
-                                  sp.spmatrix, sp.sparray)
-
-
-def _kind(cls: type) -> str | None:
-    """The kind under which some encoder names ``cls``, or ``None`` when no encoder does."""
-    if issubclass(cls, ContentIdentity):
-        return "ContentIdentity"
-    if issubclass(cls, enum.Enum):
-        return "Enum"
-    params = getattr(cls, "__dataclass_params__", None)
-    if params is not None and params.frozen:
-        return "frozen dataclass"
-    if issubclass(cls, _NAMED_BASES):
-        return "builtin, array or sparse subclass"
-    return None
-
-
-def shared_qualnames(classes: Iterable[type]) -> dict[str, list[str]]:
-    """Each qualname held by two or more classes, with the modules defining them."""
-    by_name: dict[str, list[str]] = {}
-    for cls in classes:
-        by_name.setdefault(cls.__qualname__, []).append(cls.__module__)
-    return {name: sorted(modules) for name, modules in by_name.items() if len(modules) > 1}
-
-
-def test_no_two_nameable_orpheus_classes_share_a_qualname() -> None:
-    """A key names an orpheus type by its qualname, so a shared one would let two types' values share a key."""
-    named = [cls for cls in _orpheus_classes() if _kind(cls) is not None]
-    counts = Counter(_kind(cls) for cls in named)
-    require(counts["ContentIdentity"] >= 60 and counts["Enum"] >= 15 and counts["frozen dataclass"] >= 300
-            and counts["builtin, array or sparse subclass"] >= 1, f"activation: the population is {dict(counts)}")
-    shared = shared_qualnames(named)
-    require(not shared, f"nameable orpheus classes sharing a qualname (rename one; the key names it): {shared}")
-
-
-@pytest.mark.rests_on(f"{_HERE}::test_no_two_nameable_orpheus_classes_share_a_qualname")
-class TestTheUniquenessGateSeesACollision:
-    """Positive controls: the predicate that reads 0 above reads a collision where one exists."""
-
-    def test_over_every_orpheus_class(self) -> None:
-        """Not every class is nameable; among all of them three qualnames are shared."""
-        shared = shared_qualnames(_orpheus_classes())
-        known = {"DerivationError", "THParams", "THResult"}
-        require(known <= shared.keys(), f"the known shared qualnames {sorted(known)} not all found: {shared}")
-
-    def test_over_a_synthetic_pair(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        a = _load(tmp_path, monkeypatch, _ORPHEUS_A)
-        b = _load(tmp_path, monkeypatch, _ORPHEUS_B)
-        pair = [a.Whole, b.Whole, a.Part, a.Shade, a.Stencil]
-        require(all(_kind(c) is not None for c in pair), "activation: the synthetic classes are nameable")
-        require(shared_qualnames(pair) == {"Whole": [_ORPHEUS_A, _ORPHEUS_B]},
-                f"the synthetic pair is not reported: {shared_qualnames(pair)}")

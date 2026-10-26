@@ -1,7 +1,8 @@
 r"""The content encoder and the ``ContentIdentity`` mixin (#405 P1 step 5).
 
 Spec: ``.claude/plans/reference_p1_spec.md`` §1.5. This module carries the
-gates on the ENCODER and on the type POPULATION:
+gates on the ENCODER, witnessed on values of this module or built from
+literals:
 
 * S5.1 — digests and hashes are the same in every process (``PYTHONHASHSEED``
   1 and 2), with a control that the harness sees salting;
@@ -9,21 +10,25 @@ gates on the ENCODER and on the type POPULATION:
   1.0``), ``-0.0`` is ``+0.0``, NaN and an integer beyond 2**53 refused with
   the path, containers keep the distinctions ``==`` keeps, a sparse matrix is
   the matrix, anything else is ``ContentlessError``;
-* S5.6 — the ROUTE gate: one encoder. Rebinding it moves the digest of every
-  type in the three rosters and every derived space name (the axes product,
-  the three trace spaces, the full-field direct sum);
-* S5.7 — the RECORD fingerprint (pinned after 5b);
+* S5.6 — the ROUTE gate: one encoder. Rebinding it moves the digest, the hash
+  and the derived name of every way a synthetic content value of this module
+  reaches a key;
+* S5.7 — the RECORD fingerprint of four synthetic values;
 * S5.8 — the schema tag (ruling of 2026-10-01): a field added, renamed or
-  reordered, a version bump, a class renamed, each changes the digest; a class
-  MOVED to another module does not (layer DAG ruling 10, 2026-10-22: the
-  relocation and qualname-uniqueness gates are
-  ``test_content_identity_relocation.py``);
-* S5.9 — conformance: every ``ContentIdentity`` class takes ``__eq__`` and
-  ``__hash__`` from the mixin (or a declared override), is ``eq=False`` if a
-  dataclass, and has a roster entry (the population S5.3 quantifies over).
+  reordered, a version bump (on a new class and on a live one), a class
+  renamed, each changes the digest; a class MOVED to another module does not
+  (layer DAG ruling 10, 2026-10-22: the relocation gates are
+  ``test_content_identity_relocation.py``).
 
-The per-type legs of S5.2, S5.3 and S5.4 live in the owning trees
-(``tests/gates/{data,geometry,mesh}/test_content_identity_*.py``).
+The censuses of the same contract over every production type (S5.9, the
+conformance of every ``ContentIdentity`` class and the population against the
+union of the rosters; S5.6 and S5.7 over the production types; the qualname
+uniqueness gate) range over packages above ``values`` and live at the root,
+``tests/gates/test_content_identity_census.py`` (layer DAG ruling 28,
+2026-10-26). The per-type legs of S5.2, S5.3 and S5.4 live in the owning
+trees (``tests/gates/{data,geometry,mesh}/test_content_identity_*.py``).
+S5.1's subprocess builds production values of five layers from a source
+string, which the test-layer gate does not read (its declared blind spot).
 
 First red, measured on ``main`` ``1dc31163``: collection fails with
 ``ModuleNotFoundError: No module named 'orpheus.values.content'``.
@@ -33,7 +38,6 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-import inspect
 import os
 import pickle
 import subprocess
@@ -50,38 +54,13 @@ import pytest
 from scipy.sparse import csr_matrix
 
 import orpheus.values.content as content_module
-from orpheus.values.content import ContentIdentity, ContentlessError, content_digest, encode
-from orpheus.numerics.axis import Declared, Modal
-from tests.gates._content_identity_helpers import Entry, require
-from tests.gates.data.test_content_identity_data import ROSTER as DATA_ROSTER
-from tests.gates.geometry.test_content_identity_geometry import ROSTER as GEOMETRY_ROSTER
-from tests.gates.mesh.test_content_identity_mesh import ROSTER as MESH_ROSTER
-from tests.gates.numerics.test_content_identity_axis import ROSTER as AXIS_ROSTER
-from tests.gates.numerics.test_content_identity_mesh_free import ROSTER as MESH_FREE_ROSTER
-from tests.gates.numerics.test_content_identity_question import ROSTER as QUESTION_ROSTER
-from tests.gates.numerics.test_content_identity_observable import ROSTER as OBSERVABLE_ROSTER
-from tests.gates.numerics.test_enclosure import ROSTER as ENCLOSURE_ROSTER
-from tests.gates.reference.test_readings import ROSTER as READING_ROSTER
-from tests.gates.reference.test_published import ROSTER as PUBLISHED_ROSTER
-from tests.gates.reference.test_reference_certificate import ROSTER as CERTIFICATE_ROSTER
-from tests.gates.specification.test_content_identity_specification import ROSTER as SPECIFICATION_ROSTER
-from tests.gates.transport.test_content_identity_transport import ROSTER as TRANSPORT_ROSTER
-from tests.gates.derivations.test_characteristic_reference import ROSTER as CHARACTERISTIC_ROSTER
+from orpheus.values.content import ContentIdentity, ContentlessError, FrozenMapping, content_digest, encode, name_digest
+from tests.gates._content_identity_helpers import require
 
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/values/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
-from orpheus.diffusion import ZeroFluxCondition  # noqa: E402  (the one content type of orpheus.diffusion; it has no fields)
-
-DIFFUSION_ROSTER: tuple[Entry, ...] = (
-    Entry(
-        cls=ZeroFluxCondition, base=ZeroFluxCondition, parts=(), perturb={},
-        pairs=(("two builds", ZeroFluxCondition, ZeroFluxCondition),),
-    ),
-)
-
-ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + TRANSPORT_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER + DIFFUSION_ROSTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -332,6 +311,13 @@ def _digest(cls: type, **values: float) -> bytes:
     return content_digest(cls(**values))
 
 
+@dataclass(frozen=True, eq=False)
+class _Versioned(ContentIdentity):
+    """A content class of this module whose ``__content_version__`` a row raises in place."""
+
+    x: float
+
+
 class TestS58Schema:
     """The key covers the class's schema, so an entry written under an older
     schema misses (ruling of 2026-10-01; no ``__setstate__`` guard). Every
@@ -368,88 +354,18 @@ class TestS58Schema:
         b = _schema_class("Other", ("x",), mixin=False)
         require(encode(a(x=1.0)) != encode(b(x=1.0)), "two part classes encode alike")
 
-    def test_a_production_version_bump_moves_the_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """On a production type, through a FRESH instance (a cached digest
-        would mask the bump: the activation half of a route gate)."""
-        from orpheus.data.macro_xs.mixture import Mixture
-        from orpheus.data.macro_xs.synthetic import get_mixture
+    def test_a_live_version_bump_moves_the_digest(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """On a class that already exists and has already been keyed (not a class
+        built with the new version, as the parametrized rows above are), through a
+        FRESH instance: the version is read when a digest is computed, never
+        cached with the class (a cached digest or a cached tag would mask the
+        bump: the activation half of a route gate). Re-posed 2026-10-26 (layer DAG
+        ruling 28) from a production ``Mixture`` onto the synthetic ``_Versioned``."""
+        before = content_digest(_Versioned(1.0))
+        require(content_digest(_Versioned(1.0)) == before, "activation: two fresh builds digest alike")
+        monkeypatch.setattr(_Versioned, "__content_version__", 2, raising=False)
+        require(content_digest(_Versioned(1.0)) != before, "a version bump did not move the digest")
 
-        before = content_digest(get_mixture("A", "2g"))
-        monkeypatch.setattr(Mixture, "__content_version__", 2, raising=False)
-        require(content_digest(get_mixture("A", "2g")) != before, "a version bump did not move the digest")
-
-
-# ═════════════════════════════════════════════════════════════════════════════
-# S5.9 — conformance: the mixin's dunders, and the population
-# ═════════════════════════════════════════════════════════════════════════════
-
-# No class overrides ``__eq__``: the two that did (the string arm of the retired ``VacuumInflow`` and ``ReflectiveBoundary``) retired in WF2.4,
-# so the walk below admits the mixin's ``__eq__`` alone.
-
-#: The packages whose classes S5.9 walks. Of ``orpheus.derivations``, the package whose derivation is a reference
-#: solution (its receiver is a traced-memo key); the rest of ``orpheus.derivations`` is NOT walked. The
-#: trajectory-resolvent package was the second until step (e2) of the characteristic-reference campaign deleted it.
-_PACKAGES = ("orpheus.values", "orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.reference", "orpheus.transport",
-             "orpheus.derivations.continuous.characteristic", "orpheus.diffusion")
-
-
-def _content_classes() -> list[type]:
-    import importlib
-    import pkgutil
-
-    for name in _PACKAGES:
-        package = importlib.import_module(name)
-        for info in pkgutil.walk_packages(package.__path__, prefix=f"{name}."):
-            importlib.import_module(info.name)
-    found: list[type] = []
-    stack = list(ContentIdentity.__subclasses__())
-    while stack:
-        cls = stack.pop()
-        if cls not in found:
-            found.append(cls)
-            stack.extend(cls.__subclasses__())
-    # the population is STATED: the classes defined under the walked packages, never whatever else the run has imported
-    return [c for c in found if c.__module__.startswith(tuple(f"{name}." for name in _PACKAGES))]
-
-
-def _owner(cls: type, name: str) -> type:
-    return next(k for k in cls.__mro__ if name in vars(k))
-
-
-@pytest.mark.rests_on(f"{_HERE}::TestS58Schema")
-def test_s5_9_every_content_class_takes_the_mixins_dunders() -> None:
-    """First red (the carve's): ``Mixture``, ``Mesh1D`` and ``CellEdges`` define
-    ``__eq__``/``__hash__`` in their own class dicts today; ``FaceLaws``
-    inherits ``Mapping.__eq__``; a frozen dataclass declared with ``eq=True``
-    generates both and shadows the mixin."""
-    classes = _content_classes()
-    require(len(classes) >= 17, f"activation: {len(classes)} ContentIdentity classes found")
-    problems: list[str] = []
-    for cls in classes:
-        # The FUNCTION, not its owner: a class that overrides ``__eq__`` must
-        # re-bind ``__hash__ = ContentIdentity.__hash__`` (defining ``__eq__``
-        # nulls an inherited hash), which is the mixin's own hash.
-        if cls.__hash__ is not ContentIdentity.__hash__:
-            problems.append(f"{cls.__qualname__}.__hash__ comes from {_owner(cls, '__hash__').__qualname__}")
-        eq_owner = _owner(cls, "__eq__")
-        if eq_owner is not ContentIdentity:
-            problems.append(f"{cls.__qualname__}.__eq__ comes from {eq_owner.__qualname__}")
-        params = getattr(cls, "__dataclass_params__", None)
-        if params is not None and (params.eq or not params.frozen):
-            problems.append(f"{cls.__qualname__} is a dataclass with eq={params.eq}, frozen={params.frozen}")
-    require(not problems, "\n".join(problems))
-
-
-@pytest.mark.rests_on(f"{_HERE}::test_s5_9_every_content_class_takes_the_mixins_dunders")
-def test_s5_9_the_population_is_the_roster() -> None:
-    """Every concrete ``ContentIdentity`` class has a roster entry, so S5.3
-    perturbs its every part; every roster entry marked content-identity is one.
-    A new content type reds here until it joins a roster."""
-    found = {c for c in _content_classes() if not inspect.isabstract(c)}
-    rostered = {e.cls for e in ROSTER if e.content_identity}
-    require(found - rostered == set(), f"content types with no roster entry: {sorted(c.__qualname__ for c in found - rostered)}")
-    require(rostered - found == set(), f"roster entries without the mixin: {sorted(c.__qualname__ for c in rostered - found)}")
-    print(f"S5.9 population: {len(found)} concrete ContentIdentity classes")
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -457,72 +373,112 @@ def test_s5_9_the_population_is_the_roster() -> None:
 # ═════════════════════════════════════════════════════════════════════════════
 
 
-def _space_names() -> dict[str, Callable[[], str]]:
-    """Every derived space name the plan moves onto the encoder (5a)."""
-    from orpheus.numerics.axis import Axis, BasisKind, EnergyAxis
-    from orpheus.numerics.face_layout import FaceLayout
-    from orpheus.numerics.quadrature import Quadrature
-    from orpheus.numerics.space import FunctionSpace
-    from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-    from orpheus.numerics.spaces.radial_characteristic_space import (
-        RadialCharacteristicBoundarySpace,
-        RadialCharacteristicInteriorSpace,
+# ═════════════════════════════════════════════════════════════════════════════
+# S5.7 — the RECORD fingerprint
+# ═════════════════════════════════════════════════════════════════════════════
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# The synthetic content values of S5.6 and S5.7
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# Re-posed 2026-10-26 (layer DAG ruling 28): S5.6 and S5.7 are claims about values' encoder, so they are witnessed
+# here on content dataclasses of this module; the same two claims over every production type (the fifteen
+# rosters and the derived space names, and the digests of a mixture, a geometry and a material set) are a census
+# of the contract over its consumers and live at the root, ``tests/gates/test_content_identity_census.py``.
+
+
+class _Tint(enum.Enum):
+    WARM = "warm"
+    COOL = "cool"
+
+
+@dataclass(frozen=True)
+class _Leaf:
+    """A part keyed through the frozen-dataclass rule (no mixin)."""
+
+    weight: float
+    tint: _Tint
+
+
+@dataclass(frozen=True, eq=False)
+class _Sample(ContentIdentity):
+    """A content value whose parts reach each branch of the encoder a production type reaches: a real
+    array, a sparse matrix, a frozen-dataclass part holding an ``Enum``, a ``FrozenMapping``, a string and a
+    tuple of reals."""
+
+    weights: np.ndarray
+    transfer: csr_matrix
+    leaf: _Leaf
+    table: FrozenMapping
+    label: str
+    edges: tuple[float, ...]
+
+
+def _read_only(array: np.ndarray) -> np.ndarray:
+    array = np.array(array, dtype=float)
+    array.setflags(write=False)
+    return array
+
+
+def _read_only_csr(dense: np.ndarray) -> csr_matrix:
+    matrix = csr_matrix(dense)
+    for part in (matrix.data, matrix.indices, matrix.indptr):
+        part.setflags(write=False)
+    return matrix
+
+
+def _sample() -> _Sample:
+    """A fresh ``_Sample`` of literals (IEEE-exact: no libm or LAPACK output enters, so its bytes are
+    platform-free, AP38)."""
+    return _Sample(
+        weights=_read_only(np.array([0.5, 1.25, -0.0, 3.0])),
+        transfer=_read_only_csr(np.array([[1.0, 0.0], [0.25, 2.0]])),
+        leaf=_Leaf(weight=0.75, tint=_Tint.COOL),
+        table=FrozenMapping({"fast": 1.5, "thermal": 2}),
+        label="u235",
+        edges=(0.0, 0.5, 2.0),
     )
-    from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 
-    def angular() -> AngularTraceSpace:
-        quad = Quadrature.gauss_legendre(4)
-        layout = FaceLayout.from_named_shapes([("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))])
-        return AngularTraceSpace.from_quadrature_and_layout(quad, layout)
 
-    def scalar() -> ScalarTraceSpace:
-        return ScalarTraceSpace.for_faces([("xmin", ()), ("xmax", ())], 2, {"xmin": 1.0, "xmax": 1.0})
-
-    levels, cell_volumes = (0, 2, 5), np.array([1.5, 2.5, 3.5, 4.5])
+def _synthetic_route_subjects() -> dict[str, Callable[[], object]]:
+    """Every way a value of this module reaches a key: the mixin's digest and hash, a frozen-dataclass part,
+    a ``FrozenMapping`` (a mixin type overriding ``content_parts``), an ``Enum`` member, a plain container and
+    a derived name (``name_digest``, the spelling a space name carries). Each reading builds its subject fresh."""
     return {
-        "of_axes": lambda: FunctionSpace.of_axes(
-            EnergyAxis.synthetic(2), Axis("harmonic", (3,), origin=Declared(Modal(np.eye(3)[0])))).name,
-        "angular trace": lambda: angular().name,
-        "scalar trace": lambda: scalar().name,
-        "radial interior": lambda: RadialCharacteristicInteriorSpace.for_levels(
-            levels, ng=2, nx=4, cell_volumes=cell_volumes).name,
-        "radial boundary": lambda: RadialCharacteristicBoundarySpace.for_levels(
-            levels, ng=2, nx=4, cell_volumes=cell_volumes).name,
-        "full field over content-named blocks": lambda: FullFieldSpace.from_blocks(
-            FunctionSpace.of_axes(EnergyAxis.synthetic(2)), scalar()).name,
-        "full field over raw blocks": lambda: FullFieldSpace.from_blocks(
-            FunctionSpace(name="bulk", shape=(4,)), FunctionSpace(name="trace", shape=(2,))).name,
+        "digest _Sample": lambda: content_digest(_sample()),
+        "hash _Sample": lambda: hash(_sample()),
+        "digest _Leaf": lambda: content_digest(_Leaf(weight=0.75, tint=_Tint.WARM)),
+        "digest FrozenMapping": lambda: content_digest(FrozenMapping({"a": 1.0, "b": (2.0, 3.0)})),
+        "hash FrozenMapping": lambda: hash(FrozenMapping({"a": 1.0, "b": (2.0, 3.0)})),
+        "digest Enum member": lambda: content_digest(_Tint.WARM),
+        "digest container": lambda: content_digest({"w": np.arange(3.0), "t": (1.0, "x")}),
+        "name of _Sample": lambda: name_digest(_sample()),
     }
 
 
-def _route_subjects() -> dict[str, Callable[[], object]]:
-    subjects: dict[str, Callable[[], object]] = {}
-    for entry in ROSTER:
-        subjects[f"digest {entry.id}"] = lambda e=entry: content_digest(e.base())
-        if entry.content_identity:
-            subjects[f"hash {entry.id}"] = lambda e=entry: hash(e.base())
-    subjects.update({f"name {k}": v for k, v in _space_names().items()})
-    return subjects
+# ═════════════════════════════════════════════════════════════════════════════
+# S5.6 — the ROUTE gate: one encoder
+# ═════════════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.rests_on(f"{_HERE}::test_s5_9_the_population_is_the_roster")
+@pytest.mark.rests_on(f"{_HERE}::TestS54EncoderCanonicalForms")
 def test_s5_6_one_encoder_is_the_only_route(monkeypatch: pytest.MonkeyPatch) -> None:
     """Rebind the encoder's one recursive entry, ``content._encode``, in every
     module that binds it, to a decoy that prefixes its output; every subject
-    (each roster type's digest and hash, each derived space name) must MOVE,
-    and must have called the decoy (activation: a cached digest or a name
-    computed before the swap would read unmoved for the wrong reason, so every
-    subject is built fresh under the decoy). A type or a space still hashing
-    its own bytes stays unmoved: that is a second encoder (X4)."""
-    subjects = _route_subjects()
+    (the mixin's digest and hash, a part, a mapping, an enum member, a container,
+    a derived name) must MOVE, and must have called the decoy (activation: a
+    cached digest or a name computed before the swap would read unmoved for the
+    wrong reason, so every subject is built fresh under the decoy). A route
+    that hashes its own bytes stays unmoved: that is a second encoder (X4). The
+    same law over every production type is the root census's
+    ``test_s5_6_every_roster_type_routes_through_the_one_encoder``."""
+    subjects = _synthetic_route_subjects()
     honest: dict[str, object] = {}
     unreadable: dict[str, str] = {}
     for name, read in subjects.items():
         try:
             honest[name] = read()
-            # Stability control: a reading that differs between two honest
-            # builds (an identity hash) would read "moved" for the wrong reason.
             if read() != honest[name]:
                 unreadable[name] = "unstable: two honest builds read differently"
         except Exception as err:  # reported, never swallowed: the row reds on it below
@@ -568,31 +524,25 @@ def test_s5_6_one_encoder_is_the_only_route(monkeypatch: pytest.MonkeyPatch) -> 
 # S5.7 — the RECORD fingerprint
 # ═════════════════════════════════════════════════════════════════════════════
 
-#: Pinned 2026-10-02 at #405 P1 step 5 (macOS, Python 3.14). The three values are
-#: built from literals and IEEE-exact arithmetic (mixture A is ``macro_xs.synthetic``
-#: literals; no libm or LAPACK output enters), so the pin is platform-free (AP38).
-_PIN_AFTER_5B = "PIN-AFTER-5B"
-# Re-pinned 2026-10-22 (layer DAG ruling 10): the schema tag and the Enum encoding dropped the module of an orpheus
-# type, so every pin moved; the old _schema_tag and the old Enum encoding swapped back in-process together reproduce
-# each old pin byte for byte (the tag alone reproduces 11 of the 14; the commit body lists old -> new).
+#: Pinned 2026-10-26 (layer DAG ruling 28), from literals and IEEE-exact arithmetic, so the pin is platform-free
+#: (AP38). The type names inside these keys carry this module's name (a type outside ``orpheus`` is keyed as
+#: ``module:qualname``), so moving this file moves the pins. The production fingerprint, the digests of mixture A
+#: 2g, a hollow sphere and a material set, is the root census's
+#: ``test_s5_7_the_production_digest_bytes_are_recorded``.
 _PINNED: dict[str, str] = {
-    "mixture A 2g": "905ce741c85384eefb289905ea4dbd8591499002889a16b1e481e73992d845e6",
-    "hollow sphere, three intervals": "42c18f89853f810317774beeb060bc4ddc7186bfcaa8c843c062e3a39fcdb2d9",
-    "materials of two mixtures": "3ae54bab38bf8af73ec713740aa69963d2b86aa73ae8b489b6e63b0eae6f34e6",
+    "sample": "5cbb880052e098acf0fa271a04814863e161b81b6ae2a3f90966e3c64cd6102c",
+    "leaf": "3d3b315a9a8f3c12813fdb79ea2df8c95dcdbf9d650eff82e47313ce90e7343b",
+    "frozen mapping": "9a946144a1267c78e72c977c76701ac26b48350619622c7350e8219e1360c422",
+    "enum member": "a7badf09c1c8ed91b5b5233017d32ae8a4eb8cbc43998131463dd4c18f00ece7",
 }
 
 
 def _fingerprint_values() -> dict[str, object]:
-    from orpheus.data.materials import Materials
-    from orpheus.data.macro_xs.synthetic import get_mixture
-    from orpheus.geometry import CoordSystem, StructuredGeometry
-
     return {
-        "mixture A 2g": get_mixture("A", "2g"),
-        "hollow sphere, three intervals": StructuredGeometry(
-            coord=CoordSystem.SPHERICAL, breakpoints=(0.25, 0.5, 1.0, 2.0), mat_ids=(0, 1, 0),
-            face_roles=(1, 0)),
-        "materials of two mixtures": Materials({0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}),
+        "sample": _sample(),
+        "leaf": _Leaf(weight=0.75, tint=_Tint.WARM),
+        "frozen mapping": FrozenMapping({"a": 1.0, "b": (2.0, 3.0)}),
+        "enum member": _Tint.COOL,
     }
 
 
@@ -602,8 +552,6 @@ def test_s5_7_the_digest_bytes_are_recorded() -> None:
     owed to every frozen-byte consumer of the digests (``vv-principles``,
     bit-identity). Re-pin only with the reason, in the commit message."""
     got = {name: content_digest(value).hex() for name, value in _fingerprint_values().items()}
-    if any(pin == _PIN_AFTER_5B for pin in _PINNED.values()):
-        pytest.fail(f"pin after 5b: replace the placeholders of _PINNED with {got}")
     for name, pin in _PINNED.items():
         require(
             got[name] == pin,

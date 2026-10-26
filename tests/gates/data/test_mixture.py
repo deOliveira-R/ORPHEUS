@@ -25,11 +25,16 @@ only theory equation with zero test coverage even after PR-2 populated
 ``VerificationCase.equation_labels`` across the derivation package.
 This file closes that gap.
 
-The tests below bypass ``compute_macro_xs`` itself (which requires real
-``Isotope`` instances and sigma-zero iterations) and verify the
-mathematical core — the ``aT @ N`` matmul — against hand-computed
-expected values. They catch transposition bugs, shape mismatches, and
-any future refactor that accidentally re-weights isotopes.
+The three hand-calculation tests run the production sum: each builds one
+synthetic ``Isotope`` per row of its hand table (one sigma-zero base point,
+so the interpolation returns the table and the sigma-zero solve is inert)
+and calls ``compute_macro_xs``; the hand-computed values stay the
+independent oracle. The micro table is written into capture, (n,alpha) and
+fission at the scalings 1, 2 and 4 (exact in binary floating point), so a
+dropped weight, a transposed sum or a swap of two channels each reads
+differently. Until 2026-10-26 they computed ``micro_xs.T @ n_densities``
+inside the test and executed no ``orpheus`` line, so their ``verifies``
+marker was prose (layer DAG Phase 1b, candidate 9).
 
 Closes issue #84.
 """
@@ -40,12 +45,53 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.data.macro_xs.mixture import Mixture
+from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs
+from orpheus.data.micro_xs.isotope import NG, Isotope
 
 pytestmark = [
     pytest.mark.l0,
     pytest.mark.verifies("macro-sum"),
 ]
+
+
+#: The scaling of the hand table per summed channel: distinct powers of two, exact in binary arithmetic.
+_CHANNEL_SCALE = {"SigC": 1.0, "SigL": 2.0, "SigF": 4.0}
+
+
+def _production_macro_sum(n_densities: np.ndarray, micro_xs: np.ndarray) -> dict[str, np.ndarray]:
+    """The macroscopic channels ``compute_macro_xs`` sums from the hand table ``micro_xs`` (n_iso, k).
+
+    One ``Isotope`` per row: its capture, (n,alpha) and fission tables are the row scaled by
+    ``_CHANNEL_SCALE``, padded with zeros to the library's ``NG`` groups, at a single sigma-zero
+    base point (``interp_xs_field`` returns the table itself). No isotope produces (``nubar`` is
+    zero, ``fissile_indices`` empty), so the fission spectrum stays null. Returns the first ``k``
+    groups of each channel, after checking every padded group sums to exactly zero.
+    """
+    n_iso, k = micro_xs.shape
+    padded = np.zeros((n_iso, NG))
+    padded[:, :k] = micro_xs
+    grid = np.geomspace(2.0e7, 1.0e-5, NG + 1)
+    isotopes = []
+    for i in range(n_iso):
+        row = {name: (scale * padded[i])[None, :] for name, scale in _CHANNEL_SCALE.items()}
+        isotopes.append(Isotope(
+            name=f"hand-{i}", aw=1.0, temp=300.0, eg=grid, sig0=np.array([1.0e10]),
+            sigC=row["SigC"], sigL=row["SigL"], sigF=row["SigF"],
+            sigT=row["SigC"] + row["SigL"] + row["SigF"],
+            nubar=np.zeros(NG), chi=np.zeros(NG),
+            sigS=[[csr_matrix((NG, NG))]],
+        ))
+    mix = compute_macro_xs(isotopes, n_densities, escape_xs=1.0, fissile_indices=[])
+    channels = {name: np.asarray(getattr(mix, name)) for name in _CHANNEL_SCALE}
+    for name, values in channels.items():
+        np.testing.assert_array_equal(values[k:], 0.0, err_msg=f"{name}: a group beyond the hand table is not zero")
+    return {name: values[:k] for name, values in channels.items()}
+
+
+def _assert_every_channel(macro: dict[str, np.ndarray], expected: np.ndarray) -> None:
+    """Each summed channel equals the hand value at its own scaling."""
+    for name, scale in _CHANNEL_SCALE.items():
+        np.testing.assert_allclose(macro[name], scale * expected, rtol=1e-14, err_msg=name)
 
 
 def test_macro_sum_two_isotope_two_group_hand_calc():
@@ -66,8 +112,9 @@ def test_macro_sum_two_isotope_two_group_hand_calc():
                 = 1.0 + 1.8
                 = 2.8
 
-    Catches a transpose flip: ``micro.T @ N`` vs ``micro @ N`` would
-    give shape (n_iso,) instead of (NG,) and the assertion fails.
+    Catches a transpose flip: ``micro @ N`` instead of ``micro.T @ N``
+    cannot even be formed on the (n_iso, NG) table, and a dropped density
+    weight reads [0.5, 0.8].
     """
     n_densities = np.array([5.0, 3.0])
     micro_xs = np.array(
@@ -77,11 +124,10 @@ def test_macro_sum_two_isotope_two_group_hand_calc():
         ]
     )
 
-    # Same operation compute_macro_xs performs internally (mixture.py:121)
-    macro = micro_xs.T @ n_densities
+    macro = _production_macro_sum(n_densities, micro_xs)
 
     expected = np.array([1.7, 2.8])
-    np.testing.assert_allclose(macro, expected, rtol=1e-14)
+    _assert_every_channel(macro, expected)
 
 
 def test_macro_sum_three_isotope_three_group_asymmetric():
@@ -105,10 +151,10 @@ def test_macro_sum_three_isotope_three_group_asymmetric():
         ]
     )
 
-    macro = micro_xs.T @ n_densities
+    macro = _production_macro_sum(n_densities, micro_xs)
 
     expected = np.array([5.20, 4.20, 5.70])
-    np.testing.assert_allclose(macro, expected, rtol=1e-14)
+    _assert_every_channel(macro, expected)
 
 
 def test_macro_sum_single_isotope_reduces_to_scaling():
@@ -119,10 +165,10 @@ def test_macro_sum_single_isotope_reduces_to_scaling():
     n_densities = np.array([4.0])
     micro_xs = np.array([[0.1, 0.25, 0.5, 1.0]])  # 1 isotope, 4 groups
 
-    macro = micro_xs.T @ n_densities
+    macro = _production_macro_sum(n_densities, micro_xs)
 
     expected = 4.0 * np.array([0.1, 0.25, 0.5, 1.0])
-    np.testing.assert_allclose(macro, expected, rtol=1e-14)
+    _assert_every_channel(macro, expected)
 
 
 def test_macro_sum_mixture_roundtrip_preserves_values():

@@ -853,8 +853,8 @@ configurations) and the Burkart-Ishiguro-Siewert 1976 F_N reference
 No solver gate reads the catalogue's cases. Outside the registry
 package, one test module reads them, the citation gate
 (``tests/gates/derivations/test_registry_citations_resolve.py``), and
-one imports the catalogue's mixture builder, the cross-section balance
-gate (``tests/gates/data/test_mixture_xs_balance.py``), which asserts
+one imports the catalogue's mixture builder, the published-table balance
+gate (``tests/gates/derivations/test_published_mixtures_balance.py``), which asserts
 that the :math:`c = 1.30` mixture is deliberately imbalanced (`[M]`
 2026-09-29, ``git grep`` of ``ATALAY_`` and ``atalay1997`` over
 ``orpheus/`` and ``tests/``). The singular-eigenfunction slab and sphere

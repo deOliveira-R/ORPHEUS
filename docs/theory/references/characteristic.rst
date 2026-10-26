@@ -6376,7 +6376,7 @@ The content identity of the three types is gated in
 one memo key; a motion's read-only arrays; the non-finite refusal; one
 equality for a motion), in ``test_characteristic_reference.py`` (the
 basis's parts, its derived state outside its content) and by the content
-roster gate S5.9 (``tests/gates/values/test_content_identity.py``).
+roster gate S5.9 (``tests/gates/test_content_identity_census.py``).
 Each row's first red is an arm of the battery in
 ``scratch/characteristic_architecture/p3/c1/gate_spec.md`` §6, re-run on
 the carve before the elegance review's re-pose

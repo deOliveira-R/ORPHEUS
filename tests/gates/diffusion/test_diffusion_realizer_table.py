@@ -5,7 +5,7 @@ Spec: ``.claude/plans/wave2_boundary_carve.md`` section 2.7 ("Diffusion: ``zero_
 eight done-when gates; this file holds gates 2, 3, 4, 6 and 7, and the structural rows the table owes). Gate 1 (the pin rows) is
 in ``tests/gates/transport/test_admission_matrix.py``, gate 5 (the carry) in ``test_diffusion_boundary_carry.py`` and gate 8 (the
 qualname scan) was ``test_condition_family_qualnames.py``, retired in WF2.4 with the retiring tree it compared against; the
-tree-wide ``test_no_two_nameable_orpheus_classes_share_a_qualname`` of ``tests/gates/values/test_content_identity_relocation.py``
+tree-wide ``test_no_two_nameable_orpheus_classes_share_a_qualname`` of ``tests/gates/test_content_identity_census.py``
 is the standing gate.
 
 The claims, all read through the door a problem uses, ``DIFFUSION_REALIZERS.admit`` and ``.realize(declared, site, space)``, on

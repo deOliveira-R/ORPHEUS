@@ -3,7 +3,7 @@ displacement, the declared map and the binding (wave 2, slice S2a, gate 15).
 
 Spec: ``.claude/plans/wave2_boundary_carve.md`` section 5.0 ("the content-identity rosters") and 6.2 S2a gate 15, with
 ``.claude/plans/reference_p1_spec.md`` section 1.5 for the legs. The encoder and the mixin are gated in
-``tests/gates/values/test_content_identity.py``, whose population gate S5.9 ("every concrete ``ContentIdentity`` class
+``tests/gates/values/test_content_identity.py``; the population gate S5.9 of ``tests/gates/test_content_identity_census.py`` ("every concrete ``ContentIdentity`` class
 has a roster entry") imports :data:`ROSTER` from here (the aggregator edit of the same commit).
 
 The six TYPES whose identity is their content get a full entry (equal content is one value, a change to any part
@@ -314,7 +314,7 @@ def test_the_roster_covers_the_package() -> None:
 
 
 def test_the_content_types_take_the_mixins_dunders() -> None:
-    """The conformance rule of the aggregator's S5.9 (``tests/gates/values/test_content_identity.py``), restated for
+    """The conformance rule of the aggregator's S5.9 (``tests/gates/test_content_identity_census.py``), restated for
     the package so that slice S2a's own targeted set reads it: that file cannot be collected until slice S5 (its
     rosters import the retired ``BC``). Every concrete ``ContentIdentity`` class of the package takes ``__eq__`` and
     ``__hash__`` from the mixin, and is a frozen dataclass declared with ``eq=False`` (a dataclass with ``eq=True``

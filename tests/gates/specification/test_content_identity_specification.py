@@ -3,7 +3,7 @@ r"""Content identity of the specification and its keys (#405 P1 step 8: S8.2, S8
 Specified by the test-architect (2026-10-02, ``.claude/plans/reference_p1_spec.md``
 §1.8). Its ``ROSTER`` (``Specification``, ``CellCoefficient``,
 ``GeometryExtent``) joins the union in
-``tests/gates/values/test_content_identity.py``, whose ``_PACKAGES`` gains
+``tests/gates/test_content_identity_census.py``, whose ``_PACKAGES`` gains
 ``"orpheus.specification"`` in the same change. ``[M]`` on the prototype, the
 roster union removed: with the package walked, S5.9 reds naming all three
 classes; without the walk it names only ``CellCoefficient`` and
@@ -55,7 +55,7 @@ from tests.gates.specification._fixtures import fuel, moderator, slab2, vacuum_e
 pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/specification/test_content_identity_specification.py"
-_CI = "tests/gates/values/test_content_identity.py"
+_CENSUS = "tests/gates/test_content_identity_census.py"
 _QCI = "tests/gates/numerics/test_content_identity_question.py"
 _SPEC = "tests/gates/specification/test_specification.py"
 _ROOT = Path(__file__).resolve().parents[3]
@@ -237,7 +237,7 @@ ROSTER: tuple[Entry, ...] = (_SPECIFICATION, _INFINITE_MEDIUM, _CELL_COEFFICIENT
 # ── S8.2: every part is content; equal content is one value ──────────────────
 
 
-@pytest.mark.rests_on(f"{_CI}::test_s5_9_the_population_is_the_roster")
+@pytest.mark.rests_on(f"{_CENSUS}::test_s5_9_the_population_is_the_roster")
 @pytest.mark.parametrize("entry", ROSTER, ids=lambda e: e.id)
 def test_s8_2_population(entry: Entry) -> None:
     check_population(entry)

@@ -2,7 +2,7 @@ r"""Content identity of the observables (#405 P2 step 3, R3.4-R3.5).
 
 Specified by the test-architect (2026-10-03, ``.claude/plans/reference_p2_spec.md``
 §1.3). Its ``ROSTER`` joins the union in
-``tests/gates/values/test_content_identity.py`` (S5.9 walks
+``tests/gates/test_content_identity_census.py`` (S5.9 walks
 ``orpheus.numerics`` and reds while a content class has no roster entry;
 S5.6's route gate then covers the four types).
 

@@ -141,7 +141,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("data/test_cells.py", "tests.gates.specification"),
         ("data/test_content_identity_data.py", "orpheus.mesh"),
         ("data/test_content_identity_data.py", "orpheus.transport"),
-        ("data/test_mixture_xs_balance.py", "orpheus.derivations"),
         ("data/test_n2n_yield_convention.py", "orpheus.transport"),
         ("derivations/_characteristic_ladders.py", "tests.gates.sn"),
         ("derivations/test_characteristic_albedos.py", "tests.gates.sn"),
@@ -354,20 +353,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("transport/test_timed_full_field.py", "orpheus.sn"),
         ("transport/test_timed_full_field.py", "tests.gates.sn"),
         ("transport/test_wave2_s4_tables.py", "orpheus.diffusion"),
-        ("values/test_content_identity.py", "orpheus.data"),
-        ("values/test_content_identity.py", "orpheus.diffusion"),
-        ("values/test_content_identity.py", "orpheus.geometry"),
-        ("values/test_content_identity.py", "orpheus.numerics"),
-        ("values/test_content_identity.py", "tests.gates.data"),
-        ("values/test_content_identity.py", "tests.gates.derivations"),
-        ("values/test_content_identity.py", "tests.gates.geometry"),
-        ("values/test_content_identity.py", "tests.gates.mesh"),
-        ("values/test_content_identity.py", "tests.gates.numerics"),
-        ("values/test_content_identity.py", "tests.gates.reference"),
-        ("values/test_content_identity.py", "tests.gates.specification"),
-        ("values/test_content_identity.py", "tests.gates.transport"),
-        ("values/test_one_real_parser.py", "orpheus.data"),
-        ("values/test_one_real_parser.py", "orpheus.numerics"),
     }
 )
 

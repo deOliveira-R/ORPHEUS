@@ -31,7 +31,7 @@ keeps that refusal without SN, CP, MoC or MC importing this module: an L3 packag
 ``orpheus/geometry/boundary/zero_flux.py`` (the package retired in WF2.4), which production files and tests of the CP, MoC, MC,
 derivations and specification slices named until they were re-spelled after this one. A content key names an orpheus type by its
 qualname, so a second class under the old name would have made two nameable classes share one, and the qualname gate
-(``tests/gates/values/test_content_identity_relocation.py::test_no_two_nameable_orpheus_classes_share_a_qualname``) takes no exemption (an exemption would be a dual spelling under
+(``tests/gates/test_content_identity_census.py::test_no_two_nameable_orpheus_classes_share_a_qualname``) takes no exemption (an exemption would be a dual spelling under
 another name). The new type was therefore minted under a fresh name, and keeps it. The module sits in ``diffusion`` and not in a
 module ``boundary_conditions.py`` beside the package ``orpheus/transport/boundary_conditions/``: that would be the homonym the
 layering rulings refused for the package name.
