@@ -119,6 +119,11 @@ def _medium(mixture: Any) -> Any:
     return InfiniteMediumSpecification(0, mixture, Eigen(fission, gauge=fission))
 
 
+@pytest.mark.rests_on(
+    "tests/gates/homogeneous/test_kinf_exact_reference.py::test_kinf_is_the_exact_eigenvalue_within_the_derived_bound",
+    "tests/gates/homogeneous/test_kinf_exact_reference.py::test_flux_is_the_exact_gauged_eigenvector_within_the_derived_bound",
+    "tests/gates/derivations/test_exact_medium_reference.py::test_r6_6_the_exact_infinite_medium_reads_the_exact_answer",
+)
 @pytest.mark.parametrize("make", [m for _, m in _MIXTURES], ids=[n for n, _ in _MIXTURES])
 def test_r7_9_the_homogeneous_solver_agrees_with_the_exact_medium(make: Any) -> None:
     """REFERENCE (exact rationals) at L1: the production 0-D solve of each

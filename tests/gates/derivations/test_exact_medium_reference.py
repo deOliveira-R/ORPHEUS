@@ -340,6 +340,30 @@ def test_r6_8_an_uncertified_value_is_the_value_of_its_expression() -> None:
     require(relative <= Fraction(1, 10**15), f"the uncertified value {reading.value!r} is {float(relative):.3g} relative off")
 
 
+_OFFSETS = (("group-1-at-1e-130", 130), ("group-1-at-1e-160", 160))
+
+
+@pytest.mark.rests_on(f"{_HERE}::test_r6_8_an_uncertified_value_is_the_value_of_its_expression")
+@pytest.mark.parametrize("exponent", [e for _, e in _OFFSETS], ids=[n for n, _ in _OFFSETS])
+def test_r6_8_the_derivation_forwards_the_working_precision_approximation(exponent: int) -> None:
+    """The fallback's DEFINITION on the derivation itself: the exact medium's
+    ``evaluate`` reads an uncertifiable weight as ``Uncertified`` carrying
+    ``Uncertifiable.approximation``, the expression's non-strict ``evalf`` at
+    the working precision, never a re-evaluation at ``evalf``'s default 15
+    digits. The weight ``(0, z + 10^-k)`` (z the Machin zero) cancels
+    catastrophically at 15 digits (``[M]`` 2026-10-26 qa: 3.6e5 times off at
+    k = 130, 3.6e35 at k = 160), so this row reddens where the group-0 row
+    above is blind (7.9e-17 relative off under both). At the working
+    precision both read within 1e-15 relative of the exact ``10^-k φ_1``."""
+    groups = (False, True)
+    ref = exact_homogeneous.exact_infinite_medium_reference(_medium(sf.fuel()))
+    reading = ref.read(_offset_weight(groups, exponent))
+    require(type(reading) is s6.uncertified_class(), f"activation: read {reading!r}")
+    truth = _offset_truth(groups, exponent)
+    relative = abs(Fraction(reading.value) - truth) / truth
+    require(relative <= Fraction(1, 10**15), f"the uncertified value {reading.value!r} is {float(relative):.3g} relative off")
+
+
 def _machin_inverse() -> Any:
     return 1 / s6.machin_zero()
 
