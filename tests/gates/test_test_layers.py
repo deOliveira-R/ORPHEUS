@@ -383,8 +383,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("values/test_content_identity.py", "tests.gates.reference"),
         ("values/test_content_identity.py", "tests.gates.specification"),
         ("values/test_content_identity.py", "tests.gates.transport"),
-        ("values/test_one_real_parser.py", "orpheus.data"),
-        ("values/test_one_real_parser.py", "orpheus.numerics"),
     }
 )
 

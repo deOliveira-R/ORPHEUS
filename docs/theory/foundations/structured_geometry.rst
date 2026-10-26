@@ -3080,8 +3080,11 @@ NaN refusal, ``Mixture``'s own loop ("holds NaN, which is not a cross
 section"), outside the witness's vocabulary; ``1fde7b59`` passed every
 field of a mixture through ``canonical_reals`` and retired the loop.
 
-**The witness**, ``tests/gates/values/test_one_real_parser.py``,
-keeps the copies from coming back (X4: the mechanism that keeps several
+**The witness**, ``tests/gates/values/test_one_real_parser.py`` with its
+consumer half ``tests/gates/test_one_real_parser_census.py`` (the
+``RegionwiseConstant`` and ``Mixture`` sites and the signed-zero
+agreement, moved to the root on 2026-10-26 as a census of the values
+contract over its consumers), keeps the copies from coming back (X4: the mechanism that keeps several
 admitting sites equal needs a test that fails when one diverges). `[M]`
 this pass, 20 rows, 20 passed under ``-O``:
 
