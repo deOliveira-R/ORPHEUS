@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19874**
+Total tests collected: **19883**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2914, 14.7%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14930, 75.1%
+   foundation, 14939, 75.1%
    unmarked, 56, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19739
+   explicit, 19748
    class-name, 46
    func-name, 0
    case, 33
@@ -174,7 +174,7 @@ Module × level grid
    data/test_mixture_identity_anchors, 0, 0, 0, 0, 16, 0
    data/test_mixture_scattering_ratio, 0, 0, 0, 0, 3, 0
    data/test_mixture_transport_xs, 0, 1, 0, 0, 4, 0
-   data/test_mixture_xs_balance, 0, 0, 0, 0, 75, 0
+   data/test_mixture_xs_balance, 0, 0, 0, 0, 22, 0
    data/test_n2n_yield_convention, 7, 0, 0, 0, 23, 0
    data/test_synthetic_xs, 0, 0, 0, 0, 2, 0
    derivations/test_adjoint_spectrum_reference, 0, 0, 0, 0, 6, 0
@@ -214,6 +214,7 @@ Module × level grid
    derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 10, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
    derivations/test_dsa_rules, 0, 0, 0, 0, 8, 0
+   derivations/test_exact_medium_reference, 0, 0, 0, 0, 22, 0
    derivations/test_fn_method_moment_space, 0, 0, 0, 0, 14, 0
    derivations/test_fn_projection_vs_kll_flux, 0, 4, 0, 0, 6, 0
    derivations/test_fn_sood2003_kinf, 0, 0, 0, 0, 39, 0
@@ -271,6 +272,7 @@ Module × level grid
    derivations/test_peierls_sphere_prefactor, 6, 0, 0, 0, 0, 0
    derivations/test_peierls_sphere_white_bc, 0, 4, 0, 0, 0, 0
    derivations/test_peierls_white_slab_symbolic, 0, 0, 0, 0, 2, 0
+   derivations/test_published_mixtures_balance, 0, 0, 0, 0, 53, 0
    derivations/test_quadrature, 7, 0, 0, 0, 45, 0
    derivations/test_reference_body, 0, 0, 0, 0, 50, 0
    derivations/test_reference_carry, 0, 0, 0, 0, 21, 0
@@ -336,15 +338,17 @@ Module × level grid
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
    geometry/test_colouring_symmetry, 0, 0, 0, 0, 22, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 57, 0
+   geometry/test_coord, 0, 0, 0, 0, 15, 0
    geometry/test_deck, 0, 0, 0, 0, 7, 0
    geometry/test_face_roles, 0, 0, 0, 0, 38, 0
    geometry/test_geometry, 0, 0, 0, 0, 14, 0
    geometry/test_geometry_extent, 0, 0, 0, 0, 8, 0
+   geometry/test_geometry_faces, 0, 0, 0, 0, 14, 0
    geometry/test_kernel_corroboration, 0, 0, 0, 0, 0, 4
    geometry/test_line, 0, 0, 0, 0, 9, 0
    geometry/test_line_domain, 3, 5, 0, 0, 22, 0
    geometry/test_line_measure, 0, 12, 0, 0, 0, 0
-   geometry/test_manifold, 0, 0, 0, 0, 238, 0
+   geometry/test_manifold, 0, 0, 0, 0, 245, 0
    geometry/test_measure_density, 6, 0, 0, 0, 0, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_rays, 16, 0, 0, 0, 7, 0
@@ -358,6 +362,7 @@ Module × level grid
    homogeneous/test_homogeneous_outcome, 0, 0, 0, 0, 3, 0
    homogeneous/test_homogeneous_population, 0, 0, 0, 0, 1, 0
    homogeneous/test_homogeneous_problem, 0, 0, 0, 0, 12, 0
+   homogeneous/test_homogeneous_verification, 0, 0, 0, 0, 10, 0
    homogeneous/test_kinf_exact_reference, 0, 24, 0, 0, 16, 0
    homogeneous/test_operator_spaces, 0, 0, 0, 0, 18, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
@@ -371,20 +376,19 @@ Module × level grid
    mesh/test_axis_adapter_laws, 0, 0, 0, 0, 18, 0
    mesh/test_content_identity_mesh, 0, 0, 0, 0, 40, 0
    mesh/test_cylindrical_quadrature_admission, 0, 0, 0, 0, 16, 0
-   mesh/test_dropped_laws_are_refused, 0, 0, 0, 0, 1, 0
-   mesh/test_face_roles, 0, 0, 0, 0, 65, 0
+   mesh/test_face_roles, 0, 0, 0, 0, 56, 0
    mesh/test_factories, 0, 0, 0, 0, 4, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 2, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 36, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 12, 0
-   mesh/test_mesh1d, 0, 0, 0, 0, 69, 0
+   mesh/test_mesh1d, 0, 0, 0, 0, 59, 0
    mesh/test_mesh1d_cell_integrals, 0, 0, 0, 0, 25, 0
    mesh/test_mesh1d_regions, 0, 0, 0, 0, 31, 0
    mesh/test_mesh2d, 0, 0, 0, 0, 8, 0
-   mesh/test_mesh2d_face_roles, 0, 0, 0, 0, 58, 0
+   mesh/test_mesh2d_face_roles, 0, 0, 0, 0, 52, 0
    mesh/test_mesher, 0, 0, 0, 0, 117, 0
    mesh/test_module_layout, 0, 0, 0, 0, 7, 0
-   mesh/test_partition, 0, 0, 0, 0, 193, 0
+   mesh/test_partition, 0, 0, 0, 0, 180, 0
    mesh/test_problem_identity_anchors, 0, 0, 0, 0, 26, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 13, 0
    mesh/test_radial_characteristic_slot_coordination, 0, 0, 0, 0, 25, 0
@@ -481,6 +485,7 @@ Module × level grid
    numerics/test_measure, 0, 17, 0, 0, 51, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
+   numerics/test_measured_quotient, 0, 0, 0, 0, 3, 0
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
@@ -614,11 +619,11 @@ Module × level grid
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 32, 0
    primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
-   reference/test_published, 0, 0, 0, 0, 47, 0
+   reference/test_published, 0, 0, 0, 0, 46, 0
    reference/test_readings, 0, 0, 0, 0, 98, 0
    reference/test_reference_certificate, 0, 0, 0, 0, 91, 0
-   reference/test_reference_solution, 0, 0, 0, 0, 56, 0
-   reference/test_verification, 0, 0, 0, 0, 95, 0
+   reference/test_reference_solution, 0, 0, 0, 0, 36, 0
+   reference/test_verification, 0, 0, 0, 0, 82, 0
    regression/test_dd_regression, 0, 0, 0, 0, 14, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 5, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 32, 0
@@ -649,6 +654,7 @@ Module × level grid
    solve/test_krylov_curvilinear_precond_safety, 0, 12, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 13, 0, 0, 0, 0
    solve/test_krylov_sweep_preconditioner, 0, 23, 0, 0, 0, 0
+   solve/test_no_entry_takes_a_boundary_condition, 0, 0, 0, 0, 7, 0
    solve/test_pl_order_does_not_move_the_infinite_medium_flux, 0, 5, 0, 0, 0, 0
    solve/test_reflective_si_iteration_budget, 0, 3, 0, 0, 0, 0
    solve/test_scan_march_end_to_end, 0, 4, 0, 0, 0, 0
@@ -685,18 +691,21 @@ Module × level grid
    sweep/test_sweep_acyclicity, 0, 0, 0, 0, 10, 0
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
    test_ambient_state, 0, 0, 0, 0, 14, 0
+   test_content_identity_census, 0, 0, 0, 0, 7, 0
    test_dependencies_declared, 0, 0, 0, 0, 1, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
    test_layer_imports, 0, 0, 0, 0, 524, 0
+   test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_test_layers, 0, 0, 0, 0, 15, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
    test_wave2_retirement, 0, 0, 0, 0, 21, 0
    test_withdrawal, 0, 0, 0, 0, 47, 0
+   test_withdrawal_binders, 0, 0, 0, 0, 1, 0
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0
@@ -727,6 +736,7 @@ Module × level grid
    transport/test_no_carrier_dispatch, 0, 0, 0, 0, 15, 0
    transport/test_radial_characteristic_field, 0, 0, 0, 0, 21, 0
    transport/test_reaction_rate_functional, 0, 0, 0, 0, 7, 0
+   transport/test_realize_boundary_fills_no_default, 0, 0, 0, 0, 1, 0
    transport/test_realizer_table_source_space, 0, 0, 0, 0, 4, 0
    transport/test_refusing_realizer, 0, 0, 0, 0, 2, 0
    transport/test_response_network, 0, 0, 0, 0, 4, 0
@@ -739,9 +749,9 @@ Module × level grid
    transport/test_wall_condition_algebra, 0, 0, 0, 0, 7, 0
    transport/test_wave2_handoffs, 0, 0, 0, 0, 3, 0
    transport/test_wave2_s4_tables, 0, 3, 0, 0, 2, 0
-   values/test_content_identity, 0, 0, 0, 0, 45, 0
-   values/test_content_identity_relocation, 0, 0, 0, 0, 17, 0
-   values/test_one_real_parser, 0, 0, 0, 0, 20, 0
+   values/test_content_identity, 0, 0, 0, 0, 43, 0
+   values/test_content_identity_relocation, 0, 0, 0, 0, 14, 0
+   values/test_one_real_parser, 0, 0, 0, 0, 16, 0
 
 Equation coverage
 -----------------
@@ -985,7 +995,6 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``hebert-3-435``, 4
    ``loss-rep-LpC``, 4
    ``loss-rep-walk-order-rows``, 4
-   ``macro-sum``, 4
    ``morel-montry-folded-arc``, 4
    ``peierls-equation``, 4
    ``peierls-greens-V-alpha-1``, 4
@@ -1009,6 +1018,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``hetero-tolerance``, 3
    ``isotropic-source``, 3
    ``ld-ubld-slope-angular-reduction``, 3
+   ``macro-sum``, 3
    ``moc-fission-source``, 3
    ``moc-keff-update``, 3
    ``moc-mms-psi-ref``, 3
@@ -1166,7 +1176,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **596** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **597** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1441,6 +1451,7 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``manifold-quotient-pushforward``
 - ``manifold-reynolds-projector``
 - ``manifold-s2-mod-mirror``
+- ``manifold-s2-mod-o3``
 - ``manifold-so3-is-the-cross-product``
 - ``manifold-so3-subalgebras``
 - ``matrix-functor-out``
