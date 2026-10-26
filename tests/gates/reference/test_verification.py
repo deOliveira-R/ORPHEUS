@@ -168,7 +168,7 @@ def test_r7_2_no_argument_has_a_default() -> None:
     import inspect
 
     for name in ("verify_agreement", "verify_order"):
-        params = inspect.signature(s5.c(s7.VERIFICATION, name)).parameters.values()
+        params = inspect.signature(getattr(s7.VERIFICATION, name)).parameters.values()
         defaulted = [p.name for p in params if p.default is not inspect.Parameter.empty]
         require(not defaulted, f"{name} defaults {defaulted}")
 
@@ -324,7 +324,7 @@ def test_r7_7_the_verdicts_are_returned_values_not_stored_ones() -> None:
     from orpheus.values.content import ContentIdentity
 
     for name, derived in (("VerificationCertificate", ("floor_holds", "agrees")), ("OrderVerification", ("holds",))):
-        cls: type = s5.c(s7.VERIFICATION, name)
+        cls: type = getattr(s7.VERIFICATION, name)
         params = getattr(cls, "__dataclass_params__", None)
         require(params is not None and params.frozen, f"{name} is not a frozen dataclass")
         require(not issubclass(cls, ContentIdentity), f"{name} is a content value")
@@ -373,7 +373,7 @@ def test_r7_review_a_certificate_cannot_be_built_against_an_invalid_reference() 
     """The certificate holds the answer and the reference and reads both at
     construction, so building one directly against an Invalid reference is
     refused, not read as "agrees" (built directly, it read agrees=True)."""
-    certificate_class = s5.c(s7.VERIFICATION, "VerificationCertificate")
+    certificate_class = s7.VERIFICATION.VerificationCertificate
     answer = s7.FixedAnswer({s5.eigenvalue(): 1.4})
     with pytest.raises(s7.not_valid(), match="invalid"):
         certificate_class(answer, s5.eigenvalue(), s7.reference_of(Fraction(7, 5), "invalid"), 1e-6, s7.Measured(0.0))
@@ -384,11 +384,11 @@ def test_r7_review_the_failures_are_typed() -> None:
     the comparison, both AssertionErrors."""
     loose = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 1.4}), s5.eigenvalue(),
                                 s7.reference_with_bound(1.4, 1e-3), 1e-3, s7.Measured(0.0))
-    with pytest.raises(s5.c(s7.VERIFICATION, "ReferenceTooLoose")):
+    with pytest.raises(s7.VERIFICATION.ReferenceTooLoose):
         loose.require()
     off = s7.verify_agreement(s7.FixedAnswer({s5.eigenvalue(): 1.5}), s5.eigenvalue(),
                               s7.reference_of(Fraction(7, 5)), 1e-6, s7.Measured(0.0))
-    with pytest.raises(s5.c(s7.VERIFICATION, "Disagreement")):
+    with pytest.raises(s7.VERIFICATION.Disagreement):
         off.require()
 
 
@@ -401,7 +401,7 @@ def test_r7_review_an_order_verification_admits_its_refinement(resolutions: Any,
     Refinement does (one admission: at least two, positive, decreasing
     strictly) and one error per resolution; equal resolutions crashed in log,
     and 3 resolutions with 1 error held vacuously, before the review."""
-    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    order_class = s7.VERIFICATION.OrderVerification
     with pytest.raises(ValueError):
         order_class(s5.eigenvalue(), resolutions, errors, tuple(Fraction(0) for _ in errors), 2.0, 0.1)
 
@@ -411,7 +411,7 @@ def test_r7_review_the_order_interval_refuses_a_wrong_order_hidden_by_the_floors
     floors near their limit read 1.963 as a point estimate, inside 2 ± 0.1 (qa
     of step 7a, finding 1). With the errors known only within the floors the
     order interval is wide, and the verdict does not hold."""
-    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    order_class = s7.VERIFICATION.OrderVerification
     tol = Fraction(1, 10**6)
     fine = Fraction(12, 10) * tol  # the true errors of an order-1.7 method: coarse / fine = 2**1.7
     coarse = fine * Fraction(32490, 10000)
@@ -426,10 +426,10 @@ def test_r7_review_the_order_interval_refuses_a_wrong_order_hidden_by_the_floors
 def test_r7_review_a_sign_change_is_not_convergence() -> None:
     """Errors +0.04 then -0.01 read as a clean order 2, but the answers cross
     the reference: not monotone convergence, so the verdict does not hold."""
-    order_class = s5.c(s7.VERIFICATION, "OrderVerification")
+    order_class = s7.VERIFICATION.OrderVerification
     verdict = order_class(s5.eigenvalue(), (0.2, 0.1), (Fraction(4, 100), Fraction(-1, 100)), (Fraction(0), Fraction(0)), 2.0, 0.1)
     require(not verdict.monotone and not verdict.holds, f"{verdict!r}")
-    with pytest.raises(s5.c(s7.VERIFICATION, "OrderNotObserved")):
+    with pytest.raises(s7.VERIFICATION.OrderNotObserved):
         verdict.require()
 
 
@@ -454,7 +454,7 @@ _U_K = 1.40625  # dyadic: the uncertified value of k in the fixtures below
 
 def _u_ratio() -> Any:
     """The ratio group-0 flux (exact 30/7) over group-1 flux (uncertified): uncertified through its denominator."""
-    return s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0), s6.group_flux(1))
+    return s5.OBSERVABLE.Ratio(s6.group_flux(0), s6.group_flux(1))
 
 
 def test_r7_11_verify_agreement_refuses_an_uncertified_reading_of_a_valid_reference() -> None:
@@ -475,7 +475,7 @@ def test_r7_11_verify_agreement_refuses_an_uncertified_reading_of_a_valid_refere
     reference = s7.uncertified_reference(_U_K, "valid")
     require(s5.state_kind(reference.certificate) == "Valid", f"activation: {reference.certificate.state!r}")
     for build in (lambda a: s7.verify_agreement(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET),
-                  lambda a: s5.c(s7.VERIFICATION, "VerificationCertificate")(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET)):
+                  lambda a: s7.VERIFICATION.VerificationCertificate(a, s5.eigenvalue(), reference, 1e-3, s7.NOT_YET)):
         answer = s7.FixedAnswer({s5.eigenvalue(): _U_K})
         reference.derivation.calls.clear()
         with pytest.raises(s7.reading_uncertified(), match="uncertified"):
@@ -604,7 +604,7 @@ def test_r7_13_an_enclosed_reading_of_a_reference_without_a_certificate_is_compa
     reference = make()
     require(reference.certificate is None, "activation: the reference has a certificate")
     enclosure = reference.read(observable())
-    require(type(enclosure) is s5.c(s5.ENCLOSURE, "Enclosure"), f"activation: the reading is {enclosure!r}")
+    require(type(enclosure) is s5.ENCLOSURE.Enclosure, f"activation: the reading is {enclosure!r}")
     require(enclosure.value == value, f"activation: the enclosure's value {enclosure.value!r} is not {value!r}")
     tolerance = _UT * value
     near = s7.compare_uncertified(s7.FixedAnswer({observable(): value + tolerance / 2}), observable(), reference, tolerance)
@@ -732,7 +732,7 @@ def test_r7_17_no_argument_has_a_default() -> None:
     tolerance a migrated test keeps is stated at its call."""
     import inspect
 
-    for target in (s5.c(s7.VERIFICATION, "compare_uncertified"), s5.c(s7.VERIFICATION, "UncertifiedComparison")):
+    for target in (s7.VERIFICATION.compare_uncertified, s7.VERIFICATION.UncertifiedComparison):
         params = list(inspect.signature(target).parameters.values())
         names = [p.name for p in params]
         require(names == ["answer", "observable", "reference", "tolerance"], f"{target.__name__} takes {names}")
@@ -749,12 +749,12 @@ def test_r7_18_the_comparison_is_returned_not_stored_and_is_not_a_certificate() 
     objects."""
     from orpheus.values.content import ContentIdentity
 
-    cls: type = s5.c(s7.VERIFICATION, "UncertifiedComparison")
+    cls: type = s7.VERIFICATION.UncertifiedComparison
     params = getattr(cls, "__dataclass_params__", None)
     require(params is not None and params.frozen, "UncertifiedComparison is not a frozen dataclass")
     require(getattr(cls, "__final__", False) is True, "UncertifiedComparison is not @final")
     require(not issubclass(cls, ContentIdentity), "UncertifiedComparison is a content value")
-    require(not issubclass(cls, s5.c(s7.VERIFICATION, "VerificationCertificate")), "an uncertified comparison is a certificate")
+    require(not issubclass(cls, s7.VERIFICATION.VerificationCertificate), "an uncertified comparison is a certificate")
     fields = {f.name: f.init for f in dataclasses.fields(cls)}
     require(fields == {"answer": True, "observable": True, "reference": True, "tolerance": True,
                        "reading": False, "reference_reading": False}, f"fields {fields}")
@@ -769,16 +769,11 @@ def test_r7_18_the_comparison_is_returned_not_stored_and_is_not_a_certificate() 
 # ═════════════════════════════════════════════════════════════════════════════
 
 
-def _untyped(value: Any) -> Any:
-    """A value the type checker does not narrow (the row tests a RUNTIME refusal)."""
-    return value
-
-
 _NOT_MEASURED_OPERANDS = (
     ("over-an-enclosure", lambda: Measured(1.0) / s5.enclosure(2.0, 0.0)),
     ("an-enclosure-over", lambda: s5.enclosure(2.0, 0.0) / Measured(1.0)),
     ("over-an-uncertified", lambda: Measured(1.0) / s6.uncertified(2.0)),
-    ("over-a-bare-float", lambda: Measured(1.0) / _untyped(2.0)),
+    ("over-a-bare-float", lambda: Measured(1.0) / s5.untyped(2.0)),
 )
 
 

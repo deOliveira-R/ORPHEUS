@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import importlib
 import math
 import os
 import subprocess
@@ -44,6 +43,7 @@ from typing import Any
 import pytest
 
 from orpheus.data.citation import Citation
+from orpheus.reference import reading as reading_module
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import (
     Entry,
@@ -63,12 +63,12 @@ pytestmark = pytest.mark.foundation
 _HERE = "tests/gates/reference/test_readings.py"
 _ENC = "tests/gates/numerics/test_enclosure.py"
 _ROOT = Path(__file__).resolve().parents[3]
-_READING = "orpheus.reference.reading"
 _CITE = Citation("SoodForsterParsons2003", "Table 10")
 
 
 def _reading() -> Any:
-    return importlib.import_module(_READING)
+    """The reading module, its names read at call time (a rebinding battery arm reaches every row, lessons ``L100``)."""
+    return reading_module
 
 
 def _P(text: Any, citation: Any = _CITE) -> Any:
@@ -220,7 +220,7 @@ def _printed(text: str = _PRINTED_BASE, citation: Citation = _CITE) -> Any:
 
 ROSTER: tuple[Entry, ...] = (
     Entry(
-        cls=importlib.import_module(_READING).Printed,
+        cls=reading_module.Printed,
         base=_printed,
         parts=("text", "citation"),
         perturb={
@@ -236,7 +236,7 @@ ROSTER: tuple[Entry, ...] = (
         pairs=(("plus-sign", lambda: _printed("+0.99996"), lambda: _printed("0.99996")),),
     ),
     Entry(
-        cls=importlib.import_module(_READING).Uncertified,
+        cls=reading_module.Uncertified,
         base=lambda: _U(1.25),
         parts=("value",),
         perturb={

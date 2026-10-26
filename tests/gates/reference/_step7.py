@@ -1,8 +1,11 @@
 """The step-7a gates' adapter and fixtures (#405 P2, ``.claude/plans/reference_p2_spec.md`` §1.7a and §1.7b.1).
 
-Every production name the step-7a gates reach is spelled ONCE here, resolved on
-its module at call time (a rebinding battery arm reaches every row, lessons
-``L100``); a rename is one edit in this file.
+Every production module the step-7a gates reach is imported ONCE here, as a
+module, and each name is read off it at call time (a rebinding battery arm
+reaches every row, lessons ``L100``; layer-DAG ruling 27). The homogeneous
+solver's adapter left with the rows that use it
+(``tests/gates/homogeneous/test_homogeneous_verification.py``, 2026-10-26): the
+reference layer cannot import a method.
 """
 
 from __future__ import annotations
@@ -11,54 +14,48 @@ from fractions import Fraction
 from typing import Any
 
 from orpheus.numerics.outcome import Asserted, Measured, NotApplicable, NotYet
+from orpheus.reference import verification as VERIFICATION
 from tests.gates.reference import _step5 as s5
 from tests.gates.reference import _step6 as s6
-
-VERIFICATION = "orpheus.reference.verification"
-HOMOGENEOUS = "orpheus.homogeneous.solver"
 
 NOT_YET = NotYet(564, "no stage-A error estimator of a functional yet")
 DIRECT = NotApplicable("a direct solve: no iteration, no algebraic error beyond rounding")
 
 
 def verify_agreement(answer: Any, observable: Any, reference: Any, tolerance: Any, algebraic_error: Any) -> Any:
-    return s5.c(VERIFICATION, "verify_agreement")(answer, observable, reference, tolerance, algebraic_error)
+    return VERIFICATION.verify_agreement(answer, observable, reference, tolerance, algebraic_error)
 
 
 def verify_order(answers: Any, observable: Any, reference: Any, tolerance: Any, algebraic_errors: Any, order: Any, band: Any) -> Any:
-    return s5.c(VERIFICATION, "verify_order")(answers, observable, reference, tolerance, algebraic_errors, order, band)
+    return VERIFICATION.verify_order(answers, observable, reference, tolerance, algebraic_errors, order, band)
 
 
 def compare_uncertified(answer: Any, observable: Any, reference: Any, tolerance: Any) -> Any:
-    return s5.c(VERIFICATION, "compare_uncertified")(answer, observable, reference, tolerance)
+    return VERIFICATION.compare_uncertified(answer, observable, reference, tolerance)
 
 
 def reading_uncertified() -> type[BaseException]:
-    return s5.c(VERIFICATION, "ReadingUncertified")
+    return VERIFICATION.ReadingUncertified
 
 
 def reading_certified() -> type[BaseException]:
-    return s5.c(VERIFICATION, "ReadingCertified")
+    return VERIFICATION.ReadingCertified
 
 
 def disagreement() -> type[BaseException]:
-    return s5.c(VERIFICATION, "Disagreement")
+    return VERIFICATION.Disagreement
 
 
 def not_valid() -> type[BaseException]:
-    return s5.c(VERIFICATION, "ReferenceNotValid")
+    return VERIFICATION.ReferenceNotValid
 
 
 def unestablished() -> type[BaseException]:
-    return s5.c(VERIFICATION, "Unestablished")
+    return VERIFICATION.Unestablished
 
 
 def answer_protocol() -> Any:
-    return s5.c(VERIFICATION, "ProductionAnswer")
-
-
-def solve_homogeneous(mixture: Any) -> Any:
-    return s5.c(HOMOGENEOUS, "solve_homogeneous_infinite")(mixture)
+    return VERIFICATION.ProductionAnswer
 
 
 class FixedAnswer:

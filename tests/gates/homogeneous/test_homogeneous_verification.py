@@ -24,6 +24,8 @@ from typing import Any
 import numpy as np
 import pytest
 
+from orpheus.derivations.common import exact_homogeneous
+from orpheus.homogeneous import solver
 from orpheus.numerics.outcome import Measured
 from tests.gates._content_identity_helpers import require
 from tests.gates.reference import _step5 as s5
@@ -56,7 +58,7 @@ def test_r7_8_the_homogeneous_result_reads_its_own_answer() -> None:
     weight, lessons ``L86d``)."""
     from orpheus.numerics.mesh_free_function import Symbolic
 
-    result = s7.solve_homogeneous(sf.fuel())
+    result = solver.solve_homogeneous_infinite(sf.fuel())
     k = result.read(s5.eigenvalue())
     require(type(k) is Measured and k.value == result.k_inf, f"{k!r}")
     for g in range(2):
@@ -65,9 +67,9 @@ def test_r7_8_the_homogeneous_result_reads_its_own_answer() -> None:
     w = (0.25, 3.0)
     weighted = result.read(_flux(w)).value
     require(abs(weighted - (w[0] * result.flux[0] + w[1] * result.flux[1])) <= 4 * math.ulp(weighted), f"{weighted!r}")
-    ratio = result.read(s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0), s6.group_flux(1))).value
+    ratio = result.read(s5.OBSERVABLE.Ratio(s6.group_flux(0), s6.group_flux(1))).value
     require(ratio == float(result.flux[0]) / float(result.flux[1]), f"ratio {ratio!r}")
-    constant = s5.c(s5.OBSERVABLE, "FluxIntegral")(Symbolic.of(0.25, 3))
+    constant = s5.OBSERVABLE.FluxIntegral(Symbolic.of(0.25, 3))
     require(abs(result.read(constant).value - weighted) <= 4 * math.ulp(weighted), "a constant Symbolic weight reads differently from its table")
 
 
@@ -80,7 +82,7 @@ _REFUSED_READS = (
 
 @pytest.mark.parametrize("make, fragment", [r[1:] for r in _REFUSED_READS], ids=[r[0] for r in _REFUSED_READS])
 def test_r7_8_what_a_zero_dimensional_answer_cannot_read_is_refused(make: Any, fragment: str) -> None:
-    result = s7.solve_homogeneous(sf.fuel())
+    result = solver.solve_homogeneous_infinite(sf.fuel())
     with pytest.raises(ValueError, match=fragment):
         result.read(make())
 
@@ -125,10 +127,10 @@ def test_r7_9_the_homogeneous_solver_agrees_with_the_exact_medium(make: Any) -> 
     ``NotApplicable`` (a direct solve). This is the step's own positive leg;
     the next row is the instrument's negative one."""
     mixture = make()
-    reference = s6.exact_medium_reference(_medium(mixture))
-    result = s7.solve_homogeneous(mixture)
+    reference = exact_homogeneous.exact_infinite_medium_reference(_medium(mixture))
+    result = solver.solve_homogeneous_infinite(mixture)
     groups = len(result.flux)
-    ratio = s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0, groups=groups), s6.group_flux(1, groups=groups))
+    ratio = s5.OBSERVABLE.Ratio(s6.group_flux(0, groups=groups), s6.group_flux(1, groups=groups))
     for observable in [s5.eigenvalue(), ratio] + [s6.group_flux(g, groups=groups) for g in range(groups)]:
         scale = abs(reference.read(observable).value)
         cert = s7.verify_agreement(result, observable, reference, _REL_TOL * scale, s7.DIRECT)
@@ -141,8 +143,8 @@ def test_r7_9_a_perturbed_production_disagrees() -> None:
     with the exact reference of the unperturbed mixture, on k."""
     mixture = sf.fuel()
     perturbed = dataclasses.replace(mixture, SigP=np.asarray(mixture.SigP) * (1.0 + 1e-11))
-    reference = s6.exact_medium_reference(_medium(mixture))
-    cert = s7.verify_agreement(s7.solve_homogeneous(perturbed), s5.eigenvalue(), reference,
+    reference = exact_homogeneous.exact_infinite_medium_reference(_medium(mixture))
+    cert = s7.verify_agreement(solver.solve_homogeneous_infinite(perturbed), s5.eigenvalue(), reference,
                                _REL_TOL * abs(reference.read(s5.eigenvalue()).value), s7.DIRECT)
     require(cert.floor_holds and not cert.agrees, f"{cert!r}")
 
@@ -163,9 +165,9 @@ def test_r7_19_every_answer_reads_a_ratio_through_the_one_quotient(monkeypatch: 
     the rule is the reader's, so any derivation witnesses it (re-based
     2026-10-26 off the exact medium, a derivation the claim does not need)."""
     mixture = sf.fuel()
-    result = s7.solve_homogeneous(mixture)
+    result = solver.solve_homogeneous_infinite(mixture)
     reference = s6.reference(*s6.medium_table())
-    Ratio = s5.c(s5.OBSERVABLE, "Ratio")
+    Ratio = s5.OBSERVABLE.Ratio
     ratio = Ratio(s6.group_flux(0), s6.group_flux(1))
     honest = (result.read(ratio).value, reference.read(ratio).value)
     require(abs(honest[0] - float(result.flux[0]) / float(result.flux[1])) <= 4 * math.ulp(honest[0]) and honest[0] != 1.0,

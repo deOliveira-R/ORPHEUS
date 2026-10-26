@@ -1,13 +1,18 @@
 """The step-5 gates' adapter and fixtures (#405 P2, ``.claude/plans/reference_p2_spec.md`` §1.5).
 
-Every production name the step-5 gates reach is spelled ONCE here, resolved
-on its module at call time (so a rebinding battery arm reaches every row,
-lessons ``L100``), and a rename is one edit in this file.
+Every production module the step-5 gates reach is imported ONCE here, as a
+module, and each name is read off it at call time (``OBSERVABLE.Ratio``), so a
+battery arm rebinding the module's attribute reaches every row (lessons
+``L100``) and a module rename is one edit in this file. The imports are
+statements, so the test-layer gate sees each edge (layer-DAG ruling 27,
+2026-10-26: they were ``importlib.import_module`` of a string until then). The
+module constants are upper-case: each is the module object a row reads a name
+from, and the lower-case spellings are this file's builders (``enclosure``,
+``certificate``, ``published``, ``withdrawal``).
 """
 
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
 import numpy as np
@@ -17,56 +22,56 @@ from orpheus.data.citation import Citation
 from orpheus.data.materials import Materials
 from orpheus.numerics.mesh_free_function import RegionwiseConstant
 from orpheus.numerics.question import Eigen, FixedSource
+from orpheus.numerics import enclosure as ENCLOSURE
+from orpheus.numerics import observable as OBSERVABLE
+from orpheus.numerics import outcome as OUTCOME
+from orpheus.reference import certificate as CERTIFICATE
+from orpheus.reference import published as PUBLISHED
+from orpheus.reference import reading as READING
+from orpheus.reference import withdrawal as WITHDRAWAL
+from orpheus.specification import specification as SPECIFICATION
 from tests.gates.specification import _fixtures as sf
 
-PUBLISHED = "orpheus.reference.published"
-CERTIFICATE = "orpheus.reference.certificate"
-READING = "orpheus.reference.reading"
-WITHDRAWAL = "orpheus.reference.withdrawal"
-OBSERVABLE = "orpheus.numerics.observable"
-ENCLOSURE = "orpheus.numerics.enclosure"
 #: The one admission verb a publication and (step 6) the reader share (the orchestrator's ruling of
-#: 2026-10-03: a module-level function, one exhaustive match over the observable).
-ADMISSION = ("orpheus.specification.specification", "admit_observable")
+#: 2026-10-03: a module-level function, one exhaustive match over the observable): its module and the
+#: name every binding of it carries (a route gate walks ``sys.modules`` for that name).
+ADMISSION = (SPECIFICATION, "admit_observable")
 
 
-def mod(name: str) -> Any:
-    return importlib.import_module(name)
-
-
-def c(module: str, name: str) -> Any:
-    return getattr(mod(module), name)
+def untyped(value: Any) -> Any:
+    """A value the type checker does not narrow (a row testing a RUNTIME refusal of a wrong type)."""
+    return value
 
 
 # ── the observables and readings ────────────────────────────────────────────
 
 
 def flux(values: Any = ((1.0, 0.5), (0.0, 2.0))) -> Any:
-    return c(OBSERVABLE, "FluxIntegral")(RegionwiseConstant(np.array(values, float)))
+    return OBSERVABLE.FluxIntegral(RegionwiseConstant(np.array(values, float)))
 
 
 def eigenvalue() -> Any:
-    return c(OBSERVABLE, "Eigenvalue")()
+    return OBSERVABLE.Eigenvalue()
 
 
 def point(position: float = 0.5, group: int = 0) -> Any:
-    return c(OBSERVABLE, "PointValue")(position, group)
+    return OBSERVABLE.PointValue(position, group)
 
 
 def enclosure(value: float, bound: float) -> Any:
-    return c(ENCLOSURE, "Enclosure")(value, bound)
+    return ENCLOSURE.Enclosure(value, bound)
 
 
 def printed(text: str, locator: str = "Table 10", bibkey: str = "SoodForsterParsons2003") -> Any:
-    return c(READING, "Printed")(text, Citation(bibkey, locator))
+    return READING.Printed(text, Citation(bibkey, locator))
 
 
 def withdrawal(reason: str = "the publication was found unfit as a whole", issue: int = 999) -> Any:
-    return c(WITHDRAWAL, "Withdrawal")(reason, issue)
+    return WITHDRAWAL.Withdrawal(reason, issue)
 
 
 def current() -> Any:
-    return c(PUBLISHED, "Current")()
+    return PUBLISHED.Current()
 
 
 # ── the specifications ──────────────────────────────────────────────────────
@@ -102,7 +107,7 @@ def eigen_slab(region1: Any = None) -> Any:
 def published(spec: Any = None, printed_map: Any = None, standing: Any = None) -> Any:
     spec = eigen_slab() if spec is None else spec
     printed_map = {eigenvalue(): printed("1.00000"), flux(): printed("0.6123", "Table 11")} if printed_map is None else printed_map
-    return c(PUBLISHED, "PublishedSolution")(spec, printed_map, current() if standing is None else standing)
+    return PUBLISHED.PublishedSolution(spec, printed_map, current() if standing is None else standing)
 
 
 def exact(expression: Any = None, by: str = "derive_k_inf_rank_one") -> Any:
@@ -110,27 +115,27 @@ def exact(expression: Any = None, by: str = "derive_k_inf_rank_one") -> Any:
     import sympy
 
     expr = sympy.Rational(1, 3) if expression is None else sympy.sympify(expression)
-    return c(CERTIFICATE, "Exact")(sympy.srepr(expr), by)
+    return CERTIFICATE.Exact(sympy.srepr(expr), by)
 
 
 def derived(value: float = 1.0, bound: float = 1e-9, method: str = "Nystrom residual bound") -> Any:
-    return c(CERTIFICATE, "DerivedBound")(enclosure(value, bound), method)
+    return CERTIFICATE.DerivedBound(enclosure(value, bound), method)
 
 
 def claim(target: float, established: Any) -> Any:
-    return c(CERTIFICATE, "Claim")(target, established)
+    return CERTIFICATE.Claim(target, established)
 
 
 def corroboration(anchor: Any, independence: str = "printed by an independent method (Sood 2003)") -> Any:
-    return c(CERTIFICATE, "Corroboration")(anchor, independence)
+    return CERTIFICATE.Corroboration(anchor, independence)
 
 
 def refinement(observable: Any, members: Any) -> Any:
-    return c(CERTIFICATE, "Refinement")(observable, tuple(members))
+    return CERTIFICATE.Refinement(observable, tuple(members))
 
 
 def certificate(claims: Any, corroborations: Any = (), refinements: Any = (), standing: Any = None) -> Any:
-    return c(CERTIFICATE, "ReferenceCertificate")(claims, tuple(corroborations), tuple(refinements),
+    return CERTIFICATE.ReferenceCertificate(claims, tuple(corroborations), tuple(refinements),
                                                    current() if standing is None else standing)
 
 

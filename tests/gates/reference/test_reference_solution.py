@@ -69,7 +69,7 @@ def test_r6_1_the_fields_and_their_types() -> None:
     import dataclasses
     import inspect
 
-    cls = s5.c(s6.SOLUTION, "ReferenceSolution")
+    cls = s6.SOLUTION.ReferenceSolution
     names = tuple(f.name for f in dataclasses.fields(cls))
     require(names == ("specification", "derivation", "certificate"), f"fields {names}")
     defaulted = [p.name for p in inspect.signature(cls).parameters.values() if p.default is not inspect.Parameter.empty]
@@ -131,7 +131,7 @@ def test_r6_1_a_ratio_claim_is_refused() -> None:
     readings, so a claim on a ``Ratio`` would be a second definition of one
     number; the holder refuses it, naming the quotient."""
     spec, derivation, _ = s6.medium_table()
-    ratio = s5.c(s5.OBSERVABLE, "Ratio")(s6.group_flux(0), s6.group_flux(1))
+    ratio = s5.OBSERVABLE.Ratio(s6.group_flux(0), s6.group_flux(1))
     cert = s5.certificate({ratio: s6.exact_claim(Fraction(390, 77))})
     with pytest.raises(ValueError, match="quotient"):
         s6.reference(spec, derivation, cert)
@@ -162,12 +162,10 @@ def test_r6_2_read_admits_through_the_specifications_one_function(monkeypatch: p
     """ROUTE gate: with ``admit_observable`` rebound in every binding to a decoy,
     a posable read raises the decoy's error (the reader calls it) and so does
     an unposable one (no second admission in the reader refuses first)."""
-    import importlib
-
     spec, derivation, cert = s6.medium_table()
     ref = s6.reference(spec, derivation, cert)
-    module_name, name = s5.ADMISSION
-    honest = getattr(importlib.import_module(module_name), name)
+    module, name = s5.ADMISSION
+    honest = getattr(module, name)
 
     def decoy(*args: Any, **kwargs: Any) -> None:
         raise ValueError("DECOY-ADMISSION")
@@ -264,8 +262,8 @@ def test_r6_4_a_ratio_reads_through_the_one_quotient(monkeypatch: pytest.MonkeyP
     2026-10-26, when R7.19, the cross-answer witness of that rule, moved to
     the homogeneous tests); the quotient's enclosure contains the exact ratio
     (30/7)/(11/13)."""
-    Enclosure = s5.c(s5.ENCLOSURE, "Enclosure")
-    Ratio = s5.c(s5.OBSERVABLE, "Ratio")
+    Enclosure = s5.ENCLOSURE.Enclosure
+    Ratio = s5.OBSERVABLE.Ratio
     honest = Enclosure.__truediv__
     honest_quotient = Ratio.quotient
     calls: list[Any] = []
@@ -345,7 +343,7 @@ def test_r6_5_a_ratio_with_an_uncertified_operand_reads_uncertified(operands: An
     spec, derivation, cert = _uncertified_table()
     ref = s6.reference(spec, derivation, cert)
     enclosed = ref.read(s6.group_flux(0))
-    require(type(enclosed) is s5.c(s5.ENCLOSURE, "Enclosure"), f"activation: group 0 reads {enclosed!r}")
+    require(type(enclosed) is s5.ENCLOSURE.Enclosure, f"activation: group 0 reads {enclosed!r}")
     num, den = (s5.flux(o) if o is not None else s6.group_flux(0) for o in operands)
     U = s6.uncertified_class()
     calls: list[str] = []
@@ -356,7 +354,7 @@ def test_r6_5_a_ratio_with_an_uncertified_operand_reads_uncertified(operands: An
                 calls.append(_name)
                 return _method(self, other)
             mp.setattr(U, name, counting)
-        reading = ref.read(s5.c(s5.OBSERVABLE, "Ratio")(num, den))
+        reading = ref.read(s5.OBSERVABLE.Ratio(num, den))
     require(len(calls) == 1, f"the Uncertified quotient ran {calls}")
     want = expected(enclosed.value, enclosed.value)
     require(type(reading) is U and reading.value == want, f"read {reading!r}, expected Uncertified({want!r})")
@@ -403,7 +401,7 @@ def test_r6_5_what_a_derivation_returns_is_admitted_as_an_evaluation(make: Any) 
     import typing
 
     members = set(typing.get_args(s6.evaluation()))
-    want = {s5.c(s5.CERTIFICATE, "Exact"), s5.c(s5.CERTIFICATE, "DerivedBound"), s6.uncertified_class()}
+    want = {s5.CERTIFICATE.Exact, s5.CERTIFICATE.DerivedBound, s6.uncertified_class()}
     require(members == want, f"Evaluation names {sorted(m.__qualname__ for m in members)}")
     spec, derivation, cert = s6.medium_table()
     derivation.table[s5.flux(_U_OBS)] = make()
@@ -464,8 +462,8 @@ def _offset_approximation(exponent: int) -> Any:
     import sympy
 
     expression = sympy.Rational(_SCALE.numerator, _SCALE.denominator) * (s6.machin_zero() + sympy.Integer(10) ** -exponent)
-    with pytest.raises(s5.c(s5.CERTIFICATE, "Uncertifiable")) as refusal:
-        s5.c(s5.CERTIFICATE, "Exact")(sympy.srepr(expression), "the working precision")
+    with pytest.raises(s5.CERTIFICATE.Uncertifiable) as refusal:
+        s5.CERTIFICATE.Exact(sympy.srepr(expression), "the working precision")
     return refusal.value.approximation
 
 
@@ -515,10 +513,10 @@ def test_r6_8_uncertifiable_is_the_one_cannot_certify_refusal() -> None:
     non-real expression raises a plain ``ValueError`` (the discrimination)."""
     import sympy
 
-    U = s5.c(s5.CERTIFICATE, "Uncertifiable")
+    U = s5.CERTIFICATE.Uncertifiable
     require(issubclass(U, ValueError), "Uncertifiable is not a ValueError")
     with pytest.raises(U, match="certified digits"):
-        s5.c(s5.CERTIFICATE, "Exact")(sympy.srepr(s6.machin_zero()), "activation")
+        s5.CERTIFICATE.Exact(sympy.srepr(s6.machin_zero()), "activation")
     with pytest.raises(ValueError) as plain:
-        s5.c(s5.CERTIFICATE, "Exact")(sympy.srepr(sympy.acos(2)), "a non-real constant")
+        s5.CERTIFICATE.Exact(sympy.srepr(sympy.acos(2)), "a non-real constant")
     require(not isinstance(plain.value, U), f"a non-real expression is refused as uncertifiable: {plain.value}")
