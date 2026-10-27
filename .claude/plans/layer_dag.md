@@ -348,7 +348,7 @@ Then Phase 2, after the test-architect's spec, and then Phase 4.
     - **Consequence for the order:** every 1b edit that touches a module a memo entry pins lands on the branch before the one regeneration driver runs.
     - The witness (`[M]`, the fixed set reverted in place, crash-safe copy): `test_m3_16_…` and `test_e_the_environment_pin_…` red, E6 green (it now witnesses a passed variable, `TMPDIR`).
 
-## ⏸ Phase 1b, 2026-10-26 (branch `refactor/layer-dag-1b`, not yet on main)
+## ⏸ Phase 1b, 2026-10-26 — merged @ `e73f522a` (2026-10-27, CI run 40500497205 green)
 
 **On the branch** (`3efcd39d`): the thread-count pin (ruling 38, `78dda240`); the synthetic catalogue in data and the contract closing `derivations`/`plotting` (29, 37, `ed0d3ba6`); ERR-073 and the test ids (`7b791d33`); #440's geometry part, the `Point` member and S^2/O(3), with qa's and elegance's fixes and the retirement of `Quotient.is_free` (35); the `harness.rst` table (36); the four test-move groups (28, 30, 31, 34, candidates 1-10), merged with the orchestrator's answers (`scratch/layer_dag/refiling/specs_1b/orchestrator_followups.md`) and the reviews' should-fixes (`bf349a7a`, `220d43d4`); the matrix regenerated (`3efcd39d`).
 - `[M]` the merged tree: every touched directory, the changed derivations/sn/numerics files and every root gate green, `-m "not slow"` (`scratch/.../scratchpad/gate1b.log` of the session); Sphinx `-E -W` rc=0; OPEN_TEST_LAYER_VIOLATIONS 252 -> 218 rows.
@@ -360,4 +360,6 @@ Then Phase 2, after the test-architect's spec, and then Phase 4.
 
 **Superseded:** **Running:** ruling 27, string imports to statements, one test-architect in `.claude/worktrees/1b-strings` (branch `test/1b-string-imports`), with the gate extension and the `ordinate_pairing` shadow fix.
 
-**Then, in order:** merge it; the full suite in the background (`*_NUM_THREADS=1`, not slow); the one traced-memo regeneration (ruling 38: every entry regenerates once); ff-merge to main, CI; close-out (#440 comment: geometry part landed, measure and CP wiring remain; issue for the remaining test-side measure copy and the S5.1 subprocess blind spot if not fixed); then Phase 2 (the test-architect spec for the numerics law tests) and Phase 4.
+**Close-out, 2026-10-27:** CI on `295101b6` reddened on a stale `matrix.rst` (generated at `3efcd39d`, before ruling 27 moved the S4 rows); regenerated in `e73f522a`. #440 commented (geometry part landed; the measure on the point and the CP wiring remain). The test-side leftovers are #663 (S5.1's subprocess crossing, the `test_symmetry.py:991` numerics edge, two duplicate assertions). Branches and the `1b-strings` worktree deleted. **Next:** Phase 2 (the test-architect spec for the numerics law tests), then Phase 4; single agents or the main agent, no dynamic workflows.
+
+**Superseded (the order before close-out):** merge it; the full suite in the background (`*_NUM_THREADS=1`, not slow); the one traced-memo regeneration (ruling 38: every entry regenerates once); ff-merge to main, CI; close-out (#440 comment: geometry part landed, measure and CP wiring remain; issue for the remaining test-side measure copy and the S5.1 subprocess blind spot if not fixed); then Phase 2 (the test-architect spec for the numerics law tests) and Phase 4.
