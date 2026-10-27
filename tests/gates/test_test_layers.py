@@ -38,17 +38,23 @@ An import by string is refused, so the scanner sees every edge it judges
 (layer DAG ruling 27, ``test_no_layered_gate_file_imports_a_project_module_by_string``): in a layered directory, a call to
 ``import_module`` or ``__import__`` whose first argument is a constant
 string, or an f-string whose constant head names ``orpheus`` or
-``tests.gates.``, is red; the spelling is an import statement of the MODULE,
-its attribute read at call time. What stays dynamic, and is not judged: a
-walk over discovered modules (a variable or an expression argument, or an
-f-string that begins with a substitution, ``f"{package.__name__}.{name}"``);
+``tests.gates.``, or a module-level name bound once to such a string
+(``_MODULE = "orpheus.numerics.enclosure"``), is red; the spelling is an
+import statement of the MODULE, its attribute read at call time. What stays
+dynamic, and is not judged: a walk over discovered modules (any other
+variable or an expression argument, or an f-string that begins with a
+substitution, ``f"{package.__name__}.{name}"``);
 a synthetic package written at test time (the same shapes); an absence check,
 spelled ``importlib.util.find_spec(name) is None``, since an import statement
 cannot assert that a module is absent; the standard library; and the root
 files.
 
 Not seen, the declared blind spots: a walk's targets (discovered, not
-written); an import spelled inside a string literal (a subprocess source, or
+written), and so also a known name reached through a parameter, a loop
+variable, a container or an expression (``for name in ("orpheus.a", ...):
+import_module(name)``): ``[M]`` 2026-10-26, 20 of the 87 calls at
+``3efcd39d`` had that shape and 0 after ruling 27, so the rule, not this
+gate, keeps it at 0; an import spelled inside a string literal (a subprocess source, or
 a synthetic package's module text); and the TRANSITIVE cone of a root helper
 (a ``numerics`` gate importing ``tests.gates._exterior``, which imports
 ``orpheus.mesh``). The census of 2026-10-25
@@ -499,14 +505,33 @@ def _leading_literal(argument: ast.expr) -> str | None:
     return None
 
 
+def _module_constants(tree: ast.Module) -> dict[str, ast.expr]:
+    """The module-level names bound once to a constant string (``_MODULE = "orpheus.numerics.enclosure"``): a name
+    handed to ``import_module`` is a string import when it is one of these, and a walk's when it is not."""
+    bound: dict[str, list[ast.expr]] = {}
+    for statement in tree.body:
+        if isinstance(statement, ast.Assign):
+            for target in statement.targets:
+                if isinstance(target, ast.Name):
+                    bound.setdefault(target.id, []).append(statement.value)
+        elif isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name) and statement.value is not None:
+            bound.setdefault(statement.target.id, []).append(statement.value)
+    return {name: values[0] for name, values in bound.items() if len(values) == 1 and _leading_literal(values[0]) is not None}
+
+
 def _string_imports(rel: pathlib.PurePosixPath, src: str) -> list[str]:
     """``file:line: argument`` of every string import of a project module in a layered gate file."""
     if _layer_of(rel) is None:
         return []
+    tree = ast.parse(src)
+    constants = _module_constants(tree)
     found: list[str] = []
-    for node in ast.walk(ast.parse(src)):
+    for node in ast.walk(tree):
         if isinstance(node, ast.Call) and node.args and _is_dynamic_import(node.func):
-            literal = _leading_literal(node.args[0])
+            argument = node.args[0]
+            if isinstance(argument, ast.Name) and argument.id in constants:
+                argument = constants[argument.id]
+            literal = _leading_literal(argument)
             if literal is not None and (literal.split(".")[0] == "orpheus" or literal.startswith("tests.gates.")):
                 found.append(f"{rel.as_posix()}:{node.lineno}: {ast.unparse(node.args[0])}")
     return found
@@ -519,6 +544,9 @@ _STRING_IMPORTS = [
     pytest.param('m = __import__("orpheus.transport.fields._bases", fromlist=["FieldRole"])\n', id="dunder-import"),
     pytest.param('x = __import__("orpheus").__file__\n', id="the-package"),
     pytest.param('import importlib\nimportlib.import_module(f"tests.gates.mc.{name}")\n', id="gate-helper"),
+    pytest.param('import importlib\n_MODULE = "orpheus.numerics.enclosure"\ndef f():\n    return importlib.import_module(_MODULE)\n',
+                 id="module-constant"),
+    pytest.param('import importlib\nMODULE: str = "orpheus.numerics.traced_memo"\nimportlib.import_module(MODULE)\n', id="annotated-constant"),
 ]
 
 _NOT_STRING_IMPORTS = [
@@ -528,6 +556,8 @@ _NOT_STRING_IMPORTS = [
     pytest.param('import importlib\nimportlib.import_module(f"{self.name}.{module}")\n', id="synthetic-package"),
     pytest.param('x = __import__("json")\n', id="stdlib"),
     pytest.param('from orpheus.numerics import enclosure\nenclosure.Enclosure\n', id="the-statement"),
+    pytest.param('import importlib\n_MODULE = "orpheus.a"\n_MODULE = "orpheus.b"\nimportlib.import_module(_MODULE)\n', id="rebound-name"),
+    pytest.param('import importlib\ndef f(_MODULE):\n    return importlib.import_module(_MODULE)\n', id="a-parameter-not-the-constant"),
 ]
 
 
