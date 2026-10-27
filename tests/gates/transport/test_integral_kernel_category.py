@@ -72,8 +72,6 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 
 from tests.gates.transport._integral_kernel_helpers import (
     require,
-    require_production_rate_property,
-    require_scattering_kernel_property,
 )
 from tests.gates.transport._functional_helpers import (
     asymmetric_nu_sigma_f,
@@ -177,9 +175,6 @@ def multiplication_operator():
 class TestIntegralKernelPositive:
     def test_fission_operator_is_an_integral_kernel_operator(self, fission_op):
         """``FissionOperator`` satisfies the ``IntegralKernelOperator`` Protocol."""
-        # production_rate is the NEW S6 member that completes the Protocol;
-        # skip cleanly if not yet landed (PRE-IMPL).
-        require_production_rate_property(fission_op)
         require(
             isinstance(fission_op, IntegralKernelOperator),
             "FissionOperator must satisfy the IntegralKernelOperator Protocol; "
@@ -190,7 +185,6 @@ class TestIntegralKernelPositive:
         self, scattering_op,
     ):
         """``ScatteringOperator`` satisfies the ``IntegralKernelOperator`` Protocol."""
-        require_scattering_kernel_property(scattering_op)
         require(
             isinstance(scattering_op, IntegralKernelOperator),
             "ScatteringOperator must satisfy the IntegralKernelOperator "
@@ -217,7 +211,7 @@ class TestIntegralKernelPositive:
         self, scattering_op,
     ):
         """``ScatteringOperator.kernel`` returns a genuine ``LinearOperator``."""
-        kernel = require_scattering_kernel_property(scattering_op)
+        kernel = scattering_op.kernel
         require(
             isinstance(kernel, LinearOperator),
             "ScatteringOperator.kernel must return a LinearOperator; "
@@ -232,7 +226,6 @@ class TestIntegralKernelPositive:
         exposes ``kernel``. This row pins the refinement relationship: the
         SUT remains a LinearOperator (the matvec arms are untouched in S6).
         """
-        require_production_rate_property(fission_op)
         require(
             isinstance(fission_op, LinearOperator),
             "FissionOperator (an IntegralKernelOperator) must STILL satisfy "
@@ -376,7 +369,6 @@ class TestKernelIsNotJustLinearOperator:
         a Functional has ``evaluate`` and NOT ``kernel``/``apply``. This
         states the partition symmetrically across the two SUT objects.
         """
-        require_production_rate_property(fission_op)
         require(
             hasattr(fission_op, "apply") and hasattr(fission_op, "kernel"),
             "Kernel surface: the IntegralKernelOperator has `apply` + `kernel`.",

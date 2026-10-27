@@ -8,8 +8,9 @@ system-under-test does NOT yet exist on the tree:
 * the new ``FissionOperator.production_rate`` property (the S5 functional);
 * the new ``ScatteringOperator.kernel`` property (the typed ``R∘Λ∘M``).
 
-(The Protocol landed, and its probe-and-skip import guard retired on 2026-10-26, layer DAG ruling 27: the test imports it
-by statement. The two property probes below remain.)
+(All three landed. The probe-and-skip guards retired on 2026-10-26: the Protocol's import guard by layer DAG ruling 27 (the
+test imports it by statement), and the two ``hasattr`` probes of the properties by the orchestrator's ruling of the same day (a
+skip that never fires hides the dependence; the tests read ``op.production_rate`` and ``op.kernel`` directly).)
 
 Every S6 spec routes its NOT-YET-LANDED SUT access through a probe guard
 so the files **collect** (green session, no ``ImportError``) and **skip**
@@ -89,46 +90,6 @@ def require(condition: bool, message: str) -> None:
     """Fail with ``message`` if ``condition`` is false. Fires under ``-O``."""
     if not condition:
         pytest.fail(message)
-
-
-# ───────────────────────────────────────────────────────────────────────
-# Not-yet-written-SUT import guards (probe + skip).
-# ───────────────────────────────────────────────────────────────────────
-
-
-def require_production_rate_property(fission_op) -> "Functional":
-    """The NEW ``FissionOperator.production_rate`` property (S6) — skip if absent.
-
-    THE single construction assumption for the fission ``production_rate``
-    surface — a property named ``production_rate`` returning a
-    :class:`~orpheus.numerics.functional.Functional`. If the
-    method-implementer chooses a different name, change this ONE function.
-    The probe is duck-typed (``hasattr``) so the gate skips (PRE-IMPL),
-    rather than raising, until the property lands.
-    """
-    if not hasattr(fission_op, "production_rate"):
-        pytest.skip(
-            "#257 S6 PRE-IMPL: FissionOperator.production_rate property not "
-            "yet written by the method-implementer."
-        )
-    return fission_op.production_rate
-
-
-def require_scattering_kernel_property(scattering_op) -> "LinearOperator":
-    """The NEW ``ScatteringOperator.kernel`` property (S6) — skip if absent.
-
-    THE single construction assumption for the scattering ``kernel``
-    surface — a property named ``kernel`` returning a
-    :class:`~orpheus.numerics.operator.LinearOperator` (the typed
-    ``R∘Λ∘M`` composition). If the method-implementer chooses a different
-    name, change this ONE function.
-    """
-    if not hasattr(scattering_op, "kernel"):
-        pytest.skip(
-            "#257 S6 PRE-IMPL: ScatteringOperator.kernel property not yet "
-            "written by the method-implementer."
-        )
-    return scattering_op.kernel
 
 
 # ───────────────────────────────────────────────────────────────────────

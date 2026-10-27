@@ -16,7 +16,6 @@ import types
 import pytest
 
 import orpheus.geometry
-import orpheus.transport.mesh
 
 
 pytestmark = pytest.mark.foundation
@@ -37,14 +36,13 @@ def test_no_module_remains_at_an_old_home(old_module: str) -> None:
     ("package", "names"),
     [
         (orpheus.geometry, ("Mesh1D", "Mesh2D", "RegionMesh", "pwr_pin_2d")),
-        (
-            orpheus.transport.mesh,
-            ("AxisMesh", "RadialAxisMesh", "Axis1D", "AxisCoord", "FaceLabel", "AXIS_NAMES"),
-        ),
     ],
-    ids=["orpheus.geometry", "orpheus.transport.mesh"],
+    ids=["orpheus.geometry"],
 )
 def test_no_old_package_re_exports_a_mesh_name(package: types.ModuleType, names: tuple[str, ...]) -> None:
+    """The geometry row; the ``orpheus.transport.mesh`` row is a fact about transport's surface and lives in
+    ``tests/gates/transport/test_material_mesh.py`` (``test_the_transport_mesh_package_re_exports_no_mesh_name``, moved
+    2026-10-26: as an import statement it was a mesh gate importing transport, layer DAG ruling 27)."""
     leaked = [name for name in names if hasattr(package, name)]
     assert not leaked, f"{package.__name__} still exports {leaked}; import them from orpheus.mesh"
 

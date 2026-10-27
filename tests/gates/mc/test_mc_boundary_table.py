@@ -60,6 +60,7 @@ import pytest
 from orpheus.mc import solver
 from tests.gates.mc import test_gaps, test_properties
 from tests.gates.transport import _carry_cases as carry
+from tests.gates.mc import _mc_s4_helpers as MC
 from tests.gates.transport import _wave2_s4_helpers as H
 
 _THIS = "tests/gates/mc/test_mc_boundary_table.py"
@@ -78,14 +79,14 @@ def test_the_mc_table_is_sealed_and_the_old_registry_is_gone() -> None:
     ``BC_REGISTRY`` does. Mutation: M-bc-kind-restored.
     """
     B = H.bc()
-    table = H.mc_table()
+    table = MC.mc_table()
     assert isinstance(table, B.RealizerTable)
     assert table.method == "mc" and table.state_cone is B.StateCone.NONNEGATIVE_FLUX and table.unregistered_issue == 654
     table.catalogue()
     assert not hasattr(solver.MCMesh, "BC_REGISTRY") and not hasattr(solver, "_mc_bc_periodic")
     from orpheus.geometry.deck import TranslationDeck
 
-    built = H.mc_head(H.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 3.0)
+    built = MC.mc_head(MC.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 3.0)
     assert not hasattr(built, "bc_kind"), "bc_kind has 0 readers and retires (section 2.8)"
 
 
@@ -103,10 +104,10 @@ def test_mc_refuses_a_specular_wall_on_a_cylinder_for_every_weight(weight: float
     B = H.bc()
     mesh = H.chart_mesh("cylinder", outer=0, mat_ids=(2, 0))
     with pytest.raises(B.BoundaryRefused) as info:
-        H.mc_head(mesh, 4.0, {0: B.WallCondition.specular(weight)})
+        MC.mc_head(mesh, 4.0, {0: B.WallCondition.specular(weight)})
     admission = info.value.admission
     assert admission.axis is B.RefusalAxis.TOPOLOGY and admission.issue == 547, f"w = {weight}: {admission!r}"
-    assert H.MC_TORUS_FRAGMENT in admission.reason, f"the refusal must name what MC computes: {admission.reason!r}"
+    assert MC.MC_TORUS_FRAGMENT in admission.reason, f"the refusal must name what MC computes: {admission.reason!r}"
     assert info.value.face == "xmax"
 
 
@@ -124,13 +125,13 @@ def test_mc_realizes_the_translation_deck_on_a_slab() -> None:
     from orpheus.geometry.deck import MirrorDeck, TranslationDeck
 
     B = H.bc()
-    table = H.mc_table()
+    table = MC.mc_table()
     assert H.summary(table.admit(TranslationDeck(), H.site("CART_XMAX"))) == ("R", True)
     assert H.summary(table.admit(MirrorDeck(), H.site("CART_XMAX"))) == ("F", "PLUMBING", 654)
-    geometry = H.mc_head(H.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 3.0)
-    assert math.isfinite(H.mc_solve(geometry).keff)
+    geometry = MC.mc_head(MC.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 3.0)
+    assert math.isfinite(MC.mc_solve(geometry).keff)
     with pytest.raises(B.BoundaryRefused) as info:
-        H.mc_head(H.mc_slab_mesh1d(left=MirrorDeck(), right=MirrorDeck()), 3.0)
+        MC.mc_head(MC.mc_slab_mesh1d(left=MirrorDeck(), right=MirrorDeck()), 3.0)
     assert info.value.admission.issue == 654
 
 
@@ -146,7 +147,7 @@ def test_mc_does_not_compare_the_pitch_with_the_extent() -> None:
     """
     from orpheus.geometry.deck import TranslationDeck
 
-    H.mc_head(H.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 7.0)
+    MC.mc_head(MC.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 7.0)
 
 
 #: The two cylinder test functions of decision 31, by name (Appendix B rows ``test_gaps.py:691`` and ``test_properties.py:156``; the lines of
@@ -215,7 +216,7 @@ def test_the_carry_of_the_mc_solve() -> None:
     """
     from orpheus.geometry.deck import TranslationDeck
 
-    geometry = H.mc_head(H.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), carry.MC_PARAMS["pitch"])
-    k = H.mc_solve(geometry).keff
+    geometry = MC.mc_head(MC.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), carry.MC_PARAMS["pitch"])
+    k = MC.mc_solve(geometry).keff
     expected = H.fixture_k("mc", "slab", ("periodic",))
     assert k == expected, f"k = {k!r}, the HEAD k = {expected!r}"

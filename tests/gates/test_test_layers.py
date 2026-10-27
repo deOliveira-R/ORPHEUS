@@ -186,9 +186,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("geometry/test_symmetry.py", "orpheus.numerics"),
         ("geometry/test_transformation.py", "orpheus.numerics"),
         ("mc/test_cross_verification.py", "orpheus.cp"),
-        # Hidden all along, visible since ruling 27 turned the string import into a statement (2026-10-26):
-        # the row of orpheus.transport.mesh in the old-homes census; its placement is a question to the orchestrator.
-        ("mesh/test_module_layout.py", "orpheus.transport"),
         ("moc/test_verification.py", "orpheus.cp"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.data"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.mesh"),
@@ -298,14 +295,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("specification/test_exterior_on_the_specification.py", "orpheus.transport"),
         ("transport/_functional_helpers.py", "orpheus.sn"),
         ("transport/_functional_helpers.py", "tests.gates.sn"),
-        # Hidden all along, visible since ruling 27 (2026-10-26): the S4 helper's accessors of the CP, MoC and MC
-        # tables and solvers and of diffusion's ZeroFluxCondition, read by the cp/moc/mc table gates AND by two
-        # transport files that span the three tables (test_admission_matrix, test_wave2_s4_tables); the split by
-        # claim is a question to the orchestrator.
-        ("transport/_wave2_s4_helpers.py", "orpheus.cp"),
-        ("transport/_wave2_s4_helpers.py", "orpheus.diffusion"),
-        ("transport/_wave2_s4_helpers.py", "orpheus.mc"),
-        ("transport/_wave2_s4_helpers.py", "orpheus.moc"),
         ("transport/_wave2_s4_helpers.py", "tests.gates.diffusion"),
         ("transport/fields/test_angular_boundary_flux.py", "orpheus.sn"),
         ("transport/fields/test_angular_boundary_flux.py", "tests.gates.sn"),
@@ -381,7 +370,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("transport/test_tier2_equivalence_s_family.py", "tests.gates.sn"),
         ("transport/test_timed_full_field.py", "orpheus.sn"),
         ("transport/test_timed_full_field.py", "tests.gates.sn"),
-        ("transport/test_wave2_s4_tables.py", "orpheus.diffusion"),
     }
 )
 

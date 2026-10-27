@@ -2,7 +2,7 @@ r"""CP's boundary table: ``CP_REALIZERS`` and what it refuses (wave 2, WF2.3 sli
 
 Spec: ``.claude/plans/wave2_boundary_carve.md`` section 4.2 (the CP columns), 4.3 deltas 3 and 5, section 6.4. CP is NOT improved on its
 own terms (``CLAUDE.md``, "The direction of development"): each entry is today's behaviour re-keyed by type and by face, a
-harmonisation onto the shared machinery. The CP rows of the shared admission pin (``tests/gates/transport/test_admission_matrix.py``)
+harmonisation onto the shared machinery. The CP rows of the shared admission pin (``tests/gates/cross_method/test_admission_matrix_s4.py``)
 carry the grid cell by cell; THIS file carries the rest of CP's contract.
 
 The ladder
@@ -54,6 +54,7 @@ from __future__ import annotations
 import pytest
 
 from orpheus.cp import solver
+from tests.gates.cp import _cp_s4_helpers as CP
 from tests.gates.transport import _wave2_s4_helpers as H
 
 _THIS = "tests/gates/cp/test_cp_realizer_table.py"
@@ -74,7 +75,7 @@ def test_the_cp_table_is_sealed_and_the_old_registry_is_gone() -> None:
     while ``BC_REGISTRY`` does. Mutation: the table built with ``unregistered_issue=659`` (SN's); ``BC_REGISTRY`` restored.
     """
     B = H.bc()
-    table = H.cp_table()
+    table = CP.cp_table()
     assert isinstance(table, B.RealizerTable)
     assert table.method == "cp" and table.state_cone is B.StateCone.NONNEGATIVE_FLUX and table.unregistered_issue == 654
     table.catalogue()  # raises TableNotSealedError iff the table is not sealed
@@ -94,7 +95,7 @@ def test_cp_decks_and_the_hollow_inner_face_are_pinned() -> None:
     Population: 2 decks x 3 Cartesian/radial-outer sites + 6 value classes x 1 inner site = 12 cells.
     Red input: ``ImportError`` at the base tip. Mutation: M-inner-honoured, M-xmin-admits-white.
     """
-    B, table = H.bc(), H.cp_table()
+    B, table = H.bc(), CP.cp_table()
     from orpheus.geometry.deck import MirrorDeck, TranslationDeck
 
     deck_cells = {
@@ -114,7 +115,7 @@ def test_cp_decks_and_the_hollow_inner_face_are_pinned() -> None:
 
 
 def _slab_with_left(left: object, conditions: dict):
-    return H.cp_head(H.cp_mesh("slab", left=left, outer=0), conditions)
+    return CP.cp_head(CP.cp_mesh("slab", left=left, outer=0), conditions)
 
 
 @pytest.mark.l1
@@ -157,7 +158,7 @@ def test_cp_left_face_admits_the_mirror_deck_and_refuses_the_translation() -> No
     for right in (B.WallCondition.white(1.0), B.WallCondition.vacuum()):
         _slab_with_left(None, {0: right})  # builds: the default left of cp_mesh is MirrorDeck()
     with pytest.raises(B.BoundaryRefused) as info:
-        H.cp_head(H.cp_mesh("slab", left=TranslationDeck(), outer=TranslationDeck()))
+        CP.cp_head(CP.cp_mesh("slab", left=TranslationDeck(), outer=TranslationDeck()))
     assert info.value.face == "xmin" and info.value.admission.issue == 513 and info.value.admission.axis is B.RefusalAxis.PLUMBING
 
 
@@ -176,11 +177,11 @@ def test_cp_albedo_below_one_is_refused(chart: str) -> None:
     B, W = H.bc(), H.bc().WallCondition
     for label, declared in (("white 0.5", W.white(0.5)), ("specular 0.5", W.specular(0.5)), ("specular 1.0", W.specular(1.0))):
         with pytest.raises(B.BoundaryRefused) as at_head:
-            H.cp_head(H.cp_mesh(chart), {0: declared})
+            CP.cp_head(CP.cp_mesh(chart), {0: declared})
         assert at_head.value.admission.axis is B.RefusalAxis.PLUMBING and at_head.value.admission.issue == 654, f"{chart} / {label}: {at_head.value.admission!r}"
         assert at_head.value.face == "xmax"
         with pytest.raises(B.BoundaryRefused):
-            H.cp_solve(H.cp_mesh(chart), {0: declared})
+            CP.cp_solve(CP.cp_mesh(chart), {0: declared})
 
 
 @pytest.mark.l1
@@ -198,5 +199,5 @@ def test_cp_white_at_unit_weight_and_vacuum_are_admitted(chart: str) -> None:
 
     W = H.bc().WallCondition
     for declared in (W.white(1.0), W.vacuum()):
-        k = H.cp_solve(H.cp_mesh(chart), {0: declared}).keff
+        k = CP.cp_solve(CP.cp_mesh(chart), {0: declared}).keff
         assert math.isfinite(k) and k > 0.0, f"{chart}: k = {k!r}"

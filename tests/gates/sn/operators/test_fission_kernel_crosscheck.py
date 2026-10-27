@@ -69,7 +69,6 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from tests.gates.transport._integral_kernel_helpers import (
     hand_derived_fission_emission,
     require,
-    require_production_rate_property,
 )
 from orpheus.geometry.deck import MirrorDeck
 
@@ -204,7 +203,7 @@ class TestProductionRateReproducesApply:
         nx, ny = solver_4g.problem.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
 
-        pr = require_production_rate_property(op)  # NEW S6 member; skip if PRE-IMPL
+        pr = op.production_rate
         density = np.asarray(pr.evaluate(phi))  # (1, nx, ny) keepdims
         # χ broadcast reproduces RankOneOperator's `left * inner`.
         chi = solver_4g.problem.mat_xs.emission_spectrum  # (ng, nx, ny)
@@ -233,7 +232,7 @@ class TestProductionRateReproducesApply:
         nx, ny = solver_4g.problem.spatial_shape
         phi = _asymmetric_phi(ng, nx, ny)
 
-        pr = require_production_rate_property(op)
+        pr = op.production_rate
         density = np.asarray(pr.evaluate(phi)).reshape(nx, ny)
         expected = (solver_4g.problem.mat_xs.fission_production * phi).sum(axis=0)
         np.testing.assert_array_equal(

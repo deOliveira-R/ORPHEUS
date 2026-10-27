@@ -2,8 +2,9 @@ r"""The three method tables of slice S4 together: the domain name, the torus ref
 
 Spec: ``.claude/plans/wave2_boundary_carve.md`` sections 2.8, 4.2, 4.3 (deltas 8 and 9), 6.4 gates 6 and 7. The per-method tables are
 gated in ``tests/gates/cp/test_cp_realizer_table.py``, ``tests/gates/moc/test_moc_boundary_table.py`` and
-``tests/gates/mc/test_mc_boundary_table.py``, and cell by cell in the shared pin (``test_admission_matrix.py``); this file holds what
-spans two or three of them.
+``tests/gates/mc/test_mc_boundary_table.py``, and cell by cell in the shared pin (``test_admission_matrix_s4.py``, beside this file); this file holds what
+spans two or three of them. Both moved here from ``tests/gates/transport/`` on 2026-10-26 (layer DAG ruling 27: as import
+statements their helpers were a transport gate importing three methods).
 
 The ladder
 ==========
@@ -48,9 +49,13 @@ from pathlib import Path
 
 import pytest
 
+from orpheus.diffusion import zero_flux
+from tests.gates.cp import _cp_s4_helpers as CP
+from tests.gates.mc import _mc_s4_helpers as MC
+from tests.gates.moc import _moc_s4_helpers as MOC
 from tests.gates.transport import _wave2_s4_helpers as H
 
-_THIS = "tests/gates/transport/test_wave2_s4_tables.py"
+_THIS = "tests/gates/cross_method/test_wave2_s4_tables.py"
 _ROOT = Path(__file__).resolve().parents[3] / "orpheus"
 _PACKAGES = ("cp", "moc", "mc")
 
@@ -134,15 +139,15 @@ def test_moc_names_its_domain_approximation_and_mc_refuses_its_torus() -> None:
     B = H.bc()
     W = B.WallCondition
     where = H.site("RAD_OUTER")
-    moc = H.moc_table().admit(W.specular(1.0), where)
+    moc = MOC.moc_table().admit(W.specular(1.0), where)
     assert isinstance(moc, B.Approximated), f"MoC specular(1.0) is {moc!r}"
-    assert H.summary(moc) == ("A", (H.MOC_DOMAIN_NAME,), (547,)), H.summary(moc)
-    assert H.summary(H.moc_table().admit(W.specular(0.5), where)) == ("F", "PLUMBING", 654)
+    assert H.summary(moc) == ("A", (MOC.MOC_DOMAIN_NAME,), (547,)), H.summary(moc)
+    assert H.summary(MOC.moc_table().admit(W.specular(0.5), where)) == ("F", "PLUMBING", 654)
     for weight in (0.1, 0.3, 0.5, 0.7, 1.0):
-        mc = H.mc_table().admit(W.specular(weight), where)
+        mc = MC.mc_table().admit(W.specular(weight), where)
         assert isinstance(mc, B.Refused) and mc.axis is B.RefusalAxis.TOPOLOGY and mc.issue == 547, f"MC specular({weight}) is {mc!r}"
-        assert H.MC_TORUS_FRAGMENT in mc.reason, mc.reason
-    assert H.summary(H.mc_table().admit(W.specular(1.0), H.site("CART"))) == ("F", "PLUMBING", 654)
+        assert MC.MC_TORUS_FRAGMENT in mc.reason, mc.reason
+    assert H.summary(MC.mc_table().admit(W.specular(1.0), H.site("CART"))) == ("F", "PLUMBING", 654)
 
 
 @pytest.mark.l1
@@ -155,11 +160,11 @@ def test_zero_flux_is_state_cone_in_cp_moc_mc() -> None:
     the HEAD tree the registry refused ``zero_flux`` with ``ValueError``, a plumbing-class message). Mutation: M-door-cone (a table on
     the signed cone reads plumbing, #654).
     """
-    zero = H.zero_flux()
+    zero = zero_flux.ZeroFluxCondition()
     cells = (
-        (H.cp_table(), ("CART_XMIN", "CART_XMAX", "RAD_OUTER", "RAD_INNER")),
-        (H.moc_table(), ("RAD_OUTER",)),
-        (H.mc_table(), ("CART", "RAD_OUTER")),
+        (CP.cp_table(), ("CART_XMIN", "CART_XMAX", "RAD_OUTER", "RAD_INNER")),
+        (MOC.moc_table(), ("RAD_OUTER",)),
+        (MC.mc_table(), ("CART", "RAD_OUTER")),
     )
     for table, sites in cells:
         for label in sites:
@@ -178,11 +183,11 @@ def test_zero_flux_is_refused_at_construction_in_cp_moc_mc() -> None:
     Red input at the base tip: ``ImportError``. Mutations: a head that realizes before it admits; M-door-cone.
     """
     B = H.bc()
-    zero = H.zero_flux()
+    zero = zero_flux.ZeroFluxCondition()
     constructions = (
-        lambda: H.cp_head(H.cp_mesh("cylinder"), {0: zero}),
-        lambda: H.moc_head(H.moc_mesh1d(), {0: zero}),
-        lambda: H.mc_head(H.mc_slab_mesh1d(left=0, right=0), 3.0, {0: zero}),
+        lambda: CP.cp_head(CP.cp_mesh("cylinder"), {0: zero}),
+        lambda: MOC.moc_head(MOC.moc_mesh1d(), {0: zero}),
+        lambda: MC.mc_head(MC.mc_slab_mesh1d(left=0, right=0), 3.0, {0: zero}),
     )
     for build in constructions:
         with pytest.raises(B.BoundaryRefused) as info:

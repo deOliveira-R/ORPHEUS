@@ -182,3 +182,15 @@ def test_a_materials_declaration_must_cover_every_referenced_id():
     ).mesh
     with pytest.raises(ValueError, match="references material ids"):
         MaterialMesh(mesh, {3: _mix([1.0, 1.0], ng=2)})
+
+
+def test_the_transport_mesh_package_re_exports_no_mesh_name() -> None:
+    """``orpheus.transport.mesh`` (the material mesh) re-exports none of the mesh names that moved to :mod:`orpheus.mesh`: a re-export
+    would let a consumer keep the old spelling and hide the layer from the linter. Moved 2026-10-26 from
+    ``tests/gates/mesh/test_module_layout.py::test_no_old_package_re_exports_a_mesh_name[orpheus.transport.mesh]`` (layer DAG ruling 27:
+    as an import statement it was a mesh gate importing transport)."""
+    import orpheus.transport.mesh as transport_mesh
+
+    names = ("AxisMesh", "RadialAxisMesh", "Axis1D", "AxisCoord", "FaceLabel", "AXIS_NAMES")
+    leaked = [name for name in names if hasattr(transport_mesh, name)]
+    assert not leaked, f"orpheus.transport.mesh still exports {leaked}; import them from orpheus.mesh"

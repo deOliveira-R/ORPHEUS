@@ -45,6 +45,7 @@ import pytest
 
 from orpheus.moc import geometry, solver
 from tests.gates.transport import _carry_cases as carry
+from tests.gates.moc import _moc_s4_helpers as MOC
 from tests.gates.transport import _wave2_s4_helpers as H
 
 _THIS = "tests/gates/moc/test_moc_boundary_table.py"
@@ -62,13 +63,13 @@ def test_the_moc_table_is_sealed_and_the_old_registry_is_gone() -> None:
     while ``BC_REGISTRY`` does. Mutation: M-bc-kind-restored.
     """
     B = H.bc()
-    table = H.moc_table()
+    table = MOC.moc_table()
     assert isinstance(table, B.RealizerTable)
     assert table.method == "moc" and table.state_cone is B.StateCone.NONNEGATIVE_FLUX and table.unregistered_issue == 654
     table.catalogue()
     assert not hasattr(geometry.MOCMesh, "BC_REGISTRY") and not hasattr(geometry.MOCMesh, "_resolve_bc")
     assert not hasattr(geometry, "_moc_bc_reflective"), "the registry's factory is retired with the registry"
-    built = H.moc_head(H.moc_mesh1d(), {0: B.WallCondition.specular(1.0)})
+    built = MOC.moc_head(MOC.moc_mesh1d(), {0: B.WallCondition.specular(1.0)})
     assert not hasattr(built, "bc_kind"), "bc_kind has 0 readers and retires (section 2.8)"
 
 
@@ -143,6 +144,6 @@ def test_the_carry_of_the_moc_solve() -> None:
 
     Red input: ``ImportError`` at the base tip. Mutations: M-links-off; ``specular(1.0)`` realized with another return weight.
     """
-    k = H.moc_solve(H.moc_mesh1d(), {0: H.bc().WallCondition.specular(1.0)}).keff
+    k = MOC.moc_solve(MOC.moc_mesh1d(), {0: H.bc().WallCondition.specular(1.0)}).keff
     expected = H.fixture_k("moc", "cylinder", ("mirror",))
     assert k == expected, f"k = {k!r}, the HEAD k = {expected!r}"

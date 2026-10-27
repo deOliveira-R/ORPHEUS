@@ -70,7 +70,6 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from tests.gates.sn.operators._composite_operand import bulk_apply, zero_trace_composite
 from tests.gates.transport._integral_kernel_helpers import (
     require,
-    require_scattering_kernel_property,
 )
 from dataclasses import replace
 from orpheus.geometry.deck import MirrorDeck
@@ -199,7 +198,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         """
         op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
-        kernel = require_scattering_kernel_property(op)
+        kernel = op.kernel
         moments = op.flux_analysis.apply(psi)
 
         np.testing.assert_array_equal(
@@ -244,7 +243,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
         """
         op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
-        kernel = require_scattering_kernel_property(op)
+        kernel = op.kernel
         out = np.asarray(kernel.apply(psi.values))
         N = solver_p1_het.quad.n_ordinates
         ng = solver_p1_het.ng
@@ -325,7 +324,7 @@ class TestScatteringKernelIsAnisoSubcomponent:
         """
         op = solver_p1_het.problem.system.factors.scattering
         psi = _aniso_psi(solver_p1_het)
-        kernel = require_scattering_kernel_property(op)
+        kernel = op.kernel
 
         aniso_pre_w = np.asarray(kernel.apply(psi.values))   # ℓ≥1, pre-1/W
         # CS4c step 5: the gain is composite-bound; the bulk emission rides a

@@ -5,7 +5,7 @@ r"""The carry of wave 2 for CP: the six eigenvalues the carve must not move (law
 and a cylinder and a sphere ``(0, 1, 2)``, each of two regions (materials ``1`` then ``0``) with six cells apiece and the two-group library,
 under two declarations of the outer wall: vacuum and white (6 rows, key ``keff_cp/<chart>/<declaration>``). The slab's left face is the
 mirror CP's kernel images (section 4.2): the HEAD capture declared ``BC.reflective`` there. The same problems, spelled in the NEW
-vocabulary (``tests/gates/transport/_wave2_s4_helpers.cp_mesh`` and ``cp_solve``: a ``MirrorDeck`` at the slab's left face, the outer face
+vocabulary (``tests/gates/cp/_cp_s4_helpers.cp_mesh`` and ``cp_solve``: a ``MirrorDeck`` at the slab's left face, the outer face
 a tag bound to ``WallCondition.vacuum()`` or ``white(1.0)``, rule R4), must give the same ``k`` BIT-EQUAL (``==`` on the float; a non-bit
 difference is a finding to investigate, never a tolerance to widen).
 
@@ -38,6 +38,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from tests.gates.cp import _cp_s4_helpers as CP
 from tests.gates.transport import _wave2_s4_helpers as H
 from tests.gates.transport import _carry_cases as carry
 
@@ -89,7 +90,7 @@ def test_the_carry_of_the_cp_solves(chart: str, declaration: tuple) -> None:
 
     Red input: ``ImportError`` at the base tip (every row). Mutations: M-vacuum-as-white, M-white-as-identity, M-left-face-white.
     """
-    k = H.cp_solve(H.cp_mesh(chart), {0: _condition(declaration)}).keff
+    k = CP.cp_solve(CP.cp_mesh(chart), {0: _condition(declaration)}).keff
     expected = H.fixture_k("cp", chart, declaration)
     assert k == expected, f"{chart} / {carry.tag(declaration)}: k = {k!r}, the HEAD k = {expected!r}"
 

@@ -82,8 +82,9 @@ where they re-spell it, and a name in double backticks there is retired.
   :meth:`~orpheus.transport.boundary_conditions.RealizerTable.realize` through one door, so ``admit`` is ``Refused`` if and only if
   ``realize`` raises :class:`~orpheus.transport.boundary_conditions.BoundaryRefused`. Five tables exist (``SN_REALIZERS``,
   ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``) and
-  ``tests/gates/transport/test_admission_matrix.py`` pins every shared value class at every site (111 rows, 90 of them over the five real tables, read
-  at the carve tip). Gates: ``test_one_door`` in ``tests/gates/transport/test_admission_mechanism.py`` and the pin. Derivation and the
+  ``tests/gates/transport/test_admission_matrix.py`` (the mechanism, SN and diffusion, 63 rows) and
+  ``tests/gates/cross_method/test_admission_matrix_s4.py`` (CP, MoC and MC, 48 rows) pin every shared value class at every site (111
+  rows, 90 of them over the five real tables; the pin was one file at the carve tip and split on 2026-10-26, layer DAG ruling 27). Gates: ``test_one_door`` in ``tests/gates/transport/test_admission_mechanism.py`` and the pin. Derivation and the
   tables: :ref:`bc-aor-admission`.
 - **A refusal is a statement about the declaration, with its axis and its issue as data.** A refusal lies on one of three
   axes (angular resolution, topology, state cone) or is *plumbing*, which has no theory behind it and therefore owes the issue
@@ -135,7 +136,7 @@ where they re-spell it, and a name in double backticks there is retired.
      ``tests/gates/transport/test_wall_condition_algebra.py``, ``tests/gates/transport/test_response_network.py``,
      ``tests/gates/transport/test_binding.py`` and ``tests/gates/transport/test_admission_mechanism.py``.
    - **Reference rows** pin values typed by hand from the plan of record: the admission pin
-     ``tests/gates/transport/test_admission_matrix.py``, which covers every shared value class at every site of every method's
+     ``tests/gates/transport/test_admission_matrix.py`` with ``tests/gates/cross_method/test_admission_matrix_s4.py``, which cover every shared value class at every site of every method's
      table (seven value classes; the "white 1.0" cells of SN and diffusion and the whole deck and ``ZeroFluxCondition`` table are
      not in it, and their printed values were confirmed by a probe, :ref:`bc-aor-admission-probe`).
    - **A regression capture** is not a reference: ``tests/gates/sn/architecture/test_wave2_carry.py`` holds the eigenvalues,
@@ -1166,7 +1167,7 @@ Each law below is a statement the types obey, with the gate that fails first whe
      - ``tests/gates/test_layer_imports.py``
    * - L-I no string dispatch in the core
      - no ``dict[str, ...]`` registry on a method class, no ``.kind`` read on a declaration, ``BC`` does not exist
-     - ``test_the_string_registries_and_the_typed_law_reads_are_gone`` in ``tests/gates/transport/test_wave2_s4_tables.py``
+     - ``test_the_string_registries_and_the_typed_law_reads_are_gone`` in ``tests/gates/cross_method/test_wave2_s4_tables.py``
    * - L-J identity
      - equal declarations digest equal; every deck and condition type has its row in the content-identity rosters
      - ``tests/gates/transport/test_content_identity_transport.py``, ``tests/gates/geometry/test_content_identity_geometry.py``
