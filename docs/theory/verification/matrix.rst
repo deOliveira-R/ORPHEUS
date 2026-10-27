@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19883**
+Total tests collected: **19908**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 1889, 9.5%
-   L1, 2914, 14.7%
+   L1, 2914, 14.6%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14939, 75.1%
+   foundation, 14964, 75.2%
    unmarked, 56, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19748
+   explicit, 19773
    class-name, 46
    func-name, 0
    case, 33
@@ -130,12 +130,14 @@ Module × level grid
    cp/test_sphere_specular_transmission, 3, 0, 0, 0, 0, 0
    cp/test_verification, 4, 25, 5, 0, 0, 0
    cp/test_white_boundary_infinite_medium, 0, 103, 0, 0, 2, 0
+   cross_method/test_admission_matrix_s4, 0, 0, 0, 0, 56, 0
    cross_method/test_convergence, 0, 0, 1, 0, 0, 0
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
-   cross_method/test_family_convergence_contract, 0, 0, 0, 0, 41, 0
+   cross_method/test_family_convergence_contract, 0, 0, 0, 0, 45, 0
    cross_method/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
    cross_method/test_specification_infinite_medium_k, 0, 2, 0, 0, 0, 0
+   cross_method/test_wave2_s4_tables, 0, 3, 0, 0, 2, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
    curvilinear/test_alpha_defect_normalization, 0, 0, 0, 0, 8, 0
@@ -387,7 +389,7 @@ Module × level grid
    mesh/test_mesh2d, 0, 0, 0, 0, 8, 0
    mesh/test_mesh2d_face_roles, 0, 0, 0, 0, 52, 0
    mesh/test_mesher, 0, 0, 0, 0, 117, 0
-   mesh/test_module_layout, 0, 0, 0, 0, 7, 0
+   mesh/test_module_layout, 0, 0, 0, 0, 6, 0
    mesh/test_partition, 0, 0, 0, 0, 180, 0
    mesh/test_problem_identity_anchors, 0, 0, 0, 0, 26, 0
    mesh/test_radial_characteristic_carrier, 0, 0, 0, 0, 13, 0
@@ -500,7 +502,7 @@ Module × level grid
    numerics/test_pencil, 0, 0, 0, 0, 26, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_posing, 0, 0, 0, 0, 8, 0
-   numerics/test_power_iteration_record, 0, 0, 0, 0, 30, 0
+   numerics/test_power_iteration_record, 0, 0, 0, 0, 26, 0
    numerics/test_quadrature_directional, 0, 0, 0, 0, 81, 0
    numerics/test_question, 0, 0, 0, 0, 66, 0
    numerics/test_quotient_metric, 0, 0, 0, 0, 32, 0
@@ -701,7 +703,7 @@ Module × level grid
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
-   test_test_layers, 0, 0, 0, 0, 15, 0
+   test_test_layers, 0, 0, 0, 0, 38, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
    test_wave2_retirement, 0, 0, 0, 0, 21, 0
    test_withdrawal, 0, 0, 0, 0, 47, 0
@@ -709,7 +711,7 @@ Module × level grid
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0
-   transport/test_admission_matrix, 0, 0, 0, 0, 124, 0
+   transport/test_admission_matrix, 0, 0, 0, 0, 70, 0
    transport/test_admission_mechanism, 0, 0, 0, 0, 14, 0
    transport/test_angular_lift, 0, 0, 0, 0, 18, 0
    transport/test_binding, 0, 0, 0, 0, 5, 0
@@ -726,7 +728,7 @@ Module × level grid
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
    transport/test_kernels, 0, 0, 0, 0, 88, 0
    transport/test_material_field, 0, 0, 0, 0, 46, 0
-   transport/test_material_mesh, 0, 0, 0, 0, 9, 0
+   transport/test_material_mesh, 0, 0, 0, 0, 10, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 12, 0
    transport/test_material_mesh_carrier, 0, 0, 0, 0, 4, 0
    transport/test_method, 0, 0, 0, 0, 5, 0
@@ -748,7 +750,6 @@ Module × level grid
    transport/test_wall_condition, 0, 0, 0, 0, 5, 0
    transport/test_wall_condition_algebra, 0, 0, 0, 0, 7, 0
    transport/test_wave2_handoffs, 0, 0, 0, 0, 3, 0
-   transport/test_wave2_s4_tables, 0, 3, 0, 0, 2, 0
    values/test_content_identity, 0, 0, 0, 0, 43, 0
    values/test_content_identity_relocation, 0, 0, 0, 0, 14, 0
    values/test_one_real_parser, 0, 0, 0, 0, 16, 0
