@@ -11879,3 +11879,16 @@ calculus: measure the unit cost a recommendation multiplies before using a relay
   reasoning from what the carve changes. Scripts: `scratch/layer_dag/moment_basis/ta/probe_memo_{pins,s1}.py`, `probe_skeleton.py`.
 - Also: a tensor product of IDENTICAL factors is a Mode-12 space-side stabiliser for "which factor does `face(a)` drop" (an arm moving it
   reddened 0 rows of the face-trace law); gate it on distinguishable factors.
+
+## L121 — layer DAG ruling 27 (string imports to statements): the package attribute that shadows its submodule (2026-10-26)
+
+Converting `importlib.import_module("orpheus.numerics.quadrature.ordinate_pairing")` to a statement is not a
+mechanical edit: `from pkg import leaf` (and `import pkg.leaf as x`, which compiles to `IMPORT_FROM` since 3.7) binds by
+`getattr(pkg, "leaf")` FIRST and falls back to `sys.modules` only when the attribute is missing. A package that
+re-exports a same-named callable (`from .ordinate_pairing import ordinate_pairing`) therefore hands the statement the
+FUNCTION, and the test's string import was the only spelling that reached the module; a gate even pinned the re-export as
+the contract. `[M]` instrument: for every converted target, import it, then `inspect.ismodule(getattr(parent, leaf))`;
+the known shadow was the positive control (every converted target checked, 1 flagged). The fix was production (stop re-exporting the
+function: 0 of 1253 files consumed the package-level name). Second finding of the dispatch: the gate's first draft read
+`_MODULE = "orpheus.x"; import_module(_MODULE)`, the commonest form of the idiom (6 calls), as a walk's variable; resolve
+a module-level name bound once to a constant before calling a variable argument unjudged.

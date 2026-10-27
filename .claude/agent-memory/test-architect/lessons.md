@@ -684,3 +684,24 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
 - **In an isolated workflow worktree the Bash guard refuses shell loops, `$VAR` expansion, globs as arguments and heredocs, and
   `Write` refuses paths outside the worktree and any report-like `.md`.** Put the loop inside a Python script that takes the
   layers as argv, write scripts in the worktree and `cp` them out by plain paths, and return a report as text.
+
+## Layer-DAG 1b, the reference group (2026-10-26) — one trap; extends the definition's §5 battery clause and `vv-principles` #17(f)
+
+- **An arm whose subject is LATE BINDING itself cannot be installed at `pytest_configure`.** Configure runs before any test module
+  imports, so a from-import made at collection binds the decoy too and the arm reads "late-bound" for both spellings. Install it at
+  `pytest_collection_finish` and keep a from-import consumer in the run as the control (it must stay green). `[M]` the
+  `ReferenceSolution` rebind: at configure 31 reference + 16 derivations rows red; after collection 31 + 0
+  (`scratch/layer_dag/refiling/specs_1b/reference_battery/`).
+
+## Layer-DAG 1b, the mesh-geom group (2026-10-26) — refines the worktree-pyright entry above (`L117`)
+
+- **pyright run with the WORKTREE as cwd does check, but resolves no third-party import** (no `.venv` in the worktree): every
+  file prints `Import "numpy" could not be resolved` and the real errors hide among them. Run `npx pyright --pythonpath
+  <main>/.venv/bin/python <files>` from the worktree root; the positive control is a file whose errors at the base you know
+  (`[M]` `mesh/test_face_roles.py`: the same 7 errors at the base and on the branch, while a new file's narrowing error showed
+  and then cleared).
+- **Converting a string import to a statement owes a shadow check per target.** `from pkg import leaf` binds
+  `getattr(pkg, "leaf")` before `sys.modules`, so a package re-exporting a same-named callable hands the statement the
+  callable: check `inspect.ismodule(getattr(parent, leaf))` for every target, with a known shadow as the control; a
+  shadow is a production defect, not a reason to keep the string. And a gate refusing string imports resolves a
+  module-level constant (`_MODULE = "orpheus.x"`) before calling a variable "a walk". → `L121`
