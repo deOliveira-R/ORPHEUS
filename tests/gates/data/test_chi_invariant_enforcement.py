@@ -175,7 +175,7 @@ class TestMixturePostInit:
 
     def test_chi_coerced_to_emission_spectrum(self):
         """After construction, chi is an EmissionSpectrum (type wrap)."""
-        es = pytest.importorskip("orpheus.data.emission_spectrum")
+        from orpheus.data import emission_spectrum as es
         m = _mixture(sig_p=np.array([0.05, 0.12]), chi=np.array([1.0, 0.0]))
         _require(isinstance(m.chi, es.EmissionSpectrum), "Mixture.chi must coerce to EmissionSpectrum")
 
@@ -232,7 +232,7 @@ class TestIsotopePostInit:
             _isotope(sig_f_row=row, nubar=np.zeros(NG), chi=_simplex_ng())
 
     def test_chi_coerced_to_emission_spectrum(self):
-        es = pytest.importorskip("orpheus.data.emission_spectrum")
+        from orpheus.data import emission_spectrum as es
         row = np.zeros(NG)
         row[0] = 0.3
         iso = _isotope(sig_f_row=row, nubar=self._producing_nubar(row), chi=_simplex_ng())

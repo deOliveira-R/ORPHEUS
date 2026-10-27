@@ -35,11 +35,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-# NOTE (pre-impl): this import does not resolve until the method-implementer
-# lands ``orpheus/data/emission_spectrum.py``. The whole module is guarded
-# so the suite collects (skipped) pre-impl and goes green post-impl with
-# zero edits here.
-emission_spectrum = pytest.importorskip("orpheus.data.emission_spectrum")
+from orpheus.data import emission_spectrum
+
+# Was ``pytest.importorskip`` while the module was unwritten (a pre-implementation gate); the module landed, and a
+# skip that cannot fire only hides a broken import as a skipped file (the layer-DAG plan, ruling 27, 2026-10-26).
 EmissionSpectrum = emission_spectrum.EmissionSpectrum
 
 pytestmark = pytest.mark.foundation

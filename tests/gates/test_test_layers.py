@@ -36,7 +36,7 @@ of those edges were the synthetic cross-section catalogue, which moved to
 
 An import by string is refused, so the scanner sees every edge it judges
 (layer DAG ruling 27, ``test_no_layered_gate_file_imports_a_project_module_by_string``): in a layered directory, a call to
-``import_module`` or ``__import__`` whose first argument is a constant
+``import_module``, ``pytest.importorskip`` or ``__import__`` whose first argument is a constant
 string, or an f-string whose constant head names ``orpheus`` or
 ``tests.gates.``, or a module-level name bound once to such a string
 (``_MODULE = "orpheus.numerics.enclosure"``), is red; the spelling is an
@@ -475,10 +475,14 @@ _RULING_27 = (
 
 
 def _is_dynamic_import(func: ast.expr) -> bool:
-    """``import_module`` (on any receiver, or bare) or the builtin ``__import__``."""
+    """``import_module`` or ``importorskip`` (on any receiver, or bare) or the builtin ``__import__``.
+
+    ``pytest.importorskip`` of a project module is the worst of the three: when the module stops importing, the test
+    SKIPS instead of failing, so a broken module reads as a skipped row (`[M]` 2026-10-26: 4 orpheus sites, all of
+    whose modules exist; a third-party module, ``mpmath``, is not judged)."""
     if isinstance(func, ast.Attribute):
-        return func.attr == "import_module"
-    return isinstance(func, ast.Name) and func.id in {"import_module", "__import__"}
+        return func.attr in {"import_module", "importorskip"}
+    return isinstance(func, ast.Name) and func.id in {"import_module", "importorskip", "__import__"}
 
 
 def _leading_literal(argument: ast.expr) -> str | None:
@@ -532,6 +536,7 @@ _STRING_IMPORTS = [
     pytest.param('m = __import__("orpheus.transport.fields._bases", fromlist=["FieldRole"])\n', id="dunder-import"),
     pytest.param('x = __import__("orpheus").__file__\n', id="the-package"),
     pytest.param('import importlib\nimportlib.import_module(f"tests.gates.mc.{name}")\n', id="gate-helper"),
+    pytest.param('import pytest\nes = pytest.importorskip("orpheus.data.emission_spectrum")\n', id="importorskip"),
     pytest.param('import importlib\n_MODULE = "orpheus.numerics.enclosure"\ndef f():\n    return importlib.import_module(_MODULE)\n',
                  id="module-constant"),
     pytest.param('import importlib\nMODULE: str = "orpheus.numerics.traced_memo"\nimportlib.import_module(MODULE)\n', id="annotated-constant"),

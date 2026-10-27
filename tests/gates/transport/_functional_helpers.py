@@ -64,23 +64,18 @@ def require(condition: bool, message: str) -> None:
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Not-yet-written-SUT import guards (pytest.importorskip).
+# The functional types (once not-yet-written-SUT import guards).
 # ───────────────────────────────────────────────────────────────────────
 
 
 def require_functional():
-    """The ``Functional`` Protocol (S5) — skip the file if not yet landed."""
-    mod = pytest.importorskip(
-        "orpheus.numerics.functional",
-        reason="#257 S5 PRE-IMPL: orpheus.numerics.functional.Functional "
-        "not yet written by the method-implementer.",
-    )
-    if not hasattr(mod, "Functional"):
-        pytest.skip(
-            "#257 S5 PRE-IMPL: module exists but `Functional` symbol "
-            "not yet defined."
-        )
-    return mod.Functional
+    """The ``Functional`` Protocol (S5).
+
+    Was a ``pytest.importorskip`` plus a ``hasattr`` skip while the module was unwritten; both landed long ago, and a
+    skip that never fires only hides the dependence (the layer-DAG plan, ruling 27, 2026-10-26)."""
+    from orpheus.numerics.functional import Functional
+
+    return Functional
 
 
 def require_production_rate_functional():
@@ -92,21 +87,12 @@ def require_production_rate_functional():
     ``ReactionRateFunctional(Σa)``). The surviving foil consumers
     (``test_functional_category`` / ``test_integral_kernel_category``) only
     need a concrete ``Functional`` carrying ``νΣf`` to foil against; the
-    reaction-rate functional IS that object, so this probe now resolves the
-    successor. The ``importorskip`` shape is kept (it always resolves on a
-    landed tree) so the structural surface of these helpers is unchanged.
+    reaction-rate functional IS that object. An import statement since
+    2026-10-26 (ruling 27), not an ``importorskip``.
     """
-    mod = pytest.importorskip(
-        "orpheus.transport.reaction_rate_functional",
-        reason="orpheus.transport.reaction_rate_functional.ReactionRateFunctional "
-        "not importable.",
-    )
-    cls = getattr(mod, "ReactionRateFunctional", None)
-    if cls is None:
-        pytest.skip(
-            "module exists but `ReactionRateFunctional` symbol not defined."
-        )
-    return cls
+    from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
+
+    return ReactionRateFunctional
 
 
 # ───────────────────────────────────────────────────────────────────────
