@@ -596,7 +596,8 @@ which re-check the two facts their properties rest on at construction (see
 
    import numpy as np
    from orpheus.geometry.transformation import RigidMotion
-   from orpheus.numerics.quadrature import Quadrature, ordinate_pairing
+   from orpheus.numerics.quadrature import Quadrature
+   from orpheus.numerics.quadrature.ordinate_pairing import ordinate_pairing
 
    quad = Quadrature.gauss_legendre(4)
    mirror_x = RigidMotion.reflection(normal=np.array([1.0, 0.0, 0.0]))

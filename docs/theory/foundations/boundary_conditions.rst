@@ -2686,7 +2686,7 @@ composition that *cannot be formed*: the same claim, delivered by the
 algebra, with no second clause to keep in step. The involution that IS
 real lives one tier up, on the full-space mirror pairing
 (the permutation :math:`\pi` that
-:func:`~orpheus.numerics.quadrature.ordinate_pairing` returns,
+:func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` returns,
 certified before it is returned), where domain and codomain coincide — asserted there
 by the ERR-044 involution check (``PairingNotInvolutiveError``). **Two different claims had been sharing one
 predicate name across two tiers**, and the fix is to make the tier
@@ -2881,7 +2881,7 @@ touches:
   must be an index map :math:`\pi` with
   :math:`\Omega_{\pi(n)} = \Omega_n - 2(\Omega_n\cdot\hat n)\hat n` and
   matching weights. That is precisely what the three certification checks of
-  :func:`~orpheus.numerics.quadrature.ordinate_pairing` verify, each with its own error
+  :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing` verify, each with its own error
   class: **ERR-042** (``PairingNotMeasurePreservingError``: the pushforward of the
   discrete face measure :math:`m_n = w_n |\mu_{a,n}|` under :math:`\pi` is that measure,
   :math:`m_{\pi(n)} = m_n`), **ERR-044** (``PairingNotInvolutiveError``:

@@ -75,7 +75,6 @@ from .ordinate_pairing import (
     PairingNotInvolutiveError,
     PairingNotMeasurePreservingError,
     QuadratureNotClosedUnderMotionError,
-    ordinate_pairing,
 )
 from .registry import (
     GEOMETRY_ANGULAR_SYMMETRY,
@@ -114,7 +113,6 @@ __all__ = [
     "gauss_legendre_on_polar_orbit",
     "lebedev_sphere",
     "level_symmetric_sn",
-    "ordinate_pairing",
     "periodic_trapezoid",
     "product_mu_phi",
     "quadrature_registry",

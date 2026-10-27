@@ -71,6 +71,7 @@ import pytest
 from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.geometry.transformation import Permutation, RigidMotion
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.quadrature import ordinate_pairing as ordinate_pairing_module
 from orpheus.numerics.tangential import TANGENTIAL_EPS
 
 #: This file's own path: the target of the ``rests_on`` edges below.
@@ -78,19 +79,14 @@ _THIS_FILE = "tests/gates/numerics/test_ordinate_pairing.py"
 
 
 def _pairing():
-    """The function under test, imported lazily: at the base tip the module
-    does not exist, and a collection error would hide which gate is red."""
-    from orpheus.numerics.quadrature.ordinate_pairing import ordinate_pairing
-
-    return ordinate_pairing
+    """The function under test, read off its module at call time, so a rebinding of the module attribute
+    (a mutation arm) reaches every row."""
+    return ordinate_pairing_module.ordinate_pairing
 
 
 def _errors():
-    import importlib
-
-    # importlib, not `from orpheus.numerics.quadrature import ordinate_pairing`:
-    # the package re-exports the FUNCTION under the module's name.
-    return importlib.import_module("orpheus.numerics.quadrature.ordinate_pairing")
+    """The module that defines the function and its five errors."""
+    return ordinate_pairing_module
 
 
 def _mirror(axis: str) -> RigidMotion:
@@ -444,14 +440,22 @@ def test_the_independence_triad_has_a_positive_control_per_quadrature() -> None:
 
 
 @pytest.mark.foundation
-def test_the_package_exports_the_function_and_its_five_errors() -> None:
-    r"""``orpheus.numerics.quadrature`` exports ``ordinate_pairing`` and the
-    base error with its four subclasses, and the subclasses derive from the
-    base. Red input: nothing is exported at the base tip."""
+def test_the_package_exports_the_five_errors_and_the_name_is_the_submodule() -> None:
+    r"""``orpheus.numerics.quadrature`` exports the base error with its four
+    subclasses, the subclasses derive from the base, and the package attribute
+    ``ordinate_pairing`` is the SUBMODULE: the function is not re-exported
+    under its module's name, where it shadowed the module (layer DAG ruling 27:
+    ``from orpheus.numerics.quadrature import ordinate_pairing`` returned the
+    function, so a test could reach the module only by string). Red input:
+    the function re-exported in ``quadrature/__init__.py``, as it was until
+    2026-10-26."""
+    import types
+
     import orpheus.numerics.quadrature as package
 
+    assert isinstance(package.ordinate_pairing, types.ModuleType), type(package.ordinate_pairing)
+    assert "ordinate_pairing" not in package.__all__
     names = [
-        "ordinate_pairing",
         "OrdinatePairingError",
         "QuadratureNotClosedUnderMotionError",
         "PairingNotMeasurePreservingError",
@@ -460,7 +464,7 @@ def test_the_package_exports_the_function_and_its_five_errors() -> None:
     ]
     for name in names:
         assert name in package.__all__, name
-    for name in names[2:]:
+    for name in names[1:]:
         assert issubclass(getattr(package, name), package.OrdinatePairingError)
 
 
