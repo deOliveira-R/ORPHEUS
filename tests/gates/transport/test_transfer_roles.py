@@ -34,31 +34,31 @@ Say so, or an audit reads it as coverage of the arithmetic it forbids.
 from __future__ import annotations
 
 import ast
-import importlib
 import inspect
 import textwrap
 
 import pytest
 
+from orpheus.transport.operators import angular_lift, fission, isotropic_transfer, n2n, scattering, transfer
+
 pytestmark = pytest.mark.foundation
 
-#: role class → (module path, core class name).  The declared population; the
+#: role class → (its module, core class name).  The declared population; the
 #: runtime ``__subclasses__`` row below asserts it is also the COMPLETE one.
 _ROLES = {
-    "ScatteringOperator": ("orpheus.transport.operators.scattering", "TransferOperator"),
-    "N2NOperator": ("orpheus.transport.operators.n2n", "TransferOperator"),
-    "IsotropicScattering": (
-        "orpheus.transport.operators.isotropic_transfer", "IsotropicTransfer",
-    ),
-    "IsotropicN2N": (
-        "orpheus.transport.operators.isotropic_transfer", "IsotropicTransfer",
-    ),
+    "ScatteringOperator": (scattering, "TransferOperator"),
+    "N2NOperator": (n2n, "TransferOperator"),
+    "IsotropicScattering": (isotropic_transfer, "IsotropicTransfer"),
+    "IsotropicN2N": (isotropic_transfer, "IsotropicTransfer"),
 }
+
+#: The modules of the four ``AngularLift`` subclasses: ``__subclasses__`` sees a class only once its module is imported.
+_LIFT_MODULES = (transfer, fission, scattering, n2n)
 
 #: The two cores, and where they live.
 _CORES = {
-    "TransferOperator": "orpheus.transport.operators.transfer",
-    "IsotropicTransfer": "orpheus.transport.operators.isotropic_transfer",
+    "TransferOperator": transfer,
+    "IsotropicTransfer": isotropic_transfer,
 }
 
 
@@ -68,11 +68,10 @@ def _all_subclasses(cls) -> set:
     return direct.union(*(_all_subclasses(s) for s in direct))
 
 
-def _resolve(module_path: str, name: str):
-    mod = importlib.import_module(module_path)
-    obj = getattr(mod, name, None)
+def _resolve(module, name: str):
+    obj = getattr(module, name, None)
     if obj is None:
-        pytest.fail(f"{module_path}.{name} does not exist — F3's core/role split is broken")
+        pytest.fail(f"{module.__name__}.{name} does not exist — F3's core/role split is broken")
     return obj
 
 
@@ -172,9 +171,9 @@ def test_the_role_class_is_a_thin_subclass_of_its_core(role):
     ``apply_transpose``, the faces, the kernel properties — belongs to the
     core, once.
     """
-    module_path, core_name = _ROLES[role]
+    module, core_name = _ROLES[role]
     core = _resolve(_CORES[core_name], core_name)
-    cls = _resolve(module_path, role)
+    cls = _resolve(module, role)
     assert issubclass(cls, core), (
         f"{role} is not a subclass of {core_name} — F3's shared core has not "
         f"landed"
@@ -200,13 +199,11 @@ def test_the_core_has_exactly_the_declared_roles(core_name):
     are a red with a name.
 
     ⚠ ``__subclasses__`` only sees classes whose module has been IMPORTED —
-    every role module is imported first, so the row does not depend on
-    collection order. And it is walked RECURSIVELY: a ``class FastN2N(N2NOperator)``
+    every role module is imported at the top of this file, so the row does
+    not depend on collection order. And it is walked RECURSIVELY: a ``class FastN2N(N2NOperator)``
     carrying an override is the cheapest way to regrow the twin one level
     down, and a direct-only walk is blind to it (the elegance review's S6).
     """
-    for module_path, _ in _ROLES.values():
-        importlib.import_module(module_path)
     core = _resolve(_CORES[core_name], core_name)
     declared = {r for r, (_, c) in _ROLES.items() if c == core_name}
     got = {c.__name__ for c in _all_subclasses(core)}
@@ -245,16 +242,8 @@ def test_the_angular_lift_has_exactly_the_declared_subclasses():
     red as a new one, and a ``class FastFission(FissionOperator)`` one level
     down is exactly the cheapest way to regrow a twin.
     """
-    import importlib as _importlib
-
-    for module_path in (
-        "orpheus.transport.operators.transfer",
-        "orpheus.transport.operators.fission",
-        "orpheus.transport.operators.scattering",
-        "orpheus.transport.operators.n2n",
-    ):
-        _importlib.import_module(module_path)
-    lift = _resolve("orpheus.transport.operators.angular_lift", "AngularLift")
+    assert len(_LIFT_MODULES) == 4  # imported at the top, so __subclasses__ sees their classes
+    lift = _resolve(angular_lift, "AngularLift")
     declared = {
         "TransferOperator", "FissionOperator", "ScatteringOperator", "N2NOperator",
     }

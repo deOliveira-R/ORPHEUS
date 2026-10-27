@@ -8,6 +8,9 @@ system-under-test does NOT yet exist on the tree:
 * the new ``FissionOperator.production_rate`` property (the S5 functional);
 * the new ``ScatteringOperator.kernel`` property (the typed ``R∘Λ∘M``).
 
+(The Protocol landed, and its probe-and-skip import guard retired on 2026-10-26, layer DAG ruling 27: the test imports it
+by statement. The two property probes below remain.)
+
 Every S6 spec routes its NOT-YET-LANDED SUT access through a probe guard
 so the files **collect** (green session, no ``ImportError``) and **skip**
 with a clear reason until the method-implementer lands the code. Once
@@ -91,33 +94,6 @@ def require(condition: bool, message: str) -> None:
 # ───────────────────────────────────────────────────────────────────────
 # Not-yet-written-SUT import guards (probe + skip).
 # ───────────────────────────────────────────────────────────────────────
-
-
-def require_integral_kernel_operator():
-    """The ``IntegralKernelOperator`` Protocol (S6) — skip if not yet landed.
-
-    The brief sketches ``orpheus.transport.operators.integral_kernel_operator`` (the
-    numerics/transport-floor home alongside the S5 ``Functional``). The
-    exact module path is the method-implementer's latitude; probe the
-    likely homes and skip with a clear reason otherwise.
-    """
-    for path in (
-        "orpheus.transport.operators.integral_kernel_operator",
-        "orpheus.numerics.integral_kernel_operator",
-        "orpheus.transport.kernel_operator",
-    ):
-        try:
-            mod = __import__(path, fromlist=["IntegralKernelOperator"])
-        except ImportError:
-            continue
-        cls = getattr(mod, "IntegralKernelOperator", None)
-        if cls is not None:
-            return cls
-    pytest.skip(
-        "#257 S6 PRE-IMPL: IntegralKernelOperator Protocol not yet written "
-        "(probed transport.integral_kernel_operator / "
-        "numerics.integral_kernel_operator / transport.kernel_operator)."
-    )
 
 
 def require_production_rate_property(fission_op) -> "Functional":

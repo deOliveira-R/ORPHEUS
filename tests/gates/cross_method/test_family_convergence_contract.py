@@ -28,15 +28,21 @@ explicit ``raise``.
 """
 from __future__ import annotations
 
+import inspect
+
 import numpy as np
 import pytest
 
+from orpheus.cp import solver as cp_solver
 from orpheus.cp.solver import CPParams, solve_cp
 from orpheus.derivations import get
+from orpheus.diffusion import solver as diffusion_solver
 from orpheus.diffusion.solver import solve_diffusion_1d
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
+from orpheus.moc import core as moc_core
 from orpheus.moc.solver import solve_moc
+from orpheus.sn import solver as sn_solver
 from orpheus.numerics.eigenvalue import RecordingSolver
 from orpheus.transport.boundary_conditions import WallCondition
 
@@ -269,9 +275,9 @@ class TestTheTreeHasTheShapeEachDesignImplies:
     @pytest.mark.parametrize(
         "row_id,cls_path",
         [
-            ("cp", ("orpheus.cp.solver", "CPSolver")),
-            ("moc", ("orpheus.moc.core", "MOCSolver")),
-            ("diffusion", ("orpheus.diffusion.solver", "DiffusionSolver")),
+            ("cp", (cp_solver, "CPSolver")),
+            ("moc", (moc_core, "MOCSolver")),
+            ("diffusion", (diffusion_solver, "DiffusionSolver")),
         ],
     )
     def test_the_solver_declares_the_member_and_no_second_verdict(
@@ -291,15 +297,49 @@ class TestTheTreeHasTheShapeEachDesignImplies:
         structural half — the member exists, and the retired second stopping
         surface has not grown back.
         """
-        import importlib
-
         module, name = cls_path
-        cls = getattr(importlib.import_module(module), name)
+        cls = getattr(module, name)
         assert hasattr(cls, "inner_records")
         assert not hasattr(cls, "converged"), (
             "the N2b retirement: a solver must not carry a second stopping "
-            "surface (pinned for all five realizers in "
+            "surface (pinned for all five realizers by "
+            "test_no_method_realizer_can_see_the_iteration_index and "
             "test_power_iteration_record.py)"
+        )
+
+    @pytest.mark.rests_on(
+        "tests/gates/numerics/test_power_iteration_record.py::TestTheMinOuterRuleIsStatedOnce::test_no_realizer_can_see_the_iteration_index",
+    )
+    @pytest.mark.parametrize(
+        "module,class_name",
+        [
+            (sn_solver, "SNSolver"),
+            (cp_solver, "CPSolver"),
+            (moc_core, "MOCSolver"),
+            (diffusion_solver, "DiffusionSolver"),
+        ],
+        ids=["sn", "cp", "moc", "diffusion"],
+    )
+    def test_no_method_realizer_can_see_the_iteration_index(self, module, class_name: str) -> None:
+        """No method realizer's measurement method takes ``iteration``: the min-outer
+        rule stays where the algorithm owns it (``MINIMUM_OUTER_ITERATIONS``), and a
+        survivor still spelling ``converged(...)`` fails. The numerics realizer
+        ``KEigenvalue`` is the row this rests on; the four method rows moved here from
+        ``tests/gates/numerics/test_power_iteration_record.py`` on 2026-10-26 (layer
+        DAG ruling 27: as statements, their imports were a numerics gate importing four
+        methods)."""
+        cls = getattr(module, class_name)
+        assert hasattr(cls, "measure_stopping_criteria"), (
+            f"{class_name} has not migrated off the retired predicate"
+        )
+        assert not hasattr(cls, "converged"), (
+            f"{class_name}.converged survived the N2b retirement — two "
+            f"stopping surfaces is exactly the twin this step removed"
+        )
+        params = inspect.signature(cls.measure_stopping_criteria).parameters
+        assert "iteration" not in params, (
+            f"{class_name} can see the iteration index and could therefore "
+            f"re-spell the min-outer guard locally"
         )
 
     def test_the_narrowing_production_uses_admits_a_live_solver(self) -> None:

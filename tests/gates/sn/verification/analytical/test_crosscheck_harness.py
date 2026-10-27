@@ -19,13 +19,14 @@ type retired with ``certify_agreement`` when ``verify_agreement`` and
 
 from __future__ import annotations
 
-import importlib
 from fractions import Fraction
 
 import pytest
 
 from orpheus.reference.verification import ReferenceNotValid
 from tests.gates.derivations import _characteristic_ladders as ladders
+from tests.gates.sn.sweep.curvilinear import test_unified_matvec_cylinder
+from tests.gates.sn.verification.analytical import test_l1_standoff_slab_cylinder, test_phase_c_crosscheck
 from tests.gates.derivations._ladder_rules import (
     alternating_error,
     ceil_one_significant_figure,
@@ -126,14 +127,14 @@ def test_record_moves_red() -> None:
 
 #: Every row whose comparison needs the cylinder reference's certificate, by module.
 _AWAITING_ROWS = {
-    "tests.gates.sn.verification.analytical.test_phase_c_crosscheck": (
+    test_phase_c_crosscheck: (
         "test_cylinder_3reg_k_against_characteristic_reference",
         "test_cylinder_3reg_flux_shape_against_characteristic_reference",
     ),
-    "tests.gates.sn.sweep.curvilinear.test_unified_matvec_cylinder": (
+    test_unified_matvec_cylinder: (
         "test_unified_cylinder_l1_mr_2g_characteristic_reference",
     ),
-    "tests.gates.sn.verification.analytical.test_l1_standoff_slab_cylinder": (
+    test_l1_standoff_slab_cylinder: (
         "test_cylinder_l1_sweep_vs_characteristic_reference",
         "test_cylinder_l1_refinement_against_reference",
     ),
@@ -151,8 +152,8 @@ def test_cylinder_bound_rows_carry_the_shared_strict_xfail() -> None:
     """
     assert awaits_cylinder_bound.kwargs["strict"] is True
     assert awaits_cylinder_bound.kwargs["raises"] is ReferenceNotValid
-    for module_name, expected in _AWAITING_ROWS.items():
-        module = importlib.import_module(module_name)
+    for module, expected in _AWAITING_ROWS.items():
+        module_name = module.__name__
         carriers = sorted(
             name for name, obj in vars(module).items()
             if name.startswith("test_") and any(

@@ -15,7 +15,6 @@ process; a RECORD row pins their bytes after landing.
 
 from __future__ import annotations
 
-import importlib
 import os
 import subprocess
 import sys
@@ -25,6 +24,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from orpheus.numerics import observable as observable_module
 from orpheus.values.content import content_digest
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from tests.gates._content_identity_helpers import (
@@ -44,12 +44,11 @@ pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_content_identity_observable.py"
 _ROOT = Path(__file__).resolve().parents[3]
-_MODULE = "orpheus.numerics.observable"
 _TABLE = np.array([[1.5, 0.25], [0.0, 3.0]])
 
 
 def _c(name: str) -> Any:
-    return getattr(importlib.import_module(_MODULE), name)
+    return getattr(observable_module, name)
 
 
 def _table(values: np.ndarray = _TABLE) -> RegionwiseConstant:

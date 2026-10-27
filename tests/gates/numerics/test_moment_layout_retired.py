@@ -28,6 +28,7 @@ import pathlib
 import pytest
 
 import orpheus
+from orpheus.numerics import space
 
 pytestmark = [pytest.mark.foundation]
 
@@ -35,7 +36,7 @@ ROOT = pathlib.Path(orpheus.__file__).resolve().parents[1]
 RETIRED = "orpheus.numerics.moment_layout"
 #: The tail rule's home (ruling 4: numerics space composition, beside
 #: ``FunctionSpace.of_axes``; named ``factor_tail`` by the user, 2026-10-25).
-TAIL_RULE_HOME = ("orpheus.numerics.space", "factor_tail")
+TAIL_RULE_HOME = (space, "factor_tail")
 
 
 def _py_files(*roots: str) -> list[pathlib.Path]:
@@ -119,8 +120,8 @@ def test_the_tail_rule_lives_in_space_composition() -> None:
     D5b), width > 1 appends one axis.
     """
     module, name = TAIL_RULE_HOME
-    rule = getattr(importlib.import_module(module), name)
-    assert rule.__module__ == module
+    rule = getattr(module, name)
+    assert rule.__module__ == module.__name__
     assert rule(1) == () and rule(2) == (2,) and rule(4) == (4,)
 
 
@@ -128,10 +129,7 @@ def test_the_retired_class_is_unspellable() -> None:
     """The retirement leaves no import path — a consumer reaching for the
     class fails at import, loudly, rather than silently composing a
     Euclidean tail beside the scheme's."""
-    import importlib
-
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("orpheus.numerics.spaces.spatial_moment_space")
+    assert importlib.util.find_spec("orpheus.numerics.spaces.spatial_moment_space") is None
     import orpheus.numerics.spaces as spaces
 
     assert not hasattr(spaces, "SpatialMomentSpace")

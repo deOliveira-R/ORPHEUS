@@ -4,28 +4,24 @@ Not a test module (no ``test_`` prefix). Spec: ``.claude/plans/wave2_boundary_ca
 2 to 13). Every problem is spelled in the NEW vocabulary: a face carries a role (an ``int`` tag or a deck), the
 conditions are a ``{tag: WallCondition}`` mapping handed to the entry as ``boundary_conditions=``.
 
-Like the other S2b helpers it imports no production module at the top: at the base tip ``import orpheus.sn`` raises
-(``orpheus.transport.method`` still imports the retired ``BC``), and a collection-time import would hide which gate fails
-for which reason (``vv-principles`` anti-pattern 17c). The bodies are carried in :mod:`tests.gates.transport._carry_cases`
+It imports ``orpheus.transport.boundary_conditions`` at the top, as a module (layer DAG ruling 27; until 2026-10-26 it was
+imported by string, because at the base tip of slice S2b ``import orpheus.sn`` raised), and the solver entries inside the
+builders that read them. The bodies are carried in :mod:`tests.gates.transport._carry_cases`
 (the same data the HEAD capture script reads), so the carry gate and the other gates pose the same problems.
 """
 
 from __future__ import annotations
 
-import importlib
 import types
 from typing import Any
 
+from orpheus.transport import boundary_conditions
 from tests.gates.transport import _carry_cases as carry
 
 
 def bc() -> types.ModuleType:
     """``orpheus.transport.boundary_conditions``."""
-    return importlib.import_module("orpheus.transport.boundary_conditions")
-
-
-def sn_module(name: str) -> types.ModuleType:
-    return importlib.import_module(f"orpheus.sn.{name}")
+    return boundary_conditions
 
 
 def mesh_of(body: str, *, left: Any = None, right: Any = None, outer: Any = None, inner: Any = None,

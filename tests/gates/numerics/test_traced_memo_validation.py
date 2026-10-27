@@ -20,6 +20,8 @@ import textwrap
 import numpy as np
 import pytest
 
+from orpheus.numerics import _traced_memo_boot
+
 from . import _traced_memo_api as api
 from ._traced_memo_synthetic import Package
 
@@ -98,7 +100,7 @@ def test_m2_3_a_distribution_version_and_the_interpreter_are_validated(package):
 
 
 def _boot():
-    return importlib.import_module("orpheus.numerics._traced_memo_boot")
+    return _traced_memo_boot
 
 
 def _trust_every_read(monkeypatch):

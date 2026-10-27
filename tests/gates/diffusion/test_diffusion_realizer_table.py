@@ -79,6 +79,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from orpheus.diffusion import augmented_mesh, boundary_realizer
 from tests.gates.diffusion import _wave2_helpers as H
 from tests.gates.transport._boundary_conditions_helpers import local
 
@@ -109,7 +110,7 @@ def test_the_table_registers_the_six_realizers_and_is_sealed() -> None:
     ``DiffusionBoundaryRealizer``). Mutation: M-door-cone; a table sealed before ``DiffusionDecks`` registers; ``DiffusionSource``
     given a ``sample``.
     """
-    module = H.diffusion_module("boundary_realizer")
+    module = boundary_realizer
     B = H.bc()
     table = H.table()
     assert table.method == "diffusion" and table.state_cone is B.StateCone.SIGNED_CURRENT and table.unregistered_issue == 659
@@ -270,7 +271,7 @@ def test_diffusion_source_is_plumbing(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(B.BoundaryRefused):
         H.table().sample_inflow(terms, H.site("CART"), space)
     assert calls == [], "the source verb sampled before the door refused"
-    registered = H.diffusion_module("boundary_realizer").DiffusionSource()
+    registered = boundary_realizer.DiffusionSource()
     np.testing.assert_array_equal(B.SourceRealizer.sample(registered, terms, H.site("CART"), space), 1.0)
     assert len(calls) == 1, "the spy is dead: the default body did not reach sample_terms"
 
@@ -354,9 +355,9 @@ def test_super_markov_albedo_is_unspellable() -> None:
     with pytest.raises(TypeError):
         H.diffusion_mesh(H.chart_mesh("slab", left=0, right=0), {0: displacement})  # type: ignore[dict-item]
 
-    augmented = H.diffusion_module("augmented_mesh")
+    augmented = augmented_mesh
     assert not hasattr(augmented.DiffusionMesh, "BOUNDARY_OPERATOR_REGISTRY"), "the string-tag registry is the old door of albedo = 5.0"
-    assert not hasattr(H.diffusion_module("boundary_realizer"), "DiffusionBoundaryRealizer")
+    assert not hasattr(boundary_realizer, "DiffusionBoundaryRealizer")
 
     slab = H.chart_mesh("slab", left=0, right=0)
     ks = [H.solve(slab, {0: W.white(a)}).keff for a in (0.3, 0.7, 1.0)]
@@ -389,7 +390,7 @@ def test_the_mesh_reads_the_binding_through_the_shared_door(monkeypatch: pytest.
 
     B = H.bc()
     W = B.WallCondition
-    augmented = H.diffusion_module("augmented_mesh")
+    augmented = augmented_mesh
     calls: list[Any] = []
     real = augmented.realize_boundary
     monkeypatch.setattr(augmented, "realize_boundary", lambda method: calls.append(method) or real(method))
@@ -403,7 +404,7 @@ def test_the_mesh_reads_the_binding_through_the_shared_door(monkeypatch: pytest.
     arm = mesh.realize_boundary_role(W.white(0.5), "xmax")
     np.testing.assert_array_equal(H.realized_action(arm), 0.5 * H.PROBE)
 
-    method = H.diffusion_module("augmented_mesh")
+    method = augmented_mesh
     import orpheus.transport.method as shared
 
     assert not hasattr(shared, "resolve_boundary_conditions") and not hasattr(method, "resolve_boundary_conditions")

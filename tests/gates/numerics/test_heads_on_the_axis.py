@@ -10,7 +10,7 @@ cell layout carries the edges.
 """
 from __future__ import annotations
 
-import importlib
+import importlib.util
 
 import numpy as np
 import pytest
@@ -184,19 +184,18 @@ def test_H2b_equal_widths_shifted_edges_are_two_heads():
 
 
 def test_H3_the_retired_classes_are_gone():
-    gone = (("orpheus.numerics.spaces.spherical_harmonic_space", "SphericalHarmonicSpace"),
-            ("orpheus.numerics.spaces.legendre_space", "LegendreSpace"),
-            ("orpheus.numerics.spaces.moment_head", "MomentHead"),
-            ("orpheus.numerics.axis", "HarmonicAxis"), ("orpheus.numerics.axis", "LegendreAxis"))
-    for mod, name in gone:
-        try:
-            m = importlib.import_module(mod)
-        except ImportError:
-            continue
-        assert not hasattr(m, name), f"{mod}.{name} survives S7b (rulings 72, 81)"
+    """Two retired modules are absent (``find_spec`` is ``None``); three retired classes are absent from the modules
+    that survive. The positive control: ``find_spec`` finds a module that exists."""
+    from orpheus.numerics import axis
+    from orpheus.numerics.spaces import moment_head
+
+    for module_name in ("orpheus.numerics.spaces.spherical_harmonic_space", "orpheus.numerics.spaces.legendre_space"):
+        assert importlib.util.find_spec(module_name) is None, f"{module_name} survives S7b (rulings 72, 81)"
+    for module, name in ((moment_head, "MomentHead"), (axis, "HarmonicAxis"), (axis, "LegendreAxis")):
+        assert not hasattr(module, name), f"{module.__name__}.{name} survives S7b (rulings 72, 81)"
     from orpheus.numerics.basis.base import Basis
     assert "space" not in vars(Basis), "Basis.space retires (FunctionSpace.of_basis)"
-    assert importlib.import_module("orpheus.numerics.coefficient_layout")  # positive control
+    assert importlib.util.find_spec("orpheus.numerics.coefficient_layout") is not None  # positive control
 
 
 @pytest.mark.parametrize("L", [0, 1, 2, 3])

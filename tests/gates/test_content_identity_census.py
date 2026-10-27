@@ -32,6 +32,16 @@ import pytest
 import scipy.sparse as sp
 
 import orpheus
+import orpheus.data
+import orpheus.derivations.continuous.characteristic
+import orpheus.diffusion
+import orpheus.geometry
+import orpheus.mesh
+import orpheus.numerics
+import orpheus.reference
+import orpheus.specification
+import orpheus.transport
+import orpheus.values
 import orpheus.values.content as content_module
 from orpheus.diffusion import ZeroFluxCondition  # the one content type of orpheus.diffusion; it has no fields
 from orpheus.numerics.axis import Declared, Modal
@@ -164,17 +174,16 @@ class TestTheUniquenessGateSeesACollision:
 #: The packages whose classes S5.9 walks. Of ``orpheus.derivations``, the package whose derivation is a reference
 #: solution (its receiver is a traced-memo key); the rest of ``orpheus.derivations`` is NOT walked. The
 #: trajectory-resolvent package was the second until step (e2) of the characteristic-reference campaign deleted it.
-_PACKAGES = ("orpheus.values", "orpheus.data", "orpheus.geometry", "orpheus.mesh", "orpheus.numerics", "orpheus.specification", "orpheus.reference", "orpheus.transport",
-             "orpheus.derivations.continuous.characteristic", "orpheus.diffusion")
+_PACKAGES = (orpheus.values, orpheus.data, orpheus.geometry, orpheus.mesh, orpheus.numerics, orpheus.specification, orpheus.reference,
+             orpheus.transport, orpheus.derivations.continuous.characteristic, orpheus.diffusion)
 
 
 def _content_classes() -> list[type]:
     import importlib
     import pkgutil
 
-    for name in _PACKAGES:
-        package = importlib.import_module(name)
-        for info in pkgutil.walk_packages(package.__path__, prefix=f"{name}."):
+    for package in _PACKAGES:
+        for info in pkgutil.walk_packages(package.__path__, prefix=f"{package.__name__}."):
             importlib.import_module(info.name)
     found: list[type] = []
     stack = list(ContentIdentity.__subclasses__())
@@ -184,7 +193,7 @@ def _content_classes() -> list[type]:
             found.append(cls)
             stack.extend(cls.__subclasses__())
     # the population is STATED: the classes defined under the walked packages, never whatever else the run has imported
-    return [c for c in found if c.__module__.startswith(tuple(f"{name}." for name in _PACKAGES))]
+    return [c for c in found if c.__module__.startswith(tuple(f"{package.__name__}." for package in _PACKAGES))]
 
 
 def _owner(cls: type, name: str) -> type:

@@ -642,12 +642,20 @@ def test_m6_the_locked_symbols_of_the_package_are_exactly_the_506_set():
     ``reference``, ``ps1982_reference``): every function and method locked
     at import is in the #506 set, carries the package's one constant, and
     every member of the set is locked."""
-    import importlib
+    from orpheus.derivations.continuous.peierls_nystrom import (
+        cases,
+        cylinder,
+        geometry,
+        naming,
+        ps1982_reference,
+        reference,
+        slab,
+        sphere,
+    )
 
     found: dict[str, set[str]] = {}
-    for module_name in ("geometry", "slab", "cylinder", "sphere", "cases", "naming",
-                        "reference", "ps1982_reference"):
-        module = importlib.import_module(f"{_PACKAGE}.{module_name}")
+    for module in (geometry, slab, cylinder, sphere, cases, naming, reference, ps1982_reference):
+        module_name = module.__name__.rpartition(".")[2]
         locked: set[str] = set()
         for value in vars(module).values():
             if getattr(value, "__module__", None) != module.__name__:

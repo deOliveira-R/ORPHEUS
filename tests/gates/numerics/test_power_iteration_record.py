@@ -32,6 +32,7 @@ import inspect
 import numpy as np
 import pytest
 
+from orpheus.numerics import iteration
 from orpheus.numerics.convergence import (
     IterationBudget,
     IterationRecord,
@@ -159,30 +160,23 @@ class TestTheMinOuterRuleIsStatedOnce:
     def test_the_constant_is_the_rule(self) -> None:
         assert MINIMUM_OUTER_ITERATIONS == 3
 
-    @pytest.mark.parametrize(
-        "module_path,class_name",
-        [
-            ("orpheus.numerics.iteration", "KEigenvalue"),
-            ("orpheus.sn.solver", "SNSolver"),
-            ("orpheus.cp.solver", "CPSolver"),
-            ("orpheus.moc.core", "MOCSolver"),
-            ("orpheus.diffusion.solver", "DiffusionSolver"),
-        ],
-    )
-    def test_no_realizer_can_see_the_iteration_index(
-        self, module_path: str, class_name: str,
-    ) -> None:
-        """No realizer's measurement method takes ``iteration``.
+    def test_no_realizer_can_see_the_iteration_index(self) -> None:
+        """The numerics realizer's measurement method does not take ``iteration``.
 
         The teeth are STRUCTURAL, not stylistic.  A realizer that cannot see
         the iteration index cannot re-introduce a per-solver min-outer guard,
-        so the rule stays where the algorithm owns it.  Checking the five by
+        so the rule stays where the algorithm owns it.  Checking it by
         signature also pins the retirement itself: a survivor still spelling
-        ``converged(...)`` fails the first assertion.
+        ``converged(...)`` fails the first assertion.  The four method
+        realizers (SN, CP, MoC, diffusion) are checked by the same three
+        assertions in ``tests/gates/cross_method/test_family_convergence_contract.py``
+        (``test_no_method_realizer_can_see_the_iteration_index``): they moved
+        there on 2026-10-26, when ruling 27 of the layer DAG turned their string
+        imports into statements and a numerics gate importing four methods
+        became visible.
         """
-        import importlib
-
-        cls = getattr(importlib.import_module(module_path), class_name)
+        class_name = "KEigenvalue"
+        cls = getattr(iteration, class_name)
         assert hasattr(cls, "measure_stopping_criteria"), (
             f"{class_name} has not migrated off the retired predicate"
         )

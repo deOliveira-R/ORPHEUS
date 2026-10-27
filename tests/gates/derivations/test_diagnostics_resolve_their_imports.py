@@ -94,6 +94,7 @@ import importlib
 import importlib.util
 import pathlib
 import subprocess
+import typing
 
 import pytest
 
@@ -261,7 +262,7 @@ class TestTheGateItselfHasTeeth:
         silently re-introduce it. ``typing`` defines a module-level
         ``__getattr__``, so an absent name there must NOT be reported.
         """
-        assert hasattr(importlib.import_module("typing"), "__getattr__")
+        assert hasattr(typing, "__getattr__")
         assert (
             _unresolvable(
                 "from typing import a_name_typing_does_not_export\n", where="<probe>"

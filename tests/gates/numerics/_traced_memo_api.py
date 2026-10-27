@@ -1,8 +1,9 @@
 r"""One spelling of the traced memo's API for the M1–M5 gates (#405 P3, ``.claude/plans/reference_p3_spec.md``).
 
-Every production name the gates touch is resolved HERE, at call time (lessons ``L100``: a battery that
-rebinds a module attribute must reach every row): if the build lands a different module path or name, this
-file is the one edit. The declared API (spec §0.2):
+Every production name the gates touch is resolved HERE, at call time, off the module imported at the top
+(lessons ``L100``: a battery that rebinds a module attribute must reach every row; layer DAG ruling 27: the module is
+imported by statement, not by string): if the build lands a different module path or name, this file is the one
+edit. The memoised clients (``CLIENTS``) live in ``test_traced_memo_clients.py``, their one consumer. The declared API (spec §0.2):
 
 * ``traced_memo(function)`` / ``traced_memo(canonical={param: f})``: the decorator, returning a ``TracedMemo``
   with ``__call__``, ``lookup(*args, **kwargs) -> Verdict`` (no generation), ``key(*args, **kwargs) -> str``,
@@ -19,14 +20,16 @@ file is the one edit. The declared API (spec §0.2):
 """
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
-MODULE = "orpheus.numerics.traced_memo"
+from orpheus.numerics import traced_memo as _traced_memo
+
+#: The module's name, for the sources the gates write (a synthetic package's or a subprocess's import line).
+MODULE = _traced_memo.__name__
 
 
 def module() -> Any:
-    return importlib.import_module(MODULE)
+    return _traced_memo
 
 
 def name(attribute: str) -> Any:
@@ -139,39 +142,6 @@ def verdict_kind(verdict: Any) -> str:
         raise AssertionError(f"not a verdict: {verdict!r}")
     return kind
 
-
-# ── the P3 clients (step 4): where each memo is bound ────────────────────────────
-
-#: (module, dotted attribute) of each memoised client: the characteristic reference's reading (its ``evaluate``, keyed on
-#: the derivation's content and the observable) and its solve (its ``solve``, keyed on the derivation, a child entry of
-#: every reading since #592). The trajectory resolvent's three clients (its two multi-region solvers and its reading)
-#: were deleted with the family in step (e2) of the characteristic-reference campaign. The
-#: exact infinite medium is NOT a client: its reading costs less than an interpreter start (the user's ruling of
-#: 2026-10-04, ``reference_cache.md`` "P3 specification ruled", Q5).
-CLIENTS = {
-    "characteristic_reading": ("orpheus.derivations.continuous.characteristic.reference", "CharacteristicDerivation.evaluate"),
-    "characteristic_solve": ("orpheus.derivations.continuous.characteristic.reference", "CharacteristicDerivation.solve"),
-}
-
-
-def spelled_function_id(name_: str) -> str:
-    """The function id a client WOULD have (``module:qualname``, ``TracedMemo.function_id``'s spelling), read off
-    :data:`CLIENTS` without importing the attribute: a gate can then name a client the tree does not yet bind and
-    red on its claim, not on an ``AttributeError``. ``test_m4_1`` checks it equals each bound client's own id."""
-    module_name, dotted = CLIENTS[name_]
-    return f"{module_name}:{dotted}"
-
-
-def client(name_: str) -> Any:
-    module_name, dotted = CLIENTS[name_]
-    value: Any = importlib.import_module(module_name)
-    for part in dotted.split("."):
-        value = getattr(value, part)
-    return value
-
-
-def function_id(name_: str) -> str:
-    return client(name_).function_id
 
 
 class GenerationCounter:

@@ -169,8 +169,16 @@ DIFFUSION_DECLARATIONS: tuple[Declaration, ...] = (("vacuum",), ("mirror",), ("a
 CP_DECLARATIONS: tuple[Declaration, ...] = (("vacuum",), ("white", 1.0))
 MOC_CELLS = (5, 5)
 MOC_ARGS = dict(n_azi=8, n_polar=2, ray_spacing=0.1)
+class _MCSettings(TypedDict):
+    n_neutrons: int
+    n_inactive: int
+    n_active: int
+    pitch: float
+    seed: int
+
+
 #: MC: the slab periodic on both faces, materials 2 (fuel) and 0 (moderator), a fixed seed.
-MC_PARAMS = dict(n_neutrons=200, n_inactive=5, n_active=20, pitch=3.0, seed=12345)
+MC_PARAMS: _MCSettings = {"n_neutrons": 200, "n_inactive": 5, "n_active": 20, "pitch": 3.0, "seed": 12345}
 
 
 def other_key(method: str, chart: str, declaration: Declaration) -> str:

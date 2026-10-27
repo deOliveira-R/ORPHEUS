@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import importlib
 import inspect
 import math
 import os
@@ -37,6 +36,8 @@ from typing import Any, assert_never
 import numpy as np
 import pytest
 
+from orpheus.numerics import enclosure as enclosure_module
+from orpheus.numerics import observable as observable_module
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from tests.gates._content_identity_helpers import require
 
@@ -44,12 +45,12 @@ pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_observable.py"
 _ROOT = Path(__file__).resolve().parents[3]
-_MODULE = "orpheus.numerics.observable"
+_MODULE = observable_module.__name__
 _KINDS = ("FluxIntegral", "Ratio", "Eigenvalue", "PointValue")
 
 
 def _mod() -> Any:
-    return importlib.import_module(_MODULE)
+    return observable_module
 
 
 def _cls(name: str) -> Any:
@@ -227,7 +228,7 @@ _BAD_OPERANDS = (
     ("float", lambda: 1.0),
     ("a-mesh-free-function", _table),
     ("none", lambda: None),
-    ("an-enclosure", lambda: importlib.import_module("orpheus.numerics.enclosure").Enclosure(1.0, 0.0)),
+    ("an-enclosure", lambda: enclosure_module.Enclosure(1.0, 0.0)),
 )
 
 

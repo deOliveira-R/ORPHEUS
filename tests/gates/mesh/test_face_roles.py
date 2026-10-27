@@ -26,7 +26,8 @@ partition. Claims, with layer and kind (``vv-principles``):
   duplicated ``tests/gates/mesh/test_mesh1d.py::TestConstructionLaws::test_refusal[string-role]``, which reddened with
   it under the one mutation of the pair.
 
-Every new attribute is read at run time, so each row's red is its own. First reds at the base tip ``dec1f9ff``:
+Every new attribute is read at run time, so each row's red is its own (``orpheus.mesh.face_roles`` is imported at the
+top since 2026-10-26, layer DAG ruling 27; until then it was imported lazily by string). First reds at the base tip ``dec1f9ff``:
 ``orpheus.mesh.face_roles`` does not exist (every ``TestFaceRolesOver`` row); ``Mesh1D(... face_roles=...)`` is an
 unexpected keyword (``TestMeshesStoreFaceRoles``); ``Mesh1D`` has no ``symmetry`` (gate 6); ``orpheus.mesh.face_laws``
 and ``FaceLaws`` exist (``TestFaceLawsIsRetired``).
@@ -46,7 +47,6 @@ Mutations, for the reviewers (each on a COPY of the module named):
 from __future__ import annotations
 
 import ast
-import importlib
 import importlib.util
 import inspect
 from pathlib import Path
@@ -59,7 +59,7 @@ import orpheus.mesh as mesh_package
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.colouring import UncomputedSymmetries
 from orpheus.geometry.deck import DeckError, MirrorDeck, TranslationDeck, tags_of
-from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
+from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher, face_roles
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import require
 from tests.gates.geometry._face_fixtures import SLABS as _SLABS
@@ -74,16 +74,6 @@ _ROOT = Path(__file__).resolve().parents[3]
 _CART, _CYL, _SPH = CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL
 _REFUSAL = r"N\(G_c\)/G_c"
 
-
-class _Lazy:
-    def __init__(self, name: str) -> None:
-        self._name = name
-
-    def __getattr__(self, attr: str) -> Any:
-        return getattr(importlib.import_module(self._name), attr)
-
-
-face_roles: Any = _Lazy("orpheus.mesh.face_roles")
 
 
 # ── FaceRoles.over ───────────────────────────────────────────────────────────
@@ -106,7 +96,7 @@ class TestFaceRolesOver:
         require(parameter.kind is inspect.Parameter.KEYWORD_ONLY, f"coord is {parameter.kind}")
         require(parameter.default is inspect.Parameter.empty, f"coord has the default {parameter.default!r}")
         with pytest.raises(TypeError, match="coord"):
-            face_roles.FaceRoles.over(("xmin", "xmax"), {"xmin": 0, "xmax": 0}, "m.face_roles")
+            face_roles.FaceRoles.over(("xmin", "xmax"), {"xmin": 0, "xmax": 0}, "m.face_roles")  # type: ignore[call-arg]  (the refusal under test)
 
     @pytest.mark.parametrize("label", list(_INVENTORIES))
     def test_tags_build_in_inventory_order(self, label: str) -> None:

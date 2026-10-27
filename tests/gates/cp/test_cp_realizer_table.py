@@ -51,10 +51,9 @@ M-inner-honoured (CP's inner face admitting a condition: the hollow-inner rows r
 
 from __future__ import annotations
 
-import importlib
-
 import pytest
 
+from orpheus.cp import solver
 from tests.gates.transport import _wave2_s4_helpers as H
 
 _THIS = "tests/gates/cp/test_cp_realizer_table.py"
@@ -74,7 +73,6 @@ def test_the_cp_table_is_sealed_and_the_old_registry_is_gone() -> None:
     Red input at the base tip: ``orpheus.cp.solver`` cannot be imported (the retired ``BC``), and once it can, the table does not exist
     while ``BC_REGISTRY`` does. Mutation: the table built with ``unregistered_issue=659`` (SN's); ``BC_REGISTRY`` restored.
     """
-    solver = importlib.import_module("orpheus.cp.solver")
     B = H.bc()
     table = H.cp_table()
     assert isinstance(table, B.RealizerTable)

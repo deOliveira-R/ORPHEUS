@@ -50,7 +50,6 @@ sites XPASS, strictly red), M-mc-weight-gate (the refusal only at weight 1.0: th
 from __future__ import annotations
 
 import ast
-import importlib
 from functools import cache
 from pathlib import Path
 from typing import Any
@@ -58,6 +57,8 @@ from typing import Any
 import numpy as np
 import pytest
 
+from orpheus.mc import solver
+from tests.gates.mc import test_gaps, test_properties
 from tests.gates.transport import _carry_cases as carry
 from tests.gates.transport import _wave2_s4_helpers as H
 
@@ -76,7 +77,6 @@ def test_the_mc_table_is_sealed_and_the_old_registry_is_gone() -> None:
     Red input at the base tip: ``orpheus.mc.solver`` cannot be imported (the retired ``BC``); once it can, the table does not exist while
     ``BC_REGISTRY`` does. Mutation: M-bc-kind-restored.
     """
-    solver = importlib.import_module("orpheus.mc.solver")
     B = H.bc()
     table = H.mc_table()
     assert isinstance(table, B.RealizerTable)
@@ -153,8 +153,8 @@ def test_mc_does_not_compare_the_pitch_with_the_extent() -> None:
 #: ``5d04c296`` plus one are 692 and 157). The plan's third row, ``test_properties.py:204``, declares a SPHERE: its subject is the
 #: coordinate-system rejection, which precedes the binding, so it is an ordinary ``pytest.raises`` row and not an xfail.
 _XFAIL_SITES = (
-    ("test_gaps", "test_mcmesh_vs_concentric_keff"),
-    ("test_properties", "test_mcmesh_cylindrical_lookup"),
+    (test_gaps, "test_mcmesh_vs_concentric_keff"),
+    (test_properties, "test_mcmesh_cylindrical_lookup"),
 )
 
 
@@ -171,11 +171,12 @@ def test_the_mc_cylinder_sites_are_strict_xfails_naming_547() -> None:
     """
     B = H.bc()
     assert len(_XFAIL_SITES) == 2 and len(set(_XFAIL_SITES)) == 2
-    for module_name, func in _XFAIL_SITES:
+    for module, func in _XFAIL_SITES:
+        module_name = module.__name__.rpartition(".")[2]
         path = _HERE / f"{module_name}.py"
         defs = {n.name: ast.unparse(n) for n in ast.walk(ast.parse(path.read_text())) if isinstance(n, ast.FunctionDef)}
         assert func in defs and "MCMesh(" in defs[func], f"{module_name}::{func}: not found, or no MCMesh construction in its body"
-        target = getattr(importlib.import_module(f"tests.gates.mc.{module_name}"), func)
+        target = getattr(module, func)
         marks = [m for m in getattr(target, "pytestmark", []) if m.name == "xfail"]
         assert len(marks) == 1, f"{module_name}::{func}: {len(marks)} xfail marks"
         kwargs = marks[0].kwargs

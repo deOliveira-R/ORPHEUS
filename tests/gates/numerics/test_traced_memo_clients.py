@@ -6,7 +6,7 @@ reference are the rows below "the characteristic reading" (and the synthetic chi
 ``test_traced_memo_process.py``).
 
 Spec ``.claude/plans/reference_p3_spec.md`` §1.4, gates M4.1–M4.10. Client names are resolved through
-``_traced_memo_api.CLIENTS``. The real-tree mutation witnesses (M4.4) run on a COPY of ``orpheus/``'s Python
+:data:`CLIENTS` (this file). The real-tree mutation witnesses (M4.4) run on a COPY of ``orpheus/``'s Python
 files in ``tmp_path``, in a fresh interpreter whose ``sys.path`` starts at the copy; no tracked file is edited.
 """
 from __future__ import annotations
@@ -29,6 +29,46 @@ pytestmark = pytest.mark.foundation
 REPO = Path(__file__).resolve().parents[3]
 
 
+# ── the P3 clients (step 4): where each memo is bound ────────────────────────────
+
+#: The dotted attribute of each memoised client in :func:`_client_module`: the characteristic reference's reading (its
+#: ``evaluate``, keyed on the derivation's content and the observable) and its solve (its ``solve``, keyed on the
+#: derivation, a child entry of every reading since #592). The trajectory resolvent's three clients (its two
+#: multi-region solvers and its reading) were deleted with the family in step (e2) of the characteristic-reference
+#: campaign. The exact infinite medium is NOT a client: its reading costs less than an interpreter start (the user's
+#: ruling of 2026-10-04, ``reference_cache.md`` "P3 specification ruled", Q5). Moved here from ``_traced_memo_api``
+#: on 2026-10-26, its one consumer (layer DAG ruling 27: as an import statement, the module is a derivation).
+CLIENTS = {
+    "characteristic_reading": "CharacteristicDerivation.evaluate",
+    "characteristic_solve": "CharacteristicDerivation.solve",
+}
+
+
+def _client_module() -> Any:
+    """The module both clients live in, imported at first use (the derivation is not loaded at collection)."""
+    from orpheus.derivations.continuous.characteristic import reference
+
+    return reference
+
+
+def spelled_function_id(name_: str) -> str:
+    """The function id a client has (``module:qualname``, ``TracedMemo.function_id``'s spelling), spelled from
+    :data:`CLIENTS` and the module's name, not read off the bound memo; ``test_m4_1`` checks it equals each bound
+    client's own id."""
+    return f"{_client_module().__name__}:{CLIENTS[name_]}"
+
+
+def client(name_: str) -> Any:
+    value: Any = _client_module()
+    for part in CLIENTS[name_].split("."):
+        value = getattr(value, part)
+    return value
+
+
+def function_id(name_: str) -> str:
+    return client(name_).function_id
+
+
 def _exact_specification():
     from orpheus.data.cells import CellCoefficient, Channel
     from orpheus.data.macro_xs.synthetic import get_mixture
@@ -39,13 +79,13 @@ def _exact_specification():
 
 
 def test_m4_1_the_clients_are_traced_memos():
-    """M4.1 (a): every client of ``api.CLIENTS`` (the characteristic reading and its solve) is bound as a traced
+    """M4.1 (a): every client of :data:`CLIENTS` (the characteristic reading and its solve) is bound as a traced
     memo where every caller reaches it (the class attribute ``ReferenceSolution.read`` and ``answer`` call), and its
-    function id is the one ``api.spelled_function_id`` spells."""
+    function id is the one :func:`spelled_function_id` spells."""
     memo_type = api.name("TracedMemo")
-    for client in api.CLIENTS:
-        assert isinstance(api.client(client), memo_type), f"{client} is not a traced memo"
-        assert api.function_id(client) == api.spelled_function_id(client), client
+    for name_ in CLIENTS:
+        assert isinstance(client(name_), memo_type), f"{name_} is not a traced memo"
+        assert function_id(name_) == spelled_function_id(name_), name_
 
 
 # ── M4.4: the real-tree witnesses, on a copy ─────────────────────────────────────
@@ -160,11 +200,11 @@ def _tiny_characteristic_sphere(radius: float = 1.0) -> Any:
 
 
 def _characteristic_entries(root: Path) -> list[Path]:
-    return [f for f in api.entry_files(root) if api.entry_function(f) == api.function_id("characteristic_reading")]
+    return [f for f in api.entry_files(root) if api.entry_function(f) == function_id("characteristic_reading")]
 
 
 def _solve_entries(root: Path) -> list[Path]:
-    return [f for f in api.entry_files(root) if api.entry_function(f) == api.spelled_function_id("characteristic_solve")]
+    return [f for f in api.entry_files(root) if api.entry_function(f) == spelled_function_id("characteristic_solve")]
 
 
 #: What the solve runs and the reading, since #592, does not: the closure's least solution and the pencil's mode.
@@ -208,7 +248,7 @@ def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pi
     from orpheus.derivations.continuous.characteristic import lines as _lines
     assert not hasattr(_lines, "impact_per_polar"), "impact_per_polar is back: re-point this leg at it"
     children = api.manifest_rows(entry, "ChildPin")
-    assert [c[0] for c in children] == [api.spelled_function_id("characteristic_solve")], children
+    assert [c[0] for c in children] == [spelled_function_id("characteristic_solve")], children
     (solve_file,) = _solve_entries(tmp_path)
     assert solve_file.stem == children[0][1], (solve_file.stem, children[0][1])
     solve = api.read_entry(solve_file)
@@ -533,7 +573,7 @@ def test_m4_14_a_point_reading_pins_the_blocks_as_children_and_assembles_none(tm
     assert len(blocks) == 2, blocks
     block_keys = sorted(f.stem for f in blocks)
     reading_children = api.manifest_rows(reading, "ChildPin")
-    assert sorted(c[0] for c in reading_children) == sorted([api.spelled_function_id("characteristic_solve")] + [BLOCK_ID] * 2), reading_children
+    assert sorted(c[0] for c in reading_children) == sorted([spelled_function_id("characteristic_solve")] + [BLOCK_ID] * 2), reading_children
     assert sorted(c[1] for c in reading_children if c[0] == BLOCK_ID) == block_keys
     assert sorted(c[1] for c in api.manifest_rows(solve, "ChildPin")) == block_keys
     functions = {q for _, q, *_ in api.manifest_rows(reading, "DefPin")}

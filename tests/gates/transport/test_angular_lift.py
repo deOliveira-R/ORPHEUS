@@ -40,6 +40,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.problem import SNProblem
+from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
@@ -97,7 +98,7 @@ def _cotangent(sn: SNProblem, seed: int) -> FullField:
     return FullField(
         interior=AngularSourceSink(values=rng.standard_normal(interior.shape), space=interior),
         boundary=AngularBoundaryFlux.zeros(sn.angular_trace).into_role(
-            __import__("orpheus.transport.fields._bases", fromlist=["FieldRole"]).FieldRole.SOURCE_SINK,
+            FieldRole.SOURCE_SINK,
             np.zeros(sn.angular_trace.shape),
         ),
     )

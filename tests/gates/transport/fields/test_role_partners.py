@@ -33,6 +33,8 @@ from typing import ClassVar
 import numpy as np
 import pytest
 
+import orpheus.transport.fields
+import orpheus.transport.residuals
 from orpheus.numerics.field import Field
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, SCALAR_RATE_UNITS, Unit
@@ -41,8 +43,8 @@ from orpheus.transport.fields._bases import FieldRole, RolePair, ScalarField
 pytestmark = pytest.mark.foundation
 
 _PACKAGES = (
-    "orpheus.transport.fields",
-    "orpheus.transport.residuals",
+    orpheus.transport.fields,
+    orpheus.transport.residuals,
 )
 
 #: The declared population — the second source the walk is checked against.
@@ -71,10 +73,9 @@ def _all_subclasses(cls: type) -> set[type]:
 
 def _population() -> dict[str, type]:
     r"""Every CONCRETE transport leaf, by name, after importing every module."""
-    for name in _PACKAGES:
-        pkg = importlib.import_module(name)
+    for pkg in _PACKAGES:
         for module in pkgutil.iter_modules(pkg.__path__):
-            importlib.import_module(f"{name}.{module.name}")
+            importlib.import_module(f"{pkg.__name__}.{module.name}")  # the walk: discovered, not written
     leaves = {
         c.__name__: c
         for c in _all_subclasses(Field)

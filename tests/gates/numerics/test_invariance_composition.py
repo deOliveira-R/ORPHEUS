@@ -43,7 +43,7 @@ own installation; group answers are compared as SETS.
 from __future__ import annotations
 
 import functools
-import importlib
+import importlib.util
 import json
 import pathlib
 import re
@@ -52,6 +52,7 @@ import numpy as np
 import pytest
 from scipy.optimize import linear_sum_assignment
 
+from orpheus.geometry import manifold, symmetry
 from orpheus.geometry.deck import mirror_motion, translation_motion
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.geometry.manifold import (
@@ -66,6 +67,7 @@ from orpheus.geometry.manifold import (
     Quotient,
     RealSpace,
 )
+from orpheus.numerics import measure
 from orpheus.numerics.index_set import ENERGY, EnergyGroups, IndexSet
 from orpheus.numerics.measure import DiscreteMeasure, equispaced
 from orpheus.numerics.quadrature import Quadrature, quadrature_registry
@@ -118,16 +120,12 @@ _DOWNWARD = "tests/gates/numerics/test_invariance_verdicts.py::test_invariance_i
 # ---------------------------------------------------------------------------
 
 
-def _api(dotted: str):
-    """Resolve a post-S5 name at RUN time, or fail the row naming it."""
-    module, _, attr = dotted.rpartition(".")
-    try:
-        obj = importlib.import_module(module)
-    except ModuleNotFoundError:
-        pytest.fail(f"S5 API absent: module {module}")
-    if not hasattr(obj, attr):
-        pytest.fail(f"S5 API absent: {dotted}")
-    return getattr(obj, attr)
+def _api(module, attr: str):
+    """Read a post-S5 name off its module at RUN time (a rebinding of the module attribute reaches the row), or
+    fail the row naming it."""
+    if not hasattr(module, attr):
+        pytest.fail(f"S5 API absent: {module.__name__}.{attr}")
+    return getattr(module, attr)
 
 
 def _method(obj, name: str):
@@ -343,7 +341,7 @@ class TestTheNonGSpaceSupportsAreRefused:
 
     @pytest.mark.parametrize("case", ["energy", "index", "product", "fundamental_domain"])
     def test_the_support_has_no_action_verb(self, case):
-        gspace = _api("orpheus.geometry.manifold.GSpace")
+        gspace = _api(manifold, "GSpace")
         support = self._measure(case).support
         assert not isinstance(support, gspace)
         assert not hasattr(support, "action")
@@ -371,7 +369,7 @@ class TestTheGSpaceFamily:
     @pytest.mark.parametrize("member", ["sphere", "ball", "real_1", "real_2", "real_3",
                                         "circle", "interval", "quotient"])
     def test_the_six_families_are_G_spaces(self, member):
-        gspace = _api("orpheus.geometry.manifold.GSpace")
+        gspace = _api(manifold, "GSpace")
         support = {
             "sphere": SPHERE, "ball": Ball(3), "real_1": RealSpace(1), "real_2": RealSpace(2),
             "real_3": RealSpace(3), "circle": CIRCLE, "interval": COSINE_INTERVAL,
@@ -649,7 +647,7 @@ class TestRelabellingTo:
 
     @pytest.mark.parametrize("scale,matches", [(0.5, True), (2.0, False)])
     def test_the_node_window_is_the_weight_window_times_the_factor(self, scale, matches):
-        window = _api("orpheus.numerics.measure.WEIGHT_ATOL") * 100.0
+        window = _api(measure, "WEIGHT_ATOL") * 100.0
         shifted = _P + np.array([[scale * window, 0, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0]])
         nu = DiscreteMeasure(nodes=shifted, weights=np.ones(4), support=RealSpace(3))
         mu = DiscreteMeasure(nodes=_P, weights=np.ones(4), support=RealSpace(3))
@@ -961,7 +959,7 @@ def _independent_maximal(true_names: set[str], cands: list[SubgroupOfO3]) -> set
     ("Trivial",),
 ])
 def test_maximal_satisfying_returns_the_maximal_elements(true_names):
-    maximal_satisfying = _api("orpheus.geometry.symmetry.maximal_satisfying")
+    maximal_satisfying = _api(symmetry, "maximal_satisfying")
     cands = [_groups()[n] for n in _LATTICE]
     truth = set(true_names)
     for method in ("walk", "bruteforce"):
@@ -976,7 +974,7 @@ def test_walk_and_bruteforce_agree_on_a_predicate_that_is_NOT_downward_closed():
     agreement is therefore no evidence of downward closure; that law has its own gate
     (``test_invariance_verdicts.py::test_invariance_is_downward_closed``). This row pins the fact so
     nobody re-credits the agreement."""
-    maximal_satisfying = _api("orpheus.geometry.symmetry.maximal_satisfying")
+    maximal_satisfying = _api(symmetry, "maximal_satisfying")
     cands = [_groups()[n] for n in _LATTICE]
     pred = lambda g: g.name in ("D_4h", "C_2")  # noqa: E731 — C_2 true, D_2h false: not an ideal
     walk = {g.name for g in maximal_satisfying(pred, cands, method="walk")}
@@ -1002,10 +1000,10 @@ def test_the_record_is_downward_closed(label):
 def test_candidate_groups_reads_ambient_points():
     """``symmetry.candidate_groups(points)`` on the ambient barycentres equals the record
     on every answered rule."""
-    candidate_groups = _api("orpheus.geometry.symmetry.candidate_groups")
+    candidate_groups = _api(symmetry, "candidate_groups")
     # the node window the measure asks at: symmetry sits below the measure that
     # owns it, so the window is the caller's to state (orchestrator, 2026-10-19)
-    window = _api("orpheus.numerics.measure.WEIGHT_ATOL") * 100.0
+    window = _api(measure, "WEIGHT_ATOL") * 100.0
     for label in _ANSWERED:
         m, _ = _built(label)
         pts = _method(m.support, "ambient_points")(m.nodes)   # ruling 46
@@ -1018,26 +1016,29 @@ def test_candidate_groups_reads_ambient_points():
 
 
 def test_the_invariance_module_is_deleted():
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("orpheus.numerics.invariance")
+    assert importlib.util.find_spec("orpheus.numerics.invariance") is None
+    assert importlib.util.find_spec("orpheus.numerics.measure") is not None  # the positive control: a live sibling resolves
 
 
-@pytest.mark.parametrize("dotted", [
-    "orpheus.geometry.symmetry.OrbitCertificate",
-    "orpheus.geometry.symmetry.maximal_satisfying",
-    "orpheus.geometry.symmetry.maximal_subgroups",
-    "orpheus.geometry.symmetry.candidate_groups",
-    "orpheus.numerics.measure.WEIGHT_ATOL",
-    "orpheus.geometry.manifold.GSpace",
-])
-def test_each_piece_lives_where_the_design_puts_it(dotted):
-    _api(dotted)
+_PIECES = (
+    (symmetry, "OrbitCertificate"),
+    (symmetry, "maximal_satisfying"),
+    (symmetry, "maximal_subgroups"),
+    (symmetry, "candidate_groups"),
+    (measure, "WEIGHT_ATOL"),
+    (manifold, "GSpace"),
+)
+
+
+@pytest.mark.parametrize(("module", "attr"), _PIECES, ids=[f"{m.__name__}.{a}" for m, a in _PIECES])
+def test_each_piece_lives_where_the_design_puts_it(module, attr):
+    _api(module, attr)
 
 
 def test_one_weight_window_and_the_fold_defaults_to_it():
     import inspect
 
-    weight_atol = _api("orpheus.numerics.measure.WEIGHT_ATOL")
+    weight_atol = _api(measure, "WEIGHT_ATOL")
     assert weight_atol == 1e-13
     assert inspect.signature(Quadrature.quotient).parameters["atol"].default == weight_atol
     assert inspect.signature(DiscreteMeasure.is_invariant_under).parameters["atol"].default == weight_atol

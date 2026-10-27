@@ -59,6 +59,11 @@ import textwrap
 
 import pytest
 
+import orpheus.derivations.continuous.escape_probability
+import orpheus.derivations.continuous.pn_method
+import orpheus.derivations.continuous.spectral_collocation
+import orpheus.derivations.continuous.spectral_resolvent
+import orpheus.derivations.continuous.spn_method
 from tools.check_docstring_xrefs import (
     Outcome,
     _is_empty_namespace_package,
@@ -261,19 +266,17 @@ class TestTheEmptyNamespacePackageIsNotAModule:
     """
 
     RESERVED = (
-        "orpheus.derivations.continuous.spectral_resolvent",
-        "orpheus.derivations.continuous.pn_method",
-        "orpheus.derivations.continuous.escape_probability",
-        "orpheus.derivations.continuous.spectral_collocation",
-        "orpheus.derivations.continuous.spn_method",
+        orpheus.derivations.continuous.spectral_resolvent,
+        orpheus.derivations.continuous.pn_method,
+        orpheus.derivations.continuous.escape_probability,
+        orpheus.derivations.continuous.spectral_collocation,
+        orpheus.derivations.continuous.spn_method,
     )
 
-    @pytest.mark.parametrize("dotted", RESERVED)
-    def test_a_readme_only_directory_does_not_resolve(self, dotted: str) -> None:
-        """It imports clean, and it still is not a module."""
-        import importlib
-
-        module = importlib.import_module(dotted)
+    @pytest.mark.parametrize("module", RESERVED, ids=[m.__name__ for m in RESERVED])
+    def test_a_readme_only_directory_does_not_resolve(self, module) -> None:
+        """It imports clean (by the statements at the top), and it still is not a module."""
+        dotted = module.__name__
         assert module.__file__ is None, (
             f"{dotted} now has a __file__ — if the reserved solver was "
             f"implemented, drop it from RESERVED and restore the live :mod: role."

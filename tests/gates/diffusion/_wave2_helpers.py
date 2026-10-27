@@ -3,20 +3,19 @@ r"""Shared builders of the S3 gates on the diffusion boundary table (wave 2, WF2
 Not a test module (no ``test_`` prefix). Spec: ``.claude/plans/wave2_boundary_carve.md`` sections 2.7 (``ZeroFluxCondition``
 and ``DIFFUSION_REALIZERS``), 4.2 (the diffusion column), 6.0 (the carry fixture) and 6.3 (the eight done-when gates).
 
-Why this module imports no diffusion module at the top
-=====================================================
+How this module reads the production modules
+============================================
 
-At the base tip of slice S3 every ``orpheus.diffusion.*`` import raises ``ImportError``: the package ``__init__`` imports the
-solver, which imports ``augmented_mesh``, which imports ``resolve_boundary_conditions`` from ``orpheus.transport.method`` (S2b
-removed it). A collection-time import would turn every gate into the same collection error and hide which gate fails for which
-reason (``vv-principles`` anti-pattern 17c). So every diffusion module is read at first use, by the accessors below, inside each
-test, and each gate's first red names its own line: the missing module ``orpheus.diffusion.zero_flux``, the missing table
-``DIFFUSION_REALIZERS``, the missing keyword ``boundary_conditions``.
+The diffusion modules are imported at the top, as MODULES, and the accessors below read their attributes at call time, so a
+monkeypatch of a module attribute reaches every gate (layer DAG ruling 27: an import whose target is known when the test is written
+is an import statement, which the test-layer gate sees). Until 2026-10-26 they were imported by string at first use, because at the
+base tip of slice S3 every ``orpheus.diffusion`` import raised ``ImportError`` (``augmented_mesh`` imported a name S2b removed from
+``orpheus.transport.method``); that reason ended with the slice.
 
 What it builds
 ==============
 
-* the lazy accessors of the production names (:func:`table`, :func:`zero_flux_condition`, :func:`diffusion_module`);
+* the accessors of the production names (:func:`table`, :func:`zero_flux_condition`, :func:`minimal_space`);
 * the faces' :class:`~orpheus.transport.boundary_conditions.FaceSite` of the three geometric classes (:func:`site`), the same
   keys ``tests/gates/transport/_admission_helpers.site`` builds;
 * the carried diffusion problems of ``tests/gates/transport/_carry_cases.py`` in the NEW spelling (:func:`chart_mesh`,
@@ -29,12 +28,13 @@ What it builds
 
 from __future__ import annotations
 
-import importlib
 import types
 from typing import Any
 
 import numpy as np
 
+from orpheus.diffusion import augmented_mesh, boundary_realizer, method_space, solver, zero_flux
+from orpheus.transport import boundary_conditions
 from tests.gates.transport import _carry_cases as carry
 
 #: A fixed non-symmetric probe of a face operator's input (one outflow current per group; two groups here, but the realized
@@ -44,27 +44,22 @@ PROBE = np.array([0.7, 1.9, 3.1, 0.2, 5.3, 2.3])
 
 def bc() -> types.ModuleType:
     """``orpheus.transport.boundary_conditions``."""
-    return importlib.import_module("orpheus.transport.boundary_conditions")
-
-
-def diffusion_module(name: str) -> types.ModuleType:
-    """``orpheus.diffusion.<name>`` (read at first use: at the base tip the package ``__init__`` raises)."""
-    return importlib.import_module(f"orpheus.diffusion.{name}")
+    return boundary_conditions
 
 
 def table() -> Any:
     """``DIFFUSION_REALIZERS``, the sealed diffusion realizer table."""
-    return diffusion_module("boundary_realizer").DIFFUSION_REALIZERS
+    return boundary_realizer.DIFFUSION_REALIZERS
 
 
 def zero_flux_condition() -> Any:
     """The class ``ZeroFluxCondition`` (``orpheus/diffusion/zero_flux.py``)."""
-    return diffusion_module("zero_flux").ZeroFluxCondition
+    return zero_flux.ZeroFluxCondition
 
 
 def minimal_space() -> Any:
     """The metadata-free method space the albedo-family realizers read nothing from."""
-    return diffusion_module("method_space").DiffusionMethodSpace.minimal()
+    return method_space.DiffusionMethodSpace.minimal()
 
 
 def site(kind: str, face: str = "xmax") -> Any:
@@ -146,7 +141,6 @@ def build(chart: str, declaration: carry.Declaration) -> tuple[Any, dict[int, An
 
 def solve(mesh: Any, conditions: dict[int, Any] | None = None, materials: Any = None) -> Any:
     """``solve_diffusion_1d`` at its default tolerances (what the HEAD capture ran), with ``boundary_conditions=`` iff given."""
-    solver = diffusion_module("solver")
     mats = materials if materials is not None else carry.materials()
     if conditions is None:
         return solver.solve_diffusion_1d(mats, mesh)
@@ -155,11 +149,10 @@ def solve(mesh: Any, conditions: dict[int, Any] | None = None, materials: Any = 
 
 def diffusion_mesh(mesh: Any, conditions: dict[int, Any] | None = None, materials: Any = None) -> Any:
     """A ``DiffusionMesh`` over ``mesh`` with ``boundary_conditions=`` iff given."""
-    augmented = diffusion_module("augmented_mesh")
     mats = materials if materials is not None else carry.materials()
     if conditions is None:
-        return augmented.DiffusionMesh(mesh, mats)
-    return augmented.DiffusionMesh(mesh, mats, boundary_conditions=conditions)
+        return augmented_mesh.DiffusionMesh(mesh, mats)
+    return augmented_mesh.DiffusionMesh(mesh, mats, boundary_conditions=conditions)
 
 
 def summary(admission: Any) -> tuple:

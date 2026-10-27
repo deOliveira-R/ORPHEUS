@@ -46,6 +46,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import orpheus
 from tests.gates.sn.architecture import _realized_boundary_helpers as H
 from tests.gates.transport._boundary_conditions_helpers import local
 
@@ -125,7 +126,7 @@ def test_the_unregistered_door_names_the_state_cone_without_importing_diffusion(
         table.require(probes.NegativeProbe(), where)
     assert info.value.admission.axis is B.RefusalAxis.STATE_CONE
 
-    root = Path(os.path.abspath(__import__("orpheus").__file__)).parent.parent  # not resolve(): a symlinked tree must stay itself
+    root = Path(os.path.abspath(orpheus.__file__)).parent.parent  # not resolve(): a symlinked tree must stay itself
     code = "import sys, orpheus.sn.boundary.realizer; sys.exit(1 if any(m == 'orpheus.diffusion' or m.startswith('orpheus.diffusion.') for m in sys.modules) else 0)"
     done = subprocess.run([sys.executable, "-O", "-c", code], cwd="/", env={"PYTHONPATH": str(root), "PATH": "/usr/bin:/bin"}, capture_output=True, text=True)
     assert done.returncode == 0, f"importing the SN realizer imports diffusion (or fails): {done.stderr[-300:]}"

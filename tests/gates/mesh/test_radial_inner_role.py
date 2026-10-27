@@ -28,7 +28,6 @@ consulted for ``role_inner`` (the deck row); ``face_labels`` listing the inner r
 from __future__ import annotations
 
 import ast
-import importlib
 from pathlib import Path
 from typing import Any
 
@@ -45,6 +44,7 @@ from orpheus.mesh import (
     RadialAxisMesh,
     axes_from_legacy_mesh,
     face_labels,
+    legacy_adapter,
     legacy_mesh_from_axes,
 )
 from tests.gates._content_identity_helpers import require
@@ -200,8 +200,7 @@ class TestTheAdapterHoldsNoCavityAndNoGuard:
     """STRUCTURE: the synthetic reflective cavity and its guard are gone from ``legacy_adapter.py``."""
 
     def test_the_guard_and_the_literal_are_gone(self) -> None:
-        module = importlib.import_module("orpheus.mesh.legacy_adapter")
-        require(not hasattr(module, "_refuse_an_inner_law_the_radial_axis_drops"), "the guard is retired")
+        require(not hasattr(legacy_adapter, "_refuse_an_inner_law_the_radial_axis_drops"), "the guard is retired")
         source = (_ROOT / "orpheus" / "mesh" / "legacy_adapter.py").read_text()
         tree = ast.parse(source)
         strings = [n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)]
@@ -210,4 +209,4 @@ class TestTheAdapterHoldsNoCavityAndNoGuard:
         require("reflective" not in code_strings, "no code literal 'reflective' (the synthesized cavity)")
         names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)} | {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
         require("BC" not in names, "and no BC")
-        require(not hasattr(module, "_face_laws_of_axis"), "the helper is renamed with its content")
+        require(not hasattr(legacy_adapter, "_face_laws_of_axis"), "the helper is renamed with its content")

@@ -47,7 +47,6 @@ Mutations, for the reviewers (each on a COPY, never by ``git checkout``):
 from __future__ import annotations
 
 import ast
-import importlib
 import importlib.util
 import inspect
 import re
@@ -59,7 +58,7 @@ import numpy as np
 import pytest
 
 import orpheus.geometry as geometry_package
-from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.geometry import CoordSystem, StructuredGeometry, structured_geometry, symmetry
 from orpheus.geometry.deck import DeckError, MirrorDeck, TranslationDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.values.content import content_digest
@@ -343,7 +342,7 @@ def test_the_retired_spellings_are_gone() -> None:
 
     fields = [f.name for f in dataclasses.fields(StructuredGeometry)]
     require("face_roles" in fields and "boundaries" not in fields, f"the fields are {fields}")
-    structured = importlib.import_module("orpheus.geometry.structured_geometry")
+    structured = structured_geometry
     for name in ("parse_boundary_law", "parse_boundary_laws"):
         require(not hasattr(structured, name), f"{name} is retired")
         require(name not in getattr(structured, "__all__", ()), f"{name} is not exported")
@@ -352,8 +351,8 @@ def test_the_retired_spellings_are_gone() -> None:
         StructuredGeometry(coord=_CART, breakpoints=(0.0, 1.0), mat_ids=(0,), boundaries=(0, 1))  # type: ignore[call-arg]
 
 
-def _delegation_body(path: str, name: str) -> list[ast.stmt]:
-    tree = ast.parse((_ROOT / path).read_text())
+def _delegation_body(module: types.ModuleType, name: str) -> list[ast.stmt]:
+    tree = ast.parse(Path(str(module.__file__)).read_text())
     (fn,) = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == name]
     body = fn.body
     if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) and isinstance(body[0].value.value, str):
@@ -362,13 +361,13 @@ def _delegation_body(path: str, name: str) -> list[ast.stmt]:
 
 
 @pytest.mark.parametrize(
-    ("path", "name"),
+    ("module", "name"),
     [
-        ("orpheus/geometry/symmetry.py", "_reflections"),
+        (symmetry, "_reflections"),
     ],
     ids=["symmetry"],
 )
-def test_the_mirror_twins_delegate(path: str, name: str) -> None:
+def test_the_mirror_twins_delegate(module: types.ModuleType, name: str) -> None:
     """X4: one axis-letter to mirror spelling. Layer: architecture; kind STRUCTURE plus a message fragment.
 
     The body of each twin, past its docstring, is ONE statement and its only call into the motion algebra is
@@ -376,13 +375,12 @@ def test_the_mirror_twins_delegate(path: str, name: str) -> None:
     axis keeps the fragment "axis must be one of" (the pinned vocabulary). Red at base: both bodies are the
     original twins, and ``_reflections`` says "axis must be x/y/z".
     """
-    body = _delegation_body(path, name)
+    body = _delegation_body(module, name)
     require(len(body) == 1 and isinstance(body[0], ast.Return), f"{name}: one return statement, got {[type(s).__name__ for s in body]}")
     names = {n.id for n in ast.walk(body[0]) if isinstance(n, ast.Name)}
     attrs = {n.attr for n in ast.walk(body[0]) if isinstance(n, ast.Attribute)}
     require("mirror_motion" in names | attrs, f"{name} calls mirror_motion: names {sorted(names)}, attributes {sorted(attrs)}")
     require(not ({"AXIS_INDEX", "zeros", "reflection", "eye"} & (names | attrs)), f"{name} re-spells the mirror: {sorted(names | attrs)}")
-    module = importlib.import_module(path[:-3].replace("/", "."))
     twin = getattr(module, name)
     arguments = inspect.signature(twin).parameters
     with pytest.raises(ValueError, match="axis must be one of"):

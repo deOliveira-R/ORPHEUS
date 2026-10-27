@@ -20,7 +20,6 @@ at collection, so a mutation battery that rebinds it reaches every row
 
 from __future__ import annotations
 
-import importlib
 import math
 import os
 import pickle
@@ -33,6 +32,7 @@ from typing import Any
 
 import pytest
 
+from orpheus.numerics import enclosure
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -50,12 +50,11 @@ pytestmark = pytest.mark.foundation
 
 _HERE = "tests/gates/numerics/test_enclosure.py"
 _ROOT = Path(__file__).resolve().parents[3]
-_MODULE = "orpheus.numerics.enclosure"
 
 
 def _E() -> Any:
     """The class, read off its module now (a rebinding arm reaches it)."""
-    return importlib.import_module(_MODULE).Enclosure
+    return enclosure.Enclosure
 
 
 def _hull(e: Any) -> tuple[Fraction, Fraction]:
@@ -306,7 +305,7 @@ def _enc(value: float = 1.25, bound: float = 0.5) -> Any:
 
 ROSTER: tuple[Entry, ...] = (
     Entry(
-        cls=importlib.import_module(_MODULE).Enclosure,
+        cls=enclosure.Enclosure,
         base=_enc,
         parts=("value", "bound"),
         perturb={
@@ -382,7 +381,7 @@ def test_r1_8_the_module_is_numerics() -> None:
     require(file.startswith(str(_ROOT)), f"the subprocess imported {file} (L22)")
     require(packages == "['geometry', 'numerics', 'values']", f"loaded orpheus packages {packages}")
     require(sympy_loaded == "False", "the module loads SymPy")
-    module_file = importlib.import_module(_MODULE).__file__
+    module_file = enclosure.__file__
     require(module_file is not None, "the module has no file")
     ours: list[str] = []
     for node in ast.walk(ast.parse(Path(str(module_file)).read_text())):

@@ -33,6 +33,8 @@ from pathlib import Path
 
 import pytest
 
+from orpheus.numerics import _traced_memo_boot
+
 from . import _traced_memo_api as api
 from .test_traced_memo_findings import _Package
 
@@ -58,7 +60,7 @@ def make(tmp_path):
 
 
 def _boot():
-    return importlib.import_module("orpheus.numerics._traced_memo_boot")
+    return _traced_memo_boot
 
 
 def _bytecode_dir(optimize: int = sys.flags.optimize) -> Path:

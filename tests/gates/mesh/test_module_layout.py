@@ -10,10 +10,13 @@ geometry facade exports no response vocabulary, and the package was deleted in W
 """
 from __future__ import annotations
 
-import importlib
 import importlib.util
+import types
 
 import pytest
+
+import orpheus.geometry
+import orpheus.transport.mesh
 
 
 pytestmark = pytest.mark.foundation
@@ -33,22 +36,20 @@ def test_no_module_remains_at_an_old_home(old_module: str) -> None:
 @pytest.mark.parametrize(
     ("package", "names"),
     [
-        ("orpheus.geometry", ("Mesh1D", "Mesh2D", "RegionMesh", "pwr_pin_2d")),
+        (orpheus.geometry, ("Mesh1D", "Mesh2D", "RegionMesh", "pwr_pin_2d")),
         (
-            "orpheus.transport.mesh",
+            orpheus.transport.mesh,
             ("AxisMesh", "RadialAxisMesh", "Axis1D", "AxisCoord", "FaceLabel", "AXIS_NAMES"),
         ),
     ],
+    ids=["orpheus.geometry", "orpheus.transport.mesh"],
 )
-def test_no_old_package_re_exports_a_mesh_name(package: str, names: tuple[str, ...]) -> None:
-    module = importlib.import_module(package)
-    leaked = [name for name in names if hasattr(module, name)]
-    assert not leaked, f"{package} still exports {leaked}; import them from orpheus.mesh"
+def test_no_old_package_re_exports_a_mesh_name(package: types.ModuleType, names: tuple[str, ...]) -> None:
+    leaked = [name for name in names if hasattr(package, name)]
+    assert not leaked, f"{package.__name__} still exports {leaked}; import them from orpheus.mesh"
 
 
 def test_the_boundary_tag_and_its_package_are_gone() -> None:
-    import orpheus.geometry
-
     assert importlib.util.find_spec("orpheus.geometry.boundary") is None
     assert not hasattr(orpheus.geometry, "BC") and "BC" not in orpheus.geometry.__all__
     assert importlib.util.find_spec("orpheus.geometry.deck") is not None  # the positive control: the successor home resolves

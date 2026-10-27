@@ -67,11 +67,11 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
+from orpheus.transport.operators.integral_kernel_operator import IntegralKernelOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
 from tests.gates.transport._integral_kernel_helpers import (
     require,
-    require_integral_kernel_operator,
     require_production_rate_property,
     require_scattering_kernel_property,
 )
@@ -177,12 +177,11 @@ def multiplication_operator():
 class TestIntegralKernelPositive:
     def test_fission_operator_is_an_integral_kernel_operator(self, fission_op):
         """``FissionOperator`` satisfies the ``IntegralKernelOperator`` Protocol."""
-        IKO = require_integral_kernel_operator()
         # production_rate is the NEW S6 member that completes the Protocol;
         # skip cleanly if not yet landed (PRE-IMPL).
         require_production_rate_property(fission_op)
         require(
-            isinstance(fission_op, IKO),
+            isinstance(fission_op, IntegralKernelOperator),
             "FissionOperator must satisfy the IntegralKernelOperator Protocol; "
             f"isinstance returned False for {type(fission_op).__name__}.",
         )
@@ -191,10 +190,9 @@ class TestIntegralKernelPositive:
         self, scattering_op,
     ):
         """``ScatteringOperator`` satisfies the ``IntegralKernelOperator`` Protocol."""
-        IKO = require_integral_kernel_operator()
         require_scattering_kernel_property(scattering_op)
         require(
-            isinstance(scattering_op, IKO),
+            isinstance(scattering_op, IntegralKernelOperator),
             "ScatteringOperator must satisfy the IntegralKernelOperator "
             f"Protocol; isinstance returned False for "
             f"{type(scattering_op).__name__}.",
@@ -268,9 +266,8 @@ class TestLocalOperatorIsNotIntegralKernel:
         pointwise multiply, no integration against a measure. It exposes
         no ``kernel``, so it must NOT satisfy the Protocol.
         """
-        IKO = require_integral_kernel_operator()
         require(
-            not isinstance(multiplication_operator, IKO),
+            not isinstance(multiplication_operator, IntegralKernelOperator),
             "MultiplicationOperator (a LOCAL/diagonal operator) must NOT "
             "satisfy IntegralKernelOperator — it has no `kernel` (nonlocal "
             "measure-integration). isinstance returned True: the category "
@@ -293,9 +290,8 @@ class TestLocalOperatorIsNotIntegralKernel:
 
     def test_identity_operator_is_not_an_integral_kernel(self):
         """A pure-protocol LinearOperator (``IdentityOperator``) is not a Kernel."""
-        IKO = require_integral_kernel_operator()
         require(
-            not isinstance(IdentityOperator(), IKO),
+            not isinstance(IdentityOperator(), IntegralKernelOperator),
             "IdentityOperator (a LinearOperator) must NOT satisfy "
             "IntegralKernelOperator — it has no `kernel`.",
         )
@@ -318,9 +314,8 @@ class TestFunctionalIsNotIntegralKernel:
         S5 field→scalar maps. A Functional has neither ``kernel`` nor
         ``apply`` — it is a different suffix of the taxonomy.
         """
-        IKO = require_integral_kernel_operator()
         require(
-            not isinstance(production_rate_functional, IKO),
+            not isinstance(production_rate_functional, IntegralKernelOperator),
             "ReactionRateFunctional (a Functional, field→scalar) must NOT "
             "satisfy IntegralKernelOperator — it has no `kernel` and no "
             "`apply`. isinstance returned True: the Kernel category leaked "
@@ -357,14 +352,13 @@ class TestKernelIsNotJustLinearOperator:
         ``LinearOperator`` (the ``kernel`` refinement adds nothing). It
         must NOT.
         """
-        IKO = require_integral_kernel_operator()
         ident = IdentityOperator()
         require(
             isinstance(ident, LinearOperator),
             "Precondition: IdentityOperator is a LinearOperator (foil sanity).",
         )
         require(
-            not isinstance(ident, IKO),
+            not isinstance(ident, IntegralKernelOperator),
             "A LinearOperator that exposes no `kernel` (IdentityOperator) "
             "must NOT satisfy IntegralKernelOperator — else the Protocol is "
             "an alias of LinearOperator, not a refinement adding `kernel`.",

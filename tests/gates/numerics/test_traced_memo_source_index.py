@@ -353,7 +353,7 @@ def test_b5_a_real_manifest_is_the_same_from_a_cold_and_a_warm_index(tmp_path, m
     directory (every index parsed and written) and with the indexes it wrote (every index read, 0 parses).
     First red: an index that does not survive the disk."""
     memo = api.module()
-    boot = __import__("orpheus.numerics._traced_memo_boot", fromlist=["Recording"])
+    from orpheus.numerics import _traced_memo_boot as boot
     import numpy as np
 
     from orpheus.derivations.continuous.characteristic import PanelBasis, TransportResolution, Wall, Walls
@@ -612,7 +612,7 @@ def test_b12_a_processs_first_validation_reads_indexes_instead_of_parsing(tmp_pa
         _, manifest = api.trace_call(package.module().f, 1.0)
         files = {path for path, *_ in manifest.functions} | {path for path, _ in manifest.modules}
         assert files, "the manifest pins no source"
-        (tmp_path / "manifest.json").write_text(__import__("json").dumps(manifest.to_json()))
+        (tmp_path / "manifest.json").write_text(json.dumps(manifest.to_json()))
         warm, cold = tmp_path / "warm", tmp_path / "cold"
         monkeypatch.setattr(memo, "_SOURCE_INDEXES", warm)
         _generating(memo, monkeypatch)  # written under the disk source's name, which a fresh process reads by
@@ -624,7 +624,7 @@ def test_b12_a_processs_first_validation_reads_indexes_instead_of_parsing(tmp_pa
             script = _B12_VALIDATE.format(root=str(package.root), sources=str(directory), manifest=str(tmp_path / "manifest.json"))
             run = subprocess.run([sys.executable, "-c", script], cwd=REPO, capture_output=True, text=True)
             assert run.returncode == 0, run.stderr[-3000:]
-            results.append(__import__("json").loads(run.stdout.splitlines()[-1]))
+            results.append(json.loads(run.stdout.splitlines()[-1]))
     finally:
         package.close()
     assert results[0] == {"parses": 0, "reasons": []}, results[0]

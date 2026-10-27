@@ -16,10 +16,9 @@ The claims, each with its layer and its kind (``vv-principles``):
 * gate 10: identity of the content types (``MirrorDeck() == MirrorDeck()``, the roster rows live in
   ``test_content_identity_geometry.py``).
 
-The module imports nothing from ``orpheus.geometry.deck`` at collection: the production module does not exist at
-the base tip, and a collection error would hide which gate fails for which reason. Every row reads it through
-:data:`deck` at run time, so each red names its own line (``ModuleNotFoundError`` at the row's first use, or the
-row's own assertion once the module exists).
+Every row reads ``orpheus.geometry.deck`` through the module object :data:`deck`, imported at the top, so a
+monkeypatch of a module attribute reaches every row (layer DAG ruling 27). Until 2026-10-26 the module was imported
+lazily by string, because it did not exist at the base tip; that reason ended when it landed.
 
 Mutations (each applied to a COPY of ``deck.py``, never by ``git checkout``; the reviewers' battery):
 
@@ -36,7 +35,6 @@ from __future__ import annotations
 
 import ast
 import dataclasses
-import importlib
 import re
 from pathlib import Path
 from types import SimpleNamespace
@@ -45,7 +43,7 @@ from typing import Any, get_args
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem
+from orpheus.geometry import CoordSystem, deck
 from orpheus.geometry.faces import FACE_NAMES, face_normal, face_opposite
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.values.content import content_digest
@@ -65,18 +63,6 @@ _HERE = "tests/gates/geometry/test_deck.py"
 _REFLECTION_IS_AN_INVOLUTION = "tests/gates/geometry/test_transformation.py::test_c1_a_reflection_is_an_involution"
 _ROOT = Path(__file__).resolve().parents[3]
 
-
-class _Lazy:
-    """The production module, imported at first attribute read (see the module docstring)."""
-
-    def __init__(self, name: str) -> None:
-        self._name = name
-
-    def __getattr__(self, attr: str) -> Any:
-        return getattr(importlib.import_module(self._name), attr)
-
-
-deck: Any = _Lazy("orpheus.geometry.deck")
 
 #: The four classes the deferral table names and does not mint, with the stem each future type's name carries.
 _DEFERRED_STEMS = {
@@ -127,7 +113,9 @@ def test_isometry_classification_is_closed() -> None:
         require(row.isometry_class is cls, f"the deferral row of {cls} is keyed by another class")
         require(isinstance(row.trigger, str) and row.trigger.strip(), f"{cls}: the deferral names no trigger")
         require(row.name.startswith(_DEFERRED_STEMS[cls.name]), f"{cls}: the future type is named {row.name!r}")
-        require(dataclasses.is_dataclass(row) and row.__dataclass_params__.frozen, "a deferral row is a frozen value")
+        require(dataclasses.is_dataclass(row), f"{cls}: a deferral row is a dataclass")
+        with pytest.raises(dataclasses.FrozenInstanceError):
+            setattr(row, "trigger", "")  # a deferral row is a frozen value
 
 
 # ── gate 2: the match is exhaustive by type, not by runtime refusal ──────────

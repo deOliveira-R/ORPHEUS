@@ -3,15 +3,14 @@ r"""Shared builders of the S2b gates on the typed realized boundary operators (w
 Not a test module (no ``test_`` prefix). Spec: ``.claude/plans/wave2_boundary_carve.md`` sections 2.6, 3 (laws L-A, L-E,
 L-L) and 6.2 (S2b gates 4, 9, 13 to 20).
 
-Why this module imports no production module at the top
-=======================================================
+How this module reads the production modules
+============================================
 
-At the base tip of slice S2b ``import orpheus.transport`` raises ``ImportError`` (``method.py`` still imports the
-retired ``orpheus.geometry.BC``) and ``orpheus.sn.boundary.realized_operators`` does not exist. A collection-time
-import would turn every gate into the same collection error and hide which gate fails for which reason (``vv-principles``
-anti-pattern 17c). So every production module is read at first use, by the accessors below, and each gate's first red
-names its own line: the missing module for the typed operators (gates 14 to 18, 20), the missing table for the realizer
-rows (gates 4, 9, 13).
+The three modules the accessors :func:`ro`, :func:`sn_table` and :func:`bc` return are imported at the top, as MODULES, and
+their attributes are read at call time, so a monkeypatch of a module attribute reaches every gate (layer DAG ruling 27: an
+import whose target is known when the test is written is an import statement, which the test-layer gate sees). Until
+2026-10-26 they were imported by string at first use, because at the base tip of slice S2b ``import orpheus.transport``
+raised ``ImportError`` and ``orpheus.sn.boundary.realized_operators`` did not exist; that reason ended with the slice.
 
 What it builds
 ==============
@@ -28,11 +27,13 @@ What it builds
 
 from __future__ import annotations
 
-import importlib
 import types
 from typing import Any
 
 import numpy as np
+
+from orpheus.sn.boundary import realized_operators, realizer
+from orpheus.transport import boundary_conditions
 
 #: The four quadratures of the B3.4c measurement, plus the S16 slab of laws L-A (i) and L-E, lazily built.
 QUADRATURES: dict[str, Any] = {
@@ -57,17 +58,17 @@ def _quad() -> Any:
 
 def ro() -> types.ModuleType:
     """``orpheus.sn.boundary.realized_operators`` (the file S2b adds)."""
-    return importlib.import_module("orpheus.sn.boundary.realized_operators")
+    return realized_operators
 
 
 def sn_table() -> Any:
     """``SN_REALIZERS``, the sealed SN realizer table."""
-    return importlib.import_module("orpheus.sn.boundary.realizer").SN_REALIZERS
+    return realizer.SN_REALIZERS
 
 
 def bc() -> types.ModuleType:
     """``orpheus.transport.boundary_conditions`` (S2a)."""
-    return importlib.import_module("orpheus.transport.boundary_conditions")
+    return boundary_conditions
 
 
 def trace_of(quadrature: Any, faces: tuple[str, ...] = ("xmin", "xmax")) -> Any:

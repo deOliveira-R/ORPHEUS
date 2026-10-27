@@ -36,7 +36,6 @@ skipped: the carry row moves by O(1)).
 
 from __future__ import annotations
 
-import importlib
 import math
 from functools import cache
 from typing import Any
@@ -44,6 +43,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from orpheus.moc import geometry, solver
 from tests.gates.transport import _carry_cases as carry
 from tests.gates.transport import _wave2_s4_helpers as H
 
@@ -61,7 +61,6 @@ def test_the_moc_table_is_sealed_and_the_old_registry_is_gone() -> None:
     Red input at the base tip: ``orpheus.moc.geometry`` cannot be imported (the retired ``BC``); once it can, the table does not exist
     while ``BC_REGISTRY`` does. Mutation: M-bc-kind-restored.
     """
-    geometry = importlib.import_module("orpheus.moc.geometry")
     B = H.bc()
     table = H.moc_table()
     assert isinstance(table, B.RealizerTable)
@@ -86,7 +85,6 @@ def test_the_preset_declares_a_unit_specular_wall() -> None:
 
     Red input at the base tip: ``ImportError``. Mutation: M-preset-vacuum.
     """
-    solver = importlib.import_module("orpheus.moc.solver")
     mesh = solver.default_pin_cell_mesh()
     assert dict(mesh.face_roles) == {"xmax": 0}, f"the preset's roles are {dict(mesh.face_roles)}, not the tag 0 on the outer face"
     from orpheus.data.macro_xs.synthetic import get_mixture
@@ -106,7 +104,6 @@ def test_an_explicit_condition_overrides_the_preset() -> None:
 
     Red input: ``ImportError`` at the base tip. Mutation: a ``solve_moc`` that ignores the keyword (the vacuum row builds).
     """
-    solver = importlib.import_module("orpheus.moc.solver")
     B = H.bc()
     from orpheus.data.macro_xs.synthetic import get_mixture
 

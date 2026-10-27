@@ -48,6 +48,8 @@ other row is ``foundation``.
 """
 from __future__ import annotations
 
+import os
+
 import mpmath as mp
 import numpy as np
 import pytest
@@ -1227,7 +1229,7 @@ def test_the_laws_node_counts_meet_the_target_and_exceed_the_least_by_at_most_th
     rule = _pp_rule(chart, breakpoints, point, direction, speed, degree=degree)
     weight = np.ones((np.size(speed), 1)) if np.ndim(speed) else np.ones(1)
     reference = (rule.outflow(), rule.volterra(weight))
-    shift = int(__import__("os").environ.get("PL1_SHIFT", "0"))         # the arms: the law moved by PL1_SHIFT
+    shift = int(os.environ.get("PL1_SHIFT", "0"))         # the arms: the law moved by PL1_SHIFT
     errors = {j: _pl1_error(monkeypatch, row, shift + j, reference) for j in range(0, -(margin + 2), -1)}
     assert errors[0] <= _PL1_TARGET, ("SAFE", errors)
     least = min(j for j in errors if all(errors[k] <= _PL1_TARGET for k in errors if k >= j))

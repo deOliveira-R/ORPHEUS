@@ -34,13 +34,26 @@ allowed (``[M]`` 2026-10-25, qa: 22 files, numerics 15, data 6, mesh 1). Most
 of those edges were the synthetic cross-section catalogue, which moved to
 ``orpheus.data.macro_xs.synthetic``; the rest are listed below.
 
-Not seen, the declared blind spots: a module name handed to
-``importlib.import_module`` or ``__import__`` as a string; an import spelled
-inside a string literal (a subprocess source); and the TRANSITIVE cone of a
-root helper (a ``numerics`` gate importing ``tests.gates._exterior``, which
-imports ``orpheus.mesh``). The census of 2026-10-25
-(``scratch/layer_dag/refiling/census/test_imports.json``) counts the first
-two separately and lists the third under ``forbidden_via_root_helper``.
+An import by string is refused, so the scanner sees every edge it judges
+(layer DAG ruling 27, ``test_no_layered_gate_file_imports_a_project_module_by_string``): in a layered directory, a call to
+``import_module`` or ``__import__`` whose first argument is a constant
+string, or an f-string whose constant head names ``orpheus`` or
+``tests.gates.``, is red; the spelling is an import statement of the MODULE,
+its attribute read at call time. What stays dynamic, and is not judged: a
+walk over discovered modules (a variable or an expression argument, or an
+f-string that begins with a substitution, ``f"{package.__name__}.{name}"``);
+a synthetic package written at test time (the same shapes); an absence check,
+spelled ``importlib.util.find_spec(name) is None``, since an import statement
+cannot assert that a module is absent; the standard library; and the root
+files.
+
+Not seen, the declared blind spots: a walk's targets (discovered, not
+written); an import spelled inside a string literal (a subprocess source, or
+a synthetic package's module text); and the TRANSITIVE cone of a root helper
+(a ``numerics`` gate importing ``tests.gates._exterior``, which imports
+``orpheus.mesh``). The census of 2026-10-25
+(``scratch/layer_dag/refiling/census/test_imports.json``) counts the second
+separately and lists the third under ``forbidden_via_root_helper``.
 
 Today's violations are listed EXACTLY in ``OPEN_TEST_LAYER_VIOLATIONS``,
 keyed by (file, imported package), the way ``_OPEN_INTRA_PACKAGE_CYCLES``
@@ -56,6 +69,7 @@ marker in ``tests/_harness``, the conftests and ``tools/``).
 """
 from __future__ import annotations
 
+import ast
 import json
 import os
 import pathlib
@@ -166,6 +180,9 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("geometry/test_symmetry.py", "orpheus.numerics"),
         ("geometry/test_transformation.py", "orpheus.numerics"),
         ("mc/test_cross_verification.py", "orpheus.cp"),
+        # Hidden all along, visible since ruling 27 turned the string import into a statement (2026-10-26):
+        # the row of orpheus.transport.mesh in the old-homes census; its placement is a question to the orchestrator.
+        ("mesh/test_module_layout.py", "orpheus.transport"),
         ("moc/test_verification.py", "orpheus.cp"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.data"),
         ("numerics/_axis_marginal_lift_support.py", "orpheus.mesh"),
@@ -275,7 +292,14 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("specification/test_exterior_on_the_specification.py", "orpheus.transport"),
         ("transport/_functional_helpers.py", "orpheus.sn"),
         ("transport/_functional_helpers.py", "tests.gates.sn"),
-        ("transport/_wave2_s4_helpers.py", "tests.gates.cp"),
+        # Hidden all along, visible since ruling 27 (2026-10-26): the S4 helper's accessors of the CP, MoC and MC
+        # tables and solvers and of diffusion's ZeroFluxCondition, read by the cp/moc/mc table gates AND by two
+        # transport files that span the three tables (test_admission_matrix, test_wave2_s4_tables); the split by
+        # claim is a question to the orchestrator.
+        ("transport/_wave2_s4_helpers.py", "orpheus.cp"),
+        ("transport/_wave2_s4_helpers.py", "orpheus.diffusion"),
+        ("transport/_wave2_s4_helpers.py", "orpheus.mc"),
+        ("transport/_wave2_s4_helpers.py", "orpheus.moc"),
         ("transport/_wave2_s4_helpers.py", "tests.gates.diffusion"),
         ("transport/fields/test_angular_boundary_flux.py", "orpheus.sn"),
         ("transport/fields/test_angular_boundary_flux.py", "tests.gates.sn"),
@@ -442,6 +466,123 @@ def test_every_gate_file_imports_only_its_layer_but_the_listed_rows() -> None:
         f"{len(stale)} listed row(s) no longer violate; retire them from OPEN_TEST_LAYER_VIOLATIONS: "
         + "; ".join(stale)
     )
+
+
+# ---------------------------------------------------------------------------
+# No import by string (layer DAG ruling 27)
+# ---------------------------------------------------------------------------
+
+_RULING_27 = (
+    "an import whose target is known when the test is written is an import STATEMENT, so this gate sees it "
+    "(layer_dag.md ruling 27): write `from orpheus.numerics import enclosure` and read `enclosure.Enclosure` at "
+    "call time (a monkeypatch of the module attribute still reaches every row); an absence check is "
+    "`importlib.util.find_spec(name) is None`"
+)
+
+
+def _is_dynamic_import(func: ast.expr) -> bool:
+    """``import_module`` (on any receiver, or bare) or the builtin ``__import__``."""
+    if isinstance(func, ast.Attribute):
+        return func.attr == "import_module"
+    return isinstance(func, ast.Name) and func.id in {"import_module", "__import__"}
+
+
+def _leading_literal(argument: ast.expr) -> str | None:
+    """The module name a call spells at writing time: a constant string, or the constant head of an f-string;
+    ``None`` for a variable, an expression, or an f-string that begins with a substitution (a walk's name)."""
+    if isinstance(argument, ast.Constant) and isinstance(argument.value, str):
+        return argument.value
+    if isinstance(argument, ast.JoinedStr) and argument.values:
+        head = argument.values[0]
+        if isinstance(head, ast.Constant) and isinstance(head.value, str):
+            return head.value
+    return None
+
+
+def _string_imports(rel: pathlib.PurePosixPath, src: str) -> list[str]:
+    """``file:line: argument`` of every string import of a project module in a layered gate file."""
+    if _layer_of(rel) is None:
+        return []
+    found: list[str] = []
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Call) and node.args and _is_dynamic_import(node.func):
+            literal = _leading_literal(node.args[0])
+            if literal is not None and (literal.split(".")[0] == "orpheus" or literal.startswith("tests.gates.")):
+                found.append(f"{rel.as_posix()}:{node.lineno}: {ast.unparse(node.args[0])}")
+    return found
+
+
+_STRING_IMPORTS = [
+    pytest.param('import importlib\nimportlib.import_module("orpheus.cp.solver")\n', id="literal"),
+    pytest.param('import importlib as _il\ndef f():\n    return _il.import_module("orpheus.cp.solver")\n', id="aliased-lazy"),
+    pytest.param('import importlib\ndef f(n):\n    return importlib.import_module(f"orpheus.sn.{n}")\n', id="f-string"),
+    pytest.param('m = __import__("orpheus.transport.fields._bases", fromlist=["FieldRole"])\n', id="dunder-import"),
+    pytest.param('x = __import__("orpheus").__file__\n', id="the-package"),
+    pytest.param('import importlib\nimportlib.import_module(f"tests.gates.mc.{name}")\n', id="gate-helper"),
+]
+
+_NOT_STRING_IMPORTS = [
+    pytest.param('import importlib\nimportlib.util.find_spec("orpheus.numerics.invariance")\n', id="absence-find-spec"),
+    pytest.param('import importlib\nfor name in names:\n    importlib.import_module(name)\n', id="walk-variable"),
+    pytest.param('import importlib\nimportlib.import_module(m.name)\n', id="walk-expression"),
+    pytest.param('import importlib\nimportlib.import_module(f"{self.name}.{module}")\n', id="synthetic-package"),
+    pytest.param('x = __import__("json")\n', id="stdlib"),
+    pytest.param('from orpheus.numerics import enclosure\nenclosure.Enclosure\n', id="the-statement"),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("source", _STRING_IMPORTS)
+def test_a_string_import_of_a_project_module_is_found(source: str) -> None:
+    """Each planted shape is one finding in a layered file (``numerics``) and none at the gate root."""
+    assert len(_string_imports(pathlib.PurePosixPath("numerics/test_probe.py"), source)) == 1, source
+    assert _string_imports(pathlib.PurePosixPath("test_probe.py"), source) == []
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("source", _NOT_STRING_IMPORTS)
+def test_what_stays_dynamic_is_not_a_string_import(source: str) -> None:
+    """An absence check, a walk, a synthetic package, the standard library and the statement itself read 0."""
+    assert _string_imports(pathlib.PurePosixPath("numerics/test_probe.py"), source) == [], source
+
+
+#: One kept dynamic import of each kind ruling 27 keeps, in the tree: (file, kind). Each must carry a dynamic
+#: call (read by the census below) and read 0 under the gate.
+_KEPT = (
+    ("numerics/test_axis_identity.py", "walk: pkgutil.walk_packages over orpheus"),
+    ("transport/fields/test_role_partners.py", "walk: the transport packages' iter_modules"),
+    ("numerics/_traced_memo_synthetic.py", "synthetic package: written under tmp_path at test time"),
+    ("numerics/test_invariance_composition.py", "absence: find_spec of the deleted module"),
+    ("mesh/test_module_layout.py", "absence: find_spec of the old homes"),
+)
+
+
+def _dynamic_calls(src: str) -> list[ast.Call]:
+    names = {"import_module", "__import__", "find_spec"}
+    return [
+        node for node in ast.walk(ast.parse(src))
+        if isinstance(node, ast.Call) and node.args and (
+            (isinstance(node.func, ast.Attribute) and node.func.attr in names)
+            or (isinstance(node.func, ast.Name) and node.func.id in names))
+    ]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("file", "kind"), _KEPT, ids=[k.split(":")[0] + "-" + f.split("/")[-1] for f, k in _KEPT])
+def test_a_kept_dynamic_import_stays_green(file: str, kind: str) -> None:
+    src = (GATES_ROOT / file).read_text(encoding="utf-8")
+    assert _dynamic_calls(src), f"{file} no longer holds the dynamic call it is named for ({kind})"
+    assert _string_imports(pathlib.PurePosixPath(file), src) == []
+
+
+@pytest.mark.foundation
+def test_no_layered_gate_file_imports_a_project_module_by_string() -> None:
+    files = _gate_files()
+    rels = [pathlib.PurePosixPath(p.relative_to(GATES_ROOT).as_posix()) for p in files]
+    judged = [rel for rel in rels if _layer_of(rel) is not None]
+    assert len(judged) > 400, len(judged)
+    found = [hit for path, rel in zip(files, rels) for hit in _string_imports(rel, path.read_text(encoding="utf-8"))]
+    assert not found, f"{len(found)} string import(s) of a project module; {_RULING_27}: " + "; ".join(found)
 
 
 # ---------------------------------------------------------------------------

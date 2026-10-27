@@ -35,7 +35,6 @@ Mutations (each on a COPY of ``colouring.py`` or ``chart.py``):
 from __future__ import annotations
 
 import ast
-import importlib
 import re
 from pathlib import Path
 from typing import Any
@@ -43,7 +42,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem
+from orpheus.geometry import CoordSystem, chart, colouring, deck
 from orpheus.values.content import content_digest
 from tests.gates._content_identity_helpers import require
 
@@ -53,18 +52,6 @@ _HERE = "tests/gates/geometry/test_colouring_symmetry.py"
 _ROOT = Path(__file__).resolve().parents[3]
 _CHORD_LEVEL_REFUSAL = "tests/gates/geometry/test_chord_level.py::test_a_level_that_disagrees_with_the_impact_parameter_is_refused"
 
-
-class _Lazy:
-    def __init__(self, name: str) -> None:
-        self._name = name
-
-    def __getattr__(self, attr: str) -> Any:
-        return getattr(importlib.import_module(self._name), attr)
-
-
-colouring: Any = _Lazy("orpheus.geometry.colouring")
-chart: Any = _Lazy("orpheus.geometry.chart")
-deck: Any = _Lazy("orpheus.geometry.deck")
 
 _CART = CoordSystem.CARTESIAN
 _PALINDROME = (0, 1, 0)

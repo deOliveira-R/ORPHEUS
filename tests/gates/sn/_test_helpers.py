@@ -29,6 +29,7 @@ import numpy as np
 from scipy.sparse import csr_matrix
 from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
 from orpheus.geometry.deck import MirrorDeck
+from orpheus.numerics.quadrature import directional, rules_product
 from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -1045,10 +1046,8 @@ def energy_spectrum(sol) -> np.ndarray:
 #: The per-level orderings #326 adjudicates.  ``None`` is production (no patch).
 PRODUCT_LEVEL_ORDERINGS = ("lexsort", "stable", "azimuthal")
 
-_PRODUCT_RULE_IMPORT_SITES = (
-    "orpheus.numerics.quadrature.rules_product",
-    "orpheus.numerics.quadrature.directional",
-)
+#: The two modules that bind ``product_mu_phi`` (its definition and the name ``Quadrature.product`` reads).
+_PRODUCT_RULE_IMPORT_SITES = (rules_product, directional)
 
 
 def _product_rule_with_ordering(tie_break: str, *, exact_nodes: bool):
@@ -1153,13 +1152,10 @@ def product_level_ordering(tie_break: str, *, exact_nodes: bool = True):
         ``True`` (default) uses the algebraically-exact ``roots_of_unity``
         generator, which is what makes the tie-break reachable at all.
     """
-    import importlib
-
     replacement = _product_rule_with_ordering(tie_break, exact_nodes=exact_nodes)
     saved = []
     try:
-        for name in _PRODUCT_RULE_IMPORT_SITES:
-            module = importlib.import_module(name)
+        for module in _PRODUCT_RULE_IMPORT_SITES:
             saved.append((module, module.product_mu_phi))
             module.product_mu_phi = replacement
         yield
