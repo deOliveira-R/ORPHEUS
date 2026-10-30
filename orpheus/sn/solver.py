@@ -73,6 +73,7 @@ from orpheus.numerics.outcome import (
     SourceOutcome,
 )
 from orpheus.transport.fields.cross_section_field import CrossSectionField
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
     WithinGroupSystem,
@@ -111,7 +112,6 @@ if TYPE_CHECKING:
     )
     from orpheus.numerics.operator import LinearOperator
     from orpheus.transport.fields.angular_flux import AngularFlux
-    from orpheus.transport.fields.scalar_flux import ScalarFlux
     from .operators.boundary import SNBoundaryOperator
     from .operators.streaming import StreamingCollisionOperator
     from .operators.sweep_operator import SweepOperator
@@ -1588,6 +1588,17 @@ class SNSolver:
         )
         return self.problem.integrate_per_group(per_cell_per_group)
 
+    def _scalar_flux(self, flux_distribution: np.ndarray) -> ScalarFlux:
+        r"""The power-iteration protocol vector as the typed member it is: a scalar flux on the problem's bulk.
+
+        The protocol carries a bare array (#664); the reaction rates pair
+        only with members of their cross section's space, so the vector is
+        typed here, at the solver that knows its space, and the rate's
+        membership check compares the problem's bulk with the cross
+        section's on every run.
+        """
+        return ScalarFlux(values=np.asarray(flux_distribution, dtype=float), space=self.problem.bulk_space)
+
     def compute_production_rate(self, flux_distribution: np.ndarray) -> float:
         r"""Total volume-integrated neutron production rate (scalar).
 
@@ -1614,7 +1625,7 @@ class SNSolver:
         """
         fission = IntegratedReactionRate(
             CrossSectionField.fission_production_of(self.problem.mat_xs)
-        ).evaluate(flux_distribution)
+        ).evaluate(self._scalar_flux(flux_distribution))
         n2n_rate = np.zeros(self.ng)
         self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             n2n_rate, flux_distribution, self.volume,
@@ -1665,12 +1676,13 @@ class SNSolver:
         :meth:`compute_group_absorption_rate` remain available as
         spectral diagnostics (not on the keff path).
         """
+        phi = self._scalar_flux(flux_distribution)
         production = IntegratedReactionRate(
             CrossSectionField.fission_production_of(self.problem.mat_xs)
-        ).evaluate(flux_distribution)
+        ).evaluate(phi)
         absorption = IntegratedReactionRate(
             CrossSectionField.absorption_of(self.problem.mat_xs)
-        ).evaluate(flux_distribution)
+        ).evaluate(phi)
         emission_n2n = np.zeros(self.ng)
         self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
             emission_n2n, flux_distribution, self.volume,
@@ -1786,7 +1798,7 @@ class SNSolver:
             rate += float(np.sum(net_current * face_area))
         reference = IntegratedReactionRate(
             CrossSectionField.fission_production_of(self.problem.mat_xs)
-        ).evaluate(phi_of_trace)
+        ).evaluate(self._scalar_flux(phi_of_trace))
         if reference <= 0.0:
             raise RuntimeError(
                 "leakage scale bridge is degenerate: the last inner "
@@ -2377,7 +2389,6 @@ def solve_sn(
     # (Wave O #208 O.4a.2: inflow = B·ψ.outflow seeded through the rhs,
     # outflow = streamed); System B's converged state is its OWN member
     # (B.2d — the marched ψ½ composite; None on non-carrying meshes).
-    from orpheus.transport.fields.scalar_flux import ScalarFlux
     # The record IS the history (#340 N2b-ii).  Everything this used to
     # spell out by hand — ``converged``, ``n_outer``,
     # ``total_inner_iterations`` — is now READ from the tree the loop built,
@@ -3614,7 +3625,6 @@ def _solve_fixed_source_si(
     from orpheus.transport.fields.angular_boundary_flux import (
         AngularBoundaryFlux,
     )
-    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
     # ``q_ext_composite`` is the normalised composite RHS ``q = q_bulk ⊕ q_∂``
     # built once by :func:`_build_fixed_source_rhs` (Cardinal Rule 2 — the SI
@@ -3815,7 +3825,6 @@ def _solve_fixed_source_krylov(
     from orpheus.transport.fields.angular_boundary_flux import (
         AngularBoundaryFlux,
     )
-    from orpheus.transport.fields.scalar_flux import ScalarFlux
 
     ng = solver.ng
     N = problem.quad.n_ordinates

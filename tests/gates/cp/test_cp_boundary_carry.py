@@ -50,8 +50,8 @@ _IDS = [f"{chart}-{carry.tag(d)}" for chart, d in _CASES]
 
 @cache
 def _fixture() -> Any:
-    assert carry.CARRY_FIXTURE.exists(), f"{carry.CARRY_FIXTURE} is missing: the carry fixture is the instrument of this file"
-    return np.load(carry.CARRY_FIXTURE)
+    """The head capture (one loader: ``_carry_cases.head``); a VALUE is read through ``carry.expected``."""
+    return carry.head()
 
 
 def _condition(declaration: tuple) -> Any:
@@ -78,7 +78,7 @@ def test_the_fixture_holds_the_cp_rows() -> None:
     keys = [carry.other_key("cp", chart, d) for chart, d in _CASES]
     assert len(keys) == 6 and all(k in fixture.files for k in keys), [k for k in keys if k not in fixture.files]
     for chart in carry.CHARTS:
-        vacuum, white = (float(fixture[carry.other_key("cp", chart, d)]) for d in carry.CP_DECLARATIONS)
+        vacuum, white = (float(carry.expected(carry.other_key("cp", chart, d))) for d in carry.CP_DECLARATIONS)
         assert vacuum > white, f"{chart}: k_vacuum {vacuum!r} is not above k_white {white!r}: the capture lost #546"
 
 

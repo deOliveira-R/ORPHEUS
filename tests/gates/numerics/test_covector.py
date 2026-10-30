@@ -108,19 +108,24 @@ class TestTheRaisingLegActsOnTheDual:
 class TestTheIntegrationCovectorReadsTheUnit:
     def test_on_an_all_nodal_space_the_unit_is_ones(self):
         np.testing.assert_array_equal(V.unit, np.ones(V.shape))
-        np.testing.assert_allclose(V.flat(V.unit).evaluate(_phi()), sum(PHI[g, i] * _DV[i] for g in range(2) for i in range(3)), rtol=6 * _EPS)
+        np.testing.assert_allclose(V.integral.evaluate(_phi()), sum(PHI[g, i] * _DV[i] for g in range(2) for i in range(3)), rtol=6 * _EPS)
+
+    def test_the_integral_is_the_flat_of_the_constant_function(self):
+        """``V.integral`` is minted through ``flat`` from the unit, a member of V*: the same coordinates bit for bit."""
+        assert V.integral.space == V.dual()
+        np.testing.assert_array_equal(V.integral.values, V.flat(V.unit).values)
 
     def test_an_axes_less_space_has_the_unit_ones(self):
         np.testing.assert_array_equal(FunctionSpace("g", (2, 1)).unit, np.ones((2, 1)))
 
     def test_on_a_frame_dressed_head_the_unit_is_NOT_ones(self):
-        """On a dressed head the constant function's coordinates are its moments Φᵀw (ruling 37), so ``flat(unit)``
-        integrates and ``flat(ones)`` does not. Oracle: the space's own pairing ⟨u, c⟩, a different route (it does not
+        """On a dressed head the constant function's coordinates are its moments Φᵀw (ruling 37), so ``integral`` (the
+        flat of the unit) integrates and ``flat(ones)`` does not. Oracle: the space's own pairing ⟨u, c⟩, a different route (it does not
         build a co-vector)."""
         head = frame_faces.basis_space(frame_faces.angular_frame(Quadrature.level_symmetric(sn_order=4), 1))
         u = head.unit
         assert not np.array_equal(u, np.ones(head.shape)), "premise: the dressed head's unit is not all ones"
         c = np.random.default_rng(3).standard_normal(head.shape)
         integral = head.inner_product(u, c)
-        np.testing.assert_allclose(head.flat(u).evaluate(c), integral, rtol=1e-13)
+        np.testing.assert_allclose(head.integral.evaluate(c), integral, rtol=1e-13)
         assert not np.isclose(head.flat(np.ones(head.shape)).evaluate(c), integral)

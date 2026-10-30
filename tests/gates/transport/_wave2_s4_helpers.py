@@ -66,5 +66,4 @@ def quiet():
 
 def fixture_k(method: str, chart: str, declaration: tuple) -> float:
     """The frozen HEAD eigenvalue of ``carry_head.npz`` for one carried row."""
-    fixture = np.load(carry.CARRY_FIXTURE)
-    return float(fixture[carry.other_key(method, chart, declaration)])
+    return float(carry.expected(carry.other_key(method, chart, declaration)))

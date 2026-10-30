@@ -25,14 +25,24 @@ faces of an S16 slab is frozen for each slab declaration.
 from __future__ import annotations
 
 import dataclasses
+import json
+from functools import cache
 from pathlib import Path
 from typing import Any, TypedDict
+
+import numpy as np
 
 #: The commit the fixture is captured at (section 6.0).
 HEAD_COMMIT = "5d04c296"
 
 #: The frozen HEAD answers (``_capture_carry_head.py`` writes it).
 CARRY_FIXTURE = Path(__file__).with_name("carry_head.npz")
+
+#: The declared re-baselines over the head capture, as text: per event, each moved key's head value, new value and ULP
+#: distance, with the cause and the three criteria of ``vv-principles`` ("Bit-identity vs principled-equivalence").
+#: The head capture is never rewritten, so ``meta/commit`` stays true of every key it holds; a value read goes through
+#: :func:`expected`, and ``test_wave2_carry.py::test_the_rebaselines_are_declared_deltas`` gates the overlay.
+REBASELINES = Path(__file__).with_name("carry_rebaselines.json")
 
 #: The seven independent ``bc_equivalence`` references (R-10: NOT re-baselined; the directory moved from
 #: ``tests/gates/geometry/snapshots/`` to here in WF2.4, with the retirement of the law tests that read it).
@@ -183,3 +193,31 @@ MC_PARAMS: _MCSettings = {"n_neutrons": 200, "n_inactive": 5, "n_active": 20, "p
 
 def other_key(method: str, chart: str, declaration: Declaration) -> str:
     return f"keff_{method}/{chart}/{tag(declaration)}"
+
+
+# ── the carried value of a key: the head capture, unless a declared re-baseline overrides it ─────────────────────────
+
+
+@cache
+def head() -> Any:
+    """The head capture, ``carry_head.npz`` (read-only; its ``meta/commit`` is true of every key it holds)."""
+    assert CARRY_FIXTURE.exists(), f"{CARRY_FIXTURE} is missing: the carry fixture is the instrument of the carry gates"
+    return np.load(CARRY_FIXTURE)
+
+
+@cache
+def rebaseline_events() -> tuple[dict[str, Any], ...]:
+    """The declared re-baselines, oldest first (``carry_rebaselines.json``)."""
+    return tuple(json.loads(REBASELINES.read_text())["events"])
+
+
+def expected(key: str) -> np.ndarray:
+    """The value a carry gate compares ``key`` with: the newest declared re-baseline of the key, else the head capture.
+
+    The one reading of the fixture's values (X4): every carry gate goes through it, so a re-baseline is declared once,
+    in the overlay, and never as a second edit of a reader.
+    """
+    for event in reversed(rebaseline_events()):
+        if key in event["entries"]:
+            return np.asarray(event["entries"][key]["new"], dtype=float)
+    return head()[key]

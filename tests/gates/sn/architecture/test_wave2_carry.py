@@ -8,8 +8,14 @@ the realized operator of both faces of an S16 slab; and, for each of the seven `
 HEAD realizer gives of the frozen probe. The same problems, spelled in the NEW vocabulary (a tag bound to a
 ``WallCondition``, or a deck: ``tests/gates/sn/architecture/_sn_consumers_helpers.py``), must give the same answers
 BIT-EQUAL (``array_equal``; a non-bit difference is a finding to investigate, never a tolerance to widen). The declared
-exceptions are exactly those of section 8: R-11 (the Lambertian divisor, bit-identical on every measured pair: the mass
-census of ``test_realized_boundary.py``) and nothing else.
+exceptions are two. R-11, from section 8 (the Lambertian divisor, bit-identical on every measured pair: the mass census
+of ``test_realized_boundary.py``). And the re-baselines of ``tests/gates/transport/carry_rebaselines.json``, each an
+investigated finding recorded as a DELTA over the head capture, which is never rewritten: per moved key the head value,
+the new value and their ULP distance, with the cause and the three criteria of ``vv-principles`` ("Bit-identity vs
+principled-equivalence"). Every value read goes through ``_carry_cases.expected``, and
+``test_the_rebaselines_are_declared_deltas`` gates the overlay. One event so far: U2c of the space-membership campaign
+(2026-10-30), the reaction rate re-spelled as the co-vector pairing ⟨♭σ, φ⟩, which re-associates one sum: 36 keys, every
+one a ``k`` or an eigen-flux, at most 18 ULP.
 
 The fixture also carries the other methods' ``k`` (diffusion on three charts, CP, MoC, MC with the fixed seed): slices S3
 and S4 gate them. This file checks only that they were captured (``test_the_fixture_is_the_head_capture``).
@@ -61,8 +67,8 @@ SNAPSHOT_DIR = carry.SNAPSHOT_DIR
 
 @cache
 def _fixture() -> Any:
-    assert CARRY_FIXTURE.exists(), f"{CARRY_FIXTURE} is missing: the carry fixture is the instrument of this file"
-    return np.load(CARRY_FIXTURE)
+    """The head capture (one loader: ``_carry_cases.head``); a VALUE is read through ``carry.expected``."""
+    return carry.head()
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -90,7 +96,7 @@ def test_the_fixture_is_the_head_capture() -> None:
     assert count("face_matrix/") == 2 * len(carry.DECLARATIONS["slab"]) and count("snapshot_image/") == 7 and count("snapshot_sha256/") == 7
     assert (count("keff_diffusion/"), count("keff_cp/"), count("keff_moc/"), count("keff_mc/")) == (12, 6, 1, 1)
     for body in ("slab", "cylinder", "sphere"):
-        ordered = [float(fixture[carry.key(body, d, "keff")]) for d in (("vacuum",), ("specular", 0.3), ("specular", 0.7), ("mirror",))]
+        ordered = [float(carry.expected(carry.key(body, d, "keff"))) for d in (("vacuum",), ("specular", 0.3), ("specular", 0.7), ("mirror",))]
         assert ordered == sorted(ordered) and len(set(ordered)) == 4, f"{body}: k is not ordered vacuum < 0.3 < 0.7 < mirror: {ordered}"
 
 
@@ -107,6 +113,43 @@ def test_the_snapshots_were_not_rebaselined() -> None:
     for path in files:
         case_id = path.stem.removeprefix("bc_equivalence_")
         assert hashlib.sha256(path.read_bytes()).hexdigest() == str(fixture[f"snapshot_sha256/{case_id}"]), f"{path.name} differs from the HEAD snapshot"
+
+
+#: The quantities a re-baseline may move: the eigenvalue path. A fixed-source flux, a face matrix or a snapshot image
+#: evaluates no k-quotient, so an event that overlays one is a carry failure dressed as a re-baseline.
+_REBASELINABLE = ("keff/", "phi_eigen/", "keff_diffusion/")
+
+
+@pytest.mark.foundation
+def test_the_rebaselines_are_declared_deltas() -> None:
+    r"""Every overlaid key is a declared, bounded, explained delta over the head capture.
+
+    Per event: a cause and the three criteria are written; per entry: the key exists in the head capture, the recorded
+    old value IS the head value bit for bit (so the overlay was written against this capture, not another), the
+    recorded ULP distance is the one the two values give, it is within the event's bound, and the key lies on the
+    eigenvalue path. The positive control of ``test_the_fixture_is_the_head_capture`` is re-read on the EFFECTIVE values:
+    vacuum < specular 0.3 < specular 0.7 < mirror on every curved and flat body.
+
+    Red input: an entry whose ``old`` is not the head value; a ``phi_fixed`` or ``face_matrix`` key in an event; a ULP
+    distance over the bound; an event with an empty cause.
+    """
+    head = carry.head()
+    events = carry.rebaseline_events()
+    assert events, "the overlay holds no event: delete the file rather than keep an empty instrument"
+    for event in events:
+        assert event["cause"].strip() and all(event["criteria"][c].strip() for c in ("principled_form", "independent_check", "drift_explained")), event["id"]
+        assert event["entries"], f"{event['id']}: an event with no entry"
+        for key, entry in event["entries"].items():
+            assert key in head.files, f"{event['id']}: {key} is not a key of the head capture"
+            assert key.startswith(_REBASELINABLE), f"{event['id']}: {key} is off the eigenvalue path and cannot be re-baselined"
+            old, new = np.asarray(entry["old"], dtype=float), np.asarray(entry["new"], dtype=float)
+            np.testing.assert_array_equal(old, head[key], err_msg=f"{event['id']}: {key}'s recorded old value is not the head value")
+            assert not np.array_equal(old, new), f"{event['id']}: {key} did not move"
+            ulp = float(np.max(np.abs(new - old) / np.spacing(np.maximum(np.abs(old), np.abs(new)))))
+            assert ulp == entry["ulp"] and ulp <= event["bound_ulp"], f"{event['id']}: {key} at {ulp} ULP (recorded {entry['ulp']}, bound {event['bound_ulp']})"
+    for body in ("slab", "cylinder", "sphere"):
+        ordered = [float(carry.expected(carry.key(body, d, "keff"))) for d in (("vacuum",), ("specular", 0.3), ("specular", 0.7), ("mirror",))]
+        assert ordered == sorted(ordered) and len(set(ordered)) == 4, f"{body}: the effective k is not ordered vacuum < 0.3 < 0.7 < mirror: {ordered}"
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -128,17 +171,16 @@ def test_the_carry_of_the_solves(body: str, declaration: tuple) -> None:
     """
     from orpheus.sn.solver import solve_sn, solve_sn_fixed_source
 
-    fixture = _fixture()
     mesh, quad, conditions = S.build(body, declaration)
     mats = carry.materials()
     eigen = solve_sn(mats, mesh, quad, boundary_conditions=conditions, **carry.EIGEN)
-    assert eigen.outcome.keff == float(fixture[carry.key(body, declaration, "keff")]), f"{body}/{carry.tag(declaration)}: k moved"
-    np.testing.assert_array_equal(np.asarray(eigen.scalar_flux.values), fixture[carry.key(body, declaration, "phi_eigen")])
+    assert eigen.outcome.keff == float(carry.expected(carry.key(body, declaration, "keff"))), f"{body}/{carry.tag(declaration)}: k moved"
+    np.testing.assert_array_equal(np.asarray(eigen.scalar_flux.values), carry.expected(carry.key(body, declaration, "phi_eigen")))
 
     problem = S.problem(mesh, quad, conditions)
     source = carry.bulk_source(quad.n_ordinates, problem.ng, tuple(problem.spatial_shape))
     fixed = solve_sn_fixed_source(mats, mesh, quad, source, boundary_conditions=conditions, **carry.FIXED)
-    np.testing.assert_array_equal(np.asarray(fixed.scalar_flux.values), fixture[carry.key(body, declaration, "phi_fixed")])
+    np.testing.assert_array_equal(np.asarray(fixed.scalar_flux.values), carry.expected(carry.key(body, declaration, "phi_fixed")))
 
 
 @pytest.mark.l1
@@ -153,7 +195,6 @@ def test_the_carry_of_the_slab_inflow() -> None:
     from orpheus.sn.solver import solve_sn_fixed_source
 
     B = S.bc()
-    fixture = _fixture()
     body = carry.BODIES["slab"]
     mesh = S.mesh_of("slab", left=0, right=1)
     quad = S.quadrature_of("slab")
@@ -163,7 +204,7 @@ def test_the_carry_of_the_slab_inflow() -> None:
     fixed = solve_sn_fixed_source(carry.materials(), mesh, quad, zero, boundary_conditions=conditions, **carry.FIXED)
     flux = np.asarray(fixed.scalar_flux.values)
     assert body.name == "slab" and float(np.max(flux)) > 0.0, "the control: the inflow must populate the slab"
-    np.testing.assert_array_equal(flux, fixture[carry.inflow_key("phi_fixed")])
+    np.testing.assert_array_equal(flux, carry.expected(carry.inflow_key("phi_fixed")))
 
 
 @pytest.mark.l1
@@ -180,13 +221,12 @@ def test_the_carry_of_the_face_operators(declaration: tuple, face: str) -> None:
     """
     from tests.gates.sn.architecture import _realized_boundary_helpers as H
 
-    fixture = _fixture()
     roles, conditions = S.roles_and_conditions("slab", declaration)
     mesh = S.mesh_of("slab", **roles)
     quad = S.quadrature_of("slab", carry.S16_ORDINATES)
     problem = S.problem(mesh, quad, conditions)
     n = int(len(problem.angular_trace.outflow_indices_for_face(face)))
-    np.testing.assert_array_equal(H.dense(problem.bc[face], n), fixture[carry.face_key(declaration, face)])
+    np.testing.assert_array_equal(H.dense(problem.bc[face], n), carry.expected(carry.face_key(declaration, face)))
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -249,7 +289,7 @@ def test_the_equivalence_snapshots_carry(case_id: str) -> None:
     op = H.sn_table().realize(declared, where, space)
     probe = snapshot["psi_out_partner"] if op.domain_face != face else snapshot["psi_out"]
     image = np.asarray(op.apply(probe))
-    np.testing.assert_array_equal(image, _fixture()[f"snapshot_image/{case_id}"], err_msg=f"{case_id}: the image moved against HEAD")
+    np.testing.assert_array_equal(image, carry.expected(f"snapshot_image/{case_id}"), err_msg=f"{case_id}: the image moved against HEAD")
 
     eps = float(np.finfo(np.float64).eps)
     reference = snapshot["psi_in"]

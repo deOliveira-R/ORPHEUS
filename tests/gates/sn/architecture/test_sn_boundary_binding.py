@@ -255,7 +255,6 @@ def test_the_hollow_inner_witness() -> None:
     non-reflective typed laws). Mutation: the inner site admitting every weight (the cavity is the closure's own).
     """
     B = S.bc()
-    fixture = np.load(_carry_path())
     mesh = S.mesh_of("hollow_cylinder", outer=0, inner=1)
     quad = S.quadrature_of("hollow_cylinder")
     cavity = {0: B.WallCondition.vacuum(), 1: B.WallCondition.specular(1.0)}
@@ -264,16 +263,13 @@ def test_the_hollow_inner_witness() -> None:
     from orpheus.sn.solver import solve_sn
 
     solved = solve_sn(carry.materials(), mesh, quad, boundary_conditions=cavity, **carry.EIGEN)
-    assert solved.outcome.keff == float(fixture["keff/hollow_cylinder/vacuum"])
+    assert solved.outcome.keff == float(carry.expected("keff/hollow_cylinder/vacuum"))
 
     for label, inner in (("vacuum", B.WallCondition.vacuum()), ("white 0.5", B.WallCondition.white(0.5)), ("specular 0.5", B.WallCondition.specular(0.5)), ("inflow", B.WallCondition.uniform(1.0))):
         with pytest.raises(B.BoundaryRefused) as info:
             S.problem(mesh, quad, {0: B.WallCondition.vacuum(), 1: inner})
         assert info.value.admission.axis is B.RefusalAxis.PLUMBING and info.value.admission.issue == 511 and info.value.face == "xmin", label
 
-
-def _carry_path() -> str:
-    return str(carry.CARRY_FIXTURE)
 
 
 # ═════════════════════════════════════════════════════════════════════════════

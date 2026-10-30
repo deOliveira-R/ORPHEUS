@@ -249,6 +249,9 @@ class DiffusionSolver:
         # (the lift embeds the bulk block-diagonal in the composite flat
         # layout — index-identity, bit-for-bit).
         bulk = mesh.bulk_space
+        #: ∫·dV on the scalar bulk, the space's integration co-vector (counting
+        #: energy ⊗ cell volumes), minted once here and paired per outer.
+        self._integration = bulk.integral
         scattering = BulkLift(
             IsotropicScattering.from_material_xs(self.mat_xs, space=bulk)
             + IsotropicN2N.from_material_xs(self.mat_xs, space=bulk),
@@ -286,14 +289,6 @@ class DiffusionSolver:
         return FullField.from_flat(
             np.asarray(flux_distribution, dtype=float).ravel(), self.template,
         )
-
-    def _volume_integral(self, rate_density: np.ndarray) -> float:
-        r"""``Σ_cells V·rate`` over all groups — the mesh's canonical
-        ``volume_measure`` (the same reduction
-        :class:`IntegratedReactionRate` rides)."""
-        ng = rate_density.shape[0]
-        flat = np.moveaxis(rate_density, 0, -1).reshape(-1, ng)
-        return float(self.mesh.volume_measure(flat).sum())
 
     # ── EigenvalueSolver protocol ──────────────────────────────────────
 
@@ -354,7 +349,7 @@ class DiffusionSolver:
         psi = self.unflatten(flux_distribution)
         return IntegratedReactionRate(
             CrossSectionField.fission_production_of(self.mat_xs)
-        ).evaluate(psi.interior.values)
+        ).evaluate(psi.interior)
 
     def compute_keff(self, flux_distribution: np.ndarray) -> float:
         r"""The integrated eigenvalue relation
@@ -363,7 +358,7 @@ class DiffusionSolver:
         theorem + divergence telescoping — module docstring)."""
         psi = self.unflatten(flux_distribution)
         production = self.compute_production_rate(flux_distribution)
-        loss_rate = self._volume_integral(self.loss.apply(psi).interior.values)
+        loss_rate = self._integration.evaluate(self.loss.apply(psi).interior)
         return production / loss_rate
 
     def measure_stopping_criteria(

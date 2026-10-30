@@ -59,6 +59,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -67,6 +68,7 @@ from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 if TYPE_CHECKING:
+    from orpheus.numerics.space import Covector
     from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 __all__ = ["ReactionRateFunctional", "IntegratedReactionRate"]
@@ -117,7 +119,7 @@ class ReactionRateFunctional(InnerProductFunctional):
 
 @dataclass(frozen=True, eq=False, init=False, repr=False)
 class IntegratedReactionRate:
-    r"""The volume-integrated reaction rate :math:`\int_V \langle \Sigma_x, \phi\rangle\,dV`.
+    r"""The volume-integrated reaction rate :math:`\langle \Sigma_x, \phi\rangle_V`, the co-vector :math:`\flat_V \Sigma_x`.
 
     A :class:`~orpheus.numerics.functional.Functional` returning a **scalar**
     (not a scalar-field): the total reaction rate over the whole spatial domain,
@@ -125,16 +127,27 @@ class IntegratedReactionRate:
     .. math::
 
         R_x(\phi) \;=\; \int_V \sum_{g'} \Sigma_{x,g'}(\vec r)\,\phi_{g'}(\vec r)\,dV
-                  \;=\; \sum_{\text{cells}} V_{\text{cell}}\,
-                        \langle \Sigma_x, \phi\rangle(\text{cell}) .
+                  \;=\; \langle \Sigma_x, \phi\rangle_V
+                  \;=\; \sum_i c_i\,\phi_i ,
+        \qquad c = \flat_V \Sigma_x = G\,\Sigma_x .
 
-    It is the **volume integral of the per-cell density**
-    :class:`ReactionRateFunctional` — so the group contraction has a *single
-    source* (the density functional) and the spatial integral reads the
-    cross section's SPACE: the spatial axis's weights ARE :math:`dV`
-    (``weights=None`` canonicalizing the counting measure) — CS4b S3's
-    the-space-answers-every-structural-question re-key; the pre-S3 body
-    read the mesh's ``volume_measure``.
+    It IS the co-vector of its cross section on the cross section's space
+    :math:`V`: :attr:`covector` is ``V.flat(Σx)`` (a
+    :class:`~orpheus.numerics.space.Covector`, minted once), and the value on
+    a flux is the canonical pairing. The space's metric is the product of
+    the energy axis's counting measure (a theorem of the multigroup
+    convention, :class:`~orpheus.numerics.axis.EnergyAxis`) and the spatial
+    axis's cell volumes, so :math:`G\,\Sigma_x = \Sigma_x\,dV` and the
+    pairing is :math:`\sum_g \sum_i \Sigma_{x,gi}\,\phi_{gi}\,V_i`. The
+    space answers the measure (CS4b S3); this class reads no axis.
+
+    Until the space-membership unit U2 (2026-10-30) the body contracted the
+    group axis through the per-cell density :class:`ReactionRateFunctional`
+    and then summed against the last axis's weights, which assumed the
+    spatial measure sat on the last axis. The two spellings re-associate one
+    product and reduce in another order: `[M]` the spec's drift battery, 144
+    of 202 calls bit-equal and the rest within 4.2e-16 relative
+    (``scratch/membership_covector/spec/spec.md`` §U2.3).
 
     This is the canonical typed object for the **k-eigenvalue numerator and
     denominator** — ``k = R_{νΣf}(φ) / R_{Σa}(φ)`` (plus per-method terms such as
@@ -152,85 +165,70 @@ class IntegratedReactionRate:
     Parameters
     ----------
     cross_section : CrossSectionField
-        The reaction cross section :math:`\Sigma_x` (carries the SPACE whose
-        spatial-axis weights supply the volume integral). Production =
+        The reaction cross section :math:`\Sigma_x`, a member of the space
+        whose metric supplies the volume integral. Production =
         :math:`\nu\Sigma_f`; absorption = :math:`\Sigma_a`.
     """
 
-    density: ReactionRateFunctional
+    cross_section: CrossSectionField
 
     def __init__(self, cross_section: CrossSectionField) -> None:
-        # The per-cell group-contracted density is the single source of the
-        # ``Σx·φ`` contraction; this functional adds only the volume integral.
-        object.__setattr__(self, "density", ReactionRateFunctional(cross_section))
+        object.__setattr__(self, "cross_section", cross_section)
 
-    @property
-    def cross_section(self) -> CrossSectionField:
-        return self.density.cross_section
+    @cached_property
+    def covector(self) -> Covector:
+        r"""The co-vector :math:`\flat_V \Sigma_x = G\,\Sigma_x` on :math:`V^{*}`, minted once per rate."""
+        return self.cross_section.space.flat(self.cross_section)
 
     def evaluate(self, phi, *, adjoint: "ScalarFlux | None" = None) -> float:
-        r"""Return :math:`\int_V \langle \Sigma_x, \phi\rangle\,dV` — or the bilinear.
+        r"""Return :math:`\langle \Sigma_x, \phi\rangle_V` — or the bilinear.
 
         With ``adjoint=None`` (the default): the volume-integrated reaction
-        rate, exactly as always.  With ``adjoint=`` an importance field
-        :math:`\varphi^*`, the **adjoint-weighted bilinear**
+        rate, the pairing of :attr:`covector` with ``phi``. With ``adjoint=``
+        an importance field :math:`\varphi^*`, the **adjoint-weighted
+        bilinear**
 
         .. math::
 
-            \int_V \big\langle \varphi^*\!\odot\Sigma_x,\; \phi\big\rangle\,dV
+            \big\langle \varphi^*\!\odot\Sigma_x,\; \phi\big\rangle_V
             \;=\; \int_V \sum_g \varphi^*_g\,\Sigma_{x,g}\,\phi_g\,dV ,
 
         the vector-channel worth numerator of the eigenvalue-consistent
         collapse (T1, :mod:`orpheus.derivations.common.homogenization`).
-        The degenerate law is exact: a flat :math:`\varphi^* = 1` reproduces
-        the unweighted call bit-for-bit (``1.0 * x == x`` in IEEE floats and
-        the contraction body is shared).
-
-        The importance is folded into the WEIGHT (:math:`\varphi^*` pairs
-        with the test side, never the carrier), and the folded contraction
-        routes through the same generic
-        :class:`~orpheus.numerics.functional.InnerProductFunctional` body
-        the density functional inherits — one contraction source, no
-        parallel reduction.
+        The importance is folded into the DENSITY (it pairs with the test
+        side, never the carrier) and the result is the flat of the folded
+        density. The degenerate law is exact: a flat :math:`\varphi^* = 1`
+        reproduces the unweighted call bit-for-bit (``1.0 * x == x`` in IEEE
+        floats, and both route through one mint).
 
         Parameters
         ----------
         phi : Field or NDArray
-            The carrier flux, shape ``(ng, *spatial)``.
+            The flux, a member of the cross section's space: a typed member
+            is compared by content on every run; a bare array must have the
+            space's exact shape, checked under ``__debug__``.
         adjoint : ScalarFlux, optional
             The importance :math:`\varphi^*` (e.g.
-            ``adjoint_solution.importance``).  Must live on the SAME mesh
-            object as the cross section (identity, not shape-equality —
-            the σ↔geometry pairing tier).
+            ``adjoint_solution.importance``), on the SAME space as the cross
+            section (content equality, the σ↔geometry pairing).
 
         Raises
         ------
         ValueError
-            If ``adjoint`` lives on a different mesh object than the
-            cross section.
+            If ``phi`` or ``adjoint`` is not a member of the cross section's
+            space.
         """
         if adjoint is None:
-            per_cell = np.asarray(self.density.evaluate(phi))  # (1, *spatial)
-        else:
-            if adjoint.space != self.cross_section.space:
-                raise ValueError(
-                    "IntegratedReactionRate.evaluate: the adjoint weight and "
-                    "the cross section must agree in space content "
-                    "(space-content invariant) — the σ↔geometry pairing; got "
-                    f"{adjoint.space!r} vs {self.cross_section.space!r}."
-                )
-            folded = InnerProductFunctional(
-                np.asarray(adjoint.values) * self.cross_section.values, axis=0,
+            return self.covector.evaluate(phi)
+        space = self.cross_section.space
+        if adjoint.space != space:
+            raise ValueError(
+                "IntegratedReactionRate.evaluate: the adjoint weight and "
+                "the cross section must agree in space content "
+                "(space-content invariant) — the σ↔geometry pairing; got "
+                f"{adjoint.space!r} vs {space!r}."
             )
-            per_cell = np.asarray(folded.evaluate(phi))       # (1, *spatial)
-        # The volume integral reads the SPACE's spatial measure (CS4b S3 —
-        # the space answers every structural question; the axis weights ARE
-        # dV, ``None`` canonicalizing the counting measure): ∑_i V_i d_i.
-        axes = self.cross_section.space.axes
-        assert axes is not None  # axis-built by construction since CS4b S2
-        w = axes[-1].weights
-        volumes = np.ones(axes[-1].shape, dtype=float) if w is None else w
-        return float((per_cell[0] * volumes).sum())
+        return space.flat(np.asarray(adjoint.values) * self.cross_section.values).evaluate(phi)
 
     def __repr__(self) -> str:
         return f"IntegratedReactionRate({self.cross_section!r})"

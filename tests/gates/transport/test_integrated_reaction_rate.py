@@ -290,3 +290,52 @@ class TestN2NActivationInProductionRate:
             f"fission-only IRR={fission_only!r}. Guards the Mode-10 vacuity — every "
             f"macro_xs.synthetic mixture has Sig2=0, so a library fixture would null the term.",
         )
+
+
+_DEBUG_ONLY = pytest.mark.skipif(not __debug__, reason="the raw-path shape check lives under __debug__ (R1); run without -O")
+
+
+class TestTheReactionRateIsTheFlatOfItsCrossSection:
+    """The space-membership unit U2c: the reaction rate is the canonical pairing of the co-vector ``V.flat(σ)`` with the
+    flux, the metric read once at the mint. Against the old ``Σ_i V_i Σ_g σφ`` this re-associates one sum, so the claim
+    is principled equivalence, not bit identity: leg A above is the independent pin (a hand triple loop), and the
+    re-baselines it moved are declared in ``tests/gates/transport/carry_rebaselines.json`` (event U2c)."""
+
+    def test_the_reaction_rate_pairs_the_flat_of_its_cross_section(self):
+        sn = _non_uniform_slab(ng=3)
+        sigx = np.random.default_rng(7).uniform(0.1, 1.0, size=(3, sn.spatial_shape[0]))
+        field = cross_section_field(sigx, sn)
+        covector = IntegratedReactionRate(field).covector
+        assert covector.space == field.space.dual()
+        np.testing.assert_array_equal(covector.values, field.space.flat(field).values)
+
+    @_DEBUG_ONLY
+    def test_a_flat_carrier_on_the_homogeneous_column_space_is_REFUSED(self):
+        """The defect this campaign closes (`[M]` the layer-DAG Phase 2 spec §5c): the 2g Mixture-A production rate of
+        a flat ``(2,)`` flux on the ``(2, 1)`` pose read 0.225 for the exact 0.095 (an outer product contracted). On the
+        raw path the shape is refused under ``__debug__``; the formal path is the next row."""
+        from orpheus.homogeneous.solver import HomogeneousProblem
+
+        problem = HomogeneousProblem(get_mixture("A", "2g"))
+        with pytest.raises(ValueError, match="exact shape"):
+            problem.production_rate.evaluate(np.array([0.6, 0.4]))
+
+    def test_a_typed_flat_carrier_cannot_be_built(self):
+        """On every run, ``-O`` included: a ``(2,)`` scalar flux on the ``(2, 1)`` pose is refused at its own construction,
+        so the formal path cannot spell the 0.225 input."""
+        from orpheus.homogeneous.solver import HomogeneousProblem
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        problem = HomogeneousProblem(get_mixture("A", "2g"))
+        with pytest.raises(ValueError, match="does not match space.shape"):
+            ScalarFlux(values=np.array([0.6, 0.4]), space=problem.space)
+
+    def test_the_homogeneous_total_flux_is_the_integral_bit_for_bit(self):
+        """⟨1, φ⟩ on the counting 0-D pose: the integration co-vector and the space's own pairing with the unit are one
+        arithmetic (the metric applied to the unit, then one sum), so ``==``, not a tolerance."""
+        from orpheus.homogeneous.solver import HomogeneousProblem
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+
+        space = HomogeneousProblem(get_mixture("A", "2g")).space
+        phi = np.array([[0.7], [0.3]])
+        assert space.integral.evaluate(ScalarFlux(values=phi, space=space)) == space.inner_product(space.unit, phi)

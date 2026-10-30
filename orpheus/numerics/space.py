@@ -841,8 +841,8 @@ class FunctionSpace(Generic[Carrier]):
         carried unit on a modal one, which on a frame-dressed head is the
         moments :math:`\Phi^{\mathsf T} w` and not all ones). An axes-less
         space has nodal coordinates by construction, so its unit is ones.
-        ``self.flat(self.unit)`` is the integration co-vector
-        :math:`\langle 1, \cdot\rangle_V`.
+        The integration co-vector :math:`\langle 1, \cdot\rangle_V` is
+        :attr:`integral`.
         """
         if self.axes is None:
             return np.ones(self.shape)
@@ -850,6 +850,18 @@ class FunctionSpace(Generic[Carrier]):
         for ax in self.axes:
             unit = np.multiply.outer(unit, np.asarray(ax.unit))
         return unit.reshape(self.shape)
+
+    @property
+    def integral(self) -> Covector:
+        r"""The integration co-vector :math:`\int \cdot\,dV = \langle 1, \cdot\rangle_V = \flat_V 1`.
+
+        Minted through :meth:`flat` from the constant function as a typed
+        member of this space (its coordinates are :attr:`unit`), so the
+        metric is read once, at the mint, and the number one is never
+        spelled ``np.ones``: on a frame-dressed head the constant function's
+        coordinates are its moments, and ``flat(ones)`` is not the integral.
+        """
+        return self.flat(Member(values=self.unit, space=self))
 
     # ------------------------------------------------------------------
     # Metric application (Hilbert adjoint building blocks, Wave O / O.2b)

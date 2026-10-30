@@ -58,8 +58,8 @@ _IDS = [f"{chart}-{carry.tag(d)}" for chart, d in _CASES]
 
 @cache
 def _fixture() -> Any:
-    assert carry.CARRY_FIXTURE.exists(), f"{carry.CARRY_FIXTURE} is missing: the carry fixture is the instrument of this file"
-    return np.load(carry.CARRY_FIXTURE)
+    """The head capture (one loader: ``_carry_cases.head``); a VALUE is read through ``carry.expected``."""
+    return carry.head()
 
 
 @pytest.mark.foundation
@@ -77,7 +77,7 @@ def test_the_fixture_holds_the_diffusion_rows() -> None:
     keys = [carry.other_key("diffusion", chart, d) for chart, d in _CASES]
     assert len(keys) == 12 and all(k in fixture.files for k in keys), [k for k in keys if k not in fixture.files]
     for chart in carry.CHARTS:
-        k = {d[0]: float(fixture[carry.other_key("diffusion", chart, d)]) for d in carry.DIFFUSION_DECLARATIONS}
+        k = {d[0]: float(carry.expected(carry.other_key("diffusion", chart, d))) for d in carry.DIFFUSION_DECLARATIONS}
         assert k["zero_flux"] < k["vacuum"] < k["albedo"] < k["mirror"], f"{chart}: {k}"
 
 
@@ -92,7 +92,7 @@ def test_the_carry_of_the_diffusion_solves(chart: str, declaration: tuple) -> No
     """
     mesh, conditions = H.build(chart, declaration)
     k = H.solve(mesh, conditions).keff
-    expected = _fixture()[carry.other_key("diffusion", chart, declaration)]
+    expected = carry.expected(carry.other_key("diffusion", chart, declaration))
     assert k == float(expected), f"{chart} / {carry.tag(declaration)}: k = {k!r}, the HEAD k = {float(expected)!r}"
 
 

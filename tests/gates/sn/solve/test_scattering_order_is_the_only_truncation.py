@@ -56,7 +56,10 @@ pytestmark = pytest.mark.l1
 _TOL = dict(keff_tol=1e-9, flux_tol=1e-8, inner_tol=1e-10, max_outer=3000)
 #: #426 step-2 record (2026-09-04), same fixture, same tolerances: the (n,2n) anisotropy
 #: in the solve. Step 1's record was 1.0953221881419453 (now the flagship's P0-only control).
-_K_P2_RECORD = 1.0911996566537725
+#: Re-pinned 2026-10-30 from 1.0911996566537725 (1 ULP): the space-membership unit U2c spelled the reaction rate as the
+#: co-vector pairing ⟨♭σ, φ⟩, which re-associates one sum; the delta and its three criteria are recorded with the carry
+#: re-baselines (``tests/gates/transport/carry_rebaselines.json``, event U2c).
+_K_P2_RECORD = 1.091199656653772
 
 
 def _mixture(name: str, density: float):

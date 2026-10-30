@@ -52,6 +52,7 @@ from orpheus.numerics.axis import Axis, BasisKind, Declared
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.fields.cross_section_field import CrossSectionField
+from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.kernels import FissionKernel, TransferKernel
 from orpheus.transport.material_field import FissionMaterialField, TransferMaterialField
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
@@ -505,14 +506,17 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # production rate νΣf·φ = 100 n/cm³/s".  The section is a recorded OBJECT
     # (the functional that ran + its target) on the outcome, not an anonymous
     # rescale: ``apply`` IS ``φ · 100 / ⟨νΣf, φ⟩`` — the arithmetic this line
-    # spelled by hand until step 3, bit-for-bit.  ⚠ The state is the POSED
-    # (ng, 1) column: ``IntegratedReactionRate.
-    # evaluate`` silently accepts an (ng,) vector and returns the wrong
-    # number (``[M]`` 200.0 at 2g where the column reads 100.0).
+    # spelled by hand until step 3, bit-for-bit.  The state is the POSED
+    # (ng, 1) column, typed as a member of the pose's space, so the rates'
+    # membership check holds on every run (a flat (ng,) array cannot even
+    # be built into it: the 0.225-for-0.095 class of the space-membership
+    # plan is unspellable on this path).
+    phi_member = ScalarFlux(values=phi.reshape(ng, 1), space=space)
     gauge = ScaleGauge(production_rate.evaluate, 100.0)
-    phi_column = gauge.apply(phi.reshape(ng, 1))
-    prod_rate = production_rate.evaluate(phi_column)
-    abs_rate = absorption_rate.evaluate(phi_column)
+    phi_gauged = gauge.apply(phi_member)
+    phi_column = phi_gauged.values
+    prod_rate = production_rate.evaluate(phi_gauged)
+    abs_rate = absorption_rate.evaluate(phi_gauged)
     # The one-group condensed cross sections are INTENSIVE: σ̄x = ⟨Σx,φ⟩/⟨1,φ⟩.
     # The rate leg reads the XS field's space measure, the flux leg the
     # pose's own pairing — the same measure by the content-equality gate —
@@ -520,10 +524,11 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # measure-invariant by construction (CS4a-R ruling XD-6 — a quantity
     # documented as a cross section cannot scale with the point weight;
     # the XD-6 gate scales the weight ×2 and pins rate-moves/ratio-stays).
-    # ⟨1,φ⟩ is the pose's integration co-vector, not a reaction rate —
-    # it stays the space's own pairing. Bit-identical to the pre-review
+    # ⟨1,φ⟩ is the pose's integration co-vector ``space.integral``, the
+    # flat of the constant function (its coordinates are ones on this
+    # nodal pose), not a reaction rate. Bit-identical to the pre-review
     # ``float(phi.sum())`` on the counting point (D5 pins it).
-    total_flux = space.inner_product(np.ones((ng, 1)), phi_column)
+    total_flux = space.integral.evaluate(phi_gauged)
 
     if mix.eg is None:
         # Synthetic XS — no physical energy grid, so lethargy / per-energy
