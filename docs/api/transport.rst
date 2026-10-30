@@ -128,9 +128,14 @@ The §5.6 reaction-rate co-vector :math:`\langle\Sigma_x,\cdot\rangle` and
 its volume-integrated companion. ``ReactionRateFunctional`` is the
 per-cell density (fission's rank-1 row-factor; see :ref:`fission-as-dyad`);
 ``IntegratedReactionRate`` is the scalar total behind the SN
-:math:`k`-eigenvalue (:ref:`integrated-reaction-rate-keff`). Both
-specialise the generic numerics
-:class:`~orpheus.numerics.functional.InnerProductFunctional`.
+:math:`k`-eigenvalue (:ref:`integrated-reaction-rate-keff`).
+``ReactionRateFunctional`` specialises the generic numerics
+:class:`~orpheus.numerics.functional.InnerProductFunctional`;
+``IntegratedReactionRate`` does not: it is the canonical pairing of the
+co-vector ``cross_section.space.flat(cross_section)``, a
+:class:`~orpheus.numerics.space.Covector` cached as its ``covector``
+attribute, with a member of the cross section's space
+(:ref:`integrated-reaction-rate-covector`).
 
 .. automodule:: orpheus.transport.reaction_rate_functional
    :members:

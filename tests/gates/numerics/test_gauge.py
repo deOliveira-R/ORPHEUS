@@ -24,9 +24,10 @@ functionals are DISTINGUISHABLE values — until this step the tree applied four
 "production rate" functionals and recorded none of them (``[M]``
 ``eigenvalue.py:437-447``, ``homogeneous/solver.py:436``, ``eigenvalue.py:506``).
 
-Fixtures: the 0-D ``HomogeneousProblem`` pencil (≥ 2G — ``[M]`` the reaction-rate
-functional silently accepts an ``(ng,)`` vector and returns the wrong number
-where the posed ``(ng, 1)`` column reads the right one; at 1G they coincide) and
+Fixtures: the 0-D ``HomogeneousProblem`` pencil (≥ 2G — ``[M]`` until the
+space-membership unit U2c the reaction-rate functional silently accepted an
+``(ng,)`` vector and returned the wrong number where the posed ``(ng, 1)`` column
+reads the right one, ERR-122; at 1G they coincide, so a 1G row is blind to it) and
 the entry ledger's gauge-singular all-reflective 2-D box (``dim ker A = 12``).
 """
 

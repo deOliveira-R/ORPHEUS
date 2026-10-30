@@ -190,11 +190,29 @@ consumers landed May 2026):
   for :math:`|v\rangle\langle w|`. Exported from
   :mod:`orpheus.numerics`.
 * :class:`~orpheus.numerics.functional.InnerProductFunctional` — the
-  generic co-vector :math:`\langle w, \cdot\rangle` (``evaluate(x) = (w *
-  x).sum(axis, keepdims=True)``), the row-factor of a rank-1 operator.
-  The transport
+  fibre-wise contraction :math:`\langle w, \cdot\rangle` over one axis
+  (``evaluate(x) = (w * x).sum(axis, keepdims=True)``), the row-factor of
+  a rank-1 operator. The weight and the carrier have one exact shape,
+  checked under ``__debug__`` only (``ELEGANCE-DEBT[guard] #664``: the
+  dyad carries no spaces yet, so its row factor is not a bound
+  co-vector). The transport
   :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
   specialises it. Exported from :mod:`orpheus.numerics`.
+* :class:`~orpheus.numerics.space.Covector` — a member of the dual
+  :math:`V^{*}`, minted only by
+  :meth:`FunctionSpace.flat <orpheus.numerics.space.FunctionSpace.flat>`
+  (``V.flat(w)`` holds :math:`G w`), whose ``evaluate(x)`` is the
+  metric-free pairing :math:`\sum_i c_i x_i` with a member :math:`x` of
+  :math:`V`. :attr:`FunctionSpace.integral
+  <orpheus.numerics.space.FunctionSpace.integral>` is
+  :math:`\flat_V 1`, minted from :attr:`FunctionSpace.unit
+  <orpheus.numerics.space.FunctionSpace.unit>`. Both
+  :class:`~orpheus.numerics.space.Covector` and
+  :class:`~orpheus.numerics.field.Field` subclass
+  :class:`~orpheus.numerics.space.Member`, the typed pair (coordinates,
+  space) that a space's membership verb reads. Exported from
+  ``orpheus.numerics.space`` (not from :mod:`orpheus.numerics`). See
+  :ref:`spaces-covector`.
 
 
 Consumer matrix for tensor-product primitives (post Wave T)

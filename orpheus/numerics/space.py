@@ -121,9 +121,12 @@ class Member:
     compared with the space by content identity on every run
     (:meth:`FunctionSpace.coordinates_of`), which is the only check that
     separates two spaces of equal shape and different metric; a bare array
-    is the raw path. Two kinds of member exist:
+    is the raw path. Its subclasses are
     :class:`~orpheus.numerics.field.Field`, every production quantity on
-    :math:`V`, and :class:`Covector`, an element of :math:`V^{*}`. This base
+    :math:`V` with its physical role and units, and :class:`Covector`, an
+    element of :math:`V^{*}`. A bare ``Member`` is an element of :math:`V`
+    with no physical role: the constant function :math:`1` that
+    :attr:`FunctionSpace.integral` lowers is one. This base
     lives here, with the space that asks the question, because ``field.py``
     imports this module and the concept order runs space before field.
 
@@ -672,7 +675,8 @@ class FunctionSpace(Generic[Carrier]):
         element. Two tiers (the user's ruling, 2026-10-30: well-posed
         mathematics is guaranteed through the formal machinery):
 
-        * **A typed member**, a :class:`~orpheus.numerics.field.Field`, is
+        * **A typed member**, a :class:`Member` (a :class:`~orpheus.numerics.field.Field`,
+          a :class:`Covector` on a dual space, or the bare constant function), is
           compared with this space by content identity on every run, ``-O``
           included, and its coordinates are returned. This is the only check
           that separates two spaces of equal shape and different metric.

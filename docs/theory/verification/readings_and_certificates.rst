@@ -1401,9 +1401,14 @@ Declared limits and their issues
        not built
      - open
    * - #570
-     - ``InnerProductFunctional.evaluate`` broadcasts a weight over unmatched
-       axes silently
-     - open
+     - ``InnerProductFunctional.evaluate`` broadcast a weight over unmatched
+       axes silently. The contract the issue asks for is now in the code
+       (``64cc3a7a``, option (a)): the weight and the carrier have one exact
+       shape, but the check runs under ``__debug__`` only, so under
+       ``python -O`` a raw mismatched carrier still broadcasts (the raw
+       tier, #664; the outer-product read is ERR-122). The typed reader is
+       the co-vector (:ref:`spaces-covector`)
+     - open (the contract is coded; the issue is not closed)
    * - #571
      - the S\ :sub:`N` reading of a linear-discontinuous answer drops the
        slopes

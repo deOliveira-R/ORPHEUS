@@ -191,6 +191,15 @@ class InnerProductFunctional:
         \langle w, x\rangle_j \;=\; \sum_{k} w_k\, x_k
         \qquad\text{(sum over }\texttt{axis}\text{)} .
 
+    It is a FIBREWISE co-vector: a counting contraction over one axis that
+    leaves the complement standing, so its value is a field over the
+    remaining axes, and it reads no metric. The element of the dual
+    :math:`V^{*}` is a different object,
+    :class:`~orpheus.numerics.space.Covector`: minted as ``V.flat(w)`` with
+    the metric folded in, it pairs with a whole member of :math:`V` and
+    returns a number. The integrated reaction rate is the second, the
+    per-cell reaction-rate density the first.
+
     This is the concrete, numerics-level realisation of the structural
     :class:`Functional` Protocol — a co-vector (a *row*), the dual companion
     of a :class:`~orpheus.numerics.vector.Vector` (a *column*). Its defining

@@ -556,6 +556,9 @@ The concept table
    * - Riesz legs
      - :class:`~orpheus.numerics.operator.RieszLowerOperator`, :class:`~orpheus.numerics.operator.RieszRaiseOperator`
      - :ref:`spaces-riesz-legs`, :eq:`spaces-riesz-lower-raise`, :eq:`spaces-riesz-round-trip`
+   * - Co-vector (a member of :math:`V^{*}`); the integral :math:`\flat 1`; membership
+     - :class:`~orpheus.numerics.space.Covector` minted by :meth:`~orpheus.numerics.space.FunctionSpace.flat`; :attr:`~orpheus.numerics.space.FunctionSpace.integral`, :attr:`~orpheus.numerics.space.FunctionSpace.unit`; :class:`~orpheus.numerics.space.Member`, :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`
+     - :ref:`spaces-covector`, :ref:`spaces-membership`
    * - Bound operator
      - :class:`~orpheus.numerics.operator.LinearOperator` (its ``domain`` and ``codomain``), :class:`~orpheus.transport.operators.bound_operator.BoundOperator`
      - :ref:`bound-operator`
@@ -717,10 +720,13 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   ``ndarray``), the full-field composite hands its block spaces
   coordinates rather than member fields, and the
   ``InnerProductFunctional`` inside the rank-one fission operator has no
-  domain or codomain space. The composite cannot pass members yet
-  because no element is typed on a dual space: a field on
-  :math:`V^{*}` still carries its primal space (#633), and the co-vector
-  unit of ``.claude/plans/space_membership_covector_gauge.md`` owns that.
+  domain or codomain space. The reaction rates of S\ :sub:`N`, diffusion
+  and the homogeneous solve are typed: each pairs the co-vector
+  ``V.flat(σ)`` (a :class:`~orpheus.numerics.space.Covector`, a member of
+  :math:`V^{*}`, :ref:`spaces-covector`) with a typed flux. The composite
+  cannot pass members yet because a composite field keeps the flux role
+  on either side of a dual arrow, so its blocks on a dual space carry
+  primal labels (#633, placed in S6c of the numerics untangling).
   The raw path's shape check is development-only (``__debug__``), so
   under ``-O`` a raw non-member reaches the arithmetic unchecked.
 - **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs 12 times in

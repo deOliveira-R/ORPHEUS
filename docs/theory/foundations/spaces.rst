@@ -2179,6 +2179,120 @@ P2, 2026-10).
 The axis is also ``NODAL`` and rank-1 by construction, both refused
 otherwise.
 
+.. _spaces-form-only-on-a-modal-axis:
+
+A form is positioned only on a Modal axis
+-----------------------------------------
+
+Refusing weights on the energy axis closed one door to a second energy
+measure and left another open until the space-membership unit U2a
+(``[LANDED 138f7d02]``, 2026-10-30; plan
+``.claude/plans/space_membership_covector_gauge.md``, the test-architect's
+specification ``scratch/membership_covector/spec/spec.md`` §U2.1). An
+axis-built space admits, beside its axes, the positioned OVERLAY of dense
+forms (:ref:`spaces-metric-three-sources`): one entry per axis, a dense
+Gram on a block whose axis carries no explicit weights. Until U2a the
+door, ``_require_positioned_over`` in ``orpheus/numerics/space.py``, read
+"carries no explicit weights" as "carries no measure", and the two are
+different statements: a NODAL axis with ``weights=None`` carries the
+counting measure, :math:`w_i = 1`, which is exactly what the theorem
+above says the energy axis carries. A dense form beside it was a second
+metric source on one block, and nothing refused it.
+
+**The leak, measured.** `[M]` 2026-10-30, re-run by the archivist on the
+parent of U2a (``d362f02f``, a detached worktree) and on the U2 tip: a
+cross-section space of 2 synthetic groups (the counting energy axis) times
+3 cells of volumes :math:`[1, 2, 3]`, with the dense form
+:math:`G_E = \begin{pmatrix} 2 & 0.5 \\ 0.5 & 1 \end{pmatrix}` positioned
+on the energy block, :math:`\sigma = \mathbf 1` and
+:math:`\varphi = [[1, 2, 3], [4, 5, 6]]`. The construction was admitted on
+the parent, and the space's own pairing read
+
+.. math::
+
+   \langle \sigma, \varphi\rangle_V
+   \;=\; \sum_i V_i\, \sigma_{\cdot i}^{\mathsf T} G_E\, \varphi_{\cdot i}
+   \;=\; 1(8.5) + 2(12.5) + 3(16.5) \;=\; 83 ,
+
+while the reaction rate of the same cross section, which sums the groups
+with weight one, read
+:math:`\sum_i V_i \sum_g \sigma_{gi}\varphi_{gi} = 1(5) + 2(7) + 3(9) = 46`.
+Both numbers are correct readings of a legal object, and they disagree,
+because the space had two metrics on its energy block and each consumer
+read a different one. No production space carried such a form (the
+census below), so the defect was latent; it is catalogued as
+**ERR-121** (:ref:`theory-verification-error-catalog`).
+
+**The rule.** A form is a Gram on expansion COEFFICIENTS, so it is
+positioned only on an axis whose kind is
+:class:`~orpheus.numerics.axis.Modal`. On a modal axis the coordinates are
+coefficients and the Gram is their metric; on a nodal axis the
+coordinates are values at nodes and the axis's measure (the counting
+measure when ``weights=None``) is their metric, so a form there is a
+second source. The predicate is read from ``Axis.kind``, a closed sum,
+and needs no new field. Production is unaffected: the production dressing
+of a dense-Gram frame (``frame_faces._dressed``, reached through
+:func:`~orpheus.numerics.frame_faces.basis_space`) makes the head axis
+``FromFrame``, whose kind is Modal (:ref:`spaces-moment-head-axis-built`).
+On the U2 tip the leak's construction raises ``ValueError`` naming the
+counting measure (the same probe, run with and without ``-O``: the check
+is a construction guard, not a ``__debug__`` one).
+
+**The census the rule rests on.** `[M]` 2026-10-30, the test-architect's
+overlay census (``battery/run_overlay.sh`` under the specification's
+directory: the door wrapped by an in-process plugin over the 31 test
+files that touch dense metrics plus the energy-overlay control, 1264
+passed), every admitted positioned form recorded with its axis:
+
+.. list-table:: The 137 admitted positioned forms before U2a, by axis
+   :header-rows: 1
+   :widths: 40 12 48
+
+   * - Axis class / origin / kind
+     - forms
+     - where
+   * - ``Axis`` / ``FromFrame`` / Modal
+     - 108
+     - production ``_dressed`` (the frame-dressed heads), through 11 test
+       files and 6 module-level constructions
+   * - ``Axis`` / ``Declared`` / NODAL (counting)
+     - 20
+     - synthetic dense-form fixtures of three test files
+   * - ``Axis`` / ``Declared`` / Modal
+     - 7
+     - synthetic coefficient heads of three test files
+   * - ``Axis`` / ``FromBasis`` / NODAL
+     - 1
+     - one hand-dressed test space in ``test_frame.py``
+   * - ``EnergyAxis`` / ``Declared`` / NODAL
+     - 1
+     - the leak's control (83 against 46)
+
+The rule reclassifies 22 of the 137 (the NODAL rows), 0 of them in
+production. Two predicates were rejected, each for a structural reason:
+refusing a form on ``EnergyAxis`` alone closes the observed leak and
+leaves every other counting axis open to the same two-source defect (1 of
+the 22); refusing every form whose axis is not ``FromFrame`` (29 of 137)
+makes provenance decide admissibility, while an axis's ``origin`` is
+deliberately excluded from its identity (:ref:`spaces-axis-identity`).
+The 20 Declared-NODAL fixtures were re-posed on a declared Modal axis
+with unit :math:`e_0` (a synthetic coefficient head, which is what they
+modelled); ``test_space_of_axes.py``'s three-source row inverted its
+counting leg into a refusal and gained a Modal admitted leg; the
+hand-dressed ``test_frame.py`` space now dresses through the production
+mint. `[M]` the U2a commit: 218 rows red before the re-poses, every one a
+dense-form fixture, and 1468 passed after.
+
+**Gate.** ``tests/gates/numerics/test_overlay_is_a_form_on_a_modal_block.py``:
+a form on the counting energy axis is refused (it carries
+``@pytest.mark.catches("ERR-121")``), a form on a declared counting nodal
+axis is refused, a form on a Modal axis is admitted and is the block's
+metric (against a hand-spelled bilinear), and the production dense
+dressing is admitted (the positive control: a predicate that refused
+every form reddens it). `[M]` 2026-10-30, the archivist's arm: the door
+re-dropped to the pre-U2a predicate in-process (``python -O``) reddens the
+two refusal rows and leaves the two admission rows green.
+
 .. _spaces-energy-grid-is-a-mesh:
 
 EnergyGrid is a 1-D mesh in energy
@@ -2353,8 +2467,11 @@ metric can come from, and **exactly one of them may be occupied**:
        :class:`~orpheus.numerics.metric.FactoredMetric` product of them.
        Beside ``axes`` (item 6.2c-i, ruling R-6.2c-2) it is admitted only
        as the positioned OVERLAY of forms — a ``FactoredMetric`` with one
-       entry per axis, a form only on a block whose axis carries no
-       measure, never a ``DiagonalMetric`` (a diagonal measure is the
+       entry per axis, a form only on a block whose axis is
+       :class:`~orpheus.numerics.axis.Modal` and carries no explicit
+       weights, never on a NODAL axis (whose ``weights=None`` is the
+       counting measure, :ref:`spaces-form-only-on-a-modal-axis`), never
+       a ``DiagonalMetric`` (a diagonal measure is the
        axis's own to carry) — and is MERGED into the axes-derived object,
        never substituted for it: every other axis keeps supplying its
        own block, and a product of axis-built factors carries its
@@ -2696,8 +2813,9 @@ The two tiers
      - When it runs
    * - **typed** (the formal path)
      - a :class:`~orpheus.numerics.space.Member` (an ``isinstance``
-       test; every :class:`~orpheus.numerics.field.Field` is one), which
-       carries its coordinates and its space
+       test; every :class:`~orpheus.numerics.field.Field` is one, and
+       every :class:`~orpheus.numerics.space.Covector`, a member of
+       :math:`V^{*}`), which carries its coordinates and its space
      - ``x.space == V`` by the identity key, so an equal-shape space
        with another metric is refused (``ValueError``, "… is not a member
        of …"); the coordinates are returned (parse, do not validate)
@@ -2709,7 +2827,11 @@ The two tiers
      - only under ``if __debug__:``; ``python -O`` strips it
 
 The member type is declared in ``space.py``, beside the space that asks
-the question, and :class:`~orpheus.numerics.field.Field` subclasses it.
+the question, and :class:`~orpheus.numerics.field.Field` and
+:class:`~orpheus.numerics.space.Covector` subclass it. Since U2b
+(``[LANDED 64cc3a7a]``) it is a frozen dataclass holding ``values`` and
+``space`` and the one shape check ``values.shape == space.shape``, so the
+pair and its check have a single spelling for both kinds of member.
 The direction is forced by the concept order of the numerics package:
 ``field.py`` imports ``space.py``, so the space cannot name ``Field``
 without a module cycle (`[M]` 2026-10-30: a first draft imported
@@ -2767,24 +2889,35 @@ spells each as its own verb rather than one verb with a flag.
 
   where :math:`\|` concatenates shapes. A typed member handed to an
   action is compared exactly: a field is a member of one space, and
-  carries no batch. The lowering leg :math:`\flat_V : V \to V^{*}`
-  asks its domain :math:`V`. The raising leg
-  :math:`\sharp_V : V^{*} \to V` still asks :math:`V`, through
-  ``V.apply_inverse_metric``, so it admits a typed member of :math:`V`
-  and refuses a typed covector, the reverse of its arrow. This is a known
-  defect, found by the U1 qa review (its finding F1), and it is not
-  fixed in U1. The obvious repair routes the leg through
-  ``V.dual().apply_metric``, whose metric is :math:`G^{+}`
-  (:ref:`spaces-dual-space`); it is ``array_equal`` on a leaf space, and
-  it was tried and refuted for U1. `[M]` 2026-10-30, the full ``-O``
-  suite on the U1 worktree: 7 rows of
-  ``tests/gates/numerics/test_coupled_operator.py`` crashed, because a
-  space that types its own carrier (it overrides the metric legs to act
-  on a field's ``values``) has a plain :class:`DualSpace`, which knows
-  nothing of that carrier, so the dual's metric was applied to the field
-  object itself. The repair needs the dual of a carrier-typed space to
-  type its elements too, which is the typed-dual-elements item of unit U2
-  (the co-vector, #633), and it lands there.
+  carries no batch. Each leg asks its own domain. The lowering leg
+  :math:`\flat_V : V \to V^{*}` asks :math:`V`, through
+  ``V.apply_metric``. The raising leg :math:`\sharp_V : V^{*} \to V`
+  asks :math:`V^{*}`, through ``V.dual().apply_metric``, whose metric is
+  :math:`G^{+}` (:ref:`spaces-dual-space`): it admits a
+  :class:`~orpheus.numerics.space.Covector` and refuses a typed member of
+  :math:`V`. The arithmetic is the same as ``V.apply_inverse_metric`` on
+  every realization, because the dual's metric is the primal's with its
+  two faces swapped.
+
+  .. dropdown:: First got wrong: the raising leg asked V, not V* (U1)
+     :color: muted
+
+     In U1 the leg asked :math:`V`, through ``V.apply_inverse_metric``, so it admitted a
+     typed member of :math:`V` and refused a typed covector, the reverse of
+     its arrow (the U1 qa review, finding F1). The repair above was tried in
+     U1 and reverted: `[M]` 2026-10-30, the full ``-O`` suite on the U1
+     worktree, 7 rows of ``tests/gates/numerics/test_coupled_operator.py``
+     crashed. The cause was a test double, not production: the fixture's
+     ``_ToySpace`` types its own carrier (it overrides the metric legs to act
+     on a field's ``values``), while its plain :class:`DualSpace` knew
+     nothing of that carrier, so the dual's metric was applied to the field
+     object itself. U2b (``[LANDED 64cc3a7a]``) gave the fixture a dual that
+     types its carrier too (``_ToyDualSpace``) and restored the repair; no
+     production guard was added. The gate is ``TestTheRaisingLegActsOnTheDual``
+     in ``tests/gates/numerics/test_covector.py``: :math:`\sharp\flat\sigma`
+     returns :math:`\sigma` to two rounding units on a non-degenerate metric,
+     and :math:`\sharp` refuses a member of :math:`V` (an arm that routes
+     :math:`\sharp` back through ``V`` reddens it, `[M]` the U2b commit).
 
 **A pairing over a payload is posed on the tensor product.** Before the
 split, ``inner_product`` on an array of shape
@@ -2834,7 +2967,16 @@ Who passes what today
   hand the space the field itself;
   :meth:`CoupledSpace.inner_product
   <orpheus.numerics.coupled_system.CoupledSpace.inner_product>` hands each
-  member space its member field.
+  member space its member field. Since U2c (``[LANDED 36dbac9d]``) the
+  reaction rates of the three sharp methods are paired with typed fluxes:
+  S\ :sub:`N` types its power-iteration vector as a
+  :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` on the
+  problem's bulk space in one helper (``SNSolver._scalar_flux``, used by
+  the production rate, ``compute_keff`` and the leakage bridge), diffusion
+  hands the rate the interior field ``psi.interior``, and the homogeneous
+  solve gauges a ``ScalarFlux`` on its pose. The integration co-vector
+  :attr:`~orpheus.numerics.space.FunctionSpace.integral` mints from a
+  typed member too (:ref:`spaces-covector`).
 - **Raw:** the full-field composite
   (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`)
   hands its block spaces their coordinates, in its inner product and in
@@ -2842,8 +2984,25 @@ Who passes what today
   arrays (`[M]` before the carve, the specification's §U1.2: 14 action
   sites, and every production carrier observed at every exercised site an
   ``ndarray``); and the ``InnerProductFunctional`` inside the rank-one
-  fission operator has no domain or codomain space yet. These are the
-  debt #664 names.
+  fission operator has no domain or codomain space, so its exact-shape
+  check runs under ``__debug__`` only (the homogeneous solve's
+  ``fission.production_rate.evaluate(phi)`` reaches it with a bare
+  array). These are the debt #664 names.
+
+The route gate ``tests/gates/cross_method/test_production_pairs_typed_members.py``
+pins the typed half: it replaces the exact-shape verb
+:meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of` (the
+membership verb of the scalar verbs and of every co-vector mint and
+pairing) by one that refuses a bare array, and runs one eigenvalue solve
+per sharp method (homogeneous, diffusion, an S\ :sub:`N` two-region
+vacuum slab), each with a liveness count of the typed calls it admitted.
+The action verb ``leading_coordinates_of`` is deliberately not patched:
+an action legitimately carries a trailing batch, and its raw tier is the
+#664 debt. `[M]` 2026-10-30, the U2c commit: before
+:attr:`~orpheus.numerics.space.FunctionSpace.integral` existed, the gate's
+frame probe found exactly two raw callers, one call each in diffusion and
+homogeneous, both handing the space its own unit as a bare array to
+``flat``; that finding is what minted ``integral``.
 
 **What failed: typing the composite's blocks.** The specification
 converted the composite's inner product to hand its blocks the member
@@ -2853,15 +3012,22 @@ was refused. The refusal was correct, and the element was mislabelled.
 The dual of a composite is the composite of the duals
 (:ref:`spaces-dual-space`), so the dual space's interior block is
 :math:`V_{\rm bulk}^{*}`; but a composite field on it still carries its
-primal block labels, :math:`V_{\rm bulk}`, because no element is typed on
-a dual space yet (the warning at the end of :ref:`spaces-dual-space`,
+primal block labels, :math:`V_{\rm bulk}`, because a composite field
+carries the flux role on either side of a dual arrow (the warning at the
+end of :ref:`spaces-dual-space`,
 `#633 <https://github.com/deOliveira-R/ORPHEUS/issues/633>`_).
 :math:`V^{*} \ne V` by content identity, so the typed tier refuses the
 block. The composite therefore passes coordinates, and a comment in
 :meth:`FullFieldSpace.inner_product
 <orpheus.numerics.spaces.full_field_space.FullFieldSpace.inner_product>`
-records why. The unit that types elements of the dual space (the
-co-vector, U2 of the plan) owns the fix.
+records why, tagged ``ELEGANCE-DEBT[guard] #666``: the composite's inner
+product asks no membership of its arguments
+(`#666 <https://github.com/deOliveira-R/ORPHEUS/issues/666>`_). The leaf
+co-vector of :ref:`spaces-covector` does not fix it: a :class:`~orpheus.numerics.space.Covector` is a member of a leaf's
+dual, while the composite's dual blocks hold role-typed fields whose role
+a dual arrow does not swap. That is #633, placed by the issue in S6c of
+``.claude/plans/numerics_untangling.md`` (ruling 77, moments as
+covectors).
 
 **Gates.** ``tests/gates/numerics/test_space_membership.py``, in three
 rungs:
@@ -2870,8 +3036,7 @@ rungs:
    the raw call's number (:math:`210` on :math:`V`); a member of the
    equal-shape space :math:`W` is refused by ``inner_product`` and by
    ``apply_metric``; ``coordinates_of`` returns the field's own
-   coordinates (``is``); the raising leg admits a member of
-   :math:`V^{*}` and refuses a member of :math:`V`; two axes-less spaces
+   coordinates (``is``); two axes-less spaces
    of one name and shape with different weights are two spaces, and a
    member of one is refused by the other;
 2. the raw tier: a flat carrier on a column space and a payload tail on a
@@ -2885,6 +3050,9 @@ rungs:
 The ``__debug__`` rows carry the skip pair of the ``vv-testing`` rule and
 are run without ``-O``:
 ``.venv/bin/python -m pytest -p no:cacheprovider tests/gates/numerics/test_space_membership.py``.
+The raising leg's membership (it admits a member of :math:`V^{*}` and
+refuses one of :math:`V`) is gated with the co-vector, in
+``tests/gates/numerics/test_covector.py`` (:ref:`spaces-covector`).
 
 .. _spaces-riesz-legs:
 
@@ -2917,8 +3085,9 @@ extends it to a singular one through the pseudo-inverse, which is
 ORPHEUS's choice and not Lee's:
 
 .. (V&V scope note) Definitional: it STATES what the two leg classes
-   apply (RieszLowerOperator.apply delegates to FunctionSpace.apply_metric,
-   RieszRaiseOperator.apply to FunctionSpace.apply_inverse_metric), plus
+   apply (RieszLowerOperator.apply delegates to V.apply_metric,
+   RieszRaiseOperator.apply to V.dual().apply_metric, whose metric is G+),
+   plus
    the arrow bookkeeping. Not a solver claim: no flux, no eigenvalue, no
    discretization error. Wired, L0, to the test a mutation of the
    lowering leg reddens: tests/gates/numerics/test_riesz_legs.py
@@ -2950,11 +3119,14 @@ ORPHEUS's choice and not Lee's:
    :by: orpheus.numerics.operator.RieszRaiseOperator.apply
 
    **Implemented by** the raising leg, whose ``apply`` is
-   ``space.apply_inverse_metric(f)``: the Moore–Penrose pseudo-inverse of
-   :ref:`spaces-metric-moore-penrose`, on every metric realization. Its
-   membership check asks :math:`V` rather than its domain :math:`V^{*}`,
-   a known defect that waits for typed dual elements
-   (:ref:`spaces-membership`).
+   ``space.dual().apply_metric(f)``: the metric of :math:`V^{*}` is the
+   primal's with its two faces swapped, so this is the Moore–Penrose
+   pseudo-inverse of :ref:`spaces-metric-moore-penrose` on every metric
+   realization, the same arithmetic as ``space.apply_inverse_metric(f)``.
+   The spelling makes the leg ask its own domain :math:`V^{*}` whether
+   ``f`` is a member: a :class:`~orpheus.numerics.space.Covector` is
+   admitted and a typed member of :math:`V` refused
+   (:ref:`spaces-membership`, :ref:`spaces-covector`).
 
 where :math:`G^{+}` is the Moore–Penrose pseudo-inverse, the unique
 matrix satisfying the four Penrose conditions :math:`G G^{+} G = G`,
@@ -3457,6 +3629,173 @@ delegations in the same order. Gates: ``test_dual_metric.py`` D2 and
 ``test_riesz_legs.py``'s dagger–dual row. D1 asserts that neither the dual
 arrow nor the adjoint arrow defines a route of its own (``adjoint`` is not
 in ``vars(_DualOperator)``, ``dual`` is not in ``vars(AdjointOperator)``).
+
+.. _spaces-covector:
+
+The co-vector: a member of :math:`V^{*}`, minted only by :math:`\flat`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The dual space has a typed element:
+:class:`~orpheus.numerics.space.Covector`, a
+:class:`~orpheus.numerics.space.Member` whose ``space`` is
+``V.dual()`` (unit U2b of ``.claude/plans/space_membership_covector_gauge.md``,
+``[LANDED 64cc3a7a]``). It is the functional "pair with a density
+:math:`w`", held as the coordinates that functional has in :math:`V^{*}`.
+It is declared in ``space.py`` beside :class:`DualSpace`, not in
+``functional.py``, because :meth:`FunctionSpace.flat
+<orpheus.numerics.space.FunctionSpace.flat>` mints it and the concept
+order of the numerics package runs space before functional. It conforms
+to the :class:`~orpheus.numerics.functional.Functional` Protocol
+structurally (it exposes ``evaluate``).
+
+**Why** :math:`\flat` **is the mint.** Let :math:`V` carry the metric
+:math:`G` and let :math:`w` be a density on :math:`V` (a cross section,
+or the constant function). The functional it defines is
+
+.. math::
+
+   f_w(x) \;=\; \langle w, x\rangle_V \;=\; w^{\mathsf T} G\, x
+   \;=\; (G w)^{\mathsf T} x \;=\; \sum_i c_i\, x_i ,
+   \qquad c \;=\; G\,w \;=\; \flat_V w ,
+
+using :math:`G = G^{\mathsf T}`. The third equality is the whole design:
+the metric can be moved off the argument and onto the density, once, and
+what is left is the canonical pairing of :math:`V^{*}` with :math:`V`,
+:math:`\langle c, x\rangle = \sum_i c_i x_i`. The canonical pairing is
+defined before any metric exists (it is evaluation of a linear functional
+on a vector), so it reads no metric, and the vector :math:`c` is the
+unique representative of :math:`f_w` in those coordinates: two densities
+define the same functional iff their flats agree, which on a
+non-degenerate metric is iff they agree. This is the Riesz map of
+:ref:`spaces-riesz-legs` (:eq:`spaces-riesz-lower-raise`) read as a
+constructor: ``V.flat(w)`` is ``Covector(values=V.apply_metric(w),
+space=V.dual())``, the same arithmetic as
+:class:`~orpheus.numerics.operator.RieszLowerOperator`, and the density
+is itself asked to be a member of :math:`V` (typed, compared by content;
+or a bare array of the exact shape under ``__debug__``). A co-vector's
+``evaluate(x)`` is ``float(np.sum(c * V.coordinates_of(x)))``: the dual's
+primal is asked whether :math:`x` is a member, so a member of an
+equal-shape space with another metric is refused on every run.
+
+The metric therefore enters at the mint and never at the pairing. Two
+consequences follow, and each was a defect class before:
+
+- **one place reads the measure.** A consumer that pairs a co-vector
+  cannot re-apply the metric, or apply a different one: the pairing has
+  no metric to apply. The energy-block leak of
+  :ref:`spaces-form-only-on-a-modal-axis` (83 against 46) was two readers
+  of one space choosing two metrics.
+- **the membership question is asked of the right space.** The raising
+  leg :math:`\sharp_V : V^{*} \to V` takes a co-vector and refuses a
+  member of :math:`V` (:ref:`spaces-membership`).
+
+**One mint, not two.** A first proposal kept two mints apart: the Riesz
+map ``V.flat(w)``, which reads :math:`V`'s metric, and a "measure mint"
+:math:`w\,\mu` against :math:`V`'s integration measure, from which a
+reaction rate :math:`R = \int \sigma\varphi\,d\mu` would be born. They
+agree whenever the space's metric is its integration measure (`[M]`
+2026-10-30, the explorer's census: 20 085 of 20 085 physical-flux calls),
+and differed only under a dense form positioned on a counting block, the
+83-against-46 leak. The proposal was refuted for the design by the Riesz
+uniqueness above: on a space with a measure the metric IS the measure,
+so a second mint can only disagree where the space carries two metric
+sources, and the right repair is to refuse the second source (U2a,
+:ref:`spaces-form-only-on-a-modal-axis`), not to add a second
+constructor. A space whose metric is a frame Gram (a moment head, a
+frame face) is not a measure space; a reaction-rate co-vector on it is
+the pullback of the nodal one along the reconstruction, never a second
+flat (the plan's ruling; no consumer of that pullback exists yet).
+
+**The integral is** :math:`\flat 1`, **and the number one is the
+space's unit.** :attr:`FunctionSpace.integral
+<orpheus.numerics.space.FunctionSpace.integral>` is the co-vector
+:math:`\langle 1, \cdot\rangle_V = \flat_V 1`, minted through ``flat``
+from the constant function as a typed member of :math:`V`. Its
+coordinates are :attr:`FunctionSpace.unit
+<orpheus.numerics.space.FunctionSpace.unit>`, the tensor product of the
+axes' units :math:`u = u_1\otimes\dots\otimes u_n`
+(:attr:`~orpheus.numerics.axis.Axis.unit`, :ref:`spaces-axis-unit`): ones
+on a nodal axis, the carried unit on a modal one (an axes-less space has
+nodal coordinates, so its unit is ones). On a frame-dressed head the
+constant function's coordinates are its moments
+:math:`\Phi^{\mathsf T} w`, not ones. `[M]` 2026-10-30, the archivist's
+probe: the head of the level-symmetric S\ :sub:`4` frame at :math:`L = 1`,
+``frame_faces.basis_space(frame_faces.angular_frame(Quadrature.level_symmetric(sn_order=4), 1))``,
+has shape :math:`(2, 3)` and unit
+:math:`[[12.57, 0, 0], [0, 1.1\times10^{-16}, 0]]`, the first entry
+:math:`4\pi`. So ``V.flat(np.ones(V.shape))`` is not the integral on a
+head, and the code spells the integral only as ``V.integral``. On an
+all-nodal cross-section space the unit is ones and ``integral`` reads
+:math:`\sum_g\sum_i \varphi_{gi} V_i`. The co-vector is defined on a leaf
+space: on a composite (bulk :math:`\oplus` trace) space ``flat`` and
+``integral`` do not work today, and the composite's own verbs ask no
+membership (`#666 <https://github.com/deOliveira-R/ORPHEUS/issues/666>`_).
+A bare :class:`~orpheus.numerics.space.Member` (no
+:class:`~orpheus.numerics.field.Field` role) is an element of :math:`V`
+with no physical role; the constant function ``integral`` lowers is
+one.
+
+**What it replaced.** ⟨1, ·⟩ was spelled four ways before U2
+(`[M]` the explorer's census), and the specification found that only two
+of the four were :math:`\langle 1,\cdot\rangle_V` (refuted for "the
+four spellings fold onto one", spec §U2.3):
+
+.. list-table:: The four spellings, and what each turned out to be
+   :header-rows: 1
+   :widths: 30 22 48
+
+   * - Spelling before U2
+     - What it is
+     - At the U2 tip
+   * - homogeneous ``space.inner_product(np.ones((ng, 1)), phi)``
+     - :math:`\langle 1,\cdot\rangle_V`
+     - ``space.integral.evaluate(phi)``; ``==`` (the metric applied to
+       the unit, then one sum, both sides), gated by
+       ``test_the_homogeneous_total_flux_is_the_integral_bit_for_bit``
+   * - diffusion ``DiffusionSolver._volume_integral``
+     - :math:`\langle 1,\cdot\rangle_V` on the bulk
+     - ``bulk.integral`` minted once per solver and paired per outer; the
+       method is retired (:doc:`/theory/methods/diffusion_1d`)
+   * - inside ``IntegratedReactionRate``
+     - :math:`\langle\sigma,\cdot\rangle_V`, not :math:`\langle 1,\cdot\rangle`
+     - ``cross_section.space.flat(cross_section)``
+       (:ref:`functional-category`)
+   * - S\ :sub:`N` ``self.volume`` in ``add_to_group_rate``
+     - the per-group spatial integral, a fibre integration
+     - unchanged: it is the axis marginal over ``"spatial"``
+       (:ref:`spaces-axis-unit`), not :math:`\flat 1`
+
+**Refuted: a partial application of the inner product as the
+co-vector.** The Phase 2 fixture of the layer-DAG campaign spelled ⟨w, ·⟩ as
+``partial(space.inner_product, w)``. It was rejected for the design
+(spec §U2.3 (iii)) on two structural reasons. It is not an element of
+anything: it carries no space, so a pairing with it cannot ask whether
+its argument is a member of the right one, and it re-applies the metric
+on every call, where the co-vector reads it once. And it inherited the
+outer-product hazard of the raw path: `[M]` 2026-10-30, the elegance
+review's probe1, a flat :math:`(n_g,)` carrier against an
+:math:`(n_g, 1)` density was admitted and read 0.285 and 0.225 (the
+second is ERR-122's number). The fact it establishes stands: a functional
+held as a closure over a verb is untypable, which is why the co-vector is
+a value.
+
+**Gates.** ``tests/gates/numerics/test_covector.py`` (L0), one row per
+law: the mint lands in :math:`V^{*}` and not in :math:`V`; the raw
+constructor handed :math:`G w` equals ``V.flat(w)`` bit for bit (the
+user's ruling R1: a raw and a specialised constructor build one object);
+the pairing equals a hand triple sum
+:math:`\sum_g\sum_i \sigma_{gi}\varphi_{gi} V_i` written with no
+production primitive, to six rounding units; a co-vector minted on an
+equal-shape space :math:`W` refuses a member of :math:`V`, and ``flat``
+refuses a density from :math:`W`; :math:`\sharp\flat\sigma = \sigma` and
+:math:`\sharp` refuses a member of :math:`V`; linearity in the carrier
+and in the density; the unit is ones on an all-nodal space and on an
+axes-less one; ``integral`` is ``flat(unit)`` bit for bit; on the dressed
+head ``integral`` agrees with the space's own pairing
+:math:`\langle u, c\rangle` (a route that builds no co-vector) and
+``flat(ones)`` does not. `[M]` the U2b commit: the arms metric-twice
+(``evaluate`` applies :math:`G` again), euclidean-flat (``flat`` forgets
+:math:`G`), no-member, unit-ones and sharp-asks-V each redden their rows.
 
 .. warning::
 
@@ -6810,6 +7149,26 @@ status.
      - Issue
      - Where
    * - 2026-10-30
+     - **The co-vector, and a form only on a Modal axis** (unit U2 of
+       ``.claude/plans/space_membership_covector_gauge.md``). U2a: a dense
+       form is positioned only on a Modal axis, because a nodal axis with
+       ``weights=None`` carries the counting measure; this closes the
+       energy-block overlay leak, ERR-121
+       (:ref:`spaces-form-only-on-a-modal-axis`). U2b:
+       :class:`~orpheus.numerics.space.Member` became the frozen pair that
+       :class:`~orpheus.numerics.field.Field` and the new
+       :class:`~orpheus.numerics.space.Covector` share; ``V.flat(w) = G w``
+       is the co-vector's one mint, ``V.unit`` the constant function's
+       coordinates, and the raising leg asks :math:`V^{*}`
+       (:ref:`spaces-covector`). U2c: the reaction rate is
+       ``flat(σ)`` paired with typed fluxes in S\ :sub:`N`, diffusion and
+       homogeneous, ``V.integral = flat(unit)`` replaces two hand-spelled
+       :math:`\langle 1,\cdot\rangle`, and the carry fixture's 36 moved
+       keys are a declared delta (:ref:`integrated-reaction-rate-keff`).
+     - #664
+     - *(in development)*, ``138f7d02``, ``64cc3a7a``, ``36dbac9d`` on
+       branch ``refactor/space-membership``
+   * - 2026-10-30
      - **Membership is a verb of the space** (unit U1 of
        ``.claude/plans/space_membership_covector_gauge.md``). The space
        gained :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`
@@ -6818,17 +7177,18 @@ status.
        for its actions (a leading member, a trailing batch carried as
        :math:`A\otimes I_P`). A typed member is compared by content
        identity on every run; a bare array is shape-checked under
-       ``__debug__`` only, by the user's ruling R1. The raising leg asks
-       the dual space, its domain, and an axes-less space's identity key
-       gained the content of its weights and metric (the U1 qa review). The
-       field's ``l2`` and
+       ``__debug__`` only, by the user's ruling R1. An axes-less space's
+       identity key gained the content of its weights and metric (the U1
+       qa review). The field's ``l2`` and
        ``inner_product`` pass the field itself, and the two tests that
-       paired over a payload are re-posed on ``V * P``. Typing the
-       full-field composite's blocks was tried and refused on a dual
-       space, where the blocks carry primal labels; it waits for the
-       co-vector unit (:ref:`spaces-membership`).
+       paired over a payload are re-posed on ``V * P``. Routing the
+       raising leg through the dual space was tried and reverted (a test
+       double's dual did not type its carrier; it landed in U2b). Typing
+       the full-field composite's blocks was tried and refused on a dual
+       space, where the blocks carry the flux role (#633,
+       :ref:`spaces-membership`).
      - #664
-     - *(in development)*, branch ``refactor/space-membership``
+     - *(in development)*, ``d362f02f`` on branch ``refactor/space-membership``
    * - 2026-10-25
      - **The spatial-moment axis points at a basis** (layer DAG ruling 19,
        the moment-basis carve). Numerics gained the interval Legendre basis

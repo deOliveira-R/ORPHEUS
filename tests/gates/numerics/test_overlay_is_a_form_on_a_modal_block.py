@@ -30,6 +30,7 @@ _S = Axis("spatial", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(Ba
 _GRAM = DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]))
 
 
+@pytest.mark.catches("ERR-121")
 def test_a_form_on_the_counting_energy_axis_is_REFUSED():
     """The energy-block overlay leak. First red: admitted before U2, and the pairing then read 83 against the reaction
     rate's 46 on one flux."""

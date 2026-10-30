@@ -2812,13 +2812,22 @@ Two consequences for readers of the result type:
   in the re-read, so a last-place difference either way is the arithmetic,
   not a defect).
 
-⚠ **The state is the posed** :math:`(n_g, 1)` **column, and the shape is
-load-bearing.**  This is the gotcha the verification design surfaced, and
-it is silent in the dangerous direction:
-:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
-**accepts a flat** :math:`(n_g,)` **vector without complaint and returns a
-different number.**  ``[M]`` 2026-10-01 on the fissile ``A`` family, with
-the state already gauged so the column reads its target to the last place:
+⚠ **The state is the posed** :math:`(n_g, 1)` **column, typed, and the
+shape is load-bearing.**  The solve wraps the eigenvector as a
+:class:`~orpheus.transport.fields.scalar_flux.ScalarFlux` on the pose's
+space before it gauges it, so the rates and the integral receive a typed
+member and its membership is checked on every run; a flat :math:`(n_g,)`
+array cannot be built into that member (``ValueError`` from its shape
+check).  The danger survives on the raw path, a bare array handed to
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`:
+its exact-shape check runs under ``__debug__`` only, so under
+``python -O`` **a flat** :math:`(n_g,)` **vector is accepted and returns a
+different number** (ERR-122; the raw tier is the debt #664).  ``[M]``
+2026-10-01 on the fissile ``A`` family, with the state already gauged so
+the column reads its target to the last place (the flat column is the
+raw path's reading, re-measured under ``-O`` on 2026-10-30 at 2 groups,
+``200.0``, and 4 groups, ``411.27292513523037``, the last digit moved by
+the U2c re-association):
 
 .. list-table:: The same functional on the same flux, two shapes
    :header-rows: 1
@@ -2864,12 +2873,12 @@ Three readings follow, and each is a trap in its own right:
   wrong expression is a product of two sums and the right one is a sum of
   products — so "the answer is off by the group count" is a rule that
   would hold on the 2-group fixture and break on the 4-group one.
-* **the sibling primitive is strict.**  :meth:`EigenPosing.rayleigh
+* **the sibling primitive is strict on every run.**  :meth:`EigenPosing.rayleigh
   <orpheus.numerics.posing.EigenPosing.rayleigh>` refuses the flat vector
-  *loudly* on the same input.  The asymmetry — one numerics primitive
-  raises, the reaction-rate functional broadcasts — is the thing to carry
-  away; it is why the gauge's state is the posed column and why the law
-  that checks it re-reads the functional rather than trusting the shape.
+  *loudly* on the same input, ``-O`` included, while the reaction rate's
+  raw path refuses it only under ``__debug__``.  That asymmetry is why
+  the gauge's state is a typed member and why the law that checks it
+  re-reads the functional rather than trusting the shape.
 
 **Nothing about the arithmetic moved**, and that is checkable rather than
 asserted.  The retired line read
@@ -2929,8 +2938,7 @@ the volume-integrated reaction rate
 
    R_x(\varphi)
    \;=\; \int_V \sum_g \Sigma_{x,g}(\vec r)\,\varphi_g(\vec r)\,\mathrm{d}V
-   \;=\; \sum_{\text{cells}} V_{\rm cell}\,
-          \langle \Sigma_x, \varphi\rangle(\text{cell}),
+   \;=\; \langle \flat_V \Sigma_x,\, \varphi\rangle ,
 
 which is the :math:`\varphi^\dagger = 1` **degenerate** of the
 adjoint-weighted homogenization bilinear
@@ -2938,8 +2946,10 @@ adjoint-weighted homogenization bilinear
 T1 of the algebra of record,
 :mod:`orpheus.derivations.common.homogenization`; the weighted form is
 live — pass ``adjoint=``). On the infinite-medium pose the spatial sum
-has one term and :math:`V_{\rm cell}` is the quotient point's unit
-weight, so the object degenerates to the bare group contraction — but
+has one term and the co-vector :math:`\flat_V\Sigma_x` is
+:math:`\Sigma_x` times the quotient point's unit weight, so the object
+degenerates to the bare group contraction (the co-vector and its
+canonical pairing: :ref:`spaces-covector`) — but
 it is the *same* object the meshed solvers use, which is the point:
 one functional, one contraction, no 0-D special case.
 
@@ -3002,14 +3012,20 @@ one-group condensation is
    \langle 1, \varphi\rangle \;=\; \int_V \sum_g \varphi_g\,\mathrm{d}V ,
 
 which carries no cross section: it is the pose's own **integration
-co-vector**, so it stays
-:meth:`FunctionSpace.inner_product
-<orpheus.numerics.space.FunctionSpace.inner_product>` against a field
-of ones rather than being dressed as an
+co-vector**,
+:attr:`FunctionSpace.integral <orpheus.numerics.space.FunctionSpace.integral>`
+(:math:`\flat_V 1`, minted from the constant function, whose coordinates
+are :attr:`FunctionSpace.unit <orpheus.numerics.space.FunctionSpace.unit>`
+and are ones on this nodal pose), paired with the gauged typed flux:
+``space.integral.evaluate(phi_gauged)``. It is not dressed as an
 :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
-with a unit cross section. `[M]` on the counting-weighted quotient
-point it is bit-identical to ``float(phi.sum())``, which is what it
-replaced.
+with a unit cross section. On the pose it equals the space's own pairing
+of the unit with :math:`\varphi` bit for bit (``==``: the metric applied to
+the unit, then one sum, on both sides; gate
+``test_the_homogeneous_total_flux_is_the_integral_bit_for_bit`` in
+``tests/gates/homogeneous/test_reaction_rate_on_the_pose.py``), and `[M]` on
+the counting-weighted quotient point that pairing is bit-identical to
+``float(phi.sum())``, the hand spelling the space's pairing first replaced.
 
 The two condensed one-group cross sections
 :attr:`~orpheus.homogeneous.solver.HomogeneousResult.sig_prod` and

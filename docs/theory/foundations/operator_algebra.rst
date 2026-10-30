@@ -3523,11 +3523,14 @@ central diagnostic in criticality into a typed, inspectable Functional.
 
 The volume-integrated companion
 :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
-returns the **scalar** :math:`R_x = \int_V \langle\Sigma_x,\phi\rangle\,dV`
-— the per-cell density above, integrated against the mesh's canonical
-``volume_measure`` (single source: it reuses
-:eq:`production-rate-functional`'s density, no independent re-derivation
-of either reduction). It is the typed object behind the
+returns the **scalar** :math:`R_x = \int_V \langle\Sigma_x,\phi\rangle\,dV
+= \langle\Sigma_x,\phi\rangle_V` — the canonical pairing of the
+co-vector :math:`\flat_V\Sigma_x` of its cross section with the flux, on
+the cross section's space :math:`V`
+(:ref:`integrated-reaction-rate-covector`). It does not reuse the density
+above: the two are the same integral spelled at two levels, the density
+contracting the group axis per cell and the co-vector pairing the whole
+array against the space's metric. It is the typed object behind the
 :math:`k`-eigenvalue numerator and denominator
 (:ref:`integrated-reaction-rate-keff`), and the :math:`\phi^\dagger=1`
 degenerate of the homogenisation Petrov–Galerkin campaign's
@@ -3620,18 +3623,199 @@ folded in**. The "no measure" choice is a deliberate Mode-3
 (missing-factor) guard turned into a *named contract*: :math:`r_x` is the
 density :math:`\Sigma_x\,\phi`, not the integral :math:`\int r_x\,dV`. A
 consumer that needs the *integrated* rate uses the dedicated
-:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
-(which applies the mesh ``volume_measure`` to this exact density); folding
-the measure into :math:`r_x` itself would silently double-count it the
-moment a second consumer integrated again. The split is the structural
-division between the two functionals — the density carries the group
-contraction, the integrated rate adds the spatial measure on top of it.
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`,
+the pairing of the co-vector :math:`\flat_V\Sigma_x = \Sigma_x\,dV` with
+the flux (:ref:`integrated-reaction-rate-covector`); folding the measure
+into :math:`r_x` itself would silently double-count it the moment a
+second consumer integrated again. The split is the structural division
+between the two functionals: the density is a fibre-wise contraction
+over the groups, with no measure; the integrated rate is a scalar
+functional on the whole space, whose measure is read once, by the space,
+at the co-vector's mint.
 The coefficient side is the cone-typed
 :class:`~orpheus.transport.fields.cross_section_field.CrossSectionField`
 (#257 S1) carrying :math:`\Sigma_x` through the typed
 :meth:`~orpheus.transport.fields.cross_section_field.CrossSectionField.fission_production_of`
 view of the carrier (#257 S2) for production, or ``absorption_of`` for
 :math:`\Sigma_a`.
+
+.. _integrated-reaction-rate-covector:
+
+The integrated rate is the co-vector of its cross section
+---------------------------------------------------------
+
+Since the space-membership unit U2c (``[LANDED 36dbac9d]``, 2026-10-30;
+plan ``.claude/plans/space_membership_covector_gauge.md``)
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+is the canonical pairing of one co-vector with the flux:
+
+.. math::
+
+   R_x(\phi) \;=\; \langle \Sigma_x, \phi\rangle_V
+   \;=\; \Sigma_x^{\mathsf T} G\,\phi
+   \;=\; \sum_i c_i\,\phi_i ,
+   \qquad c \;=\; \flat_V\Sigma_x \;=\; G\,\Sigma_x ,
+
+where :math:`V` is the cross section's space and :math:`G` its metric.
+The attribute ``covector`` is ``cross_section.space.flat(cross_section)``,
+a :class:`~orpheus.numerics.space.Covector` minted once per rate (a cached
+property), and ``evaluate(phi)`` is ``covector.evaluate(phi)``. Why the
+co-vector and not a contraction followed by a volume sum is derived on
+the space page (:ref:`spaces-covector`): the metric is read once, at the
+mint, and the pairing is metric-free.
+
+**Why the metric is the volume integral here.** The cross section's space
+is the product of the energy axis and the spatial axis. The energy axis
+carries the counting measure, a theorem of the multigroup convention
+(:ref:`spaces-counting-measure-theorem`), and the spatial axis carries
+the cell volumes :math:`V_i` as its weights. The product metric is
+therefore diagonal with entries :math:`1\cdot V_i`, so
+:math:`c_{gi} = \Sigma_{x,gi}\,V_i` and
+
+.. math::
+
+   R_x(\phi) \;=\; \sum_g\sum_i \Sigma_{x,gi}\,V_i\,\phi_{gi}
+   \;=\; \int_V \sum_g \Sigma_{x,g}\,\phi_g\,\mathrm{d}V .
+
+The class reads no axis: the space answers the measure. Before U2c the
+body contracted the group axis through the density
+:class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
+and summed the result against the last axis's weights, which assumed that
+the spatial measure sat on the last axis; that assumption is gone with the
+retired ``density`` field. A dense form on the energy block would make
+the two readings disagree (83 against 46); such a form is refused at
+construction (:ref:`spaces-form-only-on-a-modal-axis`, ERR-121).
+
+**The adjoint-weighted bilinear** is the flat of the folded density,
+:math:`\langle\varphi^*\odot\Sigma_x,\phi\rangle_V`: the importance
+multiplies the density, never the carrier, and the result is minted
+through the same ``flat``; the importance is itself asked to be a member
+of :math:`V` by the space's membership verb. With :math:`\varphi^* = 1` it reproduces the
+unweighted rate bit for bit (``1.0 * x == x`` in IEEE arithmetic and one
+mint).
+
+**Membership.** The flux is asked to be a member of :math:`V`: a typed
+member (a :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`)
+is compared by content on every run, and a bare array must have
+:math:`V`'s exact shape, checked under ``__debug__`` only (the raw tier,
+#664). The three sharp methods hand typed members since U2c: S\ :sub:`N`
+types its power-iteration vector on the problem's bulk space in one
+helper, diffusion pairs ``psi.interior``, the homogeneous solve gauges a
+``ScalarFlux`` on its pose; the route gate
+``tests/gates/cross_method/test_production_pairs_typed_members.py`` runs
+one eigenvalue solve per method with the exact membership verb refusing
+bare arrays (:ref:`spaces-membership`). The defect this closes on the
+formal path is ERR-122: a flat :math:`(n_g,)` flux on the homogeneous
+:math:`(n_g, 1)` pose read the outer product,
+:math:`(\sum_g\nu\Sigma_{f,g})(\sum_g\phi_g)`. `[M]` 2026-10-30, the
+archivist's probe, the 2-group Mixture A with :math:`\nu\Sigma_f =
+[0.025, 0.2]` and :math:`\phi = [0.6, 0.4]`: the column reads
+:math:`0.095 = 0.025(0.6) + 0.2(0.4)`; a typed flat flux cannot be built
+(``ValueError`` from the member's shape check, on every run); a bare flat
+array is refused under ``__debug__`` and, under ``-O``, still reads
+:math:`0.225 = 0.225 \times 1.0`, the raw tier's residue (#664).
+
+**The re-association, and why it is principled equivalence.** The old
+and the new body compute the same integral with the products grouped and
+the sums ordered differently:
+
+.. math::
+
+   R^{\rm old} \;=\; \sum_i V_i\Bigl(\sum_g \Sigma_{gi}\phi_{gi}\Bigr),
+   \qquad
+   R^{\rm new} \;=\; \sum_{(g,i)} \bigl(\Sigma_{gi}V_i\bigr)\,\phi_{gi} .
+
+They are equal in exact arithmetic and differ in floating point by a few
+rounding units: one multiplication is re-associated
+(:math:`V_i(\Sigma\phi)` against :math:`(\Sigma V_i)\phi`) and the
+reduction tree changes from a per-cell group sum then a cell sum to one
+sum over the flattened array. The acceptance follows the three criteria
+of ``vv-principles`` ("Bit-identity vs principled-equivalence"):
+
+#. **principled at every step**: every intermediate is a named domain
+   quantity, the co-vector :math:`\Sigma_x\,dV` and its pairing;
+#. **verified against a structurally independent reference**:
+   ``tests/gates/numerics/test_covector.py`` holds the pairing to a hand
+   triple sum written with no production primitive, and
+   ``tests/gates/transport/test_integrated_reaction_rate.py`` holds the
+   rate to a hand double sum on a non-uniform slab (leg A) and pins
+   ``covector`` to ``flat(cross_section)`` bit for bit;
+#. **the drift is floating-point re-association, of the size it
+   predicts**: a single-step reduction moves by about its depth in ULP,
+   and an iterative consumer by the iteration's amplification of that.
+   `[M]` 2026-10-30, the U2c commit's per-call spy on identical flux: at
+   most 3 ULP for the k-quotient inside diffusion's ``compute_keff``
+   (12 of 12 carry cases, 5 to 14 calls each) and at most 2 ULP for the
+   S\ :sub:`N` reaction rate (4 of 4 bodies, 33 to 41 calls each). The
+   specification's earlier battery on the spelling
+   ``cs.space.apply_metric(σ)`` then one ``np.sum`` (14 diamond-difference
+   cases, 202 rate calls): 144 of 202 bit-equal, the largest relative
+   difference :math:`4.16\times10^{-16}`.
+
+**The carried numbers it moved: a declared delta, never a re-capture.**
+The regression capture ``tests/gates/transport/carry_head.npz`` (captured
+at ``5d04c296`` before the wave-2 boundary carve; a capture, not a
+reference, as the V&V status of :doc:`/theory/foundations/boundary_conditions`
+says) pins eigenvalues and fluxes
+bit for bit. U2c moved some of them, and the capture was not rewritten:
+its ``meta/commit`` stays true of every key it holds. The moves are
+recorded in ``tests/gates/transport/carry_rebaselines.json`` as event
+``U2c``, which carries the parent commit, the cause, the three criteria
+above in words, a bound of 18 ULP, and per moved key the head value, the
+new value and their ULP distance. Every carry gate reads a value through
+one function, ``tests/gates/transport/_carry_cases.py``'s ``expected(key)``
+(the newest declared re-baseline of the key, else the head capture), so a
+re-baseline is declared once and never as a second edit of a reader.
+`[M]` 2026-10-30, re-derived by the archivist from the two files:
+
+.. list-table:: Event U2c over the head capture
+   :header-rows: 1
+   :widths: 34 16 16 34
+
+   * - Key family
+     - keys in the capture
+     - moved
+     - largest move
+   * - ``keff/`` (S\ :sub:`N` eigenvalue)
+     - 17
+     - 11
+     - 5 ULP
+   * - ``phi_eigen/`` (S\ :sub:`N` eigenvector, elementwise)
+     - 17
+     - 17
+     - 9 ULP
+   * - ``keff_diffusion/``
+     - 12
+     - 8
+     - 18 ULP
+   * - ``phi_fixed/`` (fixed-source fluxes)
+     - 18
+     - 0
+     - —
+
+36 of the 46 eigenvalue-path keys moved and 0 of the 18 fixed-source
+fluxes: a fixed-source solve evaluates no k-quotient, so the pairing's
+rounding never enters its answer, which is the drift's own prediction.
+The other families of the capture (the CP, MoC and MC eigenvalues, the
+face matrices and the seven reference images) are not re-baselinable, and
+none moved.
+
+The overlay is gated by
+``tests/gates/sn/architecture/test_wave2_carry.py::test_the_rebaselines_are_declared_deltas``:
+per event, a cause and the three criteria are non-empty and the bound is
+within a fixed ceiling of 64 ULP (``_ULP_CEILING``: a move larger than a
+re-association produces is a numerical change, owed its own
+investigation, and an event cannot raise the ceiling by declaring a
+larger bound); per entry, the key exists in the capture and lies on the
+eigenvalue path (``keff/``, ``phi_eigen/``, ``keff_diffusion/``), the
+recorded old value is the key's value before the event bit for bit (the
+head value, or the previous event's new value: the events form a chain),
+the value moved, and the recorded ULP distance is the one the two values
+give and is within the bound; and the effective
+eigenvalues keep the physical order vacuum < specular 0.3 < specular 0.7
+< mirror on every body. `[M]` the U2c commit: the mutation arms
+old-not-head, a ``phi_fixed`` key, over-bound, empty-cause and
+overlay-ignored each redden it.
 
 .. _integrated-reaction-rate-keff:
 
@@ -3744,7 +3928,8 @@ Petrov–Galerkin bilinear :math:`\langle\phi^\dagger, M[\Sigma_x]\,\phi
    denominator as the integrated loss-operator action
    :math:`\langle 1, (A\psi)_{\rm bulk}\rangle_V` (= absorption +
    leakage by the column-sum theorem), not a second reaction-rate
-   contraction. The CP and MoC eigenvalues are **not yet** routed;
+   contraction; that pairing is the bulk space's integration co-vector
+   ``bulk.integral`` (:ref:`spaces-covector`). The CP and MoC eigenvalues are **not yet** routed;
    the homogeneous 0-D case has no spatial integral to fold, so it
    does not participate. Do not read this section as a claim that every
    solver's :math:`k` flows through the typed functional in the same
@@ -3933,7 +4118,9 @@ above is the gate that states the new spelling.
    :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
    (the per-cell density, specialising ``InnerProductFunctional``) and
    :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
-   (the volume-integrated scalar) (L2). Rank-1 constructor:
+   (the volume-integrated scalar, the pairing of the co-vector
+   ``V.flat(Σx)``, :class:`~orpheus.numerics.space.Covector`) (L2).
+   Rank-1 constructor:
    :func:`~orpheus.numerics.elementary_operators.outer`. Intrinsic-category gate:
    ``tests/gates/transport/test_functional_category.py`` (Functional ≠
    LinearOperator, both directions + discriminator foils). Correctness:

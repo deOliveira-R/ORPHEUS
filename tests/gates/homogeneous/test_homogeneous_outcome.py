@@ -8,9 +8,12 @@ functional that ran rather than applied anonymously). ``k_inf`` and ``flux`` are
 READ off it; ``test_kinf_exact_reference`` pins their accuracy against the exact
 rational answer of the float inputs.
 
-⚠ ≥ 2G on purpose: ``[M]`` ``IntegratedReactionRate.evaluate`` silently accepts an
-``(ng,)`` vector and returns the WRONG number (200.0 at 2g where the column reads
-100.0); at 1g the two coincide and a law written there would be blind.
+⚠ ≥ 2G on purpose: ``[M]`` until the space-membership unit U2c (2026-10-30)
+``IntegratedReactionRate.evaluate`` silently accepted an ``(ng,)`` vector and
+returned the WRONG number (200.0 at 2g where the column reads 100.0; ERR-122). A
+typed ``(ng,)`` flux on the ``(ng, 1)`` pose can no longer be built, and a bare
+array is refused under ``__debug__`` only (the raw tier, ruling R1). At 1g the two
+spellings coincide, so a law written there would be blind to that class.
 """
 
 from __future__ import annotations

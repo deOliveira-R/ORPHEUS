@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19920**
+Total tests collected: **19944**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1901, 9.5%
+   L0, 1918, 9.6%
    L1, 2914, 14.6%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14964, 75.1%
+   foundation, 14971, 75.1%
    unmarked, 56, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19785
+   explicit, 19809
    class-name, 46
    func-name, 0
    case, 33
@@ -77,7 +77,7 @@ Module × level grid
    architecture/test_stage_separation, 0, 0, 0, 0, 15, 0
    architecture/test_step2_terminal_object_anchors, 0, 0, 0, 0, 9, 0
    architecture/test_step3_solution_anchors, 0, 0, 0, 0, 20, 0
-   architecture/test_wave2_carry, 0, 39, 0, 0, 2, 0
+   architecture/test_wave2_carry, 0, 39, 0, 0, 3, 0
    cartesian_2d/test_2d_full_field_oracle, 0, 0, 0, 0, 8, 0
    cartesian_2d/test_2d_l2_face_view_unit_source, 0, 0, 0, 0, 7, 0
    cartesian_2d/test_2d_l2_matvec_correctness, 0, 2, 0, 0, 2, 0
@@ -136,6 +136,7 @@ Module × level grid
    cross_method/test_family_convergence_contract, 0, 0, 0, 0, 45, 0
    cross_method/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
+   cross_method/test_production_pairs_typed_members, 0, 0, 0, 0, 3, 0
    cross_method/test_specification_infinite_medium_k, 0, 2, 0, 0, 0, 0
    cross_method/test_wave2_s4_tables, 0, 3, 0, 0, 2, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
@@ -367,6 +368,7 @@ Module × level grid
    homogeneous/test_homogeneous_verification, 0, 0, 0, 0, 10, 0
    homogeneous/test_kinf_exact_reference, 0, 24, 0, 0, 16, 0
    homogeneous/test_operator_spaces, 0, 0, 0, 0, 18, 0
+   homogeneous/test_reaction_rate_on_the_pose, 0, 0, 0, 0, 3, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
    mc/test_gaps, 7, 10, 0, 0, 0, 0
@@ -435,7 +437,7 @@ Module × level grid
    numerics/test_axis_generator, 0, 0, 0, 0, 48, 0
    numerics/test_axis_identity, 0, 0, 0, 0, 24, 0
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
-   numerics/test_axis_marginal_lift, 0, 0, 0, 0, 316, 0
+   numerics/test_axis_marginal_lift, 0, 0, 0, 0, 315, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 5
@@ -444,6 +446,7 @@ Module × level grid
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
+   numerics/test_covector, 12, 0, 0, 0, 0, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
    numerics/test_descent, 0, 0, 0, 0, 20, 0
@@ -471,7 +474,7 @@ Module × level grid
    numerics/test_index_set, 0, 0, 0, 0, 2, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_indicator_basis_orientation, 0, 0, 0, 0, 2, 0
-   numerics/test_inner_product_functional, 6, 0, 0, 0, 0, 0
+   numerics/test_inner_product_functional, 7, 0, 0, 0, 0, 0
    numerics/test_interval_legendre_basis, 0, 0, 0, 0, 68, 0
    numerics/test_invariance, 0, 0, 0, 0, 111, 0
    numerics/test_invariance_composition, 0, 0, 0, 0, 1079, 0
@@ -499,6 +502,7 @@ Module × level grid
    numerics/test_ordinate_pairing, 0, 6, 0, 0, 19, 0
    numerics/test_outcome, 0, 0, 0, 0, 18, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
+   numerics/test_overlay_is_a_form_on_a_modal_block, 4, 0, 0, 0, 0, 0
    numerics/test_pencil, 0, 0, 0, 0, 26, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_posing, 0, 0, 0, 0, 8, 0
@@ -726,7 +730,7 @@ Module × level grid
    transport/test_full_field, 0, 0, 0, 0, 17, 0
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
-   transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
+   transport/test_integrated_reaction_rate, 0, 0, 0, 0, 12, 0
    transport/test_kernels, 0, 0, 0, 0, 88, 0
    transport/test_material_field, 0, 0, 0, 0, 46, 0
    transport/test_material_mesh, 0, 0, 0, 0, 10, 0

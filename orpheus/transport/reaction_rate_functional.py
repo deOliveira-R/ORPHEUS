@@ -62,8 +62,6 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
@@ -140,6 +138,13 @@ class IntegratedReactionRate:
     axis's cell volumes, so :math:`G\,\Sigma_x = \Sigma_x\,dV` and the
     pairing is :math:`\sum_g \sum_i \Sigma_{x,gi}\,\phi_{gi}\,V_i`. The
     space answers the measure (CS4b S3); this class reads no axis.
+
+    It equals the volume integral of the per-cell reaction-rate density: the
+    fibrewise co-vector :class:`ReactionRateFunctional` contracts the group
+    axis and leaves a density over the cells, and integrating that density
+    over the cells gives :math:`R_x(\phi)`. The two are one integral in two
+    association orders, which is why they agree to round-off and not bit
+    for bit.
 
     Until the space-membership unit U2 (2026-10-30) the body contracted the
     group axis through the per-cell density :class:`ReactionRateFunctional`
@@ -220,15 +225,10 @@ class IntegratedReactionRate:
         """
         if adjoint is None:
             return self.covector.evaluate(phi)
+        # The importance folds into the density (it pairs with the test
+        # side, never the carrier); the space's own membership verb admits it.
         space = self.cross_section.space
-        if adjoint.space != space:
-            raise ValueError(
-                "IntegratedReactionRate.evaluate: the adjoint weight and "
-                "the cross section must agree in space content "
-                "(space-content invariant) — the σ↔geometry pairing; got "
-                f"{adjoint.space!r} vs {space!r}."
-            )
-        return space.flat(np.asarray(adjoint.values) * self.cross_section.values).evaluate(phi)
+        return space.flat(space.coordinates_of(adjoint) * self.cross_section.values).evaluate(phi)
 
     def __repr__(self) -> str:
         return f"IntegratedReactionRate({self.cross_section!r})"

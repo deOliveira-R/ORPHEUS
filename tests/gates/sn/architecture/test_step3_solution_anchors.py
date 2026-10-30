@@ -54,10 +54,11 @@ gauge row on a Σ₂-free mixture is structurally blind to half of the
 functional it names*, so :class:`TestRecordTheFourProductionRateFunctionals`
 carries BOTH populations and says which is the discriminating one.
 
-``[M]`` same probe, the homogeneous family: ``IntegratedReactionRate.evaluate``
-silently accepts the ``(ng,)`` flux ``HomogeneousResult`` stores and returns
-``200.0`` where the ``(ng, 1)`` column reads ``100.0`` (2g; 411.27 vs 100.0 at
-4g; **equal at 1g**).  ⟹ a 1-group gauge row cannot see it — the Cardinal
+``[M]`` same probe, the homogeneous family: until the space-membership unit
+U2c (2026-10-30, ERR-122) ``IntegratedReactionRate.evaluate`` silently accepted
+the ``(ng,)`` flux ``HomogeneousResult`` stores and returned ``200.0`` where the
+``(ng, 1)`` column reads ``100.0`` (2g; 411.27 vs 100.0 at 4g; **equal at 1g**);
+a bare array is now refused under ``__debug__`` only (ruling R1).  ⟹ a 1-group gauge row cannot see it — the Cardinal
 Rule's ≥2G demand, at the gauge tier.
 
 Marks

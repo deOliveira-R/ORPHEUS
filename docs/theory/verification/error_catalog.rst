@@ -11772,3 +11772,113 @@ older entries classify against.
    refusal is for: the cheapest check is to vary the declared condition and require the answer to move, one bit-identity
    probe per (method, site class), and where the answer cannot move because the machinery is absent, refuse the
    declaration and cite the issue that owns the machinery.
+
+.. error-entry:: ERR-121
+   :title: A dense form could be positioned on a counting-measure axis, so a cross-section space carried two metrics on its energy block and its own pairing read 83 where the reaction rate, which counts groups, read 46
+
+   **Status:** ✅ **FIXED 2026-10-30, space-membership unit U2a** (``[LANDED 138f7d02]``, branch
+   ``refactor/space-membership``). Latent: no production space carried such a form.
+
+   **Module:** ``numerics`` (``orpheus/numerics/space.py``, ``_require_positioned_over``, the door every axis-built
+   space's explicit metric object passes).
+
+   **Failure mode:** **#6 (convention drift).** The definition site, the counting-measure theorem
+   (:ref:`spaces-counting-measure-theorem`), says a nodal axis with ``weights=None`` carries the counting measure,
+   :math:`w_i = 1`. The usage site, the overlay door, read ``weights is None`` as "this axis carries no measure" and
+   admitted a dense form there. One statement about what ``None`` means held at one site and was false at the other.
+
+   **The defect.** An axis-built space admits beside its axes a positioned overlay of dense forms, one entry per axis,
+   for the one case no axis measure can spell: a dense Gram on a moment head. The door refused a form on an axis with
+   explicit weights and admitted it on every axis without them, the counting energy axis included. The space then had
+   two metric sources on the energy block, and its consumers read different ones. `[M]` 2026-10-30 (the explorer's probe
+   ``scratch/layer_dag/ipf_fix/explorer_energy_overlay_probe.py``, re-run by the archivist on ``d362f02f``, the parent
+   of U2a): 2 synthetic groups times 3 cells of volumes :math:`[1, 2, 3]`, the form
+   :math:`G_E = [[2, 0.5], [0.5, 1]]` on the energy block, :math:`\sigma = \mathbf 1`,
+   :math:`\varphi = [[1, 2, 3], [4, 5, 6]]`. The construction was admitted; the space's pairing read
+   :math:`\sum_i V_i\,\sigma_{\cdot i}^{\mathsf T} G_E\,\varphi_{\cdot i} = 8.5 + 25 + 49.5 = 83`, and the reaction
+   rate's group-counting contraction read :math:`\sum_i V_i \sum_g \varphi_{gi} = 5 + 14 + 27 = 46`.
+
+   **How it hid.** Every production form is positioned on a frame-dressed head, whose axis is Modal, so no production
+   space reached the case: `[M]` 2026-10-30, the test-architect's overlay census (31 test files, 1264 passed), 137 forms
+   admitted, 108 on production frame-dressed heads, and 0 of the 22 on nodal axes in production. The 20 test fixtures
+   with a form on a declared nodal axis paired consistently because each read the space's one pairing; the two readings
+   diverge only when a second consumer counts the block by itself, and the reaction rate did so only on cross-section
+   spaces, which never carried a form. The explorer found it while mapping the space verbs for the space-membership plan.
+
+   **Fix.** A form is a Gram on expansion coefficients, so the door admits it only on an axis whose kind is
+   :class:`~orpheus.numerics.axis.Modal` (read from ``Axis.kind``, a closed sum), and refuses it on a NODAL axis with a
+   ``ValueError`` naming the counting measure. The refusal is a construction guard and runs under ``-O`` too. The 20
+   nodal fixtures were re-posed on a declared Modal axis, and one hand-dressed test space now dresses through the
+   production mint (:ref:`spaces-form-only-on-a-modal-axis`). A second remedy was refuted: two co-vector mints (a Riesz
+   mint reading the metric and a measure mint reading the measure) would have given the two readings two names instead
+   of removing the second metric source (:ref:`spaces-covector`).
+
+   **Catching tests.** ``tests/gates/numerics/test_overlay_is_a_form_on_a_modal_block.py::test_a_form_on_the_counting_energy_axis_is_REFUSED``
+   carries ``@pytest.mark.catches("ERR-121")``. `[M]` 2026-10-30, ``python -O -m pytest`` on that module and the
+   co-vector rows of the reaction-rate gates (then one class in ``tests/gates/transport/test_integrated_reaction_rate.py``,
+   since split with ``tests/gates/homogeneous/test_reaction_rate_on_the_pose.py``; 7 rows run, 1 ``__debug__`` row
+   skipped), with ``_require_positioned_over`` wrapped in-process at ``pytest_configure`` to swallow exactly its NODAL
+   refusal (the pre-U2a predicate): the catcher and its sibling
+   ``test_a_form_on_a_counting_nodal_axis_is_REFUSED`` red; the Modal admission row and the production-dressing positive
+   control stay green. The null arm (no patch) is 7 of 7 green.
+
+   **Cross-reference.** **ERR-067** is the same shape one layer over: two spellings of one metric that diverge in
+   silence. ERR-122 is the other defect the space-membership plan closed on the formal path.
+
+   **Lesson.** ``None`` in a measure slot is a value, the counting measure, and never the absence of a measure: a guard
+   that reads it as "free to fill" admits a second metric source exactly where the theorem says the first one is.
+
+.. error-entry:: ERR-122
+   :title: The integrated production rate read 0.225 for the exact 0.095 when a flat (ng,) flux met the homogeneous (ng, 1) cross section, because the contraction let numpy broadcast the pair into their outer product and summed it
+
+   **Status:** ✅ **CLOSED ON THE FORMAL PATH, GUARDED IN DEVELOPMENT MODE ON THE RAW PATH** (the raw
+   check runs under ``__debug__``). The broadcast was first
+   refused at ``e42fd498`` (the carrier must host the weight's shape); U2b (``64cc3a7a``) made the raw-path check the
+   exact shape under ``__debug__`` only, by the user's ruling R1 of the space-membership plan; U2c (``36dbac9d``) made
+   the reaction rate a co-vector paired with typed members, so a production solve cannot spell the input. Under
+   ``python -O`` a bare flat array handed to the rate still returns 0.225: that residue is the raw tier's debt, #664.
+   Latent in production: the homogeneous solver always posed the :math:`(n_g, 1)` column.
+
+   **Module:** ``numerics`` (``orpheus/numerics/functional.py``, ``InnerProductFunctional.evaluate``, which the
+   reaction rate routed through until U2c) and ``transport``
+   (:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`).
+
+   **Failure mode:** **#3 (missing factor), in its structural form**: no factor was dropped from a formula; a shape
+   check was missing, and numpy's broadcast supplied an operation (the outer product) that the equation does not contain.
+   The reading is the product of two sums where the equation is a sum of products.
+
+   **The defect.** The rate contracted ``(w * x).sum(...)`` after any numpy broadcast. The homogeneous cross section has
+   shape :math:`(n_g, 1)` (the pose's one-point spatial axis); a flat :math:`(n_g,)` flux broadcast against it to
+   :math:`(n_g, n_g)`, and the sum read :math:`(\sum_g \nu\Sigma_{f,g})(\sum_g \phi_g)`. `[M]` 2026-10-30, the
+   archivist's probe on the U2 tip under ``-O``, 2-group Mixture A with :math:`\nu\Sigma_f = [0.025, 0.2]` and
+   :math:`\phi = [0.6, 0.4]`: the column reads :math:`0.095 = 0.025(0.6) + 0.2(0.4)` and the flat array reads
+   :math:`0.225 = (0.025 + 0.2)(0.6 + 0.4)`. On the gauged eigenvector the flat read is 200.0 at 2 groups and
+   411.27292513523037 at 4 (:ref:`homogeneous-rates-and-normalisation`), and at 1 group the two coincide.
+
+   **How it hid.** Production posed the column, so the wrong number needed an input no solver passed; the homogeneous
+   solver carried a comment warning of it, which is prose and asserts nothing. At 1 group the outer product is
+   :math:`1 \times 1` and equals the product, so a 1-group fixture is green under either shape. The layer-DAG Phase 2
+   specification found it (``scratch/layer_dag/refiling/specs_2/numerics_laws.md`` §5c) while writing a numerics law
+   over the functional.
+
+   **Fix.** Two tiers (:ref:`spaces-membership`). The formal path: the reaction rate is the pairing of the co-vector
+   ``V.flat(σ)`` with a member of :math:`V`, and the three sharp methods hand it a typed
+   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`, whose construction refuses a shape that is not its
+   space's on every run (:ref:`integrated-reaction-rate-covector`). The raw path: a bare array must have the space's
+   exact shape, checked under ``__debug__``.
+
+   **Catching tests.** ``tests/gates/homogeneous/test_reaction_rate_on_the_pose.py::TestTheReactionRateOnThePose::test_a_typed_flat_carrier_cannot_be_built``
+   carries ``@pytest.mark.catches("ERR-122")``: on every run, ``-O`` included, a :math:`(2,)` scalar flux on the
+   :math:`(2, 1)` pose is refused at construction. `[M]` 2026-10-30, ``python -O -m pytest`` on that class and the
+   overlay module, with the member's shape check removed in-process at ``pytest_configure``: the catcher reds, alone;
+   the null arm is green. Its companion
+   ``test_a_flat_carrier_on_the_homogeneous_column_space_is_REFUSED`` pins the raw path's refusal and carries no marker:
+   it is skipped under ``-O``, so the canonical invocation never runs it (``vv-principles`` #36). What no gate pins is
+   the raw path under ``-O``, which reads 0.225 today by design of the raw tier (#664).
+
+   **Cross-reference.** **ERR-121**, the other defect the space-membership plan closed: there two metric sources on one
+   block, here an axis the contraction did not know about, contracted with unit weights.
+
+   **Lesson.** A contraction that accepts any broadcastable pair computes an operation its equation does not contain
+   whenever the shapes differ; membership has to be asked of the space, and the guarantee holds only on the path where
+   the member is typed.

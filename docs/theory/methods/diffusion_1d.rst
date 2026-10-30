@@ -897,7 +897,19 @@ family, and drives
   leakage :math:`-` net :math:`(n,2n)` gain — the island's
   ``p_rate/(a_rate + leakage)``, but derived *through* the loss operator
   that defines the fixed point, so no term can be forgotten (the leakage
-  is structural, not hand-added).
+  is structural, not hand-added). Both legs are pairings of co-vectors
+  with typed members of the bulk space (:ref:`spaces-covector`): the
+  numerator is the production
+  :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+  evaluated on the field ``psi.interior``, and the denominator is the bulk
+  space's integration co-vector ``bulk.integral`` (:math:`\flat 1`, the
+  counting energy measure times the cell volumes), minted once in the
+  solver's constructor and paired with ``(A psi).interior`` at every
+  outer. The pairing replaced a hand-spelled volume sum,
+  ``DiffusionSolver._volume_integral``, in the space-membership unit U2c
+  (``36dbac9d``): the same integral with its sums in another order, so
+  the carried diffusion eigenvalues moved by at most 18 ULP, a declared
+  delta (:ref:`integrated-reaction-rate-covector`).
 - **Normalisation** rides the typed
   :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
   (the #270 diffusion arm; the ERR-052 renormalisation anchor):

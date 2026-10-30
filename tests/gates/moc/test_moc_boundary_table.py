@@ -116,8 +116,8 @@ def test_an_explicit_condition_overrides_the_preset() -> None:
 
 @cache
 def _fixture() -> Any:
-    assert carry.CARRY_FIXTURE.exists(), f"{carry.CARRY_FIXTURE} is missing: the carry fixture is the instrument of this file"
-    return np.load(carry.CARRY_FIXTURE)
+    """The head capture (one loader: ``_carry_cases.head``)."""
+    return carry.head()
 
 
 @pytest.mark.foundation

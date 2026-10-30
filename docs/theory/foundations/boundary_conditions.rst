@@ -141,7 +141,13 @@ where they re-spell it, and a name in double backticks there is retired.
      not in it, and their printed values were confirmed by a probe, :ref:`bc-aor-admission-probe`).
    - **A regression capture** is not a reference: ``tests/gates/sn/architecture/test_wave2_carry.py`` holds the eigenvalues,
      fluxes and dense face matrices (SN on four bodies, an S16 slab) captured from ``main`` at ``5d04c296`` by a script before the
-     carve and reproduced bit-equal after it. It detects drift and says nothing about correctness. Only its seven
+     carve and reproduced bit-equal after it. It detects drift and says nothing about correctness. The capture
+     ``carry_head.npz`` is never rewritten: a later change that moves a carried number declares the move as a delta in
+     ``tests/gates/transport/carry_rebaselines.json`` (per moved key the head value, the new value and their ULP
+     distance, with the cause and the three criteria of ``vv-principles``), every carry gate reads a value through
+     ``_carry_cases.expected``, and ``test_the_rebaselines_are_declared_deltas`` gates the overlay. One event is
+     declared: U2c of the space-membership plan, 36 of the 46 eigenvalue-path keys within 18 ULP
+     (:ref:`integrated-reaction-rate-covector`). Only its seven
      ``bc_equivalence`` snapshot images are independent derivations from the law's equation: they are the ones re-anchored from
      recording to reference on 2026-08-01 (:ref:`bc-snapshot-reanchoring`).
    - **Honest reds**: a defect that the tree has and no fix addresses is carried by a strict ``xfail`` that fails when the
@@ -1172,7 +1178,8 @@ Each law below is a statement the types obey, with the gate that fails first whe
      - equal declarations digest equal; every deck and condition type has its row in the content-identity rosters
      - ``tests/gates/transport/test_content_identity_transport.py``, ``tests/gates/geometry/test_content_identity_geometry.py``
    * - L-K the carried numbers
-     - every eigenvalue and flux the suite pins is unchanged by the carve except the declared exceptions
+     - every eigenvalue and flux the suite pins is unchanged by the carve except the declared exceptions; a later
+       move is a declared delta in ``carry_rebaselines.json``, read through ``_carry_cases.expected``
      - ``tests/gates/sn/architecture/test_wave2_carry.py``
    * - L-L the functor law
      - realization is a homomorphism of the algebra: exact on parameters, within a few ulp on dense matrices

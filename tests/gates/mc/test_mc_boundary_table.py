@@ -187,8 +187,8 @@ def test_the_mc_cylinder_sites_are_strict_xfails_naming_547() -> None:
 
 @cache
 def _fixture() -> Any:
-    assert carry.CARRY_FIXTURE.exists(), f"{carry.CARRY_FIXTURE} is missing: the carry fixture is the instrument of this file"
-    return np.load(carry.CARRY_FIXTURE)
+    """The head capture (one loader: ``_carry_cases.head``)."""
+    return carry.head()
 
 
 @pytest.mark.foundation

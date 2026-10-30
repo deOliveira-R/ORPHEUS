@@ -118,32 +118,41 @@ def test_the_snapshots_were_not_rebaselined() -> None:
 #: The quantities a re-baseline may move: the eigenvalue path. A fixed-source flux, a face matrix or a snapshot image
 #: evaluates no k-quotient, so an event that overlays one is a carry failure dressed as a re-baseline.
 _REBASELINABLE = ("keff/", "phi_eigen/", "keff_diffusion/")
+#: The ceiling no event's bound may exceed. A re-baseline here is a floating-point re-association, which moves a
+#: converged eigenvalue by tens of ULP at most (event U2c: 18). A larger move is a numerical change, and it needs its own
+#: investigation and instrument, not a carry delta; an event cannot raise this by declaring a larger bound.
+_ULP_CEILING = 64.0
 
 
 @pytest.mark.foundation
 def test_the_rebaselines_are_declared_deltas() -> None:
     r"""Every overlaid key is a declared, bounded, explained delta over the head capture.
 
-    Per event: a cause and the three criteria are written; per entry: the key exists in the head capture, the recorded
-    old value IS the head value bit for bit (so the overlay was written against this capture, not another), the
-    recorded ULP distance is the one the two values give, it is within the event's bound, and the key lies on the
-    eigenvalue path. The positive control of ``test_the_fixture_is_the_head_capture`` is re-read on the EFFECTIVE values:
+    Per event: a cause and the three criteria are written, and its bound is within the fixed ceiling; per entry: the key
+    exists in the head capture, the recorded old value IS the key's value before this event bit for bit (the head value,
+    or the previous event's new value: the events form a chain), the recorded ULP distance is the one the two values
+    give, it is within the event's bound, and the key lies on the eigenvalue path. The positive control of ``test_the_fixture_is_the_head_capture`` is re-read on the EFFECTIVE values:
     vacuum < specular 0.3 < specular 0.7 < mirror on every curved and flat body.
 
-    Red input: an entry whose ``old`` is not the head value; a ``phi_fixed`` or ``face_matrix`` key in an event; a ULP
-    distance over the bound; an event with an empty cause.
+    Red input: an entry whose ``old`` is not the value before its event; a ``phi_fixed`` or ``face_matrix`` key in an
+    event; a ULP distance over the bound; a bound over the ceiling; an event with an empty cause.
     """
     head = carry.head()
     events = carry.rebaseline_events()
     assert events, "the overlay holds no event: delete the file rather than keep an empty instrument"
+    #: The chain: each key's value before the event being read, starting from the head capture.
+    current: dict[str, np.ndarray] = {}
     for event in events:
         assert event["cause"].strip() and all(event["criteria"][c].strip() for c in ("principled_form", "independent_check", "drift_explained")), event["id"]
         assert event["entries"], f"{event['id']}: an event with no entry"
+        assert event["bound_ulp"] <= _ULP_CEILING, f"{event['id']}: a bound of {event['bound_ulp']} ULP exceeds the ceiling {_ULP_CEILING}"
         for key, entry in event["entries"].items():
             assert key in head.files, f"{event['id']}: {key} is not a key of the head capture"
             assert key.startswith(_REBASELINABLE), f"{event['id']}: {key} is off the eigenvalue path and cannot be re-baselined"
             old, new = np.asarray(entry["old"], dtype=float), np.asarray(entry["new"], dtype=float)
-            np.testing.assert_array_equal(old, head[key], err_msg=f"{event['id']}: {key}'s recorded old value is not the head value")
+            before = current.get(key, head[key])
+            np.testing.assert_array_equal(old, before, err_msg=f"{event['id']}: {key}'s recorded old value is not its value before this event")
+            current[key] = new
             assert not np.array_equal(old, new), f"{event['id']}: {key} did not move"
             ulp = float(np.max(np.abs(new - old) / np.spacing(np.maximum(np.abs(old), np.abs(new)))))
             assert ulp == entry["ulp"] and ulp <= event["bound_ulp"], f"{event['id']}: {key} at {ulp} ULP (recorded {entry['ulp']}, bound {event['bound_ulp']})"
