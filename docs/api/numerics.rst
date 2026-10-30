@@ -806,9 +806,12 @@ Function spaces — trace and interior face cochains
 The :class:`~orpheus.numerics.space.FunctionSpace` base class carries
 the identity of every typed field's space, and since the identity flip
 (structural ``__eq__``, CS4c step 6, 2026-09-07) that identity is **per
-class**: an axis-built space compares and hashes by its ``axes`` tuple,
-an axes-less one by ``(name, shape)``, and one of each is never the same
-space (:ref:`spaces-identity-bridge`).
+class**: an axis-built space compares and hashes by its ``axes`` tuple
+and the dense forms positioned over them, an axes-less leaf by its class,
+name, shape and the content of its weights and metric object, and one of
+each is never the same space (:ref:`spaces-identity-key`). The axes-less
+key was ``(name, shape)`` until S7 (2026-10-22) added the class, and the
+weights and metric joined it on 2026-10-30 (:ref:`spaces-membership`).
 ⛔ This paragraph said *"carries the (name, shape, inner_product_weights)
 identity"* until 2026-09-07 — a third spelling that was already wrong
 before the flip: ``inner_product_weights`` is declared ``compare=False``

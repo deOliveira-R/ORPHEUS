@@ -94,6 +94,7 @@ if TYPE_CHECKING:
 __all__ = [
     "DualSpace",
     "FunctionSpace",
+    "Member",
     "TensorProductSpace",
     "angular_flux_space",
     "factor_tail",
@@ -109,6 +110,23 @@ __all__ = [
 #: own carrier (``FunctionSpace[Domain]``, the #65 two-param discipline
 #: extended to the space layer) is the follow-on step, not this one.
 Carrier = TypeVar("Carrier", default=Any)
+
+
+class Member:
+    r"""A typed element of a space: its coordinates and the space they belong to.
+
+    The nominal type the space's membership check reads. A member is
+    compared with the space by content identity on every run
+    (:meth:`FunctionSpace.coordinates_of`), which is the only check that
+    separates two spaces of equal shape and different metric; a bare array
+    is the raw path. :class:`~orpheus.numerics.field.Field` is the member
+    every production quantity is; this base lives here, with the space that
+    asks the question, because ``field.py`` imports this module and the
+    concept order runs space before field.
+    """
+
+    values: NDArray
+    space: "FunctionSpace"
 
 
 @dataclass(frozen=True, eq=False)
@@ -320,11 +338,14 @@ class FunctionSpace(Generic[Carrier]):
           POSITIONED over it (``None`` where an axis carries none), so a
           dense-dressed head and the same axes with another Gram are two
           spaces;
-        * axes-less leaf — ``("named", class, name, shape)``: the
-          factory-built leaves (the two trace spaces, the two
-          radial-characteristic spaces) fold their content into a digest
-          name, and the class keeps a hand-built space wearing such a name
-          from passing for one;
+        * axes-less leaf — ``("named", class, name, shape, weights, metric)``:
+          the class keeps a hand-built space wearing a factory leaf's name
+          from passing for one, and the content digests of the diagonal
+          weights and of the metric object keep two spaces of one name and
+          shape with different metrics apart (`[M]` 2026-10-30, the U1 qa
+          review: without them two ``AngularFaceTraceSpace`` tiers with
+          different weights compared equal, so a member of one was admitted
+          by the other);
         * a dual, a non-axis tensor product, a direct sum and a coupled
           system override this with their members' keys, tagged.
         """
@@ -332,7 +353,11 @@ class FunctionSpace(Generic[Carrier]):
             return ("axes", self.axes, tuple(
                 None if form is None else content_digest(form) for form in self._overlay_forms()
             ))
-        return ("named", type(self), self.name, self.shape)
+        return (
+            "named", type(self), self.name, self.shape,
+            None if self.inner_product_weights is None else content_digest(np.asarray(self.inner_product_weights)),
+            None if self.metric is None else content_digest(self.metric),
+        )
 
     @cached_property
     def _identity(self) -> tuple[Any, ...]:
@@ -580,6 +605,66 @@ class FunctionSpace(Generic[Carrier]):
     # Inner product / norm
     # ------------------------------------------------------------------
 
+    def coordinates_of(self, x: Any) -> Any:
+        r"""Return the coordinates of ``x`` as a member of this space, or refuse it.
+
+        Membership is the space's verb, asked by every verb that takes an
+        element. Two tiers (the user's ruling, 2026-10-30: well-posed
+        mathematics is guaranteed through the formal machinery):
+
+        * **A typed member**, a :class:`~orpheus.numerics.field.Field`, is
+          compared with this space by content identity on every run, ``-O``
+          included, and its coordinates are returned. This is the only check
+          that separates two spaces of equal shape and different metric.
+        * **A bare array** is the raw path, legal for a dependency-free test
+          or a prototype. Its shape must equal :attr:`shape` exactly, checked
+          only under ``__debug__``: a scalar verb's elements are members, and
+          a trailing batch has no inner product (a pairing over a payload is
+          posed on the explicit tensor product ``V * P``).
+
+        ELEGANCE-DEBT[guard] #664: production still reaches the raw tier (the
+        operator algebra's carrier is a bare array); retires when every
+        production caller hands a typed member, after which the ``__debug__``
+        check remains only as the raw path's test aid.
+        """
+        if isinstance(x, Member):
+            if x.space != self:
+                raise ValueError(
+                    f"{type(x).__name__} on {x.space!r} is not a member of {self!r}."
+                )
+            return x.values
+        if __debug__:
+            if np.shape(x) != self.shape:
+                raise ValueError(
+                    f"a bare array of shape {np.shape(x)} is not a member of "
+                    f"{self!r}: a scalar verb takes the exact shape {self.shape}."
+                )
+        return x
+
+    def leading_coordinates_of(self, x: Any) -> Any:
+        r"""Return the coordinates of ``x`` for an ACTION on this space, or refuse it.
+
+        An action (a metric leg, an operator's matvec) acts on the space's
+        leading axes, so a trailing batch rides through unchanged: the
+        action is :math:`A \otimes I_P` on :math:`V \otimes P`. A typed member
+        is compared by content identity on every run (see
+        :meth:`coordinates_of`); a bare array's leading shape must equal
+        :attr:`shape`, checked only under ``__debug__``.
+
+        ELEGANCE-DEBT[guard] #664: as :meth:`coordinates_of`'s raw tier; retires
+        when every production action receives a typed member of its domain.
+        """
+        if isinstance(x, Member):
+            return self.coordinates_of(x)
+        if __debug__:
+            shape = np.shape(x)
+            if shape[: len(self.shape)] != self.shape:
+                raise ValueError(
+                    f"a bare array of shape {shape} does not have the leading "
+                    f"shape {self.shape} of {self!r} that an action acts on."
+                )
+        return x
+
     def inner_product(self, x: Carrier, y: Carrier) -> float:
         r"""Return :math:`\langle x, y \rangle`.
 
@@ -594,15 +679,16 @@ class FunctionSpace(Generic[Carrier]):
         Parameters
         ----------
         x, y : Carrier
-            Elements of this space (arrays of shape :attr:`shape` for
-            the default realization).
+            Members of this space: typed members (compared by content
+            identity), or bare arrays of exactly :attr:`shape` on the raw
+            path (see :meth:`coordinates_of`).
 
         Returns
         -------
         float
             Scalar inner product.
         """
-        return self._diagonal_inner_product(x, y)
+        return self._diagonal_inner_product(self.coordinates_of(x), self.coordinates_of(y))
 
     def _diagonal_inner_product(self, x: Any, y: Any) -> float:
         r"""The bare-array realization of :meth:`inner_product`.
@@ -685,7 +771,7 @@ class FunctionSpace(Generic[Carrier]):
         (bulk :math:`\oplus` trace) OVERRIDE this to apply a per-block metric
         to a structured field (the Wave-O direct-sum adjoint).
         """
-        return self._diagonal_apply_metric(x)
+        return self._diagonal_apply_metric(self.leading_coordinates_of(x))
 
     def _diagonal_apply_metric(self, x: Any) -> Any:
         r"""The bare-array realization of :meth:`apply_metric`."""
@@ -710,7 +796,7 @@ class FunctionSpace(Generic[Carrier]):
         (e.g. the angular quadrature weights ``w_n``) this is plain ``x/G``,
         so the spherical-harmonic adjoint path stays bit-identical.
         """
-        return self._diagonal_apply_inverse_metric(x)
+        return self._diagonal_apply_inverse_metric(self.leading_coordinates_of(x))
 
     def _diagonal_apply_inverse_metric(self, x: Any) -> Any:
         r"""The bare-array realization of :meth:`apply_inverse_metric`."""

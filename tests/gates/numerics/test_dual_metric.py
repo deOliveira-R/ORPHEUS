@@ -323,11 +323,15 @@ def test_S4_V_star_is_not_V_in_both_orders(name):
 
 
 def test_S5_duals_are_equal_iff_their_primals_are():
+    # Equal primals: one name, one shape, one metric (since U1, 2026-10-30, the metric is part of an axes-less
+    # space's identity, so the old pair of one name with two weight vectors is now an UNEQUAL pair, below).
     a = FunctionSpace("s6a_same", (2,), inner_product_weights=np.array([2.0, 3.0]))
-    b = FunctionSpace("s6a_same", (2,), inner_product_weights=np.array([5.0, 7.0]))
+    b = FunctionSpace("s6a_same", (2,), inner_product_weights=np.array([2.0, 3.0]))
     c = FunctionSpace("s6a_other", (2,))
+    d = FunctionSpace("s6a_same", (2,), inner_product_weights=np.array([5.0, 7.0]))
     _require(a == b and DualSpace.of(a) == DualSpace.of(b), "equal primals, unequal duals")
     _require(a != c and DualSpace.of(a) != DualSpace.of(c), "unequal primals, equal duals")
+    _require(a != d and DualSpace.of(a) != DualSpace.of(d), "primals differing only in their metric, equal duals")
 
 
 # ═══════════════════════════════════════════════════════════════════════

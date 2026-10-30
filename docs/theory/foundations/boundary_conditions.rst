@@ -6324,13 +6324,15 @@ The class :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace
 carries the signed projection :math:`\Omega\cdot\hat n_f` as the ``omega_dot_n``
 array of shape ``(n_faces, N)``, beside the ordinate ``directions`` and the
 ``layout``; the three are required keyword-only fields excluded from
-:meth:`__eq__` and :meth:`__hash__` (``compare=False``) — preserving the
-:class:`~orpheus.numerics.space.FunctionSpace` identity convention
-``(name, shape)``, which for this axes-less class IS content identity
-(its factory folds the quadrature and layout into an
-``angular_trace#<digest>`` name) and which the 2026-09-07 identity flip
-therefore leaves unchanged: the flip made identity structural only for
-spaces that declare their ``axes``. Construction goes through the classmethod factory
+:meth:`__eq__` and :meth:`__hash__` (``compare=False``). The class is
+axes-less, so its identity is the axes-less leaf's key of
+:ref:`spaces-identity-key`: its class, its name (the factory folds the
+quadrature and layout into an ``angular_trace#<digest>`` name), its shape,
+and the content of its weights and metric object. The last two joined the
+key on 2026-10-30: the name alone did not carry the weights, and `[M]` the
+U1 qa review found two ``AngularFaceTraceSpace`` tiers with different
+weights comparing equal, so a member of one was admitted by the other
+(:ref:`spaces-membership`). Construction goes through the classmethod factory
 :meth:`AngularTraceSpace.from_quadrature_and_layout
 <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`;
 since the three fields are required, a trace space with an unpopulated

@@ -114,7 +114,7 @@ from typing import TYPE_CHECKING, ClassVar, Self, TypeIs, TypeVar
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import FunctionSpace, Member
 
 if TYPE_CHECKING:
     from orpheus.numerics.units import Unit
@@ -141,7 +141,7 @@ def _unit_label(obj: object) -> str:
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class Field(ABC):
+class Field(Member, ABC):
     r"""Algebraic base of every typed transport field.
 
     A :class:`Field` is the pair ``(values, space)`` with
@@ -377,7 +377,7 @@ class Field(ABC):
     def l2(self) -> float:
         r"""Return the space-induced L² norm
         :math:`\sqrt{\langle x, x \rangle_{\text{space}}}`."""
-        return float(self.space.norm(self.values))
+        return float(self.space.norm(self))
 
     def inner_product(self: T, other: T) -> float:
         r"""Return the space-induced inner product
@@ -387,7 +387,7 @@ class Field(ABC):
         partner check is identical to addition's.
         """
         self._check_partner(other)
-        return self.space.inner_product(self.values, other.values)
+        return self.space.inner_product(self, other)
 
     def _index_tuples(self, positions: "np.ndarray") -> list[tuple[int, ...]]:
         r"""Decode flat positions into this leaf's ``values``-layout index

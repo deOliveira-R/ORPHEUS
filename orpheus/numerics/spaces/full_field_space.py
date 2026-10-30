@@ -341,6 +341,9 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         + \langle x_{\rm trace}, y_{\rm trace}\rangle_{G_{\rm trace}}`.
         """
         interior_space, trace_space = self.interior_space, self.trace_space
+        # The blocks pass their coordinates, not themselves: a composite on a DUAL space still carries
+        # its primal blocks' space labels (no element is typed on V* yet), so a typed block would be
+        # refused there. The co-vector unit types the dual elements (plan space_membership_covector_gauge.md; the carrier role under a dual arrow is #633).
         return (
             interior_space.inner_product(x.interior.values, y.interior.values)
             + trace_space.inner_product(

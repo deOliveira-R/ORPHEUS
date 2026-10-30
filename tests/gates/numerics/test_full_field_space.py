@@ -1,8 +1,9 @@
 r"""Identity + structure contract for :class:`FullFieldSpace` (Wave O / O.2b R5).
 
 The composite direct-sum space :math:`V_{\rm bulk}\oplus V_{\rm trace}`. These
-tests pin the **identity** semantics (``(name, shape)``, block spaces as
-``compare=False`` leaf metadata) and the :meth:`from_blocks` shape derivation —
+tests pin the **identity** semantics (the members' keys: a composite is its
+blocks, and an axes-less block's identity carries its metric) and the
+:meth:`from_blocks` shape derivation —
 the contract the :class:`~orpheus.numerics.operator.OperatorSum` composition
 guard relies on (every SN composite operand reports the SAME composite domain).
 
@@ -47,13 +48,15 @@ def test_from_blocks_shape_is_flat_direct_sum():
 
 
 @pytest.mark.foundation
-def test_identity_is_name_and_shape_only():
-    # Same total dimension but DIFFERENT block metrics → still equal: the block
-    # spaces are compare=False leaf metadata, identity is (name, shape).
+def test_identity_is_the_members_content():
+    # A composite's identity is its blocks' identities, and an axes-less block's identity carries its metric
+    # (U1, 2026-10-30): equal blocks give equal composites; blocks that differ only in their metric give two
+    # spaces. Until U1 this pair compared EQUAL, the metric-blind (name, shape) identity.
     a = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1), weights=True), _trace(8, weights=True))
+    same = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1), weights=True), _trace(8, weights=True))
     b = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1), weights=False), _trace(8, weights=False))
-    assert a == b
-    assert hash(a) == hash(b)
+    assert a == same and hash(a) == hash(same)
+    assert a != b
 
 
 @pytest.mark.foundation

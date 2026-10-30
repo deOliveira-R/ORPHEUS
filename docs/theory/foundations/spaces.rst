@@ -232,7 +232,8 @@ the same space" is a claim this corpus has **overturned**.
      ``hash`` derive from it in the base class only (S7, #631). An
      axis-built space is its axes plus the content of every dense form
      positioned over them (the matrix; its inverse face is derived, not
-     compared); an axes-less leaf is its class, name and shape; a dual, a
+     compared); an axes-less leaf is its class, name, shape and the content
+     of its weights and metric object; a dual, a
      non-axis tensor product, a full-field composite and a coupled system
      are their members' keys, tagged. So **metric differences, atom
      differences and domain differences all imply space differences**,
@@ -241,6 +242,15 @@ the same space" is a claim this corpus has **overturned**.
      measured each separate now: among 15 shipped rules on :math:`S^2`,
      0 of 105 measure-space pairs compare equal, where 21 did
      (:ref:`spaces-identity-key`).
+   - **Membership is a verb of the space, in two tiers.** A typed member
+     (a :class:`~orpheus.numerics.field.Field`) is compared with the space
+     by content identity on every run, ``-O`` included; a bare array is
+     shape-checked only under ``__debug__``, by the user's ruling that the
+     formal path is production's (#664 tags the raw tier as debt). Scalar
+     verbs take exact members, because a batch has no inner product;
+     actions take a leading member and carry a trailing batch as
+     :math:`A\otimes I_P`; a pairing over a payload is posed on the
+     explicit tensor product ``V * P`` (:ref:`spaces-membership`).
 
 .. _spaces-the-axis:
 
@@ -606,10 +616,17 @@ family re-states equality. The key is a tagged tuple per kind of space:
        there is none). A dense form's content is its matrix; its inverse
        face is derived from the matrix and is not compared.
    * - axes-less leaf
-     - ``("named", class, name, shape)``. The factory-built leaves (the
-       two trace spaces, the two radial-characteristic spaces) fold their
-       content into a digest name, and the class keeps a hand-built space
-       wearing such a name from passing for one.
+     - ``("named", class, name, shape, weights, metric)``, the last two
+       the content digests of the diagonal weights and of the metric
+       object (``None`` where absent). The class keeps a hand-built space
+       wearing a factory leaf's name from passing for one. The two digests
+       keep two spaces of one name and shape with different metrics apart:
+       `[M]` 2026-10-30, the U1 qa review (its finding F2), without them two
+       ``AngularFaceTraceSpace`` tiers with different weights compared
+       equal, so a member of one was admitted by the other
+       (:ref:`spaces-membership`). Until then the key was
+       ``("named", class, name, shape)``, on the premise that the
+       factory-built leaves fold their content into a digest name.
    * - :class:`~orpheus.numerics.space.DualSpace`
      - ``("dual", primal.identity_key())``: covariance is identity (ruling
        75), so a dual never equals a primal.
@@ -2610,6 +2627,265 @@ from ``apply_metric``/``apply_inverse_metric`` while the pairing that
 (two spellings of one metric diverging silently) becomes unspellable
 rather than merely untested.
 
+.. _spaces-membership:
+
+Membership is a verb of the space: a typed tier and a raw tier
+--------------------------------------------------------------
+
+Every verb of a space that takes an element is defined only on the
+members of that space: :meth:`~orpheus.numerics.space.FunctionSpace.inner_product`,
+:meth:`~orpheus.numerics.space.FunctionSpace.norm` (through the inner
+product), :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric` and
+:meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric`, and,
+through the last two, the Riesz legs of the next section and every
+adjoint sandwich built from them. Until 2026-10-30 none of these verbs
+asked whether its argument was a member. Membership was checked only on
+the element side: :class:`~orpheus.numerics.field.Field` checks
+``values.shape == space.shape`` at construction, and two carriers parse
+their input
+(:meth:`FullField.require_member
+<orpheus.transport.full_field.FullField.require_member>`, tagged #457,
+and
+:meth:`RadialCharacteristicField.require_member
+<orpheus.transport.radial_characteristic_field.RadialCharacteristicField.require_member>`).
+`[M]` 2026-10-30, the explorer's census for the plan
+``.claude/plans/space_membership_covector_gauge.md``: 0 space or metric
+verbs checked membership, and 10 of 67 operator ``apply`` bodies checked
+their input. The space now asks it of itself, through one of two verbs,
+:meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of` and
+:meth:`~orpheus.numerics.space.FunctionSpace.leading_coordinates_of`.
+
+**The defect that exposed the class.** At ``e42fd498`` the layer-DAG
+Phase 2 specification found
+:meth:`InnerProductFunctional.evaluate
+<orpheus.numerics.functional.InnerProductFunctional.evaluate>` letting
+numpy broadcast a flat ``(ng,)`` carrier against an ``(ng, 1)`` weight
+into the outer product ``(ng, ng)``, and summing it: the integrated
+production rate of the 2-group Mixture A read :math:`0.225` where the
+exact :math:`\langle \nu\Sigma_f, \phi\rangle` is :math:`0.095`. That
+functional is not a space verb, and it was fixed at its own site. The
+same hazard sat in the space verbs, and the two shapes it takes are
+measured here (`[M]` 2026-10-30, a probe on the
+``refactor/space-membership`` worktree, run with and without ``-O``):
+
+- **A non-member admitted by broadcast.** On a space of shape
+  :math:`(2, 1)` with weights :math:`[[1], [2]]`, the member
+  :math:`x = [[0.6], [0.4]]` pairs with itself to :math:`0.68`. The same
+  numbers spelled as a flat array of shape :math:`(2,)` were admitted
+  and read :math:`1.4 = (1\cdot0.6 + 2\cdot0.4)(0.6 + 0.4)`: the outer
+  product, summed.
+- **Two spaces a shape cannot tell apart.** :math:`V` and :math:`W` are
+  both an energy axis of 2 groups times a spatial axis of 3 cells, with
+  spatial weights :math:`[1, 2, 3]` and :math:`[3, 2, 1]`. The array
+  :math:`X = [[1,2,3],[4,5,6]]` reads :math:`210` on :math:`V` and
+  :math:`154` on :math:`W`. Both readings are a correct pairing of a
+  well-shaped array; only the element's own space says which one was
+  meant. Shape is necessary for membership and not sufficient: membership
+  is content identity of the space (:ref:`spaces-identity-key`).
+
+The two tiers
+~~~~~~~~~~~~~
+
+.. list-table:: What each tier admits, what it checks, and when
+   :header-rows: 1
+   :widths: 16 30 30 24
+
+   * - Tier
+     - The element
+     - The check
+     - When it runs
+   * - **typed** (the formal path)
+     - a :class:`~orpheus.numerics.space.Member` (an ``isinstance``
+       test; every :class:`~orpheus.numerics.field.Field` is one), which
+       carries its coordinates and its space
+     - ``x.space == V`` by the identity key, so an equal-shape space
+       with another metric is refused (``ValueError``, "… is not a member
+       of …"); the coordinates are returned (parse, do not validate)
+     - every run, ``-O`` included
+   * - **raw** (a bare array)
+     - an ``ndarray`` with no space
+     - its shape against the space's ``shape``
+       (exact or leading, by the verb below)
+     - only under ``if __debug__:``; ``python -O`` strips it
+
+The member type is declared in ``space.py``, beside the space that asks
+the question, and :class:`~orpheus.numerics.field.Field` subclasses it.
+The direction is forced by the concept order of the numerics package:
+``field.py`` imports ``space.py``, so the space cannot name ``Field``
+without a module cycle (`[M]` 2026-10-30: a first draft imported
+``Field`` lazily inside the check, and ``test_concept_order`` and the
+layer gate's cycle row both refused the ``field → space`` edge).
+
+The typed tier is the guarantee. The raw tier is legal and checked only
+in development, by the user's ruling of 2026-10-30 (R1 of the plan):
+*well-posed mathematics is guaranteed structurally only through the
+formal machinery*, meaning specialised constructors that take the packed
+formal objects, and typed members. Production is the formal path; a raw
+array exists for a dependency-free test or a prototype, and the checks
+against its misuse sit under ``__debug__``. The consequence is stated
+rather than hidden: the canonical ``python -O -m pytest`` never executes
+a raw-tier refusal, and under ``-O`` the flat-against-column probe above
+still reads :math:`1.4`. The raw tier's two checks are tagged
+``ELEGANCE-DEBT[guard] #664`` in ``orpheus/numerics/space.py``; they
+retire as a debt when the operator algebra's carrier is typed, so that no
+production path is raw (#664), and stay as the raw path's development aid.
+
+The typed comparison is cheap because production spaces are interned:
+``FunctionSpace.__eq__`` returns on ``other is
+self`` before it compares identity keys. `[M]` 2026-10-30, the
+test-architect's cost probe (``scratch/membership_covector/spec/probes/u1_cost.py``,
+the minimum of 15 repeats of 20 000 calls): ``inner_product`` costs
+12.3 µs, the identity comparison 0.128 µs and a bare shape comparison
+0.123 µs, about 1 % per call. This is sizing, not a gate.
+
+Scalar verbs take exact members; actions take a leading member
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+"Member" had two readings in the tree: the exact shape, and a prefix of
+the space's shape followed by a payload of trailing axes that ride
+through. The two readings belong to two kinds of verb, and the space
+spells each as its own verb rather than one verb with a flag.
+
+- **A scalar verb** (``inner_product``, ``norm``) returns a number from
+  members of :math:`V`, and asks
+  :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`: a raw
+  array must have exactly :math:`V`'s shape. A batch has no inner
+  product.
+- **An action** (``apply_metric``, ``apply_inverse_metric``, and through
+  them :class:`~orpheus.numerics.operator.RieszLowerOperator`,
+  :class:`~orpheus.numerics.operator.RieszRaiseOperator` and ``.H``) acts
+  on :math:`V`'s axes, and asks
+  :meth:`~orpheus.numerics.space.FunctionSpace.leading_coordinates_of`: a
+  raw array's leading shape must equal :math:`V`'s, and its trailing axes
+  form a batch :math:`P` that the action carries unchanged,
+
+  .. math::
+
+     (G \otimes I_P)\,x , \qquad
+     x \in V \otimes P ,\quad
+     \operatorname{shape}(x) = \operatorname{shape}(V) \,\|\, \operatorname{shape}(P) ,
+
+  where :math:`\|` concatenates shapes. A typed member handed to an
+  action is compared exactly: a field is a member of one space, and
+  carries no batch. The lowering leg :math:`\flat_V : V \to V^{*}`
+  asks its domain :math:`V`. The raising leg
+  :math:`\sharp_V : V^{*} \to V` still asks :math:`V`, through
+  ``V.apply_inverse_metric``, so it admits a typed member of :math:`V`
+  and refuses a typed covector, the reverse of its arrow. This is a known
+  defect, found by the U1 qa review (its finding F1), and it is not
+  fixed in U1. The obvious repair routes the leg through
+  ``V.dual().apply_metric``, whose metric is :math:`G^{+}`
+  (:ref:`spaces-dual-space`); it is ``array_equal`` on a leaf space, and
+  it was tried and refuted for U1. `[M]` 2026-10-30, the full ``-O``
+  suite on the U1 worktree: 7 rows of
+  ``tests/gates/numerics/test_coupled_operator.py`` crashed, because a
+  space that types its own carrier (it overrides the metric legs to act
+  on a field's ``values``) has a plain :class:`DualSpace`, which knows
+  nothing of that carrier, so the dual's metric was applied to the field
+  object itself. The repair needs the dual of a carrier-typed space to
+  type its elements too, which is the typed-dual-elements item of unit U2
+  (the co-vector, #633), and it lands there.
+
+**A pairing over a payload is posed on the tensor product.** Before the
+split, ``inner_product`` on an array of shape
+:math:`\operatorname{shape}(V)\,\|\,\operatorname{shape}(P)` computed
+:math:`\sum (G x)\odot y` over every axis, which weights each payload
+index by 1: it pairs on :math:`V \otimes P` with the counting measure on
+:math:`P`, an assumption nobody wrote down. It is right when the payload
+is a bare batch, and wrong when the payload carries a measure of its own
+(a quadrature weight, a cell volume), whose weights it drops in silence.
+That is the class the :math:`0.225` defect belongs to: an axis the space
+does not know about, contracted with unit weights. The pairing is now
+posed explicitly on ``V * P``, the axis-built tensor product
+(:eq:`spaces-axis-product`), with :math:`P` built from its own axes; for
+a bare batch,
+``FunctionSpace.of_axes(Axis("payload", shape, origin=Declared(BasisKind.NODAL)))``,
+whose ``weights=None`` is the counting measure. `[M]` 2026-10-30, the
+probe above: on a :math:`(2, 3, 5)` element over :math:`V` and a counting
+:math:`P` of 5, ``(V * P).inner_product(x, x)`` equals
+``np.sum(V.apply_metric(x) * x)`` bit for bit, so the re-pose moves no
+value; a weighted :math:`P` would move it, and that is now a choice
+spelled at the call site. The same raw call on :math:`V` alone is refused
+under ``__debug__``.
+
+Who carried a payload (the census the split rests on, `[M]` 2026-10-30):
+
+- the explorer's runtime census over the space verbs: production carried
+  0 payload-tailed elements; tests carried them in 7 functions in 4
+  files, and one deliberate S\ :sub:`N` mutant did the same;
+- of those, the test-architect's specification (§U1.4 of
+  ``scratch/membership_covector/spec/spec.md``) found the direct
+  ``inner_product`` callers in two files, and both are re-posed on
+  ``V * P``: the scalar leg of
+  ``tests/gates/numerics/test_axis_metric_is_a_derived_object.py`` (its
+  action legs keep the payload), and
+  ``tests/gates/numerics/test_moment_head_axis_built_premise.py``, where 8
+  of 8 moment heads keep the axis route and the dense-slot twin equal;
+- the Riesz-leg and ``.H`` callers (``test_frame.py``'s analysis and
+  reconstruction adjoint rows, ``test_moment_metric_fork_premise.py``,
+  the mutant in ``test_sn_adjoint_entries.py``) are actions, and keep
+  their payload.
+
+Who passes what today
+~~~~~~~~~~~~~~~~~~~~~
+
+- **Typed:** :meth:`Field.l2 <orpheus.numerics.field.Field.l2>` and
+  :meth:`Field.inner_product <orpheus.numerics.field.Field.inner_product>`
+  hand the space the field itself;
+  :meth:`CoupledSpace.inner_product
+  <orpheus.numerics.coupled_system.CoupledSpace.inner_product>` hands each
+  member space its member field.
+- **Raw:** the full-field composite
+  (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`)
+  hands its block spaces their coordinates, in its inner product and in
+  both metric legs; the action sites of the operator algebra pass bare
+  arrays (`[M]` before the carve, the specification's §U1.2: 14 action
+  sites, and every production carrier observed at every exercised site an
+  ``ndarray``); and the ``InnerProductFunctional`` inside the rank-one
+  fission operator has no domain or codomain space yet. These are the
+  debt #664 names.
+
+**What failed: typing the composite's blocks.** The specification
+converted the composite's inner product to hand its blocks the member
+fields. `[M]` 2026-10-30, the carve's run: the row
+``sn_sweep_slab_dual`` of ``tests/gates/numerics/test_adjointability_is_honest.py``
+was refused. The refusal was correct, and the element was mislabelled.
+The dual of a composite is the composite of the duals
+(:ref:`spaces-dual-space`), so the dual space's interior block is
+:math:`V_{\rm bulk}^{*}`; but a composite field on it still carries its
+primal block labels, :math:`V_{\rm bulk}`, because no element is typed on
+a dual space yet (the warning at the end of :ref:`spaces-dual-space`,
+`#633 <https://github.com/deOliveira-R/ORPHEUS/issues/633>`_).
+:math:`V^{*} \ne V` by content identity, so the typed tier refuses the
+block. The composite therefore passes coordinates, and a comment in
+:meth:`FullFieldSpace.inner_product
+<orpheus.numerics.spaces.full_field_space.FullFieldSpace.inner_product>`
+records why. The unit that types elements of the dual space (the
+co-vector, U2 of the plan) owns the fix.
+
+**Gates.** ``tests/gates/numerics/test_space_membership.py``, in three
+rungs:
+
+1. the typed tier, which runs under ``-O``: a member is admitted and reads
+   the raw call's number (:math:`210` on :math:`V`); a member of the
+   equal-shape space :math:`W` is refused by ``inner_product`` and by
+   ``apply_metric``; ``coordinates_of`` returns the field's own
+   coordinates (``is``); the raising leg admits a member of
+   :math:`V^{*}` and refuses a member of :math:`V`; two axes-less spaces
+   of one name and shape with different weights are two spaces, and a
+   member of one is refused by the other;
+2. the raw tier: a flat carrier on a column space and a payload tail on a
+   scalar verb are refused, and a lower-rank element is refused by an
+   action, each only under ``__debug__``; a companion under ``-O`` asserts
+   the raw scalar call does not raise and pins no value; a trailing batch
+   rides through an action on every run;
+3. the re-pose witness: the ``V * P`` pairing with a counting :math:`P`
+   equals the action-then-sum reading.
+
+The ``__debug__`` rows carry the skip pair of the ``vv-testing`` rule and
+are run without ``-O``:
+``.venv/bin/python -m pytest -p no:cacheprovider tests/gates/numerics/test_space_membership.py``.
+
 .. _spaces-riesz-legs:
 
 The Riesz legs: the metric as two arrows, and the adjoint as their composition
@@ -2675,7 +2951,10 @@ ORPHEUS's choice and not Lee's:
 
    **Implemented by** the raising leg, whose ``apply`` is
    ``space.apply_inverse_metric(f)``: the Moore–Penrose pseudo-inverse of
-   :ref:`spaces-metric-moore-penrose`, on every metric realization.
+   :ref:`spaces-metric-moore-penrose`, on every metric realization. Its
+   membership check asks :math:`V` rather than its domain :math:`V^{*}`,
+   a known defect that waits for typed dual elements
+   (:ref:`spaces-membership`).
 
 where :math:`G^{+}` is the Moore–Penrose pseudo-inverse, the unique
 matrix satisfying the four Penrose conditions :math:`G G^{+} G = G`,
@@ -3629,6 +3908,16 @@ clause: an axis-built space CAN carry a metric object, as the positioned
 overlay of forms merged into its axes-derived metric
 (:ref:`spaces-metric-three-sources`) — which is how a dense Gram lives on
 an axis-built head at all.
+
+The last metric-blind identity closed on 2026-10-30 (unit U1 of
+``.claude/plans/space_membership_covector_gauge.md``): an axes-less leaf's
+key was still its class, name and shape, so two such spaces of one name and
+shape with different weights compared equal, and once membership became
+the space's verb a member of one was admitted by the other (`[M]` the U1
+qa review, two ``AngularFaceTraceSpace`` tiers). The key now carries the
+content digests of the leaf's weights and metric object
+(:ref:`spaces-identity-key`), so each of the six kinds of space in that
+table now carries its metric in its key.
 
 What survives untouched is the **reason** the ``metric`` field is
 declared ``compare=False``, and it is worth separating from the claim it
@@ -6485,6 +6774,16 @@ taken.
        there is no third spelling of it. Their definition is
        :ref:`spaces-riesz-legs`; the landing is recorded in the SN
        development history (the Riesz-legs entry).
+   * - A typed carrier for the operator algebra, and elements typed on :math:`V^{*}`
+     - **Owed by** `#664 <https://github.com/deOliveira-R/ORPHEUS/issues/664>`_
+       (the action sites and the fission operator's
+       ``InnerProductFunctional`` pass bare arrays) and by the co-vector
+       unit of ``.claude/plans/space_membership_covector_gauge.md`` with
+       `#633 <https://github.com/deOliveira-R/ORPHEUS/issues/633>`_ (a
+       field on a dual space still carries its primal space). What stands
+       in today is the raw tier of :ref:`spaces-membership`: a bare array's
+       shape is checked under ``__debug__`` only, and the full-field
+       composite hands its blocks coordinates instead of members.
 
 
 .. _spaces-development-history:
@@ -6510,6 +6809,26 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-30
+     - **Membership is a verb of the space** (unit U1 of
+       ``.claude/plans/space_membership_covector_gauge.md``). The space
+       gained :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`
+       for its scalar verbs (an exact member) and
+       :meth:`~orpheus.numerics.space.FunctionSpace.leading_coordinates_of`
+       for its actions (a leading member, a trailing batch carried as
+       :math:`A\otimes I_P`). A typed member is compared by content
+       identity on every run; a bare array is shape-checked under
+       ``__debug__`` only, by the user's ruling R1. The raising leg asks
+       the dual space, its domain, and an axes-less space's identity key
+       gained the content of its weights and metric (the U1 qa review). The
+       field's ``l2`` and
+       ``inner_product`` pass the field itself, and the two tests that
+       paired over a payload are re-posed on ``V * P``. Typing the
+       full-field composite's blocks was tried and refused on a dual
+       space, where the blocks carry primal labels; it waits for the
+       co-vector unit (:ref:`spaces-membership`).
+     - #664
+     - *(in development)*, branch ``refactor/space-membership``
    * - 2026-10-25
      - **The spatial-moment axis points at a basis** (layer DAG ruling 19,
        the moment-basis carve). Numerics gained the interval Legendre basis

@@ -49,7 +49,11 @@ that records what minted it and is provenance, never identity
 :meth:`~orpheus.numerics.space.FunctionSpace.identity_key`, read off its
 axes (and any dense form positioned over them) or off its members
 (:ref:`spaces-identity-key`), so metric differences, atom differences and
-domain differences all imply space differences. Realising a law or a kernel
+domain differences all imply space differences. Membership is the
+space's verb: a typed member is compared with the space by that key on
+every run, a bare array is shape-checked only in development, and a
+pairing over a trailing payload is posed on the explicit tensor product
+(:ref:`spaces-membership`). Realising a law or a kernel
 means binding it to a space, a domain and a codomain
 (:ref:`bound-operator`): that binding is what makes its properties
 concrete, and it is why the adjoint below is a composition and not a
@@ -704,11 +708,33 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   ``Declared`` and carries no atoms (a gated contract, G6b); there is no ``Cone`` class, no
   embedding operator and no affine operator, each by ruling and so not
   debt.
-- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs 9 times in
-  9 sites under ``orpheus/`` (`[M]` 2026-10-24 at ``471c4737``, a Python
-  scan of every line of ``orpheus/**/*.py`` for the tag; positive control:
-  the scan finds the ``#457`` site in ``orpheus/transport/full_field.py``).
-  The sites: the full-field carrier (#457); the lock on withdrawn
+- **The operator algebra's carrier is a bare array** (#664). Membership
+  is the space's verb (:ref:`spaces-membership`), and production does
+  not yet take the typed path through it: the action sites pass bare
+  arrays to the metric legs (`[M]` 2026-10-30, the specification
+  ``scratch/membership_covector/spec/spec.md`` §U1.2: 14 action sites,
+  and every production carrier observed at every exercised site an
+  ``ndarray``), the full-field composite hands its block spaces
+  coordinates rather than member fields, and the
+  ``InnerProductFunctional`` inside the rank-one fission operator has no
+  domain or codomain space. The composite cannot pass members yet
+  because no element is typed on a dual space: a field on
+  :math:`V^{*}` still carries its primal space (#633), and the co-vector
+  unit of ``.claude/plans/space_membership_covector_gauge.md`` owns that.
+  The raw path's shape check is development-only (``__debug__``), so
+  under ``-O`` a raw non-member reaches the arithmetic unchecked.
+- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs 12 times in
+  9 files under ``orpheus/`` (`[M]` 2026-10-30 on the
+  ``refactor/space-membership`` worktree, a Python scan of every line of
+  the 395 files ``orpheus/**/*.py`` for the tag; positive control: the
+  scan finds the ``#457`` site in ``orpheus/transport/full_field.py``).
+  The sites: the full-field carrier (#457); the raw tier of space
+  membership, two sites in ``orpheus/numerics/space.py`` (#664, retired
+  when the operator algebra's carrier is typed,
+  :ref:`spaces-membership`); the field layer's refusal of a
+  spatial-moment axis whose basis is not one interval factor per spatial
+  axis, in ``orpheus/transport/fields/_bases.py`` (#662, retired when the
+  field layer threads the cell basis instead of the per-axis integer); the lock on withdrawn
   reference generators in ``orpheus/derivations/common/withdrawal.py``
   (#506, retired when each reference family's generator returns a
   :class:`~orpheus.reference.certificate.ReferenceCertificate` whose

@@ -101,6 +101,10 @@ def _synthetic_axes() -> tuple[Axis, ...]:
 #         retired inline loop (synthetic axes, then the four carriers)
 # ═════════════════════════════════════════════════════════════════════════
 
+#: The counting payload axis a pairing over the trailing element axis is posed on.
+_COUNTING_PAYLOAD = FunctionSpace.of_axes(Axis("payload", (5,), origin=Declared(BasisKind.NODAL)))
+
+
 @pytest.mark.parametrize("seed", [0, 1, 2])
 def test_the_derived_object_is_bit_identical_to_the_inline_loop_on_synthetic_axes(seed):
     """``apply_metric`` / ``apply_inverse_metric`` / ``inner_product`` on an
@@ -120,7 +124,10 @@ def test_the_derived_object_is_bit_identical_to_the_inline_loop_on_synthetic_axe
         if not np.array_equal(space.apply_inverse_metric(x), _inline_per_axis(axes, x, inverse=True)):
             pytest.fail(f"apply_inverse_metric differs from the inline loop on shape {shape}")
         want = float(np.sum(_inline_per_axis(axes, x, inverse=False) * y))
-        if space.inner_product(x, y) != want:
+        # A trailing payload has no inner product of its own: the pairing over it is posed on the
+        # explicit tensor product with a counting payload axis (membership is the space's verb).
+        pairing_space = space if shape == space.shape else space * _COUNTING_PAYLOAD
+        if pairing_space.inner_product(x, y) != want:
             pytest.fail(f"inner_product differs from the inline loop's reduction on shape {shape}")
 
 

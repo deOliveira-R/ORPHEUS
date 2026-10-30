@@ -561,6 +561,40 @@ For flux, half 2 fails twice over and independently:
   :math:`K \to K`, so a converged, correct, physically-interpreted
   production solve can carry negative entries.
 
+.. admonition:: The same rule passes for space membership — because the payload is spelled
+   :class: note
+
+   The rule has a second application in this corpus, one layer down: an
+   element's membership in its space (:ref:`spaces-membership`). There the
+   candidate invariant is "a space verb takes only members of the space",
+   and both halves now hold on the formal path (on the raw path, half 1
+   holds only under ``__debug__``).
+
+   1. **Every admitted value is legal.** A typed member is admitted only
+      when its space equals the verb's space by content identity, on every
+      run. A bare array is admitted only at the space's exact shape (a
+      scalar verb) or leading shape (an action), checked under
+      ``__debug__`` only, by the user's ruling that production is the
+      formal path; under ``-O`` the raw tier is unchecked, and that is the
+      debt `#664 <https://github.com/deOliveira-R/ORPHEUS/issues/664>`_
+      records.
+   2. **Every legal value is admitted.** This half failed for an
+      exact-shape check alone: `[M]` 2026-10-30, the explorer's runtime
+      census, tests in 7 functions in 4 files legitimately carried a
+      trailing payload through the space verbs, and an exact-shape check
+      would have refused them. It holds now because the payload is
+      SPELLED rather than inferred. An action carries a trailing batch as
+      :math:`A\otimes I_P`, so its leading-member check admits it; a
+      pairing over a payload is posed on the explicit tensor product
+      ``V * P``, of which the element is an exact member. The two tests
+      that paired over a payload were re-posed that way, with no value
+      moved.
+
+   The contrast with the cone is the point of the rule. The cone fails
+   half 2 because correct production output lies outside it, and no
+   spelling changes that; membership failed half 2 only because a legal
+   use (a payload) had no type, and giving it one closed the half.
+
 The DD witness — measured production output outside the cone
 -------------------------------------------------------------
 

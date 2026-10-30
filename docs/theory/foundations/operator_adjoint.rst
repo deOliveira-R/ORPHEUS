@@ -382,14 +382,14 @@ The space is **duck-typed** on the composite field (``.bulk`` /
 ndarray; rebuilt via :func:`dataclasses.replace`) so that the
 ``numerics`` layer never imports the ``transport`` layer — an
 architectural firewall that keeps the operator-algebra primitives
-domain-agnostic. The identity is the inherited ``(name, shape)`` tuple
-(``shape = (n_bulk + n_trace,)``), with the block spaces as
-``compare=False`` leaf metadata. The composite is **axes-less**, so the
-identity flip (structural ``__eq__``, CS4c step 6, 2026-09-07) leaves it
-exactly as it was — and ``(name, shape)`` here IS content identity,
-because :meth:`FullFieldSpace.from_blocks
+domain-agnostic. The identity is the members' keys,
+``("full_field", interior key, trace key)`` (:ref:`spaces-identity-key`;
+since S7, 2026-10-22), with ``shape = (n_bulk + n_trace,)``, so two
+composites are equal iff their blocks are, metrics included. Until S7 the
+identity was the inherited ``(name, shape)`` tuple, made content-bearing
+by :meth:`FullFieldSpace.from_blocks
 <orpheus.numerics.spaces.full_field_space.FullFieldSpace.from_blocks>`
-derives ``name = "full_field#<digest>"`` by folding each member's
+deriving ``name = "full_field#<digest>"`` from each member's
 ``(name, shape)`` pair. ⛔ This sentence read *"``name = "full_field"``
 … so two composites over meshes of the same total dimension compare
 equal"* until 2026-09-07: that bare name is what made any two composites
@@ -1337,11 +1337,15 @@ These results are pinned by two foundation-tagged test files:
   products are evaluated with an **independent** Gram fold so a wrong
   *metric* cannot mask a wrong *adjoint*.
 * ``tests/gates/numerics/test_full_field_space.py`` — pins the
-  :class:`FullFieldSpace` identity semantics (flat direct-sum ``shape``,
-  ``(name, shape)``-only identity with ``compare=False`` block
-  metadata — the composite carries no ``axes``, so the 2026-09-07
-  identity flip leaves this arm untouched — dict-key usability, the
-  composite's own ``inner_product_weights`` staying ``None``).
+  :class:`FullFieldSpace` structure (flat direct-sum ``shape``,
+  inequality on a different total dimension, dict-key usability, the
+  composite's own ``inner_product_weights`` staying ``None``), and its
+  identity: ``test_identity_is_the_members_content`` asserts that
+  composites over equal blocks are equal and that composites whose blocks
+  differ only in metric are not (:ref:`spaces-identity-key`). Until the
+  space-membership unit (2026-10-30) the row asserted the pre-S7
+  ``(name, shape)`` identity, under which those two composites compared
+  equal.
 
 Both files are ``@pytest.mark.foundation`` (software invariants over the
 operator-algebra ground truth — they carry **no** ``verifies()`` label

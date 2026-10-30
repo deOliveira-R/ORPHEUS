@@ -307,20 +307,25 @@ class TestDenseMetricLaws:
             f"shape {shape}: apply disagrees with the einsum reference",
         )
 
-    def test_a_dense_metric_space_keeps_metric_blind_equality_and_hash(self):
-        """A9 — Ruling 2's identity clause: the metric slot is
-        ``compare=False`` metadata, so two spaces differing only in metric
-        are equal, hash-equal, and interchangeable as dict keys. ⚠ The
-        constraint is structural, not taste: [M] a COMPARED metric field
-        makes the dataclass ``__eq__`` of subclasses return an ndarray
-        (truthiness-ambiguous) and ``hash()`` raise — the CS5
-        generator-slot lesson recurring (battery arm M12).
+    def test_a_dense_metric_space_is_compared_by_its_metric_without_raising(self):
+        """A9, restated by the space-membership unit (plan
+        ``space_membership_covector_gauge.md``, U1): a space's identity
+        carries its metric, so a member of one space is never admitted by an
+        equal-shape space with another metric. Two spaces differing only in
+        metric are UNEQUAL; two with equal metric content are equal,
+        hash-equal and interchangeable as dict keys. The structural
+        constraint of the original row survives: [M] a COMPARED metric
+        field would make the dataclass ``__eq__`` return an ndarray and
+        ``hash()`` raise (battery arm M12), so the comparison runs through
+        the content digest and never reaches the matrix.
         """
         bare = FunctionSpace("same", (3,))
         dressed = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL))
-        _require((bare == dressed) is True, "metric moved space equality")
-        _require(hash(bare) == hash(dressed), "metric moved the space hash")
-        _require({bare: 1}[dressed] == 1, "metric broke dict-key interchange")
+        twin = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL.copy()))
+        _require((bare == dressed) is False, "a metric did not move space equality")
+        _require((dressed == twin) is True, "equal metric content compared unequal")
+        _require(hash(dressed) == hash(twin), "equal metric content hashed apart")
+        _require({dressed: 1}[twin] == 1, "equal metric content broke dict-key interchange")
 
 
 class TestDenseMetricPropagation:

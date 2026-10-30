@@ -33,14 +33,18 @@ def test_function_space_equality_on_name_and_shape():
 
 
 @pytest.mark.foundation
-def test_function_space_equality_independent_of_weights():
-    """Different inner-product weights does NOT break identity."""
+def test_function_space_equality_carries_the_weights():
+    """The inner-product weights are part of a space's identity (the
+    space-membership unit, U1): two spaces of one name and shape with
+    different weights are two spaces, and equal weights give equal,
+    hash-equal spaces."""
     w = np.arange(4.0)
     a = FunctionSpace(name="psi", shape=(10, 4))
     b = FunctionSpace(name="psi", shape=(10, 4), inner_product_weights=w)
-    assert a == b
-    # And they hash the same.
-    assert hash(a) == hash(b)
+    assert a != b
+    twin = FunctionSpace(name="psi", shape=(10, 4), inner_product_weights=w.copy())
+    assert b == twin
+    assert hash(b) == hash(twin)
 
 
 @pytest.mark.foundation

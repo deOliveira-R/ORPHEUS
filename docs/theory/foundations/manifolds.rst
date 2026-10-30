@@ -764,7 +764,7 @@ with. `[M]` reproduced 2026-08-31 on a two-group grid, and again
 
 The two compared ``==`` **and hash-equal**, so a 2-group energy space and
 a 2-cell spatial space were one value: both are hand-named, axes-less
-:class:`~orpheus.numerics.space.FunctionSpace` mints, whose identity is
+:class:`~orpheus.numerics.space.FunctionSpace` mints, whose identity was
 ``(name, shape)`` — before AND after the 2026-09-07 identity flip, which
 made identity structural only where a space declares its ``axes``
 (:ref:`spaces-identity-bridge`). A false name is therefore not cosmetic

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19908**
+Total tests collected: **19920**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1889, 9.5%
+   L0, 1901, 9.5%
    L1, 2914, 14.6%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14964, 75.2%
+   foundation, 14964, 75.1%
    unmarked, 56, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19773
+   explicit, 19785
    class-name, 46
    func-name, 0
    case, 33
@@ -471,7 +471,7 @@ Module × level grid
    numerics/test_index_set, 0, 0, 0, 0, 2, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_indicator_basis_orientation, 0, 0, 0, 0, 2, 0
-   numerics/test_inner_product_functional, 4, 0, 0, 0, 0, 0
+   numerics/test_inner_product_functional, 6, 0, 0, 0, 0, 0
    numerics/test_interval_legendre_basis, 0, 0, 0, 0, 68, 0
    numerics/test_invariance, 0, 0, 0, 0, 111, 0
    numerics/test_invariance_composition, 0, 0, 0, 0, 1079, 0
@@ -520,6 +520,7 @@ Module × level grid
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_space_identity_is_structural, 0, 0, 0, 0, 15, 0
+   numerics/test_space_membership, 10, 0, 0, 0, 0, 0
    numerics/test_space_of_axes, 0, 0, 0, 0, 26, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 8, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0

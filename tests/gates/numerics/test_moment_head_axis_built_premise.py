@@ -163,7 +163,13 @@ def test_the_head_metric_is_bit_identical_on_the_axis_route(label: str) -> None:
         np.asarray(head.apply_inverse_metric(x)),
         err_msg="the pseudo-inverse must agree bit-for-bit too (dead slots → 0)",
     )
-    assert axis_head.inner_product(x, x) == head.inner_product(x, x)
+    # The (2, 4) tail is a payload: the pairing over it is posed on the explicit tensor product, and is pinned
+    # against the dense-slot head's own metric leg contracted by hand (comparing the two tensor products with each
+    # other was blind to a shared metric defect: the U1 qa review, F3).
+    payload = FunctionSpace.of_axes(Axis("payload", (2, 4), origin=Declared(BasisKind.NODAL)))
+    by_hand = float(np.sum(np.asarray(head.apply_metric(x)) * x))
+    assert (axis_head * payload).inner_product(x, x) == by_hand
+    assert (head * payload).inner_product(x, x) == by_hand
 
 
 @pytest.mark.parametrize("label", sorted(_HEADS))
@@ -316,10 +322,13 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
     6.2c-ii).**  Two heads that differ ONLY in their measure — the basis's
     continuum head and the frame's Parseval-dressed head — are UNEQUAL now
     that the head is axis-built (``Axis.__eq__`` compares weights bytes);
-    their RETIRED dense-slot twins are ``==`` (the metric-blind
-    ``(name, shape)`` identity of a name-built space), which is the seam the
-    tree carried until 6.2c-ii and the reason the fork had to be ruled
-    before the head could be axis-built. The tree binds the dressed one.
+    their RETIRED dense-slot twins were ``==`` until 2026-10-30 (the
+    metric-blind ``(name, shape)`` identity of a name-built space), which is
+    the seam the tree carried until 6.2c-ii and the reason the fork had to be
+    ruled before the head could be axis-built. Since U1 (space membership,
+    2026-10-30) an axes-less space's identity carries its metric too, so the
+    dense-slot twins separate as well and the seam is closed on both
+    spellings. The tree binds the dressed one.
     """
     frame = frame_faces.angular_frame(Quadrature.lebedev(11), L)
     continuum = FunctionSpace.of_basis(frame.basis)
@@ -330,8 +339,8 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
         np.asarray(continuum.axes[0].weights), np.asarray(dressed.axes[0].weights),
     )
     assert continuum != dressed, "axis-built: the measure IS the identity — the two heads separate"
-    assert _dense_slot_twin(continuum) == _dense_slot_twin(dressed), (
-        "the retired name-built spelling was metric-BLIND — that was the seam"
+    assert _dense_slot_twin(continuum) != _dense_slot_twin(dressed), (
+        "the name-built spelling carries its metric since U1: the metric-blind seam is closed on both spellings"
     )
 
 

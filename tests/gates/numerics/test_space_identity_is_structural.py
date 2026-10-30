@@ -253,10 +253,14 @@ def test_g1_4_comparing_spaces_that_differ_only_in_dense_weights_does_not_raise(
     except Exception as exc:                       # noqa: BLE001 — the class IS the measurement
         pytest.fail(
             f"comparing two spaces that differ only in dense weights raised "
-            f"{type(exc).__name__}: {exc} — the (name, shape) delegation has "
+            f"{type(exc).__name__}: {exc} — the content-key delegation has "
             f"been lost and a dataclass __eq__ is reaching the ndarray"
         )
-    assert verdict is True, "the two spaces share (name, shape); today's identity says equal"
+    # The verdict itself moved with the space-membership unit (U1): an
+    # axes-less space's identity carries the digest of its weights, so the
+    # two are two spaces. The premise this row gates is that the comparison
+    # does not raise.
+    assert verdict is False, "the two spaces differ in weights; identity carries them"
 
     # The same claim on the two subclasses that carry their own delegation.
     tp_a = TensorProductSpace.from_factors(
@@ -270,10 +274,10 @@ def test_g1_4_comparing_spaces_that_differ_only_in_dense_weights_does_not_raise(
     for pair, label in ((( tp_a, tp_b), "TensorProductSpace"),
                         ((DualSpace.of(a), DualSpace.of(b)), "DualSpace")):
         try:
-            same_name_and_shape = pair[0] == pair[1]
+            same_content = pair[0] == pair[1]
         except Exception as exc:                   # noqa: BLE001
             pytest.fail(f"{label}.__eq__ raised {type(exc).__name__}: {exc}")
-        assert same_name_and_shape is True, f"{label}: the two share (name, shape)"
+        assert same_content is False, f"{label}: the two members differ in weights"
 
 
 # ═════════════════════════════════════════════════════════════════════════
