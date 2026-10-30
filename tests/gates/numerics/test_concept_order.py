@@ -34,6 +34,10 @@ NUMERICS = pathlib.Path(__file__).resolve().parents[3] / "orpheus" / "numerics"
 # The concept order, upstream first. Modules in one tier have no edge
 # between them in the target order.
 TIERS: tuple[tuple[str, ...], ...] = (
+    # coordinate-space membership, the shape leg of the one parse: below every
+    # concept, so that a measure, a basis and a metric block, which own their
+    # domain shapes but cannot name a space, parse with it (U1b, 2026-10-30)
+    ("coordinate_space",),
     # primitives, and the orthogonal-polynomial recurrence (upstream of both measures)
     # (``symmetry``, ``roots_of_unity`` and ``manifold``'s geometric half left for
     # geometry at layer DAG WP-B, 2026-10-22; ``index_set`` holds the finite index
