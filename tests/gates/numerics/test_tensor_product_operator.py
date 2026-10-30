@@ -432,14 +432,12 @@ class TestRankOneOperator:
     def test_apply_rejects_shape_mismatch(self):
         """A carrier that doesn't align with the row co-vector raises.
 
-        Post-refactor the contraction is owned by the functional, so a
-        mismatched carrier surfaces as numpy's broadcast error inside
-        ``InnerProductFunctional.evaluate`` (``(weight * x).sum(...)``) —
-        the behaviour (a mismatched apply raises) is preserved; the error
-        is now numpy's, since the functional owns the contraction.
+        The contraction is owned by the functional, which parses the
+        carrier at its weight's exact shape on every run (U1b): the refusal
+        names its reason instead of surfacing as numpy's broadcast error.
         """
         R = RankOneOperator(np.ones(3), InnerProductFunctional(np.ones(3)))
-        with pytest.raises(ValueError, match="broadcast"):
+        with pytest.raises(ValueError, match="exact shape"):
             R.apply(np.ones(5))
 
     def test_apply_negative_axis_contracts_last_axis(self):

@@ -132,23 +132,23 @@ class IntervalLegendreBasis(Basis):
         return legendre_table(self.n - 1, xi)
 
     # ── Table contractions ──────────────────────────────────────────
-    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Naked synthesis :math:`\sum_k P_k(\xi_m)\, c_k`."""
         return np.einsum("nk,k...->n...", table, coefficients)
 
-    def analyze(self, values: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
+    def _analyze(self, values: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
         r"""Analysis :math:`\sum_m w_m P_k(\xi_m)\, f_m`."""
         return np.einsum("n,nk,n...->k...", weights, table, values)
 
-    def analyze_transpose(self, coefficients: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
+    def _analyze_transpose(self, coefficients: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
         r"""Representation transpose :math:`w_m \sum_k P_k(\xi_m)\, c_k`."""
         return np.einsum("n,nk,k...->n...", weights, table, coefficients)
 
-    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Reconstruction :math:`\sum_k (2k+1) P_k(\xi_m)\, \varphi_k`."""
         return np.einsum("nk,k,k...->n...", table, self.dual_factor, coefficients)
 
-    def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
         r"""Representation transpose :math:`(2k+1) \sum_m P_k(\xi_m)\, v_m`."""
         return np.einsum("nk,k,n...->k...", table, self.dual_factor, values)
 
@@ -269,19 +269,19 @@ class TensorProductBasis(Basis):
         return table
 
     # ── Table contractions ──────────────────────────────────────────
-    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         return np.einsum("nk,k...->n...", table, coefficients)
 
-    def analyze(self, values: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
+    def _analyze(self, values: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
         return np.einsum("n,nk,n...->k...", weights, table, values)
 
-    def analyze_transpose(self, coefficients: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
+    def _analyze_transpose(self, coefficients: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
         return np.einsum("n,nk,k...->n...", weights, table, coefficients)
 
-    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         return np.einsum("nk,k,k...->n...", table, self.dual_factor, coefficients)
 
-    def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
         return np.einsum("nk,k,n...->k...", table, self.dual_factor, values)
 
     # ── Gram, domain, layout ────────────────────────────────────────

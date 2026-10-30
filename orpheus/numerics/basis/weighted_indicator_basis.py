@@ -140,7 +140,7 @@ class WeightedIndicatorBasis(Basis):
         return self.indicator.evaluate(points)
 
     # ── The weighted analysis (the only weight-bearing contraction) ───────
-    def analyze(
+    def _analyze(
         self, values: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         r"""Weighted analysis :math:`(M f)_R = \sum_{i\in R} w_i\, \tt{weights}_i\, f_i`.
@@ -202,16 +202,16 @@ class WeightedIndicatorBasis(Basis):
         return self.indicator.coefficient_weights
 
     # ── Synthesis side: no consumer (the PG reconstruction is trial-side) ──
-    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         raise NotImplementedError(_TEST_ONLY.format(op="synthesize"))
 
-    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         raise NotImplementedError(_TEST_ONLY.format(op="reconstruct"))
 
-    def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
         raise NotImplementedError(_TEST_ONLY.format(op="reconstruct_transpose"))
 
-    def analyze_transpose(
+    def _analyze_transpose(
         self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         raise NotImplementedError(_TEST_ONLY.format(op="analyze_transpose"))

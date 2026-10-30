@@ -37,8 +37,13 @@ def test_function_space_equality_carries_the_weights():
     """The inner-product weights are part of a space's identity (the
     space-membership unit, U1): two spaces of one name and shape with
     different weights are two spaces, and equal weights give equal,
-    hash-equal spaces."""
-    w = np.arange(4.0)
+    hash-equal spaces.
+
+    The weights are leading-aligned on the ``(10, 4)`` element (one weight per
+    row). Until U1b the fixture carried ``(4,)`` weights, which no element of
+    the space could pair with (the leading-aligned ``(4, 1)`` does not
+    broadcast to ``(10, 4)``); the space now checks its weights when built."""
+    w = np.arange(1.0, 11.0)
     a = FunctionSpace(name="psi", shape=(10, 4))
     b = FunctionSpace(name="psi", shape=(10, 4), inner_product_weights=w)
     assert a != b

@@ -80,6 +80,8 @@ from typing import TYPE_CHECKING, Protocol, final, runtime_checkable
 
 from numpy.typing import NDArray
 
+from orpheus.numerics.coordinate_space import leading_coordinates
+
 from orpheus.geometry.manifold import Manifold, Quotient, Sphere
 from orpheus.geometry.symmetry import SubgroupOfO3
 
@@ -182,6 +184,16 @@ class TruncatedBasis(Protocol):
         ...
 
 
+def _modes(coefficients: NDArray, table: NDArray, owner: str) -> NDArray:
+    r"""Parse a coefficient operand: its leading axes are the table's modes, ``table.shape[1:]``."""
+    return leading_coordinates(coefficients, table.shape[1:], owner=owner)
+
+
+def _nodes(values: NDArray, table: NDArray, owner: str) -> NDArray:
+    r"""Parse a value operand: its leading axis is the table's nodes, ``table.shape[:1]``."""
+    return leading_coordinates(values, table.shape[:1], owner=owner)
+
+
 class Basis(ABC):
     r"""Abstract discrete spectral basis — the synthesis side of a :class:`FrameBase`.
 
@@ -210,7 +222,7 @@ class Basis(ABC):
 
     # ── Table contractions (the Frame caches the table and delegates here) ──
     @abstractmethod
-    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Naked synthesis :math:`S_0(c) = \sum_k \phi_k\, c_k` against a cached ``table``.
 
         The pure (frame-theory *synthesis operator* :math:`T^*`) reconstruction —
@@ -220,7 +232,7 @@ class Basis(ABC):
         ...
 
     @abstractmethod
-    def analyze(
+    def _analyze(
         self, values: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         r"""Analysis :math:`M = T`: sampled values → coefficients.
@@ -233,7 +245,7 @@ class Basis(ABC):
         ...
 
     @abstractmethod
-    def analyze_transpose(
+    def _analyze_transpose(
         self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         r"""Representation transpose :math:`M^\top = w_n \cdot S_0`: coefficients → values.
@@ -249,7 +261,7 @@ class Basis(ABC):
         ...
 
     @abstractmethod
-    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Reconstruction :math:`R`: coefficients → values (the dual-frame synthesis).
 
         :math:`S_0` weighted by the canonical-dual factor (intrinsic to the basis;
@@ -260,7 +272,7 @@ class Basis(ABC):
         ...
 
     @abstractmethod
-    def reconstruct_transpose(
+    def _reconstruct_transpose(
         self, values: NDArray, table: NDArray, /,
     ) -> NDArray:
         r"""Representation transpose :math:`R^\top = d_k \cdot S_0^\top`: values → coefficients.
@@ -277,6 +289,43 @@ class Basis(ABC):
         the analysis face.
         """
         ...
+
+    # ── The parse: the five contractions, each at its own domain ───────────
+    #
+    # The table is the realized map, ``(nodes, *modes)``. A coefficient
+    # operand's leading axes are the modes and a value operand's leading
+    # axis is the nodes; a trailing payload rides (``A ⊗ I_P``). An einsum
+    # would broadcast a length-1 axis over every mode or node, so each verb
+    # parses its operand here, once, and the family implements the hook.
+
+    @final
+    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+        r"""Naked synthesis :math:`S_0`, after parsing the coefficients at the table's modes (:meth:`_synthesize`)."""
+        return self._synthesize(_modes(coefficients, table, f"{type(self).__name__}.synthesize"), table)
+
+    @final
+    def analyze(self, values: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
+        r"""Analysis :math:`M`, after parsing the values at the table's nodes (:meth:`_analyze`)."""
+        return self._analyze(_nodes(values, table, f"{type(self).__name__}.analyze"), table, weights)
+
+    @final
+    def analyze_transpose(self, coefficients: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
+        r"""Representation transpose :math:`M^\top`, after parsing the coefficients (:meth:`_analyze_transpose`)."""
+        return self._analyze_transpose(
+            _modes(coefficients, table, f"{type(self).__name__}.analyze_transpose"), table, weights,
+        )
+
+    @final
+    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+        r"""Reconstruction :math:`R`, after parsing the coefficients at the table's modes (:meth:`_reconstruct`)."""
+        return self._reconstruct(_modes(coefficients, table, f"{type(self).__name__}.reconstruct"), table)
+
+    @final
+    def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
+        r"""Representation transpose :math:`R^\top`, after parsing the values at the table's nodes (:meth:`_reconstruct_transpose`)."""
+        return self._reconstruct_transpose(
+            _nodes(values, table, f"{type(self).__name__}.reconstruct_transpose"), table,
+        )
 
     # ── The Gram structure (the projection-validity declaration) ──────────
     @property

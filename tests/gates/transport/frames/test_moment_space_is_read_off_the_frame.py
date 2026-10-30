@@ -143,19 +143,19 @@ class _ForeignTruncatedBasis(Basis):
     def evaluate(self, points, /):
         return self._parent().evaluate(points)
 
-    def synthesize(self, coefficients, table, /):
+    def _synthesize(self, coefficients, table, /):
         return self._parent().synthesize(coefficients, table)
 
-    def analyze(self, values, table, weights, /):
+    def _analyze(self, values, table, weights, /):
         return _MUTANT_SCALE * self._parent().analyze(values, table, weights)
 
-    def analyze_transpose(self, coefficients, table, weights, /):
+    def _analyze_transpose(self, coefficients, table, weights, /):
         return self._parent().analyze_transpose(coefficients, table, weights)
 
-    def reconstruct(self, coefficients, table, /):
+    def _reconstruct(self, coefficients, table, /):
         return self._parent().reconstruct(coefficients, table)
 
-    def reconstruct_transpose(self, values, table, /):
+    def _reconstruct_transpose(self, values, table, /):
         return self._parent().reconstruct_transpose(values, table)
 
     @property

@@ -761,23 +761,23 @@ class LossKernelBasis(Basis):
     # dual frame IS the frame, so `reconstruct` and `synthesize` coincide. (For
     # a non-orthonormal basis the dual factor would be measure-dependent and
     # therefore could not live on a Basis at all — the IndicatorBasis argument.)
-    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         return np.einsum("nk,k...->n...", table, coefficients)
 
-    def analyze(
+    def _analyze(
         self, values: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         return np.einsum("n,nk,n...->k...", weights, table, values)
 
-    def analyze_transpose(
+    def _analyze_transpose(
         self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         return np.einsum("n,nk,k...->n...", weights, table, coefficients)
 
-    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         return np.einsum("nk,k...->n...", table, coefficients)
 
-    def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
         return np.einsum("nk,n...->k...", table, values)
 
     @property

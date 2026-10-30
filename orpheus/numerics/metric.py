@@ -149,6 +149,8 @@ from typing import Optional, Protocol, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from .coordinate_space import leading_coordinates
+
 __all__ = [
     "HilbertMetric",
     "DiagonalMetric",
@@ -403,11 +405,23 @@ class DiagonalMetric(HilbertMetric):
         return int(np.count_nonzero(np.broadcast_to(w, shape)))
 
     def validate_for(self, shape: tuple[int, ...]) -> None:
-        # The legacy dense-array contract: any array broadcast-compatible
-        # with the element is admissible, and broadcast errors surface at
-        # first application exactly as they always did. Nothing to refuse
-        # at construction beyond what numpy will say more precisely later.
-        return None
+        # The legacy weights array may be broadcast-shaped (``(1, 4, 1)`` on a
+        # ``(3, 4, 2)`` space): the weights are leading-aligned and must
+        # extend to the element's shape, never the element to theirs. The
+        # check runs once, here, when the space is built; the space parses
+        # each element (``FunctionSpace.leading_coordinates_of``), so the
+        # metric's own legs carry no per-call check.
+        aligned = _broadcast_leading(self.weights, len(shape)).shape
+        try:
+            extended = np.broadcast_shapes(aligned, shape)
+        except ValueError:
+            extended = None
+        if len(aligned) > len(shape) or extended != tuple(shape):
+            raise ValueError(
+                f"DiagonalMetric weights of shape {np.shape(self.weights)} "
+                f"cannot serve a space of shape {tuple(shape)}: leading-aligned, "
+                f"they must extend to the element's shape."
+            )
 
     def apply_block(
         self,
@@ -427,6 +441,7 @@ class DiagonalMetric(HilbertMetric):
         ``FunctionSpace._apply_axes_weights`` loop it duplicated retired,
         `[M]` bit-identical)."""
         out = np.asarray(x)
+        leading_coordinates(out, out.shape[:start] + block_shape, owner="DiagonalMetric.apply_block")
         rank = len(block_shape)
         w = np.ascontiguousarray(
             np.broadcast_to(np.asarray(self.weights), block_shape)
@@ -589,6 +604,7 @@ class DenseMetric(HilbertMetric):
         m = self.inverse_matrix if inverse else self.matrix
         assert m is not None  # established by __post_init__; narrowing only
         out = np.asarray(x)
+        leading_coordinates(out, out.shape[:start] + block_shape, owner="DenseMetric.apply_block")
         lead_shape = out.shape[:start]
         lead = int(np.prod(lead_shape)) if lead_shape else 1
         x3 = out.reshape(lead, self.dim, -1)
@@ -637,7 +653,10 @@ class FactoredMetric(HilbertMetric):
                     )
 
     def _walk(self, x: NDArray, *, inverse: bool) -> NDArray:
-        out = np.asarray(x)
+        # The product acts on the concatenation of its blocks: a Euclidean
+        # (``None``) block applies nothing, so no block alone sees its extent.
+        verb = "apply_inverse" if inverse else "apply"
+        out = leading_coordinates(np.asarray(x), self._block_shape, owner=f"FactoredMetric.{verb}")
         start = 0
         for block_shape, factor in self.entries:
             if factor is not None:
@@ -646,6 +665,14 @@ class FactoredMetric(HilbertMetric):
                 )
             start += len(block_shape)
         return out
+
+    @cached_property
+    def _block_shape(self) -> tuple[int, ...]:
+        r"""The concatenation of the blocks' shapes, the leading shape the product acts on."""
+        concat: tuple[int, ...] = ()
+        for block_shape, _ in self.entries:
+            concat = concat + block_shape
+        return concat
 
     def apply(self, x: NDArray) -> NDArray:
         return self._walk(x, inverse=False)
@@ -687,9 +714,7 @@ class FactoredMetric(HilbertMetric):
         return rank * (size // blocks)
 
     def validate_for(self, shape: tuple[int, ...]) -> None:
-        concat: tuple[int, ...] = ()
-        for block_shape, _ in self.entries:
-            concat = concat + block_shape
+        concat = self._block_shape
         if concat != shape:
             raise ValueError(
                 f"FactoredMetric blocks {concat} do not concatenate to the "

@@ -373,6 +373,11 @@ class FunctionSpace(Generic[Carrier]):
                 f"inner_product_weights and a metric object — one metric "
                 f"source only (install the object OR the array, never both)"
             )
+        if self.inner_product_weights is not None:
+            # The legacy weights slot is the same admission as an installed
+            # DiagonalMetric: checked once, here, against the element shape
+            # (after the one-metric-source refusals, which outrank it).
+            DiagonalMetric(self.inner_product_weights).validate_for(self.shape)
         if self.axes is None:
             return
         # The remaining axis-built guard: a shape that IS the axes'

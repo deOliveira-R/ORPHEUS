@@ -257,7 +257,7 @@ class IndicatorBasis(Basis):
         return table
 
     # ── Table contractions (the Frame caches the table, delegates here) ───
-    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Naked synthesis :math:`S_0(c)_i = \sum_R \mathbf{1}_R(x_i)\, c_R`.
 
         Broadcasts each cell's coefficient onto the points it contains — the
@@ -265,7 +265,7 @@ class IndicatorBasis(Basis):
         """
         return np.einsum("nR,R...->n...", table, coefficients)
 
-    def analyze(
+    def _analyze(
         self, values: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         r"""Analysis :math:`(M f)_R = \sum_{i\in R} w_i\, f(x_i)` — the region integral.
@@ -277,7 +277,7 @@ class IndicatorBasis(Basis):
         """
         return np.einsum("n,nR,n...->R...", weights, table, values)
 
-    def analyze_transpose(
+    def _analyze_transpose(
         self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         r"""Representation transpose :math:`(M^\top c)_i = w_i \sum_R \mathbf{1}_R(x_i)\, c_R`.
@@ -289,7 +289,7 @@ class IndicatorBasis(Basis):
         """
         return np.einsum("n,nR,R...->n...", weights, table, coefficients)
 
-    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Reconstruction :math:`R`: coefficients → values, identity dual factor.
 
         For the indicator basis the canonical-dual factor :math:`1/m_R` (region
@@ -302,7 +302,7 @@ class IndicatorBasis(Basis):
         """
         return np.einsum("nR,R...->n...", table, coefficients)
 
-    def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
         r"""Representation transpose :math:`(R^\top v)_R = \sum_{i\in R} v_i`, identity dual factor.
 
         The matrix transpose of :meth:`reconstruct` (:math:`d_R = 1`); the naked

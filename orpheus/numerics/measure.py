@@ -112,6 +112,7 @@ from orpheus.geometry.manifold import (
     RealSpace,
     Sphere,
 )
+from orpheus.numerics.coordinate_space import leading_coordinates
 from orpheus.numerics.index_set import EnergyGroups, IndexSet
 
 if TYPE_CHECKING:
@@ -573,7 +574,12 @@ class DiscreteMeasure:
             values = f(self.nodes)
         else:
             values = f
-        values_arr = np.asarray(values)
+        # The integrand is a function on the nodes: its leading axis is the
+        # node axis exactly, a vector-valued integrand's trailing axes ride
+        # (an einsum would broadcast a length-1 node axis over every node).
+        values_arr = leading_coordinates(
+            np.asarray(values), (self.n_points,), owner="DiscreteMeasure.integrate",
+        )
         if values_arr.ndim == 1:
             return np.dot(self.weights, values_arr)
         # Vector-valued integrand: contract the leading axis.

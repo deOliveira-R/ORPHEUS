@@ -22,6 +22,11 @@ import pytest
 
 from orpheus.numerics import coordinate_space as cs
 from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis
+from orpheus.numerics.basis.legendre_basis import LegendreBasis
+from orpheus.numerics.frame import GalerkinFrame
+from orpheus.numerics.functional import InnerProductFunctional
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, Member
 
 pytestmark = pytest.mark.l0
@@ -137,3 +142,88 @@ class TestTheSpaceVerbsParseOnEveryRun:
         with pytest.raises(cs.NotInCoordinateSpace, match=EXACT) as err:
             Member(values=X[:, :1], space=V)
         assert "does not match space.shape" in str(err.value) and "values.shape" in str(err.value)
+
+
+# ── objects below the space level parse their own domain (U1b step 3) ──────────────────────────────────────
+
+_W = np.array([1.0, 2.0, 3.0])
+_Q = Quadrature.gauss_legendre(n_ordinates=4)
+_B = LegendreBasis(2)
+_FR = GalerkinFrame(_B, _Q.measure)
+
+
+class TestBelowTheSpaceEachObjectParsesItsDomain:
+    """Each object that owns its domain shape parses it with the one primitive. First red before U1b: every wrong call
+    RETURNED under ``-O`` (`[M]` ``scratch/membership_covector/u1b/probes/below_space_O.out``, the wrong answer's shape
+    and sum recorded per row)."""
+
+    def test_a_diagonal_block_parses_its_block(self):
+        # [M] before U1b: (2, 1) against block (3,) at start 1 returned a (2, 3) array, sum 12 (the pullback)
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            DiagonalMetric(_W).apply_block(np.ones((2, 1)), start=1, block_shape=(3,), inverse=False)
+
+    def test_a_dense_block_parses_its_block(self):
+        # [M] before U1b: (4,) against a dim-2 block returned (4,), sum 8
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]])).apply_block(np.ones(4), start=0, block_shape=(2,), inverse=False)
+
+    def test_a_factored_metric_parses_its_concatenated_blocks(self):
+        """A Euclidean (``None``) block applies nothing, so no block alone sees its extent: the product parses."""
+        # [M] before U1b: apply on (2, 1) returned (2, 3); pairing with y (2, 1) returned 12
+        fm = FactoredMetric((((2,), None), ((3,), DiagonalMetric(_W))))
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            fm.apply(np.ones((2, 1)))
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            FactoredMetric((((2,), DiagonalMetric(np.ones(2))), ((3,), None))).apply(np.ones((2, 1)))
+
+    def test_a_legacy_diagonal_metric_is_checked_against_its_space_once(self):
+        """The legacy ``inner_product_weights`` may be broadcast-shaped: ``(1, 4, 1)`` and the leading-aligned ``(3,)``,
+        ``(3, 1)``, ``(1, 4)`` on a ``(3, 4, 2)`` space are legal (`[M]` each pairs ones with ones to 24.0). So the
+        weights do not own a domain shape: the space parses each element, and the weights are checked against the
+        space ONCE, when it is built. Before U1b, weights ``(2,)`` built and failed only at first use."""
+        with pytest.raises(ValueError, match="cannot serve a space"):
+            FunctionSpace(name="p", shape=(3, 4, 2), inner_product_weights=np.ones(2))
+        for legal in [(1, 4, 1), (3,), (3, 1), (1, 4)]:
+            space = FunctionSpace(name="p", shape=(3, 4, 2), inner_product_weights=np.ones(legal))
+            assert space.inner_product(np.ones((3, 4, 2)), np.ones((3, 4, 2))) == 24.0
+
+    def test_a_measure_parses_its_nodes(self):
+        # [M] before U1b: (1, 4) on a 4-node rule returned a (4,) array, sum 8: a non-member out
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            _Q.measure.integrate(np.ones((1, 4)))
+        np.testing.assert_array_equal(_Q.measure.integrate(np.ones((4, 2))), np.full(2, _Q.measure.weights.sum()))
+
+    def test_an_inner_product_functional_parses_its_weight(self):
+        # [M] before U1b: the (2,) carrier against the (2, 1) weight returned (1, 2), sum 0.3 (ERR-122's class)
+        with pytest.raises(cs.NotInCoordinateSpace, match=EXACT):
+            InnerProductFunctional(np.array([[0.1], [0.2]]), axis=0).evaluate(np.array([0.6, 0.4]))
+
+    @pytest.mark.parametrize("verb", ["reconstruct", "analyze_transpose", "synthesize"])
+    def test_a_basis_parses_its_coefficients_at_the_table_modes(self, verb):
+        # [M] before U1b: (1, 5) coefficients for 3 modes returned (4, 5): one coefficient read for three
+        args = (_FR.table, _Q.measure.weights) if verb == "analyze_transpose" else (_FR.table,)
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            getattr(_B, verb)(np.ones((1, 5)), *args)
+
+    @pytest.mark.parametrize("verb", ["reconstruct_transpose", "analyze"])
+    def test_a_basis_parses_its_values_at_the_table_nodes(self, verb):
+        args = (_FR.table, _Q.measure.weights) if verb == "analyze" else (_FR.table,)
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            getattr(_B, verb)(np.ones((1, 5)), *args)
+
+    def test_every_basis_family_inherits_the_one_parse(self):
+        """The five contractions are concrete on ``Basis`` and final; a family implements only the hooks
+        (``_reconstruct`` …), so a new family cannot skip the parse."""
+        from orpheus.numerics.basis.base import Basis
+
+        def families(cls):
+            for sub in cls.__subclasses__():
+                yield sub
+                yield from families(sub)
+
+        verbs = ("synthesize", "analyze", "analyze_transpose", "reconstruct", "reconstruct_transpose")
+        found = list(families(Basis))
+        assert len(found) >= 6, found
+        for cls in found:
+            overridden = [v for v in verbs if v in vars(cls)]
+            assert not overridden, (cls.__name__, overridden)

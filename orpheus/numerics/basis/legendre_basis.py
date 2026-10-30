@@ -224,27 +224,27 @@ class LegendreBasis(Basis):
 
     # ── Table contractions (the Frame caches the table, delegates here) ───
 
-    def synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Naked synthesis :math:`S_0(c)_n = \sum_\ell P_\ell(\mu_n)\, c_\ell`."""
         return np.einsum("nl,l...->n...", table, coefficients)
 
-    def analyze(self, values: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
+    def _analyze(self, values: NDArray, table: NDArray, weights: NDArray, /) -> NDArray:
         r"""Analysis :math:`(M\psi)_\ell = \sum_n w_n P_\ell(\mu_n)\,\psi_n`."""
         return np.einsum("n,nl,n...->l...", weights, table, values)
 
-    def analyze_transpose(
+    def _analyze_transpose(
         self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
     ) -> NDArray:
         r"""Representation transpose :math:`(M^\top c)_n = w_n \sum_\ell P_\ell(\mu_n)\, c_\ell`."""
         return np.einsum("n,nl,l...->n...", weights, table, coefficients)
 
-    def reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
         r"""Reconstruction :math:`(R\phi)_n = \sum_\ell (2\ell+1) P_\ell(\mu_n)\, \phi_\ell`."""
         return np.einsum(
             "nl,l,l...->n...", table, self.addition_theorem_factor, coefficients,
         )
 
-    def reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
         r"""Representation transpose :math:`(R^\top v)_\ell = (2\ell+1) \sum_n P_\ell(\mu_n)\, v_n`."""
         return np.einsum(
             "nl,l,n...->l...", table, self.addition_theorem_factor, values,

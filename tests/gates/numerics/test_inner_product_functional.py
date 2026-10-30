@@ -97,12 +97,10 @@ class TestCategoryMembership:
         )
 
 
-_DEBUG_ONLY = pytest.mark.skipif(not __debug__, reason="the raw-path shape check lives under __debug__ (R1); run without -O")
-_O_ONLY = pytest.mark.skipif(__debug__, reason="strip-verified companion: under -O the raw path is not checked (R1)")
 
 
 class TestTheWeightIsTheCarriersShape:
-    """The weight and the carrier are one shape, checked on the raw path under ``__debug__`` only.
+    """The weight and the carrier are one shape, parsed on every run.
 
     A flat ``(ng,)`` carrier against an ``(ng, 1)`` weight (one group axis, one
     spatial cell) would broadcast to the outer product ``(ng, ng)`` and contract
@@ -110,31 +108,20 @@ class TestTheWeightIsTheCarriersShape:
     0.225 for the exact 0.095 through ``IntegratedReactionRate`` (the layer-DAG
     Phase 2 spec, §5c, 2026-10-30). Commit e42fd498 refused the carrier
     broadcasting into the weight on every run; the space-membership unit U2
-    makes the law the exact shape and moves it under ``__debug__`` (the user's
-    ruling R1: the formal path, a co-vector on a typed member, is the
-    guarantee). `[M]` spec §U2.4: 35 260 of 35 260 calls in an SN run and
+    made the law the exact shape under ``__debug__``, and U1b made it the
+    parse, on every run (``coordinate_space.coordinates`` at the weight's
+    shape). `[M]` spec §U2.4: 35 260 of 35 260 calls in an SN run and
     3 425 of 3 425 in the qa run were exact.
-
-    The ``__debug__`` rows run without ``-O``:
-    ``.venv/bin/python -m pytest -p no:cacheprovider tests/gates/numerics/test_inner_product_functional.py``.
     """
 
-    @_DEBUG_ONLY
     def test_a_flat_carrier_against_a_column_weight_is_REFUSED(self):
         f = InnerProductFunctional(np.array([[0.1], [0.2]]), axis=0)  # (2, 1)
         with pytest.raises(ValueError, match="exact shape"):
             f.evaluate(np.array([0.6, 0.4]))
 
-    @_DEBUG_ONLY
     def test_a_lower_rank_weight_is_REFUSED(self):
         """The input e42fd498 still admitted (the qa review of that commit, F1): a ``(2,)`` weight broadcast over a
         ``(2, 2)`` carrier along the LAST axis, so the axis-0 contraction paired each group with the wrong weight."""
         f = InnerProductFunctional(np.array([1.0, 10.0]), axis=0)
         with pytest.raises(ValueError, match="exact shape"):
             f.evaluate(np.array([[1.0, 2.0], [100.0, 200.0]]))
-
-    @_O_ONLY
-    def test_under_O_the_raw_path_is_unchecked(self):
-        """Strip-verified companion: under ``-O`` the raw call does not raise. No value is pinned: the number it
-        returns is the degradation, never a contract."""
-        InnerProductFunctional(np.array([[0.1], [0.2]]), axis=0).evaluate(np.array([0.6, 0.4]))

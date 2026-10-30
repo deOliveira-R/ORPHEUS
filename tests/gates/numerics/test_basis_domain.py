@@ -113,21 +113,21 @@ class _AbstractStub(Basis):
     def evaluate(self, points: NDArray, /) -> NDArray:
         raise NotImplementedError
 
-    def synthesize(self, c: NDArray, table: NDArray, /) -> NDArray:
+    def _synthesize(self, c: NDArray, table: NDArray, /) -> NDArray:
         raise NotImplementedError
 
-    def analyze(self, v: NDArray, table: NDArray, w: NDArray, /) -> NDArray:
+    def _analyze(self, v: NDArray, table: NDArray, w: NDArray, /) -> NDArray:
         raise NotImplementedError
 
-    def analyze_transpose(
+    def _analyze_transpose(
         self, c: NDArray, table: NDArray, w: NDArray, /,
     ) -> NDArray:
         raise NotImplementedError
 
-    def reconstruct(self, c: NDArray, table: NDArray, /) -> NDArray:
+    def _reconstruct(self, c: NDArray, table: NDArray, /) -> NDArray:
         raise NotImplementedError
 
-    def reconstruct_transpose(
+    def _reconstruct_transpose(
         self, v: NDArray, table: NDArray, /,
     ) -> NDArray:
         raise NotImplementedError

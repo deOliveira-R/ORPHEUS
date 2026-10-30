@@ -115,6 +115,8 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
+from .coordinate_space import coordinates
+
 from typing import Protocol, TypeVar, runtime_checkable
 
 from orpheus.numerics.field import Field
@@ -224,7 +226,7 @@ class InnerProductFunctional:
     ----------
     weight : NDArray
         The co-vector weight :math:`w`. Its shape is the carrier's exact
-        shape (checked under ``__debug__`` only). A
+        shape, parsed on every run. A
         :class:`~orpheus.numerics.field.Field` weight is accepted (its
         ``.values`` is read).
     axis : int, default 0
@@ -262,18 +264,7 @@ class InnerProductFunctional:
         # The weight and the carrier are one shape: a flat ``(ng,)`` carrier
         # against an ``(ng, 1)`` weight would broadcast to the outer product
         # ``(ng, ng)`` and contract it to a number that is no pairing at all
-        # (the 2g mixture's production rate read 0.225 for the exact 0.095).
-        # The check is the raw path's development aid, so it runs only under
-        # ``__debug__`` (the user's ruling R1, 2026-10-30: well-posed
-        # mathematics is guaranteed through the formal machinery, here the
-        # co-vector ``V.flat(w)`` on a typed member).
-        # ELEGANCE-DEBT[guard] #664: the dyad's row factor is raw because
-        # ``RankOneOperator`` carries no spaces yet; retires when the dyad is
-        # bound and its row factor is a ``Covector``.
-        if __debug__:
-            if w_arr.shape != x_arr.shape:
-                raise ValueError(
-                    "InnerProductFunctional.evaluate: the weight's shape "
-                    f"{w_arr.shape} is not the carrier's exact shape {x_arr.shape}."
-                )
+        # (ERR-122: the 2g mixture's production rate read 0.225 for the exact
+        # 0.095). The weight owns the shape; the carrier is parsed against it.
+        coordinates(x_arr, w_arr.shape, owner="InnerProductFunctional.evaluate")
         return (w_arr * x_arr).sum(axis=self.axis, keepdims=True)

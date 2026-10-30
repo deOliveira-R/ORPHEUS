@@ -267,7 +267,7 @@ class SphericalHarmonicBasis(Basis):
 
     # ── Table contractions (the Frame caches the table, delegates here) ───
 
-    def synthesize(self, coefficients: NDArray, table: NDArray) -> NDArray:
+    def _synthesize(self, coefficients: NDArray, table: NDArray) -> NDArray:
         r"""Naked synthesis :math:`S_0(c)_n = \sum_{\ell, m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m`.
 
         The bare reconstruction with NO :math:`(2\ell+1)` factor and NO
@@ -291,7 +291,7 @@ class SphericalHarmonicBasis(Basis):
         """
         return np.einsum("nlm,lm...->n...", table, coefficients)
 
-    def analyze(
+    def _analyze(
         self, values: NDArray, table: NDArray, weights: NDArray,
     ) -> NDArray:
         r"""Analysis :math:`(M\psi)_\ell^m = \sum_n w_n\, Y_\ell^m(\hat\Omega_n)\,\psi_n`.
@@ -302,7 +302,7 @@ class SphericalHarmonicBasis(Basis):
         """
         return np.einsum("n,nlm,n...->lm...", weights, table, values)
 
-    def analyze_transpose(
+    def _analyze_transpose(
         self, coefficients: NDArray, table: NDArray, weights: NDArray,
     ) -> NDArray:
         r"""Representation transpose :math:`(M^\top c)_n = w_n \sum_{\ell m} Y_\ell^m(\hat\Omega_n)\, c_\ell^m`.
@@ -316,7 +316,7 @@ class SphericalHarmonicBasis(Basis):
         """
         return np.einsum("n,nlm,lm...->n...", weights, table, coefficients)
 
-    def reconstruct(self, coefficients: NDArray, table: NDArray) -> NDArray:
+    def _reconstruct(self, coefficients: NDArray, table: NDArray) -> NDArray:
         r"""Reconstruction :math:`(R\phi)_n = \sum_\ell (2\ell+1) \sum_m Y_\ell^m(\hat\Omega_n)\, \phi_\ell^m`.
 
         The addition-theorem (canonical-dual) synthesis — :math:`S_0` weighted by
@@ -327,7 +327,7 @@ class SphericalHarmonicBasis(Basis):
             "nlm,l,lm...->n...", table, self.addition_theorem_factor, coefficients,
         )
 
-    def reconstruct_transpose(self, values: NDArray, table: NDArray) -> NDArray:
+    def _reconstruct_transpose(self, values: NDArray, table: NDArray) -> NDArray:
         r"""Representation transpose :math:`(R^\top v)_\ell^m = (2\ell+1) \sum_n Y_\ell^m(\hat\Omega_n)\, v_n`.
 
         The matrix transpose of :meth:`reconstruct` (:math:`= 2\ell+1` times the
