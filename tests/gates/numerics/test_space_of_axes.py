@@ -683,7 +683,7 @@ class TestThreeSourceExclusivity:
         space's metric is DERIVED from its axes, so a bare object beside
         them is still two sources and is refused by name — while an object
         POSITIONED over the axes (a FactoredMetric with one entry per axis,
-        a form only on an axis that carries NO measure) is ADMITTED,
+        a form only on a MODAL axis that carries NO measure) is ADMITTED,
         because that is where a dense Gram lives on an axis-built head; a
         form beside an axis that also carries a measure is two sources on
         one block and stays refused. Until then ANY object beside axes was
@@ -696,9 +696,17 @@ class TestThreeSourceExclusivity:
             FunctionSpace("bad", (2,), axes=(ax,), metric=dense)
         with pytest.raises(ValueError, match="two metric sources on one block"):
             FunctionSpace("bad", (2,), axes=(ax,), metric=FactoredMetric((((2,), dense),)))
+        # A nodal axis with no weights carries the COUNTING measure, so a form
+        # there is a second source too (U2, plan
+        # space_membership_covector_gauge.md: a form is a Gram on
+        # coefficients, positioned only on a Modal axis). Until U2 this leg
+        # was admitted.
         counting = Axis("a", (2,), origin=Declared(BasisKind.NODAL))
+        with pytest.raises(ValueError, match="counting measure"):
+            FunctionSpace("bad", (2,), axes=(counting,), metric=FactoredMetric((((2,), dense),)))
+        coefficients = Axis("a", (2,), origin=Declared(Modal(np.array([1.0, 0.0]))))
         admitted = FunctionSpace(
-            "good", (2,), axes=(counting,), metric=FactoredMetric((((2,), dense),)),
+            "good", (2,), axes=(coefficients,), metric=FactoredMetric((((2,), dense),)),
         )
         _require(admitted.metric is not None, "the positioned object was dropped")
 

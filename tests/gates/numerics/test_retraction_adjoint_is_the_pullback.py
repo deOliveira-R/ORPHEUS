@@ -44,7 +44,7 @@ import pytest
 from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.axis import Declared, Axis, BasisKind
+from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator
 from orpheus.numerics.operator import AdjointOperator
@@ -75,11 +75,11 @@ _W_ANG = np.array([0.3, 0.9, 0.5, 0.3])
 _W_SPA = np.array([1.0, 2.0, 0.5, 0.25, 3.0])
 _ANG = Axis("angular", (4,), weights=_W_ANG, origin=Declared(BasisKind.NODAL))
 _SPA = Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL))
-_MOM = Axis("moment", (3,), origin=Declared(BasisKind.NODAL))
+_MOM = Axis("moment", (3,), origin=Declared(Modal(np.eye(3)[0])))
 
 
 def _d1() -> FunctionSpace:
-    """A dense form on a NON-collapsed, measure-less axis."""
+    """A dense form on a NON-collapsed coefficient (Modal) axis."""
     return FunctionSpace(
         "d1", (4, 5, 3), axes=(_ANG, _SPA, _MOM),
         metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1))))),
@@ -87,9 +87,9 @@ def _d1() -> FunctionSpace:
 
 
 def _d2() -> FunctionSpace:
-    """A dense form on the COLLAPSED axis itself (a measure-less angular axis)."""
+    """A dense form on the COLLAPSED axis itself (a coefficient axis, Modal with unit e_0: a form lives only there)."""
     return FunctionSpace(
-        "d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(BasisKind.NODAL)), _SPA),
+        "d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(Modal(np.eye(4)[0]))), _SPA),
         metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2))), ((5,), None))),
     )
 
@@ -170,7 +170,8 @@ def _phis(R: AxisRetractionOperator, seed: int):
 @pytest.mark.parametrize("name", _NAMES)
 def test_s6_1_the_adjoint_is_the_pullback(name: str) -> None:
     """S6.1. First red (2026-10-02): ``R.H`` was ``AdjointOperator(R)``, and
-    ``array_equal`` with the broadcast failed 1 178 of 1 200 draws."""
+    ``array_equal`` with the broadcast failed 1 178 of 1 200 draws. The oracle
+    is ``u ⊗ φ``, which is the plain broadcast on every nodal row."""
     V = _population()[name]
     R = AxisRetractionOperator.of(V, "angular")
     P = R.H
@@ -181,8 +182,13 @@ def test_s6_1_the_adjoint_is_the_pullback(name: str) -> None:
     if P.domain is not R.codomain or P.codomain is not R.domain:
         pytest.fail(f"{name}: the pullback does not swap the retraction's spaces")
     angular_dim = _angular_dim(V)
+    # The pullback is u ⊗ φ, with u the collapsed axis's unit: ones on a nodal
+    # axis (the broadcast, bit for bit, since x * 1.0 == x), e_0 on D2's
+    # coefficient axis (Modal since U2, plan space_membership_covector_gauge.md).
+    unit = np.asarray(V.axis("angular").unit)
+    unit_along = unit.reshape([n if d == angular_dim else 1 for d, n in enumerate(V.shape)])
     for phi in _phis(R, seed=11):
-        broadcast = np.broadcast_to(np.expand_dims(phi, angular_dim), V.shape)
+        broadcast = np.broadcast_to(np.expand_dims(phi, angular_dim), V.shape) * unit_along
         npt.assert_array_equal(P.apply(phi), broadcast)
 
 

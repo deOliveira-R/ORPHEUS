@@ -75,7 +75,7 @@ from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 import numpy as np
 from numpy.typing import NDArray
 
-from .axis import Axis, BasisKind
+from .axis import Axis, BasisKind, Modal
 from orpheus.values.content import content_digest, name_digest
 from .metric import (
     DenseMetric,
@@ -1043,7 +1043,8 @@ def _require_positioned_over(
     positioned OVERLAY of forms — a
     :class:`~orpheus.numerics.metric.FactoredMetric` with exactly one entry
     per axis, in order, each on that axis's block, a form ONLY on a block
-    whose axis carries no measure, and never a diagonal one.
+    whose axis is MODAL and carries no explicit weights, and never a
+    diagonal one.
 
     That is the one shape in which a form no diagonal measure can spell —
     a dense Gram's :class:`~orpheus.numerics.metric.DenseMetric` on a
@@ -1059,7 +1060,14 @@ def _require_positioned_over(
     positioned :class:`~orpheus.numerics.metric.DiagonalMetric` (a diagonal
     measure is the axis's own to carry); a form on an axis that ALSO
     carries a measure (two sources on one block — the overlay merge would
-    have to pick one and the loser would be dead data).
+    have to pick one and the loser would be dead data); a form on a NODAL
+    axis, whose ``weights=None`` is the COUNTING measure and not the absence
+    of one (the same two sources; `[M]` 2026-10-30, the space-membership
+    plan's U2: a form on a cross-section space's counting energy axis read
+    83 in the space's pairing where the reaction rate, which counts groups,
+    read 46). A form is a Gram on expansion coefficients, so its axis is
+    :class:`~orpheus.numerics.axis.Modal`; production dresses a head through
+    the frame, whose origin makes it so.
     """
     if not isinstance(metric, FactoredMetric):
         raise ValueError(
@@ -1092,6 +1100,14 @@ def _require_positioned_over(
                 f"entry {k} positions a {type(form).__name__} on its block — "
                 f"two metric sources on one block; a form REPLACES the "
                 f"measure (mint that axis with weights=None)."
+            )
+        if not isinstance(ax.kind, Modal):
+            raise ValueError(
+                f"space {name!r}: axis {ax.label!r} is NODAL, and a nodal "
+                f"axis with no weights carries the counting measure, so entry "
+                f"{k}'s {type(form).__name__} would be a second metric source "
+                f"on its block. A form is a Gram on COEFFICIENTS: it is "
+                f"positioned only on a Modal axis."
             )
 
 

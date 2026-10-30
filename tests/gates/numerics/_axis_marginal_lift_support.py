@@ -26,7 +26,7 @@ from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics import frame_faces
-from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
+from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis, Modal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.geometry.deck import MirrorDeck
@@ -130,10 +130,10 @@ def dense_form_spaces():
 
     ang = Axis("angular", (4,), weights=np.array([0.3, 0.9, 0.5, 0.3]), origin=Declared(BasisKind.NODAL))
     spa = Axis("spatial", (5,), weights=np.array([1.0, 2.0, 0.5, 0.25, 3.0]), origin=Declared(BasisKind.NODAL))
-    mom = Axis("moment", (3,), origin=Declared(BasisKind.NODAL))
+    mom = Axis("moment", (3,), origin=Declared(Modal(np.eye(3)[0])))
     d1 = FunctionSpace("d1", (4, 5, 3), axes=(ang, spa, mom),
                        metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1))))))
-    d2 = FunctionSpace("d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(BasisKind.NODAL)), spa),
+    d2 = FunctionSpace("d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(Modal(np.eye(4)[0]))), spa),
                        metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2))), ((5,), None))))
     head = FunctionSpace("h", (3,), axes=(mom,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3))),)))
     d3 = FunctionSpace.of_axes(ang, spa) * head
@@ -163,7 +163,7 @@ NODAL_ROWS = (
     [(f"{p} angular_bulk", "angular") for p in ("slab GL8", "slab GL8 LD", "sphere GL8", "cylinder folded(4,8)", "xy LS4", "xy product(4,8)")]
     + [("slab GL8 LD angular_trial", "angular"), ("slab GL8 bulk", "spatial"), ("xy LS4 bulk", "spatial"),
        ("synthetic nodal", "angular"), ("synthetic nodal", "energy"), ("synthetic nodal", "spatial"),
-       ("zero-weight nodal", "angular"), ("D1", "angular"), ("D2", "angular"), ("D3", "angular"),
+       ("zero-weight nodal", "angular"), ("D1", "angular"), ("D3", "angular"),
        ("folded(4,4) frame L4", "spatial")]
 )
 #: Production moment spaces: the head is a frame-dressed MOMENT head (covariant coordinates).
@@ -173,6 +173,10 @@ FRAME_HEAD_ROWS = [(k, None) for k in ("folded(4,4) frame L2", "folded(4,4) fram
 #: Basis-minted (continuum) heads x cells: COEFFICIENT heads (contravariant coordinates).
 COEFFICIENT_HEAD_ROWS = [(k, None) for k in ("continuum SH L3", "continuum Legendre L3 z")]
 MODAL_ROWS = MOMENT_SPACE_ROWS + FRAME_HEAD_ROWS + COEFFICIENT_HEAD_ROWS
+#: A synthetic coefficient head carrying a dense form on the axis the lift collapses. It was a NODAL row until U2
+#: (plan space_membership_covector_gauge.md): a form lives only on a Modal axis, so D2's collapsed axis is a declared
+#: coefficient axis with unit e_0. It is not in MODAL_ROWS, whose rows read the mass of a frame or continuum measure.
+SYNTHETIC_MODAL_ROWS = [("D2", "angular")]
 
 
 def resolve(name, label):

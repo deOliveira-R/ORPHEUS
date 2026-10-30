@@ -34,6 +34,7 @@ from tests.gates.numerics._axis_marginal_lift_support import (
     COEFFICIENT_HEAD_ROWS,
     FRAME_HEAD_ROWS,
     MODAL_ROWS,
+    SYNTHETIC_MODAL_ROWS,
     MOMENT_SPACE_ROWS,
     NODAL_ROWS,
     legendre_table,
@@ -50,7 +51,7 @@ _G1C = _HERE + "TestG1UnitIsTheConstant::test_g1c_a_moment_head_unit_is_the_mome
 _G1B = _HERE + "TestG1UnitIsTheConstant::test_g1b_a_coefficient_head_unit_is_e0_and_evaluates_to_one"
 _G5 = _HERE + "TestG5NodalBitIdentity::test_g5_the_nodal_arrows_are_the_pre_s1_pair"
 _G3_PRODUCT = _HERE + "TestG3Reciprocity::test_g3_a_non_product_metric_cannot_be_built_on_axes"
-_ALL_ROWS = NODAL_ROWS + MODAL_ROWS + [("folded(4,4) frame L4", "spatial"), ("xy LS4 moment L2", "spatial")]
+_ALL_ROWS = NODAL_ROWS + MODAL_ROWS + SYNTHETIC_MODAL_ROWS + [("folded(4,4) frame L4", "spatial"), ("xy LS4 moment L2", "spatial")]
 
 
 def _ids(rows):

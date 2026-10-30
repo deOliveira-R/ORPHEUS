@@ -1001,9 +1001,14 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
         nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support=RealSpace(1),
     )
     frame = GalerkinFrame(ob, measure)
-    # axis-built since S7: the dense form is POSITIONED over the head axis
-    dressed = FunctionSpace.of_basis(frame.basis)._with_overlay(
-        (DenseMetric.inverse_of(frame.discrete_gram),),
+    # axis-built since S7: the dense form is POSITIONED over the head axis,
+    # through the one production mint (U2, plan space_membership_covector_gauge:
+    # a form lives only on a Modal axis, and the dressing makes the head
+    # FromFrame, whose kind is Modal(masses); a hand overlay on the nodal
+    # basis axis is refused as a second source beside the counting measure)
+    dressed = frame_faces._dressed(
+        FunctionSpace.of_basis(frame.basis), frame=frame,
+        dense=DenseMetric.inverse_of(frame.discrete_gram),
     )
     vars(frame)["_frame_faces"] = {"basis_space": dressed}  # pre-seed the frame_faces cache
     assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds on the seed
