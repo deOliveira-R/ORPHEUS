@@ -214,8 +214,8 @@ class InnerProductFunctional:
     Parameters
     ----------
     weight : NDArray
-        The co-vector weight :math:`w`. Shape must align with the carrier on
-        the contracted ``axis`` (and broadcast on the complement). A
+        The co-vector weight :math:`w`. Its shape is the carrier's exact
+        shape (checked under ``__debug__`` only). A
         :class:`~orpheus.numerics.field.Field` weight is accepted (its
         ``.values`` is read).
     axis : int, default 0
@@ -250,16 +250,21 @@ class InnerProductFunctional:
         """
         w_arr = self.weight.values if isinstance(self.weight, Field) else np.asarray(self.weight)
         x_arr = x.values if isinstance(x, Field) else np.asarray(x)
-        # The weight broadcasts INTO the carrier, never the carrier into the
-        # weight: a flat ``(ng,)`` carrier against an ``(ng, 1)`` weight would
-        # broadcast to the outer product ``(ng, ng)`` and contract it to a
-        # number that is no pairing at all (the 2g mixture's production rate
-        # read 0.225 for the exact 0.095).
-        if np.broadcast_shapes(w_arr.shape, x_arr.shape) != x_arr.shape:
-            raise ValueError(
-                "InnerProductFunctional.evaluate: the carrier's shape "
-                f"{x_arr.shape} cannot host the weight's shape {w_arr.shape}; "
-                "the weight broadcasts into the carrier, never the carrier "
-                "into the weight."
-            )
+        # The weight and the carrier are one shape: a flat ``(ng,)`` carrier
+        # against an ``(ng, 1)`` weight would broadcast to the outer product
+        # ``(ng, ng)`` and contract it to a number that is no pairing at all
+        # (the 2g mixture's production rate read 0.225 for the exact 0.095).
+        # The check is the raw path's development aid, so it runs only under
+        # ``__debug__`` (the user's ruling R1, 2026-10-30: well-posed
+        # mathematics is guaranteed through the formal machinery, here the
+        # co-vector ``V.flat(w)`` on a typed member).
+        # ELEGANCE-DEBT[guard] #664: the dyad's row factor is raw because
+        # ``RankOneOperator`` carries no spaces yet; retires when the dyad is
+        # bound and its row factor is a ``Covector``.
+        if __debug__:
+            if w_arr.shape != x_arr.shape:
+                raise ValueError(
+                    "InnerProductFunctional.evaluate: the weight's shape "
+                    f"{w_arr.shape} is not the carrier's exact shape {x_arr.shape}."
+                )
         return (w_arr * x_arr).sum(axis=self.axis, keepdims=True)

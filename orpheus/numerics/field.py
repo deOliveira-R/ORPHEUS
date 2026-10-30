@@ -173,9 +173,6 @@ class Field(Member, ABC):
     constraint (mandatory fields after defaulted ones).
     """
 
-    values: NDArray
-    space: FunctionSpace
-
     #: Dimensional identity of the quantity (View-G). Every CONCRETE role
     #: leaf MUST set this to one of the signatures in
     #: :mod:`orpheus.numerics.units` (e.g. ``ANGULAR_FLUX_UNITS``); the
@@ -194,11 +191,7 @@ class Field(Member, ABC):
                 "Field is abstract; instantiate a concrete subclass "
                 "(e.g., AngularFlux, ScalarFlux, ...) instead."
             )
-        if self.values.shape != self.space.shape:
-            raise ValueError(
-                f"{type(self).__name__}: values.shape {self.values.shape!r} "
-                f"does not match space.shape {self.space.shape!r}"
-            )
+        super().__post_init__()  # Member: values.shape == space.shape
 
     def __repr__(self) -> str:
         r"""Concise, units-aware repr — class, shape, space name, units.

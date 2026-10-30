@@ -92,6 +92,7 @@ if TYPE_CHECKING:
 
 
 __all__ = [
+    "Covector",
     "DualSpace",
     "FunctionSpace",
     "Member",
@@ -112,6 +113,7 @@ __all__ = [
 Carrier = TypeVar("Carrier", default=Any)
 
 
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
 class Member:
     r"""A typed element of a space: its coordinates and the space they belong to.
 
@@ -119,14 +121,72 @@ class Member:
     compared with the space by content identity on every run
     (:meth:`FunctionSpace.coordinates_of`), which is the only check that
     separates two spaces of equal shape and different metric; a bare array
-    is the raw path. :class:`~orpheus.numerics.field.Field` is the member
-    every production quantity is; this base lives here, with the space that
-    asks the question, because ``field.py`` imports this module and the
-    concept order runs space before field.
+    is the raw path. Two kinds of member exist:
+    :class:`~orpheus.numerics.field.Field`, every production quantity on
+    :math:`V`, and :class:`Covector`, an element of :math:`V^{*}`. This base
+    lives here, with the space that asks the question, because ``field.py``
+    imports this module and the concept order runs space before field.
+
+    Parameters
+    ----------
+    values : NDArray
+        The coordinates; ``values.shape`` must equal ``space.shape``.
+    space : FunctionSpace
+        The space the coordinates belong to.
+
+    Notes
+    -----
+    ``eq=False``: an ndarray field makes value equality element-wise, so a
+    member is identified by object identity.
     """
 
     values: NDArray
     space: "FunctionSpace"
+
+    def __post_init__(self) -> None:
+        if self.values.shape != self.space.shape:
+            raise ValueError(
+                f"{type(self).__name__}: values.shape {self.values.shape!r} "
+                f"does not match space.shape {self.space.shape!r}"
+            )
+
+
+@dataclass(frozen=True, eq=False, kw_only=True, repr=False)
+class Covector(Member):
+    r"""A co-vector: a member of the dual :math:`V^{*}`, paired canonically with :math:`V`.
+
+    The functional :math:`\langle w, \cdot\rangle_V` of a density :math:`w`
+    on :math:`V` is the element :math:`\flat_V w = G\,w` of :math:`V^{*}`,
+    and its value on a member :math:`x` of :math:`V` is the canonical,
+    metric-free pairing
+
+    .. math::
+
+       c(x) = \sum_i c_i\, x_i , \qquad c = G\,w ,
+       \qquad\text{so}\qquad c(x) = \langle w, x\rangle_V .
+
+    The metric is read once, at the mint (:meth:`FunctionSpace.flat`), and
+    never again: :meth:`evaluate` contracts coordinates. Its ``space`` is
+    :math:`V^{*}` (``V.dual()``), so ``evaluate`` asks the dual's primal
+    whether ``x`` is a member, and a member of an equal-shape space with
+    another metric is refused.
+
+    The specialised constructor is :meth:`FunctionSpace.flat`; the raw one,
+    ``Covector(values=…, space=V.dual())``, is for a dependency-free test
+    and must be handed the coordinates the mint would compute.
+
+    Conforms to :class:`~orpheus.numerics.functional.Functional`
+    structurally (it exposes ``evaluate``); it is declared here, beside
+    :class:`DualSpace`, because :meth:`FunctionSpace.flat` mints it and the
+    concept order runs space before functional.
+    """
+
+    def evaluate(self, x: Any, /) -> float:
+        r"""Return :math:`c(x) = \sum_i c_i x_i` for a member ``x`` of :math:`V`."""
+        return float(np.sum(self.values * self.space.dual().coordinates_of(x)))
+
+    def __repr__(self) -> str:
+        return f"Covector(shape={self.values.shape}, space={self.space.name!r})"
 
 
 @dataclass(frozen=True, eq=False)
@@ -753,6 +813,43 @@ class FunctionSpace(Generic[Carrier]):
         for a structured-carrier space that overrides the inner product.
         """
         return float(np.sqrt(self.inner_product(x, x)))
+
+    def flat(self, density: Any) -> Covector:
+        r"""Mint the co-vector :math:`\flat_V w = G\,w`, the functional :math:`\langle w, \cdot\rangle_V`.
+
+        The one specialised constructor of :class:`Covector`: ``density``
+        is a member of this space (a typed member compared by content, or a
+        bare array of the exact shape under ``__debug__``), and the result
+        is a member of :math:`V^{*}` whose value on a member :math:`x` is
+        :math:`\langle w, x\rangle_V`. The metric is applied here, once,
+        through :meth:`apply_metric`, the same arithmetic as the lowering
+        leg :class:`~orpheus.numerics.operator.RieszLowerOperator`; the
+        number one is :attr:`unit`, never ``np.ones``.
+        """
+        return Covector(
+            values=np.asarray(self.apply_metric(self.coordinates_of(density))),
+            space=self.dual(),
+        )
+
+    @property
+    def unit(self) -> NDArray:
+        r"""The coordinates of the constant function :math:`1` on this space.
+
+        On an axis-built space it is the tensor product of the axes' units,
+        :math:`u = u_1 \otimes \dots \otimes u_n`
+        (:attr:`~orpheus.numerics.axis.Axis.unit`: ones on a nodal axis, the
+        carried unit on a modal one, which on a frame-dressed head is the
+        moments :math:`\Phi^{\mathsf T} w` and not all ones). An axes-less
+        space has nodal coordinates by construction, so its unit is ones.
+        ``self.flat(self.unit)`` is the integration co-vector
+        :math:`\langle 1, \cdot\rangle_V`.
+        """
+        if self.axes is None:
+            return np.ones(self.shape)
+        unit = np.ones(())
+        for ax in self.axes:
+            unit = np.multiply.outer(unit, np.asarray(ax.unit))
+        return unit.reshape(self.shape)
 
     # ------------------------------------------------------------------
     # Metric application (Hilbert adjoint building blocks, Wave O / O.2b)

@@ -81,7 +81,7 @@ from orpheus.numerics.operator import (
     SystemRole,
     AdjointOperator,
 )
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import DualSpace, FunctionSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -168,6 +168,24 @@ class _DeltaField(_ToyAlgebra):
 @dataclass(frozen=True)
 class _ToySpace(FunctionSpace):
     """A carrier-typed member space: the diagonal metric on ``field.values``."""
+
+    def apply_metric(self, x):
+        return replace(x, values=self._diagonal_apply_metric(x.values))
+
+    def apply_inverse_metric(self, x):
+        return replace(x, values=self._diagonal_apply_inverse_metric(x.values))
+
+    def inner_product(self, x, y) -> float:
+        return self._diagonal_inner_product(x.values, y.values)
+
+    def _make_dual(self):
+        return _ToyDualSpace(name=f"{self.name}*", shape=self.shape, primal=self)
+
+
+class _ToyDualSpace(DualSpace):
+    """The dual of a carrier-typed member space types the same carrier: its
+    metric legs act on ``field.values`` as the primal's do (a test double
+    honours the contract of the space it stands in for)."""
 
     def apply_metric(self, x):
         return replace(x, values=self._diagonal_apply_metric(x.values))

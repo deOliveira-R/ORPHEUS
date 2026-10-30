@@ -1471,11 +1471,15 @@ class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
         return self.space
 
     def apply(self, x: Domain) -> Domain:
-        return self.space.apply_inverse_metric(x)
+        # ♯ acts on V*: its input is a co-vector, whose space's metric IS G⁺
+        # (the dual reads its primal's metric the other way round), so the
+        # membership check asks the leg's domain, not V. Same arithmetic as
+        # V.apply_inverse_metric on every realization.
+        return self.space.dual().apply_metric(x)
 
     def apply_transpose(self, x: Domain) -> Domain:
         # ♯ᵀ = ♯ (symmetric pseudo-inverse of a symmetric metric).
-        return self.space.apply_inverse_metric(x)
+        return self.space.dual().apply_metric(x)
 
     @property
     def is_adjointable(self) -> bool:
