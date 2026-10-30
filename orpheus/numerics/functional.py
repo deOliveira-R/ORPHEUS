@@ -250,4 +250,16 @@ class InnerProductFunctional:
         """
         w_arr = self.weight.values if isinstance(self.weight, Field) else np.asarray(self.weight)
         x_arr = x.values if isinstance(x, Field) else np.asarray(x)
+        # The weight broadcasts INTO the carrier, never the carrier into the
+        # weight: a flat ``(ng,)`` carrier against an ``(ng, 1)`` weight would
+        # broadcast to the outer product ``(ng, ng)`` and contract it to a
+        # number that is no pairing at all (the 2g mixture's production rate
+        # read 0.225 for the exact 0.095).
+        if np.broadcast_shapes(w_arr.shape, x_arr.shape) != x_arr.shape:
+            raise ValueError(
+                "InnerProductFunctional.evaluate: the carrier's shape "
+                f"{x_arr.shape} cannot host the weight's shape {w_arr.shape}; "
+                "the weight broadcasts into the carrier, never the carrier "
+                "into the weight."
+            )
         return (w_arr * x_arr).sum(axis=self.axis, keepdims=True)

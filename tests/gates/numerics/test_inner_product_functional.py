@@ -95,3 +95,26 @@ class TestCategoryMembership:
             "A Functional must NOT satisfy LinearOperator (it has no apply/"
             "capabilities surface) — the category partition is structural.",
         )
+
+
+class TestTheWeightBroadcastsIntoTheCarrier:
+    """The weight broadcasts INTO the carrier; the carrier never broadcasts into the weight.
+
+    A flat ``(ng,)`` carrier against an ``(ng, 1)`` weight (one group axis, one
+    spatial cell) would broadcast to the outer product ``(ng, ng)`` and contract
+    it to a number that is no pairing: the 2g Mixture-A production rate read
+    0.225 for the exact 0.095 through ``IntegratedReactionRate`` (the layer-DAG
+    Phase 2 spec, §5c, 2026-10-30). The refusal is the evaluate law's domain.
+    """
+
+    def test_a_flat_carrier_against_a_column_weight_is_REFUSED(self):
+        f = InnerProductFunctional(np.array([[0.1], [0.2]]), axis=0)  # (2, 1)
+        with pytest.raises(ValueError, match="never the carrier"):
+            f.evaluate(np.array([0.6, 0.4]))
+
+    def test_a_column_weight_broadcasts_over_the_carriers_complement(self):
+        w = np.array([[2.0], [3.0]])  # (2, 1): one weight per group, every cell
+        x = np.array([[1.0, 2.0, 4.0], [0.5, 0.25, 0.125]])  # (2, 3)
+        got = InnerProductFunctional(w, axis=0).evaluate(x)
+        _require(got.shape == (1, 3), f"the carrier's complement survives; got {got.shape}.")
+        np.testing.assert_allclose(got[0], _hand_dot_axis0(np.repeat(w, 3, axis=1), x), rtol=1e-15)
