@@ -76,6 +76,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .axis import Axis, BasisKind, Modal
+from .coordinate_space import coordinates, leading_coordinates
 from orpheus.values.content import content_digest, name_digest
 from .metric import (
     DenseMetric,
@@ -147,11 +148,7 @@ class Member:
     space: "FunctionSpace"
 
     def __post_init__(self) -> None:
-        if self.values.shape != self.space.shape:
-            raise ValueError(
-                f"{type(self).__name__}: values.shape {self.values.shape!r} "
-                f"does not match space.shape {self.space.shape!r}"
-            )
+        coordinates(self.values, self.space.shape, owner=type(self).__name__)
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
@@ -672,24 +669,29 @@ class FunctionSpace(Generic[Carrier]):
         r"""Return the coordinates of ``x`` as a member of this space, or refuse it.
 
         Membership is the space's verb, asked by every verb that takes an
-        element. Two tiers (the user's ruling, 2026-10-30: well-posed
-        mathematics is guaranteed through the formal machinery):
+        element, and it is a parse with two legs, both checked on every run
+        (``-O`` included):
 
-        * **A typed member**, a :class:`Member` (a :class:`~orpheus.numerics.field.Field`,
-          a :class:`Covector` on a dual space, or the bare constant function), is
-          compared with this space by content identity on every run, ``-O``
-          included, and its coordinates are returned. This is the only check
-          that separates two spaces of equal shape and different metric.
-        * **A bare array** is the raw path, legal for a dependency-free test
-          or a prototype. Its shape must equal :attr:`shape` exactly, checked
-          only under ``__debug__``: a scalar verb's elements are members, and
-          a trailing batch has no inner product (a pairing over a payload is
-          posed on the explicit tensor product ``V * P``).
+        * **the identity leg.** A typed member, a :class:`Member` (a
+          :class:`~orpheus.numerics.field.Field`, a :class:`Covector` on a
+          dual space, or the bare constant function), is compared with this
+          space by content identity, and its coordinates are returned. This
+          is the only check that separates two spaces of equal shape and
+          different metric.
+        * **the shape leg.** A bare array must be an element of the
+          coordinate space :math:`\mathbb R^{\text{shape}}`: its shape equals
+          :attr:`shape` exactly
+          (:func:`~orpheus.numerics.coordinate_space.coordinates`). A scalar
+          verb's elements are members, and a trailing batch has no inner
+          product (a pairing over a payload is posed on the explicit tensor
+          product ``V * P``).
 
-        ELEGANCE-DEBT[guard] #664: production still reaches the raw tier (the
-        operator algebra's carrier is a bare array); retires when every
-        production caller hands a typed member, after which the ``__debug__``
-        check remains only as the raw path's test aid.
+        The shape leg is what keeps numpy's broadcast closure out of every
+        verb: handed a ``(2,)`` array where the space is ``(2, 1)``, the
+        product would silently be an outer product (ERR-122). A bare array
+        passes only the shape leg; an equal-shape array of another space is
+        indistinguishable from a member, which is why production hands typed
+        members (#664 tracks the operator algebra's bare iterate).
         """
         if isinstance(x, Member):
             if x.space != self:
@@ -697,37 +699,22 @@ class FunctionSpace(Generic[Carrier]):
                     f"{type(x).__name__} on {x.space!r} is not a member of {self!r}."
                 )
             return x.values
-        if __debug__:
-            if np.shape(x) != self.shape:
-                raise ValueError(
-                    f"a bare array of shape {np.shape(x)} is not a member of "
-                    f"{self!r}: a scalar verb takes the exact shape {self.shape}."
-                )
-        return x
+        return coordinates(x, self.shape, owner=repr(self))
 
     def leading_coordinates_of(self, x: Any) -> Any:
         r"""Return the coordinates of ``x`` for an ACTION on this space, or refuse it.
 
         An action (a metric leg, an operator's matvec) acts on the space's
-        leading axes, so a trailing batch rides through unchanged: the
+        leading axes, so a trailing payload rides through unchanged: the
         action is :math:`A \otimes I_P` on :math:`V \otimes P`. A typed member
-        is compared by content identity on every run (see
-        :meth:`coordinates_of`); a bare array's leading shape must equal
-        :attr:`shape`, checked only under ``__debug__``.
-
-        ELEGANCE-DEBT[guard] #664: as :meth:`coordinates_of`'s raw tier; retires
-        when every production action receives a typed member of its domain.
+        is compared by content identity (see :meth:`coordinates_of`); a bare
+        array's leading shape must equal :attr:`shape`
+        (:func:`~orpheus.numerics.coordinate_space.leading_coordinates`). Both
+        legs run on every run.
         """
         if isinstance(x, Member):
             return self.coordinates_of(x)
-        if __debug__:
-            shape = np.shape(x)
-            if shape[: len(self.shape)] != self.shape:
-                raise ValueError(
-                    f"a bare array of shape {shape} does not have the leading "
-                    f"shape {self.shape} of {self!r} that an action acts on."
-                )
-        return x
+        return leading_coordinates(x, self.shape, owner=repr(self))
 
     def inner_product(self, x: Carrier, y: Carrier) -> float:
         r"""Return :math:`\langle x, y \rangle`.
@@ -823,7 +810,7 @@ class FunctionSpace(Generic[Carrier]):
 
         The one specialised constructor of :class:`Covector`: ``density``
         is a member of this space (a typed member compared by content, or a
-        bare array of the exact shape under ``__debug__``), and the result
+        bare array of the exact shape), and the result
         is a member of :math:`V^{*}` whose value on a member :math:`x` is
         :math:`\langle w, x\rangle_V`. The metric is applied here, once,
         through :meth:`apply_metric`, the same arithmetic as the lowering

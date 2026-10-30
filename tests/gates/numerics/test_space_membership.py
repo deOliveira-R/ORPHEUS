@@ -1,18 +1,16 @@
-r"""Membership is the space's verb: the typed member is the guarantee, the bare array's shape check is debug.
+r"""Membership is the space's verb, a parse with two legs, both on every run.
 
-Two tiers (the user's ruling R1, 2026-10-30, plan ``.claude/plans/space_membership_covector_gauge.md``):
+Plan ``.claude/plans/space_membership_covector_gauge.md``, units U1 and U1b:
 
-* FORMAL — a typed member (:class:`~orpheus.numerics.space.Member`; every :class:`~orpheus.numerics.field.Field` is one) handed to a space verb is compared with the space by content
-  identity (``x.space == V``) on every run, ``-O`` included. This is the only check that separates two spaces of
-  equal shape and different metric.
-* RAW — a bare array gets a shape check under ``if __debug__:`` only: EXACT shape for the scalar verbs
-  (``inner_product``, ``norm``), LEADING shape for the actions (``apply_metric``, ``apply_inverse_metric``, the Riesz
-  legs), where a trailing batch rides through as ``A (x) I_P``.
+* the IDENTITY leg: a typed member (:class:`~orpheus.numerics.space.Member`; every :class:`~orpheus.numerics.field.Field` is one) handed to a space verb is compared with the space by content
+  identity (``x.space == V``). This is the only check that separates two spaces of equal shape and different metric.
+* the SHAPE leg: a bare array must be an element of the coordinate space
+  (:mod:`orpheus.numerics.coordinate_space`): EXACT shape for the scalar verbs (``inner_product``, ``norm``), LEADING
+  shape for the actions (``apply_metric``, ``apply_inverse_metric``, the Riesz legs), where a trailing batch rides
+  through as ``A (x) I_P``.
 
-The ``__debug__`` rows follow ``vv-testing``'s skipif pair: the refusal row runs only when ``__debug__`` is True
-(``python -m pytest``, not the canonical ``-O``); its companion runs only under ``-O`` and asserts the raw input passes
-through, which is R1's stated reading, not a gap. The non-``-O`` invocation:
-``.venv/bin/python -m pytest -p no:cacheprovider tests/gates/numerics/test_space_membership.py``.
+Until U1b (2026-10-30) the shape leg ran under ``__debug__`` only, and a companion row pinned that under ``-O`` the raw
+path was unchecked; that row pinned the degradation as the contract and was deleted when the check became the parse.
 """
 from __future__ import annotations
 
@@ -28,8 +26,6 @@ from orpheus.numerics.units import SCALAR_FLUX_UNITS
 
 pytestmark = pytest.mark.l0
 
-_DEBUG_ONLY = pytest.mark.skipif(not __debug__, reason="the raw-path shape check lives under __debug__ (R1); run without -O")
-_O_ONLY = pytest.mark.skipif(__debug__, reason="strip-verified companion: under -O the raw path is not checked (R1)")
 
 _E = EnergyAxis.synthetic(2)
 #: Two spaces of EQUAL shape and DIFFERENT metric: no shape check can tell them apart (explorer map §1, the structural fact).
@@ -69,7 +65,7 @@ class TestATypedMemberIsComparedByContent:
         assert V.coordinates_of(f) is f.values
 
 
-# ── rung 2: the raw tier (debug only) — scalar verbs exact, actions leading ────────────────────────────
+# ── rung 2: the shape leg of a bare array — scalar verbs exact, actions leading ────────────────────────────
 
 _COLUMN_SPACE = FunctionSpace("g", (2, 1), inner_product_weights=np.array([[1.0], [2.0]]))
 _COL = np.array([[0.6], [0.4]])
@@ -77,24 +73,16 @@ _FLAT = np.array([0.6, 0.4])
 
 
 class TestTheRawScalarVerbsTakeExactMembers:
-    @_DEBUG_ONLY
     def test_a_flat_carrier_on_a_column_space_is_REFUSED(self):
         """Before membership (`[M]` e42fd498) a two-sided broadcast admitted it (qa measured 1.4 for 0.68 with a
         1-D [1, 2] weight)."""
         with pytest.raises(ValueError, match="exact shape"):
             _COLUMN_SPACE.inner_product(_COL, _FLAT)
 
-    @_DEBUG_ONLY
     def test_a_payload_tail_is_REFUSED_by_a_scalar_verb(self):
         """A batch has no inner product (P1 refined): V x P is spelled, never inferred."""
         with pytest.raises(ValueError, match="exact shape"):
             V.inner_product(np.ones(V.shape + (5,)), np.ones(V.shape + (5,)))
-
-    @_O_ONLY
-    def test_under_O_the_raw_scalar_path_is_unchecked(self):
-        """Strip-verified companion (vv-testing): under -O the raw call does NOT raise. No value is pinned: the number
-        it returns is the degradation, never a contract."""
-        _COLUMN_SPACE.inner_product(_COL, _FLAT)
 
 
 class TestTheRawActionsTakeALeadingMember:
@@ -104,7 +92,6 @@ class TestTheRawActionsTakeALeadingMember:
         y = np.random.default_rng(0).standard_normal(V.shape + (4, 2))
         np.testing.assert_array_equal(V.apply_metric(y)[..., 1, 0], V.apply_metric(y[..., 1, 0]))
 
-    @_DEBUG_ONLY
     def test_a_lower_rank_or_misaligned_element_is_REFUSED_by_an_action(self):
         """Leading-shape law: ``x.shape[:V.ndim] == V.shape``. Before membership (`[M]` e42fd498), (2, 1) on V was
         admitted by broadcast."""

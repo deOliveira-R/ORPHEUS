@@ -211,7 +211,7 @@ class IntegratedReactionRate:
         phi : Field or NDArray
             The flux, a member of the cross section's space: a typed member
             is compared by content on every run; a bare array must have the
-            space's exact shape, checked under ``__debug__``.
+            space's exact shape, checked on every run.
         adjoint : ScalarFlux, optional
             The importance :math:`\varphi^*` (e.g.
             ``adjoint_solution.importance``), on the SAME space as the cross

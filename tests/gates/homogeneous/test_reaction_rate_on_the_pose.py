@@ -2,9 +2,8 @@ r"""The reaction rate on the homogeneous 0-D pose: where the 0.225 defect lived 
 
 The space-membership unit U2c (plan ``.claude/plans/space_membership_covector_gauge.md``). The defect: the 2g Mixture-A
 production rate of a flat ``(2,)`` flux on the ``(2, 1)`` pose read 0.225 for the exact 0.095 (an outer product
-contracted; the layer-DAG Phase 2 spec §5c). The formal path refuses the input on every run; the raw path refuses it under
-``__debug__`` only (the user's ruling R1), and the debug row runs without ``-O``:
-``.venv/bin/python -m pytest -p no:cacheprovider tests/gates/homogeneous/test_reaction_rate_on_the_pose.py``.
+contracted; the layer-DAG Phase 2 spec §5c). Both paths refuse the input on every run: the formal path at the scalar
+flux's construction, the raw path at the space's parse (U1b; until then it was refused under ``__debug__`` only).
 These rows moved here from ``tests/gates/transport/test_integrated_reaction_rate.py``, whose layer may not import
 ``orpheus.homogeneous`` (``tests/gates/test_test_layers.py``).
 """
@@ -19,15 +18,11 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 
 pytestmark = pytest.mark.foundation
 
-_DEBUG_ONLY = pytest.mark.skipif(not __debug__, reason="the raw-path shape check lives under __debug__ (R1); run without -O")
-
-
 class TestTheReactionRateOnThePose:
-    @_DEBUG_ONLY
     def test_a_flat_carrier_on_the_homogeneous_column_space_is_REFUSED(self):
         """The defect this campaign closes (`[M]` the layer-DAG Phase 2 spec §5c): the 2g Mixture-A production rate of
         a flat ``(2,)`` flux on the ``(2, 1)`` pose read 0.225 for the exact 0.095 (an outer product contracted). On the
-        raw path the shape is refused under ``__debug__``; the formal path is the next row."""
+        raw path the shape is refused by the space's parse on every run; the formal path is the next row."""
         problem = HomogeneousProblem(get_mixture("A", "2g"))
         with pytest.raises(ValueError, match="exact shape"):
             problem.production_rate.evaluate(np.array([0.6, 0.4]))

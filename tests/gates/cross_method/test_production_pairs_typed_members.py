@@ -1,15 +1,16 @@
 r"""Production pairs typed members: the formal path is the one a solve takes (the route gate of the space-membership unit U2).
 
 The user's ruling R1 (2026-10-30, plan ``.claude/plans/space_membership_covector_gauge.md``): only the formal machinery,
-a typed member handed to a space verb, is guaranteed on every run; a bare array gets a shape check under ``__debug__``
-only. That guarantee covers production only if production is on the formal path, and nothing in a green solve says so.
+a typed member handed to a space verb, is guaranteed; a bare array passes only the shape leg of the parse, so an
+equal-shape array of another space is indistinguishable from a member. That guarantee covers production only if
+production is on the formal path, and nothing in a green solve says so.
 This file says so: :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`, the exact-shape membership verb of the
 scalar verbs (``inner_product``, ``norm``) and of every co-vector pairing and mint (``Covector.evaluate``, ``flat``), is
 made to refuse a bare array, and one eigenvalue solve per sharp method must complete.
 
 Only the exact verb is patched. The action verb ``leading_coordinates_of`` (the metric legs, an operator's matvec, the
-Riesz legs, ``.H``) legitimately carries a trailing batch, ``A (x) I_P``, and is the raw tier of a separate debt
-(ELEGANCE-DEBT[guard] #664); patched, it would redden every legitimate action.
+Riesz legs, ``.H``) legitimately carries a trailing batch, ``A (x) I_P``; the operator algebra's bare iterate reaches it
+(#664); patched, it would redden every legitimate action.
 
 First red: at the parent of U2c (``64cc3a7a``) every one of the 7 exercised sites passed an ``ndarray`` (`[M]` the spec's
 caller census); after U2c's typed callers and before ``FunctionSpace.integral``, the two ``flat(unit)`` sites

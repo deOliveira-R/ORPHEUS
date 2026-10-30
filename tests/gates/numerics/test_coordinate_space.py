@@ -21,9 +21,13 @@ import numpy as np
 import pytest
 
 from orpheus.numerics import coordinate_space as cs
+from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis
+from orpheus.numerics.space import FunctionSpace, Member
 
 pytestmark = pytest.mark.l0
 
+_E = EnergyAxis.synthetic(2)
+V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(BasisKind.NODAL)))
 X = np.arange(1.0, 7.0).reshape(2, 3)
 
 #: The two fragments, disjoint (asserted below). Both are the vocabulary the tree already pins
@@ -84,3 +88,52 @@ class TestThePrimitive:
         refused" from widening to "something refused"."""
         with pytest.raises(cs.NotInCoordinateSpace, match="DiscreteMeasure.integrate"):
             cs.coordinates(np.ones(2), (3,), owner="DiscreteMeasure.integrate")
+
+
+class TestTheSpaceVerbsParseOnEveryRun:
+    """The identity leg plus the primitive. First red before U1b: each wrong call RETURNED under ``-O`` (the explorer's
+    ``probe_O.log``, on production spaces; here on the synthetic ``V`` so the numerics layer can host them)."""
+
+    def test_the_honest_values(self):
+        assert V.inner_product(X, X) == 210.0
+        np.testing.assert_array_equal(V.apply_metric(X), X * np.array([1.0, 2.0, 3.0]))
+
+    @pytest.mark.parametrize("verb", ["inner_product", "norm", "flat", "integral"])
+    def test_a_scalar_verb_refuses_a_broadcastable_non_member(self, verb):
+        y = X[:, :1]  # (2, 1): the implicit-pullback class
+        call = {
+            "inner_product": lambda: V.inner_product(X, y),
+            "norm": lambda: V.norm(y),
+            "flat": lambda: V.flat(y),
+            "integral": lambda: V.integral.evaluate(y),
+        }[verb]
+        with pytest.raises(cs.NotInCoordinateSpace, match=EXACT):
+            call()
+
+    @pytest.mark.parametrize("verb", ["apply_metric", "apply_inverse_metric"])
+    @pytest.mark.parametrize("bad", [(2, 1), (1, 3)], ids=["pullback", "non-member-out"])
+    def test_an_action_refuses_a_wrong_lead(self, verb, bad):
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            getattr(V, verb)(np.ones(bad))
+
+    def test_an_action_still_carries_a_payload(self):
+        """D2: the action A ⊗ I_P stands (the Riesz-leg and ``.H`` payload callers stay)."""
+        out = V.apply_metric(np.ones((2, 3, 4)))
+        np.testing.assert_array_equal(out, np.broadcast_to(np.array([1.0, 2.0, 3.0])[None, :, None], (2, 3, 4)))
+
+    def test_the_space_verbs_have_no_debug_tier(self):
+        """X1's execution evidence: no ``__debug__`` name and no ``assert`` in the space's two membership verbs."""
+        import textwrap
+
+        for verb in (FunctionSpace.coordinates_of, FunctionSpace.leading_coordinates_of):
+            tree = ast.parse(textwrap.dedent(inspect.getsource(verb)))
+            assert not any(isinstance(n, ast.Name) and n.id == "__debug__" for n in ast.walk(tree))
+            assert not any(isinstance(n, ast.Assert) for n in ast.walk(tree))
+
+    def test_a_member_is_built_through_the_same_primitive(self):
+        """``Member.__post_init__``'s shape check is the primitive (one spelling): its message carries the new fragment
+        AND the two the tree pins on it (``test_field.py``, ``test_reaction_rate_on_the_pose.py``,
+        ``test_angular_boundary_flux.py``, ``test_wall_condition_algebra.py``)."""
+        with pytest.raises(cs.NotInCoordinateSpace, match=EXACT) as err:
+            Member(values=X[:, :1], space=V)
+        assert "does not match space.shape" in str(err.value) and "values.shape" in str(err.value)
