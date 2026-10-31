@@ -420,14 +420,16 @@ class TestMultiplierAlgebraLaws:
         f[1] *= 1.9  # 2G asymmetry.
         psi = _random_state(sn, ng=2, seed=231)
 
-        # M[f] ∘ M[g] applied via the two engines (values level).
-        eng_g = DiagonalOperator(g, broadcast_axes=(0,))
-        eng_f = DiagonalOperator(f, broadcast_axes=(0,))
+        # M[f] ∘ M[g] applied via the two engines (values level), each
+        # minted on the angular-flux domain, constant over the ordinate.
+        domain = psi.interior.space.shape
+        eng_g = DiagonalOperator(g, shape=domain, spans=(1, 2, 3))
+        eng_f = DiagonalOperator(f, shape=domain, spans=(1, 2, 3))
         composed = eng_f.apply(eng_g.apply(psi.interior.values))
 
         # M[f·g] — the engine on the raw product array (units cm⁻², so
         # NOT a CrossSectionField; the homomorphism is a numerics fact).
-        eng_fg = DiagonalOperator(f * g, broadcast_axes=(0,))
+        eng_fg = DiagonalOperator(f * g, shape=domain, spans=(1, 2, 3))
         product = eng_fg.apply(psi.interior.values)
 
         np.testing.assert_allclose(composed, product, rtol=1e-14, atol=1e-15)

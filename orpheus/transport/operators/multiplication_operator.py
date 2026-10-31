@@ -71,8 +71,10 @@ Delegation to the numerics broadcast engine
 The raw pointwise multiply is delegated to the N-D
 :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` broadcast engine
 (#257 S3a): a per-cell-per-group coefficient spans the energy and spatial
-axes, and the engine broadcasts it over every other bulk axis, read by label
-off the bound space (:func:`_broadcast_axes`): the leading ordinate axis of a
+axes, and the engine is minted with the bulk's shape and the positions the
+coefficient spans, read by label off the bound spaces
+(:meth:`~orpheus.numerics.space.FunctionSpace.positions_spanned_by`); it is
+constant over every other bulk position: the leading ordinate axis of a
 per-ordinate carrier ``(N, ng, *spatial)``, so
 ``engine.apply(psi.interior.values) == f.values[None] * psi.interior.values``,
 and also the trailing spatial-moment axis of a linear-discontinuous carrier
@@ -157,39 +159,6 @@ _EngineVerb = Callable[[np.ndarray], np.ndarray]
 
 
 
-def _broadcast_axes(bulk: "FunctionSpace", coefficient: "CrossSectionField") -> tuple[int, ...]:
-    r"""The bulk axes a per-cell per-group coefficient is constant over.
-
-    A cross section spans the energy and spatial axes, so the multiply
-    :math:`(M[f]\,x)_{\mathbf i} = f_{g,\mathbf c}\,x_{\mathbf i}` is
-    constant over every other axis of the bulk: the ordinate axis of an
-    angular bulk, and the spatial-moment axis of a linear-discontinuous
-    one, where the cell-constant :math:`f` multiplies each moment alike
-    (:math:`(f\psi)_k = f\,\psi_k`). Read BY LABEL off the bound spaces. A
-    space built without labelled axes cannot say which of its axes the
-    coefficient spans, so the multiplier refuses it rather than guess a
-    position (the user's ruling, 2026-10-20: a positional guess would put the
-    coefficient on the wrong axes of an LD bulk, and `[M]` it fired 0 times in
-    1303 constructions across four suites).
-    """
-    coefficient_space = coefficient.space
-    if bulk.axes is None or coefficient_space.axes is None:
-        unlabelled = bulk if bulk.axes is None else coefficient_space
-        raise TypeError(
-            f"MultiplicationOperator: the space {unlabelled!r} is not built from "
-            f"labelled axes, so the axes the coefficient spans (energy, spatial) "
-            f"cannot be read off it. Compose the space with FunctionSpace.of_axes."
-        )
-    spanned = {axis.label for axis in coefficient_space.axes}
-    broadcast: list[int] = []
-    dimension = 0
-    for axis in bulk.axes:  # an axis may span several array dimensions (a 2-D spatial mesh)
-        rank = len(axis.shape)
-        if axis.label not in spanned:
-            broadcast.extend(range(dimension, dimension + rank))
-        dimension += rank
-    return tuple(broadcast)
-
 @dataclass(eq=False)
 class MultiplicationOperator(BoundOperator):
     r"""The promotion :math:`M[f]` of a coefficient field to a diagonal operator.
@@ -261,24 +230,8 @@ class MultiplicationOperator(BoundOperator):
             domain.interior_space if isinstance(domain, FullFieldSpace) else None
         )
         bulk = self._interior if self._interior is not None else domain
-        # Build the broadcast engine ONCE over the coefficient. The N-D
-        # engine broadcasts the (ng, *spatial) coefficient over every bulk
-        # axis it does not span (_broadcast_axes: the ordinate axis of an
-        # angular bulk, the spatial-moment axis of a linear-discontinuous
-        # one, none of a scalar bulk), so engine.apply(x) is f.values,
-        # expanded on those axes, times x. It already encodes "invertible
-        # iff every entry != 0", so inheriting its capability set
-        # single-sources the spectrum law spec(M[f]) = ess-range(f)
-        # (Pattern 4 — the transport operator and the numerics engine agree
-        # by construction, not by a copied predicate). Stored, not rebuilt
-        # per call: a fresh engine would re-run the O(size)
-        # `np.all(coeff != 0)` spectrum scan on every matvec and discard a
-        # capability already frozen here.
-        self._broadcast = _broadcast_axes(bulk, self.coefficient)
-        self.engine = DiagonalOperator(
-            self.coefficient.values, broadcast_axes=self._broadcast,
-        )
-        # CS4a K2: the binding refuses a space whose EnergyAxis states a
+        # CS4a K2, first, so the refusal speaks the binding's vocabulary
+        # before the engine's placement check: the binding refuses a space whose EnergyAxis states a
         # different group count than the coefficient (guard reach + the
         # deliberate axes-less inertness: _energy_conformity docstring).
         # ``values.shape[0]`` IS ng by CrossSectionField's own declared
@@ -289,6 +242,24 @@ class MultiplicationOperator(BoundOperator):
         self._assert_energy_extent_both_ends(
             self.coefficient.values.shape[0],
             operator="MultiplicationOperator",
+        )
+        # Build the engine ONCE, on the bulk's shape, with the (ng, *spatial)
+        # coefficient placed on the positions its space spans (read by label:
+        # positions_spanned_by), so it is constant over the others (the
+        # ordinate axis of an angular bulk, the spatial-moment axis of a
+        # linear-discontinuous one, none of a scalar bulk), and every operand
+        # is parsed at the bulk's exact shape. It already encodes "invertible
+        # iff every entry != 0", so inheriting its capability set
+        # single-sources the spectrum law spec(M[f]) = ess-range(f)
+        # (Pattern 4 — the transport operator and the numerics engine agree
+        # by construction, not by a copied predicate). Stored, not rebuilt
+        # per call: a fresh engine would re-run the O(size)
+        # `np.all(coeff != 0)` spectrum scan on every matvec and discard a
+        # capability already frozen here.
+        self.engine = DiagonalOperator(
+            self.coefficient.values,
+            shape=bulk.shape,
+            spans=bulk.positions_spanned_by(self.coefficient.space),
         )
 
     # ── the ONE multiply, on every bulk rank ────────────────────────
@@ -376,11 +347,11 @@ class MultiplicationOperator(BoundOperator):
         # prepend-broadcast semantics) the engine multiplies at apply
         # time, with NO arithmetic performed on it, so ``assembled @ x``
         # reproduces ``apply``'s per-entry multiply bit-for-bit.
-        # Family-blind: the coefficient is expanded on the SAME broadcast
-        # axes the engine reads (none for a scalar bulk, the ordinate axis
-        # for an angular one, and the spatial-moment axis too for LD).
+        # Family-blind: the engine's placed coefficient is the one placement
+        # (none expanded for a scalar bulk, the ordinate axis for an angular
+        # one, and the spatial-moment axis too for LD).
         diagonal = np.ascontiguousarray(
-            np.broadcast_to(np.expand_dims(self.coefficient.values, self._broadcast), bulk_shape)
+            np.broadcast_to(self.engine.placed_coefficient, bulk_shape)
         ).ravel()
         nonzero = diagonal != 0.0
         indices = np.arange(n_bulk)[nonzero]

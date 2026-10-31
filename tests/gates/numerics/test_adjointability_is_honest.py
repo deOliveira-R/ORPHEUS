@@ -287,7 +287,7 @@ def _inverse_of_diagonal() -> _Posed:
     ``.H`` refuses as unbound, because a field multiplier is not metric-free
     (S6a review, #625: it commutes only with diagonal metrics). Until the
     review this row's ``.H`` opened."""
-    return _Posed(DiagonalOperator(np.array([2.0, -0.5, 4.0])).inverse(), np.array([1.0, 3.0, -2.0]))
+    return _Posed(DiagonalOperator(np.array([2.0, -0.5, 4.0]), shape=(3,), spans=(0,)).inverse(), np.array([1.0, 3.0, -2.0]))
 
 
 def _inverse_of_scaled_product() -> _Posed:
@@ -296,7 +296,7 @@ def _inverse_of_scaled_product() -> _Posed:
     canonical inverse (the elegance review: it read not adjointable while
     ``(2D)⁻¹`` read adjointable). Its ``.H`` refuses as unbound since the S6a
     review (a word of field multipliers is not metric-free, #625)."""
-    D = DiagonalOperator(np.array([2.0, -0.5, 4.0]))
+    D = DiagonalOperator(np.array([2.0, -0.5, 4.0]), shape=(3,), spans=(0,))
     # S2 (D7): the scalar leaves the word, so ``D @ (2D)`` is the one-term
     # combination 2·(D D); its inverse is ½·(D D)⁻¹, the row's subject.
     return _Posed((D @ (2.0 * D)).inverse(), np.array([1.0, 3.0, -2.0]))
@@ -1039,7 +1039,7 @@ def _inverse_family_rows():
     from orpheus.numerics.operator import InverseOperator
 
     sn, sig_t = _sn("slab_2g")
-    D = DiagonalOperator(np.array([2.0, -0.5, 4.0]))
+    D = DiagonalOperator(np.array([2.0, -0.5, 4.0]), shape=(3,), spans=(0,))
     return [
         ("inverse_of_diagonal", D.inverse(), np.array([1.0, 3.0, -2.0])),
         ("sweep_slab", _lc(sn, sig_t).inverse(), _sn_composite(sn)),
@@ -1080,7 +1080,7 @@ def test_the_inverse_of_a_multiplier_inherits_its_adjoint_posing() -> None:
     y = np.array([1.0, 3.0, -2.0])
     if not np.array_equal(IdentityOperator().inverse().H.apply(y), y):
         pytest.fail("(I⁻¹)ᴴ is not the identity")
-    inv = DiagonalOperator(d).inverse()
+    inv = DiagonalOperator(d, shape=(3,), spans=(0,)).inverse()
     with pytest.raises(MissingAdjoint, match="UNBOUND"):
         _ = inv.H
     got = inv.dual().apply(y)
@@ -1101,7 +1101,7 @@ def test_a_converged_first_partial_sum_is_returned_unswept() -> None:
             calls[0] += 1
             return super().solve(b_vec)
 
-    D = _CountingDiagonal(np.array([2.0, 3.0, 4.0, 5.0]))
+    D = _CountingDiagonal(np.array([2.0, 3.0, 4.0, 5.0]), shape=(4,), spans=(0,))
     gain = 3e-12 * PermutationOperator(np.array([1, 2, 3, 0]))
     green = GreenOperator(D, gain, max_iter=10, tol=1e-10)
     green.apply(np.array([1.0, -2.0, 0.5, 3.0]))

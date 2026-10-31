@@ -666,6 +666,41 @@ class FunctionSpace(Generic[Carrier]):
             raise TypeError(f"with_axis: {self!r} is not axis-built (axes is None)")
         return FunctionSpace.of_axes(*self.axes, axis)._with_overlay(self._overlay_forms() + (None,))
 
+    def positions_spanned_by(self, sub: "FunctionSpace") -> tuple[int, ...]:
+        r"""The array positions of this space that the factors of ``sub`` occupy, read by axis label.
+
+        ``sub`` is a sub-product of this space's axes, in this space's order;
+        an operator acting on it acts on this space as :math:`A \otimes I`
+        on the other positions, and these are the positions :math:`A` acts
+        on. An axis may span several array positions (a 2-D spatial mesh),
+        so the answer is in array positions, not axis indices. Read BY LABEL
+        (ERR-119), never by position: a space built without labelled axes
+        cannot say which of its positions a factor occupies, and is refused
+        rather than guessed (the user's ruling, 2026-10-20).
+        """
+        if self.axes is None or sub.axes is None:
+            unlabelled = self if self.axes is None else sub
+            raise TypeError(
+                f"positions_spanned_by: the space {unlabelled!r} is not built from "
+                f"labelled axes, so the positions {sub!r} spans cannot be read off "
+                f"{self!r}. Compose the space with FunctionSpace.of_axes."
+            )
+        labels = tuple(axis.label for axis in sub.axes)
+        ordered = tuple(axis.label for axis in self.axes if axis.label in labels)
+        if ordered != labels:
+            raise ValueError(
+                f"positions_spanned_by: {sub!r} (axes {labels}) is not a sub-product, "
+                f"in order, of {self!r} (axes {tuple(a.label for a in self.axes)})."
+            )
+        positions: list[int] = []
+        dimension = 0
+        for axis in self.axes:
+            rank = len(axis.shape)
+            if axis.label in labels:
+                positions.extend(range(dimension, dimension + rank))
+            dimension += rank
+        return tuple(positions)
+
     # ------------------------------------------------------------------
     # Inner product / norm
     # ------------------------------------------------------------------

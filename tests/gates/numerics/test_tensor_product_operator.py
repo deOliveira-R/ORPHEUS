@@ -48,8 +48,8 @@ class TestTensorProductApply:
     def test_two_diagonals_disjoint_axes(self):
         wA = np.array([2.0, 3.0])           # axis 0
         wB = np.array([5.0, 7.0, 11.0])     # axis 1
-        D_a = DiagonalOperator(wA, axis=0)
-        D_b = DiagonalOperator(wB, axis=1)
+        D_a = DiagonalOperator(wA, shape=(2, 3), spans=(0,))
+        D_b = DiagonalOperator(wB, shape=(2, 3), spans=(1,))
         T = D_a & D_b
         assert isinstance(T, TensorProductOperator)
         assert T.ops == (D_a, D_b)
@@ -63,9 +63,9 @@ class TestTensorProductApply:
         wB = np.array([3.0, 4.0])
         wC = np.array([5.0, 6.0])
         T = (
-            DiagonalOperator(wA, axis=0)
-            & DiagonalOperator(wB, axis=1)
-            & DiagonalOperator(wC, axis=2)
+            DiagonalOperator(wA, shape=(2, 2, 2), spans=(0,))
+            & DiagonalOperator(wB, shape=(2, 2, 2), spans=(1,))
+            & DiagonalOperator(wC, shape=(2, 2, 2), spans=(2,))
         )
         assert len(T.ops) == 3
         x = np.ones((2, 2, 2))
@@ -75,7 +75,7 @@ class TestTensorProductApply:
 
     def test_identity_factor_is_no_op(self):
         wA = np.array([2.0, 3.0])
-        T = DiagonalOperator(wA, axis=0) & IdentityOperator()
+        T = DiagonalOperator(wA, shape=(2, 4), spans=(0,)) & IdentityOperator()
         x = np.ones((2, 4))
         np.testing.assert_array_equal(T.apply(x), wA[:, None] * np.ones((2, 4)))
 
@@ -84,7 +84,7 @@ class TestTensorProductApply:
         rng = np.random.default_rng(seed=99)
         wA = rng.standard_normal(4)
         wB = rng.standard_normal(5)
-        T = DiagonalOperator(wA, axis=0) & DiagonalOperator(wB, axis=1)
+        T = DiagonalOperator(wA, shape=(4, 5), spans=(0,)) & DiagonalOperator(wB, shape=(4, 5), spans=(1,))
         x = rng.standard_normal((4, 5))
         expected = np.einsum("a,b,ab->ab", wA, wB, x)
         np.testing.assert_allclose(T.apply(x), expected, rtol=1e-15)
@@ -111,8 +111,8 @@ class TestTensorProductPredicates:
         """Rewired at carve P4: ``TensorProductOperator.solve`` retired
         (algebra-closed inverse ``(A⊗B)⁻¹ = A⁻¹⊗B⁻¹``); solving is
         ``.inverse().apply`` — same round-trip value, same tolerance."""
-        D1 = DiagonalOperator(np.array([1.0, 2.0]), axis=0)
-        D2 = DiagonalOperator(np.array([3.0, 4.0]), axis=1)
+        D1 = DiagonalOperator(np.array([1.0, 2.0]), shape=(2, 2), spans=(0,))
+        D2 = DiagonalOperator(np.array([3.0, 4.0]), shape=(2, 2), spans=(1,))
         T = D1 & D2
         assert T.is_invertible
         assert not hasattr(T, "solve")  # retired at carve P4
@@ -122,8 +122,8 @@ class TestTensorProductPredicates:
         np.testing.assert_allclose(T.inverse().apply(T.apply(x)), x, rtol=1e-13)
 
     def test_inverse_revoked_by_zero_weight_factor(self):
-        D_zero = DiagonalOperator(np.array([1.0, 0.0]), axis=0)
-        D_ok = DiagonalOperator(np.array([2.0, 3.0]), axis=1)
+        D_zero = DiagonalOperator(np.array([1.0, 0.0]), shape=(2, 2), spans=(0,))
+        D_ok = DiagonalOperator(np.array([2.0, 3.0]), shape=(2, 2), spans=(1,))
         T = D_zero & D_ok
         assert not T.is_invertible
         with pytest.raises(NotInvertible, match="every factor"):
@@ -137,8 +137,8 @@ class TestTensorProductAdjoint:
     def test_adjoint_distributivity_diagonals(self):
         wA = np.array([2.0, 3.0])
         wB = np.array([5.0, 7.0])
-        D_a = DiagonalOperator(wA, axis=0)
-        D_b = DiagonalOperator(wB, axis=1)
+        D_a = DiagonalOperator(wA, shape=(2, 2), spans=(0,))
+        D_b = DiagonalOperator(wB, shape=(2, 2), spans=(1,))
         T = D_a & D_b
         x = np.array([[1.0, 1.0], [1.0, 1.0]])
         # Diagonals are self-adjoint; (D_a ⊗ D_b)^T = D_a ⊗ D_b
@@ -150,17 +150,17 @@ class TestTensorProductFlattening:
     """L0: ``__and__`` flattens nested products."""
 
     def test_left_associativity_flattens(self):
-        D1 = DiagonalOperator(np.array([1.0, 2.0]), axis=0)
-        D2 = DiagonalOperator(np.array([3.0, 4.0]), axis=1)
-        D3 = DiagonalOperator(np.array([5.0, 6.0]), axis=2)
+        D1 = DiagonalOperator(np.array([1.0, 2.0]), shape=(2, 2, 2), spans=(0,))
+        D2 = DiagonalOperator(np.array([3.0, 4.0]), shape=(2, 2, 2), spans=(1,))
+        D3 = DiagonalOperator(np.array([5.0, 6.0]), shape=(2, 2, 2), spans=(2,))
         T = (D1 & D2) & D3
         assert len(T.ops) == 3
         assert T.ops == (D1, D2, D3)
 
     def test_right_associativity_flattens(self):
-        D1 = DiagonalOperator(np.array([1.0, 2.0]), axis=0)
-        D2 = DiagonalOperator(np.array([3.0, 4.0]), axis=1)
-        D3 = DiagonalOperator(np.array([5.0, 6.0]), axis=2)
+        D1 = DiagonalOperator(np.array([1.0, 2.0]), shape=(2, 2, 2), spans=(0,))
+        D2 = DiagonalOperator(np.array([3.0, 4.0]), shape=(2, 2, 2), spans=(1,))
+        D3 = DiagonalOperator(np.array([5.0, 6.0]), shape=(2, 2, 2), spans=(2,))
         T = D1 & (D2 & D3)
         assert len(T.ops) == 3
         assert T.ops == (D1, D2, D3)
@@ -330,10 +330,10 @@ class TestSumOfTensorProducts:
     the zero map, ``test_linear_combination.py`` c09)."""
 
     def test_sum_of_two_separable_terms(self):
-        D_a = DiagonalOperator(np.array([2.0, 3.0]), axis=0)
-        D_b = DiagonalOperator(np.array([5.0, 7.0]), axis=1)
-        D_c = DiagonalOperator(np.array([11.0, 13.0]), axis=0)
-        D_d = DiagonalOperator(np.array([17.0, 19.0]), axis=1)
+        D_a = DiagonalOperator(np.array([2.0, 3.0]), shape=(2, 2), spans=(0,))
+        D_b = DiagonalOperator(np.array([5.0, 7.0]), shape=(2, 2), spans=(1,))
+        D_c = DiagonalOperator(np.array([11.0, 13.0]), shape=(2, 2), spans=(0,))
+        D_d = DiagonalOperator(np.array([17.0, 19.0]), shape=(2, 2), spans=(1,))
         S = (D_a & D_b) + (D_c & D_d)
         assert isinstance(S, OperatorSum)
         x = np.ones((2, 2))
@@ -347,8 +347,8 @@ class TestSumOfTensorProducts:
         """A sum of two tensor products is not invertible (sum-of-inverses !=
         inverse-of-sum) and carries no ``solve``; since S2 its ``inverse()``
         exists and refuses (ruling 50: name the split)."""
-        D_a = DiagonalOperator(np.array([1.0, 2.0]), axis=0)
-        D_b = DiagonalOperator(np.array([3.0, 4.0]), axis=1)
+        D_a = DiagonalOperator(np.array([1.0, 2.0]), shape=(2, 2), spans=(0,))
+        D_b = DiagonalOperator(np.array([3.0, 4.0]), shape=(2, 2), spans=(1,))
         S = (D_a & D_b) + (D_b & D_a)
         assert not S.is_invertible
         assert not hasattr(S, "solve")
@@ -356,9 +356,9 @@ class TestSumOfTensorProducts:
             S.inverse()
 
     def test_apply_transpose_propagates(self):
-        D_a = DiagonalOperator(np.array([2.0, 3.0]), axis=0)
-        D_b = DiagonalOperator(np.array([5.0, 7.0]), axis=1)
-        D_c = DiagonalOperator(np.array([11.0, 13.0]), axis=0)
+        D_a = DiagonalOperator(np.array([2.0, 3.0]), shape=(2, 2), spans=(0,))
+        D_b = DiagonalOperator(np.array([5.0, 7.0]), shape=(2, 2), spans=(1,))
+        D_c = DiagonalOperator(np.array([11.0, 13.0]), shape=(2, 2), spans=(0,))
         # TWO terms: since S2 a one-term sum IS its tensor product (collapse).
         S = (D_a & D_b) + (D_c & D_b)
         x = np.ones((2, 2))

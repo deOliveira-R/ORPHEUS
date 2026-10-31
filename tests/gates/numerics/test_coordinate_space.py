@@ -22,6 +22,7 @@ import pytest
 
 from orpheus.numerics import coordinate_space as cs
 from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis
+from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics import frame_faces
 from orpheus.numerics.frame import GalerkinFrame
@@ -257,3 +258,72 @@ class TestABoundFaceParsesAtItsEnds:
         other = FunctionSpace(name="other", shape=op.domain.shape)
         with pytest.raises(ValueError, match="not a member of"):
             op.apply(Member(values=coefficients, space=other))
+
+
+class TestAnEngineIsMintedWithItsDomainShape:
+    """``DiagonalOperator`` is minted with its domain shape and the positions its coefficient spans (the user's ruling
+    N1: one placement, fixed when the operator is built). First red before U1b: the engine checked only the operand's
+    RANK, and the SN collision engine took (8, 2, 1) and (1, 2, 12) for (8, 2, 12), silently, with asserts on as well
+    (the explorer's ``probe_O.log`` and ``probe_debug.log``)."""
+
+    def test_the_engine_refuses_every_broadcastable_non_member(self):
+        D = DiagonalOperator(np.ones((2, 12)), shape=(8, 2, 12), spans=(1, 2))
+        for bad in [(8, 2, 1), (1, 2, 12), (2, 12)]:
+            with pytest.raises(cs.NotInCoordinateSpace, match=EXACT):
+                D.apply(np.ones(bad))
+            with pytest.raises(cs.NotInCoordinateSpace, match=EXACT):
+                D.solve(np.ones(bad))
+
+    def test_the_placement_is_a_view_and_the_multiply_is_unchanged(self):
+        """The engine stores the coefficient expanded on the positions it does not span, once (a view, no copy), so
+        its action is the elementwise product the per-call broadcast computed: ``array_equal``."""
+        c = np.arange(1.0, 25.0).reshape(2, 12)
+        D = DiagonalOperator(c, shape=(8, 2, 12), spans=(1, 2))
+        x = np.random.default_rng(0).random((8, 2, 12))
+        np.testing.assert_array_equal(D.apply(x), np.expand_dims(c, (0,)) * x)
+        np.testing.assert_array_equal(D.solve(x), x / np.expand_dims(c, (0,)))
+        assert np.shares_memory(D.placed_coefficient, c)
+        assert D.broadcast_axes == (0,)
+
+    def test_a_one_position_weight_is_the_placement_k(self):
+        """The former 1-D ``axis`` mode is the placement ``spans=(k,)`` on a fixed shape."""
+        w = np.array([1.0, 2.0, 3.0])
+        D = DiagonalOperator(w, shape=(4, 3), spans=(1,))
+        x = np.ones((4, 3))
+        np.testing.assert_array_equal(D.apply(x), np.broadcast_to(w, (4, 3)))
+        with pytest.raises(cs.NotInCoordinateSpace, match=EXACT):
+            D.apply(np.ones((4, 3, 2)))  # the rank-agnostic admission is gone
+
+    @pytest.mark.parametrize(
+        "coefficient_shape, spans",
+        [((3,), (0,)), ((2, 12), (0, 1)), ((2, 12), (2, 1)), ((2,), (1, 2))],
+        ids=["wrong-extent", "wrong-positions", "not-increasing", "rank-mismatch"],
+    )
+    def test_a_coefficient_that_does_not_fill_its_positions_is_refused_when_built(self, coefficient_shape, spans):
+        with pytest.raises(ValueError, match="DiagonalOperator"):
+            DiagonalOperator(np.ones(coefficient_shape), shape=(8, 2, 12), spans=spans)
+
+
+class TestThePlacementIsReadByLabel:
+    """D2: an operator acting on a sub-product acts as ``A ⊗ I`` on the other axes, and the positions it acts on are
+    read off the bound spaces by axis label (ERR-119), never by position."""
+
+    def test_the_positions_are_read_by_label(self):
+        ordinates = Axis("ordinate", (8,), weights=np.ones(8), origin=Declared(BasisKind.NODAL))
+        cells = Axis("spatial", (12,), weights=np.ones(12), origin=Declared(BasisKind.NODAL))
+        bulk = FunctionSpace.of_axes(ordinates, _E, cells)
+        cross_section_space = FunctionSpace.of_axes(_E, cells)
+        assert bulk.positions_spanned_by(cross_section_space) == (1, 2)
+        assert bulk.positions_spanned_by(bulk) == (0, 1, 2)
+
+    def test_an_unlabelled_space_cannot_say_which_positions(self):
+        with pytest.raises(TypeError, match="not built from labelled axes"):
+            FunctionSpace(name="x", shape=(2, 12)).positions_spanned_by(V)
+
+    def test_a_factor_out_of_order_is_not_a_sub_product(self):
+        """The coefficient's axes map, in order, onto increasing positions, so a sub-space whose labels run in
+        another order would place a transposed coefficient; it is refused."""
+        cells = Axis("spatial", (12,), weights=np.ones(12), origin=Declared(BasisKind.NODAL))
+        bulk = FunctionSpace.of_axes(_E, cells)
+        with pytest.raises(ValueError, match="not a sub-product"):
+            bulk.positions_spanned_by(FunctionSpace.of_axes(cells, _E))

@@ -51,7 +51,7 @@ _X54 = _RNG.standard_normal((5, 4))
 
 def _rows():
     """(name, A, closed_form_inverse, x, nulp) registry — §12.1."""
-    diag = DiagonalOperator(_C7)
+    diag = DiagonalOperator(_C7, shape=(7,), spans=(0,))
     perm = PermutationOperator(_P7)
     return [
         ("diagonal", diag, lambda q: q / _C7, _X7, 2),
@@ -77,7 +77,7 @@ def _rows():
         (
             "tensor_diag_perm",
             TensorProductOperator(
-                (DiagonalOperator(_C5, axis=0), PermutationOperator(_P4, axis=1))
+                (DiagonalOperator(_C5, shape=(5, 4), spans=(0,)), PermutationOperator(_P4, axis=1))
             ),
             lambda q: np.take(q / _C5[:, None], np.argsort(_P4), axis=1),
             _X54,
@@ -128,7 +128,7 @@ def test_i1_inverse_apply_is_solve_bit_identical(name, A, closed, x, nulp):
 
 def test_i2_scaled():
     """(αA)⁻¹ = (1/α)·A⁻¹ as an action equality (§12.2)."""
-    D = DiagonalOperator(_C7)
+    D = DiagonalOperator(_C7, shape=(7,), spans=(0,))
     lhs = (_ALPHA * D).inverse().apply(_X7)
     rhs = (1.0 / _ALPHA) * D.inverse().apply(_X7)
     np.testing.assert_array_almost_equal_nulp(lhs, rhs, nulp=2)
@@ -136,7 +136,7 @@ def test_i2_scaled():
 
 def test_i2_product_reversed():
     """(AB)⁻¹ = B⁻¹A⁻¹ on a NON-commuting pair (§12.2 — order-swap teeth)."""
-    D, P = DiagonalOperator(_C7), PermutationOperator(_P7)
+    D, P = DiagonalOperator(_C7, shape=(7,), spans=(0,)), PermutationOperator(_P7)
     lhs = (D @ P).inverse().apply(_X7)
     rhs = P.inverse().apply(D.inverse().apply(_X7))
     np.testing.assert_array_almost_equal_nulp(lhs, rhs, nulp=2)
@@ -144,7 +144,7 @@ def test_i2_product_reversed():
 
 def test_i2_involution_per_type():
     """(A⁻¹)⁻¹ = A, in each type's OWN strongest form (§12.0/§12.2)."""
-    D = DiagonalOperator(_C7)
+    D = DiagonalOperator(_C7, shape=(7,), spans=(0,))
     assert D.inverse().inverse() is D  # InverseOperator: OBJECT identity
     P = PermutationOperator(_P7)
     np.testing.assert_array_equal(P.inverse().inverse().perm, P.perm)  # exact
@@ -163,17 +163,17 @@ def test_i2_involution_per_type():
 def test_singular_diagonal_inverse_raises():
     """NEGATIVE control — TRUE zero (1e-300 would pass the != 0 gate) §12.4."""
     with pytest.raises(NotInvertible, match="zero entry"):
-        DiagonalOperator(np.array([2.0, 0.0, 0.5])).inverse()
+        DiagonalOperator(np.array([2.0, 0.0, 0.5]), shape=(3,), spans=(0,)).inverse()
 
 
 def test_product_with_singular_factor_inverse_raises():
     with pytest.raises(NotInvertible, match="invertible"):
-        (DiagonalOperator(np.array([1.0, 0.0, 2.0])) @ IdentityOperator()).inverse()
+        (DiagonalOperator(np.array([1.0, 0.0, 2.0]), shape=(3,), spans=(0,)) @ IdentityOperator()).inverse()
 
 
 def test_inverse_operator_ctor_guards_singular_inner():
     with pytest.raises(NotInvertible, match="invertible"):
-        InverseOperator(DiagonalOperator(np.array([1.0, 0.0])))
+        InverseOperator(DiagonalOperator(np.array([1.0, 0.0]), shape=(2,), spans=(0,)))
 
 
 def test_a_sum_has_no_inverse_its_split_has_a_green():
@@ -184,7 +184,7 @@ def test_a_sum_has_no_inverse_its_split_has_a_green():
     own forward."""
     from orpheus.numerics.green_operator import GreenOperator
 
-    D, N = DiagonalOperator(_C7), 0.25 * PermutationOperator(_P7)
+    D, N = DiagonalOperator(_C7, shape=(7,), spans=(0,)), 0.25 * PermutationOperator(_P7)
     s = D - N
     with pytest.raises(NotInvertible, match="GreenOperator\\(M, N\\)"):
         s.inverse()
@@ -207,7 +207,7 @@ def test_matrix_inverse_operator_universal_roundtrip():
     a dispatch pin now would be a phantom."""
     from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 
-    A = DiagonalOperator(_C7)
+    A = DiagonalOperator(_C7, shape=(7,), spans=(0,))
     minv = MatrixInverseOperator(A, basis_shape=(7,))
     np.testing.assert_allclose(minv.apply(A.apply(_X7)), _X7, atol=1e-12)
     np.testing.assert_allclose(minv.apply(_X7), _X7 / _C7, atol=1e-12)  # closed form
@@ -221,7 +221,7 @@ def test_product_inverse_accepts_seeded_apply():
     ``InverseOperator``'s mixin ``apply(x, /, *, initial_guess=None)``).
     The equality is the designed-green accept-and-ignore proof — the seed
     changes nothing, exactly like the exact leaves."""
-    D, P = DiagonalOperator(_C7), PermutationOperator(_P7)
+    D, P = DiagonalOperator(_C7, shape=(7,), spans=(0,)), PermutationOperator(_P7)
     inv = (D @ P).inverse()
     q = _RNG.standard_normal(7)
     out = inv.apply(q, initial_guess=q)  # <-- TypeError pre-#285
@@ -237,7 +237,7 @@ def test_product_inverse_value_and_involution():
     reddens. Reference spelled through the factors' canonical inverses
     (carve P4: Permutation.solve retired; ``P.inverse().apply`` is the
     SAME integer gather, bit-identical)."""
-    D, P = DiagonalOperator(_C7), PermutationOperator(_P7)
+    D, P = DiagonalOperator(_C7, shape=(7,), spans=(0,)), PermutationOperator(_P7)
     prod = D @ P
     inv = prod.inverse()
     assert type(inv) is InverseOperator  # the generic member, not a raw product
@@ -258,7 +258,7 @@ def test_algebra_closed_inverses_unchanged():
     assert type(IdentityOperator().inverse()) is IdentityOperator
     # S2: (2D)⁻¹ is the one-term combination ½·D⁻¹ (ruling 51), equal to the
     # same combination spelled directly (the inverse arrow keyed by its inner).
-    scaled = 2.0 * DiagonalOperator(_C7)
+    scaled = 2.0 * DiagonalOperator(_C7, shape=(7,), spans=(0,))
     assert type(scaled.inverse()) is OperatorSum
     assert scaled.inverse() == 0.5 * scaled.terms[0][1].inverse()
 

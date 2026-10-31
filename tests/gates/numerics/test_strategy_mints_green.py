@@ -158,7 +158,7 @@ def test_g4f_the_seed_capability_is_one_named_predicate():
     _require("isinstance" not in names, "seeded_inverse branches by isinstance inline (Q1)")
     _require("accepts_seed" in names, f"seeded_inverse does not read the named predicate; calls {names}")
     pred = iteration_mod.accepts_seed
-    d = DiagonalOperator(np.array([1.0, 2.0, 4.0, 8.0]))
+    d = DiagonalOperator(np.array([1.0, 2.0, 4.0, 8.0]), shape=(4,), spans=(0,))
     _require(pred(d.inverse()) is True, "a wrap member must accept a seed")
     _require(pred((_ALPHA * d).inverse()) is True, "(2D)⁻¹ must accept a seed")
     _require(pred(IdentityOperator().inverse()) is False, "I⁻¹ has no seed slot")

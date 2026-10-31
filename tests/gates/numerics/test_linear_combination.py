@@ -434,7 +434,7 @@ def test_c38_the_zero_of_pointwise_terms_is_the_pointwise_zero(ABC):
     ``ScaledOperator(0, I)`` refuses. Mutation: POINTWISE_ZERO_REFUSES."""
     A, _, _ = ABC
     I = IdentityOperator()
-    D = DiagonalOperator(np.array([1.0, 2.0, 3.0, 4.0]))
+    D = DiagonalOperator(np.array([1.0, 2.0, 3.0, 4.0]), shape=(4,), spans=(0,))
     for z in (0.0 * I, I - I, D - D):
         assert isinstance(z, ZeroOperator)
     z = (D + A) - (D + A)
@@ -563,8 +563,8 @@ def test_c18_identity_factors_are_kept_and_pointwise_ends_resolve(chain):
     I = IdentityOperator()
     w = A @ I
     assert w is not A and _factors(w) == (A, I)
-    D = DiagonalOperator(np.array([1.0, 2.0, 3.0, 4.0, 5.0]))
-    D1 = DiagonalOperator(np.array([1.0, 2.0, 3.0]))
+    D = DiagonalOperator(np.array([1.0, 2.0, 3.0, 4.0, 5.0]), shape=(5,), spans=(0,))
+    D1 = DiagonalOperator(np.array([1.0, 2.0, 3.0]), shape=(3,), spans=(0,))
     assert (D @ A).codomain == A.codomain and (D @ A).domain == A.domain
     assert (A @ B @ D1).domain == B.domain
     assert (D @ A @ B @ D1).codomain == A.codomain
@@ -688,7 +688,7 @@ def test_c25_spaceless_term_adjoint_is_taken_at_the_combinations_spaces():
     route holds to 2.1e-16 relative, the naive ``D.H + A.H`` misses by
     1.26e-3. Green today; red under ADJ_NAIVE."""
     A = Mat(_rng(51).standard_normal((3, 3)), VD, VD)
-    D = DiagonalOperator(np.array([1.0, 2.0, 3.0]))
+    D = DiagonalOperator(np.array([1.0, 2.0, 3.0]), shape=(3,), spans=(0,))
     S = D + A
     r = _rng(52)
     x, y = r.standard_normal(3), r.standard_normal(3)
@@ -708,7 +708,7 @@ def test_c26_involution_equality_on_a_sum_identity_on_a_leaf(ABC):
     assert S.H.H == S
     assert A.H.H is A
     Ad = Mat(_rng(53).standard_normal((3, 3)), VD, VD)
-    D = DiagonalOperator(np.array([1.0, 2.0, 3.0]))
+    D = DiagonalOperator(np.array([1.0, 2.0, 3.0]), shape=(3,), spans=(0,))
     assert (D + Ad).H.H == D + Ad
 
 

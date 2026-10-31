@@ -787,10 +787,10 @@ def _reroute_fixtures():
 
     rng = np.random.default_rng(2860)
     q = rng.standard_normal(7)
-    D1 = DiagonalOperator(np.array([2.0, 0.5, 4.0, 1.25, 8.0, 0.25, 5.0]))
-    D2 = DiagonalOperator(np.array([3.0, 0.75, 1.5, 6.0, 0.375, 2.25, 9.0]))
+    D1 = DiagonalOperator(np.array([2.0, 0.5, 4.0, 1.25, 8.0, 0.25, 5.0]), shape=(7,), spans=(0,))
+    D2 = DiagonalOperator(np.array([3.0, 0.75, 1.5, 6.0, 0.375, 2.25, 9.0]), shape=(7,), spans=(0,))
     P3 = PermutationOperator(np.array([2, 0, 1, 4, 5, 3, 6]))  # NON-involution
-    DS = DiagonalOperator(np.full(7, 0.3))
+    DS = DiagonalOperator(np.full(7, 0.3), shape=(7,), spans=(0,))
     return q, D1, D2, P3, DS
 
 

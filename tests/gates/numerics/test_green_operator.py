@@ -87,7 +87,7 @@ def _split():
     """``A = D − αP``: the implicit part ``D`` (an invertible diagonal), the
     lagged part ``N = αP`` (non-symmetric), the forward ``A`` and its dense
     matrix."""
-    D = DiagonalOperator(_D_DIAG)
+    D = DiagonalOperator(_D_DIAG, shape=(4,), spans=(0,))
     N = _ALPHA * PermutationOperator(_P4)
     A = D - N
     A_dense = np.diag(_D_DIAG) - _ALPHA * _perm_matrix(_P4)
@@ -159,7 +159,7 @@ def test_g_neumann_partial_sums():
     exact 4-cycle contraction, not a fuzzy successive-ratio band)."""
     D, N, _, A_dense = _split()
     green = _green_of(D, N)
-    D_inv = DiagonalOperator(_D_DIAG).inverse()
+    D_inv = DiagonalOperator(_D_DIAG, shape=(4,), spans=(0,)).inverse()
     N = _ALPHA * PermutationOperator(_P4)  # rebuilt independently of the Green's
 
     term = D_inv.apply(_Q)          # k = 0
@@ -194,7 +194,7 @@ def test_g_reciprocity_euclidean_transposed_operands():
     oracle; ``A`` is non-symmetric so the identity is not vacuous."""
     D, N, _, _ = _split()
     N_T = _ALPHA * PermutationOperator(np.argsort(_P4))
-    gA, gAT = _green_of(D, N), _green_of(DiagonalOperator(_D_DIAG), N_T)
+    gA, gAT = _green_of(D, N), _green_of(DiagonalOperator(_D_DIAG, shape=(4,), spans=(0,)), N_T)
     for seed in (1, 2, 3):
         rng = np.random.default_rng(seed)
         phi1, phi2 = rng.standard_normal(4), rng.standard_normal(4)
@@ -211,9 +211,9 @@ def test_three_term_split_hands_each_lagged_term_as_a_gain():
     driver's gains, in N's insertion order — anchored against the 3-term
     dense LU. RE-POSED at S2 from the left-spine flatten of ``(D − N₁) − N₂``
     (the walk is gone, ruling 50)."""
-    D = DiagonalOperator(_D_DIAG)
+    D = DiagonalOperator(_D_DIAG, shape=(4,), spans=(0,))
     N1 = PermutationOperator(_P4)
-    N2 = DiagonalOperator(np.full(4, 0.5))
+    N2 = DiagonalOperator(np.full(4, 0.5), shape=(4,), spans=(0,))
     A_dense = (
         np.diag(_D_DIAG) - _perm_matrix(_P4) - np.diag(np.full(4, 0.5))
     )
@@ -229,7 +229,7 @@ def test_divergent_split_raises_loudly_convergent_control_does_not():
     """§22.2: ``ρ(D⁻¹N) > 1`` (the C+L trap's L0 analog) raises
     :class:`ConvergenceFailure`; the convergent control MUST NOT raise (a
     bare raises-gate with no control is Mode-10 blind)."""
-    D = DiagonalOperator(_D_DIAG)
+    D = DiagonalOperator(_D_DIAG, shape=(4,), spans=(0,))
     # A = D + 8P, i.e. the split M = D, N = −8P (ρ ≈ 1.49).
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -253,8 +253,8 @@ def test_near_critical_increment_lies_true_residual_governs():
     refinement MEET the true promise (the positive control that the
     promise is driven, not merely checked)."""
     n = 6
-    D = DiagonalOperator(np.full(n, 1.0))
-    N = DiagonalOperator(np.full(n, 0.99))
+    D = DiagonalOperator(np.full(n, 1.0), shape=(n,), spans=(0,))
+    N = DiagonalOperator(np.full(n, 0.99), shape=(n,), spans=(0,))
     q = _RNG.uniform(1.0, 2.0, n)
     A_dense = np.diag(np.full(n, 1.0)) - np.diag(np.full(n, 0.99))
 
@@ -314,7 +314,7 @@ def test_a_non_invertible_implicit_part_refuses_at_construction():
     naming the part's type. (Until S2 the refusal read the sum's leading
     term, "canonical ordering"; ``ZeroOperator() + D`` is now ``D`` itself.)"""
     with pytest.raises(NotInvertible, match="invertible implicit part M.*ZeroOperator"):
-        GreenOperator(ZeroOperator(), DiagonalOperator(_D_DIAG))
+        GreenOperator(ZeroOperator(), DiagonalOperator(_D_DIAG, shape=(4,), spans=(0,)))
 
 
 def test_tol_zero_is_unsatisfiable():

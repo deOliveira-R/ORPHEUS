@@ -119,7 +119,7 @@ class TestLawEachSpectralMapReadsThePencilsEigenvalue:
         problem = HomogeneousProblem(get_mixture("A", "2g"))
         prompt = OperatorPencil(problem.loss, problem.production).at(1.0)
         inverse_speed = 1.0 / np.array([3.0, 1.0])  # fast, thermal (any unit)
-        T = DiagonalOperator(inverse_speed.reshape(-1, 1), broadcast_axes=())
+        T = DiagonalOperator(inverse_speed, shape=(2, 1), spans=(0,))
         A = np.asarray(prompt.as_matrix(), dtype=float)
         mus, vecs = np.linalg.eig(np.linalg.solve(np.diag(inverse_speed), A))
         i = int(np.argmin(np.real(mus)))  # the fundamental mode: the largest α

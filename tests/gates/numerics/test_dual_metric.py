@@ -573,7 +573,7 @@ def test_Q1_a_bound_composite_with_a_pointwise_term_on_a_dense_metric(shape):
     here only as the family's control row; drop at landing if c25 is cited)."""
     rng = np.random.default_rng(51)
     A = _Rect(_VD, _VD, rng.standard_normal((3, 3)))
-    D = DiagonalOperator(np.array([1.0, 2.0, 3.0]))
+    D = DiagonalOperator(np.array([1.0, 2.0, 3.0]), shape=(3,), spans=(0,))
     S = {"D@A": lambda: D @ A, "A@D": lambda: A @ D, "2D@A+A": lambda: 2.0 * (D @ A) + A, "D+A": lambda: D + A}[shape]()
     x, y = rng.standard_normal(3), rng.standard_normal(3)
     lhs, rhs = _wip(_VD, S.apply(x), y), _wip(_VD, x, S.H.apply(y))
@@ -606,7 +606,7 @@ def test_Q2b_a_field_multiplier_has_no_spaceless_adjoint():
     adjoint is taken at the composite's ends (Q1). First red: the pre-review
     ``PointwiseOperator.adjoint`` returning self."""
     d = np.array([1.0, 2.0, 3.0])
-    D = DiagonalOperator(d)
+    D = DiagonalOperator(d, shape=(3,), spans=(0,))
     _require(not isinstance(D, op_mod.ConstantMultiplier), "DiagonalOperator is a ConstantMultiplier")
     _require(D.is_metric_free_adjoint is False, "a field multiplier claims a metric-free adjoint")
     with pytest.raises(op_mod.MissingAdjoint, match="UNBOUND"):

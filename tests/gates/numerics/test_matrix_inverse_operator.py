@@ -164,7 +164,7 @@ def test_as_matrix_diagonal_exact():
     """§28.1 ASM-STRUCTURED: apply-to-basis gathers single columns with no
     accumulation → BIT-exact against the hand-built matrix."""
     np.testing.assert_array_equal(
-        DiagonalOperator(_C4).as_matrix(basis_shape=(4,)), np.diag(_C4),
+        DiagonalOperator(_C4, shape=(4,), spans=(0,)).as_matrix(basis_shape=(4,)), np.diag(_C4),
         err_msg="as_matrix(Diagonal) ≠ diag(c)",
     )
 
@@ -343,7 +343,7 @@ def test_basis_shape_none_domain_raises_valueerror():
     """§29.1/§27.C: NEITHER domain NOR basis_shape → ``ValueError`` naming
     both remedies. Class-discriminated: this is the ILL-POSED arm
     (``ValueError``), NOT the resource-refused arm (``MatrixTooLarge``)."""
-    bare = DiagonalOperator(np.array([1.0, 2.0]))
+    bare = DiagonalOperator(np.array([1.0, 2.0]), shape=(2,), spans=(0,))
     assert bare.domain is None  # fixture verification: a genuine None-domain leaf
     with pytest.raises(ValueError, match="basis_shape") as excinfo:
         bare.as_matrix()
@@ -388,7 +388,7 @@ def test_minv_roundtrip_and_closed_form():
     """§30.1 MINV-I1: round-trip both ways + the HAND-built closed form
     (diag(1/c) — structurally independent of as_matrix; §30.0 caveat), at
     machine·cond grain."""
-    A = DiagonalOperator(_C4)
+    A = DiagonalOperator(_C4, shape=(4,), spans=(0,))
     minv = MatrixInverseOperator(A, basis_shape=(4,))
     q = _RNG.standard_normal(4)
     tol = 32 * _EPS * _COND4
@@ -403,7 +403,7 @@ def test_minv_roundtrip_and_closed_form():
 
 def test_minv_involution_is_object_identity():
     """§30.2 MINV-I2: (A⁻¹)⁻¹ IS the wrapped forward (mixin back-half)."""
-    A = DiagonalOperator(_C4)
+    A = DiagonalOperator(_C4, shape=(4,), spans=(0,))
     assert MatrixInverseOperator(A, basis_shape=(4,)).inverse() is A
 
 
@@ -417,7 +417,7 @@ def test_minv_materialise_at_machine_grain_with_green_contrast():
     invariant is DISTINGUISHING, not merely satisfied; its sanity leg
     (driver-tol satisfaction) is a designed-green proving the Green works.
     """
-    A = DiagonalOperator(_C4)
+    A = DiagonalOperator(_C4, shape=(4,), spans=(0,))
     minv = MatrixInverseOperator(A, basis_shape=(4,))
     mach = 64 * _EPS * _COND4
     Ainv_mat, A_mat = minv.as_matrix(), A.as_matrix(basis_shape=(4,))
@@ -460,7 +460,7 @@ def test_minv_direct_residual_and_seed_bit_identity():
     q = _RNG.standard_normal(4)
     junk = _RNG.standard_normal(4) * 1e6  # non-zero, ≠ q (§0.6)
 
-    A = DiagonalOperator(_C4)
+    A = DiagonalOperator(_C4, shape=(4,), spans=(0,))
     minv = MatrixInverseOperator(A, basis_shape=(4,))
     resid = np.linalg.norm(np.asarray(A.apply(minv.apply(q))).ravel() - q)
     assert resid <= 32 * _EPS * _COND4 * np.linalg.norm(q), (
@@ -483,7 +483,7 @@ def test_minv_backhalf_solve_is_the_forward_matvec():
     """§30.5 MINV-BACKHALF: mixin ``solve`` on the inverse = the FORWARD
     action, anchored on the hand form c⊙x (never via inverse().apply — a
     definition tautology)."""
-    minv = MatrixInverseOperator(DiagonalOperator(_C4), basis_shape=(4,))
+    minv = MatrixInverseOperator(DiagonalOperator(_C4, shape=(4,), spans=(0,)), basis_shape=(4,))
     x = _RNG.standard_normal(4)
     np.testing.assert_allclose(
         np.asarray(minv.solve(x)).ravel(), _C4 * x, rtol=1e-14,
@@ -505,7 +505,7 @@ def test_minv_singular_raises_linalgerror():
     check raises ``LinAlgError`` at CONSTRUCTION, never an inf/nan solve."""
     with pytest.raises(np.linalg.LinAlgError, match="exactly singular"):
         MatrixInverseOperator(
-            DiagonalOperator(np.array([2.0, 0.0, 0.5])), basis_shape=(3,))
+            DiagonalOperator(np.array([2.0, 0.0, 0.5]), shape=(3,), spans=(0,)), basis_shape=(3,))
 
 
 def test_minv_too_large_propagates():
@@ -517,14 +517,14 @@ def test_minv_too_large_propagates():
 def test_minv_nonsingular_constructs():
     """§30.6 designed-GREEN POSITIVE control (anti-#11: guards need a
     correct instance that does NOT raise)."""
-    MatrixInverseOperator(DiagonalOperator(_C4), basis_shape=(4,))
+    MatrixInverseOperator(DiagonalOperator(_C4, shape=(4,), spans=(0,)), basis_shape=(4,))
 
 
 def test_minv_as_matrix_override_honors_base_contract():
     """§11.4: the override accepts the base kwargs — a consistent explicit
     basis_shape passes; a contradicting one raises; a tighter per-call
     max_dimension still gates."""
-    minv = MatrixInverseOperator(DiagonalOperator(_C4), basis_shape=(4,))
+    minv = MatrixInverseOperator(DiagonalOperator(_C4, shape=(4,), spans=(0,)), basis_shape=(4,))
     np.testing.assert_allclose(
         minv.as_matrix(basis_shape=(4,)), np.diag(1.0 / _C4),
         atol=64 * _EPS * _COND4)
@@ -550,7 +550,7 @@ def test_matrix_inverts_what_green_refuses():
     """
     S_ao = _DenseActionOperator(_off_diagonal_nilpotent(4))
     assert not S_ao.is_invertible  # fixture verification (else vacuous)
-    D = DiagonalOperator(_C4)
+    D = DiagonalOperator(_C4, shape=(4,), spans=(0,))
     sum_op = (-1.0 * S_ao) + D
     assert not sum_op.is_invertible
     from orpheus.numerics.green_operator import GreenOperator

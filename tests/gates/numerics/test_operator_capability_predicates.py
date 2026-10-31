@@ -120,7 +120,7 @@ def test_asymmetry_fixtures_break_the_axis_coincidence():
     """The two axes must be INDEPENDENTLY correct, not coincidentally equal."""
     z = ZeroOperator()
     assert z.is_adjointable is True and z.is_invertible is False
-    dz = DiagonalOperator(_CZ)
+    dz = DiagonalOperator(_CZ, shape=(3,), spans=(0,))
     assert dz.is_adjointable is True and dz.is_invertible is False
     a = _ApplyOnly()
     assert a.is_adjointable is False and a.is_invertible is False
@@ -136,12 +136,12 @@ def test_sum_predicates_recursive_and_faithful():
     and its inverse is the Green of a named split.
     """
     ident = IdentityOperator()
-    s_both = ident + DiagonalOperator(_C)
+    s_both = ident + DiagonalOperator(_C, shape=(3,), spans=(0,))
     assert s_both.is_adjointable is True and s_both.is_invertible is False
     assert s_both.is_adjointable == (
-        ident.is_adjointable and DiagonalOperator(_C).is_adjointable
+        ident.is_adjointable and DiagonalOperator(_C, shape=(3,), spans=(0,)).is_adjointable
     )
-    s_reversed = DiagonalOperator(_C) + ident
+    s_reversed = DiagonalOperator(_C, shape=(3,), spans=(0,)) + ident
     assert s_reversed.is_invertible is False  # order-free (was the head rule)
 
     s_half = ident + _ApplyOnly()  # one summand non-adjointable
@@ -151,10 +151,10 @@ def test_sum_predicates_recursive_and_faithful():
 
 def test_product_predicates_recursive_and_faithful():
     """``(AB)`` invertible/adjointable iff BOTH factors."""
-    p_both = DiagonalOperator(_C) @ PermutationOperator(np.array([1, 0, 2]))
+    p_both = DiagonalOperator(_C, shape=(3,), spans=(0,)) @ PermutationOperator(np.array([1, 0, 2]))
     assert p_both.is_invertible is True and p_both.is_adjointable is True
 
-    p_singular = DiagonalOperator(_CZ) @ IdentityOperator()  # one factor singular
+    p_singular = DiagonalOperator(_CZ, shape=(3,), spans=(0,)) @ IdentityOperator()  # one factor singular
     assert p_singular.is_invertible is False
 
 
@@ -175,7 +175,7 @@ def test_scaled_and_adjoint_predicates_faithful():
     dagger involution ``A.H.H is A`` is an OBJECT IDENTITY."""
     from orpheus.numerics.operator import AdjointOperator
 
-    sc = 2.0 * DiagonalOperator(_C)
+    sc = 2.0 * DiagonalOperator(_C, shape=(3,), spans=(0,))
     assert sc.is_invertible is True and sc.is_adjointable is True
 
     from orpheus.numerics.operator import IdentityOperator, MissingAdjoint
@@ -183,7 +183,7 @@ def test_scaled_and_adjoint_predicates_faithful():
     i = IdentityOperator()
     assert i.H is i  # the constant-multiplier law: no wrapper, full predicates
     assert i.H.is_invertible is True and i.H.is_adjointable is True
-    d = DiagonalOperator(_C)
+    d = DiagonalOperator(_C, shape=(3,), spans=(0,))
     assert d.is_adjointable is True  # the transpose is coded ...
     with pytest.raises(MissingAdjoint, match="UNBOUND"):
         _ = d.H  # ... but a spaceless field multiplier's Hilbert adjoint is not posed
@@ -205,12 +205,12 @@ def test_inverse_objects_are_faithful():
     keystone-v2 rows below;
     here the involution identities are pinned.
     """
-    D = DiagonalOperator(_C)
+    D = DiagonalOperator(_C, shape=(3,), spans=(0,))
     assert D.inverse().inverse() is D  # (A⁻¹)⁻¹ — the leaf, by identity
     # G-I3 (#226 step 4; S2 ruling 50): the Green of a named split is
     # faithful too — {APPLY, SOLVE} via the mixin back-half,
     # is_invertible=True; its transpose axis is the Green of the dual split.
-    ident, diag = IdentityOperator(), DiagonalOperator(_C)
+    ident, diag = IdentityOperator(), DiagonalOperator(_C, shape=(3,), spans=(0,))
     green = GreenOperator(ident, -1.0 * diag)
     assert green.inverse() is green.inner  # involution by object identity (mixin)
     assert green.inverse() == ident + diag  # the same atoms: equal as combinations
@@ -230,7 +230,7 @@ def test_inverse_objects_are_faithful():
 # ───────────────────────────────────────────────────────────────────────
 
 def _mixin_family():
-    D = DiagonalOperator(_C)
+    D = DiagonalOperator(_C, shape=(3,), spans=(0,))
     from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 
     # (name, op, is_adjointable) — the transpose axis per sibling (#280
@@ -259,8 +259,8 @@ _CONTRACT_ROWS = [
     # (id, op, is_invertible, is_adjointable, inverse_contract)
     ("Identity", IdentityOperator(), True, True, INVERTIBLE),
     ("Zero", ZeroOperator(), False, True, STRUCTURAL_ABSENT),
-    ("Diagonal", DiagonalOperator(_C), True, True, INVERTIBLE),
-    ("Diagonal-singular", DiagonalOperator(_CZ), False, True, VALUE_RAISE),
+    ("Diagonal", DiagonalOperator(_C, shape=(3,), spans=(0,)), True, True, INVERTIBLE),
+    ("Diagonal-singular", DiagonalOperator(_CZ, shape=(3,), spans=(0,)), False, True, VALUE_RAISE),
     ("Permutation", PermutationOperator(np.array([1, 0, 2]), domain=_SP3, codomain=_SP3), True, True, INVERTIBLE),
     # The rank-deficient-but-adjointable representative. Was
     # ``IncomingOrdinateMaskTensor`` until B3.3 retired it; the successor
@@ -274,19 +274,19 @@ _CONTRACT_ROWS = [
     # Composites — every arm of the recursive laws:
     # S2 (ruling 50): a sum of two terms is never invertible by itself, in
     # either order; its inverse() exists and RAISES (VALUE_RAISE).
-    ("Sum-two-terms", IdentityOperator() + DiagonalOperator(_C), False, True, VALUE_RAISE),
+    ("Sum-two-terms", IdentityOperator() + DiagonalOperator(_C, shape=(3,), spans=(0,)), False, True, VALUE_RAISE),
     ("Sum-apply-only-first", _ApplyOnly() + IdentityOperator(), False, False, VALUE_RAISE),
     ("Sum-half-adjointable", IdentityOperator() + _ApplyOnly(), False, False, VALUE_RAISE),
     # The invertible-not-adjointable config-blindness fixture (§36/§0.6),
     # moved off the sum (which can no longer be invertible) onto the Green
     # of a split whose lagged part does not transpose.
     ("Green-half-adjointable", GreenOperator(IdentityOperator(), _ApplyOnly()), True, False, INVERTIBLE),
-    ("Product-both", DiagonalOperator(_C) @ PermutationOperator(np.array([1, 0, 2]), domain=_SP3, codomain=_SP3), True, True, INVERTIBLE),
-    ("Product-singular-factor", DiagonalOperator(_CZ) @ IdentityOperator(), False, True, VALUE_RAISE),
-    ("Scaled", 2.0 * DiagonalOperator(_C), True, True, INVERTIBLE),
-    ("Scaled-singular", 2.0 * DiagonalOperator(_CZ), False, True, VALUE_RAISE),
-    ("TensorProduct-both", TensorProductOperator((DiagonalOperator(_C), IdentityOperator())), True, True, INVERTIBLE),
-    ("TensorProduct-singular", TensorProductOperator((DiagonalOperator(_CZ), IdentityOperator())), False, True, VALUE_RAISE),
+    ("Product-both", DiagonalOperator(_C, shape=(3,), spans=(0,)) @ PermutationOperator(np.array([1, 0, 2]), domain=_SP3, codomain=_SP3), True, True, INVERTIBLE),
+    ("Product-singular-factor", DiagonalOperator(_CZ, shape=(3,), spans=(0,)) @ IdentityOperator(), False, True, VALUE_RAISE),
+    ("Scaled", 2.0 * DiagonalOperator(_C, shape=(3,), spans=(0,)), True, True, INVERTIBLE),
+    ("Scaled-singular", 2.0 * DiagonalOperator(_CZ, shape=(3,), spans=(0,)), False, True, VALUE_RAISE),
+    ("TensorProduct-both", TensorProductOperator((DiagonalOperator(_C, shape=(3,), spans=(0,)), IdentityOperator())), True, True, INVERTIBLE),
+    ("TensorProduct-singular", TensorProductOperator((DiagonalOperator(_CZ, shape=(3,), spans=(0,)), IdentityOperator())), False, True, VALUE_RAISE),
     # The adjoint wrapper: the swap law (A.H)⁻¹ = (A⁻¹).H is now DECLARED
     # (#280 2.5c), but THIS instance is not invertible — the bound leaf's
     # inverse (InverseOperator) does not transpose (the leaf codes no
@@ -336,7 +336,7 @@ def test_half_adjointable_sum_H_raises_eagerly():
     failure was lazy at the first ``.apply`` — the broken-stub pattern.
     Design C raises ``MissingAdjoint`` at wrapper CONSTRUCTION.
     """
-    s = DiagonalOperator(_C) + _ApplyOnly()
+    s = DiagonalOperator(_C, shape=(3,), spans=(0,)) + _ApplyOnly()
     assert s.is_adjointable is False
     with pytest.raises(MissingAdjoint, match="adjoint"):
         s.H

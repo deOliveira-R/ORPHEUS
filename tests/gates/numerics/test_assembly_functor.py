@@ -487,7 +487,7 @@ class TestTwoAlgorithms:
         np.testing.assert_array_equal(got, original_assemble(op).matrix.toarray())
 
         functor_calls.clear()
-        diagonal = DiagonalOperator(np.array([1.0, 2.0, 3.0]))
+        diagonal = DiagonalOperator(np.array([1.0, 2.0, 3.0]), shape=(3,), spans=(0,))
         np.testing.assert_array_equal(dense(diagonal, basis_shape=(3,)), np.diag([1.0, 2.0, 3.0]))
         assert functor_calls == [] and probe_calls == [diagonal]
 
@@ -703,7 +703,7 @@ def _registry() -> dict[str, "Any"]:
 
     a, b = _leaf(_integer(20)), _leaf(_integer(21))
     ident = IdentityOperator()
-    diag = DiagonalOperator(np.arange(1.0, 5.0))
+    diag = DiagonalOperator(np.arange(1.0, 5.0), shape=(4,), spans=(0,))
     builders = {
         "carrier": lambda: a,
         "sum": lambda: a - 0.3 * b,

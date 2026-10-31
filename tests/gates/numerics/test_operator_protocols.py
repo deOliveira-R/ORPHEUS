@@ -137,7 +137,7 @@ class TestGenericOperatorsAreUnclassified:
     def test_operator_sum_is_unclassified_at_O1(self) -> None:
         # S2: ``I + ZeroOperator()`` absorbs the zero and IS ``I``; a two-term
         # sum of two unclassified pointwise atoms keeps the subject.
-        s = IdentityOperator() + DiagonalOperator(np.ones(3))
+        s = IdentityOperator() + DiagonalOperator(np.ones(3), shape=(3,), spans=(0,))
         assert isinstance(s, OperatorSum)
         assert s.block_role is None
         assert not isinstance(s, BulkOperator)
@@ -155,8 +155,8 @@ class TestGenericOperatorsAreUnclassified:
     # ``.claude/plans/archive/issue_226_b4_operator_generics_verification.md`` GAP-1.)
 
     def test_tensor_product_operator_is_unclassified_by_default(self) -> None:
-        d0 = DiagonalOperator(np.ones(3), axis=0)
-        d1 = DiagonalOperator(np.ones(4), axis=1)
+        d0 = DiagonalOperator(np.ones(3), shape=(3, 4), spans=(0,))
+        d1 = DiagonalOperator(np.ones(4), shape=(3, 4), spans=(1,))
         tp = TensorProductOperator((d0, d1))
         assert tp.block_role is None
         assert not isinstance(tp, BulkOperator)
@@ -166,8 +166,8 @@ class TestGenericOperatorsAreUnclassified:
     def test_sum_of_tensor_products_is_unclassified_by_default(self) -> None:
         # S2 (D8): SumOfTensorProductsOperator retired; the sum of two tensor
         # products is the combination, and its role is the join of None's.
-        d0 = DiagonalOperator(np.ones(3), axis=0)
-        d1 = DiagonalOperator(np.ones(4), axis=1)
+        d0 = DiagonalOperator(np.ones(3), shape=(3, 4), spans=(0,))
+        d1 = DiagonalOperator(np.ones(4), shape=(3, 4), spans=(1,))
         tp_a = TensorProductOperator((d0, d1))
         tp_b = TensorProductOperator((d0, d1))
         sotp = tp_a + tp_b
