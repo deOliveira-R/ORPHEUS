@@ -356,3 +356,9 @@ Sizing `[R]`: about 48 verbs plus 3 production sites, in numerics (most), transp
 - Faces conserve iff `BoundaryCondition.return_fraction == 1.0` (the abstract verb, not an `isinstance(WallCondition)` check); decks conserve.
 - The class block's pinned solve and the left solve A_TTᴴ w_T = −A_CTᴴ w_C reuse U3's `gather` restriction.
 - Order: #666 (flat-coordinate composite metric), the numerics verdict, the transport predictor, SN, homogeneous, diffusion, then the test-architect re-poses the drafts.
+
+**Ruled by the user (2026-10-31, AskUserQuestion), all four as recommended:**
+- **Diffusion source door: build it.** A public diffusion fixed-source entry, matching `solve_sn_fixed_source`: it poses `SourcePosing`, returns a `SourceOutcome` with an `ExitReport`, and runs the Fredholm verdict there.
+- **Conditioning: in U0.** `MatrixInverseOperator` gains LAPACK's reciprocal-condition estimate (gecon, with ‖A‖₁ read before the factorisation overwrites A). It travels on the Solve verdict into every exit report; the homogeneous result carries the verdict.
+- **Eigen entries: every entry.** An eigen posing on a singular loss pairs the emission spectrum with the left co-vectors: refuse if fission emission reaches an absorption-free closed class, gauge if it is orthogonal to the left kernel, solve on a trivial kernel.
+- **SN DD left basis: derived in U0.** Its generators are found and gated against a dense SVD, and the adjoint posings get the left projector (the latent defect at `sn/solver.py:2918-2920`).
