@@ -13,7 +13,9 @@ the Riesz legs, ``.H``) legitimately carries a trailing batch, ``A (x) I_P``, an
 action caller, the plain binding's admission
 (:func:`~orpheus.transport.operators.lift.admit_array`, since the user's ruling D1, 2026-10-30): an operator acts on the
 operator algebra's bare iterate (#664), so its calls are exempted, identified by the caller's CODE OBJECT (not a name
-match), and counted, so the exemption is visible and cannot swallow a pairing.
+match), and not counted. The exemption cannot swallow a pairing only while every caller of ``admit_array`` is an
+action verb; :func:`test_the_exempted_door_is_reached_only_by_actions` asserts that over ``orpheus/`` by AST (`[M]`
+2026-10-30: 6 of 6 callers, ``apply``/``apply_transpose``/``solve`` of the isotropic transfer and the multiplier).
 
 First red: at the parent of U2c (``64cc3a7a``) every one of the 7 exercised sites passed an ``ndarray`` (`[M]` the spec's
 caller census); after U2c's typed callers and before ``FunctionSpace.integral``, the two ``flat(unit)`` sites
@@ -24,9 +26,11 @@ pass every row.
 """
 from __future__ import annotations
 
-import pytest
-
+import ast
+import pathlib
 import sys
+
+import pytest
 
 from orpheus.numerics import space as space_module
 from orpheus.numerics.space import Member
@@ -81,3 +85,20 @@ def test_sn_eigen_vacuum(typed_calls):
     mesh, quad, conditions = S.build("slab", ("vacuum",))
     solve_sn(carry.materials(), mesh, quad, boundary_conditions=conditions, **carry.EIGEN)
     assert typed_calls[0] > 0, "the spy never fired: the SN solve reached no exact membership verb"
+
+
+def test_the_exempted_door_is_reached_only_by_actions():
+    """The exemption above is sound only while ``admit_array`` is an action's door: a pairing (an inner product, a
+    co-vector's evaluate) re-spelled through it would pass the spy unseen. Every production call of it sits in an
+    action verb, by AST over ``orpheus/``; the positive control is the census itself (6 callers known today)."""
+    root = pathlib.Path(lift.__file__).resolve().parents[2]
+    callers = []
+    for f in sorted(root.rglob("*.py")):
+        for fn in ast.walk(ast.parse(f.read_text())):
+            if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for n in ast.walk(fn):
+                    if isinstance(n, ast.Call) and getattr(n.func, "id", getattr(n.func, "attr", None)) == "admit_array":
+                        callers.append((f.relative_to(root).as_posix(), fn.name))
+    assert len(callers) >= 6, f"the census lost its known callers: {callers}"
+    stray = [c for c in callers if c[1] not in {"apply", "apply_transpose", "solve"}]
+    assert not stray, f"admit_array, the pairing spy's exempted door, is reached from a non-action: {stray}"

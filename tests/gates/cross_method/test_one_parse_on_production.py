@@ -166,6 +166,23 @@ class TestTheSilentRowsAreRefused:
             vm.integrate(np.ones((1, vm.n_points)))
 
 
+class TestTheRouteOnlySitesRefuse:
+    """Two sites the route gate alone guarded (qa, U1b review: their mutation arms reddened only the route row). The
+    production rate integrates through the volume measure, which refused before U1b; ``SourcePosing`` compared spaces
+    only for a typed source. A refusal row each, so the site's own parse has a witness that is not its owner tag."""
+
+    def test_the_sn_production_rate_refuses_a_column(self, sn):
+        with pytest.raises(ValueError, match=EXACT):
+            sn["solver"].compute_group_production_rate(sn["phi"][:, :1])
+
+    def test_a_bare_source_is_parsed_at_the_codomain(self, homog):
+        from orpheus.numerics.pencil import OperatorPencil
+        from orpheus.numerics.posing import SourcePosing
+        prompt = OperatorPencil(homog.loss, homog.production).at(1.0)
+        with pytest.raises(ValueError, match=EXACT):
+            SourcePosing(prompt, np.ones(2))
+
+
 class TestTheHonestCallsAreUnchanged:
     """The positive leg of the rows above: the correct operand reads the value it read at ``6aa26d00`` bit for bit
     (the U1b head capture; the parse returns its operand itself, so no product or reduction tree moves)."""
@@ -176,6 +193,16 @@ class TestTheHonestCallsAreUnchanged:
     def test_the_engine_keeps_its_payload_free_product(self, sn):
         x = np.random.default_rng(1).random((sn["n_ord"], 2, 12))
         np.testing.assert_array_equal(sn["engine"].apply(x), np.expand_dims(sn["engine"].coefficient, (0,)) * x)
+
+    def test_a_site_holding_its_space_admits_a_typed_member(self, sn):
+        """D1 at a bound site: the axis marginal asks its own space, so a member of that space is read by its
+        coordinates, equal to the bare call (`[M]` 2026-10-30, at 4882293a: refused, ``values.shape ()``, because
+        the shape-only parse saw the member as a 0-d object array)."""
+        from orpheus.numerics.axis_marginal import AxisRetractionOperator
+        from orpheus.numerics.space import Member
+        retraction = AxisRetractionOperator.of(sn["prob"].angular_bulk_space, "angular")
+        x = np.random.default_rng(2).random(retraction.domain.shape)
+        np.testing.assert_array_equal(retraction.apply(Member(values=x, space=retraction.domain)), retraction.apply(x))
 
 
 # ── every admission spelling reaches the ONE primitive (the mutation of the one verb reddens them all) ────
@@ -209,7 +236,7 @@ def _patch_primitive(monkeypatch):
 #: ``Member.__post_init__``, a reuse of that row (U1b spec §3.4).
 _SITES = [
     "FunctionSpace.coordinates_of", "FunctionSpace.leading_coordinates_of", "Member.__post_init__",
-    "admit_array", "_AxisMarginalBase._require", "FissionMomentOperator._admit",
+    "admit_array", "AxisRetractionOperator.apply", "FissionMomentOperator._admit",
     "DiagonalOperator.apply", "DiagonalMetric.apply_block", "DenseMetric.apply_block", "FactoredMetric.apply",
     "DiscreteMeasure.integrate", "InnerProductFunctional.evaluate", "Basis.reconstruct", "Basis.analyze",
     "FrameAnalysis.apply", "FrameReconstruction.apply", "CrossGramInverse.apply",
@@ -240,7 +267,10 @@ def test_every_admission_reaches_the_one_primitive(site, monkeypatch, homog, sn,
     a lazy member's parse cannot be credited to the verb under test. The FIRST parse reached must be the site's own
     (the ``owner`` it passes): without that, a site keeping its own comparison is still credited by any parse
     downstream of it (`[M]` 2026-10-30, against the tree before U1b step 7: five rows of this step's sites green that
-    way, the group rates through the measure, the moment operator through the dyad)."""
+    way, the group rates through the measure, the moment operator through the dyad). A site that asks a space's verb
+    names ``repr(space)`` as its owner, so for those rows the owner check proves "the first parse is at this space",
+    not "at this site" (qa, U1b review): the site itself is witnessed by its refusal row above (the group rates, the
+    reaction-rate density, ``SourcePosing``, the axis retraction's typed-member row)."""
     call, expected = _site_calls(site, homog, sn, sn_solution, sphere)
     owner = _route(call, monkeypatch)
     assert owner == expected, (
@@ -323,7 +353,7 @@ def _site_calls(site, homog, sn, sn_solution, sphere):
         "FunctionSpace.leading_coordinates_of": (lambda: B.leading_coordinates_of(phi), repr(B)),
         "Member.__post_init__": (lambda: Member(values=phi, space=B), "Member"),
         "admit_array": (lambda: homog.production.apply(np.array([[0.6], [0.4]])), repr(homog.production.domain)),
-        "_AxisMarginalBase._require": (lambda: retraction.apply(np.ones(retraction.domain.shape)), "AxisRetractionOperator.apply (full space)"),
+        "AxisRetractionOperator.apply": (lambda: retraction.apply(np.ones(retraction.domain.shape)), repr(retraction.domain)),
         "FissionMomentOperator._admit": (lambda: moment_op.apply(moments), "FissionMomentOperator"),
         "DiagonalOperator.apply": (lambda: sn["engine"].apply(np.ones((sn["n_ord"], 2, 12))), "DiagonalOperator.apply"),
         "InnerProductFunctional.evaluate": (lambda: homog.production.production_rate.evaluate(np.array([[0.6], [0.4]])), "InnerProductFunctional.evaluate"),

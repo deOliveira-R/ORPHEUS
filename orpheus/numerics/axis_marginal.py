@@ -74,7 +74,6 @@ import numpy as np
 
 from orpheus.numerics.axis import EnergyAxis, FromBasis
 from orpheus.numerics.coefficient_layout import CellLayout
-from orpheus.numerics.coordinate_space import coordinates
 from orpheus.numerics.instance_cache import cached_on
 from orpheus.numerics.operator import LinearOperator
 
@@ -135,9 +134,6 @@ class _AxisMarginalBase(LinearOperator):
         scaled by ``vector[n]`` (a fresh C-contiguous array)."""
         out = np.multiply.outer(vector.reshape(self._axis_shape), np.asarray(x))
         return np.ascontiguousarray(np.moveaxis(out, range(len(self._dims)), self._dims))
-
-    def _require(self, x: np.ndarray, space: "FunctionSpace", which: str, verb: str) -> np.ndarray:
-        return coordinates(np.asarray(x), space.shape, owner=f"{type(self).__name__}.{verb} ({which} space)")
 
     @property
     def is_invertible(self) -> bool:
@@ -230,12 +226,12 @@ class AxisRetractionOperator(_AxisMarginalBase):
         return self._marginal_space
 
     def apply(self, x: np.ndarray) -> np.ndarray:
-        return self._contract(self._require(x, self._full_space, "full", "apply"), self._covector)
+        return self._contract(self._full_space.leading_coordinates_of(x), self._covector)
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         r"""The scatter :math:`m \otimes \phi`, the Euclidean transpose."""
         return self._scatter(
-            self._require(x, self._marginal_space, "marginal", "apply_transpose"), self._covector,
+            self._marginal_space.leading_coordinates_of(x), self._covector,
         )
 
 
@@ -328,7 +324,7 @@ class AxisSectionOperator(_AxisMarginalBase):
         return self._full_space
 
     def apply(self, x: np.ndarray) -> np.ndarray:
-        x = self._require(x, self._marginal_space, "marginal", "apply")
+        x = self._marginal_space.leading_coordinates_of(x)
         # Divide THEN scatter: on a nodal axis (u = 1) these are the shipped
         # isotropic-source kernel's float operations, so the equivalence
         # gate pins np.array_equal.
@@ -336,7 +332,7 @@ class AxisSectionOperator(_AxisMarginalBase):
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         r"""The pairing with :math:`u` over the mass, the Euclidean transpose."""
-        x = self._require(x, self._full_space, "full", "apply_transpose")
+        x = self._full_space.leading_coordinates_of(x)
         return self._contract(x, self._unit) / self._mass
 
 
@@ -399,11 +395,11 @@ class AxisPullbackOperator(_AxisMarginalBase):
         return self._full_space
 
     def apply(self, x: np.ndarray) -> np.ndarray:
-        return self._scatter(self._require(x, self._marginal_space, "marginal", "apply"), self._unit)
+        return self._scatter(self._marginal_space.leading_coordinates_of(x), self._unit)
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
         r"""The pairing with :math:`u`, the Euclidean transpose."""
-        return self._contract(self._require(x, self._full_space, "full", "apply_transpose"), self._unit)
+        return self._contract(self._full_space.leading_coordinates_of(x), self._unit)
 
     def adjoint(self) -> AxisRetractionOperator:
         r"""The involution as an object identity: ``R.H.H is R``."""

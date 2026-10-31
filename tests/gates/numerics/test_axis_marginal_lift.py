@@ -22,6 +22,7 @@ Every assertion is a function call (``python -O`` safe).
 from __future__ import annotations
 
 import math
+import re
 
 import numpy as np
 import numpy.testing as npt
@@ -514,9 +515,9 @@ class TestG6Refusals:
     def test_wrong_shapes_refuse_both_directions(self):
         V, _ = resolve("synthetic nodal", "angular")
         R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
-        with pytest.raises(ValueError, match="full space"):
+        with pytest.raises(ValueError, match=re.escape(f"{R.domain!r}: an array of shape (2, 5)")):
             R.apply(np.zeros((2, 5)))
-        with pytest.raises(ValueError, match="marginal space"):
+        with pytest.raises(ValueError, match=re.escape(f"{E.domain!r}: an array of shape {V.shape}")):
             E.apply(np.zeros(V.shape))
 
     def test_a_second_pullback_cannot_be_minted(self):

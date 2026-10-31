@@ -37,6 +37,8 @@ vv Mode-8 discipline: assertions are function calls (``np.testing.*`` /
 
 from __future__ import annotations
 
+import re
+
 import numpy as np
 import numpy.testing as npt
 import pytest
@@ -346,10 +348,20 @@ class TestAdmission:
     def test_wrong_shape_inputs_are_refused_both_directions(self):
         V = _product()
         R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
-        with pytest.raises(ValueError, match="full space"):
+        with pytest.raises(ValueError, match=re.escape(f"{R.domain!r}: an array of shape (2, 5)")):
             R.apply(np.zeros((2, 5)))
-        with pytest.raises(ValueError, match="marginal space"):
+        with pytest.raises(ValueError, match=re.escape(f"{E.domain!r}: an array of shape {V.shape}")):
             E.apply(np.zeros(V.shape))
+
+    def test_an_action_carries_a_trailing_payload(self):
+        """The marginal operators are actions, ``R ⊗ I_P`` on ``V ⊗ P``: a trailing payload rides through, column
+        by column (they parse at the action verb, ``leading_coordinates_of``, since U1b)."""
+        V = _product()
+        R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
+        x = np.random.default_rng(3).random((*V.shape, 3))
+        npt.assert_array_equal(R.apply(x), np.stack([R.apply(x[..., p]) for p in range(3)], axis=-1))
+        y = np.random.default_rng(4).random((*R.codomain.shape, 3))
+        npt.assert_array_equal(E.apply(y), np.stack([E.apply(y[..., p]) for p in range(3)], axis=-1))
 
 
 # ── S6.0b — the frame induction (the stage-2 generator's gates) ──────
