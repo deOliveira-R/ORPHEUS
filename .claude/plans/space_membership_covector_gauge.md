@@ -438,3 +438,12 @@ Sizing `[R]`: about 48 verbs plus 3 production sites, in numerics (most), transp
 - `git grep -E` has no `\b`: a pattern with it matches nothing, silently (`code-search`); the first docstring re-point in U0 found 0 files that way.
 - A refusal added for a reviewer's finding must be checked against the tree's tested capabilities before it lands: the tangential door entry refused 2 correct rows; the finding's mechanism (ker G) was the fix.
 - The rows the test-architect writes from a spec can encode the spec's wrong physics (S11b pinned the adjoint gauging where it must refuse); a reviewer's measurement on the production behaviour outranks the spec row.
+
+## U3b — scope ruling (2026-10-31)
+
+`[R]` the user, at U3b's start: U3b builds all three of
+1. the witness, `NearKernel.measure` (spec §R3.3);
+2. SN's conditioning reading, which replaces `_SWEPT = NotApplicable(...)` in `orpheus/sn/solver.py`;
+3. the class-block null-vector solve through SN's own sweep.
+
+The third item derives the five entries of `_require_closed_form_scope` instead of refusing them, and so retires the `SCOPE-BOUNDARY[guard]`. The entries are lifted one at a time, with a user checkpoint at each. This is a W3 unit: the main agent writes the code.
