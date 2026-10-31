@@ -338,3 +338,21 @@ Sizing `[R]`: about 48 verbs plus 3 production sites, in numerics (most), transp
   - Also fixed: `KernelSummand` parses its fields; duplicate labels, out-of-range supports and non-1-D spaces are refused; a declared orthogonality to the constants is checked before the zero is stored.
   - Filed: #675 (a flat-index verb on the trace layout) and #676 (`apply` means the section on one gauge and the projector on the other). Commented on #671 (the new basis joins the twin-hook family).
 - **For U0, owed by (c):** a `KernelProjectionGauge` on a `FullFieldSpace` (and probably on a `CoupledSpace`) crashes in `apply`. `gather.H` = ♯∘dual∘♭ calls the composite's `apply_metric`, which takes a `CompositeField`, not flat coordinates (#666). It is landed as a strict xfail in `test_kernel_projection_gauge.py`. U0 poses the gauge on diffusion's full field, so U0 fixes it together with #666's flat-coordinate metric.
+
+## U0. The Fredholm decision on the posing (started 2026-10-31)
+
+**The tree against the spec's R3** (`[M]` the explorer, 2026-10-31, HEAD `25d3febe`, grep and Read, `scratch/membership_covector/u0/explorer_map.md`). Three of R3's assumptions do not hold:
+- **Diffusion has no source door.** `solve_fixed_source` (`diffusion/solver.py:328`) is a protocol method reached only inside `power_iteration`. Diffusion builds no posing (0 hits for `SourcePosing(`, `EigenPosing(`, `OperatorPencil(` under `orpheus/diffusion/`) and no exit report (`DiffusionResult`, `:389`). A pure scatterer has no eigen posing (F = 0). So R3's balanced-source case and the draft's diffusion refusal rows have no production entry to fire at.
+- **R3.4 cannot be written as spelled.** `Asserted.bound` is a required float. `ExitReport(` is built at 1 site in orpheus (`sn/solver.py:683`). `MatrixInverseOperator` exposes no condition estimate, and `lu_factor(overwrite_a=True)` destroys A before ‖A‖₁ could be read.
+- **Eigen posings are checkable.** Four of SN's five entries record `NotApplicable("an eigen question has no admissibility")`. Under R3 an eigen posing on a singular A is admissible iff the fission emission is orthogonal to ker Aᴴ.
+
+**The SN DD left kernel is not predicted by the right basis** (`[M]` `scratch/membership_covector/u0/left_basis_probe.py`, dense SVD, worktree `25d3febe`, -O):
+- on (3,4) LS2 ng=1 c=0.9 and LS4 ng=2 c=0.9, the left null vectors are trace-only (bulk mass 1e-29) and lie entirely OUTSIDE span(Φ), span(GΦ) and span(G⁻¹Φ) (projection residual 1.00 on all three); the right null vectors lie in span(Φ) (residual 1e-14);
+- Lᵀ R = 0: the zero eigenvalue is not semisimple (a Jordan chain), so ker A ⊂ range A. Consequence: a bordered or deflated factorisation A + u (Gu)ᵀ is singular for the SN DD kernel (it needs yᵀu ≠ 0); the projector gauge is unaffected.
+- The left basis has two consumers: the Fredholm test of a source with a trace component on a d ≥ 2 all-reflective box, and the adjoint entries' gauge. `[M]` the adjoint entries hand the FORWARD projector to the daggered posing (`sn/solver.py:2918-2920`), which is not ker Aᴴ; this is inert today (the transpose solve is 1-D only, `:2722-2728`), a latent defect for #280.
+
+**Orchestrator decisions (the ontology is known):**
+- The verdict (Solve | Gauge | Refuse) is a numerics object beside `gauge.py`: it is the Fredholm alternative on (left co-vectors, projector, q) and knows no neutrons. The absorbing-chain predictor reads `Mixture` and `Binding` and lives in transport; `gauge_freedom` stays SN's.
+- Faces conserve iff `BoundaryCondition.return_fraction == 1.0` (the abstract verb, not an `isinstance(WallCondition)` check); decks conserve.
+- The class block's pinned solve and the left solve A_TTᴴ w_T = −A_CTᴴ w_C reuse U3's `gather` restriction.
+- Order: #666 (flat-coordinate composite metric), the numerics verdict, the transport predictor, SN, homogeneous, diffusion, then the test-architect re-poses the drafts.
