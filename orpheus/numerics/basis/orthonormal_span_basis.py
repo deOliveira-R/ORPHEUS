@@ -80,12 +80,13 @@ class OrthonormalSpanBasis(Basis):
         coefficient spaces never compare equal.
     unit
         The coordinates of the constant function's :math:`G`-orthogonal
-        projection onto the span (ruling 37), one per mode. Computed by
-        :meth:`of_generators` as :math:`\Phi^{\mathsf T} G \mathbf 1` unless the
-        caller declares the span orthogonal to the constants, in which case it
-        is exactly zero (a computed projection would then be round-off, and the
-        coefficient space's identity would hang on arithmetic order: the SN
-        kernel's declared zero, the user's ruling of 2026-10-21).
+        projection onto the span (ruling 37), one per mode, computed by
+        :meth:`of_generators` as :math:`\Phi^{\mathsf T} G \mathbf 1`. A caller
+        that knows the span is orthogonal to the constants stores the exact
+        zero instead (``dataclasses.replace``), after checking the computed
+        value is round-off: otherwise the coefficient space's identity would
+        hang on arithmetic order (the SN kernel's declared zero, the user's
+        ruling of 2026-10-21; the check is the kernel gauge's).
     """
 
     table: NDArray
@@ -99,7 +100,6 @@ class OrthonormalSpanBasis(Basis):
         weights: NDArray,
         *,
         label: str,
-        orthogonal_to_constants: bool = False,
     ) -> "OrthonormalSpanBasis":
         r"""The :math:`G`-orthonormal basis of ``span(generators)``, :math:`G = \operatorname{diag}(w)`.
 
@@ -127,8 +127,7 @@ class OrthonormalSpanBasis(Basis):
         left, singular, _ = np.linalg.svd(root[:, None] * columns, full_matrices=False)
         rank = int(np.sum(singular > SPAN_RANK_RTOL * singular[0])) if singular.size else 0
         table = left[:, :rank] / root[:, None]
-        unit = np.zeros(rank) if orthogonal_to_constants else table.T @ metric
-        return cls(table=table, label=label, unit=unit)
+        return cls(table=table, label=label, unit=table.T @ metric)
 
     # ── the projection-validity declaration ───────────────────────────
     @property

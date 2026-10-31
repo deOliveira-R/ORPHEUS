@@ -898,6 +898,19 @@ class FunctionSpace(Generic[Carrier]):
     # Metric application (Hilbert adjoint building blocks, Wave O / O.2b)
     # ------------------------------------------------------------------
 
+    def metric_diagonal(self) -> NDArray | None:
+        r"""The diagonal of the metric over this space's coordinates, or ``None`` if it is not diagonal.
+
+        :math:`G\mathbf 1`, of :attr:`shape`: all ones on a Euclidean space,
+        the resolved metric's :meth:`~orpheus.numerics.metric.HilbertMetric.diagonal`
+        otherwise. A consumer that needs node weights (a frame's measure on a
+        subset of the coordinates, the kernel gauge's summands) reads them
+        here. Composite spaces override it with the concatenation of their
+        blocks' diagonals in their flat layout.
+        """
+        metric = self._resolved_metric
+        return np.ones(self.shape) if metric is None else metric.diagonal(self.shape)
+
     def apply_metric(self, x: Carrier) -> Carrier:
         r"""Apply the Hilbert metric :math:`G\odot x` (identity if Euclidean).
 

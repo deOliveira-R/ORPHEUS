@@ -212,14 +212,21 @@ class TestTheSummandBasis:
             np.testing.assert_allclose(diagonal, np.ones_like(diagonal), rtol=0, atol=64 * _EPS)
 
     def test_a_computed_unit_is_the_projection_of_the_constant_and_a_declared_one_is_zero(self):
-        """The unit is ``Phi^T G 1`` unless the caller declares the span orthogonal to the constants (SN does, and
-        witnesses it in ``test_the_kernel_modes_are_orthogonal_to_the_constants``)."""
+        """The basis always computes ``Phi^T G 1``; a summand DECLARED orthogonal to the constants is checked and then
+        stores the exact zero. The declared span on {2, 3}: G2*1 + G3*(-8) = 2 - 2 = 0 exactly in floats."""
         idx, cols = _ROTATED[0]
         computed = KernelProjectionGauge.direct_sum(SPACE, (KernelSummand(idx, cols, "u"),)).summands[0].basis
-        declared = KernelProjectionGauge.direct_sum(
-            SPACE, (KernelSummand(idx, cols, "d", orthogonal_to_constants=True),)).summands[0].basis
         np.testing.assert_allclose(computed.layout.unit, computed.table.T @ _G[idx], rtol=0, atol=8 * _EPS)
-        assert np.abs(computed.layout.unit).max() > 0.1 and not np.any(declared.layout.unit)
+        assert np.abs(computed.layout.unit).max() > 0.1
+        declared = KernelProjectionGauge.direct_sum(SPACE, (KernelSummand(
+            np.array([2, 3]), np.array([[1.0], [-8.0]]), "d", orthogonal_to_constants=True),)).summands[0].basis
+        assert declared.layout.unit.shape == (1,) and not np.any(declared.layout.unit)
+
+    def test_a_false_declaration_of_orthogonality_to_the_constants_is_refused(self):
+        """Arm ``no_declaration_check`` reddens it (the false zero would be stored)."""
+        idx, cols = _ROTATED[0]
+        with pytest.raises(ValueError, match="declared orthogonal to the constants"):
+            KernelProjectionGauge.direct_sum(SPACE, (KernelSummand(idx, cols, "f", orthogonal_to_constants=True),))
 
     def test_a_zero_metric_support_row_is_refused(self):
         zero = FunctionSpace("zero_row", (3,), inner_product_weights=np.array([1.0, 0.0, 2.0]))
@@ -251,10 +258,7 @@ class TestResidualNeutrality:
 
 # ── rung 3: the direct sum ─────────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.rests_on(
-    "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProjectorLaws",
-    "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_kernel_modes_are_orthogonal_to_the_constants",
-)
+@pytest.mark.rests_on("tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProjectorLaws")
 class TestTheDirectSum:
     def test_overlapping_G_orthogonal_summands_are_admitted_and_sum_to_a_projector(self):
         """R3: the SN diamond-difference modes and the physical constant mode overlap on the trace. Positive leg."""
@@ -286,6 +290,38 @@ class TestTheDirectSum:
         else:
             with pytest.raises(ValueError, match=_OVERLAP_REFUSAL):
                 _build(SPACE, pairs)
+
+    @pytest.mark.parametrize("cut", [1e-14, 1e-12, 1e-10, 1e-8])
+    def test_the_verdicts_do_not_depend_on_the_cut_anywhere_in_the_claimed_range(self, cut, monkeypatch):
+        """Gates the production comment's claim that the verdict is the same for any cut in [1e-14, 1e-8]: the
+        honest overlap (exactly orthogonal) and a 1e-17 tilt are admitted, a 1e-6 tilt refused, at every cut. The SN
+        half of the claim (the DD modes against the constant, the R3 union) is the SN row
+        ``test_the_kernel_modes_are_orthogonal_to_the_constants`` (<= 64 eps)."""
+        import orpheus.numerics.kernel_projection_gauge as kpg
+        monkeypatch.setattr(kpg, "SUMMAND_ORTHOGONALITY_TOL", cut)
+        v = _embed(_ORTHOGONAL_OVERLAP[0][0], _ORTHOGONAL_OVERLAP[0][1][:, 0])
+        w = _embed(_ORTHOGONAL_OVERLAP[1][0], _ORTHOGONAL_OVERLAP[1][1][:, 0])
+        support = np.arange(5)
+        assert _build(SPACE, _ORTHOGONAL_OVERLAP).dimension == 2
+        for cosine, admitted in ((1e-17, True), (1e-6, False)):
+            tilted = w + cosine * np.sqrt(_ip(w, w) / _ip(v, v)) * v
+            pairs = (_ORTHOGONAL_OVERLAP[0], (support, tilted[support, None]))
+            if admitted:
+                assert _build(SPACE, pairs).dimension == 2
+            else:
+                with pytest.raises(ValueError, match=_OVERLAP_REFUSAL):
+                    _build(SPACE, pairs)
+
+    def test_summand_labels_must_be_distinct(self):
+        """Each label names its support's manifold; two equal labels would make two coefficient spaces compare equal.
+        Arm ``no_label_check`` reddens it."""
+        twins = (KernelSummand(np.array([0, 1]), np.eye(2), "same"), KernelSummand(np.array([5, 6]), np.eye(2), "same"))
+        with pytest.raises(ValueError, match="labels must be distinct"):
+            KernelProjectionGauge.direct_sum(SPACE, twins)
+
+    def test_a_support_outside_the_space_is_refused(self):
+        with pytest.raises(ValueError, match="outside the space's"):
+            KernelProjectionGauge.direct_sum(SPACE, (KernelSummand(np.array([7, 9]), np.eye(2), "o"),))
 
     def test_an_empty_direct_sum_is_the_identity_section_not_None(self):
         g = _build(SPACE, ())
@@ -324,8 +360,34 @@ class TestTheProtocolAndTheMetric:
     def test_a_non_diagonal_metric_is_a_declared_scope_boundary(self):
         from orpheus.numerics.metric import DenseMetric
         dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]])))
-        with pytest.raises(ValueError, match="non-diagonal block"):
+        with pytest.raises(ValueError, match="the metric is not diagonal"):
             KernelProjectionGauge.direct_sum(dense, ())
+
+    def test_a_space_that_is_not_one_dimensional_is_refused(self):
+        """A summand's support is flat indices. Arm ``no_rank_check`` (the 1-D check removed) reddens it."""
+        plane = FunctionSpace.of_axes(
+            Axis("p", (2,), weights=np.array([1.0, 2.0]), origin=Declared(BasisKind.NODAL)),
+            Axis("q", (3,), weights=np.array([1.0, 1.0, 2.0]), origin=Declared(BasisKind.NODAL)))
+        with pytest.raises(ValueError, match="must be one-dimensional"):
+            KernelProjectionGauge.direct_sum(plane, ())
+
+    def test_a_gauge_on_a_dual_space_is_admitted_and_is_a_projector(self):
+        """The user's ruling (a), 2026-10-31: a dual space's metric G^+ is diagonal when G is, so the gauge is
+        admitted (before the ruling it was refused as non-diagonal). Its laws hold in V*'s inner product, G^+ = 1/G.
+        Arm ``dual_refused`` (the dual metric's diagonal is ``None``, the state before the ruling) reddens it."""
+        dual = SPACE.dual()
+        g = KernelProjectionGauge.direct_sum(dual, _summands(_ROTATED))
+        ginv = 1.0 / _G
+        x, y = _x(15), _x(16)
+        np.testing.assert_allclose(g.apply(g.apply(x)), g.apply(x), rtol=0, atol=16 * _EPS * np.abs(x).max())
+        assert float(np.sum(ginv * g.apply(x) * y)) == pytest.approx(float(np.sum(ginv * x * g.apply(y))), rel=1e-13)
+        assert float(np.sum(_G * g.apply(x) * y)) != pytest.approx(float(np.sum(_G * x * g.apply(y))), rel=1e-6)
+
+    def test_the_algebra_adjoint_is_the_projector_itself(self, rotated):
+        """Pi is spelled in the operator algebra (the user's ruling (c)), so its adjoint follows by law: a G-orthogonal
+        projector is G-self-adjoint, Pi.H == Pi. Arm ``transpose_is_apply`` reddens it (then Pi.H = G^-1 Pi G)."""
+        x = _x(17)
+        np.testing.assert_allclose(rotated.H.apply(x), rotated.apply(x), rtol=0, atol=64 * _EPS * np.abs(x).max())
 
     @pytest.mark.rests_on("tests/gates/numerics/test_coordinate_space.py::TestThePrimitive")
     @pytest.mark.parametrize("verb", ["apply", "apply_transpose", "gauge"])
@@ -335,3 +397,112 @@ class TestTheProtocolAndTheMetric:
         fancy-indexed gather of an (N-1,) array either raises IndexError or returns."""
         with pytest.raises(ValueError, match="leading shape"):
             getattr(rotated, verb)(np.ones(_N - 1))
+
+
+# ── the summand parses its fields ──────────────────────────────────────────────────────────────────────
+
+class TestTheSummandParsesItsFields:
+    """``KernelSummand.__post_init__``: a 1-D integer support, sorted, unique and non-negative; generators
+    ``(support.size, k)``. Arm ``no_summand_parse`` (the parse made a no-op) reddens every row."""
+
+    @pytest.mark.parametrize("support, fragment", [
+        (np.array([0.0, 1.0]), "integer flat indices"),
+        (np.array([[0, 1]]), "integer flat indices"),
+        (np.array([1, 0]), "sorted, unique"),
+        (np.array([0, 0]), "sorted, unique"),
+        (np.array([-1, 0]), "sorted, unique"),
+    ], ids=["float", "2-D", "unsorted", "duplicate", "negative"])
+    def test_a_malformed_support_is_refused(self, support, fragment):
+        with pytest.raises(ValueError, match=fragment):
+            KernelSummand(support, np.eye(2), "bad")
+
+    @pytest.mark.parametrize("generators", [np.ones(2), np.ones((3, 1))], ids=["1-D", "wrong rows"])
+    def test_malformed_generators_are_refused(self, generators):
+        with pytest.raises(ValueError, match="generators must be"):
+            KernelSummand(np.array([0, 1]), generators, "bad")
+
+
+# ── the metric's diagonal verb (the user's ruling (a), 2026-10-31) ────────────────────────────────────
+
+class TestTheMetricDiagonalVerb:
+    r"""``HilbertMetric.diagonal(shape)``: :math:`G\mathbf 1` iff the metric is diagonal, else ``None``. The oracle is
+    the hand-written weights (never the SUT's ``apply``)."""
+
+    def test_a_diagonal_metric_returns_its_weights(self):
+        from orpheus.numerics.metric import DiagonalMetric
+        np.testing.assert_array_equal(DiagonalMetric(_G).diagonal((_N,)), _G)
+
+    def test_a_dense_metric_is_not_known_to_be_diagonal(self):
+        """Arm ``dense_says_diagonal`` reddens it, and the scope-boundary row."""
+        from orpheus.numerics.metric import DenseMetric
+        assert DenseMetric(np.diag(_G)).diagonal((_N,)) is None
+
+    def test_a_factored_metric_is_diagonal_iff_every_block_is(self):
+        """Arm ``factored_ignores_blocks`` reddens the Dense-block leg."""
+        from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
+        w = np.array([1.0, 3.0])
+        diag = FactoredMetric((((2,), DiagonalMetric(w)), ((3,), None)))
+        np.testing.assert_array_equal(diag.diagonal((2, 3)), np.repeat(w[:, None], 3, axis=1))
+        assert FactoredMetric((((2,), DenseMetric(np.eye(2))), ((3,), None))).diagonal((2, 3)) is None
+
+    def test_a_dual_metric_is_diagonal_iff_its_primal_is(self):
+        """Arm ``dual_is_primal`` reddens the diagonal leg."""
+        from orpheus.numerics.metric import DenseMetric, DiagonalMetric, DualMetric
+        np.testing.assert_allclose(DualMetric(DiagonalMetric(_G)).diagonal((_N,)), 1.0 / _G, rtol=1e-15, atol=0)
+        assert DualMetric(DenseMetric(np.diag(_G))).diagonal((_N,)) is None
+
+    def test_a_euclidean_space_reads_ones(self):
+        flat = FunctionSpace("euclid", (4,))
+        np.testing.assert_array_equal(flat.metric_diagonal(), np.ones(4))
+
+
+class TestTheCompositeMetricDiagonal:
+    """A composite's diagonal is its blocks' in the flat layout, or ``None`` if any block is not diagonal; the oracle is
+    each block's own ``apply_metric(ones)``. Arms ``full_field_reversed`` and ``coupled_reversed`` (the blocks
+    concatenated in the wrong order) redden their rows."""
+
+    _A = FunctionSpace.of_axes(Axis("bulk", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(BasisKind.NODAL)))
+    _B = FunctionSpace.of_axes(Axis("trace", (2,), weights=np.array([0.5, 4.0]), origin=Declared(BasisKind.NODAL)))
+
+    def _expected(self):
+        return np.concatenate([self._A.apply_metric(np.ones(3)), self._B.apply_metric(np.ones(2))])
+
+    def test_a_full_field_space_concatenates_interior_then_trace(self):
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        np.testing.assert_array_equal(FullFieldSpace.from_blocks(self._A, self._B).metric_diagonal(), self._expected())
+
+    def test_a_coupled_space_concatenates_its_systems_in_order(self):
+        from orpheus.numerics.coupled_system import CoupledSpace
+        np.testing.assert_array_equal(CoupledSpace.from_systems((self._A, self._B)).metric_diagonal(), self._expected())
+
+    def test_a_composite_with_a_dense_block_is_not_diagonal(self):
+        from orpheus.numerics.metric import DenseMetric
+        from orpheus.numerics.coupled_system import CoupledSpace
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]])))
+        assert FullFieldSpace.from_blocks(self._A, dense).metric_diagonal() is None
+        assert CoupledSpace.from_systems((self._A, dense)).metric_diagonal() is None
+
+    @pytest.mark.xfail(strict=True, raises=AttributeError, reason=(
+        "#666: a composite space's metric legs take its composite carrier, not its flat coordinates, so the summand's "
+        "gather.H (sharp . dual . flat) cannot act on the flat chart the gauge acts on. `[M]` 2026-10-31: FullFieldSpace "
+        "raises \"'numpy.ndarray' object has no attribute 'interior'\", CoupledSpace \"... 'n_systems'\". The fix lands in "
+        "U0 (the first gauge posed on diffusion's full field, R3's union kernel). An XPASS means it landed: drop the mark."))
+    @pytest.mark.parametrize("composite", ["full_field", "coupled"])
+    def test_a_gauge_on_a_composite_space_spans_its_blocks(self, composite):
+        """R3's union kernel lives on bulk (+) trace: a summand crossing the block boundary is admitted and is a
+        G-orthogonal projector in the composite's metric."""
+        from orpheus.numerics.coupled_system import CoupledSpace
+        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        space = (FullFieldSpace.from_blocks(self._A, self._B) if composite == "full_field"
+                 else CoupledSpace.from_systems((self._A, self._B)))
+        g = KernelProjectionGauge.direct_sum(space, (KernelSummand(np.array([1, 2, 3]), np.array([[1.0], [-1.0], [2.0]]), "x"),))
+        w = self._expected()
+        x, y = np.random.default_rng(18).standard_normal((2, 5))
+        np.testing.assert_allclose(g.apply(g.apply(x)), g.apply(x), rtol=0, atol=16 * _EPS * np.abs(x).max())
+        assert float(np.sum(w * g.apply(x) * y)) == pytest.approx(float(np.sum(w * x * g.apply(y))), rel=1e-13)
+
+def test_the_composite_xfail_is_strict():
+    marks = [m for m in TestTheCompositeMetricDiagonal.test_a_gauge_on_a_composite_space_spans_its_blocks.pytestmark
+             if m.name == "xfail"]
+    assert len(marks) == 1 and marks[0].kwargs.get("strict") is True

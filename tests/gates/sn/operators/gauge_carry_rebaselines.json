@@ -1,0 +1,49 @@
+{
+ "carry": "gauge_carry_1b2a6a14.npz",
+ "events": [
+  {
+   "event": "U3 review (c): Pi spelled in the operator algebra, sum_b gather_b.H @ Pi_b @ gather_b",
+   "measured_at": "2431e2f0 + the uncommitted U3 review revision, 2026-10-31",
+   "cause": "summation order: the OperatorSum fold and gather.H (sharp . transpose . flat, a G multiply and divide round trip) against the retired scatter-add; at most two roundings per element",
+   "principled_form": "the operator algebra (the user's ruling (c), 2026-10-31)",
+   "independent_check": "the projector laws on a non-uniform metric, tests/gates/numerics/test_kernel_projection_gauge.py; the counting law, the dense SVD and the annihilation rows of test_loss_kernel_gauge.py",
+   "bound": {
+    "apply_atol_in_eps_max_abs_apply": 2.0,
+    "gauge_atol_in_eps_max_abs_x": 2.0,
+    "dimension": "equal"
+   },
+   "measured": {
+    "d2 (3,4) LS4 ng=2": {
+     "apply_in_eps_max_abs_apply": 0.3334,
+     "gauge_in_eps_max_abs_x": 0.2612,
+     "dimension_equal": true
+    },
+    "d2 (5,6) LS4 ng=3 c=0.9": {
+     "apply_in_eps_max_abs_apply": 0.4851,
+     "gauge_in_eps_max_abs_x": 0.2555,
+     "dimension_equal": true
+    },
+    "d2 (3,4) GRADED 1.7x": {
+     "apply_in_eps_max_abs_apply": 0.547,
+     "gauge_in_eps_max_abs_x": 0.2612,
+     "dimension_equal": true
+    },
+    "d2 (3,4) LS2 ng=1": {
+     "apply_in_eps_max_abs_apply": 0.0,
+     "gauge_in_eps_max_abs_x": 0.0,
+     "dimension_equal": true
+    },
+    "d3 (2,2,2) LS4 ng=1": {
+     "apply_in_eps_max_abs_apply": 0.5206,
+     "gauge_in_eps_max_abs_x": 0.5225,
+     "dimension_equal": true
+    },
+    "d3 (2,2,3) LS4 ng=1": {
+     "apply_in_eps_max_abs_apply": 0.415,
+     "gauge_in_eps_max_abs_x": 0.2612,
+     "dimension_equal": true
+    }
+   }
+  }
+ ]
+}

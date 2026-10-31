@@ -363,6 +363,17 @@ class HilbertMetric(ABC):
         r"""Return :math:`\langle x, y\rangle = \sum (Gx) \odot y` — the one spelling."""
         return float(np.sum(self.apply(x) * y))
 
+    def diagonal(self, shape: tuple[int, ...]) -> NDArray | None:
+        r"""Return :math:`G\mathbf 1` over elements of ``shape`` when :math:`G` is diagonal, else ``None``.
+
+        A diagonal form is determined by its action on the constant, so the
+        diagonal is :meth:`apply` of ones, exact (a product with ``1.0``). The
+        base answer is ``None``, "not known to be diagonal": a realization
+        that IS diagonal says so by overriding this, and a consumer that needs
+        node weights (a frame's measure on a support) refuses ``None``.
+        """
+        return None
+
 
 def _frozen_copy(array: NDArray) -> NDArray:
     r"""A read-only copy: a metric is a frozen value, and a positioned form is
@@ -394,6 +405,10 @@ class DiagonalMetric(HilbertMetric):
 
     def apply(self, x: NDArray) -> NDArray:
         return _broadcast_leading(self.weights, np.ndim(x)) * x
+
+    def diagonal(self, shape: tuple[int, ...]) -> NDArray:
+        r"""The weights extended to ``shape``: :math:`G\mathbf 1`."""
+        return self.apply(np.ones(shape))
 
     def apply_inverse(self, x: NDArray) -> NDArray:
         wb = _broadcast_leading(self.weights, np.ndim(x))
@@ -679,6 +694,13 @@ class FactoredMetric(HilbertMetric):
     def apply(self, x: NDArray) -> NDArray:
         return self._walk(x, inverse=False)
 
+    def diagonal(self, shape: tuple[int, ...]) -> NDArray | None:
+        r"""Diagonal iff every block is Euclidean or diagonal; then :math:`G\mathbf 1`."""
+        for block_shape, factor in self.entries:
+            if factor is not None and cast(HilbertMetric, factor).diagonal(block_shape) is None:
+                return None
+        return self.apply(np.ones(shape))
+
     def apply_inverse(self, x: NDArray) -> NDArray:
         return self._walk(x, inverse=True)
 
@@ -754,6 +776,12 @@ class DualMetric(HilbertMetric):
 
     def apply(self, x: NDArray) -> NDArray:
         return self.primal.apply_inverse(x)
+
+    def diagonal(self, shape: tuple[int, ...]) -> NDArray | None:
+        r"""Diagonal iff the primal is: then :math:`G^{+}\mathbf 1`, the primal's masked reciprocal."""
+        if self.primal.diagonal(shape) is None:
+            return None
+        return self.apply(np.ones(shape))
 
     def apply_inverse(self, x: NDArray) -> NDArray:
         return self.primal.apply(x)

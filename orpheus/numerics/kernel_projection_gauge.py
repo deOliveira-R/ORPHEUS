@@ -47,7 +47,7 @@ Its laws are gated on a numerics fixture with a non-uniform :math:`G`
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Optional
 
 import numpy as np
@@ -58,13 +58,12 @@ from orpheus.numerics.basis.orthonormal_span_basis import OrthonormalSpanBasis
 from orpheus.numerics.elementary_operators import TraceRestrictionOperator
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.metric import DiagonalMetric, FactoredMetric
-from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.operator import LinearOperator, ZeroMorphism
 from orpheus.numerics.space import FunctionSpace
 
 __all__ = ["KernelProjectionGauge", "KernelSummand", "SUMMAND_ORTHOGONALITY_TOL"]
 
-#: The largest |G-cosine| between two overlapping summands' orthonormal modes
+#: The largest ``|G-cosine|`` between two overlapping summands' orthonormal modes
 #: that still counts as orthogonal. Orthogonal-by-theory summands read round-off
 #: and non-orthogonal ones read O(1), so the cut is not a tuning knob: ``[M]``
 #: (2026-10-30, ``scratch/membership_covector/u3/union_orthogonality.py``) the
@@ -101,6 +100,26 @@ class KernelSummand:
     label: str
     orthogonal_to_constants: bool = False
 
+    def __post_init__(self) -> None:
+        support = np.asarray(self.support)
+        generators = np.asarray(self.generators, dtype=float)
+        if support.ndim != 1 or not np.issubdtype(support.dtype, np.integer):
+            raise ValueError(
+                f"KernelSummand {self.label!r}: the support is a 1-D array of integer flat indices, got "
+                f"{support.dtype} of shape {support.shape}."
+            )
+        if support.size and (np.any(np.diff(support) <= 0) or support[0] < 0):
+            raise ValueError(
+                f"KernelSummand {self.label!r}: the support must be sorted, unique and non-negative."
+            )
+        if generators.ndim != 2 or generators.shape[0] != support.size:
+            raise ValueError(
+                f"KernelSummand {self.label!r}: generators must be (support.size, n_generators) = "
+                f"({support.size}, k), got {generators.shape}."
+            )
+        object.__setattr__(self, "support", support.astype(np.intp, copy=False))
+        object.__setattr__(self, "generators", generators)
+
 
 @dataclass(frozen=True, slots=True)
 class _ProjectedSummand:
@@ -112,25 +131,29 @@ class _ProjectedSummand:
 
 
 def _metric_diagonal(space: FunctionSpace) -> NDArray:
-    r"""The flat diagonal of the space's metric: :math:`G\mathbf 1`, exact when :math:`G` is diagonal.
+    r"""The flat diagonal of the space's metric, :meth:`FunctionSpace.metric_diagonal`.
 
-    SCOPE-BOUNDARY[guard]: a non-diagonal metric block is refused.
+    SCOPE-BOUNDARY[guard]: a space whose metric is not diagonal, or not flat, is refused.
     machinery: a summand frame over a dense-metric measure; ruling: the space-membership spec §U3.1 (2026-10-30);
     revisit: a kernel posed on a space whose metric is a dense form on a modal block.
 
     A summand frame's measure is a diagonal weight vector, so a dense Gram has
-    no node weights to restrict to a support.
+    no node weights to restrict to a support; and a summand's support is flat
+    indices, so the space is one-dimensional (a composite's flat layout is).
     """
-    metric = space._resolved_metric
-    factors = metric.entries if isinstance(metric, FactoredMetric) else ((space.shape, metric),)
-    dense = [type(m).__name__ for _, m in factors if m is not None and not isinstance(m, DiagonalMetric)]
-    if dense:
+    if len(space.shape) != 1:
         raise ValueError(
-            f"KernelProjectionGauge on {space!r}: the metric has non-diagonal block(s) {dense}. A summand's "
-            f"frame measure is a diagonal weight vector, so this is a declared scope boundary (SCOPE-BOUNDARY: "
-            f"the projector is defined for diagonal metrics)."
+            f"KernelProjectionGauge on {space!r}: a summand's support is flat indices, so the space must be "
+            f"one-dimensional; got shape {space.shape}."
         )
-    return np.asarray(space.apply_metric(np.ones(space.shape)), dtype=float).reshape(-1)
+    diagonal = space.metric_diagonal()
+    if diagonal is None:
+        raise ValueError(
+            f"KernelProjectionGauge on {space!r}: the metric is not diagonal. A summand's frame measure is a "
+            f"diagonal weight vector, so this is a declared scope boundary (SCOPE-BOUNDARY: the projector is "
+            f"defined for diagonal metrics)."
+        )
+    return np.asarray(diagonal, dtype=float).reshape(-1)
 
 
 class KernelProjectionGauge(LinearOperator):
@@ -150,6 +173,12 @@ class KernelProjectionGauge(LinearOperator):
     def __init__(self, summands: tuple[_ProjectedSummand, ...], space: FunctionSpace) -> None:
         self._summands = tuple(summands)
         self._space = space
+        #: :math:`\Pi = \sum_b \gamma_b^{\mathsf H} \Pi_b \gamma_b`, spelled in the operator algebra,
+        #: so its transpose and adjoint follow by law; the zero map when there is no summand.
+        self._projector: LinearOperator = (
+            sum(s.gather.H @ s.projector @ s.gather for s in self._summands)
+            if self._summands else ZeroMorphism(domain=space, codomain=space)
+        )
 
     @classmethod
     def direct_sum(
@@ -164,17 +193,27 @@ class KernelProjectionGauge(LinearOperator):
         """
         weights = _metric_diagonal(space)
         n_total = weights.size
+        labels = [summand.label for summand in summands]
+        if len(set(labels)) != len(labels):
+            raise ValueError(
+                f"KernelProjectionGauge: summand labels must be distinct (each names its support's manifold, "
+                f"so two equal labels would make two coefficient spaces compare equal); got {labels}."
+            )
         built: list[_ProjectedSummand] = []
         for summand in summands:
-            support = np.asarray(summand.support, dtype=np.intp)
+            support = summand.support
             if support.size == 0:
                 continue
-            basis = OrthonormalSpanBasis.of_generators(
-                summand.generators, weights[support], label=summand.label,
-                orthogonal_to_constants=summand.orthogonal_to_constants,
-            )
+            if support[-1] >= n_total:
+                raise ValueError(
+                    f"KernelSummand {summand.label!r}: support index {int(support[-1])} is outside the space's "
+                    f"{n_total} coordinates."
+                )
+            basis = OrthonormalSpanBasis.of_generators(summand.generators, weights[support], label=summand.label)
             if basis.table.shape[1] == 0:
                 continue
+            if summand.orthogonal_to_constants:
+                basis = _declared_orthogonal_to_constants(basis, weights[support])
             frame = GalerkinFrame(basis, DiscreteMeasure(
                 nodes=support.astype(float), weights=weights[support], support=basis.domain,
             ))
@@ -209,11 +248,7 @@ class KernelProjectionGauge(LinearOperator):
     # ── the action ────────────────────────────────────────────────────
     def apply(self, x: NDArray) -> NDArray:
         r"""The component of ``x`` inside the kernel, :math:`\Pi x`."""
-        values = np.asarray(self._space.leading_coordinates_of(x), dtype=float)
-        out = np.zeros_like(values)
-        for s in self._summands:
-            out[s.gather.indices] += s.projector.apply(s.gather.apply(values))
-        return out
+        return self._projector.apply(np.asarray(self._space.leading_coordinates_of(x), dtype=float))
 
     def apply_transpose(self, x: NDArray) -> NDArray:
         r""":math:`\Pi^{\mathsf T} = \sum_b \gamma_b^{\mathsf T} \Pi_b^{\mathsf T} \gamma_b`, the Euclidean transpose.
@@ -222,13 +257,9 @@ class KernelProjectionGauge(LinearOperator):
         :math:`\Phi\Phi^{\mathsf T}G` is :math:`G`-self-adjoint, and its
         Euclidean transpose :math:`G\Phi\Phi^{\mathsf T}` equals it only when
         :math:`G` is uniform (the SN predecessor returned :math:`\Pi`; nothing
-        read it).
+        read it). It is the operator algebra's transpose of the sum, by law.
         """
-        values = np.asarray(self._space.leading_coordinates_of(x), dtype=float)
-        out = np.zeros_like(values)
-        for s in self._summands:
-            out[s.gather.indices] += s.projector.apply_transpose(s.gather.apply(values))
-        return out
+        return self._projector.apply_transpose(np.asarray(self._space.leading_coordinates_of(x), dtype=float))
 
     @property
     def is_adjointable(self) -> bool:
@@ -282,3 +313,24 @@ def _require_mutually_orthogonal(summands: tuple[_ProjectedSummand, ...], weight
                 f"{SUMMAND_ORTHOGONALITY_TOL:.0e}); their projectors do not sum to a projector. Merge them "
                 f"into one summand."
             )
+
+
+def _declared_orthogonal_to_constants(basis: OrthonormalSpanBasis, weights: NDArray) -> OrthonormalSpanBasis:
+    r"""Check the caller's declaration that the span is :math:`G`-orthogonal to the constants, then store the exact zero.
+
+    The computed unit :math:`\Phi^{\mathsf T} G \mathbf 1` holds the
+    modes' :math:`G`-inner products with the constant; divided by
+    :math:`\lVert \mathbf 1\rVert_G` it is a :math:`G`-cosine, held to
+    :data:`SUMMAND_ORTHOGONALITY_TOL` like an overlap. A declaration that
+    the measurement contradicts is refused; one it confirms stores the
+    exact zero, so the coefficient space's identity does not hang on
+    round-off (the SN loss kernel's declared zero, the user's ruling of
+    2026-10-21).
+    """
+    cosine = float(np.max(np.abs(basis.unit))) / float(np.sqrt(np.sum(weights)))
+    if cosine > SUMMAND_ORTHOGONALITY_TOL:
+        raise ValueError(
+            f"KernelSummand {basis.label!r} is declared orthogonal to the constants, but its largest "
+            f"|G-cosine| with the constant is {cosine:.3e} > {SUMMAND_ORTHOGONALITY_TOL:.0e}."
+        )
+    return replace(basis, unit=np.zeros(basis.table.shape[1]))

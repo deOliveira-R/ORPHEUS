@@ -491,6 +491,10 @@ def test_the_repair_is_AUDIBLE_and_names_the_root_fix():
     correction = solution.exit_report.gauge
     assert isinstance(correction, Measured) and correction.value > 1e-3
     assert f"{correction.value:.2%}" in message, f"the magnitude is not quoted: {message}"
+    # ...and an ABSOLUTE production pin beside it, so the row does not only compare the warning with the report that
+    # produced it (retirement-audit D.14). `[M]` 2026-10-31, U3 review tree: 0.05358773 (the G-norm ratio; the
+    # Euclidean one read 0.0608, 13 % away). rel=1e-3 admits the solve's convergence floor and refuses both.
+    assert correction.value == pytest.approx(0.0536, rel=1e-3), correction.value
     # the ROOT fix, and the escalation recipe
     assert "linear_discontinuous" in message, (
         f"the root fix must name the closures that damp the mode: {message}")

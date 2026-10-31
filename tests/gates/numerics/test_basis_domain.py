@@ -351,7 +351,7 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
     assert FunctionSpace.of_basis(mesh.indicator_basis()) != FunctionSpace.of_basis(grid.as_basis())
 
     # The loss-kernel pair, now ONE point set with ONE spelling. Its measure
-    # is built inside `_build_gauge_blocks`, so this pins the basis's half and
+    # is built inside `KernelProjectionGauge.direct_sum`, so this pins the basis's half and
     # the production site reads it directly (`kernel_projection_gauge.py`,
     # `support=basis.domain`) — the divergence is unspellable, not merely
     # absent.

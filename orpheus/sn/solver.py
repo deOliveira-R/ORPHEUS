@@ -780,13 +780,15 @@ def _exit_gauge_trace(
     GATED instead — see
     ``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``.
 
-    ⛔ **Rebuilds, never mutates in place.**  `[M]` on the Krylov arm the bulk
-    and trace are two views into ONE flat buffer
-    (``psi_full.boundary.values.base is psi_full.interior.values.base`` →
-    ``True``), which ``psi_typed`` also references and which is still read
-    after this point; on the un-windowed SI arm ``angular_out IS psi_typed``,
-    the very object the exit report already measured.  An in-place
-    write would reach backwards through both.  ``dataclasses.replace`` also
+    ⛔ **Rebuilds, never mutates in place.**  The iterate passed here may
+    still be read after this point (on the un-windowed SI arm
+    ``angular_out IS psi_typed``, the very object the exit report already
+    measured), and a composite's blocks may be views into one flat buffer,
+    so an in-place write could reach backwards into objects already
+    measured.  `[M]` 2026-10-31 (the U3 qa review): no gauge-carrying call in
+    the ``sn/solve`` gates shares memory between its blocks today (57 of 57
+    read ``np.shares_memory`` False, the Krylov arm included), so the rule
+    is a safety rule, not a repair of an observed alias.  ``dataclasses.replace`` also
     re-runs ``__post_init__``, so the leaf's block invariants re-fire — where
     ``Composite._recombine`` would silently drop ``_history``.
 

@@ -647,6 +647,13 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
             )
         return members
 
+    def metric_diagonal(self) -> "np.ndarray | None":
+        r"""The members' diagonals in the flat layout (:attr:`system_slices`), or ``None`` if any is not diagonal."""
+        blocks = tuple(s.metric_diagonal() for s in self.systems)
+        if any(d is None for d in blocks):
+            return None
+        return np.concatenate([np.asarray(d).reshape(-1) for d in blocks])
+
     def apply_metric(self, x: "CoupledField") -> "CoupledField":
         r"""Apply the block-diagonal Hilbert metric ``G = diag(G_1, …, G_N)``.
 

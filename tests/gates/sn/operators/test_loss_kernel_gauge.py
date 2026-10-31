@@ -895,6 +895,10 @@ def test_the_kernel_modes_are_orthogonal_to_the_constants(label, cells, bcs, kwa
 _CARRY = Path(__file__).with_name("gauge_carry_1b2a6a14.npz")
 
 
+#: The carry's re-baselines, as DELTAS with a stated bound (the .npz is never rewritten).
+_REBASELINES = Path(__file__).with_name("gauge_carry_rebaselines.json")
+
+
 @pytest.mark.foundation
 @pytest.mark.rests_on(
     "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProjectorLaws",
@@ -902,20 +906,38 @@ _CARRY = Path(__file__).with_name("gauge_carry_1b2a6a14.npz")
     "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_dimension_matches_the_combinatorial_counting_law",
 )
 @pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR, ids=[row[0] for row in _SINGULAR])
-def test_the_rebuilt_gauge_is_bit_identical_to_the_retired_class(label, cells, bcs, kwargs):
-    """The re-base moved the sqrt(G)-SVD verbatim (one per summand, the same gather and scatter), so no reduction is
-    reordered and ``array_equal`` is the contract. It inherits bit-identity, which is necessary and not sufficient:
-    the value anchors are the counting law, the dense SVD and the annihilation rows above. Reddens under every
-    numerics arm that moves a value (``leak``, ``euclid``, ``gauge_sign``, ``drop_summand``)."""
+def test_the_rebuilt_gauge_agrees_with_the_retired_class_within_the_declared_rebaseline(label, cells, bcs, kwargs):
+    """The U3 carve moved the sqrt(G)-SVD verbatim and was bit-identical to the retired ``LossKernelGauge``. The U3
+    review then spelled Pi in the operator algebra (the user's ruling (c), 2026-10-31), which reorders the summation:
+    accepted under principled equivalence (vv-principles, "Bit-identity vs principled-equivalence"), the bound and its
+    reason read from ``gauge_carry_rebaselines.json`` (`[M]` at most 0.55 eps of max|Pi x| on ``apply``, 0.52 eps of
+    max|x| on ``gauge``, LS2 still bit-equal; the bound is 2 eps, two roundings per element). The dimension is exact.
+    Reddens under every numerics arm that moves a value (``leak``, ``euclid``, ``gauge_sign``, ``drop_summand``)."""
+    import json
     from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge
     carry = np.load(_CARRY)
-    mesh = _mesh(cells, bcs, **kwargs)
-    gauge = mesh.loss_kernel_gauge
+    bound = json.loads(_REBASELINES.read_text())["events"][-1]["bound"]
+    eps = np.finfo(float).eps
+    gauge = _mesh(cells, bcs, **kwargs).loss_kernel_gauge
     assert isinstance(gauge, KernelProjectionGauge)
     x = carry[f"{label}|x"]
-    np.testing.assert_array_equal(gauge.apply(x), carry[f"{label}|apply"])
-    np.testing.assert_array_equal(gauge.gauge(x), carry[f"{label}|gauge"])
+    applied, reference = gauge.apply(x), carry[f"{label}|apply"]
+    np.testing.assert_allclose(applied, reference, rtol=0,
+                               atol=bound["apply_atol_in_eps_max_abs_apply"] * eps * np.abs(reference).max())
+    np.testing.assert_allclose(gauge.gauge(x), carry[f"{label}|gauge"], rtol=0,
+                               atol=bound["gauge_atol_in_eps_max_abs_x"] * eps * np.abs(x).max())
     assert gauge.dimension == int(carry[f"{label}|dimension"])
+
+
+def test_the_rebaseline_is_a_declared_delta_not_a_rewrite():
+    """The carry is the pre-carve reference: its bytes are pinned by the delta file's measured values (a rewrite of the
+    .npz would make every measured drift 0, and LS2 is the only fixture whose drift is 0)."""
+    import json
+    doc = json.loads(_REBASELINES.read_text())
+    assert doc["carry"] == _CARRY.name
+    measured = doc["events"][-1]["measured"]
+    assert set(measured) == {row[0] for row in _SINGULAR}
+    assert sum(m["apply_in_eps_max_abs_apply"] > 0 for m in measured.values()) == 5
 
 
 def _trace_metric(mesh) -> np.ndarray:
@@ -947,7 +969,7 @@ def test_premise_the_exit_rows_carry_a_non_uniform_trace_metric():
 
 @pytest.mark.foundation
 @pytest.mark.rests_on(
-    "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_rebuilt_gauge_is_bit_identical_to_the_retired_class",
+    "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_rebuilt_gauge_agrees_with_the_retired_class_within_the_declared_rebaseline",
     "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_premise_the_exit_rows_carry_a_non_uniform_trace_metric",
 )
 @pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR, ids=[row[0] for row in _SINGULAR])

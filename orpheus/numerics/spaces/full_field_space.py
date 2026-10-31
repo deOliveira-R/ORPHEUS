@@ -297,6 +297,13 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             boundary=replace(x.boundary, values=boundary_values),
         )
 
+    def metric_diagonal(self) -> "np.ndarray | None":
+        r"""The blocks' diagonals in the flat layout (interior, then trace), or ``None`` if either is not diagonal."""
+        blocks = (self.interior_space.metric_diagonal(), self.trace_space.metric_diagonal())
+        if any(d is None for d in blocks):
+            return None
+        return np.concatenate([np.asarray(d).reshape(-1) for d in blocks])
+
     def apply_metric(self, x: CompositeField) -> CompositeField:
         r"""Apply the block-diagonal Hilbert metric :math:`G\odot x`.
 
