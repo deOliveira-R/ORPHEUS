@@ -82,7 +82,7 @@ from typing import Any, cast
 
 import numpy as np
 from numpy.linalg import LinAlgError
-from scipy.linalg import LinAlgWarning, lu_factor, lu_solve
+from scipy.linalg import LinAlgWarning, lapack, lu_factor, lu_solve
 
 from orpheus.numerics.assembled_operator import dense
 from orpheus.numerics.operator import (
@@ -154,6 +154,9 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
                 f"two-sided inverse — M-materialise is unsatisfiable."
             )
         self._basis_shape = shape
+        #: The 1-norm of the materialised operator, read BEFORE the in-place
+        #: factorisation overwrites it: the reciprocal-condition estimate needs it.
+        self._norm_1 = float(np.abs(matrix).sum(axis=0).max()) if matrix.size else 0.0
         # One factorization for the operator's lifetime; scipy's own
         # singularity signal is a WARNING (getrf info > 0), which would
         # let a zero pivot flow into inf/nan backsolves — silence it and
@@ -174,6 +177,26 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
                 f"into the M-direct residual bound.)"
             )
         super().__init__(inner)
+
+    @property
+    def reciprocal_condition(self) -> float:
+        r"""LAPACK's estimate of :math:`1/\kappa_1(A) = 1/(\lVert A\rVert_1 \lVert A^{-1}\rVert_1)`, from the factors.
+
+        ``getrf``'s factors and the 1-norm read before the factorisation
+        overwrote :math:`A`, handed to ``gecon``: :math:`O(n^2)` on top of the
+        :math:`O(n^3)` factorisation, so a factorising method records its
+        conditioning for free (the space-membership campaign's R3.4: a
+        near-singular posing is solved, never refused, and its conditioning
+        is recorded). ``gecon`` is an estimate, never larger than the true
+        :math:`1/\kappa_1` by more than a modest factor, and usually exact
+        (``[M]`` the test-architect: 5 of 5 matrices within 1.000).
+        """
+        if self._norm_1 == 0.0:
+            return 0.0
+        rcond, info = lapack.dgecon(self._lu[0], self._norm_1, norm="1")
+        if info != 0:
+            raise ValueError(f"MatrixInverseOperator: LAPACK gecon returned info = {info}.")
+        return float(rcond)
 
     def _flat_of(self, x: Any) -> np.ndarray:
         r"""Ravel the operand — the ravellable protocol for typed carriers

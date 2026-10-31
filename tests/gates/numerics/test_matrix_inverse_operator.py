@@ -32,7 +32,7 @@ import numpy as np
 import pytest
 from scipy.sparse import csr_matrix
 
-from orpheus.numerics.assembled_operator import dense
+from orpheus.numerics.assembled_operator import SparseAssembledOperator, dense
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.elementary_operators import DiagonalOperator, PermutationOperator
 from orpheus.numerics.operator import (
@@ -663,3 +663,70 @@ def test_typed_operand_without_a_space_zeros_exemplar_raises():
         minv.apply(_RavelToy(np.ones(5)))
     with pytest.raises(ValueError, match=r"zeros\(\) exemplar"):
         minv.apply_transpose(_RavelToy(np.ones(5)))
+
+
+# ── the reciprocal-condition estimate (space-membership U0, R3.4) ───────────────────────────────────────────
+
+
+def _closed_scatterer(sigma_a: float, widths: np.ndarray) -> np.ndarray:
+    r"""A one-group diffusion loss on a mirror slab, assembled by hand: leakage (D/h harmonic couplings) plus removal.
+
+    At ``sigma_a = 0`` it is exactly singular (the constant is in its kernel); a small ``sigma_a`` makes it regular and
+    ill-conditioned, kappa ~ (largest leakage eigenvalue) / sigma_a. Non-uniform ``widths`` keep the 1-norm and the
+    infinity-norm apart (the norm arm's witness)."""
+    d = 1.0 / 1.5
+    n = widths.size
+    coupling = 2.0 * d / (widths[:-1] + widths[1:])
+    A = np.diag(sigma_a * widths)
+    for i, c in enumerate(coupling):
+        A[i, i] += c
+        A[i + 1, i + 1] += c
+        A[i, i + 1] -= c
+        A[i + 1, i] -= c
+    return A
+
+
+@pytest.mark.parametrize("sigma_a", [1e-4, 1e-8, 1e-12])
+@pytest.mark.parametrize("widths", [np.full(8, 1.25), np.array([0.3, 0.3, 0.3, 1.5, 1.5, 1.5, 1.5, 1.5])],
+                         ids=["uniform", "two_zone"])
+def test_the_reciprocal_condition_is_an_estimate_from_above_within_a_factor_ten(sigma_a, widths):
+    r"""THEOREM (Hager-Higham, LAPACK ``gecon``): the estimated :math:`\lVert A^{-1}\rVert_1` is a LOWER bound, so the
+    estimate is at least :math:`1/\kappa_1(A)` (up to the rounding of the reference, which inverts :math:`A`
+    numerically: about :math:`\kappa\varepsilon`) and LAPACK states it is usually within a factor 10 of it.
+
+    This row pins the estimator's contract on near-singular closed scatterers. It is blind to a wrong norm that stays
+    inside the band ([M] 2026-10-31: on this symmetric fixture the arms ``norm_after_overwrite`` and ``norm_inf``
+    leave it green); the definitional row below is the one that reads the norm.
+    """
+    A = _closed_scatterer(sigma_a, widths)
+    space = FunctionSpace("closed_scatterer", (widths.size,))
+    inverse = MatrixInverseOperator(SparseAssembledOperator(csr_matrix(A), domain=space, codomain=space))
+    kappa = np.linalg.cond(A, 1)
+    true, estimate = 1.0 / kappa, inverse.reciprocal_condition
+    assert estimate <= 10.0 * true, estimate / true
+    slack = max(64 * np.finfo(float).eps, 10 * kappa * np.finfo(float).eps)
+    if slack < 0.1:
+        assert estimate >= true * (1.0 - slack), (estimate / true, slack)
+
+
+def test_the_reciprocal_condition_of_the_identity_is_one():
+    space = FunctionSpace("identity", (5,))
+    inverse = MatrixInverseOperator(SparseAssembledOperator(csr_matrix(np.eye(5)), domain=space, codomain=space))
+    assert inverse.reciprocal_condition == 1.0
+
+
+def test_the_reciprocal_condition_is_gecon_on_the_factors_and_the_one_norm_of_A():
+    r"""The verb's definition, recomputed from :math:`A` by the test: ``gecon(getrf(A), ‖A‖₁)``. The theorem row above
+    cannot see a wrong norm that stays inside its band ([M] the norm of the overwritten factors reads 1.87 x the true
+    value); this row reads it, on a nonsymmetric matrix whose 1-norm and infinity-norm differ. Arms
+    ``norm_after_overwrite`` and ``norm_inf`` redden it."""
+    from scipy.linalg import lapack, lu_factor
+
+    rng = np.random.default_rng(31)
+    A = rng.uniform(-1.0, 1.0, (7, 7)) + np.diag(np.arange(2.0, 9.0) * 3.0)
+    A[0, :] *= 25.0                                       # a heavy row: the infinity-norm is not the 1-norm
+    assert np.abs(A).sum(axis=0).max() != np.abs(A).sum(axis=1).max()
+    space = FunctionSpace("nonsymmetric", (7,))
+    inverse = MatrixInverseOperator(SparseAssembledOperator(csr_matrix(A), domain=space, codomain=space))
+    expected = lapack.dgecon(lu_factor(A)[0], float(np.abs(A).sum(axis=0).max()), norm="1")[0]
+    assert inverse.reciprocal_condition == expected
