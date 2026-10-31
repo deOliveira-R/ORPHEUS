@@ -148,6 +148,8 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
 - **Re-pointing an `automodule` makes a docstring no build ever parsed a build input** — the baseline
   cannot see it, so parse the new module's docstring with `docutils` (old text as the positive
   control) BEFORE the verification build; a `.py` defect found by the build costs a third build. → L-116
+- **That pre-parse must include the module's `#:` attribute doc-comments** (`ModuleAnalyzer.find_attr_docs()`):
+  autodoc renders them, `__doc__` does not carry them, and `|G-cosine|` there is an undefined substitution. → L-123
 
 ### 2b. The xref gate, and what acceptance actually is
 

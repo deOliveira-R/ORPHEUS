@@ -14129,3 +14129,16 @@ error (`the ontology refuses this edge — source is 'unresolved'`) on the tree 
 clean. Do: after a hoist, grep the old `Class.member` spelling in roles AND in `:by:` lines and
 re-point at the base; treat `dead_references`' zero as "no symbol is gone", never as "no role is
 broken".
+
+## L-123 — the pre-build parse of a newly indexed module misses its `#:` doc-comments
+
+2026-10-31, space-membership U3 docs pass. Two new numerics modules were `automodule`'d for the first time.
+Per L-116 every `__doc__` of the module, its classes and their members was docutils-parsed with roles stubbed
+(37 docstrings clean; a malformed control reddened). The verification build still failed `-W` on one ERROR:
+`docstring of ...SUMMAND_ORTHOGONALITY_TOL:1: ERROR: Undefined substitution referenced: "G-cosine"`. The source
+was a `#:` attribute doc-comment above a module constant (`#: The largest |G-cosine| between ...`): autodoc
+renders `#:` comments as the attribute's docstring, and `|word|` is RST substitution syntax. `__doc__` does
+not carry `#:` comments, so the probe never saw it. Cost: a third full build. Do: the L-116 pre-parse also
+reads every `#:` block of the module (`sphinx.pycode.ModuleAnalyzer.for_module(name).find_attr_docs()`
+returns them), and greps them for `|…|`, a trailing `_` and backticks. Under a docs-only brief the repair is
+`:exclude-members:` plus a report to main, since the comment is code-adjacent and not present-tense false.
