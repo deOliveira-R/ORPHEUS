@@ -663,3 +663,14 @@ same groups, same emission) and tabulate the integration error alone against a f
 and check the reference is not inside the scheme's exact class (case 2's mpmath reference had a source constant per
 region, which interpolation reproduces at any n: green at n = 4 for the wrong reason). Record:
 `scratch/characteristic_architecture/p3/product/` (untracked).
+
+## L31: A left kernel is a property of the ROW scaling — derive it from the rows the unknowns enter, not from the right kernel's metric
+
+Space-membership U0 (2026-10-31): the brief's probe tested ker Aᵀ against span(Φ), span(GΦ), span(G⁻¹Φ) (all 1.00) —
+the natural guesses when the metric is believed to be the bridge. The answer was neither: writing out the trace ROWS
+(unit-normalised reflection and telescoped-DD transmission) and solving the column equations gave ker Aᵀ = span(JΦ),
+J = −(Ω·n̂)A_f, a SIGNED weight no metric carries; the left generators are ±1 patterns. No clause covers it:
+`instrument-doctrine` X4 and the definition's "materialise the operator" say how to measure, not that ker Aᵀ moves by
+D⁻¹ under a row rescaling D, so a metric-image guess is a category error before it is a wrong number. Check: before
+guessing a left kernel, print the rows that the right kernel's DOFs enter and solve lᵀA = 0 column by column; completeness
+then follows from rank–nullity on the square A, not from the fit. Record: `scratch/membership_covector/u0/left_basis/MEMO.md`.

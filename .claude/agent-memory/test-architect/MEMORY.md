@@ -55,6 +55,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **Layer DAG 1b, group mesh-geom (W3, `test/1b-mesh-geom`)** — 2026-10-26: spec `scratch/layer_dag/refiling/specs_1b/mesh-geom.md`, batteries `.../specs_1b/mesh-geom_battery/`; oracle `tests/gates/geometry/_measure.py`. On resume: main's rulings on the two scope questions (NEEDS).
 - **Layer-DAG 1b, reference group (test moves + ruling 27)** — 2026-10-26, branch `test/1b-reference`, commits `244e07dc`, `258e19b1`, `0408afff`; spec `scratch/layer_dag/refiling/specs_1b/reference.md`, battery `.../reference_battery/`. On resume: confirm merged; NEEDS (root-file placement of r5w_2).
 - **Layer DAG ruling 27 (string imports to statements, `test/1b-string-imports`)** — 2026-10-26, 3 commits to `0ea23d08`; spec `scratch/layer_dag/refiling/specs_1b/string_imports.md`, battery beside it. On resume: main's rulings on NEEDS 1-4. → **`L121`**
+- **Space-membership U0 (Fredholm verdict on every posing, W3)** — spec re-posed 2026-10-31 `scratch/membership_covector/u0/spec_u0.md`; drafts + probes `.../u0/{drafts,probes}/`. On resume: confirm landed; build the §4 battery; S16a awaits the DD left basis.
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)
