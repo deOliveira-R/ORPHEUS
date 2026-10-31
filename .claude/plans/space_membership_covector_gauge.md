@@ -447,3 +447,35 @@ Sizing `[R]`: about 48 verbs plus 3 production sites, in numerics (most), transp
 3. the class-block null-vector solve through SN's own sweep.
 
 The third item derives the five entries of `_require_closed_form_scope` instead of refusing them, and so retires the `SCOPE-BOUNDARY[guard]`. The entries are lifted one at a time, with a user checkpoint at each. This is a W3 unit: the main agent writes the code.
+
+### U3b — route measurements (2026-10-31)
+
+All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_kernel_gauge.py`. The probes are `scratch/membership_covector/u3b/{route,iterative,block,thick}_probe.py`. The dense oracle is `np.linalg.svd` of the assembled loss.
+
+- **The kernel counts are confirmed.** `[M]` A has exactly 2, 3, 12 and 14 near-zero singular values on LS2 c=0.9, LS2 c=1, LS4 ng=2 c=0.9 and LS4 ng=2 c=1. Each cluster lies at ≤ 1e-15 and the next singular value at ≥ 2.8e-2. The LS4 problems have 1,248 degrees of freedom; the spec's figure of 672 is wrong.
+- **Matrix-free routes on AᴴA fail** on LS4 ng=2 c=1 (`[M]`):
+  - `eigsh` on AᵀA does not converge in 20,000 iterations;
+  - LOBPCG floors at √ε (1e-6), so the gap reads about 1e5;
+  - PROPACK finds 7 of the 14 clustered vectors.
+- **Single-vector Krylov on the sweep operator fails too.** ARPACK on M⁻¹N returns λ = −1 modes, which have modulus 1 and are not in the kernel. ARPACK on the averaged sweep P = (I + M⁻¹N)/2 finds 7 of 14, because in exact arithmetic one Krylov vector holds one copy of a repeated eigenvalue.
+- **The scale route is block subspace iteration with Rayleigh–Ritz on P.** The eigenvalue-1 space of P is exactly ker A, and every other eigenvalue of P lies strictly inside the unit disc. `[M]` On LS4 ng=2 c=1 it finds 14 of 14 right and 14 of 14 left vectors, contained in the dense kernel to ≤ 4.4e-12, in about 4,500 sweep applications. On the thick boxes:
+
+  | box | n | ker A | sweep applications | containment | P's gap |
+  |---|---|---|---|---|---|
+  | 3.2 mfp, 8×8 | 2,304 | 7 | 3,380 | 1.2e-10 | |
+  | 12.8 mfp, 16×16 | 7,680 | 7 | 7,410 | 2.5e-10 | 0.0087 |
+
+- **The left kernel is a fixed point, read through `.H`.** Aᵀy = 0 is the same as y = M⁻ᵀNᵀy, so the left fixed point is ker A's annihilator directly. Production iterates `M.inverse().H` and the lagged gains' `.H`, so the vectors land in the metric coordinates of `PredictedKernel.H`.
+- **The dense route's cost.** `[M]` At n = 2,304, assembly takes 10.9 s and the SVD 3.2 s. At n = 7,680 they take 66.9 s and 150 s. The declared dense limit is therefore about 3,000 (set from this measurement).
+- **The condition estimate.** `[M]` Hager–Higham (`scipy.sparse.linalg.onenormest`, t = 2, the algorithm gecon uses) on the gauged pseudo-inverse takes 9 solves on both thick boxes. It reads rcond 3.8e-4 against the exact 3.2e-4, and 7.59e-5 against the exact 7.59e-5. The 2-norm analogue, σ_{k+1}/σ_max, reads 1.3e-3 and 2.6e-4.
+
+### U3b — rulings and design (2026-10-31)
+
+- **[R] the user: SN's conditioning is the LAZY 1-norm rcond of A on the kernel's complement.** It is the same quantity and the same norm as diffusion's gecon reading, estimated by Hager–Higham through SN's own gauged solve. It is computed only when read. The averaged-sweep gap 1 − |w_{k+1}| is a property of the Strategy (the deflated source iteration's convergence rate). It goes on the `IterationRecord` under its own name, beside the dominance ratio, and never into the `conditioning` slot.
+- **The witness**, `orpheus/numerics/near_kernel.py`, `NearKernel`:
+  - Below the declared dense limit, the dense route takes the SVD of the assembled operator.
+  - Above it, the block route iterates the averaged map of a splitting, (I + M⁻¹N)/2, with Rayleigh–Ritz; its left vectors come from the same map built with `.H`.
+  - The block route is PREDICTOR-BLIND. Its block size grows until the count of Ritz values at 1 stops filling the block, and its σ_max comes from its own power iteration. It never reads k, Π or the deflated A + Π (X4: a witness sized by the prediction can only confirm it).
+  - It is a check, never the decision.
+  - Containment is checked modulo ker G (the tangential slots).
+- **The class-block solve** is the same block iteration, restricted to the class's groups, with the discretisation modes projected out by the predicted projector. Here the prediction is legitimately an input. The heterogeneous-materials entry is lifted first. The void-feeder entry, a singular feeder block, stays a refusal until it has been examined.
