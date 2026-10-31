@@ -30,19 +30,22 @@ the Neumann series and holds no operator pair; stated, not papered over.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, Generic, TypeVar
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 import numpy as np
 
 from orpheus.numerics.operator import LinearOperator, Vector
+
+if TYPE_CHECKING:
+    from orpheus.numerics.fredholm import PredictedKernel
 
 V = TypeVar("V", bound=Vector)  # the operator algebra's own carrier bound
 
 
 @dataclass(frozen=True)
 class OperatorPencil(Generic[V]):
-    """The pair ``(lhs, rhs)`` = :math:`(A, M)` on one space; ``at(σ) = A − σ·M``.
+    r"""The pair ``(lhs, rhs)`` = :math:`(A, M)` on one space; ``at(σ) = A − σ·M``.
 
     The ENDS LAW at construction: both operators must agree on domain and on
     codomain (the first witness — ``OperatorPencil(rec.loss, hub.fission)`` on
@@ -50,11 +53,23 @@ class OperatorPencil(Generic[V]):
     posed pair ``(loss, production)`` is admitted).  Ends an operator does not
     declare (``None``) are not compared — an OPAQUE pair (CP's) is admitted on
     the caller's word, which the docstring says rather than a flag.
+
+    ``kernel`` is the loss's predicted kernel
+    (:class:`~orpheus.numerics.fredholm.PredictedKernel`: :math:`\ker A` and
+    the annihilators of its range, from structure), on the lhs's domain. Every
+    question posed over the pencil derives its Fredholm verdict from it
+    (:meth:`~orpheus.numerics.posing.EigenPosing.solvability`,
+    :meth:`~orpheus.numerics.posing.SourcePosing.solvability`), and :attr:`H`
+    daggers it with the pencil, so a forward question and its adjoint read one
+    kernel (the space-membership campaign's U0, the user's ruling 2026-10-31).
+    ``None`` is a pencil whose kernel was not predicted (a fixture, an opaque
+    pair): its questions have no verdict, and asking for one refuses.
     """
 
     lhs: LinearOperator[V, V]
     rhs: LinearOperator[V, V]
     degree: int = 1  # the affine contract (a ClassVar in spirit; a field so it is dataclass-visible)
+    kernel: "PredictedKernel | None" = field(default=None, kw_only=True, compare=False)
 
     def __post_init__(self) -> None:
         for end in ("domain", "codomain"):
@@ -65,6 +80,12 @@ class OperatorPencil(Generic[V]):
                     f"space; got {a!r} and {m!r}. A pencil is a pair of operators "
                     f"on one space — pose the rhs on the lhs's ends first."
                 )
+        domain = self.lhs.domain
+        if self.kernel is not None and domain is not None and self.kernel.space != domain:
+            raise ValueError(
+                f"OperatorPencil: the predicted kernel lives on {self.kernel.space!r} but the pencil's domain is "
+                f"{domain!r}; rebase it onto the pencil's space (PredictedKernel.rebased)."
+            )
 
     # ── the family ──────────────────────────────────────────────────────
     def at(self, sigma: float) -> LinearOperator[V, V]:
@@ -77,7 +98,7 @@ class OperatorPencil(Generic[V]):
     @property
     def H(self) -> "OperatorPencil[V]":
         r"""The adjoint pencil :math:`(A^\dagger, M^\dagger)` — the same spectrum, NO extra datum."""
-        return OperatorPencil(self.lhs.H, self.rhs.H)
+        return OperatorPencil(self.lhs.H, self.rhs.H, kernel=None if self.kernel is None else self.kernel.H)
 
     # ── the queries ─────────────────────────────────────────────────────
     @property

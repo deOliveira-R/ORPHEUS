@@ -194,10 +194,10 @@ def test_LB_iii_a_spatial_frame_measure_axis_is_labelled_spatial():
 
 
 def _gauge_production():
-    """The production gauge on the reflective 3x4 box (test_loss_kernel_gauge's fixture)."""
-    from orpheus.sn.operators.loss_kernel_gauge import build_loss_kernel_gauge
+    """The production gauge on the reflective 3x4 box (test_loss_kernel_gauge's fixture): since U0 the hub's
+    predicted kernel's projector, on the full field."""
     from tests.gates.sn.operators.test_loss_kernel_gauge import _R, _mesh
-    return build_loss_kernel_gauge(_mesh((3, 4), [(_R, _R)] * 2))
+    return _mesh((3, 4), [(_R, _R)] * 2).loss_kernel_gauge
 
 
 @pytest.mark.rests_on("tests/gates/numerics/test_kernel_projection_gauge.py::TestTheSummandBasis")

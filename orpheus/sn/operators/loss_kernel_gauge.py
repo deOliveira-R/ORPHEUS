@@ -217,18 +217,22 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.geometry.faces import face_normal
-from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand
+from orpheus.numerics.fredholm import PredictedKernel
+from orpheus.numerics.kernel_projection_gauge import KernelSummand
 from orpheus.numerics.evidence import Evidence, Measured
 from orpheus.transport.spatial.scheme import FaceModeDamping
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
+    from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.sn.problem import SNProblem
 
 __all__ = [
     "GAUGE_ESCALATION_FLAG",
     "GaugeFreedom",
     "GaugeFreedomWarning",
-    "build_loss_kernel_gauge",
+    "predicted_discretization_kernel",
+    "predicted_loss_kernel",
+    "predicted_physical_kernel",
     "gauge_freedom",
     "predicted_kernel_dimension",
     "warn_if_gauge_freedom",
@@ -554,7 +558,7 @@ def _anova_dimension(cells: tuple[int, ...]) -> int:
 def predicted_kernel_dimension(problem: "SNProblem") -> int:
     r"""``dim ker A`` from the counting law — **without building any vector**.
 
-    The structurally independent check on :func:`build_loss_kernel_gauge`: this walks
+    The structurally independent check on :func:`predicted_discretization_kernel`: this walks
     the combinatorics of §3 and returns an integer, while the gauge walks the
     generators and takes an SVD.  Agreement between them is evidence that
     neither has a bookkeeping error; it is what
@@ -878,41 +882,217 @@ def _block_generators(
 # ─────────────────────────────────────────────────────────────────────
 # The gauge — SN supplies the generators; numerics owns the projector
 # ─────────────────────────────────────────────────────────────────────
-def build_loss_kernel_gauge(problem: "SNProblem") -> KernelProjectionGauge:
-    r"""The :math:`G`-orthogonal projector onto :math:`\ker A` on the boundary trace.
+def _trace_flux_weights(problem: "SNProblem") -> NDArray:
+    r"""Per flat trace slot, the signed face current weight :math:`(\Omega_n\cdot\hat n_f)\,A_f`.
 
-    One summand per ``(ordinate orbit, group)`` block: its support is the
-    block's trace degrees of freedom, its generators the §3 pair generators
-    (:func:`_block_generators`), its label ``sn_trace_orbit{orbit}_g{group}``,
-    and its span declared :math:`G`-orthogonal to the constants (the declared
-    zero unit: every kernel mode is mirror-odd, ``test_loss_kernel_gauge.py``
-    witnesses it on every shipped singular block, and its proof is owed,
-    #636). :meth:`KernelProjectionGauge.direct_sum
-    <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.direct_sum>`
-    does the §5 rank cut and :math:`G`-orthonormalisation and builds each
-    summand's projector the frame way. The blocks' supports are disjoint (§4),
-    so the sum is a direct sum.
-
-    **Zero summands when there is nothing to fix.** The empty direct sum is the
-    honest answer to a non-singular configuration: its section is the identity,
-    so callers need no ``None`` branch. Whether there is anything to fix is
-    decided by :func:`gauge_freedom`, whose two conjuncts are both derived.
-
-    ⚠ An UNDETERMINED closure yields zero summands too (*not gauging* is the
-    ruled behaviour), but the caller owes the user a loud warning naming the
-    obstruction, which :attr:`GaugeFreedom.because` supplies.
+    :math:`\hat n_f` is the face's outward normal and :math:`A_f` the area of
+    the slot's face cell (:func:`_transverse_factors`, read from the mesh's own
+    edges). A slot leaving the domain reads positive, one entering negative, a
+    tangential one zero.
     """
-    trace_space = problem.angular_trace
-    if not gauge_freedom(problem).present:
-        return KernelProjectionGauge.direct_sum(trace_space, ())
-    summands: list[KernelSummand] = []
+    layout = problem.angular_trace.layout
+    mu = _direction_cosines(problem)
+    weights = np.zeros(int(np.prod(problem.angular_trace.shape)))
+    for face_name, slot in layout.faces.items():
+        axis, sign = face_normal(face_name)
+        _, area = _transverse_factors(problem, axis)
+        if tuple(slot.shape[2:]) != area.shape:
+            raise ValueError(
+                f"face {face_name!r} has slot shape {slot.shape}, not (ordinate, group, *transverse cells): a "
+                f"moment closure reached the cell-average face weights (the closed-form scope door, "
+                f"`_require_closed_form_scope`, should have refused it first)."
+            )
+        cosine = sign * mu[:, axis]
+        values = cosine[:, None, *([None] * area.ndim)] * area[None, None]
+        weights[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(values, slot.shape).ravel()
+    return weights
+
+
+def _balance_weights(problem: "SNProblem") -> NDArray:
+    r"""The left multipliers that telescope the discrete loss into one balance, on the full field's flat chart.
+
+    Summing the cell balances with weight :math:`w_n V_{\rm cell}` turns the
+    streaming term into the net outflow through the boundary, and the trace
+    rows cancel it with weight :math:`-w_n(\Omega_n\cdot\hat n_f)A_f` (the
+    closure conserves partial current on a mirror or a white(1.0) wall). So the
+    LEFT kernel of the loss is this diagonal applied to the right-kernel
+    objects: :math:`W\Phi` for the diamond-difference modes (:math:`w_n` is
+    constant on a reflection orbit) and :math:`W(u \otimes 1)` for an
+    absorption-free class, :math:`u` its energy left vector. ``[M]`` (the
+    numerics-investigator, ``scratch/membership_covector/u0/left_basis/MEMO.md``
+    and ``physical/MEMO.md``): the dense left null space on 9 of 9 DD cases and
+    9 of 9 physical cases, d = 1 to 3, graded meshes, mirror and white walls,
+    to 1.5e-14. The bulk half is the bulk block's metric
+    :math:`G_{\rm bulk} = V_{\rm cell}\,w_n`.
+    """
+    bulk = problem.full_field_space.interior_space.metric_diagonal()
+    if bulk is None:
+        raise ValueError("the SN bulk metric is not diagonal (it is V_cell * w_n by construction).")
+    weights = np.asarray(problem.quad.weights, dtype=float)
+    layout = problem.angular_trace.layout
+    ordinate_weight = np.zeros(int(np.prod(problem.angular_trace.shape)))
+    for slot in layout.faces.values():
+        ordinate_weight[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
+            weights[:, *([None] * (len(slot.shape) - 1))], slot.shape).ravel()
+    return np.concatenate([np.ravel(bulk), -ordinate_weight * _trace_flux_weights(problem)])
+
+
+def _offset(indices: NDArray, by: int) -> NDArray:
+    return (indices + by).astype(np.intp)
+
+
+def predicted_discretization_kernel(problem: "SNProblem") -> PredictedKernel:
+    r"""The diamond-difference kernel on the full field: right generators :math:`\Phi`, left :math:`W\Phi`.
+
+    One pair of summands per ``(ordinate orbit, group)`` block: support the
+    block's trace degrees of freedom (offset past the bulk in the full field's
+    flat chart), right generators the §3 pair generators
+    (:func:`_block_generators`), declared :math:`G`-orthogonal to the
+    constants (every mode is mirror-odd; #636 owes the proof), and left
+    generators the same columns times the balance weights
+    (:func:`_balance_weights`). Its zero eigenvalue is NOT semisimple (left and
+    right kernels are orthogonal: each mode's in and out values have equal
+    magnitude, so the net boundary current of :math:`\varphi^2` vanishes), so
+    SN iterates and gauges rather than factorising :math:`A + \Pi`.
+
+    Zero summands when :func:`gauge_freedom` finds nothing to fix (an
+    UNDETERMINED closure too: the caller owes the warning
+    :attr:`GaugeFreedom.because` supplies).
+
+    The kernel predicted is the R component, the kernel modulo the metric's
+    null space. The tangential slots (the T component, :math:`\Omega\cdot\hat n = 0`)
+    have identically zero rows AND columns of :math:`A` and zero metric: they
+    lie in :math:`\ker G`, outside the Hilbert space the question is posed on
+    (every norm and pairing is blind to them, and no source reaches them), so
+    a verdict of ``Solve`` with T present is honest. ``[M]`` qa, 2026-10-31:
+    ``product(4,4)`` on a 2-D all-mirror box reads a dense nullity of 112, all
+    of it T (``test_loss_nullspace_reflective_box.py``'s T + R split).
+    """
+    space = problem.full_field_space
+    freedom = gauge_freedom(problem)
+    if not freedom.present:
+        return PredictedKernel.trivial(space, f"no diamond-difference kernel: {freedom.because}")
+    n_bulk = int(np.prod(space.interior_space.shape))
+    balance = _balance_weights(problem)
+    right: list[KernelSummand] = []
+    left: list[KernelSummand] = []
     for orbit, active in _reflection_orbits(problem):
         if len(active) < 2:
             continue
         for group in range(int(problem.ng)):
             indices, generators = _block_generators(problem, orbit, group, active)
-            summands.append(KernelSummand(
-                support=indices, generators=generators,
-                label=f"sn_trace_orbit{orbit}_g{group}", orthogonal_to_constants=True,
-            ))
-    return KernelProjectionGauge.direct_sum(trace_space, tuple(summands))
+            support = _offset(indices, n_bulk)
+            label = f"sn_trace_orbit{orbit}_g{group}"
+            right.append(KernelSummand(support, generators, label, orthogonal_to_constants=True))
+            left.append(KernelSummand(support, balance[support][:, None] * generators, f"{label}_annihilator"))
+    return PredictedKernel(space, tuple(right), tuple(left),
+                           f"the diamond-difference face kernel on {len(problem.reflective_axes)} reflective axes")
+
+
+def _physical_scope_entries(
+    problem: "SNProblem", vectors: "list[tuple[NDArray, NDArray]]", on_class: NDArray,
+) -> list[str]:
+    r"""The scope entries a closed absorption-free class meets: the configurations its closed form was not derived for."""
+    entries: list[str] = []
+    if not problem.is_cartesian:
+        entries.append("a non-Cartesian mesh")
+    interior = tuple(int(n) for n in problem.full_field_space.interior_space.shape)
+    if len(interior) != 2 + int(problem.ndim):
+        entries.append(f"a moment closure (bulk block {interior})")
+    if np.any(problem.full_field_space.metric_diagonal()[on_class] == 0.0):
+        entries.append("a closed face with a tangential ordinate (zero trace metric)")
+    e0, u0 = vectors[0]
+    if not all(np.allclose(e, e0, rtol=1e-10, atol=1e-14) and np.allclose(u, u0, rtol=1e-10, atol=1e-14)
+               for e, u in vectors[1:]):
+        entries.append("materials with different energy null vectors")
+    return entries
+
+
+def _require_closed_form_scope(subject: str, entries: list[str]) -> None:
+    r"""The one door of the closed-form physical kernel: refuse a closed absorption-free class outside its derived scope.
+
+    SCOPE-BOUNDARY[guard]: five entries, each a configuration the closed forms were not derived for.
+    machinery: the class-block null-vector solve through SN's own sweep (needs no closed form; U3b's iterative NearKernel route).
+    ruling: the user, 2026-10-31 (the heterogeneous class, then the other three; space_membership_covector_gauge.md, U0).
+    revisit: when that solve exists, every entry is derived instead of refused.
+
+    The entries, in the machinery's data model (a configuration and the reason its kernel vector is not the constant
+    form): a non-Cartesian mesh (the curvilinear streaming redistributes angle, so the constant is not obviously its
+    null vector); a moment closure (the bulk carries spatial moments, so the class mode is not one value per cell); a
+    closed face with a tangential ordinate (a zero trace metric, so the minimum-norm member is not unique); and
+    materials that do not share the class's energy vectors (the mode is a null vector of the class block); and a
+    material whose feeder block is singular (a void region: no removal
+    and no transfer, so the feeder's absorbing-chain probability is undefined). ``[M]`` the
+    closed forms on 9 of 9 cases inside the scope (``scratch/membership_covector/u0/physical/MEMO.md``); the census of
+    the test tree's singular posings found 0 outside it.
+    """
+    if entries:
+        raise ValueError(
+            f"SCOPE-BOUNDARY: {subject} is outside the closed-form kernel's derived scope ({'; '.join(entries)}). "
+            f"Inside it: a Cartesian mesh, a cell-average closure, no tangential ordinate on a closed face, present "
+            f"materials sharing an absorption-free class's energy vectors. Outside it, the kernel is a null vector of the "
+            f"loss's own block, "
+            f"which needs a solve through the sweep that SN does not have yet."
+        )
+
+
+def predicted_physical_kernel(problem: "SNProblem") -> PredictedKernel:
+    r"""The absorbing-chain kernel on the full field: one mode per absorption-free closed class.
+
+    The classes are the transport predicate's
+    (:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`,
+    declared data only). Right: the class's energy null vector :math:`e`,
+    constant and isotropic on every bulk cell and trace slot (diamond
+    differencing is exact on a constant, and a conserving wall returns it
+    unchanged). Left: :math:`W(u \otimes 1)`, the balance weights times the
+    energy left vector. ``[M]`` (``physical/MEMO.md``): 9 of 9 cases against
+    the dense kernels.
+    """
+    from orpheus.transport.absorbing_chain import absorption_free_closed_classes
+
+    space = problem.full_field_space
+    present = list(problem.present_materials.values())
+    classes = absorption_free_closed_classes(present, problem.binding)
+    if not classes:
+        return PredictedKernel.trivial(space, "no absorption-free closed class (every final energy class removes "
+                                              "neutrons, or a face leaks)")
+    interior = tuple(int(n) for n in space.interior_space.shape)
+    bulk_group = np.broadcast_to(np.arange(interior[1]).reshape((1, -1) + (1,) * (len(interior) - 2)), interior).ravel()
+    trace_group = np.zeros(int(np.prod(problem.angular_trace.shape)), dtype=np.intp)
+    for slot in problem.angular_trace.layout.faces.values():
+        trace_group[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
+            np.arange(slot.shape[1])[None, :, *([None] * (len(slot.shape) - 2))], slot.shape).ravel()
+    group = np.concatenate([bulk_group, trace_group])
+    right: list[KernelSummand] = []
+    left: list[KernelSummand] = []
+    for cls in classes:
+        members = cls.members
+        try:
+            vectors = [cls.energy_vectors(mixture) for mixture in present]
+        except np.linalg.LinAlgError:
+            _require_closed_form_scope(f"the absorption-free closed class {members}",
+                                       ["a material whose feeder block is singular (a void region)"])
+            raise
+        on_class = np.isin(group, members)
+        _require_closed_form_scope(f"the absorption-free closed class {members}",
+                                   _physical_scope_entries(problem, vectors, on_class))
+        e, u = vectors[0]
+        balance = _balance_weights(problem)
+        support = np.flatnonzero(on_class).astype(np.intp)
+        reached = np.flatnonzero((u[group] != 0.0) & (balance != 0.0)).astype(np.intp)
+        label = f"sn_absorption_free_class{'_'.join(map(str, members))}"
+        right.append(KernelSummand(support, e[group[support]][:, None], label))
+        left.append(KernelSummand(reached, (u[group[reached]] * balance[reached])[:, None], f"{label}_annihilator"))
+    return PredictedKernel(space, tuple(right), tuple(left),
+                           f"the absorption-free closed classes {[c.members for c in classes]} on a closed domain")
+
+
+def predicted_loss_kernel(problem: "SNProblem") -> PredictedKernel:
+    r"""The loss kernel SN predicts: the diamond-difference modes plus the absorption-free classes.
+
+    The two kernels add (their dimensions add, ``[M]`` the dense nullity on the
+    Σa = 0 box, 14 = 12 + 2) and overlap on the trace, where their modes are
+    :math:`G`-orthogonal (the DD modes are mirror-odd, the class modes
+    constant), which the projector's direct sum checks.
+    """
+    return predicted_discretization_kernel(problem) + predicted_physical_kernel(problem)

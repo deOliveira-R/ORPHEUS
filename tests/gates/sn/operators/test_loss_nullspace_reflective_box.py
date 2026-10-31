@@ -1,7 +1,7 @@
 r""":math:`\ker(L+C-S-B)` on a closed reflective box — the facts, from a DENSE SVD.
 
 The sibling module :mod:`tests.gates.sn.operators.test_loss_kernel_gauge` verifies the
-**construction**: that :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
+**construction**: that :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`
 builds the right subspace and projects onto it correctly. This module verifies
 the **operator**, and the two are not the same question — the construction and
 the counting law :eq:`dd-null-counting-law` share
@@ -119,7 +119,7 @@ def test_the_singularity_needs_TWO_closed_axis_pairs(label, bcs, expected):
     r"""``dim ker A`` from a dense SVD, on both sides of the predicate.
 
     ⭐ **The four zero rows are the point.** Over in the gauge suite,
-    ``dim == 0`` is asserted as ``build_loss_kernel_gauge(mesh).dimension == 0``
+    ``dim == 0`` is asserted as ``predicted_discretization_kernel(mesh).projector.dimension == 0``
     and ``predicted_kernel_dimension(mesh) == 0`` — but the construction and the
     law BOTH gate on :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom`
     and BOTH walk :func:`~orpheus.sn.operators.loss_kernel_gauge._reflection_orbits`,
@@ -193,7 +193,7 @@ def test_the_kernel_is_PURE_TRACE_and_carries_no_tangential_mass(singular_box):
     r"""No bulk component, and none on a tangential slot.
 
     ⭐ This is the premise that licenses
-    the SN loss-kernel gauge (built by :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`) being an
+    the SN loss-kernel gauge (built by :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`) being an
     endomorphism of the boundary-trace space rather than of the full field, and
     **nothing else asserts it**: the gauge cannot observe a bulk component
     because it has no bulk rows, and
@@ -433,7 +433,7 @@ def test_psi_exact_is_the_minimum_G_norm_member_of_the_manifold():
 
     The second leg then closes the loop with a projector built from the **SVD**
     null basis — so both sides of the recovery are independent of
-    the gauge :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge` builds, unlike the
+    the gauge :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel` builds, unlike the
     flagship in the gauge suite, where the span under test is the gauge's own.
     ``[M]`` ``1.0485e-01 -> 1.178e-12``.
 

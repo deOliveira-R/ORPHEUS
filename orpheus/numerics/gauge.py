@@ -37,10 +37,11 @@ Two realizations of ONE concept:
   \Pi\psi` (the minimum-:math:`G`-norm member of the coset).  Its realization
   is :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`,
   a direct sum of spanning summands; which basis spans the kernel is the
-  method's (SN's diamond-difference loss kernel is a TRACE object, built by
-  :func:`orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`, and
-  there the minimum-norm member is where the exact solution sits — a theorem,
-  not a convention: every kernel mode is mirror-odd).  This tier never imports
+  method's, predicted from structure (:class:`orpheus.numerics.fredholm.PredictedKernel`:
+  SN's diamond-difference loss kernel is a TRACE object, built by
+  :func:`orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`,
+  and there the minimum-norm member is where the exact solution sits — a
+  theorem, not a convention: every kernel mode is mirror-odd).  This tier never imports
   the realization (it ranks below it in the concept order), so the protocol
   is the contract a result type names.
 

@@ -11922,3 +11922,60 @@ older entries classify against.
    whenever the shapes differ. Membership is a parse at the verb's domain, with a shape leg every operand owes on every
    run and an identity leg only a typed member can answer; a check kept for development mode leaves the release build
    computing the outer product.
+
+.. error-entry:: ERR-123
+   :title: A structurally singular loss was inverted in silence: diffusion returned a flux of 1.7e17, SN a best-effort answer stamped "A is invertible", and homogeneous refused only by pivot luck
+
+   **Status:** ✅ **CLOSED** by U0 of the space-membership plan (*in development* on branch
+   ``refactor/space-membership``): the Fredholm verdict ``54aef2ca``, the LU's condition estimate ``c2a88dfc``, and the
+   method doors (this commit). Every posing on the three sharp methods is now decided by the Fredholm alternative on
+   the loss's PREDICTED kernel before anything is inverted (:mod:`orpheus.numerics.fredholm`; the user's ruling R3,
+   2026-10-30: "Fredholm as the decision rule, kernel measurement as witness").
+
+   **Module:** ``diffusion`` (``DiffusionSolver``'s eager LU), ``homogeneous`` (``solve_homogeneous_infinite``'s loss
+   inversion), ``sn`` (every entry), and ``transport``/``numerics`` (the predicate and the verdict that close it).
+
+   **Failure mode:** an unchecked precondition, outside the numbered substitution modes: an inverse was applied to an
+   operator with a nontrivial kernel, and the source was never asked whether it lies in the range.
+
+   **The defect.** On a closed domain (every face a deck or a wall returning exactly all of its current) the loss
+   :math:`A` is singular whenever some final communicating class of the energy-transfer graph has exactly zero net
+   removal in every present material: a neutron that reaches the class is never lost. `[M]` 2026-10-30 (the spec's
+   ``probes/u0_singular.py``, 8-cell mirror slab): diffusion with a one-group pure scatterer and a positive source
+   returned :math:`\max|A^{-1}q| = 1.73\times10^{17}` with no warning (the LU's last pivot was :math:`10^{-17}`, not
+   zero, so the exact-zero refusal never fired); two-group variants read 3.51e17 and 1.73e17. The control at
+   :math:`\Sigma_a = 0.1` read 13.2. SN's fixed-source entry exhausted ``max_inner`` and returned a flux of 727 whose
+   exit report recorded the admissibility ``NotApplicable("the pure-transport question is always admitted: A is
+   invertible")``, false on that posing; its Krylov arm returned 1.71e16 after 67.5 s. The homogeneous solver raised a
+   ``LinAlgError`` ("exactly singular (zero LU pivot)") only because its 0-D pivot happened to be exactly zero.
+
+   **How it hid.** Every shipped fixture has absorption somewhere, and the test tree poses no singular loss (`[M]`
+   the spec's census: 0 of the posings in five suites, once the predicate reads the loss's own removal and not
+   ``absorption_xs``). The LU's zero-pivot refusal reads as a guard against singularity, but it fires only on an EXACT
+   zero, which round-off almost never leaves.
+
+   **Fix.** The structure of the kernel is predicted from declared data
+   (:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`: the classes, from the mixtures and the
+   binding; SN's diamond-difference face modes, from the scheme), and its values from the method's own loss. The
+   posing :math:`A\psi = q` is then decided: a trivial kernel is solved; a source annihilated by the left kernel (a
+   balanced source, with zero net emission into the class) is gauged to its minimum-:math:`G`-norm member; any other
+   source raises :class:`~orpheus.numerics.fredholm.NoSolution` ("the posing has no steady solution") before any
+   inversion. The eigen entries ask the same of the fission emission: a posing whose fission emits into an
+   absorption-free closed class is refused. Diffusion and homogeneous factorise :math:`A + \Pi` (nonsingular on a
+   semisimple kernel), and every outcome records the verdict in ``ExitReport.solvability``, with the LU's
+   reciprocal-condition estimate where there is a factorisation. A near-singular loss (:math:`\Sigma_a = 10^{-14}`) is
+   regular: it is solved, and its conditioning is recorded, never judged.
+
+   **Catching tests.** Five rows carry ``@pytest.mark.catches("ERR-123")``, none ``slow``, each reddened by an arm
+   that removes the verdict from its entry (the test-architect's battery,
+   ``scratch/membership_covector/u0/battery/u0_verdict_arms.py``, arm ``no_verdict``):
+
+   - ``tests/gates/diffusion/test_fixed_source_verdict.py::test_D1_a_positive_source_on_a_closed_absorption_free_class_is_refused``;
+   - ``tests/gates/diffusion/test_fixed_source_verdict.py::test_D6_the_eigen_entry_refuses_emission_into_the_class``;
+   - ``tests/gates/homogeneous/test_eigen_verdict.py::test_H1_emission_into_an_absorption_free_class_is_refused_by_the_verdict_not_the_pivot``;
+   - ``tests/gates/sn/solve/test_fredholm_verdict.py::test_S1_a_positive_source_on_a_closed_pure_scatterer_is_refused``;
+   - ``tests/gates/sn/solve/test_fredholm_verdict.py::test_S9_solve_sn_refuses_emission_into_the_class``.
+
+   **Lesson.** A refusal keyed on an exact zero of a computed quantity (a pivot) is not a test of singularity; the
+   structure that makes an operator singular is known before it is assembled, and the question to ask is the Fredholm
+   alternative on the posing, not whether the factorisation happened to break.

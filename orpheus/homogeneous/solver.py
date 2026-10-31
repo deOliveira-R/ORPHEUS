@@ -66,6 +66,7 @@ from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.mesh_free_function import values_without_position
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
 from orpheus.numerics.evidence import Measured
+from orpheus.numerics.fredholm import PredictedKernel, Solvable
 from orpheus.numerics.outcome import EigenOutcome
 
 if TYPE_CHECKING:
@@ -109,6 +110,9 @@ class HomogeneousResult:
     sig_prod: float  # one-group production XS (1/cm)
     sig_abs: float  # one-group absorption XS (1/cm)
     mixture: Mixture
+    #: The Fredholm verdict on the eigen posing (:mod:`orpheus.numerics.fredholm`), with the
+    #: factorisation's reciprocal-condition estimate.
+    solvability: Solvable
 
     @property
     def k_inf(self) -> float:
@@ -375,7 +379,7 @@ class HomogeneousProblem:
         """
         from orpheus.numerics.pencil import OperatorPencil
 
-        return OperatorPencil(self.loss, self.production)
+        return OperatorPencil(self.loss, self.production, kernel=self.predicted_kernel)
 
     @cached_property
     def eigen_posing(self) -> "EigenPosing":
@@ -405,6 +409,39 @@ class HomogeneousProblem:
         54).
         """
         return self.collision - self.isotropic_transfer
+
+    @cached_property
+    def predicted_kernel(self) -> PredictedKernel:
+        r"""The loss's kernel and annihilators: one mode per absorption-free closed energy class.
+
+        An infinite medium has no faces, so a final class of the
+        group-transfer graph with zero net removal on every member never loses
+        a neutron, and the loss is singular there
+        (:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`,
+        declared data only). The modes' values come from the assembled loss:
+        the class block's null vector, and the left co-vector on the class and
+        its feeders (:meth:`PredictedKernel.of_closed_blocks
+        <orpheus.numerics.fredholm.PredictedKernel.of_closed_blocks>`). The
+        pose's coordinates are the groups, so a class's degrees of freedom are
+        its groups.
+        """
+        from orpheus.numerics.assembled_operator import dense
+
+        from orpheus.transport.absorbing_chain import absorption_free_closed_classes
+
+        classes = absorption_free_closed_classes([self.mixture], None)
+        if not classes:
+            return PredictedKernel.trivial(self.space, "no absorption-free closed class: every final energy class "
+                                                       "removes neutrons")
+        blocks = tuple(
+            (np.asarray(cls.members, dtype=np.intp), np.asarray(cls.feeders, dtype=np.intp),
+             f"homogeneous_absorption_free_class{'_'.join(map(str, cls.members))}")
+            for cls in classes
+        )
+        return PredictedKernel.of_closed_blocks(
+            self.space, dense(self.loss), blocks,
+            f"the absorption-free closed classes {[c.members for c in classes]} of an infinite medium",
+        )
 
     @cached_property
     def production(self) -> IsotropicFission:
@@ -484,7 +521,16 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
     # ITERATIVE splitting; constructing the matrix inverse explicitly IS the
     # strategy choice, which is why it lives here and not on the hub).
     fission = problem.production
-    phi = MatrixInverseOperator(problem.loss).apply(fission.emission_spectrum)
+    # The Fredholm verdict (space-membership U0), the eigen posing's own: on a
+    # singular loss it is solvable iff the kernel is the whole pencil's (no
+    # fission emission reaches an absorption-free closed class); the
+    # inverse is of A + Pi, nonsingular on a semisimple kernel, which returns
+    # the minimum-norm member directly and IS the loss itself on a trivial
+    # kernel (bit-identical). Its reciprocal-condition estimate is recorded.
+    kernel = problem.predicted_kernel
+    inverse = MatrixInverseOperator(kernel.deflate(problem.loss))
+    solvability = problem.eigen_posing.solvability(conditioning=Measured(inverse.reciprocal_condition))
+    phi = inverse.apply(fission.emission_spectrum)
     k_inf = float(fission.production_rate.evaluate(phi).item())
 
     # The reaction rates are the typed integrated co-vectors ⟨Σx, ·⟩
@@ -566,4 +612,5 @@ def solve_homogeneous_infinite(mix: Mixture) -> HomogeneousResult:
         sig_prod=prod_rate / total_flux,
         sig_abs=abs_rate / total_flux,
         mixture=mix,
+        solvability=solvability,
     )

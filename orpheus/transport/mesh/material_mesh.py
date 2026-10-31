@@ -357,6 +357,16 @@ class MaterialMesh:
         return arr
 
     @cached_property
+    def present_materials(self) -> "Materials":
+        r"""The materials some region of this carrier carries (keyed as in ``materials``): the ones a posing on it reads.
+
+        ``materials`` may hold entries no cell maps to; every question about the
+        PHYSICS of this carrier (its energy axis, its absorption-free classes)
+        is asked of the present ones.
+        """
+        return self.materials.restrict(sorted(int(i) for i in np.unique(self.mat_map)))
+
+    @cached_property
     def mat_xs(self) -> "MaterialXSField":
         """The macroscopic XS field of THIS Problem — minted once per hub.
 
@@ -576,10 +586,7 @@ class MaterialMesh:
         Cached: every consumer of one carrier reads the SAME instance
         (and equal carriers mint ``==`` spaces through the derived name).
         """
-        reachable = self.materials.restrict(
-            sorted(int(i) for i in np.unique(self.mat_map))
-        )
-        energy = energy_axis_of(reachable.values())
+        energy = energy_axis_of(self.present_materials.values())
         if len(self.spatial_shape) == 1:
             # The carrier's volume measure generates the spatial axis
             # (CS5, user ruling: "the mesh is able to generate a Discrete

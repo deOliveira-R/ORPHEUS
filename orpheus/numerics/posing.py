@@ -29,11 +29,15 @@ convergence residual, 7e-10 → 7e-14 with the outer count), not one body.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Callable, Generic, TypeVar
 
 import numpy as np
 
+from orpheus.numerics.evidence import Evidence, Measured
+from orpheus.numerics.fredholm import (
+    CONSISTENCY_RTOL, Gauge, NoSolution, PredictedKernel, Solvable, Solve, fredholm_alternative,
+)
 from orpheus.numerics.operator import LinearOperator, Vector
 from orpheus.numerics.pencil import OperatorPencil
 
@@ -55,6 +59,51 @@ def _flat(y: Any) -> np.ndarray:
     expose ``to_flat``; bare arrays ravel."""
     flat = getattr(y, "to_flat", None)
     return np.asarray(flat() if callable(flat) else y, dtype=float).ravel()
+
+
+def _carrier(space: Any, flat: np.ndarray) -> Any:
+    r"""The element of ``space`` whose flat coordinates are ``flat``: its typed carrier when the space mints one, else the coordinate array."""
+    zeros = getattr(space, "zeros", None)
+    if callable(zeros):
+        template = zeros()
+        return type(template).from_flat(flat, template)
+    return flat.reshape(space.shape)
+
+
+def _predicted(pencil: OperatorPencil[Any], question: str) -> PredictedKernel:
+    if pencil.kernel is None:
+        raise ValueError(
+            f"{question}: the pencil carries no predicted kernel, so the question has no Fredholm verdict; pose it on a "
+            f"hub's pencil (whose kernel the method predicts) to ask for one."
+        )
+    return pencil.kernel
+
+
+def _pencil_annihilation(pencil: OperatorPencil[Any], kernel: PredictedKernel) -> tuple[float, str]:
+    r"""How far the rhs :math:`M` fails to respect the kernel of :math:`A`: the largest of :math:`\lVert M^{\mathsf T}w\rVert`
+    over each annihilator and :math:`\lVert M r\rVert` over each kernel mode, each relative to the same action on the
+    entrywise absolute value, and the summand that reads it.
+
+    Zero means :math:`\ker A \subseteq \ker M` and :math:`\operatorname{range} M \perp \ker A^{\mathsf T}`: then
+    :math:`\ker A` is the kernel of every member :math:`A - \mu M` with the same annihilators, the eigen question is a
+    solvable family on it, and gauging is residual-neutral at every :math:`\mu`. The relative scale assumes :math:`M`
+    is entrywise non-negative (an emission operator: fission), so the absolute pass bounds the signed one with no
+    cancellation; :math:`M^{\mathsf T}` is the coordinate transpose (the canonical pairing, no metric).
+    """
+    from orpheus.numerics.fredholm import _embedded_columns
+
+    space = pencil.lhs.domain
+    worst, label = 0.0, ""
+    for summands, act in ((kernel.left, pencil.rhs.apply_transpose), (kernel.right, pencil.rhs.apply)):
+        for summand, column in _embedded_columns(summands, kernel.n_coordinates):
+            signed = _flat(act(_carrier(space, column)))
+            scale = float(np.linalg.norm(_flat(act(_carrier(space, np.abs(column))))))
+            if scale == 0.0:
+                continue
+            ratio = float(np.linalg.norm(signed)) / scale
+            if ratio > worst:
+                worst, label = ratio, summand.label
+    return worst, label
 
 
 @dataclass(frozen=True)
@@ -118,6 +167,31 @@ class EigenPosing(Generic[V]):
         r"""NULLARY — the adjoint eigen-question needs no datum (:math:`k^\dagger = k`)."""
         return EigenPosing(self.pencil.H, self.spectral_map)
 
+    def solvability(self, *, conditioning: Evidence) -> Solvable:
+        r"""The Fredholm verdict on :math:`A\psi = \mu M\psi`, derived from the pencil's predicted kernel.
+
+        A trivial kernel is ``Solve``. Otherwise the question is a solvable
+        family iff the kernel is the WHOLE pencil's (:func:`_pencil_annihilation`
+        reads zero: :math:`M` annihilates the kernel modes and its range is
+        annihilated by the left kernel), and then it is ``Gauge``; else it
+        raises :class:`~orpheus.numerics.fredholm.NoSolution` (fission emits
+        into, or a kernel mode carries fission from, a class the loss never
+        removes from). The condition is symmetric under :attr:`H`, so the
+        forward question and its adjoint refuse together.
+        """
+        kernel = _predicted(self.pencil, "EigenPosing.solvability")
+        if kernel.dimension == 0:
+            return Solve(because=kernel.because, conditioning=conditioning)
+        reading, label = _pencil_annihilation(self.pencil, kernel)
+        if reading > CONSISTENCY_RTOL:
+            raise NoSolution(
+                f"the eigen posing has no steady solution: the loss is singular ({kernel.because}), and the pencil's "
+                f"rhs does not respect its kernel ({label!r} reads {reading:.3g} > {CONSISTENCY_RTOL:g}): fission "
+                f"emits into a class the loss never removes neutrons from."
+            )
+        return Gauge(projector=kernel.projector, pairing=Measured(reading), because=kernel.because,
+                     conditioning=conditioning)
+
 
 @dataclass(frozen=True)
 class SourcePosing(Generic[V]):
@@ -125,6 +199,35 @@ class SourcePosing(Generic[V]):
 
     operator: LinearOperator[V, V]
     source: Any
+    #: The operator's predicted kernel (:class:`~orpheus.numerics.fredholm.PredictedKernel`), from which
+    #: :meth:`solvability` derives the verdict; ``None`` when the operator's kernel was not predicted.
+    #: Mint it from a pencil with :meth:`of_pencil`.
+    kernel: "PredictedKernel | None" = field(default=None, kw_only=True, compare=False)
+
+    @classmethod
+    def of_pencil(cls, pencil: OperatorPencil[V], sigma: float, source: Any) -> "SourcePosing[V]":
+        r"""The affine question :math:`(A - \sigma M)\psi = q` over ``pencil``, carrying its predicted kernel.
+
+        At :math:`\sigma = 0` the operator is :math:`A` and its kernel is the
+        pencil's. At :math:`\sigma \neq 0` the pencil's kernel is the
+        member's only when :math:`M` respects it (the eigen question's
+        condition, :meth:`EigenPosing.solvability`), which is checked here and
+        refused otherwise; a kernel the member gains at a spectral coincidence
+        of the data is a value question, the multiplying source's
+        subcriticality.
+        """
+        sigma = float(sigma)
+        if sigma != 0.0:
+            kernel = _predicted(pencil, "SourcePosing.of_pencil")
+            if kernel.dimension:
+                reading, label = _pencil_annihilation(pencil, kernel)
+                if reading > CONSISTENCY_RTOL:
+                    raise NoSolution(
+                        f"the posing (A - {sigma:g} M) psi = q has no predicted kernel: the pencil's rhs does not "
+                        f"respect the loss's kernel ({label!r} reads {reading:.3g}), so the loss's singular class "
+                        f"receives fission and the question has no steady solution."
+                    )
+        return cls(pencil.at(sigma), source, kernel=pencil.kernel)
 
     def __post_init__(self) -> None:
         codomain = self.operator.codomain
@@ -159,5 +262,14 @@ class SourcePosing(Generic[V]):
         return _pair(w, self.residual(psi))
 
     def H(self, detector: Any) -> "SourcePosing[V]":
-        r"""UNARY — the adjoint source problem :math:`A^\dagger\psi^\dagger = R` needs a DETECTOR."""
-        return SourcePosing(self.operator.H, detector)
+        r"""UNARY — the adjoint source problem :math:`A^\dagger\psi^\dagger = R` needs a DETECTOR; the kernel daggers with it."""
+        return SourcePosing(self.operator.H, detector, kernel=None if self.kernel is None else self.kernel.H)
+
+    def solvability(self, *, conditioning: Evidence) -> Solvable:
+        r"""The Fredholm verdict on :math:`A\psi = q` from the predicted kernel: ``Solve``, ``Gauge``, or raise ``NoSolution``."""
+        if self.kernel is None:
+            raise ValueError(
+                "SourcePosing.solvability: the posing carries no predicted kernel, so it has no Fredholm verdict; "
+                "mint it with SourcePosing.of_pencil from a hub's pencil."
+            )
+        return fredholm_alternative(self.kernel, _flat(self.source), conditioning=conditioning)

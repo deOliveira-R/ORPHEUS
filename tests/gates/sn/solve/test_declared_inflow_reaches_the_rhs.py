@@ -298,14 +298,17 @@ def _solve(sn: SNProblem, inner: str, **kw):
         else _solve_fixed_source_krylov
     )
     # step 3: the arms take the QUESTION the entry posed — pure transport at
-    # σ = 0 (``at(0.0)`` IS ``system.loss``) — and its admissibility evidence
+    # σ = 0 (``at(0.0)`` IS ``system.loss``) — its admissibility evidence, and the
+    # Fredholm verdict the public entry would have handed them (space-membership U0)
     from orpheus.numerics.evidence import NotApplicable
     from orpheus.numerics.posing import SourcePosing
-    from orpheus.sn.solver import _as_coupled
+    from orpheus.sn.solver import _SWEPT, _as_coupled
+    posing = SourcePosing.of_pencil(sn.pencil, 0.0, _as_coupled(q))
     return driver(
         solver, sn, q, 0.0, 2000, 1e-13,
-        posing=SourcePosing(sn.pencil.at(0.0), _as_coupled(q)),
-        admissibility=NotApplicable("the pure-transport question is always admitted"),
+        posing=posing,
+        admissibility=NotApplicable("a pure-transport posing has no subcriticality to check"),
+        solvability=posing.solvability(conditioning=_SWEPT),
     )
 
 

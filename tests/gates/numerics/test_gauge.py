@@ -187,18 +187,18 @@ class TestLawTheKernelGauge:
         hub = _gauge_singular_hub()
         gauge = hub.loss_kernel_gauge
         rng = np.random.default_rng(3)
-        trace = rng.random(_trace_values(hub.system.space.zeros()).shape)
+        trace = rng.random(gauge.domain.shape)  # a random state's coordinates (the gauge acts on the whole state, U0)
         pi = gauge.apply(trace)
-        _require(float(np.linalg.norm(pi)) > 0.0, "non-vacuity: a random trace has a kernel component")
+        _require(float(np.linalg.norm(pi)) > 0.0, "non-vacuity: a random state has a kernel component")
         _require(np.allclose(gauge.apply(pi), pi, rtol=1e-12, atol=1e-14), "Π² = Π")
         _require(np.allclose(gauge.gauge(gauge.gauge(trace)), gauge.gauge(trace), rtol=1e-12, atol=1e-14), "(I − Π)² = I − Π")
 
     def test_law_gamma_invariance_with_a_group_element_from_the_kernel(self) -> None:
-        """The group element is drawn from Π's OWN RANGE on the TRACE space."""
+        """The group element is drawn from Π's OWN RANGE on the state's space (the coupled space since U0)."""
         hub = _gauge_singular_hub()
         gauge = hub.loss_kernel_gauge
         rng = np.random.default_rng(5)
-        shape = _trace_values(hub.system.space.zeros()).shape
+        shape = gauge.domain.shape
         trace = rng.random(shape)
         v = gauge.apply(rng.random(shape))
         _require(float(np.linalg.norm(v)) > 0.0, "non-vacuity: the group element is non-zero")
@@ -211,9 +211,8 @@ class TestLawTheKernelGauge:
         gauge = hub.loss_kernel_gauge
         rng = np.random.default_rng(7)
         state = _random_state(hub, rng)
-        trace = _trace_values(state)
-        gauged = _with_trace(state, gauge.gauge(trace))
-        _require(float(np.linalg.norm(trace - _trace_values(gauged))) > 0.0, "non-vacuity: the section moved the trace")
+        gauged = CoupledField.from_flat(gauge.gauge(state.to_flat()), state)
+        _require(float(np.linalg.norm(state.to_flat() - gauged.to_flat())) > 0.0, "non-vacuity: the section moved the state")
         before = hub.system.loss.apply(state).to_flat()
         after = hub.system.loss.apply(gauged).to_flat()
         scale = float(np.max(np.abs(before)))

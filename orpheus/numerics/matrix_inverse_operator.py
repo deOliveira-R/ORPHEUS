@@ -78,6 +78,7 @@ typed carrier round-trips through the :meth:`apply` /
 from __future__ import annotations
 
 import warnings
+from functools import cached_property
 from typing import Any, cast
 
 import numpy as np
@@ -178,7 +179,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
             )
         super().__init__(inner)
 
-    @property
+    @cached_property
     def reciprocal_condition(self) -> float:
         r"""LAPACK's estimate of :math:`1/\kappa_1(A) = 1/(\lVert A\rVert_1 \lVert A^{-1}\rVert_1)`, from the factors.
 

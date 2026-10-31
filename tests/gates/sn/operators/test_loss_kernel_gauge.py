@@ -3,7 +3,10 @@ r"""The SN loss kernel's gauge — the closed-form projector onto :math:`\ker(L+
 Since the space-membership campaign's U3 (2026-10-31) the projector is the numerics
 :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`, whose laws are gated on a
 numerics fixture in ``tests/gates/numerics/test_kernel_projection_gauge.py``; SN supplies the pair
-generators (:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`). The rows below
+generators. Since U0 (2026-10-31) the generators are the diamond-difference half of the hub's predicted kernel
+(:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`) and the gauge acts on the FULL
+field (bulk then trace, flat): a trace vector ``x`` enters as ``[0_bulk, x]`` (:func:`_on_trace`), its summands
+sit at trace indices offset by the bulk size, and every law below reads the trace part. The rows below
 are its production instances, and section 10 pins the rebuilt gauge bit-identical to the retired
 ``LossKernelGauge`` (a carry captured before the carve).
 
@@ -109,7 +112,9 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.operators.loss_kernel_gauge import (
     GaugeFreedom,
-    build_loss_kernel_gauge,
+    predicted_discretization_kernel,
+    predicted_loss_kernel,
+    predicted_physical_kernel,
     _anova_dimension,
     _reflection_orbits,
     gauge_freedom,
@@ -189,6 +194,30 @@ def _apply_loss(system, template, flat: np.ndarray) -> np.ndarray:
     return out.to_flat()
 
 
+def _n_bulk(problem) -> int:
+    return int(np.prod(problem.full_field_space.interior_space.shape))
+
+
+def _dd_gauge(problem):
+    """The diamond-difference half of the hub's predicted kernel, its projector on the full field (U0). The retired
+    ``build_loss_kernel_gauge`` (retired at U0) returned this object on the trace space."""
+    return predicted_discretization_kernel(problem).projector
+
+
+def _on_trace(problem, gauge, verb: str, trace: np.ndarray) -> np.ndarray:
+    """A trace vector through a full-field verb: embed as ``[0_bulk, x]``, act, read the trace part back. The bulk part
+    of the answer must be exactly zero (the diamond-difference summands live on the trace)."""
+    nb = _n_bulk(problem)
+    out = np.asarray(getattr(gauge, verb)(np.concatenate([np.zeros(nb), trace])), dtype=float)
+    np.testing.assert_array_equal(out[:nb], 0.0)
+    return out[nb:]
+
+
+def _trace_indices(problem, block) -> np.ndarray:
+    """A summand's support in the TRACE chart (its gather indices are full-field ones)."""
+    return np.asarray(block.gather.indices) - _n_bulk(problem)
+
+
 def _embed_trace(template, trace: np.ndarray) -> np.ndarray:
     """A trace vector as a full-field flat vector with zero bulk."""
     return np.concatenate(
@@ -232,7 +261,7 @@ def test_the_dimension_matches_the_combinatorial_counting_law(
     where the dense SVD is not viable.
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     assert gauge.dimension == predicted_kernel_dimension(mesh) > 0
 
 
@@ -265,7 +294,7 @@ def test_the_dimension_matches_a_DENSE_SVD_of_the_assembled_operator(
     singular = np.linalg.svd(dense, compute_uv=False)
     rank_deficiency = int(np.sum(singular < 1e-10 * singular[0]))
 
-    assert build_loss_kernel_gauge(mesh).dimension == rank_deficiency
+    assert _dd_gauge(mesh).dimension == rank_deficiency
 
 
 @pytest.mark.foundation
@@ -334,7 +363,7 @@ def test_EVERY_basis_vector_is_annihilated_by_the_production_matvec(
       congruence-class trap, in this suite's own fixture set).
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     system, template = _loss_system(mesh)
     n_trace = int(np.prod(mesh.angular_trace.shape))
 
@@ -343,7 +372,7 @@ def test_EVERY_basis_vector_is_annihilated_by_the_production_matvec(
     for block in gauge.summands:
         for mode in range(block.basis.table.shape[1]):
             trace = np.zeros(n_trace)
-            trace[block.gather.indices] = block.basis.table[:, mode]
+            trace[_trace_indices(mesh, block)] = block.basis.table[:, mode]
             full = _embed_trace(template, trace)
             residual = np.linalg.norm(_apply_loss(system, template, full))
             worst = max(worst, residual / np.linalg.norm(full))
@@ -376,14 +405,14 @@ def test_each_block_gram_is_the_identity_which_is_what_earns_DIAGONAL(
     :math:`1\times1`). **The d=3 rows are the only ones that can fail this.**
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
 
     saw_multimode = False
     for block in gauge.summands:
         table = block.basis.table
         assert block.basis.gram_structure is GramStructure.DIAGONAL
-        gram = table.T @ (metric[block.gather.indices][:, None] * table)
+        gram = table.T @ (metric[_trace_indices(mesh, block)][:, None] * table)
         saw_multimode |= table.shape[1] > 1
         assert np.allclose(gram, np.eye(table.shape[1]), atol=1e-12), (
             f"{label}: summand {block.basis.label} Gram is "
@@ -408,11 +437,11 @@ def test_the_frame_gram_probe_agrees_with_the_true_gram():
     from orpheus.numerics.measure import DiscreteMeasure
 
     mesh = _mesh((2, 2, 2), [(_R, _R)] * 3, ng=1)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     assert gauge.summands, "fixture is no longer singular"
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
     for block in gauge.summands:
-        indices = block.gather.indices
+        indices = _trace_indices(mesh, block)
         # ⛔ RE-KEYED 2026-09-02 (#429 tracker 2.2). The probe measure named
         # its own manifold (``IndexSet(label="probe")``) while the block's
         # basis eats ``index(sn_trace_orbit(...)_g0)`` — two different point
@@ -445,17 +474,20 @@ def test_it_is_an_idempotent_G_self_adjoint_projector(
     rather than inferred from the construction.
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
     rng = np.random.default_rng(0)
     x = rng.standard_normal(metric.size)
     y = rng.standard_normal(metric.size)
 
-    projected = gauge.apply(x)
+    def apply(v):
+        return _on_trace(mesh, gauge, "apply", v)
+
+    projected = apply(x)
     assert np.linalg.norm(projected) > 1e-6, "degenerate fixture: nothing projected"
-    np.testing.assert_allclose(gauge.apply(projected), projected, atol=1e-12)
-    assert float(np.sum(metric * gauge.apply(x) * y)) == pytest.approx(
-        float(np.sum(metric * x * gauge.apply(y))), rel=1e-11
+    np.testing.assert_allclose(apply(projected), projected, atol=1e-12)
+    assert float(np.sum(metric * apply(x) * y)) == pytest.approx(
+        float(np.sum(metric * x * apply(y))), rel=1e-11
     )
 
 
@@ -474,7 +506,7 @@ def test_the_summands_have_DISJOINT_supports():
     remains is a fact of SN's builder.
     """
     mesh = _mesh((2, 2, 2), [(_R, _R)] * 3, ng=2)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     assert len(gauge.summands) > 1
     seen = np.concatenate([b.gather.indices for b in gauge.summands])
     assert np.unique(seen).size == seen.size
@@ -496,14 +528,14 @@ def test_gauging_cannot_move_any_convergence_check(
     functional of :math:`A\psi` are bit-unaffected.
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     system, template = _loss_system(mesh)
     rng = np.random.default_rng(1)
     trace = rng.standard_normal(int(np.prod(mesh.angular_trace.shape)))
     bulk = rng.standard_normal(template.interior.values.size)
 
     raw = np.concatenate([bulk, trace])
-    gauged = np.concatenate([bulk, gauge.gauge(trace)])
+    gauged = np.concatenate([bulk, _on_trace(mesh, gauge, "gauge", trace)])
     before = _apply_loss(system, template, raw)
     after = _apply_loss(system, template, gauged)
     assert np.linalg.norm(after - before) / np.linalg.norm(before) < 1e-13
@@ -573,13 +605,13 @@ def test_the_gauge_recovers_the_PHYSICAL_trace_from_a_production_solve(cells):
     closed-form span.
     """
     mesh, system, template, source, exact, n_bulk = _uniform_source_fixture(cells)
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     psi = _solve(system, mesh, template, source, "gauss_seidel")
 
     reference = np.linalg.norm(exact[n_bulk:])
     deviation = psi[n_bulk:] - exact[n_bulk:]
     before = np.linalg.norm(deviation) / reference
-    after = np.linalg.norm(gauge.gauge(psi[n_bulk:]) - exact[n_bulk:]) / reference
+    after = np.linalg.norm(_on_trace(mesh, gauge, "gauge", psi[n_bulk:]) - exact[n_bulk:]) / reference
 
     assert before > 1e-3, (
         f"fixture no longer exhibits the defect (deviation {before:.3e}) — if "
@@ -587,7 +619,7 @@ def test_the_gauge_recovers_the_PHYSICAL_trace_from_a_production_solve(cells):
     )
     assert after < 1e-11, f"{before:.3e} -> {after:.3e}"
     # The whole deviation is kernel content, so the projector is the right tool.
-    in_span = (np.linalg.norm(gauge.apply(deviation))
+    in_span = (np.linalg.norm(_on_trace(mesh, gauge, "apply", deviation))
                / np.linalg.norm(deviation))
     assert in_span == pytest.approx(1.0, abs=1e-6)
 
@@ -607,7 +639,7 @@ def test_it_is_NOT_a_universal_absorber_the_jacobi_control():
     error a green-only suite cannot see.
     """
     mesh, system, template, source, exact, n_bulk = _uniform_source_fixture((3, 4))
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     psi = _solve(system, mesh, template, source, "jacobi")
 
     reference = np.linalg.norm(exact[n_bulk:])
@@ -615,11 +647,11 @@ def test_it_is_NOT_a_universal_absorber_the_jacobi_control():
     before = np.linalg.norm(deviation) / reference
     assert before < 1e-11, "jacobi is supposed to already be correct here"
 
-    after = np.linalg.norm(gauge.gauge(psi[n_bulk:]) - exact[n_bulk:]) / reference
+    after = np.linalg.norm(_on_trace(mesh, gauge, "gauge", psi[n_bulk:]) - exact[n_bulk:]) / reference
     assert after == pytest.approx(before, rel=1e-6), (
         "the gauge moved a solution that was already the canonical member"
     )
-    in_span = (np.linalg.norm(gauge.apply(deviation))
+    in_span = (np.linalg.norm(_on_trace(mesh, gauge, "apply", deviation))
                / np.linalg.norm(deviation))
     assert in_span < 0.05, (
         f"{in_span:.4f} of pure round-off reads as kernel content — the "
@@ -641,7 +673,7 @@ def test_one_vacuum_axis_removes_the_freedom():
     verdict = gauge_freedom(mesh)
     assert not verdict.present and not verdict.undetermined
     assert "1 reflective axis pair" in verdict.because
-    assert build_loss_kernel_gauge(mesh).dimension == 0
+    assert _dd_gauge(mesh).dimension == 0
     assert predicted_kernel_dimension(mesh) == 0
 
 
@@ -663,7 +695,7 @@ def test_a_damping_closure_removes_the_freedom_at_the_ROOT():
         "the geometry conjunct must still be satisfied, or this row proves "
         "nothing about the CLOSURE conjunct"
     )
-    assert build_loss_kernel_gauge(mesh).dimension == 0
+    assert _dd_gauge(mesh).dimension == 0
 
 
 @pytest.mark.foundation
@@ -671,7 +703,7 @@ def test_one_dimension_has_no_face_mode_and_therefore_no_gauge():
     """``d = 1`` falls out of the spectral radius — no special case anywhere."""
     mesh = _mesh((5,), [(_R, _R)])
     assert not gauge_freedom(mesh).present
-    assert build_loss_kernel_gauge(mesh).dimension == 0
+    assert _dd_gauge(mesh).dimension == 0
 
 
 @pytest.mark.foundation
@@ -687,7 +719,7 @@ def test_an_UNDETERMINED_closure_does_NOT_gauge_and_says_why():
     verdict = gauge_freedom(mesh)
     assert verdict.undetermined and not verdict.present
     assert "could not be classified" in verdict.because
-    assert build_loss_kernel_gauge(mesh).dimension == 0
+    assert _dd_gauge(mesh).dimension == 0
 
 
 @pytest.mark.foundation
@@ -750,8 +782,8 @@ def test_the_basis_never_reads_a_CROSS_SECTION():
     every factor in the mode is a mesh, quadrature or boundary quantity, so
     anything less than bit-identity means a cross-section leaked in.
     """
-    absorber = build_loss_kernel_gauge(_mesh((3, 4), [(_R, _R)] * 2))
-    fissile = build_loss_kernel_gauge(
+    absorber = _dd_gauge(_mesh((3, 4), [(_R, _R)] * 2))
+    fissile = _dd_gauge(
         _mesh((3, 4), [(_R, _R)] * 2, fissile=True, c=0.4))
 
     assert absorber.dimension == fissile.dimension > 0
@@ -786,7 +818,7 @@ def test_the_TANGENTIAL_component_is_untouched_not_annihilated():
     """
     mesh = _mesh((3, 4), [(_R, _R)] * 2,
                  quad=Quadrature.product(n_mu=4, n_phi=4))
-    gauge = build_loss_kernel_gauge(mesh)
+    gauge = _dd_gauge(mesh)
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
 
     tangential = metric == 0.0
@@ -795,11 +827,11 @@ def test_the_TANGENTIAL_component_is_untouched_not_annihilated():
     field = np.zeros(metric.size)
     field[tangential] = np.random.default_rng(2).standard_normal(
         int(tangential.sum()))
-    np.testing.assert_array_equal(gauge.gauge(field), field)
+    np.testing.assert_array_equal(_on_trace(mesh, gauge, "gauge", field), field)
 
     # And no block ever claims a zero-metric DOF in the first place.
     for block in gauge.summands:
-        assert np.all(metric[block.gather.indices] > 0.0)
+        assert np.all(metric[_trace_indices(mesh, block)] > 0.0)
 
 
 @pytest.mark.foundation
@@ -835,7 +867,7 @@ def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
     (``vv-principles`` #17: the verdict of a battery is a TABLE, and an arm
     that reddens nothing is a claim with no witness — not a claim that holds.)
     """
-    gauge = build_loss_kernel_gauge(_mesh(cells, bcs, **kwargs))
+    gauge = _dd_gauge(_mesh(cells, bcs, **kwargs))
     assert gauge.summands, f"{label}: no summands — the fixture is not singular"
     for block in gauge.summands:
         domain = block.basis.domain
@@ -868,11 +900,13 @@ def test_the_kernel_modes_are_orthogonal_to_the_constants(label, cells, bcs, kwa
     (e.g. a block table with a constant column appended), against which the
     declared zero would be false.
     """
-    gauge = build_loss_kernel_gauge(_mesh(cells, bcs, **kwargs))
+    gauge = _dd_gauge(_mesh(cells, bcs, **kwargs))
     assert gauge.summands, f"{label}: no summands — the fixture is not singular"
     eps = np.finfo(float).eps
     for block in gauge.summands:
-        axes = block.gather.codomain.axes
+        codomain = block.gather.codomain
+        assert codomain is not None
+        axes = codomain.axes
         assert axes is not None
         table = block.basis.table
         g = np.ones(table.shape[0]) if axes[0].weights is None else np.asarray(axes[0].weights)
@@ -918,13 +952,14 @@ def test_the_rebuilt_gauge_agrees_with_the_retired_class_within_the_declared_reb
     carry = np.load(_CARRY)
     bound = json.loads(_REBASELINES.read_text())["events"][-1]["bound"]
     eps = np.finfo(float).eps
-    gauge = _mesh(cells, bcs, **kwargs).loss_kernel_gauge
+    mesh = _mesh(cells, bcs, **kwargs)
+    gauge = mesh.loss_kernel_gauge   # since U0 the full-field projector: the carry reads its trace part on [0_bulk, x]
     assert isinstance(gauge, KernelProjectionGauge)
     x = carry[f"{label}|x"]
-    applied, reference = gauge.apply(x), carry[f"{label}|apply"]
+    applied, reference = _on_trace(mesh, gauge, "apply", x), carry[f"{label}|apply"]
     np.testing.assert_allclose(applied, reference, rtol=0,
                                atol=bound["apply_atol_in_eps_max_abs_apply"] * eps * np.abs(reference).max())
-    np.testing.assert_allclose(gauge.gauge(x), carry[f"{label}|gauge"], rtol=0,
+    np.testing.assert_allclose(_on_trace(mesh, gauge, "gauge", x), carry[f"{label}|gauge"], rtol=0,
                                atol=bound["gauge_atol_in_eps_max_abs_x"] * eps * np.abs(x).max())
     assert gauge.dimension == int(carry[f"{label}|dimension"])
 
@@ -946,12 +981,20 @@ def _trace_metric(mesh) -> np.ndarray:
     return np.asarray(space.apply_metric(np.ones(tuple(space.shape))), dtype=float)
 
 
-def _exit_reading(mesh, x):
+_THE_HUBS = object()
+
+
+def _exit_reading(mesh, x, kernel=_THE_HUBS, bulk_seed=None):
+    """The exit on a state whose trace is ``x``; its bulk is zero, or a seeded random field (so the full-field norm
+    differs from the trace norm: U0 moved the correction onto the whole state)."""
     from dataclasses import replace
-    from orpheus.sn.solver import _exit_gauge_trace
+    from orpheus.sn.solver import _exit_gauge
     psi = _unwindowed_cold_start(mesh, history_depth=0)
-    psi = replace(psi, boundary=replace(psi.boundary, values=x))
-    return _exit_gauge_trace(psi, problem=mesh)
+    interior = psi.interior.values
+    if bulk_seed is not None:
+        interior = np.random.default_rng(bulk_seed).standard_normal(np.shape(interior))
+    psi = replace(psi, interior=replace(psi.interior, values=interior), boundary=replace(psi.boundary, values=x))
+    return _exit_gauge(psi, kernel=mesh.pencil.kernel if kernel is _THE_HUBS else kernel)
 
 
 _UNIFORM_TRACE_METRIC = "d2 (3,4) LS2 ng=1"
@@ -974,16 +1017,20 @@ def test_premise_the_exit_rows_carry_a_non_uniform_trace_metric():
 )
 @pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR, ids=[row[0] for row in _SINGULAR])
 def test_the_exit_reports_the_correction_in_the_G_norm(label, cells, bcs, kwargs):
-    """RULED (U3): ``||x - sigma(x)||_G / ||x||_G``, in the trace space's own norm. Oracle: the hand sum over the trace
-    metric. `[M]` before U3 the exit reported the Euclidean ratio, 5.7 %-18.6 % away on the five non-uniform fixtures
-    (red there, ``scratch/membership_covector/u3/exit_and_fixture_premises.py``); the LS2 row is green either way."""
+    """RULED (U3, re-posed U0): ``||psi - sigma(psi)||_G / ||psi||_G`` in the FULL FIELD's norm (bulk + trace; until U0
+    the trace's). Oracle: the hand sum over the full-field metric, the bulk a seeded random field, so a trace-norm
+    denominator reads differently on every row. `[M]` before U3 the exit reported the Euclidean ratio, 5.7 %-18.6 % away
+    on the five non-uniform fixtures; the bulk leg is the U0 tooth."""
     carry = np.load(_CARRY)
     mesh = _mesh(cells, bcs, **kwargs)
-    g = _trace_metric(mesh)
+    g = np.asarray(mesh.full_field_space.metric_diagonal(), dtype=float)
     x = carry[f"{label}|x"]
-    out, correction = _exit_reading(mesh, x)
-    d = x - np.asarray(out.boundary.values)
-    assert correction == pytest.approx(np.sqrt(np.sum(g * d * d) / np.sum(g * x * x)), rel=1e-14), label
+    out, correction = _exit_reading(mesh, x, bulk_seed=4)
+    before = np.concatenate([np.ravel(_exit_reading(mesh, x, kernel=None, bulk_seed=4)[0].interior.values), x])
+    after = np.concatenate([np.ravel(out.interior.values), np.ravel(out.boundary.values)])
+    d = before - after
+    np.testing.assert_array_equal(d[: d.size - x.size], 0.0)   # the DD modes live on the trace: the bulk is untouched
+    assert correction == pytest.approx(np.sqrt(np.sum(g * d * d) / np.sum(g * before * before)), rel=1e-14), label
 
 
 @pytest.mark.foundation
@@ -991,19 +1038,11 @@ def test_the_exit_reports_the_correction_in_the_G_norm(label, cells, bcs, kwargs
     "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProtocolAndTheMetric",
 )
 def test_the_exit_reads_the_protocol_only():
-    """The exit asks ``dimension`` (the Protocol), never a realization's internals. `[M]` before U3 a Protocol conformer
-    with no ``.blocks`` raised ``AttributeError: ... 'blocks'`` there. The double goes into the hub's instance
-    ``__dict__`` (``loss_kernel_gauge`` is a ``cached_property``; a class-level patch would not reach it)."""
-    class _Identity:
-        def gauge(self, state):
-            return state
-
-        @property
-        def dimension(self) -> int:
-            return 0
-
+    """A posing with no freedom leaves the state untouched and reports no correction (``None``, never "measured and
+    zero"). `[M]` before U3 a Protocol conformer with no ``.blocks`` raised ``AttributeError: ... 'blocks'`` there;
+    since U0 the exit takes the POSING's predicted kernel, and a trivial one is the no-freedom value."""
+    from orpheus.numerics.fredholm import PredictedKernel
     mesh = _mesh((3, 4), [(_R, _R)] * 2)
-    mesh.__dict__["loss_kernel_gauge"] = _Identity()
     x = np.random.default_rng(0).standard_normal(np.shape(_unwindowed_cold_start(mesh, history_depth=0).boundary.values))
-    out, correction = _exit_reading(mesh, x)
+    out, correction = _exit_reading(mesh, x, kernel=PredictedKernel.trivial(mesh.pencil.lhs.domain, "no freedom"))
     assert correction is None and np.array_equal(np.asarray(out.boundary.values), x)

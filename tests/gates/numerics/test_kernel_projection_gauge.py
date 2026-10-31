@@ -363,13 +363,24 @@ class TestTheProtocolAndTheMetric:
         with pytest.raises(ValueError, match="the metric is not diagonal"):
             KernelProjectionGauge.direct_sum(dense, ())
 
-    def test_a_space_that_is_not_one_dimensional_is_refused(self):
-        """A summand's support is flat indices. Arm ``no_rank_check`` (the 1-D check removed) reddens it."""
+    def test_a_multi_axis_space_is_gauged_on_its_flat_chart(self):
+        """Since U0 (2026-10-31) a summand's flat indices address the C-order flat chart of a multi-axis leaf space
+        (the homogeneous pose is (ng, 1)); the projector laws hold there, an element keeps its shape, and a payload
+        rides through. First red: before U0 the space was refused ("must be one-dimensional"). Arm
+        ``fortran_chart`` (the chart ravelled in F order) reddens the law against the C-order oracle."""
         plane = FunctionSpace.of_axes(
             Axis("p", (2,), weights=np.array([1.0, 2.0]), origin=Declared(BasisKind.NODAL)),
             Axis("q", (3,), weights=np.array([1.0, 1.0, 2.0]), origin=Declared(BasisKind.NODAL)))
-        with pytest.raises(ValueError, match="must be one-dimensional"):
-            KernelProjectionGauge.direct_sum(plane, ())
+        w = np.asarray(plane.metric_diagonal(), dtype=float).reshape(-1)
+        support, generators = np.array([1, 2, 4]), np.array([[1.0], [-1.0], [2.0]])
+        g = KernelProjectionGauge.direct_sum(plane, (KernelSummand(support, generators, "plane"),))
+        x = np.random.default_rng(29).standard_normal((2, 3))
+        r = np.zeros(6); r[support] = generators[:, 0]
+        oracle = (r @ (w * x.reshape(-1)) / (r @ (w * r))) * r   # the G-orthogonal projection onto span(r), C order
+        np.testing.assert_allclose(g.apply(x), oracle.reshape(2, 3), rtol=0, atol=16 * _EPS * np.abs(x).max())
+        np.testing.assert_allclose(g.apply(g.apply(x)), g.apply(x), rtol=0, atol=16 * _EPS * np.abs(x).max())
+        batch = np.random.default_rng(31).standard_normal((2, 3, 4))
+        np.testing.assert_allclose(g.apply(batch)[..., 1], g.apply(batch[..., 1]), rtol=0, atol=16 * _EPS * np.abs(batch).max())
 
     def test_a_gauge_on_a_dual_space_is_admitted_and_is_a_projector(self):
         """The user's ruling (a), 2026-10-31: a dual space's metric G^+ is diagonal when G is, so the gauge is

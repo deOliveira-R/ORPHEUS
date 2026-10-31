@@ -38,15 +38,26 @@ question with no structural witness, not this predicate's.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Iterable, Optional
 
 import numpy as np
+
+from orpheus.transport.kernels import N2N_MULTIPLICITY
 
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.transport.boundary_conditions.binding import Binding
 
-__all__ = ["absorption_free_closed_classes", "closed_faces", "final_classes"]
+__all__ = ["ClosedClass", "absorption_free_closed_classes", "closed_faces", "final_classes", "removal_matrix", "transfer_graph"]
+
+
+def _reachability(transfers: np.ndarray) -> np.ndarray:
+    r"""The reflexive-transitive closure of a boolean transfer graph (Warshall, exact on booleans)."""
+    reach = np.asarray(transfers, dtype=bool) | np.eye(transfers.shape[0], dtype=bool)
+    for k in range(reach.shape[0]):
+        reach |= reach[:, [k]] & reach[[k], :]
+    return reach
 
 
 def final_classes(transfers: np.ndarray) -> tuple[tuple[int, ...], ...]:
@@ -54,14 +65,10 @@ def final_classes(transfers: np.ndarray) -> tuple[tuple[int, ...], ...]:
 
     ``transfers[g, h]`` is true when :math:`g` feeds :math:`h`. A class is the
     set of groups mutually reachable from its members; it is final when no
-    member reaches a group outside it. The transitive closure is Warshall's,
-    which is exact on a boolean matrix of the group count's size.
+    member reaches a group outside it.
     """
-    edges = np.asarray(transfers, dtype=bool)
-    n = edges.shape[0]
-    reach = edges | np.eye(n, dtype=bool)
-    for k in range(n):
-        reach |= reach[:, [k]] & reach[[k], :]
+    reach = _reachability(transfers)
+    n = reach.shape[0]
     classes: list[tuple[int, ...]] = []
     seen: set[int] = set()
     for g in range(n):
@@ -74,10 +81,25 @@ def final_classes(transfers: np.ndarray) -> tuple[tuple[int, ...], ...]:
     return tuple(classes)
 
 
+def removal_matrix(mixture: "Mixture") -> np.ndarray:
+    r"""The P0 removal the loss reads, on the energy groups: :math:`K = \operatorname{diag}\Sigma_t - S_0^{\mathsf T} - m\,S_2^{\mathsf T}`.
+
+    ``[g', g]`` is the rate at which a neutron in group :math:`g` is removed
+    from (diagonal) or emitted into (off-diagonal, negative) group :math:`g'`;
+    :math:`m` is the (n,2n) multiplicity (:data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`).
+    The infinite-medium loss of the mixture, and the energy factor of every
+    method's loss.
+    """
+    scattering = np.asarray(mixture.SigS[0].toarray(), dtype=float)
+    n2n = np.asarray(mixture.Sig2[0].toarray(), dtype=float)
+    return np.diag(np.asarray(mixture.SigT, dtype=float)) - scattering.T - N2N_MULTIPLICITY * n2n.T
+
+
 def _net_removal_is_zero(mixture: "Mixture", group: int) -> bool:
+    r"""Whether group ``group`` loses nothing net: :math:`K`'s column sum, summed EXACTLY from the declared channels (``math.fsum``)."""
     scattering = np.asarray(mixture.SigS[0].toarray(), dtype=float)[group]
     n2n = np.asarray(mixture.Sig2[0].toarray(), dtype=float)[group]
-    return math.fsum([float(mixture.SigT[group]), *(-scattering), *(-2.0 * n2n)]) == 0.0
+    return math.fsum([float(mixture.SigT[group]), *(-scattering), *(-float(N2N_MULTIPLICITY) * n2n)]) == 0.0
 
 
 def closed_faces(binding: "Optional[Binding]") -> bool:
@@ -87,9 +109,44 @@ def closed_faces(binding: "Optional[Binding]") -> bool:
     return all(face in binding.decks or binding.condition_of(face).return_fraction == 1.0 for face in binding.faces)
 
 
+@dataclass(frozen=True)
+class ClosedClass:
+    r"""An absorption-free closed class of the energy groups, with the transient groups that feed it.
+
+    ``members`` is the final class (sorted); ``feeders`` the groups outside
+    every final class with a path into it, where the class's left co-vector is
+    non-zero off the class. The class owns its ENERGY kernel
+    (:meth:`energy_vectors`); only the spatial factor of a kernel mode is a
+    method's.
+    """
+
+    members: tuple[int, ...]
+    feeders: tuple[int, ...]
+
+    def energy_vectors(self, mixture: "Mixture") -> tuple[np.ndarray, np.ndarray]:
+        r"""The class's energy right null vector :math:`e` and left vector :math:`u` in ``mixture``.
+
+        On the class :math:`C`, :math:`K_{CC} e_C = 0` (normalised to a unit
+        largest entry) and :math:`u_C = 1`; on the feeders :math:`T`,
+        :math:`K_{TT}^{\mathsf T} u_T = -K_{CT}^{\mathsf T} u_C`, the
+        absorbing-chain probability of reaching :math:`C`. Zero elsewhere.
+        """
+        removal = removal_matrix(mixture)
+        c = np.asarray(self.members, dtype=np.intp)
+        t = np.asarray(self.feeders, dtype=np.intp)
+        _, _, right_t = np.linalg.svd(removal[np.ix_(c, c)])
+        e = np.zeros(removal.shape[0])
+        e[c] = right_t[-1] / right_t[-1][np.argmax(np.abs(right_t[-1]))]
+        u = np.zeros(removal.shape[0])
+        u[c] = 1.0
+        if t.size:
+            u[t] = np.linalg.solve(removal[np.ix_(t, t)].T, -removal[np.ix_(c, t)].T @ u[c])
+        return e, u
+
+
 def absorption_free_closed_classes(
     mixtures: "Iterable[Mixture]", binding: "Optional[Binding]",
-) -> tuple[tuple[int, ...], ...]:
+) -> tuple[ClosedClass, ...]:
     r"""The final classes that never lose a neutron on this domain; ``()`` when the loss is structurally regular.
 
     ``mixtures`` are the PRESENT materials (those a region of the domain
@@ -99,13 +156,24 @@ def absorption_free_closed_classes(
     present = tuple(mixtures)
     if not present or not closed_faces(binding):
         return ()
+    transfers = transfer_graph(present)
+    finals = final_classes(transfers)
+    reach = _reachability(transfers)
+    closed = {g for members in finals for g in members}
+    return tuple(
+        ClosedClass(members, tuple(g for g in range(reach.shape[0]) if g not in closed and bool(reach[g, list(members)].any())))
+        for members in finals
+        if all(_net_removal_is_zero(mixture, g) for mixture in present for g in members)
+    )
+
+
+def transfer_graph(mixtures: "Iterable[Mixture]") -> np.ndarray:
+    r"""The group-transfer graph of the present materials: ``[g, h]`` true when one of them scatters or (n,2n)-transfers ``g`` into ``h``."""
+    present = tuple(mixtures)
     groups = int(present[0].ng)
     transfers = np.zeros((groups, groups), dtype=bool)
     for mixture in present:
         transfers |= np.asarray(mixture.SigS[0].toarray()) != 0.0
         transfers |= np.asarray(mixture.Sig2[0].toarray()) != 0.0
     np.fill_diagonal(transfers, False)
-    return tuple(
-        members for members in final_classes(transfers)
-        if all(_net_removal_is_zero(mixture, g) for mixture in present for g in members)
-    )
+    return transfers

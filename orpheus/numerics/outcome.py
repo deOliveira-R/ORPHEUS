@@ -64,6 +64,7 @@ from dataclasses import dataclass
 from typing import Any, Generic, TypeAlias
 
 from orpheus.numerics.evidence import Asserted, Evidence, Measured, NotApplicable, NotYet
+from orpheus.numerics.fredholm import Solvable
 from orpheus.numerics.gauge import KernelGauge, ScaleGauge
 from orpheus.numerics.posing import EigenPosing, SourcePosing
 from orpheus.numerics.vector import Carrier
@@ -94,6 +95,11 @@ class ExitReport:
     gauge: Evidence
     rayleigh_gap: Evidence
     admissibility: Evidence
+    #: The Fredholm verdict on the posing (:mod:`orpheus.numerics.fredholm`): ``Solve`` (a
+    #: trivial kernel, with the factorisation's conditioning where there is one) or ``Gauge``
+    #: (a solvable family and the projector whose section was returned). A posing with no
+    #: solution never reaches an outcome: the decision raises at the entry.
+    solvability: Solvable
 
 
 # ── the two kinds ─────────────────────────────────────────────────────────
@@ -202,10 +208,11 @@ class SourceOutcome(Generic[Carrier]):
     state : Carrier
         The returned representative of the coset — the driver's iterate AFTER
         the kernel gauge.
-    gauge : KernelGauge
-        The projector :math:`\Pi` onto :math:`\ker A` whose section returned
-        the minimum-norm member — the zero-block projector when the
-        configuration has no freedom (a value, not an absence).
+
+    The kernel section is READ from the posing (:attr:`gauge`), never stored
+    beside it: one projector per question, so an adjoint posing gauges with the
+    adjoint kernel by construction (the space-membership campaign's U0: a
+    separate slot let the forward projector ride on an adjoint posing).
 
     No ``keff``, no ``lam``, no nullary adjoint: the adjoint source problem needs
     a DETECTOR (``posing.H(detector)``).
@@ -213,7 +220,6 @@ class SourceOutcome(Generic[Carrier]):
 
     posing: SourcePosing[Any]
     state: Carrier
-    gauge: KernelGauge
 
     def __post_init__(self) -> None:
         if not isinstance(self.posing, SourcePosing):
@@ -223,6 +229,20 @@ class SourceOutcome(Generic[Carrier]):
                 f"question has no source and its answer carries λ; build an "
                 f"EigenOutcome."
             )
+
+    @property
+    def gauge(self) -> KernelGauge:
+        r"""The projector :math:`\Pi` onto :math:`\ker A` whose section returned the minimum-norm member: the posing's kernel's.
+
+        The zero-block projector when the configuration has no freedom (a
+        value, not an absence). A posing whose kernel was not predicted has no
+        gauge to report, and asking refuses.
+        """
+        kernel = self.posing.kernel
+        if kernel is None:
+            raise ValueError("SourceOutcome.gauge: the posing carries no predicted kernel (mint it with "
+                             "SourcePosing.of_pencil), so no section was recorded.")
+        return kernel.projector
 
     def residual(self) -> Any:
         r""":math:`A\psi - q` on the returned state (the loss-sign convention every SN residual uses)."""

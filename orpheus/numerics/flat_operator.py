@@ -141,6 +141,24 @@ class FlattenedOperator(LinearOperator):
     # ``MatrixInverseOperator(FlattenedOperator(A, t))`` LU-factors the
     # assembled matrix instead of probing n columns.
 
+    def apply_transpose(self, y: Any, /) -> np.ndarray:
+        r"""Return ``inner.apply_transpose(unflat(y)).to_flat()``: the transpose of ``flat ∘ A ∘ unflat`` by law.
+
+        The flat chart and the template's carrier are an isometry of
+        coordinates, so :math:`(\flat A\, \flat^{-1})^{\mathsf T} =
+        \flat A^{\mathsf T} \flat^{-1}`; the template unflattens the
+        codomain's coordinates, which is the domain's for the endomorphisms
+        this adapter serves (a square inner, :attr:`n_flat` on both ends).
+        """
+        flat = np.asarray(y, dtype=float).ravel()
+        if flat.size != self.n_flat:
+            raise ValueError(
+                f"FlattenedOperator.apply_transpose: input size {flat.size} does "
+                f"not match the template's flat size {self.n_flat}."
+            )
+        carrier = type(self.template).from_flat(flat, self.template)
+        return np.asarray(self.inner.apply_transpose(carrier).to_flat())
+
     @property
     def is_assemblable(self) -> bool:
         return self.inner.is_assemblable

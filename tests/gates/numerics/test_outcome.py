@@ -31,6 +31,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.evidence import Asserted, Evidence, Measured, NotApplicable, NotYet
+from orpheus.numerics.fredholm import Solve
 from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 from orpheus.numerics.posing import ALPHA_MAP, EigenPosing, SourcePosing
 from orpheus.numerics.quadrature import Quadrature
@@ -92,14 +93,15 @@ class TestLawTheKindIsThePosingsType:
     def test_negative_a_source_outcome_REFUSES_an_eigen_question(self) -> None:
         problem, k, phi = _zero_d()
         with pytest.raises(TypeError, match="must be a SourcePosing"):
-            SourceOutcome(problem.eigen_posing, phi, _TrivialKernelGauge())  # type: ignore[arg-type]
+            SourceOutcome(problem.eigen_posing, phi)  # type: ignore[arg-type]
 
     def test_law_a_source_outcome_has_no_eigen_verbs(self) -> None:
         problem, k, phi = _zero_d()
         A = np.asarray(problem.pencil.lhs.as_matrix(), dtype=float)
         q = np.ones((A.shape[0], 1))
         psi = np.linalg.solve(A, q)
-        out = SourceOutcome(SourcePosing(problem.pencil.lhs, q), psi, _TrivialKernelGauge())
+        out = SourceOutcome(SourcePosing.of_pencil(problem.pencil, 0.0, q), psi)
+        _require(out.gauge.dimension == 0, "the gauge is READ off the posing's kernel (the hub's pencil predicts it)")
         _require(not hasattr(out, "keff") and not hasattr(out, "lam") and not hasattr(out, "adjoint_posing"), "a coset has no λ and no nullary adjoint — the attributes do not exist")
         _require(float(np.max(np.abs(np.asarray(out.residual())))) <= 1e-12, "its residual closes at the solution")
 
@@ -163,7 +165,8 @@ class TestLawTheEvidenceSum:
         members = (Measured(0.31), Asserted(1e-7, "within-group claim check"), NotApplicable("zero source"), NotYet(354, "the carrying eigen exit's coupled rhs"))
         for m in members:
             _require(_describe(m), f"{m!r} is described by the exhaustive match")
-        cert = ExitReport(balance=members[0], gauge=members[2], rayleigh_gap=members[0], admissibility=members[3])
+        cert = ExitReport(balance=members[0], gauge=members[2], rayleigh_gap=members[0], admissibility=members[3],
+                          solvability=Solve(because="a fixture", conditioning=members[2]))
         _require(cert.balance == Measured(0.31), "members are values")
         _require(not hasattr(cert, "value_or_none"), "no accessor re-imports the None leak")
 
@@ -204,17 +207,6 @@ class TestLawTheCoupledStateKnowsItsSpace:
         foreign = _build_fixed_source_rhs(np.ones((there.quad.n_ordinates, 2, 8)), there)
         with pytest.raises(ValueError, match="pose q on the operator's ends"):
             here.source_posing(foreign)
-
-
-class _TrivialKernelGauge:
-    """A zero-block section: the identity, dimension 0 (the honest 'no freedom' value)."""
-
-    def gauge(self, state):
-        return state
-
-    @property
-    def dimension(self) -> int:
-        return 0
 
 
 # ── the dominance ratio is a reading of the outcome's trajectory ──────────

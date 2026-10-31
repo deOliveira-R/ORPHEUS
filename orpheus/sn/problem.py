@@ -85,6 +85,7 @@ if TYPE_CHECKING:
     )
     from orpheus.geometry.deck import DeckTransformation
     from orpheus.transport.boundary_conditions import BoundaryCondition, RealizerTable
+    from orpheus.numerics.fredholm import PredictedKernel
     from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge
     # NOTE (B.5.A): the mesh provides SPACE data only and does NOT import
     # transport-field types — zero-allocation lives on the field types
@@ -1052,43 +1053,39 @@ class SNProblem(MethodMesh):
         return len(self.reflective_axes)
 
     @cached_property
-    def loss_kernel_gauge(self) -> "KernelProjectionGauge":
-        r"""The :math:`G`-orthogonal projector onto :math:`\ker(L + C - S - B)`.
+    def predicted_kernel(self) -> "PredictedKernel":
+        r"""The loss's kernel and its annihilators, predicted from structure: :math:`\ker A` and :math:`\ker A^{\mathsf T}`.
 
-        Cached HERE, on the mesh, because the kernel is a **Stratum-1**
-        (geometry-only) object: it is determined by the boundary laws, the
-        quadrature and the cell edges, and never reads a cross-section — ``[M]``
-        (#344) an absorber and a fissile mixture on the same box give
-        bit-identical residuals (:math:`2.799\times10^{-16}`).  So one build
-        serves every group, every outer and every eigenvalue iterate, which is
-        what amortises the setup to nothing (``[M]`` 4.0 ms at d=2 ``(3,4)``,
-        22.3 ms at d=3 ``(3,4,5)``, single-process).
+        The diamond-difference face modes (a Stratum-1, geometry-only object:
+        the boundary laws, the quadrature and the cell edges, never a cross
+        section) plus one mode per absorption-free closed energy class (the
+        declared mixtures and the binding), on the full field (bulk ⊕ trace).
+        It decides every posing on this hub by the Fredholm alternative
+        (:func:`~orpheus.numerics.fredholm.fredholm_alternative`) and supplies
+        the gauge of a solvable family. Cached on the hub, built once:
+        ``[M]`` (#344) the DD half costs 4.0 ms at d=2 ``(3,4)`` and 22.3 ms at
+        d=3 ``(3,4,5)``.
 
-        The mesh is the right owner rather than
-        :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
-        (which is geometry-blind since C5.3 and cannot see the boundary laws)
-        or :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-        (whose ``__eq__`` is ``(name, shape)``, so two meshes with different
-        BCs and the same DOF count compare equal — a cache keyed there would be
-        keyed on a size).  It sits beside
-        :attr:`reflective_axis_pairs`, which is the geometry half of its own
-        applicability predicate.
-
-        Built by :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`:
-        SN supplies the kernel's pair generators, and the projector is the
-        numerics :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`.
-
-        ⚠ **Zero summands when there is nothing to fix** — a non-singular
-        configuration yields the zero projector, so
-        :meth:`KernelProjectionGauge.gauge
-        <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.gauge>`
-        is the identity and no consumer needs a ``None`` branch.  Ask
-        :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` for the
-        reason (and for the warning owed when a closure is UNDETERMINED).
+        Built by :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_loss_kernel`.
         """
-        from orpheus.sn.operators.loss_kernel_gauge import build_loss_kernel_gauge
+        from orpheus.sn.operators.loss_kernel_gauge import predicted_loss_kernel
 
-        return build_loss_kernel_gauge(self)
+        return predicted_loss_kernel(self)
+
+    @property
+    def loss_kernel_gauge(self) -> "KernelProjectionGauge":
+        r"""The :math:`G`-orthogonal projector onto :math:`\ker(L + C - S - B)` on the coupled space.
+
+        The pencil's kernel's projector. Zero summands when there is
+        nothing to fix: its section is the identity, so no consumer needs a
+        ``None`` branch. Ask
+        :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` for the
+        diamond-difference half's reason (and for the warning owed when a
+        closure is UNDETERMINED).
+        """
+        kernel = self.pencil.kernel
+        assert kernel is not None  # type narrowing: the hub's pencil always carries its prediction
+        return kernel.projector
 
     @cached_property
     def system(self) -> "WithinGroupSystem":
@@ -1131,10 +1128,18 @@ class SNProblem(MethodMesh):
 
     @cached_property
     def pencil(self) -> "OperatorPencil[CoupledField]":
-        r"""The Problem's LAST step — the pencil :math:`(A, F)` on the coupled space (R-cc2)."""
+        r"""The Problem's LAST step — the pencil :math:`(A, F)` on the coupled space (R-cc2), carrying the loss's predicted kernel.
+
+        :attr:`predicted_kernel` lives on the full field; the pencil's space is
+        the coupled space whose first (or only) member is that full field, so
+        the kernel is rebased onto it index for index
+        (:meth:`~orpheus.numerics.fredholm.PredictedKernel.rebased`). Every
+        question posed over the pencil derives its Fredholm verdict from it.
+        """
         from orpheus.numerics.pencil import OperatorPencil
 
-        return OperatorPencil(self.system.loss, self.system.production)
+        loss = self.system.loss
+        return OperatorPencil(loss, self.system.production, kernel=self.predicted_kernel.rebased(loss.domain))
 
     @cached_property
     def eigen_posing(self) -> "EigenPosing[CoupledField]":
@@ -1160,7 +1165,7 @@ class SNProblem(MethodMesh):
         # The question lives on the pencil's ends — the coupled space; a bare
         # (seedless) full-field source is the ONE-system coupled state.
         lifted = source if isinstance(source, CoupledField) else CoupledField(systems=(source,))
-        return SourcePosing(self.pencil.at(1.0), lifted)
+        return SourcePosing.of_pencil(self.pencil, 1.0, lifted)
 
     @cached_property
     def fission(self) -> "FissionOperator":

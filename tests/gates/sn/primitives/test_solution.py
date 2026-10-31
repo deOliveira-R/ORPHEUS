@@ -46,6 +46,7 @@ from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.evidence import Asserted, Measured, NotApplicable
+from orpheus.numerics.fredholm import Solve
 from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 from orpheus.numerics.posing import SourcePosing
 from orpheus.sn.splitting import Splitting, resolve_schedule
@@ -147,6 +148,7 @@ def _exit_report() -> ExitReport:
     return ExitReport(
         balance=NotApplicable("a fixture"), gauge=NotApplicable("a fixture"),
         rayleigh_gap=NotApplicable("a fixture"), admissibility=NotApplicable("a fixture"),
+        solvability=Solve(because="a fixture", conditioning=NotApplicable("a fixture")),
     )
 
 
@@ -163,8 +165,8 @@ def _eigen(problem: SNProblem, state: CoupledField | None = None, *, lam: float 
 
 def _source(problem: SNProblem, state: CoupledField | None = None) -> SourceOutcome:
     return SourceOutcome(
-        posing=SourcePosing(problem.pencil.at(0.0), problem.system.space.zeros()),
-        state=_state(problem) if state is None else state, gauge=problem.loss_kernel_gauge,
+        posing=SourcePosing.of_pencil(problem.pencil, 0.0, problem.system.space.zeros()),
+        state=_state(problem) if state is None else state,
     )
 
 

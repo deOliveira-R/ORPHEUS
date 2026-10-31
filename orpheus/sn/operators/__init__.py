@@ -25,8 +25,8 @@ the discrete-ordinates spatial sweep:
 
 Alongside them sits one statement *about* :math:`A` rather than a leaf of it:
 the loss kernel (:mod:`~orpheus.sn.operators.loss_kernel_gauge`), whose pair
-generators :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
-hands to the numerics
+generators :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_loss_kernel`
+hands, with the absorption-free classes' modes, to the numerics
 :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`, the
 :math:`G`-orthogonal projector onto :math:`\ker(L+C-S-B)`, which is non-trivial
 exactly when the spatial closure leaves a face mode undamped and the problem

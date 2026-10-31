@@ -36,7 +36,7 @@ face with no declared condition is refused, naming the tag.
 from __future__ import annotations
 
 import time
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, replace
 from functools import reduce
 from collections.abc import Sequence
@@ -60,6 +60,9 @@ from orpheus.sn.operators.loss_kernel_gauge import gauge_freedom, warn_if_gauge_
 from orpheus.sn.operators.radial_characteristic import (
     radial_characteristic_source_from_angular,
 )
+from numpy.typing import NDArray
+
+from orpheus.numerics.fredholm import PredictedKernel, Solvable
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.posing import SourcePosing
 from orpheus.numerics.evidence import Asserted, Evidence, Measured, NotApplicable, NotYet
@@ -628,7 +631,7 @@ def _gauge_evidence(correction: float | None, *, problem: "SNProblem") -> Eviden
     as evidence: :class:`Measured` when the trace was projected, else the REASON
     nothing was — no kernel freedom on this configuration, or a closure the
     freedom predicate cannot classify (not gauged, warned loudly — the ruled
-    behaviour).  ``correction`` is :func:`_exit_gauge_trace`'s second return."""
+    behaviour).  ``correction`` is :func:`_exit_gauge`'s second return."""
     if correction is not None:
         return Measured(float(correction))
     verdict = gauge_freedom(problem)
@@ -655,6 +658,7 @@ def _exit_report(
     record: IterationRecord,
     gauge_correction: float | None,
     admissibility: Evidence,
+    solvability: Solvable,
     balance: Evidence | None = None,
 ) -> ExitReport:
     r"""Assemble the returned state's exit report from the outcome.
@@ -677,6 +681,7 @@ def _exit_report(
         gauge=_gauge_evidence(gauge_correction, problem=problem),
         rayleigh_gap=_rayleigh_gap_evidence(outcome),
         admissibility=admissibility,
+        solvability=solvability,
     )
 
 
@@ -739,73 +744,71 @@ def _as_coupled(field: "FullField | TimedFullField | CoupledField") -> "CoupledF
 _TraceCarrier = TypeVar("_TraceCarrier", "FullField", "TimedFullField")
 
 
-def _exit_gauge_trace(
+#: What an SN solvability verdict records about conditioning: SN inverts its loss by
+#: sweeps, never by a factorisation, so no reciprocal-condition estimate exists.
+_SWEPT = NotApplicable("SN inverts its loss by sweeps, never a factorisation: no condition estimate")
+
+
+def _exit_gauge(
     psi: _TraceCarrier,
     *,
-    problem: "SNProblem",
+    kernel: "PredictedKernel | None",
 ) -> "tuple[_TraceCarrier, float | None]":
-    r"""Return the CANONICAL member of the returned trace's solution manifold.
+    r"""Return the CANONICAL member of the returned state's solution family, and the relative correction.
 
-    On an all-reflective Cartesian box closed by diamond differencing,
-    :math:`A = L + C - S - B` is **exactly singular** (#344), so a converged
-    solve lands on an arbitrary member of a solution manifold rather than on a
-    point.  This projects the kernel component out —
-    :math:`\psi \mapsto \psi - \Pi\psi` — leaving the minimum-:math:`G`-norm
-    member, which is where the exact solution sits (a theorem, not a
-    convention: every kernel mode is mirror-ODD, so any mirror-even functional
-    annihilates it, and :math:`\psi_{\rm exact}` is one).
+    On a posing whose verdict is ``Gauge`` (:mod:`orpheus.numerics.fredholm`)
+    the solve lands on an arbitrary member of a coset :math:`\psi_0 + \ker A`:
+    the diamond-difference face modes of an all-reflective Cartesian box
+    (#344, a trace object) and, on a closed domain with an absorption-free
+    energy class, the class's constant mode (bulk and trace). This projects the
+    kernel component out, :math:`\psi \mapsto \psi - \Pi\psi`, on the WHOLE
+    state (the full field, bulk ⊕ trace), leaving the minimum-:math:`G`-norm
+    member. For the DD modes that is where the exact solution sits (a theorem:
+    every mode is mirror-odd); for an absorption-free class it is the
+    canonical member of a family whose level the posing does not fix.
 
     Returns the gauged composite and
-    :math:`\lVert \Pi\psi \rVert_G / \lVert \psi \rVert_G`, in the trace
-    space's own norm (Euclidean until the space-membership campaign's U3,
-    2026-10-31: the two differ whenever the trace metric is not uniform), for
-    the exit report's ``gauge`` member (:func:`_gauge_evidence`) — ``None``
-    when there was no freedom to measure, never *"measured and zero"*.
+    :math:`\lVert \Pi\psi \rVert_G / \lVert \psi \rVert_G` in the full
+    field's norm, for the exit report's ``gauge`` member
+    (:func:`_gauge_evidence`); ``None`` when there was no freedom to measure,
+    never *"measured and zero"*.
 
     ⭐ **The sibling of** :func:`_balance_evidence` **with one sharpening:
-    that one REPORTS and this one MUTATES.**  A forgotten balance-defect site
-    loses a diagnostic; a forgotten gauge site silently returns a
-    non-physical answer.  The structural guarantee a single construction site
-    would have given is not available (`[M]` the two fixed-source arms
-    deliberately bypass :func:`_package_solution` to keep their DG slope
-    structure, :ref:`the note below <no-label>` at the arms), so coverage is
-    GATED instead — see
-    ``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``.
+    that one REPORTS and this one MUTATES.** A forgotten gauge site silently
+    returns a non-physical answer, so coverage is GATED
+    (``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``).
 
-    ⛔ **Rebuilds, never mutates in place.**  The iterate passed here may
-    still be read after this point (on the un-windowed SI arm
-    ``angular_out IS psi_typed``, the very object the exit report already
-    measured), and a composite's blocks may be views into one flat buffer,
-    so an in-place write could reach backwards into objects already
-    measured.  `[M]` 2026-10-31 (the U3 qa review): no gauge-carrying call in
-    the ``sn/solve`` gates shares memory between its blocks today (57 of 57
-    read ``np.shares_memory`` False, the Krylov arm included), so the rule
-    is a safety rule, not a repair of an observed alias.  ``dataclasses.replace`` also
-    re-runs ``__post_init__``, so the leaf's block invariants re-fire — where
-    ``Composite._recombine`` would silently drop ``_history``.
+    ⛔ **Rebuilds, never mutates in place**: the iterate passed here may still
+    be read after this point, and a composite's blocks may be views into one
+    flat buffer. ``dataclasses.replace`` re-runs ``__post_init__``, so the
+    leaves' invariants re-fire, and keeps the carrier's history.
 
-    **Residual-neutral by construction**, so it is safe at a converged exit:
-    :math:`A(\psi - \Pi\psi) = A\psi` because :math:`\Pi\psi \in \ker A`.  `[M]`
-    on a truncated SI solve the balance evidence (then ``_exit_balance_defect``) read
-    ``0.3111434602740818`` on both the raw and the gauged iterate while
-    ``gauge_correction`` goes ``3.592e-2 → 4.91e-17``.  Call it AFTER the
-    defect anyway, so the reported number describes the object the caller
-    actually receives.
+    **Residual-neutral by construction**: :math:`A(\psi - \Pi\psi) = A\psi`
+    because :math:`\Pi\psi \in \ker A`. Call it AFTER the balance defect
+    anyway, so the reported number describes the object the caller receives.
 
-    ⚠ Takes the **System-A member**, not a ``CoupledField``: only the transport
-    bulk⊕trace block carries a boundary at all (a ``CoupledField`` has no
-    ``.boundary``), and every exit already unpacks it with
-    :func:`_system_a_member` before reading the trace.
+    ⚠ Takes the **System-A member**, not a ``CoupledField``; ``kernel`` is the
+    POSING's (forward or adjoint), on the coupled space whose leading block is
+    System A (on a carrying mesh the kernel is trivial: the closed forms are
+    Cartesian, the scope door's first entry).
     """
-    gauge = problem.loss_kernel_gauge
-    if gauge.dimension == 0:
+    if kernel is None or kernel.dimension == 0:
         return psi, None
-
-    boundary = psi.boundary
-    gauged = replace(boundary, values=gauge.gauge(boundary))
-    scale = boundary.space.norm(boundary)
-    correction = boundary.space.norm(boundary - gauged) / scale if scale > 0.0 else 0.0
-    return replace(psi, boundary=gauged), correction
+    gauge = kernel.projector
+    flat = np.asarray(psi.to_flat(), dtype=float)
+    if flat.size != kernel.n_coordinates:
+        raise ValueError(
+            f"_exit_gauge: a {kernel.dimension}-dimensional kernel on {kernel.space!r} met a System-A state of "
+            f"{flat.size} coordinates; a carrying mesh has no predicted kernel."
+        )
+    gauged_flat = gauge.gauge(flat)
+    n_bulk = psi.interior.values.size
+    gauged = replace(
+        psi,
+        interior=replace(psi.interior, values=gauged_flat[:n_bulk].reshape(psi.interior.values.shape)),
+        boundary=replace(psi.boundary, values=gauged_flat[n_bulk:].reshape(psi.boundary.values.shape)),
+    )
+    return gauged, gauge.displacement(flat)
 
 
 def _check_convergence_claim(
@@ -2302,6 +2305,10 @@ def solve_sn(
         scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
     _refuse_a_boundary_source(problem, "solve_sn")
+    # The Fredholm verdict on the eigen posing (space-membership U0): on a singular
+    # loss the question is solvable iff no fission emission reaches an
+    # absorption-free closed class; refused here, before any sweep.
+    solvability = problem.eigen_posing.solvability(conditioning=_SWEPT)
 
     solver = SNSolver(
         problem,
@@ -2441,8 +2448,8 @@ def solve_sn(
     # (residual-neutral by construction: Πψ ∈ ker A); the outcome and its
     # exit report are built AFTER it, so every number describes the object the
     # caller receives.
-    final_psi_a, gauge_correction = _exit_gauge_trace(
-        final_psi_a, problem=problem,
+    final_psi_a, gauge_correction = _exit_gauge(
+        final_psi_a, kernel=problem.pencil.kernel,
     )
     # The ANSWER (consumers campaign step 3): the hub's k-eigen question, the
     # returned state WHOLE (System A polished one step against the converged
@@ -2473,7 +2480,8 @@ def solve_sn(
     exit_report = _exit_report(
         answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
-        admissibility=NotApplicable("an eigen question has no admissibility to check"),
+        admissibility=NotApplicable("an eigen question has no subcriticality to check"),
+        solvability=solvability,
     )
     warn_if_unconverged(
         outcome.record, where="solve_sn",
@@ -2663,6 +2671,11 @@ def solve_sn_adjoint(
         scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
     _refuse_a_boundary_source(problem, "solve_sn_adjoint")
+    # The daggered question, and its verdict: the pencil's ``.H`` daggers the
+    # predicted kernel with it, and the condition (the kernel is the whole
+    # pencil's) is symmetric, so this refuses exactly where ``solve_sn`` does.
+    adjoint_posing = problem.eigen_posing.H()
+    solvability = adjoint_posing.solvability(conditioning=_SWEPT)
     implicit_operator, gain, _production, template, splitting = _adjoint_posing_parts(problem)
 
     from orpheus.numerics.iteration import KEigenvalue
@@ -2718,7 +2731,7 @@ def solve_sn_adjoint(
     # exactly the identity. ⚠ Do NOT read a green adjoint test as evidence the
     # gauge works — that is `inert`, not `verified`; the acceptance gate lives
     # on the forward entries.
-    system_a, gauge_correction = _exit_gauge_trace(system_a, problem=problem)
+    system_a, gauge_correction = _exit_gauge(system_a, kernel=adjoint_posing.pencil.kernel)
     # The ANSWER: the hub's daggered question — NULLARY, k† = k — recorded on
     # the coupled carrier (the seedless arm's state lifted to the one-system
     # coupled field), λ = k_adj, and the fission-only production-rate gauge
@@ -2738,7 +2751,8 @@ def solve_sn_adjoint(
     exit_report = _exit_report(
         answer, problem=problem, record=outcome.record,
         gauge_correction=gauge_correction,
-        admissibility=NotApplicable("an eigen question has no admissibility to check"),
+        admissibility=NotApplicable("an eigen question has no subcriticality to check"),
+        solvability=solvability,
         # #340 N6b / #353: this entry carries NO balance defect — N5 never
         # measured the adjoint population, so there is no reference to check a
         # number against; assembling one from plausibility is the ERR-032 class.
@@ -2883,6 +2897,11 @@ def solve_sn_adjoint_fixed_source(
             boundary=AngularBoundarySourceSink.zeros(problem.angular_trace),
         )
 
+    # The daggered posing A^H psi* = q* over the daggered pencil, which carries
+    # the daggered kernel (ker A^H, never the forward projector), and its
+    # Fredholm verdict (space-membership U0).
+    posing = SourcePosing.of_pencil(problem.pencil.H, 0.0, _as_coupled(q_star))
+    solvability = posing.solvability(conditioning=_SWEPT)
     # The Strategy mints the Green of the ADJOINT SPLIT (M†, N†): its own
     # value, not the forward Green's ``.H`` (ruling 66).
     si = GreenOperator(implicit_operator.H, gain.H).driver(
@@ -2901,20 +2920,20 @@ def solve_sn_adjoint_fixed_source(
     # #344 — see the note at `solve_sn_adjoint`: structurally inert here too
     # (1-D-only transpose solve ⟹ at most one reflective axis pair), wired so
     # the seam cannot rot.
-    psi_star, gauge_correction = _exit_gauge_trace(psi_star, problem=problem)
+    psi_star, gauge_correction = _exit_gauge(psi_star, kernel=posing.kernel)
     # The ANSWER: the daggered affine question A†ψ* = q* over the hub's daggered
     # loss (UNARY — the detector is the datum), the returned state lifted to the
-    # coupled carrier, and the hub's kernel gauge; the exit report reads the
-    # outcome's own residual A†ψ* − q*.
+    # coupled carrier, and the DAGGERED kernel's gauge (ker A^H, never the
+    # forward projector); the exit report reads the outcome's own residual A†ψ* − q*.
     answer = SourceOutcome(
-        posing=SourcePosing(problem.pencil.H.lhs, _as_coupled(q_star)),
+        posing=posing,
         state=_returned_state(psi_star, adjoint_ray),
-        gauge=problem.loss_kernel_gauge,
     )
     exit_report = _exit_report(
         answer, problem=problem, record=record,
         gauge_correction=gauge_correction,
-        admissibility=NotApplicable("the pure-transport adjoint question has no admissibility to check"),
+        admissibility=NotApplicable("a pure-transport adjoint posing has no subcriticality to check"),
+        solvability=solvability,
     )
     warn_if_unconverged(
         record, where="solve_sn_adjoint_fixed_source",
@@ -3394,13 +3413,18 @@ def solve_sn_fixed_source(
     # Strategy-side point in Λ posed HERE (RULED F11, 2026-09-14) while the
     # hub's own ``source_posing(q)`` names the physical multiplying member at
     # σ = 1 (``solve_sn_multiplying_source``).  The Solution records it.
-    posing = SourcePosing(problem.pencil.at(0.0), _as_coupled(q_ext_composite))
-    admissibility = NotApplicable("the pure-transport question is always admitted: A is invertible")
+    posing = SourcePosing.of_pencil(problem.pencil, 0.0, _as_coupled(q_ext_composite))
+    # Whether A psi = q has a solution is the posing's Fredholm verdict on the
+    # pencil's predicted kernel (space-membership U0), decided here, before any
+    # sweep; the admissibility member is the posing's own predicate, which a
+    # pure-transport posing does not have.
+    solvability = posing.solvability(conditioning=_SWEPT)
+    admissibility = NotApplicable("a pure-transport posing has no subcriticality to check")
     if inner_solver == "source_iteration":
         solution = _solve_fixed_source_si(
             solver, problem, q_ext_composite,
             t_start, max_inner, inner_tol,
-            posing=posing, admissibility=admissibility,
+            posing=posing, admissibility=admissibility, solvability=solvability,
             inner_schedule=inner_schedule,
             corrector=corrector,
         )
@@ -3412,7 +3436,7 @@ def solve_sn_fixed_source(
         solution = _solve_fixed_source_krylov(
             solver, problem, q_ext_composite,
             t_start, max_inner, inner_tol,
-            posing=posing, admissibility=admissibility,
+            posing=posing, admissibility=admissibility, solvability=solvability,
             corrector=corrector,
         )
 
@@ -3506,6 +3530,13 @@ def solve_sn_multiplying_source(
         mesh, quadrature, materials, mat_map=mat_map,
         scheme=scheme, scattering_order=scattering_order, boundary_conditions=boundary_conditions,
     )
+    # The Fredholm verdicts (space-membership U0) precede the k-solve, which
+    # inverts the same loss: the eigen posing's (no emission into an
+    # absorption-free closed class) and the source's.
+    problem.eigen_posing.solvability(conditioning=_SWEPT)
+    q_ext_composite = _build_fixed_source_rhs(external_source, problem)
+    posing = problem.source_posing(q_ext_composite)
+    solvability = posing.solvability(conditioning=_SWEPT)
     # the admissibility k-solve runs on the SAME Problem (hub) the source
     # problem is posed on — the entry's own drive, not a raw-data rebuild
     k = float(power_iteration(
@@ -3522,11 +3553,9 @@ def solve_sn_multiplying_source(
         problem, inner_solver="source_iteration",
         max_inner=max_inner, inner_tol=inner_tol,
     )
-    q_ext_composite = _build_fixed_source_rhs(external_source, problem)
     # The Problem's question — the pencil's member at the PHYSICAL σ = 1 posed
-    # with the source — recorded on the Solution (step 3); its ends are checked
-    # at construction.
-    posing = problem.source_posing(q_ext_composite)
+    # with the source (minted above, before the k-solve) — recorded on the
+    # Solution (step 3); its ends are checked at construction.
     system = problem.system
     solution = _solve_fixed_source_si(
         solver, problem, q_ext_composite,
@@ -3537,6 +3566,7 @@ def solve_sn_multiplying_source(
         admissibility=Asserted(
             k, f"the hub's k-solve at keff_tol={keff_tol:g}: k_eff = {k:.9f} < 1 (subcritical)",
         ),
+        solvability=solvability,
         inner_schedule=inner_schedule,
         # the production LAGGED — the (M, q) lowering — on the ARM's carrier: the
         # seedless iteration runs on the full field (the composite F there), the
@@ -3568,6 +3598,7 @@ def _solve_fixed_source_si(
     *,
     posing: "SourcePosing",
     admissibility: Evidence,
+    solvability: Solvable,
     inner_schedule: str = "gauss_seidel",
     corrector: "LinearOperator | None" = None,
     extra_gains: "tuple[LinearOperator, ...]" = (),
@@ -3741,24 +3772,24 @@ def _solve_fixed_source_si(
     # entry, so `stacklevel=3` would blame `orpheus/sn/solver.py` (#340 N4.7).
     # They are emitted by the entries off the returned exit report.
     #
-    # ⛔ `_exit_gauge_trace` REBUILDS rather than writing in place: on the
+    # ⛔ `_exit_gauge` REBUILDS rather than writing in place: on the
     # un-windowed path `angular_out` IS `psi_typed`'s System A member, which
     # `_system_b_member` is about to read.
-    angular_out, gauge_correction = _exit_gauge_trace(
-        angular_out, problem=problem,
+    angular_out, gauge_correction = _exit_gauge(
+        angular_out, kernel=posing.kernel,
     )
     # The ANSWER: the question the ENTRY posed (pure transport at σ = 0, or the
     # hub's multiplying member at σ = 1), the returned state WHOLE (the arm's
-    # own convention — a multi-moment closure's tail rides), and the hub's
-    # kernel gauge; the exit report reads the outcome's own residual Aψ − q.
+    # own convention — a multi-moment closure's tail rides), and the kernel
+    # gauge the outcome reads off its posing; the exit report reads the
+    # outcome's own residual Aψ − q.
     answer = SourceOutcome(
         posing=posing,
         state=_returned_state(angular_out, _system_b_member(psi_typed)),
-        gauge=problem.loss_kernel_gauge,
     )
     exit_report = _exit_report(
         answer, problem=problem, record=record,
-        gauge_correction=gauge_correction, admissibility=admissibility,
+        gauge_correction=gauge_correction, admissibility=admissibility, solvability=solvability,
     )
     return _package_solution(
         Solution, problem,
@@ -3776,6 +3807,7 @@ def _solve_fixed_source_krylov(
     *,
     posing: "SourcePosing",
     admissibility: Evidence,
+    solvability: Solvable,
     corrector: "LinearOperator | None" = None,
 ) -> "Solution[SourceOutcome]":
     r"""Curvilinear-default fixed-source path: typed :class:`KrylovAcceleration`.
@@ -3898,15 +3930,14 @@ def _solve_fixed_source_krylov(
     # ⛔ Rebuild, never in-place: `[M]` this arm's bulk and trace are two VIEWS
     # into one flat buffer that `psi_typed` also references and
     # `_system_b_member` still reads.
-    psi_full, gauge_correction = _exit_gauge_trace(psi_full, problem=problem)
+    psi_full, gauge_correction = _exit_gauge(psi_full, kernel=posing.kernel)
     answer = SourceOutcome(
         posing=posing,
         state=_returned_state(psi_full, _system_b_member(psi_typed)),
-        gauge=problem.loss_kernel_gauge,
     )
     exit_report = _exit_report(
         answer, problem=problem, record=record,
-        gauge_correction=gauge_correction, admissibility=admissibility,
+        gauge_correction=gauge_correction, admissibility=admissibility, solvability=solvability,
     )
     return _package_solution(
         Solution, problem,

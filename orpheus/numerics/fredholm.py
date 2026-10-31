@@ -35,6 +35,12 @@ the largest over the left generators' orthonormalised span: round-off inside
 the support enters squared, and a source living off the support (a bulk
 source against SN's trace-only DD annihilators) cannot dilute it.
 
+**The question is posed on the Hilbert space.** A coordinate whose metric
+vanishes (a tangential slot of a trace space) is in :math:`\ker G`: no norm,
+pairing or source sees it. A predicted kernel is the kernel modulo
+:math:`\ker G`, so a coordinate the loss leaves untouched (a zero row and
+column) and the metric does not weigh is not a freedom of the answer.
+
 **The adjoint question daggers the kernel.** :math:`\ker A^{\mathsf H} =
 G^{-1}\ker A^{\mathsf T}` and the annihilators of :math:`\operatorname{range}
 A^{\mathsf H}` are :math:`G\ker A`, so :attr:`PredictedKernel.H` swaps the two
@@ -51,6 +57,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.evidence import Evidence, Measured
+from orpheus.numerics.basis.orthonormal_span_basis import SPAN_RANK_RTOL
 from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand, _metric_diagonal
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.space import FunctionSpace
@@ -126,6 +133,59 @@ class PredictedKernel:
         r"""The prediction :math:`\ker A = \{0\}`, with its reason."""
         return cls(space=space, right=(), left=(), because=because)
 
+    @classmethod
+    def of_closed_blocks(
+        cls,
+        space: FunctionSpace,
+        matrix: NDArray,
+        blocks: "tuple[tuple[NDArray, NDArray, str], ...]",
+        because: str,
+    ) -> "PredictedKernel":
+        r"""The kernel of an assembled ``matrix`` whose structure names its closed blocks: one mode per block.
+
+        Each block is ``(closed, feeders, label)``, flat index sets into
+        ``space``: ``closed`` is a set :math:`C` no column outside it reaches
+        (:math:`A_{\bar C C} = 0`, so :math:`A` is block lower-triangular
+        with :math:`A_{CC}` singular of nullity one), ``feeders`` the
+        transient set :math:`T` whose columns reach :math:`C`. Then
+
+        * the right kernel vector is the null vector of :math:`A_{CC}` on
+          :math:`C` (zero elsewhere: :math:`C` is closed);
+        * the left co-vector is :math:`w_C` with :math:`w_C^{\mathsf T}A_{CC} = 0`
+          on :math:`C`, and on the feeders the solve
+          :math:`A_{TT}^{\mathsf T} w_T = -A_{CT}^{\mathsf T} w_C` (for an
+          absorbing chain, the probability of being absorbed in :math:`C`).
+
+        The STRUCTURE (which sets, and that each block's nullity is one) is
+        the caller's predictor; the matrix only supplies the values, by one
+        SVD of each closed block and one solve on its feeders. The predictor
+        is checked against a dense SVD of the whole matrix in the gates.
+        """
+        a = np.asarray(matrix, dtype=float)
+        right: list[KernelSummand] = []
+        left: list[KernelSummand] = []
+        for closed, feeders, label in blocks:
+            c = np.asarray(closed, dtype=np.intp)
+            t = np.asarray(feeders, dtype=np.intp)
+            left_vectors, singular, right_vectors = np.linalg.svd(a[np.ix_(c, c)])
+            if singular.size > 1 and not singular[-1] <= SPAN_RANK_RTOL * singular[0] < singular[-2]:
+                raise ValueError(
+                    f"PredictedKernel.of_closed_blocks: the closed block {label!r} does not have nullity one "
+                    f"(its two smallest relative singular values are {singular[-2] / singular[0]:.3g} and "
+                    f"{singular[-1] / singular[0]:.3g}); the predictor named a block that is not one irreducible "
+                    f"closed class."
+                )
+            null = right_vectors[-1] / right_vectors[-1][np.argmax(np.abs(right_vectors[-1]))]
+            w_c = left_vectors[:, -1] / left_vectors[:, -1][np.argmax(np.abs(left_vectors[:, -1]))]
+            right.append(KernelSummand(c, null[:, None], label))
+            support = np.union1d(c, t).astype(np.intp)
+            w = np.zeros(support.size)
+            w[np.searchsorted(support, c)] = w_c
+            if t.size:
+                w[np.searchsorted(support, t)] = np.linalg.solve(a[np.ix_(t, t)].T, -a[np.ix_(c, t)].T @ w_c)
+            left.append(KernelSummand(support, w[:, None], f"{label}_annihilator"))
+        return cls(space, tuple(right), tuple(left), because)
+
     def __add__(self, other: "PredictedKernel") -> "PredictedKernel":
         r"""The sum of two predicted kernels on one space (SN: the discretization kernel and a physical one)."""
         if other.space != self.space:
@@ -155,8 +215,13 @@ class PredictedKernel:
         return _embedded_span(self.right, self._n)
 
     @property
-    def _n(self) -> int:
+    def n_coordinates(self) -> int:
+        r"""The length of the space's flat chart."""
         return int(np.prod(self.space.shape))
+
+    @property
+    def _n(self) -> int:
+        return self.n_coordinates
 
     def consistency(self, source: NDArray) -> "tuple[float, str]":
         r"""The largest coordinate cosine :math:`c(w, q)` of ``source`` against the annihilators, and the summand that reads it.
@@ -217,8 +282,27 @@ class PredictedKernel:
             )
         return loss + self.projector
 
+    def rebased(self, space: FunctionSpace) -> "PredictedKernel":
+        r"""The same kernel on a space whose flat chart BEGINS with this one's (a coupled space whose first member it is).
+
+        The summands' flat indices address the same coordinates in both charts,
+        so they carry over unchanged; the metric's diagonal must agree on that
+        leading block (checked), and the coordinates past it are outside every
+        summand. ``self`` when ``space`` is already this kernel's space.
+        """
+        if space == self.space:
+            return self
+        own = _metric_diagonal(self.space)
+        other = _metric_diagonal(space)
+        if other.size < own.size or not np.array_equal(other[: own.size], own):
+            raise ValueError(
+                f"PredictedKernel.rebased: {space!r} does not begin with {self.space!r} (its flat chart's leading "
+                f"block has another metric), so the summands' indices would address other coordinates."
+            )
+        return PredictedKernel(space, self.right, self.left, self.because)
+
     # ── the adjoint question ──────────────────────────────────────────
-    @property
+    @cached_property
     def H(self) -> "PredictedKernel":
         r"""The predicted kernel of :math:`A^{\mathsf H} = G^{-1}A^{\mathsf T}G`.
 
@@ -227,7 +311,8 @@ class PredictedKernel:
         through the Riesz legs, read from the metric's diagonal on each support.
         """
         weights = _metric_diagonal(self.space)
-        sharp = tuple(_reweighted(s, 1.0 / weights[s.support], "sharp") for s in self.left)
+        inverse = np.divide(1.0, weights, out=np.zeros_like(weights), where=weights > 0.0)  # the Riesz leg's pseudo-inverse
+        sharp = tuple(_reweighted(s, inverse[s.support], "sharp") for s in self.left)
         flat = tuple(_reweighted(s, weights[s.support], "flat") for s in self.right)
         return PredictedKernel(self.space, sharp, flat, f"the adjoint of: {self.because}")
 
@@ -238,12 +323,21 @@ def _reweighted(summand: KernelSummand, factor: NDArray, leg: str) -> KernelSumm
 
 def _orthonormal_columns(generators: NDArray) -> NDArray:
     r"""An orthonormal basis of the generators' column span (Euclidean; the rank cut of the U3 basis mint)."""
-    from orpheus.numerics.basis.orthonormal_span_basis import SPAN_RANK_RTOL
-
     if generators.size == 0:
         return np.zeros((generators.shape[0], 0))
     left, singular, _ = np.linalg.svd(generators, full_matrices=False)
     return left[:, : int(np.sum(singular > SPAN_RANK_RTOL * singular[0]))]
+
+
+def _embedded_columns(summands: tuple[KernelSummand, ...], n: int) -> "list[tuple[KernelSummand, NDArray]]":
+    r"""Each generator column of each summand, embedded in the full flat chart of length ``n``."""
+    out = []
+    for summand in summands:
+        for j in range(summand.generators.shape[1]):
+            column = np.zeros(n)
+            column[summand.support] = summand.generators[:, j]
+            out.append((summand, column))
+    return out
 
 
 def _embedded_span(summands: tuple[KernelSummand, ...], n: int) -> NDArray:

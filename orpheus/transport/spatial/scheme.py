@@ -1182,7 +1182,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         space.  That — together with the boundary set
         (:attr:`~orpheus.sn.problem.SNProblem.reflective_axis_pairs`)
         — is the gauge freedom the kernel gauge fixes
-        (:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`).
+        (:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`).
 
         `[M]` 2026-08-14, on both probe cells:
 

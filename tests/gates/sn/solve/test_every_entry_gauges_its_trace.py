@@ -2,7 +2,8 @@ r"""The gauge fires at every public entry, and here is the defect it repairs.
 
 Two claims, and they need different instruments.
 
-**Coverage.** :func:`~orpheus.sn.solver._exit_gauge_trace` is the sibling of
+**Coverage.** :func:`~orpheus.sn.solver._exit_gauge` (``_exit_gauge_trace`` until U0, which gauged the trace only; since U0 it
+gauges the WHOLE state on the full field) is the sibling of
 the balance evidence (``_balance_evidence``; until step 3 ``_exit_balance_defect``)
 with one sharpening: that one REPORTS and this one
 MUTATES, so a forgotten call site does not lose a diagnostic — it silently
@@ -370,8 +371,13 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
     # A DIFFERENT member of the same solution manifold: the returned trace plus
     # an arbitrary kernel vector. Both solve the discrete system exactly, so any
     # functional that distinguishes them is one the equation does not determine.
-    kernel_member = gauge.apply(np.random.default_rng(7).standard_normal(
-        metric.size))
+    # Since U0 the gauge acts on the full field (bulk then trace): a trace vector enters as [0_bulk, x], and the
+    # absorber's kernel is the diamond-difference one alone, which lives on the trace.
+    n_bulk = int(np.prod(problem.full_field_space.interior_space.shape))
+    kernel_member = np.asarray(gauge.apply(np.concatenate([
+        np.zeros(n_bulk), np.random.default_rng(7).standard_normal(metric.size)])))
+    np.testing.assert_array_equal(kernel_member[:n_bulk], 0.0)
+    kernel_member = kernel_member[n_bulk:]
     assert np.linalg.norm(kernel_member) > 1e-6, "degenerate: nothing in ker A"
     other_member = gauged + kernel_member
 
@@ -486,15 +492,28 @@ def test_the_repair_is_AUDIBLE_and_names_the_root_fix():
         f"expected exactly one GaugeFreedomWarning, got {len(gauge_warnings)}")
     message = str(gauge_warnings[0].message)
     assert "GAUGE-FIXED" in message
-    # The quoted magnitude is the exit report's correction, loaded rather than typed: since U3 it is the G-norm
-    # ratio (5.36 % here; the Euclidean one read 6.08 %), gated in test_loss_kernel_gauge.py's exit row.
+    # The quoted magnitude is the exit report's correction, loaded rather than typed. Since U0 it is the G-norm ratio
+    # on the WHOLE state (bulk + trace), ||Pi psi||_G / ||psi||_G; under U3 it was the trace's (5.36 %; the Euclidean
+    # one read 6.08 %). Gated in test_loss_kernel_gauge.py's exit row.
     correction = solution.exit_report.gauge
     assert isinstance(correction, Measured) and correction.value > 1e-3
     assert f"{correction.value:.2%}" in message, f"the magnitude is not quoted: {message}"
     # ...and an ABSOLUTE production pin beside it, so the row does not only compare the warning with the report that
-    # produced it (retirement-audit D.14). `[M]` 2026-10-31, U3 review tree: 0.05358773 (the G-norm ratio; the
-    # Euclidean one read 0.0608, 13 % away). rel=1e-3 admits the solve's convergence floor and refuses both.
-    assert correction.value == pytest.approx(0.0536, rel=1e-3), correction.value
+    # produced it (retirement-audit D.14). `[M]` 2026-10-31, U0 tree: 0.047507 (full field). rel=1e-3 admits the
+    # solve's convergence floor and refuses the trace-normed 0.0536 and the Euclidean 0.0608.
+    c = correction.value
+    assert c == pytest.approx(0.04751, rel=1e-3), c
+    # The pin moved for exactly one reason, the denominator: the DD correction lives on the trace, and the gauged state
+    # is G-orthogonal to it, so ||psi||^2 = ||psi'||^2 / (1 - c^2) and the trace-normed ratio of U3 is recovered from
+    # the returned psi' alone. It must read the U3 pin, 0.0536 (an independent route through the returned state).
+    g = np.asarray(solution.problem.full_field_space.metric_diagonal(), dtype=float)
+    psi_out = np.asarray(solution.angular_flux.to_flat(), dtype=float)
+    assert psi_out.size == g.size, (psi_out.size, g.size)
+    n_bulk = int(np.prod(solution.problem.full_field_space.interior_space.shape))
+    total = float(np.sum(g * psi_out * psi_out)) / (1.0 - c * c)
+    moved = c * c * total
+    trace_before = float(np.sum(g[n_bulk:] * psi_out[n_bulk:] ** 2)) + moved
+    assert np.sqrt(moved / trace_before) == pytest.approx(0.0536, rel=1e-3)
     # the ROOT fix, and the escalation recipe
     assert "linear_discontinuous" in message, (
         f"the root fix must name the closures that damp the mode: {message}")

@@ -154,6 +154,7 @@ class TestO8SolutionRayMember:
         from orpheus.numerics.convergence import IterationRecord
         from orpheus.numerics.coupled_system import CoupledField
         from orpheus.numerics.evidence import NotApplicable
+        from orpheus.numerics.fredholm import Solve
         from orpheus.numerics.outcome import ExitReport, SourceOutcome
         from orpheus.numerics.posing import SourcePosing
         from orpheus.sn.splitting import Splitting, resolve_schedule
@@ -162,11 +163,12 @@ class TestO8SolutionRayMember:
             Solution(
                 problem=sn,
                 outcome=SourceOutcome(
-                    SourcePosing(sn.pencil.at(0.0), sn.system.space.zeros()),
-                    foreign_state, sn.loss_kernel_gauge,
+                    SourcePosing.of_pencil(sn.pencil, 0.0, sn.system.space.zeros()),
+                    foreign_state,
                 ),
                 strategy=Splitting.from_schedule(sn.system, resolve_schedule(sn, "jacobi")),
-                exit_report=ExitReport(*(NotApplicable("a witness"),) * 4),
+                exit_report=ExitReport(*(NotApplicable("a witness"),) * 4,
+                                       solvability=Solve(because="a witness", conditioning=NotApplicable("a witness"))),
                 record=IterationRecord(label="witness"),
             )
 

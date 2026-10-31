@@ -36,7 +36,9 @@ because :math:`q` is not orthogonal to :math:`\ker A^{\mathsf H}`) is the
 posing's decision (the Fredholm alternative, the campaign's ruling R3), and
 which basis spans the kernel is the method's: SN's diamond-difference loss
 kernel supplies its pair generators
-(:func:`orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`).
+(:func:`orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`),
+inside the kernel the posing's decision reads
+(:class:`orpheus.numerics.fredholm.PredictedKernel`).
 
 Its laws are gated on a numerics fixture with a non-uniform :math:`G`
 (``tests/gates/numerics/test_kernel_projection_gauge.py``): idempotence of
@@ -48,7 +50,7 @@ Its laws are gated on a numerics fixture with a non-uniform :math:`G`
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Optional
+from typing import Callable, Optional
 
 import numpy as np
 from numpy.typing import NDArray
@@ -131,21 +133,17 @@ class _ProjectedSummand:
 
 
 def _metric_diagonal(space: FunctionSpace) -> NDArray:
-    r"""The flat diagonal of the space's metric, :meth:`FunctionSpace.metric_diagonal`.
+    r"""The diagonal of the space's metric on its flat chart (C order), :meth:`FunctionSpace.metric_diagonal`.
 
-    SCOPE-BOUNDARY[guard]: a space whose metric is not diagonal, or not flat, is refused.
+    SCOPE-BOUNDARY[guard]: a space whose metric is not diagonal is refused.
     machinery: a summand frame over a dense-metric measure; ruling: the space-membership spec §U3.1 (2026-10-30);
     revisit: a kernel posed on a space whose metric is a dense form on a modal block.
 
     A summand frame's measure is a diagonal weight vector, so a dense Gram has
-    no node weights to restrict to a support; and a summand's support is flat
-    indices, so the space is one-dimensional (a composite's flat layout is).
+    no node weights to restrict to a support. (A multi-axis space is admitted
+    since U0, 2026-10-31: a summand's support is flat indices into the space's
+    C-order flat chart, :func:`_flat_chart`.)
     """
-    if len(space.shape) != 1:
-        raise ValueError(
-            f"KernelProjectionGauge on {space!r}: a summand's support is flat indices, so the space must be "
-            f"one-dimensional; got shape {space.shape}."
-        )
     diagonal = space.metric_diagonal()
     if diagonal is None:
         raise ValueError(
@@ -154,6 +152,22 @@ def _metric_diagonal(space: FunctionSpace) -> NDArray:
             f"defined for diagonal metrics)."
         )
     return np.asarray(diagonal, dtype=float).reshape(-1)
+
+
+def _flat_chart(space: FunctionSpace) -> FunctionSpace:
+    r"""The space a summand's flat indices address: ``space`` itself when one-dimensional, else its C-order flat chart.
+
+    The coordinates of a multi-axis leaf space are an array of its shape; their
+    C-order ravel is a vector of :math:`\mathbb R^n` with the ravelled
+    diagonal metric. The projector is built on that chart and acts on an
+    element by ravelling it in and reshaping it out (:meth:`KernelProjectionGauge.apply`).
+    """
+    if len(space.shape) == 1:
+        return space
+    from orpheus.numerics.metric import DiagonalMetric
+
+    return FunctionSpace(f"{space.name}#flat", (int(np.prod(space.shape)),),
+                         metric=DiagonalMetric(_metric_diagonal(space)))
 
 
 class KernelProjectionGauge(LinearOperator):
@@ -173,11 +187,12 @@ class KernelProjectionGauge(LinearOperator):
     def __init__(self, summands: tuple[_ProjectedSummand, ...], space: FunctionSpace) -> None:
         self._summands = tuple(summands)
         self._space = space
+        self._chart = _flat_chart(space)
         #: :math:`\Pi = \sum_b \gamma_b^{\mathsf H} \Pi_b \gamma_b`, spelled in the operator algebra,
         #: so its transpose and adjoint follow by law; the zero map when there is no summand.
         self._projector: LinearOperator = (
             sum(s.gather.H @ s.projector @ s.gather for s in self._summands)
-            if self._summands else ZeroMorphism(domain=space, codomain=space)
+            if self._summands else ZeroMorphism(domain=self._chart, codomain=self._chart)
         )
 
     @classmethod
@@ -219,7 +234,7 @@ class KernelProjectionGauge(LinearOperator):
             ))
             built.append(_ProjectedSummand(
                 gather=TraceRestrictionOperator(
-                    support, n_total=n_total, domain=space, codomain=frame_faces.measure_space(frame)),
+                    support, n_total=n_total, domain=_flat_chart(space), codomain=frame_faces.measure_space(frame)),
                 projector=frame_faces.conjugate(frame, frame_faces.CrossGramInverse.of(frame)),
                 basis=basis,
             ))
@@ -248,7 +263,7 @@ class KernelProjectionGauge(LinearOperator):
     # ── the action ────────────────────────────────────────────────────
     def apply(self, x: NDArray) -> NDArray:
         r"""The component of ``x`` inside the kernel, :math:`\Pi x`."""
-        return self._projector.apply(np.asarray(self._space.leading_coordinates_of(x), dtype=float))
+        return self._on_chart(x, self._projector.apply)
 
     def apply_transpose(self, x: NDArray) -> NDArray:
         r""":math:`\Pi^{\mathsf T} = \sum_b \gamma_b^{\mathsf T} \Pi_b^{\mathsf T} \gamma_b`, the Euclidean transpose.
@@ -259,7 +274,16 @@ class KernelProjectionGauge(LinearOperator):
         :math:`G` is uniform (the SN predecessor returned :math:`\Pi`; nothing
         read it). It is the operator algebra's transpose of the sum, by law.
         """
-        return self._projector.apply_transpose(np.asarray(self._space.leading_coordinates_of(x), dtype=float))
+        return self._on_chart(x, self._projector.apply_transpose)
+
+    def _on_chart(self, x: NDArray, action: "Callable[[NDArray], NDArray]") -> NDArray:
+        r"""Parse ``x`` at the space's action verb, act on its flat chart, and return it in the space's shape."""
+        values = np.asarray(self._space.leading_coordinates_of(x), dtype=float)
+        if self._chart is self._space:
+            return action(values)
+        payload = values.shape[len(self._space.shape):]
+        flat = values.reshape((int(np.prod(self._space.shape)),) + payload)
+        return np.asarray(action(flat)).reshape(values.shape)
 
     @property
     def is_adjointable(self) -> bool:
@@ -278,6 +302,20 @@ class KernelProjectionGauge(LinearOperator):
         """
         values = np.asarray(self._space.leading_coordinates_of(state), dtype=float)
         return values - self.apply(values)
+
+    def displacement(self, state: NDArray) -> float:
+        r"""How far the section moves ``state``: :math:`\lVert\Pi\psi\rVert_G / \lVert\psi\rVert_G`, in the space's own norm.
+
+        ``0.0`` for the zero state and for the empty direct sum. The exit
+        report's gauge reading on every method that gauges.
+        """
+        values = np.asarray(self._space.leading_coordinates_of(state), dtype=float).reshape(-1)
+        weights = _metric_diagonal(self._space)
+        total = float(np.sqrt(np.sum(weights * values**2)))
+        if total == 0.0 or not self._summands:
+            return 0.0
+        component = np.asarray(self.apply(values.reshape(self._space.shape)), dtype=float).reshape(-1)
+        return float(np.sqrt(np.sum(weights * component**2))) / total
 
     def __repr__(self) -> str:
         return (

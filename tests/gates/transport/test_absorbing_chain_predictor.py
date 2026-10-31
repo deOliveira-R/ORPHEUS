@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.absorbing_chain import absorption_free_closed_classes, final_classes
+from orpheus.transport.absorbing_chain import absorption_free_closed_classes as _classes_of, final_classes
 from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.transport.boundary_conditions.binding import bind
 
@@ -23,6 +23,11 @@ from tests.gates.transport._singular_loss_fixtures import (
 )
 
 pytestmark = [pytest.mark.l0]
+
+
+def absorption_free_closed_classes(mixtures, binding):
+    """The predicate's classes as member tuples (the witness each row compares)."""
+    return tuple(c.members for c in _classes_of(mixtures, binding))
 
 
 @pytest.mark.parametrize("mixture,classes", [

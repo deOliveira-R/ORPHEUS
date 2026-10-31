@@ -145,7 +145,9 @@ import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
-from orpheus.numerics.evidence import NotYet
+from orpheus.numerics.assembled_operator import dense
+from orpheus.numerics.evidence import Measured, NotApplicable, NotYet
+from orpheus.numerics.fredholm import PredictedKernel, Solvable
 from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,
@@ -154,6 +156,10 @@ from orpheus.numerics.convergence import (
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from orpheus.numerics.outcome import ExitReport, SourceOutcome
+from orpheus.numerics.pencil import OperatorPencil
+from orpheus.numerics.posing import K_MAP, EigenPosing, SourcePosing
+from orpheus.transport.absorbing_chain import absorption_free_closed_classes
 from orpheus.transport.boundary_conditions import BoundaryConditions
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
@@ -178,7 +184,9 @@ if TYPE_CHECKING:
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
-__all__ = ["DiffusionResult", "DiffusionSolver", "solve_diffusion_1d"]
+__all__ = [
+    "DiffusionResult", "DiffusionSolver", "DiffusionSourceSolution", "solve_diffusion_1d", "solve_diffusion_fixed_source",
+]
 
 
 class DiffusionSolver:
@@ -272,15 +280,75 @@ class DiffusionSolver:
         self.template = FullField.zeros(
             interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=mesh.full_field_space,
         )
-        #: The campaign-ruled exact resolvent (eager LU at construction).
-        self.resolvent = MatrixInverseOperator(
-            FlattenedOperator(self.loss, self.template)
-        )
         self._n_flat = int(np.asarray(self.template.to_flat()).size)
+        flat_loss = FlattenedOperator(self.loss, self.template)
+        #: The loss's kernel and annihilators, predicted from structure (space-membership U0):
+        #: one mode per absorption-free closed energy class on this closed domain.
+        self.predicted_kernel: PredictedKernel = self._predict_kernel(flat_loss)
+        #: The campaign-ruled exact resolvent (eager LU at construction), of the DEFLATED loss
+        #: A + Pi: the loss itself on a trivial kernel (bit-identical), and on an absorption-free
+        #: class a NONSINGULAR operator whose inverse maps a consistent source to the
+        #: minimum-G-norm member (the user's ruling, 2026-10-31). Its reciprocal-condition
+        #: estimate is the verdicts' conditioning.
+        self.resolvent = MatrixInverseOperator(self.predicted_kernel.deflate(flat_loss))
+        #: The pencil (A, F) on the full field's flat chart, carrying the predicted kernel: the
+        #: eigen and source questions derive their Fredholm verdicts from it (the user's ruling,
+        #: 2026-10-31: the posing decides).
+        self.pencil: OperatorPencil = OperatorPencil(
+            flat_loss, FlattenedOperator(self.fission, self.template), kernel=self.predicted_kernel,
+        )
+        #: The k-eigenvalue question over :attr:`pencil`.
+        self.eigen_posing: EigenPosing = EigenPosing(self.pencil, K_MAP)
         # #340 N4: one DIRECT record per exact inner solve, in order.
         # APPEND-ONLY across solves (``power_iteration`` slices from a
         # high-water mark it takes before its own loop).
         self._inner_records: list[IterationRecord] = []
+
+    def _predict_kernel(self, flat_loss: FlattenedOperator) -> PredictedKernel:
+        r"""One mode per absorption-free closed energy class, its values from the assembled loss.
+
+        The classes are declared data's
+        (:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`
+        on the present mixtures and the binding). A class's degrees of freedom
+        are every bulk cell and every partial-current trace slot of its groups,
+        its feeders' those of the transient groups that reach it; the values
+        are one SVD of the class block and one solve on the feeders
+        (:meth:`PredictedKernel.of_closed_blocks
+        <orpheus.numerics.fredholm.PredictedKernel.of_closed_blocks>`). ``[M]``
+        (``scratch/membership_covector/u0/probes/``): the right null vector is
+        1 on the bulk and 1/4 on every partial-current slot (Marshak, J± = φ/4
+        of a constant flux), and the left co-vector reads 0.5 on a feeder group
+        of the ``g2_only`` mixture.
+        """
+        mesh = self.mesh
+        space = mesh.full_field_space
+        present = list(mesh.present_materials.values())
+        classes = absorption_free_closed_classes(present, mesh.binding)
+        if not classes:
+            return PredictedKernel.trivial(space, "no absorption-free closed class (every final energy class removes "
+                                                  "neutrons, or a face leaks)")
+        group = self._group_of_each_coordinate()
+        blocks = tuple(
+            (np.flatnonzero(np.isin(group, cls.members)).astype(np.intp),
+             np.flatnonzero(np.isin(group, cls.feeders)).astype(np.intp),
+             f"diffusion_absorption_free_class{'_'.join(map(str, cls.members))}")
+            for cls in classes
+        )
+        return PredictedKernel.of_closed_blocks(
+            space, dense(flat_loss), blocks,
+            f"the absorption-free closed classes {[c.members for c in classes]} on a closed domain",
+        )
+
+    def _group_of_each_coordinate(self) -> np.ndarray:
+        r"""The energy group of every coordinate of the full field's flat chart (bulk ``(ng, *cells)``, trace ``(2, ng, ...)`` per face)."""
+        interior = self.template.interior.values.shape
+        bulk = np.broadcast_to(np.arange(interior[0]).reshape((-1,) + (1,) * (len(interior) - 1)), interior).ravel()
+        trace_space = self.mesh.full_field_space.trace_space
+        trace = np.zeros(int(np.prod(trace_space.shape)), dtype=np.intp)
+        for slot in trace_space.layout.faces.values():
+            groups = np.arange(slot.shape[1]).reshape((1, -1) + (1,) * (len(slot.shape) - 2))
+            trace[slot.offset:slot.offset + slot.flat_size] = np.broadcast_to(groups, slot.shape).ravel()
+        return np.concatenate([bulk, trace])
 
     # ── Flat ↔ typed conversion ────────────────────────────────────────
 
@@ -414,6 +482,10 @@ class DiffusionResult:
     the outer power iteration.
     """
 
+    solvability: Solvable
+    """The Fredholm verdict on the eigen posing (:mod:`orpheus.numerics.fredholm`), with the LU's
+    reciprocal-condition estimate."""
+
 
 def solve_diffusion_1d(
     materials: "dict[int, Mixture]",
@@ -473,6 +545,9 @@ def solve_diffusion_1d(
     solver = DiffusionSolver(
         diffusion_mesh, keff_tol=keff_tol, flux_tol=flux_tol,
     )
+    # The eigen posing's Fredholm verdict (space-membership U0): on a singular loss it is solvable
+    # iff the kernel is the whole pencil's (no fission emission reaches an absorption-free class).
+    solvability = solver.eigen_posing.solvability(conditioning=Measured(solver.resolvent.reciprocal_condition))
     outcome = power_iteration(solver, max_iter=max_outer, budget_name="max_outer")
     keff, keff_history, flux_flat = (
         outcome.keff, outcome.keff_history, outcome.flux_distribution,
@@ -502,4 +577,76 @@ def solve_diffusion_1d(
         keff_history=keff_history,
         mesh=diffusion_mesh,
         record=outcome.record,
+        solvability=solvability,
     )
+
+
+@dataclass(frozen=True)
+class DiffusionSourceSolution:
+    r"""The answer to diffusion's fixed-source question :math:`A\phi = q`: the outcome and its exit report."""
+
+    outcome: SourceOutcome
+    exit_report: ExitReport
+    mesh: "DiffusionMesh"
+    record: IterationRecord
+    """The one exact inner solve (``DIRECT``: an LU back-substitution of the deflated loss)."""
+
+    @property
+    def flux(self) -> "FullField":
+        r"""The returned member, typed: the bulk scalar flux and the partial-current trace."""
+        return FullField.from_flat(np.asarray(self.outcome.state, dtype=float), FullField.zeros(
+            interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=self.mesh.full_field_space,
+        ))
+
+
+def solve_diffusion_fixed_source(mesh: "DiffusionMesh", source: np.ndarray) -> DiffusionSourceSolution:
+    r"""Solve the fixed-source diffusion problem :math:`A\phi = q` on ``mesh``, a bulk source density :math:`q`.
+
+    ``source`` is the volumetric source on the bulk, shaped like the scalar
+    flux (``(ng, *cells)``); the trace rows of the posing are zero (an inflow
+    source enters through the boundary conditions). The question is decided
+    first, by the Fredholm verdict on the loss's predicted kernel (the
+    space-membership campaign's U0, the user's ruling R3):
+
+    * no absorption-free closed class: ``Solve``, one LU back-substitution;
+    * an absorption-free closed class and a BALANCED source (zero net emission
+      into the class, read by its left co-vector): ``Gauge``. The resolvent
+      inverts the deflated loss :math:`A + \Pi`, so the returned member is the
+      minimum-:math:`G`-norm one;
+    * otherwise: :class:`~orpheus.numerics.fredholm.NoSolution`, before any
+      solve. Neutrons a positive source puts into a class that cannot lose
+      them accumulate without bound; there is no steady state.
+
+    The exit report records the verdict (with the LU's reciprocal-condition
+    estimate) in ``solvability``; the gauge member reads the kernel
+    component of the returned member, :math:`\lVert\Pi\phi\rVert_G/\lVert\phi\rVert_G`
+    (round-off on a deflated solve); the balance member reads the relative
+    residual :math:`\lVert A\phi - q\rVert_G / \lVert q\rVert_G` of the
+    returned member against the posing's own operator. The question is posed
+    over the solver's pencil (:meth:`SourcePosing.of_pencil
+    <orpheus.numerics.posing.SourcePosing.of_pencil>`), whose flat chart carries
+    the source in the source role and the flux in the flux role, so the
+    residual is measurable.
+    """
+    solver = DiffusionSolver(mesh)
+    bulk = np.asarray(solver.template.interior.space.coordinates_of(np.asarray(source, dtype=float)), dtype=float)
+    q_flat = np.concatenate([bulk.ravel(), np.zeros(solver.template.boundary.values.size)])
+    posing = SourcePosing.of_pencil(solver.pencil, 0.0, q_flat)
+    solvability = posing.solvability(conditioning=Measured(solver.resolvent.reciprocal_condition))
+    phi_flat = solver.solve_fixed_source(q_flat, None)
+    projector = solver.predicted_kernel.projector
+    gauge = (NotApplicable("the loss has a trivial kernel: no gauge freedom") if projector.dimension == 0
+             else Measured(projector.displacement(phi_flat)))
+    answer = SourceOutcome(posing=posing, state=phi_flat)
+    space = mesh.full_field_space
+    scale = space.norm(solver.unflatten(q_flat))
+    balance = Measured(space.norm(solver.unflatten(answer.residual())) / scale if scale else 0.0)
+    exit_report = ExitReport(
+        balance=balance,
+        gauge=gauge,
+        rayleigh_gap=NotApplicable("a source outcome carries no eigenvalue"),
+        admissibility=NotApplicable("a pure-transport posing has no subcriticality to check"),
+        solvability=solvability,
+    )
+    return DiffusionSourceSolution(outcome=answer, exit_report=exit_report, mesh=mesh,
+                                   record=solver.inner_records[-1])
