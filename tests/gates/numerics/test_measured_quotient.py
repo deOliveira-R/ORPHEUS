@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from orpheus.numerics.outcome import Measured
+from orpheus.numerics.evidence import Measured
 from tests.gates._content_identity_helpers import require
 
 pytestmark = pytest.mark.foundation

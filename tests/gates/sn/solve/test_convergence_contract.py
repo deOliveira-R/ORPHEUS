@@ -40,7 +40,7 @@ import warnings
 
 import numpy as np
 import pytest
-from orpheus.numerics.outcome import Asserted, Measured
+from orpheus.numerics.evidence import Asserted, Measured
 
 from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.numerics.convergence import (
@@ -1335,7 +1335,7 @@ class TestExitBalanceDefect:
         # warning carries the clause.  Until step 3 this row pinned the honest
         # ABSENCE (``balance_defect is None``, "no number rather than a
         # partial one"); the absence was the gap, not the doctrine.
-        from orpheus.numerics.outcome import Measured
+        from orpheus.numerics.evidence import Measured
         assert isinstance(sol.exit_report.balance, Measured), (
             "the carrying eigen exit's balance is measurable through the "
             "coupled posing (#354 dissolved at step 3); got "

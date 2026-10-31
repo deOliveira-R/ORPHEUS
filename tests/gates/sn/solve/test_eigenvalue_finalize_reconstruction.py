@@ -330,7 +330,7 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from orpheus.numerics.outcome import Asserted, Measured
+from orpheus.numerics.evidence import Asserted, Measured
 from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.mixture import Mixture, compute_macro_xs

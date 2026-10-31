@@ -62,16 +62,8 @@ from orpheus.sn.operators.radial_characteristic import (
 )
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.posing import SourcePosing
-from orpheus.numerics.outcome import (
-    Asserted,
-    EigenOutcome,
-    Evidence,
-    ExitReport,
-    Measured,
-    NotApplicable,
-    NotYet,
-    SourceOutcome,
-)
+from orpheus.numerics.evidence import Asserted, Evidence, Measured, NotApplicable, NotYet
+from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate

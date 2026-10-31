@@ -13,7 +13,7 @@ from __future__ import annotations
 from fractions import Fraction
 from typing import Any
 
-from orpheus.numerics.outcome import Asserted, Measured, NotApplicable, NotYet
+from orpheus.numerics.evidence import Asserted, Measured, NotApplicable, NotYet
 from orpheus.reference import verification as VERIFICATION
 from tests.gates.reference import _step5 as s5
 from tests.gates.reference import _step6 as s6

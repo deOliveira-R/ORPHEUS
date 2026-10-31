@@ -63,6 +63,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Generic, TypeAlias
 
+from orpheus.numerics.evidence import Asserted, Evidence, Measured, NotApplicable, NotYet
 from orpheus.numerics.gauge import KernelGauge, ScaleGauge
 from orpheus.numerics.posing import EigenPosing, SourcePosing
 from orpheus.numerics.vector import Carrier
@@ -73,47 +74,6 @@ from orpheus.numerics.vector import Carrier
 # family's state IS an ndarray column.  The posing's own carrier parameter is
 # erased here for the same reason; the posing checks its ends at runtime.
 
-
-# ── the evidence sum ──────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True)
-class Measured:
-    """A number was measured on the returned state."""
-
-    value: float
-
-    def __truediv__(self, other: Measured) -> Measured:
-        """The quotient of two measurements is a measurement (a ratio observable's production reading)."""
-        if not isinstance(other, Measured):
-            return NotImplemented
-        return Measured(self.value / other.value)
-
-
-@dataclass(frozen=True)
-class Asserted:
-    """No number was needed: the convergence-claim check ASSERTED the bound (raising on a defect beyond it)."""
-
-    bound: float
-    by: str
-
-
-@dataclass(frozen=True)
-class NotApplicable:
-    """The question does not arise for this posing / configuration — say why."""
-
-    reason: str
-
-
-@dataclass(frozen=True)
-class NotYet:
-    """Open work — the issue that will make it measurable, and what is missing."""
-
-    issue: int
-    reason: str
-
-
-Evidence = Measured | Asserted | NotApplicable | NotYet
 
 #: A production method's reading of an observable: a self-report that
 #: verification puts on trial (#405 P2, the user's ruling "G3" of 2026-10-02).

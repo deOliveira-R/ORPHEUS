@@ -65,7 +65,8 @@ from orpheus.transport.operators.multiplication_operator import MultiplicationOp
 from orpheus.numerics.gauge import ScaleGauge
 from orpheus.numerics.mesh_free_function import values_without_position
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
-from orpheus.numerics.outcome import EigenOutcome, Measured
+from orpheus.numerics.evidence import Measured
+from orpheus.numerics.outcome import EigenOutcome
 
 if TYPE_CHECKING:
     from orpheus.numerics.pencil import OperatorPencil
@@ -133,7 +134,7 @@ class HomogeneousResult:
         (the weight read on a medium with no position,
         :func:`~orpheus.numerics.mesh_free_function.values_without_position`);
         a ratio reads the quotient of its operands' readings; a point value
-        is refused. A reading is :class:`~orpheus.numerics.outcome.Measured`:
+        is refused. A reading is :class:`~orpheus.numerics.evidence.Measured`:
         a self-report that verification puts on trial, never a guarantee.
         """
         match observable:

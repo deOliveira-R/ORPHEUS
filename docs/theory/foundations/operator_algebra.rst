@@ -8809,7 +8809,7 @@ unit U6 on 2026-09-17**, the leak with it: ``[M]`` **19**
 ``gauge_correction`` and **10** ``balance_defect`` reads across five files
 were re-keyed onto ``exit_report.gauge`` / ``exit_report.balance`` — or
 retired with the view's own test rows — and now match on the
-:class:`~orpheus.numerics.outcome.Evidence` member instead of on ``is
+:class:`~orpheus.numerics.evidence.Evidence` member instead of on ``is
 None``.  The largest block is the SN entry-ledger gate
 (``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``: five gate
 functions, 11 reads), and each of them now says *which* of the
@@ -8826,17 +8826,17 @@ closed sum, one member per reason:
    * - member
      - what it says
      - carries
-   * - :class:`~orpheus.numerics.outcome.Measured`
+   * - :class:`~orpheus.numerics.evidence.Measured`
      - a number was measured on the returned state
      - ``value``
-   * - :class:`~orpheus.numerics.outcome.Asserted`
+   * - :class:`~orpheus.numerics.evidence.Asserted`
      - no number was needed — the convergence-claim check **asserted** the
        bound, raising on a defect beyond it
      - ``bound``, ``by``
-   * - :class:`~orpheus.numerics.outcome.NotApplicable`
+   * - :class:`~orpheus.numerics.evidence.NotApplicable`
      - the question does not arise for this posing or configuration
      - ``reason``
-   * - :class:`~orpheus.numerics.outcome.NotYet`
+   * - :class:`~orpheus.numerics.evidence.NotYet`
      - open work, named by issue
      - ``issue``, ``reason``
 

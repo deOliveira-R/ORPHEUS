@@ -204,7 +204,7 @@ def test_a_gauge_singular_multiplying_solve_is_AUDIBLE_like_its_sibling() -> Non
     """On a gauge-singular subcritical fissile box the repair FIRES on the fifth entry
     and, since step 3, is SAID — the same ``GaugeFreedomWarning`` its sibling emits,
     and the same recorded displacement (``[M]`` 6.08e-02 of the trace on both)."""
-    from orpheus.numerics.outcome import Measured
+    from orpheus.numerics.evidence import Measured
     from orpheus.sn.operators.loss_kernel_gauge import GaugeFreedomWarning, gauge_freedom
     mats, mesh, quad, source = _gauge_singular_box()
     hub = _as_problem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))

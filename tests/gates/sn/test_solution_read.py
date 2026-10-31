@@ -37,7 +37,7 @@ from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, PointValue, Ratio
-from orpheus.numerics.outcome import Measured
+from orpheus.numerics.evidence import Measured
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.question import Eigen
 from orpheus.sn import solve_sn, solve_sn_fixed_source

@@ -3348,9 +3348,9 @@ in-test, 10 are audible on purpose and tracked with measured budgets in
      failing level is a generic
      :class:`~orpheus.numerics.convergence.IterationRecord` member; only
      ``balance_defect`` was SN's, and it is now an optional keyword —
-     typed :class:`~orpheus.numerics.outcome.Evidence` since 2026-09-17 —
+     typed :class:`~orpheus.numerics.evidence.Evidence` since 2026-09-17 —
      that the other three leave at its ``NotApplicable`` default.  Only a
-     :class:`~orpheus.numerics.outcome.Measured` value renders; every
+     :class:`~orpheus.numerics.evidence.Measured` value renders; every
      other member renders an *absent* clause, never the word
      "unavailable", because an empty clause cannot be misread as a
      measurement.
@@ -3420,7 +3420,7 @@ that instruction carried out.
        <orpheus.numerics.outcome.ExitReport.balance>` /
        :attr:`exit_report.gauge
        <orpheus.numerics.outcome.ExitReport.gauge>`, as typed
-       :class:`~orpheus.numerics.outcome.Evidence`.  These were the two
+       :class:`~orpheus.numerics.evidence.Evidence`.  These were the two
        ``float | None`` members carrying five and three documented
        meanings; the sum names the reason instead of erasing it
        (:ref:`the-solution-outcome`)
@@ -3676,7 +3676,7 @@ the second thing step 3 changed here.  Until 2026-09-17 the answer was a
 ``None`` carrying five documented meanings, which is stringly-typed
 dispatch wearing an absence: the consumer had to re-derive which one
 applied from context the type did not carry.  The member is now a typed
-:class:`~orpheus.numerics.outcome.Evidence` sum
+:class:`~orpheus.numerics.evidence.Evidence` sum
 (:ref:`the-solution-outcome`), and the SN evaluator produces every branch
 of it:
 
@@ -3686,15 +3686,15 @@ of it:
 
    * - what comes back
      - when
-   * - :class:`~orpheus.numerics.outcome.Measured`
+   * - :class:`~orpheus.numerics.evidence.Measured`
      - the exit that warns — a truncated solve, the case this whole
        section is about
-   * - :class:`~orpheus.numerics.outcome.Asserted`
+   * - :class:`~orpheus.numerics.evidence.Asserted`
      - the tree **fully converged**: the convergence-claim check
        already ASSERTED :math:`\lVert A\psi - q\rVert/\lVert q\rVert`
        within its safety factor (raising otherwise), so no forward apply
        is spent and the *bound* is reported instead of a number
-   * - :class:`~orpheus.numerics.outcome.NotApplicable`
+   * - :class:`~orpheus.numerics.evidence.NotApplicable`
      - the source integrates to zero per group — the ratio is
        **undefined**, which is a different statement from *unmeasured*
    * - ``NotYet(310)``
@@ -3881,7 +3881,7 @@ asserted rather than assumed:
 
 The gauge member follows the balance member's discipline exactly, and
 since 2026-09-17 the type carries it rather than the prose: a
-:class:`~orpheus.numerics.outcome.Measured`
+:class:`~orpheus.numerics.evidence.Measured`
 :math:`\sim10^{-15}` is the statement *the freedom is real and the solve
 landed on the canonical member anyway*, and the two ways of measuring
 nothing are **two different values** —
@@ -3968,7 +3968,7 @@ Five members, and the KIND is one of their types
        ride the record, per level, because they are per level
    * - ``exit_report``
      - what the exit MEASURED about the returned state, member by member,
-       as typed :class:`~orpheus.numerics.outcome.Evidence`
+       as typed :class:`~orpheus.numerics.evidence.Evidence`
    * - ``record``
      - the Strategy's **path** — the
        :class:`~orpheus.numerics.convergence.IterationRecord` tree

@@ -145,7 +145,7 @@ import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
 from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
-from orpheus.numerics.outcome import NotYet
+from orpheus.numerics.evidence import NotYet
 from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,

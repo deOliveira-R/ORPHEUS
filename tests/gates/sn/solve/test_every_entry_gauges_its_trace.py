@@ -67,7 +67,7 @@ import warnings
 
 import numpy as np
 import pytest
-from orpheus.numerics.outcome import Measured
+from orpheus.numerics.evidence import Measured
 
 from orpheus.data.macro_xs.synthetic import get_mixture, make_mixture
 from orpheus.mesh import Mesh2D

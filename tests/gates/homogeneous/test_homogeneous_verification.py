@@ -26,7 +26,7 @@ import pytest
 
 from orpheus.derivations.common import exact_homogeneous
 from orpheus.homogeneous import solver
-from orpheus.numerics.outcome import Measured
+from orpheus.numerics.evidence import Measured
 from tests.gates._content_identity_helpers import require
 from tests.gates.reference import _step5 as s5
 from tests.gates.reference import _step6 as s6

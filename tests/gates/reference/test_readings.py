@@ -294,7 +294,7 @@ def test_r1_16_the_reading_sums_are_disjoint_by_role() -> None:
     """``ReferenceReading`` names exactly ``{Enclosure, Printed, Uncertified}``
     (the third member since step 7b.1);
     ``ProductionReading`` names exactly ``{Measured}``, and that ``Measured``
-    IS ``orpheus.numerics.outcome.Measured`` (one definition of a measured
+    IS ``orpheus.numerics.evidence.Measured`` (one definition of a measured
     number); the two sets share no class, and no member of either is a
     subclass of a member of the other, so a production reading cannot be
     passed where a reference reading is required (nor an uncertified
@@ -332,11 +332,11 @@ def test_r1_17_estimated_is_not_built_and_measured_is_defined_once() -> None:
     than 300 asserted): no class ``Estimated`` is defined (the user's G3
     ruling: it waits for a Monte Carlo consumer, so this row is edited ON
     PURPOSE when it lands), and ``Measured`` is defined exactly once, in
-    ``orpheus/numerics/outcome.py`` (positive control: the census finds it)."""
+    ``orpheus/numerics/evidence.py`` (positive control: the census finds it; the evidence sum left ``outcome.py`` in space-membership U0)."""
     n_files, classes = _class_definitions()
     print(f"R1.17: {n_files} files parsed")
     require(n_files > 300, f"activation: only {n_files} files parsed")
-    require(classes.get("Measured") == ["orpheus/numerics/outcome.py"], f"Measured defined at {classes.get('Measured')}")
+    require(classes.get("Measured") == ["orpheus/numerics/evidence.py"], f"Measured defined at {classes.get('Measured')}")
     require("Estimated" not in classes, f"Estimated is defined at {classes.get('Estimated')}: edit R1.16 and R1.17 with it")
 
 
@@ -519,7 +519,7 @@ def test_r1_20_an_uncertified_value_is_not_an_enclosure_or_a_printed_value_of_th
     holds all four apart (lessons ``L72b``: separation through the container,
     never through unequal hashes)."""
     from orpheus.numerics.enclosure import Enclosure
-    from orpheus.numerics.outcome import Measured
+    from orpheus.numerics.evidence import Measured
 
     u = _U(1.25)
     others = (Enclosure(1.25, 0.0), _P("1.25"), Measured(1.25))
@@ -587,7 +587,7 @@ _NOT_OPERANDS = (
 
 
 def _measured(value: float) -> Any:
-    from orpheus.numerics.outcome import Measured
+    from orpheus.numerics.evidence import Measured
 
     return Measured(value)
 

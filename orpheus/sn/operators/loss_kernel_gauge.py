@@ -218,7 +218,7 @@ from numpy.typing import NDArray
 
 from orpheus.geometry.faces import face_normal
 from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand
-from orpheus.numerics.outcome import Evidence, Measured
+from orpheus.numerics.evidence import Evidence, Measured
 from orpheus.transport.spatial.scheme import FaceModeDamping
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -464,7 +464,7 @@ def warn_if_gauge_freedom(
       ``[M]`` ``~1e-15``). Nothing was done, so there is nothing to report — and
       the configuration's degeneracy is still legible in
       the Solution's exit report (``exit_report.gauge`` — step 3 of the
-      consumers campaign: :class:`~orpheus.numerics.outcome.Measured` with the
+      consumers campaign: :class:`~orpheus.numerics.evidence.Measured` with the
       number, or the typed reason nothing was measured), which carries it
       either way.
 

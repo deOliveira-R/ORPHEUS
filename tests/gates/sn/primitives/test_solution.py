@@ -45,14 +45,8 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.gauge import ScaleGauge
-from orpheus.numerics.outcome import (
-    Asserted,
-    EigenOutcome,
-    ExitReport,
-    Measured,
-    NotApplicable,
-    SourceOutcome,
-)
+from orpheus.numerics.evidence import Asserted, Measured, NotApplicable
+from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 from orpheus.numerics.posing import SourcePosing
 from orpheus.sn.splitting import Splitting, resolve_schedule
 from orpheus.sn.solution import (

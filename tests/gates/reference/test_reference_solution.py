@@ -386,7 +386,7 @@ _NOT_EVALUATIONS = (
 
 
 def _measured(value: float) -> Any:
-    from orpheus.numerics.outcome import Measured
+    from orpheus.numerics.evidence import Measured
 
     return Measured(value)
 

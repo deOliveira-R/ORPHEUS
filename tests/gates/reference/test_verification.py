@@ -51,7 +51,7 @@ from typing import Any
 
 import pytest
 
-from orpheus.numerics.outcome import Asserted, Measured, NotApplicable
+from orpheus.numerics.evidence import Asserted, Measured, NotApplicable
 from tests.gates._content_identity_helpers import require
 from tests.gates.reference import _step5 as s5
 from tests.gates.reference import _step6 as s6

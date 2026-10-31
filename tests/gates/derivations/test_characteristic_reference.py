@@ -1411,7 +1411,7 @@ class _MeasuredAnswer:
     """An answer whose every reading is ``Measured(1.25)``: the other side of a verb."""
 
     def read(self, observable: Any) -> Any:
-        from orpheus.numerics.outcome import Measured
+        from orpheus.numerics.evidence import Measured
 
         return Measured(1.25)
 
@@ -1423,7 +1423,7 @@ def test_the_certifying_verbs_refuse_before_any_solve_and_the_uncertified_compar
     before it solves (0 pencils); ``compare_uncertified`` reads it, and its reading is the reference's own.
     Succeeds ``test_r7b2_3_the_verbs_refuse_before_any_solve``. First red: the reference handed a certificate
     (a ``ReferenceSolution`` built with one; the row's spy reads 0 either way, so the refusal is the leg)."""
-    from orpheus.numerics.outcome import NotYet
+    from orpheus.numerics.evidence import NotYet
     from orpheus.reference.verification import ReferenceNotValid, compare_uncertified, verify_agreement, verify_order
 
     calls: list[int] = []

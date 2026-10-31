@@ -216,7 +216,7 @@ import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 
-from orpheus.numerics.outcome import Evidence, Measured, NotApplicable
+from orpheus.numerics.evidence import Evidence, Measured, NotApplicable
 
 __all__ = [
     "ESCALATION_FLAG",
@@ -1523,9 +1523,9 @@ def warn_if_unconverged(
         cannot know.
     balance_defect : Evidence, optional
         ``‖R_g‖/‖Q_g‖`` for the RETURNED iterate, as typed evidence
-        (:class:`~orpheus.numerics.outcome.Measured` when the family computed
-        one — SN's exit report; :class:`~orpheus.numerics.outcome.NotApplicable`
-        / :class:`~orpheus.numerics.outcome.NotYet` / :class:`~orpheus.numerics.outcome.Asserted`
+        (:class:`~orpheus.numerics.evidence.Measured` when the family computed
+        one — SN's exit report; :class:`~orpheus.numerics.evidence.NotApplicable`
+        / :class:`~orpheus.numerics.evidence.NotYet` / :class:`~orpheus.numerics.evidence.Asserted`
         otherwise — CP, MoC and diffusion pass the default).  Only a MEASURED
         value renders; every other case is an ABSENT clause rather than the
         words "unavailable", because an empty

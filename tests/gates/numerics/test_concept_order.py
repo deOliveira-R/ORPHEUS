@@ -44,7 +44,7 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # sets, members of geometry's ``Manifold`` sum, and imports no numerics module;
     # ``tangential`` holds the one grazing tolerance both ``spaces`` and ``quadrature``
     # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
-    ("face_layout", "gauge", "index_set", "instance_cache", "metric",
+    ("evidence", "face_layout", "gauge", "index_set", "instance_cache", "metric",
      "recurrence", "registry", "tangential", "units", "vector"),
     # the coefficient layouts are content values a basis carries (ruling 81)
     ("_traced_memo_boot", "coefficient_layout", "enclosure", "mesh_free_function"),
@@ -68,7 +68,11 @@ TIERS: tuple[tuple[str, ...], ...] = (
     ("matrix_inverse_operator",),
     ("coupled_system", "frame_faces", "posing"),
     # the kernel gauge composes frame faces over spanning summands (U3, 2026-10-31)
-    ("kernel_projection_gauge", "outcome", "spaces"),
+    ("kernel_projection_gauge", "spaces"),
+    # the Fredholm verdict decides on a predicted kernel's projector and annihilators (U0, 2026-10-31);
+    # the exit report records it, so the outcomes rank above it
+    ("fredholm",),
+    ("outcome",),
     ("convergence",),
     ("eigenvalue",),
     ("iteration",),

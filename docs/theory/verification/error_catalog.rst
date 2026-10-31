@@ -7938,10 +7938,10 @@ older entries classify against.
       ⚠ Reading note for the present tree: that "nothing" was a literal
       ``None`` on ``IterationHistory.balance_defect`` when this entry was
       written.  Since 2026-09-17 it is a typed
-      :class:`~orpheus.numerics.outcome.Evidence` on
+      :class:`~orpheus.numerics.evidence.Evidence` on
       :attr:`ExitReport.balance
       <orpheus.numerics.outcome.ExitReport.balance>`, and the
-      converged case is :class:`~orpheus.numerics.outcome.Asserted` —
+      converged case is :class:`~orpheus.numerics.evidence.Asserted` —
       which *says* that the convergence-claim check asserted the bound,
       rather than leaving a reader to infer it from an absence.  The
       structural point above is unchanged: a ``Asserted`` on the

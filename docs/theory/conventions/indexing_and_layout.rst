@@ -1120,7 +1120,7 @@ it, and the records:
   record, per level;
 - :attr:`~orpheus.sn.solution.SolutionBase.exit_report` — what the exit
   MEASURED about the returned state, member by member, as typed
-  :class:`~orpheus.numerics.outcome.Evidence`
+  :class:`~orpheus.numerics.evidence.Evidence`
   (:class:`~orpheus.numerics.outcome.ExitReport`);
 - :attr:`~orpheus.sn.solution.SolutionBase.record` — the Strategy's path,
   the :class:`~orpheus.numerics.convergence.IterationRecord` tree.
@@ -1160,7 +1160,7 @@ and a source answer are different *questions*, so a cross-kind pair
 raises rather than silently skipping the eigenvalue channel, which is
 what the ``keff is not None`` branch did until step 3), and the discrete
 phase space.  Its ``keff_abs`` channel is
-:class:`~orpheus.numerics.outcome.Evidence`, not a nullable float.
+:class:`~orpheus.numerics.evidence.Evidence`, not a nullable float.
 
 The FORWARD leaf alone carries the reaction-rate-preserving physics —
 :meth:`Solution.homogenize`, :meth:`Solution.condense`, and

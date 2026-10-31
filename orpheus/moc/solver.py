@@ -24,7 +24,7 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh1D
 from orpheus.numerics.convergence import IterationRecord, warn_if_unconverged
-from orpheus.numerics.outcome import NotYet
+from orpheus.numerics.evidence import NotYet
 from orpheus.numerics.eigenvalue import power_iteration
 from orpheus.transport.boundary_conditions import BoundaryCondition, BoundaryConditions, WallCondition
 

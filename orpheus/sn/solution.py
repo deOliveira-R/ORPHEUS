@@ -104,14 +104,8 @@ from typing import TYPE_CHECKING, Generic, Self, TypeVar, assert_never, cast
 import numpy as np
 
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Observable, PointValue, Ratio
-from orpheus.numerics.outcome import (
-    EigenOutcome,
-    Evidence,
-    ExitReport,
-    Measured,
-    NotApplicable,
-    SourceOutcome,
-)
+from orpheus.numerics.evidence import Evidence, Measured, NotApplicable
+from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 
 if TYPE_CHECKING:
     from .problem import SNProblem
@@ -464,7 +458,7 @@ class Solution(SolutionBase[O]):
         is refused, because a cell-average answer has no point evaluation;
         so are a weight whose group count is not the answer's and, on a 2-D
         mesh, every flux integral (#569). A reading is
-        :class:`~orpheus.numerics.outcome.Measured`: a self-report that
+        :class:`~orpheus.numerics.evidence.Measured`: a self-report that
         verification puts on trial, never a guarantee.
 
         Declared limits. The answer is read as its cell averages under every
@@ -898,9 +892,9 @@ class SolutionDiff:
     Parameters
     ----------
     keff_abs : Evidence
-        :class:`~orpheus.numerics.outcome.Measured` — the absolute eigenvalue
+        :class:`~orpheus.numerics.evidence.Measured` — the absolute eigenvalue
         difference :math:`|k_a - k_b|` — for the eigen kind;
-        :class:`~orpheus.numerics.outcome.NotApplicable` for the source kind
+        :class:`~orpheus.numerics.evidence.NotApplicable` for the source kind
         (``compare`` refuses a cross-kind pair, so the two never mix).
     angular_flux_linf : float
         :math:`L^\infty` norm of the angular-flux delta.

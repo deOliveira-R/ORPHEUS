@@ -6743,8 +6743,8 @@ What ships
    * - :attr:`ExitReport.gauge <orpheus.numerics.outcome.ExitReport.gauge>`
      - the measured :math:`\lVert\Pi\psi\rVert_G/\lVert\psi\rVert_G`, in
        the trace space's own norm, as typed
-       :class:`~orpheus.numerics.outcome.Evidence`.  A
-       :class:`~orpheus.numerics.outcome.Measured` zero-ish value and
+       :class:`~orpheus.numerics.evidence.Evidence`.  A
+       :class:`~orpheus.numerics.evidence.Measured` zero-ish value and
        "nothing was measured" are **different values**, and since
        2026-09-17 so are the two REASONS nothing was: *no kernel freedom*
        versus *the closure is unclassifiable, so the trace was NOT

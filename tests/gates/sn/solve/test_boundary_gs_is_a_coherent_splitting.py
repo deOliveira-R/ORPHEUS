@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from orpheus.numerics.outcome import Measured
+from orpheus.numerics.evidence import Measured
 
 from orpheus.sn.solver import _balance_projection
 from tests.gates.sn._singular_loss_box import (

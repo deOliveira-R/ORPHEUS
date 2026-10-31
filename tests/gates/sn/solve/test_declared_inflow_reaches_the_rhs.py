@@ -299,7 +299,7 @@ def _solve(sn: SNProblem, inner: str, **kw):
     )
     # step 3: the arms take the QUESTION the entry posed — pure transport at
     # σ = 0 (``at(0.0)`` IS ``system.loss``) — and its admissibility evidence
-    from orpheus.numerics.outcome import NotApplicable
+    from orpheus.numerics.evidence import NotApplicable
     from orpheus.numerics.posing import SourcePosing
     from orpheus.sn.solver import _as_coupled
     return driver(

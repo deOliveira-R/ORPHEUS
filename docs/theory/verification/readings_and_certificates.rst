@@ -54,7 +54,7 @@ Key facts
   family cannot yet derive a bound, an
   :class:`~orpheus.reference.reading.Uncertified` value. A production
   method's reading is a self-report that verification puts on trial,
-  :class:`~orpheus.numerics.outcome.Measured`. The two sums share no member.
+  :class:`~orpheus.numerics.evidence.Measured`. The two sums share no member.
 * **One closed set of observables**, read by every answer through one verb,
   ``answer.read(observable)``: a flux integral (the primitive), a ratio of
   two linear observables, the eigenvalue, a point value. The answer is the
@@ -155,7 +155,7 @@ the solver's report on its own discrete solve,
 :class:`~orpheus.numerics.outcome.ExitReport`, and the verification
 certificate reads it as an input. For the same reason the member of the
 evidence sum that records a bound the convergence-claim check asserted is
-:class:`~orpheus.numerics.outcome.Asserted`. A group action's
+:class:`~orpheus.numerics.evidence.Asserted`. A group action's
 ``OrbitCertificate`` keeps its name: it certifies a symmetry, a different
 subject.
 
@@ -804,7 +804,7 @@ reading, whatever its split between discretisation and algebra, because
 the exact answer lies within :math:`b_{\rm ref}` of :math:`v_{\rm ref}`.
 The algebraic error is therefore **recorded** under an agreement verdict
 and never required: the verb takes it as an explicit
-:data:`~orpheus.numerics.outcome.Evidence` argument with no default, and
+:data:`~orpheus.numerics.evidence.Evidence` argument with no default, and
 every fixture today passes ``NotYet(564, …)``, because no member of the
 exit report is a stage-A error estimate of a functional (#564).
 

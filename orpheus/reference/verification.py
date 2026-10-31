@@ -63,7 +63,8 @@ from typing import Protocol, final, get_args, runtime_checkable
 
 from orpheus.numerics.enclosure import Enclosure
 from orpheus.numerics.observable import Observable
-from orpheus.numerics.outcome import PRODUCTION_READINGS, Asserted, Evidence, Measured, NotApplicable, NotYet, ProductionReading
+from orpheus.numerics.evidence import Asserted, Evidence, Measured, NotApplicable, NotYet
+from orpheus.numerics.outcome import PRODUCTION_READINGS, ProductionReading
 from orpheus.values.scalars import parse_member, parse_positive_real
 from orpheus.reference.certificate import Invalid, Valid, parse_resolutions
 from orpheus.reference.reading import Uncertified

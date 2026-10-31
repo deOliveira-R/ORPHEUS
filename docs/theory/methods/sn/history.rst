@@ -328,7 +328,7 @@ them.  Trust ``git``, not this column.
        because the :math:`k` sequence is a physics output and not a
        stopping criterion; ``balance_defect`` and ``gauge_correction`` to
        the exit certificate as typed
-       :class:`~orpheus.numerics.outcome.Evidence` (U2 had already made
+       :class:`~orpheus.numerics.evidence.Evidence` (U2 had already made
        the certificate the source those two were read back OUT of as
        ``float | None``).
        **(2) The record gained the two TREE readings the view derived**,
@@ -362,7 +362,7 @@ them.  Trust ``git``, not this column.
        the entry-ledger gate
        (``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py``; ``[M]``
        five gate functions, 11 reads) now matches ``certificate.gauge``
-       against :class:`~orpheus.numerics.outcome.Measured`, and the view's
+       against :class:`~orpheus.numerics.evidence.Measured`, and the view's
        ``tests/gates/sn/primitives/test_solution.py`` rows were replaced by
        record rows in ``tests/gates/numerics/test_iteration_record.py`` and
        ``dominance_ratio`` rows in ``tests/gates/numerics/test_outcome.py``.
@@ -417,7 +417,7 @@ them.  Trust ``git``, not this column.
        as the DIFFERENT functional it is.
        **(4) The exit certificate reads the OUTCOME's own residual and
        rhs** — four typed
-       :class:`~orpheus.numerics.outcome.Evidence` members replacing a
+       :class:`~orpheus.numerics.evidence.Evidence` members replacing a
        ``float | None`` with five documented meanings.  Two repairs fall
        out: the CARRYING eigen arm's balance is now measured (#354's gap
        was the un-assembled coupled rhs; the posing's ``production`` on
@@ -2517,7 +2517,7 @@ them.  Trust ``git``, not this column.
        Solution (the flat ``IterationHistory`` view on this row's date;
        :attr:`ExitReport.gauge
        <orpheus.numerics.outcome.ExitReport.gauge>` as typed
-       :class:`~orpheus.numerics.outcome.Evidence` since step 3 U6,
+       :class:`~orpheus.numerics.evidence.Evidence` since step 3 U6,
        2026-09-17), and emits a
        ``GaugeFreedomWarning`` that names the **root** fix (switch to a damping
        closure, or break a reflective axis pair) rather than only reporting the

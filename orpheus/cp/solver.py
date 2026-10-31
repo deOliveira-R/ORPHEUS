@@ -74,7 +74,7 @@ from orpheus.transport.boundary_conditions import (
     ZeroNetwork,
 )
 from orpheus.transport.method import Mesh1DMethodMesh
-from orpheus.numerics.outcome import NotYet
+from orpheus.numerics.evidence import NotYet
 from orpheus.numerics.convergence import (
     IterationBudget,
     IterationRecord,

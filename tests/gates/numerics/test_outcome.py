@@ -30,16 +30,8 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.homogeneous.solver import HomogeneousProblem
 from orpheus.numerics.gauge import ScaleGauge
-from orpheus.numerics.outcome import (
-    Asserted,
-    EigenOutcome,
-    Evidence,
-    ExitReport,
-    Measured,
-    NotApplicable,
-    NotYet,
-    SourceOutcome,
-)
+from orpheus.numerics.evidence import Asserted, Evidence, Measured, NotApplicable, NotYet
+from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 from orpheus.numerics.posing import ALPHA_MAP, EigenPosing, SourcePosing
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.solver import _as_problem, _build_fixed_source_rhs

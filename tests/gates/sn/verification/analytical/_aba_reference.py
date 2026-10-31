@@ -38,7 +38,7 @@ from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Ratio
-from orpheus.numerics.outcome import NotYet
+from orpheus.numerics.evidence import NotYet
 from orpheus.numerics.question import Eigen
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.reference.verification import ReferenceNotValid, verify_agreement

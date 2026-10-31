@@ -153,7 +153,8 @@ class TestO8SolutionRayMember:
         # sphere makes the state's space a different coupled space, refused.
         from orpheus.numerics.convergence import IterationRecord
         from orpheus.numerics.coupled_system import CoupledField
-        from orpheus.numerics.outcome import ExitReport, NotApplicable, SourceOutcome
+        from orpheus.numerics.evidence import NotApplicable
+        from orpheus.numerics.outcome import ExitReport, SourceOutcome
         from orpheus.numerics.posing import SourcePosing
         from orpheus.sn.splitting import Splitting, resolve_schedule
         foreign_state = CoupledField(systems=(psi, member))  # type: ignore[arg-type]
