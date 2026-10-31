@@ -149,7 +149,7 @@ from orpheus.numerics.operator import (
     adjointable,
     transpose_invertible,
 )
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import FunctionSpace, act_on_direct_sum_coordinates
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -654,31 +654,35 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
             return None
         return np.concatenate([np.asarray(d).reshape(-1) for d in blocks])
 
-    def apply_metric(self, x: "CoupledField") -> "CoupledField":
+    def _member_wise(
+        self, x: "CoupledField | np.ndarray", leg: "Callable[[FunctionSpace, Any], Any]",
+    ) -> "CoupledField | np.ndarray":
+        r"""A member-wise action in the chart ``x`` arrives in, returned in the same chart.
+
+        The typed :class:`CoupledField` hands each member its own field; the
+        flat coordinates (the :attr:`system_slices` layout, which the operator
+        algebra hands the metric legs) hand each member its slice. A composite
+        member space recurses in the same chart.
+        """
+        if isinstance(x, np.ndarray):
+            return act_on_direct_sum_coordinates(self, self.systems, x, leg)
+        members = self._check_arity(x)
+        return replace(x, systems=tuple(leg(s, m) for s, m in zip(members, x.systems)))
+
+    def apply_metric(self, x: "CoupledField | np.ndarray") -> "CoupledField | np.ndarray":
         r"""Apply the block-diagonal Hilbert metric ``G = diag(G_1, …, G_N)``.
 
         Member ``i`` is weighted by ITS space's metric — delegated to
-        ``systems[i].apply_metric`` on the member field (the carrier-generic
-        surface: a composite member space applies its own per-block metrics
-        recursively). No metric arithmetic lives on the coupling.
+        ``systems[i].apply_metric`` on the member field or its flat slice (the
+        carrier-generic surface: a composite member space applies its own
+        per-block metrics recursively). No metric arithmetic lives on the
+        coupling.
         """
-        members = self._check_arity(x)
-        return replace(
-            x,
-            systems=tuple(
-                s.apply_metric(m) for s, m in zip(members, x.systems)
-            ),
-        )
+        return self._member_wise(x, lambda space, member: space.apply_metric(member))
 
-    def apply_inverse_metric(self, x: "CoupledField") -> "CoupledField":
-        r"""Apply the block-diagonal pseudo-inverse metric ``G⁺`` member-wise."""
-        members = self._check_arity(x)
-        return replace(
-            x,
-            systems=tuple(
-                s.apply_inverse_metric(m) for s, m in zip(members, x.systems)
-            ),
-        )
+    def apply_inverse_metric(self, x: "CoupledField | np.ndarray") -> "CoupledField | np.ndarray":
+        r"""Apply the block-diagonal pseudo-inverse metric ``G⁺`` member-wise, in either chart."""
+        return self._member_wise(x, lambda space, member: space.apply_inverse_metric(member))
 
     @property
     def rank(self) -> int:

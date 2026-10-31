@@ -45,11 +45,15 @@ Leg 2, a realisable transpose is not hidden.
     parts have no coded transpose either (the 2-D sweep, the DSA correction)
     carries no witness: flag ``False`` is a legal fix there.
 
-The reds at landing (2026-10-18) were the fix's done-when. Six rows remain
+The reds at landing (2026-10-18) were the fix's done-when. Six rows were
 strict ``xfail`` against #614 (the diffusion operators whose composite ends
-speak flat arrays, :data:`_CARRIER_BLOCKED_LEG1` and
-:data:`_CARRIER_BLOCKED_LEG2`): strict, so a row turns red the day its carrier
-is fixed. The witness route of each leg-2 row is in its parametrize id
+speak flat arrays). The two leg-1 rows (``diffusion_assembled_leakage``,
+``diffusion_resolvent``) passed, reciprocity included, once the composite
+space's metric legs took its flat coordinates (space-membership U0, #666's flat
+half): ``.H`` is ``♯ ∘ dual ∘ ♭`` on the flat chart. Four leg-2 rows remain
+strict ``xfail`` (:data:`_CARRIER_BLOCKED_LEG2`): their flag reads ``False``
+while the assembled-matrix witness realises the transpose, so a row turns red
+the day the flag is made honest. The witness route of each leg-2 row is in its parametrize id
 (``<row>--<route>``) and in :data:`_WITNESS_ROUTES`.
 
 ``-O``-safe: every assertion is a ``pytest.fail`` call.
@@ -859,12 +863,11 @@ _PENDING_WITNESS_ROUTES: dict[str, tuple[str, str]] = {}
 
 
 #: Rows blocked by the diffusion carrier defect (#614): composite-ended
-#: operators that speak flat arrays, so no adjoint of them can be realised
-#: until the assembly homomorphism keeps their carriers typed. Strict, so a
-#: row turns red the day its carrier is fixed and the mark cannot go stale.
-#: Leg 1: the flag reads True while ``.H.apply`` raises on the flat carrier.
-_CARRIER_BLOCKED_LEG1 = frozenset({"diffusion_assembled_leakage", "diffusion_resolvent"})
-#: Leg 2: the flag reads False while the assembled-matrix witness passes.
+#: operators whose flag reads False while the assembled-matrix witness realises
+#: the transpose. Strict, so a row turns red the day the flag is made honest and
+#: the mark cannot go stale. (The two leg-1 rows, the flag True while ``.H.apply``
+#: raised on the flat carrier, passed in space-membership U0: the composite
+#: space's metric legs take its flat coordinates.)
 _CARRIER_BLOCKED_LEG2 = frozenset({
     "diffusion_leakage", "diffusion_boundary", "diffusion_loss", "diffusion_flattened_loss",
 })
@@ -898,7 +901,7 @@ def _open_door(door: str, op: LinearOperator, y: Any) -> tuple[Any, list[str]]:
         return None, [f".{door}.apply raised {_err(exc)}"]
 
 
-@pytest.mark.parametrize("row", _rows(list(_REGISTRY), _CARRIER_BLOCKED_LEG1))
+@pytest.mark.parametrize("row", list(_REGISTRY))
 @pytest.mark.catches("ERR-117")
 def test_each_transpose_door_opens_iff_predicted(row: str) -> None:
     r"""``.dual()`` works ⟺ ``is_adjointable``; ``.H`` works ⟺ ``is_adjointable ∧ posed``.

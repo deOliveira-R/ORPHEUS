@@ -483,15 +483,12 @@ class TestTheCompositeMetricDiagonal:
         assert FullFieldSpace.from_blocks(self._A, dense).metric_diagonal() is None
         assert CoupledSpace.from_systems((self._A, dense)).metric_diagonal() is None
 
-    @pytest.mark.xfail(strict=True, raises=AttributeError, reason=(
-        "#666: a composite space's metric legs take its composite carrier, not its flat coordinates, so the summand's "
-        "gather.H (sharp . dual . flat) cannot act on the flat chart the gauge acts on. `[M]` 2026-10-31: FullFieldSpace "
-        "raises \"'numpy.ndarray' object has no attribute 'interior'\", CoupledSpace \"... 'n_systems'\". The fix lands in "
-        "U0 (the first gauge posed on diffusion's full field, R3's union kernel). An XPASS means it landed: drop the mark."))
     @pytest.mark.parametrize("composite", ["full_field", "coupled"])
     def test_a_gauge_on_a_composite_space_spans_its_blocks(self, composite):
         """R3's union kernel lives on bulk (+) trace: a summand crossing the block boundary is admitted and is a
-        G-orthogonal projector in the composite's metric."""
+        G-orthogonal projector in the composite's metric. First red: the composite metric legs took only the typed
+        carrier, so gather.H (sharp . dual . flat) on the flat chart raised AttributeError (#666; a strict xfail until
+        U0 gave the legs the flat chart)."""
         from orpheus.numerics.coupled_system import CoupledSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
         space = (FullFieldSpace.from_blocks(self._A, self._B) if composite == "full_field"
@@ -501,8 +498,3 @@ class TestTheCompositeMetricDiagonal:
         x, y = np.random.default_rng(18).standard_normal((2, 5))
         np.testing.assert_allclose(g.apply(g.apply(x)), g.apply(x), rtol=0, atol=16 * _EPS * np.abs(x).max())
         assert float(np.sum(w * g.apply(x) * y)) == pytest.approx(float(np.sum(w * x * g.apply(y))), rel=1e-13)
-
-def test_the_composite_xfail_is_strict():
-    marks = [m for m in TestTheCompositeMetricDiagonal.test_a_gauge_on_a_composite_space_spans_its_blocks.pytestmark
-             if m.name == "xfail"]
-    assert len(marks) == 1 and marks[0].kwargs.get("strict") is True

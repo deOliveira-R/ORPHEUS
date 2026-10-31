@@ -70,7 +70,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -98,6 +98,7 @@ __all__ = [
     "FunctionSpace",
     "Member",
     "TensorProductSpace",
+    "act_on_direct_sum_coordinates",
     "angular_flux_space",
     "factor_tail",
     "scalar_flux_space",
@@ -1575,6 +1576,40 @@ class DualSpace(FunctionSpace):
 # every solver instance carries its own (n_cells, n_ordinates, n_groups)
 # triple. Factories give the caller named, well-typed construction
 # sites without forcing premature commitment to a global instance.
+
+
+def act_on_direct_sum_coordinates(
+    space: FunctionSpace,
+    members: "tuple[FunctionSpace, ...]",
+    x: Any,
+    leg: "Callable[[FunctionSpace, NDArray], NDArray]",
+) -> NDArray:
+    r"""A direct sum's action on its FLAT coordinates: each member's ``leg`` on its own slice.
+
+    The coordinates of :math:`V_1 \oplus \dots \oplus V_N` are the members'
+    coordinates concatenated in member order (the layout the composite carriers'
+    ``to_flat`` packs). An action that is block-diagonal on the sum (a metric
+    leg, :math:`G = \operatorname{diag}(G_1, \dots, G_N)`) acts on that chart by
+    cutting it at the member sizes, handing each member its slice in the
+    member's own shape, and concatenating the results.
+
+    The operand is parsed at ``space``'s ACTION verb
+    (:meth:`FunctionSpace.leading_coordinates_of`), so a trailing payload rides
+    through as :math:`G \otimes I_P`. This is the chart the operator algebra
+    hands a composite's metric legs (an operator's ``.H`` is
+    :math:`\sharp \circ \mathrm{dual} \circ \flat` on flat coordinates); the
+    composite's typed carrier is the other chart of the same element.
+    """
+    coordinates = np.asarray(space.leading_coordinates_of(x))
+    payload = coordinates.shape[1:]
+    pieces = []
+    start = 0
+    for member in members:
+        size = int(np.prod(member.shape))
+        block = coordinates[start:start + size].reshape(tuple(member.shape) + payload)
+        pieces.append(np.asarray(leg(member, block)).reshape((size,) + payload))
+        start += size
+    return np.concatenate(pieces, axis=0)
 
 
 def factor_tail(width: int) -> tuple[int, ...]:

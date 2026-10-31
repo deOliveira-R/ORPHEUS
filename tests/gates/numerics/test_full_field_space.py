@@ -19,6 +19,8 @@ preserved in git.)
 
 from __future__ import annotations
 
+import dataclasses
+
 import numpy as np
 import pytest
 
@@ -120,3 +122,46 @@ def test_a_composite_block_carrying_a_dense_metric_delegates_it():
         boundary=SimpleNamespace(values=np.array([1.0, 0.5])),
     )
     assert space.inner_product(x, y) == 23.25 + 2.5
+
+
+@dataclasses.dataclass(frozen=True)
+class _Leaf:
+    values: np.ndarray
+
+
+@dataclasses.dataclass(frozen=True)
+class _Composite:
+    """A minimal carrier double: two frozen leaves and the ``_recombine`` hook the composite's legs rebuild through."""
+
+    interior: _Leaf
+    boundary: _Leaf
+
+    def _recombine(self, *, interior, boundary):
+        return _Composite(interior, boundary)
+
+
+@pytest.mark.parametrize("leg", ["apply_metric", "apply_inverse_metric"])
+def test_the_flat_chart_and_the_carrier_agree_bit_for_bit(leg):
+    r"""An element of the direct sum has two charts, the typed carrier and the flat coordinates
+    ``[interior.ravel(), trace]``, and each metric leg acts on both (#666's flat half, U0). The flat chart is what the
+    operator algebra hands the legs (an operator's ``.H``, the kernel gauge's ``gather.H``). The two results agree
+    bit for bit, and a trailing payload rides through as ``G (x) I_P``.
+
+    First red: before U0 the flat chart raised ``AttributeError: 'numpy.ndarray' object has no attribute
+    'interior'``. Arm: the blocks concatenated trace-first reddens the agreement."""
+    space = FullFieldSpace.from_blocks(_bulk(), _trace())
+    rng = np.random.default_rng(666)
+    bulk, trace = rng.standard_normal((4, 2, 3, 1)), rng.standard_normal(8)
+    typed = getattr(space, leg)(_Composite(_Leaf(bulk), _Leaf(trace)))
+    flat = getattr(space, leg)(np.concatenate([bulk.ravel(), trace]))
+    np.testing.assert_array_equal(flat, np.concatenate([typed.interior.values.ravel(), typed.boundary.values]))
+    batch = rng.standard_normal((space.shape[0], 3))
+    columns = np.column_stack([getattr(space, leg)(batch[:, j]) for j in range(3)])
+    np.testing.assert_array_equal(getattr(space, leg)(batch), columns)
+
+
+def test_the_flat_chart_is_parsed_at_the_composite():
+    """A flat operand of the wrong length is not a coordinate vector of the sum: refused, not sliced short."""
+    space = FullFieldSpace.from_blocks(_bulk(), _trace())
+    with pytest.raises(ValueError, match="shape"):
+        space.apply_metric(np.ones(space.shape[0] - 1))

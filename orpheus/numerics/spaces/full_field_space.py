@@ -99,12 +99,12 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol
 
 import numpy as np
 
 from orpheus.values.content import name_digest
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import FunctionSpace, act_on_direct_sum_coordinates
 
 if TYPE_CHECKING:
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
@@ -304,37 +304,43 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             return None
         return np.concatenate([np.asarray(d).reshape(-1) for d in blocks])
 
-    def apply_metric(self, x: CompositeField) -> CompositeField:
+    def _blockwise(
+        self, x: "CompositeField | np.ndarray", leg: "Callable[[FunctionSpace, np.ndarray], np.ndarray]",
+    ) -> "CompositeField | np.ndarray":
+        r"""A block-diagonal action in the chart ``x`` arrives in, returned in the same chart.
+
+        An element of the direct sum has two charts: the typed composite
+        carrier (``x.interior`` / ``x.boundary``), and the flat coordinates
+        ``[interior.ravel(), trace]`` of this space's ``shape``, which the
+        operator algebra hands the metric legs (an operator's ``.H`` and the
+        kernel gauge's ``gather.H``). Each block is delegated to its leaf
+        space either way.
+        """
+        if isinstance(x, np.ndarray):
+            return act_on_direct_sum_coordinates(self, (self.interior_space, self.trace_space), x, leg)
+        return self._rebuild(x, leg(self.interior_space, x.interior.values), leg(self.trace_space, x.boundary.values))
+
+    def apply_metric(self, x: "CompositeField | np.ndarray") -> "CompositeField | np.ndarray":
         r"""Apply the block-diagonal Hilbert metric :math:`G\odot x`.
 
-        ``x`` is a composite field; the bulk block is weighted by
-        ``G_bulk = V·w_n`` and the trace block by ``G_trace = |Ω·n|·w_n``,
-        each delegated to the matching leaf space. (For System B's ψ½
-        instance the same two-block dispatch scales the interior cells by
-        the SPD state metric ``G_sd = V_cell`` and the corner block by its
-        trace metric — the family-blind dispatch needs no third arm.)
+        ``x`` is a composite field or its flat coordinates (:meth:`_blockwise`);
+        the bulk block is weighted by ``G_bulk = V·w_n`` and the trace block by
+        ``G_trace = |Ω·n|·w_n``, each delegated to the matching leaf space. (For
+        System B's ψ½ instance the same two-block dispatch scales the interior
+        cells by the SPD state metric ``G_sd = V_cell`` and the corner block by
+        its trace metric — the family-blind dispatch needs no third arm.)
         """
-        interior_space, trace_space = self.interior_space, self.trace_space
-        return self._rebuild(
-            x,
-            interior_space.apply_metric(x.interior.values),
-            trace_space.apply_metric(x.boundary.values),
-        )
+        return self._blockwise(x, lambda space, block: space.apply_metric(block))
 
-    def apply_inverse_metric(self, x: CompositeField) -> CompositeField:
+    def apply_inverse_metric(self, x: "CompositeField | np.ndarray") -> "CompositeField | np.ndarray":
         r"""Apply the block-diagonal pseudo-inverse metric :math:`G^{+}\odot x`.
 
         Plain ``1/G`` on the strictly-positive bulk block; the
         Moore–Penrose masked inverse is needed only on the trace block
         (zero on the tangential null space ``|Ω·n| = 0``). Delegated per
-        block.
+        block, in either chart (:meth:`_blockwise`).
         """
-        interior_space, trace_space = self.interior_space, self.trace_space
-        return self._rebuild(
-            x,
-            interior_space.apply_inverse_metric(x.interior.values),
-            trace_space.apply_inverse_metric(x.boundary.values),
-        )
+        return self._blockwise(x, lambda space, block: space.apply_inverse_metric(block))
 
     @property
     def rank(self) -> int:
