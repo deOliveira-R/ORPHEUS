@@ -567,17 +567,18 @@ For flux, half 2 fails twice over and independently:
    The rule has a second application in this corpus, one layer down: an
    element's membership in its space (:ref:`spaces-membership`). There the
    candidate invariant is "a space verb takes only members of the space",
-   and both halves now hold on the formal path (on the raw path, half 1
-   holds only under ``__debug__``).
+   and both halves hold on every run, ``-O`` included (since U1b; before
+   it, half 1 held on the raw path only under ``__debug__``).
 
    1. **Every admitted value is legal.** A typed member is admitted only
       when its space equals the verb's space by content identity, on every
       run. A bare array is admitted only at the space's exact shape (a
-      scalar verb) or leading shape (an action), checked under
-      ``__debug__`` only, by the user's ruling that production is the
-      formal path; under ``-O`` the raw tier is unchecked, and that is the
-      debt `#664 <https://github.com/deOliveira-R/ORPHEUS/issues/664>`_
-      records.
+      scalar verb) or leading shape (an action), parsed on every run by
+      the coordinate-space primitive. A bare array answers only the shape
+      leg: an equal-shape array of another space is admitted, which is why
+      production hands typed members, and typing the operator algebra's
+      bare iterate is tracked by
+      `#664 <https://github.com/deOliveira-R/ORPHEUS/issues/664>`_.
    2. **Every legal value is admitted.** This half failed for an
       exact-shape check alone: `[M]` 2026-10-30, the explorer's runtime
       census, tests in 7 functions in 4 files legitimately carried a

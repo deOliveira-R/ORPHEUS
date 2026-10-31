@@ -713,7 +713,8 @@ class DiagonalOperator(PointwiseOperator):
 
         Delegation, NOT a reciprocal-coefficient twin: the returned
         object's ``apply`` IS :meth:`solve` (the division ``b / c``),
-        bit-identical — whereas ``DiagonalOperator(1/c)`` would multiply
+        bit-identical — whereas a reciprocal-coefficient ``DiagonalOperator`` (``1/c`` on the same
+        ``shape`` and ``spans``) would multiply
         by a rounded reciprocal and drift by an ulp. The generic name is
         the honest one (round-trip alone earns exactly
         "InverseOperator"; a diagonal division carries no distinguishing

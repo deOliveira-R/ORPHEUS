@@ -148,9 +148,12 @@ Tensor-product primitives (Wave 0 of SN performance plan, Wave T
 consumers landed May 2026):
 
 * :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` — diagonal
-  multiplication on a tagged tensor axis. The ``AngularWeightMatrix``
-  :math:`W` of Grand Report v3 §9 is
-  ``DiagonalOperator.from_measure(quad.measure, axis=0)``.
+  multiplication by a coefficient placed on a fixed domain shape,
+  ``DiagonalOperator(coefficient, *, shape, spans)``; every operand is
+  parsed at the exact ``shape`` (:ref:`spaces-membership`). The
+  ``AngularWeightMatrix`` :math:`W` of Grand Report v3 §9 is
+  ``DiagonalOperator.from_measure(quad.measure, shape=psi.shape, axis=0)``,
+  the one-position placement ``spans=(0,)``.
 * :class:`~orpheus.numerics.operator.TensorProductOperator` —
   per-axis tensor product :math:`A \otimes B \otimes \cdots`. Built
   via the ``&`` dunder; carries axis tags and the closure laws
@@ -193,9 +196,10 @@ consumers landed May 2026):
   fibre-wise contraction :math:`\langle w, \cdot\rangle` over one axis
   (``evaluate(x) = (w * x).sum(axis, keepdims=True)``), the row-factor of
   a rank-1 operator. The weight and the carrier have one exact shape,
-  checked under ``__debug__`` only (``ELEGANCE-DEBT[guard] #664``: the
-  dyad carries no spaces yet, so its row factor is not a bound
-  co-vector). The transport
+  parsed on every run through
+  :func:`~orpheus.numerics.coordinate_space.coordinates` (the dyad
+  carries no spaces yet, so its row factor is not a bound co-vector, and
+  the parse is the shape leg only; :ref:`spaces-membership`). The transport
   :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
   specialises it. Exported from :mod:`orpheus.numerics`.
 * :class:`~orpheus.numerics.space.Covector` — a member of the dual

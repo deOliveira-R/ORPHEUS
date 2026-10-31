@@ -34,7 +34,7 @@ the domain)::
     sol = solve_sn(...)                    # Solution[EigenOutcome]
     sol.outcome.keff                       # λ under the k map
     sol.outcome.dominance_ratio()          # |k_n / k_{n-1}|
-    sol.reaction_rate_density(sig_a)       # σ · φ
+    sol.reaction_rate_density(sol.problem.mat_xs.absorption_cross_section)   # σ · φ
     sol.compare(other, rtol=1e-12)         # SolutionDiff
 
 Two discrimination axes
@@ -413,7 +413,8 @@ class Solution(SolutionBase[O]):
     True
     >>> sol.outcome.dominance_ratio()                           # doctest: +SKIP
     1.2e-08
-    >>> sol.reaction_rate_density(materials[0].sig_a)           # doctest: +SKIP
+    >>> sigma_a = sol.problem.mat_xs.absorption_cross_section    # doctest: +SKIP
+    >>> sol.reaction_rate_density(sigma_a)                      # doctest: +SKIP
     array(...)
     """
 
@@ -425,9 +426,12 @@ class Solution(SolutionBase[O]):
         Parameters
         ----------
         xs : np.ndarray
-            Cross-section array, shape ``(ng, *spatial)`` (a
-            :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`-shaped
-            ndarray).  Per Issue #197 Wave 1 design, ``ReactionRate`` is
+            Cross-section array, shape ``(ng, *spatial)``, the exact shape
+            of the scalar flux's space (a per-cell view of the
+            :class:`~orpheus.transport.mesh.material_xs_field.MaterialXSField`,
+            such as ``absorption_cross_section``); any other shape, a
+            per-material ``(ng,)`` vector included, is refused on every
+            run (``NotInCoordinateSpace``, a ``ValueError``).  Per Issue #197 Wave 1 design, ``ReactionRate`` is
             a ``NewType`` over ``np.ndarray`` and is NOT promoted to a
             dataclass — staying close to the natural ``ng × *spatial``
             layout the consumers (depletion, k-eff diagnostics, response

@@ -2818,24 +2818,28 @@ shape is load-bearing.**  The solve wraps the eigenvector as a
 space before it gauges it, so the rates and the integral receive a typed
 member and its membership is checked on every run; a flat :math:`(n_g,)`
 array cannot be built into that member (``ValueError`` from its shape
-check).  The danger survives on the raw path, a bare array handed to
-:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`:
-its exact-shape check runs under ``__debug__`` only, so under
-``python -O`` **a flat** :math:`(n_g,)` **vector is accepted and returns a
-different number** (ERR-122; the raw tier is the debt #664).  ``[M]``
+check).  A bare array handed to
+:class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
+is refused too, on every run (``-O`` included) since U1b of the
+space-membership plan (``ab37d078``): the space's parse requires the exact
+:math:`(n_g, 1)` shape (:ref:`spaces-membership`).  **Until then a flat**
+:math:`(n_g,)` **vector was accepted under** ``python -O`` **and returned a
+different number** (ERR-122), and the table below records that reading:
+it is history now, and the reason the shape is load-bearing.  ``[M]``
 2026-10-01 on the fissile ``A`` family, with the state already gauged so
 the column reads its target to the last place (the flat column is the
-raw path's reading, re-measured under ``-O`` on 2026-10-30 at 2 groups,
-``200.0``, and 4 groups, ``411.27292513523037``, the last digit moved by
-the U2c re-association):
+pre-U1b bare path's reading, re-measured under ``-O`` on 2026-10-30 at 2
+groups, ``200.0``, and 4 groups, ``411.27292513523037``, the last digit
+moved by the U2c re-association; under the same ``-O`` it is now a
+``ValueError``):
 
-.. list-table:: The same functional on the same flux, two shapes
+.. list-table:: The same functional on the same flux, two shapes (the flat column before U1b)
    :header-rows: 1
    :widths: 14 28 28 30
 
    * - groups
      - posed :math:`(n_g, 1)` column
-     - flat :math:`(n_g,)` vector
+     - flat :math:`(n_g,)` vector, before U1b (refused since)
      - the solve's :math:`k_\infty` (to reproduce the row)
    * - 1
      - ``100.0``
@@ -2875,10 +2879,11 @@ Three readings follow, and each is a trap in its own right:
   would hold on the 2-group fixture and break on the 4-group one.
 * **the sibling primitive is strict on every run.**  :meth:`EigenPosing.rayleigh
   <orpheus.numerics.posing.EigenPosing.rayleigh>` refuses the flat vector
-  *loudly* on the same input, ``-O`` included, while the reaction rate's
-  raw path refuses it only under ``__debug__``.  That asymmetry is why
-  the gauge's state is a typed member and why the law that checks it
-  re-reads the functional rather than trusting the shape.
+  *loudly* on the same input, ``-O`` included.  Until U1b the reaction
+  rate's bare path refused it only under ``__debug__``; that asymmetry is
+  why the gauge's state is a typed member and why the law that checks it
+  re-reads the functional rather than trusting the shape.  Since U1b both
+  refuse it on every run (:ref:`spaces-membership`).
 
 **Nothing about the arithmetic moved**, and that is checkable rather than
 asserted.  The retired line read

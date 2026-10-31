@@ -69,8 +69,8 @@ Delegation to the numerics broadcast engine
 ============================================
 
 The raw pointwise multiply is delegated to the N-D
-:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` broadcast engine
-(#257 S3a): a per-cell-per-group coefficient spans the energy and spatial
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` engine
+(#257 S3a; minted with its domain shape since U1b): a per-cell-per-group coefficient spans the energy and spatial
 axes, and the engine is minted with the bulk's shape and the positions the
 coefficient spans, read by label off the bound spaces
 (:meth:`~orpheus.numerics.space.FunctionSpace.positions_spanned_by`); it is
@@ -96,15 +96,17 @@ the zero flux — on the trace; the output leaf is the operand's role
 partner, so one body serves the angular and the scalar families without
 a carrier parse), a plain bulk space selects the bare-array body (the
 cross-model escape hatch: the homogeneous / diffusion / depletion outer
-loops feed bare arrays of the bound shape). Every off-binding carrier is
-a typed refusal naming the operator
+loops feed bare arrays of the bound shape), which admits a typed member of
+its end as well, by content (the user's ruling D1, 2026-10-30). Every
+off-binding carrier is refused naming the operator
 (:func:`~orpheus.transport.operators.lift.admit_composite` /
-:func:`~orpheus.transport.operators.lift.admit_array`); the
-``singledispatchmethod`` table and its per-family ``isinstance`` arms
-retired with the selection. Both bodies run the ONE engine, whose
-broadcast axes the bound bulk names: none for a scalar operand (the direct
-multiply), the ordinate axis for an angular one, and the moment axis as well
-for a linear-discontinuous one.
+:func:`~orpheus.transport.operators.lift.admit_array`), and a wrong shape
+is the end's parse's ``ValueError``; the ``singledispatchmethod`` table
+and its per-family ``isinstance`` arms retired with the selection. Both
+bodies run the ONE engine, minted with the bulk's shape and constant over
+the positions the coefficient does not span: none for a scalar operand
+(the direct multiply), the ordinate axis for an angular one, and the
+moment axis as well for a linear-discontinuous one.
 
 References
 ----------

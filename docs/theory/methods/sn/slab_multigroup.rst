@@ -363,7 +363,7 @@ is ``TransferOperator._redistribute_ordinates``):
       :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.evaluate
 
    .. implements:: addition-theorem
-      :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.reconstruct
+      :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis._reconstruct
 
    .. implements:: addition-theorem
       :by: orpheus.numerics.basis.spherical_harmonic_basis._evaluate_real_sh

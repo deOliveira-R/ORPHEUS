@@ -912,11 +912,17 @@ The two admissions, and what they refuse
        message naming ``on_moment_domain()``
    * - **plain** — the ends are ordinary
        :class:`~orpheus.numerics.space.FunctionSpace`\ s
-     - the bare :class:`numpy.ndarray` of the end's shape (the
-       model-portable contract every solver family already feeds)
+     - the bare :class:`numpy.ndarray` of the end's exact shape (the
+       model-portable contract every solver family already feeds), and,
+       since the user's ruling D1 (``6b4f342e``, 2026-10-30), a typed
+       member of the end, compared by content; both through the end's
+       parse ``FunctionSpace.coordinates_of``
      - a composite (*"lift the binding onto the composite with
-       BulkLift(...)"*); a typed field (*"pass ``.values``"*); a wrong
-       shape, with both shapes printed
+       BulkLift(...)"*) and an operand of neither type (``TypeError``); a
+       member of another space (*"… is not a member of …"*) and a wrong
+       shape (*"… does not match space.shape … (an element takes the
+       exact shape)"*), both ``ValueError``. Until D1 a typed field was
+       refused with *"pass ``.values``"*
 
 The plain binding is the energy operators' and the multiplier's
 (:class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`,
@@ -2837,11 +2843,17 @@ span.** The plain ``L + C`` applies the collision multiplier
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 must act on every bulk the sweep acts on, including the
 linear-discontinuous carrier :math:`(N, n_g, \text{spatial},
-n_{\rm moments})`: its engine broadcasts the coefficient over every bulk
-axis the coefficient does not span, read by label off the bound space
-(``_broadcast_axes``): the ordinate axis, and on an LD bulk the trailing
-spatial-moment axis, where the cell-constant :math:`\sigma` multiplies each
-moment alike, :math:`(\sigma\psi)_k = \sigma\,\psi_k`. Its gate is
+n_{\rm moments})`: its engine is constant over every bulk axis the
+coefficient does not span, the ordinate axis, and on an LD bulk the
+trailing spatial-moment axis too, where the cell-constant :math:`\sigma`
+multiplies each moment alike, :math:`(\sigma\psi)_k = \sigma\,\psi_k`.
+The placement is read by label off the bound spaces when the engine is
+minted, ``DiagonalOperator(σ.values, shape=bulk.shape,
+spans=bulk.positions_spanned_by(σ.space))``
+(:meth:`~orpheus.numerics.space.FunctionSpace.positions_spanned_by` returns
+the positions the coefficient occupies; until U1b, ``112106eb``, the
+multiplier's private helper ``_broadcast_axes`` returned their complement,
+and the engine took it as ``broadcast_axes=``). Its gate is
 ``tests/gates/transport/test_multiplication_operator.py::TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan``
 (10 rows over the LD slab, the LD 2-D, the DD slab and the DD 2-D
 fixtures, 2 groups each; the DD rows are the controls, whose bulk has no
@@ -3106,10 +3118,13 @@ Diagonal operator on a tagged axis
 
 The simplest non-trivial operator beyond the composition primitives
 is the **diagonal-on-an-axis** operator
-:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`. For a 1-D
-weight vector :math:`w \in \mathbb{R}^N` and target axis ``axis``,
-its action on a multi-axis tensor :math:`x` is elementwise
-multiplication along ``axis``:
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator`. It is
+minted with a fixed domain shape and the positions its coefficient
+spans, ``DiagonalOperator(coefficient, *, shape, spans)``. For a 1-D
+weight vector :math:`w \in \mathbb{R}^N` on one position ``k``
+(``spans=(k,)``, with ``shape[k] == N``), its action on an element
+:math:`x` of shape ``shape`` is elementwise multiplication along that
+position:
 
 .. (vv-status rationale) Verified by
    ``tests/gates/numerics/test_diagonal_operator.py`` — apply against
@@ -3126,13 +3141,31 @@ multiplication along ``axis``:
 .. implements:: diagonal-operator-action
    :by: orpheus.numerics.elementary_operators.DiagonalOperator.apply
 
-   **Implemented by** ``return self._broadcast(x_arr.ndim) * x_arr``:
-   the tagged axis carries the weights and every other axis broadcasts
-   through unchanged. The broadcast helper is what makes the equation's
-   ``…, n, …`` index placement **structural** rather than a shape convention
-   each caller has to honour.
+   **Implemented by** ``self.placed_coefficient * coordinates(x, self.shape, ...)``:
+   the coefficient was placed once, when the operator was built
+   (``placed_coefficient`` is the coefficient expanded, as an
+   ``np.expand_dims`` view, on every position it does not span), and the
+   operand is parsed at the exact domain shape on every run before the
+   multiply. The placement is what makes the equation's ``…, n, …`` index
+   placement **structural** rather than a shape convention each caller has
+   to honour, and the parse is what keeps numpy from extending the operand
+   to the coefficient's shape instead (:ref:`spaces-membership`, "The two
+   named extensions").
 
-All other axes broadcast through unchanged. This is the canonical
+The equation is the one-position case of the general engine: a
+coefficient :math:`c` spanning the positions ``spans`` acts as
+:math:`(Dx)_{\mathbf i} = c_{\mathbf i|_{\rm spans}}\,x_{\mathbf i}`,
+the tensor action :math:`M_c \otimes I` on the positions it does not
+span. ``DiagonalOperator.from_measure(measure, shape=…, axis=k)`` is the
+one-position mint ``spans=(k,)`` with the measure's weights, not a second
+mode. Until U1b (``112106eb``, 2026-10-30) the engine had a rank-agnostic
+one-axis mode, whose placement was read off each operand's rank, and an
+N-D ``broadcast_axes=`` mode whose check compared only the operand's rank;
+both admitted operands numpy would broadcast (`[M]` the commit record: the
+S\ :sub:`N` collision engine took :math:`(8, 2, 1)` for
+:math:`(8, 2, 12)` in silence, with asserts on).
+
+All other positions of the domain pass through unchanged. This is the canonical
 "diagonal in some basis" operator — the abstraction Grand Report v3
 §9 names :math:`W` (``AngularWeightMatrix``) when the basis is the
 discrete-ordinate set of an angular cubature, and the same primitive
@@ -3168,7 +3201,7 @@ Self-adjointness is automatic for real-valued weights:
 :meth:`apply_transpose` is the same code path as :meth:`apply`.
 Invertibility is by-element: if every weight is non-zero, the
 operator reports ``is_invertible = True`` and its :meth:`solve`
-divides by :math:`w_n` along ``axis``. If any weight is zero,
+divides the parsed operand by the placed coefficient. If any weight is zero,
 ``is_invertible`` reports ``False`` and ``inverse()`` / ``solve`` raise
 :class:`~orpheus.numerics.operator.NotInvertible` **eagerly** (the
 value-dependent arm of Design C) — a zero weight has no inverse, and the
@@ -3302,11 +3335,17 @@ group-and-space-indexed broadcast over the ordinate axis:
    verb the caller actually names.
 
 The action is delegated to the N-D
-:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` broadcast engine
-(:eq:`diagonal-operator-action`, #257 S3a) as
-``DiagonalOperator(f.values, broadcast_axes=(0,))``: the coefficient is
-an :math:`(n_g, *\text{spatial})` field, broadcast over the leading
-ordinate axis. The transport-level
+:class:`~orpheus.numerics.elementary_operators.DiagonalOperator` engine
+(:eq:`diagonal-operator-action`, #257 S3a), minted once on the bound bulk
+as ``DiagonalOperator(f.values, shape=bulk.shape,
+spans=bulk.positions_spanned_by(f.space))``: the coefficient is an
+:math:`(n_g, *\text{spatial})` field, placed by axis label on the energy
+and spatial positions of the bulk and constant over the others (the
+ordinate axis of an angular bulk, the spatial-moment axis of a
+linear-discontinuous one, none of a scalar bulk), and every operand is
+parsed at the bulk's exact shape (:ref:`spaces-membership`). Until U1b
+(``112106eb``) the mint was ``DiagonalOperator(f.values,
+broadcast_axes=…)``, whose check compared only the operand's rank. The transport-level
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
 does **not** re-derive the broadcast — it *builds the engine once* over
 its immutable coefficient and forwards (``coding-elegance`` Pattern 2,
@@ -3696,24 +3735,27 @@ mint).
 
 **Membership.** The flux is asked to be a member of :math:`V`: a typed
 member (a :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`)
-is compared by content on every run, and a bare array must have
-:math:`V`'s exact shape, checked under ``__debug__`` only (the raw tier,
-#664). The three sharp methods hand typed members since U2c: S\ :sub:`N`
+is compared by content, and a bare array must have :math:`V`'s exact
+shape, both on every run since U1b (``ab37d078``); a bare array answers
+the shape leg only, and cannot say which of two equal-shape spaces it
+belongs to (the operator algebra's bare iterate is tracked by #664). The three sharp methods hand typed members since U2c: S\ :sub:`N`
 types its power-iteration vector on the problem's bulk space in one
 helper, diffusion pairs ``psi.interior``, the homogeneous solve gauges a
 ``ScalarFlux`` on its pose; the route gate
 ``tests/gates/cross_method/test_production_pairs_typed_members.py`` runs
 one eigenvalue solve per method with the exact membership verb refusing
-bare arrays (:ref:`spaces-membership`). The defect this closes on the
-formal path is ERR-122: a flat :math:`(n_g,)` flux on the homogeneous
+bare arrays (:ref:`spaces-membership`). The defect the two legs close,
+on the typed and the bare path alike, is ERR-122: a flat :math:`(n_g,)` flux on the homogeneous
 :math:`(n_g, 1)` pose read the outer product,
 :math:`(\sum_g\nu\Sigma_{f,g})(\sum_g\phi_g)`. `[M]` 2026-10-30, the
 archivist's probe, the 2-group Mixture A with :math:`\nu\Sigma_f =
 [0.025, 0.2]` and :math:`\phi = [0.6, 0.4]`: the column reads
 :math:`0.095 = 0.025(0.6) + 0.2(0.4)`; a typed flat flux cannot be built
 (``ValueError`` from the member's shape check, on every run); a bare flat
-array is refused under ``__debug__`` and, under ``-O``, still reads
-:math:`0.225 = 0.225 \times 1.0`, the raw tier's residue (#664).
+array is refused on every run since U1b (``NotInCoordinateSpace``, a
+``ValueError``, from the space's exact parse). Until then it was refused
+under ``__debug__`` only and, under ``-O``, read
+:math:`0.225 = 0.225 \times 1.0`.
 
 **The re-association, and why it is principled equivalence.** The old
 and the new body compute the same integral with the products grouped and

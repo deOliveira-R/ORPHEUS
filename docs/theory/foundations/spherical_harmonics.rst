@@ -355,10 +355,10 @@ sufficiently-exact angular cubature:
    others.
 
 .. implements:: pi-r-equals-4pi-i
-   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.analyze
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis._analyze
 
 .. implements:: pi-r-equals-4pi-i
-   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.reconstruct
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis._reconstruct
 
 .. implements:: pi-r-equals-4pi-i
    :by: orpheus.numerics.frame_faces.CrossGramInverse.of
@@ -565,7 +565,7 @@ property of *this* basis-measure pairing, not of frames in general
 
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.analyze_transpose
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis._analyze_transpose
 
    **Implemented by** 8 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
@@ -581,7 +581,7 @@ property of *this* basis-measure pairing, not of frames in general
    :math:`G^{-1}` as the codomain metric) — JOINED it.
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
-   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.synthesize
+   :by: orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis._synthesize
 
 .. implements:: hilbert-adjoint-equals-metric-times-S0
    :by: orpheus.numerics.frame.FrameBase.discrete_gram

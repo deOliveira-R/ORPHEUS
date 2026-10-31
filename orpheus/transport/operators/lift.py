@@ -23,9 +23,14 @@ The verbs, the mixin, and the operator:
   outcome): a composite-bound operator admits exactly the
   :class:`~orpheus.transport.full_field.FullField` whose BOTH blocks ride
   the bound end's block spaces (and, when the body reads a role, whose
-  interior is that role's leaf); a plain-bound operator admits exactly the
-  bare array of the bound end's shape. Everything else is a typed refusal
-  naming the operator — the ``singledispatchmethod`` tables and their
+  interior is that role's leaf); a plain-bound operator admits an element
+  of its bound end, through the end's one parse
+  (:meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`): a typed
+  member compared by content, or a bare array of the end's exact shape
+  (the user's ruling D1, 2026-10-30). A composite fed to a plain binding,
+  or an operand of neither type, is a ``TypeError`` naming the operator; a
+  wrong shape or a member of another space is the parse's ``ValueError``
+  — the ``singledispatchmethod`` tables and their
   ``isinstance`` carrier arms (`[M]` 3 tables / 13 arms / 12 carrier
   parses at ``f90f7914``) are retired by these two. ⚠ Two declared
   exemptions live outside this module by ruling R-5:

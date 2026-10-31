@@ -7742,8 +7742,9 @@ the same composed operator's ``apply_transpose``: :math:`(\text{law}\circ\gamma_
    :math:`\Gamma_+`, ``ZeroMap`` and ``ScaledOrdinatePermutation`` return
    :math:`|\Gamma_-|` rows with **no raise** (the zero map's rows are zeros whatever it is fed, so
    its answer is right by accident; the mirror's are **wrong values**), while ``RankOneReemission``
-   refuses, because its first link, ``PartialCurrentOperator.apply``, checks
-   ``psi.shape[0]`` against :math:`|\Gamma_+|`:
+   refuses, because its first link, ``PartialCurrentOperator.apply``, parses its
+   operand at the leading shape :math:`(|\Gamma_+|,)` (the coordinate-space primitive,
+   :ref:`spaces-membership`):
 
    .. code-block:: python
 
@@ -7758,7 +7759,7 @@ the same composed operator's ``apply_transpose``: :math:`(\text{law}\circ\gamma_
    .. code-block:: text
 
       mirror fed the whole slot: [2. 1.] (the correct image above is [4. 3.])
-      white fed the whole slot: PartialCurrentOperator.apply: psi has 4 rows along the leading axis, expected |Γ₊| = 2
+      white fed the whole slot: PartialCurrentOperator.apply (|Γ₊|): an array of shape (4, 1) does not have the leading shape (2,) that an action acts on (A ⊗ I_P).
 
 
    The mirror of the listing returned ``[2. 1.]`` where the correct image is ``[4. 3.]``;

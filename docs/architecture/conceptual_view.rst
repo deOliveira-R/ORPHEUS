@@ -727,17 +727,27 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   cannot pass members yet because a composite field keeps the flux role
   on either side of a dual arrow, so its blocks on a dual space carry
   primal labels (#633, placed in S6c of the numerics untangling).
-  The raw path's shape check is development-only (``__debug__``), so
-  under ``-O`` a raw non-member reaches the arithmetic unchecked.
-- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs 12 times in
+  Since U1b of the space-membership plan (on branch
+  ``refactor/space-membership``) a bare operand's shape is parsed at its
+  verb's domain on every run, ``-O`` included, through one primitive
+  (:mod:`orpheus.numerics.coordinate_space`), so no bare non-member
+  reaches the arithmetic; what a bare array still cannot answer is which
+  of two equal-shape spaces it belongs to, and typing the operator
+  algebra's bare iterate is tracked by #664.
+- **The tagged guards**: ``ELEGANCE-DEBT[guard]`` occurs 11 times in
   9 files under ``orpheus/`` (`[M]` 2026-10-30 on the
-  ``refactor/space-membership`` worktree, a Python scan of every line of
-  the 395 files ``orpheus/**/*.py`` for the tag; positive control: the
-  scan finds the ``#457`` site in ``orpheus/transport/full_field.py``).
-  The sites: the full-field carrier (#457); the raw tier of space
-  membership, two sites in ``orpheus/numerics/space.py`` (#664, retired
-  when the operator algebra's carrier is typed,
-  :ref:`spaces-membership`); the field layer's refusal of a
+  ``refactor/space-membership`` worktree after U1b's eighth commit,
+  ``4882293a``, a Python scan of every line of the 396 files
+  ``orpheus/**/*.py`` for the tag; positive control: the scan finds the
+  ``#457`` site in ``orpheus/transport/full_field.py``; U1b retired three,
+  the two raw-tier sites in ``orpheus/numerics/space.py`` and the one in
+  ``orpheus/numerics/functional.py``, all #664).
+  The sites: the full-field carrier (#457); the full-field composite's
+  inner product, which hands its blocks bare coordinates and so asks no
+  membership of its arguments, in
+  ``orpheus/numerics/spaces/full_field_space.py`` (#666, retired when a
+  composite member is compared with its space by content and hands the
+  leaf verbs typed blocks, :ref:`spaces-membership`); the field layer's refusal of a
   spatial-moment axis whose basis is not one interval factor per spatial
   axis, in ``orpheus/transport/fields/_bases.py`` (#662, retired when the
   field layer threads the cell basis instead of the per-axis integer); the lock on withdrawn

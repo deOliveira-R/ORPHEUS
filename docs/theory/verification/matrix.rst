@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **19944**
+Total tests collected: **20059**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 1918, 9.6%
-   L1, 2914, 14.6%
+   L0, 2030, 10.1%
+   L1, 2914, 14.5%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14971, 75.1%
+   foundation, 14974, 74.6%
    unmarked, 56, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19809
+   explicit, 19924
    class-name, 46
    func-name, 0
    case, 33
@@ -135,8 +135,9 @@ Module × level grid
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_family_convergence_contract, 0, 0, 0, 0, 45, 0
    cross_method/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
+   cross_method/test_one_parse_on_production, 53, 0, 0, 0, 0, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
-   cross_method/test_production_pairs_typed_members, 0, 0, 0, 0, 3, 0
+   cross_method/test_production_pairs_typed_members, 0, 0, 0, 0, 4, 0
    cross_method/test_specification_infinite_medium_k, 0, 2, 0, 0, 0, 0
    cross_method/test_wave2_s4_tables, 0, 3, 0, 0, 2, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
@@ -368,6 +369,7 @@ Module × level grid
    homogeneous/test_homogeneous_verification, 0, 0, 0, 0, 10, 0
    homogeneous/test_kinf_exact_reference, 0, 24, 0, 0, 16, 0
    homogeneous/test_operator_spaces, 0, 0, 0, 0, 18, 0
+   homogeneous/test_plain_binding_admits_typed, 7, 0, 0, 0, 0, 0
    homogeneous/test_reaction_rate_on_the_pose, 0, 0, 0, 0, 3, 0
    mc/test_convergence, 0, 0, 3, 0, 0, 0
    mc/test_cross_verification, 0, 0, 2, 0, 0, 0
@@ -436,7 +438,7 @@ Module × level grid
    numerics/test_axis, 0, 0, 0, 0, 19, 0
    numerics/test_axis_generator, 0, 0, 0, 0, 48, 0
    numerics/test_axis_identity, 0, 0, 0, 0, 24, 0
-   numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
+   numerics/test_axis_marginal, 0, 0, 0, 0, 23, 0
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 315, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 11, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
@@ -445,6 +447,7 @@ Module × level grid
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
+   numerics/test_coordinate_space, 54, 0, 0, 0, 0, 0
    numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
    numerics/test_covector, 12, 0, 0, 0, 0, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
@@ -474,7 +477,7 @@ Module × level grid
    numerics/test_index_set, 0, 0, 0, 0, 2, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 11, 0
    numerics/test_indicator_basis_orientation, 0, 0, 0, 0, 2, 0
-   numerics/test_inner_product_functional, 7, 0, 0, 0, 0, 0
+   numerics/test_inner_product_functional, 6, 0, 0, 0, 0, 0
    numerics/test_interval_legendre_basis, 0, 0, 0, 0, 68, 0
    numerics/test_invariance, 0, 0, 0, 0, 111, 0
    numerics/test_invariance_composition, 0, 0, 0, 0, 1079, 0
@@ -524,7 +527,7 @@ Module × level grid
    numerics/test_space, 0, 0, 0, 0, 15, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_space_identity_is_structural, 0, 0, 0, 0, 15, 0
-   numerics/test_space_membership, 10, 0, 0, 0, 0, 0
+   numerics/test_space_membership, 9, 0, 0, 0, 0, 0
    numerics/test_space_of_axes, 0, 0, 0, 0, 26, 0
    numerics/test_spherical_harmonic_basis, 4, 7, 0, 0, 8, 0
    numerics/test_spherical_harmonic_space, 0, 8, 0, 0, 6, 0
@@ -704,7 +707,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 524, 0
+   test_layer_imports, 0, 0, 0, 0, 525, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0

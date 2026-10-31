@@ -242,15 +242,22 @@ the same space" is a claim this corpus has **overturned**.
      measured each separate now: among 15 shipped rules on :math:`S^2`,
      0 of 105 measure-space pairs compare equal, where 21 did
      (:ref:`spaces-identity-key`).
-   - **Membership is a verb of the space, in two tiers.** A typed member
-     (a :class:`~orpheus.numerics.field.Field`) is compared with the space
-     by content identity on every run, ``-O`` included; a bare array is
-     shape-checked only under ``__debug__``, by the user's ruling that the
-     formal path is production's (#664 tags the raw tier as debt). Scalar
-     verbs take exact members, because a batch has no inner product;
-     actions take a leading member and carry a trailing batch as
-     :math:`A\otimes I_P`; a pairing over a payload is posed on the
-     explicit tensor product ``V * P`` (:ref:`spaces-membership`).
+   - **Membership is a parse at the verb's domain, with two legs, on
+     every run** (``-O`` included). The identity leg is the space's: a
+     typed member (a :class:`~orpheus.numerics.field.Field`, a
+     :class:`~orpheus.numerics.space.Covector`) is compared with the space
+     by content identity. The shape leg is a primitive below every
+     numerics concept (:mod:`orpheus.numerics.coordinate_space`), so a
+     measure, a metric block and a basis, which own a domain shape and
+     cannot name a space, parse with it too; a bare array answers the
+     shape leg only. It has two verbs, one per extension the mathematics
+     admits: the exact parse for scalar verbs (a batch has no inner
+     product) and for an engine minted with its full domain shape, and the
+     leading parse for an action :math:`A\otimes I_P`; the tensor action
+     on labelled axes is placed by label when the operator is built
+     (``positions_spanned_by``), and a pairing over a payload is posed on
+     the explicit tensor product ``V * P``. A refusal is a ``ValueError``
+     (:ref:`spaces-membership`).
 
 .. _spaces-the-axis:
 
@@ -2746,8 +2753,8 @@ rather than merely untested.
 
 .. _spaces-membership:
 
-Membership is a verb of the space: a typed tier and a raw tier
---------------------------------------------------------------
+Membership is a verb of the space: one parse, two legs
+------------------------------------------------------
 
 Every verb of a space that takes an element is defined only on the
 members of that space: :meth:`~orpheus.numerics.space.FunctionSpace.inner_product`,
@@ -2800,65 +2807,328 @@ measured here (`[M]` 2026-10-30, a probe on the
   meant. Shape is necessary for membership and not sufficient: membership
   is content identity of the space (:ref:`spaces-identity-key`).
 
-The two tiers
-~~~~~~~~~~~~~
+The two legs of the one parse
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. list-table:: What each tier admits, what it checks, and when
+An element of :math:`V` reaches a verb as its coordinates, an array, and
+two different facts make that array a member of :math:`V`. The parse asks
+both, and since U1b (``ab37d078``, 2026-10-30) it asks both on every run,
+``python -O`` included:
+
+.. list-table:: The two legs of membership, and where each lives
    :header-rows: 1
-   :widths: 16 30 30 24
+   :widths: 16 28 32 24
 
-   * - Tier
-     - The element
+   * - Leg
+     - The question
      - The check
-     - When it runs
-   * - **typed** (the formal path)
-     - a :class:`~orpheus.numerics.space.Member` (an ``isinstance``
-       test; every :class:`~orpheus.numerics.field.Field` is one, and
-       every :class:`~orpheus.numerics.space.Covector`, a member of
-       :math:`V^{*}`), which carries its coordinates and its space
-     - ``x.space == V`` by the identity key, so an equal-shape space
-       with another metric is refused (``ValueError``, "… is not a member
-       of …"); the coordinates are returned (parse, do not validate)
-     - every run, ``-O`` included
-   * - **raw** (a bare array)
-     - an ``ndarray`` with no space
-     - its shape against the space's ``shape``
-       (exact or leading, by the verb below)
-     - only under ``if __debug__:``; ``python -O`` strips it
+     - Where it lives
+   * - **identity**
+     - *which* space: is this the element of :math:`V`, or of an
+       equal-shape :math:`W` with another metric?
+     - a :class:`~orpheus.numerics.space.Member` (every
+       :class:`~orpheus.numerics.field.Field`, every
+       :class:`~orpheus.numerics.space.Covector`) is compared with
+       :math:`V` by the identity key, ``x.space == V``, and refused with
+       a ``ValueError`` ("… is not a member of …") otherwise; its
+       coordinates are returned (parse, do not validate)
+     - on the space,
+       :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`
+   * - **shape**
+     - is the array an element of the coordinate space
+       :math:`\mathbb R^{\text{shape}}` at all?
+     - ``np.shape(x)`` against the domain's shape, exactly or as a
+       leading prefix (the two extensions below); a refusal is
+       ``NotInCoordinateSpace``, a ``ValueError``
+     - below every numerics concept, in
+       :mod:`orpheus.numerics.coordinate_space`
+       (:func:`~orpheus.numerics.coordinate_space.coordinates` and
+       :func:`~orpheus.numerics.coordinate_space.leading_coordinates`)
+
+``coordinates_of`` and ``leading_coordinates_of`` compose the two legs: a
+typed member answers the identity leg (its own construction already
+answered the shape leg, through the same primitive, in
+``Member.__post_init__``), and a bare array answers the shape leg only.
+A bare array cannot answer the identity leg, because it carries no space:
+the array :math:`X` of the example above is an element of both
+:math:`\mathbb R^{2\times 3}` coordinate spaces, of :math:`V` and of
+:math:`W`. That is what remains of the user's ruling R1 of 2026-10-30:
+*well-posed mathematics is guaranteed structurally only through the formal
+machinery*. The guarantee that tells :math:`V` from :math:`W` is the typed
+member's, and production is on the typed path wherever a pairing is formed
+(the route gate below). R1 limits what is guaranteed; it never ruled out
+parsing the bare array's shape on every run, and the user's ruling of
+2026-10-30 that opened U1b says so: a root mechanism that protects raw and
+typed operands alike is not a revision of R1.
 
 The member type is declared in ``space.py``, beside the space that asks
 the question, and :class:`~orpheus.numerics.field.Field` and
 :class:`~orpheus.numerics.space.Covector` subclass it. Since U2b
 (``[LANDED 64cc3a7a]``) it is a frozen dataclass holding ``values`` and
 ``space`` and the one shape check ``values.shape == space.shape``, so the
-pair and its check have a single spelling for both kinds of member.
+pair and its check have a single spelling for both kinds of member; since
+``ab37d078`` that check is the primitive's exact parse.
 The direction is forced by the concept order of the numerics package:
 ``field.py`` imports ``space.py``, so the space cannot name ``Field``
 without a module cycle (`[M]` 2026-10-30: a first draft imported
 ``Field`` lazily inside the check, and ``test_concept_order`` and the
 layer gate's cycle row both refused the ``field → space`` edge).
 
-The typed tier is the guarantee. The raw tier is legal and checked only
-in development, by the user's ruling of 2026-10-30 (R1 of the plan):
-*well-posed mathematics is guaranteed structurally only through the
-formal machinery*, meaning specialised constructors that take the packed
-formal objects, and typed members. Production is the formal path; a raw
-array exists for a dependency-free test or a prototype, and the checks
-against its misuse sit under ``__debug__``. The consequence is stated
-rather than hidden: the canonical ``python -O -m pytest`` never executes
-a raw-tier refusal, and under ``-O`` the flat-against-column probe above
-still reads :math:`1.4`. The raw tier's two checks are tagged
-``ELEGANCE-DEBT[guard] #664`` in ``orpheus/numerics/space.py``; they
-retire as a debt when the operator algebra's carrier is typed, so that no
-production path is raw (#664), and stay as the raw path's development aid.
+**Why the shape leg is a primitive below the space.** The design first
+put the whole parse on the space and asked every object that acts on
+elements to parse through ``coordinates_of``. That is unspellable for a
+class of objects that own a domain and cannot name a space. The concept
+order of the numerics package (``tests/gates/numerics/test_concept_order.py``,
+which counts lazy imports as edges) puts ``metric``, ``basis`` and
+``measure`` below ``axis`` and ``space``: a
+:class:`~orpheus.numerics.measure.DiscreteMeasure` knows its nodes, a
+metric block knows its block shape, and a basis contraction knows its
+table's modes and nodes, but none of them may import the space. Each of
+them still has a domain, the coordinate space its own shape names, and its
+public verb is reachable with an operand numpy would broadcast against it
+(`[M]` ``123166fb``'s record: before it, a length-1 node axis handed to
+``DiscreteMeasure.integrate`` broadcast over every node). So the parse splits along its two legs: the shape leg
+needs no space, no axis and no metric, and lives in a module of its own in
+a new first row of the concept order (``53736b2b``); the identity leg
+needs the space's identity key, and stays on the space. Each object that
+owns its domain shape parses its operand with the primitive at its own
+verb (``123166fb``):
 
-The typed comparison is cheap because production spaces are interned:
-``FunctionSpace.__eq__`` returns on ``other is
-self`` before it compares identity keys. `[M]` 2026-10-30, the
-test-architect's cost probe (``scratch/membership_covector/spec/probes/u1_cost.py``,
-the minimum of 15 repeats of 20 000 calls): ``inner_product`` costs
-12.3 µs, the identity comparison 0.128 µs and a bare shape comparison
-0.123 µs, about 1 % per call. This is sizing, not a gate.
+- :meth:`DiscreteMeasure.integrate
+  <orpheus.numerics.measure.DiscreteMeasure.integrate>`: the integrand's
+  leading axis is the measure's nodes;
+- ``DiagonalMetric.apply_block`` and ``DenseMetric.apply_block``, each at
+  its block, and ``FactoredMetric.apply``/``apply_inverse`` at the
+  concatenation of its blocks (a Euclidean block applies nothing, so no
+  block alone sees the full extent);
+- :meth:`InnerProductFunctional.evaluate
+  <orpheus.numerics.functional.InnerProductFunctional.evaluate>`: the
+  carrier at the weight's exact shape (the dyad's functional has no bound
+  space, so this is its only parse);
+- :class:`~orpheus.numerics.basis.Basis`: the five contractions
+  (``synthesize``, ``analyze``, ``analyze_transpose``, ``reconstruct``,
+  ``reconstruct_transpose``) are concrete and ``@final`` on the base, each
+  parsing coefficients at the table's modes or values at its nodes, and the
+  families implement only the ``_hooks`` behind them, so a new family
+  cannot skip the parse.
+
+An object that does NOT own its full domain shape is an engine, and its
+owner mints it with that shape: the diagonal engine below is the one case.
+A bound operator parses at its bound ends through the space's verbs
+(``ef113fdd``: :class:`~orpheus.numerics.frame_faces.FrameAnalysis`,
+:class:`~orpheus.numerics.frame_faces.FrameReconstruction` and
+:class:`~orpheus.numerics.frame_faces.CrossGramInverse` parse ``apply`` at
+the domain and ``apply_transpose`` at the codomain, so a typed member of
+another space of the same shape is refused at the face, the identity leg
+the basis parse one layer down cannot see).
+
+.. dropdown:: Refuted for this question: the owners parse one frame up, the engines never
+   :color: muted
+
+   The alternative was to keep every object below the space unparsed and
+   let its bound owner parse the operand before the call. The structural
+   reason it fails: a public verb of an object below the space is
+   callable without an owner (a test, a prototype, a reference module
+   calls ``DiscreteMeasure.integrate`` directly), so the verb itself
+   would stay in numpy's broadcast closure; the specification's census
+   found exactly that row. The fact it establishes stands: an engine
+   that does not own its domain shape is parsed through the shape its
+   owner mints it with, never by reading the shape off the operand.
+
+The two named extensions
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+NumPy's ``*`` is the Hadamard product on the broadcast closure of shapes,
+a larger domain than :math:`V\times V`. Handed two shapes that differ, it
+silently extends one operand or both along the missing axes, and computes
+one of three maps. Two of them are legitimate operations of the
+mathematics when they are NAMED; the third never is.
+
+1. **The tensor action** :math:`A \otimes I` **along the axes an operator
+   does not act on.** A cross section acts on (energy, space), so on an
+   angular bulk the collision acts as :math:`M_\sigma \otimes I` on the
+   ordinate axis and, on a linear-discontinuous bulk, on the spatial-moment
+   axis too, where :math:`(\sigma\psi)_k = \sigma\,\psi_k`. A metric block
+   or a frame face acts on its own block and carries the rest:
+   :math:`A \otimes I_P`. This is an identity on the operand's extra
+   factor, not a pullback of the coefficient: on a modal axis the pullback
+   :math:`u\otimes f` would multiply only the average slot, which is wrong.
+2. **The pullback** :math:`\pi^{*} = u \otimes \mathrm{id}` **of a member
+   onto a larger product**, the Hilbert adjoint of the axis retraction,
+   with the axis unit :math:`u`, not ones. It exists as an operator,
+   :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`.
+3. **Never legitimate:** numpy extending the operand to the stored array's
+   shape, :math:`x \otimes \mathbf 1` (a different member from the one
+   passed, with the wrong unit on a modal axis), or extending both operands
+   at once (the outer product, ERR-122's :math:`0.225`).
+
+The first is spelled in two ways, according to whether the axes the action
+carries are labelled:
+
+- **Placed by label, when the operator is built.** An operator whose
+  coefficient spans a labelled sub-product of its domain is minted with the
+  domain shape and the positions the coefficient spans. The placement is
+  :meth:`FunctionSpace.positions_spanned_by
+  <orpheus.numerics.space.FunctionSpace.positions_spanned_by>`: given a
+  sub-product ``sub`` of this space's axes, in this space's order, it
+  returns the ARRAY positions its factors occupy (an axis may span several,
+  a 2-D spatial mesh is one axis of rank 2). It refuses a space without
+  labelled axes (``TypeError``, the user's ruling of 2026-10-20: a
+  positional guess would put the coefficient on the wrong axes of an LD
+  bulk, ERR-119) and a sub-product whose labels run in another order
+  (``ValueError``: a transposed coefficient). The engine is
+  :class:`DiagonalOperator(coefficient, *, shape, spans)
+  <orpheus.numerics.elementary_operators.DiagonalOperator>` (``112106eb``,
+  the user's ruling N1, one placement):
+
+  .. math::
+
+     (D x)_{\mathbf i} \;=\; c_{\,\mathbf i|_{\rm spans}}\; x_{\mathbf i},
+     \qquad \operatorname{shape}(x) = \texttt{shape},
+     \quad \texttt{shape}[\texttt{spans}[j]] = \operatorname{shape}(c)_j .
+
+  The coefficient is refused when built unless ``spans`` are increasing,
+  distinct positions of ``shape``, one per coefficient axis, that it fills.
+  It is stored once, expanded on the complement of ``spans``
+  (``placed_coefficient``, an ``np.expand_dims`` view, no copy; the
+  complement is the attribute ``broadcast_axes``), and ``apply`` and
+  ``solve`` parse every operand at the exact ``shape``. The elementwise
+  product and its reduction tree are those of the retired engine, so the
+  change is bit-identical (`[M]` ``112106eb``'s record: the 32-key per-verb
+  head capture moved 0 of 32). A weight on one axis is the placement
+  ``spans=(k,)``; ``DiagonalOperator.from_measure(measure, shape=…,
+  axis=k)`` is that spelling, not a second mode.
+  :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
+  mints its engine as ``DiagonalOperator(f.values, shape=bulk.shape,
+  spans=bulk.positions_spanned_by(f.space))`` and its assembled diagonal
+  reads the same ``placed_coefficient``, so the matvec and the assembly
+  cannot disagree on the placement.
+- **Placed by leading position, on an unlabelled payload.** An action whose
+  trailing axes are a payload with no labels (a metric leg's batch, a
+  frame face's trailing axes) parses its operand with the leading parse:
+  the leading axes must be the domain's, and the payload rides through.
+  This is :func:`~orpheus.numerics.coordinate_space.leading_coordinates`
+  below the space and
+  :meth:`~orpheus.numerics.space.FunctionSpace.leading_coordinates_of` on
+  it (the next subsection).
+
+The parse therefore has exactly two verbs, one per extension it admits:
+the exact parse (:func:`~orpheus.numerics.coordinate_space.coordinates`)
+for a scalar verb (a pairing, a norm, a mint, an integral) and for an
+engine minted with its full domain shape, and the leading parse for an
+action :math:`A \otimes I_P`. Both return the operand itself, never a
+copy, so no product or reduction downstream changes. The pullback is not a
+parse at all: it is an operator, applied by name.
+
+.. dropdown:: First got wrong: the engine read its placement off the operand (until U1b)
+   :color: muted
+
+   Before ``112106eb`` the engine had two modes: a rank-agnostic
+   one-axis mode whose placement was read off each operand's rank, and
+   an N-D ``broadcast_axes=`` mode whose check compared only the
+   operand's rank. Both admitted operands numpy would broadcast: `[M]`
+   the commit record, the S\ :sub:`N` collision engine took :math:`(8,
+   2, 1)` and :math:`(1, 2, 12)` for :math:`(8, 2, 12)` in silence, with
+   asserts on. The by-label reading lived as the multiplier's private
+   helper ``_broadcast_axes``, which returned the complement of what
+   ``positions_spanned_by`` returns and did not refuse a transposed
+   order.
+
+**A refusal is a ValueError, and only that.** A wrong shape is a wrong
+value of the right type, so the primitive raises ``NotInCoordinateSpace``,
+a subclass of ``ValueError`` and of nothing else, naming its owner (the
+verb that parsed, since the raise sits one frame below it) and the
+fragment ``exact shape`` or ``leading shape``. A ``TypeError`` is kept for
+an operand of the wrong type: a plain binding fed something that is
+neither an array nor a member, a plain binding fed the composite
+``FullField``, and a space without labelled axes asked for a placement.
+The tests that had pinned a ``TypeError`` for a wrong shape were re-pinned
+(the user's ruling of 2026-10-30, on the specification's NEEDS).
+
+**A plain binding admits a typed member of its end (D1).** A plain binding
+(an energy binding on the scalar space, a multiplier on a bulk space)
+admits its operand through
+:func:`~orpheus.transport.operators.lift.admit_array`. Before ``6b4f342e``
+it parsed only a bare array and refused a typed member with "pass
+``.values``", so the one verb that could check a member's identity threw
+the member away. By the user's ruling D1 of 2026-10-30 it is now the end's
+one parse, ``space.coordinates_of(x)``: a typed member of the end is
+compared by content and its coordinates returned, a member of an
+equal-shape space with another metric is refused by content, and a bare
+array must have the end's exact shape. Its own refusals are only the two
+above, the composite (naming :class:`~orpheus.transport.operators.lift.BulkLift`,
+because the composite action is the lift's) and an operand of neither
+type. The return is the same bare array for a typed operand as for a bare
+one: typed in, bare out, a residue owned by
+`#633 <https://github.com/deOliveira-R/ORPHEUS/issues/633>`_ (the role
+typing of the arrows). The gate is
+``tests/gates/homogeneous/test_plain_binding_admits_typed.py`` (`[M]`
+``6b4f342e``'s record: 6 of its 7 rows red on the pre-D1 ``admit_array``;
+the seventh is the unchanged composite refusal). It lives in the
+homogeneous layer because its fixture poses on ``orpheus.homogeneous``
+(``f04c96de``).
+
+**Every production admission routes through the one primitive**
+(``4882293a``). The admissions that broadcast, reshaped or indexed an
+operand without checking it now parse at the operator's domain: the
+S\ :sub:`N` group production and absorption rates and ``reaction_rate_density``,
+``project_through_bilinear`` on the material cross-section field, a bare
+source in :class:`~orpheus.numerics.posing.SourcePosing` (parsed at the
+operator's codomain), the S\ :sub:`N` partial-current operator and the
+isotropic emission's transpose (leading parse), the fission moment
+operator's admission, the radial characteristic reconstruction, and the
+axis-marginal operators (retraction, section and pullback), which ask
+their bound spaces through the action verb ``leading_coordinates_of``, so
+a typed member of the space is admitted, compared by content, and a
+trailing payload rides through as :math:`R \otimes I_P`. Two composite admissions are declared
+exceptions: ``FullField.require_member`` and
+``RadialCharacteristicField.require_member`` compare block spaces and have
+no shape leg of their own, because a composite is not a flat member
+(`#666 <https://github.com/deOliveira-R/ORPHEUS/issues/666>`_; a strict
+``xfail`` row turns red when #666 lands).
+
+.. dropdown:: Refuted: the homogeneous k-infinity conversion (U1b step 7)
+   :color: muted
+
+   Step 7 converted the homogeneous :math:`k_\infty` to a bare-array
+   parse. The hub's ``production_rate`` is measure-carrying, so parsing
+   it as a bare array moved :math:`k_\infty` under a weight-2 measure
+   (``test_operator_spaces`` red). It was reverted, and the homogeneous
+   :math:`k_\infty` is unchanged (the ``4882293a`` record).
+
+.. dropdown:: First got wrong: the shape leg ran only under __debug__ (R1, until U1b)
+   :color: muted
+
+   Until U1b the shape leg ran only under ``if __debug__:``, by R1:
+   production was to be the formal path, and the checks against a bare
+   array's misuse were a development aid, tagged ``ELEGANCE-DEBT[guard]
+   #664`` in ``space.py``. The consequence was stated at the time: the
+   canonical ``python -O -m pytest`` never executed a raw refusal, and
+   under ``-O`` the flat-against-column probe above read :math:`1.4`.
+   The explorer's census for U1b (`[M]` 2026-10-30 at ``6aa26d00``,
+   ``scratch/membership_covector/broadcast/census.md``) then measured
+   the class: 48 of 61 in-scope public verbs (numerics, transport, S\
+   :sub:`N`, diffusion, homogeneous) combined an operand with a stored
+   array through broadcasting with no exact check on every run (9
+   debug-only, 31 with none, 8 partial); 32 probe rows on production
+   objects under ``-O`` were 20 silent and 12 raising; and admission was
+   spelled at least eight ways. The user ruled the same day that ERR-122
+   was one symptom of an operation not well defined at a deeper level,
+   and that the symptom patch (an ``out=`` argument in the co-vector's
+   multiply) was not to be taken. The ``__debug__`` tier and its #664
+   tags retired at ``ab37d078``. What the parse cannot reach is the
+   operator algebra's bare iterate, which now passes the shape leg and
+   lacks only the identity leg; it is tracked by #664.
+
+The comparison is cheap. Production spaces are interned:
+``FunctionSpace.__eq__`` returns on ``other is self`` before it compares
+identity keys. `[M]` 2026-10-30, the test-architect's cost probe
+(``scratch/membership_covector/spec/probes/u1_cost.py``, the minimum of 15
+repeats of 20 000 calls): ``inner_product`` costs 12.3 µs, the identity
+comparison 0.128 µs and a bare shape comparison 0.123 µs, about 1 % per
+call. The U1b specification measured the primitive's parse at 0.21 µs and
+predicted about 0.3 % of an S\ :sub:`N` solve (`[R]`, not measurable end
+to end). This is sizing, not a gate.
 
 Scalar verbs take exact members; actions take a leading member
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2939,7 +3209,8 @@ probe above: on a :math:`(2, 3, 5)` element over :math:`V` and a counting
 ``np.sum(V.apply_metric(x) * x)`` bit for bit, so the re-pose moves no
 value; a weighted :math:`P` would move it, and that is now a choice
 spelled at the call site. The same raw call on :math:`V` alone is refused
-under ``__debug__``.
+on every run (the exact parse; under ``__debug__`` only, until
+``ab37d078``).
 
 Who carried a payload (the census the split rests on, `[M]` 2026-10-30):
 
@@ -2977,17 +3248,22 @@ Who passes what today
   solve gauges a ``ScalarFlux`` on its pose. The integration co-vector
   :attr:`~orpheus.numerics.space.FunctionSpace.integral` mints from a
   typed member too (:ref:`spaces-covector`).
-- **Raw:** the full-field composite
+- **Bare, so the shape leg only:** the full-field composite
   (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`)
   hands its block spaces their coordinates, in its inner product and in
-  both metric legs; the action sites of the operator algebra pass bare
-  arrays (`[M]` before the carve, the specification's §U1.2: 14 action
-  sites, and every production carrier observed at every exercised site an
-  ``ndarray``); and the ``InnerProductFunctional`` inside the rank-one
-  fission operator has no domain or codomain space, so its exact-shape
-  check runs under ``__debug__`` only (the homogeneous solve's
+  both metric legs (#666, below); the action sites of the operator
+  algebra pass bare arrays, because the iterate of ``power_iteration``
+  and of the inner solves is a bare array (`[M]` before the U1 carve, the
+  specification's §U1.2: 14 action sites, and every production carrier
+  observed at every exercised site an ``ndarray``); and the
+  ``InnerProductFunctional`` inside the rank-one fission operator has no
+  domain or codomain space (the homogeneous solve's
   ``fission.production_rate.evaluate(phi)`` reaches it with a bare
-  array). These are the debt #664 names.
+  array). Each of these is parsed at its domain's shape on every run since
+  U1b (the fission functional at the weight's exact shape since
+  ``123166fb``; a plain binding's operand through ``admit_array`` since
+  ``6b4f342e``), and none carries the identity leg. Typing the bare
+  iterate, so that no production action is bare, is tracked by #664.
 
 The route gate ``tests/gates/cross_method/test_production_pairs_typed_members.py``
 pins the typed half: it replaces the exact-shape verb
@@ -2997,8 +3273,17 @@ pairing) by one that refuses a bare array, and runs one eigenvalue solve
 per sharp method (homogeneous, diffusion, an S\ :sub:`N` two-region
 vacuum slab), each with a liveness count of the typed calls it admitted.
 The action verb ``leading_coordinates_of`` is deliberately not patched:
-an action legitimately carries a trailing batch, and its raw tier is the
-#664 debt. `[M]` 2026-10-30, the U2c commit: before
+an action legitimately carries a trailing batch, and its operand is the
+operator algebra's bare iterate (tracked by #664). Since D1 (``6b4f342e``)
+the exact verb has one action caller as well, the plain binding's
+admission :func:`~orpheus.transport.operators.lift.admit_array`; the spy
+passes a call through, uncounted, when its immediate caller is
+``admit_array``, identified by the caller's code object rather than by a
+name. The exemption is sound only while every production caller of
+``admit_array`` is an action verb (``apply``, ``apply_transpose``,
+``solve``): a pairing re-spelled through it would pass the spy unseen
+(`[M]` ``6b4f342e``'s record: the gate's documented mutation, re-spelling
+the homogeneous total flux as ``space.flat(space.unit)``, still reds it). `[M]` 2026-10-30, the U2c commit: before
 :attr:`~orpheus.numerics.space.FunctionSpace.integral` existed, the gate's
 frame probe found exactly two raw callers, one call each in diffusion and
 homogeneous, both handing the space its own unit as a bare array to
@@ -3029,27 +3314,62 @@ a dual arrow does not swap. That is #633, placed by the issue in S6c of
 ``.claude/plans/numerics_untangling.md`` (ruling 77, moments as
 covectors).
 
-**Gates.** ``tests/gates/numerics/test_space_membership.py``, in three
-rungs:
+**Gates.** Every row below runs under the canonical ``python -O -m
+pytest``; no ``skipif(__debug__)`` row remains under ``tests/`` since
+``123166fb`` (the commit record). The ladder, lowest rung first:
 
-1. the typed tier, which runs under ``-O``: a member is admitted and reads
-   the raw call's number (:math:`210` on :math:`V`); a member of the
-   equal-shape space :math:`W` is refused by ``inner_product`` and by
-   ``apply_metric``; ``coordinates_of`` returns the field's own
-   coordinates (``is``); two axes-less spaces
-   of one name and shape with different weights are two spaces, and a
-   member of one is refused by the other;
-2. the raw tier: a flat carrier on a column space and a payload tail on a
-   scalar verb are refused, and a lower-rank element is refused by an
-   action, each only under ``__debug__``; a companion under ``-O`` asserts
-   the raw scalar call does not raise and pins no value; a trailing batch
-   rides through an action on every run;
-3. the re-pose witness: the ``V * P`` pairing with a counting :math:`P`
-   equals the action-then-sum reading.
+1. ``tests/gates/numerics/test_coordinate_space.py`` (L0, the
+   primitive and its first consumers), one class per rung:
+   ``TestThePrimitive`` (the two fragments are disjoint, the module sits
+   below every concept, it has no debug tier, a member is returned as
+   itself, every broadcastable non-member is refused by the exact parse, a
+   payload rides the leading parse, a wrong shape is a ``ValueError``, the
+   message names its owner); ``TestTheSpaceVerbsParseOnEveryRun`` (the
+   space's verbs and ``Member`` reach the primitive);
+   ``TestBelowTheSpaceEachObjectParsesItsDomain`` (the metric blocks, the
+   legacy weights checked once when the space is built, the measure, the
+   functional, the basis contractions, and every basis family inheriting
+   the one parse); ``TestABoundFaceParsesAtItsEnds`` (the frame faces and
+   the cross-Gram inverse, with a typed member of another space refused);
+   ``TestAnEngineIsMintedWithItsDomainShape`` (the engine refuses every
+   broadcastable non-member, the placement is a view and the multiply is
+   unchanged, a one-position weight is the placement ``(k,)``, a
+   coefficient that does not fill its positions is refused when built);
+   ``TestThePlacementIsReadByLabel`` (by label, an unlabelled space
+   refused, a factor out of order refused).
+2. ``tests/gates/numerics/test_space_membership.py``, in three rungs: the
+   identity leg (a member is admitted and reads the bare call's number,
+   :math:`210` on :math:`V`; a member of the equal-shape space :math:`W` is
+   refused by ``inner_product`` and by ``apply_metric``;
+   ``coordinates_of`` returns the field's own coordinates, ``is``; two
+   axes-less spaces of one name and shape with different weights are two
+   spaces); the shape leg of a bare array (a flat carrier on a column space
+   and a payload tail on a scalar verb are refused on the fragment
+   ``exact shape``, a lower-rank element by an action on ``leading
+   shape``, and a trailing batch rides through an action); and the
+   re-pose witness (the ``V * P`` pairing with a counting :math:`P` equals
+   the action-then-sum reading).
+3. ``tests/gates/homogeneous/test_plain_binding_admits_typed.py`` (D1,
+   above).
+4. ``tests/gates/cross_method/test_one_parse_on_production.py`` (L0,
+   ``rests_on`` the three primitive classes of rung 1), on production
+   objects of the homogeneous, S\ :sub:`N` and diffusion families. Its
+   class ``TestTheSilentRowsAreRefused`` holds the 20 rows that returned
+   without raising under ``-O`` before U1b (`[M]` ``4882293a``'s record,
+   the file run against a ``git archive 6aa26d00`` copy outside the
+   repository: 20 of 20 ``DID NOT RAISE``): 5 outer products (ERR-122's
+   input among them, the row carrying its marker), 11 implicit pullbacks
+   :math:`x\otimes 1`, and 4 non-members out. Its routing gate,
+   ``test_every_admission_reaches_the_one_primitive``, rebinds the
+   primitive to a sentinel in every module that imported it and requires
+   each of 25 admission sites to reach it FIRST, with the site's own owner
+   tag, so a site keeping its own comparison, or credited by a parse
+   downstream of it, reds. `[M]` the same record: the arm that makes
+   ``coordinates`` a no-op reds 41 rows, and the arm that makes the
+   leading parse exact reds 85 with 26 errors. The two composite sites
+   are a strict ``xfail`` (#666), with a row asserting the ``xfail`` is
+   strict.
 
-The ``__debug__`` rows carry the skip pair of the ``vv-testing`` rule and
-are run without ``-O``:
-``.venv/bin/python -m pytest -p no:cacheprovider tests/gates/numerics/test_space_membership.py``.
 The raising leg's membership (it admits a member of :math:`V^{*}` and
 refuses one of :math:`V`) is gated with the co-vector, in
 ``tests/gates/numerics/test_covector.py`` (:ref:`spaces-covector`).
@@ -3672,7 +3992,7 @@ constructor: ``V.flat(w)`` is ``Covector(values=V.apply_metric(w),
 space=V.dual())``, the same arithmetic as
 :class:`~orpheus.numerics.operator.RieszLowerOperator`, and the density
 is itself asked to be a member of :math:`V` (typed, compared by content;
-or a bare array of the exact shape under ``__debug__``). A co-vector's
+or a bare array of the exact shape, on every run). A co-vector's
 ``evaluate(x)`` is ``float(np.sum(c * V.coordinates_of(x)))``: the dual's
 primal is asked whether :math:`x` is a member, so a member of an
 equal-shape space with another metric is refused on every run.
@@ -7120,9 +7440,10 @@ taken.
        unit of ``.claude/plans/space_membership_covector_gauge.md`` with
        `#633 <https://github.com/deOliveira-R/ORPHEUS/issues/633>`_ (a
        field on a dual space still carries its primal space). What stands
-       in today is the raw tier of :ref:`spaces-membership`: a bare array's
-       shape is checked under ``__debug__`` only, and the full-field
-       composite hands its blocks coordinates instead of members.
+       in today is the shape leg of :ref:`spaces-membership`: a bare
+       array's shape is parsed on every run since U1b, but a bare array
+       cannot answer which space it belongs to, and the full-field
+       composite hands its blocks coordinates instead of members (#666).
 
 
 .. _spaces-development-history:
@@ -7148,6 +7469,25 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-30
+     - **One parse at the domain; every extension named** (unit U1b of
+       ``.claude/plans/space_membership_covector_gauge.md``). Membership is
+       one parse with two legs, both on every run: the identity leg on the
+       space, and the shape leg in the new bottom-tier module
+       :mod:`orpheus.numerics.coordinate_space` (exact, and leading for
+       :math:`A\otimes I_P`), so the objects below the space (measure,
+       metric blocks, basis contractions, the inner-product functional)
+       parse their own domains. The ``__debug__`` tier retired. The
+       diagonal engine is minted with its domain shape and the positions
+       its coefficient spans, read by label through
+       ``positions_spanned_by``. A plain binding admits a typed member of
+       its end (D1). Every production admission routes through the
+       primitive; ERR-122 is closed on every path
+       (:ref:`spaces-membership`).
+     - #664, #669
+     - *(in development)*, ``53736b2b``, ``ab37d078``, ``123166fb``,
+       ``ef113fdd``, ``112106eb``, ``6b4f342e``, ``f04c96de``,
+       ``4882293a`` on branch ``refactor/space-membership``
    * - 2026-10-30
      - **The co-vector, and a form only on a Modal axis** (unit U2 of
        ``.claude/plans/space_membership_covector_gauge.md``). U2a: a dense

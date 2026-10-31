@@ -11657,6 +11657,26 @@ older entries classify against.
    labelled axes is refused with a ``TypeError`` rather than guessed
    positionally.
 
+   **Since U1b** (``112106eb``, 2026-10-30, *in development* on branch
+   ``refactor/space-membership``), the paragraph above is the fix's history:
+   the private helper ``_broadcast_axes`` and the engine's ``broadcast_axes=``
+   argument are retired. The by-label reading moved into numerics as
+   :meth:`FunctionSpace.positions_spanned_by
+   <orpheus.numerics.space.FunctionSpace.positions_spanned_by>`, which returns
+   the array positions a sub-product's axes occupy (the complement of the old
+   tuple) and also refuses a sub-space whose labels run in another order (a
+   transposed coefficient). The multiplier mints its engine as
+   ``DiagonalOperator(f.values, shape=bulk.shape,
+   spans=bulk.positions_spanned_by(f.space))``, and the assembled diagonal
+   reads the engine's one ``placed_coefficient``, so the two faces still share
+   one placement (:ref:`spaces-membership`, "The two named extensions"). The
+   catching rows below are unchanged and still carry the marker. The re-drop
+   recipe recorded under them (``_broadcast_axes`` monkeypatched) was run
+   against the retired helper and cannot be run as written. The successor
+   site to mutate is ``FunctionSpace.positions_spanned_by``, the one
+   placement the engine and the assembled diagonal read; a re-drop recipe
+   in that spelling has not been written or run since U1b.
+
    **Catching tests.** In
    ``tests/gates/transport/test_multiplication_operator.py``, class
    ``TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan``, the five LD rows
@@ -11831,13 +11851,18 @@ older entries classify against.
 .. error-entry:: ERR-122
    :title: The integrated production rate read 0.225 for the exact 0.095 when a flat (ng,) flux met the homogeneous (ng, 1) cross section, because the contraction let numpy broadcast the pair into their outer product and summed it
 
-   **Status:** ✅ **CLOSED ON THE FORMAL PATH, GUARDED IN DEVELOPMENT MODE ON THE RAW PATH** (the raw
-   check runs under ``__debug__``). The broadcast was first
-   refused at ``e42fd498`` (the carrier must host the weight's shape); U2b (``64cc3a7a``) made the raw-path check the
-   exact shape under ``__debug__`` only, by the user's ruling R1 of the space-membership plan; U2c (``36dbac9d``) made
-   the reaction rate a co-vector paired with typed members, so a production solve cannot spell the input. Under
-   ``python -O`` a bare flat array handed to the rate still returns 0.225: that residue is the raw tier's debt, #664.
-   Latent in production: the homogeneous solver always posed the :math:`(n_g, 1)` column.
+   **Status:** ✅ **CLOSED ON EVERY PATH, ON EVERY RUN** (``-O`` included), by U1b of the space-membership plan
+   (*in development* on branch ``refactor/space-membership``: the primitive ``53736b2b``, the space's parse
+   ``ab37d078``, the objects below the space ``123166fb``, the frame faces ``ef113fdd``, the engine ``112106eb``, the
+   plain bindings ``6b4f342e`` and ``f04c96de``, the production admissions ``4882293a``). The history: the broadcast
+   was first refused at ``e42fd498`` (the carrier must host the weight's shape); U2b (``64cc3a7a``) made the raw-path
+   check the exact shape under ``__debug__`` only, by the user's ruling R1; U2c (``36dbac9d``) made the reaction rate
+   a co-vector paired with typed members, so a production solve cannot spell the input. Until U1b a bare flat array
+   handed to the rate under ``python -O`` still returned 0.225; since ``ab37d078`` the space's parse refuses it on
+   every run (``NotInCoordinateSpace``, a ``ValueError``). What a bare array still cannot be told is WHICH space it
+   belongs to: an equal-shape array of another space passes the shape leg, and only a typed member carries the
+   identity leg; the operator algebra's bare iterate is tracked by #664 (:ref:`spaces-membership`). Latent in
+   production: the homogeneous solver always posed the :math:`(n_g, 1)` column.
 
    **Module:** ``numerics`` (``orpheus/numerics/functional.py``, ``InnerProductFunctional.evaluate``, which the
    reaction rate routed through until U2c) and ``transport``
@@ -11861,24 +11886,39 @@ older entries classify against.
    specification found it (``scratch/layer_dag/refiling/specs_2/numerics_laws.md`` §5c) while writing a numerics law
    over the functional.
 
-   **Fix.** Two tiers (:ref:`spaces-membership`). The formal path: the reaction rate is the pairing of the co-vector
-   ``V.flat(σ)`` with a member of :math:`V`, and the three sharp methods hand it a typed
-   :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`, whose construction refuses a shape that is not its
-   space's on every run (:ref:`integrated-reaction-rate-covector`). The raw path: a bare array must have the space's
-   exact shape, checked under ``__debug__``.
+   **Fix.** One parse at the domain, with two legs, both on every run (:ref:`spaces-membership`). The identity leg:
+   the reaction rate is the pairing of the co-vector ``V.flat(σ)`` with a member of :math:`V`, and the three sharp
+   methods hand it a typed :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`, whose construction refuses a
+   shape that is not its space's (:ref:`integrated-reaction-rate-covector`). The shape leg: a bare array must be an
+   element of the coordinate space :math:`\mathbb R^{(n_g, 1)}`, parsed by
+   :func:`~orpheus.numerics.coordinate_space.coordinates` inside
+   :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`; the same primitive parses the operand of every
+   object that owns its domain shape below the space (a measure, a metric block, a basis contraction, the
+   ``InnerProductFunctional`` of the fission dyad, the diagonal engine), so no verb on the path is left to numpy's
+   broadcast closure. Until U2b the functional's check was the carrier-hosts-the-weight test of ``e42fd498``, and
+   from U2b to U1b the exact-shape check ran under ``__debug__`` only.
 
-   **Catching tests.** ``tests/gates/homogeneous/test_reaction_rate_on_the_pose.py::TestTheReactionRateOnThePose::test_a_typed_flat_carrier_cannot_be_built``
-   carries ``@pytest.mark.catches("ERR-122")``: on every run, ``-O`` included, a :math:`(2,)` scalar flux on the
-   :math:`(2, 1)` pose is refused at construction. `[M]` 2026-10-30, ``python -O -m pytest`` on that class and the
-   overlay module, with the member's shape check removed in-process at ``pytest_configure``: the catcher reds, alone;
-   the null arm is green. Its companion
-   ``test_a_flat_carrier_on_the_homogeneous_column_space_is_REFUSED`` pins the raw path's refusal and carries no marker:
-   it is skipped under ``-O``, so the canonical invocation never runs it (``vv-principles`` #36). What no gate pins is
-   the raw path under ``-O``, which reads 0.225 today by design of the raw tier (#664).
+   **Catching tests.** Two rows carry ``@pytest.mark.catches("ERR-122")``, one per leg, both on every run:
+
+   - ``tests/gates/homogeneous/test_reaction_rate_on_the_pose.py::TestTheReactionRateOnThePose::test_a_typed_flat_carrier_cannot_be_built``,
+     the typed path: a :math:`(2,)` scalar flux on the :math:`(2, 1)` pose is refused at construction. `[M]`
+     2026-10-30, ``python -O -m pytest`` on that class and the overlay module, with the member's shape check removed
+     in-process at ``pytest_configure``: the catcher reds, alone; the null arm is green.
+   - ``tests/gates/cross_method/test_one_parse_on_production.py::TestTheSilentRowsAreRefused::test_the_reaction_rate_refuses_a_flat_carrier``,
+     the bare path: ``production_rate.evaluate`` on the flat :math:`(2,)` array raises on the fragment
+     ``exact shape``. `[M]` ``4882293a``'s commit record: the 20 rows of that class (this one among them) each
+     returned without raising under ``-O`` at a ``git archive`` copy of ``6aa26d00``, the last commit before U1b, 20 of
+     20; and the routing gate of the same file, which rebinds the primitive to a sentinel, reaches it from 25 of 25
+     admission sites.
+
+   The companion ``test_a_flat_carrier_on_the_homogeneous_column_space_is_REFUSED`` in the first file pins the same bare
+   refusal through the space and carries no marker. It ran under ``__debug__`` only until ``ab37d078``, which removed
+   its skip; since ``123166fb`` no ``skipif(__debug__)`` row remains under ``tests/`` (the commit record).
 
    **Cross-reference.** **ERR-121**, the other defect the space-membership plan closed: there two metric sources on one
    block, here an axis the contraction did not know about, contracted with unit weights.
 
    **Lesson.** A contraction that accepts any broadcastable pair computes an operation its equation does not contain
-   whenever the shapes differ; membership has to be asked of the space, and the guarantee holds only on the path where
-   the member is typed.
+   whenever the shapes differ. Membership is a parse at the verb's domain, with a shape leg every operand owes on every
+   run and an identity leg only a typed member can answer; a check kept for development mode leaves the release build
+   computing the outer product.

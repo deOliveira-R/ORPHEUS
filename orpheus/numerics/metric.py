@@ -408,9 +408,11 @@ class DiagonalMetric(HilbertMetric):
         # The legacy weights array may be broadcast-shaped (``(1, 4, 1)`` on a
         # ``(3, 4, 2)`` space): the weights are leading-aligned and must
         # extend to the element's shape, never the element to theirs. The
-        # check runs once, here, when the space is built; the space parses
-        # each element (``FunctionSpace.leading_coordinates_of``), so the
-        # metric's own legs carry no per-call check.
+        # check runs once, here, when the space is built. Each element is
+        # parsed per call as well: by the space
+        # (``FunctionSpace.leading_coordinates_of``) and, below it, by the
+        # metric's own legs (``apply_block`` and ``FactoredMetric``'s walk
+        # parse their block with the coordinate-space primitive).
         aligned = _broadcast_leading(self.weights, len(shape)).shape
         try:
             extended = np.broadcast_shapes(aligned, shape)

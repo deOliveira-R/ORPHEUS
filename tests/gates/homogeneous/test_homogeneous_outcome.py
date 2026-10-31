@@ -11,8 +11,9 @@ rational answer of the float inputs.
 ⚠ ≥ 2G on purpose: ``[M]`` until the space-membership unit U2c (2026-10-30)
 ``IntegratedReactionRate.evaluate`` silently accepted an ``(ng,)`` vector and
 returned the WRONG number (200.0 at 2g where the column reads 100.0; ERR-122). A
-typed ``(ng,)`` flux on the ``(ng, 1)`` pose can no longer be built, and a bare
-array is refused under ``__debug__`` only (the raw tier, ruling R1). At 1g the two
+typed ``(ng,)`` flux on the ``(ng, 1)`` pose can no longer be built, and since
+U1b (2026-10-30) a bare array of the wrong shape is refused on every run, ``-O``
+included (the raw ``__debug__`` tier of ruling R1 is gone). At 1g the two
 spellings coincide, so a law written there would be blind to that class.
 """
 

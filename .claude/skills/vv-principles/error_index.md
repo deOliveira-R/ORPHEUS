@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**122 entries · 351 catching tests · 2 uncaught · 5 dormant.**
+**122 entries · 352 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -170,4 +170,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-119 | 3 |  | The transport multiplier broadcast σ over the leading ordinate axis only, so on a linear-discon… |
 | ERR-120 | 2 |  | A hollow cylinder's or sphere's declared inner boundary condition was dropped in silence, becau… |
 | ERR-121 | 1 |  | A dense form could be positioned on a counting-measure axis, so a cross-section space carried t… |
-| ERR-122 | 1 |  | The integrated production rate read 0.225 for the exact 0.095 when a flat (ng,) flux met the ho… |
+| ERR-122 | 2 |  | The integrated production rate read 0.225 for the exact 0.095 when a flat (ng,) flux met the ho… |

@@ -58,7 +58,7 @@ carries BOTH populations and says which is the discriminating one.
 U2c (2026-10-30, ERR-122) ``IntegratedReactionRate.evaluate`` silently accepted
 the ``(ng,)`` flux ``HomogeneousResult`` stores and returned ``200.0`` where the
 ``(ng, 1)`` column reads ``100.0`` (2g; 411.27 vs 100.0 at 4g; **equal at 1g**);
-a bare array is now refused under ``__debug__`` only (ruling R1).  ⟹ a 1-group gauge row cannot see it — the Cardinal
+since U1b (2026-10-30) a bare array of the wrong shape is refused on every run, ``-O`` included.  ⟹ a 1-group gauge row cannot see it — the Cardinal
 Rule's ≥2G demand, at the gauge tier.
 
 Marks
