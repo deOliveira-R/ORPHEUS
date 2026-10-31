@@ -116,6 +116,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.numerics.coordinate_space import leading_coordinates
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.operators.angular_lift import AngularLift
 from orpheus.transport.operators.bound_operator import BoundOperator
@@ -178,12 +179,13 @@ class FissionMomentOperator(BoundOperator):
 
     def _admit(self, moments: np.ndarray) -> None:
         head = self._head
-        rank = len(head.shape)
-        if moments.ndim < rank + 1 or moments.shape[:rank] != tuple(head.shape):
+        leading_coordinates(moments, tuple(head.shape), owner="FissionMomentOperator")
+        if moments.ndim < len(head.shape) + 1:
             raise ValueError(
                 f"FissionMomentOperator acts on L=0 moment tensors whose "
                 f"leading axes are the head {tuple(head.shape)} of "
-                f"{head!r} (then ng, *spatial); got shape {moments.shape}"
+                f"{head!r} THEN (ng, *spatial): the energy dyad needs that "
+                f"payload; got shape {moments.shape}"
             )
 
     def apply(self, moments: np.ndarray) -> np.ndarray:

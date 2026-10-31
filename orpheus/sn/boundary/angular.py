@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.numerics.coordinate_space import leading_coordinates
 from orpheus.numerics.elementary_operators import checked_space_extent
 from orpheus.numerics.operator import LinearOperator
 
@@ -158,14 +159,11 @@ class PartialCurrentOperator(LinearOperator):
 
     def apply(self, psi: np.ndarray) -> np.ndarray:
         r"""Contract :math:`\Gamma_+` to the partial current: ``(|Γ₊|, …) → (…)``."""
-        psi = np.asarray(psi)
-        if psi.shape[0] != self._cos_w.size:
-            raise ValueError(
-                f"PartialCurrentOperator.apply: psi has {psi.shape[0]} rows "
-                f"along the leading axis, expected |Γ₊| = {self._cos_w.size}. "
-                f"Its DOMAIN is the outflow half-trace — restrict with the "
-                f"trace space's γ₊ first."
-            )
+        # Its domain is the outflow half-trace Γ₊ (restrict with the trace
+        # space's γ₊ first); a payload rides the trailing axes.
+        psi = leading_coordinates(
+            np.asarray(psi), (self._cos_w.size,), owner="PartialCurrentOperator.apply (|Γ₊|)",
+        )
         return (
             self._cos_w.reshape((-1,) + (1,) * (psi.ndim - 1)) * psi
         ).sum(axis=0)
@@ -292,11 +290,7 @@ class IsotropicEmissionOperator(LinearOperator):
 
     def apply_transpose(self, phi: np.ndarray) -> np.ndarray:
         r"""``Bᵀ(φ) = Σ_{Γ₋} φ / norm``: ``(|Γ₋|, …) → (…)``."""
-        phi = np.asarray(phi)
-        if phi.shape[0] != self._n_inflow:
-            raise ValueError(
-                f"IsotropicEmissionOperator.apply_transpose: phi has "
-                f"{phi.shape[0]} rows along the leading axis, expected "
-                f"|Γ₋| = {self._n_inflow}."
-            )
+        phi = leading_coordinates(
+            np.asarray(phi), (self._n_inflow,), owner="IsotropicEmissionOperator.apply_transpose (|Γ₋|)",
+        )
         return phi.sum(axis=0) / self._norm

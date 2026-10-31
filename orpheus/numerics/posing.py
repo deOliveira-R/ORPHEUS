@@ -127,11 +127,19 @@ class SourcePosing(Generic[V]):
     source: Any
 
     def __post_init__(self) -> None:
+        codomain = self.operator.codomain
+        if codomain is None:
+            return
         space = getattr(self.source, "space", None)
-        if space is not None and self.operator.codomain is not None and space != self.operator.codomain:
+        if space is None:
+            # A bare source is parsed once, here, at the codomain's exact shape.
+            # A typed source keeps the comparison below: a composite source is
+            # not a flat member, and its identity leg is #666's.
+            codomain.coordinates_of(self.source)
+        elif space != codomain:
             raise ValueError(
                 f"SourcePosing: the source lives on {space!r} but the operator's "
-                f"codomain is {self.operator.codomain!r} — pose q on the operator's ends."
+                f"codomain is {codomain!r} — pose q on the operator's ends."
             )
 
     def residual(self, psi: Any) -> Any:

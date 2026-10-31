@@ -214,7 +214,9 @@ def admit_array(
     must have the end's exact shape. Only two refusals are this binding's
     own: a composite is refused naming :class:`BulkLift` (the composite
     action is the lift's), and an operand that is neither an array nor a
-    member is refused by type.
+    member is refused by type. A typed operand returns the same bare array
+    as its values (typed in, bare out): a known residue owned by #633, the
+    role typing of the arrows.
     """
     owner = type(op).__name__
     space = _end_space(op, end)

@@ -74,6 +74,7 @@ import numpy as np
 
 from orpheus.numerics.axis import EnergyAxis, FromBasis
 from orpheus.numerics.coefficient_layout import CellLayout
+from orpheus.numerics.coordinate_space import coordinates
 from orpheus.numerics.instance_cache import cached_on
 from orpheus.numerics.operator import LinearOperator
 
@@ -136,13 +137,7 @@ class _AxisMarginalBase(LinearOperator):
         return np.ascontiguousarray(np.moveaxis(out, range(len(self._dims)), self._dims))
 
     def _require(self, x: np.ndarray, space: "FunctionSpace", which: str, verb: str) -> np.ndarray:
-        x = np.asarray(x)
-        if x.shape != space.shape:
-            raise ValueError(
-                f"{type(self).__name__}.{verb}: input shape {x.shape} does "
-                f"not match the {which} space {space.shape}."
-            )
-        return x
+        return coordinates(np.asarray(x), space.shape, owner=f"{type(self).__name__}.{verb} ({which} space)")
 
     @property
     def is_invertible(self) -> bool:

@@ -440,7 +440,8 @@ class Solution(SolutionBase[O]):
             :math:`\rm 1/(cm^3 \cdot s)` — the reaction-rate density
             per group.
         """
-        return xs * self.scalar_flux.values
+        flux = self.scalar_flux
+        return flux.space.coordinates_of(xs) * flux.values
 
     # ── The production reading of an observable (#405 P2 step 7b.2.1) ──
 

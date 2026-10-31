@@ -117,6 +117,7 @@ from typing import TYPE_CHECKING, Optional, Protocol
 
 import numpy as np
 
+from orpheus.numerics.coordinate_space import coordinates
 from orpheus.numerics.operator import (
     InverseOperator,
     LinearOperator,
@@ -1192,14 +1193,13 @@ class RadialCharacteristicReconstruction(LinearOperator):
             RadialCharacteristicField,
         )
 
-        arr = np.asarray(moments)
-        expected = (self.n_moments, self._ray_space.ng, self._ray_space.nx)
-        if arr.shape != expected:
-            raise ValueError(
-                f"RadialCharacteristicReconstruction.apply expects a bulk "
-                f"Legendre-moment source of shape (n_moments, ng, nx) = "
-                f"{expected}; got {arr.shape}."
-            )
+        # The bulk Legendre-moment source (n_moments, ng, nx): an untyped
+        # intermediate with no minted space (``domain`` is None), parsed at
+        # its intrinsic shape.
+        arr = coordinates(
+            np.asarray(moments), (self.n_moments, self._ray_space.ng, self._ray_space.nx),
+            owner="RadialCharacteristicReconstruction.apply (n_moments, ng, nx)",
+        )
         seed = RadialCharacteristicField.source_zeros(self._field_space)
         for level in self._ray_space.levels:
             for sign in (-1, +1):

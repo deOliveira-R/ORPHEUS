@@ -1523,7 +1523,7 @@ class SNSolver:
         raise ValueError(f"Unknown inner solver: {self.inner_solver}")
 
     def compute_group_production_rate(
-        self, flux_distribution: np.ndarray,
+        self, flux_distribution: "np.ndarray | ScalarFlux",
     ) -> np.ndarray:
         r"""Per-group volume-integrated neutron production rate, shape ``(ng,)``.
 
@@ -1554,8 +1554,12 @@ class SNSolver:
         # elegance Pattern 3);
         # :meth:`~orpheus.transport.mesh.material_mesh.MaterialMesh.integrate_per_group`
         # owns the volume integral and the flat-view reshape it needs.
+        # The flux is parsed once at the problem's bulk space (a ScalarFlux by
+        # content, a bare array at the exact shape), so neither contraction
+        # below can broadcast a non-member.
+        flux = self.problem.bulk_space.coordinates_of(flux_distribution)
         per_cell_per_group = np.einsum(
-            "g...,g...->g...", self.problem.mat_xs.fission_production, flux_distribution,
+            "g...,g...->g...", self.problem.mat_xs.fission_production, flux,
         )
         rate = self.problem.integrate_per_group(per_cell_per_group)
 
@@ -1563,13 +1567,13 @@ class SNSolver:
         # dispatch loop (and the yield) lives ONLY inside
         # :meth:`TransferMaterialField.add_to_group_rate` (§14.1).
         self.problem.system.factors.n2n.isotropic_energy.transfer.add_to_group_rate(
-            rate, flux_distribution, self.volume,
+            rate, flux, self.volume,
         )
 
         return rate
 
     def compute_group_absorption_rate(
-        self, flux_distribution: np.ndarray,
+        self, flux_distribution: "np.ndarray | ScalarFlux",
     ) -> np.ndarray:
         r"""Per-group volume-integrated absorption rate, shape ``(ng,)``.
 
@@ -1581,10 +1585,12 @@ class SNSolver:
         − (n,2n) emission since #291/R7).
 
         Issue #196 PR-INDEX-5: ``flux_distribution`` is principled
-        ``(ng, nx, ny)``.
+        ``(ng, nx, ny)``, parsed at the problem's bulk space (a
+        :class:`ScalarFlux` by content, a bare array at the exact shape).
         """
         per_cell_per_group = np.einsum(
-            "g...,g...->g...", self.problem.mat_xs.absorption_cross_section, flux_distribution,
+            "g...,g...->g...", self.problem.mat_xs.absorption_cross_section,
+            self.problem.bulk_space.coordinates_of(flux_distribution),
         )
         return self.problem.integrate_per_group(per_cell_per_group)
 

@@ -89,6 +89,7 @@ import numpy as np
 
 from orpheus.data.cell_xs import assemble_cell_xs
 from orpheus.numerics import frame_faces
+from orpheus.numerics.coordinate_space import coordinates
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -327,6 +328,15 @@ class MaterialXSField:
         """
         from orpheus.numerics.basis import WeightedIndicatorBasis
         from orpheus.numerics.frame import PetrovGalerkinFrame
+
+        # The three fine fields share one layout, (n_fine, ng) in the
+        # measure's flat-cell order; each is parsed at it once, so no fold
+        # below can broadcast a (n_fine,) or (n_fine, 1) array.
+        fine = (measure.n_points, self.ng)
+        owner = "MaterialXSField.project_through_bilinear"
+        phi = coordinates(np.asarray(phi), fine, owner=f"{owner} (phi)")
+        phi_star = coordinates(np.asarray(phi_star), fine, owner=f"{owner} (phi_star)")
+        rho = coordinates(np.asarray(rho), fine, owner=f"{owner} (rho)")
 
         # Frame-shaped morphisms — still genuine Petrov-Galerkin frames (the
         # discipline type is load-bearing; the Mode-11 sentinel captures these

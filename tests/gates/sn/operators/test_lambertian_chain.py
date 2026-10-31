@@ -376,7 +376,7 @@ class TestTheDomainIsGammaPlus:
 
         # …and a caller that still classifies the old way is refused, rather
         # than silently averaging six rows against two weights.
-        with pytest.raises(ValueError, match=r"expected \|Γ₊\|"):
+        with pytest.raises(ValueError, match=r"PartialCurrentOperator\.apply \(\|Γ₊\|\).*leading shape"):
             lam.R.apply(np.ones((retired_strict.size, _NG)))
 
 
@@ -796,7 +796,7 @@ class TestShapeContract:
         assert n_plus < quad.n_ordinates  # activation: the two shapes differ
 
         for n_rows in (int(quad.n_ordinates), n_plus + 1):
-            with pytest.raises(ValueError, match=r"expected \|Γ₊\|"):
+            with pytest.raises(ValueError, match=r"PartialCurrentOperator\.apply \(\|Γ₊\|\).*leading shape"):
                 lam.R.apply(np.ones((n_rows, _NG)))
 
     def test_trailing_axes_pass_through_and_the_emission_is_isotropic(self):
