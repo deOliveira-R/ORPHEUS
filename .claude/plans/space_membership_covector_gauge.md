@@ -467,7 +467,7 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
 
 - **The left kernel is a fixed point, read through `.H`.** Aᵀy = 0 is the same as y = M⁻ᵀNᵀy, so the left fixed point is ker A's annihilator directly. Production iterates `M.inverse().H` and the lagged gains' `.H`, so the vectors land in the metric coordinates of `PredictedKernel.H`.
 - **The dense route's cost.** `[M]` At n = 2,304, assembly takes 10.9 s and the SVD 3.2 s. At n = 7,680 they take 66.9 s and 150 s. The declared dense limit is therefore about 3,000 (set from this measurement).
-- **The condition estimate.** `[M]` Hager–Higham (`scipy.sparse.linalg.onenormest`, t = 2, the algorithm gecon uses) on the gauged pseudo-inverse takes 9 solves on both thick boxes. It reads rcond 3.8e-4 against the exact 3.2e-4, and 7.59e-5 against the exact 7.59e-5. The 2-norm analogue, σ_{k+1}/σ_max, reads 1.3e-3 and 2.6e-4.
+- **The condition estimate.** `[M]` Hager–Higham (`scipy.sparse.linalg.onenormest`, t = 2; NOT gecon's algorithm, which is dlacn2, Higham's deterministic t = 1 variant, and scipy's draws from the global `np.random`, so production uses its own deterministic dlacn2 estimator in numerics) on the gauged pseudo-inverse takes 9 solves on both thick boxes. It reads rcond 3.8e-4 against the exact 3.2e-4, and 7.59e-5 against the exact 7.59e-5. The 2-norm analogue, σ_{k+1}/σ_max, reads 1.3e-3 and 2.6e-4.
 
 ### U3b — rulings and design (2026-10-31)
 
