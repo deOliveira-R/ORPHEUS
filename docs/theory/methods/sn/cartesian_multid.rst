@@ -6106,7 +6106,7 @@ transverse index, the **sawtooth**
    :by: orpheus.sn.operators.loss_kernel_gauge._block_support
 
 .. implements:: dd-null-sawtooth
-   :by: orpheus.sn.operators.loss_kernel_gauge._build_block_table
+   :by: orpheus.sn.operators.loss_kernel_gauge._block_generators
 
 .. (vv-status rationale) Structural identity: the null-space specialisation of
    the already-verified multi-D DD closure (dd-cartesian-2d) at psi_c = 0 — an
@@ -6343,13 +6343,17 @@ the dense factorisation is :math:`O(n_{\rm dof}^3)` and already costs
 build the driver reports as ``0.00 s``.
 
 The full construction — the **pair generators** that span the solution
-set of :eq:`dd-null-balance-combinatorial`, the blocked direct sum over
+set of :eq:`dd-null-balance-combinatorial` and the blocked direct sum over
 (ordinate orbit, group) that keeps a :math:`(12,12,12)` :math:`S_8`
 :math:`n_g{=}4` projector at ``[M]`` **150 MiB** where a dense basis
-would be **17.6 GiB**, and the single :math:`\sqrt G`-weighted SVD that
-does the rank reduction and the :math:`G`-orthonormalisation together —
-is the derivation of record in the module docstring of
-:mod:`~orpheus.sn.operators.loss_kernel_gauge` and is not repeated here.
+would be **17.6 GiB** — is the derivation of record in the module
+docstring of :mod:`~orpheus.sn.operators.loss_kernel_gauge` and is not
+repeated here.  The single :math:`\sqrt G`-weighted SVD that does the
+rank reduction and the :math:`G`-orthonormalisation together is not
+S\ :sub:`N`'s: it is the numerics basis mint
+:meth:`OrthonormalSpanBasis.of_generators
+<orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators>`,
+derived with the projector at :eq:`kernel-gauge-section`.
 
 .. _sn-loss-kernel-what-a-user-sees:
 
@@ -6631,9 +6635,33 @@ octant order therefore moves the excited axis, which couples this to
 The gauge — returning the canonical member
 -------------------------------------------
 
-:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge` is the
-:math:`G`-orthogonal projector :math:`\Pi` onto :math:`\ker A`, and the
-operation the solver performs at every exit that returns a trace is
+S\ :sub:`N` supplies the kernel's generators and nothing else; the
+projector is numerics'.
+:attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
+is built by
+:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`,
+which hands one
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelSummand` per
+(ordinate orbit, group) block to
+:meth:`KernelProjectionGauge.direct_sum
+<orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.direct_sum>`
+over the boundary-trace space.  A summand's support is the block's trace
+degrees of freedom (``_block_support``), its generators are the pair
+generators of :eq:`dd-null-balance-combinatorial` mapped onto those
+degrees of freedom through the sawtooth :eq:`dd-null-sawtooth`
+(``_block_generators``, an over-complete set that is not
+:math:`G`-orthogonal at :math:`d \ge 3`), its label is
+``sn_trace_orbit{orbit}_g{group}``, and its span is declared
+:math:`G`-orthogonal to the constants: every kernel mode is mirror-odd,
+the witness is
+``tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_kernel_modes_are_orthogonal_to_the_constants``
+on every shipped singular block, and the proof is owed (GitHub #636).
+The rank cut, the :math:`G`-orthonormalisation, the summand projectors and
+their sum are the numerics derivation at :eq:`kernel-gauge-section`.  The
+blocks' supports are disjoint, so the sum is a direct sum and the overlap
+check has nothing to compare.  The result is the :math:`G`-orthogonal
+projector :math:`\Pi` onto :math:`\ker A`, and the operation the solver
+performs at every exit that returns a trace is
 
 .. math::
    :label: sn-loss-kernel-gauge-projection
@@ -6659,7 +6687,9 @@ The right-hand identity is the whole safety argument: the projection is
 **cannot move the residual any convergence check reads**.  ``[M]`` on a deliberately
 truncated SI solve the exit balance defect reads ``0.3111434602740818``
 on the raw and on the gauged iterate alike, while the gauge correction
-goes :math:`3.59\times10^{-2} \to 4.9\times10^{-17}`.  It is applied
+goes :math:`3.59\times10^{-2} \to 4.9\times10^{-17}` (measured in the
+Euclidean norm before the space-membership unit U3, 2026-10-31, after
+which the exit reports the trace's :math:`G`-norm; :ref:`sn-exit-gauge`).  It is applied
 *after* the defect is measured, so the number reported describes the
 object the caller actually receives.
 
@@ -6694,9 +6724,11 @@ What ships
    * - surface
      - what it is
    * - :attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
-     - the cached projector.  On the hub because the kernel is
-       geometry-only; **zero blocks** on a non-singular configuration,
-       so :meth:`gauge <orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge.gauge>`
+     - the cached projector, a
+       :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`.
+       On the hub because the kernel is geometry-only; **zero summands**
+       on a non-singular configuration, so
+       :meth:`gauge <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.gauge>`
        is the identity and no consumer needs a ``None`` branch
    * - :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom`
      - a **three-state** verdict — present / absent / **UNDETERMINED** —
@@ -6709,7 +6741,8 @@ What ships
        :class:`~orpheus.numerics.convergence.ConvergenceWarning`: the
        solve converged perfectly and the ambiguity is in the *equation*
    * - :attr:`ExitReport.gauge <orpheus.numerics.outcome.ExitReport.gauge>`
-     - the measured :math:`\lVert\Pi\psi\rVert/\lVert\psi\rVert` as typed
+     - the measured :math:`\lVert\Pi\psi\rVert_G/\lVert\psi\rVert_G`, in
+       the trace space's own norm, as typed
        :class:`~orpheus.numerics.outcome.Evidence`.  A
        :class:`~orpheus.numerics.outcome.Measured` zero-ish value and
        "nothing was measured" are **different values**, and since
@@ -6733,7 +6766,7 @@ loudly and states that the trace was **not** gauge-fixed.
 
    * - configuration
      - trace DOFs
-     - blocks
+     - summands
      - :math:`\dim\Pi`
      - build (cached)
      - apply

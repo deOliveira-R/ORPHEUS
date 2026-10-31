@@ -42,6 +42,40 @@ them.  Trust ``git``, not this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-31
+     - **The loss-kernel projector is numerics'; the method supplies only
+       its generators** (unit U3 of the space-membership plan,
+       ``.claude/plans/space_membership_covector_gauge.md``). The class
+       ``LossKernelGauge``, its block basis ``LossKernelBasis`` and the
+       rank tolerance ``_RANK_RTOL`` retired.
+       :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
+       hands one summand per (ordinate orbit, group) block, carrying the
+       §3 pair generators, the label ``sn_trace_orbit{orbit}_g{group}``
+       and the declared zero unit, to
+       :meth:`KernelProjectionGauge.direct_sum
+       <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.direct_sum>`;
+       the :math:`\sqrt G`-weighted SVD became
+       :meth:`OrthonormalSpanBasis.of_generators
+       <orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators>`,
+       moved verbatim. The projector is spelled as an operator sum of
+       ``gather.H @ projector @ gather`` over the summands, so the
+       gauge's outputs moved by summation order alone: ``[M]`` at most
+       1.2e-16 of :math:`\max|x|` (the orchestrator's measurement), equal
+       to round-off and re-baselined as a declared delta against the carry
+       captured before the move. A declared zero unit is checked before it
+       is stored, and the metric is read through
+       :meth:`FunctionSpace.metric_diagonal
+       <orpheus.numerics.space.FunctionSpace.metric_diagonal>`. The exit reads the
+       protocol (``dimension == 0``, not the blocks) and reports the
+       correction in the trace's :math:`G`-norm: ``[M]`` 5.36 % where the
+       Euclidean ratio read 6.08 % on the excited :math:`(3,4)` box
+       (:ref:`sn-exit-gauge`). The predecessor's ``apply_transpose``
+       returned :math:`\Pi`, which is :math:`G`-self-adjoint and not
+       symmetric; nothing read it, and the transpose is now Euclidean
+       (:eq:`kernel-gauge-section`, :ref:`sn-loss-kernel-the-gauge`).
+     - #664, #344
+     - *(in development)*, ``2431e2f0`` on branch
+       ``refactor/space-membership``
    * - 2026-10-25
      - **The within-cell moment axis is the head of a basis** (the
        moment-basis carve, layer DAG ruling 19). Numerics had no object for
@@ -2465,7 +2499,7 @@ them.  Trust ``git``, not this column.
        **minimum-**\ :math:`\lVert\cdot\rVert_G` **member IS the physical
        answer**.  That same theorem explains why nothing could have caught it:
        every summed trace functional is blind by symmetry.
-       ⟹ :class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge`, a
+       ⟹ ``LossKernelGauge``, a
        :math:`G`-orthogonal projector built from a **closed form** (the ANOVA
        pair generators — no SVD of :math:`A`), as a **direct sum over
        (ordinate orbit** :math:`\times` **group) blocks** with disjoint

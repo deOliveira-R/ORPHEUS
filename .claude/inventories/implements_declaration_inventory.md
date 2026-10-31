@@ -599,7 +599,8 @@ note: Mathematical identity about the character orthogonality of reflection grou
 
 ## sn-loss-kernel-gauge-projection
 verdict: DECLARABLE
-implementers: orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge.gauge, orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge
+implementers: orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.gauge, orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge
+retargeted: 2026-10-31, the space-membership unit U3 retired the S_N class ``LossKernelGauge``; the projector and its section are the numerics ``KernelProjectionGauge``, built for S_N by ``build_loss_kernel_gauge``.
 confidence: high
 evidence: docs/theory/methods/sn/cartesian_multid.rst:5134 equation ψ ↦ ψ - Πψ; orpheus/sn/operators/loss_kernel_gauge.py:LossKernelGauge.gauge implements this projection operation
 note: The kernel gauging operation that returns trace values. LossKernelGauge class performs ψ - Πψ for the kernel projector Π. Tests verify that gauging preserves residuals and convergence certificates.

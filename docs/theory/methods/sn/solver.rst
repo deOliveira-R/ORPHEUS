@@ -2191,8 +2191,10 @@ Before O-5 the claim was spelled *on one solver*: rebind, then check the
 hub returned the **same object**.  With :math:`\sigma` a Problem datum it
 is spelled across **two hubs**, and the honest comparison is a
 measurement rather than an obvious one: ``[M]``
-:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge` defines
-no ``__eq__`` anywhere in its MRO, so ``==`` **is object identity** —
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
+(and the S\ :sub:`N` class ``LossKernelGauge`` before it, until the
+space-membership unit U3 of 2026-10-31) defines no ``__eq__`` anywhere
+in its MRO, so ``==`` **is object identity** —
 two content-equal hubs give ``g1 == g2`` → ``False``, and a ``==`` row
 would be a permanent false red.  (``apply`` is not a route either: the
 gauge's domain is an
@@ -3813,7 +3815,42 @@ Every entry that returns a trace applies the :math:`G`-orthogonal
 projection :math:`\psi \mapsto \psi - \Pi\psi`
 (:eq:`sn-loss-kernel-gauge-projection`) and records the magnitude it
 removed on :attr:`ExitReport.gauge
-<orpheus.numerics.outcome.ExitReport.gauge>`.  The
+<orpheus.numerics.outcome.ExitReport.gauge>`.  The magnitude is the
+relative correction in the boundary-trace space's own norm,
+
+.. math::
+
+   \frac{\lVert \Pi\psi \rVert_G}{\lVert \psi \rVert_G}
+   \;=\; \frac{\lVert \psi - \sigma(\psi) \rVert_G}{\lVert \psi \rVert_G} ,
+
+computed on the typed trace member by the space's
+:meth:`~orpheus.numerics.space.FunctionSpace.norm`, so it is measured in
+the metric the projector is orthogonal in.  The Euclidean ratio of the
+flat values, which the exit reported until the space-membership unit U3
+(2026-10-31), is a different number whenever the trace metric is not
+uniform.  The S\ :sub:`N` trace metric weights each slot by
+:math:`|\mu_a|\,w_n`, its direction cosine times its quadrature weight
+(the loss-kernel module docstring), and it is uniform only when every
+current-carrying ordinate has the same product: ``[M]`` 5 of the gate's 6 singular fixtures read a
+trace metric :math:`\max/\min` of 2.48, and the ``level_symmetric``
+:math:`S_2` box reads 1.0, which makes it the gate's control leg.
+``[M]`` 2026-10-31 on the
+excited all-reflective 2-D box (cells :math:`(3,4)`, ``level_symmetric``
+:math:`S_4`, mixture ``A`` 2-group, SI with boundary Gauss-Seidel,
+``inner_tol = 1e-13``; trace metric :math:`\max/\min = 2.48`;
+``scratch/membership_covector/u3/archivist_exit_probe.py``): the
+:math:`G`-norm correction reads :math:`5.358773\times10^{-2}` where the
+Euclidean one reads :math:`6.080483\times10^{-2}`, and the warning quotes
+**5.36 %**; on the unexcited :math:`(4,4)` box the two read
+:math:`2.6\times10^{-15}` and :math:`2.9\times10^{-15}`.  The gate
+``tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_exit_reports_the_correction_in_the_G_norm``
+holds the reported number to the space's norm on six singular fixtures,
+and the warning's quoted magnitude is loaded from the exit report rather
+than typed
+(``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py::test_the_repair_is_AUDIBLE_and_names_the_root_fix``).
+The exit reads only the :class:`~orpheus.numerics.gauge.KernelGauge`
+protocol: ``dimension == 0`` means no freedom, and ``gauge`` is the
+section.  The
 gauge is the **sibling** of the balance projection with one sharpening
 that changes what verification it owes: :eq:`sn-exit-balance-defect`
 *reports*, and this one *mutates*.  A forgotten balance-defect site
@@ -3829,7 +3866,8 @@ asserted rather than assumed:
   every convergence check reads cannot move**.  ``[M]`` on a deliberately
   truncated SI solve the balance defect reads ``0.3111434602740818``
   before and after, while the correction goes
-  :math:`3.59\times10^{-2} \to 4.9\times10^{-17}`.  It is applied
+  :math:`3.59\times10^{-2} \to 4.9\times10^{-17}` (Euclidean, measured
+  before U3).  It is applied
   **after** the defect is measured, so the reported number describes the
   object the caller receives.
 * **Bulk-invariant.**  The kernel is pure-trace (``[M]`` bulk share

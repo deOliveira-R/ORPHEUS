@@ -1114,7 +1114,12 @@ also excluded three test doubles under ``tests/``, one of them nested
 inside a test function, where a header grep anchored at column 0 misses
 it, and found that a runtime ``__subclasses__`` walk reproduces the
 production count once ``orpheus.sn.operators.loss_kernel_gauge`` is
-imported. The coefficient-space column is `[M]` 2026-10-22
+imported.  The space-membership unit U3 (2026-10-31) replaced the
+S\ :sub:`N` member ``LossKernelBasis`` with the numerics
+:class:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis`:
+`[M]` 2026-10-31, the recursive ``Basis.__subclasses__()`` walk after
+``import orpheus.numerics.basis`` alone reads **nine** production members,
+and importing the S\ :sub:`N` module adds none. The coefficient-space column is `[M]` 2026-10-22
 (``archivist_probe.py``) for the four members constructed there, `[M]`
 2026-10-25 for the two cell-basis rows (the S5 probe beside the census),
 and read from the code (each class's ``layout`` and
@@ -1169,12 +1174,14 @@ and read from the code (each class's ``layout`` and
        of the factors' layouts, measure the Kronecker product of the factors'
        Grams, support the nested ``Product``; the LD scheme's spatial-moment
        axis (:ref:`spaces-cell-basis`)
-   * - :class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelBasis`
-     - an index set of trace degrees of freedom
+   * - :class:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis`
+     - an index set named by its ``label`` (for the S\ :sub:`N` loss
+       kernel, a block of trace degrees of freedom)
      - ``DIAGONAL``, a theorem: the table is :math:`G`-orthonormal
      - one ``Modal`` axis, :class:`~orpheus.numerics.coefficient_layout.ModeLayout`
-       with a declared zero unit, no measure, support the block's index
-       set (rulings 86, 87)
+       with the unit :math:`\Phi^{\mathsf T} G\,\mathbf 1`, or a declared
+       zero unit (the S\ :sub:`N` kernel declares it), no measure, support
+       the summand's index set (rulings 86, 87)
 
 **Nodal and modal belong to the axis, not to the basis.**
 :class:`~orpheus.numerics.axis.BasisKind` is an axis slot
@@ -2577,6 +2584,55 @@ carries its own gate in ``tests/gates/numerics/test_space_of_axes.py``.
    an axis-built factor through one local ``w is not None`` test — the
    latter via the densifier — where the arms are now separate and the
    densifier is gone.)
+
+.. _spaces-metric-diagonal:
+
+Is the metric diagonal? One verb, answered by each realization
+--------------------------------------------------------------
+
+A consumer that needs **node weights** cannot use a form it can only
+apply: a frame's measure on a subset of the coordinates, such as the
+kernel gauge's summands (:eq:`kernel-gauge-section`), needs the number
+:math:`G_{nn}` on each coordinate, and that number exists only when the
+form is diagonal.  :meth:`HilbertMetric.diagonal
+<orpheus.numerics.metric.HilbertMetric.diagonal>` ``(shape)`` answers the
+question and returns the weights in one call: :math:`G\mathbf 1` over
+elements of ``shape`` when :math:`G` is diagonal, ``None`` otherwise.  A
+diagonal form is determined by its action on the constant, so the
+diagonal is ``apply`` of ones, exact (each entry is a product with
+``1.0``).  The base answer is ``None``, meaning *not known to be
+diagonal*, and each realization that is diagonal says so by overriding
+it:
+
+.. list-table:: ``diagonal(shape)`` per realization
+   :header-rows: 1
+   :widths: 30 70
+
+   * - realization
+     - answer
+   * - :class:`~orpheus.numerics.metric.DiagonalMetric`
+     - its weights extended to ``shape``
+   * - :class:`~orpheus.numerics.metric.FactoredMetric`
+     - :math:`G\mathbf 1` iff every block is Euclidean or diagonal, else
+       ``None``
+   * - :class:`~orpheus.numerics.metric.DualMetric`
+     - :math:`G^{+}\mathbf 1`, the primal's masked reciprocal (zero where
+       the primal weight is zero, :ref:`spaces-metric-moore-penrose`), iff
+       the primal is diagonal, else ``None``
+   * - :class:`~orpheus.numerics.metric.DenseMetric`
+     - ``None`` (the base answer)
+
+:meth:`FunctionSpace.metric_diagonal
+<orpheus.numerics.space.FunctionSpace.metric_diagonal>` forwards the
+question to the space's resolved metric over the space's ``shape``, and
+reads all ones on a Euclidean space.  The two composite spaces override
+it: :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+concatenates the interior's and the trace's diagonals, and
+:class:`~orpheus.numerics.coupled_system.CoupledSpace` its members', each
+in its flat layout, and each returns ``None`` if any block does.  The
+kernel gauge reads its metric only through this verb, so a dual space,
+whose metric is a :class:`~orpheus.numerics.metric.DualMetric` over a
+diagonal primal, is admitted there.
 
 .. _spaces-metric-moore-penrose:
 
@@ -7301,9 +7357,15 @@ taken.
        ``FunctionSpace`` still holds the resulting *name*, so the two
        producers agree by discipline rather than by construction.
        ``tests/gates/numerics/test_basis_domain.py::test_d6`` pins that
-       agreement, and pins the one pair that does NOT yet agree in
-       spelling (``LossKernelBasis``'s bare label against ``IndexSet``'s
-       ``index(...)``). ⛔ This clause read *"`[M]` ``measure.py:331``
+       agreement.  On this row's date it also pinned the one pair that
+       did not yet agree in spelling (``LossKernelBasis``'s bare label
+       against ``IndexSet``'s ``index(...)``); 2.0c discharged it by
+       having the measure read ``support=basis.domain``, and since the
+       space-membership unit U3 (2026-10-31) that basis is
+       ``OrthonormalSpanBasis``, built in
+       ``orpheus/numerics/kernel_projection_gauge.py`` with the same
+       ``support=basis.domain``, so ``test_d6`` pins only the basis's half
+       (its ``domain`` is ``IndexSet(label)``, named ``index(<label>)``). ⛔ This clause read *"`[M]` ``measure.py:331``
        still derives ``f"L2[{self.support}]"`` from a ``str``"* until
        2026-09-01: true when written, and repealed hours later by 2.0c,
        which is the campaign's own step. The level-1 view of this seam,

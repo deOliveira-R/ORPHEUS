@@ -1164,11 +1164,20 @@ member list in the plan's own row was incomplete:
   ``generating_measure.py:420``'s ``support=f"[{a},{b}]"`` was already
   saying, one interpolation at a time.
 - ``IndexSet`` **was minted twice, under incompatible spellings.**
-  `[M]` ``frame.py:759`` builds ``f"index({axis_label})"`` and
-  ``sn/operators/loss_kernel_gauge.py:1169`` builds
+  `[M]` 2026-08-31, ``frame.py:759`` built ``f"index({axis_label})"`` and
+  ``sn/operators/loss_kernel_gauge.py:1169`` built
   ``f"sn_trace_orbit{orbit}_g{group}"``, whose "points" are trace DOF
   indices cast to float. One family; ``label`` is what distinguishes
-  the instances.
+  the instances.  Neither site builds it today: the frame's spelling
+  retired with the numerics untangling's S1 (``5f850a69``), and since
+  the space-membership unit U3 (2026-10-31) the S\ :sub:`N` label is
+  composed by
+  :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`,
+  carried as
+  :class:`OrthonormalSpanBasis.label
+  <orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis>`,
+  and turned into ``IndexSet(label=self.label)`` by that basis's
+  ``domain``, whose ``name`` is ``index(<label>)``.
 
 ⚠ ``EnergyGroups`` is deliberately **not** a bare ``IndexSet``. A group
 index and any other integer-noded counting rule are indistinguishable
@@ -6845,7 +6854,9 @@ exists to argue against. `[M]` **0 of 6** shipped
 bases carried the name before this step — ``git show HEAD:`` over every
 module of :mod:`orpheus.numerics.basis` and over
 :mod:`orpheus.sn.operators.loss_kernel_gauge`, which is where
-:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelBasis` lives,
+``LossKernelBasis`` lived until the space-membership unit U3
+(2026-10-31) retired it into
+:class:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis`,
 returns zero occurrences in each. After it, **6 of 6** answer (the
 denominator is ``Basis.__subclasses__()`` walked recursively at runtime,
 not a hand-list) and the basis-side diff is **one** file,

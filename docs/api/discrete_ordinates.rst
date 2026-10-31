@@ -203,9 +203,14 @@ singular**, so the boundary trace a solve returns is a function of the cold
 start rather than of the problem (#344 — ``[M]`` up to 27.3 % apart, with both
 convergence functionals blind to the difference).
 
-:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge` is the
-:math:`G`-orthogonal projector onto :math:`\ker A`, built in **closed form** —
-no eigensolve and no SVD of :math:`A`. Its applicability is *derived*, never
+The module supplies the kernel in **closed form** — no eigensolve and no SVD
+of :math:`A` — as one spanning set of pair generators per (ordinate orbit,
+group) block, and
+:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge` hands
+them to the numerics
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`,
+which is the :math:`G`-orthogonal projector onto :math:`\ker A`
+(:eq:`kernel-gauge-section`). Its applicability is *derived*, never
 tabulated: :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` asks
 the spatial closure whether it leaves a face mode undamped
 (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)
@@ -219,8 +224,10 @@ The module docstring carries the full derivation: the diamond face involution
 that makes every null vector a bulk-zero face sawtooth, the substitution that
 empties the cell balance of all physics and leaves a purely combinatorial
 identity, the character/ANOVA solution and its pair generators, both counting
-laws as theorems, and the blocked :math:`G`-orthonormal representation that
-makes the projector shippable.
+laws as theorems, and the blocked representation that makes the projector
+shippable; the rank cut and the :math:`G`-orthonormalisation of each block are
+the numerics basis mint
+(:class:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis`).
 
 .. automodule:: orpheus.sn.operators.loss_kernel_gauge
    :members:

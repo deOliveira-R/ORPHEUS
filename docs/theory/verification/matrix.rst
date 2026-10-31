@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20059**
+Total tests collected: **20142**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2030, 10.1%
+   L0, 2097, 10.4%
    L1, 2914, 14.5%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14974, 74.6%
-   unmarked, 56, 0.3%
+   foundation, 14989, 74.4%
+   unmarked, 57, 0.3%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 19924
+   explicit, 20006
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 56
+   unmarked, 57
 
 Module × level grid
 -------------------
@@ -135,7 +135,7 @@ Module × level grid
    cross_method/test_eigenvalue, 0, 31, 0, 0, 53, 0
    cross_method/test_family_convergence_contract, 0, 0, 0, 0, 45, 0
    cross_method/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
-   cross_method/test_one_parse_on_production, 53, 0, 0, 0, 0, 0
+   cross_method/test_one_parse_on_production, 56, 0, 0, 0, 0, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
    cross_method/test_production_pairs_typed_members, 0, 0, 0, 0, 4, 0
    cross_method/test_specification_infinite_medium_k, 0, 2, 0, 0, 0, 0
@@ -486,6 +486,7 @@ Module × level grid
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 42, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
+   numerics/test_kernel_projection_gauge, 64, 0, 0, 0, 0, 0
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_linear_combination, 46, 0, 0, 0, 0, 0
@@ -578,7 +579,7 @@ Module × level grid
    operators/test_ld_adjoint_deferral, 0, 0, 0, 0, 20, 0
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
-   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 57, 6
+   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 70, 7
    operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_moment_domain_binding, 0, 0, 0, 0, 14, 0
@@ -707,7 +708,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 525, 0
+   test_layer_imports, 0, 0, 0, 0, 527, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
@@ -1834,7 +1835,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**56 tests** have no V&V level marker.
+**57 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1848,7 +1849,7 @@ taxonomy.
 
    ``tests/gates/derivations/test_reference_exterior_admission.py``, 17
    ``tests/gates/numerics/test_riesz_legs.py``, 8
-   ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 6
+   ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 7
    ``tests/gates/numerics/test_concept_order.py``, 5
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4

@@ -765,6 +765,31 @@ problem is decided by the specification,
 
 .. autodata:: orpheus.numerics.observable.Observable
 
+The kernel gauge — :mod:`orpheus.numerics.kernel_projection_gauge`, the
+:math:`G`-orthogonal projector onto an explicit kernel and its section, the
+minimum-:math:`G`-norm member of a coset of solutions.
+:meth:`KernelProjectionGauge.direct_sum
+<orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.direct_sum>`
+builds it from spanning
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelSummand`\ s, admits
+overlapping summands only when they are mutually :math:`G`-orthogonal, and
+refuses a space whose metric is not diagonal. Its basis mint is
+:mod:`orpheus.numerics.basis.orthonormal_span_basis`:
+:meth:`OrthonormalSpanBasis.of_generators
+<orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators>`
+returns the :math:`G`-orthonormal basis of the span of a set of generators by
+one :math:`\sqrt G`-weighted SVD, which does the rank cut and the
+orthonormalisation together. The theory, with the overlap rule, the
+:math:`G`-self-adjointness, the minimum-norm proof and what is the posing's
+and the method's to decide, is at :eq:`kernel-gauge-section`; the
+S\ :sub:`N` consumer is :ref:`sn-loss-kernel-the-gauge`.
+
+.. automodule:: orpheus.numerics.kernel_projection_gauge
+   :members:
+
+.. automodule:: orpheus.numerics.basis.orthonormal_span_basis
+   :members:
+
 .. automodule:: orpheus.numerics.convergence
    :members:
    :undoc-members:

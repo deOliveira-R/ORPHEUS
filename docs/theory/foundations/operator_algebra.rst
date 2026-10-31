@@ -8388,23 +8388,30 @@ stay so.  The layer contract forbids ``numerics → transport``
 :class:`~orpheus.transport.reaction_rate_functional.IntegratedReactionRate`
 even though that is what the first witness passes it.
 
-The kernel gauge, and why its group element comes from the TRACE
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The kernel gauge: a G-orthogonal projector and its section
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 For the source kind the group is :math:`(\ker A, +)` and the section is
 built from the :math:`G`-orthogonal projector :math:`\Pi` onto that
 kernel:
 
 .. (vv-status rationale) The kernel gauge's section — what the KernelGauge
-   Protocol IS.  Structural / representational: a definitional identity of
-   a numerics contract, sibling to scale-gauge-section above; the
-   minimum-norm claim's own mathematical content (every kernel mode is
-   mirror-odd, so the exact solution is G-orthogonal to ker A) is the #344
-   result documented at sn-loss-kernel-gauge.  Its verifiable content here
-   is tests/gates/numerics/test_gauge.py::TestLawTheKernelGauge — Π² = Π,
-   (I − Π)² = I − Π, Γ-invariance with the element drawn from Π's own
-   range on the trace space, residual-neutrality of the section, and the
-   negative leg showing a NON-kernel move IS visible in the residual.
+   Protocol IS and what its numerics realization computes.  Structural /
+   representational: a definitional identity of a numerics contract,
+   sibling to scale-gauge-section above.  Whether the minimum-norm member
+   is the PHYSICAL answer is a method's claim, not this identity's: for
+   S_N's diamond-difference kernel it is the #344 result documented at
+   sn-loss-kernel-gauge (every kernel mode is mirror-odd, so the exact
+   solution is G-orthogonal to ker A).  Its verifiable content here is
+   tests/gates/numerics/test_kernel_projection_gauge.py on a 9-dof space
+   with a non-uniform metric (idempotence of Π and of σ, G-self-adjointness,
+   the Euclidean transpose differing from Π, range = span, σ ⊥_G ker,
+   minimum norm, residual neutrality, the overlap rule), plus the S_N
+   production instances in tests/gates/numerics/test_gauge.py::
+   TestLawTheKernelGauge (Π² = Π, (I − Π)² = I − Π, Γ-invariance with the
+   element drawn from Π's own range on the trace space, residual
+   neutrality, and the negative leg showing a NON-kernel move IS visible in
+   the residual).
 .. vv-status: kernel-gauge-section documented
 
 .. math::
@@ -8416,46 +8423,372 @@ kernel:
    \operatorname{range}\Pi = \ker A ,
    \quad \Pi = \Pi^{\dagger_G} .
 
-:math:`\Pi` is self-adjoint in :math:`G` because it projects onto a
-:math:`G`-**orthonormal** span, which also collapses the :math:`G_b^{-1}`
-factor in each block to the identity — so the shipped realization's
-``apply_transpose`` is literally ``apply``, and the Euclidean transpose
-and the :math:`G`-adjoint coincide here rather than by accident.
+The projector is a numerics object, because nothing in it knows a
+neutron:
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
+is an endomorphism of one space :math:`V` whose metric :math:`G` is
+diagonal, and it is minted by
+:meth:`KernelProjectionGauge.direct_sum
+<orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.direct_sum>`
+from a tuple of
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelSummand`\ s.  A
+summand is a **spanning set** of the kernel over a finite support: its
+``support`` is a sorted, unique array of non-negative integer flat indices
+into :math:`V`, its ``generators`` are a ``(support.size, k)`` array of
+columns spanning its part of the kernel (an over-complete or
+non-orthogonal set is legal input), its ``label`` names the support, and
+``orthogonal_to_constants`` is the caller's declaration that the span is
+:math:`G`-orthogonal to the constant function.  The summand parses its
+own fields at construction and refuses any other shape, and
+``direct_sum`` refuses two summands with the same label (each label names
+its support's manifold, so two equal labels would make two coefficient
+spaces compare equal) and a support index outside :math:`V`.  :math:`V`
+must be one-dimensional, because a support is flat indices; a composite
+space qualifies through its flat layout.  Which
+columns span the kernel is the method's knowledge; S\ :sub:`N` supplies
+its diamond-difference pair generators through
+:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
+(:ref:`sn-loss-kernel-the-gauge`).
 
-:math:`\sigma(\psi)` is the **minimum-**:math:`G`-**norm** member of the
-coset, and that is canonical rather than conventional: the exact solution
-is itself :math:`G`-orthogonal to :math:`\ker A`, because every kernel
-mode is a mirror-odd face sawtooth (the #344 result, derived at
-:ref:`sn-loss-kernel-gauge`).  Two consequences:
+**The summand projector is the frame's.**  Let :math:`\gamma_b` be the
+:class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`
+gather onto summand :math:`b`'s support, :math:`W_b` the diagonal of
+:math:`G` on that support, and :math:`\Phi_b` the :math:`G`-orthonormal
+basis of the summand's span (next paragraph).  The basis and the measure
+with weights :math:`W_b` make a
+:class:`~orpheus.numerics.frame.GalerkinFrame`, whose reconstruction face
+is :math:`R_b = \Phi_b` (coefficients to values on the support) and whose
+analysis face is :math:`M_b = \Phi_b^{\mathsf T} W_b` (the measured
+moments).  The frame's Gram is :math:`M_b R_b = \Phi_b^{\mathsf T} W_b
+\Phi_b = I`, so the projector the frame conjugates,
+``frame_faces.conjugate(frame, CrossGramInverse.of(frame))``, is
+
+.. math::
+
+   \Pi_b \;=\; R_b\, (M_b R_b)^{-1} M_b \;=\; \Phi_b \Phi_b^{\mathsf T} W_b ,
+   \qquad
+   \Pi \;=\; \sum_b \gamma_b^{\mathsf T}\, \Pi_b\, \gamma_b ,
+
+which is the one spelling of "project onto a span" in the package; the
+gauge adds the sum over summands and nothing else.  The sum is spelled in
+the operator algebra, ``sum(s.gather.H @ s.projector @ s.gather)`` over
+the summands (an operator sum of compositions), and the empty sum is the
+:class:`~orpheus.numerics.operator.ZeroMorphism` on :math:`V`.
+``apply`` and ``apply_transpose`` delegate to that one expression, so
+the transpose and the adjoint follow from the algebra's laws for
+:math:`\sum`, :math:`\circ` and ``.H`` rather than from a hand-written
+loop.
+
+**The basis: one** :math:`\sqrt G`-**weighted SVD.**
+:meth:`OrthonormalSpanBasis.of_generators
+<orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators>`
+takes the generators :math:`B` (``(n_support, n_generators)``) and the
+metric's diagonal :math:`w` on the support and factors
+
+.. math::
+
+   W^{1/2} B \;=\; U S V^{\mathsf T} ,
+   \qquad
+   r \;=\; \#\{\, i : s_i > \varepsilon_{\rm rank}\, s_0 \,\} ,
+   \qquad
+   \Phi \;=\; W^{-1/2}\, U_{:,\,:r} .
+
+The column space of :math:`U_{:,:r}` is that of :math:`W^{1/2}B` once the
+round-off directions are cut, so :math:`\operatorname{span}\Phi =
+\operatorname{span}B`; and :math:`\Phi^{\mathsf T} W \Phi =
+U_{:,:r}^{\mathsf T} U_{:,:r} = I` exactly.  One factorisation does both
+jobs a derivation would otherwise spell twice: the rank reduction and the
+:math:`G`-orthonormalisation.  The orthonormalisation is not cosmetic.
+:class:`~orpheus.numerics.frame_faces.CrossGramInverse` reads a
+``DIAGONAL`` Gram by the row-sum probe ``analysis(reconstruction(ones))``,
+which equals the true diagonal only when the Gram is diagonal, and
+generators that share support are not :math:`G`-orthogonal (``[M]`` the
+S\ :sub:`N` pair generators read
+:math:`\max|\text{off-diagonal}|/\max|\text{diagonal}|` of
+:math:`B^{\mathsf T} G B` at ``1.72e-01`` on a :math:`(2,2,2)` box and
+``4.05e-01`` on :math:`(3,4,5)`, the module docstring of
+:mod:`~orpheus.sn.operators.loss_kernel_gauge`).  Declaring ``DIAGONAL``
+on raw generators would normalise every coefficient by the wrong number,
+silently; on :math:`\Phi` it is a theorem, and the frame's
+:math:`G_b^{-1}` is the identity.  Three rules complete the mint:
+
+* **the rank cut is not a tuning knob.**
+  :math:`\varepsilon_{\rm rank}` is ``SPAN_RANK_RTOL = 1e-10``.  ``[M]`` 2026-10-30
+  (``scratch/membership_covector/u3/rank_gap.py``): the S\ :sub:`N` loss
+  kernel's 50 blocks over six reflective boxes keep singular-value ratios
+  of at least ``3.68e-1`` and discard at most ``5.5e-16``, and the
+  over-complete numerics fixtures keep ``0.598`` and ``0.727`` and discard
+  ``2.9e-17`` and ``2.0e-17``; any cut in :math:`[10^{-14}, 10^{-2}]`
+  returns the same rank on all of them.  S\ :sub:`N`'s rank is also
+  checked against its counting law
+  (:eq:`dd-null-counting-law`), which is computed without building a
+  vector.
+* **a zero-metric row is refused.**  Every value on such a row has the
+  same, zero, :math:`G`-norm, so there is no minimum-norm member to
+  choose, and the :math:`W^{-1/2}` division would fail.  A summand of
+  rank 0 contributes nothing and is dropped.
+* **the unit.**  The basis's coordinates of the constant function are
+  :math:`\Phi^{\mathsf T} W \mathbf 1`, and ``of_generators`` always
+  computes them.  When a summand declares its span orthogonal to the
+  constants, ``direct_sum`` CHECKS the declaration before honouring it:
+  the computed unit divided by :math:`\lVert\mathbf 1\rVert_G` is a
+  :math:`G`-cosine, held to the same ``SUMMAND_ORTHOGONALITY_TOL = 1e-12``
+  as an overlap; a declaration the measurement contradicts is refused,
+  and one it confirms stores the exact zero, so the coefficient space's
+  identity does not hang on round-off (ruling 87,
+  :ref:`spaces-moment-head`).  S\ :sub:`N` declares it.
+
+**When a sum of projectors is a projector.**  Let :math:`\Pi_1` and
+:math:`\Pi_2` be idempotent.  Then
+
+.. math::
+
+   (\Pi_1 + \Pi_2)^2 \;=\; \Pi_1 + \Pi_2 + \Pi_1\Pi_2 + \Pi_2\Pi_1 ,
+
+so the sum is idempotent iff :math:`\Pi_1\Pi_2 + \Pi_2\Pi_1 = 0`.
+Multiply that condition by :math:`\Pi_1` on the left, and separately on
+the right:
+
+.. math::
+
+   \Pi_1\Pi_2 + \Pi_1\Pi_2\Pi_1 = 0 ,
+   \qquad
+   \Pi_1\Pi_2\Pi_1 + \Pi_2\Pi_1 = 0 .
+
+Subtracting gives :math:`\Pi_1\Pi_2 = \Pi_2\Pi_1`, and the condition then
+reads :math:`2\,\Pi_1\Pi_2 = 0`.  So a sum of two projectors is a
+projector iff :math:`\Pi_1\Pi_2 = \Pi_2\Pi_1 = 0`.  For
+:math:`G`-orthogonal projectors (:math:`G`-self-adjoint, below)
+:math:`\ker\Pi_1 = (\operatorname{range}\Pi_1)^{\perp_G}`, so
+:math:`\Pi_1\Pi_2 = 0` says :math:`\operatorname{range}\Pi_2 \perp_G
+\operatorname{range}\Pi_1`: **the sum is a projector iff the ranges are
+mutually** :math:`G`-**orthogonal**.  With more than two summands,
+pairwise mutual :math:`G`-orthogonality makes every cross product
+vanish, so the sum is again a projector, and ``direct_sum`` checks it
+pair by pair.
+
+* **Disjoint supports give it for free**, and only because :math:`G` is
+  diagonal: the :math:`G`-inner product of two modes is
+  :math:`\sum_n w_n\,\phi_a(n)\,\phi_b(n)`, a sum over the rows the two
+  supports share, which is empty.  A non-diagonal metric couples rows
+  across supports, and then a summand frame's measure (a weight vector)
+  cannot carry it.  The gauge reads the metric only through
+  :meth:`FunctionSpace.metric_diagonal
+  <orpheus.numerics.space.FunctionSpace.metric_diagonal>`, which returns
+  :math:`G\mathbf 1` when the metric is diagonal and ``None`` otherwise
+  (:ref:`spaces-metric-object`), and it refuses ``None`` with a
+  ``ValueError`` (a ``SCOPE-BOUNDARY`` guard: the machinery it waits for
+  is a summand frame over a dense-metric measure).  A dual space, whose
+  metric is the masked reciprocal of a diagonal primal, is diagonal and
+  is admitted.
+* **Overlapping supports are admitted iff the summands are mutually**
+  :math:`G`-**orthogonal.**  ``direct_sum`` finds every pair that shares
+  a row and computes the cross-Gram of their orthonormal modes on the
+  shared rows, :math:`\Phi_a[\text{common}]^{\mathsf T}\,
+  W_{\text{common}}\,\Phi_b[\text{common}]`; a largest entry above
+  ``SUMMAND_ORTHOGONALITY_TOL = 1e-12`` is refused with a ``ValueError``
+  that names both labels and says *merge them into one summand*.  The
+  case that needs the admission is the space-membership plan's ruling R3
+  (``.claude/plans/space_membership_covector_gauge.md``): on a closed
+  diamond-difference box with an absorption-free medium the kernel is the
+  UNION of the diamond-difference trace modes and the physical constant
+  mode, and the two overlap on the trace.  ``[M]`` 2026-10-30
+  (``scratch/membership_covector/u3/union_orthogonality.py``, run at
+  ``1b2a6a14`` against the pre-U3 class, which it imports, so it does not
+  run on the present tree; the
+  :math:`(3,4)` box at :math:`c = 1`, ``level_symmetric`` :math:`S_2`
+  1-group and :math:`S_4` 2-group): their largest :math:`G`-cosine is
+  ``1e-17``.  Orthogonal-by-theory summands read round-off and
+  non-orthogonal ones read :math:`O(1)`, so the tolerance is not a knob
+  either: the gate's verdict is the same for any cut between about
+  :math:`10^{-14}` and :math:`10^{-8}`.  No production caller passes
+  overlapping summands at HEAD: S\ :sub:`N`'s summands are disjoint
+  (``tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_summands_have_DISJOINT_supports``),
+  and the union kernel is not posed (below).
+
+**G-self-adjoint, and not symmetric.**  The :math:`G`-adjoint of a
+summand projector is
+
+.. math::
+
+   \Pi_b^{\dagger_G} \;=\; W_b^{-1}\, \Pi_b^{\mathsf T}\, W_b
+   \;=\; W_b^{-1}\, W_b \Phi_b \Phi_b^{\mathsf T}\, W_b
+   \;=\; \Phi_b \Phi_b^{\mathsf T} W_b \;=\; \Pi_b ,
+
+so :math:`\Pi = \Pi^{\dagger_G}`, the last clause of
+:eq:`kernel-gauge-section`.  Its Euclidean transpose is
+:math:`\Pi_b^{\mathsf T} = W_b \Phi_b \Phi_b^{\mathsf T}`, a different
+matrix unless :math:`W_b` is a multiple of the identity.  So
+``apply_transpose`` returns
+:math:`\sum_b \gamma_b^{\mathsf T}\, \Pi_b^{\mathsf T}\, \gamma_b`, each
+summand projector's own transpose, and never :math:`\Pi`.  ``[M]``
+2026-10-31 on the S\ :sub:`N` gauge of the all-reflective
+``level_symmetric`` :math:`S_4` 2-group box (trace metric
+:math:`\max/\min = 2.48`; the probe
+``scratch/membership_covector/u3/archivist_transpose_probe.py``, matrices built
+column by column from ``apply`` and ``apply_transpose``):
+
+.. list-table:: The S\ :sub:`N` gauge: G-self-adjoint, not symmetric
+   :header-rows: 1
+   :widths: 22 14 22 22 20
+
+   * - box
+     - :math:`\dim\Pi`
+     - :math:`\lVert G\Pi - \Pi^{\mathsf T}G\rVert_F / \lVert G\Pi\rVert_F`
+     - :math:`\lVert \Pi - \Pi^{\mathsf T}\rVert_F / \lVert \Pi\rVert_F`
+     - ``apply_transpose`` against :math:`\Pi^{\mathsf T}`
+   * - :math:`d=2`, :math:`(3,4)`
+     - 12
+     - ``6.8e-17``
+     - ``0.458``
+     - ``1.4e-16``
+   * - :math:`d=3`, :math:`(3,4,5)`
+     - 138
+     - ``1.6e-16``
+     - ``0.456``
+     - ``1.9e-16``
+
+The numerics gate holds both facts on a 9-dof space whose metric has
+:math:`\max/\min = 16`
+(``test_G_self_adjointness``,
+``test_the_euclidean_transpose_is_not_the_projector``); its metric is
+non-uniform on purpose, since a uniform :math:`G` makes the Euclidean
+projector :math:`G`-orthogonal and its transpose equal to :math:`\Pi`, a
+stabiliser that would blind both rows.
+
+.. dropdown:: First got wrong — the transpose returned the projector (until 2026-10-31)
+   :color: muted
+
+   The S\ :sub:`N` predecessor, the class ``LossKernelGauge`` in
+   ``orpheus/sn/operators/loss_kernel_gauge.py``, returned ``apply`` from
+   ``apply_transpose``, and this page argued for it: the
+   :math:`G_b^{-1}` factor of each block collapses to the identity on a
+   :math:`G`-orthonormal span, *"so the shipped realization's
+   apply_transpose is literally apply, and the Euclidean transpose and the
+   G-adjoint coincide here rather than by accident"*, verbatim.  The
+   argument confused the coefficient-space Gram, which is :math:`I`, with
+   the state-space metric :math:`W_b`, which stays in the analysis face
+   :math:`M_b = \Phi_b^{\mathsf T} W_b`; the table above measures the
+   resulting error at 46 % of :math:`\lVert\Pi\rVert_F` on both boxes.
+   No production code read the transpose: ``[M]`` 2026-10-31,
+   ``git grep -nE 'gauge\)?\.(apply_transpose|H\b|adjoint)' -- orpheus tests``
+   finds one line, the U3 routing row of
+   ``tests/gates/cross_method/test_one_parse_on_production.py``, so no
+   answer moved.  The space-membership plan's unit U3
+   (``2431e2f0``) fixed it when the projector moved to numerics; the
+   mutation that re-introduces it (the battery arm ``transpose_is_apply``)
+   reddens ``test_the_euclidean_transpose_is_not_the_projector``.
+
+**The section is the minimum-norm member of the coset**, in the norm of
+:math:`G`.
+:meth:`KernelProjectionGauge.gauge
+<orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.gauge>`
+returns :math:`\sigma(\psi) = (I - \Pi)\psi`.  For any :math:`y`,
+
+.. math::
+
+   \langle (I-\Pi)\psi,\; \Pi y \rangle_G
+   \;=\; \langle \Pi^{\dagger_G}(I-\Pi)\psi,\; y \rangle_G
+   \;=\; \langle (\Pi - \Pi^2)\psi,\; y \rangle_G \;=\; 0 ,
+
+so :math:`\sigma(\psi) \perp_G \ker A`.  Every member of the coset is
+:math:`\sigma(\psi) + k` with :math:`k \in \ker A`, and by Pythagoras
+
+.. math::
+
+   \lVert \sigma(\psi) + k \rVert_G^2
+   \;=\; \lVert \sigma(\psi) \rVert_G^2 + \lVert k \rVert_G^2
+   \;\ge\; \lVert \sigma(\psi) \rVert_G^2 ,
+
+with equality iff :math:`k = 0` (the metric is positive on every support
+row, which the zero-metric refusal guarantees).  So :math:`\sigma(\psi)`
+is the unique minimum-norm member, and it depends only on the coset:
+:math:`\sigma(\psi + k) = \sigma(\psi)` because :math:`\Pi k = k`.  That is
+the :math:`\Gamma`-invariance law of a section, read off the algebra.
+``[M]`` on the two S\ :sub:`N` boxes above, a random state's section and a
+random kernel element have a :math:`G`-cosine of ``4.8e-17`` and
+``2.3e-17``.  :attr:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.dimension`
+is the projector's rank; the empty direct sum has dimension 0 and its
+section is the identity, so no caller needs a ``None`` branch.  Two
+consequences:
 
 * **residual neutrality.**  :math:`A\sigma(\psi) = A\psi - A\Pi\psi =
-  A\psi`, since :math:`\Pi\psi \in \ker A` — so applying the gauge
-  **cannot move the residual any convergence check reads**.  The gauge mutates the
-  answer and is still safe to apply at the exit, which is what makes it
-  an exit step rather than a reported diagnostic.
+  A\psi`, since :math:`\Pi\psi \in \ker A`, so applying the gauge
+  **cannot move the residual any convergence check reads**.  The gauge
+  mutates the answer and is still safe to apply at the exit, which is
+  what makes it an exit step rather than a reported diagnostic.
 * **the group element must be drawn from** :math:`\Pi`'s **own range, on
-  the TRACE space.**  ⛔ A first draft of the design's frame pass claimed
-  the gauge "acts on the boundary only, so interior kernel modes survive"
-  and expected the Γ-invariance leg to RED.  That was REFUTED: the kernel
-  **is** a trace object — :class:`LossKernelGauge
-  <orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge>` is an
-  endomorphism of the boundary-trace space, so gauging the trace *is*
-  gauging the state and the bulk is untouched by construction rather than
-  by a zero block.  An interior perturbation is therefore **not a group
-  element** and using one as the test's :math:`\gamma` would measure
-  nothing.  The refuted version is kept here because the mistake is the
-  natural one: "the projector only touches the boundary" and "the kernel
-  has an interior part" sound compatible, and they are not.
+  the gauge's own space.**  For S\ :sub:`N` that space is the boundary
+  trace.  ⛔ A first draft of the design's frame pass claimed the gauge
+  "acts on the boundary only, so interior kernel modes survive" and
+  expected the Γ-invariance leg to RED.  That was REFUTED: the
+  S\ :sub:`N` kernel **is** a trace object, and the S\ :sub:`N` gauge is
+  an endomorphism of the boundary-trace space
+  (:attr:`SNProblem.angular_trace
+  <orpheus.sn.problem.SNProblem.angular_trace>`), so gauging the trace
+  *is* gauging the state and the bulk is untouched by construction rather
+  than by a zero block.  An interior perturbation is therefore **not a
+  group element**, and using one as the test's :math:`\gamma` would
+  measure nothing.  The refuted version is kept here because the mistake
+  is the natural one: "the projector only touches the boundary" and "the
+  kernel has an interior part" sound compatible, and they are not.
+
+**Whether to gauge is the posing's decision, and canonicality is the
+method's claim.**  The projector answers *which member of a coset*; it
+does not answer *is there a coset*, nor *is the chosen member the
+physical one*.  The first question is the Fredholm alternative for a
+square :math:`A`.  If :math:`\ker A = 0` the source problem has one
+solution.  If :math:`\ker A \ne 0`, it has solutions iff :math:`q` is
+annihilated by the left kernel, :math:`\langle w, q\rangle = 0` for every
+co-vector :math:`w` with :math:`A^{\mathsf H} w = 0` (the canonical
+pairing of a dual-space member with a vector, which needs no metric:
+:ref:`spaces-covector`), and then the solutions are a coset that the
+gauge sections.  Otherwise there is no solution and the posing must be
+refused.  The space-membership plan's ruling R3 places this decision on
+the posing :math:`(A, q)` at the solve entry, and the projector is only
+the second branch's tool.  At HEAD the decision is not computed:
+:class:`~orpheus.numerics.posing.SourcePosing` has no solvability test
+(GitHub #460), and the S\ :sub:`N` entries gauge whenever
+:func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` reads
+present.  ``[R]`` For S\ :sub:`N`'s diamond-difference kernel that is
+sound, because its left kernel lives on trace rows only (``[M]``
+2026-10-30, the plan's spec §R3.1: the left null vectors of the
+:math:`(3,4)` ``level_symmetric`` :math:`S_2` 1-group box at :math:`c =
+0.9` carry 100 % of their mass on trace rows, and
+:math:`\lVert L^{\mathsf T} q\rVert / \lVert q\rVert` reads ``2.4e-15``
+for a uniform bulk source), and a bulk source with no inflow on a mirror
+face has no trace component, so :math:`\langle w, q\rangle = 0` holds
+structurally.  The case that would read the left kernel is a declared
+inflow on a closed wall (a ``white(1.0)`` wall carrying a source); the
+spec §R3.2 names it and records no gate for it.  The physical kernel
+of an absorption-free closed class (the union case above) is outside the
+S\ :sub:`N` gauge's summands at HEAD.
+
+The second question, *is the minimum-norm member the physical answer*,
+is a claim only the method can make, because it is a statement about the
+continuous problem the discretisation approximates.  For S\ :sub:`N`'s
+diamond-difference kernel it is a theorem: every kernel mode is a
+mirror-odd face sawtooth, the exact solution is mirror-even, so it is
+itself :math:`G`-orthogonal to :math:`\ker A` and the minimum-norm member
+is where it sits (:ref:`sn-loss-kernel-gauge`).  For a physical kernel,
+such as the constant mode of a closed pure scatterer under a balanced
+source, no member is preferred by the physics, and the minimum-norm
+member is a normalisation the posing chooses.
 
 :class:`~orpheus.numerics.gauge.KernelGauge` is a
-``runtime_checkable`` **Protocol** — ``gauge(trace)`` and ``dimension`` —
-satisfied *structurally* by the S\ :sub:`N` tier's ``LossKernelGauge``
-with no inheritance, because ``numerics`` may not import ``sn`` (the same
-forbidden edge as above) and because a projector is what the concept IS,
-whichever tier builds it.  ``dimension == 0`` is the honest answer for a
-configuration with no freedom — the zero-block projector makes ``gauge``
-the identity, so **no caller needs a null branch**, which is the same
-"a value, not an absence" move the exit report makes below.
+``runtime_checkable`` **Protocol** with two members, ``gauge(state)``
+and ``dimension``.
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
+satisfies it structurally, with no inheritance, for two reasons:
+:mod:`orpheus.numerics.gauge` ranks below the realization in the
+numerics concept order and never imports it, so the protocol is the
+contract a result type
+(:class:`~orpheus.numerics.outcome.SourceOutcome`) names; and a test
+double (``_TrivialKernelGauge`` in ``tests/gates/numerics/test_outcome.py``)
+may stand in for it.  ``dimension == 0`` is the honest answer for a
+configuration with no freedom: the empty direct sum makes ``gauge`` the
+identity, so **no caller needs a null branch**, which is the same "a
+value, not an absence" move the exit report makes below.
 
 The exit report — evidence, not a nullable number
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -8531,8 +8864,9 @@ design:
        ``NotYet(310)`` (a moment-tailed LD interior the residual mint
        cannot express); ``NotYet(353)`` (the daggered eigen exit)
    * - ``gauge``
-     - the kernel-gauge displacement :math:`\lVert\Pi\psi\rVert /
-       \lVert\psi\rVert` (:ref:`sn-exit-gauge`)
+     - the kernel-gauge displacement :math:`\lVert\Pi\psi\rVert_G /
+       \lVert\psi\rVert_G`, in the gauge space's own norm
+       (:ref:`sn-exit-gauge`)
      - ``Measured`` (the trace was projected); ``NotApplicable`` twice
        over, with the reason distinguishing them — *no kernel freedom on
        this configuration* versus *the closure is unclassifiable, so the
@@ -8602,7 +8936,11 @@ placement argument checked rather than asserted — and the layer contract
 makes the placement checkable
 rather than stylistic: ``numerics`` may import neither ``transport`` nor
 any method package, which is why ``ScaleGauge.functional`` is a bare
-callable and why ``KernelGauge`` is a Protocol instead of a base class.
+callable.  ``KernelGauge`` is a Protocol rather than a base class for
+the reasons given with the kernel gauge above: its realization
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
+ranks above it in the numerics concept order, and test doubles stand in
+for it.
 Both new modules are in the cold-interpreter entry-point gate
 (``tests/gates/test_layer_imports.py``), so a cycle that resolves only because
 something else was imported first fails there.
@@ -9452,6 +9790,39 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-31
+     - **The kernel gauge is a numerics projector; a method supplies only
+       its generators** (unit U3 of
+       ``.claude/plans/space_membership_covector_gauge.md``). The
+       :math:`G`-orthogonal projector onto an explicit kernel and its
+       minimum-:math:`G`-norm section moved from S\ :sub:`N` into
+       :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`,
+       a direct sum of spanning summands, with
+       :meth:`OrthonormalSpanBasis.of_generators
+       <orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators>`
+       doing the rank cut and the :math:`G`-orthonormalisation in one
+       :math:`\sqrt G`-weighted SVD. :math:`\Pi` is spelled in the
+       operator algebra (an operator sum of ``gather.H @ projector @
+       gather``, the zero morphism when empty), so its transpose follows by
+       law. Overlapping summands are admitted iff mutually
+       :math:`G`-orthogonal (the union kernel of ruling R3); the metric is
+       read through the new verb :meth:`HilbertMetric.diagonal
+       <orpheus.numerics.metric.HilbertMetric.diagonal>`
+       (:ref:`spaces-metric-diagonal`), and a non-diagonal metric is a
+       declared scope boundary; a declared zero unit is checked before it
+       is stored. The S\ :sub:`N`
+       classes ``LossKernelGauge`` and ``LossKernelBasis`` retired, and
+       :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
+       hands the pair generators over. ``apply_transpose`` became the
+       Euclidean transpose; the predecessor returned :math:`\Pi`, which is
+       :math:`G`-self-adjoint and not symmetric (``[M]`` 46 % apart on the
+       S\ :sub:`N` boxes; nothing read it). The exit reports the correction
+       in the trace's :math:`G`-norm (:ref:`sn-exit-gauge`). The
+       ``KernelGauge`` protocol's parameter is ``state``. See
+       :eq:`kernel-gauge-section`.
+     - #664
+     - *(in development)*, ``2431e2f0`` on branch
+       ``refactor/space-membership``
    * - 2026-10-22
      - **An axis is identified by what fixes its space, and a space by
        one key** (package S7 of the numerics untangling, halves S7a and
