@@ -985,6 +985,11 @@ def predicted_discretization_kernel(problem: "SNProblem") -> PredictedKernel:
             label = f"sn_trace_orbit{orbit}_g{group}"
             right.append(KernelSummand(support, generators, label, orthogonal_to_constants=True))
             left.append(KernelSummand(support, balance[support][:, None] * generators, f"{label}_annihilator"))
+    if not right:
+        return PredictedKernel.trivial(
+            space, "no diamond-difference mode outside ker G: every reflection orbit has an ordinate tangential to a "
+                   "reflective axis, and the tangential slots (zero metric, zero rows and columns) are not a freedom",
+        )
     return PredictedKernel(space, tuple(right), tuple(left),
                            f"the diamond-difference face kernel on {len(problem.reflective_axes)} reflective axes")
 

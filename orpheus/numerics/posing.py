@@ -87,8 +87,12 @@ def _pencil_annihilation(pencil: OperatorPencil[Any], kernel: PredictedKernel) -
     Zero means :math:`\ker A \subseteq \ker M` and :math:`\operatorname{range} M \perp \ker A^{\mathsf T}`: then
     :math:`\ker A` is the kernel of every member :math:`A - \mu M` with the same annihilators, the eigen question is a
     solvable family on it, and gauging is residual-neutral at every :math:`\mu`. The relative scale assumes :math:`M`
-    is entrywise non-negative (an emission operator: fission), so the absolute pass bounds the signed one with no
-    cancellation; :math:`M^{\mathsf T}` is the coordinate transpose (the canonical pairing, no metric).
+    is entrywise non-negative, so the absolute pass bounds the signed one with no cancellation. Every production
+    pencil's rhs is a fission emission :math:`\chi \otimes \nu\Sigma_f`, non-negative because the mixture parses its
+    spectrum as a probability simplex at construction (:func:`~orpheus.data.emission_spectrum.enforce_emission_spectrum`
+    refuses a negative entry); ``[M]`` qa, 2026-10-31: SN's assembled rhs, forward and daggered, has smallest entry
+    0.0 on 4 of 4 fixtures with (n,2n) and fission (the (n,2n) term is the loss's, not :math:`M`'s).
+    :math:`M^{\mathsf T}` is the coordinate transpose (the canonical pairing, no metric).
     """
     from orpheus.numerics.fredholm import _embedded_columns
 
