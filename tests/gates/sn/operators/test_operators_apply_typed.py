@@ -493,6 +493,12 @@ def test_c6_apply_dispatch_parity() -> None:
          F.isotropic_energy.apply(phi.values), np.ndarray),
         ("S.isotropic_energy(ndarray)",
          S.isotropic_energy.apply(phi.values), np.ndarray),
+        # D1 (the user, 2026-10-30): a plain binding admits a typed member of
+        # its end by content; typed in, bare out is #633's residue.
+        ("F.isotropic_energy(ScalarFlux)",
+         F.isotropic_energy.apply(cast(Any, phi)), np.ndarray),
+        ("S.isotropic_energy(ScalarFlux)",
+         S.isotropic_energy.apply(cast(Any, phi)), np.ndarray),
     ]
     for label, out, expected in cases:
         if not isinstance(out, expected):
@@ -503,8 +509,9 @@ def test_c6_apply_dispatch_parity() -> None:
     # ⛔ THE REFUSAL SET WIDENED (CS4c step 5, R-3/R-4). At step 4 only the
     # angular F refused a scalar carrier and a bare array; now EVERY bulk
     # carrier is refused by BOTH composite bindings (the ends select the
-    # carrier), and the plain energy bindings refuse the typed field and the
-    # composite in the other direction. These rows are the ones that used to
+    # carrier), and the plain energy bindings refuse the composite in the
+    # other direction (until D1, 2026-10-30, they also refused the typed
+    # member of their end; it is admitted above). These rows are the ones that used to
     # be dispatch arms — they are the §6c red-before of the one-body carve.
     #
     # ⭐ Every operand below is ALSO a pyright error at the call site — the
@@ -519,8 +526,6 @@ def test_c6_apply_dispatch_parity() -> None:
         ("S(ScalarFlux)", S, phi),
         ("S(AngularFlux)", S, psi),
         ("S(ndarray)", S, psi.values),
-        ("F.isotropic_energy(ScalarFlux)", F.isotropic_energy, phi),
-        ("S.isotropic_energy(ScalarFlux)", S.isotropic_energy, phi),
         ("F.isotropic_energy(TimedFullField)", F.isotropic_energy, state),
         ("S.isotropic_energy(TimedFullField)", S.isotropic_energy, state),
     ]

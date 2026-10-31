@@ -694,17 +694,23 @@ class TestMeshlessBareArm:
 
     def test_dispatch_raises_on_unsupported_type(self):
         """The ends select the carrier (CS4c step 5): on BOTH bindings an
-        alien object and a typed :class:`ScalarFlux` are ``TypeError``s
-        naming the operator; the composite binding also refuses the bare
-        array and the plain binding the composite.
+        alien object is a ``TypeError`` naming the operator; the composite
+        binding also refuses a bare array and a typed bulk member (its
+        operand is the ``FullField``), and the plain binding the composite.
+        The plain binding ADMITS a typed member of its end, by content
+        (the user's ruling D1, 2026-10-30): the same values as the bare call.
         """
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
         sigma = self._asym_sigma(2, 5, 3)
         for C in (_multiplier(sn, sigma), _multiplier(sn, sigma, plain=True)):
             with pytest.raises(TypeError, match="MultiplicationOperator"):
                 C.apply(object())
-            with pytest.raises(TypeError, match="MultiplicationOperator"):
-                C.apply(ScalarFlux(values=sigma, space=sn.bulk_space))
+        with pytest.raises(TypeError, match="MultiplicationOperator"):
+            _multiplier(sn, sigma).apply(ScalarFlux(values=sigma, space=sn.bulk_space))
+        plain = _multiplier(sn, sigma, plain=True)
+        np.testing.assert_array_equal(
+            np.asarray(plain.apply(ScalarFlux(values=sigma, space=sn.bulk_space))), plain.apply(sigma.copy()),
+        )
         with pytest.raises(TypeError, match="FullField"):
             _multiplier(sn, sigma).apply(sigma.copy())
         with pytest.raises(TypeError, match="BulkLift"):

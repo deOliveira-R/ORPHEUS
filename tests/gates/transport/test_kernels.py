@@ -603,7 +603,7 @@ _ENDS_SELECT_THE_BODY = {
     ("C", "composite", "ScalarFlux"): "TypeError",
     ("C", "plain", "ndarray"): "ndarray",
     ("C", "plain", "FullField"): "TypeError",
-    ("C", "plain", "ScalarFlux"): "TypeError",
+    ("C", "plain", "ScalarFlux"): "ndarray",  # D1: a typed member of the end, admitted by content
     # ── the energy bindings: PLAIN-bound only (R-4); a composite END is
     #    refused at construction naming the lift (R-2, O-2)
     ("IsoS", "composite", "ndarray"): "ctor:TypeError",
@@ -611,19 +611,19 @@ _ENDS_SELECT_THE_BODY = {
     ("IsoS", "composite", "ScalarFlux"): "ctor:TypeError",
     ("IsoS", "plain", "ndarray"): "ndarray",
     ("IsoS", "plain", "FullField"): "TypeError",
-    ("IsoS", "plain", "ScalarFlux"): "TypeError",
+    ("IsoS", "plain", "ScalarFlux"): "ndarray",  # D1: a typed member of the end, admitted by content
     ("IsoN2N", "composite", "ndarray"): "ctor:TypeError",
     ("IsoN2N", "composite", "FullField"): "ctor:TypeError",
     ("IsoN2N", "composite", "ScalarFlux"): "ctor:TypeError",
     ("IsoN2N", "plain", "ndarray"): "ndarray",
     ("IsoN2N", "plain", "FullField"): "TypeError",
-    ("IsoN2N", "plain", "ScalarFlux"): "TypeError",
+    ("IsoN2N", "plain", "ScalarFlux"): "ndarray",  # D1: a typed member of the end, admitted by content
     ("F", "composite", "ndarray"): "ctor:TypeError",
     ("F", "composite", "FullField"): "ctor:TypeError",
     ("F", "composite", "ScalarFlux"): "ctor:TypeError",
     ("F", "plain", "ndarray"): "ndarray",
     ("F", "plain", "FullField"): "TypeError",
-    ("F", "plain", "ScalarFlux"): "TypeError",
+    ("F", "plain", "ScalarFlux"): "ndarray",  # D1: a typed member of the end, admitted by content
     # ── the lift of a plain energy binding: the composite action's ONE home
     ("lift(IsoS)", "composite", "ndarray"): "TypeError",
     ("lift(IsoS)", "composite", "FullField"): "FullField",
@@ -668,7 +668,9 @@ def test_the_ends_select_the_body(operator_key, binding, carrier_key):
 
     *Each binding acts through the body its ends select*: a composite-bound
     operator admits exactly the ``FullField`` of its bound interior; a
-    plain-bound one exactly the bare array of its bound shape; every
+    plain-bound one exactly the elements of its bound end, the bare array of
+    its shape or a typed member compared by content (the user's ruling D1,
+    2026-10-30; typed in, bare out is #633's residue); every
     other carrier is a typed refusal naming the operator; and the energy
     bindings do not bind on a composite at all — the composite action of
     an energy binding is :class:`~orpheus.transport.operators.lift.BulkLift`'s,

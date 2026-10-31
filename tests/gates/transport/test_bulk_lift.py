@@ -184,16 +184,20 @@ class TestAdmission:
         with pytest.raises(TypeError, match="body its ends select"):
             lift.apply_transpose(other)
 
-    def test_admit_array_refusals_name_the_lift_and_the_values(self, mesh, inner):
+    def test_admit_array_refuses_the_composite_and_parses_the_rest(self, mesh, inner):
+        """``admit_array`` keeps two refusals of its own (the composite names
+        :class:`BulkLift`; a non-array, non-member by type); everything else is
+        the end's one parse (D1, 2026-10-30): a typed member of the end is
+        admitted with its values, a wrong-shape array refused at the exact
+        shape (``ValueError``)."""
         plain = IsotropicScattering.from_material_xs(
             mesh.mat_xs, space=mesh.bulk_space,
         )
         psi = _flux(mesh, 9)
         with pytest.raises(TypeError, match="BulkLift"):
             admit_array(plain, psi)
-        with pytest.raises(TypeError, match=r"\.values"):
-            admit_array(plain, psi.interior)
-        with pytest.raises(TypeError, match="shape"):
+        assert admit_array(plain, psi.interior) is psi.interior.values
+        with pytest.raises(ValueError, match="exact shape"):
             admit_array(plain, np.zeros((2, 5)))
         with pytest.raises(TypeError, match="IsotropicScattering"):
             admit_array(plain, object())

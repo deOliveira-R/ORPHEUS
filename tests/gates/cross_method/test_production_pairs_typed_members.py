@@ -8,9 +8,12 @@ This file says so: :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`,
 scalar verbs (``inner_product``, ``norm``) and of every co-vector pairing and mint (``Covector.evaluate``, ``flat``), is
 made to refuse a bare array, and one eigenvalue solve per sharp method must complete.
 
-Only the exact verb is patched. The action verb ``leading_coordinates_of`` (the metric legs, an operator's matvec, the
-Riesz legs, ``.H``) legitimately carries a trailing batch, ``A (x) I_P``; the operator algebra's bare iterate reaches it
-(#664); patched, it would redden every legitimate action.
+Only the pairings are held to it. The action verb ``leading_coordinates_of`` (the metric legs, an operator's matvec,
+the Riesz legs, ``.H``) legitimately carries a trailing batch, ``A (x) I_P``, and is not patched. The exact verb has one
+action caller, the plain binding's admission
+(:func:`~orpheus.transport.operators.lift.admit_array`, since the user's ruling D1, 2026-10-30): an operator acts on the
+operator algebra's bare iterate (#664), so its calls are exempted, identified by the caller's CODE OBJECT (not a name
+match), and counted, so the exemption is visible and cannot swallow a pairing.
 
 First red: at the parent of U2c (``64cc3a7a``) every one of the 7 exercised sites passed an ``ndarray`` (`[M]` the spec's
 caller census); after U2c's typed callers and before ``FunctionSpace.integral``, the two ``flat(unit)`` sites
@@ -23,19 +26,28 @@ from __future__ import annotations
 
 import pytest
 
+import sys
+
 from orpheus.numerics import space as space_module
 from orpheus.numerics.space import Member
+from orpheus.transport.operators import lift
 
 pytestmark = pytest.mark.foundation
 
 
 @pytest.fixture
 def typed_calls(monkeypatch) -> list[int]:
-    """Make the exact-shape membership verb refuse a bare array; count the typed calls it admits."""
+    """Make the exact-shape membership verb refuse a bare array from a pairing; count the typed calls it admits.
+
+    A call whose immediate caller is the plain binding's admission (an action, #664's bare iterate) is passed through
+    and not counted."""
     honest = space_module.FunctionSpace.coordinates_of
+    action = lift.admit_array.__code__
     count = [0]
 
     def strict(self, x):
+        if sys._getframe(1).f_code is action:
+            return honest(self, x)
         if not isinstance(x, Member):
             raise AssertionError(f"a bare {type(x).__name__} reached {self.name!r}.coordinates_of from production")
         count[0] += 1

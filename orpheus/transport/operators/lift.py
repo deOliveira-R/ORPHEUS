@@ -77,6 +77,7 @@ from orpheus.numerics.operator import (
     MissingAdjoint,
     adjointable,
 )
+from orpheus.numerics.space import Member
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.fields._bases import BoundaryField, BulkField, FieldRole
 from orpheus.transport.full_field import FullField
@@ -202,15 +203,18 @@ def admit_composite(
 def admit_array(
     op: "BoundOperator", x: object, *, end: End = "domain",
 ) -> np.ndarray:
-    r"""Admit ``x`` as the bare array element of ``op``'s plain bound ``end``.
+    r"""Admit ``x`` as an element of ``op``'s plain bound ``end``; return its coordinates.
 
     A plain binding (an energy binding on the scalar space, a multiplier
-    on a bulk space) acts on bare arrays of its end's shape — the
-    model-portable contract every solver family feeds. A composite is
-    refused naming :class:`BulkLift` (the composite action is the lift's);
-    a typed field is refused naming ``.values`` (the ends select the
-    carrier: a typed field is the composite binding's operand, not the
-    plain binding's); a wrong shape is refused with both shapes.
+    on a bulk space) acts on the elements of its end, bare or typed — the
+    model-portable contract every solver family feeds. The admission is the
+    end's one parse (:meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`):
+    a typed member is compared with the end by content identity and its
+    values returned (the user's ruling D1, 2026-10-30), and a bare array
+    must have the end's exact shape. Only two refusals are this binding's
+    own: a composite is refused naming :class:`BulkLift` (the composite
+    action is the lift's), and an operand that is neither an array nor a
+    member is refused by type.
     """
     owner = type(op).__name__
     space = _end_space(op, end)
@@ -220,23 +224,13 @@ def admit_array(
             f"FullField — lift the binding onto the composite with "
             f"BulkLift({owner}(...), domain=composite, codomain=composite)."
         )
-    if isinstance(x, Field):
+    if not isinstance(x, (np.ndarray, Member)):
         raise TypeError(
-            f"{owner}: the plain binding acts on bare arrays — pass "
-            f"{type(x).__name__}.values (the ends select the carrier: a "
-            f"typed field is the COMPOSITE binding's operand)."
+            f"{owner}: the plain binding acts on elements of {space!r}, a "
+            f"member or a numpy array of shape {tuple(space.shape)}; got "
+            f"{type(x).__name__}."
         )
-    if not isinstance(x, np.ndarray):
-        raise TypeError(
-            f"{owner}: the plain binding acts on bare numpy arrays of shape "
-            f"{tuple(space.shape)}; got {type(x).__name__}."
-        )
-    if tuple(x.shape) != tuple(space.shape):
-        raise TypeError(
-            f"{owner}: the plain binding's {end} is {space!r} (shape "
-            f"{tuple(space.shape)}); got an array of shape {tuple(x.shape)}."
-        )
-    return x
+    return space.coordinates_of(x)
 
 
 def lift_bulk_action(

@@ -148,24 +148,14 @@ class TestForward:
             ref[:, ix, 0] = _CHI[mid] * rate
         np.testing.assert_allclose(out, ref, rtol=1e-15, atol=0)
 
-    def test_a_carrier_is_refused_the_plain_binding_takes_bare_arrays(self):
-        r"""⛔ **THE CLAIM REVERSED** (CS4c step 5, R-4) — this row was
-        ``test_carrier_values_are_unwrapped``.
-
-        It pinned an UNTYPED ``.values`` fall-through: anything at all
-        carrying a ``.values`` attribute was silently unwrapped and applied,
-        so ``op.apply(duck) == op.apply(array)`` held by construction. That
-        fall-through is RETIRED. A plain binding admits exactly the bare
-        array of its bound end's shape
-        (:func:`~orpheus.transport.operators.lift.admit_array`), so *the ends
-        select the carrier* — the positive claim the old docstring gestured
-        at — is now spelled as a refusal, which is the only spelling that can
-        red.
-
-        Two legs, because the message discriminates what was fed: a TYPED
-        field is told to pass ``.values`` (a typed field is the COMPOSITE
-        binding's operand); an untyped duck-carrier is told the contract is a
-        bare ndarray of the bound shape.
+    def test_a_typed_member_is_admitted_and_a_duck_carrier_refused(self):
+        r"""The plain binding admits the elements of its bound end, bare or
+        typed (the user's ruling D1, 2026-10-30): a typed member of the end is
+        compared by content identity and reads the same arithmetic as its bare
+        values (``array_equal``). An untyped duck carrying a ``.values``
+        attribute is still refused by type: the CS4c step-5 retirement of the
+        untyped ``.values`` fall-through stands (until D1 this row also refused
+        the typed member, telling it to pass ``.values``).
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
 
@@ -176,9 +166,10 @@ class TestForward:
         class _Carrier:
             values = phi
 
-        with pytest.raises(TypeError, match=r"\.values"):
-            op.apply(ScalarFlux(values=phi, space=mat_xs.space))
-        with pytest.raises(TypeError, match="bare numpy arrays"):
+        np.testing.assert_array_equal(
+            np.asarray(op.apply(ScalarFlux(values=phi, space=mat_xs.space))), op.apply(phi),
+        )
+        with pytest.raises(TypeError, match="a member or a numpy array"):
             op.apply(_Carrier())
 
 
