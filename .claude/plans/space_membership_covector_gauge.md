@@ -314,3 +314,27 @@ Sizing `[R]`: about 48 verbs plus 3 production sites, in numerics (most), transp
     - #673: `DiagonalOperator.on` plus the ERR-119 residue (the spans are checked by extent, not by label).
     - #674: F4, the legacy weights slot is never validated.
     - Comments posted: #664 re-scoped to the bare iterate (its door is `admit_array`); F6 on #633.
+
+## U3. The kernel gauge in numerics (started 2026-10-30)
+
+- **Ruled by the user (2026-10-30, AskUserQuestion, at the U3 start):**
+  - **Summand input = a spanning set.** `KernelProjectionGauge` takes the spanning columns of each summand. Numerics runs the √G-weighted SVD, which does the rank cut and the G-orthonormalisation in one step. SN supplies only its pair generators. The rank tolerance moves to numerics and owes a numerics-side justification.
+  - **`LossKernelGauge` is retired.** SN keeps a builder function, `gauge_freedom`, `_reflection_orbits`, the pair generators and the counting laws; the builder returns the numerics object.
+  - **The `KernelGauge` Protocol stays,** with its parameter renamed off `trace`. `KernelProjectionGauge` conforms, and test doubles stay legal.
+  - **The DD left basis (R3.2's design point) is deferred to U0.** It is designed there together with the absorbing-chain predictor's left basis; U3 is the projector only.
+- **Already ruled in the spec (§U3.2 and R3), not re-asked:**
+  - overlapping summands are admitted iff mutually G-orthogonal, and a non-orthogonal overlap is refused;
+  - `_exit_gauge_trace` reports `‖x − σ(x)‖_G/‖x‖_G`;
+  - the metric is read from `_resolved_metric`, and a non-diagonal metric is a declared scope boundary;
+  - the solver reads `dimension == 0`, not `.blocks`.
+- **Constraints carried from U1b:**
+  - the new operator's admission parses at its domain's action verb and gets a row in the routing gate;
+  - the summand API is flat indices plus a diagonal weight, so that U0 can pose it on diffusion's full field.
+- **U3 code LANDED `2431e2f0`.** SN's gauge is bit-identical on 18 of 18 saved keys.
+- **U3 review (qa and the elegance-enforcer, 2026-10-31): no correctness defect.** Ruled by the user (AskUserQuestion, 2026-10-31):
+  - (a) the metric verb `HilbertMetric.diagonal(shape)` and `FunctionSpace.metric_diagonal()` land in U3, with composites concatenating in flat order. A dual space is now admitted; it had been refused as "non-diagonal".
+  - (b) overlapping summands that are not G-orthogonal stay refused.
+  - (c) Π is spelled in the operator algebra (`Σ γ_b.H @ Π_b @ γ_b`). SN's outputs are re-baselined as a declared delta: `[M]` at most 1.2e-16 of max|x|, from the summation order.
+  - Also fixed: `KernelSummand` parses its fields; duplicate labels, out-of-range supports and non-1-D spaces are refused; a declared orthogonality to the constants is checked before the zero is stored.
+  - Filed: #675 (a flat-index verb on the trace layout) and #676 (`apply` means the section on one gauge and the projector on the other). Commented on #671 (the new basis joins the twin-hook family).
+- **For U0, owed by (c):** a `KernelProjectionGauge` on a `FullFieldSpace` (and probably on a `CoupledSpace`) crashes in `apply`. `gather.H` = ♯∘dual∘♭ calls the composite's `apply_metric`, which takes a `CompositeField`, not flat coordinates (#666). It is landed as a strict xfail in `test_kernel_projection_gauge.py`. U0 poses the gauge on diffusion's full field, so U0 fixes it together with #666's flat-coordinate metric.
