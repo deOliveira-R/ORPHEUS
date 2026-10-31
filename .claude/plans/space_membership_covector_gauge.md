@@ -398,3 +398,43 @@ Sizing `[R]`: about 48 verbs plus 3 production sites, in numerics (most), transp
   - qa's re-review of the redesign: no blocking finding. Both eigen entries refuse together. The Rayleigh gap is ≤ 4.5e-10 on every Gauge return. The multiplying source at σ = 1 matches the dense minimum-G-norm member to 1.5e-13. `fredholm_alternative` has one caller (`posing.py`). qa's F2 is withdrawn: the 112 is the T component, in ker G.
   - Owed to U3b: the iterative NearKernel witness (the SN scope door's machinery, the class-block null-vector solve through the sweep; SN's conditioning reading, now `NotApplicable`). Open elsewhere: #666 (the scalar-verb membership half), #614 (leg 2), #677–#680.
 - **Next:** U3b (the NearKernel witness), then one memo regeneration, the merge and CI.
+
+## ⏸ Compaction point after U0 (2026-10-31) — read this first on resume
+
+**State.** Branch `refactor/space-membership` in the worktree `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/membership`, HEAD `d5db621a`, working tree clean. Not merged. `main` has none of it. The main checkout holds an untracked, now STALE copy of this plan file: delete it before checking out a branch that carries the plan (merge time).
+
+**Units, in order, and their commits** (merge status from git, `process-discipline`):
+
+| unit | landed | commits (first … last) |
+|---|---|---|
+| U1 membership | yes | see the U1 notes above (`d362f02f` …) |
+| U2 co-vector | yes | `138f7d02` (U2a), `64cc3a7a` (U2b), `36dbac9d` (U2c), `6aa26d00` (docs/review) |
+| U1b one parse | yes | `53736b2b` … `4882293a`, review `b1c35b96`, docs `baa2fe66`, plan `1b2a6a14` |
+| U3 kernel gauge | yes | `2431e2f0`, review `0c641b3f`, docs `2ffb81ea`, plan `02e9bbc1` |
+| U0 Fredholm verdict | yes | `5ce66815`, `54aef2ca`, `c2a88dfc`, `ef5eea29`, `119383f9`, docs `f74d7847`, plan `154477b9`, memory `d5db621a` |
+| U3b NearKernel witness | NEXT | — |
+| memo regeneration, merge, CI | after U3b | — |
+
+**Corrections that supersede older text in this file** (read these before any earlier section):
+- R3.4's `Asserted(by=...)` was unspellable; the verdict lives in `ExitReport.solvability` (`Solve | Gauge`), and `admissibility` keeps only the multiplying source's subcriticality.
+- R3's "the predictor's left basis is `flat(unit_C)`": refuted. The left co-vector reads the feeders' absorbing-chain probability and, on SN, carries a trace part (−w_n(Ω·n̂)A_f). See the U0 entries.
+- The spec's "LU then project" for the gauge path: replaced by the deflated factorisation A + Π (user's ruling).
+- The spec's consistency statistic (the cancellation ratio): replaced by the coordinate cosine on each annihilator's declared support.
+- The verdict is the POSING's, never an entry's (user's ruling after the U0 review). Any earlier text that has the entries decide it is superseded.
+- SN's kernel is on the full field, not the trace; `_exit_gauge_trace` and `build_loss_kernel_gauge` are retired.
+- The tangential (T) slots are in ker G: the kernel is predicted modulo ker G; this is NOT a scope-door entry (an orchestrator's door entry for it was tried and reverted: it refused a correct, tested capability).
+
+**Measured baseline at `ef5eea29`/`f74d7847`** (`-O`, the detached driver `scratch/membership_covector/u1b/runs/drive.sh <log> <targets…>`, `-m "not slow"`, serial): sn 4146 passed (~14 min), numerics 5763 (~10.5 min), transport 1466 (~1 min), cross_method 262, diffusion 168, homogeneous 149, reference 352, layer imports 530, test layers 38, docstring xrefs 46, elegance ledger 4, vv audit 17. 0 reds. The full suite over every directory was last run at U1b; the pre-merge full run owes the rest (derivations, mc, moc, cp, geometry, data, mesh, …). Sphinx `-E -W --keep-going` exit 0 (~15 min). `npx pyright` 0 errors on the changed files.
+
+**U3b, the next phase, from the spec** (`scratch/membership_covector/spec/spec.md` §R3.3; the drafts `scratch/membership_covector/spec/drafts/test_fredholm_admissibility.py::TestTheNearKernelWitness`):
+- `orpheus/numerics/near_kernel.py`, `NearKernel.measure(op, *, k)`: σ_min estimates, right and left vectors, the gap σ_{k+1}/σ_k. Routes: dense SVD when n ≤ a declared limit; inverse iteration through the operator's own inverse and `.H` at scale (Lanczos on AᴴA when no inverse exists).
+- It is the WITNESS, never the decision: gates check measured dim == predicted dim and that the predicted span contains the measured vectors (≤ 1e-10), with gap ≥ 1e10, on diffusion {pure1g, both2g, g2_only → 1; upscatter, white0.999 → 0} and SN {(3,4) LS2 c=0.9 → 2, c=1 → 3; LS4 ng=2 c=0.9 → 12, c=1 → 14}.
+- Owed to it from U0: the machinery of SN's scope door (`_require_closed_form_scope`: the class-block null-vector solve through the sweep), and SN's conditioning reading (today `NotApplicable`, `orpheus/sn/solver.py` `_SWEPT`). Whether U3b builds those or only the witness is a question for the user at U3b's start.
+- Not started; it is a W3 unit, so the user steers it with checkpoints.
+
+**Durable lessons from U0** (each recorded where it applies; listed here so a resumed session acts on them):
+- Never run a background suite while editing files it imports: twice in U0 a run collected a half-edited tree and printed reds that were the edit race (the 43 diffusion reds, the stopped SN census). Run suites only on a settled tree, or kill and rerun.
+- A text replacement that inserts a line before an indented one must carry the indentation onto both lines (it dedented a function-local import in a test).
+- `git grep -E` has no `\b`: a pattern with it matches nothing, silently (`code-search`); the first docstring re-point in U0 found 0 files that way.
+- A refusal added for a reviewer's finding must be checked against the tree's tested capabilities before it lands: the tangential door entry refused 2 correct rows; the finding's mechanism (ker G) was the fix.
+- The rows the test-architect writes from a spec can encode the spec's wrong physics (S11b pinned the adjoint gauging where it must refuse); a reviewer's measurement on the production behaviour outranks the spec row.
