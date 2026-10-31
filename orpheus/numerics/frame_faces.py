@@ -300,12 +300,12 @@ class CrossGramInverse(LinearOperator):
         return self._codomain
 
     def apply(self, x: NDArray) -> NDArray:
-        return self._metric.apply_inverse(x)
+        return self._metric.apply_inverse(self._domain.leading_coordinates_of(x))
 
     def apply_transpose(self, x: NDArray) -> NDArray:
         # Self-adjoint: a real diagonal is its own transpose (and the two
-        # ends share one shape).
-        return self._metric.apply_inverse(x)
+        # ends share one shape); the transpose acts on the codomain.
+        return self._metric.apply_inverse(self._codomain.leading_coordinates_of(x))
 
     @property
     def is_adjointable(self) -> bool:
@@ -527,12 +527,12 @@ class FrameAnalysis(AnalysisOperator):
 
     def apply(self, values: NDArray, /) -> NDArray:
         return self.frame.test.analyze(
-            values, self.frame.test_table, self.frame.measure.weights,
+            self.domain.leading_coordinates_of(values), self.frame.test_table, self.frame.measure.weights,
         )
 
     def apply_transpose(self, coefficients: NDArray, /) -> NDArray:
         return self.frame.test.analyze_transpose(
-            coefficients, self.frame.test_table, self.frame.measure.weights,
+            self.codomain.leading_coordinates_of(coefficients), self.frame.test_table, self.frame.measure.weights,
         )
 
 
@@ -572,10 +572,10 @@ class FrameReconstruction(ReconstructionOperator):
         return measure_space(self.frame)
 
     def apply(self, coefficients: NDArray, /) -> NDArray:
-        return self.frame.basis.reconstruct(coefficients, self.frame.table)
+        return self.frame.basis.reconstruct(self.domain.leading_coordinates_of(coefficients), self.frame.table)
 
     def apply_transpose(self, values: NDArray, /) -> NDArray:
-        return self.frame.basis.reconstruct_transpose(values, self.frame.table)
+        return self.frame.basis.reconstruct_transpose(self.codomain.leading_coordinates_of(values), self.frame.table)
 
 
 # ── composed operators (the "define Frame, compose, done" production path) ──

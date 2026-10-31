@@ -23,6 +23,7 @@ import pytest
 from orpheus.numerics import coordinate_space as cs
 from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
+from orpheus.numerics import frame_faces
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.functional import InnerProductFunctional
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
@@ -227,3 +228,32 @@ class TestBelowTheSpaceEachObjectParsesItsDomain:
         for cls in found:
             overridden = [v for v in verbs if v in vars(cls)]
             assert not overridden, (cls.__name__, overridden)
+
+
+class TestABoundFaceParsesAtItsEnds:
+    """A frame face is a bound operator: it parses at its domain (``apply``) and its codomain (``apply_transpose``),
+    the identity leg and the shape leg. First red before U1b: (1, 5) returned (4, 5) or (3, 5) on all four legs."""
+
+    @pytest.mark.parametrize("face", ["FrameReconstruction", "FrameAnalysis"])
+    @pytest.mark.parametrize("leg", ["apply", "apply_transpose"])
+    def test_a_frame_face_parses_at_its_bound_end(self, face, leg):
+        op = getattr(frame_faces, face).of(_FR)
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            getattr(op, leg)(np.ones((1, 5)))
+
+    @pytest.mark.parametrize("leg", ["apply", "apply_transpose"])
+    def test_the_cross_gram_inverse_parses_at_its_bound_end(self, leg):
+        # [M] before U1b: apply (1, 5) returned (3, 5); apply_transpose (1,) returned (3,)
+        with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
+            getattr(frame_faces.CrossGramInverse.of(_FR), leg)(np.ones((1, 5)))
+
+    def test_a_face_admits_a_typed_member_of_its_end_and_refuses_another_space(self):
+        """The identity leg: a typed member of the face's domain is admitted by content; one of another space of the
+        same shape is refused."""
+        op = frame_faces.FrameReconstruction.of(_FR)
+        coefficients = np.arange(1.0, 4.0)
+        own = Member(values=coefficients, space=op.domain)
+        np.testing.assert_array_equal(op.apply(own), op.apply(coefficients))
+        other = FunctionSpace(name="other", shape=op.domain.shape)
+        with pytest.raises(ValueError, match="not a member of"):
+            op.apply(Member(values=coefficients, space=other))
