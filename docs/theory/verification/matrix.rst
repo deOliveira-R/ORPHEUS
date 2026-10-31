@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20142**
+Total tests collected: **20243**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2097, 10.4%
-   L1, 2914, 14.5%
+   L0, 2141, 10.6%
+   L1, 2957, 14.6%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 14989, 74.4%
-   unmarked, 57, 0.3%
+   foundation, 15000, 74.1%
+   unmarked, 60, 0.3%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20006
+   explicit, 20104
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 57
+   unmarked, 60
 
 Module × level grid
 -------------------
@@ -303,6 +303,7 @@ Module × level grid
    diffusion/test_diffusion_boundary_carry, 0, 16, 0, 0, 1, 0
    diffusion/test_diffusion_hollow_inner_law, 0, 0, 0, 0, 4, 0
    diffusion/test_diffusion_realizer_table, 0, 6, 0, 0, 2, 0
+   diffusion/test_fixed_source_verdict, 0, 20, 0, 0, 0, 0
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
    diffusion/test_n2n_witness, 0, 2, 0, 0, 0, 0
    diffusion/test_operators, 17, 0, 0, 0, 22, 0
@@ -362,6 +363,7 @@ Module × level grid
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
    homogeneous/test_continuous_reference, 0, 9, 0, 0, 0, 0
+   homogeneous/test_eigen_verdict, 0, 4, 0, 0, 0, 0
    homogeneous/test_homogeneous, 0, 14, 0, 0, 0, 0
    homogeneous/test_homogeneous_outcome, 0, 0, 0, 0, 3, 0
    homogeneous/test_homogeneous_population, 0, 0, 0, 0, 1, 0
@@ -466,7 +468,8 @@ Module × level grid
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_fixed_point_step, 0, 0, 0, 0, 9, 0
    numerics/test_frame, 0, 18, 0, 0, 46, 5
-   numerics/test_full_field_space, 0, 0, 0, 0, 7, 0
+   numerics/test_fredholm_verdict, 13, 0, 0, 0, 0, 0
+   numerics/test_full_field_space, 0, 0, 0, 0, 7, 3
    numerics/test_gauge, 0, 0, 0, 0, 15, 0
    numerics/test_gauss_rule_fingerprint, 0, 14, 0, 0, 7, 0
    numerics/test_gauss_rules_correctly_rounded, 0, 234, 0, 0, 43, 0
@@ -486,11 +489,11 @@ Module × level grid
    numerics/test_inverse_universal, 0, 0, 0, 0, 24, 0
    numerics/test_iteration, 0, 3, 0, 0, 42, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
-   numerics/test_kernel_projection_gauge, 64, 0, 0, 0, 0, 0
+   numerics/test_kernel_projection_gauge, 63, 0, 0, 0, 0, 0
    numerics/test_legendre_basis, 0, 0, 0, 0, 34, 0
    numerics/test_level_symmetric_nodes, 0, 0, 0, 0, 55, 0
    numerics/test_linear_combination, 46, 0, 0, 0, 0, 0
-   numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 28, 0
+   numerics/test_matrix_inverse_operator, 0, 0, 0, 0, 36, 0
    numerics/test_measure, 0, 17, 0, 0, 51, 0
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
@@ -590,6 +593,7 @@ Module × level grid
    operators/test_operator_block_role, 0, 0, 0, 0, 22, 0
    operators/test_operator_feeds_the_walk, 0, 0, 0, 0, 6, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
+   operators/test_predicted_loss_kernel, 17, 0, 0, 0, 0, 0
    operators/test_psi_half_coupling, 0, 2, 0, 0, 89, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_quotient_adjoint_sn, 0, 0, 0, 0, 22, 0
@@ -661,6 +665,7 @@ Module × level grid
    solve/test_every_entry_gauges_its_trace, 0, 0, 0, 0, 12, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
+   solve/test_fredholm_verdict, 0, 19, 0, 0, 0, 0
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 8, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 12, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 13, 0, 0, 0, 0
@@ -708,7 +713,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 527, 0
+   test_layer_imports, 0, 0, 0, 0, 530, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
@@ -720,6 +725,7 @@ Module × level grid
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0
+   transport/test_absorbing_chain_predictor, 15, 0, 0, 0, 0, 0
    transport/test_admission_matrix, 0, 0, 0, 0, 70, 0
    transport/test_admission_mechanism, 0, 0, 0, 0, 14, 0
    transport/test_angular_lift, 0, 0, 0, 0, 18, 0
@@ -920,6 +926,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``loss-rep-scanmarch-solve``, 11
    ``sn-homogenization-bilinear``, 11
    ``characteristic-fixed-source``, 10
+   ``fredholm-posing-alternative``, 10
    ``geometry-cylinder-axial-factor``, 10
    ``kll-1974-slab-flux``, 10
    ``kll-1974-sphere-flux``, 10
@@ -933,10 +940,12 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``peierls-greens-slab-V-alpha-2``, 9
    ``pole-mm-recurrence``, 9
    ``reference-kernel-fundamental-contract``, 9
+   ``sn-physical-kernel``, 9
    ``tau-m``, 9
    ``tau-p``, 9
    ``cp-inner-integral-antiderivative``, 8
    ``diffusion-coefficient``, 8
+   ``fredholm-eigen-whole-pencil``, 8
    ``hilbert-adjoint-equals-metric-times-S0``, 8
    ``peierls-rank-n-stability``, 8
    ``sn-adjoint-eigenproblem``, 8
@@ -1014,6 +1023,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``reference-kernel-least-solution``, 4
    ``reference-kernel-reach``, 4
    ``sn-adjoint-duality``, 4
+   ``sn-dd-left-kernel``, 4
    ``sn-mms-hetero-psi``, 4
    ``sn-mms-hetero-qext``, 4
    ``sn-mms-nonvacuum-qext``, 4
@@ -1049,6 +1059,7 @@ Every Sphinx ``.. math:: :label:`` block declared under ``docs/theory/**/*.rst``
    ``combination-dual-distributes``, 2
    ``cp-second-difference-operator``, 2
    ``diffusion-mms``, 2
+   ``fredholm-deflated-loss``, 2
    ``harmonic-moment-projection``, 2
    ``hebert-3-432-source``, 2
    ``inflow-mask-discrete``, 2
@@ -1835,7 +1846,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**57 tests** have no V&V level marker.
+**60 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1854,6 +1865,7 @@ taxonomy.
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4
+   ``tests/gates/numerics/test_full_field_space.py``, 3
    ``tests/gates/geometry/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2
    ``tests/gates/derivations/test_characteristic_reference.py``, 1

@@ -178,6 +178,7 @@ def test_D5_a_near_singular_loss_is_solved_and_its_rcond_is_on_the_exit_report()
 # ── D6-D8: the eigen entry (q = the fission emission) ────────────────────────────────────────────────────
 
 @pytest.mark.catches("ERR-123")
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_D6_the_eigen_entry_refuses_emission_into_the_class():
     """`[M]` before U0: k = 74.39 after max_outer = 200 ran out."""
     with pytest.raises(NoSolution, match=_FRAGMENT):
@@ -191,6 +192,7 @@ def test_D7_the_eigen_entry_solves_a_regular_fissile_medium():
     assert isinstance(r.solvability, Solve)
 
 
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_D8_the_eigen_entry_gauges_an_isolated_class():
     """Closed form k = nu Sf1 / (St1 - Ss11) = 1.25; before U0 the same value came by pivot luck, with no verdict."""
     r = solve_diffusion_1d({0: FIS_ISOLATED}, slab())

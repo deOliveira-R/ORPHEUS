@@ -204,13 +204,24 @@ start rather than of the problem (#344 — ``[M]`` up to 27.3 % apart, with both
 convergence functionals blind to the difference).
 
 The module supplies the kernel in **closed form** — no eigensolve and no SVD
-of :math:`A` — as one spanning set of pair generators per (ordinate orbit,
-group) block, and
-:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge` hands
-them to the numerics
+of :math:`A` — as a :class:`~orpheus.numerics.fredholm.PredictedKernel` on the
+full field (bulk :math:`\oplus` trace):
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`
+gives one spanning set of pair generators per (ordinate orbit, group) block
+and their left co-vectors (the annihilators of the range),
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_physical_kernel` one
+constant mode per absorption-free closed energy class on a closed domain, and
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_loss_kernel` their
+sum, which the hub caches as
+:attr:`SNProblem.predicted_kernel <orpheus.sn.problem.SNProblem.predicted_kernel>`
+(since the space-membership unit U0, 2026-10-31;
+:ref:`sn-loss-kernel-predicted`). Every entry decides its posing by the
+Fredholm alternative on it (:ref:`fredholm-posing-verdict`), and its projector,
+the numerics
 :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`,
-which is the :math:`G`-orthogonal projector onto :math:`\ker A`
-(:eq:`kernel-gauge-section`). Its applicability is *derived*, never
+is the :math:`G`-orthogonal projector onto :math:`\ker A`
+(:eq:`kernel-gauge-section`). A closed absorption-free class outside the
+closed forms' derived scope is refused at one declared door. Its applicability is *derived*, never
 tabulated: :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` asks
 the spatial closure whether it leaves a face mode undamped
 (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`)

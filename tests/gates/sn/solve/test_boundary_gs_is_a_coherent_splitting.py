@@ -564,7 +564,7 @@ def test_the_UNGAUGED_SI_driver_returns_a_splitting_dependent_trace(cells):
 
     ⛔ **Tier.** This runs the SI **driver** (:func:`tests.gates.sn._singular_loss_box.drive`),
     which does not gauge. Every public entry does
-    (:func:`~orpheus.sn.solver._exit_gauge_trace`, five call sites), so **the
+    (:func:`~orpheus.sn.solver._exit_gauge`, five call sites; ``_exit_gauge_trace`` until U0), so **the
     trace a user receives no longer has this property** — that is asserted in
     :mod:`tests.gates.sn.solve.test_every_entry_gauges_its_trace`
     (``test_every_exercisable_entry_reports_a_gauge_correction``,

@@ -65,11 +65,13 @@ def test_premise_left_and_right_kernels_differ_and_G_is_not_uniform():
     np.testing.assert_array_equal(_A @ _RIGHT, 0.0)
 
 
+@pytest.mark.verifies("fredholm-posing-alternative")
 def test_V1_a_trivial_kernel_is_Solve():
     v = _verdict(np.ones(_N), PredictedKernel.trivial(SPACE, "no kernel"))
     assert isinstance(v, Solve) and v.because == "no kernel" and v.conditioning is _SOLVED
 
 
+@pytest.mark.verifies("fredholm-posing-alternative")
 def test_V2_q_orthogonal_to_every_left_covector_is_Gauge_and_the_pairing_is_canonical():
     """Arm ``verdict_pairs_with_metric`` (pairs G w with q) reds: the balanced q is canonically orthogonal, not G-orth."""
     q = _balanced(1)
@@ -79,6 +81,7 @@ def test_V2_q_orthogonal_to_every_left_covector_is_Gauge_and_the_pairing_is_cano
     assert isinstance(v, Gauge) and v.projector.dimension == _K.size and v.pairing.value <= CONSISTENCY_RTOL
 
 
+@pytest.mark.verifies("fredholm-posing-alternative")
 def test_V3_one_nonzero_pairing_is_Refuse_and_names_the_covector():
     q = _balanced(2) + 0.1 * np.linalg.norm(_balanced(2)) * _LEFT[:, 1]
     with pytest.raises(NoSolution, match="no steady solution") as info:
@@ -86,6 +89,7 @@ def test_V3_one_nonzero_pairing_is_Refuse_and_names_the_covector():
     assert repr(_LABEL.format(1)) in str(info.value) and repr(_LABEL.format(0)) not in str(info.value)
 
 
+@pytest.mark.verifies("fredholm-posing-alternative")
 def test_V4_the_gauged_member_is_the_minimum_G_norm_member():
     """REFERENCE: one dense bordered solve [[A, R], [(G R)^T, 0]] (never the SUT's projector). Arm ``euclidean_projector``."""
     q = _balanced(3)
@@ -104,6 +108,7 @@ def _cosine(w, q, support):
 
 @pytest.mark.parametrize("t,admitted", [(0.0, True), (1e-14, True), (1e-6, False), (1e-2, False)],
                          ids=["balanced", "round_off", "1e-6", "1e-2"])
+@pytest.mark.verifies("fredholm-posing-alternative")
 def test_V5_the_cut_reads_the_cosine_on_the_declared_support(t, admitted):
     """Arm ``cut_1e-2`` reds the 1e-6 row; arm ``cosine_with_metric`` (G in the pairing) reds the balanced row.
     [M] U0 window (probes/p_cosine.py): largest Gauge 2.4e-15, smallest Refuse 0.092."""
@@ -119,6 +124,7 @@ def test_V5_the_cut_reads_the_cosine_on_the_declared_support(t, admitted):
     assert CONSISTENCY_RTOL == 1e-10
 
 
+@pytest.mark.verifies("fredholm-posing-alternative")
 def test_V5b_a_source_off_the_support_does_not_dilute_the_cosine():
     """A source component outside an annihilator's declared support leaves c unchanged (the denominator reads q_S only).
     Arm ``cosine_full_norm`` (||q||_2 over every dof) reds it: the large off-support component would hide the pairing."""
@@ -132,6 +138,7 @@ def test_V5b_a_source_off_the_support_does_not_dilute_the_cosine():
     assert kernel.consistency(q_off)[0] == pytest.approx(1.0)
 
 
+@pytest.mark.verifies("fredholm-posing-alternative")
 def test_V6_unequal_left_and_right_counts_are_refused_at_construction():
     """A square A has Fredholm index 0: as many left co-vectors as right kernel vectors."""
     with pytest.raises(ValueError, match="index"):
@@ -143,6 +150,7 @@ def _projector(R, G):
     return R @ np.linalg.solve(R.T @ (G[:, None] * R), (G[:, None] * R).T)
 
 
+@pytest.mark.verifies("fredholm-deflated-loss")
 def test_V7a_the_deflated_inverse_returns_the_minimum_G_norm_member():
     """RULED (the user, 2026-10-31): a factorising method inverts A + Pi. For a consistent q, (A + Pi)^-1 q is the
     minimum-G-norm member. REFERENCE: the bordered system (test oracle only). [M] orchestrator (deflated_probe.py,
@@ -155,6 +163,7 @@ def test_V7a_the_deflated_inverse_returns_the_minimum_G_norm_member():
     np.testing.assert_allclose(x, x_ref, rtol=0, atol=64 * np.finfo(float).eps * np.linalg.cond(_A + _projector(_RIGHT, _G)) * np.abs(x_ref).max())
 
 
+@pytest.mark.verifies("fredholm-deflated-loss")
 def test_V7b_a_non_semisimple_kernel_is_refused_at_construction():
     """A + Pi is nonsingular iff L^T R is nonsingular. Jordan fixture: A = [[0, 1], [0, 0]] (+) I, ker A = e_0, ker A^T =
     e_1, L^T R = 0: A + Pi is singular. The SN DD kernel is of this kind [M] (L^T R DD columns 0), which is why SN keeps

@@ -121,6 +121,18 @@ page. The admission matrix and the realization are on
 
 .. automodule:: orpheus.transport.boundary_conditions.realization
 
+The absorbing chain
+-------------------
+
+Which energy classes of a closed domain can never lose a neutron, decided
+from declared data alone (the present mixtures and the binding): the
+structural predicate behind every method's predicted loss kernel, and the
+class's energy right and left vectors. Its consumers are the Fredholm
+verdicts of :ref:`fredholm-posing-verdict`.
+
+.. automodule:: orpheus.transport.absorbing_chain
+   :members:
+
 The reaction-rate functionals
 -----------------------------
 

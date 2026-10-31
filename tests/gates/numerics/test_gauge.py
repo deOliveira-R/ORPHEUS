@@ -17,7 +17,7 @@ defining laws (``feedback_test_intrinsic_properties``):
   not a group element and must not be used as one; the frame pass's "interior
   kernel modes survive" leg was refuted on exactly this point);
 * the kernel gauge is RESIDUAL-NEUTRAL: :math:`A(\psi - \Pi\psi) = A\psi` because
-  :math:`\Pi\psi \in \ker A` (the production claim at ``_exit_gauge_trace``).
+  :math:`\Pi\psi \in \ker A` (the production claim at ``_exit_gauge``; ``_exit_gauge_trace`` until U0).
 
 And the NEGATIVE law that motivated the type: two gauges of one ray under two
 functionals are DISTINGUISHABLE values — until this step the tree applied four

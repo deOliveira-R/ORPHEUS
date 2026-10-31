@@ -13,13 +13,18 @@ A finite-dimensional linear operator :math:`A : V \to V` answers a source
 * otherwise: no solution. The decision raises :class:`NoSolution`, so no
   outcome ever holds a refused posing.
 
-The kernel is never measured in production. It is PREDICTED from structure by
-the method (:class:`PredictedKernel`: the right generators spanning
-:math:`\ker A` and the left generators spanning :math:`\ker A^{\mathsf T}`, the
-annihilators of the range), from declared data alone: the absorbing-chain
-predicate of the transport layer, SN's diamond-difference face transmission.
-A predictor's claim is checked against a dense SVD in the gates, never at run
-time. (The user's ruling R3, 2026-10-30: "Fredholm as the decision rule,
+The kernel's STRUCTURE is never measured in production: which modes exist,
+and how many, is predicted by the method from declared data alone (the
+absorbing-chain predicate of the transport layer, SN's diamond-difference face
+transmission), never read off a spectrum of the whole operator. Its VALUES are
+the method's: closed forms on SN; on a factorising method one SVD of each closed
+block of the assembled loss and one solve on its feeders
+(:meth:`PredictedKernel.of_closed_blocks`), a block the predictor named, so its
+nullity is a theorem the SVD only confirms. :class:`PredictedKernel` holds the
+right generators spanning :math:`\ker A` and the left generators spanning
+:math:`\ker A^{\mathsf T}`, the annihilators of the range. A predictor's
+claim is checked against a dense SVD of the whole operator in the gates, never
+at run time. (The user's ruling R3, 2026-10-30: "Fredholm as the decision rule,
 kernel measurement as witness".)
 
 **The annihilators are co-vectors.** :math:`\ker A^{\mathsf T}` lives in the

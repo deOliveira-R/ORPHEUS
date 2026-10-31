@@ -790,6 +790,25 @@ S\ :sub:`N` consumer is :ref:`sn-loss-kernel-the-gauge`.
 .. automodule:: orpheus.numerics.basis.orthonormal_span_basis
    :members:
 
+The Fredholm verdict — :mod:`orpheus.numerics.fredholm` — decides a posed
+question :math:`A\psi = q` before anything is inverted: ``Solve`` on a trivial
+kernel, ``Gauge`` when every left co-vector of :math:`A` annihilates the
+source, and :class:`~orpheus.numerics.fredholm.NoSolution` otherwise, from a
+:class:`~orpheus.numerics.fredholm.PredictedKernel` the method supplies (the
+right and left summands, from structure). The kernel's ``deflate`` is the
+operator :math:`A + \Pi` a factorising method inverts. Its evidence
+vocabulary is :mod:`orpheus.numerics.evidence`, the sum
+``Measured | Asserted | NotApplicable | NotYet`` that the exit report
+(:class:`~orpheus.numerics.outcome.ExitReport`) and the verdict share. The
+theory, with the proofs and the refuted designs, is
+:ref:`fredholm-posing-verdict`.
+
+.. automodule:: orpheus.numerics.fredholm
+   :members:
+
+.. automodule:: orpheus.numerics.evidence
+   :members:
+
 .. automodule:: orpheus.numerics.convergence
    :members:
    :undoc-members:

@@ -1172,7 +1172,8 @@ member list in the plan's own row was incomplete:
   retired with the numerics untangling's S1 (``5f850a69``), and since
   the space-membership unit U3 (2026-10-31) the S\ :sub:`N` label is
   composed by
-  :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`,
+  :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`
+  (since U0; at U3 by ``build_loss_kernel_gauge``, retired),
   carried as
   :class:`OrthonormalSpanBasis.label
   <orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis>`,

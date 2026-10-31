@@ -164,12 +164,14 @@ def test_S7_the_union_kernel_gauges_a_source_balanced_against_its_bulk_covector(
 # ── eigen entries (q = the fission emission) ─────────────────────────────────────────────────────────────
 
 @pytest.mark.catches("ERR-123")
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_S9_solve_sn_refuses_emission_into_the_class():
     """[M] today k = 1.25, max_inner exhausted, 'an eigen question has no admissibility to check'."""
     with pytest.raises(_Refusal, match=_FRAGMENT):
         solve_sn({0: FIS_FEEDS}, slab(), GL8, max_outer=60, max_inner=200)
 
 
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_S10_solve_sn_gauges_an_isolated_class():
     """[M] today k = 1.25 (the gauged value), no verdict recorded."""
     sol = _quiet(lambda: solve_sn({0: FIS_ISOLATED}, slab(), GL8))
@@ -184,6 +186,7 @@ FISSILE_N2N_BALANCED = make_mixture(sig_t=np.array([0.5]), sig_c=np.array([0.0])
                                     sig_2=np.array([[0.0625]]))
 
 
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_S11_solve_sn_adjoint_refuses_fission_carried_by_the_class():
     """The daggered posing's annihilators are flat(r), r in ker A, and the range of F^H is the production nu Sf:
     refused iff an absorption-free class carries fission. [M] FISSILE_N2N_BALANCED: NoSolution on both entries."""
@@ -191,6 +194,7 @@ def test_S11_solve_sn_adjoint_refuses_fission_carried_by_the_class():
         solve_sn_adjoint({0: FISSILE_N2N_BALANCED}, slab(), GL8, max_outer=60, max_inner=200)
 
 
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_S11b_the_adjoint_refuses_exactly_where_the_forward_does():
     """The eigen verdict is the PENCIL's (the user's ruling, 2026-10-31: the posing derives it): the kernel must be the
     whole pencil's, F r = 0 on the modes AND F^T w = 0 on the annihilators, a condition symmetric under ``.H``. So

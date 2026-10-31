@@ -124,6 +124,22 @@ Key Facts
   relaxation rate of the current, and not the total is the coefficient:
   :ref:`diffusion-transport-xs-relaxation`.
 
+- **A closed absorption-free medium is decided, not inverted.** On a
+  closed slab (every face conserving: a mirror deck, ``specular(1.0)``
+  or ``white(1.0)``) whose medium has an absorption-free energy class the
+  loss :math:`A` is exactly singular.  Since the space-membership unit
+  U0 (2026-10-31) the solver predicts that kernel from declared data,
+  factorises the deflated loss :math:`A + \Pi` (nonsingular; the loss
+  itself, bit-identically, on a regular medium), and decides every posing
+  by the Fredholm alternative before solving: a positive source is
+  refused with ``NoSolution``, a balanced one returns the
+  minimum-:math:`G`-norm member, and the eigen entry refuses a medium
+  whose fission feeds the class.  Before U0 the resolvent returned
+  :math:`1.44\times10^{17}` for a positive source on a closed pure
+  scatterer, in silence (ERR-123).  The public fixed-source entry
+  :func:`~orpheus.diffusion.solver.solve_diffusion_fixed_source` is new
+  with it.  See :ref:`diffusion-fredholm-verdict`.
+
 - **Discretisation.** Cell-centred finite difference with harmonic-mean
   face conductance (equivalent to lowest-order Raviart–Thomas with mass
   lumping); the design spatial order is :math:`\mathcal O(h^{2})` for
@@ -474,15 +490,26 @@ The resolvent — exact inverse, not operator splitting
 -----------------------------------------------------
 
 The within-outer inner solve is the campaign-ruled **explicit dense
-inverse**
+inverse**, of the loss DEFLATED by its predicted kernel (an excerpt of
+``DiffusionSolver.__init__``; ``self.loss`` is :math:`A`):
 
 .. code-block:: python
 
-   template  = FullField.zeros(bulk=ScalarFlux, boundary=ScalarBoundaryFlux, mesh=mesh)
-   resolvent = MatrixInverseOperator(FlattenedOperator(A, template))
+   self.template = FullField.zeros(
+       interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=mesh.full_field_space,
+   )
+   flat_loss = FlattenedOperator(self.loss, self.template)
+   self.predicted_kernel = self._predict_kernel(flat_loss)        # PredictedKernel (U0)
+   self.resolvent = MatrixInverseOperator(self.predicted_kernel.deflate(flat_loss))  # A + Pi
 
 — one eager LU factorisation of the flattened composite operator at
-construction, one back-substitution per outer iteration. No scattering
+construction, one back-substitution per outer iteration.  On a regular
+loss the predicted kernel is trivial and ``deflate`` returns ``flat_loss``
+itself, so the arithmetic is the pre-U0 resolvent's, bit for bit; on a
+closed absorption-free medium it is :math:`A + \Pi`, nonsingular, and its
+inverse returns the minimum-:math:`G`-norm member of a consistent posing
+(:ref:`diffusion-fredholm-verdict`).  Before U0 the spelling was
+``MatrixInverseOperator(FlattenedOperator(A, template))``. No scattering
 inner iteration exists at all: the loss :math:`A` already carries the
 full multigroup coupling (:math:`S` is subtracted *into* it), so
 ``solve_fixed_source`` is a single application of :math:`A^{-1}`. The
@@ -506,9 +533,170 @@ basis dimension for free.
    Laplacian is ill-conditioned (condition number :math:`\sim h^{-2}`)
    and the loss splitting is not a contraction, so the campaign found
    the Neumann series **diverges** on fine meshes. The explicit dense
-   inverse is exact regardless of conditioning — the same choice, and
-   the same ``MatrixInverseOperator(loss) @ F`` precedent, the 0-D
-   homogeneous solver makes (:doc:`/theory/foundations/infinite_medium`).
+   inverse is exact regardless of conditioning on a NONSINGULAR operator
+   (a singular loss is deflated first, :ref:`diffusion-fredholm-verdict`)
+   — the same choice the 0-D homogeneous solver makes
+   (:doc:`/theory/foundations/infinite_medium`).
+
+.. _diffusion-fredholm-verdict:
+
+The Fredholm verdict on a closed absorption-free medium
+-------------------------------------------------------
+
+A closed slab (every face a mirror deck, ``specular(1.0)`` or
+``white(1.0)``: a face returning exactly all of its current) whose medium
+has an energy class no neutron leaves by transfer and none is removed
+from (a final class of the group-transfer graph with zero net removal in
+every present material) has a singular loss: a neutron that reaches the
+class is never lost.  The general mathematics is
+:ref:`fredholm-posing-verdict`; this section is diffusion's instance,
+landed by the space-membership unit U0 (2026-10-31), and the defect it
+closes is ERR-123.
+
+**The predicted kernel.**  ``DiffusionSolver._predict_kernel`` names the
+classes from declared data
+(:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`
+on the present materials and the mesh's binding) and reads each mode's
+values off the assembled loss with
+:meth:`PredictedKernel.of_closed_blocks
+<orpheus.numerics.fredholm.PredictedKernel.of_closed_blocks>`: the class's
+degrees of freedom are every bulk cell and every partial-current slot of
+its groups, the feeders' those of the transient groups with a path into
+it; the right vector is the null vector of the class block (one SVD, with
+its nullity asserted to be one), the left co-vector is
+:math:`w_C^{\mathsf T}A_{CC} = 0` on the class and one transposed solve
+:math:`A_{TT}^{\mathsf T}w_T = -A_{CT}^{\mathsf T}w_C` on the feeders.  The
+STRUCTURE is the predictor's (which sets, and that each block's nullity is
+one); the dense loss supplies only the values.  ``[M]`` 2026-10-31
+(re-measured for this page, ``-O``, the worktree at ``119383f9``; the
+8-cell, 10 cm mirror slab of ``tests/gates/transport/_singular_loss_fixtures.py``):
+
+* the right vector of the one-group pure scatterer (:math:`\Sigma_t =
+  \Sigma_s = 0.5`) is 1 on every bulk cell and 1/4 on every
+  partial-current slot, outgoing and incoming.  That is the constant flux
+  read through the half-range dictionary
+  :eq:`diffusion-partial-current-dictionary`: :math:`J^\pm = \phi/4 \pm
+  J/2` with :math:`\phi = 1` and :math:`J = 0`;
+* its left co-vector is 1 on every bulk cell and, per face, 0 on the
+  outgoing :math:`J^+` slot and 0.8 on the incoming :math:`J^-` slot.  It
+  is NOT the integral of the class (the flat co-vector of the unit),
+  whose trace part would vanish: ``[M]`` (the U0 specification, fact F1)
+  :math:`\cos(w, \flat\mathbf 1) = 0.937`, and a source on the trace paired
+  through the integral is wrong by 0.26.  Like S\ :sub:`N`'s, the left
+  kernel is a property of the loss's row normalisation, which is why it is
+  read off the assembled operator rather than written down;
+* on the two-group ``g2_only`` mixture (group 1 absorbing and scattering
+  0.1 into group 2, group 2 a pure self-scatterer) the class is
+  :math:`\{2\}`, its feeder group 1, and the left co-vector reads 0.5 on
+  every bulk cell of group 1: the absorbing-chain probability
+  :math:`\Sigma_s(1\to2)/(\Sigma_s(1\to2) + \Sigma_{a,1}) = 0.1/0.2` that
+  a group-1 neutron is eventually transferred into the class rather than
+  absorbed.
+
+S\ :sub:`N` writes its kernel in closed form instead
+(:ref:`sn-loss-kernel-predicted`), because it has no dense loss to read;
+its closed forms stop at a heterogeneous class, which the general route
+here handles with the same two solves.
+
+**The deflated resolvent.**  The resolvent factorises
+:math:`A + \Pi` (:eq:`fredholm-deflated-loss`), :math:`\Pi` the
+:math:`G`-orthogonal projector onto the predicted kernel, which is
+nonsingular because the absorbing-chain kernel is semisimple, and whose
+inverse returns the minimum-:math:`G`-norm member of a consistent posing
+with no projection afterwards.  ``[M]`` (same run) the pure scatterer
+reads :math:`\operatorname{cond}(A) = 1.01\times10^{17}` and
+:math:`\operatorname{cond}(A + \Pi) = 35.3`, with LAPACK's
+reciprocal-condition estimate 0.0145 and a smallest singular value of
+:math:`L^{\mathsf T}R` of 0.960; ``g2_only`` reads
+:math:`6.60\times10^{16}`, 38.5, 0.0145 and 0.859.  On a regular medium
+the kernel is trivial, ``deflate`` returns the loss unchanged, and every
+eigenvalue the solver computed before U0 is bit-identical (``[M]`` the
+gates' regular fissile medium reads :math:`k = 0.6250000000000001`
+before and after).
+
+**The fixed-source entry.**
+:func:`~orpheus.diffusion.solver.solve_diffusion_fixed_source` (new in
+U0, the user's ruling that diffusion gets a source door matching
+S\ :sub:`N`'s) poses :math:`A\phi = q` for a bulk source density shaped
+like the scalar flux, with zero trace rows (an inflow enters through the
+boundary conditions, and a closed wall carrying a source is refused by the
+realizer today, a plumbing boundary), over the solver's flat pencil
+(:meth:`SourcePosing.of_pencil
+<orpheus.numerics.posing.SourcePosing.of_pencil>` at :math:`\sigma = 0`).
+It decides first:
+
+* no absorption-free closed class: ``Solve``, one back-substitution;
+* a class and a BALANCED source (zero net emission into the class, read
+  by its left co-vector): ``Gauge``, and the returned member is the
+  minimum-:math:`G`-norm one;
+* otherwise :class:`~orpheus.numerics.fredholm.NoSolution` ("the posing
+  has no steady solution"), before any solve: neutrons a positive source
+  puts into a class that cannot lose them accumulate without bound.
+
+It returns a ``DiffusionSourceSolution`` (outcome, exit report, mesh, the
+one ``DIRECT`` inner record).  The exit report's ``solvability`` holds the
+verdict with ``Measured`` reciprocal condition; ``gauge`` reads
+:math:`\lVert\Pi\phi\rVert_G/\lVert\phi\rVert_G` of the returned member
+(round-off after a deflated solve; ``NotApplicable`` on a trivial kernel);
+``balance`` reads :math:`\lVert A\phi - q\rVert_G/\lVert q\rVert_G` against
+the posing's own operator; ``admissibility`` is ``NotApplicable`` (a
+pure-transport posing has no subcriticality).  The posing carries the
+source in the SOURCE role of the flat chart and the flux in the flux role,
+so ``outcome.residual()`` is measurable (a first spelling built the
+source through the flux template and its residual raised a role
+``TypeError``; the elegance review, F1).
+
+**The eigen entry.**
+:func:`~orpheus.diffusion.solver.solve_diffusion_1d` asks the solver's
+eigen posing (over the same flat pencil, :math:`(A, F)` with the
+predicted kernel) for its verdict before the power iteration and returns
+it as ``DiffusionResult.solvability``: refused when fission emits into an
+absorption-free class (the kernel is not the whole pencil's,
+:eq:`fredholm-eigen-whole-pencil`), gauged when the class is isolated from
+fission, solved on a regular medium.
+
+.. list-table:: The diffusion verdict rows (``tests/gates/diffusion/test_fixed_source_verdict.py``; "before U0" is the U0 specification's measurement of the same input)
+   :header-rows: 1
+   :widths: 40 28 32
+
+   * - posing
+     - before U0
+     - since U0
+   * - positive source, closed pure scatterer (and the two-group
+       ``both2g`` and ``g2_only``; D1)
+     - :math:`\max|x| = 1.44\times10^{17}` (pure scatterer), silent
+     - ``NoSolution``; cosines 0.929, 0.929, 0.881
+   * - balanced source on a two-zone mesh (bulk metric 1.0 and 1.4; D2)
+     - 24.97 against the minimum-norm member's 8.97
+     - ``Gauge``; the bordered dense member to
+       :math:`64\epsilon\kappa` (``[M]`` :math:`5.8\times10^{-15}`); a
+       Euclidean projector is off by 3.35e-2
+   * - near-singular, :math:`\Sigma_a = 10^{-8}` (D5)
+     - no exit report
+     - ``Solve`` with the rcond on the verdict;
+       :math:`\phi = q/\Sigma_a` to :math:`10\kappa\epsilon`
+   * - ``solve_diffusion_1d``, fission emitting into the class (D6)
+     - :math:`k = 74.39` after ``max_outer = 200`` ran out
+     - ``NoSolution``
+   * - ``solve_diffusion_1d``, a regular fissile medium (D7)
+     - :math:`k = 0.6250000000000001`
+     - ``Solve``, the same :math:`k`
+   * - ``solve_diffusion_1d``, an isolated absorption-free group (D8)
+     - :math:`k = 1.25` by pivot luck, no verdict
+     - ``Gauge``, :math:`k = 1.25` (closed form
+       :math:`\nu\Sigma_{f,1}/(\Sigma_{t,1} - \Sigma_{s,11})`)
+
+The predictor's own rows (P6 to P8 in the same file) hold the predicted
+right and left vectors against a dense SVD of the assembled loss, the
+trace pattern of the left co-vector, and :math:`A r = 0` to
+:math:`64\epsilon\lVert A\rVert_1`.
+
+⚠ **Honest scope.**  The kernel lives on the Strategy
+(``DiffusionSolver``), not on the hub (``DiffusionMesh``), because the
+diffusion loss itself is assembled by the Strategy; S\ :sub:`N` and the
+infinite medium predict on the hub (GitHub #679).  A closed wall carrying
+an inflow is unreachable here (diffusion refuses the wall's source today),
+so diffusion has no refusal row for it; S\ :sub:`N` does.
 
 .. _diffusion-transport-xs-relaxation:
 
@@ -1850,6 +2038,23 @@ issues for finer granularity.
    * - Phase
      - Architectural milestone (what + why)
      - Commit
+   * - **U0 (space membership)**
+     - **The Fredholm verdict on a closed absorption-free medium**
+       (2026-10-31, unit U0 of
+       ``.claude/plans/space_membership_covector_gauge.md``; closes the
+       diffusion half of ERR-123). The solver predicts the loss's kernel
+       from declared data (``DiffusionSolver.predicted_kernel``, one mode
+       per absorption-free closed class, its values read off the assembled
+       loss), factorises the deflated loss :math:`A + \Pi` (the loss
+       itself on a regular medium, bit-identically), carries a flat
+       pencil and an eigen posing, records the eigen verdict on
+       ``DiffusionResult.solvability``, and gains the public fixed-source
+       entry :func:`~orpheus.diffusion.solver.solve_diffusion_fixed_source`
+       with an exit report. Before it the resolvent returned
+       :math:`1.44\times10^{17}` for a positive source on a closed pure
+       scatterer, in silence (:ref:`diffusion-fredholm-verdict`).
+     - *(in development)* ``ef5eea29`` on branch
+       ``refactor/space-membership``
    * - **Wave 2 (S3)**
      - **The trace-law boundary stack retired from diffusion** — the
        string-tagged ``BC`` laws, ``BOUNDARY_OPERATOR_REGISTRY``,

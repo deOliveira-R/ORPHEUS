@@ -6047,6 +6047,21 @@ their derivation, their evidence and their remedy:
    mirror-**odd**, and there the un-gauged solve reports a quantity that
    cannot physically exist.
 
+.. note::
+
+   **This section's kernel is the diamond-difference half of the loss's
+   kernel.**  Everything from here to :ref:`sn-loss-kernel-the-gauge` is
+   about the discretization kernel: a pure-trace, geometry-only
+   (Stratum-1) object, independent of the cross sections.  Since the
+   space-membership unit U0 (2026-10-31) the hub predicts a second,
+   physical kernel beside it on a closed domain whose medium has an
+   absorption-free energy class: a constant mode on the bulk AND the
+   trace, which does read the mixtures.  The two add
+   (:math:`\dim\ker A` = the counting law of this section + the number of
+   such classes), and both are derived, with their left co-vectors, at
+   :ref:`sn-loss-kernel-predicted`.  "The kernel is a pure-trace object"
+   below is a statement about the first half.
+
 .. admonition:: Key result
    :class: tip
 
@@ -6636,17 +6651,22 @@ The gauge — returning the canonical member
 -------------------------------------------
 
 S\ :sub:`N` supplies the kernel's generators and nothing else; the
-projector is numerics'.
-:attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
-is built by
-:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`,
-which hands one
+projector is numerics'.  The generators travel inside the hub's
+:attr:`SNProblem.predicted_kernel <orpheus.sn.problem.SNProblem.predicted_kernel>`
+(a :class:`~orpheus.numerics.fredholm.PredictedKernel` on the full field,
+bulk :math:`\oplus` trace, since the space-membership unit U0,
+2026-10-31; :ref:`sn-loss-kernel-predicted`), whose projector is
+:attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`.
+For the diamond-difference half,
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`
+hands one right
 :class:`~orpheus.numerics.kernel_projection_gauge.KernelSummand` per
 (ordinate orbit, group) block to
 :meth:`KernelProjectionGauge.direct_sum
 <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.direct_sum>`
-over the boundary-trace space.  A summand's support is the block's trace
-degrees of freedom (``_block_support``), its generators are the pair
+(with its left twin, the annihilators, beside it).  A summand's support is
+the block's trace degrees of freedom offset past the bulk in the full
+field's flat chart (``_block_support``), its generators are the pair
 generators of :eq:`dd-null-balance-combinatorial` mapped onto those
 degrees of freedom through the sawtooth :eq:`dd-null-sawtooth`
 (``_block_generators``, an over-complete set that is not
@@ -6658,10 +6678,14 @@ the witness is
 on every shipped singular block, and the proof is owed (GitHub #636).
 The rank cut, the :math:`G`-orthonormalisation, the summand projectors and
 their sum are the numerics derivation at :eq:`kernel-gauge-section`.  The
-blocks' supports are disjoint, so the sum is a direct sum and the overlap
-check has nothing to compare.  The result is the :math:`G`-orthogonal
-projector :math:`\Pi` onto :math:`\ker A`, and the operation the solver
-performs at every exit that returns a trace is
+diamond-difference blocks' supports are disjoint among themselves; the
+physical summand of an absorption-free class (:ref:`sn-loss-kernel-predicted`)
+overlaps them on the trace, and the overlap check admits it because the
+two are :math:`G`-orthogonal (the diamond-difference modes are
+mirror-odd, the physical mode constant).  The result is the
+:math:`G`-orthogonal projector :math:`\Pi` onto :math:`\ker A`, and the
+operation the solver performs, on the whole state, at every exit of a
+posing whose verdict is ``Gauge`` is
 
 .. math::
    :label: sn-loss-kernel-gauge-projection
@@ -6688,8 +6712,9 @@ The right-hand identity is the whole safety argument: the projection is
 truncated SI solve the exit balance defect reads ``0.3111434602740818``
 on the raw and on the gauged iterate alike, while the gauge correction
 goes :math:`3.59\times10^{-2} \to 4.9\times10^{-17}` (measured in the
-Euclidean norm before the space-membership unit U3, 2026-10-31, after
-which the exit reports the trace's :math:`G`-norm; :ref:`sn-exit-gauge`).  It is applied
+Euclidean norm before the space-membership unit U3, 2026-10-31; the exit
+then reported the trace's :math:`G`-norm, and since U0 it reports the
+full field's; :ref:`sn-exit-gauge`).  It is applied
 *after* the defect is measured, so the number reported describes the
 object the caller actually receives.
 
@@ -6723,10 +6748,20 @@ What ships
 
    * - surface
      - what it is
+   * - :attr:`SNProblem.predicted_kernel <orpheus.sn.problem.SNProblem.predicted_kernel>`
+     - the cached prediction, a
+       :class:`~orpheus.numerics.fredholm.PredictedKernel` on the full
+       field (since U0): the diamond-difference modes and their left
+       co-vectors, plus one mode per absorption-free closed class
+       (:ref:`sn-loss-kernel-predicted`).  The hub's pencil carries it,
+       rebased onto the coupled space, and every entry's verdict reads it
    * - :attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
-     - the cached projector, a
-       :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`.
-       On the hub because the kernel is geometry-only; **zero summands**
+     - the prediction's projector, a
+       :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
+       on the coupled space.
+       On the hub because the kernel is the hub's (until U0 it was argued
+       from the kernel being geometry-only, which the physical half is
+       not); **zero summands**
        on a non-singular configuration, so
        :meth:`gauge <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.gauge>`
        is the identity and no consumer needs a ``None`` branch
@@ -6742,7 +6777,7 @@ What ships
        solve converged perfectly and the ambiguity is in the *equation*
    * - :attr:`ExitReport.gauge <orpheus.numerics.outcome.ExitReport.gauge>`
      - the measured :math:`\lVert\Pi\psi\rVert_G/\lVert\psi\rVert_G`, in
-       the trace space's own norm, as typed
+       the full field's own norm (the trace's from U3 to U0), as typed
        :class:`~orpheus.numerics.evidence.Evidence`.  A
        :class:`~orpheus.numerics.evidence.Measured` zero-ish value and
        "nothing was measured" are **different values**, and since
@@ -6750,6 +6785,12 @@ What ships
        versus *the closure is unclassifiable, so the trace was NOT
        gauged*.  ⛔ All three were one ``None`` on
        ``IterationHistory.gauge_correction`` before
+   * - :attr:`ExitReport.solvability <orpheus.numerics.outcome.ExitReport.solvability>`
+     - the Fredholm verdict on the posing (since U0): ``Solve`` or
+       ``Gauge``, with the predictor's reason and the conditioning
+       ``NotApplicable`` (S\ :sub:`N` sweeps, it never factorises); a
+       refused posing raises ``NoSolution`` at the entry
+       (:ref:`fredholm-posing-verdict`)
 
 The three-state predicate is not ceremony.  ``[M]``
 ``linear_discontinuous`` **damps** the face mode at :math:`d=2`
@@ -6787,8 +6828,8 @@ Against solves that take seconds and :math:`O(10^3\!-\!10^4)` sweeps on
 the same fixtures, and with the build amortised over every group, outer
 and eigenvalue iterate, the projection is well under 0.2 % of one solve.
 
-Every public entry gauges — including the two that cannot be exercised
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Every public entry gauges — including the two the diamond-difference half cannot exercise
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The gauge is the sibling of the exit balance defect
 (:eq:`sn-exit-balance-defect`) with one sharpening that changes the
@@ -6801,9 +6842,15 @@ residual", which is the boundary block of :math:`A\psi`, a different
 object from the solution vector's; ``[M]`` it is a flux trace, and the
 sentence has been corrected).  ``solve_sn_adjoint`` and
 ``solve_sn_adjoint_fixed_source`` are wired for uniformity and are
-**structurally inert**: the adjoint routes through :math:`(L+C)^{\mathsf H}`,
-whose transpose solve is 1-D-scan-only, and a 1-D problem has at most
-one reflective axis pair.
+**structurally inert for the diamond-difference half**: the adjoint routes
+through :math:`(L+C)^{\mathsf H}`, whose transpose solve is 1-D-scan-only,
+and a 1-D problem has at most one reflective axis pair.  Since U0 they
+are not inert for the physical half: a 1-D closed pure scatterer has a
+physical kernel, and the adjoint entries gauge it with the ADJOINT
+kernel (``predicted_kernel.H``), never the forward projector
+(``tests/gates/sn/solve/test_fredholm_verdict.py::test_S15_the_adjoint_member_is_annihilated_by_the_left_covectors``,
+``[M]`` the forward projector would leave a left co-vector reading
+7.7e-2 on the returned member).
 
 .. note::
 
@@ -6813,6 +6860,589 @@ one reflective axis pair.
    list is **derived from the module** rather than hand-written, so a
    new ``solve_sn*`` entry that forgets to gauge cannot pass by being
    unknown to the gate.
+
+.. _sn-loss-kernel-predicted:
+
+The predicted kernel: the left co-vectors, and the physical modes
+-----------------------------------------------------------------
+
+Since the space-membership unit U0 (2026-10-31) every S\ :sub:`N` posing
+is decided by the Fredholm alternative before a sweep runs
+(:ref:`fredholm-posing-verdict`), and the decision needs more than the
+right kernel derived above.  It needs the LEFT kernel
+:math:`\ker A^{\mathsf T}`, whose co-vectors are the annihilators of the
+range a source is tested against, and it needs the kernel to be complete:
+on a closed domain whose medium has an absorption-free energy class the
+loss has a second, physical kernel beside the diamond-difference one.
+This section derives both, states what the code predicts, and records
+the candidates that failed.  The hub's
+:attr:`SNProblem.predicted_kernel <orpheus.sn.problem.SNProblem.predicted_kernel>`
+is
+
+.. math::
+
+   \ker A \;=\; \underbrace{\operatorname{span}\Phi}_{\text{diamond difference}}
+   \;\oplus\; \underbrace{\bigoplus_{C}\operatorname{span}\,(e_C \otimes \mathbf 1)}_{\text{absorption-free classes}} ,
+   \qquad
+   \ker A^{\mathsf T} \;=\; \operatorname{span} W\Phi
+   \;\oplus\; \bigoplus_{C}\operatorname{span}\, W(u_C \otimes \mathbf 1) ,
+
+on the full field, bulk :math:`\oplus` trace, flat (bulk first).
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`
+builds the first summand pair,
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_physical_kernel`
+the second, and
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_loss_kernel`
+adds them.  The hub's pencil carries it rebased onto the coupled space
+whose first member is the full field
+(:meth:`PredictedKernel.rebased <orpheus.numerics.fredholm.PredictedKernel.rebased>`),
+and every entry reads it there.
+
+.. admonition:: Key facts
+   :class: tip
+
+   * The dimensions add: ``[M]`` dense SVD, the :math:`(3,4)` all-mirror
+     box, ``level_symmetric``: :math:`S_2` 1-group 2 at :math:`c = 0.9`
+     and 3 = 2 + 1 at :math:`c = 1`; :math:`S_4` 2-group 12 and 14 = 12 + 2
+     (``test_S8_the_union_count_and_spans``, right and left both).
+   * The diamond-difference left kernel is :math:`J\Phi` with
+     :math:`J = -(\Omega_n\cdot\hat n_f)A_f` on the trace and 0 on the
+     bulk: the right generators with a sign and a face area, no
+     cross section, no :math:`|\mu|`.  It is ORTHOGONAL to the right
+     kernel, so the zero eigenvalue is a Jordan chain and S\ :sub:`N`
+     cannot factorise :math:`A + \Pi` (:eq:`fredholm-deflated-loss`).
+   * The physical mode of an absorption-free class :math:`C` is the
+     class's energy null vector, constant and isotropic on every bulk cell
+     and trace slot; its co-vector is the class's energy left vector times
+     the balance weights :math:`W = w_n V_{\rm cell} \oplus
+     -w_n(\Omega_n\cdot\hat n_f)A_f`.
+   * Both left kernels are ONE diagonal :math:`W` applied to the right
+     objects.  The code has one generator loop, and the balance weights
+     are ``_balance_weights``.
+   * The closed forms hold on a derived scope; a closed absorption-free
+     class outside it is refused at one declared door with five entries
+     (below).
+
+The diamond-difference left kernel
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The derivation is the numerics-investigator's
+(``scratch/membership_covector/u0/left_basis/MEMO.md``, lead 1), read off
+the rows of the production loss.  Order each face's unknowns as
+:math:`(\psi_c, \psi_{\rm in}, \psi_{\rm out})`.  ``[M]`` (``p1b``, the
+:math:`(3,4)` :math:`S_2` box) the trace rows of :math:`A` are
+
+.. math::
+
+   \text{inflow row } (f, n):\quad
+   \psi_{\rm in}(f, n) - \psi_{\rm out}(f, R_a n) = 0 ,
+   \qquad
+   \text{outflow row } (f, n):\quad
+   -\psi_{\rm out}(f, n) + 2\sum_k (-1)^k \psi_c(k)
+   + (-1)^{n_a}\psi_{\rm in}(f_{\rm opp}, n) = 0 ,
+
+the first the mirror law :math:`I - B` with unit coefficients, the second
+diamond differencing telescoped along the mesh line from the opposite face
+(:math:`k` the cells on the line, :math:`n_a` their number), and the bulk
+rows reference only inflow trace values.  A left null vector
+:math:`\ell = (0, \ell_{\rm in}, \ell_{\rm out})` (it has no bulk part:
+``[M]`` bulk mass :math:`10^{-29}`) must annihilate every column:
+
+.. math::
+
+   (\psi_{\rm out})\;\; \ell_{\rm out} = -B^{\mathsf T}\ell_{\rm in} ,
+   \qquad
+   (\psi_{\rm in})\;\; \ell_{\rm in} = -(-1)^{n_a}\,\ell_{\rm out}(f_{\rm opp}) ,
+   \qquad
+   (\psi_c)\;\; \sum_{a:\,n \text{ exits } a} \ell_{{\rm out},a}\,(-1)^{d_a} = 0 ,
+
+with :math:`d_a` the distance, in cells, from the cell to the exit face on
+axis :math:`a`.  Put :math:`Z_a = \ell_{{\rm out},a}\,\varepsilon_a(n)\,
+(-1)^{\sum_{b\neq a} i_b}`.  The :math:`\psi_c` columns give
+:math:`\sum_a Z_a = 0` with :math:`Z_a` blind to :math:`i_a`, and the
+:math:`B` columns give :math:`Z_a(n) = -Z_a(R_a n)`, that is
+:math:`Z_a = s_a \hat Y_a` with :math:`\hat Y_a` blind to :math:`s_a`.  That
+is exactly the right kernel's equation :eq:`dd-null-balance-combinatorial`,
+:math:`\sum_a s_a Y_a = 0`, so :math:`\hat Y` ranges over the same
+pair-generator space.  Back-substituting face by face gives
+
+.. math::
+   :label: sn-dd-left-kernel
+
+   \ell \;=\; J\varphi ,
+   \qquad
+   J \;=\; \operatorname{diag}\bigl(-(\Omega_n\cdot\hat n_f)\,A_f\bigr)
+   \text{ on the trace, } 0 \text{ on the bulk} ,
+
+so the left generators of a block are the right ones (§3's
+:math:`\varphi = \text{sawtooth}\cdot Y\cdot\text{checker}/(|\mu_a|A_a)`)
+with the factor :math:`-\operatorname{sign}(\Omega_n\cdot\hat n_f)\,|\mu_a|A_a`:
+:math:`-\operatorname{sign}(\Omega_n\cdot\hat n_f)\cdot\text{sawtooth}\cdot
+Y\cdot\text{checker}`, a :math:`\pm1` pattern with no cross section, no
+:math:`|\mu_a|` and no face area left in it.  The :math:`|\mu_a|A_a`
+weight of the right kernel comes from the bulk balance rows; the left
+kernel sees only the unit-normalised trace rows, so it carries none.
+
+*Completeness.*  :math:`\operatorname{rank}(J\Phi) = \dim\ker A` (``[M]``
+on every case below), :math:`A` is square, and :math:`\dim\ker A` is the
+counting law :eq:`dd-null-counting-law`, so the constructed set spans
+:math:`\ker A^{\mathsf T}`; the dense SVD confirms it rather than being
+needed for it.
+
+⚠ *The left kernel is a property of the loss's ROW normalisation.*
+Rescaling the trace rows by a diagonal :math:`D_r` maps
+:math:`\ker A^{\mathsf T}` by :math:`D_r^{-1}`, so :eq:`sn-dd-left-kernel`
+is the left kernel of the production row scaling (unit trace rows), which
+is measured, not intrinsic.  A future change of the trace rows'
+normalisation moves it, and the gate ``test_S16b`` (below) is the row
+that would red.
+
+*The code's spelling.*  The shipped left generators are
+:math:`W\Phi`, with the balance weights
+:math:`W = -w_n(\Omega_n\cdot\hat n_f)A_f` on the trace
+(``_balance_weights``; the bulk half of :math:`W` never meets a
+diamond-difference support, which is trace-only).  :math:`W = w_n J`, and
+the quadrature weight :math:`w_n` is constant on a reflection orbit (a
+reflection is a symmetry of the rule), while each summand is one
+(orbit, group) block, so :math:`W\Phi` and :math:`J\Phi` span the same
+space summand by summand.  ⚠ That is a stabiliser: no fixture can tell
+:math:`(\Omega\cdot\hat n)A_f` from :math:`(\Omega\cdot\hat n)w_nA_f`
+blockwise, and the code chose the :math:`w_n` form so that one diagonal
+serves the physical co-vector too (below).
+
+*Its adjoint.*  The trace metric is
+:math:`G = |\Omega\cdot\hat n|\,w_n` (``[M]``: the ratio
+:math:`G/(|\Omega\cdot\hat n|w_n)` has zero spread on 10 of 10 cases), so
+:math:`\ker A^{\mathsf H} = G^{-1}\ker A^{\mathsf T} =
+\operatorname{span}\bigl(\operatorname{sign}(\Omega\cdot\hat n)\,A_f\,\Phi\bigr)`
+blockwise (``[R]``, derived; the bulk metric does not enter, since
+:math:`\ker A^{\mathsf T}` has no bulk part).  This is what an adjoint
+S\ :sub:`N` posing gauges with (:attr:`PredictedKernel.H
+<orpheus.numerics.fredholm.PredictedKernel.H>`); on the
+diamond-difference half it is unexercised, because the transpose solve
+is 1-D only and a 1-D problem has no diamond-difference
+kernel.  ``[M]`` the measured fact behind the refutations below: the
+production trace metric carries no face area (:math:`G/(|\Omega\cdot\hat
+n| w_n A_f)` varies by :math:`O(1)`; GitHub #680).
+
+*Why the zero eigenvalue is not semisimple.*
+:math:`(J\Phi)^{\mathsf T}\Phi = -\sum (\Omega_n\cdot\hat n_f)A_f\varphi^2
+= 0`: each mode's inflow and outflow values have equal magnitude (the
+sawtooth and the mirror pair them), so the net boundary current of
+:math:`\varphi^2` vanishes.  ``[M]``
+:math:`\max|(J\Phi)^{\mathsf T}\Phi| \le 4.8\times10^{-16}` on 9 of 9
+non-trivial cases.  :math:`\ker A^{\mathsf T} \perp \ker A` in the
+Euclidean pairing, the zero eigenvalue has Jordan blocks, no biorthogonal
+(oblique spectral) projector exists, and :math:`A + \Pi` is singular;
+S\ :sub:`N` iterates and projects (:ref:`fredholm-posing-verdict`).
+
+.. list-table:: The diamond-difference left kernel against the dense SVD (``left_basis/MEMO.md``, probes ``p2``/``p3``; span residuals both ways, tolerance :math:`10^{-10}`; the two mutation columns are the residual of the wrong candidate)
+   :header-rows: 1
+   :widths: 30 8 8 14 14 13 13
+
+   * - case
+     - nullity
+     - rank :math:`J\Phi`
+     - :math:`J\Phi \subset \ker A^{\mathsf T}`
+     - :math:`\ker A^{\mathsf T} \subset J\Phi`
+     - candidate :math:`\Phi`
+     - candidate :math:`|\Omega\cdot\hat n|A\Phi`
+   * - d2 (3,4) LS2 ng1 c0.9
+     - 2
+     - 2
+     - 8.9e-15
+     - 8.9e-15
+     - 1.00
+     - 1.00
+   * - d2 (3,4) LS4 ng2 c0.9
+     - 12
+     - 12
+     - 9.0e-15
+     - 8.9e-15
+     - 1.00
+     - 1.00
+   * - d2 (3,5) LS4 ng2 c0.9 graded 1.6
+     - 12
+     - 12
+     - 1.2e-14
+     - 1.2e-14
+     - 1.00
+     - 1.00
+   * - d2 (4,3) LS6 ng2 c0.9 graded 1.4
+     - 24
+     - 24
+     - 1.1e-14
+     - 1.1e-14
+     - 1.00
+     - 1.00
+   * - d3 (2,3,2) LS2 ng1 c0.9
+     - 13
+     - 13
+     - 1.0e-14
+     - 1.0e-14
+     - 1.00
+     - 1.00
+   * - d3 (3,2,3) LS4 ng1 c0.9 graded 1.5
+     - 45
+     - 45
+     - 9.7e-15
+     - 1.0e-14
+     - 1.00
+     - 1.00
+   * - d3 (2,3,3) z-vacuum LS4 ng1 c0.9
+     - 18
+     - 18
+     - 7.4e-15
+     - 7.4e-15
+     - 1.00
+     - 1.00
+   * - d2 (3,4) LS2 ng1 c1.0
+     - 3
+     - 2
+     - 4.9e-14
+     - (physical, below)
+     - 1.00
+     - 1.00
+   * - d2 (3,4) LS4 ng2 c1.0 graded 1.6
+     - 14
+     - 12
+     - 8.3e-15
+     - (physical, below)
+     - 1.00
+     - 1.00
+
+The trivial row (an x-vacuum box, nullity 0) is omitted: it carries no
+positive content.  At :math:`c = 1` :math:`J\Phi` is a strict subspace
+of the left kernel; its complement has dimension :math:`n_g` (1 and 2),
+and it is the physical co-vector of the next subsection (``[M]`` its bulk
+part is :math:`w_n V_{\rm cell}` times a constant per group, spread
+:math:`\le 5.7\times10^{-12}` on the graded mesh where :math:`V_{\rm
+cell}` itself varies 90 %).
+
+**Refuted candidates**, each for the question *is* :math:`\operatorname{span}X = \ker A^{\mathsf T}`
+*?* (residual of the dense left kernel against the candidate's span):
+
+* :math:`\Phi`, the right kernel: 1.00 everywhere, because
+  :math:`\ker A^{\mathsf T} \perp \ker A` (the Jordan fact above).
+* :math:`G\Phi` and :math:`G^{-1}\Phi`, the Riesz images of the right
+  kernel (the first probe's guesses): 1.00; :math:`G` is unsigned, and
+  the inflow/outflow sign is the missing factor.
+* :math:`|\Omega\cdot\hat n|A_f\Phi`, the unsigned current weight: 1.00,
+  for the same reason.
+* :math:`\operatorname{sign}(\Omega\cdot\hat n)G\Phi`: 0.20 to 0.51; the
+  sign is right and the face area is missing (it fails even on a uniform
+  mesh, where :math:`h_x \neq h_y`).
+* :math:`\operatorname{sign}(\Omega\cdot\hat n)|\Omega\cdot\hat n|\Phi`
+  (no area): 0.20 to 0.51; :math:`\operatorname{sign}(\Omega\cdot\hat n)
+  A_f\Phi` (no :math:`|\Omega\cdot\hat n|`): 0.32 to 0.41, which is
+  :math:`\ker A^{\mathsf H}`, not :math:`\ker A^{\mathsf T}` (``[R]``).
+* :math:`P_{\rm mirror}\Phi` (the face reflection :math:`R_a`) and
+  :math:`P_{\rm rev}\Phi` (the full ordinate reversal): 1.00.
+  :math:`\Phi` is invariant under both, so they are SYMMETRIES of both
+  kernels, not the map between them.  The FACT these establish: the map
+  from right to left is the diagonal :math:`J`, whose involutive part is
+  the inflow/outflow character :math:`\operatorname{sign}(\Omega\cdot\hat
+  n)`; no permutation of the trace is involved.
+
+.. (verification note, no vv-status: the markers are owed)
+   sn-dd-left-kernel is gated by tests/gates/sn/operators/test_predicted_loss_kernel.py
+   test_S16a_the_DD_left_basis_spans_the_dense_left_null_space (dense SVD,
+   both directions; supports trace-only) and
+   test_S16b_the_DD_left_generators_are_J_times_the_right_ones (J rebuilt
+   from the quadrature, the trace layout and the cell edges; arms
+   left_is_right and trace_weights_zeroed redden it).  Neither carries a
+   verifies marker for this label yet.
+
+The physical kernel of an absorption-free class
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+On a closed domain (every face a mirror or a ``white(1.0)`` wall: a face
+whose condition returns exactly all of its current) the loss is singular
+whenever a final class :math:`C` of the energy-transfer graph has zero
+net removal in every present material
+(:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`,
+declared data only; :ref:`fredholm-posing-verdict`).  The energy factor
+of the mode is the class's: with the removal matrix
+:math:`K = \operatorname{diag}\Sigma_t - S_0^{\mathsf T} - 2S_2^{\mathsf
+T}` (:func:`~orpheus.transport.absorbing_chain.removal_matrix`; the 2 is
+the (n,2n) multiplicity, ``N2N_MULTIPLICITY``),
+:meth:`ClosedClass.energy_vectors
+<orpheus.transport.absorbing_chain.ClosedClass.energy_vectors>` returns
+the right null vector :math:`e` (:math:`K_{CC}e_C = 0`, zero off the
+class) and the left vector :math:`u` (:math:`u_C = 1`; on a feeder group
+:math:`f`, :math:`K_{TT}^{\mathsf T}u_T = -K_{CT}^{\mathsf T}u_C`, which for
+a single feeder is :math:`u_f = \sum_{g\in C}\Sigma_s(f\to g) /
+(\Sigma_{t,f} - \Sigma_s(f\to f))`, the absorbing-chain probability that
+a neutron in :math:`f` is eventually transferred into :math:`C`).  The
+derivation is the numerics-investigator's
+(``scratch/membership_covector/u0/physical/MEMO.md``):
+
+.. math::
+   :label: sn-physical-kernel
+
+   r_C \;=\; e_g \;\text{ on every bulk degree of freedom and every trace slot} ,
+   \qquad
+   \ell_C \;=\; u_g\,w_n\,\bigl(V_{\rm cell} \oplus -(\Omega_n\cdot\hat n_f)A_f\bigr)
+   \;=\; W\,(u \otimes \mathbf 1) .
+
+*The right mode.*  :math:`r_C` is constant in space and isotropic.  It is
+in the kernel because three things hold: diamond differencing is exact on
+a constant (:math:`\psi_{\rm out} = 2\psi_c - \psi_{\rm in}` returns the
+constant), a conserving wall maps a constant isotropic trace to itself
+(a mirror permutes ordinates; ``white(1.0)`` returns the same partial
+current isotropically), and :math:`K_m e = 0` in every cell's material
+:math:`m`, so collision minus transfer cancels cell by cell.  The third
+condition is why the closed form needs every present material to share
+:math:`e` (below).
+
+*The left co-vector.*  Sum the cell balances with weight
+:math:`w_n u_g`.  Streaming telescopes to the boundary leakage
+:math:`\sum (\Omega\cdot\hat n)\,w\,A\,\psi`; collision minus transfer
+vanishes because :math:`u^{\mathsf T}K = 0` in every cell.  The
+production bulk rows are the balance divided by :math:`V_{\rm cell}`,
+hence the bulk weight :math:`w_n V_{\rm cell}\,u_g`.  The outflow rows
+(:math:`-\psi_{\rm out}` plus the diamond-difference telescope) take the
+weight :math:`-w_n|\Omega\cdot\hat n|A_f u_g`, which turns the telescoped
+outflow back into :math:`\psi_{\rm out}`, and the inflow rows
+(:math:`\psi_{\rm in} - B\psi_{\rm out}`) take :math:`+w_n|\Omega\cdot\hat
+n|A_f u_g`.  What remains is
+
+.. math::
+
+   \sum_{\rm out} w\,|\Omega\cdot\hat n|\,A\,\psi_{\rm out}
+   - \sum_{\rm in} w\,|\Omega\cdot\hat n|\,A\,(B\psi_{\rm out}) ,
+
+which is zero for every :math:`\psi_{\rm out}` iff
+:math:`B^{\mathsf T}(w|\Omega\cdot\hat n|A)_{\rm in} = (w|\Omega\cdot\hat
+n|A)_{\rm out}`: the closure conserves partial current.  A mirror (a
+permutation preserving :math:`w`, :math:`|\Omega\cdot\hat n|` and
+:math:`A`) and ``white(1.0)`` (not a permutation) both satisfy it.  The
+trace half of the co-vector is :math:`w_n J`, the diamond-difference left
+weight, which is why one diagonal :math:`W` serves both kernels.
+
+*The (n,2n) factor.*  :math:`K` counts an (n,2n) transfer twice.  ``[M]``
+the fixture with :math:`\Sigma_s(1\to2)` lowered by 0.2 and
+:math:`\Sigma_2(1\to2) = 0.1` keeps one physical mode, so the production
+(n,2n) emission carries the 2; a multiplicity of 1 would make the class
+absorbing and the mode would vanish.
+
+.. list-table:: The physical kernel against the dense SVD (``physical/MEMO.md``, probes ``q1``/``q2``; 3 groups, group 0 an absorbing feeder, class {1, 2}; span residuals of [DD part + predictor] against the dense kernel, both ways, tolerance :math:`10^{-10}`)
+   :header-rows: 1
+   :widths: 34 9 6 25 26
+
+   * - case
+     - nullity
+     - DD
+     - right :math:`e` constant
+     - left :math:`W(u\otimes\mathbf 1)`
+   * - d1 (6,) GL8 graded 1.5 mirror
+     - 1
+     - 0
+     - 3.5e-14 / 3.5e-14
+     - 9.8e-15 / 9.8e-15
+   * - d1 (6,) GL8 white(1.0)
+     - 1
+     - 0
+     - 5.7e-15 / 5.7e-15
+     - 4.9e-15 / 4.9e-15
+   * - d2 (3,4) LS4 uniform mirror
+     - 19
+     - 18
+     - 1.3e-14 / 8.1e-15
+     - 1.2e-14 / 8.9e-15
+   * - d2 (4,3) LS4 graded 1.5 mirror
+     - 19
+     - 18
+     - 1.4e-14 / 8.2e-15
+     - 1.5e-14 / 9.7e-15
+   * - d2 (3,4) LS4 graded 1.4 white(1.0)
+     - 1
+     - 0
+     - 9.8e-15 / 1.0e-14
+     - 1.0e-14 / 1.1e-14
+   * - d2 (3,4) LS4 mirror, (n,2n) in the class
+     - 19
+     - 18
+     - 1.3e-14 / 8.1e-15
+     - 1.3e-14 / 9.3e-15
+   * - d3 (2,2,3) LS2 graded 1.5 mirror
+     - 40
+     - 39
+     - 1.2e-14 / 6.0e-15
+     - 1.2e-14 / 7.1e-15
+   * - d3 (2,3,2) LS2 x-white, y and z mirror
+     - 13
+     - 12
+     - 1.2e-14 / 7.7e-15
+     - 1.1e-14 / 8.7e-15
+   * - d1 two regions, a density-scaled copy (same :math:`e`, :math:`u`)
+     - 1
+     - 0
+     - 6.6e-15 / 6.6e-15
+     - 6.0e-15 / 6.0e-15
+   * - d1 two regions, a different class block
+     - 1
+     - 0
+     - **fails, 0.27**
+     - 6.8e-15 / 6.8e-15
+   * - d2 (4,3) two regions, a different class block
+     - 19
+     - 18
+     - **fails, 0.27**
+     - 1.2e-14 / 8.9e-15
+   * - d1 two regions, a different feeder ratio
+     - 1
+     - 0
+     - **fails, 0.27**
+     - **fails, 0.029**
+
+``white(1.0)`` damps the diamond-difference mode (DD = 0 on the all-white
+boxes; on the x-white box the gauge keeps the 12 modes of the
+:math:`y`/:math:`z` orbits).  Mutations of the predictor (residual of
+[DD + the mutant] inside the dense kernel): the trace part zeroed 0.79 to
+0.87; the trace without :math:`w_n` 0.22 to 0.58; the trace without
+:math:`A_f` 0.33 to 0.53 (at :math:`d \ge 2`; at :math:`d = 1`
+:math:`A_f \equiv 1` and the mutation is designed-green there);
+:math:`e` in place of :math:`u` 0.50 to 0.51; :math:`u` in place of
+:math:`e` 0.47 to 0.51; a piecewise :math:`e_m` per cell 0.21 to 0.23.
+
+*Heterogeneous classes, and why the closed form stops there.*  When the
+present materials do not share :math:`e`, no constant (nor piecewise
+constant) right form exists: the physical right vector is zero on the
+feeders and is the null vector of the CLASS BLOCK :math:`A_{CC}` of the
+assembled loss (``[M]`` [DD + null(:math:`A_{CC}`)] equals
+:math:`\ker A` to :math:`1.1\times10^{-14}`, :math:`d = 1` and 2), one
+solve of a block that S\ :sub:`N` can only invert by sweeping.  The left
+form holds on the class for any materials (:math:`u_C = 1` solves
+:math:`u^{\mathsf T}K_m = 0` for every absorption-free :math:`K_m`), but
+on a feeder whose transfer probability differs by material :math:`u_F`
+is not constant (``[M]`` it ranges 0.636 to 0.704 over ordinates and
+cells, between the infinite-medium values 0.625 and 0.714), and what
+holds is one transposed solve of the feeder block,
+:math:`\ell_F = -A_{FF}^{-\mathsf T}A_{CF}^{\mathsf T}\ell_C` (recovered
+to :math:`7.4\times10^{-15}`).  Diffusion's general route
+(:meth:`PredictedKernel.of_closed_blocks
+<orpheus.numerics.fredholm.PredictedKernel.of_closed_blocks>` on the
+dense loss) does exactly those solves; S\ :sub:`N` has no dense loss.
+
+**The scope door.**  The closed forms are the derived scope, and
+``_require_closed_form_scope`` is the ONE door through which a closed
+absorption-free class outside it is refused, with a ``ValueError`` whose
+message names each entry and reads "outside the closed-form kernel's
+derived scope".  It is a ``SCOPE-BOUNDARY[guard]``: the machinery it
+waits for is the class-block null-vector solve through S\ :sub:`N`'s own
+sweep (the plan's unit U3b, the measured near-kernel), ruled by the user
+on 2026-10-31.  Its five entries, each a configuration the closed forms
+were not derived for:
+
+#. a non-Cartesian mesh (the curvilinear streaming redistributes angle,
+   so the constant is not obviously its null vector);
+#. a moment closure (a bulk block carrying spatial moments, so the class
+   mode is not one value per cell);
+#. a closed face with a tangential ordinate on the class's support (a
+   zero trace metric there, so the minimum-norm member is not unique);
+#. present materials that do not share the class's energy vectors
+   (:math:`e` and :math:`u`, compared to relative :math:`10^{-10}`);
+#. a material whose feeder block is singular (a void region: no removal
+   and no transfer, so the feeder's absorbing-chain probability is
+   undefined; the feeder solve's ``LinAlgError`` is converted at the door).
+
+``[M]`` (the U0 census) 0 of the test tree's singular posings lie outside
+the scope.  Three entries are witnessed by
+``tests/gates/sn/operators/test_predicted_loss_kernel.py::test_the_closed_form_kernel_refuses_outside_its_derived_scope_at_one_door``
+(heterogeneous class, tangential ordinate, moment closure), each with a
+spy proving the door is the only one; the non-Cartesian entry has no
+cheap fixture.
+
+The tangential case of the DIAMOND-DIFFERENCE predictor is not a door
+entry, because there it is not a scope limit: the tangential slots are in
+:math:`\ker G` and outside the Hilbert space the question is posed on
+(:ref:`fredholm-posing-verdict`).  A quadrature whose every reflection
+orbit has a tangential ordinate (``product(4,4)`` on a 2-D all-mirror box)
+predicts the trivial diamond-difference kernel, with that reason
+(``119383f9``), and its ``Solve`` verdict is honest: ``[M]`` (qa) the
+dense nullity of 112 is all tangential, and a bulk source pairs with the
+dense left kernel at :math:`10^{-16}`.
+
+.. (verification note, no vv-status: the markers are owed)
+   sn-physical-kernel is gated by tests/gates/sn/operators/test_predicted_loss_kernel.py
+   test_the_physical_predictor_spans_the_dense_kernels (four cases: a
+   graded feeder slab, a white(1.0) wall, two density-scaled regions,
+   (n,2n) in the class; arms e_for_u, trace_weights_zeroed and
+   left_is_right redden the left legs),
+   test_the_physical_right_mode_is_annihilated_by_the_loss_to_round_off
+   and test_S8_the_union_count_and_spans.  None carries a verifies marker
+   for this label yet.
+
+What the entries do with it
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every public entry decides before it sweeps.  ``solve_sn`` and
+``solve_sn_adjoint`` ask ``EigenPosing.solvability`` (the kernel must be
+the whole pencil's, :eq:`fredholm-eigen-whole-pencil`; the adjoint asks
+it of the daggered pencil, which refuses exactly where the forward does);
+``solve_sn_fixed_source`` and ``solve_sn_adjoint_fixed_source`` ask
+``SourcePosing.solvability`` on the posing's own right-hand side, a
+declared boundary inflow included; ``solve_sn_multiplying_source`` asks
+the eigen verdict first (so a medium whose fission feeds an
+absorption-free class is refused before the subcriticality k-solve runs)
+and then the source verdict on :math:`A - F`.  The verdict rides the exit
+report (``solvability``, conditioning ``NotApplicable``: S\ :sub:`N`
+sweeps), and on ``Gauge`` the returned state is the section of the
+posing's own kernel, projected on the whole state
+(:ref:`sn-loss-kernel-the-gauge`).  ``[M]`` from the gates
+(``tests/gates/sn/solve/test_fredholm_verdict.py``; "before U0" is the
+U0 specification's measurement of the same input on the parent tree):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 38 30 32
+
+   * - posing
+     - before U0
+     - since U0
+   * - 1-D mirror slab, 1-group pure scatterer, positive source (S1)
+     - 727.8, ``max_inner`` exhausted (SI); :math:`1.71\times10^{16}` after
+       67.5 s (Krylov); "always admitted: A is invertible"
+     - ``NoSolution`` before any sweep (a spy counts 0)
+   * - the same with a balanced source (S4)
+     - a member off the minimum-norm one by a constant 2.39e-3
+     - ``Gauge``; the bordered dense member, SI and Krylov
+   * - a mirror and a ``white(1.0)`` wall carrying uniform inflow, pure
+       scatterer, no bulk source (S2)
+     - 20.5, ``max_inner`` exhausted
+     - ``NoSolution`` (pairing 0.092: the trace leg of the co-vector)
+   * - 2-D :math:`(3,4)` :math:`S_2` box, :math:`c = 0.9`, uniform source (S5)
+     - gauged (trace)
+     - ``Gauge``, dimension 2 (pairing :math:`2.4\times10^{-15}`)
+   * - the same at :math:`c = 1`, uniform source (S6)
+     - :math:`2.90\times10^{3}`, ``max_inner`` exhausted, trace gauged
+     - ``NoSolution`` (pairing 0.522)
+   * - the same, a source balanced against the bulk co-vector (S7)
+     - (not posed)
+     - ``Gauge``, dimension 3 = 2 + 1
+   * - ``solve_sn``, fission emitting into an absorption-free group (S9)
+     - :math:`k = 1.25`, ``max_inner`` exhausted
+     - ``NoSolution``
+   * - ``solve_sn``, an isolated absorption-free group (S10)
+     - :math:`k = 1.25` (the gauged value), no verdict
+     - ``Gauge``, :math:`k = 1.25` (closed form)
+   * - ``solve_sn_adjoint`` on the S9 medium (S11b)
+     - :math:`k = 1.125`, silent
+     - ``NoSolution``, with ``solve_sn``
+   * - ``solve_sn_multiplying_source`` on the S9 medium (S12)
+     - ``SupercriticalSourceProblem`` after 288.9 s
+     - ``NoSolution`` before the k-solve
+   * - ``solve_sn_adjoint_fixed_source``, positive detector (S14)
+     - 727.8, silent
+     - ``NoSolution``
+   * - the same with a balanced detector (S15)
+     - no projection (the gauge had dimension 0 in 1-D); a left
+       co-vector read 2.8e-2 of :math:`\lVert w\rVert\lVert x\rVert` on the
+       returned member (GL8)
+     - the adjoint's minimum-norm member: every left co-vector of
+       :math:`A` reads 0 on it to :math:`10\,\epsilon_{\rm inner}\,
+       \kappa`; the forward projector would read 7.7e-2
 
 .. _sn-loss-kernel-remedies:
 
@@ -6850,7 +7480,9 @@ sentence with no edit anywhere.
    * - 3
      - **Gauge it** — what ships
      - Exact by construction, not by fixture; recovers
-       :math:`\psi_{\rm exact}`'s member; bulk bit-untouched; no
+       :math:`\psi_{\rm exact}`'s member; bulk bit-untouched by the
+       diamond-difference modes (the physical mode of an absorption-free
+       class does move the bulk, :ref:`sn-loss-kernel-predicted`); no
        convergence check moves; ``[M]`` well under 0.2 % of one solve.
    * - 4
      - ⛔ **Switch the default schedule to Jacobi** — REJECTED

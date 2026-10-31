@@ -43,13 +43,47 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - 2026-10-31
+     - **Every S**\ :sub:`N` **posing is decided by the Fredholm
+       alternative on a predicted kernel, before a sweep runs** (unit U0
+       of the space-membership plan,
+       ``.claude/plans/space_membership_covector_gauge.md``; the user's
+       rulings R3 of 2026-10-30 and of 2026-10-31). The hub's
+       :attr:`SNProblem.predicted_kernel <orpheus.sn.problem.SNProblem.predicted_kernel>`
+       is the diamond-difference face modes WITH their left co-vectors,
+       :math:`W\Phi`, :math:`W = -w_n(\Omega_n\cdot\hat n_f)A_f` on the
+       trace (:eq:`sn-dd-left-kernel`), plus one constant mode per
+       absorption-free closed energy class on a closed domain, left
+       co-vector :math:`W(u\otimes\mathbf 1)` with the bulk weight
+       :math:`w_nV_{\rm cell}` (:eq:`sn-physical-kernel`), on the full
+       field; the pencil carries it rebased onto the coupled space.
+       ``build_loss_kernel_gauge`` and ``_exit_gauge_trace`` retired for
+       :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_loss_kernel`
+       and the full-field ``_exit_gauge``. Every entry records
+       ``ExitReport.solvability``; a refused posing raises ``NoSolution``;
+       the adjoint entries gauge with the daggered kernel; the
+       multiplying source asks the eigen verdict before its k-solve. One
+       declared scope door, five entries, refuses a closed
+       absorption-free class outside the closed forms. ``[M]`` predicted
+       spans equal the dense ones both ways on 4 of 4 boxes
+       (:math:`\le 7.4\times10^{-14}`), the union counts 3 = 2 + 1 and
+       14 = 12 + 2; the AUDIBLE exit pin moved to the full field's norm,
+       0.04751 (:ref:`sn-exit-gauge`). Closes the S\ :sub:`N` half of
+       ERR-123 (a closed pure scatterer returned 727.8 stamped "A is
+       invertible"). Refuted on the way: per-entry emission probes, under
+       which the adjoint eigen verdict could never refuse
+       (:ref:`fredholm-posing-verdict`). The derivations are
+       :ref:`sn-loss-kernel-predicted`.
+     - #666, #665
+     - *(in development)*, ``5ce66815``, ``54aef2ca``, ``c2a88dfc``,
+       ``ef5eea29``, ``119383f9`` on branch ``refactor/space-membership``
+   * - 2026-10-31
      - **The loss-kernel projector is numerics'; the method supplies only
        its generators** (unit U3 of the space-membership plan,
        ``.claude/plans/space_membership_covector_gauge.md``). The class
        ``LossKernelGauge``, its block basis ``LossKernelBasis`` and the
        rank tolerance ``_RANK_RTOL`` retired.
-       :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
-       hands one summand per (ordinate orbit, group) block, carrying the
+       ``build_loss_kernel_gauge`` (retired at U0, the row above) hands one
+       summand per (ordinate orbit, group) block, carrying the
        §3 pair generators, the label ``sn_trace_orbit{orbit}_g{group}``
        and the declared zero unit, to
        :meth:`KernelProjectionGauge.direct_sum

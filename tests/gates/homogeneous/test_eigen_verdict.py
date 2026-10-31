@@ -34,6 +34,7 @@ def _dense_loss(mix):
 
 
 @pytest.mark.catches("ERR-123")
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_H1_emission_into_an_absorption_free_class_is_refused_by_the_verdict_not_the_pivot():
     """DISCRIMINATION: before U0 the same input raised LinAlgError('... zero LU pivot'). The left co-vector is (0.5, 1),
     so chi = (1, 0) pairs at 0.5 (the absorbing-chain probability of reaching the class)."""
@@ -42,6 +43,7 @@ def test_H1_emission_into_an_absorption_free_class_is_refused_by_the_verdict_not
     assert "zero LU pivot" not in str(info.value)
 
 
+@pytest.mark.verifies("fredholm-eigen-whole-pencil")
 def test_H2_an_isolated_absorption_free_class_is_gauged():
     """Gauge: k_inf = 1.25 (closed form nu Sf1 / (St1 - Ss11)); the loss is diag(0.1, 0), an EXACT zero pivot, so the
     member comes from (A + Pi)^-1 and its class component is zero (the minimum-norm member) to round-off."""

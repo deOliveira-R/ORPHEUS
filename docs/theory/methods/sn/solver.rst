@@ -3805,49 +3805,106 @@ is a second, structurally different way for a returned field to be
 unsatisfying, and no convergence check can see it: the **equation**
 may not have a unique answer.  On a closed reflective Cartesian box under
 diamond differencing :math:`A = L+C-S-N_{2n}-B` is **exactly
-singular**, so
-:math:`A\psi = q` has a solution *manifold* and the iteration freezes an
-arbitrary member of it.  The derivation, the counting laws, the evidence
-and the remedy hierarchy are at :ref:`sn-loss-kernel-gauge`; what belongs
-here is the exit behaviour.
+singular**, and so it is on any closed domain whose medium has an
+absorption-free energy class, so
+:math:`A\psi = q` has a solution *manifold* (or no solution at all) and
+the iteration freezes an arbitrary member of it.  The derivations, the
+counting laws, the evidence and the remedy hierarchy are at
+:ref:`sn-loss-kernel-gauge` and :ref:`sn-loss-kernel-predicted`; the
+decision whether a solution exists is :ref:`fredholm-posing-verdict`;
+what belongs here is the exit behaviour.
 
-Every entry that returns a trace applies the :math:`G`-orthogonal
+**The verdict comes first.**  Since the space-membership unit U0
+(2026-10-31) every public entry decides its posing by the Fredholm
+alternative on the hub's predicted kernel before it sweeps:
+``solve_sn`` and ``solve_sn_adjoint`` by
+:meth:`EigenPosing.solvability <orpheus.numerics.posing.EigenPosing.solvability>`,
+``solve_sn_fixed_source`` and ``solve_sn_adjoint_fixed_source`` by
+:meth:`SourcePosing.solvability <orpheus.numerics.posing.SourcePosing.solvability>`
+on the assembled right-hand side (a declared inflow included), and
+``solve_sn_multiplying_source`` by both, the eigen verdict before its
+subcriticality k-solve.  A refused posing raises
+:class:`~orpheus.numerics.fredholm.NoSolution` ("the posing has no
+steady solution", naming the annihilator that read); an admitted one
+records its verdict on :attr:`ExitReport.solvability
+<orpheus.numerics.outcome.ExitReport.solvability>`, ``Solve`` or
+``Gauge``, with the conditioning
+``NotApplicable("SN inverts its loss by sweeps, never a factorisation: no condition estimate")``.
+The adjoint entries read the DAGGERED kernel
+(:attr:`PredictedKernel.H <orpheus.numerics.fredholm.PredictedKernel.H>`):
+their gauge is the adjoint's projector, never the forward one.  Before
+U0 the fixed-source entries recorded the admissibility
+``NotApplicable("the pure-transport question is always admitted: A is
+invertible")`` on every posing, false on a singular one (ERR-123); the
+admissibility member now carries only the multiplying source's
+subcriticality.
+
+Every entry whose verdict is ``Gauge`` applies the :math:`G`-orthogonal
 projection :math:`\psi \mapsto \psi - \Pi\psi`
-(:eq:`sn-loss-kernel-gauge-projection`) and records the magnitude it
+(:eq:`sn-loss-kernel-gauge-projection`) to the WHOLE returned state, bulk
+and trace (``_exit_gauge``, on the full field's flat chart; until U0 the
+trace alone, by ``_exit_gauge_trace``), and records the magnitude it
 removed on :attr:`ExitReport.gauge
 <orpheus.numerics.outcome.ExitReport.gauge>`.  The magnitude is the
-relative correction in the boundary-trace space's own norm,
+relative correction in the full field's own norm,
 
 .. math::
 
    \frac{\lVert \Pi\psi \rVert_G}{\lVert \psi \rVert_G}
    \;=\; \frac{\lVert \psi - \sigma(\psi) \rVert_G}{\lVert \psi \rVert_G} ,
 
-computed on the typed trace member by the space's
-:meth:`~orpheus.numerics.space.FunctionSpace.norm`, so it is measured in
-the metric the projector is orthogonal in.  The Euclidean ratio of the
-flat values, which the exit reported until the space-membership unit U3
-(2026-10-31), is a different number whenever the trace metric is not
-uniform.  The S\ :sub:`N` trace metric weights each slot by
-:math:`|\mu_a|\,w_n`, its direction cosine times its quadrature weight
-(the loss-kernel module docstring), and it is uniform only when every
-current-carrying ordinate has the same product: ``[M]`` 5 of the gate's 6 singular fixtures read a
-trace metric :math:`\max/\min` of 2.48, and the ``level_symmetric``
-:math:`S_2` box reads 1.0, which makes it the gate's control leg.
-``[M]`` 2026-10-31 on the
-excited all-reflective 2-D box (cells :math:`(3,4)`, ``level_symmetric``
-:math:`S_4`, mixture ``A`` 2-group, SI with boundary Gauss-Seidel,
-``inner_tol = 1e-13``; trace metric :math:`\max/\min = 2.48`;
-``scratch/membership_covector/u3/archivist_exit_probe.py``): the
-:math:`G`-norm correction reads :math:`5.358773\times10^{-2}` where the
-Euclidean one reads :math:`6.080483\times10^{-2}`, and the warning quotes
-**5.36 %**; on the unexcited :math:`(4,4)` box the two read
-:math:`2.6\times10^{-15}` and :math:`2.9\times10^{-15}`.  The gate
+read by
+:meth:`KernelProjectionGauge.displacement
+<orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.displacement>`
+in the metric the projector is orthogonal in.  The norm has moved twice.
+The exit reported the Euclidean ratio of the flat trace values until the
+space-membership unit U3, the trace's :math:`G`-norm from U3 to U0, and
+the full field's :math:`G`-norm since.  The S\ :sub:`N` trace metric
+weights each slot by :math:`|\mu_a|\,w_n`, its direction cosine times
+its quadrature weight (the loss-kernel module docstring), and is uniform
+only when every current-carrying ordinate has the same product: ``[M]``
+5 of the gate's 6 singular fixtures read a trace metric :math:`\max/\min`
+of 2.48, and the ``level_symmetric`` :math:`S_2` box reads 1.0, which
+makes it the gate's control leg.  On the excited all-reflective 2-D box
+(cells :math:`(3,4)`, ``level_symmetric`` :math:`S_4`, mixture ``A``
+2-group, SI with boundary Gauss-Seidel, ``inner_tol = 1e-13``) the three
+readings of one correction are:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - norm
+     - reading
+     - era
+   * - Euclidean, flat trace values
+     - :math:`6.080483\times10^{-2}`
+     - until U3
+   * - trace :math:`G`-norm
+     - :math:`5.358773\times10^{-2}`
+     - U3 (2026-10-31) to U0
+   * - full-field :math:`G`-norm
+     - :math:`4.7507\times10^{-2}`
+     - since U0; the warning quotes **4.75 %**
+
+``[M]`` the first two 2026-10-31 at U3
+(``scratch/membership_covector/u3/archivist_exit_probe.py``); the third
+the U0 tree's pin in
+``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py::test_the_repair_is_AUDIBLE_and_names_the_root_fix``
+(``0.04751`` at relative :math:`10^{-3}`).  The full-field number is
+smaller for one reason only, the denominator: the diamond-difference
+correction lives on the trace, and the gauged state is
+:math:`G`-orthogonal to it, so :math:`\lVert\psi\rVert^2 =
+\lVert\psi'\rVert^2/(1 - c^2)`, and the same row recovers the U3 trace
+ratio 0.0536 from the returned state alone, an independent route.  On
+the unexcited :math:`(4,4)` box the trace readings were
+:math:`2.6\times10^{-15}` (:math:`G`) and :math:`2.9\times10^{-15}`
+(Euclidean).  The gate
 ``tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_exit_reports_the_correction_in_the_G_norm``
-holds the reported number to the space's norm on six singular fixtures,
-and the warning's quoted magnitude is loaded from the exit report rather
-than typed
-(``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py::test_the_repair_is_AUDIBLE_and_names_the_root_fix``).
+holds the reported number to the full field's norm on six singular
+fixtures, with a seeded random bulk so that a trace-normed denominator
+reads differently on every row, and the warning's quoted magnitude is
+loaded from the exit report rather than typed.
 The exit reads only the :class:`~orpheus.numerics.gauge.KernelGauge`
 protocol: ``dimension == 0`` means no freedom, and ``gauge`` is the
 section.  The
@@ -3870,10 +3927,16 @@ asserted rather than assumed:
   before U3).  It is applied
   **after** the defect is measured, so the reported number describes the
   object the caller receives.
-* **Bulk-invariant.**  The kernel is pure-trace (``[M]`` bulk share
-  :math:`1.1\times10^{-28}`), so :math:`\keff`, the scalar flux and
-  every reaction rate are untouched — ``[M]`` :math:`\keff` reproduces
-  the analytic :math:`\kinf = 1.875` on every mesh, gauged or not.
+* **Bulk-invariant, for the diamond-difference half.**  That kernel is
+  pure-trace (``[M]`` bulk share :math:`1.1\times10^{-28}`), so
+  :math:`\keff`, the scalar flux and every reaction rate are untouched —
+  ``[M]`` :math:`\keff` reproduces the analytic :math:`\kinf = 1.875` on
+  every mesh, gauged or not.  The physical mode of an absorption-free
+  class (since U0, :ref:`sn-loss-kernel-predicted`) is constant on the
+  bulk, so gauging it DOES move the class's scalar flux: it fixes the
+  level the posing leaves free.  It moves no fission rate, because an
+  admitted eigen posing has :math:`F r = 0` on the mode
+  (:eq:`fredholm-eigen-whole-pencil`).
 * **Not a universal absorber.**  ``jacobi`` already lands on the
   canonical member, and there the gauge must remove *nothing*: ``[M]``
   :math:`\sim10^{-15}`, and the pre-gauge deviation measures

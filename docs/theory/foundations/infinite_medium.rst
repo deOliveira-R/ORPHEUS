@@ -43,7 +43,10 @@ Key Facts
   (\mathbf{A}^{-1}\chi)\,(\nu\Sigma_f)^{\mathsf T}` has **rank one**, so this
   is its only non-zero eigenvalue and, for a physical medium, its dominant
   one (proof: :ref:`homogeneous-rank-one-route`). The solver performs **one**
-  LU solve, ``MatrixInverseOperator(problem.loss).apply(production.emission_spectrum)``,
+  LU solve, ``MatrixInverseOperator(kernel.deflate(problem.loss)).apply(production.emission_spectrum)``
+  (the loss itself on a regular medium; :math:`\mathbf A + \Pi` on a
+  medium with an absorption-free closed class, after the Fredholm verdict
+  admitted it, :ref:`homogeneous-fredholm-verdict`),
   and one :math:`G`-term contraction with the production-rate co-vector. It
   calls **no eigen-solver**: the last bit of a dense eigen-solve belongs to
   the platform's LAPACK, not to the problem (`[M]` 2026-09-30, a macOS
@@ -2087,7 +2090,9 @@ Z-matrix.  Column :math:`g'` of :math:`\mathbf{A}` sums to
 neutron and returns that many to the scattering system.  When every column
 sum is positive (each collision returns fewer neutrons than it removes —
 the sufficient condition of strict column diagonal dominance),
-:math:`\mathbf{A}` is a non-singular M-matrix, and a non-singular M-matrix
+:math:`\mathbf{A}` is a non-singular M-matrix (a zero column sum on a
+whole closed class makes it singular, which the solver decides before it
+solves: :ref:`homogeneous-fredholm-verdict`), and a non-singular M-matrix
 is inverse-positive, :math:`\mathbf{A}^{-1} \geq 0` entrywise (Berman and
 Plemmons, *Nonnegative Matrices in the Mathematical Sciences*, SIAM 1994,
 Chapter 6).  With :math:`\boldsymbol{\chi} \geq 0` and
@@ -2112,7 +2117,11 @@ an unphysical loss matrix would return whatever
 :math:`\langle\nu\Sigma_f, \mathbf{A}^{-1}\boldsymbol{\chi}\rangle` is.  A
 non-fissile mixture (:math:`\nu\Sigma_f = 0`) reads :math:`k = 0`, which
 the gauge's zero-reading refusal stops before a division by zero
-(:class:`~orpheus.numerics.gauge.ScaleGauge`).
+(:class:`~orpheus.numerics.gauge.ScaleGauge`).  What IS checked since the
+space-membership unit U0 (2026-10-31) is the structure that makes
+:math:`\mathbf A` singular: the eigen posing's Fredholm verdict runs
+before the solve, and the result carries it
+(``HomogeneousResult.solvability``, :ref:`homogeneous-fredholm-verdict`).
 
 **The rank one is the model's.**  Every step above rests on
 :math:`\mathbf{F}` being one column times one row, and that is a property
@@ -2145,15 +2154,20 @@ the more accurate route: `[M]` 2026-10-01, against the exact rational
 eigen-solve of the materialized :math:`[\mathbf{K}]` reads at most
 :math:`+1.55` ULP and the rank-one route at most :math:`0.86` ULP.
 
-The solver's own body is now four lines — build the problem, take the
-fission operator, solve the loss out of its emission spectrum, contract with
-its production rate:
+The solver's own body is now six lines — build the problem, take the
+fission operator, factorise the loss deflated by its predicted kernel,
+record the eigen posing's verdict, solve the loss out of its emission
+spectrum, contract with its production rate (the deflation and the
+verdict since the space-membership unit U0; until then the inverse was
+``MatrixInverseOperator(problem.loss)`` and there was no verdict):
 
 .. code-block:: python
 
    problem = HomogeneousProblem(mix)
    fission = problem.production                                             # F = |χ⟩⟨νΣf|
-   phi = MatrixInverseOperator(problem.loss).apply(fission.emission_spectrum)  # u = A⁻¹χ, the Strategy
+   inverse = MatrixInverseOperator(problem.predicted_kernel.deflate(problem.loss))  # (A + Π)⁻¹; A⁻¹ when regular
+   solvability = problem.eigen_posing.solvability(conditioning=Measured(inverse.reciprocal_condition))
+   phi = inverse.apply(fission.emission_spectrum)                           # u = (A + Π)⁻¹χ, the Strategy
    k_inf = float(fission.production_rate.evaluate(phi).item())             # k∞ = ⟨νΣf, u⟩
 
 :attr:`IsotropicFission.emission_spectrum
@@ -2182,7 +2196,7 @@ The pencil — the problem's terminal object, the pair
    # orpheus/homogeneous/solver.py — HomogeneousProblem
    loss           = collision - (isotropic_scattering + isotropic_n2n)   # A = C − K_iso
    production     = IsotropicFission(fission, domain=space, codomain=space)   # F = χ ⊗ νΣ_f
-   pencil         = OperatorPencil(loss, production)                     # the terminal object
+   pencil         = OperatorPencil(loss, production, kernel=predicted_kernel)  # the terminal object
    eigen_posing   = EigenPosing(pencil, K_MAP)                           # the QUESTION
 
 ⭐ **Since 2026-09-13 the pencil is a TYPE, not a manner of speaking.**
@@ -2355,6 +2369,103 @@ regression in either reds it.
    deterministic solver in ORPHEUS with no iteration at all.  This is what
    makes it the instantaneous reference eigenvalue for every other solver on a
    homogeneous problem.
+
+.. _homogeneous-fredholm-verdict:
+
+The Fredholm verdict on a singular loss
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Step 3 of :ref:`homogeneous-rank-one-route` assumed every column sum of
+:math:`\mathbf{A}` positive.  A column sum is the net removal of its group,
+:math:`\Sigma_{t,g'} - \sum_g[\Sigma_{s0}(g'\to g) + 2\Sigma_2(g'\to g)]`,
+and it can be exactly zero: a group that only scatters, with no capture,
+no fission and no (n,2n) excess.  If a final class of the group-transfer
+graph (a set of groups no neutron leaves by transfer) has zero net removal
+on every member, a neutron that reaches it is never lost, and an infinite
+medium has no faces to leak through, so :math:`\mathbf{A}` is a singular
+M-matrix: its kernel holds one vector per such class
+(:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`,
+read from the mixture alone).  Since the space-membership unit U0
+(2026-10-31) the solver asks the Fredholm question of its eigen posing
+before inverting anything (:ref:`fredholm-posing-verdict`):
+
+* :attr:`HomogeneousProblem.predicted_kernel
+  <orpheus.homogeneous.solver.HomogeneousProblem.predicted_kernel>` names
+  the classes and reads each mode off the dense :math:`G\times G` loss
+  with :meth:`PredictedKernel.of_closed_blocks
+  <orpheus.numerics.fredholm.PredictedKernel.of_closed_blocks>`: the
+  class block's null vector (the class's energy right vector :math:`e`)
+  and the left co-vector, 1 on the class and, on a feeder group, the
+  absorbing-chain probability of being transferred into the class rather
+  than removed.  The hub's pencil carries it
+  (``OperatorPencil(loss, production, kernel=predicted_kernel)``).
+* :meth:`EigenPosing.solvability <orpheus.numerics.posing.EigenPosing.solvability>`
+  refuses unless the kernel is the whole pencil's,
+  :eq:`fredholm-eigen-whole-pencil`.  With :math:`\mathbf F = \chi\otimes
+  \nu\Sigma_f` the two conditions are concrete: :math:`\mathbf F^{\mathsf
+  T}w = \nu\Sigma_f\,\langle\chi, w\rangle = 0` says fission emits nothing
+  that reaches the class, and :math:`\mathbf F e = \chi\,\langle
+  \nu\Sigma_f, e\rangle = 0` says the class itself does not fission.
+* The solve inverts :math:`\mathbf A + \Pi` (:eq:`fredholm-deflated-loss`),
+  nonsingular because the absorbing-chain kernel is semisimple, and
+  :math:`\mathbf A` itself, bit-identically, on a regular medium.
+
+**Why** :math:`k_\infty` **is still determined on a gauged medium.**  With
+both conditions, :math:`\chi` is consistent (:math:`\langle w,
+\chi\rangle = 0`), so :math:`\mathbf u = (\mathbf A + \Pi)^{-1}\chi`
+satisfies :math:`\mathbf A\mathbf u = \chi` with :math:`\Pi\mathbf u = 0`
+(the minimum-norm member).  Every other solution is :math:`\mathbf u + c\,e`,
+and :math:`\langle\nu\Sigma_f, \mathbf u + c\,e\rangle = \langle
+\nu\Sigma_f, \mathbf u\rangle` because :math:`\langle\nu\Sigma_f, e\rangle
+= 0`.  So :math:`k_\infty = \langle\nu\Sigma_f, \mathbf u\rangle` is the
+same on every member; only the class's flux level is free, and the gauge
+fixes it at zero.
+
+``[M]`` (the fixtures of ``tests/gates/transport/_singular_loss_fixtures.py``;
+re-measured for this page, ``-O``, the worktree at ``119383f9``):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 34 36
+
+   * - mixture
+     - before U0
+     - since U0
+   * - ``FIS_FEEDS``: group 1 fissile and absorbing, scattering 0.1 into
+       an absorption-free group 2; :math:`\chi = (1, 0)`
+     - ``LinAlgError`` "exactly singular (zero LU pivot)", by pivot luck
+     - ``NoSolution``: left co-vector :math:`(0.5, 1)`, so
+       :math:`\langle\chi, w\rangle = 0.5`, and the pencil reading is 1
+   * - ``FIS_ISOLATED``: group 2 absorption-free and fed by nobody
+     - ``LinAlgError`` (the loss is ``diag(0.1, 0)``, an exact zero pivot)
+     - ``Gauge`` (reading 0.0), :math:`k_\infty = 1.2500000000000002`
+       against the closed form :math:`\nu\Sigma_{f,1}/(\Sigma_{t,1} -
+       \Sigma_{s,11}) = 0.125/0.1`; the class's flux component is 0 to
+       :math:`64\epsilon\max|\phi|`
+   * - ``FIS_REGULAR`` (both groups absorb)
+     - :math:`k_\infty = 0.625`
+     - ``Solve``, :math:`k_\infty = 0.625` unchanged, the reciprocal
+       condition on the verdict
+   * - ``PURE_1G``: a one-group pure scatterer, :math:`\mathbf F = 0`
+     - ``LinAlgError``
+     - the verdict is ``Gauge`` (:math:`\mathbf F = 0` respects every
+       kernel), the LU of :math:`\mathbf A + \Pi` is legitimate, and the
+       scale gauge refuses the zero production rate exactly as it refuses
+       a non-fissile regular medium: an eigen question with
+       :math:`\mathbf F = 0` has no eigenpair (ruled 2026-10-31: not the
+       verdict's question)
+
+The verdict rides the result as ``HomogeneousResult.solvability``, with
+``conditioning = Measured(...)`` holding LAPACK's reciprocal-condition
+estimate of the factorised operator
+(:attr:`MatrixInverseOperator.reciprocal_condition
+<orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.reciprocal_condition>`;
+``[M]`` 0.067 on ``FIS_REGULAR``, inside the theorem's band
+:math:`[1/\kappa_1, 10/\kappa_1]`).  A one-group loss is :math:`1\times1`,
+so its estimate is 1 for any :math:`\Sigma_a` and says nothing; the
+conditioning rows use two groups.  The gates are
+``tests/gates/homogeneous/test_eigen_verdict.py`` (H1 to H4; H1 carries
+``catches("ERR-123")``).
 
 .. _homogeneous-exact-reference:
 
@@ -3352,6 +3463,24 @@ hash, and ``git`` outranks this column.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-31
+     - **A singular loss is decided, not inverted.**  The hub predicts the
+       loss's kernel from the mixture
+       (:attr:`HomogeneousProblem.predicted_kernel
+       <orpheus.homogeneous.solver.HomogeneousProblem.predicted_kernel>`,
+       one mode per absorption-free closed energy class) and its pencil
+       carries it; the solver records the eigen posing's Fredholm verdict
+       on ``HomogeneousResult.solvability`` before it solves, and inverts
+       :math:`\mathbf A + \Pi` (bit-identically :math:`\mathbf A` on a
+       regular medium), with LAPACK's reciprocal-condition estimate on the
+       verdict.  Fission emitting into an absorption-free class is refused
+       with ``NoSolution``; an isolated class is gauged and
+       :math:`k_\infty` stays determined.  Before it both singular fissile
+       fixtures raised ``LinAlgError`` at an exact zero pivot, by pivot
+       luck (ERR-123; :ref:`homogeneous-fredholm-verdict`).
+     - #666
+     - *(in development)*, ``ef5eea29`` on branch
+       ``refactor/space-membership``
    * - 2026-10-02
      - **The infinite medium is defined as the point in phase space.**
        The user's ruling after the review of the reference

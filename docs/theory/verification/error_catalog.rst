@@ -11927,10 +11927,12 @@ older entries classify against.
    :title: A structurally singular loss was inverted in silence: diffusion returned a flux of 1.7e17, SN a best-effort answer stamped "A is invertible", and homogeneous refused only by pivot luck
 
    **Status:** ✅ **CLOSED** by U0 of the space-membership plan (*in development* on branch
-   ``refactor/space-membership``): the Fredholm verdict ``54aef2ca``, the LU's condition estimate ``c2a88dfc``, and the
-   method doors (this commit). Every posing on the three sharp methods is now decided by the Fredholm alternative on
-   the loss's PREDICTED kernel before anything is inverted (:mod:`orpheus.numerics.fredholm`; the user's ruling R3,
-   2026-10-30: "Fredholm as the decision rule, kernel measurement as witness").
+   ``refactor/space-membership``): the Fredholm verdict ``54aef2ca``, the LU's condition estimate ``c2a88dfc``, the
+   method doors and the posing-derived verdict ``ef5eea29``, and the re-review fixes ``119383f9``. Every posing on the
+   three sharp methods is now decided by the Fredholm alternative on the loss's PREDICTED kernel before anything is
+   inverted (:mod:`orpheus.numerics.fredholm`; the user's ruling R3, 2026-10-30: "Fredholm as the decision rule, kernel
+   measurement as witness"). The theory is :ref:`fredholm-posing-verdict`; the per-method kernels are
+   :ref:`sn-loss-kernel-predicted`, :ref:`diffusion-fredholm-verdict` and :ref:`homogeneous-fredholm-verdict`.
 
    **Module:** ``diffusion`` (``DiffusionSolver``'s eager LU), ``homogeneous`` (``solve_homogeneous_infinite``'s loss
    inversion), ``sn`` (every entry), and ``transport``/``numerics`` (the predicate and the verdict that close it).
@@ -11947,12 +11949,31 @@ older entries classify against.
    :math:`\Sigma_a = 0.1` read 13.2. SN's fixed-source entry exhausted ``max_inner`` and returned a flux of 727 whose
    exit report recorded the admissibility ``NotApplicable("the pure-transport question is always admitted: A is
    invertible")``, false on that posing; its Krylov arm returned 1.71e16 after 67.5 s. The homogeneous solver raised a
-   ``LinAlgError`` ("exactly singular (zero LU pivot)") only because its 0-D pivot happened to be exactly zero.
+   ``LinAlgError`` ("exactly singular (zero LU pivot)") only because its 0-D pivot happened to be exactly zero. The
+   eigen entries did the same with the fission emission: a medium whose fission feeds an absorption-free closed class
+   has no steady fundamental mode, and ``solve_sn`` returned :math:`k = 1.25` with ``max_inner`` exhausted,
+   ``solve_sn_adjoint`` :math:`k = 1.125` in silence, diffusion :math:`k = 74.39` after ``max_outer`` ran out, and
+   ``solve_sn_multiplying_source`` spent 288.9 s on a k-solve before refusing for the wrong reason
+   (``SupercriticalSourceProblem``).
 
    **How it hid.** Every shipped fixture has absorption somewhere, and the test tree poses no singular loss (`[M]`
    the spec's census: 0 of the posings in five suites, once the predicate reads the loss's own removal and not
    ``absorption_xs``). The LU's zero-pivot refusal reads as a guard against singularity, but it fires only on an EXACT
-   zero, which round-off almost never leaves.
+   zero, which round-off almost never leaves. In S\ :sub:`N` the defect had a second cover: the solve did not blow up,
+   it exhausted its inner budget and returned a finite best-effort answer, and the exit report recorded an
+   admissibility that ASSERTED invertibility for every pure-transport posing (a prose claim with no check behind it,
+   instrument-doctrine X3), so the report read as a clean answer.
+
+   **A second defect in the first fix, caught at review.** The first wiring decided the eigen verdict at each entry by a
+   hand-built probe of the range of the fission operator. On the adjoint entries the probe paired the range of
+   :math:`F^{\mathsf H}` with the daggered annihilators :math:`G e`, :math:`e \in \ker A`, which reads
+   :math:`(F e)^{\mathsf T} G x = 0` for every :math:`x` whenever the class carries no fission: the adjoint could never
+   refuse. `[M]` qa (``scratch/membership_covector/u0/review/qa.md``, F1): where ``solve_sn`` refused,
+   ``solve_sn_adjoint`` returned :math:`\lambda = 0.9999999999999987` at every ``max_outer`` with a Rayleigh gap of
+   0.769. It never reached a commit: the user ruled that the posing derives the verdict from the pencil (the kernel must
+   be the whole pencil's, a condition symmetric under the adjoint), and
+   ``tests/gates/sn/solve/test_fredholm_verdict.py::test_S11b_the_adjoint_refuses_exactly_where_the_forward_does``
+   reddens under the arm that restores the adjoint-only reading.
 
    **Fix.** The structure of the kernel is predicted from declared data
    (:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`: the classes, from the mixtures and the
@@ -11966,9 +11987,14 @@ older entries classify against.
    reciprocal-condition estimate where there is a factorisation. A near-singular loss (:math:`\Sigma_a = 10^{-14}`) is
    regular: it is solved, and its conditioning is recorded, never judged.
 
-   **Catching tests.** Five rows carry ``@pytest.mark.catches("ERR-123")``, none ``slow``, each reddened by an arm
-   that removes the verdict from its entry (the test-architect's battery,
-   ``scratch/membership_covector/u0/battery/u0_verdict_arms.py``, arm ``no_verdict``):
+   **Catching tests.** Five test functions (eight rows: D1 runs three mixtures, S1 two inner solvers) carry
+   ``@pytest.mark.catches("ERR-123")``, none ``slow``. `[M]` 2026-10-31, re-dropped on the committed tree
+   (``119383f9``, ``python -O``, an in-process ``-p`` plugin per arm): the honest run passes 8 of 8; the arm that
+   makes :func:`~orpheus.numerics.fredholm.fredholm_alternative` always return ``Solve`` (2 bindings rebound) reddens
+   the 5 source rows (D1 ×3, S1 ×2) and none of the eigen rows; the arm that makes ``EigenPosing.solvability`` always
+   return ``Solve`` reddens the 3 eigen rows (D6, H1, S9) and none of the source rows. The test-architect's earlier
+   battery (``scratch/membership_covector/u0/battery/u0_verdict_arms.py``, arm ``no_verdict``) ran on the per-entry
+   wiring before the posing-derived redesign, so it no longer reaches the eigen rows:
 
    - ``tests/gates/diffusion/test_fixed_source_verdict.py::test_D1_a_positive_source_on_a_closed_absorption_free_class_is_refused``;
    - ``tests/gates/diffusion/test_fixed_source_verdict.py::test_D6_the_eigen_entry_refuses_emission_into_the_class``;

@@ -168,6 +168,7 @@ _DD = [("LS2 ng=1", dict(ng=1, quad=_LS2)), ("LS4 ng=2", dict(ng=2))]
 
 
 @pytest.mark.parametrize("label,kw", _DD, ids=[r[0] for r in _DD])
+@pytest.mark.verifies("sn-dd-left-kernel")
 def test_S16a_the_DD_left_basis_spans_the_dense_left_null_space(label, kw):
     """REFERENCE: dense SVD at c = 0.9 (the DD kernel alone). `[M]` the left null vectors are trace-only and lie outside
     span(Phi), span(G Phi), span(G^-1 Phi) (residual 1.00 each), so no re-dressing of the right basis passes; the
@@ -204,6 +205,7 @@ def _independent_trace_weights(problem) -> np.ndarray:
 
 
 @pytest.mark.parametrize("label,kw", _DD, ids=[r[0] for r in _DD])
+@pytest.mark.verifies("sn-dd-left-kernel")
 def test_S16b_the_DD_left_generators_are_J_times_the_right_ones(label, kw):
     r"""The MEMO's law, per summand: left generators = :math:`J\Phi`, :math:`J = -w_n(\Omega_n\cdot\hat n_f)A_f`, with J
     rebuilt here. Arms ``left_is_right`` and ``trace_weights_zeroed`` red it."""
@@ -222,6 +224,7 @@ def test_S16b_the_DD_left_generators_are_J_times_the_right_ones(label, kw):
 # ── the physical predictor ───────────────────────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("label,build,dim", _PHYSICAL, ids=[r[0] for r in _PHYSICAL])
+@pytest.mark.verifies("sn-physical-kernel")
 def test_the_physical_predictor_spans_the_dense_kernels(label, build, dim):
     """REFERENCE: dense SVD; the DD half added where present (d = 2). Covers a feeder group (u_0 = 0.625/0.75, the
     absorbing-chain probability), a white(1.0) wall (conserving, not a mirror), two regions of density-scaled copies and
@@ -241,6 +244,7 @@ def test_the_physical_predictor_spans_the_dense_kernels(label, build, dim):
     _assert_spans_agree(f"{label} left", left, L)
 
 
+@pytest.mark.verifies("sn-physical-kernel")
 def test_the_physical_right_mode_is_annihilated_by_the_loss_to_round_off():
     """Object leg beside the spans (a count is blind to a rotation): ``|A r| <= 64 eps ||A||_1 ||r||_inf``."""
     problem = _PHYSICAL[0][1]()
@@ -266,7 +270,7 @@ def _scope_witnesses():
 
 @pytest.mark.parametrize("index", range(3), ids=["heterogeneous_class", "tangential_ordinate", "moment_closure"])
 def test_the_closed_form_kernel_refuses_outside_its_derived_scope_at_one_door(index, monkeypatch):
-    """SCOPE-BOUNDARY (ruled 2026-10-31): ONE door, ``_require_closed_form_scope``, four entries; three witnessed here
+    """SCOPE-BOUNDARY (ruled 2026-10-31): ONE door, ``_require_closed_form_scope``, five entries; three witnessed here
     (the non-Cartesian entry has no cheap fixture). The entry is named in the message. A spy on the door counts 1 call,
     so the refusal is the door's and no second door exists for these inputs. `[M]` physical/MEMO.md: the constant
     right form fails at 2.7e-1 on the heterogeneous class."""
@@ -289,6 +293,7 @@ _UNION = [("LS2 ng=1 c=0.9", dict(ng=1, quad=_LS2, c=0.9), 2, 0), ("LS2 ng=1 c=1
 
 
 @pytest.mark.parametrize("label,kw,dd,classes", _UNION, ids=[r[0] for r in _UNION])
+@pytest.mark.verifies("sn-physical-kernel")
 def test_S8_the_union_count_and_spans(label, kw, dd, classes):
     """THEOREM, dense: dim ker A = dim ker A^T = DD law + |absorption-free classes| (`[M]` 2, 3, 12, 14), and the hub's
     predicted kernel spans both dense kernels. At c = 1 the diagonal-only scattering makes each group its own class."""

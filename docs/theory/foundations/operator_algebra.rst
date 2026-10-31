@@ -8443,12 +8443,25 @@ own fields at construction and refuses any other shape, and
 ``direct_sum`` refuses two summands with the same label (each label names
 its support's manifold, so two equal labels would make two coefficient
 spaces compare equal) and a support index outside :math:`V`.  :math:`V`
-must be one-dimensional, because a support is flat indices; a composite
-space qualifies through its flat layout.  Which
-columns span the kernel is the method's knowledge; S\ :sub:`N` supplies
-its diamond-difference pair generators through
-:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
-(:ref:`sn-loss-kernel-the-gauge`).
+is addressed through its C-order flat chart, because a support is flat
+indices: a one-dimensional space is its own chart, a composite space
+qualifies through its flat layout, and a multi-axis leaf space (the
+infinite medium's pose, shaped :math:`(n_g, 1)`) is ravelled in and
+reshaped out (since the space-membership unit U0, 2026-10-31; until then a
+multi-axis space was refused).  Which columns span the kernel is the
+method's knowledge, handed over inside a
+:class:`~orpheus.numerics.fredholm.PredictedKernel`
+(:ref:`fredholm-posing-verdict`): S\ :sub:`N` supplies its
+diamond-difference pair generators
+(:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`)
+and one constant mode per absorption-free closed energy class
+(:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_physical_kernel`),
+summed by
+:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_loss_kernel`
+(:ref:`sn-loss-kernel-the-gauge`); diffusion and the infinite medium read
+their class modes off the assembled loss with
+:meth:`PredictedKernel.of_closed_blocks
+<orpheus.numerics.fredholm.PredictedKernel.of_closed_blocks>`.
 
 **The summand projector is the frame's.**  Let :math:`\gamma_b` be the
 :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`
@@ -8601,10 +8614,20 @@ pair by pair.
   ``1e-17``.  Orthogonal-by-theory summands read round-off and
   non-orthogonal ones read :math:`O(1)`, so the tolerance is not a knob
   either: the gate's verdict is the same for any cut between about
-  :math:`10^{-14}` and :math:`10^{-8}`.  No production caller passes
-  overlapping summands at HEAD: S\ :sub:`N`'s summands are disjoint
-  (``tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_summands_have_DISJOINT_supports``),
-  and the union kernel is not posed (below).
+  :math:`10^{-14}` and :math:`10^{-8}`.  Since the space-membership unit U0 (2026-10-31) the
+  union kernel is posed in production, and the overlap check is
+  load-bearing there: S\ :sub:`N`'s predicted kernel sums its
+  diamond-difference summands (disjoint among themselves,
+  ``tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_summands_have_DISJOINT_supports``)
+  with one physical summand per absorption-free class, whose support is
+  every bulk and trace degree of freedom of the class's groups, so the two
+  families share the trace rows.  ``[M]`` the union on the :math:`(3,4)`
+  ``level_symmetric`` :math:`S_2` box at :math:`c = 1` gauges with
+  dimension 3 = 2 + 1, and the :math:`S_4` 2-group box with 14 = 12 + 2
+  (``tests/gates/sn/operators/test_predicted_loss_kernel.py::test_S8_the_union_count_and_spans``,
+  ``tests/gates/sn/solve/test_fredholm_verdict.py::test_S7_the_union_kernel_gauges_a_source_balanced_against_its_bulk_covector``).
+  Until U0 this item read "No production caller passes overlapping
+  summands at HEAD", which was true then.
 
 **G-self-adjoint, and not symmetric.**  The :math:`G`-adjoint of a
 summand projector is
@@ -8718,8 +8741,9 @@ consequences:
   mutates the answer and is still safe to apply at the exit, which is
   what makes it an exit step rather than a reported diagnostic.
 * **the group element must be drawn from** :math:`\Pi`'s **own range, on
-  the gauge's own space.**  For S\ :sub:`N` that space is the boundary
-  trace.  ⛔ A first draft of the design's frame pass claimed the gauge
+  the gauge's own space.**  For S\ :sub:`N` that space was the boundary
+  trace until the space-membership unit U0 and is the full field since
+  (below).  ⛔ A first draft of the design's frame pass claimed the gauge
   "acts on the boundary only, so interior kernel modes survive" and
   expected the Γ-invariance leg to RED.  That was REFUTED: the
   S\ :sub:`N` kernel **is** a trace object, and the S\ :sub:`N` gauge is
@@ -8732,37 +8756,49 @@ consequences:
   measure nothing.  The refuted version is kept here because the mistake
   is the natural one: "the projector only touches the boundary" and "the
   kernel has an interior part" sound compatible, and they are not.
+  Since U0 (2026-10-31) the S\ :sub:`N` kernel does have an interior
+  part, the constant mode of an absorption-free closed class, and the
+  S\ :sub:`N` gauge is accordingly an endomorphism of the full field,
+  bulk :math:`\oplus` trace (``_exit_gauge`` projects the whole state on
+  the full field's flat chart).  The law is unchanged, the element is
+  still drawn from :math:`\Pi`'s own range, and the refutation stands for
+  the diamond-difference half, which is still a trace object.
 
 **Whether to gauge is the posing's decision, and canonicality is the
 method's claim.**  The projector answers *which member of a coset*; it
 does not answer *is there a coset*, nor *is the chosen member the
 physical one*.  The first question is the Fredholm alternative for a
-square :math:`A`.  If :math:`\ker A = 0` the source problem has one
-solution.  If :math:`\ker A \ne 0`, it has solutions iff :math:`q` is
-annihilated by the left kernel, :math:`\langle w, q\rangle = 0` for every
-co-vector :math:`w` with :math:`A^{\mathsf H} w = 0` (the canonical
-pairing of a dual-space member with a vector, which needs no metric:
-:ref:`spaces-covector`), and then the solutions are a coset that the
-gauge sections.  Otherwise there is no solution and the posing must be
-refused.  The space-membership plan's ruling R3 places this decision on
-the posing :math:`(A, q)` at the solve entry, and the projector is only
-the second branch's tool.  At HEAD the decision is not computed:
-:class:`~orpheus.numerics.posing.SourcePosing` has no solvability test
-(GitHub #460), and the S\ :sub:`N` entries gauge whenever
-:func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` reads
-present.  ``[R]`` For S\ :sub:`N`'s diamond-difference kernel that is
-sound, because its left kernel lives on trace rows only (``[M]``
-2026-10-30, the plan's spec §R3.1: the left null vectors of the
-:math:`(3,4)` ``level_symmetric`` :math:`S_2` 1-group box at :math:`c =
-0.9` carry 100 % of their mass on trace rows, and
-:math:`\lVert L^{\mathsf T} q\rVert / \lVert q\rVert` reads ``2.4e-15``
-for a uniform bulk source), and a bulk source with no inflow on a mirror
-face has no trace component, so :math:`\langle w, q\rangle = 0` holds
-structurally.  The case that would read the left kernel is a declared
-inflow on a closed wall (a ``white(1.0)`` wall carrying a source); the
-spec §R3.2 names it and records no gate for it.  The physical kernel
-of an absorption-free closed class (the union case above) is outside the
-S\ :sub:`N` gauge's summands at HEAD.
+square :math:`A`, and since the space-membership unit U0 (2026-10-31)
+every posing on the three sharp methods computes it before anything is
+inverted, from a kernel the method predicts and the pencil carries.  The
+decision, its proof, the factorisation it licenses and the refuted
+designs are the next section, :ref:`fredholm-posing-verdict`; the
+projector above is only its second branch's tool.
+
+.. dropdown:: First got wrong — the decision was not computed (until 2026-10-31)
+   :color: muted
+
+   Until U0 this paragraph said, in the present tense, that the decision
+   was not computed: :class:`~orpheus.numerics.posing.SourcePosing` had no
+   solvability test (GitHub #460), and the S\ :sub:`N` entries gauged
+   whenever :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom`
+   read present.  It argued, marked ``[R]``, that this was sound for the
+   diamond-difference kernel alone, because that kernel's left null
+   vectors live on trace rows only (``[M]`` 2026-10-30, the
+   :math:`(3,4)` ``level_symmetric`` :math:`S_2` 1-group box at
+   :math:`c = 0.9`: 100 % of their mass on trace rows, and a uniform bulk
+   source pairing at ``2.4e-15``), so a bulk source with no inflow on a
+   mirror face pairs to zero structurally.  Two cases were outside the
+   argument and were named as such: a declared inflow on a closed wall
+   (a ``white(1.0)`` wall carrying a source), and the physical kernel of
+   an absorption-free closed class, which no S\ :sub:`N` summand spanned.
+   Both were live.  ``[M]`` 2026-10-31 (the U0 specification, fact F9):
+   a one-group pure scatterer on a 1-D slab between a mirror and a
+   ``white(1.0)`` wall carrying a uniform inflow returned a flux of 20.5
+   with ``max_inner`` exhausted, where the verdict now refuses at a
+   pairing of 0.092; the general physical-kernel case is ERR-123.  The
+   argument for the bulk source is now a measurement the verdict makes on
+   every posing.
 
 The second question, *is the minimum-norm member the physical answer*,
 is a claim only the method can make, because it is a statement about the
@@ -8789,6 +8825,537 @@ may stand in for it.  ``dimension == 0`` is the honest answer for a
 configuration with no freedom: the empty direct sum makes ``gauge`` the
 identity, so **no caller needs a null branch**, which is the same "a
 value, not an absence" move the exit report makes below.
+
+.. _fredholm-posing-verdict:
+
+The Fredholm verdict: the posing decides, from the pencil's predicted kernel
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A posed linear question :math:`A\psi = q` on a finite-dimensional space
+has one of three answers, and which one is decidable before anything is
+inverted.  This section is the decision as it ships since the
+space-membership campaign's unit U0 (2026-10-31; the plan is
+``.claude/plans/space_membership_covector_gauge.md``, section U0): the
+mathematics, the object that carries it
+(:class:`~orpheus.numerics.fredholm.PredictedKernel`), the verdict
+(:func:`~orpheus.numerics.fredholm.fredholm_alternative` and the two
+posings' ``solvability``), the factorisation a direct method may then
+use, and the designs that were tried first and refuted.  The kernels
+themselves are each method's: S\ :sub:`N`'s are derived at
+:ref:`sn-loss-kernel-predicted`, diffusion's at
+:ref:`diffusion-fredholm-verdict`, the infinite medium's at
+:ref:`homogeneous-fredholm-verdict`; the defect the decision closes is
+ERR-123 in :doc:`/theory/verification/error_catalog`.
+
+**Key facts.**
+
+* The decision rule is the Fredholm alternative on the posing
+  :math:`(A, q)`: a trivial kernel is ``Solve``; a source annihilated by
+  every left co-vector of :math:`A` is ``Gauge`` (a coset of solutions,
+  and the minimum-:math:`G`-norm member is returned); any other source
+  raises :class:`~orpheus.numerics.fredholm.NoSolution` before any
+  inversion.  The user's ruling R3 (2026-10-30): *"Fredholm as the
+  decision rule, kernel measurement as witness."*
+* The kernel is predicted from structure (which classes, which faces,
+  which closure), never measured at run time; its claim is checked
+  against a dense SVD in the gates.  The prediction rides on the pencil
+  (``OperatorPencil(lhs, rhs, kernel=...)``), so every question posed
+  over the pencil derives its verdict from one object, and ``.H`` daggers
+  it.
+* An eigen question is solvable on a singular loss iff the kernel is the
+  WHOLE pencil's: :math:`M` annihilates the kernel modes and the left
+  kernel annihilates the range of :math:`M`.  The condition is symmetric
+  under the adjoint, so the forward and adjoint eigen questions refuse
+  together.
+* A direct method factorises :math:`A + \Pi` (:math:`\Pi` the
+  :math:`G`-orthogonal kernel projector of :eq:`kernel-gauge-section`),
+  which is nonsingular iff the kernel's zero eigenvalue is semisimple, and
+  whose inverse returns the minimum-:math:`G`-norm member of a consistent
+  posing.  S\ :sub:`N`'s diamond-difference kernel is not semisimple, so
+  S\ :sub:`N` iterates and then projects.
+* The verdict is recorded with every answer:
+  :class:`~orpheus.numerics.outcome.ExitReport` gained the member
+  ``solvability: Solve | Gauge`` (a refused posing never reaches an
+  outcome), and the two result types without an exit report (diffusion's
+  eigen result, the infinite medium's) carry it as a field, with the
+  factorisation's reciprocal-condition estimate where there is one.
+* Honest scope: the verdict is exactly as good as the prediction.  A
+  posing whose kernel no predictor covers is not measured at run time
+  (the measured near-kernel, ``NearKernel``, is the plan's unit U3b and
+  is not built); the S\ :sub:`N` closed forms refuse the configurations
+  they were not derived for at one declared door
+  (:ref:`sn-loss-kernel-predicted`).
+
+**The alternative, and why the left kernel is the test.**  For a square
+:math:`A`, :math:`\operatorname{range} A` is the annihilator of
+:math:`\ker A^{\mathsf T}` in the canonical pairing:
+:math:`q \in \operatorname{range} A` iff :math:`\langle w, q\rangle = 0`
+for every :math:`w` with :math:`A^{\mathsf T} w = 0`.  One direction is
+immediate: :math:`\langle w, A\psi\rangle = \langle A^{\mathsf T} w,
+\psi\rangle = 0`.  The other is a dimension count: the annihilator of
+:math:`\ker A^{\mathsf T}` has dimension :math:`n - \dim\ker A^{\mathsf
+T} = \operatorname{rank} A^{\mathsf T} = \operatorname{rank} A =
+\dim\operatorname{range} A`, and it contains the range, so the two are
+equal.  The pairing is the canonical one, a co-vector of :math:`V^*`
+against a vector of :math:`V`, with no metric
+(:ref:`spaces-covector`): the left null vectors are the annihilators of
+the range, and they are co-vectors, not vectors of :math:`V`.  So
+
+.. math::
+   :label: fredholm-posing-alternative
+
+   A\psi = q \;\text{ is }\;
+   \begin{cases}
+   \texttt{Solve} & \ker A = \{0\}, \\
+   \texttt{Gauge} & \ker A \neq \{0\} \text{ and } \langle w, q\rangle = 0
+     \;\; \forall\, w \in \ker A^{\mathsf T}, \\
+   \text{refused (}\texttt{NoSolution}\text{)} & \text{otherwise.}
+   \end{cases}
+
+In the ``Gauge`` case the solutions are the coset :math:`\psi_0 + \ker A`,
+and the section of :eq:`kernel-gauge-section` returns its
+minimum-:math:`G`-norm member.  :math:`\dim\ker A = \dim\ker A^{\mathsf T}`
+for every square matrix (the Fredholm index of an endomorphism of a
+finite-dimensional space is 0), and
+:class:`~orpheus.numerics.fredholm.PredictedKernel` refuses at
+construction a prediction whose right and left counts differ: a predictor
+that lost or invented a mode is caught before it decides anything.
+
+**The physics of each branch.**  On a closed domain whose loss has an
+absorption-free closed energy class (every face a deck or a wall
+returning all of its current, and a final class of the group-transfer
+graph whose every group has zero net removal in every present material;
+:func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`),
+a neutron that reaches the class is never lost, so :math:`A` is singular.
+The left co-vector of that kernel is the absorbing-chain probability of
+reaching the class: 1 on the class's own degrees of freedom and, on a
+feeder group :math:`f`, the probability that a neutron in :math:`f` is
+eventually transferred into the class rather than removed.  A positive
+source puts neutrons into the class at the rate :math:`\langle w,
+q\rangle > 0` that no process removes, so the population grows without
+bound and there is no steady state: the refusal is the physics.  A
+balanced source (zero net emission into the class, :math:`\langle w,
+q\rangle = 0`) has a steady state whose level the equation does not fix:
+the gauge picks one member and says so.  S\ :sub:`N`'s
+diamond-difference face modes are the other kernel: a discretization
+artefact with no physical content, whose left co-vectors live on the
+boundary trace only.
+
+**The statistic: the coordinate cosine on each annihilator's declared
+support.**  The verdict reads
+
+.. math::
+
+   c(w, q) \;=\; \frac{\lVert B_S^{\mathsf T}\, q_S\rVert_2}{\lVert q_S\rVert_2} ,
+
+per left summand, where :math:`S` is the summand's declared support,
+:math:`q_S` the source restricted to it and :math:`B_S` an orthonormal
+(Euclidean) basis of the summand's generator span; the verdict takes the
+largest over the summands, and reads 0 for a source that vanishes on
+every support.  The cut is
+:data:`~orpheus.numerics.fredholm.CONSISTENCY_RTOL` :math:`= 10^{-10}`.
+It is not a tuning knob: ``[M]`` 2026-10-31 (the test-architect,
+``scratch/membership_covector/u0/probes/p_cosine.py``) the 10 gauged
+cases (diffusion one- and two-group, S\ :sub:`N` 1-D and 2-D, the
+S\ :sub:`N` adjoint detector) read at most :math:`2.4\times10^{-15}`
+and the 6 refused ones at least 0.092 (a uniform inflow on a closed
+``white(1.0)`` wall, the smallest because the inflow is trace-only and
+the physical support is every degree of freedom); the cut sits at least
+4.6 decades inside each side.  Two properties make the cosine the right
+statistic.  Restricting to the support means a source living off it (a
+bulk source against S\ :sub:`N`'s trace-only diamond-difference
+annihilators) cannot dilute the reading, and the pairing it reports is
+exactly zero there.  Normalising inside the support means round-off in a
+co-vector's entries enters the cosine as a small additive term, not as a
+ratio of two small numbers (the refuted cancellation ratio, below).
+
+.. (verification note, no vv-status: the markers are owed) The alternative itself is linear algebra (range A
+   is the annihilator of ker A^T, by the dimension count above); the
+   shipped claim it supports, that the verdict computes it, is a
+   NUMERICS contract gated in tests/gates/numerics/test_fredholm_verdict.py
+   (V1 trivial kernel, V2 consistent source and the canonical pairing, V3
+   refusal naming the co-vector, V4 the minimum-G-norm member against a
+   bordered dense solve, V5/V5b the cut, V6 the index-0 refusal), whose
+   functions carry no verifies marker for this label yet.
+
+**The eigen question: the kernel must be the whole pencil's.**  An
+eigen posing :math:`A\psi = \mu M\psi` (the pencil :math:`(A, M)`,
+:ref:`the-operator-pencil`) has no single source to pair; its
+"source" is the range of :math:`M`.  Let :math:`R` span
+:math:`\ker A` and :math:`L` span :math:`\ker A^{\mathsf T}`.  Then
+
+.. math::
+   :label: fredholm-eigen-whole-pencil
+
+   M R = 0 \quad\text{and}\quad M^{\mathsf T} L = 0
+   \;\;\Longrightarrow\;\;
+   (A - \mu M) R = 0 ,
+   \quad (A - \mu M)^{\mathsf T} L = 0
+   \quad \forall\,\mu ,
+
+so :math:`\ker A` is in the kernel of every member of the pencil with the
+same annihilators: the eigen question is a solvable family on it, any
+eigenvector is determined modulo :math:`\ker A`, and the gauge is
+residual-neutral at every :math:`\mu`, since
+:math:`(A - \mu M)\Pi\psi = 0`.  When either condition fails the kernel
+is not the pencil's.  :math:`M^{\mathsf T} w \neq 0` for a left co-vector
+means fission emits into a class the loss never removes from (the
+eigenvalue problem then has no steady fundamental mode: every
+iteration's emission accumulates in the class).  :math:`M r \neq 0` for a
+kernel mode means the class carries fission:
+:math:`(A - \mu M) r = -\mu M r \neq 0`, so the mode is no longer in the
+kernel of the members and gauging it out would change the equation's
+residual.  Both are realisable.  The first is the ``FIS_FEEDS`` mixture
+of the gates (group 1 fissile and absorbing, scattering into an
+absorption-free group 2); the second is an absorption-free class whose
+(n,2n) gain offsets its fission exactly
+(``FISSILE_N2N_BALANCED`` in ``tests/gates/sn/solve/test_fredholm_verdict.py``:
+removal :math:`0.5 - 0.375 - 2\times0.0625 = 0` in floats).
+
+The statistic is the private helper ``_pencil_annihilation`` of
+:mod:`orpheus.numerics.posing`: the largest of
+:math:`\lVert M^{\mathsf T} w\rVert / \lVert M^{\mathsf T}|w|\rVert` over
+the annihilators and :math:`\lVert M r\rVert / \lVert M|r|\rVert` over
+the kernel modes, each relative to the same action on the entrywise
+absolute value, held to the same
+:data:`~orpheus.numerics.fredholm.CONSISTENCY_RTOL`.  The relative scale
+needs :math:`M \ge 0` entrywise, so that the absolute pass bounds the
+signed one with no cancellation.  Every production pencil's rhs is a
+fission emission :math:`\chi \otimes \nu\Sigma_f`, non-negative because
+the mixture parses its spectrum as a probability simplex at construction
+(:func:`~orpheus.data.emission_spectrum.enforce_emission_spectrum`
+refuses a negative entry); ``[M]`` 2026-10-31 (qa's re-review) the
+assembled S\ :sub:`N` rhs, forward and daggered, has smallest entry 0.0
+on 4 of 4 fixtures with fission and (n,2n).  :math:`M^{\mathsf T}` is the
+coordinate transpose: the canonical pairing again, no metric.
+:meth:`EigenPosing.solvability <orpheus.numerics.posing.EigenPosing.solvability>`
+returns ``Solve`` on a trivial kernel, ``Gauge`` when the reading is at
+or below the cut, and raises ``NoSolution`` otherwise.
+
+**The condition is symmetric under the adjoint, so the two eigen
+questions refuse together.**  The adjoint pencil is
+:math:`(A^{\mathsf H}, M^{\mathsf H})` with
+:math:`X^{\mathsf H} = G^{-1}X^{\mathsf T}G`.  Its kernel and
+annihilators are
+
+.. math::
+
+   \ker A^{\mathsf H} = G^{-1}\ker A^{\mathsf T} ,
+   \qquad
+   \ker\bigl(A^{\mathsf H}\bigr)^{\mathsf T} = G\,\ker A ,
+
+because :math:`A^{\mathsf H}x = 0 \iff A^{\mathsf T}(Gx) = 0` and
+:math:`(A^{\mathsf H})^{\mathsf T}y = G A G^{-1}y = 0 \iff G^{-1}y \in
+\ker A`.  The adjoint's two conditions are then
+
+.. math::
+
+   M^{\mathsf H}\bigl(G^{-1}w\bigr) = G^{-1}M^{\mathsf T}w = 0
+   \iff M^{\mathsf T}w = 0 ,
+   \qquad
+   \bigl(M^{\mathsf H}\bigr)^{\mathsf T}(G r) = G M G^{-1} G r = G M r = 0
+   \iff M r = 0 :
+
+the forward conditions with their roles swapped.  The adjoint eigen
+question is solvable exactly where the forward one is, which is the
+statement :math:`k^\dagger = k` makes about the pencil.
+:attr:`PredictedKernel.H <orpheus.numerics.fredholm.PredictedKernel.H>`
+realises the two maps on the generators: the left summands become the
+adjoint's right ones through :math:`\sharp` (multiplication by
+:math:`G^{-1}` on each support) and the right summands its annihilators
+through :math:`\flat` (multiplication by :math:`G`).  A zero-metric slot
+(a tangential trace slot) takes the pseudo-inverse there, 0 rather than
+:math:`1/0`; :attr:`OperatorPencil.H <orpheus.numerics.pencil.OperatorPencil.H>`
+and :meth:`SourcePosing.H <orpheus.numerics.posing.SourcePosing.H>`
+dagger the kernel with the operators, so an adjoint posing gauges with
+the adjoint kernel and never with the forward projector.  ``[M]``
+2026-10-31 (qa, ``scratch/membership_covector/u0/review/qa.md``, second
+pass): the production ``pencil.H.lhs``, densified column by column,
+equals :math:`G^{-1}A^{\mathsf T}G` to :math:`1.8\times10^{-16}` on 4 of
+4 fixtures, and the ``.H`` left and right spans match the dense
+:math:`G^{-1}A^{\mathsf T}G` kernels on 5 of 5 (to
+:math:`1.2\times10^{-14}`).
+
+.. (verification note, no vv-status: the markers are owed) A linear-algebra identity (the kernel of every
+   pencil member contains ker A when M respects it) whose shipped use is
+   gated end to end: tests/gates/sn/solve/test_fredholm_verdict.py S9,
+   S11, S11b (both eigen entries refuse where the forward does; arm
+   adjoint_reads_its_own_range reddens S11b), S10 (an isolated class is
+   gauged, k = 1.25 closed form), the diffusion D6/D8 and homogeneous
+   H1/H2 rows.  None carries a verifies marker for this label yet.
+
+**The source question over a pencil member.**
+:meth:`SourcePosing.of_pencil(pencil, sigma, q)
+<orpheus.numerics.posing.SourcePosing.of_pencil>` poses
+:math:`(A - \sigma M)\psi = q` and carries the pencil's kernel.  At
+:math:`\sigma = 0` the operator is :math:`A` and its kernel is the
+pencil's.  At :math:`\sigma \neq 0` the pencil's kernel is the member's
+only when :math:`M` respects it (:eq:`fredholm-eigen-whole-pencil`), so
+``of_pencil`` checks that condition and refuses otherwise; a kernel the
+member gains at a spectral coincidence (:math:`\sigma` an eigenvalue) is
+a value question, which the multiplying-source entry answers separately
+by its subcriticality check.
+:meth:`SourcePosing.solvability <orpheus.numerics.posing.SourcePosing.solvability>`
+then runs :func:`~orpheus.numerics.fredholm.fredholm_alternative` on the
+posing's own source.  :attr:`SourceOutcome.gauge
+<orpheus.numerics.outcome.SourceOutcome.gauge>` is a property read off
+the posing's kernel, never a slot stored beside it: one projector per
+question.
+
+**The deflated factorisation.**  A direct method cannot factorise an
+exactly singular :math:`A`.  It factorises
+
+.. math::
+   :label: fredholm-deflated-loss
+
+   A + \Pi ,
+   \qquad
+   \Pi = \text{the } G\text{-orthogonal projector onto } \ker A ,
+
+(:math:`\Pi` is the projector of :eq:`kernel-gauge-section`), which :meth:`PredictedKernel.deflate <orpheus.numerics.fredholm.PredictedKernel.deflate>`
+returns (the loss itself, unchanged, on a trivial kernel, so a regular
+posing's arithmetic is bit-identical).  Two facts make it the right
+operator.
+
+*It is nonsingular iff the zero eigenvalue of* :math:`A` *is semisimple*,
+that is, iff :math:`\ker A \cap \operatorname{range} A = \{0\}`
+(equivalently :math:`L^{\mathsf T} R` is nonsingular, with :math:`L` and
+:math:`R` bases of :math:`\ker A^{\mathsf T}` and :math:`\ker A`; the
+equivalence is the alternative above, since
+:math:`R c \in \operatorname{range} A` iff :math:`L^{\mathsf T} R c = 0`).
+
+* If the zero eigenvalue is semisimple, let :math:`(A + \Pi)x = 0`.  Then
+  :math:`A x = -\Pi x`; the left side is in :math:`\operatorname{range}
+  A` and the right side in :math:`\ker A`, so both vanish.  So
+  :math:`\Pi x = 0` and :math:`A x = 0`, which puts :math:`x` in
+  :math:`\ker A = \operatorname{range}\Pi`, where :math:`x = \Pi x = 0`.
+* If it is not, some :math:`k = R c \neq 0` lies in
+  :math:`\ker A \cap \operatorname{range} A`, say :math:`k = A z`.  Put
+  :math:`x = (I - \Pi) z - k`.  Then :math:`(A + \Pi)x = A z - 0 + 0 - k
+  = 0` (using :math:`A\Pi = 0`, :math:`\Pi(I - \Pi) = 0`, :math:`A k = 0`,
+  :math:`\Pi k = k`), and :math:`x \neq 0`, since :math:`x = 0` would put
+  :math:`(I - \Pi)z = k` in both :math:`\ker A` and its
+  :math:`G`-orthogonal complement.  So :math:`A + \Pi` is singular.
+
+*On a consistent source its inverse returns the minimum-*:math:`G`*-norm
+member.*  Let :math:`q \in \operatorname{range} A` and
+:math:`x = (A + \Pi)^{-1} q`.  Pair the equation with every left
+co-vector: :math:`L^{\mathsf T} A x + L^{\mathsf T}\Pi x = L^{\mathsf T}
+q = 0`, and :math:`L^{\mathsf T} A = 0`, so :math:`L^{\mathsf T}\Pi x =
+0`.  :math:`\Pi x = R c` for some :math:`c`, and :math:`L^{\mathsf T} R`
+is nonsingular, so :math:`c = 0`: :math:`\Pi x = 0`.  Then :math:`A x =
+q`, and :math:`\Pi x = 0` says :math:`x \perp_G \ker A`, which is the
+section of :eq:`kernel-gauge-section`: the minimum-:math:`G`-norm member,
+returned by one back-substitution with no projection afterwards.
+
+``[M]`` 2026-10-31 (the orchestrator,
+``scratch/membership_covector/u0/deflated_probe.py``, three singular
+diffusion losses): :math:`\operatorname{cond}(A + \Pi)` 35 to 42 against
+:math:`10^{17}` for :math:`A`; relative residual at most
+:math:`5.8\times10^{-16}`; agreement with the bordered dense oracle
+:math:`\begin{pmatrix} A & R \\ (GR)^{\mathsf T} & 0\end{pmatrix}` at most
+:math:`9.9\times10^{-16}`; :math:`|L^{\mathsf T} R|` 0.68 to 0.96.
+Re-measured for this page (2026-10-31, ``-O``, the worktree at
+``119383f9``): the 8-cell mirror slab with the one-group pure scatterer
+reads :math:`\operatorname{cond}(A) = 1.01\times10^{17}`,
+:math:`\operatorname{cond}(A + \Pi) = 35.3`, a reciprocal-condition
+estimate 0.0145 and a smallest singular value of :math:`L^{\mathsf T}R`
+of 0.960; the two-group ``g2_only`` mixture reads
+:math:`6.60\times10^{16}`, 38.5 and 0.859.  The semisimplicity test is
+:attr:`PredictedKernel.is_semisimple
+<orpheus.numerics.fredholm.PredictedKernel.is_semisimple>`, the smallest
+principal cosine between the two spans against
+:data:`~orpheus.numerics.fredholm.SEMISIMPLE_RTOL` :math:`= 10^{-10}`;
+``deflate`` refuses a non-semisimple kernel by name.
+
+**Why S**\ :sub:`N` **iterates instead.**  S\ :sub:`N`'s
+diamond-difference kernel is a Jordan chain: its left co-vectors are
+:math:`J\Phi` with :math:`J = -(\Omega\cdot\hat n_f)A_f` on the trace
+(:ref:`sn-loss-kernel-predicted`), and
+
+.. math::
+
+   (J\Phi)^{\mathsf T}\Phi \;=\; -\sum_{\text{trace slots}}
+   (\Omega_n\cdot\hat n_f)\,A_f\,\varphi^2 \;=\; 0 ,
+
+because every mode's inflow and outflow values have equal magnitude (the
+sawtooth and the mirror pair them), so the net boundary current of
+:math:`\varphi^2` vanishes.  ``[M]`` (the numerics-investigator,
+``scratch/membership_covector/u0/left_basis/MEMO.md``)
+:math:`\max|(J\Phi)^{\mathsf T}\Phi| \le 4.8\times10^{-16}` on 9 of 9
+cases.  :math:`L^{\mathsf T}R = 0` puts :math:`\ker A` inside
+:math:`\operatorname{range} A`, so :math:`A + \Pi` is singular and no
+oblique spectral projector exists.  S\ :sub:`N` never factorises its loss
+anyway: it inverts by sweeps, solves to its tolerance, and projects the
+returned state with :math:`I - \Pi`, which is residual-neutral and needs
+no semisimplicity.  Its verdicts record
+``NotApplicable("SN inverts its loss by sweeps, never a factorisation: no condition estimate")``
+as their conditioning.  The physical (absorbing-chain) kernels of
+diffusion and the infinite medium are semisimple (the
+:math:`|L^{\mathsf T}R|` above), which is what lets those two methods
+factorise.
+
+.. (verification note, no vv-status: the markers are owed) The two theorems above are linear algebra; the
+   shipped realisation is gated by tests/gates/numerics/test_fredholm_verdict.py
+   V7a (the deflated inverse equals the bordered dense oracle; arm
+   deflate_euclidean, R R^T in place of Pi, reddens it) and V7b (a Jordan
+   fixture is refused by the fragment "semisimple"), and end to end by the
+   diffusion D2 and homogeneous H2 rows.  None carries a verifies marker
+   for this label yet.
+
+**The kernel is predicted modulo** :math:`\ker G`.  The question is
+posed on the Hilbert space whose metric is :math:`G`.  A coordinate the
+metric does not weigh (a tangential slot of a trace space,
+:math:`\Omega\cdot\hat n = 0`) is in :math:`\ker G`: no norm, pairing or
+source sees it, and when the loss also leaves its row and column at zero
+it is a dimension of :math:`\ker A` that is not a freedom of the answer.
+A prediction is therefore the kernel modulo :math:`\ker G`, and a
+``Solve`` beside such slots is honest.  ``[M]`` 2026-10-31 (qa): the
+``product(4,4)`` quadrature on a 2-D all-mirror :math:`(3,4)` box has a
+dense nullity of 112, all of it tangential, and its every reflection
+orbit has a tangential ordinate, so the diamond-difference predictor
+returns the trivial kernel with that reason (``119383f9``).  The
+tangential component and the genuine one are separated exactly by the
+metric's zero set (:ref:`sn-loss-kernel-the-gauge`).
+
+**What every answer records.**  :class:`~orpheus.numerics.outcome.ExitReport`
+carries the verdict as ``solvability`` (and ``DiffusionResult`` and
+``HomogeneousResult``, which have no exit report, carry it as a field of
+the same name): ``Solve(because, conditioning)``
+or ``Gauge(projector, pairing, because, conditioning)``
+(:class:`~orpheus.numerics.fredholm.Solve`,
+:class:`~orpheus.numerics.fredholm.Gauge`).  ``because`` is the
+predictor's witness in words (the absorption-free classes, the reflective
+axes); ``pairing`` the measured cosine; ``conditioning`` an
+:class:`~orpheus.numerics.evidence.Evidence` member, ``Measured`` with
+LAPACK's reciprocal-condition estimate
+(:attr:`MatrixInverseOperator.reciprocal_condition
+<orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator.reciprocal_condition>`:
+``gecon`` on the ``getrf`` factors with :math:`\lVert A\rVert_1` read
+before ``lu_factor(overwrite_a=True)`` destroys :math:`A`,
+:math:`O(n^2)` on top of the factorisation) on diffusion and the infinite
+medium, ``NotApplicable`` on S\ :sub:`N`.  A near-singular posing (a
+small but non-zero removal, :math:`\Sigma_a = 10^{-14}`) is regular by
+the predicate, which reads exact zeros of declared data: it is solved,
+and its conditioning is recorded, never judged (the plan's ruling R3.4).
+The evidence sum moved from :mod:`orpheus.numerics.outcome` to
+:mod:`orpheus.numerics.evidence` in U0, because the verdict, which ranks
+below the outcome in the numerics concept order, carries it too.
+
+**Where each piece lives.**
+
+.. list-table::
+   :header-rows: 1
+   :widths: 34 66
+
+   * - object
+     - what it is
+   * - :class:`~orpheus.numerics.fredholm.PredictedKernel`
+     - ``space``, ``right`` (summands spanning :math:`\ker A`), ``left``
+       (summands spanning :math:`\ker A^{\mathsf T}`, co-vectors),
+       ``because``; ``projector``, ``dimension``, ``consistency``,
+       ``is_semisimple``, ``deflate``, ``rebased`` (onto a coupled space
+       whose flat chart begins with this one), ``H``, ``+`` (two kernels
+       on one space).  ``of_closed_blocks`` mints one mode per closed
+       block of an assembled matrix: the block's null vector by one SVD,
+       the left co-vector by :math:`w_C^{\mathsf T}A_{CC} = 0` and one
+       transposed solve on the feeders, :math:`A_{TT}^{\mathsf T} w_T =
+       -A_{CT}^{\mathsf T} w_C`, refusing a block whose nullity is not one
+   * - :func:`~orpheus.numerics.fredholm.fredholm_alternative`
+     - :eq:`fredholm-posing-alternative` on a kernel and a source
+   * - :class:`~orpheus.numerics.fredholm.NoSolution`
+     - a ``ValueError``; its message names the annihilator that read and
+       says "the posing has no steady solution"
+   * - ``OperatorPencil(lhs, rhs, kernel=...)``
+     - the loss's predicted kernel on the pencil; ``None`` for a pencil
+       whose kernel was not predicted (a fixture, an opaque pair), whose
+       questions then refuse to give a verdict
+   * - :meth:`EigenPosing.solvability <orpheus.numerics.posing.EigenPosing.solvability>`,
+       :meth:`SourcePosing.solvability <orpheus.numerics.posing.SourcePosing.solvability>`,
+       :meth:`SourcePosing.of_pencil <orpheus.numerics.posing.SourcePosing.of_pencil>`
+     - the two questions' verdicts, derived from the pencil's kernel
+   * - :func:`~orpheus.transport.absorbing_chain.absorption_free_closed_classes`
+     - the structural predicate on declared data (transport):
+       :class:`~orpheus.transport.absorbing_chain.ClosedClass` ``(members,
+       feeders)`` with ``energy_vectors(mixture)``, and the removal
+       :func:`~orpheus.transport.absorbing_chain.removal_matrix`
+       :math:`K = \operatorname{diag}\Sigma_t - S_0^{\mathsf T} - 2S_2^{\mathsf T}`
+       (the multiplicity named
+       :data:`~orpheus.transport.kernels.N2N_MULTIPLICITY`).  A face
+       conserves iff it is a deck or its condition's ``return_fraction``
+       is exactly 1.0; net removal is summed with ``math.fsum`` from the
+       declared channels
+
+**What was tried first, and why each was refuted.**
+
+* **R2, "the method decides by whether its kernel is physical"** (the
+  plan's ruling of 2026-10-30, before R3): S\ :sub:`N` gauges its
+  discretization kernel, diffusion and the infinite medium refuse their
+  physical one.  Refuted for the question *which posings have a
+  solution* by R3: the split is a heuristic about the kernel's origin,
+  and the answer depends on the source.  A closed pure scatterer with a
+  balanced source (:math:`\int q = 0` against the class's co-vector) has
+  a steady solution that R2 refuses (``[M]`` 2026-10-30, the plan's R3
+  battery on the diffusion 8-cell mirror slab: a pairing of
+  :math:`1.5\times10^{-17}`, the gauged member agreeing with a bordered
+  solve to :math:`2.6\times10^{-14}`), and whether a posing is solvable
+  depends on its source, which the split never reads.  The FACT R2
+  establishes survives inside R3: physical and discretization kernels
+  differ in their left co-vectors (bulk-carrying against trace-only),
+  which is what makes a bulk source consistent with the second and not
+  the first.
+* **The cancellation ratio** :math:`|\langle w, q\rangle| / \langle |w|,
+  |q|\rangle` **as the consistency statistic.**  Refuted for the question
+  *does this statistic separate consistent from inconsistent sources*:
+  it divides noise by noise when a co-vector carries round-off where it
+  should be zero.  ``[M]`` (the test-architect, spec section 7) on a
+  dense-SVD diamond-difference basis, whose vectors carry about
+  :math:`10^{-15}` on the bulk, a bulk-only source read 0.70 at
+  :math:`c = 0.9` and 0.29 on a balanced :math:`c = 1` source, both
+  consistent; the cosine on the declared support reads
+  :math:`2.4\times10^{-15}` and :math:`1.1\times10^{-15}` there.
+* **LU, then project.**  Refuted for the question *can a factorising
+  method solve a singular posing and gauge afterwards*: on an exactly
+  singular :math:`A` the factorisation's behaviour is pivot luck.
+  ``[M]`` 2026-10-30, diffusion on the 8-cell mirror slab: the last pivot
+  was :math:`10^{-17}`, not zero, the exact-zero refusal never fired, and
+  the resolvent returned :math:`\max|A^{-1}q| = 1.73\times10^{17}` in
+  silence; the infinite medium's :math:`2\times2` loss ``diag(0.1, 0)``
+  hit an exact zero pivot and raised ``LinAlgError``.  The same posing
+  answered three ways depending on round-off is not a decision.
+  :math:`A + \Pi` has no such dependence (condition 35 to 42).
+* **Per-entry emission probes for the eigen verdict** (the first U0
+  wiring, uncommitted, reviewed 2026-10-31).  Each eigen entry built a
+  probe of the range of :math:`F` (a uniform flux's fission emission) and
+  the adjoint entries a probe of the range of :math:`F^{\mathsf H}`, and
+  paired it with the posing's own annihilators.  Refuted for the question
+  *does the adjoint eigen verdict refuse where it must*: the daggered
+  annihilators are :math:`G e` for :math:`e \in \ker A`, and
+  :math:`\langle Ge, G^{-1}F^{\mathsf T}Gx\rangle = (Fe)^{\mathsf T}Gx =
+  0` for every :math:`x` whenever the class carries no fission, so the
+  adjoint reading was identically zero and could never refuse.  ``[M]``
+  qa (``scratch/membership_covector/u0/review/qa.md``, F1), a 2-group
+  mirror slab whose fission emits into an absorption-free group:
+  ``solve_sn`` refused, ``solve_sn_adjoint`` returned
+  :math:`\lambda = 0.9999999999999987` at every ``max_outer`` (5, 20,
+  200), a value fixed by the start, with a Rayleigh gap of 0.769 after
+  gauging against 0.0 without.  The elegance review found the verdict
+  decided at 9 entry sites, one of them on a different operator than the
+  one its posing inverts (the multiplying source's verdict computed on
+  :math:`A` while its posing is :math:`A - F`, correct only under an
+  unstated lemma), and the outcome's gauge stored apart from the posing's
+  kernel.  The user's ruling the same day: the posing derives the
+  verdict from the pencil, and the condition
+  :eq:`fredholm-eigen-whole-pencil` replaces the probes; the row
+  ``test_S11b_the_adjoint_refuses_exactly_where_the_forward_does``
+  reddens under the arm that restores the adjoint-only reading.
+* **A flat-unit left co-vector** :math:`w = \flat(\mathbf 1_C)` (the
+  integral of the class) **for diffusion.**  Refuted for the question *is
+  the left kernel the class integral*: the trace rows and the feeder
+  groups carry the absorbing-chain probability, not 0 or 1.  ``[M]``
+  (spec fact F1) :math:`\cos(w, \flat(\mathbf 1)) = 0.937`, and a trace
+  source paired through it is wrong by 0.26
+  (:ref:`diffusion-fredholm-verdict`).
 
 The exit report — evidence, not a nullable number
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -8840,7 +9407,8 @@ closed sum, one member per reason:
      - open work, named by issue
      - ``issue``, ``reason``
 
-and four members, one per thing the exit can learn.  The type's own
+and five members (four until the space-membership unit U0 added
+``solvability``), one per thing the exit can learn.  The type's own
 acceptance criterion is that **every member of the sum has a reachable
 witness** — an ``Evidence`` member no entry can produce would be a branch
 nothing exercises — and the right-hand column below is what the
@@ -8867,7 +9435,7 @@ design:
      - the kernel-gauge displacement :math:`\lVert\Pi\psi\rVert_G /
        \lVert\psi\rVert_G`, in the gauge space's own norm
        (:ref:`sn-exit-gauge`)
-     - ``Measured`` (the trace was projected); ``NotApplicable`` twice
+     - ``Measured`` (the state was projected; the trace only, until U0); ``NotApplicable`` twice
        over, with the reason distinguishing them — *no kernel freedom on
        this configuration* versus *the closure is unclassifiable, so the
        trace was NOT gauged* (that second one also warns loudly; it is a
@@ -8883,6 +9451,19 @@ design:
        :math:`k_{\rm eff} < 1`, **with the tolerance it was measured at**
      - ``Asserted(k, "the hub's k-solve at keff_tol=…")``;
        ``NotApplicable`` for a pure-transport or eigen posing
+   * - ``solvability`` (since U0)
+     - the Fredholm verdict on the posing
+       (:ref:`fredholm-posing-verdict`): ``Solve`` or ``Gauge``, with
+       the predictor's reason and the conditioning; a refused posing
+       raises ``NoSolution`` at the entry and never reaches an outcome
+     - ``Solve`` or ``Gauge`` with ``conditioning =
+       NotApplicable("SN inverts its loss by sweeps, never a
+       factorisation: no condition estimate")`` on every S\ :sub:`N`
+       entry; ``Measured`` (LAPACK's reciprocal-condition estimate) on
+       diffusion's fixed-source entry.  Diffusion's eigen result and the
+       infinite medium's carry the same verdict as a field of their own
+       result types (``DiffusionResult.solvability``,
+       ``HomogeneousResult.solvability``), which have no exit report
 
 Two deliberate absences are worth stating, because both are the kind of
 convenience that would quietly undo the type.  There is **no**
@@ -9791,6 +10372,45 @@ the cheapest tell.
      - Issue
      - Where
    * - 2026-10-31
+     - **Every posing derives its Fredholm verdict from the pencil's
+       predicted kernel** (unit U0 of
+       ``.claude/plans/space_membership_covector_gauge.md``, the user's
+       rulings R3 of 2026-10-30 and of 2026-10-31). A posing
+       :math:`A\psi = q` is decided before anything is inverted:
+       ``Solve`` on a trivial kernel, ``Gauge`` when the source is
+       annihilated by the left kernel (the minimum-:math:`G`-norm member is
+       returned), ``NoSolution`` otherwise
+       (:eq:`fredholm-posing-alternative`). New:
+       :mod:`orpheus.numerics.fredholm` (``PredictedKernel`` with the right
+       and left summands, its ``.H``, ``deflate`` and ``of_closed_blocks``;
+       the verdict types; the cut ``CONSISTENCY_RTOL``, the coordinate
+       cosine on each annihilator's declared support);
+       :mod:`orpheus.numerics.evidence` (the evidence sum, moved out of the
+       outcome module so the verdict can carry it);
+       :mod:`orpheus.transport.absorbing_chain` (the absorption-free closed
+       classes from declared data); ``OperatorPencil(kernel=...)``,
+       ``EigenPosing.solvability`` (the kernel must be the whole pencil's,
+       :eq:`fredholm-eigen-whole-pencil`, symmetric under ``.H``),
+       ``SourcePosing.of_pencil`` and ``SourcePosing.solvability``;
+       ``ExitReport.solvability``; ``SourceOutcome.gauge`` read off the
+       posing (its slot retired); ``MatrixInverseOperator.reciprocal_condition``
+       (``c2a88dfc``). Direct methods factorise :math:`A + \Pi`
+       (:eq:`fredholm-deflated-loss`, nonsingular iff the kernel is
+       semisimple). A composite space's metric acts on its flat
+       coordinates (``5ce66815``, #666's flat half), so a kernel gauge on
+       a ``FullFieldSpace`` works; the gauge admits a multi-axis leaf
+       space on its flat chart. S\ :sub:`N`'s
+       ``build_loss_kernel_gauge`` and ``_exit_gauge_trace`` retired for
+       the predictors of :ref:`sn-loss-kernel-predicted` and the
+       full-field ``_exit_gauge``. Refuted on the way, with their reasons
+       in :ref:`fredholm-posing-verdict`: R2's physical-versus-discretization
+       split, the cancellation ratio, LU-then-project, and per-entry
+       emission probes (the adjoint could never refuse). Closes the defect
+       ERR-123.
+     - #666, #665
+     - *(in development)*, ``5ce66815``, ``54aef2ca``, ``c2a88dfc``,
+       ``ef5eea29``, ``119383f9`` on branch ``refactor/space-membership``
+   * - 2026-10-31
      - **The kernel gauge is a numerics projector; a method supplies only
        its generators** (unit U3 of
        ``.claude/plans/space_membership_covector_gauge.md``). The
@@ -9812,7 +10432,7 @@ the cheapest tell.
        declared scope boundary; a declared zero unit is checked before it
        is stored. The S\ :sub:`N`
        classes ``LossKernelGauge`` and ``LossKernelBasis`` retired, and
-       :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
+       ``build_loss_kernel_gauge`` (itself retired at U0, the row above)
        hands the pair generators over. ``apply_transpose`` became the
        Euclidean transpose; the predecessor returned :math:`\Pi`, which is
        :math:`G`-self-adjoint and not symmetric (``[M]`` 46 % apart on the
