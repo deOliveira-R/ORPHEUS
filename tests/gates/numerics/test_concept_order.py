@@ -67,7 +67,8 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # the LU inverse densifies through the assembly functor (ruling 60)
     ("matrix_inverse_operator",),
     ("coupled_system", "frame_faces", "posing"),
-    ("outcome", "spaces"),
+    # the kernel gauge composes frame faces over spanning summands (U3, 2026-10-31)
+    ("kernel_projection_gauge", "outcome", "spaces"),
     ("convergence",),
     ("eigenvalue",),
     ("iteration",),

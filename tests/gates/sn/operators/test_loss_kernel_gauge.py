@@ -1,4 +1,11 @@
-r"""``LossKernelGauge`` — the closed-form projector onto :math:`\ker(L+C-S-B)`.
+r"""The SN loss kernel's gauge — the closed-form projector onto :math:`\ker(L+C-S-B)`.
+
+Since the space-membership campaign's U3 (2026-10-31) the projector is the numerics
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`, whose laws are gated on a
+numerics fixture in ``tests/gates/numerics/test_kernel_projection_gauge.py``; SN supplies the pair
+generators (:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`). The rows below
+are its production instances, and section 10 pins the rebuilt gauge bit-identical to the retired
+``LossKernelGauge`` (a carry captured before the carve).
 
 **What has to be true, and how each is checked without using the gauge as its
 own oracle.** The construction is a closed form, so a gate that only asked
@@ -90,6 +97,8 @@ for that reason; do not trim them to speed the suite up.**
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -100,7 +109,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.operators.loss_kernel_gauge import (
     GaugeFreedom,
-    LossKernelGauge,
+    build_loss_kernel_gauge,
     _anova_dimension,
     _reflection_orbits,
     gauge_freedom,
@@ -223,7 +232,7 @@ def test_the_dimension_matches_the_combinatorial_counting_law(
     where the dense SVD is not viable.
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     assert gauge.dimension == predicted_kernel_dimension(mesh) > 0
 
 
@@ -256,7 +265,7 @@ def test_the_dimension_matches_a_DENSE_SVD_of_the_assembled_operator(
     singular = np.linalg.svd(dense, compute_uv=False)
     rank_deficiency = int(np.sum(singular < 1e-10 * singular[0]))
 
-    assert LossKernelGauge.for_mesh(mesh).dimension == rank_deficiency
+    assert build_loss_kernel_gauge(mesh).dimension == rank_deficiency
 
 
 @pytest.mark.foundation
@@ -325,13 +334,13 @@ def test_EVERY_basis_vector_is_annihilated_by_the_production_matvec(
       congruence-class trap, in this suite's own fixture set).
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     system, template = _loss_system(mesh)
     n_trace = int(np.prod(mesh.angular_trace.shape))
 
     worst = 0.0
     modes = 0
-    for block in gauge.blocks:
+    for block in gauge.summands:
         for mode in range(block.basis.table.shape[1]):
             trace = np.zeros(n_trace)
             trace[block.gather.indices] = block.basis.table[:, mode]
@@ -353,7 +362,7 @@ def test_each_block_gram_is_the_identity_which_is_what_earns_DIAGONAL(
         label, cells, bcs, kwargs):
     r"""⭐ :math:`\Phi^{\mathsf T} G \Phi = I` per block — the load-bearing gate.
 
-    :attr:`LossKernelBasis.gram_structure` declares ``DIAGONAL``, and
+    :attr:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.gram_structure` declares ``DIAGONAL``, and
     :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of` computes its diagonal by the
     row-sum probe ``analysis(reconstruction(ones))``, which equals the true
     diagonal ONLY if :math:`MR` is diagonal. So the declaration is a promise
@@ -367,17 +376,17 @@ def test_each_block_gram_is_the_identity_which_is_what_earns_DIAGONAL(
     :math:`1\times1`). **The d=3 rows are the only ones that can fail this.**
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
 
     saw_multimode = False
-    for block in gauge.blocks:
+    for block in gauge.summands:
         table = block.basis.table
         assert block.basis.gram_structure is GramStructure.DIAGONAL
         gram = table.T @ (metric[block.gather.indices][:, None] * table)
         saw_multimode |= table.shape[1] > 1
         assert np.allclose(gram, np.eye(table.shape[1]), atol=1e-12), (
-            f"{label}: block {block.basis.orbit}/g{block.basis.group} Gram is "
+            f"{label}: summand {block.basis.label} Gram is "
             f"off the identity by {np.abs(gram - np.eye(len(gram))).max():.3e}"
         )
     if len(cells) >= 3:
@@ -399,10 +408,10 @@ def test_the_frame_gram_probe_agrees_with_the_true_gram():
     from orpheus.numerics.measure import DiscreteMeasure
 
     mesh = _mesh((2, 2, 2), [(_R, _R)] * 3, ng=1)
-    gauge = LossKernelGauge.for_mesh(mesh)
-    assert gauge.blocks, "fixture is no longer singular"
+    gauge = build_loss_kernel_gauge(mesh)
+    assert gauge.summands, "fixture is no longer singular"
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
-    for block in gauge.blocks:
+    for block in gauge.summands:
         indices = block.gather.indices
         # ⛔ RE-KEYED 2026-09-02 (#429 tracker 2.2). The probe measure named
         # its own manifold (``IndexSet(label="probe")``) while the block's
@@ -436,7 +445,7 @@ def test_it_is_an_idempotent_G_self_adjoint_projector(
     rather than inferred from the construction.
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
     rng = np.random.default_rng(0)
     x = rng.standard_normal(metric.size)
@@ -451,36 +460,24 @@ def test_it_is_an_idempotent_G_self_adjoint_projector(
 
 
 @pytest.mark.foundation
-def test_the_blocks_have_DISJOINT_supports_and_the_type_refuses_otherwise():
-    """The direct-sum precondition, and the guard that enforces it.
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheDirectSum",
+)
+def test_the_summands_have_DISJOINT_supports():
+    """SN's builder hands disjoint supports (one per ordinate orbit and group), so the direct sum needs no
+    orthogonality check here.
 
-    A sum of block projectors is a projector only if no two blocks claim the
-    same trace DOF; overlapping supports would make ``apply`` order-dependent
-    AND non-idempotent, in a way no smoothness check would notice.
+    Until U3 this row also asserted that ``LossKernelGauge`` REFUSED any overlap (fragment "DISJOINT"). That contract
+    is inverted (the space-membership campaign's R3: overlapping summands are admitted iff mutually G-orthogonal), it
+    is numerics', and it is gated there with both legs
+    (``TestTheDirectSum::test_overlapping_summands_that_are_NOT_G_orthogonal_are_refused``). The disjointness that
+    remains is a fact of SN's builder.
     """
     mesh = _mesh((2, 2, 2), [(_R, _R)] * 3, ng=2)
-    gauge = LossKernelGauge.for_mesh(mesh)
-    assert len(gauge.blocks) > 1
-    seen = np.concatenate([b.gather.indices for b in gauge.blocks])
+    gauge = build_loss_kernel_gauge(mesh)
+    assert len(gauge.summands) > 1
+    seen = np.concatenate([b.gather.indices for b in gauge.summands])
     assert np.unique(seen).size == seen.size
-
-    with pytest.raises(ValueError, match="DISJOINT"):
-        LossKernelGauge(
-            (gauge.blocks[0], gauge.blocks[0]), mesh.angular_trace)
-
-
-@pytest.mark.foundation
-def test_no_inverse_and_it_is_spelled_by_ABSENCE():
-    """A projector onto a proper subspace is not invertible.
-
-    Spelled the house way — ``is_invertible is False`` AND no ``inverse``
-    method, so misuse is a static error rather than a runtime one.
-    """
-    gauge = LossKernelGauge.for_mesh(_mesh((3, 4), [(_R, _R)] * 2))
-    assert gauge.is_invertible is False
-    assert not hasattr(gauge, "inverse")
-    assert gauge.is_adjointable is True
-    assert gauge.domain is gauge.codomain
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -499,7 +496,7 @@ def test_gauging_cannot_move_any_convergence_check(
     functional of :math:`A\psi` are bit-unaffected.
     """
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     system, template = _loss_system(mesh)
     rng = np.random.default_rng(1)
     trace = rng.standard_normal(int(np.prod(mesh.angular_trace.shape)))
@@ -576,7 +573,7 @@ def test_the_gauge_recovers_the_PHYSICAL_trace_from_a_production_solve(cells):
     closed-form span.
     """
     mesh, system, template, source, exact, n_bulk = _uniform_source_fixture(cells)
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     psi = _solve(system, mesh, template, source, "gauss_seidel")
 
     reference = np.linalg.norm(exact[n_bulk:])
@@ -610,7 +607,7 @@ def test_it_is_NOT_a_universal_absorber_the_jacobi_control():
     error a green-only suite cannot see.
     """
     mesh, system, template, source, exact, n_bulk = _uniform_source_fixture((3, 4))
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     psi = _solve(system, mesh, template, source, "jacobi")
 
     reference = np.linalg.norm(exact[n_bulk:])
@@ -644,7 +641,7 @@ def test_one_vacuum_axis_removes_the_freedom():
     verdict = gauge_freedom(mesh)
     assert not verdict.present and not verdict.undetermined
     assert "1 reflective axis pair" in verdict.because
-    assert LossKernelGauge.for_mesh(mesh).dimension == 0
+    assert build_loss_kernel_gauge(mesh).dimension == 0
     assert predicted_kernel_dimension(mesh) == 0
 
 
@@ -666,7 +663,7 @@ def test_a_damping_closure_removes_the_freedom_at_the_ROOT():
         "the geometry conjunct must still be satisfied, or this row proves "
         "nothing about the CLOSURE conjunct"
     )
-    assert LossKernelGauge.for_mesh(mesh).dimension == 0
+    assert build_loss_kernel_gauge(mesh).dimension == 0
 
 
 @pytest.mark.foundation
@@ -674,7 +671,7 @@ def test_one_dimension_has_no_face_mode_and_therefore_no_gauge():
     """``d = 1`` falls out of the spectral radius — no special case anywhere."""
     mesh = _mesh((5,), [(_R, _R)])
     assert not gauge_freedom(mesh).present
-    assert LossKernelGauge.for_mesh(mesh).dimension == 0
+    assert build_loss_kernel_gauge(mesh).dimension == 0
 
 
 @pytest.mark.foundation
@@ -690,7 +687,7 @@ def test_an_UNDETERMINED_closure_does_NOT_gauge_and_says_why():
     verdict = gauge_freedom(mesh)
     assert verdict.undetermined and not verdict.present
     assert "could not be classified" in verdict.because
-    assert LossKernelGauge.for_mesh(mesh).dimension == 0
+    assert build_loss_kernel_gauge(mesh).dimension == 0
 
 
 @pytest.mark.foundation
@@ -753,12 +750,12 @@ def test_the_basis_never_reads_a_CROSS_SECTION():
     every factor in the mode is a mesh, quadrature or boundary quantity, so
     anything less than bit-identity means a cross-section leaked in.
     """
-    absorber = LossKernelGauge.for_mesh(_mesh((3, 4), [(_R, _R)] * 2))
-    fissile = LossKernelGauge.for_mesh(
+    absorber = build_loss_kernel_gauge(_mesh((3, 4), [(_R, _R)] * 2))
+    fissile = build_loss_kernel_gauge(
         _mesh((3, 4), [(_R, _R)] * 2, fissile=True, c=0.4))
 
     assert absorber.dimension == fissile.dimension > 0
-    for left, right in zip(absorber.blocks, fissile.blocks):
+    for left, right in zip(absorber.summands, fissile.summands):
         np.testing.assert_array_equal(left.gather.indices, right.gather.indices)
         np.testing.assert_array_equal(left.basis.table, right.basis.table)
 
@@ -789,7 +786,7 @@ def test_the_TANGENTIAL_component_is_untouched_not_annihilated():
     """
     mesh = _mesh((3, 4), [(_R, _R)] * 2,
                  quad=Quadrature.product(n_mu=4, n_phi=4))
-    gauge = LossKernelGauge.for_mesh(mesh)
+    gauge = build_loss_kernel_gauge(mesh)
     metric = np.asarray(mesh.angular_trace.inner_product_weights, dtype=float)
 
     tangential = metric == 0.0
@@ -801,7 +798,7 @@ def test_the_TANGENTIAL_component_is_untouched_not_annihilated():
     np.testing.assert_array_equal(gauge.gauge(field), field)
 
     # And no block ever claims a zero-metric DOF in the first place.
-    for block in gauge.blocks:
+    for block in gauge.summands:
         assert np.all(metric[block.gather.indices] > 0.0)
 
 
@@ -813,9 +810,9 @@ def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
     r"""⭐ The production gauge's basis and measure agree on the point set.
 
     Every block is a :class:`~orpheus.numerics.frame.GalerkinFrame` over a
-    :class:`LossKernelBasis` and a
+    :class:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis` and a
     :class:`~orpheus.numerics.measure.DiscreteMeasure` built four lines apart
-    in ``_build_gauge_blocks``. Until 2026-09-01 the two named the same point
+    in the summand mint (``KernelProjectionGauge.direct_sum`` since U3). Until 2026-09-01 the two named the same point
     set in **two spellings** — the measure tagged the bare label
     ``sn_trace_orbit(…)_g…`` while the basis wrapped it as ``index(…)`` — and
     tracker 2.1 pinned that divergence in
@@ -838,15 +835,15 @@ def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
     (``vv-principles`` #17: the verdict of a battery is a TABLE, and an arm
     that reddens nothing is a claim with no witness — not a claim that holds.)
     """
-    gauge = LossKernelGauge.for_mesh(_mesh(cells, bcs, **kwargs))
-    assert gauge.blocks, f"{label}: no blocks — the fixture is not singular"
-    for block in gauge.blocks:
+    gauge = build_loss_kernel_gauge(_mesh(cells, bcs, **kwargs))
+    assert gauge.summands, f"{label}: no summands — the fixture is not singular"
+    for block in gauge.summands:
         domain = block.basis.domain
         assert isinstance(domain, IndexSet)
         assert block.gather.codomain is not None
         axes = block.gather.codomain.axes
         assert axes is not None and axes[0].support == domain and axes[0].label == domain.name, (
-            f"{label}: block {block.basis.orbit}/g{block.basis.group} — the "
+            f"{label}: summand {block.basis.label} — the "
             f"basis says its functions live on {domain.name!r} while its "
             f"measure induced {axes[0].support!r}. One frame, two "
             f"manifolds."
@@ -857,7 +854,7 @@ def test_each_blocks_frame_names_ONE_manifold_on_both_halves(
 def test_the_kernel_modes_are_orthogonal_to_the_constants(label, cells, bcs, kwargs) -> None:
     r"""The WITNESS of the declared zero unit (S7; the user's ruling, 2026-10-21).
 
-    :class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelBasis` declares its
+    The SN builder declares (``orthogonal_to_constants=True``) its
     coefficient axis's unit zero: the kernel modes are orthogonal to the
     constants, :math:`\Phi^{\mathsf T} G\,1 = 0`. A computed unit would be
     round-off (`[M]` S7 reviews: at most 1.8e-16 of its scale on 102 blocks,
@@ -871,10 +868,10 @@ def test_the_kernel_modes_are_orthogonal_to_the_constants(label, cells, bcs, kwa
     (e.g. a block table with a constant column appended), against which the
     declared zero would be false.
     """
-    gauge = LossKernelGauge.for_mesh(_mesh(cells, bcs, **kwargs))
-    assert gauge.blocks, f"{label}: no blocks — the fixture is not singular"
+    gauge = build_loss_kernel_gauge(_mesh(cells, bcs, **kwargs))
+    assert gauge.summands, f"{label}: no summands — the fixture is not singular"
     eps = np.finfo(float).eps
-    for block in gauge.blocks:
+    for block in gauge.summands:
         axes = block.gather.codomain.axes
         assert axes is not None
         table = block.basis.table
@@ -882,8 +879,109 @@ def test_the_kernel_modes_are_orthogonal_to_the_constants(label, cells, bcs, kwa
         moments = table.T @ g
         bound = 64.0 * eps * np.linalg.norm(table) * np.linalg.norm(g)
         assert np.all(np.abs(moments) <= bound), (
-            f"{label}: block {block.basis.orbit}/g{block.basis.group}: |Φᵀ G 1| = "
+            f"{label}: summand {block.basis.label}: |Φᵀ G 1| = "
             f"{np.max(np.abs(moments)):.3e} exceeds {bound:.3e} — the declared zero unit is false here"
         )
         unit = block.basis.layout.unit
         assert not np.any(unit), "the declared unit is exactly zero"
+
+
+# ─────────────────────────────────────────────────────────────────────
+# 10. the U3 re-base: bit-identical to the retired class; the exit reads the Protocol, in the G-norm
+# ─────────────────────────────────────────────────────────────────────
+#: Captured by ``LossKernelGauge.for_mesh`` (retired at U3) at ``1b2a6a14``, the six ``_SINGULAR`` fixtures, one seeded
+#: trace each: ``apply``, ``gauge``, ``dimension``. `[M]` array_equal on 24 of 24 keys to the ``e42fd498`` capture
+#: (``scratch/membership_covector/u3/baseline_currency.py``, with a one-ULP positive control).
+_CARRY = Path(__file__).with_name("gauge_carry_1b2a6a14.npz")
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProjectorLaws",
+    "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheDirectSum",
+    "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_dimension_matches_the_combinatorial_counting_law",
+)
+@pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR, ids=[row[0] for row in _SINGULAR])
+def test_the_rebuilt_gauge_is_bit_identical_to_the_retired_class(label, cells, bcs, kwargs):
+    """The re-base moved the sqrt(G)-SVD verbatim (one per summand, the same gather and scatter), so no reduction is
+    reordered and ``array_equal`` is the contract. It inherits bit-identity, which is necessary and not sufficient:
+    the value anchors are the counting law, the dense SVD and the annihilation rows above. Reddens under every
+    numerics arm that moves a value (``leak``, ``euclid``, ``gauge_sign``, ``drop_summand``)."""
+    from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge
+    carry = np.load(_CARRY)
+    mesh = _mesh(cells, bcs, **kwargs)
+    gauge = mesh.loss_kernel_gauge
+    assert isinstance(gauge, KernelProjectionGauge)
+    x = carry[f"{label}|x"]
+    np.testing.assert_array_equal(gauge.apply(x), carry[f"{label}|apply"])
+    np.testing.assert_array_equal(gauge.gauge(x), carry[f"{label}|gauge"])
+    assert gauge.dimension == int(carry[f"{label}|dimension"])
+
+
+def _trace_metric(mesh) -> np.ndarray:
+    """The trace metric as the row's INPUT, through the space's metric leg (the hand sum below is the oracle)."""
+    space = mesh.angular_trace
+    return np.asarray(space.apply_metric(np.ones(tuple(space.shape))), dtype=float)
+
+
+def _exit_reading(mesh, x):
+    from dataclasses import replace
+    from orpheus.sn.solver import _exit_gauge_trace
+    psi = _unwindowed_cold_start(mesh, history_depth=0)
+    psi = replace(psi, boundary=replace(psi.boundary, values=x))
+    return _exit_gauge_trace(psi, problem=mesh)
+
+
+_UNIFORM_TRACE_METRIC = "d2 (3,4) LS2 ng=1"
+
+
+@pytest.mark.foundation
+def test_premise_the_exit_rows_carry_a_non_uniform_trace_metric():
+    """Five of six carry fixtures read trace G max/min 2.48; LS2 reads 1.0 (a uniform G makes the G-norm ratio equal to
+    the Euclidean one: that row is the control leg, never evidence)."""
+    for label, cells, bcs, kwargs in _SINGULAR:
+        g = _trace_metric(_mesh(cells, bcs, **kwargs))
+        ratio = g.max() / g.min()
+        assert (ratio == 1.0) if label == _UNIFORM_TRACE_METRIC else (ratio > 2.0), (label, ratio)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(
+    "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_rebuilt_gauge_is_bit_identical_to_the_retired_class",
+    "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_premise_the_exit_rows_carry_a_non_uniform_trace_metric",
+)
+@pytest.mark.parametrize("label,cells,bcs,kwargs", _SINGULAR, ids=[row[0] for row in _SINGULAR])
+def test_the_exit_reports_the_correction_in_the_G_norm(label, cells, bcs, kwargs):
+    """RULED (U3): ``||x - sigma(x)||_G / ||x||_G``, in the trace space's own norm. Oracle: the hand sum over the trace
+    metric. `[M]` before U3 the exit reported the Euclidean ratio, 5.7 %-18.6 % away on the five non-uniform fixtures
+    (red there, ``scratch/membership_covector/u3/exit_and_fixture_premises.py``); the LS2 row is green either way."""
+    carry = np.load(_CARRY)
+    mesh = _mesh(cells, bcs, **kwargs)
+    g = _trace_metric(mesh)
+    x = carry[f"{label}|x"]
+    out, correction = _exit_reading(mesh, x)
+    d = x - np.asarray(out.boundary.values)
+    assert correction == pytest.approx(np.sqrt(np.sum(g * d * d) / np.sum(g * x * x)), rel=1e-14), label
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProtocolAndTheMetric",
+)
+def test_the_exit_reads_the_protocol_only():
+    """The exit asks ``dimension`` (the Protocol), never a realization's internals. `[M]` before U3 a Protocol conformer
+    with no ``.blocks`` raised ``AttributeError: ... 'blocks'`` there. The double goes into the hub's instance
+    ``__dict__`` (``loss_kernel_gauge`` is a ``cached_property``; a class-level patch would not reach it)."""
+    class _Identity:
+        def gauge(self, state):
+            return state
+
+        @property
+        def dimension(self) -> int:
+            return 0
+
+    mesh = _mesh((3, 4), [(_R, _R)] * 2)
+    mesh.__dict__["loss_kernel_gauge"] = _Identity()
+    x = np.random.default_rng(0).standard_normal(np.shape(_unwindowed_cold_start(mesh, history_depth=0).boundary.values))
+    out, correction = _exit_reading(mesh, x)
+    assert correction is None and np.array_equal(np.asarray(out.boundary.values), x)

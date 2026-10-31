@@ -486,7 +486,8 @@ class TestLawTheGaugeIsSigmaFree:
     (``with_cross_sections``), so the σ-freedom is stated across TWO hubs
     by VALUE — ``[M]`` (test-architect C3 delta §A.4) ``array_equal`` of the
     two gauges' ``as_matrix()`` is EARNED (``max|Δ| = 0.0``, and
-    ``LossKernelGauge.__eq__`` is object identity, so ``==`` would be a
+    the gauge's ``__eq__`` is object identity — ``LossKernelGauge``'s was,
+    and its U3 successor ``KernelProjectionGauge``'s is — so ``==`` would be a
     false red) — and the per-hub IDENTITY half stays on ONE hub.
 
     ⟹ deriving the gauge from the pencil would make it rebuild on every

@@ -85,7 +85,7 @@ if TYPE_CHECKING:
     )
     from orpheus.geometry.deck import DeckTransformation
     from orpheus.transport.boundary_conditions import BoundaryCondition, RealizerTable
-    from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
+    from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge
     # NOTE (B.5.A): the mesh provides SPACE data only and does NOT import
     # transport-field types — zero-allocation lives on the field types
     # (``Field.zeros(space)`` / ``TimedFullField.zeros(..., space=)``,
@@ -1052,7 +1052,7 @@ class SNProblem(MethodMesh):
         return len(self.reflective_axes)
 
     @cached_property
-    def loss_kernel_gauge(self) -> "LossKernelGauge":
+    def loss_kernel_gauge(self) -> "KernelProjectionGauge":
         r"""The :math:`G`-orthogonal projector onto :math:`\ker(L + C - S - B)`.
 
         Cached HERE, on the mesh, because the kernel is a **Stratum-1**
@@ -1074,15 +1074,21 @@ class SNProblem(MethodMesh):
         :attr:`reflective_axis_pairs`, which is the geometry half of its own
         applicability predicate.
 
-        ⚠ **Zero blocks when there is nothing to fix** — a non-singular
-        configuration yields the zero projector, so :meth:`LossKernelGauge.gauge`
+        Built by :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`:
+        SN supplies the kernel's pair generators, and the projector is the
+        numerics :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`.
+
+        ⚠ **Zero summands when there is nothing to fix** — a non-singular
+        configuration yields the zero projector, so
+        :meth:`KernelProjectionGauge.gauge
+        <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.gauge>`
         is the identity and no consumer needs a ``None`` branch.  Ask
         :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` for the
         reason (and for the warning owed when a closure is UNDETERMINED).
         """
-        from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
+        from orpheus.sn.operators.loss_kernel_gauge import build_loss_kernel_gauge
 
-        return LossKernelGauge.for_mesh(self)
+        return build_loss_kernel_gauge(self)
 
     @cached_property
     def system(self) -> "WithinGroupSystem":

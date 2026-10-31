@@ -764,7 +764,9 @@ def _exit_gauge_trace(
     annihilates it, and :math:`\psi_{\rm exact}` is one).
 
     Returns the gauged composite and
-    :math:`\lVert \Pi\psi \rVert / \lVert \psi \rVert` for
+    :math:`\lVert \Pi\psi \rVert_G / \lVert \psi \rVert_G`, in the trace
+    space's own norm (Euclidean until the space-membership campaign's U3,
+    2026-10-31: the two differ whenever the trace metric is not uniform), for
     the exit report's ``gauge`` member (:func:`_gauge_evidence`) — ``None``
     when there was no freedom to measure, never *"measured and zero"*.
 
@@ -802,17 +804,14 @@ def _exit_gauge_trace(
     :func:`_system_a_member` before reading the trace.
     """
     gauge = problem.loss_kernel_gauge
-    if not gauge.blocks:
+    if gauge.dimension == 0:
         return psi, None
 
     boundary = psi.boundary
-    values = np.asarray(boundary.values, dtype=float)
-    gauged = gauge.gauge(values)
-    scale = float(np.linalg.norm(values))
-    correction = (
-        float(np.linalg.norm(values - gauged)) / scale if scale > 0.0 else 0.0
-    )
-    return replace(psi, boundary=replace(boundary, values=gauged)), correction
+    gauged = replace(boundary, values=gauge.gauge(boundary))
+    scale = boundary.space.norm(boundary)
+    correction = boundary.space.norm(boundary - gauged) / scale if scale > 0.0 else 0.0
+    return replace(psi, boundary=gauged), correction
 
 
 def _check_convergence_claim(

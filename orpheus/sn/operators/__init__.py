@@ -23,9 +23,11 @@ the discrete-ordinates spatial sweep:
   and the ray boundary block :math:`B_b`
   (:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`).
 
-Alongside them sits one operator that is not a leaf of :math:`A` but a
-statement *about* :math:`A`: the
-:class:`~orpheus.sn.operators.loss_kernel_gauge.LossKernelGauge`, the
+Alongside them sits one statement *about* :math:`A` rather than a leaf of it:
+the loss kernel (:mod:`~orpheus.sn.operators.loss_kernel_gauge`), whose pair
+generators :func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`
+hands to the numerics
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`, the
 :math:`G`-orthogonal projector onto :math:`\ker(L+C-S-B)`, which is non-trivial
 exactly when the spatial closure leaves a face mode undamped and the problem
 closes :math:`\ge 2` reflective axis pairs (#344). It belongs here for the same

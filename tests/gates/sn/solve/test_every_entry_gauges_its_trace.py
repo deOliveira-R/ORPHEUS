@@ -463,6 +463,9 @@ def test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric():
 # 3. The warning — audible when it acted, silent when it did not
 # ─────────────────────────────────────────────────────────────────────
 @pytest.mark.foundation
+@pytest.mark.rests_on(
+    "tests/gates/sn/operators/test_loss_kernel_gauge.py::test_the_exit_reports_the_correction_in_the_G_norm",
+)
 def test_the_repair_is_AUDIBLE_and_names_the_root_fix():
     """R2b: say the fixing was applied, and that a closure change removes it.
 
@@ -471,7 +474,7 @@ def test_the_repair_is_AUDIBLE_and_names_the_root_fix():
     """
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        solve_sn(
+        solution = solve_sn(
             {0: get_mixture("A", "2g")},
             _reflective_mesh2d(_EXCITED_CELLS), _QUAD,
             inner_solver="source_iteration", inner_schedule="gauss_seidel",
@@ -483,7 +486,11 @@ def test_the_repair_is_AUDIBLE_and_names_the_root_fix():
         f"expected exactly one GaugeFreedomWarning, got {len(gauge_warnings)}")
     message = str(gauge_warnings[0].message)
     assert "GAUGE-FIXED" in message
-    assert "6.08%" in message, f"the magnitude is not quoted: {message}"
+    # The quoted magnitude is the exit report's correction, loaded rather than typed: since U3 it is the G-norm
+    # ratio (5.36 % here; the Euclidean one read 6.08 %), gated in test_loss_kernel_gauge.py's exit row.
+    correction = solution.exit_report.gauge
+    assert isinstance(correction, Measured) and correction.value > 1e-3
+    assert f"{correction.value:.2%}" in message, f"the magnitude is not quoted: {message}"
     # the ROOT fix, and the escalation recipe
     assert "linear_discontinuous" in message, (
         f"the root fix must name the closures that damp the mode: {message}")

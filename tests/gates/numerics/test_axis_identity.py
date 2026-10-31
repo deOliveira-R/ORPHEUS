@@ -195,16 +195,17 @@ def test_LB_iii_a_spatial_frame_measure_axis_is_labelled_spatial():
 
 def _gauge_production():
     """The production gauge on the reflective 3x4 box (test_loss_kernel_gauge's fixture)."""
-    from orpheus.sn.operators.loss_kernel_gauge import LossKernelGauge
+    from orpheus.sn.operators.loss_kernel_gauge import build_loss_kernel_gauge
     from tests.gates.sn.operators.test_loss_kernel_gauge import _R, _mesh
-    return LossKernelGauge.for_mesh(_mesh((3, 4), [(_R, _R)] * 2))
+    return build_loss_kernel_gauge(_mesh((3, 4), [(_R, _R)] * 2))
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_kernel_projection_gauge.py::TestTheSummandBasis")
 def test_LB_i_iv_the_gauge_gather_codomain_is_the_projector_domain():
-    """(i) one space by construction; (iv) labelled with the index set's own name. TODAY the codomain
-    is the axes-less inline space, so (iv) reds on ``axes is None``."""
-    blocks = _gauge_production()._blocks if hasattr(_gauge_production(), "_blocks") else _gauge_production().blocks
-    assert blocks, "PREMISE: the gauge has blocks"
+    """(i) one space by construction; (iv) labelled with the index set's own name. Since U3 the summands are
+    minted by the numerics ``KernelProjectionGauge.direct_sum``; this is its SN production instance."""
+    blocks = _gauge_production().summands
+    assert blocks, "PREMISE: the gauge has summands"
     for blk in blocks:
         assert blk.gather.codomain is not None and blk.gather.codomain == blk.projector.domain, "(i) gather codomain != projector domain"
         codomain = blk.gather.codomain

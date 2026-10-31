@@ -87,7 +87,7 @@ from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.geometry.symmetry import SubgroupOfO3
-from orpheus.sn.operators.loss_kernel_gauge import LossKernelBasis
+from orpheus.numerics.basis.orthonormal_span_basis import OrthonormalSpanBasis
 from orpheus.numerics import frame_faces
 
 
@@ -324,7 +324,7 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
     ``tests/gates/numerics/test_axis_marginal.py`` keeps an independent
     re-spelling of that frame as an oracle.
 
-    ✅ The ``LossKernelBasis`` divergence this test used to pin — its measure
+    ✅ The SN loss-kernel basis divergence (``LossKernelBasis``, retired at U3 into ``OrthonormalSpanBasis``) this test used to pin — its measure
     tagging the bare label while ``IndexSet`` wrapped it as ``index(...)`` —
     was **discharged at 2.0c**, and not by agreement: the measure now reads
     ``support=basis.domain``, so the two cannot differ. It is asserted below as
@@ -352,10 +352,10 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
 
     # The loss-kernel pair, now ONE point set with ONE spelling. Its measure
     # is built inside `_build_gauge_blocks`, so this pins the basis's half and
-    # the production site reads it directly (`loss_kernel_gauge.py`,
+    # the production site reads it directly (`kernel_projection_gauge.py`,
     # `support=basis.domain`) — the divergence is unspellable, not merely
     # absent.
-    block = LossKernelBasis(table=np.eye(2), orbit=(0, 1), group=3)
+    block = OrthonormalSpanBasis(table=np.eye(2), label="sn_trace_orbit(0, 1)_g3", unit=np.zeros(2))
     assert isinstance(block.domain, IndexSet)
     assert block.domain.label == "sn_trace_orbit(0, 1)_g3"
     assert block.domain.name == "index(sn_trace_orbit(0, 1)_g3)"
@@ -503,7 +503,7 @@ def test_e3_no_subgroup_of_O3_acts_on_a_mesh_a_group_index_or_a_trace_index() ->
         "spatial indicator": spatial,
         "weighted (delegates)": WeightedIndicatorBasis(energy, np.ones(2)),
         "overlap (delegates)": OverlapBasis.from_indicator(energy, np.eye(2), fine=EnergyGroups(2)),
-        "loss kernel": LossKernelBasis(table=np.eye(2), orbit=(0, 1), group=3),
+        "orthonormal span": OrthonormalSpanBasis(table=np.eye(2), label="sn_trace_orbit(0, 1)_g3", unit=np.zeros(2)),
     }
     for who, basis in cases.items():
         assert basis.invariance_group is None, who

@@ -217,8 +217,8 @@ class TestLawTheCoupledStateKnowsItsSpace:
 class _TrivialKernelGauge:
     """A zero-block section: the identity, dimension 0 (the honest 'no freedom' value)."""
 
-    def gauge(self, trace):
-        return trace
+    def gauge(self, state):
+        return state
 
     @property
     def dimension(self) -> int:

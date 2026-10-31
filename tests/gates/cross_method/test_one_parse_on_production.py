@@ -229,7 +229,7 @@ def _patch_primitive(monkeypatch):
 
 
 #: The correct-operand call of each admission spelling and each parse site, resolved by NAME at run time (a
-#: rebinding arm cannot reach a row parametrized over objects built at collection, lessons L100). 25 independent
+#: rebinding arm cannot reach a row parametrized over objects built at collection, lessons L100). 28 independent
 #: sites: the space's two verbs, ``Member``, ``admit_array``, the axis marginal, the objects below the space, the
 #: transport and SN operators, and the solver and solution observables. ``harmonic_frame._admit`` is not a row: it
 #: is typed-only, with no shape leg of its own, so it could see the primitive only through the carrier's
@@ -244,6 +244,7 @@ _SITES = [
     "Solution.reaction_rate_density", "PartialCurrentOperator.apply", "IsotropicEmissionOperator.apply_transpose",
     "MaterialXSField.project_through_bilinear", "SourcePosing.__post_init__",
     "RadialCharacteristicReconstruction.apply",
+    "KernelProjectionGauge.apply", "KernelProjectionGauge.apply_transpose", "KernelProjectionGauge.gauge",
 ]
 
 #: The two composite parses compare block spaces by content and carry no shape leg: a composite is not a flat
@@ -348,6 +349,15 @@ def _site_calls(site, homog, sn, sn_solution, sphere):
     prompt = OperatorPencil(homog.loss, homog.production).at(1.0)
     fold = sphere["fold"]
     ball = sphere["problem"]
+    # U3: the kernel gauge's three verbs are actions on its domain (A ⊗ I_P), so their first parse is the domain's
+    # leading_coordinates_of (owner repr(domain)). A non-empty sum, so an early return on zero summands cannot skip it.
+    from orpheus.numerics.axis import Axis, BasisKind, Declared
+    from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand
+    from orpheus.numerics.space import FunctionSpace
+    kspace = FunctionSpace.of_axes(Axis("dof", (4,), weights=np.array([0.5, 1.0, 2.0, 4.0]),
+                                        origin=Declared(BasisKind.NODAL)))
+    kgauge = KernelProjectionGauge.direct_sum(kspace, (KernelSummand(
+        support=np.array([0, 1, 2]), generators=np.array([[1.0], [-2.0], [0.5]]), label="routing_gate_kernel"),))
     table = {
         "FunctionSpace.coordinates_of": (lambda: B.coordinates_of(phi), repr(B)),
         "FunctionSpace.leading_coordinates_of": (lambda: B.leading_coordinates_of(phi), repr(B)),
@@ -376,6 +386,9 @@ def _site_calls(site, homog, sn, sn_solution, sphere):
         "MaterialXSField.project_through_bilinear": (lambda: prob.mat_xs.project_through_bilinear(
             trial, fine, phi=fine_fields, phi_star=fine_fields, rho=fine_fields), "MaterialXSField.project_through_bilinear (phi)"),
         "SourcePosing.__post_init__": (lambda: SourcePosing(prompt, np.ones((2, 1))), repr(prompt.codomain)),
+        "KernelProjectionGauge.apply": (lambda: kgauge.apply(np.ones(4)), repr(kspace)),
+        "KernelProjectionGauge.apply_transpose": (lambda: kgauge.apply_transpose(np.ones(4)), repr(kspace)),
+        "KernelProjectionGauge.gauge": (lambda: kgauge.gauge(np.ones(4)), repr(kspace)),
         "RadialCharacteristicReconstruction.apply": (lambda: fold.apply(np.ones((1, ball.ng, ball.nx))), "RadialCharacteristicReconstruction.apply (n_moments, ng, nx)"),
     }
     return table[site]

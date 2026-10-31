@@ -160,13 +160,17 @@ the true diagonal **only** if :math:`MR` is diagonal.  Declaring
 :attr:`~orpheus.numerics.basis.GramStructure.DIAGONAL` on a 43 %-off-diagonal
 Gram would normalise every coefficient by the wrong number, silently.
 
-⟹ **a** :class:`LossKernelBasis` **IS the** :math:`G`-**orthonormal basis**; the
-pair generators are its construction, not its content.  One
+⟹ **each block's basis IS the** :math:`G`-**orthonormal basis of the span**;
+the pair generators are its construction, not its content.  One
 :math:`\sqrt{G}`-weighted SVD per block does the rank reduction and the
 orthonormalisation together — replacing *both* factorisations the derivation
 memo used (a coefficient-space SVD **and** a state-space QR) — after which
 :math:`\Phi^{\mathsf T} G \Phi = I`, ``DIAGONAL`` is true by construction, and
-:math:`G^{-1}` is the identity.
+:math:`G^{-1}` is the identity.  That step is generic, so it is numerics'
+(:class:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis`,
+since the space-membership campaign's U3, 2026-10-31): this module hands each
+block's generators to
+:class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`.
 
 .. note::
 
@@ -207,24 +211,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 import warnings
 from itertools import combinations, product as iter_product
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.basis import Basis, GramStructure
-from orpheus.numerics.coefficient_layout import ModeLayout
 from orpheus.geometry.faces import face_normal
-from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.index_set import IndexSet
-from orpheus.geometry.manifold import Manifold
-from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand
 from orpheus.numerics.outcome import Evidence, Measured
-from orpheus.numerics.elementary_operators import TraceRestrictionOperator
-from orpheus.numerics.operator import LinearOperator
-from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.spatial.scheme import FaceModeDamping
-from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from orpheus.sn.problem import SNProblem
@@ -233,8 +228,7 @@ __all__ = [
     "GAUGE_ESCALATION_FLAG",
     "GaugeFreedom",
     "GaugeFreedomWarning",
-    "LossKernelBasis",
-    "LossKernelGauge",
+    "build_loss_kernel_gauge",
     "gauge_freedom",
     "predicted_kernel_dimension",
     "warn_if_gauge_freedom",
@@ -255,15 +249,6 @@ _GAUGE_AUDIBLE_FLOOR = 1e-10
 #: vocabulary (``angular_trace_space.TANGENTIAL_EPS``) rather than minting a
 #: second one; every shipped rule's tangential cosine is exactly ``0.0`` (#325).
 _TANGENTIAL_MU = 4.0 * float(np.finfo(np.float64).eps)
-
-#: Relative singular-value cut for the per-block rank. Justified by the MEASURED
-#: gap, not by taste: ``[M]`` the retained singular values span only
-#: ``9.326e+01 .. 4.227e+01`` at ``(3,4,5)`` S4 ``ng=2`` (a ratio of 2.2) while
-#: the discarded ones are at round-off, so any cut in ``[1e-12, 1e-2]`` returns
-#: the same rank — and the rank is independently checked against the counting
-#: law by :func:`predicted_kernel_dimension`.
-_RANK_RTOL = 1e-10
-
 
 # ─────────────────────────────────────────────────────────────────────
 # The warning — the freedom must be AUDIBLE, and the root fix named
@@ -569,14 +554,14 @@ def _anova_dimension(cells: tuple[int, ...]) -> int:
 def predicted_kernel_dimension(problem: "SNProblem") -> int:
     r"""``dim ker A`` from the counting law — **without building any vector**.
 
-    The structurally independent check on :class:`LossKernelGauge`: this walks
+    The structurally independent check on :func:`build_loss_kernel_gauge`: this walks
     the combinatorics of §3 and returns an integer, while the gauge walks the
     generators and takes an SVD.  Agreement between them is evidence that
     neither has a bookkeeping error; it is what
     :func:`~tests.gates.sn.operators.test_loss_kernel_gauge` asserts in place of the
     dense SVD at sizes where the dense SVD is not viable.
 
-    Counts the **R** component only, matching :class:`LossKernelGauge`'s scope —
+    Counts the **R** component only, matching the gauge's scope —
     the tangential component ``T`` contributes one dimension per tangential
     trace DOF and is not gauged.
     """
@@ -677,142 +662,6 @@ def _reflection_orbits(
 
 
 # ─────────────────────────────────────────────────────────────────────
-# The basis of one block
-# ─────────────────────────────────────────────────────────────────────
-@dataclass(frozen=True, eq=False)
-class LossKernelBasis(Basis):
-    r"""One :math:`(\text{ordinate orbit}, \text{group})` summand of ``ker A``.
-
-    A precomputed, :math:`G`-**orthonormal** table over that block's trace
-    degrees of freedom — see the module docstring §5 for why orthonormal rather
-    than the raw pair generators, and §4 for why one block rather than the whole
-    kernel.
-
-    ``eq=False`` (identity equality) follows :class:`IndicatorBasis`: the fields
-    are NumPy arrays, which have no value equality a dataclass can use.
-
-    Parameters
-    ----------
-    table
-        ``(n_block_dofs, n_modes)``, :math:`G`-orthonormal by construction.
-    orbit, group
-        The block's identity — its :attr:`domain`, the index set the
-        coefficient axis keeps as its support, so two blocks' coefficient
-        spaces never compare equal (an operator-composition guard would
-        otherwise accept a mismatched pair).
-
-    Notes
-    -----
-    The coefficient axis's unit (the coordinates of the constant function's
-    :math:`G`-orthogonal projection onto the span, ruling 37) is ZERO, DECLARED:
-    the kernel modes are orthogonal to the constants. `[M]` S7, 2026-10-21 (the
-    elegance and qa reviews): :math:`|\Phi^{\mathsf T} G\,1|` is at most
-    1.8e-16 of its scale on every one of 102 blocks over six reflective boxes,
-    exactly 0.0 on only 12 of them, so a computed unit would be round-off and
-    the coefficient space's identity would hang on arithmetic order (#631's
-    fifth defect class). The user ruled the declared zero (2026-10-21);
-    ``test_loss_kernel_gauge.py`` witnesses the orthogonality on every shipped
-    singular block, and its proof is owed (#636).
-    """
-
-    table: NDArray
-    orbit: tuple[int, ...]
-    group: int
-
-    # ── the projection-validity declaration ───────────────────────────
-    @property
-    def gram_structure(self) -> GramStructure:
-        r"""``DIAGONAL`` — and here that is a THEOREM, not a measurement.
-
-        The table is the left factor of a :math:`\sqrt{G}`-weighted SVD divided
-        by :math:`\sqrt G`, so :math:`\Phi^{\mathsf T} G \Phi = U^{\mathsf T} U
-        = I` exactly.  The frame's row-sum probe is therefore not merely *valid*
-        (which is all ``DIAGONAL`` claims) but returns all ones, and
-        :math:`G^{-1}` is the identity.
-
-        ⚠ This would be **false** for the raw pair generators at
-        :math:`d \ge 3` — ``[M]`` 43 % off-diagonal at ``(3,4,5)``.  The
-        orthonormalisation is what earns the declaration; do not move it.
-        """
-        return GramStructure.DIAGONAL
-
-    # ── tabulation ────────────────────────────────────────────────────
-    def evaluate(self, points: NDArray, /) -> NDArray:
-        """Return the precomputed table, validating the caller's node count.
-
-        The modes are determined by the mesh, the quadrature and the boundary
-        laws when the block is built — there is nothing to evaluate AT a point,
-        so ``points`` is accepted for the :class:`Basis` contract and checked
-        against the table's row count (the :class:`OverlapBasis` idiom).  That
-        check is what stops a mesh/basis mismatch from becoming a silently
-        mis-shaped einsum.
-        """
-        rows = int(np.asarray(points).shape[0])
-        if rows != self.table.shape[0]:
-            raise ValueError(
-                f"LossKernelBasis was built for {self.table.shape[0]} block "
-                f"DOFs but was evaluated at {rows} nodes — the measure and the "
-                f"basis describe different blocks."
-            )
-        return self.table
-
-    # ── table contractions ────────────────────────────────────────────
-    # The canonical dual factor is the IDENTITY: for an orthonormal basis the
-    # dual frame IS the frame, so `reconstruct` and `synthesize` coincide. (For
-    # a non-orthonormal basis the dual factor would be measure-dependent and
-    # therefore could not live on a Basis at all — the IndicatorBasis argument.)
-    def _synthesize(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
-        return np.einsum("nk,k...->n...", table, coefficients)
-
-    def _analyze(
-        self, values: NDArray, table: NDArray, weights: NDArray, /,
-    ) -> NDArray:
-        return np.einsum("n,nk,n...->k...", weights, table, values)
-
-    def _analyze_transpose(
-        self, coefficients: NDArray, table: NDArray, weights: NDArray, /,
-    ) -> NDArray:
-        return np.einsum("n,nk,k...->n...", weights, table, coefficients)
-
-    def _reconstruct(self, coefficients: NDArray, table: NDArray, /) -> NDArray:
-        return np.einsum("nk,k...->n...", table, coefficients)
-
-    def _reconstruct_transpose(self, values: NDArray, table: NDArray, /) -> NDArray:
-        return np.einsum("nk,n...->k...", table, values)
-
-    @property
-    def domain(self) -> Manifold:
-        r"""The block's trace degrees of freedom, as an index set.
-
-        There is nothing to evaluate AT a point here (:meth:`evaluate` returns
-        a precomputed table), so the "points" are the block's own trace DOF
-        indices — a finite set with no metric structure, which is exactly
-        :class:`~orpheus.numerics.index_set.IndexSet`.
-
-        ⭐ Built from the same ``f"sn_trace_orbit{orbit}_g{group}"`` label the
-        block's :class:`~orpheus.numerics.measure.DiscreteMeasure` already
-        carries as its ``support``, five lines from where that measure is
-        constructed — so the basis and the measure of one frame name ONE
-        manifold rather than two.  This class was already the tree's positive
-        control on that discipline: it is the only basis that never fabricated
-        a space name, because its author named the space by the block's own
-        identity.
-        """
-        return IndexSet(label=f"sn_trace_orbit{self.orbit}_g{self.group}")
-
-    @property
-    def layout(self) -> ModeLayout:
-        """One amplitude per kernel mode; the unit is the declared zero (the
-        modes are orthogonal to the constants: see the class docstring)."""
-        return ModeLayout(np.zeros(self.table.shape[1]), "loss_kernel_modes")
-
-    @property
-    def coefficient_weights(self) -> None:
-        """``None``: the modes are :math:`G`-orthonormal, so the Gram is :math:`I`."""
-        return None
-
-
-# ─────────────────────────────────────────────────────────────────────
 # Building one block
 # ─────────────────────────────────────────────────────────────────────
 def _pair_generators(
@@ -833,7 +682,7 @@ def _pair_generators(
     The set is mildly over-complete — at :math:`d = 3` all-reflective there are
     :math:`2\sum n` generators spanning :math:`2\sum n - 1` dimensions, the one
     relation being :math:`M_{yz} - M_{xz} + M_{xy} = 0` among the full-character
-    pair modes.  The rank cut in :func:`_build_block_table` removes it.
+    pair modes.  The rank cut of the numerics basis mint removes it.
     """
     def indicator(kept: list[int], pinned: dict[int, int]) -> NDArray:
         out = np.ones(tuple(spatial[c] for c in kept), dtype=float)
@@ -901,8 +750,10 @@ def _block_support(
     every retained face has :math:`|\mu_a| > 0` for every ordinate of the orbit,
     so :math:`G = |\mu_a| w_n > 0` there **by construction**, and the
     :math:`\sqrt G` division of §5 is well-posed without a mask.  (The claim is
-    re-asserted at build time rather than trusted; see
-    :func:`_build_block_table`.)
+    re-asserted at build time rather than trusted:
+    :meth:`OrthonormalSpanBasis.of_generators
+    <orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators>`
+    refuses a zero-metric row.)
     """
     layout = problem.angular_trace.layout
     spatial = tuple(int(n) for n in problem.spatial_shape)
@@ -972,20 +823,23 @@ def _transverse_factors(
     return checker, area
 
 
-def _build_block_table(
+def _block_generators(
     problem: "SNProblem", orbit: tuple[int, ...],
-    group: int, active: tuple[int, ...], trace_metric: NDArray,
+    group: int, active: tuple[int, ...],
 ) -> tuple[NDArray, NDArray]:
-    r"""``(sorted DOF indices, G-orthonormal table)`` for one block.
-
-    Three steps, of which the third is the one §5 exists to justify:
+    r"""``(sorted DOF indices, spanning generators)`` for one block.
 
     1. the §3 pair generators, expanded over the orbit's ordinates;
     2. each generator mapped to the block's DOFs through
-       :math:`\varphi = Y \cdot (-1)^{\sum i} / (|\mu_a| A_a)`;
-    3. **one** :math:`\sqrt G`-weighted SVD, which reduces the over-complete
-       generating set to its rank AND :math:`G`-orthonormalises the survivors —
-       replacing both of the derivation memo's factorisations.
+       :math:`\varphi = Y \cdot (-1)^{\sum i} / (|\mu_a| A_a)`.
+
+    The set is over-complete and, at :math:`d \ge 3`, not :math:`G`-orthogonal
+    (§5). The rank cut and the :math:`G`-orthonormalisation are the numerics
+    basis mint's (:meth:`OrthonormalSpanBasis.of_generators
+    <orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators>`),
+    one :math:`\sqrt G`-weighted SVD. The support excludes the tangential,
+    zero-metric slots by construction (:func:`_block_support`), which that mint
+    refuses.
     """
     indices, placements = _block_support(problem, orbit, group, active)
     if indices.size == 0:
@@ -1018,201 +872,47 @@ def _build_block_table(
                    / (abs(mu[place.ordinate, place.axis]) * area))
             columns[place.rows, column] = phi.ravel()
 
-    metric = trace_metric[indices]
-    if not np.all(metric > 0.0):
-        raise ValueError(  # unreachable by construction — see _block_support
-            f"block (orbit={orbit}, group={group}) touches "
-            f"{int(np.sum(metric <= 0.0))} trace DOF(s) with a vanishing "
-            f"metric. Component R is defined on current-carrying ordinates "
-            f"only; a tangential row here means the active-axis set S was "
-            f"mis-derived, and sqrt(G)-orthonormalisation would divide by zero."
-        )
-
-    root = np.sqrt(metric)
-    left, singular, _ = np.linalg.svd(root[:, None] * columns,
-                                      full_matrices=False)
-    rank = int(np.sum(singular > _RANK_RTOL * singular[0])) if singular.size else 0
-    table = left[:, :rank] / root[:, None]
-    return indices, table
+    return indices, columns
 
 
 # ─────────────────────────────────────────────────────────────────────
-# The gauge — a direct sum of block projectors
+# The gauge — SN supplies the generators; numerics owns the projector
 # ─────────────────────────────────────────────────────────────────────
-@dataclass(frozen=True, slots=True)
-class _GaugeBlock:
-    r"""One summand :math:`\gamma_b^{\mathsf T} \Pi_b \gamma_b` of the gauge."""
+def build_loss_kernel_gauge(problem: "SNProblem") -> KernelProjectionGauge:
+    r"""The :math:`G`-orthogonal projector onto :math:`\ker A` on the boundary trace.
 
-    gather: TraceRestrictionOperator
-    projector: LinearOperator
-    basis: LossKernelBasis
+    One summand per ``(ordinate orbit, group)`` block: its support is the
+    block's trace degrees of freedom, its generators the §3 pair generators
+    (:func:`_block_generators`), its label ``sn_trace_orbit{orbit}_g{group}``,
+    and its span declared :math:`G`-orthogonal to the constants (the declared
+    zero unit: every kernel mode is mirror-odd, ``test_loss_kernel_gauge.py``
+    witnesses it on every shipped singular block, and its proof is owed,
+    #636). :meth:`KernelProjectionGauge.direct_sum
+    <orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge.direct_sum>`
+    does the §5 rank cut and :math:`G`-orthonormalisation and builds each
+    summand's projector the frame way. The blocks' supports are disjoint (§4),
+    so the sum is a direct sum.
 
+    **Zero summands when there is nothing to fix.** The empty direct sum is the
+    honest answer to a non-singular configuration: its section is the identity,
+    so callers need no ``None`` branch. Whether there is anything to fix is
+    decided by :func:`gauge_freedom`, whose two conjuncts are both derived.
 
-class LossKernelGauge(LinearOperator):
-    r"""The :math:`G`-orthogonal projector onto :math:`\ker A`.
-
-    .. math::
-
-        \Pi \;=\; \sum_b \gamma_b^{\mathsf T} \, \Pi_b \, \gamma_b ,
-        \qquad
-        \Pi_b \;=\; R_b \circ G_b^{-1} \circ M_b
-
-    An endomorphism of the boundary-trace space — **not** of the full field,
-    because the kernel is a trace object (module docstring §1) and the trace
-    space's carrier is the flat boundary array a
-    :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` can gather
-    from.  Gauging a state is therefore ``boundary - gauge.apply(boundary)``,
-    with the bulk untouched by construction rather than by a zero block.
-
-    Each :math:`\Pi_b` is built the frame way —
-    ``conjugate(frame, CrossGramInverse.of(frame))`` — so there is ONE
-    spelling of "project onto a span" in the package and this is a consumer of
-    it, not a second implementation.  Because each block's basis is
-    :math:`G`-orthonormal (§5), :math:`G_b^{-1}` is the identity and the
-    conjugation collapses to :math:`R_b M_b`; the machinery is kept rather than
-    short-circuited so the orthonormality claim stays *checkable* by the
-    frame's own Gram rather than assumed by a hand-rolled contraction.
-
-    The summands act on **disjoint** index sets, so the sum IS the direct sum:
-    no two blocks write the same row, and the result is a projector because
-    each :math:`\Pi_b` is and their ranges are mutually :math:`G`-orthogonal.
-
-    Not invertible — a projector onto a proper subspace never is — and that is
-    spelled by :attr:`is_invertible` plus the **absence** of an ``inverse``
-    method, the house convention (``TraceRestrictionOperator``).
+    ⚠ An UNDETERMINED closure yields zero summands too (*not gauging* is the
+    ruled behaviour), but the caller owes the user a loud warning naming the
+    obstruction, which :attr:`GaugeFreedom.because` supplies.
     """
-
-    def __init__(
-        self, blocks: tuple[_GaugeBlock, ...], space: FunctionSpace,
-    ) -> None:
-        self._blocks = tuple(blocks)
-        self._space = space
-        seen = np.concatenate(
-            [b.gather.indices for b in self._blocks]
-        ) if self._blocks else np.empty(0, dtype=np.intp)
-        if np.unique(seen).size != seen.size:
-            raise ValueError(
-                f"LossKernelGauge blocks must have DISJOINT supports — the "
-                f"sum of block projectors is a projector only if no two "
-                f"blocks claim the same trace DOF. Got {seen.size} DOFs "
-                f"across {len(self._blocks)} blocks with only "
-                f"{np.unique(seen).size} distinct."
-            )
-
-    # ── the arrow ─────────────────────────────────────────────────────
-    @property
-    def domain(self) -> Optional[FunctionSpace]:
-        return self._space
-
-    @property
-    def codomain(self) -> Optional[FunctionSpace]:
-        return self._space
-
-    @property
-    def blocks(self) -> tuple[_GaugeBlock, ...]:
-        """The summands, one per ``(ordinate orbit, group)``."""
-        return self._blocks
-
-    @property
-    def dimension(self) -> int:
-        r"""``dim ker A`` restricted to component **R** — the rank of ``Pi``."""
-        return sum(int(b.basis.table.shape[1]) for b in self._blocks)
-
-    # ── the action ────────────────────────────────────────────────────
-    def apply(self, x: NDArray) -> NDArray:
-        r"""The component of ``x`` inside :math:`\ker A`."""
-        values = np.asarray(x, dtype=float)
-        out = np.zeros_like(values)
-        for block in self._blocks:
-            out[block.gather.indices] = block.projector.apply(
-                block.gather.apply(values)
-            )
-        return out
-
-    def apply_transpose(self, x: NDArray) -> NDArray:
-        r""":math:`\Pi^{\mathsf T} = \Pi` — each :math:`\Pi_b` is self-adjoint.
-
-        A :math:`G`-orthogonal projector onto a :math:`G`-orthonormal span is
-        symmetric in the :math:`G` inner product, and the gather/scatter pair
-        is a transpose pair, so the sum inherits it.
-        """
-        return self.apply(x)
-
-    @property
-    def is_adjointable(self) -> bool:
-        return True
-
-    @property
-    def is_invertible(self) -> bool:
-        """``False`` — a projector onto a proper subspace kills its complement."""
-        return False
-
-    def gauge(self, trace: NDArray) -> NDArray:
-        r"""``(I - Pi) trace`` — the canonical, minimum-:math:`G`-norm member.
-
-        The operation the solver actually performs.  Residual-neutral by
-        construction: :math:`A(\psi - \Pi\psi) = A\psi` because
-        :math:`\Pi\psi \in \ker A`, so **no convergence check can move**.
-        """
-        values = np.asarray(trace, dtype=float)
-        return values - self.apply(values)
-
-    def __repr__(self) -> str:
-        return (
-            f"LossKernelGauge(blocks={len(self._blocks)}, "
-            f"dimension={self.dimension}, space={self._space!r})"
-        )
-
-    # ── construction ──────────────────────────────────────────────────
-    @classmethod
-    def for_mesh(cls, problem: "SNProblem") -> "LossKernelGauge":
-        """Build the gauge for a mesh — **zero blocks when there is nothing to fix**.
-
-        A zero-block gauge is the honest answer to a non-singular configuration,
-        not a failure: the projection onto a trivial kernel is the zero map, so
-        :meth:`gauge` is the identity and callers need no ``None`` branch.
-        Whether there is anything to fix is decided by :func:`gauge_freedom`,
-        whose two conjuncts are both derived.
-
-        ⚠ An UNDETERMINED closure yields zero blocks too — *not gauging* is the
-        ruled behaviour — but the caller owes the user a loud warning naming the
-        obstruction, which :attr:`GaugeFreedom.because` supplies.
-        """
-        trace_space = problem.angular_trace
-        if not gauge_freedom(problem).present:
-            return cls((), trace_space)
-
-        metric = np.asarray(trace_space.inner_product_weights, dtype=float)
-        n_trace = int(np.prod(trace_space.shape))
-        blocks: list[_GaugeBlock] = []
-        for orbit, active in _reflection_orbits(problem):
-            if len(active) < 2:
-                continue
-            for group in range(int(problem.ng)):
-                indices, table = _build_block_table(
-                    problem, orbit, group, active, metric)
-                if table.size == 0 or table.shape[1] == 0:
-                    continue
-                basis = LossKernelBasis(
-                    table=table, orbit=orbit, group=group)
-                measure = DiscreteMeasure(
-                    nodes=indices.astype(float),
-                    weights=metric[indices],
-                    # ⭐ Read from the basis, not re-spelled beside it. Tracker
-                    # 2.1 left this pair as the ONE production frame whose two
-                    # halves disagreed in spelling — the measure tagged the bare
-                    # ``sn_trace_orbit…`` label while the basis wrapped it in
-                    # ``index(…)`` — and pinned the divergence in ``test_d6``.
-                    # Taking the manifold from its owner closes it by
-                    # construction rather than by keeping two strings equal.
-                    support=basis.domain,
-                )
-                frame = GalerkinFrame(basis, measure)
-                blocks.append(_GaugeBlock(
-                    gather=TraceRestrictionOperator(
-                        indices, n_total=n_trace,
-                        domain=trace_space, codomain=frame_faces.measure_space(frame)),
-                    projector=frame_faces.conjugate(frame, frame_faces.CrossGramInverse.of(frame)),
-                    basis=basis,
-                ))
-        return cls(tuple(blocks), trace_space)
+    trace_space = problem.angular_trace
+    if not gauge_freedom(problem).present:
+        return KernelProjectionGauge.direct_sum(trace_space, ())
+    summands: list[KernelSummand] = []
+    for orbit, active in _reflection_orbits(problem):
+        if len(active) < 2:
+            continue
+        for group in range(int(problem.ng)):
+            indices, generators = _block_generators(problem, orbit, group, active)
+            summands.append(KernelSummand(
+                support=indices, generators=generators,
+                label=f"sn_trace_orbit{orbit}_g{group}", orthogonal_to_constants=True,
+            ))
+    return KernelProjectionGauge.direct_sum(trace_space, tuple(summands))

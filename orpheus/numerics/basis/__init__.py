@@ -47,6 +47,7 @@ from orpheus.numerics.basis.interval_legendre_basis import (
 )
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics.basis.overlap_basis import OverlapBasis
+from orpheus.numerics.basis.orthonormal_span_basis import OrthonormalSpanBasis
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.basis.weighted_indicator_basis import WeightedIndicatorBasis
 
@@ -59,6 +60,7 @@ __all__ = [
     "IndicatorBasis",
     "IntervalLegendreBasis",
     "LegendreBasis",
+    "OrthonormalSpanBasis",
     "OverlapBasis",
     "SphericalHarmonicBasis",
     "TensorProductBasis",

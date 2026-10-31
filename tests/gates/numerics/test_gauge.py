@@ -13,7 +13,7 @@ defining laws (``feedback_test_intrinsic_properties``):
   the frame pass claimed 0 ULP; refuted by arithmetic);
 * it is Γ-INVARIANT — the group element for the kernel gauge is drawn from
   :math:`\Pi`'s OWN RANGE on the TRACE space (the kernel is a trace object —
-  ``loss_kernel_gauge.py``'s class docstring — so an interior perturbation is
+  ``loss_kernel_gauge.py``'s module docstring — so an interior perturbation is
   not a group element and must not be used as one; the frame pass's "interior
   kernel modes survive" leg was refuted on exactly this point);
 * the kernel gauge is RESIDUAL-NEUTRAL: :math:`A(\psi - \Pi\psi) = A\psi` because
@@ -171,13 +171,16 @@ class TestLawTheScaleGauge:
         _require(not np.allclose(by_production.apply(phi), by_absorption.apply(phi)), "so the two representatives differ by a positive scalar the recorded gauge names")
 
 
-# ── KernelGauge (the Protocol, realized by the SN loss-kernel gauge) ─────
+# ── KernelGauge (the Protocol; the SN hub's instance of the numerics KernelProjectionGauge) ─────
 
 
 class TestLawTheKernelGauge:
     def test_law_the_sn_gauge_satisfies_the_protocol_structurally(self) -> None:
+        """Since U3 the hub holds the numerics ``KernelProjectionGauge`` (SN supplies its generators); the structural
+        conformance of the type and the Protocol's parameter name are gated by signature in
+        ``test_kernel_projection_gauge.py``. This row is the SN production instance."""
         hub = _gauge_singular_hub()
-        _require(isinstance(hub.loss_kernel_gauge, KernelGauge), "LossKernelGauge conforms to KernelGauge without inheriting (numerics never imports sn)")
+        _require(isinstance(hub.loss_kernel_gauge, KernelGauge), "the SN builder's gauge is a KernelGauge (it conforms without inheriting)")
         _require(hub.loss_kernel_gauge.dimension > 0, "non-vacuity: the fixture's kernel is non-trivial")
 
     def test_law_idempotence_of_the_projector_and_the_section(self) -> None:

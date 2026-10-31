@@ -34,19 +34,22 @@ Two realizations of ONE concept:
   ``[M]`` they do.
 * :class:`KernelGauge` — a PROTOCOL: the :math:`G`-orthogonal projector
   :math:`\Pi` onto :math:`\ker A` with the section :math:`\psi \mapsto \psi -
-  \Pi\psi` (the minimum-:math:`G`-norm member, where the exact solution sits
-  — a theorem, not a convention: every kernel mode is mirror-odd).  Satisfied
-  structurally by the SN tier's ``LossKernelGauge`` — the kernel is a TRACE
-  object there, so ``gauge`` acts on the boundary-trace values and the bulk is
-  untouched by construction; this tier never imports the SN class (the layer
-  contract forbids ``numerics → sn``).
+  \Pi\psi` (the minimum-:math:`G`-norm member of the coset).  Its realization
+  is :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`,
+  a direct sum of spanning summands; which basis spans the kernel is the
+  method's (SN's diamond-difference loss kernel is a TRACE object, built by
+  :func:`orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`, and
+  there the minimum-norm member is where the exact solution sits — a theorem,
+  not a convention: every kernel mode is mirror-odd).  This tier never imports
+  the realization (it ranks below it in the concept order), so the protocol
+  is the contract a result type names.
 
 The defining laws each realization ships a test of (``tests/gates/numerics/``):
 the section lands on the target (``n(apply(ψ)) ≈ t``), it is IDEMPOTENT
 (``apply(apply(ψ)) ≈ apply(ψ)`` — ``allclose``, not bit-equal: a rescale
 multiplies by :math:`1/(1 \pm \varepsilon)`), it is Γ-INVARIANT
 (``apply(γ·ψ) ≈ apply(ψ)`` for every group element — for the kernel gauge
-the element is drawn from :math:`\Pi`'s own range on the TRACE space), and,
+the element is drawn from :math:`\Pi`'s own range on the gauge's space), and,
 for the kernel gauge, it is RESIDUAL-NEUTRAL (:math:`A(\psi - \Pi\psi) =
 A\psi` because :math:`\Pi\psi \in \ker A`).  The negative leg that motivated
 the type: two solves of ONE problem under two functionals return fluxes that
@@ -121,11 +124,11 @@ class ScaleGauge:
 class KernelGauge(Protocol):
     r"""The section of the :math:`(\ker A, +)`-quotient: :math:`\psi \mapsto \psi - \Pi\psi`.
 
-    A structural contract — the SN tier's ``LossKernelGauge`` satisfies it
-    without inheriting (the layer contract forbids ``numerics → sn``, and a
-    projector is what the concept IS, whichever tier builds it).
+    A structural contract — :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
+    satisfies it without inheriting (a projector is what the concept IS, and
+    a test double may stand in for it).
 
-    ``gauge(trace)`` returns the canonical member of the trace's coset (the
+    ``gauge(state)`` returns the canonical member of the state's coset (the
     minimum-:math:`G`-norm one); ``dimension`` is :math:`\dim \ker A` on the
     component the projector spans — ``0`` when the configuration has no
     freedom, in which case ``gauge`` is the identity and NO caller needs a
@@ -133,7 +136,7 @@ class KernelGauge(Protocol):
     absence).
     """
 
-    def gauge(self, trace: NDArray[np.floating]) -> NDArray[np.floating]: ...
+    def gauge(self, state: NDArray[np.floating]) -> NDArray[np.floating]: ...
 
     @property
     def dimension(self) -> int: ...

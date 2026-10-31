@@ -219,7 +219,6 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
         ("numerics/test_axis_metric_is_a_derived_object.py", "tests.gates.sn"),
         ("numerics/test_basis_domain.py", "orpheus.data"),
         ("numerics/test_basis_domain.py", "orpheus.mesh"),
-        ("numerics/test_basis_domain.py", "orpheus.sn"),
         ("numerics/test_dual_metric.py", "orpheus.transport"),
         ("numerics/test_gauge.py", "orpheus.data"),
         ("numerics/test_gauge.py", "orpheus.homogeneous"),

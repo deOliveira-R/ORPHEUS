@@ -1181,7 +1181,8 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         assembled loss operator :math:`A = L + C - S - B` acquires a null
         space.  That — together with the boundary set
         (:attr:`~orpheus.sn.problem.SNProblem.reflective_axis_pairs`)
-        — is the gauge freedom the :class:`LossKernelGauge` fixes.
+        — is the gauge freedom the kernel gauge fixes
+        (:func:`~orpheus.sn.operators.loss_kernel_gauge.build_loss_kernel_gauge`).
 
         `[M]` 2026-08-14, on both probe cells:
 
