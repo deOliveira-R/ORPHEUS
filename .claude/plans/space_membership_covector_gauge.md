@@ -479,3 +479,9 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
   - It is a check, never the decision.
   - Containment is checked modulo ker G (the tangential slots).
 - **The class-block solve** is the same block iteration, restricted to the class's groups, with the discretisation modes projected out by the predicted projector. Here the prediction is legitimately an input. The heterogeneous-materials entry is lifted first. The void-feeder entry, a singular feeder block, stays a refusal until it has been examined.
+- **[R] the user (2026-10-31): U3b builds #616, the multi-D transposed sweep, first.** `[M]` the test-architect's probe `scratch/membership_covector/u3b/ta/p3a_adjoint_doors.py`, at HEAD `4d99f894`, on the d = 2 (3,4) LS4 ng=2 c=1 mirror box:
+  - `(L+C).inverse().H` raises MissingAdjoint;
+  - `M.H.inverse()` raises NotInvertible;
+  - `M.H.apply` works, and so does `.H` of S, N2n and B.
+  
+  On the d = 1 slab every door works. The witness's left route and the lazy rcond (whose estimator, dlacn2, alternates S and Sᵀ) both need M⁻ᴴ on d ≥ 2. The transposed sweep goes behind `(L+C).H.inverse()`, with its own gates, and closes #616. The rows that depend on it are specced twice: as NotYet(#616), and as the rows they become once the transposed sweep exists.
