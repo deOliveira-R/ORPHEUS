@@ -383,3 +383,18 @@ Sizing `[R]`: about 48 verbs plus 3 production sites, in numerics (most), transp
 - **Ruled by the user (2026-10-31): the posing derives the verdict.** The pencil carries the `PredictedKernel` (`kernel=`, rebased onto the pencil's space; `.H` daggers it); `EigenPosing.solvability` refuses unless the kernel is the WHOLE pencil's (M annihilates the modes and the left kernel annihilates range M; symmetric under `.H`); `SourcePosing.of_pencil(pencil, σ, q)` carries the kernel and `solvability` runs the Fredholm alternative on q; `SourceOutcome.gauge` is read off the posing (the slot is retired). The emission probes and `_solvability` retired; diffusion gains a flat pencil and eigen posing on the solver.
 - **Orchestrator decisions with the redesign:** the DD predictor's tangential orbits are a sixth entry of the one scope door (with the void-region entry); `ClosedClass(members, feeders).energy_vectors(mixture)` and `removal_matrix` in transport are the one spelling of the class's energy kernel (SN reads it; the `2.0` literal became `N2N_MULTIPLICITY`); `MaterialMesh.present_materials`; `KernelProjectionGauge.displacement` is the one gauge reading; `FlattenedOperator.apply_transpose`; `of_closed_blocks` asserts nullity one; `.H` uses the metric's pseudo-inverse; `DiffusionSourceSolution.record`; the diffusion source door measures its balance.
 - **Filed:** #677 (one coordinate-to-group map), #678 (the flat chart as a FunctionSpace verb), #679 (diffusion's loss and kernel on the hub), #680 (the SN trace metric has no face area). Commented on #665 (a fissile class at round-off removal: λ = −2.3e16 from `solve_sn_adjoint`, unflagged).
+- **U0 LANDED (2026-10-31).** Commits:
+
+  | commit | step |
+  |---|---|
+  | `5ce66815` | a composite space's metric acts on its flat coordinates (#666's flat half; #614 leg 1) |
+  | `54aef2ca` | the Fredholm verdict (`numerics/fredholm.py`), `numerics/evidence.py`, `transport/absorbing_chain.py` |
+  | `c2a88dfc` | the LU's reciprocal-condition estimate |
+  | `ef5eea29` | every posing derives its verdict from the pencil's predicted kernel; SN, diffusion, homogeneous wired; ERR-123 |
+  | `119383f9` | qa's re-review: the tangential-only DD kernel's prose; the M ≥ 0 guarantee cited |
+  | `f74d7847` | the theory pages, the `verifies` markers, the retirement residue; closes #460 |
+
+  `[M]` -O at `ef5eea29`: sn 4146, numerics 5763, transport 1466, cross_method 262, diffusion 168, homogeneous 149, reference 352 passed; the layer, test-layer, docstring-xref, elegance-ledger and vv-audit gates passed; pyright 0 errors on the changed files. At `f74d7847`: sphinx -E -W exit 0; `dead_references` 3, all pre-existing test helpers.
+  - qa's re-review of the redesign: no blocking finding. Both eigen entries refuse together. The Rayleigh gap is ≤ 4.5e-10 on every Gauge return. The multiplying source at σ = 1 matches the dense minimum-G-norm member to 1.5e-13. `fredholm_alternative` has one caller (`posing.py`). qa's F2 is withdrawn: the 112 is the T component, in ker G.
+  - Owed to U3b: the iterative NearKernel witness (the SN scope door's machinery, the class-block null-vector solve through the sweep; SN's conditioning reading, now `NotApplicable`). Open elsewhere: #666 (the scalar-verb membership half), #614 (leg 2), #677–#680.
+- **Next:** U3b (the NearKernel witness), then one memo regeneration, the merge and CI.
