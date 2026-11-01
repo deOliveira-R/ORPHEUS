@@ -11893,7 +11893,21 @@ function: 0 of 1253 files consumed the package-level name). Second finding of th
 `_MODULE = "orpheus.x"; import_module(_MODULE)`, the commonest form of the idiom (6 calls), as a walk's variable; resolve
 a module-level name bound once to a constant before calling a variable argument unjudged.
 
-## L122 — U3b witness spec: the left fixed point, a hidden global RNG, and a premise no probe had run through production (2026-10-31)
+## L122 — U1b one parse at the domain: the concept order decides where a parse can live, and a timing harness has an order bias (2026-10-30)
+
+(1) The plan's design step "an object below the space level parses through the one-axis space its axis induces" was
+unspellable for three of its named objects: `metric` (TIERS rank 0), `basis` (3) and `measure` (4) sit below `axis` (8)
+and `space` (9) in `tests/gates/numerics/test_concept_order.py`, which counts lazy imports. Found by reading TIERS before
+writing the parse table; the orchestrator ruled the shape leg a tier-below primitive (a NEW first row: same-rank edges
+are violations, `RANK[a] >= RANK[b]`). Rule: before routing an object to a verb of another module, read the module-order
+gate for the two ranks.
+(2) An end-to-end A/B timing, 15 interleaved repeats, min, on a 250 ms SN solve: the every-run arm read +2 % to +5 %
+over four runs; a NULL arm (both arms stock, same interleave) read −4.9 % and the swapped order −4.0 %. The harness's
+order bias was larger than the effect, so the honest number was the per-call cost × the measured call count (≈ 0.3 %).
+Rule: an A/B timing ships its null arm and its swapped-order arm; a delta inside them is "below resolution". The
+bias was the host, not the method: those runs overlapped a background pytest battery; idle, the null read −0.36 % and
++0.12 %. Time on an idle host, after the batteries.
+## L123 — U3b witness spec: the left fixed point, a hidden global RNG, and a premise no probe had run through production (2026-10-31)
 
 - The plan's left route was "the same averaged map built with `.H`". `((I + M⁻¹N)/2)ᴴ = (I + NᴴM⁻ᴴ)/2` has the same
   nonzero spectrum as the dual split's `(I + M⁻ᴴNᴴ)/2` but other eigenvectors: its unit eigenvectors are `Mᴴ ker Aᴴ`, not

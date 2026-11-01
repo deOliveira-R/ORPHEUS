@@ -706,9 +706,16 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   shadow is a production defect, not a reason to keep the string. And a gate refusing string imports resolves a
   module-level constant (`_MODULE = "orpheus.x"`) before calling a variable "a walk". → `L121`
 
+## U1b one parse (2026-10-30) — extends `instrument-doctrine` "Draw-stable statistics" and the design-time read of a gate
+
+- **Before routing an object to another module's verb, read the module-order gate for both ranks** (`test_concept_order`
+  counts lazy imports): a "parse through the induced space" was unspellable for metric/basis/measure. → `L122`
+- **An A/B timing ships a NULL arm (both arms stock) and a swapped-order arm**; a delta inside them is below resolution,
+  and the number to quote is per-call cost × measured call count; run it on an IDLE host (a concurrent battery made the null −4.9 %, idle it read ±0.4 %). → `L122`
+
 ## U3b witness spec (2026-10-31) — extends `instrument-doctrine` X1 (run the route through production before speccing it)
 
 - **⛔ The left kernel of a splitting is the fixed space of the DUAL split's map `M⁻ᴴNᴴ`, not of the adjoint of the forward
   map `NᴴM⁻ᴴ`** (same spectrum, eigenvectors `Mᴴ ker Aᴴ`); and a route measured with dense surrogates owes one run through
   the production doors (`M.inverse().H` does not exist on d ≥ 2) before any row rests on it. `onenormest(t≥2)` mutates the
-  global RNG. → `L122`
+  global RNG. → `L123`

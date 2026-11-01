@@ -182,3 +182,13 @@ today: the 2026-09-21 candidates landed).
   must override `get_code`, or the cached `.pyc` skips `source_to_code` and
   every probe passes silently; print a rewritten/NOT-REWRITTEN flag as the
   control. Script: `scratch/numerics_untangling/hoist.py` (2026-10-18). → M-5.
+- **L-048** `git grep -E` here does not honour `\w`: a class-name census
+  spelled `class \w*(Covector|Dual\w*)` returned 0 while `DualSpace` exists.
+  Use ugrep (`grep -rnE "class [A-Za-z_]*(...)"`) and run a sibling pattern
+  that MUST hit as the control in the same call (2026-10-30). → M-3.
+- **L-049** A shape-membership census over a space's verbs must separate
+  production traffic from GATES that pin a convention: an attributed run
+  (record `PYTEST_CURRENT_TEST`) showed every non-member call came from 7
+  legitimate tests + 1 mutant, which is the half-2 evidence a "refuse at the
+  verb" design needs; the unattributed count alone read as "non-members
+  exist". Plugin: `scratch/layer_dag/ipf_fix/explorer_member_plugin2.py`. → M-3.
