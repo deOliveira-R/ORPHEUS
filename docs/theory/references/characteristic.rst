@@ -6108,7 +6108,7 @@ since the solve itself succeeded. The gates are
 ``test_m4_11_two_observables_of_one_cold_derivation_share_one_solve``,
 ``test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones``
 and ``test_m4_13_a_refusal_before_the_solve_writes_no_solve_entry``
-(``tests/gates/numerics/test_traced_memo_clients.py``).
+(``tests/gates/derivations/test_traced_memo_clients.py``).
 
 **Gotcha: the two routes hand out arrays of different mutability.** A
 solve served from the store decodes fresh, read-only arrays; under
@@ -6153,7 +6153,7 @@ solve, and a point reading, which reads the system's blocks as well,
 pins the same block keys as children of its own
 (``test_m4_14_a_point_reading_pins_the_blocks_as_children_and_assembles_none``
 and ``test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve``,
-in ``tests/gates/numerics/test_traced_memo_clients.py``). This is C1 of
+in ``tests/gates/derivations/test_traced_memo_clients.py``). This is C1 of
 #405 P3 step 2c, the user's rulings of 2026-10-14 (gates may read
 memoised blocks; the three key types get content identity; C1 first).
 
@@ -8079,7 +8079,9 @@ continuity, the closing cavity), ``test_characteristic_convergence.py``
 one-group cylinder of Sood and of Westfall–Metcalf),
 ``test_characteristic_nystrom_withdrawn.py`` (the three Peierls–Nyström
 rows withdrawn under #506), all under ``tests/gates/derivations/``, and
-``tests/gates/numerics/test_symbolic_steps.py``.
+``tests/gates/numerics/test_symbolic_steps.py``, whose row on the
+consumer ``Mesh1D.cell_integrals`` is today a mesh row,
+``tests/gates/mesh/test_mesh1d_cell_integrals.py::test_the_mesh_integrates_a_step_at_pi_over_4``.
 
 **The catalogued defects.** ERR-034, ERR-035, ERR-090 and ERR-091 lived
 in the old family's code; each now has a catcher on this reference, each

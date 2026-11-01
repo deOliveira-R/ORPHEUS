@@ -3126,7 +3126,8 @@ The numerical evidence
   declared blind to the gauge. The archivist re-ran the 4 rows green
   under ``python -O`` on 2026-10-31. The account, with the numbers, is
   :ref:`sn-adjoint-multid`.
-* **The honesty registry** (``tests/gates/numerics/test_adjointability_is_honest.py``):
+* **The honesty registry** (its census over every method's operators,
+  ``tests/gates/test_adjointability_is_honest.py``):
   the 2-D DD and LD sweeps, the 2-D coupled substitution and the Green
   over a 2-D implicit part moved from "``is_adjointable`` ``False``"
   to "``True``, both doors open" (:ref:`operator-adjoint-two-questions`).

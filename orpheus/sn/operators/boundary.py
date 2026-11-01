@@ -1020,7 +1020,7 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
     the whole-trace operator's transpose leg (:meth:`apply_transpose`). So the
     half is adjointable wherever ``B`` is. Until 2026-10-18 it advertised no
     transpose although that branch existed
-    (``tests/gates/numerics/test_adjointability_is_honest.py``).
+    (``tests/gates/test_adjointability_is_honest.py``).
     """
 
     block_role = BlockRole.BOUNDARY

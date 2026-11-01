@@ -5,22 +5,20 @@ Re-homed in P1 step (e1b) of the characteristic-reference campaign
 old trajectory-resolvent family's ``test_trajectory_resolvent_reference.py``
 (rows R7b2.6 and R7b2.2.3), which step (e2) deletes with the family. The rows
 never read the family: they pin :meth:`orpheus.numerics.mesh_free_function.Symbolic.steps`
-and its exact consumer :meth:`orpheus.mesh.structured.Mesh1D.cell_integrals`, which
-outlive it; without them both lose their only direct gates (``[M]`` 2026-10-10,
-``git grep -P "\\bsteps\\("`` over ``tests/``: 8 lines in the old file and 3 in its
+(``[M]`` 2026-10-10, ``git grep -P "\\bsteps\\("`` over ``tests/``: 8 lines in the old file and 3 in its
 API helper, nothing else). The bodies are the old rows', with the helper
 ``_trajectory_resolvent_api.steps`` written out (sorted floats of
-``weight.steps((low, high))``) and its refusal pattern copied.
+``weight.steps((low, high))``) and its refusal pattern copied. The row on its exact consumer,
+:meth:`orpheus.mesh.structured.Mesh1D.cell_integrals` (a step at pi/4 integrated by the mesh), is the mesh's and
+lives in ``tests/gates/mesh/test_mesh1d_cell_integrals.py`` since the layer DAG Phase 2 refresh.
 """
 from __future__ import annotations
 
 import math
 
-import numpy as np
 import pytest
 import sympy
 
-from orpheus.geometry import CoordSystem
 from orpheus.numerics.mesh_free_function import Symbolic
 
 pytestmark = pytest.mark.foundation
@@ -67,15 +65,3 @@ def test_an_unlisted_non_smooth_construct_is_refused(make) -> None:
         _steps(Symbolic.of(make(Symbolic.r)), 0.0, 2.0)
 
 
-def test_the_mesh_integrates_a_step_at_pi_over_4() -> None:
-    """``Mesh1D.cell_integrals`` of ``r < pi/4`` on the A|B|A sphere's mesh totals 4 pi / 3 (pi / 4)^3, to 64 ulp
-    (qa F3, the regression on the mesh's exact integrals). Succeeds
-    ``test_r7b2_2_3_the_mesh_integrates_a_step_at_pi_over_4``."""
-    from orpheus.mesh import CellsByCount, Mesher
-    from tests.gates.sn.verification.analytical._aba_reference import aba_geometry
-
-    mesh = Mesher(aba_geometry(CoordSystem.SPHERICAL)).partition(tuple(CellsByCount.uniform_width(n) for n in (2, 4, 2))).mesh
-    weight = Symbolic.of(sympy.Piecewise((1, Symbolic.r < sympy.pi / 4), (0, True)))
-    total = float(np.sum(mesh.cell_integrals(weight)))
-    expected = 4.0 / 3.0 * math.pi * (math.pi / 4) ** 3
-    assert abs(total - expected) <= 64 * math.ulp(expected), (total, expected)

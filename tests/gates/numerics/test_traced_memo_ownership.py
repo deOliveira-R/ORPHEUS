@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from . import _traced_memo_api as api
+from tests.gates.numerics import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
 
@@ -70,7 +70,17 @@ def _kind_and_name(found) -> tuple[str, str]:
 
 
 def _site_files_of_a_characteristic_block() -> list[str]:
-    import orpheus.derivations.continuous.characteristic  # noqa: F401  (what a block imports)
+    """The site-packages files a traced stage imports. The third-party libraries a characteristic block reaches
+    (numpy, scipy, mpmath, sympy, h5py) are imported directly: until the layer DAG Phase 2 refresh this imported
+    ``orpheus.derivations.continuous.characteristic`` (a numerics test reading derivations) for the same population;
+    the law is per file, so the population is a sample whose size the row asserts (``len(files) > 100``)."""
+    import h5py  # noqa: F401
+    import mpmath  # noqa: F401
+    import numpy  # noqa: F401
+    import scipy.integrate  # noqa: F401
+    import scipy.sparse  # noqa: F401
+    import scipy.special  # noqa: F401
+    import sympy  # noqa: F401
 
     sites = [os.path.realpath(d) + os.sep for d in site.getsitepackages()]
     files = {os.path.realpath(f) for m in list(sys.modules.values()) if isinstance(f := getattr(m, "__file__", None), str)}

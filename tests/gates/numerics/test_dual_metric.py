@@ -613,11 +613,8 @@ def test_Q2b_a_field_multiplier_has_no_spaceless_adjoint():
         _ = D.H
     x = _sample((3,), 63)
     np.testing.assert_array_equal(D.dual().apply(x), D.apply(x))
-    from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-
-    flag = vars(MultiplicationOperator).get("is_metric_free_adjoint")
-    if isinstance(flag, property) and flag.fget is not None:
-        _require(flag.fget(None) is False, "MultiplicationOperator still declares a metric-free adjoint")
+    # The transport field multiplier's flag is transport's row since the layer DAG Phase 2 refresh:
+    # tests/gates/transport/test_multiplication_operator.py::test_Q2b_the_transport_field_multiplier_declares_no_metric_free_adjoint
 
 
 def test_Q3_no_docstring_claims_a_field_multiplier_commutes_with_every_metric():
@@ -675,16 +672,16 @@ def test_H1_the_dual_space_rows_open(row):
     row is the one that reds if the clause survives. ``posed`` True, ``.H``
     applies, reciprocity in the operator's OWN end metrics (no override pairing),
     1e-12. First red TODAY: ``MissingAdjoint`` (DualSpace end)."""
-    import tests.gates.numerics.test_adjointability_is_honest as Hn
+    import tests.gates.numerics._adjointability as Hn
 
-    built = Hn._REGISTRY[row]()
+    built = Hn.NUMERICS_REGISTRY[row]()
     rng = np.random.default_rng(1729)
-    x = Hn._like(built.x, rng)
+    x = Hn.like(built.x, rng)
     y = built.codomain_sample(rng)
     _require(posed(built.op) is True, f"[{row}] posed is False")
     image = built.op.H.apply(y)
     lhs, rhs = built.inner_w(built.act(x), y), built.inner_v(x, image)
-    _require(Hn._rel(lhs, rhs) < 1e-12, f"[{row}] reciprocity {lhs!r} vs {rhs!r}")
+    _require(Hn.rel(lhs, rhs) < 1e-12, f"[{row}] reciprocity {lhs!r} vs {rhs!r}")
 
 
 def test_H2_the_dual_of_lowering_commutes():

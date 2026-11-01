@@ -1204,8 +1204,8 @@ reasons. First, the tempting override ``GreenOperator(self.inner.H)``
 cannot be built: a Green needs a split, and the split cannot be read back
 off ``(M - N).H``, which is a formal sum with no implicit part. Second,
 the distributed form ``GreenOperator(M.H, N.H)`` is the honesty gate's
-independent witness (``_sn_green`` in
-``tests/gates/numerics/test_adjointability_is_honest.py``): an override of
+independent witness (``_sn_green`` in the census
+``tests/gates/test_adjointability_is_honest.py``): an override of
 that form was removed on 2026-10-18, because the witness then agreed with
 ``.H`` to exactly 0.0, a tautology. The law
 :math:`((M - N)^{-1})^{*} = (M^{*} - N^{*})^{-1}` holds and is checked; it
@@ -1747,9 +1747,8 @@ value (``test_kinf_exact``, 1e-12), the analytical pillar.
    * - Gate file
      - What it pins
    * - ``tests/gates/numerics/test_matrix_inverse_operator.py``
-     - The base ``as_matrix`` L0 (exact vs hand-built + the storage-oracle
-       cross-check; the **C-order column convention on a non-symmetric op**;
-       rectangular-honesty; :math:`\equiv` the retired ``_as_dense`` loop),
+     - The base ``as_matrix`` L0 (exact vs hand-built; the **C-order column
+       convention on a non-symmetric op**; rectangular-honesty),
        the ``ValueError`` / ``MatrixTooLarge`` boundary (class-discriminated,
        with an **at-threshold** designed-green control), and the
        ``MatrixInverseOperator`` invariants (M-materialise + M-direct at
@@ -1757,6 +1756,12 @@ value (``test_kinf_exact``, 1e-12), the analytical pillar.
        bit-identity, the back-half anchor, the non-square / singular /
        too-large guards with a positive constructs-cleanly control, and the
        :math:`(-S_{\rm ao})+D` **witness**).
+   * - ``tests/gates/transport/test_energy_leaves_as_matrix.py``
+     - ``as_matrix`` on the transport energy leaves: the storage-oracle
+       cross-check (``test_as_matrix_energy_leaves_vs_storage_oracle``) and
+       :math:`\equiv` the retired ``_as_dense`` loop
+       (``test_as_matrix_equals_retired_as_dense_loop``); transport rows,
+       because the leaves are transport's
    * - ``test_inverse_universal.py`` /
        ``test_operator_capability_predicates.py`` /
        ``test_operators_apply_typed.py``
@@ -2089,8 +2094,8 @@ It surfaced when the diffusion pencil's annihilation check was
 re-spelled through the door (``f5788cba``, the same day): the
 diffusion verdict row D6 of
 ``tests/gates/diffusion/test_fixed_source_verdict.py`` reddened.  The flag is now derived from the
-inner operator, and the row ``diffusion_flattened_fission`` of
-``tests/gates/numerics/test_adjointability_is_honest.py`` holds the
+inner operator, and the row ``diffusion_flattened_fission`` of the census
+``tests/gates/test_adjointability_is_honest.py`` holds the
 flattened fission to the honesty contract (``.dual()`` constructs and
 applies exactly when ``is_adjointable`` says it does, in both
 directions).  The flattened LOSS row

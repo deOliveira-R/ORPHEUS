@@ -26,7 +26,6 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.axis import Modal
 
@@ -120,30 +119,6 @@ def test_non_finite_weights_are_refused() -> None:
     _require(bool(w[0] == -0.5), "signed weights are legal (quadrature axes)")
 
 
-def test_energy_axis_equality_is_edges_CONTENT_not_grid_identity() -> None:
-    r"""A3 ⭐ — two DISTINCT ``EnergyGrid`` objects with equal edges give
-    EQUAL axes.
-
-    ``EnergyGrid`` is ``frozen=True, eq=False`` (identity equality) and
-    ``Mixture.energy_grid`` mints a FRESH one per access, so
-    ``[M]`` (2026-08-20, ``4e11731b``)::
-
-        mix.energy_grid is mix.energy_grid   -> False
-        mix.energy_grid == mix.energy_grid   -> False
-        np.array_equal(a.edges, b.edges)     -> True
-
-    If ``EnergyGrid.as_axis`` compared by grid identity, two ``bulk_space`` mints
-    from ONE mixture would be UNEQUAL spaces and ``_agreed_space`` would
-    raise inside a legitimate homogeneous solve. This is the cheapest
-    gate in the battery with an end-to-end consequence.
-    """
-    mix = dataclasses.replace(get_mixture("A", "2g"), eg=_EDGES_2G)
-    grid_a, grid_b = mix.energy_grid, mix.energy_grid
-    _require(grid_a is not grid_b, "precondition lost: energy_grid now caches")
-    _require(grid_a != grid_b, "precondition lost: EnergyGrid gained value equality")
-    axis_a, axis_b = grid_a.as_axis(), grid_b.as_axis()
-    _require(axis_a == axis_b, f"{axis_a!r} != {axis_b!r} — identity leaked from the grid")
-    _require(hash(axis_a) == hash(axis_b), "equal axes must hash equal")
 
 
 def test_synthetic_equality_is_ng_only() -> None:
@@ -175,11 +150,18 @@ def test_synthetic_and_of_edges_at_the_same_ng_are_UNEQUAL() -> None:
 
 def test_energy_axis_hash_agrees_with_eq() -> None:
     """A6 — the A3/A4/A5 population round-trips through a ``set`` and a
-    ``dict`` with exactly the expected cardinality."""
-    mix = dataclasses.replace(get_mixture("A", "2g"), eg=_EDGES_2G)
+    ``dict`` with exactly the expected cardinality.
+
+    The A3 pair is two axes over two DISTINCT, equal edge arrays: equality is the
+    edges' CONTENT, not the array's identity (the numerics half of A3; the data half,
+    two fresh ``EnergyGrid`` objects of one mixture, is
+    ``tests/gates/data/test_energy_grid.py::test_energy_axis_equality_is_edges_CONTENT_not_grid_identity``,
+    moved by the layer DAG Phase 2 refresh)."""
+    edges_a, edges_b = _EDGES_2G.copy(), _EDGES_2G.copy()
+    _require(edges_a is not edges_b, "the A3 pair is built over two distinct arrays")
     population = [
-        mix.energy_grid.as_axis(),
-        mix.energy_grid.as_axis(),  # equal to the previous (A3)
+        EnergyAxis.of_edges(edges_a),
+        EnergyAxis.of_edges(edges_b),  # equal to the previous (A3)
         EnergyAxis.synthetic(2),
         EnergyAxis.synthetic(2),  # equal to the previous (A4)
         EnergyAxis.synthetic(3),

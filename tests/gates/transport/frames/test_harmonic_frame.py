@@ -59,6 +59,7 @@ from orpheus.numerics.axis import Declared, BasisKind
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.axis import Axis
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -578,3 +579,18 @@ class TestMomentSpaceOnIsTheSingleSource:
             frame.flux_analysis_on(space).codomain == moment
         )
         assert frame.source_reconstruction_on(space).domain == moment
+
+
+# ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
+
+
+@pytest.mark.parametrize("arm", ["declared", "from_measure"])
+def test_O4_for_space_refuses_a_non_quadrature_axis_naming_itself(arm):
+    """The per-consumer refusal, widened to every non-FromQuadrature arm (improves
+    test_frame_mints_refuse_a_moment_space.py, which builds the generator-less arm only)."""
+    from orpheus.transport.frames import HarmonicFrame
+    q = Quadrature.gauss_legendre(4)
+    ax = (Axis("angular", (q.n_ordinates,), np.asarray(q.weights, float), origin=Declared(BasisKind.NODAL))
+          if arm == "declared" else Axis.of_measure(q.measure, "angular"))
+    with pytest.raises(ValueError, match="HarmonicFrame.for_space needs the generating Quadrature"):
+        HarmonicFrame.for_space(FunctionSpace.of_axes(ax), 1)

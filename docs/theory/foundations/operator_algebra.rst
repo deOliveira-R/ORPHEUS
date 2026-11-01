@@ -3013,7 +3013,10 @@ Numerical evidence
 
 * ``tests/gates/numerics/test_linear_combination.py``
   (``foundation``; 39 functions, 40 rows, each declaring the rows it rests
-  on): `[M]` 2026-10-20 on the worktree, 40 of 40 pass, with the 10 LD
+  on, at the count below; since layer DAG Phase 2 its five S\ :sub:`N`
+  rows, c33, c34, c35, c37 and c40, are
+  ``tests/gates/sn/operators/test_linear_combination_sn.py``): `[M]`
+  2026-10-20 on the worktree, 40 of 40 pass, with the 10 LD
   broadcast rows beside them (50 of 50, ``python -O -m pytest``). On the
   tree before S2, 29 of the 40 were red and 11 green; the 11 green rows
   are the contracts the carve had to keep (the fold, the word's
@@ -7420,9 +7423,20 @@ pencil**
    content is the type's own foundation suite
    (tests/gates/numerics/test_pencil.py: at(0) is the lhs object, at(σ) is the
    affine combination bit-identically in matrix form, .H is the pair of
-   adjoints, rhs_rank counts the finite spectrum), plus the closed-form
-   reference row k_inf == trace(A⁻¹F) against
-   kinf_and_spectrum_homogeneous.
+   adjoints on the counting pose AND G⁻¹(A − σF)ᵀG on a weighted one-axis
+   space whose Gram is not a scalar, rhs_rank counts the finite spectrum
+   over 8 cases of ranks 0, 1 and 2).  The closed form k_inf ==
+   trace(A⁻¹F) is not a row of this suite: the k_inf pin is
+   tests/gates/homogeneous/test_kinf_exact_reference.py
+   (test_kinf_is_the_exact_eigenvalue_within_the_derived_bound), the
+   homogeneous k_inf against its exact rational value, which a 1e-12
+   relative offset on k_inf reddens in 8 of 8 cases.  A trace row against
+   kinf_and_spectrum_homogeneous was retired as dominated (History, layer
+   DAG Phase 2): of the three battery arms that reddened its 3 ids (that
+   offset, a transposed as_matrix, an ends check that always refuses),
+   the first reddens the exact-reference row and the other two redden
+   surviving numerics law rows (the layer DAG Phase 2 spec's
+   battery/table.txt).
 .. vv-status: pencil-family documented
 
 .. math::
@@ -7450,7 +7464,17 @@ F`, and :attr:`~orpheus.numerics.pencil.OperatorPencil.rhs_rank` reports
 :math:`r`.  Measured on the shipped 0-D fixtures: :math:`r = 1` for every
 group count of the fissile ``A`` family (the energy dyad :math:`|\chi\rangle
 \langle\nu\Sigma_f|` is rank one) and :math:`r = 0` for ``B``/``C``/``D``,
-which carry no :math:`\nu\Sigma_f` — 12 mixtures, a two-sided reading.
+which carry no :math:`\nu\Sigma_f`.  Those twelve mixtures are not twelve
+cases for the rank law, which reads :math:`F` alone: at a fixed group
+count the three non-fissile mixtures hand it one input, the zero matrix.
+The pencil's gate (``tests/gates/numerics/test_pencil.py``,
+``TestLawTheRank``) is therefore posed on numerics data, not on the
+mixtures: one non-fissile and one fissile pencil at 1, 2 and 4 groups
+(ranks 0 and 1), plus a pencil with two independent emission dyads at 2
+and 4 groups (rank 2, a rank no shipped mixture reaches) — 8 cases, a
+three-sided reading.  A rank that saturates at one,
+``min(1, rank)``, reddens exactly the two rank-2 cases (``[M]`` the layer
+DAG Phase 2 spec's mutation battery).
 The rank-one case has a closed form,
 
 .. math::
@@ -7458,13 +7482,18 @@ The rank-one case has a closed form,
    k_\infty \;=\; \operatorname{tr}\!\bigl(A^{-1}F\bigr)
    \;=\; \langle \nu\Sigma_f,\; A^{-1}\chi\rangle ,
 
-which the pencil's own gate uses as its structurally-independent
-reference (``[M]`` bit-exact against
+which agrees with
 :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`
-at 1g and 2g; at 4g the two differ by **one ulp** — absolute
-:math:`2.2\times10^{-16}` on :math:`k_\infty = 1.4878`, i.e. relative
-:math:`1.5\times10^{-16}` — so the row is pinned at ``rtol=1e-13``, never
-``array_equal``).  On a meshed S\ :sub:`N` Problem the same query is the
+bit for bit at 1g and 2g and to **one ulp** at 4g (``[M]`` at the
+consumers campaign's step 2: absolute :math:`2.2\times10^{-16}` on
+:math:`k_\infty = 1.4878`, relative :math:`1.5\times10^{-16}`).  The
+pencil gate does not carry that comparison.  The :math:`k_\infty` pin is
+``tests/gates/homogeneous/test_kinf_exact_reference.py::test_kinf_is_the_exact_eigenvalue_within_the_derived_bound``,
+which holds the homogeneous :math:`k_\infty` to its exact rational value
+within a derived forward-error bound (``[M]`` layer DAG Phase 2 spec:
+:math:`k_\infty \times (1 + 10^{-12})` reddens it in 8 of 8 cases, and
+a trace row pinned at ``rtol=1e-13`` in 3 of 3).  On a
+meshed S\ :sub:`N` Problem the same query is the
 count of **fissile cells**: ``[M]`` the seedless two-region slab anchor
 (four fuel cells of mixture ``A``, four of the non-fissile ``B``, 160
 degrees of freedom) reads ``pencil.rhs_rank == 4``.
@@ -7873,8 +7902,10 @@ algebra:
    discrepancy would be a category error.
 
    ⚠ Those two figures are a **recorded** measurement, not a gated one —
-   they come from the C3b verification design and are restated in the
-   module docstring of ``tests/gates/numerics/test_posing.py``.  No row asserts
+   they come from the C3b verification design (§D.3 of its C3 delta), and
+   this page is their only tracked carrier: the posing gate
+   ``tests/gates/numerics/test_posing.py`` is posed on numerics data alone
+   and does not restate them.  No row asserts
    them, precisely because a residual is a property of mesh × quadrature ×
    tolerance; what IS gated is the theorem underneath, that the Rayleigh
    quotient at the **exact** eigenpair equals the eigenvalue for *any*
@@ -7940,11 +7971,20 @@ The gates, and what each one can see:
    * - gate
      - what it pins
    * - ``tests/gates/numerics/test_pencil.py``
-     - the ends law (both the coarse and the **sharp** equal-shape pair),
-       ``at(0) is lhs``, the affine combination, the affine increment,
-       ``.H`` as the pair of adjoints, ``rhs_rank`` over 12 mixtures, the
-       closed-form :math:`k_\infty = \operatorname{tr}(A^{-1}F)`
-       reference, and the opaque (CP-shaped) pair
+     - on a pencil built from numerics objects alone
+       (``tests/gates/numerics/_energy_pencil.py``, the energy axis with
+       no S\ :sub:`N` or homogeneous object): the ends law (both the
+       coarse and the **sharp** equal-shape pair), ``at(0) is lhs``, the
+       affine combination, the affine increment, ``.H`` as the pair of
+       adjoints, ``.H`` reading the metric on a weighted space
+       (``test_law_H_reads_the_metric_on_a_weighted_space``:
+       :math:`\mathcal{A}(1)^{\dagger} = G^{-1}(A - F)^{\mathsf T}G \ne
+       (A - F)^{\mathsf T}` on a non-scalar diagonal Gram), ``rhs_rank``
+       over 8 cases of ranks 0, 1 and 2, and the opaque (CP-shaped) pair.
+       The closed-form :math:`k_\infty` pin is
+       ``tests/gates/homogeneous/test_kinf_exact_reference.py``; the hub
+       identity ``hub.pencil.lhs is hub.system.loss`` is the S\ :sub:`N`
+       row below
    * - ``tests/gates/numerics/test_posing.py``
      - the Rayleigh quotient at the **exact** eigenpair with two weights
        (a theorem at the solution, not a tolerance), the vanishing
@@ -7956,7 +7996,10 @@ The gates, and what each one can see:
        ``SNProblem(...) → .system → .pencil → .eigen_posing``, over a chain
        held as an explicit LIST of nine callables so a rename cannot
        silently empty the loop; plus the identity half — two content-equal
-       hubs pose equal records, and each hub's members are its own
+       hubs pose equal records, and each hub's members are its own; and
+       the coupled state's space (``TestLawTheCoupledStateKnowsItsSpace``):
+       a source lives on the pencil's domain on a slab and on a carrying
+       sphere, and a source from another hub is refused at the posing
    * - ``tests/gates/numerics/test_estimators_as_functionals.py``
      - (since 2026-09-14) that
        :meth:`~orpheus.numerics.iteration.KEigenvalue.compute_keff` **is**
@@ -8406,12 +8449,19 @@ kernel:
    tests/gates/numerics/test_kernel_projection_gauge.py on a 9-dof space
    with a non-uniform metric (idempotence of Π and of σ, G-self-adjointness,
    the Euclidean transpose differing from Π, range = span, σ ⊥_G ker,
-   minimum norm, residual neutrality, the overlap rule), plus the S_N
-   production instances in tests/gates/numerics/test_gauge.py::
-   TestLawTheKernelGauge (Π² = Π, (I − Π)² = I − Π, Γ-invariance with the
-   element drawn from Π's own range on the trace space, residual
-   neutrality, and the negative leg showing a NON-kernel move IS visible in
-   the residual).
+   minimum norm, residual neutrality with its off-kernel negative control,
+   the overlap rule), plus the S_N production instance, the hub's
+   loss_kernel_gauge (a KernelProjectionGauge whose generators S_N
+   supplies), in tests/gates/sn/operators/test_loss_kernel_gauge.py:
+   test_it_is_an_idempotent_G_self_adjoint_projector,
+   test_gauging_cannot_move_any_convergence_check, and
+   test_the_rebuilt_gauge_agrees_with_the_retired_class_within_the_declared_rebaseline
+   (which also asserts the instance IS a KernelProjectionGauge).
+   Γ-invariance, σ(x + v) = σ(x) for v in range Π, is not a separate row:
+   σ(x + v) − σ(x) = v − Πv, so it holds exactly when Π fixes its range,
+   which the numerics row
+   test_the_range_is_the_span_of_the_given_columns_and_the_dimension_is_its_rank
+   asserts.
 .. vv-status: kernel-gauge-section documented
 
 .. math::
@@ -8819,12 +8869,22 @@ satisfies it structurally, with no inheritance, for two reasons:
 :mod:`orpheus.numerics.gauge` ranks below the realization in the
 numerics concept order and never imports it, so the protocol is the
 contract a result type
-(:class:`~orpheus.numerics.outcome.SourceOutcome`) names; and a test
-double (``_TrivialKernelGauge`` in ``tests/gates/numerics/test_outcome.py``)
-may stand in for it.  ``dimension == 0`` is the honest answer for a
-configuration with no freedom: the empty direct sum makes ``gauge`` the
-identity, so **no caller needs a null branch**, which is the same "a
-value, not an absence" move the exit report makes below.
+(:class:`~orpheus.numerics.outcome.SourceOutcome`) names.  No test
+double stands in for it: a configuration with no freedom carries the
+trivial prediction
+:meth:`PredictedKernel.trivial(space, because)
+<orpheus.numerics.fredholm.PredictedKernel.trivial>` on its posing (the
+pencil's ``kernel``, which ``SourcePosing.of_pencil`` reads), and
+``SourceOutcome.gauge`` reads the posing's kernel's projector, a
+``KernelProjectionGauge`` over the empty direct sum.  Its
+``dimension == 0`` is the honest answer: the empty direct sum makes
+``gauge`` the identity, so **no caller needs a null branch**, which is
+the same "a value, not an absence" move the exit report makes below.
+The numerics outcome gate exercises this case: its fixture's pencil
+predicts a trivial kernel for a reason the fixture checks on its own data
+(the loss is lower-triangular with a positive diagonal), and the
+source-outcome row of ``tests/gates/numerics/test_outcome.py`` asserts
+``out.gauge.dimension == 0``.
 
 .. _fredholm-posing-verdict:
 
@@ -10262,24 +10322,41 @@ full account, including the shape gotcha that makes the state the posed
 :math:`(n_g, 1)` column, is at
 :ref:`homogeneous-rates-and-normalisation`.
 
-.. list-table:: What U1 gated
+.. list-table:: What the gauge and outcome gates pin
    :header-rows: 1
    :widths: 36 64
 
    * - gate
      - what it pins
    * - ``tests/gates/numerics/test_gauge.py``
-     - both realizations' defining laws — lands-on-target, idempotence
-       (``allclose``, deliberately not bit-equal), Γ-invariance (for the
-       kernel gauge with the element drawn from :math:`\Pi`'s own range
-       on the trace space), residual-neutrality, the sign leg, the
-       zero-reading refusal, and the negative law that two functionals
-       give distinguishable sections
+     - the scale gauge's defining laws, on the numerics energy pencil with
+       the rate functional a co-vector's ``evaluate`` — lands-on-target,
+       idempotence (``allclose``, deliberately not bit-equal),
+       Γ-invariance under the scale group, the sign leg, the zero-reading
+       refusal, and the negative law that two functionals give
+       distinguishable sections
+   * - ``tests/gates/numerics/test_kernel_projection_gauge.py`` and
+       ``tests/gates/sn/operators/test_loss_kernel_gauge.py``
+     - the kernel gauge's defining laws: the numerics realization on a
+       non-uniform metric (idempotence, :math:`G`-self-adjointness,
+       range = span, :math:`\sigma \perp_G \ker`, minimum norm,
+       residual neutrality with an off-kernel negative control), and the
+       S\ :sub:`N` hub's production instance (an idempotent
+       :math:`G`-self-adjoint projector, residual neutrality over every
+       convergence check, agreement with the retired class within the
+       declared re-baseline)
    * - ``tests/gates/numerics/test_outcome.py``
      - the kind parse in both directions, the trajectory co-indexing law,
        the absence of ``keff``/``lam``/``adjoint_posing`` on a
-       ``SourceOutcome``, the ``Evidence`` sum's closedness under
-       ``assert_never``, and ``CoupledField.space``
+       ``SourceOutcome`` and its gauge read off the posing's predicted
+       kernel, the ``Evidence`` sum's closedness under ``assert_never``,
+       and the ends law of a source (``TestLawTheSourceLivesOnTheOperatorsEnds``:
+       a source on the codomain is admitted, one on an equal-shape foreign
+       energy space is refused at the posing)
+   * - ``tests/gates/sn/architecture/test_posing.py``
+     - ``CoupledField.space`` (``TestLawTheCoupledStateKnowsItsSpace``):
+       the coupled state's space is the pencil's domain, and a source from
+       another hub is refused at the posing
    * - ``tests/gates/homogeneous/test_homogeneous_outcome.py``
      - the infinite medium's outcome — ``k_inf`` IS the outcome's λ, the
        flux is a **view** of the posed column, the recorded section lands
@@ -10762,7 +10839,8 @@ Verification status
 --------------------
 
 The discriminating gate for the canonical-loop refactor is
-``tests/gates/numerics/test_iteration.py::test_keigenvalue_matches_solve_sn_2g_slab``:
+``tests/gates/sn/eigenvalue/test_keigenvalue_on_the_sn_triple.py::test_keigenvalue_matches_solve_sn_2g_slab``
+(an S\ :sub:`N` row, so it lives with the S\ :sub:`N` eigenvalue gates):
 it stays green after
 :class:`~orpheus.numerics.iteration.KEigenvalue` delegates to
 :func:`~orpheus.numerics.eigenvalue.power_iteration`. This is the
@@ -11075,6 +11153,31 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-11-01
+     - **The numerics law gates are posed on numerics data alone**
+       (Phase 2 of ``.claude/plans/layer_dag.md``, ruling 40). The pencil,
+       posing, outcome and gauge gates stay in ``tests/gates/numerics/``
+       and are re-based on ``tests/gates/numerics/_energy_pencil.py``, a
+       pencil on the energy axis alone whose predicted kernel is trivial
+       for a reason it checks on its data; their S\ :sub:`N` rows went to
+       the S\ :sub:`N` gates. Retired as dominated, each with its twin
+       measured by the spec's mutation battery: the five
+       ``TestLawTheKernelGauge`` rows on the S\ :sub:`N` hub's
+       gauge (twins in ``tests/gates/numerics/test_kernel_projection_gauge.py``
+       and ``tests/gates/sn/operators/test_loss_kernel_gauge.py``); the
+       three :math:`k_\infty = \operatorname{tr}(A^{-1}F)` rows against
+       ``kinf_and_spectrum_homogeneous`` (twin
+       ``tests/gates/homogeneous/test_kinf_exact_reference.py``); and six
+       copies in the rank grid, whose three non-fissile mixtures were one
+       input to the rank law (12 ids became 8, adding rank 2). Added: the
+       metric-reading adjoint row on a weighted space, and the source's
+       ends law. The adjointability census over every method's operators
+       moved to ``tests/gates/test_adjointability_is_honest.py``, the
+       numerics operators' rows staying in the numerics file. The
+       verification of :eq:`kernel-gauge-section` and :eq:`pencil-family`
+       is re-cited accordingly at each equation.
+     - —
+     - *(in development)* ``test/layer-dag-2``
    * - 2026-10-31
      - **The predicted kernel is checked by a measured near-kernel**
        (unit U3b of ``.claude/plans/space_membership_covector_gauge.md``,
@@ -11339,7 +11442,9 @@ the cheapest tell.
        ``InverseWrapMixin``; the Green's dual is the Green of the dual
        sum, and its ``.H`` is the base's (no override). A first attempt that kept one flag broke every
        fission adjoint and was caught in review (ERR-117). Pinned by
-       ``tests/gates/numerics/test_adjointability_is_honest.py``. See
+       ``tests/gates/numerics/test_adjointability_is_honest.py`` (its
+       census over every method's operators is, since layer DAG Phase 2,
+       ``tests/gates/test_adjointability_is_honest.py``). See
        :ref:`operator-adjoint-two-questions`.
      - #614, #616
      - ``[LANDED 31f14c93]``

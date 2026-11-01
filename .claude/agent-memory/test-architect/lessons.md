@@ -719,3 +719,10 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   map `NᴴM⁻ᴴ`** (same spectrum, eigenvectors `Mᴴ ker Aᴴ`); and a route measured with dense surrogates owes one run through
   the production doors (`M.inverse().H` does not exist on d ≥ 2) before any row rests on it. `onenormest(t≥2)` mutates the
   global RNG. → `L123`
+
+## Layer DAG Phase 2 refresh (2026-11-01) — extends `retirement-audit` C.12 and `instrument-doctrine` X1 (a control per predicate)
+
+- **⛔ A landing check for moved test files runs every predicate of the gate it must pass, not the one you know** (the
+  test-layer gate also refuses string imports); and a split tool that prunes private names drops side-effect classes
+  (registry subclasses): diff the remainder's class set. → `L124`
+

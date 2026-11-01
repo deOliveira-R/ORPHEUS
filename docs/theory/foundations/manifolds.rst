@@ -800,7 +800,11 @@ unavailable, only unasked; a hard-coded f-string is exactly the shape
 that cannot be contradicted by the object sitting beside it. The durable
 gate is therefore not *"the name is right"* — which any self-consistent
 lie satisfies — but *"the two halves of one frame name ONE manifold"*
-(``tests/gates/numerics/test_basis_domain.py::test_d6``).
+(``tests/gates/numerics/test_basis_domain.py::test_d6`` for the numerics
+producers; the mesh's pair in
+``tests/gates/mesh/test_mesh_yields_an_indicator_basis.py::test_the_mesh_frames_two_halves_name_one_manifold``
+and the energy grid's in
+``tests/gates/data/test_energy_grid.py::test_the_energy_grids_frame_halves_name_one_manifold``).
 
 ⭐ And assigning the type was itself a census: `[M]` it immediately
 separated two manifolds the string tag ``"energy"`` had conflated — the
@@ -10714,7 +10718,9 @@ executes it. Every row is ``@pytest.mark.foundation`` and none carries
    used above). Section D pins ``domain`` — every shipped basis answers,
    a basis that cannot say what it eats **cannot be constructed**, and
    the flagship ``test_d6`` pins *"the two halves of one frame name ONE
-   manifold"*. Section E pins ``invariance_group``
+   manifold"* for the numerics producers (the mesh's and the energy
+   grid's pairs are rows of ``tests/gates/mesh/`` and
+   ``tests/gates/data/``, cited above). Section E pins ``invariance_group``
    (:ref:`manifold-basis-invariance-group`). Every row there is
    ``@pytest.mark.foundation`` for the same reason as this module's:
    these are the type's own laws, not an L0–L3 claim about a flux.

@@ -268,7 +268,8 @@ def test_b4_a_block_entry_pins_the_kernel_and_none_of_its_consumers(tmp_path) ->
 
 # ── B5: an edit misses exactly where the block ran (on a copy of the tree) ──
 
-from tests.gates.numerics.test_traced_memo_clients import _copy_tree, _neutral_edit  # noqa: E402
+from tests.gates.derivations.test_traced_memo_clients import _copy_tree, _neutral_edit  # noqa: E402
+from tests.gates.numerics.test_traced_memo_source_index import _fresh, _generating  # noqa: E402
 
 _LOOKUP_DRIVER = textwrap.dedent("""
     import os, sys
@@ -280,7 +281,7 @@ _LOOKUP_DRIVER = textwrap.dedent("""
         import orpheus.numerics.traced_memo as memo
         memo.validate = lambda manifest, store=None: ()
     from tests.gates.derivations.test_characteristic_block_memo import _BLOCKS
-    from tests.gates.numerics.test_traced_memo_clients import _tiny_characteristic_sphere
+    from tests.gates.derivations.test_traced_memo_clients import _tiny_characteristic_sphere
     from orpheus.derivations.continuous.characteristic.assembly import group_transport
     from orpheus.numerics.observable import PointValue
     from orpheus.numerics.traced_memo import cache_root
@@ -481,3 +482,54 @@ def test_b6_a_system_on_served_blocks_is_the_in_process_system(tmp_path) -> None
         fresh_k, fresh_t = fresh.pencil.fundamental().k, fresh.transport
     _require(served_t.tobytes() == fresh_t.tobytes(), "the transport matrices differ")
     _require(float(served_k).hex() == float(fresh_k).hex(), f"k {served_k!r} vs {fresh_k!r}")
+
+
+# ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
+
+
+_B3 = "tests/gates/numerics/test_traced_memo_source_index.py::test_b3_def_pin_from_the_index_is_def_pin_from_the_tree"
+
+
+@pytest.mark.rests_on(_B3)
+def test_b5_a_real_manifest_is_the_same_from_a_cold_and_a_warm_index(tmp_path, monkeypatch):
+    """B5: one recording of five cheap characteristic blocks makes the same manifest with an empty index
+    directory (every index parsed and written) and with the indexes it wrote (every index read, 0 parses).
+    First red: an index that does not survive the disk."""
+    memo = api.module()
+    from orpheus.numerics import _traced_memo_boot as boot
+    import numpy as np
+
+    from orpheus.derivations.continuous.characteristic import PanelBasis, TransportResolution, Wall, Walls
+    from orpheus.derivations.continuous.characteristic.assembly import group_transport
+    from orpheus.geometry.chart import Chart
+    from orpheus.geometry.chord import ConcentricPartition
+    from orpheus.geometry.coord import CoordSystem
+    from orpheus.specification.exterior import WallAmplitudes
+
+    sphere = CoordSystem.SPHERICAL
+    walls = lambda n: Walls((Wall(n, WallAmplitudes.WHITE, n),), n, Chart(sphere))  # noqa: E731
+    cases = [(PanelBasis.of(ConcentricPartition(Chart(sphere), (0.0, 1.0)), 3, 2, 0.4), walls(1), (0.7 + 0.01 * k,), TransportResolution(4)) for k in range(3)]
+    cases += [(PanelBasis.of(ConcentricPartition(Chart(sphere), (0.0, 0.5, 1.5, 2.0)), 3, 2, 0.4), walls(3), (0.6 + 0.01 * k, 1.3, 0.45), TransportResolution(4)) for k in range(2)]
+    recording = boot.Recording().start()
+    try:
+        with api.bypass():
+            for case in cases:
+                group_transport(*case, np.asarray(case[2]) > 0)
+    finally:
+        recording.stop()
+    monkeypatch.setattr(memo, "_SOURCE_INDEXES", tmp_path / "sources")
+    _generating(memo, monkeypatch)
+    store = memo.Store(tmp_path / "store")
+    _fresh(memo)
+    cold = memo._manifest(recording, store)
+    written = sorted((tmp_path / "sources").glob("*.json"))
+    _fresh(memo)
+    parses: list[int] = []
+    real_parse = ast.parse
+    monkeypatch.setattr(ast, "parse", lambda *a, **k: (parses.append(1), real_parse(*a, **k))[1])
+    warm = memo._manifest(recording, store)
+    monkeypatch.setattr(ast, "parse", real_parse)
+    _fresh(memo)
+    assert len(cold.functions) > 50 and written, (len(cold.functions), len(written))
+    assert parses == [], f"a warm index directory still parsed {len(parses)} files"
+    assert (set(cold.functions), set(cold.modules)) == (set(warm.functions), set(warm.modules))

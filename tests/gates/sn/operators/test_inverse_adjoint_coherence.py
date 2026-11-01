@@ -399,7 +399,7 @@ def test_the_inverse_family_reads_one_transposed_solve_predicate():
     all adjointable. Re-posed from ``test_predicate_flip_is_surgical``, which
     pinned ``InverseOperator`` and ``GreenOperator`` non-adjointable "(no
     reverse-scan)": on this slab the reverse scan exists, so that premise was
-    false, and the two flags lied (``tests/gates/numerics/test_adjointability_is_honest.py``
+    false, and the two flags lied (``tests/gates/test_adjointability_is_honest.py``
     holds the same law across the registry, with the 2-D refusals).
     """
     sn = _slab()

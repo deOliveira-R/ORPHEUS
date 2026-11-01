@@ -467,7 +467,7 @@ class LossRepresentation(Protocol):
         reading the walk factor for the inverse made
         ``SweepOperator.is_adjointable`` ``True`` on every 2-D pose while
         ``S.H.apply`` raised (`[M]` 2026-10-18,
-        ``tests/gates/numerics/test_adjointability_is_honest.py``), which is
+        ``tests/gates/test_adjointability_is_honest.py``), which is
         why the two capabilities are separate traits.
         """
         ...

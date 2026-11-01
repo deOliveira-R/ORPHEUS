@@ -41,7 +41,6 @@ from orpheus.numerics.coefficient_layout import PolynomialLayout, TensorLayout
 
 pytestmark = [pytest.mark.foundation]
 
-_THIS = "tests/gates/numerics/test_interval_legendre_basis.py"
 _XI = sp.Symbol("xi", real=True)
 _COUNTS = (1, 2, 3, 4, 5)        # n = 1 (DD/Step), 2 (LD), 3..5 (the family's laws are n-general)
 _DIMS = (1, 2, 3)
@@ -334,48 +333,8 @@ def test_the_face_of_a_one_factor_product_is_refused() -> None:
         spatial_moment_basis(2, 1).face(0)
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_endpoint_values_are_plus_minus_one_to_the_degree")
 
 
-def test_the_ubld_face_terms_are_the_hand_tables() -> None:
-    r"""The UBLD assembler's face terms, read off the basis, are the LD hand tables.
-
-    At d = 1, unit width, unit :math:`|\mu|`: the downstream-face matrix is
-    ``outer(B(+1), B(+1)) = [[1, 1], [1, 1]]`` and the inflow of a unit
-    upstream face is ``B(-1) = [1, -1]`` (Larsen and Morel 1989, the LD face
-    traces; typed here). Bit-exact: products of ±1. Since the moment-basis
-    carve the assembler reads these from ``endpoint_values``, so this row is
-    the production pin; the endpoint row above is the basis-side law.
-    """
-    from orpheus.transport.spatial._ubld import assemble_inflow_axis, assemble_ubld
-
-    one = [np.ones(())]
-    basis = spatial_moment_basis(2, 1)
-    np.testing.assert_array_equal(assemble_ubld(one, one, np.zeros(()), basis)["F_out"], np.array([[1.0, 1.0], [1.0, 1.0]]))
-    np.testing.assert_array_equal(assemble_inflow_axis(one, one, 0, np.ones(1), basis), np.array([1.0, -1.0]))
-
-
-@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_endpoint_values_are_plus_minus_one_to_the_degree")
-
-
-def test_the_streaming_table_and_the_face_traces_satisfy_integration_by_parts() -> None:
-    r"""``G + Gᵀ = −(B(+1)B(+1)ᵀ − B(−1)B(−1)ᵀ)`` for the hand-tabulated UBLD streaming table ``G``.
-
-    ``_GRAD_1D`` is :math:`-\int_{-1}^{1} \partial_\xi B_i\, B_j \,\mathrm d\xi`
-    for :math:`B = (P_0, P_1)`, typed by hand (the interval basis holds no
-    derivative pairing); integration by parts ties it to the endpoint values
-    the face terms read. Bit-exact: small integers. Tooth: a sign or a slot of
-    the hand table changed.
-    """
-    from orpheus.transport.spatial._ubld import _GRAD_1D
-
-    b = IntervalLegendreBasis(2)
-    plus, minus = b.endpoint_values(1), b.endpoint_values(-1)
-    np.testing.assert_array_equal(_GRAD_1D + _GRAD_1D.T, -(np.outer(plus, plus) - np.outer(minus, minus)))
-    # and one entry against SymPy, so the identity cannot hold for a wrong antisymmetric part
-    xi = sp.symbols("xi")
-    g10 = -sp.integrate(sp.diff(xi, xi) * 1, (xi, -1, 1))
-    assert float(g10) == _GRAD_1D[1, 0]
 
 
 @pytest.mark.parametrize("axis", (-1, 2, 5))
@@ -393,31 +352,17 @@ def test_an_axis_outside_the_product_is_refused(axis: int) -> None:
         b.face_dimension(axis)
 
 
-def _hand_octant_signs(octant: tuple[int, ...]) -> np.ndarray:
-    r"""The sign of slot ``[o_0, ..., o_{d-1}]`` is :math:`\prod_a \mathrm{octant}[a]^{o_a}`, decoded by hand, axis 0 outermost."""
-    d = len(octant)
-    signs = np.ones(2 ** d)
-    for flat in range(2 ** d):
-        for a in range(d):
-            if (flat >> (d - 1 - a)) & 1 and octant[a] < 0:
-                signs[flat] = -signs[flat]
-    return signs
-
-
 @pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_parity_is_the_mirrors_action", "tests/gates/numerics/test_interval_legendre_basis.py::test_the_kronecker_order_is_the_recorded_one")
 @pytest.mark.parametrize("d", _DIMS)
-def test_the_reflection_signs_are_the_mirrors_action_and_the_octant_frame_map(d: int) -> None:
-    r"""``reflection_signs(mirrored)`` is the action of :math:`\xi_a \mapsto -\xi_a`, and equals ``octant_moment_frame_signs``.
+def test_the_reflection_signs_are_the_mirrors_action(d: int) -> None:
+    r"""``reflection_signs(mirrored)`` is the action of :math:`\xi_a \mapsto -\xi_a` (THEOREM).
 
-    Leg 1 (THEOREM): ``evaluate(M x) == evaluate(x) * signs`` bitwise for every
-    mirror subset (sign flips are exact). Leg 2 (REFERENCE):
-    ``octant_moment_frame_signs(octant, 2)``, which since S3 reads
-    ``reflection_signs``, equals the hand Kronecker decode it replaced
-    (:func:`_hand_octant_signs`, axis 0 outermost) for all :math:`2^d` octants.
-    Tooth: the decode with axis 0 innermost (d >= 2), ``SITE_ARM=kron_decode_144``.
+    ``evaluate(M x) == evaluate(x) * signs`` bitwise for every mirror subset (sign
+    flips are exact). The octant frame map that reads these signs is transport's
+    (``octant_moment_frame_signs``); its row is
+    ``tests/gates/transport/spatial/test_ubld_reads_the_interval_basis.py::test_the_octant_frame_map_is_the_reflection_signs``
+    (split here by the layer DAG Phase 2 refresh, ``specs_2r`` §5).
     """
-    from orpheus.transport.spatial._ubld import octant_moment_frame_signs
-
     x = np.random.default_rng(d).uniform(-1.0, 1.0, (19, d))
     for n in (2, 3, 4):
         # n >= 3 separates the parity (-1)^k from "flip every nonzero degree" (the
@@ -427,8 +372,6 @@ def test_the_reflection_signs_are_the_mirrors_action_and_the_octant_frame_map(d:
             mirrored = tuple(s < 0 for s in octant)
             signs = b.reflection_signs(mirrored)
             np.testing.assert_array_equal(b.evaluate(x * np.array(octant, dtype=float)), b.evaluate(x) * signs)
-    for octant in product((1, -1), repeat=d):
-        np.testing.assert_array_equal(octant_moment_frame_signs(octant, 2), _hand_octant_signs(octant))
 
 
 def test_the_tensor_layout_is_the_kronecker_of_its_factors() -> None:

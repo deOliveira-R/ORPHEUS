@@ -971,7 +971,12 @@ characteristic import loads, the new owner equals the old on 473; the one
 that moved is ``sphinxcontrib/tikz.py`` (``scratch/characteristic_architecture/p3/m602/fix/d1_probe.py``).
 The gates are ``tests/gates/numerics/test_traced_memo_ownership.py`` (D1
 to D8 and D2b; D1 checks each owner against the standard library's own ``RECORD``
-reader, an independent route).
+reader, an independent route, over the site files that importing the
+libraries a characteristic block reaches loads: h5py, mpmath, numpy,
+``scipy.integrate``, ``scipy.sparse``, ``scipy.special`` and sympy, a
+numerics-level population equal to the one importing the block itself
+loads (0 files in one and not the other, ``[M]`` the layer DAG Phase 2
+spec, 2026-11-01).
 
 **A source file is pinned relative to the** ``sys.path`` **entry that
 holds it**, so validation finds the file the same import would load now;
@@ -1868,7 +1873,11 @@ lookup.
 The gates and their witnesses
 -----------------------------
 
-The rows are ``tests/gates/numerics/test_traced_memo_source_index.py``.
+The rows are ``tests/gates/numerics/test_traced_memo_source_index.py``,
+except B5, which reads a real manifest of characteristic blocks and is
+therefore a derivations row,
+``tests/gates/derivations/test_characteristic_block_memo.py``
+``::test_b5_a_real_manifest_is_the_same_from_a_cold_and_a_warm_index``.
 B1 to B4 compare the index production builds with a parse the test makes
 for itself (the docstring strip, the outermost-def walk, the skeleton and
 the digests re-spelled from their definitions, and, for B3 and B4, the
@@ -3732,7 +3741,7 @@ its child pin; an edit to the cylinder's rays, which a sphere reading
 never ran, left both valid; a constant in the reading module's skeleton
 made the reading stale. Since P1 step (e2) the witnesses are re-posed on
 the characteristic reading (``test_m4_4c_…`` in
-``tests/gates/numerics/test_traced_memo_clients.py``): an edit to the
+``tests/gates/derivations/test_traced_memo_clients.py``): an edit to the
 wall reader ``_wall_at_face`` makes the reading stale, an edit to the polar
 rule of another chart leaves it valid, and a constant in the reading
 module makes it stale.

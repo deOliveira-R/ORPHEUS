@@ -437,7 +437,7 @@ def _l2_norm(x) -> float:
 # no diagnostics, as before). The norm CONVENTION (interior-leaf space
 # ``l2``, not the whole-composite flat norm) lives with its chooser,
 # ``Composite.principal_bulk_leaf``, and is pinned by
-# :mod:`tests.gates.numerics.test_si_diagnostic_trajectory`.
+# :mod:`tests.gates.sn.solve.test_si_diagnostic_trajectory`.
 
 
 # ───────────────────────────────────────────────────────────────────────

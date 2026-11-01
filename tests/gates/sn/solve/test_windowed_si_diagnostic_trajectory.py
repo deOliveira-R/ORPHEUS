@@ -6,7 +6,7 @@ is the ONLY production consumer of the angular moment space's metric —
 (``scratch/_step6_2c/p6_traffic.py``): **6 `norm` + 6 `inner_product` calls on
 the moment `TensorProductSpace`, and ZERO `apply_metric` calls**, reached from
 ``solver.py:3823 ← iteration.py:801 ← field.py:379``.  And the tree's one pin of
-that diagnostic, ``tests/gates/numerics/test_si_diagnostic_trajectory.py``, REFUSES a
+that diagnostic, ``tests/gates/sn/solve/test_si_diagnostic_trajectory.py``, REFUSES a
 windowed fixture by construction (its ``:245-247`` raises *"the 1-D slab
 windowed the SI iterate — windowing is 2-D Cartesian"*).  So the moment
 metric's effect on the recorded ρ trajectory was seen by **nothing**.

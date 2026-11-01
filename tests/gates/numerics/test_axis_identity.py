@@ -193,26 +193,8 @@ def test_LB_iii_a_spatial_frame_measure_axis_is_labelled_spatial():
     assert [ax.label for ax in vs.axes] == ["spatial"]
 
 
-def _gauge_production():
-    """The production gauge on the reflective 3x4 box (test_loss_kernel_gauge's fixture): since U0 the hub's
-    predicted kernel's projector, on the full field."""
-    from tests.gates.sn.operators.test_loss_kernel_gauge import _R, _mesh
-    return _mesh((3, 4), [(_R, _R)] * 2).loss_kernel_gauge
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_kernel_projection_gauge.py::TestTheSummandBasis")
-def test_LB_i_iv_the_gauge_gather_codomain_is_the_projector_domain():
-    """(i) one space by construction; (iv) labelled with the index set's own name. Since U3 the summands are
-    minted by the numerics ``KernelProjectionGauge.direct_sum``; this is its SN production instance."""
-    blocks = _gauge_production().summands
-    assert blocks, "PREMISE: the gauge has summands"
-    for blk in blocks:
-        assert blk.gather.codomain is not None and blk.gather.codomain == blk.projector.domain, "(i) gather codomain != projector domain"
-        codomain = blk.gather.codomain
-        assert codomain is not None
-        axes = codomain.axes
-        assert axes is not None and len(axes) == 1, "(iv) the index-set measure space is axis-built"
-        assert axes[0].label == blk.basis.domain.name, f"(iv) label {axes[0].label!r} != {blk.basis.domain.name!r}"
 
 
 def test_LB_v_axis_label_refuses_a_support_with_no_role():
@@ -282,16 +264,6 @@ def test_O3_the_direction_reads_match_FromQuadrature_and_nothing_else():
     assert found == declared, f"extra {sorted(found - declared)}; missing {sorted(declared - found)}"
 
 
-@pytest.mark.parametrize("arm", ["declared", "from_measure"])
-def test_O4_for_space_refuses_a_non_quadrature_axis_naming_itself(arm):
-    """The per-consumer refusal, widened to every non-FromQuadrature arm (improves
-    test_frame_mints_refuse_a_moment_space.py, which builds the generator-less arm only)."""
-    from orpheus.transport.frames import HarmonicFrame
-    q = Quadrature.gauss_legendre(4)
-    ax = (Axis("angular", (q.n_ordinates,), np.asarray(q.weights, float), origin=Declared(BasisKind.NODAL))
-          if arm == "declared" else Axis.of_measure(q.measure, "angular"))
-    with pytest.raises(ValueError, match="HarmonicFrame.for_space needs the generating Quadrature"):
-        HarmonicFrame.for_space(FunctionSpace.of_axes(ax), 1)
 
 
 def test_O5_the_energy_axis_is_Declared_nodal_and_takes_no_origin():
@@ -348,32 +320,8 @@ def test_K1_equality_and_hash_are_defined_once_on_the_base():
     assert "identity_key" in vars(FunctionSpace)
 
 
-def _population():
-    from tests.gates.sn.regression import _generate_snapshots as G
-    from orpheus.sn.solver import _as_problem
-    out = []
-    for c in (G._slab_3region("2g", 6), G._cylinder_3region("2g", 4, "folded_4x6")):
-        p = _as_problem(c["mesh"], c["quadrature"], c["materials"], scattering_order=1, boundary_conditions=G.case_conditions(c))
-        ffs = p.full_field_space
-        out += [ffs, ffs.dual(), ffs.interior_space, ffs.interior_space.dual(), getattr(ffs, "trace_space", None), p.system.space,
-                p.moment_space(1), p.angular_bulk_space]
-        rc = getattr(p, "radial_characteristic_field_space", None)
-        if rc is not None:
-            out += [rc, rc.interior_space]
-    q = Quadrature.folded_product(n_mu=2, n_phi=4)
-    out += [ff.basis_space(ff.angular_frame(q, 2)), FunctionSpace("named", (3,))]
-    return [s for s in out if isinstance(s, FunctionSpace)]
 
 
-def test_K2_eq_and_hash_derive_from_the_identity_key():
-    pop = _population()
-    kinds = {type(s).__name__ for s in pop}
-    assert len(pop) >= 12 and {"FullFieldSpace", "CoupledSpace", "TensorProductSpace", "DualSpace"} <= kinds, kinds
-    for s in pop:
-        assert hash(s) == hash(s.identity_key()), f"{type(s).__name__}: hash is not hash(identity_key)"
-    for a in pop:
-        for b in pop:
-            assert (a == b) == (a.identity_key() == b.identity_key()), f"{type(a).__name__} vs {type(b).__name__}"
 
 
 # ═════════════════════════════════════════════════════════════════════════

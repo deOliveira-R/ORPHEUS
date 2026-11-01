@@ -21,7 +21,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from . import _traced_memo_api as api
+import orpheus  # the repository root is read off the package (any test directory)
+
+from tests.gates.numerics import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
 
@@ -487,6 +489,9 @@ def test_r1_the_key_is_exact_all_the_way_up(make):
             n: int
             label: str = dataclasses.field(default="a", compare=False)
 
+        class Stateless(np.ndarray):
+            """A stateless ndarray subclass: its content is its values and its TYPE."""
+
         @traced_memo
         def anything(x) -> str:
             return type(x).__name__
@@ -499,9 +504,9 @@ def test_r1_the_key_is_exact_all_the_way_up(make):
     key = m.anything.key
     with pytest.raises(ContentlessError):  # its state holds a type, which has no content
         key(np.ma.masked_array(np.array([1.0, 2.0]), mask=np.array([False, True])))
-    from orpheus.data.emission_spectrum import EmissionSpectrum
-
-    assert key(EmissionSpectrum(np.array([0.6, 0.4]))) != key(np.array([0.6, 0.4]))  # a stateless subclass: its type
+    # a stateless subclass: its type (a package-local subclass; until the layer DAG Phase 2 refresh this leg read data's
+    # EmissionSpectrum, a numerics test borrowing a data type for a generic ndarray-subclass case)
+    assert key(np.array([0.6, 0.4]).view(m.Stateless)) != key(np.array([0.6, 0.4]))
     assert key({"fuel": 1, "mod": 2}) != key({"mod": 2, "fuel": 1})
     assert key(FrozenMapping([("fuel", 1), ("mod", 2)])) != key(FrozenMapping([("mod", 2), ("fuel", 1)]))
     plain = sp.csr_matrix(np.array([[1.0, 0.0], [0.0, 0.0]]))
@@ -842,7 +847,7 @@ _SEEDS = ("0", "1", "2", "3", "5", "8", "13")
 def _keys_by_seed(tmp_path: Path, arm: str) -> dict[str, dict[str, str]]:
     script = tmp_path / "seed_probe.py"
     script.write_text(_SEED_PROBE)
-    repo = Path(__file__).resolve().parents[3]
+    repo = Path(orpheus.__file__).resolve().parents[1]
     out: dict[str, dict[str, str]] = {}
     for seed in _SEEDS:
         env = {**os.environ, "PYTHONHASHSEED": seed, "ARM": arm}

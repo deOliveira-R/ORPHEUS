@@ -11470,7 +11470,8 @@ older entries classify against.
    transposed sweep and left the predicates as they are).
 
    **Measured** (`[M]` 2026-10-18, the 47-row registry of
-   ``tests/gates/numerics/test_adjointability_is_honest.py``, every row
+   ``tests/gates/numerics/test_adjointability_is_honest.py``, whose census
+   half is today ``tests/gates/test_adjointability_is_honest.py``, every row
    built and both doors probed, on the tree at ``37dc85e0``):
 
    * ``True`` while a door failed: the 2-D DD and LD sweeps and the 2-D
@@ -11536,8 +11537,14 @@ older entries classify against.
    override was deleted: the gate's witness for the Green row had been
    that override's own body, agreeing to exactly ``0.0``). The rank-one dyad and the Riesz legs keep ``True``.
 
-   **Caught by:** the two legs of
-   ``tests/gates/numerics/test_adjointability_is_honest.py``.
+   **Caught by:** the two legs of the census over every method's operators,
+   ``tests/gates/test_adjointability_is_honest.py`` (at the
+   ``tests/gates/`` root), and leg 1 of
+   ``tests/gates/numerics/test_adjointability_is_honest.py``, which runs
+   the same door check on the numerics operators' own 11 rows (the Riesz
+   legs, the rank-one dyad, the sparse assembled operator, the two unbound
+   inverses and the four frame faces); all three tests carry
+   ``catches("ERR-117")``. Leg 2 is the root's alone.
    ``test_each_transpose_door_opens_iff_predicted`` (``.dual()`` works iff
    ``is_adjointable``; ``.H`` works iff ``is_adjointable`` and ``posed``;
    a refusal is ``MissingAdjoint`` at construction) catches the first
@@ -11545,7 +11552,7 @@ older entries classify against.
    built from the algebra's laws, checked by reciprocity, then the flag
    must read ``True``) catches the second. `[M]` 2026-10-19, by the
    archivist, each arm an in-process patch, both legs called directly over
-   their 49 and 5 non-``xfail`` rows: no mutation, 0 and 0 red; the sweep
+   their 49 and 5 non-``xfail`` rows (one file then): no mutation, 0 and 0 red; the sweep
    flag reading the forward's matvec factors (the old body), leg 1 red on
    ``sn_sweep_cart2d``, ``sn_sweep_ld_2d`` and ``sn_green_cart2d``; the
    inverse family's flag ``False`` (the old default), leg 2 red on 3 of 5

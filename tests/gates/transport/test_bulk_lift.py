@@ -61,6 +61,7 @@ from orpheus.transport.fields import (
     ScalarBoundarySourceSink,
     ScalarSourceSink,
 )
+import orpheus.numerics.assembled_operator as asm
 
 pytestmark = pytest.mark.foundation
 
@@ -323,3 +324,30 @@ class TestAssemblyEmbed:
         # the inner part under the lift's law (S3 review, qa F1).
         with pytest.raises(MissingAssembly, match="BulkLift's assembly: _NoAssembly emits no assembly"):
             assemble(lift)
+
+
+# ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
+
+
+def _recording_emit():
+    calls: list[object] = []
+
+    def emit(part):
+        calls.append(part)
+        return asm._emit(part)
+    return emit, calls
+
+
+@pytest.mark.rests_on("tests/gates/numerics/test_assembly_functor.py::TestDomainCompositesRecurseThroughTheArgument::test_g2_coupled_block_law")
+def test_g2_bulk_lift_embedding(mesh) -> None:
+    """The lift's embedding recurses through the ``emit`` it is handed: one call, on the inner (numerics_untangling
+    S3, gate G2). Moved from numerics' ``test_assembly_functor.py`` (BulkLift is transport's); the fixture is this
+    file's mesh instead of the diffusion test module's config."""
+    inner = _ShapedDiagonal(
+        np.random.default_rng(13).random(mesh.bulk_space.shape) + 0.5,
+        domain=mesh.bulk_space, codomain=mesh.bulk_space,
+    )
+    space = mesh.full_field_space
+    emit, calls = _recording_emit()
+    BulkLift(inner, domain=space, codomain=space).assembled_matrix(emit)
+    assert len(calls) == 1 and calls[0] is inner

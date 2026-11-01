@@ -267,7 +267,7 @@ def test_g6a_green_does_not_override_its_adjoint():
     defines no ``H``/``adjoint`` (it may define ``dual``/``apply_transpose``).
     First red: re-introducing ``def adjoint(self): return GreenOperator(M.H, N.H)``,
     the override removed on 2026-10-18 that made the honesty witness a
-    tautology (``_sn_green``, test_adjointability_is_honest.py)."""
+    tautology (``_sn_green``, tests/gates/test_adjointability_is_honest.py)."""
     tree = ast.parse(_GREEN_FILE.read_text())
     cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == "GreenOperator")
     defined = {n.name for n in cls.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}

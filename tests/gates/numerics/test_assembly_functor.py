@@ -1,5 +1,10 @@
 r"""The assembly functor downstream of the operator algebra (numerics_untangling S3).
 
+Layer DAG Phase 2 refresh (ruling 28): the census over every consumer's operator kinds (the flag's iff law and
+"one wrap per functor call" on the diffusion and homogeneous losses) is ``tests/gates/test_assembly_functor_census.py``;
+the rows whose subject is a consumer's operator moved to that consumer (``transport/test_bulk_lift.py``,
+``homogeneous/test_assembly_of_the_homogeneous_loss.py``, ``diffusion/test_assembly_of_the_diffusion_loss.py``).
+
 Rulings 24, 60, 61, 62 of ``.claude/plans/numerics_untangling.md``; the
 verification spec is ``scratch/numerics_untangling/packages/S3_gate_spec.md``.
 Assembly is a homomorphism out of the free algebra:
@@ -26,7 +31,6 @@ of ``test_assembled_operator.py`` cannot see it).
 
 from __future__ import annotations
 
-from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 import ast
 import pathlib
@@ -48,14 +52,17 @@ from orpheus.numerics.assembled_operator import (
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
-from orpheus.numerics.operator import (
-    FusedAtom,
-    IdentityOperator,
-    LinearOperator,
-    MatrixTooLarge,
-    OperatorSum,
-)
+from orpheus.numerics.operator import IdentityOperator, LinearOperator, MatrixTooLarge, OperatorSum
 from orpheus.numerics.space import FunctionSpace
+
+from tests.gates.numerics._assembly_functor import (
+    EXPECTED_ASSEMBLABLE,
+    Atom,
+    assert_is_assemblable_iff_assemble_succeeds,
+    integer,
+    leaf,
+    registry,
+)
 
 pytestmark = [pytest.mark.foundation]
 
@@ -65,10 +72,6 @@ WORD_LAW = "[A₁…Aₙ] = [A₁]…[Aₙ]"
 
 
 # ── Fixtures ───────────────────────────────────────────────────────────
-
-
-def _leaf(dense_matrix: np.ndarray) -> SparseAssembledOperator:
-    return SparseAssembledOperator(sparse.csr_array(dense_matrix))
 
 
 def _non_dyadic() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -81,10 +84,6 @@ def _non_dyadic() -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     b[2, 3] = 0.0
     c[1, 1] = 0.0
     return a, b, c
-
-
-def _integer(seed: int) -> np.ndarray:
-    return np.random.default_rng(seed).integers(-3, 4, (4, 4)).astype(float)
 
 
 class _Leaf(LinearOperator):
@@ -115,21 +114,6 @@ class _Leaf(LinearOperator):
         return sparse.csr_array(self.matrix)
 
 
-class _Atom(FusedAtom):
-    """A fused atom built as production atoms are: an expansion, an action
-    of its own, the expansion's roles adopted at construction."""
-
-    def __init__(self, expansion: LinearOperator) -> None:
-        self._expansion = expansion
-        self._adopt_expansion_roles()
-
-    def expansion(self) -> LinearOperator:
-        return self._expansion
-
-    def apply(self, x, /):
-        return self._expansion.apply(x)
-
-
 # ── G1: the functor's arms ─────────────────────────────────────────────
 
 
@@ -137,7 +121,7 @@ class TestTheArms:
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_g1a_the_sum_arm_is_the_left_fold_in_insertion_order(self) -> None:
         a, b, c = _non_dyadic()
-        op = _leaf(a) - _leaf(b) + 0.3 * _leaf(c)
+        op = leaf(a) - leaf(b) + 0.3 * leaf(c)
         assert isinstance(op, OperatorSum)
         assert [coef for coef, _ in op.terms] == [1.0, -1.0, 0.3], "premise: three terms in order"
         left = (a - b) + 0.3 * c
@@ -170,54 +154,54 @@ class TestTheArms:
 
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_g1b_the_product_arm_multiplies_in_word_order(self) -> None:
-        p, q, r = _integer(1), _integer(2), _integer(3)
+        p, q, r = integer(1), integer(2), integer(3)
         assert not np.array_equal(p @ q @ r, r @ q @ p), "premise: the word is order-sensitive"
         np.testing.assert_array_equal(
-            assemble(_leaf(p) @ _leaf(q) @ _leaf(r)).matrix.toarray(), p @ q @ r,
+            assemble(leaf(p) @ leaf(q) @ leaf(r)).matrix.toarray(), p @ q @ r,
         )
 
     def test_g1c_the_fused_arm_assembles_the_expansion(self) -> None:
-        a, b = _integer(4), _integer(5)
-        atom = _Atom(_leaf(a) - 2.0 * _leaf(b))
+        a, b = integer(4), integer(5)
+        atom = Atom(leaf(a) - 2.0 * leaf(b))
         assert atom.is_assemblable
         np.testing.assert_array_equal(assemble(atom).matrix.toarray(), a - 2.0 * b)
-        silent = _Atom(_leaf(a) + IdentityOperator())
+        silent = Atom(leaf(a) + IdentityOperator())
         assert not silent.is_assemblable
         with pytest.raises(MissingAssembly, match="IdentityOperator emits no assembly"):
             assemble(silent)
-        bare = _Atom(IdentityOperator())
+        bare = Atom(IdentityOperator())
         with pytest.raises(
             MissingAssembly,
-            match=re.escape("[_Atom] = [its expansion]: IdentityOperator emits no assembly"),
+            match=re.escape("[Atom] = [its expansion]: IdentityOperator emits no assembly"),
         ):
             assemble(bare)
 
     def test_g1h_the_fused_arm_builds_the_expansion_once(self) -> None:
         """The arm reads the atom's cached ``expanded``; repeated assembly
         never rebuilds the expansion (S3 review)."""
-        a, b = _integer(4), _integer(5)
+        a, b = integer(4), integer(5)
         built: list[int] = []
 
-        class _Counting(_Atom):
+        class _Counting(Atom):
             def expansion(self) -> LinearOperator:
                 built.append(1)
                 return super().expansion()
 
-        atom = _Counting(_leaf(a) - 2.0 * _leaf(b))
+        atom = _Counting(leaf(a) - 2.0 * leaf(b))
         for _ in range(3):
             np.testing.assert_array_equal(assemble(atom).matrix.toarray(), a - 2.0 * b)
             dense(atom, basis_shape=(4,))
         assert len(built) == 1, f"expansion() built {len(built)} times"
 
     def test_g1d_an_assembled_operator_is_its_own_assembly(self) -> None:
-        s = _leaf(_integer(6))
+        s = leaf(integer(6))
         assert assemble(s) is s
 
     def test_g1e_a_leaf_emits_raw_and_the_functor_wraps_once_with_its_ends(
         self, monkeypatch,
     ) -> None:
         space = FunctionSpace(name="g1e", shape=(4,))
-        m = _integer(7)
+        m = integer(7)
 
         class _BoundLeaf(_Leaf):
             @property
@@ -228,22 +212,22 @@ class TestTheArms:
             def codomain(self) -> Optional[FunctionSpace]:
                 return space
 
-        leaf = _BoundLeaf(m)
-        got = assemble(leaf)
+        bound_leaf = _BoundLeaf(m)
+        got = assemble(bound_leaf)
         assert type(got) is SparseAssembledOperator
         np.testing.assert_array_equal(got.matrix.toarray(), m)
         assert got.domain is space and got.codomain is space
-        assert len(leaf.received) == 1 and callable(leaf.received[0])
+        assert len(bound_leaf.received) == 1 and callable(bound_leaf.received[0])
         # The handed emitter is the functor's raw recursion: a matrix, not
         # a carrier.
-        raw = leaf.received[0](_leaf(m))
+        raw = bound_leaf.received[0](leaf(m))
         assert not isinstance(raw, LinearOperator)
         np.testing.assert_array_equal(sparse.csr_array(raw).toarray(), m)
 
     @pytest.mark.verifies("matrix-functor-homomorphism")
     def test_g1f_nesting_recurses_through_every_arm(self) -> None:
-        a, b, c, d = (_integer(s) for s in (8, 9, 10, 11))
-        op = _leaf(a) @ (_leaf(b) + 2.0 * _leaf(c)) - _leaf(d)
+        a, b, c, d = (integer(s) for s in (8, 9, 10, 11))
+        op = leaf(a) @ (leaf(b) + 2.0 * leaf(c)) - leaf(d)
         np.testing.assert_array_equal(
             assemble(op).matrix.toarray(), a @ (b + 2.0 * c) - d,
         )
@@ -285,7 +269,7 @@ class TestDomainCompositesRecurseThroughTheArgument:
         )
 
     def test_g2_flattened_pass_through(self) -> None:
-        inner = _leaf(_integer(12))
+        inner = leaf(integer(12))
 
         class _Duck:
             def to_flat(self):
@@ -295,29 +279,13 @@ class TestDomainCompositesRecurseThroughTheArgument:
         FlattenedOperator(inner, _Duck()).assembled_matrix(emit)
         assert len(calls) == 1 and calls[0] is inner
 
-    def test_g2_bulk_lift_embedding(self) -> None:
-        from tests.gates.transport.test_bulk_lift import _ShapedDiagonal
-        from orpheus.transport.operators.lift import BulkLift
-
-        from tests.gates.diffusion.test_operators import _config_setup
-
-        mesh, _, _, _ = _config_setup("zero_flux/zero_flux")
-        inner = _ShapedDiagonal(
-            np.random.default_rng(13).random(mesh.bulk_space.shape) + 0.5,
-            domain=mesh.bulk_space, codomain=mesh.bulk_space,
-        )
-        space = mesh.full_field_space
-        emit, calls = _recording_emit()
-        BulkLift(inner, domain=space, codomain=space).assembled_matrix(emit)
-        assert len(calls) == 1 and calls[0] is inner
-
 
 # ── G3: the refusal names the part and the law ─────────────────────────
 
 
 class TestRefusal:
     def test_g3_the_deepest_part_and_the_law_kind(self) -> None:
-        a, b = _leaf(_integer(14)), _leaf(_integer(15))
+        a, b = leaf(integer(14)), leaf(integer(15))
         with pytest.raises(MissingAssembly) as nested:
             assemble(a + b @ IdentityOperator())
         assert re.search(re.escape(WORD_LAW) + ": IdentityOperator emits no assembly", str(nested.value))
@@ -348,7 +316,7 @@ class TestRefusal:
                 return np.zeros(4)
 
         with pytest.raises(MissingAssembly) as flat:
-            assemble(FlattenedOperator(_leaf(_integer(16)) + IdentityOperator(), _Duck()))
+            assemble(FlattenedOperator(leaf(integer(16)) + IdentityOperator(), _Duck()))
         assert re.search(re.escape(SUM_LAW) + ": IdentityOperator emits no assembly", str(flat.value))
         assert "assemble: FlattenedOperator" not in str(flat.value)
         with pytest.raises(MissingAssembly) as bare:
@@ -357,7 +325,7 @@ class TestRefusal:
 
     def test_g3_the_size_refusal_names_the_densification(self) -> None:
         a, b, c = _non_dyadic()
-        op = _leaf(a) - _leaf(b) + 0.3 * _leaf(c)
+        op = leaf(a) - leaf(b) + 0.3 * leaf(c)
         for densify in (lambda: op.as_matrix(basis_shape=(4,), max_dimension=2),
                         lambda: dense(op, basis_shape=(4,), max_dimension=2)):
             with pytest.raises(MatrixTooLarge, match="densifying OperatorSum: basis dimension 4"):
@@ -408,30 +376,6 @@ class TestWhoConstructs:
         )
         assert [c for c, f in _emission_bodies(planted) if _constructs_the_carrier(f)] == ["X"]
 
-    @pytest.mark.parametrize("subject", ["diffusion_loss", "homogeneous_loss"])
-    def test_g4b_one_wrap_per_functor_call(self, subject: str, monkeypatch) -> None:
-        """Transitively: a helper an emitter calls (``embed_bulk_assembly``,
-        ``_bulk_assembly``) wrapping its result is invisible to G4a."""
-        if subject == "diffusion_loss":
-            from tests.gates.diffusion.test_operators import _config_setup, _loss
-
-            mesh, mat_xs, template, _ = _config_setup("albedo(0.3)/reflective")
-            op: LinearOperator = FlattenedOperator(_loss(mesh, mat_xs), template)
-        else:
-            from orpheus.derivations import get
-            from orpheus.homogeneous.solver import HomogeneousProblem
-
-            op = HomogeneousProblem(next(iter(get("homo_2eg_n2n").materials.values()))).loss
-        wraps: list[int] = []
-        original = SparseAssembledOperator.__init__
-
-        def counting(self, *args, **kwargs):
-            wraps.append(1)
-            original(self, *args, **kwargs)
-
-        monkeypatch.setattr(SparseAssembledOperator, "__init__", counting)
-        assemble(op)
-        assert len(wraps) == 1, f"{len(wraps)} carriers built for one assembly"
 
     def test_g4c_operator_py_knows_only_the_flag(self) -> None:
         names = {"SupportsAssembly", "assemblable", "MissingAssembly",
@@ -467,7 +411,7 @@ class TestWhoConstructs:
 class TestTwoAlgorithms:
     def test_g5_dense_routes_by_the_flag(self, monkeypatch) -> None:
         a, b, c = _non_dyadic()
-        op = _leaf(a) - _leaf(b) + 0.3 * _leaf(c)
+        op = leaf(a) - leaf(b) + 0.3 * leaf(c)
         functor_calls: list[object] = []
         probe_calls: list[object] = []
         original_assemble, original_probe = asm.assemble, LinearOperator.as_matrix
@@ -499,7 +443,7 @@ class TestTwoAlgorithms:
 
     def test_g6_as_matrix_is_the_probe(self, monkeypatch) -> None:
         a, b, c = _non_dyadic()
-        leaves = [_leaf(a), _leaf(b), _leaf(c)]
+        leaves = [leaf(a), leaf(b), leaf(c)]
         op = leaves[0] - leaves[1] + 0.3 * leaves[2]
         functor_calls: list[object] = []
         monkeypatch.setattr(asm, "_emit", lambda *x: functor_calls.append(x))
@@ -523,22 +467,8 @@ class TestTwoAlgorithms:
         stored entries, so a wrong stored entry is outside this row (G1a's
         numpy oracle sees it); a wrong functor arm is inside it."""
         a, b, c = _non_dyadic()
-        op = _leaf(a) - _leaf(b) + 0.3 * _leaf(c)
+        op = leaf(a) - leaf(b) + 0.3 * leaf(c)
         np.testing.assert_array_equal(op.as_matrix(basis_shape=(4,)), dense(op, basis_shape=(4,)))
-
-    def test_g7b_probe_and_dense_agree_on_every_homogeneous_loss(self) -> None:
-        """`[M]` 8 of 8 mixtures at S3: the k∞ bound reads ``dense`` (the
-        matrix the solver factors); this row keeps the probe and the
-        assembly one matrix on the same population."""
-        from tests.gates.homogeneous._homogeneous_population import mixture_cases
-        from orpheus.homogeneous.solver import HomogeneousProblem
-
-        cases = mixture_cases()
-        assert len(cases) == 8, sorted(cases)
-        for name, mix in cases.items():
-            loss = HomogeneousProblem(mix).loss
-            assert loss.is_assemblable, name
-            np.testing.assert_array_equal(loss.as_matrix(), dense(loss), err_msg=name)
 
 
 # ── G8-G9: MatrixInverseOperator factors dense; the coupled grid probes ──
@@ -569,59 +499,7 @@ def _functor_calls(monkeypatch) -> list[LinearOperator]:
 
 
 class TestMatrixInverseFactorsDense:
-    def test_g8a_the_factored_matrix_is_dense_on_a_route_discriminating_loss(
-        self, monkeypatch,
-    ) -> None:
-        """The diffusion loss with its collision from Σ_a: a legitimate
-        operator whose probe and assembly differ in the last bit (`[M]` S3
-        spec finding 3: entries (2, 2), (6, 6)), so this VALUE row sees
-        which route ``MatrixInverseOperator`` took."""
-        from tests.gates.diffusion.test_operators import _config_setup
-        from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
-        from orpheus.transport.operators.isotropic_transfer import IsotropicScattering
-        from orpheus.transport.operators.lift import BulkLift
-        from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
-        mesh, mat_xs, template, _ = _config_setup("zero_flux/zero_flux")
-        ffs = mesh.full_field_space
-        loss = (
-            LeakageOperator(mesh)
-            + MultiplicationOperator(CrossSectionField.absorption_of(mat_xs), domain=ffs, codomain=ffs)
-            - BulkLift(IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space), domain=ffs, codomain=ffs)
-            - DiffusionBoundaryOperator(mesh)
-        )
-        flat = FlattenedOperator(loss, template)
-        assembled = dense(flat)
-        assert not np.array_equal(flat.as_matrix(), assembled), (
-            "premise lost: probe and assembly agree bitwise, the row cannot see the route"
-        )
-        seen = _lu_inputs(monkeypatch)
-        MatrixInverseOperator(flat)
-        assert len(seen) == 1
-        np.testing.assert_array_equal(seen[0], assembled)
-
-    def test_g8b_the_diffusion_resolvent_assembles(self, monkeypatch) -> None:
-        from tests.gates.diffusion.test_operators import _config_setup, _loss
-
-        mesh, mat_xs, template, _ = _config_setup("reflective/marshak_vacuum")
-        flat = FlattenedOperator(_loss(mesh, mat_xs), template)
-        calls = _functor_calls(monkeypatch)
-        MatrixInverseOperator(flat)
-        assert [op for op in calls if op is flat], calls
-
-    def test_g8b_the_homogeneous_solver_assembles(self, monkeypatch) -> None:
-        from orpheus.derivations import get
-        from orpheus.homogeneous.solver import solve_homogeneous_infinite
-
-        calls = _functor_calls(monkeypatch)
-        seen = _lu_inputs(monkeypatch)
-        solve_homogeneous_infinite(next(iter(get("homo_2eg_n2n").materials.values())))
-        assert calls, "the homogeneous solver never reached the functor"
-        assert len(seen) >= 1
-        reached = list(calls)
-        assert any(np.array_equal(s, dense(op)) for s in seen for op in reached), (
-            "no factored matrix is the assembly of an operator the solver assembled"
-        )
 
     def test_g8b_the_coupled_inverse_factors_dense(self, monkeypatch) -> None:
         from tests.gates.numerics.test_coupled_operator import _grid
@@ -657,113 +535,10 @@ class TestCoupledAsMatrixProbes:
 # ── G10: the flag and the functor agree (the witness of ruling F2) ─────
 
 
-def _registry() -> dict[str, "Any"]:
-    """Every operator kind the S3 fixtures build, keyed by name and built
-    lazily (a rebinding battery arm must reach the rows: lessons L100)."""
-
-    def diffusion():
-        from tests.gates.diffusion.test_operators import _config_setup
-
-        return _config_setup("albedo(0.3)/reflective")
-
-    def diffusion_parts():
-        from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
-        from orpheus.transport.operators.isotropic_transfer import IsotropicN2N, IsotropicScattering
-        from orpheus.transport.operators.lift import BulkLift
-        from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-
-        mesh, mat_xs, template, _ = diffusion()
-        ffs = mesh.full_field_space
-        S = IsotropicScattering.from_material_xs(mat_xs, space=mesh.bulk_space)
-        return {
-            "L": LeakageOperator(mesh),
-            "B": DiffusionBoundaryOperator(mesh),
-            "C": MultiplicationOperator(CrossSectionField.total_of(mat_xs), domain=ffs, codomain=ffs),
-            "S_plain": S,
-            "N2N_plain": IsotropicN2N.from_material_xs(mat_xs, space=mesh.bulk_space),
-            "S_lift": BulkLift(S, domain=ffs, codomain=ffs),
-            "template": template,
-            "mesh": mesh,
-        }
-
-    def homogeneous():
-        from orpheus.derivations import get
-        from orpheus.homogeneous.solver import HomogeneousProblem
-
-        return HomogeneousProblem(next(iter(get("homo_2eg_n2n").materials.values())))
-
-    def coupled(**kw):
-        from tests.gates.numerics.test_coupled_operator import _grid
-
-        return _grid("full", **kw)
-
-    class _Duck:
-        def to_flat(self):
-            return np.zeros(4)
-
-    a, b = _leaf(_integer(20)), _leaf(_integer(21))
-    ident = IdentityOperator()
-    diag = DiagonalOperator(np.arange(1.0, 5.0), shape=(4,), spans=(0,))
-    builders = {
-        "carrier": lambda: a,
-        "sum": lambda: a - 0.3 * b,
-        "word": lambda: a @ b,
-        "nested": lambda: a @ (b + 2.0 * a) - b,
-        "atom": lambda: _Atom(a - 2.0 * b),
-        "sum_with_identity": lambda: a + ident,
-        "word_with_diagonal": lambda: a @ diag,
-        "atom_over_identity": lambda: _Atom(a + ident),
-        "identity": lambda: ident,
-        "diagonal": lambda: diag,
-        "dual_of_carrier": lambda: a.dual(),
-        "inverse_of_diagonal": lambda: diag.inverse(),
-        "flattened": lambda: FlattenedOperator(a + b, _Duck()),
-        "flattened_identity": lambda: FlattenedOperator(ident, _Duck()),
-        "coupled": lambda: coupled(),
-        "coupled_silent_block": lambda: coupled(assemblable=False),
-        "diffusion_L": lambda: diffusion_parts()["L"],
-        "diffusion_B": lambda: diffusion_parts()["B"],
-        "diffusion_C": lambda: diffusion_parts()["C"],
-        "diffusion_S_plain": lambda: diffusion_parts()["S_plain"],
-        "diffusion_N2N_plain": lambda: diffusion_parts()["N2N_plain"],
-        "diffusion_S_lift": lambda: diffusion_parts()["S_lift"],
-        "diffusion_loss_flat": lambda: (lambda p: FlattenedOperator(
-            p["L"] + p["C"] - p["S_lift"] - p["B"], p["template"]))(diffusion_parts()),
-        "homogeneous_loss": lambda: homogeneous().loss,
-        "homogeneous_production": lambda: homogeneous().production,
-    }
-    return builders
-
-
-_EXPECTED_ASSEMBLABLE = {
-    "carrier", "sum", "word", "nested", "atom", "flattened", "coupled",
-    "diffusion_L", "diffusion_B", "diffusion_C", "diffusion_S_plain",
-    "diffusion_N2N_plain", "diffusion_S_lift", "diffusion_loss_flat",
-    "homogeneous_loss",
-}
-
-
 class TestTheFlagIsTheFunctorsDomain:
-    def test_g10_the_registry_has_both_kinds(self) -> None:
-        names = set(_registry())
-        assert len(names) == 25
-        assert _EXPECTED_ASSEMBLABLE < names
-        assert len(names - _EXPECTED_ASSEMBLABLE) == 10
 
-    @pytest.mark.parametrize("name", sorted(_registry()))
+    @pytest.mark.parametrize("name", sorted(registry()))
     def test_g10_is_assemblable_iff_assemble_succeeds(self, name: str) -> None:
-        """The composites' flags live in ``operator.py`` beside the other
-        capability axes; the functor lives downstream (user ruling on
-        elegance F2). This row is the witness that keeps the two equal: the
-        flag says True exactly when ``assemble`` returns, False exactly when
-        it refuses with :class:`MissingAssembly`."""
-        op = _registry()[name]()
-        flag = op.is_assemblable
-        assert flag == (name in _EXPECTED_ASSEMBLABLE), f"{name}: flag {flag}"
-        try:
-            assemble(op)
-        except MissingAssembly:
-            succeeded = False
-        else:
-            succeeded = True
-        assert flag == succeeded, f"{name}: is_assemblable {flag}, assemble succeeded {succeeded}"
+        """G10 on this file's population; the law is stated once, in
+        :func:`tests.gates.numerics._assembly_functor.assert_is_assemblable_iff_assemble_succeeds`."""
+        assert_is_assemblable_iff_assemble_succeeds(name, registry()[name](), EXPECTED_ASSEMBLABLE)

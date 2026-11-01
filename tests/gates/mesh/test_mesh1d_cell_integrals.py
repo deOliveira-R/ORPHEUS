@@ -238,3 +238,20 @@ def test_r7b2_8_8_a_hollow_body(coord) -> None:
     for i, (a, b) in enumerate(zip(edges[:-1], edges[1:])):
         assert _close(float(ones[i]), _shell(coord, a, b)) and _close(float(moments[i]), _FIRST_MOMENT[coord](a, b)), i
     assert _close(float(np.sum(ones)), _shell(coord, 0.5, 2.0), ulps=8 * mesh.N)
+
+
+# ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
+
+
+def test_the_mesh_integrates_a_step_at_pi_over_4() -> None:
+    """``Mesh1D.cell_integrals`` of ``r < pi/4`` on the A|B|A sphere's mesh totals 4 pi / 3 (pi / 4)^3, to 64 ulp
+    (qa F3, the regression on the mesh's exact integrals). Succeeds
+    ``test_r7b2_2_3_the_mesh_integrates_a_step_at_pi_over_4``; moved from numerics' ``test_symbolic_steps.py`` (the
+    consumer is the mesh's), the fixture re-based from ``tests.gates.sn``'s ``aba_geometry`` onto this file's ``_aba``.
+    A transcendental threshold, beside ``test_r7b2_8_4``'s rational one."""
+    mesh = _aba(_SPHERE)
+    assert np.array_equal(np.asarray(mesh.edges), np.array([0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0]))
+    weight = Symbolic.of(sympy.Piecewise((1, Symbolic.r < sympy.pi / 4), (0, True)))
+    total = float(np.sum(mesh.cell_integrals(weight)))
+    expected = 4.0 / 3.0 * math.pi * (math.pi / 4) ** 3
+    assert abs(total - expected) <= 64 * math.ulp(expected), (total, expected)

@@ -18,9 +18,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.coord import CoordSystem
-from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace, TANGENTIAL_EPS
@@ -28,30 +26,10 @@ from orpheus.numerics.quadrature import Quadrature
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Helpers — build the (mesh, quadrature, layout) triple the unified
+# Helpers — build the (quadrature, layout) pair the unified
 # AngularTraceSpace consumes. Layouts mirror SNProblem.boundary_face_layout:
 # slab xmin/xmax, curvilinear xmax-only, 2-D xmin/xmax/ymin/ymax.
 # ─────────────────────────────────────────────────────────────────────
-
-
-def _mesh1d(coord: CoordSystem, n: int = 4) -> Mesh1D:
-    geometry = StructuredGeometry.uniform_boundary(coord, (0.0, 1.0), (0,), 0)
-    return Mesher(geometry).partition(CellsByCount.uniform_width(n)).mesh
-
-
-def _mesh2d(coord: CoordSystem, nx: int = 3, ny: int = 3) -> Mesh2D:
-    return Mesh2D(
-        edges_x=np.linspace(0.0, 1.0, nx + 1),
-        edges_y=np.linspace(0.0, 1.0, ny + 1),
-        mat_map=np.zeros((nx, ny), dtype=int),
-        coord=coord,
-        # edges_x starts at 0: on a solid (r, z) mesh the axis r = 0 is interior and carries no role
-        face_roles=dict.fromkeys(
-            ("xmin", "xmax", "ymin", "ymax") if coord is CoordSystem.CARTESIAN
-            else ("xmax", "ymin", "ymax"),
-            0,
-        ),
-    )
 
 
 def _slab_layout(N: int, ng: int = 1) -> FaceLayout:

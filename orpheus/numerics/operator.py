@@ -774,7 +774,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
         :attr:`H` = ``♯ ∘ dual ∘ ♭`` needs a second fact, that both ends'
         metrics give Riesz legs (:func:`posed`): ``.H`` exists iff both hold,
         and refuses with :class:`MissingAdjoint` otherwise (`[M]`
-        2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``,
+        2026-10-18, ``tests/gates/test_adjointability_is_honest.py``,
         which pins both directions). The
         transpose-of-a-sum law :math:`(A+B)^{\mathsf T} = A^{\mathsf T} +
         B^{\mathsf T}` is realised in the composer method bodies; this
@@ -800,7 +800,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
         before #616 a multi-D ``(L+C)`` transposed its action but not its sweep
         (a Gauss–Seidel ``(L+C) − B_lower`` still does, #681), and a
         ``callable(solve_transpose)`` test passes a method that raises (`[M]`
-        2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``).
+        2026-10-18, ``tests/gates/test_adjointability_is_honest.py``).
         Default ``False``; a forward with a working ``solve_transpose``
         overrides. Three composites derive it: :class:`OperatorProduct`
         through each factor's inverse OBJECT (whether it transposes, so a

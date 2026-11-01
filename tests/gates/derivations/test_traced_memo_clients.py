@@ -22,11 +22,13 @@ from typing import Any
 import numpy as np
 import pytest
 
-from . import _traced_memo_api as api
+import orpheus  # the repository root is read off the package (any test directory)
+
+from tests.gates.numerics import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(orpheus.__file__).resolve().parents[1]  # the repository root, from any test directory
 
 
 # ── the P3 clients (step 4): where each memo is bound ────────────────────────────
@@ -261,7 +263,7 @@ def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pi
     assert not (_BLOCK_ONLY & solve_functions), sorted(_BLOCK_ONLY & solve_functions)    # the direct route is absent
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
+@pytest.mark.rests_on('tests/gates/derivations/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
 def test_m4_11_two_observables_of_one_cold_derivation_share_one_solve(tmp_path):
     """#592's second done-when, read from the store: on a cold root, an eigenvalue and then a point value of one
     derivation write two reading entries whose ``ChildPin`` rows name the SAME solve key, the store holds exactly
@@ -293,7 +295,7 @@ def test_m4_11_two_observables_of_one_cold_derivation_share_one_solve(tmp_path):
     assert (again.st_ino, again.st_mtime_ns) == (first.st_ino, first.st_mtime_ns), "the second reading regenerated the solve"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_11_two_observables_of_one_cold_derivation_share_one_solve',
+@pytest.mark.rests_on('tests/gates/derivations/test_traced_memo_clients.py::test_m4_11_two_observables_of_one_cold_derivation_share_one_solve',
                       'tests/gates/numerics/test_traced_memo_process.py::test_m3_14_a_served_payload_is_fresh_read_only_and_bit_identical')
 def test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones(tmp_path):
     """#592's third done-when: after a reading has written the solve entry, a fresh derivation's ``solve()`` in this
@@ -329,7 +331,7 @@ def test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_o
     assert warm == fresh, (warm, fresh)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_11_two_observables_of_one_cold_derivation_share_one_solve',
+@pytest.mark.rests_on('tests/gates/derivations/test_traced_memo_clients.py::test_m4_11_two_observables_of_one_cold_derivation_share_one_solve',
                       'tests/gates/derivations/test_characteristic_reference.py::test_an_eigenvalue_of_a_source_answer_is_refused_before_any_solve')
 def test_m4_13_a_refusal_before_the_solve_writes_no_solve_entry(tmp_path):
     """#592's fourth done-when: an eigenvalue of a source question, read through the memo, is refused with its
@@ -393,7 +395,7 @@ def _drive_characteristic(copy: Path, cache: Path, action: str) -> str:
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does',
-                      'tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
+                      'tests/gates/derivations/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
 @pytest.mark.parametrize("row,file,anchor,method,reading", CHARACTERISTIC_TREE_WITNESSES,
                          ids=[w[0] for w in CHARACTERISTIC_TREE_WITNESSES])
 def test_m4_4c_an_edit_to_the_copied_tree_misses_exactly_where_the_characteristic_reading_ran(tmp_path, row, file, anchor,
@@ -514,7 +516,7 @@ def _parent_seed_that_reorders_the_gauge(tmp_path: Path) -> str:
     raise AssertionError("no seed in 1..8 reorders the gauge's cells: the leg would be blind")
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones',
+@pytest.mark.rests_on('tests/gates/derivations/test_traced_memo_clients.py::test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones',
                       'tests/gates/numerics/test_traced_memo_findings.py::test_s1_one_call_is_one_key_under_every_hash_seed')
 def test_m4_11b_m4_12b_a_parent_at_another_hash_seed_shares_the_readings_solve(tmp_path):
     """The (n,2n)-gauge leg of M4.11 and M4.12 (qa, #592 review): ``_tiny_characteristic_sphere``'s gauge holds ONE
@@ -551,7 +553,7 @@ def _block_entries(root):
     return [f for f in api.entry_files(root) if api.entry_function(f) == BLOCK_ID]
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve',
+@pytest.mark.rests_on('tests/gates/derivations/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve',
                       'tests/gates/derivations/test_characteristic_block_memo.py::test_b4_a_block_entry_pins_the_kernel_and_none_of_its_consumers')
 def test_m4_14_a_point_reading_pins_the_blocks_as_children_and_assembles_none(tmp_path):
     """C1, B7: on a cold root, a point value of the tiny two-group sphere writes the solve, one block per group and the

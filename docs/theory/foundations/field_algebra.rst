@@ -1202,7 +1202,7 @@ and records nothing, as before.
    *today*; but the interior-leaf norm and the **whole-composite** flat
    norm — which additionally ravels the boundary trace block — differ by
    :math:`4.71\times 10^{-3}`. That nine-order gap is what the capture
-   gate ``tests/gates/numerics/test_si_diagnostic_trajectory.py`` exists to
+   gate ``tests/gates/sn/solve/test_si_diagnostic_trajectory.py`` exists to
    catch, at ``rtol = 1e-12``.
 
 **Why** :math:`\rho` **is deliberately not a stopping criterion.** The
@@ -1236,7 +1236,7 @@ derives the Banach factor
 .. of two entries of increment_norms), not a solver claim in its own
 .. right — the physics claim it enables (rho -> c) is the separate L1
 .. gate named below. Its computed content is pinned by the frozen
-.. trajectory in tests/gates/numerics/test_si_diagnostic_trajectory.py (11
+.. trajectory in tests/gates/sn/solve/test_si_diagnostic_trajectory.py (11
 .. ratios at rtol=1e-12, with a measured mutation battery) and its
 .. physical calibration by tests/gates/sn/solve/test_si_convergence_diagnostics.py
 .. (marked `l1`, pillar = closed-form). Neither carries a verifies(...)
@@ -1267,7 +1267,7 @@ the distance from the current iterate to the fixed point is the tail sum
 .. Rationale: the closed form of a geometric tail — a literature identity
 .. (Adams & Larsen 2002; the standard Banach a-posteriori bound), not an
 .. ORPHEUS solver claim. Its implementation is pinned by
-.. tests/gates/numerics/test_si_diagnostic_trajectory.py (the frozen value at
+.. tests/gates/sn/solve/test_si_diagnostic_trajectory.py (the frozen value at
 .. rtol=1e-12) and its identity against the recorded norm and ratio by
 .. tests/gates/sn/solve/test_si_convergence_diagnostics.py. Both are foundation /
 .. l1 gates without a verifies(...) marker, so the label stays
@@ -1653,7 +1653,7 @@ Numerical evidence
        Both legs carry activation guards, so a fixture that stopped
        discriminating fails loudly rather than passing vacuously. The
        measured tables are reproduced above.
-   * - ``tests/gates/numerics/test_si_diagnostic_trajectory.py``
+   * - ``tests/gates/sn/solve/test_si_diagnostic_trajectory.py``
      - ``foundation``, capture gate
      - **Value-neutrality of the diagnostics' relocation.** The
        :math:`\rho` trajectory (11 ratios), :math:`\lVert\Delta\psi\rVert`,

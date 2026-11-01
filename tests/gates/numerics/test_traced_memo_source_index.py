@@ -41,12 +41,14 @@ from typing import NamedTuple
 
 import pytest
 
-from . import _traced_memo_api as api
-from .test_traced_memo_findings import _Package
+import orpheus  # the repository root is read off the package (any test directory)
+
+from tests.gates.numerics import _traced_memo_api as api
+from tests.gates.numerics.test_traced_memo_findings import _Package
 
 pytestmark = pytest.mark.foundation
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(orpheus.__file__).resolve().parents[1]  # the repository root, from any test directory
 _M13B = 'tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def'
 _M21 = 'tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed'
 _B1 = 'tests/gates/numerics/test_traced_memo_source_index.py::test_b1_an_index_survives_its_json_round_trip'
@@ -347,49 +349,6 @@ def test_b4_the_span_boundaries_agree_with_the_tree(population):
     assert not wrong, f"{len(wrong)} of {probes} boundary probes differ: {wrong[:3]}"
 
 
-@pytest.mark.rests_on(_B3)
-def test_b5_a_real_manifest_is_the_same_from_a_cold_and_a_warm_index(tmp_path, monkeypatch):
-    """B5: one recording of five cheap characteristic blocks makes the same manifest with an empty index
-    directory (every index parsed and written) and with the indexes it wrote (every index read, 0 parses).
-    First red: an index that does not survive the disk."""
-    memo = api.module()
-    from orpheus.numerics import _traced_memo_boot as boot
-    import numpy as np
-
-    from orpheus.derivations.continuous.characteristic import PanelBasis, TransportResolution, Wall, Walls
-    from orpheus.derivations.continuous.characteristic.assembly import group_transport
-    from orpheus.geometry.chart import Chart
-    from orpheus.geometry.chord import ConcentricPartition
-    from orpheus.geometry.coord import CoordSystem
-    from orpheus.specification.exterior import WallAmplitudes
-
-    sphere = CoordSystem.SPHERICAL
-    walls = lambda n: Walls((Wall(n, WallAmplitudes.WHITE, n),), n, Chart(sphere))  # noqa: E731
-    cases = [(PanelBasis.of(ConcentricPartition(Chart(sphere), (0.0, 1.0)), 3, 2, 0.4), walls(1), (0.7 + 0.01 * k,), TransportResolution(4)) for k in range(3)]
-    cases += [(PanelBasis.of(ConcentricPartition(Chart(sphere), (0.0, 0.5, 1.5, 2.0)), 3, 2, 0.4), walls(3), (0.6 + 0.01 * k, 1.3, 0.45), TransportResolution(4)) for k in range(2)]
-    recording = boot.Recording().start()
-    try:
-        with api.bypass():
-            for case in cases:
-                group_transport(*case, np.asarray(case[2]) > 0)
-    finally:
-        recording.stop()
-    monkeypatch.setattr(memo, "_SOURCE_INDEXES", tmp_path / "sources")
-    _generating(memo, monkeypatch)
-    store = memo.Store(tmp_path / "store")
-    _fresh(memo)
-    cold = memo._manifest(recording, store)
-    written = sorted((tmp_path / "sources").glob("*.json"))
-    _fresh(memo)
-    parses: list[int] = []
-    real_parse = ast.parse
-    monkeypatch.setattr(ast, "parse", lambda *a, **k: (parses.append(1), real_parse(*a, **k))[1])
-    warm = memo._manifest(recording, store)
-    monkeypatch.setattr(ast, "parse", real_parse)
-    _fresh(memo)
-    assert len(cold.functions) > 50 and written, (len(cold.functions), len(written))
-    assert parses == [], f"a warm index directory still parsed {len(parses)} files"
-    assert (set(cold.functions), set(cold.modules)) == (set(warm.functions), set(warm.modules))
 
 
 # ── the key, the file and the route ─────────────────────────────────────────────────────────────────

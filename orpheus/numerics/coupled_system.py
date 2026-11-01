@@ -1009,7 +1009,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         (:attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`)
         and adjointable. A ``callable(solve_transpose)`` test, used before,
         passed a multi-D ``(L+C)`` whose reverse scan then raised (`[M]`
-        2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``)."""
+        2026-10-18, ``tests/gates/test_adjointability_is_honest.py``)."""
         if not self._substitution_ready():
             return False
         n = self.n_rows

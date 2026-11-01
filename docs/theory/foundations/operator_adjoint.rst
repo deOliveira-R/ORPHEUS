@@ -699,10 +699,12 @@ The gates, in ``tests/gates/numerics/test_linear_combination.py``: c21
 :math:`\sharp(2A^{\mathsf T}\flat y + (-0.5)B^{\mathsf T}\flat y)`; the
 theorem :math:`S^{*} \approx 2A^{*} - 0.5B^{*}` in value on non-degenerate
 spaces), c22 (the word's), c24 (reciprocity of a sum on two weighted
-spaces), c25 (the first case above), c36 (the second), c26 (the
-involution) and c37 (the carrying sphere's ``pencil.H.at(2.5)`` is bit for
-bit the once-at-the-ends route over 16 seeds; one seed was not enough,
-because the moved bits depend on the draw).
+spaces), c25 (the first case above), c36 (the second) and c26 (the
+involution); and c37, an S\ :sub:`N` row and so in
+``tests/gates/sn/operators/test_linear_combination_sn.py``
+(the carrying sphere's ``pencil.H.at(2.5)`` is bit for bit the
+once-at-the-ends route over 16 seeds; one seed was not enough, because the
+moved bits depend on the draw).
 
 .. dropdown:: First got wrong — the adjoint distributed by the design (2026-10-20)
    :color: muted
@@ -913,8 +915,10 @@ no spaceless adjoint).
      - refuses
      - no registry row
 
-`[M]` 2026-10-21, the 51 rows of
-``tests/gates/numerics/test_adjointability_is_honest.py``'s registry
+`[M]` 2026-10-21, the 51 rows of the honesty registry (then all in
+``tests/gates/numerics/test_adjointability_is_honest.py``; its census over
+every method's operators is now
+``tests/gates/test_adjointability_is_honest.py``)
 built on the S6 worktree and their two predicates read (the archivist's
 probe): 38 rows read ``True``, ``True``, 4 read ``True``, ``False`` and 9
 read ``False``, ``True``. Of the 38, 2 read ``True``, ``True`` while
@@ -1170,8 +1174,18 @@ Gotchas
    legs of their own, and ``posed`` reads only the ends and the
    metric-free flag.
 
-The honesty gate, ``tests/gates/numerics/test_adjointability_is_honest.py``
-(``foundation``), pins both directions over the registry.
+The honesty gate (``foundation``) pins both directions over the registry,
+in two files because the registry has two halves. The numerics operators'
+rows (the Riesz legs, the rank-one dyad, the sparse assembled operator, the
+two unbound inverses and the four frame faces) and the door check live in
+``tests/gates/numerics/test_adjointability_is_honest.py``, which runs leg 1
+on them alone; the census over every method's operators (fission,
+diffusion and S\ :sub:`N`) is ``tests/gates/test_adjointability_is_honest.py``
+at the ``tests/gates/`` root, which builds the consumers' rows, runs leg 1
+on them through the numerics door check, and runs leg 2 and the
+registry's reach on the union. ``[M]`` 2026-11-01,
+``pytest --collect-only``: leg 1 has 11 numerics ids and 41 root ids, leg
+2 has 10 root ids.
 ``test_each_transpose_door_opens_iff_predicted`` asserts that
 ``.dual()`` constructs and applies exactly when ``is_adjointable``, that
 ``.H`` does exactly when ``is_adjointable`` and ``posed``, that a refused
@@ -1179,14 +1193,14 @@ door raises ``MissingAdjoint`` at construction and never another
 exception, and, where a door opens, a reciprocity sanity leg (Euclidean
 for ``.dual()``, the operator's own end metrics for ``.H``).
 ``test_a_realisable_transpose_is_advertised`` covers the other direction:
-for 9 rows it builds a witness of the adjoint from the algebra's own laws
+for 10 rows it builds a witness of the adjoint from the algebra's own laws
 or from the assembled matrix (never a second hand-written transpose),
 checks the witness by reciprocity against the forward, and then requires
 the flag to read ``True``. A row with no coded route (the 2-D sweep, the
 DSA correction) carries no witness, and ``False`` is legal there.
 ``test_the_registry_reaches_every_lying_class`` is the gate's input
-count and positive control: at least 45 rows build (51 today), and each class the
-census named is present. The reciprocity legs are a sanity check, not
+count and positive control: at least 45 rows of the union build (52 at
+the count above), and each class the census named is present. The reciprocity legs are a sanity check, not
 the adjoint's correctness evidence: that is the structurally independent
 reciprocity gates the module declares it ``rests_on``
 (``test_g_adjoint_reciprocity.py``, ``test_riesz_legs.py``, below).

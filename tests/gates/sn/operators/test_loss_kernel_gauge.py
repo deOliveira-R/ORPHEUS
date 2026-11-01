@@ -1053,3 +1053,28 @@ def test_the_exit_reads_the_protocol_only():
     assert domain is not None
     out, correction = _exit_reading(mesh, x, kernel=PredictedKernel.trivial(domain, "no freedom"))
     assert correction is None and np.array_equal(np.asarray(out.boundary.values), x)
+
+
+# ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
+
+
+def _gauge_production():
+    """The production gauge on the reflective 3x4 box (test_loss_kernel_gauge's fixture): since U0 the hub's
+    predicted kernel's projector, on the full field."""
+    return _mesh((3, 4), [(_R, _R)] * 2).loss_kernel_gauge
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on("tests/gates/numerics/test_kernel_projection_gauge.py::TestTheSummandBasis")
+def test_LB_i_iv_the_gauge_gather_codomain_is_the_projector_domain():
+    """(i) one space by construction; (iv) labelled with the index set's own name. Since U3 the summands are
+    minted by the numerics ``KernelProjectionGauge.direct_sum``; this is its SN production instance."""
+    blocks = _gauge_production().summands
+    assert blocks, "PREMISE: the gauge has summands"
+    for blk in blocks:
+        assert blk.gather.codomain is not None and blk.gather.codomain == blk.projector.domain, "(i) gather codomain != projector domain"
+        codomain = blk.gather.codomain
+        assert codomain is not None
+        axes = codomain.axes
+        assert axes is not None and len(axes) == 1, "(iv) the index-set measure space is axis-built"
+        assert axes[0].label == blk.basis.domain.name, f"(iv) label {axes[0].label!r} != {blk.basis.domain.name!r}"

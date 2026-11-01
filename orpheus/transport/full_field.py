@@ -315,7 +315,7 @@ class Composite(Generic[Interior, Boundary]):
         ``l2``, deliberately NOT the whole-composite flat norm, which
         additionally ravels the boundary trace block (``[M]`` 4.71e-3 apart
         on the c→1 pin fixture; the convention is pinned by
-        :mod:`tests.gates.numerics.test_si_diagnostic_trajectory`).
+        :mod:`tests.gates.sn.solve.test_si_diagnostic_trajectory`).
         """
         return self.interior
 

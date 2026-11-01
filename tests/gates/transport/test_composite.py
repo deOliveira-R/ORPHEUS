@@ -181,7 +181,7 @@ def test_principal_bulk_leaf_is_the_interior(mesh) -> None:
     """The composite's convergence-diagnostic carrier is its INTERIOR leaf
     (CS3-R: the carrier owns the convention; the iteration layer reads only
     ``principal_bulk_leaf``. The norm-convention pin — interior space norm,
-    not composite flat — is tests/gates/numerics/test_si_diagnostic_trajectory.py)."""
+    not composite flat — is tests/gates/sn/solve/test_si_diagnostic_trajectory.py)."""
     c = _scalar_composite(mesh, 3)
     assert c.principal_bulk_leaf is c.interior
 

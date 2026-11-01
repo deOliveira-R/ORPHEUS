@@ -1359,7 +1359,9 @@ UBLD assembler (``orpheus/transport/spatial/_ubld.py``) reads its face terms
 off these values, the outflow term from the outer product of :math:`B(+1)`
 with itself and the inflow trace from :math:`B(-1)`, where it once held them
 as typed tables, and its mass as :math:`h` times the factor's Gram, where it
-once took a float :math:`\theta`.
+once took a float :math:`\theta`. The assembler is transport's, so its
+gates are transport rows that read this basis, in
+``tests/gates/transport/spatial/test_ubld_reads_the_interval_basis.py``:
 ``::test_the_ubld_face_terms_are_the_hand_tables`` compares the assembled
 terms with the tables they replaced. The one table still typed by hand, the
 streaming table ``_GRAD_1D``, is pinned by the integration-by-parts identity
@@ -1435,7 +1437,13 @@ consequences, each a property of the object:
   :math:`[1, -1, 1, -1]`, :math:`x` alone :math:`[1, 1, -1, -1]`, both
   :math:`[1, -1, -1, 1]`. This is the octant sign map
   ``orpheus.transport.spatial._ubld.octant_moment_frame_signs`` reads, which
-  until this carve decoded the Kronecker index by hand.
+  until this carve decoded the Kronecker index by hand. The basis's own row
+  (``tests/gates/numerics/test_interval_legendre_basis.py``
+  ``::test_the_reflection_signs_are_the_mirrors_action``) pins the signs as
+  the mirror's action; the transport row
+  ``tests/gates/transport/spatial/test_ubld_reads_the_interval_basis.py``
+  ``::test_the_octant_frame_map_is_the_reflection_signs`` (at
+  :math:`d = 1, 2, 3`) pins that the octant map IS those signs.
 
 :class:`~orpheus.numerics.coefficient_layout.TensorLayout` is the product's
 index: its ``factors`` (one ``PolynomialLayout`` each), its ``label``, its
@@ -1559,17 +1567,22 @@ buffer from a flat one test a buffer against a space and live in the field
 layer (:func:`~orpheus.transport.fields._bases.is_moment_valued_by_rank`,
 :func:`~orpheus.transport.fields._bases.is_moment_valued_by_flat_rank`).
 
-**The gates.** ``tests/gates/numerics/test_interval_legendre_basis.py`` (68
+**The gates.** ``tests/gates/numerics/test_interval_legendre_basis.py`` (66
 rows, ``foundation``) pins the interval laws against SymPy, NumPy's Clenshaw
 evaluation and ``fractions.Fraction``, and the tensor laws (dimension, order,
-Gram, unit, face trace, face drop, face dimension, mirror signs, the UBLD
-face terms) against hand-written tables;
+Gram, unit, face trace, face drop, face dimension, mirror signs) against
+hand-written tables;
+``tests/gates/transport/spatial/test_ubld_reads_the_interval_basis.py`` (5
+rows) pins the UBLD face terms, the streaming table's integration by parts
+and the octant sign map against the basis;
 ``tests/gates/transport/spatial/test_cell_basis_head.py`` (16 rows) pins the
 scheme's axis as this head, its metric against a hand-typed :math:`\theta`
 table, the route by which :math:`\theta` and the mass are read from the Gram,
-and the wrong-dimension refusal. The row counts are ``[M]`` 2026-10-25,
-``pytest --collect-only``. The test-architect's mutation battery over both
-files (S0 spec §2, §8) reddened a row for every one of its 11 basis arms and
+and the wrong-dimension refusal. The row counts are ``[M]``
+``pytest --collect-only``, 2026-11-01 for the first two (the layer DAG
+Phase 2 landing, which moved the UBLD rows out of the numerics file) and
+2026-10-25 for the third. The test-architect's mutation battery over the
+numerics interval-basis file and the cell-basis head file (S0 spec §2, §8) reddened a row for every one of its 11 basis arms and
 11 site arms; the arm that drops the wrong factor in ``face`` reddens only the
 face-drop row, because on the LD basis every factor is the same.
 
@@ -2020,11 +2033,13 @@ Cite these rather than copying their numbers; each re-measures itself.
      - an axis constructor accepting a ``kind``, or an arm reporting
        another kind, reds.
    * - the ``FromQuadrature`` consumers are the declared ones
-     - ``tests/gates/numerics/test_axis_identity.py`` O3, O4
+     - ``tests/gates/numerics/test_axis_identity.py`` O3;
+       ``tests/gates/transport/frames/test_harmonic_frame.py`` O4
      - O3 is an AST census of the functions holding a
        ``case FromQuadrature`` pattern against the declared four; a new
        site reds it. O4: ``HarmonicFrame.for_space`` refuses a
-       ``Declared`` and a ``FromMeasure`` axis, naming itself.
+       ``Declared`` and a ``FromMeasure`` axis, naming itself (a
+       transport row, since ``HarmonicFrame`` is transport's).
    * - the spatial chain, anchored independently
      - ``tests/gates/numerics/test_space_of_axes.py``
        ``::test_the_spatial_axis_is_minted_through_the_carriers_own_measure``
@@ -3348,8 +3363,9 @@ homogeneous, both handing the space its own unit as a bare array to
 **What failed: typing the composite's blocks.** The specification
 converted the composite's inner product to hand its blocks the member
 fields. `[M]` 2026-10-30, the carve's run: the row
-``sn_sweep_slab_dual`` of ``tests/gates/numerics/test_adjointability_is_honest.py``
-was refused. The refusal was correct, and the element was mislabelled.
+``sn_sweep_slab_dual`` of the adjointability honesty registry (today in
+the census over every method's operators,
+``tests/gates/test_adjointability_is_honest.py``) was refused. The refusal was correct, and the element was mislabelled.
 The dual of a composite is the composite of the duals
 (:ref:`spaces-dual-space`), so the dual space's interior block is
 :math:`V_{\rm bulk}^{*}`; but a composite field on it still carries its
@@ -7356,8 +7372,17 @@ taken.
        ``support``, and the indicator basis is the line above — but a
        ``FunctionSpace`` still holds the resulting *name*, so the two
        producers agree by discipline rather than by construction.
-       ``tests/gates/numerics/test_basis_domain.py::test_d6`` pins that
-       agreement.  On this row's date it also pinned the one pair that
+       The agreement is pinned where each producer lives:
+       ``tests/gates/mesh/test_mesh_yields_an_indicator_basis.py``
+       ``::test_the_mesh_frames_two_halves_name_one_manifold`` for the
+       mesh's indicator basis against its volume measure,
+       ``tests/gates/data/test_energy_grid.py``
+       ``::test_the_energy_grids_frame_halves_name_one_manifold`` for the
+       energy grid's frame, and
+       ``tests/gates/numerics/test_basis_domain.py::test_d6`` for the
+       numerics producers (until the layer DAG Phase 2 refresh, 2026-11-01,
+       ``test_d6`` held the mesh and energy-grid pairs too).  On this
+       row's date it also pinned the one pair that
        did not yet agree in spelling (``LossKernelBasis``'s bare label
        against ``IndexSet``'s ``index(...)``); 2.0c discharged it by
        having the measure read ``support=basis.domain``, and since the

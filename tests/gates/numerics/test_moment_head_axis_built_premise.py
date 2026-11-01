@@ -485,9 +485,11 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
     R-6.2c-2), so the twin comparison is made on the continuum head only there.
     """
     from orpheus.numerics.frame import GramStructure
-    from orpheus.transport.frames import HarmonicFrame
 
-    frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
+    # The numerics frame itself: transport's HarmonicFrame.from_galerkin is a behaviour-identical upgrade that SHARES
+    # the frame (tests/gates/transport/frames/test_harmonic_frame.py), so the head it binds is this one ([M] 15 of 15
+    # (rule, L) cases equal on both arms, layer DAG Phase 2 refresh, specs_2r/proto/probe_harmonic.py).
+    frame = frame_faces.angular_frame(_RULES[label](), L)
     rng = np.random.default_rng(11)
     for head, (arm, generator) in ((FunctionSpace.of_basis(frame.basis), ("basis", frame.basis)), (frame_faces.basis_space(frame), ("frame", frame))):
         assert head_layout(head) in (HarmonicLayout(L), LegendreLayout(L)), (

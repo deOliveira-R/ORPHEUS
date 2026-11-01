@@ -147,7 +147,7 @@ class SweepOperator(
     since #280, the multi-D Cartesian representations since #616). Read off
     the matvec factors alone, the flag was ``True`` on 2-D poses whose
     ``.H.apply`` raised before #616 (`[M]` 2026-10-18,
-    ``tests/gates/numerics/test_adjointability_is_honest.py``). The
+    ``tests/gates/test_adjointability_is_honest.py``). The
     schedule-folded
     :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
     arm has no transposed solve (deferred, #681), so a

@@ -953,3 +953,19 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
         unlabelled = FunctionSpace("s2_unlabelled_bulk", sn.bulk_space.shape)
         with pytest.raises(TypeError, match="not built from labelled axes"):
             MultiplicationOperator(coefficient=cf, domain=unlabelled, codomain=unlabelled)
+
+
+# ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
+
+
+@pytest.mark.rests_on("tests/gates/numerics/test_dual_metric.py::test_Q2b_a_field_multiplier_has_no_spaceless_adjoint")
+def test_Q2b_the_transport_field_multiplier_declares_no_metric_free_adjoint() -> None:
+    """Split from numerics' ``test_dual_metric.py::test_Q2b_a_field_multiplier_has_no_spaceless_adjoint``: a diagonal
+    FIELD multiplier commutes only with diagonal metrics (#625), so transport's ``MultiplicationOperator`` must not
+    declare a metric-free adjoint. The numerics row's tail read the flag only ``if`` it was a property, so a flag
+    re-declared as a plain class attribute ``True`` was invisible to it; this row reads the attribute through the
+    MRO whatever its kind (the first class that defines it) (``[R]``, the spec's §5)."""
+    flag = next(vars(c)["is_metric_free_adjoint"] for c in MultiplicationOperator.__mro__ if "is_metric_free_adjoint" in vars(c))
+    value = flag.fget(None) if isinstance(flag, property) and flag.fget is not None else flag
+    if value is not False:
+        pytest.fail(f"MultiplicationOperator declares a metric-free adjoint ({value!r})")

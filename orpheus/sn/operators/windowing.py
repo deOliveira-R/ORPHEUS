@@ -81,7 +81,7 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
     block transpose :math:`P^{\mathsf T} = M^{\mathsf T} \oplus \mathrm{Id}_{\Gamma}`:
     the face's own transpose on the moment bulk, the trace passed through.
     Until 2026-10-18 it advertised no transpose although the face has one
-    (``tests/gates/numerics/test_adjointability_is_honest.py``).
+    (``tests/gates/test_adjointability_is_honest.py``).
 
     ``face`` must be the SCATTERING operator's own minted
     :attr:`~orpheus.transport.operators.scattering.ScatteringOperator.flux_analysis`

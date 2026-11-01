@@ -11919,3 +11919,19 @@ bias was the host, not the method: those runs overlapped a background pytest bat
 - `scipy.sparse.linalg.onenormest(t ≥ 2)` draws from the global `np.random`: an exit-report reading built on it is a
   draw of the caller's RNG and advances it. LAPACK gecon is dlacn2 (t = 1, deterministic), not t = 2.
 - An "own σ_max" by power iteration on A reads the spectral radius, 2–5× below σ_max on SN losses; power on AᵀA.
+
+## L124 — layer DAG Phase 2 refresh: a mechanical test move, and a judge built from one of a gate's predicates (2026-11-01)
+
+- A move tool that prunes "unreferenced private helpers" by NAME deletes a private class that exists for its
+  side effect (a `RegistryMixin` subclass registers itself at class creation): `test_registry_mixin.py`'s remainder
+  went red (`'b1' in {}`). After any pruned split, diff the remainder's class set against the original's and read
+  every vanished class; `[M]` 2 of 27 remainders lost classes, 1 wrongly.
+- A per-test census that seeds every name a forbidden import binds, MODULE-wide, taints any test using a local of
+  the same spelling (`... import test_operators as D`, then `D = _CountingDiagonal(...)`): 4 false positives in 33
+  files. Read every flagged test; the walker's zero on a file with a listed row means a dead helper or a string.
+- `judge.py` first ran only `_test_layer_violations`; the test-layer gate has a second predicate
+  (`_string_imports`, ruling 27) that my own `REPO = Path(__import__("orpheus").__file__)` rewrite would have
+  reddened at landing (the gate plants exactly that case). A draft's landing check runs EVERY predicate the gate's
+  test functions run, each with its control (`instrument-doctrine` X3 names the two-mechanisms tell for prose; this
+  is its instrument form).
+

@@ -50,6 +50,8 @@ import pytest
 from orpheus.data.energy_grid import EnergyGrid, InverseEnergySpectrum
 from orpheus.numerics.axis import EnergyAxis
 from tests.gates.numerics.test_indicator_basis_orientation import _EG_DESC  # the small descending grid, 4 groups fast-first
+import dataclasses
+from orpheus.data.macro_xs.synthetic import get_mixture
 
 pytestmark = pytest.mark.foundation
 
@@ -652,3 +654,52 @@ class TestF6LocalInterpolationReport:
             err_msg="every coarse column that received a FRACTION must be reported "
             f"as locally-interpolated; fractional cols={fractional_cols}, report={li}",
         )
+
+
+# ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
+
+
+_EDGES_2G = np.array([1.0e7, 1.0e3, 1.0e-3])
+
+
+def _require(condition: bool, message: str) -> None:
+    """A ``-O``-firing assertion (NOT a bare ``assert``)."""
+    if not condition:
+        pytest.fail(message)
+
+
+def test_energy_axis_equality_is_edges_CONTENT_not_grid_identity() -> None:
+    r"""A3 ⭐ — two DISTINCT ``EnergyGrid`` objects with equal edges give
+    EQUAL axes.
+
+    ``EnergyGrid`` is ``frozen=True, eq=False`` (identity equality) and
+    ``Mixture.energy_grid`` mints a FRESH one per access, so
+    ``[M]`` (2026-08-20, ``4e11731b``)::
+
+        mix.energy_grid is mix.energy_grid   -> False
+        mix.energy_grid == mix.energy_grid   -> False
+        np.array_equal(a.edges, b.edges)     -> True
+
+    If ``EnergyGrid.as_axis`` compared by grid identity, two ``bulk_space`` mints
+    from ONE mixture would be UNEQUAL spaces and ``_agreed_space`` would
+    raise inside a legitimate homogeneous solve. This is the cheapest
+    gate in the battery with an end-to-end consequence.
+    """
+    mix = dataclasses.replace(get_mixture("A", "2g"), eg=_EDGES_2G)
+    grid_a, grid_b = mix.energy_grid, mix.energy_grid
+    _require(grid_a is not grid_b, "precondition lost: energy_grid now caches")
+    _require(grid_a != grid_b, "precondition lost: EnergyGrid gained value equality")
+    axis_a, axis_b = grid_a.as_axis(), grid_b.as_axis()
+    _require(axis_a == axis_b, f"{axis_a!r} != {axis_b!r} — identity leaked from the grid")
+    _require(hash(axis_a) == hash(axis_b), "equal axes must hash equal")
+
+
+def test_the_energy_grids_frame_halves_name_one_manifold() -> None:
+    """The grid's basis view and its measure name ONE manifold (split from numerics'
+    ``test_basis_domain.py::test_d6_a_frames_two_halves_name_ONE_manifold`` by the layer DAG Phase 2 refresh:
+    the producer is the grid's)."""
+    grid = EnergyGrid(edges=np.array([2.0e7, 1.0, 1.0e-5]))
+    basis, measure = grid.as_basis(), grid.as_measure()
+    assert basis.domain == measure.support, (
+        f"EnergyGrid: the frame's basis says it lives on {basis.domain!r} and its measure says {measure.support!r}"
+    )

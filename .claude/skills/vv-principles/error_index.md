@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**123 entries · 357 catching tests · 2 uncaught · 5 dormant.**
+**123 entries · 358 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -165,7 +165,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-114 | 1 |  | The rank-1 Peierls compute_G_bc on the cylinder used the surface-centred Ki_1/d form, which rea… |
 | ERR-115 | 2 |  | A regenerated traced-memo entry held the OLD answer and validated: the generating process ran t… |
 | ERR-116 | 3 |  | A traced-memo entry pinned its file-system inputs (a data file's bytes, a probed path's presenc… |
-| ERR-117 | 2 |  | One adjointability predicate answered two questions, "a Euclidean transpose is coded" and "the… |
+| ERR-117 | 3 |  | One adjointability predicate answered two questions, "a Euclidean transpose is coded" and "the… |
 | ERR-118 | 1 |  | The quadrature registry typed "positive weights" on the Lebedev family, and the selector return… |
 | ERR-119 | 3 |  | The transport multiplier broadcast σ over the leading ordinate axis only, so on a linear-discon… |
 | ERR-120 | 2 |  | A hollow cylinder's or sphere's declared inner boundary condition was dropped in silence, becau… |

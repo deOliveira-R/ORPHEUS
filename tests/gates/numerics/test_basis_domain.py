@@ -67,9 +67,6 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from orpheus.data.energy_grid import EnergyGrid
-from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.basis import (
     Basis,
     IndicatorBasis,
@@ -330,25 +327,19 @@ def test_d6_a_frames_two_halves_name_ONE_manifold() -> None:
     ``support=basis.domain``, so the two cannot differ. It is asserted below as
     a third pair rather than as an exception.
     """
-    geometry = StructuredGeometry.slab(
-        (0.0, 0.5, 1.0), (0, 1), left=0, right=0,
+    # The mesh's pair (Mesh1D.indicator_basis / volume_measure) and the energy grid's (EnergyGrid.as_basis /
+    # as_measure) are gated in their own layers since the layer DAG Phase 2 refresh:
+    # tests/gates/mesh/test_mesh_yields_an_indicator_basis.py::test_the_mesh_frames_two_halves_name_one_manifold and
+    # tests/gates/data/test_energy_grid.py::test_the_energy_grids_frame_halves_name_one_manifold. Here, the numerics
+    # producer of a frame's two halves: the angular frame of a quadrature.
+    frame = frame_faces.angular_frame(Quadrature.level_symmetric(sn_order=4), 1)
+    assert frame.basis.domain == frame.measure.support, (
+        f"angular_frame: the frame's basis says it lives on {frame.basis.domain!r} and its measure says "
+        f"{frame.measure.support!r} — one frame, two manifolds."
     )
-    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(1)).mesh
-    grid = EnergyGrid(edges=np.array([2.0e7, 1.0, 1.0e-5]))
 
-    pairs = [
-        ("Mesh1D", mesh.indicator_basis(), mesh.volume_measure),
-        ("EnergyGrid", grid.as_basis(), grid.as_measure()),
-    ]
-    for who, basis, measure in pairs:
-        assert basis.domain == measure.support, (
-            f"{who}: the frame's basis says it lives on "
-            f"{basis.domain!r} and its measure says {measure.support!r} — "
-            f"one frame, two manifolds."
-        )
-
-    # ...and the spaces those agreeing halves mint stay distinguishable.
-    assert FunctionSpace.of_basis(mesh.indicator_basis()) != FunctionSpace.of_basis(grid.as_basis())
+    # The leg "the spaces the two agreeing halves mint stay distinguishable" (mesh against grid) is the numerics law
+    # of test_d1 above (an energy and a spatial indicator space of equal shape are unequal); it is not repeated here.
 
     # The loss-kernel pair, now ONE point set with ONE spelling. Its measure
     # is built inside `KernelProjectionGauge.direct_sum`, so this pins the basis's half and

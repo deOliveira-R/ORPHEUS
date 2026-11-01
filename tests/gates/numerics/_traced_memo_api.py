@@ -3,7 +3,7 @@ r"""One spelling of the traced memo's API for the M1–M5 gates (#405 P3, ``.cla
 Every production name the gates touch is resolved HERE, at call time, off the module imported at the top
 (lessons ``L100``: a battery that rebinds a module attribute must reach every row; layer DAG ruling 27: the module is
 imported by statement, not by string): if the build lands a different module path or name, this file is the one
-edit. The memoised clients (``CLIENTS``) live in ``test_traced_memo_clients.py``, their one consumer. The declared API (spec §0.2):
+edit. The memoised clients (``CLIENTS``) live in ``tests/gates/derivations/test_traced_memo_clients.py``, their one consumer. The declared API (spec §0.2):
 
 * ``traced_memo(function)`` / ``traced_memo(canonical={param: f})``: the decorator, returning a ``TracedMemo``
   with ``__call__``, ``lookup(*args, **kwargs) -> Verdict`` (no generation), ``key(*args, **kwargs) -> str``,

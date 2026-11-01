@@ -279,7 +279,7 @@ def test_m3_12d_two_calls_of_one_child_in_one_generation_are_one_entry(package, 
 def test_m3_12e_a_child_generated_by_its_parent_serves_a_direct_caller(package, tmp_path):
     """M3.12 (e): after ``outer`` generated ``inner`` as its child, a DIRECT call of ``inner`` with the same
     argument is a ``Hit``, starts no generation, and returns the parent's child value bit for bit: one child entry,
-    two consumers. The synthetic successor of ``test_traced_memo_clients.py::test_m4_2_one_solve_entry_serves_
+    two consumers. The synthetic successor of ``tests/gates/derivations/test_traced_memo_clients.py::test_m4_2_one_solve_entry_serves_
     billiard_and_a_direct_caller``, whose real client (the trajectory resolvent's solve child) step (e2) of the
     characteristic-reference campaign deleted; since #592 the characteristic reference's solve is the feature's
     production client again, and this row keeps the contract pinned on a synthetic client. First red: the child generated in the

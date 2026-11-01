@@ -19,6 +19,10 @@ tangential ordinates — 192 of 384 rows under ``product(4,4)`` — so the
 pseudo-inverse masking is the normal case here, not an edge case, and a
 suite that only ever exercised ``level_symmetric`` (0 zero rows) would
 be blind to it.
+
+Layer DAG Phase 2: the trace space is built in numerics
+(:meth:`AngularTraceSpace.from_quadrature_and_layout`), not through an
+``SNProblem``; the space is the same (``[M]``, see ``_trace_space``).
 """
 
 from __future__ import annotations
@@ -26,36 +30,30 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.data.macro_xs.synthetic import get_mixture
-from orpheus.mesh import Mesh2D
 from orpheus.numerics.basis import SphericalHarmonicBasis
+from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.operator import InverseMetricOperator
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
-from orpheus.sn.problem import SNProblem
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics import frame_faces
-from orpheus.geometry.deck import MirrorDeck
 
-_REFLECTIVE = MirrorDeck()
+#: The four faces of a 3 × 3 two-group 2-D box, each slot ``(N, ng, 3)`` — the
+#: layout the SN hub derives for that box (``SNProblem.boundary_face_layout``).
+_FACES = ("xmin", "xmax", "ymin", "ymax")
 
 
-def _trace_space(quadrature: Quadrature):
-    """The SN boundary-trace space of a small all-reflective 2-D box."""
-    edges = np.linspace(0.0, 1.0, 4)
-    mesh = Mesh2D(
-        edges_x=edges, edges_y=edges,
-        mat_map=np.zeros((3, 3), dtype=int),
-        face_roles={
-            "xmin": _REFLECTIVE,
-            "xmax": _REFLECTIVE,
-            "ymin": _REFLECTIVE,
-            "ymax": _REFLECTIVE,
-        },
-    )
-    problem = SNProblem(mesh, quadrature, {0: get_mixture("B", "2g")})
-    space = problem.full_field_space.trace_space
-    assert space is not None, "a 2-D box always has a boundary-trace space"
-    return space
+def _trace_space(quadrature: Quadrature) -> AngularTraceSpace:
+    """The boundary-trace space of a 3 × 3, two-group 2-D box, built from the
+    quadrature and the face layout alone (numerics; no mesh, no hub).
+
+    ``[M]`` 2026-10-30 (``scratch/layer_dag/refiling/specs_2/proto/probe_trace.py``):
+    ``==`` the space the SN hub mints for the all-reflective 3 × 3 ``Mesh2D``,
+    ``inner_product_weights`` ``array_equal``, for both quadratures below.
+    """
+    n = quadrature.n_ordinates
+    layout = FaceLayout.from_named_shapes([(face, (n, 2, 3)) for face in _FACES])
+    return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
 
 
 #: ``level_symmetric`` has NO tangential ordinate, ``product`` has many —
@@ -90,7 +88,7 @@ def test_it_is_self_adjoint(name):
     space = _trace_space(_QUADRATURES[name])
     operator = InverseMetricOperator(space)
     rng = np.random.default_rng(0)
-    x = rng.standard_normal(np.shape(space.inner_product_weights))
+    x = rng.standard_normal(np.asarray(space.inner_product_weights).shape)
     assert operator.is_adjointable
     np.testing.assert_array_equal(
         operator.apply(x), operator.apply_transpose(x),
