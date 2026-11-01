@@ -291,7 +291,7 @@ def test_the_composite_parses_reach_the_one_primitive(site, monkeypatch, sphere)
 
 def test_the_declared_exceptions_are_strict():
     """The composite rows' xfail must be strict, or an XPASS after #666 would pass in silence."""
-    marks = [m for m in test_the_composite_parses_reach_the_one_primitive.pytestmark if m.name == "xfail"]
+    marks = [m for m in getattr(test_the_composite_parses_reach_the_one_primitive, "pytestmark") if m.name == "xfail"]
     assert len(marks) == 1 and marks[0].kwargs.get("strict") is True
 
 

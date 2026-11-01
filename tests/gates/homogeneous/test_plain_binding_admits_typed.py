@@ -33,7 +33,9 @@ _OLD = "the plain binding acts on bare"        # the D1-retired refusal: must be
 
 def _pose():
     p = HomogeneousProblem(get_mixture("A", "2g"))
-    energy, spatial = p.space.axes
+    axes = p.space.axes
+    assert axes is not None, "the homogeneous pose is an axis product"
+    energy, spatial = axes
     # Equal shape (2, 1), another spatial measure: the two spaces only content identity tells apart.
     foreign = FunctionSpace.of_axes(energy, Axis("spatial", (1,), weights=np.array([2.0]), origin=spatial.origin))
     assert foreign != p.space and foreign.shape == p.space.shape       # the discriminator, asserted in-test
@@ -72,4 +74,4 @@ def test_the_composite_refusal_stays_admit_arrays_own():
     from orpheus.transport.full_field import FullField  # noqa: F401  (the composite type the refusal names)
     p, _ = _pose()
     with pytest.raises(TypeError, match="IsotropicFission"):
-        p.production.apply(object())
+        p.production.apply(object())  # pyright: ignore[reportArgumentType]  (the refusal under test)

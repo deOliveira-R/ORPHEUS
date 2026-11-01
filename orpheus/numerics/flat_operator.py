@@ -61,7 +61,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 import numpy as np
 
-from orpheus.numerics.operator import LinearOperator
+from orpheus.numerics.operator import LinearOperator, adjointable
 
 if TYPE_CHECKING:
     from scipy import sparse
@@ -157,7 +157,20 @@ class FlattenedOperator(LinearOperator):
                 f"not match the template's flat size {self.n_flat}."
             )
         carrier = type(self.template).from_flat(flat, self.template)
-        return np.asarray(self.inner.apply_transpose(carrier).to_flat())
+        return np.asarray(self.inner.dual().apply(carrier).to_flat())
+
+    @property
+    def is_adjointable(self) -> bool:
+        r"""The flat chart is an isometry of coordinates, so this transposes exactly when ``inner`` does.
+
+        :meth:`apply_transpose` realises the transpose through the inner
+        operator's dual arrow; until this flag was derived (2026-10-31) it read
+        the base's ``False`` while that method worked, and the algebra's
+        ``.dual()`` door refused a transpose the adapter could realise (the
+        diffusion pencil's annihilation check, reached once the check spelled
+        the transpose through the door).
+        """
+        return adjointable(self.inner)
 
     @property
     def is_assemblable(self) -> bool:

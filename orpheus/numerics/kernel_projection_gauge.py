@@ -50,6 +50,8 @@ Its laws are gated on a numerics fixture with a non-uniform :math:`G`
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from functools import reduce
+from operator import add
 from typing import Callable, Optional
 
 import numpy as np
@@ -63,7 +65,7 @@ from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import LinearOperator, ZeroMorphism
 from orpheus.numerics.space import FunctionSpace
 
-__all__ = ["KernelProjectionGauge", "KernelSummand", "SUMMAND_ORTHOGONALITY_TOL"]
+__all__ = ["KernelProjectionGauge", "KernelSummand", "SUMMAND_ORTHOGONALITY_TOL", "diagonal_metric"]
 
 #: The largest ``|G-cosine|`` between two overlapping summands' orthonormal modes
 #: that still counts as orthogonal. Orthogonal-by-theory summands read round-off
@@ -132,7 +134,7 @@ class _ProjectedSummand:
     basis: OrthonormalSpanBasis
 
 
-def _metric_diagonal(space: FunctionSpace) -> NDArray:
+def diagonal_metric(space: FunctionSpace) -> NDArray:
     r"""The diagonal of the space's metric on its flat chart (C order), :meth:`FunctionSpace.metric_diagonal`.
 
     SCOPE-BOUNDARY[guard]: a space whose metric is not diagonal is refused.
@@ -167,7 +169,7 @@ def _flat_chart(space: FunctionSpace) -> FunctionSpace:
     from orpheus.numerics.metric import DiagonalMetric
 
     return FunctionSpace(f"{space.name}#flat", (int(np.prod(space.shape)),),
-                         metric=DiagonalMetric(_metric_diagonal(space)))
+                         metric=DiagonalMetric(diagonal_metric(space)))
 
 
 class KernelProjectionGauge(LinearOperator):
@@ -191,7 +193,7 @@ class KernelProjectionGauge(LinearOperator):
         #: :math:`\Pi = \sum_b \gamma_b^{\mathsf H} \Pi_b \gamma_b`, spelled in the operator algebra,
         #: so its transpose and adjoint follow by law; the zero map when there is no summand.
         self._projector: LinearOperator = (
-            sum(s.gather.H @ s.projector @ s.gather for s in self._summands)
+            reduce(add, (s.gather.H @ s.projector @ s.gather for s in self._summands))
             if self._summands else ZeroMorphism(domain=self._chart, codomain=self._chart)
         )
 
@@ -206,7 +208,7 @@ class KernelProjectionGauge(LinearOperator):
         to :data:`SUMMAND_ORTHOGONALITY_TOL`; otherwise the sum would not be a
         projector, and it is refused.
         """
-        weights = _metric_diagonal(space)
+        weights = diagonal_metric(space)
         n_total = weights.size
         labels = [summand.label for summand in summands]
         if len(set(labels)) != len(labels):
@@ -274,7 +276,7 @@ class KernelProjectionGauge(LinearOperator):
         :math:`G` is uniform (the SN predecessor returned :math:`\Pi`; nothing
         read it). It is the operator algebra's transpose of the sum, by law.
         """
-        return self._on_chart(x, self._projector.apply_transpose)
+        return self._on_chart(x, self._projector.dual().apply)
 
     def _on_chart(self, x: NDArray, action: "Callable[[NDArray], NDArray]") -> NDArray:
         r"""Parse ``x`` at the space's action verb, act on its flat chart, and return it in the space's shape."""
@@ -310,7 +312,7 @@ class KernelProjectionGauge(LinearOperator):
         report's gauge reading on every method that gauges.
         """
         values = np.asarray(self._space.leading_coordinates_of(state), dtype=float).reshape(-1)
-        weights = _metric_diagonal(self._space)
+        weights = diagonal_metric(self._space)
         total = float(np.sqrt(np.sum(weights * values**2)))
         if total == 0.0 or not self._summands:
             return 0.0

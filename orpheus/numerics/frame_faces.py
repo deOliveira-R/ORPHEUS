@@ -58,7 +58,7 @@ from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import LinearOperator, NotInvertible
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import FunctionSpace, Member
 
 
 #: This module's private slot on a frame or a quadrature (:func:`~orpheus.numerics.instance_cache.cached_on`).
@@ -299,10 +299,10 @@ class CrossGramInverse(LinearOperator):
     def codomain(self) -> FunctionSpace:
         return self._codomain
 
-    def apply(self, x: NDArray) -> NDArray:
+    def apply(self, x: "NDArray | Member") -> NDArray:
         return self._metric.apply_inverse(self._domain.leading_coordinates_of(x))
 
-    def apply_transpose(self, x: NDArray) -> NDArray:
+    def apply_transpose(self, x: "NDArray | Member") -> NDArray:
         # Self-adjoint: a real diagonal is its own transpose (and the two
         # ends share one shape); the transpose acts on the codomain.
         return self._metric.apply_inverse(self._codomain.leading_coordinates_of(x))
@@ -525,12 +525,12 @@ class FrameAnalysis(AnalysisOperator):
     def codomain(self) -> FunctionSpace:
         return test_space(self.frame)
 
-    def apply(self, values: NDArray, /) -> NDArray:
+    def apply(self, values: "NDArray | Member", /) -> NDArray:
         return self.frame.test.analyze(
             self.domain.leading_coordinates_of(values), self.frame.test_table, self.frame.measure.weights,
         )
 
-    def apply_transpose(self, coefficients: NDArray, /) -> NDArray:
+    def apply_transpose(self, coefficients: "NDArray | Member", /) -> NDArray:
         return self.frame.test.analyze_transpose(
             self.codomain.leading_coordinates_of(coefficients), self.frame.test_table, self.frame.measure.weights,
         )
@@ -571,10 +571,10 @@ class FrameReconstruction(ReconstructionOperator):
     def codomain(self) -> FunctionSpace:
         return measure_space(self.frame)
 
-    def apply(self, coefficients: NDArray, /) -> NDArray:
+    def apply(self, coefficients: "NDArray | Member", /) -> NDArray:
         return self.frame.basis.reconstruct(self.domain.leading_coordinates_of(coefficients), self.frame.table)
 
-    def apply_transpose(self, values: NDArray, /) -> NDArray:
+    def apply_transpose(self, values: "NDArray | Member", /) -> NDArray:
         return self.frame.basis.reconstruct_transpose(self.codomain.leading_coordinates_of(values), self.frame.table)
 
 

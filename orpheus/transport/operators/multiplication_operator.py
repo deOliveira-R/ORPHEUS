@@ -150,7 +150,7 @@ if TYPE_CHECKING:
 
     from scipy import sparse
 
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.space import FunctionSpace, Member
     from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 
@@ -438,7 +438,9 @@ class MultiplicationOperator(BoundOperator):
     def apply(self, psi: FullField, /) -> FullField: ...
     @overload
     def apply(self, psi: np.ndarray, /) -> np.ndarray: ...
-    def apply(self, psi: "FullField | np.ndarray", /) -> "FullField | np.ndarray":
+    @overload
+    def apply(self, psi: Member, /) -> np.ndarray: ...
+    def apply(self, psi: "FullField | np.ndarray | Member", /) -> "FullField | np.ndarray":
         r"""Forward action :math:`M[f]\,\psi = f \cdot \psi`.
 
         On a composite binding: the pointwise multiply on the bulk block
@@ -459,7 +461,9 @@ class MultiplicationOperator(BoundOperator):
     def solve(self, q: FullField, /) -> FullField: ...
     @overload
     def solve(self, q: np.ndarray, /) -> np.ndarray: ...
-    def solve(self, q: "FullField | np.ndarray", /) -> "FullField | np.ndarray":
+    @overload
+    def solve(self, q: Member, /) -> np.ndarray: ...
+    def solve(self, q: "FullField | np.ndarray | Member", /) -> "FullField | np.ndarray":
         r"""Inverse action :math:`M[f]^{-1}\,q = q / f = M[1/f]\,q`.
 
         Requires invertibility (the spectrum law: :math:`\min|f| > 0`);
@@ -477,7 +481,9 @@ class MultiplicationOperator(BoundOperator):
     def apply_transpose(self, psi: FullField, /) -> FullField: ...
     @overload
     def apply_transpose(self, psi: np.ndarray, /) -> np.ndarray: ...
-    def apply_transpose(self, psi: "FullField | np.ndarray", /) -> "FullField | np.ndarray":
+    @overload
+    def apply_transpose(self, psi: Member, /) -> np.ndarray: ...
+    def apply_transpose(self, psi: "FullField | np.ndarray | Member", /) -> "FullField | np.ndarray":
         r"""Adjoint action :math:`M[f]^{*}\,\psi = M[\bar f]\,\psi = M[f]\,\psi`.
 
         Equal to :meth:`apply` — a real-valued multiplier is self-adjoint

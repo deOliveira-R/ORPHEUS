@@ -115,7 +115,7 @@ if TYPE_CHECKING:
     from scipy import sparse
 
     from orpheus.numerics.operator import LinearOperator, TensorProductOperator
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.space import FunctionSpace, Member
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
     from orpheus.transport.reaction_rate_functional import ReactionRateFunctional
 
@@ -227,7 +227,7 @@ class IsotropicTransfer(BoundOperator):
         # apply_transpose. is_invertible inherits base False.
         return True
 
-    def apply(self, phi: np.ndarray, /) -> np.ndarray:
+    def apply(self, phi: "np.ndarray | Member", /) -> np.ndarray:
         r""":math:`y\,\Sigma_{c,0}^{T}\phi` — the per-cell P0 emission.
 
         Bare ndarray of the domain's shape in → bare ndarray out (the
@@ -239,7 +239,7 @@ class IsotropicTransfer(BoundOperator):
         self.transfer.add_p0_source(out, arr)
         return out
 
-    def apply_transpose(self, chi: np.ndarray, /) -> np.ndarray:
+    def apply_transpose(self, chi: "np.ndarray | Member", /) -> np.ndarray:
         r""":math:`y\,\Sigma_{c,0}\chi` — the group-flip transpose (the bare
         Euclidean :math:`A^{T}`), on the codomain's shape in."""
         arr = admit_array(self, chi, end="codomain")
@@ -523,7 +523,7 @@ class IsotropicFission(BoundOperator):
 
         return outer(self.emission_spectrum, self.production_rate) & IdentityOperator()
 
-    def apply(self, phi: np.ndarray, /) -> np.ndarray:
+    def apply(self, phi: "np.ndarray | Member", /) -> np.ndarray:
         r""":math:`\chi\,(\nu\Sigma_f\cdot\phi)` — the per-cell fission source (no :math:`1/k`).
 
         Bare ndarray of the domain's shape in → bare ndarray out (the
@@ -533,7 +533,7 @@ class IsotropicFission(BoundOperator):
         """
         return self.kernel.apply(admit_array(self, phi, end="domain"))
 
-    def apply_transpose(self, chi: np.ndarray, /) -> np.ndarray:
+    def apply_transpose(self, chi: "np.ndarray | Member", /) -> np.ndarray:
         r"""The dual dyad :math:`F^{T}\psi^* = \nu\Sigma_f\,(\chi\cdot\psi^*)`
         — the χ↔νΣf factor swap, routed through :attr:`kernel`'s
         :class:`~orpheus.numerics.operator.TensorProductOperator`

@@ -102,8 +102,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from typing import TYPE_CHECKING, cast
+
 import numpy as np
 import pytest
+
+if TYPE_CHECKING:
+    from orpheus.numerics.fredholm import PredictedKernel
 
 from orpheus.numerics.index_set import IndexSet
 from orpheus.data.macro_xs.synthetic import make_mixture
@@ -994,7 +999,7 @@ def _exit_reading(mesh, x, kernel=_THE_HUBS, bulk_seed=None):
     if bulk_seed is not None:
         interior = np.random.default_rng(bulk_seed).standard_normal(np.shape(interior))
     psi = replace(psi, interior=replace(psi.interior, values=interior), boundary=replace(psi.boundary, values=x))
-    return _exit_gauge(psi, kernel=mesh.pencil.kernel if kernel is _THE_HUBS else kernel)
+    return _exit_gauge(psi, kernel=mesh.pencil.kernel if kernel is _THE_HUBS else cast("PredictedKernel | None", kernel))
 
 
 _UNIFORM_TRACE_METRIC = "d2 (3,4) LS2 ng=1"
@@ -1044,5 +1049,7 @@ def test_the_exit_reads_the_protocol_only():
     from orpheus.numerics.fredholm import PredictedKernel
     mesh = _mesh((3, 4), [(_R, _R)] * 2)
     x = np.random.default_rng(0).standard_normal(np.shape(_unwindowed_cold_start(mesh, history_depth=0).boundary.values))
-    out, correction = _exit_reading(mesh, x, kernel=PredictedKernel.trivial(mesh.pencil.lhs.domain, "no freedom"))
+    domain = mesh.pencil.lhs.domain
+    assert domain is not None
+    out, correction = _exit_reading(mesh, x, kernel=PredictedKernel.trivial(domain, "no freedom"))
     assert correction is None and np.array_equal(np.asarray(out.boundary.values), x)

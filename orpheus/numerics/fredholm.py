@@ -63,7 +63,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.evidence import Evidence, Measured
 from orpheus.numerics.basis.orthonormal_span_basis import SPAN_RANK_RTOL
-from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand, _metric_diagonal
+from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand, diagonal_metric
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.space import FunctionSpace
 
@@ -297,8 +297,8 @@ class PredictedKernel:
         """
         if space == self.space:
             return self
-        own = _metric_diagonal(self.space)
-        other = _metric_diagonal(space)
+        own = diagonal_metric(self.space)
+        other = diagonal_metric(space)
         if other.size < own.size or not np.array_equal(other[: own.size], own):
             raise ValueError(
                 f"PredictedKernel.rebased: {space!r} does not begin with {self.space!r} (its flat chart's leading "
@@ -315,7 +315,7 @@ class PredictedKernel:
         annihilators are :math:`\flat\ker A`: the two generator sets swap
         through the Riesz legs, read from the metric's diagonal on each support.
         """
-        weights = _metric_diagonal(self.space)
+        weights = diagonal_metric(self.space)
         inverse = np.divide(1.0, weights, out=np.zeros_like(weights), where=weights > 0.0)  # the Riesz leg's pseudo-inverse
         sharp = tuple(_reweighted(s, inverse[s.support], "sharp") for s in self.left)
         flat = tuple(_reweighted(s, weights[s.support], "flat") for s in self.right)

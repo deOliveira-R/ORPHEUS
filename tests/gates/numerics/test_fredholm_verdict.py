@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from scipy.sparse import csr_array
 
 from orpheus.numerics.axis import Axis, BasisKind, Declared
 from orpheus.numerics.assembled_operator import SparseAssembledOperator
@@ -97,6 +98,7 @@ def test_V4_the_gauged_member_is_the_minimum_G_norm_member():
     x_any = np.linalg.lstsq(_A, q, rcond=None)[0] + _RIGHT @ np.array([3.0, -2.0])
     B = np.block([[_A, _RIGHT], [(_G[:, None] * _RIGHT).T, np.zeros((2, 2))]])
     x_ref = np.linalg.solve(B, np.concatenate([q, [0.0, 0.0]]))[:_N]
+    assert isinstance(v, Gauge), v
     np.testing.assert_allclose(v.projector.gauge(x_any), x_ref, rtol=0, atol=64 * np.finfo(float).eps * np.linalg.cond(B) * np.abs(x_ref).max())
 
 
@@ -156,7 +158,7 @@ def test_V7a_the_deflated_inverse_returns_the_minimum_G_norm_member():
     minimum-G-norm member. REFERENCE: the bordered system (test oracle only). [M] orchestrator (deflated_probe.py,
     3 diffusion fixtures): cond(A + Pi) 35-42 against 1e17, agreement 1e-15. Arm deflate_euclidean (R R^T) reds."""
     q = _balanced(5)
-    A = SparseAssembledOperator(_A, domain=SPACE, codomain=SPACE)
+    A = SparseAssembledOperator(csr_array(_A), domain=SPACE, codomain=SPACE)
     x = np.ravel(MatrixInverseOperator(_kernel().deflate(A)).apply(q))
     B = np.block([[_A, _RIGHT], [(_G[:, None] * _RIGHT).T, np.zeros((2, 2))]])
     x_ref = np.linalg.solve(B, np.concatenate([q, [0.0, 0.0]]))[:_N]
@@ -173,4 +175,4 @@ def test_V7b_a_non_semisimple_kernel_is_refused_at_construction():
     jordan = PredictedKernel(sp, (KernelSummand(np.array([0]), np.ones((1, 1)), "right"),),
                              (KernelSummand(np.array([1]), np.ones((1, 1)), "left"),), "a Jordan chain")
     with pytest.raises(ValueError, match="semisimple"):
-        jordan.deflate(SparseAssembledOperator(A, domain=sp, codomain=sp))
+        jordan.deflate(SparseAssembledOperator(csr_array(A), domain=sp, codomain=sp))

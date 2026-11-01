@@ -417,6 +417,26 @@ def _diffusion_flattened() -> _Posed:
     )
 
 
+def _diffusion_flattened_fission() -> _Posed:
+    r"""The diffusion pencil's flattened fission, ``FlattenedOperator(F, template)``, the production spelling.
+
+    Its inner transposes, so the adapter does (the flat chart is an isometry of
+    coordinates). Until 2026-10-31 the adapter read the base's ``False`` while
+    its ``apply_transpose`` worked; the posing's annihilation check, once it
+    spelled the transpose through the ``.dual()`` door, refused it
+    (``tests/gates/diffusion/test_fixed_source_verdict.py`` D6 reddened). The
+    flattened LOSS row beside this one stays #614-blocked: its inner does not
+    transpose.
+    """
+    from orpheus.diffusion.solver import DiffusionSolver
+
+    D, mesh = _diffusion()
+    x = D._random_flux(mesh)
+    op = DiffusionSolver(mesh).pencil.rhs
+    pair = _diffusion_flat_pairing(x)
+    return _Posed(op, x.to_flat(), pair_v=pair, pair_w=pair)
+
+
 def _diffusion_resolvent() -> _Posed:
     r"""The production diffusion resolvent, ``diffusion/solver.py``'s spelling."""
     D, mesh = _diffusion()
@@ -811,6 +831,7 @@ _REGISTRY: dict[str, Callable[[], _Posed]] = {
     "diffusion_boundary": _diffusion_leaf("boundary"),
     "diffusion_loss": _diffusion_leaf("loss"),
     "diffusion_flattened_loss": _diffusion_flattened,
+    "diffusion_flattened_fission": _diffusion_flattened_fission,
     "diffusion_assembled_leakage": _diffusion_assembled,
     "diffusion_resolvent": _diffusion_resolvent,
     # SN, 1-D and 2-D poses

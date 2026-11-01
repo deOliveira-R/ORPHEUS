@@ -704,7 +704,7 @@ class TestMeshlessBareArm:
         sigma = self._asym_sigma(2, 5, 3)
         for C in (_multiplier(sn, sigma), _multiplier(sn, sigma, plain=True)):
             with pytest.raises(TypeError, match="MultiplicationOperator"):
-                C.apply(object())
+                C.apply(object())  # pyright: ignore[reportArgumentType, reportCallIssue]  (the refusal under test)
         with pytest.raises(TypeError, match="MultiplicationOperator"):
             _multiplier(sn, sigma).apply(ScalarFlux(values=sigma, space=sn.bulk_space))
         plain = _multiplier(sn, sigma, plain=True)

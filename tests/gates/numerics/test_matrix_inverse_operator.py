@@ -728,5 +728,6 @@ def test_the_reciprocal_condition_is_gecon_on_the_factors_and_the_one_norm_of_A(
     assert np.abs(A).sum(axis=0).max() != np.abs(A).sum(axis=1).max()
     space = FunctionSpace("nonsymmetric", (7,))
     inverse = MatrixInverseOperator(SparseAssembledOperator(csr_matrix(A), domain=space, codomain=space))
-    expected = lapack.dgecon(lu_factor(A)[0], float(np.abs(A).sum(axis=0).max()), norm="1")[0]
+    (gecon,) = lapack.get_lapack_funcs(("gecon",), (A,))
+    expected = gecon(lu_factor(A)[0], float(np.abs(A).sum(axis=0).max()), norm="1")[0]
     assert inverse.reciprocal_condition == expected

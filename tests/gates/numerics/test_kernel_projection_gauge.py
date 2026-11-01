@@ -459,7 +459,9 @@ class TestTheMetricDiagonalVerb:
     def test_a_dual_metric_is_diagonal_iff_its_primal_is(self):
         """Arm ``dual_is_primal`` reddens the diagonal leg."""
         from orpheus.numerics.metric import DenseMetric, DiagonalMetric, DualMetric
-        np.testing.assert_allclose(DualMetric(DiagonalMetric(_G)).diagonal((_N,)), 1.0 / _G, rtol=1e-15, atol=0)
+        diagonal = DualMetric(DiagonalMetric(_G)).diagonal((_N,))
+        assert diagonal is not None
+        np.testing.assert_allclose(diagonal, 1.0 / _G, rtol=1e-15, atol=0)
         assert DualMetric(DenseMetric(np.diag(_G))).diagonal((_N,)) is None
 
     def test_a_euclidean_space_reads_ones(self):

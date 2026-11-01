@@ -187,7 +187,9 @@ class TestLawTheKernelGauge:
         hub = _gauge_singular_hub()
         gauge = hub.loss_kernel_gauge
         rng = np.random.default_rng(3)
-        trace = rng.random(gauge.domain.shape)  # a random state's coordinates (the gauge acts on the whole state, U0)
+        domain = gauge.domain
+        assert domain is not None
+        trace = rng.random(domain.shape)  # a random state's coordinates (the gauge acts on the whole state, U0)
         pi = gauge.apply(trace)
         _require(float(np.linalg.norm(pi)) > 0.0, "non-vacuity: a random state has a kernel component")
         _require(np.allclose(gauge.apply(pi), pi, rtol=1e-12, atol=1e-14), "Π² = Π")
@@ -198,7 +200,9 @@ class TestLawTheKernelGauge:
         hub = _gauge_singular_hub()
         gauge = hub.loss_kernel_gauge
         rng = np.random.default_rng(5)
-        shape = gauge.domain.shape
+        domain = gauge.domain
+        assert domain is not None
+        shape = domain.shape
         trace = rng.random(shape)
         v = gauge.apply(rng.random(shape))
         _require(float(np.linalg.norm(v)) > 0.0, "non-vacuity: the group element is non-zero")

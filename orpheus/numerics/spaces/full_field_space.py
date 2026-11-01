@@ -99,7 +99,7 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol, overload
 
 import numpy as np
 
@@ -320,6 +320,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             return act_on_direct_sum_coordinates(self, (self.interior_space, self.trace_space), x, leg)
         return self._rebuild(x, leg(self.interior_space, x.interior.values), leg(self.trace_space, x.boundary.values))
 
+    @overload
+    def apply_metric(self, x: "CompositeField") -> "CompositeField": ...
+
+    @overload
+    def apply_metric(self, x: "np.ndarray") -> "np.ndarray": ...
+
     def apply_metric(self, x: "CompositeField | np.ndarray") -> "CompositeField | np.ndarray":
         r"""Apply the block-diagonal Hilbert metric :math:`G\odot x`.
 
@@ -331,6 +337,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         its trace metric — the family-blind dispatch needs no third arm.)
         """
         return self._blockwise(x, lambda space, block: space.apply_metric(block))
+
+    @overload
+    def apply_inverse_metric(self, x: "CompositeField") -> "CompositeField": ...
+
+    @overload
+    def apply_inverse_metric(self, x: "np.ndarray") -> "np.ndarray": ...
 
     def apply_inverse_metric(self, x: "CompositeField | np.ndarray") -> "CompositeField | np.ndarray":
         r"""Apply the block-diagonal pseudo-inverse metric :math:`G^{+}\odot x`.

@@ -144,7 +144,7 @@ from typing import TYPE_CHECKING, cast
 import numpy as np
 
 from orpheus.diffusion.augmented_mesh import DiffusionMesh
-from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator
+from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperator, _require_trace_layout
 from orpheus.numerics.assembled_operator import dense
 from orpheus.numerics.evidence import Measured, NotApplicable, NotYet
 from orpheus.numerics.fredholm import PredictedKernel, Solvable
@@ -180,6 +180,7 @@ from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.mesh import Mesh1D
+    from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
     from orpheus.transport.boundary_conditions import BoundaryCondition
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
@@ -343,9 +344,9 @@ class DiffusionSolver:
         r"""The energy group of every coordinate of the full field's flat chart (bulk ``(ng, *cells)``, trace ``(2, ng, ...)`` per face)."""
         interior = self.template.interior.values.shape
         bulk = np.broadcast_to(np.arange(interior[0]).reshape((-1,) + (1,) * (len(interior) - 1)), interior).ravel()
-        trace_space = self.mesh.full_field_space.trace_space
+        trace_space = cast("ScalarTraceSpace", self.mesh.full_field_space.trace_space)
         trace = np.zeros(int(np.prod(trace_space.shape)), dtype=np.intp)
-        for slot in trace_space.layout.faces.values():
+        for slot in _require_trace_layout(trace_space).faces.values():
             groups = np.arange(slot.shape[1]).reshape((1, -1) + (1,) * (len(slot.shape) - 2))
             trace[slot.offset:slot.offset + slot.flat_size] = np.broadcast_to(groups, slot.shape).ravel()
         return np.concatenate([bulk, trace])
@@ -394,10 +395,11 @@ class DiffusionSolver:
         return self._inner_records
 
     def solve_fixed_source(
-        self, fission_source: np.ndarray, flux_distribution: np.ndarray,
+        self, fission_source: np.ndarray, flux_distribution: np.ndarray | None = None,
     ) -> np.ndarray:
         r"""EXACT inner solve :math:`\psi = A^{-1} q` — one LU
-        back-substitution; the initial guess is irrelevant."""
+        back-substitution; the initial guess is irrelevant, so a caller
+        outside the eigen loop (the fixed-source entry) omits it."""
         # The default ``IterationBudget()`` has ``limit=0``: an exact solve
         # has no iteration budget, so ``exhausted_budget`` is False by
         # construction and the knob name is inert — nothing will ever advise
@@ -633,7 +635,7 @@ def solve_diffusion_fixed_source(mesh: "DiffusionMesh", source: np.ndarray) -> D
     q_flat = np.concatenate([bulk.ravel(), np.zeros(solver.template.boundary.values.size)])
     posing = SourcePosing.of_pencil(solver.pencil, 0.0, q_flat)
     solvability = posing.solvability(conditioning=Measured(solver.resolvent.reciprocal_condition))
-    phi_flat = solver.solve_fixed_source(q_flat, None)
+    phi_flat = solver.solve_fixed_source(q_flat)
     projector = solver.predicted_kernel.projector
     gauge = (NotApplicable("the loss has a trivial kernel: no gauge freedom") if projector.dimension == 0
              else Measured(projector.displacement(phi_flat)))

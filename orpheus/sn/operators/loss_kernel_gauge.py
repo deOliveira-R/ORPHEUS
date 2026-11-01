@@ -218,7 +218,7 @@ from numpy.typing import NDArray
 
 from orpheus.geometry.faces import face_normal
 from orpheus.numerics.fredholm import PredictedKernel
-from orpheus.numerics.kernel_projection_gauge import KernelSummand
+from orpheus.numerics.kernel_projection_gauge import KernelSummand, diagonal_metric
 from orpheus.numerics.evidence import Evidence, Measured
 from orpheus.transport.spatial.scheme import FaceModeDamping
 
@@ -1004,7 +1004,7 @@ def _physical_scope_entries(
     interior = tuple(int(n) for n in problem.full_field_space.interior_space.shape)
     if len(interior) != 2 + int(problem.ndim):
         entries.append(f"a moment closure (bulk block {interior})")
-    if np.any(problem.full_field_space.metric_diagonal()[on_class] == 0.0):
+    if np.any(diagonal_metric(problem.full_field_space)[on_class] == 0.0):
         entries.append("a closed face with a tangential ordinate (zero trace metric)")
     e0, u0 = vectors[0]
     if not all(np.allclose(e, e0, rtol=1e-10, atol=1e-14) and np.allclose(u, u0, rtol=1e-10, atol=1e-14)

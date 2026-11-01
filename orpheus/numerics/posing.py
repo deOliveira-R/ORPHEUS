@@ -65,7 +65,7 @@ def _carrier(space: Any, flat: np.ndarray) -> Any:
     r"""The element of ``space`` whose flat coordinates are ``flat``: its typed carrier when the space mints one, else the coordinate array."""
     zeros = getattr(space, "zeros", None)
     if callable(zeros):
-        template = zeros()
+        template: Any = zeros()
         return type(template).from_flat(flat, template)
     return flat.reshape(space.shape)
 
@@ -98,7 +98,7 @@ def _pencil_annihilation(pencil: OperatorPencil[Any], kernel: PredictedKernel) -
 
     space = pencil.lhs.domain
     worst, label = 0.0, ""
-    for summands, act in ((kernel.left, pencil.rhs.apply_transpose), (kernel.right, pencil.rhs.apply)):
+    for summands, act in ((kernel.left, pencil.rhs.dual().apply), (kernel.right, pencil.rhs.apply)):
         for summand, column in _embedded_columns(summands, kernel.n_coordinates):
             signed = _flat(act(_carrier(space, column)))
             scale = float(np.linalg.norm(_flat(act(_carrier(space, np.abs(column))))))

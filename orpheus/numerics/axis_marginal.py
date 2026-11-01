@@ -78,7 +78,7 @@ from orpheus.numerics.instance_cache import cached_on
 from orpheus.numerics.operator import LinearOperator
 
 if TYPE_CHECKING:
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.space import FunctionSpace, Member
 
 __all__ = ["AxisPullbackOperator", "AxisRetractionOperator", "AxisSectionOperator"]
 
@@ -225,10 +225,10 @@ class AxisRetractionOperator(_AxisMarginalBase):
         r"""The marginal space: the remaining axes, measures and forms intact."""
         return self._marginal_space
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def apply(self, x: "np.ndarray | Member") -> np.ndarray:
         return self._contract(self._full_space.leading_coordinates_of(x), self._covector)
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+    def apply_transpose(self, x: "np.ndarray | Member") -> np.ndarray:
         r"""The scatter :math:`m \otimes \phi`, the Euclidean transpose."""
         return self._scatter(
             self._marginal_space.leading_coordinates_of(x), self._covector,
@@ -323,17 +323,17 @@ class AxisSectionOperator(_AxisMarginalBase):
         r"""The full space the section lifts INTO."""
         return self._full_space
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        x = self._marginal_space.leading_coordinates_of(x)
+    def apply(self, x: "np.ndarray | Member") -> np.ndarray:
+        coordinates = self._marginal_space.leading_coordinates_of(x)
         # Divide THEN scatter: on a nodal axis (u = 1) these are the shipped
         # isotropic-source kernel's float operations, so the equivalence
         # gate pins np.array_equal.
-        return self._scatter(x / self._mass, self._unit)
+        return self._scatter(coordinates / self._mass, self._unit)
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+    def apply_transpose(self, x: "np.ndarray | Member") -> np.ndarray:
         r"""The pairing with :math:`u` over the mass, the Euclidean transpose."""
-        x = self._full_space.leading_coordinates_of(x)
-        return self._contract(x, self._unit) / self._mass
+        coordinates = self._full_space.leading_coordinates_of(x)
+        return self._contract(coordinates, self._unit) / self._mass
 
 
 class AxisPullbackOperator(_AxisMarginalBase):
@@ -394,10 +394,10 @@ class AxisPullbackOperator(_AxisMarginalBase):
         r"""The full space the pullback lifts INTO."""
         return self._full_space
 
-    def apply(self, x: np.ndarray) -> np.ndarray:
+    def apply(self, x: "np.ndarray | Member") -> np.ndarray:
         return self._scatter(self._marginal_space.leading_coordinates_of(x), self._unit)
 
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
+    def apply_transpose(self, x: "np.ndarray | Member") -> np.ndarray:
         r"""The pairing with :math:`u`, the Euclidean transpose."""
         return self._contract(self._full_space.leading_coordinates_of(x), self._unit)
 

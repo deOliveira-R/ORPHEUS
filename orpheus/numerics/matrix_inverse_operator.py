@@ -194,7 +194,8 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         """
         if self._norm_1 == 0.0:
             return 0.0
-        rcond, info = lapack.dgecon(self._lu[0], self._norm_1, norm="1")
+        (gecon,) = lapack.get_lapack_funcs(("gecon",), (self._lu[0],))
+        rcond, info = gecon(self._lu[0], self._norm_1, norm="1")
         if info != 0:
             raise ValueError(f"MatrixInverseOperator: LAPACK gecon returned info = {info}.")
         return float(rcond)
