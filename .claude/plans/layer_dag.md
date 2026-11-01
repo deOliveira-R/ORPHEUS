@@ -467,3 +467,16 @@ The numerics test directory is re-filed by owning layer: the open test-layer vio
 - Per-test verdicts (file 34's SN-assembled provenance: `test_tier2_equivalence_s_family` pins `from_solver_data` against the constructor; file 39's rank-d test) are the test-architect's, by the ladder.
 
 **Order.** The test-architect's spec against this design (`scratch/layer_dag/phase4/spec.md`); the production constructors, written by the main agent (they re-spell the hub's mints); the test moves by a mover agent; qa and the elegance-enforcer in parallel; the archivist; the pre-merge gates as Phase 2, with the untruncated untracked-file check before every commit.
+
+## Phase 4 — landed @ `705c7a25` (2026-11-01), on `c548db85` and `01b5f587`
+
+Transport's phase spaces have raw constructors in `orpheus/transport/phase_spaces.py`; the SN problem and the diffusion mesh mint their spaces by one call each (ruling 24). The transport and numerics tests are re-based on the constructors: the open test-layer violations list goes from 139 rows to 39 (77 transport, 23 numerics removed; the gate's scanner and the list agree at 39). The spec is `scratch/layer_dag/phase4/spec.md`; the landing record, with every command, is `landing_report.md` beside it; the reviews are `qa_report.md` and `elegance_report.md`.
+
+- Ids `[M]` (`--collect-only` over the eight touched directories and the layer gates): 126 moved under the same name, 0 lost, 92 added (six constructor gate files, plus the review round's rows). `verifies` 1290 → 1290; `catches` 652 → 654.
+- Review fixes, in the same commit:
+  - The inflow packing is the projector onto the inflow rows, through `trace.inflow_restriction(face)`; `from_method` places samples with its scatter. Before, two hand-written masks each hid the other's removal from all 6 ERR-047 catchers (qa F1); now dropping the projector reddens 2 rows, which carry the marker.
+  - `trial_space` refuses axes that disagree with the space; `scalar_trace_space` refuses a 2-D mesh (SCOPE-BOUNDARY, #685); `boundary_face_layout` reads the one trace instance.
+  - The label-only face readers went back to `face_labels`: `01b5f587`'s re-route through `trace_face_shapes` single-sourced nothing.
+- Gates `[M]` 2026-11-01: the full suite `-m "not slow"`, `python -O`, serial: 19864 passed, 256 skipped, 289 deselected, 65 xfailed, RC 0, 56 min. Sphinx `-W` clean; `dead_references` 3, the same 3 as `main`; pyright 0 errors on the nine changed production files.
+- Filed: #684 (trace-space identity omits slot shapes), #685 (one home for a face's surface measure), #686 (quadrature suitability for a chart: the space's property or streaming's, to be settled by derivation and experiment, the user, 2026-11-01).
+- **Next:** the cone store, after the user rules S1 to S12. Phase 5 waits for the three-stage exploration (ruling 40). The test-layer list's remaining 39 rows are not yet assigned to a phase.

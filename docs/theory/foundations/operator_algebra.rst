@@ -11188,9 +11188,9 @@ the cheapest tell.
        test directories and the layer gate file, ``--collect-only`` gave 13191 ids
        before and 13276 after: 126 moved, 85 added, 0 lost
        (``[M]`` 2026-11-01, ``scratch/layer_dag/phase4/landing_report.md``,
-       section 3).
+       section 3); the review round added 7 more, 92 in all.
      - #685, #686
-     - *(in development)* ``refactor/transport-space-constructors``
+     - ``705c7a25``
    * - 2026-11-01
      - **The numerics law gates are posed on numerics data alone**
        (Phase 2 of ``.claude/plans/layer_dag.md``, ruling 40). The pencil,
