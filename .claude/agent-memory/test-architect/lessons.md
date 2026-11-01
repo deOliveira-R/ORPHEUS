@@ -705,3 +705,10 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   callable: check `inspect.ismodule(getattr(parent, leaf))` for every target, with a known shadow as the control; a
   shadow is a production defect, not a reason to keep the string. And a gate refusing string imports resolves a
   module-level constant (`_MODULE = "orpheus.x"`) before calling a variable "a walk". → `L121`
+
+## U3b witness spec (2026-10-31) — extends `instrument-doctrine` X1 (run the route through production before speccing it)
+
+- **⛔ The left kernel of a splitting is the fixed space of the DUAL split's map `M⁻ᴴNᴴ`, not of the adjoint of the forward
+  map `NᴴM⁻ᴴ`** (same spectrum, eigenvectors `Mᴴ ker Aᴴ`); and a route measured with dense surrogates owes one run through
+  the production doors (`M.inverse().H` does not exist on d ≥ 2) before any row rests on it. `onenormest(t≥2)` mutates the
+  global RNG. → `L122`

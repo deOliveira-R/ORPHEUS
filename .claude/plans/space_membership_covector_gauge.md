@@ -491,3 +491,14 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
   - `[M]` the witness's operator is `green.implicit_inverse @ green.lagged` from an UNWINDOWED `Splitting.green()`, which matches the dense result to 1e-15. Production's 2-D Green is windowed.
   - `[M]` the range projection is `b − kernel.H.projector.apply(b)`, with a left-kernel residual of 7e-15.
   - No production code reads `.conditioning`. The test `test_declared_inflow_reaches_the_rhs.py:305` imports `_SWEPT` by name.
+- **Orchestrator rulings on the gate spec's NEEDS (2026-10-31; spec `scratch/membership_covector/u3b/gate_spec.md`):**
+  - The conditioning slot holds ONE quantity: the 1-norm reciprocal condition of A's G-metric pseudo-inverse, which is the gauged solve after the G-orthogonal projection onto range A (`b − kernel.H.projector.apply(b)`).
+    - It is estimated by the project's own deterministic dlacn2 estimator in numerics, through each method's gauged solve, on a Gauge verdict, for every method.
+    - On a Solve verdict it equals rcond(A). `[M]` there the estimator agrees with LAPACK `dgecon` to ≤ 6.7e-16 relative.
+    - `MatrixInverseOperator.reciprocal_condition` stays gecon, the LU's own reading of the operator it factorised.
+    - Diffusion's and homogeneous's Gauge readings therefore move from gecon(A + Π) to this quantity (a change to U0, made for X4).
+  - **The left-vector map is the dual split's map, (I + M⁻ᴴNᴴ)/2.** `[M]` the `.H` of the forward map has different eigenvectors.
+  - **Containment is bounded per case** from the stopping residual (Davis–Kahan), never by a fixed 1e-10. `[M]` 1.58e-9 on the thick 1-D slab.
+  - **σ_max comes from power iteration on AᴴA.** `[M]` On A it reads 2–5× low.
+  - **The void-feeder entry stays.** No solve reaches it, because `StreamingCollisionOperator` refuses σ = 0 first, so it is tested through a direct predictor call.
+  - **The class-block solve is `class_null_mode(problem, closed_class)`.**

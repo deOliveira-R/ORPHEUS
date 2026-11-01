@@ -11892,3 +11892,16 @@ the known shadow was the positive control (every converted target checked, 1 fla
 function: 0 of 1253 files consumed the package-level name). Second finding of the dispatch: the gate's first draft read
 `_MODULE = "orpheus.x"; import_module(_MODULE)`, the commonest form of the idiom (6 calls), as a walk's variable; resolve
 a module-level name bound once to a constant before calling a variable argument unjudged.
+
+## L122 — U3b witness spec: the left fixed point, a hidden global RNG, and a premise no probe had run through production (2026-10-31)
+
+- The plan's left route was "the same averaged map built with `.H`". `((I + M⁻¹N)/2)ᴴ = (I + NᴴM⁻ᴴ)/2` has the same
+  nonzero spectrum as the dual split's `(I + M⁻ᴴNᴴ)/2` but other eigenvectors: its unit eigenvectors are `Mᴴ ker Aᴴ`, not
+  `ker Aᴴ`. `[M]` `scratch/membership_covector/u3b/ta/p3_block_production.py` (`LEFT=adjoint`): containment 0.70 and 0.30
+  on two 1-D slabs against 2e-13 and 1.6e-9 with the dual split's order.
+- The plan's route measurements iterated a DENSE `inv(M.T)`; through production, `M.inverse().H` raises
+  `MissingAdjoint` on every d ≥ 2 box (#616). Every left-vector and rcond row of the brief was d = 2. Run a route
+  prototype through the PRODUCTION doors before speccing rows on it; the dense surrogate hides which doors exist.
+- `scipy.sparse.linalg.onenormest(t ≥ 2)` draws from the global `np.random`: an exit-report reading built on it is a
+  draw of the caller's RNG and advances it. LAPACK gecon is dlacn2 (t = 1, deterministic), not t = 2.
+- An "own σ_max" by power iteration on A reads the spectral radius, 2–5× below σ_max on SN losses; power on AᵀA.
