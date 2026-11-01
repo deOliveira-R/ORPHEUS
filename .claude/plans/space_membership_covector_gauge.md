@@ -553,3 +553,18 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
 **Next:** the witness, `NearKernel` (the test-architect's drafted rows are in `scratch/membership_covector/u3b/drafts/`, behind `_u3b_accessors.py`). Then:
 - SN's lazy rcond: the `Deferred` evidence and the dlacn2 estimator;
 - the class-block solve, `class_null_mode`, lifting the heterogeneous entry first.
+
+### U3b — closed at the witness (2026-10-31)
+
+**[R] the user (2026-10-31), when SN's rcond met #681:** "It's more advantageous for us to do the minimum we need to do to get to organize everything as a graph that is cached and only partially turns red upon development, so that we know exactly what we need to test and speed up the cadence, then continue to build features. It's better to improve the code when the testing is already organized."
+
+**Landed:**
+- U3b's #616: `249d8f45`;
+- the type debt: `f5788cba`;
+- the near-kernel witness: `01d889f7`.
+
+**Deferred to #682:**
+- SN's lazy rcond. Its work in progress is parked on branch `park/u3b-sn-rcond` (`93a40848`); the 2-D blocker is commented on #681.
+- The class-block solve that lifts the scope door.
+
+**Next:** the merge sequence. Run the full suite over every directory, regenerate the memo once, delete the main checkout's stale untracked copy of this plan, ff-merge, watch CI, close out. Then the testing graph: `layer_dag.md` Phases 2 and 4, then `verification_tree_refinement.md`'s cone store, which waits on your rulings S1–S12.

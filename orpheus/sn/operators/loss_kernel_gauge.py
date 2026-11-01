@@ -1017,9 +1017,9 @@ def _require_closed_form_scope(subject: str, entries: list[str]) -> None:
     r"""The one door of the closed-form physical kernel: refuse a closed absorption-free class outside its derived scope.
 
     SCOPE-BOUNDARY[guard]: five entries, each a configuration the closed forms were not derived for.
-    machinery: the class-block null-vector solve through SN's own sweep (needs no closed form; U3b's iterative NearKernel route).
+    machinery: the class-block null-vector solve through SN's own sweep (needs no closed form; the near-kernel witness's block route, #682).
     ruling: the user, 2026-10-31 (the heterogeneous class, then the other three; space_membership_covector_gauge.md, U0).
-    revisit: when that solve exists, every entry is derived instead of refused.
+    revisit: when that solve exists (#682, deferred by the user 2026-10-31: the testing graph first), every entry is derived instead of refused.
 
     The entries, in the machinery's data model (a configuration and the reason its kernel vector is not the constant
     form): a non-Cartesian mesh (the curvilinear streaming redistributes angle, so the constant is not obviously its
