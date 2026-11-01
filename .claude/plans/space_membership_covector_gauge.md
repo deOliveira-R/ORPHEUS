@@ -509,3 +509,26 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
     - `has_transpose_sweep` reads a sibling derived scheme trait, the presence of `cell_kernel_batch_transpose`, beside `has_transpose_kernel`.
     - The adjoint gauge becomes live on 2-D reflective boxes, and U3b owns its verification. The `_exit_gauge` "inert" comment (`solver.py` near 2729) and the excuse in `test_every_entry_gauges_its_trace.py` retire.
     - The 33-line deferral census (map §5) is rewritten in the landing commit.
+
+### U3b — #616 carve state (2026-10-31, uncommitted while it is reviewed)
+
+**Landed in the tree:**
+- `cell_kernel_batch_transpose` for DD and LD, with the derived trait `has_transpose_solve_kernel`.
+- `_CellSolveTranspose`.
+- `_OctantWalk.sweep_transpose`, with the trace contract:
+  - zero the rows each octant writes, including the tangential rows on grazing axes;
+  - seed the mirror walk from those rows;
+  - pass the other rows through, adding the walked in-face deposits.
+- `sweep_transpose` on the window, the full-cochain oracle and ScanMarch.
+- The deferral pin re-posed onto the Gauss–Seidel arm (#681).
+
+**Measurements** (`-O`, run from `/private/tmp` with the worktree on `PYTHONPATH`):
+- `[M]` The kernel dot-product test: relative error ≤ 6e-16 for DD at d = 1, 2, 3 and LD at d = 1, 2. LD at d = 3 is refused by the forward solve itself (`assemble_inflow_axis`).
+- `[M]` T1–T5: 55 of 55 rows green.
+- `[M]` Mutations: dropping the written-row zeroing reddens 39 of 55; dropping the DD coupling term reddens 33 of 55.
+- `[M]` The 2-D adjoint entries now run:
+  - the adjoint fixed-source member is G-orthogonal to ker Aᴴ, to 1.9e-15 at c = 0.9 and 4.4e-14 at c = 1 (rows S15b);
+  - the adjoint k equals the forward k to 2.3e-10 (row S15c).
+- **The 2-D Green honesty row now opens both doors.** Its refusal-era version passed no `y`, and the default (flux-classed) is the wrong class for a Green's adjoint. The fix is a source-classed `y` plus the witness, the Green of the adjoint split.
+
+**Lesson — pyright from a worktree checks nothing.** `[M]` A control file holding a known type error read 0 errors when pyright was run from the worktree with no config of its own. Pyright then picks up the main checkout's `pyrightconfig.json`, whose `**/.*` exclude hides `.claude/worktrees/`. The fix is a gitignored worktree-local `pyrightconfig.json` pointing at the main `.venv`. With it the control reads 1 error, and the changed files read 5 errors, all also present in HEAD's copy of `tests/gates/numerics/test_adjointability_is_honest.py`, so the carve adds 0. Every earlier "pyright 0 errors" claim in this plan made from the worktree was vacuous, and the pre-merge check re-runs it with the config.
