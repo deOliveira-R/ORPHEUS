@@ -11177,7 +11177,7 @@ the cheapest tell.
        verification of :eq:`kernel-gauge-section` and :eq:`pencil-family`
        is re-cited accordingly at each equation.
      - —
-     - *(in development)* ``test/layer-dag-2``
+     - ``8c36a887``
    * - 2026-10-31
      - **The predicted kernel is checked by a measured near-kernel**
        (unit U3b of ``.claude/plans/space_membership_covector_gauge.md``,
