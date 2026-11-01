@@ -96,14 +96,10 @@ import numpy as np
 from orpheus.diffusion.boundary_realizer import DIFFUSION_REALIZERS
 from orpheus.diffusion.method_space import DiffusionMethodSpace
 from orpheus.mesh import Mesh1D, Mesh2D
-from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.boundary_conditions import BoundaryConditions, bind
 from orpheus.transport.method import MethodMesh, TransportMethod, realize_boundary
-from orpheus.mesh import (
-    axes_from_legacy_mesh,
-    face_labels as _face_labels,
-    face_shape as _face_shape,
-)
+from orpheus.mesh import axes_from_legacy_mesh
+from orpheus.transport import phase_spaces
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 if TYPE_CHECKING:
@@ -113,6 +109,7 @@ if TYPE_CHECKING:
     from orpheus.data.macro_xs.mixture import Mixture
     from orpheus.geometry.deck import DeckTransformation
     from orpheus.numerics.operator import LinearOperator
+    from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
     from orpheus.mesh import Axis1D
     from orpheus.transport.boundary_conditions import Binding, BoundaryCondition, RealizerTable
@@ -228,24 +225,9 @@ class DiffusionMesh(MethodMesh):
         # no reachable input — the ``ndim`` gate fired first on every
         # mesh-less carrier the tree can build.
 
-        # The scalar boundary-trace space: the face inventory from
-        # ``face_labels`` (the pole of a radial axis is not a face and
-        # never appears), each face's surface measure from ``areas``
-        # (slab 1, cylinder 2πR, sphere 4πR²) as the trace metric.
-        labels = _face_labels(self.axes)
-        faces = [
-            (label.face_name, _face_shape(self.axes, label))
-            for label in labels
-        ]
-        face_areas = {
-            label.face_name: float(
-                self.areas[0] if label.endpoint == "min" else self.areas[-1]
-            )
-            for label in labels
-        }
-        self._scalar_trace = ScalarTraceSpace.for_faces(
-            faces, self.ng, face_areas,
-        )
+        # The scalar boundary-trace space (its rule: the traced faces and
+        # each face's area as the trace metric) is phase_spaces'.
+        self._scalar_trace = phase_spaces.scalar_trace_space(self)
 
         # Bind the declared exterior conditions to THIS carrier's faces (its ``face_roles`` and its colouring ``symmetry``, read
         # inside ``bind`` once), then realize the binding through the ONE shared TransportMethod body (#290 P7b): the face loop

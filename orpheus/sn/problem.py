@@ -40,6 +40,7 @@ from orpheus.mesh import (
 )
 from orpheus.transport.method import MethodMesh
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport import phase_spaces
 from .boundary.realized_operators import RealizedBoundary
 from .boundary.realizer import SN_REALIZERS
 from .mesh.method_space import SNMethodSpace
@@ -385,10 +386,7 @@ class SNProblem(MethodMesh):
         # (geometry-blind: quadrature + face names); built HERE, in the
         # construction body, as phase-space substrate — not inside BC
         # resolution.
-        from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
-        self._trace = AngularTraceSpace.from_quadrature_and_layout(
-            self.quad, self.boundary_face_layout,
-        )
+        self._trace = phase_spaces.angular_trace_space(self, self.quad, self.scheme)
 
         # Bind the declared exterior conditions to THIS carrier's faces (its ``face_roles`` and its colouring ``symmetry``, read
         # inside ``bind`` once, so a binding checked against another carrier's group is unspellable), then realize the binding
@@ -1263,7 +1261,8 @@ class SNProblem(MethodMesh):
         * **The energy and spatial arms are** :attr:`bulk_space`'s **axes,
           reused verbatim** — the reachable-materials energy-arm rule and
           the cell-volume spatial measure are spelled ONCE, there (Pattern
-          2). This property adds exactly one fact: the quadrature measure
+          2). The rule, :func:`~orpheus.transport.phase_spaces.angular_bulk_space`,
+          which this property caches, adds exactly one fact: the quadrature measure
           ``w_n`` on the ordinate axis (NODAL — ordinates are point
           samples; per-component positivity is meaningful, so
           ``has_coordinate_cone`` reads ``True``).
@@ -1291,20 +1290,10 @@ class SNProblem(MethodMesh):
         consumer of one carrier reads the SAME instance; equal carriers
         mint ``==`` spaces through the derived name.
         """
-        from orpheus.numerics.space import FunctionSpace
-
-        scalar = self.bulk_space
-        assert scalar.axes is not None  # of_axes-built by construction
-        # The generator mints its own axis (CS5): identical structural
-        # content to the literal ``Axis("angular", (quad.n_ordinates,), weights=
-        # quad.weights, kind=NODAL)`` this replaced — the space name and
-        # identity are unchanged — plus provenance: the axis carries the
-        # quadrature, so a consumer holding the SPACE can recover the
-        # forgotten angular geometry (``mu_x``/``eta``/``mu_z``/
-        # ``level_indices``) without being handed the quadrature
-        # separately.
-        angular = Axis.of_quadrature(self.quad)
-        return FunctionSpace.of_axes(angular, *scalar.axes)
+        # The rule is :func:`~orpheus.transport.phase_spaces.angular_bulk_space`'s; this property is the cached mint. The
+        # ordinate axis is :meth:`Axis.of_quadrature` (CS5), carrying the quadrature as its origin, so a consumer holding
+        # the SPACE recovers the forgotten angular geometry without being handed the quadrature separately.
+        return phase_spaces.angular_bulk_space(self, self.quad)
 
     @cached_property
     def angular_trial_space(self) -> "FunctionSpace":
@@ -1347,23 +1336,18 @@ class SNProblem(MethodMesh):
         :attr:`angular_bulk_space`. This property replaces the retired
         ``spatial_moments=`` factory parameter (the int was a lossy
         proxy for the scheme's basis — crosswalk B5); the composition
-        rule "widen ⟺ append the scheme's moment axis" is spelled HERE,
-        once, not at the ~19 call sites that used to thread the int.
+        rule "widen ⟺ append the scheme's moment axis" is spelled once,
+        in the scheme's
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.trial_space`
+        (which this property calls and the field layer's moment composer
+        shares), not at the ~19 call sites that used to thread the int.
 
         :attr:`full_field_space` builds its interior on this mint, so
         the composite's interior, this property, and every trial-space
         field allocation share ONE cached instance at every scheme
         width.
         """
-        from orpheus.numerics.space import FunctionSpace
-
-        if not self.scheme.is_multi_moment:
-            return self.angular_bulk_space
-        base = self.angular_bulk_space
-        assert base.axes is not None  # of_axes-built by construction
-        return FunctionSpace.of_axes(
-            *base.axes, self.scheme.moment_axis(self.axes),
-        )
+        return self.scheme.trial_space(self.angular_bulk_space, self.axes)
 
     def moment_space(
         self, L: int, *, spatial_moments: int = 1,
@@ -1565,20 +1549,9 @@ class SNProblem(MethodMesh):
         persistent type re-created exactly the boundary/interior
         conflation D-G was dissolving.
         """
-        from orpheus.numerics.face_layout import FaceLayout
-        from orpheus.numerics.space import factor_tail
-
-        N = self.quad.n_ordinates
-        # Per-face transverse moment count per_axis^{d-1} (#251) — the FACE
-        # tail (the CELL tail is per_axis^d).  DD/Step → () → byte-identical.
-        # Single-sourced with the cochain's ``_n_face_moments`` via the cell
-        # basis's ``face_dimension`` (read through :attr:`n_face_moments`) so the
-        # producer and the consumer cannot drift.
-        moment_tail = factor_tail(self.n_face_moments)
-        return FaceLayout.from_named_shapes([
-            (label.face_name, (N, self.ng, *self.face_shape(label), *moment_tail))
-            for label in self.face_labels
-        ])
+        # The per-face transverse moment tail per_axis^{d-1} (#251) is read through the scheme's ``face_moment_count``,
+        # the one source the cochain's ``_n_face_moments`` shares, so producer and consumer cannot drift.
+        return phase_spaces.angular_face_layout(self, self.quad, self.scheme)
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

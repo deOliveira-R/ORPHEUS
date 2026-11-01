@@ -454,6 +454,17 @@ def face_shape(
     )
 
 
+def trace_face_shapes(axes: tuple[Axis1D, ...]) -> tuple[tuple[FaceLabel, tuple[int, ...]], ...]:
+    """Every boundary face that carries a trace, with its spatial shape, in :func:`face_labels` order.
+
+    The one spelling of the traced-face list both trace spaces are laid out over: the angular trace
+    (:func:`~orpheus.transport.phase_spaces.angular_face_layout`) prepends the ordinate and group axes to each shape,
+    the scalar trace (:func:`~orpheus.transport.phase_spaces.scalar_trace_space`) the group axis and reads each face's
+    area off its label's endpoint. The pole of a radial axis is not a face and never appears.
+    """
+    return tuple((label, face_shape(axes, label)) for label in face_labels(axes))
+
+
 _OUTWARD_ENDPOINTS = frozenset({"max", "outer"})
 _OUTFLOW_COSINE_TOL = 1e-15
 

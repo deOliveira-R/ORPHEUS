@@ -39,8 +39,9 @@ backing buffer; no copies). Field-inherited algebra operates on the
 flat buffer in ONE numpy call regardless of face count — O(1) Python
 overhead per arithmetic operation.
 
-The descriptor is geometry-agnostic. SN's
-:meth:`~orpheus.sn.problem.SNProblem.boundary_face_layout` returns the
+The descriptor is geometry-agnostic. The transport angular trace's
+:func:`~orpheus.transport.phase_spaces.angular_face_layout` (which SN's
+:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` returns) is the
 Cartesian-face layout (1-4 faces). A future MoC mesh would return a
 per-track-family layout (thousands of faces). The same flat-buffer
 arithmetic works for both.

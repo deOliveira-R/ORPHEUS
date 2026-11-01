@@ -3821,7 +3821,7 @@ rung delegating to the next so the packing rule is stated exactly once:
        :math:`L`) and samples each face's
        :class:`~orpheus.transport.boundary_conditions.InflowTerms` on
        that face's own :math:`\Gamma_-(f)`
-     - ``sample_inflow``, then ``_pack_inflow``
+     - ``sample_inflow``, then :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow_on`
    * - :meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow`
      - **the one source verb** — ``require`` the method table's admission
        of the source on the face's site, then the registered
@@ -3833,8 +3833,8 @@ rung delegating to the next so the packing rule is stated exactly once:
    * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
      - **known per-face arrays** — the inflow ordinate slots of the
        named faces are written from them
-     - ``_pack_inflow``
-   * - ``_pack_inflow``
+     - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow_on`
+   * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow_on`
      - **the one packing rule** — writes the **inflow** ordinate slots of
        the named faces and leaves every other slot zero (a prescribed
        source's outflow rows are physically meaningless, so they are
@@ -3912,7 +3912,7 @@ convergence
    :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.from_method
 
 .. implements:: bc-single-delivery
-   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink._pack_inflow
+   :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow_on
 
 .. implements:: bc-single-delivery
    :by: orpheus.transport.fields.angular_boundary_source_sink.AngularBoundarySourceSink.prescribed_inflow

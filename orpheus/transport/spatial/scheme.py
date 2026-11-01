@@ -99,6 +99,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ._ubld import D1ClosedForm
     from orpheus.numerics.axis import Axis
     from orpheus.numerics.basis.interval_legendre_basis import TensorProductBasis
+    from orpheus.numerics.space import FunctionSpace
     from orpheus.mesh import Axis1D
 
 
@@ -1796,6 +1797,20 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
         self._assert_moment_mass_is_expressible(axes)
         return Axis.of_basis(self.cell_basis(len(axes)))
+
+    def trial_space(self, space: "FunctionSpace", axes: "tuple[Axis1D, ...]") -> "FunctionSpace":
+        r"""``space`` in this closure's within-cell basis: :math:`V \otimes V_{\rm moment}`, or ``space`` itself.
+
+        The one spelling of the widening rule "append the scheme's :meth:`moment_axis`": a multi-moment closure (LD)
+        returns ``space.with_axis(self.moment_axis(axes))``, so the trial Gram carries the moment mass; a slopeless
+        closure (DD, Step) returns ``space`` itself, the same object, because its trial basis is the cell average.
+        :attr:`SNProblem.angular_trial_space <orpheus.sn.problem.SNProblem.angular_trial_space>` and the axis-built arm
+        of :meth:`BulkField.compose_spatial_moments
+        <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>` both read it.
+        """
+        if not self.is_multi_moment:
+            return space
+        return space.with_axis(self.moment_axis(axes))
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────
     #

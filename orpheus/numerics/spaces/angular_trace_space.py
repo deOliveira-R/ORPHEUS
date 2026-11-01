@@ -100,8 +100,9 @@ Coord-system coverage
 =====================
 
 The face → outward-normal table is keyed on the **layout's** face
-names (``SNProblem.boundary_face_layout``), which is the single source of
-truth for "which faces exist":
+names (:func:`~orpheus.transport.phase_spaces.angular_face_layout`, over the
+mesh's traced faces :func:`~orpheus.mesh.axis.trace_face_shapes`), which is the
+single source of truth for "which faces exist":
 
 * **Mesh1D slab** — two faces ``xmin`` / ``xmax``; outward normals
   :math:`\mp\hat x`.
@@ -433,9 +434,10 @@ class AngularTraceSpace(FunctionSpace):
             ``mu_z`` (when applicable).
         layout : FaceLayout
             The boundary face layout (canonically
-            :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` —
-            the single source of truth for which faces exist and their
-            flat packing). Its ordered faces drive the
+            :func:`~orpheus.transport.phase_spaces.angular_face_layout`,
+            which :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`
+            returns — the single source of truth for which faces exist and
+            their flat packing). Its ordered faces drive the
             :attr:`omega_dot_n` rows; its ``total_size`` sets the space
             shape.
 

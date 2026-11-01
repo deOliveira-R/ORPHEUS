@@ -277,14 +277,16 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             or if a per-face array shape does not match the ``(N, ng)``
             layout slot.
         """
-        return cls._pack_inflow(cls._face_space_of(problem), face_values)
+        return cls.prescribed_inflow_on(cls._face_space_of(problem), face_values)
 
     @classmethod
-    def _pack_inflow(cls, trace: "AngularTraceSpace", face_values: "Mapping[str, NDArray]") -> "AngularBoundarySourceSink":
+    def prescribed_inflow_on(cls, trace: "AngularTraceSpace", face_values: "Mapping[str, NDArray]") -> "AngularBoundarySourceSink":
         r"""The ONE packing rule: the inflow ordinate rows of each named face are written, everything else is zero.
 
         Shared by :meth:`prescribed_inflow` (known per-face arrays) and :meth:`from_method` (declared terms sampled through the
-        method's realizer table), so the rule lives in exactly one place.
+        method's realizer table), so the rule lives in exactly one place. It is the space-keyed form of
+        :meth:`prescribed_inflow`: a caller holding the angular trace (built by
+        :func:`~orpheus.transport.phase_spaces.angular_trace_space`) and no problem calls it directly.
         """
         bss = cls.zeros(trace)
         known = set(trace.layout.faces.keys())
@@ -380,4 +382,4 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             full = np.zeros(template.face_view(face).shape, dtype=float)
             full[trace.inflow_indices_for_face(face)] = values
             face_values[face] = full
-        return cls._pack_inflow(trace, face_values)
+        return cls.prescribed_inflow_on(trace, face_values)

@@ -44,6 +44,7 @@ from orpheus.mesh.axis import (
     n_unknowns_flat,
     roles_of_axes,
     spatial_shape,
+    trace_face_shapes,
 )
 from orpheus.mesh.legacy_adapter import axes_from_legacy_mesh, legacy_mesh_from_axes
 from orpheus.mesh.factories import pwr_pin_2d
@@ -92,4 +93,5 @@ __all__ = [
     "roles_of_axes",
     "pwr_pin_2d",
     "spatial_shape",
+    "trace_face_shapes",
 ]

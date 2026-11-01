@@ -479,7 +479,7 @@ class BulkField(RolePair, Field):
                     f"masses {axis.shape[0]} — the moment tail is the "
                     "scheme's basis, so only its own width is mintable."
                 )
-            return space.with_axis(axis)
+            return scheme.trial_space(space, mesh.axes)
         # Every bulk space that carries a tail is axis-built — the angular
         # and scalar mints since CS4b, the harmonic-moment product since
         # CS4c step 6 item 6.2c-ii; the carrier's ``SNProblem.moment_space``
@@ -1254,7 +1254,23 @@ class BoundaryField(FaceField[str]):
             If ``face_arrays`` keys differ from the mesh's layout faces,
             or any per-face ndarray's shape mismatches the layout slot.
         """
-        space = cls._face_space_of(mesh)
+        return cls.from_face_arrays_on(cls._face_space_of(mesh), face_arrays)
+
+    @classmethod
+    def from_face_arrays_on(cls, space: FunctionSpace, face_arrays: Mapping[str, NDArray]):
+        r"""Construct on the trace ``space`` from per-face ndarrays, packed by its face layout.
+
+        The space-keyed form of :meth:`from_face_arrays`: the caller holds the trace space (built by
+        :mod:`orpheus.transport.phase_spaces`, or read off a carrier) instead of a carrier. The keys and per-face
+        shapes are checked by :meth:`~orpheus.numerics.face_layout.FaceLayout.pack`, and the space's family by the
+        typed wrap.
+
+        Raises
+        ------
+        ValueError
+            If ``space`` carries no face layout, if ``face_arrays`` keys differ from its faces, or if a per-face
+            ndarray's shape mismatches its slot.
+        """
         layout = getattr(space, "layout", None)
         if layout is None:
             raise ValueError(
