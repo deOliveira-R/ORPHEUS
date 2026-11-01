@@ -1608,6 +1608,8 @@ one body, ``np.zeros(space.shape)``, inherited by every leaf.  Nothing
 between the caller and that body has to know a storage layout, because
 the space already *is* the layout.
 
+.. _indexing-carrier-cached-mints:
+
 The carrier's cached mints
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1616,7 +1618,69 @@ What a call site reads instead of passing the Problem is one of the carrier's
 by reference, so every field on one carrier holds the *same* space
 instance (a cheap identity; the operator-admission guards themselves
 compare space CONTENT — the F2 doctrine — so equal twin-carrier mints
-mix and only a genuinely different space refuses):
+mix and only a genuinely different space refuses).
+
+**Where each space's rule lives.** Since layer DAG Phase 4 (2026-11-01,
+ruling 24 of ``.claude/plans/layer_dag.md``) the rule that builds each
+transport phase space is a raw, uncached function of its ingredients in
+:mod:`orpheus.transport.phase_spaces`, the transport layer (L2), and the
+carrier's property is a *specialised mint* of it: one call to the raw
+constructor with the carrier's own ingredients, cached so the carrier keeps
+one instance.
+
+- :func:`~orpheus.transport.phase_spaces.angular_bulk_space` ``(mesh, quadrature)``
+  is the rule of :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space`;
+- :func:`~orpheus.transport.phase_spaces.angular_face_layout` and
+  :func:`~orpheus.transport.phase_spaces.angular_trace_space`
+  ``(mesh, quadrature, scheme)`` are the rule of
+  :attr:`~orpheus.sn.problem.SNProblem.angular_trace` (and of
+  :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`, which reads the
+  trace's layout back);
+- :func:`~orpheus.transport.phase_spaces.scalar_trace_space` ``(mesh)`` is the
+  rule of :attr:`~orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace`.
+  It refuses a mesh of two or more axes, whose face measure is a per-face-cell
+  array that the scalar trace does not yet carry (a declared scope boundary,
+  #685);
+- the trial widening is the scheme's verb,
+  :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.trial_space`
+  ``(space, axes)``, the rule of
+  :attr:`~orpheus.sn.problem.SNProblem.angular_trial_space` (below). It refuses
+  axes whose spatial shape is not the space's own;
+- the faces both trace layouts range over are
+  :func:`~orpheus.mesh.axis.trace_face_shapes`, one traced-face list in
+  :mod:`orpheus.mesh`.
+
+The scalar bulk :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`,
+the full-field space
+(:meth:`FullFieldSpace.from_blocks <orpheus.numerics.spaces.full_field_space.FullFieldSpace.from_blocks>`
+of an interior and a trace) and the harmonic moment space
+(:meth:`HarmonicFrame.moment_space_on <orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`)
+needed no new function. A consumer that holds a material mesh and a quadrature
+and no problem (a transport test, a method not yet posed) builds the same space
+from :mod:`~orpheus.transport.phase_spaces`: equal content, a fresh instance.
+
+⚠ **The "two owners, one space" rows are tautological by design, and the pin
+is elsewhere** (``instrument-doctrine`` X4). The gates that compare each mint
+with its raw constructor,
+``tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py`` and
+``tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py``, run the
+same function on both sides, so no input can make the two disagree, and a
+mutation of the rule leaves them green (``[M]`` the arm
+``bulk_uniform_ordinate_weights`` reddens 0 of the 8 S\ :sub:`N` mint rows).
+They are kept for what they still test, the ROUTE: the problem hands the
+constructor its own quadrature and its own scheme, and its material-mesh data
+equals a standalone :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`
+built from the same mesh and materials (first reds: the arms
+``sn_trace_reads_a_fixed_scheme``, ``sn_bulk_reads_a_fixed_quadrature``,
+``diffusion_trace_reads_a_one_group_mesh``). The RULE is pinned by
+``tests/gates/transport/test_phase_spaces.py``, whose references are assembled
+by hand from the verified numerics primitives by a different route: cell volumes
+from the cell edges and the chart (never ``mesh.volumes``), the hand face layout
+``(face, (N, ng, *face shape, *tail))``, the face areas from the geometry (slab
+1, cylinder :math:`2\pi R`, sphere :math:`4\pi R^2`), over slab, solid and
+hollow sphere and cylinder, a non-square rectangle and the four two-region
+meshes, each named first red an in-process arm of
+``scratch/layer_dag/phase4/battery/p4_arms.py``.
 
 .. list-table:: Which mint keys which family
    :header-rows: 1
@@ -1652,8 +1716,10 @@ mix and only a genuinely different space refuses):
    * - :attr:`~orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace`
      - the scalar :math:`(J^+, J^-)` boundary leaves
      - the diffusion partial-current trace, under the face-AREA metric.
-       A bare ``MaterialMesh`` has none — a scalar trace is diffusion
-       *behaviour*, not method-agnostic *data* (#290 P7a)
+       A bare ``MaterialMesh`` carries none as a property — a scalar trace is
+       diffusion *behaviour*, not method-agnostic *data* (#290 P7a) — but
+       :func:`~orpheus.transport.phase_spaces.scalar_trace_space` builds one
+       from it (1-D only, #685)
    * - :attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_interior_space`
        / :attr:`~orpheus.sn.problem.SNProblem.radial_characteristic_boundary_space`
      - the :math:`\psi_{1/2}` starting-direction leaves (System B)
@@ -1747,7 +1813,15 @@ trial mint; width-1 cell-average consumers read the bulk mint.  It
 replaces the retired ``spatial_moments=`` factory parameter, whose
 integer was a lossy proxy for the scheme's basis and had to be threaded
 identically at every call site; the composition rule *"widen* :math:`\iff`
-*append the scheme's moment axis"* is now spelled once, on the carrier.
+*append the scheme's moment axis"* is now spelled once, on the scheme:
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.trial_space`
+returns the space itself on a slopeless closure and the space with
+``moment_axis(axes)`` appended on a multi-moment one. The carrier's property is
+one call to it, and so is the axis-built arm of
+:meth:`BulkField.compose_spatial_moments
+<orpheus.transport.fields._bases.BulkField.compose_spatial_moments>` (until
+layer DAG Phase 4, 2026-11-01, the rule was spelled in both, on the carrier and
+in that arm).
 
 The metric is what makes this a correctness mint rather than sugar
 (#310 C2 ruling 3): the moment axis carries the scheme's mass

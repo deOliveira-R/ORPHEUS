@@ -2,7 +2,7 @@ r"""``IntegratedReactionRate`` — :math:`\int_V \langle \Sigma_x,\phi\rangle\,d
 
 The volume-integrated reaction rate (the k-eigenvalue numerator/denominator,
 and the :math:`\phi^\dagger\!=\!1` degenerate of the homogenization PG bilinear).
-Three legs:
+Two legs here, a third in SN:
 
 * **A — hand volume-weighted loop** on a **non-uniform-volume** mesh: the
   per-cell ``V`` weighting is only constrained when cells have distinct volumes
@@ -13,16 +13,18 @@ Three legs:
   ``IRR(νΣf)/IRR(Σa) == k∞`` (the volume measure CANCELS in the ratio — so this
   pins the fold is consistent between numerator and denominator). 4G mandatory
   (A 2G's spectrum is coincidentally flat).
-* **C — (n,2n) activation in the SN production rate**: every ``macro_xs.synthetic``
-  mixture has ``Sig2 = 0``, so a library fixture would null the (n,2n) term
-  vacuously — this uses ``_make_mixture_with_n2n`` to genuinely activate it and
-  assert it ADDS to the IRR fission production.
+* **C — (n,2n) activation in the SN production rate** moved to
+  ``tests/gates/sn/operators/test_production_rate_counts_n2n.py`` (layer DAG Phase 4: an SN solver claim).
 
 ``foundation`` — L0 value correctness + software invariants.
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
-
-from orpheus.transport.fields.cross_section_field import CrossSectionField
 
 import numpy as np
 import pytest
@@ -30,29 +32,20 @@ import pytest
 from orpheus.derivations.common.eigenvalue import kinf_and_spectrum_homogeneous
 from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellEdges, Mesh2D, Mesher
+from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.functional import Functional
 from orpheus.numerics.operator import LinearOperator
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
-from orpheus.sn.solver import SNSolver
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 from tests.gates.transport._functional_helpers import cross_section_field, require, slab_mesh
-from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
 
 
 pytestmark = pytest.mark.foundation
 
 
-def _non_uniform_slab(ng: int) -> SNProblem:
+def _non_uniform_slab(ng: int) -> MaterialMesh:
     """A 1-D slab with NON-UNIFORM cell widths → distinct cell volumes.
 
     A uniform mesh makes the per-cell ``V`` a constant that the ratio/sum can't
@@ -62,18 +55,15 @@ def _non_uniform_slab(ng: int) -> SNProblem:
     edges = np.array([0.0, 0.1, 0.3, 0.6, 1.0])  # widths 0.1 / 0.2 / 0.3 / 0.4
     geometry = StructuredGeometry.from_homogeneous(1.0, 0)
     mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
-def _stretched_nonuniform_slab(ng: int) -> SNProblem:
+def _stretched_nonuniform_slab(ng: int) -> MaterialMesh:
     """The non-uniform slab at doubled width — same shape, different cell
     volumes (the F2 content discriminator)."""
     edges = 2.0 * np.array([0.0, 0.1, 0.3, 0.6, 1.0])
     geometry = StructuredGeometry.from_homogeneous(2.0, 0)
     mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
-    return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=4),
-        placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS),
-    )
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
 def _hand_volume_integral(sigx: np.ndarray, phi: np.ndarray, volumes: np.ndarray) -> float:
@@ -261,35 +251,6 @@ class TestAdjointWeightedBilinear:
         foreign = ScalarFlux(values=rng.uniform(0.2, 2.0, size=(2, nx)), space=stretched.bulk_space)
         with pytest.raises(ValueError, match="not a member of"):
             irr.evaluate(rng.uniform(0.05, 1.0, size=(2, nx)), adjoint=foreign)
-
-
-class TestN2NActivationInProductionRate:
-    """SN ``compute_production_rate`` = IRR(νΣf) + (n,2n) — the (n,2n) genuinely adds."""
-
-    def test_production_includes_n2n_when_sig2_nonzero(self):
-        from tests.gates.cp.test_verification import _make_mixture_with_n2n
-
-        mat = _make_mixture_with_n2n("2g")  # Sig2 ≠ 0 (macro_xs.synthetic mixtures are all Sig2=0)
-        mesh = Mesh2D(
-            edges_x=np.linspace(0.0, 0.8, 5), edges_y=np.linspace(0.0, 0.6, 4),
-            mat_map=np.zeros((4, 3), dtype=int),
-            face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
-        )
-        solver = SNSolver(SNProblem(mesh, Quadrature.lebedev(order=17), {0: mat}, boundary_conditions=conditions_for(mesh, _CONDITIONS)))
-        ng = solver.ng
-        nx, ny = solver.problem.spatial_shape
-        flux = np.random.default_rng(3).uniform(0.1, 1.0, size=(ng, nx, ny))
-
-        fission_only = IntegratedReactionRate(
-            CrossSectionField.fission_production_of(solver.problem.mat_xs)
-        ).evaluate(flux)
-        total = solver.compute_production_rate(flux)
-        require(
-            total > fission_only * (1.0 + 1e-9),
-            f"(n,2n) must ADD to production when Sig2≠0: total={total!r}, "
-            f"fission-only IRR={fission_only!r}. Guards the Mode-10 vacuity — every "
-            f"macro_xs.synthetic mixture has Sig2=0, so a library fixture would null the term.",
-        )
 
 
 class TestTheReactionRateIsTheFlatOfItsCrossSection:

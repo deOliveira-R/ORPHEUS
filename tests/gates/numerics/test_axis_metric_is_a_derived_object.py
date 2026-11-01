@@ -48,16 +48,27 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
-from tests.gates.sn.architecture.test_monomorphic_leaves import (
-    _cart2d,
-    _cylinder,
-    _slab,
-    _sphere,
+from orpheus.numerics.quadrature import Quadrature
+from tests.gates.numerics._phase_space_twins import (
+    MONOMORPHIC_EDGES,
+    MONOMORPHIC_RECTANGLE,
+    spatial_axis_1d,
+    spatial_axis_2d,
+    twin,
 )
 
 pytestmark = pytest.mark.foundation
 
-_GEOMETRIES = {"slab": _slab, "sphere": _sphere, "cylinder": _cylinder, "cart2d": _cart2d}
+#: The ledger carriers' trial spaces, as numerics twins of the four monomorphic meshes (layer DAG Phase 4; until then
+#: read off the SN problems, which are all Diamond Difference, so their trial space is the angular bulk), plus the LD
+#: slab, whose trial space carries the moment axis the docstring below names (no row had it before Phase 4).
+_GEOMETRIES = {
+    "slab": lambda: twin(Quadrature.gauss_legendre(n_ordinates=4), spatial_axis_1d("slab", MONOMORPHIC_EDGES)).angular_bulk,
+    "sphere": lambda: twin(Quadrature.gauss_legendre(n_ordinates=4), spatial_axis_1d("sphere", MONOMORPHIC_EDGES)).angular_bulk,
+    "cylinder": lambda: twin(Quadrature.folded_product(n_mu=4, n_phi=8), spatial_axis_1d("cylinder", MONOMORPHIC_EDGES)).angular_bulk,
+    "cart2d": lambda: twin(Quadrature.level_symmetric(sn_order=4), spatial_axis_2d(*MONOMORPHIC_RECTANGLE)).angular_bulk,
+    "slab_ld": lambda: twin(Quadrature.gauss_legendre(n_ordinates=4), spatial_axis_1d("slab", MONOMORPHIC_EDGES)).ld_trial(),
+}
 
 
 # ── the ORACLE: the retired inline loop, spelled here ────────────────────
@@ -151,8 +162,7 @@ def test_the_carriers_trial_space_reads_bit_identically(geometry):
     every composite: ``V_cell × w_n`` per axis, a moment axis on LD) the
     derived object reproduces the inline loop bit-for-bit, both directions
     and the pairing."""
-    problem = _GEOMETRIES[geometry]()
-    space = problem.angular_trial_space
+    space = _GEOMETRIES[geometry]()
     axes = space.axes
     assert axes is not None
     rng = np.random.default_rng(7)

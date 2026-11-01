@@ -82,9 +82,10 @@ where they re-spell it, and a name in double backticks there is retired.
   :meth:`~orpheus.transport.boundary_conditions.RealizerTable.realize` through one door, so ``admit`` is ``Refused`` if and only if
   ``realize`` raises :class:`~orpheus.transport.boundary_conditions.BoundaryRefused`. Five tables exist (``SN_REALIZERS``,
   ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``) and
-  ``tests/gates/transport/test_admission_matrix.py`` (the mechanism, SN and diffusion, 63 rows) and
-  ``tests/gates/cross_method/test_admission_matrix_s4.py`` (CP, MoC and MC, 48 rows) pin every shared value class at every site (111
-  rows, 90 of them over the five real tables; the pin was one file at the carve tip and split on 2026-10-26, layer DAG ruling 27). Gates: ``test_one_door`` in ``tests/gates/transport/test_admission_mechanism.py`` and the pin. Derivation and the
+  ``tests/gates/transport/test_admission_matrix.py`` (the mechanism, 21 rows) and
+  ``tests/gates/cross_method/test_admission_matrix_s4.py`` (SN, diffusion, CP, MoC and MC, 90 rows) pin every shared value class at every site (111
+  rows, 90 of them over the five real tables; the pin was one file at the carve tip, split on 2026-10-26 by layer DAG ruling 27, and its
+  SN and diffusion columns joined the cross-method file on 2026-11-01, layer DAG Phase 4). Gates: ``test_one_door`` in ``tests/gates/transport/test_admission_mechanism.py`` and the pin. Derivation and the
   tables: :ref:`bc-aor-admission`.
 - **A refusal is a statement about the declaration, with its axis and its issue as data.** A refusal lies on one of three
   axes (angular resolution, topology, state cone) or is *plumbing*, which has no theory behind it and therefore owes the issue
@@ -103,7 +104,7 @@ where they re-spell it, and a name in double backticks there is retired.
   :meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow` and carried as the boundary leaf of the composite
   source :class:`~orpheus.transport.fields.AngularBoundarySourceSink`. Vacuum and a prescribed inflow realize to the same zero
   map and differ only in :math:`q`. Gates: ``test_the_functor_law`` and ``test_the_source_verb`` in ``tests/gates/transport/test_admission_mechanism.py``,
-  ``tests/gates/transport/test_boundary_source_from_specs.py``. Derivation: :ref:`bc-aor-inflow`, :ref:`bc-affine-source-channel`.
+  ``tests/gates/sn/operators/test_boundary_source_from_specs.py``. Derivation: :ref:`bc-aor-inflow`, :ref:`bc-affine-source-channel`.
 - **The face ordinate partition is THREE-way**, not two: :math:`\{1..N\} = I_f \sqcup O_f \sqcup T_f` with
   :math:`T_f = \{|\Omega\cdot\hat n| \le \texttt{TANGENTIAL\_EPS}\}` (:eq:`ordinate-partition-inflow-outflow`). **"Not inflow"
   is NOT "outflow".** Measured: a cylinder under ``product(n_mu=2, n_phi=4)`` carries **4 of 8** ordinates tangential at
@@ -162,7 +163,7 @@ where they re-spell it, and a name in double backticks there is retired.
    ``494 passed, 3 xfailed, 6 warnings in 41.96s``. The law gates of the laws section that are not among the 17 files
    (``tests/gates/test_layer_imports.py``, ``tests/gates/transport/test_wave2_s4_tables.py``,
    ``tests/gates/transport/test_content_identity_transport.py``, ``tests/gates/geometry/test_content_identity_geometry.py``,
-   ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, ``tests/gates/transport/test_boundary_source_from_specs.py``,
+   ``tests/gates/sn/operators/test_sn_boundary_realizer.py``, ``tests/gates/sn/operators/test_boundary_source_from_specs.py``,
    ``tests/gates/cp/test_cp_realizer_table.py``, ``tests/gates/sn/sweep/test_sweep_acyclicity.py``) are a second run of the same
    invocation: ``785 passed, 1 warning in 19.52s``.
 
@@ -854,7 +855,7 @@ is given, and admitted at site level without one (``test_a_certification_failure
 **What the five tables say today.** The notation of the cells is ``R(T)`` for ``Realized(faithful=True)``, ``R(F)`` for
 ``Realized(faithful=False)``, ``A(#n)`` for ``Approximated`` citing issue ``n`` and ``F(axis, #n)`` for ``Refused``; the cells below
 were read from the live tables by one probe at the carve tip (:ref:`bc-aor-admission-probe`) and agree with the pin
-``tests/gates/transport/test_admission_matrix.py`` where the pin has the cell (it has no "white 1.0" cell of SN or diffusion and no deck row, which this probe alone reads) (111 rows and 13 further test items, 124 passed). The value classes are those of the
+``tests/gates/transport/test_admission_matrix.py`` and ``tests/gates/cross_method/test_admission_matrix_s4.py`` where the pin has the cell (it has no "white 1.0" cell of SN or diffusion and no deck row, which this probe alone reads) (111 rows and 13 further test items, 124 passed). The value classes are those of the
 pin: ``vacuum`` (the empty network, ``specular(0.0)`` and ``white(0.0)`` included), ``specular 1.0`` and ``specular 0.5``,
 ``white 0.5`` and ``white 1.0``, ``both 0.3 0.5`` (``from_amplitudes(0.3, 0.5)``), ``inflow 1.0`` (``uniform(1.0)``) and
 ``specular 0.5 over inflow 1.0`` (``specular(0.5) + uniform(1.0)``). The sites are the three geometric classes of
@@ -2748,7 +2749,7 @@ naturality square commutes:
    realizer tables' dispatch and refusals instantiate; the verifiable
    content is per-realizer (the diffusion 𝒜-table pinned unit-by-unit in
    ``tests/gates/diffusion/test_diffusion_realizer_table.py`` and the admission rows
-   in ``tests/gates/transport/test_admission_matrix.py``, the SN narrowing pinned
+   in ``tests/gates/cross_method/test_admission_matrix_s4.py``, the SN narrowing pinned
    bit-identical in ``tests/gates/sn/operators/test_b3_domain_narrowing.py``), not a
    solver claim of this equation's own.
 .. vv-status: bc-realizability-square documented
@@ -3820,7 +3821,10 @@ rung delegating to the next so the packing rule is stated exactly once:
        deck contribute nothing because their whole content is
        :math:`L`) and samples each face's
        :class:`~orpheus.transport.boundary_conditions.InflowTerms` on
-       that face's own :math:`\Gamma_-(f)`
+       that face's own :math:`\Gamma_-(f)`, then places each sample in
+       the full face slot with the scatter :math:`\iota_-`
+       (``trace.inflow_restriction(face).apply_transpose(values)``,
+       zeros on the outflow and tangential rows)
      - ``sample_inflow``, then :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow_on`
    * - :meth:`~orpheus.transport.boundary_conditions.RealizerTable.sample_inflow`
      - **the one source verb** — ``require`` the method table's admission
@@ -3835,10 +3839,17 @@ rung delegating to the next so the packing rule is stated exactly once:
        named faces are written from them
      - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow_on`
    * - :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow_on`
-     - **the one packing rule** — writes the **inflow** ordinate slots of
-       the named faces and leaves every other slot zero (a prescribed
-       source's outflow rows are physically meaningless, so they are
-       unrepresentable rather than overwritten)
+     - **the one packing rule**, keyed by the trace SPACE (a caller holding
+       the trace built by :func:`~orpheus.transport.phase_spaces.angular_trace_space`
+       and no problem calls it directly) — each named face's slot is written
+       through the projector :math:`\iota_-\circ\gamma_-` onto that face's
+       inflow rows, with :math:`\gamma_- =`
+       :meth:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_restriction`
+       and :math:`\iota_- = \gamma_-^{\mathsf T}` its scatter
+       (:eq:`bc-trace-restriction-pair`, :ref:`bc-domain-narrowing`), so
+       every other slot is zero (a prescribed source's outflow rows are
+       physically meaningless, so they are unrepresentable rather than
+       overwritten)
      - ``zeros``
    * - :meth:`AngularBoundarySourceSink.zeros(mesh.angular_trace) <orpheus.numerics.field.Field.zeros>`
      - **nothing but the trace SPACE** — the all-zero source every
@@ -3851,8 +3862,29 @@ rung delegating to the next so the packing rule is stated exactly once:
        :meth:`~orpheus.transport.fields._bases.AngularBoundaryField.from_face_arrays`
      - **every** face's **full** slot, outflow rows included — the
        general inherited constructor for non-inflow uses; nothing in the
-       ladder delegates to it, and a prescribed inflow must not use it
+       ladder delegates to it, and a prescribed inflow must not use it. It
+       resolves the problem's trace and delegates to its space-keyed form
+       :meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays_on`
+       (layer DAG Phase 4), which a caller holding only the trace space calls
      - —
+
+The two rungs that touch the face slot read one operator,
+:math:`\gamma_-(f)`, and use it in two different ways. The packing rule
+applies the projector :math:`P_- = \iota_-\circ\gamma_-`: whatever full
+slot it is handed, only the inflow rows survive. The user's path,
+``from_method``, hands the packing rule a slot that is already in the
+image of the scatter: the realizer returns a sample of exactly
+:math:`\Gamma_-(f)`'s shape and :math:`\iota_-` places it, and on that
+image :math:`P_-` is the identity (:math:`P_-\iota_- = \iota_-\gamma_-\iota_- =
+\iota_-`, because :math:`\gamma_-\iota_- = I`). The declared route therefore
+rests on :math:`\iota_-` and the direct route on :math:`P_-`, and a dropped
+projector is visible only on the direct route; the catchers of each route are
+named in the entry ERR-047 of :doc:`/theory/verification/error_catalog`. Before layer DAG Phase 4
+(2026-11-01) both rungs carried a hand-written mask over
+``trace.inflow_indices_for_face(face)`` (``full[inflow] = values`` in
+``from_method``, ``view[inflow] = arr[inflow]`` in the then-private
+``_pack_inflow``), each dominating the other on the declared route, so a dropped
+mask was invisible there.
 
 Only the top rung starts from a **declaration**, and that is why it is
 the top rung. A driver or a test that reaches for ``prescribed_inflow``
@@ -3890,7 +3922,7 @@ convergence
 .. implements:: bc-single-delivery
    :by: orpheus.transport.boundary_conditions.realization.sample_terms
 
-   **Implemented by** 8 sites. Every symbol that executes this
+   **Implemented by** 9 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
@@ -3898,6 +3930,9 @@ convergence
 
 .. implements:: bc-single-delivery
    :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face
+
+.. implements:: bc-single-delivery
+   :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_restriction
 
 .. implements:: bc-single-delivery
    :by: orpheus.sn.solver._build_fixed_source_rhs
@@ -7425,9 +7460,13 @@ is the carrier) and builds ONE unified
 whole problem, through the geometry-blind factory
 :meth:`AngularTraceSpace.from_quadrature_and_layout
 <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.from_quadrature_and_layout>`,
-which takes the angular quadrature and the problem's
-:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` (the single source of
-truth for which faces exist) and nothing else. The trace stores the **signed
+which takes the angular quadrature and the face layout
+:func:`~orpheus.transport.phase_spaces.angular_face_layout` builds from the
+problem's material mesh, quadrature and scheme (the single source of truth for
+which faces exist; the problem's one call is
+:func:`~orpheus.transport.phase_spaces.angular_trace_space`, and
+:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` reads the layout back
+off the trace) and nothing else. The trace stores the **signed
 projection** :math:`\Omega\cdot\hat n_f` once per face, as an ``(n_faces, N)``
 array, not two boolean masks: inflow and outflow are **selectors** over this one
 table, derived on demand by the sign of :math:`\Omega\cdot\hat n_f` against
@@ -7810,7 +7849,7 @@ The carve removed both gaps by construction and not by assertion: each transport
      - **The parse of the wall's cone**, :class:`~orpheus.transport.boundary_conditions.WallCondition`: a negative response weight or a negative inflow weight raises ``BoundaryResponseNotPositiveError`` at construction (``WallCondition.white(-0.1)``), so a wall outside the cone does not exist. The error is no longer a check on a realized kernel's output.
    * - ``assert_source_is_placeable`` (the only universal with a real base body; no law overrode it)
      - ERR-047
-     - **The SN source realizer**, ``SNSource.sample``: a space that is not an inflow half-trace is refused with ``BoundarySourceNotOnIncomingTraceError`` (``orpheus.sn.boundary.errors``). The old method asked that a source-carrying law be realized with a nameable :math:`\Gamma_-`, which needed an inflow-index set; at its P6 re-pose it had stopped probing the values of :math:`q` for support on :math:`\Gamma_-` and required that index set instead, which is why the ``NoSource`` default passed; there is no index set now, and the sampler is handed :math:`\Gamma_-(f)` itself and must return exactly its shape (``sample_terms`` raises ``ValueError`` otherwise), so the support of :math:`q` holds by construction and the one residual fact is that the space IS an inflow half-trace. Catcher: ``tests/gates/transport/test_boundary_source_from_specs.py::TestTheRecipeLandsOnTheInflowSlotsOnly``.
+     - **The SN source realizer**, ``SNSource.sample``: a space that is not an inflow half-trace is refused with ``BoundarySourceNotOnIncomingTraceError`` (``orpheus.sn.boundary.errors``). The old method asked that a source-carrying law be realized with a nameable :math:`\Gamma_-`, which needed an inflow-index set; at its P6 re-pose it had stopped probing the values of :math:`q` for support on :math:`\Gamma_-` and required that index set instead, which is why the ``NoSource`` default passed; there is no index set now, and the sampler is handed :math:`\Gamma_-(f)` itself and must return exactly its shape (``sample_terms`` raises ``ValueError`` otherwise), so the support of :math:`q` holds by construction and the one residual fact is that the space IS an inflow half-trace. Catcher: ``tests/gates/sn/operators/test_boundary_source_from_specs.py::TestTheRecipeLandsOnTheInflowSlotsOnly``.
 
 .. list-table:: The specific invariants of the retired surface, and where each lives now
    :header-rows: 1
@@ -9467,7 +9506,8 @@ structure:
    SNProblem.face_labels  (tuple[FaceLabel, ...])
         │
         ├─── boundary_face_layout : one slot per label,
-        │       named  label.face_name,  shaped (N, ng, *face_shape(label))
+        │       named  label.face_name,  shaped (N, ng, *face_shape(label), *tail)
+        │       (the rule: phase_spaces.angular_face_layout over trace_face_shapes)
         │
         └─── bc : one entry per label,
                 keyed  label.face_name,  realized from that face's role
@@ -9535,18 +9575,37 @@ the hook builds ``SNMethodSpace(quadrature, trace)`` and calls
 declaration on the face first and then returns the face's
 :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`.
 
-The :attr:`boundary_face_layout` producer is the dual comprehension:
+The face-layout producer is the dual comprehension. Since layer DAG Phase 4
+(2026-11-01) its rule is the raw constructor
+:func:`~orpheus.transport.phase_spaces.angular_face_layout`, a function of the
+material mesh, the quadrature and the scheme, and
+:attr:`SNProblem.boundary_face_layout <orpheus.sn.problem.SNProblem>` returns the
+layout of the problem's one angular trace, ``self.angular_trace.layout``, which
+the problem built with
+:func:`~orpheus.transport.phase_spaces.angular_trace_space` over that rule:
 
 .. code-block:: python
 
-   # orpheus/sn/problem.py — boundary_face_layout
+   # orpheus/transport/phase_spaces.py — angular_face_layout
+   n_ordinates = quadrature.n_ordinates
+   moment_tail = factor_tail(scheme.face_moment_count(mesh.ndim))
    return FaceLayout.from_named_shapes([
-       (label.face_name, (N, self.ng, *self.face_shape(label), *moment_tail))
-       for label in self.face_labels
+       (label.face_name, (n_ordinates, mesh.ng, *shape, *moment_tail))
+       for label, shape in trace_face_shapes(mesh.axes)
    ])
 
 (``moment_tail`` is the trailing transverse-moment axis of a multi-moment
 scheme, empty for diamond difference and step; it did not exist at C4.)
+:func:`~orpheus.mesh.axis.trace_face_shapes` is the one traced-face list, a map
+over :func:`~orpheus.mesh.axis.face_labels` that pairs each label with its
+:func:`~orpheus.mesh.axis.face_shape`; both trace spaces are laid out over it
+(the scalar trace through :func:`~orpheus.transport.phase_spaces.scalar_trace_space`).
+The rule of reading is one line: a reader that needs only the labels (the
+``traced`` set of ``realize_boundary`` above, the diffusion closure loop) reads
+``face_labels``, and a reader that needs the shapes (the two layouts, the
+unknown count ``n_unknowns_flat``) reads ``trace_face_shapes``. Until Phase 4
+the comprehension was spelled twice, in ``SNProblem.boundary_face_layout`` and
+in ``DiffusionMesh``'s scalar-trace construction.
 
 The pre-C4 body of each producer was a 3-branch ``isinstance`` /
 coord-system split (1-D slab / 1-D curvilinear / 2-D Cartesian) that

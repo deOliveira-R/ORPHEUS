@@ -4918,7 +4918,8 @@ the door and the seven producers are one step, not two
 
 One existing gate was **demoted** by the step and is retained with a
 narrower description:
-``tests/gates/transport/frames/test_harmonic_frame.py::test_moment_codomain_content_equals_the_carrier_mint``
+``tests/gates/sn/mesh/test_harmonic_frame_on_the_problem.py::TestMint::test_moment_codomain_content_equals_the_carrier_mint``
+(in ``tests/gates/transport/frames/test_harmonic_frame.py`` until layer DAG Phase 4 moved it beside the SN problem it reads)
 compared a face's moment codomain against the carrier's own mint, and
 both sides now derive from one source, so no input can make them
 disagree (``coding-standards``, the single-sourcing demotion). It keeps

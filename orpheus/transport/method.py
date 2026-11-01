@@ -100,7 +100,7 @@ from __future__ import annotations
 from functools import cached_property
 from typing import TYPE_CHECKING, ClassVar, Generic, Protocol, TypeVar, runtime_checkable
 
-from orpheus.mesh import Mesh1D, axes_from_legacy_mesh, trace_face_shapes
+from orpheus.mesh import Mesh1D, axes_from_legacy_mesh, face_labels
 from orpheus.transport.boundary_conditions import FaceSite, bind
 from orpheus.transport.mesh.material_mesh import MaterialMesh, conditions_key
 
@@ -163,7 +163,7 @@ class TransportMethod(Protocol[OpT_co]):
         """Per-face REALIZED boundary operators, keyed by face name.
 
         Built at construction by :func:`realize_boundary` over the faces of the binding that carry a trace: the
-        method's trace derives from the same ``trace_face_shapes`` list, so coverage of faces by operators ≡ coverage of faces
+        method's trace derives from the same ``face_labels`` inventory, so coverage of faces by operators ≡ coverage of faces
         by trace slots by construction.
         """
         ...
@@ -263,7 +263,7 @@ def realize_boundary(method: "TransportMethod[OpT]") -> dict[str, OpT]:
 
     1. the declaration is the face's deck if it is glued, else the condition its tag is bound to
        (``binding.condition_of(face)``);
-    2. a face with a trace slot (a member of ``trace_face_shapes(method.axes)``) is realized through the method's
+    2. a face with a trace slot (a member of ``face_labels(method.axes)``) is realized through the method's
        :meth:`~TransportMethod.realize_boundary_role`, whose table call admits first and raises
        :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` iff refused;
     3. a face with no trace slot (the inner face of a hollow radial body: a tag, with no inner-surface trace) has nothing to
@@ -284,7 +284,7 @@ def realize_boundary(method: "TransportMethod[OpT]") -> dict[str, OpT]:
         A declaration the method's table does not admit on its face (the refusal carries the admission and the face).
     """
     table, binding = method.boundary_realizers, method.binding
-    traced = {label.face_name for label, _ in trace_face_shapes(method.axes)}
+    traced = {label.face_name for label in face_labels(method.axes)}
     realized: dict[str, OpT] = {}
     for face in binding.faces:
         declared = binding.decks[face] if face in binding.decks else binding.condition_of(face)

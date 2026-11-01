@@ -298,7 +298,9 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
                 )
             view = bss.face_view(face)  # full per-face slot, mem-shared with bss
             arr = np.asarray(values, dtype=float)
-            inflow = trace.inflow_indices_for_face(face)
+            # The projector onto the inflow rows, ι₋ ∘ γ₋: the restriction γ₋ onto Γ₋(f) and its scatter ι₋ back into the
+            # full slot (zeros on the outflow and tangential rows).
+            gamma_in = trace.inflow_restriction(face)
             # A moment-resolved LD trace slot is (N, ng, *transverse, 2^{d-1})
             # (#251).  The caller may supply EITHER the full moment slot OR a
             # SCALAR (N, ng, *transverse) array (the existing scalar prescribed
@@ -308,12 +310,11 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             #   * scalar onto a moment slot → seed the AVERAGE moment (slot 0),
             #     the transverse slope moments stay zero (the scalar default is
             #     blind to the along-face variation — the Leg-B asymmetry).
-            # ``[inflow]`` selects the inflow ordinate ROWS (axis 0) and spans
-            # all trailing axes (a trailing ``, :`` would assume exactly one).
+            # γ₋ acts on the ordinate axis (axis 0) and spans all trailing axes.
             if arr.shape == view.shape:
-                view[inflow] = arr[inflow]
+                view[...] = gamma_in.apply_transpose(gamma_in.apply(arr))
             elif view.ndim > arr.ndim and arr.shape == view.shape[:-1]:
-                view[inflow, ..., AVERAGE_MOMENT] = arr[inflow]
+                view[..., AVERAGE_MOMENT] = gamma_in.apply_transpose(gamma_in.apply(arr))
             else:
                 raise ValueError(
                     f"{cls.__name__}.prescribed_inflow: face {face!r} values "
@@ -368,7 +369,6 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
         binding, trace, realizers, face_site = method.binding, method.angular_trace, method.boundary_realizers, method.face_site
         face_values: "dict[str, NDArray]" = {}
         known = set(trace.layout.faces.keys())
-        template = cls.zeros(trace)
         for face, terms in binding.sources.items():
             if face not in known:
                 raise ValueError(
@@ -378,8 +378,7 @@ class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
             # ordinates, its ``directions`` are those rows' Ω (so an angular source is spellable), and its ``shape`` is exactly what
             # the sample must return.
             values = np.asarray(realizers.sample_inflow(terms, face_site(face), trace.inflow_space(face)), dtype=float)
-            # Scatter onto the full slot so the packing rule stays the only code that knows where inflow rows live.
-            full = np.zeros(template.face_view(face).shape, dtype=float)
-            full[trace.inflow_indices_for_face(face)] = values
-            face_values[face] = full
+            # The scatter ι₋ places the Γ₋(f) sample in the full face slot (zeros elsewhere); the packing rule's projector
+            # ι₋ ∘ γ₋ then leaves it unchanged, so this path rests on ι₋ and the direct path on the projector.
+            face_values[face] = trace.inflow_restriction(face).apply_transpose(values)
         return cls.prescribed_inflow_on(trace, face_values)

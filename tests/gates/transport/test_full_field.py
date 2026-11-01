@@ -43,6 +43,12 @@ References
 * :mod:`orpheus.transport.full_field` — the base (module docstring
   carries the cofree-comonad WHY).
 * Grand Report v3 §5.5 (the composite carrier).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 
 from __future__ import annotations
@@ -50,22 +56,16 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import Vector
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space, angular_trace_space
+from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = pytest.mark.foundation
@@ -99,19 +99,11 @@ def _is_a(candidate: object, kind: type) -> bool:
     return isinstance(candidate, kind)
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-def _timeless_full_field(m: SNProblem) -> FullField:
+def _timeless_full_field(m: MaterialMesh) -> FullField:
     """A plain timeless ``FullField`` (NOT a ``TimedFullField``)."""
     return FullField(
-        interior=AngularFlux.zeros(m.angular_bulk_space),
-        boundary=AngularBoundaryFlux.zeros(m.angular_trace),
+        interior=AngularFlux.zeros(angular_bulk_space(m, posing_quadrature(m))),
+        boundary=AngularBoundaryFlux.zeros(angular_trace_space(m, posing_quadrature(m), posing_scheme(m))),
     )
 
 
@@ -125,9 +117,9 @@ class TestFullFieldMembership:
 
     def test_timed_full_field_is_a_full_field(self):
         """The history-bearing carrier IS a FullField — by inheritance."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         tff = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
         )
         _require(
             _is_a(tff, FullField),
@@ -137,9 +129,9 @@ class TestFullFieldMembership:
 
     def test_timed_full_field_is_also_a_vector(self):
         """Every full field is a Vector (FullField carries the four dunders)."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         tff = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
         )
         _require(
             _is_a(tff, Vector),
@@ -149,7 +141,7 @@ class TestFullFieldMembership:
 
     def test_timeless_full_field_is_a_full_field_and_a_vector(self):
         """A plain timeless FullField is a FullField and a Vector."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         ff = _timeless_full_field(sn)
         _require(_is_a(ff, FullField), "A plain FullField must be a FullField.")
         _require(
@@ -185,8 +177,8 @@ class TestFullFieldMembership:
         dunders (so it is a :class:`Vector`) but it is not the ``bulk ⊕
         boundary`` composite.
         """
-        sn = _slab_mesh()
-        flux = AngularFlux.zeros(sn.angular_bulk_space)
+        sn = slab_mesh()
+        flux = AngularFlux.zeros(angular_bulk_space(sn, posing_quadrature(sn)))
         _require(
             _is_a(flux, Vector),
             "AngularFlux must satisfy Vector (Field dunders).",
@@ -208,7 +200,7 @@ class TestTimelessVsTimed:
 
     def test_timeless_full_field_is_not_a_timed_full_field(self):
         """A plain FullField is NOT a TimedFullField (no history)."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         ff = _timeless_full_field(sn)
         _require(
             not _is_a(ff, TimedFullField),
@@ -218,7 +210,7 @@ class TestTimelessVsTimed:
 
     def test_timeless_full_field_has_no_history_machinery(self):
         """The timeless base does not expose the history shift-register verbs."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         ff = _timeless_full_field(sn)
         _require(
             not hasattr(ff, "advance"),
@@ -249,7 +241,7 @@ class TestPolymorphicRecombine:
 
     def test_full_field_plus_full_field_is_a_full_field(self):
         """FullField + FullField → FullField (the base recombine hook)."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         a = _timeless_full_field(sn)
         b = _timeless_full_field(sn)
         # Plain composite V algebra since the CS3 cone carve: the direct
@@ -263,7 +255,7 @@ class TestPolymorphicRecombine:
 
     def test_full_field_sub_is_a_full_field(self):
         """FullField - FullField → FullField (a composite displacement)."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         a = _timeless_full_field(sn)
         b = _timeless_full_field(sn)
         out = a - b
@@ -275,7 +267,7 @@ class TestPolymorphicRecombine:
 
     def test_full_field_scalar_mul_is_a_full_field(self):
         """scalar * FullField → FullField."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         a = _timeless_full_field(sn)
         out = 2.0 * a
         _require(
@@ -293,17 +285,17 @@ class TestPolymorphicRecombine:
         preserved ``history_depth`` (#217: algebra results carry empty
         history).
         """
-        sn = _slab_mesh()
+        sn = slab_mesh()
         a = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=5,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)), history_depth=5,
         )
         b = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=5,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)), history_depth=5,
         )
         # Build a non-trivial history on ``a`` so the empty-history claim
         # is a real assertion (not a tautology of zeros()).
-        nb = AngularFlux.zeros(sn.angular_bulk_space)
-        nf = AngularBoundaryFlux.zeros(sn.angular_trace)
+        nb = AngularFlux.zeros(angular_bulk_space(sn, posing_quadrature(sn)))
+        nf = AngularBoundaryFlux.zeros(angular_trace_space(sn, posing_quadrature(sn), posing_scheme(sn)))
         a = a.advance(nb, nf)
         _require(a.history_length == 1, "precondition: a must carry history.")
 
@@ -328,9 +320,9 @@ class TestPolymorphicRecombine:
 
     def test_timed_scalar_mul_preserves_type_and_depth(self):
         """scalar * TimedFullField → TimedFullField (type, depth preserved)."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         a = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space, history_depth=3,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)), history_depth=3,
         )
         out = 2.0 * a
         _require(
@@ -346,9 +338,9 @@ class TestPolymorphicRecombine:
 
     def test_timed_neg_preserves_type(self):
         """-TimedFullField → TimedFullField."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         a = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
         )
         out = -a
         _require(
@@ -374,9 +366,9 @@ class TestFullFieldTwoBlock:
     leftover bug class — TypeErrors instead of silently threading)."""
 
     def test_full_field_has_no_ray_slot(self):
-        sn = _slab_mesh()
+        sn = slab_mesh()
         composite = FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
         )
         if hasattr(composite, "radial_characteristic"):
             pytest.fail("FullField still exposes a radial_characteristic "
@@ -386,17 +378,17 @@ class TestFullFieldTwoBlock:
         # The retired ``radial_characteristic`` leaf is gone (Phase C 4e), so
         # the rejection is of the KWARG NAME itself — any value trips the
         # unexpected-keyword TypeError.
-        sn = _slab_mesh()
+        sn = slab_mesh()
         with pytest.raises(TypeError):
             FullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux,
-                space=sn.full_field_space,
+                space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
                 radial_characteristic=None,
             )
         with pytest.raises(TypeError):
             TimedFullField.zeros(
                 interior=AngularFlux, boundary=AngularBoundaryFlux,
-                space=sn.full_field_space,
+                space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
                 radial_characteristic=None,
             )
 
@@ -415,9 +407,9 @@ class TestFullFieldTwoBlock:
         # The G-d2.2 tooth: a caller that threads the retired seed kwarg
         # (an eviction leftover) fails LOUDLY — the hook takes exactly the
         # two blocks.
-        sn = _slab_mesh()
+        sn = slab_mesh()
         composite = FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
         )
         with pytest.raises(TypeError):
             composite._recombine(

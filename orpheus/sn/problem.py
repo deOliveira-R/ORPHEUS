@@ -1493,9 +1493,13 @@ class SNProblem(MethodMesh):
         :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
         consumes this layout to lay out its flat backing buffer.
 
-        Derived from :attr:`face_labels` (C4): one slot per label, named
+        The layout of the problem's one :attr:`angular_trace`, whose rule is
+        :func:`~orpheus.transport.phase_spaces.angular_face_layout`, over the
+        traced faces of :func:`~orpheus.mesh.axis.trace_face_shapes` (C4):
+        one slot per label, named
         by the single-sourced :attr:`FaceLabel.face_name` crosswalk,
-        shaped ``(N, ng, *face_shape(label))`` — axis-count generic, no
+        shaped ``(N, ng, *face_shape(label), *moment_tail)`` (the tail is
+        below) — axis-count generic, no
         per-geometry hand-list. The geometry mapping falls out:
 
         * 1-D slab — two faces ``xmin`` / ``xmax``, each ``(N, ng)``.
@@ -1549,9 +1553,8 @@ class SNProblem(MethodMesh):
         persistent type re-created exactly the boundary/interior
         conflation D-G was dissolving.
         """
-        # The per-face transverse moment tail per_axis^{d-1} (#251) is read through the scheme's ``face_moment_count``,
-        # the one source the cochain's ``_n_face_moments`` shares, so producer and consumer cannot drift.
-        return phase_spaces.angular_face_layout(self, self.quad, self.scheme)
+        # The layout of the problem's one angular trace instance, built by ``phase_spaces.angular_face_layout``.
+        return self.angular_trace.layout
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

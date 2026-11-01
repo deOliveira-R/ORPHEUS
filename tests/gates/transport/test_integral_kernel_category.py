@@ -52,6 +52,12 @@ call, fires under ``python -O``), NEVER a bare ``assert``.
 
 ``foundation`` — a software invariant on the type surface, no
 theory-page ``:label:``.
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -65,8 +71,10 @@ from orpheus.numerics.operator import (
     LinearOperator,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
-from orpheus.sn.solver import SNSolver
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
+from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.operators.integral_kernel_operator import IntegralKernelOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 
@@ -86,7 +94,14 @@ pytestmark = pytest.mark.foundation
 
 # ═══════════════════════════════════════════════════════════════════════
 # Fixtures — a fission operator + an anisotropic scattering operator, both
-# carrying real SN data so they EXPOSE the kernel/production_rate surface.
+# carrying real data so they EXPOSE the kernel/production_rate surface. Since
+# layer DAG Phase 4 they are built by the transport factories
+# (``from_solver_data``) on the raw constructors' full-field space, the same
+# factories the SN problem mints its F and S through (``SNProblem.fission``,
+# ``sn/coupled_system.py``); the SN-assembled operators' kernel members are read
+# by ``tests/gates/sn/operators/test_fission_kernel_crosscheck.py`` and
+# ``test_scattering_kernel_crosscheck.py`` (one mutation, deleting the
+# ``kernel`` member, reddens both families).
 # (placeholder_materials has zero fission/scatter; the category gate needs
 # operators that genuinely satisfy the Protocol once landed.)
 # ═══════════════════════════════════════════════════════════════════════
@@ -110,10 +125,9 @@ def fission_op():
     mat = np.zeros((nx, ny), dtype=int)
     mat[:3, :] = 2
     mat[3:, :] = 0
-    mesh = _uniform_2d(nx, ny, 0.2, mat)
-    quad = Quadrature.lebedev(order=17)
-    problem = SNProblem(mesh, quad, {2: fuel, 0: mod})
-    return SNSolver(problem).problem.fission.isotropic_energy
+    mesh = MaterialMesh(_uniform_2d(nx, ny, 0.2, mat), {2: fuel, 0: mod})
+    space = angular_full_field_space(mesh, Quadrature.lebedev(order=17))
+    return FissionOperator.from_solver_data(mat_xs=mesh.mat_xs, space=space).isotropic_energy
 
 
 @pytest.fixture
@@ -133,11 +147,9 @@ def scattering_op():
     )
     mix = replace(mix, SigS=[csr_matrix(p0), csr_matrix(p1)], Sig2=[csr_matrix(np.array([[0.0, 0.03], [0.01, 0.0]]))])
     nx, ny = 3, 2
-    mesh = _uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int))
-    quad = Quadrature.lebedev(order=17)
-    return SNSolver(
-        SNProblem(mesh, quad, {0: mix}, scattering_order=1),
-    ).problem.system.factors.scattering
+    mesh = MaterialMesh(_uniform_2d(nx, ny, 0.4, np.zeros((nx, ny), dtype=int)), {0: mix})
+    space = angular_full_field_space(mesh, Quadrature.lebedev(order=17))
+    return ScatteringOperator.from_solver_data(mat_xs=mesh.mat_xs, scattering_order=1, space=space)
 
 
 @pytest.fixture

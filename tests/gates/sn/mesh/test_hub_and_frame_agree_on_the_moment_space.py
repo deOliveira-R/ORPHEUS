@@ -41,6 +41,17 @@ from tests.gates.sn.architecture.test_monomorphic_leaves import (
     _sphere,
 )
 from orpheus.numerics import frame_faces
+from orpheus.geometry import CoordSystem, StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesh2D, Mesher
+from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.sn.problem import SNProblem
+from orpheus.transport.fields._bases import BulkField
+from orpheus.transport.spatial import LinearDiscontinuous
+from tests.gates.transport._materials import placeholder_materials
+from orpheus.geometry.deck import MirrorDeck
+from orpheus.transport.boundary_conditions import WallCondition
+from tests.gates._exterior import conditions_for
 
 pytestmark = pytest.mark.foundation
 
@@ -115,3 +126,60 @@ def test_P10_the_moment_space_is_axis_built_and_never_densified(geometry: str, L
     reachable = [ax.weights for ax in space.axes if ax.weights is not None]
     assert all(w.size < n for w in reachable), "no reachable array is state-sized"
     assert sum(w.nbytes for w in reachable) < 8 * n
+
+
+# ── Moved from tests/gates/transport/spatial/test_spatial_moment_tail_is_the_schemes_axis.py by layer DAG Phase 4
+# (2026-11-01): the hub and the frame agree at width two as at width one (the hub's keyed moment space against the
+# frame's mint of the widened angular space), with its two LD problems.
+
+
+#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
+#: stands for is declared at the solve, keyword ``boundary_conditions``).
+_CONDITIONS = {0: WallCondition.vacuum()}
+
+
+def _ld_2d() -> SNProblem:
+    mesh = Mesh2D(
+        edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 1.0, 3),
+        mat_map=np.zeros((3, 2), dtype=int), coord=CoordSystem.CARTESIAN,
+        face_roles={
+            "xmin": MirrorDeck(),
+            "xmax": MirrorDeck(),
+            "ymin": MirrorDeck(),
+            "ymax": MirrorDeck(),
+        },
+    )
+    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+
+
+def _ld_1d() -> SNProblem:
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
+    mesh = Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh
+    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+
+
+_LD = {"ld_2d": _ld_2d, "ld_1d": _ld_1d}
+
+
+def _tail_axes(space: FunctionSpace):
+    assert space.axes is not None, "a tailed space is axis-built"
+    return [ax for ax in space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL]
+
+
+@pytest.mark.parametrize("label", list(_LD), ids=list(_LD))
+def test_the_hub_and_the_frame_agree_at_width_two_as_at_width_one(label: str) -> None:
+    sn = _LD[label]()
+    L = 1
+    widened_angular = BulkField.compose_spatial_moments(sn.angular_bulk_space, sn, 2)
+    assert _tail_axes(widened_angular), "the widened angular space carries the scheme's axis"
+    frame = HarmonicFrame.for_space(widened_angular, L)
+    derived = frame.moment_space_on(widened_angular)
+    hub = sn.moment_space(L, spatial_moments=2)
+    assert hub == derived and hash(hub) == hash(derived), "two owners, ONE widened space"
+    # the tail axis the frame threads IS the angular space's own axis object
+    assert derived.axes is not None
+    assert _tail_axes(derived)[0] is _tail_axes(widened_angular)[0]
+    # and the analysis face's codomain is that space
+    assert frame.flux_analysis_on(widened_angular).codomain == hub
+    # the un-widened pair still agrees
+    assert sn.moment_space(L) == frame.moment_space_on(sn.angular_bulk_space)

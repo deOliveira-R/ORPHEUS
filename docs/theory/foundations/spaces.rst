@@ -399,6 +399,23 @@ factors — so an interior weighted axis works exactly like a leading one.
 That is a position the legacy prefix-broadcast convention could not
 reach.
 
+The transport phase spaces are instances of this product, and each is
+spelled once, as a raw function of its ingredients in
+:mod:`orpheus.transport.phase_spaces` (layer DAG Phase 4, 2026-11-01): the
+angular bulk :math:`V_\Omega \otimes V_E \otimes V_r` is
+:func:`~orpheus.transport.phase_spaces.angular_bulk_space` (the quadrature's
+ordinate axis prepended to the material mesh's own scalar-bulk axes, so the
+scalar bulk is that space minus axis 0); the trial space appends the scheme's
+modal moment axis through
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.trial_space`;
+the two boundary traces are
+:func:`~orpheus.transport.phase_spaces.angular_trace_space` and
+:func:`~orpheus.transport.phase_spaces.scalar_trace_space`, laid out over the one
+traced-face list :func:`~orpheus.mesh.axis.trace_face_shapes`. A problem's
+cached property is a specialised mint of the constructor, one call with the
+problem's own ingredients; the full table, and where the rule's pin is, is
+:ref:`indexing-carrier-cached-mints`.
+
 .. warning::
 
    **The legacy twin survives; its DENSIFYING half retired 2026-09-07**
@@ -888,7 +905,9 @@ that preceded it and was never reconciled here.
 **seven** production call sites, not one. And the ``False`` row now has
 a production occupant: :attr:`SNProblem.angular_trial_space
 <orpheus.sn.problem.SNProblem.angular_trial_space>` appends the
-scheme-owned ``moment_axis`` — declared modal (``Modal(e_0)``), because
+scheme-owned ``moment_axis`` (since layer DAG Phase 4 through the scheme's
+own verb
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.trial_space`) — declared modal (``Modal(e_0)``), because
 a DG cell moment is an expansion coefficient — to an axis-built base
 whenever the bound scheme is multi-moment, and `[M]`
 ``LinearDiscontinuous.is_multi_moment`` is ``True`` while
@@ -1664,7 +1683,7 @@ cited rather than copied:
   ``tests/gates/numerics/test_axis_generator.py::TestG3MintFidelity``);
 - the rank-1 spatial axis of a carrier is ``FromMeasure`` over the
   carrier's own volume measure (cell centres as atoms, volumes as weights;
-  ``tests/gates/numerics/test_space_of_axes.py``
+  ``tests/gates/transport/test_material_mesh.py``
   ``::test_the_spatial_axis_is_minted_through_the_carriers_own_measure``,
   whose centres and volumes are derived by hand from the edge list);
 - a basis's continuum coefficient axis is ``FromBasis``
@@ -1686,8 +1705,9 @@ cited rather than copied:
   axis of a :math:`d \ge 2` carrier
   (``tests/gates/numerics/test_axis_generator.py``
   ``::TestG5TheQuadratureRefusalIsOneSpelling::test_G5_6a_the_shipped_atomless_axes_are_Declared``,
-  ``tests/gates/numerics/test_space_of_axes.py``
-  ``::test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT``).
+  ``tests/gates/transport/test_material_mesh.py``
+  ``::test_the_rank_d_spatial_axis_is_generator_less_BY_CONTRACT``, posed on a
+  2-D material mesh since layer DAG Phase 4).
 
 The rank-:math:`d` arm is ``Declared`` by contract (G6b): a
 :class:`~orpheus.numerics.measure.DiscreteMeasure` is a flat atom list,

@@ -36,6 +36,7 @@ import numpy as np
 from orpheus.diffusion import augmented_mesh, boundary_realizer, method_space, solver, zero_flux
 from orpheus.transport import boundary_conditions
 from tests.gates.transport import _carry_cases as carry
+from tests.gates.transport._wave2_s4_helpers import chart_mesh, summary  # noqa: F401  (re-exported: re-homed in layer DAG Phase 4)
 
 #: A fixed non-symmetric probe of a face operator's input (one outflow current per group; two groups here, but the realized
 #: scalar-multiple-of-identity is shape-agnostic).
@@ -81,27 +82,6 @@ SITES = ("CART", "RAD_OUTER", "RAD_INNER")
 #: The sites with a trace slot, where a condition is REALIZED: the hollow inner face has none (#511), so the table admits only
 #: ``specular(1.0)`` there and refuses the rest (the admission matrix's diffusion column pins that site, cell by cell).
 TRACE_SITES = ("CART", "RAD_OUTER")
-
-
-def chart_mesh(chart: str, *, left: Any = None, right: Any = None, outer: Any = None,
-               breakpoints: tuple[float, ...] | None = None, mat_ids: tuple[int, ...] = (1, 0),
-               cells: tuple[int, ...] = carry.OTHER_CELLS) -> Any:
-    """The ``Mesh1D`` of a carried diffusion chart (``slab`` | ``cylinder`` | ``sphere``) with the given face ROLES.
-
-    A slab takes ``left`` and ``right``; a solid radial body takes ``outer``. A role is an ``int`` tag or a deck.
-    """
-    from orpheus.geometry import StructuredGeometry
-    from orpheus.mesh import CellsByCount, Mesher
-
-    coord, default_breakpoints = carry.CHARTS[chart]
-    bps = breakpoints if breakpoints is not None else default_breakpoints
-    if coord == "CARTESIAN":
-        geometry = StructuredGeometry.slab(bps, mat_ids, left=left, right=right)
-    elif coord == "CYLINDRICAL":
-        geometry = StructuredGeometry.cylinder(bps, mat_ids, outer=outer)
-    else:
-        geometry = StructuredGeometry.sphere(bps, mat_ids, outer=outer)
-    return Mesher(geometry).partition(tuple(CellsByCount.uniform_volume(n) for n in cells)).mesh
 
 
 def roles_and_conditions(chart: str, condition: Any, *, mirror: bool = False) -> tuple[dict[str, Any], dict[int, Any]]:
@@ -153,19 +133,6 @@ def diffusion_mesh(mesh: Any, conditions: dict[int, Any] | None = None, material
     if conditions is None:
         return augmented_mesh.DiffusionMesh(mesh, mats)
     return augmented_mesh.DiffusionMesh(mesh, mats, boundary_conditions=conditions)
-
-
-def summary(admission: Any) -> tuple:
-    """The pinned shape of an admission, the one ``tests/gates/transport/test_admission_matrix.summary`` reads: ``("R", faithful)``,
-    ``("A", names, issues)`` or ``("F", axis name, issue)`` (the reason text is prose and is not pinned)."""
-    B = bc()
-    if isinstance(admission, B.Realized):
-        return ("R", admission.faithful)
-    if isinstance(admission, B.Approximated):
-        return ("A", tuple(sorted(admission.names)), tuple(sorted(admission.issues)))
-    if not isinstance(admission, B.Refused):
-        raise TypeError(f"{admission!r} is not an admission")
-    return ("F", admission.axis.name, admission.issue)
 
 
 def realized_action(operator: Any) -> np.ndarray:

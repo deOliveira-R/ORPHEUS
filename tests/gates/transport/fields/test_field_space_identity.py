@@ -18,6 +18,12 @@ Step boundary (§6b), resolved: at S2 the partner guards were still
 mesh-keyed, so only the SPACE-level table and the same-mesh role
 consequence (G2.3) landed then; the cross-carrier ADDITION permission legs
 landed with S3's re-key (``test_the_permission_legs_now_spellable``).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 
 from __future__ import annotations
@@ -28,17 +34,13 @@ import pytest
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields import AngularSourceSink
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
+from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
 
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
 #: The roles this file's tests name by kind: the vacuum tag (declared by ``_CONDITIONS``) and the mirror deck.
 _ROLE = {"vacuum": 0, "reflective": MirrorDeck()}
 
@@ -58,14 +60,14 @@ def _mesh(
     n_ord: int = 4,
     ng: int = 2,
     left: str = "vacuum",
-) -> SNProblem:
+) -> tuple[MaterialMesh, Quadrature]:
+    """A slab material mesh and the rule its angular space is posed with (layer DAG Phase 4: the spaces are the raw
+    constructors' on these two ingredients)."""
     geometry = StructuredGeometry.slab(
         (edges[0], edges[-1]), (0,), left=_ROLE[left], right=0,
     )
     mesh = Mesher(geometry).partition(CellEdges(edges)).mesh
-    return SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ord), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS)
-    )
+    return MaterialMesh(mesh, placeholder_materials(ng=ng)), Quadrature.gauss_legendre(n_ord)
 
 
 #: (what differs, mesh-builder kwargs, angular ``==`` expected, scalar
@@ -94,8 +96,8 @@ class TestG21DiscriminationTable:
         ids=[row[0] for row in _TABLE],
     )
     def test_per_family_space_equality(self, label, kwargs, angular_eq, scalar_eq):
-        a, b = _mesh(), _mesh(**kwargs)
-        assert (a.angular_bulk_space == b.angular_bulk_space) is angular_eq
+        (a, qa), (b, qb) = _mesh(), _mesh(**kwargs)
+        assert (angular_bulk_space(a, qa) == angular_bulk_space(b, qb)) is angular_eq
         assert (a.bulk_space == b.bulk_space) is scalar_eq
 
 
@@ -115,9 +117,9 @@ class TestG22ScalarQuadratureBlindness:
     """
 
     def test_scalar_space_ignores_quadrature_order_angular_does_not(self):
-        s4, s8 = _mesh(n_ord=4), _mesh(n_ord=8)
+        (s4, q4), (s8, q8) = _mesh(n_ord=4), _mesh(n_ord=8)
         assert s4.bulk_space == s8.bulk_space
-        assert s4.angular_bulk_space != s8.angular_bulk_space
+        assert angular_bulk_space(s4, q4) != angular_bulk_space(s8, q8)
 
     def test_the_permission_legs_now_spellable(self):
         """The addition halves, landed with S3's re-key (§6b deferred them
@@ -131,15 +133,15 @@ class TestG22ScalarQuadratureBlindness:
         """
         from orpheus.transport.fields.scalar_flux import ScalarFlux
 
-        s4, s8 = _mesh(n_ord=4), _mesh(n_ord=8)
+        (s4, _), (s8, _) = _mesh(n_ord=4), _mesh(n_ord=8)
         phi4 = ScalarFlux.zeros(s4.bulk_space)
         phi8 = ScalarFlux.zeros(s8.bulk_space)
         out = phi4 + phi8
         assert isinstance(out, ScalarFlux)
 
-        vac, refl = _mesh(), _mesh(left="reflective")
-        a = AngularFlux.zeros(vac.angular_bulk_space)
-        b = AngularFlux.zeros(refl.angular_bulk_space)
+        (vac, qv), (refl, qr) = _mesh(), _mesh(left="reflective")
+        a = AngularFlux.zeros(angular_bulk_space(vac, qv))
+        b = AngularFlux.zeros(angular_bulk_space(refl, qr))
         out2 = a + b
         assert isinstance(out2, AngularFlux)
 
@@ -156,18 +158,20 @@ class TestG23RoleIsClassIdentity:
     """
 
     def test_cross_role_addition_refuses_while_spaces_are_identical(self):
-        sn = _mesh()
-        flux = AngularFlux.zeros(sn.angular_bulk_space)
-        source = AngularSourceSink.zeros(sn.angular_bulk_space)
+        sn, quadrature = _mesh()
+        bulk = angular_bulk_space(sn, quadrature)
+        flux = AngularFlux.zeros(bulk)
+        source = AngularSourceSink.zeros(bulk)
         # The premise that makes this NEW coverage: one space, two roles.
         assert flux.space is source.space
         with pytest.raises(TypeError):
             flux + source  # type: ignore[operator]  # the refusal IS the claim
 
     def test_same_role_addition_still_succeeds(self):
-        sn = _mesh()
-        a = AngularFlux(values=np.ones((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)), space=sn.angular_bulk_space)
-        b = AngularFlux(values=2.0 * np.ones_like(a.values), space=sn.angular_bulk_space)
+        sn, quadrature = _mesh()
+        bulk = angular_bulk_space(sn, quadrature)
+        a = AngularFlux(values=np.ones((quadrature.n_ordinates, sn.ng, *sn.spatial_shape)), space=bulk)
+        b = AngularFlux(values=2.0 * np.ones_like(a.values), space=bulk)
         c = a + b
         assert isinstance(c, AngularFlux)
         assert np.all(c.values == 3.0)

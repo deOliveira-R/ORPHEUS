@@ -30,6 +30,12 @@ References
 * ``.claude/plans/issue_257_coefficient_field_promotion.md`` — S1.
 * ``.claude/agent-memory/cross-domain-attacker/coefficient_field_promotion_frames.md``
   — Frame 2 (the coefficient cone algebra is NOT the flux torsor).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -38,44 +44,29 @@ import pytest
 
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.units import CROSS_SECTION_UNITS
 from orpheus.numerics.vector import Vector
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.fields._coefficient_role import CoefficientRole
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._materials import placeholder_materials
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = [pytest.mark.foundation]
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> MaterialMesh:
     """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
     so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesher(StructuredGeometry.from_homogeneous(2.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
-def _sigma(problem: SNProblem, fill: float) -> CrossSectionField:
+def _sigma(problem: MaterialMesh, fill: float) -> CrossSectionField:
     return CrossSectionField(values=np.full((problem.ng, *problem.spatial_shape), fill), space=problem.bulk_space)
 
 
@@ -88,7 +79,7 @@ class TestCrossSectionConeAlgebra:
     def test_cone_closed_under_addition(self) -> None:
         """``Σ + Σ′`` is a CrossSectionField (cone closed under +) — NO
         ``flux+flux``-style gate, and the result is the pointwise sum."""
-        m = _slab_mesh()
+        m = slab_mesh()
         s1, s2 = _sigma(m, 0.5), _sigma(m, 0.3)
         out = s1 + s2  # must NOT raise (unlike FluxRole)
         assert isinstance(out, CrossSectionField)
@@ -97,7 +88,7 @@ class TestCrossSectionConeAlgebra:
 
     def test_cone_closed_under_nonneg_scalar(self) -> None:
         """``λ·Σ`` for ``λ≥0`` stays in the cone (closed under nonneg ·)."""
-        m = _slab_mesh()
+        m = slab_mesh()
         s = _sigma(m, 0.5)
         out = 2.0 * s
         assert isinstance(out, CrossSectionField)
@@ -108,7 +99,7 @@ class TestCrossSectionConeAlgebra:
         """``Σ=0`` is a valid CrossSectionField and the additive identity —
         the coefficient space HAS an origin (it promotes to ``M_0``),
         unlike the flux affine torsor."""
-        m = _slab_mesh()
+        m = slab_mesh()
         zero = CrossSectionField.zeros(m.bulk_space)  # constructs (no invariant rejects 0)
         assert isinstance(zero, CrossSectionField)
         np.testing.assert_array_equal(zero.values, np.zeros((m.ng, *m.spatial_shape)))
@@ -122,7 +113,7 @@ class TestCrossSectionConeAlgebra:
         multiplier-algebra domain a full vector space. (This doctrine is the
         precedent the CS3 flux-cone ruling generalised to the whole field
         layer.)"""
-        m = _slab_mesh()
+        m = slab_mesh()
         s1, s2 = _sigma(m, 0.3), _sigma(m, 0.5)
         diff = s1 - s2  # 0.3 - 0.5 = -0.2: a signed coefficient, must NOT raise
         assert isinstance(diff, CrossSectionField)
@@ -148,7 +139,7 @@ class TestCoefficientRoleVsFluxRole:
         """The behavioural counterpart: ``Σ + Σ`` does NOT raise (no torsor
         gate), where a flux state's ``ψ + ψ`` would — the role difference made
         observable in the algebra, not just the type tree."""
-        m = _slab_mesh()
+        m = slab_mesh()
         s = _sigma(m, 0.5)
         out = s + s  # CoefficientRole adds no affine gate
         assert isinstance(out, CrossSectionField)
@@ -165,7 +156,7 @@ class TestCoefficientLeafIsVector:
         """``CrossSectionField`` structurally satisfies the #256 ``Vector``
         protocol (the four vector-space dunders), so it flows through the
         operator algebra's carrier type."""
-        assert isinstance(_sigma(_slab_mesh(), 0.5), Vector)
+        assert isinstance(_sigma(slab_mesh(), 0.5), Vector)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -178,7 +169,7 @@ class TestCoefficientMeshBinding:
         """CS4b S3 (F2): twin carriers mint EQUAL scalar-bulk spaces, so
         homogenisation-style sums across them are legal; differing cell
         volumes refuse on space content."""
-        m1, m2 = _slab_mesh(), _slab_mesh()
+        m1, m2 = slab_mesh(), slab_mesh()
         s1, s2 = _sigma(m1, 0.5), _sigma(m2, 0.5)
         _ = s1 + s2  # twin content — legal since the F2 re-key
         s3 = _sigma(_stretched_mesh(), 0.5)

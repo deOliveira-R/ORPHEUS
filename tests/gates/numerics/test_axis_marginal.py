@@ -33,6 +33,10 @@ kernels — the implementation deliberately spells the same float ops).
 vv Mode-8 discipline: assertions are function calls (``np.testing.*`` /
 ``pytest.raises`` / ``pytest.fail``) — canonical invocation is
 ``python -O``.
+
+Layer DAG Phase 4 (2026-11-01): the shipped-kernel rows are posed on a numerics twin of a slab's angular bulk
+(tests/gates/numerics/_phase_space_twins.py); the row asserting the angular marginal IS a material mesh's scalar
+bulk moved to tests/gates/transport/test_phase_spaces.py.
 """
 
 from __future__ import annotations
@@ -44,20 +48,11 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics.index_set import IndexSet
-from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellEdges, Mesher
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.axis_marginal import AxisRetractionOperator, AxisSectionOperator
 from orpheus.numerics.space import FunctionSpace
-from orpheus.sn.problem import SNProblem
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.numerics._phase_space_twins import Twin, spatial_axis_1d, twin
 
 
 pytestmark = pytest.mark.foundation
@@ -78,12 +73,14 @@ def _product() -> FunctionSpace:
     )
 
 
-def _sn() -> SNProblem:
-    geometry = StructuredGeometry.slab((0.0, 3.0), (0,), left=0, right=0)
-    mesh = Mesher(geometry).partition(
-        CellEdges(np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])),
-    ).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+_EDGES = np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])
+
+
+def _sn(n_ordinates: int = 4) -> Twin:
+    """A non-uniform 5-cell slab's phase space, two groups, GL(``n_ordinates``), in numerics vocabulary
+    (``_phase_space_twins``; layer DAG Phase 4 — until then an ``SNProblem`` carrier, which a numerics gate may not
+    import). The rows below read its angular bulk and the rule's weights only."""
+    return twin(Quadrature.gauss_legendre(n_ordinates), spatial_axis_1d("slab", _EDGES))
 
 
 def _rand(shape, seed):
@@ -229,11 +226,11 @@ class TestShippedKernelEquivalence:
         ``test_angular_flux.py::TestIntegrateAngular``. Reddened by
         changing the contraction order or dropping w."""
         sn = _sn()
-        psi_values = _rand((sn.quad.n_ordinates, sn.ng, *sn.spatial_shape), 6)
-        R = AxisRetractionOperator.of(sn.angular_bulk_space, "angular")
+        psi_values = _rand(sn.angular_bulk.shape, 6)
+        R = AxisRetractionOperator.of(sn.angular_bulk, "angular")
         npt.assert_array_equal(
             R.apply(psi_values),
-            np.einsum("n,ng...->g...", sn.quad.weights, psi_values),
+            np.einsum("n,ng...->g...", sn.quadrature.weights, psi_values),
         )
 
     def test_g66_section_is_the_from_isotropic_kernel_bit_identical(self):
@@ -248,25 +245,13 @@ class TestShippedKernelEquivalence:
         and on GL4 the two are both 2.0. Reddened by dropping ÷Σw (G6.1's
         mutation)."""
         sn = _sn()
-        Q = _rand((sn.ng, *sn.spatial_shape), 7)
-        E = AxisSectionOperator.of(sn.angular_bulk_space, "angular")
-        sum_w = float(sn.quad.weights.sum())
+        Q = _rand(sn.bulk.shape, 7)
+        E = AxisSectionOperator.of(sn.angular_bulk, "angular")
+        sum_w = float(sn.quadrature.weights.sum())
         expected = np.broadcast_to(
-            (Q / sum_w)[None], (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape),
+            (Q / sum_w)[None], sn.angular_bulk.shape,
         ).copy()
         npt.assert_array_equal(E.apply(Q), expected)
-
-    def test_the_marginal_of_the_angular_bulk_is_the_scalar_bulk(self):
-        """R.codomain content-equals the carrier's scalar bulk_space —
-        the two mints share the energy/spatial axes verbatim (S1), so
-        the marginal IS the scalar carrier, not a lookalike."""
-        sn = _sn()
-        R = AxisRetractionOperator.of(sn.angular_bulk_space, "angular")
-        if R.codomain != sn.bulk_space:
-            pytest.fail(
-                f"the angular marginal must BE the scalar bulk space; "
-                f"got {R.codomain!r} vs {sn.bulk_space!r}"
-            )
 
 
 # ── axis-generic legs (the verbs are not angular-only) ───────────────
@@ -463,23 +448,13 @@ class TestFrameInduction:
         ``a34f8c2c``, and since S1 a correctly rounded divisor); the row
         stays as the bound, so a rule whose weights do not sum exactly is
         still admitted at its honest tier."""
-        from orpheus.sn.problem import SNProblem
-
-        geometry = StructuredGeometry.slab(
-            (0.0, 3.0), (0,), left=0, right=0,
-        )
-        mesh = Mesher(geometry).partition(
-            CellEdges(np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])),
-        ).mesh
-        sn = SNProblem(
-            mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=2), boundary_conditions=conditions_for(mesh, _CONDITIONS),
-        )
-        E = AxisSectionOperator.of(sn.angular_bulk_space, "angular")
-        sum_w = float(sn.quad.weights.sum())
+        sn = _sn(8)
+        E = AxisSectionOperator.of(sn.angular_bulk, "angular")
+        sum_w = float(sn.quadrature.weights.sum())
         npt.assert_array_almost_equal_nulp(E.mass, sum_w, nulp=1)
-        Q = _rand((sn.ng, *sn.spatial_shape), 40)
+        Q = _rand(sn.bulk.shape, 40)
         old_kernel = np.broadcast_to(
-            (Q / sum_w)[None], (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape),
+            (Q / sum_w)[None], sn.angular_bulk.shape,
         ).copy()
         npt.assert_array_almost_equal_nulp(E.apply(Q), old_kernel, nulp=4)
 

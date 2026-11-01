@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**123 entries · 358 catching tests · 2 uncaught · 5 dormant.**
+**123 entries · 360 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -95,7 +95,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-044 | 2 |  | Reflection permutation is not an involution (perm ∘ perm ≠ id) |
 | ERR-045 | 2 |  | Reflection maps an inflow ordinate to itself rather than to its outflow partner |
 | ERR-046 | 1 |  | Albedo / white kernel with α > 1 (sub-Markov violation) |
-| ERR-047 | 5 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
+| ERR-047 | 7 |  | Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-) |
 | ERR-048 | 6 |  | Curvilinear SI sweep: pole-face WDD IC + Carlson seed source convention drift between SI and ap… |
 | ERR-049 | 6 |  | Convention drift between operator-algebra and transport_sweep — per-ordinate vs iso magnitude o… |
 | ERR-050 | 3 |  | Silent preconditioner fallback breaks stateful-inverse contract — KrylovAcceleration(preconditi… |

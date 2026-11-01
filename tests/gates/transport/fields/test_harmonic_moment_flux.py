@@ -25,6 +25,9 @@ partition law.
 vv Mode-8 discipline: assertions are function calls (``np.testing.*`` /
 ``pytest.raises`` / ``pytest.fail``) — canonical invocation is
 ``python -O``.
+
+Layer DAG Phase 4 (2026-11-01): posed on a material mesh with the frame's moment_space_on (the SN problem's factory
+row moved to tests/gates/sn/mesh/test_harmonic_moment_flux_on_the_problem.py).
 """
 
 from __future__ import annotations
@@ -36,19 +39,15 @@ import pytest
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+
+from tests.gates.transport._phase_space_cases import Posed, moment_space
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.spatial import LinearDiscontinuous
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 from orpheus.numerics.coefficient_layout import DegreeLayout
 from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.numerics import frame_faces
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
 
 
 pytestmark = [pytest.mark.foundation]
@@ -64,7 +63,7 @@ _L, _NG, _NX = 2, 2, 5
 _FAMILIES: tuple[str, ...] = ("flat", "rectangular")
 
 
-def _sn(family: str = "flat") -> SNProblem:
+def _sn(family: str = "flat") -> Posed:
     """The 1-D mesh, with the quadrature that induces the requested angular head.
 
     ``"flat"``    — ``gauss_legendre(4)``: its measure lives on
@@ -86,69 +85,29 @@ def _sn(family: str = "flat") -> SNProblem:
     # angular side's rule since CS4b S4), so a widened request on a DD
     # carrier is refused rather than given a Euclidean tail. Width-1 rows
     # are scheme-blind (no tail).
-    return SNProblem(mesh, quadrature, placeholder_materials(ng=_NG), scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    # the moment space is the frame's ``moment_space_on`` of the angular bulk, widened by the scheme's ``trial_space``
+    # at width 2 (``_phase_space_cases.moment_space``); the SN problem's factory is gated in
+    # ``tests/gates/sn/mesh/test_harmonic_moment_flux_on_the_problem.py``
+    return Posed(MaterialMesh(mesh, placeholder_materials(ng=_NG)), quadrature, LinearDiscontinuous())
 
 
-def _head(sn: SNProblem, L: int = _L) -> DegreeLayout:
+def _head(sn: Posed, L: int = _L) -> DegreeLayout:
     """The layout of the angular head this mesh's frame induces — read off the frame's Parseval-dressed head (item 6.2c-ii) through the one door (S7)."""
-    return head_layout(frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L)))
+    return head_layout(frame_faces.basis_space(frame_faces.angular_frame(sn.quadrature, L)))
 
 
-def _field(sn: SNProblem, spatial_moments: int, seed: int) -> HarmonicMomentFlux:
+def _field(sn: Posed, spatial_moments: int, seed: int) -> HarmonicMomentFlux:
     tail = (spatial_moments,) if spatial_moments > 1 else ()
     values = np.random.default_rng(seed).standard_normal(
         (*_head(sn).shape, _NG, _NX, *tail)
     )
-    return HarmonicMomentFlux.from_problem_and_L(
-        values, sn, _L, spatial_moments=spatial_moments,
-    )
+    return HarmonicMomentFlux(values=values, space=moment_space(sn.mesh, sn.quadrature, _L, sn.scheme if spatial_moments > 1 else None), L=_L, spatial_moments=spatial_moments)
 
 
 # ── truncate — the space-derived rebuild (both widths) ───────────────
 
 
 class TestTruncate:
-    @pytest.mark.parametrize("family", _FAMILIES)
-    @pytest.mark.parametrize("sm", [1, 2])
-    def test_truncate_matches_the_factory_mint_at_both_widths(self, sm, family):
-        """The truncated field's space content-equals the carrier's OWN
-        mint at (mesh, L_new, spatial_moments) — ``SNProblem.moment_space``
-        since CS4c step 6 item 6.2b, the cached object the factory reads
-        — the single-source done-when of the space-derived rebuild. The sm=2 row is #399's
-        FLIPPED witness (pre-S6.1 it raised the widened defer; pre-S4 it
-        was the census's broadcast ValueError). Reddened by dropping the
-        tail factor from the rebuild (the pre-S6.1 factors[1]-only
-        spelling) or by re-introducing the un-tailed new_shape."""
-        sn = _sn(family)
-        f = _field(sn, sm, seed=20 + sm)
-        L_new = 1
-        g = f.truncate(L_new)
-        tail = (sm,) if sm > 1 else ()
-        expected_shape = (*_head(sn, L_new).shape, _NG, _NX, *tail)
-        if g.values.shape != expected_shape:
-            pytest.fail(
-                f"truncate(sm={sm}) shape {g.values.shape} != "
-                f"{expected_shape}"
-            )
-        factory_space = HarmonicMomentFlux.from_problem_and_L(
-            np.zeros(expected_shape), sn, L_new, spatial_moments=sm,
-        ).space
-        if g.space != factory_space:
-            pytest.fail(
-                f"truncated space must content-equal the factory mint at "
-                f"(mesh, L_new={L_new}, sm={sm}); got {g.space!r}"
-            )
-        if g.L != L_new or g.spatial_moments != sm:
-            pytest.fail(
-                f"truncate must thread L and spatial_moments: got "
-                f"L={g.L}, spatial_moments={g.spatial_moments}"
-            )
-        head_new = _head(sn, L_new)
-        for l in range(L_new + 1):
-            npt.assert_array_equal(
-                g.values[head_new.degree_block(l)],
-                f.values[_head(sn).degree_block(l)],
-            )
 
     @pytest.mark.parametrize("family", _FAMILIES)
     def test_truncate_widened_reads_the_width_off_its_space(self, family):
@@ -276,7 +235,7 @@ class TestViews:
         from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
         assert s.space.axes is not None
         tail = [ax for ax in s.space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL]
-        if len(tail) != 1 or tail[0] != sn.scheme.moment_axis(sn.axes):
+        if len(tail) != 1 or tail[0] != sn.scheme.moment_axis(sn.mesh.axes):
             pytest.fail("the widened scalar target must carry the scheme's own moment axis")
         # and it equals the explicit-target path
         explicit = f.scalar_flux(space=s.space)

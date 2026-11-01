@@ -235,7 +235,7 @@ class TestG2Integration:
 
         V, label = resolve(name, label)
         problem = problems()[name.rsplit(" moment", 1)[0]]
-        A = problem.angular_bulk_space
+        A = problem.angular_bulk
         frame, L = _head_frame(V), _head_L(V)
         psi = _rng(31).standard_normal(A.shape)
         Y = _independent_table(frame, L)

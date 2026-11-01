@@ -117,8 +117,6 @@ from tests.gates._exterior import conditions_for
 _CONDITIONS = {0: WallCondition.vacuum(), 1: WallCondition.specular(1.0)}
 
 
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # Mesh fixtures
 # ═══════════════════════════════════════════════════════════════════════
@@ -1019,3 +1017,32 @@ class TestP4RemTheProducerBindsTheAxis:
                 f"rule) — the level_indices read did not go through the "
                 f"axis"
             )
+
+
+# ── Moved in by layer DAG Phase 4 (2026-11-01): the bridge for the transport LD rows ─────────────────────────────
+
+
+@pytest.mark.foundation
+def test_the_slab_streaming_terms_are_the_neutral_hand_terms() -> None:
+    """``slab_streaming(mesh, quad).streaming_terms(i, n)`` equals the hand-built curvature-neutral terms
+    (``tests/gates/transport/_phase_space_cases.slab_streaming_terms``: face areas 1 and 1, the cell width, ``|mu_n|``)
+    for EVERY (cell, ordinate) of a non-uniform slab. The transport LD scheme rows (``test_ld_ubld_primitive.py``,
+    ``test_ld_ubld_symbolic.py``, ``test_linear_discontinuous.py``) pose their cells on those hand terms; this row
+    keeps them the terms the SN slab operator actually feeds (first red: a ``volume`` read from the uniform width)."""
+    from orpheus.mesh import CellEdges
+    from tests.gates.transport._phase_space_cases import slab_streaming_terms
+
+    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
+        CellEdges(np.array([0.0, 0.1, 0.35, 0.45, 0.8, 1.0])),
+    ).mesh
+    quad = Quadrature.gauss_legendre(4)
+    op = slab_streaming(mesh, quad)
+    rows = 0
+    for cell in range(len(mesh.edges) - 1):
+        for ordinate in range(quad.n_ordinates):
+            produced = op.streaming_terms(cell, ordinate)
+            if produced != slab_streaming_terms(mesh, quad, cell, ordinate):
+                pytest.fail(f"cell {cell}, ordinate {ordinate}: {produced} is not the neutral hand terms")
+            rows += 1
+    if rows != 5 * quad.n_ordinates:
+        pytest.fail(f"the bridge read {rows} (cell, ordinate) pairs")

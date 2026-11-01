@@ -61,13 +61,15 @@ import numpy as np
 import pytest
 
 import orpheus.numerics.space as _spacemod
-from orpheus.numerics.metric import DiagonalMetric, FactoredMetric, _broadcast_leading
+from orpheus.numerics.metric import FactoredMetric, _broadcast_leading
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
-from tests.gates.sn.architecture.test_monomorphic_leaves import (
-    _cart2d,
-    _cylinder,
-    _slab,
-    _sphere,
+from orpheus.numerics.quadrature import Quadrature
+from tests.gates.numerics._phase_space_twins import (
+    MONOMORPHIC_EDGES,
+    MONOMORPHIC_RECTANGLE,
+    spatial_axis_1d,
+    spatial_axis_2d,
+    twin,
 )
 from orpheus.numerics import frame_faces
 
@@ -78,23 +80,26 @@ pytestmark = pytest.mark.foundation
 #: bit-equal over a seed sweep).
 _ARM_AGREEMENT_NULP = 4
 
-_GEOMETRIES = {"slab": _slab, "sphere": _sphere, "cylinder": _cylinder, "cart2d": _cart2d}
+#: The four monomorphic meshes' phase spaces as numerics twins (layer DAG Phase 4; until then the SN problems, all
+#: Diamond Difference, so no moment tail rides their moment spaces).
+_GEOMETRIES = {
+    "slab": lambda: twin(Quadrature.gauss_legendre(n_ordinates=4), spatial_axis_1d("slab", MONOMORPHIC_EDGES)),
+    "sphere": lambda: twin(Quadrature.gauss_legendre(n_ordinates=4), spatial_axis_1d("sphere", MONOMORPHIC_EDGES)),
+    "cylinder": lambda: twin(Quadrature.folded_product(n_mu=4, n_phi=8), spatial_axis_1d("cylinder", MONOMORPHIC_EDGES)),
+    "cart2d": lambda: twin(Quadrature.level_symmetric(sn_order=4), spatial_axis_2d(*MONOMORPHIC_RECTANGLE)),
+}
 _ORDERS = (0, 1)
 _SEEDS = (0, 1, 2, 3, 4)
 
 
 def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSpace, ...]]":
-    """Every factor tuple PRODUCTION hands to ``TensorProductSpace.from_factors``
-    while minting the moment family's space on ``problem`` at order ``L``.
-
-    Read off production rather than re-derived here (``coding-elegance``
-    Pattern 2): the hub's mint (``head * mesh.bulk_space``, the cell group
-    widened by the scheme's moment axis when asked) and the ``harmonic_frame`` mint
-    (``basis_space * of_axes(*cell_axes)``) all funnel through this one
-    classmethod, so a transcription of any of them into the test could drift.
+    """Every factor tuple handed to ``TensorProductSpace.from_factors`` while minting the moment space at order ``L``
+    on the phase space ``problem`` (a ``_phase_space_twins.Twin``): the frame-dressed head times the cell group
+    (``Twin.moment``, the product the SN hub's ``moment_space`` forms, ``tests/gates/sn/mesh/
+    test_hub_and_frame_agree_on_the_moment_space.py``), and the frame's own ``moment_space_on`` where the rule's frame
+    carries one. Layer DAG Phase 4: until then the hub's mint on an SN problem, which a numerics gate may not import;
+    the products are captured, not transcribed, so a change to ``from_factors``'s inputs still reaches the row.
     """
-    from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
-
     captured: list[tuple[FunctionSpace, ...]] = []
     original = TensorProductSpace.from_factors.__func__
 
@@ -104,16 +109,14 @@ def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSp
 
     TensorProductSpace.from_factors = classmethod(recording)   # type: ignore[method-assign]
     try:
-        HarmonicMomentFlux.zeros_for_problem_and_L(
-            problem, L, spatial_moments=problem.scheme.spatial_basis_per_axis,
-        )
-        frame = frame_faces.angular_frame(problem.quad, L)
+        problem.moment(L)
+        frame = frame_faces.angular_frame(problem.quadrature, L)
         # ⚠ `moment_space_on` is HarmonicFrame's mint; a GalerkinFrame (what a
         # 1-D rule returns) does not carry it.  Guarded so the row reports the
         # mints it REACHED rather than dying on a frame-family difference.
         mint = getattr(frame, "moment_space_on", None)
         if mint is not None:
-            mint(problem.angular_trial_space)
+            mint(problem.angular_bulk)
     finally:
         TensorProductSpace.from_factors = classmethod(original)  # type: ignore[method-assign]
     return captured
@@ -232,12 +235,12 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
     findings: list[str] = []
     for geometry, factory in _GEOMETRIES.items():
         problem = factory()
-        bulk_axes = problem.bulk_space.axes
-        assert bulk_axes is not None, "the carrier's bulk space is of_axes-built"
+        bulk_axes = problem.bulk.axes
+        assert bulk_axes is not None, "the bulk space is of_axes-built"
         for L in _ORDERS:
-            frame = frame_faces.angular_frame(problem.quad, L)
+            frame = frame_faces.angular_frame(problem.quadrature, L)
             head = frame_faces.basis_space(frame)
-            product = head * problem.bulk_space
+            product = head * problem.bulk
             findings.append(
                 f"{geometry} L={L}: head.axes={head.axes is not None} "
                 f"product.axes={product.axes is not None} "
@@ -266,11 +269,10 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
             # the value leg: the product pairing factorises over the head and the bulk
             rng = np.random.default_rng(L + 7)
             x = rng.standard_normal(head.shape)
-            y = rng.standard_normal(problem.bulk_space.shape)
+            y = rng.standard_normal(problem.bulk.shape)
             xy = np.multiply.outer(x, y)
-            want = float(head.inner_product(x, x)) * float(problem.bulk_space.inner_product(y, y))
+            want = float(head.inner_product(x, x)) * float(problem.bulk.inner_product(y, y))
             np.testing.assert_allclose(product.inner_product(xy, xy), want, rtol=1e-12)
-
 
 
 # ═════════════════════════════════════════════════════════════════════════

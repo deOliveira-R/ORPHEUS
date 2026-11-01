@@ -44,7 +44,7 @@ import sympy as sp
 from orpheus.derivations.discrete.sn import ld_ubld as sym
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.sn.mesh.reduced_operator import slab_streaming
+from tests.gates.transport._phase_space_cases import slab_streaming_terms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.numerics.basis import AVERAGE_MOMENT, spatial_moment_basis
@@ -368,14 +368,13 @@ class TestProductionViewsAnchoredToPrimitive:
 
     @staticmethod
     def _slab_cell():
-        """A concrete slab cell + ordinate from the production factory."""
+        """A concrete slab cell + ordinate: its streaming terms by hand (``slab_streaming_terms``)."""
         mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
             CellsByCount.uniform_width(5),
         ).mesh
         quad = Quadrature.gauss_legendre(4)
-        op = slab_streaming(mesh, quad)
         cell_idx, direction_idx = 2, quad.n_ordinates - 1     # most-positive ordinate
-        st = op.streaming_terms(cell_idx, direction_idx)
+        st = slab_streaming_terms(mesh, quad, cell_idx, direction_idx)
         visit = CellVisit(
             cell_idx=cell_idx, streaming_terms=st, face_area_downstream=1.0,
         )

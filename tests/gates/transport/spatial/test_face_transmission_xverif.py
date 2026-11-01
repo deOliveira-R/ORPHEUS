@@ -18,7 +18,9 @@ three ways, each a different code path:
 2. **The verdict**: :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.face_transmission_spectrum`
    (the gauge predicate's closure half, #344), which reads the kernel at two
    probe cells.
-3. **The sweep**: one production sweep on a one-cell mesh, through
+3. **The sweep** (since layer DAG Phase 4 in
+   ``tests/gates/sn/sweep/core/test_face_transmission_on_the_production_sweep.py``, an SN path): one production
+   sweep on a one-cell mesh, through
    :func:`orpheus.sn.loss_representation.default_for`, with a unit inflow on
    one face moment of one first-octant ordinate and the outflow read back from
    the :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`.
@@ -62,7 +64,6 @@ import numpy as np
 import pytest
 import sympy as sp
 
-from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.derivations.discrete.sn.face_transmission import (
     LAMBDA,
     Closure,
@@ -70,11 +71,6 @@ from orpheus.derivations.discrete.sn.face_transmission import (
     streaming_coefficients,
     transmission_spectrum,
 )
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn import loss_representation
-from orpheus.sn.problem import SNProblem
-from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
-from orpheus.mesh import AxisMesh
 from orpheus.transport.spatial.diamond import DiamondDifference
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.transport.spatial.scheme import (
@@ -82,12 +78,6 @@ from orpheus.transport.spatial.scheme import (
     FaceModeDamping,
     _face_transmission_matrix,
 )
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
 
 
 LABEL = "dd-face-transmission-spectrum"
@@ -363,94 +353,3 @@ def test_the_ld_d3_challenge_row_is_strict() -> None:
     """The xfail above is strict; a mark moved into ``pytest.param`` would lose it."""
     marks = [m for m in test_ld_d3_verdict_agrees_with_the_theorem.__dict__["pytestmark"] if m.name == "xfail"]
     _fail_unless(len(marks) == 1 and marks[0].kwargs.get("strict") is True, f"xfail marks: {marks}")
-
-
-# ── leg 3: the production sweep on a one-cell mesh ───────────────────────
-
-#: Two pure absorbers, so one sweep carries two different optical thicknesses
-#: and a group-index slip (Mode 2) moves the answer.
-_SIGMA_T = np.array([0.9, 3.7])
-_WIDTHS = (0.7, 1.3, 0.4)
-_AXES = "xyz"
-
-
-def _one_cell_sweep_maps(scheme, d: int):
-    """Per group: the octant map the production sweep applies, and its g."""
-    mixture = make_mixture(
-        sig_t=_SIGMA_T, sig_c=_SIGMA_T.copy(), sig_f=np.zeros(2), nu=np.zeros(2),
-        chi=np.zeros(2), sig_s=np.zeros((2, 2)),
-    )
-    vacuum = 0
-    axes = tuple(
-        AxisMesh(edges=np.array([0.0, w]), role_low=vacuum, role_high=vacuum) for w in _WIDTHS[:d]
-    )
-    quadrature = Quadrature.level_symmetric(4) if d > 1 else Quadrature.gauss_legendre(n_ordinates=4)
-    problem = SNProblem.from_axes(
-        axes, quadrature, {0: mixture}, mat_map=np.zeros((1,) * d, dtype=int), scheme=scheme, boundary_conditions=conditions_for(axes, _CONDITIONS),
-    )
-    representation = loss_representation.default_for(problem, problem.scheme, problem.angular_closure)
-    q = problem.quad
-    cosines = (q.mu_x, q.mu_y, q.mu_z)[:d]
-    first_octant = np.logical_and.reduce([mu > 0 for mu in cosines])
-    n = int(np.argmax(first_octant))
-    _fail_unless(bool(first_octant[n]), f"d={d}: no first-octant ordinate")
-    stratum = representation.bind_sigma(problem.sigma_t_cell)
-    cell_moments = (2**d,) if isinstance(scheme, LinearDiscontinuous) else ()
-    ng = _SIGMA_T.size
-    per_face = AngularBoundaryFlux.zeros(problem.angular_trace).face_view("xmin")[n].size // ng
-    maps = []
-    for group in range(ng):
-        columns = []
-        for a in range(d):
-            for moment in range(per_face):
-                flux = AngularBoundaryFlux.zeros(problem.angular_trace)
-                flux.face_view(f"{_AXES[a]}min")[n].reshape(ng, per_face)[group, moment] = 1.0
-                representation.sweep(np.zeros((q.n_ordinates, ng) + (1,) * d + cell_moments), stratum, flux)
-                columns.append(np.concatenate([
-                    flux.face_view(f"{_AXES[b]}max")[n].reshape(ng, per_face)[group] for b in range(d)
-                ]))
-        g = [sp.Float(abs(float(cosines[a][n])) / (_WIDTHS[a] * _SIGMA_T[group]), 40) for a in range(d)]
-        maps.append((np.array(columns).T, g))
-    return maps, type(representation).__name__
-
-
-_SWEEP_ROWS = [
-    pytest.param(Closure.DIAMOND, 1, "CumprodScan", marks=pytest.mark.verifies(LABEL), id="diamond-1"),
-    pytest.param(Closure.DIAMOND, 2, "ScanMarch", marks=pytest.mark.verifies(LABEL), id="diamond-2"),
-    pytest.param(Closure.DIAMOND, 3, "FullFieldWavefront", marks=pytest.mark.verifies(LABEL), id="diamond-3"),
-    pytest.param(Closure.LINEAR_DISCONTINUOUS, 1, "CumprodScan", id="ld-1"),
-    pytest.param(Closure.LINEAR_DISCONTINUOUS, 2, "MovingFrontierWindow", id="ld-2"),
-]
-
-
-@pytest.mark.l1
-@pytest.mark.rests_on(
-    "tests/gates/transport/spatial/test_face_transmission_xverif.py::test_diamond_kernel_applies_the_branch1_transmission",
-    "tests/gates/transport/spatial/test_face_transmission_xverif.py::test_ld_kernel_applies_the_branch1_transmission",
-    f"{_SYM}::test_diamond_transmission_is_the_page_closed_form",
-)
-@pytest.mark.parametrize(("closure", "d", "representation"), _SWEEP_ROWS)
-def test_production_sweep_applies_the_branch1_transmission(closure, d, representation) -> None:
-    r"""One sweep through a one-cell mesh applies Branch 1's octant map, per group.
-
-    The representation is asserted because the row's coverage claim is about
-    that path: if ``default_for`` changes its choice, this docstring and the
-    module docstring's path table change with it.
-    """
-    maps, ran = _one_cell_sweep_maps(_SCHEME[closure](), d)
-    _fail_unless(ran == representation, f"d={d}: default_for chose {ran}, the row covers {representation}")
-    for group, (produced, g) in enumerate(maps):
-        _assert_transmission(produced, closure, d, g, f"{closure.value} sweep d={d} group {group}")
-
-
-@pytest.mark.l1
-@pytest.mark.xfail(
-    strict=True,
-    raises=NotImplementedError,
-    reason="#503: production LD sweeps at d=3 raise in _ubld.assemble_inflow_axis (interior axis)",
-)
-def test_production_ld_sweep_at_d3_applies_the_branch1_transmission() -> None:
-    """The d = 3 LD sweep, red today for the named reason only (``raises=``)."""
-    maps, _ = _one_cell_sweep_maps(LinearDiscontinuous(), 3)
-    for group, (produced, g) in enumerate(maps):
-        _assert_transmission(produced, Closure.LINEAR_DISCONTINUOUS, 3, g, f"LD sweep d=3 group {group}")

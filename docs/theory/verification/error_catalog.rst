@@ -4149,7 +4149,7 @@ older entries classify against.
    :title: Boundary source q has nonzero entries on the outflow trace (q ∉ Γ_-)
 
 
-   **Status:** **TYPE SHIPPED Wave 3 2026-05-11**; the catching test is the one named under "Catching test"
+   **Status:** **TYPE SHIPPED Wave 3 2026-05-11**; the catching tests are the ones named under "Catching tests"
    below (the Wave 7 prescribed-inflow BC it was promised with retired with the law family in WF2.4).
 
    **Failure mode:** **#6 (convention drift)** — the source ``q`` in
@@ -4176,13 +4176,50 @@ older entries classify against.
    sums per-ordinate inflow against the expected ``q(Ω)`` profile
    catches it.
 
-   **Catching test (WF2.4 of the wave-2 carve):** the hazard was first caught at the coupled-block campaign task #52
-   (``51c22396``, 2026-07-12), where the law-side probe and the realizer's masked delivery of ``q`` to :math:`\Gamma_-`
-   were pinned end to end (delivered q = the source value on inflow slots, exactly 0 on outflow AND tangential slots). The
-   law family retired in WF2.4; what the SN side keeps is the realizer's own refusal: ``SNSource.sample`` raises
-   ``BoundarySourceNotOnIncomingTraceError`` for a space that is not the inflow half-trace of its face, and the recipe of a
-   declared inflow lands on the inflow slots only. Catchers tagged ``@pytest.mark.catches("ERR-047")`` on
-   ``tests/gates/transport/test_boundary_source_from_specs.py::TestTheRecipeLandsOnTheInflowSlotsOnly``.
+   **Catching tests (WF2.4 of the wave-2 carve; re-scoped at layer DAG Phase 4, 2026-11-01).** The hazard was first
+   caught at the coupled-block campaign task #52 (``51c22396``, 2026-07-12), where the law-side probe and the realizer's
+   masked delivery of ``q`` to :math:`\Gamma_-` were pinned end to end (delivered q = the source value on inflow slots,
+   exactly 0 on outflow AND tangential slots). The law family retired in WF2.4. Two kinds of catcher carry
+   ``@pytest.mark.catches("ERR-047")`` today, and each sees a different defect:
+
+   - **The direct path: a dropped inflow projector.** ``prescribed_inflow_on``, the packing rule, writes each named face
+     through the projector :math:`\iota_-\circ\gamma_-` onto that face's inflow rows (:ref:`bc-domain-narrowing`).
+     ``tests/gates/transport/fields/test_angular_boundary_source_sink_residual.py::TestPrescribedInflowGenerator``, rows
+     ``test_inflow_written_outflow_masked_absent_face_vacuum`` (a slab, every ordinate of the supplied slot non-zero on
+     purpose) and ``test_sphere_single_face`` (the one traced face of a solid sphere), call ``prescribed_inflow_on``
+     with a full face slot and assert the outflow rows read exactly zero. ``[M]`` the landing's in-process arm that
+     replaces the projector with the identity reddens exactly these 2 of 41 rows (this file plus
+     ``tests/gates/sn/operators/test_boundary_source_from_specs.py``; ``scratch/layer_dag/phase4/landing_report.md``,
+     item 5).
+   - **The declared route: values on the wrong rows, and a source sampled on the wrong space.** The class
+     ``tests/gates/sn/operators/test_boundary_source_from_specs.py::TestTheRecipeLandsOnTheInflowSlotsOnly`` (moved from
+     ``tests/gates/transport/`` by layer DAG Phase 4: every row samples through S\ :sub:`N`'s realizer table) carries the
+     marker on all its rows. ``test_every_other_row_of_that_face_is_zero`` catches values written to the wrong rows
+     (``[M]`` qa's ``mask_to_outflow`` arm, ``outflow_restriction`` substituted for ``inflow_restriction`` on both
+     routes, reddened 2 of the class's 6 ids, this row and ``test_the_inflow_rows_carry_the_recipes_value``, and both
+     direct-path rows; re-run on the operator spelling, 2026-11-01). ``test_a_source_sampled_off_the_inflow_tier_is_refused`` catches the realizer's refusal being dropped:
+     ``SNSource.sample`` raises ``BoundarySourceNotOnIncomingTraceError`` for a space that is not the inflow half-trace
+     of its face, and the row hands it the face's OUTFLOW half-trace, a real space of the same size, so no shape check
+     could tell the two apart (``[M]`` qa's ``refusal_dropped`` arm reddened this 1 row; re-run on the operator spelling, 2026-11-01;
+     the realizer's refusal did not change in Phase 4). A sampler that returns a
+     whole face slot cannot reach either row: ``sample_terms`` refuses any sample whose shape is not exactly
+     :math:`\Gamma_-(f)`'s, the row of ``TestTheContractIsEnforced``, which is the mechanism and not an ERR-047 catcher.
+
+   **Why the direct path needed its own catchers (qa finding F1 of layer DAG Phase 4).** Before Phase 4 the declared
+   route masked twice: ``from_method`` scattered each sample into a zero slot at
+   ``trace.inflow_indices_for_face(face)``, and the packing rule (then the private ``_pack_inflow``, whose comment
+   claimed it was "the only code that knows where inflow rows live") masked again with ``view[inflow] = arr[inflow]``.
+   Each mask dominated the other on the only production route, so a single dropped mask was invisible there: ``[M]``
+   qa's ``mask_dropped`` arm reddened 0 of the 6 ids then carrying the marker, and the only rows it reddened were the
+   two direct-path rows above, which carried no marker (``scratch/layer_dag/phase4/qa_report.md``, F1). Phase 4 changed
+   two things. The two hand-written index lists became two typed operators read off one object,
+   ``trace.inflow_restriction(face)`` (:math:`\gamma_-`): ``from_method`` places the :math:`\Gamma_-(f)` sample with
+   the scatter :math:`\iota_-`, and ``prescribed_inflow_on`` applies the projector :math:`\iota_-\circ\gamma_-`, so
+   a defect in the inflow-row set reaches both paths through one operator. And the two direct-path rows carry the
+   marker, so a dropped projector has a catcher. On the declared route a dropped projector stays invisible by
+   construction, and that is correct rather than a gap: the image of :math:`\iota_-` already lies in
+   :math:`\Gamma_-`, where the projector is the identity. The docstring of ``test_every_other_row_of_that_face_is_zero``
+   states this scope.
 
    **Lesson:** The affine form's three terms (``G``, ``R``, ``q``) each
    live on a SPECIFIC trace space. The trace-space type tag (Wave 2)
@@ -11685,10 +11722,14 @@ older entries classify against.
    placement the engine and the assembled diagonal read; a re-drop recipe
    in that spelling has not been written or run since U1b.
 
-   **Catching tests.** In
-   ``tests/gates/transport/test_multiplication_operator.py``, class
-   ``TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan``, the five LD rows
-   carry ``@pytest.mark.catches("ERR-119")``:
+   **Catching tests.** Five LD rows of the class
+   ``TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan`` carry
+   ``@pytest.mark.catches("ERR-119")``; since layer DAG Phase 4 (2026-11-01)
+   the class is split by owner: the multiply and assembled-diagonal rows stay in
+   ``tests/gates/transport/test_multiplication_operator.py`` (posed on material
+   meshes and the raw constructors), and the sweep-atom rows, which compare with
+   SN's streaming operator, are in
+   ``tests/gates/sn/operators/test_multiplication_operator_on_the_problem.py``:
 
    - ``test_the_multiply_is_sigma_expanded_on_the_ordinate_and_moment_axes[ld_slab_2g]``
      and ``[ld_2d_2g]``: ``C.apply`` against σ expanded by hand, bit for bit;

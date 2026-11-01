@@ -30,6 +30,10 @@ method's own suites (``tests/gates/sn/operators/test_snmesh_realizer_wiring.py``
 ``tests/gates/sn/primitives/test_axis_native_construction.py``,
 ``tests/gates/diffusion/test_augmented_mesh.py``) — this file owns only the
 cross-method Protocol facts.
+
+Moved from ``tests/gates/transport/`` by layer DAG Phase 4 (2026-11-01): it poses both method problems (``SNProblem`` and
+``DiffusionMesh``) against the transport ``TransportMethod`` Protocol, so it is a cross-method gate; the bare
+``MaterialMesh`` negative stays beside its positives.
 """
 
 from __future__ import annotations

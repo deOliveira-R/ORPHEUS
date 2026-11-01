@@ -26,6 +26,12 @@ The Q1 flip's witness (the residual rides the operands' shared mint)
 lives with the residual tests (``test_typed_residuals`` /
 ``test_typed_residual_evaluation``); the derived composite space's
 witnesses live with the composite tests (the twin-carrier legs).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 
 from __future__ import annotations
@@ -37,10 +43,9 @@ import inspect
 import numpy as np
 import pytest
 
-from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space, angular_trace_space
+from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -49,30 +54,18 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.residuals import AngularResidual
 from orpheus.transport.fields import AngularSourceSink, ScalarSourceSink
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = [pytest.mark.foundation]
-
-
-def _slab(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 class TestG41HeadlineConstruction:
     def test_cross_section_field_constructs_from_values_and_space(self) -> None:
         """The step's headline gate: ``CrossSectionField(values=…, space=…)``
         CONSTRUCTS — [M] pre-S4 it raised the missing-``mesh`` TypeError."""
-        m = _slab()
+        m = slab_mesh()
         sigma = CrossSectionField(
             values=np.ones(m.bulk_space.shape), space=m.bulk_space,
         )
@@ -80,24 +73,26 @@ class TestG41HeadlineConstruction:
         assert sigma.ng == m.ng
 
     def test_every_bulk_family_constructs_meshless(self) -> None:
-        m = _slab()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         for cls, space in (
-            (AngularFlux, m.angular_bulk_space),
-            (AngularSourceSink, m.angular_bulk_space),
+            (AngularFlux, bulk),
+            (AngularSourceSink, bulk),
             (ScalarFlux, m.bulk_space),
             (ScalarSourceSink, m.bulk_space),
-            (AngularResidual, m.angular_bulk_space),
+            (AngularResidual, bulk),
         ):
             f = cls(values=np.zeros(space.shape), space=space)
             assert f.space is space, cls.__name__
 
     def test_face_family_constructs_meshless(self) -> None:
-        m = _slab()
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux(
-            values=np.zeros(m.angular_trace.shape), space=m.angular_trace,
+            values=np.zeros(trace.shape), space=trace,
         )
-        assert bf.space is m.angular_trace
-        assert bf.layout is m.angular_trace.layout  # read off the space
+        assert bf.space is trace
+        assert bf.layout is trace.layout  # read off the space
 
 
 class TestG42TheBindingIsGone:
@@ -113,11 +108,13 @@ class TestG42TheBindingIsGone:
             assert "mesh" not in names, cls.__name__
 
     def test_instances_expose_no_mesh_attribute(self) -> None:
-        m = _slab()
-        psi = AngularFlux.zeros(m.angular_bulk_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        psi = AngularFlux.zeros(bulk)
         assert not hasattr(psi, "mesh")
         comp = FullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs,
         )
         assert not hasattr(comp, "mesh")  # the composite property retired too
 

@@ -50,6 +50,12 @@ References
 * ``.claude/agent-memory/test-architect/issue_257_s3_multiplication_operator_verification.md``
   — the 5 gate verdicts + failure-mode exposure.
 * Grand Report v3 §5.5–5.7 (the operator promotion).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 
 from __future__ import annotations
@@ -70,7 +76,13 @@ from orpheus.numerics.operator import (
     OperatorSum,
 )
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
+from tests.gates.transport._phase_space_cases import angular_full_field_space
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+from orpheus.mesh import CellEdges
+from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.cross_section_field import CrossSectionField
@@ -78,13 +90,9 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.fields import AngularSourceSink
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._materials import placeholder_materials
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = pytest.mark.foundation
@@ -106,15 +114,7 @@ def _require(condition: bool, message: str) -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
+def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> MaterialMesh:
     """The discriminating regime: nx ≠ ny, ng = 2.
 
     A transposed broadcast axis (the N-D generalisation's NEW risk —
@@ -135,15 +135,15 @@ def _cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
             "ymax": 0,
         },
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
-def _random_state(problem: SNProblem, ng: int = 2, seed: int = 42) -> TimedFullField:
+def _random_state(problem: MaterialMesh, ng: int = 2, seed: int = 42) -> TimedFullField:
     """Random :class:`TimedFullField` whose bulk has shape ``(N, ng, *spatial)``."""
+    ffs_problem = angular_full_field_space(problem, posing_quadrature(problem), posing_scheme(problem))
     rng = np.random.default_rng(seed)
-    N = problem.quad.n_ordinates
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
+    N = posing_quadrature(problem).n_ordinates
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs_problem)
     return replace(
         state,
         interior=replace(
@@ -153,21 +153,22 @@ def _random_state(problem: SNProblem, ng: int = 2, seed: int = 42) -> TimedFullF
     )
 
 
-def _positive_sigma(problem: SNProblem, ng: int = 2, seed: int = 11) -> np.ndarray:
+def _positive_sigma(problem: MaterialMesh, ng: int = 2, seed: int = 11) -> np.ndarray:
     """Heterogeneous positive σ ``(ng, *spatial)``, bounded away from 0."""
     rng = np.random.default_rng(seed)
     return 0.3 + 0.5 * rng.random((ng, *problem.spatial_shape))
 
 
 def _multiplier(
-    problem: SNProblem, sigma: np.ndarray, *, plain: bool = False,
+    problem: MaterialMesh, sigma: np.ndarray, *, plain: bool = False,
 ) -> MultiplicationOperator:
     """``M[σ]`` from a raw ndarray (wrapped into a CrossSectionField),
     bound as production binds it — the mesh's composite, both ends — or,
     with ``plain=True``, on the scalar ``bulk_space`` (the bare-array
     binding the homogeneous / diffusion outer loops feed; CS4c step 5:
     the ends select the body, so the bare arm is the PLAIN binding's)."""
-    space = problem.bulk_space if plain else problem.full_field_space
+    ffs_problem = angular_full_field_space(problem, posing_quadrature(problem), posing_scheme(problem))
+    space = problem.bulk_space if plain else ffs_problem
     return MultiplicationOperator(
         coefficient=CrossSectionField(values=sigma, space=problem.bulk_space),
         domain=space, codomain=space,
@@ -460,7 +461,7 @@ class TestStreamingEquilibriumValuesLeg:
     """
 
     def test_collision_only_balance_recovers_q_over_sigma(self):
-        sn = _slab_mesh(nx=4, ng=2)
+        sn = slab_mesh(nx=4, ng=2)
         sigma_t = 0.8 * np.ones((2, *sn.spatial_shape))  # flat Σ_t.
         Q = _random_state(sn, ng=2, seed=241)
         M = _multiplier(sn, sigma_t)
@@ -495,7 +496,7 @@ class TestSpaceMetadataAndGuardJoin:
         retired — the ends are mandatory kw-only, so the anonymous mint
         is a ``TypeError`` at the signature. Local twin of the ledger's
         R2-C row."""
-        sn = _slab_mesh()
+        sn = slab_mesh()
         sigma = _positive_sigma(sn)
         with pytest.raises(TypeError, match="domain|codomain"):
             MultiplicationOperator(  # type: ignore[call-arg]
@@ -508,8 +509,9 @@ class TestSpaceMetadataAndGuardJoin:
         """A supplied ``space`` is reported as BOTH ``domain`` AND ``codomain``
         — the multiplier is space-endomorphic (flux block → source block, same
         shape), so ``codomain == domain``."""
-        sn = _slab_mesh()
-        space = sn.full_field_space
+        sn = slab_mesh()
+        ffs_sn = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
+        space = ffs_sn
         M = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn), space=sn.bulk_space),
             domain=space, codomain=space,
@@ -517,58 +519,13 @@ class TestSpaceMetadataAndGuardJoin:
         _require(M.domain is space, "domain must be the supplied space")
         _require(M.codomain is space, "codomain must equal domain (endomorphic)")
 
-    def test_from_mesh_defaults_space_from_mesh(self):
-        """``from_mesh(σ, problem)`` defaults ``space`` to the mesh's
-        ``full_field_space`` — the faithful drop-in for the retired
-        ``CollisionOperator(problem, σ)``, which reached the same composite
-        space through ``problem.full_field_space`` (#261)."""
-        sn = _slab_mesh()
-        M = MultiplicationOperator.from_mesh(_positive_sigma(sn), sn)
-        _require(
-            M.domain is sn.full_field_space,
-            "from_mesh must default both ends to mesh.full_field_space",
-        )
-
-    def test_from_mesh_chain_short_circuits_on_full_field_space(self):
-        """D7 (CS1, path gate; re-derived at CS4b S2) — on a method mesh the
-        OPERATOR's space resolves to ``full_field_space`` by identity, never
-        to the scalar bulk.
-
-        The chain order is load-bearing: ``SNProblem.bulk_space`` is the
-        scalar ``(ng, *spatial)`` bulk, NOT the angular composite, so a
-        flipped chain would silently re-space every SN multiplier. Until
-        CS4b this was pinned with a poison on ``bulk_space`` ("the chain
-        NEVER consults it") — that instrument died when the space-source
-        flip made ``bulk_space`` the shared arm of every carrier mint (the
-        COEFFICIENT field's space is now correctly sourced from it, and
-        the energy-arm single source routes ``angular_bulk_space`` through
-        it too). The claim that survives is the OUTCOME, pinned by
-        identity on both legs: the operator's space is the composite, and
-        the coefficient's is the carrier's scalar bulk.
-        """
-        sn = _slab_mesh()
-        sigma = _positive_sigma(sn)
-
-        M = MultiplicationOperator.from_mesh(sigma, sn)
-        _require(
-            M.domain is sn.full_field_space,
-            "the chain must resolve the composite by identity, first arm",
-        )
-        _require(
-            M.domain is not sn.bulk_space,
-            "the operator's ends must never be the scalar bulk",
-        )
-        _require(
-            M.coefficient.space is sn.bulk_space,
-            "the coefficient's space is the carrier's cached scalar bulk "
-            "(CS4b: one mint per carrier)",
-        )
 
     def test_matching_spaces_compose(self):
         """Two multipliers on the SAME space compose into an ``OperatorSum``
         (the guard VALIDATES — equal domains AND codomains)."""
-        sn = _slab_mesh()
-        space = sn.full_field_space
+        sn = slab_mesh()
+        ffs_sn = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
+        space = ffs_sn
         a = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn, seed=1), space=sn.bulk_space),
             domain=space, codomain=space,
@@ -588,15 +545,16 @@ class TestSpaceMetadataAndGuardJoin:
         ``None``-spaced ``CollisionOperator`` skipped this check; the
         space-carrying ``MultiplicationOperator`` no longer can mis-compose
         silently."""
-        sn_a = _slab_mesh(nx=4)
-        sn_b = _slab_mesh(nx=6)  # distinct spatial shape → distinct full_field_space
+        sn_a = slab_mesh(nx=4)
+        ffs_sn_a = angular_full_field_space(sn_a, posing_quadrature(sn_a), posing_scheme(sn_a))
+        sn_b = slab_mesh(nx=6)  # distinct spatial shape → distinct full_field_space
         a = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn_a), space=sn_a.bulk_space),
-            domain=sn_a.full_field_space, codomain=sn_a.full_field_space,
+            domain=ffs_sn_a, codomain=ffs_sn_a,
         )
         b = MultiplicationOperator(
             coefficient=CrossSectionField(values=_positive_sigma(sn_b), space=sn_b.bulk_space),
-            domain=sn_b.full_field_space, codomain=sn_b.full_field_space,
+            domain=angular_full_field_space(sn_b, posing_quadrature(sn_b), posing_scheme(sn_b)), codomain=angular_full_field_space(sn_b, posing_quadrature(sn_b), posing_scheme(sn_b)),
         )
         with pytest.raises(IncompatibleOperatorComposition):
             _ = a + b
@@ -662,6 +620,7 @@ class TestMeshlessBareArm:
         206-caller engine path.
         """
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
+        ffs_sn = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
         sigma = self._asym_sigma(2, 5, 3)
         x = np.random.default_rng(1).uniform(0.1, 1.0, size=(2, 5, 3))
         # Two BINDINGS of one coefficient (CS4c step 5): the plain one runs
@@ -669,10 +628,10 @@ class TestMeshlessBareArm:
         C_plain = _multiplier(sn, sigma, plain=True)
         C = _multiplier(sn, sigma)
 
-        N = sn.quad.n_ordinates
+        N = posing_quadrature(sn).n_ordinates
         bulk_vals = np.broadcast_to(x[None], (N, 2, 5, 3)).copy()
         state = TimedFullField.zeros(
-            interior=AngularFlux, boundary=AngularBoundaryFlux, space=sn.full_field_space,
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs_sn,
         )
         psi_bcast = replace(state, interior=replace(state.interior, values=bulk_vals))
 
@@ -701,6 +660,7 @@ class TestMeshlessBareArm:
         (the user's ruling D1, 2026-10-30): the same values as the bare call.
         """
         sn = _cartesian_2d_mesh(nx=5, ny=3, ng=2)
+        ffs_sn = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
         sigma = self._asym_sigma(2, 5, 3)
         for C in (_multiplier(sn, sigma), _multiplier(sn, sigma, plain=True)):
             with pytest.raises(TypeError, match="MultiplicationOperator"):
@@ -717,7 +677,7 @@ class TestMeshlessBareArm:
             _multiplier(sn, sigma, plain=True).apply(
                 TimedFullField.zeros(
                     interior=AngularFlux, boundary=AngularBoundaryFlux,
-                    space=sn.full_field_space,
+                    space=ffs_sn,
                 ),
             )
 
@@ -730,7 +690,7 @@ class TestInverseOperatorFace:
         """``M.inverse().apply ≡ M.solve`` bit-id (delegation, not a
         reciprocal-field twin) + I1 round-trip on the bulk values +
         ``(M⁻¹)⁻¹ is M`` by object identity."""
-        mesh = _slab_mesh()
+        mesh = slab_mesh()
         sigma = _positive_sigma(mesh)
         M = _multiplier(mesh, sigma)
         psi = _random_state(mesh)
@@ -748,7 +708,7 @@ class TestInverseOperatorFace:
     @pytest.mark.foundation
     def test_singular_coefficient_inverse_raises(self):
         """NEGATIVE (§12.4): a TRUE-zero entry (spectrum law) refuses."""
-        mesh = _slab_mesh()
+        mesh = slab_mesh()
         sigma = _positive_sigma(mesh).copy()
         sigma[0, 0] = 0.0
         with pytest.raises(NotInvertible, match="zero"):
@@ -767,24 +727,25 @@ class TestTierTwoEquivalence:
     vv#28's simple-ctor-vs-composite-factory blindness, closed for C."""
 
     def test_from_mesh_equals_the_exact_ctor(self):
-        """``from_mesh(σ, problem)`` ≡ ``MultiplicationOperator(cf,
-        domain=ffs, codomain=ffs)`` — same ends BY IDENTITY (the sugar
-        resolves ``mesh.full_field_space``, spelled here independently),
-        same coefficient array, bit-identical action on the same probe."""
-        sn = _slab_mesh()
+        """``from_mesh(σ, mesh, space=ffs)`` ≡ ``MultiplicationOperator(cf,
+        domain=ffs, codomain=ffs)`` — same ends BY IDENTITY (the sugar threads
+        the space it is handed), same coefficient array, bit-identical action
+        on the same probe. The default-space arm (a method problem's cached
+        ``full_field_space``) is ``tests/gates/sn/operators/test_multiplication_operator_on_the_problem.py``'s."""
+        sn = slab_mesh()
+        ffs_sn = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
         sigma = _positive_sigma(sn)
-        via_classmethod = MultiplicationOperator.from_mesh(sigma, sn)
+        via_classmethod = MultiplicationOperator.from_mesh(sigma, sn, space=ffs_sn)
         via_ctor = MultiplicationOperator(
             coefficient=CrossSectionField(values=sigma, space=sn.bulk_space),
-            domain=sn.full_field_space,
-            codomain=sn.full_field_space,
+            domain=ffs_sn,
+            codomain=ffs_sn,
         )
         _require(
             via_classmethod.domain is via_ctor.domain
             and via_classmethod.codomain is via_ctor.codomain,
-            "the sugar must resolve the SAME space object the ctor was "
-            "handed (mesh.full_field_space is cached — identity, not "
-            "mere equality)",
+            "the sugar must thread the SAME space object the ctor was "
+            "handed (identity, not mere equality)",
         )
         np.testing.assert_array_equal(
             via_classmethod.coefficient.values, via_ctor.coefficient.values,
@@ -803,13 +764,71 @@ class TestTierTwoEquivalence:
         class _Meshless:
             pass
 
-        sn = _slab_mesh()
+        sn = slab_mesh()
         cf = CrossSectionField(
             values=_positive_sigma(sn), space=sn.bulk_space,
         )  # typed coefficient: the WRAP arm needs no mesh, so the
         # resolution chain is what this probe actually reaches.
         with pytest.raises(TypeError, match="neither"):
             MultiplicationOperator.from_mesh(cf, _Meshless())
+
+
+# ── The four meshes of TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan (from the SN reciprocity file's builders) ──
+
+
+def _group_sigma(spatial_shape: tuple[int, ...], space_factor, ng: int = 2, sigma: float = 0.5) -> np.ndarray:
+    """A group- (and, with ``space_factor``, space-) varying sigma ``(ng, *spatial)``."""
+    return np.stack([sigma * (1.0 + 0.5 * g) * np.broadcast_to(space_factor, spatial_shape) for g in range(ng)], axis=0)
+
+
+def _ld_slab_case():
+    """LD slab, NON-UNIFORM h, group- and space-varying sigma (#310 C2)."""
+    edges = np.array([0.0, 0.17, 0.45, 0.62, 1.0])
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck())
+    mesh = MaterialMesh(Mesher(geometry).partition(CellEdges(edges)).mesh, placeholder_materials(ng=2))
+    nx = mesh.spatial_shape[0]
+    return mesh, Quadrature.gauss_legendre(4), LinearDiscontinuous(), _group_sigma(mesh.spatial_shape, 1.0 + 0.3 * np.arange(nx) / nx)
+
+
+def _ld_2d_case():
+    """LD 2-D Cartesian, NONSQUARE and NON-UNIFORM h, het sigma (#310 C5)."""
+    mesh2d = Mesh2D(
+        edges_x=np.array([0.0, 0.17, 0.45, 0.62, 1.0]), edges_y=np.array([0.0, 0.33, 0.8, 1.4]),
+        mat_map=np.zeros((4, 3), dtype=int), face_roles={f: MirrorDeck() for f in ("xmin", "xmax", "ymin", "ymax")},
+    )
+    mesh = MaterialMesh(mesh2d, placeholder_materials(ng=2))
+    nx, ny = mesh.spatial_shape
+    factor = 1.0 + 0.3 * (np.arange(nx)[:, None] + 2.0 * np.arange(ny)[None, :]) / (nx + ny)
+    return mesh, Quadrature.level_symmetric(2), LinearDiscontinuous(), _group_sigma(mesh.spatial_shape, factor)
+
+
+def _dd_slab_case():
+    """DD slab, 4 equal cells, group-varying sigma."""
+    geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=MirrorDeck(), right=MirrorDeck())
+    mesh = MaterialMesh(Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh, placeholder_materials(ng=2))
+    return mesh, Quadrature.gauss_legendre(4), DiamondDifference(), _group_sigma(mesh.spatial_shape, 1.0)
+
+
+def _dd_cart2d_case():
+    """DD 2-D Cartesian, reflective NONSQUARE (5 x 7 on 2 x 3), group-varying sigma."""
+    mesh2d = Mesh2D(
+        edges_x=np.linspace(0.0, 2.0, 6), edges_y=np.linspace(0.0, 3.0, 8), mat_map=np.zeros((5, 7), dtype=int),
+        coord=CoordSystem.CARTESIAN, face_roles={f: MirrorDeck() for f in ("xmin", "xmax", "ymin", "ymax")},
+    )
+    mesh = MaterialMesh(mesh2d, placeholder_materials(ng=2))
+    return mesh, Quadrature.level_symmetric(4), DiamondDifference(), _group_sigma(mesh.spatial_shape, 1.0)
+
+
+def _random_composite(ffs: FullFieldSpace, rng: np.random.Generator) -> TimedFullField:
+    """A random NON-FLAT 2-block state on ``ffs`` (bulk, with an LD bulk's slope moments, and trace both random)."""
+    interior, trace = ffs.interior_space, ffs.trace_space
+    if not isinstance(trace, AngularTraceSpace):
+        pytest.fail(f"the SN full-field space's trace is {type(trace).__name__}, not an AngularTraceSpace")
+    return TimedFullField(
+        interior=AngularFlux(values=rng.standard_normal(interior.shape), space=interior),
+        boundary=AngularBoundaryFlux(values=rng.standard_normal(trace.shape), space=trace),
+        _history=(), history_depth=2,
+    )
 
 
 # The LD rows catch ERR-119 (σ broadcast over the leading ordinate axis only);
@@ -835,23 +854,20 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
     rank-4 coefficient for a 5-D carrier``). Nothing reached it while ``L + C``
     fused into the sweep atom, whose own walk applies σ; once ``+`` stopped
     fusing (numerics_untangling.md ruling 52) the plain ``L + C`` applies C by
-    itself. The DD rows are the controls: their bulk has no moment axis.
+    itself. The DD rows are the controls: their bulk has no moment axis. The
+    rows comparing the plain ``L + C`` with the SN sweep atom are
+    ``tests/gates/sn/operators/test_multiplication_operator_on_the_problem.py``'s
+    (same class name) since layer DAG Phase 4.
     """
 
     @staticmethod
     def _cases():
-        from tests.gates.sn.operators.test_g_adjoint_reciprocity import (
-            _make_cart2d,
-            _make_ld_2d,
-            _make_ld_slab,
-            _make_slab,
-        )
-
+        """``case -> (material mesh, quadrature, closure, sigma)``: the four meshes of the SN reciprocity file's
+        ``_make_*`` builders (layer DAG Phase 4: the same edges, rules and sigma fields, posed as material meshes; the
+        spaces are the raw constructors')."""
         return {
-            "ld_slab_2g": _make_ld_slab,
-            "ld_2d_2g": _make_ld_2d,
-            "dd_slab_2g": _make_slab,
-            "dd_cart2d_2g": _make_cart2d,
+            "ld_slab_2g": _ld_slab_case, "ld_2d_2g": _ld_2d_case,
+            "dd_slab_2g": _dd_slab_case, "dd_cart2d_2g": _dd_cart2d_case,
         }
 
     @pytest.mark.catches("ERR-119")
@@ -869,11 +885,10 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
         """``M[σ]ψ`` equals σ expanded BY HAND on the ordinate axis (and the
         trailing moment axis of an LD bulk) times ψ, bit for bit. Mutation:
         broadcast σ over the leading axis only, and the LD rows refuse."""
-        from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
-
-        sn, sig = self._cases()[case](ng=2)
-        C = MultiplicationOperator.from_mesh(sig, sn)
-        psi = _random_composite(sn, np.random.default_rng(2026))
+        mesh, quadrature, scheme, sig = self._cases()[case]()
+        ffs = angular_full_field_space(mesh, quadrature, scheme)
+        C = MultiplicationOperator.from_mesh(sig, mesh, space=ffs)
+        psi = _random_composite(ffs, np.random.default_rng(2026))
         values = np.asarray(psi.interior.values)
         has_moment_axis = values.ndim == sig.ndim + 2
         expanded = sig[None, ..., None] if has_moment_axis else sig[None]
@@ -882,36 +897,6 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
             np.asarray(C.apply(psi).interior.values), expanded * values,
         )
 
-    @pytest.mark.catches("ERR-119")
-    @pytest.mark.parametrize("case", _LD_CASES)
-    def test_the_plain_sum_applies_like_the_sweep_atom(self, case):
-        """The LD rows of :meth:`_plain_sum_applies_like_the_sweep_atom`."""
-        self._plain_sum_applies_like_the_sweep_atom(case)
-
-    @pytest.mark.parametrize("case", _DD_CASES)
-    def test_the_plain_sum_applies_like_the_sweep_atom_dd_control(self, case):
-        """The DD controls of :meth:`_plain_sum_applies_like_the_sweep_atom`."""
-        self._plain_sum_applies_like_the_sweep_atom(case)
-
-    def _plain_sum_applies_like_the_sweep_atom(self, case):
-        r"""``(L + C)ψ``, the plain combination, equals the sweep atom's own
-        ``M(σ)ψ`` to ``8ε`` relative. `[M]` 2026-10-20: ≤ 2.3e-16 over three
-        seeds on each of these four fixtures; the two differ only by the
-        affine-in-σ association ``L ψ + σψ`` against the walk's one fused
-        emission. The atom is the independent side: its σ enters through the
-        loss representation's walk, never through this multiplier."""
-        from orpheus.sn.operators.streaming import StreamingCollisionOperator, StreamingOperator
-        from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
-
-        sn, sig = self._cases()[case](ng=2)
-        L = StreamingOperator.pose(sn)
-        C = MultiplicationOperator.from_mesh(sig, sn)
-        psi = _random_composite(sn, np.random.default_rng(7))
-        plain = np.asarray((L + C).apply(psi).interior.values)
-        fused = np.asarray(StreamingCollisionOperator(L, C).apply(psi).interior.values)
-        scale = float(np.max(np.abs(fused)))
-        assert scale > 0.0
-        assert float(np.max(np.abs(plain - fused))) <= 8.0 * np.finfo(float).eps * scale
 
     @pytest.mark.catches("ERR-119")
     def test_the_assembled_diagonal_reads_the_same_broadcast(self):
@@ -926,11 +911,10 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
         """``assemble(M[σ])`` emits σ expanded on the SAME axes the engine
         multiplies on, so the assembled bulk block reproduces ``apply``'s bulk
         bit for bit (the trace rows are the multiplier's zero)."""
-        from tests.gates.sn.operators.test_g_adjoint_reciprocity import _random_composite
-
-        sn, sig = self._cases()[case](ng=2)
-        C = MultiplicationOperator.from_mesh(sig, sn)
-        psi = _random_composite(sn, np.random.default_rng(11))
+        mesh, quadrature, scheme, sig = self._cases()[case]()
+        ffs = angular_full_field_space(mesh, quadrature, scheme)
+        C = MultiplicationOperator.from_mesh(sig, mesh, space=ffs)
+        psi = _random_composite(ffs, np.random.default_rng(11))
         bulk = np.asarray(psi.interior.values)
         n_bulk = bulk.size
         matrix = assemble(C).matrix.tocsr()[:n_bulk, :n_bulk]
@@ -946,7 +930,7 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
         values on the axis-built bulk construct."""
         from orpheus.numerics.space import FunctionSpace
 
-        sn = _slab_mesh()
+        sn = slab_mesh()
         sigma = _positive_sigma(sn)
         cf = CrossSectionField(values=sigma, space=sn.bulk_space)
         MultiplicationOperator(coefficient=cf, domain=sn.bulk_space, codomain=sn.bulk_space)

@@ -1274,7 +1274,7 @@ class BoundaryField(FaceField[str]):
         layout = getattr(space, "layout", None)
         if layout is None:
             raise ValueError(
-                f"{cls.__name__}.from_face_arrays: the trace space carries "
+                f"{cls.__name__}.from_face_arrays_on: the trace space carries "
                 f"no FaceLayout (a bare-constructor space, not one built "
                 f"via its factory). A trace field cannot be packed "
                 f"without a face layout."

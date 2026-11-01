@@ -24,6 +24,12 @@ References
 * Depth B plan §3.8 (Container architecture).
 * `.claude/agent-memory/test-architect/dg_boundary_flux_pure_field_verification.md`
   (D-G predecessor tests).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -34,22 +40,19 @@ import pytest
 
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space, angular_trace_space
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
 
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
-
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = [pytest.mark.foundation]
@@ -60,33 +63,23 @@ pytestmark = [pytest.mark.foundation]
 # ───────────────────────────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> MaterialMesh:
     """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
     so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesher(StructuredGeometry.from_homogeneous(2.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
-def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNProblem:
+def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> MaterialMesh:
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -96,13 +89,16 @@ def _cartesian_2d_mesh(nx: int = 3, ny: int = 2, ng: int = 2) -> SNProblem:
 
 class TestConstruction:
     def test_factory_slab(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         assert isinstance(state, TimedFullField)
         assert isinstance(state.interior, AngularFlux)
         assert isinstance(state.boundary, AngularBoundaryFlux)
-        assert state.interior.space is m.angular_bulk_space
-        assert state.boundary.space is m.angular_trace
+        assert state.interior.space is bulk
+        assert state.boundary.space is trace
         np.testing.assert_array_equal(state.interior.values, 0.0)
         np.testing.assert_array_equal(state.boundary.values, 0.0)
         assert state._history == ()
@@ -110,26 +106,30 @@ class TestConstruction:
 
     def test_factory_2d(self) -> None:
         m = _cartesian_2d_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         assert isinstance(state, TimedFullField)
-        assert state.interior.values.shape == (m.quad.n_ordinates, m.ng, *m.spatial_shape)
+        assert state.interior.values.shape == (posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)
         assert state.boundary.layout.total_size == state.boundary.values.size
 
     def test_factory_custom_history_depth(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space, history_depth=5)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs, history_depth=5)
         assert state.history_depth == 5
         assert state._history == ()
 
     def test_rejects_non_field_bulk(self) -> None:
-        m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros(m.angular_trace)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bf = AngularBoundaryFlux.zeros(trace)
         with pytest.raises(TypeError, match="bulk must be a BulkField"):
             TimedFullField(interior="not a field", boundary=bf)  # type: ignore[arg-type]
 
     def test_rejects_non_field_boundary(self) -> None:
-        m = _slab_mesh()
-        psi = AngularFlux.zeros(m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        psi = AngularFlux.zeros(bulk)
         with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
             TimedFullField(interior=psi, boundary="not a field")  # type: ignore[arg-type]
 
@@ -142,8 +142,9 @@ class TestConstruction:
         locus-confusion bug the type now makes unrepresentable
         (illegal-states-unrepresentable, ``coding-elegance`` Pattern 4).
         """
-        m = _slab_mesh()
-        bf = AngularBoundaryFlux.zeros(m.angular_trace)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bf = AngularBoundaryFlux.zeros(trace)
         with pytest.raises(TypeError, match="bulk must be a BulkField"):
             TimedFullField(interior=bf, boundary=bf)  # type: ignore[arg-type]
 
@@ -155,8 +156,9 @@ class TestConstruction:
         slot must reject it (the dual of
         :meth:`test_rejects_boundary_field_as_bulk`).
         """
-        m = _slab_mesh()
-        psi = AngularFlux.zeros(m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        psi = AngularFlux.zeros(bulk)
         with pytest.raises(TypeError, match="boundary must be a BoundaryField"):
             TimedFullField(interior=psi, boundary=psi)  # type: ignore[arg-type]
 
@@ -166,18 +168,23 @@ class TestConstruction:
         # pre-S4 mesh-IDENTITY refusal retired (cross-slot coherence is
         # an admission question at the seams that hold a carrier
         # reference, not a construction question).
-        m1 = _slab_mesh()
-        m2 = _slab_mesh()  # different instance, same structure
-        psi = AngularFlux.zeros(m1.angular_bulk_space)
-        bf = AngularBoundaryFlux.zeros(m2.angular_trace)
+        m1 = slab_mesh()
+        ffs_m1 = angular_full_field_space(m1, posing_quadrature(m1), posing_scheme(m1))
+        bulk_m1 = angular_bulk_space(m1, posing_quadrature(m1))
+        m2 = slab_mesh()  # different instance, same structure
+        trace_m2 = angular_trace_space(m2, posing_quadrature(m2), posing_scheme(m2))
+        psi = AngularFlux.zeros(bulk_m1)
+        bf = AngularBoundaryFlux.zeros(trace_m2)
         state = TimedFullField(interior=psi, boundary=bf)
-        if state.space != m1.full_field_space:
+        if state.space != ffs_m1:
             pytest.fail("twin-carrier composite must content-equal the mint")
 
     def test_rejects_negative_history_depth(self) -> None:
-        m = _slab_mesh()
-        psi = AngularFlux.zeros(m.angular_bulk_space)
-        bf = AngularBoundaryFlux.zeros(m.angular_trace)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        psi = AngularFlux.zeros(bulk)
+        bf = AngularBoundaryFlux.zeros(trace)
         with pytest.raises(ValueError, match="history_depth"):
             TimedFullField(interior=psi, boundary=bf, history_depth=-1)
 
@@ -187,8 +194,9 @@ class TestConstruction:
 # ───────────────────────────────────────────────────────────────────────
 
 
-def _filled_state(m: SNProblem, bulk_val: float, bound_val: float) -> TimedFullField:
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+def _filled_state(m: MaterialMesh, bulk_val: float, bound_val: float) -> TimedFullField:
+    ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
     state.interior.values[:] = bulk_val
     state.boundary.values[:] = bound_val
     return state
@@ -200,7 +208,7 @@ class TestAlgebraPropagation:
         propagates member-wise to bulk + boundary, and the update
         ψ + (ψ' − ψ) recovers ψ' — the same delegation discipline that
         used to carry the affine gate now carries the plain vector ops."""
-        m = _slab_mesh()
+        m = slab_mesh()
         a = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         b = _filled_state(m, bulk_val=3.0, bound_val=4.0)
         s = a + b
@@ -226,28 +234,28 @@ class TestAlgebraPropagation:
         np.testing.assert_array_equal(out.boundary.values, 7.0)
 
     def test_neg_propagates(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         a = _filled_state(m, bulk_val=1.5, bound_val=2.5)
         out = -a
         np.testing.assert_array_equal(out.interior.values, -1.5)
         np.testing.assert_array_equal(out.boundary.values, -2.5)
 
     def test_scalar_mul_propagates(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         a = _filled_state(m, bulk_val=2.0, bound_val=4.0)
         out = a * 3.0
         np.testing.assert_array_equal(out.interior.values, 6.0)
         np.testing.assert_array_equal(out.boundary.values, 12.0)
 
     def test_rmul_propagates(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         a = _filled_state(m, bulk_val=2.0, bound_val=4.0)
         out = 3.0 * a
         np.testing.assert_array_equal(out.interior.values, 6.0)
         np.testing.assert_array_equal(out.boundary.values, 12.0)
 
     def test_truediv_propagates(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         a = _filled_state(m, bulk_val=8.0, bound_val=12.0)
         out = a / 4.0
         np.testing.assert_array_equal(out.interior.values, 2.0)
@@ -257,7 +265,7 @@ class TestAlgebraPropagation:
         """Distributivity (d1 + d2)·c == d1·c + d2·c in the composite V —
         since the CS3 cone carve the differences are ordinary same-typed
         composites, so this is a law of the ONE composite vector space."""
-        m = _slab_mesh()
+        m = slab_mesh()
         base = _filled_state(m, bulk_val=0.0, bound_val=0.0)
         a = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         b = _filled_state(m, bulk_val=3.0, bound_val=4.0)
@@ -280,14 +288,14 @@ class TestCrossClassRejection:
         Twin carriers mint EQUAL spaces — composites mix member-wise (the
         EQUAL leg); a carrier whose cell volumes differ mints UNEQUAL bulk
         spaces and both binary ops refuse (the UNEQUAL leg)."""
-        m1, m2 = _slab_mesh(), _slab_mesh()
-        a = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m1.full_field_space)
-        b = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m2.full_field_space)
+        m1, m2 = slab_mesh(), slab_mesh()
+        a = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(m1, posing_quadrature(m1), posing_scheme(m1)))
+        b = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(m2, posing_quadrature(m2), posing_scheme(m2)))
         _ = a - b  # twin content — legal since the F2 re-key
         _ = a + b
         c = TimedFullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux,
-            space=_stretched_mesh().full_field_space,
+            space=angular_full_field_space(_stretched_mesh(), posing_quadrature(_stretched_mesh()), posing_scheme(_stretched_mesh())),
         )
         with pytest.raises(ValueError, match="equal space"):
             a - c
@@ -295,8 +303,9 @@ class TestCrossClassRejection:
             a + c
 
     def test_wrong_type_rejected(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         with pytest.raises(TypeError, match="same-class partner"):
             state + 42  # type: ignore[operator]
 
@@ -308,13 +317,14 @@ class TestCrossClassRejection:
 
 class TestHistoryShiftRegister:
     def test_advance_pushes_current_to_lag_1(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
-        new_bulk = AngularFlux(values=np.full((m.quad.n_ordinates, m.ng, *m.spatial_shape), 10.0), space=m.angular_bulk_space)
-        new_boundary = AngularBoundaryFlux.from_face_arrays(
-            m, {
-                "xmin": np.full((m.quad.n_ordinates, m.ng), 20.0),
-                "xmax": np.full((m.quad.n_ordinates, m.ng), 20.0),
+        new_bulk = AngularFlux(values=np.full((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape), 10.0), space=bulk)
+        new_boundary = AngularBoundaryFlux.from_face_arrays_on(trace, {
+                "xmin": np.full((posing_quadrature(m).n_ordinates, m.ng), 20.0),
+                "xmax": np.full((posing_quadrature(m).n_ordinates, m.ng), 20.0),
             },
         )
         advanced = state.advance(new_bulk, new_boundary)
@@ -330,14 +340,15 @@ class TestHistoryShiftRegister:
 
     def test_advance_chained(self) -> None:
         """Multiple advances rotate the history correctly."""
-        m = _slab_mesh()
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         state = _filled_state(m, bulk_val=1.0, bound_val=10.0)
         for i in range(2, 5):
-            new_bulk = AngularFlux(values=np.full((m.quad.n_ordinates, m.ng, *m.spatial_shape), float(i)), space=m.angular_bulk_space)
-            new_boundary = AngularBoundaryFlux.from_face_arrays(
-                m, {
-                    "xmin": np.full((m.quad.n_ordinates, m.ng), float(i) * 10),
-                    "xmax": np.full((m.quad.n_ordinates, m.ng), float(i) * 10),
+            new_bulk = AngularFlux(values=np.full((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape), float(i)), space=bulk)
+            new_boundary = AngularBoundaryFlux.from_face_arrays_on(trace, {
+                    "xmin": np.full((posing_quadrature(m).n_ordinates, m.ng), float(i) * 10),
+                    "xmax": np.full((posing_quadrature(m).n_ordinates, m.ng), float(i) * 10),
                 },
             )
             state = state.advance(new_bulk, new_boundary)
@@ -348,37 +359,45 @@ class TestHistoryShiftRegister:
         assert state.history_length == 2  # trimmed to history_depth
 
     def test_advance_trims_to_history_depth(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space, history_depth=2)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs, history_depth=2)
         for i in range(5):
-            nb = AngularFlux.zeros(m.angular_bulk_space)
-            nf = AngularBoundaryFlux.zeros(m.angular_trace)
+            nb = AngularFlux.zeros(bulk)
+            nf = AngularBoundaryFlux.zeros(trace)
             state = state.advance(nb, nf)
         assert state.history_length == 2
 
     def test_advance_type_mismatch_raises(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         # Pass a ScalarFlux as bulk — type mismatch.
         sf = ScalarFlux.zeros(m.bulk_space)
-        bf = AngularBoundaryFlux.zeros(m.angular_trace)
+        bf = AngularBoundaryFlux.zeros(trace)
         with pytest.raises(TypeError, match="new_bulk type"):
             state.advance(sf, bf)  # type: ignore[arg-type]
 
     def test_at_lag_zero_returns_self(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         assert state.at_lag(0) is state
 
     def test_at_lag_out_of_range_raises(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         with pytest.raises(IndexError):
             state.at_lag(5)
 
     def test_at_lag_negative_raises(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         with pytest.raises(ValueError, match="non-negative"):
             state.at_lag(-1)
 
@@ -396,13 +415,14 @@ class TestTimeDerivativeStencil:
     """
 
     def test_first_order_backward_difference(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         state_old = _filled_state(m, bulk_val=1.0, bound_val=2.0)
-        new_bulk = AngularFlux(values=np.full((m.quad.n_ordinates, m.ng, *m.spatial_shape), 1.5), space=m.angular_bulk_space)
-        new_boundary = AngularBoundaryFlux.from_face_arrays(
-            m, {
-                "xmin": np.full((m.quad.n_ordinates, m.ng), 2.5),
-                "xmax": np.full((m.quad.n_ordinates, m.ng), 2.5),
+        new_bulk = AngularFlux(values=np.full((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape), 1.5), space=bulk)
+        new_boundary = AngularBoundaryFlux.from_face_arrays_on(trace, {
+                "xmin": np.full((posing_quadrature(m).n_ordinates, m.ng), 2.5),
+                "xmax": np.full((posing_quadrature(m).n_ordinates, m.ng), 2.5),
             },
         )
         state = state_old.advance(new_bulk, new_boundary)
@@ -423,14 +443,16 @@ class TestTimeDerivativeStencil:
 
 class TestFrozenInstance:
     def test_assign_bulk_raises(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         with pytest.raises(FrozenInstanceError):
             state.interior = state.interior  # type: ignore[misc]
 
     def test_assign_boundary_raises(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         with pytest.raises(FrozenInstanceError):
             state.boundary = state.boundary  # type: ignore[misc]
 
@@ -442,7 +464,7 @@ class TestFrozenInstance:
 
 class TestCopy:
     def test_copy_returns_owned_arrays(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         copy = state.copy()
         # Same values
@@ -452,10 +474,13 @@ class TestCopy:
         np.testing.assert_array_equal(copy.interior.values, 1.0)
 
     def test_copy_drops_history(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
-        nb = AngularFlux.zeros(m.angular_bulk_space)
-        nf = AngularBoundaryFlux.zeros(m.angular_trace)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
+        nb = AngularFlux.zeros(bulk)
+        nf = AngularBoundaryFlux.zeros(trace)
         advanced = state.advance(nb, nf)
         assert advanced.history_length == 1
         copy = advanced.copy()
@@ -471,7 +496,7 @@ class TestFlatVectorProtocol:
     """Pin the to_flat / from_flat round-trip used by the Krylov adapter."""
 
     def test_to_flat_returns_concatenated_1d(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         flat = state.to_flat()
         assert flat.ndim == 1
@@ -479,7 +504,7 @@ class TestFlatVectorProtocol:
         assert flat.size == expected_size
 
     def test_to_flat_preserves_values(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         state = _filled_state(m, bulk_val=3.0, bound_val=7.0)
         flat = state.to_flat()
         n_interior = state.interior.values.size
@@ -487,7 +512,7 @@ class TestFlatVectorProtocol:
         np.testing.assert_array_equal(flat[n_interior:], 7.0)
 
     def test_from_flat_round_trip_slab(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         rng = np.random.default_rng(42)
         state = _filled_state(m, bulk_val=0.0, bound_val=0.0)
         state.interior.values[:] = rng.standard_normal(state.interior.values.shape)
@@ -503,8 +528,9 @@ class TestFlatVectorProtocol:
 
     def test_from_flat_round_trip_2d(self) -> None:
         m = _cartesian_2d_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
         rng = np.random.default_rng(7)
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         state.interior.values[:] = rng.standard_normal(state.interior.values.shape)
         state.boundary.values[:] = rng.standard_normal(state.boundary.values.shape)
         flat = state.to_flat()
@@ -517,24 +543,29 @@ class TestFlatVectorProtocol:
         )
 
     def test_from_flat_drops_history(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
-        nb = AngularFlux.zeros(m.angular_bulk_space)
-        nf = AngularBoundaryFlux.zeros(m.angular_trace)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
+        nb = AngularFlux.zeros(bulk)
+        nf = AngularBoundaryFlux.zeros(trace)
         advanced = state.advance(nb, nf)
         assert advanced.history_length == 1
         reconstructed = TimedFullField.from_flat(advanced.to_flat(), advanced)
         assert reconstructed.history_length == 0  # Krylov iterates carry no history
 
     def test_from_flat_preserves_history_depth(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space, history_depth=5)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs, history_depth=5)
         reconstructed = TimedFullField.from_flat(state.to_flat(), state)
         assert reconstructed.history_depth == 5
 
     def test_from_flat_wrong_size_raises(self) -> None:
-        m = _slab_mesh()
-        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+        m = slab_mesh()
+        ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+        state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         with pytest.raises(ValueError, match="flat.size"):
             TimedFullField.from_flat(np.zeros(3), state)
 
@@ -543,7 +574,7 @@ class TestFlatVectorProtocol:
         from orpheus.numerics.iteration import (
             _is_ravellable, _ravel, _unravel_like, _zeros_like, _l2_norm,
         )
-        m = _slab_mesh()
+        m = slab_mesh()
         state = _filled_state(m, bulk_val=1.0, bound_val=2.0)
         assert _is_ravellable(state)
         flat = _ravel(state)

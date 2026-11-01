@@ -12,7 +12,7 @@ the albedo-family identities ``J⁻ = 𝒜·J⁺`` (vacuum 𝒜=0 / reflective
 contract, the field-algebra guards inherited from ``BoundaryField``, and
 the widened ``FullField``/``FullFieldSpace`` composite admission.
 
-The carrier is the :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`
+The carrier is the :class:`~orpheus.diffusion.augmented_mesh.MaterialMesh`
 phase space (#290 P7a): a boundary trace is method behavior, so the
 scalar trace family binds to the diffusion method-mesh (a bare
 ``MaterialMesh`` owns no trace — the negative gate below).
@@ -20,6 +20,12 @@ scalar trace family binds to the diffusion method-mesh (a bare
 Convention contract: ``.claude/plans/diffusion_crosswalk.md``.
 Foundation tier — software invariants on the new types; no
 ``verifies(...)``.
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 
 from __future__ import annotations
@@ -28,10 +34,11 @@ import numpy as np
 import pytest
 
 from orpheus.data.macro_xs.synthetic import get_mixture
-from orpheus.diffusion import DiffusionMesh
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import scalar_trace_space
+from tests.gates.transport._phase_space_cases import scalar_full_field_space
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
@@ -42,20 +49,20 @@ from orpheus.transport.mesh.material_mesh import MaterialMesh
 pytestmark = [pytest.mark.foundation]
 
 
-def _slab_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
+def _slab_mesh(nx: int = 4, width: float = 10.0) -> MaterialMesh:
     mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, MirrorDeck())).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
-    return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
+    return MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
 
 
-def _one_group_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
+def _one_group_mesh(nx: int = 4, width: float = 10.0) -> MaterialMesh:
     """1-group sibling — the scalar-trace CONTENT (and shape) differs, so
     the carrier mints an UNEQUAL trace space (F2)."""
     mesh1d = Mesher(StructuredGeometry.from_homogeneous(width, MirrorDeck())).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
-    return DiffusionMesh(mesh1d, {0: get_mixture("A", "1g")})
+    return MaterialMesh(mesh1d, {0: get_mixture("A", "1g")})
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -66,7 +73,7 @@ def _one_group_mesh(nx: int = 4, width: float = 10.0) -> DiffusionMesh:
 class TestScalarTraceSpace:
     def test_slab_dim_faces_and_area_metric(self):
         """1-D slab: 2 faces × 2 components × ng DOFs; unit-area metric."""
-        ts = _slab_mesh().scalar_trace
+        ts = scalar_trace_space(_slab_mesh())
         np.testing.assert_array_equal(ts.shape, (2 * 2 * 2,))
         if ts.face_names != ("xmin", "xmax"):
             pytest.fail(f"slab faces should be (xmin, xmax); got {ts.face_names}")
@@ -83,8 +90,8 @@ class TestScalarTraceSpace:
         geometry = StructuredGeometry.sphere((0.0, r_outer), (0,), outer=0)
         mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(3)).mesh
         # A curved face has no mirror deck: the perfect mirror is the specular wall tag (rule R2).
-        mm = DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")}, boundary_conditions={0: WallCondition.specular(1.0)})
-        ts = mm.scalar_trace
+        mm = MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
+        ts = scalar_trace_space(mm)
         if ts.face_names != ("xmax",):
             pytest.fail(f"sphere trace must have only xmax; got {ts.face_names}")
         # Same-source claim: the metric IS mesh.areas[-1] broadcast.
@@ -95,8 +102,8 @@ class TestScalarTraceSpace:
 
     def test_identity_is_name_and_shape(self):
         """Two same-shape scalar traces compare equal (metadata excluded)."""
-        a = _slab_mesh(nx=4).scalar_trace
-        b = _slab_mesh(nx=7).scalar_trace  # same boundary, different interior
+        a = scalar_trace_space(_slab_mesh(nx=4))
+        b = scalar_trace_space(_slab_mesh(nx=7))  # same boundary, different interior
         if a != b:
             pytest.fail("(name, shape)-identical scalar traces must be equal")
         if a == FunctionSpace(name="scalar_flux", shape=a.shape):
@@ -124,8 +131,7 @@ class TestPartialCurrentLaws:
         mm = _slab_mesh()
         j_plus = np.array([[3.0, 1.0]])   # placed on OUTFLOW_ROW below
         j_minus = np.array([[1.0, 0.25]])
-        pc = ScalarBoundaryFlux.from_face_arrays(
-            mm,
+        pc = ScalarBoundaryFlux.from_face_arrays_on(scalar_trace_space(mm),
             {
                 "xmin": np.zeros((2, 2)),
                 "xmax": np.vstack([j_plus, j_minus]),
@@ -146,8 +152,7 @@ class TestPartialCurrentLaws:
 
         def with_albedo(albedo: float) -> ScalarBoundaryFlux:
             slot = np.vstack([j_plus, albedo * j_plus])
-            return ScalarBoundaryFlux.from_face_arrays(
-                mm, {"xmin": np.zeros((2, 2)), "xmax": slot},
+            return ScalarBoundaryFlux.from_face_arrays_on(scalar_trace_space(mm), {"xmin": np.zeros((2, 2)), "xmax": slot},
             )
 
         vacuum = with_albedo(0.0)
@@ -168,7 +173,7 @@ class TestPartialCurrentLaws:
     def test_views_share_backing_buffer(self):
         """outflow/inflow views are zero-copy into the flat buffer."""
         mm = _slab_mesh()
-        pc = ScalarBoundaryFlux.zeros(mm.scalar_trace)
+        pc = ScalarBoundaryFlux.zeros(scalar_trace_space(mm))
         pc.outflow_view("xmin")[:] = 7.0
         np.testing.assert_array_equal(
             pc.face_view("xmin")[ScalarTraceSpace.OUTFLOW_ROW],
@@ -191,10 +196,10 @@ class TestPartialCurrentGuards:
     def test_space_content_guard(self):
         """CS4b S3 (F2): twin carriers mint EQUAL scalar traces and mix; a
         different group structure mints an UNEQUAL trace and refuses."""
-        a = ScalarBoundaryFlux.zeros(_slab_mesh().scalar_trace)
-        b = ScalarBoundaryFlux.zeros(_slab_mesh().scalar_trace)
+        a = ScalarBoundaryFlux.zeros(scalar_trace_space(_slab_mesh()))
+        b = ScalarBoundaryFlux.zeros(scalar_trace_space(_slab_mesh()))
         _ = a - b  # twin content — legal since the F2 re-key
-        c = ScalarBoundaryFlux.zeros(_one_group_mesh().scalar_trace)
+        c = ScalarBoundaryFlux.zeros(scalar_trace_space(_one_group_mesh()))
         with pytest.raises(ValueError, match="equal space"):
             _ = a - c
 
@@ -209,7 +214,7 @@ class TestPartialCurrentGuards:
         mm = MaterialMesh(mesh1d, {0: get_mixture("A", "2g")})
         # Post-S5 the family diagnosis lives on the space hook (the surface
         # space_on and the keyed factories ride).
-        with pytest.raises(ValueError, match="no scalar trace.*DiffusionMesh"):
+        with pytest.raises(ValueError, match="no scalar trace.*MaterialMesh"):
             ScalarBoundaryFlux._face_space_of(mm)
 
     def test_vector_algebra(self):
@@ -218,9 +223,8 @@ class TestPartialCurrentGuards:
         the #208 affine discipline minted a ScalarBoundaryDisplacement on −
         and refused +)."""
         mm = _slab_mesh()
-        a = ScalarBoundaryFlux.zeros(mm.scalar_trace)
-        b = ScalarBoundaryFlux.from_face_arrays(
-            mm, {"xmin": np.ones((2, 2)), "xmax": np.ones((2, 2))},
+        a = ScalarBoundaryFlux.zeros(scalar_trace_space(mm))
+        b = ScalarBoundaryFlux.from_face_arrays_on(scalar_trace_space(mm), {"xmin": np.ones((2, 2)), "xmax": np.ones((2, 2))},
         )
         step = b - a
         if type(step) is not ScalarBoundaryFlux:
@@ -238,7 +242,7 @@ class TestPartialCurrentGuards:
     def test_from_face_arrays_rejects_wrong_faces(self):
         mm = _slab_mesh()
         with pytest.raises(ValueError, match="face_arrays keys"):
-            ScalarBoundaryFlux.from_face_arrays(mm, {"xmax": np.zeros((2, 2))})
+            ScalarBoundaryFlux.from_face_arrays_on(scalar_trace_space(mm), {"xmax": np.zeros((2, 2))})
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -250,14 +254,14 @@ class TestScalarComposite:
     def test_scalar_composite_is_an_element_of_the_carrier_composite_space(self):
         mm = _slab_mesh()
         full = FullField(
-            interior=ScalarFlux.zeros(mm.bulk_space), boundary=ScalarBoundaryFlux.zeros(mm.scalar_trace),
+            interior=ScalarFlux.zeros(mm.bulk_space), boundary=ScalarBoundaryFlux.zeros(scalar_trace_space(mm)),
         )
         # CS4b S4 (F4): the composite's derived space content-equals the
         # carrier's cached mint (== not is — the wrapper is per-instance;
         # the MEMBERS are the carrier's cached objects).
-        if full.space != mm.full_field_space:
+        if full.space != scalar_full_field_space(mm):
             pytest.fail("composite space must content-equal the carrier mint")
-        if full.space.interior_space is not mm.full_field_space.interior_space:
+        if full.space.interior_space is not scalar_full_field_space(mm).interior_space:
             pytest.fail("interior member must BE the carrier's cached mint")
 
     def test_twin_mesh_composite_blocks_mix(self):
@@ -273,9 +277,9 @@ class TestScalarComposite:
         a, b = _slab_mesh(), _slab_mesh()
         full = FullField(
             interior=ScalarFlux.zeros(a.bulk_space),
-            boundary=ScalarBoundaryFlux.zeros(b.scalar_trace),
+            boundary=ScalarBoundaryFlux.zeros(scalar_trace_space(b)),
         )
-        if full.space != a.full_field_space:
+        if full.space != scalar_full_field_space(a):
             pytest.fail("twin-carrier composite must content-equal either mint")
 
     def test_direct_sum_space_metric_and_inner_product(self):
@@ -283,11 +287,11 @@ class TestScalarComposite:
         product is the bulk + trace block sum (hand value)."""
         mm = _slab_mesh()
         bulk = ScalarFlux.zeros(mm.bulk_space)
-        pc = ScalarBoundaryFlux.zeros(mm.scalar_trace)
+        pc = ScalarBoundaryFlux.zeros(scalar_trace_space(mm))
         pc.outflow_view("xmax")[:] = [3.0, 1.0]
         pc.inflow_view("xmax")[:] = [1.0, 0.25]
         full = FullField(interior=bulk, boundary=pc)
-        ffs = FullFieldSpace.from_blocks(bulk.space, mm.scalar_trace)
+        ffs = FullFieldSpace.from_blocks(bulk.space, scalar_trace_space(mm))
         np.testing.assert_array_equal(
             ffs.shape, (bulk.values.size + pc.values.size,)
         )

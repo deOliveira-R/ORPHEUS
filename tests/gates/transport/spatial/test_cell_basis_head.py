@@ -30,7 +30,6 @@ Kinds
 
 from __future__ import annotations
 
-from itertools import product
 
 import numpy as np
 import pytest
@@ -55,34 +54,26 @@ _HAND_MASS = {
 
 
 def _ld_1d():
-    # Inlined, so this file stands on its own (it was written while the sibling LD fixtures' module imported
-    # the retired moment_layout).
+    """A 5-cell slab material mesh (layer DAG Phase 4: the row reads only ``bulk_space``; no method problem is posed)."""
     from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
-    from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.problem import SNProblem
-    from orpheus.transport.boundary_conditions import WallCondition
-    from tests.gates._exterior import conditions_for
-    from tests.gates.sn._test_helpers import placeholder_materials
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from tests.gates.transport._materials import placeholder_materials
 
     mesh = Mesher(StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)).partition(CellsByCount.uniform_width(5)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous(),
-                     boundary_conditions=conditions_for(mesh, {0: WallCondition.vacuum()}))
+    return MaterialMesh(mesh, placeholder_materials(ng=2))
 
 
 def _ld_2d():
+    """A 3 x 2 rectangle material mesh."""
     from orpheus.geometry import CoordSystem
     from orpheus.mesh import Mesh2D
-    from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.problem import SNProblem
-    from orpheus.transport.boundary_conditions import WallCondition
-    from tests.gates._exterior import conditions_for
-    from tests.gates.sn._test_helpers import placeholder_materials
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from tests.gates.transport._materials import placeholder_materials
 
     mesh = Mesh2D(edges_x=np.linspace(0.0, 1.0, 4), edges_y=np.linspace(0.0, 1.0, 3), mat_map=np.zeros((3, 2), dtype=int),
                   coord=CoordSystem.CARTESIAN, face_roles={f: MirrorDeck() for f in ("xmin", "xmax", "ymin", "ymax")})
-    return SNProblem(mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2), scheme=LinearDiscontinuous(),
-                     boundary_conditions=conditions_for(mesh, {0: WallCondition.vacuum()}))
+    return MaterialMesh(mesh, placeholder_materials(ng=2))
 
 
 def _cart(d: int):

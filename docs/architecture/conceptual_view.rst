@@ -108,7 +108,9 @@ type, which is the first entry of the debt list below.
 The hub (:ref:`the-problem-hub`) owns what is consumed: its spaces as cached mints
 (:attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`,
 the SN angular bulk, trial, trace and full-field spaces, the moment space
-of the angular frame, :ref:`frame-moment-space-single-home`), its fields,
+of the angular frame, :ref:`frame-moment-space-single-home`; each transport
+space's rule is a raw constructor of :mod:`orpheus.transport.phase_spaces`, of
+which the hub's property is one cached call, :ref:`indexing-carrier-cached-mints`), its fields,
 and its bound operators, of which there is one fission operator per
 Problem (:ref:`sn-one-fission-per-problem`). Its last step is the
 **operator pencil**, on a transport hub :math:`(A, F)`, the loss and the

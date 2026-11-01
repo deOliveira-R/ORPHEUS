@@ -26,7 +26,6 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
-from scipy.sparse import csr_matrix
 from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.numerics.quadrature import directional, rules_product
@@ -36,6 +35,7 @@ from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.sn import solve_sn_fixed_source
 from tests.gates._exterior import conditions_for
 from tests.gates._reference_pairing import conditions_of
+from tests.gates.transport._materials import CURVED_REFLECTIVE, material_xs_from_raw, placeholder_materials, reflective_role  # noqa: F401  (re-exported: re-homed in layer DAG Phase 4)
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -150,124 +150,6 @@ def stamp_capability_marker(items, conftest_file: str, capability: str) -> None:
             item.add_marker(marker)
 
 
-
-def placeholder_materials(
-    ng: int = 1, mat_ids: tuple[int, ...] = (0,),
-) -> dict:
-    """Build a placeholder ``{mat_id: Mixture}`` dict for SNProblem tests.
-
-    Parameters
-    ----------
-    ng
-        Number of energy groups.  All Mixtures will report this value
-        via :attr:`Mixture.ng`.
-    mat_ids
-        Material ids to include in the dict.  Default ``(0,)`` covers
-        the common case where the mesh's ``mat_ids`` / ``mat_map`` is
-        zeros.
-
-    Returns
-    -------
-    dict[int, Mixture]
-        Each entry has ``SigT = ones(ng)`` and all other cross sections
-        zero.  Suitable for SNProblem tests that don't compute physical
-        quantities from the materials.
-    """
-    from orpheus.data.macro_xs.mixture import Mixture
-    z = np.zeros(ng)
-    z_mat = csr_matrix(np.zeros((ng, ng)))
-    return {
-        int(mid): Mixture(
-            SigC=z.copy(),
-            SigL=z.copy(),
-            SigF=z.copy(),
-            SigP=z.copy(),
-            SigT=np.ones(ng),
-            SigS=[z_mat],
-            Sig2=[z_mat],
-            chi=z.copy(),
-        )
-        for mid in mat_ids
-    }
-
-
-def _as_stack(channel) -> "list":
-    """A single matrix is the P0 stack; a list/tuple is the stack as given."""
-    return list(channel) if isinstance(channel, (list, tuple)) else [channel]
-
-
-def material_xs_from_raw(
-    *,
-    sig_s: "dict[int, list[np.ndarray]]",
-    sig2: "dict[int, np.ndarray | list[np.ndarray]] | None" = None,
-    cells_by_mat: "dict[int, tuple[np.ndarray, np.ndarray]]",
-    ng: int,
-    nx: int,
-    ny: int = 1,
-) -> "MaterialXSField":
-    """Build a REAL ``MaterialXSField`` from raw per-material scattering data.
-
-    The production-path replacement for the retired
-    ``MaterialXSField._synthetic_for_tests`` (campaign 1 CS4b, Q7 ruling —
-    option 3): real :class:`Mixture` objects carry the given Legendre
-    lists and (n,2n) matrices — or (n,2n) Legendre STACKS, a list per
-    material, since #426 step 2 — a real ``Mesh2D`` paints ``cells_by_mat``
-    into its ``mat_map``, and the field is the production
-    hub's own ``MaterialMesh.mat_xs`` — so the per-material dispatch tests
-    exercise the true admission + lazy dense-cache path (including the
-    EE-4 read-only cache freeze) instead of pre-populated caches on a
-    duck-typed mesh stub, which the space-carrying accessors of CS4b
-    cannot serve.
-
-    The grid is always rank-2 ``(nx, ny)`` (the stub's convention — the
-    consuming fixtures shape their arrays accordingly), unit-pitch
-    Cartesian. Non-scattering channels are zero and ``SigT = 1``: these
-    fixtures assert scattering dispatch, never a physical balance.
-    Every cell must be painted — a real carrier has no unassigned cells.
-    """
-    from orpheus.mesh import Mesh2D
-    from orpheus.transport.mesh.material_mesh import MaterialMesh
-    from orpheus.data.macro_xs.mixture import Mixture
-
-    mat_map = np.full((nx, ny), -1, dtype=int)
-    for mid, (ix, iy) in cells_by_mat.items():
-        mat_map[np.asarray(ix), np.asarray(iy)] = mid
-    if (mat_map < 0).any():
-        raise ValueError(
-            "material_xs_from_raw: cells_by_mat must paint every cell of "
-            f"the ({nx}, {ny}) grid — a real carrier has no unassigned "
-            "cells."
-        )
-
-    z = np.zeros(ng)
-    materials = {
-        int(mid): Mixture(
-            SigC=z.copy(),
-            SigL=z.copy(),
-            SigF=z.copy(),
-            SigP=z.copy(),
-            SigT=np.ones(ng),
-            SigS=[csr_matrix(np.asarray(s)) for s in mats],
-            Sig2=[
-                csr_matrix(np.asarray(block))
-                for block in _as_stack(
-                    sig2[mid] if sig2 is not None and mid in sig2
-                    else np.zeros((ng, ng))
-                )
-            ],
-            chi=z.copy(),
-        )
-        for mid, mats in sig_s.items()
-    }
-    mesh = Mesh2D(
-        edges_x=np.arange(nx + 1, dtype=float),
-        edges_y=np.arange(ny + 1, dtype=float),
-        mat_map=mat_map,
-        face_roles={face: MirrorDeck() for face in ("xmin", "xmax", "ymin", "ymax")},
-    )
-    return MaterialMesh(mesh, materials).mat_xs
-
-
 # ── B3.2: face-ful method spaces for mesh-less realizer tests ────────
 
 
@@ -331,21 +213,6 @@ def face_method_space(quadrature, faces=("xmin", "xmax")):
 # cylinder + sphere split files (eigenvalue/, sweep/curvilinear/,
 # verification/analytical/) share ONE definition rather than each
 # carrying a copy.
-
-#: The unit specular wall a CURVED body's face takes where a Cartesian body takes a mirror deck (rule R2: a curved face carries a
-#: tag, never a deck). Tag ``0`` is the default role of the shared curvilinear builders below, and this is its table: a test that
-#: builds a curved body with the default role declares ``boundary_conditions=CURVED_REFLECTIVE`` at its solve.
-CURVED_REFLECTIVE = {0: WallCondition.specular(1.0)}
-
-
-def reflective_role(coord, tag: int = 0):
-    """A mirror deck on a Cartesian body, the tag ``tag`` (default ``0``, see :data:`CURVED_REFLECTIVE`) on a curved one.
-
-    A test whose own table maps another tag to the unit specular wall passes that tag.
-    """
-    from orpheus.geometry import CoordSystem
-
-    return MirrorDeck() if coord is CoordSystem.CARTESIAN else tag
 
 
 def curvilinear_homogeneous_mesh(

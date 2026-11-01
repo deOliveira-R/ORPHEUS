@@ -1807,9 +1807,23 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
         :attr:`SNProblem.angular_trial_space <orpheus.sn.problem.SNProblem.angular_trial_space>` and the axis-built arm
         of :meth:`BulkField.compose_spatial_moments
         <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>` both read it.
+
+        ``axes`` must be the mesh axes ``space``'s spatial axis was built over: the moment axis reads their count (the
+        cell-basis dimension) and their charts (the curved-chart refusal of :meth:`moment_axis`). A space whose spatial
+        shape is not :func:`~orpheus.mesh.axis.spatial_shape` of ``axes`` is refused with :class:`ValueError`. This is
+        the declared edge of machinery not built yet: when a space's spatial axis carries its own chart, ``axes`` is
+        read off ``space`` and the second argument, with this refusal, retires.
         """
         if not self.is_multi_moment:
             return space
+        from orpheus.mesh import spatial_shape
+
+        spatial = space.axis("spatial").shape
+        if spatial != spatial_shape(axes):
+            raise ValueError(
+                f"{type(self).__name__}.trial_space: the space's spatial axis has shape {spatial}, but the axes "
+                f"describe a spatial shape {spatial_shape(axes)}; pass the axes the space was built over."
+            )
         return space.with_axis(self.moment_axis(axes))
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────

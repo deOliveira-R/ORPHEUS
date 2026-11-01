@@ -543,7 +543,7 @@ at :ref:`bc-sweep-cycle`.
 Cartesian face), ``RAD_OUTER`` (the outer face of a solid or hollow radial body)
 and ``RAD_INNER`` (a hollow radial body's inner face, a tag with no trace). The SN
 columns, typed by hand in
-``tests/gates/transport/test_admission_matrix.py`` (``_SN_COLUMNS``) and pinned
+``tests/gates/cross_method/test_admission_matrix_s4.py`` (``_SN_COLUMNS``) and pinned
 against ``SN_REALIZERS`` exactly, are:
 
 .. list-table:: SN admission (R = realized; refusals name axis and issue)

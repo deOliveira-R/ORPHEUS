@@ -19,6 +19,10 @@ Mode-8 / L26: every assertion is a FUNCTION CALL (``np.testing.*`` /
 canonical ``-O`` invocation. Structural independence (L11): expected shapes
 are hand-built from the mesh's own ``(N/ng, *spatial)`` + an
 independently-computed ``per_axis ** ndim`` tail, NOT read off the field.
+
+Layer DAG Phase 4 (2026-11-01): posed on material meshes, a quadrature and a closure
+(tests/gates/transport/_phase_space_cases.Posed) with the raw constructors; the two rows on the SN problem's
+moment-field factory moved to tests/gates/sn/mesh/test_spatial_moment_field_space_on_the_problem.py.
 """
 
 from __future__ import annotations
@@ -29,27 +33,18 @@ import pytest
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.axis import BasisKind
 from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces import head_layout
-from orpheus.transport.fields._bases import BulkField
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space
+from tests.gates.transport._phase_space_cases import Posed
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
-from orpheus.transport.fields import HarmonicMomentFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.numerics.axis import Modal
 
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
-
 
 
 def _check(cond: bool, msg: str) -> None:
@@ -76,19 +71,13 @@ def _mesh_2d(scheme):
             "ymax": MirrorDeck(),
         },
     )
-    return SNProblem(
-        mesh, Quadrature.level_symmetric(4), placeholder_materials(ng=2),
-        scheme=scheme, boundary_conditions=conditions_for(mesh, _CONDITIONS),
-    )
+    return Posed(MaterialMesh(mesh, placeholder_materials(ng=2)), Quadrature.level_symmetric(4), scheme)
 
 
 def _mesh_1d(scheme):
     geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(5)).mesh     # nx = 5
-    return SNProblem(
-        mesh, Quadrature.gauss_legendre(4), placeholder_materials(ng=2),
-        scheme=scheme, boundary_conditions=conditions_for(mesh, _CONDITIONS),
-    )
+    return Posed(MaterialMesh(mesh, placeholder_materials(ng=2)), Quadrature.gauss_legendre(4), scheme)
 
 
 @pytest.fixture
@@ -124,9 +113,9 @@ def test_angular_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_
     caller's ``angular_trial_space`` selection, CS4b S5). Pinned against
     the independently-built expected shape from the mesh's own dims.
     """
-    mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
-    field = AngularFlux.zeros(mesh.angular_bulk_space)
-    expected = (mesh.quad.n_ordinates, mesh.ng, *mesh.spatial_shape)
+    posed = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
+    field = AngularFlux.zeros(angular_bulk_space(posed.mesh, posed.quadrature))
+    expected = (posed.quadrature.n_ordinates, posed.mesh.ng, *posed.mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
     # the space is a bare FunctionSpace (no tensor-product factor at default)
@@ -142,40 +131,12 @@ def test_scalar_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2
     this same ``bulk_space`` mint; it must stay byte-identical for both
     schemes (the negative control for the scattering-source widening).
     """
-    mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
-    field = ScalarFlux.zeros(mesh.bulk_space)
-    expected = (mesh.ng, *mesh.spatial_shape)
+    posed = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
+    field = ScalarFlux.zeros(posed.mesh.bulk_space)
+    expected = (posed.mesh.ng, *posed.mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
     _check(not hasattr(field.space, "factors"), "default space must be bare")
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize("scheme_name", ["dd", "ld"])
-def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
-    r"""``HarmonicMomentFlux.zeros_for_problem_and_L`` default == pre-S3 shape.
-
-    The windowed iterate carrier. Default ``spatial_moments=1`` →
-    ``(L+1, 2L+1, ng, *spatial)`` with NO trailing spatial-moment axis, AND
-    the composition tree carries only the angular harmonic head
-    factor (no axis labelled ``spatial_moment`` rides the product — since
-    CS4c step 6 item 6.2c-iii the tail is the scheme's own axis, never a
-    separate class).
-    """
-    mesh = {"dd": dd_2d, "ld": ld_2d}[scheme_name]
-    L = 1
-    field = HarmonicMomentFlux.zeros_for_problem_and_L(mesh, L)
-    expected = (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape)
-    np.testing.assert_equal(field.space.shape, expected)
-    np.testing.assert_equal(field.values.shape, expected)
-    np.testing.assert_equal(field.spatial_moments, 1)
-    # the angular factor is present; the spatial-moment axis is NOT (byte-id tree)
-    np.testing.assert_equal(head_layout(field.space.factors[0]).L, L)
-    assert field.space.axes is not None
-    np.testing.assert_equal(
-        [ax.label for ax in field.space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL], [],
-    )
-    np.testing.assert_equal(BulkField.spatial_moments_per_axis_of(field.space), 1)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -189,7 +150,7 @@ def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
     [
         # angular: the carrier's named widened mint (CS4b S5)
         pytest.param(
-            lambda m: AngularFlux.zeros(m.angular_trial_space),
+            lambda m: AngularFlux.zeros(m.scheme.trial_space(angular_bulk_space(m.mesh, m.quadrature), m.mesh.axes)),
             id="angular_flux",
         ),
         # scalar: no production consumer selects a widened scalar space
@@ -198,7 +159,7 @@ def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
         pytest.param(
             lambda m: ScalarFlux.zeros(
                 FunctionSpace.of_axes(
-                    *m.bulk_space.axes, m.scheme.moment_axis(m.axes),
+                    *m.mesh.bulk_space.axes, m.scheme.moment_axis(m.mesh.axes),
                 )
             ),
             id="scalar_flux",
@@ -212,10 +173,10 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     is ``2 ** 2 = 4``. The expected trailing length is recomputed inline
     (not read off the field).
     """
-    mesh = ld_2d
-    per_axis = mesh.scheme.spatial_basis_per_axis
-    field = field_factory(mesh)
-    independent_tail = (per_axis ** mesh.ndim,)
+    posed = ld_2d
+    per_axis = posed.scheme.spatial_basis_per_axis
+    field = field_factory(posed)
+    independent_tail = (per_axis ** posed.mesh.ndim,)
     np.testing.assert_equal(field.space.shape[-1:], independent_tail)
     np.testing.assert_equal(field.values.shape, field.space.shape)
     # CS4b S2: on an axis-built bulk space the tail is the scheme-owned
@@ -225,7 +186,7 @@ def test_bulk_field_widened_2d_shape(field_factory, ld_2d):
     tail_axis = field.space.axes[-1]
     np.testing.assert_equal(tail_axis.label, SPATIAL_MOMENT_AXIS_LABEL)
     assert isinstance(tail_axis.kind, Modal)
-    assert tail_axis == mesh.scheme.moment_axis(mesh.axes), "the tail is the scheme's own axis"
+    assert tail_axis == posed.scheme.moment_axis(posed.mesh.axes), "the tail is the scheme's own axis"
     np.testing.assert_equal(field.spatial_moments_per_axis, per_axis)
 
 
@@ -236,9 +197,9 @@ def test_angular_flux_widened_1d_shape(ld_1d):
     The 1-D scan carrier: the LD trial mint on a 1-D mesh → trailing
     axis of ``2`` (the ``[bar, slope]`` per-cell moment pair).
     """
-    mesh = ld_1d
-    field = AngularFlux.zeros(mesh.angular_trial_space)
-    np.testing.assert_equal(mesh.ndim, 1)
+    posed = ld_1d
+    field = AngularFlux.zeros(posed.scheme.trial_space(angular_bulk_space(posed.mesh, posed.quadrature), posed.mesh.axes))
+    np.testing.assert_equal(posed.mesh.ndim, 1)
     np.testing.assert_equal(field.space.shape[-1], 2)
     np.testing.assert_equal(field.values.shape, field.space.shape)
     # CS4b S2: the tail is the MODAL moment axis; the width reader is the
@@ -248,45 +209,19 @@ def test_angular_flux_widened_1d_shape(ld_1d):
 
 
 @pytest.mark.foundation
-def test_harmonic_moment_flux_widened_2d_shape(ld_2d):
-    r"""A widened windowed iterate gets a trailing ``per_axis ** ndim`` axis.
-
-    ``spatial_moments=2`` on a 2-D mesh → ``(L+1, 2L+1, ng, *spatial, 4)``;
-    BOTH moment factors coexist — the angular head queryable by type, the
-    spatial tail the scheme's own MODAL axis (mass-weighted, labelled
-    ``spatial_moment``; CS4c step 6 item 6.2c-iii) read by label — the
-    orthogonal-axes invariant on the live carrier.
-    """
-    mesh = ld_2d
-    L = 1
-    field = HarmonicMomentFlux.zeros_for_problem_and_L(mesh, L, spatial_moments=2)
-    expected = (L + 1, 2 * L + 1, mesh.ng, *mesh.spatial_shape, 2 ** mesh.ndim)
-    np.testing.assert_equal(field.space.shape, expected)
-    np.testing.assert_equal(field.values.shape, expected)
-    np.testing.assert_equal(field.spatial_moments, 2)
-    # both moment factors coexist (orthogonal axes)
-    np.testing.assert_equal(head_layout(field.space.factors[0]).L, L)
-    np.testing.assert_equal(BulkField.spatial_moments_per_axis_of(field.space), 2)
-    assert field.space.axes is not None
-    tail = [ax for ax in field.space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL]
-    np.testing.assert_equal(len(tail), 1)
-    np.testing.assert_equal(tail[0], mesh.scheme.moment_axis(mesh.axes))
-
-
-@pytest.mark.foundation
 def test_ctor_widened_roundtrip(ld_2d):
     r"""The ctor accepts a pre-shaped widened buffer on the trial mint.
 
     The reconstruction path (the iterate carrier's S3-A spelling, now
     space-primary): a buffer already carrying the trailing moment axis
     round-trips through ``AngularFlux(values=…,
-    space=mesh.angular_trial_space)`` and passes the Field shape gate
+    space=posed.scheme.trial_space(angular_bulk_space(posed.mesh, posed.quadrature), posed.mesh.axes))`` and passes the Field shape gate
     (``values.shape == space.shape`` — Pattern 4).
     """
-    mesh = ld_2d
-    shape = (mesh.quad.n_ordinates, mesh.ng, *mesh.spatial_shape, 2 ** mesh.ndim)
+    posed = ld_2d
+    shape = (posed.quadrature.n_ordinates, posed.mesh.ng, *posed.mesh.spatial_shape, 2 ** posed.mesh.ndim)
     values = np.arange(np.prod(shape), dtype=np.float64).reshape(shape)
-    field = AngularFlux(values=values, space=mesh.angular_trial_space)
+    field = AngularFlux(values=values, space=posed.scheme.trial_space(angular_bulk_space(posed.mesh, posed.quadrature), posed.mesh.axes))
     np.testing.assert_equal(field.space.shape, shape)
     np.testing.assert_array_equal(field.values, values)
 
@@ -299,9 +234,9 @@ def test_widened_space_rejects_wrong_shape_buffer(ld_2d):
     the widened space; a mismatched trailing axis is an illegal state.
     Production invariant → real ``raise`` (fires under ``-O``).
     """
-    mesh = ld_2d
+    posed = ld_2d
     # the trial space carries tail 4 (per_axis² on 2-D); feed a tail-2 buffer
-    bad_shape = (mesh.quad.n_ordinates, mesh.ng, *mesh.spatial_shape, 2)
+    bad_shape = (posed.quadrature.n_ordinates, posed.mesh.ng, *posed.mesh.spatial_shape, 2)
     bad = np.zeros(bad_shape)
     with pytest.raises(ValueError):
-        AngularFlux(values=bad, space=mesh.angular_trial_space)
+        AngularFlux(values=bad, space=posed.scheme.trial_space(angular_bulk_space(posed.mesh, posed.quadrature), posed.mesh.axes))

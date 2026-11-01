@@ -28,6 +28,12 @@ solvers that consume it:
 5. The base is ABSTRACT, and its selection refuses a third interior
    (the admission legs G5.3d exercises on the moment sibling live in
    ``tests/gates/sn/operators/test_moment_domain_binding.py``).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -37,9 +43,10 @@ import pytest
 from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -55,12 +62,7 @@ from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.fields import AngularSourceSink
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 
 
 pytestmark = pytest.mark.foundation
@@ -69,44 +71,62 @@ pytestmark = pytest.mark.foundation
 _L1_ABS_BAND = 2.3e-16
 
 
-def _sn() -> SNProblem:
+def _sn() -> MaterialMesh:
     materials = {0: get_mixture("A", "2g")}
     mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(20),
     ).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=8), materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, materials)
 
 
-def _mat_xs(sn: SNProblem):
+#: One full-field space per posed mesh, as the method problem's cached property kept one: the S6 row asserts the
+#: energy binding and the angular integral ride ONE memoised marginal, so every helper reads the same space object.
+_FFS: dict[int, tuple[MaterialMesh, FullFieldSpace]] = {}
+
+
+#: GL8 is load-bearing here: the S_L1 / N2N_L1 lifts need an angular frame of order >= 1 on the slab rule, and the
+#: l >= 1 band (``_L1_ABS_BAND``) was measured at GL8.
+def _ffs(sn: MaterialMesh) -> FullFieldSpace:
+    if id(sn) not in _FFS:
+        _FFS[id(sn)] = (sn, angular_full_field_space(sn, posing_quadrature(sn, 8), posing_scheme(sn)))
+    return _FFS[id(sn)][1]
+
+
+def _mat_xs(sn: MaterialMesh):
     return sn.mat_xs
 
 
-def _state(sn: SNProblem, seed: int) -> FullField:
+def _state(sn: MaterialMesh, seed: int) -> FullField:
+    ffs_sn = _ffs(sn)
+    trace_sn = _ffs(sn).trace_space
     rng = np.random.default_rng(seed)
-    interior = sn.full_field_space.interior_space
+    interior = ffs_sn.interior_space
     assert interior is not None
     return FullField(
         interior=AngularFlux(values=rng.standard_normal(interior.shape), space=interior),
-        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
+        boundary=AngularBoundaryFlux.zeros(trace_sn),
     )
 
 
-def _cotangent(sn: SNProblem, seed: int) -> FullField:
+def _cotangent(sn: MaterialMesh, seed: int) -> FullField:
+    ffs_sn = _ffs(sn)
+    trace_sn = _ffs(sn).trace_space
     rng = np.random.default_rng(seed)
-    interior = sn.full_field_space.interior_space
+    interior = ffs_sn.interior_space
     assert interior is not None
     return FullField(
         interior=AngularSourceSink(values=rng.standard_normal(interior.shape), space=interior),
-        boundary=AngularBoundaryFlux.zeros(sn.angular_trace).into_role(
+        boundary=AngularBoundaryFlux.zeros(trace_sn).into_role(
             FieldRole.SOURCE_SINK,
-            np.zeros(sn.angular_trace.shape),
+            np.zeros(trace_sn.shape),
         ),
     )
 
 
-def _lifts(sn: SNProblem) -> dict[str, AngularLift]:
+def _lifts(sn: MaterialMesh) -> dict[str, AngularLift]:
+    ffs_sn = _ffs(sn)
     mat_xs = _mat_xs(sn)
-    space = sn.full_field_space
+    space = ffs_sn
     return {
         "F": FissionOperator.from_solver_data(mat_xs=mat_xs, space=space),
         "S_L0": ScatteringOperator.from_solver_data(mat_xs=mat_xs, scattering_order=0, space=space),
@@ -185,8 +205,9 @@ def test_transpose_reciprocity_on_raw_arrays(key):
 
 def test_the_energy_binding_is_derived_from_the_datum_on_the_codomain_scalar_subspace():
     sn = _sn()
+    ffs_sn = _ffs(sn)
     lifts = _lifts(sn)
-    interior = sn.full_field_space.interior_space
+    interior = ffs_sn.interior_space
     assert interior is not None and interior.axes is not None
     scalar = FunctionSpace.of_axes(*interior.axes[1:])
     F = lifts["F"]
@@ -205,10 +226,12 @@ def test_the_energy_binding_is_derived_from_the_datum_on_the_codomain_scalar_sub
 
 def test_the_base_is_abstract_and_refuses_a_third_interior():
     sn = _sn()
-    interior = sn.full_field_space.interior_space
+    ffs_sn = _ffs(sn)
+    trace_sn = _ffs(sn).trace_space
+    interior = ffs_sn.interior_space
     assert interior is not None
     frame = HarmonicFrame.for_space(interior, 0)
-    space = sn.full_field_space
+    space = ffs_sn
     with pytest.raises(TypeError, match="abstract"):
         AngularLift(  # type: ignore[abstract]
             flux_analysis=frame.flux_analysis_on(interior),
@@ -220,7 +243,7 @@ def test_the_base_is_abstract_and_refuses_a_third_interior():
     from orpheus.transport.material_field import FissionMaterialField
 
     other = FullFieldSpace.from_blocks(
-        FunctionSpace(name="third", shape=tuple(interior.shape)), sn.angular_trace,
+        FunctionSpace(name="third", shape=tuple(interior.shape)), trace_sn,
     )
     with pytest.raises(TypeError, match="neither end of the analysis face"):
         FissionOperator(
@@ -273,12 +296,14 @@ def test_the_operand_role_is_admitted_not_cast():
     and the leaf the body reads (not an ``AttributeError`` from inside the
     body)."""
     sn = _sn()
+    ffs_sn = _ffs(sn)
+    trace_sn = _ffs(sn).trace_space
     S = _lifts(sn)["S_L1"]
-    interior = sn.full_field_space.interior_space
+    interior = ffs_sn.interior_space
     assert interior is not None
     wrong_role = FullField(
         interior=AngularSourceSink(values=np.ones(interior.shape), space=interior),
-        boundary=AngularBoundaryFlux.zeros(sn.angular_trace),
+        boundary=AngularBoundaryFlux.zeros(trace_sn),
     )
     with pytest.raises(TypeError, match=r"ScatteringOperator.*AngularFlux interior"):
         S.apply(wrong_role)
@@ -295,11 +320,13 @@ def test_a_composite_with_a_foreign_trace_is_refused():
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
     sn = _sn()
+    ffs_sn = _ffs(sn)
+    trace_sn = _ffs(sn).trace_space
     S = _lifts(sn)["S_L0"]
-    interior = sn.full_field_space.interior_space
+    interior = ffs_sn.interior_space
     assert interior is not None
     foreign = FullFieldSpace.from_blocks(
-        interior, FunctionSpace(name="foreign-trace", shape=tuple(sn.angular_trace.shape)),
+        interior, FunctionSpace(name="foreign-trace", shape=tuple(trace_sn.shape)),
     )
     S_foreign = replace(S, domain=foreign, codomain=foreign)
     with pytest.raises(TypeError, match="trace"):
@@ -314,9 +341,10 @@ def test_mixed_frame_faces_are_refused_at_construction():
     from orpheus.transport.material_field import FissionMaterialField
 
     sn = _sn()
-    interior = sn.full_field_space.interior_space
+    ffs_sn = _ffs(sn)
+    interior = ffs_sn.interior_space
     assert interior is not None
-    space = sn.full_field_space
+    space = ffs_sn
     with pytest.raises(TypeError, match="do not meet"):
         FissionOperator(
             FissionMaterialField.from_material_xs(_mat_xs(sn)),
@@ -332,8 +360,9 @@ def test_the_scalar_subspace_is_the_codomains_memoised_angular_marginal():
     space), so the ℓ = 0 emission's space and the energy binding's domain
     agree by identity, not by content."""
     sn = _sn()
+    ffs_sn = _ffs(sn)
     S = _lifts(sn)["S_L0"]
-    interior = sn.full_field_space.interior_space
+    interior = ffs_sn.interior_space
     assert interior is not None
     marginal = AxisRetractionOperator.of(interior, "angular").codomain
     assert S._scalar_interior_space is marginal

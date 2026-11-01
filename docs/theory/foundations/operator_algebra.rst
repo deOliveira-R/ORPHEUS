@@ -2855,7 +2855,9 @@ the positions the coefficient occupies; until U1b, ``112106eb``, the
 multiplier's private helper ``_broadcast_axes`` returned their complement,
 and the engine took it as ``broadcast_axes=``). Its gate is
 ``tests/gates/transport/test_multiplication_operator.py::TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan``
-(10 rows over the LD slab, the LD 2-D, the DD slab and the DD 2-D
+with its sweep-atom rows in
+``tests/gates/sn/operators/test_multiplication_operator_on_the_problem.py`` (the class split by owner in
+layer DAG Phase 4; 10 rows over the LD slab, the LD 2-D, the DD slab and the DD 2-D
 fixtures, 2 groups each; the DD rows are the controls, whose bulk has no
 moment axis): the multiply equals :math:`\sigma` expanded by hand, the
 plain sum equals the atom's own action to :math:`8\varepsilon` relative
@@ -4174,8 +4176,9 @@ above is the gate that states the new spelling.
    production AND absorption pinned independently — + the hand-derived
    double-loop density reference + the no-measure guard);
    ``tests/gates/transport/test_integrated_reaction_rate.py``
-   (:math:`k_\infty` as the ratio of integrated rates, incl. the
-   ``(n,2n)`` term). Dyad laws: ``tests/gates/numerics/test_outer_dyad.py``
+   (:math:`k_\infty` as the ratio of integrated rates) and
+   ``tests/gates/sn/operators/test_production_rate_counts_n2n.py`` (the
+   ``(n,2n)`` term of SN's production rate). Dyad laws: ``tests/gates/numerics/test_outer_dyad.py``
    (action / rank-1 / adjointability / linearity). Estimator honesty:
    ``tests/gates/numerics/test_estimators_as_functionals.py``. The
    field-to-scalar contraction is coded in three places today
@@ -6599,7 +6602,8 @@ CS4b S5 the same factor was composed on by an explicit
 which is the one composer every widened space rides — the angular and
 scalar mints, and, since CS4c step 6 item 6.2c-iii, the carrier's
 harmonic-moment product too), and the flat face-buffer moment tail minted by
-:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` on
+:func:`~orpheus.transport.phase_spaces.angular_face_layout` (read back as
+:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`) on
 the boundary — rather than as its own field type.  A ``BoundaryMomentField`` leaf whose
 partner-check added nothing beyond class identity would be the vacuous naming
 leaf the criterion warns against; the transverse boundary moment is therefore a
@@ -11153,6 +11157,40 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-11-01
+     - **The transport phase spaces have raw constructors, and the transport
+       tests are posed on them** (Phase 4 of ``.claude/plans/layer_dag.md``,
+       ruling 24). :mod:`orpheus.transport.phase_spaces` spells each space's
+       rule once, as a function of a material mesh and the method's
+       generators: ``angular_bulk_space``, ``angular_face_layout`` and
+       ``angular_trace_space``, and ``scalar_trace_space``, which refuses a
+       mesh of two or more axes (a declared scope boundary, #685). The trial
+       widening is the scheme's verb ``trial_space(space, axes)``, which
+       refuses axes that disagree with the space, and the traced faces are
+       one list, ``orpheus.mesh.trace_face_shapes``, which retires the face
+       inventory ``SNProblem`` and ``DiffusionMesh`` each spelled.
+       ``SNProblem`` and ``DiffusionMesh`` mint their spaces by one call each
+       and keep them cached (:ref:`indexing-carrier-cached-mints`). Two
+       space-keyed entries replace carrier-keyed ones for a caller holding
+       only a space: ``BoundaryField.from_face_arrays_on`` and
+       ``AngularBoundarySourceSink.prescribed_inflow_on``. The latter writes
+       the projector :math:`\iota_-\circ\gamma_-` through
+       ``trace.inflow_restriction(face)``, and ``from_method`` places its
+       samples with the scatter :math:`\iota_-`, so the two hand-written
+       inflow masks that covered for each other on the declared route are
+       gone (qa finding F1; ERR-047 names each route's catchers).
+       Tests: ``[M]`` the open list of test-layer violations,
+       ``OPEN_TEST_LAYER_VIOLATIONS`` in ``tests/gates/test_test_layers.py``,
+       goes from 139 rows to 39; the 100 rows cleared are 77 transport and
+       23 numerics (the census of ``scratch/layer_dag/phase4/census.md``).
+       Six new gate files pin the constructors against hand-built
+       references and the hub mints against the constructors. Over eight
+       test directories and the layer gate file, ``--collect-only`` gave 13191 ids
+       before and 13276 after: 126 moved, 85 added, 0 lost
+       (``[M]`` 2026-11-01, ``scratch/layer_dag/phase4/landing_report.md``,
+       section 3).
+     - #685, #686
+     - *(in development)* ``refactor/transport-space-constructors``
    * - 2026-11-01
      - **The numerics law gates are posed on numerics data alone**
        (Phase 2 of ``.claude/plans/layer_dag.md``, ruling 40). The pencil,

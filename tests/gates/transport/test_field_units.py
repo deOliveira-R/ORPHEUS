@@ -27,6 +27,12 @@ References
 * ``.claude/plans/field_role_typing_view_g.md`` — Phase B step B.4.
 * ``orpheus/numerics/units.py`` — the registry + the four signatures +
   the eV-free / exact-``sr`` convention rationale.
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -34,10 +40,7 @@ import numpy as np
 import pint
 import pytest
 
-from orpheus.geometry import StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.field import Field
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.units import (
     ANGULAR_FLUX_UNITS,
     ANGULAR_RATE_UNITS,
@@ -45,7 +48,7 @@ from orpheus.numerics.units import (
     SCALAR_RATE_UNITS,
     UREG,
 )
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.phase_spaces import angular_bulk_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -57,13 +60,8 @@ from orpheus.transport.residuals import (
 )
 from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSink, ScalarSourceSink
 
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._phase_space_cases import posing_quadrature
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = pytest.mark.foundation
@@ -87,14 +85,6 @@ LEAF_UNITS = [
 THE_FOUR = [
     ANGULAR_FLUX_UNITS, SCALAR_FLUX_UNITS, ANGULAR_RATE_UNITS, SCALAR_RATE_UNITS,
 ]
-
-
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -206,9 +196,9 @@ class TestUnitsIsClassVarNotField:
     def test_units_is_class_level_shared(self) -> None:
         """The constant lives on the class and is shared by every instance
         (one object, constructed once at import)."""
-        m = _slab_mesh()
-        a = AngularSourceSink(values=np.zeros((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
-        b = AngularSourceSink(values=np.ones((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        a = AngularSourceSink(values=np.zeros((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)), space=angular_bulk_space(m, posing_quadrature(m)))
+        b = AngularSourceSink(values=np.ones((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)), space=angular_bulk_space(m, posing_quadrature(m)))
         assert a.UNITS is b.UNITS is AngularSourceSink.UNITS
 
 
@@ -219,8 +209,8 @@ class TestUnitsIsClassVarNotField:
 
 class TestUnitsDiagnostics:
     def test_repr_is_concise_and_shows_units(self) -> None:
-        m = _slab_mesh()
-        src = AngularSourceSink(values=np.zeros((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        src = AngularSourceSink(values=np.zeros((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)), space=angular_bulk_space(m, posing_quadrature(m)))
         r = repr(src)
         assert r.startswith("AngularSourceSink(")
         assert "shape=(4, 2, 4)" in r
@@ -229,10 +219,10 @@ class TestUnitsDiagnostics:
         assert "array(" not in r
 
     def test_cross_class_error_shows_both_units_and_guidance(self) -> None:
-        m = _slab_mesh()
-        shp = (m.quad.n_ordinates, m.ng, *m.spatial_shape)
-        src = AngularSourceSink(values=np.ones(shp), space=m.angular_bulk_space)
-        res = AngularResidual(values=np.ones(shp), space=m.angular_bulk_space)
+        m = slab_mesh()
+        shp = (posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)
+        src = AngularSourceSink(values=np.ones(shp), space=angular_bulk_space(m, posing_quadrature(m)))
+        res = AngularResidual(values=np.ones(shp), space=angular_bulk_space(m, posing_quadrature(m)))
         with pytest.raises(TypeError) as ei:
             _ = res - src
         msg = str(ei.value)
@@ -246,7 +236,7 @@ class TestUnitsDiagnostics:
 
     def test_error_label_for_non_field_partner(self) -> None:
         """A non-Field operand has no UNITS — the label degrades gracefully."""
-        m = _slab_mesh()
-        src = AngularSourceSink(values=np.ones((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        src = AngularSourceSink(values=np.ones((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)), space=angular_bulk_space(m, posing_quadrature(m)))
         with pytest.raises(TypeError, match="<no units>"):
             _ = src + 42  # type: ignore[operator]

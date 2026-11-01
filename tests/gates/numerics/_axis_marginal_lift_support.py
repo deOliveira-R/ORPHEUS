@@ -1,6 +1,8 @@
 """Fixtures and independent evaluators for ``test_axis_marginal_lift.py``.
 
-The fixtures are built from production factories only. The evaluators never
+The fixtures are the production SHAPES (the shipped rules, the charts, the LD trial factor, the frame-dressed heads)
+spelled in numerics vocabulary (``_phase_space_twins.py``, layer DAG Phase 4); that production builds exactly these
+products is ``tests/gates/transport/test_phase_spaces.py``'s claim. The evaluators never
 call ORPHEUS's ``basis.evaluate`` (X4): real spherical harmonics in ORPHEUS's
 no-prefactor convention (``orpheus.numerics.basis.spherical_harmonic_basis``'s
 module docstring: polar axis mu_x, cos(phi) = mu_y / sin(theta), sin(phi) =
@@ -22,56 +24,31 @@ import numpy as np
 from numpy.polynomial import legendre as npleg
 from scipy.special import lpmv
 
-from orpheus.data.macro_xs.synthetic import get_mixture
-from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis, Modal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
-
-
-
-def _mats():
-    return {0: get_mixture("A", "2g"), 1: get_mixture("B", "2g")}
+from tests.gates.numerics._phase_space_twins import spatial_axis_1d, spatial_axis_2d, twin
 
 
 @cache
 def problems():
-    from orpheus.sn.solver import _as_problem
-    from orpheus.mesh.structured import Mesh2D
-    from orpheus.transport.spatial import LinearDiscontinuous
-
-    slab = Mesher(StructuredGeometry.slab(
-        (0.0, 0.37, 1.9, 4.13), (0, 1, 0), left=0, right=MirrorDeck(),
-    )).partition((CellsByCount.uniform_width(3), CellsByCount.uniform_width(5), CellsByCount.uniform_width(7))).mesh
-    sph = Mesher(StructuredGeometry.sphere((0.0, 1.5, 3.0), (0, 1), outer=0)).partition(
-        CellsByCount.uniform_width(3)).mesh
-    cyl = Mesher(StructuredGeometry.cylinder((0.0, 1.0, 2.5), (0, 1), outer=0)).partition(
-        (CellsByCount.uniform_width(3), CellsByCount.uniform_width(4))).mesh
-    nx, ny = 4, 5
-    mat_map = np.zeros((nx, ny), dtype=int)
-    mat_map[nx // 2:, :] = 1
-    xy = Mesh2D(
-        edges_x=np.linspace(0.0, 2.0, nx + 1), edges_y=np.linspace(0.0, 3.0, ny + 1),
-        mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-        face_roles={"xmin": MirrorDeck(), "xmax": 0, "ymin": MirrorDeck(), "ymax": 0},
-    )
-    m = _mats()
+    """The six production-shaped phase spaces the S1 population reads, as numerics twins (layer DAG Phase 4; until
+    then six ``_as_problem`` SN carriers, which a numerics gate may not import): the same quadratures, the same
+    charts and cell edges (a 3-region slab of 3 + 5 + 7 cells, a 2-region sphere of 3 + 3, a 2-region cylinder of
+    3 + 4, a 4 x 5 rectangle), two groups; the LD slab's widened trial space is ``Twin.ld_trial``."""
+    slab_edges = np.concatenate([np.linspace(0.0, 0.37, 4), np.linspace(0.37, 1.9, 6)[1:], np.linspace(1.9, 4.13, 8)[1:]])
+    sph_edges = np.concatenate([np.linspace(0.0, 1.5, 4), np.linspace(1.5, 3.0, 4)[1:]])
+    cyl_edges = np.concatenate([np.linspace(0.0, 1.0, 4), np.linspace(1.0, 2.5, 5)[1:]])
+    slab = spatial_axis_1d("slab", slab_edges)
+    xy = spatial_axis_2d(np.linspace(0.0, 2.0, 5), np.linspace(0.0, 3.0, 6))
     return {
-        "slab GL8": _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=8), m, boundary_conditions=conditions_for(slab, _CONDITIONS)),
-        "slab GL8 LD": _as_problem(slab, Quadrature.gauss_legendre(n_ordinates=8), m, scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(slab, _CONDITIONS)),
-        "sphere GL8": _as_problem(sph, Quadrature.gauss_legendre(n_ordinates=8), m, boundary_conditions=conditions_for(sph, _CONDITIONS)),
-        "cylinder folded(4,8)": _as_problem(cyl, Quadrature.folded_product(4, 8), m, boundary_conditions=conditions_for(cyl, _CONDITIONS)),
-        "xy LS4": _as_problem(xy, Quadrature.level_symmetric(sn_order=4), m, boundary_conditions=conditions_for(xy, _CONDITIONS)),
-        "xy product(4,8)": _as_problem(xy, Quadrature.product(4, 8), m, boundary_conditions=conditions_for(xy, _CONDITIONS)),
+        "slab GL8": twin(Quadrature.gauss_legendre(n_ordinates=8), slab),
+        "slab GL8 LD": twin(Quadrature.gauss_legendre(n_ordinates=8), slab),
+        "sphere GL8": twin(Quadrature.gauss_legendre(n_ordinates=8), spatial_axis_1d("sphere", sph_edges)),
+        "cylinder folded(4,8)": twin(Quadrature.folded_product(4, 8), spatial_axis_1d("cylinder", cyl_edges)),
+        "xy LS4": twin(Quadrature.level_symmetric(sn_order=4), xy),
+        "xy product(4,8)": twin(Quadrature.product(4, 8), xy),
     }
 
 
@@ -145,12 +122,12 @@ def registry():
     """name -> space, every member of the S1 population (resolved by NAME at run time, L100)."""
     reg = {}
     for pn, p in problems().items():
-        reg[f"{pn} angular_bulk"] = p.angular_bulk_space
+        reg[f"{pn} angular_bulk"] = p.angular_bulk
         for L in (1, 2):
-            reg[f"{pn} moment L{L}"] = p.moment_space(L)
-    reg["slab GL8 LD angular_trial"] = problems()["slab GL8 LD"].angular_trial_space
-    reg["slab GL8 bulk"] = problems()["slab GL8"].bulk_space
-    reg["xy LS4 bulk"] = problems()["xy LS4"].bulk_space
+            reg[f"{pn} moment L{L}"] = p.moment(L)
+    reg["slab GL8 LD angular_trial"] = problems()["slab GL8 LD"].ld_trial()
+    reg["slab GL8 bulk"] = problems()["slab GL8"].bulk
+    reg["xy LS4 bulk"] = problems()["xy LS4"].bulk
     reg |= {k: v for k, v in head_products().items() if "[head alone]" not in k}
     reg |= synthetic()
     reg["zero-weight nodal"] = zero_weight_nodal()
@@ -182,8 +159,6 @@ SYNTHETIC_MODAL_ROWS = [("D2", "angular")]
 def resolve(name, label):
     V = registry()[name]
     return V, (V.axes[0].label if label is None else label)
-
-
 
 
 def real_sh_table(L: int, directions: np.ndarray) -> np.ndarray:

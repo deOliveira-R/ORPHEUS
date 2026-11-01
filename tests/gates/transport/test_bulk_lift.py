@@ -24,6 +24,12 @@ of the family's two carrier parses. These rows pin the verbs and
 The inner used for the value rows is the diffusion energy binding
 ``IsotropicScattering + IsotropicN2N`` on the mesh's plain ``bulk_space``
 — the binding the diffusion solver lifts after step 5 (R-4).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -34,10 +40,11 @@ import pytest
 from scipy import sparse
 
 from orpheus.data.macro_xs.synthetic import make_mixture
-from orpheus.diffusion import DiffusionMesh
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import scalar_trace_space
+from tests.gates.transport._phase_space_cases import scalar_full_field_space
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.assembled_operator import MissingAssembly, assemble
 from orpheus.numerics.operator import BlockRole
@@ -71,7 +78,7 @@ _SIG_S = np.array([[0.38, 0.10], [0.05, 0.90]])
 _SIG_T = np.array([0.60, 1.20])
 
 
-def _mesh(n_cells: int = 4) -> DiffusionMesh:
+def _mesh(n_cells: int = 4) -> MaterialMesh:
     mix = make_mixture(
         sig_t=_SIG_T, sig_c=_SIG_T - _SIG_S.sum(axis=1),
         sig_f=np.zeros(2), nu=np.zeros(2), chi=np.zeros(2), sig_s=_SIG_S,
@@ -80,11 +87,11 @@ def _mesh(n_cells: int = 4) -> DiffusionMesh:
         (0.0, 2.0), (0,), left=MirrorDeck(), right=0,
     )
     mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(n_cells)).mesh
-    return DiffusionMesh(mesh1d, {0: mix}, boundary_conditions={0: WallCondition.vacuum()})
+    return MaterialMesh(mesh1d, {0: mix})
 
 
 @pytest.fixture
-def mesh() -> DiffusionMesh:
+def mesh() -> MaterialMesh:
     return _mesh()
 
 
@@ -99,15 +106,15 @@ def inner(mesh):
 
 @pytest.fixture
 def lift(mesh, inner) -> BulkLift:
-    space = mesh.full_field_space
+    space = scalar_full_field_space(mesh)
     return BulkLift(inner, domain=space, codomain=space)
 
 
-def _flux(mesh: DiffusionMesh, seed: int) -> FullField:
+def _flux(mesh: MaterialMesh, seed: int) -> FullField:
     rng = np.random.default_rng(seed)
     return FullField(
         interior=ScalarFlux(values=rng.random(mesh.bulk_space.shape) + 0.5, space=mesh.bulk_space),
-        boundary=ScalarBoundaryFlux(values=rng.random(mesh.scalar_trace.shape) + 0.1, space=mesh.scalar_trace),
+        boundary=ScalarBoundaryFlux(values=rng.random(scalar_trace_space(mesh).shape) + 0.1, space=scalar_trace_space(mesh)),
     )
 
 
@@ -166,7 +173,7 @@ class TestAdmission:
         wrong = IsotropicScattering.from_material_xs(
             other.mat_xs, space=other.bulk_space,
         )
-        space = mesh.full_field_space
+        space = scalar_full_field_space(mesh)
         with pytest.raises(TypeError, match="bind the inner operator on the composite's interior"):
             BulkLift(wrong, domain=space, codomain=space)
 
@@ -278,7 +285,7 @@ class TestAssemblyEmbed:
         rng = np.random.default_rng(12)
         n = int(np.prod(mesh.bulk_space.shape))
         block = sparse.random_array((n, n), density=0.5, rng=rng)
-        space = mesh.full_field_space
+        space = scalar_full_field_space(mesh)
         embedded = embed_bulk_assembly(block, domain=space, codomain=space).toarray()
         n_total = int(space.shape[0])
         assert embedded.shape == (n_total, n_total) and n_total > n
@@ -286,7 +293,7 @@ class TestAssemblyEmbed:
         assert not embedded[n:, :].any() and not embedded[:, n:].any()
 
     def test_a_bulk_of_the_wrong_size_is_refused(self, mesh):
-        space = mesh.full_field_space
+        space = scalar_full_field_space(mesh)
         bulk = sparse.coo_array(sparse.eye_array(3))
         with pytest.raises(ValueError, match="not bound on the composite's interiors"):
             embed_bulk_assembly(bulk, domain=space, codomain=space)
@@ -297,7 +304,7 @@ class TestAssemblyEmbed:
             rng.random(mesh.bulk_space.shape) + 0.5,
             domain=mesh.bulk_space, codomain=mesh.bulk_space,
         )
-        space = mesh.full_field_space
+        space = scalar_full_field_space(mesh)
         lift = BulkLift(inner, domain=space, codomain=space)
         psi = _flux(mesh, 14)
         assert lift.is_assemblable
@@ -317,7 +324,7 @@ class TestAssemblyEmbed:
 
     def test_a_non_assemblable_inner_refuses_naming_the_lift(self, mesh):
         inner = _NoAssembly(domain=mesh.bulk_space, codomain=mesh.bulk_space)
-        space = mesh.full_field_space
+        space = scalar_full_field_space(mesh)
         lift = BulkLift(inner, domain=space, codomain=space)
         assert not lift.is_assemblable
         # The functor runs the lift's own recursion, so the refusal names
@@ -347,7 +354,7 @@ def test_g2_bulk_lift_embedding(mesh) -> None:
         np.random.default_rng(13).random(mesh.bulk_space.shape) + 0.5,
         domain=mesh.bulk_space, codomain=mesh.bulk_space,
     )
-    space = mesh.full_field_space
+    space = scalar_full_field_space(mesh)
     emit, calls = _recording_emit()
     BulkLift(inner, domain=space, codomain=space).assembled_matrix(emit)
     assert len(calls) == 1 and calls[0] is inner

@@ -37,19 +37,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.mesh import CellsByCount, Mesh2D, Mesher
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.geometry import CoordSystem
+from orpheus.mesh import Mesh2D
+from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.fields.cross_section_field import CrossSectionField
-from tests.gates.sn._test_helpers import placeholder_materials
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
-
+from tests.gates.transport._materials import placeholder_materials
+from tests.gates.transport._phase_space_cases import slab_mesh  # noqa: F401  (re-exported: the one slab builder)
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -100,16 +93,7 @@ def require_production_rate_functional():
 # ───────────────────────────────────────────────────────────────────────
 
 
-def slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    """A 1-D slab, ``ng`` groups, ``nx`` cells, GL-4 quadrature."""
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-def cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
+def cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> MaterialMesh:
     """The axis-discriminating regime: nx ≠ ny, ng = 2.
 
     A wrong contraction axis (group-vs-spatial variable-swap, mode #2)
@@ -128,8 +112,7 @@ def cartesian_2d_mesh(nx: int = 5, ny: int = 3, ng: int = 2) -> SNProblem:
             "ymax": 0,
         },
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -177,7 +160,7 @@ def asymmetric_phi(ng: int, spatial_shape: tuple[int, ...]) -> np.ndarray:
     return np.stack(rows, axis=0)
 
 
-def cross_section_field(values: np.ndarray, problem: SNProblem) -> CrossSectionField:
+def cross_section_field(values: np.ndarray, problem: MaterialMesh) -> CrossSectionField:
     """Wrap raw ``(ng, *spatial)`` into a typed CrossSectionField."""
     return CrossSectionField(values=values, space=problem.bulk_space)
 

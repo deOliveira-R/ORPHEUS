@@ -50,7 +50,7 @@ from orpheus.derivations.discrete.sn.ld_ubld import (
 )
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.sn.mesh.reduced_operator import slab_streaming
+from tests.gates.transport._phase_space_cases import slab_streaming_terms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.transport.spatial.scheme import CellVisit
@@ -131,14 +131,13 @@ class TestOracleId1Reduction:
         them — so the gate is anchored to the running algebra, not only to a
         re-typed copy of its formula (structural-independence of the cross-check).
         """
-        # Concrete slab cell + ordinate from the production factory.
+        # Concrete slab cell + ordinate: the slab terms by hand (the SN operator feeds the same; see slab_streaming_terms).
         mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
             CellsByCount.uniform_width(5),
         ).mesh
         quad = Quadrature.gauss_legendre(4)
-        op = slab_streaming(mesh, quad)
         cell_idx, direction_idx = 2, quad.n_ordinates - 1     # most-positive ordinate
-        st = op.streaming_terms(cell_idx, direction_idx)
+        st = slab_streaming_terms(mesh, quad, cell_idx, direction_idx)
         _require(
             st.abs_mu is not None and st.volume is not None,
             "slab StreamingTerms must populate abs_mu and volume",

@@ -74,7 +74,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.frames import HarmonicFrame
 from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
-from tests.gates.sn._test_helpers import material_xs_from_raw
+from tests.gates.transport._materials import material_xs_from_raw
 from orpheus.numerics import frame_faces
 
 pytestmark = pytest.mark.foundation

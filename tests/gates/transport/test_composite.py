@@ -22,6 +22,12 @@ Two things at once (the carrier-generalization gate, campaign Phase A2):
 
 Reuses the diffusion 2-material / 4-cell / 2-group slab (its scalar leaves are
 the only non-SN ``BulkField`` / ``BoundaryField`` family in the tree today).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 
 from __future__ import annotations
@@ -30,10 +36,11 @@ import numpy as np
 import pytest
 
 from orpheus.data.macro_xs.synthetic import make_mixture
-from orpheus.diffusion import DiffusionMesh
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import scalar_trace_space
+from tests.gates.transport._phase_space_cases import scalar_full_field_space
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.mesh import CellEdges, Mesher
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -74,17 +81,17 @@ def _materials() -> dict[int, object]:
 
 
 @pytest.fixture
-def mesh() -> DiffusionMesh:
+def mesh() -> MaterialMesh:
     mesh1d = Mesher(_GEOMETRY).partition(_CELLS).mesh
-    return DiffusionMesh(mesh1d, _materials(), boundary_conditions={0: WallCondition.vacuum()})
+    return MaterialMesh(mesh1d, _materials())
 
 
-def _scalar_composite(mesh: DiffusionMesh, seed: int) -> "Composite":
+def _scalar_composite(mesh: MaterialMesh, seed: int) -> "Composite":
     """A pure scalar ``Composite`` (interior ⊕ boundary, NO ψ½) on ``mesh``."""
     rng = np.random.default_rng(seed)
     return Composite(
         interior=ScalarFlux(values=rng.random((2, 4)) + 0.5, space=mesh.bulk_space),
-        boundary=ScalarBoundaryFlux(values=rng.random(mesh.scalar_trace.shape[0]) + 0.1, space=mesh.scalar_trace),
+        boundary=ScalarBoundaryFlux(values=rng.random(scalar_trace_space(mesh).shape[0]) + 0.1, space=scalar_trace_space(mesh)),
     )
 
 
@@ -108,7 +115,7 @@ def test_pure_composite_has_no_ray_slot(mesh) -> None:
 
 def test_mesh_reads_off_either_leaf(mesh) -> None:
     c = _scalar_composite(mesh, 0)
-    assert c.space == mesh.full_field_space
+    assert c.space == scalar_full_field_space(mesh)
 
 
 # ── Vector-space intrinsic laws (base hooks exercised via SCALAR leaves) ──

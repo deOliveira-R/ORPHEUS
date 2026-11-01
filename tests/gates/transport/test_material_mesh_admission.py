@@ -33,23 +33,23 @@ has a ``from_materials``. (The energy-arm rule that once shared the name,
 ``EnergyAxis.from_materials``, is now ``orpheus.data.materials.energy_axis_of``,
 gated at ``test_kernels.py``; with the homonym gone there is no name left to
 confuse, so this file no longer pins it.)
+
+Layer DAG Phase 4 (2026-11-01) split this file by owner: the rows that construct an SNProblem (G7.1, G7.2, G7.3's
+positive control and d <= 2 law, and R1's from_axes row) are tests/gates/sn/mesh/test_problem_admission.py, and R1's
+carrier-hierarchy row (it names SNProblem and DiffusionMesh) is
+tests/gates/cross_method/test_material_mesh_admission.py. What stays here is the MaterialMesh-only complement of
+G7.3: every 1-D carrier answers areas.
 """
 
 from __future__ import annotations
 
-import numpy as np
 import pytest
 
-from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
-from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
-from orpheus.mesh import AxisMesh
+from orpheus.mesh import CellsByCount, Mesher
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 
 pytestmark = [pytest.mark.foundation]
 
@@ -59,110 +59,10 @@ def _require(condition: bool, message: str) -> None:
         pytest.fail(message)
 
 
-def _legacy_1d() -> MaterialMesh:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(5),
-    ).mesh
-    return MaterialMesh(mesh, placeholder_materials(ng=2))
-
-
-def _legacy_2d() -> MaterialMesh:
-    mesh2d = Mesh2D(
-        edges_x=np.linspace(0.0, 1.0, 3),
-        edges_y=np.linspace(0.0, 2.0, 4),
-        mat_map=np.zeros((2, 3), dtype=int),
-        face_roles={"xmin": 0, "xmax": 0, "ymin": 0, "ymax": 0},
-    )
-    return MaterialMesh(mesh2d, placeholder_materials(ng=2))
-
-
-def _axes(*extents_and_cells: tuple[float, int]) -> tuple[AxisMesh, ...]:
-    return tuple(
-        AxisMesh(edges=np.linspace(0.0, ext, n + 1), role_low=MirrorDeck(), role_high=MirrorDeck())
-        for ext, n in extents_and_cells
-    )
-
-
-def _sn_from_axes(axes: tuple[AxisMesh, ...]) -> SNProblem:
-    quadrature = (
-        Quadrature.gauss_legendre(4) if len(axes) == 1
-        else Quadrature.level_symmetric(sn_order=4)
-    )
-    return SNProblem.from_axes(axes, quadrature, placeholder_materials(ng=2))
-
-
-def _d3_sn() -> SNProblem:
-    return _sn_from_axes(_axes((1.0, 2), (2.0, 3), (3.0, 2)))
-
-
-class TestG71PromotionRefusal:
-    def test_a_real_carrier_promotes(self):
-        """Positive leg (vv #11): the legacy 1-D carrier promotes to a
-        solvable SN phase space. (Its negative leg — the mesh-less 1-cell
-        carrier refused with a typed ``ValueError`` — retired with the
-        carrier at the CS4c coda: nothing can be built for it to refuse.)"""
-        sn = SNProblem.from_material_mesh(
-            _legacy_1d(), Quadrature.gauss_legendre(4), boundary_conditions={0: WallCondition.vacuum()},
-        )
-        if sn.ng != 2 or sn.spatial_shape != (5,):
-            pytest.fail("promotion must preserve the carrier's data block")
-
-
-class TestG72AreasNamesItsOwnCase:
-    def test_axis_native_arm_names_the_carrier(self):
-        """The d=3 axis-native SN carrier (mesh is None, ndim=3) — the
-        pre-S7 message blamed '2-D meshes' here, falsely."""
-        with pytest.raises(AttributeError, match="axis-native"):
-            _d3_sn().areas
-
-    def test_legacy_2d_arm_keeps_its_true_message(self):
-        with pytest.raises(AttributeError, match="not defined for 2-D"):
-            _legacy_2d().areas
-
-    def test_the_two_surviving_arms_differ(self):
-        """Collapsing the two arms back to one message reddens this."""
-        messages = []
-        for carrier in (_d3_sn(), _legacy_2d()):
-            with pytest.raises(AttributeError) as exc:
-                carrier.areas
-            messages.append(str(exc.value))
-        _require(messages[0] != messages[1], "the two areas arms must name different cases")
-
-
 class TestG73MeshNoneHasOneMeaning:
-    r"""The singleton law: ``mesh is None`` ⟹ ``ndim ≥ 3`` — a theorem of the
-    constructors, and the sole guarantor that the retired arms had no input.
-
-    Positive control: the d=3 axis-native carrier really is mesh-less
-    (``from_axes`` leaves ``mesh = None`` only at d≥3). Then every d≤2
-    construction path carries a mesh: the legacy 1-D and 2-D constructors
-    by their signature, and ``from_axes`` at d=1 / d=2 by SYNTHESIS of the
-    legacy adapter (``legacy_mesh_from_axes``). Mutating the synthesis to
-    leave ``mesh = None`` at d≤2 reddens this class and nothing else in the
-    tree pins it — which is why it is here."""
-
-    def test_positive_control_the_d3_carrier_is_mesh_less(self):
-        d3 = _d3_sn()
-        _require(d3.mesh is None and d3.ndim == 3, "the d=3 axis-native carrier must spell mesh is None")
-
-    @pytest.mark.parametrize("build", ["legacy_1d", "legacy_2d", "axes_1d", "axes_2d"])
-    def test_every_d_le_2_construction_carries_a_mesh(self, build: str):
-        carrier = {
-            "legacy_1d": _legacy_1d,
-            "legacy_2d": _legacy_2d,
-            "axes_1d": lambda: _sn_from_axes(_axes((1.0, 4))),
-            "axes_2d": lambda: _sn_from_axes(_axes((1.0, 2), (2.0, 3))),
-        }[build]()
-        _require(carrier.ndim <= 2, "precondition: a d≤2 carrier")
-        _require(
-            carrier.mesh is not None,
-            f"{build}: a d={carrier.ndim} carrier spelled mesh is None — the singleton law broke",
-        )
-        expected = Mesh1D if carrier.ndim == 1 else Mesh2D
-        _require(
-            isinstance(carrier.mesh, expected),
-            f"{build}: the adapter is a {type(carrier.mesh).__name__}, not a {expected.__name__}",
-        )
+    r"""The MaterialMesh-only complement of the singleton law ``mesh is None`` ⟹ ``ndim ≥ 3``: every 1-D carrier
+    answers ``areas``. The law's positive control and its d≤2 rows construct ``SNProblem`` carriers and live in
+    ``tests/gates/sn/mesh/test_problem_admission.py`` (same class name) since layer DAG Phase 4."""
 
     def test_a_one_d_carrier_has_faces(self):
         """The retired 'no faces at all' arm's complement: every 1-D carrier
@@ -176,20 +76,3 @@ class TestG73MeshNoneHasOneMeaning:
         _require(one_cell.areas.shape == (2,), "a one-cell 1-D carrier has two faces")
 
 
-class TestR1TheFactoryIsUnspellable:
-    def test_no_carrier_class_has_a_from_materials(self):
-        """The retirement is structural: the name is absent from every class in
-        the carrier hierarchy (a subclass could not have inherited it either).
-        Re-adding the factory anywhere in the hierarchy reddens this."""
-        for cls in (MaterialMesh, SNProblem, DiffusionMesh):
-            _require(
-                not hasattr(cls, "from_materials"),
-                f"{cls.__name__}.from_materials exists — the fabricated carrier's factory is back",
-            )
-
-    def test_nothing_in_the_tree_can_build_a_mesh_less_one_d_carrier(self):
-        """The retired arms' precondition, stated as the singleton law's
-        corollary on the one surface that admits an axis tuple: ``from_axes``
-        at d=1 carries a mesh."""
-        sn = _sn_from_axes(_axes((1.0, 1)))
-        _require(sn.ndim == 1 and sn.mesh is not None, "a d=1 from_axes carrier must carry its adapter")

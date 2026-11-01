@@ -48,6 +48,11 @@ def angular_bulk_space(mesh: MaterialMesh, quadrature: Quadrature) -> FunctionSp
     :math:`w_n`, NODAL, carrying the quadrature as its origin); the energy and spatial axes are the material mesh's
     :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space` axes, reused, so the scalar bulk is this
     space minus axis 0 and the two cannot disagree on the shared factors.
+
+    No pairing of chart and quadrature is checked here. Today the only refusal of a quadrature that does not serve its
+    chart is in :func:`~orpheus.sn.mesh.reduced_operator.cylindrical_streaming`, which refuses a quadrature without
+    level structure. Whether suitability is a property of this space or of the streaming operator is not yet derived
+    (#686).
     """
     scalar = mesh.bulk_space
     if scalar.axes is None:
@@ -90,7 +95,20 @@ def scalar_trace_space(mesh: MaterialMesh) -> ScalarTraceSpace:
     The faces are :func:`~orpheus.mesh.axis.trace_face_shapes`; each face's surface measure is the material mesh's
     :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.areas` at its endpoint (slab 1, cylinder
     :math:`2\pi R`, sphere :math:`4\pi R^2`).
+
+    A mesh of two or more axes is refused with :class:`ValueError`: its face measure is a per-face-cell array (the
+    product of the transverse edge widths), and :class:`ScalarTraceSpace` takes one scalar per face.
+
+    SCOPE-BOUNDARY[guard] machinery: one ``face_measure(mesh, label)`` for every dimension, with a per-face-cell measure
+    on the scalar trace (#685).
+    ruling: the elegance review of layer DAG Phase 4 (2026-11-01, ``.claude/plans/layer_dag.md``), filed as #685.
+    revisit: when #685 lands, the 2-D scalar trace is built and this refusal retires.
     """
+    if mesh.ndim != 1:
+        raise ValueError(
+            f"scalar_trace_space: a {mesh.ndim}-D mesh has a per-face-cell surface measure, which the scalar trace "
+            "does not carry yet (#685)."
+        )
     faces = trace_face_shapes(mesh.axes)
     face_areas = {
         label.face_name: float(mesh.areas[0] if label.endpoint == "min" else mesh.areas[-1])

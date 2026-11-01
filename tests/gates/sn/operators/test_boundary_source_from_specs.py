@@ -18,6 +18,9 @@ writes the result to the inflow rows **in order**. The oracle is the sampler cal
 
 ⚠ **What these gates deliberately do NOT claim.** They pin the *materialisation*, not the *wiring*: that a declared inflow reaches a
 solve is gated in ``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``.
+
+Moved from ``tests/gates/transport/`` by layer DAG Phase 4 (2026-11-01): every row samples through SN's realizer table
+(``SN_REALIZERS``) or the SN problem's declared boundary source, so the file's claims are SN's.
 """
 
 from __future__ import annotations
@@ -33,7 +36,7 @@ from orpheus.sn.boundary.realizer import SN_REALIZERS
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.boundary_conditions import FaceFrameInflow, FaceSite, WallCondition
 from orpheus.transport.fields import AngularBoundarySourceSink
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 
 pytestmark = pytest.mark.l1
 
@@ -69,8 +72,12 @@ class TestTheRecipeLandsOnTheInflowSlotsOnly:
     def test_every_other_row_of_that_face_is_zero(self) -> None:
         r"""⭐ The outflow AND tangential rows stay zero.
 
-        This is the claim that :math:`q` lives on :math:`\Gamma_-` — the ERR-047 mask having dissolved into the type. It is a
-        separate leg from the row above because a recipe that filled the WHOLE slot would satisfy that one and fail this one.
+        This is the claim that :math:`q` lives on :math:`\Gamma_-` on the declared route. What it catches is a placement
+        defect: values written to the wrong rows (``[M]`` qa's ``mask_to_outflow`` arm). A sampler cannot return a
+        whole slot (it is refused unless it returns exactly the :math:`\Gamma_-` shape, the row of
+        ``TestTheContractIsEnforced``), so a single dropped mask does not reach this row: it reddens only when the
+        projector of ``prescribed_inflow_on`` AND the scatter of ``from_method`` are both dropped. The single-mask catchers
+        are ``tests/gates/transport/fields/test_angular_boundary_source_sink_residual.py``'s two ERR-047 rows.
         """
         sn = _slab(xmin=WallCondition.uniform(2.5))
         inflow = sn.angular_trace.inflow_indices_for_face("xmin")

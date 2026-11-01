@@ -24,6 +24,9 @@ green on the sphere, and the asymmetry IS the evidence.
 
 vv Mode-8 discipline: ``np.testing.assert_*`` / ``pytest.raises`` only (no bare
 ``assert`` on numerical claims — the canonical invocation is ``python -O``).
+
+Since layer DAG Phase 4 (2026-11-01) the file's tail holds five rows moved from
+tests/gates/transport/test_radial_characteristic_field.py, whose subject is the problem's composite ψ½ space.
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ from orpheus.numerics.spaces.radial_characteristic_space import (
 from orpheus.sn.problem import SNProblem
 from tests.gates.sn._test_helpers import placeholder_materials, CURVED_REFLECTIVE, reflective_role
 from tests.gates._exterior import conditions_for
+from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
 
 pytestmark = pytest.mark.foundation
 
@@ -272,3 +276,78 @@ class TestMeshPresence:
             pytest.fail("interior space is not cached (one instance per mesh)")
         if sn.radial_characteristic_boundary_space is not sn.radial_characteristic_boundary_space:
             pytest.fail("boundary space is not cached")
+
+
+# ── Moved from tests/gates/transport/test_radial_characteristic_field.py by layer DAG Phase 4 (2026-11-01): the rows whose
+# subject is the SN problem's composite ψ½ space (content equals the problem's mint, members are its cached split
+# spaces, presence and caching, the absent space refused). Class names kept, so the ids keep their tails; the meshes
+# are this file's ``_sphere`` / ``_slab``, the same as the source file's. The composite FIELD's own algebra stays in
+# transport, posed on hand-built spaces.
+
+
+class TestCompositeConstruction:
+
+
+    def test_derived_space_content_equals_the_carrier_mint(self) -> None:
+        sn = _sphere()
+        c = RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)
+        if c.space != sn.radial_characteristic_field_space:
+            pytest.fail("derived composite space must content-equal the mint")
+
+
+class TestPresence:
+    def test_flux_zeros_refuses_the_noncarrying_mesh_none_space(self) -> None:
+        """R12a presence gate, post-S5: a non-carrying mesh's cached
+        ``radial_characteristic_field_space`` is ``None``, and the
+        composite allocator REFUSES it with the presence diagnosis (the
+        pre-S5 spelling raised inside the leaf factory; the space-keyed
+        allocators diagnose at the member-space parse)."""
+        with pytest.raises(ValueError, match="System B is absent"):
+            RadialCharacteristicField.flux_zeros(
+                _slab().radial_characteristic_field_space
+            )
+
+    def test_source_zeros_shares_the_same_presence_gate(self) -> None:
+        with pytest.raises(ValueError, match="System B is absent"):
+            RadialCharacteristicField.source_zeros(None)
+
+
+class TestRadialCharacteristicFieldSpace:
+    r"""``SNProblem.radial_characteristic_field_space`` — System B's member space.
+
+    The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
+    System A uses, instantiated over the two split ψ½ spaces. The identity
+    name is the family rule (CS4b S4): ``full_field#<digest>`` folded from
+    the MEMBER spaces' content — the pre-S4 ``"radial_characteristic"``
+    role tag left the space name (G2.3: role is class identity; the role
+    lives on ``RadialCharacteristicField``). The metric rows exercise the
+    ``_rebuild`` presence-dispatch 2-BLOCK arm on the REAL composite (before
+    B.2b this path raised — ``_rebuild`` always passed the seed kwarg to a
+    hook that has none); the FullField row pins the 3-slot arm byte-identical
+    (test-architect G-b2: exercise BOTH arms). Space ``==`` is
+    ``(name, shape)``-only (Mode-12 note), so member identity is asserted
+    with ``is``, and every value row is ``array_equal`` (bit-id — a re-label
+    moves no arithmetic).
+    """
+
+
+    def test_member_spaces_are_the_split_instances(self) -> None:
+        # Space == is (name, shape)-only — assert the MEMBER identity with
+        # ``is`` (the cached split spaces, one instance per mesh).
+        sn = _sphere()
+        space = sn.radial_characteristic_field_space
+        if space.interior_space is not sn.radial_characteristic_interior_space:
+            pytest.fail("interior member is not THE cached interior split space")
+        if space.trace_space is not sn.radial_characteristic_boundary_space:
+            pytest.fail("trace member is not THE cached boundary split space")
+        if hasattr(space, "radial_characteristic_space"):
+            pytest.fail("FullFieldSpace still exposes a third-slot field — "
+                        "the B.2d eviction leaked into the space class")
+
+    def test_presence_and_caching(self) -> None:
+        if _slab().radial_characteristic_field_space is not None:
+            pytest.fail("a non-carrying mesh has no System B, hence no space")
+        sn = _sphere()
+        if (sn.radial_characteristic_field_space
+                is not sn.radial_characteristic_field_space):
+            pytest.fail("the composite space must be cached (one per mesh)")

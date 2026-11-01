@@ -38,6 +38,22 @@ boundary-architecture narrative lives at
    :undoc-members:
    :show-inheritance:
 
+The phase spaces (``transport.phase_spaces``)
+---------------------------------------------
+
+The raw constructors of the transport phase spaces, each a function of its
+ingredients (a :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, a
+quadrature, a spatial scheme) and of nothing method-specific: the angular bulk
+:math:`V_\Omega \otimes V_E \otimes V_r`, the angular face layout and trace,
+and the scalar :math:`(J^+, J^-)` trace. ``SNProblem`` and ``DiffusionMesh``
+own these spaces as cached properties, each one call to the function here
+(layer DAG Phase 4, 2026-11-01). Where each space's rule lives, and why the
+mint-equals-constructor gates are not the rule's pin, is
+:ref:`indexing-carrier-cached-mints`.
+
+.. automodule:: orpheus.transport.phase_spaces
+   :members:
+
 The exterior conditions (``transport.boundary_conditions``)
 -----------------------------------------------------------
 

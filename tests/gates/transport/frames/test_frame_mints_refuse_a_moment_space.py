@@ -10,6 +10,14 @@ chain reads — the leading axis's generator must be the QUADRATURE — so the
 refusal's TYPE and MESSAGE are the ones asserted here, on the shipped moment
 space of every ledger carrier.
 
+Layer DAG Phase 4 (2026-11-01): posed on the four monomorphic material meshes and the raw constructors. The leg
+"the frame's mint on the angular space equals the problem's moment space" left with the problem: here both sides
+would be the same call (``retirement-audit`` D.16); the hub-versus-frame agreement is
+``tests/gates/sn/mesh/test_hub_and_frame_agree_on_the_moment_space.py::test_P5_…``'s, and P5 alone is the dropped
+leg's catcher: ``[M]`` 2026-11-01, the mutation "the frame builds its head undressed" reds P5 (12) and P7 (12) and none
+of this file's rows, which are refusal rows outside that mutation's reach (battery ``frame_moment_space_drops_parseval``,
+``scratch/layer_dag/phase4/landing_report.md``).
+
 Foundation mark: software invariant; no physics claim.
 """
 
@@ -18,29 +26,25 @@ from __future__ import annotations
 import pytest
 
 from orpheus.transport.frames import HarmonicFrame
-from tests.gates.sn.architecture.test_monomorphic_leaves import (
-    _cart2d,
-    _cylinder,
-    _slab,
-    _sphere,
-)
+from orpheus.transport.phase_spaces import angular_bulk_space
+from tests.gates.transport import _phase_space_cases as cases
 
 pytestmark = pytest.mark.foundation
 
-_GEOMETRIES = {"slab": _slab, "sphere": _sphere, "cylinder": _cylinder, "cart2d": _cart2d}
+_GEOMETRIES = ("slab", "sphere", "cylinder", "cart2d")
 
 
-@pytest.mark.parametrize("geometry", list(_GEOMETRIES), ids=list(_GEOMETRIES))
+@pytest.mark.parametrize("geometry", _GEOMETRIES, ids=list(_GEOMETRIES))
 def test_P6_both_doors_refuse_a_moment_space_naming_the_missing_quadrature(geometry: str) -> None:
-    problem = _GEOMETRIES[geometry]()
+    mesh, quadrature = cases.monomorphic()[geometry]
     L = 1
-    moment = problem.moment_space(L)
+    bulk = angular_bulk_space(mesh, quadrature)
+    frame = HarmonicFrame.for_space(bulk, L)
+    moment = frame.moment_space_on(bulk)
     assert moment.axes is not None, "the moment space IS axis-built — the old axes-less refusal cannot catch it"
-    frame = HarmonicFrame.for_space(problem.angular_bulk_space, L)
     with pytest.raises(ValueError, match="HarmonicFrame.moment_space_on needs the generating Quadrature"):
         frame.moment_space_on(moment)
     with pytest.raises(ValueError, match="HarmonicFrame.for_space needs the generating Quadrature"):
         HarmonicFrame.for_space(moment, L)
-    # the positive leg: the angular space passes both doors
-    assert frame.moment_space_on(problem.angular_bulk_space) == moment
-    assert HarmonicFrame.for_space(problem.angular_bulk_space, L) is frame
+    # the positive leg: the angular space passes the frame's door, and the frame is interned per (space, L)
+    assert HarmonicFrame.for_space(bulk, L) is frame

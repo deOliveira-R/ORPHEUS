@@ -10,6 +10,12 @@ at the solve's order — the SAME interned frame as S), and one parametrized
 row over the three kernel channel constructors (the datum tier —
 proportionate to its one-``todense()`` exposure; the existing
 ``test_kernels.py`` value pins are cross-source gates, not this shape).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -18,9 +24,9 @@ import pytest
 
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.frames.harmonic_frame import HarmonicFrame
 from orpheus.transport.kernels import N2N_MULTIPLICITY, FissionKernel, TransferKernel
 from orpheus.transport.material_field import TransferMaterialField
@@ -32,14 +38,9 @@ from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
-from tests.gates.sn._test_helpers import material_xs_from_raw
+from tests.gates.transport._materials import material_xs_from_raw
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 
 
 pytestmark = pytest.mark.foundation
@@ -64,7 +65,7 @@ def _sn(mat_xs):
     mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(_NX),
     ).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=4), mat_xs.materials, boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, mat_xs.materials)
 
 
 def _fields_equal(a, b):
@@ -93,7 +94,7 @@ class TestSFamilyTierTwoEquivalence:
     def test_scattering_from_solver_data_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
         sn = _sn(mat_xs)
-        space = sn.full_field_space
+        space = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
         rich = ScatteringOperator.from_solver_data(
             mat_xs=mat_xs, scattering_order=1, space=space,
         )
@@ -176,7 +177,7 @@ class TestSFamilyTierTwoEquivalence:
         (``isotropic_energy``), of the role's own class."""
         mat_xs = _mat_xs()
         sn = _sn(mat_xs)
-        space = sn.full_field_space
+        space = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
         rich = N2NOperator.from_solver_data(
             mat_xs=mat_xs, scattering_order=1, space=space,
         )
@@ -200,7 +201,7 @@ class TestSFamilyTierTwoEquivalence:
         if rich.frame is not S.frame:
             pytest.fail("the two transfer terms must share ONE interned frame")
         np.testing.assert_array_equal(
-            np.asarray(rich.frame.measure.weights), np.asarray(sn.quad.weights),
+            np.asarray(rich.frame.measure.weights), np.asarray(posing_quadrature(sn).weights),
         )
         if not _fields_equal(rich.transfer, exact.transfer):
             pytest.fail("the extracted (n,2n) kernel field drifted from the ctor's")
@@ -259,7 +260,7 @@ def test_fission_operator_from_solver_data_equals_the_exact_ctor():
 
     mat_xs = _mat_xs()
     sn = _sn(mat_xs)
-    space = sn.full_field_space
+    space = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
     rich = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
     interior = space.interior_space
     assert interior is not None and interior.axes is not None

@@ -152,8 +152,8 @@ deliberately **non-fissile** (``SigP = 0``, ``chi = 0``), because the
 within-group record it was built for carries no fission piece. The LEAF
 ladder includes ``F``, and on a non-fissile mixture ``F.apply(ψ) ≡ 0``, which
 would make every ``F`` row of G1.4 the tautology ``0 == 0``. So the fissile
-row lives here. **When the P0 files consolidate, ``_fissile_anisotropic_2g``
-belongs beside ``anisotropic_mixture`` in ``_config.py``** (Pattern 2 — one
+row lives here. **Since layer DAG Phase 4 (2026-11-01) ``fissile_anisotropic_2g``
+lives beside ``anisotropic_mixture``, in ``tests/gates/transport/_phase_space_cases.py`` / ``_materials.py``** (Pattern 2 — one
 home for the mandatory config).
 
 ``tests/gates/sn/operators/test_removal_form_matvec_sweep.py``'s ``_slab`` /
@@ -204,13 +204,9 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from scipy.sparse import csr_matrix
 
-from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.macro_xs.synthetic import get_mixture
-from orpheus.geometry import CoordSystem, StructuredGeometry
-from orpheus.mesh import CellEdges, Mesh1D, Mesher
-from orpheus.mesh import Mesh2D
+from orpheus.geometry import CoordSystem
 from orpheus.numerics import operator as _operator_module
 from orpheus.numerics.coupled_system import CoupledField
 from orpheus.numerics.quadrature import Quadrature
@@ -226,7 +222,6 @@ from orpheus.transport.operators.multiplication_operator import (
 )
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.gates.sn.architecture._config import anisotropic_mixture
 from tests.gates.sn._test_helpers import g_inner
 
 if TYPE_CHECKING:
@@ -234,6 +229,12 @@ if TYPE_CHECKING:
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates.transport._phase_space_cases import (  # the monomorphic meshes, re-homed in layer DAG Phase 4
+    NONUNIFORM_EDGES as _NONUNIFORM_EDGES,
+    cart2d_two_region_mesh,
+    two_region_fissile as _two_region_fissile,
+    two_region_mesh as _two_region_mesh,
+)
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -264,78 +265,10 @@ _SEED_Y = 20260730
 # `SigL` AND `Sig2`, and offers no P1 channel)
 # ═════════════════════════════════════════════════════════════════════════
 
-def _fissile_anisotropic_2g(
-    *,
-    sig_t: "list[float]",
-    sig_s0: "list[list[float]]",
-    sig_s1: "list[list[float]]",
-    sig_f: "list[float]",
-    chi: "list[float]",
-    nu: float = 2.6,
-) -> Mixture:
-    r"""This file's fissile row of the campaign's ONE mixture builder.
-
-    Delegates to :func:`~tests.gates.sn.architecture._config.anisotropic_mixture`
-    (Pattern 2 — one home for the mandatory config; a second ``Mixture``
-    builder inside the package whose whole purpose is "one home" would be
-    the twin it exists to prevent).  What this row adds over a within-group
-    fixture is the channels G1.4 needs ACTIVATED and ``make_mixture`` nulls:
-
-    * ``sig_f``/``chi``/``nu`` — producing, so ``F.apply(psi) != 0`` and the
-      ``F`` reciprocity rows are not the tautology ``0 == 0``;
-    * ``SigL != 0`` — the (n,alpha) channel;
-    * an **asymmetric** ``Sig2 != 0`` — ``S``'s (n,2n) term, a separate
-      ell=0 block outside the Legendre fold.
-
-    The non-fissile default in ``_config`` is correct for the *within-group*
-    gates (fission enters as ``q_ext`` at the outer), which is exactly why
-    this row must state its extra channels rather than inherit them.
-    """
-    return anisotropic_mixture(
-        sig_t, sig_s0, sig_s1,
-        sig_f=sig_f, chi=chi, nu=nu,
-        sig_l=[0.004, 0.011],                      # (n,alpha) — non-zero
-        sig_2=[[0.0, 0.03], [0.01, 0.0]],          # asymmetric (n,2n)
-    )
-
-
-def _two_region_fissile() -> "dict[int, Mixture]":
-    """Two materials — heterogeneous nulls no spatial-distribution bug."""
-    return {
-        0: _fissile_anisotropic_2g(
-            sig_t=[1.1, 2.3],
-            sig_s0=[[0.38, 0.10], [0.05, 0.90]],
-            sig_s1=[[0.02, 0.01], [0.00, 0.04]],
-            sig_f=[0.02, 0.31], chi=[0.95, 0.05],
-        ),
-        1: _fissile_anisotropic_2g(
-            sig_t=[0.9, 2.6],
-            sig_s0=[[0.22, 0.03], [0.12, 1.10]],
-            sig_s1=[[0.05, 0.02], [0.01, 0.03]],
-            sig_f=[0.05, 0.12], chi=[0.80, 0.20],
-        ),
-    }
-
 
 # ═════════════════════════════════════════════════════════════════════════
 # The geometry ladder — NON-UNIFORM h everywhere (§8)
 # ═════════════════════════════════════════════════════════════════════════
-
-#: Deliberately non-uniform, and geometrically graded: on a sphere this makes
-#: ``V_cell`` span 3.36e3 (MEASURED), so the bulk metric ``V·w`` is very far
-#: from the constant that would make G1.4 a Euclidean-transpose check.
-_NONUNIFORM_EDGES = np.array([0.0, 0.12, 0.35, 0.80, 1.30, 2.00])
-
-
-def _two_region_mesh(
-    coord: CoordSystem, edges: np.ndarray, boundaries: tuple,
-) -> Mesh1D:
-    """Materials 0 | 1 with the interface at ``edges[2]``: two cells, then three."""
-    geometry = StructuredGeometry(
-        coord=coord, breakpoints=(edges[0], edges[2], edges[-1]), mat_ids=(0, 1),
-        face_roles=boundaries,
-    )
-    return Mesher(geometry).partition((CellEdges(edges[:3]), CellEdges(edges[2:]))).mesh
 
 
 def _slab() -> SNProblem:
@@ -387,19 +320,7 @@ def _cart2d() -> SNProblem:
     ``level_symmetric`` avoids the ``mu_y == 0`` GL rank mismatch and the
     ERR-056 axis-aligned degeneracy.
     """
-    mat_map = np.zeros((4, 3), dtype=int)
-    mat_map[2:, :] = 1
-    mesh = Mesh2D(
-        edges_x=np.array([0.0, 0.1, 0.35, 0.9, 1.6]),
-        edges_y=np.array([0.0, 0.2, 0.5, 1.4]),
-        mat_map=mat_map, coord=CoordSystem.CARTESIAN,
-        face_roles={
-            "xmin": MirrorDeck(),
-            "xmax": 0,
-            "ymin": MirrorDeck(),
-            "ymax": 0,
-        },
-    )
+    mesh = cart2d_two_region_mesh()
     return SNProblem(
         mesh, Quadrature.level_symmetric(sn_order=4), _two_region_fissile(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
     )

@@ -36,6 +36,12 @@ mesh fixtures and have the flip pinned in their own modules
 (``tests/gates/transport/fields/test_scalar_boundary_flux.py``,
 ``tests/gates/transport/test_radial_characteristic_field.py``,
 ``tests/gates/sn/mesh/test_radial_characteristic_split_leaves.py``).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -47,23 +53,18 @@ import pytest
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.field import Field
-from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.vector import Vector
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space, angular_trace_space
+from tests.gates.transport._phase_space_cases import angular_full_field_space, moment_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.timed_full_field import TimedFullField
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 from orpheus.numerics import frame_faces
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
-
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 
 
 pytestmark = pytest.mark.foundation
@@ -72,27 +73,27 @@ _MOMENT_L = 1
 _LEAVES = ["angular", "scalar", "moment", "boundary"]
 
 
-def _mesh() -> SNProblem:
+def _mesh() -> MaterialMesh:
     geometry = StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=0)
     m = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
-    return SNProblem(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(), boundary_conditions=conditions_for(m, _CONDITIONS))
+    return MaterialMesh(m, placeholder_materials())
 
 
-def _stretched_mesh() -> SNProblem:
+def _stretched_mesh() -> MaterialMesh:
     """Doubled width, same shape — the cell VOLUMES differ, so the carrier
     mints an UNEQUAL space (the F2 content discriminator)."""
     geometry = StructuredGeometry.slab((0.0, 4.0), (0,), left=0, right=0)
     m = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
-    return SNProblem(m, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(), boundary_conditions=conditions_for(m, _CONDITIONS))
+    return MaterialMesh(m, placeholder_materials())
 
 
 @pytest.fixture
-def mesh() -> SNProblem:
+def mesh() -> MaterialMesh:
     return _mesh()
 
 
 @pytest.fixture
-def mesh2() -> SNProblem:
+def mesh2() -> MaterialMesh:
     return _mesh()  # distinct instance, structurally identical
 
 
@@ -101,15 +102,17 @@ def rng() -> np.random.Generator:
     return np.random.default_rng(208)
 
 
-def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
+def _moment_shape(m: MaterialMesh, L: int) -> tuple[int, ...]:
     """``<angular head> ⊗ (ng, *spatial)`` — the head is read off the frame (#429)."""
-    return (*FunctionSpace.of_basis(frame_faces.angular_frame(m.quad, L).basis).shape, m.ng, *m.spatial_shape)
+    return (*FunctionSpace.of_basis(frame_faces.angular_frame(posing_quadrature(m), L).basis).shape, m.ng, *m.spatial_shape)
 
 
-def _make_flux(leaf: str, m: SNProblem, rng: np.random.Generator) -> Field:
+def _make_flux(leaf: str, m: MaterialMesh, rng: np.random.Generator) -> Field:
     """A flux leaf with DISTINCT random values (NOT flat — Mode-9)."""
+    trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+    bulk = angular_bulk_space(m, posing_quadrature(m))
     if leaf == "angular":
-        return AngularFlux(values=rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+        return AngularFlux(values=rng.standard_normal((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)), space=bulk)
     if leaf == "scalar":
         return ScalarFlux(values=rng.standard_normal((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":
@@ -119,27 +122,26 @@ def _make_flux(leaf: str, m: SNProblem, rng: np.random.Generator) -> Field:
         # head's to say (flat (L+1,) on a 1-D rule, rectangular (L+1, 2L+1) on
         # a sphere rule), so it is READ off the frame rather than spelled.
         shape = _moment_shape(m, _MOMENT_L)
-        return HarmonicMomentFlux.from_problem_and_L(
-            rng.standard_normal(shape), m, _MOMENT_L,
-        )
+        return HarmonicMomentFlux(values=rng.standard_normal(shape), space=moment_space(m, posing_quadrature(m), _MOMENT_L), L=_MOMENT_L)
     if leaf == "boundary":
-        zero = AngularBoundaryFlux.zeros(m.angular_trace)
-        return AngularBoundaryFlux(values=rng.standard_normal(zero.values.shape), space=m.angular_trace)
+        zero = AngularBoundaryFlux.zeros(trace)
+        return AngularBoundaryFlux(values=rng.standard_normal(zero.values.shape), space=trace)
     raise ValueError(leaf)
 
 
-def _zeros_like_flux(leaf: str, m: SNProblem) -> Field:
+def _zeros_like_flux(leaf: str, m: MaterialMesh) -> Field:
     """The zero flux of the leaf — a legal, freely-constructed origin."""
+    trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+    bulk = angular_bulk_space(m, posing_quadrature(m))
     if leaf == "angular":
-        return AngularFlux.zeros(m.angular_bulk_space)
+        return AngularFlux.zeros(bulk)
     if leaf == "scalar":
         return ScalarFlux(values=np.zeros((m.ng, *m.spatial_shape)), space=m.bulk_space)
     if leaf == "moment":
-        return HarmonicMomentFlux.from_problem_and_L(
-            np.zeros(_moment_shape(m, _MOMENT_L)), m, _MOMENT_L
-        )
+        space = moment_space(m, posing_quadrature(m), _MOMENT_L)
+        return HarmonicMomentFlux(values=np.zeros(space.shape), space=space, L=_MOMENT_L)
     if leaf == "boundary":
-        return AngularBoundaryFlux.zeros(m.angular_trace)
+        return AngularBoundaryFlux.zeros(trace)
     raise ValueError(leaf)
 
 
@@ -309,10 +311,11 @@ def test_cross_class_still_refuses(mesh, rng):
     CLASS distinction and outlives the affine gate (it is what the
     ``test_typed_source_sinks`` contrast row re-poses onto).
     """
+    bulk_mesh = angular_bulk_space(mesh, posing_quadrature(mesh))
     psi = _make_flux("angular", mesh, rng)
     from orpheus.transport.fields.angular_source_sink import AngularSourceSink
 
-    src = AngularSourceSink.zeros(mesh.angular_bulk_space)
+    src = AngularSourceSink.zeros(bulk_mesh)
     with pytest.raises(TypeError):
         _ = psi + src  # type: ignore[operator]
     with pytest.raises(TypeError):
@@ -347,11 +350,10 @@ def test_scalar_algebra_unchanged(leaf, mesh, rng):
 # and the type variable's bound stay in that numerics module.
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+def _slab_mesh(nx: int = 4, ng: int = 2) -> MaterialMesh:
     geometry = StructuredGeometry.slab((0.0, 1.0), (0,), left=0, right=0)
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(nx)).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
 def test_field_leaves_are_vectors() -> None:
@@ -363,10 +365,12 @@ def test_field_leaves_are_vectors() -> None:
     (``AngularBoundaryFlux``).
     """
     m = _slab_mesh()
-    assert isinstance(AngularFlux.zeros(m.angular_bulk_space), Vector)
+    trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+    bulk = angular_bulk_space(m, posing_quadrature(m))
+    assert isinstance(AngularFlux.zeros(bulk), Vector)
     assert isinstance(ScalarFlux.zeros(m.bulk_space), Vector)
-    assert isinstance(HarmonicMomentFlux.zeros_for_problem_and_L(m, 1), Vector)
-    assert isinstance(AngularBoundaryFlux.zeros(m.angular_trace), Vector)
+    assert isinstance(HarmonicMomentFlux(values=np.zeros(moment_space(m, posing_quadrature(m), 1).shape), space=moment_space(m, posing_quadrature(m), 1), L=1), Vector)
+    assert isinstance(AngularBoundaryFlux.zeros(trace), Vector)
 
 
 def test_timed_full_field_is_vector() -> None:
@@ -377,5 +381,6 @@ def test_timed_full_field_is_vector() -> None:
     ``transport`` (the layering payoff of a structural Protocol).
     """
     m = _slab_mesh()
-    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=m.full_field_space)
+    ffs = angular_full_field_space(m, posing_quadrature(m), posing_scheme(m))
+    state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
     assert isinstance(state, Vector)

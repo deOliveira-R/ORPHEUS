@@ -1,0 +1,341 @@
+r"""#429 tracker 2.5 — the angular moment space is READ off the frame, never minted from ``L``.
+
+The defect this gates (`[M]` 2026-09-02, the fused step's opener): the
+angular moment space had EIGHT homes. The frame carried it
+(``frame.basis.space``) and seven production sites re-minted it from the
+integer ``L`` as ``SphericalHarmonicSpace.from_L(L)`` — the scattering
+operator's :math:`\Lambda` ends (three spellings), the fission and (n,2n)
+:math:`\ell = 0` ends, the moment-flux field's head, and ``truncate`` —
+while two ``isinstance`` doors on :class:`HarmonicFrame` admitted one basis
+class only. Every copy silently chose the full-sphere family; the day a
+1-D rule binds its Legendre basis, every copy mismatches the frame at the
+``(name, shape)`` composability guards, and the FIRST mismatch is at
+:math:`L = 0` on every solve (fission and (n,2n) mint there).
+
+Three gates, each with the input it rejects (``plan-authoring`` §6c):
+
+* **the ROUTE gate** — bind a FOREIGN truncated basis (not a spherical
+  harmonic subclass at all, with a RENAMED coefficient space) into the
+  quadrature's frame and require every operator end and every moment
+  field space to MOVE with it. A reverted producer (one that still mints
+  from ``L``) fails the composability guard loudly, which is the red.
+  The mutant is unconstructible before the door widened — so the door
+  and the producers are ONE step (``plan-authoring`` §6b);
+* **the METRIC gate** — ⛔ RE-POSED at CS4c step 6 item 6.2c-ii (ruling
+  R-6.2c-1, 2026-09-08). Landing A (2026-09-02) bound the basis's own
+  CONTINUUM space (``basis.space``) and recorded as its reason that *"Λ's
+  Hilbert adjoint under the continuum end is its transpose exactly while
+  the dressed end would move it on 10 of 33 rows (the dense-Gram rows)"*
+  and that the dressed metric *"would move apply_metric by 96–161 %"*.
+  `[M]` re-measured (``scratch/_step6_2c/p3_scan_161.py``,
+  ``p4_lambda_adjoint.py``, ``p9_on_range.py``, 33 shipped (rule, L)
+  rows): the adjoint moves on **5** rows for an ARBITRARY head draw,
+  **3 of them DIAGONAL-Gram** (the mechanism is the Parseval metric's
+  Moore–Penrose projection of the slots a folded rule cannot see, not
+  Gram density), and on **0 of 33** for a physical moment ``φ = Mψ``;
+  and NO statistic reproduces 161 % (the draw-free per-element movement
+  spans 0.5 %…100 % over the 33 rows). What the continuum binding COST
+  was measured too: Parseval ``‖Mψ‖² = ‖ψ‖²_W`` fails on 33 of 33 rows
+  under it (ratio 3.41…157.91) and holds on 33 of 33 under the dressed
+  metric. The tree therefore binds the FRAME's Parseval-dressed
+  ``basis_space`` everywhere — the operator ends, the moment fields, the
+  carrier's cached moment space — and the two heads are structurally
+  UNEQUAL (the head is axis-built; its measure enters the identity), so
+  this gate asserts the ends ARE the frame's space and are NOT the
+  continuum mint, with the continuum head as its negative control;
+* **the DOOR gate** — the frame asks for the
+  :class:`~orpheus.numerics.basis.base.TruncatedBasis` SURFACE (a
+  truncation order), typed, at the door: an indicator trial is refused
+  there, and a foreign truncated basis is admitted where the old door
+  refused it.
+
+Foundation mark: software invariants (route, metric identity, typing),
+mutation-proven; no physics claim rides here.
+
+Layer DAG Phase 4 (2026-11-01): this file holds the two rows of
+tests/gates/transport/frames/test_moment_space_is_read_off_the_frame.py that read the SN problem's moment space and
+factory; the source keeps the frame-only rows.
+"""
+from __future__ import annotations
+
+
+from dataclasses import dataclass, replace
+
+import numpy as np
+import pytest
+
+from orpheus.geometry import StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
+from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.frame import GalerkinFrame
+from orpheus.geometry.manifold import Manifold
+from orpheus.numerics.operator import IncompatibleOperatorComposition, OperatorProduct
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.sn.problem import SNProblem
+from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
+from orpheus.transport.frames import HarmonicFrame
+from orpheus.transport.operators.fission import FissionOperator
+from orpheus.transport.operators.n2n import N2NOperator
+from orpheus.transport.operators.scattering import ScatteringOperator
+from orpheus.transport.operators.transfer import LegendreMomentTransfer
+from orpheus.transport.material_field import TransferMaterialField
+from tests.gates.transport._materials import material_xs_from_raw, placeholder_materials
+from orpheus.numerics import frame_faces
+from orpheus.geometry.deck import MirrorDeck
+
+pytestmark = pytest.mark.foundation
+
+#: The foreign twin's one content change: its analysis (and so the dressed
+#: head's unit, the moments of 1) and its continuum Gram are scaled by this.
+_MUTANT_SCALE = 2.0
+_SIGS0 = np.array([[0.20, 0.00], [0.05, 0.18]])
+_SIGS1 = np.array([[0.02, 0.00], [0.01, 0.015]])
+_SIG2 = np.array([[0.00, 0.03], [0.01, 0.00]])
+
+
+# ── the FOREIGN truncated basis: carries L and a moved content, is NOT an SH subclass ──
+
+
+@dataclass(frozen=True)
+class _ForeignTruncatedBasis(Basis):
+    """The same functions as the rule's OWN basis, delegated — with its
+    analysis and its continuum Gram scaled by ``_MUTANT_SCALE``, and NOT a
+    ``SphericalHarmonicBasis`` subclass. It carries a truncation order, which
+    is the ONE thing the door asks for. Its coefficient spaces, the continuum
+    one (:meth:`FunctionSpace.of_basis`) and the frame-dressed one, are
+    CONTENT-unequal to the honest ones (the weights, and the dressed head's
+    unit, the moments of 1), which is what the route gate reads. Until S7 the
+    twin renamed its space instead; since S7 a space is its content and a
+    basis names no space.
+
+    ⛔ **The parent is a FIELD since 2026-09-02 (#429).** It used to hard-code
+    ``SphericalHarmonicBasis(L)``, hence ``domain = SPHERE`` — and the frame's
+    G0 arrow now refuses a basis on :math:`S^2` bound to a rule whose measure
+    lives on :math:`S^2/O(2)_x`, which is the whole of ERR-080. Delegating
+    the domain keeps the mutant admissible **wherever the honest basis is**,
+    so the ONE thing that differs between the two runs stays the coefficient
+    SPACE — which is what this module's route gate is about (``vv-principles``
+    #18: a mutation that also breaks a structural law over-states its own
+    coverage).
+    """
+
+    L: int
+    parent: Basis
+
+    @classmethod
+    def like(cls, basis: Basis) -> "_ForeignTruncatedBasis":
+        """A foreign twin of ``basis``: same functions, same domain, renamed space."""
+        order = getattr(basis, "L", None)
+        assert isinstance(order, int)
+        return cls(L=order, parent=basis)
+
+    def _parent(self) -> Basis:
+        # the parent FOLLOWS this twin's order, so a re-mint at another order
+        # (``at_order``, item 6.2c-ii — the head truncates through it) still
+        # delegates to the honest family at THAT order
+        return self.parent.at_order(self.L) if getattr(self.parent, "L", None) != self.L else self.parent  # type: ignore[attr-defined]
+
+    def at_order(self, L_new: int, /) -> "_ForeignTruncatedBasis":
+        return replace(self, L=L_new)
+
+    def evaluate(self, points, /):
+        return self._parent().evaluate(points)
+
+    def _synthesize(self, coefficients, table, /):
+        return self._parent().synthesize(coefficients, table)
+
+    def _analyze(self, values, table, weights, /):
+        return _MUTANT_SCALE * self._parent().analyze(values, table, weights)
+
+    def _analyze_transpose(self, coefficients, table, weights, /):
+        return self._parent().analyze_transpose(coefficients, table, weights)
+
+    def _reconstruct(self, coefficients, table, /):
+        return self._parent().reconstruct(coefficients, table)
+
+    def _reconstruct_transpose(self, values, table, /):
+        return self._parent().reconstruct_transpose(values, table)
+
+    @property
+    def gram_structure(self) -> GramStructure:
+        return self._parent().gram_structure
+
+    @property
+    def domain(self) -> Manifold:
+        return self._parent().domain
+
+    @property
+    def layout(self):
+        return self._parent().layout
+
+    @property
+    def coefficient_weights(self):
+        return _MUTANT_SCALE * self._parent().coefficient_weights
+
+
+def _slab(nx: int = 4, n_ord: int = 4, ng: int = 2) -> SNProblem:
+    mesh = Mesher(StructuredGeometry.from_homogeneous(4.0, MirrorDeck())).partition(
+        CellsByCount.uniform_width(nx),
+    ).mesh
+    return SNProblem(mesh, Quadrature.gauss_legendre(n_ordinates=n_ord), placeholder_materials(ng=ng))
+
+
+def _mat_xs(nx: int = 4):
+    cells = {0: (np.arange(nx), np.zeros(nx, dtype=int))}
+    return material_xs_from_raw(
+        sig_s={0: [_SIGS0, _SIGS1]}, sig2={0: _SIG2},
+        cells_by_mat=cells, ng=2, nx=nx, ny=1,
+    )
+
+
+def _inner_factor_domain(kernel: OperatorProduct) -> FunctionSpace:
+    """``conjugate(frame, X)`` is the flattened word ``(R, X, M)`` (S2, D7);
+    the domain of ``X``, the middle factor, is the end under test."""
+    factors = kernel.factors
+    assert len(factors) == 3
+    domain = factors[1].domain
+    assert domain is not None
+    return domain
+
+
+def _bind_foreign(sn: SNProblem, L: int) -> HarmonicFrame:
+    """Install the foreign basis as the quadrature's frame at ``L`` through
+    the production chain's own cache — so ``HarmonicFrame.for_space`` (the
+    ONE spelling every consumer uses) hands the foreign frame out."""
+    # the foreign frame rides the SAME measure the production frame carries
+    # (today the forged 3-D padding of a 1-D rule; after #429's fix the rule's
+    # own) — the test is about the SPACE, not the nodes
+    honest = frame_faces.angular_frame(sn.quad, L)
+    cache = sn.quad.__dict__.setdefault("_frame_faces", {})
+    cache[("angular_frame", L)] = GalerkinFrame(
+        _ForeignTruncatedBasis.like(honest.basis), honest.measure,
+    )
+    frame = HarmonicFrame.for_space(sn.angular_bulk_space, L)
+    assert isinstance(frame.basis, _ForeignTruncatedBasis), "the route through for_space did not reach the foreign frame"
+    return frame
+
+
+def _foreign_head(sn: SNProblem, L: int) -> FunctionSpace:
+    """The foreign frame's dressed head at ``L``, and a check that it is not the honest one."""
+    head = frame_faces.basis_space(HarmonicFrame.for_space(sn.angular_bulk_space, L))
+    honest = frame_faces.basis_space(GalerkinFrame(
+        frame_faces.angular_frame(sn.quad, L).basis.parent, frame_faces.angular_frame(sn.quad, L).measure,
+    ))
+    assert head != honest, "the foreign twin must be CONTENT-distinct from the honest head"
+    return head
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# A1 — the ROUTE gate
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() -> None:
+    """Every producer that used to mint ``SphericalHarmonicSpace.from_L(L)``
+    now reads the frame's basis: with a FOREIGN basis bound, the
+    scattering, fission and (n,2n) kernels COMPOSE (a reverted producer
+    would fail the composition guard), the moment field's head is the
+    foreign space, and the tier-2 mints take the basis, not the integer."""
+    sn = _slab()
+    L = 1
+    _bind_foreign(sn, L)
+    _bind_foreign(sn, 0)          # fission mints at ℓ = 0 on every solve
+    mat = _mat_xs()
+    composite = sn.full_field_space
+
+    S = ScatteringOperator.from_solver_data(mat_xs=mat, space=composite, scattering_order=L)
+    lam = S._moment_transfer(skip_l0=False)
+    head, head0 = _foreign_head(sn, L), _foreign_head(sn, 0)
+    assert lam.domain == head and lam.codomain == head
+    assert S.full_transfer_kernel is not None      # R∘Λ∘M composes on the foreign ends
+    assert S.kernel is not None
+
+    F = FissionOperator.from_solver_data(mat_xs=mat, space=composite)
+    assert _inner_factor_domain(F.full_fission_kernel) == head0   # R∘(F₀∘M)
+
+    N = N2NOperator.from_solver_data(mat_xs=mat, space=composite, scattering_order=L)
+    assert _inner_factor_domain(N.full_transfer_kernel) == head
+
+    field = HarmonicMomentFlux.zeros_for_problem_and_L(sn, L)
+    assert isinstance(field.space, TensorProductSpace)
+    assert field.space.factors[0] == head
+    # truncation stays in the head's OWN family, one order down — re-minted
+    # through the head's origin (the foreign frame); a truncate that re-minted
+    # the family from an integer would hand back the honest head
+    truncated = field.truncate(0).space
+    assert isinstance(truncated, TensorProductSpace)
+    # the truncated head keeps its own FAMILY's L = 0 layout — ``(1, 1)`` for
+    # the rectangular harmonics, ``(1,)`` for the flat Legendre family the
+    # slab now binds. Read off the honest head, so this line cannot drift.
+    assert truncated.factors[0].shape == FunctionSpace.of_basis(frame_faces.angular_frame(sn.quad, 0).basis).shape
+    assert truncated.factors[0] == head0
+
+    foreign = _ForeignTruncatedBasis.like(frame_faces.angular_frame(sn.quad, L).basis)
+    assert FunctionSpace.of_basis(foreign) != FunctionSpace.of_basis(foreign.parent)
+    assert LegendreMomentTransfer.on_basis(
+            TransferMaterialField.scattering(mat), foreign,
+        ).domain == FunctionSpace.of_basis(foreign)
+    assert LegendreMomentTransfer.on_basis(
+            TransferMaterialField.n2n(mat), foreign, skip_l0=False,
+        ).codomain == FunctionSpace.of_basis(foreign)
+
+    # the negative leg: an end minted from L alone does NOT compose with the
+    # foreign frame — this is the red every reverted producer produces
+    minted = FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
+    stale = LegendreMomentTransfer(
+        S.transfer, skip_l0=False, domain=minted, codomain=minted,
+    )
+    with pytest.raises(IncompatibleOperatorComposition, match="OperatorProduct requires each factor's domain"):
+        frame_faces.conjugate(S.flux_analysis.frame, stale)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# A2 — the METRIC-IDENTITY gate (and the fork control)
+# ═══════════════════════════════════════════════════════════════════════
+
+
+def _head_measure(space: FunctionSpace) -> np.ndarray | None:
+    """The head's diagonal metric where the axis doctrine put it — the single head axis's measure."""
+    assert space.axes is not None and len(space.axes) == 1, "a moment head is a single-axis space"
+    return space.axes[0].weights
+
+
+def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one() -> None:
+    """On a real posed composite the scattering factor's ends ARE the frame's
+    Parseval-dressed space (structurally equal to the carrier's cached moment
+    head — one space, two owners) and NOT the basis's continuum head: `[M]`
+    (2026-09-08, the fork's ground) the two metrics differ by exactly
+    ``[(2ℓ+1)/4π]²`` per degree on every shipped row, Parseval holds on 33
+    of 33 rows under the dressed one and on 0 under the continuum one, and
+    the converged flux and the residual trajectory are bit-identical under
+    either — the SI increment norm (diagnostics) is the only reader."""
+    sn = _slab()
+    L = 1                      # the synthetic data carries P0 and P1
+    S = ScatteringOperator.from_solver_data(mat_xs=_mat_xs(), space=sn.full_field_space, scattering_order=L)
+    ends = S._moment_transfer(skip_l0=False).domain
+    frame = frame_faces.angular_frame(sn.quad, L)
+    assert ends == frame_faces.basis_space(frame)
+    assert ends != FunctionSpace.of_basis(frame.basis)
+    hub_space = sn.moment_space(L)
+    assert isinstance(hub_space, TensorProductSpace)
+    hub_head = hub_space.factors[0]
+    assert ends == hub_head, "the operator ends and the carrier's cached moment head are one space"
+    measure = _head_measure(ends)
+    assert measure is not None
+    # the slab's Legendre frame is DIAGONAL: the Parseval measure is the
+    # reciprocal of the discrete Gram's diagonal — (2l+1)/2 on a GL rule
+    # exact through degree L, i.e. NOT the continuum 4π/(2l+1)
+    np.testing.assert_allclose(measure, 1.0 / np.diagonal(frame.discrete_gram), rtol=1e-12)
+    cont = _head_measure(FunctionSpace.of_basis(frame.basis))
+    assert cont is not None
+    np.testing.assert_array_equal(np.asarray(cont).reshape(-1), 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0))
+    assert not np.array_equal(measure, cont)
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# A3 — the DOOR gate
+# ═══════════════════════════════════════════════════════════════════════
+
+

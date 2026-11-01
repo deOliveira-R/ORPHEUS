@@ -4506,7 +4506,9 @@ gives the face-to-face transmission
    transmission_spectrum, derive_conserved_mode), whose foundation rows in
    tests/gates/transport/spatial/test_face_transmission_symbolic.py carry
    verifies; the l1 rows of test_face_transmission_xverif.py compare the
-   production cell kernel and the one-cell production sweep with it.
+   production cell kernel with it, and those of
+   sn/sweep/core/test_face_transmission_on_the_production_sweep.py the
+   one-cell production sweep.
 
 a **rank-one matrix minus the identity**, whose spectrum is immediate:
 
@@ -5063,7 +5065,10 @@ thick, near-void, extremely thick): the kernel's :math:`T` (diamond at
 :math:`d \le 3`, LD at :math:`d \le 2`); the kernel's escape, inflow-to-cell
 and source-to-cell blocks; the verdict and :math:`\rho` of
 ``face_transmission_spectrum``; and the one-cell production sweep, per
-group, on a two-group pure absorber.  The tolerance is ten times
+group, on a two-group pure absorber (that leg, an SN path, is
+``tests/gates/sn/sweep/core/test_face_transmission_on_the_production_sweep.py``
+since layer DAG Phase 4, importing the reference and tolerance of the
+transport module).  The tolerance is ten times
 :math:`m\,\kappa(A)\,\varepsilon` relative to
 :math:`\max(1, \lVert T\rVert_\infty)`, the backward-error bound of one
 :math:`m \times m` cell solve followed by a trace.  The two branches share

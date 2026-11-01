@@ -21,15 +21,14 @@ from __future__ import annotations
 
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
-from orpheus.numerics.space import FunctionSpace
 
 from dataclasses import dataclass
 
 import numpy as np
 import pytest
 
-from tests.gates.sn._test_helpers import material_xs_from_raw
-from orpheus.transport.kernels import N2N_MULTIPLICITY, TransferKernel
+from tests.gates.transport._materials import material_xs_from_raw
+from orpheus.transport.kernels import TransferKernel
 from orpheus.transport.material_field import MaterialField, TransferMaterialField
 from orpheus.geometry.deck import MirrorDeck
 

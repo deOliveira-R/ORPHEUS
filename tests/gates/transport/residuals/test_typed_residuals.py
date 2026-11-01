@@ -22,6 +22,12 @@ References
 * ``.claude/plans/field_role_typing_view_g.md`` — Phase B step B.3.
 * ``orpheus/numerics/field.py`` — Layer-1 class-identity gate
   (``_check_partner``).
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
@@ -33,8 +39,8 @@ import pytest
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.field import Field
-from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space, angular_trace_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -45,14 +51,10 @@ from orpheus.transport.residuals import (
 )
 from orpheus.transport.fields import AngularSourceSink, ScalarSourceSink
 
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = pytest.mark.foundation
@@ -61,26 +63,16 @@ pytestmark = pytest.mark.foundation
 # ── Fixtures ─────────────────────────────────────────────────────────
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    """Build a small slab :class:`SNProblem` for unit testing."""
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-def _stretched_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
+def _stretched_mesh(nx: int = 4, ng: int = 2) -> MaterialMesh:
     """Same shape as ``_slab_mesh``, doubled width — the cell VOLUMES differ,
     so the carrier mints an UNEQUAL space (the F2 content discriminator)."""
     mesh = Mesher(StructuredGeometry.from_homogeneous(2.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
-def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
+def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> MaterialMesh:
     """Build a small 2-D Cartesian :class:`SNProblem`."""
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
@@ -88,15 +80,14 @@ def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
         mat_map=np.zeros((nx, ny), dtype=int),
         face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
-def _ang_shape(m: SNProblem) -> tuple[int, ...]:
-    return (m.quad.n_ordinates, m.ng, *m.spatial_shape)
+def _ang_shape(m: MaterialMesh) -> tuple[int, ...]:
+    return (posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape)
 
 
-def _sca_shape(m: SNProblem) -> tuple[int, ...]:
+def _sca_shape(m: MaterialMesh) -> tuple[int, ...]:
     return (m.ng, *m.spatial_shape)
 
 
@@ -107,28 +98,32 @@ def _sca_shape(m: SNProblem) -> tuple[int, ...]:
 
 class TestAngularResidual:
     def test_inherits_field_and_angular_family(self) -> None:
-        m = _slab_mesh()
-        r = AngularResidual(values=np.zeros(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        r = AngularResidual(values=np.zeros(_ang_shape(m)), space=bulk)
         assert isinstance(r, Field)
         # CS4b S2: role is CLASS identity; the space is the carrier's cached
         # angular bulk (shared across the family, role-blind by design).
-        assert r.space is m.angular_bulk_space
+        assert r.space is bulk
 
     def test_ctor_shape_and_metadata(self) -> None:
-        m = _slab_mesh()
-        r = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        r = AngularResidual(values=np.ones(_ang_shape(m)), space=bulk)
         assert r.values.shape == _ang_shape(m)
-        assert (r.N, r.ng) == (m.quad.n_ordinates, m.ng)
+        assert (r.N, r.ng) == (posing_quadrature(m).n_ordinates, m.ng)
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         with pytest.raises(ValueError, match="AngularResidual.*does not match"):
-            AngularResidual(values=np.zeros((m.quad.n_ordinates + 1, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
+            AngularResidual(values=np.zeros((posing_quadrature(m).n_ordinates + 1, m.ng, *m.spatial_shape)), space=bulk)
 
     def test_within_class_add_sub_closed(self) -> None:
-        m = _slab_mesh()
-        a = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
-        b = AngularResidual(values=2.0 * np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        a = AngularResidual(values=np.ones(_ang_shape(m)), space=bulk)
+        b = AngularResidual(values=2.0 * np.ones(_ang_shape(m)), space=bulk)
         s = a + b
         d = b - a
         assert isinstance(s, AngularResidual) and isinstance(d, AngularResidual)
@@ -139,8 +134,9 @@ class TestAngularResidual:
         assert np.all(b.values == 2.0)
 
     def test_scalar_mul_div_neg(self) -> None:
-        m = _slab_mesh()
-        a = AngularResidual(values=np.full(_ang_shape(m), 4.0), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        a = AngularResidual(values=np.full(_ang_shape(m), 4.0), space=bulk)
         assert np.all((3.0 * a).values == 12.0)
         assert np.all((a * 3.0).values == 12.0)
         assert np.all((a / 2.0).values == 2.0)
@@ -149,18 +145,19 @@ class TestAngularResidual:
 
     def test_space_content_binding_check(self) -> None:
         """CS4b S3 (F2): twin carriers mix; differing volumes refuse."""
-        ma, mb = _slab_mesh(), _slab_mesh()
-        a = AngularResidual(values=np.ones(_ang_shape(ma)), space=ma.angular_bulk_space)
-        b = AngularResidual(values=np.ones(_ang_shape(mb)), space=mb.angular_bulk_space)
+        ma, mb = slab_mesh(), slab_mesh()
+        a = AngularResidual(values=np.ones(_ang_shape(ma)), space=angular_bulk_space(ma, posing_quadrature(ma)))
+        b = AngularResidual(values=np.ones(_ang_shape(mb)), space=angular_bulk_space(mb, posing_quadrature(mb)))
         _ = a + b  # twin content — legal since the F2 re-key
         mc = _stretched_mesh()
-        c = AngularResidual(values=np.ones(_ang_shape(mc)), space=mc.angular_bulk_space)
+        c = AngularResidual(values=np.ones(_ang_shape(mc)), space=angular_bulk_space(mc, posing_quadrature(mc)))
         with pytest.raises(ValueError, match="equal space"):
             _ = a + c
 
     def test_frozen(self) -> None:
-        m = _slab_mesh()
-        r = AngularResidual(values=np.zeros(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        r = AngularResidual(values=np.zeros(_ang_shape(m)), space=bulk)
         with pytest.raises(FrozenInstanceError):
             r.values = np.ones(_ang_shape(m))  # type: ignore[misc]
 
@@ -172,7 +169,7 @@ class TestAngularResidual:
 
 class TestScalarResidual:
     def test_inherits_field_and_scalar_family(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         r = ScalarResidual(values=np.zeros(_sca_shape(m)), space=m.bulk_space)
         assert isinstance(r, Field)
         # CS4b S2: role is CLASS identity; the space is the carrier's cached
@@ -180,18 +177,18 @@ class TestScalarResidual:
         assert r.space is m.bulk_space
 
     def test_ctor_shape_and_metadata(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         r = ScalarResidual(values=np.ones(_sca_shape(m)), space=m.bulk_space)
         assert r.values.shape == _sca_shape(m)
         assert r.ng == m.ng
 
     def test_shape_validation_rejects_wrong_shape(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         with pytest.raises(ValueError, match="ScalarResidual.*does not match"):
             ScalarResidual(values=np.zeros((m.ng + 1, *m.spatial_shape)), space=m.bulk_space)
 
     def test_within_class_add_sub_closed(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         a = ScalarResidual(values=np.full(_sca_shape(m), 5.0), space=m.bulk_space)
         b = ScalarResidual(values=np.full(_sca_shape(m), 2.0), space=m.bulk_space)
         s = a + b
@@ -201,7 +198,7 @@ class TestScalarResidual:
         assert np.all(d.values == 3.0)
 
     def test_scalar_mul_div_neg(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         a = ScalarResidual(values=np.full(_sca_shape(m), 4.0), space=m.bulk_space)
         assert np.all((2.5 * a).values == 10.0)
         assert np.all((a / 4.0).values == 1.0)
@@ -209,7 +206,7 @@ class TestScalarResidual:
 
     def test_space_content_binding_check(self) -> None:
         """CS4b S3 (F2): twin carriers mix; differing volumes refuse."""
-        ma, mb = _slab_mesh(), _slab_mesh()
+        ma, mb = slab_mesh(), slab_mesh()
         a = ScalarResidual(values=np.ones(_sca_shape(ma)), space=ma.bulk_space)
         b = ScalarResidual(values=np.ones(_sca_shape(mb)), space=mb.bulk_space)
         _ = a + b  # twin content — legal since the F2 re-key
@@ -241,9 +238,10 @@ class TestCrossClassRejection:
         gate. Same units give permission to add in linear algebra; they
         do not give meaning.
         """
-        m = _slab_mesh()
-        res = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
-        src = AngularSourceSink(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        res = AngularResidual(values=np.ones(_ang_shape(m)), space=bulk)
+        src = AngularSourceSink(values=np.ones(_ang_shape(m)), space=bulk)
         # Identical shape and (conceptually) units — but distinct class.
         assert res.values.shape == src.values.shape
         with pytest.raises(TypeError, match="same-class"):
@@ -254,9 +252,10 @@ class TestCrossClassRejection:
     def test_angular_residual_plus_angular_flux_raises(self) -> None:
         """``AngularResidual + AngularFlux`` RAISES (same shape, but a
         residual is a rate density and a flux is not)."""
-        m = _slab_mesh()
-        res = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
-        psi = AngularFlux(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        res = AngularResidual(values=np.ones(_ang_shape(m)), space=bulk)
+        psi = AngularFlux(values=np.ones(_ang_shape(m)), space=bulk)
         with pytest.raises(TypeError, match="same-class"):
             _ = res + psi  # type: ignore[operator]
 
@@ -265,7 +264,7 @@ class TestCrossClassRejection:
     ) -> None:
         """``ScalarResidual - ScalarSourceSink`` RAISES (same shape + units,
         distinct class)."""
-        m = _slab_mesh()
+        m = slab_mesh()
         res = ScalarResidual(values=np.ones(_sca_shape(m)), space=m.bulk_space)
         src = ScalarSourceSink(values=np.ones(_sca_shape(m)), space=m.bulk_space)
         assert res.values.shape == src.values.shape
@@ -273,7 +272,7 @@ class TestCrossClassRejection:
             _ = res - src  # type: ignore[operator]
 
     def test_scalar_residual_plus_scalar_flux_raises(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         res = ScalarResidual(values=np.ones(_sca_shape(m)), space=m.bulk_space)
         phi = ScalarFlux(values=np.ones(_sca_shape(m)), space=m.bulk_space)
         with pytest.raises(TypeError, match="same-class"):
@@ -282,17 +281,19 @@ class TestCrossClassRejection:
     def test_cross_family_residual_add_raises(self) -> None:
         """``AngularResidual + ScalarResidual`` RAISES (different class
         AND different shape — the class gate fires first)."""
-        m = _slab_mesh()
-        ang = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        ang = AngularResidual(values=np.ones(_ang_shape(m)), space=bulk)
         sca = ScalarResidual(values=np.ones(_sca_shape(m)), space=m.bulk_space)
         with pytest.raises(TypeError, match="same-class"):
             _ = ang + sca  # type: ignore[operator]
 
     def test_inner_product_cross_class_raises(self) -> None:
         """The cross-class gate also guards :meth:`Field.inner_product`."""
-        m = _slab_mesh()
-        res = AngularResidual(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
-        src = AngularSourceSink(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        res = AngularResidual(values=np.ones(_ang_shape(m)), space=bulk)
+        src = AngularSourceSink(values=np.ones(_ang_shape(m)), space=bulk)
         with pytest.raises(TypeError, match="same-class"):
             res.inner_product(src)  # type: ignore[arg-type]
 
@@ -305,16 +306,18 @@ class TestCrossClassRejection:
 class Test2DResiduals:
     def test_construction_shapes_2d(self) -> None:
         m = _2d_mesh()
-        ang = AngularResidual(values=np.zeros(_ang_shape(m)), space=m.angular_bulk_space)
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        ang = AngularResidual(values=np.zeros(_ang_shape(m)), space=bulk)
         sca = ScalarResidual(values=np.zeros(_sca_shape(m)), space=m.bulk_space)
         assert ang.values.shape == _ang_shape(m)
         assert sca.values.shape == _sca_shape(m)
 
     def test_within_class_add_2d(self) -> None:
         m = _2d_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         rng = np.random.default_rng(31)
-        a = AngularResidual(values=rng.standard_normal(_ang_shape(m)), space=m.angular_bulk_space)
-        b = AngularResidual(values=rng.standard_normal(_ang_shape(m)), space=m.angular_bulk_space)
+        a = AngularResidual(values=rng.standard_normal(_ang_shape(m)), space=bulk)
+        b = AngularResidual(values=rng.standard_normal(_ang_shape(m)), space=bulk)
         c = a + b
         np.testing.assert_array_equal(c.values, a.values + b.values)
 
@@ -336,26 +339,29 @@ class TestFromBalance:
     def test_angular_type_and_own_space(self) -> None:
         """Result is an ``AngularResidual`` on its OWN ``"angular_residual"``
         space — NOT the operands' ``"angular_source_sink"`` space."""
-        m = _slab_mesh()
-        lhs = AngularSourceSink(values=np.full(_ang_shape(m), 3.0), space=m.angular_bulk_space)
-        rhs = AngularSourceSink(values=np.full(_ang_shape(m), 1.0), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        lhs = AngularSourceSink(values=np.full(_ang_shape(m), 3.0), space=bulk)
+        rhs = AngularSourceSink(values=np.full(_ang_shape(m), 1.0), space=bulk)
         r = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
         assert isinstance(r, AngularResidual)
-        assert r.space is m.angular_bulk_space  # CS4b: the cached mint
+        assert r.space is bulk  # CS4b: the cached mint
 
     def test_angular_sign_is_lhs_minus_rhs(self) -> None:
-        m = _slab_mesh()
-        lhs = AngularSourceSink(values=np.full(_ang_shape(m), 3.0), space=m.angular_bulk_space)
-        rhs = AngularSourceSink(values=np.full(_ang_shape(m), 1.0), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        lhs = AngularSourceSink(values=np.full(_ang_shape(m), 3.0), space=bulk)
+        rhs = AngularSourceSink(values=np.full(_ang_shape(m), 1.0), space=bulk)
         r = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
         np.testing.assert_array_equal(r.values, lhs.values - rhs.values)
         assert np.all(r.values == 2.0)
 
     def test_angular_positional_and_keyword_equivalent(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         rng = np.random.default_rng(7)
-        a = AngularSourceSink(values=rng.standard_normal(_ang_shape(m)), space=m.angular_bulk_space)
-        b = AngularSourceSink(values=rng.standard_normal(_ang_shape(m)), space=m.angular_bulk_space)
+        a = AngularSourceSink(values=rng.standard_normal(_ang_shape(m)), space=bulk)
+        b = AngularSourceSink(values=rng.standard_normal(_ang_shape(m)), space=bulk)
         np.testing.assert_array_equal(
             AngularResidual.from_balance(a, b).values,
             AngularResidual.from_balance(lhs=a, rhs=b).values,
@@ -366,11 +372,12 @@ class TestFromBalance:
         a ctor-built residual share one space, so they are mutually
         additive. (Would FAIL if ``from_balance`` reused the operands'
         ``"angular_source_sink"`` space.)"""
-        m = _slab_mesh()
-        lhs = AngularSourceSink(values=np.full(_ang_shape(m), 3.0), space=m.angular_bulk_space)
-        rhs = AngularSourceSink(values=np.full(_ang_shape(m), 1.0), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        lhs = AngularSourceSink(values=np.full(_ang_shape(m), 3.0), space=bulk)
+        rhs = AngularSourceSink(values=np.full(_ang_shape(m), 1.0), space=bulk)
         from_bal = AngularResidual.from_balance(lhs=lhs, rhs=rhs)
-        from_msh = AngularResidual(values=np.full(_ang_shape(m), 5.0), space=m.angular_bulk_space)
+        from_msh = AngularResidual(values=np.full(_ang_shape(m), 5.0), space=bulk)
         total = from_bal + from_msh  # MUST NOT raise (same space identity)
         assert isinstance(total, AngularResidual)
         assert np.all(total.values == 7.0)
@@ -378,9 +385,10 @@ class TestFromBalance:
     # ── Guards ───────────────────────────────────────────────────────
     def test_cross_class_operands_raise(self) -> None:
         """Operands of different class (source vs flux) → TypeError."""
-        m = _slab_mesh()
-        src = AngularSourceSink(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
-        psi = AngularFlux(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        src = AngularSourceSink(values=np.ones(_ang_shape(m)), space=bulk)
+        psi = AngularFlux(values=np.ones(_ang_shape(m)), space=bulk)
         with pytest.raises(TypeError, match="same-class operands"):
             AngularResidual.from_balance(lhs=src, rhs=psi)  # type: ignore[arg-type]
 
@@ -388,24 +396,25 @@ class TestFromBalance:
         """Operands are a valid same-class pair (``AngularFlux``), but their
         units ``1/(cm²·s·sr)`` differ from ``AngularResidual``'s
         ``1/(cm³·s·sr)`` → TypeError (the sr-exact dimensional guard)."""
-        m = _slab_mesh()
-        a = AngularFlux(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
-        b = AngularFlux(values=np.ones(_ang_shape(m)), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        a = AngularFlux(values=np.ones(_ang_shape(m)), space=bulk)
+        b = AngularFlux(values=np.ones(_ang_shape(m)), space=bulk)
         with pytest.raises(TypeError, match="must match the residual's units"):
             AngularResidual.from_balance(lhs=a, rhs=b)  # type: ignore[arg-type]
 
     def test_space_mismatch_raises(self) -> None:
         """CS4b S3 (F2): from_balance across twin carriers is legal; across
         differing cell volumes it refuses on space content."""
-        ma, mb = _slab_mesh(), _stretched_mesh()
-        a = AngularSourceSink(values=np.ones(_ang_shape(ma)), space=ma.angular_bulk_space)
-        b = AngularSourceSink(values=np.ones(_ang_shape(mb)), space=mb.angular_bulk_space)
+        ma, mb = slab_mesh(), _stretched_mesh()
+        a = AngularSourceSink(values=np.ones(_ang_shape(ma)), space=angular_bulk_space(ma, posing_quadrature(ma)))
+        b = AngularSourceSink(values=np.ones(_ang_shape(mb)), space=angular_bulk_space(mb, posing_quadrature(mb)))
         with pytest.raises(ValueError, match="equal space"):
             AngularResidual.from_balance(lhs=a, rhs=b)
 
     # ── Scalar (bulk) ────────────────────────────────────────────────
     def test_scalar_type_sign_space(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
         lhs = ScalarSourceSink(values=np.full(_sca_shape(m), 5.0), space=m.bulk_space)
         rhs = ScalarSourceSink(values=np.full(_sca_shape(m), 2.0), space=m.bulk_space)
         r = ScalarResidual.from_balance(lhs=lhs, rhs=rhs)
@@ -425,29 +434,31 @@ class TestFromBalance:
 # ════════════════════════════════════════════════════════════════════
 # Boundary locus — space-primary construction + from_balance (the
 # capability is minted in B.5.1; the matvec wiring is deferred to
-# B.5.2 / #208). All boundary leaves share the SAME ``mesh.angular_trace`` space.
+# B.5.2 / #208). All boundary leaves share the SAME angular trace (``angular_trace_space(mesh, quadrature, scheme)``) space.
 # ════════════════════════════════════════════════════════════════════
 
 
 class TestBoundaryConstructionAndBalance:
     def test_ctor_roundtrip_on_trace(self) -> None:
         """The primary ctor (CS4b S5) packs a flat buffer onto the shared
-        ``mesh.angular_trace`` — the space-primary construction surface,
+        angular trace (``angular_trace_space(mesh, quadrature, scheme)``) — the space-primary construction surface,
         uniform with the bulk leaves."""
-        m = _slab_mesh()
-        n = AngularBoundaryFlux.zeros(m.angular_trace).values.size
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        n = AngularBoundaryFlux.zeros(trace).values.size
         vals = np.arange(float(n))
-        bf = AngularBoundaryFlux(values=vals, space=m.angular_trace)
+        bf = AngularBoundaryFlux(values=vals, space=trace)
         assert isinstance(bf, AngularBoundaryFlux)
-        assert bf.space is m.angular_trace
+        assert bf.space is trace
         np.testing.assert_array_equal(bf.values, vals)
 
     def test_boundary_from_balance(self) -> None:
-        m = _slab_mesh()
-        n = AngularBoundaryFlux.zeros(m.angular_trace).values.size
-        lhs = AngularBoundaryFlux(values=np.full(n, 4.0), space=m.angular_trace)
-        rhs = AngularBoundaryFlux(values=np.full(n, 1.0), space=m.angular_trace)
+        m = slab_mesh()
+        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
+        n = AngularBoundaryFlux.zeros(trace).values.size
+        lhs = AngularBoundaryFlux(values=np.full(n, 4.0), space=trace)
+        rhs = AngularBoundaryFlux(values=np.full(n, 1.0), space=trace)
         r = AngularBoundaryResidual.from_balance(lhs=lhs, rhs=rhs)
         assert isinstance(r, AngularBoundaryResidual)
-        assert r.space is m.angular_trace  # shared trace space (all boundary leaves)
+        assert r.space is trace  # shared trace space (all boundary leaves)
         assert np.all(r.values == 3.0)

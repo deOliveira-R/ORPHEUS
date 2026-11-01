@@ -43,13 +43,16 @@ key WITHOUT ``conditions_key(...)``. Red: both ``test_the_key_carries_the_condit
 beside the diffusion row ``tests/gates/diffusion/test_augmented_mesh.py::TestConditionsAreThePhaseSpace`` that already pinned it
 for diffusion alone. Second mutation (M-respell-drops-conditions): the shared re-spelling keywords return ``{}``: both
 ``test_a_respelled_problem_keeps_its_conditions`` rows raise ``UnboundTagError``.
+
+Layer DAG Phase 4 (2026-11-01): the two rows that pose both method problems (the key carries the conditions; a
+respelled problem keeps them) are tests/gates/cross_method/test_method_mesh_binding.py; the source scanner rows stay
+here.
 """
 
 from __future__ import annotations
 
 import ast
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -135,64 +138,3 @@ def test_the_duties_are_spelled_once_in_the_method_layer() -> None:
     assert any("MethodMesh" in base for base in _classes(diffusion)["DiffusionMesh"]), "DiffusionMesh does not derive from MethodMesh"
 
 
-def _sn(condition: Any) -> Any:
-    from orpheus.data.macro_xs.synthetic import get_mixture
-    from orpheus.geometry import StructuredGeometry
-    from orpheus.geometry.deck import MirrorDeck
-    from orpheus.mesh import CellsByCount, Mesher
-    from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.problem import SNProblem
-
-    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=MirrorDeck(), right=0)).partition(CellsByCount.uniform_width(4)).mesh
-    return SNProblem(mesh, Quadrature.gauss_legendre(4), {0: get_mixture("B", "2g")}, boundary_conditions={0: condition})
-
-
-def _diffusion(condition: Any) -> Any:
-    from orpheus.data.macro_xs.synthetic import get_mixture
-    from orpheus.diffusion.augmented_mesh import DiffusionMesh
-    from orpheus.geometry import StructuredGeometry
-    from orpheus.geometry.deck import MirrorDeck
-    from orpheus.mesh import CellsByCount, Mesher
-
-    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=MirrorDeck(), right=0)).partition(CellsByCount.uniform_width(4)).mesh
-    return DiffusionMesh(mesh, {0: get_mixture("B", "2g")}, boundary_conditions={0: condition})
-
-
-_BUILDERS = {"sn": _sn, "diffusion": _diffusion}
-
-
-@pytest.mark.l1
-@pytest.mark.rests_on(f"{_THIS}::test_the_scanner_sees_what_it_must")
-@pytest.mark.parametrize("method", list(_BUILDERS))
-def test_the_key_carries_the_conditions(method: str) -> None:
-    r"""Two problems over the same mesh with different conditions are different phase spaces, and two with the same
-    condition are the same one (the control: the key is not merely unequal for everything).
-
-    Red input: none at the base tip (both methods carry the duty today); the instrument of the mutation M-key-drops-conditions in
-    the shared base, which turns ``vac != white`` into False for BOTH rows.
-    """
-    from orpheus.transport.boundary_conditions import WallCondition
-
-    build = _BUILDERS[method]
-    vac, white, white_again = build(WallCondition.vacuum()), build(WallCondition.white(0.5)), build(WallCondition.white(0.5))
-    assert vac != white and not vac.same_phase_space(white), f"{method}: vacuum and white(0.5) are one phase space"
-    assert white == white_again and white.same_phase_space(white_again)
-
-
-@pytest.mark.l1
-@pytest.mark.rests_on(f"{_THIS}::test_the_key_carries_the_conditions")
-@pytest.mark.parametrize("method", list(_BUILDERS))
-def test_a_respelled_problem_keeps_its_conditions(method: str) -> None:
-    r"""``with_cross_sections`` rebuilds the problem over the same phase space: the declared conditions are carried (without them
-    the rebuilt carrier's tag is unbound, ``UnboundTagError``), and the rebuilt problem has the original's key (same sigma_t
-    datum).
-
-    Red input: none at the base tip. Mutation M-respell-drops-conditions (the shared re-spelling keywords return ``{}``): both
-    rows raise ``UnboundTagError``.
-    """
-    from orpheus.transport.boundary_conditions import WallCondition
-
-    problem = _BUILDERS[method](WallCondition.white(0.5))
-    again = problem.with_cross_sections(problem.sigma_t_cell.copy())
-    assert again.binding.declared == problem.binding.declared
-    assert again._contractibility_key == problem._contractibility_key

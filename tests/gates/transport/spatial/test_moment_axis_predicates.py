@@ -19,7 +19,8 @@ Two predicates, two pairs:
   producer (the factor is set by the OUTPUT wrap, default 1 everywhere, NOT
   auto-read from the mesh — ``transport/fields/_bases.py:183-194``). A hand-built
   bare field on an LD mesh is ``1`` BY DESIGN — the load-bearing
-  construct-general pin (P4').
+  construct-general pin (P4'). The rows P3 / P4 read an SN solve's output and live in
+  ``tests/gates/sn/solve/test_solutions_carry_the_moment_axis.py`` since layer DAG Phase 4.
 
 vv-principles anti-pattern #11: a predicate needs a POSITIVE (real multi-moment →
 True, MUST NOT mis-report) AND a NEGATIVE (real single-moment → False). Negative-
@@ -38,16 +39,9 @@ import pytest
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn import solve_sn_fixed_source
-from orpheus.sn.problem import SNProblem
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
-from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.transport.fields.angular_flux import AngularFlux
-from tests.gates._exterior import conditions_for
 
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
 
 pytestmark = pytest.mark.foundation
 
@@ -111,46 +105,6 @@ def test_is_multi_moment_false_for_step() -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def _solve_1g_slab(scheme):
-    r"""A minimal 1G vacuum slab solve — returns the result whose
-    ``angular_flux`` carries (LD) or lacks (DD) the spatial-moment factor."""
-    from orpheus.derivations.continuous.mms.sn import _make_1g_mixture
-
-    nx = 8
-    materials = {0: _make_1g_mixture(1.0, 0.5)}
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(8)
-    Q = np.ones((quad.n_ordinates, 1, nx)) / quad.weights.sum()
-    return solve_sn_fixed_source(
-        materials, mesh, quad, Q, scheme=scheme,
-        inner_solver="krylov",
-        max_inner=500, inner_tol=1e-10, boundary_conditions=conditions_for(mesh, _CONDITIONS),
-    )
-
-
-def test_spatial_moment_axis_present_on_moment_aware_producer_output() -> None:
-    r"""P3 (positive): a field produced THROUGH the LD moment-aware output wrap
-    carries the spatial-moment factor → ``spatial_moments_per_axis > 1``."""
-    result = _solve_1g_slab(LinearDiscontinuous())
-    bulk = result.angular_flux.interior
-    _require(
-        bulk.spatial_moments_per_axis > 1,
-        "LD producer output should carry the spatial-moment axis",
-    )
-
-
-def test_spatial_moment_axis_absent_on_dd_field() -> None:
-    r"""P4 (negative): a DD output field lacks the factor → ``spatial_moments_per_axis == 1``."""
-    result = _solve_1g_slab(DiamondDifference())
-    bulk = result.angular_flux.interior
-    _require(
-        bulk.spatial_moments_per_axis == 1,
-        "DD output should NOT carry the spatial-moment axis",
-    )
-
-
 def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
     r"""P4' (the CONSTRUCT-GENERAL pin — load-bearing): a hand-built bare field
     on an LD mesh LACKS the factor (``spatial_moments_per_axis == 1``), DESPITE
@@ -163,32 +117,29 @@ def test_spatial_moment_axis_absent_on_hand_built_ld_field() -> None:
     silently and break LD byte-identity. This test is WHY the inner walk uses the
     SCHEME-level ``is_multi_moment``, not a field-level query.
 
-    Build a bare width-1 field (``space=ld_sn_mesh.angular_bulk_space`` —
-    NOT the ``angular_trial_space`` widened mint) on an LD ``SNProblem`` and
-    assert the field does NOT carry the spatial-moment axis even though the
-    mesh's scheme IS multi-moment — widening is the CALLER's selection, by
-    property choice since CS4b S5.
+    Build a bare width-1 field on the width-1 angular bulk (``angular_bulk_space(mesh, quadrature)``, NOT the LD
+    closure's widened ``trial_space``) and assert the field does NOT carry the spatial-moment axis even though the
+    closure IS multi-moment: widening is the CALLER's selection (layer DAG Phase 4: posed on a material mesh and the
+    raw constructors; the SN solve's output rows P3 / P4 moved to
+    ``tests/gates/sn/solve/test_solutions_carry_the_moment_axis.py``).
     """
-    from tests.gates.sn._test_helpers import placeholder_materials
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from orpheus.transport.phase_spaces import angular_bulk_space
+    from tests.gates.transport._materials import placeholder_materials
 
     nx = 5
     mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(nx),
     ).mesh
     quad = Quadrature.gauss_legendre(4)
-    ld_sn_mesh = SNProblem(
-        mesh, quad, placeholder_materials(ng=2), scheme=LinearDiscontinuous(),
-        boundary_conditions=conditions_for(mesh, _CONDITIONS),
-    )
-    # Premise: the mesh's scheme IS multi-moment — the field's False is NOT a
-    # trivial DD-mesh result; it documents the provenance discipline.
-    _require(
-        ld_sn_mesh.scheme.is_multi_moment is True,
-        "premise broken: the SNProblem scheme must be LD (multi-moment)",
-    )
+    scheme = LinearDiscontinuous()
+    material_mesh = MaterialMesh(mesh, placeholder_materials(ng=2))
+    # Premise: the closure IS multi-moment — the field's False is NOT a trivial DD result; it documents the provenance
+    # discipline.
+    _require(scheme.is_multi_moment is True, "premise broken: the closure must be LD (multi-moment)")
     # Bare field — NO spatial_moments=, the construct-general default 1.
-    values = np.zeros((quad.n_ordinates, ld_sn_mesh.ng, nx))
-    bulk = AngularFlux(values=values, space=ld_sn_mesh.angular_bulk_space)
+    values = np.zeros((quad.n_ordinates, material_mesh.ng, nx))
+    bulk = AngularFlux(values=values, space=angular_bulk_space(material_mesh, quad))
     _require(
         bulk.spatial_moments_per_axis == 1,
         "a hand-built bare field on an LD mesh must NOT carry the moment axis "

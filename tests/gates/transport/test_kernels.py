@@ -18,6 +18,12 @@ clause was false — and the shipped-pair/binding rows in this file
 legitimately use ``get_mixture``, where the nulled channels are
 irrelevant.) Fixtures are function-scoped builders (fresh per call) so
 the G1.5 carrier-mutation leg cannot pollute a shared object.
+
+Layer DAG Phase 4 (2026-11-01): the file builds material meshes and spells each space it reads from the raw
+constructors of orpheus.transport.phase_spaces (the SN problem's and the diffusion mesh's cached mints are those
+constructors on the problem's own ingredients, gated in
+tests/gates/sn/mesh/test_the_mints_are_the_raw_constructors.py and
+tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 
 from __future__ import annotations
@@ -50,7 +56,7 @@ from orpheus.transport.operators.isotropic_transfer import (
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
-from tests.gates.sn.architecture._config import anisotropic_mixture
+from tests.gates.transport._materials import anisotropic_mixture
 
 pytestmark = pytest.mark.foundation
 
@@ -577,19 +583,20 @@ def test_module_imports_nothing_from_scattering_or_frames():
 # ═════════════════════════════════════════════════════════════════════════
 
 def _diffusion_binding():
-    """The 2g / 6-cell diffusion binding the arm matrix is measured on."""
-    from orpheus.diffusion.augmented_mesh import DiffusionMesh
+    """The 2g / 6-cell slab binding the arm matrix is measured on: a material mesh and its scalar composite
+    ``bulk (+) scalar trace`` (layer DAG Phase 4: the diffusion problem's spaces from the raw constructors)."""
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from tests.gates.transport._phase_space_cases import scalar_full_field_space
     from orpheus.geometry import StructuredGeometry
     from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellsByCount, Mesher
-    from orpheus.transport.boundary_conditions import WallCondition
 
     geometry = StructuredGeometry.slab(
         (0.0, 2.0), (0,), left=MirrorDeck(), right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(6)).mesh
-    dm = DiffusionMesh(mesh, {0: get_mixture("A", "2g")}, boundary_conditions={0: WallCondition.vacuum()})
-    return dm, dm.mat_xs, dm.full_field_space
+    dm = MaterialMesh(mesh, {0: get_mixture("A", "2g")})
+    return dm, dm.mat_xs, scalar_full_field_space(dm)
 
 
 #: (operator, binding, carrier) → the outcome the ENDS select: an output
@@ -702,7 +709,7 @@ def test_the_ends_select_the_body(operator_key, binding, carrier_key):
     carriers = {
         "FullField": lambda: FullField(
             interior=ScalarFlux(values=interior_values, space=dm.bulk_space),
-            boundary=ScalarBoundaryFlux(values=rng.random(dm.scalar_trace.shape[0]) + 0.1, space=dm.scalar_trace),
+            boundary=ScalarBoundaryFlux(values=rng.random(_ffs.trace_space.shape[0]) + 0.1, space=_ffs.trace_space),
         ),
         "ndarray": lambda: interior_values.copy(),
         "ScalarFlux": lambda: ScalarFlux(values=interior_values, space=dm.bulk_space),
@@ -735,7 +742,7 @@ def test_the_plain_row_and_the_lift_row_agree_on_the_values():
     rng = np.random.default_rng(7)
     psi = FullField(
         interior=ScalarFlux(values=rng.random((2, 6)) + 0.5, space=dm.bulk_space),
-        boundary=ScalarBoundaryFlux(values=rng.random(dm.scalar_trace.shape[0]), space=dm.scalar_trace),
+        boundary=ScalarBoundaryFlux(values=rng.random(_ffs.trace_space.shape[0]), space=_ffs.trace_space),
     )
     for key in ("IsoS", "IsoN2N", "F"):
         plain = _bind(key, "plain")
@@ -816,21 +823,17 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
     """
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.sn.problem import SNProblem
     from orpheus.geometry import StructuredGeometry
     from orpheus.mesh import CellsByCount, Mesher
-    from orpheus.transport.boundary_conditions import WallCondition
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
     from orpheus.transport.operators.scattering import ScatteringOperator
+    from tests.gates.transport._phase_space_cases import angular_full_field_space
 
     carrier = unit_cell_carrier({0: get_mixture("A", "2g")})
     mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
         CellsByCount.uniform_width(4),
     ).mesh
-    problem = SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=4), carrier.materials,
-        boundary_conditions={0: WallCondition.vacuum()},
-    )
-    space = problem.full_field_space
+    space = angular_full_field_space(MaterialMesh(mesh, carrier.materials), Quadrature.gauss_legendre(n_ordinates=4))
     scattering = ScatteringOperator.from_solver_data(
         mat_xs=carrier.mat_xs,
         scattering_order=0,
@@ -861,7 +864,7 @@ def test_energy_conformity_guard_three_rows():
        the refusal at ALL FOUR wired call sites, naming each operator
        (QA-F1: the guard BODY is single-sourced but the WIRING is
        per-site — three sites had no witness);
-    3. axes-LESS — a WRONG-ng bind on ``SNProblem(2g).full_field_space``
+    3. axes-LESS — a WRONG-ng bind on the 2g SN full-field space (``angular_full_field_space``)
        MUST REFUSE since CS4c step 4 (⛔ this clause read "MUST
        CONSTRUCT: the declared inertness" until step 4 — the row's body
        records how the reach widened). The guard's reach is the
@@ -871,7 +874,7 @@ def test_energy_conformity_guard_three_rows():
        N2NOperator, F, and Λ/N2N-moment inherit the base without an
        energy end to check — where the pre-step census read 4 of 13.
        The guard stays INERT on axes-less composites (this row's
-       subject): ``SNProblem.full_field_space`` carries no EnergyAxis until
+       subject): the SN full-field space carries no EnergyAxis until
        CS2's axes, so a wrong-ng bind constructs, and the row keeps that
        fact asserted rather than assumed. Without this row the guard
        ships certified by a fixture family that reddens on demand while
@@ -881,8 +884,8 @@ def test_energy_conformity_guard_three_rows():
     from orpheus.geometry.deck import MirrorDeck
     from orpheus.mesh import CellsByCount, Mesher
     from orpheus.numerics.quadrature import Quadrature
-    from orpheus.sn.problem import SNProblem
-    from orpheus.transport.boundary_conditions import WallCondition
+    from orpheus.transport.mesh.material_mesh import MaterialMesh
+    from tests.gates.transport._phase_space_cases import angular_full_field_space
 
     carrier_2g = unit_cell_carrier({0: get_mixture("A", "2g")})
     carrier_4g = unit_cell_carrier({0: get_mixture("A", "4g")})
@@ -941,12 +944,9 @@ def test_energy_conformity_guard_three_rows():
         (0.0, 2.0), (0,), left=MirrorDeck(), right=0,
     )
     mesh = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
-    sn_2g = SNProblem(
-        mesh, Quadrature.gauss_legendre(n_ordinates=4),
-        {0: get_mixture("A", "2g")},
-        boundary_conditions={0: WallCondition.vacuum()},
+    composite = angular_full_field_space(
+        MaterialMesh(mesh, {0: get_mixture("A", "2g")}), Quadrature.gauss_legendre(n_ordinates=4),
     )
-    composite = sn_2g.full_field_space
     assert composite.axes is None  # still true — the reach is the interior's
     mat_4g = carrier_4g.mat_xs
     with pytest.raises(ValueError, match="energy extent"):

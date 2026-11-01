@@ -33,6 +33,9 @@ file carries ``foundation`` and no ``verifies()``.
 """
 from __future__ import annotations
 
+import functools
+import inspect
+
 import numpy as np
 import pytest
 
@@ -48,6 +51,7 @@ from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
 from orpheus.transport.spatial.diamond import DiamondDifference
+from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.transport.boundary_conditions import WallCondition
@@ -216,25 +220,68 @@ def test_hub_mutation_after_posing_is_inert(row, factory, slot):
 # Space/layout facts the ruling keeps HUB-side (F5); everything method-
 # flavored must arrive through the operator.  Q4 (ruled): the strategy-
 # selection predicates are operator-side, so they must LEAVE this set.
-_ALLOWED_HUB_SCHEME_READS = {"spatial_basis_per_axis", "is_multi_moment"}
+# ``trial_space`` (the scheme's trial-space widening verb, layer DAG Phase 4) returns a space and ``moment_axis`` (the
+# composer's tail, read on the LD row) returns an axis, so both are space facts. ``[M]`` 2026-11-01, the recorder that
+# counts only reads made from OUTSIDE the scheme's own code: slab and cylinder read {spatial_basis_per_axis,
+# trial_space}; the LD slab adds moment_axis. ``is_multi_moment`` left the set: it was read only by ``trial_space``
+# itself, which the old recorder (counting self-reads) misattributed to the hub.
+_ALLOWED_HUB_SCHEME_READS = {"spatial_basis_per_axis", "trial_space", "moment_axis"}
 _ALLOWED_HUB_CLOSURE_READS: set[str] = set()
 
 
 def _recording_subclass(base_cls, reads: list[str]):
+    """A delegating subclass that records the names read on an instance FROM OUTSIDE its own code.
+
+    A read made while one of the instance's own methods or properties runs (``trial_space`` reading
+    ``self.is_multi_moment``) is the scheme's business, not the hub's, so it is not recorded: a depth counter is
+    raised for the duration of every attribute evaluation and every bound-method call the recorder hands out.
+    """
+    depth = [0]
+
     class _Recorder(base_cls):
         def __getattribute__(self, name):
-            if not name.startswith("__"):
+            if name.startswith("__"):
+                return super().__getattribute__(name)
+            if depth[0] == 0:
                 reads.append(name)
-            return super().__getattribute__(name)
+            depth[0] += 1
+            try:
+                value = super().__getattribute__(name)
+            finally:
+                depth[0] -= 1
+            if inspect.ismethod(value) and value.__self__ is self:
+                method = value
+
+                @functools.wraps(method)
+                def inside(*args, **kwargs):
+                    depth[0] += 1
+                    try:
+                        return method(*args, **kwargs)
+                    finally:
+                        depth[0] -= 1
+
+                return inside
+            return value
 
     _Recorder.__name__ = f"_Recording{base_cls.__name__}"
     return _Recorder
+
+
+def _ld_slab_mesh() -> SNProblem:
+    """The slab of ``_slab_mesh`` under Linear Discontinuous: the hub route of a multi-moment closure."""
+    geom = StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=0)
+    mesh = Mesher(geom).partition(CellsByCount.uniform_width(_NX)).mesh
+    return SNProblem(
+        mesh, Quadrature.gauss_legendre(8), placeholder_materials(ng=_NG), scheme=LinearDiscontinuous(),
+        boundary_conditions=conditions_for(mesh, _CONDITIONS),
+    )
 
 
 @pytest.mark.parametrize(
     "factory, do_matvec",
     [
         pytest.param(_slab_mesh, True, id="slab"),
+        pytest.param(_ld_slab_mesh, True, id="ld_slab"),
         pytest.param(lambda: _cylinder_mesh(6), False, id="cyl_deg"),
     ],
 )

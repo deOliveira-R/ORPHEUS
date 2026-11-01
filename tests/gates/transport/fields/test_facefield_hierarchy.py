@@ -48,16 +48,44 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
-from tests.gates.sn._test_helpers import make_tiny_spherical_sn_mesh
+from typing import NamedTuple
+
+from orpheus.geometry import StructuredGeometry
+from orpheus.mesh import CellsByCount, Mesher
+from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+from orpheus.numerics.spaces.radial_characteristic_space import RadialCharacteristicInteriorSpace
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_trace_space
+from orpheus.transport.spatial import DiamondDifference
+from tests.gates.transport._materials import placeholder_materials
 
 
 pytestmark = [pytest.mark.foundation]
 
 
-def _sphere_mesh():
-    r"""A sphere-GL SNProblem — carries ONE seed-carrying μ-level (a ψ½ block)
-    AND an angular boundary trace, so both codim-1 loci are constructible."""
-    return make_tiny_spherical_sn_mesh()
+class _Loci(NamedTuple):
+    """The two codim-1 loci of one sphere: its angular boundary trace and its ψ½ pole (interior) space."""
+
+    angular_trace: AngularTraceSpace
+    pole_space: RadialCharacteristicInteriorSpace
+
+
+def _sphere_mesh() -> _Loci:
+    r"""A 2-cell equal-volume reflective sphere of radius 1, one group, GL2 — it carries ONE seed-carrying mu-level
+    (a ψ½ block, levels ``(0,)``) AND an angular boundary trace, so both codim-1 loci are constructible. Layer DAG
+    Phase 4: the trace is the raw constructor's and the pole space is posed by hand from the numerics class
+    (``[M]`` the SN problem on this mesh reads levels ``(0,)``); the SN problem's own mint of the ψ½ spaces is gated in
+    ``tests/gates/sn/mesh/test_radial_characteristic_split_spaces.py``."""
+    mesh = MaterialMesh(
+        Mesher(StructuredGeometry.sphere((0.0, 1.0), (0,), outer=0)).partition(CellsByCount.uniform_volume(2)).mesh,
+        placeholder_materials(ng=1),
+    )
+    quadrature = Quadrature.gauss_legendre(2)
+    pole = RadialCharacteristicInteriorSpace.for_levels(
+        (0,), ng=1, nx=2, cell_volumes=np.asarray(mesh.volumes, dtype=float).ravel(),
+    )
+    return _Loci(angular_trace_space(mesh, quadrature, DiamondDifference()), pole)
 
 
 # ── A. The class-level hierarchy ─────────────────────────────────────────
@@ -109,7 +137,7 @@ class TestPoleIsSiblingNotChild:
 class TestConstructedInstancesDiscriminate:
     def test_constructed_pole_fails_the_boundary_isinstance(self):
         mesh = _sphere_mesh()
-        pole = RadialCharacteristicInteriorFlux.zeros(mesh.radial_characteristic_interior_space)
+        pole = RadialCharacteristicInteriorFlux.zeros(mesh.pole_space)
         boundary = AngularBoundaryFlux.zeros(mesh.angular_trace)
         # The exact test FullField.__post_init__ runs on its boundary slot.
         np.testing.assert_(not isinstance(pole, BoundaryField))  # the guarded fact
@@ -141,7 +169,7 @@ class TestPostInitFiresOnce:
 
         monkeypatch.setattr(FaceField, "__post_init__", counting_post_init)
 
-        RadialCharacteristicInteriorFlux.zeros(mesh.radial_characteristic_interior_space)
+        RadialCharacteristicInteriorFlux.zeros(mesh.pole_space)
         np.testing.assert_equal(calls["n"], 1, err_msg="pole: post_init != once")
 
         calls["n"] = 0
@@ -164,7 +192,7 @@ class TestMetricIsPerLeaf:
         would collapse them to equal — this reddens.
         """
         mesh = _sphere_mesh()
-        pole_w = RadialCharacteristicInteriorFlux.zeros(mesh.radial_characteristic_interior_space).space.inner_product_weights
+        pole_w = RadialCharacteristicInteriorFlux.zeros(mesh.pole_space).space.inner_product_weights
         trace_w = AngularBoundaryFlux.zeros(mesh.angular_trace).space.inner_product_weights
 
         # The pole's state metric exists and is SPD (nonzero) — NOT the ghost 0.

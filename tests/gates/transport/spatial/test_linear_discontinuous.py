@@ -27,7 +27,7 @@ import pytest
 
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
-from orpheus.sn.mesh.reduced_operator import slab_streaming
+from tests.gates.transport._phase_space_cases import slab_streaming_terms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.numerics.basis import AVERAGE_MOMENT
@@ -52,9 +52,8 @@ def _slab_visit(cell_idx: int = 2, n_ord: int = 4, *, positive: bool = True):
     """
     mesh = _slab_mesh(nx=5, length=1.0)
     quad = Quadrature.gauss_legendre(n_ord)
-    op = slab_streaming(mesh, quad)
     direction_idx = quad.n_ordinates - 1 if positive else 0
-    st = op.streaming_terms(cell_idx, direction_idx)
+    st = slab_streaming_terms(mesh, quad, cell_idx, direction_idx)
     x0 = float(mesh.edges[cell_idx])
     h = float(mesh.edges[cell_idx + 1] - mesh.edges[cell_idx])
     visit = CellVisit(

@@ -513,12 +513,12 @@ def n_unknowns_flat(
     shape = spatial_shape(axes)
     n_cells = int(quad.n_ordinates) * int(ng) * int(np.prod(shape, dtype=np.int64))
     n_face = 0
-    for label in face_labels(axes):
+    for label, face_spatial in trace_face_shapes(axes):
         outflow = face_outflow_ordinates(axes, label, quad)
         block = (
             int(outflow.size)
             * int(ng)
-            * int(np.prod(face_shape(axes, label), dtype=np.int64))
+            * int(np.prod(face_spatial, dtype=np.int64))
         )
         n_face += block
     return n_cells + n_face

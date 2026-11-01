@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from scipy.sparse import csr_matrix
 
 from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh1D, Mesher
@@ -96,12 +95,11 @@ pytestmark = pytest.mark.verifies(
     # r_ij = (delta_d + delta_c)/2 assembly reds it:
     "rcp-slab-total",
 )
-from orpheus.data.macro_xs.synthetic import (
-    XS, get_xs, get_mixture, get_materials, make_mixture,
-)
+from orpheus.data.macro_xs.synthetic import get_xs, get_mixture, make_mixture
 from orpheus.derivations.common.eigenvalue import kinf_from_cp
 from orpheus.derivations.continuous.flat_source_cp.slab import _slab_cp_matrix
 from tests.gates.cp._cp_geometry import cp_body
+from tests.gates.transport._materials import mixture_with_n2n
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -132,42 +130,6 @@ def _make_mixture_with_upscatter(ng_key: str = "2g") -> Mixture:
         nu=xs["nu"].copy(),
         chi=xs["chi"].copy(),
         sig_s=sig_s,
-    )
-
-
-def _make_mixture_with_n2n(ng_key: str = "2g") -> Mixture:
-    """Region A with nonzero (n,2n) cross section.
-
-    Creates a material where group 0 has a (n,2n) reaction that
-    produces 2 neutrons into the same group.  This tests that the
-    solver correctly accounts for the extra neutron production.
-
-    The Sig2 matrix encodes the transfer: sig2[g'->g].
-    """
-    xs = get_xs("A", ng_key)
-    ng = len(xs["sig_t"])
-    sig_s = xs["sig_s"].copy()
-
-    # (n,2n) from group 0 to group 0 (fast self-multiplication)
-    sig2 = np.zeros((ng, ng))
-    sig2[0, 0] = 0.01  # small but nonzero
-
-    # sig_t must include the (n,2n) reaction cross section
-    # The (n,2n) XS out of group g is sum over g' of sig2[g, g']
-    sig2_out = sig2.sum(axis=1)
-    sig_t = xs["sig_c"] + xs["sig_f"] + sig_s.sum(axis=1) + sig2_out
-
-    # Synthetic XS for the (n,2n) consistency test — no physical grid (Phase E).
-    sig_s_list = [csr_matrix(sig_s)]
-    return Mixture(
-        SigC=xs["sig_c"].copy(),
-        SigL=np.zeros(ng),
-        SigF=xs["sig_f"].copy(),
-        SigP=(xs["nu"] * xs["sig_f"]).copy(),
-        SigT=sig_t,
-        SigS=sig_s_list,
-        Sig2=[csr_matrix(sig2)],
-        chi=xs["chi"].copy(),
     )
 
 
@@ -539,7 +501,7 @@ class TestN2N:
         would match the standard region-A value.
         Closes: G-3, W-3.
         """
-        mat_n2n = _make_mixture_with_n2n("2g")
+        mat_n2n = mixture_with_n2n("2g")
         mat_no = get_mixture("A", "2g")
 
         t = np.array([0.5])
@@ -566,7 +528,7 @@ class TestN2N:
                   SigS_eff = SigS + 2*Sig2.
         Closes: C-2, G-3, W-3.
         """
-        mat_n2n = _make_mixture_with_n2n("2g")
+        mat_n2n = mixture_with_n2n("2g")
         materials = {0: mat_n2n}
         thickness = np.array([0.5])
         mat_ids = np.array([0])
@@ -594,7 +556,7 @@ class TestN2N:
         """
         # This is a direct formula test, not a full solve.
         # We construct a 1-region 2-group problem with known XS.
-        mat = _make_mixture_with_n2n("2g")
+        mat = mixture_with_n2n("2g")
         ng = mat.ng
 
         # Flat flux

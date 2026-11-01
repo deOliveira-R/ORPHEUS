@@ -25,6 +25,9 @@ The F-1 contract (``frame_square_recarve.md``):
 Foundation mark: these verify software invariants (the typed wrapper equals
 the raw-face path; which object is bound where); the ``M.H = R/W`` closure is
 the F-0 physics relation re-pinned through the transport seam.
+
+Layer DAG Phase 4 (2026-11-01): posed on material meshes and the raw constructors; the row comparing a face's
+codomain with the SN problem's factory moved to tests/gates/sn/mesh/test_harmonic_frame_on_the_problem.py.
 """
 from __future__ import annotations
 
@@ -40,30 +43,25 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.problem import SNProblem
+from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.transport.phase_spaces import angular_bulk_space
+from orpheus.transport.spatial import LinearDiscontinuous
+from tests.gates.transport._phase_space_cases import moment_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
-from orpheus.transport.frames import (
-    HarmonicAnalysisOperator,
-    HarmonicFrame,
-    HarmonicReconstructionOperator,
-)
+from orpheus.transport.frames import HarmonicAnalysisOperator, HarmonicFrame
 from orpheus.transport.fields import (
     AngularSourceSink,
     HarmonicMomentSourceSink,
 )
 
-from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.transport._materials import placeholder_materials
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, BasisKind
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.transport.boundary_conditions import WallCondition
-from tests.gates._exterior import conditions_for
 from orpheus.numerics.axis import Axis
-
-#: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
-#: stands for is declared at the solve, keyword ``boundary_conditions``).
-_CONDITIONS = {0: WallCondition.vacuum()}
+from tests.gates.transport._phase_space_cases import posing_quadrature
+from tests.gates.transport._phase_space_cases import slab_mesh
 
 
 pytestmark = pytest.mark.foundation
@@ -71,40 +69,31 @@ pytestmark = pytest.mark.foundation
 _L = 2
 
 
-def _slab_mesh(nx: int = 4, ng: int = 2) -> SNProblem:
-    mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
-        CellsByCount.uniform_width(nx),
-    ).mesh
-    quad = Quadrature.gauss_legendre(n_ordinates=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> SNProblem:
+def _2d_mesh(nx: int = 3, ny: int = 3, ng: int = 1) -> MaterialMesh:
     mesh = Mesh2D(
         edges_x=np.linspace(0, 1, nx + 1),
         edges_y=np.linspace(0, 1, ny + 1),
         mat_map=np.zeros((nx, ny), dtype=int),
         face_roles={"xmin": MirrorDeck(), "xmax": MirrorDeck(), "ymin": MirrorDeck(), "ymax": MirrorDeck()},
     )
-    quad = Quadrature.level_symmetric(sn_order=4)
-    return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
+    return MaterialMesh(mesh, placeholder_materials(ng=ng))
 
 
-def _frame(m: SNProblem, L: int = _L) -> HarmonicFrame:
-    return HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, L))
+def _frame(m: MaterialMesh, L: int = _L) -> HarmonicFrame:
+    return HarmonicFrame.from_galerkin(frame_faces.angular_frame(posing_quadrature(m), L))
 
 
-def _angular_values(m: SNProblem, seed: int) -> np.ndarray:
+def _angular_values(m: MaterialMesh, seed: int) -> np.ndarray:
     rng = np.random.default_rng(seed)
-    return rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
+    return rng.standard_normal((posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape))
 
 
-def _head(m: SNProblem, L: int = _L):
+def _head(m: MaterialMesh, L: int = _L):
     """The angular head this mesh's frame induces — the SINGLE source of the layout (#429)."""
-    return FunctionSpace.of_basis(frame_faces.angular_frame(m.quad, L).basis)
+    return FunctionSpace.of_basis(frame_faces.angular_frame(posing_quadrature(m), L).basis)
 
 
-def _moment_values(m: SNProblem, seed: int, L: int = _L) -> np.ndarray:
+def _moment_values(m: MaterialMesh, seed: int, L: int = _L) -> np.ndarray:
     r"""Random moment values in the HEAD's own layout.
 
     ⛔ RE-KEYED 2026-09-02 (#429). This built ``(L+1, 2L+1, …)``
@@ -122,8 +111,8 @@ def _moment_values(m: SNProblem, seed: int, L: int = _L) -> np.ndarray:
 
 class TestFromGalerkin:
     def test_is_a_galerkin_frame_sharing_basis_measure(self) -> None:
-        m = _slab_mesh()
-        gf = frame_faces.angular_frame(m.quad, _L)
+        m = slab_mesh()
+        gf = frame_faces.angular_frame(posing_quadrature(m), _L)
         frame = HarmonicFrame.from_galerkin(gf)
         assert isinstance(frame, type(gf))  # Liskov: HarmonicFrame IS-A GalerkinFrame
         assert frame.basis is gf.basis
@@ -133,8 +122,8 @@ class TestFromGalerkin:
 
     def test_inherited_faces_unchanged(self) -> None:
         """The generic ndarray faces are inherited untouched (0-ULP-safe)."""
-        m = _slab_mesh()
-        gf = frame_faces.angular_frame(m.quad, _L)
+        m = slab_mesh()
+        gf = frame_faces.angular_frame(posing_quadrature(m), _L)
         frame = HarmonicFrame.from_galerkin(gf)
         vals = _angular_values(m, 1)
         np.testing.assert_array_equal(
@@ -161,8 +150,8 @@ class TestFromGalerkin:
         """The shareability half A1 destroyed: identity is the TABLE's
         identity again — two frames over the same (basis, measure) are the
         same projection, and no field-space binding distinguishes them."""
-        m = _slab_mesh()
-        gf = frame_faces.angular_frame(m.quad, _L)
+        m = slab_mesh()
+        gf = frame_faces.angular_frame(posing_quadrature(m), _L)
         assert HarmonicFrame.from_galerkin(gf) == HarmonicFrame.from_galerkin(gf)
 
 
@@ -171,37 +160,17 @@ class TestFromGalerkin:
 
 class TestMint:
     def test_flux_analysis_face_is_a_bound_role_member(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        face = frame.flux_analysis_on(m.angular_bulk_space)
+        face = frame.flux_analysis_on(bulk)
         from orpheus.numerics.projection import AnalysisOperator
 
         assert isinstance(face, HarmonicAnalysisOperator)
         assert isinstance(face, AnalysisOperator)
-        assert face.domain is m.angular_bulk_space   # bound instance, not a copy
+        assert face.domain is bulk   # bound instance, not a copy
         assert face.frame is frame                   # the shared factory
 
-    def test_moment_codomain_content_equals_the_carrier_mint(self) -> None:
-        """moment = f(angular, L), derived ONCE at mint time — and it
-        content-equals the carrier mint's own space (the admission seam is
-        metric-blind, so the F-0 dressing does not disturb it).
-
-        ⚠ Since #429 tracker 2.5 (2026-09-02) BOTH sides derive from ONE
-        source — the quadrature's frame basis — so the equality below can
-        no longer catch a drift between a hand-minted carrier space and
-        the face's codomain (coding-standards: single-sourcing a duplicate
-        demotes every gate that compared its copies). What it still tests
-        is the DISCOVERY path: the carrier's mint and the face's mint reach
-        the SAME frame object through the HUB, asserted by identity. The
-        external pin the demotion needs — a hand-written literal shape —
-        is the next test."""
-        m = _slab_mesh()
-        face = _frame(m).flux_analysis_on(m.angular_bulk_space)
-        assert (
-            face.codomain
-            == HarmonicMomentFlux.zeros_for_problem_and_L(m, _L).space
-        )
-        assert face.frame is HarmonicFrame.for_space(m.angular_bulk_space, _L)
 
     def test_moment_codomain_shape_against_a_hand_written_literal(self) -> None:
         r"""The EXTERNAL pin (``coding-standards``): the codomain's shape written by HAND, per family.
@@ -215,17 +184,18 @@ class TestMint:
         sphere-rule fixture rather than being deleted, because losing it would
         leave the rectangular family with no external pin at all.
         """
-        slab = _slab_mesh()
-        face = _frame(slab).flux_analysis_on(slab.angular_bulk_space)
+        slab = slab_mesh()
+        bulk_slab = angular_bulk_space(slab, posing_quadrature(slab))
+        face = _frame(slab).flux_analysis_on(bulk_slab)
         assert face.codomain.shape == (3, slab.ng, *slab.spatial_shape)
-        assert HarmonicMomentFlux.zeros_for_problem_and_L(slab, _L).space.shape == (
+        assert HarmonicMomentFlux(values=np.zeros(moment_space(slab, posing_quadrature(slab), _L).shape), space=moment_space(slab, posing_quadrature(slab), _L), L=_L).space.shape == (
             3, slab.ng, *slab.spatial_shape
         )
 
         sphere = _2d_mesh()
-        sphere_face = _frame(sphere).flux_analysis_on(sphere.angular_bulk_space)
+        sphere_face = _frame(sphere).flux_analysis_on(angular_bulk_space(sphere, posing_quadrature(sphere)))
         assert sphere_face.codomain.shape == (3, 5, sphere.ng, *sphere.spatial_shape)
-        assert HarmonicMomentFlux.zeros_for_problem_and_L(sphere, _L).space.shape == (
+        assert HarmonicMomentFlux(values=np.zeros(moment_space(sphere, posing_quadrature(sphere), _L).shape), space=moment_space(sphere, posing_quadrature(sphere), _L), L=_L).space.shape == (
             3, 5, sphere.ng, *sphere.spatial_shape
         )
 
@@ -237,8 +207,9 @@ class TestMint:
         on the slab's DENSE verdict the same read returns the undressed
         continuum space — honest either way, one source both ways.)"""
         m = _2d_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        face = frame.flux_analysis_on(m.angular_bulk_space)
+        face = frame.flux_analysis_on(bulk)
         from orpheus.numerics.space import TensorProductSpace
 
         assert isinstance(face.codomain, TensorProductSpace)
@@ -247,8 +218,8 @@ class TestMint:
     def test_mint_refuses_a_shape_only_angular_space(self) -> None:
         from orpheus.numerics.space import FunctionSpace
 
-        m = _slab_mesh()
-        shape_only = FunctionSpace("bare", (m.quad.n_ordinates, m.ng, *m.spatial_shape))
+        m = slab_mesh()
+        shape_only = FunctionSpace("bare", (posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape))
         with pytest.raises(TypeError, match="axis-built"):
             _frame(m).flux_analysis_on(shape_only)
 
@@ -262,13 +233,10 @@ class TestMint:
         mesh = Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(
             CellsByCount.uniform_width(4),
         ).mesh
-        m = SNProblem(
-            mesh,
-            Quadrature.gauss_legendre(n_ordinates=4),
-            placeholder_materials(ng=2),
-            scheme=LinearDiscontinuous(), boundary_conditions=conditions_for(mesh, _CONDITIONS),
-        )
-        widened = AngularFlux.zeros(m.angular_trial_space)
+        m = MaterialMesh(mesh, placeholder_materials(ng=2))
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        trial = LinearDiscontinuous().trial_space(bulk, m.axes)
+        widened = AngularFlux.zeros(trial)
         frame = _frame(m)
         analysis = frame.flux_analysis_on(widened.space)
         assert analysis.domain is widened.space
@@ -287,11 +255,12 @@ class TestMint:
 
 class TestFluxAnalysisFace:
     def test_apply_bit_identical_and_rides_the_bound_codomain(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        face = frame.flux_analysis_on(m.angular_bulk_space)
+        face = frame.flux_analysis_on(bulk)
         vals = _angular_values(m, 2)
-        psi = AngularFlux(values=vals, space=m.angular_bulk_space)
+        psi = AngularFlux(values=vals, space=bulk)
         moments = face.apply(psi)
         assert isinstance(moments, HarmonicMomentFlux)
         assert moments.space is face.codomain    # bound codomain, no re-mint
@@ -301,9 +270,10 @@ class TestFluxAnalysisFace:
         )
 
     def test_wrong_carrier_raises(self) -> None:
-        m = _slab_mesh()
-        face = _frame(m).flux_analysis_on(m.angular_bulk_space)
-        moment = HarmonicMomentFlux.from_problem_and_L(_moment_values(m, 4), m, _L)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        face = _frame(m).flux_analysis_on(bulk)
+        moment = HarmonicMomentFlux(values=_moment_values(m, 4), space=moment_space(m, posing_quadrature(m), _L), L=_L)
         with pytest.raises(TypeError, match="unsupported carrier"):
             face.apply(moment)  # type: ignore[arg-type]
 
@@ -311,10 +281,11 @@ class TestFluxAnalysisFace:
         """The bound-operator admission (the space-content invariant): a
         right-role carrier riding a content-DIFFERENT space is refused,
         naming both spaces."""
-        m = _slab_mesh(nx=4)
-        other = _slab_mesh(nx=5)  # different spatial axis → different space
-        face = _frame(m).flux_analysis_on(m.angular_bulk_space)
-        psi = AngularFlux(values=_angular_values(other, 11), space=other.angular_bulk_space)
+        m = slab_mesh(nx=4)
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        other = slab_mesh(nx=5)  # different spatial axis → different space
+        face = _frame(m).flux_analysis_on(bulk)
+        psi = AngularFlux(values=_angular_values(other, 11), space=angular_bulk_space(other, posing_quadrature(other)))
         with pytest.raises(TypeError, match="bound to angular domain"):
             face.apply(psi)
 
@@ -323,9 +294,10 @@ class TestFluxAnalysisFace:
         carrier → domain carrier, bit-identical to the numerics face; the
         raw-``ndarray`` seam (what ``AdjointOperator`` drives) returns raw
         values."""
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        face = frame.flux_analysis_on(m.angular_bulk_space)
+        face = frame.flux_analysis_on(bulk)
         moment = HarmonicMomentFlux(
             values=_moment_values(m, 5), space=face.codomain, L=_L,
             spatial_moments=1,
@@ -355,8 +327,9 @@ class TestFluxAnalysisFace:
         claim and is pinned separately in ``test_frame.py``).
         """
         m = _2d_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        face = frame.flux_analysis_on(m.angular_bulk_space)
+        face = frame.flux_analysis_on(bulk)
         W = float(frame.measure.weights.sum())
         y = _moment_values(m, 6)
         np.testing.assert_allclose(
@@ -371,34 +344,35 @@ class TestFluxAnalysisFace:
 
 class TestSourceReconstructionFace:
     def test_apply_bit_identical_and_rides_the_bound_codomain(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        face = frame.source_reconstruction_on(m.angular_bulk_space)
+        face = frame.source_reconstruction_on(bulk)
         vals = _moment_values(m, 6)
         q = HarmonicMomentSourceSink(
             values=vals, space=face.domain, L=_L, spatial_moments=1,
         )
         out = face.apply(q)
         assert isinstance(out, AngularSourceSink)
-        assert out.space is m.angular_bulk_space
+        assert out.space is bulk
         np.testing.assert_array_equal(
             out.values, frame_faces.FrameReconstruction.of(frame).apply(vals),
         )
 
     def test_wrong_carrier_raises(self) -> None:
-        m = _slab_mesh()
-        face = _frame(m).source_reconstruction_on(m.angular_bulk_space)
-        psi = AngularFlux(values=_angular_values(m, 7), space=m.angular_bulk_space)
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        face = _frame(m).source_reconstruction_on(bulk)
+        psi = AngularFlux(values=_angular_values(m, 7), space=bulk)
         with pytest.raises(TypeError, match="unsupported carrier"):
             face.apply(psi)  # type: ignore[arg-type]
 
     def test_content_different_operand_is_refused(self) -> None:
-        m = _slab_mesh(nx=4)
-        other = _slab_mesh(nx=5)
-        face = _frame(m).source_reconstruction_on(m.angular_bulk_space)
-        q = HarmonicMomentSourceSink.from_problem_and_L(
-            _moment_values(other, 12), other, _L,
-        )
+        m = slab_mesh(nx=4)
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        other = slab_mesh(nx=5)
+        face = _frame(m).source_reconstruction_on(bulk)
+        q = HarmonicMomentSourceSink(values=_moment_values(other, 12), space=moment_space(other, posing_quadrature(other), _L), L=_L)
         with pytest.raises(TypeError, match="bound to moment domain"):
             face.apply(q)
 
@@ -407,8 +381,9 @@ class TestSourceReconstructionFace:
         is free — and on the F-0 metrics it is the physical ``W·M``
         (the mirror of the analysis face's S6-precursor pin)."""
         m = _2d_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        face = frame.source_reconstruction_on(m.angular_bulk_space)
+        face = frame.source_reconstruction_on(bulk)
         assert face.is_adjointable
         W = float(frame.measure.weights.sum())
         v = _angular_values(m, 8)
@@ -422,10 +397,11 @@ class TestSourceReconstructionFace:
         """2-D smoke on the minted pair: analyse a flux, synthesise a source
         — the two faces the production windowed path composes."""
         m = _2d_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        analysis = frame.flux_analysis_on(m.angular_bulk_space)
-        recon = frame.source_reconstruction_on(m.angular_bulk_space)
-        psi = AngularFlux(values=_angular_values(m, 10), space=m.angular_bulk_space)
+        analysis = frame.flux_analysis_on(bulk)
+        recon = frame.source_reconstruction_on(bulk)
+        psi = AngularFlux(values=_angular_values(m, 10), space=bulk)
         moments = analysis.apply(psi)
         assert moments.values.shape == (*_head(m).shape, m.ng, *m.spatial_shape)
         assert _head(m).shape == (_L + 1, 2 * _L + 1), "a sphere rule: rectangular"
@@ -443,10 +419,11 @@ class TestShareability:
         """The 'derived, not independent' guarantee at the array level: every
         face minted from one frame reads the SAME cached table (the F-1
         repair of A1's unshareable factory)."""
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        a = frame.flux_analysis_on(m.angular_bulk_space)
-        r = frame.source_reconstruction_on(m.angular_bulk_space)
+        a = frame.flux_analysis_on(bulk)
+        r = frame.source_reconstruction_on(bulk)
         assert a.frame is r.frame is frame
         assert a.frame.table is r.frame.table
 
@@ -477,18 +454,19 @@ class TestP7DenseMetricRidesTheMint:
         # that replaces it: a sphere rule, harmonic basis, `[M]` verdict DENSE
         # (LS4 at L = 2 measures DIAGONAL, which is why the order moves too).
         m = _2d_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         L_dense = 3
-        frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, L_dense))
+        frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(posing_quadrature(m), L_dense))
         assert frame.discrete_gram_structure is GramStructure.DENSE
         assert (
-            HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, 2))
+            HarmonicFrame.from_galerkin(frame_faces.angular_frame(posing_quadrature(m), 2))
             .discrete_gram_structure
             is GramStructure.DIAGONAL
         ), "the ORDER is what makes this frame dense — state it, do not assume it"
-        moment = frame.flux_analysis_on(m.angular_bulk_space).codomain
+        moment = frame.flux_analysis_on(bulk).codomain
         assert moment.metric is not None, "the dense factor was dropped"
         sh = frame_faces.basis_space(frame)
-        cell_axes = m.angular_bulk_space.axes
+        cell_axes = bulk.axes
         assert cell_axes is not None
         cell = FunctionSpace.of_axes(*cell_axes[1:])
         rng = np.random.default_rng(5)
@@ -514,15 +492,15 @@ class TestHubInterning:
     cached table."""
 
     def test_angular_frame_interns_per_L(self) -> None:
-        m = _slab_mesh()
-        g1, g2 = frame_faces.angular_frame(m.quad, _L), frame_faces.angular_frame(m.quad, _L)
+        m = slab_mesh()
+        g1, g2 = frame_faces.angular_frame(posing_quadrature(m), _L), frame_faces.angular_frame(posing_quadrature(m), _L)
         assert g1 is g2
-        assert frame_faces.angular_frame(m.quad, _L + 1) is not g1
+        assert frame_faces.angular_frame(posing_quadrature(m), _L + 1) is not g1
 
     def test_from_galerkin_interns_the_upgrade(self) -> None:
-        m = _slab_mesh()
-        h1 = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, _L))
-        h2 = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, _L))
+        m = slab_mesh()
+        h1 = HarmonicFrame.from_galerkin(frame_faces.angular_frame(posing_quadrature(m), _L))
+        h2 = HarmonicFrame.from_galerkin(frame_faces.angular_frame(posing_quadrature(m), _L))
         assert h1 is h2
         assert h1.table is h2.table
 
@@ -539,9 +517,10 @@ class TestHubInterning:
         """``for_space(space, L)`` ≡ reach the axis's generator, mint,
         upgrade — and lands on the SAME interned object a direct
         ``from_galerkin(frame_faces.angular_frame(quad, L))`` returns."""
-        m = _slab_mesh()
-        via_space = HarmonicFrame.for_space(m.angular_bulk_space, _L)
-        via_quad = HarmonicFrame.from_galerkin(frame_faces.angular_frame(m.quad, _L))
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
+        via_space = HarmonicFrame.for_space(bulk, _L)
+        via_quad = HarmonicFrame.from_galerkin(frame_faces.angular_frame(posing_quadrature(m), _L))
         assert via_space is via_quad
 
     def test_for_space_refuses_a_shape_only_space(self) -> None:
@@ -571,9 +550,10 @@ class TestMomentSpaceOnIsTheSingleSource:
     drift from what the faces derive."""
 
     def test_faces_bind_exactly_its_reading(self) -> None:
-        m = _slab_mesh()
+        m = slab_mesh()
+        bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
-        space = m.angular_bulk_space
+        space = bulk
         moment = frame.moment_space_on(space)
         assert frame.flux_analysis_on(space).codomain is moment or (
             frame.flux_analysis_on(space).codomain == moment

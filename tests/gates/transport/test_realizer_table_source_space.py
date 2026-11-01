@@ -4,7 +4,7 @@ Spec: ``.claude/plans/wave2_boundary_carve.md`` section 6.3, "Handed over by S2b
 space parameter for two verbs. ``realize(declared, site, space)`` takes the METHOD space of the face (``SNMethodSpace`` for SN) and
 ``sample_inflow(terms, site, space)`` takes the trace's INFLOW HALF-SPACE (SN passes ``trace.inflow_space(face)``), the space
 ``Gamma_-`` on which a source ``q`` lives. One type parameter cannot type both, so a typed call of the source verb needs
-``# type: ignore[arg-type]`` (two of them stand at ``tests/gates/transport/test_boundary_source_from_specs.py``, lines 106 and 108),
+``# type: ignore[arg-type]`` (two of them stood at ``tests/gates/transport/test_boundary_source_from_specs.py``, since layer DAG Phase 4 ``tests/gates/sn/operators/``, lines 106 and 108),
 and ``SNSource.sample`` re-checks the space's ``role`` at run time (ERR-047). The done-when is that the source verb is typed on its
 own space and the two ignores are gone, with ``SN_REALIZERS`` and every S2 gate unchanged.
 
@@ -41,7 +41,7 @@ from tests.gates.transport._boundary_conditions_helpers import bc
 pytestmark = pytest.mark.foundation
 
 _THIS = "tests/gates/transport/test_realizer_table_source_space.py"
-_SOURCE_TEST = Path(__file__).with_name("test_boundary_source_from_specs.py")
+_SOURCE_TEST = Path(__file__).parents[1] / "sn" / "operators" / "test_boundary_source_from_specs.py"  # moved there in layer DAG Phase 4
 
 
 def arg_type_ignores(source: str) -> list[int]:
