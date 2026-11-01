@@ -568,3 +568,55 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
 - The class-block solve that lifts the scope door.
 
 **Next:** the merge sequence. Run the full suite over every directory, regenerate the memo once, delete the main checkout's stale untracked copy of this plan, ff-merge, watch CI, close out. Then the testing graph: `layer_dag.md` Phases 2 and 4, then `verification_tree_refinement.md`'s cone store, which waits on your rulings S1–S12.
+
+## ⏸ Compaction point after U3b (2026-10-31) — read this first on resume
+
+**State.** Branch `refactor/space-membership` in the worktree `/Users/rodrigo/git/nuclear/ORPHEUS/.claude/worktrees/membership`, HEAD `4063e5b7`. It is 49 commits ahead of `main`, the working tree is clean, and nothing is merged. Check with `git merge-base --is-ancestor 4063e5b7 main` before trusting "not merged".
+
+**Every unit is done.** U1, U2, U1b, U3, U0 and U3b have landed. U3b closed at the witness, by the user's ruling recorded above under "U3b — closed at the witness". Its commits:
+
+| what | commit |
+|---|---|
+| #616, the multi-D transposed sweep | `249d8f45`, with docs fixes `7a805cb5` and `239acad4` |
+| the type debt the vacuous pyright had hidden | `f5788cba` |
+| the near-kernel witness | `01d889f7` |
+| the closing note | `4063e5b7` |
+
+Deferred:
+- SN's lazy rcond and the class-block solve: #682. The rcond work in progress is on branch `park/u3b-sn-rcond` (`93a40848`).
+- The Gauss–Seidel transposed solve: #681, with the 2-D blocker commented there.
+
+**Running when this was written: the pre-merge suite.**
+- The run: `-m "not slow"`, serial, over all 18 directories under `tests/gates/` plus the 16 root gate files. It writes to `scratch/membership_covector/u1b/runs/u3b_premerge.log` (`END` marks completion).
+- Partial results: `_mutation` rc=5 (nothing collected, as at baseline); cp, cross_method, data, derivations (3244, 40 min), diffusion, geometry and homogeneous green. The rest was still running.
+- On resume, read the log first. A red there is a fix before the merge, never "it was already failing" (`process-discipline`).
+
+**The merge sequence, in order:**
+1. **The log is fully green.** Any red is fixed first, with its file re-run.
+2. **Sphinx `-E -W --keep-going` exits 0** from the worktree. It last passed at the witness commit; re-run it if docs changed since.
+3. **pyright, honestly.** Use the gitignored worktree `pyrightconfig.json`, and first confirm a control file with a known error reads 1 error. The per-file comparison against `main` is `scratchpad/pyright_compare.py`: extract `main`'s tree with `git archive main | tar -x` into the scratchpad, copy the config in, and compare per-file counts. At the type-fix commit `f5788cba` the branch added 0 errors, 226 against 232.
+4. **Delete the main checkout's stale untracked copy** of this plan (`/Users/rodrigo/git/nuclear/ORPHEUS/.claude/plans/space_membership_covector_gauge.md`), which blocks the checkout. Then, from the main checkout on `main`: `git merge --ff-only refactor/space-membership`. The hook refuses commits on `main`, but a fast-forward merge is not a commit.
+5. **Push, watch CI** (`gh run watch`). If CI is red, baseline it against the last run before the push.
+6. **The memo regeneration, AFTER the merge, detached.** This branch changed 8 basis modules and 59 production files, and basis skeletons sit in nearly every memo entry's pin cone. Expect essentially the whole store, 8526 entries, to read stale. Regenerating means the full suite including slow, about 7 h (layer-DAG precedent: 25 085 s). Run it from the main checkout so the entries are generated from the merged tree, and validate with the layer-DAG probe pattern (`scratch/layer_dag/memo_regen/probe_validate.py`). A census taken FROM THE WORKTREE is confounded: the memo pins the venv's editable finder by a repository-relative path, and the worktree has no `.venv`. Every entry then reads "gone", 7835 stale and 691 corrupt (`[M]` 2026-10-31, `scratchpad/memo_census.py`).
+7. **Close-out:**
+   - `Closes #616` is in `249d8f45`, and #460 closes on merge.
+   - Comment on #682 and #681 that the campaign has merged.
+   - Delete the branch and the worktree. Keep `park/u3b-sn-rcond`, which #682 names.
+   - The campaign note becomes "merged @ `<hash>`": retire the MEMORY.md line, move the lessons to an evidence page and the milestone to the SN theory history.
+
+**After the merge: the testing graph** (the user's priority, memory `feedback_testing_graph_before_features`).
+- `layer_dag.md` Phase 2: a test-architect spec, then the numerics law tests re-based on numerics fixtures. This campaign rewrote `test_posing`, `test_pencil`, `test_outcome` and `test_gauge`, which is why Phase 2 waited for the merge.
+- Then Phase 4, the transport spaces' raw constructors.
+- Then `verification_tree_refinement.md`'s cone store, after the user rules on S1–S12. One input for that design: the traced memo's pin cone includes whole module skeletons, so this campaign's basis edits stale every cached reference whatever they affect. That is a 7 h regeneration, and the cone store should remove it.
+
+**Durable lessons from U3b** (recorded in this plan; the evidence pages are owed at close-out):
+- **pyright run from a worktree checks nothing.** The main config's `**/.*` exclude hides `.claude/worktrees/`. Use a worktree-local config, and read a control file first. Every earlier "0 errors" in this campaign was vacuous, and 29 real errors were hiding in 16 files.
+- **zsh does not word-split an unquoted `$files`,** so `npx pyright $files` checked nothing. Use `${=files}` or a Python driver.
+- **`git grep` with `\b` needs a positive control.** The retirement census was redone in Python.
+- **A Green maps source to flux.** Flatten it with a SOURCE-classed template, `implicit.apply(zero flux)`. A flux template makes its residual check refuse a cross-class subtraction.
+- **The Jacobi Green does not converge on a 2-D mirror box,** because the λ = −1 mirror-odd modes stall it at residual 0.19. Production uses Gauss–Seidel there. The witness's averaged map (I + M⁻¹N)/2 cures it.
+- **Adding a door can expose a lying capability flag.** Spelling the transpose through `.dual()` exposed `FlattenedOperator`'s false `is_adjointable`; D6 caught it.
+- **A refusal-era honesty row can carry the wrong-class sample.** When a door opens, re-check the row's `y`: the 2-D Green row had none.
+- **A uniform mesh can hide the adjoint gauge.** The iterate never acquires a kernel component there; S15b uses a graded box. A row blind to its mechanism says so in its docstring (S15c).
+- **A stop rule on "count unchanged" needs a separation certificate,** or it is vacuously true at count 0.
+- **Judge a quotient on the orthonormal basis, before rescaling it.**
