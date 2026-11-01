@@ -502,3 +502,10 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
   - **σ_max comes from power iteration on AᴴA.** `[M]` On A it reads 2–5× low.
   - **The void-feeder entry stays.** No solve reaches it, because `StreamingCollisionOperator` refuses σ = 0 first, so it is tested through a direct predictor call.
   - **The class-block solve is `class_null_mode(problem, closed_class)`.**
+- **[R] the user (2026-10-31), on #616's design** (map: `scratch/membership_covector/u3b/transpose_sweep_map.md`):
+  - **One transposed solve on the shared frame.** It adds one `_OctantWalk` reverse-solve method, one `cell_kernel_batch_transpose` per scheme (DD, LD) and one level operation `_CellSolveTranspose`. It serves MovingFrontierWindow, FullFieldWavefront AND ScanMarch, all on the mirror walk. ScanMarch's own row-march reverse becomes a performance item only if a measurement shows the shared walk is slower.
+  - **The Jacobi arm only.** The Gauss–Seidel transposed solve is #681. The three docstrings that wrote the two deferrals as one are split on landing.
+  - **Orchestrator decisions:**
+    - `has_transpose_sweep` reads a sibling derived scheme trait, the presence of `cell_kernel_batch_transpose`, beside `has_transpose_kernel`.
+    - The adjoint gauge becomes live on 2-D reflective boxes, and U3b owns its verification. The `_exit_gauge` "inert" comment (`solver.py` near 2729) and the excuse in `test_every_entry_gauges_its_trace.py` retire.
+    - The 33-line deferral census (map §5) is rewritten in the landing commit.
