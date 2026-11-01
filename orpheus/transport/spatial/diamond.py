@@ -455,6 +455,52 @@ class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
         )
         return psi_avg, psi_out
 
+    def cell_kernel_batch_transpose(
+        self,
+        *,
+        psi_avg_bar: np.ndarray,              # (N_oct, ng, n_diag) — cell-average cotangent
+        psi_out_bar: tuple[np.ndarray, ...],  # d arrays, each (N_oct, ng, n_diag)
+        s_axes: tuple[np.ndarray, ...],       # d arrays, each (N_oct, 1, n_diag) — RAW g per axis
+        reaction_xs: np.ndarray,              # (ng, n_diag)
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Batched VJP of :meth:`cell_kernel_batch` — the transposed DD cell solve (#616).
+
+        The forward solve is :math:`\bar\psi = (Q + \sum_a 2g_a\psi^{\rm in}_a)/D`
+        with :math:`D = \Sigma_t + \sum_a 2g_a`, then
+        :math:`\psi^{\rm out}_a = \bar\psi/w - \tfrac{1-w}{w}\psi^{\rm in}_a`
+        at :math:`w = \tfrac12`.  Its transpose collects the cell-average
+        cotangent from the faces, divides by the same diagonal, and fans out:
+
+        .. math::
+
+           \lambda = \Big(\bar\psi^\dagger
+             + \sum_a \tfrac{1}{w}\,\psi_a^{\mathrm{out}\,\dagger}\Big)\Big/ D,
+           \qquad \bar Q = \lambda, \qquad
+           \psi_{a,\mathrm{in}}^\dagger
+             = 2g_a\,\lambda - \tfrac{1-w}{w}\,\psi_a^{\mathrm{out}\,\dagger}.
+
+        ``D`` and the couplings ``2 g_a`` come from the SAME
+        :meth:`_cartesian_streaming_diagonal` fold the forward uses, and the
+        face-chain pair from the w-generic
+        :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average_transpose`
+        (Pattern 2: no twin coefficients).  Returns ``(Q_bar, psi_in_bars)``
+        with ``Q_bar`` per ordinate, ``(N_oct, ng, n_diag)``.
+        """
+        denom, couplings = self._cartesian_streaming_diagonal(reaction_xs, s_axes)
+        avg_and_in = [
+            self.outgoing_face_from_average_transpose(out_bar_a, _DD_W)
+            for out_bar_a in psi_out_bar
+        ]
+        psi_avg_dagger = psi_avg_bar
+        for avg_cot, _ in avg_and_in:
+            psi_avg_dagger = psi_avg_dagger + avg_cot
+        source_cot = psi_avg_dagger / denom
+        psi_in_bars = tuple(
+            in_cot + c_a * source_cot
+            for c_a, (_, in_cot) in zip(couplings, avg_and_in)
+        )
+        return source_cot, psi_in_bars
+
     def residual_kernel_batch(
         self,
         *,

@@ -159,12 +159,23 @@ _ENTRY_LEDGER = {
     "solve_sn": "exercised — the eigenvalue entry, all-reflective by default",
     "solve_sn_fixed_source": "exercised — under a declared reflective BC",
     "solve_sn_adjoint": (
-        "wired but STRUCTURALLY INERT: the adjoint routes through (L+C)^H, "
-        "whose transpose solve is 1-D-scan-only (#280 Phase 2.5b), and a 1-D "
-        "problem has at most ONE reflective axis pair, so gauge_freedom is "
-        "never present on any configuration this entry can run"
+        "runs on the d = 2 mirror box since #616 (the multi-D transposed sweep; "
+        "before it every d >= 2 posing raised NotInvertible, and a 1-D problem "
+        "has at most one reflective pair), but its exit gauge has NOTHING TO DO "
+        "on every 2-D eigen posing measured: displacement <= 1.0e-14 on 3 of 3 "
+        "(scratch/membership_covector/u3b/ta/p10_adjoint_gauge.py, 2026-10-31), "
+        "so no eigen row can discriminate it. Its row, test_fredholm_verdict.py::"
+        "test_S15c_the_2d_adjoint_eigenvalue_is_the_forward_one, says so; the "
+        "gauge path is the one the adjoint fixed source exercises"
     ),
-    "solve_sn_adjoint_fixed_source": "wired but structurally inert — as above",
+    "solve_sn_adjoint_fixed_source": (
+        "exercised on the d = 2 mirror box since #616: three rows (DD kernel "
+        "graded, union kernel uniform and graded) each with a residual leg and "
+        "an activation leg (the gauge moved the iterate >= 1e-3), reddened by "
+        "the gauge-off and forward-projector arms: tests/gates/sn/solve/"
+        "test_fredholm_verdict.py::test_S15b_the_2d_adjoint_member_is_"
+        "annihilated_by_the_left_covectors"
+    ),
     "solve_sn_multiplying_source": (
         "not separately exercised here — it IS solve_sn_fixed_source's SI "
         "lowering with the production LAGGED as one more gain (step 2 C3b-2, "

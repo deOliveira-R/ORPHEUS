@@ -759,15 +759,28 @@ def _riesz_lower_dual() -> _Posed:
 
 
 def _sn_green_cart2d() -> _Posed:
-    r"""A Green over the 2-D head ``(L+C)``, which has no reverse sweep (#616):
-    both doors refuse (qa: no row held a Green over a 2-D head, so dropping
-    its head clause reddened nothing)."""
+    r"""A Green over the 2-D head ``(L+C)``: the 2-D twin of :func:`_sn_green`.
+
+    Until #616 the 2-D head had no reverse sweep and both doors refused (qa:
+    no row held a Green over a 2-D head, so dropping its head clause reddened
+    nothing). Since #616 the dual split's implicit part inverts by the swap
+    law onto the multi-D reverse sweep, so both doors open, with the same
+    independent witness as the slab row: the Green of the adjoint split
+    ``GreenOperator((L+C)ᴴ, Sᴴ)``. ``y`` is source-classed, the class the
+    Green's adjoint takes (a Green maps source to flux); the refusal-era row
+    passed none, and the default (the forward output's class, flux) is the
+    wrong class for this operator."""
     from tests.gates.sn.operators import test_g_adjoint_reciprocity as G
 
     sn, _, S = G._full_loss_case_cart2d()
     sig_t = np.asarray(CrossSectionField.total_of(sn.mat_xs).values, dtype=float)
-    op = GreenOperator(_lc(sn, sig_t), S, max_iter=4000, tol=_GREEN_TOL)
-    return _Posed(op, _source_like(sn, sig_t, 13), rtol=_GREEN_RTOL)
+    lc = _lc(sn, sig_t)
+    op = GreenOperator(lc, S, max_iter=4000, tol=_GREEN_TOL)
+    adjoint = GreenOperator(lc.H, S.H, max_iter=4000, tol=_GREEN_TOL)
+    return _Posed(
+        op, _source_like(sn, sig_t, 13), y=_source_like(sn, sig_t, 14),
+        witness=adjoint.apply, rtol=_GREEN_RTOL,
+    )
 
 
 def _sn_dsa_correction() -> _Posed:
@@ -847,6 +860,7 @@ _WITNESS_ROUTES: dict[str, str] = {
     "sn_inverse_of_leaf": "pointwise-self-adjoint-inverse",
     "sn_inverse_of_product": "product-swap-sweepH-Cinv",
     "sn_green": "green-of-adjoint-sum",
+    "sn_green_cart2d": "green-of-adjoint-sum",
     "sn_bulk_analysis_cart2d": "MH-direct-sum-I",
 }
 

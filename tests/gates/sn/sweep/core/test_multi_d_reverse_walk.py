@@ -65,9 +65,9 @@ This file is the multi-D sibling of ``test_one_dim_loop_walk.py`` (spec
   splits EXACTLY by octant backward-count parity (the involution's
   group theory made visible — §3.3(c) at d=2, the ERR-066 family's
   likeliest sign-error site);
-* **loud deferrals** — the wavefront ``sweep_transpose`` (G-S
-  reverse-solve, out of scope R7) and the Pattern-4 moment-tail
-  backstop.
+* **loud deferrals** — the Gauss–Seidel splitting's transposed solve
+  (#681; the wavefront ``sweep_transpose`` this bullet once pinned landed
+  with #616) and the Pattern-4 moment-tail backstop.
 
 ``-O``-safe (vv Mode 8): ``pytest.fail`` / ``np.testing`` only.
 ``foundation`` — software/algebra invariants (no theory ``:label:``).
@@ -99,6 +99,7 @@ from orpheus.sn.loss_representation.assembly import assemble_ordinate_blocks
 from orpheus.sn.loss_representation.sweep_graph import (
     SweepDependencyGraph,
     _CellResidualTranspose,
+    _CellSolveTranspose,
 )
 from orpheus.sn.loss_representation import _ApplyOperands
 from orpheus.sn.loss_representation.sweep_schedule import _octant_sweep
@@ -362,6 +363,7 @@ def test_reverse_walk_is_orientation_object_not_boolean():
     for obj in (
         SweepDependencyGraph,
         _CellResidualTranspose,
+        _CellSolveTranspose,
         _OctantWalk,
         _reverse_octant_traversal,
     ):
@@ -1213,18 +1215,31 @@ def test_axis_swap_partial_mutation_reds(monkeypatch):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-def test_wavefront_solve_transpose_still_raises():
-    """[deferral pin] the multi-D ``sweep_transpose`` (the G-S reverse-SOLVE,
-    out-of-scope R7) stays a typed raise — C3 lands the matvec transpose
-    ONLY, and must not silently un-defer the solve arm."""
-    sn = _cart2d_probe_mesh()
-    spine = FullFieldWavefront.pose(sn)
-    with pytest.raises(NotImplementedError, match="reverse-scan"):
-        spine.sweep_transpose(
-            np.zeros((sn.quad.n_ordinates, 2, *sn.spatial_shape)),
-            spine.bind_sigma(np.full((2, *sn.spatial_shape), 0.5)),
-            _random_composite(sn, np.random.default_rng(1)).boundary,
-        )
+def test_the_gauss_seidel_solve_transpose_still_refuses():
+    """[deferral pin] the Gauss–Seidel splitting's transposed SOLVE stays a
+    typed refusal (#681).
+
+    #616 landed the Jacobi reverse sweep ``(L+C)⁻ᵀ`` on every multi-D
+    representation, so the old pin of this deferral (the wavefront's
+    ``sweep_transpose`` raising) went green by design.  The arm still deferred
+    is the scheduled one, ``M = (L+C) − B_lower`` (#310 R7): its inverse must
+    read ``is_adjointable`` False and refuse ``.H`` loudly, never inherit the
+    Jacobi reverse by accident.  The Jacobi inverse on the SAME box opens,
+    so the pin is the schedule's, not the box's.
+    """
+    from orpheus.numerics.operator import MissingAdjoint
+    from orpheus.sn.splitting import Splitting, resolve_schedule
+    from tests.gates.sn.operators import test_loss_kernel_gauge as T
+
+    problem = T._mesh((3, 4), [(T._R, T._R)] * 2, c=0.9, ng=1)
+    system, _ = T._loss_system(problem)
+    jacobi = Splitting.from_schedule(system, resolve_schedule(problem, "jacobi")).implicit.inverse()
+    scheduled = Splitting.from_schedule(system, resolve_schedule(problem, "gauss_seidel")).implicit.inverse()
+    assert jacobi.is_adjointable, "the Jacobi reverse sweep (#616) must open on this box"
+    jacobi.H  # opens
+    assert not scheduled.is_adjointable
+    with pytest.raises(MissingAdjoint, match="not adjointable"):
+        scheduled.H
 
 
 def test_tail_mismatch_refuses_loudly():

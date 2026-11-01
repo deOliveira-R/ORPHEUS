@@ -797,7 +797,8 @@ class LinearOperator(Protocol[Domain, Codomain]):
         inverse object is adjointable iff its forward is transpose-invertible
         (:class:`InverseOperator`, the SN sweep, the coupled substitution all
         read this one predicate). Neither of the other two flags answers it:
-        a multi-D ``(L+C)`` transposes its action but not its sweep, and a
+        before #616 a multi-D ``(L+C)`` transposed its action but not its sweep
+        (a Gauss–Seidel ``(L+C) − B_lower`` still does, #681), and a
         ``callable(solve_transpose)`` test passes a method that raises (`[M]`
         2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``).
         Default ``False``; a forward with a working ``solve_transpose``

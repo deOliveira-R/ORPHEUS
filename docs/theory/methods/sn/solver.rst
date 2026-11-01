@@ -3832,7 +3832,10 @@ records its verdict on :attr:`ExitReport.solvability
 ``NotApplicable("SN inverts its loss by sweeps, never a factorisation: no condition estimate")``.
 The adjoint entries read the DAGGERED kernel
 (:attr:`PredictedKernel.H <orpheus.numerics.fredholm.PredictedKernel.H>`):
-their gauge is the adjoint's projector, never the forward one.  Before
+their gauge is the adjoint's projector, never the forward one.  On a
+:math:`d \ge 2` reflective box that projector acts on the
+diamond-difference modes since #616, before which the adjoint entries
+could not run there (:ref:`sn-adjoint-multid`).  Before
 U0 the fixed-source entries recorded the admissibility
 ``NotApplicable("the pure-transport question is always admitted: A is
 invertible")`` on every posing, false on a singular one (ERR-123); the

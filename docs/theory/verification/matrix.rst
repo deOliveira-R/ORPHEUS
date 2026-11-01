@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20243**
+Total tests collected: **20343**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2141, 10.6%
-   L1, 2957, 14.6%
+   L0, 2236, 11.0%
+   L1, 2961, 14.6%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15000, 74.1%
+   foundation, 15001, 73.7%
    unmarked, 60, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20104
+   explicit, 20204
    class-name, 46
    func-name, 0
    case, 33
@@ -430,7 +430,7 @@ Module × level grid
    moc/test_quadrature, 44, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 27, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
-   numerics/test_adjointability_is_honest, 0, 0, 0, 0, 66, 0
+   numerics/test_adjointability_is_honest, 0, 0, 0, 0, 67, 0
    numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 41, 0
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 132, 0
    numerics/test_angular_symmetry, 0, 0, 0, 0, 42, 0
@@ -617,6 +617,7 @@ Module × level grid
    operators/test_streaming_operator, 0, 0, 0, 0, 57, 0
    operators/test_streaming_operator_decomposition, 21, 0, 0, 0, 0, 0
    operators/test_sweep_inverse_identity, 0, 0, 0, 0, 11, 0
+   operators/test_transpose_sweep_multid, 95, 0, 0, 0, 0, 0
    operators/test_typed_residual_evaluation, 1, 0, 0, 0, 12, 0
    primitives/test_axis_native_construction, 0, 0, 0, 0, 15, 0
    primitives/test_axis_primitive, 0, 0, 0, 0, 23, 0
@@ -665,7 +666,7 @@ Module × level grid
    solve/test_every_entry_gauges_its_trace, 0, 0, 0, 0, 12, 0
    solve/test_fixed_source_2d_equivalence, 0, 2, 0, 0, 0, 0
    solve/test_fixed_source_g1, 0, 5, 0, 0, 0, 0
-   solve/test_fredholm_verdict, 0, 19, 0, 0, 0, 0
+   solve/test_fredholm_verdict, 0, 23, 0, 0, 0, 0
    solve/test_gauss_seidel_reification, 0, 0, 0, 0, 8, 0
    solve/test_krylov_curvilinear_precond_safety, 0, 12, 0, 0, 0, 0
    solve/test_krylov_restart_signature, 0, 13, 0, 0, 0, 0
@@ -1197,7 +1198,7 @@ Equations with zero tests carrying ``@pytest.mark.verifies("label")``, excluding
 Documented-only equations
 -------------------------
 
-Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **597** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
+Theory labels marked ``.. vv-status: <label> documented`` in their RST source. These are excluded from the orphan-equation gate because they are either definitional (no single implementing function — e.g. ``boltzmann``), describe a module whose Python port does not yet exist (e.g. the thermal-hydraulics / fuel-behaviour / reactor-kinetics equations), or have a deliberately deferred test paired with a tracking issue. **599** labels carry the sentinel. See :ref:`vv-status-documented` for the full taxonomy.
 
 - ``affine-bc-form``
 - ``affine-typed-residual-eq``
@@ -1449,7 +1450,9 @@ Theory labels marked ``.. vv-status: <label> documented`` in their RST source. T
 - ``loss-rep-adjoint-inverse-swap``
 - ``loss-rep-affine``
 - ``loss-rep-affine-cell``
+- ``loss-rep-dd-transposed-cell-solve``
 - ``loss-rep-facewise-separable``
+- ``loss-rep-ld-transposed-cell-solve``
 - ``loss-rep-leaf-sum``
 - ``loss-rep-metric-adjoint-solve``
 - ``loss-rep-removal-sigma``

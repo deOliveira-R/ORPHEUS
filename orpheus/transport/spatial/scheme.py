@@ -1068,6 +1068,18 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
     moment-tailed cotangents).  The discrete Euclidean reverse-DAG transpose is
     ``docs/theory/methods/sn/loss_representation.rst §loss-rep-orientation-two-frames``."""
 
+    has_transpose_solve_kernel: ClassVar[bool] = False
+    r"""Whether this scheme REGISTERS its transposed cell SOLVE — DERIVED, never declared.
+
+    ``True`` iff the subclass overrides :meth:`cell_kernel_batch_transpose`,
+    the VJP of :meth:`cell_kernel_batch` that the multi-D reverse sweep
+    :math:`(L+C)^{-\mathsf T}` bottoms in (#616).  The sibling of
+    :attr:`has_transpose_kernel`, which reads the APPLY transpose: the matvec
+    transpose and the solve transpose are different kernels, so they are
+    different registrations.  Set by ``__init_subclass__`` from the override,
+    so the flag and the kernel cannot drift apart.  Read by the wavefront
+    family's ``has_transpose_sweep``."""
+
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         # Registration-coupled trait (#310 ruling 2): the flag DERIVES from
@@ -1084,6 +1096,10 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             not cls.supports_curvilinear
             or cls.streaming_cell_transpose
             is not DiscretizationSchemeBase.streaming_cell_transpose
+        )
+        cls.has_transpose_solve_kernel = (
+            cls.cell_kernel_batch_transpose
+            is not DiscretizationSchemeBase.cell_kernel_batch_transpose
         )
 
     @property
@@ -1346,6 +1362,33 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
             f"{type(self).__name__} registers no batch transpose kernel "
             "(residual_kernel_batch_transpose) — the adjoint matvec on this "
             "scheme is a typed deferral (#310)."
+        )
+
+    def cell_kernel_batch_transpose(
+        self,
+        *,
+        psi_avg_bar: np.ndarray,
+        psi_out_bar: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        reaction_xs: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Batched VJP of :meth:`cell_kernel_batch` — the transposed cell SOLVE.
+
+        The fourth corner of the kernel square (solve, apply, and their
+        transposes): the forward solve maps ``(Q, ψ_in) ↦ (ψ̄, ψ_out)``
+        linearly, and this returns its transpose, ``(ψ̄̄, ψ̄_out) ↦ (Q̄,
+        ψ̄_in)``: the source cotangent ``Q̄`` (shaped like the cell
+        unknown, per ordinate) and the d-tuple of upstream-face cotangents.
+        Consumed by the ``_CellSolveTranspose`` level operation, which the
+        reverse walks of :math:`(L+C)^{-\mathsf T}` drive over the MIRROR
+        graphs (#616); the walk owns the addressing, this owns only the cell
+        algebra.  Overriding it is the registration that derives
+        :attr:`has_transpose_solve_kernel`.  Default raises.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} registers no transposed solve kernel "
+            "(cell_kernel_batch_transpose) — the reverse sweep (L+C)⁻ᵀ on "
+            "this scheme is a typed deferral (#616)."
         )
 
     def streaming_cell_transpose(

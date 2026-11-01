@@ -11465,16 +11465,18 @@ older entries classify against.
    metric), or the operator is metric-free. A boolean that must
    answer both is wrong wherever they differ, and the inverse family adds
    a third fact, the transposed solve :math:`(A^{\mathsf T})^{-1}`, which
-   neither answers: a 2-D :math:`(L+C)` transposes its action and has no
-   reverse scan.
+   neither answers: a 2-D :math:`(L+C)` transposed its action and had no
+   reverse scan (until #616, 2026-10-31, which added the multi-dimensional
+   transposed sweep and left the predicates as they are).
 
    **Measured** (`[M]` 2026-10-18, the 47-row registry of
    ``tests/gates/numerics/test_adjointability_is_honest.py``, every row
    built and both doors probed, on the tree at ``37dc85e0``):
 
    * ``True`` while a door failed: the 2-D DD and LD sweeps and the 2-D
-     coupled substitution (both doors raise ``NotImplementedError`` at
-     ``apply``, from the multi-D reverse scan); the two Riesz legs
+     coupled substitution (both doors raised ``NotImplementedError`` at
+     ``apply``, from the multi-D reverse scan, which did not exist until
+     #616); the two Riesz legs
      (``.H`` raises ``TypeError`` from the leg constructor on the
      ``DualSpace`` end);
    * ``False`` while the transpose was realisable: 5 of the 5

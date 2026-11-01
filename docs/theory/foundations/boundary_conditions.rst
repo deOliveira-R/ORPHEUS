@@ -10431,11 +10431,13 @@ carries the account). At :math:`d = 3` it is gated by
 ``tests/gates/sn/sweep/core/test_multi_d_reverse_walk.py::test_d3_dense_mt_and_pairing_on_the_spine``.
 ``[M]`` 2026-10-24, ``python -O -m pytest`` on that node id from this
 worktree: ``1 passed, 1 warning in 5.47s``. The transpose **solve**
-(``has_transpose_sweep``, the sweep :math:`S^{H}`) of the multi-D wavefront
-is still deferred: the base class returns ``False`` and the multi-D
-representations (``FullFieldWavefront``, ``MovingFrontierWindow``,
-``ScanMarch``) do not override it; only the 1-D scan realises it. The four
-gates above are forward solves.
+(``has_transpose_sweep``, the sweep :math:`S^{H}`) of the multi-D
+representations was deferred when this section was written (the base
+returned ``False`` and only the 1-D scan realised it); since #616
+(2026-10-31) ``FullFieldWavefront``, ``MovingFrontierWindow`` and
+``ScanMarch`` realise it by the mirror walk
+(:ref:`loss-rep-multid-transposed-sweep`). The four gates above are
+forward solves.
 
 C5 closure
 ----------

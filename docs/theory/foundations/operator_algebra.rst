@@ -10608,7 +10608,8 @@ the cheapest tell.
      - **The adjointability flag asks one question, and** ``.H`` **asks
        two.** ``is_adjointable`` had answered both "a Euclidean transpose
        is coded" and "the Hilbert adjoint is posed", and was wrong in both
-       directions (``True`` on the 2-D sweeps whose reverse scan raises,
+       directions (``True`` on the 2-D sweeps whose reverse scan raised
+       until #616,
        ``False`` on the inverses, the Green, the masked boundary half and
        the bulk analysis whose transposes exist). It now answers the first
        and gates ``.dual()``; :func:`~orpheus.numerics.operator.posed`

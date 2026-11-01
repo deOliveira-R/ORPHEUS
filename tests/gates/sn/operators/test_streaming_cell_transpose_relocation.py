@@ -371,7 +371,9 @@ def test_affine_chain_transpose_single_source():
     ``reflect_scan_coefficients_transpose`` extracts its ψ̄-independent
     ``(α, β_pullback)`` as the primitive's unit application — which is
     exactly the discipline this pin enforces (ride the primitive, never
-    inline the pair), so the DD count moved 2 → 3.
+    inline the pair), so the DD count moved 2 → 3.  #616 added a FOURTH: the
+    transposed cell solve ``cell_kernel_batch_transpose`` pulls each axis's
+    outgoing-face cotangent back through the same primitive (3 → 4).
     """
     dd_src = Path(diamond_mod.__file__).read_text()
     seed_src = Path(psi_half_angle_seed_mod.__file__).read_text()
@@ -386,11 +388,11 @@ def test_affine_chain_transpose_single_source():
         "outgoing_face_from_average_transpose"
     )
     n_dd = dd_src.count("outgoing_face_from_average_transpose(")
-    assert n_dd == 3, (
-        f"expected exactly three primitive calls in diamond.py (the "
+    assert n_dd == 4, (
+        f"expected exactly four primitive calls in diamond.py (the "
         f"cell-balance kernel's chain pair + the batch VJP's per-axis face "
-        f"pair + the reflect-transpose coefficient extraction, #310 C4), "
-        f"found {n_dd}"
+        f"pair + the reflect-transpose coefficient extraction, #310 C4 + the "
+        f"transposed cell solve's per-axis face pair, #616), found {n_dd}"
     )
     n_seed = seed_src.count("outgoing_face_from_average_transpose(")
     assert n_seed == 3, (

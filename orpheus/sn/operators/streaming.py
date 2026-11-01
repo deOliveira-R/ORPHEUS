@@ -585,7 +585,9 @@ class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForwa
     def is_transpose_invertible(self) -> bool:
         # The transposed solve is the REVERSE SCAN (:meth:`solve_transpose`):
         # it needs the matvec transpose's factors AND a representation that
-        # realises the reverse scan, which only the 1-D scan family does.
+        # realises the reverse sweep (the 1-D scan since #280, the multi-D
+        # mirror walk since #616, the latter where the scheme registers its
+        # transposed cell solve).
         return self.is_adjointable and self.loss_representation.has_transpose_sweep
 
     # ── Convenience accessors ─────────────────────────────────────────
@@ -976,11 +978,12 @@ class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForwa
         guard caught the mis-classing on first contact.)
 
         This is the reverse-scan primitive behind the ``.H.inverse()`` swap
-        law (``A.H.inverse() ≡ A.inverse().H``).  1-D-scan-family only —
-        DD since #280 2.5b, LD since #310 C2 (the ``_run_transpose``
-        moment arm); the multi-D reverse-scan is the wavefront G-S
-        schedule-reverse arm (R7, #310 deferred-out — no consumer; the
-        representation raises).
+        law (``A.H.inverse() ≡ A.inverse().H``).  On the 1-D scan family
+        DD since #280 2.5b and LD since #310 C2 (the ``_run_transpose``
+        moment arm); on the multi-D Cartesian representations DD and LD
+        since #616 (the mirror walk × ``_CellSolveTranspose``).  The
+        Gauss–Seidel splitting's implicit part is a different operator
+        (``(L+C) − B_lower``), whose transposed solve is deferred (#681).
 
         On a carrying mesh this is the ray-DECOUPLED ``(L+C)⁻ᵀ``
         diagonal-block transpose-solve (the M grid's transposed-

@@ -1089,9 +1089,11 @@ exists, every coupling block transposes, and every diagonal block is
 transpose-invertible
 (:func:`~orpheus.numerics.operator.transpose_invertible`) and
 adjointable. A test of the bare method's presence,
-``callable(block.solve_transpose)``, is not that predicate: it passes a
-multi-dimensional :math:`(L+C)` whose reverse scan raises
-(:ref:`loss-rep-orientation-two-frames`, the deferral ledger). The
+``callable(block.solve_transpose)``, is not that predicate: it passes an
+:math:`(L+C)` whose representation or scheme realises no transposed
+sweep, where the method raises (until #616 every multi-dimensional
+:math:`(L+C)` was one; :ref:`loss-rep-orientation-two-frames`, the
+deferral ledger). The
 single-system sweep reads the same law: its ``is_adjointable`` is
 ``transpose_invertible(inner)``, with no carrying-mesh factor, because
 with no ψ½ legs anywhere a bare :math:`(L+C)` on a carrying mesh IS

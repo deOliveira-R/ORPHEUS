@@ -607,11 +607,15 @@ have. Round-trip alone (:math:`A^{-1}(Ax)=x`) earns only the generic name;
    :math:`((M - N)^{-1})^{*} = (M^{*} - N^{*})^{-1}` it equals the Green of
    the adjoint split, which the honesty gate builds as its independent
    witness (:ref:`operator-adjoint-two-questions`). Both need the implicit
-   part's inverse to transpose, which on S\ :sub:`N` is the 1-D reverse scan; on
-   a multi-dimensional mesh the reverse scan is not realised
-   (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_; the deferral ledger of
-   :ref:`loss-rep-orientation-two-frames`), so there
-   ``G.is_adjointable`` reads ``False`` and both refuse. This
+   part's inverse to transpose, which on S\ :sub:`N` is the transposed
+   sweep: the 1-D reverse scan, and since #616 the multi-dimensional
+   mirror walk (:ref:`loss-rep-multid-transposed-sweep`). Until #616 a
+   Green over a 2-D implicit part read ``G.is_adjointable`` ``False`` and
+   both doors refused; it now reads ``True``, and the honesty gate's 2-D
+   Green row checks both doors against the same independent witness as
+   the slab row. The Gauss–Seidel implicit part has no transposed solve
+   yet (`#681 <https://github.com/deOliveira-R/ORPHEUS/issues/681>`_), so a
+   Green over it refuses. This
    reciprocity gate does not use them: it builds :math:`G^{\mathsf T}`
    by hand from the transposed operands, so it stays independent of the
    object it would otherwise test.

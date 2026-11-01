@@ -38,13 +38,14 @@ is the inverse family's one law
 reverse-scan transpose-solve ``(A⁻¹)ᵀ = (Aᵀ)⁻¹``, the inner ``(L+C)``'s
 :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`
 (the 2.5b reverse scan), and ``is_adjointable`` reads ``True`` exactly where
-that forward is transpose-invertible (the 1-D scan family; multi-D is #616). This is what makes the swap law
+that forward is transpose-invertible (the 1-D scan family since #280, the multi-D Cartesian representations since
+#616). This is what makes the swap law
 ``A.H.inverse() ≡ A.inverse().H`` (via
 :meth:`~orpheus.numerics.operator.AdjointOperator.inverse`) an identity of
 the algebra. The schedule-folded
 :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-arm keeps the base ``is_adjointable = False`` (its reverse-scan is the #280
-sibling deferral — no consumer).
+arm keeps the base ``is_adjointable = False`` (its transposed solve is
+deferred, #681).
 
 **Wrap-delegate back-half.** The back-half (domain↔codomain swap /
 domain↔codomain swap / ``solve→inner.apply`` / ``is_invertible`` /
@@ -142,13 +143,14 @@ class SweepOperator(
     and its ``apply_transpose`` is the forward's reverse scan
     :meth:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose`.
     For ``(L+C)`` that needs the matvec transpose's factors AND a loss
-    representation that realises the reverse scan (the 1-D scan family;
-    multi-D defers). Read off the matvec factors alone, the flag was ``True``
-    on 2-D poses whose ``.H.apply`` raised (`[M]` 2026-10-18,
+    representation that realises the reverse sweep (the 1-D scan family
+    since #280, the multi-D Cartesian representations since #616). Read off
+    the matvec factors alone, the flag was ``True`` on 2-D poses whose
+    ``.H.apply`` raised before #616 (`[M]` 2026-10-18,
     ``tests/gates/numerics/test_adjointability_is_honest.py``). The
     schedule-folded
     :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-    arm has no reverse scan (the #280 sibling deferral, no consumer), so a
+    arm has no transposed solve (deferred, #681), so a
     sweep over it reads ``False`` and its ``apply_transpose`` raises
     :class:`~orpheus.numerics.operator.MissingAdjoint`. The JOINT adjoint of
     a carrying mesh lives on the M grid

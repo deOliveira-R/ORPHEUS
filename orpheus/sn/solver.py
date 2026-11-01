@@ -2724,13 +2724,11 @@ def solve_sn_adjoint(
     # class.  Tracked as #353; until then this path warns with everything
     # EXCEPT the number, which is why the clause is omitted rather than
     # printed as "unavailable".
-    # #344 — wired for uniformity, and `[M]` INERT on every configuration this
-    # entry can run: the adjoint routes through (L+C)^H, whose transpose solve
-    # is 1-D-scan-only (#280 Phase 2.5b), and a 1-D problem has at most ONE
-    # reflective axis pair, so `gauge_freedom(...).present` is False and this is
-    # exactly the identity. ⚠ Do NOT read a green adjoint test as evidence the
-    # gauge works — that is `inert`, not `verified`; the acceptance gate lives
-    # on the forward entries.
+    # #344 — the adjoint's exit gauge, on the daggered pencil's kernel. Inert
+    # until #616: the adjoint routes through (L+C)^H, whose transposed solve was
+    # 1-D only, and a 1-D problem has at most ONE reflective axis pair. Since
+    # the multi-D transposed sweep it acts on every d >= 2 reflective posing,
+    # verified on the 2-D mirror box (`test_fredholm_verdict.py` S15b/S15c).
     system_a, gauge_correction = _exit_gauge(system_a, kernel=adjoint_posing.pencil.kernel)
     # The ANSWER: the hub's daggered question — NULLARY, k† = k — recorded on
     # the coupled carrier (the seedless arm's state lifted to the one-system
@@ -2917,9 +2915,9 @@ def solve_sn_adjoint_fixed_source(
     # this entry solved: ``A^† ψ* − q*`` with the same operator the driver
     # was handed.  No reconstruction and no rebuilt rhs here; both are
     # already the driver's own arguments.
-    # #344 — see the note at `solve_sn_adjoint`: structurally inert here too
-    # (1-D-only transpose solve ⟹ at most one reflective axis pair), wired so
-    # the seam cannot rot.
+    # #344 — the adjoint's exit gauge on the daggered posing's kernel; see the
+    # note at `solve_sn_adjoint`. Live on every d >= 2 reflective posing since
+    # #616, verified on the 2-D mirror box (`test_fredholm_verdict.py` S15b).
     psi_star, gauge_correction = _exit_gauge(psi_star, kernel=posing.kernel)
     # The ANSWER: the daggered affine question A†ψ* = q* over the hub's daggered
     # loss (UNARY — the detector is the datum), the returned state lifted to the

@@ -888,9 +888,10 @@ no spaceless adjoint).
      - opens
      - the S\ :sub:`N` loss leaves and sums, the 1-D sweeps (DD, LD, the
        product-quadrature cylinder) and the dual arrow of the slab sweep,
-       the fission composite, the frame faces, the bound inverses, the
-       1-D Green, the two Riesz legs and the dual arrow of the lowering
-       leg
+       the 2-D DD and LD sweeps and the 2-D coupled substitution (since
+       #616), the fission composite, the frame faces, the bound inverses,
+       the 1-D and 2-D Greens, the two Riesz legs and the dual arrow of
+       the lowering leg
    * - ``True``
      - ``False``
      - opens
@@ -903,8 +904,9 @@ no spaceless adjoint).
      - ``True``
      - refuses
      - refuses
-     - the 2-D sweeps (no reverse scan, `#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_), the 2-D coupled
-       substitution, the Green over a 2-D implicit part, the DSA correction
+     - the diffusion leaf operators and their sum (the flat carrier,
+       `#614 <https://github.com/deOliveira-R/ORPHEUS/issues/614>`_), the
+       DSA correction
    * - ``False``
      - ``False``
      - refuses
@@ -927,6 +929,20 @@ transpose the assembled matrix realises while their flag reads
 <https://github.com/deOliveira-R/ORPHEUS/issues/614>`_: composite-ended
 operators that speak flat arrays. The gate carries those 6 rows as
 strict ``xfail``, so each turns red the day its carrier is fixed.
+
+`[M]` 2026-10-31, the same 51 rows built on the #616 worktree and their
+flag and doors read (the archivist's probe, ``.H`` and ``.dual()``
+constructed, not applied): 42 rows read ``is_adjointable`` ``True``
+with both doors opening, 4 read ``True`` with ``.H`` refusing (the four
+unbound rows of the second table row), and 5 read ``False`` with both
+refusing (the 4 diffusion leaf rows and the DSA correction). The 4 rows
+that moved from ``False`` to ``True`` are the 2-D DD and LD sweeps, the
+2-D coupled substitution and the Green over a 2-D implicit part: the
+multi-D transposed sweep of #616 (:ref:`loss-rep-multid-transposed-sweep`)
+gave the 2-D :math:`(L+C)` a transposed solve, and each of the four
+reads that capability. The 2026-10-21 statement that 2 of the
+``True``, ``True`` rows fail at ``.H.apply`` (the diffusion pair, #614)
+was not re-measured; this probe did not apply.
 
 The inverse family's transpose is one law
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -988,20 +1004,27 @@ on a coupled grid's diagonal, which reads the native predicate.
 Neither of the forward's other two flags answers the third question. A
 multi-dimensional :math:`(L+C)` transposes its **action** (the
 ``loss_action_transpose`` grid is complete over every registered scheme
-and representation, :ref:`loss-rep-orientation-two-frames`) and does not
-transpose its **sweep**: the reverse scan ``sweep_transpose`` is realised
-only by the 1-D scan representation
-(:class:`~orpheus.sn.loss_representation.CumprodScan`), and the
-representation says so through ``has_transpose_sweep``.
+and representation, :ref:`loss-rep-orientation-two-frames`) and, since
+#616, transposes its **sweep** as well: ``sweep_transpose`` is the 1-D
+reverse scan on :class:`~orpheus.sn.loss_representation.CumprodScan`
+and the mirror walk on the three multi-D representations
+(:ref:`loss-rep-multid-transposed-sweep`), and the representation says
+so through ``has_transpose_sweep``, a capability separate from the
+matvec transpose's.
 :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator`'s
 ``is_transpose_invertible`` reads both factors, the matvec transpose and
-the reverse scan. `[M]` 2026-10-18: on the 2-D Cartesian fixture
-(``ScanMarch``; the multi-D transposed sweep is `#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_) the leaf reads ``is_adjointable = True`` and
-``is_transpose_invertible = False``, so ``(L+C).H`` constructs and
-``(L+C).H.inverse()`` refuses with
+the reverse sweep. `[M]` 2026-10-18, before #616: on the 2-D Cartesian
+fixture (``ScanMarch``) the leaf read ``is_adjointable = True`` and
+``is_transpose_invertible = False``, so ``(L+C).H`` constructed and
+``(L+C).H.inverse()`` refused with
 :class:`~orpheus.numerics.operator.NotInvertible`; on the slab, the LD
 slab and the product-quadrature cylinder (``CumprodScan``) both read
-``True`` and the inverse constructs. The coupled substitution reads the
+``True`` and the inverse constructed. Since #616 both read ``True`` on
+every multi-D fixture of
+``tests/gates/sn/operators/test_transpose_sweep_multid.py`` (row T1, 18
+of 18 multi-D cells, `[M]` 2026-10-31). The two flags remain different
+questions: a representation or scheme registered without the transposed
+solve would read ``True`` and ``False`` again. The coupled substitution reads the
 same predicate per diagonal block; a ``callable(solve_transpose)`` test
 would pass a 2-D block whose method raises.
 
@@ -1079,8 +1102,10 @@ Gotchas
   ``C @ B`` has no input its transpose accepts (`#619 <https://github.com/deOliveira-R/ORPHEUS/issues/619>`_).
   The flags do not see this: they read capabilities, not carrier roles.
 * A method's presence is not a capability:
-  ``callable(op.solve_transpose)`` is ``True`` on a 2-D
-  :math:`(L+C)` whose reverse scan raises. Read
+  ``callable(op.solve_transpose)`` is ``True`` on every
+  :math:`(L+C)`, including one whose representation or scheme realises
+  no transposed sweep (until #616, every 2-D :math:`(L+C)`), where the
+  method raises. Read
   :func:`~orpheus.numerics.operator.transpose_invertible`.
 
 .. dropdown:: First got wrong — one flag for two questions (2026-10-18)

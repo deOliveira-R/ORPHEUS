@@ -6841,12 +6841,18 @@ described the returned boundary as "the matvec's :math:`B_1''` face
 residual", which is the boundary block of :math:`A\psi`, a different
 object from the solution vector's; ``[M]`` it is a flux trace, and the
 sentence has been corrected).  ``solve_sn_adjoint`` and
-``solve_sn_adjoint_fixed_source`` are wired for uniformity and are
-**structurally inert for the diamond-difference half**: the adjoint routes
-through :math:`(L+C)^{\mathsf H}`, whose transpose solve is 1-D-scan-only,
-and a 1-D problem has at most one reflective axis pair.  Since U0 they
-are not inert for the physical half: a 1-D closed pure scatterer has a
-physical kernel, and the adjoint entries gauge it with the ADJOINT
+``solve_sn_adjoint_fixed_source`` gauge with the daggered kernel.  Until
+#616 they were **structurally inert for the diamond-difference half**: the
+adjoint routes through :math:`(L+C)^{\mathsf H}`, whose transposed solve
+was 1-D-scan-only, and a 1-D problem has at most one reflective axis
+pair.  Since #616 (the multi-dimensional transposed sweep,
+:ref:`loss-rep-multid-transposed-sweep`) the adjoint entries run on
+:math:`d \ge 2` reflective boxes and project the DD modes there
+(``tests/gates/sn/solve/test_fredholm_verdict.py`` rows S15b: the
+adjoint member against the dense left co-vectors, with an activation
+leg, on graded and absorption-free boxes, since on the uniform DD box
+the iterate acquires no kernel component; :ref:`sn-adjoint-multid`).  Since U0 they were already not inert for the
+physical half: a 1-D closed pure scatterer has a physical kernel, and the adjoint entries gauge it with the ADJOINT
 kernel (``predicted_kernel.H``), never the forward projector
 (``tests/gates/sn/solve/test_fredholm_verdict.py::test_S15_the_adjoint_member_is_annihilated_by_the_left_covectors``,
 ``[M]`` the forward projector would leave a left co-vector reading
@@ -7018,10 +7024,14 @@ serves the physical co-vector too (below).
 blockwise (``[R]``, derived; the bulk metric does not enter, since
 :math:`\ker A^{\mathsf T}` has no bulk part).  This is what an adjoint
 S\ :sub:`N` posing gauges with (:attr:`PredictedKernel.H
-<orpheus.numerics.fredholm.PredictedKernel.H>`); on the
-diamond-difference half it is unexercised, because the transpose solve
-is 1-D only and a 1-D problem has no diamond-difference
-kernel.  ``[M]`` the measured fact behind the refutations below: the
+<orpheus.numerics.fredholm.PredictedKernel.H>`).  On the
+diamond-difference half it was unexercised until #616, because the
+transposed solve was 1-D only and a 1-D problem has no
+diamond-difference kernel; since #616 the adjoint entries run on
+:math:`d = 2` mirror boxes and the gauge projects these modes there
+(``tests/gates/sn/solve/test_fredholm_verdict.py`` row S15b checks the
+returned member against the dense left co-vectors of :math:`A`;
+:ref:`sn-adjoint-multid`).  ``[M]`` the measured fact behind the refutations below: the
 production trace metric carries no face area (:math:`G/(|\Omega\cdot\hat
 n| w_n A_f)` varies by :math:`O(1)`; GitHub #680).
 

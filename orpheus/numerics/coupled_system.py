@@ -132,7 +132,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from functools import reduce
-from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Sequence, cast
+from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Sequence, cast, overload
 
 import numpy as np
 from scipy import sparse
@@ -669,6 +669,12 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         members = self._check_arity(x)
         return replace(x, systems=tuple(leg(s, m) for s, m in zip(members, x.systems)))
 
+    @overload
+    def apply_metric(self, x: "CoupledField") -> "CoupledField": ...
+
+    @overload
+    def apply_metric(self, x: "np.ndarray") -> "np.ndarray": ...
+
     def apply_metric(self, x: "CoupledField | np.ndarray") -> "CoupledField | np.ndarray":
         r"""Apply the block-diagonal Hilbert metric ``G = diag(G_1, …, G_N)``.
 
@@ -679,6 +685,12 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         coupling.
         """
         return self._member_wise(x, lambda space, member: space.apply_metric(member))
+
+    @overload
+    def apply_inverse_metric(self, x: "CoupledField") -> "CoupledField": ...
+
+    @overload
+    def apply_inverse_metric(self, x: "np.ndarray") -> "np.ndarray": ...
 
     def apply_inverse_metric(self, x: "CoupledField | np.ndarray") -> "CoupledField | np.ndarray":
         r"""Apply the block-diagonal pseudo-inverse metric ``G⁺`` member-wise, in either chart."""
@@ -996,7 +1008,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         diagonal transpose-invertible
         (:attr:`~orpheus.numerics.operator.LinearOperator.is_transpose_invertible`)
         and adjointable. A ``callable(solve_transpose)`` test, used before,
-        passed a multi-D ``(L+C)`` whose reverse scan raises (`[M]`
+        passed a multi-D ``(L+C)`` whose reverse scan then raised (`[M]`
         2026-10-18, ``tests/gates/numerics/test_adjointability_is_honest.py``)."""
         if not self._substitution_ready():
             return False

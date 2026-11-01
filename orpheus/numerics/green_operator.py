@@ -311,8 +311,8 @@ class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
     (:meth:`dual`, which :meth:`apply_transpose` applies), with the same
     budget. Its preconditioner is the dual arrow's swap law
     :math:`(M^{\mathsf T})^{-1} = (M^{-1})^{\mathsf T}`, so it exists exactly
-    where :math:`M`'s inverse transposes (the SN sweep: the 1-D scan family;
-    the multi-D reverse scan is #616). :attr:`is_adjointable` reads that
+    where :math:`M`'s inverse transposes (the SN sweep: the 1-D reverse scan,
+    and the multi-D mirror walk since #616). :attr:`is_adjointable` reads that
     condition and that both parts transpose. The Hilbert adjoint is the
     base's ``♯ ∘ dual ∘ ♭``: the law
     :math:`((M - N)^{-1})^{*} = (M^{*} - N^{*})^{-1}` holds and the honesty

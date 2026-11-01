@@ -87,11 +87,11 @@ sweep — is a consequence of that one choice.
      :math:`(A^{\dagger})^{-1} = (A^{-1})^{\dagger}`
      (:eq:`loss-rep-adjoint-inverse-swap`) makes :math:`(L+C).\mathtt{H}`
      invertible for free — the daggered inner solve rides the
-     reverse-scan transpose sweep behind ``A.H.inverse()``.  That sweep
-     is realised by the 1-D scan only: on a multi-dimensional mesh
-     ``(L+C).H`` constructs and ``(L+C).H.inverse()`` refuses with
-     ``NotInvertible`` (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_;
-     :ref:`operator-adjoint-two-questions`).
+     transposed sweep behind ``A.H.inverse()``: the 1-D reverse scan,
+     and since #616 the multi-dimensional mirror walk, so the adjoint
+     entries run on every Cartesian mesh and their exit gauge acts on
+     :math:`d \ge 2` reflective posings for the first time
+     (:ref:`sn-adjoint-multid`, :ref:`loss-rep-multid-transposed-sweep`).
    * **The G-metric is a free parameter that no eigenvalue gate can
      see.**  :math:`A.\mathtt{H} = G'^{-1}A^{\mathsf T}G'` is
      metric-similar to :math:`A^{\mathsf T}` for ANY invertible
@@ -419,13 +419,17 @@ exactly the properties route (1) cannot deliver at finite resolution:
   **swap law** :math:`(A^{\dagger})^{-1} = (A^{-1})^{\dagger}`
   (:eq:`loss-rep-adjoint-inverse-swap`) makes :math:`(L+C).\mathtt{H}`
   invertible by routing to :math:`(L+C).\mathtt{inverse()}.\mathtt{H}`,
-  so the daggered inner solve rides the reverse-scan transpose sweep
+  so the daggered inner solve rides the transposed sweep
   (:ref:`loss-rep-orientation-two-frames`) behind ``(L+C).H.inverse()``
-  with no new machinery.  The reverse scan exists on the 1-D scan
-  representation only; on a multi-dimensional mesh the swap law refuses
-  at construction, because the sweep's ``is_adjointable`` reads the
-  forward's ``is_transpose_invertible``, which is ``False`` there
-  (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_; :ref:`operator-adjoint-two-questions`).
+  with no new adjoint machinery.  The transposed sweep is the 1-D
+  reverse scan, and since #616 the multi-dimensional mirror walk
+  (:ref:`loss-rep-multid-transposed-sweep`); the sweep's
+  ``is_adjointable`` reads the forward's ``is_transpose_invertible``,
+  which is ``True`` on every registered Cartesian representation and
+  scheme (:ref:`operator-adjoint-two-questions`).  The multi-D walk is
+  a new transposed SOLVE of the loss representation, not adjoint code:
+  it is the Euclidean transpose of the forward sweep, and the metric
+  enters only at ``.H``'s ends.
 
 This is Cardinal Rule 2 (architecture) paying a physics dividend: the
 adjoint is not a parallel implementation to keep in sync with the
@@ -1888,9 +1892,12 @@ Before the consumers campaign's step 2 that was true only *incidentally*
 (the builder happened to store the Jacobi pair on its record, while the
 seedless driver re-derived a Gauss-Seidel one behind it), and the
 property had no site to be read off.  It matters because the
-Gauss-Seidel **schedule-reverse** transpose is precisely the deferral
-recorded below; posing the adjoint on the Jacobi value is what keeps
-that deferral out of this chapter's way
+Gauss-Seidel splitting's transposed solve (its implicit part is
+:math:`(L+C) - B_{\rm lower}`, a different operator from the bare
+:math:`(L+C)`) is precisely the deferral recorded below,
+`#681 <https://github.com/deOliveira-R/ORPHEUS/issues/681>`_; posing the
+adjoint on the Jacobi value is what keeps that deferral out of this
+chapter's way
 (:ref:`sn-splitting-is-a-strategy-value`).
 
 The CALLER daggers each with ``.H`` and
@@ -1931,10 +1938,11 @@ within-group loss splits and each term daggers independently:
 
 * :math:`(L+C).\mathtt{H}` is invertible **for free** by the swap law
   (:eq:`loss-rep-adjoint-inverse-swap`): ``(L+C).H.inverse()`` routes to
-  ``(L+C).inverse().H``, i.e. the reverse-scan transpose sweep
+  ``(L+C).inverse().H``, i.e. the transposed sweep
   (:ref:`loss-rep-orientation-two-frames`), so the daggered inner solve
-  is the reversed walk with no new solver code.  It is 1-D only: the
-  multi-dimensional transposed sweep is not realised (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_).
+  is the reversed walk with no adjoint-specific solver code: the 1-D
+  reverse scan, and since #616 the multi-dimensional mirror walk
+  (:ref:`loss-rep-multid-transposed-sweep`).
 * :math:`S.\mathtt{H}` is the frame-conjugated scattering transpose
   (:ref:`sn-scattering-adjoint`) wrapped in the angular metric.
 * :math:`N_{2n}.\mathtt{H}` is the metric-wrapped
@@ -1990,6 +1998,98 @@ the closed-form :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}` spectrum
    the kernel — hence the spy — and, since the consumers campaign's
    step 1, the type system: the order is the hub's datum, clamped once,
    read by the posing (:ref:`sn-hub-retained-order`; GitHub #459).
+
+.. _sn-adjoint-multid:
+
+The adjoint on a multi-dimensional mesh, and its exit gauge (#616)
+------------------------------------------------------------------
+
+The daggered inner solve is ``(L+C).H.inverse()``, which the swap law
+routes to ``(L+C).inverse().H``, so the adjoint entries can run exactly
+where the forward sweep has a transposed solve. Until #616 that was the
+1-D scan only: on every :math:`d \ge 2` posing ``(L+C).H`` constructed
+and ``(L+C).H.inverse()`` refused with
+:class:`~orpheus.numerics.operator.NotInvertible`, and both
+:func:`~orpheus.sn.solver.solve_sn_adjoint` and
+:func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source` raised it,
+from the construction of the Green over the daggered split. There was no
+Krylov-on-the-transposed-matvec fallback. #616 realised the transposed
+sweep on the multi-D Cartesian representations by the mirror walk
+(:ref:`loss-rep-multid-transposed-sweep`), so both entries run there
+with no change to this chapter's machinery.
+
+**The exit gauge becomes live.** Every adjoint entry ends with
+``_exit_gauge`` over the daggered pencil's kernel,
+:math:`\ker A^{\mathsf H}` (:ref:`sn-exit-gauge`). Its
+diamond-difference half was inert on every configuration the entries
+could run before #616: a 1-D problem has at most one reflective axis
+pair, and the diamond-difference face modes of the loss kernel
+(:ref:`sn-loss-kernel-predicted`) need a reflective box in at least two
+dimensions. (Since U0 the physical half was already live in 1-D: a 1-D
+closed pure scatterer has a constant mode, and the adjoint gauges it
+with ``predicted_kernel.H``.) On a :math:`d \ge 2` reflective box the
+DD modes are present, the adjoint verdict is ``Gauge``, and the
+projection runs on an adjoint solution for the first time. Whether it
+MOVES anything depends on the posing: the iterate acquires a kernel
+component on a graded box and on an absorption-free one, and acquires
+none on the uniform DD box or in the adjoint eigen entry (the rows
+below). It projects
+with the ADJOINT kernel, never the forward projector, for the reason
+:ref:`fredholm-posing-verdict` derives: the kernel it projects out is
+:math:`\ker A^{\mathsf H} = G^{-1}\ker A^{\mathsf T}`, the metric image
+of :math:`A`'s left co-vectors, which is not :math:`\ker A`.
+
+**What verifies it** (``tests/gates/sn/solve/test_fredholm_verdict.py``,
+on the :math:`(3,4)` LS2 reflective box):
+
+* **S15b**, the adjoint fixed-source member, three rows:
+  ``dd_kernel_graded`` (:math:`c = 0.9`, the DD kernel alone, the box
+  graded 1.5), ``union_kernel_uniform`` and ``union_kernel_graded``
+  (:math:`c = 1`, DD plus the absorption-free class), each with a random
+  bulk detector whose volume integral is removed. Each asserts the
+  verdict is ``Gauge`` with the dense nullity; (i) the residual
+  :math:`\|A^{\mathsf H}x - q\|/\|q\| \le 10\,\tau_{\rm inner}`, through
+  the posing's own verb and through the dense
+  :math:`G^{-1}A^{\mathsf T}G`; (ii) activation: the gauge's own
+  displacement, read off ``ExitReport.gauge``, is at least
+  :math:`10^{-3}`; and (iii) the returned :math:`x` is annihilated by
+  every left co-vector :math:`w` of :math:`A`, which makes :math:`x` the
+  minimum-:math:`G`-norm member of the adjoint solution coset. ``[M]``
+  2026-10-31 (the test's docstring): displacements
+  :math:`2.19\times10^{-2}`, :math:`1.40\times10^{-3}` and
+  :math:`4.98\times10^{-2}`; residuals :math:`9.4\text{–}9.95\times10^{-14}`
+  at :math:`\tau_{\rm inner} = 10^{-13}`. Arms: removing the gauge reds
+  every row at (ii), and behind it (iii) reads :math:`|w\cdot x|` of
+  :math:`1.1\times10^{-3}` to :math:`1.2\times10^{-2}`; projecting with
+  the FORWARD kernel reds the graded DD row at (ii) and both union rows
+  at (i).
+* **Why no uniform DD row.** On the uniform :math:`c = 0.9` box the
+  source iteration from zero acquires no diamond-difference component:
+  the gauge moves the iterate by :math:`2.8\times10^{-16}`, so the row
+  would pass with the gauge removed (:math:`|w\cdot x| = 2.05\times10^{-15}`
+  under that arm). The same bulk-only detector acquires
+  :math:`2.2\times10^{-2}` on the graded box, so the blindness is the
+  mesh's, not the detector's. An earlier version of S15b used the
+  uniform box and read :math:`1.9\times10^{-15}`; that reading did not
+  involve the gauge.
+* **S15c**, the adjoint eigenvalue on the fissile mirror box:
+  :math:`k^{\dagger} = k` through the daggered pencil and the multi-D
+  transposed sweep, both entries carrying the ``Gauge`` verdict (the DD
+  modes are the whole pencil's kernel, since the bulk-isotropic fission
+  source annihilates them). ``[M]`` 2026-10-31: 1.44 against
+  1.4399999998. S15c is declared BLIND to the gauge: on 3 of 3 2-D
+  adjoint eigen posings measured (this box, the same box graded 1.5, an
+  LS4 two-group box) the gauge's displacement is at most
+  :math:`1.0\times10^{-14}`, and with the gauge removed the left
+  pairing reads at most :math:`5.5\times10^{-15}`: the power iteration's
+  iterate carries no kernel component. The gauge's witnesses on the
+  adjoint are the S15b rows only.
+
+The archivist re-ran the four rows green under ``python -O`` on
+2026-10-31. The entry ledger of
+``tests/gates/sn/solve/test_every_entry_gauges_its_trace.py`` records
+both adjoint entries as exercised by these rows; until #616 it excused
+them as "wired but structurally inert".
 
 .. _sn-adjoint-poses-a-pencil:
 
@@ -2544,24 +2644,26 @@ its consumers are unblocked:
   response-sensitivity estimation are the adjoint eigenmode's native
   applications — the trajectory the A5 type ruling was made for.
 
-The **honest deferral ledger.**  Three arms are callable-but-deferred
+The **honest deferral ledger.**  Two arms are callable-but-deferred
 by design, each a typed refusal rather than an unexercised path:
-
-* the daggered inner solve on a **multi-dimensional** mesh: the
-  transposed sweep :math:`(L+C)^{-\mathsf T}` exists on the 1-D scan
-  only, so ``(L+C).H.inverse()`` refuses with
-  :class:`~orpheus.numerics.operator.NotInvertible` at construction
-  (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_; :ref:`operator-adjoint-two-questions`);
 
 * the daggered **coupled fixed-source** arm (a carrying Problem with
   System B) refuses loud in
   :func:`~orpheus.sn.solver.solve_sn_adjoint_fixed_source` — no consumer
   or gate yet; the eigenvalue entry covers carrying Problems;
-* the Gauss–Seidel **schedule-reverse** transpose (#310 R7) has no
-  consumer, so a
+* the Gauss–Seidel splitting's transposed solve
+  :math:`((L+C) - B_{\rm lower})^{-\mathsf T}` (#310 R7, now
+  `#681 <https://github.com/deOliveira-R/ORPHEUS/issues/681>`_) has no
+  consumer, since the adjoint posing asks for the Jacobi labelling, so a
   :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
   over it stays non-adjointable (:ref:`loss-rep-orientation-two-frames`,
   the deferral ledger).
+
+Retired from this ledger on 2026-10-31: the daggered inner solve on a
+**multi-dimensional** mesh. Until #616 the transposed sweep existed on
+the 1-D scan only, so ``(L+C).H.inverse()`` refused with
+:class:`~orpheus.numerics.operator.NotInvertible` at construction on
+every :math:`d \ge 2` posing (:ref:`sn-adjoint-multid`).
 
 Development history
 ===================
@@ -2618,6 +2720,16 @@ Development history
   unchanged in value and sharper in statement: it mints the **Jacobi**
   labelling explicitly, so what ``gain.H`` daggers is the whole
   :math:`B_a`, by construction rather than by coincidence.
+* **#616** (2026-10-31, branch ``refactor/space-membership``, unit U3b
+  of the space-membership plan) — the **multi-dimensional transposed
+  sweep**.  The adjoint entries, which raised ``NotInvertible`` on every
+  :math:`d \ge 2` posing, run on the multi-D Cartesian
+  representations through the mirror walk (the transposed sweep is gated
+  at :math:`d = 2` and :math:`3`, the entries at :math:`d = 2`)
+  (:ref:`loss-rep-multid-transposed-sweep`), and the adjoint exit gauge,
+  inert until then, acts on :math:`d \ge 2` reflective posings
+  (:ref:`sn-adjoint-multid`).  The Gauss–Seidel transposed solve was
+  split off as #681.
 
 References
 ==========

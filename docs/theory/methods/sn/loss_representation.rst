@@ -115,8 +115,10 @@ Key Facts
      ``{forward, transpose} × {solve, apply}`` unify into TWO frames,
      each shared across **orientation** (the free axis): the
      *apply-loop* frame ``{loss_action, loss_action_transpose}`` and the
-     *solve-scan* frame ``{sweep, sweep_transpose}`` (the reverse-scan
-     :math:`(L+C)^{-\mathsf T}`, the previously-empty cell). Execution
+     *solve-scan* frame ``{sweep, sweep_transpose}`` (the transposed solve
+     :math:`(L+C)^{-\mathsf T}`, the previously-empty cell: the 1-D reverse
+     scan since #280, the multi-D mirror walk since #616,
+     :ref:`loss-rep-multid-transposed-sweep`). Execution
      strategy ``{scan, cell-loop, wavefront-graph}`` is a **non-free
      third axis** pinned by ``(kernel, dim)`` — the coherence axis is
      ORIENTATION, not kernel. The transpose is the **discrete Euclidean
@@ -2511,7 +2513,8 @@ The four faces are ``{forward, transpose} × {solve, apply}``:
    * - **transpose** (reversed DAG order + face in↔out swap)
      - :meth:`~orpheus.sn.loss_representation.LossRepresentation.sweep_transpose`
        — :math:`(L+C)^{-\mathsf T}b` (**#280 2.5b** — the
-       previously-empty cell)
+       previously-empty cell — on the 1-D scan; **#616** on the multi-D
+       Cartesian representations, :ref:`loss-rep-multid-transposed-sweep`)
      - :meth:`~orpheus.sn.loss_representation.LossRepresentation.loss_action_transpose`
        — :math:`(L+C)^{\mathsf T}\varphi`
 
@@ -2646,7 +2649,12 @@ bands stay distinct by *algorithmic necessity*, not debt:
        ``walk_full`` / ``walk_windowed`` over ``graph(−signs_eff)`` —
        scheme-complete: DD scalar faces AND the LD moment-tailed
        cochain, any ``d``), and the row-march reverse (``ScanMarch``,
-       reversed rows + ``_x_scan_faces_transpose``)
+       reversed rows + ``_x_scan_faces_transpose``) for the matvec
+       transpose; for the transposed SOLVE (#616) the same mirror walk
+       with the level operation ``_CellSolveTranspose``, which
+       ``ScanMarch`` borrows from the window at :math:`d = 2` rather than
+       reversing its own row march
+       (:ref:`loss-rep-multid-transposed-sweep`)
      - anti-diagonal **wavefront-graph** / row-march
 
 The empty-looking symmetry of the 2×2 is thus *honest*: the coherence
@@ -2672,6 +2680,480 @@ execution axis is a genuine structural fork that a unified walk must
    is the #1 landmine of the carve; conflating the three transposes is
    the fastest way to a plausible-but-wrong adjoint.
 
+.. _loss-rep-multid-transposed-sweep:
+
+The multi-D transposed sweep — the mirror walk × the transposed cell solve (#616)
+---------------------------------------------------------------------------------
+
+Until #616 the solve × transpose cell of the 2×2 was filled on the 1-D
+scan only, and every multi-dimensional representation inherited the
+base's refusal. #616 fills it on all three multi-D Cartesian
+representations (``ScanMarch``, ``MovingFrontierWindow``,
+``FullFieldWavefront``) with ONE transposed solve on the shared frame:
+one frame method, :meth:`_OctantWalk.sweep_transpose
+<orpheus.sn.loss_representation._OctantWalk.sweep_transpose>`; one cell
+kernel per scheme,
+:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch_transpose`
+(diamond difference and linear discontinuous, 2 of the 2 registered
+scheme classes); and one level operation,
+:class:`~orpheus.sn.loss_representation.sweep_graph._CellSolveTranspose`,
+the fourth direction object beside ``_CellSolve``, ``_CellResidual`` and
+``_CellResidualTranspose``. Nothing in the walk is new: the transposed
+solve runs the UNCHANGED ``walk_full`` / ``walk_windowed`` over each
+octant's MIRROR graph, exactly as the matvec transpose of #310 does, and
+only the cell algebra differs. The physical adjoint
+:math:`((L+C)^{-1})^{*}` then follows by the swap law of
+:ref:`loss-rep-inverse-adjoint-swap` with no metric code in the sweep, so
+``(L+C).H.inverse()`` constructs on every multi-D posing whose scheme
+registers the kernel.
+
+The object being transposed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Per octant, per ordinate and per group, the forward cell solve is a
+linear map from the cell's inputs (the source :math:`Q` and the
+upstream-face values :math:`\psi^{\rm in}_a`, one per spatial axis
+:math:`a = 1,\dots,d`) to its outputs (the cell unknown :math:`\bar\psi`
+and the downstream-face values :math:`\psi^{\rm out}_a`):
+
+.. math::
+
+   K:\ (Q,\ \psi^{\rm in}_1,\dots,\psi^{\rm in}_d)
+   \;\longmapsto\;
+   (\bar\psi,\ \psi^{\rm out}_1,\dots,\psi^{\rm out}_d).
+
+The sweep composes these cell maps along the octant's DAG (an out-face of
+one cell is the in-face of its downstream neighbour), so
+:math:`(L+C)^{-1}` restricted to one octant is a product of cell maps in
+topological order, and its transpose is the product of the cell
+transposes :math:`K^{\mathsf T}` in REVERSED topological order, with the
+roles of in-face and out-face exchanged. That is the whole content of
+the reverse-mode adjoint of a sweep: a cotangent
+:math:`(\bar{\bar\psi}, \bar\psi^{\rm out}_a)` arrives at each cell's
+outputs, :math:`K^{\mathsf T}` turns it into
+:math:`(\bar Q, \bar\psi^{\rm in}_a)`, and each
+:math:`\bar\psi^{\rm in}_a` is the out-face cotangent of the upstream
+neighbour. Here and below a bar over a symbol is its cotangent, so
+:math:`\bar{\bar\psi}` is the cotangent of the cell unknown
+:math:`\bar\psi`.
+
+The transposed diamond-difference cell
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The forward diamond-difference (DD) cell in the volume-scaled Cartesian
+form
+(:meth:`~orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch`)
+is
+
+.. math::
+
+   D\,\bar\psi = Q + \sum_{a} c_a\,\psi^{\rm in}_a,
+   \qquad
+   \psi^{\rm out}_a = \frac{\bar\psi}{w} - \frac{1-w}{w}\,\psi^{\rm in}_a,
+
+with the per-axis coupling :math:`c_a = 2g_a`, the raw streaming
+coefficient :math:`g_a = |\mu_a|/\Delta_a`, the cell-balance diagonal
+:math:`D = \Sigma_t + \sum_a c_a`, and the diamond weight
+:math:`w = \tfrac12`. Written as a matrix acting on
+:math:`(Q, \psi^{\rm in})`, the two rows are
+
+.. math::
+
+   \bar\psi = \frac{1}{D}\,Q + \sum_b \frac{c_b}{D}\,\psi^{\rm in}_b,
+   \qquad
+   \psi^{\rm out}_a = \frac{1}{wD}\,Q
+     + \sum_b \frac{c_b}{wD}\,\psi^{\rm in}_b
+     - \frac{1-w}{w}\,\delta_{ab}\,\psi^{\rm in}_b .
+
+Transposing reads each column as a row. The column of :math:`Q` gives
+:math:`\bar Q = \bar{\bar\psi}/D + \sum_a \bar\psi^{\rm out}_a/(wD)`,
+and the column of :math:`\psi^{\rm in}_b` gives
+:math:`\bar\psi^{\rm in}_b = (c_b/D)\,\bar{\bar\psi}
++ \sum_a (c_b/(wD))\,\bar\psi^{\rm out}_a - ((1-w)/w)\,\bar\psi^{\rm out}_b`.
+Both share one scalar, so the transposed cell is
+
+.. math::
+   :label: loss-rep-dd-transposed-cell-solve
+
+   \lambda = \frac{1}{D}\Bigl(\bar{\bar\psi}
+     + \sum_a \frac{1}{w}\,\bar\psi^{\rm out}_a\Bigr),
+   \qquad
+   \bar Q = \lambda,
+   \qquad
+   \bar\psi^{\rm in}_a = c_a\,\lambda - \frac{1-w}{w}\,\bar\psi^{\rm out}_a .
+
+.. (vv-status rationale) The transposed DD cell solve. Gated end to end by
+   tests/gates/sn/operators/test_transpose_sweep_multid.py (T2 one-sided
+   identity, T3 dense transposed solve) on every multi-D DD cell; no test
+   carries a verifies marker for this label yet.
+.. vv-status: loss-rep-dd-transposed-cell-solve documented
+
+.. implements:: loss-rep-dd-transposed-cell-solve
+   :by: orpheus.transport.spatial.diamond.DiamondDifference.cell_kernel_batch_transpose
+
+   The kernel reads :math:`D` and :math:`c_a` from the SAME
+   ``_cartesian_streaming_diagonal`` fold the forward uses, and the
+   face-chain pair :math:`(\bar\psi^{\rm out}_a/w,\
+   -((1-w)/w)\,\bar\psi^{\rm out}_a)` from the w-generic
+   :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.outgoing_face_from_average_transpose`
+   that the matvec transpose already uses, so no coefficient of the
+   transposed solve has a second spelling.
+
+The transposed cell divides by the same diagonal :math:`D` as the
+forward: the solve transpose of a one-unknown cell is one division, not
+a second linear system. Its source cotangent :math:`\bar Q` is per
+ordinate, shaped like the cell unknown.
+
+The transposed linear-discontinuous cell
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The forward upwind linear-discontinuous (UBLD) cell
+(:meth:`~orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.cell_kernel_batch`)
+carries a moment vector :math:`\vec\psi` of length :math:`2^d` per cell
+(the average and the slopes) and solves the small system materialised by
+``_ubld_system``:
+
+.. math::
+
+   A\,\vec\psi = M\,\vec S + \sum_a F^{(a)}\,\psi^{\rm in}_a,
+   \qquad
+   \psi^{\rm out}_a = T_a\,\vec\psi,
+
+with :math:`A` the cell's streaming-plus-collision matrix, :math:`M` the
+diagonal cell mass, :math:`\vec S` the moment source, :math:`F^{(a)}` the
+upwind inflow coupling of axis :math:`a`, and :math:`T_a` the downstream
+trace on axis :math:`a`. The cotangent arriving at :math:`\vec\psi` is
+its own, :math:`\bar{\vec\psi}`, plus what the downstream faces send
+back, :math:`\sum_a T_a^{\mathsf T}\bar\psi^{\rm out}_a`. Pulling it
+through :math:`A^{-1}` transposes the cell system, and the two input
+blocks transpose separately:
+
+.. math::
+   :label: loss-rep-ld-transposed-cell-solve
+
+   \lambda = A^{-\mathsf T}\Bigl(\bar{\vec\psi}
+     + \sum_a T_a^{\mathsf T}\,\bar\psi^{\rm out}_a\Bigr),
+   \qquad
+   \bar{\vec S} = M^{\mathsf T}\lambda = M\lambda,
+   \qquad
+   \bar\psi^{\rm in}_a = F^{(a)\mathsf T}\,\lambda .
+
+.. (vv-status rationale) The transposed UBLD cell solve. Gated end to end
+   by tests/gates/sn/operators/test_transpose_sweep_multid.py (T2, T3) on
+   the 2-D LD cells; no test carries a verifies marker for this label yet.
+.. vv-status: loss-rep-ld-transposed-cell-solve documented
+
+.. implements:: loss-rep-ld-transposed-cell-solve
+   :by: orpheus.transport.spatial.linear_discontinuous.LinearDiscontinuous.cell_kernel_batch_transpose
+
+   Every matrix comes from the SAME materialised ``_ubld_system`` record
+   the forward solves (no hand-derived entry): :math:`A^{\mathsf T}` is
+   its ``A`` with the last two axes swapped, :math:`T_a^{\mathsf T}` is
+   ``_ubld_outgoing_faces_transpose``, and :math:`F^{(a)\mathsf T}` is
+   ``assemble_inflow_axis_transpose``, the pullback the matvec transpose
+   already uses (there with the opposite sign: the residual subtracts the
+   inflow, the solve adds it).
+
+The source cotangent :math:`\bar{\vec S}` is ALWAYS moment-shaped,
+:math:`(\dots, 2^d)`: the operator's source space carries the moment
+tail, and a flat source that the forward lifted onto the average slot
+pulls back as slot 0 of it. The kernel is :math:`d`-generic, but the LD
+forward itself refuses :math:`d = 3` (``assemble_inflow_axis`` supports
+an inflow axis only in :math:`\{0, d-1\}`; the interior-axis interleave
+is the forward's deferral, S2), so no :math:`d = 3` LD transposed solve
+can be posed.
+
+The frame conjugation
+~~~~~~~~~~~~~~~~~~~~~
+
+The forward level operation ``_CellSolve`` re-signs the source from the
+global frame into the octant's sweep frame and the cell unknown back,
+with the physical octant's diagonal sign involution :math:`E`
+(:math:`E^2 = I`, :math:`E^{\mathsf T} = E`). The forward cell in
+global coordinates is :math:`E\,K\,E`, so its transpose is
+:math:`E\,K^{\mathsf T}E`: ``_CellSolveTranspose`` re-signs the
+cell-unknown cotangent in and the source cotangent out with the SAME
+signs. The faces stay in the sweep frame in both directions. The source
+cotangent is re-signed whenever the closure is multi-moment, since it is
+always moment-shaped there.
+
+The addressing: the mirror walk, reused
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The reverse traversal is the one the matvec transpose established in
+#310 C3 (:func:`~orpheus.sn.loss_representation._reverse_octant_traversal`):
+the walk runs over the graph of the MIRROR octant, the one with every
+sign flipped, so the unchanged walks visit the levels in reversed order,
+gather at the forward's OUT-faces (the cotangents
+:math:`\bar\psi^{\rm out}_a` the level operation consumes), and scatter
+at the forward's IN-faces (the :math:`\bar\psi^{\rm in}_a` it returns).
+The mirror graph's own ``window_plan`` is the reversed frontier, so the
+windowed production reverse needs no storage rule of its own. Only the
+level operation knows the physical orientation; it recovers the
+physical signs as the negation of the addressing label, since the mirror
+is an involution. Because the windowed and the full-cochain reverses
+are one walk over two storages, the windowed transposed solve is
+bit-identical to the full-cochain oracle: row T7 asserts
+``array_equal`` on the 2-D DD and LD reflective nonsquare boxes and a
+Lebedev-5 mirror box, 5 seeds each. That row pins the window's
+bookkeeping (a dropped or reordered cell), not the arithmetic, which the
+two storages share; it is not an independent reference for the
+transpose.
+
+The level operations of the two transposed directions share one base,
+:class:`~orpheus.sn.loss_representation.sweep_graph._CellTranspose`:
+it reads the bulk cotangent (``bulk_cot_octant``), applies the
+physical-frame re-signing on the way in and out, writes the bulk output
+(``bulk_out_octant``), and leaves the cell algebra to an abstract
+``_vjp``. ``_CellResidualTranspose`` implements ``_vjp`` with the
+scheme's ``residual_kernel_batch_transpose`` (the matvec transpose) and
+``_CellSolveTranspose`` with ``cell_kernel_batch_transpose`` (the solve
+transpose), so the two directions differ in exactly one call.
+
+The trace contract
+~~~~~~~~~~~~~~~~~~
+
+The forward Jacobi sweep, read as a map on the full field (bulk
+:math:`\oplus` angular trace), does two things to the trace: it COPIES
+the given trace :math:`b` into the output on every row, then each octant
+OVERWRITES the rows it writes (its outflow faces) with its walked
+out-edge values, and the walk READS the given inflow rows as the
+chain's seed. The transpose of "copy, then overwrite the written rows"
+is, row by row, on the output-trace cotangent :math:`\bar t`:
+
+* **the rows an octant WRITES** carry the cotangent of the walked
+  out-edges: they SEED the reverse walk, and their own input cotangent
+  is ZERO, because the forward discarded what was in them. The written
+  rows include the tangential rows on a grazing axis: an ordinate with
+  :math:`\mu_a = 0` is assigned the :math:`+` orientation on axis
+  :math:`a` (``signs_eff``), so the forward writes its :math:`+a` face
+  row and the transpose must zero that row. The zeroing happens inside
+  the walk, per octant, on the inflow faces of the MIRROR label
+  (``_inflow_faces(signs_addr)``): the forward's outflow faces are
+  exactly the mirror's inflow faces, so the walk's own derived signs
+  name the rows and the grazing assignment is not spelled a second
+  time;
+* **every other row** is the identity copy: its cotangent passes through
+  unchanged, and on an octant's inflow faces the walked in-edge deposit
+  :math:`\bar\psi^{\rm in}` is added to it, because the forward read
+  those rows as the chain's seed.
+
+The outflow DEFECT rows stay with the operator, as for the 1-D reverse
+scan. The exact forward inverse is :math:`(L+C)^{-1} = S_{\rm march} -
+E_{\rm out}`, with :math:`S_{\rm march}` the bare march and
+:math:`E_{\rm out}` the diagonal partial identity on the forward-outflow
+trace rows (ERR-071). :math:`E_{\rm out}` is diagonal, hence symmetric,
+so :math:`(L+C)^{-\mathsf T} = S_{\rm march}^{\mathsf T} - E_{\rm out}`:
+the representation returns :math:`S_{\rm march}^{\mathsf T}` and
+:meth:`StreamingCollisionOperator.solve_transpose
+<orpheus.sn.operators.streaming.StreamingCollisionOperator.solve_transpose>`
+subtracts :math:`E_{\rm out}` once, on the same forward-outflow selector.
+A representation that also subtracted it would count it twice. The
+degenerate pure-:math:`z` octants of a 2-D quadrature (ordinates with no
+in-plane component) solve the volumetric balance
+:math:`\bar\psi = Q/\Sigma_t`, a diagonal, so their transpose is
+:math:`\bar Q = \bar{\bar\psi}/\Sigma_t`.
+
+The tangential rows sit in the kernel of the trace metric :math:`G`
+(their partial-current weight :math:`|\Omega\cdot\hat n|` is zero). The
+Hilbert adjoint takes the pseudo-inverse :math:`G^{+}` there, so the
+physical ``.H`` never reads them; only the Euclidean transpose on the
+full space does. The rows T2–T4 are posed on the :math:`G > 0` block
+(on a singular trace metric the :math:`\ker G` slots carry identically
+zero rows and columns of the dense :math:`M`), so they are blind to the
+tangential clause by construction. Row T6 is the full-space Euclidean
+reciprocity
+:math:`|\langle S b, c\rangle - \langle b, S_{\mathsf T}c\rangle| \le
+64\varepsilon\,\|Sb\|\|c\|`, :math:`\ker G` slots included, with
+:math:`S` the forward sweep and :math:`S_{\mathsf T}` the transposed one,
+12 random pairs on the 4 singular-metric cells (the product 4×4 box
+under the window, the Lebedev-5 box under ``ScanMarch`` and the window,
+and the LD product 4×4 box under ``FullFieldWavefront``); it is the
+row that witnesses the tangential clause. ``[M]`` 2026-10-31 (qa's
+review probe, the numbers T6's docstring carries): honest
+:math:`3.8\text{–}5.1\times10^{-17}`; not zeroing the tangential rows
+:math:`1.7\text{–}2.1\times10^{-2}`; zeroing them on the wrong face
+:math:`2.1\text{–}2.9\times10^{-2}`; the :math:`G > 0` block reads
+:math:`\sim 10^{-17}` under both arms, since the clause lives only on
+:math:`\ker G`. The pure-:math:`z` octants are reached by the
+Lebedev-5 cells, whose quadrature has ordinates with no in-plane
+component.
+
+Why Jacobi needs no octant reordering
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The implicit part of the Jacobi splitting is the bare
+:math:`(L+C)`: the reflective coupling :math:`B` is lagged whole, so
+every octant reads only the frozen given trace and never a row another
+octant writes in the same solve. :math:`(L+C)^{-1}` is therefore a
+direct sum of per-octant triangular solves (plus the trace copy), and
+the transpose of a direct sum is the direct sum of the transposes. The
+reverse needs each octant's own reversal and no order among the octants;
+:meth:`_OctantWalk.sweep_transpose
+<orpheus.sn.loss_representation._OctantWalk.sweep_transpose>` walks the
+one all-octants Jacobi group of
+:class:`~orpheus.sn.loss_representation.sweep_schedule.SweepSchedule`.
+Each trace row belongs to one ordinate, hence to one octant, so the
+rows one octant zeroes (inside its own walk) or seeds from and the rows
+another octant deposits into are disjoint, and the octants can run in
+any order.
+
+The Gauss–Seidel splitting is a different operator. Its implicit part is
+:math:`M = (L+C) - B_{\rm lower}`: an octant group reads, through the
+reflection, rows that an earlier group wrote in the same solve. Its
+transposed solve must run the groups in reversed order with the
+reflection transposed between them, which is a schedule reversal and
+not a per-octant one. That arm is
+:class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`,
+it stays non-adjointable, and its transposed solve is
+`#681 <https://github.com/deOliveira-R/ORPHEUS/issues/681>`_. The adjoint
+posing asks for the Jacobi labelling explicitly
+(:ref:`sn-adjoint-daggered-posing`), so it never meets the deferred arm.
+Until #616 the code's docstrings wrote the two deferrals as one ("the
+G-S schedule-reverse arm"); the multi-D Jacobi reverse never needed a
+schedule reversal.
+
+Why ScanMarch shares the mirror walk
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``ScanMarch`` (the production 2-D DD default) realises its forward solve
+as a row march with an :math:`x`-scan per row, a different program from
+the wavefront's; its matvec transpose is its own reversed row march
+(#310 C4). Its transposed SOLVE is not: at :math:`d = 2`
+``ScanMarch.sweep_transpose`` delegates to
+:meth:`MovingFrontierWindow.sweep_transpose
+<orpheus.sn.loss_representation.MovingFrontierWindow.sweep_transpose>`
+on the same problem and closures. Both programs compute the same
+lower-triangular operator, so the transpose of the operator is one
+object, and the user ruled (2026-10-31) that it has one implementation;
+a reversed row march becomes a performance item only if a measurement
+shows the shared walk is slower. ``ScanMarch.has_transpose_sweep``
+therefore reads the window's trait at :math:`d = 2` (the delegate it
+hands the solve to) and is ``True`` at :math:`d = 1`, where ``sweep_transpose`` delegates to the
+1-D reverse scan; before #616 a forced 1-D ``ScanMarch`` refused a
+reverse scan that existed. The consequence to keep in mind: the
+``ScanMarch`` transposed solve is the transpose of the operator, not of
+its own program, so a defect in the row march alone would show as a
+disagreement between ``ScanMarch``'s forward and its transpose, which
+is exactly what the rows below measure against the dense matrix
+assembled from ``ScanMarch``'s own ``apply``.
+
+The capability traits
+~~~~~~~~~~~~~~~~~~~~~
+
+A scheme registers the transposed cell solve by overriding
+``cell_kernel_batch_transpose``; the class trait
+:attr:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.has_transpose_solve_kernel`
+is DERIVED from that override at class creation, a sibling of
+``has_transpose_kernel`` (which reads the matvec-transpose kernel; the
+two are different kernels, so they are different registrations). The
+wavefront family's ``has_transpose_sweep`` reads it, ``ScanMarch``'s
+reads the window's,
+:attr:`StreamingCollisionOperator.is_transpose_invertible
+<orpheus.sn.operators.streaming.StreamingCollisionOperator.is_transpose_invertible>`
+reads ``has_transpose_sweep``, and the sweep's ``is_adjointable`` reads
+that. ``[M]`` 2026-10-31 (the archivist's probe over the subclasses of
+``DiscretizationSchemeBase``): 2 of 2 registered scheme classes (DD,
+LD) read ``True`` for both traits. A future scheme without the kernel
+reads ``False`` and ``(L+C).H.inverse()`` refuses at construction with
+:class:`~orpheus.numerics.operator.NotInvertible`; the frame method
+also raises if reached.
+
+The numerical evidence
+~~~~~~~~~~~~~~~~~~~~~~
+
+* **The cell kernels** (L0, a dot-product test of :math:`K` against
+  :math:`K^{\mathsf T}` on random inputs:
+  :math:`\langle Kx, y\rangle = \langle x, K^{\mathsf T}y\rangle`).
+  ``[M]`` 2026-10-31, the probe
+  ``scratch/membership_covector/u3b/carve/kernel_dot.py`` run by the
+  archivist under ``python -O`` with the worktree on ``PYTHONPATH``:
+  relative error :math:`6.1\times10^{-16}`, :math:`2.5\times10^{-16}`
+  and :math:`1.8\times10^{-16}` for DD at :math:`d = 1, 2, 3`;
+  :math:`0` and :math:`5.0\times10^{-16}` for LD at :math:`d = 1, 2`;
+  LD at :math:`d = 3` is refused by the forward (above). The probe is
+  not a committed gate.
+* **The transposed sweep** (``tests/gates/sn/operators/test_transpose_sweep_multid.py``,
+  rows T1–T4, T6, T7, ``l0``; ``rests_on`` the forced-representation
+  forward gates and the matvec reciprocity gates). Each multi-D
+  representation is FORCED on every fixture it supports, with an
+  activation leg asserting the forced class is the one the operator
+  holds: 19 (fixture, representation) cells, 18 multi-D ones over the
+  three representations (the 2-D DD reflective nonsquare box, a 2-D
+  vacuum box, a 2-D graded mirror box, the product 4×4 mirror box and
+  the Lebedev-5 mirror box under all three; the 2-D LD reflective
+  nonsquare box with non-uniform cells under the two wavefront
+  storages, since ``ScanMarch`` does not support LD; a 3-D DD mirror
+  box under ``FullFieldWavefront``, the only one supporting
+  :math:`d = 3`), plus the slab under ``CumprodScan`` as the 1-D
+  control. T1 asserts the traits. T2–T4 are posed on the :math:`G > 0`
+  block :math:`M_{pp}` of the dense :math:`(L+C)` assembled from the
+  forward ``apply`` (which #616 does not touch; on a full metric
+  :math:`M_{pp} = M`): T2 the one-sided transposed identity
+  :math:`\|M_{pp}^{\mathsf T}x - b\|_\infty / (\|M_{pp}\|_1\|x\|_\infty)
+  \le 64\varepsilon` for a random :math:`b`; T3 the agreement with the
+  dense transposed solve to :math:`10\,\mathrm{cond}_1\,\varepsilon`; T4
+  reciprocity through the metric and
+  :math:`(L+C)^{\mathsf H\,-1} = G^{-1}(L+C)^{-\mathsf T}G`. T6 is the
+  full-space reciprocity on the 4 singular-metric cells (the trace
+  contract, above) and T7 the window ≡ full-cochain ``array_equal`` on
+  3 fixtures × 5 seeds. T2 is the one-sided identity that a reciprocity
+  gate cannot replace (``vv-principles`` anti-pattern 37). ``[M]``
+  2026-10-31, re-run by the archivist under ``python -O``: 95 of 95
+  rows green (19 cells × T1–T4, 4 T6 rows, 15 T7 rows).
+* **Mutations** on the 95-row file (the orchestrator's review battery,
+  2026-10-31, each an in-process rewrite of the production body): not
+  zeroing the written rows reddens 58 of 95; dividing by
+  :math:`\Sigma_t` replaced by multiplying on the pure-:math:`z`
+  octants reddens 11; not zeroing the tangential rows, and zeroing them
+  on the wrong face, redden 4 each, all in T6. On the earlier 55-row
+  version (2026-10-31, before T6, T7 and the product 4×4 and Lebedev-5
+  cells): seeding the reverse walk from the zeroed rows reddened 39 of
+  55; dropping the DD coupling term :math:`c_a\lambda` reddened 33 of
+  55; not transposing the LD cell matrix :math:`A` reddened 6 of 55 (the
+  LD cells only); transposing the diagonal :math:`M` reddened nothing,
+  as it must, being a null mutation. Those four arms were not re-run on
+  the 95-row file.
+* **The adjoint entries on a 2-D box**, which raised
+  ``NotInvertible`` on every :math:`d \ge 2` posing before #616
+  (``tests/gates/sn/solve/test_fredholm_verdict.py``): on the
+  :math:`(3,4)` LS2 reflective box, the three S15b rows check that the
+  adjoint fixed-source member is annihilated by every left co-vector
+  :math:`w` of the loss (:math:`A^{\mathsf T}w = 0`), that is, that it is
+  :math:`G`-orthogonal to :math:`\ker A^{\mathsf H}`, with an activation
+  leg proving the gauge moved the iterate; S15c checks that the adjoint
+  eigenvalue equals the forward one (1.44 against 1.4399999998) and is
+  declared blind to the gauge. The archivist re-ran the 4 rows green
+  under ``python -O`` on 2026-10-31. The account, with the numbers, is
+  :ref:`sn-adjoint-multid`.
+* **The honesty registry** (``tests/gates/numerics/test_adjointability_is_honest.py``):
+  the 2-D DD and LD sweeps, the 2-D coupled substitution and the Green
+  over a 2-D implicit part moved from "``is_adjointable`` ``False``"
+  to "``True``, both doors open" (:ref:`operator-adjoint-two-questions`).
+
+What was got wrong
+~~~~~~~~~~~~~~~~~~
+
+Nothing in the derivation or the walk was tried and abandoned. The one
+defect the carve met was in a test row: the honesty gate's 2-D Green row
+was written while both its doors refused, and passed no adjoint input
+:math:`y`. The default :math:`y` is in the class of the forward's OUTPUT
+(a flux), which is the wrong class for a Green's adjoint, whose input is
+the forward's output space read as a source. Once the doors opened, the
+row took a source-classed :math:`y` and the independent witness of the
+slab Green row, the Green of the adjoint split
+``GreenOperator((L+C).H, S.H)``.
+
+The matrix-free routes that the same campaign refuted are a different
+question and are not evidence here. ``eigsh`` and LOBPCG on
+:math:`A^{\mathsf H}A`, PROPACK, and single-vector ARPACK on the sweep
+operator were refuted (2026-10-31, the space-membership plan) FOR the
+question "find the near-kernel of the loss :math:`A` at scale"; they
+say nothing about the transposed sweep, which is an exact direct solve.
+The witness that question needs is what made #616 necessary: its left
+route iterates :math:`(L+C)^{-\mathsf H}`, which before #616 existed in
+1-D only.
+
 The deferral ledger — what still raises, by design
 --------------------------------------------------
 
@@ -2681,27 +3163,28 @@ symmetric 2×2. Every entry below is a typed, loud
 deferral, not a coverage gap:
 
 * :class:`~orpheus.sn.operators.scheduled_invertible.ScheduledInvertibleOperator`
-  **transpose** — the schedule-folded ``M = (L+C-B_lower)`` reverse-scan
-  is the #280 sibling deferral (no consumer), so a
+  **transpose** — the Gauss–Seidel splitting's implicit part
+  ``M = (L+C) − B_lower`` is a different operator from the bare
+  :math:`(L+C)`: its transposed solve needs the octant groups reversed
+  with the reflection transposed between them
+  (:ref:`loss-rep-multid-transposed-sweep`), and it is deferred
+  (`#681 <https://github.com/deOliveira-R/ORPHEUS/issues/681>`_), so a
   :class:`~orpheus.sn.operators.sweep_operator.SweepOperator` over it
-  stays non-adjointable.
-* The **multi-dimensional transposed sweep** :math:`(L+C)^{-\mathsf T}`
-  — ``sweep_transpose`` is realised only by the 1-D scan
-  (:class:`~orpheus.sn.loss_representation.CumprodScan`); the multi-D
-  representations (``ScanMarch``, ``MovingFrontierWindow``,
-  ``FullFieldWavefront``) inherit the base's ``NotImplementedError``
-  (`#616 <https://github.com/deOliveira-R/ORPHEUS/issues/616>`_). Each
-  representation states it beforehand through
+  stays non-adjointable and its ``.H`` raises
+  :class:`~orpheus.numerics.operator.MissingAdjoint` (pinned by
+  ``tests/gates/sn/sweep/core/test_multi_d_reverse_walk.py::test_the_gauss_seidel_solve_transpose_still_refuses``,
+  which also asserts that the Jacobi inverse on the same box opens).
+* A **future representation or scheme** without a transposed solve:
+  the base ``sweep_transpose`` raises, its
   :attr:`~orpheus.sn.loss_representation.LossRepresentation.has_transpose_sweep`
-  (``True`` only on ``CumprodScan``), a different capability from
-  ``has_transpose_walk`` (the reverse walk of the forward *action*, which
-  every registered representation has). The forward's
-  ``is_transpose_invertible`` reads both, so a multi-D
-  :math:`(L+C)` reads ``is_adjointable = True`` and
-  ``is_transpose_invertible = False``, its sweep reads
-  ``is_adjointable = False``, and ``(L+C).H.inverse()`` refuses with
-  :class:`~orpheus.numerics.operator.NotInvertible` at construction
-  (:ref:`operator-adjoint-two-questions`).
+  reads ``False`` beforehand (a different capability from
+  ``has_transpose_walk``, the reverse walk of the forward *action*), and
+  a scheme that does not override ``cell_kernel_batch_transpose`` reads
+  ``has_transpose_solve_kernel = False``. No registered representation
+  or scheme is in this state: 4 of the 4 registered representations
+  override ``sweep_transpose`` (``CumprodScan``, ``ScanMarch``,
+  ``MovingFrontierWindow``, ``FullFieldWavefront``), and 2 of the 2
+  registered schemes register the kernel.
 
 That is the WHOLE ledger for the adjoint *matvec*: since #310 C5 the
 ``loss_action_transpose`` grid is complete over every registered
@@ -2713,7 +3196,13 @@ predicate machinery (``has_transpose_kernel ∧ has_transpose_walk``)
 stays armed so a FUTURE unregistered-kernel scheme or reverse-less
 representation refuses eagerly at ``.H`` and loudly at apply.
 
-Retired from this ledger: the **LD-slab adjoint** entry closed at
+Retired from this ledger: the **multi-dimensional transposed sweep**
+entry closed at #616 (2026-10-31; :ref:`loss-rep-multid-transposed-sweep`).
+Until then ``sweep_transpose`` was realised by the 1-D scan only, the
+three multi-D representations inherited the base's
+``NotImplementedError``, and ``(L+C).H.inverse()`` refused with
+``NotInvertible`` at construction on every :math:`d \ge 2` posing.
+Earlier, the **LD-slab adjoint** entry closed at
 #310 C2 (the registered LD batch VJP + the moment-tailed 1-D reverse —
 the ``loss_action_transpose`` moment arm now carries the trailing
 :math:`2^d` spatial-moment axis the old entry denied); the **multi-D
@@ -2827,9 +3316,11 @@ guard it (ruling R11):
   :attr:`StreamingCollisionOperator.is_transpose_invertible
   <orpheus.sn.operators.streaming.StreamingCollisionOperator.is_transpose_invertible>`
   ``= is_adjointable and loss_representation.has_transpose_sweep``: the
-  matvec transpose's factors and the reverse scan, which only the 1-D
-  scan family realises. The schedule-folded arm has no
-  ``solve_transpose`` and stays non-adjointable;
+  matvec transpose's factors and the reverse sweep, which the 1-D scan
+  family realises since #280 and the multi-D Cartesian representations
+  since #616. The schedule-folded arm has no ``solve_transpose``
+  (`#681 <https://github.com/deOliveira-R/ORPHEUS/issues/681>`_) and
+  stays non-adjointable;
 * :attr:`AdjointOperator.is_invertible <orpheus.numerics.operator.AdjointOperator.is_invertible>`
   ``= invertible(inner) and adjointable(inner.inverse())`` — a name
   earns its invariant: ``.inverse()`` cannot promise more than
@@ -2867,8 +3358,8 @@ is the keystone catcher against a bug copied into both
    is ``return inner.solve_transpose(x)`` behind a
    :func:`~orpheus.numerics.operator.transpose_invertible` check that
    raises :class:`~orpheus.numerics.operator.MissingAdjoint` for a forward
-   with no transposed solve (the schedule-folded composite, a
-   multi-dimensional :math:`(L+C)`). Without this the conjugation above would
+   with no transposed solve (the schedule-folded composite, #681; until
+   #616 also a multi-dimensional :math:`(L+C)`). Without this the conjugation above would
    have nothing to conjugate — the two declarations are the two factors
    of one chain, not two views of one symbol.
 

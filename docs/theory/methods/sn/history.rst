@@ -43,6 +43,41 @@ them.  Trust ``git``, not this column.
      - Issue
      - Where
    * - 2026-10-31
+     - **The transposed sweep** :math:`(L+C)^{-\mathsf T}` **runs on every
+       multi-dimensional Cartesian representation** (the first carve of
+       unit U3b of the space-membership plan,
+       ``.claude/plans/space_membership_covector_gauge.md``; the user's
+       rulings of 2026-10-31: one transposed solve on the shared frame,
+       the Jacobi arm only). One frame method,
+       ``_OctantWalk.sweep_transpose``; one cell kernel per scheme,
+       ``cell_kernel_batch_transpose`` on diamond difference and linear
+       discontinuous, from which the class trait
+       ``has_transpose_solve_kernel`` is derived; one level operation,
+       ``_CellSolveTranspose``, the fourth direction object. The
+       UNCHANGED walks run over each octant's mirror graph, as the
+       matvec transpose of #310 does; the trace contract zeroes the rows
+       each octant writes (the tangential rows of a grazing axis
+       included), seeds the reverse walk from them and passes the rest
+       through, and the outflow defect :math:`-E_{\rm out}` stays at the
+       operator. ``ScanMarch`` borrows the window's mirror walk at
+       :math:`d = 2` rather than reversing its row march. The Gauss–Seidel
+       transposed solve, a different operator, was split off as #681.
+       ``[M]`` the cell kernels pass a dot-product test to
+       :math:`\le 6.1\times10^{-16}`;
+       ``tests/gates/sn/operators/test_transpose_sweep_multid.py`` is 95
+       of 95 green over 19 (fixture, representation) cells, its
+       full-space reciprocity row T6 witnesses the tangential clause,
+       and dropping the written-row zeroing reddens 58 of the 95. The
+       adjoint entries, which raised ``NotInvertible`` on every
+       :math:`d \ge 2` posing, now run there, and the adjoint exit gauge
+       acts on graded and absorption-free :math:`d \ge 2` reflective
+       boxes for the first time (S15b; the adjoint eigen entry, S15c,
+       gives the gauge nothing to do on the 3 posings measured). The derivation and
+       the evidence are :ref:`loss-rep-multid-transposed-sweep` and
+       :ref:`sn-adjoint-multid`.
+     - #616, #681
+     - *(in development)* on branch ``refactor/space-membership``
+   * - 2026-10-31
      - **Every S**\ :sub:`N` **posing is decided by the Fredholm
        alternative on a predicted kernel, before a sweep runs** (unit U0
        of the space-membership plan,

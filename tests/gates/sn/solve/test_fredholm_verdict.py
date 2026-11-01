@@ -25,6 +25,7 @@ from tests.gates.transport._singular_loss_fixtures import (
     ABSORBER, FIS_FEEDS, FIS_ISOLATED, FIS_ISOLATED_KINF, FIS_REGULAR, PURE_1G, bordered_member, dense_of, null, slab,
 )
 
+from orpheus.numerics.evidence import Measured
 from orpheus.numerics.fredholm import Gauge, NoSolution, Solve
 from orpheus.transport import absorbing_chain as _ac  # noqa: F401  (the predicate the rows rest on)
 
@@ -121,8 +122,8 @@ def test_S4_a_balanced_source_is_gauged_to_the_minimum_G_norm_member(inner):
 
 # ── the union kernel on the d = 2 DD box ─────────────────────────────────────────────────────────────────
 
-def _box(c, quad=None, ng=1):
-    axes = tuple(AxisMesh(edges=T._graded(e, n), role_low=T._R, role_high=T._R) for e, n in ((1.0, 3), (2.0, 4)))
+def _box(c, quad=None, ng=1, stretch=1.0):
+    axes = tuple(AxisMesh(edges=T._graded(e, n, stretch), role_low=T._R, role_high=T._R) for e, n in ((1.0, 3), (2.0, 4)))
     return axes, quad or Quadrature.level_symmetric(sn_order=2)
 
 
@@ -257,3 +258,78 @@ def test_S15_the_adjoint_member_is_annihilated_by_the_left_covectors(cells, quad
     x = np.asarray(sol.angular_flux.to_flat())
     w = L[:, 0]
     assert abs(w @ x) <= 10 * 1e-13 * cond_regular * np.linalg.norm(w) * np.linalg.norm(x)
+
+
+# ── the 2-D adjoint entries (#616: the multi-D transposed sweep made them runnable) ─────────────────────
+
+_INNER_TOL = 1e-13
+
+
+#: (id, c, stretch, the gauge's own displacement `[M]` p10/p11 2026-10-31). The uniform DD box is NOT a row: there the
+#: source iteration never acquires a kernel component (displacement 2.8e-16), so the gauge is inert and the row could
+#: not fail with the gauge removed (`[M]` arm gauge_off: |w.x| 2.05e-15).
+_S15B = [("dd_kernel_graded", 0.9, 1.5, 2.19e-2), ("union_kernel_uniform", 1.0, 1.0, 1.40e-3),
+         ("union_kernel_graded", 1.0, 1.5, 4.98e-2)]
+
+
+@pytest.mark.parametrize("label,c,stretch,displacement", _S15B, ids=[r[0] for r in _S15B])
+def test_S15b_the_2d_adjoint_member_is_annihilated_by_the_left_covectors(label, c, stretch, displacement):
+    r"""S15's THEOREM on the d = 2 mirror box (LS2, (3, 4) cells): the returned x of :math:`A^{\mathsf H}x = q`, with a
+    random bulk detector whose volume integral is removed. Asserts
+    (i) the residual: :math:`\lVert A^{\mathsf H}x - q\rVert/\lVert q\rVert \le 10\,\tau_{\rm inner}` through the
+    posing's own verb AND through the dense :math:`G^{-1}A^{\mathsf T}G` (`[M]` 9.4e-14 to 9.95e-14 at
+    :math:`\tau = 10^{-13}`, the two agreeing to 3 digits);
+    (ii) activation: the gauge MOVED the iterate, its own displacement at least 1e-3 (`[M]` 2.19e-2, 1.40e-3, 4.98e-2);
+    (iii) :math:`w(x) = 0` for every left co-vector w of A (the minimum-G-norm member of the adjoint coset).
+    Why graded: on the uniform box the source iteration from zero acquires no diamond-difference component (the gauge
+    moves 2.8e-16), with the same bulk-only detector that acquires 2.2e-2 on the graded one; the blindness is the
+    mesh's, not the detector's (`[M]` p10). Arms (`[M]` ta/review_drafts, -O): ``gauge_off`` reds every row at (ii) (the
+    reading is NotApplicable; behind it (iii) reads |w.x| 1.1e-3 to 1.2e-2, p10); ``forward_projector`` reds the graded
+    DD row at (ii) (1.9e-17) and both union rows at (i) (the forward projector moves x off the solution: 2.7e-3, 2.9e-3)."""
+    axes, quad = _box(c, stretch=stretch)
+    problem = T._mesh((3, 4), [(T._R, T._R)] * 2, c=c, ng=1, quad=quad, stretch=stretch)
+    system, tmpl = T._loss_system(problem)
+    n = tmpl.to_flat().size
+    A = dense_of(lambda e: T._apply_loss(system, tmpl, e), n)
+    L, _ = null(A)
+    g = np.asarray(problem.full_field_space.metric_diagonal(), float).ravel()
+    volumes = np.outer(np.diff(np.asarray(axes[0].edges)), np.diff(np.asarray(axes[1].edges)))
+    detector = np.random.default_rng(3).random((3, 4))
+    detector -= (volumes * detector).sum() / volumes.sum()
+    sol = _quiet(lambda: solve_sn_adjoint_fixed_source({0: T._mixture(1, c)}, axes, quad, detector[None], inner_tol=_INNER_TOL,
+                                                       max_inner=4000,
+                                                       boundary_conditions=conditions_for(axes, T._CONDITIONS)))
+    assert isinstance(_verdict_of(sol), Gauge) and sol.outcome.gauge.dimension == L.shape[1]
+    posing, state = sol.outcome.posing, sol.outcome.state
+    q = np.asarray(posing.source.to_flat(), float).ravel()
+    x = np.asarray(state.to_flat(), float).ravel()
+    own = np.linalg.norm(np.asarray(posing.residual(state).to_flat(), float)) / np.linalg.norm(q)
+    pos = g > 0.0
+    AH = np.zeros_like(A)
+    AH[pos] = (A.T * g[None, :])[pos] / g[pos, None]
+    dense = np.linalg.norm(AH @ x - q) / np.linalg.norm(q)
+    assert own <= 10 * _INNER_TOL and dense <= 10 * _INNER_TOL, (own, dense)
+    moved = sol.exit_report.gauge
+    assert isinstance(moved, Measured) and moved.value >= 1e-3, moved
+    sv = np.linalg.svd(A, compute_uv=False)
+    cond_regular = sv[0] / sv[-L.shape[1] - 1]
+    for w in L.T:
+        assert abs(w @ x) <= 10 * _INNER_TOL * cond_regular * np.linalg.norm(w) * np.linalg.norm(x)
+
+
+def test_S15c_the_2d_adjoint_eigenvalue_is_the_forward_one():
+    r"""k^dagger = k on the d = 2 fissile mirror box through the daggered pencil and the multi-D transposed sweep (#616),
+    and both entries carry the same Gauge verdict. [M] 1.44 vs 1.4399999998.
+
+    BLIND TO THE GAUGE, by measurement: no 2-D adjoint EIGEN posing measured gives the gauge anything to do. The adjoint
+    entry's gauge displacement is at most 1.0e-14 on 3 of 3 candidates (this LS2 box, the same box graded 1.5, an LS4
+    ng = 2 box), and with the gauge removed (arm ``gauge_off``) the left pairing reads at most 5.5e-15 (`[M]` 2026-10-31,
+    ``scratch/membership_covector/u3b/ta/p10_adjoint_gauge.py``): the power iteration's iterate carries no kernel
+    component. The adjoint gauge's witnesses are S15b's rows."""
+    axes, quad = _box(0.5)
+    fissile = {0: T._mixture(1, 0.5, fissile=True)}
+    bcs = conditions_for(axes, T._CONDITIONS)
+    forward = _quiet(lambda: solve_sn(fissile, axes, quad, boundary_conditions=bcs))
+    adjoint = _quiet(lambda: solve_sn_adjoint(fissile, axes, quad, boundary_conditions=bcs))
+    assert abs(forward.outcome.keff - adjoint.outcome.keff) <= 1e-8
+    assert type(_verdict_of(forward)) is type(_verdict_of(adjoint)) is Gauge

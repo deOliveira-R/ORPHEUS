@@ -710,8 +710,9 @@ class SweepDependencyGraph:
     # ``residual`` full-field + ``apply_windowed`` / ``residual_windowed``)
     # COLLAPSED into two storage walks parameterized by a LEVEL OPERATION
     # object (``_CellSolve`` | ``_CellResidual`` | ``_CellResidualTranspose``
-    # — the solve/apply/apply-transpose direction fork, bottoming out in the
-    # scheme's kernel pair + its VJP).  The walk owns the level loop +
+    # | ``_CellSolveTranspose`` — the solve/apply direction fork and its two
+    # transposes, bottoming out in the scheme's kernel pair + their VJPs; the
+    # solve transpose since #616).  The walk owns the level loop +
     # storage (frontier or full cochain) + the per-level operand extraction;
     # the level op owns the cell algebra dispatch + the per-level emit.
     # Direction is an OBJECT, never a boolean flag — the TRANSPOSE
@@ -722,7 +723,7 @@ class SweepDependencyGraph:
     def walk_full(
         self,
         *,
-        level_op: "_CellSolve | _CellResidual | _CellResidualTranspose",
+        level_op: "_CellSolve | _CellResidual | _CellTranspose",
         psi_faces_octant: tuple[np.ndarray, ...],  # d face buffers — mutated in place
         Q_octant: np.ndarray,                      # (N_oct or 1, ng, *spatial)
         sig_t: np.ndarray,                         # (ng, *spatial)
@@ -767,7 +768,7 @@ class SweepDependencyGraph:
     def walk_windowed(
         self,
         *,
-        level_op: "_CellSolve | _CellResidual | _CellResidualTranspose",
+        level_op: "_CellSolve | _CellResidual | _CellTranspose",
         inflow: tuple[np.ndarray, ...],            # d-tuple — per-axis domain inflow
         Q_octant: np.ndarray,                      # (N_oct or 1, ng, *spatial)
         sig_t: np.ndarray,                         # (ng, *spatial)
@@ -1043,30 +1044,39 @@ class _CellResidual:
         return psi_out
 
 
-@dataclass(frozen=True)
-class _CellResidualTranspose:
-    r"""APPLY-TRANSPOSE level operation: the exact VJP of :class:`_CellResidual`.
+@dataclass(frozen=True, kw_only=True)
+class _CellTranspose(ABC):
+    r"""The TRANSPOSED level operations: the exact VJP of a forward one, on the mirror graph.
 
-    The THIRD direction object (#310 C3): where :class:`_CellSolve` solves
-    and :class:`_CellResidual` applies, this op applies the TRANSPOSE — per
-    level it reads the residual cotangent :math:`\bar r` at the level's
-    cells, pulls it (with the gathered downstream-face cotangents) back
-    through the scheme's batched VJP
-    :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch_transpose`
-    (the reverse-mode pair of ``residual_kernel_batch`` — DD + LD, #310 C2),
-    writes the probe cotangent :math:`\bar\psi^\dagger`, and emits the
-    upstream-face cotangents.
+    The two forward directions (:class:`_CellSolve`, :class:`_CellResidual`)
+    each have a transpose, and the two transposes are ONE walk step: per level
+    read a bulk cotangent at the level's cells, pull it (with the gathered
+    downstream-face cotangents) back through the scheme's VJP, write the bulk
+    output, and emit the upstream-face cotangents.  They differ only in which
+    scheme VJP they call (:meth:`_vjp`), so :meth:`cell` is written once here
+    and each subclass binds its kernel (Pattern 2: the elegance review of #616
+    found the two ``cell`` bodies α-equivalent).
+
+    * :class:`_CellResidualTranspose` — the matvec transpose
+      :math:`(L+C)^{\mathsf T}`: reads the residual cotangent :math:`\bar r`,
+      writes the probe cotangent :math:`\bar\psi^\dagger`, through
+      :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch_transpose`
+      (#310 C3).
+    * :class:`_CellSolveTranspose` — the solve transpose
+      :math:`(L+C)^{-\mathsf T}`: reads the cell-average cotangent, writes
+      the source cotangent :math:`\bar Q`, through
+      :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_kernel_batch_transpose`
+      (#616).
 
     Addressing — the mirror-graph realization (#310 C3): the reverse walk
-    runs the UNCHANGED :meth:`SweepDependencyGraph.walk_full` over the
-    MIRROR octant's graph (``−signs_eff``).  Because
-    ``face_in(−o) == face_out(o)`` and the mirror graph's levels ARE the
-    forward's levels reversed, the walk's own gather/advance/scatter
-    realizes exactly the transposed data flow:
+    runs the UNCHANGED :meth:`SweepDependencyGraph.walk_full` /
+    :meth:`~SweepDependencyGraph.walk_windowed` over the MIRROR octant's graph
+    (``−signs_eff``).  Because ``face_in(−o) == face_out(o)`` and the mirror
+    graph's levels ARE the forward's levels reversed, the walk's own
+    gather/advance/scatter realizes exactly the transposed data flow:
 
     * the walk's gathered ``psi_in`` (the mirror graph's in-faces) ARE the
-      forward OUT-faces' cotangents — passed to the kernel as
-      ``psi_out_bar``;
+      forward OUT-faces' cotangents — passed to the VJP as ``psi_out_bar``;
     * the returned tuple (scattered at the mirror graph's out-faces) IS the
       forward IN-faces' cotangent deposit — the reversed march's carry.
 
@@ -1076,24 +1086,35 @@ class _CellResidualTranspose:
     kernel VJP.
 
     ``Q_cells`` is accepted (the walk's direction-uniform ``cell``
-    interface) and NOT consumed: the matvec transpose is source-free by the
-    kernel-pair contract (the forward matvec's zero source has a zero
-    cotangent; a genuine solve-source cotangent belongs to the solve path).
+    interface) and NOT consumed: a transpose is source-free by contract (the
+    matvec's zero source has a zero cotangent; the solve's source is its
+    INPUT, so its cotangent is the solve transpose's OUTPUT).
 
-    The frame conjugation mirrors :class:`_CellResidual` with the PHYSICAL
-    octant's ``moment_frame_signs`` (the ordinates' own sweep frame — the
-    mirror label drives ADDRESSING only): the involution is diagonal, so the
-    adjoint of ``x ↦ D·K(D·x)`` is ``y ↦ D·Kᵀ(D·y)`` (the #310 C2
-    involution oracle) — the residual cotangent reframes IN, the probe
-    cotangent reframes OUT, and the face cotangents stay in the sweep frame
-    (they propagate along the reversed wavefront, mirroring the forward's
-    sweep-frame faces).
+    The frame conjugation uses the PHYSICAL octant's ``moment_frame_signs``
+    (the ordinates' own sweep frame — the mirror label drives ADDRESSING
+    only): the involution is diagonal, so the adjoint of ``x ↦ D·K(D·x)`` is
+    ``y ↦ D·Kᵀ(D·y)`` (the #310 C2 involution oracle) — the bulk cotangent
+    reframes IN, the bulk output reframes OUT, and the face cotangents stay in
+    the sweep frame.  Both bulk arrays are moment-shaped at a multi-moment
+    closure (the solve transpose's source cotangent always is), so both are
+    re-signed whenever the scheme is multi-moment.
     """
 
     scheme: DiscretizationSchemeBase
-    res_bar_octant: np.ndarray                    # (N_oct, ng, *spatial[, 2^d]) — read
-    psi_bar_cot_octant: np.ndarray                # (N_oct, ng, *spatial[, 2^d]) — written
+    bulk_cot_octant: np.ndarray                   # (N_oct, ng, *spatial[, 2^d]) — read
+    bulk_out_octant: np.ndarray                   # (N_oct, ng, *spatial[, 2^d]) — written
     moment_frame_signs: "np.ndarray | None" = None  # (2^d,) PHYSICAL sweep⇄global frame
+
+    @abstractmethod
+    def _vjp(
+        self,
+        bulk_bar: np.ndarray,
+        *,
+        psi_out_bar: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        reaction_xs: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        """The scheme VJP this direction transposes: ``(bulk_out, psi_in_cots)``."""
 
     def cell(
         self,
@@ -1107,9 +1128,9 @@ class _CellResidualTranspose:
         cell_g = (slice(None), slice(None), *cell_idx)
         signs = self.moment_frame_signs
         moment_valued = self.scheme.is_multi_moment
-        psi_bar_cot, psi_in_cots = self.scheme.residual_kernel_batch_transpose(
-            res_bar=_reframe(
-                self.res_bar_octant[cell_g], signs,
+        bulk_out, psi_in_cots = self._vjp(
+            _reframe(
+                self.bulk_cot_octant[cell_g], signs,
                 is_moment_valued=moment_valued,
             ),
             # Gathered by the walk at the MIRROR graph's in-faces — the
@@ -1119,10 +1140,30 @@ class _CellResidualTranspose:
             s_axes=s_axes,
             reaction_xs=reaction_xs,
         )
-        self.psi_bar_cot_octant[cell_g] = _reframe(
-            psi_bar_cot, signs, is_moment_valued=moment_valued,
+        self.bulk_out_octant[cell_g] = _reframe(
+            bulk_out, signs, is_moment_valued=moment_valued,
         )
         return psi_in_cots
+
+
+@dataclass(frozen=True, kw_only=True)
+class _CellResidualTranspose(_CellTranspose):
+    r"""APPLY-TRANSPOSE: the exact VJP of :class:`_CellResidual` (#310 C3) — residual cotangent in, probe cotangent out."""
+
+    def _vjp(self, bulk_bar, *, psi_out_bar, s_axes, reaction_xs):
+        return self.scheme.residual_kernel_batch_transpose(
+            res_bar=bulk_bar, psi_out_bar=psi_out_bar, s_axes=s_axes, reaction_xs=reaction_xs,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class _CellSolveTranspose(_CellTranspose):
+    r"""SOLVE-TRANSPOSE: the exact VJP of :class:`_CellSolve` (#616) — cell-average cotangent in, source cotangent out."""
+
+    def _vjp(self, bulk_bar, *, psi_out_bar, s_axes, reaction_xs):
+        return self.scheme.cell_kernel_batch_transpose(
+            psi_avg_bar=bulk_bar, psi_out_bar=psi_out_bar, s_axes=s_axes, reaction_xs=reaction_xs,
+        )
 
 
 @lru_cache(maxsize=8)

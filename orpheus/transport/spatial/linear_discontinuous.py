@@ -662,6 +662,55 @@ class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
         psi_moments = per_cell_solve(assembled, R)
         return psi_moments, self._ubld_outgoing_faces(psi_moments, d)
 
+    def cell_kernel_batch_transpose(
+        self,
+        *,
+        psi_avg_bar: np.ndarray,
+        psi_out_bar: tuple[np.ndarray, ...],
+        s_axes: tuple[np.ndarray, ...],
+        reaction_xs: np.ndarray,
+    ) -> tuple[np.ndarray, tuple[np.ndarray, ...]]:
+        r"""Batched VJP of :meth:`cell_kernel_batch` — the transposed UBLD cell solve (#616).
+
+        The forward solve is :math:`\vec\psi = A^{-1}(M\vec S + \sum_a
+        F^{(a)}\psi^{\rm in}_a)` with the outgoing faces the downstream trace
+        :math:`T\vec\psi`.  Its transpose, from the SAME materialised record
+        (:meth:`_ubld_system`; Pattern 2, no hand-derived entry):
+
+        .. math::
+
+           \lambda = A^{-\mathsf T}\big(\bar{\vec\psi}^\dagger
+             + T^{\mathsf T}\psi^{\mathrm{out}\,\dagger}\big), \qquad
+           \bar{\vec S} = M^{\mathsf T}\lambda = M\lambda, \qquad
+           \psi^{\dagger}_{a,\mathrm{in}} = F^{(a)\mathsf T}\lambda .
+
+        The source cotangent is ALWAYS moment-shaped ``(…, 2^d)``: the
+        operator's source space carries the moment tail, and a flat source the
+        forward lifted onto the average slot pulls back as slot 0 of it.  The
+        upstream-face pullback mirrors :meth:`_ubld_inflow`'s factor
+        construction and its d=1 moment-axis convention, as
+        :meth:`residual_kernel_batch_transpose` does (there with the opposite
+        sign: the residual subtracts the inflow, the solve adds it).
+        """
+        d = len(s_axes)
+        assembled, _ = self._ubld_system(s_axes, reaction_xs, np.zeros(()))
+        moment_cot = psi_avg_bar + self._ubld_outgoing_faces_transpose(psi_out_bar, d)
+        transposed = {"A": np.swapaxes(assembled["A"], -1, -2)}
+        source_cot_moments = per_cell_solve(transposed, moment_cot)
+        source_cot = np.einsum("...ji,...j->...i", assembled["M"], source_cot_moments)
+        basis = self.cell_basis(d)
+        ones = [np.ones_like(np.asarray(g)) for g in s_axes]
+        gs = [np.asarray(g) for g in s_axes]
+        psi_in_bars = []
+        for a in range(d):
+            face_cot = assemble_inflow_axis_transpose(
+                ones, gs, a, source_cot_moments, basis,
+            )
+            if factor_tail(basis.face_dimension(a)) == ():
+                face_cot = face_cot[..., 0]
+            psi_in_bars.append(face_cot)
+        return source_cot, tuple(psi_in_bars)
+
     def residual_kernel_batch(
         self,
         *,

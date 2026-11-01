@@ -361,8 +361,9 @@ array verb. There is no ``.T`` property anywhere in the tree. Composers
 propagate the transpose by law, sums, products, tensor products
 (:ref:`tensor-product-spaces`) and block operators, and
 ``(A.H).inverse()`` is ``A.inverse().H`` as an object identity, so the
-adjoint sweep is the reverse scan reached through the sweep operator's
-transpose, and no driver module spells a transpose (0 of 24
+adjoint sweep is the transposed sweep (the reverse scan in 1-D, the
+mirror walk on a multi-dimensional mesh) reached through the sweep
+operator's transpose, and no driver module spells a transpose (0 of 24
 ``apply_transpose`` call sites, 2026-09-21). The adjoint needs both
 ends, which is why it exists only for a **bound operator**, one
 constructed with its domain and codomain declared
