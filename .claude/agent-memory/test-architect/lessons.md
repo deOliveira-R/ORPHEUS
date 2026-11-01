@@ -726,3 +726,12 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   test-layer gate also refuses string imports); and a split tool that prunes private names drops side-effect classes
   (registry subclasses): diff the remainder's class set. → `L124`
 
+- **⛔ A textual mutant exec'd into a COPY of its module's namespace freezes its globals**: a gate that later
+  monkeypatches a module global (a route gate's decoy) cannot reach the mutant, and reds for the instrument's
+  reason. Exec into the module's own `__dict__`, restore the original name, then rebind every binding (so the count
+  is non-zero). And `FaceLayout.structure` is `(key, offset, size)`: a layout reference built on it is blind to a
+  transposed slot of one size; compare per-slot shapes. → `L125`
+- **⛔ A raw constructor called twice returns two EQUAL objects: re-basing `carrier.mint` reads onto it breaks every
+  `is` row and every memoised operator (`AxisRetractionOperator.of(space)`) silently into "not the same object".**
+  Hoist one local per test before believing a red; and a docstring hit of the same call text blocks a text-based
+  hoist (rewrite prose first). → `L126`

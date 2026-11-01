@@ -11935,3 +11935,28 @@ bias was the host, not the method: those runs overlapped a background pytest bat
   test functions run, each with its control (`instrument-doctrine` X3 names the two-mechanisms tell for prose; this
   is its instrument form).
 
+
+## L125 — layer DAG Phase 4 constructor gates: two instruments that read wrong (2026-11-01)
+
+Spec `scratch/layer_dag/phase4/spec.md`, battery `scratch/layer_dag/phase4/battery/p4_arms.py`. (1) The first
+`angular_face_layout` reference compared `FaceLayout.structure`; `layout_group_before_ordinate` (`(N, ng)` → `(ng, N)`,
+equal flat sizes) left it green while the trace-equality rows reddened. Fixed by comparing `[(key, slot.shape)]`.
+(2) Textual arms built with `exec(src', dict(module.__dict__))` produced mutants whose globals were a frozen copy; the
+cross_method route gate monkeypatched `phase_spaces.trace_face_shapes` and the mutant `angular_face_layout` still read
+the honest one, so the route row reddened under `layout_drops_the_moment_tail`, an arm with nothing to do with routes.
+Exec into `module.__dict__` itself; the first try then rebound 0 bindings (the exec had already replaced the module
+attribute) and the plugin's `Uninstallable` fired: restore the original name after exec, then rebind. Also measured:
+shape-breaking arms red the hub rows by breaking CONSTRUCTION (broadcast errors), declared "wrong-reason" in the
+battery table rather than counted as coverage.
+
+## L126 — layer DAG Phase 4 landing: mechanical re-base of 51 files (2026-11-01)
+
+Landing report `scratch/layer_dag/phase4/landing_report.md`; tools `scratch/layer_dag/phase4/landing/`
+(`builders.py`, `rebase.py`, `rebase_posed.py`, `hoist.py`, `prose.py`, `prune.py`, `keep.py`, `split.py`, `move.py`,
+`conserve.py`, `markers_plugin.py`). What cost time: (1) identity rows and memoised operators after the re-base
+(hoist one local per test); (2) a regex `\w+\.full_field_space` rewrote a module path inside an import line
+(guard with `(?<![.\w])`); (3) `from_mesh(σ, material_mesh)` silently defaults to the scalar bulk, so every carrier
+default must be made explicit (`space=`); (4) the regex that turned docstring prose into call text made the hoist
+match the docstring first. Id conservation by tail-matching plus a marker diff (`iter_markers()` at HEAD from a
+`git archive` copy) caught nothing lost; pyright compared per file against the same command on HEAD copies (a custom
+pyrightconfig in a scratch dir checked NOTHING beyond the control: use the repo's config with explicit paths).
