@@ -171,7 +171,8 @@ doesn't grow into a god module."* The three layers are `posing_sequence.md`'s.
    Protocols reduce to the operator-algebra family. CP and MoC still rebuild fission by hand (`posing_sequence.md`,
    census 2026-09-27), so they are the last `EigenvalueSolver` realisers.
 4. This is node organisation, so it belongs to `layer_dag.md` (a phase defining the posing and solution nodes), on the
-   graph-first line the user ruled; the contract work of this plan follows it.
+   graph-first line the user ruled; the contract work of this plan follows it. RULED 2026-11-01: `layer_dag.md` ruling 39,
+   Phase 5.
 
 - **M5** For the low-ranked layer-2/3 value modules (`question`, `observable`, `evidence`, `enclosure`, `gauge`): which
   stage each belongs to, and whether its low consumers force it to stay in numerics or can import a posing package
@@ -206,7 +207,8 @@ doesn't grow into a god module."* The three layers are `posing_sequence.md`'s.
 ## 8. Rulings ledger
 
 - 2026-10-31 The user: open a living plan; discuss and measure before planning the build.
-- 2026-10-31 The user (not yet a ruling): layers 2 and 3 of the posing sequence may have to leave numerics, so it does not grow into a god module (§4b).
+- 2026-10-31 The user: layers 2 and 3 of the posing sequence may have to leave numerics, so it does not grow into a god module (§4b).
+- 2026-11-01 The user: the extraction is organised in `layer_dag.md` (ruling 39, Phase 5); this plan's contract work follows it.
 
 ## 9. Start condition
 
