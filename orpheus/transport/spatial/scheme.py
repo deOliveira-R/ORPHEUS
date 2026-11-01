@@ -1803,7 +1803,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):
 
         The one spelling of the widening rule "append the scheme's :meth:`moment_axis`": a multi-moment closure (LD)
         returns ``space.with_axis(self.moment_axis(axes))``, so the trial Gram carries the moment mass; a slopeless
-        closure (DD, Step) returns ``space`` itself, the same object, because its trial basis is the cell average.
+        closure (DD) returns ``space`` itself, the same object, because its trial basis is the cell average.
         :attr:`SNProblem.angular_trial_space <orpheus.sn.problem.SNProblem.angular_trial_space>` and the axis-built arm
         of :meth:`BulkField.compose_spatial_moments
         <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>` both read it.

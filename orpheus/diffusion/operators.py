@@ -148,7 +148,7 @@ from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
-from orpheus.mesh import face_labels
+from orpheus.mesh import trace_face_shapes
 from orpheus.transport.fields import (
     ScalarBoundarySourceSink,
     ScalarSourceSink,
@@ -326,12 +326,12 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
         #: (nx,) cell volumes (the divergence denominator).
         self._volumes = np.asarray(mesh.volumes, float)
         # Per boundary face: the closure bundle. Derived from the SAME
-        # face_labels inventory the mesh's scalar trace was built from
-        # (single source — a curvilinear pole is not a face and never
+        # traced-face list the mesh's scalar trace is laid out over
+        # (``trace_face_shapes``; a curvilinear pole is not a face and never
         # appears here, leaving its flow slot at zero: A(r=0)·J = 0).
         nx = h.size
         closures: dict[str, _FaceClosure] = {}
-        for label in face_labels(mesh.axes):
+        for label, _ in trace_face_shapes(mesh.axes):
             is_min = label.endpoint == "min"
             edge = 0 if is_min else nx - 1
             c_phi, c_inflow = _boundary_closure(D[:, edge], float(h[edge]))
@@ -565,7 +565,7 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
     :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh` (#290
     P7a — ``SNProblem.bc`` parity). Law coverage ≡ face coverage holds BY
     CONSTRUCTION: the mesh builds ``bc`` and the trace from the ONE
-    ``face_labels`` inventory, so the pre-P7a coverage validation
+    ``trace_face_shapes`` list, so the pre-P7a coverage validation
     guarded a state that is no longer representable.
 
     Parameters
