@@ -2720,7 +2720,7 @@ Development history
   unchanged in value and sharper in statement: it mints the **Jacobi**
   labelling explicitly, so what ``gain.H`` daggers is the whole
   :math:`B_a`, by construction rather than by coincidence.
-* **#616** (2026-10-31, branch ``refactor/space-membership``, unit U3b
+* **#616** (2026-10-31, merged @ ``1c1d8d1c``, unit U3b
   of the space-membership plan) — the **multi-dimensional transposed
   sweep**.  The adjoint entries, which raised ``NotInvertible`` on every
   :math:`d \ge 2` posing, run on the multi-D Cartesian

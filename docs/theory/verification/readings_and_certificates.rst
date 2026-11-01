@@ -1405,7 +1405,7 @@ Declared limits and their issues
        axes silently. The contract the issue asks for is now in the code
        (``64cc3a7a``, option (a)): the weight and the carrier have one exact
        shape. From ``64cc3a7a`` the check ran under ``__debug__`` only;
-       since U1b (``123166fb``, on branch ``refactor/space-membership``) it
+       since U1b (``123166fb``, merged @ ``1c1d8d1c``) it
        runs on every run, ``-O`` included, through the coordinate-space
        primitive, so a mismatched carrier no longer broadcasts (the
        outer-product read was ERR-122; :ref:`spaces-membership`). The typed

@@ -6575,8 +6575,7 @@ trust ``git`` over this table for merge status.
        :ref:`bc-wave2-crosswalk`; the candidate refused:
        :ref:`structured-geometry-mesh-refuted`, 10.
      - #511, #513, #514
-     - the carve's range ``6b090ff9`` (slice S1) to ``471c4737``, on the
-       carve branch *(in development)*;
+     - the carve's range ``6b090ff9`` (slice S1) to ``471c4737``;
        specification ``.claude/plans/wave2_boundary_carve.md``
    * - 2026-10-10
      - **Three generators read the body classification.** ``Billiard``,
@@ -6588,7 +6587,7 @@ trust ``git`` over this table for merge status.
        hollow and layered bodies and the white walls without the
        classification.
      - #405
-     - *(in development)*
+     - ``5aa8cb88``
    * - 2026-10-08
      - **The eigen gauge is declared on the question.** ``Eigen`` gained
        ``gauge``, the production an eigen flux is scaled by; the

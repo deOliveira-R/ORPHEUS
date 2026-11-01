@@ -10357,5 +10357,5 @@ History
        through ``LineRule.of``'s source, and the name ``group_transport``.
        Ruled: no size threshold; the miss cost first (#602). `[M]` 431
        not-slow rows: 242 s without the memo, 1 303 s cold, 102 s warm.
-     - *(in development,* branch ``perf/characteristic-block-memo``\ *)*
+     - ``9178ad00``
      - #405, #602

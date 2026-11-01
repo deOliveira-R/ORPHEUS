@@ -3479,8 +3479,7 @@ hash, and ``git`` outranks this column.
        fixtures raised ``LinAlgError`` at an exact zero pivot, by pivot
        luck (ERR-123; :ref:`homogeneous-fredholm-verdict`).
      - #666
-     - *(in development)*, ``ef5eea29`` on branch
-       ``refactor/space-membership``
+     - ``ef5eea29``, merged @ ``1c1d8d1c``
    * - 2026-10-02
      - **The infinite medium is defined as the point in phase space.**
        The user's ruling after the review of the reference

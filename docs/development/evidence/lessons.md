@@ -1323,6 +1323,35 @@ Cross-reference: the nohup/E-core pacing note (`reference_test_execution_env`) �
 runs invite parallel work; this lesson bounds WHICH work is safe (non-imported files
 only).
 
+### 2026-11-01 — the docs build is a long gate too, and it reads more than Python
+
+`[M]` the space-membership merge, 2026-11-01. A `sphinx-build -E -W` was running in the
+background to gate the merge. Two things changed under it, and each made it read a tree
+that was never committed:
+
+1. **A commit made during the build.** The agent memory was committed while the build
+   ran. The build writes the verification audit with the HEAD it read at the start, and a
+   provenance check compares that against HEAD at the end; the two no longer matched, so
+   the build failed (`RC=1`) for a reason that had nothing to do with the docs.
+2. **A transient file inside the package.** A pyright control file (a module holding one
+   deliberate type error, there to prove pyright was live) sat in `orpheus/` while the
+   build collected the tests for the verification matrix. The per-module layer-import gate
+   collects one case per module, so the generated `matrix.rst` counted 532 cases for that
+   gate where a clean collection counts 531, and the build would have committed a matrix
+   describing a file that does not exist.
+
+The repair was to restore the generated matrix (`git restore` on a file this session had
+not edited), delete the control file, and re-run the build on a frozen tree (`RC=0` at
+`1c1d8d1c`).
+
+> **Rule: L37's freeze covers a docs build, and for a docs build it covers more than
+> Python sources.** The build reads HEAD (for provenance), the test tree (it collects
+> it) and every file under `orpheus/` (it imports and indexes them). So during a build:
+> no commit, no checkout, and no file created or deleted under `orpheus/` or `tests/`,
+> including temporary probes. Put a probe in the scratchpad, outside the repository.
+> After the build, read `git status` and treat any change to a generated file
+> (`matrix.rst`, `error_index.md`) as a reading of the tree the build saw.
+
 ## L38 shared tree mutation
 
 **L38 — A deliberate mutation in the SHARED working tree is indistinguishable from a production bug to a parallel agent (2026-08-10)**
@@ -2687,3 +2716,47 @@ Same family as `plan-authoring` §6b's *"a second census keyed on the changed
 symbol cannot see what the first pass renamed"*, one tier down: at the REWRITE tier
 the first pass's output is exactly the population the second pass must not touch.
 
+## L65 pyright worktree vacuous
+
+**L65 — pyright run from a git worktree checks nothing, and so does pyright over an unquoted zsh `$files` (2026-10-31)**
+
+`[M]` the space-membership campaign, unit U3b, 2026-10-31. The campaign ran in a worktree
+under `.claude/worktrees/membership`, and every "pyright: 0 errors" it reported before
+U3b was vacuous, through two independent mechanisms.
+
+1. **The main checkout's configuration governed the worktree.** While any worktree
+   exists, the hook `.claude/hooks/regen-pyrightconfig.sh` writes a gitignored
+   `pyrightconfig.json` at the main checkout's root, mirroring `pyproject.toml`'s
+   `[tool.pyright]` (so the language server gives each worktree its own execution
+   environment). Pyright searches upward for a `pyrightconfig.json` before it reads any
+   `pyproject.toml` (`[R]`, pyright's documented search order; consistent with the
+   measurement), so run from the worktree it used the main root's file rather than the
+   worktree's own `pyproject.toml`. That file restates the exclude `**/.*`, resolved
+   against the main root, where it matches `.claude/` and with it every file of the
+   worktree. Pyright reported 0 errors because it checked 0 of the worktree's files. A
+   control file holding one deliberate type error read 0 errors as well, which is how it
+   was found. With no worktree the hook deletes the file, so the trap exists exactly while
+   worktree work is under way.
+2. **zsh does not word-split an unquoted parameter.** `npx pyright $files`, with `$files`
+   holding a space-separated list, passes ONE argument naming a path that does not exist.
+   This is the mechanism `code-search` already states for grep; it bit pyright the same
+   way.
+
+The repair is a gitignored `pyrightconfig.json` in the worktree itself, which the upward search finds first, pointing at the main
+checkout's `.venv` (`venvPath` absolute, `venv: ".venv"`), and file lists passed as
+`${=files}` or from a Python driver. With both, the control read 1 error, and the
+honest run found 29 errors in 16 files that the vacuous runs had hidden. Four of them were
+real defects: an operator advertising a transpose it did not have (`is_adjointable`
+true on `FlattenedOperator`), a metric diagonal subscripted where it can be `None`, an
+eigen verb called with `None`, and 16 operator verbs typed narrower than their contract.
+The comparison against `main` is then per file (the branch's count minus `main`'s, from
+`main`'s tree extracted with `git archive`), never a bare total.
+
+- check: before citing any pyright count, run it on a control file holding one known
+  error and read 1; from a worktree, confirm the worktree's own `pyrightconfig.json` is
+  the one in use. This is X1 (`instrument-doctrine`): a type checker that checked nothing
+  and a clean tree print the same line.
+- Tracked: [#640](https://github.com/deOliveira-R/ORPHEUS/issues/640) (the ratchet's
+  `filesAnalyzed > 0` witness, and the hook's fix).
+- Related: [L22](#l22-worktree-not-main) (in a worktree, read the worktree), the
+  `nexus-tools` rule's worktree note (the graph has the same hazard).

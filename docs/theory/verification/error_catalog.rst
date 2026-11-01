@@ -11659,8 +11659,7 @@ older entries classify against.
    labelled axes is refused with a ``TypeError`` rather than guessed
    positionally.
 
-   **Since U1b** (``112106eb``, 2026-10-30, *in development* on branch
-   ``refactor/space-membership``), the paragraph above is the fix's history:
+   **Since U1b** (``112106eb``, 2026-10-30, merged @ ``1c1d8d1c``), the paragraph above is the fix's history:
    the private helper ``_broadcast_axes`` and the engine's ``broadcast_axes=``
    argument are retired. The by-label reading moved into numerics as
    :meth:`FunctionSpace.positions_spanned_by
@@ -11798,8 +11797,8 @@ older entries classify against.
 .. error-entry:: ERR-121
    :title: A dense form could be positioned on a counting-measure axis, so a cross-section space carried two metrics on its energy block and its own pairing read 83 where the reaction rate, which counts groups, read 46
 
-   **Status:** ✅ **FIXED 2026-10-30, space-membership unit U2a** (``[LANDED 138f7d02]``, branch
-   ``refactor/space-membership``). Latent: no production space carried such a form.
+   **Status:** ✅ **FIXED 2026-10-30, space-membership unit U2a** (``[LANDED 138f7d02]``,
+   merged @ ``1c1d8d1c``). Latent: no production space carried such a form.
 
    **Module:** ``numerics`` (``orpheus/numerics/space.py``, ``_require_positioned_over``, the door every axis-built
    space's explicit metric object passes).
@@ -11854,7 +11853,7 @@ older entries classify against.
    :title: The integrated production rate read 0.225 for the exact 0.095 when a flat (ng,) flux met the homogeneous (ng, 1) cross section, because the contraction let numpy broadcast the pair into their outer product and summed it
 
    **Status:** ✅ **CLOSED ON EVERY PATH, ON EVERY RUN** (``-O`` included), by U1b of the space-membership plan
-   (*in development* on branch ``refactor/space-membership``: the primitive ``53736b2b``, the space's parse
+   (merged @ ``1c1d8d1c``: the primitive ``53736b2b``, the space's parse
    ``ab37d078``, the objects below the space ``123166fb``, the frame faces ``ef113fdd``, the engine ``112106eb``, the
    plain bindings ``6b4f342e`` and ``f04c96de``, the production admissions ``4882293a``). The history: the broadcast
    was first refused at ``e42fd498`` (the carrier must host the weight's shape); U2b (``64cc3a7a``) made the raw-path
@@ -11928,8 +11927,7 @@ older entries classify against.
 .. error-entry:: ERR-123
    :title: A structurally singular loss was inverted in silence: diffusion returned a flux of 1.7e17, SN a best-effort answer stamped "A is invertible", and homogeneous refused only by pivot luck
 
-   **Status:** ✅ **CLOSED** by U0 of the space-membership plan (*in development* on branch
-   ``refactor/space-membership``): the Fredholm verdict ``54aef2ca``, the LU's condition estimate ``c2a88dfc``, the
+   **Status:** ✅ **CLOSED** by U0 of the space-membership plan (merged @ ``1c1d8d1c``): the Fredholm verdict ``54aef2ca``, the LU's condition estimate ``c2a88dfc``, the
    method doors and the posing-derived verdict ``ef5eea29``, and the re-review fixes ``119383f9``. Every posing on the
    three sharp methods is now decided by the Fredholm alternative on the loss's PREDICTED kernel before anything is
    inverted (:mod:`orpheus.numerics.fredholm`; the user's ruling R3, 2026-10-30: "Fredholm as the decision rule, kernel

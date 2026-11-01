@@ -10758,8 +10758,7 @@ for merge status.**
        :math:`4\pi` and collision probability's wiring stay with #440.
      - `#440 <https://github.com/deOliveira-R/ORPHEUS/issues/440>`_;
        layer-DAG ruling 35 (``.claude/plans/layer_dag.md``)
-     - *(in development)* on ``feature/440-point-manifold``
-       (``6b386a09``)
+     - ``6b386a09``
    * - 2026-10-19
      - ⭐⭐ **The action is typed, and invariance is a composition.** The
        abstract :class:`~orpheus.geometry.manifold.GSpace` sits between
@@ -10804,7 +10803,7 @@ for merge status.**
        row (:ref:`manifold-verification`).
      - S5 of the numerics untangling (``.claude/plans/numerics_untangling.md``,
        rulings 42 to 47)
-     - *(in development)* on ``refactor/s5-invariance-composition``
+     - ``553ecea8``
    * - 2026-09-03
      - ⭐⭐ **Invariance is the MEASURE's question, and groups import
        geometry only.** The invariance kernel left

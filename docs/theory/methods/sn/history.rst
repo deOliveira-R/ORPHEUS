@@ -76,7 +76,7 @@ them.  Trust ``git``, not this column.
        the evidence are :ref:`loss-rep-multid-transposed-sweep` and
        :ref:`sn-adjoint-multid`.
      - #616, #681
-     - *(in development)*, ``249d8f45`` on branch ``refactor/space-membership``
+     - ``249d8f45``, merged @ ``1c1d8d1c``
    * - 2026-10-31
      - **Every S**\ :sub:`N` **posing is decided by the Fredholm
        alternative on a predicted kernel, before a sweep runs** (unit U0
@@ -109,8 +109,8 @@ them.  Trust ``git``, not this column.
        (:ref:`fredholm-posing-verdict`). The derivations are
        :ref:`sn-loss-kernel-predicted`.
      - #666, #665
-     - *(in development)*, ``5ce66815``, ``54aef2ca``, ``c2a88dfc``,
-       ``ef5eea29``, ``119383f9`` on branch ``refactor/space-membership``
+     - ``5ce66815``, ``54aef2ca``, ``c2a88dfc``,
+       ``ef5eea29``, ``119383f9``, merged @ ``1c1d8d1c``
    * - 2026-10-31
      - **The loss-kernel projector is numerics'; the method supplies only
        its generators** (unit U3 of the space-membership plan,
@@ -143,8 +143,7 @@ them.  Trust ``git``, not this column.
        symmetric; nothing read it, and the transpose is now Euclidean
        (:eq:`kernel-gauge-section`, :ref:`sn-loss-kernel-the-gauge`).
      - #664, #344
-     - *(in development)*, ``2431e2f0`` on branch
-       ``refactor/space-membership``
+     - ``2431e2f0``, merged @ ``1c1d8d1c``
    * - 2026-10-25
      - **The within-cell moment axis is the head of a basis** (the
        moment-basis carve, layer DAG ruling 19). Numerics had no object for

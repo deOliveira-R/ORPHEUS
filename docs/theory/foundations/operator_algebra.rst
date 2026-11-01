@@ -11090,7 +11090,7 @@ the cheapest tell.
        (:ref:`fredholm-near-kernel-witness`, with the refuted
        matrix-free routes and the two defects its rows caught).
      - #616, #681
-     - *(in development)* on branch ``refactor/space-membership``
+     - ``01d889f7``, merged @ ``1c1d8d1c``
    * - 2026-10-31
      - **Every posing derives its Fredholm verdict from the pencil's
        predicted kernel** (unit U0 of
@@ -11128,8 +11128,8 @@ the cheapest tell.
        emission probes (the adjoint could never refuse). Closes the defect
        ERR-123.
      - #666, #665
-     - *(in development)*, ``5ce66815``, ``54aef2ca``, ``c2a88dfc``,
-       ``ef5eea29``, ``119383f9`` on branch ``refactor/space-membership``
+     - ``5ce66815``, ``54aef2ca``, ``c2a88dfc``,
+       ``ef5eea29``, ``119383f9``, merged @ ``1c1d8d1c``
    * - 2026-10-31
      - **The kernel gauge is a numerics projector; a method supplies only
        its generators** (unit U3 of
@@ -11161,8 +11161,7 @@ the cheapest tell.
        ``KernelGauge`` protocol's parameter is ``state``. See
        :eq:`kernel-gauge-section`.
      - #664
-     - *(in development)*, ``2431e2f0`` on branch
-       ``refactor/space-membership``
+     - ``2431e2f0``, merged @ ``1c1d8d1c``
    * - 2026-10-22
      - **An axis is identified by what fixes its space, and a space by
        one key** (package S7 of the numerics untangling, halves S7a and

@@ -2053,8 +2053,7 @@ issues for finer granularity.
        with an exit report. Before it the resolvent returned
        :math:`1.44\times10^{17}` for a positive source on a closed pure
        scatterer, in silence (:ref:`diffusion-fredholm-verdict`).
-     - *(in development)* ``ef5eea29`` on branch
-       ``refactor/space-membership``
+     - ``ef5eea29``, merged @ ``1c1d8d1c``
    * - **Wave 2 (S3)**
      - **The trace-law boundary stack retired from diffusion** — the
        string-tagged ``BC`` laws, ``BOUNDARY_OPERATOR_REGISTRY``,

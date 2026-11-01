@@ -7547,9 +7547,9 @@ status.
        primitive; ERR-122 is closed on every path
        (:ref:`spaces-membership`).
      - #664, #669
-     - *(in development)*, ``53736b2b``, ``ab37d078``, ``123166fb``,
+     - ``53736b2b``, ``ab37d078``, ``123166fb``,
        ``ef113fdd``, ``112106eb``, ``6b4f342e``, ``f04c96de``,
-       ``4882293a`` on branch ``refactor/space-membership``
+       ``4882293a``, merged @ ``1c1d8d1c``
    * - 2026-10-30
      - **The co-vector, and a form only on a Modal axis** (unit U2 of
        ``.claude/plans/space_membership_covector_gauge.md``). U2a: a dense
@@ -7568,8 +7568,8 @@ status.
        :math:`\langle 1,\cdot\rangle`, and the carry fixture's 36 moved
        keys are a declared delta (:ref:`integrated-reaction-rate-keff`).
      - #664
-     - *(in development)*, ``138f7d02``, ``64cc3a7a``, ``36dbac9d`` on
-       branch ``refactor/space-membership``
+     - ``138f7d02``, ``64cc3a7a``, ``36dbac9d``,
+       merged @ ``1c1d8d1c``
    * - 2026-10-30
      - **Membership is a verb of the space** (unit U1 of
        ``.claude/plans/space_membership_covector_gauge.md``). The space
@@ -7590,7 +7590,7 @@ status.
        space, where the blocks carry the flux role (#633,
        :ref:`spaces-membership`).
      - #664
-     - *(in development)*, ``d362f02f`` on branch ``refactor/space-membership``
+     - ``d362f02f``, merged @ ``1c1d8d1c``
    * - 2026-10-25
      - **The spatial-moment axis points at a basis** (layer DAG ruling 19,
        the moment-basis carve). Numerics gained the interval Legendre basis
@@ -7661,7 +7661,7 @@ status.
        The divisor moved on 68 of 120 shipped rules (up to 39 ULP).
        Record: :ref:`spaces-axis-unit`, :ref:`spaces-collapse-pair`.
      - —
-     - ``5f850a69``, ``71896877`` on ``refactor/eprime-wave3`` *(in development)*
+     - ``5f850a69``, ``71896877``
    * - 2026-10-02
      - **The retraction's adjoint is minted as the pullback** (#405 P1
        step 6). :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`,
@@ -7815,9 +7815,7 @@ status.
      - `#409 <https://github.com/deOliveira-R/ORPHEUS/issues/409>`_
      - ``6a0e0473`` (the family), ``bae73fa7`` (exclusivity + the
        factored product), ``f1f30cea`` (the dense dressing),
-       ``af9f95f1`` (the curvilinear refusal names one blocker) —
-       *(in development,* branch ``feature/p7-nondiagonal-metric``\ *;*
-       ``git`` *is the merge-status authority)*
+       ``af9f95f1`` (the curvilinear refusal names one blocker)
    * - 2026-08-29
      - **A producer binds the space factor, and reads the angular
        geometry through it** (the streaming campaign's P4-remainder) —
@@ -7858,9 +7856,7 @@ status.
      - —
      - ``ac485104`` (the dead ``_weight_of`` retires), ``ad04e236`` (the
        binding, the courier's death, and the gates), ``1fb70c15`` (the
-       admission probe reads the declared contract) — *(in development,*
-       branch ``feature/p4rem-producer-binds-axis``\ *;* ``git`` *is the
-       merge-status authority)*
+       admission probe reads the declared contract)
    * - 2026-08-29
      - **An axis can name the generator that made it** (campaign 1,
        phase CS5). The axis gains a fifth slot,

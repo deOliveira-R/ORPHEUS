@@ -3774,5 +3774,5 @@ Development history
        holds a pair to the current level at the larger scale, after a point
        rule's re-levelled line read 75 to 100 ulp of the inner radius's
        square. Gates KG4 to KG6 and K7's second row.
-     - *(in development,* branch ``refactor/p3-routeB-product``\ *)*
+     - ``25b0c38f``
      - #405

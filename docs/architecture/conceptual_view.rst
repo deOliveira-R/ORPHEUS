@@ -728,8 +728,7 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   cannot pass members yet because a composite field keeps the flux role
   on either side of a dual arrow, so its blocks on a dual space carry
   primal labels (#633, placed in S6c of the numerics untangling).
-  Since U1b of the space-membership plan (on branch
-  ``refactor/space-membership``) a bare operand's shape is parsed at its
+  Since U1b of the space-membership plan (merged @ ``1c1d8d1c``) a bare operand's shape is parsed at its
   verb's domain on every run, ``-O`` included, through one primitive
   (:mod:`orpheus.numerics.coordinate_space`), so no bare non-member
   reaches the arithmetic; what a bare array still cannot answer is which

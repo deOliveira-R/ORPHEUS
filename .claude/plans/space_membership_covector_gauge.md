@@ -620,3 +620,20 @@ Deferred:
 - **A uniform mesh can hide the adjoint gauge.** The iterate never acquires a kernel component there; S15b uses a graded box. A row blind to its mechanism says so in its docstring (S15c).
 - **A stop rule on "count unchanged" needs a separation certificate,** or it is vacuously true at count 0.
 - **Judge a quotient on the orthonormal basis, before rescaling it.**
+
+## Merged @ `1c1d8d1c` (2026-11-01) — the campaign's terminal state
+
+`main` fast-forwarded to `1c1d8d1c`; `refactor/space-membership` and its worktree are deleted. `park/u3b-sn-rcond` stays, because #682 names it. This note is archaeology from here on; the open work is #681 and #682.
+
+**The merge gates** (`[M]` 2026-11-01):
+- The pre-merge suite, `-m "not slow"`, serial: 32 of 34 rows exited 0. The other two collected nothing (`_mutation`, and the pyright-ratchet gate, which the filter deselects), rc 5 as at baseline.
+- Sphinx `-E -W` exited 0 at `1c1d8d1c`, on a frozen tree. The first run failed because a commit and a pyright control file changed the tree during the build (lesson L37's 2026-11-01 addendum).
+- pyright with the worktree's own configuration, control file reading 1 error: 226 errors against `main`'s 232, 0 files worse and 3 better.
+- CI (`gates` workflow) succeeded on `01d889f7`, the last code commit (run 41280570716). The six commits after it carry `[skip ci]`, so they were pushed after that run; `4063e5b7` changes a production docstring and is covered by the local suite and Sphinx only.
+
+**The memo regeneration** (`[M]` 2026-11-01, `scratch/membership_covector/memo_regen/`): the full suite, slow included, serial from the main checkout at `1c1d8d1c`, 4.0 h. All 33 rows exited 0; the derivations folder ran 3333 passed, 286 skipped, as the previous regeneration did. Afterwards 2430 entries read Hit, all rewritten by this run, and their payloads are byte-identical to the old store's (8526 entries in both stores compared, 0 differ). The 5405 Stale and 691 Corrupt entries are not requested by any test in the current suite: none was rewritten, the store's file count stayed 8584, and 6043 of the 6096 were already untouched by the previous regeneration (2026-10-26). They are leftovers from older parametrisations, kept until the user rules on a prune.
+
+**Where the record went:**
+- The milestones: the SN history and the operator-algebra, spaces, infinite-medium, diffusion and error-catalogue rows now cite `merged @ 1c1d8d1c` instead of "in development on branch" (this close-out, together with 9 older rows of other campaigns whose markers had rotted the same way).
+- The process lessons: L65 (pyright from a worktree checks nothing; zsh's unquoted `$files`) and the L37 addendum (the docs build freezes the tree), in `docs/development/evidence/lessons.md`. The `git grep` `\b` lesson is already the `code-search` rule's.
+- The domain lessons are on the theory pages the archivist wrote: the Jacobi mirror-odd stall and the averaged map (`operator_algebra.rst`, the near-kernel witness), the source-classed flattening template (`operator_adjoint.rst`, `spaces.rst`), the graded box that the adjoint gauge needs (`methods/sn/adjoint.rst`).
