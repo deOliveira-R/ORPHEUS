@@ -71,8 +71,10 @@ TIERS: tuple[tuple[str, ...], ...] = (
     ("kernel_projection_gauge", "spaces"),
     # the Fredholm verdict decides on a predicted kernel's projector and annihilators (U0, 2026-10-31);
     # the pencil carries the predicted kernel and the posings derive their verdict from it (the user's
-    # ruling, 2026-10-31), so both rank above it, and the exit report records it, so the outcomes rank above them
-    ("fredholm",),
+    # ruling, 2026-10-31), so both rank above it, and the exit report records it, so the outcomes rank above them.
+    # The near-kernel witness measures what a predicted kernel claims and imports none of the verdict (U3b,
+    # 2026-10-31): it reads the algebra, the assembly and the kernel gauge's metric door, so it ranks beside fredholm.
+    ("fredholm", "near_kernel"),
     ("pencil",),
     ("posing",),
     ("outcome",),

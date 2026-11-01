@@ -3152,7 +3152,7 @@ question "find the near-kernel of the loss :math:`A` at scale"; they
 say nothing about the transposed sweep, which is an exact direct solve.
 The witness that question needs is what made #616 necessary: its left
 route iterates :math:`(L+C)^{-\mathsf H}`, which before #616 existed in
-1-D only.
+1-D only (the witness, :ref:`fredholm-near-kernel-witness`).
 
 The deferral ledger — what still raises, by design
 --------------------------------------------------

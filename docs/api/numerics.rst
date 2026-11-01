@@ -809,6 +809,30 @@ theory, with the proofs and the refuted designs, is
 .. automodule:: orpheus.numerics.evidence
    :members:
 
+The near-kernel witness — :mod:`orpheus.numerics.near_kernel` — measures an
+operator's spectrum at zero (its right and left near-null vectors, their
+count, and the gap behind them) so that a gate can check a
+:class:`~orpheus.numerics.fredholm.PredictedKernel` against what the operator
+has; it decides nothing in production. Its dense route takes the SVD up to
+:data:`~orpheus.numerics.near_kernel.DENSE_LIMIT`; its block route iterates a
+splitting's averaged map :math:`(I + M^{-1}N)/2` above it. The theory, with the
+refuted matrix-free routes and the gates, is
+:ref:`fredholm-near-kernel-witness`.
+
+.. automodule:: orpheus.numerics.near_kernel
+   :members:
+
+The flattened realization — :mod:`orpheus.numerics.flat_operator` — carries a
+typed-carrier operator onto bare flat vectors through the carrier's own
+``to_flat``/``from_flat``. The flat chart is an isometry of coordinates, so the
+adapter transposes and inverts exactly when its inner operator does; it is the
+bridge through which the diffusion resolvent factorises its loss and the
+near-kernel witness reaches SN's sweep. The laws are
+:ref:`flattened-operator-inverse-transpose`.
+
+.. automodule:: orpheus.numerics.flat_operator
+   :members:
+
 .. automodule:: orpheus.numerics.convergence
    :members:
    :undoc-members:

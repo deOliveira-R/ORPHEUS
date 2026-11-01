@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20343**
+Total tests collected: **20377**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2236, 11.0%
-   L1, 2961, 14.6%
+   L0, 2248, 11.0%
+   L1, 2981, 14.6%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15001, 73.7%
+   foundation, 15003, 73.6%
    unmarked, 60, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20204
+   explicit, 20238
    class-name, 46
    func-name, 0
    case, 33
@@ -306,6 +306,7 @@ Module × level grid
    diffusion/test_fixed_source_verdict, 0, 20, 0, 0, 0, 0
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
    diffusion/test_n2n_witness, 0, 2, 0, 0, 0, 0
+   diffusion/test_near_kernel_witness, 0, 5, 0, 0, 0, 0
    diffusion/test_operators, 17, 0, 0, 0, 22, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    diffusion/test_sigma_variant_reach, 0, 0, 0, 0, 1, 0
@@ -430,7 +431,7 @@ Module × level grid
    moc/test_quadrature, 44, 0, 0, 0, 0, 0
    moc/test_ray_tracing, 27, 0, 0, 0, 0, 0
    moc/test_verification, 27, 15, 6, 0, 0, 0
-   numerics/test_adjointability_is_honest, 0, 0, 0, 0, 67, 0
+   numerics/test_adjointability_is_honest, 0, 0, 0, 0, 68, 0
    numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 41, 0
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 132, 0
    numerics/test_angular_symmetry, 0, 0, 0, 0, 42, 0
@@ -502,6 +503,7 @@ Module × level grid
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
    numerics/test_moment_layout_retired, 0, 0, 0, 0, 7, 0
+   numerics/test_near_kernel, 12, 0, 0, 0, 0, 0
    numerics/test_observable, 0, 0, 0, 0, 50, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
@@ -588,6 +590,7 @@ Module × level grid
    operators/test_moment_domain_binding, 0, 0, 0, 0, 14, 0
    operators/test_n2n_operator, 0, 0, 0, 0, 14, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
+   operators/test_near_kernel_witness, 0, 15, 0, 0, 0, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
    operators/test_operator_block_role, 0, 0, 0, 0, 22, 0
@@ -714,7 +717,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 530, 0
+   test_layer_imports, 0, 0, 0, 0, 531, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0

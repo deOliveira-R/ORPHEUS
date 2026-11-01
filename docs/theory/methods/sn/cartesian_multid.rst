@@ -7341,7 +7341,9 @@ absorption-free class outside it is refused, with a ``ValueError`` whose
 message names each entry and reads "outside the closed-form kernel's
 derived scope".  It is a ``SCOPE-BOUNDARY[guard]``: the machinery it
 waits for is the class-block null-vector solve through S\ :sub:`N`'s own
-sweep (the plan's unit U3b, the measured near-kernel), ruled by the user
+sweep (the plan's unit U3b, the block iteration of the near-kernel
+witness, :ref:`fredholm-near-kernel-witness`, restricted to the class's
+groups; not built), ruled by the user
 on 2026-10-31.  Its five entries, each a configuration the closed forms
 were not derived for:
 

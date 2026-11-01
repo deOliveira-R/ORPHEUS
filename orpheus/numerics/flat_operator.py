@@ -47,12 +47,23 @@ through it (shapes, spaces, meshes, concrete composite class), while the
 output side just re-flattens whatever composite ``inner.apply`` emits —
 role changes (flux in, source out) pass through untouched.
 
-Structural axes: apply-only. The flattened operator is a
-*serialization* of ``inner``, not new structure — inversion goes
-through an explicit
-:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
-over it (values, not structure), and the metric-correct adjoint lives
-on the TYPED operator where the block metrics are visible.
+Structural axes: the flattened operator is a *serialization* of
+``inner``, not new structure, and the flat chart is an isometry of
+coordinates, so it carries exactly the structure ``inner`` carries, by
+law: it transposes when ``inner`` does
+(:math:`(\flat A\flat^{-1})^{\mathsf T} = \flat A^{\mathsf T}\flat^{-1}`,
+:meth:`FlattenedOperator.apply_transpose`) and inverts when ``inner``
+does (:math:`(\flat A\flat^{-1})^{-1} = \flat A^{-1}\flat^{-1}`,
+:meth:`FlattenedOperator.inverse`: the SN sweep, flattened, is the
+near-kernel witness's block route). An inner without an inverse of its
+own (the diffusion loss) is still inverted by VALUES, through an
+explicit :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+over the flattened operator. The METRIC-correct adjoint lives on the
+TYPED operator, where the block metrics are visible; the flat transpose
+is the Euclidean one. (Until 2026-10-31 the adapter was apply-only by
+declaration: its ``is_adjointable`` read ``False`` while U0's
+``apply_transpose`` worked, and the algebra's ``.dual()`` door refused a
+transpose it could realise.)
 """
 
 from __future__ import annotations
@@ -61,7 +72,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, cast
 
 import numpy as np
 
-from orpheus.numerics.operator import LinearOperator, adjointable
+from orpheus.numerics.operator import LinearOperator, adjointable, invertible
 
 if TYPE_CHECKING:
     from scipy import sparse
@@ -158,6 +169,25 @@ class FlattenedOperator(LinearOperator):
             )
         carrier = type(self.template).from_flat(flat, self.template)
         return np.asarray(self.inner.dual().apply(carrier).to_flat())
+
+    @property
+    def is_invertible(self) -> bool:
+        r"""The flat chart is an isometry of coordinates, so this inverts exactly when ``inner`` does."""
+        return invertible(self.inner)
+
+    def inverse(self) -> "FlattenedOperator":
+        r"""Return ``flat ∘ A⁻¹ ∘ unflat``: :math:`(\flat A\,\flat^{-1})^{-1} = \flat A^{-1} \flat^{-1}`, by law.
+
+        The inverse of a flattened operator is the flattened inverse, on the
+        same template (the endomorphisms this adapter serves keep one chart on
+        both ends): the SN sweep, flattened, is the inverse of the flattened
+        :math:`L + C`. The near-kernel witness's block route reads it.
+        """
+        if not invertible(self.inner):
+            raise ValueError(
+                f"FlattenedOperator.inverse: the inner {type(self.inner).__name__} does not invert."
+            )
+        return FlattenedOperator(self.inner.inverse(), self.template)
 
     @property
     def is_adjointable(self) -> bool:

@@ -8855,10 +8855,13 @@ ERR-123 in :doc:`/theory/verification/error_catalog`.
   and the minimum-:math:`G`-norm member is returned); any other source
   raises :class:`~orpheus.numerics.fredholm.NoSolution` before any
   inversion.  The user's ruling R3 (2026-10-30): *"Fredholm as the
-  decision rule, kernel measurement as witness."*
+  decision rule, kernel measurement as witness."*  The witness is
+  :class:`~orpheus.numerics.near_kernel.NearKernel`
+  (:ref:`fredholm-near-kernel-witness`).
 * The kernel is predicted from structure (which classes, which faces,
   which closure), never measured at run time; its claim is checked
-  against a dense SVD in the gates.  The prediction rides on the pencil
+  in the gates against a dense SVD and against the near-kernel witness
+  (:ref:`fredholm-near-kernel-witness`).  The prediction rides on the pencil
   (``OperatorPencil(lhs, rhs, kernel=...)``), so every question posed
   over the pencil derives its verdict from one object, and ``.H`` daggers
   it.
@@ -8880,11 +8883,13 @@ ERR-123 in :doc:`/theory/verification/error_catalog`.
   eigen result, the infinite medium's) carry it as a field, with the
   factorisation's reciprocal-condition estimate where there is one.
 * Honest scope: the verdict is exactly as good as the prediction.  A
-  posing whose kernel no predictor covers is not measured at run time
-  (the measured near-kernel, ``NearKernel``, is the plan's unit U3b and
-  is not built); the S\ :sub:`N` closed forms refuse the configurations
-  they were not derived for at one declared door
-  (:ref:`sn-loss-kernel-predicted`).
+  posing whose kernel no predictor covers is not measured at run time:
+  the measured near-kernel,
+  :class:`~orpheus.numerics.near_kernel.NearKernel`, checks predictions
+  in the gates and decides nothing in production
+  (:ref:`fredholm-near-kernel-witness`); the S\ :sub:`N` closed forms
+  refuse the configurations they were not derived for at one declared
+  door (:ref:`sn-loss-kernel-predicted`).
 
 **The alternative, and why the left kernel is the test.**  For a square
 :math:`A`, :math:`\operatorname{range} A` is the annihilator of
@@ -9356,6 +9361,705 @@ below the outcome in the numerics concept order, carries it too.
   (spec fact F1) :math:`\cos(w, \flat(\mathbf 1)) = 0.937`, and a trace
   source paired through it is wrong by 0.26
   (:ref:`diffusion-fredholm-verdict`).
+
+.. _fredholm-near-kernel-witness:
+
+The near-kernel witness: the predicted kernel, checked by measurement
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The verdict of :ref:`fredholm-posing-verdict` reads a kernel each method
+PREDICTS from declared structure.  This section is the instrument that
+checks the prediction: :class:`~orpheus.numerics.near_kernel.NearKernel`
+measures an operator's spectrum at zero (its right and left near-null
+vectors, their count, and the gap that separates them from the rest of
+the spectrum), and the gates assert that what it measures is what the
+method predicted.  It is the space-membership campaign's unit U3b
+(2026-10-31; the plan is ``.claude/plans/space_membership_covector_gauge.md``,
+sections "U3b — route measurements" and "U3b — rulings and design"; the
+gate specification is
+``scratch/membership_covector/u3b/gate_spec.md``, section 2).
+
+**Key facts.**
+
+* The witness CHECKS; it never decides.  No production code path reads
+  it.  The user's ruling R3 (2026-10-30) is *"Fredholm as the decision
+  rule, kernel measurement as witness."*
+* Two routes return one result type.  The **dense route**
+  (:meth:`NearKernel.dense <orpheus.numerics.near_kernel.NearKernel.dense>`)
+  takes the singular value decomposition of the assembled operator and
+  counts the singular values at or below
+  :data:`~orpheus.numerics.near_kernel.RANK_RTOL` :math:`= 10^{-10}` times
+  the largest.  The **block route**
+  (:meth:`NearKernel.of_splitting <orpheus.numerics.near_kernel.NearKernel.of_splitting>`)
+  runs block subspace iteration on the averaged splitting map
+  :math:`P = (I + M^{-1}N)/2`, whose eigenvalue-1 space is exactly
+  :math:`\ker A`.  :meth:`NearKernel.measure
+  <orpheus.numerics.near_kernel.NearKernel.measure>` takes the dense route
+  up to :data:`~orpheus.numerics.near_kernel.DENSE_LIMIT` :math:`= 3000`
+  degrees of freedom and the block route above it.
+* The left vectors are the fixed points of the DUAL split's averaged map
+  :math:`(I + M^{-\mathsf T}N^{\mathsf T})/2`, which are
+  :math:`\ker A^{\mathsf T}` itself.  The transpose of the forward map has
+  different fixed points.
+* Both counts are taken modulo :math:`\ker G`, and the left vectors are
+  returned as their Riesz representatives :math:`G^{+}\ker A^{\mathsf T}`,
+  the coordinates
+  :attr:`PredictedKernel.H <orpheus.numerics.fredholm.PredictedKernel.H>`
+  holds.  A containment check against a prediction is then a plain span
+  comparison.
+* The witness is PREDICTOR-BLIND: no parameter names a dimension, a
+  projector or a kernel; the block sizes itself, and :math:`\sigma_{\max}`
+  comes from the witness's own power iteration.
+* ``[M]`` 2026-10-31, against numpy's dense SVD of the production loss:
+  the S\ :sub:`N` mirror boxes have kernels of dimension 2, 3, 12 and 14,
+  and the witness counts each one on both routes.
+
+Why the verdict is predicted and the witness only checks
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+A measured rank is a threshold decision.  A singular value of
+:math:`10^{-15}\sigma_{\max}` is zero in exact arithmetic or is a small
+genuine singular value, and nothing in the matrix says which; the answer
+depends on a cut chosen against round-off.  A production verdict that
+depended on such a cut would change with the mesh, the quadrature and
+the floating-point reduction order.  The prediction has no cut: it reads
+exact zeros of declared data (the absorption-free closed classes, the
+conserving faces, the diamond-difference sawtooth), so the same posing
+always receives the same verdict.  What a prediction cannot do is notice
+that it is wrong.  A predictor that loses a mode decides ``Solve`` on a
+singular operator, and one that invents a mode gauges away a freedom the
+answer does not have.  The witness is the measurement that would see
+both, run in the gates where a threshold is an instrument's setting and
+not a production decision.  The cut is safe there because every measured
+case separates by many decades (the gaps below).
+
+The witness must not be sized by the prediction it checks (the
+instrument doctrine's X4: two spellings of one quantity agree
+tautologically).  A block route started with :math:`k` vectors, where
+:math:`k` is the predicted dimension, would return :math:`k` whatever the
+operator holds, and a witness that projected out the predicted kernel
+first could only confirm it.  So no argument of the witness carries a
+dimension, a projector or a kernel: the row
+``test_W4_the_block_route_is_predictor_blind_by_signature`` asserts this
+on the signature of ``of_splitting``, and the row
+``test_SW2_the_witness_is_predictor_blind`` mutates the S\ :sub:`N`
+predictor and asserts that the witness's answer does not move (below).
+
+The dense route
+"""""""""""""""
+
+:meth:`NearKernel.dense <orpheus.numerics.near_kernel.NearKernel.dense>`
+assembles the operator on its flat chart (the assembly functor's
+``dense``, :ref:`assembly-why-matrix-inverse-chooses-dense`) and takes
+:math:`A = U\Sigma V^{\mathsf T}`.  With
+:math:`\sigma_1 \ge \dots \ge \sigma_n`, the near-null set is
+
+.. math::
+
+   \mathcal N = \{\, i : \sigma_i \le \texttt{RANK\_RTOL}\;\sigma_1 \,\},
+   \qquad k = |\mathcal N| ,
+
+the right near-null vectors are the last :math:`k` columns of :math:`V`
+and the left ones the last :math:`k` columns of :math:`U`.  The route
+reports two singular-value statistics.  ``singular_gap`` is
+:math:`\sigma_{n-k}/\sigma_{n-k+1}`, the ratio of the smallest singular
+value above the cut to the largest one below it (``inf`` when the null
+singular values are exactly zero, ``None`` with no kernel).
+``sigma_min`` is :math:`\sigma_{n-k}`, the smallest singular value
+ABOVE the kernel: the operator's conditioning on the kernel's complement
+is :math:`\sigma_{n-k}/\sigma_1`.  The route's own reading of how null its
+vectors are, ``stop_residual``, is
+:math:`\max_z \lVert A z\rVert/\sigma_1` over the returned right vectors.
+
+The threshold :math:`10^{-10}` is a cut between two measured populations,
+not a tuning knob.  ``[M]`` 2026-10-31 (the test-architect,
+``scratch/membership_covector/u3b/ta/p2_dense_family.py``): on the four
+S\ :sub:`N` mirror boxes the null cluster lies at
+:math:`\sigma_k/\sigma_1 \le 4.44\times10^{-16}` and the next singular
+value at :math:`\sigma_{k+1}/\sigma_1 \ge 1.02\times10^{-3}`; on the three
+singular diffusion posings at :math:`\le 3.63\times10^{-17}` and
+:math:`\ge 2.37\times10^{-2}`.  The cut sits more than five decades
+inside each side.
+
+Because the dense route and the gates' oracle both call
+``np.linalg.svd``, the dense rows are near-tautological in their
+arithmetic.  They pin what the route ADDS to the decomposition: the rank
+cut, the quotient by :math:`\ker G`, the coordinates of the left vectors
+and the gap statistic.  Every mutation arm of the battery (below) is
+aimed at one of those.
+
+The cost bounds the route.  ``[M]`` 2026-10-31 (the plan's route
+measurements, on the thick S\ :sub:`N` boxes): assembly plus SVD takes
+14 s at :math:`n = 2304` (10.9 s assembly, 3.2 s SVD) and 217 s at
+:math:`n = 7680` (66.9 s and 150 s).  ``DENSE_LIMIT = 3000`` is set from
+those two points; above it a gate takes the block route.
+
+The block route: the eigenvalue-1 space of the averaged splitting map
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+At scale the operator is not assembled.  What S\ :sub:`N` does have is a
+splitting :math:`A = M - N` whose implicit part inverts cheaply:
+:math:`M^{-1}` is the sweep (the Strategy's ``Splitting``, which labels
+each loss term implicit or explicit).  Source iteration is the
+map :math:`x \mapsto M^{-1}Nx`.  Its fixed points are the kernel:
+
+.. math::
+
+   M^{-1}N x = x
+   \iff N x = M x
+   \iff (M - N)x = 0
+   \iff A x = 0 ,
+
+using only that :math:`M` is invertible.  So :math:`\ker A` is the
+eigenvalue-1 space of :math:`M^{-1}N`, and finding the kernel is finding
+that eigenspace by iterating the sweep, which is what a matrix-free
+method can afford.
+
+**The averaging, and the** :math:`\lambda = -1` **modes.**  Iterating
+:math:`M^{-1}N` itself does not isolate the kernel.  A power or subspace
+iteration converges to the eigenvalues of largest MODULUS, and on the
+Jacobi splitting of a mirror box :math:`M^{-1}N` has eigenvalues at
+:math:`-1`, the Jacobi boundary's mirror-odd modes.  They have modulus 1 and are not in the
+kernel.  ``[M]`` (the explorer's blast set,
+``scratch/membership_covector/u3b/blast_set.md``) the Jacobi splitting
+has 12 eigenvalues at :math:`-1` on the LS4 :math:`n_g = 2` box and the
+Gauss–Seidel splitting has none.  The witness therefore iterates the
+averaged map
+
+.. math::
+
+   P = \tfrac12\bigl(I + M^{-1}N\bigr) .
+
+If :math:`M^{-1}N v = \lambda v` then :math:`Pv = \tfrac{1+\lambda}{2}v`:
+:math:`P` has the same eigenvectors, with eigenvalue :math:`1` exactly
+where :math:`\lambda = 1` (so :math:`Px = x \iff Ax = 0`), eigenvalue
+:math:`0` where :math:`\lambda = -1`, and
+:math:`|(1+\lambda)/2| < 1` for every other :math:`\lambda` in the
+closed unit disc (the disc :math:`|(1+\lambda)/2 - \tfrac12| \le
+\tfrac12` touches the unit circle only at 1).  When the source iteration
+is a contraction off its kernel, the eigenvalue 1 of :math:`P` is
+therefore isolated, every other eigenvalue lies strictly inside the unit
+disc, and subspace iteration on :math:`P` converges to :math:`\ker A`
+whatever the schedule.  The averaging is not a convergence accelerator
+(it slows the decay of the modes near :math:`\lambda = 1`); it moves the
+spurious unit-modulus modes to the centre of the disc.
+
+``[R]`` One more condition is implicit.  Subspace iteration converges to
+an eigenspace when the eigenvalue is semisimple.  The eigenvalue 1 of
+:math:`P` is the eigenvalue 0 of :math:`M^{-1}A`, whose left null vectors
+are :math:`M^{\mathsf T}\ker A^{\mathsf T}`, so it is semisimple iff
+:math:`L^{\mathsf T}MR` is nonsingular (with :math:`R`, :math:`L` bases of
+:math:`\ker A`, :math:`\ker A^{\mathsf T}`).  This is a different
+condition from the semisimplicity of :math:`A` itself
+(:math:`L^{\mathsf T}R`, which fails for S\ :sub:`N`'s diamond-difference
+kernel, "Why S\ :sub:`N` iterates instead" above).  No gate asserts it
+directly.  Two measurements bear on it on the S\ :sub:`N` boxes.  The
+block route converges on every case below, diamond-difference kernels
+included.  And the dense eigenvalues of :math:`M^{-1}N` at 1 sit within
+about :math:`10^{-14}` of it in the full multiplicity (``[M]`` 2026-10-31,
+``scratch/membership_covector/u3b/route_probe.py``: 2, 3, 12 and 14 of
+them on the LS2 and LS4 boxes, the next one at least :math:`0.048` away),
+where a Jordan pair at 1 would split under round-off by about
+:math:`\sqrt{\varepsilon} \approx 10^{-8}`.
+
+**Why a block, and why the block grows.**  The kernel's eigenvalue is
+REPEATED (14 copies on the LS4 :math:`n_g = 2`, :math:`c = 1` box).  In
+exact arithmetic a single Krylov vector holds one component in each
+eigenvector of a repeated eigenvalue, so a single-vector method sees one
+copy of it per run and recovers more only through round-off.  ``[M]``
+(the plan's route measurements) ARPACK on :math:`P` found 7 of the 14.  The
+witness iterates a BLOCK of :math:`b` orthonormal vectors,
+:math:`X \leftarrow \operatorname{qr}(PX)`, and every 10 applications
+performs a Rayleigh–Ritz step: the eigenpairs :math:`(w_j, y_j)` of the
+:math:`b\times b` matrix :math:`X^{\mathsf T}PX`, the Ritz vectors
+:math:`Xy_j`, and their residuals
+:math:`\lVert PXy_j - w_jXy_j\rVert/\lVert Xy_j\rVert`.  A Ritz pair is
+counted when :math:`|w_j - 1| \le 10^{-8}`.  The block starts at
+:math:`b = 8` and doubles (with fresh random columns) whenever the count
+exceeds :math:`b - 4`: a block that is nearly filled by the eigenvalue 1
+cannot show whether more copies remain, so the block, not the caller,
+decides its size.  On the 14-dimensional kernel the block grows
+:math:`8 \to 16 \to 32`.
+
+**The stop, and its separation certificate.**  The iteration stops when
+three things hold at one Rayleigh–Ritz step: the count equals the count
+at the previous step; every counted pair's residual is at most
+:math:`10^{-12}`; and the largest UNCOUNTED Ritz value is separated from
+1, meaning its residual is at most half its distance from 1,
+
+.. math::
+
+   r_j \;\le\; \tfrac12\,\bigl(1 - |w_j|\bigr) ,
+   \qquad j = \text{the uncounted Ritz value of largest modulus.}
+
+The certificate is what makes "the count stopped changing" a statement
+about :math:`P` rather than about the iteration's progress.  For a normal
+map a Ritz value :math:`w` with residual :math:`r` lies within :math:`r`
+of an eigenvalue, so a residual below half the distance to 1 says the
+eigenvalue it approximates is not 1, and no copy of the eigenvalue 1 is
+hiding among the uncounted values.  ``[R]`` :math:`P` is not normal, and
+for a non-normal map the bound carries the eigenvector condition number
+(Bauer–Fike), so the certificate is a separation test calibrated on the
+measured cases, not a proof.  Without it the
+stop is vacuous at count 0 (the first of the two defects below).  The
+returned basis is real: the eigenvalue 1 is real, so a complex Ritz
+vector of it spans its eigenspace through its real and imaginary parts,
+and the basis is the range of those parts (an SVD with a rank cut, never
+a truncation to the first :math:`k` columns).  The route also reports
+``splitting_gap`` :math:`= 1 - |w_{k+1}|`, the distance from 1 to the
+rest of :math:`P`'s spectrum, and :math:`\sigma_{\max}` by its own power
+iteration on :math:`A^{\mathsf T}A` (at most 500 steps, stopping at a
+relative change of :math:`10^{-10}`).  ``[M]`` (spec section 2.1, W5, the test-architect's p3 on three
+S\ :sub:`N` slabs) :math:`\sigma_{\max}` read as the spectral radius of
+:math:`A` is 2 to 5 times low (13.7 against 27.6, 24.2 against 92.3,
+60.6 against 324.6), which is why the power iteration
+runs on :math:`A^{\mathsf T}A`.
+
+**Two gaps, two names.**  ``singular_gap``
+(:math:`\sigma_{k+1}/\sigma_k`, dense route) is a property of :math:`A`.
+``splitting_gap`` (:math:`1 - |w_{k+1}|`, block route) is a property of
+the splitting as well: the Jacobi and Gauss–Seidel schedules of one
+posing give different values (0.02543 against 0.03199 on LS4
+:math:`n_g = 2`, :math:`c = 0.9`).  It measures how fast the averaged source iteration converges once its
+kernel is deflated, which is a fact about the Strategy, and it is recorded only on the witness's result: the
+``IterationRecord`` gains no field (the record already carries the
+observed ``contraction_ratios``), and the verdict's ``conditioning`` slot
+never holds it.  One field per question (anti-pattern 33).
+
+**The left vectors: the dual split's map, never the transpose of the
+forward one.**  The left null vectors are :math:`\ker A^{\mathsf T}`, and
+the transpose of the splitting is a splitting of :math:`A^{\mathsf T}`:
+:math:`A^{\mathsf T} = M^{\mathsf T} - N^{\mathsf T}`.  Its averaged map
+is
+
+.. math::
+
+   P_{\mathrm{dual}} = \tfrac12\bigl(I + M^{-\mathsf T}N^{\mathsf T}\bigr) ,
+   \qquad
+   P_{\mathrm{dual}}\,y = y
+   \iff M^{\mathsf T}y = N^{\mathsf T}y
+   \iff A^{\mathsf T}y = 0 ,
+
+so its fixed points are the left kernel itself.  The transpose of the
+forward map is a different operator,
+:math:`P^{\mathsf T} = \tfrac12(I + N^{\mathsf T}M^{-\mathsf T})`, and its
+fixed points are :math:`z` with :math:`N^{\mathsf T}M^{-\mathsf T}z = z`;
+writing :math:`z = M^{\mathsf T}y` turns that into
+:math:`A^{\mathsf T}y = 0`, so the fixed points of :math:`P^{\mathsf T}`
+are :math:`M^{\mathsf T}\ker A^{\mathsf T}`, not :math:`\ker A^{\mathsf T}`.
+``[M]`` (spec section 2.1, the arm ``adjoint_order``) the left containment
+under the transposed forward map reads 0.70 on the S\ :sub:`N` feeder slab
+and 0.30 on the thick slab, against :math:`2\times10^{-13}` and
+:math:`1.6\times10^{-9}` with the dual split's map.  The route builds the
+dual map from ``inverse.dual()`` and ``lagged.dual()``, the algebra's
+transpose door, so on S\ :sub:`N` it reads the transposed sweep
+:math:`(L+C)^{-\mathsf T}` (#616, :ref:`loss-rep-multid-transposed-sweep`),
+which before 2026-10-31 existed in one dimension only.  That dependency is
+why #616 was built first.
+
+The route requires that ``implicit`` inverts and that both parts
+transpose; ``of_splitting`` refuses an implicit part that does not
+invert, by name.  The S\ :sub:`N` operators act on the full-field
+carrier, so a gate passes them through ``FlattenedOperator``, which
+inverts and transposes exactly when its inner operator does
+(:ref:`flattened-operator-inverse-transpose`).
+
+``[M]`` 2026-10-31 (the plan's route measurements, a prototype of the
+route in ``scratch/membership_covector/u3b/block_probe.py`` and
+``thick_probe.py``; the stop there is :math:`\lVert Az\rVert/\sigma_{\max}
+< 10^{-12}`): on the LS4 :math:`n_g = 2`, :math:`c = 1` box the block
+iteration finds 14 of 14 right and 14 of 14 left vectors, contained in
+the dense kernels to :math:`\le 4.4\times10^{-12}`, in about 4,500 sweep
+applications.  On the thick boxes:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 12 10 18 16 14
+
+   * - box (LS4, :math:`c = 1`, mirror on every face)
+     - :math:`n`
+     - :math:`\dim\ker A`
+     - sweep applications
+     - containment
+     - :math:`P`'s gap
+   * - 3.2 mean free paths, :math:`8\times8`
+     - 2,304
+     - 7
+     - 3,380
+     - :math:`1.2\times10^{-10}`
+     -
+   * - 12.8 mean free paths, :math:`16\times16`
+     - 7,680
+     - 7
+     - 7,410
+     - :math:`2.5\times10^{-10}`
+     - 0.0087
+
+The 12.8-mean-free-path box is above ``DENSE_LIMIT`` and its dense
+oracle costs 217 s, so it is evidence recorded here and not a gate row;
+the 3.2-mean-free-path box carries the thick regime in the gates, with a
+dense oracle.
+
+The two quotients
+"""""""""""""""""
+
+**Modulo** :math:`\ker G`.  A coordinate whose metric weight is zero
+(the tangential trace slots of a closed face, :math:`\Omega\cdot\hat n =
+0`) lies outside the Hilbert space the question is posed on
+(:ref:`fredholm-posing-verdict`, "The kernel is predicted modulo
+:math:`\ker G`").  A near-null vector supported only there is not an
+element of that space, so both counts are taken on the :math:`G > 0`
+coordinates: of an orthonormal basis :math:`B` of the raw near-null
+space, the route keeps the directions along which :math:`B` restricted to
+:math:`G > 0` has a singular value above :math:`10^{-8}`, and
+re-orthonormalises them.  The tolerance is absolute because it is judged
+on an orthonormal basis.  ``[M]`` (the test-architect's probe p1) the
+``product(4,4)`` quadrature on a 2-D mirror :math:`(3,4)` box has 112
+tangential trace slots with zero metric and zero rows and columns of
+:math:`A`, so the raw nullity is at least 112.  The block route must
+quotient on its OUTPUT as well: the production sweep writes into the
+:math:`\ker G` slots (``[M]`` p1b, values up to 1.75), so a route that
+assumed they stay zero would miscount.
+
+**The left coordinates.**  A left null vector :math:`y` of :math:`A` is a
+co-vector (:ref:`spaces-covector`); its Riesz representative is
+:math:`G^{+}y`, which is what
+:attr:`PredictedKernel.H <orpheus.numerics.fredholm.PredictedKernel.H>`
+holds as its right summands (:math:`\ker A^{\mathsf H} =
+G^{-1}\ker A^{\mathsf T}`, above).  ``NearKernel.left`` is returned in
+those coordinates, an orthonormal basis of :math:`G^{+}\ker
+A^{\mathsf T}` modulo :math:`\ker G`, so checking a prediction's left
+half is a span comparison with ``kernel.H.right`` and no metric
+arithmetic in the gate.  The order matters: the quotient is judged on
+the orthonormal, UNRAISED basis, and only then are the kept directions
+multiplied by :math:`G^{+}` and re-orthonormalised (the second defect
+below).  The metric must be diagonal: the witness reads it through the
+kernel gauge's one declared door,
+:func:`~orpheus.numerics.kernel_projection_gauge.diagonal_metric`.
+
+The result type
+"""""""""""""""
+
+.. list-table::
+   :header-rows: 1
+   :widths: 24 76
+
+   * - field
+     - what it holds
+   * - ``right``
+     - :math:`(n, k)`, an orthonormal basis of the measured
+       :math:`\ker A` modulo :math:`\ker G`; ``dimension`` is :math:`k`
+   * - ``left``
+     - an orthonormal basis of :math:`G^{+}\ker A^{\mathsf T}` modulo
+       :math:`\ker G` (the coordinates of ``PredictedKernel.H``)
+   * - ``sigma_max``
+     - :math:`\sigma_1`: the SVD's on the dense route, the power
+       iteration's on the block route
+   * - ``sigma_min``
+     - dense route: :math:`\sigma_{k+1}`, the smallest singular value
+       above the kernel; ``None`` on the block route
+   * - ``singular_gap``
+     - dense route: :math:`\sigma_{k+1}/\sigma_k`
+   * - ``splitting_gap``
+     - block route: :math:`1 - |w_{k+1}|` of :math:`P`
+   * - ``stop_residual``
+     - :math:`\max\lVert Az\rVert/\sigma_{\max}` over the right vectors
+   * - ``route``
+     - ``"dense"`` or ``"block"``
+
+What the gates measure
+""""""""""""""""""""""
+
+Three files, ordered as a ladder: the primitive on domain-free matrices,
+then the two methods' production operators, each row declaring the rows
+it rests on.
+
+* **The primitive** (``tests/gates/numerics/test_near_kernel.py``,
+  level L0).  The witness is pinned against matrices with CHOSEN singular
+  structure (a verified primitive is trusted against a domain-free closed
+  form, never only against an in-domain solver).  W1:
+  :math:`A = U\operatorname{diag}(s)V^{\mathsf T}` with seeded orthogonal
+  :math:`U, V` (:math:`n = 40`), :math:`s` geometric from 10 to 0.05 then
+  :math:`k \in \{0, 1, 3, 7\}` exact zeros; the dense route returns
+  dimension :math:`k`, the spans of the last :math:`k` columns of
+  :math:`V` and :math:`U`, and a gap :math:`\ge 10^{10}`.  W2: a diagonal
+  :math:`G` (entries 0.5 to 4) with three exact zeros, whose rows and
+  columns of :math:`A` are zeroed: three raw null vectors supported on
+  :math:`\ker G` are not counted, and the left vectors are the
+  :math:`G^{+}` images.  W3: a splitting whose :math:`M^{-1}N` has a
+  chosen spectrum, :math:`k \in \{1, 3, 14\}` eigenvalues at 1, three at
+  :math:`-1`, the rest in :math:`|\lambda| \le 0.9` (:math:`n = 60`); the
+  block route returns exactly :math:`k`, not :math:`k + 3`, the right span
+  of the chosen eigenvectors, the left span of :math:`\ker A^{\mathsf T}`,
+  and ``splitting_gap`` :math:`= 1 - \max|(1+\lambda_j)/2|` over the rest
+  (relative :math:`10^{-6}`); :math:`k = 14` from a starting block of 8
+  exercises the growth.  W4: the signature of ``of_splitting`` names no
+  dimension, kernel, projector or block size.  W5: the block route's
+  :math:`\sigma_{\max}` within 1 % of the SVD's.  W6, W6b: ``measure``
+  takes each route on its side of ``DENSE_LIMIT`` (a counting spy per
+  route, the limit read from the module).
+* **Diffusion** (``tests/gates/diffusion/test_near_kernel_witness.py``,
+  L1, dense route on the solver's ``pencil.lhs``).  Five posings
+  covering the absorbing-chain predicate's shapes: a one-group closed
+  class, a two-group class, a class with a feeder (``g2_only``, whose left
+  co-vector reads the feeder's absorbing-chain probability), up-scatter
+  that closes no class, and a ``white(0.999)`` wall that leaks.
+  Measured dimension :math:`=` the dense SVD's :math:`=` the predicted
+  (1, 1, 1, 0, 0); with a kernel the predicted right and ``.H`` spans
+  contain the measured ones to :math:`10^{-12}` and the gap is
+  :math:`\ge 10^{10}` (``[M]`` p2: :math:`2.87\times10^{15}`,
+  :math:`6.54\times10^{14}`, :math:`1.71\times10^{15}`); without one,
+  :math:`\sigma_{\min}/\sigma_{\max}` equals the dense value
+  (:math:`9.86\times10^{-3}` and :math:`2.37\times10^{-5}`, the second a
+  near-singular control).
+* **S**\ :sub:`N` (``tests/gates/sn/operators/test_near_kernel_witness.py``,
+  L1).  The production splitting
+  ``Splitting.from_schedule(system, resolve_schedule(problem, schedule))``,
+  implicit part and summed lagged parts, each in a ``FlattenedOperator``.
+
+  - **S-W1**, dense route, the four mirror boxes of
+    :ref:`sn-loss-kernel-predicted` (``T._mesh((3, 4), mirror², ...)``):
+
+    .. list-table::
+       :header-rows: 1
+       :widths: 30 12 10 16 16 16
+
+       * - case
+         - :math:`n`
+         - :math:`k`
+         - :math:`\sigma_k/\sigma_1`
+         - :math:`\sigma_{k+1}/\sigma_1`
+         - gap
+       * - LS2 :math:`n_g = 1`, :math:`c = 0.9`
+         - 208
+         - 2
+         - :math:`3.22\times10^{-17}`
+         - :math:`1.16\times10^{-3}`
+         - :math:`3.59\times10^{13}`
+       * - LS2 :math:`n_g = 1`, :math:`c = 1`
+         - 208
+         - 3
+         - :math:`2.14\times10^{-16}`
+         - :math:`2.18\times10^{-3}`
+         - :math:`1.02\times10^{13}`
+       * - LS4 :math:`n_g = 2`, :math:`c = 0.9`
+         - 1,248
+         - 12
+         - :math:`4.44\times10^{-16}`
+         - :math:`1.02\times10^{-3}`
+         - :math:`2.29\times10^{12}`
+       * - LS4 :math:`n_g = 2`, :math:`c = 1`
+         - 1,248
+         - 14
+         - :math:`4.44\times10^{-16}`
+         - :math:`3.70\times10^{-3}`
+         - :math:`8.32\times10^{12}`
+
+    ``[M]`` (the test-architect's p2).  Measured dimension :math:`=`
+    dense :math:`=` predicted; the predicted right span equals the
+    measured one both ways to :math:`10^{-12}`; ``kernel.H.right``
+    contains the measured left vectors (measured
+    :math:`\le 7.1\times10^{-14}`).  The LS4 boxes have 1,248 degrees of
+    freedom; the specification's earlier figure of 672 was wrong.  At
+    :math:`c = 1` the physical kernel adds its modes to the
+    diamond-difference ones (3 against 2, 14 against 12).
+  - **S-W2**, predictor-blindness.  The physical predictor is replaced
+    by a trivial one in every module that binds it (the rebind count is
+    asserted), so ``problem.predicted_kernel.dimension`` reads 12 on the
+    LS4 :math:`c = 1` box (the activation leg); both routes still measure
+    14, and the comparison S-W1 makes would red on this input.
+  - **S-W3**, the quotient on a production loss.  ``product(4,4)`` on the
+    mirror box, :math:`n_g = 1`: the raw nullity is at least 112, and
+    modulo :math:`\ker G` it is 0 at :math:`c = 0.9` and 1 at
+    :math:`c = 1`, on both routes.  At :math:`c = 1` the predictor refuses
+    today (the scope door's tangential entry,
+    :ref:`sn-loss-kernel-predicted`), so the witness measures alone; the
+    row is the quotient's only gate on a production loss.
+  - **B-W**, the block route against the dense route, right AND left
+    spans, within the tolerance derived from the route's own stopping
+    residual by the Davis–Kahan / Wedin bound
+    :math:`\sin\theta \le r\,\sigma_1/\sigma_{k+1}` (asserted with a
+    factor 10, never a fixed :math:`10^{-10}`: ``[M]`` the thick 1-D slab
+    needs :math:`1.58\times10^{-9}`); every right vector null to that
+    residual; ``splitting_gap`` equal to the dense :math:`P`'s to relative
+    :math:`10^{-3}`:
+
+    .. list-table::
+       :header-rows: 1
+       :widths: 34 14 8 16 28
+
+       * - case
+         - schedule
+         - :math:`k`
+         - :math:`1 - |w_{k+1}|`
+         - status
+       * - LS4 :math:`n_g = 2`, :math:`c = 0.9`
+         - Jacobi
+         - 12
+         - 0.02543
+         - runs
+       * - LS4 :math:`n_g = 2`, :math:`c = 0.9`
+         - Gauss–Seidel
+         - 12
+         - 0.03199
+         - strict xfail, #681
+       * - LS4 :math:`n_g = 2`, :math:`c = 1`
+         - Jacobi
+         - 14
+         - 0.07729
+         - runs
+       * - LS4 :math:`n_g = 2`, :math:`c = 1`
+         - Gauss–Seidel
+         - 14
+         - 0.08726
+         - strict xfail, #681
+       * - 1-D feeder class, GL8, 6 cells
+         - Jacobi
+         - 1
+         - 0.2019
+         - runs
+       * - 1-D thick slab, 25.6 mean free paths, GL16, 64 cells, :math:`c = 1`
+         - Jacobi
+         - 1
+         - 0.002395
+         - ``slow``
+       * - 2-D thick box, 3.2 mean free paths, LS4
+         - Jacobi
+         - 7
+         - not asserted
+         - ``slow``
+
+    The gap column is ``[M]`` (the test-architect's p7 and p9, from the
+    dense :math:`P` built from production ``M.inverse()`` columns).
+
+**The Gauss–Seidel rows are strict xfails on #681.**  On the
+Gauss–Seidel schedule the implicit part is
+:math:`M = (L+C) - B_{\mathrm{lower}}`, a different operator from the
+bare :math:`L + C`, and its transposed solve is not built
+(`#681 <https://github.com/deOliveira-R/ORPHEUS/issues/681>`_; #616
+built the Jacobi arm only).  The dual split's map needs
+:math:`M^{-\mathsf T}`, so the block route's left half raises
+``MissingAdjoint``.  The two rows are
+marked ``xfail(strict=True, raises=MissingAdjoint)``: they turn green
+when #681 lands, and a strict xfail that passed would red the run, so
+the deferral cannot be forgotten.  The right half needs no transpose and
+the averaged map handles the Gauss–Seidel spectrum (no :math:`-1` modes),
+but the row measures both halves together.
+
+**What the merge-deciding run sees.**  The two thick rows are ``slow``
+and are deselected by ``-m "not slow"``; the 1,248-degree-of-freedom LS4
+rows are the block route's catchers in that run.
+
+**The mutation battery.**  ``[M]`` 2026-10-31 (the orchestrator,
+``scratch/membership_covector/u3b/carve/witness_arms.sh``, under ``-O``
+and ``-m "not slow"``, over ``tests/gates/numerics/test_near_kernel.py``
+and ``tests/gates/sn/operators/test_near_kernel_witness.py``; each arm
+collected 26 rows, of which 22 run, 2 are deselected as ``slow`` and 2
+are the Gauss–Seidel strict xfails; the witness module was restored byte
+for byte after the run):
+
+.. list-table::
+   :header-rows: 1
+   :widths: 22 48 30
+
+   * - arm
+     - mutation
+     - red rows (of 22 running)
+   * - ``no_averaging``
+     - the block route iterates :math:`M^{-1}N` instead of :math:`P`
+     - 9
+   * - ``wrong_left_map``
+     - the left route iterates :math:`P^{\mathsf T}`, the transpose of
+       the forward map, instead of the dual split's map
+     - 6
+   * - ``fixed_block``
+     - the block never grows
+     - 4
+   * - ``no_quotient``
+     - every direction is kept, whatever its weight on :math:`G > 0`
+     - 3
+
+Every arm reddens rows, and each is aimed at one property the route adds
+to the decomposition it calls (the averaging, the dual map, the adaptive
+block, the quotient).
+
+.. (verification note, no vv-status: no labelled equation here) The rows
+   above are l0 (numerics) and l1 (diffusion, SN); none carries a
+   verifies marker, because this section labels no equation.  The
+   predicted kernels they check are derived at sn-loss-kernel-predicted
+   and diffusion-fredholm-verdict.
+
+What was tried and failed
+"""""""""""""""""""""""""
+
+Each matrix-free route below was refuted FOR the question *find the
+near-kernel of the loss at scale, with its multiplicity*; the FACT each
+establishes is stated beside it.  ``[M]`` 2026-10-31 on the LS4
+:math:`n_g = 2`, :math:`c = 1` mirror box (14-dimensional kernel,
+:math:`n = 1248`), probes
+``scratch/membership_covector/u3b/{route,iterative}_probe.py``:
+
+* **Lanczos on** :math:`A^{\mathsf T}A` (``scipy.sparse.linalg.eigsh``,
+  smallest eigenvalues) did not converge in 20,000 iterations.  ``[R]``
+  The reason: squaring the operator squares the condition; the bottom of
+  :math:`A^{\mathsf T}A`'s spectrum is a 14-fold cluster at about
+  :math:`10^{-31}\sigma_1^2` beside :math:`\sigma_{k+1}^2 \approx
+  10^{-5}\sigma_1^2`, and a Krylov method aimed at the smallest
+  eigenvalues of a matrix whose spectrum spans :math:`[0, \sigma_1^2]`
+  reaches them only through a shift-invert the matrix-free setting does
+  not have.
+* **LOBPCG on** :math:`A^{\mathsf T}A` stalled at the
+  :math:`\sqrt{\varepsilon}` floor (about :math:`10^{-6}` in :math:`\sigma`),
+  so its gap read about :math:`10^{5}`, not the :math:`10^{10}` and more
+  the dense SVD reads.  The fact: through the normal equations a singular
+  value below :math:`\sqrt{\varepsilon}\,\sigma_1` is unresolvable.
+* **PROPACK** (the Lanczos bidiagonalisation of :math:`A`) returned 7 of
+  the 14 clustered vectors.
+* **Single-vector ARPACK on the sweep operator.**  On :math:`M^{-1}N` it
+  returned the :math:`\lambda = -1` modes, which have modulus 1 and are
+  not in the kernel; on the averaged :math:`P` it found 7 of the 14,
+  because one Krylov vector holds one copy of a repeated eigenvalue.  The
+  facts: the averaging is necessary (it fixed the first failure) and not
+  sufficient (it did not fix the second); together they are the block
+  route's design.
+
+**Two defects the drafted rows caught in the first implementation.**
+Both were caught by the test-architect's rows, drafted from the
+specification before the code (``[M]`` 2026-10-31, the orchestrator,
+``-O``).
+
+* **The quotient judged after raising.**  The first draft multiplied the
+  left vectors by :math:`G^{+}` and then judged the :math:`\ker G`
+  quotient on the raised columns, with a keep test relative to their
+  norms (its first version effectively ``sv > 0``).  On W2's fixture,
+  whose three raw null vectors are all supported on :math:`\ker G`, the
+  :math:`G > 0` parts are round-off (about :math:`10^{-17}`), so the
+  raised columns were tiny and not zero, and both stages kept them: the
+  witness returned 3 left vectors where the quotient kernel is empty, and
+  W2's span residual read 1.0 against its :math:`10^{-12}` band.  The fix
+  judges the quotient on the unraised orthonormal basis with the absolute
+  tolerance :math:`10^{-8}`, then raises and re-orthonormalises.
+* **The vacuous stop at count 0.**  The first stop was "the count is
+  unchanged over two Rayleigh–Ritz steps and every counted pair has
+  converged".  With no Ritz value yet within :math:`10^{-8}` of 1, the
+  count was 0 at both steps and "every counted pair" ranged over nothing,
+  so the stop was true at the second check, before anything had
+  converged.  W3 with :math:`k = 1, 3, 14` and W6b returned dimension 0
+  against 1, 3, 14 and 3, with ``splitting_gap`` readings of
+  :math:`1.85\times10^{-4}`, :math:`5.5\times10^{-5}`,
+  :math:`-9.9\times10^{-6}` and :math:`-1.2\times10^{-4}`; a negative gap
+  means the largest Ritz value was still above 1 in modulus, unconverged.
+  The fix is the separation certificate above.
+
+**Honest scope.**  The witness measures; it does not lift the
+S\ :sub:`N` scope door (:ref:`sn-loss-kernel-predicted`).  The
+class-block null-vector solve through the sweep, which would derive the
+door's entries instead of refusing them, and S\ :sub:`N`'s lazy
+1-norm conditioning reading, which would replace its ``NotApplicable``,
+are the plan's next steps in U3b and are not built.  The block route's
+cost is one sweep and one lagged action per vector per application, and
+its count rests on the cut :math:`|w - 1| \le 10^{-8}`, a gate setting
+like the dense route's.
 
 The exit report — evidence, not a nullable number
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -10371,6 +11075,22 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-10-31
+     - **The predicted kernel is checked by a measured near-kernel**
+       (unit U3b of ``.claude/plans/space_membership_covector_gauge.md``,
+       its witness step). New: :mod:`orpheus.numerics.near_kernel`,
+       ``NearKernel`` with a dense route (the SVD, the cut
+       ``RANK_RTOL``, up to ``DENSE_LIMIT``) and a predictor-blind block
+       route (block subspace iteration on the averaged splitting map
+       :math:`(I + M^{-1}N)/2`, the left vectors from the dual split's
+       map), both quotiented by :math:`\ker G` and returning the left
+       vectors in ``PredictedKernel.H``'s coordinates.
+       ``FlattenedOperator`` gains ``inverse()`` (the flattened inverse).
+       It checks and never decides
+       (:ref:`fredholm-near-kernel-witness`, with the refuted
+       matrix-free routes and the two defects its rows caught).
+     - #616, #681
+     - *(in development)* on branch ``refactor/space-membership``
    * - 2026-10-31
      - **Every posing derives its Fredholm verdict from the pencil's
        predicted kernel** (unit U0 of

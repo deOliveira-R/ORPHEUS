@@ -2032,6 +2032,71 @@ would be :math:`[A\otimes B] = [A]\otimes[B]`, a
 :func:`scipy.sparse.kron`; no assembled operator contains a tensor-product
 factor (the diffusion loss and the SN :math:`L + C` trees have none).
 
+.. _flattened-operator-inverse-transpose:
+
+``FlattenedOperator`` inverts and transposes exactly when its inner operator does
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The flattened view :math:`A_{\flat} = \operatorname{flat}\circ A\circ
+\operatorname{unflat}` is the typed operator :math:`A` read in the flat
+coordinates of its carrier's chart.  The chart is an isometry of
+coordinates: ``to_flat`` and ``from_flat`` are mutually inverse
+relabellings of the same numbers, with no weight and no change of basis.
+So the flattened view inherits the inner operator's structure by
+conjugation, and nothing new is computed:
+
+.. math::
+
+   \bigl(\operatorname{flat}\, A\, \operatorname{flat}^{-1}\bigr)^{-1}
+     = \operatorname{flat}\, A^{-1}\, \operatorname{flat}^{-1} ,
+   \qquad
+   \bigl(\operatorname{flat}\, A\, \operatorname{flat}^{-1}\bigr)^{\mathsf T}
+     = \operatorname{flat}\, A^{\mathsf T}\, \operatorname{flat}^{-1} .
+
+The second identity uses that the chart is orthogonal in the Euclidean
+coordinates: a ravel is a permutation of indices, so
+:math:`\operatorname{flat}^{\mathsf T} = \operatorname{flat}^{-1}`.  Both read the template on the input
+side, so they hold for the endomorphisms the adapter serves, whose
+domain and codomain share one chart.  In the code:
+
+* ``is_invertible`` is ``invertible(inner)`` and ``inverse()`` returns
+  ``FlattenedOperator(inner.inverse(), template)``: the inverse of a
+  flattened operator is the flattened inverse.  On S\ :sub:`N` the
+  flattened :math:`L + C` therefore inverts by the sweep, flattened, and
+  no matrix is formed.  It refuses with ``ValueError`` when the inner does
+  not invert.  This is a different route from
+  ``MatrixInverseOperator(FlattenedOperator(A, template))``, which
+  assembles :math:`A` and LU-factors it (the diffusion resolvent,
+  :ref:`assembly-why-matrix-inverse-chooses-dense`): ``inverse()`` uses
+  the inner operator's own inverse, whatever it is, and assembles
+  nothing.  Its first consumer is the near-kernel witness's block route
+  (:ref:`fredholm-near-kernel-witness`), which reads the S\ :sub:`N`
+  sweep through it; the S\ :sub:`N` block rows of
+  ``tests/gates/sn/operators/test_near_kernel_witness.py`` are the gates
+  that execute it (added 2026-10-31).
+* ``is_adjointable`` is ``adjointable(inner)``, and ``apply_transpose``
+  realises the transpose through the inner operator's dual arrow,
+  ``inner.dual().apply`` on the unflattened input.
+
+**The flag that read** ``False`` **while the transpose worked.**
+``apply_transpose`` was added in unit U0 of the space-membership campaign
+(``ef5eea29``, 2026-10-31), but ``is_adjointable`` was left at the base
+class's ``False``.  The flattened view realised a transpose while
+declaring it had none, so the algebra's ``.dual()`` door, which reads the
+flag, refused a transpose the adapter could compute.  Nothing noticed
+while every caller used the protocol verb ``apply_transpose`` directly.
+It surfaced when the diffusion pencil's annihilation check was
+re-spelled through the door (``f5788cba``, the same day): the
+diffusion verdict row D6 of
+``tests/gates/diffusion/test_fixed_source_verdict.py`` reddened.  The flag is now derived from the
+inner operator, and the row ``diffusion_flattened_fission`` of
+``tests/gates/numerics/test_adjointability_is_honest.py`` holds the
+flattened fission to the honesty contract (``.dual()`` constructs and
+applies exactly when ``is_adjointable`` says it does, in both
+directions).  The flattened LOSS row
+beside it stays blocked on #614, because its inner operator does not
+transpose.
+
 Why assembly is a homomorphism out of the algebra
 -------------------------------------------------
 
