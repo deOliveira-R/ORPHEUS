@@ -127,6 +127,57 @@ base name ends in `Protocol`; script `scratchpad/protocols.py`, not tracked), 23
 - **M4** How the existing law gates are organised (the operator adjoint gates, the frame and quadrature gates): defined
   once and parametrised over conformers, or re-written per conformer.
 
+## 4b. The user's re-framing (2026-10-31): numerics holds layers 2 and 3 of the posing sequence
+
+The user, verbatim: *"numerics today has almost everything that is not neutron transport (with exeception of geometry,
+mesh and data pretty much), and so something like Eigenvalue solver can't import from Sn. However this just calls to
+question whether some stuff needs to come out of numerics when we realize the 3 layer strategy where layer 1 defines
+the discretization, layer 2 defines the problem (so pick what comes from layer 1 and manipulates space to split by
+ordinates or by energy, SCCs, etc), and layer 3 tackles the solution. EigenvalueSolver seems to be a layer 3 concern for
+example. Whatever is layer 2 and 3 might have to be extracted from numerics for the sake or organization and so that it
+doesn't grow into a god module."* The three layers are `posing_sequence.md`'s.
+
+**Measured 2026-10-31.**
+- `[M]` The numerics concept order (`tests/gates/numerics/test_concept_order.py`, `TIERS`) already ENDS in the posing
+  stack, as a contiguous suffix: `fredholm`/`near_kernel` < `pencil` < `posing` (layer 2) < `outcome` < `convergence`
+  < `eigenvalue` < `iteration` < `green_operator` (layer 3). Because the order is a gated acyclic order, no module
+  ranked below `fredholm` imports any of these 9, so a cut at that tier is clean by the gate's own measurement.
+- `[M]` Who imports them from outside numerics (AST census of `ImportFrom`/`Import` in `orpheus/`, relative imports
+  resolved; positive control: `sn` imports `numerics.operator`; script `scratchpad/numerics_importers.py`, untracked):
+  `pencil` diffusion 1, homogeneous 2, sn 2; `posing` diffusion 1, homogeneous 2, sn 4; `fredholm` diffusion 1,
+  homogeneous 1, sn 3; `outcome` diffusion 1, homogeneous 1, reference 1, sn 2; `convergence` cp 1, diffusion 1, moc 2,
+  sn 2; `eigenvalue` cp 1, diffusion 1, moc 1, sn 1; `iteration` sn 4; `green_operator` sn 5. Counts are import
+  STATEMENTS per package, not files.
+- `[M]` Four modules that are conceptually layer 2 or 3 rank LOW, because low layers import them as values: `question`
+  (specification 1, derivations 2), `observable` (reference 4, specification 1, derivations 2, homogeneous 1, sn 1),
+  `evidence` and `enclosure` (reference). `gauge` ranks low too (homogeneous 1, sn 1).
+
+**Consequences `[R]`.**
+1. The extracted packages cannot sit ABOVE the methods: the L3 methods import them (they call `power_iteration`, mint
+   pencils). Nor above `reference`, which imports `outcome`. So the stages become method-agnostic packages stacked
+   directly on numerics: `numerics` (the mathematics layer 1 is written in) < a posing package < a solution package,
+   siblings of `data`, below `specification`, `reference`, `transport` and the methods. The names are owed.
+2. The stages are a SECOND AXIS, orthogonal to the knowledge layers: every method realises all three stages (`sn/`
+   has its discretization, `SNProblem`, its strategies), and the generic packages hold each stage's method-agnostic
+   part. The layer table becomes a grid: knowledge (generic, transport, method) by stage.
+3. Extraction does not remove framework edges; it puts them in named nodes. But it EXPOSES one as the wrong kind of
+   contract. `[M]` `EigenvalueSolver` (`numerics/eigenvalue.py:106`) is a procedural plug-in: the method implements
+   the outer loop's steps (`initial_flux_distribution`, `compute_fission_source`, `solve_fixed_source`,
+   `compute_keff`), and `power_iteration` calls them. `[R]` In the posing ontology `power_iteration` consumes a layer-2
+   VALUE (an `EigenPosing` of the pencil `(A, F)`) and a Strategy; the edge solution-to-posing is then a service edge
+   carrying a value type, needing no Protocol, and the methods' only framework contract left is the operator algebra
+   (`LinearOperator` and its `Supports*` capability protocols), which methods implement and generic algorithms
+   consume. Prediction to measure (M1): after the posing sequence is realised for every method, the framework-edge
+   Protocols reduce to the operator-algebra family. CP and MoC still rebuild fission by hand (`posing_sequence.md`,
+   census 2026-09-27), so they are the last `EigenvalueSolver` realisers.
+4. This is node organisation, so it belongs to `layer_dag.md` (a phase defining the posing and solution nodes), on the
+   graph-first line the user ruled; the contract work of this plan follows it.
+
+- **M5** For the low-ranked layer-2/3 value modules (`question`, `observable`, `evidence`, `enclosure`, `gauge`): which
+  stage each belongs to, and whether its low consumers force it to stay in numerics or can import a posing package
+  placed below them.
+- **M6** The `EigenvalueSolver` realisers (5, per `numerics/eigenvalue.py:101`) and which already have a pencil.
+
 ## 5. Candidate ontologies
 
 - **C1 Protocol per edge.** Every edge gets a Protocol. Unspellable: an undeclared dependence. Welded: value-type edges
@@ -155,6 +206,7 @@ base name ends in `Protocol`; script `scratchpad/protocols.py`, not tracked), 23
 ## 8. Rulings ledger
 
 - 2026-10-31 The user: open a living plan; discuss and measure before planning the build.
+- 2026-10-31 The user (not yet a ruling): layers 2 and 3 of the posing sequence may have to leave numerics, so it does not grow into a god module (§4b).
 
 ## 9. Start condition
 
