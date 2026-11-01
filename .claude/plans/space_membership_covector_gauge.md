@@ -532,3 +532,24 @@ All measured on the d = 2 mirror boxes of `tests/gates/sn/operators/test_loss_ke
 - **The 2-D Green honesty row now opens both doors.** Its refusal-era version passed no `y`, and the default (flux-classed) is the wrong class for a Green's adjoint. The fix is a source-classed `y` plus the witness, the Green of the adjoint split.
 
 **Lesson — pyright from a worktree checks nothing.** `[M]` A control file holding a known type error read 0 errors when pyright was run from the worktree with no config of its own. Pyright then picks up the main checkout's `pyrightconfig.json`, whose `**/.*` exclude hides `.claude/worktrees/`. The fix is a gitignored worktree-local `pyrightconfig.json` pointing at the main `.venv`. With it the control reads 1 error, and the changed files read 5 errors, all also present in HEAD's copy of `tests/gates/numerics/test_adjointability_is_honest.py`, so the carve adds 0. Every earlier "pyright 0 errors" claim in this plan made from the worktree was vacuous, and the pre-merge check re-runs it with the config.
+
+### U3b — #616 landed, type debt cleared (2026-10-31)
+
+**Landed:**
+- #616: `249d8f45`, with docs fixes `7a805cb5` and `239acad4`.
+- The type-error fix: `f5788cba`.
+
+**Measurements:**
+- `[M]` The suites are green after both commits (`-O`): numerics 5765, sn 4245, transport 1466, diffusion 168, homogeneous 149, cross_method 262, reference 352, plus the structural gates.
+- `[M]` pyright with a worktree config (control: 1 error):
+  - this branch adds 0 errors against `main`: 226 against 232;
+  - the vacuous runs had hidden 29 errors in 16 files.
+- The real defects pyright found: `FlattenedOperator`'s false `is_adjointable`; SN's scope door subscripting a metric diagonal that can be `None`; the eigen verb called with `None`; 16 operator verbs typed narrower than ruling D1 admits.
+
+**Lessons:**
+- A zsh unquoted `$files` is not word-split, so a pyright run over it checks nothing.
+- `git grep` with `\b` needs a positive control. The retirement check for the renamed metric-diagonal door was redone in Python.
+
+**Next:** the witness, `NearKernel` (the test-architect's drafted rows are in `scratch/membership_covector/u3b/drafts/`, behind `_u3b_accessors.py`). Then:
+- SN's lazy rcond: the `Deferred` evidence and the dlacn2 estimator;
+- the class-block solve, `class_null_mode`, lifting the heterogeneous entry first.
