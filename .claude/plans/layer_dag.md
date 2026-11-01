@@ -374,3 +374,51 @@ Then Phase 2, after the test-architect's spec, and then Phase 4.
     - Mode: the main agent or single agents (the user, 2026-10-26: no dynamic workflows); a move is a W3 carve with the retirement audit (`retirement-audit` G.24, F.23) and `dead_references` after it.
 
 **Next, in order** (supersedes the close-out's "Next" of 2026-10-27): the U3b merge on `refactor/space-membership` (its own plan's ⏸ point); Phase 5's design (the cut, the names, M5); Phase 2's spec against it; Phase 5's move with Phase 2; Phase 4.
+
+## Phase 5 design — the measurements and the proposal (2026-11-01, for the user's rulings)
+
+### What was measured
+
+All `[M]` 2026-11-01 at `main` `224bd166`. The census is an AST pass over `orpheus/` and `tests/` (`import` and absolute `from ... import` statements; the numerics-internal edges come from the concept-order gate's own `import_edges`). Positive control: the pass finds `operator` imported by `pencil`, and `orpheus.numerics.operator` named in the tree. Script: `scratchpad/m5.py` (session-local).
+
+**M5, the five low-ranked value modules.** For each: which numerics modules import it (a module imported by a numerics module that stays must stay too), and who imports it from outside numerics.
+
+| module | what it is (its docstring) | numerics importers | importers outside numerics |
+|---|---|---|---|
+| `question` | what is asked of a system (`Eigen`, ...), posed on an operator family at a base point | none | specification 1, derivations 2 |
+| `observable` | the number read off an answer, whichever answer is asked | none | reference 4, derivations 2, specification 1, homogeneous 1, sn 1 |
+| `gauge` | the section that picks the representative a solve returns | `outcome` only | homogeneous 1, sn 1 |
+| `evidence` | the sum Measured / Bound / NotApplicable / Deferred: what a solve can say about a property of its answer | `fredholm`, `posing`, `outcome`, `convergence` | sn 3, cp 1, moc 1, diffusion 1, homogeneous 1, reference 1 |
+| `enclosure` | a real number with a guaranteed distance to the exact one | none | reference 4 |
+
+So no numerics module that stays imports any of the five: none is forced to stay. `evidence` is imported from BOTH stages (`fredholm` and `posing` are layer 2; `outcome` and `convergence` are layer 3), so it can go no higher than the lower of the two new packages. `question` and `observable` import `mesh_free_function`, which stays in numerics (mesh imports it).
+
+**M6, the `EigenvalueSolver` realisers.** `power_iteration` is called from 4 production files: `sn/solver.py`, `diffusion/solver.py`, `cp/solver.py`, `moc/solver.py` (plus its definition's module and `iteration.py`). The protocol's docstring says five; that count is from 2026-08-09 and is stale. Of the four, sn and diffusion already hold a pencil (`pencil` is imported by sn 2, diffusion 1, homogeneous 2); cp and moc do not.
+
+**Sizing.** The layer-2 candidates (`question`, `observable`, `fredholm`, `pencil`, `posing`) are 1 108 lines; the layer-3 candidates (`gauge`, `outcome`, `convergence`, `eigenvalue`, `iteration`, `green_operator`) are 5 314. Files naming at least one of them by dotted path: in `orpheus/`, between 3 (`gauge`) and 15 (`iteration`) per module; in `tests/`, between 5 and 29; theory and development pages, between 1 and 21. The traced memo pins the modules a derivation imports, and derivations import `question` and `observable`, so moving those two stales the memo store once more (a full regeneration).
+
+**Where the Solution half's types live today.** `Solution` and `SolutionBase` are in `sn/solution.py`, and `Splitting` (with `from_schedule`) is in `sn/splitting.py`: the five-tuple and the Strategy value that CLAUDE.md describes as the generic Solution half are realised only in S\ :sub:`N`. `SourceIteration` and `KrylovAcceleration` are in `numerics/iteration.py`. Lifting `Solution` and `Splitting` into a generic package waits for a second realiser (`coding-elegance` Pattern 6); it is not part of Phase 5.
+
+### The finding that shapes the design
+
+The layering criterion is "a module's home is the lowest-knowledge layer whose vocabulary suffices". By that criterion alone, nothing in the posing stack has to leave numerics: a pencil `A − σM`, a posing `Aψ = q`, the Fredholm alternative, power iteration and the Green inverse are all written in operator-algebra vocabulary, with no neutron in them. What separates them from the rest of numerics is not knowledge but STAGE: they come after the discretization in the posing sequence (layer 2, the problem; layer 3, the solution), and the concept-order gate already measures that order as a contiguous suffix of numerics. So Phase 5 is the first move made on the stage axis, and the layering criterion has to say so: a module's home is the lowest-knowledge layer whose vocabulary suffices, and within it the earliest stage at which it is defined. `[R]`
+
+### The proposal `[R]`, to be ruled
+
+1. **Shape: two new top-level packages, stacked by stage on numerics, at numerics' knowledge level.** `numerics` (the mathematics of the discretization: spaces, frames, operators) < `problem` (the method-agnostic posing: questions, pencils, posings, the Fredholm verdict) < `solution` (the method-agnostic answering: iteration, power iteration, the Green inverse, records, gauges, outcomes). The alternative is sub-packages inside numerics (`numerics/problem/`, `numerics/solution/`): it keeps the criterion untouched and relieves the module count, but numerics stays the home of everything that is not transport, which is the god-module growth the user named. Recommended: top-level packages, because the layer gate then enforces the stage order per package (a row in `FORBIDDEN_EDGES`, readable at a glance) instead of leaving it to the concept-order tiers.
+2. **Names: `problem` and `solution`,** the names CLAUDE.md already gives the two halves ("The Problem half poses", "The Solution half answers") and the posing sequence gives layers 2 and 3. A method's own problem (`SNProblem`, `DiffusionMesh`) stays in its method package; the generic package is where a shared Problem type goes if one emerges. Alternatives: `posing` (collides with the module `posing.py`, which would read `orpheus.posing.posing`) and `answering`.
+3. **Membership.**
+   - `problem`: `question`, `observable`, `pencil`, `posing`, `fredholm`, and `evidence` (its lowest consumers are `fredholm` and `posing`).
+   - `solution`: `gauge`, `outcome`, `convergence`, `eigenvalue`, `iteration`, `green_operator`.
+   - Staying in numerics: `enclosure` (a number with a guaranteed bound is a value type of the mathematics, used by reference only; no stage in it), `near_kernel` (a spectral measurement of an operator; it imports none of the verdict and nothing in `orpheus/` imports it), `kernel_projection_gauge` (a projector, imported by `fredholm` and `near_kernel`), `coupled_system` (the direct-sum space and block operator; algebra, imported by sn only).
+4. **Gate rows** (`tests/gates/test_layer_imports.py`). `numerics` gains `problem` and `solution` among its forbidden targets; `problem` forbids `solution` and everything numerics forbids except numerics itself; `solution` forbids what numerics forbids. `data` and the two new packages forbid each other (siblings; `[M]` none of the three imports another today). `specification` may import `problem` (it imports `question`, `observable`) and is forbidden `solution`; `reference` may import both (it imports `observable`, `outcome`, `evidence`, `enclosure`); `derivations` may import `problem` and is forbidden `solution` (it imports `question` and `observable` only; the ruling that references stay closed to production numerics argues for keeping it so). The concept-order gate keeps ranking numerics alone; each new package gets its own order if its modules ever need one.
+5. **Tests move with their modules:** `tests/gates/problem/` and `tests/gates/solution/`, mirroring the packages, which is the existing layout rule. This is why the order below matters: Phase 2 re-bases `test_gauge`, `test_outcome`, `test_posing`, `test_pencil`, so they should be re-based once, into their final directories.
+6. **The layer table gains the stage axis** in `docs/architecture/layering.rst` and CLAUDE.md's map: rows still run by knowledge, and the generic row splits into three stages. The methods realise all three stages inside their own packages.
+7. **Retirement, not re-export.** Every importer is re-spelled to the new path in the move's commit; no shim stays in numerics (`coding-standards` "Retire as you go"), with the retirement audit (`retirement-audit` A to G, F.23 for the underline scan) and `dead_references` after it.
+
+### Questions for the user
+
+- Q1. Top-level packages (recommended) or sub-packages of numerics?
+- Q2. The names `problem` and `solution`, or others?
+- Q3. The membership in item 3, in particular `evidence` in `problem`, and `enclosure`, `near_kernel`, `coupled_system` staying in numerics.
+- Q4. The order: this design, then Phase 2's spec written against the new homes, then the move with Phase 2 (still `[R]`, not confirmed).
