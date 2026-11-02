@@ -560,7 +560,12 @@ Noticed and deliberately not finished, so the DAG line keeps priority; each is a
 
 **Ruled (the user, 2026-11-01): "Agreed. You can go ahead."** Rulings 38 to 41:
 
-38. **D1. The capture forks each test from a collected parent.** The parent is guarded by the memo's single-thread check (`FORK_MEASURED` and `_fork_unsafe`, reused, never re-spelled). When the check fails, the file's tests are captured in a fresh interpreter each. Code that runs at collection is recorded in the parent once per test module and attributed to every test of that module, which can only over-select.
+38. **D1. The capture forks each test from a collected parent.** The parent is guarded by the memo's single-thread check (`FORK_MEASURED` and `_fork_unsafe`, reused, never re-spelled). When the check fails, the file's tests are captured in a fresh interpreter each. ~~Code that runs at collection is recorded in the parent once per test module and attributed to every test of that module, which can only over-select.~~ [REFUTED 2026-11-01 for the question "how is collection attributed"; the FACT it establishes: caches in a single collecting parent leak between test modules.] `[M]` the test-architect, 2026-11-01, on a fixture tree (a `functools.cache` filled by one module's `parametrize` list and hit by another module's test; a constants module first imported by an earlier module's collection). In the suite, the later test's cone lacks the fill's defs and the modules' import-time code; run alone, it holds all five. There are two mechanisms, both in the parent: a cache filled during an earlier module's collection, and `sys.modules`, which runs a module's import-time code only for its first importer. The 200 of 200 measurement compared setup and call defs under `orpheus/` only, so it could not see this. **The repair, ruled by the orchestrator under ruling 38's intent (the isolated cone):**
+   - a grandparent imports pytest and the conftests;
+   - per test module it forks a parent that collects that module alone, and that parent forks one child per test, with the fork guard at each level;
+   - what the grandparent imports or fills is attributed to every test, which over-selects correctly.
+
+   Attributing the union of all collection cones to every test is refuted for the same question: any skeleton edit would select the whole suite.
 39. **D2. A row is (test, environment key, node, digest at capture).** The record covers first-party code under `tests/` as well as under `orpheus/`. A row is fresh while every digest matches the checkout, checked in the memo's two stages: file identity first, then the normalised-AST digest. Stale and new tests are captured again by fork.
 40. **D3. A test whose child process is unrecorded is marked "cone unknown" and is always selected.** Recording inside children waits until the number of tests that spawn one is counted and shown to matter.
 41. **D4. The first client is a local selection command:** given the working tree, it lists the tests to run. The census uses it to place tests (ruling 22), and it serves as a fast local check. The full suite stays the merge gate until the validation run passes (phase-order step 3): sampled mutants, each run both in full and through the store, with every selection agreeing.
@@ -569,7 +574,7 @@ Noticed and deliberately not finished, so the DAG line keeps priority; each is a
 
 Mode: W1. The test-architect writes the verification spec first. The store is tooling under `tools/cone_store/`, built on its own branch. B2 changes the memo's pins in production, and the main agent writes it (the surgical-carve exception).
 
-- **B1. The machinery, at today's node grain** (def digests and module skeletons):
+- **B1. The machinery, at today's node grain** (def digests and module skeletons, plus the `reads` rows: `ChildPin` for a memo entry read, `DataPin` for a data file read, recorded by reusing the memo's `Recording`, not by a second recorder):
   - a pytest plugin that collects, records the collection cone per module, forks per test behind the single-thread guard, and records each child's cone over `orpheus/` and `tests/`;
   - in the child, a flag raised on any process start, which marks the row "cone unknown";
   - the environment key (ruling 34);
