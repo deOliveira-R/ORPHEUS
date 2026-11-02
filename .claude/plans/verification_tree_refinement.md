@@ -544,4 +544,11 @@ Noticed and deliberately not finished, so the DAG line keeps priority; each is a
 - C5. Where a declared claim's source lives (open question 5).
 - C6. Where the store lives.
 
-The recommendations are in the conversation of 2026-11-01. They are recorded here when ruled.
+**Ruled (the user, 2026-11-01): "I like the recommendations. I also endorse C5 suggestion. The cost seems very small for the benefits."** Rulings 32 to 37:
+
+32. **C1. A test's cone is captured with the test alone in a fresh process.** That capture is the ground truth, and it also attributes the code that runs while the test is collected. The store fills layer by layer with the census (ruling 22). After an edit, only the tests whose rows went stale are captured again. Replaying a cache's fill cone stays a later optimisation, taken only if the capture's cost is measured and shown to matter. Capturing with caches switched off is refuted, for the question "how is a cone captured": its residual miss rate is unknown, because hand-written caches stay invisible.
+33. **C2. Import-time code is attributed per top-level statement, and the memo shares the rule** (ruling 15). A test depends on a statement only when code it executed reads the name the statement binds (the names recorded in each executed code object). A name collision can only over-select. Positive control 1 decides whether the rule holds.
+34. **C3. The environment is always part of a verdict's key:** the interpreter, the distributions, the BLAS tag and the thread count.
+35. **C4. S6 (evidence and confidence as two digests) and S11 (early cutoff at a claim's statement digest) are accepted.** Both belong to the verdict layer built on the cone store, not to the store's first version.
+36. **C5. A claim's single source is Python.** A Sphinx directive renders the claim on its theory page and anchors it there, as autodoc renders a docstring. Tests read claims at collection without a docs build. A tracked file generated from the corpus is refuted for this question, because it is a second spelling that would need its own drift gate.
+37. **C6. The store is tooling, under `tools/`, with its data in SQLite under `.cache/`.** It reuses the traced memo's digest functions, and Nexus ingests it as a runtime kind. The store does not own those digests, and Nexus does not own the store.
