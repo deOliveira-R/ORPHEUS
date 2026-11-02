@@ -557,3 +557,28 @@ Noticed and deliberately not finished, so the DAG line keeps priority; each is a
 - **A fork per test from a collected parent gives the isolated cone.** The parent collects every test, then forks one child per test. The child re-arms the monitor, runs the test's setup, call and teardown, and writes its cone. 200 of 200 children passed. 200 of 200 forked cones are identical to the cones of the same tests run alone in fresh interpreters (setup plus call, first-party defs under `orpheus/`). The parent held 1 OS thread after collection, which satisfies the memo's fork guard (`_fork_unsafe` in `orpheus/numerics/_traced_memo_boot.py`: a fork after a BLAS call crashed its child 20 of 20 times, `[M]` 2026-10-16).
 - **Cost per test.** Fork: 57.4 s for 200 tests, 0.29 s each, against 0.03 s each plain. A fresh interpreter per test: 21.5 s for 20 tests of `test_measure.py`, 1.07 s each. Where the fork's 0.26 s of overhead goes is not yet measured. Extrapolated `[R]` to about 20 000 tests: about 1.4 h of fork overhead on top of the suite's 56 min, paid once per environment, then only for stale tests.
 - **Neither probe records collection.** Both the isolated and the forked probes record setup and call only, so code run while a test is collected (a `parametrize` list) is in neither cone yet. The probe's root is `orpheus/` only, so a test's own helpers under `tests/` are not recorded either.
+
+**Ruled (the user, 2026-11-01): "Agreed. You can go ahead."** Rulings 38 to 41:
+
+38. **D1. The capture forks each test from a collected parent.** The parent is guarded by the memo's single-thread check (`FORK_MEASURED` and `_fork_unsafe`, reused, never re-spelled). When the check fails, the file's tests are captured in a fresh interpreter each. Code that runs at collection is recorded in the parent once per test module and attributed to every test of that module, which can only over-select.
+39. **D2. A row is (test, environment key, node, digest at capture).** The record covers first-party code under `tests/` as well as under `orpheus/`. A row is fresh while every digest matches the checkout, checked in the memo's two stages: file identity first, then the normalised-AST digest. Stale and new tests are captured again by fork.
+40. **D3. A test whose child process is unrecorded is marked "cone unknown" and is always selected.** Recording inside children waits until the number of tests that spawn one is counted and shown to matter.
+41. **D4. The first client is a local selection command:** given the working tree, it lists the tests to run. The census uses it to place tests (ruling 22), and it serves as a fast local check. The full suite stays the merge gate until the validation run passes (phase-order step 3): sampled mutants, each run both in full and through the store, with every selection agreeing.
+
+### The cone store — build (opened 2026-11-01)
+
+Mode: W1. The test-architect writes the verification spec first. The store is tooling under `tools/cone_store/`, built on its own branch. B2 changes the memo's pins in production, and the main agent writes it (the surgical-carve exception).
+
+- **B1. The machinery, at today's node grain** (def digests and module skeletons):
+  - a pytest plugin that collects, records the collection cone per module, forks per test behind the single-thread guard, and records each child's cone over `orpheus/` and `tests/`;
+  - in the child, a flag raised on any process start, which marks the row "cone unknown";
+  - the environment key (ruling 34);
+  - the SQLite store under `.cache/cone_store/`, with the freshness check reusing `function_digest`, `skeleton_digest` and the memo's file-identity stage;
+  - a command with `capture`, `select` and `status`.
+
+  Gates: positive controls 2, 3 and 4 as tests, each with the mutation that reddens it. Control 1 holds at module grain in B1, a superset of the readers; it becomes exact in B2.
+- **B2. Per-statement import-time pins, shared with the memo** (ruling 33). Gate: control 1 exact, the memo's own validation suite, and a measured count of memo entries left warm by a constant edit, before and after.
+- **B3. The numerics layer captured into the store, and the census's placement step reading it** (ruling 22). Nexus ingestion of the store is an issue on sphinxcontrib-nexus.
+- **B4. The validation run** (ruling 41), then the verdict layer (rulings 34 and 35).
+
+**Next:** the test-architect's spec for B1.
