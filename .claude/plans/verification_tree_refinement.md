@@ -632,3 +632,23 @@ Mode: W1. The test-architect writes the verification spec first. The store is to
 **Gates (the test-architect's spec, owed before the build):** control 1 exact; a recall fixture for every shape in the census, each with the mutation that reddens it; the memo's own validation suite; the warm count before and after on a named constant edit.
 
 **Who writes what:** the memo part (`_SourceIndex`, `StatementsPin`, `collect_pins`) is written by the main agent (surgical carve). The store's `pins`, `cone` and `selection` follow it.
+
+**qa's adversarial pass on the B2 design** (2026-11-02; `scratch/verification_tree/cone_store/b2/qa_b2_design.md`, with a model of steps 1–3 and 42 attack rows in `attacks/`). `[M]`: 24 of 42 rows under-select under the design as written (every pin valid, the run's result changed). The positive controls behave: control 1 goes stale, and control 2 (an unread constant's edit) stays valid with an unchanged result, which is the benefit B2 is for. The realized shapes, by population in the tree:
+- a module-level constant read only by a `parametrize` or `fixture(params=…)` decorator: pytest finds tests by iterating the module, so the name enters no `co_names`. 371 such names in 183 of 769 test modules; the design's census had left `tests/**/test_*.py` out (26 150 statements);
+- an unselected statement that starts raising at import (deleting a def that an unread table still names). Every unselected statement is exposed;
+- the projection and class bodies: a subclass override in another module (159 classes with a first-party base in another module), a new dataclass field read by a field-iterating reader (462 dataclasses, 104 such readers, among them the content identity at `orpheus/values/content.py:356`), a new enum member (22 enums);
+- a subclass added to an `__init_subclass__` registry that `orpheus/sn/operators/loss_kernel_gauge.py:430` iterates;
+- `orpheus/data/group_structures/wims.py:124-134`: a table read only by a module-level loop, saved today by a name collision on the loop variables.
+
+Refuted attacks (structural reasons in the report): walrus, `global` in a def (`STORE_GLOBAL` puts the name in `co_names`), star targets, PEP 695 `type`, augmented assignment, `__slots__`, `__set_name__`, module-level lambdas, re-exports, `import a.b as c`, field reordering. The grandparent loses nothing (one `Recording` is inherited across both forks), but it inflates E: 24 411 names against 245 for the test's own code.
+
+**Ruled by the orchestrator** (2026-11-02, under ruling 33's intent, after ruling 38's precedent; the repairs measured together in qa's model leave 0 of 42 rows landing and keep control 2's benefit):
+
+43. **The B2 rule, amended.**
+    - **R1.** A first-party def that started selects the statements binding its qualified name's parts.
+    - **R2D.** A statement is an effect, and is selected for every run that imported its module, unless it is a pure binding. Impure means any of: an import-time call outside a pure allowlist, a nested bare call, a subscript or attribute store, a `del` inside a compound statement, or a class with a base or a metaclass. A first-party import enters the digest only, not the closure. `[M]` 2 119 of 12 339 statements are effects under R2D (1 231 of them first-party imports), against 248 under the design's predicate.
+    - **R3, amended.** A run records its import outcome at capture: whether its first-party import set imported, and the warnings emitted. When any byte of that set changes, the whole set is re-imported in one subprocess and the outcomes are compared; the comparison is cached by the set's bytes digest and the environment. qa proposed `-W error` instead; that is refused, because a warning already emitted at capture would make the check fail forever. Re-importing only the changed modules is refused too: qa measured a row it misses, where the module that breaks did not itself change. This gives the memo's validation one subprocess per distinct import-set state, so "validation imports nothing" becomes "validation imports nothing in-process".
+    - **R4.** E′ is stored whole, once per manifest, and validation re-selects with it. If its size is too large, it is restricted to the first-party lexicon at capture, and that restriction becomes a counted boundary.
+    - **R5.** A selected class header selects its body's non-def statements. 2 802 of the 12 339 statements are of this kind.
+    - **R6.** The identifier tokens of every string constant join E, recursing through tuples and frozensets.
+    - **`del` targets count as bindings.**
