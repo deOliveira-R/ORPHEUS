@@ -503,3 +503,45 @@ Noticed and deliberately not finished, so the DAG line keeps priority; each is a
 - #611 (the constructor rule, ruling 28).
 
 ⏸ **Next (2026-10-21, ruling 30):** the numerics knot is settled when S7 of `numerics_untangling.md` merges. Then run the sub-cone measurement on `numerics` ("Sub-cones: the measurement", rulings 23–26; the cone store of S8 first), and read it as an ontology instrument before any census verdict. The reorganisation of the code into the DAG and its sub-cones is the priority it feeds. #611 (the constructor rule, ruling 28) is unchanged. (Superseded pointer: this campaign waits on `numerics_untangling.md` (ruling 27), whose concept order is the base of the census. #611 (the constructor rule, ruling 28) follows it. Rulings 26 to 28 recorded 2026-10-18. Rulings 19 to 22 recorded (2026-10-18). Candidate D is with the user for discussion, and ruling 22's reading for confirmation. Then: the four-file sample (TA F7), now run against candidate D (does each function's claim fit D's object, and which declaration site does it take?), and the cone store's specification by the test-architect, cut into packages per ruling 18. #604 is the deferred bound composition (ruling 13); #610 the memo's early cutoff.)
+
+## The cone store — design (opened 2026-11-01, iterating with the user)
+
+**What is still unruled.** Rulings 19 to 22 settled S1 to S5 and S7 to S10 on 2026-10-18. The pointers in `layer_dag.md` and `space_membership_covector_gauge.md` that say the cone store "waits on S1–S12" are stale. Unruled: S6 (evidence and confidence as two digests), S11 (early cutoff at a claim's statement), S12 (the environment in the verdict key), and the remaining half of open question 5: whether a declared claim's source is importable Python or a tracked file generated from the corpus.
+
+**The object.** The cone of a test is the set of nodes whose change can change its verdict. The nodes are those of ruling 15's single change-detection layer, spelled with the traced memo's pin types (`orpheus/numerics/traced_memo.py`), so nothing is minted twice:
+- a def, keyed by its module path, qualname and ordinal, and digested by `function_digest` (normalised AST, docstrings and layout removed): an `executes` edge;
+- import-time code: today `ModulePin`'s skeleton digest, which any edit to a module's constants, decorators or class attributes moves, staling every reader of the module;
+- a stored value read: a memo entry (`ChildPin`, by payload digest) or a data file (`DataPin`): a `reads` edge, which needs no code capture (ruling 20);
+- the environment: `InterpreterPin`, `DistributionPin`, `EnvironmentPin` and the BLAS tag.
+
+**Measured** `[M]` 2026-11-01. Probes, logs and data are in `scratch/verification_tree/cone_store/`. Runs are serial, `-O`, `OMP_NUM_THREADS=1`. Sample N is `tests/gates/numerics/test_invariance.py`, `test_measure.py` and `test_space_of_axes.py`: 200 tests. Sample E is `tests/gates/sn/eigenvalue -m "not slow"`: 87 tests.
+- **The capture instrument.** A pytest plugin on `sys.monitoring` `PY_START` (Python 3.14) records, per test and per phase, the first-party code objects entered. It returns `DISABLE` after a code object's first entry and re-arms with `restart_events()` at each phase boundary, so each def costs one event per test. Pytest's own time:
+
+  | mode | sample N | sample E |
+  |---|---|---|
+  | plain | 4.72–4.83 s | 133.4–135.9 s |
+  | function entry, firing on every call | 5.11–5.17 s | 179.9–180.1 s |
+  | function entry, re-armed per phase | 5.04 s | 136.5 s |
+  | coverage, per-test contexts, branch | 7.47–7.54 s | 245.7–246.8 s |
+
+  The re-armed and always-firing probes record the same cones on sample N (177 of 177 rows), and on sample E except one row, discussed next. Plain, always-firing and coverage are 3 interleaved repeats on N and 2 on E; re-armed is 1 repeat each.
+- **In-process caches hide most of a cone.** Each test of sample N was run alone in a fresh process and compared with the same test run in the suite. 127 of 177 in-suite cones miss defs that the isolated run entered: a median of 35 defs per affected test, and up to 79. 0 of 177 in-suite cones hold a def the isolated run did not enter. The missed defs are cache fills: `GeneratingMeasure.recurrence` and `is_symmetric`, and the `Manifold` methods. On sample E, the always-firing probe gave two different cones for `test_keff_slab.py::test_heterogeneous_absolute_keff` on two identical runs, according to whether `StreamingCoefficientCache` was built inside the test or found by `__eq__`. So a cone captured in-suite depends on run state, not only on test order. The tree holds 240 cache decorators (`cache`, `lru_cache`, `cached_property`) by grep, and hand-written dictionary caches beside them.
+- **Code that runs at collection is attributed to no test.** Parameters built in a `parametrize` list (for example `gauss_legendre(8)`) run at collection, outside every phase. 0 setup rows entered first-party code in either sample, run alone or in the suite.
+- **Child processes.** 46 files under `tests/` name a process API (`subprocess`, `Popen`, `multiprocessing`, `os.fork`), by regex with a positive control. How many tests spawn a child is not yet counted.
+- **The stored captures are stale.** Every `wide_*` coverage run in the Nexus runtime store predates the move to `tests/gates/`, since its paths read `tests/numerics`. None of its numbers describe the current tree.
+
+**Positive controls**, written before the build (X1):
+1. Mutating `_OUTFLOW_COSINE_TOL` (`orpheus/mesh/axis.py:469`, an import-time constant read by `face_outflow_ordinates`) selects exactly the tests whose executed code reads that name.
+2. Mutating an oracle def behind a stored reference selects the oracle's validation test, plus every reader only through its `reads` edge.
+3. A docstring-only edit selects nothing.
+4. Ground truth: a sample of tests captured each alone in a fresh process. The store's cone must contain each isolated cone, with 0 misses on the sample.
+
+**The questions, with recommendations** — round 1, for the user. Each is `[R]` until ruled.
+- C1. How a cone is captured, given the cache finding.
+- C2. Attributing import-time code finer than a module skeleton, shared with the memo.
+- C3. The environment in the verdict key (S12).
+- C4. Evidence and confidence (S6), and early cutoff at a claim's statement (S11).
+- C5. Where a declared claim's source lives (open question 5).
+- C6. Where the store lives.
+
+The recommendations are in the conversation of 2026-11-01. They are recorded here when ruled.
