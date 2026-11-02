@@ -588,7 +588,24 @@ Mode: W1. The test-architect writes the verification spec first. The store is to
 
 **B1 [LANDED 7fdc7474]** (2026-11-02, merged to `main` by fast-forward; CI `gates` run 41425672218 green). `tools/cone_store/` (13 modules), seven `tests/gates/tools/test_cone_store_*.py` files with their fixture, three memo witnesses, `docs/theory/verification/cone_store.rst`, ERR-124. `[M]` before the merge: full suite `-O -m "not slow"` 19947 passed, 1 failed; the failure was the qualname census (the memo's new `Refusal` shared its qualname with `orpheus.geometry.manifold.Refusal`), fixed by naming it `PinRefusal`; after the rename the census and the memo witnesses passed (37), the cone-store fast gates passed (181), M1 passed, pyright 0 errors, Sphinx `-W` clean. Scope boundaries filed: #687, #688, #689 (B2), #690.
 
-**Next:** B2 (#689), per-statement import-time pins shared with the memo; the main agent writes the memo part.
+**B2 [LANDED 6e52b3cf]** (2026-11-02, merged to `main` by fast-forward with the agent memory `867c09c3`; CI `gates` run 41532535468 green; closes #689). The rule `orpheus/numerics/_import_time.py`, the memo's `StatementsPin` and `ImportOutcomePin` (rulings 43 and 44), the cone store at `FORMAT = 2` reading them, and the gates `test_traced_memo_statement_pins.py` and `test_cone_store_statement_grain.py`. The done-when, `[M]` 2026-11-02, serial, `-O`:
+- control 1 exact (SG4, slow, on a clone of the real tree: 6 tests selected where B1 selected 9);
+- the memo's validation suite and the slow tools gates: 4 passed, 322 deselected (78 min); the not-slow suite green in two runs (the first was killed at the 2 h limit at 91 % during the cold regeneration, and its only reds were 3 concept-order rows, fixed by ranking `_import_time` beside `_traced_memo_boot`; the tail: 1658 passed, 1 skipped, 1 xfailed);
+- the warm count, `scratch/verification_tree/cone_store/b2/warm/after.py`. It judges each stored B2 entry's statement pin on the edited module with the memo's own projection, against an in-memory edit; no file is written. The positive control: the unedited source reproduces every pin (2021 of 2021, per edit). Before (module grain), each edit makes stale every entry that imported the module: 2021 of 2021, for all five. After:
+
+  | edited constant | how runs read it | warm after |
+  |---|---|---|
+  | `eigenvalue.MINIMUM_OUTER_ITERATIONS` | no run reads it | 2021 of 2021 |
+  | `metric._DENSE_METRIC_RCOND` | no run reads it | 2021 of 2021 |
+  | `transformation._MAX_GROUP_ORDER` | read in a def body that 2016 runs started | 5 of 2021 |
+  | `measure.WEIGHT_ATOL` | a default argument's value, evaluated at import | 0 of 2021 |
+  | `convergence._SERVED_RATE` | a default argument's value, evaluated at import | 0 of 2021 |
+
+  The edit also changes the import set's bytes. So the run's import outcome is re-measured once per distinct import set: 4 sets over the 2021 entries. A value edit that neither raises nor warns leaves the outcome equal `[R]`.
+- The 691 entries the design could not read: an older `DistributionPin` arity. Like the 5814 `ModulePin` entries, they read as stale and regenerate on demand. 2021 of the 8526 stored entries were regenerated in B2 form by the suite run.
+- pyright: 0 errors in the 33 changed or new Python files. Sphinx `-W` clean. `dead_references` unchanged (the 3 pre-existing transport test-helper targets).
+
+**Next:** B3, the numerics layer captured into the store (ruling 22).
 
 **Ruled by the orchestrator, from ruling 41 (2026-11-01).**
 
