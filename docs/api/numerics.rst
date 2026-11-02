@@ -658,7 +658,10 @@ identity of a generator is its recorded execution, why a miss runs in a
 fresh process, each pin kind and what it guards, the payload, the bypass,
 the relation to the reference certificate, the clients, the limits no
 manifest can see and the review round's defects, is
-:ref:`verification-reference-cache`.
+:ref:`verification-reference-cache`; its second reader, which reads a
+recording as pins with every refusal kept as a value
+(:func:`~orpheus.numerics.traced_memo.collect_pins`), is the cone store
+(:ref:`verification-cone-store`).
 
 .. automodule:: orpheus.numerics.traced_memo
    :members: traced_memo, TracedMemo, bypass, cache_root, default_root,
@@ -667,7 +670,10 @@ manifest can see and the review round's defects, is
       EnvironmentPin, WorkingDirectoryPin, ChildPin, MemoPin, validate,
       trace_call,
       origin, function_digest, skeleton_digest, platform_tag, fork_platform,
-      encode_payload, decode_payload, Unpinnable, Unencodable, TemplateRefused
+      encode_payload, decode_payload, Unpinnable, Unencodable, TemplateRefused,
+      collect_pins, CollectedPins, PinRefusal, AmbiguousOwner, UnownedSitePackage,
+      UninstalledDistribution, NoDefAtLine, ChangedByRun, NoRecordedBytes,
+      SourceGone, UnadmittedProcess
 
 .. autodata:: orpheus.numerics.traced_memo.Pin
    :no-value:
@@ -677,7 +683,8 @@ manifest can see and the review round's defects, is
 
 .. automodule:: orpheus.numerics._traced_memo_boot
    :members: Recording, note_child, spawning, main, template, FORK_MEASURED,
-      FileIdentity, Witness, Kept, TRUSTED_AGE_NS, file_digest, listing_digest
+      FileIdentity, Witness, Kept, TRUSTED_AGE_NS, file_digest, listing_digest,
+      fork_blockers
 
 Mesh-free functions — :mod:`orpheus.numerics.mesh_free_function`, the
 source and the detector a specification states before any mesh exists:

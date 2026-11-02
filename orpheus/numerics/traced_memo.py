@@ -104,17 +104,124 @@ from orpheus.values import content as _content
 from orpheus.values.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
 
 __all__ = [
-    "Absent", "ChildPin", "Corrupt", "DataPin", "DefPin", "DistributionPin", "EnvironmentPin", "Hit", "InterpreterPin", "PresencePin",
-    "ListingPin", "Manifest", "MemoPin", "ModulePin", "Pin", "Stale", "TracedMemo", "Unencodable",
-    "TemplateRefused", "Unpinnable", "Verdict", "WorkingDirectoryPin", "bypass", "cache_root", "decode_payload", "default_root",
-    "encode_payload", "function_digest", "origin", "platform_tag", "skeleton_digest", "trace_call",
-    "traced_memo", "validate",
+    "Absent", "AmbiguousOwner", "ChangedByRun", "ChildPin", "CollectedPins", "Corrupt", "DataPin", "DefPin",
+    "DistributionPin", "EnvironmentPin", "Hit", "InterpreterPin", "ListingPin", "Manifest", "MemoPin", "ModulePin",
+    "NoDefAtLine", "NoRecordedBytes", "Pin", "PinRefusal", "PresencePin", "SourceGone", "Stale", "TemplateRefused",
+    "TracedMemo", "UnadmittedProcess", "Unencodable", "UninstalledDistribution", "UnownedSitePackage", "Unpinnable",
+    "Verdict", "WorkingDirectoryPin", "bypass", "cache_root", "collect_pins", "decode_payload", "default_root",
+    "encode_payload", "function_digest", "origin", "platform_tag", "skeleton_digest", "trace_call", "traced_memo",
+    "validate",
 ]
 
 
+_T = TypeVar("_T")
+
+
+@dataclasses.dataclass(frozen=True)
+class PinRefusal:
+    """Why one dependency of a recorded run cannot be pinned. A closed set of kinds, each naming what it is about;
+    its ``str`` is the refusal's message. :func:`collect_pins` returns them as data and :class:`Unpinnable` carries
+    one, so a reader (the cone store, ``tools/cone_store``) dispatches on the kind and never parses the message."""
+
+    def __str__(self) -> str:
+        raise NotImplementedError
+
+
+@dataclasses.dataclass(frozen=True)
+class AmbiguousOwner(PinRefusal):
+    """A site-packages file that the ``RECORD`` of several installed distributions lists."""
+
+    path: str
+
+    def __str__(self) -> str:
+        return f"{self.path}: listed by the RECORD of several installed distributions, so no one version pins it"
+
+
+@dataclasses.dataclass(frozen=True)
+class UnownedSitePackage(PinRefusal):
+    """A site-packages file that no installed distribution's ``RECORD`` lists."""
+
+    path: str
+
+    def __str__(self) -> str:
+        return f"{self.path}: in site-packages and listed by no installed distribution's RECORD, so no version pins it"
+
+
+@dataclasses.dataclass(frozen=True)
+class UninstalledDistribution(PinRefusal):
+    """A distribution that owns a file the run touched, with no version installed."""
+
+    name: str
+
+    def __str__(self) -> str:
+        return f"the distribution {self.name} owns a file the run touched, but no version of it is installed"
+
+
+@dataclasses.dataclass(frozen=True)
+class NoDefAtLine(PinRefusal):
+    """Code compiled under a file's name at a line where the file holds no def of that name."""
+
+    path: str
+    line: int
+    qualname: str
+
+    def __str__(self) -> str:
+        return f"{self.path}:{self.line} {self.qualname}: no def of that name at its line"
+
+
+@dataclasses.dataclass(frozen=True)
+class ChangedByRun(PinRefusal):
+    """A path the run observed and then changed, so no state of it pins the answer."""
+
+    path: str
+
+    def __str__(self) -> str:
+        return f"{self.path}: the run observed it and then changed it, so no state of it pins the answer"
+
+
+@dataclasses.dataclass(frozen=True)
+class NoRecordedBytes(PinRefusal):
+    """Code of a file that ran without being imported (an ``exec``, a ``runpy``), so no bytes were recorded."""
+
+    path: str
+
+    def __str__(self) -> str:
+        return (
+            f"{self.path}: code of this file ran without being imported (an exec or runpy of a source file), so no "
+            "bytes were recorded for it and a re-read after the run could pin bytes that never ran"
+        )
+
+
+@dataclasses.dataclass(frozen=True)
+class SourceGone(PinRefusal):
+    """Code of a file that ran, read after the run (no pinned-source loader), when the file no longer exists: the
+    run itself, or something during it, removed the source, so no bytes pin the code that ran."""
+
+    path: str
+
+    def __str__(self) -> str:
+        return f"{self.path}: code of this file ran, and the file was gone when its bytes were read after the run"
+
+
+@dataclasses.dataclass(frozen=True)
+class UnadmittedProcess(PinRefusal):
+    """A process the run started that is not an admitted machine query, whose own reads no recording sees."""
+
+    program: str
+
+    def __str__(self) -> str:
+        return (
+            f"the run started a process ({self.program}) whose own reads and children no recording sees; a "
+            f"generation may start only {sorted(_ADMITTED_PROGRAMS)} (a scope boundary of the traced memo)"
+        )
+
+
 class Unpinnable(RuntimeError):
-    """A run depends on something no manifest can pin: a site-packages file of no distribution, code compiled
-    under a file's name at a line where the file holds no such code, or a process the run started."""
+    """A run depends on something no manifest can pin; :attr:`refusal` says what and why (:class:`PinRefusal`)."""
+
+    def __init__(self, refusal: PinRefusal) -> None:
+        super().__init__(str(refusal))
+        self.refusal = refusal
 
 
 class TemplateRefused(RuntimeWarning):
@@ -409,7 +516,7 @@ class _Installed:
         if info is None:
             return None
         if (site_dir, relative) in self._shared:
-            raise Unpinnable(f"{site_dir}{relative}: listed by the RECORD of several installed distributions, so no one version pins it")
+            raise Unpinnable(AmbiguousOwner(f"{site_dir}{relative}"))
         if info not in self._owners:
             distribution = importlib.metadata.Distribution.at(info)
             direct = json.loads(distribution.read_text("direct_url.json") or "{}")
@@ -494,7 +601,7 @@ def origin(filename: str, installed: _Installed) -> Origin:
                 return Distribution(importlib.metadata.Distribution.at(Path(site_dir) / top).metadata["Name"])
             owned = installed.owner(site_dir, Path(relative).as_posix())
             if owned is None:
-                raise Unpinnable(f"{filename}: in site-packages and listed by no installed distribution's RECORD, so no version pins it")
+                raise Unpinnable(UnownedSitePackage(filename))
             name, editable = owned
             return Source(real) if editable else Distribution(name)  # an editable version never moves
     if any(real.startswith(d) for d in _stdlib_dirs()):
@@ -638,8 +745,11 @@ _MEMO_DIGESTS = Kept(_read_memo_digest)
 
 
 def _memo_digest() -> str:
-    """The digest of the memo's source on disk now (kept for the process while its three files are unchanged)."""
-    return _MEMO_DIGESTS(_MEMO_SOURCES)
+    """The digest of the memo's source on disk now (kept for the process while its three files are unchanged). The
+    memo's own read, offered to no active recording: a process recording from before its import (the cone store's
+    capture) would otherwise record the memo's whole bytes as a dependency of everything it runs."""
+    with unrecorded():
+        return _MEMO_DIGESTS(_MEMO_SOURCES)
 
 
 #: The memo's source as this process imported it: it built every index this process writes, so it keys them
@@ -867,7 +977,7 @@ def _def_pin(index: _SourceIndex, path: str, code: types.CodeType) -> DefPin | N
         return None
     if index.holds(found, line, name):
         return None if found is None else DefPin(path, found.qualname, found.ordinal, found.digest)
-    raise Unpinnable(f"{path}:{line} {code.co_qualname}: no def of that name at its line")
+    raise Unpinnable(NoDefAtLine(path, line, code.co_qualname))
 
 
 def _unchanged_by_the_run(recording: Recording, kind: Observation, path: str, seen: str) -> str:
@@ -876,58 +986,98 @@ def _unchanged_by_the_run(recording: Recording, kind: Observation, path: str, se
     2026-10-16: a generator that read ``n`` and wrote ``n + 1`` was served as a Hit, while a cold run returned
     ``n + 1``)."""
     if kind.changed_by(path, recording.written) and kind.observe(path) != seen:
-        raise Unpinnable(f"{path}: the run observed it and then changed it, so no state of it pins the answer")
+        raise Unpinnable(ChangedByRun(path))
     return seen
 
 
-def _manifest(recording: Recording, store: Store) -> Manifest:
-    """The manifest of a recorded run: every code object it started, file it read, directory it listed and
-    memo entry it read, each pinned by its origin."""
+class CollectedPins(NamedTuple):
+    """A recorded run read as pins, with every refusal kept as a reason instead of raised: the pins of what could
+    be pinned, and, in the order the run's events are read, why each other dependency could not."""
+
+    pins: frozenset[Pin]
+    refusals: tuple[PinRefusal, ...]
+
+
+def collect_pins(recording: Recording, store: Store) -> CollectedPins:
+    """Every pin of a recorded run: each code object it started, file it read, directory it listed and memo entry
+    it read, pinned by its origin. A dependency no pin can name (an unadmitted process, a file the run changed after
+    reading it, code with no recorded bytes, a site-packages file of no distribution) is a refusal, returned beside
+    the pins. :func:`_manifest` raises the first refusal; the cone store reads them all as reasons
+    (``tools/cone_store``, the verification-tree plan's ruling 40), so one refusal does not lose the other pins."""
+    refusals: list[PinRefusal] = []
+
+    def pinned(make: Callable[[], _T]) -> _T | None:
+        try:
+            return make()
+        except Unpinnable as refused:
+            refusals.append(refused.refusal)
+            return None
+
     # The memo pin names the code that ran in a generation; trace_call, the in-process instrument, re-reads it.
     running = _RUNNING_MEMO_DIGEST if _RUNNING_MEMO_DIGEST is not None else _memo_digest()
     pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(running), EnvironmentPin(_environment_digest(recording.environment))}
-    pins |= {_program_pin(program) for program in recording.spawned}
+    pins |= {pin for program in recording.spawned if (pin := pinned(lambda: _program_pin(program))) is not None}
     pins |= {ChildPin(*child) for child in recording.children}
     checkout = _Checkout(store)
     by_file: dict[str, list[types.CodeType]] = {}
-    for code in recording.codes:
-        match origin(code.co_filename, checkout.installed):
+    for code in recording.codes.values():
+        match pinned(lambda: origin(code.co_filename, checkout.installed)):
             case Distribution(name):
-                pins.add(_distribution_pin(checkout, name))
+                if (pin := pinned(lambda: _distribution_pin(checkout, name))) is not None:
+                    pins.add(pin)
             case Source(path):
                 by_file.setdefault(path, []).append(code)
-            case Dropped() | Interpreter():
+            case Dropped() | Interpreter() | None:
                 pass
     for real, file_codes in by_file.items():
         path = _pin_path(real)
-        index = _source_index(_compiled_bytes(recording, real))
+        data = pinned(lambda: _compiled_bytes(recording, real))
+        if data is None:
+            continue
+        index = _source_index(data)
         pins.add(ModulePin(path, index.skeleton))
-        pins |= {pin for code in file_codes if (pin := _def_pin(index, path, code)) is not None}
+        for code in file_codes:
+            if (pin := pinned(lambda: _def_pin(index, path, code))) is not None:
+                pins.add(pin)
     store_root = _real(str(store.root)) + os.sep
     for opened, read in recording.opened.items():
         if _real(opened).startswith(store_root):
             continue  # a store entry is a child
-        match origin(opened, checkout.installed):
+        match pinned(lambda: origin(opened, checkout.installed)):
             case Distribution(name):
-                pins.add(_distribution_pin(checkout, name))
+                if (pin := pinned(lambda: _distribution_pin(checkout, name))) is not None:
+                    pins.add(pin)
             case Source():
-                pins.add(DataPin(opened, _unchanged_by_the_run(recording, CONTENT, opened, read)))
-            case Dropped() | Interpreter():
+                if (seen := pinned(lambda: _unchanged_by_the_run(recording, CONTENT, opened, read))) is not None:
+                    pins.add(DataPin(opened, seen))
+            case Dropped() | Interpreter() | None:
                 pass
-    pins |= {PresencePin(probed, _unchanged_by_the_run(recording, PRESENCE, probed, kind))
-             for probed, kind in recording.probed.items() if not _real(probed).startswith(store_root)}
-    pins |= {ListingPin(listed, _unchanged_by_the_run(recording, LISTING, listed, seen))
-             for listed, seen in recording.listed.items()}
+    for probed, kind in recording.probed.items():
+        if not _real(probed).startswith(store_root):
+            if (seen := pinned(lambda: _unchanged_by_the_run(recording, PRESENCE, probed, kind))) is not None:
+                pins.add(PresencePin(probed, seen))
+    for listed, seen_listing in recording.listed.items():
+        if (seen := pinned(lambda: _unchanged_by_the_run(recording, LISTING, listed, seen_listing))) is not None:
+            pins.add(ListingPin(listed, seen))
     if recording.relative:
         pins.add(WorkingDirectoryPin(recording.directory))
-    return Manifest(frozenset(pins))
+    return CollectedPins(frozenset(pins), tuple(refusals))
+
+
+def _manifest(recording: Recording, store: Store) -> Manifest:
+    """The manifest of a recorded run: its :func:`collect_pins`, refused whole when any dependency could not be
+    pinned (a generation's answer is served only when everything it depended on is pinned)."""
+    collected = collect_pins(recording, store)
+    if collected.refusals:
+        raise Unpinnable(collected.refusals[0])
+    return Manifest(collected.pins)
 
 
 def _distribution_pin(checkout: _Checkout, name: str) -> DistributionPin:
     """The pin of a distribution whose code ran or whose file was read, by what is installed."""
     installed = checkout.installed.installed(name)
     if installed is None:
-        raise Unpinnable(f"the distribution {name} owns a file the run touched, but no version of it is installed")
+        raise Unpinnable(UninstalledDistribution(name))
     return DistributionPin(name, *installed)
 
 
@@ -938,12 +1088,12 @@ def _compiled_bytes(recording: Recording, real: str) -> bytes:
     that the loader did not compile (an ``exec`` of a file read by hand, ``runpy``) has no bytes to pin and is
     refused. :func:`trace_call`, the in-process instrument, has no loader and reads the file after the run."""
     if recording.sources is None:
-        return Path(real).read_bytes()
+        try:
+            return Path(real).read_bytes()
+        except FileNotFoundError:
+            raise Unpinnable(SourceGone(real)) from None
     if real not in recording.sources:
-        raise Unpinnable(
-            f"{real}: code of this file ran without being imported (an exec or runpy of a source file), so no "
-            "bytes were recorded for it and a re-read after the run could pin bytes that never ran"
-        )
+        raise Unpinnable(NoRecordedBytes(real))
     return recording.sources[real]
 
 
@@ -955,10 +1105,7 @@ def _program_pin(program: str) -> DataPin:
     program at all."""
     if program in _ADMITTED_PROGRAMS:
         return DataPin(program, _file_digest(program))
-    raise Unpinnable(
-        f"the run started a process ({program}) whose own reads and children no recording sees; a generation may "
-        f"start only {sorted(_ADMITTED_PROGRAMS)} (a scope boundary of the traced memo)"
-    )
+    raise Unpinnable(UnadmittedProcess(program))
 
 
 def validate(manifest: Manifest, store: Store | None = None) -> tuple[str, ...]:
@@ -977,7 +1124,10 @@ def trace_call(function: Callable[..., Any], *args: Any, **kwargs: Any) -> tuple
         value = function(*args, **kwargs)
     finally:
         recording.stop()
-    return value, _manifest(recording, Store.current())
+    # The manifest re-reads the sources that ran: the memo's own read, offered to no recording still active (an
+    # enclosing one, such as the cone store's capture, would otherwise take it as the caller's dependency).
+    with unrecorded():
+        return value, _manifest(recording, Store.current())
 
 
 # ── the payload ─────────────────────────────────────────────────────────────────────────────────────

@@ -234,7 +234,7 @@ def _tree_def_pin(memo, oracle: _Oracle, path: str, code):
             return None
     elif _tree_holds(found.node, line, name):
         return memo.DefPin(path, found.qualname, found.ordinal, found.digest)
-    raise memo.Unpinnable(f"{path}:{line} {code.co_qualname}: no def of that name at its line")
+    raise memo.Unpinnable(memo.NoDefAtLine(path, line, code.co_qualname))
 
 
 def _outcome(function):

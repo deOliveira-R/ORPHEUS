@@ -12053,3 +12053,58 @@ older entries classify against.
    **Lesson.** A refusal keyed on an exact zero of a computed quantity (a pivot) is not a test of singularity; the
    structure that makes an operator singular is known before it is assembled, and the question to ask is the Fredholm
    alternative on the posing, not whether the factorisation happened to break.
+
+.. error-entry:: ERR-124
+   :title: The traced memo's recording kept its code objects in a set, and code objects compare equal across files, so of two empty modules, or two identical defs at one line in two files, only one file was pinned and an edit to the other left an entry valid
+
+   **Status:** ✅ **FIXED 2026-11-01** on branch ``feature/cone-store`` (uncommitted when this entry was written;
+   the merge hash is owed to this line). Found by the cone store's builder while its first increment was built: a
+   fixture with two empty package ``__init__`` modules lost one of them from every cone. The defect is as old as the
+   memo: its first commit, ``99897d10`` (2026-10-04), collected the started code objects in a local ``set``, and the
+   review round, ``39ee20f2``, moved that set onto ``Recording.codes``. Full account:
+   :ref:`verification-reference-cache-codes-by-file`.
+
+   **Module:** ``numerics`` (``Recording`` in :mod:`orpheus.numerics._traced_memo_boot`, read by
+   :func:`~orpheus.numerics.traced_memo.collect_pins`).
+
+   **Failure mode:** outside the numbered substitution modes: a container's equivalence relation was coarser than
+   the identity its reader needed. The recording means "each code object that started, with the file it came
+   from"; a Python ``set`` keys its members by ``==`` and ``hash``, and a code object's ``==`` and ``hash`` compare its name, its first line,
+   its bytecode, its constants and its names, but not ``co_filename``.
+
+   **The defect.** The monitoring callback (``sys.monitoring`` ``PY_START``) added each started code object to
+   ``Recording.codes``, a ``set``. Two code objects compiled from the same text at the same line in two different
+   files compare equal, and an empty module is the extreme case: every empty ``__init__.py`` compiles to one equal
+   code object. The set kept whichever arrived first; the manifest walks the recorded code objects, groups them by
+   ``co_filename`` and pins each file's skeleton and each def, so the other file had no code in the record and no
+   pin. An edit to that file (an import added to an empty ``__init__.py``, a body change to the twin def) moved
+   nothing the entry pinned, and the entry stayed a ``Hit``.
+
+   **How it hid.** The memo's generations import ``orpheus`` only, where the collision is nearly absent: `[M]`
+   2026-11-01 (the archivist's census, every code object compiled from every ``.py`` under ``orpheus/``, module
+   bodies and nested defs, grouped by ``==``): 11 524 code objects in 403 files hold 1 group equal across files,
+   the ``__annotate__`` of ``FixedSource`` (``orpheus/numerics/question.py``) and of ``PointValue``
+   (``orpheus/numerics/observable.py``), both at line 132; an ``__annotate__`` is pinned through its module's
+   skeleton and never as a def, and both modules' own bodies differ, so no ``orpheus`` file lost its pins (`[R]`
+   from that census: no real entry was left valid by this defect). 0 of the 77 ``__init__.py`` under ``orpheus/``
+   is empty, so the extreme case never arose there. Under ``tests/`` the same census finds 12 groups over 34 files,
+   24 of the 35 ``__init__.py`` being empty: the cone store, which records ``tests/`` as first-party code, met the
+   defect on its first fixture. No memo gate imported two files with equal code.
+
+   **Fix.** ``Recording.codes`` is a ``dict`` keyed by ``(co_filename, code)``, so two equal code objects of two
+   files are two entries; :func:`~orpheus.numerics.traced_memo.collect_pins` reads its values. The fix touches
+   ``_traced_memo_boot.py``, one of the memo's three pinned sources, so every stored entry's memo pin moved and
+   every entry regenerates once.
+
+   **Catching test.** ``tests/gates/numerics/test_traced_memo_records_each_file.py::test_both_files_of_an_equal_pair_are_pinned``
+   carries ``@pytest.mark.catches("ERR-124")`` (not ``slow``; it rests on the premise row
+   ``test_the_premise_equal_code_objects_from_two_files``, which fails if CPython ever makes code objects of two
+   files unequal). `[M]` 2026-11-01, ``python -O -m pytest`` on the file: the honest tree passes 2 of 2; an
+   in-process ``-p`` plugin that keys ``Recording.codes`` by the code object alone (the set's semantics) reddens the
+   catcher with "module pins lost to code equality: missing ['twin_left/__init__.py', 'twin_left/mod.py']" and
+   leaves the premise row green. qa's review re-dropped it independently (a plugin keying ``codes`` by the code
+   alone: 1 failed, 1 passed).
+
+   **Lesson.** A set of objects is a set of their equivalence classes under ``==``: before collecting values in a
+   set, ask whether ``==`` on that type compares every field the reader will read back. A code object's does not
+   compare the file it came from.

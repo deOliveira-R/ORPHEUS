@@ -997,6 +997,12 @@ Since ``verifies`` and ``catches`` are pytest marks with arguments,
 Filtering by a specific label requires the audit tool (pytest's mark
 expression language doesn't parse marker arguments).
 
+To run only the tests a working-tree change requires, the cone store
+records each test's dependencies and lists the stale ones
+(``python -O -m tools.cone_store select``); what it records, how it
+captures and what a green selection does not say are
+:ref:`verification-cone-store`. The full suite stays the merge gate.
+
 ``tests/_harness`` package layout
 ---------------------------------
 

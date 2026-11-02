@@ -90,6 +90,15 @@ The chapters
        certificate.
      - Making a generator a cache client; a test that patches a generator;
        asking why a cached reading was or was not served.
+   * - :doc:`cone_store`
+     - The cone store: per test, the pins its verdict depends on, captured
+       by fork with the test alone (a grandparent, a collecting parent per
+       module, a child per test), kept in SQLite, judged in the memo's two
+       stages; ``select``'s rule, the environment key, the reads the capture
+       silences, the positive controls and the battery, the scope
+       boundaries.
+     - Running only the tests a change requires; asking why ``select``
+       listed or skipped a test; changing the capture.
    * - :doc:`homogeneous`
      - The infinite-medium matrix eigenvalue — the shared analytical
        L1 anchor every solver family verifies against.
@@ -147,6 +156,7 @@ semi-analytical truth values are catalogued in the
    reference_solutions
    readings_and_certificates
    reference_cache
+   cone_store
    homogeneous
    sn
    collision_probability

@@ -47,6 +47,7 @@ import struct
 import sys
 import threading
 import time
+import types
 from collections.abc import Callable
 from typing import NamedTuple
 
@@ -154,11 +155,16 @@ def identity(path: str) -> FileIdentity | None:
 
 class Witness:
     """The stats one read makes, each taken BEFORE the read of what it guards (a write after it then shows in the
-    next stat, so the read is made again; never the other way round), and whether every one was settled."""
+    next stat, so the read is made again; never the other way round), and whether every one was settled.
 
-    def __init__(self) -> None:
+    A stat is settled when the file's last write is older than :data:`TRUSTED_AGE_NS` before ``reference_ns``: by
+    default the moment of the stat, or a moment the caller names (the cone store's capture start, so a file written
+    during a capture is never settled, however long the capture runs)."""
+
+    def __init__(self, reference_ns: int | None = None) -> None:
         self.seen: list[tuple[str, FileIdentity | None]] = []
         self.settled = True
+        self.reference_ns = reference_ns
 
     def stat(self, path: str) -> os.stat_result | None:
         try:
@@ -166,7 +172,8 @@ class Witness:
         except (OSError, ValueError):  # ValueError: a path holding a NUL, as ``os.path.isfile`` treats it
             self.seen.append((path, None))
             return None
-        self.settled = self.settled and max(found.st_mtime_ns, found.st_ctime_ns) < time.time_ns() - TRUSTED_AGE_NS
+        reference = time.time_ns() if self.reference_ns is None else self.reference_ns
+        self.settled = self.settled and max(found.st_mtime_ns, found.st_ctime_ns) < reference - TRUSTED_AGE_NS
         self.seen.append((path, FileIdentity.of(found)))
         return found
 
@@ -210,13 +217,22 @@ def file_digest(path: str, witness: Witness | None = None) -> str:
         return "absent"
 
 
+#: Names a directory listing leaves out: the interpreter's bytecode cache, an artefact of having imported. Without it,
+#: any run that writes bytecode would move the listing of every package directory it imported from (the cone store's
+#: capture, 2026-11-01: a plain pytest run re-selected the whole suite). An accepted limit, part of the generator
+#: contract: a run whose answer depends on whether ``__pycache__`` exists (a census of subdirectories that does not
+#: filter it) is not served correctly after one appears. qa measured such a census (2026-11-01); the four directory
+#: censuses of the tree read then all filter it.
+_LISTING_IGNORED = frozenset({"__pycache__"})
+
+
 def listing_digest(path: str, witness: Witness | None = None) -> str:
-    """The digest of a directory's names, or ``"absent"``. On POSIX a name added, removed or renamed in a
-    directory moves its modification time, so the directory's identity witnesses its names."""
+    """The digest of a directory's names, :data:`_LISTING_IGNORED` left out, or ``"absent"``. On POSIX a name added,
+    removed or renamed in a directory moves its modification time, so the directory's identity witnesses its names."""
     found = (witness or Witness()).stat(path)
     if found is None or not stat.S_ISDIR(found.st_mode):
         return "absent"
-    return digest("\0".join(sorted(os.listdir(path))).encode())
+    return digest("\0".join(sorted(name for name in os.listdir(path) if name not in _LISTING_IGNORED)).encode())
 
 
 class Observation(NamedTuple):
@@ -338,7 +354,10 @@ class Recording:
     """What one run depends on, recorded while it runs (module docstring)."""
 
     def __init__(self) -> None:
-        self.codes: set = set()
+        #: Each code object the run started, keyed by its file AND the code: code objects compare equal across
+        #: files (``co_filename`` takes no part in ``==``), so a set of code objects kept only the first of two
+        #: empty modules, or of two identical defs in two files, and lost the other file's pins.
+        self.codes: dict[tuple[str, types.CodeType], types.CodeType] = {}
         #: Each input path, with what the run found at its first touch (the module docstring).
         self.opened: dict[str, str] = {}
         self.probed: dict[str, str] = {}
@@ -371,7 +390,7 @@ class Recording:
             recording = self
 
             def started(code, _offset):
-                recording.codes.add(code)
+                recording.codes[(code.co_filename, code)] = code
                 return monitoring.DISABLE
 
             monitoring.register_callback(self._tool, monitoring.events.PY_START, started)
@@ -628,6 +647,17 @@ def _fork_unsafe(count_threads: Callable[[], int]) -> tuple[str, ...]:
     return () if threads == 1 else (f"{threads} OS threads",)
 
 
+def fork_blockers(platform: tuple[str, str, str]) -> tuple[str, ...]:
+    """Why this process must not fork now, on ``platform`` (``traced_memo.fork_platform()``): the platform is not
+    in :data:`FORK_MEASURED`, or the process holds more than one OS thread. Empty when it may fork. The one spelling
+    of the fork guard: the memo's template and the cone store's capture (``tools/cone_store``) both ask it. The
+    thread counter is built here, in the asking process, because it counts the threads of the process that built it."""
+    measured = FORK_MEASURED.get(platform)
+    if measured is None:
+        return (f"the fork protocol is not measured on {platform}",)
+    return _fork_unsafe(measured())
+
+
 def _boot():
     """The first code of a generating process and of a template: record from the first line, compile every
     first-party module from the bytes it pins, reserve the descriptor the parent reads, read the envelope
@@ -686,7 +716,6 @@ def template() -> None:
 
     ready = recording.snapshot()
     with unrecorded():
-        count_threads = FORK_MEASURED[traced_memo.fork_platform()]()
         # What the imports depended on, pinned as a generation pins it, with the whole bytes of every source
         # they compiled: module state built from a state that has changed since would run old values under a
         # manifest naming the new ones (the test-architect's design note, #602 cut E).
@@ -694,7 +723,7 @@ def template() -> None:
         imported = traced_memo._manifest(ready, store).with_compiled_sources(PINNED_SOURCES or {})
     while (job := _read_frame(jobs)) is not None:
         with unrecorded():
-            reasons = traced_memo.validate(imported, store) or _fork_unsafe(count_threads)
+            reasons = traced_memo.validate(imported, store) or fork_blockers(traced_memo.fork_platform())
         if reasons:
             _write_frame(answers, pickle.dumps(traced_memo._Refused(reasons)))
             break

@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20474**
+Total tests collected: **20560**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2248, 11.0%
-   L1, 2981, 14.6%
+   L0, 2248, 10.9%
+   L1, 2981, 14.5%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15100, 73.8%
+   foundation, 15186, 73.9%
    unmarked, 60, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20335
+   explicit, 20421
    class-name, 46
    func-name, 0
    case, 33
@@ -569,9 +569,12 @@ Module × level grid
    numerics/test_traced_memo_compiled_bytes, 0, 0, 0, 0, 17, 0
    numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
    numerics/test_traced_memo_findings, 0, 0, 0, 0, 35, 0
+   numerics/test_traced_memo_listing_ignores_bytecode, 0, 0, 0, 0, 1, 0
    numerics/test_traced_memo_manifest, 0, 0, 0, 0, 24, 0
+   numerics/test_traced_memo_nested_recording, 0, 0, 0, 0, 3, 0
    numerics/test_traced_memo_ownership, 0, 0, 0, 0, 9, 0
    numerics/test_traced_memo_process, 0, 0, 0, 0, 31, 0
+   numerics/test_traced_memo_records_each_file, 0, 0, 0, 0, 2, 0
    numerics/test_traced_memo_source_index, 0, 0, 0, 0, 24, 0
    numerics/test_traced_memo_template, 0, 0, 0, 0, 45, 0
    numerics/test_traced_memo_validation, 0, 0, 0, 0, 27, 0
@@ -760,6 +763,13 @@ Module × level grid
    test_wave2_retirement, 0, 0, 0, 0, 21, 0
    test_withdrawal, 0, 0, 0, 0, 47, 0
    test_withdrawal_binders, 0, 0, 0, 0, 1, 0
+   tools/test_cone_store_collection, 0, 0, 0, 0, 8, 0
+   tools/test_cone_store_freshness, 0, 0, 0, 0, 6, 0
+   tools/test_cone_store_ground_truth, 0, 0, 0, 0, 7, 0
+   tools/test_cone_store_memo_coexistence, 0, 0, 0, 0, 5, 0
+   tools/test_cone_store_recorder, 0, 0, 0, 0, 9, 0
+   tools/test_cone_store_routes, 0, 0, 0, 0, 13, 0
+   tools/test_cone_store_selection, 0, 0, 0, 0, 32, 0
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0

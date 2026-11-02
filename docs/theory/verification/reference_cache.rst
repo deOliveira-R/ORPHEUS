@@ -44,7 +44,11 @@ The reference cache: a traced memo keyed on what ran
    door (concept 2) at 94143ecd on branch test/door-cylinder-readings,
    2026-10-17, and for the PS-1982 vacuum-sphere solver as the eighth
    client (concept 3) on branch test/ps1982-memo over d5c1ea54,
-   2026-10-17.
+   2026-10-17, and for the cone store as the memo's second reader
+   (collect_pins and the PinRefusal kinds, the codes keyed by file, ERR-124,
+   trace_call's manifest under unrecorded, the listing rule,
+   Witness.reference_ns, fork_blockers) on branch feature/cone-store,
+   uncommitted, 2026-11-01.
 
 A reference reading costs seconds to minutes. The multi-region sphere
 of the A|B|A cross-check, at the coarse resolution the gates use, takes
@@ -1090,12 +1094,26 @@ are owed by the test-architect.
 ``os.lstat`` are replaced by probes that record the path, so
 ``os.path.exists`` and its relatives are dependencies: each probed path
 becomes a :class:`~orpheus.numerics.traced_memo.PresencePin` holding what
-was there at the first probe (the previous paragraph). The probes are removed when the recording stops. In P3, 0 of the 3 clients read a nuclear-data file (`[M]` the
+was there at the first probe (the previous paragraph). The probes are removed when the last active recording stops (recordings nest: every active recording is offered each event, and each holds its own ``sys.monitoring`` tool id). In P3, 0 of the 3 clients read a nuclear-data file (`[M]` the
 AST census: 4 files under ``orpheus/`` read data, all in ``micro_xs`` and
 the Sood cache), so the hook is for P4's generators.
 
 **Directory listings** (``os.listdir``, ``os.scandir``) are recorded,
 with the digest of the directory's sorted names at the first listing.
+:func:`~orpheus.numerics._traced_memo_boot.listing_digest` leaves out the
+names in ``_LISTING_IGNORED``, today the interpreter's bytecode cache
+``__pycache__``: it appears in a package directory as soon as anything
+imports from the directory and writes bytecode, and no run reads it by
+name, so counting it moved the listing pin of every package directory after
+any ordinary run (`[M]` 2026-11-01, the cone store's builder: a plain
+``pytest`` run between a capture and a ``select`` re-selected the whole
+suite). A real name added, removed or renamed still moves the digest. Gate
+``tests/gates/numerics/test_traced_memo_listing_ignores_bytecode.py``
+creates ``__pycache__`` (the digest must not move), then adds a module (the
+activation leg: it must); the test-architect's battery arm that empties
+``_LISTING_IGNORED`` reddens it. The price is a limit of the generator contract
+(:ref:`verification-reference-cache-contract`): a run whose answer depends
+on whether ``__pycache__`` exists is not served correctly after one appears.
 
 **The import system is exempt, decided by the immediate caller.** The
 import system's own reads, probes and listings are how it finds a module,
@@ -1213,6 +1231,119 @@ closure ran, not only what the answer used (``charset-normalizer``,
 ``h5py``, ``mpmath``, ``numpy``, ``scipy``, ``setuptools`` on the
 prototype's manifest): each is a spurious miss on an upgrade, never a
 stale hit.
+
+
+.. _verification-reference-cache-codes-by-file:
+
+A recording keys each code object by its file
+---------------------------------------------
+
+``Recording.codes`` (:class:`~orpheus.numerics._traced_memo_boot.Recording`) maps
+``(co_filename, code)`` to the code object, one entry for each code object the run started, and the manifest reads
+its values. The key carries the file because a code object's equality does not: CPython's ``==`` and ``hash`` on a
+code object compare its name, its first line, its bytecode, its constants and its names, and never
+``co_filename``. Two files holding the same text at the same line therefore compile to equal code objects, and an
+empty module is the extreme case, since every empty ``__init__.py`` compiles to one equal code object. A collection
+keyed by the code alone (a ``set``, as the recording held until 2026-11-01) keeps one member of each equal pair; the
+manifest groups the recorded code by ``co_filename`` to pin each file's skeleton and defs, so the other file had no
+pin at all, and an edit to it left the entry a ``Hit``. That defect is ERR-124 in
+:ref:`theory-verification-error-catalog`.
+
+Where equal code objects occur `[M]` 2026-11-01 (the archivist's census: every code object compiled from every
+``.py`` file of a tree, module bodies and nested defs, grouped by ``==``):
+
+* ``orpheus/``: 11 524 code objects in 403 files hold one group equal across files, the ``__annotate__`` of
+  ``FixedSource`` (``orpheus/numerics/question.py``) and of ``PointValue`` (``orpheus/numerics/observable.py``),
+  both at line 132. An ``__annotate__`` is pinned through its module's skeleton and never as a def (the
+  ``__annotate__`` rule above), and the two modules' own bodies differ, so no ``orpheus`` file lost its pins. 0 of
+  the 77 ``__init__.py`` under ``orpheus/`` is empty.
+* ``tests/``: 25 508 code objects in 899 files hold 12 groups over 34 files; 24 of the 35 ``__init__.py`` are
+  empty. The cone store records ``tests/`` as first-party code (:ref:`verification-cone-store`), so it met the
+  collision on its first fixture.
+
+The gate is ``tests/gates/numerics/test_traced_memo_records_each_file.py``: a premise row asserts that two equal
+defs in two files, and two empty modules, still compare equal (if CPython ever makes them unequal, the file guards
+nothing and says so), and ``test_both_files_of_an_equal_pair_are_pinned``, which carries
+``@pytest.mark.catches("ERR-124")``, traces a call through both twin defs and requires all four files (two empty
+``__init__.py``, two ``mod.py``) pinned. `[M]` 2026-11-01: an in-process plugin keying ``codes`` by the code alone
+reddens it ("module pins lost to code equality") and leaves the premise row green.
+
+
+.. _verification-reference-cache-refusals:
+
+Refusals are values: ``collect_pins``
+-------------------------------------
+
+:func:`~orpheus.numerics.traced_memo.collect_pins` reads a stopped recording as pins and returns a
+:class:`~orpheus.numerics.traced_memo.CollectedPins`: the frozen set of pins of everything that could be pinned,
+and a tuple of :class:`~orpheus.numerics.traced_memo.PinRefusal` values, one for each dependency no pin can name, in
+the order the recording's events are read. Every helper that can refuse (``origin``, the distribution pin, the
+compiled bytes of a source, the def pin, the program pin, the changed-by-the-run check) is called through one local
+wrapper, ``pinned``, which turns an :class:`~orpheus.numerics.traced_memo.Unpinnable` into an entry of the tuple and
+skips that one dependency, so one refusal does not lose the other pins. The manifest is the policy on top:
+``_manifest`` raises ``Unpinnable(refusals[0])`` when the tuple is not empty and otherwise returns
+``Manifest(pins)``, because a generation's answer may be served only when everything it depended on is pinned. With
+no refusal the two readings agree: `[M]` qa's review of the cone store's first increment, 2026-11-01, one real
+recording (a first-party import, a read, a probe, a listing), 71 pins equal to the manifest of the code before the
+split, under three hash seeds.
+
+A refusal is one of a closed set of frozen dataclasses, each naming the thing it is about; its ``str`` is the
+message the memo has always raised, so every gate that matches a refusal's message is unchanged. The cone store
+(:ref:`verification-cone-store`) is the reader that needed the split: it marks a test's cone unknown for some kinds
+and drops others, and it dispatches on the kind in one ``match``, never on the message (the elegance review of the
+store, finding V1: a parser of message fragments classified one refusal two ways according to whether the path was
+spelled absolute or relative).
+
+.. list-table:: The refusal kinds
+   :header-rows: 1
+   :widths: 22 14 64
+
+   * - Kind
+     - Field
+     - What no pin can name
+   * - :class:`~orpheus.numerics.traced_memo.AmbiguousOwner`
+     - ``path``
+     - a ``site-packages`` file that the ``RECORD`` of several installed distributions lists, so no one version
+       pins it
+   * - :class:`~orpheus.numerics.traced_memo.UnownedSitePackage`
+     - ``path``
+     - a ``site-packages`` file that no installed distribution's ``RECORD`` lists
+   * - :class:`~orpheus.numerics.traced_memo.UninstalledDistribution`
+     - ``name``
+     - a distribution that owns a file the run touched, with no version installed
+   * - :class:`~orpheus.numerics.traced_memo.NoDefAtLine`
+     - ``path``, ``line``, ``qualname``
+     - code compiled under a file's name at a line where the file holds no def of that name
+   * - :class:`~orpheus.numerics.traced_memo.ChangedByRun`
+     - ``path``
+     - a path the run observed and then changed (the rule above), so no state of it pins the answer
+   * - :class:`~orpheus.numerics.traced_memo.NoRecordedBytes`
+     - ``path``
+     - code of a file that ran in a generating process without being imported (an ``exec``, a ``runpy``), so the
+       loader recorded no bytes for it
+   * - :class:`~orpheus.numerics.traced_memo.SourceGone`
+     - ``path``
+     - code of a file that ran in a process without the pinned-source loader (``trace_call``, a cone store
+       capture), whose bytes are read after the run, when the file no longer exists: the run, or something during
+       it, removed the source
+   * - :class:`~orpheus.numerics.traced_memo.UnadmittedProcess`
+     - ``program``
+     - a process the run started that is not an admitted machine query, whose own reads and children no recording
+       sees
+
+``SourceGone`` exists because a source removed during the run would otherwise make ``_compiled_bytes`` raise a bare
+``FileNotFoundError``, which is not an ``Unpinnable`` and so escapes ``pinned``: a run that deletes a module it
+imported and ran (``tests/gates/numerics/test_traced_memo_validation.py::test_m2_2_a_removed_def_and_a_removed_file_are_stale``
+does) would kill a cone store capture child and make ``trace_call`` raise (`[M]` the test-architect, 2026-11-01,
+``scratch/verification_tree/cone_store/m1_diagnosis.md``). The gates are in
+``tests/gates/tools/test_cone_store_memo_coexistence.py``: ``test_m3_collect_pins_returns_every_refusal_and_manifest_raises_the_first``
+(a started process and a file observed then changed, both returned, with their kinds, their messages, and the
+first one raised by the manifest), ``test_m3_an_unowned_site_package_is_a_refusal_never_raised`` (a code object
+compiled under a non-existent file name in the real site directory comes back as ``UnownedSitePackage``) and
+``test_m3_a_source_the_run_deleted_is_a_refusal_never_raised``. `[M]` the test-architect's battery, 2026-11-01:
+the arm calling ``origin()`` outside ``pinned`` reddens the unowned-package row alone, the arm keeping one refusal
+reddens the first row alone, and the arm removing the ``except FileNotFoundError`` reddens the source-gone row
+alone.
 
 
 .. _verification-reference-cache-validation:
@@ -1356,6 +1487,19 @@ on something no stat witnesses is marked ``unkeepable`` and never kept.
 Gate M2.3e simulates every write landing in one tick (an identity whose
 two times never move) and requires a same-size edit of a freshly written
 file to be named.
+
+**Settled against which moment.** ``Witness(reference_ns=None)`` judges
+each stat against the wall clock at the moment of the stat; a caller may
+name another moment instead, and the stat is then settled when the file's
+last write lies more than ``TRUSTED_AGE_NS`` before THAT moment. The cone
+store names its capture's start (:ref:`verification-cone-store-freshness`):
+a file written during a capture, or within 2 s before it, is then never
+settled, however long the capture runs, whereas a stat-time reference would
+call a file edited at minute one of a ninety-minute capture settled at
+minute ninety. The predicate is one line of ``Witness.stat`` for both
+references, so the memo and the store apply one racily-clean rule (the
+elegance review of the store's first increment, finding V4, found it
+written twice before the parameter existed).
 
 **The five kept reads**, each a module-level ``Kept`` of
 :mod:`orpheus.numerics.traced_memo`:
@@ -3381,7 +3525,28 @@ protocol ran on. Every other platform, Linux with OpenBLAS on continuous
 integration included, spawns a fresh interpreter per miss. It is tagged
 ``SCOPE-BOUNDARY[guard]`` in the code: the machinery that would widen it
 is the protocol run on the other platform and an OS-thread counter for
-it. The gate (``test_a_platform_the_fork_protocol_never_ran_on_spawns_fresh``)
+it.
+
+**One question before a fork:**
+:func:`~orpheus.numerics._traced_memo_boot.fork_blockers` takes the
+platform (``fork_platform()``) and returns why the asking process must not
+fork now: ``"the fork protocol is not measured on <platform>"`` when the
+table does not list it, otherwise the reasons of the thread check (more
+than one OS thread, counted by the platform's counter), and an empty tuple
+when it may fork. It builds the thread counter in the asking process on
+every call, because a counter counts the threads of the process that built
+it, and a template or a cone store collecting parent is a different
+process at each fork. The template asks it before every forked job; the
+cone store asks it before each of its forks (:ref:`verification-cone-store-capture`),
+so the store re-spells neither the table nor the counter (its gate R9
+asserts that ``tools/cone_store/`` calls ``fork_blockers`` and names
+neither ``FORK_MEASURED`` nor ``_fork_unsafe``). One check stays outside
+it: ``_forks_here`` in :mod:`orpheus.numerics.traced_memo`, which decides
+whether a miss starts a template at all, reads the platform half of the
+table directly (``fork_platform() in FORK_MEASURED``) beside its two other
+conditions (no pinned-source loader, no refused template); the thread half
+is the template's to ask, since only the template process can count its
+own threads. The gate (``test_a_platform_the_fork_protocol_never_ran_on_spawns_fresh``)
 reports an OpenBLAS platform and requires one fresh generation and no
 template.
 
@@ -3522,8 +3687,9 @@ one: a generator that breaks the contract and was served a stale entry
 shows up there as a mismatch. A generator that needs what the contract
 excludes, or a cold rebuild that finds a stale entry, reopens the ruling.
 
-**What the contract covers** (each a way qa's third review hid a
-dependency, none in a real client):
+**What the contract covers** (each a way a qa review hid a dependency,
+none in a real client: the first three in the third review of 2026-10-04,
+the fourth in the cone store's review of 2026-11-01):
 
 * **File metadata.** A presence pin keeps a file's kind (file, directory,
   other, absent), not its size, its times or whether it is a link, so a
@@ -3535,6 +3701,14 @@ dependency, none in a real client):
 * **An optional import's absence.** A generator whose answer depends on
   whether an optional module can be imported depends on something the
   import system decided, and the import system's probes are exempt.
+* **A bytecode cache directory.** A listing leaves ``__pycache__`` out
+  (:ref:`verification-reference-cache-manifest`, "Directory listings"), so
+  a generator whose answer depends on whether one exists (a census of a
+  directory's subdirectories that does not filter it) is outside the
+  contract: it is served the answer computed before the cache appeared.
+  qa measured such a census on 2026-11-01; the four directory censuses in
+  the tree then all filter ``__pycache__`` (the comment above
+  ``_LISTING_IGNORED`` in :mod:`orpheus.numerics._traced_memo_boot`).
 
 
 .. _verification-reference-cache-unseen:
@@ -3587,6 +3761,24 @@ what the generator contract excludes (the section above):
   the same identity on disk, and keep nothing written within the last
   2 s, so they add no window of their own (`[R]`). It writes no entry and no
   source index; it is the instrument the gates measure the recorder with.
+  Its manifest is built under ``unrecorded()``: the re-read of each source
+  is the memo's own read, so a recording still active around the call (a
+  cone store capture of a test that calls ``trace_call``) is not offered it.
+  Offered, the enclosing recording took the whole bytes of every traced
+  source as its caller's data dependency, so a docstring edit to that source
+  re-selected the caller (`[M]` 2026-11-01, the cone store's builder). Gate
+  ``tests/gates/numerics/test_traced_memo_nested_recording.py``: an outer
+  ``Recording`` around a ``trace_call`` holds no read of the traced source,
+  and the inner manifest still pins it (the activation leg); the
+  test-architect's battery arm that builds the manifest outside
+  ``unrecorded()`` reddens it. The memo's digest of its own three sources
+  (``_memo_digest``, read when ``traced_memo`` is imported, and so inside a
+  capture that records from before the import) is read under
+  ``unrecorded()`` for the same reason: offered, it made the memo's whole
+  bytes a data dependency of every recorded test. Gate
+  ``test_the_memos_digest_of_its_own_source_is_offered_to_no_recording``
+  in the same file forces the read with a fresh keeper inside an active
+  recording and requires the recording to hold none of the three files.
 * **The modules imported before the loader.** The boot script and what
   the interpreter's start imported (``site`` runs an editable install's
   finder module, a file the installer generates, which the manifest pins
@@ -4286,6 +4478,21 @@ the memo. The 2026-10-04 rows sat on the branch
      - Milestone
      - Issue
      - Where
+   * - 2026-11-01
+     - **The memo serves its second reader, the cone store**
+       (:ref:`verification-cone-store`). ``collect_pins`` returns every
+       refusal as a typed ``PinRefusal`` value beside the pins, and
+       ``_manifest`` raises the first
+       (:ref:`verification-reference-cache-refusals`); ``SourceGone`` is a
+       new kind. ``Recording.codes`` is keyed by file and code (ERR-124,
+       :ref:`verification-reference-cache-codes-by-file`). ``trace_call``
+       builds its manifest under ``unrecorded()``; listings leave
+       ``__pycache__`` out; ``_memo_digest`` reads the memo's own sources under
+       ``unrecorded()``; ``Witness`` takes a reference moment;
+       ``fork_blockers`` is the one fork question. ``_traced_memo_boot.py``
+       is a pinned memo source, so every stored entry regenerates once.
+     - #358
+     - branch ``feature/cone-store``, uncommitted at the time of writing
    * - 2026-10-17
      - **The 24 files re-timed after concepts 1 to 3** (the protocol of
        2026-10-14, at ``a456a9bf``). warm1 9 307 s to 3 073 s, warm2
