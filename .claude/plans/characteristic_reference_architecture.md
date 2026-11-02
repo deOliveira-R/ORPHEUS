@@ -2786,7 +2786,7 @@ The user's rulings of 2026-10-14:
   2. **C2, cylinder point readings:** 60 reads, 10 to 20 s each `[R]`.
   3. **C3, a bypass scoped per function:** the gates behind `bypass()` hold 2726 s. Needs C1 first.
   4. **C4, a block memo keyed at the door** (the fallback): it fits the key today but misses assembly and system (4345 s).
-- **A limit:** the package `__init__` imports every submodule, so every memo pins all 13 characteristic module skeletons. Only edits inside function bodies regenerate one stage at a time; an edit to a signature, a constant or an import invalidates every entry.
+- **A limit** [REFUTED 2026-11-02 by the statement grain, cone store B2, #689: an entry now pins only the import-time statements its run observes, measured by B5's three constant rows]: the package `__init__` imports every submodule, so every memo pinned all 13 characteristic module skeletons. Only edits inside function bodies regenerate one stage at a time; an edit to a signature, a constant or an import invalidates every entry.
 
 ⏸ **Next:** the user's rulings on the following.
 - **(a)** Retire the step-2 claim, so that gates may read memoised blocks.

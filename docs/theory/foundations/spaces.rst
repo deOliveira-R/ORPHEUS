@@ -1558,8 +1558,9 @@ reasons rule out the frame:
 The new origin adds the support and the layout to the axis's content, so every
 LD-widened space has a new content identity, by design; ``[M]`` the S0 spec
 §1: 0 of 1262 rows over the 43 test files that reach the LD scheme turned red
-under the new identity, and the traced memos are invalidated by the numerics
-module skeletons, not by the LD identity. The first red of the origin is
+under the new identity, and the traced memos were invalidated by the numerics
+module skeletons, not by the LD identity (the skeleton pin was retired by the cone
+store's B2, #689, for the import-time statements a run observes). The first red of the origin is
 ``tests/gates/transport/spatial/test_cell_basis_head.py``
 ``::test_the_ld_moment_axis_is_the_cell_basis_head``, red on the tree before
 the carve with "the LD moment axis is still Declared".

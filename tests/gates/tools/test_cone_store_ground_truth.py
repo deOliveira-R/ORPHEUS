@@ -1,7 +1,7 @@
 """Positive control 4: the store's cone contains each test's cone captured alone in a fresh interpreter.
 
 Spec ``scratch/verification_tree/cone_store/spec_b1.md`` §3.6, rows T1-T4 and CU-OVER. Containment, 0 misses,
-over every pin kind (defs, skeletons, data, memo children). The alone capture is the store's own recorder
+over every pin kind (defs, import-time statements, data, memo children). The alone capture is the store's own recorder
 run by ``--route fresh`` on one node id, so route is the only axis that differs (X4): the recorder's own
 ground is R1-R5. ``[M]`` first red of T1: the single shared parent loses five nodes of ``test_b`` (§0.1).
 
@@ -59,8 +59,32 @@ T3_FILES = ("tests/gates/numerics/test_invariance.py", "tests/gates/numerics/tes
             "tests/gates/numerics/test_space_of_axes.py")
 
 
+def _names(pin) -> frozenset[str]:
+    """The entry names a ``StatementsPin`` keeps (``.cache/sets``); a missing set reads as none, so it cannot hide a
+    miss."""
+    from orpheus.numerics import traced_memo
+
+    return frozenset(traced_memo._read_kept_set(pin.names) or ())
+
+
 def _misses(store, alone, test: str) -> list:
-    return sorted(set(alone.pins(test)) - set(store.pins(test)), key=repr)
+    """The alone rows the store's cone does not contain. A ``StatementsPin`` (B2, #689) is contained when the store
+    holds one for the same file whose entry names include the alone run's: the selection is monotone in the names,
+    so the store then observes every statement the alone run observes (its rows differ whenever the names differ,
+    so row identity would read a larger cone as a miss). Every other pin is contained by identity."""
+    held = set(store.pins(test))
+    statements: dict[str, frozenset[str]] = {}
+    for pin in held:
+        if type(pin).__name__ == "StatementsPin":
+            statements[pin.path] = statements.get(pin.path, frozenset()) | _names(pin)
+    missed = []
+    for pin in alone.pins(test):
+        if type(pin).__name__ == "StatementsPin":
+            if pin.path not in statements or not _names(pin) <= statements[pin.path]:
+                missed.append(pin)
+        elif pin not in held:
+            missed.append(pin)
+    return sorted(missed, key=repr)
 
 
 def _excess(store, alone, test: str) -> int:
@@ -149,7 +173,7 @@ def test_t4_the_fork_and_the_alone_run_give_the_same_outcomes_on_the_sample(real
 
 @pytest.mark.slow
 def test_t3_round_2s_sample_n_contains_its_alone_cones(tmp_path: Path) -> None:
-    """T3. Round 2's sample N, 200 tests, at the grain round 2 omitted (skeletons, ``tests/``, reads): 0 misses.
+    """T3. Round 2's sample N, 200 tests, at the grain round 2 omitted (module code, ``tests/``, reads): 0 misses.
     Budget about 4 min."""
     store_path, alone_path = tmp_path / "store.sqlite", tmp_path / "alone.sqlite"
     _real_cli("capture", store_path, *T3_FILES, timeout=600)
@@ -165,7 +189,7 @@ def test_t3_round_2s_sample_n_contains_its_alone_cones(tmp_path: Path) -> None:
 
 def test_cu_over_the_grandparents_share_is_recorded(fixture_pair) -> None:
     """CU-OVER (RECORD). ``status`` reports how many pins the grandparent attributes to every test. On the
-    fixture it holds at least ``conftest_helper`` and the conftest's skeleton (the positive control of the
+    fixture it holds at least ``conftest_helper`` and the conftest's statement pin (the positive control of the
     count); on the real tree it is the 91 modules the root conftest imports (spec §0.2), printed here only."""
     base, _ = fixture_pair
     status = cone.status(base.root, paths(base.root)["store"])

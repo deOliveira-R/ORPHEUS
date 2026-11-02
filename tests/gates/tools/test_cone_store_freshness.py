@@ -35,7 +35,7 @@ def captured(tmp_path: Path) -> Path:
 def test_f1_an_unchanged_checkout_is_judged_without_reading_a_source(captured: Path) -> None:
     """F1. With no file changed since capture and every identity settled, ``select`` opens no source file.
     Activation leg: after touching ``pkg/user.py`` (its change time moves), exactly that file is opened."""
-    unsettled = [path for path, (_, settled) in store_of(captured).identities().items() if not settled]
+    unsettled = [path for path, state in store_of(captured).identities().items() if not state.settled]
     assert unsettled == [], f"precondition: the aged tree has unsettled identities {unsettled}"
     selected, opened = select(captured)
     assert selected == BASELINE
@@ -56,8 +56,7 @@ def test_f2_an_identity_unsettled_at_capture_is_read_again(tmp_path: Path) -> No
     capture(root, "tests/test_b.py")
     identities = store_of(root).identities()
     assert "pkg/user.py" in identities, sorted(identities)
-    identity, settled = identities["pkg/user.py"]
-    assert not settled, "precondition: the capture took longer than TRUSTED_AGE_NS, so no identity is unsettled"
+    assert not identities["pkg/user.py"].settled, "precondition: the capture took longer than TRUSTED_AGE_NS, so no identity is unsettled"
     _, opened = select(root)
     assert "pkg/user.py" in opened
 

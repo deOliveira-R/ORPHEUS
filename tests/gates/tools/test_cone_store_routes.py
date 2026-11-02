@@ -26,7 +26,7 @@ def plain(tmp_path_factory) -> Path:
 
 
 def _names_only(pins) -> frozenset[tuple]:
-    """Code rows by node, without digests: a variant's conftest has another skeleton digest."""
+    """Code rows by node, without digests: a variant's conftest has another statement digest."""
     return code_keys(pins)
 
 

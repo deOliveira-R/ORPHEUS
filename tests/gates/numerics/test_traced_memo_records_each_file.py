@@ -15,7 +15,7 @@ import textwrap
 import pytest
 
 from orpheus.numerics import traced_memo
-from orpheus.numerics.traced_memo import DefPin, ModulePin
+from orpheus.numerics.traced_memo import DefPin, StatementsPin
 
 pytestmark = pytest.mark.foundation
 
@@ -65,7 +65,7 @@ def test_both_files_of_an_equal_pair_are_pinned(two_equal_files):
     value, manifest = traced_memo.trace_call(_run_both)
     if value != 2:
         pytest.fail(f"the traced run returned {value}, not 2")
-    module_paths = {pin.path for pin in manifest.pins if isinstance(pin, ModulePin)}
+    module_paths = {pin.path for pin in manifest.pins if isinstance(pin, StatementsPin)}
     def_paths = {pin.path for pin in manifest.pins if isinstance(pin, DefPin) and pin.qualname == "twin"}
     wanted_modules = {"twin_left/__init__.py", "twin_right/__init__.py", "twin_left/mod.py", "twin_right/mod.py"}
     if not wanted_modules <= module_paths:

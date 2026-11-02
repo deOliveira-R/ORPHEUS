@@ -42,7 +42,7 @@ _BASE: dict[str, str] = {
     "pkg/consts.py": "TOL = 1e-15\n",
     "pkg/conf_dep.py": """
         def conftest_helper():
-            return 3
+            return 3 if FLAG else 0
 
 
         FLAG = True
@@ -475,7 +475,9 @@ def ids_of(root: Path) -> frozenset[str]:
 
 def environment(root: Path, **overrides: str) -> dict[str, str]:
     env = {k: v for k, v in os.environ.items() if not k.startswith(("PYTEST_", "COV_"))}
-    env["PYTHONPATH"] = os.pathsep.join([str(root), str(REPO)])
+    # The fixture root and this repository first, then the path the gate process received (passed on as the cone
+    # store's ``worker_environment`` passes it, so an instrument installed on it reaches every child).
+    env["PYTHONPATH"] = os.pathsep.join([str(root), str(REPO), *filter(None, [os.environ.get("PYTHONPATH")])])
     env["OMP_NUM_THREADS"] = "1"
     env.update(overrides)
     return env
@@ -585,8 +587,9 @@ def pin_key(pin) -> tuple:
 
 
 def code_keys(pins) -> frozenset[tuple]:
-    """The ``DefPin`` and ``ModulePin`` keys of a row set."""
-    return frozenset(pin_key(p) for p in pins if type(p).__name__ in {"DefPin", "ModulePin"})
+    """The ``DefPin`` and ``StatementsPin`` keys of a row set (the statement pin replaced the skeleton's ``ModulePin``
+    at B2: one per first-party module that ran, keyed by its path)."""
+    return frozenset(pin_key(p) for p in pins if type(p).__name__ in {"DefPin", "StatementsPin"})
 
 
 IN_SUITE_MONITOR = r'''

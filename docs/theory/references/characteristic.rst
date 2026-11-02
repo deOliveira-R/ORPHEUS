@@ -6182,13 +6182,23 @@ them failing, so its counts are lower bounds):
   (the census's C4, which needs no new content type), misses the
   assembly and system rows, which build blocks without a door (4 345 s).
 
-The decoupling has a declared limit: the package ``__init__`` imports
-every submodule, so every entry pins all 13 module skeletons of the
-characteristic package. An edit inside a function body regenerates only
-the entries that ran that function; an edit to a signature, a module
-constant or an import of any of the 13 modules makes every block stale.
-B5 (below) records both halves, the skeleton edit as a declared ``Stale``
-row that flips to ``Hit`` if the package's ``__init__`` ever becomes lazy.
+The decoupling reaches import time as well. The package ``__init__``
+imports every submodule, so every entry imports all 13 modules of the
+characteristic package; until the statement grain landed (#689), each
+entry pinned every one of those modules whole outside its function
+bodies (the module's "skeleton"), so a new constant in any of them made
+every block stale. An entry now pins, per module, only the import-time
+statements its run reads by name (a module constant, a class attribute,
+a decorator, a signature's defaults) and the statements whose effect it
+cannot see by name (an import, a call into code it does not trust). The
+outcome of importing the run's modules (each module's error and
+warnings) is pinned once per entry, so a statement no entry reads by
+name still cannot change an import's success unnoticed
+(:doc:`/theory/verification/reference_cache`). B5 (below) measures the
+three cases on the copied tree: a constant nothing reads leaves the
+block and the reading a ``Hit``; a constant only the point rule reads
+leaves the block a ``Hit`` and makes the reading ``Stale``; a constant
+the attenuation rule reads makes both ``Stale``.
 
 **The key: content values, and canonical forms that are the body's own.**
 The memo keys on the exact encoding of its arguments
@@ -6361,10 +6371,12 @@ all ``foundation``: software invariants with no theory-page label):
   (``GalerkinSystem``, ``PointRule``, ``CharacteristicDerivation``,
   ``DensePencil``, ``RegionCrossSections``, ``EmissionSpace``,
   ``angular_flux``) and no child.
-- B5 (13 rows, on a copy of ``orpheus/`` in a temporary directory): an
+- B5 (16 rows, on a copy of ``orpheus/`` in a temporary directory): an
   edit to a kernel body makes the block stale; an edit to a consumer's
   body leaves it a ``Hit`` while the reading that ran it goes stale; a
-  skeleton constant makes it stale (the declared limit above).
+  changed default of ``LineRule.of``'s ``chunk`` makes it stale; an
+  import-time constant makes an entry stale exactly when that entry's
+  code reads it (the three statement-grain rows above).
 - B6: the system reads every group through ``group_transport``, with the
   system's basis and walls and the group's columns, and ``LineRule.of``
   has one call site in ``orpheus/``, inside ``group_transport``.

@@ -264,7 +264,7 @@ def test_q5_a_relative_read_pins_the_working_directory(make, tmp_path, monkeypat
 
 
 def test_q6_a_def_under_any_module_level_block_is_pinned(make):
-    """Finding 6: defs under a module-level ``for`` and ``match`` were pinned by nothing (the skeleton holds no
+    """Finding 6: defs under a module-level ``for`` and ``match`` were pinned by nothing (the skeleton then held no
     body), so an edit was served stale (101.0 instead of 105.0)."""
     package = make(m='''
         from orpheus.numerics.traced_memo import traced_memo
@@ -636,10 +636,11 @@ def test_q5_absence_probed_by_exists_is_a_dependency(make):
 
 def test_q8_the_memo_pin_covers_the_write_path():
     """Finding 8, its second half: the payload's constructor form (``content.constructor_arguments``) runs
-    on the write path after the recording stops, so the memo's pin covers ``content.py`` too."""
+    on the write path after the recording stops, so the memo's pin covers ``content.py`` too; and since B2 (#689)
+    ``_import_time.py`` computes every statement pin's projection, so it is the memo's own source as well."""
     sources = api.name("_MEMO_SOURCES")
     names = {path.name for path in sources}
-    assert names == {"traced_memo.py", "_traced_memo_boot.py", "content.py"}, names
+    assert names == {"traced_memo.py", "_traced_memo_boot.py", "_import_time.py", "content.py"}, names
     # A pin on a path that does not exist pins nothing: each source is the file the memo runs.
     assert all(path.is_file() for path in sources), sources
 

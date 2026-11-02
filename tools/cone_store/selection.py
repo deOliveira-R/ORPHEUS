@@ -6,12 +6,14 @@ stale; a module that failed to collect is selected by its path. A pin is judged 
 pinned FILE: a file whose identity (device, inode, size, modification and change times) is unchanged since
 capture, and was settled then (older than the memo's ``TRUSTED_AGE_NS`` before the capture began), is fresh without
 being read. Stage two judges every pin on the file with the memo's own ``Pin.stale``, against the memo's own
-``_Checkout``. After a stage two that found every pin on the file clean the file's stored identity is refreshed, so
+``_Checkout``. The run's ``ImportOutcomePin`` names no file of its own: it is fresh without being read when every module
+of its import set passes stage one, and judged otherwise. After a stage two that found every pin on the file clean the file's stored identity is refreshed, so
 the next ``select`` stops at stage one; a file with a stale pin is judged again each time.
 """
 from __future__ import annotations
 
 import contextlib
+import os
 import sys
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
@@ -24,7 +26,7 @@ from orpheus.numerics._traced_memo_boot import FileIdentity, Witness
 from tools.cone_store import pins as pin_rows
 from tools.cone_store.collect import collect_ids
 from tools.cone_store.environment import environment_key
-from tools.cone_store.store import ConeStore
+from tools.cone_store.store import ConeStore, FileState
 
 
 @dataclass(frozen=True)
@@ -58,42 +60,65 @@ def _importable(repo: Path) -> Iterator[None]:
 def _absolute(repo: Path, pin: Any) -> Any:
     """The pin as the memo judges it: a pin that names a path other than by a ``sys.path`` entry (data, presence,
     listing) names it absolutely."""
-    return pin if isinstance(pin, (traced_memo.DefPin, traced_memo.ModulePin)) else \
+    return pin if isinstance(pin, (traced_memo.DefPin, traced_memo.StatementsPin)) else \
         pin_rows.relocated(pin, lambda p: str(repo / p.path))
 
 
 def _stale_pins(database: ConeStore, repo: Path, memo_store: Any, wanted: set[int]) -> dict[int, str]:
     """The reason each stale pin among ``wanted`` is stale (fresh pins are absent)."""
-    checkout = traced_memo._Checkout(memo_store)
     table = database.pin_table()
     identities = database.identities()
     by_file: dict[str, list[int]] = {}
     stale: dict[int, str] = {}
+    unchanged: dict[str, tuple[bool, Any]] = {}
 
     def judge(pin_id: int) -> None:
         reason = _absolute(repo, table[pin_id][0]).stale(checkout)
         if reason is not None:
             stale[pin_id] = reason
 
+    def stage_one(file: str) -> bool:
+        """Whether ``file`` holds the bytes its stored state was taken on (at capture, or at the last clean ``select``),
+        by its identity alone (it was settled then and is the same now)."""
+        if file not in unchanged:
+            state = identities.get(file, FileState(None, False))
+            witness = Witness()
+            found = witness.stat(str(repo / file))  # before the read it guards
+            same = state.ident is not None and state.settled and found is not None \
+                and tuple(FileIdentity.of(found)) == state.ident
+            unchanged[file] = (same, (found, witness))
+        return unchanged[file][0]
+
+    def vouched(path: str, kept: str) -> str | None:
+        """The digest an import set's row is judged by without a read: a repository file (a relative row, which the
+        capture spelled as the module's ``StatementsPin`` file) whose identity passes stage one has the digest of the
+        bytes that identity was taken on; a row that is not the repository's (an absolute row: a module a test wrote
+        under ``tmp_path``, code of another checkout) keeps its own digest, and is measured only when the set is
+        (#691). A set with one module edited reads that module alone (F1, F4)."""
+        if os.path.isabs(path):
+            return kept
+        return identities[path].digest if path in identities and stage_one(path) else None
+
+    checkout = traced_memo._Checkout(memo_store, vouched)
     for pin_id in wanted:
-        file = table[pin_id][1]
-        if file is None:
-            judge(pin_id)
-        else:
+        pin, file = table[pin_id]
+        if file is not None:
             by_file.setdefault(file, [])
+        else:
+            judge(pin_id)
     for pin_id, (_, file) in table.items():
         if file in by_file:
             by_file[file].append(pin_id)
     for file, pin_ids in by_file.items():
-        ident, settled = identities.get(file, (None, False))
-        witness = Witness()
-        found = witness.stat(str(repo / file))  # before the read it guards
-        if ident is not None and settled and found is not None and tuple(FileIdentity.of(found)) == ident:
+        if stage_one(file):
             continue  # stage one: the file is the one captured
         for pin_id in pin_ids:
             judge(pin_id)
+        found, witness = unchanged[file][1]
         if found is not None and not any(pin_id in stale for pin_id in pin_ids):
-            database.refresh(file, tuple(FileIdentity.of(found)), witness.settled)  # the stage-one cache
+            # the stage-one cache: the identity, with the digest of the bytes just judged (never the capture's)
+            database.refresh(file, FileState(tuple(FileIdentity.of(found)), witness.settled,
+                                             checkout.digest(file) if identities[file].digest is not None else None))
     return {pin_id: reason for pin_id, reason in stale.items() if pin_id in wanted}
 
 

@@ -39,14 +39,14 @@ def test_s1_no_edit_selects_only_the_unknown_and_the_not_passed(tree: Path) -> N
     assert selected == BASELINE, f"extra {sorted(selected - BASELINE)}"
 
 
-def test_s2_a_new_test_is_selected_with_its_module(tree: Path) -> None:
-    """S2. A test added after capture is selected, and so are its module's others (the module skeleton moved);
-    no test of another module is."""
+def test_s2_a_new_test_is_selected_alone(tree: Path) -> None:
+    """S2. A test added after capture is selected (it is new), and no other test is: the new def binds a name no
+    captured run read. Re-posed at B2 (#689), INVERTED: under the module skeleton the module's other tests were
+    selected too (the skeleton moved); a statement pin sees only the statements a run observes."""
     with (tree / "tests/test_d.py").open("a") as handle:
         handle.write("\n\ndef test_new():\n    assert True\n")
     selected, _ = select(tree)
-    assert {"tests/test_d.py::test_new", "tests/test_d.py::test_d", "tests/test_d.py::test_plain"} <= selected
-    assert "tests/test_b.py::test_b" not in selected
+    assert selected == BASELINE | {"tests/test_d.py::test_new"}, f"got {sorted(selected)}"
 
 
 def test_s3_a_deleted_test_is_not_listed_and_its_rows_are_pruned(tree: Path) -> None:
@@ -132,8 +132,9 @@ def test_s10_an_edit_to_a_tests_own_body_selects_it_alone(tree: Path) -> None:
 
 
 def test_p1_control_1_module_grain_selects_the_readers_of_the_constant(tree: Path) -> None:
-    """P1 (positive control 1, module grain; exact in B2). Mutating ``TOL`` selects every test whose executed
-    code reads it: ``test_a[t0]`` (``_build`` at collection), ``test_b``, ``test_fail`` and ``test_nested`` (``above``),
+    """P1 (positive control 1). Mutating ``TOL`` selects every test whose executed code reads it (on this tree every
+    importer of ``pkg.user`` reads it, so module and statement grain agree here; the exact control is
+    ``test_cone_store_statement_grain.py`` SG1, SG2, SG4): ``test_a[t0]`` (``_build`` at collection), ``test_b``, ``test_fail`` and ``test_nested`` (``above``),
     and on this tree no other."""
     edit(tree, "pkg/consts.py", "TOL = 1e-15", "TOL = 1e-14")
     readers = {"tests/test_a.py::test_a[t0]", "tests/test_b.py::test_b", "tests/test_g.py::test_fail",

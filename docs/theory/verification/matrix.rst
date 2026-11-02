@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20560**
+Total tests collected: **20679**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 2248, 10.9%
-   L1, 2981, 14.5%
+   L1, 2981, 14.4%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15186, 73.9%
+   foundation, 15305, 74.0%
    unmarked, 60, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20421
+   explicit, 20540
    class-name, 46
    func-name, 0
    case, 33
@@ -207,7 +207,7 @@ Module × level grid
    derivations/test_characteristic_assembly, 4, 112, 4, 0, 67, 0
    derivations/test_characteristic_attenuation_rule, 34, 0, 0, 0, 56, 0
    derivations/test_characteristic_basis, 0, 0, 0, 0, 271, 0
-   derivations/test_characteristic_block_memo, 0, 0, 0, 0, 24, 0
+   derivations/test_characteristic_block_memo, 0, 0, 0, 0, 26, 0
    derivations/test_characteristic_closure, 127, 0, 0, 0, 9, 0
    derivations/test_characteristic_convergence, 0, 0, 6, 0, 0, 0
    derivations/test_characteristic_independent_references, 0, 9, 0, 0, 0, 0
@@ -576,6 +576,7 @@ Module × level grid
    numerics/test_traced_memo_process, 0, 0, 0, 0, 31, 0
    numerics/test_traced_memo_records_each_file, 0, 0, 0, 0, 2, 0
    numerics/test_traced_memo_source_index, 0, 0, 0, 0, 24, 0
+   numerics/test_traced_memo_statement_pins, 0, 0, 0, 0, 92, 0
    numerics/test_traced_memo_template, 0, 0, 0, 0, 45, 0
    numerics/test_traced_memo_validation, 0, 0, 0, 0, 27, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 6, 0
@@ -752,7 +753,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 532, 0
+   test_layer_imports, 0, 0, 0, 0, 533, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
@@ -770,6 +771,7 @@ Module × level grid
    tools/test_cone_store_recorder, 0, 0, 0, 0, 9, 0
    tools/test_cone_store_routes, 0, 0, 0, 0, 13, 0
    tools/test_cone_store_selection, 0, 0, 0, 0, 32, 0
+   tools/test_cone_store_statement_grain, 0, 0, 0, 0, 24, 0
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0

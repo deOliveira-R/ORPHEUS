@@ -46,8 +46,10 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
     ("evidence", "face_layout", "gauge", "index_set", "instance_cache", "metric",
      "recurrence", "registry", "tangential", "units", "vector"),
-    # the coefficient layouts are content values a basis carries (ruling 81)
-    ("_traced_memo_boot", "coefficient_layout", "enclosure", "mesh_free_function"),
+    # the coefficient layouts are content values a basis carries (ruling 81); ``_import_time``
+    # is the traced memo's rule for which import-time statements a run observed, and imports
+    # nothing from ``orpheus`` (cone store B2, #689)
+    ("_import_time", "_traced_memo_boot", "coefficient_layout", "enclosure", "mesh_free_function"),
     ("traced_memo",),
     ("basis", "exactness", "observable", "question"),
     ("measure",),

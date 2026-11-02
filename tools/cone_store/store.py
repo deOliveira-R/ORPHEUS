@@ -3,14 +3,19 @@
 Layout. ``tests`` holds a test id with the environment key it was captured under, its capture route (``fork`` or
 ``fresh``), its outcome and its cone-unknown reasons (a JSON list of strings, never a bare flag). ``pins`` holds
 each distinct pin once, as the memo's own row (``[kind, *fields]``, :mod:`tools.cone_store.pins`), with the file
-it judges when it judges one. ``files`` holds, per file, the identity it had at capture and whether that identity
-was settled (older than the memo's ``TRUSTED_AGE_NS`` before the capture began). ``cones`` joins tests to pins.
+it judges when it judges one. ``files`` holds, per file, the identity it had at capture, whether that identity
+was settled (older than the memo's ``TRUSTED_AGE_NS`` before the capture began) and, for a source, the digest of its
+bytes then, which a pin naming the file's bytes elsewhere (an ``ImportOutcomePin``'s row) is compared with while
+stage one vouches for the file. ``cones`` joins tests to pins.
 The view ``rows`` is the flat reading, one row per test and pin. Paths are relative to the repository.
 
 A file's identity is a fact about the FILE: it is written when any test's capture reads the file, and it is
 trusted (stage one of ``select``) only while every pin on the file was judged against those bytes. When a capture
 finds a file with another identity than the stored one, or the stored one was not settled, the file is stored
 unsettled, so the next ``select`` judges every pin on it (stage two) and refreshes the identity when all are clean.
+The refresh takes the digest of the bytes it judged with the identity: an identity vouches for the bytes it was
+taken on, never for the bytes of the capture, so a pin that remembers the capture's bytes (an import set's row)
+still sees an edit that every pin on the file was clean against (qa's final pass on B2, F1).
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ import sqlite3
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 from orpheus.numerics import traced_memo as memo
 
@@ -30,7 +35,7 @@ CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS tests(
     test_id TEXT PRIMARY KEY, env_key TEXT NOT NULL, route TEXT NOT NULL, outcome TEXT NOT NULL,
     unknown TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY, ident TEXT, settled INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS files(path TEXT PRIMARY KEY, ident TEXT, settled INTEGER NOT NULL, digest TEXT);
 CREATE TABLE IF NOT EXISTS pins(
     pin_id INTEGER PRIMARY KEY, row TEXT NOT NULL UNIQUE, file TEXT REFERENCES files(path));
 CREATE INDEX IF NOT EXISTS pins_by_file ON pins(file);
@@ -43,8 +48,22 @@ CREATE VIEW IF NOT EXISTS rows AS
     FROM cones c JOIN tests t USING(test_id) JOIN pins p USING(pin_id) LEFT JOIN files f ON f.path = p.file;
 """
 
-#: A file's identity at capture (a ``FileIdentity`` as a tuple, ``None`` when the file was missing) and whether it was settled.
-FileState = tuple[tuple[int, ...] | None, bool]
+#: The form of the rows this code writes and reads: 2 since B2 (#689), whose ``StatementsPin`` and ``ImportOutcomePin``
+#: replaced the module skeleton's ``ModulePin``, and whose ``files`` table keeps each source's digest. A store of another form holds rows the memo can no longer decode or
+#: judge, so it is emptied when opened, and every test is then new (selected, and captured again).
+FORMAT = 2
+
+class FileState(NamedTuple):
+    """A file as a capture, or a clean ``select``, last saw it: its identity (a ``FileIdentity`` as a tuple, ``None``
+    when the file was missing), whether that identity was settled, and the digest of the bytes it was taken on
+    (``None`` for a file only data, presence or listing pins judge, whose bytes no other pin names)."""
+
+    ident: tuple[int, ...] | None
+    settled: bool
+    digest: str | None = None
+
+
+_MISSING = FileState(None, False)
 
 
 @dataclass(frozen=True)
@@ -65,6 +84,13 @@ class ConeStore:
         self.db = sqlite3.connect(self.path)
         self.db.executescript(_SCHEMA)
         self.db.execute("PRAGMA foreign_keys = ON")
+        if self.meta("format") != FORMAT:  # another form's tables are dropped, not emptied: their columns may differ
+            with self.db:
+                self.db.execute("DROP VIEW IF EXISTS rows")
+                for table in ("cones", "pins", "files", "tests", "meta"):
+                    self.db.execute(f"DROP TABLE IF EXISTS {table}")
+            self.db.executescript(_SCHEMA)
+            self.set_meta("format", FORMAT)
 
     def close(self) -> None:
         self.db.close()
@@ -96,19 +122,19 @@ class ConeStore:
                             (test.test_id, test.env_key, test.route, test.outcome, json.dumps(list(test.unknown))))
             pins = list(pins)
             for path in {f for pin in pins if (f := pin_rows.file_of(pin)) is not None}:
-                self._note_file(path, *files.get(path, (None, False)))
+                self._note_file(path, files.get(path, _MISSING))
             for pin in pins:
                 row = pin_rows.encode(pin)
                 self.db.execute("INSERT OR IGNORE INTO pins(row, file) VALUES (?, ?)", (row, pin_rows.file_of(pin)))
                 (pin_id,) = self.db.execute("SELECT pin_id FROM pins WHERE row = ?", (row,)).fetchone()
                 self.db.execute("INSERT OR IGNORE INTO cones VALUES (?, ?)", (test.test_id, pin_id))
 
-    def _note_file(self, path: str, ident: tuple[int, ...] | None, settled: bool) -> None:
+    def _note_file(self, path: str, state: FileState) -> None:
         old = self.db.execute("SELECT ident, settled FROM files WHERE path = ?", (path,)).fetchone()
-        encoded = None if ident is None else json.dumps(list(ident))
-        trusted = settled and (old is None or (bool(old[1]) and old[0] == encoded))
-        self.db.execute("INSERT INTO files VALUES (?, ?, ?) ON CONFLICT(path) DO UPDATE SET ident = excluded.ident, "
-                        "settled = excluded.settled", (path, encoded, int(trusted)))
+        encoded = None if state.ident is None else json.dumps(list(state.ident))
+        trusted = state.settled and (old is None or (bool(old[1]) and old[0] == encoded))
+        self.db.execute("INSERT INTO files VALUES (?, ?, ?, ?) ON CONFLICT(path) DO UPDATE SET ident = excluded.ident, "
+                        "settled = excluded.settled, digest = excluded.digest", (path, encoded, int(trusted), state.digest))
 
     def delete(self, test_ids: Iterable[str]) -> int:
         """Forget these tests (their pins stay until :meth:`collect_garbage`); the number deleted."""
@@ -124,11 +150,12 @@ class ConeStore:
             self.db.execute("DELETE FROM pins WHERE pin_id NOT IN (SELECT pin_id FROM cones)")
             self.db.execute("DELETE FROM files WHERE path NOT IN (SELECT file FROM pins WHERE file IS NOT NULL)")
 
-    def refresh(self, path: str, ident: tuple[int, ...], settled: bool) -> None:
-        """A file's identity after every pin on it was judged clean against its current bytes (stage one's cache)."""
+    def refresh(self, path: str, state: FileState) -> None:
+        """A file's state after every pin on it was judged clean against its current bytes (stage one's cache)."""
+        assert state.ident is not None  # narrows: a refresh follows a stat that found the file
         with self.db:
-            self.db.execute("UPDATE files SET ident = ?, settled = ? WHERE path = ?",
-                            (json.dumps(list(ident)), int(settled), path))
+            self.db.execute("UPDATE files SET ident = ?, settled = ?, digest = ? WHERE path = ?",
+                            (json.dumps(list(state.ident)), int(state.settled), state.digest, path))
 
     # ── reading ──
 
@@ -142,9 +169,9 @@ class ConeStore:
             "SELECT p.row FROM cones c JOIN pins p USING(pin_id) WHERE c.test_id = ? ORDER BY p.row", (test_id,))]
 
     def identities(self) -> dict[str, FileState]:
-        """Each file's identity at capture and whether it was settled."""
-        return {path: (None if ident is None else tuple(json.loads(ident)), bool(settled))
-                for path, ident, settled in self.db.execute("SELECT path, ident, settled FROM files")}
+        """Each file's state: its identity at capture (or at the last clean ``select``), whether it was settled, and the digest of the bytes it was taken on."""
+        return {path: FileState(None if ident is None else tuple(json.loads(ident)), bool(settled), digest)
+                for path, ident, settled, digest in self.db.execute("SELECT path, ident, settled, digest FROM files")}
 
     def cones(self) -> Iterator[tuple[str, int]]:
         """Every (test id, pin id)."""

@@ -13,12 +13,15 @@ and the entry keeps the :class:`Manifest` of that run beside the answer.
   those apart, so a key that followed ``==`` could serve one call another's answer.
 * **The manifest** is a set of :data:`Pin`\ s, each able to say whether the checkout still matches it:
   each first-party def that ran by the digest of its normalised source (docstrings, comments and layout
-  excluded), each first-party module that ran by its skeleton (every function body removed: imports,
-  constants, decorators, signatures, class attributes), each third-party distribution by its version, the
+  excluded), each first-party module that ran by the import-time statements the run could observe (by a name
+  its executed code read, or by effect: :mod:`~orpheus.numerics._import_time`) together with the outcome of
+  importing the modules it imported, each third-party distribution by its version, the
   interpreter, each file the run read and each directory it listed (a missing one included: the run
   depended on its absence), the working directory when the run read a relative path, each memo entry the
   run read (validated recursively), and the memo's own source (it wrote the entry).
-* **Validation** re-hashes the manifest against the current files; it imports and runs nothing. A changed
+* **Validation** re-hashes the manifest against the current files; it imports and runs nothing in its own process
+  (when a module the run imported has other bytes, its import outcome is measured again, in a fresh interpreter,
+  once per checkout state). A changed
   pin makes the entry :class:`Stale`, an unreadable or inconsistent entry :class:`Corrupt`; neither is
   served, and the next call regenerates it.
 * **The payload** is exact: JSON with every float as ``float.hex`` and every array in the entry's ``.npz``,
@@ -64,7 +67,6 @@ from __future__ import annotations
 import ast
 import atexit
 import contextlib
-import copy
 import csv
 import dataclasses
 import functools
@@ -95,7 +97,7 @@ from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, overload
 
 import numpy as np
 
-from orpheus.numerics import _traced_memo_boot
+from orpheus.numerics import _import_time, _traced_memo_boot
 from orpheus.numerics._traced_memo_boot import (
     CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child,
     spawning, unrecorded, write_atomically,
@@ -105,12 +107,12 @@ from orpheus.values.content import ContentIdentity, _rebuild, constructor_argume
 
 __all__ = [
     "Absent", "AmbiguousOwner", "ChangedByRun", "ChildPin", "CollectedPins", "Corrupt", "DataPin", "DefPin",
-    "DistributionPin", "EnvironmentPin", "Hit", "InterpreterPin", "ListingPin", "Manifest", "MemoPin", "ModulePin",
-    "NoDefAtLine", "NoRecordedBytes", "Pin", "PinRefusal", "PresencePin", "SourceGone", "Stale", "TemplateRefused",
-    "TracedMemo", "UnadmittedProcess", "Unencodable", "UninstalledDistribution", "UnownedSitePackage", "Unpinnable",
-    "Verdict", "WorkingDirectoryPin", "bypass", "cache_root", "collect_pins", "decode_payload", "default_root",
-    "encode_payload", "function_digest", "origin", "platform_tag", "skeleton_digest", "trace_call", "traced_memo",
-    "validate",
+    "DistributionPin", "EnvironmentPin", "Hit", "ImportOutcomePin", "InterpreterPin", "ListingPin", "Manifest",
+    "MemoPin", "NoDefAtLine", "NoRecordedBytes", "Pin", "PinRefusal", "PresencePin", "SourceGone", "Stale",
+    "StatementsPin", "TemplateRefused", "TracedMemo", "UnadmittedProcess", "Unencodable", "UninstalledDistribution",
+    "UnmeasurableImport", "UnnamedModule", "UnownedSitePackage", "Unpinnable", "Verdict", "WorkingDirectoryPin",
+    "bypass", "cache_root", "collect_pins", "decode_payload", "default_root", "encode_payload", "function_digest",
+    "origin", "platform_tag", "trace_call", "traced_memo", "validate",
 ]
 
 
@@ -216,6 +218,32 @@ class UnadmittedProcess(PinRefusal):
         )
 
 
+@dataclasses.dataclass(frozen=True)
+class UnnamedModule(PinRefusal):
+    """A first-party module whose module code ran, that no ``sys.modules`` entry names and that the run did not read
+    whole (a file ``exec``'d from its bytes is pinned by them): its import cannot be measured again
+    (:class:`ImportOutcomePin`), since loading the file alone, outside its package, measures another thing."""
+
+    path: str
+
+    def __str__(self) -> str:
+        return f"{self.path}: the run imported it, and no sys.modules entry names it, so its import cannot be measured again"
+
+
+@dataclasses.dataclass(frozen=True)
+class UnmeasurableImport(PinRefusal):
+    """A module the run imported that importing again, in a fresh interpreter, does not import: the run reached it
+    through import machinery of its own process (a finder it installed), so its import outcome cannot be measured
+    again and an edit that makes it raise could not be seen (:class:`ImportOutcomePin`)."""
+
+    name: str
+    error: str
+
+    def __str__(self) -> str:
+        return (f"the run imported {self.name}, and a fresh interpreter importing it gets {self.error}: its import "
+                f"cannot be measured again")
+
+
 class Unpinnable(RuntimeError):
     """A run depends on something no manifest can pin; :attr:`refusal` says what and why (:class:`PinRefusal`)."""
 
@@ -237,7 +265,7 @@ class Unencodable(TypeError):
 
 # ── the normalised source ───────────────────────────────────────────────────────────────────────────
 
-_DEF = (ast.FunctionDef, ast.AsyncFunctionDef)
+_DEF = _import_time.DEF
 #: The nodes whose fields hold statements: a statement, an ``except`` handler and a ``match`` case. A docstring
 #: and a def are statements, so every walk that looks for either descends these and never an expression.
 _HOLDS_STATEMENTS = (ast.stmt, ast.excepthandler, ast.match_case)
@@ -269,22 +297,16 @@ def _ast_digest(node: ast.AST) -> str:
     return _digest(ast.dump(node, include_attributes=False).encode())
 
 
-def _span(node: ast.AST) -> range:
-    first = min([node.lineno, *(d.lineno for d in getattr(node, "decorator_list", []))])  # type: ignore[attr-defined]
-    return range(first, node.end_lineno + 1)  # type: ignore[attr-defined]
+_span = _import_time.span
 
 
 #: Code objects Python generates from a SIGNATURE or a class body rather than from a def body: lazy
 #: annotations (PEP 649, ``__annotate__``) and the scopes of type parameters (PEP 695). Their source is the
-#: signature, which the skeleton pins; they never pin the body of the def they belong to (reading a def's
-#: annotations does not run it).
+#: signature, which the def's statement pins (:mod:`~orpheus.numerics._import_time`); they never pin the body of the
+#: def they belong to (reading a def's annotations does not run it).
 _SIGNATURE_SCOPES = ("__annotate__", "<generic parameters of ", "<TypeVar bound of ", "<TypeVar constraint of ",
                      "<TypeAlias ", "<type parameters of ")
-#: The anonymous expressions, each with the name of the code object it compiles to.
-_ANONYMOUS_NAME: Mapping[type[ast.AST], str] = {
-    ast.Lambda: "<lambda>", ast.GeneratorExp: "<genexpr>", ast.ListComp: "<listcomp>",
-    ast.SetComp: "<setcomp>", ast.DictComp: "<dictcomp>",
-}
+_ANONYMOUS_NAME = _import_time.ANONYMOUS_NAME
 
 
 class _IndexedDef(NamedTuple):
@@ -311,13 +333,13 @@ class _Scope(NamedTuple):
 
 @dataclasses.dataclass(frozen=True)
 class _SourceIndex:
-    """What a manifest and a validation read from one source text: the skeleton's digest, every outermost def,
-    and every node a code object can be compiled from. It holds no tree, so it is written to disk and read
-    back (:func:`_source_index`); :func:`_parsed_index` builds it from the text."""
+    """What a manifest and a validation read from one source text: every outermost def, every node a code object can be compiled from, and every import-time statement
+    (:mod:`~orpheus.numerics._import_time`). It holds no tree, so it is written to disk and read back
+    (:func:`_source_index`); :func:`_parsed_index` builds it from the text."""
 
-    skeleton: str
     defs: tuple[_IndexedDef, ...]
     scopes: tuple[_Scope, ...]
+    statements: tuple[_import_time.Statement, ...]
 
     def digest(self, qualname: str, ordinal: int = -1) -> str | None:
         """The digest of the ``ordinal``-th def named ``qualname`` (``-1``: the last, the one Python binds)."""
@@ -339,12 +361,30 @@ class _SourceIndex:
                    and (within is None or within.first <= s.first and s.last <= within.last) for s in self.scopes)
 
     def to_json(self) -> bytes:
-        return json.dumps({"skeleton": self.skeleton, "defs": self.defs, "scopes": self.scopes}).encode()
+        return json.dumps({"defs": self.defs, "scopes": self.scopes, "statements": self.statements}).encode()
 
     @classmethod
     def from_json(cls, body: bytes) -> _SourceIndex:
         data = json.loads(body)
-        return cls(data["skeleton"], tuple(_IndexedDef(*d) for d in data["defs"]), tuple(_Scope(*r) for r in data["scopes"]))
+        return cls(tuple(_IndexedDef(*d) for d in data["defs"]), tuple(_Scope(*r) for r in data["scopes"]),
+                   tuple(_import_time.Statement(digest, tuple(binds), tuple(reads), *rest)
+                         for digest, binds, reads, *rest in data["statements"]))
+
+    def projection(self, names: frozenset[str]) -> str:
+        """The digest of the import-time statements a run with entry names ``names`` observes, in source order
+        (:func:`~orpheus.numerics._import_time.observed_digests`)."""
+        return _digest("\n".join(_import_time.observed_digests(self.statements, names)).encode())
+
+
+def _scope_name(node: ast.AST) -> str:
+    """The name of the code object ``node`` compiles to: a def's or a class's name, a PEP 695 alias's name (its value
+    is evaluated lazily, by a code object named after the alias), or an anonymous expression's ``<lambda>``-style
+    name."""
+    if isinstance(node, (*_DEF, ast.ClassDef)):
+        return node.name
+    if isinstance(node, ast.TypeAlias):
+        return typing.cast(ast.Name, node.name).id
+    return _ANONYMOUS_NAME[type(node)]
 
 
 @functools.cache
@@ -354,50 +394,37 @@ def _parsed_index(data: bytes) -> _SourceIndex:
 
     ONE walk finds every outermost def: it descends every statement except a def's body, so a def under any
     block (``if``, ``for``, ``while``, ``match``, ``try``, ``with``) is found; a class adds its name to the
-    qualified names of the defs in its body. The same walk returns the skeleton: a shallow copy of the
-    statement spine with every outermost def's body read as ``pass`` (a def nested in a body vanishes with that
-    body), so the parsed tree is never changed. Every def is digested: the index is built once per content
-    and then read back from disk."""
+    qualified names of the defs in its body. Every def is digested, and every import-time statement indexed: the
+    index is built once per content and then read back from disk."""
     tree = _without_docstrings(ast.parse(data))
     defs: list[_IndexedDef] = []
     seen: dict[str, int] = {}
 
-    def hollowed(node: ast.AST, prefix: str) -> ast.AST:
+    def outermost(node: ast.AST, prefix: str) -> None:
         if isinstance(node, _DEF):
             qualname = prefix + node.name
             seen[qualname] = seen.get(qualname, -1) + 1
             span = _span(node)
             defs.append(_IndexedDef(qualname, seen[qualname], span.start, span.stop - 1, node.body[0].lineno, _ast_digest(node)))
-            hollow = copy.copy(node)
-            hollow.body = [ast.Pass()]
-            return hollow
+            return
         inner = f"{prefix}{node.name}." if isinstance(node, ast.ClassDef) else prefix
-        clone = copy.copy(node)
-        for field, value in ast.iter_fields(node):
-            if isinstance(value, list) and any(isinstance(v, _HOLDS_STATEMENTS) for v in value):
-                setattr(clone, field, [hollowed(child, inner) for child in value])
-        return clone
+        for _, value in ast.iter_fields(node):
+            for child in value if isinstance(value, list) else ():
+                if isinstance(child, _HOLDS_STATEMENTS):
+                    outermost(child, inner)
 
-    skeleton = _ast_digest(hollowed(tree, ""))
+    outermost(tree, "")
     scopes = tuple(
-        _Scope(node.name if isinstance(node, (*_DEF, ast.ClassDef)) else _ANONYMOUS_NAME[type(node)],
-               _span(node).start, _span(node).stop - 1)
-        for node in ast.walk(tree) if isinstance(node, (*_DEF, ast.ClassDef, *_ANONYMOUS_NAME))
+        _Scope(_scope_name(node), _span(node).start, _span(node).stop - 1)
+        for node in ast.walk(tree) if isinstance(node, (*_DEF, ast.ClassDef, ast.TypeAlias, *_ANONYMOUS_NAME))
     )
-    return _SourceIndex(skeleton, tuple(defs), scopes)
+    return _SourceIndex(tuple(defs), scopes, _import_time.statements(tree, _ast_digest))
 
 
 def function_digest(source: bytes | str, qualname: str, ordinal: int = -1) -> str | None:
     """The digest of the ``ordinal``-th outermost def ``qualname`` (``function`` or ``Class.method``; ``-1``,
     the default, is the last, which Python binds), docstrings stripped; ``None`` when there is none."""
     return _parsed_index(source.encode() if isinstance(source, str) else source).digest(qualname, ordinal)
-
-
-def skeleton_digest(source: bytes | str) -> str:
-    """The digest of the module with every function body replaced by ``pass`` and every docstring stripped:
-    what a traced function reads by name without its own body changing (constants, imports, decorators,
-    signatures with their defaults, class attributes, dataclass fields)."""
-    return _parsed_index(source.encode() if isinstance(source, str) else source).skeleton
 
 
 #: Where the source indexes live, beside the store and the bytecode.
@@ -453,6 +480,153 @@ def _source_index(data: bytes) -> _SourceIndex:
             body = index.to_json()
             write_atomically(path, json.dumps({**header, "body": _digest(body)}).encode() + b"\n" + body)
         return index
+
+
+# ── the sets a pin names by digest, and the import outcome ─────────────────────────────────────────────
+
+#: Where the sets a pin names by their digest live (a run's entry names, a run's import set), beside the indexes: one
+#: file per content, named by the digest of its canonical JSON, so any process may write one and none can write a
+#: wrong one under a name.
+_KEPT_SETS = Path(CACHE) / "sets"
+
+
+def _keep_set(value: list[Any]) -> str:
+    """Keep ``value`` (a JSON list) under the digest of its canonical form, and return the digest."""
+    body = json.dumps(value, separators=(",", ":")).encode()
+    name = _digest(body)
+    path = _KEPT_SETS / f"{name}.json"
+    with unrecorded():
+        try:
+            intact = _digest(path.read_bytes()) == name
+        except OSError:
+            intact = False
+        if not intact:
+            write_atomically(path, body)
+    return name
+
+
+#: The sets read in this process, by name: a set's content never changes under its name, so a set found once is
+#: kept; a set not found is not remembered (a later generation may keep it).
+_KEPT_SETS_READ: dict[str, tuple[Any, ...]] = {}
+
+
+def _read_kept_set(name: str) -> tuple[Any, ...] | None:
+    """The set kept under ``name``; ``None`` when it is missing or its bytes are not the ones it is named by."""
+    if name not in _KEPT_SETS_READ:
+        with unrecorded():
+            try:
+                body = (_KEPT_SETS / f"{name}.json").read_bytes()
+            except OSError:
+                return None
+        if _digest(body) != name:
+            return None
+        _KEPT_SETS_READ[name] = tuple(json.loads(body))
+    return _KEPT_SETS_READ[name]
+
+
+#: Where each import outcome lives, by the digest of what it was measured on.
+_IMPORT_OUTCOMES = Path(CACHE) / "import_outcomes"
+#: The program that measures an import outcome, in a fresh interpreter: it imports each module of the set by its
+#: dotted name, in order, and reports per module the error that stopped its import (``None``: none) and the
+#: warnings it emitted.
+_IMPORT_OUTCOME_PROGRAM = r"""
+import importlib, json, sys, warnings
+job = json.loads(sys.stdin.read())
+sys.path[:] = job["roots"] + [entry for entry in sys.path if entry]
+outcome = []
+for name in job["modules"]:
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        try:
+            importlib.import_module(name)
+            error = None
+        except BaseException as raised:
+            error = type(raised).__name__ + ": " + str(raised)
+    outcome.append([name, error, sorted({w.category.__name__ + ": " + str(w.message) for w in caught})])
+sys.stdout.write(json.dumps(outcome))
+"""
+
+
+class _ImportOutcome(NamedTuple):
+    """What importing a set gave: the digest the pin keeps, and the error each module failed with (none: absent)."""
+
+    digest: str
+    errors: Mapping[str, str]
+
+
+def _import_outcome(modules: tuple[tuple[str, str, str], ...], roots: list[str]) -> _ImportOutcome:
+    """The digest of what importing ``modules`` (pin path, the digest of the bytes it is to be imported from, and the
+    dotted name the run imported it by, in import order) gives in a fresh interpreter: each module's error and
+    warnings. A module is imported by the name the run imported it by (``__spec__.name``, recorded at capture),
+    never loaded from its file alone: outside its package a module's relative imports fail before its body runs,
+    so the outcome could not move (qa's build review, F1). The same instrument at capture and
+    at validation, so the two readings compare like with like; it runs without ``-O`` and under the generation's
+    environment, and is kept by the digest of its inputs (the memo's own source, which holds the measuring program,
+    as an index is named; the interpreter, the environment, the modules' roots and their bytes), so one checkout
+    state is measured once.
+
+    The measuring interpreter finds each module under its ROOT (``roots``, :func:`_module_roots`: the directory
+    that, joined with the module's dotted name, gives the real file the run executed), put ahead of the
+    interpreter's own default path. Never the measuring
+    process's ``sys.path``, which is the run's at capture and the validator's after it: a module found through
+    pytest's ``pythonpath`` ini (``src/``) was not importable by the cone store's ``select``, so a comment edit to it
+    gave another outcome (the test-architect's SG7, 2026-11-02)."""
+    with unrecorded():
+        key = _digest(json.dumps([_INDEX_MEMO_DIGEST, _python_identity(), _environment_digest(), roots, modules]).encode())
+        path = _IMPORT_OUTCOMES / f"{key}.json"
+        try:
+            kept = json.loads(path.read_bytes())
+            return _ImportOutcome(kept["outcome"], _import_errors(kept["measured"], modules))
+        except (OSError, ValueError, KeyError):
+            pass
+        job = {"roots": roots, "modules": [name for _, _, name in modules]}
+        with spawning():
+            # ``-B``: the measurement writes no bytecode beside the sources (a generation leaves no ``__pycache__``)
+            run = subprocess.run([sys.executable, "-B", "-c", _IMPORT_OUTCOME_PROGRAM], input=json.dumps(job).encode(),
+                                 capture_output=True, env=_child_environment(), timeout=_IMPORT_OUTCOME_TIMEOUT)
+        measured = run.stdout if run.returncode == 0 else f"died {run.returncode}: {run.stderr.decode()[-2000:]}".encode()
+        outcome = _digest(measured)
+        text = measured.decode(errors="replace")
+        write_atomically(path, json.dumps({"outcome": outcome, "measured": text}).encode())
+        return _ImportOutcome(outcome, _import_errors(text, modules))
+
+
+def _module_roots(modules: tuple[tuple[str, str, str], ...], real_of: Callable[[str], str | None]) -> list[str]:
+    """The roots of an import set, in its order: for each row, the directory that, joined with the path of its dotted
+    name (``a/b.py`` or ``a/b/__init__.py`` for ``a.b``), gives the row's real file (``real_of(row path)``). A row
+    with no file, or whose file's path does not end in its name's, has no root: the measurement cannot import it,
+    and records the failure. Derived from the real file, never from a pin's path, which is relative to the FIRST
+    ``sys.path`` entry holding the file and need not be the root of its name (pytest's ``pythonpath`` entry or the
+    rootdir before a test package: the test-architect's SG0 and SG7, 2026-11-02)."""
+    roots: dict[str, None] = {}
+    for path, _, name in modules:
+        real = real_of(path)
+        if real is None:
+            continue
+        stem = os.path.splitext(real)[0]
+        if os.path.basename(stem) == "__init__":
+            stem = os.path.dirname(stem)
+        tail = os.path.join(*name.split("."))
+        if stem.endswith(os.sep + tail):
+            roots[stem[:-len(tail) - 1]] = None
+    # Precedence is the importing process's: two roots may hold one top-level name (the repository's ``tests``
+    # package and a test tree's), and the first on ``sys.path`` is the one the run imported. A root no entry names
+    # (a meta-path finder's) follows, in the set's order.
+    precedence = {_real(entry or os.getcwd()): rank for rank, entry in reversed(list(enumerate(sys.path)))}
+    return sorted(roots, key=lambda root: precedence.get(root, len(sys.path)))
+
+
+def _import_errors(measured: str, modules: tuple[tuple[str, str, str], ...]) -> dict[str, str]:
+    """Each module's error in a measurement (every module, when the measuring interpreter itself died)."""
+    try:
+        rows = json.loads(measured)
+    except ValueError:
+        return {name: measured[:200] for _, _, name in modules}
+    return {name: error for name, error, _ in rows if error is not None}
+
+
+#: How long an import outcome may take: every first-party module a run imported, in one interpreter.
+_IMPORT_OUTCOME_TIMEOUT = 600
 
 
 # ── where a file a run touched belongs ──────────────────────────────────────────────────────────────
@@ -560,7 +734,7 @@ _DISTRIBUTIONS = Kept(_find_installed)
 
 
 class Dropped(NamedTuple):
-    """Generated code (``<string>``, ``<frozen …>``): pinned by the interpreter and the skeleton."""
+    """Generated code (``<string>``, ``<frozen …>``): pinned by the interpreter and by the statement that generated it."""
 
     filename: str
 
@@ -624,10 +798,18 @@ def _python_identity() -> str:
     return f"{sys.version}|{sys.implementation.cache_tag}"
 
 
-@functools.cache
+#: numpy's build configuration, asked once per process. numpy's own code, pinned by numpy's distribution; it runs
+#: unrecorded (:func:`_blas`), since a cached call runs for the first caller only and a run's names would depend on
+#: whether an earlier caller (the capture's fork guard) had asked. No first-party code object is cached here, so
+#: every first-party line of the query (:func:`_blas`) runs, and is recorded, on every call.
+_NUMPY_BUILD_CONFIG = functools.cache(functools.partial(np.show_config, mode="dicts"))
+
+
 def _blas() -> str:
-    """The BLAS numpy was built against (Accelerate and OpenBLAS differ in the last bits, #504)."""
-    config = np.show_config(mode="dicts")
+    """The BLAS numpy was built against (Accelerate and OpenBLAS differ in the last bits, #504), which keys an entry
+    (:func:`platform_tag`)."""
+    with unrecorded():
+        config = _NUMPY_BUILD_CONFIG()
     return config.get("Build Dependencies", {}).get("blas", {}).get("name", "unknown") if isinstance(config, dict) else "unknown"
 
 
@@ -649,7 +831,7 @@ def fork_platform() -> tuple[str, str, str]:
 #: constructor form is :func:`~orpheus.values.content.constructor_arguments`): an edit to any of it makes
 #: every entry stale (qa finding 8, and its second review, 2026-10-04).
 _MEMO_SOURCES = (
-    *(Path(__file__).resolve().with_name(name) for name in ("traced_memo.py", "_traced_memo_boot.py")),
+    *(Path(__file__).resolve().with_name(name) for name in ("traced_memo.py", "_traced_memo_boot.py", "_import_time.py")),
     Path(_content.__file__).resolve(),
 )
 
@@ -694,14 +876,19 @@ def _child_environment(environment: Mapping[str, str] | None = None) -> dict[str
     return {k: source[k] for k in _CHILD_ENVIRONMENT if k in source} | _FIXED_ENVIRONMENT
 
 
+def _source_candidates(path: str, entries: tuple[str, ...], directory: str) -> tuple[str, ...]:
+    """Where a pin's ``path`` may name a source, in the order an import looks: the absolute path itself, or the path
+    under each ``sys.path`` entry (the working directory ``directory`` for an empty entry)."""
+    return (path,) if os.path.isabs(path) else tuple(os.path.join(entry or directory, path) for entry in entries)
+
+
 def _read_source(key: tuple[str, tuple[str, ...], str], witness: Witness) -> bytes | None:
     """The bytes of the source a pin's path ``key[0]`` names under ``sys.path`` ``key[1]`` and working directory
     ``key[2]``: the absolute path itself, or the first entry holding a regular file there (the one the same import
     would load); ``None`` when none does. Every candidate up to the one read is witnessed, a missing one
     included, so a file appearing on an earlier entry is a change and the shadowing file is read."""
     path, entries, directory = key
-    candidates = (path,) if os.path.isabs(path) else tuple(os.path.join(entry or directory, path) for entry in entries)
-    for candidate in candidates:
+    for candidate in _source_candidates(path, entries, directory):
         found = witness.stat(candidate)
         if found is not None and stat.S_ISREG(found.st_mode):
             return Path(candidate).read_bytes()
@@ -723,15 +910,43 @@ class _Checkout:
     one read of it; this does not reach across files or across children, each of which validates with its own
     checkout), the installed environment, and the store children live in."""
 
-    def __init__(self, store: Store) -> None:
+    def __init__(self, store: Store, vouched: Callable[[str, str], str | None] = lambda _path, _kept: None) -> None:
         self.store = store
         self._texts: dict[str, bytes | None] = {}
         self.installed = _Installed()
+        #: ``vouched(path, kept)``: the digest of a source's bytes that the validation vouches for without reading the
+        #: file, given the digest a pin kept for it; ``None``, the file is read. The memo vouches for nothing. The
+        #: cone store vouches, for a file of the repository whose identity passes its stage one, the digest of the
+        #: bytes that identity was taken on, and, for a file that is not the repository's, the kept digest itself
+        #: (#691: such a row is measured only when the set is).
+        self.vouched = vouched
 
     def text(self, path: str) -> bytes | None:
         if path not in self._texts:
             self._texts[path] = _SOURCES((path, tuple(sys.path), os.getcwd()))
         return self._texts[path]
+
+    def digest(self, path: str) -> str:
+        """The digest of the source a pin's ``path`` names now, as an import set's row keeps it (``"absent"``: none);
+        the cone store's refresh keeps the same quantity beside a file's identity."""
+        text = self.text(path)
+        return "absent" if text is None else _digest(text)
+
+    def found(self, path: str) -> str | None:
+        """The real file a pin's ``path`` names now: the one :meth:`text` reads (``None``: none)."""
+        for candidate in _source_candidates(path, tuple(sys.path), os.getcwd()):
+            if os.path.isfile(candidate):
+                return _real(candidate)
+        return None
+
+    def kept(self, name: str) -> tuple[Any, ...] | None:
+        """The set kept under ``name`` (``_keep_set``)."""
+        return _read_kept_set(name)
+
+    def names(self, name: str) -> frozenset[str] | None:
+        """The entry names kept under ``name``."""
+        kept = self.kept(name)
+        return None if kept is None else frozenset(kept)
 
 
 
@@ -745,7 +960,7 @@ _MEMO_DIGESTS = Kept(_read_memo_digest)
 
 
 def _memo_digest() -> str:
-    """The digest of the memo's source on disk now (kept for the process while its three files are unchanged). The
+    """The digest of the memo's source on disk now (kept for the process while its source files are unchanged). The
     memo's own read, offered to no active recording: a process recording from before its import (the cone store's
     capture) would otherwise record the memo's whole bytes as a dependency of everything it runs."""
     with unrecorded():
@@ -790,17 +1005,53 @@ class DefPin(NamedTuple):
         return f"function {self.path}:{self.qualname} changed" if found != self.digest else None
 
 
-class ModulePin(NamedTuple):
-    """A first-party module that ran, by its skeleton."""
+class StatementsPin(NamedTuple):
+    """A first-party module that ran, by the import-time statements the run could observe
+    (:mod:`~orpheus.numerics._import_time`): ``names`` names the run's entry names, a set kept by its digest
+    (``_keep_set``); ``digest`` is the module's projection on them (``_SourceIndex.projection``). It goes
+    stale when an observed statement changes, and when a statement binding one of the names is added or removed;
+    an edit to a statement the run could not observe leaves it valid (the run's :class:`ImportOutcomePin` still
+    asks whether the module imports as it did)."""
 
     path: str
+    names: str
     digest: str
 
     def stale(self, checkout: _Checkout) -> str | None:
         text = checkout.text(self.path)
         if text is None:
             return f"module {self.path} gone"
-        return f"module {self.path} skeleton changed" if _source_index(text).skeleton != self.digest else None
+        names = checkout.names(self.names)
+        if names is None:
+            return f"module {self.path}: the entry names {self.names[:12]} are not kept"
+        if _source_index(text).projection(names) != self.digest:
+            return f"module {self.path}: an import-time statement the run observes changed"
+        return None
+
+
+class ImportOutcomePin(NamedTuple):
+    """The first-party modules a run imported, in the order it imported them, and what importing them gives
+    (``_import_outcome``: each module's error, and the warnings it emitted). An edit to a statement no run reads
+    by name can still make an import raise or warn (a def deleted while a table names it, ruling 43 of the
+    verification-tree plan), and an import that fails or warns changes every run that imports the module.
+    ``modules`` names the set, kept by its digest (rows of pin path and the digest of the bytes imported); the
+    outcome is measured again only when some module's bytes differ. Each row also names the module's dotted name,
+    which the measurement imports it by."""
+
+    modules: str
+    outcome: str
+
+    def stale(self, checkout: _Checkout) -> str | None:
+        rows = checkout.kept(self.modules)
+        if rows is None:
+            return f"import set {self.modules[:12]} is not kept"
+        now = tuple((path, digest if (digest := checkout.vouched(path, kept)) is not None else checkout.digest(path), name)
+                    for path, kept, name in rows)
+        if now == tuple(tuple(row) for row in rows):
+            return None
+        if _import_outcome(now, _module_roots(now, checkout.found)).digest != self.outcome:
+            return f"importing the run's {len(rows)} first-party modules gives another outcome"
+        return None
 
 
 class DistributionPin(NamedTuple):
@@ -902,7 +1153,7 @@ class MemoPin(NamedTuple):
         return "the traced memo's own source changed" if _memo_digest() != self.digest else None
 
 
-Pin = (DefPin | ModulePin | DistributionPin | InterpreterPin | DataPin | PresencePin | ListingPin | EnvironmentPin
+Pin = (DefPin | StatementsPin | ImportOutcomePin | DistributionPin | InterpreterPin | DataPin | PresencePin | ListingPin | EnvironmentPin
        | WorkingDirectoryPin | ChildPin | MemoPin)
 
 
@@ -935,8 +1186,8 @@ class Manifest:
         return self.of(DefPin)
 
     @property
-    def modules(self) -> tuple[ModulePin, ...]:
-        return self.of(ModulePin)
+    def modules(self) -> tuple[StatementsPin, ...]:
+        return self.of(StatementsPin)
 
     @property
     def distributions(self) -> tuple[DistributionPin, ...]:
@@ -953,7 +1204,7 @@ class Manifest:
     def with_compiled_sources(self, sources: Mapping[str, bytes]) -> Manifest:
         """This manifest, holding also the whole bytes each first-party source was compiled from: a process that
         keeps running that code (a template) is stale when any of them differs on disk, an edit to a def body
-        that never ran included, which the skeleton and def pins do not see."""
+        that never ran included, which the statement and def pins do not see."""
         return Manifest(self.pins | {DataPin(path, _digest(text)) for path, text in sources.items()})
 
     def replacing(self, kind: type[Any], pins: Iterable[Pin]) -> Manifest:
@@ -970,7 +1221,7 @@ class Manifest:
 
 def _def_pin(index: _SourceIndex, path: str, code: types.CodeType) -> DefPin | None:
     """The pin of the outermost def whose source holds ``code``; ``None`` for module-level code (a module or
-    class body, a module-level lambda, a signature), which the skeleton pins."""
+    class body, a module-level lambda, a signature), which its import-time statement pins."""
     line, name = code.co_firstlineno, code.co_name
     found = index.enclosing(line)
     if name == "<module>" or (found is not None and name.startswith(_SIGNATURE_SCOPES) and line < found.body_line):
@@ -1020,25 +1271,56 @@ def collect_pins(recording: Recording, store: Store) -> CollectedPins:
     pins |= {ChildPin(*child) for child in recording.children}
     checkout = _Checkout(store)
     by_file: dict[str, list[types.CodeType]] = {}
+    imported: list[str] = []  # first-party files whose module code started, in the order it started
+    seed: set[str] = set()  # the names code the run executed reads (first-party module-level code is read below)
     for code in recording.codes.values():
         match pinned(lambda: origin(code.co_filename, checkout.installed)):
             case Distribution(name):
                 if (pin := pinned(lambda: _distribution_pin(checkout, name))) is not None:
                     pins.add(pin)
+                seed.update(_import_time.code_names(code))
             case Source(path):
                 by_file.setdefault(path, []).append(code)
+                if code.co_name == "<module>":
+                    imported.append(path)
             case Dropped() | Interpreter() | None:
-                pass
+                seed.update(_import_time.code_names(code))
+    indexes: dict[str, _SourceIndex] = {}
+    compiled: dict[str, bytes] = {}
     for real, file_codes in by_file.items():
         path = _pin_path(real)
         data = pinned(lambda: _compiled_bytes(recording, real))
         if data is None:
             continue
-        index = _source_index(data)
-        pins.add(ModulePin(path, index.skeleton))
+        index = indexes[real] = _source_index(data)
+        compiled[real] = data
         for code in file_codes:
-            if (pin := pinned(lambda: _def_pin(index, path, code))) is not None:
-                pins.add(pin)
+            match pinned(lambda: _def_pin(index, path, code)):
+                case DefPin() as pin:
+                    pins.add(pin)
+                    seed.update(_import_time.code_names(code))
+                    seed.update(part for part in code.co_qualname.split(".") if part != "<locals>")
+                case None if code.co_name.startswith("<") and code.co_name != "<module>" \
+                        and not code.co_name.startswith(_SIGNATURE_SCOPES):
+                    # a module-level lambda or generator that ran: its reads, and the statement holding it
+                    seed.update(_import_time.code_names(code))
+                    if (held := _import_time.holding(index.statements, code.co_firstlineno)) is not None:
+                        seed.update(held.binds)
+                case _:
+                    pass  # module-level code: its statements are read statically, by the closure
+    names = _import_time.closure({real: index.statements for real, index in indexes.items()}, seed)
+    kept_names = _keep_set(sorted(names))
+    for real, index in indexes.items():
+        pins.add(StatementsPin(_pin_path(real), kept_names, index.projection(names)))
+    named = _module_names()
+    read_whole = {_real(opened) for opened in recording.opened}  # pinned by their bytes (an ``exec``'d file)
+    for real in imported:
+        if real in compiled and real not in named and real not in read_whole:
+            pinned(lambda: _raise(UnnamedModule(real)))
+    if imported_rows := {real: (_pin_path(real), _digest(compiled[real]), named[real])
+                         for real in imported if real in compiled and real in named}:
+        if (outcome := pinned(lambda: _measured_import_outcome(imported_rows))) is not None:
+            pins.add(ImportOutcomePin(_keep_set([list(row) for row in imported_rows.values()]), outcome))
     store_root = _real(str(store.root)) + os.sep
     for opened, read in recording.opened.items():
         if _real(opened).startswith(store_root):
@@ -1062,6 +1344,39 @@ def collect_pins(recording: Recording, store: Store) -> CollectedPins:
     if recording.relative:
         pins.add(WorkingDirectoryPin(recording.directory))
     return CollectedPins(frozenset(pins), tuple(refusals))
+
+
+#: The outcome recorded when a file the run imported no longer holds the bytes it ran from: no measurement on disk
+#: describes the code that ran, and none equals this, so the pin is stale until the file holds those bytes again
+#: (the pin then never measures).
+_UNMEASURED = "unmeasured: a module's bytes changed during the run"
+
+
+def _module_names() -> dict[str, str]:
+    """The dotted name each module of this process was imported by (``__spec__.name``), by the real path of its file."""
+    return {_real(file): spec.name for module in list(sys.modules.values())
+            if isinstance(file := getattr(module, "__file__", None), str)
+            and (spec := getattr(module, "__spec__", None)) is not None}
+
+
+def _raise(refusal: PinRefusal) -> None:
+    raise Unpinnable(refusal)
+
+
+def _measured_import_outcome(rows: Mapping[str, tuple[str, str, str]]) -> str:
+    """The import outcome of a run's import set (each file's pin path, the digest of the bytes it ran from and its
+    dotted name, in import order) at capture, measured on the files as they are now; :data:`_UNMEASURED` when a
+    file's bytes are no longer the ones the run compiled. Every module of the set imported in the run (it is in
+    ``sys.modules``), so a module the measurement fails to import is one the instrument does not reach as the run
+    did, and the pin is refused (:class:`UnmeasurableImport`)."""
+    if any(_file_digest(real) != seen for real, (_, seen, _) in rows.items()):
+        return _UNMEASURED
+    by_path = {path: real for real, (path, _, _) in rows.items()}
+    outcome = _import_outcome(tuple(rows.values()), _module_roots(tuple(rows.values()), by_path.get))
+    if outcome.errors:
+        name, error = next(iter(outcome.errors.items()))
+        raise Unpinnable(UnmeasurableImport(name, error))
+    return outcome.digest
 
 
 def _manifest(recording: Recording, store: Store) -> Manifest:

@@ -49,8 +49,10 @@ WITNESSES = [
     ("traced-method", "alpha", "return x + 2.0", "return x + 2.5", True, "Box.method"),
     ("traced-nested-lambda", "alpha", "(lambda z: z * 0.5)", "(lambda z: z * 0.25)", True, "nested_user"),
     ("traced-nested-def", "alpha", "return y + 1.0", "return y + 2.0", True, "nested_user"),
-    ("constant-read", "alpha", "SCALE = 3.0", "SCALE = 3.5", True, "skeleton"),
-    ("constant-unread", "alpha", "UNREAD = 7.0", "UNREAD = 8.0", True, "skeleton"),
+    ("constant-read", "alpha", "SCALE = 3.0", "SCALE = 3.5", True, "import-time statement"),
+    # Re-posed at B2 (#689), INVERTED: under the module skeleton this was a declared spurious miss; a statement pin
+    # selects only what the run could observe, so an edit to an unread constant now leaves the entry valid.
+    ("constant-unread", "alpha", "UNREAD = 7.0", "UNREAD = 8.0", False, ""),
     ("untraced-body", "alpha", "return x - 1.0", "return x - 9.0", False, ""),
     ("untraced-method", "alpha", "return x - 2.0", "return x - 9.0", False, ""),
     ("docstring", "alpha", '"""Doc of a traced helper."""', '"""Changed."""', False, ""),
@@ -63,10 +65,10 @@ WITNESSES = [
 @pytest.mark.parametrize("row,module,old,new,stale,fragment", WITNESSES, ids=[w[0] for w in WITNESSES])
 def test_m2_1_validation_misses_exactly_when_something_that_ran_changed(package, row, module, old, new, stale, fragment):
     """M2.1, the X1 witnesses at the manifest: an edit inside a traced def (a body, a method, a lambda nested in
-    a def) or to a top-level statement of a module whose body ran (a constant, read or not: the skeleton is
-    per module, so ``constant-unread`` is a DECLARED spurious miss, sound and priced) is a reason naming what
-    changed; an edit to an untraced def of the same module, a docstring, a comment, or a module the call
-    never imported, is not."""
+    a def) or to a top-level statement the run observes (``constant-read``) is a reason naming what changed; an
+    edit to an untraced def of the same module, an import-time statement the run never reads (``constant-unread``:
+    until B2, #689, a declared spurious miss of the per-module skeleton), a docstring, a comment, or a module the
+    call never imported, is not."""
     manifest = _generate_manifest(package)
     package.edit(module, old, new)
     reasons = api.validate(manifest)

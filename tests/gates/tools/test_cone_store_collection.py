@@ -51,18 +51,21 @@ def test_c2_a_cache_filled_by_another_modules_collection_does_not_hide_the_fill(
 
 
 def test_c3_a_constant_edit_selects_every_importer_of_its_reader(tree: Path) -> None:
-    """C3 (control 1 at module grain, also P1). An edit to ``TOL`` (``pkg/consts.py``'s skeleton) selects exactly
-    the tests whose module imports ``pkg.user``, beside the baseline: ``test_a[t0]``, ``test_b``, ``test_fail``,
-    ``test_nested``."""
+    """C3 (control 1, also P1). An edit to ``TOL`` selects exactly the tests whose code reads it, beside the baseline:
+    ``test_a[t0]``, ``test_b``, ``test_fail``, ``test_nested``. On this tree every importer of ``pkg.user`` reads
+    ``TOL`` (``_build`` and ``above``), so the row cannot tell statement grain from module grain; the exact control
+    at statement grain is ``test_cone_store_statement_grain.py`` SG1, SG2 and SG4 (B2, #689)."""
     edit(tree, "pkg/consts.py", "TOL = 1e-15", "TOL = 2e-15")
     selected, _ = select(tree)
     assert selected == PKG_USER_READERS | BASELINE, f"extra {sorted(selected - PKG_USER_READERS - BASELINE)}; missing {sorted(PKG_USER_READERS - selected)}"
 
 
-@pytest.mark.parametrize("change", ["body", "skeleton"])
+@pytest.mark.parametrize("change", ["body", "statement"])
 def test_c4_what_the_grandparent_ran_is_attributed_to_every_test(tree: Path, change: str) -> None:
     """C4. ``tests/conftest.py`` runs ``conftest_helper`` in the grandparent; an edit to its body, or to ``FLAG``
-    (the skeleton of ``pkg/conf_dep.py``), selects every test of the tree."""
+    (an import-time statement of ``pkg/conf_dep.py`` the helper reads), selects every test of the tree. Re-posed at
+    B2 (#689): ``FLAG`` was unread, and the row passed only through the module skeleton; under statement pins that
+    edit selects nothing, so the helper now reads ``FLAG`` and the row asserts attribution of an OBSERVED statement."""
     if change == "body":
         edit(tree, "pkg/conf_dep.py", "return 3", "return 1 + 2")
     else:
@@ -72,9 +75,11 @@ def test_c4_what_the_grandparent_ran_is_attributed_to_every_test(tree: Path, cha
 
 
 def test_c5_a_package_init_is_attributed_to_every_test_under_it(tree: Path) -> None:
-    """C5. An edit to ``tests/__init__.py``'s skeleton selects every test. ``[M]`` first red: the single parent
-    attributed package ``__init__`` code to the first module only, 31 of 31 real samples (spec §0.1)."""
-    (tree / "tests/__init__.py").write_text("MARK = 1\n")
+    """C5. An import-time effect added to ``tests/__init__.py`` selects every test. ``[M]`` first red: the single
+    parent attributed package ``__init__`` code to the first module only, 31 of 31 real samples (spec §0.1).
+    Re-posed at B2 (#689): the edit was ``MARK = 1``, an unread binding that statement pins rightly ignore; an
+    effect (a warnings filter every test runs under) is what every test observes."""
+    (tree / "tests/__init__.py").write_text("import warnings\n\nwarnings.simplefilter('default')\n")
     selected, _ = select(tree)
     assert selected == ALL, f"missing {sorted(ALL - selected)}"
 

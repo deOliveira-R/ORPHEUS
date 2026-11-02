@@ -13,7 +13,7 @@ edit. The memoised clients (``CLIENTS``) live in ``tests/gates/derivations/test_
 * ``trace_call(f, *args, **kwargs) -> (value, Manifest)``: one traced call in THIS process;
 * ``Manifest`` with ``functions`` ``(relpath, qualname, digest)``, ``modules`` ``(relpath, digest)``,
   ``distributions`` ``(name, version)``, ``python``, ``children`` ``(function id, key, payload digest)``;
-* ``validate(manifest) -> tuple[str, ...]`` (empty: valid); ``function_digest``, ``skeleton_digest``;
+* ``validate(manifest) -> tuple[str, ...]`` (empty: valid); ``function_digest``, ``statement_digests``;
 * ``classify(filename) -> (kind, detail)``, read off ``origin(filename)``; ``Unpinnable``; ``Unencodable``;
 * ``encode_payload(value, allowed) -> (tree, arrays)`` and ``decode_payload(tree, arrays, allowed)``;
 * ``platform_tag()``.
@@ -52,8 +52,11 @@ def function_digest(source: str | bytes, qualname: str) -> Any:
     return name("function_digest")(source, qualname)
 
 
-def skeleton_digest(source: str | bytes) -> Any:
-    return name("skeleton_digest")(source)
+def statement_digests(source: str | bytes) -> tuple[str, ...]:
+    """The digests of the module's import-time statements, in source order (the successor of the retired
+    ``skeleton_digest``, B2 #689): what a ``StatementsPin`` projects."""
+    data = source.encode() if isinstance(source, str) else source
+    return tuple(s.digest for s in name("_parsed_index")(data).statements)
 
 
 #: The kind of each origin, as the gates spell it.
@@ -131,7 +134,7 @@ def write_entry(path: Any, entry: dict) -> None:
 
 
 def manifest_rows(entry: dict, kind: str) -> list[list[Any]]:
-    """The fields of every pin of ``kind`` (``"DefPin"``, ``"ModulePin"``, ``"ChildPin"``, ...) in an entry."""
+    """The fields of every pin of ``kind`` (``"DefPin"``, ``"StatementsPin"``, ``"ChildPin"``, ...) in an entry."""
     return [fields for tag, *fields in entry["manifest"] if tag == kind]
 
 

@@ -65,7 +65,7 @@ def _edited(old: str, new: str) -> str:
     return SOURCE.replace(old, new)
 
 
-#: (edit name, old, new, the def's digest moves, the skeleton moves)
+#: (edit name, old, new, the def's digest moves, the module's import-time statement digests move)
 EDITS = [
     ("docstring", '"""Doc one."""', '"""A different doc."""', False, False),
     ("comment", "# a comment", "# another comment entirely", False, False),
@@ -87,19 +87,21 @@ EDITS = [
 ]
 
 
-@pytest.mark.parametrize("edit,old,new,def_moves,skeleton_moves", EDITS, ids=[e[0] for e in EDITS])
-def test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer(edit, old, new, def_moves, skeleton_moves):
-    """M1.1 (the def's digest) and M1.2 (the module skeleton): docstrings, comments and layout never move a
-    digest; a body edit moves its def's and nobody else's; a top-level statement, a signature, a decorator, an
-    import or a def added moves the skeleton. Each row is one edit and asserts BOTH digests, so a skeleton that
-    kept function bodies, or a def digest that kept docstrings, reds a named row."""
+@pytest.mark.parametrize("edit,old,new,def_moves,statements_move", EDITS, ids=[e[0] for e in EDITS])
+def test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer(edit, old, new, def_moves, statements_move):
+    """M1.1 (the def's digest) and M1.2 (the module's import-time statement digests, which a ``StatementsPin``
+    projects; they replaced the module skeleton at B2, #689, and move on exactly the edits it moved on):
+    docstrings, comments and layout never move a digest; a body edit moves its def's and nobody else's; a
+    top-level statement, a signature, a decorator, an import or a def added moves the statements. Each row is one
+    edit and asserts BOTH, so a statement digest that kept function bodies, or a def digest that kept docstrings,
+    reds a named row."""
     after = _edited(old, new)
     before_def, after_def = api.function_digest(SOURCE, "target"), api.function_digest(after, "target")
     if before_def is None or after_def is None:
         raise AssertionError("function_digest did not find 'target'")
     assert (before_def != after_def) is def_moves, f"{edit}: the def digest moved={before_def != after_def}"
-    before_skel, after_skel = api.skeleton_digest(SOURCE), api.skeleton_digest(after)
-    assert (before_skel != after_skel) is skeleton_moves, f"{edit}: the skeleton moved={before_skel != after_skel}"
+    before_st, after_st = api.statement_digests(SOURCE), api.statement_digests(after)
+    assert (before_st != after_st) is statements_move, f"{edit}: the statements moved={before_st != after_st}"
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer')
@@ -125,11 +127,11 @@ def test_m1_3b_nested_code_maps_to_its_outermost_def(package):
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def')
-def test_m1_3c_signature_scopes_are_pinned_by_the_skeleton_not_by_a_body(package):
+def test_m1_3c_signature_scopes_are_pinned_by_the_statements_not_by_a_body(package):
     """M1.3 (c), Python 3.14: evaluating a def's lazy annotations runs a generated ``__annotate__`` code object
     reported at the def's line, and a PEP 695 generic runs a ``<generic parameters of ...>`` scope. Neither is
     refused, and neither pins the def's BODY: ``annotated`` (whose annotations were read, never its body) is
-    absent from the manifest while the module's skeleton, which keeps every signature, is present. Pinning the
+    absent from the manifest while the module's statement pin, whose statements keep every signature, is present. Pinning the
     body here would make a parent stale through its own manifest when only its child's body changed, so the
     recursive witness M3.12 (b) would pass for the wrong reason (``[M]`` 2026-10-04: the prototype's first
     run listed the child def ``inner`` in the parent's manifest, through ``get_type_hints``)."""
@@ -138,16 +140,16 @@ def test_m1_3c_signature_scopes_are_pinned_by_the_skeleton_not_by_a_body(package
     rel = package.relpath("delta")
     names = {q for r, q, *_ in manifest.functions if r == rel}
     assert names == {"reads_annotations", "generic", "Holder.scaled"}, names
-    assert rel in {r for r, _ in manifest.modules}
+    assert rel in {r for r, *_ in manifest.modules}
     assert value == 5.0  # 2.0 + three hints (x, y, return)
 
 
 @pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def')
 def test_m1_4_the_manifest_is_what_ran(package):
     """M1.4: the traced defs are exactly the ones that ran (``unused`` and ``Box.other`` absent: the negative
-    leg that a whole-module hash would fail), the module's skeleton is present, numpy is pinned by its installed
+    leg that a whole-module hash would fail), the module's statement pin is present, numpy is pinned by its installed
     version, no stdlib file is a source entry, and the dataclass's generated ``__init__`` (``<string>``) is
-    dropped while the dataclass definition is pinned by the skeleton."""
+    dropped while the dataclass definition is pinned by the module's statements."""
     alpha = package.module("alpha")
     _, manifest = api.trace_call(alpha.solve.__wrapped__, 4)
     _, manifest_g = api.trace_call(alpha.generate.__wrapped__, 1.5)
@@ -155,7 +157,7 @@ def test_m1_4_the_manifest_is_what_ran(package):
     ran = {q for r, q, *_ in manifest_g.functions if r == rel}
     assert "unused" not in ran and "Box.other" not in ran, ran
     assert {"solve", "_count"} <= {q for r, q, *_ in manifest.functions if r == rel}
-    assert rel in {r for r, _ in manifest.modules}
+    assert rel in {r for r, *_ in manifest.modules}
     assert {p.name: p.version for p in manifest_g.distributions}.get("numpy") == np.__version__, manifest_g.distributions
     stdlib = os.path.realpath(sysconfig.get_paths()["stdlib"])
     assert not any(r.startswith(stdlib) or r.startswith("json/") for r, *_ in manifest.functions)

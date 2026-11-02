@@ -390,6 +390,10 @@ class Recording:
             recording = self
 
             def started(code, _offset):
+                # Code the memo runs for itself (:class:`unrecorded`) is no run's: it is not recorded, and its event
+                # stays enabled, so it reports when the run itself first starts it.
+                if getattr(_QUIET, "on", False):
+                    return None
                 recording.codes[(code.co_filename, code)] = code
                 return monitoring.DISABLE
 
@@ -444,12 +448,21 @@ def note_child(child: tuple[str, str, str]) -> None:
 class unrecorded:
     """The memo's own reading of the store (a lookup and its validation), which no run depends on."""
 
+    _QUIET_INSIDE = True
+
     def __enter__(self) -> None:
         self._outer = getattr(_QUIET, "on", False)
-        _QUIET.on = True
+        _QUIET.on = self._QUIET_INSIDE
 
     def __exit__(self, *_exc: object) -> None:
         _QUIET.on = self._outer
+
+
+class recorded(unrecorded):
+    """The run's own work again, inside an :class:`unrecorded` stretch: the cone store's capture runs pytest's
+    protocol for one test, and loads the conftests, from inside its own unrecorded bookkeeping."""
+
+    _QUIET_INSIDE = False
 
 
 class spawning:
@@ -462,8 +475,9 @@ class spawning:
         _SPAWNING.on = False
 
 
-#: The repository's cache directory (gitignored), the one root of the memo's three stores: the entries
-#: (``references``), the source indexes (``sources``) and the pinned bytecode (``bytecode``).
+#: The repository's cache directory (gitignored), the one root of the memo's stores: the entries (``references``),
+#: the source indexes (``sources``), the pinned bytecode (``bytecode``), the sets a pin names by digest (``sets``)
+#: and the import outcomes (``import_outcomes``).
 CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), ".cache")
 #: Where the pinned-source loader keeps bytecode, one directory per interpreter and ``-O`` level. An entry is
 #: named by the digest of (path, interpreter, ``-O`` level, source bytes), so sharing it across stores and
@@ -476,7 +490,7 @@ PINNED_SOURCES: dict[str, bytes] | None = None
 
 def write_atomically(path, data: bytes) -> None:
     """Write ``data`` to a temporary file beside ``path``, then move it into place with one ``os.replace``: a
-    reader sees the old file or the new one, never a part of either. The memo's three stores write this way."""
+    reader sees the old file or the new one, never a part of either. The memo's stores write this way."""
     directory = os.path.dirname(os.fspath(path))
     os.makedirs(directory, exist_ok=True)
     partial = f"{os.fspath(path)}.{os.getpid()}.{threading.get_ident()}.part"
@@ -714,7 +728,10 @@ def template() -> None:
     recording, answers, jobs, traced_memo = _boot()
     import pickle
 
-    ready = recording.snapshot()
+    # The template's own work (the snapshot, each job's checks, the fork, the child's restore) runs unrecorded, so a
+    # forked child records what a fresh process records and nothing of how it was born.
+    with unrecorded():
+        ready = recording.snapshot()
     with unrecorded():
         # What the imports depended on, pinned as a generation pins it, with the whole bytes of every source
         # they compiled: module state built from a state that has changed since would run old values under a
@@ -727,13 +744,15 @@ def template() -> None:
         if reasons:
             _write_frame(answers, pickle.dumps(traced_memo._Refused(reasons)))
             break
-        read_end, write_end = os.pipe()
-        with spawning():
-            pid = os.fork()
+        with unrecorded():
+            read_end, write_end = os.pipe()
+            with spawning():
+                pid = os.fork()
+            if pid == 0:
+                os.close(read_end)
+                os.dup2(os.open(os.devnull, os.O_RDONLY), 0)
+                recording.restore(ready)
         if pid == 0:
-            os.close(read_end)
-            os.dup2(os.open(os.devnull, os.O_RDONLY), 0)
-            recording.restore(ready)
             answer = traced_memo._generate_here(job, recording)
             with os.fdopen(write_end, "wb") as channel:
                 channel.write(answer)

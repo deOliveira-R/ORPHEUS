@@ -650,7 +650,9 @@ every file it reads or probes and every directory it lists
 (:mod:`orpheus.numerics._traced_memo_boot`); the entry keeps that
 :class:`~orpheus.numerics.traced_memo.Manifest` beside an exact payload,
 and a lookup validates the manifest against the checkout without importing
-or running anything, reading again only what changed on disk since the
+or running anything in its own process (the one exception: an import set
+with a changed module has its import outcome measured again in a fresh
+interpreter), reading again only what changed on disk since the
 process last read it (:class:`~orpheus.numerics._traced_memo_boot.Kept`). The key is
 :func:`~orpheus.values.content.encode_exact` of the function, its
 signature-bound arguments and the platform tag. The theory, with why the
@@ -665,15 +667,15 @@ recording as pins with every refusal kept as a value
 
 .. automodule:: orpheus.numerics.traced_memo
    :members: traced_memo, TracedMemo, bypass, cache_root, default_root,
-      Hit, Absent, Stale, Corrupt, Manifest, DefPin, ModulePin,
-      DistributionPin, InterpreterPin, DataPin, PresencePin, ListingPin,
+      Hit, Absent, Stale, Corrupt, Manifest, DefPin, StatementsPin,
+      ImportOutcomePin, DistributionPin, InterpreterPin, DataPin, PresencePin, ListingPin,
       EnvironmentPin, WorkingDirectoryPin, ChildPin, MemoPin, validate,
       trace_call,
-      origin, function_digest, skeleton_digest, platform_tag, fork_platform,
+      origin, function_digest, platform_tag, fork_platform,
       encode_payload, decode_payload, Unpinnable, Unencodable, TemplateRefused,
       collect_pins, CollectedPins, PinRefusal, AmbiguousOwner, UnownedSitePackage,
       UninstalledDistribution, NoDefAtLine, ChangedByRun, NoRecordedBytes,
-      SourceGone, UnadmittedProcess
+      SourceGone, UnadmittedProcess, UnnamedModule, UnmeasurableImport
 
 .. autodata:: orpheus.numerics.traced_memo.Pin
    :no-value:
@@ -685,6 +687,18 @@ recording as pins with every refusal kept as a value
    :members: Recording, note_child, spawning, main, template, FORK_MEASURED,
       FileIdentity, Witness, Kept, TRUSTED_AGE_NS, file_digest, listing_digest,
       fork_blockers
+
+The import-time statements of a module, as the memo's ``StatementsPin``
+reads them (:mod:`orpheus.numerics._import_time`, private to the memo and
+one of its pinned sources): each top-level and class-body statement with
+its digest, the names it binds and reads and whether it is an effect; the
+selection a run's entry names make of them; the closure of the entry names
+over the statements. The rule, the attack rows it was built against and
+what it cannot see are :ref:`verification-cone-store-statements`.
+
+.. automodule:: orpheus.numerics._import_time
+   :members: Statement, string_names, code_names, span, statements, holding,
+      selection, closure, observed_digests
 
 Mesh-free functions — :mod:`orpheus.numerics.mesh_free_function`, the
 source and the detector a specification states before any mesh exists:

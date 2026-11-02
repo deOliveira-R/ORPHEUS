@@ -14,7 +14,7 @@ from pathlib import Path
 from orpheus.numerics._traced_memo_boot import Witness
 
 from tools.cone_store.collect import collect_ids, normalise
-from tools.cone_store.cone import Cone
+from tools.cone_store.cone import Cone, Reading
 from tools.cone_store.environment import environment_key
 from tools.cone_store.plan import Config, worker_command, worker_environment
 from tools.cone_store.store import ConeStore, StoredTest
@@ -49,20 +49,26 @@ def module_groups(repo: Path, expected: Sequence[str], arguments: Sequence[str])
     return groups
 
 
-def recent_identities(repo: Path, package: str, since_ns: int) -> dict[str, list[int]]:
-    """The identity, at ``since_ns``, of every file under the repository's roots that is not settled against it
-    (written within the memo's ``TRUSTED_AGE_NS`` before, or after): the baseline a worker compares a file with, to
-    tell a file written during the capture from one written just before it."""
+def recent_identities(repo: Path, since_ns: int) -> dict[str, list[int]]:
+    """The identity, at ``since_ns``, of every file a cone can pin (:meth:`Reading.kept`) that is not settled against
+    it (written within the memo's ``TRUSTED_AGE_NS`` before, or after): the baseline a worker compares a file with,
+    to tell a file written during the capture from one written just before it. The walk is the repository's, pruned
+    where ``Reading`` keeps nothing (the bytecode cache) and at ``__pycache__`` and ``.git`` (git's own store, read by
+    git, a process no test's cone admits); a file with no baseline that a capture finds unsettled makes its cone
+    unknown, never a wrong one. Elegance's final pass on B2 (F0): this walked only the package and ``tests/`` while
+    ``Reading`` counted ``tools/`` first-party, so a ``tools/`` file written just before a capture made every test
+    that ran it unknown."""
+    reading = Reading(repo)
     found: dict[str, list[int]] = {}
-    for root in (repo / package, repo / "tests"):
-        for directory, names, files in os.walk(root):
-            names[:] = [name for name in names if name != "__pycache__"]
-            for file in files:
-                witness = Witness(reference_ns=since_ns)
-                path = os.path.join(directory, file)
-                stat = witness.stat(path)
-                if stat is not None and not witness.settled:
-                    found[os.path.relpath(path, repo)] = list(witness.seen[0][1] or ())
+    for directory, names, files in os.walk(reading.repo):
+        names[:] = [name for name in names
+                    if name not in ("__pycache__", ".git") and reading.kept(os.path.join(directory, name) + os.sep)]
+        for file in files:
+            witness = Witness(reference_ns=since_ns)
+            path = os.path.join(directory, file)
+            stat = witness.stat(path)
+            if stat is not None and not witness.settled:
+                found[reading.relative(path)] = list(witness.seen[0][1] or ())
     return found
 
 
@@ -72,7 +78,7 @@ def capture(repo: str | Path, store: str | Path, package: str = "orpheus", memo_
     started = time.monotonic()
     since_ns = since_ns or time.time_ns()
     repo = Path(repo).resolve()
-    recent = recent_identities(repo, package, since_ns)
+    recent = recent_identities(repo, since_ns)
     collected = collect_ids(repo, package, ids)
     expected = collected.ids
     groups = module_groups(repo, expected, ids)

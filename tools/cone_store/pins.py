@@ -3,9 +3,10 @@
 A pin is the memo's own object (:data:`orpheus.numerics.traced_memo.Pin`); its row is the memo's
 (``Manifest.to_json``: ``[kind, *fields]``) and its decoder the memo's (``Manifest.from_json``). The one
 difference between a pin as the memo makes it and as the store keeps it is where a path points: the memo's
-``DefPin`` and ``ModulePin`` name a file relative to a ``sys.path`` entry (or absolutely), and its ``DataPin``,
+``DefPin`` and ``StatementsPin`` name a file relative to a ``sys.path`` entry (or absolutely), and its ``DataPin``,
 ``PresencePin`` and ``ListingPin`` absolutely; the store keeps all of them relative to the repository, so a store
-survives a move of the checkout. :func:`relocated` is the one function that changes a path.
+survives a move of the checkout. :func:`relocated` is the one function that changes a pin's path, and
+:func:`relocated_rows` the one that changes the paths an ``ImportOutcomePin``'s kept rows name.
 """
 from __future__ import annotations
 
@@ -15,10 +16,10 @@ from collections.abc import Callable
 from orpheus.numerics import traced_memo as memo
 
 #: Pins that name a file's bytes: judged by the file's identity first (stage one), by the pin second.
-CONTENT_PINS = (memo.DefPin, memo.ModulePin, memo.DataPin)
+CONTENT_PINS = (memo.DefPin, memo.StatementsPin, memo.DataPin)
 #: Every pin that names a path.
 PATH_PINS = (*CONTENT_PINS, memo.PresencePin, memo.ListingPin)
-PathPin = memo.DefPin | memo.ModulePin | memo.DataPin | memo.PresencePin | memo.ListingPin
+PathPin = memo.DefPin | memo.StatementsPin | memo.DataPin | memo.PresencePin | memo.ListingPin
 
 
 def file_of(pin: memo.Pin) -> str | None:
@@ -33,6 +34,16 @@ def relocated(pin: memo.Pin, path: Callable[[PathPin], str | None]) -> memo.Pin 
         return pin
     moved = path(pin)
     return None if moved is None else pin._replace(path=moved)
+
+
+def relocated_rows(pin: memo.ImportOutcomePin, path: Callable[[str], str]) -> memo.ImportOutcomePin:
+    """``pin`` with each row's path replaced by ``path(row path)``, kept again as a set (the memo's ``_keep_set``
+    names a set by its content). The outcome is the measurement's and does not move: it is a function of each
+    module's dotted name and bytes, which the rows keep."""
+    rows = memo._read_kept_set(pin.modules)
+    if rows is None:
+        return pin  # a set that is not kept is judged stale by the pin itself
+    return pin._replace(modules=memo._keep_set([[path(row_path), digest, name] for row_path, digest, name in rows]))
 
 
 def encode(pin: memo.Pin) -> str:

@@ -53,7 +53,7 @@ def test_an_enclosing_recording_is_not_offered_the_manifests_re_read(traced_modu
 
 
 def test_the_memos_digest_of_its_own_source_is_offered_to_no_recording(monkeypatch):
-    """The memo reads its own three source files to name itself (``_memo_digest``, run when it is imported). A
+    """The memo reads its own source files to name itself (``_memo_digest``, run when it is imported). A
     recording active then (the cone store's capture records from before the memo's import) is not offered the read,
     which would make the memo's whole bytes a dependency of every test. A fresh keeper forces the read to happen."""
     monkeypatch.setattr(traced_memo, "_MEMO_DIGESTS", _traced_memo_boot.Kept(traced_memo._read_memo_digest))

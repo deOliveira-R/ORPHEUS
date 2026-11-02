@@ -4,12 +4,12 @@ Spec ``scratch/characteristic_architecture/p3/m602/round2_gate_spec.md`` §1, ro
 
 A miss used to parse every source file the generation touched, and a process's first validation parsed every
 pinned file. The index (:class:`~orpheus.numerics.traced_memo._SourceIndex`) is what those reads take from a
-tree: the skeleton digest, each outermost def with its span and digest, and each node a code object can be
+tree: the import-time statements' digests, each outermost def with its span and digest, and each node a code object can be
 compiled from, with its span. It is kept under ``.cache/sources`` and keyed by the file's bytes,
 the interpreter and the memo's own source.
 
 **The oracle is the test's own parse (X4).** B1–B4 compare the index a process reads from disk with a parse
-this file makes for itself: the docstring strip, the outermost-def walk, the skeleton and the digests are
+this file makes for itself: the docstring strip, the outermost-def walk, the statement walk and the digests are
 re-spelled below from their definitions, and B3/B4's ``_def_pin`` tree walk is the retired
 ``_def_pin``/``_holds`` (``main`` before B). Production's builder is on neither side, so the rows pin the
 builder, the serialisation and the queries together; only ``ast`` and ``hashlib`` are shared.
@@ -139,7 +139,7 @@ total = sum(v for v in range(3))
 
 # ── the oracle: the test's OWN parse and the retired tree walk (``main`` before B) ─────────────────────
 #
-# Independent of production's builder (X4): the docstring strip, the outermost-def walk, the skeleton and the
+# Independent of production's builder (X4): the docstring strip, the outermost-def walk, the statement walk and the
 # digests are re-spelled here from their definitions (the module docstring of ``traced_memo``), and
 # ``_def_pin``'s tree walk is the retired ``_def_pin``/``_holds``. Only ``ast`` and ``hashlib`` are shared.
 
@@ -169,7 +169,8 @@ class _OracleDef(NamedTuple):
 
 
 class _Oracle:
-    """One file parsed by the test: the stripped tree, its outermost defs and its skeleton digest."""
+    """One file parsed by the test: the stripped tree, its outermost defs, and its import-time statement digests
+    (B2, #689: they replaced the skeleton digest)."""
 
     def __init__(self, data: bytes) -> None:
         tree = ast.parse(data)
@@ -194,20 +195,26 @@ class _Oracle:
                     walk(node, prefix)
 
         walk(tree, "")
-        hollow = copy.deepcopy(tree)
-        hollow_defs: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
+        # B2 (#689): the import-time statements, each digested with every def body read as ``pass``; a class
+        # statement is its header (its body ``pass``) and is followed by its body's statements, recursively.
+        self.statements: list[str] = []
 
-        def collect(parent: ast.AST) -> None:
-            for node in ast.iter_child_nodes(parent):
-                if isinstance(node, _DEFS):
-                    hollow_defs.append(node)
-                elif isinstance(node, (ast.ClassDef, *_STATEMENT_HOLDERS)):
-                    collect(node)
+        def statements(body: list[ast.stmt]) -> None:
+            for node in body:
+                if isinstance(node, (*_DEFS, ast.ClassDef)):
+                    clone = copy.copy(node)
+                    clone.body = [ast.Pass()]
+                    self.statements.append(_hex(clone))
+                    if isinstance(node, ast.ClassDef):
+                        statements(node.body)
+                else:
+                    clone = copy.deepcopy(node)
+                    for inner in ast.walk(clone):
+                        if isinstance(inner, _DEFS):
+                            inner.body = [ast.Pass()]
+                    self.statements.append(_hex(clone))
 
-        collect(hollow)
-        for node in hollow_defs:
-            node.body = [ast.Pass()]
-        self.skeleton = _hex(hollow)
+        statements(tree.body)
 
     def enclosing(self, line: int):
         return next((d for d in self.defs if line in d.span), None)
@@ -292,15 +299,20 @@ def test_b1_an_index_survives_its_json_round_trip(population):
     assert memo  # the module the population was read through
 
 
+def _statements(index) -> tuple[str, ...]:
+    return tuple(s.digest for s in index.statements)
+
+
 @pytest.mark.rests_on(_B1)
 def test_b2_the_index_digests_are_the_oracles(population):
-    """B2: the skeleton and the digest of every outermost def ``(qualname, ordinal)``, read from the index on
+    """B2: the import-time statement digests (#689: they replaced the skeleton) and the digest of every outermost def
+    ``(qualname, ordinal)``, read from the index on
     disk, equal the test's own parse (the oracle above). First red: a def's digest wrong or missing in the
     stored index (a key without the bytes serves another file's)."""
     wrong = []
     for name, _, oracle, index in population:
-        if index.skeleton != oracle.skeleton:
-            wrong.append((name, "<skeleton>"))
+        if _statements(index) != tuple(oracle.statements):
+            wrong.append((name, "<statements>"))
         wrong += [(name, d.qualname) for d in oracle.defs if index.digest(d.qualname, d.ordinal) != d.digest]
     assert not wrong, f"{len(wrong)} digests differ: {wrong[:5]}"
 
@@ -454,7 +466,7 @@ def _header(raw: bytes) -> dict[str, str]:
 def _verdict(memo, path: Path, header: dict[str, str]) -> str:
     """What ``_read_index`` makes of ``path``: ``"index"``, ``"none"`` or ``"corrupt"`` (anything else it returns)."""
     found = memo._read_index(path, header)
-    return "none" if found is None else "index" if hasattr(found, "skeleton") else "corrupt"
+    return "none" if found is None else "index" if hasattr(found, "statements") else "corrupt"
 
 
 def _corrupt(memo, data: bytes) -> dict[str, bytes]:
@@ -463,8 +475,8 @@ def _corrupt(memo, data: bytes) -> dict[str, bytes]:
     (path,) = _index_files(memo)
     raw = path.read_bytes()
     head, body = raw.split(b"\n", 1)
-    skeleton = memo._source_index(data).skeleton.encode()
-    flipped = skeleton[:5] + (b"0" if skeleton[5:6] != b"0" else b"1") + skeleton[6:]
+    statement = memo._source_index(data).statements[0].digest.encode()
+    flipped = statement[:5] + (b"0" if statement[5:6] != b"0" else b"1") + statement[6:]
     other = SOURCE.replace(b"LIMIT = 3", b"LIMIT = 4")
     _fresh(memo)
     memo._source_index(other)
@@ -475,13 +487,13 @@ def _corrupt(memo, data: bytes) -> dict[str, bytes]:
 
     header = json.loads(head)
     return {"as-written": raw, "empty": b"", "one-byte": raw[:1], "half": raw[: len(raw) // 2], "last-byte-missing": raw[:-1],
-            "digest-hex-flipped": head + b"\n" + body.replace(skeleton, flipped, 1), "other-file": copied,
+            "digest-hex-flipped": head + b"\n" + body.replace(statement, flipped, 1), "other-file": copied,
             "header-identity": json.dumps({**header, "python": "another"}).encode() + b"\n" + body}
 
 
 @pytest.mark.parametrize("kind", ["empty", "one-byte", "half", "last-byte-missing", "digest-hex-flipped", "other-file", "header-identity"])
 def test_b10_a_corrupt_index_is_rebuilt_never_read(isolated, kind):
-    """B10: a truncated index file, one hex digit of its skeleton digest flipped (still valid JSON), the index of
+    """B10: a truncated index file, one hex digit of a statement digest flipped (still valid JSON), the index of
     other bytes copied under this key, and a header naming another interpreter are each a ``_CorruptIndex``; the
     next read gives the parse's digests, and the file holds a valid index again. First red: the body's digest
     not checked (the flipped digit is served), or the header not checked (the copied index is served)."""
@@ -494,7 +506,7 @@ def test_b10_a_corrupt_index_is_rebuilt_never_read(isolated, kind):
     assert _verdict(memo, path, header) == "corrupt", kind
     oracle = _Oracle(SOURCE)
     index = memo._source_index(SOURCE)
-    assert (index.skeleton, index.digest("f")) == (oracle.skeleton, oracle.defs[0].digest), "a corrupt index was served"
+    assert (_statements(index), index.digest("f")) == (tuple(oracle.statements), oracle.defs[0].digest), "a corrupt index was served"
     assert _verdict(memo, path, header) == "index", "the corrupt index was not rewritten"
 
 
@@ -569,7 +581,7 @@ def test_b12_a_processs_first_validation_reads_indexes_instead_of_parsing(tmp_pa
     package = _Package(tmp_path, m="def f(x):\n    return g(x) + 1\n\n\ndef g(x):\n    return x * 2\n")
     try:
         _, manifest = api.trace_call(package.module().f, 1.0)
-        files = {path for path, *_ in manifest.functions} | {path for path, _ in manifest.modules}
+        files = {path for path, *_ in manifest.functions} | {path for path, *_ in manifest.modules}
         assert files, "the manifest pins no source"
         (tmp_path / "manifest.json").write_text(json.dumps(manifest.to_json()))
         warm, cold = tmp_path / "warm", tmp_path / "cold"
@@ -664,7 +676,8 @@ def test_b14_the_index_and_the_memos_own_source_are_no_dependency_of_a_run(tmp_p
     record = api.read_entry(parent)
     sources = os.path.realpath(REPO / ".cache" / "sources")
     memo_sources = {os.path.realpath(path) for path in api.name("_MEMO_SOURCES")}
-    assert len(memo_sources) == 3 and all(os.path.isfile(path) for path in memo_sources), memo_sources
+    # Four files since B2 (#689): the memo, its boot, its import-time statement module, and the values identity.
+    assert {os.path.basename(path) for path in memo_sources} == {"traced_memo.py", "_traced_memo_boot.py", "_import_time.py", "content.py"} and all(os.path.isfile(path) for path in memo_sources), memo_sources
     paths = [p for kind in ("DataPin", "PresencePin", "ListingPin") for p, *_ in api.manifest_rows(record, kind)]
     assert not [p for p in paths if os.path.realpath(p).startswith(sources)], paths
     data = [p for p, *_ in api.manifest_rows(record, "DataPin")]
@@ -757,7 +770,7 @@ def test_b16_a_process_that_is_not_generating_never_writes_an_index(tmp_path, mo
     monkeypatch.setattr(memo, "_RUNNING_MEMO_DIGEST", None)
     _fresh(memo)
     oracle = _Oracle(SOURCE)
-    assert (memo._source_index(SOURCE).skeleton, memo._source_index(SOURCE).digest("f")) == (oracle.skeleton, oracle.defs[0].digest)
+    assert (_statements(memo._source_index(SOURCE)), memo._source_index(SOURCE).digest("f")) == (tuple(oracle.statements), oracle.defs[0].digest)
     assert _index_files(memo) == [], "a process that is not generating wrote an index"
     _generating(memo, monkeypatch)
     _fresh(memo)
@@ -778,7 +791,7 @@ print("SERVED", served, "PARSED", parsed)
 
 
 def test_b17_old_memo_code_cannot_write_an_index_under_new_codes_name(tmp_path):
-    """B17, qa's p2 scenario as a gate. On a copy of the memo's four files: process A imports it (a timestamp
+    """B17, qa's p2 scenario as a gate. On a copy of the memo's source files: process A imports it (a timestamp
     ``.pyc``); the normaliser is edited at the same size to keep docstrings, with the mtime put back; process B
     imports the OLD code from the ``.pyc`` while the memo's source on disk is the NEW one, and reads a sample's
     index; process C compiles the NEW code fresh and reads the sample's index. C is served its own
@@ -794,7 +807,7 @@ def test_b17_old_memo_code_cannot_write_an_index_under_new_codes_name(tmp_path):
     (tree / "orpheus" / "__init__.py").write_text("")
     (package / "__init__.py").write_text("")
     (values / "__init__.py").write_text("")
-    for name in ("traced_memo.py", "_traced_memo_boot.py"):
+    for name in ("traced_memo.py", "_traced_memo_boot.py", "_import_time.py"):
         shutil.copy2(REPO / "orpheus" / "numerics" / name, package)
     for name in ("content.py", "scalars.py"):
         shutil.copy2(REPO / "orpheus" / "values" / name, values)
@@ -865,6 +878,6 @@ def test_b19_an_unreadable_index_is_corrupt_and_the_parse_is_served(isolated):
         assert _verdict(memo, path, header) == "corrupt"
         oracle = _Oracle(SOURCE)
         index = memo._source_index(SOURCE)
-        assert (index.skeleton, index.digest("f")) == (oracle.skeleton, oracle.defs[0].digest)
+        assert (_statements(index), index.digest("f")) == (tuple(oracle.statements), oracle.defs[0].digest)
     finally:
         path.chmod(0o644)

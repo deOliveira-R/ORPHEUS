@@ -297,9 +297,8 @@ _LOOKUP_DRIVER = textwrap.dedent("""
 #: (row, file under orpheus/, anchor, method, the BLOCK's verdict, the READING's verdict) after a neutral body edit. The
 #: reading is the tiny sphere's point value, whose entry pins the solve and the blocks as children and runs the point
 #: rule itself: every edit below is pinned by it (``Stale``), the activation leg proving each edit is a real pinned
-#: edit, so a block ``Hit`` beside it is decoupling and not a no-op. The last row is a RECORD of the declared limit (step
-#: 2b): the package ``__init__`` imports every submodule, so a block pins all 13 module skeletons; it flips to ``Hit``
-#: if ``__init__`` becomes lazy, and then the flip is the point.
+#: edit, so a block ``Hit`` beside it is decoupling and not a no-op. The last three rows are import-time statements
+#: (B2, #689): the block and the reading each go ``Stale`` exactly when their own code reads the edited statement.
 _EDITS = [
     ("kernel-traversal", "derivations/continuous/characteristic/transport.py", "class TraversalRule:", "on_chord", "Stale", "Stale"),
     ("kernel-attenuation", "derivations/continuous/characteristic/attenuation_rule.py", "class AttenuationRule:", "of", "Stale", "Stale"),
@@ -309,7 +308,7 @@ _EDITS = [
     ("kernel-gauss", "derivations/common/quadrature.py", "def _leggauss(", None, "Stale", "Stale"),
     ("the-memo-itself", "derivations/continuous/characteristic/assembly.py", "def group_transport(", None, "Stale", "Stale"),
     # ``chunk`` and ``budget`` are no parameters of the memo: they order the sum over lines (content), and their only
-    # witness is ``LineRule.of``'s signature, pinned through its def and its module's skeleton. Not a neutral edit:
+    # witness is ``LineRule.of``'s signature, pinned through its def. Not a neutral edit:
     # a different default is a different answer, so the block must miss.
     ("knob-chunk-default", "derivations/continuous/characteristic/assembly.py", "        chunk: int = 512,\n",
      "replace:        chunk: int = 256,\n", "Stale", "Stale"),
@@ -318,8 +317,17 @@ _EDITS = [
     ("consumer-door", "derivations/continuous/characteristic/reference.py", "class CharacteristicDerivation(", "solve", "Hit", "Stale"),
     ("consumer-pencil", "derivations/common/dense_pencil.py", "    def fundamental(", None, "Hit", "Stale"),
     ("consumer-cross-sections", "derivations/continuous/characteristic/cross_sections.py", "class RegionCrossSections", "of", "Hit", "Stale"),
-    ("record-system-skeleton", "derivations/continuous/characteristic/system.py",
-     "@dataclass(frozen=True, eq=False)\nclass GalerkinSystem:", "constant-before", "Stale", "Stale"),
+    # Statement grain (B2, #689) replaced the record of the package-``__init__`` limit (every block pinned all 13
+    # module skeletons, so any new constant anywhere made it ``Stale``) with three precise rows: a constant nothing
+    # reads leaves both entries a ``Hit``; a constant only the point reading's code reads makes the reading ``Stale``
+    # and leaves the block a ``Hit``; a constant the kernel reads makes both ``Stale``. Each edit keeps the value.
+    ("unread-constant", "derivations/continuous/characteristic/system.py",
+     "@dataclass(frozen=True, eq=False)\nclass GalerkinSystem:", "constant-before", "Hit", "Hit"),
+    ("reading-constant", "derivations/continuous/characteristic/reading.py",
+     "_SMALLEST_POINT = float(np.sqrt(np.finfo(float).tiny))",
+     "replace:_SMALLEST_POINT = float(np.sqrt(np.finfo(float).tiny)) * 1.0", "Hit", "Stale"),
+    ("kernel-constant", "derivations/continuous/characteristic/attenuation_rule.py", "PANEL_WIDTH = 4.0",
+     "replace:PANEL_WIDTH = 4.0 * 1.0", "Stale", "Stale"),
 ]
 
 
@@ -352,12 +360,13 @@ def test_b5_an_edit_to_the_copied_tree_misses_exactly_where_the_block_ran(_gener
     """[B5] On ONE copy of ``orpheus/`` whose cache holds the sphere block and the tiny sphere's point reading (the
     activation leg: both ``Hit`` before any edit), each row applies a behaviour-neutral edit, looks both up in a fresh
     interpreter, and restores the file. Kernel bodies make the block ``Stale``; consumer bodies leave it a ``Hit`` while
-    the reading, which runs them, goes ``Stale`` (each edit is a pinned edit); a new constant in the system module's
-    skeleton makes the block ``Stale`` (RECORD of the declared limit); a changed ``chunk`` default of ``LineRule.of``
+    the reading, which runs them, goes ``Stale`` (each edit is a pinned edit); an import-time constant makes an entry
+    ``Stale`` exactly when that entry's code reads it (unread: both ``Hit``; read by the point rule only: the reading;
+    read by the kernel: both; B2, #689, replaced the skeleton's record row here); a changed ``chunk`` default of ``LineRule.of``
     makes it ``Stale`` (the knob's only witness since ``chunk`` and ``budget`` left the memo's parameters).
 
     First reds: the nine block-Stale rows, a memo serving without validation (arm ``validate-off``,
-    the five Hit rows green); the reading column, the same arm. The Hit rows' block column has no in-tree arm: B4's
+    the seven Hit rows green); the reading column, the same arm. The Hit rows' block column has no in-tree arm: B4's
     consumer leg is the static form of the same claim, and its arm ``door-keyed`` reds it."""
     copy, cache, generated = _generated_copy
     _require(generated == ("Hit", "Hit"), f"activation: before any edit the block and the reading read {generated}")

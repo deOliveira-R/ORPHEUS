@@ -5,9 +5,11 @@ tests a working-tree change requires.
 
 ``capture`` runs the tests under a grandparent process that records (the memo's ``Recording``) from before the
 root conftest is imported, forks one collecting parent per test module, and forks one child per test; each child's
-cone is the recording's pins (``orpheus.numerics.traced_memo.collect_pins``): defs and module skeletons of code
-under ``<repo>/<package>/`` and ``<repo>/tests/``, data, presence and listing pins of paths under the repository,
-memo children read and distributions. ``select`` lists the collected tests whose cone is stale, new, unknown,
+cone is the recording's pins (``orpheus.numerics.traced_memo.collect_pins``): the defs that ran and the import-time
+statements the test could observe (``orpheus.numerics._import_time``: by a name its executed code read, or by
+effect) of first-party code (any source under the repository that is not the interpreter's or a distribution's,
+``tools/`` included), the outcome of importing the modules it
+imported, data, presence and listing pins of paths under the repository, memo children read and distributions. ``select`` lists the collected tests whose cone is stale, new, unknown,
 captured under another environment key, or not passing at capture, and a module that failed to collect. The store
 is SQLite (``.cache/cone_store/cones.sqlite`` by default); see :mod:`tools.cone_store.store` for its layout and
 :mod:`tools.cone_store.worker` for the processes. A process that may not fork (the memo's ``fork_blockers``: an
@@ -30,11 +32,15 @@ SCOPE BOUNDARIES (what a green ``select`` does not say):
   is stored unsettled; a first-party file whose identity at the end of a test differs from the one it had when the
   capture began makes that test cone-unknown. A file edited and restored, or edited after its test and before the
   test is judged, within one timestamp tick of the stat, is not seen.
-* SCOPE-BOUNDARY[guard] machinery: per-statement pins (B2, ruling 33, #689), so an edit selects the tests that ran the
-  edited statement. ruling: the plan's ruling 33 (def grain in B1). revisit: B2. Until then over-selection is not
-  bounded: whatever the grandparent imports (the root conftest's import closure) is attributed to every test, so an
-  edit to the skeleton of any of those modules selects the whole suite, a new file selects every test that probed
-  or listed its directory, and agreement with an alone run (containment) passes for every superset.
+* SCOPE-BOUNDARY[guard] machinery: a recorder of name lookups in module and class namespaces (the import-time
+  statements a test observes are found by the names its executed code could read, ``co_names`` and the identifier
+  tokens of its strings, closed over the statements; #689). ruling: the verification-tree plan, ruling 43, after qa's
+  42 attack fixtures. revisit: an edit that changes a verdict while every pin of the test is valid. Not seen: a name
+  built from data and absent from every string of the code that ran; a top-level name new to a module, read only
+  through a guarded probe (``getattr(module, name, default)``) and absent from the module's source at capture;
+  iteration over a namespace (``vars(module)``, a module's ``__dict__``); C code reading a non-dunder class
+  attribute. Over-selection is bounded but not small: the names the grandparent's code read (pytest's and the
+  conftests') are entry names of every test, and every effect statement of an imported module is observed.
 * SCOPE-BOUNDARY[guard] machinery: a recorder of the reads and children of a process a test starts (#690). ruling: the
   memo's own contract (``traced_memo``, "What no manifest can see"). revisit: a suite that starts processes. A test
   that starts a process, or whose recorded code cannot be pinned, is cone-unknown and always selected.

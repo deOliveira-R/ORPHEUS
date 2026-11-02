@@ -32,7 +32,7 @@ def _defs(*pairs: tuple[str, str]) -> set[tuple]:
 
 
 def _modules(*paths: str) -> set[tuple]:
-    return {("ModulePin", path, "", -1) for path in paths}
+    return {("StatementsPin", path, "", -1) for path in paths}
 
 
 def test_r1_the_rows_of_test_b_are_the_hand_written_set(base: Captured) -> None:
@@ -93,17 +93,24 @@ def test_r5_twin_defs_are_told_apart_by_ordinal_and_a_lambda_by_its_def(base: Ca
 
 
 def test_r6_every_digest_is_the_memos(base: Captured) -> None:
-    """R6. Every DefPin digest is ``function_digest(source, qualname, ordinal)`` and every ModulePin digest is
-    ``skeleton_digest(source)`` of the file at capture; over every row of every test."""
+    """R6. Every DefPin digest is ``function_digest(source, qualname, ordinal)`` and every StatementsPin digest is the
+    memo's projection of the file at capture on the entry names the pin keeps (B2; it was ``skeleton_digest`` while
+    the pin was a ``ModulePin``); over every row of every test. The names are read back from the memo's kept sets, so
+    a pin whose set is missing reds here, not later as a silent selection."""
+    checkout = traced_memo._Checkout(traced_memo.Store.current())
     checked = 0
     for test in base.store.tests():
         for pin in base.store.pins(test):
             kind = type(pin).__name__
-            if kind not in {"DefPin", "ModulePin"}:
+            if kind not in {"DefPin", "StatementsPin"}:
                 continue
             source = (base.root / pin.path).read_bytes()
-            want = (traced_memo.function_digest(source, pin.qualname, pin.ordinal) if kind == "DefPin"
-                    else traced_memo.skeleton_digest(source))
+            if kind == "DefPin":
+                want = traced_memo.function_digest(source, pin.qualname, pin.ordinal)
+            else:
+                names = checkout.names(pin.names)
+                assert names is not None, f"{test}: the entry names of {pin.path} are not kept"
+                want = traced_memo._source_index(source).projection(names)
             assert pin.digest == want, f"{test}: {pin_key(pin)}"
             checked += 1
     assert checked > 50, f"only {checked} code rows checked"
@@ -153,7 +160,7 @@ def test_r7_the_store_defines_no_digest_of_its_own() -> None:
     """R7. One definition per quantity (X4): ``tools/cone_store/`` computes no digest of a source. No
     ``hashlib``, ``ast.parse`` or ``ast.dump``, no def whose name holds ``digest``, and every ``digest`` name it
     uses is imported from the memo (``orpheus.numerics._traced_memo_boot`` or ``traced_memo``). Its def and
-    skeleton digests come with the memo's pins (``collect_pins``), which some module of the package names.
+    statement digests come with the memo's pins (``collect_pins``), which some module of the package names.
     Census: every module of the package, the count asserted non-zero, and the known member naming
     ``collect_pins`` found. (Re-pointed in review round 1: the store no longer imports ``function_digest``; it
     reads the digests off the pins.)"""

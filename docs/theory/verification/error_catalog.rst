@@ -12084,8 +12084,8 @@ older entries classify against.
    2026-11-01 (the archivist's census, every code object compiled from every ``.py`` under ``orpheus/``, module
    bodies and nested defs, grouped by ``==``): 11 524 code objects in 403 files hold 1 group equal across files,
    the ``__annotate__`` of ``FixedSource`` (``orpheus/numerics/question.py``) and of ``PointValue``
-   (``orpheus/numerics/observable.py``), both at line 132; an ``__annotate__`` is pinned through its module's
-   skeleton and never as a def, and both modules' own bodies differ, so no ``orpheus`` file lost its pins (`[R]`
+   (``orpheus/numerics/observable.py``), both at line 132; an ``__annotate__`` was then pinned through its module's
+   skeleton (since B2, #689, through the import-time statement of its def) and never as a def, and both modules' own bodies differ, so no ``orpheus`` file lost its pins (`[R]`
    from that census: no real entry was left valid by this defect). 0 of the 77 ``__init__.py`` under ``orpheus/``
    is empty, so the extreme case never arose there. Under ``tests/`` the same census finds 12 groups over 34 files,
    24 of the 35 ``__init__.py`` being empty: the cone store, which records ``tests/`` as first-party code, met the

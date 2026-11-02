@@ -25,6 +25,7 @@ Every spawn and fork here is wrapped in the memo's ``spawning()``, so it is not 
 from __future__ import annotations
 
 import contextlib
+import functools
 import json
 import os
 import subprocess
@@ -40,7 +41,10 @@ import pytest
 from tools.cone_store import _recorder, conftests
 from tools.cone_store.plan import Config, pycache_dir, worker_command, worker_environment
 
-_FLAGS = ["-p", "no:cacheprovider", "-q", "--color=no"]
+#: No terminal reporter: its progress and width code ran inside each test's recorded protocol, differently on the
+#: fork and fresh routes (each test's entry names took ``wcwidth`` and the progress line's names on one route only).
+#: A capture's output is its log, never read for a verdict, which comes from the reports.
+_FLAGS = ["-p", "no:cacheprovider", "-p", "no:terminal"]
 
 
 class Lister:
@@ -122,6 +126,32 @@ def fresh_route(config: Config, config_path: str, _arguments: list[str]) -> int:
     return 0
 
 
+def _within(stretch: Callable[[], Any], function: Callable[..., Any]) -> Callable[..., Any]:
+    """``function`` run inside ``stretch()``: the memo's ``unrecorded()`` or its ``recorded()`` (the one switch of
+    what a recording takes, the boot module's)."""
+
+    @functools.wraps(function)
+    def within(*args: Any, **kwargs: Any) -> Any:
+        with stretch():
+            return function(*args, **kwargs)
+
+    return within
+
+
+def _quiet(method: Callable[..., Any]) -> Callable[..., Any]:
+    """A role's own bookkeeping, run under the memo's ``unrecorded()``: the fork guard, the forks and the route each
+    role takes are the capture's machinery, not the test's, and code started while it runs is recorded by no run.
+    Without it a test's entry names depended on the route that captured it (the fork guard's ``ctypes``, the
+    after-fork hooks), so the fork and fresh routes wrote different rows (G4). This module's own code objects are
+    removed from the recording before it is read (:meth:`Recorded.read`), so the wrapper adds none."""
+
+    @functools.wraps(method)
+    def quietly(self: Worker, *args: Any, **kwargs: Any) -> Any:
+        return _within(self.boot.unrecorded, method)(self, *args, **kwargs)
+
+    return quietly
+
+
 class Recorded(Worker):
     """A process recorded from before the conftests: the grandparent, a collecting parent, a fresh child."""
 
@@ -129,18 +159,18 @@ class Recorded(Worker):
         super().__init__(config, config_path)
         self.recording: Any = None
         self.memo: Any = None
-        self.cone: Any = None
         self.store: Any = None
         self.reports: list[Any] = []
         self.exit = contextlib.ExitStack()
 
     def adopt(self, other: Recorded) -> Recorded:
         """Continue another recorded process's recording as this role (the fork turns a grandparent into a collector)."""
-        self.recording, self.memo, self.cone, self.store, self.exit = other.recording, other.memo, other.cone, other.store, other.exit
+        self.recording, self.memo, self.store, self.exit = other.recording, other.memo, other.store, other.exit
         return self
 
     def start(self) -> None:
         from _pytest import config as pytest_config
+        from _pytest import fixtures as pytest_fixtures
         from _pytest import main as pytest_main
         from _pytest import python as pytest_python
         from _pytest.assertion import rewrite
@@ -151,8 +181,12 @@ class Recorded(Worker):
         # seen through pytest's probe of its path, a new test file changes no existing test). They run under the memo's
         # own `unrecorded()`, which the audit hook honours, so a read of a source by a TEST (a census, a docstring gate)
         # still is a dependency.
+        # Pytest's sort of a module's items by fixture scope (``reorder_items``) is its scheduling, and it compares
+        # items only when there are several: a collecting parent sorts the module's whole list, a fresh child its one
+        # test, so the sort's code entered a test's cone on the fork route only (G4). A conftest's own
+        # ``pytest_collection_modifyitems`` stays recorded.
         for module, name in ((rewrite, "_rewrite_test"), (pytest_main, "scandir"), (pytest_python, "scandir"),
-                             (pytest_main, "_in_venv")):
+                             (pytest_main, "_in_venv"), (pytest_fixtures, "reorder_items")):
             setattr(module, name, self.unrecorded_call(getattr(module, name)))
         # Distribution discovery lists every ``sys.path`` entry for metadata directories. Which distributions are
         # installed is the environment key's fact (``environment.distributions``), not a test's: a listing of the
@@ -170,37 +204,18 @@ class Recorded(Worker):
         self.recording = Recording().start()
         from orpheus.numerics import traced_memo  # after the recorder starts, so its import is recorded
 
-        from tools.cone_store import cone
-
-        self.memo, self.cone = traced_memo, cone
+        self.memo = traced_memo
         if self.config.memo_root is not None:
             self.exit.enter_context(traced_memo.cache_root(Path(self.config.memo_root)))
         self.store = traced_memo.Store(Path(self.config.memo_root)) if self.config.memo_root else traced_memo.Store.current()
 
     def unrecorded_call(self, function: Callable[..., Any]) -> Callable[..., Any]:
         """``function`` run under the memo's ``unrecorded()``."""
-        boot = self.boot
-
-        def quiet(*args: Any, **kwargs: Any) -> Any:
-            with boot.unrecorded():
-                return function(*args, **kwargs)
-
-        return quiet
+        return _within(self.boot.unrecorded, function)
 
     def recorded_call(self, function: Callable[..., Any]) -> Callable[..., Any]:
-        """``function`` run with recording on, inside an ``unrecorded_call`` (the memo's ``unrecorded()`` keeps the
-        outer state on its instance; the flag it sets is the boot module's ``_QUIET``)."""
-        quiet_flag = self.boot._QUIET
-
-        def loud(*args: Any, **kwargs: Any) -> Any:
-            outer = getattr(quiet_flag, "on", False)
-            quiet_flag.on = False
-            try:
-                return function(*args, **kwargs)
-            finally:
-                quiet_flag.on = outer
-
-        return loud
+        """``function`` run with recording on, inside an ``unrecorded_call`` (the memo's ``recorded()``)."""
+        return _within(self.boot.recorded, function)
 
     def blockers(self) -> tuple[str, ...]:
         """Why this process must not fork now: the memo's guard, asked of the platform as it is now."""
@@ -262,14 +277,24 @@ class Recorded(Worker):
     def run(self, item: Any, route: str) -> None:
         """Pytest's own protocol for ``item``, then the recording read as a cone."""
         self.reports.clear()
-        item.ihook.pytest_runtest_protocol(item=item, nextitem=None)
+        self.recorded_call(item.ihook.pytest_runtest_protocol)(item=item, nextitem=None)  # the test: recorded
         outcome = "failed" if any(r.failed for r in self.reports) else \
             "skipped" if any(r.skipped for r in self.reports) else "passed"
         self.write(item.nodeid, route, outcome, self.read().to_json(self.memo))
 
     def read(self) -> Any:
+        """The recording, stopped, read as a cone. The capture's own code is not the test's: this module runs in
+        every capture and in no full run, so its code objects are removed before the reading (`[M]` 2026-11-02, a
+        capture of ``tests/gates/test_layer_imports.py``: six of its defs were pinned in each of 533 cones), and the
+        modules that read the cone are imported only now, after the recording stopped (imported during it, their
+        import-time statements were pinned in every cone). A test of the cone store imports them itself, recorded."""
         self.recording.stop()
-        return self.cone.cone_of(self.recording, self.store, self.config, self.memo, self.boot)
+        own = Recorded.read.__code__.co_filename
+        for key in [key for key in self.recording.codes if key[0] == own]:
+            del self.recording.codes[key]
+        from tools.cone_store import cone
+
+        return cone.cone_of(self.recording, self.store, self.config, self.memo, self.boot)
 
 
 class FreshChild(Recorded):
@@ -281,9 +306,11 @@ class FreshChild(Recorded):
         super().__init__(config, config_path)
         self.nodeid = nodeid
 
+    @_quiet
     def conftests_loaded(self, early_config: Any, args: list[str]) -> None:
         args.append(self.nodeid)
 
+    @_quiet
     def pytest_runtestloop(self, session: Any) -> bool | None:
         if session.config.option.collectonly:
             return None
@@ -300,6 +327,7 @@ class Collector(Recorded):
         self.flush()
         os._exit(0)  # a fork of the grandparent ends here, not in the grandparent's caller
 
+    @_quiet
     def pytest_runtestloop(self, session: Any) -> bool | None:
         if session.config.option.collectonly:
             return None
@@ -322,6 +350,7 @@ class Grandparent(Recorded):
         if self.collector is not None:
             self.collector.finish()
 
+    @_quiet
     def conftests_loaded(self, early_config: Any, args: list[str]) -> None:
         base = list(args)
         if not self.blockers():
@@ -399,6 +428,10 @@ def main(argv: list[str]) -> int:
     role, config_path, *rest = argv
     config = Config.load(config_path)
     sys.pycache_prefix = pycache_dir(config.repo)  # this process's bytecode only; no interpreter a test starts inherits it
+    # No bytecode is ever written, so the prefix stays empty and every capture compiles each module the same way: the
+    # import system's cache-write code (``_write_atomic`` and its strings) ran only in a capture that met a cold
+    # cache, and put its names in that test's entry names alone (the routes' rows differed, G4 and C6).
+    sys.dont_write_bytecode = True
     return ROLES[role](config, config_path, rest)
 
 

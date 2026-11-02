@@ -164,13 +164,13 @@ def test_m3_7_the_function_and_the_platform_are_in_the_key(package, monkeypatch)
 def test_m3_8_the_child_is_born_clean_and_imports_from_the_parents_path(package, tmp_path):
     """M3.8: the package root is on this process's ``sys.path`` only (not ``PYTHONPATH``, not the working
     directory), and the child still imports it: it inherits the path, so a worktree parent never spawns a
-    main-tree child (lessons L99). The entry's manifest holds the generator module's skeleton and
+    main-tree child (lessons L99). The entry's manifest holds the generator module's statement pin and
     ``orpheus/values/content.py``'s: tracing began before the first first-party import."""
     assert str(package.root) not in os.environ.get("PYTHONPATH", "") and os.getcwd() != str(package.root)
     alpha = package.module("alpha")
     alpha.generate(1.5)
     (entry,) = _entry_files(tmp_path)
-    modules = {rel for rel, _ in api.manifest_rows(api.read_entry(entry), "ModulePin")}
+    modules = {rel for rel, *_ in api.manifest_rows(api.read_entry(entry), "StatementsPin")}
     assert package.relpath("alpha") in modules, modules
     assert "orpheus/values/content.py" in modules, sorted(modules)[:10]
 
@@ -222,7 +222,7 @@ def test_m3_11_a_raising_generator_writes_nothing_and_raises_its_own_error(packa
     assert _entry_files(tmp_path) == []
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3c_signature_scopes_are_pinned_by_the_skeleton_not_by_a_body', 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3c_signature_scopes_are_pinned_by_the_statements_not_by_a_body', 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_12a_a_parent_entry_pins_its_child_by_reference(package, tmp_path):
     """M3.12 (a): ``outer`` calls the memo ``inner``. The outer entry's manifest records the inner entry (its
     key and payload digest) and does NOT list ``inner``'s def, which ran only in the grandchild: the parent

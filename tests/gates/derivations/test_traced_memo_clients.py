@@ -378,8 +378,10 @@ _CHARACTERISTIC_DRIVER = textwrap.dedent('''
 CHARACTERISTIC_TREE_WITNESSES = [
     ("construction-helper", "derivations/continuous/characteristic/walls.py", "def _wall_at_face(", None, "Stale"),
     ("rule-of-another-chart", "derivations/continuous/characteristic/lines.py", "def polar_rule(", None, "Hit"),
+    # Re-posed at B2 (#689), INVERTED: a new constant nothing reads moved the module skeleton, so the reading went
+    # stale; statement pins see only what the run observes, and the reading stays a hit.
     ("reading-module-constant", "derivations/continuous/characteristic/reference.py",
-     'Lift = Callable[["sympy.Expr"], "sympy.Expr"]', "constant-before", "Stale"),
+     'Lift = Callable[["sympy.Expr"], "sympy.Expr"]', "constant-before", "Hit"),
 ]
 
 
@@ -402,7 +404,8 @@ def test_m4_4c_an_edit_to_the_copied_tree_misses_exactly_where_the_characteristi
                                                                                             method, reading):
     """M4.4, re-posed on the characteristic reading, on a copy of ``orpheus/``: a neutral edit to a construction
     helper the reading ran (``_wall_at_face``) makes the reading stale; an edit to the cylinder's polar rule, which a
-    sphere reading never runs, leaves it a hit; a new constant in the reading module's skeleton makes it stale.
+    sphere reading never runs, leaves it a hit; a new constant in the reading module that nothing reads leaves it a hit
+    (B2, #689: under the module skeleton it made the reading stale).
     The copy's own driver reports ``Hit`` before the edit (the activation leg)."""
     copy = _copy_tree(tmp_path)
     cache = tmp_path / "cache"

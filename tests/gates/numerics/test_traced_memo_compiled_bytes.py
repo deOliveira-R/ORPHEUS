@@ -187,7 +187,7 @@ def test_p3_the_loaders_own_reads_are_not_the_runs(make, tmp_path):
     probed = [path for path, _ in api.manifest_rows(record, "PresencePin")]
     assert not [p for p in data if p.endswith(".py")], data
     assert not [p for p in data + probed if os.path.realpath(p).startswith(cache)], (data, probed)
-    assert api.manifest_rows(record, "ModulePin"), "the instrument read no module pins: the entry is not a generation's"
+    assert api.manifest_rows(record, "StatementsPin"), "the instrument read no module pins: the entry is not a generation's"
 
 
 LOOSE_INIT = '''
@@ -440,7 +440,7 @@ def test_p9_a_corrupt_bytecode_entry_is_recompiled_never_run(make, kind):
 @pytest.mark.rests_on(_M31)
 def test_a1_a_protocol_stub_whose_annotations_are_read_generates(make, tmp_path):
     """A1: a generator reads the annotations of a ``Protocol`` method whose body is only a docstring, which runs
-    its ``__annotate__``. The generation succeeds. Its manifest pins the module's skeleton (which holds the
+    its ``__annotate__``. The generation succeeds. Its manifest pins the module by its statements (which hold the
     signature) and no body of ``Proto.method``, since that body never ran. First red: the strip's ``pass`` with
     no location (``AttributeError: 'Pass' object has no attribute 'lineno'`` crossed back)."""
     package = make(m='''
@@ -461,7 +461,7 @@ def test_a1_a_protocol_stub_whose_annotations_are_read_generates(make, tmp_path)
     assert package.module().hints(1.0) == 3.0
     (entry,) = api.entry_files(tmp_path / "cache")
     record = api.read_entry(entry)
-    assert any(path.endswith("m.py") for path, _ in api.manifest_rows(record, "ModulePin"))
+    assert any(path.endswith("m.py") for path, *_ in api.manifest_rows(record, "StatementsPin"))
     assert not [q for _, q, *_ in api.manifest_rows(record, "DefPin") if q == "Proto.method"]
 
 
@@ -496,11 +496,11 @@ def _with_pass_for_docstring_only_bodies(data: bytes, docstrings: list[ast.Expr]
 
 def _all_digests(module, data: bytes) -> tuple:
     text = module._parsed_index(data)
-    return text.skeleton, tuple((d.qualname, d.ordinal, d.digest) for d in text.defs)
+    return tuple(s.digest for s in text.statements), tuple((d.qualname, d.ordinal, d.digest) for d in text.defs)
 
 
 def test_a2_a_docstring_only_body_digests_as_a_body_of_pass():
-    """A2: over every tracked Python file with a docstring-only def or class body, the skeleton and every def's
+    """A2: over every tracked Python file with a docstring-only def or class body, the import-time statements and every def's
     digest equal those of the same file with each such docstring replaced, IN THE TEXT, by ``pass``: the strip
     reads a docstring-only body as ``pass``, and the location the fix gives that ``pass`` moves no digest
     (a digest excludes locations). The reference side is a textual edit parsed by ``ast``, not the strip.
