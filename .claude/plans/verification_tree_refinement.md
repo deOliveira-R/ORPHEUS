@@ -586,7 +586,9 @@ Mode: W1. The test-architect writes the verification spec first. The store is to
 - **B3. The numerics layer captured into the store, and the census's placement step reading it** (ruling 22). Nexus ingestion of the store is an issue on sphinxcontrib-nexus.
 - **B4. The validation run** (ruling 41), then the verdict layer (rulings 34 and 35).
 
-**Next:** the test-architect's spec for B1.
+**B1 [LANDED 7fdc7474]** (2026-11-02, merged to `main` by fast-forward; CI `gates` run 41425672218 green). `tools/cone_store/` (13 modules), seven `tests/gates/tools/test_cone_store_*.py` files with their fixture, three memo witnesses, `docs/theory/verification/cone_store.rst`, ERR-124. `[M]` before the merge: full suite `-O -m "not slow"` 19947 passed, 1 failed; the failure was the qualname census (the memo's new `Refusal` shared its qualname with `orpheus.geometry.manifold.Refusal`), fixed by naming it `PinRefusal`; after the rename the census and the memo witnesses passed (37), the cone-store fast gates passed (181), M1 passed, pyright 0 errors, Sphinx `-W` clean. Scope boundaries filed: #687, #688, #689 (B2), #690.
+
+**Next:** B2 (#689), per-statement import-time pins shared with the memo; the main agent writes the memo part.
 
 **Ruled by the orchestrator, from ruling 41 (2026-11-01).**
 
