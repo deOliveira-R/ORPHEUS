@@ -746,3 +746,12 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   `PYTHONPYCACHEPREFIX`, exported by the cone store's workers, flipped a memo gate that deletes `__pycache__`
   (reproduced with the variable alone, no store). Set an instrument's knobs in-process (`sys.pycache_prefix`),
   never in `os.environ`, and gate the tests' environment under capture against a plain run. → `L128`
+
+## Cone store B2 spec (2026-11-02) — extends `instrument-doctrine` X1 (a negative or positive reading must come from the tree it names)
+
+- **⛔ When the orchestrator writes the carve concurrently, read "today" from a detached worktree of HEAD, never the main tree.**
+  A battery in the main tree measured the half-written carve (an arm patching a just-deleted class reddened every row). And a
+  row meant to witness ONE clause owes a per-clause ablation: a `warn()`-call edit witnessed the effect rule, not the outcome check. → `L129`
+- **⛔ A pin keyed on a run's whole name set is route-dependent until every machinery path is quiet: diagnose a row-identity red by
+  the SET DIFFERENCE of the two name sets, then grep the distinctive names to their code object.** Containment over such pins is a
+  names superset, not row identity. → `L130`

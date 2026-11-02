@@ -11981,3 +11981,28 @@ attribution (over-select), so COLL-SHARED could not reproduce ruling 38's under-
 the LIVE homonym second, or an ordinal-dropping key is designed-green. M1: `PYTHONPYCACHEPREFIX` exported to
 workers broke `test_b17` (it deletes `__pycache__`); reproduced with the variable alone. Records:
 `scratch/verification_tree/cone_store/battery_b1.md`, `m1_diagnosis.md`.
+
+## L129 — cone store B2 gate spec: a baseline read while the carve is being written (2026-11-02)
+
+The main agent was writing the B2 carve in the main tree while my gates and battery ran there. The first battery
+patched `ModulePin.stale` in the child processes; `ModulePin` had just been deleted, so the patch line raised and
+EVERY row went red: 79 "reds" that measured the carve-in-progress, not the arm. An earlier "today" run in the same
+tree had read the B1 code minutes before. Repair: every "today" reading and every arm ran in a detached worktree of
+HEAD (`git worktree add --detach`), with `PYTHONPATH` at the worktree and `orpheus.__file__` printed first. Also: a
+recall row that re-runs the entry after a same-size edit served the old answer from a timestamp `.pyc` (six rows
+red in sequence, green alone): `PYTHONDONTWRITEBYTECODE=1` in the children (L115's mechanism). And an outcome row
+whose edit was a `warn()` call witnessed R2D, not R3, which only the per-ruling ablation showed; a compile-time
+`SyntaxWarning` from a pure binding witnesses R3 alone. Records: `scratch/verification_tree/cone_store/b2/gate_spec.md`, `ta/`.
+
+## L130 — cone store B2 re-baseline: a name-set difference names the leak (2026-11-02)
+
+Under statement pins a cone's StatementsPin rows depend on the run's whole entry-name set E', so any machinery code
+that runs inside one capture route and not the other (the memo's restore/_take, the store's fork guard via ctypes,
+importlib's `_write_atomic` when a .pyc is written, pytest's terminal reporter, `reorder_items` over N items vs 1,
+a cached `_blas` first called inside the test) makes the routes' rows differ while every first-party pin agrees.
+Row-identity gates (E1, E8, G4, C6, T1, T2) caught all six; the diagnosis that closed each was the SET DIFFERENCE of
+the two kept name sets, then a grep of the distinctive names to the code object. Containment gates over StatementsPin
+compare names by superset (selection is monotone in the names), never by row identity. And a battery installed by a
+`sitecustomize` on PYTHONPATH reaches every child only if the gates' child environments APPEND the inherited
+PYTHONPATH; textual arms on a `functools.cache`d function need `inspect.unwrap`. Records: `scratch/verification_tree/
+cone_store/b2/gate_spec.md` §10, `ta/battery_built/`, `ta/probe_routes.py`.
