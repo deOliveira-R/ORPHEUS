@@ -587,3 +587,18 @@ Mode: W1. The test-architect writes the verification spec first. The store is to
 - **B4. The validation run** (ruling 41), then the verdict layer (rulings 34 and 35).
 
 **Next:** the test-architect's spec for B1.
+
+**Ruled by the orchestrator, from ruling 41 (2026-11-01).**
+
+42. **The store predicts full-run verdicts.** The full suite is the merge gate, and the validation run compares the store's selections with full runs. So a capture reproduces the context a full run gives each test. A full run imports every `conftest.py` before any test runs, and a conftest's module code and session hooks act on every test (`tests/gates/sn/regression/conftest.py::pytest_configure` sets the session's `DriftWarning` filter, and 5 test files outside that directory raise `DriftWarning`, `[M]` qa 2026-11-01). Therefore:
+    - the grandparent loads every conftest the full run would load, and attributes what they run to every test;
+    - the set of conftest paths is part of the environment key;
+    - so are the `pytest11` entry points and `PYTEST_PLUGINS`.
+
+    A per-module verdict is refuted for the question "what does the store promise", because no gate reads one.
+
+**Review state** (2026-11-01). qa's first pass (`qa_b1.md`) and second pass (`qa_b1_delta.md`) found 13 under-selections and 1 refusal-order defect. The repairs are in, or are being written by the test-architect. Defects found in the memo by this work, all fixed in production with witnesses:
+- `Recording.codes` collapsed equal code objects across files (ERR-124);
+- `trace_call`'s manifest re-read was offered to an enclosing recording;
+- `listing_digest` counted `__pycache__` (now an accepted limit of the generator contract);
+- a deleted source raised out of `collect_pins` (`SourceGone`).
