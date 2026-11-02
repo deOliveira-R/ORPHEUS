@@ -61,6 +61,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **Space-membership U0 (Fredholm verdict on every posing, W3)** — spec re-posed 2026-10-31 `scratch/membership_covector/u0/spec_u0.md`; drafts + probes `.../u0/{drafts,probes}/`. On resume: confirm landed; build the §4 battery; S16a awaits the DD left basis.
 - **Space-membership U3b (#616 + NearKernel + lazy rcond + class-block mode, W3)** — spec 2026-10-31 `scratch/membership_covector/u3b/gate_spec.md`; probes `.../u3b/ta/`; #616 gates `tests/gates/sn/operators/test_transpose_sweep_multid.py` (51 strict xfail), drafts `.../u3b/drafts/`. On resume: confirm landed; run the multi-D arms; re-home the drafts. → **`L122`**
 - **Layer DAG Phase 4 (transport space constructors)** — spec 2026-11-01 `scratch/layer_dag/phase4/spec.md`; LANDED by me (uncommitted) 2026-11-01, `phase4/landing_report.md`. On resume: confirm committed. → **`L125`**, `L126`
+- **Cone store B1 (W1 spec, `feature/cone-store`)** — 2026-11-01 `scratch/verification_tree/cone_store/spec_b1.md` (55 rows); gate files WRITTEN 2026-11-01 (7 files + `_cone_store_fixture.py` under `tests/gates/tools/`, 66 ids, M3 green today). Battery done 2026-11-01 (`battery_b1.md`, 51 arms); M1 diagnosed (`m1_diagnosis.md`). On resume: re-run S8[file] after the `_in_venv` repair. → **`L127`**
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)

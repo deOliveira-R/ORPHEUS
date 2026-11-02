@@ -145,6 +145,8 @@ grep inventory with a per-hit KEEP/FIX adjudication.**
   indexed member sharing a short name with an existing one (`Line.shape` vs `Axis.shape`) makes
   every unqualified xref to that name ambiguous — `:exclude-members:` it. Napoleon `Attributes`
   entries mint no target here, so `:attr:` to a dataclass field is plain text: use a literal. → L-120
+- **A rendered module with an explicit `:members:` list renders only what the list names** — a new
+  public symbol (in `__all__` or not) is a silent plain-text role until it is added. → L-124
 - **Re-pointing an `automodule` makes a docstring no build ever parsed a build input** — the baseline
   cannot see it, so parse the new module's docstring with `docutils` (old text as the positive
   control) BEFORE the verification build; a `.py` defect found by the build costs a third build. → L-116

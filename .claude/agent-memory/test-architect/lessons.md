@@ -735,3 +735,14 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   `is` row and every memoised operator (`AxisRetractionOperator.of(space)`) silently into "not the same object".**
   Hoist one local per test before believing a red; and a docstring hit of the same call text blocks a text-based
   hoist (rewrite prose first). → `L126`
+
+## Cone store B1 spec (2026-11-01) — extends `instrument-doctrine` X1 (a control must reach the grain of the claim)
+
+- **⛔ A per-test cone recorded in a SHARED parent is order-dependent: `sys.modules` and collection-time caches are caches too.**
+  A module first imported (or a cache first filled) by an earlier module's collection is never re-run, so later tests lose it
+  and a "can only over-select" attribution under-selects. A containment control restricted to setup+call defs cannot see it
+  (round 2's 200/200); design the fixture pair (fill in module A's parametrize, hit in module B) before trusting any fork result. → `L127`
+- **⛔ A measuring harness's exported environment reaches the system under test and every process it starts.**
+  `PYTHONPYCACHEPREFIX`, exported by the cone store's workers, flipped a memo gate that deletes `__pycache__`
+  (reproduced with the variable alone, no store). Set an instrument's knobs in-process (`sys.pycache_prefix`),
+  never in `os.environ`, and gate the tests' environment under capture against a plain run. → `L128`

@@ -14142,3 +14142,14 @@ not carry `#:` comments, so the probe never saw it. Cost: a third full build. Do
 reads every `#:` block of the module (`sphinx.pycode.ModuleAnalyzer.for_module(name).find_attr_docs()`
 returns them), and greps them for `|…|`, a trailing `_` and backticks. Under a docs-only brief the repair is
 `:exclude-members:` plus a report to main, since the comment is code-adjacent and not present-tense false.
+
+## L-124 An explicit `:members:` list silences every role to a symbol it does not name
+
+2026-11-01, cone store B1 docs. `docs/api/numerics.rst` documents `orpheus.numerics.traced_memo` with
+`.. automodule:: … :members: <explicit list>`. The landing added 11 public names to the module's `__all__`
+(`collect_pins`, `CollectedPins`, `Refusal` and eight kinds) and `fork_blockers` to the boot module; none
+was in the list, so every `:func:`/`:class:` role I was about to write to them would have rendered as plain
+text with `-W` silent: `__all__` does not feed an explicit list. Not covered by L-120 (indexing a NEW module)
+nor by §2a's `:noindex:` / un-automodule'd case: the module IS rendered, the member is not. Do: for every
+symbol a landing adds that the page will role-reference, grep the api page's `:members:` list for it and
+add it in the same pass (check with an assert over the list, as in this pass's `archivist_check.py`).

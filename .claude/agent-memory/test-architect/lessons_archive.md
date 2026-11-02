@@ -11960,3 +11960,24 @@ default must be made explicit (`space=`); (4) the regex that turned docstring pr
 match the docstring first. Id conservation by tail-matching plus a marker diff (`iter_markers()` at HEAD from a
 `git archive` copy) caught nothing lost; pyright compared per file against the same command on HEAD copies (a custom
 pyrightconfig in a scratch dir checked NOTHING beyond the control: use the repo's config with explicit paths).
+
+## L127 — cone store B1: the shared-parent collection cone (2026-11-01)
+
+Ruling 38 attributed collection code per test module in one collecting parent, "which can only over-select". Fixture
+(pkg/user.py `functools.cache` `table` filled by `_build`; consts.TOL imported by user; test_a builds `table(3)` in a
+parametrize list; test_b calls it at run time): test_b's suite cone lacked `_build`, `table` and three `<module>` nodes that
+its alone run held. Real files (439 tests, 31 sampled): 31 of 31 missed the package `__init__` module code, 0 missed defs.
+Round 2's 200/200 fork-vs-fresh agreement compared setup+call defs under orpheus/ only. Repair (ruled): a grandparent forks
+one collecting parent per test module. Also: under one recording inherited across fork, removing `restart_events()` is a
+null arm (inside the containment gates' stabiliser); the root conftest imports 91 orpheus modules, all attributed to every
+test. Spec: `scratch/verification_tree/cone_store/spec_b1.md`.
+
+## L128 — cone store B1 battery and M1 (2026-11-01)
+
+37 + 14 arms on a copied worktree; every arm reddened at least one row. The design-time misses were all
+"shared-mechanism" greens: an alone capture through the same `_run` as the fork capture cannot see a mutation
+of `_run` (T1 under COLL-DROP/REC-LATE); a cumulative recording turns a shared collecting parent into union
+attribution (over-select), so COLL-SHARED could not reproduce ruling 38's under-selection. Twins fixture: put
+the LIVE homonym second, or an ordinal-dropping key is designed-green. M1: `PYTHONPYCACHEPREFIX` exported to
+workers broke `test_b17` (it deletes `__pycache__`); reproduced with the variable alone. Records:
+`scratch/verification_tree/cone_store/battery_b1.md`, `m1_diagnosis.md`.
