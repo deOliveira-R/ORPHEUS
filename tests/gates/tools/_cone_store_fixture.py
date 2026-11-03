@@ -373,6 +373,160 @@ _LOCALPLUG: dict[str, str] = {
     "localplug-1.0.dist-info/RECORD": "",
 }
 
+#: B3 (spec ``scratch/verification_tree/cone_store/b3/spec_b3.md`` §2.2): a test that calls, in its own run, the def
+#: the root conftest already ran at import (``conftest_helper``). Its OWN cone must hold that def; ``test_b``'s must not.
+_PHASES: dict[str, str] = {
+    "tests/test_p.py": """
+        from pkg.conf_dep import conftest_helper
+
+
+        def test_p():
+            assert conftest_helper() == 3
+    """,
+}
+
+#: B3 placement (spec §2.3-§2.5, rows PL1-PL11): a layer ``pkg/lay`` ranked by :data:`PLACEMENT_ORDER`, with one
+#: import of each kind, an upstream layer ``pkg/up``, a higher one ``pkg/top``, and a conftest that runs ``alpha.fd`` (so ``fd``, ``fb``, ``fa``
+#: are in every test's inherited floor). Module names are chosen so that rank order, alphabetical order and def
+#: count disagree: the top of the order is ``alpha``, the bottom ``zeta``, and ``zeta`` holds two defs.
+PLACEMENT_ORDER: tuple[tuple[str, ...], ...] = (
+    ("zeta", "s"), ("beta", "beta2"), ("gamma",), ("alpha",))
+_PLACEMENT: dict[str, str] = {
+    "pkg/lay/__init__.py": "",
+    "pkg/lay/zeta.py": """
+        def fa():
+            return _fa_inner()
+
+
+        def _fa_inner():
+            return 1
+    """,
+    "pkg/lay/s.py": "".join(f"def f{i}():\n    return {i}\n\n\n" for i in range(20))
+                    + "ALL = (" + ", ".join(f"f{i}" for i in range(20)) + ")\n",
+    "pkg/lay/beta.py": """
+        from pkg.lay import s, zeta
+
+
+        def fb():
+            return zeta.fa() + 1
+    """,
+    "pkg/lay/beta2.py": """
+        def fb2():
+            return 2
+    """,
+    "pkg/lay/gamma.py": """
+        from typing import TYPE_CHECKING
+
+        if TYPE_CHECKING:
+            from pkg.lay.beta import fb
+
+
+        def fc():
+            from pkg.lay.zeta import fa
+
+            return fa()
+    """,
+    "pkg/lay/alpha.py": """
+        from pkg.lay import beta
+
+
+        def fd():
+            return beta.fb() + 1
+    """,
+    "pkg/up/__init__.py": "",
+    "pkg/up/u.py": """
+        def u():
+            return 0
+    """,
+    "pkg/top/__init__.py": "",
+    "pkg/top/t.py": """
+        def t():
+            return 0
+    """,
+    "tests/lay/__init__.py": "",
+    "tests/lay/conftest.py": """
+        from pkg.lay.alpha import fd
+
+        fd()
+    """,
+    "tests/lay/test_pl.py": """
+        import subprocess
+        import sys
+
+        import pytest
+
+        from pkg.lay import alpha, beta, beta2, gamma, s, zeta
+        from pkg.top import t
+        from pkg.up import u
+
+
+        def test_low():
+            assert zeta.fa() == 1
+
+
+        def test_d_only():
+            assert alpha.fd() == 3
+
+
+        def test_none():
+            assert alpha.fd() + beta2.fb2() == 5
+
+
+        def test_lazy_typ():
+            assert gamma.fc() + beta.fb() == 3
+
+
+        def test_tie():
+            assert beta.fb() + beta2.fb2() == 4
+
+
+        def test_layers():
+            assert zeta.fa() + u.u() + t.t() == 1
+
+
+        def test_nodef():
+            assert True
+
+
+        def test_fails():
+            assert zeta.fa() == 2
+
+
+        def test_spawn():
+            assert zeta.fa() == 1
+            subprocess.run([sys.executable, "-c", "pass"], check=True)
+
+
+        @pytest.mark.parametrize("k", [1, 2])
+        def test_s_lower(k):
+            assert sum(f() for f in s.ALL) == 190
+
+
+        def test_s_upper95():
+            assert sum(f() for f in s.ALL[:19]) + beta.fb() == 173
+
+
+        def test_s_upper90():
+            assert sum(f() for f in s.ALL[:18]) == 153
+
+
+        def test_s_super():
+            assert sum(f() for f in s.ALL) + alpha.fd() == 193
+
+
+        def test_tiny():
+            assert beta2.fb2() == 2
+
+
+        def test_dup1():
+            assert sum(f() for f in s.ALL[:6]) + zeta.fa() == 16
+
+
+        def test_dup2():
+            assert sum(f() for f in s.ALL[:6]) + zeta.fa() > 0
+    """,
+}
+
 _THREAD_LINES = """
 import threading as _threading
 import time as _time
@@ -426,7 +580,8 @@ BASELINE = frozenset({"tests/test_g.py::test_fail"})
 def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_conftest: bool = False,
           thread_at_module: bool = False, unmeasured_platform: bool = False, reads_source: bool = False,
           subdir: bool = False, read_rewrite: bool = False, race: bool = False, offpath: bool = False,
-          user_ignore: bool = False, localplug: bool = False, age: bool = True) -> Path:
+          user_ignore: bool = False, localplug: bool = False, phases: bool = False, placement: bool = False,
+          age: bool = True) -> Path:
     """Write the fixture tree under ``root`` and return it; ``age`` waits until every file's identity is
     settled, so a capture taken next records settled identities (spec F1)."""
     files = dict(_BASE)
@@ -448,6 +603,10 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
         files |= _USER_IGNORE
     if localplug:
         files |= _LOCALPLUG
+    if phases:
+        files |= _PHASES
+    if placement:
+        files |= _PLACEMENT
     conftest = textwrap.dedent(files["tests/conftest.py"])
     if thread_at_conftest:
         conftest += _THREAD_LINES

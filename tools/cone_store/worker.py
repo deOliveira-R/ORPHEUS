@@ -10,6 +10,11 @@ A capture is three levels of process (ruling 38 as corrected), one plugin class 
 * the child runs pytest's own protocol for one test, stops the recording, reads it as a cone
   (:func:`tools.cone_store.cone.cone_of`) and writes it to the results directory.
 
+A child also records the test's OWN cone: a second ``Recording``, started when pytest's protocol for the test starts
+and stopped when it returns. A recording reports each code object the first time it starts, per recording (each has
+its own ``sys.monitoring`` tool), so a def the conftests ran is in the own cone again when the test runs it. The
+inherited recording is the selection cone (``select`` judges it); the own one is what placement reads (B3).
+
 The recording is inherited across both forks, so a child's cone is the grandparent's (conftest imports) plus its
 module's collection plus its own run: no cache or ``sys.modules`` entry filled by an EARLIER module can hide code
 from a later one, because the later module's parent was forked from the grandparent, not from the earlier module's.
@@ -77,12 +82,15 @@ class Worker:
     def result_path(self, nodeid: str) -> Path:
         return Path(self.config.results, f"{self.boot.digest(nodeid.encode())[:40]}.json")
 
-    def write(self, nodeid: str, route: str, outcome: str, cone: dict[str, Any] | None, unknown: tuple[str, ...] = ()) -> None:
+    def write(self, nodeid: str, route: str, outcome: str, cone: dict[str, Any] | None, unknown: tuple[str, ...] = (),
+              own: dict[str, Any] | None = None) -> None:
+        """The result of one test: its selection cone, and its own cone under ``own`` (``None`` when no run was
+        recorded, a crash)."""
         path = self.result_path(nodeid)
         body = cone or {"pins": [], "files": {}, "unknown": []}
         body["unknown"] = [*body["unknown"], *unknown]
         temporary = path.with_suffix(f".{os.getpid()}.tmp")
-        temporary.write_text(json.dumps({"id": nodeid, "route": route, "outcome": outcome, **body}))
+        temporary.write_text(json.dumps({"id": nodeid, "route": route, "outcome": outcome, **body, "own": own}))
         os.replace(temporary, path)
 
     def spawn(self, role: str, *arguments: str) -> None:
@@ -275,26 +283,38 @@ class Recorded(Worker):
         return os.waitpid(pid, 0)[1]
 
     def run(self, item: Any, route: str) -> None:
-        """Pytest's own protocol for ``item``, then the recording read as a cone."""
+        """Pytest's own protocol for ``item`` under a second recording (the test's own cone), then both recordings
+        read as cones: the own one after the inherited one stopped, so the reading's imports are in neither."""
         self.reports.clear()
-        self.recorded_call(item.ihook.pytest_runtest_protocol)(item=item, nextitem=None)  # the test: recorded
+        protocol = self.recorded_call(item.ihook.pytest_runtest_protocol)
+        own = self.boot.Recording().start()
+        try:
+            protocol(item=item, nextitem=None)  # the test: recorded by both
+        finally:
+            own.stop()
         outcome = "failed" if any(r.failed for r in self.reports) else \
             "skipped" if any(r.skipped for r in self.reports) else "passed"
-        self.write(item.nodeid, route, outcome, self.read().to_json(self.memo))
+        selection = self.read()
+        self.write(item.nodeid, route, outcome, selection.to_json(self.memo),
+                   own=self.cone_of(own).to_json(self.memo))
 
     def read(self) -> Any:
-        """The recording, stopped, read as a cone. The capture's own code is not the test's: this module runs in
-        every capture and in no full run, so its code objects are removed before the reading (`[M]` 2026-11-02, a
-        capture of ``tests/gates/test_layer_imports.py``: six of its defs were pinned in each of 533 cones), and the
-        modules that read the cone are imported only now, after the recording stopped (imported during it, their
-        import-time statements were pinned in every cone). A test of the cone store imports them itself, recorded."""
+        """The recording, stopped, read as a cone. The modules that read the cone are imported only now, after the
+        recording stopped (imported during it, their import-time statements were pinned in every cone). A test of
+        the cone store imports them itself, recorded."""
         self.recording.stop()
-        own = Recorded.read.__code__.co_filename
-        for key in [key for key in self.recording.codes if key[0] == own]:
-            del self.recording.codes[key]
+        return self.cone_of(self.recording)
+
+    def cone_of(self, recording: Any) -> Any:
+        """A stopped recording read as a cone. The capture's own code is not the test's: this module runs in every
+        capture and in no full run, so its code objects are removed before the reading (`[M]` 2026-11-02, a capture
+        of ``tests/gates/test_layer_imports.py``: six of its defs were pinned in each of 533 cones)."""
+        mine = Recorded.cone_of.__code__.co_filename
+        for key in [key for key in recording.codes if key[0] == mine]:
+            del recording.codes[key]
         from tools.cone_store import cone
 
-        return cone.cone_of(self.recording, self.store, self.config, self.memo, self.boot)
+        return cone.cone_of(recording, self.store, self.config, self.memo, self.boot)
 
 
 class FreshChild(Recorded):
@@ -373,9 +393,8 @@ class Grandparent(Recorded):
         os._exit(0)
 
     def share(self) -> None:
-        """A child of the grandparent that writes how many pins the grandparent attributes to every test."""
-        cone = self.read()
-        Path(self.config.results, "gp.json").write_text(json.dumps({"pins": len(cone.pins), "unknown": list(cone.unknown)}))
+        """A child of the grandparent that writes the cone the grandparent attributes to every test."""
+        Path(self.config.results, "gp.json").write_text(json.dumps(self.read().to_json(self.memo)))
 
 
 def _session(plugin: Callable[[Config, str], Worker]) -> Callable[[Config, str, list[str]], int]:

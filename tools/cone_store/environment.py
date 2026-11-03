@@ -17,6 +17,17 @@ VARIABLES = (*traced_memo._FIXED_ENVIRONMENT, "PYTEST_ADDOPTS", "PYTEST_PLUGINS"
              "PYTHONWARNINGS", "MKL_CBWR")
 #: The files pytest reads its configuration from, at the repository root.
 INI_FILES = ("pyproject.toml", "pytest.ini", "setup.cfg", "tox.ini")
+#: The repository this package belongs to.
+_ROOT = Path(__file__).resolve().parents[2]
+#: The modules of this package that only READ a store (``select``, ``place``): an edit to them changes no cone.
+_READERS = ("selection.py", "placement.py")
+#: The capture's instrument: the memo's own source (the recorder, which records nothing of its own apparatus, and
+#: the pin reader; :data:`~orpheus.numerics.traced_memo._MEMO_SOURCES`, one list) and every module of this package
+#: but its readers (a new module counts until it is named a reader). A cone holds no pin on them (the memo pin is
+#: dropped, the apparatus never recorded), so a store is valid only under the instrument that captured it: the
+#: memo's own rule for its entries, read as a key.
+INSTRUMENT = (*traced_memo._MEMO_SOURCES,
+              *sorted(p for p in Path(__file__).resolve().parent.glob("*.py") if p.name not in _READERS))
 
 
 def distributions() -> list[list[str]]:
@@ -34,7 +45,8 @@ def pytest_plugins() -> list[list[str]]:
 def environment_key(repo: Path | str | None = None, conftests: Sequence[str] = ()) -> str:
     """The digest of the interpreter (version and bytecode tag), the platform (operating system, machine, ``-O``
     level, BLAS), the installed distributions with their versions and their ``pytest11`` entry points, the
-    environment variables a cone can follow (:data:`VARIABLES`), the set of conftests a full run loads
+    environment variables a cone can follow (:data:`VARIABLES`), the bytes of the capture's instrument
+    (:data:`INSTRUMENT`), the set of conftests a full run loads
     (``conftests``, from :mod:`tools.cone_store.conftests`, the same at capture and at select) and, given the
     repository, the bytes of its pytest configuration files. A cone captured
     under another key is not trusted (ruling 34): ``select`` lists every test of it."""
@@ -44,6 +56,7 @@ def environment_key(repo: Path | str | None = None, conftests: Sequence[str] = (
         "distributions": distributions(),
         "pytest11": pytest_plugins(),
         "conftests": sorted(conftests),
+        "instrument": {str(path.relative_to(_ROOT)): file_digest(str(path)) for path in INSTRUMENT},
         "variables": {name: os.environ.get(name) for name in VARIABLES},
         "configuration": {} if repo is None else {name: file_digest(str(Path(repo) / name)) for name in INI_FILES},
     }

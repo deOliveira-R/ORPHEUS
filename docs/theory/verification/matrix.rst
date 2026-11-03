@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20703**
+Total tests collected: **20749**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2248, 10.9%
+   L0, 2248, 10.8%
    L1, 2981, 14.4%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15329, 74.0%
-   unmarked, 60, 0.3%
+   foundation, 15373, 74.1%
+   unmarked, 62, 0.3%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20564
+   explicit, 20608
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 60
+   unmarked, 62
 
 Module × level grid
 -------------------
@@ -468,7 +468,7 @@ Module × level grid
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 315, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 12, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
-   numerics/test_concept_order, 0, 0, 0, 0, 0, 5
+   numerics/test_concept_order, 0, 0, 0, 0, 0, 7
    numerics/test_content_identity_axis, 0, 0, 0, 0, 66, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
@@ -567,6 +567,7 @@ Module × level grid
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
    numerics/test_tensor_product_operator, 32, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
+   numerics/test_traced_memo_apparatus, 0, 0, 0, 0, 21, 0
    numerics/test_traced_memo_compiled_bytes, 0, 0, 0, 0, 17, 0
    numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
    numerics/test_traced_memo_findings, 0, 0, 0, 0, 35, 0
@@ -769,10 +770,12 @@ Module × level grid
    tools/test_cone_store_freshness, 0, 0, 0, 0, 6, 0
    tools/test_cone_store_ground_truth, 0, 0, 0, 0, 7, 0
    tools/test_cone_store_memo_coexistence, 0, 0, 0, 0, 5, 0
+   tools/test_cone_store_phases, 0, 0, 0, 0, 5, 0
+   tools/test_cone_store_placement, 0, 0, 0, 0, 17, 0
    tools/test_cone_store_recorder, 0, 0, 0, 0, 9, 0
    tools/test_cone_store_routes, 0, 0, 0, 0, 13, 0
    tools/test_cone_store_selection, 0, 0, 0, 0, 32, 0
-   tools/test_cone_store_statement_grain, 0, 0, 0, 0, 24, 0
+   tools/test_cone_store_statement_grain, 0, 0, 0, 0, 25, 0
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0
    tools/test_write_guards, 0, 0, 0, 0, 22, 0
@@ -1899,7 +1902,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**60 tests** have no V&V level marker.
+**62 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1913,8 +1916,8 @@ taxonomy.
 
    ``tests/gates/derivations/test_reference_exterior_admission.py``, 17
    ``tests/gates/numerics/test_riesz_legs.py``, 8
+   ``tests/gates/numerics/test_concept_order.py``, 7
    ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 7
-   ``tests/gates/numerics/test_concept_order.py``, 5
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4

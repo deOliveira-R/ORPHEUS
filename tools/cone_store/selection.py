@@ -26,7 +26,7 @@ from orpheus.numerics._traced_memo_boot import FileIdentity, Witness
 from tools.cone_store import pins as pin_rows
 from tools.cone_store.collect import collect_ids
 from tools.cone_store.environment import environment_key
-from tools.cone_store.store import ConeStore, FileState
+from tools.cone_store.store import GRANDPARENT, ConeStore, FileState
 
 
 @dataclass(frozen=True)
@@ -194,4 +194,4 @@ def status(repo: str | Path, store: str | Path) -> Status:
         return Status(
             str(database.path), len(tests), routes, unknown, len(unknown), errors,
             sum(1 for t in tests.values() if t.outcome != "passed"), sum(1 for t in tests.values() if t.env_key != key),
-            database.count("pins"), database.count("cones"), database.meta("grandparent_pins"), database.meta("pruned"))
+            database.count("pins"), database.count("cones"), None if (share := database.share(GRANDPARENT)) is None else len(share), database.meta("pruned"))

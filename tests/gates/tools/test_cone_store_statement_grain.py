@@ -586,7 +586,11 @@ def test_sg9_the_capture_pins_none_of_its_own_code_on_the_production_tree(tmp_pa
     pin of its cone names ``tools/cone_store/worker.py``, and no statement pin names ``tools/cone_store/{cone,pins,
     store}.py`` (the capture's code runs in every capture and in no full run). Positive control: the cone holds the
     test's own def. Reddening mutations: keep the worker's code objects in the recording, or import ``cone`` (and so
-    ``pins`` and ``store``) before the recording stops."""
+    ``pins`` and ``store``) before the recording stops. Since B3 both cones are asked (qa's F6c: the strip of the own
+    cone had no witness, the fixture trees holding no worker); ``[M]`` 2026-11-03 on a clone of the tree whose
+    ``Recorded.cone_of`` keeps the worker's code: red on the selection cone (six worker ``DefPin``); with the strip
+    skipped for the own cone alone (``run`` reads it through ``cone.cone_of``): red on the own cone (one worker
+    ``DefPin``, its ``PresencePin`` and ``StatementsPin``), green before this leg."""
     import tools.cone_store as cone
 
     store = tmp_path / "f5.sqlite"
@@ -596,13 +600,16 @@ def test_sg9_the_capture_pins_none_of_its_own_code_on_the_production_tree(tmp_pa
                          timeout=1800)
     if run.returncode != 0:
         pytest.fail(f"capture exited {run.returncode}:\n{run.stdout[-3000:]}\n{run.stderr[-3000:]}")
-    pins = cone.open_store(store).pins(_F5_NODE)
-    paths_of = [(type(p).__name__, str(getattr(p, "path", ""))) for p in pins]
-    assert ("DefPin", "tests/gates/test_layer_imports.py") in paths_of, "the cone lacks the test's own def"
-    worker = [p for p in paths_of if p[1] == "tools/cone_store/worker.py"]
-    readers = [p for p in paths_of if p[0] == "StatementsPin"
-               and p[1] in {"tools/cone_store/cone.py", "tools/cone_store/pins.py", "tools/cone_store/store.py"}]
-    assert not worker and not readers, f"the capture's own code is in the cone: {worker + readers}"
+    opened = cone.open_store(store)
+    # Both cones of the test (B3, qa's F6c): the selection cone and the own cone, which a second recording started
+    # inside the worker's ``run`` reads, so the worker's code that runs the test's protocol is inside it too.
+    for which, pins in (("selection", opened.pins(_F5_NODE)), ("own", opened.own_pins(_F5_NODE))):
+        paths_of = [(type(p).__name__, str(getattr(p, "path", ""))) for p in pins]
+        assert ("DefPin", "tests/gates/test_layer_imports.py") in paths_of, f"the {which} cone lacks the test's own def"
+        worker = [p for p in paths_of if p[1] == "tools/cone_store/worker.py"]
+        readers = [p for p in paths_of if p[0] == "StatementsPin"
+                   and p[1] in {"tools/cone_store/cone.py", "tools/cone_store/pins.py", "tools/cone_store/store.py"}]
+        assert not worker and not readers, f"the capture's own code is in the {which} cone: {worker + readers}"
 
 
 
@@ -644,3 +651,56 @@ def test_sg10_a_tree_package_shadowed_by_the_repositorys_own_is_measured_in_the_
     assert any(type(p).__name__ == "ImportOutcomePin" for p in store_of(root).pins(O)), "no import-outcome pin"
     selected, _ = select(root)
     assert selected == frozenset(), f"got {sorted(selected)}"
+
+
+# ── the guarded probe of a name new to a module (B2 gate spec row U2, a recall row since ruling 43, R4) ──────────────
+
+_PROBE_TREE = {
+    "pyproject.toml": """
+        [tool.pytest.ini_options]
+        addopts = "-p no:cacheprovider"
+        testpaths = ["tests"]
+    """,
+    "pkg/__init__.py": "",
+    "pkg/target.py": """
+        PRESENT_VALUE = 1
+    """,
+    "tests/__init__.py": "",
+    "tests/test_u2.py": """
+        from pkg import target
+
+
+        def test_probe():
+            assert getattr(target, "U2_NEW_NAME", 0) == 0
+    """,
+}
+PROBE = "tests/test_u2.py::test_probe"
+
+
+def test_u2_a_guarded_probe_of_a_name_new_to_its_module_selects_the_prober(tmp_path: Path) -> None:
+    """U2 (``scratch/verification_tree/cone_store/b2/gate_spec.md``, "now recall"; the theory page's boundary list).
+    ``test_probe`` reads ``U2_NEW_NAME`` through ``getattr(module, name, default)``, and ``pkg/target.py`` does not bind
+    it at capture. Adding ``U2_NEW_NAME = 1`` to the module changes the test's verdict, and ``select`` lists it: the
+    name is an entry name of the run (a string token of its code), and the entry names are stored whole, so the new
+    statement binding it is observed. Precision leg: adding a statement binding a name the run never names selects
+    nothing. Negative leg: no edit selects nothing.
+
+    ``[M]`` 2026-11-03: green. First red ``[M]``: on a clone of the tree whose ``collect_pins`` stores each module's
+    entry names restricted to the identifiers of its source at capture (ruling 43's R4 fallback), the edit selects
+    nothing."""
+    root = tmp_path / "tree"
+    for relative, source in _PROBE_TREE.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(textwrap.dedent(source).lstrip("\n"))
+    time.sleep(_trusted_age_s())
+    capture(root)
+    assert ids_of(root) == {PROBE}
+    selected, _ = select(root)
+    assert selected == frozenset(), f"no edit: {sorted(selected)}"
+    edit(root, "pkg/target.py", "PRESENT_VALUE = 1\n", "PRESENT_VALUE = 1\nU2_OTHER_VALUE = 2\n")
+    selected, _ = select(root)
+    assert selected == frozenset(), f"a name the run never names: {sorted(selected)}"
+    edit(root, "pkg/target.py", "U2_OTHER_VALUE = 2\n", "U2_OTHER_VALUE = 2\nU2_NEW_NAME = 1\n")
+    selected, _ = select(root)
+    assert selected == {PROBE}, f"the probed name, new to the module: {sorted(selected)}"

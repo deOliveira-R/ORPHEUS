@@ -5,18 +5,22 @@ The cone store: the tests a working-tree change requires
 =============================================================================
 
 .. Machine header. Owner of: the cone of a test (the pins its verdict
-   depends on) and the store that keeps one per test; why a cone is
+   depends on) and the store that keeps two per test; why a cone is
    captured by fork with the test alone (the in-process cache leak), why a
    grandparent and one collecting parent per test module (ruling 38's
    refutation), the reading of a recording as a cone (roots, kept and
    dropped pins, the shadow presence pins, the cone-unknown reasons), the
    SQLite layout, the two-stage freshness, select's rule, the environment
    key, every read the capture silences and why, the positive controls and
-   the mutation battery, the scope boundaries; and, since B2 (#689), the
+   the mutation battery, the scope boundaries; since B2 (#689), the
    import-time statement as the unit of a module's import-time code (the
    two ways a run observes one, the class rules, the projection pin, the
-   import-outcome pin, the quiet-section rule, the store's FORMAT). Not
-   owned here: the pin kinds, the recorder, validation, the kept reads,
+   import-outcome pin, the quiet-section rule); and, since B3, the two
+   cones of a test (the selection cone select judges, the own cone a
+   second recording takes around the test's protocol), the grandparent's
+   share, the store's FORMAT, and place, which homes a layer's tests in
+   the layer's concept order. Not owned here: the concept order itself
+   (tests/gates/numerics/test_concept_order.py); and the pin kinds, the recorder, validation, the kept reads,
    the fork guard and the refusals (reference_cache.rst, whose sections
    this page cites); the
    dependence DAG of the suite and its rests_on edges
@@ -26,9 +30,11 @@ The cone store: the tests a working-tree change requires
    corrected, ruling 33 as amended by 43). Specification: scratch/verification_tree/cone_store/spec_b1.md;
    reviews qa_b1.md, elegance_b1.md, battery_b1.md, m1_diagnosis.md in the
    same folder; for B2, b2/gate_spec.md, b2/qa_b2_design.md (with the 42
-   attack rows in b2/attacks/), b2/qa_b2_build.md and b2/elegance_b2.md.
-   Written for increment B1 (landed 7fdc7474), updated for B2 on branch
-   feature/cone-store-b2, uncommitted, 2026-11-02, over 549652ed.
+   attack rows in b2/attacks/), b2/qa_b2_build.md and b2/elegance_b2.md;
+   for B3, b3/spec_b3.md and b3/elegance_b3.md.
+   Written for increment B1 (landed 7fdc7474), updated for B2 (landed
+   6e52b3cf) and for B3 on branch feature/cone-store-b3, uncommitted,
+   2026-11-03, over 83db308f.
 
 The suite takes about an hour serially, and most edits change the verdict
 of few tests. The cone store records, for each test, every node its verdict
@@ -48,22 +54,31 @@ change-detection layer).
    python -O -m tools.cone_store select [ids]    # list the tests the working tree requires
    python -O -m tools.cone_store select --why    # ... with the reasons beside each id
    python -O -m tools.cone_store status          # what the store holds
+   python -O -m tools.cone_store place --out F   # home each stored test of a layer in its concept order
 
 Every command takes ``--repo`` (default the working directory), ``--store``
 (default ``<repo>/.cache/cone_store/cones.sqlite``), ``--package`` (the
 first-party package, default ``orpheus``) and ``--memo-root`` (the traced
 memo's store, default the memo's own); ``capture`` takes ``--route
-{auto,fresh}``. The ids are pytest node ids or paths, as pytest takes them.
-The same three verbs are functions of the package (``tools.cone_store.capture``,
-``select``, ``status``, and ``open_store`` for reading a store). The
+{auto,fresh}``; ``place`` takes ``--layer`` (the test-id prefix of the
+layer, default ``tests/gates/numerics/``), ``--code-root`` (the layer's
+code, default ``orpheus/numerics``), ``--order`` (the file holding the
+concept order, default ``tests/gates/numerics/test_concept_order.py``),
+``--threshold`` (default 0.95) and ``--out`` (the JSON report's path;
+without it the report is printed). The ids are pytest node ids or paths, as
+pytest takes them. The same four verbs are functions of the package
+(``tools.cone_store.capture``, ``select``, ``status``, ``place``, and
+``open_store`` for reading a store). The
 command must run under the interpreter and ``-O`` level the suite runs
 under, since both are in the environment key.
 
-The full suite stays the merge gate. ``select`` is a local check and the
-input of the census that places tests in the verification tree (ruling 22
-of the plan); it replaces the full suite only after the validation run of
-ruling 41 (sampled mutants, each run both in full and through the store,
-every selection agreeing), which has not run.
+The full suite stays the merge gate. ``select`` is a local check; it
+replaces the full suite only after the validation run of ruling 41 (sampled
+mutants, each run both in full and through the store, every selection
+agreeing), which has not run. The store is also the input of the census
+that places tests in the verification tree (ruling 22 of the plan):
+``place`` homes each stored test of one layer in that layer's concept order
+(:ref:`verification-cone-store-place`).
 
 
 Key facts
@@ -101,6 +116,23 @@ Key facts
   The grandparent loads every conftest a full run loads, so what they run
   (91 ``orpheus`` modules imported by the root conftest alone on the real
   tree, `[M]` 2026-11-01) is attributed to every test, an over-selection.
+* **A test has two cones** (B3). Its SELECTION cone is everything its
+  process ran, the conftests' imports and its module's collection included;
+  ``select`` judges it. Its OWN cone is what pytest's protocol for that one
+  test ran, recorded by a second ``Recording`` started around the protocol;
+  ``place`` reads it. The floor every test inherits says nothing about what
+  a test exercises: placed from the selection cone, 0 of 180 sampled tests
+  of ``tests/gates/numerics`` read as pure (`[M]` the B3 specification,
+  2026-11-03); placed from the own cone, the Krylov test
+  ``test_krylov_acceleration_with_fission_term`` is homed at ``iteration``,
+  pure (:ref:`verification-cone-store-own-cone`).
+* **Placement homes a test at the highest-ranked layer node of its own
+  cone** (``place``) and calls it pure when every other node of its own cone is an
+  ancestor of the home in the layer's import graph, read under three
+  cumulative closures (top-level imports; and imports inside a def; and
+  ``TYPE_CHECKING`` imports), so that each omitted kind of edge counts the
+  straddles it explains (:ref:`verification-cone-store-place`). The whole
+  numerics layer has not been placed yet.
 * **The store predicts full-run verdicts** (ruling 42). The full suite is
   the merge gate, and in a full run every conftest's module code and session
   hooks act on every test, so the capture reproduces that context: every
@@ -123,13 +155,16 @@ Key facts
   What remains wide is named: the names the grandparent's code read are
   entry names of every test, and every effect statement of an imported
   module is observed by every test that imported it.
-* **Evidence.** 92 gate ids in 8 files under ``tests/gates/tools/``
-  (89 not ``slow``; `[M]` 2026-11-02, ``pytest --collect-only``), and 91
+* **Evidence.** 127 gate ids in 10 files under ``tests/gates/tools/``
+  (4 of them ``slow``; `[M]` 2026-11-03, the verification matrix the docs
+  build regenerates, and the ``slow`` decorators), and 91
   memo-level rows in ``tests/gates/numerics/test_traced_memo_statement_pins.py``;
   B1's 35-arm mutation battery with a positive control, every arm reddening
   its target, and a 14-arm round after review, every arm reddening its
-  target and no declared-green row; the memo's own suites give the same
-  outcomes captured and run plainly (M1, `[M]` 1342 s at B1).
+  target and no declared-green row; B3's two batteries, each arm reddening
+  its target row (:ref:`verification-cone-store-place-gates`); the memo's
+  own suites give the same outcomes captured and run plainly (M1, `[M]`
+  1342 s at B1).
 
 
 .. _verification-cone-store-cone:
@@ -189,7 +224,10 @@ it stale (:ref:`verification-reference-cache-manifest`):
      - another install of it is there
 
 A row of the store is (test, environment key, pin), with the identity the
-pinned file had at capture (ruling 39). The grain is the memo's: def bodies,
+pinned file had at capture (ruling 39). A test has two such sets: its
+selection cone, which this page means by "the cone" unless it says
+otherwise, and its own cone, the code pytest's protocol for the test ran
+(:ref:`verification-cone-store-own-cone`). The grain is the memo's: def bodies,
 and the import-time statements a test could observe
 (:ref:`verification-cone-store-statements`). An edit to a statement no code
 of the test reads by name, and that does no more than bind, leaves the
@@ -602,8 +640,95 @@ kept name sets of gate E1's fixture
 and directory calls the memo makes in the child. Every ``StatementsPin``
 of an entry names the one set, so all of them differed: 671 pin rows.
 Gate E8 (a nested miss against a direct miss) diverged the same way. At B1
-the module grain did not depend on the names, so both gates passed. Their
-run after the repair is pending at the time of writing.
+the module grain did not depend on the names, so both gates passed. Both
+pass after the repair (`[M]` 2026-11-03, the B3 gate run: the
+``test_traced_memo_*.py`` files, the concept-order, axis-identity,
+characteristic-block-memo, ambient-state and layer-import gates and
+``tests/gates/tools/``, 1162 of 1163 passed; the one red, M1, is the
+apparatus gate's premise below).
+
+.. _verification-cone-store-apparatus:
+
+**The recorder's apparatus is never recorded.** The quiet flag cannot
+exempt the code the recorder itself runs on every event: the audit hook,
+the ``os.stat`` and ``os.lstat`` probes and what they call run inside every
+recording, before any ``unrecorded()`` stretch can begin, and the
+``unrecorded`` and ``spawning`` stretches' own ``__enter__`` and
+``__exit__`` run at its edges. So ``orpheus/numerics/_traced_memo_boot.py``
+declares that code at its definition with the decorator ``_apparatus``,
+into the set ``_APPARATUS`` keyed by (file, code object): ``_audit``,
+``_probing`` and each probe it makes, ``_observe``, ``_path``,
+``_by_importer``, ``_access``, ``_note_written``, ``_program``,
+``note_child``, ``Recording.start`` and ``Recording.stop``, the
+``__enter__`` and ``__exit__`` of ``unrecorded`` and ``spawning``, and
+``_apparatus`` itself. A def is declared with every body nested in it (a
+generator expression, a closure), because each is a code object of its own,
+started on its own: ``_program``'s generator expression, the monitoring
+callback ``started`` inside ``Recording.start`` and the probe inside
+``_probing``. The ``PY_START`` callback returns ``DISABLE`` for
+a code object in that set without recording it. The rest of the recorder's
+file is recorded like any other code when a run calls it, so a test of the
+recorder still depends on what it ran. The apparatus is the instrument,
+pinned whole by the memo's own source (``MemoPin``) and, for the cone
+store, by the environment key (:ref:`verification-cone-store-environment`),
+never by a run's cone. `[M]` 2026-11-03, the same 10 sample tests captured
+before and after: the recorder's defs in the own cones went from 6 to 0 in
+10 of 10 tests, and in the selection cones from 7 to 2 (``Kept.__init__``
+and ``_apparatus``, the module-level code that importing the recorder
+runs). Gate ``tests/gates/numerics/test_traced_memo_apparatus.py``: a run
+that probes a path and reads a file records no recorder def, with the
+probe's observation as the activation leg; a run that calls the recorder's
+``digest`` records it; every hook a recording installs is read off the
+installed objects and found declared (emptying ``_APPARATUS`` reddens the
+first and third, declaring every code object of the file apparatus the
+second); a nested recording run over every hook path records no apparatus
+in either recording; the same nested run with the audit hook made
+traceable records none either (its first red: ``_program``'s generator
+expression, while ``_apparatus`` declared a def's own code object and not
+the bodies nested in it); and 16 arm cases, one per declared def, each
+remove one def with its nest and require the nested run to record that
+def, so every declaration is reached by some hook path. The traceable run
+and the arm cases each run in a fresh interpreter, for two reasons. A
+recording installs the ``os.stat`` probes, and so calls ``_probing``, only
+when no recording is active, so the first recording of a process is the
+only one that reaches ``_probing`` and ``_apparatus``; in-process under the
+cone store's capture, whose child records every test, those two arm cases
+read red while green in a plain run (`[M]` 2026-11-03, gate M1). And a
+traceable audit hook set in-process would reach the recording around the
+test. The audit hook and the defs only
+it calls (``_access``, ``_note_written``, ``_program``) are a special case:
+CPython calls an audit hook with ``sys.monitoring`` paused unless the hook
+sets ``__cantrace__``, so today they are never started under a recording
+at all. They are declared anyway, and the traceable run and their arm
+cases set ``__cantrace__`` on ``_audit`` to witness the declarations. Editing the recorder changes the memo's
+source digest, so every traced-memo entry goes stale once and regenerates
+with the same values.
+
+.. dropdown:: First got wrong: "the recorder's hooks are the capture's instrument, counted apart by placement"
+   :color: muted
+
+   The recorder recorded its own hooks: with any recording active, the
+   audit hook and the stat probe ran inside each test's protocol, so the
+   same six recorder defs (``_probing``, ``_path``, ``_observe``,
+   ``_by_importer``, ``unrecorded.__enter__``, ``unrecorded.__exit__``) were
+   in every cone the store read. The first ``place`` treated the recorder's
+   file as an instrument region, its defs counted and never placed, with a
+   fallback that homed a test at the recorder when its own cone held no
+   other layer def, meant for a test of the recorder itself. The fixture
+   could not show what that fallback did: its stand-in recorder was called
+   explicitly, and the real recorder's file lay outside the fixture's layer.
+   The archivist, documenting B3, read the placement of the orchestrator's
+   10-test sample store: `[M]` 2026-11-03, 10 of 10 own cones held the six
+   defs, and 6 of the 10 tests were homed at ``_traced_memo_boot``: the 5
+   tests of ``test_concept_order.py``, which read the layer's sources and
+   run none of its code, and
+   ``test_krylov_acceleration_requires_a_stated_preconditioner``, whose
+   refusal is the interpreter's argument check. The root cause was the
+   recorder violating this section's rule, so the repair is at the
+   recorder (the apparatus above); the instrument region, the fallback, its
+   count and its gate PL12 were retired, and ``_traced_memo_boot`` is an
+   ordinary ranked node. After the repair the 6 tests are unplaced with "no
+   layer def" and the 4 placed tests read as before.
 
 .. dropdown:: First got wrong: "a name collision can only over-select"
    :color: muted
@@ -654,8 +779,9 @@ run after the repair is pending at the time of writing.
    ``select`` (``KeyError: 'ModulePin'``). Ruling 44 retired the module
    skeleton and ``ModulePin`` with no shim: every stored memo entry is stale
    anyway, because the memo's own source changed, and an old memo row reads
-   as ``Corrupt`` and regenerates; the cone store's rows carry
-   ``FORMAT = 2`` and a store of another form is emptied when opened. An
+   as ``Corrupt`` and regenerates; the cone store's rows carried
+   ``FORMAT = 2`` (3 since B3) and a store of another form is emptied when
+   opened (:ref:`verification-cone-store-store`). An
    always-stale ``RetiredPin`` was refused: it would keep a dead kind in
    the ``Pin`` union, which the format version makes unnecessary.
 
@@ -836,22 +962,25 @@ from the role named on its command line:
    ``tests/gates/sn/regression/conftest.py::pytest_configure`` sets the
    session's ``DriftWarning`` filter, and 5 test files outside that directory
    raise ``DriftWarning``. Once the conftests are imported, the grandparent forks one short
-   child that writes how many pins the grandparent attributes to every test
-   (``status`` prints it), then forks one collecting parent per test module,
-   waiting for each.
+   child that writes the grandparent's cone, the floor it attributes to
+   every test (stored once, as a share:
+   :ref:`verification-cone-store-own-cone`), then forks one collecting
+   parent per test module, waiting for each.
 2. **A collecting parent** (``Collector``) is that fork continuing as an
    ordinary pytest session over its module's arguments. It collects the
    module and, for each test, forks a child.
 3. **A child** runs pytest's own protocol for the one test (setup, call,
-   teardown), stops the recording, reads it as a cone
-   (:ref:`verification-cone-store-reading`) and writes it, with its route
-   and outcome, to the capture's results directory.
+   teardown) under a second recording of its own, stops both recordings,
+   reads each as a cone (:ref:`verification-cone-store-reading`) and writes
+   the two, with its route and outcome, to the capture's results directory
+   (:ref:`verification-cone-store-own-cone`).
 
 The recording is inherited across both forks and only grows, so a child's
-cone is the grandparent's (the conftests' imports) plus its module's
+selection cone is the grandparent's (the conftests' imports) plus its module's
 collection plus its own run. Nothing re-arms the monitor: a code object the
 recorder disabled after its first start is already in the set every later
-child inherits.
+child inherits. The own cone is a second recording, not a re-arming of this
+one (:ref:`verification-cone-store-own-cone`).
 
 **The fork guard.** Before every fork the process asks the memo's
 :func:`~orpheus.numerics._traced_memo_boot.fork_blockers` with the platform
@@ -897,7 +1026,8 @@ turn, and each is now run unrecorded or not run at all:
 
 A code object started while the memo's ``unrecorded()`` is on is skipped
 by the recorder, not disabled, so the same code run later by the test is
-still recorded.
+still recorded. The recorder's own apparatus is never recorded at all
+(:ref:`the recorder's apparatus <verification-cone-store-apparatus>`).
 
 **The capture's own code is in no cone.** The worker module runs in every
 capture and in no full run, so it is no test's dependency. `[M]` 2026-11-02
@@ -907,8 +1037,9 @@ that switch the recording) were pinned in every cone, and so were the
 import-time statements of ``cone.py``, ``pins.py``, ``store.py`` and
 ``worker.py``, so an edit to the store's own code selected the whole suite
 (qa's and the elegance-enforcer's final pass on B2, F5). The worker removes
-its own module's code objects from the recording before it reads it, and
-imports the modules that read the cone only after the recording stopped. A
+its own module's code objects from each of its recordings before it reads
+it (the selection one and, since B3, the own one), and imports the modules
+that read a cone only after both recordings stopped. A
 test of the cone store imports those modules itself, during its own run,
 where they are recorded as any other code. Turning the recording off and on
 is one switch, the boot module's ``unrecorded()`` and its twin
@@ -939,6 +1070,114 @@ test.
 ``list``), which writes the node ids pytest would run, in its order, and the
 modules whose collection failed. That collection is ``select``'s cost floor.
 
+.. _verification-cone-store-own-cone:
+
+Two cones per test: the selection cone and the own cone
+-------------------------------------------------------
+
+The cone ``select`` judges is the SELECTION cone: everything the test's
+process ran, which by rulings 38 and 42 includes what the grandparent ran
+while it imported the conftests and what the module's collecting parent ran
+while it collected. That attribution is right for selection, since a full
+run runs that code before every test. It is wrong for any question about
+what the test itself exercises, because the floor is the same for every
+test. On a sample of 180 tests in five files of ``tests/gates/numerics``,
+139 ``DefPin`` rows are common to all 180 selection cones, of 142 to 159
+per test, and a placement read from the selection cone finds 0 of 180 tests
+pure, 139 of them homed at ``convergence``, the module of
+``IterationBudget.__post_init__``, which the floor runs (`[M]` the B3
+specification, ``scratch/verification_tree/cone_store/b3/spec_b3.md``,
+its measurements M8 and M9, 2026-11-03).
+
+So each child keeps two cones, stored as two relations over the same pins:
+
+* the **selection cone**, from the recording the child inherited (the
+  grandparent's, continued through both forks). It is the cone B2 stored,
+  row for row, and ``select`` reads it and nothing else, so selection is
+  unchanged;
+* the **own cone**, from a second ``Recording`` that the child starts
+  immediately before pytest's ``pytest_runtest_protocol`` for its test and
+  stops when the protocol returns (setup, call and teardown;
+  ``Recorded.run`` in ``tools/cone_store/worker.py``). ``place`` reads it
+  and nothing else.
+
+**Why a second recording sees code the first has already seen.** The memo's
+recorder is a ``sys.monitoring`` ``PY_START`` callback: it records a code
+object the first time the object starts, then returns
+``sys.monitoring.DISABLE``, which turns that event off for that code object
+and for that monitoring tool only. Each ``Recording`` takes a tool id of its
+own when it starts (the first free id among 2, 3, 4 and 5;
+``Recording.start`` in ``orpheus/numerics/_traced_memo_boot.py``), so on a
+code object the outer recording has disabled, the inner recording's event
+is still enabled. A def the conftests ran at import, and that the test runs
+again, is therefore reported to the own recording when the test starts it;
+a def only the conftests ran is not in the own cone. Gates PH1 and PH2 pin
+the two cases on a fixture whose root conftest runs ``conftest_helper`` at
+import: ``test_p`` calls it again, and its own cone holds it; ``test_b``
+never does, and its own cone lacks it while its selection cone holds it.
+With one recorder serving both cones, the own cone would lack every def the
+floor had started first (PH1's first red). Stopping a recording frees its
+tool id and calls ``sys.monitoring.restart_events()``, which re-enables
+every disabled event; the outer recording then reports again code it
+already holds, which adds nothing, since its record is keyed by file and
+code object. A test that nests a ``trace_call`` takes a third id; a fifth
+recording active at once would find no free id and raise.
+
+**The reading.** Both recordings are read after both have stopped (the
+selection one first), and the modules that read a cone are imported only
+then, so their import-time code is in neither cone. The worker removes its
+own module's code objects from each recording before reading it (above,
+"The capture's own code is in no cone"), and each recording is read by the
+same ``cone_of`` and kept by the same rules
+(:ref:`verification-cone-store-reading`). Two cones of one child name a def
+by the same ``DefPin`` row, but not a module by the same ``StatementsPin``
+or ``ImportOutcomePin`` row: a statement pin is a projection on the entry
+names of the run that recorded it, the own run's entry names are fewer, and
+its import set is shorter. So containment between the cones holds by NODE
+(the pin's kind, path, qualname and ordinal), never by row: gate PH3
+asserts, for every fixture test, that the nodes of its own cone and of the
+grandparent's share lie in the nodes of its selection cone, and that an
+edit to ``conftest_helper``'s body selects ``test_b``, which reaches the def
+only through the conftest (its first red: ``select`` judging the own
+cones).
+
+**Why two relations, and not a phase per row.** The B3 specification ruled
+a phase on each row (``inherited`` or ``own``), with ``select`` reading the
+union. Two relations were built instead. The selection relation stays the
+relation B2 wrote: the B2 tools of ``83db308f`` and the B3 tools captured
+the same 7 tests (``test_concept_order.py`` and two of
+``test_iteration.py``) with equal selection rows for 7 of 7, 1 860 to 1 943
+rows each (the one-off comparison recorded in PH3's docstring, 2026-11-03).
+And the own cone is a sub-recording of the selection cone, not a partition
+of it: a def both the floor and the test ran belongs to both, which one
+phase per row cannot say (the elegance review of B3, its rejected attack
+"a phase column").
+
+**Why not subtract the floor.** Removing from the selection cone the pins
+every test shares, or the grandparent's stored share, loses every def the
+test shares with the conftests: on the sample at least
+``IterationBudget.__post_init__``, which a Krylov test constructs itself.
+The B3 specification's prototype placed tests that way (its ``FLOOR=1``
+reading); it is refuted for the question "what did the test run", and gate
+PL6 is its red (a test whose every def is also in the floor is left with no
+layer def).
+
+**The grandparent's share.** The grandparent's cone, the floor, is written
+by its short child and stored once, under the scope ``"<grandparent>"``
+(``store.GRANDPARENT``) of the ``shares`` table, never repeated per test;
+``status`` derives the grandparent's pin count from it. A capture that
+produced no grandparent cone (the fresh route, or a grandparent that died)
+clears the stored share rather than keep another capture's. Gate PH4 asserts
+that the share holds ``conftest_helper`` and lies, by node, in every test's
+selection cone (its first red: the share not stored).
+
+**The cost.** `[M]` 2026-11-03, a profile of one capture child:
+``collect_pins`` takes 1.8 to 1.9 s per child over 4 827 code objects, most
+of them the inherited floor, and reading the own recording adds 0.10 s.
+`[R]` At that rate the 5 780 tests of ``tests/gates/numerics`` take about
+2.6 h to capture. Every child re-reads the floor its collecting parent has
+already read; amortising that read per collecting parent is #696.
+
 
 .. _verification-cone-store-reading:
 
@@ -946,7 +1185,8 @@ Reading a recording as a cone
 =============================
 
 ``cone_of`` (``tools/cone_store/cone.py``) turns a stopped recording into a
-cone in three steps.
+cone in three steps. A capture child reads both of its recordings this way
+(:ref:`verification-cone-store-own-cone`).
 
 **Identities first.** For every first-party code file and every
 repository data file the recording names, the file's identity is read by
@@ -1063,39 +1303,64 @@ The store
        route, its outcome and its cone-unknown reasons (a JSON list)
    * - ``pins``
      - each distinct pin once, as the memo's row, with the file it judges
-       when it is a content pin (``DefPin``, ``StatementsPin``, ``DataPin``)
+       when it is a content pin (``DefPin``, ``StatementsPin``, ``DataPin``);
+       the three relations below share it
    * - ``files``
      - one row per judged file: its identity at capture and whether that
        identity is trusted
    * - ``cones``
-     - (test id, pin id): the cone of each test
+     - (test id, pin id): each test's selection cone, the one ``select``
+       judges
+   * - ``own_cones``
+     - (test id, pin id): each test's own cone, what pytest's protocol for
+       the test ran; read only by ``place``
+   * - ``shares``
+     - (scope, pin id): a cone common to many tests, stored once; the
+       grandparent's under the scope ``"<grandparent>"``
    * - ``meta``
-     - the store's ``format``, the grandparent's pin count and the number
-       of tests the last capture pruned
+     - the store's ``format`` and the number of tests the last capture
+       pruned
    * - ``rows`` (a view)
-     - the flat reading, one row per test and pin, with the file's identity
+     - the flat reading of the selection cones, one row per test and pin,
+       with the file's identity
 
 **A file's identity is a fact about the file**, stored once and shared by
 every pin on it. A capture that reads a file whose stored identity differs,
 or was not settled, stores it untrusted, so the next ``select`` judges every
-pin on that file (stage two). **A capture replaces a test's rows whole.** It
+pin on that file (stage two); where both cones of a test name a file, the
+state its selection cone recorded is kept (one capture, one identity per
+file). **A capture replaces a test's rows whole**, in both relations, and
+replaces the grandparent's share. It
 forgets tests that no longer exist: those of a re-captured module that the
 module no longer holds, and, after a capture of everything, those of a module
 that is gone. A capture of named node ids prunes nothing else, and that is
 safe: ``select`` iterates collected ids only, and a re-added test's old row
-is judged by its pins' digests against the current tree.
+is judged by its pins' digests against the current tree. After a capture, a
+pin no relation references (``cones``, ``own_cones`` or ``shares``) is
+deleted, and so is a file no remaining pin judges.
 
 **The store's form is versioned.** ``tools/cone_store/store.py`` declares
-``FORMAT = 2`` (since B2) and keeps it in ``meta``. A store opened with
-another ``format``, or with none (every store B1 wrote), is emptied in one
-transaction when it is opened, and every test is then new: selected, and
-captured again. B1's rows hold ``ModulePin``, a kind the memo no longer
-decodes (`[M]` the elegance review: ``Manifest.from_json`` of a
-``["ModulePin", …]`` row raises ``KeyError: 'ModulePin'``, which ``select``
-did not catch). Emptying is safe in the direction that matters: it selects
+``FORMAT = 3`` (since B3; 2 was B2's) and keeps it in ``meta``. A store
+opened by ``ConeStore`` with another ``format``, or with none (every store
+B1 wrote), has its tables dropped and recreated in one transaction, and
+every test is then new: selected, and captured again. A B1 store holds
+``ModulePin`` rows, a kind the memo no longer decodes (`[M]` the elegance
+review of B2: ``Manifest.from_json`` of a ``["ModulePin", …]`` row raises
+``KeyError: 'ModulePin'``, which ``select`` did not catch); a B2 store holds
+no own cones, so a placement read from it would find every own cone empty.
+Emptying is safe in the direction that matters for ``select``: it selects
 everything. Gate SG5 writes a store in B1's form and requires ``select`` to
-list every collected test; dropping the format check reddens it with that
-``KeyError``.
+list every collected test (dropping the format check reddens it with that
+``KeyError``); PH5 writes a store of format 2 and requires it emptied when
+opened, with ``own_cones`` and ``shares`` created.
+
+``place`` only reads a store, so it must not empty one. It reads the format
+first with ``stored_format(path)``, which opens the database read-only
+(SQLite's ``mode=ro``) and returns the stored format, or ``None`` when
+there is no store or no ``meta`` table, and it refuses a store of another
+form by name ("it holds no own cones (written before B3), so there is
+nothing to place; capture again"). Gate PL11 copies a captured store, sets
+its format to 2, and requires that refusal.
 
 
 .. _verification-cone-store-freshness:
@@ -1201,8 +1466,519 @@ importer when the decorator is not a pure callee (an effect). With no edit
 after a capture, ``select`` lists exactly the unknown tests and the tests
 that did not pass (gate S1). ``status`` prints the store's counts: tests by
 route, cone-unknown, collection errors, not passed, under another
-environment key, distinct pins and rows, the grandparent's pin count, the
+environment key, distinct pins and selection rows, the grandparent's pin
+count (the size of its stored share), the
 last capture's pruned count, and each unknown test with its reasons.
+
+
+.. _verification-cone-store-place:
+
+Placing a layer's tests: ``place``
+==================================
+
+``python -O -m tools.cone_store place`` reads the own cones of a store and
+homes each stored test of one layer in that layer's concept order: the
+census step of ruling 22 of the plan. The code is
+``tools/cone_store/placement.py``. The command loads the concept order from
+a file by path (``--order``, default
+``tests/gates/numerics/test_concept_order.py``), reading two names from
+it: ``TIERS``, the order, and ``import_kinds``, the import graph. The report
+is one JSON document, written to ``--out`` or printed; with ``--out`` the
+summary is also printed, with the straddler list as its count.
+
+The report places; it decides nothing. Keeping, strengthening or retiring a
+test is phases 2 and 3 of the plan and ruling 21's mutant method, and the
+duplicate candidates below carry no verdict. Numerics has no layer below it
+whose claims are placed, so its tests are placed against the module order
+only, and its proposed supports run between numerics tests.
+
+Nodes, regions and the order
+----------------------------
+
+A layer's code is cut into **nodes** at the concept order's grain: a module
+directly under the layer's root (``orpheus/numerics``) is a node, and a
+package directly under it (``basis``, ``quadrature``, ``spaces``) is one
+node; the layer's own ``__init__.py`` is no node. The order is a sequence of
+tiers, upstream first; a node's rank is its tier's index, and the nodes of
+one tier share a rank. The recorder, ``_traced_memo_boot``, is an ordinary
+node, and a test's own cone holds a recorder def only when the test ran
+one (:ref:`the recorder's apparatus <verification-cone-store-apparatus>`). `[M]` 2026-11-03 (a probe reading ``TIERS`` and
+``import_kinds()``): the numerics order has 50 nodes in 25 tiers.
+
+Every ``DefPin`` of a test's own cone falls in one **region**, a sum type
+(``Region`` in ``placement.py``) consumed by one exhaustive ``match``
+(``own_defs``):
+
+.. list-table:: Where an own def is
+   :header-rows: 1
+   :widths: 18 42 40
+
+   * - Region
+     - Which defs
+     - What ``place`` does with them
+   * - ``InLayer(node)``
+     - a def in a file of the layer, under its node
+     - the test's layer nodes, which it is placed by
+   * - ``Upstream(root)``
+     - a def under a layer below this one (``orpheus/geometry`` and
+       ``orpheus/values`` for numerics)
+     - counted per module under ``upstream_layers`` (``orpheus/geometry/<node>``;
+       the layer's root itself for its own ``__init__.py``); never a
+       straddle
+   * - ``Above(package)``
+     - a def under any other directory of the first-party package
+       (``orpheus/data``, ``orpheus/transport``, a method)
+     - counted per directory under ``above_layer``: a test of this layer
+       reaching a layer above it, a finding of its own
+   * - ``Helper()``
+     - a def under ``tests/``: the test function itself, a helper, a
+       conftest hook
+     - counted under ``helpers``
+   * - ``Elsewhere()``
+     - first-party code in no region above: the layer's own ``__init__.py``,
+       a file outside the package (``tools/``)
+     - counted under ``elsewhere``
+
+A placement reads defs only. A data, presence or listing pin is a read, not
+a node: the tests of ``test_concept_order.py`` read the layer's sources and
+run none of its code.
+
+Home, tie and purity
+--------------------
+
+For a test ``t``, ``own(t)`` is the set of layer nodes that hold a def of
+its own cone.
+
+* The **home** is the node of ``own(t)`` of highest rank. When two or more
+  nodes share that rank, the test has a **tie**: the report gives the tied
+  nodes and no home, and the tie is never broken (by name, by def count, by
+  order of appearance). A tied test is pure under no closure, and its tied
+  nodes are listed among its foreign nodes with the kind ``tie``.
+* The test is **pure** when every other node of ``own(t)`` is an ancestor
+  of the home in the layer's import graph: the home's module imports it,
+  directly or through other nodes.
+
+The closure is the import graph and never the rank order. Under the rank
+order every node below the home would count as upstream, purity would mean
+only "no tie", and the shuffled null (below) would read the same as the
+placement.
+
+A **straddler** is a placed test that is not pure under the runtime closure.
+Each of its **foreign** nodes (in ``own(t)``, not the home, not a runtime
+ancestor of it) carries the kind of the first closure that explains it:
+``lazy`` (an ancestor once imports inside a def count), ``typing`` (an
+ancestor once ``TYPE_CHECKING`` imports count too), or ``none`` (an
+ancestor under no closure: the test composes the two nodes itself).
+
+Three closures of the import graph
+----------------------------------
+
+Each edge of the import graph carries the kinds of the import statements
+that make it, and ``place`` reads purity under three cumulative closures,
+side by side:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 14 72
+
+   * - Closure
+     - Report key
+     - Edges admitted
+   * - ``runtime``
+     - ``pure_rt``
+     - top-level imports, wherever they sit in the module outside a def:
+       the imports the interpreter runs when the importer is imported
+   * - ``lazy``
+     - ``pure_lazy``
+     - and imports inside a def or an ``async def``, run when the def is
+       called
+   * - ``typing``
+     - ``pure_typ``
+     - and imports under ``if TYPE_CHECKING:``, which never run; every import
+       in such a block is ``typing``, even inside a def
+
+The kinds are kept apart because they are different dependences. A runtime
+import holds whenever the home's module is loaded. A lazy import holds only
+when the importing def runs. A ``TYPE_CHECKING`` import is a name the type
+checker reads and the interpreter never runs, so a test that reaches a node
+only along such an edge ran that node's code because the test built the
+object itself, not because the home ran it. The three columns side by side
+count the straddles each omitted kind of edge explains: a test pure under
+``typing`` and not under ``runtime`` straddles only along edges the
+interpreter does not follow at import. `[M]` 2026-11-03 (the same probe):
+the numerics graph has 118 edges between distinct nodes; 90 carry a
+top-level import, the lazy closure admits 12 more, and the typing closure
+the last 16.
+
+**One walk of the import graph.** The graph is ``import_kinds`` in
+``tests/gates/numerics/test_concept_order.py``, the concept-order gate's
+own walk: for each pair (imported node, importing node) of distinct nodes,
+the set of kinds that make the edge. The gate reads its edges
+(``import_edges`` is the set of its keys); ``place`` receives the kinds as
+an argument. ``tools/cone_store`` parses no source: gate R7 forbids
+``ast.parse`` there, so no second walker can be written in it; the walkers
+the tree still holds are #695 (one import-graph instrument). The walk
+visits each statement with the kind of its scope: ``runtime`` at module
+level, ``lazy`` inside a ``def`` or an ``async def`` (a lambda cannot hold
+an import statement), and
+``typing`` in the body of an ``if`` whose test is exactly
+``TYPE_CHECKING`` or ``<name>.TYPE_CHECKING``; the ``else`` of such an
+``if`` keeps the enclosing kind. The predicate is exact, not a substring
+test, so ``if not TYPE_CHECKING:``, which guards the runtime branch, is
+read as an ordinary ``if``; a substring test reads its body as ``typing``
+(the elegance review of B3, C3; no such spelling is in ``orpheus/``
+today). The gate ``test_each_import_edge_carries_its_kind`` plants one
+import of each kind, a ``TYPE_CHECKING`` import inside a def and an edge
+made by two kinds, and requires the walk to return exactly those kinds;
+``test_import_kinds_reads_the_branch_the_interpreter_runs`` plants an
+import in the ``else`` of ``if TYPE_CHECKING:`` (``runtime``), one under
+``if not TYPE_CHECKING:`` (``runtime``) and one in an ``async def``
+(``lazy``), each reddened by its textual mutant of the walk.
+
+**An unknown kind is refused.** The kinds are spelled twice: by the walk
+(its ``KINDS``) and by ``placement.CLOSURES``, which maps each kind to the
+closure that first admits it. A kind the walk gained without a closure here
+would read as ``none``, silently, so ``place`` refuses it before reading
+the store ("import kinds this placement has no closure for: [...]"). Gate
+PL14 hands it the kind ``conditional`` and requires the refusal.
+
+**Ancestors are reachability, so a cycle closes exactly.**
+``ancestors(kinds, nodes, admitted)`` builds the graph of the admitted
+edges, importer to imported, as a sparse matrix, and runs one breadth-first
+order per node (``scipy.sparse.csgraph.breadth_first_order``): a node's
+ancestors are the nodes reachable from it, itself excluded, whatever order
+the nodes are visited in. The numerics graph has a cycle:
+``traced_memo`` imports ``_traced_memo_boot`` at top level, and the boot
+imports ``traced_memo`` inside a def so that the memo can boot itself (the
+concept-order gate's one ``EXEMPT`` edge). `[M]` 2026-11-03 (the probe):
+under the runtime closure the boot is an ancestor of ``traced_memo`` and
+not the reverse; under the lazy and the typing closures each is an ancestor
+of the other.
+
+.. dropdown:: First got wrong: "a memoised depth-first walk gives each node's ancestors"
+   :color: muted
+
+   The first ``ancestors`` was a depth-first walk that memoised each node's
+   closure when it finished. On a cycle it stores a closure computed while
+   part of the cycle was still being visited, so its answer depended on the
+   order the nodes were visited in. On the live graph, ``traced_memo``'s
+   typing closure lacked ``_traced_memo_boot`` while its runtime closure
+   held it, so a support onto a test homed at the boot would have been
+   listed as against the order (the elegance review of B3, V1). Reachability
+   over a sparse graph replaced it. Gate PL13 runs ``ancestors`` on three
+   nodes with a 2-cycle in three visiting orders, and on the live pair;
+   `[M]` the memoised walk reddens it in 3 of 3 orders.
+
+Unplaced tests
+--------------
+
+A test is **unplaced**, and kept in the report with its reason, when (checked
+in this order):
+
+* its cone is unknown ("cone unknown: " and the stored reasons): its record
+  stops where the recording lost sight of the run;
+* it did not pass at capture ("not passed: " and the outcome, ``failed``,
+  ``skipped``, ``crashed`` or ``uncaptured``): its cone stops at the
+  failure;
+* its own cone holds no def of the layer ("no layer def").
+
+The summary counts them by the text before the colon. An unplaced test keeps
+its region counts and carries no home.
+
+The shuffled null
+-----------------
+
+A placement that a random labelling matches carries no information (S13 of
+the plan). The null takes every distinct (node, def) pair of the placed
+tests' own layer defs, shuffles the node labels over those pairs with
+``random.Random(seed)`` for each of three fixed seeds (1, 2 and 3), and
+reads the runtime purity of every placed test again under the shuffled
+labels. The summary gives the measured pure fraction beside the null's
+fraction per seed. The seeds are fixed so that the report is byte-identical
+across runs (gate PL10 compares two runs' JSON with sorted keys). A
+placement that separates reads well above its null: on the specification's
+180-test sample, placed with the floor subtracted (the prototype, not this
+code), 0.79 against 0.05 to 0.06 (its measurement M10).
+
+Proposed supports
+-----------------
+
+``place`` also proposes ``executes`` supports between tests (S17 of the
+plan): a support ``U → L`` says that the upper test ``U`` executes nearly
+everything the lower test ``L`` executes, so that ``L`` is a candidate rung
+under ``U``.
+
+* **The unit is the test function.** The cases of a parametrised test are
+  one claim (ruling 4 of the plan), so a test id is cut at its first ``[``
+  and the own defs of its cases are united.
+* **The defs are the package's.** ``D(T)`` is the set of a function's own
+  defs in the layer, in a layer below it or in a layer above it, each as
+  (path, qualname). Test helpers are left out: a helper is unique to its
+  file, so containment across files would be impossible by construction;
+  so is code ``Elsewhere``.
+* **Containment is fractional:** ``c(U ⊇ L) = |D(L) ∩ D(U)| / |D(L)|``. A
+  support is proposed when ``c ≥ threshold`` (inclusive; 0.95 by default),
+  ``|D(L)| ≥ 3`` (``min_defs``: a cone of one or two defs is contained by
+  nearly everything), and the two cones are not equal.
+* **Equal cones are duplicate candidates** when they hold at least
+  ``min_defs`` defs, listed with their def count and no verdict, and never a
+  support: ruling 21 decides on kill sets, not on cones. Two smaller equal
+  cones are below the size a containment is read at, and are not listed.
+* **Mutual containment is a near-duplicate group.** Fractional containment
+  can cycle (``U`` holds 95 % of ``L`` and ``L`` 95 % of ``U``). The
+  functions that contain one another at the threshold form strongly
+  connected groups (``scipy.sparse.csgraph.connected_components``, strong
+  connection); a group of two or more is listed as near-duplicates, with no
+  verdict, and no support is proposed inside it.
+* **The proposals are the transitive reduction over the condensation.**
+  Each group becomes one node, and a support between two groups is kept
+  only when no other successor of the upper group reaches the lower group.
+* **Supports against the order are listed apart.** A kept support whose
+  lower function's home is neither the upper function's home nor an
+  ancestor of it under the widest (``typing``) closure goes to
+  ``supports_against_order``, for the orchestrator's reading (S18 of the
+  plan), not to ``supports``.
+
+The report also counts the containing pairs, duplicates excluded, at the
+thresholds 1.0, 0.95, 0.9 and 0.8, so that the threshold can be judged on
+the population it is applied to. Why 0.95: of 77 declared ``rests_on``
+edges between numerics tests, 26 hold strict containment and 39 hold 0.95
+or more, followed by a tail down to 0.002 that is reads and supports edges,
+not executes (S17); 0.95 is that distribution's knee. On the
+specification's 180-test sample (with the floor subtracted), lowering it to
+0.8 triples the containing pairs, 1 227 to 3 706, about 20 per test (its
+measurement M12).
+
+**The declared edges are measured on the same cones.** So that
+the threshold is judged on the layer's whole declared population, ``place``
+takes the declared edges (``declared``: each an upper test id and a target
+id, as pytest resolved the marker) and reports ``c`` for each on the same
+function cones the supports use. A case, as upper or target, collapses to
+its function; a class or file target expands to every function under it;
+an edge from a function to itself (a class or file target holding the
+upper) is skipped. A function is measured when its test is judged: placed,
+or unplaced only for "no layer def" (a failed or unknown cone stops early,
+so its containment means nothing). The report adds ``declared_rests_on``
+(each ``{upper, lower, target, c}``), ``declared_counts`` (cumulative at
+1.0, 0.95, 0.9 and 0.8, and ``below``) and ``declared_unmeasured``, counted
+by reason: ``upper not judged``, ``target not judged`` (no judged function
+under it) and ``lower ran no def``. The command collects the edges through
+the suite's one resolver, ``tests/_harness/rests_on_manifest.py``, loaded
+as a plugin into a fresh ``pytest --collect-only`` over the layer. Gate
+PL15 declares five edges on the fixture (a 0.9 edge, an edge onto a case,
+two edges from the two cases of one function, a target no stored test has)
+and reddens under no case collapse and under strict thresholds.
+
+.. dropdown:: First got wrong: "a one-hop transitive reduction is enough"
+   :color: muted
+
+   The first reduction dropped a support ``U → L`` whenever some ``M`` had
+   ``U → M`` and ``M → L``, over the relation as it stood. Fractional
+   containment can cycle, and on a cycle each member is a middle for the
+   others: with ``A`` and ``B`` containing each other at the threshold, an
+   upper ``S`` containing both lost its edge to ``A`` (through ``B``) and its
+   edge to ``B`` (through ``A``), and was left with no support at all. The
+   reduction now runs over the condensation, each strongly connected group
+   one node, and the groups are listed as near-duplicates. Gate PL9's
+   fixture keeps its two uppers out of each other's containment and names
+   the cycle case in its docstring.
+
+The report
+----------
+
+Per test (``tests``): ``home``, ``tie``, ``pure_rt``, ``pure_lazy``,
+``pure_typ`` and ``foreign`` (node to kind) when placed; and always
+``upstream_layers`` (module of a layer below to def count) and
+``above_layer`` (directory to def count),
+``helpers``, ``elsewhere`` and ``unplaced`` (``null`` or the reason). The
+``summary``: the test and placed counts, the unplaced counts per reason, the
+pure counts per closure, the runtime pure fraction and the null's per seed,
+the ties, the foreign kinds, the homes per node (a tie as its nodes joined
+by ``+``), the number of tests with an above-layer def, and the straddlers,
+sorted by their foreign kinds. Beside them: ``supports`` and
+``supports_against_order`` (each ``{upper, lower, c}``), ``duplicates``
+(``{a, b, defs}``), ``near_duplicates``, ``support_counts`` and the three
+declared-edge keys above. ``place`` on a path with no store raises ("no
+store at …"). The report
+is plain JSON, byte-identical across runs when dumped with sorted keys.
+
+The package function ``tools.cone_store.place`` takes the store, the
+test-id prefix, the code root, the order and the kinds, and places against
+the numerics layer's surroundings (``placement.NUMERICS`` with the given
+root: the layers below are ``orpheus/geometry`` and ``orpheus/values``);
+``placement.place`` takes a ``Layer`` for another layer or a fixture.
+
+What the order reads on the first witnesses
+-------------------------------------------
+
+`[M]` 2026-11-03, a store of 10 tests of ``tests/gates/numerics`` captured
+by the B3 tools and placed by this code, after the apparatus repair: 4
+placed, 6 unplaced with "no layer def" (the 5 tests of
+``test_concept_order.py``, which read the layer's sources and run none of
+its code, and ``test_krylov_acceleration_requires_a_stated_preconditioner``,
+whose refusal is the interpreter's argument check). The placed four:
+
+* ``test_iteration.py::test_krylov_acceleration_with_fission_term``: home
+  ``iteration``, pure under all three closures;
+* ``test_iteration.py::test_keigenvalue_recovers_dominant_eigenvalue``:
+  home ``green_operator``; ``eigenvalue`` foreign of kind ``lazy``,
+  ``pencil`` and ``posing`` of kind ``typing``; pure under the typing
+  closure only. The test composes the question it answers,
+  ``EigenPosing(OperatorPencil(A − S, F), K_MAP)``, and the inner inverse
+  ``GreenOperator(A, S)``, and hands both to ``KEigenvalue``, so the foreign
+  nodes are the claim's own inputs (the B3 specification, §5.2, read from
+  the test's assertions);
+* ``test_legendre_basis.py::test_gram_is_diagonal_and_exact_against_the_legendre_gauss_rule``:
+  home ``quadrature``; ``basis`` and ``frame`` foreign of kind ``none``
+  (``quadrature`` imports neither: the test builds the frame of a Legendre
+  basis on a Gauss rule itself), its ``orpheus/geometry`` defs counted as
+  an upstream layer;
+* ``test_legendre_basis.py::test_endpoint_normalisation_is_exact``: home
+  ``basis``, pure.
+
+On that store the one support proposed runs against the order: the Gram
+test over ``test_endpoint_normalisation_is_exact``, with ``c`` = 1.0
+(``basis`` is not an ancestor of ``quadrature``).
+
+The full-layer evidence is pending
+----------------------------------
+
+No format-3 store of the whole numerics layer exists at the time of
+writing: the capture of its 5 780 tests runs after the commit that lands
+B3 (about 2.6 h, above). Every whole-layer reading this section would
+carry, the pure fractions under the three closures beside the null's, the
+homes per node, the straddlers by kind, the unplaced tests by reason, the
+proposed supports and the duplicate candidates, is owed by that run, with
+the acceptance the B3 specification fixes for it (its A1 to A4: each test's
+outcome equal to a plain run's, the unknown cones counted by reason, one
+environment key, every route a fork; and X1.2: the separation from the
+null and the named witnesses). The readings above are on samples of 10 and
+180 tests and are not the layer's.
+
+.. _verification-cone-store-place-gates:
+
+The gates of B3
+---------------
+
+``tests/gates/tools/test_cone_store_phases.py`` gates the two cones on the
+fixture tree of ``_cone_store_fixture.py`` with ``phases=True`` (a root
+conftest that runs ``pkg.conf_dep.conftest_helper`` at import; ``test_p``
+calls it again, ``test_b`` never does).
+``tests/gates/tools/test_cone_store_placement.py`` gates ``place`` on the
+fixture layer ``pkg/lay`` (``placement=True``), ranked by the fixture's
+``PLACEMENT_ORDER`` so that rank order, alphabetical order and def count
+disagree: ``beta`` imports ``zeta`` and ``s`` at top level, ``alpha``
+imports ``beta``, ``gamma`` imports ``zeta`` lazily and ``beta`` under
+``TYPE_CHECKING``, ``beta2`` imports nothing; ``pkg/up`` is the layer below
+and ``pkg/top`` a layer above; ``tests/lay/conftest.py`` runs ``alpha.fd``
+at import, so ``fd``, ``fb`` and ``fa`` are in every test's floor. Each
+row's expectation is read off those sources by hand.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 58 32
+
+   * - Row
+     - Asserts
+     - First red
+   * - PH1
+     - ``test_p``'s own cone holds ``conftest_helper`` although the
+       grandparent ran it first; so does its selection cone
+     - one recorder for both cones
+   * - PH2
+     - ``test_b``'s own cone lacks ``conftest_helper``; its selection cone
+       holds it
+     - the own cone written as the selection cone
+   * - PH3
+     - for every test, its own cone's nodes and the share's lie in its
+       selection cone's; an edit to ``conftest_helper``'s body selects
+       ``test_p`` and ``test_b``
+     - ``select`` judging the own cones
+   * - PH4
+     - the grandparent's cone is stored as a set, holds
+       ``conftest_helper``, and lies in every selection cone
+     - the share not stored
+   * - PH5
+     - a store of format 2 is emptied when opened; ``own_cones`` and
+       ``shares`` exist
+     - ``FORMAT`` left at 2
+   * - PL1
+     - ``test_d_only`` (``alpha``, ``beta``, two defs of ``zeta``) is
+       homed at ``alpha``; ``test_low`` at ``zeta``
+     - a home by name or by def count
+   * - PL2
+     - ``test_d_only`` is pure; ``test_none`` adds ``beta2``, which nothing
+       ``alpha`` imports: a straddler, ``beta2`` of kind ``none``
+     - closure by rank order
+   * - PL3
+     - ``test_lazy_typ``: home ``gamma``, ``zeta`` of kind ``lazy``,
+       ``beta`` of kind ``typing``; impure, impure, pure under the three
+       closures
+     - a walk that does not enter defs, or does not read
+       ``TYPE_CHECKING``
+   * - PL4
+     - ``test_tie`` (``beta`` and ``beta2``, one tier): no home, the tie
+       ``[beta, beta2]``, not pure
+     - a tie broken silently
+   * - PL5
+     - ``test_low`` runs only ``zeta`` while the conftest ran ``alpha``:
+       homed at ``zeta``, pure
+     - placement read from the selection cone
+   * - PL6
+     - ``test_d_only``, whose every def is also in the floor, is placed at
+       ``alpha``
+     - placement by subtracting the floor
+   * - PL7
+     - ``test_layers``: home ``zeta``, pure, ``upstream_layers`` exactly
+       ``{pkg/up/u}``, ``pkg/top`` under ``above_layer``
+     - either read as a foreign node; the upstream count kept per layer
+       root
+   * - PL8 (3 ids)
+     - a test with no layer def, a failed test and a test that starts a
+       process are unplaced with their reasons
+     - dropping them, or placing a partial cone
+   * - PL9
+     - ``c`` = 0.95 is proposed and 0.9 is not; an implied support is
+       reduced away; a one-def cone is nobody's lower; cases are
+       collapsed; equal cones are duplicates
+     - ``>`` for ``≥``; no collapse; no reduction; no ``min_defs``; equal
+       cones not grouped
+   * - PL10
+     - two runs give byte-identical JSON, with three null draws
+     - an unseeded shuffle
+   * - PL11
+     - a store of format 2 is refused, before it is opened, by a message
+       naming the own cones
+     - a silent fallback
+   * - PL13
+     - ``ancestors`` on a 2-cycle, in three visiting orders, and on the
+       live ``traced_memo`` pair
+     - the memoised walk
+   * - PL14
+     - an import kind with no closure is refused by name
+     - a kind read as ``none``
+   * - PL15
+     - each declared ``rests_on`` edge is measured on function cones:
+       ``c`` = 0.9, 1.0 onto a case, 0 for a one-def lower, one edge for
+       two cases, an unmatched target counted and not measured
+     - no case collapse; ``>`` for ``≥`` in the counts; an unmatched target
+       given a ``c``
+   * - PL16
+     - the null falls below the measured purity: `[M]` 2026-11-03 measured
+       9/14, null 5/14, 4/14 and 7/14 (seeds 1, 2, 3), the draws distinct,
+       on one denominator
+     - the shuffle replaced by the identity (9/14 three times); one seed
+       for every draw
+
+The batteries (the test-architect, 2026-11-03; logs in
+``scratch/verification_tree/cone_store/b3/battery_ph/arms.log`` and
+``battery_pl/arms1.log``, ``arms2.log``): each of the five PH arms reddened
+its target row (the share-count-only arm also PH3); on the placement rows,
+the positive control (the selection cone read everywhere) reddened 8 of the
+14 ids then present, and each of the 18 arms after it reddened its target
+row. Two of those arms targeted PL12, the instrument row, retired with the
+instrument region; PL13 to PL16 were written after that battery, each
+with its first red in its docstring.
 
 
 .. _verification-cone-store-environment:
@@ -1236,7 +2012,20 @@ so each test row carries the digest of:
 * the bytes of the repository's pytest configuration files,
   ``pyproject.toml``, ``pytest.ini``, ``setup.cfg`` and ``tox.ini``: pytest
   reads them before any recorder starts, so no pin could see an edit to a
-  ``filterwarnings`` or ``addopts`` setting (qa's review, U4; gate S14).
+  ``filterwarnings`` or ``addopts`` setting (qa's review, U4; gate S14);
+* the bytes of the capture's instrument (``environment.INSTRUMENT``): the
+  memo's own sources (its ``_MEMO_SOURCES``: ``traced_memo.py``,
+  ``_traced_memo_boot.py``, ``_import_time.py`` and
+  ``orpheus/values/content.py``) and every module of ``tools/cone_store``
+  except the two that only read a store, ``selection.py`` and
+  ``placement.py`` (a new module counts until it is named a reader). A cone
+  holds no pin on the instrument (the memo-source pin is dropped, and the
+  apparatus is never recorded), so a store is valid only under the
+  instrument that captured it: the memo's own rule for its entries, read as
+  a key. An edit to the instrument selects every test. That is a cost: an
+  edit to ``store.py``, ``plan.py`` or ``__init__.py`` of
+  ``tools/cone_store`` invalidates the whole store, and every test is
+  captured again.
 
 ``select`` lists every test whose row carries another key. A wider key only
 over-selects: any ``pip install`` of an unrelated package moves the
@@ -1368,8 +2157,10 @@ named ``orpheus`` so the editable install cannot shadow it):
    fixture's source.
 
 The gates, ``tests/gates/tools/test_cone_store_*.py``, every one
-``foundation`` (`[M]` 2026-11-02, ``pytest --collect-only``: 92 ids, 89 not
-``slow``, every one ``foundation``):
+``foundation`` (`[M]` 2026-11-03, the verification matrix the docs build
+regenerates: 127 ids in 10 files, every one ``foundation``; 4 of them carry
+``slow``, M1, T3, SG4 and SG9, none parametrised; and the recorder's
+apparatus gate beside them, 21 ids):
 
 .. list-table::
    :header-rows: 1
@@ -1381,9 +2172,10 @@ The gates, ``tests/gates/tools/test_cone_store_*.py``, every one
    * - ``test_cone_store_recorder.py``
      - R1 to R9
      - exact pin sets against hand-written expectations; every digest is
-       the memo's; the store defines no digest (R7), starts no second
-       recorder (R8) and asks ``fork_blockers`` rather than re-spelling the
-       guard (R9)
+       the memo's; the store defines no digest and parses no source (R7),
+       installs no ``sys.monitoring`` tool or audit hook of its own, both
+       of a child's recordings being the memo's ``Recording`` (R8), and
+       asks ``fork_blockers`` rather than re-spelling the guard (R9)
    * - ``test_cone_store_collection.py``
      - C1 to C6, H1
      - a collection fill is attributed to its module; another module's fill
@@ -1417,12 +2209,32 @@ The gates, ``tests/gates/tools/test_cone_store_*.py``, every one
      - control 4; CU-OVER records the grandparent's pin count, a figure
        and not a bound
    * - ``test_cone_store_statement_grain.py``
-     - SG0 to SG5
+     - SG0 to SG10
      - B2's statement grain at the store: no edit selects nothing (SG0);
        control 1 exact on a fixture (SG1, SG2) and on a clone of the
        production tree (SG4, ``slow``); recall at the store for an effect,
        a re-export, a default argument and qa's S2a and S2b″ (SG3); a store
-       in B1's form is emptied and every test is new (SG5)
+       in B1's form is emptied and every test is new (SG5); an import that
+       starts raising stays selected after a ``select`` (SG6); a module
+       under another ``sys.path`` entry is judged in the store's spelling
+       (SG7); the capture's baseline covers every repository source (SG8);
+       the capture pins none of its own code, in either cone, on the
+       production tree (SG9, ``slow``); a tree package shadowed by the repository's own is
+       measured in the run's precedence (SG10); a guarded probe of a name
+       new to its module selects the prober, with a precision leg (U2)
+   * - ``test_cone_store_phases.py``
+     - PH1 to PH5
+     - B3's two cones and the grandparent's share
+       (:ref:`verification-cone-store-place-gates`)
+   * - ``test_cone_store_placement.py``
+     - PL1 to PL11, PL13 to PL16
+     - ``place`` on a fixture layer
+       (:ref:`verification-cone-store-place-gates`)
+   * - ``tests/gates/numerics/test_traced_memo_apparatus.py``
+     - 6 tests, one of them 16 arm cases (21 ids)
+     - the recorder never records its apparatus, on every hook path and
+       in a nested recording, and records the rest of its file
+       (:ref:`the recorder's apparatus <verification-cone-store-apparatus>`)
    * - ``test_cone_store_memo_coexistence.py``
      - M1 to M3
      - the memo's own suites give the same outcomes captured and plainly
@@ -1535,7 +2347,10 @@ with the machinery that would lift it:
 
   The guarded probe of a name new to a module (``getattr(module, name,
   default)``), a boundary of the B2 design, is closed by storing the entry
-  names whole (gate row U2, now a recall row).
+  names whole (gate row U2, now a recall row; at the store,
+  ``test_cone_store_statement_grain.py::test_u2_a_guarded_probe_of_a_name_new_to_its_module_selects_the_prober``,
+  with a precision leg: a new statement binding a name the run never names
+  selects nothing).
 * **Over-selection is bounded but not small.** The names the grandparent's
   code read (pytest's, the conftests' and the 91 ``orpheus`` modules the
   root conftest imports, `[M]` 2026-11-01) are entry names of every test:
@@ -1563,9 +2378,13 @@ Two further limits are properties of the evidence, not of the store:
   using ``tmp_path``) holds a ``ChildPin`` that ``select`` validates against
   the default store, so its cone is always stale and the test always
   selected (correct, an over-selection);
-* the capture's cost on the whole suite has not been measured. The round-2
-  extrapolation `[R]` is about 1.4 h of fork overhead on about 20 000 tests,
-  paid once per environment and then only for stale tests.
+* the capture's cost on the whole suite has not been measured. Per child,
+  ``collect_pins`` takes 1.8 to 1.9 s, mostly re-reading the inherited
+  floor, and the own cone 0.10 s more (`[M]` 2026-11-03,
+  :ref:`verification-cone-store-own-cone`); `[R]` the numerics layer's
+  5 780 tests take about 2.6 h. The cost is paid once per environment and
+  then only for stale tests; amortising the floor's read per collecting
+  parent is #696.
 
 
 .. _verification-cone-store-gotchas:
@@ -1606,6 +2425,46 @@ Gotchas
   entry stale, or to select every importer, describes the module skeleton,
   retired at B2; such rows were re-posed (M2.1 ``constant-unread``, C4 and
   C5 of the collection gates), and a new one fails.
+* **The own cone is not the selection cone minus the floor.** A def the
+  conftests ran is in a test's own cone when the test runs it too. A
+  reading of "what this test exercises" computed as the selection cone less
+  the grandparent's share drops every such def; read ``own_cones``
+  (``ConeStore.own_pins``).
+* **Compare the two cones by node, never by row.** One child's two cones
+  name a module by different ``StatementsPin`` and ``ImportOutcomePin``
+  rows (each is the projection of its own run), so a row-level containment
+  test between them fails on a correct store.
+* **Opening an old store empties it.** ``ConeStore`` and ``open_store`` drop
+  the tables of a store of another format when they open it; only
+  ``place`` reads the format first (``stored_format``). Copy an old store
+  before opening it with this code if its rows are wanted.
+* **A home is the most downstream layer code the test ran, which may be an
+  input of the claim rather than its subject.**
+  ``test_keigenvalue_recovers_dominant_eigenvalue`` asserts ``KEigenvalue``'s
+  dominant ``k`` (``iteration``) and is homed at ``green_operator``, because
+  it builds the Green operator it hands in. Read a home as "the most
+  composed code this test runs", and a straddle of kind ``none`` as a test
+  that composes two concepts itself.
+* **The audit hook runs untraced.** CPython calls an audit hook with
+  ``sys.monitoring`` paused unless the hook sets ``__cantrace__``, so code
+  that runs only inside ``_audit`` is never started under any recording. A
+  gate that wants to see such code recorded must set ``__cantrace__`` on the
+  hook, as the apparatus gate's traceable run and arm cases do, each in a
+  fresh interpreter so the traceable hook never reaches a recording around
+  the test.
+* **Only a process's first recording installs the probes.**
+  ``Recording.start`` replaces ``os.stat`` and ``os.lstat`` with probes
+  only while no recording is active, so a gate that needs ``_probing`` to
+  run must start the first recording of its process. Under the cone store's
+  capture every test already runs inside a recording; such a gate runs its
+  check in a fresh interpreter (`[M]` 2026-11-03: the apparatus gate's
+  ``[_apparatus]`` and ``[_probing]`` arm cases, green plainly and red
+  under capture until they moved).
+* **The concept order is loaded from a test module by path.** ``--order``
+  names a file, which ``__main__`` loads with
+  ``importlib.util.spec_from_file_location``; that works because the
+  order's module uses absolute imports only, and a relative import added
+  to it would fail there and not in pytest.
 
 
 .. _verification-cone-store-history:
@@ -1621,6 +2480,29 @@ History
      - Milestone
      - Issue
      - Where
+   * - 2026-11-03
+     - **Increment B3: two cones per test, and placement.** The own cone (a
+       second ``Recording`` around the test's protocol, table
+       ``own_cones``) beside the selection cone (``cones``, unchanged); the
+       grandparent's cone stored once in ``shares``, from which ``status``
+       derives its count (the ``grandparent_pins`` meta is gone);
+       ``FORMAT = 3`` and ``stored_format``; the worker strips its own code
+       from both cones. ``place`` (``tools/cone_store/placement.py``): the
+       home, the tie and purity under the three closures of the concept
+       order's import graph (``import_kinds``, the gate's walk, now with
+       kinds and an exact ``TYPE_CHECKING`` predicate), the ``Region`` sum,
+       the unplaced reasons, the seeded null, fractional-containment
+       supports reduced over the condensation; ``ancestors`` by
+       reachability (the memoised walk failed on a cycle). Gates PH1 to
+       PH5 and PL1 to PL11, PL13 to PL16; declared ``rests_on`` edges
+       measured on the function cones. The recorder's apparatus is declared
+       and never recorded (``_apparatus``), after the archivist found its
+       hooks in every own cone and the instrument fallback homing 6 of 10
+       sample tests at the recorder; the fallback and PL12 were retired,
+       and the environment key digests the capture's instrument.
+       Follow-ups: #695, #696.
+     - #358
+     - branch ``feature/cone-store-b3``, uncommitted at the time of writing
    * - 2026-11-02
      - **Increment B2: import-time statements as the unit** (ruling 33 as
        amended by ruling 43). The module skeleton and ``ModulePin`` are
@@ -1635,7 +2517,7 @@ History
        rows; control 1 exact on the production tree (SG4: 6 selected where
        B1 selected 9). Follow-up: #691.
      - #689
-     - branch ``feature/cone-store-b2``, uncommitted at the time of writing
+     - ``6e52b3cf``
    * - 2026-11-02
      - **Ruling 33's sub-claim refuted** ("a name collision can only
        over-select": 24 of 42 attack rows under-selected under the B2

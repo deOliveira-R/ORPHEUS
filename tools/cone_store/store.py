@@ -9,6 +9,13 @@ bytes then, which a pin naming the file's bytes elsewhere (an ``ImportOutcomePin
 stage one vouches for the file. ``cones`` joins tests to pins.
 The view ``rows`` is the flat reading, one row per test and pin. Paths are relative to the repository.
 
+A test has two cones, two relations over the same pins (B3). ``cones`` is its SELECTION cone: everything its process
+ran, the grandparent's conftest imports and its module's collection included (ruling 38), which is what ``select``
+judges. ``own_cones`` is its OWN cone: what pytest's protocol for that one test ran (setup, call, teardown), read
+from a second recording started at the protocol, so a def the conftests also ran is in it when the test runs it
+too; placement reads only this one. ``shares`` holds a cone common to many tests under a scope name: the
+grandparent's (:data:`GRANDPARENT`), the floor every test of a capture inherits.
+
 A file's identity is a fact about the FILE: it is written when any test's capture reads the file, and it is
 trusted (stage one of ``select``) only while every pin on the file was judged against those bytes. When a capture
 finds a file with another identity than the stored one, or the stored one was not settled, the file is stored
@@ -43,15 +50,25 @@ CREATE TABLE IF NOT EXISTS cones(
     test_id TEXT NOT NULL REFERENCES tests(test_id) ON DELETE CASCADE, pin_id INTEGER NOT NULL REFERENCES pins(pin_id),
     PRIMARY KEY(test_id, pin_id)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS cones_by_pin ON cones(pin_id);
+CREATE TABLE IF NOT EXISTS own_cones(
+    test_id TEXT NOT NULL REFERENCES tests(test_id) ON DELETE CASCADE, pin_id INTEGER NOT NULL REFERENCES pins(pin_id),
+    PRIMARY KEY(test_id, pin_id)) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS shares(
+    scope TEXT NOT NULL, pin_id INTEGER NOT NULL REFERENCES pins(pin_id), PRIMARY KEY(scope, pin_id)) WITHOUT ROWID;
 CREATE VIEW IF NOT EXISTS rows AS
     SELECT c.test_id AS test_id, t.env_key AS env_key, p.row AS pin, p.file AS file, f.ident AS ident, f.settled AS settled
     FROM cones c JOIN tests t USING(test_id) JOIN pins p USING(pin_id) LEFT JOIN files f ON f.path = p.file;
 """
 
-#: The form of the rows this code writes and reads: 2 since B2 (#689), whose ``StatementsPin`` and ``ImportOutcomePin``
-#: replaced the module skeleton's ``ModulePin``, and whose ``files`` table keeps each source's digest. A store of another form holds rows the memo can no longer decode or
-#: judge, so it is emptied when opened, and every test is then new (selected, and captured again).
-FORMAT = 2
+#: The form of the rows this code writes and reads: 3 since B3, whose ``own_cones`` and ``shares`` hold each test's
+#: own cone and the grandparent's (2 was B2, #689: ``StatementsPin`` and ``ImportOutcomePin`` replaced the module
+#: skeleton's ``ModulePin``, and ``files`` kept each source's digest). A store of another form holds rows this code
+#: cannot read as it means them (a B2 store has no own cones, and placement would read none), so it is emptied when
+#: opened, and every test is then new (selected, and captured again).
+FORMAT = 3
+
+#: The scope of the grandparent's cone in ``shares``: what the conftests' import ran, inherited by every test.
+GRANDPARENT = "<grandparent>"
 
 class FileState(NamedTuple):
     """A file as a capture, or a clean ``select``, last saw it: its identity (a ``FileIdentity`` as a tuple, ``None``
@@ -64,6 +81,21 @@ class FileState(NamedTuple):
 
 
 _MISSING = FileState(None, False)
+
+
+def stored_format(path: str | Path) -> int | None:
+    """The form of the store at ``path`` without opening it as a :class:`ConeStore` (which empties a store of
+    another form); ``None`` when there is no store there."""
+    if not Path(path).exists():
+        return None
+    db = sqlite3.connect(f"file:{Path(path)}?mode=ro", uri=True)
+    try:
+        found = db.execute("SELECT value FROM meta WHERE key = 'format'").fetchone()
+    except sqlite3.OperationalError:
+        return None
+    finally:
+        db.close()
+    return None if found is None else json.loads(found[0])
 
 
 @dataclass(frozen=True)
@@ -87,7 +119,7 @@ class ConeStore:
         if self.meta("format") != FORMAT:  # another form's tables are dropped, not emptied: their columns may differ
             with self.db:
                 self.db.execute("DROP VIEW IF EXISTS rows")
-                for table in ("cones", "pins", "files", "tests", "meta"):
+                for table in ("own_cones", "shares", "cones", "pins", "files", "tests", "meta"):
                     self.db.execute(f"DROP TABLE IF EXISTS {table}")
             self.db.executescript(_SCHEMA)
             self.set_meta("format", FORMAT)
@@ -114,20 +146,39 @@ class ConeStore:
 
     # ── writing ──
 
-    def record(self, test: StoredTest, pins: Iterable[memo.Pin], files: Mapping[str, FileState]) -> None:
-        """Replace everything the store holds about ``test.test_id``; ``files`` is the state of each file its pins judge."""
+    def record(self, test: StoredTest, pins: Iterable[memo.Pin], files: Mapping[str, FileState],
+               own: Iterable[memo.Pin] = (), own_files: Mapping[str, FileState] | None = None) -> None:
+        """Replace everything the store holds about ``test.test_id``: its selection cone ``pins`` and its own cone
+        ``own``. ``files`` is the state of each file the selection cone judges, ``own_files`` of each file the own
+        cone judges; where both name a file the selection's state is kept (one capture, one identity per file)."""
         with self.db:
             self.db.execute("DELETE FROM cones WHERE test_id = ?", (test.test_id,))
+            self.db.execute("DELETE FROM own_cones WHERE test_id = ?", (test.test_id,))
             self.db.execute("INSERT OR REPLACE INTO tests VALUES (?, ?, ?, ?, ?)",
                             (test.test_id, test.env_key, test.route, test.outcome, json.dumps(list(test.unknown))))
-            pins = list(pins)
-            for path in {f for pin in pins if (f := pin_rows.file_of(pin)) is not None}:
-                self._note_file(path, files.get(path, _MISSING))
-            for pin in pins:
-                row = pin_rows.encode(pin)
-                self.db.execute("INSERT OR IGNORE INTO pins(row, file) VALUES (?, ?)", (row, pin_rows.file_of(pin)))
-                (pin_id,) = self.db.execute("SELECT pin_id FROM pins WHERE row = ?", (row,)).fetchone()
-                self.db.execute("INSERT OR IGNORE INTO cones VALUES (?, ?)", (test.test_id, pin_id))
+            states = {**(own_files or {}), **files}
+            for table, cone in (("cones", pins), ("own_cones", own)):
+                for pin_id in self._pin_ids(cone, states):
+                    self.db.execute(f"INSERT OR IGNORE INTO {table} VALUES (?, ?)", (test.test_id, pin_id))
+
+    def record_share(self, scope: str, pins: Iterable[memo.Pin], files: Mapping[str, FileState]) -> None:
+        """Replace the cone held under ``scope`` (:data:`GRANDPARENT`)."""
+        with self.db:
+            self.db.execute("DELETE FROM shares WHERE scope = ?", (scope,))
+            for pin_id in self._pin_ids(pins, files):
+                self.db.execute("INSERT OR IGNORE INTO shares VALUES (?, ?)", (scope, pin_id))
+
+    def _pin_ids(self, pins: Iterable[memo.Pin], files: Mapping[str, FileState]) -> list[int]:
+        """Each pin's id, the pin and the state of the file it judges written first (inside the caller's transaction)."""
+        pins = list(pins)
+        for path in {f for pin in pins if (f := pin_rows.file_of(pin)) is not None}:
+            self._note_file(path, files.get(path, _MISSING))
+        ids = []
+        for pin in pins:
+            row = pin_rows.encode(pin)
+            self.db.execute("INSERT OR IGNORE INTO pins(row, file) VALUES (?, ?)", (row, pin_rows.file_of(pin)))
+            ids.append(self.db.execute("SELECT pin_id FROM pins WHERE row = ?", (row,)).fetchone()[0])
+        return ids
 
     def _note_file(self, path: str, state: FileState) -> None:
         old = self.db.execute("SELECT ident, settled FROM files WHERE path = ?", (path,)).fetchone()
@@ -142,12 +193,14 @@ class ConeStore:
         with self.db:
             for test_id in test_ids:
                 self.db.execute("DELETE FROM cones WHERE test_id = ?", (test_id,))
+                self.db.execute("DELETE FROM own_cones WHERE test_id = ?", (test_id,))
                 deleted += self.db.execute("DELETE FROM tests WHERE test_id = ?", (test_id,)).rowcount
         return deleted
 
     def collect_garbage(self) -> None:
         with self.db:
-            self.db.execute("DELETE FROM pins WHERE pin_id NOT IN (SELECT pin_id FROM cones)")
+            self.db.execute("DELETE FROM pins WHERE pin_id NOT IN "
+                            "(SELECT pin_id FROM cones UNION SELECT pin_id FROM own_cones UNION SELECT pin_id FROM shares)")
             self.db.execute("DELETE FROM files WHERE path NOT IN (SELECT file FROM pins WHERE file IS NOT NULL)")
 
     def refresh(self, path: str, state: FileState) -> None:
@@ -164,9 +217,22 @@ class ConeStore:
                 for row in self.db.execute("SELECT test_id, env_key, route, outcome, unknown FROM tests")}
 
     def pins(self, test_id: str) -> list[memo.Pin]:
-        """The pins of one test, as the memo's own objects with paths relative to the repository, in row order."""
+        """The pins of one test's selection cone, as the memo's own objects with paths relative to the repository,
+        in row order."""
         return [pin_rows.decode(row) for (row,) in self.db.execute(
             "SELECT p.row FROM cones c JOIN pins p USING(pin_id) WHERE c.test_id = ? ORDER BY p.row", (test_id,))]
+
+    def own_pins(self, test_id: str) -> list[memo.Pin]:
+        """The pins of one test's own cone (what its protocol ran), in row order."""
+        return [pin_rows.decode(row) for (row,) in self.db.execute(
+            "SELECT p.row FROM own_cones c JOIN pins p USING(pin_id) WHERE c.test_id = ? ORDER BY p.row", (test_id,))]
+
+    def share(self, scope: str) -> list[memo.Pin] | None:
+        """The cone held under ``scope``, in row order; ``None`` when none was stored."""
+        if self.db.execute("SELECT 1 FROM shares WHERE scope = ? LIMIT 1", (scope,)).fetchone() is None:
+            return None
+        return [pin_rows.decode(row) for (row,) in self.db.execute(
+            "SELECT p.row FROM shares s JOIN pins p USING(pin_id) WHERE s.scope = ? ORDER BY p.row", (scope,))]
 
     def identities(self) -> dict[str, FileState]:
         """Each file's state: its identity at capture (or at the last clean ``select``), whether it was settled, and the digest of the bytes it was taken on."""

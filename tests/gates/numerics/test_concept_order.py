@@ -111,29 +111,57 @@ def _resolve(node: ast.ImportFrom, path: pathlib.Path, root: pathlib.Path) -> li
     return [f"{module}.{a.name}" for a in node.names] + [module]
 
 
-def import_edges(root: pathlib.Path = NUMERICS) -> set[tuple[str, str]]:
-    """Every (imported, importer) pair between distinct top-level nodes of ``root``."""
+def _is_type_checking_guard(test: ast.expr) -> bool:
+    """``if TYPE_CHECKING:`` or ``if typing.TYPE_CHECKING:``, exactly (``if not TYPE_CHECKING:`` guards the runtime
+    branch). The same predicate as ``tests/gates/test_layer_imports.py``'s; one home for both is #695."""
+    return (isinstance(test, ast.Name) and test.id == "TYPE_CHECKING") or (
+        isinstance(test, ast.Attribute) and test.attr == "TYPE_CHECKING")
+
+
+#: The kinds of import edge: ``runtime`` a top-level import, ``lazy`` an import inside a def or a lambda,
+#: ``typing`` an import under ``if TYPE_CHECKING:`` (erased at runtime wherever it sits, so it wins over lazy).
+KINDS: tuple[str, ...] = ("runtime", "lazy", "typing")
+
+
+def import_kinds(root: pathlib.Path = NUMERICS) -> dict[tuple[str, str], frozenset[str]]:
+    """Every (imported, importer) pair between distinct top-level nodes of ``root``, with the kinds of import
+    that make it (:data:`KINDS`). The one walk of this order's import graph: the gate reads its edges, and the
+    cone store's placement (``tools/cone_store/placement.py``) reads its kinds to tell a test that composes two
+    concepts from one that reaches a concept through an import the interpreter never runs."""
     nodes = {p.name.removesuffix(".py") for p in root.iterdir()
              if (p.suffix == ".py" and p.name != "__init__.py") or (p.is_dir() and (p / "__init__.py").exists())}
     prefix = f"{root.parent.name}.{root.name}."
-    edges: set[tuple[str, str]] = set()
-    for path in root.rglob("*.py"):
-        if path.parent == root and path.name == "__init__.py":
-            continue
-        importer = _node(path, root)
-        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Import):
-                targets = [a.name for a in node.names]
-            elif isinstance(node, ast.ImportFrom):
-                targets = _resolve(node, path, root)
-            else:
-                continue
+    edges: dict[tuple[str, str], set[str]] = {}
+
+    def visit(node: ast.AST, kind: str, path: pathlib.Path, importer: str) -> None:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            targets = [a.name for a in node.names] if isinstance(node, ast.Import) else _resolve(node, path, root)
             for target in targets:
                 if target.startswith(prefix):
                     head = target.removeprefix(prefix).split(".")[0]
                     if head in nodes and head != importer:
-                        edges.add((head, importer))
-    return edges
+                        edges.setdefault((head, importer), set()).add(kind)
+        if kind == "runtime" and isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            kind = "lazy"
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, ast.If) and _is_type_checking_guard(child.test):
+                for statement in child.body:
+                    visit(statement, "typing", path, importer)
+                for statement in child.orelse:
+                    visit(statement, kind, path, importer)
+            else:
+                visit(child, kind, path, importer)
+
+    for path in root.rglob("*.py"):
+        if path.parent == root and path.name == "__init__.py":
+            continue
+        visit(ast.parse(path.read_text(encoding="utf-8")), "runtime", path, _node(path, root))
+    return {edge: frozenset(kinds) for edge, kinds in edges.items()}
+
+
+def import_edges(root: pathlib.Path = NUMERICS) -> set[tuple[str, str]]:
+    """Every (imported, importer) pair between distinct top-level nodes of ``root``, of any kind."""
+    return set(import_kinds(root))
 
 
 def violations(edges: set[tuple[str, str]]) -> set[tuple[str, str]]:
@@ -189,3 +217,46 @@ def test_the_order_detects_a_backward_import(tmp_path):
     edges = import_edges(root)
     assert edges == {("axis", "measure"), ("measure", "axis")}
     assert violations(edges) == {("axis", "measure")}
+
+
+def test_each_import_edge_carries_its_kind(tmp_path):
+    """Positive control of :func:`import_kinds`: one planted import of each kind is found with that kind, a
+    ``TYPE_CHECKING`` import inside a def is ``typing`` (erased at runtime, wherever it sits), and an edge made by
+    two kinds carries both."""
+    root = tmp_path / "orpheus" / "numerics"
+    root.mkdir(parents=True)
+    (root / "__init__.py").write_text("")
+    for name in ("a", "b", "c", "d"):
+        (root / f"{name}.py").write_text("")
+    (root / "e.py").write_text(
+        "from typing import TYPE_CHECKING\n"
+        "from orpheus.numerics import a\n"
+        "def f():\n    from . import b\n    if TYPE_CHECKING:\n        from orpheus.numerics.d import X\n"
+        "if TYPE_CHECKING:\n    from .c import Y\n"
+        "g = lambda: __import__('x')\n"
+        "def h():\n    import orpheus.numerics.a\n")
+    assert import_kinds(root) == {
+        ("a", "e"): frozenset({"runtime", "lazy"}), ("b", "e"): frozenset({"lazy"}),
+        ("c", "e"): frozenset({"typing"}), ("d", "e"): frozenset({"typing"})}
+
+
+def test_import_kinds_reads_the_branch_the_interpreter_runs(tmp_path):
+    """Witnesses of :func:`import_kinds`' refinements (qa's F4 on B3, 2026-11-03), one planted import each: the
+    ``else`` branch of ``if TYPE_CHECKING:`` runs, so its import is ``runtime``; ``if not TYPE_CHECKING:`` is not the
+    guard (its body runs), so its import is ``runtime``; an import inside an ``async def`` is ``lazy``.
+
+    First red ``[M]`` 2026-11-03, each a textual mutant of :func:`import_kinds` rebound by a ``-p`` plugin: the
+    ``else`` branch visited as ``typing`` reddens on ``a``; the guard tested as a substring (``"TYPE_CHECKING" in
+    ast.unparse(test)``) on ``b``; ``ast.AsyncFunctionDef`` dropped from the def tuple on ``c``."""
+    root = tmp_path / "orpheus" / "numerics"
+    root.mkdir(parents=True)
+    (root / "__init__.py").write_text("")
+    for name in ("a", "b", "c"):
+        (root / f"{name}.py").write_text("")
+    (root / "e.py").write_text(
+        "from typing import TYPE_CHECKING\n"
+        "if TYPE_CHECKING:\n    pass\nelse:\n    from orpheus.numerics import a\n"
+        "if not TYPE_CHECKING:\n    from . import b\n"
+        "async def f():\n    from .c import Z\n")
+    assert import_kinds(root) == {
+        ("a", "e"): frozenset({"runtime"}), ("b", "e"): frozenset({"runtime"}), ("c", "e"): frozenset({"lazy"})}

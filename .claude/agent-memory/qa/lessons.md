@@ -244,6 +244,11 @@ STAMPED on an operator instance (`op.block_role = …`, `A.system_role = …`) a
 `-op`, `2·op` and `op + other`, at every amplitude.** A normaliser mints fresh objects and the stamp
 does not travel; the reading is amplitude-dependent when `1·X is X` keeps it and `α·X` does not. → L-104
 
+**B22. A tool gated only on a synthetic fixture TREE is blind to every input the REAL repository
+supplies that the fixture lives outside of (the recorder, the tool's own code): they are not
+first-party there.** check: one micro-capture of 5-10 real tests (about 30 s) read through the
+tool before crediting any fixture gate; compare against the spec's named expectations. → L-106
+
 ---
 
 

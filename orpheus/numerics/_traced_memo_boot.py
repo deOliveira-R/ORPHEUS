@@ -64,6 +64,34 @@ _SPAWNING = threading.local()
 _QUIET = threading.local()
 #: ``os.stat`` and ``os.lstat`` as they were before the first recording replaced them.
 _STAT = {"stat": os.stat, "lstat": os.lstat}
+#: The recorder's own apparatus, by (file, code object): the code its hooks run on each event of a run (the audit
+#: hook, the ``os.stat`` probe and what they call), a recording's own start and stop, and the stretches the memo
+#: marks around its own work. It runs
+#: inside every recording before any :class:`unrecorded` stretch can begin, so the quiet flag cannot exempt it;
+#: ``started`` never records it instead. It is the instrument, pinned whole by the memo's own source
+#: (:class:`~orpheus.numerics.traced_memo.MemoPin`), never a run's code: recorded, it put the same six defs in
+#: every cone the cone store read, and homed every test with no def of its own at the recorder (the archivist,
+#: ``[M]`` 2026-11-03, 10 of 10 own cones of the B3 sample). The audit hook and the defs only it calls (``_access``,
+#: ``_note_written``, ``_program``) are declared although CPython runs an audit hook with monitoring paused (no
+#: ``__cantrace__``): they are apparatus whether or not the hook is traceable.
+_APPARATUS: set[tuple[str, types.CodeType]] = set()
+
+
+def _apparatus[F: types.FunctionType](function: F) -> F:
+    """Declare ``function`` part of the recorder's apparatus (:data:`_APPARATUS`), at its definition, with every
+    body nested in it (a generator expression, a closure): each is a code object of its own, started on its own."""
+    bodies = [function.__code__]
+    while bodies:  # a plain loop: a generator expression here would be a body started before it is declared
+        code = bodies.pop()
+        _APPARATUS.add((code.co_filename, code))
+        for const in code.co_consts:
+            if isinstance(const, types.CodeType):
+                bodies.append(const)
+    return function
+
+
+_apparatus(_apparatus)  # it runs inside a recording too: ``_probing`` declares each probe it makes
+
 
 #: An open reads a path's prior bytes, changes them, or both (:func:`_access`).
 _OPEN_EVENTS = {"open"}
@@ -74,6 +102,7 @@ _SPAWN_EVENTS = {"subprocess.Popen", "_posixsubprocess.fork_exec", "os.fork", "o
                  "os.spawn", "os.exec", "os.system"}
 
 
+@_apparatus
 def _path(raw: object) -> tuple[str, bool] | None:
     """A path made absolute now, and whether it was relative; ``None`` for a file descriptor."""
     if isinstance(raw, int):
@@ -93,6 +122,7 @@ _IMPORTLIB = tuple({os.path.dirname(f) + os.sep for f in (__import__("importlib"
                                                             os.path.realpath(__import__("importlib").__file__))})
 
 
+@_apparatus
 def _by_importer(depth: int) -> bool:
     """Whether the Python frame ``depth`` levels up, the one that made the call, belongs to the import system."""
     try:
@@ -251,6 +281,7 @@ LISTING = Observation("listed", listing_digest,
                       lambda path, written: path in written or any(os.path.dirname(w) == path for w in written))
 
 
+@_apparatus
 def _observe(kind: Observation, raw: object) -> None:
     """An input the run touched, observed at its first touch (the module docstring). A path the run has already
     written is its own output and is not observed."""
@@ -269,6 +300,7 @@ def _observe(kind: Observation, raw: object) -> None:
         recording.relative |= relative
 
 
+@_apparatus
 def _access(flags: object) -> tuple[bool, bool]:
     """Whether an ``open`` event reads the path's prior bytes, and whether it changes them, from its ``O_*``
     flags, which both of its emitters carry (``io.open``'s mode string is redundant with them: ``"r+"`` is
@@ -282,6 +314,7 @@ def _access(flags: object) -> tuple[bool, bool]:
     return reads, writes
 
 
+@_apparatus
 def _note_written(raw: object) -> None:
     """A path the run wrote, truncated, renamed or removed: its own output. A generator that writes a scratch
     file, reads it back and deletes it reads only its own output (qa's second review of #602 cut E, ``[M]``
@@ -293,6 +326,7 @@ def _note_written(raw: object) -> None:
         recording.written.add(found[0])
 
 
+@_apparatus
 def _program(event: str, args: tuple[object, ...]) -> str:
     """The absolute path of the program a spawn event runs, or the event itself when none can be named."""
     import shutil
@@ -313,6 +347,7 @@ def _program(event: str, args: tuple[object, ...]) -> str:
     return event
 
 
+@_apparatus
 def _audit(event: str, args: tuple[object, ...]) -> None:
     if not _ACTIVE or getattr(_QUIET, "on", False):
         return
@@ -334,9 +369,11 @@ def _audit(event: str, args: tuple[object, ...]) -> None:
             recording.spawned.add(program)
 
 
+@_apparatus
 def _probing(name: str):
     original = _STAT[name]
 
+    @_apparatus
     def probe(path, *args, **kwargs):
         if _ACTIVE and not getattr(_QUIET, "on", False) and not _by_importer(2):
             _observe(PRESENCE, path)
@@ -375,6 +412,7 @@ class Recording:
         self.sources: dict[str, bytes] | None = PINNED_SOURCES
         self._tool: int | None = None
 
+    @_apparatus
     def start(self) -> "Recording":
         global _HOOKED
         monitoring = sys.monitoring
@@ -394,6 +432,8 @@ class Recording:
                 # stays enabled, so it reports when the run itself first starts it.
                 if getattr(_QUIET, "on", False):
                     return None
+                if (code.co_filename, code) in _APPARATUS:
+                    return monitoring.DISABLE
                 recording.codes[(code.co_filename, code)] = code
                 return monitoring.DISABLE
 
@@ -424,6 +464,7 @@ class Recording:
         for name in _RUN_STATE:
             setattr(self, name, copy.copy(getattr(other, name)))
 
+    @_apparatus
     def stop(self) -> None:
         monitoring = sys.monitoring
         with _LOCK:
@@ -439,6 +480,7 @@ class Recording:
                 os.stat, os.lstat = _STAT["stat"], _STAT["lstat"]
 
 
+@_apparatus
 def note_child(child: tuple[str, str, str]) -> None:
     """A memo entry a run read: every active recording pins it."""
     for recording in list(_ACTIVE):
@@ -450,10 +492,12 @@ class unrecorded:
 
     _QUIET_INSIDE = True
 
+    @_apparatus
     def __enter__(self) -> None:
         self._outer = getattr(_QUIET, "on", False)
         _QUIET.on = self._QUIET_INSIDE
 
+    @_apparatus
     def __exit__(self, *_exc: object) -> None:
         _QUIET.on = self._outer
 
@@ -468,9 +512,11 @@ class recorded(unrecorded):
 class spawning:
     """The memo's own start of a generating process, which is not a dependency of the run that asked."""
 
+    @_apparatus
     def __enter__(self) -> None:
         _SPAWNING.on = True
 
+    @_apparatus
     def __exit__(self, *_exc: object) -> None:
         _SPAWNING.on = False
 

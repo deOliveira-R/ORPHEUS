@@ -6166,3 +6166,12 @@ qa agent of the session had written the same name between the write and the run)
 background battery hit the 30-minute default and was killed between restore
 steps; the per-arm `diff -q` against `git show` found `reference_body.py` dirty.
 Rule: digest H16.
+
+## L-106 — a fixture tree cannot see the real repository's own instrument (2026-11-03, W1 cone store B3 qa, HEAD `83db308f`, uncommitted)
+
+Not covered by: `vv-principles` mode 12's space-side stabiliser (degenerate fixture VALUES), nor test-design
+mode 11 (path never executed). Here the path executed, but the fixture tree's `Reading.first_party` drops the
+real `orpheus/numerics/_traced_memo_boot.py` (outside the fixture repo), so the recorder's six hook defs that sat
+in 10 of 10 real own cones never reached the fixture's store. PL12 planted a fake `_traced_memo_boot.py` inside
+the fixture and was green; the real micro-capture (11 tests, 33 s) homed 7 of 7 no-def tests at the recorder,
+pure, inflating pure_fraction 0.5 -> 0.8. Fix landed at the recorder (`@_apparatus`). Digest rule: B22.

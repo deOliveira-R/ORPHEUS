@@ -17,7 +17,7 @@ from tools.cone_store.collect import collect_ids, normalise
 from tools.cone_store.cone import Cone, Reading
 from tools.cone_store.environment import environment_key
 from tools.cone_store.plan import Config, worker_command, worker_environment
-from tools.cone_store.store import ConeStore, StoredTest
+from tools.cone_store.store import GRANDPARENT, ConeStore, StoredTest
 
 
 @dataclass(frozen=True)
@@ -108,10 +108,14 @@ def capture(repo: str | Path, store: str | Path, package: str = "orpheus", memo_
                 database.record(StoredTest(test_id, key, "none", "uncaptured", ("no worker produced a result",)), (), {})
                 continue
             cone = Cone.from_json(traced_memo, data)
-            database.record(StoredTest(test_id, key, data["route"], data["outcome"], cone.unknown), cone.pins, cone.files)
+            own = Cone.from_json(traced_memo, data["own"]) if data["own"] is not None else Cone((), {}, ())
+            database.record(StoredTest(test_id, key, data["route"], data["outcome"], cone.unknown), cone.pins, cone.files,
+                            own.pins, own.files)
         pruned = _prune(database, [*expected, *collected.errors],
                         [module for module, args in groups if args == (module,)] + collected.errors, whole=not ids)
-        database.set_meta("grandparent_pins", None if share is None else share["pins"])
+        # No grandparent cone (the fresh route, a grandparent that died): the stored one is another capture's.
+        grandparent = Cone.from_json(traced_memo, share) if share is not None else Cone((), {}, ())
+        database.record_share(GRANDPARENT, grandparent.pins, grandparent.files)
         database.set_meta("pruned", pruned)
         database.collect_garbage()
         stored = [database.tests()[t] for t in expected]

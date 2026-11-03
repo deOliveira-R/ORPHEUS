@@ -755,3 +755,16 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
 - **⛔ A pin keyed on a run's whole name set is route-dependent until every machinery path is quiet: diagnose a row-identity red by
   the SET DIFFERENCE of the two name sets, then grep the distinctive names to their code object.** Containment over such pins is a
   names superset, not row identity. → `L130`
+
+## Cone store B3 gates (2026-11-03) — extends `instrument-doctrine` X4 (two cones of one process are not one row set)
+
+- **⛔ Containment between two cones of ONE process is asked of NODE keys, never of pin rows**: a `StatementsPin`'s
+  `names`/`digest` are a projection on the recording run's entry names, and an `ImportOutcomePin` is that run's import
+  set, so the own cone and the selection cone name the same module with different rows (`[M]` PH3 first draft red on
+  `pkg/__init__.py` for every test). And fractional containment is not antisymmetric: two uppers at 21/22 and 22/22
+  form a 2-cycle, and a one-hop transitive reduction then drops a third test's edge too (PL9's first fixture).
+- **⛔ CPython runs an audit hook with tracing AND `sys.monitoring` paused unless the hook sets `__cantrace__`** (read
+  at each call): code reached only from an audit hook never fires PY_START, so an "un-declare it and expect a record"
+  arm is blind there by the interpreter, not by the gate (`[M]` 2026-11-03, F2: 4 of 17 apparatus defs). Make the hook
+  traceable in the arm (`monkeypatch.setattr(hook, "__cantrace__", True, raising=False)`) and report the rest as
+  dormant. Extends `vv-principles` #17 (rule out "the mutation did not bite" before calling an arm blind).
