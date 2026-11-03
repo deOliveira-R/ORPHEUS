@@ -85,7 +85,7 @@ class TestLawTheSourcePosing:
     def test_law_the_balance_and_the_residual_close_at_the_solution(self) -> None:
         p, pencil, _, phi = _exact_pair()
         A, _ = p.matrices
-        q = np.ones(A.shape[0]); psi = np.linalg.solve(A, q)
+        q = np.ones(p.space.shape); psi = np.linalg.solve(A, q.ravel()).reshape(p.space.shape)
         posing = SourcePosing(pencil.lhs, q)
         _require(np.max(np.abs(np.asarray(posing.residual(psi)))) <= 1e-12 * np.max(np.abs(q)), "Aψ* − q vanishes")
         _require(np.all(np.asarray(posing.residual(2.0 * psi)) > 0), "the residual is SIGNED with the loss convention: too much flux reads Aψ − q > 0")
@@ -113,7 +113,7 @@ class TestLawEachSpectralMapReadsThePencilsEigenvalue:
         psi = np.real(vecs[:, i]); psi = psi / psi.sum()
         alpha = -(A @ psi) / (inverse_speed * psi)  # α from the physical equation alone
         _require(np.ptp(alpha) <= 1e-9 * abs(alpha[0]), "ψ is an eigenvector: one α in every group")
-        return OperatorPencil(prompt, T), psi, float(alpha[0])
+        return OperatorPencil(prompt, T), psi.reshape(p.space.shape), float(alpha[0])
 
     @pytest.mark.catches("ERR-089")
     def test_law_the_alpha_map_solves_the_alpha_equation(self) -> None:

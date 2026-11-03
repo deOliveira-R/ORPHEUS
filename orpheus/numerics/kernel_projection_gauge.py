@@ -63,7 +63,7 @@ from orpheus.numerics.elementary_operators import TraceRestrictionOperator
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import LinearOperator, ZeroMorphism
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import FunctionSpace, act_on_flat_coordinates
 
 __all__ = ["KernelProjectionGauge", "KernelSummand", "SUMMAND_ORTHOGONALITY_TOL", "diagonal_metric"]
 
@@ -168,7 +168,7 @@ def _flat_chart(space: FunctionSpace) -> FunctionSpace:
         return space
     from orpheus.numerics.metric import DiagonalMetric
 
-    return FunctionSpace(f"{space.name}#flat", (int(np.prod(space.shape)),),
+    return FunctionSpace(f"{space.name}#flat", (space.n_coordinates,),
                          metric=DiagonalMetric(diagonal_metric(space)))
 
 
@@ -280,12 +280,7 @@ class KernelProjectionGauge(LinearOperator):
 
     def _on_chart(self, x: NDArray, action: "Callable[[NDArray], NDArray]") -> NDArray:
         r"""Parse ``x`` at the space's action verb, act on its flat chart, and return it in the space's shape."""
-        values = np.asarray(self._space.leading_coordinates_of(x), dtype=float)
-        if self._chart is self._space:
-            return action(values)
-        payload = values.shape[len(self._space.shape):]
-        flat = values.reshape((int(np.prod(self._space.shape)),) + payload)
-        return np.asarray(action(flat)).reshape(values.shape)
+        return act_on_flat_coordinates(self._space, self._space, x, action)
 
     @property
     def is_adjointable(self) -> bool:
@@ -309,9 +304,11 @@ class KernelProjectionGauge(LinearOperator):
         r"""How far the section moves ``state``: :math:`\lVert\Pi\psi\rVert_G / \lVert\psi\rVert_G`, in the space's own norm.
 
         ``0.0`` for the zero state and for the empty direct sum. The exit
-        report's gauge reading on every method that gauges.
+        report's gauge reading on every method that gauges. A scalar verb, so
+        ``state`` is parsed exactly (:meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`):
+        a batch has no single displacement.
         """
-        values = np.asarray(self._space.leading_coordinates_of(state), dtype=float).reshape(-1)
+        values = np.asarray(self._space.coordinates_of(state), dtype=float).reshape(-1)
         weights = diagonal_metric(self._space)
         total = float(np.sqrt(np.sum(weights * values**2)))
         if total == 0.0 or not self._summands:

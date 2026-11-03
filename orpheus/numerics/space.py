@@ -99,6 +99,9 @@ __all__ = [
     "Member",
     "TensorProductSpace",
     "act_on_direct_sum_coordinates",
+    "act_on_flat_coordinates",
+    "admit_matrix",
+    "coordinate_space_of",
     "angular_flux_space",
     "factor_tail",
     "scalar_flux_space",
@@ -960,6 +963,17 @@ class FunctionSpace(Generic[Carrier]):
         return m.apply_inverse(x)
 
     @property
+    def n_coordinates(self) -> int:
+        r"""The length of the space's flat chart, :math:`\dim V = \prod` :attr:`shape`.
+
+        A member's coordinates are an array of :attr:`shape`; their C-order
+        ravel is a vector of :math:`\mathbb R^{n}` with this :math:`n`. A
+        matrix realising a map :math:`V \to W` is
+        ``(W.n_coordinates, V.n_coordinates)`` (:func:`admit_matrix`).
+        """
+        return int(np.prod(self.shape))
+
+    @property
     def rank(self) -> int:
         r"""The dimension of :math:`V / \ker G`, on which this space's inner
         product is non-degenerate (numerics_untangling.md ruling 74): the
@@ -969,7 +983,7 @@ class FunctionSpace(Generic[Carrier]):
         quotient, so its laws hold modulo the kernel."""
         metric = self._resolved_metric
         if metric is None:
-            return int(np.prod(self.shape)) if self.shape else 1
+            return self.n_coordinates
         return metric.rank(self.shape)
 
     def project_live(self, x: Carrier) -> Carrier:
@@ -1605,11 +1619,105 @@ def act_on_direct_sum_coordinates(
     pieces = []
     start = 0
     for member in members:
-        size = int(np.prod(member.shape))
+        size = member.n_coordinates
         block = coordinates[start:start + size].reshape(tuple(member.shape) + payload)
         pieces.append(np.asarray(leg(member, block)).reshape((size,) + payload))
         start += size
     return np.concatenate(pieces, axis=0)
+
+
+def coordinate_space_of(shape: tuple[int, ...]) -> FunctionSpace:
+    r"""The coordinate space :math:`\mathbb R^{\text{shape}}` (Euclidean): what an UNPOSED matrix carrier acts on.
+
+    A carrier posed on no space still acts between coordinate spaces; this is
+    that space, so a posed and an unposed carrier go through one
+    :func:`act_on_flat_coordinates`. Minted only by :func:`admit_matrix`.
+    """
+    return FunctionSpace("R^" + "x".join(str(d) for d in shape), tuple(int(d) for d in shape))
+
+
+def act_on_flat_coordinates(
+    source: FunctionSpace,
+    target: FunctionSpace,
+    x: Any,
+    action: "Callable[[NDArray], NDArray]",
+) -> NDArray:
+    r"""A map :math:`V \to W` held as a matrix, acting on a member: ``x`` in, an element of ``target`` out.
+
+    A matrix :math:`M` realises a linear map between two spaces in their flat
+    charts (the C-order ravel of the coordinates, :attr:`FunctionSpace.n_coordinates`
+    long). Acting on a member is three steps, and this is their one
+    definition: parse ``x`` at ``source``'s ACTION verb
+    (:meth:`FunctionSpace.leading_coordinates_of`, so a trailing payload
+    :math:`P` rides through as :math:`M \otimes I_P`), ravel the leading axes
+    into the chart, act, and return the result in ``target``'s shape. The
+    result is an element of ``target`` because it takes ``target``'s exact
+    shape (#683).
+
+    A matrix carrier's transpose is the SAME call with the ends swapped,
+    :math:`M^{\mathsf T}` from ``target`` to ``source``, so the forward and the
+    transpose arm cannot disagree on which space each end is.
+    """
+    coordinates = np.asarray(source.leading_coordinates_of(x))
+    payload = coordinates.shape[len(source.shape):]
+    if not payload:
+        return np.asarray(action(coordinates.reshape(source.n_coordinates))).reshape(target.shape)
+    # The payload folds into ONE column axis: a matrix action is M @ X on an
+    # (n, p) block, and a higher-rank block is not that (LAPACK's lu_solve
+    # batches its leading axes, so an (n, p, q) block is solved wrongly).
+    columns = coordinates.reshape(source.n_coordinates, int(np.prod(payload)))
+    return np.asarray(action(columns)).reshape(tuple(target.shape) + payload)
+
+
+def admit_matrix(
+    shape: tuple[int, int],
+    domain: "FunctionSpace | None",
+    codomain: "FunctionSpace | None",
+    *,
+    owner: str,
+    unposed: "tuple[tuple[int, ...], tuple[int, ...]] | None" = None,
+) -> "tuple[FunctionSpace, FunctionSpace]":
+    r"""Parse a matrix and its ends into the two charts it acts between, ``(source, target)``.
+
+    The one admission of every carrier that holds a matrix. A matrix carrier
+    is posed on both ends or on neither, as the adjoint is
+    (:func:`~orpheus.numerics.operator.posed`):
+
+    * **posed**: the charts are ``domain`` and ``codomain``, and the matrix
+      must be ``(codomain.n_coordinates, domain.n_coordinates)``;
+    * **unposed**: the charts are the coordinate spaces
+      (:func:`coordinate_space_of`) of the ``unposed`` shapes the carrier
+      declares, ``(source shape, target shape)``, by default the matrix's own
+      :math:`\mathbb R^{\text{cols}}` and :math:`\mathbb R^{\text{rows}}`;
+      the matrix must map one into the other.
+
+    The charts are what :func:`act_on_flat_coordinates` acts between, and they
+    are read off the same :attr:`FunctionSpace.n_coordinates`, so the
+    admission and the action cannot disagree.
+
+    Raises
+    ------
+    ValueError
+        One end posed and the other not, or a matrix that does not map the
+        source chart into the target chart.
+    """
+    if (domain is None) != (codomain is None):
+        raise ValueError(
+            f"{owner}: a matrix carrier is posed on both ends or on neither; got domain={domain!r}, "
+            f"codomain={codomain!r}."
+        )
+    if domain is not None and codomain is not None:
+        source, target = domain, codomain
+    else:
+        source_shape, target_shape = unposed if unposed is not None else ((shape[1],), (shape[0],))
+        source, target = coordinate_space_of(source_shape), coordinate_space_of(target_shape)
+    expected = (target.n_coordinates, source.n_coordinates)
+    if tuple(shape) != expected:
+        raise ValueError(
+            f"{owner}: a {shape[0]}×{shape[1]} matrix does not map {source!r} into {target!r}, "
+            f"which needs {expected[0]}×{expected[1]} (codomain.n_coordinates × domain.n_coordinates)."
+        )
+    return source, target
 
 
 def factor_tail(width: int) -> tuple[int, ...]:

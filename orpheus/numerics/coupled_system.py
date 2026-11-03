@@ -539,7 +539,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
                 "required — a 0-system coupled space carries no DOFs."
             )
         name = "coupled(" + " ⊕ ".join(s.name for s in members) + ")"
-        total = int(sum(int(np.prod(s.shape)) for s in members))
+        total = sum(s.n_coordinates for s in members)
         return cls(
             name=name, shape=(total,), systems=members, zeros_factory=zeros,
             dual_zeros_factory=dual_zeros,
@@ -630,7 +630,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
         slices = []
         start = 0
         for s in members:
-            size = int(np.prod(s.shape))
+            size = s.n_coordinates
             slices.append(slice(start, start + size))
             start += size
         return tuple(slices)
@@ -1234,7 +1234,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         builder); an explicit ``basis_shape`` must match the coupled flat
         dimension, and ``max_dimension`` gates as usual.
         """
-        n = int(np.prod(self._domain.shape))
+        n = self._domain.n_coordinates
         if basis_shape is not None and int(np.prod(basis_shape)) != n:
             raise ValueError(
                 f"as_matrix on CoupledOperator: basis_shape {basis_shape} "

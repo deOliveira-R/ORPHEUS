@@ -37,6 +37,7 @@ from orpheus.numerics.assembled_operator import (
     assemble,
     dense,
 )
+from orpheus.numerics.coordinate_space import NotInCoordinateSpace
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.operator import IdentityOperator, MatrixTooLarge
 
@@ -108,11 +109,14 @@ class TestSparseAssembledOperator:
         assert assemble(op) is op  # the functor's fixed point
 
     def test_shape_and_input_guards(self) -> None:
+        """An unbound end is the coordinate space R^3 (#683): an operand is
+        parsed at its action verb on BOTH arms, and a (2,) array is refused
+        for the same reason on each (it is not R^3's leading shape)."""
         op = _leaf_a()
         assert op.shape == (3, 3)
-        with pytest.raises(ValueError, match="input size 2"):
+        with pytest.raises(NotInCoordinateSpace, match=r"shape \(2,\) does not have the leading shape \(3,\)"):
             op.apply(np.ones(2))
-        with pytest.raises(ValueError, match="input size 2"):
+        with pytest.raises(NotInCoordinateSpace, match=r"shape \(2,\) does not have the leading shape \(3,\)"):
             op.apply_transpose(np.ones(2))
 
     def test_as_matrix_contract(self) -> None:

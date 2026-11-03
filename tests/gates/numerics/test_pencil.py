@@ -25,7 +25,7 @@ import re
 import numpy as np
 import pytest
 
-from tests.gates.numerics._energy_pencil import FISSILE, EnergyPencil, GroupData, bound, energy_space, non_fissile, two_spectra, weighted_space
+from tests.gates.numerics._energy_pencil import FISSILE, POINT, EnergyPencil, GroupData, bound, energy_space, non_fissile, two_spectra, weighted_space
 
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.operator import LinearOperator
@@ -47,7 +47,7 @@ def _fissile(ng: int = 2) -> EnergyPencil:
 def _partitioned_space(ng: int) -> FunctionSpace:
     """Equal SHAPE to ``energy_space(ng)``, different CONTENT (a real group partition)."""
     edges = np.geomspace(2.0e7, 1.0e-5, ng + 1)
-    return FunctionSpace.of_axes(EnergyAxis.of_edges(edges))
+    return FunctionSpace.of_axes(EnergyAxis.of_edges(edges), POINT)
 
 
 class TestLawTheEndsLaw:
@@ -91,9 +91,9 @@ class TestLawTheAffineFamily:
         rng = np.random.default_rng(0)
         eps = np.finfo(float).eps
         for _ in range(300):
-            x = rng.random(A.shape[1]); sigma, tau = rng.random(2)
-            d = np.asarray(p.pencil.at(sigma + tau).apply(x)) - np.asarray(p.pencil.at(sigma).apply(x))
-            ref = -tau * (F @ x)
+            x = rng.random(p.space.shape); sigma, tau = rng.random(2)
+            d = np.asarray(p.pencil.at(sigma + tau).apply(x)).ravel() - np.asarray(p.pencil.at(sigma).apply(x)).ravel()
+            x = x.ravel(); ref = -tau * (F @ x)
             scale = max(np.max(np.abs(A @ x)), np.max(np.abs(sigma * (F @ x))), 1e-300)
             _require(np.max(np.abs(d - ref)) / scale <= 8 * eps, "the increment at(σ+τ) − at(σ) must be −τ·M to 8 ε")
 

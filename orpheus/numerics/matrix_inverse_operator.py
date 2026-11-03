@@ -86,6 +86,7 @@ from numpy.linalg import LinAlgError
 from scipy.linalg import LinAlgWarning, lapack, lu_factor, lu_solve
 
 from orpheus.numerics.assembled_operator import dense
+from orpheus.numerics.space import act_on_flat_coordinates, admit_matrix
 from orpheus.numerics.operator import (
     InverseWrapMixin,
     LinearOperator,
@@ -129,8 +130,9 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         The element shape ``inner.apply`` consumes; resolution shares
         :meth:`~orpheus.numerics.operator.LinearOperator.as_matrix`'s
         single source (explicit wins, else ``inner.domain.shape``, else
-        an informative ``ValueError``). Solutions are reshaped back to
-        this carrier shape.
+        an informative ``ValueError``). It is the materialisation's probe
+        shape; the operands are members of ``inner``'s ends, or, when
+        ``inner`` is unposed, arrays of this shape.
     max_dimension : int, optional
         The materialization size gate, forwarded to ``dense``
         (default ``4096`` — see
@@ -154,7 +156,12 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
                 f"(basis shape {shape}). A rectangular operator has no "
                 f"two-sided inverse — M-materialise is unsatisfiable."
             )
-        self._basis_shape = shape
+        #: The charts of A (A⁻¹ maps them the other way): its two ends, or,
+        #: unposed, ℝ^basis_shape on both, the carrier it was materialised over.
+        self._domain_chart, self._codomain_chart = admit_matrix(
+            (rows, cols), inner.domain, inner.codomain, owner=f"MatrixInverseOperator({type(inner).__name__})",
+            unposed=(shape, shape),
+        )
         #: The 1-norm of the materialised operator, read BEFORE the in-place
         #: factorisation overwrites it: the reciprocal-condition estimate needs it.
         self._norm_1 = float(np.abs(matrix).sum(axis=0).max()) if matrix.size else 0.0
@@ -201,18 +208,16 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         return float(rcond)
 
     def _flat_of(self, x: Any) -> np.ndarray:
-        r"""Ravel the operand — the ravellable protocol for typed carriers
-        (``to_flat``), plain C-ravel for ndarrays (byte-identical legacy
-        path)."""
-        if hasattr(x, "to_flat"):
-            return np.asarray(x.to_flat(), dtype=float).ravel()
-        return np.asarray(x).ravel()
+        r"""Ravel a TYPED (ravellable) operand through its ``to_flat``.
+
+        An array operand never comes here: it is a member of a space and acts
+        through :func:`~orpheus.numerics.space.act_on_flat_coordinates`."""
+        return np.asarray(x.to_flat(), dtype=float).ravel()
 
     def _returned_as(self, solution: np.ndarray, x: Any, space: Any) -> Any:
-        r"""Re-type a backsolve result to match the operand's carrier.
+        r"""Re-type a backsolve result to match a TYPED operand's carrier.
 
-        An ndarray operand reshapes to the basis carrier (the legacy
-        path, byte-identical). A TYPED (ravellable) operand re-enters its
+        A TYPED (ravellable) operand re-enters its
         family through ``from_flat`` over the carrier space's ZERO
         exemplar (``space.zeros()`` — e.g.
         :meth:`~orpheus.numerics.coupled_system.CoupledSpace.zeros`): the
@@ -220,8 +225,6 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         the SPACE's member roles (a solution is a state, never the
         rhs's source role — the role-honesty half of the typed seam).
         """
-        if not hasattr(x, "to_flat"):
-            return solution.reshape(self._basis_shape)
         zeros_factory = getattr(space, "zeros", None)
         if space is None or not callable(zeros_factory):
             raise ValueError(
@@ -229,7 +232,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
                 f"needs a carrier space with a zeros() exemplar to mint "
                 f"the typed result; {type(self.inner).__name__} carries "
                 f"{'no space' if space is None else type(space).__name__} "
-                f"without one — pass flats, or wire the space's zero "
+                f"without one — pass arrays, or wire the space's zero "
                 f"factory (CoupledSpace.from_systems(..., zeros=...))."
             )
         template = zeros_factory()
@@ -245,14 +248,19 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         ``initial_guess`` is the inverse family's canonical driver
         signature (taxonomy §12 step 3); an exact direct inverse has
         nothing to seed, so it is accepted and unused — which is
-        precisely the M-direct seed-independence invariant. A typed
+        precisely the M-direct seed-independence invariant. An array
+        operand is a member of ``A``'s codomain and the solution an element
+        of ``A``'s domain, in its exact shape
+        (:func:`~orpheus.numerics.space.act_on_flat_coordinates`;
+        :meth:`apply_transpose` is the same call with the ends swapped). A typed
         (ravellable) operand round-trips through the carrier seam
         (:meth:`_flat_of` / :meth:`_returned_as` — the solution is minted
         from the DOMAIN's zero exemplar).
         """
         del initial_guess  # exact direct inverse — M-direct IS seed-independence
-        solution = lu_solve(self._lu, self._flat_of(x))
-        return self._returned_as(solution, x, self.inner.domain)
+        if not hasattr(x, "to_flat"):
+            return act_on_flat_coordinates(self._codomain_chart, self._domain_chart, x, lambda v: lu_solve(self._lu, v))
+        return self._returned_as(lu_solve(self._lu, self._flat_of(x)), x, self.inner.domain)
 
     @property
     def is_adjointable(self) -> bool:
@@ -271,12 +279,17 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         ``grid.H.inverse()`` routes through
         ``AdjointOperator.inverse() = inner.inverse().H``, whose ``.H``
         exists only because THIS inverse is adjointable — the metric
-        conjugation then wraps this Euclidean transpose backsolve. A typed
-        operand is minted from the CODOMAIN's zero exemplar (the transpose
-        maps the opposite way).
+        conjugation then wraps this Euclidean transpose backsolve. An array
+        operand is a member of ``A``'s domain and the result an element of
+        ``A``'s codomain (#683: the transpose arm once reshaped to the domain's
+        basis shape on both arms). A typed operand's result is minted from
+        the CODOMAIN's zero exemplar (the transpose maps the opposite way).
         """
-        solution = lu_solve(self._lu, self._flat_of(b), trans=1)
-        return self._returned_as(solution, b, self.inner.codomain)
+        if not hasattr(b, "to_flat"):
+            return act_on_flat_coordinates(
+                self._domain_chart, self._codomain_chart, b, lambda v: lu_solve(self._lu, v, trans=1),
+            )
+        return self._returned_as(lu_solve(self._lu, self._flat_of(b), trans=1), b, self.inner.codomain)
 
     def as_matrix(
         self,

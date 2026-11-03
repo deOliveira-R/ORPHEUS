@@ -56,16 +56,21 @@ own ``COO → CSR`` conversion (:meth:`~scipy.sparse.coo_array.tocsr` sums
 repeated ``(row, col)`` entries), so an emitter may scatter per-cell and
 per-face contributions freely.
 
-The flat carrier contract
-=========================
+The carrier acts on members (#683)
+==================================
 
-``apply`` acts on **bare 1-D flat vectors** (the
-:class:`~orpheus.numerics.flat_operator.FlattenedOperator` serialisation
-convention): the global DOF numbering is the operator family's existing flat
-layout (``FullField.to_flat()``, bulk C-ravel ⊕ trace buffer, for composite
+The global DOF numbering is the operator family's existing flat layout
+(``FullField.to_flat()``, bulk C-ravel ⊕ trace buffer, for composite
 carriers; the bulk C-ravel alone for per-ordinate SN spatial blocks) and is
-NEVER re-derived here. ``domain`` and ``codomain`` are passthrough metadata
-from the emitting operator.
+NEVER re-derived here: it is the C-order flat chart of the bound spaces. The
+matrix is the map in those charts, so ``apply`` takes a member of ``domain``
+and returns an element of ``codomain`` in its exact shape, both through
+:func:`~orpheus.numerics.space.act_on_flat_coordinates`; a matrix whose
+dimensions disagree with its bound ends is refused at construction
+(:func:`~orpheus.numerics.space.admit_matrix`), as is a carrier posed on one
+end only. A composite space's shape is already its flat chart, so its members
+are the flat vectors. An unposed carrier acts between the coordinate spaces
+:math:`\mathbb R^{\text{cols}} \to \mathbb R^{\text{rows}}`.
 
 ``apply_transpose`` is the exact CSR transpose (``is_adjointable`` True);
 ``is_invertible`` stays the base ``False`` (inversion goes through an
@@ -92,10 +97,10 @@ from orpheus.numerics.operator import (
     _resolve_basis_shape,
 )
 
+from orpheus.numerics.space import FunctionSpace, act_on_flat_coordinates, admit_matrix
+
 if TYPE_CHECKING:
     from typing import TypeGuard
-
-    from orpheus.numerics.space import FunctionSpace
 
 
 __all__ = [
@@ -156,8 +161,7 @@ class SparseAssembledOperator(LinearOperator):
 
     (Deliberately unparameterized — the ndarray-carrier family convention,
     the :class:`~orpheus.numerics.flat_operator.FlattenedOperator` /
-    :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` precedent: the
-    carrier is the bare flat vector.)
+    :class:`~orpheus.numerics.elementary_operators.DiagonalOperator` precedent.)
 
     Parameters
     ----------
@@ -168,18 +172,23 @@ class SparseAssembledOperator(LinearOperator):
         duplicate entries (the FEM scatter semantics an emitter relies on
         for shared-face / shared-diagonal contributions).
     domain, codomain : FunctionSpace, optional
-        Passthrough space metadata from the emitting operator (the flat
-        ``shape`` identity of a composite space matches this matrix's
-        column/row dimension; the
-        :class:`~orpheus.numerics.operator.OperatorSum` /
-        ``OperatorProduct`` guards read them).
+        The spaces the matrix maps between, from the emitting operator: both
+        or neither (:func:`~orpheus.numerics.space.admit_matrix`). Posed, the
+        matrix must be ``(codomain.n_coordinates, domain.n_coordinates)``.
 
     Notes
     -----
-    ``apply(x)`` accepts any array raveling to ``matrix.shape[1]`` and
-    returns the 1-D CSR matvec. The matrix is exposed as :attr:`matrix`
-    (CSR) — consumers that need structure (the walk-order triangularity
-    gates, the DSA moment reduction ``R·A·P``) read it directly.
+    The matrix is the map in the spaces' flat charts, and
+    :meth:`apply` / :meth:`apply_transpose` are one definition
+    (:func:`~orpheus.numerics.space.act_on_flat_coordinates`) with the ends
+    swapped: ``apply`` takes a member of ``domain`` and returns an element of
+    ``codomain``'s exact shape, ``apply_transpose`` the reverse (#683). An
+    unposed carrier acts between the matrix's own coordinate spaces
+    :math:`\mathbb R^{\text{cols}} \to \mathbb R^{\text{rows}}`, whose
+    members are 1-D. A trailing payload rides through on either arm.
+    The matrix is exposed as :attr:`matrix` (CSR) — consumers that need
+    structure (the walk-order triangularity gates, the DSA moment reduction
+    ``R·A·P``) read it directly.
     """
 
     def __init__(
@@ -200,6 +209,8 @@ class SparseAssembledOperator(LinearOperator):
         self._shape: tuple[int, int] = (int(rows), int(cols))
         self._domain = domain
         self._codomain = codomain
+        #: The charts the matrix acts between: its two ends, or ℝ^cols → ℝ^rows unposed.
+        self._source, self._target = admit_matrix(self._shape, domain, codomain, owner=repr(self))
 
     @property
     def domain(self) -> "Optional[FunctionSpace]":
@@ -215,26 +226,12 @@ class SparseAssembledOperator(LinearOperator):
         return self._shape
 
     def apply(self, x: "np.ndarray", /) -> np.ndarray:
-        r"""Return the CSR matvec :math:`M\,x` on a flat 1-D vector."""
-        flat = np.asarray(x, dtype=float).ravel()
-        if flat.size != self._shape[1]:
-            raise ValueError(
-                f"SparseAssembledOperator.apply: input size {flat.size} "
-                f"does not match the assembled column dimension "
-                f"{self._shape[1]}."
-            )
-        return np.asarray(self.matrix @ flat)
+        r"""Return :math:`M\,x`, an element of the codomain, for ``x`` a member of the domain."""
+        return act_on_flat_coordinates(self._source, self._target, x, lambda v: np.asarray(self.matrix @ v))
 
     def apply_transpose(self, x: "np.ndarray", /) -> np.ndarray:
-        r"""Return :math:`M^{\mathsf T}\,x` — the exact CSR transpose matvec."""
-        flat = np.asarray(x, dtype=float).ravel()
-        if flat.size != self._shape[0]:
-            raise ValueError(
-                f"SparseAssembledOperator.apply_transpose: input size "
-                f"{flat.size} does not match the assembled row dimension "
-                f"{self._shape[0]}."
-            )
-        return np.asarray(self.matrix.T @ flat)
+        r"""Return :math:`M^{\mathsf T}\,x`, the exact CSR transpose: :meth:`apply` with the ends swapped."""
+        return act_on_flat_coordinates(self._target, self._source, x, lambda v: np.asarray(self.matrix.T @ v))
 
     @property
     def is_adjointable(self) -> bool:
@@ -303,8 +300,9 @@ def assemble(op: "LinearOperator") -> SparseAssembledOperator:
     r"""Return :math:`[A]`, the sparse matrix of ``op``, through the assembly homomorphism.
 
     An assembled operator is its own assembly. Otherwise the raw emission
-    (:func:`_emit`) is wrapped once, with ``op``'s ends as the carrier's
-    passthrough metadata.
+    (:func:`_emit`) is wrapped once, posed on ``op``'s ends, which admit it
+    (:func:`~orpheus.numerics.space.admit_matrix`): the carrier acts on the
+    same members ``op`` does.
 
     Raises
     ------

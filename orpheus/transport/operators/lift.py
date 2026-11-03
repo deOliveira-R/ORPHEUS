@@ -82,7 +82,7 @@ from orpheus.numerics.operator import (
     MissingAdjoint,
     adjointable,
 )
-from orpheus.numerics.space import Member
+from orpheus.numerics.space import Member, admit_matrix
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.fields._bases import BoundaryField, BulkField, FieldRole
 from orpheus.transport.full_field import FullField
@@ -311,20 +311,14 @@ def embed_bulk_assembly(
     from scipy import sparse
 
     owner = "embed_bulk_assembly"
-    n_rows_bulk = int(np.prod(interior_space_of(codomain, owner=owner).shape))
-    n_cols_bulk = int(np.prod(interior_space_of(domain, owner=owner).shape))
-    rows, cols = cast("tuple[int, int]", bulk.shape)
-    if (rows, cols) != (n_rows_bulk, n_cols_bulk):
-        raise ValueError(
-            f"{owner}: the bulk emission is {rows}×{cols} but the composite "
-            f"interiors are {n_rows_bulk} (codomain) × {n_cols_bulk} "
-            f"(domain) — the lifted operator is not bound on the composite's "
-            f"interiors."
-        )
+    admit_matrix(
+        cast("tuple[int, int]", bulk.shape),
+        interior_space_of(domain, owner=owner), interior_space_of(codomain, owner=owner), owner=owner,
+    )
     coo = sparse.coo_array(bulk)
     return sparse.coo_array(
         (coo.data, (coo.row, coo.col)),
-        shape=(int(np.prod(codomain.shape)), int(np.prod(domain.shape))),
+        shape=(codomain.n_coordinates, domain.n_coordinates),
     )
 
 

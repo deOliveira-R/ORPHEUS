@@ -1422,8 +1422,14 @@ different kinds of failure.
 **Basis-shape resolution** is single-sourced in ``_resolve_basis_shape``
 (shared with the eager
 :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
-constructor, which must know the resolved shape to reshape solutions back
-into carriers — one source, no reciprocal drift). The rule has three arms:
+constructor, which materialises its matrix over the resolved shape — one
+source, no reciprocal drift). The resolved shape is the probe shape of the
+materialisation and nothing more: the inverse's array operands are members
+of its inner operator's ends, and only an unposed inner operator gives the
+resolved shape a second role, the coordinate space :math:`\mathbb R^{b}`
+the inverse acts on at both ends (:ref:`assembly-the-carrier`; until #683
+the solutions of both array arms were reshaped to it, which put the
+transpose arm's result in the domain's shape). The rule has three arms:
 
 #. an explicit ``basis_shape`` wins;
 #. else the operator's own
@@ -1876,25 +1882,233 @@ assemblable operator are two independent algorithms, and comparing them
 is a comparison (:ref:`assembly-verification`), not assembly compared with
 itself.
 
+.. _assembly-the-carrier:
+
 The carrier
 -----------
 
 Assembly lands in
 :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`, a
 thin :mod:`scipy.sparse` wrapper conforming to
-:class:`~orpheus.numerics.operator.LinearOperator`: ``apply`` is the CSR
-matvec on a flat vector, ``apply_transpose`` the exact CSR transpose
-(``is_adjointable`` is ``True``), and ``is_invertible`` is the base
-``False`` (an inverse is an explicit consumer choice, such as a
-``MatrixInverseOperator`` over it). It is **not** a COO-builder type with
-an algebra of its own: that would restate every law of the operator
-algebra on triplet buffers, one layer down. Its constructor converts any
-scipy sparse input to CSR once, and scipy's ``COO → CSR`` conversion SUMS
-repeated :math:`(\text{row},\text{col})` entries, the finite-element
-scatter semantics, so an emitter may scatter per-cell and per-face
-contributions freely. Its ``domain`` and ``codomain`` are passthrough
-metadata from the operator it assembles. The functor is closed on the
-carrier: ``assemble(S) is S`` for an assembled operator ``S``.
+:class:`~orpheus.numerics.operator.LinearOperator`. It is **not** a
+COO-builder type with an algebra of its own: that would restate every law
+of the operator algebra on triplet buffers, one layer down. Its
+constructor converts any scipy sparse input to CSR once, and scipy's
+``COO → CSR`` conversion SUMS repeated :math:`(\text{row},\text{col})`
+entries, the finite-element scatter semantics, so an emitter may scatter
+per-cell and per-face contributions freely. ``apply_transpose`` is the
+exact CSR transpose (``is_adjointable`` is ``True``), and
+``is_invertible`` is the base ``False`` (an inverse is an explicit
+consumer choice, such as a ``MatrixInverseOperator`` over it). The
+functor is closed on the carrier: ``assemble(S) is S`` for an assembled
+operator ``S``.
+
+**A matrix bound to two spaces acts on members of them.** A matrix is an
+operator only once it is told which spaces it maps between. Bound to
+:math:`V \to W`, it is the map in the two spaces' flat charts
+(:ref:`spaces-flat-chart`): a member :math:`x` of :math:`V`, an array of
+shape ``V.shape``, is read as its C-order ravel in
+:math:`\mathbb R^{n_V}`, the matrix acts, and the result is read back as an
+array of shape ``W.shape``. With :math:`\operatorname{flat}_V` the ravel,
+:math:`\operatorname{unflat}_W` its inverse and
+:math:`n_V =` :attr:`V.n_coordinates
+<orpheus.numerics.space.FunctionSpace.n_coordinates>`,
+
+.. math::
+
+   \operatorname{apply}(x) = \operatorname{unflat}_W\bigl(M\,\operatorname{flat}_V\,x\bigr),
+   \qquad
+   \operatorname{apply\_transpose}(y) = \operatorname{unflat}_V\bigl(M^{\mathsf T}\operatorname{flat}_W\,y\bigr),
+   \qquad
+   M \in \mathbb R^{\,n_W \times n_V}.
+
+Two functions in :mod:`orpheus.numerics.space` carry the whole law, and
+the carrier spells neither of them itself:
+
+* :func:`~orpheus.numerics.space.admit_matrix` runs once, in the
+  constructor. It parses the matrix and its ends into the two charts the
+  matrix acts between, ``(source, target)``: the bound ends, or, for an
+  unposed carrier, the coordinate spaces
+  :math:`\mathbb R^{\text{cols}} \to \mathbb R^{\text{rows}}`
+  (:func:`~orpheus.numerics.space.coordinate_space_of`). It refuses a
+  matrix whose shape is not ``(codomain.n_coordinates,
+  domain.n_coordinates)`` and a carrier posed on one end only, each with a
+  ``ValueError`` naming the carrier.
+* :func:`~orpheus.numerics.space.act_on_flat_coordinates` is the action,
+  ``act_on_flat_coordinates(source, target, x, action)``: it parses ``x``
+  at the source's action verb
+  :meth:`~orpheus.numerics.space.FunctionSpace.leading_coordinates_of` (a
+  typed member of the source is compared by content identity, a bare array
+  must lead with the source's shape, and a trailing payload :math:`P`
+  rides through as :math:`M \otimes I_P`), folds the leading axes into the
+  chart and the payload into one column axis, acts, and returns an array of
+  the target's exact shape followed by the payload. ``apply`` is this call
+  with ``(source, target)``, and ``apply_transpose`` is the same call with
+  the ends swapped and :math:`M^{\mathsf T}` as the action.
+
+Four design choices, each with its reason:
+
+#. **One action, the ends swapped for the transpose.** When the forward
+   and the transpose arm are two bodies, each names its two ends by hand,
+   and nothing compares the two namings (the defect this closed is in the
+   box below). Spelled as one function whose two
+   space arguments are exchanged, the arms can differ only in the
+   exchange, which is the transposition itself (X4 of the instrument
+   doctrine: one definition per quantity).
+#. **The parse is the action verb, not the exact verb.** A matrix acting on
+   :math:`V` is an action (:ref:`spaces-membership`, "Scalar verbs take
+   exact members; actions take a leading member"), so a batch of members,
+   an array of shape ``V.shape`` followed by a payload, is admitted and
+   acted on column by column, :math:`M \otimes I_P`.
+#. **The payload is folded into ONE column axis before the action.** A
+   matrix action is :math:`M X` on an :math:`(n, p)` block. A rank-2
+   payload :math:`(p, q)` handed on unfolded is a rank-3 operand
+   :math:`(n, p, q)`: a CSR matmul refuses it, and SciPy's ``lu_solve``
+   accepts it and solves it wrongly, because LAPACK treats leading axes as
+   a batch (`[M]` qa, 2026-11-02: a maximum relative error of 0.875). The
+   fold makes the block :math:`(n, p q)` for every action, the CSR
+   product and the LU back-substitution alike.
+#. **A carrier is posed on both ends or on neither.** The Hilbert adjoint
+   :math:`A^{*} = \sharp_V A^{\mathsf T} \flat_W` needs a Riesz leg at
+   each end, so :func:`~orpheus.numerics.operator.posed` holds exactly when
+   both ends are declared. A carrier with one end bound has a chart at that
+   end and a guessed coordinate space at the other, and its adjoint is
+   posed for neither reading; the admission refuses it, as ``posed`` would
+   refuse its ``.H``.
+
+An unposed carrier acts between its matrix's own coordinate spaces, so its
+members are 1-D: an operand of shape ``(3, 2)`` on
+:math:`\mathbb R^{6}` is refused with ``NotInCoordinateSpace`` (the
+retired carrier ravelled it and accepted it). A composite space
+(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
+:class:`~orpheus.numerics.coupled_system.CoupledSpace`) has a 1-D shape
+that is already its flat chart, so its members are the flat vectors: the
+carriers posed on composites (the diffusion resolvent's, the flattened
+views) act on flat vectors because those ARE the members. The S\ :sub:`N`
+per-ordinate blocks are built unposed by
+:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`
+and act on :math:`\mathbb R^{\text{cols}}`.
+
+The same two functions serve every carrier that holds a matrix:
+
+* :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+  admits the matrix it materialised against its inner operator's ends, and
+  its array arms are ``act_on_flat_coordinates`` from the codomain to the
+  domain (``apply``, the back-substitution) and from the domain to the
+  codomain (``apply_transpose``, the ``trans=1`` back-substitution). Its
+  unposed charts are :math:`\mathbb R^{b}` at both ends, where :math:`b`
+  is the basis shape it was materialised over (the ``unposed`` argument
+  of ``admit_matrix``). A typed operand (one with ``to_flat``) still goes
+  through the carrier seam ``_flat_of`` / ``_returned_as``, which does
+  not parse membership
+  (`#297 <https://github.com/deOliveira-R/ORPHEUS/issues/297>`_);
+* :func:`~orpheus.transport.operators.lift.embed_bulk_assembly` admits the
+  bulk emission against the composite's two interiors before it embeds it;
+* :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
+  acts on a multi-axis space through ``act_on_flat_coordinates`` with the
+  space at both ends (its private ``_on_chart`` was the first spelling of
+  this action, and is now one call to it).
+
+**What is not closed here**
+(`#692 <https://github.com/deOliveira-R/ORPHEUS/issues/692>`_). An unposed
+``SparseAssembledOperator`` acts on :math:`\mathbb R^{\text{cols}}`, and an
+unposed ``MatrixInverseOperator`` on :math:`\mathbb R^{b}` at both ends;
+the two choices are made independently, so an inverse materialised over a
+basis shape :math:`b \ne (n,)` refuses what its own inner carrier returns
+(`[M]` 2026-11-02: ``diag(1,2,3,4)`` unposed with ``basis_shape=(2, 2)``;
+0 sites construct it). And a matrix of the wrong shape is refused at
+admission, not unspellable: its shape is chosen by the emitter, not derived
+from the ends.
+
+.. dropdown:: Refuted for this question: refuse a multi-axis bound space at construction
+   :color: muted
+
+   The second option of
+   `#683 <https://github.com/deOliveira-R/ORPHEUS/issues/683>`_ was to keep
+   the flat return and declare its scope at construction: a carrier bound
+   to a space of more than one axis is refused. The structural reason it
+   fails: it does not realise the membership law, it fences the carrier
+   off from it, so every multi-axis pose (the infinite medium's
+   :math:`(n_g, 1)`, the layer-DAG Phase 2 fixture on energy
+   :math:`\otimes` point) would need a twin space without the point axis
+   before it could be assembled, and the twin is a second space for one
+   object. The user ruled for the first option on 2026-11-02, with the
+   check centralised so that the forward and the adjoint checks follow one
+   logic.
+
+.. dropdown:: First got wrong — the flat carrier contract (until #683, 2026-11-02)
+   :color: muted
+
+   The carrier was written to the "flat carrier contract" of the
+   ndarray-carrier family: ``apply`` raveled any array to
+   ``matrix.shape[1]`` and returned the 1-D CSR matvec, and the ends were
+   "passthrough metadata from the emitting operator". That convention
+   predates U1b of the space-membership campaign (merged ``1c1d8d1c``),
+   which made an element take exactly the shape of its space, and the two
+   laws collided in three places.
+
+   * **The flat return.** `[M]` 2026-11-01, the layer-DAG Phase 2
+     re-filing: bound to an energy axis of 2 groups times a point axis
+     (shape ``(2, 1)``), ``apply`` on a ``(2, 1)`` member returned shape
+     ``(2,)``, and the operator's own ``.H`` refused that output with
+     ``NotInCoordinateSpace``, because ``(2,)`` is not a member of the
+     codomain. The Phase 2 fixture side-stepped it by posing on the energy
+     axis alone; it is back on energy :math:`\otimes` point since the fix.
+   * **The admission.** `[M]` 2026-11-01, the elegance review of the same
+     landing: a ``2×2`` matrix bound to a domain of shape ``(4,)``
+     constructed; its ``apply`` then refused a member of its own domain and
+     accepted a size-2 operand that was not one. The constructor never
+     compared the matrix with its ends.
+   * **The inverse's transpose arm.** ``MatrixInverseOperator`` reshaped
+     the solution of BOTH its array arms to the stored basis shape, the
+     domain's, so ``apply_transpose``, which returns an element of the
+     codomain, returned it in the domain's shape.
+
+   The first draft of the fix handed a rank-2 payload to the action
+   unfolded, as a rank-3 block; qa found the ``lu_solve`` batching of
+   design choice 3, and the fold landed with the fix.
+
+   **Exposure.** `[M]` 2026-11-01, ``git grep`` over ``orpheus/``: 0
+   production sites acted on a posed multi-axis carrier (the S\ :sub:`N`
+   assembly constructs its carriers unposed; the functor's one production
+   caller read ``as_matrix``, never ``apply``). `[M]` 2026-11-02, a census
+   plugin wrapping the two carriers' constructor and four arms on a copy
+   of ``56b54f76``, run under ``python -O -m pytest`` over
+   ``tests/gates/{numerics, homogeneous, diffusion, transport,
+   cross_method, sn}`` and ``tests/gates/test_*.py``: 0 of 936
+   ``SparseAssembledOperator`` constructions were half-posed; of the 416
+   records under ``tests/gates/sn``, 274 constructions were admitted, 140
+   actions on unposed carriers kept their output shape, and 2 were typed
+   inverse operands the census does not compare, so 0 S\ :sub:`N`
+   behaviour changed. Over the whole run 6 actions are refused by the new
+   law: 4 in the two tests that ravelled a member by hand (now promoted to
+   member-to-member comparisons) and 2 that were refused before too (the
+   unposed size guard, re-pinned from "input size" to
+   ``NotInCoordinateSpace``).
+
+   **Gates.** ``tests/gates/numerics/test_matrix_carrier_membership.py``
+   (19 test functions, 23 collected rows, ``rests_on`` chained rung by
+   rung): a member in and a member out on energy :math:`\otimes` point;
+   the operator's own ``.H`` accepting its output; rectangular ends of
+   different and of equal coordinate dimension; the metric adjoint against
+   the pairing identity and the dense reference
+   :math:`G_V^{-1} M^{\mathsf T} G_W` (relative tolerance
+   :math:`10^{-14}`, weights on multi-point axes); the payload column by
+   column; the admission's positive leg and four refusals; the unposed
+   chart; the inverse's two arms, its payload and its metric adjoint; the
+   half-posed refusals of both carriers; the unposed inverse chart; the
+   gauge's exact displacement parse; and the folded rank-2 payload.
+   `[M]` 2026-11-02, the test-architect's battery
+   (``scratch/683/battery``, 109 rows: this file and the re-posed rows of
+   the consumers): the unmutated tree is 109 of 109 green, and each of 12
+   in-process mutations of the production tree reddens rows: the carrier
+   returning flat 14; the action parsing at the target 10; the source's
+   shape used for the result 9; the admission made a no-op 7; the payload
+   ravelled into the chart 7; the transpose arm not swapping its ends 7;
+   a half-posed carrier admitted 4; the inverse's transpose arm reshaping
+   to the domain 3; the unposed carrier ravelling its operand 3; and 1 each
+   for the gauge's displacement parsed as an action, the payload left
+   unfolded and the unposed inverse defaulting to a 1-D chart.
 
 The assembly surface
 --------------------
@@ -2333,6 +2547,26 @@ trust ``git`` over this table for merge status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-11-02
+     - **A matrix carrier acts on members of its ends** (the user's
+       ruling of 2026-11-02, option 1, the check centralised).
+       ``SparseAssembledOperator`` and ``MatrixInverseOperator`` (its array
+       arms) admit their matrix once through
+       :func:`~orpheus.numerics.space.admit_matrix`, which refuses a matrix
+       that is not ``(codomain.n_coordinates, domain.n_coordinates)`` and a
+       carrier posed on one end only, and act through
+       :func:`~orpheus.numerics.space.act_on_flat_coordinates`, the
+       transpose being the same call with the ends swapped. Retired: the
+       flat 1-D return and the "passthrough" ends, the inverse's transpose
+       arm returning in the domain's shape, and the unposed ravel of any
+       array of the right size. A rank-2 payload is folded to one column
+       axis (an unfolded one was batched by ``lu_solve``, qa). The same
+       admission serves ``embed_bulk_assembly`` and the same action the
+       kernel-projection gauge. Pinned by
+       ``tests/gates/numerics/test_matrix_carrier_membership.py``. See
+       :ref:`assembly-the-carrier`.
+     - #683
+     - *(in development)*, branch ``fix/683-assembled-operator-membership``
    * - 2026-10-21
      - **The Strategy mints the Green, and the Green owns its
        realisation** (package S4 of the numerics untangling; rulings

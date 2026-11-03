@@ -238,8 +238,8 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         instance is somebody's "full field" (interior ⊕ boundary of ONE
         system).
         """
-        n_interior = int(np.prod(interior_space.shape))
-        n_trace = int(np.prod(trace_space.shape))
+        n_interior = interior_space.n_coordinates
+        n_trace = trace_space.n_coordinates
         # The readable label: the blocks' (name, shape) folded through the
         # one content encoder (#405 P1 step 5). Identity is identity_key.
         digest = name_digest(tuple(

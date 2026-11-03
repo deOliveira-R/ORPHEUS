@@ -222,7 +222,7 @@ class PredictedKernel:
     @property
     def n_coordinates(self) -> int:
         r"""The length of the space's flat chart."""
-        return int(np.prod(self.space.shape))
+        return self.space.n_coordinates
 
     @property
     def _n(self) -> int:

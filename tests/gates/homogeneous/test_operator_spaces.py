@@ -302,6 +302,7 @@ def test_bulk_space_energy_arm_distinguishes_gridded_from_synthetic() -> None:
     )
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_matrix_carrier_membership.py::TestTheForwardArmReturnsAMember::test_energy_point_member_in_member_out")
 def test_plain_multiplier_assembles_its_own_diagonal() -> None:
     """D8, INVERTED at CS4c step 5. Until then this row pinned the plain
     multiplier's assemble REFUSAL ("no composite flat layout on a plain
@@ -309,7 +310,9 @@ def test_plain_multiplier_assembles_its_own_diagonal() -> None:
     OWN ends — the same diagonal the engine multiplies, in the domain's
     C-ravel — so the surviving claim is the emission itself:
     ``assemble().as_matrix() == diag(Σ_t)`` exactly, and its matvec IS
-    ``apply`` on a bare array of the bound shape."""
+    ``apply`` on a bare array of the bound shape. Since #683 the emission
+    acts on MEMBERS: it takes and returns the bound ``(ng, 1)`` shape, so the
+    comparison is member to member, with no ravel on either side."""
     hub = _carrier("2g")
     mat_xs = hub.mat_xs
     collision = MultiplicationOperator.from_mesh(
@@ -325,7 +328,7 @@ def test_plain_multiplier_assembles_its_own_diagonal() -> None:
     )
     x = np.arange(1.0, 1.0 + sigma_t.size).reshape(sigma_t.shape)
     _require(
-        bool(np.array_equal(emitted.apply(x.ravel()), collision.apply(x).ravel())),
+        bool(np.array_equal(emitted.apply(x), collision.apply(x))),
         "the plain emission's matvec is not the plain apply",
     )
 

@@ -27,7 +27,7 @@ import dataclasses
 import numpy as np
 import pytest
 
-from tests.gates.numerics._energy_pencil import FISSILE, EnergyPencil
+from tests.gates.numerics._energy_pencil import FISSILE, POINT, EnergyPencil
 
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.field import Field
@@ -87,8 +87,8 @@ class TestLawTheKindIsThePosingsType:
     def test_law_a_source_outcome_has_no_eigen_verbs(self) -> None:
         problem, k, phi = _zero_d()
         A = np.asarray(problem.pencil.lhs.as_matrix(), dtype=float)
-        q = np.ones(A.shape[0])
-        psi = np.linalg.solve(A, q)
+        q = np.ones(problem.space.shape)
+        psi = np.linalg.solve(A, q.ravel()).reshape(problem.space.shape)
         out = SourceOutcome(SourcePosing.of_pencil(problem.pencil, 0.0, q), psi)
         _require(out.gauge.dimension == 0, "the gauge is READ off the posing's kernel (the fixture's pencil predicts it trivial)")
         _require(not hasattr(out, "keff") and not hasattr(out, "lam") and not hasattr(out, "adjoint_posing"), "a coset has no λ and no nullary adjoint — the attributes do not exist")
@@ -197,7 +197,7 @@ class _Source(Field):
 def _partitioned_twin(space: FunctionSpace) -> FunctionSpace:
     """A space of EQUAL shape and different content (a real group partition)."""
     ng = space.shape[0]
-    return FunctionSpace.of_axes(EnergyAxis.of_edges(np.geomspace(2.0e7, 1.0e-5, ng + 1)))
+    return FunctionSpace.of_axes(EnergyAxis.of_edges(np.geomspace(2.0e7, 1.0e-5, ng + 1)), POINT)
 
 
 class TestLawTheSourceLivesOnTheOperatorsEnds:

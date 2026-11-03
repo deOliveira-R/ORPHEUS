@@ -955,6 +955,7 @@ class TestAssemblyMode:
         assert asm_delta > 1e-2, "assembly blind to the closure flip"
         assert apply_delta > 1e-2, "apply blind to the closure flip"
 
+    @pytest.mark.rests_on("tests/gates/numerics/test_matrix_carrier_membership.py::TestTheForwardArmReturnsAMember::test_energy_point_member_in_member_out")
     def test_plain_bulk_leaves_assemble_on_their_own_layout(self, mat_xs):
         """INVERTED at CS4c step 5. Until then this row pinned the plain
         bulk bindings' assemble REFUSAL ("no composite flat layout to emit
@@ -963,7 +964,10 @@ class TestAssemblyMode:
         embedding is the lift's job. Surviving claim: each plain leaf is
         assemblable and its emission's matvec reproduces its ``apply`` on
         a bare array of the bound shape (0 ULP for the diagonal, the L16
-        CSR band for the block-diagonal energy pair)."""
+        CSR band for the block-diagonal energy pair). Since #683 the
+        emission acts on MEMBERS of the bound space and returns its shape,
+        so the comparison is member to member (``assert_allclose`` refuses a
+        shape mismatch)."""
         coef = CrossSectionField.total_of(mat_xs)
         x = np.random.default_rng(3).random(coef.values.shape) + 0.5
         n = x.size
@@ -976,6 +980,6 @@ class TestAssemblyMode:
             emitted = assemble(op)
             assert emitted.shape == (n, n)
             np.testing.assert_allclose(
-                emitted.apply(x.ravel()), np.asarray(op.apply(x)).ravel(),
+                emitted.apply(x), np.asarray(op.apply(x)),
                 rtol=rtol, atol=0.0,
             )

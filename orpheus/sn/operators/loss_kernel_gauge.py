@@ -892,7 +892,7 @@ def _trace_flux_weights(problem: "SNProblem") -> NDArray:
     """
     layout = problem.angular_trace.layout
     mu = _direction_cosines(problem)
-    weights = np.zeros(int(np.prod(problem.angular_trace.shape)))
+    weights = np.zeros(problem.angular_trace.n_coordinates)
     for face_name, slot in layout.faces.items():
         axis, sign = face_normal(face_name)
         _, area = _transverse_factors(problem, axis)
@@ -930,7 +930,7 @@ def _balance_weights(problem: "SNProblem") -> NDArray:
         raise ValueError("the SN bulk metric is not diagonal (it is V_cell * w_n by construction).")
     weights = np.asarray(problem.quad.weights, dtype=float)
     layout = problem.angular_trace.layout
-    ordinate_weight = np.zeros(int(np.prod(problem.angular_trace.shape)))
+    ordinate_weight = np.zeros(problem.angular_trace.n_coordinates)
     for slot in layout.faces.values():
         ordinate_weight[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
             weights[:, *([None] * (len(slot.shape) - 1))], slot.shape).ravel()
@@ -972,7 +972,7 @@ def predicted_discretization_kernel(problem: "SNProblem") -> PredictedKernel:
     freedom = gauge_freedom(problem)
     if not freedom.present:
         return PredictedKernel.trivial(space, f"no diamond-difference kernel: {freedom.because}")
-    n_bulk = int(np.prod(space.interior_space.shape))
+    n_bulk = space.interior_space.n_coordinates
     balance = _balance_weights(problem)
     right: list[KernelSummand] = []
     left: list[KernelSummand] = []
@@ -1063,7 +1063,7 @@ def predicted_physical_kernel(problem: "SNProblem") -> PredictedKernel:
                                               "neutrons, or a face leaks)")
     interior = tuple(int(n) for n in space.interior_space.shape)
     bulk_group = np.broadcast_to(np.arange(interior[1]).reshape((1, -1) + (1,) * (len(interior) - 2)), interior).ravel()
-    trace_group = np.zeros(int(np.prod(problem.angular_trace.shape)), dtype=np.intp)
+    trace_group = np.zeros(problem.angular_trace.n_coordinates, dtype=np.intp)
     for slot in problem.angular_trace.layout.faces.values():
         trace_group[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
             np.arange(slot.shape[1])[None, :, *([None] * (len(slot.shape) - 2))], slot.shape).ravel()

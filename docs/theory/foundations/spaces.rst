@@ -3462,10 +3462,125 @@ pytest``; no ``skipif(__debug__)`` row remains under ``tests/`` since
    leading parse exact reds 85 with 26 errors. The two composite sites
    are a strict ``xfail`` (#666), with a row asserting the ``xfail`` is
    strict.
+5. ``tests/gates/numerics/test_matrix_carrier_membership.py`` (foundation, #683),
+   the flat chart of :ref:`spaces-flat-chart` on the two matrix carriers:
+   a member in and a member out, the carrier's own ``.H`` accepting its
+   output, rectangular ends, the metric adjoint against
+   :math:`G_V^{-1}[A]^{\mathsf T}G_W`, the payload column by column, the
+   admission and its refusals (half-posed included), the unposed charts and
+   the folded rank-2 payload; the detail is on :ref:`assembly-the-carrier`.
 
 The raising leg's membership (it admits a member of :math:`V^{*}` and
 refuses one of :math:`V`) is gated with the co-vector, in
 ``tests/gates/numerics/test_covector.py`` (:ref:`spaces-covector`).
+
+.. _spaces-flat-chart:
+
+The flat chart, and the matrix of a map between two spaces
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The coordinates of a member of :math:`V` are an array of shape
+:math:`s = (s_1, \dots, s_r)`, ``V.shape``. Their C-order ravel is a vector
+of :math:`\mathbb R^{n_V}` with
+
+.. math::
+
+   n_V \;=\; \prod_{k=1}^{r} s_k \;=\; \texttt{V.n\_coordinates},
+
+and the ravel :math:`\operatorname{flat}_V : \mathbb R^{s} \to
+\mathbb R^{n_V}` is the space's **flat chart**. The chart is a relabelling
+of the same numbers: no weight is applied and no basis is changed, so the
+metric is carried into the chart unchanged, and
+:math:`\langle x, y\rangle_V = (\operatorname{flat}_V x)^{\mathsf T}\,
+G\,(\operatorname{flat}_V y)` with :math:`G` the metric's matrix in the same
+ordering. :attr:`~orpheus.numerics.space.FunctionSpace.n_coordinates` is the
+coordinate dimension, the length of the chart. It is not
+:attr:`~orpheus.numerics.space.FunctionSpace.rank`, the dimension of
+:math:`V / \ker G` on which the inner product is definite
+(:ref:`spaces-quotient`); the two agree on a space with no metric, where
+``rank`` now reads ``n_coordinates``. A composite space
+(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
+:class:`~orpheus.numerics.coupled_system.CoupledSpace`) has a 1-D shape,
+the sum of its blocks' ``n_coordinates``, so its shape is already its
+flat chart and its members are flat vectors; the block slicing of both
+composites, the direct-sum action
+:func:`~orpheus.numerics.space.act_on_direct_sum_coordinates` and the
+predicted kernel's chart length read the blocks' ``n_coordinates``.
+
+**The matrix of a map.** A linear map :math:`A : V \to W` is, in the two
+flat charts, a matrix
+
+.. math::
+
+   [A] \in \mathbb R^{\,n_W \times n_V}, \qquad
+   [A]_{:, j} \;=\; \operatorname{flat}_W\bigl(A\,\operatorname{unflat}_V e_j\bigr),
+
+rows counting the codomain's coordinates and columns the domain's. This
+is the shape the matrix carriers are admitted at:
+:func:`~orpheus.numerics.space.admit_matrix` refuses a matrix that is not
+``(codomain.n_coordinates, domain.n_coordinates)``. Acting on a member is
+then three steps, read the member in the source chart, multiply, read the
+result back in the target's shape, and those three steps have one
+definition, :func:`~orpheus.numerics.space.act_on_flat_coordinates`:
+
+.. math::
+
+   x \;\mapsto\; \operatorname{unflat}_W\bigl([A]\,\operatorname{flat}_V\,x\bigr)
+   \quad\text{on } V, \qquad
+   X \;\mapsto\; \bigl(\operatorname{unflat}_W \otimes I_P\bigr)
+   \bigl([A] \otimes I_P\bigr)\bigl(\operatorname{flat}_V \otimes I_P\bigr) X
+   \quad\text{on } V \otimes P .
+
+A matrix acting on :math:`V` is an action, so the operand is parsed by
+the action verb ``leading_coordinates_of`` and a trailing payload
+:math:`P` rides through; the payload is folded into one column axis, so
+the multiply always sees an :math:`(n_V, |P|)` block, the shape on which a
+CSR product and an LU back-substitution both act column by column (a
+rank-3 block is batched over its leading axes by LAPACK and solved
+wrongly; the measurement is on :ref:`assembly-the-carrier`).
+
+**Why one definition with the ends swapped.** The Euclidean transpose
+:math:`A^{\mathsf T} : W \to V` has the matrix :math:`[A]^{\mathsf T}` in
+the same two charts, so its action is the same three steps from :math:`W`
+to :math:`V`: ``act_on_flat_coordinates(target, source, y, Mᵀ)`` is the
+forward call with its two space arguments exchanged. Written once, the
+forward arm and the transpose arm cannot disagree about which space each
+end is, because the only thing that differs between them is the
+exchange, which IS the transposition (X4 of the instrument doctrine: one
+definition per quantity). Written as two bodies, they could and did
+disagree: until #683 the inverse carrier reshaped the result of BOTH its
+arms to its domain's shape. The Hilbert adjoint then composes from the
+Riesz legs of :ref:`spaces-riesz-legs`, in the charts
+:math:`[A^{*}] = G_V^{+}\,[A]^{\mathsf T}\,G_W`, which the carrier gate
+checks against a dense reference on non-degenerate weighted spaces.
+
+**The unposed carrier is a map between coordinate spaces.** A matrix bound
+to no space still maps :math:`\mathbb R^{\text{cols}}` to
+:math:`\mathbb R^{\text{rows}}`, and those are spaces:
+:func:`~orpheus.numerics.space.coordinate_space_of` mints the Euclidean
+coordinate space :math:`\mathbb R^{s}` of a shape, and ``admit_matrix``
+gives an unposed carrier those two as its charts, so a posed and an
+unposed carrier act through one ``act_on_flat_coordinates``. The members
+of :math:`\mathbb R^{n}` are 1-D: an operand of shape ``(3, 2)`` is not a
+member of :math:`\mathbb R^{6}`, and is refused where the retired carrier
+ravelled it. A carrier may declare other unposed charts:
+:class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
+over an unposed operator acts on :math:`\mathbb R^{b}` at both ends,
+:math:`b` the basis shape it was materialised over. The two choices are
+not derived from one source, and they disagree when :math:`b \ne (n,)`
+(`#692 <https://github.com/deOliveira-R/ORPHEUS/issues/692>`_).
+
+**Half-posed is refused.** The Hilbert adjoint
+:math:`A^{*} = \sharp_V\,A^{\mathsf T}\,\flat_W` needs both Riesz legs, so
+it is posed exactly when both ends are declared spaces
+(:func:`~orpheus.numerics.operator.posed`). A matrix carrier bound at one
+end only would act between a declared space and a guessed coordinate
+space, and its adjoint would be posed under neither reading. So
+``admit_matrix`` requires both ends or neither, the same predicate
+``posed`` applies to the adjoint, and refuses the half-posed carrier when
+it is built (`[M]` 2026-11-02, the #683 census on ``56b54f76``: 0 of 936
+``SparseAssembledOperator`` constructions in the gate suites it ran (named
+on :ref:`assembly-the-carrier`) were half-posed, so the refusal moved no caller).
 
 .. _spaces-riesz-legs:
 
@@ -7577,6 +7692,25 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-11-02
+     - **The flat chart is a concept of the space** (#683). The space
+       gained :attr:`~orpheus.numerics.space.FunctionSpace.n_coordinates`,
+       the length of its C-order flat chart, and three functions beside
+       the membership parse: :func:`~orpheus.numerics.space.coordinate_space_of`
+       (the Euclidean coordinate space an unposed carrier acts on),
+       :func:`~orpheus.numerics.space.admit_matrix` (a matrix and its ends
+       parsed into two charts; a matrix is
+       ``(codomain.n_coordinates, domain.n_coordinates)``, posed on both ends
+       or on neither) and
+       :func:`~orpheus.numerics.space.act_on_flat_coordinates` (one action,
+       parsed at the source's action verb, a payload folded into one column
+       axis, the result in the target's exact shape; the transpose is the
+       same call with the ends swapped). The hand-spelled
+       ``int(np.prod(space.shape))`` of the composites, the direct-sum
+       action, the predicted kernel and the S\ :sub:`N` gauge weights read
+       ``n_coordinates`` (:ref:`spaces-flat-chart`).
+     - #683
+     - *(in development)*, branch ``fix/683-assembled-operator-membership``
    * - 2026-10-30
      - **One parse at the domain; every extension named** (unit U1b of
        ``.claude/plans/space_membership_covector_gauge.md``). Membership is

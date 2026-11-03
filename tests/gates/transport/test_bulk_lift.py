@@ -295,7 +295,8 @@ class TestAssemblyEmbed:
     def test_a_bulk_of_the_wrong_size_is_refused(self, mesh):
         space = scalar_full_field_space(mesh)
         bulk = sparse.coo_array(sparse.eye_array(3))
-        with pytest.raises(ValueError, match="not bound on the composite's interiors"):
+        # The refusal is the one matrix admission (#683), against the interiors.
+        with pytest.raises(ValueError, match=r"embed_bulk_assembly: a 3×3 matrix does not map .* which needs 8×8"):
             embed_bulk_assembly(bulk, domain=space, codomain=space)
 
     def test_lift_assemble_acts_as_lift_apply_on_the_flat(self, mesh):

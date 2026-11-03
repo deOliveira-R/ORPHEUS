@@ -9,14 +9,17 @@ objects only; it imports nothing from ``data``, ``mesh``, ``transport``,
 The pencil :math:`(A, F)` is the infinite-medium multigroup pencil spelled in
 the operator algebra without the transport vocabulary:
 
-* the space is the energy axis alone, ``FunctionSpace.of_axes(EnergyAxis.synthetic(ng))``
-  (shape ``(ng,)``), or a deliberately WEIGHTED toy axis where a law must see
-  the metric. The homogeneous pose's ``Energy ⊗ point`` (shape ``(ng, 1)``) is
-  NOT reproduced: since U1b every action parses its operand at its domain, and
-  ``SparseAssembledOperator`` on the two-axis space returns ``(ng,)`` for an
-  ``(ng, 1)`` operand, which its own ``.H`` then refuses (``[M]`` 2026-11-01,
-  ``specs_2r/proto/probe_fixture.py``). The point factor carries nothing the
-  pencil, posing, gauge and outcome laws read;
+* the space is ``Energy ⊗ point``, ``FunctionSpace.of_axes(EnergyAxis.synthetic(ng), POINT)``
+  (shape ``(ng, 1)``), the homogeneous pose's own spelling, or a deliberately
+  WEIGHTED toy group axis ⊗ point where a law must see the metric. Until #683
+  the fixture was posed on the energy axis alone, because
+  ``SparseAssembledOperator`` returned the flat ``(ng,)`` matvec for an
+  ``(ng, 1)`` member, which its own ``.H`` then refused; since #683 a bound
+  matrix carrier acts on members of its spaces and returns its codomain's
+  shape (``tests/gates/numerics/test_matrix_carrier_membership.py``). The
+  point factor is rank 1, so its weight is a scalar that no law here can see:
+  it is carried for the membership law (every operand takes the ``(ng, 1)``
+  shape), not for the metric;
 * :math:`A = C - S`, the collision diagonal minus a lower-triangular
   (down-scatter) transfer matrix — a NON-symmetric, non-normal loss (the
   regime the homogeneous fixture carried);
@@ -32,7 +35,7 @@ the operator algebra without the transport vocabulary:
 The data are refused at the mint (:class:`GroupData`) unless they are a legal infinite medium whose loss is
 lower-triangular with a positive diagonal, and the pencil is refused on a space that is not the data's group space.
 
-The carrier is the ``(ng,)`` vector, the exact shape of the space (an element
+The carrier is the ``(ng, 1)`` array, the exact shape of the space (an element
 takes the exact shape since U1b). The rate functionals are co-vectors,
 ``space.flat(w)`` (:class:`~orpheus.numerics.space.Covector`, the member of
 :math:`V^*` minted by the Riesz lowering), and the gauge reads their
@@ -136,16 +139,21 @@ def two_spectra(ng: int) -> GroupData:
     return GroupData(d.sigma_t, d.transfer, (d.spectra[0], chi2), (d.productions[0], nu2))
 
 
+#: The quotient point: the infinite medium has no mesh, so the spatial factor
+#: is the one-cell counting axis, declared (the homogeneous pose's spelling).
+POINT = Axis("spatial", (1,), origin=Declared(BasisKind.NODAL))
+
+
 def energy_space(ng: int) -> FunctionSpace:
-    """The energy axis under the counting metric (a synthetic group structure)."""
-    return FunctionSpace.of_axes(EnergyAxis.synthetic(ng))
+    """Energy ⊗ the quotient point under the counting metric (a synthetic group structure), shape ``(ng, 1)``."""
+    return FunctionSpace.of_axes(EnergyAxis.synthetic(ng), POINT)
 
 
 def weighted_space(weights: np.ndarray) -> FunctionSpace:
     """A deliberately non-physical toy: a WEIGHTED group axis, so ``.H`` must
-    read a non-scalar Gram (the 0-D counting pose cannot see a metric error)."""
+    read a non-scalar Gram (the 0-D counting pose cannot see a metric error); ⊗ point, shape ``(ng, 1)``."""
     w = np.asarray(weights, dtype=float)
-    return FunctionSpace.of_axes(Axis("weighted-group", (w.shape[0],), w, origin=Declared(BasisKind.NODAL)))
+    return FunctionSpace.of_axes(Axis("weighted-group", (w.shape[0],), w, origin=Declared(BasisKind.NODAL)), POINT)
 
 
 def bound(matrix: np.ndarray, space: FunctionSpace) -> SparseAssembledOperator:
@@ -161,7 +169,7 @@ class EnergyPencil:
     space: FunctionSpace
 
     def __post_init__(self) -> None:
-        if self.space.shape != (self.data.ng,):
+        if self.space.shape != (self.data.ng, 1):
             raise ValueError(f"EnergyPencil: the space {self.space!r} is not the {self.data.ng}-group space of the data")
 
     @classmethod
@@ -214,12 +222,12 @@ class EnergyPencil:
     @cached_property
     def production_covector(self) -> Covector:
         r""":math:`\flat\,\nu\Sigma_f`, the member of :math:`V^*` pairing to :math:`\langle\nu\Sigma_f, \cdot\rangle_V`."""
-        return self.space.flat(sum(self.data.productions, np.zeros(self.data.ng)))
+        return self.space.flat(sum(self.data.productions, np.zeros(self.data.ng)).reshape(self.space.shape))
 
     @cached_property
     def absorption_covector(self) -> Covector:
         r""":math:`\flat\,\Sigma_a`."""
-        return self.space.flat(self.data.sigma_a)
+        return self.space.flat(self.data.sigma_a.reshape(self.space.shape))
 
     @property
     def production_rate(self) -> Callable[[np.ndarray], float]:
@@ -245,9 +253,9 @@ class EnergyPencil:
 
     @cached_property
     def exact_pair(self) -> tuple[float, np.ndarray]:
-        """(k, φ): the dominant eigenpair of A⁻¹F, φ summing to +1."""
+        """(k, φ): the dominant eigenpair of A⁻¹F, φ summing to +1, a member of the space (shape ``(ng, 1)``)."""
         A, F = self.matrices
         w, V = np.linalg.eig(np.linalg.solve(A, F))
         i = int(np.argmax(np.real(w)))
         phi = np.real(V[:, i])
-        return float(np.real(w[i])), phi / phi.sum()
+        return float(np.real(w[i])), (phi / phi.sum()).reshape(self.space.shape)
