@@ -524,6 +524,23 @@ def _read_kept_set(name: str) -> tuple[Any, ...] | None:
     return _KEPT_SETS_READ[name]
 
 
+#: The name sets built in this process, by name, kept for the reason ``_KEPT_SETS_READ`` keeps the set: every
+#: statement pin of every validation asks for one, and building the set again on each ask was 88 % of a hit's
+#: validation (`[M]` 2026-11-02, a ``group_transport`` hit of 431 pins: 94 ms a lookup, 11 ms with the set kept).
+_KEPT_NAMES_READ: dict[str, frozenset[str]] = {}
+
+
+def _read_kept_names(name: str) -> frozenset[str] | None:
+    """The set kept under ``name``, as a set of entry names; ``None`` as :func:`_read_kept_set` (a miss is not
+    remembered)."""
+    if name not in _KEPT_NAMES_READ:
+        kept = _read_kept_set(name)
+        if kept is None:
+            return None
+        _KEPT_NAMES_READ[name] = frozenset(kept)
+    return _KEPT_NAMES_READ[name]
+
+
 #: Where each import outcome lives, by the digest of what it was measured on.
 _IMPORT_OUTCOMES = Path(CACHE) / "import_outcomes"
 #: The program that measures an import outcome, in a fresh interpreter: it imports each module of the set by its
@@ -944,9 +961,8 @@ class _Checkout:
         return _read_kept_set(name)
 
     def names(self, name: str) -> frozenset[str] | None:
-        """The entry names kept under ``name``."""
-        kept = self.kept(name)
-        return None if kept is None else frozenset(kept)
+        """The entry names kept under ``name`` (``_read_kept_names``)."""
+        return _read_kept_names(name)
 
 
 

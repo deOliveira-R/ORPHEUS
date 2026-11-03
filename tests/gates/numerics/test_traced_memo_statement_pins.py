@@ -470,6 +470,28 @@ def test_a_kept_set_missing_once_is_read_when_it_appears_and_a_corrupt_one_is_re
     assert memo._read_kept_set(other_name) == tuple(other), "K2: a corrupt set file was not rewritten"
 
 
+def test_a_kept_name_set_is_built_once_per_process_and_a_miss_is_not_remembered(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The name set a statement pin asks for is built once per process: two validations' checkouts are served the
+    same set object (building it on every ask made a warm hit's validation 94 ms where it is 11 ms, `[M]`
+    2026-11-02). A miss is not remembered, as K1 above. Reddening mutations: build the frozenset on every call
+    (the identity fails); remember a miss (the later read fails)."""
+    from orpheus.numerics import traced_memo as memo
+
+    monkeypatch.setattr(memo, "_KEPT_SETS", tmp_path / "sets")
+    monkeypatch.setattr(memo, "_KEPT_SETS_READ", {})
+    monkeypatch.setattr(memo, "_KEPT_NAMES_READ", {})
+    value = ["kappa_a", "kappa_b"]
+    name = memo._digest(json.dumps(value, separators=(",", ":")).encode())
+    store = memo.Store(tmp_path / "store")
+    first, second = memo._Checkout(store), memo._Checkout(store)
+    assert first.names(name) is None, "a name set never kept was read"
+    memo._keep_set(value)
+    names = first.names(name)
+    assert names == frozenset(value), "a name set missing once stays missing in this process"
+    assert second.names(name) is names, "the name set was built again for another validation"
+
+
 def test_the_blas_tag_is_pinned_by_its_def_and_by_the_statement_it_reads() -> None:
     """qa's final F3. The BLAS name keys an entry (``platform_tag``); it is extracted by ``_blas``, a def recorded on
     every call, from ``_NUMPY_BUILD_CONFIG``, the module statement that caches numpy's build configuration and that
