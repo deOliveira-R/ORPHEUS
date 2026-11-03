@@ -51,7 +51,7 @@ When the artefact is a rule, a skill, a page or a plan, resolve every clause int
 
 ## 5. The verdict
 
-- Stamp `git rev-parse --short HEAD` at the start and the end of the review; re-run each finding as a predicate before writing the verdict, and report separately any finding another agent fixed meanwhile.
+- Stamp `git rev-parse --short HEAD` at the start and the end of the review, and, for an uncommitted tree, `git diff | shasum` beside it: HEAD does not move while the working tree does. Re-run each finding as a predicate before writing the verdict, and report separately any finding another agent fixed meanwhile.
 - Calibrate the demand to the claim: an over-demand is a review defect exactly as an under-demand is.
 - When the claim the review turns on is unmeasured and the measurement is within reach, run it and report the number. "Unverified" where a probe was affordable is under-delivery.
 - Report everything and let the parent filter; name each finding's evidence level and, for an attack that landed, its class (NUMERICAL, ARCHITECTURAL, BOTH). A rejected hypothesis carries its structural reason.
