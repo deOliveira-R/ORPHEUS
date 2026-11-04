@@ -67,20 +67,30 @@ def _names(pin) -> frozenset[str]:
     return frozenset(traced_memo._read_kept_set(pin.names) or ())
 
 
-def _misses(store, alone, test: str) -> list:
-    """The alone rows the store's cone does not contain. A ``StatementsPin`` (B2, #689) is contained when the store
-    holds one for the same file whose entry names include the alone run's: the selection is monotone in the names,
-    so the store then observes every statement the alone run observes (its rows differ whenever the names differ,
-    so row identity would read a larger cone as a miss). Every other pin is contained by identity."""
+def _observed(repo: Path, path: str, names: frozenset[str]) -> frozenset[int]:
+    """The import-time statements of ``path`` (relative to ``repo``, as it reads now) that a run with entry
+    names ``names`` observes: the selection a ``StatementsPin`` projects (``_import_time.observed_digests``)."""
+    from orpheus.numerics import _import_time, traced_memo
+
+    return frozenset(_import_time.selection(traced_memo._source_index((repo / path).read_bytes()).statements, names))
+
+
+def _misses(store, alone, test: str, repo: Path = REPO) -> list:
+    """The alone rows the store's cone does not contain, for a store captured over ``repo``. A ``StatementsPin`` (B2, #689) is contained when the store
+    holds one for the same file whose observed statements include every statement the alone run observes there. The
+    entry names are one set per run, over every file, so the alone run's names may hold a name the store's lack that
+    binds nothing in this file (``[M]`` 2026-11-03: two T3 runs read such a name set as a miss, the pre-fix tree's
+    included, while the alone run's projection equalled the store's in 10 of 10 printed pins); comparing the names
+    read that as a miss, comparing the observed statements does not. Every other pin is contained by identity."""
     held = set(store.pins(test))
-    statements: dict[str, frozenset[str]] = {}
+    names: dict[str, frozenset[str]] = {}
     for pin in held:
         if type(pin).__name__ == "StatementsPin":
-            statements[pin.path] = statements.get(pin.path, frozenset()) | _names(pin)
+            names[pin.path] = names.get(pin.path, frozenset()) | _names(pin)
     missed = []
     for pin in alone.pins(test):
         if type(pin).__name__ == "StatementsPin":
-            if pin.path not in statements or not _names(pin) <= statements[pin.path]:
+            if pin.path not in names or not _observed(repo, pin.path, _names(pin)) <= _observed(repo, pin.path, names[pin.path]):
                 missed.append(pin)
         elif pin not in held:
             missed.append(pin)
@@ -115,7 +125,7 @@ def test_t1_every_fixture_cone_contains_its_alone_cone(fixture_pair) -> None:
     base, alone = fixture_pair
     store = base.store
     assert set(alone.tests()) == BASE_IDS | MEMO_IDS
-    misses = {t: _misses(store, alone, t) for t in alone.tests()}
+    misses = {t: _misses(store, alone, t, base.root) for t in alone.tests()}
     assert not any(misses.values()), {t: m for t, m in misses.items() if m}
     print({t: _excess(store, alone, t) for t in sorted(alone.tests())})
 
@@ -177,8 +187,9 @@ def test_t4_the_fork_and_the_alone_run_give_the_same_outcomes_on_the_sample(real
 
 @pytest.mark.slow
 def test_t3_round_2s_sample_n_contains_its_alone_cones(tmp_path: Path) -> None:
-    """T3. Round 2's sample N, 200 tests, at the grain round 2 omitted (module code, ``tests/``, reads): 0 misses.
-    Budget about 4 min."""
+    """T3. Round 2's sample N, 200 tests, at the grain round 2 omitted (module code, ``tests/``, reads): 0 misses
+    (:func:`_misses`). The activation leg: some alone pin observes a statement by name, beyond those every run
+    observes by effect, so a store that lost names would read as a miss. Budget about 45 min."""
     store_path, alone_path = tmp_path / "store.sqlite", tmp_path / "alone.sqlite"
     _real_cli("capture", store_path, *T3_FILES, timeout=600)
     store = cone.open_store(store_path)
@@ -187,6 +198,9 @@ def test_t3_round_2s_sample_n_contains_its_alone_cones(tmp_path: Path) -> None:
     for test in tests:
         _real_cli("capture", alone_path, "--route", "fresh", test, timeout=120)
     alone = cone.open_store(alone_path)
+    by_name = sum(1 for t in tests for pin in alone.pins(t) if type(pin).__name__ == "StatementsPin"
+                  and _observed(REPO, pin.path, _names(pin)) - _observed(REPO, pin.path, frozenset()))
+    assert by_name, "no alone pin observes a statement by name: the statement leg of the predicate cannot fire"
     misses = {t: _misses(store, alone, t) for t in tests}
     assert not any(misses.values()), {t: m[:10] for t, m in misses.items() if m}
 
