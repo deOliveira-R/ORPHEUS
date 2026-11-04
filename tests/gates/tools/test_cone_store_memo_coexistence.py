@@ -56,7 +56,7 @@ def test_m3_collect_pins_returns_every_refusal_and_manifest_raises_the_first(tmp
     assert os.path.realpath(changed.path) == os.path.realpath(seen), changed
     assert str(process).startswith(f"the run started a process ({process.program}) whose own reads and children no recording sees")
     assert str(changed) == f"{changed.path}: the run observed it and then changed it, so no state of it pins the answer"
-    defs = {p.qualname for p in collected.pins if isinstance(p, traced_memo.DefPin)}
+    defs = {p.qualname for p in collected.ran if isinstance(p, traced_memo.DefPin)}
     assert "_two_refusals" in defs, sorted(defs)
     with pytest.raises(traced_memo.Unpinnable) as raised:
         traced_memo._manifest(recording, store)
@@ -106,7 +106,7 @@ def test_m3_a_source_the_run_deleted_is_a_refusal_never_raised(tmp_path: Path) -
     collected = traced_memo.collect_pins(recording, store)
     gone = [r for r in collected.refusals if isinstance(r, traced_memo.SourceGone)]
     assert [os.path.realpath(r.path) for r in gone] == [os.path.realpath(module)], collected.refusals
-    defs = {p.qualname for p in collected.pins if isinstance(p, traced_memo.DefPin)}
+    defs = {p.qualname for p in collected.ran if isinstance(p, traced_memo.DefPin)}
     assert "_run_and_delete" in defs, sorted(defs)
     with pytest.raises(traced_memo.Unpinnable) as raised:
         traced_memo._manifest(recording, store)

@@ -753,23 +753,29 @@ def test_a_child_read_from_another_store_is_pinned_by_what_its_entry_depended_on
     (``[M]`` 2026-11-03, B3 acceptance X1.3: 70 of 229 tests selected with no edit). Dropping the pin would lose
     the generated body, which ran in a generating process the run's recording never saw. The child is pinned by
     the pins its lookup validated it on, its children's flattened in (``Hit.pins``): the DefPins of ``outer`` and of
-    ``inner``, at the real paths the read found them. Against the store the entry lives in, the ``ChildPin`` stays
-    (the positive leg)."""
+    ``inner``, at the real paths the read found them. They are pins the run reaches through the read
+    (``through_reads``), never pins of what the run ran (``pins``): the generating process ran them, and the cone
+    store's own cone, which placement reads, holds what the test ran. Against the store the entry lives in, the
+    ``ChildPin`` stays (the positive leg)."""
     package = make(**_NESTED)
     recording, own = _recorded_reads(package, tmp_path)
     memo = api.module()
     collected = memo.collect_pins(recording, memo.Store(tmp_path / "collecting"))
     if collected.refusals:
         pytest.fail(f"the foreign child was refused: {collected.refusals}")
-    children = [pin for pin in collected.pins if isinstance(pin, memo.ChildPin)]
+    children = [pin for pin in collected.every if isinstance(pin, memo.ChildPin)]
     if children:
         pytest.fail(f"a child of another store is pinned as a ChildPin, judged against the wrong store: {children}")
-    defs = {(pin.path, pin.qualname) for pin in collected.pins if isinstance(pin, memo.DefPin)}
+    defs = {(pin.path, pin.qualname) for pin in collected.through_reads if isinstance(pin, memo.DefPin)}
+    ran = {(pin.path, pin.qualname) for pin in collected.ran if isinstance(pin, memo.DefPin)}
     for module, qualname in (("m", "outer"), ("n", "inner")):
-        if (os.path.realpath(package.dir / f"{module}.py"), qualname) not in defs:
-            pytest.fail(f"the generated {qualname} is not among the run's pins: {sorted(defs)}")
+        generated = (os.path.realpath(package.dir / f"{module}.py"), qualname)
+        if generated not in defs:
+            pytest.fail(f"the generated {qualname} is not among the pins reached through the read: {sorted(defs)}")
+        if generated in ran:
+            pytest.fail(f"the generated {qualname}, which the generating process ran, is among the run's own pins")
     same = memo.collect_pins(recording, memo.Store(own))
-    if not [pin for pin in same.pins if isinstance(pin, memo.ChildPin) and pin.function_id.endswith(":outer")]:
+    if not [pin for pin in same.ran if isinstance(pin, memo.ChildPin) and pin.function_id.endswith(":outer")]:
         pytest.fail("against its own store, the child read is not a ChildPin (the positive leg)")
 
 
@@ -784,7 +790,7 @@ def test_a_child_of_another_store_is_pinned_by_what_was_validated_when_it_was_re
         entry.unlink()
     memo = api.module()
     collected = memo.collect_pins(recording, memo.Store(tmp_path / "collecting"))
-    defs = {(pin.path, pin.qualname) for pin in collected.pins if isinstance(pin, memo.DefPin)}
+    defs = {(pin.path, pin.qualname) for pin in collected.through_reads if isinstance(pin, memo.DefPin)}
     if collected.refusals or (os.path.realpath(package.dir / "n.py"), "inner") not in defs:
         pytest.fail(f"with the entries gone, the child's pins were lost: {collected.refusals}, {sorted(defs)}")
 
@@ -801,14 +807,14 @@ def test_a_foreign_childs_pins_are_placed_where_the_read_found_them(make, tmp_pa
     package.close()
     memo = api.module()
     collected = memo.collect_pins(recording, memo.Store(tmp_path / "collecting"))
-    relative = [pin for pin in collected.pins if isinstance(pin, (memo.DefPin, memo.StatementsPin))
+    relative = [pin for pin in collected.through_reads if isinstance(pin, (memo.DefPin, memo.StatementsPin))
                 and package.name in pin.path and not os.path.isabs(pin.path)]
     if relative:
         pytest.fail(f"a foreign child's source pins are left relative to a sys.path entry that is gone: {relative}")
-    if reasons := memo.validate(memo.Manifest(collected.pins)):
+    if reasons := memo.validate(memo.Manifest(collected.every)):
         pytest.fail(f"with no edit, the collected pins are stale: {reasons}")
     package.edit("return x * 5.0", "return x * 6.0", module="n")
-    if not memo.validate(memo.Manifest(collected.pins)):
+    if not memo.validate(memo.Manifest(collected.every)):
         pytest.fail("an edit to the child's generator left the collected pins valid: they were dropped")
 
 

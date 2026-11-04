@@ -275,7 +275,11 @@ relative, the child's ``ImportOutcomePin`` re-measured its rows with no root
 and read stale with no edit); a source no entry holds a file at any more is
 the refusal ``SourceGone``, never a pin dropped in silence; the cone is then
 unknown, since which ``sys.path`` entry held the file, and so whether it was
-the repository's, cannot be told once it is gone (qa, 2026-11-03). The pins are then kept and dropped like the run's own,
+the repository's, cannot be told once it is gone (qa, 2026-11-03). The pins are then kept and dropped like the run's own
+in the selection cone, and are kept out of the own cone unless the test's run ran them too: the generating
+process ran them (``CollectedPins.through_reads``; ``cone_of`` returns the two cones as ``ReadCones``; `[M]` 2026-11-04, the numerics re-capture: with them in the own
+cone, 70 of the layer's readers were homed in ``convergence`` by import-time defs of the generation, such as
+``IterationBudget.__post_init__``, where their own runs home them in ``traced_memo``),
 and a file only the child's generation read gets its identity recorded like
 any other (qa, 2026-11-03: it was recorded as missing, which turned off
 stage one for it). Gate
@@ -1166,7 +1170,11 @@ then, so their import-time code is in neither cone. The worker removes its
 own module's code objects from each recording before reading it (above,
 "The capture's own code is in no cone"), and each recording is read by the
 same ``cone_of`` and kept by the same rules
-(:ref:`verification-cone-store-reading`). Two cones of one child name a def
+(:ref:`verification-cone-store-reading`), which returns both cones of the
+recording (``ReadCones``): the own cone is the ``ran`` cone of the own
+recording, without the pins the run holds only through a memo entry read
+from another store, which another process ran; a pin the run ran itself
+stays, whatever entry also holds it. Two cones of one child name a def
 by the same ``DefPin`` row, but not a module by the same ``StatementsPin``
 or ``ImportOutcomePin`` row: a statement pin is a projection on the entry
 names of the run that recorded it, the own run's entry names are fewer, and
@@ -2197,7 +2205,7 @@ named ``orpheus`` so the editable install cannot shadow it):
 
 The gates, ``tests/gates/tools/test_cone_store_*.py``, every one
 ``foundation`` (`[M]` 2026-11-04, ``python -O -m pytest --collect-only`` over
-the 10 files: 128 ids, and 0 of them left by ``-m "not foundation"``; 4 of them carry
+the 10 files: 129 ids, and 0 of them left by ``-m "not foundation"``; 4 of them carry
 ``slow``, M1, T3, SG4 and SG9, none parametrised; and the recorder's
 apparatus gate beside them, ``tests/gates/numerics/test_traced_memo_apparatus.py``,
 21 ids by the same command):
@@ -2224,7 +2232,7 @@ apparatus gate beside them, ``tests/gates/numerics/test_traced_memo_apparatus.py
        not depend on module order (C6); the in-suite monitor's blindness to
        a fill is asserted, not assumed (H1)
    * - ``test_cone_store_selection.py``
-     - S1 to S23, P1 to P3
+     - S1 to S24, P1 to P3
      - ``select``'s rule, the three controls, the environment key per
        component (S5, S6), the shadow pins (S12), a new conftest selects
        every test (S13, S19), the ini bytes (S14), a collection error (S15),
@@ -2233,7 +2241,9 @@ apparatus gate beside them, ``tests/gates/numerics/test_traced_memo_apparatus.py
        ``pytest_ignore_collect`` stays recorded (S20), a ``pytest11`` entry
        point under an unchanged version (S21), ``PYTEST_PLUGINS`` (S22), a
        reader of its own memo store selected by an edit to the generated
-       code and by nothing else (S23, ERR-125)
+       code and by nothing else, its own cone without the generation's
+       defs (S23, ERR-125), and a def such a reader also ran itself kept in
+       its own cone (S24)
    * - ``test_cone_store_freshness.py``
      - F1 to F6
      - the two stages, by a spy on the files opened and the source indexes
@@ -2554,6 +2564,18 @@ History
        statements they observe (the Gotchas).
      - #358
      - ``b65674fc``, ``f78085d8``
+   * - 2026-11-04
+     - **The numerics re-capture: X1.3 met, and an own cone that held
+       another process's defs.** A no-edit ``select`` at ``f78085d8`` listed
+       150 of the layer's 5 808 tests, its 148 cone-unknown and 2 not passed,
+       with nothing stale. Placement then moved 70 tests, exactly the
+       readers of a store under their own ``tmp_path``, from ``traced_memo``
+       to ``convergence``: the pins of a foreign child had entered the own
+       cone. They are now ``CollectedPins.through_reads``, in the selection
+       cone and out of the own cone unless the run ran them too
+       (``ReadCones``); S23's own leg, and S24 for a def both ran.
+     - #358
+     - the commit "fix(cone-store): an own cone holds only what its run ran"
    * - 2026-11-03
      - **Increment B3: two cones per test, and placement.** The own cone (a
        second ``Recording`` around the test's protocol, table

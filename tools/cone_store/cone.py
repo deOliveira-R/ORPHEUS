@@ -9,7 +9,9 @@ made and read back).
 
 Kept: defs and the observed import-time statements of first-party code (a source under the repository that is not
 the interpreter's or a distribution's; one projection per module, on the run's entry names), the run's import outcome, data, presence and listing pins of paths under the repository, memo children read from the memo's store, distributions. A memo entry read from another store (a test's own ``cache_root``) arrives as the pins its entry was validated on,
-children flattened in and placed where the read found them (``collect_pins``), kept and dropped like the run's own. The listing of
+children flattened in and placed where the read found them (``collect_pins``), kept and dropped like the run's own;
+those pins are in the selection cone and kept out of the run's own cone (:class:`ReadCones`) unless the run ran them too,
+since another process ran them. The listing of
 the directory of every first-party module that ran, and of every ``sys.path`` entry under the repository, is added
 beside the recorded ones: the import system's own stats and listings are not recorded (they are how a module is
 found), so a new module or package that would shadow an imported one is seen only through those directories.
@@ -24,7 +26,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, NamedTuple
 
 from tools.cone_store import pins as pin_rows
 from tools.cone_store.plan import Config, pycache_dir
@@ -81,8 +83,19 @@ class Reading:
         return os.path.relpath(real, self.repo)
 
 
-def cone_of(recording: Any, store: Any, config: Config, memo: ModuleType, boot: ModuleType) -> Cone:
-    """The cone of a recording that has been stopped. ``store`` is the memo's ``Store`` (children live there).
+class ReadCones(NamedTuple):
+    """One recording read as two cones. ``ran`` holds what the run did: the code it ran, what it read, probed and
+    listed. ``selection`` holds also what the run depends on only through a memo entry it read from another store
+    (``CollectedPins.through_reads``), which the generating process ran: ``select`` judges a test by its selection
+    cone, ``place`` homes it by its own, which is the ``ran`` cone of the own recording. Both carry the same unknown
+    reasons."""
+
+    ran: Cone
+    selection: Cone
+
+
+def cone_of(recording: Any, store: Any, config: Config, memo: ModuleType, boot: ModuleType) -> ReadCones:
+    """The cones of a recording that has been stopped. ``store`` is the memo's ``Store`` (children live there).
     A file's identity is settled when it was last written more than ``TRUSTED_AGE_NS`` before ``config.since_ns``,
     the capture's start, through the memo's own :class:`Witness`."""
     reading = Reading(config.repo)
@@ -121,18 +134,19 @@ def cone_of(recording: Any, store: Any, config: Config, memo: ModuleType, boot: 
                 real = memo._real(pin.path)
                 return reading.relative(real) if reading.kept(real) and not reading.tool_owned(real) else None
 
-    kept: list[Any] = []
-    for pin in collected.pins:
+    def for_store(pin: Any) -> Any:
         match pin:
             case memo.InterpreterPin() | memo.EnvironmentPin() | memo.WorkingDirectoryPin() | memo.MemoPin():
-                continue
+                return None
             case memo.ImportOutcomePin():
-                kept.append(pin_rows.relocated_rows(pin, row_to_store))
+                return pin_rows.relocated_rows(pin, row_to_store)
             case _:
-                if (moved := pin_rows.relocated(pin, to_store)) is not None:
-                    kept.append(moved)
-    kept += [pin_rows.relocated(pin, to_store) for pin in shadow_pins(code_files, reading, memo, boot)]
-    pins = tuple(sorted({pin for pin in kept if pin is not None}, key=pin_rows.encode))
+                return pin_rows.relocated(pin, to_store)
+
+    ran = {for_store(pin) for pin in [*collected.ran, *shadow_pins(code_files, reading, memo, boot)]} - {None}
+    # a pin the run ran and a read's entry also holds is the run's: relocation spells the two alike
+    through_reads = {for_store(pin) for pin in collected.through_reads} - {None} - ran
+    pins = tuple(sorted(ran | through_reads, key=pin_rows.encode))
     judged = {pin_rows.file_of(pin) for pin in pins}
     # A file only a child read from another store names (its generation read it, the run did not): its state is taken
     # now, after the generation read it; the state carries the digest it was taken on, so a change in between is a
@@ -145,7 +159,10 @@ def cone_of(recording: Any, store: Any, config: Config, memo: ModuleType, boot: 
     unknown = [reason for refusal in collected.refusals
                if (reason := _unknown(refusal, memo, reading, real_of)) is not None]
     unknown += _changed_during_capture(files, config)
-    return Cone(pins, files, tuple(unknown))
+    own_pins = tuple(pin for pin in pins if pin in ran)
+    own_judged = {pin_rows.file_of(pin) for pin in own_pins}
+    return ReadCones(Cone(own_pins, {path: state for path, state in files.items() if path in own_judged}, tuple(unknown)),
+                     Cone(pins, files, tuple(unknown)))
 
 
 def shadow_pins(code_files: set[str], reading: Reading, memo: ModuleType, boot: ModuleType) -> list[Any]:

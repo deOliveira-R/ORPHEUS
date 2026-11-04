@@ -1270,11 +1270,22 @@ def _unchanged_by_the_run(recording: Recording, kind: Observation, path: str, se
 
 
 class CollectedPins(NamedTuple):
-    """A recorded run read as pins, with every refusal kept as a reason instead of raised: the pins of what could
-    be pinned, and, in the order the run's events are read, why each other dependency could not."""
+    """A recorded run read as pins, with every refusal kept as a reason instead of raised: the pins of what the run
+    did (``ran``: what it ran, read, probed and listed, and the ``ChildPin`` of each entry it read from the collecting
+    store), the pins it depends on through the entries it read from another store (``through_reads``: what those
+    entries were validated on, ``Hit.pins``, placed where the read found them; the generating process ran them, and
+    the run may have run some of them too, so the two sets can meet), and, in the order the run's events are read,
+    why each other dependency could not be pinned. A manifest and a selection cone hold both (:attr:`every`); what
+    the run did is ``ran``."""
 
-    pins: frozenset[Pin]
+    ran: frozenset[Pin]
     refusals: tuple[PinRefusal, ...]
+    through_reads: frozenset[Pin]
+
+    @property
+    def every(self) -> frozenset[Pin]:
+        """Every pin the run depends on: its own and those it reaches through a read."""
+        return self.ran | self.through_reads
 
 
 def collect_pins(recording: Recording, store: Store) -> CollectedPins:
@@ -1296,13 +1307,14 @@ def collect_pins(recording: Recording, store: Store) -> CollectedPins:
     running = _RUNNING_MEMO_DIGEST if _RUNNING_MEMO_DIGEST is not None else _memo_digest()
     pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(running), EnvironmentPin(_environment_digest(recording.environment))}
     pins |= {pin for program in recording.spawned if (pin := pinned(lambda: _program_pin(program))) is not None}
+    through_reads: set[Pin] = set()
     for child in recording.children:  # a child of another store is pinned by its entry's pins (``Hit.pins``)
         if child.root == _real(str(store.root)):
             pins.add(ChildPin(child.function_id, child.key, child.payload_digest))
         else:
             for entry_pin in child.pins:
                 if (placed := pinned(lambda: _as_read(entry_pin, child))) is not None:
-                    pins.add(placed)
+                    through_reads.add(placed)
     checkout = _Checkout(store)
     by_file: dict[str, list[types.CodeType]] = {}
     imported: list[str] = []  # first-party files whose module code started, in the order it started
@@ -1377,7 +1389,7 @@ def collect_pins(recording: Recording, store: Store) -> CollectedPins:
             pins.add(ListingPin(listed, seen))
     if recording.relative:
         pins.add(WorkingDirectoryPin(recording.directory))
-    return CollectedPins(frozenset(pins), tuple(refusals))
+    return CollectedPins(frozenset(pins), tuple(refusals), frozenset(through_reads))
 
 
 #: The outcome recorded when a file the run imported no longer holds the bytes it ran from: no measurement on disk
@@ -1452,7 +1464,7 @@ def _manifest(recording: Recording, store: Store) -> Manifest:
     collected = collect_pins(recording, store)
     if collected.refusals:
         raise Unpinnable(collected.refusals[0])
-    return Manifest(collected.pins)
+    return Manifest(collected.every)
 
 
 def _distribution_pin(checkout: _Checkout, name: str) -> DistributionPin:

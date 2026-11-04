@@ -219,7 +219,8 @@ _MEMO: dict[str, str] = {
 
 #: A test that reads a memo entry from a store of its own under ``tmp_path`` (the traced memo's own gates do), whose
 #: generation imports a module the test's process never imports (B3 acceptance X1.3, 2026-11-03: 70 such readers were
-#: selected on every ``select``, their ``ChildPin`` judged against the default store).
+#: selected on every ``select``, their ``ChildPin`` judged against the default store). The second test also runs the
+#: generated ``_deep_body`` in its own process, so its own cone holds that def although the read's entry holds it too.
 _OWN_STORE: dict[str, str] = {
     "pkg/deep.py": """
         def _deep_body(n):
@@ -243,6 +244,13 @@ _OWN_STORE: dict[str, str] = {
         def test_own_store(tmp_path):
             with cache_root(tmp_path / "own"):
                 assert own_oracle(4) == 1.0
+
+
+        def test_own_store_and_its_generator(tmp_path):
+            from pkg.deep import _deep_body
+
+            with cache_root(tmp_path / "own"):
+                assert own_oracle(4) == _deep_body(4)
     """,
 }
 

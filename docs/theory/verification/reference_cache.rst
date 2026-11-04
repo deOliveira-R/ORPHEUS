@@ -1356,15 +1356,22 @@ Refusals are values: ``collect_pins``
 -------------------------------------
 
 :func:`~orpheus.numerics.traced_memo.collect_pins` reads a stopped recording as pins and returns a
-:class:`~orpheus.numerics.traced_memo.CollectedPins`: the frozen set of pins of everything that could be pinned,
-and a tuple of :class:`~orpheus.numerics.traced_memo.PinRefusal` values, one for each dependency no pin can name, in
-the order the recording's events are read. Every helper that can refuse (``origin``, the distribution pin, the
+:class:`~orpheus.numerics.traced_memo.CollectedPins`: the frozen set of pins of what the run did (``pins``: the code
+it ran, the files it read, probed and listed, and the ``ChildPin`` of each entry it read from the collecting store),
+named ``ran``; the frozen set of pins it depends on through an entry it read from another store (``through_reads``:
+what that entry was validated on, placed where the read found it, run by the generating process; the run may have
+run some of them too, so the two sets can meet); and a tuple of :class:`~orpheus.numerics.traced_memo.PinRefusal` values, one for each dependency no pin can
+name, in the order the recording's events are read. A manifest and the cone store's selection cone hold the union
+(``CollectedPins.every``); the cone store's own cone, which placement reads as what the test ran, holds ``ran``
+alone (`[M]` 2026-11-04: with the two folded together, the numerics layer's 70 readers of a store under their own
+``tmp_path`` were placed by defs only their generating process ran, 70 of them moved from ``traced_memo`` to
+``convergence``). Every helper that can refuse (``origin``, the distribution pin, the
 compiled bytes of a source, the def pin, the program pin, the changed-by-the-run check, the import set's naming and
 its measured outcome) is called through one local
 wrapper, ``pinned``, which turns an :class:`~orpheus.numerics.traced_memo.Unpinnable` into an entry of the tuple and
 skips that one dependency, so one refusal does not lose the other pins. The manifest is the policy on top:
 ``_manifest`` raises ``Unpinnable(refusals[0])`` when the tuple is not empty and otherwise returns
-``Manifest(pins)``, because a generation's answer may be served only when everything it depended on is pinned. With
+``Manifest(every)``, because a generation's answer may be served only when everything it depended on is pinned. With
 no refusal the two readings agree: `[M]` qa's review of the cone store's first increment, 2026-11-01, one real
 recording (a first-party import, a read, a probe, a listing), 71 pins equal to the manifest of the code before the
 split, under three hash seeds.

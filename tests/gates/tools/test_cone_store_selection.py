@@ -353,13 +353,21 @@ def test_s23_a_reader_of_its_own_stores_entry_is_selected_by_the_generated_code_
     (``[M]`` 2026-11-03, B3 acceptance X1.3: 70 such readers selected with no edit). An edit to ``_deep_body``
     selects it (the generated code is held, not dropped with the child), resolved through ``sys.path`` since no
     code of ``pkg/deep.py`` ran in the test's process; that file's identity is recorded (qa F3: it was written as
-    missing, disabling stage one for it). First reds: the ``ChildPin`` (no-edit leg), a cone that drops the pins of
-    files its own process never ran (edit leg), and the missing state (qa F3)."""
+    missing, disabling stage one for it). Its OWN cone, which placement reads, holds no def of ``pkg/deep.py``: the
+    generating process ran it, the test's did not (``[M]`` 2026-11-04, the numerics re-capture: 70 such readers
+    homed by defs their own process never ran). First reds: the ``ChildPin`` (no-edit leg), a cone that drops the
+    pins of files its own process never ran (edit leg), the missing state (qa F3), and an own cone that keeps the
+    pins reached through the read (own leg)."""
     root = capture_base(tmp_path / "tree", own_store=True).root
     own = "tests/test_own.py::test_own_store"
     pins = store_of(root).pins(own)
     if children := [pin for pin in pins if type(pin).__name__ == "ChildPin"]:
         pytest.fail(f"the reader of its own store holds a ChildPin: {children}")
+    generated = [pin for pin in pins if type(pin).__name__ == "DefPin" and pin.path == "pkg/deep.py"]
+    if not generated:
+        pytest.fail("the selection cone holds no def of pkg/deep.py, which the generation ran")
+    if ran := [pin for pin in store_of(root).own_pins(own) if getattr(pin, "path", None) == "pkg/deep.py"]:
+        pytest.fail(f"the own cone holds pins of pkg/deep.py, which only the generating process ran: {ran}")
     deep = store_of(root).identities().get("pkg/deep.py")
     if deep is None or deep.ident is None or deep.digest is None:
         pytest.fail(f"pkg/deep.py, read only by the generation, is recorded without its identity: {deep}")
@@ -367,4 +375,19 @@ def test_s23_a_reader_of_its_own_stores_entry_is_selected_by_the_generated_code_
     assert selected == BASELINE, f"extra {sorted(selected - BASELINE)}"
     edit(root, "pkg/deep.py", "return float(n) * 0.25", "return float(n) * 0.25 + 0.0")
     selected, _ = select(root)
-    assert selected == BASELINE | {own}, f"got {sorted(selected)}"
+    assert selected == BASELINE | {own, f"{own}_and_its_generator"}, f"got {sorted(selected)}"
+
+
+def test_s24_a_def_the_reader_ran_itself_stays_in_its_own_cone(tmp_path: Path) -> None:
+    """S24. ``test_own_store_and_its_generator`` reads ``own_oracle(4)`` from its own store, whose entry holds the def
+    of ``_deep_body``, and calls ``_deep_body`` itself. The pins held only through the read are kept out of the own
+    cone (S23); one the run ran is the run's, whatever entry also holds it, so ``_deep_body`` is in the own cone.
+    First red (qa, 2026-11-04): ``cone_of`` keeping out every pin a foreign read's entry holds, the run's own
+    included, which no other gate reddens (the placement fixture reads no foreign store)."""
+    root = capture_base(tmp_path / "tree", own_store=True).root
+    both = "tests/test_own.py::test_own_store_and_its_generator"
+    defs = {(pin.path, pin.qualname) for pin in store_of(root).own_pins(both) if type(pin).__name__ == "DefPin"}
+    if ("pkg/deep.py", "_deep_body") not in defs:
+        pytest.fail(f"the own cone lost _deep_body, which the test ran: {sorted(defs)}")
+    if ("pkg/own_oracle.py", "own_oracle") in defs:
+        pytest.fail("the own cone holds own_oracle's body, which only the generating process ran")

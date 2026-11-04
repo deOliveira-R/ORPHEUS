@@ -284,7 +284,9 @@ class Recorded(Worker):
 
     def run(self, item: Any, route: str) -> None:
         """Pytest's own protocol for ``item`` under a second recording (the test's own cone), then both recordings
-        read as cones: the own one after the inherited one stopped, so the reading's imports are in neither."""
+        read as cones: the own one after the inherited one stopped, so the reading's imports are in neither. The own
+        cone is what the own run did (:class:`~tools.cone_store.cone.ReadCones`): a memo entry the test read from
+        another store is in the selection cone by the pins it was validated on, which another process ran."""
         self.reports.clear()
         protocol = self.recorded_call(item.ihook.pytest_runtest_protocol)
         own = self.boot.Recording().start()
@@ -296,17 +298,17 @@ class Recorded(Worker):
             "skipped" if any(r.skipped for r in self.reports) else "passed"
         selection = self.read()
         self.write(item.nodeid, route, outcome, selection.to_json(self.memo),
-                   own=self.cone_of(own).to_json(self.memo))
+                   own=self.cone_of(own).ran.to_json(self.memo))
 
     def read(self) -> Any:
-        """The recording, stopped, read as a cone. The modules that read the cone are imported only now, after the
+        """The recording, stopped, read as its selection cone. The modules that read the cone are imported only now, after the
         recording stopped (imported during it, their import-time statements were pinned in every cone). A test of
         the cone store imports them itself, recorded."""
         self.recording.stop()
-        return self.cone_of(self.recording)
+        return self.cone_of(self.recording).selection
 
     def cone_of(self, recording: Any) -> Any:
-        """A stopped recording read as a cone. The capture's own code is not the test's: this module runs in every
+        """A stopped recording read as its two cones. The capture's own code is not the test's: this module runs in every
         capture and in no full run, so its code objects are removed before the reading (`[M]` 2026-11-02, a capture
         of ``tests/gates/test_layer_imports.py``: six of its defs were pinned in each of 533 cones)."""
         mine = Recorded.cone_of.__code__.co_filename
