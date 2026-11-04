@@ -832,8 +832,17 @@ kind and is parsed once, in ``Manifest.from_json``.
      - The same relative path naming another file from another directory.
      - qa finding 5; the starting directory from finding r7.
    * - :class:`~orpheus.numerics.traced_memo.ChildPin`
-     - A memo entry the run read, by its function id, its key and the
-       digest of the payload it served.
+     - A memo entry the run read from the store its pins are collected
+       for, by its function id, its key and the digest of the payload it
+       served. An entry read from another store is pinned instead by the
+       pins its lookup validated it on, children flattened in
+       (``Hit.pins``, recorded with the read as a
+       :class:`~orpheus.numerics._traced_memo_boot.ReadChild`), since a
+       ``ChildPin`` is judged against the collecting store. No production
+       generation enters another store (`[M]` 2026-11-03: 0 calls of
+       ``cache_root`` under ``orpheus/`` outside its definition), so this
+       arises for the cone store's capture of tests that use their own
+       store (:ref:`verification-cone-store`).
      - A child entry that went stale, or was regenerated with another
        answer.
      - The design (recursive validation).
@@ -1177,7 +1186,13 @@ suite). A real name added, removed or renamed still moves the digest. Gate
 ``tests/gates/numerics/test_traced_memo_listing_ignores_bytecode.py``
 creates ``__pycache__`` (the digest must not move), then adds a module (the
 activation leg: it must); the test-architect's battery arm that empties
-``_LISTING_IGNORED`` reddens it. The price is a limit of the generator contract
+``_LISTING_IGNORED`` reddens it. A directory whose own name is ignored is
+not observed at all: a walk of a tree (``os.walk``, ``Path.rglob``) lists
+each ``__pycache__`` it enters, and that listing changes whenever bytecode
+is written (`[M]` 2026-11-03, the cone store's B3 acceptance: 10 source-walking
+tests re-selected by a ``select`` with no edit). The same gate file walks a
+directory holding ``__pycache__`` and asserts the walked directory's listing
+is recorded and the cache's is not. The price is a limit of the generator contract
 (:ref:`verification-reference-cache-contract`): a run whose answer depends
 on whether ``__pycache__`` exists is not served correctly after one appears.
 
@@ -3805,10 +3820,11 @@ the fourth in the cone store's review of 2026-11-01):
   (:ref:`verification-reference-cache-manifest`, "Directory listings"), so
   a generator whose answer depends on whether one exists (a census of a
   directory's subdirectories that does not filter it) is outside the
-  contract: it is served the answer computed before the cache appeared.
-  qa measured such a census on 2026-11-01; the four directory censuses in
-  the tree then all filter ``__pycache__`` (the comment above
-  ``_LISTING_IGNORED`` in :mod:`orpheus.numerics._traced_memo_boot`).
+  contract: it is served the answer computed before the cache appeared,
+  and the same for one that depends on what the cache holds. `[M]`
+  2026-11-01 (qa): the four directory censuses in the tree filtered
+  ``__pycache__`` then (the comment above ``_LISTING_IGNORED`` in
+  :mod:`orpheus.numerics._traced_memo_boot`).
 
 
 .. _verification-reference-cache-unseen:

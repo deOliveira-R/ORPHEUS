@@ -49,7 +49,7 @@ import threading
 import time
 import types
 from collections.abc import Callable
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 #: The recordings active in this process, innermost last; every event is offered to each of them.
 _ACTIVE: list["Recording"] = []
@@ -249,10 +249,12 @@ def file_digest(path: str, witness: Witness | None = None) -> str:
 
 #: Names a directory listing leaves out: the interpreter's bytecode cache, an artefact of having imported. Without it,
 #: any run that writes bytecode would move the listing of every package directory it imported from (the cone store's
-#: capture, 2026-11-01: a plain pytest run re-selected the whole suite). An accepted limit, part of the generator
-#: contract: a run whose answer depends on whether ``__pycache__`` exists (a census of subdirectories that does not
-#: filter it) is not served correctly after one appears. qa measured such a census (2026-11-01); the four directory
-#: censuses of the tree read then all filter it.
+#: capture, 2026-11-01: a plain pytest run re-selected the whole suite). A directory of such a name is not an input
+#: either: :data:`LISTING` does not observe it, since its own names change whenever bytecode is written (``[M]``
+#: 2026-11-03, the B3 acceptance: a walk of the source tree recorded each ``__pycache__`` it entered, and 10 tests
+#: were re-selected with no edit). An accepted limit, part of the generator contract: a run whose answer depends on
+#: whether ``__pycache__`` exists, or on what it holds, is not served correctly after it changes. ``[M]`` 2026-11-01
+#: (qa): the four directory censuses of the tree filtered it then.
 _LISTING_IGNORED = frozenset({"__pycache__"})
 
 
@@ -267,18 +269,21 @@ def listing_digest(path: str, witness: Witness | None = None) -> str:
 
 class Observation(NamedTuple):
     """One kind of input: the :class:`Recording` field that maps each path to what the run saw there, what is
-    seen at a path, and whether the run's own writes change what is seen there."""
+    seen at a path, whether the run's own writes change what is seen there, and the names of the paths that are
+    not inputs of this kind."""
 
     field: str
     observe: Callable[[str], str]
     changed_by: Callable[[str, set[str]], bool]
+    ignored_names: frozenset[str] = frozenset()
 
 
 #: A file's bytes, a path's presence, a directory's names. A write into a directory changes its names.
 CONTENT = Observation("opened", file_digest, lambda path, written: path in written)
 PRESENCE = Observation("probed", presence, lambda path, written: path in written)
 LISTING = Observation("listed", listing_digest,
-                      lambda path, written: path in written or any(os.path.dirname(w) == path for w in written))
+                      lambda path, written: path in written or any(os.path.dirname(w) == path for w in written),
+                      _LISTING_IGNORED)
 
 
 @_apparatus
@@ -286,7 +291,7 @@ def _observe(kind: Observation, raw: object) -> None:
     """An input the run touched, observed at its first touch (the module docstring). A path the run has already
     written is its own output and is not observed."""
     found = _path(raw)
-    if found is None:
+    if found is None or os.path.basename(found[0]) in kind.ignored_names:
         return
     path, relative = found
     seen: str | None = None
@@ -405,7 +410,8 @@ class Recording:
         self.relative = False
         self.directory = os.getcwd()
         self.environment: dict[str, str] = dict(os.environ)
-        self.children: set[tuple[str, str, str]] = set()
+        #: Each memo entry the run read (:class:`ReadChild`).
+        self.children: set[ReadChild] = set()
         #: The bytes each first-party module was compiled from, by real path, when the pinned-source loader
         #: is installed (a generating process); ``None`` in a process without it (``trace_call``). The
         #: process's record, not the run's: every recording of the process shares it.
@@ -480,8 +486,24 @@ class Recording:
                 os.stat, os.lstat = _STAT["stat"], _STAT["lstat"]
 
 
+class ReadChild(NamedTuple):
+    """A memo entry a run read: the real path of its store's root, its function id, its key, the digest of the payload
+    it served, the pins it was validated on with its children's flattened in (the memo's ``Hit.pins``), and the
+    ``sys.path`` and working directory of the read, against which those pins' source paths resolve. The memo pins it
+    by reference when its store is the one collecting the run's pins, and by ``pins`` otherwise (a store under a
+    test's ``tmp_path`` is gone by the time the reference would be judged)."""
+
+    root: str
+    function_id: str
+    key: str
+    payload_digest: str
+    pins: frozenset[Any]
+    search: tuple[str, ...]
+    directory: str
+
+
 @_apparatus
-def note_child(child: tuple[str, str, str]) -> None:
+def note_child(child: ReadChild) -> None:
     """A memo entry a run read: every active recording pins it."""
     for recording in list(_ACTIVE):
         recording.children.add(child)

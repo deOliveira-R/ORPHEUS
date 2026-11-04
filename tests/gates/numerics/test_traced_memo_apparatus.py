@@ -93,6 +93,10 @@ _NESTED = {key for _, code in _traced_memo_boot._APPARATUS for key in _nest(code
 _DECLARED = sorted(_traced_memo_boot._APPARATUS - _NESTED, key=lambda key: key[1].co_qualname)
 
 
+#: The memo entry :func:`_nested_run` notes as read.
+_CHILD = _traced_memo_boot.ReadChild("/apparatus-store", "apparatus", "child", "digest", frozenset(), (), "/")
+
+
 def _nested_run(tmp_path) -> tuple[_traced_memo_boot.Recording, _traced_memo_boot.Recording]:
     """An outer recording around an inner one that starts and stops, as the cone store's worker nests a test's own
     recording inside the inherited one, with every hook path taken inside both: a ``stat`` probe, a read, a write,
@@ -113,7 +117,7 @@ def _nested_run(tmp_path) -> tuple[_traced_memo_boot.Recording, _traced_memo_boo
             written.write_text("y")
             os.listdir(tmp_path)
             subprocess.run([sys.executable, "-c", ""], check=True)
-            boot.note_child(("apparatus", "child", "digest"))
+            boot.note_child(_CHILD)
             with boot.spawning():
                 pass
             with boot.unrecorded():
@@ -147,7 +151,7 @@ def test_a_nested_recording_records_no_apparatus_on_any_hook_path(tmp_path):
         missing = [field for field, fired in (
             ("probed", read in recording.probed), ("opened", read in recording.opened),
             ("written", written in recording.written), ("listed", str(tmp_path) in recording.listed),
-            ("spawned", bool(recording.spawned)), ("children", ("apparatus", "child", "digest") in recording.children))
+            ("spawned", bool(recording.spawned)), ("children", _CHILD in recording.children))
             if not fired]
         if missing:
             pytest.fail(f"the {name} recording saw no {missing}: the run does not reach those hook paths")

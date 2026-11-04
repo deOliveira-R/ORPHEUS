@@ -99,7 +99,7 @@ import numpy as np
 
 from orpheus.numerics import _import_time, _traced_memo_boot
 from orpheus.numerics._traced_memo_boot import (
-    CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child,
+    CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child, ReadChild,
     spawning, unrecorded, write_atomically,
 )
 from orpheus.values import content as _content
@@ -937,6 +937,8 @@ class _Checkout:
         #: bytes that identity was taken on, and, for a file that is not the repository's, the kept digest itself
         #: (#691: such a row is measured only when the set is).
         self.vouched = vouched
+        #: The pins of each child this validation found valid, flattened (``Hit.pins``).
+        self.children: dict[ChildPin, frozenset[Pin]] = {}
 
     def text(self, path: str) -> bytes | None:
         if path not in self._texts:
@@ -963,6 +965,13 @@ class _Checkout:
     def names(self, name: str) -> frozenset[str] | None:
         """The entry names kept under ``name`` (``_read_kept_names``)."""
         return _read_kept_names(name)
+
+    def flattened(self, manifest: Manifest) -> frozenset[Pin]:
+        """``manifest``'s pins with each child replaced by the pins of the entry this checkout validated for it: what
+        the entry depends on, through its children, naming no store. Called after a validation with no reason, so
+        every child has been judged valid here."""
+        own = {pin for pin in manifest.pins if not isinstance(pin, ChildPin)}
+        return frozenset(own.union(*(self.children[child] for child in manifest.children)))
 
 
 
@@ -1145,7 +1154,9 @@ class WorkingDirectoryPin(NamedTuple):
 
 
 class ChildPin(NamedTuple):
-    """A memo entry the run read, hit or generated, by its key and the digest of the payload it served."""
+    """A memo entry the run read, hit or generated, by its key and the digest of the payload it served. It names no
+    store: it is judged against the store its manifest is validated with, so :func:`collect_pins` pins a child read
+    from another store by the entry's own pins instead (``Hit.pins``)."""
 
     function_id: str
     key: str
@@ -1157,6 +1168,7 @@ class ChildPin(NamedTuple):
             return f"child {self.function_id}/{self.key[:12]}: {verdict}"
         if verdict.payload_digest != self.payload_digest:
             return f"child {self.function_id}/{self.key[:12]}: its payload {self.payload_digest[:12]} became {verdict.payload_digest[:12]}"
+        checkout.children[self] = verdict.pins
         return None
 
 
@@ -1284,7 +1296,13 @@ def collect_pins(recording: Recording, store: Store) -> CollectedPins:
     running = _RUNNING_MEMO_DIGEST if _RUNNING_MEMO_DIGEST is not None else _memo_digest()
     pins: set[Pin] = {InterpreterPin(_python_identity()), MemoPin(running), EnvironmentPin(_environment_digest(recording.environment))}
     pins |= {pin for program in recording.spawned if (pin := pinned(lambda: _program_pin(program))) is not None}
-    pins |= {ChildPin(*child) for child in recording.children}
+    for child in recording.children:  # a child of another store is pinned by its entry's pins (``Hit.pins``)
+        if child.root == _real(str(store.root)):
+            pins.add(ChildPin(child.function_id, child.key, child.payload_digest))
+        else:
+            for entry_pin in child.pins:
+                if (placed := pinned(lambda: _as_read(entry_pin, child))) is not None:
+                    pins.add(placed)
     checkout = _Checkout(store)
     by_file: dict[str, list[types.CodeType]] = {}
     imported: list[str] = []  # first-party files whose module code started, in the order it started
@@ -1395,6 +1413,39 @@ def _measured_import_outcome(rows: Mapping[str, tuple[str, str, str]]) -> str:
     return outcome.digest
 
 
+def _as_read(pin: Pin, child: ReadChild) -> Pin:
+    """``pin``, of a child read from another store, with each source path relative to ``sys.path`` replaced by the real
+    file it names under the ``sys.path`` of the read (``child.search``, ``child.directory``). The pins are relative to
+    the generating process's ``sys.path``, which was the reader's, and an entry the reader put there (a test's package
+    under ``tmp_path``) may be gone by the time they are collected (qa, 2026-11-03). A path no entry holds a file at
+    any more is :class:`SourceGone`: the code that ran can no longer be named, never a pin silently dropped."""
+    def located(path: str) -> str:
+        if os.path.isabs(path):
+            return path
+        found = next((c for c in _source_candidates(path, child.search, child.directory) if os.path.isfile(c)), None)
+        if found is None:
+            raise Unpinnable(SourceGone(path))
+        return _real(found)
+
+    match pin:
+        case DefPin() | StatementsPin():
+            return pin._replace(path=located(pin.path))
+        case ImportOutcomePin():
+            return _relocated_rows(pin, located)
+        case _:
+            return pin
+
+
+def _relocated_rows(pin: ImportOutcomePin, path: Callable[[str], str]) -> ImportOutcomePin:
+    """``pin`` with each row's path replaced by ``path(row path)``, kept again as a set (``_keep_set`` names a set by
+    its content). The outcome is the measurement's and does not move: it is a function of each module's dotted name
+    and bytes, which the rows keep. A set that is not kept is returned as it is (the pin judges it stale)."""
+    rows = _read_kept_set(pin.modules)
+    if rows is None:
+        return pin
+    return pin._replace(modules=_keep_set([[path(row_path), digest, name] for row_path, digest, name in rows]))
+
+
 def _manifest(recording: Recording, store: Store) -> Manifest:
     """The manifest of a recorded run: its :func:`collect_pins`, refused whole when any dependency could not be
     pinned (a generation's answer is served only when everything it depended on is pinned)."""
@@ -1441,7 +1492,10 @@ def _program_pin(program: str) -> DataPin:
 
 def validate(manifest: Manifest, store: Store | None = None) -> tuple[str, ...]:
     """Every reason ``manifest`` no longer describes the checkout (empty: it does). Imports and runs nothing."""
-    checkout = _Checkout(store if store is not None else Store.current())
+    return _reasons(manifest, _Checkout(store if store is not None else Store.current()))
+
+
+def _reasons(manifest: Manifest, checkout: _Checkout) -> tuple[str, ...]:
     ordered = sorted(manifest.pins, key=lambda pin: (type(pin).__name__, tuple(pin)))
     return tuple(reason for pin in ordered if (reason := pin.stale(checkout)) is not None)
 
@@ -1570,11 +1624,14 @@ def _payload_digest(tree: Any, arrays: Mapping[str, np.ndarray]) -> str:
 @dataclasses.dataclass(frozen=True)
 class Hit:
     """A valid entry: the digest of its payload, its tree and its arrays, as verified (qa finding 7: the value
-    served is the one the digest was checked on, never a second read)."""
+    served is the one the digest was checked on, never a second read), and the pins it was validated on, each child
+    replaced by its own entry's (:meth:`_Checkout.flattened`): what the served value depends on, with no store named,
+    so a reader whose pins are collected for another store pins the entry by them (:func:`collect_pins`)."""
 
     payload_digest: str
     tree: Any
     arrays: Mapping[str, np.ndarray]
+    pins: frozenset[Pin]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1639,9 +1696,10 @@ class Store:
             manifest = Manifest.from_json(entry["manifest"])
         except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:
             return Corrupt(f"{type(error).__name__}: {error}")
-        if reasons := validate(manifest, self):
+        checkout = _Checkout(self)
+        if reasons := _reasons(manifest, checkout):
             return Stale(reasons)
-        return Hit(entry["payload_digest"], entry["payload"], arrays)
+        return Hit(entry["payload_digest"], entry["payload"], arrays, checkout.flattened(manifest))
 
     def write(self, function_id: str, key: str, manifest: Manifest, value: Any, allowed: set[str]) -> None:
         """Write the entry to a temporary file beside it, then move it into place with one ``os.replace``: a
@@ -2019,7 +2077,8 @@ class TracedMemo(Generic[P, R]):
             verdict = store.lookup(self.function_id, key)
             if not isinstance(verdict, Hit):
                 raise RuntimeError(f"traced_memo: the entry just generated for {self.function_id} does not validate: {verdict}")
-        note_child((self.function_id, key, verdict.payload_digest))
+        note_child(ReadChild(_real(str(store.root)), self.function_id, key, verdict.payload_digest, verdict.pins,
+                             tuple(sys.path), os.getcwd()))
         return decode_payload(verdict.tree, verdict.arrays, self.returned_types)
 
     def _generate(self, job: _Job) -> None:

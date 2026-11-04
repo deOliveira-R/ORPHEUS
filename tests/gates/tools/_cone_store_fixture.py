@@ -217,6 +217,35 @@ _MEMO: dict[str, str] = {
     """,
 }
 
+#: A test that reads a memo entry from a store of its own under ``tmp_path`` (the traced memo's own gates do), whose
+#: generation imports a module the test's process never imports (B3 acceptance X1.3, 2026-11-03: 70 such readers were
+#: selected on every ``select``, their ``ChildPin`` judged against the default store).
+_OWN_STORE: dict[str, str] = {
+    "pkg/deep.py": """
+        def _deep_body(n):
+            return float(n) * 0.25
+    """,
+    "pkg/own_oracle.py": """
+        from orpheus.numerics.traced_memo import traced_memo
+
+
+        @traced_memo
+        def own_oracle(n: int) -> float:
+            from pkg.deep import _deep_body
+
+            return _deep_body(n)
+    """,
+    "tests/test_own.py": """
+        from orpheus.numerics.traced_memo import cache_root
+        from pkg.own_oracle import own_oracle
+
+
+        def test_own_store(tmp_path):
+            with cache_root(tmp_path / "own"):
+                assert own_oracle(4) == 1.0
+    """,
+}
+
 _SPAWNERS: dict[str, str] = {
     "tests/test_spawn.py": """
         import multiprocessing
@@ -581,7 +610,7 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
           thread_at_module: bool = False, unmeasured_platform: bool = False, reads_source: bool = False,
           subdir: bool = False, read_rewrite: bool = False, race: bool = False, offpath: bool = False,
           user_ignore: bool = False, localplug: bool = False, phases: bool = False, placement: bool = False,
-          age: bool = True) -> Path:
+          own_store: bool = False, age: bool = True) -> Path:
     """Write the fixture tree under ``root`` and return it; ``age`` waits until every file's identity is
     settled, so a capture taken next records settled identities (spec F1)."""
     files = dict(_BASE)
@@ -607,6 +636,8 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
         files |= _PHASES
     if placement:
         files |= _PLACEMENT
+    if own_store:
+        files |= _OWN_STORE
     conftest = textwrap.dedent(files["tests/conftest.py"])
     if thread_at_conftest:
         conftest += _THREAD_LINES

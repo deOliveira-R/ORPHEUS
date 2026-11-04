@@ -344,3 +344,27 @@ def test_s22_pytest_plugins_in_the_environment_selects_everything(tmp_path: Path
     capture(root)
     selected, _ = select(root, PYTEST_PLUGINS="localplug_mod")
     assert BASE_IDS <= selected, f"missing {sorted(BASE_IDS - selected)}"
+
+
+def test_s23_a_reader_of_its_own_stores_entry_is_selected_by_the_generated_code_only(tmp_path: Path) -> None:
+    """S23. ``test_own_store`` reads ``own_oracle(4)`` from a store under its ``tmp_path``; the generation imports
+    ``pkg.deep``, which the test's process never imports. With no edit it is not selected: its child is pinned by
+    the entry's own pins, not by a ``ChildPin`` judged against the default store, where the entry is absent
+    (``[M]`` 2026-11-03, B3 acceptance X1.3: 70 such readers selected with no edit). An edit to ``_deep_body``
+    selects it (the generated code is held, not dropped with the child), resolved through ``sys.path`` since no
+    code of ``pkg/deep.py`` ran in the test's process; that file's identity is recorded (qa F3: it was written as
+    missing, disabling stage one for it). First reds: the ``ChildPin`` (no-edit leg), a cone that drops the pins of
+    files its own process never ran (edit leg), and the missing state (qa F3)."""
+    root = capture_base(tmp_path / "tree", own_store=True).root
+    own = "tests/test_own.py::test_own_store"
+    pins = store_of(root).pins(own)
+    if children := [pin for pin in pins if type(pin).__name__ == "ChildPin"]:
+        pytest.fail(f"the reader of its own store holds a ChildPin: {children}")
+    deep = store_of(root).identities().get("pkg/deep.py")
+    if deep is None or deep.ident is None or deep.digest is None:
+        pytest.fail(f"pkg/deep.py, read only by the generation, is recorded without its identity: {deep}")
+    selected, _ = select(root)
+    assert selected == BASELINE, f"extra {sorted(selected - BASELINE)}"
+    edit(root, "pkg/deep.py", "return float(n) * 0.25", "return float(n) * 0.25 + 0.0")
+    selected, _ = select(root)
+    assert selected == BASELINE | {own}, f"got {sorted(selected)}"

@@ -684,7 +684,7 @@ recording as pins with every refusal kept as a value
    :no-value:
 
 .. automodule:: orpheus.numerics._traced_memo_boot
-   :members: Recording, note_child, spawning, main, template, FORK_MEASURED,
+   :members: Recording, ReadChild, note_child, spawning, main, template, FORK_MEASURED,
       FileIdentity, Witness, Kept, TRUSTED_AGE_NS, file_digest, listing_digest,
       fork_blockers
 

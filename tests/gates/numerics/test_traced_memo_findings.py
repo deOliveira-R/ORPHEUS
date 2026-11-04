@@ -715,6 +715,113 @@ def test_a_parent_does_not_pin_its_childs_sources_as_data(make, tmp_path):
     assert _kind(m.outer.lookup(2.0)) == "Hit"
 
 
+
+def _recorded_reads(package, tmp_path):
+    """``outer(2.0)`` read under a recording, from the store the ``make`` fixture pushes (``tmp_path/cache``): the
+    recording, and the root of that store. ``outer`` calls ``inner``, a memo of the same package, so its entry holds
+    a child of its own."""
+    m = package.module()
+    recording = api.module().Recording().start()
+    try:
+        assert m.outer(2.0) == 11.0
+    finally:
+        recording.stop()
+    return recording, tmp_path / "cache"
+
+
+_NESTED = dict(m='''
+    from orpheus.numerics.traced_memo import traced_memo
+    from .n import inner
+
+    @traced_memo
+    def outer(x: float) -> float:
+        return inner(x) + 1.0
+''', n='''
+    from orpheus.numerics.traced_memo import traced_memo
+
+    @traced_memo
+    def inner(x: float) -> float:
+        return x * 5.0
+''')
+
+
+def test_a_child_read_from_another_store_is_pinned_by_what_its_entry_depended_on(make, tmp_path):
+    """A memo entry the run read from a store other than the one collecting its pins (a test's own ``cache_root``
+    under ``tmp_path``, collected by the cone store against the default store): a ``ChildPin`` would be judged
+    against the collecting store, where the entry is absent, so the reader was re-selected on every ``select``
+    (``[M]`` 2026-11-03, B3 acceptance X1.3: 70 of 229 tests selected with no edit). Dropping the pin would lose
+    the generated body, which ran in a generating process the run's recording never saw. The child is pinned by
+    the pins its lookup validated it on, its children's flattened in (``Hit.pins``): the DefPins of ``outer`` and of
+    ``inner``, at the real paths the read found them. Against the store the entry lives in, the ``ChildPin`` stays
+    (the positive leg)."""
+    package = make(**_NESTED)
+    recording, own = _recorded_reads(package, tmp_path)
+    memo = api.module()
+    collected = memo.collect_pins(recording, memo.Store(tmp_path / "collecting"))
+    if collected.refusals:
+        pytest.fail(f"the foreign child was refused: {collected.refusals}")
+    children = [pin for pin in collected.pins if isinstance(pin, memo.ChildPin)]
+    if children:
+        pytest.fail(f"a child of another store is pinned as a ChildPin, judged against the wrong store: {children}")
+    defs = {(pin.path, pin.qualname) for pin in collected.pins if isinstance(pin, memo.DefPin)}
+    for module, qualname in (("m", "outer"), ("n", "inner")):
+        if (os.path.realpath(package.dir / f"{module}.py"), qualname) not in defs:
+            pytest.fail(f"the generated {qualname} is not among the run's pins: {sorted(defs)}")
+    same = memo.collect_pins(recording, memo.Store(own))
+    if not [pin for pin in same.pins if isinstance(pin, memo.ChildPin) and pin.function_id.endswith(":outer")]:
+        pytest.fail("against its own store, the child read is not a ChildPin (the positive leg)")
+
+
+def test_a_child_of_another_store_is_pinned_by_what_was_validated_when_it_was_read(make, tmp_path):
+    """The foreign child's pins are the ones its lookup validated when the run read it (``Hit.pins``), recorded with
+    the read: an entry gone by the time the pins are collected (a store under ``tmp_path`` removed, an entry
+    rewritten) loses nothing, and nothing reads the store again."""
+    package = make(**_NESTED)
+    recording, own = _recorded_reads(package, tmp_path)
+    for entry in api.entry_files(own):
+        entry.unlink()
+    memo = api.module()
+    collected = memo.collect_pins(recording, memo.Store(tmp_path / "collecting"))
+    defs = {(pin.path, pin.qualname) for pin in collected.pins if isinstance(pin, memo.DefPin)}
+    if collected.refusals or (os.path.realpath(package.dir / "n.py"), "inner") not in defs:
+        pytest.fail(f"with the entries gone, the child's pins were lost: {collected.refusals}, {sorted(defs)}")
+
+
+def test_a_foreign_childs_pins_are_placed_where_the_read_found_them(make, tmp_path):
+    """The child's pins name sources relative to the generating process's ``sys.path``; the reader's package left
+    ``sys.path`` at teardown (``_Package.close``), before the cone store collects. Each source path is resolved against
+    the ``sys.path`` recorded with the read, so the pins validate with no edit (qa, 2026-11-03: left relative, the
+    child's ``ImportOutcomePin`` re-measured its rows with no root and read stale) and an edit to the child's
+    generator still stales them (they are not dropped)."""
+    package = make(**_NESTED)
+    recording, _ = _recorded_reads(package, tmp_path)
+    package.close()
+    memo = api.module()
+    collected = memo.collect_pins(recording, memo.Store(tmp_path / "collecting"))
+    relative = [pin for pin in collected.pins if isinstance(pin, (memo.DefPin, memo.StatementsPin))
+                and package.name in pin.path and not os.path.isabs(pin.path)]
+    if relative:
+        pytest.fail(f"a foreign child's source pins are left relative to a sys.path entry that is gone: {relative}")
+    if reasons := memo.validate(memo.Manifest(collected.pins)):
+        pytest.fail(f"with no edit, the collected pins are stale: {reasons}")
+    package.edit("return x * 5.0", "return x * 6.0", module="n")
+    if not memo.validate(memo.Manifest(collected.pins)):
+        pytest.fail("an edit to the child's generator left the collected pins valid: they were dropped")
+
+
+def test_a_foreign_childs_source_gone_at_collection_is_refused_never_dropped(make, tmp_path):
+    """A source the child's generation ran, gone by the time the pins are collected: no pin can name the code that
+    ran, so it is the refusal ``SourceGone`` with the pin's relative path (the cone store reads it as unknown, since
+    which ``sys.path`` entry held it cannot be told), never a pin dropped in silence (qa F2, F5, 2026-11-03)."""
+    package = make(**_NESTED)
+    recording, _ = _recorded_reads(package, tmp_path)
+    (package.dir / "n.py").unlink()
+    memo = api.module()
+    collected = memo.collect_pins(recording, memo.Store(tmp_path / "collecting"))
+    gone = [refusal.path for refusal in collected.refusals if isinstance(refusal, memo.SourceGone)]
+    if set(gone) != {f"{package.name}/n.py"}:
+        pytest.fail(f"the gone source of the child was not refused as SourceGone: {collected.refusals}")
+
 # ── qa's third review (2026-10-04, ``scratch/reference_architecture/p3/qa3/``) and the generator contract ──
 
 

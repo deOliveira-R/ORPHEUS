@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20749**
+Total tests collected: **20755**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2981, 14.4%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15373, 74.1%
+   foundation, 15379, 74.1%
    unmarked, 62, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20608
+   explicit, 20614
    class-name, 46
    func-name, 0
    case, 33
@@ -570,8 +570,8 @@ Module × level grid
    numerics/test_traced_memo_apparatus, 0, 0, 0, 0, 21, 0
    numerics/test_traced_memo_compiled_bytes, 0, 0, 0, 0, 17, 0
    numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
-   numerics/test_traced_memo_findings, 0, 0, 0, 0, 35, 0
-   numerics/test_traced_memo_listing_ignores_bytecode, 0, 0, 0, 0, 1, 0
+   numerics/test_traced_memo_findings, 0, 0, 0, 0, 39, 0
+   numerics/test_traced_memo_listing_ignores_bytecode, 0, 0, 0, 0, 2, 0
    numerics/test_traced_memo_manifest, 0, 0, 0, 0, 24, 0
    numerics/test_traced_memo_nested_recording, 0, 0, 0, 0, 3, 0
    numerics/test_traced_memo_ownership, 0, 0, 0, 0, 9, 0
@@ -774,7 +774,7 @@ Module × level grid
    tools/test_cone_store_placement, 0, 0, 0, 0, 17, 0
    tools/test_cone_store_recorder, 0, 0, 0, 0, 9, 0
    tools/test_cone_store_routes, 0, 0, 0, 0, 13, 0
-   tools/test_cone_store_selection, 0, 0, 0, 0, 32, 0
+   tools/test_cone_store_selection, 0, 0, 0, 0, 33, 0
    tools/test_cone_store_statement_grain, 0, 0, 0, 0, 25, 0
    tools/test_harness_generator, 0, 0, 0, 0, 71, 0
    tools/test_test_durations, 0, 0, 0, 0, 10, 0

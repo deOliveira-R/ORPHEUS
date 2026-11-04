@@ -8,6 +8,8 @@ re-generated when one appears.
 """
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from orpheus.numerics import _traced_memo_boot as boot
@@ -26,3 +28,23 @@ def test_a_bytecode_cache_leaves_the_listing_unchanged_and_a_new_module_moves_it
     (package / "new.py").write_text("Y = 2\n")
     if boot.listing_digest(str(package)) == before:
         pytest.fail("adding new.py left the listing digest unchanged (the activation leg)")
+
+
+def test_a_walk_records_no_listing_of_a_bytecode_cache(tmp_path):
+    """A run that walks a tree lists each directory in it, ``__pycache__`` included. Its listing changes whenever
+    bytecode is written, so it re-selected every source-walking test on every ``select`` (``[M]`` 2026-11-03, B3
+    acceptance X1.3: 10 of 229 tests selected with no edit). A directory of an ignored name is not an input: its
+    listing is not recorded, while its parent's still is (the activation leg)."""
+    package = tmp_path / "walked"
+    (package / "__pycache__").mkdir(parents=True)
+    (package / "mod.py").write_text("X = 1\n")
+    recording = boot.Recording().start()
+    try:
+        walked = [names for _, _, names in os.walk(package)]
+    finally:
+        recording.stop()
+    assert walked
+    if str(package) not in recording.listed:
+        pytest.fail(f"the walked directory's own listing was not recorded: {sorted(recording.listed)}")
+    if cached := [path for path in recording.listed if os.path.basename(path) == "__pycache__"]:
+        pytest.fail(f"the listing of a bytecode cache was recorded: {cached}")

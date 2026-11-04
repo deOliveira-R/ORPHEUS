@@ -154,15 +154,19 @@ def test_t2_a_mechanism_sample_of_the_real_suite_contains_its_alone_cones(real_p
     print(f"T2 capture time {elapsed:.1f} s; excess per test", {t: _excess(store, alone, t) for t in T2_IDS})
 
 
-def test_t2_a_real_memo_reader_holds_its_children(real_pair) -> None:
-    """T2, reads leg: ``test_m4_14`` (a point reading that pins its blocks as children) holds at least one
-    ChildPin in the store, so R4 holds on real code. RECORD (spec §7 finding 4): those children live in a store
-    under the test's own tmp path, which ``ChildPin.stale`` cannot find, so the test is always selected; the
-    count is printed."""
+def test_t2_a_real_memo_reader_holds_what_its_own_stores_entries_depended_on(real_pair) -> None:
+    """T2, reads leg: ``test_m4_14`` reads a point value from a memo store under its own tmp path, an entry whose
+    children are the solve and one block per group. Its cone holds no ``ChildPin``, which would be judged against the
+    default store where the entry is absent (spec §7 finding 4: the test was always selected, until the B3 acceptance
+    fix of 2026-11-03), and holds the block assembly's ``LineRule.transport``, which ran only in a block's generating
+    process: the child is pinned by what its entry depended on, two children deep."""
     store, _, _ = real_pair
-    children = [p for p in store.pins(T2_SAMPLE["memo-children"][0]) if type(p).__name__ == "ChildPin"]
-    assert children, "test_m4_14 recorded no memo child"
-    print(f"test_m4_14 holds {len(children)} ChildPins")
+    pins = store.pins(T2_SAMPLE["memo-children"][0])
+    if children := [p for p in pins if type(p).__name__ == "ChildPin"]:
+        pytest.fail(f"test_m4_14 holds ChildPins of its own store: {children[:3]}")
+    transport = ("DefPin", "orpheus/derivations/continuous/characteristic/assembly.py", "LineRule.transport")
+    if transport not in {(type(p).__name__, getattr(p, "path", ""), getattr(p, "qualname", "")) for p in pins}:
+        pytest.fail("test_m4_14 does not hold LineRule.transport, which its entries' generations ran")
 
 
 def test_t4_the_fork_and_the_alone_run_give_the_same_outcomes_on_the_sample(real_pair) -> None:

@@ -37,13 +37,9 @@ def relocated(pin: memo.Pin, path: Callable[[PathPin], str | None]) -> memo.Pin 
 
 
 def relocated_rows(pin: memo.ImportOutcomePin, path: Callable[[str], str]) -> memo.ImportOutcomePin:
-    """``pin`` with each row's path replaced by ``path(row path)``, kept again as a set (the memo's ``_keep_set``
-    names a set by its content). The outcome is the measurement's and does not move: it is a function of each
-    module's dotted name and bytes, which the rows keep."""
-    rows = memo._read_kept_set(pin.modules)
-    if rows is None:
-        return pin  # a set that is not kept is judged stale by the pin itself
-    return pin._replace(modules=memo._keep_set([[path(row_path), digest, name] for row_path, digest, name in rows]))
+    """``pin`` with each row's path replaced by ``path(row path)``: the memo's own relocation of an import set
+    (``_relocated_rows``), which also places a foreign child's rows where they were read."""
+    return memo._relocated_rows(pin, path)
 
 
 def encode(pin: memo.Pin) -> str:

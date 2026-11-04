@@ -8,7 +8,8 @@ of the repository the run read and then changed, code that ran without being imp
 made and read back).
 
 Kept: defs and the observed import-time statements of first-party code (a source under the repository that is not
-the interpreter's or a distribution's; one projection per module, on the run's entry names), the run's import outcome, data, presence and listing pins of paths under the repository, memo children read, distributions. The listing of
+the interpreter's or a distribution's; one projection per module, on the run's entry names), the run's import outcome, data, presence and listing pins of paths under the repository, memo children read from the memo's store, distributions. A memo entry read from another store (a test's own ``cache_root``) arrives as the pins its entry was validated on,
+children flattened in and placed where the read found them (``collect_pins``), kept and dropped like the run's own. The listing of
 the directory of every first-party module that ran, and of every ``sys.path`` entry under the repository, is added
 beside the recorded ones: the import system's own stats and listings are not recorded (they are how a module is
 found), so a new module or package that would shadow an imported one is seen only through those directories.
@@ -88,12 +89,15 @@ def cone_of(recording: Any, store: Any, config: Config, memo: ModuleType, boot: 
     reals = {memo._real(name) for name, _ in recording.codes if not name.startswith("<")}
     code_files = {real for real in reals if reading.first_party(real)}
     data_files = {real for opened in recording.opened if reading.kept(real := memo._real(opened))}
-    states: dict[str, FileState] = {}
-    for real in code_files | data_files:  # each file's identity is read BEFORE its pins read its bytes
+
+    def state_of(real: str, code: bool) -> FileState:
         witness = boot.Witness(reference_ns=config.since_ns)
         found = witness.stat(real)
-        states[real] = FileState(None if found is None else tuple(boot.FileIdentity.of(found)), witness.settled,
-                                 boot.file_digest(real) if found is not None and real in code_files else None)
+        return FileState(None if found is None else tuple(boot.FileIdentity.of(found)), witness.settled,
+                         boot.file_digest(real) if found is not None and code else None)
+
+    # each file's identity is read BEFORE its pins read its bytes
+    states = {real: state_of(real, real in code_files) for real in code_files | data_files}
 
     collected = memo.collect_pins(recording, store)
     by_pin_path = {memo._pin_path(real): real for real in reals}
@@ -130,6 +134,13 @@ def cone_of(recording: Any, store: Any, config: Config, memo: ModuleType, boot: 
     kept += [pin_rows.relocated(pin, to_store) for pin in shadow_pins(code_files, reading, memo, boot)]
     pins = tuple(sorted({pin for pin in kept if pin is not None}, key=pin_rows.encode))
     judged = {pin_rows.file_of(pin) for pin in pins}
+    # A file only a child read from another store names (its generation read it, the run did not): its state is taken
+    # now, after the generation read it; the state carries the digest it was taken on, so a change in between is a
+    # stale pin, never a vouched one. Without it the store would record the file as missing (qa F3, 2026-11-03).
+    held = {reading.relative(real) for real in states}
+    code = {pin.path for pin in pins if isinstance(pin, (memo.DefPin, memo.StatementsPin))}
+    states |= {os.path.join(reading.repo, relative): state_of(os.path.join(reading.repo, relative), relative in code)
+               for relative in judged - held if relative is not None}
     files = {reading.relative(real): state for real, state in states.items() if reading.relative(real) in judged}
     unknown = [reason for refusal in collected.refusals
                if (reason := _unknown(refusal, memo, reading, real_of)) is not None]
@@ -170,6 +181,10 @@ def _unknown(refusal: Any, memo: ModuleType, reading: Reading, real_of: Any) -> 
         case memo.ChangedByRun(path):
             return f"{reading.relative(memo._real(path))} was read and then changed by the run" \
                 if reading.kept(memo._real(path)) else None
+        case memo.SourceGone(path) if not os.path.isabs(path):
+            # a foreign child's source, relative to a ``sys.path`` entry of the read: which entry held it, and so
+            # whether it was the repository's, cannot be told once it is gone (qa F5, 2026-11-03)
+            return str(refusal)
         case memo.NoRecordedBytes(path) | memo.SourceGone(path) | memo.UnnamedModule(path):
             return str(refusal) if reading.first_party(memo._real(path)) else None
         case memo.NoDefAtLine(path):

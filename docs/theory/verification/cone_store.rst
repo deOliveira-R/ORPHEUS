@@ -213,10 +213,13 @@ it stale (:ref:`verification-reference-cache-manifest`):
      - that answer changes (a file created or deleted)
    * - ``ListingPin``
      - a directory the test listed, by the digest of its sorted names
-       (``__pycache__`` left out)
+       (``__pycache__`` left out of every listing, and a ``__pycache__``
+       directory's own listing not recorded)
      - a name is added, removed or renamed
    * - ``ChildPin``
-     - a traced-memo entry the test read, by its key and payload digest
+     - a traced-memo entry the test read from the memo's store, by its key
+       and payload digest (an entry read from another store is pinned by
+       its entry's own pins instead)
      - the entry no longer validates (its own manifest, checked recursively)
    * - ``DistributionPin``
      - an installed distribution whose code ran or whose file was read, by
@@ -247,6 +250,40 @@ store's files are byte-identical after ``select``). Validation may start one
 process: when a module of an import set has other bytes, the set's import
 outcome is measured again in a fresh interpreter
 (:ref:`verification-cone-store-import-outcome`).
+
+A ``ChildPin`` names no store: it is judged against the store that
+``select`` validates with, the memo's default one. A test that reads an
+entry from a store of its own (a ``cache_root`` under ``tmp_path``, as the
+traced memo's own gates do) read an entry that store does not hold, so its
+``ChildPin`` read ``Absent`` on every ``select`` and the test was always
+selected (`[M]` 2026-11-03, the B3 acceptance: 70 of the 229 tests a
+no-edit ``select`` listed on the numerics layer). The pin cannot simply be
+dropped: the generated code ran in the generating process, which the test's
+recording never sees, so without it an edit to the generator would select
+nothing. A ``ChildPin`` that named its store would not help either: a
+store under ``tmp_path`` is gone by the time ``select`` runs. The memo's
+lookup therefore returns, with a ``Hit``, the pins it validated the entry
+on, each child replaced by its own entry's pins (``Hit.pins``), and the read
+is recorded with them and with its store's root (``ReadChild``).
+``collect_pins`` pins a child of the collecting store by its ``ChildPin``
+and a child of any other store by those pins, with no second read of the
+store. A pin's source path is relative to the generating process's
+``sys.path``, which was the reader's, and the entry a test put there (its
+package under ``tmp_path``) is gone by collection, so each is resolved
+against the ``sys.path`` recorded with the read (`[M]` 2026-11-03, qa: left
+relative, the child's ``ImportOutcomePin`` re-measured its rows with no root
+and read stale with no edit); a source no entry holds a file at any more is
+the refusal ``SourceGone``, never a pin dropped in silence; the cone is then
+unknown, since which ``sys.path`` entry held the file, and so whether it was
+the repository's, cannot be told once it is gone (qa, 2026-11-03). The pins are then kept and dropped like the run's own,
+and a file only the child's generation read gets its identity recorded like
+any other (qa, 2026-11-03: it was recorded as missing, which turned off
+stage one for it). Gate
+S23 (``tests/gates/tools/test_cone_store_selection.py``): a test reading
+its own store's entry, whose generation imports a module the test never
+imports, is not selected with no edit and is selected by an edit to that
+module's def; the memo-side gates are in
+``tests/gates/numerics/test_traced_memo_findings.py``.
 
 
 .. _verification-cone-store-statements:
@@ -2372,12 +2409,8 @@ with the machinery that would lift it:
   started process's reads and children (#690), the memo's own boundary
   (:ref:`verification-reference-cache-unseen`).
 
-Two further limits are properties of the evidence, not of the store:
+One further limit is a property of the evidence, not of the store:
 
-* a test reading children from its own temporary memo store (a memo test
-  using ``tmp_path``) holds a ``ChildPin`` that ``select`` validates against
-  the default store, so its cone is always stale and the test always
-  selected (correct, an over-selection);
 * the capture's cost on the whole suite has not been measured. Per child,
   ``collect_pins`` takes 1.8 to 1.9 s, mostly re-reading the inherited
   floor, and the own cone 0.10 s more (`[M]` 2026-11-03,
