@@ -605,7 +605,22 @@ Mode: W1. The test-architect writes the verification spec first. The store is to
 - The 691 entries the design could not read: an older `DistributionPin` arity. Like the 5814 `ModulePin` entries, they read as stale and regenerate on demand. 2021 of the 8526 stored entries were regenerated in B2 form by the suite run.
 - pyright: 0 errors in the 33 changed or new Python files. Sphinx `-W` clean. `dead_references` unchanged (the 3 pre-existing transport test-helper targets).
 
-**Next:** B3, the numerics layer captured into the store (ruling 22).
+**B3 [LANDED 9195dcf5, b65674fc, f78085d8, 1e989da7]** (2026-11-03 to 2026-11-04, each merged to `main` by fast-forward, CI `gates` green on each push; the error entry ERR-125 at `612e597a`). B3 itself (`9195dcf5`): two cones per test, the selection cone `select` reads and the own cone `place` reads (`FORMAT = 3`), `tools/cone_store/placement.py`, and the recorder's apparatus kept out of every recording. Its acceptance found three defects, each fixed with gates that a mutation battery reddened:
+- **Over-selection, X1.3** (ERR-125, `b65674fc`). A no-edit `select` over the numerics layer listed 229 tests where 149 were owed. 70 readers of a memo store under their own `tmp_path` held a `ChildPin` judged against the default store; a child of another store is now pinned by the pins its lookup validated it on (`Hit.pins`, `ReadChild`), placed where the read found them. 10 source-walking tests held a `__pycache__` listing, which is no longer observed.
+- **T3's own predicate** (`f78085d8`). The ground-truth gate T3 compared statement pins by their per-run name sets, which depend on test order; it now compares the statements each pin observes. `[M]` on the kept stores of a passing run: 0 misses over 200 tests, with a control at 190 of 200.
+- **Own cones holding another process's defs** (`1e989da7`). The pins of a foreign read had entered the own cone, so placement homed the 70 readers by defs only the generating process ran. `CollectedPins` now separates `ran` from `through_reads`, and `cone_of` returns `ReadCones(ran, selection)`. Gates S23 (own leg) and S24.
+
+The acceptance, `[M]` 2026-11-04 (store and logs under `scratch/verification_tree/cone_store/b3/recapture/`):
+- **Capture** of `tests/gates/numerics/` at `f78085d8`, `OMP_NUM_THREADS` unset, in a fresh worktree with a copied warm `.cache`: 5 808 tests in 13 chunks of 10 files, 4 h 56 min, every chunk exit 0; 148 cone-unknown (140 start a process, 7 read a `.cache` file the capture changed, 1 is the gate that deletes a foreign child's source on purpose), 2 not passed (skipped).
+- **X1.3 met.** A no-edit `select` at the capture's commit listed 150 tests, exactly the 148 unknown and the 2 not passed, with nothing stale. On `main` (`612e597a`) it listed 198: those 150, the 38 tests of the two files that gained `catches` markers after the capture, and 10 tests that list `orpheus/` or `orpheus/data/micro_xs`, where `main`'s checkout holds gitignored files the worktree lacks (`.DS_Store` and 13 generated `.h5` files).
+- **Placement** (`place`, threshold 0.95, `min_defs` 3), after the own-cone fix, on a copy of the store with the six memo test files re-captured at `1e989da7`: 5 257 of 5 808 placed, 993 straddlers, pure fraction 0.811; unplaced 148 cone-unknown, 401 with no layer def, 2 not passed. Against the previous capture (B3's, 5 803 tests) 0 of the 5 803 shared tests changed home; before the fix, 70 had.
+
+Findings filed, not acted on:
+- **A store is not self-contained** (#697). The kept name and import sets a store's pins name live in the `.cache/sets` and `.cache/import_outcomes` of the checkout whose `orpheus` the capture imported. A `select` from another checkout read 5 658 of 5 808 tests as stale ("is not kept") until the worktree's sets were copied into `main`'s `.cache` (content-addressed, so the copy only adds).
+- **qa's F3 on the own-cone fix** (#698). A refusal raised by a foreign child (`SourceGone`) makes its reader cone-unknown, and placement then leaves it unplaced, although its own cone is complete; placement reads the selection cone's unknown reasons only. `[M]` 1 of the 148 cone-unknown tests, the gate that deletes the source on purpose.
+- **A listing records macOS's `.DS_Store`** (#698). A test that lists `orpheus/` is selected when Finder writes that file.
+
+**Next:** B4, the validation run (ruling 41), then the verdict layer (rulings 34 and 35).
 
 **Ruled by the orchestrator, from ruling 41 (2026-11-01).**
 
