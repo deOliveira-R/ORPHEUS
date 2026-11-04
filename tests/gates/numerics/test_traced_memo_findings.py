@@ -745,6 +745,7 @@ _NESTED = dict(m='''
 ''')
 
 
+@pytest.mark.catches("ERR-125")
 def test_a_child_read_from_another_store_is_pinned_by_what_its_entry_depended_on(make, tmp_path):
     """A memo entry the run read from a store other than the one collecting its pins (a test's own ``cache_root``
     under ``tmp_path``, collected by the cone store against the default store): a ``ChildPin`` would be judged
@@ -772,6 +773,7 @@ def test_a_child_read_from_another_store_is_pinned_by_what_its_entry_depended_on
         pytest.fail("against its own store, the child read is not a ChildPin (the positive leg)")
 
 
+@pytest.mark.catches("ERR-125")
 def test_a_child_of_another_store_is_pinned_by_what_was_validated_when_it_was_read(make, tmp_path):
     """The foreign child's pins are the ones its lookup validated when the run read it (``Hit.pins``), recorded with
     the read: an entry gone by the time the pins are collected (a store under ``tmp_path`` removed, an entry
@@ -787,6 +789,7 @@ def test_a_child_of_another_store_is_pinned_by_what_was_validated_when_it_was_re
         pytest.fail(f"with the entries gone, the child's pins were lost: {collected.refusals}, {sorted(defs)}")
 
 
+@pytest.mark.catches("ERR-125")
 def test_a_foreign_childs_pins_are_placed_where_the_read_found_them(make, tmp_path):
     """The child's pins name sources relative to the generating process's ``sys.path``; the reader's package left
     ``sys.path`` at teardown (``_Package.close``), before the cone store collects. Each source path is resolved against
@@ -809,6 +812,7 @@ def test_a_foreign_childs_pins_are_placed_where_the_read_found_them(make, tmp_pa
         pytest.fail("an edit to the child's generator left the collected pins valid: they were dropped")
 
 
+@pytest.mark.catches("ERR-125")
 def test_a_foreign_childs_source_gone_at_collection_is_refused_never_dropped(make, tmp_path):
     """A source the child's generation ran, gone by the time the pins are collected: no pin can name the code that
     ran, so it is the refusal ``SourceGone`` with the pin's relative path (the cone store reads it as unknown, since

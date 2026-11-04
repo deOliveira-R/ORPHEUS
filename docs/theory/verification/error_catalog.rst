@@ -12057,8 +12057,7 @@ older entries classify against.
 .. error-entry:: ERR-124
    :title: The traced memo's recording kept its code objects in a set, and code objects compare equal across files, so of two empty modules, or two identical defs at one line in two files, only one file was pinned and an edit to the other left an entry valid
 
-   **Status:** ✅ **FIXED 2026-11-01** on branch ``feature/cone-store`` (uncommitted when this entry was written;
-   the merge hash is owed to this line). Found by the cone store's builder while its first increment was built: a
+   **Status:** ✅ **FIXED 2026-11-01**, merged @ ``7fdc7474`` (the cone store's first increment, B1). Found by the cone store's builder while its first increment was built: a
    fixture with two empty package ``__init__`` modules lost one of them from every cone. The defect is as old as the
    memo: its first commit, ``99897d10`` (2026-10-04), collected the started code objects in a local ``set``, and the
    review round, ``39ee20f2``, moved that set onto ``Recording.codes``. Full account:
@@ -12108,3 +12107,118 @@ older entries classify against.
    **Lesson.** A set of objects is a set of their equivalence classes under ``==``: before collecting values in a
    set, ask whether ``==`` on that type compares every field the reader will read back. A code object's does not
    compare the file it came from.
+
+.. error-entry:: ERR-125
+   :title: A no-edit select of the cone store listed 229 numerics tests where 149 were owed: 70 readers of a memo store under their own tmp_path held a ChildPin judged against the default store, and 10 source-walking tests held the listing of a __pycache__ directory
+
+   **Status:** ✅ **FIXED 2026-11-03**, merged @ ``b65674fc``. Found by the acceptance of the cone store's increment
+   B3 (plan row X1.3, 2026-11-03, #358). The T3 ground-truth gate that measured the fix needed a predicate of its own,
+   ``f78085d8``, recorded in :ref:`verification-cone-store-gotchas`. Full account: the paragraph "A ``ChildPin`` names
+   no store" in :ref:`verification-cone-store-cone`, and the ``ChildPin`` row and "Directory listings" of
+   :ref:`verification-reference-cache-manifest`.
+
+   **Module:** ``numerics`` (:func:`~orpheus.numerics.traced_memo.collect_pins` and the lookup's
+   :class:`~orpheus.numerics.traced_memo.Hit`; ``Recording`` and the listing observation in
+   :mod:`orpheus.numerics._traced_memo_boot`) and ``tools`` (the cone store's recorder, ``tools/cone_store/``).
+
+   **Failure mode:** outside the numbered substitution modes: two dependency records judged against a context other
+   than the one they were recorded in. Both halves fail in the safe direction, over-selection: a test is re-run that
+   need not be, and none is skipped that should run.
+
+   **The defect.** The cone store selects, after an edit, the tests whose recorded dependencies (their pins) no
+   longer validate; with no edit it owes exactly the tests it cannot judge (cone-unknown) and the tests that did not
+   pass at capture. `[M]` 2026-11-03 (X1.3, the numerics layer): a no-edit ``select`` listed 229 tests where 149 were
+   owed (147 cone-unknown, 2 not passed). The 80 extra are two recorder defects.
+
+   - **70 readers of a foreign store.** A test that reads a traced-memo entry from a store of its own (a
+     ``cache_root`` under pytest's ``tmp_path``, as the memo's own gates do) recorded the read as a ``ChildPin``: the
+     function id, the key and the payload digest, with no store. ``select`` judges every ``ChildPin`` against the
+     store it validates with, the memo's default one, where that entry does not exist, so the pin read ``Absent`` on
+     every ``select`` and its 70 readers were selected with no edit.
+   - **10 source-walking tests.** A run that walks a tree (``os.walk``, ``Path.rglob``) lists each directory it
+     enters, ``__pycache__`` included. The memo already left ``__pycache__`` out of every listing digest
+     (``_LISTING_IGNORED``), but the listing of a ``__pycache__`` directory itself was still recorded as a
+     ``ListingPin``, and that directory's names change whenever bytecode is written, so the 10 tests that walk a
+     source tree were stale on every ``select``.
+
+   **How it hid.** The two halves hid differently. The foreign-store half was known and accepted: the B1
+   specification recorded that a ``ChildPin`` carries no store root, so that "children read from a test's own tmp
+   store are therefore always stale" (its finding 4), and the page's Limits section listed it until ``b65674fc`` as a
+   correct over-selection. Nobody had counted the tests it reached; 70 on one layer turned an accepted limit into
+   the larger share of a no-edit selection. The listing half was not known. Both over-select, and every gate before the
+   acceptance either asserts containment (the store's cone holds at least what the test reads alone), which is green
+   for every superset (:ref:`verification-cone-store-gotchas`), or bounds the selection on fixture trees whose memo
+   readers use the default store (control P2) and whose tests walk no tree (`[M]` 0 calls of ``os.walk``,
+   ``listdir``, ``scandir`` or ``glob`` in ``tests/gates/tools/_cone_store_fixture.py`` at ``9195dcf5``). The defect
+   showed only when a no-edit ``select`` was counted against the population it owes on a real layer.
+
+   **Two obvious fixes, both wrong.**
+
+   1. *Drop the* ``ChildPin`` *of a foreign store.* That under-selects. A warm read runs no generator code in the
+      test's process; the generator ran in the generating process, whose code the test's recording never sees. The
+      ``ChildPin`` is the only route by which an edit to the generator reaches the reader, so without it an edit to
+      the generator selects nothing.
+   2. *Name the store in the* ``ChildPin``. A store under ``tmp_path`` is deleted when pytest cleans up, which is
+      before ``select`` runs, so a pin naming it cannot be judged at all.
+
+   **A second defect in the fix, caught at review (qa's F1).** The first form of the fix pinned a foreign child by its
+   entry's own pins as recorded. Those name each source relative to the ``sys.path`` of the generating process, which
+   was the reader's, and the memo's gates put their generator package on ``sys.path`` and take it off again at fixture
+   teardown, which runs before the cone store collects the test's pins. Left relative, the child's
+   ``ImportOutcomePin`` (the outcome of importing the run's first-party modules, re-measured when a byte of one of
+   them changes) found no file for the package's modules, measured the import again with no root for them, read a
+   failed import, and was stale with no edit. `[M]` 2026-11-03, qa (a probe on a scratch copy of the tree with the
+   fix's diff applied): the relocated pin still held the two temporary-package rows unchanged and its staleness read
+   "importing the run's 51 first-party modules gives another outcome"; the same rows relocated to their absolute
+   real paths read not stale. Gate S23 could not see it, because its fixture package sits under the repository root;
+   T2 could not either, because it reads ``orpheus`` code. Caught by
+   ``test_a_foreign_childs_pins_are_placed_where_the_read_found_them`` (below), which removes the package from
+   ``sys.path`` before collection; it never reached a commit.
+
+   **Fix.** ``b65674fc``, in two halves.
+
+   - *The foreign child.* The memo's lookup returns, with a :class:`~orpheus.numerics.traced_memo.Hit`, the pins it
+     validated the entry on, each child replaced by its own entry's pins (``Hit.pins``, flattened by the validation),
+     and the read is recorded with them as a :class:`~orpheus.numerics._traced_memo_boot.ReadChild`: the real path of
+     the store's root, the key, the payload digest, the pins, and the reader's ``sys.path`` and working directory.
+     :func:`~orpheus.numerics.traced_memo.collect_pins` keeps the ``ChildPin`` for a child of the collecting store and
+     pins a child of any other store by those pins, reading no store a second time. Each source path is resolved
+     against the ``sys.path`` recorded with the read (``_as_read``; an ``ImportOutcomePin``'s rows through
+     ``_relocated_rows``, which the cone store's ``relocated_rows`` delegates to), and a source no entry holds a file
+     at any more is the refusal :class:`~orpheus.numerics.traced_memo.SourceGone` (the cone is then unknown), never a
+     pin dropped in silence. The cone store records the identity of a file only the child's generation read, instead
+     of writing it as missing (qa's F3, which had turned off the store's first freshness stage for that file).
+   - *The listing.* An ``Observation`` carries ``ignored_names``; a path whose own name is in it is not observed, so
+     a walk records the listing of each directory it enters except a ``__pycache__``, while the listing of the
+     directory that holds the cache is still recorded.
+
+   Both halves change the memo's source, so every traced-memo entry regenerates once and the cone store's environment
+   key moves. That the 80 are no longer selected is `[R]` 2026-11-04: the numerics layer's recapture that re-measures
+   X1.3 was running.
+
+   **Catching tests.** `[M]` 2026-11-03, the review's mutation battery, re-run by the archivist on 2026-11-04 over
+   ``f78085d8`` with the same counts (an in-process ``-p`` plugin per arm, no tracked file edited;
+   ``python -O -m pytest`` over the five gates below): the honest tree reddens 0 of 5; the arm
+   that treats every child as the collecting store's (the pre-fix ``ChildPin``) reddens the four foreign-child gates;
+   the arm that leaves ``_as_read``'s paths as recorded (qa's F1) reddens the same four; the arm that keeps a gone
+   source's relative pin instead of refusing it reddens the source-gone gate alone; the arm that empties the listing's
+   ``ignored_names`` reddens the walk gate alone. None is ``slow``.
+
+   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_child_read_from_another_store_is_pinned_by_what_its_entry_depended_on``;
+   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_child_of_another_store_is_pinned_by_what_was_validated_when_it_was_read``;
+   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_foreign_childs_pins_are_placed_where_the_read_found_them``
+     (qa's F1);
+   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_foreign_childs_source_gone_at_collection_is_refused_never_dropped``;
+   - ``tests/gates/numerics/test_traced_memo_listing_ignores_bytecode.py::test_a_walk_records_no_listing_of_a_bytecode_cache``.
+
+   On the cone store's side, ``tests/gates/tools/test_cone_store_selection.py::test_s23_a_reader_of_its_own_stores_entry_is_selected_by_the_generated_code_only``
+   asserts the whole path on a fixture tree (no ``ChildPin``, the generation-only file's identity recorded, no
+   selection with no edit, selection by an edit to the generated code), and
+   ``tests/gates/tools/test_cone_store_ground_truth.py::test_t2_a_real_memo_reader_holds_what_its_own_stores_entries_depended_on``
+   asserts it on a real reader, two children deep. Their docstrings name their first reds; neither was in the
+   battery above, so neither carries the marker.
+
+   **Lesson.** A reference recorded without the context that resolves it (a key without its store, a path relative to
+   a ``sys.path`` without that ``sys.path``) is judged later against whatever context the judge has. Record the
+   reference's resolution at the moment of the read, while the context still exists; and count a no-edit selection
+   against the population it owes, because a containment gate is green for every superset.

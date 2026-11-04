@@ -2185,7 +2185,9 @@ named ``orpheus`` so the editable install cannot shadow it):
    defs.
 4. **Ground truth** (T1 to T4): every fixture test's stored cone contains
    its cone captured alone by ``--route fresh``, with 0 misses over every pin
-   kind (T1); the same on a real-suite sample chosen by mechanism, 14 tests
+   kind (T1; a ``StatementsPin`` is contained when the store observes every
+   statement of its file that the alone run observes, never by its names, as
+   the Gotchas below explain); the same on a real-suite sample chosen by mechanism, 14 tests
    in five files plus one spawner asserted unknown (T2); the same on sample
    N's 200 tests (T3, ``slow``); the capture's and the alone run's outcomes
    agree (T4). The alone capture shares the recorder with the store, so the
@@ -2194,10 +2196,11 @@ named ``orpheus`` so the editable install cannot shadow it):
    fixture's source.
 
 The gates, ``tests/gates/tools/test_cone_store_*.py``, every one
-``foundation`` (`[M]` 2026-11-03, the verification matrix the docs build
-regenerates: 127 ids in 10 files, every one ``foundation``; 4 of them carry
+``foundation`` (`[M]` 2026-11-04, ``python -O -m pytest --collect-only`` over
+the 10 files: 128 ids, and 0 of them left by ``-m "not foundation"``; 4 of them carry
 ``slow``, M1, T3, SG4 and SG9, none parametrised; and the recorder's
-apparatus gate beside them, 21 ids):
+apparatus gate beside them, ``tests/gates/numerics/test_traced_memo_apparatus.py``,
+21 ids by the same command):
 
 .. list-table::
    :header-rows: 1
@@ -2221,14 +2224,16 @@ apparatus gate beside them, 21 ids):
        not depend on module order (C6); the in-suite monitor's blindness to
        a fill is asserted, not assumed (H1)
    * - ``test_cone_store_selection.py``
-     - S1 to S22, P1 to P3
+     - S1 to S23, P1 to P3
      - ``select``'s rule, the three controls, the environment key per
        component (S5, S6), the shadow pins (S12), a new conftest selects
        every test (S13, S19), the ini bytes (S14), a collection error (S15),
        a read-then-rewritten file (S16), an edit during the capture (S17),
        an off-path conftest's session hook (S18), a user
        ``pytest_ignore_collect`` stays recorded (S20), a ``pytest11`` entry
-       point under an unchanged version (S21), ``PYTEST_PLUGINS`` (S22)
+       point under an unchanged version (S21), ``PYTEST_PLUGINS`` (S22), a
+       reader of its own memo store selected by an edit to the generated
+       code and by nothing else (S23, ERR-125)
    * - ``test_cone_store_freshness.py``
      - F1 to F6
      - the two stages, by a spy on the files opened and the source indexes
@@ -2467,6 +2472,28 @@ Gotchas
   name a module by different ``StatementsPin`` and ``ImportOutcomePin``
   rows (each is the projection of its own run), so a row-level containment
   test between them fails on a correct store.
+* **Compare two statement pins of one file by the statements they observe,
+  never by their names.** The entry names a ``StatementsPin`` keeps are one
+  set per run, over every file the run's code came from, and the pin's digest
+  projects that set onto one file's import-time statements. Two runs of one
+  test can therefore keep different name sets while observing the same
+  statements of a given file: the set depends on what else ran in the
+  process, so on the test order (B3's acceptance, plan row X1.1, saw it gain
+  the name ``fuzzy`` with the order). A name in one set and not the other
+  that binds nothing in the file changes no statement either pin observes.
+  A containment check between two such pins compares the observed
+  statements, ``_import_time.selection`` over the file's statement index
+  with each pin's kept names, as ``_misses`` in
+  ``tests/gates/tools/test_cone_store_ground_truth.py`` does; comparing the
+  name sets reads a miss where nothing is under-selected. `[M]` 2026-11-03
+  (``f78085d8``): two T3 runs failed comparing names, one of them on the
+  tree before the over-selection fix (``9195dcf5``); in 10 of 10 printed
+  pins the alone run's projection equalled the store's digest for the same
+  test from a passing run. On the kept stores of a passing T3 run the
+  statement predicate read 0 misses over 200 tests; 44 000 alone pins
+  observe some statement by name, beyond those every run observes, so the
+  predicate can fire (T3 asserts this activation leg); and with the store's
+  names emptied as a control, 190 of the 200 tests read misses.
 * **Opening an old store empties it.** ``ConeStore`` and ``open_store`` drop
   the tables of a store of another format when they open it; only
   ``place`` reads the format first (``stored_format``). Copy an old store
@@ -2514,6 +2541,20 @@ History
      - Issue
      - Where
    * - 2026-11-03
+     - **B3's acceptance: a no-edit select over-selected** (ERR-125). Plan
+       row X1.3 counted 229 numerics tests where 149 were owed. 70 readers
+       of a memo store under their own ``tmp_path`` held a ``ChildPin``
+       judged against the default store; a child of another store is now
+       pinned by the pins its lookup validated it on (``Hit.pins``,
+       ``ReadChild``), each source path placed where the read found it,
+       and the limit "a test reading children from its own temporary memo
+       store is always selected" is retired. 10 source-walking tests held
+       a ``__pycache__`` listing, which is no longer observed. Gate S23,
+       and T2's reads leg. T3 then compares statement pins by the
+       statements they observe (the Gotchas).
+     - #358
+     - ``b65674fc``, ``f78085d8``
+   * - 2026-11-03
      - **Increment B3: two cones per test, and placement.** The own cone (a
        second ``Recording`` around the test's protocol, table
        ``own_cones``) beside the selection cone (``cones``, unchanged); the
@@ -2535,7 +2576,7 @@ History
        and the environment key digests the capture's instrument.
        Follow-ups: #695, #696.
      - #358
-     - branch ``feature/cone-store-b3``, uncommitted at the time of writing
+     - ``9195dcf5``
    * - 2026-11-02
      - **Increment B2: import-time statements as the unit** (ruling 33 as
        amended by ruling 43). The module skeleton and ``ModulePin`` are

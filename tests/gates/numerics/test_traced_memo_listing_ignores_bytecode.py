@@ -30,6 +30,7 @@ def test_a_bytecode_cache_leaves_the_listing_unchanged_and_a_new_module_moves_it
         pytest.fail("adding new.py left the listing digest unchanged (the activation leg)")
 
 
+@pytest.mark.catches("ERR-125")
 def test_a_walk_records_no_listing_of_a_bytecode_cache(tmp_path):
     """A run that walks a tree lists each directory in it, ``__pycache__`` included. Its listing changes whenever
     bytecode is written, so it re-selected every source-walking test on every ``select`` (``[M]`` 2026-11-03, B3

@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**124 entries · 361 catching tests · 2 uncaught · 5 dormant.**
+**125 entries · 366 catching tests · 2 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -20,8 +20,8 @@ prefix.
 
 ## Adding an entry
 
-Append a `.. error-entry:: ERR-125` block to `docs/theory/verification/error_catalog.rst` (next free id),
-then tag its regression test `@pytest.mark.catches("ERR-125")`.
+Append a `.. error-entry:: ERR-126` block to `docs/theory/verification/error_catalog.rst` (next free id),
+then tag its regression test `@pytest.mark.catches("ERR-126")`.
 A marker naming an id with no entry warns and resolves to nothing; a
 `-W` build refuses it.
 
@@ -173,3 +173,4 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-122 | 2 |  | The integrated production rate read 0.225 for the exact 0.095 when a flat (ng,) flux met the ho… |
 | ERR-123 | 5 |  | A structurally singular loss was inverted in silence: diffusion returned a flux of 1.7e17, SN a… |
 | ERR-124 | 1 |  | The traced memo's recording kept its code objects in a set, and code objects compare equal acro… |
+| ERR-125 | 5 |  | A no-edit select of the cone store listed 229 numerics tests where 149 were owed: 70 readers of… |
