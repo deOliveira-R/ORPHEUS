@@ -622,6 +622,14 @@ Findings filed, not acted on:
 
 **Next:** B4, the validation run (ruling 41), then the verdict layer (rulings 34 and 35).
 
+**B4, ruled by the user (2026-11-04)**, on the test-architect's spec (`scratch/verification_tree/cone_store/b4/spec_b4.md`, driver beside it). B4 validates at `42b5ceca`, against a store of the numerics layer captured at that commit in the worktree `ORPHEUS-b3-recapture`, because `select` lists every row of another environment key (`tools/cone_store/selection.py:140`).
+
+45. **The validation run's terms.**
+    - **The bound is 5%.** At least 60 counted mutants must redden a test, and 0 misses over them bounds the per-mutant miss rate below 5% at 95% confidence.
+    - **Every mutant's selected subset is also run alone,** and its verdicts are compared with the full run's. A disagreement is reported, not gated.
+    - **A miss in stage A stops the batch** to be fixed. Stage A is the def-body mutants, one or more per tier.
+    - **The ground truth is the full-suite context.** Every run collects the whole testpaths tree, as the merge gate does, so all 12 conftests and every test module are imported, and only the numerics tests run. The store promises the verdict a full run gives (ruling 42), and a run of the numerics folder alone loads 1 conftest, so it cannot show another layer's effect on a numerics verdict.
+
 **Ruled by the orchestrator, from ruling 41 (2026-11-01).**
 
 42. **The store predicts full-run verdicts.** The full suite is the merge gate, and the validation run compares the store's selections with full runs. So a capture reproduces the context a full run gives each test. A full run imports every `conftest.py` before any test runs, and a conftest's module code and session hooks act on every test (`tests/gates/sn/regression/conftest.py::pytest_configure` sets the session's `DriftWarning` filter, and 5 test files outside that directory raise `DriftWarning`, `[M]` qa 2026-11-01). Therefore:
