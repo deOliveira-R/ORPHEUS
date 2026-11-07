@@ -669,6 +669,16 @@ Then the census's reading pass (each test's claim) and the folder's reorganisati
 - **The apparatus (ruling 48):** a first-party test helper (an oracle module, a fixture, a case table under `tests/`) becomes a node of the placement, beside the layer's nodes, upstream of every node that its users home at. Its grain (a helper module, or a fixture function) is the spec's to propose.
 - **Acceptance:** re-capture the numerics layer at the build commit (about 5 h, detached). Then: the 158 S and A tests are placed; the 4 controls with a numerics `StatementsPin` are placed where the static read names them; every home that moves among the 5 257 placed tests is listed and explained; the null shuffle still reads lower than the real placement.
 
+**B5's spec** (the test-architect, 2026-11-07: `scratch/verification_tree/cone_store/b5/spec_b5.md`; probes and a prototype resolver run on 658 tests at `42b5ceca` under `b5/probes/` and `b5/proto/`). 22 attacks, 14 corrections (C1 to C14), 49 gates in six groups (R resolution 17, P pin 8, F floor 2, V placement channels 10, D data home 3, A apparatus 9), acceptance AC0 to AC10 on a re-capture. Measured on the prototype `[M]`: with no closure, 65 of 139 S tests get a layer node; with closure through apparatus only, 128; the union home moves 110 of 197 sampled homes and 0 of 60 controls.
+
+49. **The home is tiered** (the user, 2026-11-07, on the spec's C5). Defs decide the home when the test ran any layer def; otherwise its statement reads; otherwise its data reads. Every channel is reported under `via`; the union home (`home_union`) and the statement-channel straddle are reported under their own keys and do not change purity. Reason: running a module's code is a dependence on its behaviour, while reading a value with no code of its module run is a dependence on an input. The union reading is refuted FOR the default home; the fact it establishes is where a test's inputs come from.
+
+**Ruled by the orchestrator (2026-11-07), on the spec.** C1 to C4, C8, C10 to C12 are adopted as written. C6 is adopted as refined: closure is followed only through test-tree bindings, to the first layer binding. On the spec's NEEDS:
+- C7: a re-exporting layer module is pinned, not a node of the test (3 such statements in the tree). The subject is the binding the chain ends at; the re-export is the path the import took.
+- C9: a new store table `own_reads(test_id, path, name, channel)`. Placement must not read name sets that live in the capturing checkout's `.cache` (the direction of #697), and `collect_pins`' statement pins name the run's whole closure, not what the test read.
+- C13: a data read that walks all of `orpheus/` homes at `package` and is a census finding, listed apart.
+- C14: the apparatus node is a test-tree file and its items are bindings. A test that read bindings of two apparatus files and none of its own is a tie, like a tie between layer nodes.
+
 ⏸ **Next (2026-11-07): B5 before lists 2 to 5.** Each later list reads the placement, and list 5 reads the straddlers against exactly this finding. The test-architect writes B5's spec, the main agent builds it (surgical carve), and the re-capture runs detached. Relocating population G waits for the folder reorganisation, so a test moves once.
 
 **Ruled by the orchestrator, from ruling 41 (2026-11-01).**

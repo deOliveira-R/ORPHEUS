@@ -768,3 +768,9 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   arm is blind there by the interpreter, not by the gate (`[M]` 2026-11-03, F2: 4 of 17 apparatus defs). Make the hook
   traceable in the arm (`monkeypatch.setattr(hook, "__cantrace__", True, raising=False)`) and report the rest as
   dormant. Extends `vv-principles` #17 (rule out "the mutation did not bite" before calling an arm blind).
+- **⛔ A resolver that reads a TEST's bytecode reads pytest's assertion-rewritten code, not the source**: inside an
+  `assert`, `getattr(m, "X")` loads its constant into a `@py_assert` temporary, so a load-chain reader never pairs `X`
+  with `m`; and `co_names` cannot pair any attribute with its receiver at all (`[M]` 2026-11-07, B5 prototype: the
+  literal `co_names` pairing named a wrong layer node on 102 of 658 tests). Build the resolver's positive-control
+  fixture as a pytest module run under `-p` (never by calling the function directly), with one row per shape. Extends
+  `instrument-doctrine` X1 (a control per shape the filter must find). → `L131`

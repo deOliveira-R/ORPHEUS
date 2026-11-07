@@ -12006,3 +12006,14 @@ compare names by superset (selection is monotone in the names), never by row ide
 `sitecustomize` on PYTHONPATH reaches every child only if the gates' child environments APPEND the inherited
 PYTHONPATH; textual arms on a `functools.cache`d function need `inspect.unwrap`. Records: `scratch/verification_tree/
 cone_store/b2/gate_spec.md` §10, `ta/battery_built/`, `ta/probe_routes.py`.
+
+## L131 — cone store B5 spec: resolving a test's reads (2026-11-07)
+
+Spec `scratch/verification_tree/cone_store/b5/spec_b5.md`; prototype `b5/proto/b5_resolve.py` (a `-p` plugin around
+`pytest_runtest_protocol` that records with the memo's `Recording` and resolves load chains), fixture
+`b5/proto/fixtures/test_b5_shapes.py` (7 shapes). Called directly, the resolver read `getattr(m, "X")` right; under
+pytest it did not, because the assertion rewriter moved the constant into a temporary. The first sample run also
+showed the R1 (decorator) read keyed on the TOP-level qualname part, so a parametrised METHOD's decorator was never
+read: walk every level of `co_qualname`. A third trap: the "no closure" ruling read literally unplaced 74 of 139
+structure tests whose subject reached them through a test-module constant; measuring the ruling's consequence before
+the spec went out turned it into "closure through apparatus only".
