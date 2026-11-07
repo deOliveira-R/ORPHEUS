@@ -72,10 +72,12 @@ pytest takes them. The same four verbs are functions of the package
 command must run under the interpreter and ``-O`` level the suite runs
 under, since both are in the environment key.
 
-The full suite stays the merge gate. ``select`` is a local check; it
-replaces the full suite only after the validation run of ruling 41 (sampled
-mutants, each run both in full and through the store, every selection
-agreeing), which has not run. The store is also the input of the census
+The full suite stays the merge gate. ``select`` is a local check. The
+validation run of ruling 41 (sampled mutants, each run both in full and
+through the store, every selection agreeing) has run on the numerics layer
+and found no under-selection (:ref:`verification-cone-store-validation`);
+the full suite stays the merge gate until every layer is captured and
+validated (the plan's ruling 46, the user's, 2026-11-07). The store is also the input of the census
 that places tests in the verification tree (ruling 22 of the plan):
 ``place`` homes each stored test of one layer in that layer's concept order
 (:ref:`verification-cone-store-place`).
@@ -2349,6 +2351,106 @@ S18 to S22 and the re-posed S13 are written from qa's second pass
 named in its docstring as its first red.
 
 
+.. _verification-cone-store-validation:
+
+The validation run (B4)
+=======================
+
+**The question.** Does ``select`` list every test an edit can redden? A
+selection that omits such a test is an under-selection, the one failure the
+store must not have: the test would be skipped while it fails. An
+over-selection only costs time. The plan's ruling 41 asks the question of
+sampled mutants, each run both in full and through the store; ruling 45 (the
+user's, 2026-11-04) fixes the terms below. The spec, the driver and every
+per-mutant record are under ``scratch/verification_tree/cone_store/b4/``
+(``spec_b4.md``, ``driver/``, ``runs/``).
+
+**The terms.**
+
+* **The tree and the store.** The run is at ``42b5ceca``, against a store of
+  the numerics layer captured at that commit in a separate worktree.
+  ``select`` lists every test stored under another environment key, so the
+  store and the tree it judges must be one commit.
+* **The ground truth is the full-suite context.** Every full run collects
+  the whole ``testpaths`` tree, as the merge gate does, so all 12 conftests
+  and every test module are imported, and only the numerics tests run
+  (``--deselect`` of every other path; a control checks 5 808 kept, equal to
+  the layer collected alone, and 12 conftests loaded). The store promises
+  the verdict a full run gives (ruling 42), and a run of the numerics folder
+  alone loads one conftest.
+* **A mutant is an edit on disk** (``select`` judges file bytes): an exact
+  replace asserted to occur once, the pristine file copied aside first, and
+  each restore witnessed three ways: the bytes, ``git status`` against its
+  reference, and a pristine ``select`` equal to the no-edit selection. Edits
+  to the memo's own source and to ``tools/cone_store/`` are excluded: they
+  move the environment key, which is another claim.
+* **A red** is a test whose outcome differs from the pristine baseline. A
+  module that fails to collect counts its tests as red.
+* **A counted mutant** is one that can miss: ``select`` exits 0, lists fewer
+  than every test, gives no environment-key reason, and the full run reddens
+  a test outside the no-edit selection that is neither new nor in a module
+  that failed to collect. The acceptance asks 0 misses over at least 60
+  counted mutants that kill, which bounds the per-mutant miss rate below 5%
+  at 95% confidence.
+* **The frame** is 85 mutants: 49 def bodies spread over the concept
+  order's tiers (stage A, whose miss would stop the batch), and rows by
+  shape: import-time constants, default arguments, dataclass fields,
+  ``values/`` and ``geometry/`` code, test helpers, ``parametrize``
+  constants, a conftest, a new file, a collection error, nulls (a docstring,
+  an unread binding, an assert stripped by ``-O``) and controls.
+
+**The result** (`[M]` 2026-11-05 to 2026-11-06, serial, ``-O``, 42 h 14 min):
+
+* **0 under-selections over 61 counted mutants that killed**, so the
+  per-mutant miss rate is below 3/61, about 4.9%, at 95%. A positive control
+  of the miss counter (one red id dropped from a copy of a selection) read
+  its miss. 24 mutants did not count: 13 whose reds all lay in the no-edit
+  selection, 4 that cannot miss (``select`` refused, or listed every test),
+  and the 2 floor rows, 3 nulls and 2 controls.
+* **The controls.** The positive control (the root conftest's report hook
+  marking every pass failed) selected exactly the layer's 5 808 tests and
+  reddened more than 5 000. A syntax error in a module the root conftest
+  imports made ``select`` exit non-zero instead of listing a short
+  selection. Three pristine full runs agree, and no test was flaky.
+* **The restores**: 85 of 85 witnessed on all three legs.
+* **Precision.** A mutant that killed selected a median of 72 tests beyond
+  the 150 selected with no edit (the cone-unknown and the not passed), out of
+  5 658. The ratio of tests selected beyond the no-edit selection to tests
+  reddened beyond it has a median of 8.3, from 1.0 to 592.
+* **The selection run alone.** Each mutant's selection was also run as a
+  user runs it (``pytest <ids>``), and its verdicts agree with the full
+  run's in 77 of 77 mutants. The one flag the record raised, on the mutant
+  ``T07b``, is an artefact of the record: both runs hold the same collection
+  error of ``test_inverse_metric_operator.py``, keyed by the file's path,
+  which the full side's filter on selected ids drops.
+* **Placement predicts propagation.** Over the 59 mutants analysed, no red
+  test contradicts its placement: each is homed at the mutated node or
+  downstream of it, is a straddler whose foreign nodes include it, or is
+  unplaced. One red test's own cone lacks the mutated node altogether, a
+  dependence of another kind (the second finding below).
+* **The cost.** A mutant's ``select`` took a median of 248 s and its full
+  run 874 s (#699).
+
+**Two findings.**
+
+* **A null control predicted wrong.** A docstring edit in
+  ``orpheus/numerics/generating_measure.py`` was predicted to select only the
+  no-edit selection. It selected 8 tests more and reddened none, and all 8
+  carry the reason "data … generating_measure.py changed": they read the
+  module's source as data (the concept-order census, import and AST audits),
+  so their verdict can depend on its text, and selecting them is correct.
+  The corrected predicate, the no-edit selection plus the tests holding a
+  ``DataPin`` on the file, holds for 8 of 8.
+* **A dependence through import, not through a def.** Under a syntax error
+  in ``orpheus/numerics/near_kernel.py``,
+  ``test_axis_identity.py::test_K1_equality_and_hash_are_defined_once_on_the_base``
+  went red, and its own cone holds no ``near_kernel`` def. The test is a
+  census over ``__subclasses__()``, which sees the classes of the modules
+  that were imported; importing a module runs its module code, which the
+  cone records as statements, never as defs. ``select`` covers the test
+  through the module's import-time statements. Placement, which homes a test
+  by its defs, cannot see such a dependence.
+
 .. _verification-cone-store-limits:
 
 Scope boundaries
@@ -2564,6 +2666,13 @@ History
        statements they observe (the Gotchas).
      - #358
      - ``b65674fc``, ``f78085d8``
+   * - 2026-11-06
+     - **The validation run (B4) on the numerics layer: 0 under-selections
+       over 61 counted mutants that killed** (the bound below 5% at 95%), the
+       selection run alone agreeing with the full run in 77 of 77 mutants;
+       the merge gate stays the full suite (ruling 46).
+     - #358
+     - ``42b5ceca`` (measured), plan ``2c2cea2c``
    * - 2026-11-04
      - **The numerics re-capture: X1.3 met, and an own cone that held
        another process's defs.** A no-edit ``select`` at ``f78085d8`` listed
@@ -2575,7 +2684,7 @@ History
        cone and out of the own cone unless the run ran them too
        (``ReadCones``); S23's own leg, and S24 for a def both ran.
      - #358
-     - the commit "fix(cone-store): an own cone holds only what its run ran"
+     - ``1e989da7``
    * - 2026-11-03
      - **Increment B3: two cones per test, and placement.** The own cone (a
        second ``Recording`` around the test's protocol, table

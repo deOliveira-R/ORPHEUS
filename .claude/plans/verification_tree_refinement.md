@@ -620,7 +620,6 @@ Findings filed, not acted on:
 - **qa's F3 on the own-cone fix** (#698). A refusal raised by a foreign child (`SourceGone`) makes its reader cone-unknown, and placement then leaves it unplaced, although its own cone is complete; placement reads the selection cone's unknown reasons only. `[M]` 1 of the 148 cone-unknown tests, the gate that deletes the source on purpose.
 - **A listing records macOS's `.DS_Store`** (#698). A test that lists `orpheus/` is selected when Finder writes that file.
 
-**Next:** B4, the validation run (ruling 41), then the verdict layer (rulings 34 and 35).
 
 **B4, ruled by the user (2026-11-04)**, on the test-architect's spec (`scratch/verification_tree/cone_store/b4/spec_b4.md`, driver beside it). B4 validates at `42b5ceca`, against a store of the numerics layer captured at that commit in the worktree `ORPHEUS-b3-recapture`, because `select` lists every row of another environment key (`tools/cone_store/selection.py:140`).
 
@@ -629,6 +628,27 @@ Findings filed, not acted on:
     - **Every mutant's selected subset is also run alone,** and its verdicts are compared with the full run's. A disagreement is reported, not gated.
     - **A miss in stage A stops the batch** to be fixed. Stage A is the def-body mutants, one or more per tier.
     - **The ground truth is the full-suite context.** Every run collects the whole testpaths tree, as the merge gate does, so all 12 conftests and every test module are imported, and only the numerics tests run. The store promises the verdict a full run gives (ruling 42), and a run of the numerics folder alone loads 1 conftest, so it cannot show another layer's effect on a numerics verdict.
+
+**B4 [MEASURED 2026-11-05 to 2026-11-06, at `42b5ceca`]**: soundness holds on the numerics layer. The spec, driver and records are under `scratch/verification_tree/cone_store/b4/`: `spec_b4.md`, `driver/`, `runs/` with `batch.log`, `q1_q5.json`, `q2.json`, `red_sets.json` and one directory per mutant. The store is `b4/capture/numerics.sqlite`, captured in the worktree `ORPHEUS-b3-recapture` (kept: its `.cache/sets` hold the kept sets the store names, #697). `[M]`, 85 mutants, serial, `-O`, the full-suite context (all 12 conftests, 5 808 numerics tests kept), 42 h 14 min wall (2026-11-05 01:37 to 2026-11-06 19:51):
+- **Soundness: 0 under-selections over 61 counted killing mutants** (the user's floor was 60): the per-mutant miss rate is below 3/61, about 4.9%, at 95%. The miss counter's positive control (one red id dropped from a copy of a selection) read its miss. Not counted, each with its reason in `q1_q5.json`: 13 mutants whose reds were all in the no-edit set, 4 that cannot miss (`select` refused, or selected every test), and 2 floor rows, 3 nulls and 2 controls.
+- **Restores:** 85 of 85 witnessed on all three legs (bytes, `git status`, a pristine `select` equal to the no-edit set). The first, second and final pristine runs agree; the flaky set is empty.
+- **Controls:** the positive control (the root conftest's report hook) selected exactly the 5 808 ids and reddened more than 5 000; the conftest import refusal made `select` exit non-zero.
+- **Precision:** a killing mutant selects a median of 72 tests beyond the 150 always selected, out of 5 658. Selected beyond S0 over red beyond S0 has a median of 8.3, a minimum of 1.0 and a maximum of 592.
+- **Q5, the selection run alone:** its verdicts agree with the full run's in 77 of 77 mutants. The one flag, on `T07b`, is an artefact of the record: both runs hold the same collection error of `test_inverse_metric_operator.py`, keyed by the file's path, which the full side's filter on selected ids drops.
+- **Q2, placement predicts propagation:** 0 defects of the placement kind over 59 mutants. One red test's own cone lacks the mutated node (`S10`, `test_axis_identity.py::test_K1…`): it is a census over `__subclasses__()`, which depends on which modules were imported, and an import runs module code, which the own cone records as statements, not defs. Selection covers it; the census of placement must read it as a dependence through import, not through a def.
+- **The one failed acceptance predicate, Z1, was a wrong prediction.** A docstring edit in `generating_measure.py` selected 158 tests where the spec predicted the 150 of the no-edit set, and reddened none. All 8 extra tests carry the reason "data … generating_measure.py changed": they read the module's source as data (the concept-order census, import and AST audits), so their verdict can depend on the text, and selecting them is right. The corrected predicate (the no-edit set plus the tests holding a `DataPin` on the file, nothing reddened) holds for 8 of 8.
+- **Cost:** a mutant's `select` took a median of 248 s, and its full run 874 s (#699: `select` with one edited file is nearly as slow as the run it saves).
+
+46. **The merge gate stays the full suite** (the user, 2026-11-07, option A). B4 validates the numerics layer only, 5 808 of about 20 750 tests, and #699 makes `select` too slow to save much yet. So `select` is the trusted local check for an edit to the numerics layer, and the full suite stays the merge gate until every layer is captured and validated.
+
+⏸ **Next (2026-11-07): the census of the numerics layer** (ruling 22), reading the placement of the store at `42b5ceca` (`scratch/verification_tree/cone_store/b4/runs/place.json`: 5 257 of 5 808 placed, 993 straddlers, pure fraction 0.811). The lists it works through, in order:
+1. the 401 tests whose own cone holds no numerics def: they are probably filed in the wrong folder;
+2. the 126 proposed supports that run against the concept order: each is a misplaced test or a wrong order;
+3. the declared `rests_on` edges against execution: of 798, 138 hold at containment 1.0 and 513 below 0.8, and 275 cannot be measured (221 whose lower test ran no def). Decide whether the declarations are wrong or containment is the wrong test for that kind of edge;
+4. the 991 pairs that ran the same defs, and the 105 near-duplicate groups: candidates only, since a duplicate needs equal kill sets and the same claim (ruling 21);
+5. the 993 straddlers, read against the `S10` finding above (a dependence through import is not a def).
+
+Then the census's reading pass (each test's claim) and the folder's reorganisation, then the next layer (ruling 31). #697, #698 and #699 are the cone store's open items; #699 comes before `select` is used day to day. The verdict layer (rulings 34 and 35) waits for the census.
 
 **Ruled by the orchestrator, from ruling 41 (2026-11-01).**
 
