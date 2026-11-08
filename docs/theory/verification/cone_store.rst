@@ -1849,7 +1849,7 @@ distribution's knee. The sample's edges are not the layer's declared
 population, and the tail is not read as a second kind of edge: a declared
 ``rests_on`` is an execution support (ruling 51 of the campaign plan), so
 an edge in the tail is a defect of its marker, and over the layer's 443
-declarations 177 hold at 0.95 on the lower's subject ("What a declared
+declarations 197 hold at 0.95 on the lower's subject ("What a declared
 edge asserts", below). On the
 specification's 180-test sample (with the floor subtracted), lowering it to
 0.8 triples the containing pairs, 1 227 to 3 706, about 20 per test (its
@@ -1902,9 +1902,11 @@ repaired by re-pointing, narrowing or removing it.
 store at ``af5b78c8`` under ruling 50): the layer holds 443 declarations
 (an upper function and a target as written), 976 rows. Where the marker is
 written, read from the test files' syntax trees: on the function 199, on a
-class 26, in the file's ``pytestmark`` 218. Under rulings 51 and 52, 177
-declarations hold, 260 fail and 6 are measured by read items only. Of the
-260, 42 are ``traced_memo`` declarations that miss 1 to 4 lookup-path defs
+class 26, in the file's ``pytestmark`` 218. Under rulings 51 and 52, 197
+declarations hold and 246 fail; 6 of the 443 are measured by read items
+only (2 hold, 4 fail), and a structural lower holds by ``c_items`` also
+inside a class target that mixes it with lowers that ran defs. Of the
+246, 42 are ``traced_memo`` declarations that miss 1 to 4 lookup-path defs
 of subjects of 17 to 37 defs: the template tests generate in a child forked
 from the template process, which the own recording does not see, so these
 wait on the capture of the child
@@ -3530,9 +3532,9 @@ History
    * - 2026-11-08
      - **Rulings 51 and 52: a declared ``rests_on`` is an execution
        support**, measured by ``c_home``, and a class or file target holds
-       for an upper that contains some lower under it. Census list 3: 177 of
-       443 declarations on the numerics layer hold, 260 fail (the marker
-       repair is owed), 6 by read items only.
+       for an upper that contains some lower under it. Census list 3: 197 of
+       443 declarations on the numerics layer hold, 246 fail (the marker
+       repair is owed).
      - #358, #701
      - ``docs(verification): census list 3, rulings 51 and 52``
    * - 2026-11-08
