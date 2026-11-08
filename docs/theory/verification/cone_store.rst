@@ -1809,6 +1809,17 @@ under ``U``.
   support is proposed when ``c ≥ threshold`` (inclusive; 0.95 by default),
   ``|D(L)| ≥ 3`` (``min_defs``: a cone of one or two defs is contained by
   nearly everything), and the two cones are not equal.
+* **The lower's subject is contained at the same threshold** (ruling 50 of
+  the plan). The subject ``S(L)`` is the lower function's own defs at its
+  home nodes (each tied node for a tie; each case's home, its cases united,
+  for a function whose cases home apart), and the support also needs
+  ``c_home(U ⊇ L) = |S(L) ∩ D(U)| / |S(L)| ≥ threshold``. The reason: ``D``
+  holds the layers below too, so a lower whose cone is one numerics def and
+  twenty ``geometry`` defs is contained at 0.95 by an upper that ran the
+  twenty and not the one. The 5 % the whole cone may miss would then fall
+  entirely on the code the lower is about, and a defect there cannot reach
+  the upper, so the upper does not rest on the lower. ``c`` keeps its meaning
+  (the whole cone); a support record carries both.
 * **Equal cones are duplicate candidates** when they hold at least
   ``min_defs`` defs, listed with their def count and no verdict, and never a
   support: ruling 21 decides on kill sets, not on cones. Two smaller equal
@@ -1848,8 +1859,11 @@ an edge from a function to itself (a class or file target holding the
 upper) is skipped. A function is measured when its test is judged: it
 passed with a known cone, whatever homes it (a failed or unknown cone stops
 early, so its containment means nothing). The report adds ``declared_rests_on``
-(each ``{upper, lower, target, c, c_items}``; ``c_items`` and the rows with
-``c`` = ``None`` are B5's, :ref:`verification-cone-store-reads`),
+(each ``{upper, lower, target, c, c_home, c_items}``; ``c_items`` and the
+rows with ``c`` = ``None`` are B5's, :ref:`verification-cone-store-reads`;
+``c_home`` is the subject's containment of ruling 50, ``None`` for a lower
+not placed by its defs, and filters nothing: a declared edge is measured,
+not proposed),
 ``declared_counts`` (cumulative over ``c`` at 1.0, 0.95, 0.9 and 0.8, and
 ``below``), ``declared_items_only`` and ``declared_unmeasured``, counted by
 reason: ``upper not judged``, ``target not judged`` (no judged function
@@ -1888,7 +1902,7 @@ pure counts per closure, the runtime pure fraction and the null's per seed,
 the ties, the foreign kinds, the homes per node (a tie as its nodes joined
 by ``+``), the number of tests with an above-layer def, and the straddlers,
 sorted by their foreign kinds. Beside them: ``supports`` and
-``supports_against_order`` (each ``{upper, lower, c}``), ``duplicates``
+``supports_against_order`` (each ``{upper, lower, c, c_home}``), ``duplicates``
 (``{a, b, defs}``), ``near_duplicates``, ``support_counts`` and the
 declared-edge keys above.
 
@@ -1968,8 +1982,9 @@ store B4 captured at ``42b5ceca`` for its validation run
 The census of the numerics layer reads this placement list by list (the
 plan's ⏸ point of 2026-11-07). Its first list, the 401 tests with no layer
 def, is what B5 answers (:ref:`verification-cone-store-reads`). The store was
-captured before B5, so it holds no reads, and the placement of the layer by
-every channel is owed by a re-capture.
+captured before B5, so it holds no reads; the placement of the layer by
+every channel is read on B5's re-capture
+(:ref:`verification-cone-store-b5-acceptance`).
 
 .. _verification-cone-store-place-gates:
 
@@ -2749,27 +2764,93 @@ arms, 3 blind and each explained in its gate's docstring, and 3 of the then
 52 rows (A5, P3 and V7) red under no arm. qa's three further arms reddened
 A5, reddened P3b but not P3's first leg, and gave V7 a red that a broken
 subprocess leg made unattributable. qa then found every battery reading void
-on the tree that followed, where R18, V7 and V9 were red. The battery on the
-final code is owed.
+on the tree that followed, where R18, V7 and V9 were red. The battery was
+re-run on the final code in a separate worktree (`[M]` 2026-11-07, the
+test-architect, ``scratch/verification_tree/cone_store/b5/battery/``): 41
+arms, every one red; 58 of the 58 test functions of the two new files
+reddened by at least one arm; the unmutated build 0 red; the positive
+control (attribute chains dropped) reddens 23. Four arms of the earlier run
+read blind and are not in the 41: F3 and F3b, replaced by F3c; C9b (the own
+reads left out of the tables a store of another form drops) and C12b (the
+first-party filter dropped from read resolution), which have no replacement,
+so those two properties are not pinned by any gate (#700).
 
-The acceptance is owed
-----------------------
+.. _verification-cone-store-b5-acceptance:
 
-The specification's acceptance (§4, AC0 to AC10) runs on a re-capture of the
-numerics layer at the build commit (about 5 h, detached), against the B4 store
-as leg 1: no def home moves between legs 2 and 3 (AC1); at least 128 of the
-139 S tests are placed, and of the 19 A tests, 13 by statement, 2 by a data
-node, 2 at ``layer`` and 2 at ``package`` (AC2); the 4 tests whose own cone
-already held a numerics ``StatementsPin`` are placed at ``quadrature``,
-``near_kernel``, ``quadrature`` and ``iteration`` (AC3); each statement home is
-among the nodes the static read names (AC4, 127 of 128 in the prototype); 0 of
-the 205 G tests gains a numerics node (AC5); the union reading over the whole
-layer, measured for the first time (AC6); the null per channel (AC7); the
-unresolved and ambiguous counts (AC8); 0 statement reads through the floor
-(AC9); and the declared edges B4 could not measure, re-counted (AC10). Every
-moved home is explained by a script-generated table of shapes, and a move with
-no shape is a finding. The predictions above are the prototype's, on 658
-tests, and are not the layer's.
+The acceptance on the numerics layer
+------------------------------------
+
+The specification's acceptance (§4, AC0 to AC10) ran on a re-capture of the
+130 numerics test files at ``af5b78c8``, a store of form 4 holding 5 808
+tests, against the B4 store as leg 1. `[M]` 2026-11-08: the capture took
+7 h 28 min in 13 detached chunks
+(``scratch/verification_tree/cone_store/b5/capture/``); the test-architect's
+runner ``b5/acceptance/acceptance.py all`` checks that the placing code is
+the capture's and writes ``acceptance.json`` and ``moves.md``. No check
+failed.
+
+* **AC0 and AC1, no def home moved.** 5 257 of the 5 257 tests B4 placed are
+  in the new store and placed by defs, with 0 home drift against B4's
+  placement; 0 of them has a home other than the def home recomputed from
+  the store's own-cone ``DefPin`` rows.
+* **AC2 and AC3, the unplaced populations.** 130 of the 139 S tests are
+  placed by statement (the prototype predicted 128); the other 9 home at
+  their own apparatus. The 19 A tests: 13 by statement, 2 by data, 2 at
+  ``layer``, 2 at ``package``, as predicted. The 4 controls home at
+  ``quadrature``, ``near_kernel``, ``quadrature`` and ``iteration``.
+* **AC4, a record.** The home is among the nodes the static read names for
+  142 of the 144 statement-placed tests; the 2 misses are the static
+  instrument's (a re-export through ``spaces``, a helper reaching
+  ``traced_memo``). Def-placed: 5 064 of 5 257. (B4's census counted 5 044
+  of 5 237: its control left out the 20 tied tests.)
+* **AC5.** 0 of the 205 G tests gains a numerics node (171 home at apparatus,
+  34 are unplaced for "no layer read"). Of the 38 O tests, 36 home at
+  apparatus, 1 by statement, and 1 is not homed
+  (``test_the_invariance_module_is_deleted``, as predicted).
+* **AC6, a record.** 116 tests have a union home other than their home, and
+  229 def-placed tests are statement straddlers. Each move has a shape:
+  a value delivered by apparatus, 54 (29 ``coefficient_layout`` to ``axis``
+  through case tables of ``Axis`` values); an input value read from a higher
+  node, 51 (21 ``measure`` to ``quadrature``, reading
+  ``gauss_legendre_on_mu`` and ``NODE_ALIGNED``); a data read of a higher
+  node, 6; a tie made by a shared read, 5. 0 of the 116 has no shape.
+* **AC7, the null per channel.** The null is read over the tests a shuffle
+  can move, those with two or more (node, item) labels: a test with one label
+  stays pure under every shuffle, so over all tests the null of a channel of
+  mostly single-label tests reads near its measured value and says nothing.
+  The def channel, 5 026 movable of 5 257: 0.802 against 0.020, 0.017 and
+  0.021 (seeds 1, 2, 3). The statement channel, 71 movable of 144 (80 labels
+  over 28 nodes): 0.972 against 0.141, 0.127 and 0.056. Over all tests the
+  readings are 0.811 against 0.060 to 0.064, and 0.986 against 0.535 to
+  0.576. The data channel holds 2 tests and has no null. The runner's null
+  equals ``place``'s on every seed of both judged channels.
+* **AC8 and AC9.** 0 unresolved reads, 0 ambiguous files; 0 tests hold the
+  ``pytest_runtest_makereport`` read (the floor).
+* **AC10, a record.** Of 976 declared ``rests_on`` rows, 798 are measured
+  over defs and 178 only through read items (85 of them at 1.0); the reason
+  "lower ran no def" (221 in B4) is now "lower ran no def and read nothing",
+  43.
+
+The placement of the layer by every channel: 5 257 by defs, 144 by
+statement, 216 at apparatus, 2 by data, 2 at ``layer``, 2 at ``package``
+(5 623); unplaced 148 cone unknown, 35 no layer read, 2 not passed (185).
+
+The supports against the order on this store, read for the census (its list
+2, ``scratch/verification_tree/cone_store/b5/census/l2.md``), are what led
+to ruling 50 (the subject's containment, above). `[M]` 2026-11-08, ``place``
+re-run on the same store with every other key of the report unchanged.
+Of the 6 784 supports along the order, the subject's containment fails for
+1 161 (for 58 of them the upper ran none of the subject); 1 805 are dropped
+in all (the 1 161, and 644 now implied through another support) and 1 605
+added, 6 584 in all. Against the order, 126 to 79: 45 kept, 81 dropped, and
+34 that the transitive reduction had hidden behind middles the ruling
+removed. ``support_counts`` at 0.95 fall from 47 312 to 39 598, and the
+near-duplicate groups from 105 to 76. In 79 of the 79 remaining pairs the
+upper test's own source names the lower's home node (the same check reads
+False for 57 of the 81 dropped pairs): the test runs a node its home does
+not import, a straddle. That is a reading of the tests; it does not exclude
+an edge from the upper's home module that the import graph misses (a
+dynamic import, a dispatch).
 
 
 .. _verification-cone-store-environment:
@@ -3409,6 +3490,16 @@ History
      - Milestone
      - Issue
      - Where
+   * - 2026-11-08
+     - **Ruling 50: a support contains the lower's subject.** The census's
+       list 2 found 62 of the 126 supports against the order whose upper ran
+       none of the lower's home-node defs. ``_supports`` now also requires
+       ``c_home ≥ threshold`` over the function's own defs at its home nodes
+       (``OwnDefs.at``); on the numerics store this removes 1 161 of the
+       6 784 supports along the order. Support records and declared rows
+       carry ``c_home``; one ``_contained`` measures every containment.
+     - #358
+     - ``fix(cone_store): a support contains the lower's subject``
    * - 2026-11-07
      - **Increment B5: placement by what a test's run read** (rulings 47 to
        49). ``tools/cone_store/reads.py`` reads each executed first-party
@@ -3422,9 +3513,10 @@ History
        default; apparatus nodes and ``apparatus_supports``; ``c_items`` on the
        declared edges, over the restored ``judged`` population (qa's F1).
        The motive is list 1's 401 unplaced tests. Review findings not
-       repaired: #700. The acceptance on a re-capture (AC0 to AC10) is owed.
+       repaired: #700. The acceptance on a re-capture of the numerics
+       layer (AC0 to AC10) passed, 2026-11-08.
      - #358
-     - ``feature/b5-placement-reads``, uncommitted, over ``4fad267e``
+     - ``af5b78c8``
    * - 2026-11-03
      - **B3's acceptance: a no-edit select over-selected** (ERR-125). Plan
        row X1.3 counted 229 numerics tests where 149 were owed. 70 readers

@@ -914,6 +914,151 @@ _READS: dict[str, str] = {
     """,
 }
 
+
+def _defs(prefix: str, n: int) -> str:
+    """``n`` one-line defs ``<prefix>0`` ... returning their index (a fixture module's source)."""
+    return "".join(f"def {prefix}{i}():\n    return {i}\n\n\n" for i in range(n))
+
+
+def _base(prefix: str) -> str:
+    """A base module of 40 defs and their tuple ``ALL``."""
+    return _defs(prefix, 40) + "ALL = (" + ", ".join(f"{prefix}{i}" for i in range(40)) + ")\n"
+
+
+#: Ruling 50 (a support's lower SUBJECT, the function's own defs at its home nodes, must be contained too): a layer
+#: ``pkg/sj`` ranked :data:`SUBJECT_ORDER`, with one base of 40 defs per scenario so no two scenarios share a def.
+#: (A, base ``a``) ``test_lower`` runs the 40 and ``mid.m0`` (41 defs, home ``mid``, subject ``{m0}``);
+#: ``test_upper_misses`` runs the 40 and ``top.t0``-``t9`` (50; cone 40/41, subject 0); ``test_upper_runs`` runs the 40,
+#: ``m0`` and ``top.u0``-``u4`` (46; 41/41, 1/1). (B, base ``b``, a TIE) ``test_tie_lower`` runs the 40, ``mid.p0`` and
+#: ``mid2.n0`` (42, tied at ``mid`` and ``mid2``, subject ``{p0, n0}``); ``test_tie_partial`` the 40, ``p0`` and
+#: ``top.w0``-``w4`` (46; 41/42, 1/2); ``test_tie_full`` the 40, ``p0``, ``n0`` and ``top.x0``-``x4`` (47; 42/42, 2/2).
+#: (C, base ``c``, AGAINST the order) ``test_against_lower`` runs the 40 and ``mid.q0`` (home ``mid``);
+#: ``test_against_upper`` the 40, ``q0`` and ``side.s0``-``s4`` (home ``side``, which imports nothing: 41/41, 1/1).
+#: (D, base ``f``, an EDGE) ``test_edge_lower`` runs the 40 and ``mid.r0``-``r9`` (50, subject the ten ``r``);
+#: ``test_edge_upper`` the 40, ``r0``-``r8`` and ``top.y0`` (cone 49/50 = 0.98, subject 9/10 = 0.9 exactly).
+#: (E, base ``g``, TWO HOMES) ``test_two_homes[1]`` runs the 40 and ``mid.v0`` (home ``mid``); ``test_two_homes[2]``
+#: the 40, ``mid.v1`` and ``top.h0`` (home ``top``): the function's homes are ``mid`` and ``top`` and its subject is
+#: ``{v0, v1, h0}`` (case 2's ``v1`` is at the function's home ``mid``, not at the case's own); ``test_two_homes_upper``
+#: runs the 40, ``v0``, ``h0`` and ``top.k0``-``k4`` (cone 42/43, subject 2/3; the per-case reading, ``{v0, h0}``,
+#: would give 1). Every other pair holding at 0.8 has a subject of 0 (the largest such cone, 49/50, is
+#: ``test_edge_lower`` over ``test_edge_upper``). ``test_reads_a_constant`` runs no def and reads ``mid.CONST``;
+#: ``test_reads_and_runs_above`` reads it and runs ``pkg/sjx/o.o0``, a def ABOVE the layer: placed by statement, with
+#: a cone of one def.
+SUBJECT_ORDER: tuple[tuple[str, ...], ...] = (("a", "b", "c", "f", "g"), ("mid", "mid2"), ("side", "top"))
+_SUBJECT: dict[str, str] = {
+    "pkg/sj/__init__.py": "",
+    "pkg/sj/a.py": _base("a"),
+    "pkg/sj/b.py": _base("b"),
+    "pkg/sj/c.py": _base("c"),
+    "pkg/sj/f.py": _base("f"),
+    "pkg/sj/g.py": _base("g"),
+    "pkg/sj/side.py": _defs("s", 5),
+    "pkg/sjx/__init__.py": "",
+    "pkg/sjx/o.py": _defs("o", 1),
+    "pkg/sj/mid.py": textwrap.dedent("""
+        from pkg.sj import a, b
+
+        CONST = 3
+
+
+        def m0():
+            return 0
+
+
+        def p0():
+            return 0
+    """) + "\n\n" + "".join(_defs(prefix, n) for prefix, n in (("q", 1), ("r", 10), ("v", 2))),
+    "pkg/sj/mid2.py": """
+        from pkg.sj import b
+
+
+        def n0():
+            return 0
+    """,
+    "pkg/sj/top.py": "from pkg.sj import mid, mid2\n\n\n"
+                      + "".join(_defs(prefix, n) for prefix, n in (("t", 10), ("u", 5), ("w", 5), ("x", 5), ("y", 1),
+                                                                 ("h", 1), ("k", 5))),
+    "tests/sj/__init__.py": "",
+    "tests/sj/test_sj.py": """
+        import pytest
+
+        from pkg.sj import a, b, c, f, g, mid, mid2, side, top
+        from pkg.sjx import o
+
+
+        def test_lower():
+            if sum(f() for f in a.ALL) + mid.m0() != 780:
+                raise AssertionError
+
+
+        def test_upper_misses():
+            if sum(f() for f in a.ALL) + sum(getattr(top, f"t{i}")() for i in range(10)) != 825:
+                raise AssertionError
+
+
+        def test_upper_runs():
+            if sum(f() for f in a.ALL) + mid.m0() + sum(getattr(top, f"u{i}")() for i in range(5)) != 790:
+                raise AssertionError
+
+
+        def test_tie_lower():
+            if sum(f() for f in b.ALL) + mid.p0() + mid2.n0() != 780:
+                raise AssertionError
+
+
+        def test_tie_partial():
+            if sum(f() for f in b.ALL) + mid.p0() + sum(getattr(top, f"w{i}")() for i in range(5)) != 790:
+                raise AssertionError
+
+
+        def test_tie_full():
+            if sum(f() for f in b.ALL) + mid.p0() + mid2.n0() + sum(getattr(top, f"x{i}")() for i in range(5)) != 790:
+                raise AssertionError
+
+
+        def test_reads_a_constant():
+            if mid.CONST != 3:
+                raise AssertionError
+
+
+        def test_reads_and_runs_above():
+            if mid.CONST + o.o0() != 3:
+                raise AssertionError
+
+
+        def test_against_lower():
+            if sum(fn() for fn in c.ALL) + mid.q0() != 780:
+                raise AssertionError
+
+
+        def test_against_upper():
+            if sum(fn() for fn in c.ALL) + mid.q0() + sum(getattr(side, f"s{i}")() for i in range(5)) != 790:
+                raise AssertionError
+
+
+        def test_edge_lower():
+            if sum(fn() for fn in f.ALL) + sum(getattr(mid, f"r{i}")() for i in range(10)) != 825:
+                raise AssertionError
+
+
+        def test_edge_upper():
+            if sum(fn() for fn in f.ALL) + sum(getattr(mid, f"r{i}")() for i in range(9)) + top.y0() != 816:
+                raise AssertionError
+
+
+        @pytest.mark.parametrize("case", [1, 2])
+        def test_two_homes(case):
+            total = sum(fn() for fn in g.ALL) + (mid.v0() if case == 1 else mid.v1() + top.h0())
+            if total != 780 + (case - 1):
+                raise AssertionError
+
+
+        def test_two_homes_upper():
+            if sum(fn() for fn in g.ALL) + mid.v0() + top.h0() + sum(getattr(top, f"k{i}")() for i in range(5)) != 790:
+                raise AssertionError
+    """,
+}
+
 _THREAD_LINES = """
 import threading as _threading
 import time as _time
@@ -968,7 +1113,7 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
           thread_at_module: bool = False, unmeasured_platform: bool = False, reads_source: bool = False,
           subdir: bool = False, read_rewrite: bool = False, race: bool = False, offpath: bool = False,
           user_ignore: bool = False, localplug: bool = False, phases: bool = False, placement: bool = False,
-          own_store: bool = False, reads: bool = False, age: bool = True) -> Path:
+          own_store: bool = False, reads: bool = False, subject: bool = False, age: bool = True) -> Path:
     """Write the fixture tree under ``root`` and return it; ``age`` waits until every file's identity is
     settled, so a capture taken next records settled identities (spec F1)."""
     files = dict(_BASE)
@@ -998,6 +1143,8 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
         files |= _OWN_STORE
     if reads:
         files |= _READS
+    if subject:
+        files |= _SUBJECT
     conftest = textwrap.dedent(files["tests/conftest.py"])
     if thread_at_conftest:
         conftest += _THREAD_LINES

@@ -45,7 +45,10 @@ Proposed ``executes`` supports (S17: containment is fractional): over the test F
 cases are one claim, ruling 4; their own defs are united), ``c(U ⊇ L) = |D(L) ∩ D(U)| / |D(L)|`` over own defs
 under the first-party package. ``U -> L`` is proposed when ``c >= threshold``, ``|D(L)| >= min_defs`` and the two
 cones are not equal (equal cones of at least ``min_defs`` defs are DUPLICATE CANDIDATES, with no verdict: ruling 21
-decides on kill sets; two smaller equal cones are below the size a containment is read at).
+decides on kill sets; two smaller equal cones are below the size a containment is read at). The lower's SUBJECT, its
+own defs at its home nodes (each tied node for a tie, its cases united), is contained at the same threshold, ``c_home(U ⊇ L) =
+|S(L) ∩ D(U)| / |S(L)| >= threshold`` (ruling 50): the 5 % the whole cone may miss cannot all fall on the code the
+lower is about, since an upper that never runs the lower's subject cannot be reached by a defect in it.
 Fractional containment can cycle, so functions that contain each other at the threshold are a NEAR-DUPLICATE group,
 also listed with no verdict, and the relation is transitively reduced over its condensation (each group one node).
 A pair whose lower home is neither the upper home nor upstream of it under the widest closure is listed apart,
@@ -54,11 +57,12 @@ against the order, for the orchestrator's reading (S18).
 The declared ``rests_on`` edges (``declared``, each (upper test id, target id) as pytest resolved the marker:
 ``tests/_harness/rests_on_manifest.py``, the one resolver) are measured on the same function cones: each target
 collapses to its functions (a case to its function, a class or a file to every function under it), and each edge
-reports ``c(U ⊇ L)``, with the cumulative counts at :data:`THRESHOLDS` and the count below the lowest, so the
-threshold is judged on the layer's whole declared population, every test that passed with a known cone included,
-whatever homes it. An edge whose upper or target holds no such function, or whose lower ran no def and read nothing,
-is counted by that reason. A lower that ran no def but read items has no ``c``: it is measured by ``c_items`` alone
-(over defs and read items, B5), and counted apart (``declared_items_only``).
+reports ``c(U ⊇ L)`` and, for a lower placed by its defs, ``c_home`` (``None`` otherwise), with the cumulative
+counts over ``c`` at :data:`THRESHOLDS` and the count below the lowest, so the threshold is judged on the layer's
+whole declared population, every test that passed with a known cone included, whatever homes it. An edge whose
+upper or target holds no such function, or whose lower ran no def and read nothing, is counted by that reason. A
+lower that ran no def but read items has no ``c``: it is measured by ``c_items`` alone (over defs and read items,
+B5), and counted apart (``declared_items_only``).
 
 The null shuffles the node label of each distinct (node, def) across the layer with a fixed seed and re-reads purity;
 a placement that the null matches carries no information (S13). The output is a plain dict, byte-identical across runs
@@ -68,7 +72,7 @@ from __future__ import annotations
 
 import random
 from collections import Counter, defaultdict
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence, Set
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
@@ -176,16 +180,20 @@ class OwnDefs:
     """A test's own defs, sorted by region: the layer's per node, the test-tree defs per file (its own def, the code
     nested in it and the hooks excepted: the apparatus it ran, ruling 48), and the counts elsewhere."""
 
-    layer: dict[str, frozenset[str]]
+    layer: dict[str, frozenset[tuple[str, str]]]
     upstream: Counter[str] = field(default_factory=Counter)
     above: Counter[str] = field(default_factory=Counter)
     helpers: dict[str, frozenset[str]] = field(default_factory=dict)
     elsewhere: int = 0
     first_party: frozenset[tuple[str, str]] = frozenset()
 
+    def at(self, nodes: Iterable[str]) -> frozenset[tuple[str, str]]:
+        """The layer defs at ``nodes``, each as (path, qualname)."""
+        return frozenset().union(*(self.layer.get(node, frozenset()) for node in nodes))
+
 
 def own_defs(pins: Iterable[Any], layer: Layer, test_id: str) -> OwnDefs:
-    by_node: dict[str, set[str]] = defaultdict(set)
+    by_node: dict[str, set[tuple[str, str]]] = defaultdict(set)
     upstream: Counter[str] = Counter()
     above: Counter[str] = Counter()
     helpers: dict[str, set[str]] = defaultdict(set)
@@ -197,7 +205,7 @@ def own_defs(pins: Iterable[Any], layer: Layer, test_id: str) -> OwnDefs:
             continue
         match layer.region(pin.path):
             case InLayer(node):
-                by_node[node].add(pin.qualname)
+                by_node[node].add((pin.path, pin.qualname))
                 first_party.add((pin.path, pin.qualname))
             case Upstream(module):
                 upstream[module] += 1
@@ -338,6 +346,11 @@ def home_of(test_id: str, defs: OwnDefs, reads: OwnReads, layer_nodes: Iterable[
         own = test_id.split("::")[0]
         return ApparatusHome(frozenset({own}) if own in reads.apparatus else frozenset(reads.apparatus))
     return None
+
+
+def _home_nodes(reading: Mapping[str, Any]) -> frozenset[str]:
+    """A reading's home as a node set: the home, or every tied node."""
+    return frozenset([reading["home"]] if reading["home"] else reading["tie"] or ())
 
 
 def _label(reading: Mapping[str, Any]) -> str:
@@ -506,8 +519,10 @@ def place(store_path: str | Path, layer_prefix: str, layer: Layer, order: Sequen
 
     statement_items = {test_id: {node: sorted(read[test_id].statement[node]) or [MODULE_ITEM] for node in said}
                        for test_id, said in by_statement.items()}
-    supports = _supports({test_id: owned[test_id] for test_id in placed}, tests, closures["typing"], threshold,
-                         min_defs)
+    function_homes = _function_homes({test_id: tests[test_id] for test_id in placed})
+    subjects = _subjects({test_id: owned[test_id] for test_id in placed}, function_homes)
+    supports = _supports({test_id: owned[test_id] for test_id in placed}, function_homes, subjects,
+                         closures["typing"], threshold, min_defs)
     readings = [tests[test_id] for test_id in placed]
     union_homes = {test_id: e["home_union"] for test_id, e in tests.items() if e.get("home_union")}
     by_node = {test_id for test_id, home in homes.items() if isinstance(home, DefHome | StatementHome)}
@@ -518,7 +533,8 @@ def place(store_path: str | Path, layer_prefix: str, layer: Layer, order: Sequen
                                         if entry["unplaced"]).items())),
         "pure": {kind: sum(r[key] for r in readings) for kind, key in CLOSURES.items()},
         "pure_fraction": pure_fraction(placed),
-        "null_pure_fraction": null({t: dict(owned[t].layer) for t in placed}),
+        "null_pure_fraction": null({t: {node: {name for _, name in defs} for node, defs in owned[t].layer.items()}
+                                    for t in placed}),
         "pure_fraction_statement": pure_fraction(by_statement),
         "null_pure_fraction_statement": null(statement_items),
         "ties": sum(1 for r in readings if r["tie"]),
@@ -537,7 +553,7 @@ def place(store_path: str | Path, layer_prefix: str, layer: Layer, order: Sequen
     judged = [test_id for test_id, test in stored.items() if not test.unknown and test.outcome == "passed"]
     claims = _functions({test_id: owned[test_id] for test_id in judged},
                         {test_id: _items(read[test_id]) for test_id in judged})
-    rests_on = _declared(_functions({test_id: owned[test_id] for test_id in judged}), declared, claims)
+    rests_on = _declared(_functions({test_id: owned[test_id] for test_id in judged}), declared, claims, subjects)
     return {"layer": layer_prefix, "code_root": layer.root, "threshold": threshold, "min_defs": min_defs,
             "summary": summary, "tests": tests, **supports, **rests_on,
             "apparatus_supports": _apparatus_supports(homes, read, judged, threshold)}
@@ -572,9 +588,9 @@ def _channels(defs: OwnDefs, reads: OwnReads, every: set[str], rank: Mapping[str
 def _straddle(nodes: set[str], entry: Mapping[str, Any], closures: Mapping[str, Mapping[str, frozenset[str]]]) -> dict[str, str]:
     """The statement nodes of a def-placed test that its def home does not explain at runtime, each with the kind of
     the first import edge that does (``none``: no path), as ``foreign`` reads them."""
-    homes = [entry["home"]] if entry["home"] else list(entry["tie"] or ())
+    homes = _home_nodes(entry)
     found = {node: next((kind for kind in CLOSURES if all(node in closures[kind][home] for home in homes)), "none")
-             for node in sorted(nodes - set(homes))}
+             for node in sorted(nodes - homes)}
     return {node: kind for node, kind in found.items() if kind != "runtime"}
 
 
@@ -605,9 +621,9 @@ def _apparatus_supports(homes: Mapping[str, Home], read: Mapping[str, OwnReads],
             for upper in sorted(items):
                 if upper == lower or not items[upper].get(node):
                     continue
-                c = len(premise & items[upper][node]) / len(premise)
-                if c >= threshold:
-                    edges.append({"upper": upper, "lower": lower, "node": node, "c": round(c, 6)})
+                c = _contained(premise, items[upper][node])
+                if c is not None and c >= threshold:
+                    edges.append({"upper": upper, "lower": lower, "node": node, "c": _rounded(c)})
     return edges
 
 
@@ -625,11 +641,43 @@ def _functions(owned: Mapping[str, OwnDefs],
     return functions
 
 
+def _function_homes(readings: Mapping[str, Mapping[str, Any]]) -> dict[str, frozenset[str]]:
+    """Each test function's home nodes, its cases united (ruling 4: a parametrised test is one claim)."""
+    homes: dict[str, set[str]] = defaultdict(set)
+    for test_id, reading in readings.items():
+        homes[_function(test_id)] |= _home_nodes(reading)
+    return {function: frozenset(nodes) for function, nodes in homes.items()}
+
+
+def _subjects(owned: Mapping[str, OwnDefs],
+              homes: Mapping[str, frozenset[str]]) -> dict[str, frozenset[tuple[str, str]]]:
+    """Each def-placed test function's subject (ruling 50): the function's own defs at its home nodes, its cases
+    united."""
+    subjects: dict[str, frozenset[tuple[str, str]]] = {}
+    for test_id, defs in owned.items():
+        function = _function(test_id)
+        subjects[function] = subjects.get(function, frozenset()) | defs.at(homes[function])
+    return subjects
+
+
+def _contained[T](part: Set[T], cone: Set[T]) -> float | None:
+    """``|part ∩ cone| / |part|``, the fraction of ``part`` inside ``cone``; ``None`` for an empty part (a
+    containment over no member has no value)."""
+    return len(part & cone) / len(part) if part else None
+
+
+def _rounded(value: float | None) -> float | None:
+    """A containment as the report writes it."""
+    return None if value is None else round(value, 6)
+
+
 def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[tuple[str, str]],
-              claims: Mapping[str, set[tuple[str, str]]]) -> dict[str, Any]:
-    """The containment of each declared ``rests_on`` edge over defs (``c``) and over defs and read items
-    (``c_items``, B5), its cumulative counts over ``c``, and the edges not measured by reason (module docstring). A
-    lower test that ran no def but read items is measured by ``c_items`` alone (``c`` is ``None``)."""
+              claims: Mapping[str, set[tuple[str, str]]],
+              subjects: Mapping[str, frozenset[tuple[str, str]]]) -> dict[str, Any]:
+    """The containment of each declared ``rests_on`` edge over defs (``c``), of the lower's subject (``c_home``, for
+    a lower placed by its defs, ruling 50) and over defs and read items (``c_items``, B5), its cumulative counts over
+    ``c``, and the edges not measured by reason (module docstring). A lower test that ran no def but read items is
+    measured by ``c_items`` alone (``c`` is ``None``)."""
     rows: list[dict[str, Any]] = []
     unmeasured: Counter[str] = Counter()
     for upper, target in sorted({(_function(u), t) for u, t in declared}):
@@ -645,9 +693,10 @@ def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[
             if not functions[lower] and not low:
                 unmeasured["lower ran no def and read nothing"] += 1
                 continue
-            c = round(len(functions[lower] & functions[upper]) / len(functions[lower]), 6) if functions[lower] else None
-            rows.append({"upper": upper, "lower": lower, "target": target, "c": c,
-                         "c_items": round(len(low & high) / len(low), 6) if low else None})
+            rows.append({"upper": upper, "lower": lower, "target": target,
+                         "c": _rounded(_contained(functions[lower], functions[upper])),
+                         "c_home": _rounded(_contained(subjects.get(lower, frozenset()), functions[upper])),
+                         "c_items": _rounded(_contained(low, high))})
     counts = {str(t): sum(1 for row in rows if row["c"] is not None and row["c"] >= t) for t in THRESHOLDS}
     counts["below"] = sum(1 for row in rows if row["c"] is not None and row["c"] < THRESHOLDS[-1])
     return {"declared_rests_on": rows, "declared_counts": counts,
@@ -655,16 +704,13 @@ def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[
             "declared_unmeasured": dict(sorted(unmeasured.items()))}
 
 
-def _supports(owned: Mapping[str, OwnDefs], tests: Mapping[str, Any], widest: Mapping[str, frozenset[str]],
+def _supports(owned: Mapping[str, OwnDefs], homes: Mapping[str, frozenset[str]],
+              subjects: Mapping[str, frozenset[tuple[str, str]]], widest: Mapping[str, frozenset[str]],
               threshold: float, min_defs: int) -> dict[str, Any]:
     """The proposed ``executes`` supports between test functions, the duplicate and near-duplicate candidates, and
     the counts at each of :data:`THRESHOLDS` (module docstring). ``widest`` is each node's ancestors under the
     widest closure, the order a support is read along."""
     functions = _functions(owned)
-    homes: dict[str, set[str]] = defaultdict(set)
-    for test_id in owned:
-        reading = tests[test_id]
-        homes[_function(test_id)] |= {reading["home"]} if reading["home"] else set(reading["tie"] or ())
     by_def: dict[tuple[str, str], list[str]] = defaultdict(list)
     for function, cone in functions.items():
         for item in cone:
@@ -676,12 +722,22 @@ def _supports(owned: Mapping[str, OwnDefs], tests: Mapping[str, Any], widest: Ma
         shared: Counter[str] = Counter(upper for item in cone for upper in by_def[item] if upper != lower)
         for upper, count in shared.items():
             containment[(upper, lower)] = count / len(cone)
+
+    def c_home(pair: tuple[str, str]) -> float | None:
+        upper, lower = pair
+        return _contained(subjects[lower], functions[upper])
+
+    def holds(pair: tuple[str, str], at: float) -> bool:
+        """``U -> L`` at ``at``: the lower's cone and its subject both contained (ruling 50)."""
+        home = c_home(pair)
+        return containment[pair] >= at and home is not None and home >= at
+
     duplicates = sorted({tuple(sorted((u, l))) for (u, l), c in containment.items()
                          if c == 1.0 and functions[u] == functions[l]})
     duplicate_pairs = {pair for a, b in duplicates for pair in ((a, b), (b, a))}
-    counts = {str(t): sum(1 for pair, c in containment.items() if c >= t and pair not in duplicate_pairs)
+    counts = {str(t): sum(1 for pair in containment if holds(pair, t) and pair not in duplicate_pairs)
               for t in THRESHOLDS}
-    relation = {pair for pair, c in containment.items() if c >= threshold and pair not in duplicate_pairs}
+    relation = {pair for pair in containment if holds(pair, threshold) and pair not in duplicate_pairs}
     group = _groups(relation)
     members: dict[str, set[str]] = defaultdict(set)
     for function, name in group.items():
@@ -697,7 +753,8 @@ def _supports(owned: Mapping[str, OwnDefs], tests: Mapping[str, Any], widest: Ma
     proposals, against = [], []
     for upper, lower in reduced:
         along = any(lh == uh or lh in widest.get(uh, frozenset()) for lh in homes[lower] for uh in homes[upper])
-        record = {"upper": upper, "lower": lower, "c": round(containment[(upper, lower)], 6)}
+        record = {"upper": upper, "lower": lower, "c": round(containment[(upper, lower)], 6),
+                  "c_home": _rounded(c_home((upper, lower)))}
         (proposals if along else against).append(record)
     return {"supports": proposals, "supports_against_order": against,
             "duplicates": [{"a": a, "b": b, "defs": len(functions[a])} for a, b in duplicates],

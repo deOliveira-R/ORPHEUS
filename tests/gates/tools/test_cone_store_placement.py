@@ -28,7 +28,7 @@ from pathlib import Path
 
 import pytest
 
-from ._cone_store_fixture import PLACEMENT_ORDER, build, capture, paths
+from ._cone_store_fixture import PLACEMENT_ORDER, SUBJECT_ORDER, build, capture, paths
 
 pytestmark = pytest.mark.foundation
 
@@ -242,3 +242,139 @@ def test_pl15_each_declared_rests_on_edge_is_measured_on_function_cones(captured
                         (T + "test_s_lower", T + "test_tiny"): 0.0}
     assert found["declared_counts"] == {"1.0": 1, "0.95": 1, "0.9": 2, "0.8": 2, "below": 1}
     assert found["declared_unmeasured"] == {"target not judged": 1}
+
+
+# ── ruling 50: a support's lower SUBJECT is contained too ──
+#
+# The fixture is ``_SUBJECT`` (``build(root, subject=True)``): layer ``pkg/sj``, order ``a, b < mid, mid2 < top``; every
+# containment below is counted off its sources by hand (``_cone_store_fixture.py``, the comment above ``SUBJECT_ORDER``).
+
+SJ = "tests/sj/test_sj.py::"
+
+
+@pytest.fixture(scope="module")
+def subject_captured(tmp_path_factory) -> Path:
+    root = build(tmp_path_factory.mktemp("subject") / "tree", memo=False, subject=True)
+    capture(root, "tests/sj")
+    return root
+
+
+def _place_subject(root: Path, declared: tuple[tuple[str, str], ...] = (), threshold: float = 0.95) -> dict:
+    from tools.cone_store import placement
+
+    from tests.gates.numerics.test_concept_order import import_kinds
+
+    return placement.place(paths(root)["store"], "tests/sj/", placement.Layer("pkg/sj", "pkg", ()), SUBJECT_ORDER,
+                           import_kinds(root / "pkg/sj"), declared=declared, threshold=threshold)
+
+
+@pytest.fixture(scope="module")
+def subject_placed(subject_captured: Path) -> dict:
+    return _place_subject(subject_captured)
+
+
+def _proposed(placed: dict) -> dict[tuple[str, str], dict]:
+    """Every proposed support, along the order or against it, by (upper, lower)."""
+    return {(r["upper"], r["lower"]): r for r in [*placed["supports"], *placed["supports_against_order"]]}
+
+
+def test_pl17_an_upper_that_never_runs_the_lowers_subject_is_no_support(subject_placed: dict) -> None:
+    """PL17 (ruling 50). ``test_upper_misses`` contains ``test_lower``'s whole cone at 40/41 (0.976, above 0.95) and
+    none of its subject (``mid.m0``, the lower's only def at its home ``mid``): no support is proposed, and the pair
+    is absent from the counts at 0.95 (3: scenarios A, B and C's full containments). First red: the cone's
+    containment alone (the predicate before ruling 50)."""
+    assert subject_placed["tests"][SJ + "test_lower"]["home"] == "mid"
+    assert (SJ + "test_upper_misses", SJ + "test_lower") not in _proposed(subject_placed)
+    assert subject_placed["support_counts"]["0.95"] == 3, subject_placed["support_counts"]
+
+
+def test_pl18_an_upper_that_runs_the_subject_is_a_support_with_its_c_home(subject_placed: dict) -> None:
+    """PL18 (ruling 50). ``test_upper_runs`` contains ``test_lower``'s cone at 41/41 and its subject at 1/1: proposed,
+    with ``c == 1.0`` and ``c_home == 1.0`` on the record. First red: ``c_home`` missing from the record; a subject
+    read from the upper's home instead of the lower's (the upper's ``top`` defs are not in the lower: 0, no support)."""
+    record = _proposed(subject_placed).get((SJ + "test_upper_runs", SJ + "test_lower"))
+    assert record is not None, sorted(_proposed(subject_placed))
+    assert record["c"] == 1.0 and record["c_home"] == 1.0
+
+
+def test_pl19_a_declared_edge_carries_c_home_and_none_for_a_lower_not_placed_by_defs(subject_captured: Path) -> None:
+    """PL19 (ruling 50: declared rows carry ``c_home`` and are not filtered). Declared ``test_upper_misses`` over
+    ``test_lower``: kept, ``c`` = 40/41 and ``c_home`` = 0.0; ``test_upper_runs`` over ``test_lower``: ``c_home`` = 1.0;
+    ``test_upper_misses`` over ``test_reads_a_constant`` (placed by statement, no def): ``c`` and ``c_home`` are
+    ``None`` (measured by ``c_items`` alone). First reds: the subject's containment replaced (``c_home`` 1.0 on the
+    first row); a ``c_home`` given to a lower with no def home (a value, or a division by an empty subject)."""
+    declared = ((SJ + "test_upper_misses", SJ + "test_lower"), (SJ + "test_upper_runs", SJ + "test_lower"),
+                (SJ + "test_upper_misses", SJ + "test_reads_a_constant"))
+    rows = {(r["upper"], r["lower"]): r for r in _place_subject(subject_captured, declared)["declared_rests_on"]}
+    misses = rows[(SJ + "test_upper_misses", SJ + "test_lower")]
+    assert misses["c"] == pytest.approx(40 / 41, abs=1e-6), misses
+    assert misses["c_home"] == 0.0, misses
+    assert rows[(SJ + "test_upper_runs", SJ + "test_lower")]["c_home"] == 1.0
+    constant = rows[(SJ + "test_upper_misses", SJ + "test_reads_a_constant")]
+    assert constant["c"] is None and constant["c_home"] is None, constant
+
+
+def test_pl20_a_tied_lowers_subject_spans_every_tied_node(subject_placed: dict) -> None:
+    """PL20 (ruling 50, a tie). ``test_tie_lower`` is tied at ``mid`` and ``mid2``; its subject is ``{p0, n0}``.
+    ``test_tie_partial`` runs ``p0`` and not ``n0``: cone 41/42, subject 1/2, no support. ``test_tie_full`` runs both:
+    proposed, ``c_home == 1.0``. First red: the subject read at one tied node only (``mid``: ``test_tie_partial``
+    then holds it whole and is proposed)."""
+    lower = subject_placed["tests"][SJ + "test_tie_lower"]
+    assert lower["home"] is None and lower["tie"] == ["mid", "mid2"]
+    found = _proposed(subject_placed)
+    assert (SJ + "test_tie_partial", SJ + "test_tie_lower") not in found
+    assert found[(SJ + "test_tie_full", SJ + "test_tie_lower")]["c_home"] == 1.0
+
+
+def test_pl21_a_support_against_the_order_carries_its_c_home(subject_placed: dict) -> None:
+    """PL21 (qa F6). ``test_against_upper`` homes at ``side``, which imports nothing, and contains
+    ``test_against_lower`` (home ``mid``) whole: the support is listed against the order, with ``c_home == 1.0`` on
+    its record. First red: ``c_home`` written on the along-order records only."""
+    against = {(r["upper"], r["lower"]): r for r in subject_placed["supports_against_order"]}
+    record = against.get((SJ + "test_against_upper", SJ + "test_against_lower"))
+    assert record is not None, sorted(against)
+    assert record["c_home"] == 1.0, record
+
+
+def test_pl22_a_declared_lower_with_a_cone_and_no_def_home_has_c_and_no_c_home(subject_captured: Path) -> None:
+    """PL22 (qa F6). ``test_reads_and_runs_above`` is placed by statement and ran one def ABOVE the layer
+    (``pkg/sjx/o.o0``), so declared under ``test_against_upper`` it has a cone, ``c == 0.0``, and no subject,
+    ``c_home is None``. First red: a ``c_home`` defaulted to ``c`` for a lower with no def home."""
+    declared = ((SJ + "test_against_upper", SJ + "test_reads_and_runs_above"),)
+    found = _place_subject(subject_captured, declared)
+    assert found["tests"][SJ + "test_reads_and_runs_above"]["placed_by"] == "statement"
+    (row,) = found["declared_rests_on"]
+    assert row["c"] == 0.0, row
+    assert row["c_home"] is None, row
+
+
+def test_pl23_the_subject_is_applied_at_every_counted_threshold(subject_placed: dict) -> None:
+    """PL23 (qa F6). The counts at :data:`THRESHOLDS`, by hand: at 1.0 and 0.95 the full containments of scenarios A,
+    B and C (3); at 0.9 and 0.8 also ``test_edge_upper`` over ``test_edge_lower`` (cone 0.98, subject 0.9 exactly);
+    every other pair holding at 0.8 has a subject below 0.8 (scenario E's 2/3, B's 1/2, A's 0). First red: the
+    subject compared with the proposal threshold (0.95) instead of the count's own (0.9 and 0.8 read 3)."""
+    assert subject_placed["support_counts"] == {"1.0": 3, "0.95": 3, "0.9": 4, "0.8": 4}
+
+
+def test_pl24_a_subject_contained_at_exactly_the_threshold_holds(subject_captured: Path) -> None:
+    """PL24 (qa F6, the inclusive ``>=``). Placed at threshold 0.9, ``test_edge_upper`` over ``test_edge_lower``
+    (subject 9/10, exactly 0.9 in binary as in the literal) is proposed with ``c_home == 0.9``. First red: ``>`` for
+    ``>=`` on the subject."""
+    found = _place_subject(subject_captured, threshold=0.9)
+    record = _proposed(found).get((SJ + "test_edge_upper", SJ + "test_edge_lower"))
+    assert record is not None, sorted(_proposed(found))
+    assert record["c_home"] == 0.9, record
+
+
+def test_pl25_a_functions_subject_spans_the_homes_of_all_its_cases(subject_captured: Path) -> None:
+    """PL25 (qa F5, ruling 4 with ruling 50). ``test_two_homes``'s cases home at ``mid`` and ``top``; the function's
+    subject is its defs at both, ``{v0, v1, h0}``, where ``v1`` (run by the case homed at ``top``) is at the other
+    case's home. ``test_two_homes_upper`` runs ``v0`` and ``h0`` and not ``v1``: cone 42/43, subject 2/3, no support,
+    and a declared row reads ``c_home`` 2/3. First red: each case's subject read at its own home (``{v0, h0}``: 1.0,
+    a support)."""
+    declared = ((SJ + "test_two_homes_upper", SJ + "test_two_homes"),)
+    found = _place_subject(subject_captured, declared)
+    assert {found["tests"][SJ + f"test_two_homes[{k}]"]["home"] for k in (1, 2)} == {"mid", "top"}
+    assert (SJ + "test_two_homes_upper", SJ + "test_two_homes") not in _proposed(found)
+    (row,) = found["declared_rests_on"]
+    assert row["c_home"] == pytest.approx(2 / 3, abs=1e-6), row
