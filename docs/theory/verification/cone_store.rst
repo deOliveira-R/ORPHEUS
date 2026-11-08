@@ -1841,10 +1841,16 @@ under ``U``.
 
 The report also counts the containing pairs, duplicates excluded, at the
 thresholds 1.0, 0.95, 0.9 and 0.8, so that the threshold can be judged on
-the population it is applied to. Why 0.95: of 77 declared ``rests_on``
-edges between numerics tests, 26 hold strict containment and 39 hold 0.95
-or more, followed by a tail down to 0.002 that is reads and supports edges,
-not executes (S17); 0.95 is that distribution's knee. On the
+the population it is applied to. Why 0.95: on the specification's sample
+of 77 declared ``rests_on`` edges between numerics tests, 26 held strict
+containment and 39 held 0.95 or more, followed by a tail down to 0.002 that
+is reads and supports edges, not executes (S17); 0.95 is that
+distribution's knee. The sample's edges are not the layer's declared
+population, and the tail is not read as a second kind of edge: a declared
+``rests_on`` is an execution support (ruling 51 of the campaign plan), so
+an edge in the tail is a defect of its marker, and over the layer's 443
+declarations 177 hold at 0.95 on the lower's subject ("What a declared
+edge asserts", below). On the
 specification's 180-test sample (with the floor subtracted), lowering it to
 0.8 triples the containing pairs, 1 227 to 3 706, about 20 per test (its
 measurement M12).
@@ -1874,6 +1880,37 @@ as a plugin into a fresh ``pytest --collect-only`` over the layer. Gate
 PL15 declares five edges on the fixture (a 0.9 edge, an edge onto a case,
 two edges from the two cases of one function, a target no stored test has)
 and reddens under no case collapse and under strict thresholds.
+
+**What a declared edge asserts.** ``@pytest.mark.rests_on(L)`` on a test
+``U`` asserts an execution support (ruling 51 of the campaign plan): ``U``'s
+run contains ``L``'s subject, so a defect that reddens ``L`` reaches ``U``,
+and a red ``L`` explains a red ``U``. That is the localisation
+:doc:`principles` describes ("A failure is then localised by the lowest red
+rung"). A reading order of a ladder, in which ``L``'s law is a step of
+``U``'s argument while ``U`` runs other code, is not a ``rests_on`` edge:
+nothing measures it, and a defect in the code ``U`` skipped cannot redden
+``U``. The instrument is ``c_home`` at the support threshold; a lower that
+ran no layer def (it reads declared structure) is a structural premise,
+measured by ``c_items``. A class or file target holds for an upper when the
+upper contains some lower under it (ruling 52): a marker written on a class
+or in a file's ``pytestmark`` is shorthand, and each test it covers must
+hold on its own. A declaration that fails is a defect of its marker,
+repaired by re-pointing, narrowing or removing it.
+
+`[M]` 2026-11-08 (census list 3,
+``scratch/verification_tree/cone_store/b5/census/l3.md``, on the numerics
+store at ``af5b78c8`` under ruling 50): the layer holds 443 declarations
+(an upper function and a target as written), 976 rows. Where the marker is
+written, read from the test files' syntax trees: on the function 199, on a
+class 26, in the file's ``pytestmark`` 218. Under rulings 51 and 52, 177
+declarations hold, 260 fail and 6 are measured by read items only. Of the
+260, 42 are ``traced_memo`` declarations that miss 1 to 4 lookup-path defs
+of subjects of 17 to 37 defs: the template tests generate in a child forked
+from the template process, which the own recording does not see, so these
+wait on the capture of the child
+(`#701 <https://github.com/deOliveira-R/ORPHEUS/issues/701>`__). All 62 rows
+against the concept order come from markers written on a file (61) or a
+class (1), inherited by tests homed at a lower node than the target.
 
 .. dropdown:: First got wrong: "a one-hop transitive reduction is enough"
    :color: muted
@@ -3490,6 +3527,14 @@ History
      - Milestone
      - Issue
      - Where
+   * - 2026-11-08
+     - **Rulings 51 and 52: a declared ``rests_on`` is an execution
+       support**, measured by ``c_home``, and a class or file target holds
+       for an upper that contains some lower under it. Census list 3: 177 of
+       443 declarations on the numerics layer hold, 260 fail (the marker
+       repair is owed), 6 by read items only.
+     - #358, #701
+     - ``docs(verification): census list 3, rulings 51 and 52``
    * - 2026-11-08
      - **Ruling 50: a support contains the lower's subject.** The census's
        list 2 found 62 of the 126 supports against the order whose upper ran
