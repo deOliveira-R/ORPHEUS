@@ -21,7 +21,25 @@ the test runs it too).
 * The memo's recorder (``orpheus/numerics/_traced_memo_boot.py``) is an ordinary node: the code its hooks run on a
   run's events is its declared apparatus, which it never records (``_APPARATUS``), so a test's own cone holds a
   recorder def only when the test ran one.
-* A test is UNPLACED, with its reason, when its cone is unknown, it did not pass, or its own cone holds no layer def.
+* A test is UNPLACED, with its reason, when its cone is unknown, it did not pass, or it read nothing of the layer or
+  of the apparatus.
+
+What a test READ (B5, rulings 47 to 49; :mod:`tools.cone_store.reads`, the ``own_reads`` rows) places a test that ran no
+layer def: a test of a module's declared structure (a dataclass's fields, an enum's members, a constant) reads a
+statement that ran at collection, and a source audit opens a layer file as data. The home is TIERED (ruling 49): the
+defs decide it when the test ran any layer def; else the layer nodes whose bindings it read (``statement``, by the
+channels whose :attr:`~tools.cone_store.reads.Channel.is_node` holds); else the files it opened as data (``data``;
+``layer`` when it opened every node, ``package`` when it opened files of the package outside the layer too, a census
+finding); else the APPARATUS (ruling 48): a test-tree file whose bindings it read or whose defs it ran, its own file
+first, a tie otherwise. :func:`home_of` returns the home as one value of the :data:`Home` sum, matched once. Running a
+module's code is a dependence on its behaviour; reading a value with none of its module's code run is a dependence on an
+input, so a statement read never moves a def home. Every channel is reported under ``via`` whatever homes the test, with
+the union home (every channel's nodes, highest rank wins: the refuted reading, kept) and the statement straddle (a
+def-placed test's statement nodes its home does not explain at runtime). Purity, the straddlers, the null and the
+proposed supports are read over the def-placed tests, as in B3; the statement-placed ones have their own pure fraction
+and null, over (node, item) labels; a fraction over no test is ``None``. A test homed at an apparatus file is the
+proposed lower of every test function whose items at that file contain its own (``apparatus_supports``), and each
+declared ``rests_on`` edge is measured over defs and read items too (``c_items``).
 
 Proposed ``executes`` supports (S17: containment is fractional): over the test FUNCTIONS (a parametrised test's
 cases are one claim, ruling 4; their own defs are united), ``c(U ⊇ L) = |D(L) ∩ D(U)| / |D(L)|`` over own defs
@@ -37,8 +55,10 @@ The declared ``rests_on`` edges (``declared``, each (upper test id, target id) a
 ``tests/_harness/rests_on_manifest.py``, the one resolver) are measured on the same function cones: each target
 collapses to its functions (a case to its function, a class or a file to every function under it), and each edge
 reports ``c(U ⊇ L)``, with the cumulative counts at :data:`THRESHOLDS` and the count below the lowest, so the
-threshold is judged on the layer's whole declared population. An edge whose upper or target holds no stored function
-that passed with a known cone, or whose lower ran no def, is counted by that reason, never given a ``c``.
+threshold is judged on the layer's whole declared population, every test that passed with a known cone included,
+whatever homes it. An edge whose upper or target holds no such function, or whose lower ran no def and read nothing,
+is counted by that reason. A lower that ran no def but read items has no ``c``: it is measured by ``c_items`` alone
+(over defs and read items, B5), and counted apart (``declared_items_only``).
 
 The null shuffles the node label of each distinct (node, def) across the layer with a fixed seed and re-reads purity;
 a placement that the null matches carries no information (S13). The output is a plain dict, byte-identical across runs
@@ -51,7 +71,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
-from typing import Any
+from typing import Any, ClassVar
 
 import numpy as np
 from scipy.sparse import csr_array
@@ -59,6 +79,7 @@ from scipy.sparse.csgraph import breadth_first_order, connected_components
 
 from orpheus.numerics import traced_memo as memo
 
+from tools.cone_store.reads import MODULE_ITEM, Channel, Read, in_test_tree, is_hook
 from tools.cone_store.store import FORMAT, ConeStore, stored_format
 
 #: The import edge kinds, each with the output key of the cumulative closure that first admits it. A closure admits
@@ -70,6 +91,8 @@ from tools.cone_store.store import FORMAT, ConeStore, stored_format
 CLOSURES: dict[str, str] = {"runtime": "pure_rt", "lazy": "pure_lazy", "typing": "pure_typ"}
 #: The containment thresholds the report counts proposals at, beside the one it proposes at.
 THRESHOLDS = (1.0, 0.95, 0.9, 0.8)
+#: What a store of an earlier form lacks that placement reads (``store.FORMAT``'s history).
+_LACKS: dict[int | None, str] = {2: "own cones (written before B3)", 3: "own reads (written before B5)"}
 
 
 # ── where a def is ──
@@ -127,7 +150,7 @@ class Layer:
                 node = _node_under(upstream, path)
                 return Upstream(upstream if node is None else f"{upstream.rstrip('/')}/{node}")
         parts = PurePosixPath(path).parts
-        if parts[:1] == ("tests",):
+        if in_test_tree(path):
             return Helper()
         if parts[:1] == (self.package,) and not path.startswith(self.root.rstrip("/") + "/"):
             return Above("/".join(parts[:2]))
@@ -150,22 +173,25 @@ NUMERICS = Layer("orpheus/numerics")
 
 @dataclass(frozen=True)
 class OwnDefs:
-    """A test's own defs, sorted by region: the layer's per node, and the counts elsewhere."""
+    """A test's own defs, sorted by region: the layer's per node, the test-tree defs per file (its own def, the code
+    nested in it and the hooks excepted: the apparatus it ran, ruling 48), and the counts elsewhere."""
 
     layer: dict[str, frozenset[str]]
     upstream: Counter[str] = field(default_factory=Counter)
     above: Counter[str] = field(default_factory=Counter)
-    helpers: int = 0
+    helpers: dict[str, frozenset[str]] = field(default_factory=dict)
     elsewhere: int = 0
     first_party: frozenset[tuple[str, str]] = frozenset()
 
 
-def own_defs(pins: Iterable[Any], layer: Layer) -> OwnDefs:
+def own_defs(pins: Iterable[Any], layer: Layer, test_id: str) -> OwnDefs:
     by_node: dict[str, set[str]] = defaultdict(set)
     upstream: Counter[str] = Counter()
     above: Counter[str] = Counter()
-    helpers = elsewhere = 0
+    helpers: dict[str, set[str]] = defaultdict(set)
+    elsewhere = 0
     first_party: set[tuple[str, str]] = set()
+    own = _test_qualname(test_id)
     for pin in pins:
         if not isinstance(pin, memo.DefPin):
             continue
@@ -179,12 +205,144 @@ def own_defs(pins: Iterable[Any], layer: Layer) -> OwnDefs:
             case Above(package):
                 above[package] += 1
                 first_party.add((pin.path, pin.qualname))
+            case Helper() if not _is_own(pin.qualname, own, pin.path, test_id) and not is_hook(pin.qualname):
+                helpers[pin.path].add(pin.qualname)
             case Helper():
-                helpers += 1
+                pass
             case Elsewhere():
                 elsewhere += 1
-    return OwnDefs({node: frozenset(q) for node, q in by_node.items()}, upstream, above, helpers, elsewhere,
-                   frozenset(first_party))
+    return OwnDefs({node: frozenset(q) for node, q in by_node.items()}, upstream, above,
+                   {path: frozenset(q) for path, q in helpers.items()}, elsewhere, frozenset(first_party))
+
+
+@dataclass(frozen=True)
+class OwnReads:
+    """What a test's own run read (B5, :mod:`tools.cone_store.reads`), sorted by channel: the layer's nodes it read a
+    binding of (``statement``, node to the names read, a module read adding the node with no name), the layer's nodes
+    it opened as data (``data``) and whether it opened a file of the package outside the layer too, the apparatus it
+    read (test-tree file to items: the bindings it read there and the test-tree defs it ran, its own def and the
+    hooks excepted), its reads of the package above the layer, and the names no statement binds."""
+
+    statement: dict[str, frozenset[str]]
+    data: frozenset[str]
+    data_outside: bool
+    apparatus: dict[str, frozenset[str]]
+    above: int
+    unresolved: tuple[str, ...]
+
+
+def own_reads(reads: Iterable[Read], pins: Iterable[Any], layer: Layer, defs: OwnDefs) -> OwnReads:
+    """A test's reads sorted by channel, with the files it opened as data from its pins and the apparatus defs it ran
+    from ``defs``."""
+    statement: dict[str, set[str]] = defaultdict(set)
+    apparatus: dict[str, set[str]] = defaultdict(set, {path: set(q) for path, q in defs.helpers.items()})
+    data: set[str] = set()
+    above = 0
+    data_outside = False
+    unresolved = sorted(read.name for read in reads if read.channel is Channel.UNRESOLVED and read.name)
+    for read in reads:
+        if not read.channel.is_node:
+            continue
+        match layer.region(read.path):
+            case InLayer(node):
+                statement[node] |= set() if read.name is None else {read.name}
+            case Helper() if read.name is not None:
+                apparatus[read.path].add(read.name)
+            case Above():
+                above += 1
+            case _:
+                pass
+    for pin in pins:
+        match pin:
+            case memo.DataPin(path=path) if (node := layer.node_of(path)) is not None:
+                data.add(node)
+            case memo.DataPin(path=path) if path.startswith(layer.package + "/") \
+                    and not path.startswith(layer.root.rstrip("/") + "/"):
+                data_outside = True  # the layer's own ``__init__`` is in the layer, and no node
+            case _:
+                pass
+    return OwnReads({node: frozenset(names) for node, names in statement.items()}, frozenset(data), data_outside,
+                    {path: frozenset(items) for path, items in apparatus.items()}, above, tuple(unresolved))
+
+
+def _test_qualname(test_id: str) -> str:
+    """The qualified name of a test's function: ``f.py::C::m[case]`` is ``C.m``."""
+    return ".".join(test_id.split("[")[0].split("::")[1:])
+
+
+def _is_own(qualname: str, own: str, path: str, test_id: str) -> bool:
+    """Whether a def is the test's own (its function, or code nested in it): not apparatus (A8)."""
+    return path == test_id.split("::")[0] and (qualname == own or qualname.startswith(own + ".<locals>."))
+
+
+# ── how a test is homed ──
+
+
+@dataclass(frozen=True)
+class DefHome:
+    """Homed by the layer nodes whose defs it ran."""
+
+    nodes: frozenset[str]
+    by: ClassVar[str] = "def"
+
+
+@dataclass(frozen=True)
+class StatementHome:
+    """Homed by the layer nodes whose bindings it read, having run no layer def."""
+
+    nodes: frozenset[str]
+    by: ClassVar[str] = "statement"
+
+
+@dataclass(frozen=True)
+class DataHome:
+    """Homed by the layer nodes whose files it opened as data, having run and read none."""
+
+    nodes: frozenset[str]
+    by: ClassVar[str] = "data"
+
+
+@dataclass(frozen=True)
+class ScopeHome:
+    """It opened every node's file (``layer``), and files of the package outside the layer too (``package``, a census
+    finding, C13): no node is the home."""
+
+    by: str
+
+
+@dataclass(frozen=True)
+class ApparatusHome:
+    """Homed at the test-tree files whose bindings it read or whose defs it ran (ruling 48), its own file first; two
+    other files are a tie (C14)."""
+
+    files: frozenset[str]
+    by: ClassVar[str] = "apparatus"
+
+
+Home = DefHome | StatementHome | DataHome | ScopeHome | ApparatusHome
+
+
+def home_of(test_id: str, defs: OwnDefs, reads: OwnReads, layer_nodes: Iterable[str]) -> Home | None:
+    """How a test is homed (ruling 49): by its defs when it ran any layer def, else by the bindings it read, else by
+    the files it opened as data (the whole layer when it opened every node, the package when it opened more), else
+    by the apparatus; ``None`` when it read nothing of either."""
+    if defs.layer:
+        return DefHome(frozenset(defs.layer))
+    if reads.statement:
+        return StatementHome(frozenset(reads.statement))
+    if reads.data:
+        if reads.data == set(layer_nodes):
+            return ScopeHome("package" if reads.data_outside else "layer")
+        return DataHome(reads.data)
+    if reads.apparatus:
+        own = test_id.split("::")[0]
+        return ApparatusHome(frozenset({own}) if own in reads.apparatus else frozenset(reads.apparatus))
+    return None
+
+
+def _label(reading: Mapping[str, Any]) -> str:
+    """A reading's home, or its tie joined by ``+``."""
+    return reading["home"] or "+".join(reading["tie"])
 
 
 # ── graphs ──
@@ -277,68 +435,180 @@ def place(store_path: str | Path, layer_prefix: str, layer: Layer, order: Sequen
         raise ValueError(f"cone_store place: no store at {store_path}")
     found = stored_format(store_path)
     if found != FORMAT:  # read before opening: ConeStore empties a store of another form
-        raise ValueError(f"cone_store place: {store_path} is a store of form {found}, not {FORMAT}: it holds no own "
-                         "cones (written before B3), so there is nothing to place; capture again")
+        lacks = _LACKS.get(found, "rows of the form this placement reads")
+        raise ValueError(f"cone_store place: {store_path} is a store of form {found}, not {FORMAT}: it holds no "
+                         f"{lacks}, so there is nothing to place; capture again")
     with ConeStore(store_path) as store:
         stored = {test_id: test for test_id, test in store.tests().items() if test_id.startswith(layer_prefix)}
-        owned = {test_id: own_defs(store.own_pins(test_id), layer) for test_id in sorted(stored)}
+        pins = {test_id: store.own_pins(test_id) for test_id in sorted(stored)}
+        owned = {test_id: own_defs(pins[test_id], layer, test_id) for test_id in sorted(stored)}
+        read = {test_id: own_reads(store.own_reads(test_id), pins[test_id], layer, owned[test_id])
+                for test_id in sorted(stored)}
     if not stored:
         raise ValueError(f"cone_store place: no stored test starts with {layer_prefix!r}")
 
     tests: dict[str, Any] = {}
-    placed: dict[str, set[str]] = {}
+    placed: dict[str, set[str]] = {}  # placed by defs: the population every def-only reading is taken over
+    by_statement: dict[str, set[str]] = {}
+    homes: dict[str, Home] = {}
     for test_id in sorted(stored):
-        test, defs = stored[test_id], owned[test_id]
-        nodes = set(defs.layer)
+        test, defs, reads = stored[test_id], owned[test_id], read[test_id]
+        nodes, said = set(defs.layer), set(reads.statement)
         entry: dict[str, Any] = {
             "upstream_layers": dict(sorted(defs.upstream.items())), "above_layer": dict(sorted(defs.above.items())),
-            "helpers": defs.helpers, "elsewhere": defs.elsewhere, "unplaced": None}
+            "helpers": sum(map(len, defs.helpers.values())), "elsewhere": defs.elsewhere, "unplaced": None}
         if test.unknown:
             entry["unplaced"] = "cone unknown: " + "; ".join(test.unknown)
         elif test.outcome != "passed":
             entry["unplaced"] = f"not passed: {test.outcome}"
-        elif not nodes:
-            entry["unplaced"] = "no layer def"
-        if entry["unplaced"] is None:
-            entry.update(_reading(nodes, rank, closures))
-            placed[test_id] = nodes
+        else:
+            entry.update(_channels(defs, reads, nodes | said | reads.data, rank, closures))
+            home = home_of(test_id, defs, reads, rank)
+            if home is None:
+                entry["unplaced"] = "no layer read"
+            else:
+                homes[test_id] = home
+                entry["placed_by"] = home.by
+                match home:
+                    case DefHome(found):
+                        entry.update(_reading(set(found), rank, closures))
+                        placed[test_id] = nodes
+                        entry["statement_straddle"] = _straddle(said - nodes, entry, closures)
+                    case StatementHome(found):
+                        entry.update(_reading(set(found), rank, closures))
+                        by_statement[test_id] = said
+                        entry["statement_straddle"] = dict(entry["foreign"])
+                    case DataHome(found):
+                        entry.update(_reading(set(found), rank, closures))
+                    case ScopeHome():
+                        entry.update(_outside())
+                    case ApparatusHome(files):
+                        entry.update(_outside(files))
         tests[test_id] = entry
 
-    def pure_fraction(per_test: Mapping[str, set[str]]) -> float:
+    def pure_fraction(per_test: Mapping[str, set[str]]) -> float | None:
+        """The pure fraction; ``None`` over no test (a population with no member has no fraction)."""
         readings = [_reading(nodes, rank, closures)["pure_rt"] for nodes in per_test.values() if nodes]
-        return round(sum(readings) / len(readings), 6) if readings else 0.0
+        return round(sum(readings) / len(readings), 6) if readings else None
 
-    null = {}
-    labelled = sorted({(node, qualname) for test_id in placed for node, names in owned[test_id].layer.items()
-                       for qualname in names})
-    for seed in seeds:
-        labels = [node for node, _ in labelled]
-        random.Random(seed).shuffle(labels)
-        moved = dict(zip(labelled, labels))
-        shuffled = {test_id: {moved[(node, q)] for node, names in owned[test_id].layer.items() for q in names}
-                    for test_id in placed}
-        null[str(seed)] = pure_fraction(shuffled)
+    def null(labelled_of: Mapping[str, Mapping[str, Iterable[str]]]) -> dict[str, float | None]:
+        """The pure fraction with the node label of each distinct (node, item) shuffled across the layer (S13)."""
+        labelled = sorted({(node, item) for per in labelled_of.values() for node, items in per.items()
+                           for item in items})
+        found = {}
+        for seed in seeds:
+            labels = [node for node, _ in labelled]
+            random.Random(seed).shuffle(labels)
+            moved = dict(zip(labelled, labels))
+            found[str(seed)] = pure_fraction({test_id: {moved[(node, item)] for node, items in per.items()
+                                                        for item in items} for test_id, per in labelled_of.items()})
+        return found
 
+    statement_items = {test_id: {node: sorted(read[test_id].statement[node]) or [MODULE_ITEM] for node in said}
+                       for test_id, said in by_statement.items()}
     supports = _supports({test_id: owned[test_id] for test_id in placed}, tests, closures["typing"], threshold,
                          min_defs)
     readings = [tests[test_id] for test_id in placed]
+    union_homes = {test_id: e["home_union"] for test_id, e in tests.items() if e.get("home_union")}
+    by_node = {test_id for test_id, home in homes.items() if isinstance(home, DefHome | StatementHome)}
     summary = {
         "tests": len(tests), "placed": len(placed),
+        "placed_by": dict(sorted(Counter(e["placed_by"] for e in tests.values() if e.get("placed_by")).items())),
         "unplaced": dict(sorted(Counter(entry["unplaced"].split(":")[0] for entry in tests.values()
                                         if entry["unplaced"]).items())),
         "pure": {kind: sum(r[key] for r in readings) for kind, key in CLOSURES.items()},
-        "pure_fraction": pure_fraction(placed), "null_pure_fraction": null, "ties": sum(1 for r in readings if r["tie"]),
+        "pure_fraction": pure_fraction(placed),
+        "null_pure_fraction": null({t: dict(owned[t].layer) for t in placed}),
+        "pure_fraction_statement": pure_fraction(by_statement),
+        "null_pure_fraction_statement": null(statement_items),
+        "ties": sum(1 for r in readings if r["tie"]),
         "foreign_kinds": dict(sorted(Counter(k for r in readings for k in r["foreign"].values()).items())),
-        "homes": dict(sorted(Counter(r["home"] or "+".join(r["tie"]) for r in readings).items())),
+        "homes": dict(sorted(Counter(_label(r) for r in readings).items())),
+        "homes_union": dict(sorted(Counter(union_homes.values()).items())),
+        "union_moves": sum(1 for test_id, home in union_homes.items()
+                           if test_id in by_node and home != _label(tests[test_id])),
         "above_layer_tests": sum(1 for entry in tests.values() if entry["above_layer"]),
+        "above_layer_statement": sum(1 for test_id in tests if read[test_id].above),
         "straddlers": sorted((test_id for test_id in placed if not tests[test_id]["pure_rt"]),
                              key=lambda t: (sorted(set(tests[t]["foreign"].values())), t)),
+        "statement_straddlers": sorted(t for t, e in tests.items() if e.get("statement_straddle")),
     }
-    judged = [test_id for test_id, entry in tests.items()
-              if entry["unplaced"] is None or entry["unplaced"].startswith("no layer def")]
-    rests_on = _declared(_functions({test_id: owned[test_id] for test_id in judged}), declared)
+    # every test that passed with a known cone, whatever homes it: a lower that read nothing is counted by reason
+    judged = [test_id for test_id, test in stored.items() if not test.unknown and test.outcome == "passed"]
+    claims = _functions({test_id: owned[test_id] for test_id in judged},
+                        {test_id: _items(read[test_id]) for test_id in judged})
+    rests_on = _declared(_functions({test_id: owned[test_id] for test_id in judged}), declared, claims)
     return {"layer": layer_prefix, "code_root": layer.root, "threshold": threshold, "min_defs": min_defs,
-            "summary": summary, "tests": tests, **supports, **rests_on}
+            "summary": summary, "tests": tests, **supports, **rests_on,
+            "apparatus_supports": _apparatus_supports(homes, read, judged, threshold)}
+
+
+def _outside(files: Iterable[str] = ()) -> dict[str, Any]:
+    """The reading of a test no layer node homes: the test-tree files it is homed at (none for the layer or the
+    package), never pure."""
+    homes = sorted(files)
+    return {"home": homes[0] if len(homes) == 1 else None, "tie": homes if len(homes) > 1 else None, "foreign": {},
+            **{key: False for key in CLOSURES.values()}}
+
+
+def _channels(defs: OwnDefs, reads: OwnReads, every: set[str], rank: Mapping[str, int],
+              closures: Mapping[str, Mapping[str, frozenset[str]]]) -> dict[str, Any]:
+    """Every channel of a test, reported whatever homes it: each layer node's channels, the items read per node
+    and per apparatus file, the union home (every channel's nodes, highest rank wins: ruling 49's refuted reading,
+    kept), the unresolved names and the apparatus items it rests on."""
+    via: dict[str, list[str]] = {}
+    for node in sorted(every):
+        via[node] = [channel for channel, held in (("def", node in defs.layer), ("statement", node in reads.statement),
+                                                   ("data", node in reads.data)) if held]
+    items = {node: sorted(names) for node, names in sorted(reads.statement.items()) if names}
+    items |= {path: sorted(names) for path, names in sorted(reads.apparatus.items())}
+    union = _reading(every, rank, closures) if every else None
+    return {"via": via, "items": items,
+            "home_union": None if union is None else _label(union),
+            "unresolved": list(reads.unresolved),
+            "apparatus_items": sorted([path, name] for path, names in reads.apparatus.items() for name in names)}
+
+
+def _straddle(nodes: set[str], entry: Mapping[str, Any], closures: Mapping[str, Mapping[str, frozenset[str]]]) -> dict[str, str]:
+    """The statement nodes of a def-placed test that its def home does not explain at runtime, each with the kind of
+    the first import edge that does (``none``: no path), as ``foreign`` reads them."""
+    homes = [entry["home"]] if entry["home"] else list(entry["tie"] or ())
+    found = {node: next((kind for kind in CLOSURES if all(node in closures[kind][home] for home in homes)), "none")
+             for node in sorted(nodes - set(homes))}
+    return {node: kind for node, kind in found.items() if kind != "runtime"}
+
+
+def _items(reads: OwnReads) -> set[tuple[str, str]]:
+    """A test's read items as claim members beside its defs: (layer node or apparatus file, name)."""
+    return {(f"@{node}", name) for node, names in reads.statement.items() for name in names} | \
+        {(path, name) for path, names in reads.apparatus.items() for name in names}
+
+
+def _apparatus_supports(homes: Mapping[str, Home], read: Mapping[str, OwnReads], judged: Iterable[str],
+                        threshold: float) -> list[dict[str, Any]]:
+    """The proposed premise edges (C14, ruling 48): a test function homed at an apparatus file is the lower of every
+    other function whose items at that file contain its own, ``c = |I(P) ∩ I(U)| / |I(P)|``, over functions."""
+    items: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    premises: dict[str, set[str]] = defaultdict(set)
+    for test_id in judged:
+        function = _function(test_id)
+        for path, names in read[test_id].apparatus.items():
+            items[function][path] |= names
+        if isinstance(home := homes.get(test_id), ApparatusHome):
+            premises[function] |= home.files
+    edges = []
+    for lower, nodes in sorted(premises.items()):
+        for node in sorted(nodes):
+            premise = items[lower][node]
+            if not premise:
+                continue
+            for upper in sorted(items):
+                if upper == lower or not items[upper].get(node):
+                    continue
+                c = len(premise & items[upper][node]) / len(premise)
+                if c >= threshold:
+                    edges.append({"upper": upper, "lower": lower, "node": node, "c": round(c, 6)})
+    return edges
 
 
 def _function(test_id: str) -> str:
@@ -346,17 +616,20 @@ def _function(test_id: str) -> str:
     return test_id.split("[")[0]
 
 
-def _functions(owned: Mapping[str, OwnDefs]) -> dict[str, set[tuple[str, str]]]:
-    """Each test function's own first-party defs, its cases united."""
+def _functions(owned: Mapping[str, OwnDefs],
+               items: Mapping[str, set[tuple[str, str]]] | None = None) -> dict[str, set[tuple[str, str]]]:
+    """Each test function's own first-party defs, its cases united; with ``items``, its read items beside them."""
     functions: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for test_id, defs in owned.items():
-        functions[_function(test_id)] |= defs.first_party
+        functions[_function(test_id)] |= defs.first_party | (items or {}).get(test_id, set())
     return functions
 
 
-def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[tuple[str, str]]) -> dict[str, Any]:
-    """The containment of each declared ``rests_on`` edge, its cumulative counts, and the edges not measured by
-    reason (module docstring)."""
+def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[tuple[str, str]],
+              claims: Mapping[str, set[tuple[str, str]]]) -> dict[str, Any]:
+    """The containment of each declared ``rests_on`` edge over defs (``c``) and over defs and read items
+    (``c_items``, B5), its cumulative counts over ``c``, and the edges not measured by reason (module docstring). A
+    lower test that ran no def but read items is measured by ``c_items`` alone (``c`` is ``None``)."""
     rows: list[dict[str, Any]] = []
     unmeasured: Counter[str] = Counter()
     for upper, target in sorted({(_function(u), t) for u, t in declared}):
@@ -368,14 +641,18 @@ def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[
         for lower in lowers if upper in functions else ():
             if lower == upper:  # a class or file target holding the upper itself
                 continue
-            if not functions[lower]:
-                unmeasured["lower ran no def"] += 1
+            low, high = claims.get(lower, set()), claims.get(upper, set())
+            if not functions[lower] and not low:
+                unmeasured["lower ran no def and read nothing"] += 1
                 continue
-            c = len(functions[lower] & functions[upper]) / len(functions[lower])
-            rows.append({"upper": upper, "lower": lower, "target": target, "c": round(c, 6)})
-    counts = {str(t): sum(1 for row in rows if row["c"] >= t) for t in THRESHOLDS}
-    counts["below"] = sum(1 for row in rows if row["c"] < THRESHOLDS[-1])
-    return {"declared_rests_on": rows, "declared_counts": counts, "declared_unmeasured": dict(sorted(unmeasured.items()))}
+            c = round(len(functions[lower] & functions[upper]) / len(functions[lower]), 6) if functions[lower] else None
+            rows.append({"upper": upper, "lower": lower, "target": target, "c": c,
+                         "c_items": round(len(low & high) / len(low), 6) if low else None})
+    counts = {str(t): sum(1 for row in rows if row["c"] is not None and row["c"] >= t) for t in THRESHOLDS}
+    counts["below"] = sum(1 for row in rows if row["c"] is not None and row["c"] < THRESHOLDS[-1])
+    return {"declared_rests_on": rows, "declared_counts": counts,
+            "declared_items_only": sum(1 for row in rows if row["c"] is None),  # measured by ``c_items`` alone
+            "declared_unmeasured": dict(sorted(unmeasured.items()))}
 
 
 def _supports(owned: Mapping[str, OwnDefs], tests: Mapping[str, Any], widest: Mapping[str, frozenset[str]],

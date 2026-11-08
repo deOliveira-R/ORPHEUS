@@ -83,14 +83,15 @@ class Worker:
         return Path(self.config.results, f"{self.boot.digest(nodeid.encode())[:40]}.json")
 
     def write(self, nodeid: str, route: str, outcome: str, cone: dict[str, Any] | None, unknown: tuple[str, ...] = (),
-              own: dict[str, Any] | None = None) -> None:
-        """The result of one test: its selection cone, and its own cone under ``own`` (``None`` when no run was
-        recorded, a crash)."""
+              own: dict[str, Any] | None = None, reads: list[list[Any]] | None = None) -> None:
+        """The result of one test: its selection cone, its own cone under ``own`` (``None`` when no run was
+        recorded, a crash) and what its own run read under ``reads`` (:class:`~tools.cone_store.reads.Read` rows)."""
         path = self.result_path(nodeid)
         body = cone or {"pins": [], "files": {}, "unknown": []}
         body["unknown"] = [*body["unknown"], *unknown]
         temporary = path.with_suffix(f".{os.getpid()}.tmp")
-        temporary.write_text(json.dumps({"id": nodeid, "route": route, "outcome": outcome, **body, "own": own}))
+        temporary.write_text(json.dumps({"id": nodeid, "route": route, "outcome": outcome, **body, "own": own,
+                                         "reads": reads or []}))
         os.replace(temporary, path)
 
     def spawn(self, role: str, *arguments: str) -> None:
@@ -297,8 +298,12 @@ class Recorded(Worker):
         outcome = "failed" if any(r.failed for r in self.reports) else \
             "skipped" if any(r.skipped for r in self.reports) else "passed"
         selection = self.read()
-        self.write(item.nodeid, route, outcome, selection.to_json(self.memo),
-                   own=self.cone_of(own).ran.to_json(self.memo))
+        function = getattr(item, "function", None)
+        code = getattr(function, "__code__", None)
+        test = None if code is None else (os.path.realpath(code.co_filename), function.__qualname__)
+        cones = self.cone_of(own, test)
+        self.write(item.nodeid, route, outcome, selection.to_json(self.memo), own=cones.ran.to_json(self.memo),
+                   reads=[list(read.to_row()) for read in cones.reads])
 
     def read(self) -> Any:
         """The recording, stopped, read as its selection cone. The modules that read the cone are imported only now, after the
@@ -307,7 +312,7 @@ class Recorded(Worker):
         self.recording.stop()
         return self.cone_of(self.recording).selection
 
-    def cone_of(self, recording: Any) -> Any:
+    def cone_of(self, recording: Any, test: tuple[str, str] | None = None) -> Any:
         """A stopped recording read as its two cones. The capture's own code is not the test's: this module runs in every
         capture and in no full run, so its code objects are removed before the reading (`[M]` 2026-11-02, a capture
         of ``tests/gates/test_layer_imports.py``: six of its defs were pinned in each of 533 cones)."""
@@ -316,7 +321,7 @@ class Recorded(Worker):
             del recording.codes[key]
         from tools.cone_store import cone
 
-        return cone.cone_of(recording, self.store, self.config, self.memo, self.boot)
+        return cone.cone_of(recording, self.store, self.config, self.memo, self.boot, test)
 
 
 class FreshChild(Recorded):

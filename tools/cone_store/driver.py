@@ -17,6 +17,7 @@ from tools.cone_store.collect import collect_ids, normalise
 from tools.cone_store.cone import Cone, Reading
 from tools.cone_store.environment import environment_key
 from tools.cone_store.plan import Config, worker_command, worker_environment
+from tools.cone_store.reads import Read
 from tools.cone_store.store import GRANDPARENT, ConeStore, StoredTest
 
 
@@ -110,7 +111,7 @@ def capture(repo: str | Path, store: str | Path, package: str = "orpheus", memo_
             cone = Cone.from_json(traced_memo, data)
             own = Cone.from_json(traced_memo, data["own"]) if data["own"] is not None else Cone((), {}, ())
             database.record(StoredTest(test_id, key, data["route"], data["outcome"], cone.unknown), cone.pins, cone.files,
-                            own.pins, own.files)
+                            own.pins, own.files, [Read.from_row(read) for read in data["reads"]])
         pruned = _prune(database, [*expected, *collected.errors],
                         [module for module, args in groups if args == (module,)] + collected.errors, whole=not ids)
         # No grandparent cone (the fresh route, a grandparent that died): the stored one is another capture's.

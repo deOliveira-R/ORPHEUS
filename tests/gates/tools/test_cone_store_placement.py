@@ -12,7 +12,7 @@ expectation below is read off those sources by hand.
 The interface is ``tools.cone_store.placement.place(store_path, layer_prefix, layer, order, kinds, *, threshold, min_defs,
 seeds)``, ``layer`` a ``placement.Layer(root, package, upstream_layers)`` as the orchestrator wrote it (2026-11-03). ``result["tests"][test_id]`` holds
 ``upstream_layers`` (upstream module to def count) and ``above_layer`` (package to def count), ``helpers``, ``elsewhere`` and
-``unplaced`` (``None`` or a reason starting ``no layer def``, ``not passed`` or ``cone unknown``), and, when placed,
+``unplaced`` (``None`` or a reason starting ``no layer read``, ``not passed`` or ``cone unknown``), and, when placed,
 ``home`` (a node, ``None`` for a tie), ``tie`` (the tied nodes or ``None``), ``pure_rt``, ``pure_lazy``, ``pure_typ``
 and ``foreign`` (node to ``lazy``, ``typing``, ``none`` or ``tie``); ``result["supports"]`` is a list of ``{"upper",
 "lower", "c"}`` over test functions (a parametrized function's cases are one node, its id without the brackets);
@@ -125,10 +125,11 @@ def test_pl7_other_layers_are_counted_never_foreign(placed: dict) -> None:
     assert not any("pkg/top" in key for key in layers["upstream_layers"])
 
 
-@pytest.mark.parametrize(("name", "reason"), [("test_nodef", "no layer def"), ("test_fails", "not passed"),
+@pytest.mark.parametrize(("name", "reason"), [("test_nodef", "no layer read"), ("test_fails", "not passed"),
                                               ("test_spawn", "cone unknown")])
 def test_pl8_an_unplaced_test_is_listed_with_its_reason(placed: dict, name: str, reason: str) -> None:
-    """PL8. A test running no layer def, a test that failed and a test that started a process are kept in the result,
+    """PL8. A test that read nothing of the layer or of the apparatus (B5: a test running no layer def but reading a
+    binding is placed by that read), a test that failed and a test that started a process are kept in the result,
     unplaced, with their reason. First red: dropping them (a ``KeyError``), or placing a failed test's partial cone."""
     unplaced = row(placed, name)
     assert unplaced.get("home") is None

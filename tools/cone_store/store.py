@@ -13,7 +13,10 @@ A test has two cones, two relations over the same pins (B3). ``cones`` is its SE
 ran, the grandparent's conftest imports and its module's collection included (ruling 38), which is what ``select``
 judges. ``own_cones`` is its OWN cone: what pytest's protocol for that one test ran (setup, call, teardown), read
 from a second recording started at the protocol, so a def the conftests also ran is in it when the test runs it
-too; placement reads only this one. ``shares`` holds a cone common to many tests under a scope name: the
+too; placement reads only this one. ``own_reads`` holds what that run READ (B5, :mod:`tools.cone_store.reads`): one
+row per binding it reached, by the repository path of the module whose statement binds it, the bound name (empty for a
+read of the module object) and the channel it was reached by; placement reads these rows, never the name sets a pin
+keeps in the capturing checkout's cache. ``shares`` holds a cone common to many tests under a scope name: the
 grandparent's (:data:`GRANDPARENT`), the floor every test of a capture inherits.
 
 A file's identity is a fact about the FILE: it is written when any test's capture reads the file, and it is
@@ -36,6 +39,7 @@ from typing import Any, NamedTuple
 from orpheus.numerics import traced_memo as memo
 
 from tools.cone_store import pins as pin_rows
+from tools.cone_store.reads import Read
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -53,6 +57,9 @@ CREATE INDEX IF NOT EXISTS cones_by_pin ON cones(pin_id);
 CREATE TABLE IF NOT EXISTS own_cones(
     test_id TEXT NOT NULL REFERENCES tests(test_id) ON DELETE CASCADE, pin_id INTEGER NOT NULL REFERENCES pins(pin_id),
     PRIMARY KEY(test_id, pin_id)) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS own_reads(
+    test_id TEXT NOT NULL REFERENCES tests(test_id) ON DELETE CASCADE, path TEXT NOT NULL, name TEXT NOT NULL,
+    channel TEXT NOT NULL, PRIMARY KEY(test_id, path, name, channel)) WITHOUT ROWID;
 CREATE TABLE IF NOT EXISTS shares(
     scope TEXT NOT NULL, pin_id INTEGER NOT NULL REFERENCES pins(pin_id), PRIMARY KEY(scope, pin_id)) WITHOUT ROWID;
 CREATE VIEW IF NOT EXISTS rows AS
@@ -60,12 +67,12 @@ CREATE VIEW IF NOT EXISTS rows AS
     FROM cones c JOIN tests t USING(test_id) JOIN pins p USING(pin_id) LEFT JOIN files f ON f.path = p.file;
 """
 
-#: The form of the rows this code writes and reads: 3 since B3, whose ``own_cones`` and ``shares`` hold each test's
-#: own cone and the grandparent's (2 was B2, #689: ``StatementsPin`` and ``ImportOutcomePin`` replaced the module
+#: The form of the rows this code writes and reads: 4 since B5, whose ``own_reads`` hold what each test's own run read
+#: (3 was B3, whose ``own_cones`` and ``shares`` hold each test's own cone and the grandparent's; 2 was B2, #689: ``StatementsPin`` and ``ImportOutcomePin`` replaced the module
 #: skeleton's ``ModulePin``, and ``files`` kept each source's digest). A store of another form holds rows this code
 #: cannot read as it means them (a B2 store has no own cones, and placement would read none), so it is emptied when
 #: opened, and every test is then new (selected, and captured again).
-FORMAT = 3
+FORMAT = 4
 
 #: The scope of the grandparent's cone in ``shares``: what the conftests' import ran, inherited by every test.
 GRANDPARENT = "<grandparent>"
@@ -119,7 +126,7 @@ class ConeStore:
         if self.meta("format") != FORMAT:  # another form's tables are dropped, not emptied: their columns may differ
             with self.db:
                 self.db.execute("DROP VIEW IF EXISTS rows")
-                for table in ("own_cones", "shares", "cones", "pins", "files", "tests", "meta"):
+                for table in ("own_reads", "own_cones", "shares", "cones", "pins", "files", "tests", "meta"):
                     self.db.execute(f"DROP TABLE IF EXISTS {table}")
             self.db.executescript(_SCHEMA)
             self.set_meta("format", FORMAT)
@@ -147,19 +154,24 @@ class ConeStore:
     # ── writing ──
 
     def record(self, test: StoredTest, pins: Iterable[memo.Pin], files: Mapping[str, FileState],
-               own: Iterable[memo.Pin] = (), own_files: Mapping[str, FileState] | None = None) -> None:
-        """Replace everything the store holds about ``test.test_id``: its selection cone ``pins`` and its own cone
-        ``own``. ``files`` is the state of each file the selection cone judges, ``own_files`` of each file the own
-        cone judges; where both name a file the selection's state is kept (one capture, one identity per file)."""
+               own: Iterable[memo.Pin] = (), own_files: Mapping[str, FileState] | None = None,
+               reads: Iterable[Read] = ()) -> None:
+        """Replace everything the store holds about ``test.test_id``: its selection cone ``pins``, its own cone
+        ``own`` and what its own run read, ``reads``. ``files`` is the state of each file the selection cone judges,
+        ``own_files`` of each file the own cone judges; where both name a file the selection's state is kept (one
+        capture, one identity per file)."""
         with self.db:
             self.db.execute("DELETE FROM cones WHERE test_id = ?", (test.test_id,))
             self.db.execute("DELETE FROM own_cones WHERE test_id = ?", (test.test_id,))
+            self.db.execute("DELETE FROM own_reads WHERE test_id = ?", (test.test_id,))
             self.db.execute("INSERT OR REPLACE INTO tests VALUES (?, ?, ?, ?, ?)",
                             (test.test_id, test.env_key, test.route, test.outcome, json.dumps(list(test.unknown))))
             states = {**(own_files or {}), **files}
             for table, cone in (("cones", pins), ("own_cones", own)):
                 for pin_id in self._pin_ids(cone, states):
                     self.db.execute(f"INSERT OR IGNORE INTO {table} VALUES (?, ?)", (test.test_id, pin_id))
+            self.db.executemany("INSERT OR IGNORE INTO own_reads VALUES (?, ?, ?, ?)",
+                                [(test.test_id, *read.to_row()) for read in reads])
 
     def record_share(self, scope: str, pins: Iterable[memo.Pin], files: Mapping[str, FileState]) -> None:
         """Replace the cone held under ``scope`` (:data:`GRANDPARENT`)."""
@@ -194,6 +206,7 @@ class ConeStore:
             for test_id in test_ids:
                 self.db.execute("DELETE FROM cones WHERE test_id = ?", (test_id,))
                 self.db.execute("DELETE FROM own_cones WHERE test_id = ?", (test_id,))
+                self.db.execute("DELETE FROM own_reads WHERE test_id = ?", (test_id,))
                 deleted += self.db.execute("DELETE FROM tests WHERE test_id = ?", (test_id,)).rowcount
         return deleted
 
@@ -226,6 +239,11 @@ class ConeStore:
         """The pins of one test's own cone (what its protocol ran), in row order."""
         return [pin_rows.decode(row) for (row,) in self.db.execute(
             "SELECT p.row FROM own_cones c JOIN pins p USING(pin_id) WHERE c.test_id = ? ORDER BY p.row", (test_id,))]
+
+    def own_reads(self, test_id: str) -> list[Read]:
+        """What one test's own run read (:class:`~tools.cone_store.reads.Read`), sorted."""
+        return [Read.from_row(row) for row in self.db.execute(
+            "SELECT path, name, channel FROM own_reads WHERE test_id = ? ORDER BY path, name, channel", (test_id,))]
 
     def share(self, scope: str) -> list[memo.Pin] | None:
         """The cone held under ``scope``, in row order; ``None`` when none was stored."""

@@ -11,8 +11,9 @@ effect) of first-party code (any source under the repository that is not the int
 ``tools/`` included), the outcome of importing the modules it
 imported, data, presence and listing pins of paths under the repository, memo children read and distributions. ``select`` lists the collected tests whose cone is stale, new, unknown,
 captured under another environment key, or not passing at capture, and a module that failed to collect. Each test
-also keeps its OWN cone (what pytest's protocol for that test ran, recorded by a second recording), and ``place``
-reads it to place a layer's tests in its concept order (:mod:`tools.cone_store.placement`). The store
+also keeps its OWN cone (what pytest's protocol for that test ran, recorded by a second recording) and what that
+run READ, each binding it loaded resolved to the statement that binds it (:mod:`tools.cone_store.reads`), and
+``place`` reads both to place a layer's tests in its concept order (:mod:`tools.cone_store.placement`). The store
 is SQLite (``.cache/cone_store/cones.sqlite`` by default); see :mod:`tools.cone_store.store` for its layout and
 :mod:`tools.cone_store.worker` for the processes. A process that may not fork (the memo's ``fork_blockers``: an
 unmeasured platform, more than one OS thread) runs the test in a fresh interpreter instead.

@@ -19,22 +19,28 @@ The cone store: the tests a working-tree change requires
    cones of a test (the selection cone select judges, the own cone a
    second recording takes around the test's protocol), the grandparent's
    share, the store's FORMAT, and place, which homes a layer's tests in
-   the layer's concept order. Not owned here: the concept order itself
+   the layer's concept order; and, since B5, what a test's run read (the
+   bytecode reader, the resolution of a load chain to the statement that
+   binds its end, the channels, the B5 statement pins, the own_reads
+   table), the tiered home, the apparatus nodes and the declared edges'
+   c_items. Not owned here: the concept order itself
    (tests/gates/numerics/test_concept_order.py); and the pin kinds, the recorder, validation, the kept reads,
    the fork guard and the refusals (reference_cache.rst, whose sections
    this page cites); the
    dependence DAG of the suite and its rests_on edges
    (principles.rst, vv-test-suite-layout); the V&V markers (harness.rst).
    Plan of record: .claude/plans/verification_tree_refinement.md, from
-   "The cone store -- design" to its end (rulings 32 to 44, ruling 38 as
+   "The cone store -- design" to its end (rulings 32 to 49, ruling 38 as
    corrected, ruling 33 as amended by 43). Specification: scratch/verification_tree/cone_store/spec_b1.md;
    reviews qa_b1.md, elegance_b1.md, battery_b1.md, m1_diagnosis.md in the
    same folder; for B2, b2/gate_spec.md, b2/qa_b2_design.md (with the 42
    attack rows in b2/attacks/), b2/qa_b2_build.md and b2/elegance_b2.md;
-   for B3, b3/spec_b3.md and b3/elegance_b3.md.
+   for B3, b3/spec_b3.md and b3/elegance_b3.md; for B5, b5/spec_b5.md,
+   b5/qa/qa_b5_review.md, b5/elegance/review.md and the census of list 1,
+   b4/census/l1.md.
    Written for increment B1 (landed 7fdc7474), updated for B2 (landed
-   6e52b3cf) and for B3 on branch feature/cone-store-b3, uncommitted,
-   2026-11-03, over 83db308f.
+   6e52b3cf), for B3 (landed 9195dcf5), and for B5 on branch
+   feature/b5-placement-reads, uncommitted, 2026-11-07, over 4fad267e.
 
 The suite takes about an hour serially, and most edits change the verdict
 of few tests. The cone store records, for each test, every node its verdict
@@ -133,8 +139,17 @@ Key facts
   ancestor of the home in the layer's import graph, read under three
   cumulative closures (top-level imports; and imports inside a def; and
   ``TYPE_CHECKING`` imports), so that each omitted kind of edge counts the
-  straddles it explains (:ref:`verification-cone-store-place`). The whole
-  numerics layer has not been placed yet.
+  straddles it explains (:ref:`verification-cone-store-place`). On B4's store
+  of the numerics layer it placed 5 257 of 5 808 tests, 0.811 of them pure
+  against a shuffled null of 0.060 to 0.064 (`[M]` 2026-11-07,
+  :ref:`verification-cone-store-b4-placement`).
+* **The home is tiered** (B5, ruling 49). The defs decide it when the test ran
+  any layer def; else the layer bindings its run read, each load chain of
+  its executed code resolved from the bytecode to the statement that binds
+  its end; else the layer files it opened as data; else the test-tree
+  apparatus it used. A value read never moves a def home, and the home every
+  channel would give together is reported beside it as the refuted reading
+  (:ref:`verification-cone-store-reads`).
 * **The store predicts full-run verdicts** (ruling 42). The full suite is
   the merge gate, and in a full run every conftest's module code and session
   hooks act on every test, so the capture reproduces that context: every
@@ -823,7 +838,7 @@ with the same values.
    skeleton and ``ModulePin`` with no shim: every stored memo entry is stale
    anyway, because the memo's own source changed, and an old memo row reads
    as ``Corrupt`` and regenerates; the cone store's rows carried
-   ``FORMAT = 2`` (3 since B3) and a store of another form is emptied when
+   ``FORMAT = 2`` (3 since B3, 4 since B5) and a store of another form is emptied when
    opened (:ref:`verification-cone-store-store`). An
    always-stale ``RetiredPin`` was refused: it would keep a dead kind in
    the ``Pin`` union, which the format version makes unnecessary.
@@ -1361,6 +1376,12 @@ The store
    * - ``own_cones``
      - (test id, pin id): each test's own cone, what pytest's protocol for
        the test ran; read only by ``place``
+   * - ``own_reads``
+     - (test id, path, name, channel): what each test's own run read (B5),
+       one row per binding by the repository path of the module whose
+       statement binds it, the bound name (empty for a read of the module
+       object) and its channel; read only by ``place``
+       (:ref:`verification-cone-store-reads`)
    * - ``shares``
      - (scope, pin id): a cone common to many tests, stored once; the
        grandparent's under the scope ``"<grandparent>"``
@@ -1387,27 +1408,34 @@ pin no relation references (``cones``, ``own_cones`` or ``shares``) is
 deleted, and so is a file no remaining pin judges.
 
 **The store's form is versioned.** ``tools/cone_store/store.py`` declares
-``FORMAT = 3`` (since B3; 2 was B2's) and keeps it in ``meta``. A store
+``FORMAT = 4`` (since B5; 3 was B3's and 2 B2's) and keeps it in ``meta``. A store
 opened by ``ConeStore`` with another ``format``, or with none (every store
 B1 wrote), has its tables dropped and recreated in one transaction, and
 every test is then new: selected, and captured again. A B1 store holds
 ``ModulePin`` rows, a kind the memo no longer decodes (`[M]` the elegance
 review of B2: ``Manifest.from_json`` of a ``["ModulePin", …]`` row raises
 ``KeyError: 'ModulePin'``, which ``select`` did not catch); a B2 store holds
-no own cones, so a placement read from it would find every own cone empty.
+no own cones, so a placement read from it would find every own cone empty;
+a B3 store holds no ``own_reads`` rows, so a placement read from it would
+find no test's reads.
 Emptying is safe in the direction that matters for ``select``: it selects
 everything. Gate SG5 writes a store in B1's form and requires ``select`` to
 list every collected test (dropping the format check reddens it with that
 ``KeyError``); PH5 writes a store of format 2 and requires it emptied when
-opened, with ``own_cones`` and ``shares`` created.
+opened, with ``own_cones`` and ``shares`` created; P8 marks a captured store
+with form 3 and requires its reads emptied when it is opened, and
+``FORMAT`` to be 4.
 
 ``place`` only reads a store, so it must not empty one. It reads the format
 first with ``stored_format(path)``, which opens the database read-only
 (SQLite's ``mode=ro``) and returns the stored format, or ``None`` when
-there is no store or no ``meta`` table, and it refuses a store of another
-form by name ("it holds no own cones (written before B3), so there is
-nothing to place; capture again"). Gate PL11 copies a captured store, sets
-its format to 2, and requires that refusal.
+there is no store or no ``meta`` table, and it refuses a store of any
+other form by name, saying what that form lacks (``_LACKS`` in
+``placement.py``): a store of form 2 "holds no own cones (written before
+B3)", one of form 3 "holds no own reads (written before B5)", and a store
+of any other form is said to lack "the rows this placement reads"; each
+message ends "so there is nothing to place; capture again". Gate PL11 copies a captured
+store, sets its format to 2, and requires the refusal naming the own cones.
 
 
 .. _verification-cone-store-freshness:
@@ -1523,7 +1551,8 @@ last capture's pruned count, and each unknown test with its reasons.
 Placing a layer's tests: ``place``
 ==================================
 
-``python -O -m tools.cone_store place`` reads the own cones of a store and
+``python -O -m tools.cone_store place`` reads the own cones of a store, and
+since B5 the own reads (:ref:`verification-cone-store-reads`), and
 homes each stored test of one layer in that layer's concept order: the
 census step of ruling 22 of the plan. The code is
 ``tools/cone_store/placement.py``. The command loads the concept order from
@@ -1578,23 +1607,32 @@ Every ``DefPin`` of a test's own cone falls in one **region**, a sum type
      - counted per directory under ``above_layer``: a test of this layer
        reaching a layer above it, a finding of its own
    * - ``Helper()``
-     - a def under ``tests/``: the test function itself, a helper, a
-       conftest hook
-     - counted under ``helpers``
+     - a def under ``tests/``: a helper, a fixture, a test-tree def another
+       test file exports
+     - kept per file as the apparatus the test ran, its items (B5), and
+       counted under ``helpers``; the test's own def, the code nested in it
+       and the pytest hooks are not apparatus and are not counted (in B3
+       every def under ``tests/`` was counted)
    * - ``Elsewhere()``
      - first-party code in no region above: the layer's own ``__init__.py``,
        a file outside the package (``tools/``)
      - counted under ``elsewhere``
 
-A placement reads defs only. A data, presence or listing pin is a read, not
-a node: the tests of ``test_concept_order.py`` read the layer's sources and
-run none of its code.
+The regions sort defs. B3's placement read defs only, and a data, presence
+or listing pin was a read and never a node, so the tests of
+``test_concept_order.py``, which read the layer's sources and run none of
+its code, were unplaced. Since B5 the def tier is the first of four: a test
+that ran no layer def is homed by the layer bindings its run read, else by
+the layer files it opened as data, else by its apparatus
+(:ref:`verification-cone-store-reads`). The rest of this section is the def
+tier, which is B3's unchanged.
 
 Home, tie and purity
 --------------------
 
-For a test ``t``, ``own(t)`` is the set of layer nodes that hold a def of
-its own cone.
+For a test ``t`` placed by its defs, ``own(t)`` is the set of layer nodes
+that hold a def of its own cone. A test placed by its reads takes its home
+and tie from its statement or data nodes by the same rule.
 
 * The **home** is the node of ``own(t)`` of highest rank. When two or more
   nodes share that rank, the test has a **tie**: the report gives the tied
@@ -1727,7 +1765,11 @@ in this order):
 * it did not pass at capture ("not passed: " and the outcome, ``failed``,
   ``skipped``, ``crashed`` or ``uncaptured``): its cone stops at the
   failure;
-* its own cone holds no def of the layer ("no layer def").
+* it read nothing of the layer or of the apparatus ("no layer read"): no
+  layer def ran, no layer binding was read on a node channel, no layer file
+  was opened as data, and no test-tree item was used. B3's reason was "no
+  layer def", met by every test that ran no layer def; since B5 most such
+  tests are placed by their reads.
 
 The summary counts them by the text before the colon. An unplaced test keeps
 its region counts and carries no home.
@@ -1803,13 +1845,16 @@ id, as pytest resolved the marker) and reports ``c`` for each on the same
 function cones the supports use. A case, as upper or target, collapses to
 its function; a class or file target expands to every function under it;
 an edge from a function to itself (a class or file target holding the
-upper) is skipped. A function is measured when its test is judged: placed,
-or unplaced only for "no layer def" (a failed or unknown cone stops early,
-so its containment means nothing). The report adds ``declared_rests_on``
-(each ``{upper, lower, target, c}``), ``declared_counts`` (cumulative at
-1.0, 0.95, 0.9 and 0.8, and ``below``) and ``declared_unmeasured``, counted
-by reason: ``upper not judged``, ``target not judged`` (no judged function
-under it) and ``lower ran no def``. The command collects the edges through
+upper) is skipped. A function is measured when its test is judged: it
+passed with a known cone, whatever homes it (a failed or unknown cone stops
+early, so its containment means nothing). The report adds ``declared_rests_on``
+(each ``{upper, lower, target, c, c_items}``; ``c_items`` and the rows with
+``c`` = ``None`` are B5's, :ref:`verification-cone-store-reads`),
+``declared_counts`` (cumulative over ``c`` at 1.0, 0.95, 0.9 and 0.8, and
+``below``), ``declared_items_only`` and ``declared_unmeasured``, counted by
+reason: ``upper not judged``, ``target not judged`` (no judged function
+under it) and ``lower ran no def and read nothing`` (B3's reason was
+``lower ran no def``). The command collects the edges through
 the suite's one resolver, ``tests/_harness/rests_on_manifest.py``, loaded
 as a plugin into a fresh ``pytest --collect-only`` over the layer. Gate
 PL15 declares five edges on the fixture (a 0.9 edge, an edge onto a case,
@@ -1844,8 +1889,19 @@ the ties, the foreign kinds, the homes per node (a tie as its nodes joined
 by ``+``), the number of tests with an above-layer def, and the straddlers,
 sorted by their foreign kinds. Beside them: ``supports`` and
 ``supports_against_order`` (each ``{upper, lower, c}``), ``duplicates``
-(``{a, b, defs}``), ``near_duplicates``, ``support_counts`` and the three
-declared-edge keys above. ``place`` on a path with no store raises ("no
+(``{a, b, defs}``), ``near_duplicates``, ``support_counts`` and the
+declared-edge keys above.
+
+B5 adds, per test: ``placed_by`` (``def``, ``statement``, ``data``,
+``layer``, ``package`` or ``apparatus``), ``via``, ``items``,
+``home_union``, ``statement_straddle`` (for a def- or statement-placed
+test), ``unresolved`` and ``apparatus_items``; to the summary:
+``placed_by`` (counts), ``homes_union``, ``union_moves``,
+``statement_straddlers``, ``above_layer_statement``,
+``pure_fraction_statement`` and ``null_pure_fraction_statement``; and to
+the result, ``apparatus_supports`` (:ref:`verification-cone-store-reads`).
+The summary's ``placed`` still counts the tests placed by their defs only;
+``placed_by`` counts every tier. ``place`` on a path with no store raises ("no
 store at …"). The report
 is plain JSON, byte-identical across runs when dumped with sorted keys.
 
@@ -1860,7 +1916,7 @@ What the order reads on the first witnesses
 
 `[M]` 2026-11-03, a store of 10 tests of ``tests/gates/numerics`` captured
 by the B3 tools and placed by this code, after the apparatus repair: 4
-placed, 6 unplaced with "no layer def" (the 5 tests of
+placed, 6 unplaced with "no layer def", B3's reason (the 5 tests of
 ``test_concept_order.py``, which read the layer's sources and run none of
 its code, and ``test_krylov_acceleration_requires_a_stated_preconditioner``,
 whose refusal is the interpreter's argument check). The placed four:
@@ -1887,20 +1943,33 @@ On that store the one support proposed runs against the order: the Gram
 test over ``test_endpoint_normalisation_is_exact``, with ``c`` = 1.0
 (``basis`` is not an ancestor of ``quadrature``).
 
-The full-layer evidence is pending
+.. _verification-cone-store-b4-placement:
+
+The full-layer reading: B4's store
 ----------------------------------
 
-No format-3 store of the whole numerics layer exists at the time of
-writing: the capture of its 5 780 tests runs after the commit that lands
-B3 (about 2.6 h, above). Every whole-layer reading this section would
-carry, the pure fractions under the three closures beside the null's, the
-homes per node, the straddlers by kind, the unplaced tests by reason, the
-proposed supports and the duplicate candidates, is owed by that run, with
-the acceptance the B3 specification fixes for it (its A1 to A4: each test's
-outcome equal to a plain run's, the unknown cones counted by reason, one
-environment key, every route a fork; and X1.2: the separation from the
-null and the named witnesses). The readings above are on samples of 10 and
-180 tests and are not the layer's.
+When B3 landed no store of the whole numerics layer existed, and the
+readings above, on samples of 10 and 180 tests, were not the layer's. The
+store B4 captured at ``42b5ceca`` for its validation run
+(:ref:`verification-cone-store-validation`) is the first. `[M]` 2026-11-07,
+``scratch/verification_tree/cone_store/b4/runs/place.json``, its summary:
+
+* 5 808 tests; 5 257 placed; 551 unplaced, of which 401 "no layer def"
+  (B3's reason), 148 cone unknown and 2 not passed;
+* pure under the three closures: 4 264 (runtime, the pure fraction 0.811),
+  4 533 (lazy) and 4 941 (typing); the null's pure fraction 0.063, 0.060 and
+  0.064 for seeds 1, 2 and 3;
+* 993 straddlers and 20 ties; foreign nodes by kind, 1 119 ``lazy``, 1 736
+  ``typing``, 320 ``none`` and 42 ``tie``; homes at 45 distinct labels;
+* 798 declared ``rests_on`` rows, 138 at containment 1.0 and 513 below 0.8,
+  and 275 edges unmeasured (221 "lower ran no def", 29 "upper not judged",
+  25 "target not judged").
+
+The census of the numerics layer reads this placement list by list (the
+plan's ⏸ point of 2026-11-07). Its first list, the 401 tests with no layer
+def, is what B5 answers (:ref:`verification-cone-store-reads`). The store was
+captured before B5, so it holds no reads, and the placement of the layer by
+every channel is owed by a re-capture.
 
 .. _verification-cone-store-place-gates:
 
@@ -1981,8 +2050,9 @@ row's expectation is read off those sources by hand.
      - either read as a foreign node; the upstream count kept per layer
        root
    * - PL8 (3 ids)
-     - a test with no layer def, a failed test and a test that starts a
-       process are unplaced with their reasons
+     - a test that read nothing of the layer (B3: "no layer def"; since B5
+       "no layer read"), a failed test and a test that starts a process
+       are unplaced with their reasons
      - dropping them, or placing a partial cone
    * - PL9
      - ``c`` = 0.95 is proposed and 0.9 is not; an implied support is
@@ -2026,6 +2096,680 @@ the positive control (the selection cone read everywhere) reddened 8 of the
 row. Two of those arms targeted PL12, the instrument row, retired with the
 instrument region; PL13 to PL16 were written after that battery, each
 with its first red in its docstring.
+
+
+.. _verification-cone-store-reads:
+
+Placing a test by what its run read (B5)
+========================================
+
+Increment B5 makes ``place`` home a test by what its own run READ, beside
+the defs it ran (rulings 47 to 49 of the plan). Two pieces of code carry it.
+``tools/cone_store/reads.py`` reads each executed first-party code object's
+bytecode, resolves every load chain to the statement that binds its end, and
+returns the reads of one test's run. ``tools/cone_store/placement.py`` sorts
+those reads by channel and homes the test by a tiered rule. The store keeps
+the reads in a new table, ``own_reads``, and its form moved to 4
+(:ref:`verification-cone-store-store`). The specification is
+``scratch/verification_tree/cone_store/b5/spec_b5.md`` (22 attacks, the
+corrections C1 to C14, the gates and the acceptance); its prototype resolver
+and probes are under ``b5/proto/`` and ``b5/probes/``. The reviews are
+``b5/qa/qa_b5_review.md`` and ``b5/elegance/review.md``; the findings not
+repaired in the build are #700.
+
+Why the defs alone could not place 401 tests
+--------------------------------------------
+
+The placement of the B4 store (:ref:`verification-cone-store-b4-placement`)
+left 401 of the layer's 5 808 tests unplaced with the B3 reason "no layer
+def": their own cones held no def of ``orpheus/numerics``. The census's list 1
+(``scratch/verification_tree/cone_store/b4/census/l1.md``, `[M]` 2026-11-07)
+read each of them with two instruments: what the test ran (its own cone, by
+pin kind and by package), and what it names (a static, module-qualified read
+of the test function, its helpers and its fixtures, whose positive control
+finds the placed home among the named nodes for 5 044 of 5 237 placed tests).
+Each test falls in exactly one of four populations:
+
+.. list-table:: The 401 tests of list 1
+   :header-rows: 1
+   :widths: 6 10 10 74
+
+   * - Population
+     - Tests
+     - Functions
+     - What the tests are, and the verdict
+   * - G
+     - 205
+     - 47
+     - Their own cones ran ``orpheus/geometry`` or ``orpheus/values`` defs
+       only, and they name no numerics module. Their subjects (the subgroup
+       lattice, G-spaces and quotients, the face-name bijection, geometry
+       retirements, the memo key's encoding) moved below numerics in
+       ``830b3713``, and the tests stayed. Misfiled; they are relocated per
+       function when the folder is reorganised. B5 leaves them unplaced in
+       this layer, and that is correct.
+   * - S
+     - 139
+     - 68
+     - Tests of a module's declared structure: a dataclass's fields, an
+       enum's members, Protocol membership by ``isinstance``, a constant, a
+       registry's population, a retired name's absence. They read a class
+       statement or an assignment, which ran when the module was imported at
+       collection, and they run none of the module's code. Correctly filed,
+       and invisible to a placement by defs.
+   * - A
+     - 19
+     - 19
+     - Source audits: they open a numerics file as data (a ``DataPin``).
+       Correctly filed, and invisible to a placement by defs.
+   * - O
+     - 38
+     - 26
+     - Tests of the test apparatus: oracle self-tests, fixture premises,
+       the concept order's own reader, retirement gates. They name no
+       ``orpheus`` module.
+
+So 158 of the 401 (S and A) were blind spots of the instrument, not misfiled
+tests. Population S is B4's second finding (a census over ``__subclasses__()``
+that depends on which modules were imported, :ref:`verification-cone-store-validation`)
+seen from the unplaced side. Why the own cone held nothing for them: the
+memo's ``collect_pins`` mints a ``StatementsPin`` only for a file that has a
+code object in the recording, and a test that reads a constant runs no code
+of the constant's module. Ruling 47 (the user, 2026-11-07) answered list 1:
+placement homes a test by what its run read, module-qualified, and reads a
+source file opened as data as a node of the test. Ruling 48 answered
+population O: a test of the test apparatus is a node below the gates that use
+it.
+
+The read relation, and why ``co_names`` is not it
+-------------------------------------------------
+
+A **read** of a test is a binding its own run loaded: a load chain of an
+executed first-party code object (``m.a.b``: a load of ``m``, then the
+attribute loads that follow it), resolved where the code's own namespace
+binds the chain's root and then attribute by attribute, to the statement
+that binds the chain's end. It is recorded as ``Read(path, name, channel)``:
+the repository path of the module whose statement binds the name, the bound
+name (``None`` for a read of the module object itself), and the channel the
+read was reached by (below).
+
+The design as first written (the plan's B5 design) took the names a code
+object can read from ``_import_time.code_names``, that is ``co_names`` and the
+identifier tokens of its string constants, the same names B2's entry-name
+closure reads (:ref:`verification-cone-store-statements`). That cannot be the
+read relation. ``co_names`` holds the globals a code object loads and the
+attributes it loads in one unordered tuple, so it cannot pair an attribute
+with its receiver: it cannot tell ``measure.WEIGHT_ATOL`` from
+``quadrature.WEIGHT_ATOL``. Read literally ("an attribute name resolved in
+every module the code reads"), it over-pairs. `[M]` the specification's
+prototype on 658 tests of ``tests/gates/numerics`` (the 401 of list 1, 197
+tests a proxy predicted to move, and 60 unmoved controls drawn with seed 5):
+the design as written named a layer node that the corrected resolver does not
+on 102 rows, and missed one it finds on 8. Correction C1 replaces it with
+load chains read from the bytecode. For selection the over-pairing is safe,
+since a larger cone only selects more; for a home it names the wrong node.
+
+The bytecode reader
+-------------------
+
+``instructions(code)`` walks ``dis.get_instructions(code)`` once and returns a
+``CodeReads``: the load chains of that one code object (never of the code
+objects it holds), the names its import statements bind, and its star
+imports.
+
+* **A chain** starts at a load of a name: ``LOAD_GLOBAL``, ``LOAD_NAME`` or
+  ``LOAD_FROM_DICT_OR_GLOBALS`` (scope ``global``), or ``LOAD_FAST``,
+  ``LOAD_FAST_BORROW``, ``LOAD_FAST_CHECK``, ``LOAD_FAST_AND_CLEAR``,
+  ``LOAD_DEREF`` or ``LOAD_FROM_DICT_OR_DEREF`` (scope ``local``). Each
+  ``LOAD_ATTR`` that follows extends it. ``PUSH_NULL``, ``SWAP`` and ``COPY``
+  leave it open; any other instruction closes it. ``CACHE``, ``NOP``,
+  ``EXTENDED_ARG`` and ``NOT_TAKEN`` are skipped. Each chain keeps the line
+  of its first load.
+* **The import table** (C2). ``IMPORT_NAME`` takes its level and its
+  ``fromlist`` from the two constants loaded just before it; each
+  ``IMPORT_FROM`` adds a taken name; the store that follows binds a local
+  (fast, cell or name) to an ``Imported(module, level, taken, fromlist)``. A
+  load of that local resolves through the table before the module's globals.
+  ``from m import *`` is kept apart as a star import. `[M]` the specification
+  (``probes/inbody_imports.py``): 174 of 3 113 defs under
+  ``tests/gates/numerics`` import ``orpheus`` inside their body, 153 of them
+  test functions; without the table their reads name nothing.
+* **A probe by constant** (C3). ``getattr(m, "X")`` and ``hasattr(m, "X")``
+  load the callee, then the receiver, then the constant: when a global load of
+  ``getattr`` or ``hasattr`` is followed by a chain and then a string
+  constant, the constant extends that chain. Pytest's assertion rewriter
+  stores such a constant apart from its receiver, so the string channel below
+  also pairs the constants of the code with the modules it read.
+* **A fused instruction is read as its two halves.** Python 3.14 joins two
+  adjacent local accesses into one instruction (a superinstruction), whose
+  argument is the pair of the two arguments. ``_operations`` yields each one
+  as its two halves, and the table of them, ``_FUSED``, is derived from the
+  opcode names rather than listed: an opcode whose name is two opcode names
+  joined by an underscore. `[M]` 2026-11-07, Python 3.14.3: the derivation
+  finds exactly four, ``LOAD_FAST_LOAD_FAST``,
+  ``LOAD_FAST_BORROW_LOAD_FAST_BORROW``, ``STORE_FAST_LOAD_FAST`` and
+  ``STORE_FAST_STORE_FAST``. An instruction the interpreter gains this way
+  cannot fall through unread.
+
+.. dropdown:: First got wrong: "the fused loads are two opcodes to list"
+   :color: muted
+
+   The first reader listed two fused opcodes and treated them as their own
+   case. Two reviews found the two failures that shape has. qa's F2: the
+   pair branch appended two bare chains and closed, so the ``LOAD_ATTR``
+   after ``LOAD_FAST_BORROW_LOAD_FAST_BORROW`` (an attribute of the SECOND
+   local, as in ``check(x, m.TOL)``) was dropped; `[M]` 9 such sites in 5
+   numerics test files, none on a first-party module local. The elegance
+   review's F8: ``STORE_FAST_LOAD_FAST`` was not listed, so
+   ``import pkg as pk; value = pk.rd.high.h()`` on one line lost both the
+   import's binding and the chain; `[M]` 0 sites in the tree, so the fixture's
+   ``test_superinstruction`` is the only witness. Both are one defect: an
+   enumerating guard over an open set. The repair splits every fused
+   instruction into its halves before the walker sees it, from a table derived
+   from ``dis.opmap``. Gates R18 (the store-and-load) and R21 (an attribute
+   after a fused pair of loads).
+
+**A cell is resolved through the def that binds it.** A name imported in an
+outer def and read by an inner one is a cell. The resolution keeps, for each
+executed code object, the import bindings of its cell variables, keyed by
+(file, qualified name), and an inner code resolves a local through the tables
+of the defs that enclose it (``f.<locals>.g`` is in ``f``) before its own.
+The first build keyed the table by file alone, so the last executed code of a
+file to bind a cell name won (qa's F3: ``helper_a``'s cell ``m`` read as
+``helper_b``'s); gate R20 runs two such defs in one test.
+
+**Which code objects are read.** Every code object of the own recording whose
+file is first-party, except three kinds. A pytest hook implementation
+(``pytest_*``) is the floor every test runs: `[M]` the specification,
+``tests/conftest.py::pytest_runtest_makereport`` is in 5 808 of 5 808 numerics
+own cones and reads a binding of ``orpheus/derivations``, so resolving it would
+give every test an above-layer read (C4). A module body (``<module>``) that
+ran during the test belongs to the imported module's provenance. A class body
+that ran at import (a code object without ``CO_OPTIMIZED`` and with no
+``<locals>`` in its qualified name) is the module's, not the test's.
+
+Module-level and class-body code ran at import, outside the own recording, so
+it is read another way: each first-party module the resolution touches is
+compiled again from its bytes (``compile``, never ``ast.parse``), its module
+body and class bodies are read with the same instruction reader, and each
+chain is mapped to the statement that holds its line by the memo's
+``_import_time.holding`` (the innermost statement whose lines hold it, so a
+class's header holds its bases and decorators and its member statements hold
+the body). The statements are the memo's own index of the file
+(``traced_memo._source_index``), so there is one statement model, the
+memo's.
+
+Resolution to the statement that binds a name
+---------------------------------------------
+
+``Sources`` is the reusable half of a resolution: the interpreter's
+first-party modules as they are after the test, indexed by real file, each
+read once. ``resolve(sources, codes, test)`` is one resolution and returns a
+``RunReads`` value (the reads, and per module path the names its pin is
+projected on); it keeps no state between tests (the elegance review's F5).
+
+``binding(module, name)`` answers where ``module.name`` is bound, in order:
+
+1. A module dunder the import system binds and no statement binds
+   (``__file__``, ``__name__``, ``__path__``, ``__spec__``, ``__loader__``,
+   ``__package__``, ``__dict__``, ``__cached__``, ``__builtins__``,
+   ``__doc__``, ``__all__``, ``__annotations__``) is a read of the module
+   object (C8). So is a name whose value is a module.
+2. **A re-export is followed by identity** (C7). When the import statement
+   that bound the name (or, when no statement binds it, a star import) takes
+   it from a module whose ``__dict__`` holds the very same object (``is``),
+   the resolution continues in that module, and the module it passed through
+   is recorded with channel ``reexport``: pinned, never a node. So a
+   ``try: from x import y`` / ``except ImportError: y = …`` pair, and a
+   ``TYPE_CHECKING`` import, stop at the module whose statement really binds
+   the object. A re-export into another package's object is no first-party
+   read. The reading code's own import of the chain's root is how the code
+   reached the name, not a re-export, and is not recorded as one.
+3. A non-import statement of the module binding the name ends the
+   resolution there.
+4. **A name the module holds that no statement binds** is an ``_Unbound``:
+   a name set at run time (``setattr`` into a module, ``globals()[k] = v``).
+   Its bare name joins the module's pin, so a statement that binds it later
+   stales the pin; and, met on a node channel, it is recorded with channel
+   ``unresolved`` and its dotted spelling (``pkg.rd.low.LATE``) as the name,
+   counted, never dropped (C11). Met while following a binding's provenance
+   (channel ``closure``), it is not the test's read, and only the pin keeps it
+   (gates R19 and P9; the first build recorded it as the test's, the
+   elegance review's F5).
+
+A chain then steps attribute by attribute while the current end is a module;
+an attribute a module does not bind is added to the tokens tried on that
+module, and the chain stops.
+
+The identity check is blind on an object Python shares: a small int, an
+interned string, ``None``. `[M]` qa's probe: ``from other import N`` followed
+by ``N = 3``, with ``other.N = 3``, resolves the read to ``other:N`` and keeps
+``low:N`` only as a re-export. Gate R7b uses 99 and 5 and cannot see it; the
+two candidate repairs are a design question (#700, §2).
+
+The channels
+------------
+
+Each read carries a ``Channel`` (a ``StrEnum`` in ``reads.py``), whose
+property ``is_node`` says whether the read makes a node of the test and
+``is_pinned`` whether its name is one the module's pin is projected on.
+
+.. list-table:: The channels of a read
+   :header-rows: 1
+   :widths: 16 56 14 14
+
+   * - Channel
+     - How the read was reached
+     - A node?
+     - Pinned?
+   * - ``direct``
+     - a chain of code the test ran
+     - yes
+     - yes
+   * - ``decorator``
+     - a chain in the decorators or defaults of a statement on the test's
+       qualified name (its classes' headers, then its def), evaluated at
+       collection, so the value reaches the test as an argument (C12)
+     - yes
+     - yes
+   * - ``string``
+     - an identifier token of a string constant (the docstring excluded) of
+       code the test ran, held by a module that code reached as an object:
+       the probe the assertion rewriter separates from its receiver (C3)
+     - yes
+     - yes
+   * - ``module``
+     - a chain that ends on a module object (``hasattr(m, "Old")``,
+       ``m.__file__``), with no bound name; its pin is projected on the tokens
+       the code tried on it, so binding a retired name later stales it (C8)
+     - yes
+     - yes
+   * - ``via_apparatus``
+     - a binding reached through the statement of a binding under ``tests/``
+       (a case table, a fixture, a test-module constant), followed to the
+       first binding outside the test tree (C6 as refined)
+     - yes
+     - yes
+   * - ``closure``
+     - a binding read by the statement of a binding outside the test tree
+       (what built ``LEGENDRE``), followed one statement deep: the value's
+       provenance
+     - no
+     - yes
+   * - ``reexport``
+     - a module a chain passed through by identity (C7)
+     - no
+     - yes
+   * - ``ambiguous``
+     - a binding whose file is in ``sys.modules`` under more than one module
+       name (C10): counted beside the read, with no name
+     - no
+     - no
+   * - ``unresolved``
+     - a name bound at run time that no statement binds, spelled dotted (C11)
+     - no
+     - no
+
+Ruling 48's apparatus and the refined C6 decide where the following stops. A
+binding under ``tests/`` delivers a value, and its subject is the first binding
+outside the test tree that its statement reads: ``CASES = (low.Rec(1.0),)``
+read by a test reaches ``low:Rec`` as ``via_apparatus``, and the test is homed
+at ``low`` (gate A2). A layer binding's own statement is provenance: what
+built ``mid.BUILT`` is pinned as ``closure`` and is never a node (gates A3,
+A4). `[M]` the specification's prototype: with no following at all, 65 of
+the 139 S tests got a layer node; with following through apparatus only, 128,
+of which 72 reached it through apparatus.
+
+Not read, by declaration: a pytest hook implementation; module-level code
+that ran during the test; a class attribute read through an instance whose
+class the test never names (``box.LIMIT``, the instance from a fixture: gate
+R15, one-sided); and a name built at run time (a string passed to
+``importlib``: 2 S tests, `[M]` the prototype).
+
+The statement pins of B5, and why they stale
+--------------------------------------------
+
+``cone_of`` resolves the reads in the worker after the test, for the own
+recording only, under the recorder's ``unrecorded()`` (the resolution reads
+sources and modules, and none of that is the test's). The reads go to the
+store's ``own_reads`` rows. Beside them, one ``StatementsPin`` per module path
+read enters the own cone, projected by the module's statement index on that
+path's names: the names its pinned reads name (every channel but
+``unresolved`` and ``ambiguous``), the tokens tried on it as an object, and
+the bare names its provenance met unbound. The pin is the memo's own kind,
+judged by the memo's projection rule
+(:ref:`verification-cone-store-statements`), so it stales exactly when the
+statements that bind those names change:
+
+* an edit to a statement binding a read name (gate P2: ``TOL = 1e-12`` to
+  ``1e-11``);
+* a new statement binding a read name (P4: ``TOL = 2`` appended);
+* a statement binding a name tried and absent (P6: ``GONE = 1`` added, the
+  retirement gate's case);
+* a deleted re-export (P5: the re-exporter's ``reexport`` pin);
+* an edit to the builder of a value read through apparatus or as provenance
+  (P7: ``Rec``'s field retyped);
+* a statement binding a name the provenance met unbound (P9).
+
+An edit to a binding the test did not read leaves its pin valid (P3, P3b):
+that row tells a projection on the resolved names from a projection on the
+run's whole entry-name closure, which would validate P1 too.
+
+These pins are not the ones ``collect_pins`` mints. ``collect_pins`` projects a
+``StatementsPin`` for every file with code in the recording on the run's
+entry-name closure ``E′``, which is not what the test read, and keeps the names
+in a set under the capturing checkout's ``.cache/sets``. So ``place`` never
+reads names from pins: it reads the ``own_reads`` rows, which the store holds
+(C9). One own cone may hold both pins for one file. No verb reads the B5 pins
+today: they keep the own cone a freshness record of what the run read, and
+the gates P1 to P9 are their consumers. Resolving adds nothing to the
+selection cone (gate F3), so ``select``, which B4 validated, is unchanged. The
+pin is minted in ``cone.py`` beside the memo's own mint site, because the
+rulings froze the memo for B5 (#700, §4).
+
+The tiered home
+---------------
+
+``placement.own_reads`` sorts a test's reads by region into an ``OwnReads``:
+the layer nodes whose bindings it read on a node channel (``statement``, node
+to names), the layer nodes whose files it opened as data (``data``, from its
+``DataPin``\ s) and whether it opened a package file outside the layer too,
+the apparatus (test-tree file to items), its reads of the package above the
+layer, and its unresolved names. ``home_of`` returns how the test is homed as
+one value of the sum ``Home``, which ``place`` matches once (the elegance
+review's F1: a tag re-asked at five sites became a type):
+
+.. list-table:: The tiers of a home (ruling 49), in the order they are tried
+   :header-rows: 1
+   :widths: 18 12 70
+
+   * - ``Home`` member
+     - ``placed_by``
+     - When
+   * - ``DefHome(nodes)``
+     - ``def``
+     - the test ran a layer def: the home is B3's, from the def nodes alone
+   * - ``StatementHome(nodes)``
+     - ``statement``
+     - else, it read a layer binding on a node channel: the highest-ranked
+       statement node, ties as for defs
+   * - ``DataHome(nodes)``
+     - ``data``
+     - else, it opened layer files as data, not all of them: the
+       highest-ranked data node
+   * - ``ScopeHome("layer")``
+     - ``layer``
+     - else, it opened every node's file and nothing of the package outside
+       the layer: no node is the home (C13)
+   * - ``ScopeHome("package")``
+     - ``package``
+     - else, it opened every node's file and files of the package outside the
+       layer too: a census finding, listed apart (C13, ruled)
+   * - ``ApparatusHome(files)``
+     - ``apparatus``
+     - else, it read a test-tree binding or ran a test-tree def: its own file
+       when it read there, else the one file, else a tie of the files (C14)
+
+A test with none of these is unplaced with the reason "no layer read".
+
+**Why tiered** (ruling 49, the user, 2026-11-07). Running a module's code is a
+dependence on its behaviour; reading a value with none of its module's code
+run is a dependence on an input. The home was designed for behaviour, so a
+statement read never moves a def home: of the tests placed by defs, 0 change
+home when the reads are added (gate V4 on the fixture; `[M]` qa's replay of
+the B4 store through the build, 0 of 5 257 def homes and the pure fraction
+0.811109 unchanged).
+
+**The union home is kept as the refuted reading.** Every channel is reported
+whatever homes the test: ``via`` (each layer node to its channels among
+``def``, ``statement`` and ``data``), ``items`` (each node or apparatus file
+to the names read there), and ``home_union``, the home every channel's nodes
+would give together, highest rank winning. Union is refuted FOR the default
+home; the fact it establishes is where a test's inputs come from. `[M]` the
+specification's prototype: union moved 110 of the 197 proxy-predicted homes
+(29 ``coefficient_layout`` to ``axis``, 22 ``measure`` to ``quadrature``, …)
+and 0 of the 60 controls; ``test_exactness.py::test_claim_is_frozen``, for
+one, builds an ``ExactnessClaim`` from ``LEGENDRE``, a constant of
+``generating_measure``, and would move there. The summary reports
+``homes_union``, ``union_moves`` (placed by def or statement, whose union
+home differs) and ``statement_straddlers``: a def-placed test's statement
+nodes its def home does not explain at runtime, each with the kind of the
+first import edge that does (``statement_straddle``, read as ``foreign`` is).
+
+**Purity and the null per channel.** Purity, the straddlers, the null and the
+proposed ``executes`` supports are read over the def-placed tests, as in B3.
+The statement-placed tests have their own ``pure_fraction_statement`` and a
+null that shuffles the node label of each distinct (node, item) pair
+(``null_pure_fraction_statement``); a module read is the item ``""``. A
+fraction over no test is ``None``: the first build printed ``0.0``, which reads
+as "every one straddles" where none was placed (qa's F6). `[M]` qa's capture
+of 237 real tests: 12 statement-placed, 10 of them reading one node, measured
+1.0 and null 1.0 on every seed, so whether the statement null separates on the
+layer is an acceptance reading (AC7), not a fixture one (gate V6 records the
+fixture's 23/24 against 24, 22 and 24 of 24).
+
+Apparatus nodes and ``apparatus_supports``
+------------------------------------------
+
+Ruling 48 (the user, 2026-11-07): an oracle, a fixture or a case table is a
+node of the DAG; its self-test homes there, and every gate that uses it rests
+on it. C14 as ruled fixes the grain. The **apparatus node** is a test-tree
+file (a helper module, a ``test_*.py`` that exports helpers, the test's own
+module). Its **items** are bindings: the test-tree defs the test ran (its own
+def, the code nested in it and the pytest hooks excepted, ``OwnDefs.helpers``)
+and the test-tree bindings it read on a node channel. Why this grain: the
+layer's nodes are files, so a home names a file either way; the premises
+read module constants (``test_premise_the_metric_is_not_uniform`` reads only
+``_G``, a module-level array of its own file), which a fixture-function grain
+cannot express; and `[M]` the specification, 0 of the 153 test-tree defs other
+test files run is a ``conftest.py`` fixture. A re-exporting test file is no
+item (gate R16).
+
+Each entry lists ``apparatus_items`` (``[path, name]`` pairs). The result's
+``apparatus_supports`` proposes the premise edges: a test function ``P`` homed
+at an apparatus file is the proposed lower of every other function ``U``
+whose items at that file contain ``P``'s, with
+``c = |I(P) ∩ I(U)| / |I(P)| ≥ threshold``, over functions (gate A6:
+``test_uses_premise`` reads ``_G`` and runs ``low.f``, and rests on
+``test_premise`` with ``c = 1.0``).
+
+The declared ``rests_on`` edges: ``c`` and ``c_items``
+------------------------------------------------------
+
+The declared edges are measured over every test that passed with a known
+cone, whatever homes it (``judged``), so that the population is the layer's
+whole declared one. Each row now carries two containments: ``c``, over the
+function's own first-party defs as in B3; and ``c_items``, over its defs and
+its read items (a layer item spelled ``@<node>`` with its name, an apparatus
+item by file and name). A lower function that ran no def and read items has
+no ``c``: it is measured by ``c_items`` alone and counted under
+``declared_items_only``. The cumulative ``declared_counts`` are over ``c``. An
+edge whose lower ran no def and read nothing is counted under the reason
+"lower ran no def and read nothing" (gate A9 measures an edge onto a premise
+test by ``c_items``).
+
+.. dropdown:: First got wrong: "the declared edges are measured over the placed tests"
+   :color: muted
+
+   The first build took ``judged`` to be the placed tests. In B3 it had also
+   held the tests unplaced for "no layer def", so a lower test unplaced for
+   "no layer read" (it ran only upstream or above-layer defs, or nothing)
+   left the population, and its edge became neither a row nor a counted
+   reason. `[M]` qa's replay of the B4 store (1 583 declared edges): the
+   lower-level measurements fell from 1 019 to 902 while the reasons moved by
+   6, so 117 vanished with no reason (qa's F1, an X2 failure: a filter
+   upstream of the counter). ``judged`` is now every test that passed with a
+   known cone. The B4 reading's 221 "lower ran no def" and the new key
+   "lower ran no def and read nothing" are two predicates: the first counted
+   every lower with no def, the second only those with no read either, the
+   rest moving to ``declared_items_only``. AC10 re-counts the edges B4 could
+   not measure, beside the defs-only count.
+
+What was tried and refuted
+--------------------------
+
+* **Projecting a test's entry names onto the statements that bind them**
+  (``l1_statements.py``, list 1's census) — refuted FOR homing. The entry
+  names ``E′`` of a recording are not module-qualified (B2 accepts that a
+  collision over-selects) and are one closure per recording, so the projection
+  saturates: 45 to 47 candidate nodes on 80 tests, driven by ``__all__``,
+  ``T`` and ``V``. The fact it establishes: every one of the 401 reads some
+  numerics module-level binding by name.
+* **The name tuple of a code object as the read set** (``co_names``): refuted for resolution (C1, above): it
+  cannot pair a receiver with its attribute, and over-pairs on 102 of 658
+  prototype rows.
+* **Reading module-level and class-body code from the source** — ruled out by
+  the recorder gate R7 (``test_cone_store_recorder.py``: no ``ast.parse``,
+  ``ast.dump`` or digest of its own in ``tools/cone_store/``, one definition per
+  quantity). An AST walk would be a second statement model beside the memo's
+  index. The reader instead compiles the module's bytes, reads the module and
+  class bodies with the same instruction reader, and maps each chain to its
+  statement with the memo's ``holding`` over the memo's index. `[M]` the
+  elegance review's p4: the span test the first build open-coded agrees with
+  ``holding`` on 104 951 of 104 951 (statement, line) pairs over 229 files,
+  and was retired for it.
+* **The union home** — refuted FOR the default home (ruling 49, above); kept
+  as ``home_union``.
+* **No following at all** (the orchestrator's first wording of the closure
+  ruling) — refuted FOR placing S:
+  65 of 139 placed, where a test-module constant is how 72 S tests receive
+  their subject.
+* **Following provenance everywhere** — refuted for the home: the premise
+  test would home at the builder of its constant (or at nothing, its builder
+  being ``numpy``), and ``LEGENDRE``'s builder (``recurrence``, in
+  ``orpheus/geometry``) would join every reader of ``LEGENDRE``.
+* **Following a binding's provenance beyond one statement** — not built.
+  `[R]` A layer binding's provenance is pinned, never a node, so its depth
+  changes what the own cone's pins stale on and never a home. The deeper
+  builders are import-time statements of modules the test's process imported,
+  and the selection cone, which ``select`` judges, already holds them through
+  the collection's share; B4 measured selection sound with it. One statement
+  pins what the value read is spelled from. No measurement compares the two
+  depths.
+* **The fixture function as the apparatus grain** — refuted for this layer
+  (C14, above).
+* **Reading the read items from the statement pins**: refuted (C9): the
+  pins of ``collect_pins`` name ``E′``, and their kept sets live outside the
+  store.
+* **The run-time module attribute as the resolver**: rejected as the primary
+  route: a constant has no ``__module__``, and a class's can be reassigned.
+
+Known limits
+------------
+
+The declared boundaries above (a hook, module-level code run during the test,
+a class attribute read through an instance, a name built at run time) and the
+review's findings filed rather than repaired, each measured at zero or one
+site on the numerics layer today (#700):
+
+* **Four reads dropped with no unresolved row** (qa's F4): a class-level
+  case table read by a method's ``parametrize`` (``class T: CASES = …``; the
+  class body's load resolves against the module's globals; `[M]` 1 site,
+  ``test_registry.py::TestTheSelectorIsUNMOVEDByTheCarve``, def-placed, so its
+  home is unaffected); a module-level ``__getattr__`` (0 in the tree); an
+  in-function import of a module absent from ``sys.modules``; a file under
+  two module names (0 ``ambiguous`` rows in qa's 237-test capture).
+* **The identity check on a shared immutable** (above; #700, §2).
+* **The test's own def is spelled two ways.** The worker hands the resolution
+  the runtime identity ``(realpath(co_filename), __qualname__)``; placement
+  re-derives the test's def from its id. The two differ on an inherited test
+  method; `[M]` 0 of 1 382 test classes inherit one (#700, §3).
+* **A second mint site for the statement pin** (#700, §4): ``StatementsPin``
+  is minted in ``cone.py`` beside the memo's own site.
+
+The gates of B5
+---------------
+
+``tests/gates/tools/test_cone_store_reads.py`` (groups R, P and F) and
+``tests/gates/tools/test_cone_store_placement_reads.py`` (groups V, D and A)
+are ``foundation`` rows on the fixture ``_READS`` of ``_cone_store_fixture.py``
+(``build(root, reads=True)``): a layer ``pkg/rd`` ranked ``low`` below ``mid``
+and ``rex`` below ``high`` (``READS_ORDER``), another package ``pkg/other``, the
+apparatus ``tests/rd/_helper.py`` and a conftest with a hook and a fixture,
+and one test per shape of read. Each row's docstring states its first red;
+every expectation is read off the fixture's sources by hand.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 14 86
+
+   * - Group
+     - What it gates
+   * - R (resolution)
+     - each shape's exact ``(path, name, channel)`` rows: a module alias (R1),
+       a dotted chain (R2), an in-body import (R3), a cell (R4, R20),
+       re-exports through a module and through the package ``__init__`` (R5,
+       R6), a fallback import and an import rebound by a later statement (R7,
+       R7b), a name bound by a def and an assignment (R8), a dataclass and a
+       Protocol (R9, R10), ``getattr``/``hasattr`` with a constant (R11), an
+       absent name and a module dunder (R12, R13), a star import (R14), the
+       instance-attribute boundary (R15), a re-exporting helper (R16), a
+       ``parametrize`` decorator (R17), the fused instructions (R18, R21), and
+       an unbound name met in provenance (R19)
+   * - P (the pin)
+     - P1 to P9 above: each B5 pin validates on the unedited tree and stales
+       exactly on the edits listed; P8 round-trips ``own_reads`` and requires
+       ``FORMAT`` 4 and a form-3 store emptied
+   * - F (the floor)
+     - F1: the conftest's hook reads ``pkg/other`` and no test but the one
+       reading it itself holds that read; F2 its positive control; F3:
+       resolving adds no ``DataPin`` or ``ListingPin`` to either cone
+   * - V (placement by channel)
+     - the tier (V1, V4), a re-exporter not a node (V2), a data home (V3),
+       items (V5), the null per channel (V6), byte-identical JSON in-process
+       and in two fresh interpreters under two hash seeds (V7), the union
+       keys (V8), the above-layer statement count (V9), the unresolved count
+       (V10), a form-3 store refused before it is opened (V11)
+   * - D (the data home)
+     - the ``layer`` home (D1), the ``package`` home (D2), data never above a
+       def (D3)
+   * - A (the apparatus)
+     - a premise homed at its file (A1), a case table delivering its layer node
+       (A2), resolution stopping at the first layer binding (A3, A4), a
+       helper's reads being the test's (A5), the proposed premise edge (A6),
+       a hook being no item (A7), the test not its own item (A8), a declared
+       edge onto a premise measured by ``c_items`` (A9)
+
+`[M]` 2026-11-07, the three files run serially under ``python -O -m pytest
+-p no:cacheprovider`` on the uncommitted build: 74 passed, 0 failed, in
+89 s; V11 landed after that run and passed in its file's re-run (23 of 23).
+The new files hold 58 ids: R 22 (R1 to R21 and R7b), P 10 (P1 to P9 and
+P3b) and F 3 in ``test_cone_store_reads.py`` (35); V 11, D 3 and A 9 in
+``test_cone_store_placement_reads.py`` (23). The specification wrote 49; R7b,
+R18 to R21, P3b, P9, F3 and V11 (a store of form 3 refused by a message
+naming the own reads, before it is opened) were added after it, from the
+battery and the reviews. ``test_cone_store_placement.py``
+holds the other 17.
+
+The B3 placement file is updated beside them: PL8's unplaced reason is now
+"no layer read". The mutation battery of the specification (§3.7: each arm
+a mutation applied to a copy of the built tree, the positive control C1's
+literal pairing) ran on an earlier state of the build: `[M]` qa's review, 35
+arms, 3 blind and each explained in its gate's docstring, and 3 of the then
+52 rows (A5, P3 and V7) red under no arm. qa's three further arms reddened
+A5, reddened P3b but not P3's first leg, and gave V7 a red that a broken
+subprocess leg made unattributable. qa then found every battery reading void
+on the tree that followed, where R18, V7 and V9 were red. The battery on the
+final code is owed.
+
+The acceptance is owed
+----------------------
+
+The specification's acceptance (§4, AC0 to AC10) runs on a re-capture of the
+numerics layer at the build commit (about 5 h, detached), against the B4 store
+as leg 1: no def home moves between legs 2 and 3 (AC1); at least 128 of the
+139 S tests are placed, and of the 19 A tests, 13 by statement, 2 by a data
+node, 2 at ``layer`` and 2 at ``package`` (AC2); the 4 tests whose own cone
+already held a numerics ``StatementsPin`` are placed at ``quadrature``,
+``near_kernel``, ``quadrature`` and ``iteration`` (AC3); each statement home is
+among the nodes the static read names (AC4, 127 of 128 in the prototype); 0 of
+the 205 G tests gains a numerics node (AC5); the union reading over the whole
+layer, measured for the first time (AC6); the null per channel (AC7); the
+unresolved and ambiguous counts (AC8); 0 statement reads through the floor
+(AC9); and the declared edges B4 could not measure, re-counted (AC10). Every
+moved home is explained by a script-generated table of shapes, and a move with
+no shape is a finding. The predictions above are the prototype's, on 658
+tests, and are not the layer's.
 
 
 .. _verification-cone-store-environment:
@@ -2448,8 +3192,10 @@ per-mutant record are under ``scratch/verification_tree/cone_store/b4/``
   census over ``__subclasses__()``, which sees the classes of the modules
   that were imported; importing a module runs its module code, which the
   cone records as statements, never as defs. ``select`` covers the test
-  through the module's import-time statements. Placement, which homes a test
-  by its defs, cannot see such a dependence.
+  through the module's import-time statements. Placement by defs cannot see
+  such a dependence; since B5 a test that reads a module's bindings without
+  running its code is homed by those reads
+  (:ref:`verification-cone-store-reads`).
 
 .. _verification-cone-store-limits:
 
@@ -2632,6 +3378,17 @@ Gotchas
   check in a fresh interpreter (`[M]` 2026-11-03: the apparatus gate's
   ``[_apparatus]`` and ``[_probing]`` arm cases, green plainly and red
   under capture until they moved).
+* **The summary's placed count is of the tests placed by their defs.** Since
+  B5 a test is also placed by its reads, its data or its apparatus, and
+  ``placed_by`` counts each tier. Purity, the straddlers, the null and the
+  proposed ``executes`` supports are read over the def-placed tests; the
+  statement-placed tests have their own pure fraction and null. Reading
+  ``placed`` as "every test with a home" undercounts.
+* **A home read from a value is not a home read from code.** A test homed by
+  ``statement`` read a binding of that node and ran none of its code: its
+  claim rests on the node's declared structure or on a value the node
+  delivers, never on code of the node that its run executed. Read
+  ``placed_by`` before reading a home.
 * **The concept order is loaded from a test module by path.** ``--order``
   names a file, which ``__main__`` loads with
   ``importlib.util.spec_from_file_location``; that works because the
@@ -2652,6 +3409,22 @@ History
      - Milestone
      - Issue
      - Where
+   * - 2026-11-07
+     - **Increment B5: placement by what a test's run read** (rulings 47 to
+       49). ``tools/cone_store/reads.py`` reads each executed first-party
+       code object's load chains from its bytecode (fused instructions split
+       by a table derived from ``dis.opmap``), resolves each to the statement
+       that binds its end (re-exports by identity, unbound names counted),
+       and sorts the reads into channels; the store's ``own_reads`` table and
+       ``FORMAT = 4``; one ``StatementsPin`` per module read in the own cone;
+       the tiered home as the ``Home`` sum (def, statement, data, layer or
+       package, apparatus) with the union home reported and refuted for the
+       default; apparatus nodes and ``apparatus_supports``; ``c_items`` on the
+       declared edges, over the restored ``judged`` population (qa's F1).
+       The motive is list 1's 401 unplaced tests. Review findings not
+       repaired: #700. The acceptance on a re-capture (AC0 to AC10) is owed.
+     - #358
+     - ``feature/b5-placement-reads``, uncommitted, over ``4fad267e``
    * - 2026-11-03
      - **B3's acceptance: a no-edit select over-selected** (ERR-125). Plan
        row X1.3 counted 229 numerics tests where 149 were owed. 70 readers

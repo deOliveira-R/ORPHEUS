@@ -564,6 +564,356 @@ _PLACEMENT: dict[str, str] = {
     """,
 }
 
+#: B5 reads (spec ``scratch/verification_tree/cone_store/b5/spec_b5.md`` §3.0): a layer ``pkg/rd`` ranked by
+#: :data:`READS_ORDER`, one test per shape of read the resolution must name (or must not), an apparatus helper
+#: ``tests/rd/_helper.py``, a conftest whose pytest hook reads another package (``pkg/other``) and whose fixture builds
+#: a ``low.Box``, and source audits of one file, of the layer and of the package. The fixture's tests raise
+#: ``AssertionError`` by hand rather than ``assert``, except ``test_getattr``: the assertion rewriter adds loads of
+#: its own (a bare module load per operand), which only R11 is about. No fixture test carries a docstring (its string
+#: constants would be paired with the modules it reads, C3).
+READS_ORDER: tuple[tuple[str, ...], ...] = (("low",), ("mid", "rex"), ("high",))
+_READS: dict[str, str] = {
+    "pkg/rd/__init__.py": """
+        from pkg.rd.low import Rec
+    """,
+    "pkg/rd/low.py": """
+        from dataclasses import dataclass
+        from typing import Protocol, runtime_checkable
+
+        TOL = 1e-12
+        ALIAS = TOL
+
+
+        def _wrap(function):
+            def wrapped():
+                return function()
+
+            return wrapped
+
+
+        def f():
+            return 1
+
+
+        f = _wrap(f)
+
+
+        @dataclass(frozen=True)
+        class Rec:
+            value: float
+
+
+        @runtime_checkable
+        class Proto(Protocol):
+            def apply(self): ...
+
+
+        class Box:
+            LIMIT = 3
+
+
+        from pkg.other.alt import REBOUND
+
+        REBOUND = 5
+
+        globals()["LATE2"] = 2
+
+        try:
+            from pkg.rd._fast import SPEED
+        except ImportError:
+            SPEED = 0
+    """,
+    "pkg/rd/mid.py": """
+        from pkg.rd import low
+
+        BUILT = low.Rec(low.TOL)
+        FROM_LATE = low.LATE2
+
+
+        def g():
+            return low.f()
+    """,
+    "pkg/rd/rex.py": """
+        from pkg.rd.low import TOL
+    """,
+    "pkg/rd/high.py": """
+        HIGH = 7
+
+
+        def h():
+            return 1
+    """,
+    "pkg/other/__init__.py": "",
+    "pkg/other/o.py": "OTHER = 1\n",
+    "pkg/other/alt.py": "REBOUND = 99\n",
+    "tests/rd/__init__.py": "",
+    "tests/rd/_helper.py": """
+        from pkg.rd import high
+        from pkg.rd.mid import BUILT
+
+        TABLE = (BUILT,)
+
+
+        def make():
+            return high.HIGH
+    """,
+    "tests/rd/conftest.py": """
+        import pytest
+
+        import pkg.other.o as other
+        from pkg.rd import low
+
+
+        def pytest_runtest_setup(item):
+            if other.OTHER != 1:
+                raise RuntimeError("the hook's read")
+
+
+        @pytest.fixture
+        def box():
+            return low.Box()
+    """,
+    "tests/rd/test_rd.py": """
+        import pkg.rd.low
+        import pytest
+
+        import pkg.other.o as other_module
+        from pkg.rd import Rec, high, low, mid
+        from pkg.rd.rex import TOL
+        from tests.rd import _helper
+        from tests.rd._helper import BUILT
+
+        _G = (1.0, 20.0)
+        CASES = (low.Rec(1.0),)
+
+
+        def test_global():
+            if not low.TOL > 0:
+                raise AssertionError
+
+
+        def test_chain():
+            if not pkg.rd.low.TOL > 0:
+                raise AssertionError
+
+
+        def test_in_def():
+            from pkg.rd import low as m
+
+            if not m.TOL > 0:
+                raise AssertionError
+
+
+        def test_cell():
+            from pkg.rd import low as m
+
+            def inner():
+                return m.TOL
+
+            if not inner() > 0:
+                raise AssertionError
+
+
+        def test_reexport():
+            if not TOL > 0:
+                raise AssertionError
+
+
+        def test_package_reexport():
+            if Rec(1.0).value != 1.0:
+                raise AssertionError
+
+
+        def test_fallback():
+            if low.SPEED != 0:
+                raise AssertionError
+
+
+        def test_rebound():
+            if low.REBOUND != 5:
+                raise AssertionError
+
+
+        def test_superinstruction():
+            import pkg as pk; value = pk.rd.high.h()  # noqa: E702
+            if value != 1:
+                raise AssertionError
+
+
+        def test_closure_unbound():
+            if mid.FROM_LATE + high.h() != 3:
+                raise AssertionError
+
+
+        def test_two_cells():
+            def first():
+                from pkg.rd import low as m
+
+                def inner():
+                    return m.TOL
+
+                return inner()
+
+            def second():
+                from pkg.rd import high as m
+
+                def inner():
+                    return m.HIGH
+
+                return inner()
+
+            if second() + high.h() != 8 or first() <= 0:
+                raise AssertionError
+
+
+        def test_fast_pair():
+            from pkg.rd import low as m
+            x = 1.0
+            if max(x, m.TOL) != x or low.f() != 1:
+                raise AssertionError
+
+
+        def test_def_and_assign():
+            if low.f() != 1:
+                raise AssertionError
+
+
+        def test_dataclass():
+            if low.Rec(1.0) != low.Rec(1.0):
+                raise AssertionError
+
+
+        def test_protocol():
+            if isinstance(object(), low.Proto):
+                raise AssertionError
+
+
+        def test_getattr():
+            assert getattr(low, "TOL") > 0
+            assert hasattr(low, "ALIAS")
+
+
+        def test_absent():
+            if hasattr(low, "GONE"):
+                raise AssertionError
+
+
+        def test_dunder():
+            if not low.__file__.endswith(".py"):
+                raise AssertionError
+
+
+        def test_instance_attr(box):
+            if box.LIMIT != 3:
+                raise AssertionError
+
+
+        def test_helper_reexport():
+            if BUILT.value <= 0:
+                raise AssertionError
+
+
+        class TestParam:
+            @pytest.mark.parametrize("tol", [low.TOL])
+            def test_parametrized(self, tol):
+                if tol <= 0:
+                    raise AssertionError
+
+
+        def test_premise():
+            if not max(_G) / min(_G) > 10:
+                raise AssertionError
+
+
+        def test_case_table():
+            if len(CASES) != 1:
+                raise AssertionError
+
+
+        def test_helper_table():
+            if len(_helper.TABLE) != 1:
+                raise AssertionError
+
+
+        def test_legendre_like():
+            if mid.BUILT.value <= 0:
+                raise AssertionError
+
+
+        def test_helper_def():
+            if _helper.make() != 7:
+                raise AssertionError
+
+
+        def test_uses_premise():
+            if low.f() * max(_G) <= 0:
+                raise AssertionError
+
+
+        def test_input_value():
+            if low.f() + high.HIGH != 8:
+                raise AssertionError
+
+
+        def test_two_reads():
+            if mid.BUILT.value != low.TOL:
+                raise AssertionError
+
+
+        def test_two_reads_apart():
+            if mid.BUILT.value + high.HIGH <= 0:
+                raise AssertionError
+
+
+        def test_other():
+            if other_module.OTHER != 1:
+                raise AssertionError
+
+
+        @pytest.fixture
+        def late():
+            setattr(low, "LATE", 1)
+
+
+        def test_unresolved(late):
+            if low.LATE != 1:
+                raise AssertionError
+    """,
+    "tests/rd/test_star.py": """
+        from pkg.rd.low import *  # noqa: F403
+
+
+        def test_star():
+            if not TOL > 0:  # noqa: F405
+                raise AssertionError
+    """,
+    "tests/rd/test_audit.py": """
+        from pathlib import Path
+
+        from pkg.rd import mid
+
+
+        def test_audit_one():
+            if "HIGH" not in Path("pkg/rd/high.py").read_text():
+                raise AssertionError
+
+
+        def test_audit_layer():
+            if len([p.read_text() for p in sorted(Path("pkg/rd").glob("*.py"))]) != 5:
+                raise AssertionError
+
+
+        def test_audit_package():
+            if len([p.read_text() for p in sorted(Path("pkg").rglob("*.py"))]) < 10:
+                raise AssertionError
+
+
+        def test_audit_run():
+            if mid.g() != 1 or len([p.read_text() for p in sorted(Path("pkg/rd").glob("*.py"))]) != 5:
+                raise AssertionError
+    """,
+}
+
 _THREAD_LINES = """
 import threading as _threading
 import time as _time
@@ -618,7 +968,7 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
           thread_at_module: bool = False, unmeasured_platform: bool = False, reads_source: bool = False,
           subdir: bool = False, read_rewrite: bool = False, race: bool = False, offpath: bool = False,
           user_ignore: bool = False, localplug: bool = False, phases: bool = False, placement: bool = False,
-          own_store: bool = False, age: bool = True) -> Path:
+          own_store: bool = False, reads: bool = False, age: bool = True) -> Path:
     """Write the fixture tree under ``root`` and return it; ``age`` waits until every file's identity is
     settled, so a capture taken next records settled identities (spec F1)."""
     files = dict(_BASE)
@@ -646,6 +996,8 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
         files |= _PLACEMENT
     if own_store:
         files |= _OWN_STORE
+    if reads:
+        files |= _READS
     conftest = textwrap.dedent(files["tests/conftest.py"])
     if thread_at_conftest:
         conftest += _THREAD_LINES
