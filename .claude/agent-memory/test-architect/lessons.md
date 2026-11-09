@@ -780,3 +780,11 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   2026-11-08, the list-3 repair confirmation: 5763 collected and 1 error where HEAD collects 5808). Use a fresh
   `ta_<name>_$$` directory, never suppress the add's stderr, and print `git -C <dir> rev-parse --short HEAD` and the
   collected count beside the result. Extends `code-search` (a probe run from another tree states which tree it read).
+
+## Reading pass schema (2026-11-09) — extends `instrument-doctrine` X3 (find the line that fails if the prose is false)
+
+- **⛔ A delegated reader's CLAIM sentence is checkable only through identifiers on statements it cites, and the
+  assertion line alone does not hold them**: the compared values are computed on binding lines. Require `binding_lines`
+  beside `assertion_lines` and check `mentions` against both (my own pilot failed 51 of 90 before it). And a shared
+  fixture registry that builds every row inflates the own cone: a prior home can differ from the subject for the
+  APPARATUS's reason, not the test's. → `L132`

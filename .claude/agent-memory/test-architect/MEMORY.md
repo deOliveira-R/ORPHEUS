@@ -37,6 +37,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **Cone store B1-B5 (W1/W3)** — specs `scratch/verification_tree/cone_store/{spec_b1.md,b2/,b3/,b4/,b5/}`. On resume: the owed post-capture arms per spec. → `L127`-`L131`
 - **#683 matrix carriers act on members (W3, `fix/683-assembled-operator-membership`)** — 2026-11-02: gates `tests/gates/numerics/test_matrix_carrier_membership.py` (17 rows) + 3 re-posed rows + Phase 2 fixture moved to Energy ⊗ point; spec `scratch/683/gate_spec.md`, battery `scratch/683/battery/`, census `scratch/683/census/`. On resume: SN census result; confirm landed.
 - **Cone store list 3 marker repair (W3, rulings 51-53)** — CONFIRMED landed in the tree 2026-11-08 (uncommitted, `fix/rests-on-repair`), spec `scratch/verification_tree/cone_store/b5/census/repair/spec.md` + `table.json` (248 judged after ruling 53: 18 KEEP, 7 RE-POINT, 223 REMOVE). On resume: re-run `place` after the edits; expect 0 failing outside `traced_memo`.
+- **Numerics reading pass design (W6, ruling 54)** — 2026-11-09: schema, `check.py`, controls, 28 packages, pilot P06 green; `scratch/verification_tree/cone_store/b5/reading/`. On resume: main's rulings on NEEDS (a)-(e); hand-read subject controls for the 24 packages without one. → `L132`
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)

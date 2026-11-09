@@ -12017,3 +12017,17 @@ showed the R1 (decorator) read keyed on the TOP-level qualname part, so a parame
 read: walk every level of `co_qualname`. A third trap: the "no closure" ruling read literally unplaced 74 of 139
 structure tests whose subject reached them through a test-module constant; measuring the ruling's consequence before
 the spec went out turned it into "closure through apparatus only".
+
+## L132 — numerics reading pass: the schema and gate for delegated claim reading (2026-11-09)
+
+Designing the per-function reading schema (ruling 54's subject node) and its mechanical gate, then reading package
+P06 (90 functions) myself. Two traps. (1) The first gate run failed 51 of 90 of my own records on "every mentioned
+identifier occurs on a cited statement": the claim names the quantities compared, and those are computed on the
+binding lines (`lhs = R.codomain.inner_product(...)`), not on the assertion line (`npt.assert_allclose(lhs, rhs)`).
+A delegated claim is checkable only through identifiers on statements the reader cites, so the schema needs a
+`binding_lines` field beside `assertion_lines`; without it the mention check is either unsatisfiable or dropped.
+(2) 14 of the 20 subject-vs-prior differences in P06 were one mechanism: a shared apparatus registry
+(`resolve -> registry()`) builds every row's space, so `frame_faces` defs ran for every case of
+`test_axis_marginal_lift.py` whatever the row. The highest-node-run home (and the own cone the support predicate
+reads) inherits a fixture's over-build; a home differing from the subject is not always shape (i) or (ii) of list 5.
+Files: `scratch/verification_tree/cone_store/b5/reading/` (schema, check.py, selftest.py 15 arms, pilot/P06.jsonl).
