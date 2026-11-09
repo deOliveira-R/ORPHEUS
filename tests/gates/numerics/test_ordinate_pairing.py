@@ -16,12 +16,19 @@ matcher's built-in certificate: ERR-042 (the trace measure ``w |mu_a|``,
 relative tolerance 1e-12), ERR-044 (involution) and ERR-045 (inflow to
 outflow on the named axis).
 
-Ladder (``rests_on`` edges are declared on the tests)::
+Ladder (reading order; the one declared ``rests_on`` edge is the first)::
 
     test_a_quadrature_not_closed_under_the_motion_is_refused     foundation
     test_ordinate_pairing_returns_the_certified_permutation      edge: equal to the matcher
-        ^ real-table positive control
+        (real-table positive control)
     test_the_three_errors_keep_their_teeth                       the evidence (ERR-042/044/045)
+
+The evidence and the other negatives declare no ``rests_on``: a declared edge
+is an execution support (ruling 51 of the verification-tree plan, measured by
+``tools/cone_store``), and the positive control ranges over the Lebedev,
+product and Gauss-Legendre rules while each negative runs a single table, so
+a defect in a rule the negative never builds reddens the control and not the
+negative. They are siblings of the control, not rungs above it.
 
 Gate 1 is NOT the evidence: it is equal to the matcher by shared upstream
 (X4). The evidence is gate 2: three tables, each wrong in exactly ONE
@@ -74,7 +81,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature import ordinate_pairing as ordinate_pairing_module
 from orpheus.numerics.tangential import TANGENTIAL_EPS
 
-#: This file's own path: the target of the ``rests_on`` edges below.
+#: This file's own path: the target of the ``rests_on`` edge below.
 _THIS_FILE = "tests/gates/numerics/test_ordinate_pairing.py"
 
 
@@ -300,7 +307,6 @@ def test_ordinate_pairing_takes_no_axis_argument() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_THIS_FILE}::test_a_quadrature_not_closed_under_the_motion_is_refused")
 def test_a_motion_that_is_not_an_axis_reflection_is_refused() -> None:
     r"""A rotation, a translation, the identity, an oblique reflection and an
     inversion each raise ``OrdinatePairingError`` (NOT one of the three
@@ -340,7 +346,6 @@ def test_a_motion_that_is_not_an_axis_reflection_is_refused() -> None:
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
 def test_the_axis_is_the_one_the_motion_names() -> None:
     r"""The crossing is checked on the motion's axis, not on a default. The
     identity table is the ERR-045 poison on the x axis of GL-8 (every
@@ -378,7 +383,6 @@ def _broken_rows():
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")
-@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
 @pytest.mark.parametrize("table_id", list(_EXPECTED))
 def test_the_three_errors_keep_their_teeth(table_id: str) -> None:
     r"""Each broken table (wrong in exactly ONE invariant: the fixtures of
@@ -404,7 +408,6 @@ def test_the_three_errors_keep_their_teeth(table_id: str) -> None:
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")
-@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
 @pytest.mark.parametrize("table_id", ["weight_class_mispairing", "self_map_identity", "mirror_after_same_class_swap"])
 def test_a_poisoned_quadrature_pairing_reddens_at_use_time(
     table_id: str, monkeypatch: pytest.MonkeyPatch
@@ -426,7 +429,6 @@ def test_a_poisoned_quadrature_pairing_reddens_at_use_time(
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_THIS_FILE}::test_ordinate_pairing_returns_the_certified_permutation")
 def test_the_independence_triad_has_a_positive_control_per_quadrature() -> None:
     r"""Anti-pattern 11: the three negatives above prove the RAISING, so the
     real tables of the same three quadratures certify on all three axes (a
@@ -469,7 +471,6 @@ def test_the_package_exports_the_five_errors_and_the_name_is_the_submodule() -> 
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_THIS_FILE}::test_the_three_errors_keep_their_teeth")
 def test_a_folded_rule_is_diagnosed_as_having_spent_the_mirror() -> None:
     r"""On a rule whose orbit space SPENT the mirror the pairing is the identity
     and the outflow half is not stored: the refusal names the orbit space, not

@@ -44,7 +44,7 @@ pytestmark = pytest.mark.foundation
 _HERE = "tests/gates/numerics/test_content_identity_question.py"
 _CI = "tests/gates/values/test_content_identity.py"
 _CENSUS = "tests/gates/test_content_identity_census.py"
-_MF = "tests/gates/numerics/test_content_identity_mesh_free.py"
+_QUESTION = "tests/gates/numerics/test_question.py"
 _ROOT = Path(__file__).resolve().parents[3]
 
 _TABLE = np.array([[1.5, 0.25], [0.0, 3.0]])
@@ -173,7 +173,7 @@ def test_s7_9_population(entry: Entry) -> None:
     check_population(entry)
 
 
-@pytest.mark.rests_on(f"{_MF}::test_s6_9_population")
+@pytest.mark.rests_on(f"{_HERE}::test_s7_9_equal_content_is_one_value")
 @pytest.mark.parametrize(
     "entry,part,the_leg",
     [pytest.param(e, p, l, id=param_id(e.id, p, l[0])) for e, p, l in perturbation_ids(ROSTER)],
@@ -197,7 +197,7 @@ def test_s7_9_pickle_round_trip(entry: Entry) -> None:
 # ── S7.10: the role is the type ─────────────────────────────────────────────
 
 
-@pytest.mark.rests_on(f"{_HERE}::test_s7_9_population")
+@pytest.mark.rests_on(f"{_QUESTION}::test_s7_4_both_function_types_are_admitted_in_both_roles")
 @pytest.mark.parametrize("function", [_table, _symbolic], ids=["regionwise", "symbolic"])
 @pytest.mark.parametrize("point", [{}, _POINT], ids=["physical_point", "offset_point"])
 def test_s7_10_a_source_and_a_detector_of_one_function_are_two_questions(function, point) -> None:

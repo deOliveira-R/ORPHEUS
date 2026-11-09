@@ -60,15 +60,7 @@ from dataclasses import replace
 
 from orpheus.numerics.space import DualSpace, FunctionSpace, TensorProductSpace
 
-pytestmark = [
-    pytest.mark.foundation,
-    pytest.mark.rests_on(
-        "tests/gates/numerics/test_riesz_legs.py::test_lowering_realizes_the_metric_pairing",
-        "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
-        "tests/gates/numerics/test_dense_metric.py::TestPairingSpelling::"
-        "test_the_pairing_keeps_the_legacy_reduction_tree_bit_exactly",
-    ),
-]
+pytestmark = pytest.mark.foundation
 
 _EPS = float(np.finfo(float).eps)
 _OPERATOR_PY = Path(inspect.getfile(op_mod))
@@ -227,6 +219,10 @@ def test_S1_the_dual_space_reads_the_inverse_metric_bitwise(name):
              f"[{name}] V* and V apply the same metric (activation)")
 
 
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_dense_metric.py::TestPairingSpelling::"
+    "test_the_pairing_keeps_the_legacy_reduction_tree_bit_exactly",
+)
 def test_S2_the_dual_pairing_is_the_pairing_of_the_raises_exact_binary():
     """``⟨f, g⟩_{V*} = ⟨♯f, ♯g⟩_V``. Exact-binary diagonal case, hand value:
     w = (½, 2, 4), f = (1, 1, 1), g = (2, 4, 8): Σ fg/w = 4 + 2 + 2 = 8.
@@ -267,6 +263,10 @@ def test_S2b_dense_dual_pairing_against_the_exact_rational_inverse():
 
 
 @pytest.mark.parametrize("name", list(_leaf_spaces()))
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_dense_metric.py::TestPairingSpelling::"
+    "test_the_pairing_keeps_the_legacy_reduction_tree_bit_exactly",
+)
 def test_S2c_the_dual_pairing_is_the_pairing_of_the_raises(name):
     """The same law on every leaf family, singular members included
     (G⁺GG⁺ = G⁺): relative 64 ε (a few reductions of ≤ 45 terms; dense heads
@@ -361,6 +361,10 @@ def test_K1b_a_dual_arrows_ends_are_the_memoised_duals():
 # ═══════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_riesz_legs.py::test_lowering_realizes_the_metric_pairing",
+    "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
+)
 def test_L1_the_legs_admit_a_dual_space():
     """``♭_{V*} : V* → V`` applies G⁻¹; ``♯_{V*} : V → V*`` applies G. INVERTS
     ``test_riesz_legs.py::test_the_legs_refuse_a_dual_space`` (today
@@ -375,6 +379,7 @@ def test_L1_the_legs_admit_a_dual_space():
     np.testing.assert_array_equal(high.apply(x), V.apply_metric(x))
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_riesz_legs.py::test_lowering_realizes_the_metric_pairing")
 def test_L2_the_double_lowering_is_the_identity():
     """The G² trap's witness, inverted: ``♭_{V*}(♭_V x) = G⁻¹Gx = x`` exactly on
     w = (½, 2, 4) (power-of-two weights: every product and quotient exact).
@@ -390,6 +395,12 @@ def test_L2_the_double_lowering_is_the_identity():
 
 
 @pytest.mark.parametrize("weights", [_W_POS, _W_SING, np.array([0.3, 1.7, 2.9])], ids=["pos", "singular", "nonbinary"])
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_riesz_legs.py::test_lowering_realizes_the_metric_pairing",
+    "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
+    "tests/gates/numerics/test_dense_metric.py::TestPairingSpelling::"
+    "test_the_pairing_keeps_the_legacy_reduction_tree_bit_exactly",
+)
 def test_L3_lowering_adjoint_is_raising_by_reciprocity(weights):
     """``♭_V.H`` is POSED (an ``AdjointOperator``, no override) and equals ``♯_V``:
     reciprocity ``⟨♭x, f⟩_{V*} = ⟨x, ♭.H f⟩_V`` and ``‖♭.H f − ♯f‖ ≤ 8 ε‖♯f‖``
@@ -541,6 +552,10 @@ def _square_fixtures():
 
 
 @pytest.mark.parametrize("name", list(_square_fixtures()))
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_riesz_legs.py::test_lowering_realizes_the_metric_pairing",
+    "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
+)
 def test_D2_the_dagger_dual_square_commutes_bitwise(name):
     """``(A.dual()).H ≡ (A.H).dual()``, ``array_equal`` — a LAW after S6a (two
     routes: the base sandwich over the dual metrics, and the transpose of the
@@ -666,6 +681,12 @@ _H_ROWS = ["riesz_lower_primal", "riesz_raise_primal", "riesz_lower_primal_dual"
 
 
 @pytest.mark.parametrize("row", _H_ROWS)
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_riesz_legs.py::test_lowering_realizes_the_metric_pairing",
+    "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
+    "tests/gates/numerics/test_dense_metric.py::TestPairingSpelling::"
+    "test_the_pairing_keeps_the_legacy_reduction_tree_bit_exactly",
+)
 def test_H1_the_dual_space_rows_open(row):
     """The iff gate (``test_each_transpose_door_opens_iff_predicted``) is green
     whether these rows open or stay refused (it predicts from ``posed``): this
@@ -684,6 +705,10 @@ def test_H1_the_dual_space_rows_open(row):
     _require(Hn.rel(lhs, rhs) < 1e-12, f"[{row}] reciprocity {lhs!r} vs {rhs!r}")
 
 
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_riesz_legs.py::test_lowering_realizes_the_metric_pairing",
+    "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
+)
 def test_H2_the_dual_of_lowering_commutes():
     """``(♭.dual()).H ≡ (♭.H).dual()`` bitwise (``riesz_lower_primal_dual``'s value)."""
     V = FunctionSpace("s6a_H2", (3,), inner_product_weights=_W_POS)

@@ -51,7 +51,6 @@ _HERE = "tests/gates/numerics/test_axis_marginal_lift.py::"
 _G1C = _HERE + "TestG1UnitIsTheConstant::test_g1c_a_moment_head_unit_is_the_moments_of_one"
 _G1B = _HERE + "TestG1UnitIsTheConstant::test_g1b_a_coefficient_head_unit_is_e0_and_evaluates_to_one"
 _G5 = _HERE + "TestG5NodalBitIdentity::test_g5_the_nodal_arrows_are_the_pre_s1_pair"
-_G3_PRODUCT = _HERE + "TestG3Reciprocity::test_g3_a_non_product_metric_cannot_be_built_on_axes"
 _ALL_ROWS = NODAL_ROWS + MODAL_ROWS + SYNTHETIC_MODAL_ROWS + [("folded(4,4) frame L4", "spatial"), ("xy LS4 moment L2", "spatial")]
 
 
@@ -278,7 +277,6 @@ def _product_residual(V, label, x):
 
 
 class TestG3Reciprocity:
-    @pytest.mark.rests_on(_G3_PRODUCT)
     @pytest.mark.parametrize("name,label", _ALL_ROWS, ids=_ids(_ALL_ROWS))
     def test_g3_the_pullback_is_the_hilbert_adjoint(self, name, label):
         """THEOREM: G = G_k ⊗ G_rest (leg 1, from the raw axes and forms), so

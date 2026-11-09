@@ -271,7 +271,7 @@ def test_the_constant_mode_is_slot_zero(d: int) -> None:
     np.testing.assert_array_equal(b.synthesize(e0, table), np.ones(33))
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_endpoint_values_are_plus_minus_one_to_the_degree", "tests/gates/numerics/test_interval_legendre_basis.py::test_the_kronecker_order_is_the_recorded_one")
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_endpoint_values_are_plus_minus_one_to_the_degree")
 @pytest.mark.parametrize("d", (2, 3))
 @pytest.mark.parametrize("side", (1, -1))
 def test_the_face_trace_is_one_factor_evaluated_at_its_end(d: int, side: int) -> None:
@@ -352,7 +352,7 @@ def test_an_axis_outside_the_product_is_refused(axis: int) -> None:
         b.face_dimension(axis)
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_parity_is_the_mirrors_action", "tests/gates/numerics/test_interval_legendre_basis.py::test_the_kronecker_order_is_the_recorded_one")
+@pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_parity_is_the_mirrors_action")
 @pytest.mark.parametrize("d", _DIMS)
 def test_the_reflection_signs_are_the_mirrors_action(d: int) -> None:
     r"""``reflection_signs(mirrored)`` is the action of :math:`\xi_a \mapsto -\xi_a` (THEOREM).

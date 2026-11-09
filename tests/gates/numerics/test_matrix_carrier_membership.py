@@ -49,10 +49,6 @@ from orpheus.numerics.space import FunctionSpace
 pytestmark = [pytest.mark.foundation]
 
 _THIS = "tests/gates/numerics/test_matrix_carrier_membership.py"
-_CSR_ROWS = (
-    "tests/gates/numerics/test_assembled_operator.py::TestSparseAssembledOperator::test_apply_is_the_csr_matvec",
-    "tests/gates/numerics/test_assembled_operator.py::TestSparseAssembledOperator::test_apply_transpose_is_the_exact_transpose",
-)
 #: The adjoint reference is a dense chain of three small products; the pairing
 #: identity is two independently accumulated sums of six terms. ~10 ulp each.
 _RTOL = 1e-14
@@ -114,7 +110,6 @@ def _sao(m: np.ndarray, domain: FunctionSpace | None, codomain: FunctionSpace | 
 
 
 class TestTheForwardArmReturnsAMember:
-    @pytest.mark.rests_on(*_CSR_ROWS)
     def test_energy_point_member_in_member_out(self) -> None:
         """#683's case: bound to Energy ⊗ point (2, 1), a (2, 1) member maps to
         a (2, 1) member, valued ``M @ x.ravel()``. HEAD returns (2,)."""
@@ -126,7 +121,6 @@ class TestTheForwardArmReturnsAMember:
         np.testing.assert_array_equal(y, (_M22 @ x.ravel()).reshape(V.shape))
         V.coordinates_of(y)  # the exact-shape parse: a member, or NotInCoordinateSpace
 
-    @pytest.mark.rests_on(f"{_THIS}::TestTheForwardArmReturnsAMember::test_energy_point_member_in_member_out")
     def test_the_operators_own_adjoint_accepts_its_output(self) -> None:
         """``op.H.apply(op.apply(x))`` composes: the output is a member of the
         codomain, which ``.H`` parses. HEAD: ``.H`` refuses the (2,) output."""
@@ -137,7 +131,6 @@ class TestTheForwardArmReturnsAMember:
         assert np.shape(z) == V.shape
         np.testing.assert_array_equal(z, (_M22.T @ _M22 @ x.ravel()).reshape(V.shape))
 
-    @pytest.mark.rests_on(*_CSR_ROWS)
     def test_rectangular_ends_differently_shaped(self) -> None:
         """V (3, 2) to W (4,): apply takes (3, 2) to (4,), apply_transpose takes
         (4,) to (3, 2), and each refuses the other end's member. A swap of ends
@@ -155,7 +148,6 @@ class TestTheForwardArmReturnsAMember:
         with pytest.raises(NotInCoordinateSpace, match=r"leading shape \(4,\)"):
             op.apply_transpose(x)
 
-    @pytest.mark.rests_on(*_CSR_ROWS)
     def test_equal_dimension_ends_keep_their_own_shapes(self) -> None:
         """V (2, 1) to W (2,), the same n_coordinates: the returned SHAPE is the
         only witness of which end each arm lands on (a size check is blind)."""
@@ -248,7 +240,6 @@ class TestAdmission:
 
 
 class TestTheUnboundChart:
-    @pytest.mark.rests_on(*_CSR_ROWS)
     def test_a_one_d_operand_and_its_payload(self) -> None:
         op = _sao(_M46, None, None)
         x = np.linspace(-1.0, 1.0, 6)
@@ -279,7 +270,6 @@ class TestTheMatrixInverseArms:
         V, W = weighted_group_point(), weighted_group()
         return MatrixInverseOperator(_sao(_M22, V, W)), V, W
 
-    @pytest.mark.rests_on(f"{_THIS}::TestTheForwardArmReturnsAMember::test_equal_dimension_ends_keep_their_own_shapes")
     def test_apply_maps_the_codomain_to_the_domain(self) -> None:
         inv, V, W = self._inverse()
         b = np.array([2.0, -0.5])
@@ -289,7 +279,6 @@ class TestTheMatrixInverseArms:
         # A (2, 1) operand is a member of W = (2,) with a one-column payload.
         assert np.shape(inv.apply(np.array([[2.0], [-0.5]]))) == V.shape + (1,)
 
-    @pytest.mark.rests_on(f"{_THIS}::TestTheForwardArmReturnsAMember::test_equal_dimension_ends_keep_their_own_shapes")
     def test_apply_transpose_maps_the_domain_to_the_codomain(self) -> None:
         inv, V, W = self._inverse()
         c = np.array([[0.75], [-1.5]])
@@ -362,7 +351,6 @@ class TestHalfPosedIsRefused:
 
 
 class TestTheUnposedInverseChart:
-    @pytest.mark.rests_on(f"{_THIS}::TestTheMatrixInverseArms::test_apply_maps_the_codomain_to_the_domain")
     def test_basis_shape_in_and_out_on_both_arms(self) -> None:
         """Inner unposed, ``basis_shape=(2, 3)``: the chart is ℝ^(2,3) on both
         ends, so a ``(2, 3)`` operand returns ``(2, 3)`` on each arm, valued by

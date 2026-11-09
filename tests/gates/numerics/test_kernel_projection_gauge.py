@@ -30,13 +30,14 @@ from orpheus.numerics.kernel_projection_gauge import (
 )
 from orpheus.numerics.space import FunctionSpace
 
-pytestmark = [
-    pytest.mark.l0,
-    pytest.mark.rests_on(
-        "tests/gates/numerics/test_coordinate_space.py::TestThePrimitive",
-        "tests/gates/numerics/test_coordinate_space.py::TestTheSpaceVerbsParseOnEveryRun",
-    ),
-]
+pytestmark = pytest.mark.l0
+
+#: The coordinate-space rungs a test of this file may rest on. Each test names the
+#: ones whose code it runs (ruling 52 of the verification-tree plan): most run
+#: both, four run one, and the rest run neither and declare no edge.
+_COORDINATE_SPACE = "tests/gates/numerics/test_coordinate_space.py"
+_PRIMITIVE = f"{_COORDINATE_SPACE}::TestThePrimitive"
+_SPACE_VERBS = f"{_COORDINATE_SPACE}::TestTheSpaceVerbsParseOnEveryRun"
 
 _EPS = np.finfo(float).eps
 _N = 9
@@ -107,6 +108,7 @@ def test_premise_the_metric_is_not_uniform():
     assert _G.max() / _G.min() > 10.0
 
 
+@pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
 def test_premise_the_axis_built_space_and_its_legacy_twin_apply_one_metric():
     """Localises a red of the twin row: green here and red there means the gauge reads the metric's SPELLING."""
     twin = FunctionSpace("twin", (_N,), inner_product_weights=_G)
@@ -118,6 +120,7 @@ def test_premise_the_axis_built_space_and_its_legacy_twin_apply_one_metric():
 
 class TestTheProjectorLaws:
     @pytest.mark.parametrize("which", ["aligned", "rotated", "overcomplete"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_idempotence_of_the_projector_and_of_the_section(self, which, request):
         """Arm ``leak`` (Pi x + 1e-3 x) reddens all three."""
         g = request.getfixturevalue(which)
@@ -127,6 +130,7 @@ class TestTheProjectorLaws:
         np.testing.assert_allclose(g.gauge(g.gauge(x)), g.gauge(x), rtol=0, atol=atol)
 
     @pytest.mark.parametrize("which", ["aligned", "rotated", "overcomplete"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_G_self_adjointness(self, which, request):
         """Arm ``euclid`` (the metric read as ones) reddens 'rotated' and 'overcomplete'; 'aligned' is inside that
         arm's stabiliser (coordinate columns are G-orthogonal under every diagonal G): the control leg."""
@@ -135,6 +139,7 @@ class TestTheProjectorLaws:
         assert _ip(g.apply(x), y) == pytest.approx(_ip(x, g.apply(y)), rel=1e-13)
 
     @pytest.mark.parametrize("which", ["rotated", "overcomplete"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_euclidean_transpose_is_not_the_projector(self, which, request):
         r""":math:`\langle \Pi x, y\rangle = \langle x, \Pi^{\mathsf T} y\rangle` in the EUCLIDEAN pairing. Arm
         ``transpose_is_apply`` (``apply_transpose`` returns ``apply``, SN's predecessor) reddens both: on a
@@ -145,6 +150,7 @@ class TestTheProjectorLaws:
         assert np.abs(g.apply_transpose(y) - g.apply(y)).max() > 1e-2
 
     @pytest.mark.parametrize("pairs, dim", [(_ROTATED, 2), (_OVERCOMPLETE, 2)], ids=["rotated", "overcomplete"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_range_is_the_span_of_the_given_columns_and_the_dimension_is_its_rank(self, pairs, dim):
         """Every given column (the over-complete one included) is fixed by Pi, and dimension = rank, not the column
         count. Arm ``no_rank_cut`` (the cut at 0) reddens 'overcomplete' (dimension 3); arm ``drop_summand``
@@ -156,6 +162,7 @@ class TestTheProjectorLaws:
                 np.testing.assert_allclose(g.apply(v), v, rtol=0, atol=16 * _EPS * np.abs(v).max())
         assert g.dimension == dim
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_section_is_G_orthogonal_to_the_kernel(self, rotated):
         """Arm ``gauge_sign`` (sigma = x + Pi x) reddens it."""
         x = _x(7)
@@ -163,6 +170,7 @@ class TestTheProjectorLaws:
             v = _embed(idx, cols[:, 0])
             assert abs(_ip(rotated.gauge(x), v)) < 1e-14 * np.sqrt(_ip(x, x) * _ip(v, v))
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_section_is_the_minimum_G_norm_member_of_the_coset(self, rotated):
         """No shift along a kernel vector shortens the section: the best shift ``t* = -<s, v>_G / <v, v>_G`` is the
         hand-computed minimiser, so a section off the minimum is shortened by it. Arm ``gauge_sign`` reddens it.
@@ -182,6 +190,7 @@ class TestTheProjectorLaws:
 
 class TestTheSummandBasis:
     @pytest.mark.parametrize("pairs", [_ROTATED, _OVERCOMPLETE, _ORTHOGONAL_OVERLAP], ids=["rotated", "overcomplete", "overlap"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_each_summand_gram_is_the_identity_which_is_what_earns_DIAGONAL(self, pairs):
         r""":math:`\Phi^{\mathsf T} G \Phi = I` per summand, on generators that are NOT G-orthogonal ('overcomplete':
         three columns, two modes). The frame's ``CrossGramInverse`` reads a DIAGONAL Gram by a row-sum probe, which is
@@ -199,6 +208,7 @@ class TestTheSummandBasis:
             np.testing.assert_allclose(gram, np.eye(table.shape[1]), rtol=0, atol=64 * _EPS)
         assert saw_multimode or pairs is not _OVERCOMPLETE
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_frame_gram_probe_returns_ones(self, overcomplete):
         """Closes the loop between the declaration and the machinery that consumes it: the value
         ``CrossGramInverse.of(frame)`` computes on the summand's frame."""
@@ -211,6 +221,7 @@ class TestTheSummandBasis:
             diagonal = np.asarray(frame_faces.CrossGramInverse.of(frame).diagonal)
             np.testing.assert_allclose(diagonal, np.ones_like(diagonal), rtol=0, atol=64 * _EPS)
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_computed_unit_is_the_projection_of_the_constant_and_a_declared_one_is_zero(self):
         """The basis always computes ``Phi^T G 1``; a summand DECLARED orthogonal to the constants is checked and then
         stores the exact zero. The declared span on {2, 3}: G2*1 + G3*(-8) = 2 - 2 = 0 exactly in floats."""
@@ -222,12 +233,14 @@ class TestTheSummandBasis:
             np.array([2, 3]), np.array([[1.0], [-8.0]]), "d", orthogonal_to_constants=True),)).summands[0].basis
         assert declared.layout.unit.shape == (1,) and not np.any(declared.layout.unit)
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_false_declaration_of_orthogonality_to_the_constants_is_refused(self):
         """Arm ``no_declaration_check`` reddens it (the false zero would be stored)."""
         idx, cols = _ROTATED[0]
         with pytest.raises(ValueError, match="declared orthogonal to the constants"):
             KernelProjectionGauge.direct_sum(SPACE, (KernelSummand(idx, cols, "f", orthogonal_to_constants=True),))
 
+    @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_zero_metric_support_row_is_refused(self):
         zero = FunctionSpace("zero_row", (3,), inner_product_weights=np.array([1.0, 0.0, 2.0]))
         with pytest.raises(ValueError, match="carry a vanishing metric"):
@@ -236,7 +249,6 @@ class TestTheSummandBasis:
 
 # ── rung 2: residual neutrality against an operator whose kernel is the span ───────────────────────────
 
-@pytest.mark.rests_on("tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProjectorLaws")
 class TestResidualNeutrality:
     def test_the_kernel_columns_are_annihilated_bitwise(self):
         for t in _K:
@@ -244,11 +256,13 @@ class TestResidualNeutrality:
             e[t] = 1.0
             assert np.array_equal(_A @ e, np.zeros(_N))
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_section_cannot_move_the_residual(self, aligned):
         """Arm ``leak`` reddens it (the leaked 1e-3 x is not in ker A)."""
         x = _x(9)
         np.testing.assert_allclose(_A @ aligned.gauge(x), _A @ x, rtol=0, atol=64 * _EPS * np.abs(_A @ x).max())
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_negative_a_projector_off_the_kernel_is_not_residual_neutral(self):
         """Fixture-loading control, green under every arm: the same object on a span NOT in ker A moves A x."""
         off = _build(SPACE, ((_R[:2], np.eye(2)),))
@@ -258,8 +272,12 @@ class TestResidualNeutrality:
 
 # ── rung 3: the direct sum ─────────────────────────────────────────────────────────────────────────────
 
-@pytest.mark.rests_on("tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProjectorLaws")
 class TestTheDirectSum:
+    @pytest.mark.rests_on(
+        _PRIMITIVE,
+        _SPACE_VERBS,
+        "tests/gates/numerics/test_kernel_projection_gauge.py::TestTheProjectorLaws",
+    )
     def test_overlapping_G_orthogonal_summands_are_admitted_and_sum_to_a_projector(self):
         """R3: the SN diamond-difference modes and the physical constant mode overlap on the trace. Positive leg."""
         g = _build(SPACE, _ORTHOGONAL_OVERLAP)
@@ -268,6 +286,7 @@ class TestTheDirectSum:
         np.testing.assert_allclose(g.apply(g.apply(x)), g.apply(x), rtol=0, atol=16 * _EPS * np.abs(x).max())
         assert _ip(g.apply(x), y) == pytest.approx(_ip(x, g.apply(y)), rel=1e-13)
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_overlapping_summands_that_are_NOT_G_orthogonal_are_refused(self):
         """Negative leg. Arm ``no_orthogonality_check`` reddens this row and not the positive leg above, which is
         what tells the check from the law."""
@@ -275,6 +294,7 @@ class TestTheDirectSum:
             _build(SPACE, _OVERLAP_NOT_ORTHOGONAL)
 
     @pytest.mark.parametrize("cosine, admitted", [(1e-17, True), (1e-6, False)], ids=["R3-union-reading", "1e-6"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_orthogonality_tolerance_separates_round_off_from_a_real_overlap(self, cosine, admitted):
         """`[M]` ``scratch/membership_covector/u3/union_orthogonality.py``: in the R3 union case (the DD (3,4) box at
         Sigma_a = 0) and three siblings, every DD mode's G-cosine with the physical constant mode is <= 1e-17. Arm
@@ -292,6 +312,7 @@ class TestTheDirectSum:
                 _build(SPACE, pairs)
 
     @pytest.mark.parametrize("cut", [1e-14, 1e-12, 1e-10, 1e-8])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_verdicts_do_not_depend_on_the_cut_anywhere_in_the_claimed_range(self, cut, monkeypatch):
         """Gates the production comment's claim that the verdict is the same for any cut in [1e-14, 1e-8]: the
         honest overlap (exactly orthogonal) and a 1e-17 tilt are admitted, a 1e-6 tilt refused, at every cut. The SN
@@ -312,6 +333,7 @@ class TestTheDirectSum:
                 with pytest.raises(ValueError, match=_OVERLAP_REFUSAL):
                     _build(SPACE, pairs)
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_summand_labels_must_be_distinct(self):
         """Each label names its support's manifold; two equal labels would make two coefficient spaces compare equal.
         Arm ``no_label_check`` reddens it."""
@@ -319,19 +341,23 @@ class TestTheDirectSum:
         with pytest.raises(ValueError, match="labels must be distinct"):
             KernelProjectionGauge.direct_sum(SPACE, twins)
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_support_outside_the_space_is_refused(self):
         with pytest.raises(ValueError, match="outside the space's"):
             KernelProjectionGauge.direct_sum(SPACE, (KernelSummand(np.array([7, 9]), np.eye(2), "o"),))
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_an_empty_direct_sum_is_the_identity_section_not_None(self):
         g = _build(SPACE, ())
         x = _x(13)
         assert g.dimension == 0 and np.array_equal(g.gauge(x), x)
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_rank_zero_summand_contributes_nothing(self):
         g = _build(SPACE, ((np.array([0, 1]), np.zeros((2, 1))), _ROTATED[1]))
         assert g.dimension == 1 and len(g.summands) == 1
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_no_inverse_and_it_is_spelled_by_absence(self, rotated):
         """Relocated from the SN file (``test_no_inverse_and_it_is_spelled_by_ABSENCE``): a property of the type."""
         assert rotated.is_invertible is False and not hasattr(rotated, "inverse")
@@ -341,6 +367,7 @@ class TestTheDirectSum:
 # ── rung 3: the Protocol, the metric and the parse ─────────────────────────────────────────────────────
 
 class TestTheProtocolAndTheMetric:
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_it_conforms_to_the_protocol_and_neither_names_a_trace(self):
         """``runtime_checkable`` compares NAMES only, so the parameter is gated by signature. First red: the Protocol's
         ``gauge(self, trace)`` before U3."""
@@ -348,6 +375,7 @@ class TestTheProtocolAndTheMetric:
         for cls in (KernelGauge, KernelProjectionGauge):
             assert "trace" not in inspect.signature(cls.gauge).parameters, cls
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_axis_built_space_and_its_legacy_twin_give_bit_identical_gauges(self):
         """The metric is read through the space's metric leg. Arm ``weights_spelling`` (SN's predecessor read
         ``np.asarray(space.inner_product_weights, dtype=float)``, which is ``array(None, dtype=object)`` on an
@@ -357,12 +385,14 @@ class TestTheProtocolAndTheMetric:
         for pairs in (_ROTATED, _OVERCOMPLETE):
             assert np.array_equal(_build(SPACE, pairs).gauge(x), _build(twin, pairs).gauge(x))
 
+    @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_non_diagonal_metric_is_a_declared_scope_boundary(self):
         from orpheus.numerics.metric import DenseMetric
         dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]])))
         with pytest.raises(ValueError, match="the metric is not diagonal"):
             KernelProjectionGauge.direct_sum(dense, ())
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_multi_axis_space_is_gauged_on_its_flat_chart(self):
         """Since U0 (2026-10-31) a summand's flat indices address the C-order flat chart of a multi-axis leaf space
         (the homogeneous pose is (ng, 1)); the projector laws hold there, an element keeps its shape, and a payload
@@ -382,6 +412,7 @@ class TestTheProtocolAndTheMetric:
         batch = np.random.default_rng(31).standard_normal((2, 3, 4))
         np.testing.assert_allclose(g.apply(batch)[..., 1], g.apply(batch[..., 1]), rtol=0, atol=16 * _EPS * np.abs(batch).max())
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_gauge_on_a_dual_space_is_admitted_and_is_a_projector(self):
         """The user's ruling (a), 2026-10-31: a dual space's metric G^+ is diagonal when G is, so the gauge is
         admitted (before the ruling it was refused as non-diagonal). Its laws hold in V*'s inner product, G^+ = 1/G.
@@ -394,14 +425,15 @@ class TestTheProtocolAndTheMetric:
         assert float(np.sum(ginv * g.apply(x) * y)) == pytest.approx(float(np.sum(ginv * x * g.apply(y))), rel=1e-13)
         assert float(np.sum(_G * g.apply(x) * y)) != pytest.approx(float(np.sum(_G * x * g.apply(y))), rel=1e-6)
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_the_algebra_adjoint_is_the_projector_itself(self, rotated):
         """Pi is spelled in the operator algebra (the user's ruling (c)), so its adjoint follows by law: a G-orthogonal
         projector is G-self-adjoint, Pi.H == Pi. Arm ``transpose_is_apply`` reddens it (then Pi.H = G^-1 Pi G)."""
         x = _x(17)
         np.testing.assert_allclose(rotated.H.apply(x), rotated.apply(x), rtol=0, atol=64 * _EPS * np.abs(x).max())
 
-    @pytest.mark.rests_on("tests/gates/numerics/test_coordinate_space.py::TestThePrimitive")
     @pytest.mark.parametrize("verb", ["apply", "apply_transpose", "gauge"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_it_parses_its_operand_at_its_domain(self, verb, rotated):
         """An operand whose LEADING shape is not the domain's is refused on every run, -O included (an action admits
         only a trailing payload, A ⊗ I_P). Arm ``no_parse`` (the verbs index the bare array) reddens all three: the
@@ -448,6 +480,7 @@ class TestTheMetricDiagonalVerb:
         from orpheus.numerics.metric import DenseMetric
         assert DenseMetric(np.diag(_G)).diagonal((_N,)) is None
 
+    @pytest.mark.rests_on(_PRIMITIVE)
     def test_a_factored_metric_is_diagonal_iff_every_block_is(self):
         """Arm ``factored_ignores_blocks`` reddens the Dense-block leg."""
         from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
@@ -464,6 +497,7 @@ class TestTheMetricDiagonalVerb:
         np.testing.assert_allclose(diagonal, 1.0 / _G, rtol=1e-15, atol=0)
         assert DualMetric(DenseMetric(np.diag(_G))).diagonal((_N,)) is None
 
+    @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_euclidean_space_reads_ones(self):
         flat = FunctionSpace("euclid", (4,))
         np.testing.assert_array_equal(flat.metric_diagonal(), np.ones(4))
@@ -480,14 +514,17 @@ class TestTheCompositeMetricDiagonal:
     def _expected(self):
         return np.concatenate([self._A.apply_metric(np.ones(3)), self._B.apply_metric(np.ones(2))])
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_full_field_space_concatenates_interior_then_trace(self):
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
         np.testing.assert_array_equal(FullFieldSpace.from_blocks(self._A, self._B).metric_diagonal(), self._expected())
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_coupled_space_concatenates_its_systems_in_order(self):
         from orpheus.numerics.coupled_system import CoupledSpace
         np.testing.assert_array_equal(CoupledSpace.from_systems((self._A, self._B)).metric_diagonal(), self._expected())
 
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_composite_with_a_dense_block_is_not_diagonal(self):
         from orpheus.numerics.metric import DenseMetric
         from orpheus.numerics.coupled_system import CoupledSpace
@@ -497,6 +534,7 @@ class TestTheCompositeMetricDiagonal:
         assert CoupledSpace.from_systems((self._A, dense)).metric_diagonal() is None
 
     @pytest.mark.parametrize("composite", ["full_field", "coupled"])
+    @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_gauge_on_a_composite_space_spans_its_blocks(self, composite):
         """R3's union kernel lives on bulk (+) trace: a summand crossing the block boundary is admitted and is a
         G-orthogonal projector in the composite's metric. First red: the composite metric legs took only the typed

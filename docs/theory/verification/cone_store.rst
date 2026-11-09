@@ -1848,8 +1848,10 @@ is reads and supports edges, not executes (S17); 0.95 is that
 distribution's knee. The sample's edges are not the layer's declared
 population, and the tail is not read as a second kind of edge: a declared
 ``rests_on`` is an execution support (ruling 51 of the campaign plan), so
-an edge in the tail is a defect of its marker, and over the layer's 443
-declarations 170 hold at 0.95 ("What a declared edge asserts", below). On the
+an edge in the tail is a defect of its marker: over the layer's 443
+declarations 170 held at 0.95, and after the markers were repaired 177 of 220
+hold, every failure a ``traced_memo`` declaration ("What a declared edge
+asserts", below). On the
 specification's 180-test sample (with the floor subtracted), lowering it to
 0.8 triples the containing pairs, 1 227 to 3 706, about 20 per test (its
 measurement M12).
@@ -1938,6 +1940,35 @@ wait on the capture of the child
 (`#701 <https://github.com/deOliveira-R/ORPHEUS/issues/701>`__). All 62 rows
 against the concept order come from markers written on a file (61) or a
 class (1), inherited by tests homed at a lower node than the target.
+
+**The marker repair.** The failing declarations were then repaired at the
+markers, one decision per declaration written by the test-architect
+(``scratch/verification_tree/cone_store/b5/census/repair/spec.md`` and
+``table.json``): 248 declarations judged, the 230 that fail outside
+``traced_memo`` and 18 that the first census counted as failing and that
+hold through a structural lower read by ``c_items``. 18 kept, 7 re-pointed
+to a lower that holds, 223 removed. A
+removal is one of three kinds. A marker written on a file or a class moves
+off the tests that use none of its target (124, ruling 52's grain). A
+redundant declaration goes when its upper keeps another that holds (34). The
+rest are function-written edges whose upper does not run the lower's
+subject or cone: it misses the def that carries the lower's law (27),
+misses only defs the lower runs to build its fixture, its reference or its
+assertion (21), uses one member of a family the lower ranges over (10), or
+misses lower defs outside the lower's home (7). Those last three kinds lose
+rungs that are sound in substance (``test_c39``, subtraction as the
+addition of the negation, asserts exactly ``test_c13``'s left fold, and
+fails it only because ``test_c13``'s fixture also spells ``A − σS``), because
+the subject ``S(L)`` holds every def the lower runs, fixture-building ones
+included (ruling 53 keeps them). A coarse marker that
+still holds for some of its tests is written on each of those tests. `[M]`
+2026-11-08, ``place`` on the edited tree against the same store (the
+manifest is collected fresh; the cones are unchanged, so no re-capture):
+220 declarations, 177 hold, 0 fail outside ``traced_memo``, 43
+``traced_memo`` declarations fail (#701). The 220 are, as a set, the
+declarations the decisions predict, and no surviving declaration's verdict
+moved. Negative control: putting back one removed edge (``test_c15`` on
+``test_c13``) reads 221 declarations and exactly 1 failure.
 
 .. dropdown:: First got wrong: "a one-hop transitive reduction is enough"
    :color: muted
@@ -3559,10 +3590,13 @@ History
        support**, held by the support predicate (``c`` and ``c_home``), and a
        class or file target holds for an upper that contains some lower
        under it. Census list 3: 170 of 443 declarations on the numerics
-       layer hold, 273 fail (the marker repair is owed).
+       layer hold, 273 fail. The marker repair: 18 kept, 7 re-pointed, 223
+       removed; after it 177 of 220 hold, and the 43 that fail are
+       ``traced_memo`` declarations.
      - #358, #701
      - ``docs(verification): census list 3, rulings 51 and 52``;
-       ``fix(cone_store): place reports each declared edge's verdict``
+       ``fix(cone_store): place reports each declared edge's verdict``;
+       ``test(numerics): repair the rests_on markers to execution supports``
    * - 2026-11-08
      - **Ruling 50: a support contains the lower's subject.** The census's
        list 2 found 62 of the 126 supports against the order whose upper ran

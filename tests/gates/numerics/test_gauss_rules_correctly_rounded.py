@@ -304,7 +304,6 @@ def _ulps(a: np.ndarray, b: np.ndarray) -> int:
 # ── foundation: the reference is right, below production ───────────────────
 
 _REF_SELF_CHECK = f"{_HERE}::test_reference_recurrences_agree_with_mpmath_definitions"
-_REF_MOMENTS = f"{_HERE}::test_reference_rules_integrate_their_moments_exactly"
 
 
 @pytest.mark.foundation
@@ -372,7 +371,7 @@ def test_reference_rules_integrate_their_moments_exactly(family: str, n: int) ->
 
 
 @pytest.mark.l1
-@pytest.mark.rests_on(_REF_SELF_CHECK, _REF_MOMENTS)
+@pytest.mark.rests_on(_REF_SELF_CHECK)
 @pytest.mark.parametrize(("measure", "rule", "mass", "n"), _cases())
 def test_rule_is_the_correctly_rounded_rule(measure, rule, mass, n: int) -> None:
     """``measure.gauss(n)`` == the 80-digit reference rounded once, bit for bit."""
@@ -390,7 +389,6 @@ def test_rule_is_the_correctly_rounded_rule(measure, rule, mass, n: int) -> None
 
 
 @pytest.mark.l1
-@pytest.mark.rests_on(f"{_HERE}::test_rule_is_the_correctly_rounded_rule")
 @pytest.mark.parametrize(("measure", "rule", "mass", "n"), _cases(even_only=True))
 def test_even_weight_rule_is_exactly_symmetric(measure, rule, mass, n: int) -> None:
     """THEOREM: for an even weight the exact rule satisfies x_i = -x_{n-1-i},
@@ -412,7 +410,6 @@ def test_even_weight_rule_is_exactly_symmetric(measure, rule, mass, n: int) -> N
 
 
 @pytest.mark.l1
-@pytest.mark.rests_on(f"{_HERE}::test_rule_is_the_correctly_rounded_rule")
 @pytest.mark.parametrize("n", [1, 2, 3, 4, 8, 16, 33, 64])
 @pytest.mark.parametrize(
     ("a", "b", "constant"),

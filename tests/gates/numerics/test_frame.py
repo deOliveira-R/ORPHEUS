@@ -1221,11 +1221,6 @@ def test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it():
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(
-    "tests/gates/numerics/test_frame.py::test_parseval_frame_square_closes[LS4-L2]",
-    "tests/gates/numerics/test_frame.py::"
-    "test_diagonal_gram_suffices_for_the_collapse_and_dense_does_not_decide_it",
-)
 def test_the_square_fails_where_the_order_outruns_the_rule():
     r"""The edge of the closing population: on ``level_symmetric(4)`` the square
     ``M.H = R/W`` closes at L = 2 and FAILS at L = 3.

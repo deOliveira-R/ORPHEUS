@@ -31,8 +31,10 @@ permutation from the elements' raw matrices and ``scipy.optimize.linear_sum_assi
 so the record is anchored to something the old kernel did not compute.
 
 **Markers.** Every row is a software invariant with no theory ``:label:``:
-``foundation``, no ``verifies``. ``rests_on`` names the existing gates whose
-green each family assumes.
+``foundation``, no ``verifies``. ``rests_on`` names, per test, the existing gates
+whose code that test executes (an execution support, ruling 51 of the
+verification-tree plan); a family whose tests run none of a gate's code declares
+no edge to it.
 
 **Discipline.** No production call in a ``parametrize`` list (rows are keyed by LABEL
 and built in the body, so a ``-p`` battery reaches them); every ``pytest.raises``
@@ -112,7 +114,6 @@ _MATCHER_ROWS = (
     "test_o6_the_weighted_question_is_permutes_plus_exactly_one_weight_guard",
 )
 _HOMOMORPHISM = _MANIFOLD_ROW + "test_the_induced_action_is_a_GROUP_HOMOMORPHISM_on_the_chart"
-_DOWNWARD = "tests/gates/numerics/test_invariance_verdicts.py::test_invariance_is_downward_closed"
 
 
 # ---------------------------------------------------------------------------
@@ -982,7 +983,6 @@ def test_walk_and_bruteforce_agree_on_a_predicate_that_is_NOT_downward_closed():
     assert walk == brute == {"D_4h"}
 
 
-@pytest.mark.rests_on(_DOWNWARD)
 @pytest.mark.parametrize("label", _ANSWERED)
 def test_the_record_is_downward_closed(label):
     """Anti-pattern #15's compatibility law on the record: H <= G and G-invariant imply

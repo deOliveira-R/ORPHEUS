@@ -32,13 +32,7 @@ from orpheus.numerics.operator import AdjointOperator, RieszLowerOperator, Riesz
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 
-pytestmark = [
-    pytest.mark.foundation,
-    pytest.mark.rests_on(
-        "tests/gates/numerics/test_dual_metric.py::test_S1_the_dual_space_reads_the_inverse_metric_bitwise",
-        "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
-    ),
-]
+pytestmark = pytest.mark.foundation
 
 _EPS = float(np.finfo(float).eps)
 _W_SING = np.array([2.0, 0.0, 3.0, 0.0])
@@ -273,6 +267,9 @@ def test_B3b_project_live_zeroes_exactly_the_hand_kernel():
 
 
 @pytest.mark.parametrize("name", ["diag_singular", "dense_rank2", "head_product48_L4"])
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_riesz_legs.py::test_round_trip_is_the_range_projector_on_a_singular_metric",
+)
 def test_B4_the_riesz_round_trip_is_the_live_projector(name):
     """``♯ ∘ ♭ = P``, bitwise: the round trip runs the same two delegations as
     ``project_live`` (one definition of P). First red: a ``project_live`` spelled

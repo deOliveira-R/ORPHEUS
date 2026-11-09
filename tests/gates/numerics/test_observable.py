@@ -43,7 +43,6 @@ from tests.gates._content_identity_helpers import require
 
 pytestmark = pytest.mark.foundation
 
-_HERE = "tests/gates/numerics/test_observable.py"
 _ROOT = Path(__file__).resolve().parents[3]
 _MODULE = observable_module.__name__
 _KINDS = ("FluxIntegral", "Ratio", "Eigenvalue", "PointValue")
@@ -161,7 +160,6 @@ _FIELDS = {
 
 
 @pytest.mark.parametrize("kind", _KINDS)
-@pytest.mark.rests_on(f"{_HERE}::test_r3_1_the_observable_set_is_closed")
 def test_r3_2_the_fields_are_the_roles(kind: str) -> None:
     """By name, resolved at run time: ``dataclasses.fields`` is exactly the
     roles; no field is typed ``bool`` (a flag is a missing type); every

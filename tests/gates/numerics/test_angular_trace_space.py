@@ -560,7 +560,6 @@ _LADDER_CASES = {
 
 @pytest.mark.l1
 @pytest.mark.catches("ERR-041")
-@pytest.mark.rests_on("tests/gates/numerics/test_angular_trace_space.py::test_2d_cartesian_lebedev_inflow_selectors_per_face")
 @pytest.mark.parametrize("case", sorted(_LADDER_CASES))
 class TestTheInflowHalfSpaceIsTheIncomingOrdinates:
     r"""ERR-041, carried by the ladder: ``trace.inflow_space(face)`` holds exactly the ordinates with :math:`\Omega\cdot n_f < 0` on
@@ -591,6 +590,9 @@ class TestTheInflowHalfSpaceIsTheIncomingOrdinates:
             assert not tiny.any(), (case, face)
             assert enters.any() and leaves.any(), (case, face)
 
+    @pytest.mark.rests_on(
+        "tests/gates/numerics/test_angular_trace_space.py::test_2d_cartesian_lebedev_inflow_selectors_per_face",
+    )
     def test_the_inflow_tier_is_the_ordinates_that_enter(self, case):
         make, faces = _LADDER_CASES[case]
         quad = make()
@@ -602,6 +604,9 @@ class TestTheInflowHalfSpaceIsTheIncomingOrdinates:
                 err_msg=f"{case}: Gamma_-({face}) is not the ordinates that enter through it",
             )
 
+    @pytest.mark.rests_on(
+        "tests/gates/numerics/test_angular_trace_space.py::test_2d_cartesian_lebedev_inflow_selectors_per_face",
+    )
     def test_the_outflow_tier_is_the_ordinates_that_leave(self, case):
         make, faces = _LADDER_CASES[case]
         quad = make()

@@ -10,7 +10,7 @@ here — it is merged archaeology.
 
 ## 1. Lessons
 
-- **[Lessons — hot digest](lessons.md)** — 527 lines. The entries no rule, skill or definition clause carries (the workflows rule, invariant 6), each with a `→ LNN` pointer into the archive. Read it whole, every dispatch. Pruned 2026-09-22 by the agent-definitions audit: 73 entries restated a clause or are now carried by the definition.
+- **[Lessons — hot digest](lessons.md)** — 533 lines. The entries no rule, skill or definition clause carries (the workflows rule, invariant 6), each with a `→ LNN` pointer into the archive. Read it whole, every dispatch. Pruned 2026-09-22 by the agent-definitions audit: 73 entries restated a clause or are now carried by the definition.
 - **[Lessons — cold archive](lessons_archive.md)** — 11573 lines, sections L1–L97, append-ordered: the war stories, the carve-archetype lookup (§L87) and the pure-math primitive long form (§L88). Open one section at a time, when the digest's pointer says the detail matters.
 
 ## 2. Active verification work
@@ -36,7 +36,7 @@ Merge status comes from git and GitHub, never from this list (`process-disciplin
 - **Space membership U0-U3b (W3)** — specs `scratch/membership_covector/{spec,u0,u1b,u3b}/`; merged `1c1d8d1c`. On resume: only the owed multi-D arms (#616). → `L122`
 - **Cone store B1-B5 (W1/W3)** — specs `scratch/verification_tree/cone_store/{spec_b1.md,b2/,b3/,b4/,b5/}`. On resume: the owed post-capture arms per spec. → `L127`-`L131`
 - **#683 matrix carriers act on members (W3, `fix/683-assembled-operator-membership`)** — 2026-11-02: gates `tests/gates/numerics/test_matrix_carrier_membership.py` (17 rows) + 3 re-posed rows + Phase 2 fixture moved to Energy ⊗ point; spec `scratch/683/gate_spec.md`, battery `scratch/683/battery/`, census `scratch/683/census/`. On resume: SN census result; confirm landed.
-- **Cone store list 3 marker repair (W3, rulings 51-52)** — 2026-11-08 spec `scratch/verification_tree/cone_store/b5/census/repair/spec.md` + `table.json` (248 judged after ruling 53: 18 KEEP, 7 RE-POINT, 223 REMOVE). On resume: re-run `place` after the edits; expect 0 failing outside `traced_memo`.
+- **Cone store list 3 marker repair (W3, rulings 51-53)** — CONFIRMED landed in the tree 2026-11-08 (uncommitted, `fix/rests-on-repair`), spec `scratch/verification_tree/cone_store/b5/census/repair/spec.md` + `table.json` (248 judged after ruling 53: 18 KEEP, 7 RE-POINT, 223 REMOVE). On resume: re-run `place` after the edits; expect 0 failing outside `traced_memo`.
 - Everything else is merged; the record is the SN theory page's development history and the archive.
 
 ## 3. Durable reference (reusable verification-design recipes)

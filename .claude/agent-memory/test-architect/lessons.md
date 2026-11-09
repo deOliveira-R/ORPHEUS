@@ -774,3 +774,9 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   literal `co_names` pairing named a wrong layer node on 102 of 658 tests). Build the resolver's positive-control
   fixture as a pytest module run under `-p` (never by calling the function directly), with one row per shape. Extends
   `instrument-doctrine` X1 (a control per shape the filter must find). → `L131`
+- **⛔ A comparison tree built by `git worktree add <dir> ... >/dev/null 2>&1` into the SHARED session scratchpad can
+  silently not exist**: a stale `head/` from an earlier dispatch (a plain directory with `tests/` and `pyproject.toml`)
+  made the add fail unseen, and the "HEAD" collection ran on that stale tree, printing a plausible diff (`[M]`
+  2026-11-08, the list-3 repair confirmation: 5763 collected and 1 error where HEAD collects 5808). Use a fresh
+  `ta_<name>_$$` directory, never suppress the add's stderr, and print `git -C <dir> rev-parse --short HEAD` and the
+  collected count beside the result. Extends `code-search` (a probe run from another tree states which tree it read).

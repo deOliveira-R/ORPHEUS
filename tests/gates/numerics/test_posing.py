@@ -37,7 +37,6 @@ def _exact_pair(ng: int = 2):
     return p, p.pencil, k, phi
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_pencil.py::TestLawTheAffineFamily::test_law_at_zero_is_the_lhs", "tests/gates/numerics/test_pencil.py::TestLawTheAffineFamily::test_law_at_sigma_is_the_affine_combination")
 class TestLawTheEigenPosing:
     def test_law_the_rayleigh_at_the_solution_is_the_eigenvalue(self) -> None:
         """At the exact eigenpair the Rayleigh quotient with ANY weight is the eigenvalue."""
@@ -46,12 +45,18 @@ class TestLawTheEigenPosing:
         _require(abs(posing.rayleigh(phi, w=1.0) - k) <= 1e-12 * k, "rayleigh(φ*, w=1) must be k")
         _require(abs(posing.rayleigh(phi, w=phi) - k) <= 1e-12 * k, "…and with the stationary weight too")
 
+    @pytest.mark.rests_on(
+        "tests/gates/numerics/test_pencil.py::TestLawTheAffineFamily::test_law_at_zero_is_the_lhs",
+    )
     def test_law_the_eigen_residual_vanishes_at_the_solution(self) -> None:
         _, pencil, k, phi = _exact_pair()
         posing = EigenPosing(pencil, K_MAP)
         r = np.asarray(posing.residual(phi, k)); scale = np.max(np.abs(np.asarray(pencil.lhs.apply(phi))))
         _require(np.max(np.abs(r)) <= 1e-12 * scale, "A φ* − F φ*/k* must vanish")
 
+    @pytest.mark.rests_on(
+        "tests/gates/numerics/test_pencil.py::TestLawTheAffineFamily::test_law_at_zero_is_the_lhs",
+    )
     def test_law_the_balance_functional_is_ONE_functional(self) -> None:
         """β(ψ, λ) = ⟨1, 𝒜(μ(λ))ψ − q⟩: the eigen kind with q = 0, the source kind
         with the member at μ and q — the SAME number, bit-identically."""
@@ -63,7 +68,7 @@ class TestLawTheEigenPosing:
 
 
 class TestLawTheAdjointArity:
-    @pytest.mark.rests_on("tests/gates/numerics/test_pencil.py::TestLawTheAdjoint::test_law_H_is_the_pair_of_adjoints")
+    @pytest.mark.rests_on("tests/gates/numerics/test_pencil.py::TestLawTheEndsLaw::test_law_the_posed_pair_is_ADMITTED")
     def test_law_the_eigen_H_is_NULLARY(self) -> None:
         _, pencil, k, _ = _exact_pair()
         adj = EigenPosing(pencil, K_MAP).H()
@@ -80,7 +85,6 @@ class TestLawTheAdjointArity:
         _require(np.array_equal(np.asarray(adj.source), np.ones_like(phi)), "H(detector) poses the detector as the adjoint source")
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_pencil.py::TestLawTheAffineFamily::test_law_at_zero_is_the_lhs", "tests/gates/numerics/test_pencil.py::TestLawTheAffineFamily::test_law_at_sigma_is_the_affine_combination")
 class TestLawTheSourcePosing:
     def test_law_the_balance_and_the_residual_close_at_the_solution(self) -> None:
         p, pencil, _, phi = _exact_pair()

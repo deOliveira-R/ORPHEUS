@@ -106,7 +106,6 @@ class TestLawTheAdjoint:
                  "the adjoint pencil's member at σ=1 is (A − F)ᵀ on the counting pose")
         _require(np.array_equal(np.asarray(p.pencil.H.rhs.as_matrix(), dtype=float), F.T), ".H daggers the rhs too")
 
-    @pytest.mark.rests_on("tests/gates/numerics/test_pencil.py::TestLawTheAdjoint::test_law_H_is_the_pair_of_adjoints", "tests/gates/numerics/test_riesz_legs.py::test_the_adjoint_composite_routes_through_the_legs")
     def test_law_H_reads_the_metric_on_a_weighted_space(self) -> None:
         """NEW rung (closes the 0-D declared blindness): on a diagonal Gram G ≠ cI,
         ``at(σ).H = G⁻¹ (A − σF)ᵀ G``, which is NOT the Euclidean transpose."""

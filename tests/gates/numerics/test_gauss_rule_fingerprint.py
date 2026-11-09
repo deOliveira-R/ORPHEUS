@@ -45,9 +45,6 @@ from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
 
 from .test_gauss_rules_correctly_rounded import _rule_legendre, reference_rule
 
-_HERE = "tests/gates/numerics/test_gauss_rule_fingerprint.py"
-_GATE_A = "tests/gates/numerics/test_gauss_rules_correctly_rounded.py"
-
 #: sha256 of the correctly rounded GL-n rule (gate (a)'s reference, 80 digits,
 #: rounded once). Computed 2026-10-01; NEVER regenerate from production.
 _FROZEN_GL_DIGEST: dict[int, str] = {
@@ -79,10 +76,6 @@ def test_frozen_digest_is_the_correctly_rounded_rule(n: int) -> None:
 
 
 @pytest.mark.l1
-@pytest.mark.rests_on(
-    f"{_HERE}::test_frozen_digest_is_the_correctly_rounded_rule",
-    f"{_GATE_A}::test_rule_is_the_correctly_rounded_rule",
-)
 @pytest.mark.parametrize("n", sorted(_FROZEN_GL_DIGEST))
 @pytest.mark.parametrize(
     "entry",

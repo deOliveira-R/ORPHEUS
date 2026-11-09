@@ -16,22 +16,16 @@ from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import IdentityOperator, LinearOperator, MissingAdjoint, posed
 from tests.gates.numerics._adjointability import NUMERICS_REGISTRY, assert_doors, flat
 
-pytestmark = [
-    pytest.mark.foundation,
-    pytest.mark.rests_on(
-        "tests/gates/numerics/test_operator.py::test_adjoint_weighted_identity",
-        "tests/gates/numerics/test_riesz_legs.py::"
-        "test_lowering_realizes_the_metric_pairing",
-        "tests/gates/numerics/test_riesz_legs.py::"
-        "test_the_adjoint_composite_routes_through_the_legs",
-        "tests/gates/numerics/test_operator_capability_predicates.py::"
-        "test_inverse_adjoint_contract_keystone_v2",
-    ),
-]
+pytestmark = pytest.mark.foundation
 
 
 @pytest.mark.parametrize("row", list(NUMERICS_REGISTRY))
 @pytest.mark.catches("ERR-117")
+@pytest.mark.rests_on(
+    "tests/gates/numerics/test_operator.py::test_adjoint_weighted_identity",
+    "tests/gates/numerics/test_riesz_legs.py::"
+    "test_the_adjoint_composite_routes_through_the_legs",
+)
 def test_each_transpose_door_opens_iff_predicted(row: str) -> None:
     r"""``.dual()`` works ⟺ ``is_adjointable``; ``.H`` works ⟺ ``is_adjointable ∧ posed``.
 

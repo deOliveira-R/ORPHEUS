@@ -83,7 +83,6 @@ class TestLawTheKindIsThePosingsType:
         with pytest.raises(TypeError, match="must be a SourcePosing"):
             SourceOutcome(problem.eigen_posing, phi)  # type: ignore[arg-type]
 
-    @pytest.mark.rests_on("tests/gates/numerics/test_posing.py::TestLawTheSourcePosing::test_law_the_balance_and_the_residual_close_at_the_solution")
     def test_law_a_source_outcome_has_no_eigen_verbs(self) -> None:
         problem, k, phi = _zero_d()
         A = np.asarray(problem.pencil.lhs.as_matrix(), dtype=float)
@@ -110,22 +109,26 @@ class TestLawTheKindIsThePosingsType:
             alpha.keff
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_posing.py::TestLawTheEigenPosing::test_law_the_rayleigh_at_the_solution_is_the_eigenvalue")
 class TestLawTheOutcomeAgreesWithItsQuestion:
     @pytest.mark.parametrize("ng", [1, 2, 4])
+    @pytest.mark.rests_on(
+        "tests/gates/numerics/test_posing.py::TestLawTheEigenPosing::test_law_the_rayleigh_at_the_solution_is_the_eigenvalue",
+    )
     def test_law_rayleigh_agrees_with_lam_on_the_exact_pair(self, ng: int) -> None:
         """``[M]`` 2g/4g gap 2.22e-16, 1g exactly 0 — a dense ``eig`` vs ONE division of two pairings."""
         problem, out = _eigen_outcome(ng)
         _require(abs(out.rayleigh() - out.lam) <= 8 * _EPS * abs(out.lam), f"rayleigh − lam = {out.rayleigh() - out.lam:.3e}")
         _require(abs(out.balance()) <= 64 * _EPS * float(np.max(np.abs(out.state))), "β(ψ, λ) = 0 at the exact pair")
 
+    @pytest.mark.rests_on(
+        "tests/gates/numerics/test_posing.py::TestLawTheEigenPosing::test_law_the_rayleigh_at_the_solution_is_the_eigenvalue",
+    )
     def test_negative_a_perturbed_lam_is_seen(self) -> None:
         problem, k, phi = _zero_d()
         gauge = ScaleGauge(problem.production_rate, 100.0)
         wrong = EigenOutcome(problem.eigen_posing, phi, k * (1 + 1e-9), (k * (1 + 1e-9),), gauge)
         _require(abs(wrong.rayleigh() - wrong.lam) > 1e-10 * abs(k), "a 1e-9 perturbation of λ is visible against the posing's own quotient")
 
-    @pytest.mark.rests_on("tests/gates/numerics/test_posing.py::TestLawTheAdjointArity::test_law_the_eigen_H_is_NULLARY")
     def test_law_the_dagger_is_an_involution_on_the_posing(self) -> None:
         """No negative leg: the involution is a theorem of the adjoint wrapper
         (``[M]`` ``A.H.H is A`` by identity, ``operator.py:1674-1678``)."""

@@ -139,7 +139,6 @@ def test_r3_4_pickle(entry: Entry) -> None:
     check_pickle(entry)
 
 
-@pytest.mark.rests_on(f"{_HERE}::test_r3_4_each_part_moves_the_digest")
 def test_r3_4_a_ratio_is_ordered_and_kinds_never_merge() -> None:
     """``Ratio(a, b) != Ratio(b, a)`` (two digests, two set members); and the
     kinds never merge: a ``FluxIntegral`` of a table, the ``Eigenvalue``, a

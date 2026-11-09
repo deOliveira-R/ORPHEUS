@@ -51,8 +51,6 @@ from tests.gates._content_identity_helpers import require
 
 pytestmark = pytest.mark.foundation
 
-_HERE = "tests/gates/numerics/test_question.py"
-_MF = "tests/gates/numerics/test_mesh_free_function.py"
 _CI = "tests/gates/values/test_content_identity.py"
 _ROOT = Path(__file__).resolve().parents[3]
 
@@ -160,8 +158,6 @@ _FIELDS = {
 }
 
 
-@pytest.mark.rests_on(f"{_HERE}::test_s7_1_the_question_set_is_closed")
-@pytest.mark.rests_on(f"{_MF}::test_s6_11_neither_type_carries_a_role_or_a_density")
 @pytest.mark.parametrize("name", list(_FIELDS))
 def test_s7_3_the_fields_are_exactly_the_roles(name: str) -> None:
     """``dataclasses.fields`` is exactly the ruled tuple: no forward/adjoint
@@ -188,7 +184,6 @@ _SPELLINGS = (
 )
 
 
-@pytest.mark.rests_on(f"{_HERE}::test_s7_3_the_fields_are_exactly_the_roles")
 @pytest.mark.parametrize("build,fragment", [pytest.param(b, f, id=i.replace(" ", "_")) for i, b, f in _SPELLINGS])
 def test_s7_3_a_role_spelled_in_the_wrong_value_does_not_construct(build, fragment: str) -> None:
     """The detector-only fixed source, the source-given response, the empty
@@ -229,7 +224,6 @@ _NOT_FUNCTIONS = (
 )
 
 
-@pytest.mark.rests_on(f"{_MF}::test_s6_8_the_table_is_a_read_only_copy")
 @pytest.mark.parametrize("cls,role", [(FixedSource, "source"), (Response, "detector")], ids=["source", "detector"])
 @pytest.mark.parametrize("datum,fragment", [pytest.param(b, f, id=i) for i, b, f in _NOT_FUNCTIONS])
 def test_s7_4_a_datum_that_is_not_a_mesh_free_function_is_refused(cls, role: str, datum, fragment: str) -> None:

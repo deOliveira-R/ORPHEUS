@@ -254,7 +254,7 @@ def test_c01_sum_commutes(ABC):
 
 
 @pytest.mark.verifies("combination-normal-form")
-@pytest.mark.rests_on(_HERE + "::test_c01_sum_commutes")
+@pytest.mark.rests_on(_HERE + "::test_c06_two_equal_valued_atoms_stay_two_terms")
 def test_c02_sum_associates_by_flattening(ABC):
     """``(A + B) + C == A + (B + C)``: three terms, no term a sum. First red
     today: two distinct binary trees. Mutation: a sum operand stays one term
@@ -292,7 +292,6 @@ def test_c04_coefficients_collect_over_repeated_atoms(ABC):
     assert (A + B) + A == 2.0 * A + B
 
 
-@pytest.mark.rests_on(_HERE + "::test_c04_coefficients_collect_over_repeated_atoms")
 def test_c05_record_non_dyadic_collection_is_coefficient_rounded(ABC):
     """RECORD (Q2): equality is equality of the REPRESENTATION, so it is
     exact only where the coefficient arithmetic is. ``(0.1 + 0.2) + 0.3`` and
@@ -343,7 +342,7 @@ def test_c07_an_unhashable_atom_combines_compares_and_hashes(ABC):
 
 
 @pytest.mark.verifies("combination-zero-and-unit")
-@pytest.mark.rests_on(_HERE + "::test_c06_two_equal_valued_atoms_stay_two_terms", _HERE + "::test_c04_coefficients_collect_over_repeated_atoms")
+@pytest.mark.rests_on(_HERE + "::test_c06_two_equal_valued_atoms_stay_two_terms")
 def test_c08_cancellation_returns_the_surviving_atom(ABC):
     """``(A + B) − A`` IS ``B`` (the one-term collapse returns the object
     itself when its ends are the combination's), and ``L + C − L`` is ``C``.
@@ -359,7 +358,7 @@ def test_c08_cancellation_returns_the_surviving_atom(ABC):
 
 
 @pytest.mark.verifies("combination-zero-and-unit")
-@pytest.mark.rests_on(_HERE + "::test_c08_cancellation_returns_the_surviving_atom")
+@pytest.mark.rests_on(_HERE + "::test_c06_two_equal_valued_atoms_stay_two_terms")
 def test_c09_zero_is_the_bound_zero_morphism():
     """``0·A``, ``A − A`` and ``(A + B) − (A + B)`` are ``ZeroMorphism(A.domain,
     A.codomain)`` on a rectangular ``A : V1 → V3``, and the zero applies to
@@ -375,7 +374,6 @@ def test_c09_zero_is_the_bound_zero_morphism():
 
 
 @pytest.mark.verifies("combination-zero-and-unit")
-@pytest.mark.rests_on(_HERE + "::test_c09_zero_is_the_bound_zero_morphism")
 def test_c10_an_unbound_zero_refuses_naming_the_term():
     """``0·U`` for an unbound ``U`` cannot mint its ``ZeroMorphism`` and
     refuses, naming the term's type (the message is the gate). First red
@@ -388,7 +386,7 @@ def test_c10_an_unbound_zero_refuses_naming_the_term():
 
 
 @pytest.mark.verifies("combination-zero-and-unit")
-@pytest.mark.rests_on(_HERE + "::test_c09_zero_is_the_bound_zero_morphism", _HERE + "::test_c12_one_term_collapse")
+@pytest.mark.rests_on(_HERE + "::test_c02_sum_associates_by_flattening")
 def test_c11_every_zero_is_absorbed_and_contributes_its_spaces(ABC):
     """Q3: ``ZeroMorphism(V, W)``, the pointwise ``ZeroOperator()`` and the
     scalar 0 of ``sum(...)`` are absorbed; an absorbed zero still contributes
@@ -412,7 +410,6 @@ def test_c11_every_zero_is_absorbed_and_contributes_its_spaces(ABC):
 
 
 @pytest.mark.verifies("combination-zero-and-unit")
-@pytest.mark.rests_on(_HERE + "::test_c04_coefficients_collect_over_repeated_atoms")
 def test_c12_one_term_collapse(ABC):
     """``1·A is A``, ``−(−A) is A``, ``A / 1 is A``, ``(2A)·0.5 is A``. First
     red today: each mints a ``ScaledOperator``. Mutation: NO_COLLAPSE."""
@@ -458,7 +455,6 @@ def _fold_fixture():
 
 
 @pytest.mark.verifies("combination-left-fold")
-@pytest.mark.rests_on(_HERE + "::test_c02_sum_associates_by_flattening")
 def test_c13_apply_is_the_left_fold_of_todays_left_nested_spelling():
     """``((A − S) − N) − B`` applies as ``((Ax − Sx) − Nx) − Bx`` bit for bit
     (today's binary arithmetic; the SN loss ``A_AA = LC − S − N2N − B_a`` has
@@ -475,7 +471,6 @@ def test_c13_apply_is_the_left_fold_of_todays_left_nested_spelling():
 
 
 @pytest.mark.verifies("combination-left-fold")
-@pytest.mark.rests_on(_HERE + "::test_c13_apply_is_the_left_fold_of_todays_left_nested_spelling")
 def test_c39_subtraction_is_bit_identical_to_adding_the_negation():
     """The fold subtracts for a −1 coefficient (no negated temporary, the
     allocation ceiling of ``test_p3_peak_allocation_per_dof``), and ``a − b``
@@ -489,7 +484,6 @@ def test_c39_subtraction_is_bit_identical_to_adding_the_negation():
 
 
 @pytest.mark.verifies("combination-left-fold")
-@pytest.mark.rests_on(_HERE + "::test_c13_apply_is_the_left_fold_of_todays_left_nested_spelling")
 def test_c14_apply_does_not_alias_its_operand(ABC):
     """``(I + A).apply(x)`` leaves ``x`` untouched and returns a new array:
     the fold must not accumulate in place into a term's output (the identity
@@ -504,7 +498,6 @@ def test_c14_apply_does_not_alias_its_operand(ABC):
 
 
 @pytest.mark.verifies("combination-dual-distributes")
-@pytest.mark.rests_on(_HERE + "::test_c13_apply_is_the_left_fold_of_todays_left_nested_spelling")
 def test_c15_transpose_is_the_fold_of_the_terms_transposes(ABC):
     """``(A − 2B)ᵀy = Aᵀy + (−2)(Bᵀy)`` bit for bit, and the combination is
     adjointable iff every term is. Green today (survives)."""
@@ -541,7 +534,7 @@ def test_c16_product_associates_by_flattening(chain):
 
 
 @pytest.mark.verifies("word-normal-form")
-@pytest.mark.rests_on(_HERE + "::test_c16_product_associates_by_flattening", _HERE + "::test_c12_one_term_collapse")
+@pytest.mark.rests_on(_HERE + "::test_c16_product_associates_by_flattening")
 def test_c17_a_scalar_leaves_the_word(chain):
     """``A(2B) == 2(AB) == (2A)B``: one term, coefficient 2, word ``(A, B)``.
     First red today. Mutation: the scaled factor stays in the word
@@ -554,7 +547,6 @@ def test_c17_a_scalar_leaves_the_word(chain):
 
 
 @pytest.mark.verifies("word-normal-form")
-@pytest.mark.rests_on(_HERE + "::test_c16_product_associates_by_flattening")
 def test_c18_identity_factors_are_kept_and_pointwise_ends_resolve(chain):
     """``A @ I`` is the word ``(A, I)``, not ``A`` (D7: the unit law is not
     claimed); a pointwise end factor takes its neighbour's space. First red
@@ -570,7 +562,6 @@ def test_c18_identity_factors_are_kept_and_pointwise_ends_resolve(chain):
     assert (D @ A @ B @ D1).codomain == A.codomain
 
 
-@pytest.mark.rests_on(_HERE + "::test_c16_product_associates_by_flattening")
 def test_c19_word_applies_right_to_left(chain):
     """``(ABC)x = A(B(Cx))`` bit for bit. Green today (survives). Mutation:
     left-to-right (WORD_LTR, a shape error on these distinct dims)."""
@@ -580,7 +571,6 @@ def test_c19_word_applies_right_to_left(chain):
 
 
 @pytest.mark.verifies("word-reversal-laws")
-@pytest.mark.rests_on(_HERE + "::test_c19_word_applies_right_to_left")
 def test_c20_word_inverse_and_transpose_reverse(ABC):
     """``(ABC)⁻¹ = C⁻¹B⁻¹A⁻¹`` and ``(ABC)ᵀ = CᵀBᵀAᵀ``, bit for bit against
     the hand-spelled sequence. Green today (survives)."""
@@ -601,7 +591,7 @@ def test_c20_word_inverse_and_transpose_reverse(ABC):
 
 
 @pytest.mark.verifies("combination-dual-distributes", "composite-adjoint-at-the-ends")
-@pytest.mark.rests_on(_HERE + "::test_c23_arrow_keys_separate_their_inners", _HERE + "::test_c24_sum_adjoint_reciprocity_on_weighted_spaces", _HERE + "::test_c03_scalar_distributes_over_a_sum")
+@pytest.mark.rests_on("tests/gates/numerics/test_operator.py::test_adjoint_swaps_domain_and_codomain")
 def test_c21_sum_dual_distributes_and_its_adjoint_is_taken_at_the_ends():
     """Ruling 53's precise form (Q1/Q6, 2026-10-20): the DUAL distributes,
     ``(2A − 0.5B)ᵀ == 2Aᵀ − 0.5Bᵀ`` as representations; the ADJOINT is ``♯ ∘
@@ -628,7 +618,6 @@ def test_c21_sum_dual_distributes_and_its_adjoint_is_taken_at_the_ends():
 
 
 @pytest.mark.verifies("word-reversal-laws", "composite-adjoint-at-the-ends")
-@pytest.mark.rests_on(_HERE + "::test_c16_product_associates_by_flattening", _HERE + "::test_c23_arrow_keys_separate_their_inners")
 def test_c22_word_dual_reverses_and_its_adjoint_is_taken_at_the_ends(chain):
     """``(AB)ᵀ == BᵀAᵀ`` as representations; ``(AB).H`` is one arrow at the
     word's ends, equal across builds, bit for bit ``♯_{V1}(Bᵀ(Aᵀ(♭_{V3}y)))``;
@@ -678,7 +667,6 @@ def test_c24_sum_adjoint_reciprocity_on_weighted_spaces():
 
 
 @pytest.mark.verifies("composite-adjoint-at-the-ends")
-@pytest.mark.rests_on(_HERE + "::test_c24_sum_adjoint_reciprocity_on_weighted_spaces")
 def test_c25_spaceless_term_adjoint_is_taken_at_the_combinations_spaces():
     """Q1's witness. ``D`` is spaceless: it acts on coordinates, where
     ``D.H is D`` is a theorem (#625, narrowed at S6a). Inside ``D + A`` on
@@ -697,7 +685,6 @@ def test_c25_spaceless_term_adjoint_is_taken_at_the_combinations_spaces():
 
 
 @pytest.mark.verifies("composite-adjoint-at-the-ends")
-@pytest.mark.rests_on(_HERE + "::test_c21_sum_dual_distributes_and_its_adjoint_is_taken_at_the_ends", _HERE + "::test_c25_spaceless_term_adjoint_is_taken_at_the_combinations_spaces")
 def test_c26_involution_equality_on_a_sum_identity_on_a_leaf(ABC):
     """``S.H.H == S`` on a sum (a new object, equal), including a spaceless
     term on the dense metric; ``A.H.H is A`` on a leaf. Green today (today
@@ -713,7 +700,6 @@ def test_c26_involution_equality_on_a_sum_identity_on_a_leaf(ABC):
 
 
 @pytest.mark.verifies("composite-adjoint-at-the-ends")
-@pytest.mark.rests_on(_HERE + "::test_c24_sum_adjoint_reciprocity_on_weighted_spaces")
 def test_c36_word_adjoint_reciprocity_through_a_singular_middle():
     """Q6's witness. ``⟨ABx, y⟩_W = ⟨x, (AB).H y⟩_V`` when the MIDDLE space U
     has a singular metric (a zero weight: the SN partial-current trace's
@@ -747,7 +733,6 @@ def _split():
 
 
 @pytest.mark.verifies("combination-inverse")
-@pytest.mark.rests_on(_HERE + "::test_c12_one_term_collapse")
 @pytest.mark.parametrize("order", ["implicit_first", "implicit_last"])
 def test_c27_a_sum_of_two_terms_has_no_inverse_of_its_own(order):
     """In either spelling order a two-term sum is not invertible and its
@@ -763,7 +748,6 @@ def test_c27_a_sum_of_two_terms_has_no_inverse_of_its_own(order):
 
 
 @pytest.mark.verifies("green-split-inverse")
-@pytest.mark.rests_on(_HERE + "::test_c27_a_sum_of_two_terms_has_no_inverse_of_its_own")
 def test_c28_green_is_built_from_an_explicit_split():
     """``GreenOperator(M, N)`` returns ``(M − N)⁻¹q`` (dense reference,
     SAFETY × tol), its forward is ``M − N``, and it refuses a non-invertible
@@ -784,7 +768,6 @@ def test_c28_green_is_built_from_an_explicit_split():
 
 
 @pytest.mark.verifies("combination-inverse")
-@pytest.mark.rests_on(_HERE + "::test_c23_arrow_keys_separate_their_inners", _HERE + "::test_c12_one_term_collapse")
 def test_c29_one_term_inverse_is_algebra_closed(ABC):
     """``(2A)⁻¹ = ½A⁻¹``: equal as combinations (the inverse arrow keyed by
     its inner) and bit for bit in apply. First red today: two distinct
@@ -797,7 +780,6 @@ def test_c29_one_term_inverse_is_algebra_closed(ABC):
 
 
 @pytest.mark.verifies("combination-inverse")
-@pytest.mark.rests_on(_HERE + "::test_c29_one_term_inverse_is_algebra_closed")
 def test_c30_a_scaled_inverse_scales_its_seed():
     """Q4: ``(αA)⁻¹`` seeds its inner solve with ``α·x₀``, because the inner
     answer ``A⁻¹b`` is α times the outer one. A latent defect: today the seed
@@ -819,7 +801,6 @@ def test_c30_a_scaled_inverse_scales_its_seed():
 # ═══════════════════════════════════════════════════════════════════════
 
 
-@pytest.mark.rests_on(_HERE + "::test_c01_sum_commutes")
 def test_c31_roles_fold_over_the_terms_whatever_the_order():
     """``block_role`` of ``L + C`` with roles FULL and BULK is FULL in both
     orders and with a third term. Green today for the two-term case; red
@@ -860,7 +841,6 @@ def test_c32_the_binary_idioms_are_gone(ABC):
 
 
 
-@pytest.mark.rests_on(_HERE + "::test_c17_a_scalar_leaves_the_word", _HERE + "::test_c11_every_zero_is_absorbed_and_contributes_its_spaces")
 @pytest.mark.verifies("word-normal-form")
 def test_c41_a_one_term_combination_keeps_its_ends_inside_a_word():
     """A one-term combination gives its coefficient to the word only when its
@@ -881,7 +861,7 @@ def test_c41_a_one_term_combination_keeps_its_ends_inside_a_word():
         a @ bound_identity
 
 
-@pytest.mark.rests_on(_HERE + "::test_c31_roles_fold_over_the_terms_whatever_the_order", _HERE + "::test_c09_zero_is_the_bound_zero_morphism")
+@pytest.mark.rests_on(_HERE + "::test_c31_roles_fold_over_the_terms_whatever_the_order")
 def test_c42_a_role_lives_on_the_leaves_and_survives_every_rebuild():
     r"""A block role stamped on a LEAF survives every combination the algebra
     rebuilds from it: ``−A``, ``αA``, ``0·A`` (the zero inherits the cancelled
@@ -901,7 +881,6 @@ def test_c42_a_role_lives_on_the_leaves_and_survives_every_rebuild():
 
 
 @pytest.mark.verifies("combination-left-fold")
-@pytest.mark.rests_on(_HERE + "::test_c13_apply_is_the_left_fold_of_todays_left_nested_spelling", _HERE + "::test_c14_apply_does_not_alias_its_operand")
 @pytest.mark.parametrize(
     "first, later",
     [
