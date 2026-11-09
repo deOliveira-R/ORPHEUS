@@ -1899,10 +1899,33 @@ or in a file's ``pytestmark`` is shorthand, and each test it covers must
 hold on its own. A declaration that fails is a defect of its marker,
 repaired by re-pointing, narrowing or removing it.
 
+``place`` reports each declaration's verdict in ``declared_verdicts``
+(``{upper, target, holds, held_by}``, one per upper function and target as
+written, for every declaration with a measured lower; ``held_by`` lists the
+lowers that hold it), and each row of ``declared_rests_on`` its own
+``holds``. A declaration holds when some lower under its target holds. The
+containment predicate is one function, ``_supported``, called by the
+proposed supports and by the declared verdicts alike: a lower with a layer
+subject holds when ``c`` and ``c_home`` both reach the report's threshold;
+a lower with none ran no layer def (a test that runs one is placed by its
+defs, so it has a subject) and holds when ``c_items`` reaches it. Two
+filters apply to proposals only: the lower's cone holds at least
+``min_defs`` defs, and the two cones are unequal (an equal pair is a
+duplicate). A declaration whose target holds only the upper is counted in
+``declared_unmeasured`` as ``target holds only the upper``. Gates PL26 to PL31
+pin it on the fixture's ``_VERDICT`` layer: a lower whose subject is held
+and whose cone is not (PL26), a class target held by one of its two lowers,
+``held_by`` exact (PL27), a structural lower held and missed by its read
+items (PL28), the report's threshold rather than a fixed one (PL29), a
+declared pair the proposals refuse on ``c_home`` (PL30), and a target
+holding the upper alone (PL31).
+
 `[M]` 2026-11-08 (census list 3,
 ``scratch/verification_tree/cone_store/b5/census/l3.md``, on the numerics
 store at ``af5b78c8`` under ruling 50): the layer holds 443 declarations
-(an upper function and a target as written), 976 rows. Where the marker is
+with a measured lower (an upper function and a target as written), 976
+rows; 54 more have an upper (29) or a target (25) that no judged function
+answers. Where the marker is
 written, read from the test files' syntax trees: on the function 199, on a
 class 26, in the file's ``pytestmark`` 218. Under rulings 51 to 53, 170
 declarations hold and 273 fail; 6 of the 443 are measured by read items
@@ -3538,7 +3561,8 @@ History
        under it. Census list 3: 170 of 443 declarations on the numerics
        layer hold, 273 fail (the marker repair is owed).
      - #358, #701
-     - ``docs(verification): census list 3, rulings 51 and 52``
+     - ``docs(verification): census list 3, rulings 51 and 52``;
+       ``fix(cone_store): place reports each declared edge's verdict``
    * - 2026-11-08
      - **Ruling 50: a support contains the lower's subject.** The census's
        list 2 found 62 of the 126 supports against the order whose upper ran

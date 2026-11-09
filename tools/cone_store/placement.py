@@ -64,6 +64,14 @@ upper or target holds no such function, or whose lower ran no def and read nothi
 lower that ran no def but read items has no ``c``: it is measured by ``c_items`` alone (over defs and read items,
 B5), and counted apart (``declared_items_only``).
 
+A declared edge is an execution support (rulings 51 to 53): each declaration (the upper function and the target as
+written) with a measured lower gets a verdict in ``declared_verdicts``, with the lowers that hold it (``held_by``),
+and each row its own ``holds``. A declaration holds when SOME lower under the target holds (ruling 52), a lower by the
+support predicate at ``threshold`` (``c`` and ``c_home``), or, when it ran no layer def, by ``c_items``. A
+declaration whose target holds only the upper is counted by that reason; the rest with no verdict are counted by the
+reasons above. The predicate is the proposed supports' own (``_supported``); only proposals also need
+``|D(L)| >= min_defs`` and unequal cones.
+
 The null shuffles the node label of each distinct (node, def) across the layer with a fixed seed and re-reads purity;
 a placement that the null matches carries no information (S13). The output is a plain dict, byte-identical across runs
 when dumped with sorted keys.
@@ -553,7 +561,8 @@ def place(store_path: str | Path, layer_prefix: str, layer: Layer, order: Sequen
     judged = [test_id for test_id, test in stored.items() if not test.unknown and test.outcome == "passed"]
     claims = _functions({test_id: owned[test_id] for test_id in judged},
                         {test_id: _items(read[test_id]) for test_id in judged})
-    rests_on = _declared(_functions({test_id: owned[test_id] for test_id in judged}), declared, claims, subjects)
+    rests_on = _declared(_functions({test_id: owned[test_id] for test_id in judged}), declared, claims, subjects,
+                         threshold)
     return {"layer": layer_prefix, "code_root": layer.root, "threshold": threshold, "min_defs": min_defs,
             "summary": summary, "tests": tests, **supports, **rests_on,
             "apparatus_supports": _apparatus_supports(homes, read, judged, threshold)}
@@ -666,6 +675,16 @@ def _contained[T](part: Set[T], cone: Set[T]) -> float | None:
     return len(part & cone) / len(part) if part else None
 
 
+def _supported(cone: float | None, subject: float | None, items: float | None, at: float) -> bool:
+    """``U -> L`` at ``at``, the one containment predicate of a proposed support and of a declared edge (ruling 53).
+    A lower with a layer subject needs its cone and its subject both contained (ruling 50). A lower with none ran no
+    layer def (a test that runs one is placed by its defs, so it has a subject): it is a structural premise, held by
+    its read items. A proposed support passes no ``items``, so a lower with no subject is never proposed."""
+    if subject is None:
+        return items is not None and items >= at
+    return cone is not None and cone >= at and subject >= at
+
+
 def _rounded(value: float | None) -> float | None:
     """A containment as the report writes it."""
     return None if value is None else round(value, 6)
@@ -673,12 +692,13 @@ def _rounded(value: float | None) -> float | None:
 
 def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[tuple[str, str]],
               claims: Mapping[str, set[tuple[str, str]]],
-              subjects: Mapping[str, frozenset[tuple[str, str]]]) -> dict[str, Any]:
+              subjects: Mapping[str, frozenset[tuple[str, str]]], threshold: float) -> dict[str, Any]:
     """The containment of each declared ``rests_on`` edge over defs (``c``), of the lower's subject (``c_home``, for
     a lower placed by its defs, ruling 50) and over defs and read items (``c_items``, B5), its cumulative counts over
-    ``c``, and the edges not measured by reason (module docstring). A lower test that ran no def but read items is
-    measured by ``c_items`` alone (``c`` is ``None``)."""
+    ``c``, the edges not measured by reason, and each declaration's verdict at ``threshold`` (module docstring). A
+    lower test that ran no def but read items is measured by ``c_items`` alone (``c`` is ``None``)."""
     rows: list[dict[str, Any]] = []
+    held_by: dict[tuple[str, str], list[str]] = {}  # each measured declaration's holding lowers
     unmeasured: Counter[str] = Counter()
     for upper, target in sorted({(_function(u), t) for u, t in declared}):
         lowers = sorted(f for f in functions if f == _function(target) or f.startswith(target + "::"))
@@ -686,6 +706,8 @@ def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[
             unmeasured["upper not judged"] += 1
         elif not lowers:
             unmeasured["target not judged"] += 1
+        elif lowers == [upper]:  # a class or file target holding the upper alone
+            unmeasured["target holds only the upper"] += 1
         for lower in lowers if upper in functions else ():
             if lower == upper:  # a class or file target holding the upper itself
                 continue
@@ -693,15 +715,21 @@ def _declared(functions: Mapping[str, set[tuple[str, str]]], declared: Iterable[
             if not functions[lower] and not low:
                 unmeasured["lower ran no def and read nothing"] += 1
                 continue
-            rows.append({"upper": upper, "lower": lower, "target": target,
-                         "c": _rounded(_contained(functions[lower], functions[upper])),
-                         "c_home": _rounded(_contained(subjects.get(lower, frozenset()), functions[upper])),
-                         "c_items": _rounded(_contained(low, high))})
+            cone = _contained(functions[lower], functions[upper])
+            subject = _contained(subjects.get(lower, frozenset()), functions[upper])
+            items = _contained(low, high)
+            holds = _supported(cone, subject, items, threshold)
+            held_by.setdefault((upper, target), []).extend([lower] if holds else [])
+            rows.append({"upper": upper, "lower": lower, "target": target, "c": _rounded(cone),
+                         "c_home": _rounded(subject), "c_items": _rounded(items), "holds": holds})
     counts = {str(t): sum(1 for row in rows if row["c"] is not None and row["c"] >= t) for t in THRESHOLDS}
     counts["below"] = sum(1 for row in rows if row["c"] is not None and row["c"] < THRESHOLDS[-1])
     return {"declared_rests_on": rows, "declared_counts": counts,
             "declared_items_only": sum(1 for row in rows if row["c"] is None),  # measured by ``c_items`` alone
-            "declared_unmeasured": dict(sorted(unmeasured.items()))}
+            "declared_unmeasured": dict(sorted(unmeasured.items())),
+            # a declaration holds when some lower under its target holds (ruling 52)
+            "declared_verdicts": [{"upper": upper, "target": target, "holds": bool(lowers), "held_by": lowers}
+                                  for (upper, target), lowers in sorted(held_by.items())]}
 
 
 def _supports(owned: Mapping[str, OwnDefs], homes: Mapping[str, frozenset[str]],
@@ -728,9 +756,7 @@ def _supports(owned: Mapping[str, OwnDefs], homes: Mapping[str, frozenset[str]],
         return _contained(subjects[lower], functions[upper])
 
     def holds(pair: tuple[str, str], at: float) -> bool:
-        """``U -> L`` at ``at``: the lower's cone and its subject both contained (ruling 50)."""
-        home = c_home(pair)
-        return containment[pair] >= at and home is not None and home >= at
+        return _supported(containment[pair], c_home(pair), None, at)
 
     duplicates = sorted({tuple(sorted((u, l))) for (u, l), c in containment.items()
                          if c == 1.0 and functions[u] == functions[l]})

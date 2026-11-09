@@ -1109,11 +1109,93 @@ SPAWN_AT_COLLECTION_IDS = frozenset({"tests/test_spawn_c.py::test_c_one", "tests
 BASELINE = frozenset({"tests/test_g.py::test_fail"})
 
 
+#: Ruling 53 (a declaration's verdict: ``holds`` when SOME lower under its target holds, a lower with a layer subject
+#: by ``c >= threshold`` AND ``c_home >= threshold``, a lower with none by ``c_items >= threshold``): a layer ``pkg/vd``
+#: ranked :data:`VERDICT_ORDER`, one base of 40 defs per scenario. Counted by hand off the sources below.
+#: (1, base ``a``, the SUBJECT WITHOUT THE CONE) ``test_v_lower`` runs the 40 and ``mid.m0`` (41, home ``mid``, subject
+#: ``{m0}``); ``test_v_subject_only`` runs ``a0``-``a29``, ``m0`` and ``top.t0`` (cone 31/41, subject 1/1).
+#: (2, base ``b``, SOME LOWER) ``TestPair::test_held`` runs the 40 and ``mid.p0``; ``TestPair::test_missed`` the 40 and
+#: ``mid.n0`` (each 41, home ``mid``); ``test_v_some`` runs the 40, ``p0`` and ``top.x0`` (41/41 and 1/1 over the
+#: first, 40/41 and 0/1 over the second).
+#: (3, a STRUCTURAL lower) ``test_v_reads`` runs no def and reads ``mid.CONST``; ``test_v_reads_too`` reads it and runs
+#: ``top.u0`` (it holds every item the lower read); ``test_v_subject_only`` reads nothing of ``mid``.
+#: (4, base ``f``, the THRESHOLD) ``test_v_edge_lower`` runs the 40 and ``mid.r0``-``r9`` (50, subject the ten ``r``);
+#: ``test_v_edge_upper`` the 40, ``r0``-``r8`` and ``top.y0`` (cone 49/50 = 0.98, subject 9/10 = 0.9 exactly).
+#: (5, a target holding the UPPER ALONE) ``TestAlone::test_alone`` runs ``top.t0``; declared on its own class, the
+#: target's only function is the upper itself.
+VERDICT_ORDER: tuple[tuple[str, ...], ...] = (("a", "b", "f"), ("mid",), ("top",))
+_VERDICT: dict[str, str] = {
+    "pkg/vd/__init__.py": "",
+    "pkg/vd/a.py": _base("a"),
+    "pkg/vd/b.py": _base("b"),
+    "pkg/vd/f.py": _base("f"),
+    "pkg/vd/mid.py": "from pkg.vd import a, b, f\n\nCONST = 3\n\n\n" + "".join(
+        _defs(prefix, n) for prefix, n in (("m", 1), ("p", 1), ("n", 1), ("r", 10))),
+    "pkg/vd/top.py": "from pkg.vd import mid\n\n\n" + "".join(_defs(prefix, 1) for prefix in ("t", "x", "u", "y")),
+    "tests/vd/__init__.py": "",
+    "tests/vd/test_vd.py": """
+        from pkg.vd import a, b, f, mid, top
+
+
+        def test_v_lower():
+            if sum(fn() for fn in a.ALL) + mid.m0() != 780:
+                raise AssertionError
+
+
+        def test_v_subject_only():
+            if sum(fn() for fn in a.ALL[:30]) + mid.m0() + top.t0() != 435:
+                raise AssertionError
+
+
+        class TestPair:
+            def test_held(self):
+                if sum(fn() for fn in b.ALL) + mid.p0() != 780:
+                    raise AssertionError
+
+            def test_missed(self):
+                if sum(fn() for fn in b.ALL) + mid.n0() != 780:
+                    raise AssertionError
+
+
+        def test_v_some():
+            if sum(fn() for fn in b.ALL) + mid.p0() + top.x0() != 780:
+                raise AssertionError
+
+
+        def test_v_reads():
+            if mid.CONST != 3:
+                raise AssertionError
+
+
+        def test_v_reads_too():
+            if mid.CONST + top.u0() != 3:
+                raise AssertionError
+
+
+        def test_v_edge_lower():
+            if sum(fn() for fn in f.ALL) + sum(getattr(mid, f"r{i}")() for i in range(10)) != 825:
+                raise AssertionError
+
+
+        def test_v_edge_upper():
+            if sum(fn() for fn in f.ALL) + sum(getattr(mid, f"r{i}")() for i in range(9)) + top.y0() != 816:
+                raise AssertionError
+
+
+        class TestAlone:
+            def test_alone(self):
+                if top.t0() != 0:
+                    raise AssertionError
+    """,
+}
+
+
 def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_conftest: bool = False,
           thread_at_module: bool = False, unmeasured_platform: bool = False, reads_source: bool = False,
           subdir: bool = False, read_rewrite: bool = False, race: bool = False, offpath: bool = False,
           user_ignore: bool = False, localplug: bool = False, phases: bool = False, placement: bool = False,
-          own_store: bool = False, reads: bool = False, subject: bool = False, age: bool = True) -> Path:
+          own_store: bool = False, reads: bool = False, subject: bool = False, verdict: bool = False,
+          age: bool = True) -> Path:
     """Write the fixture tree under ``root`` and return it; ``age`` waits until every file's identity is
     settled, so a capture taken next records settled identities (spec F1)."""
     files = dict(_BASE)
@@ -1145,6 +1227,8 @@ def build(root: Path, *, memo: bool = True, spawners: bool = False, thread_at_co
         files |= _READS
     if subject:
         files |= _SUBJECT
+    if verdict:
+        files |= _VERDICT
     conftest = textwrap.dedent(files["tests/conftest.py"])
     if thread_at_conftest:
         conftest += _THREAD_LINES

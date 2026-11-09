@@ -378,3 +378,113 @@ def test_pl25_a_functions_subject_spans_the_homes_of_all_its_cases(subject_captu
     assert (SJ + "test_two_homes_upper", SJ + "test_two_homes") not in _proposed(found)
     (row,) = found["declared_rests_on"]
     assert row["c_home"] == pytest.approx(2 / 3, abs=1e-6), row
+
+
+# ── ruling 53: a declaration's verdict, by the one predicate a proposed support uses ──
+#
+# The fixture is ``_VERDICT`` (``build(root, verdict=True)``): layer ``pkg/vd``, order ``a, b, f < mid < top``; every
+# containment below is counted off its sources by hand (``_cone_store_fixture.py``, the comment above
+# ``VERDICT_ORDER``). ``result["declared_verdicts"]`` is a list of ``{"upper", "target", "holds"}``, one per (upper
+# function, target as written).
+
+VD = "tests/vd/test_vd.py::"
+
+
+@pytest.fixture(scope="module")
+def verdict_captured(tmp_path_factory) -> Path:
+    root = build(tmp_path_factory.mktemp("verdict") / "tree", memo=False, verdict=True)
+    capture(root, "tests/vd")
+    return root
+
+
+_VERDICT_DECLARED = ((VD + "test_v_subject_only", VD + "test_v_lower"), (VD + "test_v_some", VD + "TestPair"),
+                     (VD + "test_v_reads_too", VD + "test_v_reads"), (VD + "test_v_subject_only", VD + "test_v_reads"),
+                     (VD + "test_v_edge_upper", VD + "test_v_edge_lower"),
+                     (VD + "TestAlone::test_alone", VD + "TestAlone"))
+
+
+def _place_verdict(root: Path, threshold: float = 0.95) -> dict:
+    from tools.cone_store import placement
+
+    from tests.gates.numerics.test_concept_order import import_kinds
+
+    from ._cone_store_fixture import VERDICT_ORDER
+
+    return placement.place(paths(root)["store"], "tests/vd/", placement.Layer("pkg/vd", "pkg", ()), VERDICT_ORDER,
+                           import_kinds(root / "pkg/vd"), declared=_VERDICT_DECLARED, threshold=threshold)
+
+
+@pytest.fixture(scope="module")
+def verdict_placed(verdict_captured: Path) -> dict:
+    return _place_verdict(verdict_captured)
+
+
+def _verdicts(found: dict) -> dict[tuple[str, str], bool]:
+    return {(v["upper"], v["target"]): v["holds"] for v in found["declared_verdicts"]}
+
+
+def test_pl26_a_declaration_holding_the_subject_and_not_the_cone_fails(verdict_placed: dict) -> None:
+    """PL26 (ruling 53). ``test_v_subject_only`` over ``test_v_lower`` holds the lower's subject whole (``m0``, 1/1)
+    and 31 of its 41 defs: ``c_home`` 1.0, ``c`` 0.756, and the verdict is False. First red: the verdict read off
+    ``c_home`` alone (ruling 51's instrument, before ruling 53)."""
+    (row,) = [r for r in verdict_placed["declared_rests_on"]
+              if (r["upper"], r["lower"]) == (VD + "test_v_subject_only", VD + "test_v_lower")]
+    assert row["c_home"] == 1.0 and row["c"] == pytest.approx(31 / 41, abs=1e-6), row
+    assert row["holds"] is False, row
+    assert _verdicts(verdict_placed)[(VD + "test_v_subject_only", VD + "test_v_lower")] is False
+
+
+def test_pl27_a_class_target_holds_when_some_lower_under_it_holds(verdict_placed: dict) -> None:
+    """PL27 (ruling 52). ``test_v_some`` over ``TestPair`` holds ``TestPair::test_held`` (41/41, 1/1) and not
+    ``TestPair::test_missed`` (40/41, subject 0/1): each row carries its own ``holds``, and the declaration holds BY
+    the one holding lower, named in ``held_by``, one verdict for the target as written. First reds: every lower
+    demanded (False); ``held_by`` listing every lower rather than the holding ones; one verdict per lower."""
+    rows = {r["lower"]: r for r in verdict_placed["declared_rests_on"] if r["upper"] == VD + "test_v_some"}
+    held, missed = rows[VD + "TestPair::test_held"], rows[VD + "TestPair::test_missed"]
+    assert (held["c_home"], held["holds"]) == (1.0, True) and (missed["c_home"], missed["holds"]) == (0.0, False)
+    verdicts = [v for v in verdict_placed["declared_verdicts"] if v["upper"] == VD + "test_v_some"]
+    assert verdicts == [{"upper": VD + "test_v_some", "target": VD + "TestPair", "holds": True,
+                         "held_by": [VD + "TestPair::test_held"]}], verdicts
+
+
+def test_pl28_a_structural_lower_is_held_by_its_read_items(verdict_placed: dict) -> None:
+    """PL28 (ruling 53, a lower with no layer subject). ``test_v_reads`` runs no def and reads ``mid.CONST``:
+    ``test_v_reads_too`` reads it too (``c_items`` 1.0) and the declaration holds; ``test_v_subject_only`` reads none
+    of it (``c_items`` 0.0) and fails, the control. First reds: the structural lower ignored (False on the first);
+    held regardless (True on the second)."""
+    verdicts = _verdicts(verdict_placed)
+    rows = {(r["upper"], r["lower"]): r for r in verdict_placed["declared_rests_on"]}
+    assert rows[(VD + "test_v_reads_too", VD + "test_v_reads")]["holds"] is True
+    assert rows[(VD + "test_v_subject_only", VD + "test_v_reads")]["holds"] is False
+    assert verdicts[(VD + "test_v_reads_too", VD + "test_v_reads")] is True
+    assert verdicts[(VD + "test_v_subject_only", VD + "test_v_reads")] is False
+
+
+def test_pl29_the_verdict_is_taken_at_the_placements_threshold(verdict_captured: Path, verdict_placed: dict) -> None:
+    """PL29. ``test_v_edge_upper`` over ``test_v_edge_lower``: ``c`` 49/50 = 0.98, ``c_home`` 9/10 = 0.9 exactly. At
+    0.95 the declaration fails; placed at 0.9 it holds (the inclusive ``>=``). First red: a verdict at a fixed 0.95
+    (False at 0.9), or at any constant at or below 0.9 (True at 0.95)."""
+    pair = (VD + "test_v_edge_upper", VD + "test_v_edge_lower")
+    assert _verdicts(verdict_placed)[pair] is False
+    assert _verdicts(_place_verdict(verdict_captured, threshold=0.9))[pair] is True
+
+
+def test_pl30_a_failing_declared_pair_is_no_proposed_support(verdict_placed: dict) -> None:
+    """PL30 (ruling 53, one predicate). ``test_v_some`` over ``TestPair::test_missed`` holds the cone at 40/41 (0.976)
+    and the subject at 0: it is not proposed as a support, as its declared row fails; ``TestPair::test_held``
+    (1.0, 1.0) is, the control. First red: the support relation
+    judged by a copy of the predicate that drops ``c_home`` (the pair proposed)."""
+    proposed = {(r["upper"], r["lower"]) for r in [*verdict_placed["supports"], *verdict_placed["supports_against_order"]]}
+    assert (VD + "test_v_some", VD + "TestPair::test_missed") not in proposed
+    assert (VD + "test_v_some", VD + "TestPair::test_held") in proposed, sorted(proposed)  # the control: 1.0 and 1.0
+
+
+def test_pl31_a_target_holding_only_the_upper_is_counted_unmeasured(verdict_placed: dict) -> None:
+    """PL31. ``TestAlone::test_alone`` declared on its own class ``TestAlone``: the target's only function is the upper,
+    so no lower is measured; the declaration gets no row and no verdict, and is counted once under
+    ``declared_unmeasured["target holds only the upper"]`` (the only unmeasured declaration of this fixture). First
+    reds: the reason dropped (the declaration silently vanishes from every count); a verdict minted for it."""
+    assert verdict_placed["declared_unmeasured"] == {"target holds only the upper": 1}, verdict_placed["declared_unmeasured"]
+    alone = VD + "TestAlone::test_alone"
+    assert not [r for r in verdict_placed["declared_rests_on"] if r["upper"] == alone]
+    assert not [v for v in verdict_placed["declared_verdicts"] if v["upper"] == alone]

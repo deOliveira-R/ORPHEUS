@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20823**
+Total tests collected: **20829**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2981, 14.3%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15447, 74.2%
+   foundation, 15453, 74.2%
    unmarked, 62, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20682
+   explicit, 20688
    class-name, 46
    func-name, 0
    case, 33
@@ -771,7 +771,7 @@ Module × level grid
    tools/test_cone_store_ground_truth, 0, 0, 0, 0, 7, 0
    tools/test_cone_store_memo_coexistence, 0, 0, 0, 0, 5, 0
    tools/test_cone_store_phases, 0, 0, 0, 0, 5, 0
-   tools/test_cone_store_placement, 0, 0, 0, 0, 26, 0
+   tools/test_cone_store_placement, 0, 0, 0, 0, 32, 0
    tools/test_cone_store_placement_reads, 0, 0, 0, 0, 23, 0
    tools/test_cone_store_reads, 0, 0, 0, 0, 35, 0
    tools/test_cone_store_recorder, 0, 0, 0, 0, 9, 0
