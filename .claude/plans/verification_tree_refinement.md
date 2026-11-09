@@ -767,7 +767,9 @@ Premise of the list, "decide whether the declarations are wrong or containment i
 
 [superseded 2026-11-09] ⏸ **Next (2026-11-09):** decide how far to push the non-decisive fields still below threshold (claim_home, leg_of, kind, necessary) before the census's verdicts, and order rule (g) against the producer-query rule; the decisive fields hold. Then the tree defects on one branch.
 
-⏸ **Next (2026-11-09):** a decision on the reading pass's stopping rule (the user), then the tree defects on one branch and the census's verdicts.
+59. **The reading pass stops after one more round** (the user, 2026-11-09; over "freeze now" and "iterate to zero flags"). Round three: the negative-leg step of the role procedure sharpened once from round two's disagreements; fresh first readers for the 7 packages flagged under the corrected predicate (P02, P23, P25, P29, P32, P33, P34); the blind second readers re-read role and leg_of; one comparison and its adjudication. Then the reading is frozen, whatever round three shows, with its residual error rate recorded beside it. Reason: each round of re-reads fixes the packages it re-reads and introduces single role misreadings elsewhere (about 3 % of sampled records), and the next stage, the kill matrix, re-adjudicates every claim by mutation, so the reading supplies candidates, not verdicts.
+
+⏸ **Next (2026-11-09):** round three under ruling 59, then the freeze; then the tree defects on one branch and the census's verdicts.
 
 **Ruled by the orchestrator, from ruling 41 (2026-11-01).**
 
