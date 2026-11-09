@@ -95,8 +95,8 @@ def test_i1_roundtrip_and_closed_form(name, A, closed, x, nulp):
     _assert_close(inv.apply(x), closed(x), nulp, f"{name}: A⁻¹ ≠ closed form")
 
 
-@pytest.mark.parametrize("name,A,closed,x,nulp", [pytest.param(*row, id=row[0]) for row in _rows()])
-def test_i1_inverse_apply_is_solve_bit_identical(name, A, closed, x, nulp):
+@pytest.mark.parametrize("name,A,x", [pytest.param(name, A, x, id=name) for name, A, _closed, x, _nulp in _rows()])
+def test_i1_inverse_apply_is_solve_bit_identical(name, A, x):
     """``inverse().apply ≡ solve`` BIT-IDENTICALLY where solve EXISTS (§12.0).
 
     The delegation design's defining fact: one realization, no reciprocal
@@ -104,7 +104,10 @@ def test_i1_inverse_apply_is_solve_bit_identical(name, A, closed, x, nulp):
     the algebra-closed advertisers (Identity/Permutation/Scaled/TP)
     retired their ``solve`` — their inverse IS a first-class forward,
     whose VALUE the closed-form anchor in ``test_i1_roundtrip`` pins —
-    so on those rows this gate pins the RETIREMENT instead.
+    so on those rows this gate pins the RETIREMENT instead. The registry's
+    closed form and ``nulp`` are not parameters here: the claim is bit
+    identity, so neither has a reader (until 2026-11-09 both were taken and
+    never read, the reading pass's finding).
     """
     if hasattr(A, "solve"):
         np.testing.assert_array_equal(

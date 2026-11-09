@@ -1706,7 +1706,7 @@ class Store:
             if _payload_digest(entry["payload"], arrays) != entry["payload_digest"]:
                 return Corrupt("the payload does not match its digest")
             manifest = Manifest.from_json(entry["manifest"])
-        except (OSError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:
+        except (OSError, EOFError, ValueError, KeyError, TypeError, zipfile.BadZipFile) as error:
             return Corrupt(f"{type(error).__name__}: {error}")
         checkout = _Checkout(self)
         if reasons := _reasons(manifest, checkout):

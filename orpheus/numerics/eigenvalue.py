@@ -673,8 +673,10 @@ def direct_eigenvalue(
     normalisation row and the eigenvalue update falls out of one linear solve) —
     sits between these two: iterative like ``power_iteration`` but
     *superlinearly* convergent, for large operators where a fast eigenvalue
-    refinement from a flux estimate is wanted.  It is a documented future seam
-    (alongside the Arnoldi / FEAST hooks above), not yet built.
+    refinement from a flux estimate is wanted.  It is built:
+    :func:`rayleigh_quotient_iteration`, which refines to the eigenpair
+    NEAREST its estimate (not necessarily the dominant one). The module
+    docstring's Arnoldi / FEAST seams remain future work.
     """
     A = np.asarray(A, dtype=float)
     F = np.asarray(F, dtype=float)

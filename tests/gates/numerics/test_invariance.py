@@ -351,7 +351,7 @@ class TestR2ImportGraph:
         )
 
     @pytest.mark.foundation
-    def test_a3_no_cycle_motivated_lazy_imports_remain(self) -> None:
+    def test_a3_no_cycle_motivated_lazy_imports_remain(self, tmp_path) -> None:
         r"""No function-scope import of ``symmetry``/``manifold``/``measure``/
         ``invariance`` survives in the three modules (four until S5 deleted ``invariance.py``).
 
@@ -363,14 +363,31 @@ class TestR2ImportGraph:
         would be chased and then relaxed (``plan-authoring`` §10).
         """
         cycle_targets = {"symmetry", "manifold", "measure", "invariance"}
-        offenders: list[str] = []
-        # ``invariance.py`` left the list at S5: the module is deleted.
-        for path in (_NUMERICS / "measure.py", _GEOMETRY / "manifold.py", _GEOMETRY / "symmetry.py"):
-            name = path.name
+
+        def offenders_in(path) -> list[str]:
+            found = []
             for lineno, target in _r2_deferred_imports(path):
                 tail = target.lstrip(".").split(".")[-1]
                 if tail in cycle_targets:
-                    offenders.append(f"{name}:{lineno} -> {target}")
+                    found.append(f"{path.name}:{lineno} -> {target}")
+            return found
+
+        # positive control (the reading pass, 2026-11-09: the census had none, so its
+        # zero proved nothing): a planted function-scope import of each spelling is found
+        planted = tmp_path / "planted.py"
+        planted.write_text(
+            "def f():\n    from .symmetry import X\n"
+            "def g():\n    from orpheus.numerics.measure import Y\n"
+            "def h():\n    import numpy\n"
+        )
+        assert offenders_in(planted) == [
+            "planted.py:2 -> .symmetry", "planted.py:4 -> orpheus.numerics.measure",
+        ], f"the census missed a planted cycle import: {offenders_in(planted)}"
+
+        offenders: list[str] = []
+        # ``invariance.py`` left the list at S5: the module is deleted.
+        for path in (_NUMERICS / "measure.py", _GEOMETRY / "manifold.py", _GEOMETRY / "symmetry.py"):
+            offenders += offenders_in(path)
         assert not offenders, (
             "cycle-motivated lazy imports must be gone after R2:\n  "
             + "\n  ".join(offenders)

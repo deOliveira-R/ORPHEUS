@@ -81,11 +81,10 @@ class MatrixOperator(LinearOperator):
     def inverse(self) -> InverseOperator:
         # is_invertible=True PROMISES a working inverse() (keystone v2) —
         # the solve-backed leaf serves it through the generic family
-        # member, exactly like the production value leaves.
-        if not self._can_solve:
-            raise NotInvertible(
-                "MatrixOperator(can_solve=False) produces no inverse."
-            )
+        # member, exactly like the production value leaves. The double
+        # does not refuse on its own: an apply-only double reaches the
+        # production refusal (``InverseOperator``'s ctor guard), so a row
+        # asserting that refusal tests production, not the double.
         return InverseOperator(self)
 
     def apply_transpose(self, x: np.ndarray) -> np.ndarray:
@@ -288,9 +287,15 @@ def test_apply_only_operator_is_not_solvable(matrix_apply_only):
     ``ZeroOperator``/``_ApplyOnly`` in the keystone-v2 enumeration. The
     invertibility obligation's home, the inverse BUILDER, is pinned in
     ``test_iteration.py``.
+
+    The refusal is production's: the double's ``inverse()`` builds
+    ``InverseOperator(self)``, whose ctor reads the leaf's predicate. Until
+    2026-11-09 the double raised first, so the row ran no production code
+    (the reading pass's finding; ``[M]`` green with the ``InverseOperator``
+    guard removed, red after this re-pose).
     """
     assert not matrix_apply_only.is_invertible
-    with pytest.raises(NotInvertible, match="no inverse|produces no inverse"):
+    with pytest.raises(NotInvertible, match="InverseOperator requires an invertible leaf"):
         matrix_apply_only.inverse()
 
 
@@ -350,10 +355,12 @@ def test_product_apply_matches_dense(matrix_full, matrix_apply_only, vector):
     np.testing.assert_allclose(p.apply(vector), expected, rtol=1e-12)
 
 
-def test_product_solve_reverses_order(matrix_full, vector):
-    """Verify (AB)^{-1} = B^{-1} A^{-1}."""
-    p = matrix_full @ matrix_full
-    composed = matrix_full.matrix @ matrix_full.matrix
+def test_product_solve_reverses_order(matrix_full, matrix_full_b, vector):
+    """Verify (AB)^{-1} = B^{-1} A^{-1}, on two NON-commuting factors (``A @ A``
+    commutes with itself and could not see an un-reversed order: green under
+    that mutation until 2026-11-09, the reading pass's finding)."""
+    p = matrix_full @ matrix_full_b
+    composed = matrix_full.matrix @ matrix_full_b.matrix
     expected = np.linalg.solve(composed, vector)
     np.testing.assert_allclose(p.solve(vector), expected, rtol=1e-10)
 
@@ -390,10 +397,11 @@ def test_transpose_distributes_over_sum(matrix_full, matrix_full_b, vector):
     np.testing.assert_allclose(s.apply_transpose(vector), expected, rtol=1e-12)
 
 
-def test_transpose_reverses_product(matrix_full, vector):
-    """(A B)^T x = B^T A^T x."""
-    p = matrix_full @ matrix_full
-    expected = matrix_full.matrix.T @ (matrix_full.matrix.T @ vector)
+def test_transpose_reverses_product(matrix_full, matrix_full_b, vector):
+    """(A B)^T x = B^T A^T x, on two NON-commuting factors (``A @ A`` was
+    order-blind until 2026-11-09, the reading pass's finding)."""
+    p = matrix_full @ matrix_full_b
+    expected = matrix_full_b.matrix.T @ (matrix_full.matrix.T @ vector)
     np.testing.assert_allclose(p.apply_transpose(vector), expected, rtol=1e-12)
 
 
@@ -417,13 +425,15 @@ def test_dunder_sub_returns_sum_with_negation(matrix_full, matrix_full_b, vector
 
 
 def test_dunder_mul_scalar_returns_scaled(matrix_full):
-    s = 3.0 * matrix_full
+    """``A * 3.0`` dispatches to ``A.__mul__``."""
+    s = matrix_full * 3.0
     assert isinstance(s, OperatorSum)
     assert s.terms == ((3.0, matrix_full),)
 
 
 def test_dunder_rmul_scalar_returns_scaled(matrix_full):
-    s = matrix_full * 3.0
+    """``3.0 * A`` dispatches to ``A.__rmul__`` (``float.__mul__`` returns ``NotImplemented``)."""
+    s = 3.0 * matrix_full
     assert isinstance(s, OperatorSum)
     assert s.terms == ((3.0, matrix_full),)
 

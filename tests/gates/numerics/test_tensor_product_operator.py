@@ -135,6 +135,9 @@ class TestTensorProductAdjoint:
     """L0: (A ⊗ B).H == A.H ⊗ B.H."""
 
     def test_adjoint_distributivity_diagonals(self):
+        """The self-adjoint case: two diagonals, whose product is its own transpose.
+        Blind by itself to a dropped transpose (Mode 12: the fixture sits in the
+        stabiliser); the tooth is the next row."""
         wA = np.array([2.0, 3.0])
         wB = np.array([5.0, 7.0])
         D_a = DiagonalOperator(wA, shape=(2, 2), spans=(0,))
@@ -143,6 +146,22 @@ class TestTensorProductAdjoint:
         x = np.array([[1.0, 1.0], [1.0, 1.0]])
         # Diagonals are self-adjoint; (D_a ⊗ D_b)^T = D_a ⊗ D_b
         np.testing.assert_array_equal(T.apply_transpose(x), T.apply(x))
+
+    def test_adjoint_distributivity_diagonal_times_cycle(self):
+        r""":math:`(D \otimes P)^{\mathsf T} = D \otimes P^{\mathsf T}` with a
+        NON-symmetric factor (a 3-cycle) and a non-constant vector. The diagonal
+        row above is blind to a dropped transpose twice over (both factors are
+        self-adjoint, and a permutation fixes a constant vector); `[M]`
+        2026-11-09 it stayed green with ``apply_transpose`` rebound to ``apply``,
+        and this row reddens. Expected from the closed form: the cycle's
+        transpose is its inverse permutation."""
+        w = np.array([2.0, 3.0])
+        perm = np.array([1, 2, 0])
+        T = DiagonalOperator(w, shape=(2, 3), spans=(0,)) & PermutationOperator(perm, axis=1)
+        x = np.random.default_rng(137).standard_normal((2, 3))
+        expected = np.take(w[:, None] * x, np.argsort(perm), axis=1)
+        assert not np.allclose(expected, T.apply(x)), "the fixture is self-adjoint on x: blind"
+        np.testing.assert_array_equal(T.apply_transpose(x), expected)
 
 
 @pytest.mark.l0

@@ -106,8 +106,12 @@ _SPECS = {spec.name: spec for spec in quadrature_registry}
 
 
 def test_the_registry_names_are_the_rules_this_test_knows():
-    """A new registry entry must be added to the two tables above, or this reddens."""
-    assert set(_SPECS) >= set(_RULE_FUNCTION) == set(_CLASSMETHOD)
+    """A new registry entry must be added to the three tables above, or this reddens.
+
+    Equality, not ``>=``: until 2026-11-09 the chain read ``set(_SPECS) >= ...``,
+    which a fifth registry entry satisfies (the reading pass's finding; ``[M]``
+    green with a planted entry, red after this re-pose)."""
+    assert set(_SPECS) == set(_RULE_FUNCTION) == set(_LEVEL_STRUCTURE) == set(_CLASSMETHOD)
 
 
 @pytest.mark.foundation

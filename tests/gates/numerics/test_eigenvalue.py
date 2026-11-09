@@ -50,7 +50,9 @@ through ``np.testing.*``. The canonical invocation is ``python -O -m pytest``.
 vv Mode-10/teeth: ``TestGatesHaveTeeth`` carries an executable reference of the
 SUT body parametrised by the documented mutations (argmax→argmin, drop the sign
 flip, drop ``real()``, ``A⁻¹F``→``F⁻¹A``) and proves each mutation reddens the
-gate that claims to catch it — confirmed NOW, before the SUT lands.
+gate that claims to catch it. The reference was written before the SUT
+landed; the SUT has since landed (``direct_eigenvalue`` delegating to
+``dominant_eigenpair``), and the reference stays as the teeth evidence.
 """
 from __future__ import annotations
 
@@ -83,6 +85,11 @@ def _solve(A: np.ndarray, F: np.ndarray) -> tuple[float, np.ndarray]:
 def _dom(M: np.ndarray) -> tuple[float, np.ndarray]:
     """Return ``(k, phi)`` from the shared extraction primitive, called DIRECTLY."""
     return _eig.dominant_eigenpair(M)
+
+
+#: Eigenvalues {3+2i, 3-2i, 2}: a conjugate pair dominates (max real part), a
+#: malformed criticality resolvent that every complex-rejection row refuses.
+_COMPLEX_DOMINANT = np.array([[3.0, -2.0, 0.0], [2.0, 3.0, 0.0], [0.0, 0.0, 2.0]])
 
 
 def _require(condition: object, message: str) -> None:
@@ -422,31 +429,23 @@ class TestEdgeContracts:
         _assert_generalized_eigenpair(np.eye(3), M, k, phi)
 
     def test_complex_dominant_contract(self):
-        r"""RECOMMENDED contract: when the max-real eigenvalue is itself COMPLEX
-        (a conjugate pair dominates), the spec'd ``real()`` would SILENTLY
-        return a non-eigenvalue (residual ``‖Fφ − kAφ‖`` ≠ 0). The principled
-        choice is to RAISE (the dominant of a Perron–Frobenius resolvent must
-        be real; a complex dominant means malformed input). This test asserts
-        the raise IF the guard is implemented; if the implementer keeps the
-        silent ``real()`` fallback, it asserts the residual law EXPOSES the
-        corruption instead (so the corruption is never invisible).
+        r"""The contract on the posed ``(A, F)`` surface: when the max-real
+        eigenvalue is itself COMPLEX (a conjugate pair dominates), a silent
+        ``real()`` would return a non-eigenvalue (residual ``‖Fφ − kAφ‖`` ≠ 0),
+        so :func:`direct_eigenvalue` RAISES (the dominant of a
+        Perron–Frobenius resolvent is real; a complex dominant means
+        malformed input). The guard is built (its one home is
+        :func:`dominant_eigenpair`); until 2026-11-09 this row hedged
+        between "raises" and "the residual exposes the fallback", returned
+        inside its ``except`` and so could not redden when the guard was
+        dropped (``[M]`` the reading pass: green with ``imag_tol`` forced to
+        infinity). The same baseline sits in
+        :func:`test_complex_rejection_lives_only_in_dominant_eigenpair`
+        (a duplicate candidate, kept: that row's subject is the one-home
+        proof, this one is the edge contract of the posed surface).
         """
-        # eigenvalues {3+2i, 3-2i, 2}: the dominant max-real is the complex pair.
-        M = np.array([[3.0, -2.0, 0.0], [2.0, 3.0, 0.0], [0.0, 0.0, 2.0]])
-        try:
-            k, phi = _solve(np.eye(3), M)
-        except (ValueError, np.linalg.LinAlgError):
-            return  # guard implemented (the RECOMMENDED fail-loud) — contract met.
-        # No guard: the silent real() fallback MUST be detectable as a non-eigenpair.
-        A = np.eye(3)
-        resid = np.linalg.norm(M @ np.asarray(phi, float).ravel()
-                               - k * (A @ np.asarray(phi, float).ravel()))
-        _require(
-            resid > 1e-6,
-            "complex-dominant fallback returned something that passes the "
-            "eigenpair law — impossible unless the guard silently fixed it; "
-            "review the contract.",
-        )
+        with pytest.raises(ValueError, match="dominant eigenvalue is complex"):
+            _solve(np.eye(3), _COMPLEX_DOMINANT)
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -489,9 +488,8 @@ class TestDominantEigenpair:
     def test_complex_dominant_raises(self):
         """NEGATIVE guard leg (anti-pattern-#11 pair): a complex-pair-dominated
         spectrum ({3±2i, 2}) violates the Perron–Frobenius contract → raise."""
-        M = np.array([[3.0, -2.0, 0.0], [2.0, 3.0, 0.0], [0.0, 0.0, 2.0]])
         with pytest.raises(ValueError):
-            _dom(M)
+            _dom(_COMPLEX_DOMINANT)
 
     def test_real_dominant_from_complex_spectrum(self):
         """POSITIVE guard leg (anti-pattern-#11 pair): a complex spectrum with a
@@ -540,12 +538,13 @@ class TestDominantEigenpair:
 # ═══════════════════════════════════════════════════════════════════════════
 
 
+@pytest.mark.rests_on("tests/gates/numerics/test_eigenvalue.py::TestEdgeContracts::test_complex_dominant_contract")
 def test_complex_rejection_lives_only_in_dominant_eigenpair(monkeypatch):
     """One-home proof, complex axis: neutering ``dominant_eigenpair``'s
     rejection makes ``direct_eigenvalue``'s rejection VANISH — the guard was
     relocated, not copied."""
     A = np.eye(3)
-    F = np.array([[3.0, -2.0, 0.0], [2.0, 3.0, 0.0], [0.0, 0.0, 2.0]])  # 3±2i, 2
+    F = _COMPLEX_DOMINANT
     # BASELINE — both surfaces reject (the home has teeth; delegation inherits):
     with pytest.raises(ValueError):
         _eig.dominant_eigenpair(F)
@@ -599,10 +598,11 @@ def test_sign_normalization_lives_only_in_dominant_eigenpair(monkeypatch):
 # ═══════════════════════════════════════════════════════════════════════════
 # Mode-10 TEETH PROOF — every gate is provably ABLE to red.
 #
-# The SUT is not implemented yet, so this class carries an EXECUTABLE REFERENCE
-# of the documented SUT body, parametrised by each named mutation, and proves
-# the gate that CLAIMS to catch the mutation actually reddens. This runs NOW
-# (no SUT needed), doubles as a precise executable spec, and is the §0.5
+# This class was written before the SUT existed and carries an EXECUTABLE
+# REFERENCE of the documented SUT body, parametrised by each named mutation,
+# proving the gate that CLAIMS to catch the mutation actually reddens. The SUT
+# has since landed (``direct_eigenvalue`` → ``dominant_eigenpair``); the class
+# runs without it, doubles as a precise executable spec, and is the §0.5
 # standing-discipline evidence that no gate is a false green.
 #
 # The reference is NOT the production primitive (the real gates bind via

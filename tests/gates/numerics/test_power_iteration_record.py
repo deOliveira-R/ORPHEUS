@@ -335,12 +335,22 @@ class TestTheAccumulationPreservesTheTrajectory:
         """``extended_with`` routes through ``replace`` precisely so the
         construction law re-runs rather than being restated (``coding-elegance``
         Pattern 4 ∩ 2).  A negative reading must be refused on the way IN, not
-        discovered later by a consumer of ``rate``."""
+        discovered later by a consumer of ``rate``.
+
+        The magnitude law is closed under extension (a concatenation of two
+        non-negative trajectories is non-negative), so no reachable state gives
+        ``extended_with`` a negative entry; this row pins the ROUTING through
+        ``replace``, that the law is re-validated rather than inherited. The
+        reading is corrupted after construction (``object.__setattr__`` on a
+        frozen instance): built through the constructor it raises before
+        ``extended_with`` runs, and the row would witness the constructor
+        instead. First red ``[M]`` 2026-11-09: ``replace`` rebound to a field
+        copy that skips ``__post_init__`` (green before this re-pose)."""
         c = StoppingCriterion.reading("r", 1.0, 1.0)
+        corrupt = StoppingCriterion.reading("r", 1.0, 1.0)
+        object.__setattr__(corrupt, "trajectory", (-1.0,))
         with pytest.raises(ValueError, match="MAGNITUDES"):
-            c.extended_with(
-                StoppingCriterion(name="r", trajectory=(-1.0,), tolerance=1.0)
-            )
+            c.extended_with(corrupt)
 
     def test_the_loop_accumulates_one_reading_per_outer_per_criterion(
         self,

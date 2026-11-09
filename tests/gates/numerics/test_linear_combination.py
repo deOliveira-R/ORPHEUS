@@ -685,18 +685,25 @@ def test_c25_spaceless_term_adjoint_is_taken_at_the_combinations_spaces():
 
 
 @pytest.mark.verifies("composite-adjoint-at-the-ends")
-def test_c26_involution_equality_on_a_sum_identity_on_a_leaf(ABC):
-    """``S.H.H == S`` on a sum (a new object, equal), including a spaceless
-    term on the dense metric; ``A.H.H is A`` on a leaf. Green today (today
-    the sum's is identity); the row's tooth is an adjoint-at arrow whose own
-    adjoint re-wraps instead of returning its term (ADJAT_REWRAP)."""
+def test_c26_involution_is_identity_on_a_sum_and_on_a_leaf(ABC):
+    """``S.H.H is S`` on a sum, including a spaceless term on the dense
+    metric, as ``A.H.H is A`` on a leaf: the adjoint of a composite is ONE
+    ``AdjointOperator`` over it, whose own adjoint returns its inner (the
+    involution is an object identity, as ``operator_adjoint.rst`` states
+    under ``composite-adjoint-at-the-ends``). The row's tooth
+    is an adjoint whose own adjoint re-wraps (returns an equal copy) instead
+    of returning its inner. Until 2026-11-09 the row asserted ``==`` on the
+    sums and named an "adjoint-at arrow" ``operator.py`` no longer has; `[M]`
+    the reading pass: green under a copying ``AdjointOperator.adjoint``, red
+    after this re-pose."""
     A, B, _ = ABC
     S = 2.0 * A - B
-    assert S.H.H == S
+    assert S.H.H is S
     assert A.H.H is A
     Ad = Mat(_rng(53).standard_normal((3, 3)), VD, VD)
     D = DiagonalOperator(np.array([1.0, 2.0, 3.0]), shape=(3,), spans=(0,))
-    assert (D + Ad).H.H == D + Ad
+    T = D + Ad
+    assert T.H.H is T
 
 
 @pytest.mark.verifies("composite-adjoint-at-the-ends")

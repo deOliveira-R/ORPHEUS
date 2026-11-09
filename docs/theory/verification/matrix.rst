@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20829**
+Total tests collected: **20831**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2248, 10.8%
+   L0, 2249, 10.8%
    L1, 2981, 14.3%
    L2, 85, 0.4%
    L3, 0, 0.0%
    foundation, 15453, 74.2%
-   unmarked, 62, 0.3%
+   unmarked, 63, 0.3%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20688
+   explicit, 20689
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 62
+   unmarked, 63
 
 Module × level grid
 -------------------
@@ -468,7 +468,7 @@ Module × level grid
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 315, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 12, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
-   numerics/test_concept_order, 0, 0, 0, 0, 0, 7
+   numerics/test_concept_order, 0, 0, 0, 0, 0, 8
    numerics/test_content_identity_axis, 0, 0, 0, 0, 66, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
@@ -565,7 +565,7 @@ Module × level grid
    numerics/test_symbolic_without_values, 0, 0, 0, 0, 2, 0
    numerics/test_symmetry_exactness, 0, 0, 0, 0, 30, 0
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
-   numerics/test_tensor_product_operator, 32, 0, 0, 0, 0, 0
+   numerics/test_tensor_product_operator, 33, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
    numerics/test_traced_memo_apparatus, 0, 0, 0, 0, 21, 0
    numerics/test_traced_memo_compiled_bytes, 0, 0, 0, 0, 17, 0
@@ -1904,7 +1904,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**62 tests** have no V&V level marker.
+**63 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1917,8 +1917,8 @@ taxonomy.
    :widths: 60, 10
 
    ``tests/gates/derivations/test_reference_exterior_admission.py``, 17
+   ``tests/gates/numerics/test_concept_order.py``, 8
    ``tests/gates/numerics/test_riesz_legs.py``, 8
-   ``tests/gates/numerics/test_concept_order.py``, 7
    ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 7
    ``tests/gates/numerics/test_frame.py``, 5
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4

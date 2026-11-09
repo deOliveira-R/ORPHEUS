@@ -1790,8 +1790,11 @@ class TestR4OrbitBarycentresIsOneConceptOnBothWidths:
         assert kernel is not None
         np.testing.assert_array_equal(np.asarray(kernel.indices), reference)
 
-        # the axis the two folded CALL SITES actually pass is untouched
-        np.testing.assert_array_equal(
-            mirror_partner_indices(quad, "x"),
-            mirror_partner_indices(quad, "x"),
-        )
+        # the axis the two folded CALL SITES actually pass agrees with the kernel too
+        # (until 2026-11-09 this line compared the harness answer with itself: the
+        # reading pass's finding, green under a harness that returned the identity)
+        kernel_x = quad.measure.permutation_under(RigidMotion.reflection(normal=_R4_I3[0]), atol=1e-9)
+        assert kernel_x is not None
+        assert not np.array_equal(np.asarray(kernel_x.indices), np.arange(quad.n_ordinates)), (
+            "the x mirror of the fold is the identity, so the comparison below cannot see a wrong partner map")
+        np.testing.assert_array_equal(mirror_partner_indices(quad, "x"), np.asarray(kernel_x.indices))

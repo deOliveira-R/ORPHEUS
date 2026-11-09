@@ -299,8 +299,8 @@ def test_discrete_gram_under_multiple_quadratures(quadrature_factory):
 
     For :math:`L=2` and a quadrature that integrates the
     :math:`Y_\ell^m Y_{\ell'}^{m'}` products up to total degree
-    :math:`\ge 2L = 4`, the discrete Gram diagonal equals the
-    theoretical :math:`4\pi/(2\ell+1)` to FP precision. Lebedev rules
+    :math:`\ge 2L = 4`, the discrete Gram is diagonal and its diagonal equals
+    the theoretical :math:`4\pi/(2\ell+1)` to FP precision. Lebedev rules
     at order :math:`\ge 2L` and product (Gauss-Legendre × equispaced
     Chebyshev-equivalent) rules with sufficient
     :math:`(n_\mu, n_\phi)` both satisfy this.
@@ -329,6 +329,14 @@ def test_discrete_gram_under_multiple_quadratures(quadrature_factory):
                 rtol=1e-12,
                 err_msg=f"ell={ell}, m_off={m_off}",
             )
+    # The off-diagonal zeros the ``verifies`` label states (until 2026-11-09 the row
+    # pinned only the diagonal: green with a 1e-3 off-diagonal planted in the Gram,
+    # the reading pass's finding). Every entry off the diagonal, the padded slots
+    # (m_off > 2ℓ) included, is zero at the diagonal's own contract scale
+    # (rtol 1e-12 of 4π); `[M]` 2026-11-09 the largest is 7.4e-16 over the four rules.
+    flat = G.reshape((L + 1) * (2 * L + 1), (L + 1) * (2 * L + 1))
+    off_diagonal = flat - np.diag(np.diag(flat))
+    np.testing.assert_allclose(off_diagonal, 0.0, rtol=0.0, atol=1e-12 * 4.0 * np.pi)
 
 
 @pytest.mark.foundation

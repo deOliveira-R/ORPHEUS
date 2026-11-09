@@ -191,9 +191,13 @@ def test_m2_3d_an_edit_that_keeps_size_and_modification_time_is_a_reason(package
 def test_m2_3e_a_write_too_recent_to_trust_is_read_again(package, monkeypatch):
     """M2.3 (e), the racy guard: on a filesystem whose timestamps are coarse, a second write in the same tick
     leaves the identity as it was. Simulated by an identity whose two times never move (every write in one
-    tick); the fixture's files are seconds old, so the default trusted age keeps them out of the cache and the
-    second validation reads the edit and names it. Deterministic (qa's review, finding 3: a one-second
-    simulation skipped 2 runs in 12). First red: arm ``settled-true``."""
+    tick); every write is made too recent to trust by a trusted age far longer than the fixture's files have
+    existed, so the reads stay out of the cache and the second validation reads the edit and names it.
+    Deterministic (qa's review, finding 3: a one-second simulation skipped 2 runs in 12). Until 2026-11-09 the
+    row leaned on the default trusted age (2 s) and on the wall clock: `[M]` the reading pass's finding, red
+    with the boot's clock advanced 3 s (a slow machine), green after this re-pose. First red: arm
+    ``settled-true``."""
+    monkeypatch.setattr(_boot(), "TRUSTED_AGE_NS", 10**18)  # ~31 years: no fixture file is that old
     identity = _boot().FileIdentity
     real = identity.of.__func__
     monkeypatch.setattr(identity, "of", classmethod(lambda cls, found: real(cls, found)._replace(modified_ns=0, changed_ns=0)))

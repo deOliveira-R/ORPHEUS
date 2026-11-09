@@ -199,13 +199,34 @@ def test_import_edges_follow_the_concept_order():
     )
 
 
+def stale_pending(pending: dict[tuple[str, str], str], edges: set[tuple[str, str]]) -> list[tuple[str, str]]:
+    """The ``pending`` entries whose edge no longer violates the order among ``edges``."""
+    return sorted(pending.keys() - violations(edges))
+
+
 def test_pending_entries_still_violate():
-    stale = sorted(PENDING.keys() - violations(import_edges()))
+    """No ``PENDING`` entry outlives its edge. While ``PENDING`` is ``{}`` this row cannot
+    redden on its own: :func:`test_a_pending_entry_whose_edge_is_gone_is_named` is what
+    proves :func:`stale_pending`."""
+    stale = stale_pending(PENDING, import_edges())
     assert not stale, f"PENDING entries whose edge no longer violates the order; delete them: {stale}"
 
 
-def test_the_order_detects_a_backward_import(tmp_path):
-    """Positive control: a planted lazy import of a later concept is found."""
+@pytest.mark.rests_on("tests/gates/numerics/test_concept_order.py::test_the_order_detects_a_backward_import")
+def test_a_pending_entry_whose_edge_is_gone_is_named(tmp_path):
+    """Positive control of :func:`stale_pending`: ``PENDING`` is empty today, so the live row above
+    cannot redden on its own population (the reading pass, 2026-11-09). On a planted tree with one
+    backward import, an entry for that edge is kept and an entry for an edge that is legal (or absent)
+    is named. First red ``[M]`` 2026-11-09: :func:`violations` rebound to call every edge a violation."""
+    edges = import_edges(_planted_backward_tree(tmp_path))
+    assert edges == {("axis", "measure"), ("measure", "axis")}, edges
+    planted = {("axis", "measure"): "still violates", ("measure", "axis"): "legal", ("frame", "space"): "absent"}
+    assert stale_pending(planted, edges) == [("frame", "space"), ("measure", "axis")]
+
+
+def _planted_backward_tree(tmp_path: pathlib.Path) -> pathlib.Path:
+    """A planted numerics root: ``measure`` lazily imports the later ``axis`` (a backward edge),
+    ``axis`` imports ``measure`` under ``TYPE_CHECKING`` (a legal one)."""
     root = tmp_path / "orpheus" / "numerics"
     root.mkdir(parents=True)
     (root / "__init__.py").write_text("")
@@ -214,7 +235,12 @@ def test_the_order_detects_a_backward_import(tmp_path):
     (root / "axis.py").write_text(
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n"
         "    from .measure import DiscreteMeasure\n")
-    edges = import_edges(root)
+    return root
+
+
+def test_the_order_detects_a_backward_import(tmp_path):
+    """Positive control: a planted lazy import of a later concept is found."""
+    edges = import_edges(_planted_backward_tree(tmp_path))
     assert edges == {("axis", "measure"), ("measure", "axis")}
     assert violations(edges) == {("axis", "measure")}
 

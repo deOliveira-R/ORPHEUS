@@ -684,14 +684,16 @@ def test_odd_order_symmetric_rules_have_an_exact_zero_node(n: int) -> None:
 @pytest.mark.foundation
 @pytest.mark.parametrize(("label", "measure"), ALL_FAMILIES)
 @pytest.mark.parametrize("n", [2, 8, 32])
-def test_mass_is_imposed_not_inherited(
+def test_weight_sum_is_within_four_float_steps_of_the_mass(
     label: str, measure: GeneratingMeasure, n: int
 ) -> None:
-    r""":math:`\sum w_i = \mu_0` to within one rounding of the true
-    value, because the weights are rescaled to it.
+    r""":math:`\sum w_i = \mu_0` to within a few roundings of the true
+    value, because every weight is correctly rounded.
 
-    Degree-0 exactness is the one coefficient known in closed form, so
-    there is no reason to let the eigensolver's round-off decide it.
+    Until the correctly rounded construction (2026-10-01) the weights were
+    rescaled to the mass after an eigensolve. Nothing is imposed now; the
+    bound holds because each weight is the float nearest its exact value,
+    so the sum carries only the rounding of its terms and of the summation.
     """
     rule = measure.gauss(n)
     total = float(np.sum(rule.weights))

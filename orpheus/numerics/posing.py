@@ -5,7 +5,8 @@ types and ZERO Optionals —
 
 * :class:`EigenPosing` ``(pencil, spectral_map)`` — the homogeneous question
   :math:`A\psi = \mu M\psi` with the physical eigenvalue read through a
-  spectral map (k: :math:`\mu \mapsto 1/\mu`; α: :math:`\mu \mapsto -1/\mu`).
+  spectral map (k: :math:`\mu \mapsto 1/\mu`, :data:`K_MAP`; α: :math:`\mu \mapsto -\mu`,
+  :data:`ALPHA_MAP`, ERR-089).
   The unknown is a RAY in the cone plus a scalar; the adjoint is NULLARY
   (:math:`k^\dagger = k`, the pencil's ``.H`` shares the spectrum).
 * :class:`SourcePosing` ``(operator, source)`` — the affine question

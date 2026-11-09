@@ -15,6 +15,7 @@ import subprocess
 import sys
 import textwrap
 import threading
+import time
 import uuid
 from pathlib import Path
 
@@ -645,29 +646,74 @@ def test_q8_the_memo_pin_covers_the_write_path():
     assert all(path.is_file() for path in sources), sources
 
 
+#: The rewrites the reader must see land between two of its reads before q10's reader leg reads its verdict.
+_REWRITES_SEEN = 20
+
+
 def test_q10_a_reader_never_sees_a_half_written_entry(tmp_path):
-    """Finding 10's reader leg (the second review: the writer-only gate was blind to an in-place write): while
-    four threads rewrite one key, every lookup is a ``Hit`` or ``Absent``, never ``Corrupt``."""
+    """Finding 10's reader leg (the second review: the writer-only gate was blind to an in-place write): once the
+    key exists, every lookup while four threads rewrite it is a ``Hit``, never ``Corrupt`` and never ``Absent``.
+
+    The key is written once before the writers start, so a ``Hit`` is the store's contract (an atomic replace never
+    leaves the file missing) and not a race: the first spelling read 300 times from a key no writer had yet
+    published and went red with no defect present (all 300 ``Absent``, 3 of 230 runs, 2026-11-09). Each writer
+    publishes its own payload, so a change of digest between two reads is a rewrite that landed while the reader
+    ran; the reader runs until it has seen ``_REWRITES_SEEN`` of them, so every reading overlaps the rewriting it
+    claims to survive. The deadline is a hang guard only; a writer that raises stops the reader at once and fails
+    with its own error.
+
+    "Every read is a ``Hit``" rests on ``os.replace`` being an atomic ``rename(2)`` on a POSIX local filesystem (the
+    gates run on Linux and macOS): a reader opens the old file or the new one, never a missing path."""
     store = api.name("Store")(tmp_path / "cache")
     manifest = api.name("Manifest")(frozenset())
+    store.write("f:x", "key", manifest, (np.full(20000, -1.0),), set())
     stop = threading.Event()
     seen: list[str] = []
+    digests: list[str] = []
+    errors: list[BaseException] = []
 
-    def writer() -> None:
-        while not stop.is_set():
-            store.write("f:x", "key", manifest, (np.arange(20000.0),), set())
+    def writer(value: float) -> None:
+        try:
+            while not stop.is_set():
+                store.write("f:x", "key", manifest, (np.full(20000, value),), set())
+        except BaseException as error:  # noqa: BLE001 - a dead writer is the finding, reported as itself
+            errors.append(error)
 
-    threads = [threading.Thread(target=writer) for _ in range(4)]
+    threads = [threading.Thread(target=writer, args=(float(i),)) for i in range(4)]
     for thread in threads:
         thread.start()
+    deadline = time.monotonic() + 60.0
     try:
-        for _ in range(300):
-            seen.append(_kind(store.lookup("f:x", "key")))
+        while len(seen) < 300 or _rewrites(digests) < _REWRITES_SEEN:
+            if errors or time.monotonic() > deadline:
+                break
+            verdict = store.lookup("f:x", "key")
+            seen.append(_kind(verdict))
+            if seen[-1] == "Hit":
+                digests.append(verdict.payload_digest)
     finally:
         stop.set()
         for thread in threads:
             thread.join()
-    assert "Corrupt" not in seen and "Hit" in seen, sorted(set(seen))
+    assert not errors, errors[:2]
+    assert set(seen) == {"Hit"}, {kind: seen.count(kind) for kind in set(seen)}
+    assert _rewrites(digests) >= _REWRITES_SEEN, (len(seen), _rewrites(digests))
+
+
+def _rewrites(digests: list[str]) -> int:
+    return sum(a != b for a, b in zip(digests, digests[1:]))
+
+
+def test_q10_an_empty_entry_is_corrupt_never_raised(tmp_path):
+    """A zero-length entry file (an in-place write caught at its truncation, or a file emptied outside the store) is
+    a ``Corrupt`` verdict like every other torn entry, never an exception out of ``lookup``: ``np.load`` on no bytes
+    raises ``EOFError``, which is neither an ``OSError`` nor a ``ValueError`` (found 2026-11-09 by an in-place-write
+    mutant of q10's reader leg)."""
+    store = api.name("Store")(tmp_path / "cache")
+    path = store.path("f:x", "key")
+    path.parent.mkdir(parents=True)
+    path.write_bytes(b"")
+    assert _kind(store.lookup("f:x", "key")) == "Corrupt"
 
 
 @pytest.mark.timeout(600)

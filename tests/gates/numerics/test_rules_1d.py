@@ -6,8 +6,9 @@ Two layers:
   metadata fields, exact :math:`\\mu \\to -\\mu` reflection symmetry,
   and the pass-through contract of
   :meth:`~orpheus.numerics.quadrature.Quadrature.gauss_legendre`).
-  Note the pass-through gate is NOT a drift gate: the factory *calls*
-  this rule function, so both sides move together by construction —
+  Note the pass-through gate is NOT a drift gate: the factory reaches
+  this rule function through ``gauss_legendre_on_polar_orbit``, so both
+  sides move together by construction —
   see ``test_adapter_passes_the_rule_through_unmodified``. The
   per-family adapter class it once compared against
   (``orpheus.sn.quadrature.GaussLegendre1D``) was retired into that
@@ -73,9 +74,11 @@ def test_adapter_passes_the_rule_through_unmodified(n: int) -> None:
     """The adapter must not transform the values it wraps.
 
     A real contract, but a NARROW one — and narrower than this test
-    used to claim. ``Quadrature.gauss_legendre`` *calls*
-    ``gauss_legendre_on_mu`` (``directional.py``), so comparing the two
-    compares a value with itself routed through a wrapper. It verifies
+    used to claim. ``Quadrature.gauss_legendre`` (``directional.py``)
+    calls ``gauss_legendre_on_polar_orbit``, which re-labels the support
+    of ``gauss_legendre_on_mu``'s measure and passes its nodes and weights
+    through, so comparing the two compares a value with itself routed
+    through two wrappers. It verifies
     the adapter is a pass-through; it can NEVER detect the node drift
     it was previously documented as catching, because both sides move
     together by construction. The drift gate is the separate test

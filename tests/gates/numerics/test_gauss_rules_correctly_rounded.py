@@ -287,14 +287,18 @@ _ORDERS = (1, 2, 3, 4, 5, 8, 16, 33, 64)
 _LEGENDRE_ORDERS = _ORDERS + (128,)
 
 
-def _cases(even_only: bool = False) -> list:
-    out = []
+def _cases(*fields: str, even_only: bool = False) -> pytest.MarkDecorator:
+    """The parametrize mark over every (family, order): the arguments are the named ``fields`` of
+    ``("measure", "rule", "mass")`` then ``n``, so a row's signature holds what its body reads and
+    each field list is written once."""
+    params = []
     for label, measure, rule, mass, even in _FAMILIES:
         if even_only and not even:
             continue
+        values = {"measure": measure, "rule": rule, "mass": mass}
         orders = _LEGENDRE_ORDERS if label == "legendre" else _ORDERS
-        out += [pytest.param(measure, rule, mass, n, id=f"{label}-n{n}") for n in orders]
-    return out
+        params += [pytest.param(*(values[f] for f in fields), n, id=f"{label}-n{n}") for n in orders]
+    return pytest.mark.parametrize((*fields, "n"), params)
 
 
 def _ulps(a: np.ndarray, b: np.ndarray) -> int:
@@ -372,8 +376,8 @@ def test_reference_rules_integrate_their_moments_exactly(family: str, n: int) ->
 
 @pytest.mark.l1
 @pytest.mark.rests_on(_REF_SELF_CHECK)
-@pytest.mark.parametrize(("measure", "rule", "mass", "n"), _cases())
-def test_rule_is_the_correctly_rounded_rule(measure, rule, mass, n: int) -> None:
+@_cases("measure", "rule")
+def test_rule_is_the_correctly_rounded_rule(measure, rule, n: int) -> None:
     """``measure.gauss(n)`` == the 80-digit reference rounded once, bit for bit."""
     produced = measure.gauss(n)
     nodes, weights = reference_rule(rule, n)
@@ -389,8 +393,8 @@ def test_rule_is_the_correctly_rounded_rule(measure, rule, mass, n: int) -> None
 
 
 @pytest.mark.l1
-@pytest.mark.parametrize(("measure", "rule", "mass", "n"), _cases(even_only=True))
-def test_even_weight_rule_is_exactly_symmetric(measure, rule, mass, n: int) -> None:
+@_cases("measure", even_only=True)
+def test_even_weight_rule_is_exactly_symmetric(measure, n: int) -> None:
     """THEOREM: for an even weight the exact rule satisfies x_i = -x_{n-1-i},
     w_i = w_{n-1-i}, and rounding to nearest commutes with negation, so the
     correctly rounded rule is EXACTLY mirror-symmetric with an exact 0.0 at
@@ -436,8 +440,8 @@ def test_jacobi_specialisation_is_its_constant_bit_for_bit(a, b, constant, n: in
 
 @pytest.mark.l1
 @pytest.mark.rests_on(f"{_HERE}::test_rule_is_the_correctly_rounded_rule")
-@pytest.mark.parametrize(("measure", "rule", "mass", "n"), _cases())
-def test_weight_sum_is_within_one_float_step_of_the_mass(measure, rule, mass, n: int) -> None:
+@_cases("measure", "mass")
+def test_weight_sum_is_within_one_float_step_of_the_mass(measure, mass, n: int) -> None:
     r"""THEOREM (why the zeroth-moment renormalisation retires). With
     :math:`\hat w_i = w_i(1+\delta_i)`, :math:`|\delta_i|\le u = 2^{-53}`, the
     EXACT sum of the rounded weights satisfies
