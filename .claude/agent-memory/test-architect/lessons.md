@@ -788,3 +788,7 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   beside `assertion_lines` and check `mentions` against both (my own pilot failed 51 of 90 before it). And a shared
   fixture registry that builds every row inflates the own cone: a prior home can differ from the subject for the
   APPARATUS's reason, not the test's. → `L132`
+- **⛔ Never name a scratch script after a stdlib module** (`select.py`, `types.py`, `json.py`): every script run from
+  that directory gets it at `sys.path[0]`, and `import subprocess` dies inside `selectors` with an AttributeError far
+  from the cause (`[M]` 2026-11-09, `second/select.py` broke `second/check_group.py`). And a module-grain node match
+  (`geometry:x`) must not accept a sibling module of the same package: only the module itself or a package-grain read.
