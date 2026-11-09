@@ -12222,3 +12222,54 @@ older entries classify against.
    a ``sys.path`` without that ``sys.path``) is judged later against whatever context the judge has. Record the
    reference's resolution at the moment of the read, while the context still exists; and count a no-edit selection
    against the population it owes, because a containment gate is green for every superset.
+
+.. error-entry:: ERR-126
+   :title: A zero-length traced-memo entry file escaped the lookup as an EOFError instead of reading Corrupt, so a memoised call on an emptied entry raised where it should have regenerated
+
+   **Status:** ✅ **FIXED 2026-11-09**, merged @ ``502d0158``. Found by the test-architect on 2026-11-09 while proving
+   the teeth of the reader leg of finding q10 (``test_q10_a_reader_never_sees_a_half_written_entry``): a mutant
+   writer that rewrites the entry in place, instead of through a temporary file and one ``os.replace``, was the first
+   input any gate had produced that leaves an entry of zero bytes, and the reader's ``lookup`` raised on it. Full
+   account: the ``Corrupt`` verdict in :ref:`verification-reference-cache-validation`.
+
+   **Module:** ``numerics`` (``Store._lookup`` in :mod:`orpheus.numerics.traced_memo`).
+
+   **Failure mode:** outside the numbered substitution modes: an exception tuple narrower than the set of errors its
+   guarded block raises. The block's contract is "any failure to parse the entry's bytes is ``Corrupt``"; the tuple
+   enumerated the failures as ``OSError``, ``ValueError``, ``KeyError``, ``TypeError`` and
+   ``zipfile.BadZipFile``, and the one ``np.load`` raises on no bytes at all is none of them.
+
+   **The defect.** ``Store._lookup`` reads the entry file's bytes, opens them with ``np.load`` as an ``.npz``,
+   decodes the entry's JSON, checks the payload against its digest and parses the manifest, and turns any error of
+   that block into the verdict :class:`~orpheus.numerics.traced_memo.Corrupt`, on which the memo regenerates the
+   entry and overwrites it. ``np.load(io.BytesIO(b""))`` raises ``EOFError("No data left in file")``, and
+   ``EOFError`` derives from ``Exception`` directly, not from ``OSError`` or ``ValueError``, so it was not caught: a
+   zero-length ``<key>.npz`` made ``lookup`` raise. The memoised call (which looks the key up before deciding to
+   generate) then raised ``EOFError`` to its caller instead of regenerating, and a parent entry holding that entry as
+   a child raised during its own validation instead of reading ``Stale``.
+
+   **How it hid.** The store writes every entry through ``write_atomically`` (a temporary file beside the entry,
+   then one ``os.replace``), so no writer of the store, concurrent or not, ever leaves a zero-length entry: a
+   reader sees the old file or the new one. An empty entry arises only from outside the store: a file truncated by a
+   full disk or a killed copy, or emptied by hand (``: > <key>.npz``). Every gate on the store's reading wrote its
+   entries through the store, so none produced the input; the reader leg of q10 runs four atomic writers. The
+   in-place-write mutant used to prove that leg's teeth opens the entry itself for writing, which truncates it to
+   zero bytes before the first byte lands, so a reader can meet the file empty; that mutant was the first input to
+   produce an empty entry.
+
+   **Fix.** ``502d0158``: ``EOFError`` joins the caught tuple, now
+   ``(OSError, EOFError, ValueError, KeyError, TypeError, zipfile.BadZipFile)``, and the verdict reads
+   ``Corrupt("EOFError: No data left in file")``. qa checked that every statement in the guarded block parses the
+   entry's bytes (the file read is outside it, and its ``FileNotFoundError`` is the verdict ``Absent``), so an
+   ``EOFError`` there can only mean a truncated entry and catching it hides no other defect.
+
+   **Catching test.** ``tests/gates/numerics/test_traced_memo_findings.py::test_q10_an_empty_entry_is_corrupt_never_raised``
+   carries ``@pytest.mark.catches("ERR-126")`` (not ``slow``): it writes a zero-length file at the entry's path and
+   asserts that ``lookup`` returns ``Corrupt``. `[M]` 2026-11-09, ``python -O -m pytest -p no:cacheprovider`` on the
+   test: red before the fix with ``EOFError``; re-dropped by the archivist with an in-process ``-p`` plugin that
+   recompiles ``Store._lookup`` with ``EOFError`` removed from the tuple (no tracked file edited), 1 failed with
+   ``EOFError: No data left in file``; the honest tree, 1 passed.
+
+   **Lesson.** An ``except`` tuple that stands for "the input could not be parsed" is a census of a library's
+   errors, and the census is checked on the degenerate input (zero bytes, an empty container), which is the one a
+   writer that is correct by construction never produces and so no gate built on that writer reaches.

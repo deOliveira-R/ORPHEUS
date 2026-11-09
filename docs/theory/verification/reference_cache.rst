@@ -1485,7 +1485,16 @@ A lookup's verdict is the closed sum ``Hit | Absent | Stale | Corrupt``:
   outcome``, ``module <path>: the entry names … are not kept``, ``import
   set … is not kept``, ``child …: its payload … became …``).
 * :class:`~orpheus.numerics.traced_memo.Corrupt`: the entry cannot be read,
-  or its payload does not match its digest.
+  or its payload does not match its digest. Every error raised while the
+  entry's bytes are parsed (the ``.npz`` opened, the entry's JSON decoded,
+  the manifest rebuilt) is this verdict and never an exception out of
+  ``lookup``: ``OSError``, ``EOFError``, ``ValueError``, ``KeyError``,
+  ``TypeError`` and ``zipfile.BadZipFile``. ``EOFError`` is the error of a
+  zero-length entry file, which ``np.load`` meets with no bytes to read; the
+  store's own writes never leave one (each is a temporary file and one
+  ``os.replace``), so it comes from outside the store, a truncated or
+  emptied file (ERR-126, gate
+  ``test_q10_an_empty_entry_is_corrupt_never_raised``).
 
 Only a ``Hit`` is served; every other verdict regenerates and overwrites.
 A freshly generated entry that does not validate is an error, never served.
@@ -3853,12 +3862,19 @@ what the generator contract excludes (the section above):
   started; every other start is refused, not pinned.
 * **A** ``bypass()`` **is process-wide**, across threads (the bypass
   section).
-* **The atomic write has no gate that can fail on it.** M3.15 (two
-  processes racing on one miss leave one valid entry) cannot see a
-  non-atomic write, because both racers recover through the ``Corrupt``
+* **The atomic write is gated by a reader, not by a race of processes.**
+  M3.15 (two processes racing on one miss leave one valid entry) cannot see
+  a non-atomic write, because both racers recover through the ``Corrupt``
   path (the specification's battery arm B14, declared and confirmed
-  blind); qa's threaded reproducer of finding 10 is the gate
-  ``test_q10_concurrent_writes_of_one_key_are_atomic``.
+  blind). qa's threaded reproducer of finding 10,
+  ``test_q10_concurrent_writes_of_one_key_are_atomic``, races the writers;
+  the gate that fails on a non-atomic write is the reader leg,
+  ``test_q10_a_reader_never_sees_a_half_written_entry``, which asserts that
+  every lookup of a published key is a ``Hit`` while four threads rewrite
+  it. `[M]` 2026-11-09 (the archivist, an in-process ``-p`` plugin that
+  replaces the store's ``write_atomically`` with an in-place
+  ``open(path, "wb")`` write, ``python -O -m pytest``): 3 of 3 runs red on
+  that assertion; the honest tree green.
 * **The editable install's mapping.** If the finder maps ``orpheus`` to
   another checkout, the child imports from it only when ``sys.path`` does
   not already hold ``orpheus``; M3.8 shows the path wins, and the main tree

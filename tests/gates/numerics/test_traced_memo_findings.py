@@ -704,6 +704,7 @@ def _rewrites(digests: list[str]) -> int:
     return sum(a != b for a, b in zip(digests, digests[1:]))
 
 
+@pytest.mark.catches("ERR-126")
 def test_q10_an_empty_entry_is_corrupt_never_raised(tmp_path):
     """A zero-length entry file (an in-place write caught at its truncation, or a file emptied outside the store) is
     a ``Corrupt`` verdict like every other torn entry, never an exception out of ``lookup``: ``np.load`` on no bytes
