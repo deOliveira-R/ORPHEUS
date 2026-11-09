@@ -134,7 +134,7 @@ docs/development/{rules,skills,agents}/*.md + lessons.md + onboarding.md     (SO
   size like any page) with its `harness:` block, the page in `agents/index.rst`. An
   agent whose role writes nothing tracked (a reviewer, a Support agent)
   carries a `write-scope` hook in its front matter
-  (`python3 .claude/hooks/write-scope.py <name>` on Edit, Write and
+  (`python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/write-scope.py" <name>` on Edit, Write and
   MultiEdit), which refuses a write outside `scratch/`, the temporary
   directory and its own memory, so "read-only" is enforced rather than asked
   for (qa, elegance-enforcer, explorer, cross-domain-attacker,

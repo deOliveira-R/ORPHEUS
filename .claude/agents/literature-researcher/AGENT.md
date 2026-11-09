@@ -25,7 +25,7 @@ hooks:
     - matcher: "Edit|Write|MultiEdit|mcp__nexus__rename|mcp__nexus__ingest|mcp__nexus__runtime_ingest"
       hooks:
         - type: command
-          command: "python3 .claude/hooks/write-scope.py literature-researcher"
+          command: 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/write-scope.py" literature-researcher'
 ---
 
 <!-- BEGIN GENERATED definition — source: docs/development/agents/literature-researcher.md; edit the source, not this block -->
