@@ -28,6 +28,15 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
 - **R4, the S_N trace in currents.** The trace unknowns become per-ordinate partial currents J = |Ω·n|·w·A·ψ. The tangential ordinates leave the space, so the trace metric is non-degenerate, as diffusion and collision probability already pose it.
 - **R5, the space verbs.** Every `FunctionSpace` owns `member(coordinates)`, the inverse of its chart. Member classes typed above `numerics/` are installed by the builder.
 
+## Refuted candidates
+
+- **Λ is a head operator not given its head.** `[REFUTED 2026-11-10]` by `[M]`: Λ(e⊗p) is 0.37–0.45 from the best (Be)⊗p (`scratch/shortcut_census/probes/`). Λ mixes groups and reads each cell's material. It holds only for one group and one material.
+- **Re-declare Λ's ends alone.** `[REFUTED 2026-11-10]` for the design question: the word R·Λ·M then stops composing (spaces must agree), and the exact kernel check scales with groups × cells instead of the head's kernel.
+- **Reading (a): a source is a density in its own space with the same measure.** `[REFUTED 2026-11-10]` for the ontology question; the fact it establishes is the condensed chart. The density units are the image of the integrated quantity under ♯. Under (a), 3 of 7 flux/source pairs (the traces) collapse to equal spaces, and the code's transposes (flux in, source out) read as an inversion; under (b) both are correct.
+- **A free role tag beside the unit line.** `[REFUTED 2026-11-10]`: the tag would carry no mathematical content. Primal against dual (V vs V\*, related by the measure) is the structure the tag would only name.
+- **Keep the S_N trace in angular flux with the #705 quotient check.** Not chosen (R4). The degenerate trace is an artefact of posing the boundary in densities; in currents the tangential directions do not exist.
+- **A one-probe kernel check.** Not chosen for #705: its false-pass set is a proper subspace, and a structured leak passes deterministically. The exact check costs k ≤ 4 matvecs on the production carriers (`[M]` `scratch/shortcut_census/probes/probe_bound.log`).
+
 ## Open design items (first pass, for review)
 
 - **D1.** How a space declares its side.
