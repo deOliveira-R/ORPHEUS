@@ -406,3 +406,5 @@ Everything below is a PROPOSAL; none of it is ruled.
   - condensation as a typed operator.
 - **Correctly absent:** there is no ♭ on energy (`axis.py:680` refuses weights), and no map between flux and importance. But the importance is returned as a `ScalarFlux`: 0 importance or response member classes exist, against 7 flux and 7 source classes.
 - **The 0-D homogeneous problem collapses to two spaces.** Its X flip is invisible numerically there.
+- **R17, importance and response member classes, minted in A3** (the user, 2026-11-12). They follow their spaces (R5), so a flux can no longer be handed where an importance is meant. Today `AdjointSolution.importance` returns a `ScalarFlux`.
+- **Q1: the user asked for a worked example before ruling** (the source space and the transport adjoint). It is given in the session.
