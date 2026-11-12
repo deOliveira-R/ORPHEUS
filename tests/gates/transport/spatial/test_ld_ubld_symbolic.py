@@ -38,6 +38,9 @@ from orpheus.derivations.discrete.sn.ld_ubld import (
     THETA,
     assemble_ubld,
     derive_d1_kernel_view_equals,
+    derive_curvilinear_ld_cell_gram,
+    derive_d1_coordinate_pairing_is_the_integral,
+    derive_d1_integrated_slope_source_is_the_galerkin_moment,
     derive_d1_reduction_to_production,
     derive_d1_scan_view_equals,
     derive_d1_transpose_equals_At_Minv,
@@ -53,6 +56,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from tests.gates.transport._phase_space_cases import slab_streaming_terms
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
+from orpheus.transport.spatial._ubld import d1_closed_form
 from orpheus.transport.spatial.scheme import CellVisit
 
 
@@ -252,3 +256,125 @@ class TestTransposeOracles:
         _require(result["pass"], f"V_frame_T failed: {result}")
         for label, ok in result["checks"].items():
             _require(ok, f"frame-sign law failed at {label}")
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# The data side (#707 Q-D): the integrated chart of the moment rows
+# ═══════════════════════════════════════════════════════════════════════
+
+_THIS = "tests/gates/transport/spatial/test_ld_ubld_symbolic.py::TestDataSideIntegratedChart"
+
+
+class TestDataSideIntegratedChart:
+    r"""The integrated (V\*) value of an LD moment row is the cell mass on the coefficients (#707 Q-D)."""
+
+    @pytest.mark.foundation
+    def test_integrated_slope_source_is_the_galerkin_moment(self) -> None:
+        """V_qint: ∫q b_i = M_cell·q_coef (slab, d=2 V·θ^|o|); weak slope row == scan_reconstruct; V-only negative."""
+        result = derive_d1_integrated_slope_source_is_the_galerkin_moment()
+        _require(result["pass"], f"V_qint failed: {result}")
+        _require_zero_matrix(result["diff_mass_slab"], "diff_mass_slab")
+        _require_zero_matrix(result["diff_mass_d2"], "diff_mass_d2")
+        _require_zero(result["diff_slope_row_vs_scan_reconstruct"], "diff_slope_row_vs_scan_reconstruct")
+        _require(sp.simplify(result["residual_V_only"]) != 0, "the V-only negative leg reads zero: no teeth")
+
+    @pytest.mark.foundation
+    def test_coordinate_pairing_is_the_integral(self) -> None:
+        """V_pair: ψ_coef·q_int == ∫ψq for any q; the V chart misses 2hψ̂Q̂/3."""
+        result = derive_d1_coordinate_pairing_is_the_integral()
+        _require(result["pass"], f"V_pair failed: {result}")
+        _require_zero(result["diff_any_source"], "diff_any_source")
+        _require_zero(result["diff_mass_chart"], "diff_mass_chart")
+        _require(sp.simplify(result["miss_V_chart"]) != 0, "the V-chart negative leg reads zero: no teeth")
+
+    @pytest.mark.foundation
+    def test_curvilinear_ld_cell_gram(self) -> None:
+        """V_gram_curv (forward-looking): sphere pole cell M01/V = 1/2, M11/V = 2/5; full Gram."""
+        result = derive_curvilinear_ld_cell_gram()
+        _require(result["pass"], f"V_gram_curv failed: {result}")
+        _require(result["sphere"]["pole"] == (sp.Rational(1, 2), sp.Rational(2, 5)), "sphere pole-cell Gram moved")
+        _require(not LinearDiscontinuous.supports_curvilinear,
+                 "LD now admits curvilinear meshes: promote V_gram_curv from forward-looking to a production pin")
+
+    @pytest.mark.l1
+    @pytest.mark.rests_on(
+        f"{_THIS}::test_integrated_slope_source_is_the_galerkin_moment",
+        f"{_THIS}::test_coordinate_pairing_is_the_integral",
+    )
+    def test_slab_mms_order_in_the_integrated_chart(self) -> None:
+        r"""Slab LD MMS, forward and adjoint: the V·θ chart keeps the orders, the V chart loses one.
+
+        Fixture: slab [0, 1], one ordinate μ = 0.6, Σ_t = 1.3, no scattering;
+        ψ = 1 + 0.5 sin 3x + 0.3 e^{−x} (inflow ψ(0)); adjoint −μψ†' + Σψ† = r,
+        ψ† = sin(2(1−x)) e^{x/2}, ψ†(1) = 0; n ∈ {16, 32, 64}. The global
+        integrated Galerkin system is assembled from the SYMBOLIC cell
+        (:func:`assemble_ubld`, θ = 1/3, :func:`fin_trace_weight`) and gated
+        against the PRODUCTION closed-form march (``d1_closed_form(...).scan_reconstruct``).
+        The V chart is the production closure fed ``s_hat = VQ̂/θ``.
+
+        [M] 2026-11-12 orders per halving: V·θ forward/adjoint mean 7.9–8.0 (h³),
+        slopes ~4; V chart forward mean ~3.9 (h²), adjoint slope ~2 (h).
+        """
+        mu, sig, theta = 0.6, 1.3, 1.0 / 3.0
+        xg, wg = np.polynomial.legendre.leggauss(12)
+        psi_ex = lambda x: 1.0 + 0.5 * np.sin(3.0 * x) + 0.3 * np.exp(-x)
+        q_ex = lambda x: mu * (1.5 * np.cos(3.0 * x) - 0.3 * np.exp(-x)) + sig * psi_ex(x)
+        ad_ex = lambda x: np.sin(2.0 * (1.0 - x)) * np.exp(0.5 * x)
+        r_ex = lambda x: -mu * ((-2.0 * np.cos(2.0 * (1.0 - x)) + 0.5 * np.sin(2.0 * (1.0 - x))) * np.exp(0.5 * x)) + sig * ad_ex(x)
+
+        hs = sp.Symbol("h", positive=True)
+        cell = assemble_ubld([hs], [sp.Float(mu)], sp.Float(sig), sp.Rational(1, 3))
+        A_cell = sp.lambdify(hs, cell["A"], "numpy")
+        M_cell = sp.lambdify(hs, cell["M"], "numpy")
+        f_in = np.array(fin_trace_weight(), dtype=float).ravel() * mu  # μ·B(−1)
+        b_out = np.ones(2)                                             # B(+1)
+
+        def coefs(f, n):
+            h = 1.0 / n
+            X = (np.arange(n)[:, None] + 0.5) * h + xg[None, :] * h / 2
+            F = f(X)
+            return np.stack([(F * wg).sum(1) / 2, (F * wg * xg).sum(1) / 2 / theta], 1), h
+
+        def march(n, Q):
+            h = 1.0 / n
+            cf = d1_closed_form(mu / h, sig, theta)
+            out, pin = np.zeros((n, 2)), psi_ex(0.0)
+            for i in range(n):
+                out[i] = cf.scan_reconstruct(h, Q[i, 0] * h, Q[i, 1] * h, pin)
+                pin = out[i].sum()
+            return out
+
+        errs = {k: [] for k in ("fb_t", "ah_t", "ab_t", "fb_v", "ah_v")}
+        for n in (16, 32, 64):
+            Q, h = coefs(q_ex, n)
+            E, _ = coefs(psi_ex, n)
+            R, _ = coefs(r_ex, n)
+            Ead, _ = coefs(ad_ex, n)
+            A = np.zeros((2 * n, 2 * n))
+            Md = np.diag(M_cell(h)).astype(float)
+            for i in range(n):
+                A[2 * i:2 * i + 2, 2 * i:2 * i + 2] = A_cell(h)
+                if i:
+                    A[2 * i:2 * i + 2, 2 * i - 2:2 * i] = -np.outer(f_in, b_out)
+            M = np.tile(Md, n)
+            b_in = np.zeros(2 * n); b_in[:2] = f_in * psi_ex(0.0)
+            fwd = np.linalg.solve(A, M * Q.ravel() + b_in).reshape(n, 2)
+            prod = march(n, Q)
+            np.testing.assert_allclose(fwd, prod, rtol=0, atol=1e-12)   # symbolic system == production march
+            prod_v = march(n, Q / np.array([1.0, theta]))                # V chart: integrated slope = V·Q̂
+            adj = np.linalg.solve(A.T, M * R.ravel()).reshape(n, 2)
+            D_V = np.full(2 * n, h)
+            A_V = (D_V / M)[:, None] * A
+            adj_v = np.linalg.solve(A_V.T, D_V * R.ravel()).reshape(n, 2)
+            errs["fb_t"].append(np.abs(prod[:, 0] - E[:, 0]).max())
+            errs["ab_t"].append(np.abs(adj[:, 0] - Ead[:, 0]).max())
+            errs["ah_t"].append(np.abs(adj[:, 1] - Ead[:, 1]).max())
+            errs["fb_v"].append(np.abs(prod_v[:, 0] - E[:, 0]).max())
+            errs["ah_v"].append(np.abs(adj_v[:, 1] - Ead[:, 1]).max())
+        ratio = {k: np.array(v[:-1]) / np.array(v[1:]) for k, v in errs.items()}
+        _require(np.all(ratio["fb_t"] > 7.5), f"V·θ forward mean not h³: {ratio['fb_t']}")
+        _require(np.all(ratio["ab_t"] > 7.5), f"V·θ adjoint mean not h³: {ratio['ab_t']}")
+        _require(np.all(ratio["ah_t"] > 3.7), f"V·θ adjoint slope not h²: {ratio['ah_t']}")
+        # negative legs: the V chart loses an order (the mutation bit, X1)
+        _require(np.all(ratio["fb_v"] < 4.5), f"V-chart forward mean kept h³: {ratio['fb_v']}")
+        _require(np.all(ratio["ah_v"] < 2.5), f"V-chart adjoint slope kept h²: {ratio['ah_v']}")

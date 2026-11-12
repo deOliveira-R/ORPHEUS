@@ -90,6 +90,15 @@ Verification functions
 * :func:`derive_octant_frame_sign_is_involution` — the moment-frame sign
   map ``D_s`` is an involution and frame conjugation commutes with
   transpose (the reverse walk's reframe-in/reframe-out law).
+* :func:`derive_d1_integrated_slope_source_is_the_galerkin_moment` — the
+  data side (#707 Q-D): the integrated moment source is the cell mass on
+  the Legendre coefficients, ``M_cell·q_coef`` (slab ``V·diag(1, θ)``), equal
+  to the production scan's ×V pre-scale times the closure's ×θ; the V-only
+  reading is the negative.
+* :func:`derive_d1_coordinate_pairing_is_the_integral` — in that chart the
+  coordinate pairing of a state with stored data is ``∫ψq`` exactly.
+* :func:`derive_curvilinear_ld_cell_gram` — forward-looking: the sphere and
+  cylinder LD cell Gram is full and position-dependent.
 * :func:`derive_d3_assembles` — structural readiness: the ``d=3``
   trilinear assembler produces an 8×8 system with the ``θ³`` triple-cross
   diagonal weight.
@@ -740,6 +749,208 @@ def derive_octant_frame_sign_is_involution() -> dict:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# The data side (#707 Q-D): the integrated chart of the moment rows
+# ═══════════════════════════════════════════════════════════════════════
+#
+# The data side (sources, residuals, responses) is stored INTEGRATED
+# (#707 R6) and dual on the spatial factor only, the in-cell moment axis
+# included (R8, premise confirmed by the user 2026-11-11). These three
+# derivations fix what "integrated" means for a moment row: the Galerkin
+# moment q_int,i = ∫_cell q b_i dV = (M_cell·q_coef)_i, never V·q_coef.
+
+
+def derive_d1_integrated_slope_source_is_the_galerkin_moment() -> dict:
+    r"""V_qint — the integrated moment source is the cell mass on the Legendre coefficients.
+
+    For a cell source :math:`q = \bar Q + \hat Q P_1(\xi)` in the trial span
+    (the Legendre coefficient chart, :math:`P_1(+1) = 1`), proves:
+
+    * :math:`\int_{\rm cell} q\,b_i\,\mathrm dx = (M_{\rm cell}\,q_{\rm coef})_i`
+      with :math:`M_{\rm cell} =` :func:`mass_1d` ``(h)``
+      :math:`= h\,\mathrm{diag}(1, \theta)`, :math:`\theta = 1/3` (slab), and
+      on the d=2 cell :math:`M_{\rm cell} = \mathrm{mass}_x \otimes \mathrm{mass}_y`,
+      the rows weighted :math:`V\theta^{|o|}` (the bilinear row :math:`V\theta^2`);
+    * the slope row of the upwind weak form, solved for :math:`\hat\psi`, equals
+      the production ``D1ClosedForm.scan_reconstruct`` slope line
+      :math:`\hat\psi = (|\mu|\bar\psi + \theta s_{\rm hat} - |\mu|\psi_{\rm in}) / D_2'`
+      with :math:`s_{\rm hat} = \hat Q V` (retyped from
+      ``orpheus/transport/spatial/_ubld.py`` ``_slope_fold``: the ×V pre-scale
+      of the scan plus the closure's ×θ IS the mass);
+    * NEGATIVE: the V-only reading (slope RHS :math:`= V\hat Q`, θ dropped)
+      leaves the residual :math:`-2\hat Q h/(\Sigma_t h + 3|\mu|)`, nonzero.
+    """
+    xi = sp.Symbol("xi", real=True)
+    mu, h, hx, hy, sig_t = sp.symbols("mu h h_x h_y Sigma_t", positive=True)
+    Qbar, Qhat, psi_bar, psi_hat, psi_in = sp.symbols("Qbar Qhat psibar psihat psi_in", real=True)
+    theta = sp.Rational(1, 3)
+    P = [sp.Integer(1), xi]  # the trial basis b_i = P_i(ξ); dx = h dξ/2
+
+    # (1) slab: ∫ q b_i dx == mass_1d(h)·q_coef
+    q = Qbar + Qhat * xi
+    q_int = sp.Matrix([sp.integrate(q * b * h / 2, (xi, -1, 1)) for b in P])
+    diff_mass = sp.simplify(q_int - mass_1d(h, theta) * sp.Matrix([Qbar, Qhat]))
+
+    # (1') d=2: ∫∫ q b_i b_j dxdy == (mass_x ⊗ mass_y)·q_coef, Kronecker order (x outer)
+    eta = sp.Symbol("eta", real=True)
+    c = sp.symbols("c0:4", real=True)
+    basis2 = [sp.Integer(1), eta, xi, xi * eta]  # [ψ̄, ψ̂_y, ψ̂_x, ψ̂_xy]
+    q2 = sum(ci * bi for ci, bi in zip(c, basis2))
+    q2_int = sp.Matrix([
+        sp.integrate(sp.integrate(q2 * b * (hx / 2) * (hy / 2), (xi, -1, 1)), (eta, -1, 1))
+        for b in basis2
+    ])
+    M2 = _kron(mass_1d(hx, theta), mass_1d(hy, theta))
+    diff_mass_d2 = sp.simplify(q2_int - M2 * sp.Matrix(c))
+    V2 = hx * hy
+    row_weights_d2 = [sp.simplify(M2[i, i] / V2) for i in range(4)]
+    weights_ok = row_weights_d2 == [1, theta, theta, theta**2]
+
+    # (2) the slope row of the weak form: test P₁, IBP, upwind ψ_in, ψ_out = ψ̄ + ψ̂
+    psi = psi_bar + psi_hat * xi
+    psi_out = psi.subs(xi, 1)
+    slope_row = (
+        mu * (psi_out * P[1].subs(xi, 1) - psi_in * P[1].subs(xi, -1))
+        - mu * sp.integrate(psi * sp.diff(P[1], xi) * (2 / h) * (h / 2), (xi, -1, 1))
+        + sig_t * sp.integrate(psi * P[1] * h / 2, (xi, -1, 1))
+        - q_int[1]
+    )
+    psi_hat_weak = sp.solve(slope_row, psi_hat)[0]
+    D2p = sig_t * theta * h + mu
+    s_hat = Qhat * h  # the scan's ×V pre-scale
+    psi_hat_prod = (mu * psi_bar + theta * s_hat - mu * psi_in) / D2p
+    diff_slope_row = sp.simplify(psi_hat_weak - psi_hat_prod)
+
+    # (3) negative: the V-only reading drops the closure's θ
+    psi_hat_V = (mu * psi_bar + s_hat - mu * psi_in) / D2p
+    residual_V_only = sp.simplify(psi_hat_weak - psi_hat_V)
+    expected_residual = -2 * Qhat * h / (sig_t * h + 3 * mu)
+    negative_ok = residual_V_only != 0 and sp.simplify(residual_V_only - expected_residual) == 0
+
+    passed = bool(
+        diff_mass.is_zero_matrix and diff_mass_d2.is_zero_matrix and weights_ok
+        and diff_slope_row == 0 and negative_ok
+    )
+    return {
+        "name": "V_qint: integrated moment source == M_cell·q_coef (slab V·diag(1,θ); d=2 V·θ^|o|)",
+        "diff_mass_slab": diff_mass,
+        "diff_mass_d2": diff_mass_d2,
+        "row_weights_d2_over_V": row_weights_d2,
+        "diff_slope_row_vs_scan_reconstruct": diff_slope_row,
+        "residual_V_only": residual_V_only,
+        "pass": passed,
+    }
+
+
+def derive_d1_coordinate_pairing_is_the_integral() -> dict:
+    r"""V_pair — in the V·θ chart the coordinate pairing IS the integral.
+
+    For a trial-span state :math:`\psi = \bar\psi + \hat\psi P_1` and ANY source
+    :math:`q` (here :math:`q = e^{a x}`, not in the trial span), stored
+    integrated as :math:`q_{\rm int, i} = \int q\,b_i\,\mathrm dx`, proves
+
+    .. math:: \psi_{\rm coef}\cdot q_{\rm int} = \int_{\rm cell}\psi\,q\,\mathrm dx
+
+    exactly, and for a trial-span :math:`q` that :math:`q_{\rm int} = M q_{\rm coef}`
+    so the pairing is :math:`\psi_{\rm coef}^{\mathsf T} M q_{\rm coef}`. NEGATIVE:
+    the V chart (:math:`V q_{\rm coef}`) misses by
+    :math:`(1-\theta) h\,\hat\psi\hat Q = 2h\hat\psi\hat Q/3`. This is the
+    discriminating question, not the transpose reciprocity
+    :math:`\langle A^{-1}q, r\rangle = \langle q, A^{-\mathsf T} r\rangle`, which
+    holds for every invertible matrix in every chart.
+    """
+    xi = sp.Symbol("xi", real=True)
+    h, a = sp.symbols("h a", positive=True)
+    x0, psi_bar, psi_hat, Qbar, Qhat = sp.symbols("x0 psibar psihat Qbar Qhat", real=True)
+    theta = sp.Rational(1, 3)
+    P = [sp.Integer(1), xi]
+    psi = psi_bar + psi_hat * xi
+    x = x0 + xi * h / 2
+
+    # any source: q = exp(a x) on the cell
+    q = sp.exp(a * x)
+    q_int = sp.Matrix([sp.integrate(q * b * h / 2, (xi, -1, 1)) for b in P])
+    pairing = (sp.Matrix([psi_bar, psi_hat]).T * q_int)[0]
+    integral = sp.integrate(psi * q * h / 2, (xi, -1, 1))
+    diff_any_source = sp.simplify(pairing - integral)
+
+    # trial-span source: q_int = M q_coef; V-chart negative
+    qs = Qbar + Qhat * xi
+    integral_s = sp.integrate(psi * qs * h / 2, (xi, -1, 1))
+    pair_mass = (sp.Matrix([psi_bar, psi_hat]).T * mass_1d(h, theta) * sp.Matrix([Qbar, Qhat]))[0]
+    pair_V = h * (psi_bar * Qbar + psi_hat * Qhat)
+    diff_mass_chart = sp.simplify(pair_mass - integral_s)
+    miss_V_chart = sp.simplify(pair_V - integral_s)
+    negative_ok = sp.simplify(miss_V_chart - 2 * h * psi_hat * Qhat / 3) == 0
+
+    passed = bool(diff_any_source == 0 and diff_mass_chart == 0 and negative_ok)
+    return {
+        "name": "V_pair: ψ_coef·q_int == ∫ψq (V·θ chart); V chart misses 2hψ̂Q̂/3",
+        "diff_any_source": diff_any_source,
+        "diff_mass_chart": diff_mass_chart,
+        "miss_V_chart": miss_V_chart,
+        "pass": passed,
+    }
+
+
+def derive_curvilinear_ld_cell_gram() -> dict:
+    r"""V_gram_curv — the LD cell Gram under r²dr and r dr (FORWARD-LOOKING).
+
+    LD refuses curvilinear meshes today (``LinearDiscontinuous.supports_curvilinear
+    = False``, Issue #158); this pins what the integrated chart must become there.
+    On the cell :math:`[r_c - h/2, r_c + h/2]`, :math:`r = r_c + \xi h/2`,
+    :math:`\varepsilon = h/r_c`, the Gram of :math:`\{1, \xi\}` is FULL and
+    position-dependent, so the data-side map is the cell mass matrix, of which
+    the slab ``V·diag(1, θ)`` is the flat-measure value:
+
+    * sphere (:math:`r^2\mathrm dr`): :math:`V = h(h^2 + 12 r_c^2)/12`,
+      :math:`M_{01}/V = 4\varepsilon/(\varepsilon^2 + 12)`,
+      :math:`M_{11}/V = (3\varepsilon^2 + 20)/(5(\varepsilon^2 + 12))`;
+      pole cell :math:`r_c = h/2`: :math:`M_{01}/V = 1/2`, :math:`M_{11}/V = 2/5`;
+    * cylinder (:math:`r\,\mathrm dr`, per radian): :math:`V = h r_c`,
+      :math:`M_{01}/V = \varepsilon/6`, :math:`M_{11}/V = 1/3`;
+      pole cell: :math:`M_{01}/V = 1/3`, :math:`M_{11}/V = 1/3`;
+    * the flat limit :math:`\varepsilon \to 0` recovers :math:`M/V = \mathrm{diag}(1, \theta)`
+      in both geometries (:func:`mass_1d` ``/h``).
+    """
+    xi = sp.Symbol("xi", real=True)
+    h, rc, eps = sp.symbols("h r_c epsilon", positive=True)
+    theta = sp.Rational(1, 3)
+    flat = mass_1d(sp.Integer(1), theta)
+    expected = {
+        "sphere": (2, h * (h**2 + 12 * rc**2) / 12, 4 * eps / (eps**2 + 12),
+                   (3 * eps**2 + 20) / (5 * (eps**2 + 12)), sp.Rational(1, 2), sp.Rational(2, 5)),
+        "cylinder": (1, h * rc, eps / 6, theta, theta, theta),
+    }
+    out: dict = {}
+    passed = True
+    for name, (power, V_exp, m01_exp, m11_exp, m01_pole, m11_pole) in expected.items():
+        r = rc + xi * h / 2
+        measure = r**power * h / 2
+        M = sp.Matrix(2, 2, lambda i, j: sp.integrate(xi ** (i + j) * measure, (xi, -1, 1)))
+        V = sp.simplify(M[0, 0])
+        m01 = sp.simplify((M[0, 1] / V).subs(h, eps * rc))
+        m11 = sp.simplify((M[1, 1] / V).subs(h, eps * rc))
+        pole = (sp.simplify((M[0, 1] / V).subs(rc, h / 2)), sp.simplify((M[1, 1] / V).subs(rc, h / 2)))
+        flat_limit = sp.Matrix([[1, sp.limit(m01, eps, 0)], [sp.limit(m01, eps, 0), sp.limit(m11, eps, 0)]])
+        ok = (
+            sp.simplify(V - V_exp) == 0
+            and sp.simplify(m01 - m01_exp) == 0
+            and sp.simplify(m11 - m11_exp) == 0
+            and pole == (m01_pole, m11_pole)
+            and (flat_limit - flat).is_zero_matrix
+            and m01 != 0  # the Gram is NOT diagonal: a scalar θ cannot carry it
+        )
+        out[name] = {"V": V, "M01_over_V": m01, "M11_over_V": m11, "pole": pole, "ok": ok}
+        passed = passed and ok
+    return {
+        "name": "V_gram_curv: LD cell Gram under r²dr / r dr (full, position-dependent; forward-looking)",
+        "sphere": out["sphere"],
+        "cylinder": out["cylinder"],
+        "pass": bool(passed),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # CLI — print all derivations
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -752,6 +963,9 @@ if __name__ == "__main__":
         derive_d3_assembles,
         derive_d1_transpose_equals_At_Minv,
         derive_octant_frame_sign_is_involution,
+        derive_d1_integrated_slope_source_is_the_galerkin_moment,
+        derive_d1_coordinate_pairing_is_the_integral,
+        derive_curvilinear_ld_cell_gram,
     ):
         result = fn()
         status = "PASS" if result["pass"] else "FAIL"
