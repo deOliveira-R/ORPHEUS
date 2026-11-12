@@ -35,7 +35,12 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
 - **R8, the data side is dual on the SPATIAL factor only** (2026-11-11, Q-A). V\* = angle ⊗ cells\*, per cell and per steradian: the discrete per-ordinate balance. There is no ÷w_n in the sweep, and the angular measure enters only where angles couple (M, R, the pairing).
 - **R9, the trace measure includes the face area** (2026-11-11, Q-B). It is |Ω·n|·w_n·A_f, so ♭ψ is a true partial current.
 - **R10, inputs are densities, converted once at the input boundary** (2026-11-11, Q-C). Specified as densities, they become the integrated data side by ♭ at the parse edge; the density remains a queried view for output.
-- **Q-D, the LD slope-moment measure (V·θ in the metric vs V in the 1-D sweep): not ruled.** The user asked for an investigation from opposite perspectives, with their lean ("investigate") taken as a guide and not a ruling. The investigation is running: `scratch/true_ends/ld_moments/`.
+- **Q-D, the LD slope-moment measure: RESOLVED, no conflict** (2026-11-11, `scratch/true_ends/ld_moments/memo.md`; six perspectives argued as the user asked).
+  - `[M]` The 1-D scan's ×V plus the closure's θ (`_ubld.py:460–480`) give θ·V·q̂, the Galerkin moment ∫q P₁ dV.
+  - The single definition: the stored integrated value is the scheme's cell mass (the Gram of the trial basis under the cell measure) applied to the Legendre coefficients, `q_int = M_cell·q_coef`. On a Cartesian cell that is `V·θ^{|o|}·q̂_o` with θ = 1/3, per ordinate and per steradian, with no w_n.
+  - `[M]` In an MMS on the slab, the V·θ chart converges at h³ for the mean and h² for the slope; the V chart drops to h² and h.
+  - Curvilinear `[M]` (symbolic): the cell Gram is not diagonal (sphere pole cell: M₀₁/V = 1/2, M₁₁/V = 2/5). LD refuses curvilinear today.
+- **R8 refined:** the moment axis of a spatial closure (the trial basis inside a cell) belongs to the SPATIAL factor that R8 dualises. `[R]` mathematically forced: the slope index is a spatial basis index. It is recorded for the user to confirm.
 
 ## Refuted candidates
 
