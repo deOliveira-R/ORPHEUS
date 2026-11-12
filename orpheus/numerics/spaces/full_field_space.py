@@ -144,6 +144,7 @@ class CompositeField(Protocol):
     @property
     def boundary(self) -> _CompositeLeaf: ...
 
+
     def _recombine(
         self,
         *,
@@ -404,9 +405,19 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
 
     def coordinates_of(self, x: Any) -> Any:
         r"""The flat coordinates of a composite member (its ``to_flat``, interior
-        then trace); a bare array takes the base's shape leg."""
+        then trace), after the identity leg (its space equals this one, as
+        :meth:`FunctionSpace.coordinates_of` asks of a :class:`Member`); a bare
+        array takes the base's shape leg."""
         if isinstance(x, np.ndarray):
             return super().coordinates_of(x)
+        # Every composite carrier derives ``space`` from its blocks
+        # (``transport.full_field.Composite.space``, a cached property the
+        # structural protocol cannot state under pyright).
+        space = cast(Any, x).space
+        if space != self:
+            raise ValueError(
+                f"{type(x).__name__} on {space!r} is not a member of {self!r}."
+            )
         return np.asarray(cast(CompositeField, x).to_flat(), dtype=float)
 
     def inner_product(self, x: CompositeField, y: CompositeField) -> float:

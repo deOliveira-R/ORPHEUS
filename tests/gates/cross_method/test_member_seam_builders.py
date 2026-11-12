@@ -24,9 +24,9 @@ Rows (THEOREM; ``foundation``):
   ``V.dual()``.
 
 Why ``==`` and not ``is`` for a composite: ``Composite.space`` and ``CoupledField.space`` are derived per instance from
-the blocks (the F4 ruling, ``transport/full_field.py``: "Not ``is``: the wrapper is minted per composite"), while
-``FunctionSpace.member``'s docstring promises ``member(c).space is self``. ``[M]`` 6 of 6 composites here read
-``is`` False and ``==`` True. The conflict is reported to the orchestrator, not settled here.
+the blocks (the F4 ruling, ``transport/full_field.py``: "Not ``is``: the wrapper is minted per composite").
+``FunctionSpace.member``'s docstring states the same: the same object on a leaf and its dual, an equal space on a
+composite. ``[M]`` 6 of 6 composites here read ``is`` False and ``==`` True.
 """
 
 from __future__ import annotations
@@ -181,6 +181,24 @@ def test_mb2_member_of_coordinates_is_the_identity(case: str) -> None:
     y = V.member(coords)
     _check_member(case, V, y, classes)
     np.testing.assert_array_equal(np.asarray(V.coordinates_of(y)).ravel(), hand, err_msg=f"[{case}] member(coordinates_of(x)) != x")
+
+
+_FULL_CASES = [case for case in _CASES if "coupled" not in case]
+
+
+@pytest.mark.rests_on(_NM1)
+@pytest.mark.parametrize("case", _FULL_CASES)
+def test_mb5_the_dual_refuses_a_primal_composite(case: str) -> None:
+    """MB5, the identity leg. A composite member of the ``FullFieldSpace`` V is not a member of ``V.dual()``, an
+    equal-shape space with the inverse metric: ``coordinates_of`` compares the composite's derived space with its own,
+    as the base does for a ``Member`` (``space.py``, the identity leg), and refuses with the base's message.
+    First red: the composite override running only the shape leg (the A1 elegance review, finding 3: accepted on 4 of
+    4 composites before the leg was restored)."""
+    builder, classes = _spaces()[case]
+    V = builder()
+    x, _ = _build(V, classes, np.random.default_rng(7))
+    with pytest.raises(ValueError, match="is not a member of"):
+        V.dual().coordinates_of(x)
 
 
 @pytest.mark.rests_on(_KC)

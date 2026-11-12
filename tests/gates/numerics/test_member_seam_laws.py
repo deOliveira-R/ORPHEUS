@@ -75,6 +75,16 @@ def _dense_singular(name: str) -> FunctionSpace:
     return FunctionSpace(name, (3,), metric=DenseMetric(_B @ _B.T))
 
 
+def _dense_near_cutoff(name: str) -> FunctionSpace:
+    r"""A 6×6 Gram with spectrum (1, 0.5, 0.2, 0.1, 1e-8, 0) under a fixed rotation: one kernel direction beside a
+    live eigenvalue far below the others (the A1 qa review's probe, 2026-11-12). An eigen-solve of the projector
+    :math:`I − G^{+}G` loses digits as :math:`\varepsilon/\lambda_{\min}` here (‖GK‖/‖G‖ ≈ 1e-10); the eigenvectors
+    of :math:`G` stay at rounding."""
+    q, _ = np.linalg.qr(np.random.default_rng(29).standard_normal((6, 6)))
+    gram = q @ np.diag([1.0, 0.5, 0.2, 0.1, 1e-8, 0.0]) @ q.T
+    return FunctionSpace(name, (6,), metric=DenseMetric((gram + gram.T) / 2.0))
+
+
 def _dense_full(name: str) -> FunctionSpace:
     return FunctionSpace(name, (3,), metric=DenseMetric(np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])))
 
@@ -151,6 +161,14 @@ def test_m2_member_of_coordinates_is_the_identity(case: str) -> None:
 # K — kernel_basis spans ker G, orthonormally, with the hand count
 # ═══════════════════════════════════════════════════════════════════════
 
+def _two_axis_block_factored() -> FunctionSpace:
+    """A factored metric whose first block is a leading-aligned diagonal over a two-axis ``(3, 2)`` block (the
+    elegance review's probe 4, 2026-11-12), tensored with a full-rank diagonal on ``(2,)``."""
+    block = DiagonalMetric(np.array([1.0, 0.0, 2.0]))
+    metric = FactoredMetric((((3, 2), block), ((2,), DiagonalMetric(np.array([1.0, 3.0])))))
+    return FunctionSpace("kb_fb", (3, 2, 2), metric=metric)
+
+
 #: name -> (space builder, the kernel dimension counted by hand from the construction).
 _KB_SPACES: dict[str, tuple[Callable[[], FunctionSpace], int]] = {
     "diag one zero": (lambda: _diag("kb_d1", [1.0, 0.0, 2.0]), 1),
@@ -158,12 +176,17 @@ _KB_SPACES: dict[str, tuple[Callable[[], FunctionSpace], int]] = {
     "dense rank 2": (lambda: _dense_singular("kb_x"), 1),
     "dual of diag one zero": (lambda: _diag("kb_dd", [1.0, 0.0, 2.0]).dual(), 1),
     "dual of dense rank 2": (lambda: _dense_singular("kb_xd").dual(), 1),
+    # First red: the kernel read off the projector I − G⁺G, whose columns leave ker G by ≈ 1e-10 ≫ 64ε.
+    "dense near the cutoff": (lambda: _dense_near_cutoff("kb_nc"), 1),
     # 3 x 4, one zero angular weight: 1 * 4 kernel columns.
     "factored zero-weight nodal": (zero_weight_nodal, 4),
     # 9 = 3 x 3: rank 2 * 2 = 4, so 5 kernel columns (3 from ker G1 ⊗ V2, 2 from range G1 ⊗ ker G2).
     "factored diagonal ⊗ singular dense": (_mixed_factored, 5),
     # 6 = 3 x 2, the first factor one zero weight, the second full rank: 1 * 2.
     "tensor product diag ⊗ diag": (lambda: _diag("kb_t1", [1.0, 0.0, 2.0]) * _diag("kb_t2", [4.0, 0.5]), 2),
+    # 12 = (3 x 2) x 2, a diagonal block over TWO axes whose weights lead (axis 0): one zero weight leaves 2 x 2 = 4
+    # kernel columns. First red: the block's weights broadcast numpy's way (trailing), which refuses (3,) on (3, 2).
+    "factored two-axis diagonal block": (_two_axis_block_factored, 4),
     "full rank diag": (lambda: _diag("kb_f", [1.0, 2.0, 0.5]), 0),
     "full rank dense": (lambda: _dense_full("kb_fd"), 0),
     "full rank two axes": (_two_axis, 0),

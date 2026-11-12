@@ -105,8 +105,10 @@ class FlattenedOperator(LinearOperator):
 
     Notes
     -----
-    ``apply(x)`` accepts any array raveling to the template's flat size
-    and returns the 1-D flattened action. The input basis element is
+    ``apply(x)`` accepts a member of :attr:`domain` (a composite) or its
+    coordinate vector of the domain's exact shape, read through the
+    domain's chart (``coordinates_of``), and returns the 1-D flattened
+    action. The input basis element is
     reconstructed as the SAME concrete class as ``template`` (via the
     carrier's ``from_flat``); the output is whatever composite
     ``inner.apply`` emits, re-flattened via ITS ``to_flat``.

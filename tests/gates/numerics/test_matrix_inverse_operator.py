@@ -505,11 +505,12 @@ def test_transpose_face_advertised_and_seed_free():
     )
 
 
-def test_typed_operand_without_a_space_zeros_exemplar_raises():
-    """A ravellable (typed) operand needs the carrier space's zeros()
-    exemplar to mint the typed result — absent, the seam refuses loudly
-    instead of guessing a template (role honesty: a solution is a state,
-    never the rhs's source role)."""
+def test_typed_operand_without_a_carrier_space_raises():
+    """A ravellable (typed) operand's solution is a member of the carrier
+    space (``space.member``, #707 R5); an operator declaring no space has no
+    chart to invert, so the seam refuses loudly instead of guessing a
+    template (role honesty: a solution is a state, never the rhs's source
+    role)."""
 
     class _RavelToy:
         def __init__(self, values):
@@ -526,9 +527,9 @@ def test_typed_operand_without_a_space_zeros_exemplar_raises():
     minv = MatrixInverseOperator(
         _DenseActionOperator(_asymmetric_5x5()), basis_shape=(5,),
     )
-    with pytest.raises(ValueError, match=r"zeros\(\) exemplar"):
+    with pytest.raises(ValueError, match=r"needs a carrier space"):
         minv.apply(_RavelToy(np.ones(5)))
-    with pytest.raises(ValueError, match=r"zeros\(\) exemplar"):
+    with pytest.raises(ValueError, match=r"needs a carrier space"):
         minv.apply_transpose(_RavelToy(np.ones(5)))
 
 

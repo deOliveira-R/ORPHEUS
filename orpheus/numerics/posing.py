@@ -62,15 +62,6 @@ def _flat(y: Any) -> np.ndarray:
     return np.asarray(flat() if callable(flat) else y, dtype=float).ravel()
 
 
-def _carrier(space: Any, flat: np.ndarray) -> Any:
-    r"""The element of ``space`` whose flat coordinates are ``flat``: its typed carrier when the space mints one, else the coordinate array."""
-    zeros = getattr(space, "zeros", None)
-    if callable(zeros):
-        template: Any = zeros()
-        return type(template).from_flat(flat, template)
-    return flat.reshape(space.shape)
-
-
 def _predicted(pencil: OperatorPencil[Any], question: str) -> PredictedKernel:
     if pencil.kernel is None:
         raise ValueError(
@@ -98,11 +89,16 @@ def _pencil_annihilation(pencil: OperatorPencil[Any], kernel: PredictedKernel) -
     from orpheus.numerics.fredholm import _embedded_columns
 
     space = pencil.lhs.domain
+    if space is None:
+        raise ValueError(
+            "the pencil's loss declares no domain, so its predicted kernel's columns have no members to act on; "
+            "pose the pencil on operators that declare their ends."
+        )
     worst, label = 0.0, ""
     for summands, act in ((kernel.left, pencil.rhs.dual().apply), (kernel.right, pencil.rhs.apply)):
         for summand, column in _embedded_columns(summands, kernel.n_coordinates):
-            signed = _flat(act(_carrier(space, column)))
-            scale = float(np.linalg.norm(_flat(act(_carrier(space, np.abs(column))))))
+            signed = _flat(act(space.member(column)))
+            scale = float(np.linalg.norm(_flat(act(space.member(np.abs(column))))))
             if scale == 0.0:
                 continue
             ratio = float(np.linalg.norm(signed)) / scale

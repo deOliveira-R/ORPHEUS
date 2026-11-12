@@ -215,32 +215,24 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         return np.asarray(x.to_flat(), dtype=float).ravel()
 
     def _returned_as(self, solution: np.ndarray, x: Any, space: Any) -> Any:
-        r"""Re-type a backsolve result to match a TYPED operand's carrier.
+        r"""Re-type a backsolve result as a member of its carrier space.
 
-        A TYPED (ravellable) operand re-enters its
-        family through ``from_flat`` over the carrier space's ZERO
-        exemplar (``space.zeros()`` — e.g.
-        :meth:`~orpheus.numerics.coupled_system.CoupledSpace.zeros`): the
-        exemplar, not the operand, is the template, so the result carries
-        the SPACE's member roles (a solution is a state, never the
-        rhs's source role — the role-honesty half of the typed seam).
+        A TYPED (ravellable) operand's solution is the space's member with
+        those coordinates (:meth:`~orpheus.numerics.space.FunctionSpace.member`,
+        the inverse of the chart, #707 ruling R5): it carries the SPACE's
+        member roles (a solution is a state, never the rhs's source role,
+        the role-honesty half of the typed seam). An operator that declares
+        no space has no chart to invert, and refuses.
         """
-        zeros_factory = getattr(space, "zeros", None)
-        if space is None or not callable(zeros_factory):
+        del x
+        if space is None:
             raise ValueError(
-                f"MatrixInverseOperator: a typed (ravellable) operand "
-                f"needs a carrier space with a zeros() exemplar to mint "
-                f"the typed result; {type(self.inner).__name__} carries "
-                f"{'no space' if space is None else type(space).__name__} "
-                f"without one — pass arrays, or wire the space's zero "
-                f"factory (CoupledSpace.from_systems(..., zeros=...))."
+                f"MatrixInverseOperator: a typed (ravellable) operand needs "
+                f"a carrier space to mint the typed result; "
+                f"{type(self.inner).__name__} declares no space. Pass arrays, "
+                f"or declare the operator's ends."
             )
-        template = zeros_factory()
-        # The class-level half of the duck-typed ravellable protocol; the
-        # cast is the one documented static seam (the
-        # ``coupled_system._member_from_flat`` precedent).
-        factory = cast("Any", type(template))
-        return factory.from_flat(solution, template)
+        return space.member(solution)
 
     def apply(self, x: Any, /, *, initial_guess: Any | None = None) -> Any:
         r"""Return :math:`A^{-1}x` — one LU backsolve against the stored factors.
@@ -255,7 +247,7 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         :meth:`apply_transpose` is the same call with the ends swapped). A typed
         (ravellable) operand round-trips through the carrier seam
         (:meth:`_flat_of` / :meth:`_returned_as` — the solution is minted
-        from the DOMAIN's zero exemplar).
+        as a member of the DOMAIN).
         """
         del initial_guess  # exact direct inverse — M-direct IS seed-independence
         if not hasattr(x, "to_flat"):
@@ -282,8 +274,8 @@ class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
         conjugation then wraps this Euclidean transpose backsolve. An array
         operand is a member of ``A``'s domain and the result an element of
         ``A``'s codomain (#683: the transpose arm once reshaped to the domain's
-        basis shape on both arms). A typed operand's result is minted from
-        the CODOMAIN's zero exemplar (the transpose maps the opposite way).
+        basis shape on both arms). A typed operand's result is a member of
+        the CODOMAIN (the transpose maps the opposite way).
         """
         if not hasattr(b, "to_flat"):
             return act_on_flat_coordinates(

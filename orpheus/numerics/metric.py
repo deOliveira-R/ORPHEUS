@@ -359,18 +359,26 @@ class HilbertMetric(ABC):
         slots, a rank-deficient Parseval head) is an inner product on that
         quotient, and the adjoint is posed there."""
 
-    @abstractmethod
     def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
         r"""An orthonormal basis of :math:`\ker G` on elements of ``shape``.
 
         The ``(n, n − rank)`` array whose columns span the kernel, ``n`` the
-        element size, in the flat C-order chart. Read off the same stored data
-        :meth:`rank` reads, so the column count is ``n − rank(shape)`` by
-        construction. This is the basis the kernel-condition check applies an
-        operator to (``operator.require_kernel_condition``, #705): an operator
-        :math:`A : V \to W` has an adjoint on the quotient iff
-        :math:`P_W A k = 0` for every column :math:`k`.
+        element size, in the flat C-order chart: the kernel half of
+        :meth:`_block_split`. This is the basis the kernel-condition check
+        applies an operator to (#705): an operator :math:`A : V \to W` has an
+        adjoint on the quotient iff :math:`P_W A k = 0` for every column
+        :math:`k`.
         """
+        return self._block_split(shape)[1]
+
+    @abstractmethod
+    def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
+        r"""Orthonormal bases of :math:`\operatorname{range} G` and
+        :math:`\ker G` on elements of ``block_shape``, the ``(n, rank)`` and
+        ``(n, n − rank)`` columns in the flat C-order chart, read off the same
+        stored data :meth:`rank` reads. :class:`FactoredMetric` takes the tensor
+        product of its factors' splits, so a metric positioned as a factor
+        block answers through this one law."""
 
     def pairing(self, x: NDArray, y: NDArray) -> float:
         r"""Return :math:`\langle x, y\rangle = \sum (Gx) \odot y` — the one spelling."""
@@ -386,14 +394,6 @@ class HilbertMetric(ABC):
         node weights (a frame's measure on a support) refuses ``None``.
         """
         return None
-
-
-class _SplitMetric(Protocol):
-    r"""A positioned leaf that splits ONE factor block into orthonormal live
-    and kernel bases (``(size, rank)`` and ``(size, size − rank)``): the data
-    :meth:`FactoredMetric.kernel_basis` takes the tensor product of."""
-
-    def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]: ...
 
 
 def _unit_columns(mask: NDArray) -> NDArray:
@@ -448,17 +448,11 @@ class DiagonalMetric(HilbertMetric):
         w = _broadcast_leading(self.weights, len(shape))
         return int(np.count_nonzero(np.broadcast_to(w, shape)))
 
-    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
-        r"""The unit vectors of the zero-weight coordinates — the complement of
-        the nonzero count :meth:`rank` reads."""
-        w = np.broadcast_to(_broadcast_leading(self.weights, len(shape)), shape)
-        return _unit_columns(np.asarray(w).ravel() == 0.0)
-
     def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
-        r"""The live and kernel unit vectors of this metric positioned on ONE
-        factor block (the weights broadcast to ``block_shape``, as
-        :meth:`apply_block` reads them)."""
-        zero = np.broadcast_to(np.asarray(self.weights), block_shape).ravel() == 0.0
+        r"""The unit vectors of the nonzero- and zero-weight coordinates, the
+        weights leading-aligned as :meth:`rank` and :meth:`apply` read them."""
+        w = np.broadcast_to(_broadcast_leading(self.weights, len(block_shape)), block_shape)
+        zero = np.asarray(w).ravel() == 0.0
         return _unit_columns(~zero), _unit_columns(zero)
 
     def validate_for(self, shape: tuple[int, ...]) -> None:
@@ -503,7 +497,7 @@ class DiagonalMetric(HilbertMetric):
         leading_coordinates(out, out.shape[:start] + block_shape, owner="DiagonalMetric.apply_block")
         rank = len(block_shape)
         w = np.ascontiguousarray(
-            np.broadcast_to(np.asarray(self.weights), block_shape)
+            np.broadcast_to(_broadcast_leading(self.weights, rank), block_shape)
         )
         wb = w.reshape(
             (1,) * start + block_shape + (1,) * (out.ndim - start - rank)
@@ -639,27 +633,33 @@ class DenseMetric(HilbertMetric):
         size = int(np.prod(shape)) if shape else 1
         return rank * (size // self.dim)
 
-    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
-        r"""The block's kernel basis on the leading slots, repeated over each
-        trailing coordinate: column ``kron(b, e_t)`` (C-order, the block
-        leading)."""
-        size = int(np.prod(shape)) if shape else 1
-        _, kernel = self._block_split(())
-        return np.kron(kernel, np.eye(size // self.dim))
-
     def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
-        r"""Orthonormal live and kernel bases of the block, from the STORED
-        faces: the eigenvectors of the projector :math:`I − G^{+}G`, the kernel
-        the ``dim − rank`` of largest eigenvalue (rank read as :meth:`rank`
-        reads it, so the two counts cannot disagree at a cutoff tie)."""
-        inv = self.inverse_matrix
-        assert inv is not None  # established by __post_init__; narrowing only
-        live_projector = inv @ self.matrix
-        n_kernel = self.dim - int(round(float(np.trace(live_projector))))
-        kernel_projector = np.eye(self.dim) - live_projector
-        _, vectors = np.linalg.eigh((kernel_projector + kernel_projector.T) / 2.0)
-        # eigh sorts ascending: the kernel is the last n_kernel columns.
-        return vectors[:, : self.dim - n_kernel], vectors[:, self.dim - n_kernel :]
+        r"""Orthonormal live and kernel bases from the STORED faces: the
+        eigenvectors of the projector :math:`I − G^{+}G`, the kernel the
+        ``dim − rank`` of largest eigenvalue (rank read as :meth:`rank` reads
+        it, so the two counts cannot disagree at a cutoff tie), on the leading
+        ``dim`` slots and repeated over each trailing coordinate: column
+        ``kron(b, e_t)`` (C-order, the block leading)."""
+        size = int(np.prod(block_shape)) if block_shape else self.dim
+        trailing = np.eye(size // self.dim)
+        live, kernel = self._head_split()
+        return np.kron(live, trailing), np.kron(kernel, trailing)
+
+    def _head_split(self) -> tuple[NDArray, NDArray]:
+        r"""The ``(dim, rank)`` and ``(dim, dim − rank)`` bases on the block itself.
+
+        The COUNT is :meth:`rank`'s (the trace of the stored projector
+        :math:`G^{+}G`), so the two cannot disagree at a cutoff tie. The
+        VECTORS are the eigenvectors of :math:`G` itself, positive
+        semi-definite, so its ``dim − rank`` smallest eigenvalues span the
+        kernel: an eigen-solve of the projector :math:`I − G^{+}G` instead
+        loses digits as :math:`\varepsilon / \lambda_{\min}` of the live
+        spectrum (``[M]`` the A1 qa review, 2026-11-12: ‖GK‖/‖G‖ up to
+        5.9e-6 at a live eigenvalue of 1.2e-12, against ≤ 2e-16 here)."""
+        n_kernel = self.dim - self.rank((self.dim,))
+        _, vectors = np.linalg.eigh((self.matrix + self.matrix.T) / 2.0)
+        # eigh sorts ascending: the kernel is the first n_kernel columns.
+        return vectors[:, n_kernel:], vectors[:, :n_kernel]
 
     def validate_for(self, shape: tuple[int, ...]) -> None:
         size = int(np.prod(shape)) if shape else 1
@@ -801,26 +801,28 @@ class FactoredMetric(HilbertMetric):
         size = int(np.prod(shape)) if shape else 1
         return rank * (size // blocks)
 
-    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
-        r"""The kernel of a tensor product: every product of block basis vectors
+    def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
+        r"""The split of a tensor product: the range is the product of the
+        factors' ranges, and the kernel every product of block basis vectors
         with AT LEAST ONE kernel factor, :math:`\ker(G_1\otimes G_2) =
         \ker G_1 \otimes V_2 + \operatorname{range} G_1 \otimes \ker G_2`; the
         count is :math:`n − \prod r_i`, the complement of :meth:`rank`."""
         live: NDArray = np.ones((1, 1))
         kernel: NDArray = np.zeros((1, 0))
-        for block_shape, factor in self.entries:
-            size = int(np.prod(block_shape)) if block_shape else 1
+        for entry_shape, factor in self.entries:
+            size = int(np.prod(entry_shape)) if entry_shape else 1
             if factor is None:
                 block_live, block_kernel = np.eye(size), np.zeros((size, 0))
             else:
-                block_live, block_kernel = cast(_SplitMetric, factor)._block_split(block_shape)
+                block_live, block_kernel = cast(HilbertMetric, factor)._block_split(entry_shape)
             kernel = np.hstack([
                 np.kron(kernel, np.hstack([block_live, block_kernel])),
                 np.kron(live, block_kernel),
             ])
             live = np.kron(live, block_live)
-        size = int(np.prod(shape)) if shape else 1
-        return np.kron(kernel, np.eye(size // kernel.shape[0]))
+        size = int(np.prod(block_shape)) if block_shape else 1
+        trailing = np.eye(size // kernel.shape[0])
+        return np.kron(live, trailing), np.kron(kernel, trailing)
 
     def validate_for(self, shape: tuple[int, ...]) -> None:
         concat = self._block_shape
@@ -877,11 +879,8 @@ class DualMetric(HilbertMetric):
     def rank(self, shape: tuple[int, ...]) -> int:
         return self.primal.rank(shape)  # G⁺ and G share their range
 
-    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
-        return self.primal.kernel_basis(shape)  # G⁺ and G share their kernel
-
     def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
-        return cast(_SplitMetric, self.primal)._block_split(block_shape)
+        return self.primal._block_split(block_shape)  # G⁺ and G share range and kernel
 
     def apply_block(
         self,
