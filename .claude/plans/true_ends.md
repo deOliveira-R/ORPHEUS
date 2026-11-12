@@ -119,7 +119,7 @@ Reviews: `scratch/true_ends/review/xda.md` (cross-domain-attacker, probes in `re
 - The first-pass design: `scratch/true_ends/design_v1.md` (2026-11-11). Its central `[R]` claim: under (b) the transport adjoint is the dual map V → V\*, and today's metric legs are the conversions between the two charts of V\*.
 - Design v2: `scratch/true_ends/design_v2.md` (2026-11-11).
 - The W5 review is DONE (see its section above): cross-domain-attacker → `scratch/true_ends/review/xda.md`, elegance-enforcer → `scratch/true_ends/review/elegance.md`.
-- The user approved Step A (2026-11-12). The test-architect is writing the Step A spec, the acceptance baseline and the red gates: `scratch/true_ends/stepA/`. The numerics-investigator is promoting the Q-D derivations into `orpheus/derivations/discrete/sn/ld_ubld.py`.
+- The user approved Step A (2026-11-12). The test-architect is writing the Step A spec, the acceptance baseline and the red gates: `scratch/true_ends/stepA/`. The Q-D derivations LANDED on the branch (`9f754595`): three `derive_*` functions in `ld_ubld.py` and four gates in `tests/gates/transport/spatial/test_ld_ubld_symbolic.py`. Owed to the archivist with the R6 theory text: a math `:label:` for "the integrated chart of an LD moment row", so the MMS gate can carry `verifies`.
 
 ## Branches
 
