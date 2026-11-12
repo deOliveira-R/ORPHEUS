@@ -390,3 +390,19 @@ Everything below is a PROPOSAL; none of it is ruled.
 - **R15, `DualPairing` refuses a pairing of two integrated (X\*, X\*) factors.** A residual norm on V\* goes through V\*'s own inner product.
 - **R16, measure or function is a per-slot kind; an average's weight is derived from the pairing partner.** It lands in A3, and condensation stops choosing per channel by hand.
 - **Q1, the variance home: NOT ruled.** The user asked what `DualSpace` is for now; answered in the session.
+
+**The operator map onto R14** (`scratch/true_ends/consult/operator_map.md`, explorer, 2026-11-12). `[M]` A runtime `__subclasses__` walk plus `ast` found 80 classes; 64 are concrete; CP, MoC and MC have 0 (control: 60 found elsewhere). The verdicts are partly `[R]` from reading.
+- **22 of 64 FIT.** No class that changes role fits.
+- **37 of 64 are MIS-DECLARED.**
+  - 26 have the right axes but mark no factor as integrated: every L, C, S, F, N2N and B, the frames, and the harmonic M and R. 0 of 16 role-changing atoms declares a `DualSpace` end.
+  - 11 have wrong axes or a wrong end rule: Λ, the fission moment operator, the SN boundary classes, the radial reconstruction, `InverseMetricOperator` (0 production mints), the Riesz legs, `AdjointOperator`, `_DualOperator` and `TensorProductOperator`.
+- **5 of 64 do not fit**: `FlattenedOperator` (one template for both ends), and `Diagonal`, `RankOne`, `Identity`, `Zero` (no declared ends).
+- **Maps the square needs that no operator provides:**
+  - ♭_X on a product that keeps A and E;
+  - ♭_A and ♯_A as the legs of the transport adjoint;
+  - a rule naming each end's pairing partner (the swap and the full dual both fail);
+  - ♯ on the harmonic head (C\* → C);
+  - per-ordinate trace currents with face area;
+  - condensation as a typed operator.
+- **Correctly absent:** there is no ♭ on energy (`axis.py:680` refuses weights), and no map between flux and importance. But the importance is returned as a `ScalarFlux`: 0 importance or response member classes exist, against 7 flux and 7 source classes.
+- **The 0-D homogeneous problem collapses to two spaces.** Its X flip is invisible numerically there.
