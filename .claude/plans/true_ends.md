@@ -178,3 +178,62 @@ The #705 work in progress is `7615c845` on `fix/predicted-shortcuts`.
   - **energy:** the multigroup flux is integrated (∫_g φ dE) and the cross sections and the importance are densities, so the pairing is canonical. That is WHY the energy grid is a counting measure.
 - **Consequence.** R3's "ψ† ∈ V" holds in angle and space only. In energy, ψ† (a density) and ψ (integrated) differ in variance. The code is consistent with this (the adjoint transposes group matrices without ΔE), so no number is wrong; the claim was. R3 needs this refinement.
 - **The proposed home.** The data side and the adjoint's state side are derived by flipping variance on the axes the operator integrates, and `V.pairing` / `V.data_side()` read the per-axis variance. To be attacked by the cross-domain-attacker and the elegance-enforcer, the energy case included.
+
+## W5 on the pairing's home (2026-11-12)
+
+Reviews: `scratch/true_ends/review/variance_xda.md` (cross-domain-attacker) and `scratch/true_ends/review/variance_elegance.md` (elegance-enforcer), with their probes beside them.
+
+**Agreed by both reviewers:**
+- **The arithmetic of the per-axis reading stands; its structure does not.**
+- **[REFUTED 2026-11-12] ΔE as the energy measure.**
+  - `EnergyAxis` refuses weights (`axis.py:678`).
+  - Two density views compete, ΔE and Δu, and `[M]` 4 of 4 production readers use them only as views.
+  - No pairing or adjoint reads either view. Making ΔE the metric would make an adjoint wrong by a factor of 2.5e5 spellable (`[M]` xda p1).
+  - The energy grid is a counting measure because energy has no preferred reference measure. Angle has dΩ and space has dV; energy has two candidates and the physics picks neither. Only the group masses are free of a reference measure.
+- **[REFUTED 2026-11-12] Variance as a property of `DiscreteMeasure`, the quadrature or the energy grid.**
+  - The LD cell Gram and the harmonic-head Gram are not measures.
+  - `DiscreteMeasure` has no chart field (`[M]` xda).
+  - Variance is a property of a space's FACTOR (X or X\*), not of the axis measure.
+- **[REFUTED 2026-11-12] A per-axis density/integrated flag** (elegance: anti-pattern 3 plus Pattern 2). It re-spells `DualSpace`.
+- **[REFUTED 2026-11-12] "Angle is all densities".** R7's moments C\* and R9's currents are angle-integrated.
+- **[REFUTED 2026-11-12] "Flip on the axes the operator integrates".**
+  - S is local in space but flips there, and it integrates over angle but does not flip there.
+  - Every term of one balance shares one codomain, so the data side is the METHOD's balance axes, declared once. For SN that is {space}.
+- **[REFUTED 2026-11-12] An argument-free `V.pairing` or `V.data_side()`.** One V pairs with both the bulk V\* and the trace.
+- **The home: a free, frozen `DualPairing(state, data)`, built by the binder.**
+  - Its legs are derived per factor from the types:
+    - (X, X\*): a plain contraction;
+    - (X, X): the leg G_X;
+    - (X\*, X\*): the leg G⁺ according to xda, and refused according to elegance.
+  - It adds no new arithmetic: ℓ is a `FactoredMetric` with `None` on the contracted factors.
+  - `adjoint(A) = ℓ'⁻¹ ∘ A.dual() ∘ ℓ`.
+  - The Riesz legs need a constructor that takes a metric (`operator.py:1381`).
+
+**The open question both raise, for a user ruling: where the variance index lives.**
+- **(i) In the axes record, through a new `Axis.dual()`** (xda). V\* = `of_axes(A, E.dual(), X.dual())` stays axis-built, so `.axis("energy")` keeps working.
+  - `[M]` today `V.dual()` and the R8 product both raise TypeError on `.axis("energy")`.
+  - The A3 source classes read the axes (`_bases.py:458/517/551/625`, `angular_source_sink.py:139`).
+- **(ii) As per-factor `DualSpace` products** (elegance), with a derived "factor profile" accessor.
+  - `[M]` the product loses its `axes` record, and by reading 7 sites in 4 files break.
+  - The elegance review measured the same loss as xda, so (ii) needs (i)'s fix anyway. `[R]` (i) subsumes (ii).
+
+**Corrections to the orchestrator's reading:**
+- **"ψ† ∈ V fails in energy"** (from the cross-domain-attacker, a reasoned claim, not mine):
+  - The INDEX (upper or lower with respect to the axis measure) of ψ† is the same as ψ's on every axis, so R3 "ψ† ∈ V" holds as an index statement.
+  - What differs is TYPE (Radon–Nikodym: a measure is summed on merge, a function is averaged with a weight). Its one consumer is condensation (`mixture.py:435–620` picks sum or average per index by hand).
+  - `[M]` on the energy space, adjoint = transpose bit for bit. No number moves.
+- **TYPE is a member-class property** (xda): a function/measure kind on the member role, beside {Flux, SourceSink}. This touches design v2's "ψ† is flux-classed": ψ† is an importance, a function.
+
+**For the archivist:**
+- `axis.py:642–656` calls the flux space V\* and the cross sections V (the reverse of R3).
+- Its collapse hook "sum on V, average on V\*" should read "sum on measures, average on functions".
+
+**For the test-architect** (xda's first tests):
+- The data side keeps `.axis("energy")`, with the R8 product's metric.
+- `condense` of an importance member is pair-weighted, while the same values typed as flux are summed.
+- Pairing two lowers canonically is refused (the carrier is `diffusion/solver.py:431`).
+- A4 needs a gate pinning the codomain's factor profile: SA-1 checks only `codomain != domain` (elegance).
+
+**A1 findings** (the test-architect, `tests/gates/numerics/test_member_seam_laws.py` with 30 rows, `tests/gates/cross_method/test_member_seam_builders.py` with 19 rows):
+- `FullFieldSpace._make_dual` drops `zeros_factory`, so `V.dual().member` raises today. To fix in A2.
+- The coupled space's dual zero is minted from `*SourceSink` fields on the PRIMAL blocks. To fix in A3; the strict xfail mb4 pins it.
