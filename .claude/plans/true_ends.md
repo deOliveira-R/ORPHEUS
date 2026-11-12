@@ -60,6 +60,39 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
     5. K80's candidate loop, re-spelled on `member()`.
 - **D7.** #706 (negative weights) needs its own ruling. Level-symmetric quadratures have negative weights at high order.
 
+## W5 review of design v1 (2026-11-11)
+
+Reviews: `scratch/true_ends/review/xda.md` (cross-domain-attacker, probes in `review/xda/`) and `scratch/true_ends/review/elegance.md` (elegance-enforcer, probe `review/elegance_probe_h.py`).
+
+**What holds:**
+- §0's arithmetic. `[M]` `G⁺AᵀG` equals the dual map in the density chart to 1e-16, on diagonal, dense and non-square ends.
+- D5 (i), the quotient on the state side, is the native realisation. `[M]` On product(4,4) in 2-D the stored A is zero on 160 of 160 tangential rows and columns, and the live block matches to 7e-17. (ii), currents as the state, puts the adjoint's trace source on the function side, against R3, and raises cond from 25 to 60. Specular reflection reads identically in both charts.
+- 0 of 18 production `.H` sites need the Hilbert adjoint of a V → V\* operator. `[M]` 15 feed the adjoint SN entries, 2 are same-side Hilbert adjoints, 1 is the alias.
+
+**What breaks:**
+- **D1, the chart as a member property.** `[REFUTED 2026-11-11]` The Riesz legs are built from spaces at construction, before any member exists (`operator.py:1660–1672`). Re-declaring the codomain as `V.dual()` (metric G⁺) moves every `.H` by 0.74–15.9 `[M]`. The chart must be space identity.
+- **D3, re-declaring the condensed atoms V → V\* and switching to `.dual()`.** `[REFUTED 2026-11-11]` Bare `.dual()` is 59 % off, and `.H` with codomain `V.dual()` is 8 % off `[M]`. The transport adjoint needs the chart legs: A† = κ⁻¹ ∘ (κ ∘ A).dual(), with κ the density-to-integrated isomorphism (applies G).
+- **The involution holds only in the integrated chart.** `[M]` `(Aᵀ)ᵀ = A` is exact in the integrated chart; in the density chart it is `PAP`, 0.82 off with a leak present.
+- **D4, Λ preserving the head's kernel.** `[REFUTED 2026-11-11]` `[M]` Production Λ fails the kernel condition on 2 of 4 rows: 9.2e-2 on LS4 L=5 (a shipped test row) and 0.16 on product(4,4) L=4; there `Λ.H.H` is off from Λ by 0.38 and 0.56.
+  - The cause: on under-resolved rules the Parseval kernel mixes ℓ (‖[P_head, P_ℓ]‖ ≈ 1 on 5 of 11 rows).
+  - This also refutes the "0 of 33" claim in #707's body, which covered L ≤ 2 only (`scratch/shortcut_census/probes/probe_lambda_kernel.py`).
+  - `[R]` Production adjoint numbers are not affected: the SN adjoint daggers the word R·Λ·M on the angular space, not Λ alone. To be measured.
+- **D2, `HarmonicMomentFlux` on V.** `[REFUTED 2026-11-11]` The moment head is covariant (moments are integrals ∫Y ψ dΩ), so it lives in C\* ⊗ V_cells. `[M]` Mixed variance is constructible: `TensorProductSpace.from_factors((X.dual(), Y))`.
+
+**The exact law found:** `[M]` `Mᵀ = W·R·diag(1/(2ℓ+1))` to ≤1.6e-16 on 7 of 7 rows, including the 5 where the Hilbert square fails. R is not independent data.
+
+**Decisions for the user** (the 2026-11-11 checkpoint):
+- R-1: store V\* in the integrated chart, or keep the condensed chart with four space objects and κ.
+- R-4: two head spaces C and C\* with the continuum ℓ-diagonal map between them, against R-6.2c-1's one Parseval-dressed space.
+- R4's realisation: (i) the quotient, with trace rows written in currents.
+
+**Smaller items, decided unless the user objects:**
+- A tensor product's ends are the product of its factors' spaces, a new law on `TensorProductOperator`. R2's "ends where members live" wins over "spaces by agreement".
+- `FlattenedOperator`'s template retires outright under R5.
+- `PredictedKernel.H`'s hand-rolled Riesz legs retire.
+- `FissionMomentOperator` joins D4.
+- The tensor-law gate uses the production `project_live`, not `pinv`: `[M]` `pinv` reads 7.7e-2 where `project_live` reads 2e-15.
+
 ## Next
 
 - The first-pass design: `scratch/true_ends/design_v1.md` (2026-11-11). Its central `[R]` claim: under (b) the transport adjoint is the dual map V → V\*, and today's metric legs are the conversions between the two charts of V\*.
