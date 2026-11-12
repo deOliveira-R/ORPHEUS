@@ -237,3 +237,110 @@ Reviews: `scratch/true_ends/review/variance_xda.md` (cross-domain-attacker) and 
 **A1 findings** (the test-architect, `tests/gates/numerics/test_member_seam_laws.py` with 30 rows, `tests/gates/cross_method/test_member_seam_builders.py` with 19 rows):
 - `FullFieldSpace._make_dual` drops `zeros_factory`, so `V.dual().member` raises today. To fix in A2.
 - The coupled space's dual zero is minted from `*SourceSink` fields on the PRIMAL blocks. To fix in A3; the strict xfail mb4 pins it.
+
+## The form-degree attack (2026-11-12)
+
+The user asked whether a missing differential-geometry concept is welded in. The orchestrator proposed form degree from discrete exterior calculus as the one label behind variance and type. The cross-domain-attacker attacked it: `scratch/true_ends/review/form_degree_xda.md`, with its probe `form_degree_xda/p1_streaming_vs_variance.py`.
+
+**The terminology.** "Riesz map" here means the Riesz representation map, not the spectral Riesz projector; `[M]` there are 0 spectral-projector uses in `orpheus/`. In finite dimensions it is the musical isomorphism ♭/♯. These are one object, not two theories.
+
+**[REFUTED 2026-11-12] "Form degree is ONE label that unifies variance and type", for the question "is there a single label?".**
+- Read consistently, it is two numbers per axis: the NATIVE degree, what the quantity is (= TYPE), and the STORED degree, which side of ⋆ the coordinates sit on (= INDEX).
+- The FACT this establishes: (TYPE, INDEX) is the right pair, and DEC renames it rather than reducing it.
+
+**[REFUTED 2026-11-12] "Streaming is metric-free because it is the coboundary d".**
+- `[M]` collision C = diag(Vσ) has the same canonical-transpose identity (1.4e-16).
+- `[M]` streaming differs by 0.878 between slab and sphere while d is unchanged.
+- L = d ∘ (upwind contraction), and that contraction is not a ⋆.
+
+**Derivations.**
+- Degree plus ⋆ derive 5 of 9 rows: R9, R10, R4, the energy counting measure, and the pairing legs. The same rows also derive from (TYPE, INDEX).
+- R6 and R8 need a "balance axes" rule beyond degree.
+- Condensation half-derives: summing top-degree quantities follows, but a 0-form's weight is extra data in both frames (volume for flux, V·φ for σ, production for χ, φ for ψ†).
+
+**Break points:**
+- homogenisation (three quantities stored at degree 0 condense with three different weights);
+- the harmonic head (no cell complex);
+- diffusion (J⁺, J⁻) (they swap under orientation, where a cochain would change sign);
+- LD (it fits finite-element exterior calculus, a Galerkin ⋆, not DEC).
+
+**Where it fits:**
+- curvilinear redistribution is d on the μ-mesh;
+- R4, #705 and #706 become one condition: ⋆ is degenerate or indefinite.
+
+**The one gain, `[R]`, no number moves.** Under the stored/native reading, ψ ∈ A ⊗ E\* ⊗ X and ψ† ∈ A ⊗ E ⊗ X. This reconciles R8 ("dual on the spatial factor only") with its 2026-11-12 correction ("A ⊗ (E⊗X)\*"): they name different reference spaces. The attacker's earlier "the index is the same on energy" was a convention, not a measurement.
+
+**The minimal realisation (the attacker's reading).** `Axis.dual()` is the stored degree, the member kind is the native degree, and `DualPairing` is the contraction. `Axis.of_degree(k)` has consumers only for k ∈ {0, top}, so it reduces to `dual()`.
+
+## A1 review fixes (2026-11-12)
+
+qa (`scratch/true_ends/stepA/a1_qa.md`) and the elegance-enforcer (`scratch/true_ends/stepA/a1_elegance.md`) reviewed `d482b89a`.
+
+**Fixed in-session, each with a witness that reddens on the old body:**
+- **One split law.** `HilbertMetric._block_split` is abstract, and `kernel_basis` derives from it in the base; the `_SplitMetric` cast protocol retired.
+- **`DiagonalMetric` broadcasts leading-aligned throughout.** `_block_split` AND `apply_block` were trailing (numpy), while `rank` and `validate_for` were leading. A factored space with a two-axis diagonal block was built with a rank and then could not apply its own metric. Witness: k1 "factored two-axis diagonal block".
+- **`DenseMetric` kernel vectors are eigenvectors of G**, with the count still read from `rank`. The eigenvectors of I − G⁺G lose digits as ε/λ_min. Witness: k1 "dense near the cutoff".
+- **`FullFieldSpace.coordinates_of` restores the identity leg.** A dual accepted a primal composite. Witness: MB5 (4 rows).
+- **The two `member()` twins retired onto `space.member`:** `posing._carrier` and `MatrixInverseOperator._returned_as`.
+  - Both read `getattr(space, "zeros", None)`, which changed behaviour silently when A1 gave `FullFieldSpace` a `zeros()`. That was the D6/D8 cause.
+  - The test pinning the old refusal migrated: `test_typed_operand_without_a_carrier_space_raises`.
+  - `posing` refuses a pencil whose loss declares no domain.
+- **Stale docstrings:** `flat_operator.py` (what `apply` accepts) and the builders gate's `is`/`==` note.
+
+**Routed to later sub-steps (same branch, recorded so they are not lost):**
+- **A3:**
+  - The `CoupledSpace` identity leg (qa F1). It refuses the dual's own members until the coupled dual zero is minted on the dual blocks (MB4, strict xfail).
+  - `member` is not a function of the space (qa F3): `zeros_factory` is `compare=False`, so equal spaces mint different classes.
+  - `FullFieldSpace._make_dual` drops `zeros_factory`.
+  - The member class follows the Python subclass, not the variance: `V.dual()` of a tensor product mints a bare `Member` (elegance F2).
+  - Five spellings of "mint from flat over a template".
+- **A4:** the template retires from `FlattenedOperator` (NM-2). `_flat_coordinates` is the interim. Its `space is None` arm serves only test doubles (0 of 5 production constructions).
+- **A6:** diffusion's trace and bulk are stored in the density chart, against R6 (`augmented_mesh.py:148`, `operators.py:74`).
+- **The test-architect:**
+  - an SN fixture with nonzero predicted kernel columns (3 of 3 probed have none, so the SN annihilation check never runs);
+  - a homogenisation gate (the stored degree must not pick the weight);
+  - the collision-transpose row as a gate on `pairing.adjoint`;
+  - an A4 gate pinning the codomain's factor profile.
+- **The archivist:**
+  - `axis.py:642–656` names the flux space V\* and the cross sections V, the reverse of R3. Its collapse hook should read "sum on measures, average on functions".
+  - Name the reference spaces in R8 and in its correction.
+
+## Compaction point 2 (2026-11-12, after A1)
+
+**Commits on `refactor/true-ends`, since compaction point 1:**
+- `e009fb9b`, `0decff33`: plan commits (the per-axis variance question; W5 on the pairing's home).
+- `d482b89a`: A1, the member seam.
+- `d836cbaf`: the A1 review fixes.
+- This commit: the plan (the form-degree attack, the A1 fixes, this point) and agent memory.
+
+**The measured red baseline** (`[M]` `scratch/true_ends/stepA/a1_fix_full.log`, `-O`, serial, `-m "not slow"`, all of `tests/gates`, 1 h 52 min): 118 failed, 20 358 passed, 72 xfailed.
+- All 118 are Step A red gates: 113 in `sn/test_true_ends_step_a.py` and `cross_method/test_source_chart_law.py`, 2 in `diffusion/test_true_ends_step_a.py`, and 3 in `numerics/test_true_ends_member_seam.py` (NM-2 ×2, NM-3).
+- NM-1 is green. The acceptance baseline is green (23 of 23).
+
+**A2 is BLOCKED on a user ruling. The user, 2026-11-12: "don't rule yet on the DualSpace and related questions"; the newer model (Fable 5.2) is to be consulted after a harness restart and a compaction.** The questions, stated neutrally, with their evidence:
+1. **Where the variance (X versus X\*) of each factor is recorded.**
+   - (i) `Axis.dual()` in the axes record, so V\* = `of_axes(A, E.dual(), X.dual())` keeps `.axis()`.
+   - (ii) Per-factor `DualSpace` products, with a derived factor profile.
+   - `[M]` today `V.dual()` and the R8 product both lose `.axis("energy")`.
+   - Evidence: `review/variance_xda.md`, `review/variance_elegance.md`.
+   - The user asked whether `DualPairing` should inspire the `DualSpace` design ("would adjoint properties live in DualSpace and ♭/♯ be mappings between these?"). The orchestrator's explanation is in the session transcript:
+     - the pairing is metric-free; ♭/♯ belong to the metric; the adjoint belongs to a PAIR of spaces;
+     - the partial ♭ (I_A ⊗ ♭_X) is R6's integration and R10's door.
+2. **`DualPairing` on (X\*, X\*).** Both reviewers refuse the canonical contraction (the diffusion double integration, `diffusion/solver.py:431`). xda would apply the G⁺ leg; elegance would refuse it and leave V\*'s own inner product on `DualSpace`. The user asked what this protects against; the orchestrator's answer: two integrated quantities contracted canonically count the measure twice, and the residual norm in V\* is the one legitimate G⁺ use.
+3. **The measure/function TYPE as a member-class kind.** It would land in A3, with ψ† as an importance, a function. The user leaned to "Yes, in A3", noting that it is related to question 1. Not ruled.
+4. **The form-degree reading** (see "The form-degree attack" above). It is a renaming of (TYPE, INDEX), not a single label; its gain is that ψ ∈ A⊗E\*⊗X and ψ† ∈ A⊗E⊗X. The attacker asks whether the flux's energy factor becomes E\*. Not ruled.
+
+The orchestrator's draft rulings R14–R16 (in the transcript, 2026-11-12) are PROPOSALS only and must not be read as ruled:
+- R14: variance on the axis;
+- R15: per-factor pairing legs, refusing (a\*, a\*);
+- R16: TYPE is a member kind in A3.
+
+**Next, after the consult and the rulings:**
+1. A2: the data-side space and `DualPairing` (`orpheus/numerics/pairing.py`), with its law gates from the test-architect first.
+2. Then A3–A6 as listed at compaction point 1.
+3. The A2/A3/A4/A6 items routed in "A1 review fixes" above.
+
+**Durable lessons:**
+- **`git checkout <hash> -- <paths>` STAGES the files**, so the next `git commit` sweeps them in. One plan commit swallowed the A1 production code; it was unpushed, and a soft reset plus restaging fixed it. Read `git status --porcelain` before EVERY commit, plan commits included.
+- **A duck-typed `getattr(space, "zeros", None)` changes behaviour silently** when a verb lands on a class it reads. Two twins took the typed branch the moment `FullFieldSpace.zeros` landed (retirement-audit item 6). A new verb owes a grep for its name as a STRING.
+- **A gate added for one defect can find its sibling.** The k1 two-axis row, written for `_block_split`, reddened on `apply_block` too: one convention had two homes.

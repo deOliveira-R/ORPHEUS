@@ -72,7 +72,7 @@ Open the file for the verdict; the hook only tells you whether to open it.
 - [posing ontology clean attack](posing_ontology_clean_attack_frames.md) — eigen question = line ∩ determinantal hypersurface; Fundamental on the BULK cone with a declared end; trace = DAE block (same Schur verb as precursors); affinity is (family, chart, reduction); question space = cell FIELDS; ⛔ "Laurent along TIME = point kinetics" above is its first-order content only. 2nd attack (2026-09-28): trace = pullback along the COPRODUCT injection; Fundamental's end = the coordinate's admissible-range boundary; the collapse verb's host is the coupling TYPE; `derived_SigT` lives on the reaction set.
 
 ### Carrier typing / coefficient fields
-- [true ends: chart/variance](true_ends_chart_variance_frames.md) — .H = dual map in density chart; chart keyed on SPACE; side = per-AXIS variance; frame dual law Mᵀ=♭RD; Λ head-kernel leak.
+- [true ends: chart/variance](true_ends_chart_variance_frames.md) — .H = dual map; TYPE ≠ INDEX; form degree = the PAIR (native, stored), one integer is a weld; ψ ∈ E*, ψ† ∈ E reconciles R8.
 - [#226 container algebra](issue_226_container_algebra_design.md) — structural `Vector` Protocol + `apply(x:V)->V`; primitives stay flat ndarray.
 - [#257 carrier layering](issue_257_carrier_typing_layering_frames.md) — `Vector` = the forgetful-functor image, irreducible by the layer DAG.
 - [coefficient fields](coefficient_field_promotion_frames.md) — f↦M_f IS the multiplier-algebra embedding; diagonal symbol ⇒ Multiplication op.
