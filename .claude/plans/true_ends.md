@@ -42,6 +42,13 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
   - Curvilinear `[M]` (symbolic): the cell Gram is not diagonal (sphere pole cell: M₀₁/V = 1/2, M₁₁/V = 2/5). LD refuses curvilinear today.
 - **R8 refined:** the moment axis of a spatial closure (the trial basis inside a cell) belongs to the SPATIAL factor that R8 dualises. `[R]` mathematically forced: the slope index is a spatial basis index. CONFIRMED by the user 2026-11-12, with the instruction that the derivations become part of `orpheus/derivations/` (Branch 1, State 1A: `ld_ubld.py`, foundation gates), so the numerical and symbolic forms can be compared in tests and documentation figures generated programmatically.
 
+- **A consequence of R8, measured during Step A** (2026-11-12, the test-architect; `[M]` a GL4, 3-cell toy with S = RΛM, script in the session scratchpad `ta/r8_probe.py`).
+  - Under R8 the transport adjoint is NOT metric-free: the plain transpose of the R8-stored operator is 0.113 (relative) off the true adjoint, while W⁻¹A_intᵀW (angular legs only) matches it to 5.6e-16.
+  - So V\* = A ⊗ (E⊗X)\*, with mixed variance: primal in angle, dual on energy ⊗ space ⊗ in-cell moments. It is not `V.dual()`.
+  - The transport adjoint is the adjoint with respect to the TRANSPORT PAIRING (G_A ⊗ canonical): angular legs only, spatial legs retired.
+  - Its involution is exact by algebra wherever the angular weights are nonzero. The kernel condition re-enters only on zero-weight ordinates.
+  - `[REFUTED 2026-11-12]` design v2's "the transport adjoint is plain `.dual()`, and #705's check leaves every flux → source operator": it holds on the spatial factor only. The full dual (w_n stored in sources) would make it metric-free but needs ÷w_n in the sweep, which R8 rejected.
+
 ## Refuted candidates
 
 - **Λ is a head operator not given its head.** `[REFUTED 2026-11-10]` by `[M]`: Λ(e⊗p) is 0.37–0.45 from the best (Be)⊗p (`scratch/shortcut_census/probes/`). Λ mixes groups and reads each cell's material. It holds only for one group and one material.
