@@ -344,3 +344,43 @@ The orchestrator's draft rulings R14–R16 (in the transcript, 2026-11-12) are P
 - **`git checkout <hash> -- <paths>` STAGES the files**, so the next `git commit` sweeps them in. One plan commit swallowed the A1 production code; it was unpushed, and a soft reset plus restaging fixed it. Read `git status --porcelain` before EVERY commit, plan commits included.
 - **A duck-typed `getattr(space, "zeros", None)` changes behaviour silently** when a verb lands on a class it reads. Two twins took the typed branch the moment `FullFieldSpace.zeros` landed (retirement-audit item 6). A new verb owes a grep for its name as a STRING.
 - **A gate added for one defect can find its sibling.** The k1 two-axis row, written for `_block_split`, reddened on `apply_block` too: one convention had two homes.
+
+## The consult on the four open questions (2026-11-12, after compaction point 2)
+
+An advisor was consulted. The harness may still have been serving Fable 5.1 rather than 5.2; this is reported to the user. The advisor proposed an order (4, 1, 3, 2) and three censuses plus a probe, which were run before any ruling. Reports:
+- `scratch/true_ends/consult/four_space_probe.md` (numerics-investigator; probes and logs beside it);
+- `consult/variance_census.md` (explorer; probes in `consult/variance_census/`);
+- `consult/type_census.md` (explorer).
+Everything below is a PROPOSAL; none of it is ruled.
+
+**Q4, the four-space square, holds `[M]`** (toy: 4 groups with upscatter, a 4-cell non-uniform slab, GL4, step scheme, vacuum; merges {012|3} non-uniform and {01|23} uniform).
+- flux ψ ∈ A⊗E\*⊗X; source q ∈ A⊗E\*⊗X\*; importance ψ† ∈ A⊗E⊗X; response R ∈ A⊗E⊗X\*. The pairings are ⟨ψ†, q⟩ and ⟨R, ψ⟩, each contracting E and X canonically, with G_A on angle.
+- The discriminating instrument is the coarse balance under the non-uniform group merge. With ψ and q summed it closes to 1e-15; with them averaged it misses by 1.19 (slab) and 10.3 (0-D). The uniform merge cannot tell them apart (control).
+- Wrong assignments break the pairings: ψ† summed moves ⟨ψ†,q⟩ by 2.09; R summed moves ⟨R,ψ⟩ by 0.298 (non-uniform merge).
+- R8 and its 2026-11-12 correction are the same square read from ψ's side and from ψ†'s side. The R8 control reproduces (0.11331, 5.6e-16).
+- Consequence: R3's two spaces become four (ψ† ∉ V, r ∉ V\*).
+- `[REFUTED 2026-11-12]` "ψ†'s index equals ψ's on energy" (variance_xda): under the merge ψ is summed and ψ† is averaged.
+
+**Q3, TYPE is not the index `[M]`** (both the probe and the census agree; this refutes the advisor's guess that one would determine the other).
+- Measure versus function decouples from the stored index on space: ψ is a measure stored as a cell average; R is a function stored cell-integrated (summing R is off by 2.8e-2). Energy is the only axis where the two coincide, because it has no reference measure.
+- The weight of an average is the quantity's PAIRING PARTNER: ψ† averaged with q preserves ⟨ψ†,q⟩, and averaged with ψ (production) it preserves ⟨ψ†,ψ⟩. With a full-support source each choice moves the other pairing by 2–3e-2.
+- Census: 29 production merge rows; today 10 consistent, 7 exceptions, 12 indeterminate. TYPE belongs to each tensor slot, not each member (the scattering sink slot is summed, its source slot averaged), and six averaging weights appear.
+- Production condensation is consistent with the square but chooses per channel by hand; `Mixture.condense` matches the toy bit for bit in 0-D.
+- Open: whether production's ψ-weighted importance merge (`solution.py:826`, `:292`) moves a number on any multi-cell path.
+
+**Q1, the variance home `[M]`.**
+- 6 of 12 minted production factor kinds are `Axis` objects (angle, energy, cells, the harmonic head C, the LD in-cell moment, the condensation coarse-group head).
+- The other 6 are axes-less trace and boundary leaves (`AngularTraceSpace`, `AngularFaceTraceSpace`, the per-face current space, `ScalarTraceSpace`, and the two radial-characteristic spaces).
+- `.axis()` resolves on 6 of 16 built spaces.
+- So `Axis.dual()` alone cannot hold every factor's variance. The bit belongs to whatever generates the factor. The advisor's candidate single verb is a partial dual by axis name, `V.dual(on=…)`, with the full dual as the case naming every axis.
+- Also found: the harmonic head already carries C\*'s metric G⁻¹ under a primal type (read on the diagonal arm only), and the condensation head is labelled `"cells"` with a plain `Axis` for energy.
+
+**Q2, the (X\*, X\*) leg `[M]`.**
+- Σ_g q_g² is not invariant: it doubles under an equal-mass merge and falls as 1/n_g under refinement. Σq²/ΔE and Σq²/Δu converge, to different limits (0.0891 and 0.0519). A canonical G⁺ leg on E\* is therefore grid-dependent.
+- Today 1 of 14 data-side sites pairs two integrated quantities: `cp/solver.py:862`, a legitimate residual norm. 0 of 14 are double integrations; the suspect `diffusion/solver.py:431` is a correct single integration today.
+- `[R]` 6 sites become double integrations once A3/A4 store the data side integrated: diffusion `:431`, `:644`, `:645`; SN `_balance_projection`; `loss_kernel_gauge.py:928`.
+- Proposal: `DualPairing` refuses (X\*, X\*); a residual norm on V\* is V\*'s own inner product on `DualSpace`.
+
+**Owed, whatever is ruled:**
+- test-architect: the non-uniform coarse-balance gate with its uniform control; the S/F/L witness table as the coverage map for `pairing.adjoint`; a swap probe (every source scaled by V) before A3; an A4 gate on `_balance_weights`.
+- archivist: `axis.py:642` should read "sum on E\*, average on E"; the condensation head's `"cells"` label.
