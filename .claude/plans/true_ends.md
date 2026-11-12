@@ -169,3 +169,12 @@ The #705 work in progress is `7615c845` on `fix/predicted-shortcuts`.
 **Durable lessons:**
 - Two charts of one element look like two measures until the whole step is read: Q-D was half a step.
 - A plain transpose is not the adjoint when an axis is pointwise: the R8 measurement.
+
+**Open after compaction point 1, the pairing's home** (the user's question, 2026-11-12: "Is this a Discrete Measure property? … Is this why the Energy Grid is a counting measure?"). `[R]` the orchestrator's reading, NOT yet ruled; it goes to a W5 attack before the A2 code.
+- **The rule.** Every axis carries a discrete measure: w_n in angle, V in space, ΔE in energy. Each SPACE declares per axis whether its coordinates are DENSITY (measure not absorbed) or INTEGRATED (absorbed). A pairing integrates exactly once per axis: it is canonical when exactly one side is integrated, and measure-weighted when both are densities.
+- **Per axis:**
+  - angle: ψ, q, ψ† and r are all densities, so the pairing carries w_n;
+  - space: the flux is a density and the source is integrated (R8), so the pairing is canonical;
+  - **energy:** the multigroup flux is integrated (∫_g φ dE) and the cross sections and the importance are densities, so the pairing is canonical. That is WHY the energy grid is a counting measure.
+- **Consequence.** R3's "ψ† ∈ V" holds in angle and space only. In energy, ψ† (a density) and ψ (integrated) differ in variance. The code is consistent with this (the adjoint transposes group matrices without ΔE), so no number is wrong; the claim was. R3 needs this refinement.
+- **The proposed home.** The data side and the adjoint's state side are derived by flipping variance on the axes the operator integrates, and `V.pairing` / `V.data_side()` read the per-axis variance. To be attacked by the cross-domain-attacker and the elegance-enforcer, the energy case included.
