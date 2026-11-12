@@ -377,4 +377,13 @@ class DiffusionMesh(MethodMesh):
         """
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-        return FullFieldSpace.from_blocks(self.bulk_space, self.scalar_trace)
+        from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
+        from orpheus.transport.fields.scalar_flux import ScalarFlux
+        from orpheus.transport.full_field import FullField
+
+        return FullFieldSpace.from_blocks(
+            self.bulk_space, self.scalar_trace,
+            zeros_factory=lambda: FullField.zeros(
+                interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=self.full_field_space,
+            ),
+        )

@@ -1232,7 +1232,14 @@ class SNProblem(MethodMesh):
             return None
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 
-        return FullFieldSpace.from_blocks(interior, boundary)
+        from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
+
+        return FullFieldSpace.from_blocks(
+            interior, boundary,
+            zeros_factory=lambda: RadialCharacteristicField.flux_zeros(
+                self.radial_characteristic_field_space,
+            ),
+        )
 
     @cached_property
     def angular_bulk_space(self) -> "FunctionSpace":
@@ -1466,9 +1473,12 @@ class SNProblem(MethodMesh):
         # reproducing the retired dense spelling at ≤ 1 ULP on every
         # metric face — gated by the hand-built dense oracle in
         # ``tests/gates/sn/mesh/test_angular_bulk_space.py``.
+        from orpheus.sn.coupled_system import _zero_full_field
+
         return FullFieldSpace.from_blocks(
             self.angular_trial_space,
             self.angular_trace,
+            zeros_factory=lambda: _zero_full_field(self),
         )
 
     @property

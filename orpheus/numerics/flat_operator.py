@@ -131,8 +131,8 @@ class FlattenedOperator(LinearOperator):
         return getattr(self.inner, "codomain", None)
 
     def apply(self, x: Any, /) -> np.ndarray:
-        r"""Return ``inner.apply(unflat(x)).to_flat()``."""
-        flat = np.asarray(x, dtype=float).ravel()
+        r"""Return ``inner.apply(unflat(x)).to_flat()``; ``x`` is a flat vector or a member of :attr:`domain`."""
+        flat = self._flat_coordinates(x, self.domain)
         if flat.size != self.n_flat:
             raise ValueError(
                 f"FlattenedOperator.apply: input size {flat.size} does "
@@ -161,7 +161,7 @@ class FlattenedOperator(LinearOperator):
         codomain's coordinates, which is the domain's for the endomorphisms
         this adapter serves (a square inner, :attr:`n_flat` on both ends).
         """
-        flat = np.asarray(y, dtype=float).ravel()
+        flat = self._flat_coordinates(y, self.codomain)
         if flat.size != self.n_flat:
             raise ValueError(
                 f"FlattenedOperator.apply_transpose: input size {flat.size} does "
@@ -169,6 +169,14 @@ class FlattenedOperator(LinearOperator):
             )
         carrier = type(self.template).from_flat(flat, self.template)
         return np.asarray(self.inner.dual().apply(carrier).to_flat())
+
+    @staticmethod
+    def _flat_coordinates(x: Any, space: "Optional[FunctionSpace]") -> np.ndarray:
+        r"""The flat coordinates of ``x`` in ``space``'s chart: a member of the declared end
+        (a composite) or its bare coordinate vector (#707 A1; the template
+        retires in A4, NM-2)."""
+        coordinates = x if space is None else space.coordinates_of(x)
+        return np.asarray(coordinates, dtype=float).ravel()
 
     @property
     def is_invertible(self) -> bool:

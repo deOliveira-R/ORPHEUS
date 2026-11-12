@@ -70,7 +70,7 @@ from __future__ import annotations
 
 from functools import cached_property
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -1001,6 +1001,34 @@ class FunctionSpace(Generic[Carrier]):
         """
         return self.apply_inverse_metric(self.apply_metric(x))
 
+    def kernel_basis(self) -> NDArray:
+        r"""An orthonormal basis of :math:`\ker G`, the ``(n, n − rank)`` columns
+        in the flat C-order chart (:meth:`HilbertMetric.kernel_basis`; none on a
+        Euclidean space). A composite space overrides it block-wise, in its flat
+        chart's block order, as it overrides :attr:`rank`."""
+        metric = self._resolved_metric
+        if metric is None:
+            return np.zeros((self.n_coordinates, 0))
+        return metric.kernel_basis(self.shape)
+
+    def member(self, coordinates: NDArray) -> Carrier:
+        r"""The member whose coordinates are ``coordinates``: the inverse of the
+        coordinate chart, so ``coordinates_of(member(c)) == c`` and
+        ``member(c).space == self`` (the same object on a leaf and its dual; a
+        composite field rebuilds an equal space per instance).
+
+        The class follows the space (#707 ruling R5): on a primal leaf it is a
+        bare :class:`Member`, an element of :math:`V` with no physical role;
+        :meth:`DualSpace.member` mints a :class:`Covector`, the integrated data
+        side. A space whose members are typed above this layer (a composite)
+        overrides this with its builder-wired member class.
+        """
+        return cast(Carrier, Member(values=self._chart_values(coordinates), space=self))
+
+    def _chart_values(self, coordinates: NDArray) -> NDArray:
+        """The coordinates as a float array of :attr:`shape` (flat or shaped)."""
+        return np.asarray(coordinates, dtype=float).reshape(self.shape)
+
     @property
     def _resolved_metric(self) -> Optional[HilbertMetric]:
         r"""The metric SOURCE resolved to its realization, PER CALL.
@@ -1565,6 +1593,12 @@ class DualSpace(FunctionSpace):
 
     def _make_dual(self) -> "FunctionSpace":
         return self.primal  # V** = V
+
+    def member(self, coordinates: NDArray) -> Covector:
+        r"""The co-vector with these integrated coordinates: the data side's
+        member class (#707 ruling R5). The inverse of :meth:`coordinates_of`,
+        the raw mint of :meth:`FunctionSpace.flat`'s output."""
+        return Covector(values=self._chart_values(coordinates), space=self)
 
     @property
     def _resolved_metric(self) -> Optional[HilbertMetric]:

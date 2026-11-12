@@ -302,6 +302,7 @@ class Composite(Generic[Interior, Boundary]):
         """
         return FullFieldSpace.from_blocks(
             self.interior.space, self.boundary.space,
+            zeros_factory=lambda: self._from_flat(np.zeros(self.to_flat().size)),
         )
 
     @property

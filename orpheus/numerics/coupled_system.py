@@ -135,7 +135,7 @@ from functools import reduce
 from typing import TYPE_CHECKING, Any, Callable, Optional, Protocol, Sequence, cast, overload
 
 import numpy as np
-from scipy import sparse
+from scipy import linalg as scipy_linalg, sparse
 
 from orpheus.numerics.assembled_operator import MissingAssembly
 from orpheus.numerics.operator import (
@@ -700,6 +700,26 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
     def rank(self) -> int:
         r"""A coupled space's rank is the sum of its member systems' ranks."""
         return sum(s.rank for s in self.systems)
+
+    def kernel_basis(self) -> "np.ndarray":
+        r"""The direct sum's kernel basis: the systems' bases block-diagonally,
+        in the flat chart's system order (:meth:`CoupledField.to_flat`)."""
+        return np.asarray(scipy_linalg.block_diag(*(s.kernel_basis() for s in self.systems)))
+
+    def member(self, coordinates: "np.ndarray") -> "CoupledField":
+        r"""The coupled field with these flat coordinates, on the builder-wired
+        zero element's member classes (:meth:`zeros`): the inverse of
+        :meth:`coordinates_of`."""
+        return CoupledField.from_flat(coordinates, self.zeros())
+
+    def coordinates_of(self, x: Any) -> Any:
+        r"""The flat coordinates of a coupled member (:meth:`CoupledField.to_flat`),
+        arity-checked against the member spaces; a bare array takes the base's
+        shape leg."""
+        if isinstance(x, CoupledField):
+            self._check_arity(x)
+            return np.asarray(x.to_flat(), dtype=float)
+        return super().coordinates_of(x)
 
     def inner_product(self, x: "CoupledField", y: "CoupledField") -> float:
         r"""The direct-sum inner product

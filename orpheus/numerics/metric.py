@@ -359,6 +359,19 @@ class HilbertMetric(ABC):
         slots, a rank-deficient Parseval head) is an inner product on that
         quotient, and the adjoint is posed there."""
 
+    @abstractmethod
+    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
+        r"""An orthonormal basis of :math:`\ker G` on elements of ``shape``.
+
+        The ``(n, n − rank)`` array whose columns span the kernel, ``n`` the
+        element size, in the flat C-order chart. Read off the same stored data
+        :meth:`rank` reads, so the column count is ``n − rank(shape)`` by
+        construction. This is the basis the kernel-condition check applies an
+        operator to (``operator.require_kernel_condition``, #705): an operator
+        :math:`A : V \to W` has an adjoint on the quotient iff
+        :math:`P_W A k = 0` for every column :math:`k`.
+        """
+
     def pairing(self, x: NDArray, y: NDArray) -> float:
         r"""Return :math:`\langle x, y\rangle = \sum (Gx) \odot y` — the one spelling."""
         return float(np.sum(self.apply(x) * y))
@@ -373,6 +386,22 @@ class HilbertMetric(ABC):
         node weights (a frame's measure on a support) refuses ``None``.
         """
         return None
+
+
+class _SplitMetric(Protocol):
+    r"""A positioned leaf that splits ONE factor block into orthonormal live
+    and kernel bases (``(size, rank)`` and ``(size, size − rank)``): the data
+    :meth:`FactoredMetric.kernel_basis` takes the tensor product of."""
+
+    def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]: ...
+
+
+def _unit_columns(mask: NDArray) -> NDArray:
+    r"""The unit vectors :math:`e_j` of the coordinates where ``mask`` is true, as columns."""
+    indices = np.flatnonzero(mask)
+    columns = np.zeros((mask.size, indices.size))
+    columns[indices, np.arange(indices.size)] = 1.0
+    return columns
 
 
 def _frozen_copy(array: NDArray) -> NDArray:
@@ -418,6 +447,19 @@ class DiagonalMetric(HilbertMetric):
     def rank(self, shape: tuple[int, ...]) -> int:
         w = _broadcast_leading(self.weights, len(shape))
         return int(np.count_nonzero(np.broadcast_to(w, shape)))
+
+    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
+        r"""The unit vectors of the zero-weight coordinates — the complement of
+        the nonzero count :meth:`rank` reads."""
+        w = np.broadcast_to(_broadcast_leading(self.weights, len(shape)), shape)
+        return _unit_columns(np.asarray(w).ravel() == 0.0)
+
+    def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
+        r"""The live and kernel unit vectors of this metric positioned on ONE
+        factor block (the weights broadcast to ``block_shape``, as
+        :meth:`apply_block` reads them)."""
+        zero = np.broadcast_to(np.asarray(self.weights), block_shape).ravel() == 0.0
+        return _unit_columns(~zero), _unit_columns(zero)
 
     def validate_for(self, shape: tuple[int, ...]) -> None:
         # The legacy weights array may be broadcast-shaped (``(1, 4, 1)`` on a
@@ -597,6 +639,28 @@ class DenseMetric(HilbertMetric):
         size = int(np.prod(shape)) if shape else 1
         return rank * (size // self.dim)
 
+    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
+        r"""The block's kernel basis on the leading slots, repeated over each
+        trailing coordinate: column ``kron(b, e_t)`` (C-order, the block
+        leading)."""
+        size = int(np.prod(shape)) if shape else 1
+        _, kernel = self._block_split(())
+        return np.kron(kernel, np.eye(size // self.dim))
+
+    def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
+        r"""Orthonormal live and kernel bases of the block, from the STORED
+        faces: the eigenvectors of the projector :math:`I − G^{+}G`, the kernel
+        the ``dim − rank`` of largest eigenvalue (rank read as :meth:`rank`
+        reads it, so the two counts cannot disagree at a cutoff tie)."""
+        inv = self.inverse_matrix
+        assert inv is not None  # established by __post_init__; narrowing only
+        live_projector = inv @ self.matrix
+        n_kernel = self.dim - int(round(float(np.trace(live_projector))))
+        kernel_projector = np.eye(self.dim) - live_projector
+        _, vectors = np.linalg.eigh((kernel_projector + kernel_projector.T) / 2.0)
+        # eigh sorts ascending: the kernel is the last n_kernel columns.
+        return vectors[:, : self.dim - n_kernel], vectors[:, self.dim - n_kernel :]
+
     def validate_for(self, shape: tuple[int, ...]) -> None:
         size = int(np.prod(shape)) if shape else 1
         if size != self.dim:
@@ -737,6 +801,27 @@ class FactoredMetric(HilbertMetric):
         size = int(np.prod(shape)) if shape else 1
         return rank * (size // blocks)
 
+    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
+        r"""The kernel of a tensor product: every product of block basis vectors
+        with AT LEAST ONE kernel factor, :math:`\ker(G_1\otimes G_2) =
+        \ker G_1 \otimes V_2 + \operatorname{range} G_1 \otimes \ker G_2`; the
+        count is :math:`n − \prod r_i`, the complement of :meth:`rank`."""
+        live: NDArray = np.ones((1, 1))
+        kernel: NDArray = np.zeros((1, 0))
+        for block_shape, factor in self.entries:
+            size = int(np.prod(block_shape)) if block_shape else 1
+            if factor is None:
+                block_live, block_kernel = np.eye(size), np.zeros((size, 0))
+            else:
+                block_live, block_kernel = cast(_SplitMetric, factor)._block_split(block_shape)
+            kernel = np.hstack([
+                np.kron(kernel, np.hstack([block_live, block_kernel])),
+                np.kron(live, block_kernel),
+            ])
+            live = np.kron(live, block_live)
+        size = int(np.prod(shape)) if shape else 1
+        return np.kron(kernel, np.eye(size // kernel.shape[0]))
+
     def validate_for(self, shape: tuple[int, ...]) -> None:
         concat = self._block_shape
         if concat != shape:
@@ -791,6 +876,12 @@ class DualMetric(HilbertMetric):
 
     def rank(self, shape: tuple[int, ...]) -> int:
         return self.primal.rank(shape)  # G⁺ and G share their range
+
+    def kernel_basis(self, shape: tuple[int, ...]) -> NDArray:
+        return self.primal.kernel_basis(shape)  # G⁺ and G share their kernel
+
+    def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
+        return cast(_SplitMetric, self.primal)._block_split(block_shape)
 
     def apply_block(
         self,

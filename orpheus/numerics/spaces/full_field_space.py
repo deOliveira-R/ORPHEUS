@@ -99,9 +99,10 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol, overload
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, Protocol, cast, overload
 
 import numpy as np
+from scipy import linalg as scipy_linalg
 
 from orpheus.values.content import name_digest
 from orpheus.numerics.space import FunctionSpace, act_on_direct_sum_coordinates
@@ -150,6 +151,14 @@ class CompositeField(Protocol):
         boundary: _CompositeLeaf,
     ) -> "CompositeField": ...
 
+    def to_flat(self) -> np.ndarray:
+        """The flat direct-sum coordinates, interior block then trace block."""
+        ...
+
+    def _from_flat(self, flat: np.ndarray) -> "CompositeField":
+        """The composite of this one's class and blocks with coordinates ``flat``: :meth:`to_flat`'s inverse."""
+        ...
+
 
 @dataclass(frozen=True, eq=False)
 class FullFieldSpace(FunctionSpace[CompositeField]):
@@ -195,6 +204,13 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
     # kw_only sidesteps the inherited-defaults field-ordering rule.
     interior_space: FunctionSpace = field(kw_only=True, repr=False, compare=False)
     trace_space: FunctionSpace = field(kw_only=True, repr=False, compare=False)
+    #: The builder-wired zero element (the member seam, #705): a FunctionSpace is
+    #: not a field factory, and the composite carriers live above this layer, so
+    #: the layer that builds the space supplies its exemplar, as
+    #: :attr:`CoupledSpace.zeros_factory <orpheus.numerics.coupled_system.CoupledSpace.zeros_factory>`.
+    zeros_factory: Callable[[], CompositeField] | None = field(
+        default=None, kw_only=True, repr=False, compare=False,
+    )
 
     def identity_key(self) -> tuple[Any, ...]:
         """A direct sum is the keys of its two blocks (F7: the composite of
@@ -209,8 +225,13 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         cls,
         interior_space: FunctionSpace,
         trace_space: FunctionSpace,
+        *,
+        zeros_factory: Callable[[], CompositeField] | None = None,
     ) -> "FullFieldSpace":
         r"""Build the composite from its bulk and trace leaf spaces.
+
+        ``zeros_factory`` wires the member seam (:meth:`member`, #705): the layer
+        that builds the space knows its carrier class, this one does not.
 
         Derives the flat direct-sum ``shape`` from the leaf shapes:
         ``(prod(bulk) + prod(trace),)`` — ``prod`` on every block so the
@@ -250,6 +271,7 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
             shape=(n_interior + n_trace,),
             interior_space=interior_space,
             trace_space=trace_space,
+            zeros_factory=zeros_factory,
         )
 
     def _make_dual(self) -> "FullFieldSpace":
@@ -359,6 +381,33 @@ class FullFieldSpace(FunctionSpace[CompositeField]):
         r"""A direct sum's rank is the sum of its blocks' ranks."""
         interior_space, trace_space = self.interior_space, self.trace_space
         return interior_space.rank + trace_space.rank
+
+    def kernel_basis(self) -> np.ndarray:
+        r"""The direct sum's kernel basis: the blocks' bases block-diagonally,
+        interior first, in the flat chart's block order (:meth:`CompositeField.to_flat`)."""
+        return np.asarray(scipy_linalg.block_diag(self.interior_space.kernel_basis(), self.trace_space.kernel_basis()))
+
+    def zeros(self) -> CompositeField:
+        r"""Mint the zero composite through the builder-wired :attr:`zeros_factory`; loud when unwired."""
+        if self.zeros_factory is None:
+            raise RuntimeError(
+                f"FullFieldSpace {self.name!r} carries no zero-element factory: "
+                f"supply zeros_factory= at from_blocks (the member seam, #705; the "
+                f"composite carriers live above the numerics layer)."
+            )
+        return self.zeros_factory()
+
+    def member(self, coordinates: np.ndarray) -> CompositeField:
+        r"""The composite with these flat coordinates, on the zero element's
+        carrier class and blocks: the inverse of :meth:`coordinates_of`."""
+        return self.zeros()._from_flat(np.asarray(coordinates, dtype=float).ravel())
+
+    def coordinates_of(self, x: Any) -> Any:
+        r"""The flat coordinates of a composite member (its ``to_flat``, interior
+        then trace); a bare array takes the base's shape leg."""
+        if isinstance(x, np.ndarray):
+            return super().coordinates_of(x)
+        return np.asarray(cast(CompositeField, x).to_flat(), dtype=float)
 
     def inner_product(self, x: CompositeField, y: CompositeField) -> float:
         r"""Return the direct-sum inner product
