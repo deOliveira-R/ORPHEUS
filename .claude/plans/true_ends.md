@@ -40,7 +40,7 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
   - The single definition: the stored integrated value is the scheme's cell mass (the Gram of the trial basis under the cell measure) applied to the Legendre coefficients, `q_int = M_cell·q_coef`. On a Cartesian cell that is `V·θ^{|o|}·q̂_o` with θ = 1/3, per ordinate and per steradian, with no w_n.
   - `[M]` In an MMS on the slab, the V·θ chart converges at h³ for the mean and h² for the slope; the V chart drops to h² and h.
   - Curvilinear `[M]` (symbolic): the cell Gram is not diagonal (sphere pole cell: M₀₁/V = 1/2, M₁₁/V = 2/5). LD refuses curvilinear today.
-- **R8 refined:** the moment axis of a spatial closure (the trial basis inside a cell) belongs to the SPATIAL factor that R8 dualises. `[R]` mathematically forced: the slope index is a spatial basis index. It is recorded for the user to confirm.
+- **R8 refined:** the moment axis of a spatial closure (the trial basis inside a cell) belongs to the SPATIAL factor that R8 dualises. `[R]` mathematically forced: the slope index is a spatial basis index. CONFIRMED by the user 2026-11-12, with the instruction that the derivations become part of `orpheus/derivations/` (Branch 1, State 1A: `ld_ubld.py`, foundation gates), so the numerical and symbolic forms can be compared in tests and documentation figures generated programmatically.
 
 ## Refuted candidates
 
@@ -112,7 +112,7 @@ Reviews: `scratch/true_ends/review/xda.md` (cross-domain-attacker, probes in `re
 - The first-pass design: `scratch/true_ends/design_v1.md` (2026-11-11). Its central `[R]` claim: under (b) the transport adjoint is the dual map V → V\*, and today's metric legs are the conversions between the two charts of V\*.
 - Design v2: `scratch/true_ends/design_v2.md` (2026-11-11).
 - The W5 review is DONE (see its section above): cross-domain-attacker → `scratch/true_ends/review/xda.md`, elegance-enforcer → `scratch/true_ends/review/elegance.md`.
-- Then a user checkpoint on D1–D5 before any code.
+- The user approved Step A (2026-11-12). The test-architect is writing the Step A spec, the acceptance baseline and the red gates: `scratch/true_ends/stepA/`. The numerics-investigator is promoting the Q-D derivations into `orpheus/derivations/discrete/sn/ld_ubld.py`.
 
 ## Branches
 
