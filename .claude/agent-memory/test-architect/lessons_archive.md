@@ -12031,3 +12031,18 @@ A delegated claim is checkable only through identifiers on statements the reader
 `test_axis_marginal_lift.py` whatever the row. The highest-node-run home (and the own cone the support predicate
 reads) inherits a fixture's over-build; a home differing from the subject is not always shape (i) or (ii) of list 5.
 Files: `scratch/verification_tree/cone_store/b5/reading/` (schema, check.py, selftest.py 15 arms, pilot/P06.jsonl).
+
+## L133 — #707 Step A: gating a side by its metric; validating a frozen-anchor oracle (2026-11-12)
+
+(1) The brief said "a source's space is `V.dual()`"; the ruling (R8) made V* = A ⊗ (E⊗X)*, a mixed-variance object
+whose spelling the carve had not chosen. A row asserting object identity would be red before and after. Gating the
+SIDE through `interior_space.metric_diagonal() == w_n ⊗ 1/(V θ^|o|)` (built from raw weights and volumes) is
+spelling-independent: any honest realisation carries that metric. `[M]` a toy dense probe (plain transpose 0.113 off,
+angular legs 5.6e-16) settled the premise in one call before any row was written.
+(2) A gate whose oracle reads a FROZEN density anchor (`source_chart_anchor.npz`) is validated by reproducing today's
+production value from the same anchor bit for bit (SA-8: today's rayleigh == the anchor's coordinate-sum spelling,
+rel 0.0), and the raw-data gauge oracle by matching production's own G-pairing (0.05 == 0.05000000000000001) —
+only then is the red read as "today spells it wrong" rather than "the oracle is wrong".
+(3) Fixture facts: `FissionOperator.apply` RAISES on every LD SNProblem (`material_field.py:483`, the moment axis
+read as spatial); `solve_sn` takes no scheme (no LD eigen); there is no Step scheme in the registry.
+Files: `scratch/true_ends/stepA/`.
