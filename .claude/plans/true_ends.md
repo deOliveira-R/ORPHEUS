@@ -134,3 +134,38 @@ Reviews: `scratch/true_ends/review/xda.md` (cross-domain-attacker, probes in `re
 
 - `refactor/true-ends`: this campaign, from `main` `a00539f4`.
 - `fix/predicted-shortcuts`: the #705 work in progress, `7615c845`. It rebases onto this campaign and lands after it.
+
+## Compaction point 1 (2026-11-12, after the Step A gates)
+
+**Commits on `refactor/true-ends`** (from `main` `a00539f4`):
+- `91bda66d` … `73440c9c`: plan commits (rulings R1–R13, the W5 synthesis, design v2, Q-D).
+- `9f754595`: the LD Galerkin-moment derivations (`ld_ubld.py`, 4 gates).
+- `e8760f6f`: Step A's acceptance baseline (green) and red gates.
+
+The #705 work in progress is `7615c845` on `fix/predicted-shortcuts`.
+
+**The measured red baseline for Step A** (`[M]` `scratch/true_ends/stepA/final_run.log`, the 5 new gate files, `-O`, serial, 44 s): 119 failed, 81 passed, 6 strict xfail, 3 skipped. The acceptance baseline (`tests/gates/cross_method/test_true_ends_acceptance.py`) is green and must stay green.
+
+**Superseding corrections:**
+- V\* is NOT `V.dual()`. It is A ⊗ (E⊗X)\*, mixed variance (R8 + the 2026-11-12 measurement).
+- The transport adjoint is `pairing.adjoint(A)`, keeping the angular legs (R11). It is not `.dual()`.
+- The #705 check is needed only on zero-weight ordinates and the remaining degenerate primal spaces.
+
+**Step A sub-steps** (`[R]`; each one a call-site set, green on its own gates, the acceptance baseline green throughout):
+1. **A1: the member seam.** `kernel_basis`, `member()`, the composite overrides and the `zeros_factory` wiring, cherry-picked from `7615c845` without its predicate. Closes NM-1.
+2. **A2: the data-side space and `DualPairing`** (`orpheus/numerics/pairing.py`), with their law gates.
+3. **A3: the integrated data side.**
+   - The seven `*SourceSink` classes move to the data side.
+   - The producers integrate (the `/W` home `angular_lift.py:440`; the spatial measure `V·θ^|o|`).
+   - The sweeps' consumers: the 1-D walk loses its ×V, and the multi-D kernel works on integrated values.
+   - The R10 input doors convert at the edge, and the LD fission fix lands here.
+   - Gates: the chart law, LD-F, and the acceptance baseline.
+4. **A4: operator ends.** The atoms become V → V\*, the inverses V\* → V, `FlattenedOperator` uses members, and compositions refuse a mismatch. Gates: SA-1 to SA-4, NM-2.
+5. **A5: the adjoint.** `pairing.adjoint`, the `.H` refusal, the 16 cross-side sites, the gauge, the Rayleigh estimator, and `PredictedKernel.H`. Gates: SA-5 to SA-8, NM-3.
+6. **A6: diffusion ends and k.** Gates: DF-1, DF-2.
+
+**Open:** where the pairing is obtained from (`_true_ends.pairing_of`).
+
+**Durable lessons:**
+- Two charts of one element look like two measures until the whole step is read: Q-D was half a step.
+- A plain transpose is not the adjoint when an axis is pointwise: the R8 measurement.
