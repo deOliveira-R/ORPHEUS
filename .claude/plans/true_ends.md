@@ -62,7 +62,9 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
 
 ## Next
 
-A first-pass design document, then a W5 review (cross-domain-attacker and elegance-enforcer), then a user checkpoint on D1–D5 before any code.
+- The first-pass design: `scratch/true_ends/design_v1.md` (2026-11-11). Its central `[R]` claim: under (b) the transport adjoint is the dual map V → V\*, and today's metric legs are the conversions between the two charts of V\*.
+- The W5 review is running: cross-domain-attacker → `scratch/true_ends/review/xda.md`, elegance-enforcer → `scratch/true_ends/review/elegance.md`.
+- Then a user checkpoint on D1–D5 before any code.
 
 ## Branches
 
