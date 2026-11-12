@@ -49,6 +49,15 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
   - Its involution is exact by algebra wherever the angular weights are nonzero. The kernel condition re-enters only on zero-weight ordinates.
   - `[REFUTED 2026-11-12]` design v2's "the transport adjoint is plain `.dual()`, and #705's check leaves every flux → source operator": it holds on the spatial factor only. The full dual (w_n stored in sources) would make it metric-free but needs ÷w_n in the sweep, which R8 rejected.
 
+- **R11, the transport pairing is a first-class object that owns the adjoint** (2026-11-12). `DualPairing(V, V\*)` is G_A ⊗ canonical.
+  - `pairing(ψ†, q)` evaluates it, and `pairing.adjoint(A)` is the A† with ⟨ψ†, Aψ⟩ = ⟨A†ψ†, ψ⟩.
+  - `.dual()` stays the metric-free arrow, and `.H` refuses on V → V\*.
+  - The gauge, the Rayleigh estimator and the gate oracle call it.
+  - Where the pairing is obtained from is not yet ruled.
+- **R12, the adjoint gauge is ⟨F†ψ†, 1⟩ = 1 via the pairing** (2026-11-12). The importance moves by one declared global factor; k† does not move.
+- **R13, the Rayleigh estimator pairs over the full space, bulk ⊕ trace,** with the trace measure (R9) (2026-11-12). The trace term is gated in Step B.
+- **The Step A scope gains the LD fission defect.** `[M]` (test-architect) `FissionOperator.apply` raises on every LD problem (`transport/material_field.py:483`: the layout gather refuses the in-cell moment axis).
+
 ## Refuted candidates
 
 - **Λ is a head operator not given its head.** `[REFUTED 2026-11-10]` by `[M]`: Λ(e⊗p) is 0.37–0.45 from the best (Be)⊗p (`scratch/shortcut_census/probes/`). Λ mixes groups and reads each cell's material. It holds only for one group and one material.
