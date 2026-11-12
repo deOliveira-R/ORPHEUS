@@ -32,6 +32,11 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
 - **R7, the moment head as two spaces** (2026-11-11; amends R-6.2c-1). C holds coefficients (what R reads) and C\* holds moments (what M writes), linked by the continuum ℓ-diagonal map. `HarmonicMomentFlux` lives in C\* ⊗ cells.
 - **R4 re-ruled** (2026-11-11). The S_N boundary state is ψ on the non-tangential ordinates (the quotient), with the current view J = ♭ψ through the Riesz verbs. Reflection and albedo are maps on currents. Diffusion and CP follow in the method-harmonisation step.
 
+- **R8, the data side is dual on the SPATIAL factor only** (2026-11-11, Q-A). V\* = angle ⊗ cells\*, per cell and per steradian: the discrete per-ordinate balance. There is no ÷w_n in the sweep, and the angular measure enters only where angles couple (M, R, the pairing).
+- **R9, the trace measure includes the face area** (2026-11-11, Q-B). It is |Ω·n|·w_n·A_f, so ♭ψ is a true partial current.
+- **R10, inputs are densities, converted once at the input boundary** (2026-11-11, Q-C). Specified as densities, they become the integrated data side by ♭ at the parse edge; the density remains a queried view for output.
+- **Q-D, the LD slope-moment measure (V·θ in the metric vs V in the 1-D sweep): not ruled.** The user asked for an investigation from opposite perspectives, with their lean ("investigate") taken as a guide and not a ruling. The investigation is running: `scratch/true_ends/ld_moments/`.
+
 ## Refuted candidates
 
 - **Λ is a head operator not given its head.** `[REFUTED 2026-11-10]` by `[M]`: Λ(e⊗p) is 0.37–0.45 from the best (Be)⊗p (`scratch/shortcut_census/probes/`). Λ mixes groups and reads each cell's material. It holds only for one group and one material.
@@ -100,7 +105,8 @@ Reviews: `scratch/true_ends/review/xda.md` (cross-domain-attacker, probes in `re
 ## Next
 
 - The first-pass design: `scratch/true_ends/design_v1.md` (2026-11-11). Its central `[R]` claim: under (b) the transport adjoint is the dual map V → V\*, and today's metric legs are the conversions between the two charts of V\*.
-- The W5 review is running: cross-domain-attacker → `scratch/true_ends/review/xda.md`, elegance-enforcer → `scratch/true_ends/review/elegance.md`.
+- Design v2: `scratch/true_ends/design_v2.md` (2026-11-11).
+- The W5 review is DONE (see its section above): cross-domain-attacker → `scratch/true_ends/review/xda.md`, elegance-enforcer → `scratch/true_ends/review/elegance.md`.
 - Then a user checkpoint on D1–D5 before any code.
 
 ## Branches
