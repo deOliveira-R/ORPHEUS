@@ -51,6 +51,13 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
 - **D4.** The full moment-field space (head ⊗ group ⊗ cells) and its product metric. Λ spelled Σ_ℓ P_ℓ ⊗ K_ℓ, with M and R as axis-addressed factors.
 - **D5.** The current-posed S_N trace: the reflection, albedo and inflow operators act on currents, and the boundary word and the windowed path both change.
 - **D6.** #705's kernel check lands on top, for the remaining degenerate spaces: rank-deficient moment heads and zero-weight nodes.
+  - The test-architect's spec is `scratch/shortcut_census/gate_spec.md`; the gates are in `7615c845`.
+  - It left five items owed:
+    1. comparison rows for 9 of the 27 shortcuts: S7, S8, S13, S18, S19, S24–S27;
+    2. the same mirror re-pose for `test_coupled_gate2_swap_law_bit_identical`;
+    3. the ERR entry's `catches` on `test_d1_a_leaking_operator_has_no_adjoint`, with `test_g2` and `test_p1` as further carriers;
+    4. a math `:label:` for the kernel condition, so the d/e rows can carry `verifies`;
+    5. K80's candidate loop, re-spelled on `member()`.
 - **D7.** #706 (negative weights) needs its own ruling. Level-symmetric quadratures have negative weights at high order.
 
 ## Next
