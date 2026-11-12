@@ -28,6 +28,10 @@ Census: `scratch/true_ends/census/report.md` (`[M]` 2026-11-10, 11 920 passed, 2
 - **R4, the S_N trace in currents.** The trace unknowns become per-ordinate partial currents J = |Ω·n|·w·A·ψ. The tangential ordinates leave the space, so the trace metric is non-degenerate, as diffusion and collision probability already pose it.
 - **R5, the space verbs.** Every `FunctionSpace` owns `member(coordinates)`, the inverse of its chart. Member classes typed above `numerics/` are installed by the builder.
 
+- **R6, the data side stored integrated** (2026-11-11). Sources, currents and responses are integrated amounts. The transport adjoint is the plain dual map, `(Aᵀ)ᵀ = A` holds by algebra, and source numbers change by the measure factor (re-baselined; k and fluxes do not move).
+- **R7, the moment head as two spaces** (2026-11-11; amends R-6.2c-1). C holds coefficients (what R reads) and C\* holds moments (what M writes), linked by the continuum ℓ-diagonal map. `HarmonicMomentFlux` lives in C\* ⊗ cells.
+- **R4 re-ruled** (2026-11-11). The S_N boundary state is ψ on the non-tangential ordinates (the quotient), with the current view J = ♭ψ through the Riesz verbs. Reflection and albedo are maps on currents. Diffusion and CP follow in the method-harmonisation step.
+
 ## Refuted candidates
 
 - **Λ is a head operator not given its head.** `[REFUTED 2026-11-10]` by `[M]`: Λ(e⊗p) is 0.37–0.45 from the best (Be)⊗p (`scratch/shortcut_census/probes/`). Λ mixes groups and reads each cell's material. It holds only for one group and one material.
