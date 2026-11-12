@@ -384,3 +384,9 @@ Everything below is a PROPOSAL; none of it is ruled.
 **Owed, whatever is ruled:**
 - test-architect: the non-uniform coarse-balance gate with its uniform control; the S/F/L witness table as the coverage map for `pairing.adjoint`; a swap probe (every source scaled by V) before A3; an A4 gate on `_balance_weights`.
 - archivist: `axis.py:642` should read "sum on E\*, average on E"; the condensation head's `"cells"` label.
+
+**Rulings on the consult (the user, 2026-11-12):**
+- **R14, four spaces.** flux A⊗E\*⊗X, source A⊗E\*⊗X\*, importance A⊗E⊗X, response A⊗E⊗X\*, with the pairings ⟨importance, source⟩ and ⟨response, flux⟩. It amends R3's "ψ† ∈ V". The user: "we made a sophisticated space machinery, so we should use it properly." The user also asked whether every operator between these spaces has been mapped; an operator-map census was dispatched (`consult/operator_map.md`).
+- **R15, `DualPairing` refuses a pairing of two integrated (X\*, X\*) factors.** A residual norm on V\* goes through V\*'s own inner product.
+- **R16, measure or function is a per-slot kind; an average's weight is derived from the pairing partner.** It lands in A3, and condensation stops choosing per channel by hand.
+- **Q1, the variance home: NOT ruled.** The user asked what `DualSpace` is for now; answered in the session.
