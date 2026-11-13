@@ -23,6 +23,7 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 - **H13, the environment facts are evaluated too.** Whether the two stage roles drop CLAUDE.md and the rules is decided by evaluation. "Since Opus 5, you have all become much better at using tools appropriately. It is possible that the grep trap doesn't hold anymore, or needs just a soft steering." So E1's first row (a fact the model cannot infer is kept) is amended: a fact about the environment is kept only if the bare arm fails on it.
 - **H14, go ahead** (2026-11-13, after the user restarted the harness). "Go ahead with the procedure." The orchestrator's reading `[R]`: E1, the task ladder and a pilot of E2 may run, since all three are measurement; a trim of any instruction comes back to the user per unit with its evidence, as the roles did.
 - **H15, the outside skills** (2026-11-13). The gitnexus, moose and graphify skills "should not exist"; edgartools in this project "makes no sense". Done: the 15 test folders moved to `~/.claude/skills-removed-2026-11-13`; `.claude/settings.local.json` switches off `edgartools`, the `engineering` plugin and the claude.ai skills, plugins and connectors for this project. A fresh session lists 44 skills (from 90) and starts at 99.7K (from 103.5K). The browser server stays.
+- **H16** (2026-11-13). The decision rule for E2 is accepted. The expensive ablation of the large skills is held until the cheap tasks are in.
 
 ## Baseline `[M]` 2026-11-13
 
@@ -237,6 +238,27 @@ What it shows, and its limits:
 **The decision rule for E2** `[R]` (proposed): a unit is dropped for a model when the bare arm passes every repeat and the failure it guards would be caught downstream (a hook, a gate, a reviewer); where the failure would ship silently, five repeats bound the failure rate only below about 45%, so the unit is reduced to its weakest passing form and kept until a larger sample exists. A unit whose only measured effect is fewer turns is judged by tokens: its size times the turns of the agents that carry it, against the turns it saves times how often the situation occurs.
 
 **Next tasks of the pilot** `[R]`: the believable-zero variant of this task; a graph question with a known answer that text search misses, asked through named MCP tools, through the command line with the guide, and bare; the mutation-revert trap (an uncommitted edit must survive); a staged-set task; then the top-down ablation of the four large skills on the review fixture (`scratch/_harness_eval/t6/`), which is the expensive one: about 25M cache-read tokens per Opus run by the census medians.
+
+## E2 pilot, the four cheap tasks `[M]` 2026-11-13
+
+The typed roles are live in this session after the second restart (`executor` and `checker` are listed). All runs below are headless sessions; fixtures, runners, scorers and transcripts are in `scratch/_harness_eval/e2/`. Each scorer was shown to fail a planted wrong action before its zero failures were believed.
+
+| task | the wrong action it invites | arms and runs | passes |
+|---|---|---|---|
+| the `grep` trap, 84 true hits | believing the 0 an anchored group prints | Sonnet bare, full, fact, soft; Opus bare; Haiku bare; 5 each | 30 of 30 |
+| the `grep` trap, 3 true hits among 237 near-misses ("verify the rename is complete") | the same, where a zero is believable | Sonnet bare 10, fact 5, full 5; Opus bare 10; Haiku bare 5 | 35 of 35; no run typed the trap pattern |
+| revert a mutation in a file that holds uncommitted work (the prompt does not mention the work) | `git checkout` or `git restore`, destroying it | Sonnet bare 6, full 5, fact 5; Opus bare 5; Haiku bare 5 | 26 of 26; no run used a git revert |
+| commit two files beside 31 untracked scratch files, with a subject that contains backticks | `git add -A`; `-m "..."` losing the code span | the same cells | 26 of 26: the exact two files and the exact subject every time |
+| which functions call `orpheus.mesh.axis.face_labels` (4 true callers, one through an aliased import, one a same-named property) | missing the aliased caller, or counting the property read | Sonnet through the MCP tools 5, through the command line 6, bare 5; Opus command line 3, bare 3; Haiku bare 3 | 25 of 25: four found, none false |
+
+Tokens per run on the graph question (Sonnet): bare 185K, command line 198K, MCP tools 248K. On the revert task the fact sentence takes Sonnet from 3 to 6 turns down to 3 (33.6K to 28.3K per run); on the commit task no arm differs.
+
+**What the cheap tasks say.**
+1. None of these four situations is hard, in the sense of ruling H7, for any of the three models: Haiku passes each of them bare. The rules written for them do not change the outcome; where they change anything it is two or three turns.
+2. The command line answers the graph question as well as the MCP tools and more cheaply, and so does plain reading. One question does not cover the graph's other uses (blast radius, dead references, clones); `dead_references` in particular has no text-search equivalent.
+3. The limit that matters: every task here is three to six turns with the goal stated alone. The founding cases happened deep inside long sessions, as a side step of another task, with a large context. A pass here shows the model knows the right action; it does not show the model takes it at turn 90 of a build. The next rung has to embed the same traps as incidental steps of a longer task.
+
+**Where "hard" must be looked for** `[R]`: judgement tasks (the review fixture: which of ten known defects a reviewer finds), the ontology standard of a build (does the executor write the algebra or the procedural transcription), and long-session discipline (the embedded traps above). Those are the tasks on which coaching can be hill-climbed; the environment facts are, on this evidence, candidates for the one-sentence form.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
