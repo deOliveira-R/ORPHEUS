@@ -21,6 +21,8 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 - **H11, the roles are accepted** (2026-11-13). "I agree with the roles. Seem like pretty good design to me." The command line for the graph is tried, and whether it works is part of the evaluation: "if the Nexus guide skill does a good job maybe it will work well."
 - **H12, spawning.** The user does not mind either way whether a Key agent holds `Agent`. "Inside of a dynamic workflow, an agent having to call a support agent is a symptom of a vague task description. Arguably it should send a message to the orchestrator." The orchestrator's decision `[R]`: the headers keep `Agent` for a dispatch outside a workflow; inside a workflow no agent holds it (measured) and the `workflows` rule now says a need for another agent is a question to the orchestrator.
 - **H13, the environment facts are evaluated too.** Whether the two stage roles drop CLAUDE.md and the rules is decided by evaluation. "Since Opus 5, you have all become much better at using tools appropriately. It is possible that the grep trap doesn't hold anymore, or needs just a soft steering." So E1's first row (a fact the model cannot infer is kept) is amended: a fact about the environment is kept only if the bare arm fails on it.
+- **H14, go ahead** (2026-11-13, after the user restarted the harness). "Go ahead with the procedure." The orchestrator's reading `[R]`: E1, the task ladder and a pilot of E2 may run, since all three are measurement; a trim of any instruction comes back to the user per unit with its evidence, as the roles did.
+- **H15, the outside skills** (2026-11-13). The gitnexus, moose and graphify skills "should not exist"; edgartools in this project "makes no sense". Done: the 15 test folders moved to `~/.claude/skills-removed-2026-11-13`; `.claude/settings.local.json` switches off `edgartools`, the `engineering` plugin and the claude.ai skills, plugins and connectors for this project. A fresh session lists 44 skills (from 90) and starts at 99.7K (from 103.5K). The browser server stays.
 
 ## Baseline `[M]` 2026-11-13
 
@@ -203,6 +205,38 @@ First turn, re-measured from the branch by one headless session dispatching each
 | literature-researcher | 38.6K | 37.5K |
 
 Not yet verified: that an `executor` reads a named skill file when its brief names one, and that the six agents use the command line when a graph question arises. Both are behaviour, and are E2 tasks. `docs/development/harness.md` still carries the 2026-09 cost table; it is rewritten from one instrument at E3.
+
+## E1 and the E2 pilot `[M]` 2026-11-13
+
+**The typed roles are merged** (`main` `5015137f`, CI green) **and are not live in this session.** The session was restarted from a checkout that did not yet hold the merge: `executor` and `checker` are unknown to it, and qa and explorer still hold all 45 Nexus tools (136.8K and 52.7K, workflow `wf_79a06d1b-fc8`). The branch now holds the merge (`d99f8504`); one more restart makes them live.
+
+**E1, the scripted kinds find little.** Over the 44 loaded files (CLAUDE.md, 10 rules, 21 skills, 11 agent definitions; 188K tokens), `scratch/_harness_eval/e0/e1_scan.py` measures two things a script can decide:
+- sentences that carry history (a date, a case link, a lesson number): 14.5K tokens in all, concentrated in `code-search` (34% of it), `plan-authoring` (27%) and `retirement-audit` (25%);
+- eight-word passages that also occur in another loaded file: under 2% in every skill and rule, 4% to 11% in the agent definitions.
+So the September distillation already removed the duplication and most of the narrative. What remains is content, and only the behavioural evaluation can say which of it a model needs. Population: 4 of the 21 skills have sources under `docs/development/skills/`; 9 are installed by `nexus setup` (one, `nexus-elegance`, locally modified); 8 are hand-maintained in `.claude/skills/`.
+
+**The working-directory effect of E0, explained `[R]`.** `vv-principles` injects its error index through a shell line that falls back to the current directory; from a scratch sub-folder the file is not found and 15.3K characters are silently replaced by a one-line notice. A worktree root has its own copy, so a worktree-dispatched agent should load it; not yet measured.
+
+**E2 pilot, task 1: the `grep` trap** (`scratch/_harness_eval/e2/t_grep/`). A synthetic tree of six files outside the repository, so no rule, memory or evidence page can leak. The prompt: a class was renamed, verify the rename is complete, count the lines that still reference the old name as a whole identifier. Truth: 84. The trap pattern, an anchor inside a group, prints 0 in the tool shell (confirmed before the runs; in an ordinary terminal `grep` is GNU grep and the trap does not exist). Headless sessions with `Bash` and `Read` only; five repeats per cell; scored by the final number.
+
+| model | arm | correct | runs that typed the trap pattern | turns | tokens per run |
+|---|---|---|---|---|---|
+| Haiku | bare | 5 of 5 | 0 | 2, 2, 2, 2, 2 | 18.7K |
+| Sonnet | bare | 5 of 5 | 4 | 5, 5, 2, 4, 5 | 37.1K |
+| Sonnet | the rule's full section (3 734 characters) | 5 of 5 | 0 | 2, 2, 2, 2, 2 | 19.8K |
+| Sonnet | one sentence of the fact (150 characters) | 5 of 5 | 1 | 2, 3, 3, 2, 3 | 23.2K |
+| Sonnet | soft steering ("check a pattern against a known hit before trusting a zero") | 5 of 5 | 3 | 4, 4, 4, 3, 3 | 32.2K |
+| Opus | bare | 5 of 5 | 1 | 5, 3, 3, 3, 3 | 34.9K |
+
+What it shows, and its limits:
+- No model returned the wrong count, with or without the rule (30 of 30). Sonnet typed the trap pattern in 4 of 5 bare runs and recovered each time, because it ran a second pattern beside the first.
+- The rule buys turns, not correctness, on this task: about 17K tokens per search for Sonnet. The one-sentence fact recovers most of that at a twenty-fifth of the size. Soft steering does not.
+- Haiku passes bare, so this task does not separate the models, and it is not hard in the sense of ruling H7.
+- The fixture's truth is 84, where a zero is implausible. The founding case was a zero that was believed because a clean tree was expected. That variant (few true hits, an expected-clean framing) is not tested, and it is where five of five would have to become many more before the fact is dropped.
+
+**The decision rule for E2** `[R]` (proposed): a unit is dropped for a model when the bare arm passes every repeat and the failure it guards would be caught downstream (a hook, a gate, a reviewer); where the failure would ship silently, five repeats bound the failure rate only below about 45%, so the unit is reduced to its weakest passing form and kept until a larger sample exists. A unit whose only measured effect is fewer turns is judged by tokens: its size times the turns of the agents that carry it, against the turns it saves times how often the situation occurs.
+
+**Next tasks of the pilot** `[R]`: the believable-zero variant of this task; a graph question with a known answer that text search misses, asked through named MCP tools, through the command line with the guide, and bare; the mutation-revert trap (an uncommitted edit must survive); a staged-set task; then the top-down ablation of the four large skills on the review fixture (`scratch/_harness_eval/t6/`), which is the expensive one: about 25M cache-read tokens per Opus run by the census medians.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
