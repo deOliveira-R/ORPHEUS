@@ -13,6 +13,9 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 - **H3, the reason.** Unnecessary text costs tokens, may hold a model back, and multiplies in a workflow.
 - **H4, per model.** "We need to figure out what Sonnet, Opus and Fable needs, and what they don't. This might also help us figure out how to assign tasks to models for the dynamic workflow."
 - **H5, order.** This runs before the ontology chart's build workflows (`ontology_chart.md`, ruling O11).
+- **H6, the environment is in scope.** "If we find tool schemas and listings dominate then we shall try to trim it. We will figure out exactly how to do that."
+- **H7, Fable's place.** Fable is tested only on the most cognitively loaded tasks; its main function is orchestrating and advising. "There is probably no point in evaluating Fable if Opus or Sonnet are passing. We will have to figure out what hard means to Sonnet and Opus, and hill-climb them with coaching behaviour." The orchestrator's reading `[R]`: E2 is a ladder: a task goes to Sonnet first, to Opus where Sonnet fails, to Fable where Opus fails, and coaching is evaluated as what lifts a model over a task it fails bare.
+- **H8.** The accounting stage (E0) may run. It ran; results below.
 
 ## Baseline `[M]` 2026-11-13
 
@@ -25,7 +28,7 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 | the default workflow agent (every tool, CLAUDE.md, rules) | Sonnet | 12 | 124.3K |
 | the same | Opus | 1 | 123.6K |
 
-**What the project's own text weighs** (characters / 3.6):
+**What the project's own text weighs** (characters / 3.6; `[REFUTED 2026-11-13]` as a token count by E0 below, which measured 2.6 characters per token; the character proportions stand):
 
 | block | tokens |
 |---|---|
@@ -55,6 +58,59 @@ Four skills carry most of the preload: `vv-principles` 13.8K (in 6 agents), `num
 - The project's always-on text (15.6K) is a small part of a 124K first turn. The default workflow agent starts 69K heavier than `explorer`; the differences between the two are the tool allowlist and CLAUDE.md with the rules, and the rules are at most 15.6K of that. So most of the gap is `[HYPOTHESIS]` tool schemas and listings (the MCP servers, the skill and agent listings), not the project's prose. This is the first thing to measure, because if it holds, the largest saving is to dispatch every workflow stage as a typed agent with a narrow allowlist, and no instruction needs to be evaluated to get it.
 - For the Key agents the preloaded skills (41K to 47K) are the largest project-owned block, three times the always-on text.
 - The previous harness campaign (`harness_context_budget.md`, closed 2026-09-22) measured the same fixture across harness versions and found the movement inside its own noise, at one draw per cell. An evaluation with one run per arm will again decide nothing.
+
+## E0 results `[M]` 2026-11-13 (accounting; ruled to run by the user the same day)
+
+**Instruments.** (1) A workflow of 24 one-turn probes (`wf_f6402e54-a5b`): each of the nine project agents, `general-purpose` and the default workflow agent, on Sonnet and on Opus, with one fixed prompt and no tool call; first-turn usage read from each transcript as input + cache-creation + cache-read tokens. (2) Ten throwaway probe agents passed to a headless Sonnet session by `--agents`, each varying one block (the tool list, the Nexus server, the browser server, CLAUDE.md with the rules, one preloaded skill, the agent memory). (3) Twelve headless main sessions with one flag changed each. The transcripts record the full request (every tool schema, every instruction file, every preloaded skill), so each block's character size is read, not estimated. Scripts and data: `scratch/_harness_eval/e0/`. Nothing tracked and no memory file changed (`git status`, the memory directories' modification times).
+
+**Controls.** Three repeats of one cell differ by 14 tokens. Sonnet and Opus differ by 6 tokens in 10 of 11 agent types (the eleventh, `numerics-investigator` on Opus, was dispatched while the session's working directory was a scratch folder and loaded a shorter copy of one skill; its Sonnet row is the valid one). A block of known size (the 49 582-character `vv-principles` file appended to a main session) moved the reading by 18 671 tokens.
+
+**The earlier estimates were low by a third.** The baseline tables above convert characters to tokens at 3.6. Measured: 2.6 characters per token for this project's prose, 2.6 to 2.9 for tool schemas. Every "tokens" figure in the two project-text tables above is superseded by the table below.
+
+**The first turn of each agent, by block** (thousands of tokens, Sonnet; the total is measured, the split is the recorded character size of each block converted by a two-rate fit over all 34 sub-agent probes, largest residual 2.4K):
+
+| agent | total | Nexus tools | other MCP | built-in tools | CLAUDE.md and rules | MEMORY.md | preloaded skills | AGENT.md and own memory | listings and environment |
+|---|---|---|---|---|---|---|---|---|---|
+| qa | 136.7 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 69.3 | 10.9 | 1.4 |
+| test-architect | 135.4 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 65.8 | 14.0 | 1.4 |
+| numerics-investigator | 130.5 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 61.9 | 11.9 | 1.4 |
+| archivist | 128.9 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 62.6 | 11.3 | 1.4 |
+| general-purpose | 122.9 | 17.9 | 13.3 | 45.9 | 22.2 | 4.6 | 0 | 1.4 | 12.9 |
+| the default workflow agent | 122.6 | 17.9 | 13.3 | 45.9 | 22.2 | 4.6 | 0 | 0.9 | 12.9 |
+| method-implementer | 117.9 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 55.8 | 8.2 | 1.4 |
+| elegance-enforcer | 96.4 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 26.6 | 14.9 | 1.4 |
+| explorer | 52.6 | 17.9 | 0 | 4.4 | 0 | 0 | 12.6 | 11.8 | 1.4 |
+| cross-domain-attacker | 50.9 | 17.9 | 0 | 5.3 | 0 | 0 | 6.3 | 14.9 | 1.4 |
+| literature-researcher | 38.6 | 0 | 0 | 5.3 | 0 | 0 | 9.1 | 16.1 | 1.4 |
+
+**Direct differences from the one-block probes** (tokens; these are measured, and where they differ from the fitted columns above they are the better number):
+
+| block | tokens |
+|---|---|
+| an agent holding one tool (`Read`), no CLAUDE.md | 5 271 |
+| four more built-in tools (`Write`, `Edit`, `Bash`, `SendMessage`) | +4 140 |
+| the Nexus server's 45 tools | +20 071 |
+| the browser server's 25 tools | +6 989 |
+| CLAUDE.md (project and user), the seven rules and MEMORY.md | +26 528 |
+| `vv-principles` preloaded (64 070 characters as injected) | +25 590 |
+| `coding-elegance` preloaded | +12 856 |
+| agent memory enabled, on an agent with no memory files | +4 051 |
+| every tool a headless session holds (87), with the skill and agent listings that come with them, against five built-ins | +47 815 |
+| the same all-tools agent inside this interactive session (126 tools: the artifact, design, scheduling and messaging tools and the claude.ai connectors are added) | +39 181 more |
+
+Preloaded skills by weight: `vv-principles` 24.6K (in 5 agents), `numerical-bug-signatures` 15.3K (2), `algebra-of-record` 13.1K (3), `coding-elegance` 13.0K (5), `research` 9.1K (1), `retirement-audit` 8.0K (6), `doc-issue-relocation` 6.4K (1), `nexus-elegance` 5.6K (1), `instrument-doctrine` 4.8K (4); the remaining seven are under 3.5K each. The largest single tools of the default agent: `Artifact` 12.6K, `ArtifactData` 4.3K, `DesignSync` 3.7K, `Monitor` 2.7K, `ArtifactComments` 2.6K. Instruction files: `process-discipline` 4.7K, MEMORY.md 4.6K, CLAUDE.md 4.1K, `workflows` 3.0K, `code-search` 2.4K, `cardinal` 2.2K, `nexus-tools` 2.1K, `instrument-doctrine` 1.8K, the user's CLAUDE.md 1.1K, `articulation` 0.9K.
+
+**The orchestrator's own floor** (a headless main session, first turn): Sonnet 103 471, Opus 103 590, Fable 104 899. Of the Sonnet figure: 27 built-in tools 42.0K, Nexus 20.9K, the browser server 7.0K, the skill listing (90 entries) with the `Skill` tool 4.9K; with no tools, no MCP server and no skills 34.1K remain (the system prompt, CLAUDE.md, the rules, MEMORY.md, the agent listing, the session-start hook's text).
+
+**What E0 settles.**
+1. *The hypothesis holds for an untyped agent and fails for the Key agents.* In the default workflow agent the tool schemas are 77K of 122.6K and the project's always-on text is 26.8K. In the four heaviest Key agents the preloaded skills are 62K to 69K, half of the first turn, and the tools are 22K.
+2. *The model does not change the weight.* What differs between Sonnet, Opus and Fable is what each does with the text, which is E2's question.
+3. *Three savings need no behavioural evaluation*, because they remove text no instruction refers to:
+   - A workflow stage dispatched as a typed agent with five built-in tools starts at 35.9K with CLAUDE.md and the rules (measured, probe `p3`), against 122.6K untyped: 87K less on every turn of every such agent.
+   - The Nexus server costs 20.1K in each of the ten agent types that name it, whether or not the stage asks a graph question. An allowlist of the few tools a role uses, or the `nexus` command through `Bash`, removes most of it.
+   - MEMORY.md (4.6K) is the orchestrator's index of campaigns; whether a sub-agent needs it is a routing question, not a coaching one.
+4. *What E2 must decide is now sized.* The preloads: `vv-principles` is 24.6K in five agents, and the four largest skills are 61K of qa's 69K. The always-on prose: 22.2K. These are the units whose removal needs evidence.
+5. *Two observations to verify before they are used* (both from the probes' own reports of their tool names, not from a count): no workflow-dispatched agent held the `Agent` tool, including the Key agents whose definitions list it; and no agent held `ToolSearch`, with every MCP schema loaded eagerly.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
@@ -90,10 +146,10 @@ The orchestrator's own sense of which instructions it no longer needs. A model c
 
 ## Open questions for the user
 
-1. **Scope of the environment.** If E0 confirms that tool schemas and listings dominate the first turn, part of the saving is outside the repository: the MCP servers and plugins configured at the user level (for example the Nexus tools every agent loads, the browser tools, and the skill listings of other projects). Is trimming that environment for this project in scope?
-2. **Fable's role in the matrix.** Evaluate Fable as an executor and reviewer too, or only as orchestrator and advisor?
+1. **The three no-evaluation savings (E0, item 3).** Apply them now, before E1 and E2, or hold every change until the evaluation is designed? They change dispatch and tool lists, not instructions.
+2. **How the Nexus tools reach an agent.** A per-role allowlist of graph tools, or the command line through `Bash` with the skills rewritten to it. The second is a change upstream in sphinxcontrib-nexus.
 3. **The scale of E2**, after the pilot.
 
 ## Implementation starts when
 
-The user rules the design. E0 changes nothing and can run first.
+The user rules the design. E0 has run.
