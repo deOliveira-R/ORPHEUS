@@ -408,3 +408,68 @@ Everything below is a PROPOSAL; none of it is ruled.
 - **The 0-D homogeneous problem collapses to two spaces.** Its X flip is invisible numerically there.
 - **R17, importance and response member classes, minted in A3** (the user, 2026-11-12). They follow their spaces (R5), so a flux can no longer be handed where an importance is meant. Today `AdjointSolution.importance` returns a `ScalarFlux`.
 - **Q1: the user asked for a worked example before ruling** (the source space and the transport adjoint). It is given in the session.
+
+**Q1, the worked example given to the user (2026-11-12).** This is the proposed **R18**, NOT ruled. The user replied "Save this and prepare for context compaction. I have a plan."
+- **Factors:**
+  - A (ordinates, G_A = diag(w));
+  - E (groups, no metric);
+  - X (cells, G_X = diag(V)).
+- **Spelling:**
+  - `flux = FunctionSpace.of_axes(A, E.dual(), X)`;
+  - `source = flux.dual(on="cells")`;
+  - `importance = flux.dual(on="energy")`;
+  - `response = importance.dual(on="cells")`;
+  - `source.axis("energy")` returns `E.dual()`.
+  - Collision declares flux → source (×σ_t·V, it flips X only); the sweep declares source → flux.
+- **Why the flip is recorded per factor.** ⟨ψ†, q⟩ = Σ_n w_n Σ_g Σ_i ψ†q puts the G_A leg on (A, A) and a plain contraction on (E, E\*) and on (X, X\*). `DualPairing` reads the legs from the factors; a whole-space "is a dual" tag cannot distinguish them.
+- **Why the full dual stays.** The transport adjoint is C† = ♯_A ∘ Cᵀ ∘ ♭_A:
+  1. ♭_A, a partial flip on angle, maps importance A⊗E⊗X to A\*⊗E⊗X, the full dual of source.
+  2. `C.dual()`, the metric-free transpose, maps that to A\*⊗E⊗X\*, the full dual of flux.
+  3. ♯_A maps it to A⊗E⊗X\*, the response space.
+  - This is the W⁻¹CᵀW measured at 5.6e-16 against the true adjoint. The transpose uses the full flip (today's `V.dual()`); the Riesz legs use partial flips.
+- **The alternative** (per-factor `DualSpace` wrappers): `TensorProductSpace(A, DualSpace(E), DualSpace(X))` loses the axes record. `.axis("energy")` raises `[M]`, and 7 sites in 4 files rely on it. The arithmetic is the same either way.
+- **The proposal's declared edge.** The axes-less trace leaves flip whole, angle included, while the bulk rule leaves angle unflipped. They flip per factor only once Step B rebuilds them as face ⊗ angle (R4, R9).
+
+## Compaction point 3 (2026-11-13, after the consult)
+
+**Commits since compaction point 2**, all plan-only, `[skip ci]`:
+- `b396f974`: the consult results, plus numerics-investigator memory.
+- `5dddef57`: R14–R16.
+- `38f960c6`: the operator map.
+- `74ddee97`: R17.
+- This commit: the Q1 worked example and this point.
+
+**Ruled:**
+- R14, four spaces;
+- R15, `DualPairing` refuses (X\*, X\*);
+- R16, a per-slot measure/function kind, with an average's weight taken from its pairing partner;
+- R17, importance and response member classes in A3.
+
+**Not ruled:** Q1, the variance home (the proposal is R18 above). The user has "a plan" to bring after compaction. Wait for it; do not rule R18 by default.
+
+**Reports** (all under `scratch/true_ends/consult/`; untracked scratch):
+- `four_space_probe.md` and its probes;
+- `variance_census.md`;
+- `type_census.md`;
+- `operator_map.md`.
+
+**Owed, whatever Q1 becomes:**
+- **test-architect:**
+  - the non-uniform coarse-balance gate, with the uniform merge as control;
+  - the S/F/L witness table as the coverage map for `pairing.adjoint`;
+  - a swap probe (every source scaled by V) before A3;
+  - an A4 gate on `_balance_weights`;
+  - the census spy rerun at HEAD, to turn the operator map's reading-based rows into `[M]`.
+- **archivist:**
+  - `axis.py:642` should read "sum on E\*, average on E";
+  - the condensation head's `"cells"` label;
+  - the R8 reference spaces named.
+- **Open measurement:** whether production's ψ-weighted importance merge (`solution.py:826`, `:292`) moves a number on any multi-cell path.
+
+**The red baseline is unchanged from compaction point 2**: 118 Step A red gates. No production code changed since `d836cbaf`.
+
+**Next, after the user's plan and the Q1 ruling:** A2 (`orpheus/numerics/pairing.py`: the data-side spaces and `DualPairing`, with the test-architect's gates first), then A3–A6 and Steps B–D.
+
+**Durable lessons:**
+- An adjoint-versus-transpose number cannot tell E from E\*, because G_E = I. The discriminating instrument for variance on a metric-free axis is a conservation law under a NON-UNIFORM merge; a uniform merge is blind to it.
+- A census can refute the advisor's hypothesis: TYPE is not the index. Measure before ruling, even on a confident structural guess.
