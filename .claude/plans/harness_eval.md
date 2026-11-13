@@ -18,6 +18,9 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 - **H8.** The accounting stage (E0) may run. It ran; results below.
 - **H9, typed roles.** "The typed agents dropping skills and tools inappropriate for their role in the workflow seems like a very good idea."
 - **H10, Nexus per role.** A per-role allowlist and the command line are both on the table. "What matters to me is that you and the agents have the tools they need (and some might need 0 Nexus tools during the workflow)."
+- **H11, the roles are accepted** (2026-11-13). "I agree with the roles. Seem like pretty good design to me." The command line for the graph is tried, and whether it works is part of the evaluation: "if the Nexus guide skill does a good job maybe it will work well."
+- **H12, spawning.** The user does not mind either way whether a Key agent holds `Agent`. "Inside of a dynamic workflow, an agent having to call a support agent is a symptom of a vague task description. Arguably it should send a message to the orchestrator." The orchestrator's decision `[R]`: the headers keep `Agent` for a dispatch outside a workflow; inside a workflow no agent holds it (measured) and the `workflows` rule now says a need for another agent is a question to the orchestrator.
+- **H13, the environment facts are evaluated too.** Whether the two stage roles drop CLAUDE.md and the rules is decided by evaluation. "Since Opus 5, you have all become much better at using tools appropriately. It is possible that the grep trap doesn't hold anymore, or needs just a soft steering." So E1's first row (a fact the model cannot infer is kept) is amended: a fact about the environment is kept only if the bare arm fails on it.
 
 ## Baseline `[M]` 2026-11-13
 
@@ -154,7 +157,7 @@ Preloaded skills by weight: `vv-principles` 24.6K (in 5 agents), `numerical-bug-
 
 A Nexus tool named in `tools:` is held alone; `mcpServers: nexus` loads all 45 whatever `tools:` says. Every project agent that uses the graph declares the server today, which is why each pays 20.1K.
 
-## Proposed roles `[R]` (for the user's ruling; H9 and H10 give the direction)
+## The roles (proposed 2026-11-13, accepted the same day: ruling H11)
 
 **New typed agents for the workflow stages that are untyped today** (the build, amend and verify stages of `build-units`; measure, draft and structural check of `spec-check`; the drafts of `design-panel`):
 
@@ -177,6 +180,30 @@ The rest of each agent's graph use goes through the command line. The Nexus skil
 
 **Not proposed here:** removing the `Agent` tool from the Key agents (6 uses in 580, but invariant 2 is a ruling), and trimming the user-level skill listing (the environment, H6; it is 11.1K wherever `Skill` is held).
 
+## E3a: the roles, built `[M]` 2026-11-13 (branch `chore/harness-typed-roles`, commit `5015137f`, cut from `main`; not merged)
+
+- Two new agents, `executor` and `checker`, defined at `docs/development/agents/`; the seven untyped stages of `build-units`, `spec-check` and `design-panel` now name them. Neither has memory, a Nexus tool or the `Skill` tool.
+- The nine existing headers no longer declare the Nexus server. `explorer` names nine graph tools and `archivist` six; the other six agents hold none and their definitions name the command line.
+- `python -m tools.harness --check`: 27 targets, 0 problems, 0 drifted. `tests/gates/test_harness_generated.py`: 2 passed.
+
+First turn, re-measured from the branch by one headless session dispatching each agent with the `Agent` tool (tokens). The "before" column is the workflow-route measurement of E0, except qa, which was also measured by the `Agent` tool before (137.8K); the two routes differ by about 1K for a typed agent.
+
+| agent | before | after |
+|---|---|---|
+| an untyped workflow stage, now `executor` | 122.6K | 36.3K |
+| an untyped verify stage, now `checker` | 122.6K | 35.9K |
+| qa | 136.7K | 117.8K |
+| test-architect | 135.4K | 116.3K |
+| numerics-investigator | 130.5K | 111.6K |
+| archivist | 128.9K | 112.7K |
+| method-implementer | 125.0K | 106.4K |
+| elegance-enforcer | 96.4K | 77.3K |
+| explorer | 52.6K | 36.4K |
+| cross-domain-attacker | 50.9K | 29.7K |
+| literature-researcher | 38.6K | 37.5K |
+
+Not yet verified: that an `executor` reads a named skill file when its brief names one, and that the six agents use the command line when a graph question arises. Both are behaviour, and are E2 tasks. `docs/development/harness.md` still carries the 2026-09 cost table; it is rewritten from one instrument at E3.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
@@ -185,7 +212,8 @@ The rest of each agent's graph use goes through the command line. The Nexus skil
 
 | kind | example | disposition |
 |---|---|---|
-| a fact the model cannot infer | `grep` here is ugrep and an anchor inside a group matches nothing; the layer table; a ruling of the user; a path | kept, stated once, in the fewest words |
+| a fact the model cannot infer | the layer table; a ruling of the user; a path | kept, stated once, in the fewest words |
+| a fact about the environment or a tool | `grep` here is ugrep and an anchor inside a group matches nothing | evaluated (E2, ruling H13): kept only if the bare arm fails, and then in the weakest form that passes |
 | prose that a hook or a gate already enforces | "never `git add -A`" (the hook refuses it); generated files (a hook refuses the edit) | reduced to what the refusal does not say |
 | routing | which agent, which tool, which workflow | kept where a wrong route was measured; else retired |
 | history and evidence | a founding case told in the rule | already on the evidence pages; removed from the loaded text |
@@ -211,7 +239,7 @@ The orchestrator's own sense of which instructions it no longer needs. A model c
 
 ## Open questions for the user
 
-1. **The role table above.** Rule it, or change a tool list.
+1. **The user-level skill listing.** 46 of the 90 listed skills come from outside the project (see the reply of 2026-11-13); which of them stay enabled for this project.
 2. **The scale of E2**, after the pilot.
 
 ## Implementation starts when
