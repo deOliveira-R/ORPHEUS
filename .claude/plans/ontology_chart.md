@@ -26,6 +26,13 @@ It is a living plan in the sense of `plan-authoring` §0: the ontology is being 
 - **O7, the surgical-carve exception is lifted.** "As long as the plan is well specified in a tasks, Sonnets should be capable of implementing and Opus should be capable of reviewing it and asking for corrections. In the end, as orchestrator of the workflow, you are responsible for the results, so you do a final review that it reached your standards of acceptance." The orchestrator's final review of every integrated unit is therefore a required stage, not an option.
 - **O8, `derivations/` stays closed** until production is in order.
 
+**Rulings of the third exchange (the user, 2026-11-13):**
+
+- **O9, the two-coordinate law, the cycle law and the inverse/realisation/solver split (T10 to T12) are accepted**, with phases as sub-packages inside each layer. "Yes. I agree with that proposal."
+- **O10, the first workflow may be W0's specification.**
+- **O11, a preparatory phase precedes every build workflow: the harness evaluation.** The rules, skills and agent definitions were written for older models. They are evaluated per model (Sonnet, Opus, Fable), and what no longer changes an outcome is trimmed or retired, so that a workflow agent starts lighter. It has its own plan, `.claude/plans/harness_eval.md`, and its own branch off `main`; its findings also set which model each workflow stage is given.
+- **The plan's status.** The user: it "more or less matches my idealized vision", "we're generally in agreement and going in the same direction". That is agreement on the direction, not yet the ruling that the plan is polished; implementation waits for the harness evaluation and for that ruling.
+
 Standing rulings this plan inherits and does not reopen: R1 to R17 of `true_ends.md` (#707); the sharpening order (discrete ordinates, diffusion and the homogeneous baseline first; collision probability, characteristics and Monte Carlo recycle the machinery later); references closed and insulated from production; effort is sizing, never a criterion. R18 is resolved by O5 as a direction (variance per factor); its spelling is W1's.
 
 ## Method of the as-is measurement
@@ -184,7 +191,7 @@ Each line is a reviewed finding with the unit that holds its evidence. A finding
 
 ### The typed concept graph (83 concepts; source `scratch/ontology/tobe.py`, drawn by the orchestrator from the reviewed census, `[R]` as a design)
 
-Status today uses the map's vocabulary: **one** (one class, right home), **twin**, **weld**, **misplaced**, **residue**, **partial** (the object exists and is bypassed, mis-declared or incomplete), **missing**. Counts: one 10, partial 25, missing 17, twin 16, weld 10, misplaced 3, residue 2. The basis column cites the ruling or issue that fixes the target, or says *proposed*: 34 of the 83 targets are proposed and are the discussion agenda.
+Status today uses the map's vocabulary: **one** (one class, right home), **twin**, **weld**, **misplaced**, **residue**, **partial** (the object exists and is bypassed, mis-declared or incomplete), **missing**. Counts: one 10, partial 25, missing 17, twin 16, weld 10, misplaced 3, residue 2. The basis column cites the ruling or issue that fixes the target, or says *proposed*: 26 of the 83 targets are proposed (34 before the reconciliation with the posing sequence, which had already ruled 8 of them) and are the discussion agenda.
 
 | concept | today | target | basis | wave |
 |---|---|---|---|---|
@@ -203,23 +210,23 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Point location, chord | **twin**: 4 locators with 4 boundary conventions; chord kernel has 0 production consumers | ConcentricPartition is the one locator and chord | #596 | W6 |
 | **Measures and generators** | | | | |
 | Continuous reference measure | **partial**: ReferenceMeasure has no mass (4 pi typed at 3 sites); Lebesgue on [-1,1] has two identities | a measure that knows its mass and moments; one identity | proposed | W8a |
-| Discrete measure | **weld**: DiscreteMeasure: point measure + exactness + phase tag + invariance + partition (1440 lines) | typed by its support (#624); the phase taxonomy question is the user's | ruling 2026-09-01 (to revisit?) | W8a |
+| Discrete measure | **weld**: DiscreteMeasure: point measure + exactness + phase tag + invariance + partition (1440 lines) | typed by its support (#624); + widened to differing supports (the disjoint union) | posing sequence, ruled 2026-09-28; taxonomy ruling 2026-09-01 open | W8a |
 | Quadrature | **weld**: measure + sweep side-channel + fold tag + factory catalogue; selector layer has 0 production consumers | a measure with an exactness claim; rule families as values | proposed | W8a |
-| Basis | **weld**: ABC forces trial and test contractions; 6 bases retype one contraction; Legendre family twice | trial and test families apart; one table contraction | proposed | W8a |
+| Basis | **weld**: ABC forces trial and test contractions; 6 bases retype one contraction; Legendre family twice | partition-of-unity basis as the parent of IndicatorBasis; trial and test families apart; one table contraction | posing sequence, ruled 2026-09-28 (hierarchy); the rest proposed | W8a |
 | Frame (basis, measure) | **one**: FrameBase, GalerkinFrame, PetrovGalerkinFrame | unchanged | landed | - |
 | Energy group structure | **partial**: EnergyGrid exists; Mixture.eg is a raw optional array read by CP, MC, MoC | every consumer reads the energy axis | proposed | W8a |
-| Spatial scheme | **weld**: closure fused with per-schedule kernels and hand-written transposes | a generator minting an operator whose transpose is derived | proposed | W4 |
+| Spatial scheme | **weld**: closure fused with per-schedule kernels and hand-written transposes | SpatialScheme: one Petrov-Galerkin family; an operator whose transpose is derived | posing sequence (name ruled 2026-09-28); transposes proposed | W4 |
 | Angular closure | **weld**: hooks, not an operator; stores the spatial pairing; hand-coded transposes | an operator on the angular cell-edge space | proposed | W4 |
 | **Spaces** | | | | |
 | Factor of a space, with its variance | **missing**: Axis has no variance; 6 of 12 factor kinds are axes-less leaves | every factor is one kind of object carrying function-or-integrated | R14; home R18 OPEN | W1 |
 | Metric of a factor | **twin**: two homes (Axis.weights; a dense Gram on the space); weights stored beside the origin; DenseMetric admits indefinite forms | one home, derived from the generator | proposed | W1 |
 | Tensor product of spaces | **twin**: of_axes(a,b) and of_axes(a)*of_axes(b) are equal but only one is a TensorProductSpace | one constructor | proposed (R2 relies on it) | W1 |
-| Direct sum of spaces | **twin**: CoupledSpace (N-ary) and FullFieldSpace (its N=2 case); 4 offset loops | one constructor; the full field is bulk (+) trace | posing unit 4 (#527) | W1 |
+| Direct sum of spaces | **twin**: CoupledSpace (N-ary) and FullFieldSpace (its N=2 case); 4 offset loops | one DirectSumSpace of labelled summands; the full field is bulk (+) trace | posing sequence, ruled 2026-09-28 (77 prototype gates) | W1 |
 | Subspace on an index subset | **missing**: inflow/outflow halves and octants gathered by index | restriction of a factor is a space and a split pair | proposed | W1 |
 | Dual of a factor | **missing**: DualSpace flips the whole space; a composite's dual is not a DualSpace | per-factor dual; the whole-space dual is the composition | R8, R14; R18 OPEN | W1 |
 | Pairing | **partial**: Covector, InnerProductFunctional exist; posing._pair and the k estimator use np.sum | DualPairing: the only spelling of a contraction | R11, R15 | W1 |
-| Boundary trace space | **twin**: 3 unrelated hierarchies (angular, scalar, radial half-angle), all leaves | axis-built trace spaces shared by all methods; measure includes face area | R4, R9 | W1 |
-| The four transport spaces | **missing**: one space for flux, source, importance and response | four variance patterns of one factor list | R14 | W1 |
+| Boundary trace space | **twin**: 3 unrelated hierarchies (angular, scalar, radial half-angle), all leaves | the trace is a summand of the direct sum with its own frame (face nodes x half-range angular measure, Stokes weight); axis-built; measure includes face area | R4, R9; posing sequence, ruled 2026-09-28 | W1 |
+| The four transport spaces | **missing**: one space for flux, source, importance and response | four variance patterns of one factor list | R14 (closes the posing sequence's open item 'flux and source as a grading') | W1 |
 | Quotient by a metric kernel | **one**: FunctionSpace.rank, the kernel condition | unchanged | ruling 80 | - |
 | **Elements** | | | | |
 | Element of a space | **twin**: 4 member contracts (Vector, _is_ravellable, SystemField, CompositeField); 3 membership checks | one member contract; a member follows its space | proposed (R5 gives the verb) | W3 |
@@ -234,18 +241,18 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Operator with true ends | **partial**: 22 of 64 concrete operators fit the four spaces; stored ends (BoundOperator) live in transport, used by 15 of 80 | ends are stored in numerics and are the members' true spaces | R2 | W2 |
 | Sum and product | **one**: OperatorSum, OperatorProduct | unchanged | landed | - |
 | Tensor product of operators | **missing**: TensorProductOperator composes in sequence: (A & B) is bit-identical to (B @ A) | A (x) B on V (x) W with factor-indexed ends | R2 | W2 |
-| Block operator on a direct sum | **weld**: CoupledOperator: block grid + triangular substitution + LU + assembly | the grid is the operator; the substitution is a strategy | posing unit 5 (#528) | W2 |
+| Block operator on a direct sum | **weld**: CoupledOperator: block grid + triangular substitution + LU + assembly | one CoupledOperator keyed by (row, column) label; block substitution lives in one place, the plan | posing sequence, ruled 2026-09-28/29 | W2 |
 | Transpose | **one**: LinearOperator.dual | unchanged | landed | - |
 | Adjoint | **partial**: AdjointOperator dresses with whole-space Riesz legs and swaps ends | owned by the pairing: Riesz legs on the angular factor only | R11 | W2 |
 | Inverse and its shortcuts | **partial**: 27 of 41 inverse/adjoint/dual methods return a stored object unchecked | a shortcut is taken where a predicate proves it | #705 | W2 |
 | Natural maps of a product | **partial**: retraction, section, pullback exist on axis-built spaces; PartialCurrent and IsotropicEmission re-spell them on traces | one family on every factor | proposed | W2 |
-| Restriction and extension | **twin**: trace gather/scatter, system restriction, BulkLift, and a second lift in MultiplicationOperator; no shared base | the injections and projections of a direct sum or a subspace | proposed; revisits 'restriction siblings share no base' | W2 |
+| Restriction and extension | **twin**: trace gather/scatter, system restriction, BulkLift, and a second lift in MultiplicationOperator; no shared base | the pullback pair of a point map: one construction for retraction, section, decks and face identification | posing sequence, ruled 2026-09-28 (supersedes 'restriction siblings share no base') | W2 |
 | Analysis and reconstruction | **one**: FrameAnalysis, FrameReconstruction | head declared as two spaces | R7 | W2 |
-| Splitting A = M - N | **misplaced**: Splitting is SN-only; numerics passes M and N loose; no .H | a numerics value with its adjoint | proposed | W2 |
-| Green of a split | **weld**: inverse wrapper + splitting + driver loop + residual promise; dual() drops the realisation | the inverse of a Splitting under a realisation | proposed | W2 |
-| Coarsening (homogenise, condense) | **missing**: the channel-weighting rule is written once for energy and once for space | one morphism; each slot's kind typed, weights from the pairing partner | R16 | W8b |
-| Kernel pair and gauge of an operator | **twin**: PredictedKernel and NearKernel are two records of (ker A, ker A^T); the raising leg is hand-rolled in both; gauges built per method | one kernel object produced by composition, with its gauge | proposed; #681, #682 | W2 |
-| Block and system role tags | **residue**: written and propagated; 0 production reads | retired | measured | W0 |
+| Splitting A = M - N | **misplaced**: Splitting is SN-only; numerics passes M and N loose; no .H | split() of an Ordering: members in order plus the lagged coupling with its interface; (M, N) a derived view; adjoint = the reversed ordering | posing sequence, ruled 2026-09-29 | W2 |
+| Green of a split | **weld**: inverse wrapper + splitting + driver loop + residual promise; dual() drops the realisation | the inverse of a Splitting; Krylov acceleration runs on the interface, so it is not a separate strategy type | posing sequence, ruled 2026-09-29; T12 | W2 |
+| Coarsening (homogenise, condense) | **missing**: the channel-weighting rule is written once for energy and once for space | one verb, radon_nikodym: the density of one pushed-forward measure against another; the weight is state, each slot's kind typed | R16; posing sequence, ruled 2026-09-28 | W8b |
+| Kernel pair and gauge of an operator | **twin**: PredictedKernel and NearKernel are two records of (ker A, ker A^T); the raising leg is hand-rolled in both; gauges built per method | Nullspace (the family is renamed); one object produced by composition, with its gauge | posing sequence, ruled 2026-09-28 (name); #681, #682 | W2 |
+| Block and system role tags | **residue**: written and propagated; 0 production reads | retired; the block pattern is derived from tensor factors or declared per axis | posing sequence, ruled 2026-09-28 | W0 |
 | **Transport physics** | | | | |
 | Streaming | **partial**: declares full_field -> same; the coefficient has 2 homes (a 3rd flagged, #240) | flux -> source; one coefficient object per chart | R2, R6 | W4 |
 | Multiplication by a field | **partial**: declares one space; re-does the lift | flux -> source; composed with the one lift | R2 | W4 |
@@ -256,15 +263,15 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Gradient and divergence | **missing**: LeakageOperator fuses Fick's map, the divergence and the P1 closure; stencil written twice | a typed pair under volume and area metrics | proposed | W4 |
 | Wall law on its cone | **partial**: WallCondition is typed; the cone and its vector space are a free predicate and a mixin | a typed cone; one value per point | proposed | W7 |
 | Realized boundary operator | **twin**: SN and diffusion boundary operators duplicated and diverged; the ray corner re-realises the specular law by hand | per-factor realization; one operator on the trace | proposed | W7 |
-| Reaction rate | **partial**: typed for SN, diffusion, homogeneous; adjoint covector rebuilt by hand | the pairing of a response with a flux | R14 | W5 |
+| Reaction rate | **partial**: typed for SN, diffusion, homogeneous; adjoint covector rebuilt by hand | one reading verb rate(cells, w) with the metric pairing; w = importance gives the adjoint-weighted rate | posing sequence, ruled; R14 | W5 |
 | **Problem** | | | | |
-| Problem | **partial**: 3 hubs, no shared type (MethodMesh covers 2) | one Problem protocol; every hub mints its spaces and its pencil | posing sequence (#522) | W5 |
+| Problem | **partial**: 3 hubs, no shared type (MethodMesh covers 2) | a System (spaces, equation family, coordinates, cone, ports) on a Discretization; TransportMethod retires; the hubs are split member by member over the three layers | posing sequence, ruled 2026-09-27/28; #522 | W5 |
 | Operator pencil | **partial**: typed LinearOperator[V, V]; diffusion mints it on the solver | (A, F): flux -> source, minted on the hub | R14 | W5 |
-| Posing, and its adjoint | **partial**: the adjoint fixed-source posing is spelled by hand | the adjoint posing is the posing's dagger | #484 | W5 |
-| Question bound to a system | **missing**: Eigen, FixedSource, Response exist; nothing binds them to operators | a map from a question to a pencil and a spectral map | #529 | W5 |
+| Posing, and its adjoint | **partial**: the adjoint fixed-source posing is spelled by hand | the adjoint posing is the posing's dagger; at a pole a fixed source is its own type with the Fredholm refusal | posing sequence, ruled 2026-09-28; #484 | W5 |
+| Question bound to a system | **missing**: Eigen, FixedSource, Response exist; nothing binds them to operators | EigenProblem, FixedSourceProblem, EvolutionProblem over the values Eigen, FixedSource, Evolution; pencil and spectral map derived from the parameter | posing sequence, ruled 2026-09-28; #529 | W5 |
 | **Solution** | | | | |
-| Strategy | **missing**: KEigenvalue fuses question and strategy; inner algorithm is a string at 3 sites | a method-agnostic value: splitting, realisation, stopping rule | proposed | W5 |
-| Eigen driver and estimator | **twin**: SN forward on SNSolver, adjoint on KEigenvalue; k estimator spelled 5 times; gauge applied twice | one driver; k is the posing's Rayleigh quotient | proposed | W5 |
+| Strategy | **missing**: KEigenvalue fuses question and strategy; inner algorithm is a string at 3 sites | a PLAN (reads declarations and the block pattern only: partitions, orderings, cuts, splittings) and a BINDING (everything at a point: outer loop, spectral transformation, factorisations) | posing sequence, ruled 2026-09-28 | W5 |
+| Eigen driver and estimator | **twin**: SN forward on SNSolver, adjoint on KEigenvalue; k estimator spelled 5 times; gauge applied twice | one outer loop in the binding; the estimator is rate(cells, w), which absorbs 9 production definitions | posing sequence, ruled 2026-09-28 | W5 |
 | Iteration record | **partial**: IterationRecord derives its verdict; it carries two estimators of one contraction factor, and source iteration stops in flat l2 while recording in the space's l2 | one estimator, one norm | proposed | W5 |
 | Outcome | **twin**: PowerIterationOutcome and EigenOutcome | one outcome, gauge recorded | proposed | W5 |
 | Solution five-tuple | **misplaced**: SolutionBase lives in sn/ (L3): 5 methods carry forced twin records | in transport/ (L2), consumed by every method | proposed | W5 |
@@ -283,6 +290,27 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Reference insulation | **partial**: production CP imports 3 derivations symbols, one private; the gate forbids only the other direction | no production import of a reference | ruling 2026-10-06 | W9 |
 | The concept map as an instrument | **missing**: conceptual_view.rst is hand-written; most 'implements' edges in the graph are inferred from names (the Nexus tool's own figure for this project: 12 999 of 13 084, not re-measured) | a tracked concept registry; a gate holds one class per concept; the page is generated | proposed | W0 |
 
+## Reconciliation with the posing sequence (2026-11-13)
+
+`posing_sequence.md` (#522, ontology ruled 2026-09-27 to 2026-09-29, units scheduled and not opened) already rules most of what this plan's first draft marked *proposed* for the Problem, the Strategy and the Solution. The user confirmed that the third exchange's points "were mostly identified previously". This plan therefore INHERITS that ontology as its target for those concepts and adds two things to it: the measured state of the tree against it, and the build route. Where the two plans name one thing differently, the posing sequence's ruled name is used.
+
+| this plan's first draft | the posing sequence's ruled form | effect here |
+|---|---|---|
+| four phases: structure, posing, strategy, solution | three layers: 1 the System (spaces, equation family, discretisation, the system algebra), 2 the Problem (a question bound to a system), 3 the Solution, whose Strategy is a PLAN (reads declarations and the block pattern only; transfers to another question) and a BINDING (everything at a point) | the phase coordinate of T10 is: System, Problem, Plan, Binding and outcome |
+| T12: the algebra names an inverse, a strategy chooses its realisation, a solver runs it | "a morphism is placed by what it READS": operator-level morphisms read the algebra, structure-level ones read the pattern; `(M, N)` is a derived view, `M` is never assembled to solve, block substitution lives in one place; `SourceIteration` and `KrylovAcceleration` weld plan and binding; acceleration runs on the interface | T12 is that ruling restated; the measured inversion (a realisation imports its driver) is its instance |
+| a method-agnostic splitting with an adjoint | `Ordering` is the primitive (a `SpacePartition` plus a partial order of its blocks after declared cuts); `split()` returns the `Splitting`; the adjoint is the reversed ordering with the transposed cut | W2 and W5 build `Ordering`, not a lifted `sn.Splitting` |
+| one direct sum | `DirectSumSpace` of labelled summands, 77 prototype gates | W1 |
+| role tags have no reader | `BlockRole` and `SystemRole` retire; the block pattern is derived or declared per axis | W0 |
+| "restriction siblings share no base", to reopen | restriction and extension are the pullback pair of a point map | former open question 5 is answered |
+| coarsening as one morphism (R16) | one verb, `radon_nikodym`; the weight is state, never structure; χ in energy is a measure, pushed forward with no division | former open question 6 is answered; R16's "weight from the pairing partner" says WHICH density is passed |
+| one Problem protocol | a System on a `Discretization`; `TransportMethod` retires; the hubs are split member by member over the three layers (the charter's first deliverable) | W5 |
+| one estimator | `rate(cells, w)` with the metric pairing absorbs 9 production definitions | W5 |
+| the flux and source spaces | `[OPEN]` there: "whether flux and source are a grading of the space" | closed by R14 (#707) |
+
+Also inherited as names: `SpatialScheme`, `Nullspace` for the null-space sense of "kernel", `EigenProblem` / `FixedSourceProblem` / `EvolutionProblem`, `contraction_rate`, `relative_residual`, `Member` at the structure level. The gates the posing sequence owes ("Gates owed by the campaign", its lines 198 to 242) are part of each wave's verification specification.
+
+**What this plan adds that the posing sequence does not have:** the census (which classes realise each concept today, and how well); the space algebra's defects below layer 1 (variance, the two realisations of a space, trace leaves, the tensor-product operator that is a product); geometry (W6); the boundary algebra (W7); the phase coordinate as a gate; and the route.
+
 ## The graph the code forms `[M]` 2026-11-13 at `c04f4ba8`
 
 The user's hypothesis (second exchange): a well-organised code forms the graph of its ontology, a proper graph is acyclic, and acyclicity would demand each concept in its right place; and the suspected reason the graph is not acyclic today is that `numerics/` holds concepts of two later phases, strategy (the problem becomes an eigen or a source problem, cycles of unknowns are resolved, axes order a Gauss-Seidel) and solution (source iteration, Krylov, a matrix inverse).
@@ -300,7 +328,8 @@ The user's hypothesis (second exchange): a well-organised code forms the graph o
 | cycles among classes at runtime | 15, each inside one module: the operator algebra's closure (9 classes in `operator.py`), the memo's pins (8), sum types with their arms, `FunctionSpace` with `DualSpace` and `TensorProductSpace` |
 | the same with typing-only references | 23, one of which spans 7 `sn` modules (12 classes): `SNProblem` and the operators it mints annotate each other |
 | cycles among the 65 nodes (support nodes excluded) | 1: `numerics` Spaces, Operators, Members |
-| references from a structure class (space, measure, member, operator) to a posing, strategy or solution class, whole tree | 0 of 409 |
+| references from a system-phase class (space, measure, member, operator) to a later phase, by import, whole tree | 0 of 409 between classes; 2 of 495 when module-level functions are attributed to their module's node |
+| the same through objects passed in and named only in type hints | 43: fields and operators take the Problem (35: transport fields 14, sn operators 9, transport operators 8, diffusion operators 2, material fields 2); sn operators hold their sweep walk (8) |
 | references against the phase order, whole tree | 5, all one edge: the Green's realisations (`Richardson`, `Krylov`) import the drivers they build (`SourceIteration`, `KrylovAcceleration`) |
 
 The one concept cycle has four edges, and each is a placement the census had already flagged: `CoupledSpace` (a space) lives in the operator module `coupled_system.py`; `AngularTraceSpace` builds a `TraceRestrictionOperator`; `RankOneOperator` holds an `InnerProductFunctional`; `Field` uses `FunctionSpace`. Before two node splits the cycle had five nodes, and the splits were themselves findings: index sets and coefficient layouts sit below both spaces and bases, and "bases and frames" was two strata, bases below spaces and frames above operators.
@@ -309,15 +338,32 @@ The one concept cycle has four edges, and each is a placement the census had alr
 - `[REFUTED 2026-11-13]` **"The graph is not acyclic because numerics holds strategy and solution concepts."** The graph is acyclic at the module level, with zero references up the layer order and zero from structure to a later phase. The numerics-untangling campaign did that.
 - **Confirmed, in a sharper form: a concept graph demands right placement where a module graph does not.** At the granularity of concepts there is one cycle, and its edges name misplaced classes exactly.
 - **Acyclicity is necessary and far from sufficient.** The tree is acyclic and still carries 67 welds and 70 twins. A class that fuses two concepts contracts the arrow between them into itself, so no reference graph can see a weld: `GreenOperator` is an inverse (structure), a splitting (strategy) and a driver loop (solution) in one class, and shows as one clean node. The instrument that sees welds is the concept-to-class map, not the graph.
-- **The phases are real and not encoded.** Structure never consumes a later phase, so the order the user describes already holds as a fact. It is not structure: 22 numerics classes of posing, 4 of strategy and 19 of solution sit in one flat package beside 137 of structure; the strategy phase is nearly empty because its concepts are fused into operators and drivers (`GreenOperator`, `CoupledOperator`'s substitution, `KEigenvalue`, `SNSolver`, `DiffusionSolver`) or live at the wrong layer (`Splitting` in `sn/`).
+- **The phases are real and not encoded.** By import, the system phase never consumes a later one. Through injected objects it does, 43 times, and those are the user's suspicion confirmed at the transport and method layers: an operator that is handed the whole Problem, or that holds the walk that realises its inverse. (Positive control for the zero: `StreamingCollisionOperator` delegates to `LossRepresentation`; the instrument sees that edge, as typing-only.) The numerics layer shows one inversion. It is not structure: 22 numerics classes of posing, 4 of strategy and 19 of solution sit in one flat package beside 137 of structure; the strategy phase is nearly empty because its concepts are fused into operators and drivers (`GreenOperator`, `CoupledOperator`'s substitution, `KEigenvalue`, `SNSolver`, `DiffusionSolver`) or live at the wrong layer (`Splitting` in `sn/`).
 - **A legitimate cycle exists and is not debt**: the closure of an algebra. `LinearOperator.__add__` returns an `OperatorSum`, which is a `LinearOperator`; a space's `dual()` returns a space. The law is therefore not "no cycles among classes" but "every cycle among classes lies inside one concept".
 
-**Proposed laws** (the orchestrator, `[R]`, for the user to rule):
+**Limits of these measurements.**
+- The node graph is built from class bodies. Of the 3 315 references, 1 267 are owned by module-level functions; they are in the module-cycle count and in the "2 of 495" row, and nowhere else.
+- T11's check ("every class cycle inside one concept") is CIRCULAR today: nodes are assigned by module path, and all 15 runtime cycles are intra-module, so they are inside one node by construction. It becomes a test when the registry assigns concepts independently of modules.
+- Classes that fuse phases were placed by their module, so part of the zero is by construction; the concept-to-class map, not this graph, counts those.
+
+**The cycles, classified** (the user asked whether the cycle can be undone, or whether spaces, maps and fields are one umbrella concept). Both, at different levels:
+
+| kind | count of 15 | members | can it be undone? |
+|---|---|---|---|
+| a base whose operations return its own subclasses | 8 | `LinearOperator` with its adjoint, Riesz legs, identity, tensor product (9 classes); `FunctionSpace` with `DualSpace` and `TensorProductSpace`; a sum type with its arms (`Admission`, `WallCondition`, `RealizedBoundary`, `Manifold`/`Product`, `HilbertMetric`/`DualMetric`, `CountedRule`/`Refined`) | Only by giving up the notation: `A + B`, `A.H`, `V.dual()` would become free functions. This is the closure of an algebra, an inductive type and its constructors. One concept. |
+| an adjoint pair | 1 | the axis retraction and its pullback | No: each is the other's adjoint by definition. One concept. |
+| a space and its members | 1 | `CoupledSpace` and `CoupledField` | No, under R5 (a space mints its members; a member holds its space): a set and its points. One concept. |
+| a factory and the thing that points back at it | 3 | the realizer table and its realizers; `ConcentricPartition`, `Chord`, `Rays`; `DiscreteMeasure` and its partition | `[R]` by the names, not yet read: probably yes, by building from the lower object without a reference back. To check in W0. |
+| infrastructure | 2 | the traced memo's pins and jobs | outside the algebra |
+
+Between the three concepts the answer is different. The node cycle Spaces, Operators, Members has four edges, and ONE closes it: a space that builds an operator (`AngularTraceSpace` uses `TraceRestrictionOperator`). Without it the order is spaces (with their members and co-vectors), then operators: a space is defined without any operator, a member needs its space, an operator needs spaces and may hold members. In mathematics the three are one notion, a category with its objects, morphisms and elements, and a dual space IS a space of maps; the code can still be well-founded because the metric is an object on the space and the Riesz legs are operators that read it (the Campaign 1 ruling), so no space is defined through an operator. So: one umbrella at the level of mathematics, three ordered concepts at the level of definition, and one legitimate cycle inside each.
+
+**The laws** (accepted by the user, ruling O9; first proposed by the orchestrator):
 
 - **T10, two coordinates.** Every concept has a layer (what it must know: values, geometry, mathematics, data, transport, one method) and a phase (structure: what is; posing: what is asked; strategy: how it is decomposed; solution: how it is run and what came out). A concept may consume only concepts at the same or a lower layer AND the same or an earlier phase. The layer axis is the existing criterion; the phase axis is new and is orthogonal to it: a splitting is mathematics, and so is a space, and knowledge alone cannot order them.
 - **T11, every cycle among classes lies inside one concept.** Checked on the concept registry: a strongly connected component of the class reference graph that spans two concepts is a weld, a misplacement, or two concepts that are one.
 - **T12, the algebra names an inverse; a strategy chooses its realisation; a solver runs it.** `A.inverse()` is a morphism with ends and laws. Which algorithm realises it (a sweep, a factorisation, a relaxation, a Krylov method) is a strategy value bound later, and the loop is the solution phase's. This is what unwelds `GreenOperator` and `CoupledOperator`, reverses the one inverted arrow (a driver consumes a realisation, not the reverse), and is the earlier ruling "algebra eager, performance lazy" stated as structure.
-- **Packaging, two options.** (a) Sub-packages by phase inside each layer (`numerics/{structure,posing,strategy,solution}`, the same four in `transport/` and in each method), with the layer gate extended to the product order. (b) Sibling packages by phase beside `numerics/`. The orchestrator recommends (a): each axis keeps one criterion, the knowledge criterion still says where a concept lives, and the transport and method layers need the same four phases (`Splitting` and the Solution five-tuple are transport-layer strategy and solution).
+- **Packaging, ruled (a).** (a) Sub-packages by phase inside each layer (`numerics/{structure,posing,strategy,solution}`, the same four in `transport/` and in each method), with the layer gate extended to the product order. (b) Sibling packages by phase beside `numerics/`. The orchestrator recommends (a): each axis keeps one criterion, the knowledge criterion still says where a concept lives, and the transport and method layers need the same four phases (`Splitting` and the Solution five-tuple are transport-layer strategy and solution).
 - **The instrument becomes a gate.** The concept registry of W0 (class to concept, concept to layer and phase) carries three checks: one concept per class; edges monotone in both coordinates; every class cycle inside one concept. The page's graph is that registry's first draft.
 
 **Effect on the chart.** W0 gains the registry with the two coordinates. W2 gains T12 (the inverse and its realisation apart) and the phase split of `numerics/`. W5 places `Splitting` and the Solution shape as transport-layer strategy and solution. The typing-only cycle in `sn` (the hub and its operators) is W4's: an operator takes the spaces and fields it needs, not the Problem.
@@ -349,19 +395,28 @@ The one concept cycle has four edges, and each is a placement the census had alr
 
 Eleven waves. A wave is a set of units with one outcome; inside a wave the units are cut when its specification is written. The order below is the dependency order, not a schedule: W1, W6 and W8a depend only on W0 and run side by side after it.
 
-| wave | outcome | after | workflows | carries |
-|---|---|---|---|---|
-| **W0 Clear the ground** | Retire code with no caller; verify and fix the surfaced defects; move the traced memo below numerics; make the concept map a tracked, gated registry. | none | build-units | file-disjoint, mechanical |
-| **W1 The space algebra** | Every factor one kind of object with variance and one metric home; one tensor product, one direct sum, subspaces; the pairing as the only contraction; axis-built trace spaces; the four spaces. | W0 | design-panel, spec-check, build-units | absorbs #707 A2 and posing unit 4 |
-| **W2 Operators on true ends** | Stored ends in numerics; an operator tensor product; natural maps on every factor; the adjoint from the pairing; a splitting value with its adjoint; the Green unwelded; predicted shortcuts. | W1 | spec-check, build-units | absorbs #707 A4-A5, #705, posing unit 5 |
-| **W3 Members follow spaces** | One member contract; flux, source, importance and response as variance patterns; cross-section fields gathered once. | W1 | spec-check, build-units | absorbs #707 A3, #664, #633, #666 |
-| **W4 Transport atoms** | Loss and gain re-bound flux to source; reaction role tied to its channel; schemes and closures as operators with derived transposes; the sweep's three inverses apart; gradient and divergence for diffusion. | W2, W3 | build-units (sequential slices on one branch) | absorbs #707 A6 and Steps B-D |
-| **W5 One Problem, one Solution** | Solution and Strategy in transport; one eigen driver and one estimator; one outcome; every hub mints its pencil; the adjoint posing derived; questions bound to systems; observables as co-vectors. | W4 | design-panel, build-units | absorbs posing units 5-6, #484, #529 |
-| **W6 Geometry** | Groups with translations; one orbit-space machinery; the coordinate system derived; a typed face; one mesh with region labels; one locator. | W0 | design-panel, build-units | absorbs boundary-law architecture E, #584, #569, #596 |
-| **W7 Boundary algebra** | The wall-law cone typed; per-factor realization; one boundary operator for SN, diffusion and the ray corner; the adjoint side of a wall law. | W1, W3, W6 | spec-check, build-units |  |
-| **W8a Measures and generators** | A reference measure with mass; discrete measure typed by support; quadrature and basis unwelded; group structure read from the axis. | W0 | design-panel, build-units | absorbs posing unit 2, #624 |
-| **W8b Coarsening** | Homogenisation and condensation as one morphism with typed slots. | W3, W8a | spec-check, build-units | R16; posing unit 3 |
-| **W9 Later methods on the machinery** | Collision probability, characteristics and Monte Carlo re-spelled on the shared Problem, operators and Solution; reference insulation restored. | W5, W6, W7 | one design-panel per method, build-units | sharpening order |
+| wave | outcome | after | workflows | carries | done when `[HYPOTHESIS]`, re-measured when the wave opens |
+|---|---|---|---|---|---|
+| **W0 Clear the ground** | Retire code with no caller; fix the surfaced defects; move the traced memo below numerics; make the concept map a tracked registry (class to concept; concept to layer and phase) with its three gates. | none | spec-check, build-units | posing units 0-1; #708-#711, #713 | the registry gate passes its three checks on every production class; the 8 dead groups are gone and dead_references reads 0 for them; #708 to #711 closed |
+| **W1 The space algebra** | Every factor one kind of object with variance and one metric home; one tensor product, one DirectSumSpace, subspaces; the pairing as the only contraction; axis-built trace summand; the four spaces. | W0 | design-panel, spec-check, build-units | #707 A2; posing unit 4 | AxisRetractionOperator.of(half-trace, 'angular') succeeds (it raises today); of_axes(a, b) and of_axes(a) * of_axes(b) have one type; FullFieldSpace is no longer a class; 0 pairings spelled as np.sum in posing and iteration; the non-uniform coarse-balance gate closes |
+| **W2 Operators on true ends** | Stored ends in numerics; an operator tensor product; the pullback pair on every factor; the adjoint from the pairing; the algebra names an inverse and the plan realises it; predicted shortcuts; the phase sub-packages of numerics. | W1 | spec-check, build-units | #707 A4-A5; #705; posing unit 5 (plan half) | the operator map re-run reads 64 of 64 FITS (22 today); (A (x) B)(x (x) y) = Ax (x) By is a gate; the #705 negative control raises; 0 node edges against the phase order (1 today) |
+| **W3 Members follow spaces** | One member contract; flux, source, importance and response as variance patterns; the cell-moment factor typed; cross-section fields gathered once. | W1 | design-panel, spec-check, build-units | #707 A3; #664, #633, #666 | AdjointSolution.importance returns an importance member; member-contract spellings 4 to 1; MomentField cannot be built with an L that disagrees with its space |
+| **W4 Transport atoms** | Loss and gain re-bound flux to source; reaction role tied to its channel; schemes and closures as operators with derived transposes; the sweep's three inverses apart; one schedule object; gradient and divergence for diffusion; an operator takes spaces and fields, never the Problem. | W2, W3 | build-units (sequential slices on one branch) | #707 A6 and Steps B-D | the 118 Step A gates are green; 0 typing-only references from an operator or a field to a Problem class (35 today); 0 class cycles spanning modules with typing references (1 today); hand-written transposes in schemes and closures 0 |
+| **W5 One System, Problem, Plan and Solution** | The posing sequence's layers 2 and 3 as built structure: Problem kinds over question values; Ordering, split() and the interface; plan and binding apart; one outer loop; one outcome; the Solution five-tuple in transport; observables as co-vectors. | W4 | spec-check (the ontology is ruled), build-units | posing units 5-6; #484, #529 | SN, diffusion and the homogeneous baseline each return the one Solution type; k-estimator spellings in those three 3 to 1; inner_solver string dispatch sites 3 to 0; forward and adjoint eigen solves share one driver; couple(split(A)) == A is a gate |
+| **W6 Geometry** | Groups with translations; one orbit-space machinery; the coordinate system derived; a typed face; one mesh with region labels refining the region partition; one locator. | W0 | design-panel, build-units | boundary-law architecture E; #584, #569, #596 | RealSpace(3).quotient(a group with translations) returns a Quotient; coordinate-system tag tests in geometry 7 to 0; faces are a type in geometry; point locators in production 4 to 1 |
+| **W7 Boundary algebra** | The wall-law cone typed; per-factor realization; one boundary operator for SN, diffusion and the ray corner; the adjoint side of a wall law. | W1, W3, W6 | spec-check, build-units |  | sub-Markov check sites 2 to 1; the SN and diffusion boundary operators are one realization; an adjoint boundary term exists and is gated; #653's 12 refused radial cases solve |
+| **W8a Measures and generators** | A reference measure with mass and one identity; discrete measure typed by support; quadrature and basis unwelded; group structure read from the axis. | W0 | design-panel, build-units | posing unit 2; #624, #369 | typed 4 pi and 2 pi/n literals in bases, charts and rules 4 sites to 0; Lebesgue on [-1, 1] has one identity; the two G-space guards of #624 retire |
+| **W8b Coarsening** | radon_nikodym: homogenisation and condensation as one verb with typed slots; provenance kept. | W3, W8a | spec-check, build-units | R16; posing unit 3 | Mixture.condense and MaterialXSField.project_through both call the one verb, bit-identical at every absorbed caller; the two-step defect identity is a gate |
+| **W9 Later methods on the machinery** | Collision probability, characteristics and Monte Carlo re-spelled on the shared System, Problem, Plan and Solution; the ray operator designed once with its apply and sample forms; reference insulation restored. | W5, W6, W7 | one design-panel per method, build-units | sharpening order; the Monte Carlo seam | cp, moc and mc each define operator classes and return the Solution type; 0 production imports of derivations, enforced by a gate edge; #712 closed |
+
+**How a wave runs** (rulings O3, O7; the templates of `workflow_orchestration.md`):
+1. *Specify.* A `design-panel` where a target is still proposed, then a `spec-check`: one specification with every type, field, law and module path, the leaf units with their file sets, the dependency table, the wave's issues and their written insights (`scratch/ontology/issues/all.json`), and the gates. Sonnet drafts and measures; Opus attacks.
+2. *User checkpoint* on the specification. No ruling is made inside a workflow.
+3. *Build.* `build-units`: per unit, gates first and red, the build, Opus qa and elegance review in parallel, the amendment, the verification of each disposition.
+4. *The orchestrator's final review* of every unit against its own standard of acceptance (O7), then integration and the full bar: the suite, pyright, Sphinx `-W`, `dead_references`, the layer gate, the registry gate.
+5. *Close.* A `docs-pass`; the wave's issues closed or re-scoped with the measurement; the done-when predicates re-measured; the registry and the page updated.
+
+**Branches.** The numerics lane (W1 to W5) continues the line of `refactor/true-ends`, which carries A1 and the 118 red Step A gates and stays off `main` until W4 turns them green. W0, W6 and W8a are cut from `main` and merge as they finish. This plan and its scratch data are needed in every worktree, so the plan is carried to `main` by a plan-only branch before the first workflow (`[skip ci]`).
 
 **Three lanes.** The numerics lane is W1, W2, W3, W4, W5: spaces, then operators and members, then the transport atoms, then the Problem and Solution shape. The geometry lane is W6 then W7. The generators lane is W8a then W8b. The lanes meet at W7 (the boundary needs trace spaces and typed faces) and at W9 (a later method needs all three).
 
@@ -385,14 +440,11 @@ Eleven waves. A wave is a set of units with one outcome; inside a wave the units
 
 ## Open questions for the user
 
-Answered 2026-11-13: R18 (O5), folding #707 (O6), the surgical-carve exception (O7), the references (O8). Still open:
+Answered: R18 (O5), folding #707 (O6), the surgical-carve exception (O7), the references (O8), T10 to T12 and the packaging (O9). Answered by the posing sequence's rulings (see the reconciliation): the restriction family, and the two condensation verbs. Still open, none blocking W0's specification:
 
-1. **T10 to T12 and the packaging of phases**: sub-packages inside each layer (recommended) or sibling packages.
-2. **The discrete measure's phase taxonomy** (angular, spatial, energy inside `numerics/`, ruled 2026-09-01). Keep, or re-rule in W8a?
-3. **Production CP imports reference internals** (`cp/solver.py:49-51`, #641). Remove in W0, or accept until W9?
-4. **Where the traced memo lives.** A package of its own between `values` and `numerics` is the lowest-knowledge home.
-5. **`restriction siblings share no base`**: W2's natural-map family is the generic consumer the ruling said was missing. Reopen?
-6. **The earlier ruling that kept `Mixture.condense` and `MaterialXSField.project_through` as separate verbs**: does R16 supersede it?
+1. **The discrete measure's phase taxonomy** (angular, spatial, energy inside `numerics/`, ruled 2026-09-01). Keep, or re-rule in W8a?
+2. **Production CP imports reference internals** (`cp/solver.py:49-51`, #641). Remove in W0, or accept until W9?
+3. **Where the traced memo lives.** A package of its own between `values` and `numerics` is the lowest-knowledge home.
 
 ## Refuted candidates
 
