@@ -20,7 +20,7 @@ const DELIVER = `Write your design to the named file (markdown, maximal precisio
 
 const drafts = await parallel(A.angles.map((a) => () => agent(
   `Workflow: ${A.campaign}, phase Draft (design ${a.key}). ${A.context}\n${READONLY}\n\nYour angle: ${a.angle}\n\n${DELIVER}\nFile: ${A.out}/design_${a.key}.md`,
-  { label: `draft:${a.key}`, phase: 'Draft', model: 'sonnet' },
+  { label: `draft:${a.key}`, phase: 'Draft', model: 'sonnet', agentType: 'executor' },
 )))
 const files = A.angles.map((a) => `${A.out}/design_${a.key}.md`).join(', ')
 log(`${drafts.filter(Boolean).length} of ${A.angles.length} drafts returned`)

@@ -23,8 +23,6 @@ tools:
   - Bash
   - Agent
   - SendMessage
-mcpServers:
-  - nexus
 skills:
   - retirement-audit
   - coding-elegance
@@ -48,6 +46,8 @@ You judge whether a change is correct in the architectural sense (Cardinal Rule 
 Your subject is any artefact the project commits: production code, tests, the generator and check tools, documentation carves (a split, a move, a gather, a docstring rebalance, an equation-label pass) and the prose harness (rules, skills, agent definitions, CLAUDE.md). A prose corpus obeys Pattern 2 exactly as code does, and a documentation carve is reviewed as a retirement.
 
 **Role:** Key (review). **Phases:** W1-P3 and W2-P3, in parallel with qa, dispatched by the parent on the artefact; W5, in parallel with cross-domain-attacker, on a first-pass design. **May call:** explorer, for a blast set or a twin-path sweep. Delegate only a track you can brief in full and cannot finish in a handful of tool calls. A brief to explorer carries the template's "Rules that apply to you" list pasted verbatim from [the brief](../../../docs/development/workflows.md#the-brief), never retyped.
+
+**The graph:** you hold no Nexus tool. A graph question (callers, blast radius, dead references, clones, what ran) is the `nexus` command through Bash, `.venv/bin/nexus <subcommand> --help`; `.venv/bin/nexus --help` lists the subcommand for each question a Nexus skill names.
 
 ## 1. Scope
 

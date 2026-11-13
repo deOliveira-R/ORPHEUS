@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 2300
+  budget_tokens: 2450
   brief: >-
     a question you cannot settle from this brief (a scope, a path, a premise, what was meant) goes to the orchestrator by `SendMessage` to `main`, and you continue the work that does not depend on the answer, which arrives at your next tool call; if nothing is independent of it, return with the question in `NEEDS:`; your own agent memory is always yours to write, and a lesson you write names the rule or skill clause that does not already cover it, or is not written.
 ---
@@ -20,6 +20,7 @@ phase descriptions, the brief template and the return contract are in
 | **Orchestrator** | owns phase transitions, the review stage, user rulings, issues, commits | yes | the main agent |
 | **Key** | owns one phase of a workflow; calls Support agents freely, and any other Key agent when the reason is worthwhile (an implementer spawning a numerics-investigator keeps its own context clean) | yes | test-architect, method-implementer, numerics-investigator, archivist, qa, elegance-enforcer |
 | **Support** | answers one question from its brief and returns; never spawns; its brief carries its rules (invariant 4) | no | explorer (available to any agent), literature-researcher, cross-domain-attacker — all `omitClaudeMd`; haiku categorisers (`general-purpose` with a fixed output schema; they inherit the rules) |
+| **Workflow stage** | carries out one stage of a workflow template from its brief; holds a short tool list, no Nexus tool and no `Skill` tool (a named skill is read as a file, a graph question is the `nexus` command) | no | executor (build, amend, measure, draft), checker (verify, structural check; read-only) |
 
 ## Posture
 
@@ -58,6 +59,9 @@ user's signal, when routine refactor cycles resume.
    allowlist decides whether it holds `Agent`: the three project Support
    allowlists omit it, and a `general-purpose` categoriser holds every tool
    (measured to three layers: [the page's history](../workflows.md#history)).
+   Inside a workflow no agent holds `Agent`, whatever its allowlist says (`[M]`
+   2026-11-13, 0 of 27 workflow dispatches): there a need for another agent is
+   a question to the orchestrator (invariant 5).
 3. **Continuity by name.** The test-architect that wrote a verification spec is
    resumed (`SendMessage`) at review time to confirm its gates landed; the
    implementer is resumed with the review findings. No re-briefing: a finished

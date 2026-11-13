@@ -87,8 +87,8 @@ const results = await pipeline(
     const where = gate ? `Work in the existing worktree ${gate.worktree} (cd there first), on branch ${gate.branch}, where the test-architect committed the gates (${gate.commits.join(', ')}); its report:\n${gate.report}` : (u.worktree ? into : `You are in a fresh worktree; rename its branch to ${u.branch}.`)
     const built = await agent(
       `${head(u, 'Build')} You are the implementer. ${where}\n\nTurn the gates green by making the change below, with no shim and no residue; do not weaken a gate (if one is wrong, say so in NEEDS and leave it red).\n\nThe unit:\n${u.brief}\n${RULES}\nReturn at most 500 words through the schema: commits (\`git log --oneline ${BASE}..HEAD\`), what changed where, each gate red-then-green with its command, the tests run with counts, the residue census (instrument, population, control), what you did not do and why.`,
-      gate ? { label: `build:${u.key}`, phase: 'Build', model: 'sonnet', schema: BUILT }
-           : { label: `build:${u.key}`, phase: 'Build', ...fresh, model: 'sonnet', schema: BUILT },
+      gate ? { label: `build:${u.key}`, phase: 'Build', model: 'sonnet', agentType: 'executor', schema: BUILT }
+           : { label: `build:${u.key}`, phase: 'Build', ...fresh, model: 'sonnet', agentType: 'executor', schema: BUILT },
     )
     return { unit: u.key, gate, built }
   },
@@ -108,12 +108,12 @@ const results = await pipeline(
     if (!r.built || !todo.length) return { ...r, amended: null, verified: null }
     const amended = await agent(
       `${head(u, 'Amend')} Work ONLY in worktree ${r.built.worktree} on branch ${r.built.branch} (cd there; print pwd and branch). Apply each finding below as stated or with a better fix you justify; for one you reject, give the structural reason. Re-run the targeted tests; one commit listing each finding and its disposition.\n\nFindings:\n${JSON.stringify(todo, null, 1)}\n\nThe unit:\n${u.brief}\n${RULES}\nReturn at most 400 words: the commit, each finding's disposition, tests with counts, NEEDS.`,
-      { label: `amend:${u.key}`, phase: 'Amend', model: 'sonnet' },
+      { label: `amend:${u.key}`, phase: 'Amend', model: 'sonnet', agentType: 'executor' },
     )
     if (!amended) return { ...r, amended: null, verified: null }
     const verified = await agent(
       `${head(u, 'Verify')} READ-ONLY. In worktree ${r.built.worktree} (branch ${r.built.branch}), read the amend commit (the newest) and check, finding by finding, that each was answered: fixed as stated, fixed better, or rejected with a structural reason that holds. Findings:\n${JSON.stringify(todo, null, 1)}\n\nThe amender's report:\n${amended}\n\nReturn through the schema, at most 250 words.`,
-      { label: `verify:${u.key}`, phase: 'Verify', model: 'opus', schema: VERIFIED },
+      { label: `verify:${u.key}`, phase: 'Verify', model: 'opus', agentType: 'checker', schema: VERIFIED },
     )
     return { ...r, amended, verified }
   },

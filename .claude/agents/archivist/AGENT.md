@@ -14,8 +14,12 @@ tools:
   - Bash
   - Agent
   - SendMessage
-mcpServers:
-  - nexus
+  - mcp__nexus__dead_references
+  - mcp__nexus__query
+  - mcp__nexus__context
+  - mcp__nexus__staleness
+  - mcp__nexus__provenance_chain
+  - mcp__nexus__errors
 skills:
   - retirement-audit
   - instrument-doctrine

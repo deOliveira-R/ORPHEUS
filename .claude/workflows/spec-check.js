@@ -18,12 +18,12 @@ export const meta = {
 const A = args || {}
 const measured = await parallel((A.measure || []).map((m) => () => agent(
   `Workflow: ${A.campaign}, phase Measure (${m.key}). READ-ONLY on tracked files; write under ${A.out}/. ${A.inputs}\n\nMeasure: ${m.question}\nInstrument-doctrine: the instrument, the population, a positive control; AST for membership, Python re for text. Write ${A.out}/measure_${m.key}.md; return at most 300 words: the answer with its [M], and what it decides.`,
-  { label: `measure:${m.key}`, phase: 'Measure', model: 'sonnet' },
+  { label: `measure:${m.key}`, phase: 'Measure', model: 'sonnet', agentType: 'executor' },
 )))
 
 const draft = await agent(
   `Workflow: ${A.campaign}, phase Draft. Write ONE specification to ${A.spec} (the only tracked file you write; do not commit). Inputs: ${A.inputs}\n\nThe measurements (files under ${A.out}/measure_*.md):\n${measured.filter(Boolean).join('\n---\n')}\n\nIt must fix: ${A.contents}\nWhere the inputs disagree, the rulings decide; where no ruling decides, choose, give the structural reason, and list the choice under "Decisions for the orchestrator". Every claim about the tree [M] with its instrument. Return at most 300 words: the outline, the decisions you took, NEEDS.`,
-  { label: 'draft:spec', phase: 'Draft', model: 'sonnet' },
+  { label: 'draft:spec', phase: 'Draft', model: 'sonnet', agentType: 'executor' },
 )
 
 const checks = await parallel([
