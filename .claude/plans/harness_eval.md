@@ -50,7 +50,7 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 | literature-researcher | 2.2K | 6.8K (1) | 5.9K |
 | cross-domain-attacker | 2.1K | 4.8K (2) | 18.8K |
 
-Four skills carry most of the preload: `vv-principles` 13.8K (in 6 agents), `numerical-bug-signatures` 11.3K (2), `algebra-of-record` 9.8K (3), `coding-elegance` 9.6K (5). Whether an agent's memory index and lessons load on dispatch is not measured here.
+Four skills carry most of the preload: `vv-principles` 13.8K (in 6 agents), `numerical-bug-signatures` 11.3K (2), `algebra-of-record` 9.8K (3), `coding-elegance` 9.6K (5). Whether an agent's memory loads on dispatch: measured in E0 below (it does, from the repository root).
 
 **What a run costs** (medians per agent in the census run): an Opus reviewer took 120 turns, grew from 98.7K to 261K of context, wrote 90K tokens, and read 24.2M tokens from cache; a Sonnet census agent took 49 turns, 173K final context, 48K written, 5.9M read from cache. The cost of an agent is therefore close to (context) x (turns): every 1K removed from the first turn is removed from every later turn.
 
@@ -63,21 +63,21 @@ Four skills carry most of the preload: `vv-principles` 13.8K (in 6 agents), `num
 
 **Instruments.** (1) A workflow of 24 one-turn probes (`wf_f6402e54-a5b`): each of the nine project agents, `general-purpose` and the default workflow agent, on Sonnet and on Opus, with one fixed prompt and no tool call; first-turn usage read from each transcript as input + cache-creation + cache-read tokens. (2) Ten throwaway probe agents passed to a headless Sonnet session by `--agents`, each varying one block (the tool list, the Nexus server, the browser server, CLAUDE.md with the rules, one preloaded skill, the agent memory). (3) Twelve headless main sessions with one flag changed each. The transcripts record the full request (every tool schema, every instruction file, every preloaded skill), so each block's character size is read, not estimated. Scripts and data: `scratch/_harness_eval/e0/`. Nothing tracked and no memory file changed (`git status`, the memory directories' modification times).
 
-**Controls.** Three repeats of one cell differ by 14 tokens. Sonnet and Opus differ by 6 tokens in 10 of 11 agent types (the eleventh, `numerics-investigator` on Opus, was dispatched while the session's working directory was a scratch folder and loaded a shorter copy of one skill; its Sonnet row is the valid one). A block of known size (the 49 582-character `vv-principles` file appended to a main session) moved the reading by 18 671 tokens.
+**Controls.** Three repeats of one cell differ by 14 tokens. Sonnet and Opus differ by 6 tokens in each of the 11 agent types, once both are dispatched from the repository root. A block of known size (the 49 582-character `vv-principles` file appended to a main session) moved the reading by 18 671 tokens.
 
 **The earlier estimates were low by a third.** The baseline tables above convert characters to tokens at 3.6. Measured: 2.6 characters per token for this project's prose, 2.6 to 2.9 for tool schemas. Every "tokens" figure in the two project-text tables above is superseded by the table below.
 
-**The first turn of each agent, by block** (thousands of tokens, Sonnet; the total is measured, the split is the recorded character size of each block converted by a two-rate fit over all 34 sub-agent probes, largest residual 2.4K):
+**The first turn of each agent, dispatched by a workflow, by block** (thousands of tokens, Sonnet; the block columns sum 5K to 6K short of each total, the remainder being the brief, the dispatch wrappers, the session context and the fit's constant; the total is measured, the split is the recorded character size of each block converted by a two-rate fit over all 34 sub-agent probes, largest residual 2.4K):
 
 | agent | total | Nexus tools | other MCP | built-in tools | CLAUDE.md and rules | MEMORY.md | preloaded skills | AGENT.md and own memory | listings and environment |
 |---|---|---|---|---|---|---|---|---|---|
 | qa | 136.7 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 69.3 | 10.9 | 1.4 |
 | test-architect | 135.4 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 65.8 | 14.0 | 1.4 |
 | numerics-investigator | 130.5 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 61.9 | 11.9 | 1.4 |
+| method-implementer | 125.0 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 61.6 | 8.6 | 1.4 |
 | archivist | 128.9 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 62.6 | 11.3 | 1.4 |
 | general-purpose | 122.9 | 17.9 | 13.3 | 45.9 | 22.2 | 4.6 | 0 | 1.4 | 12.9 |
 | the default workflow agent | 122.6 | 17.9 | 13.3 | 45.9 | 22.2 | 4.6 | 0 | 0.9 | 12.9 |
-| method-implementer | 117.9 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 55.8 | 8.2 | 1.4 |
 | elegance-enforcer | 96.4 | 17.9 | 0 | 4.4 | 22.2 | 4.6 | 26.6 | 14.9 | 1.4 |
 | explorer | 52.6 | 17.9 | 0 | 4.4 | 0 | 0 | 12.6 | 11.8 | 1.4 |
 | cross-domain-attacker | 50.9 | 17.9 | 0 | 5.3 | 0 | 0 | 6.3 | 14.9 | 1.4 |
@@ -100,21 +100,26 @@ Four skills carry most of the preload: `vv-principles` 13.8K (in 6 agents), `num
 
 Preloaded skills by weight: `vv-principles` 24.6K (in 5 agents), `numerical-bug-signatures` 15.3K (2), `algebra-of-record` 13.1K (3), `coding-elegance` 13.0K (5), `research` 9.1K (1), `retirement-audit` 8.0K (6), `doc-issue-relocation` 6.4K (1), `nexus-elegance` 5.6K (1), `instrument-doctrine` 4.8K (4); the remaining seven are under 3.5K each. The largest single tools of the default agent: `Artifact` 12.6K, `ArtifactData` 4.3K, `DesignSync` 3.7K, `Monitor` 2.7K, `ArtifactComments` 2.6K. Instruction files: `process-discipline` 4.7K, MEMORY.md 4.6K, CLAUDE.md 4.1K, `workflows` 3.0K, `code-search` 2.4K, `cardinal` 2.2K, `nexus-tools` 2.1K, `instrument-doctrine` 1.8K, the user's CLAUDE.md 1.1K, `articulation` 0.9K.
 
-**The orchestrator's own floor** (a headless main session, first turn): Sonnet 103 471, Opus 103 590, Fable 104 899. Of the Sonnet figure: 27 built-in tools 42.0K, Nexus 20.9K, the browser server 7.0K, the skill listing (90 entries) with the `Skill` tool 4.9K; with no tools, no MCP server and no skills 34.1K remain (the system prompt, CLAUDE.md, the rules, MEMORY.md, the agent listing, the session-start hook's text).
+**The orchestrator's own floor** (a headless main session, first turn; an interactive session such as this one holds about 39K more of tools): Sonnet 103 471, Opus 103 590, Fable 104 899. Of the Sonnet figure: 27 built-in tools 42.0K, Nexus 20.9K, the browser server 7.0K, the skill listing (90 entries) with the `Skill` tool 4.9K; with no tools, no MCP server and no skills 34.1K remain (the system prompt, CLAUDE.md, the rules, MEMORY.md, the agent listing, the session-start hook's text).
 
 **What E0 settles.**
 1. *The hypothesis holds for an untyped agent and fails for the Key agents.* In the default workflow agent the tool schemas are 77K of 122.6K and the project's always-on text is 26.8K. In the four heaviest Key agents the preloaded skills are 62K to 69K, half of the first turn, and the tools are 22K.
 2. *The model does not change the weight.* What differs between Sonnet, Opus and Fable is what each does with the text, which is E2's question.
-3. *Three savings need no behavioural evaluation*, because they remove text no instruction refers to:
-   - A workflow stage dispatched as a typed agent with five built-in tools starts at 35.9K with CLAUDE.md and the rules (measured, probe `p3`), against 122.6K untyped: 87K less on every turn of every such agent.
-   - The Nexus server costs 20.1K in each of the ten agent types that name it, whether or not the stage asks a graph question. An allowlist of the few tools a role uses, or the `nexus` command through `Bash`, removes most of it.
-   - MEMORY.md (4.6K) is the orchestrator's index of campaigns; whether a sub-agent needs it is a routing question, not a coaching one.
+3. *One saving needs no evaluation, and two need a routing check.*
+   - Free: the artifact, design, scheduling, messaging, connector and browser tools of an untyped agent, about 55K of its 77K of tools. No rule or skill of the project refers to them. A workflow stage dispatched as a typed agent with a short tool list does not carry them.
+   - Routing check: the Nexus server costs 20.1K in each of the ten agent types that name it, whether or not the stage asks a graph question. The always-on `nexus-tools` and `code-search` rules and seven skills tell an agent to use those tools, so removing or narrowing them changes a capability the text relies on. The `Skill` tool is the same case: the measured 35.9K probe (five built-in tools with CLAUDE.md and the rules) holds neither, while the rules it inherits tell it to load skills.
+   - Routing check: MEMORY.md (4.6K) is the orchestrator's index of campaigns; whether a sub-agent needs it is not a coaching question.
 4. *What E2 must decide is now sized.* The preloads: `vv-principles` is 24.6K in five agents, and the four largest skills are 61K of qa's 69K. The always-on prose: 22.2K. These are the units whose removal needs evidence.
-5. *Two observations to verify before they are used* (both from the probes' own reports of their tool names, not from a count): no workflow-dispatched agent held the `Agent` tool, including the Key agents whose definitions list it; and no agent held `ToolSearch`, with every MCP schema loaded eagerly.
+5. *The dispatch route changes the tools* (read from the recorded requests, 0 of 27 workflow probes and 2 of 2 `Agent`-tool probes). A workflow-dispatched agent does not hold the `Agent` tool, including the six Key agents whose definitions list it: inside a workflow a Key agent cannot spawn, which invariant 2 of the `workflows` rule does not say. Dispatched by the `Agent` tool, qa holds it (137.8K, 53 tools). An untyped agent holds 126 tools by the workflow route and 114 by the `Agent` tool (110.1K against 122.9K). No agent on either route holds `ToolSearch`; every MCP schema is loaded eagerly.
+6. *The working directory changes what an agent loads, silently.* Five probes were dispatched while this session's working directory was a scratch sub-folder. `numerics-investigator` then read 120.7K against 130.2K from the repository root, and `method-implementer` 117.9K against 125.0K: the preloaded `vv-principles` arrived 15 273 characters shorter and the agent's own memory was absent. The untyped agent was unaffected (14 tokens). The build workflows dispatch into worktrees, so E4 must check what a worktree-rooted agent loads.
+7. *The budget gate converts at the old rate.* `tools/harness/budget.py` uses 3.6 characters per token, measured on 2026-09-20 at 3.51 to 3.53. The same kind of text now measures 2.6, so `--check` under-reads by about a third `[R]` (the likeliest cause is the newer models' tokenizer; not verified).
+8. *The probes' own reports of their tool counts were wrong in 2 of 24 cells* (36 and 46 reported, 53 and 51 held). Inventories are read from the recorded request only.
+
+**Residue.** Fourteen headless sessions left transcripts in the user's Claude project folder (they hold the ablation data). The probe agent with memory enabled created an empty `.claude/agent-memory/p5-five-memory/`, removed.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
-**E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (CLAUDE.md, the rules and the memory index are a session-start snapshot, so removing them needs a separate checkout and a headless session, as the T6 fixture did; an AGENT.md body and a skill preload change per dispatch.)
+**E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
 
 **E1, classification.** Every unit (a rule clause, a skill section, an AGENT.md section) is sorted by kind, because only one kind needs a behavioural evaluation:
 
@@ -128,7 +133,7 @@ Preloaded skills by weight: `vv-principles` 24.6K (in 5 agents), `numerical-bug-
 
 **E2, the behavioural evaluation**, for coaching units only.
 - *Tasks* come from the project's own record: each rule clause links the founding case on an evidence page (`docs/development/evidence/`), which states the situation, the wrong action a model took and the right one. A task re-creates the situation on a pinned commit. The T6 review fixture (ten known findings, scored blind, `scratch/_harness_eval/`) is reused as the first review task.
-- *Arms*, per model (Sonnet, Opus, Fable): bare (the unit absent), with the unit, and with a one-sentence version of the unit. A unit is retired for a model when the bare arm does as well; sharpened when the one-sentence version does as well as the full text; kept otherwise.
+- *Arms*, per model (Sonnet first, Opus where Sonnet fails, Fable where Opus fails: ruling H7): bare (the unit absent), with the unit, and with a one-sentence version of the unit. A unit is retired for a model when the bare arm does as well; sharpened when the one-sentence version does as well as the full text; kept otherwise.
 - *Repeats*: at least 5 per cell, because one draw decides nothing (the T6 record).
 - *Scoring*: a deterministic check wherever the outcome is a fact (did the agent take the wrong action; did the gate it wrote redden under the mutation), and a blind Opus reader with a rubric and a quoted line per cell elsewhere.
 - *Controls*: one task where an instruction is known to matter (the ugrep anchor: a fact, so the bare arm must fail), which proves the evaluation can see a difference; and one where it is known not to.
@@ -146,7 +151,7 @@ The orchestrator's own sense of which instructions it no longer needs. A model c
 
 ## Open questions for the user
 
-1. **The three no-evaluation savings (E0, item 3).** Apply them now, before E1 and E2, or hold every change until the evaluation is designed? They change dispatch and tool lists, not instructions.
+1. **The free saving (E0, item 3).** Dispatch every workflow stage as a typed agent with a short tool list now, before E1 and E2? It changes no instruction. The Nexus and `Skill` questions wait for the routing check.
 2. **How the Nexus tools reach an agent.** A per-role allowlist of graph tools, or the command line through `Bash` with the skills rewritten to it. The second is a change upstream in sphinxcontrib-nexus.
 3. **The scale of E2**, after the pilot.
 
