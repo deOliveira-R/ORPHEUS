@@ -15,7 +15,7 @@ It is a living plan in the sense of `plan-authoring` §0: the ontology is being 
 ## Rulings (the user, 2026-11-13)
 
 - **O1, the mode of work changes.** "Instead of making small changes like we have done so far, we're going to deliberately depart from this modus operandi." The route is planned whole, against an idealised target, before it is built.
-- **O2, no hand-holding.** The orchestrator plans and executes with its own judgement; the user and the orchestrator discuss the chart until it is solid. The surgical-carve exception of the `workflows` rule (the main agent writes operator-algebra code turn by turn under the user's steering) is lifted for this campaign. The rule's source page changes only through the harness process, on the evidence this campaign produces.
+- **O2, no hand-holding.** "I had to hold hands a lot with previous models ... now we're going to cooperate without handholding." The orchestrator plans and executes with its own judgement; the user and the orchestrator discuss the chart until it is solid. `[R]` The orchestrator READS this, together with O3, as lifting the surgical-carve exception of the `workflows` rule (the main agent writes operator-algebra code turn by turn under the user's steering) for this campaign; the user has not said so in those words, and it is open question 9.
 - **O3, dynamic workflows build it.** Work is distributed to Opus and Sonnet agents through workflows. The division of labour is the one already measured in `workflow_orchestration.md`: Sonnet executes, Opus reviews, the orchestrator integrates and owns every ruling.
 - **O4, the communication medium.** Knowledge graphs, ontology and taxonomy: the maps above are the shared objects the discussion points at.
 
@@ -61,18 +61,20 @@ Instruments:
 
 | verdict | classes | share |
 |---|---|---|
-| ONE (one concept, right home) | 324 | 48 % |
+| ONE (one concept, right home) | 324 | 48 %, an upper bound |
 | RESIDUE (no concept of its own) | 95 | 14 % |
 | GUARD (exists to refuse) | 78 | 12 % |
 | TWIN (concept realised elsewhere too) | 70 | 10 % |
 | WELD (two or more concepts fused) | 67 | 10 % |
 | MISPLACED (wrong layer or package) | 44 | 6 % |
 
-Beside the classes: 250 hand-rolled operations and 143 missing-machinery claims survived review, and 174 guards were listed (guards were not reviewed in 12 of 15 units).
+Beside the classes: 250 hand-rolled operations and 143 missing-machinery claims survived review, and 174 guards were listed, of which 56 were reviewed (in 7 of 15 units).
+
+The ONE share is an upper bound and the rows below are not strictly comparable: ONE verdicts were sampled, not all read (78 unreviewed), and each reviewer applied the weld test in their own way (several state their rule: "verbs of one concept are not a weld").
 
 **By subsystem** (ONE of N): numerics spaces 36 of 52; numerics operators 48 of 74; numerics solution side 36 of 47; generators 8 of 25; numerics infrastructure 0 of 69; geometry 39 of 57; mesh, specification, values, data, reference 46 of 71; transport fields 28 of 53; transport operators and schemes 6 of 33; transport boundary 19 of 40; sn problem side 27 of 49; sn solution side 17 of 49; diffusion and homogeneous 8 of 18; cp, moc, mc, kinetics, fuel, thermal hydraulics 6 of 41; derivations 33 of 111.
 
-**The theory corpus against the code** (U16): 277 concepts the theory defines; 213 realised, 33 partial, 25 unrealised (16 of those "by ruling"), 6 realised twice. The corpus is ahead of the code on spaces (5 unrealised, among them the four transport spaces) and operators (9 unrealised).
+**The theory corpus against the code** (U16): 277 concepts the theory defines; 213 realised, 33 partial, 25 unrealised (15 of those "by ruling"), 6 realised twice. The corpus is ahead of the code on spaces (5 unrealised, among them the four transport spaces) and operators (9 unrealised).
 
 **The backlog** (U17): 484 open issues, each placed once in one of 33 machinery groups; 64 plan files, 8 active and 12 paused. The largest core groups: discrete measure and quadrature identity (25 issues), boundary laws and realizers (25), SN spatial schemes (23), operator ends in the four spaces (21), space identity and membership (18), symmetry and quotients (17).
 
@@ -128,25 +130,25 @@ Each line is a reviewed finding with the unit that holds its evidence. A finding
 - The traced memo (69 classes) imports only the standard library, numpy and `orpheus.values`: by the lowest-layer criterion it belongs below `numerics/` (U05).
 - No production caller: the quadrature selector layer; the dense eigen engines; four verbs of `HarmonicMomentFlux`; `TimedFullField`'s history half; `IntegralKernelOperator`; `TransferOperator`'s diagonal split; `thermal_hydraulics/solver_dae.py` (a line-for-line duplicate); the Sood result cache (U03, U04, U08, U09, U14, U15).
 
-### Defects the census surfaced (to verify, then fix or file; none is fixed yet)
+### Defects the census surfaced (none is fixed yet; each is filed or already tracked: #708 to #713 opened 2026-11-13, the duplicate `thermal_hydraulics/solver_dae.py` as #713, production CP's private import as #641)
 
 | defect | where | status |
 |---|---|---|
-| `GreenOperator.dual()` rebuilds the Green without its realisation, so the transpose of a Krylov-realised Green iterates by Richardson | `numerics/green_operator.py:598` | `[M]` read by the orchestrator: the mint passes `max_iter` and `tol` only. The fixed point is unchanged; the trajectory and the convergence are not |
-| `AngularSourceSink.__add__` adds scalar-rate units into angular-rate units with no division by the angular mass | `transport/fields/angular_source_sink.py:146` | by reading (U08) |
-| `MomentField` never checks its `L` against its space's angular head | `transport/fields/_bases.py:846` | by reading (U08) |
-| `DenseMetric` admits an indefinite symmetric form | `numerics/metric.py` | `[M]` probe (U01) |
-| `Axis` accepts weights that disagree with its origin's measure | `numerics/axis.py:436` | `[M]` probe (U01) |
-| `GeneratingMeasure` identity is its name alone | `numerics/generating_measure.py` | `[M]` probe (U01) |
-| CP averages every material id other than 1 and 2 into the coolant spectrum; `MoCResult.flux_fuel` returns zeros when material 2 is absent | `cp/solver.py:1029` | by reading (U14); later methods, filed with the measurement |
-| MC's tally docstring names the wrong estimator | `mc/solver.py:578` | by reading (U14) |
+| `GreenOperator.dual()` rebuilds the Green without its realisation, so the transpose of a Krylov-realised Green iterates by Richardson | `numerics/green_operator.py:598` | `[M]` read by the orchestrator: the mint passes `max_iter` and `tol` only. The fixed point is unchanged; the trajectory and the convergence are not. Already tracked: #629 |
+| `AngularSourceSink.__add__` adds scalar-rate units into angular-rate units with no division by the angular mass | `transport/fields/angular_source_sink.py:146` | by reading (U08); filed #708 |
+| `MomentField` never checks its `L` against its space's angular head | `transport/fields/_bases.py:846` | by reading (U08); filed #709 |
+| `DenseMetric` admits an indefinite symmetric form | `numerics/metric.py` | `[M]` probe (U01); commented on #706 |
+| `Axis` accepts weights that disagree with its origin's measure | `numerics/axis.py:436` | `[M]` probe (U01); filed #710 |
+| `GeneratingMeasure` identity is its name alone | `numerics/generating_measure.py` | `[M]` probe (U01); filed #711 |
+| CP averages every material id other than 1 and 2 into the coolant spectrum; `MoCResult.flux_fuel` returns zeros when material 2 is absent | `cp/solver.py:1029` | by reading (U14); filed #712 |
+| MC's tally docstring names the wrong estimator | `mc/solver.py:578` | by reading (U14); the tally is tracked in #519 |
 | Stale docstrings: `operator.py:170` (role dispatch that does not exist), `axis.py:648`, `sn.py:2593` (a lambdify that does not happen) | | by reading |
 
 ## The to-be map
 
-### Candidate organising laws (all *proposed* 2026-11-13 by the orchestrator, `[R]`, written before the census returned; each is confirmed, amended or refuted against it)
+### Candidate organising laws (all *proposed* 2026-11-13 by the orchestrator, `[R]`, written before the census returned; the verdict of the census on each follows the list)
 
-- **T1, five kinds and nothing else.** Every production object is a set (manifold, index set, partition), a measure on a set, a space (a factor or an expression in factors), an element of a space (a member or a co-vector), or a morphism between spaces (an operator). The Problem and Solution layer adds no sixth kind: a pencil is a pair of morphisms on the same ends, a posing is a pencil with its data, a splitting is a decomposition of a morphism, a solution is an element with its provenance.
+- **T1, five kinds and nothing else.** `[REFUTED 2026-11-13]` as written; see the verdict below. Every production object is a set (manifold, index set, partition), a measure on a set, a space (a factor or an expression in factors), an element of a space (a member or a co-vector), or a morphism between spaces (an operator). The Problem and Solution layer adds no sixth kind: a pencil is a pair of morphisms on the same ends, a posing is a pencil with its data, a splitting is a decomposition of a morphism, a solution is an element with its provenance.
 - **T2, a space is an expression.** Spaces are built by four constructors only: a factor minted by a generator (a measure, a basis, a frame, a scheme), the tensor product, the direct sum, and the dual of a factor; plus a subspace or quotient by a declared projector. A bespoke space class is a weld of an expression with its consumers. Every factor, including the trace and boundary leaves, is the same kind of object and carries its variance (R14, R18 open).
 - **T3, a member follows its space.** Flux, source, importance and response are the four variance patterns of R14, and a layout is a factor list. A member class per (role, layout) pair is the space's expression written a second time.
 - **T4, an operator is its true ends plus its action per factor** (R2). The structural maps are the natural maps of the constructors, a closed family: per-factor action, contraction with a co-vector and insertion of a vector on a tensor factor (retraction, section, pullback); injection and projection of a direct sum (system restriction, extension by zero, lift); inclusion and restriction of a subspace (trace gather and scatter); the Riesz legs per factor; analysis and reconstruction of a frame.
@@ -156,9 +158,26 @@ Each line is a reviewed finding with the unit that holds its evidence. A finding
 - **T8, coarsening is one construction**: the posing filtration walked backward. Homogenisation and condensation are its merges, with the kind of each slot typed (R16).
 - **T9, a package holds one vocabulary.** Infrastructure (the traced memo, the import-time tracer) is not mathematics and leaves `numerics/`.
 
-### The typed concept graph (79 concepts; source `scratch/ontology/tobe.py`, drawn by the orchestrator from the reviewed census, `[R]` as a design)
 
-Status today uses the map's vocabulary: **one** (one class, right home), **twin**, **weld**, **misplaced**, **residue**, **partial** (the object exists and is bypassed, mis-declared or incomplete), **missing**. Counts: one 11, partial 24, missing 16, twin 14, weld 9, misplaced 3, residue 2. The basis column cites the ruling or issue that fixes the target, or says *proposed*: 28 of the 79 targets are proposed and are the discussion agenda.
+**The census against the laws** (2026-11-13; "supported" means the reviewed findings are instances of the law's failure, which is evidence that the law names real debt, not that the target is right):
+
+| law | verdict | evidence |
+|---|---|---|
+| T1 | refuted as written, amended | 78 production classes are refusals and 95 are records. Amended: five kinds of mathematical object, plus values that record a run (records, outcomes, certificates, refusals) with a home of their own. |
+| T2 | supported | 10 `FunctionSpace` subclasses; the direct sum and the tensor product each realised twice; 6 leaf factor kinds; the retraction refuses a half-trace. |
+| T3 | open | The two forests exist (`Member` 32, `RolePair` 30). The field review (U08) refuted 6 welds there and found a missing type (flat against moment-carrying), so "fewer member classes" is not established. For a design panel. |
+| T4 | supported | 42 of 64 operators mis-declare or do not fit; partial current and isotropic emission re-spell the retraction and section; two lifts. |
+| T5 | supported | Hand-written transposes in the schemes, the closures and the 1-D walks; pairings by `np.sum`; the adjoint Green built by hand. |
+| T6 | supported in part | The role subclasses are two constants each; the atom list itself (which operators are atoms) was not measured. |
+| T7 | supported, amended | The shape exists once, in `sn/`: the debt is its layer, not its absence. |
+| T8 | supported | The channel-weighting rule is written twice. An earlier ruling kept the two verbs apart (open question 7). |
+| T9 | supported, amended | The traced memo belongs below `numerics/`, not beside it (it imports only `values`). |
+
+**How complete the target graph is** `[M]` 2026-11-13 (`scratch/ontology/placement_build.py`, a Sonnet categoriser; the script asserts every finding is assigned once). The first draft had 79 concepts, drawn from the reviewers' headline findings. Of the 280 findings that survived review (67 welds and 70 twins in production, 143 missing-machinery claims), 214 were placed on one of the 79 and 66 were not. Four concepts were added for the four largest unplaced groups (29 findings): the sweep schedule and its walk (17), method parameter records (5), the kernel pair and gauge of an operator (4), the cell-moment factor and its member (3). **37 findings remain unplaced**, each a group of one to three: the traced memo's internals (3), the flat chart of a space, a reference verdict and order policy, the time history of a state, the d = 1 against d-generic linear-discontinuous kernels, a tag-keyed declaration, the DSA low-order system, the infinite-medium pose, the cylinder to equal-area-square map (2 each), and 18 singletons, listed in `scratch/ontology/placement.json`. Of the first 79 concepts, 12 had no finding placed on them (`compose`, `cone`, `dual`, `faces`, `fission`, `homog`, `insulation`, `inverse`, `quotient`, `registry`, `role`, `sn`): 5 are already in place, `registry` is new, and the other 6 rest on #707, #705, the operator map or the census's hand-rolled entries, none of which the placement pass read. The placement was not reviewed by a second agent.
+
+### The typed concept graph (83 concepts; source `scratch/ontology/tobe.py`, drawn by the orchestrator from the reviewed census, `[R]` as a design)
+
+Status today uses the map's vocabulary: **one** (one class, right home), **twin**, **weld**, **misplaced**, **residue**, **partial** (the object exists and is bypassed, mis-declared or incomplete), **missing**. Counts: one 10, partial 25, missing 17, twin 16, weld 10, misplaced 3, residue 2. The basis column cites the ruling or issue that fixes the target, or says *proposed*: 34 of the 83 targets are proposed and are the discussion agenda.
 
 | concept | today | target | basis | wave |
 |---|---|---|---|---|
@@ -187,7 +206,7 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | **Spaces** | | | | |
 | Factor of a space, with its variance | **missing**: Axis has no variance; 6 of 12 factor kinds are axes-less leaves | every factor is one kind of object carrying function-or-integrated | R14; home R18 OPEN | W1 |
 | Metric of a factor | **twin**: two homes (Axis.weights; a dense Gram on the space); weights stored beside the origin; DenseMetric admits indefinite forms | one home, derived from the generator | proposed | W1 |
-| Tensor product of spaces | **twin**: of_axes(a,b) and of_axes(a)*of_axes(b) are equal but only one is a TensorProductSpace | one constructor | R2 | W1 |
+| Tensor product of spaces | **twin**: of_axes(a,b) and of_axes(a)*of_axes(b) are equal but only one is a TensorProductSpace | one constructor | proposed (R2 relies on it) | W1 |
 | Direct sum of spaces | **twin**: CoupledSpace (N-ary) and FullFieldSpace (its N=2 case); 4 offset loops | one constructor; the full field is bulk (+) trace | posing unit 4 (#527) | W1 |
 | Subspace on an index subset | **missing**: inflow/outflow halves and octants gathered by index | restriction of a factor is a space and a split pair | proposed | W1 |
 | Dual of a factor | **missing**: DualSpace flips the whole space; a composite's dual is not a DualSpace | per-factor dual; the whole-space dual is the composition | R8, R14; R18 OPEN | W1 |
@@ -196,11 +215,12 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | The four transport spaces | **missing**: one space for flux, source, importance and response | four variance patterns of one factor list | R14 | W1 |
 | Quotient by a metric kernel | **one**: FunctionSpace.rank, the kernel condition | unchanged | ruling 80 | - |
 | **Elements** | | | | |
-| Element of a space | **twin**: 4 member contracts (Vector, _is_ravellable, SystemField, CompositeField); 3 membership checks | one member contract; a member follows its space | R5 | W3 |
-| Flux and source members | **partial**: RolePair forest (30 classes) and Member forest (32): a class per role and layout | role = variance pattern; layout = factor list | R5, R14 | W3 |
+| Element of a space | **twin**: 4 member contracts (Vector, _is_ravellable, SystemField, CompositeField); 3 membership checks | one member contract; a member follows its space | proposed (R5 gives the verb) | W3 |
+| Flux and source members | **partial**: RolePair forest (30 classes) and Member forest (32): a class per role and layout | role = variance pattern; layout = factor list | proposed; R5 and R14 point this way, while the field review found a missing type (flat against moment-carrying) | W3 |
 | Importance and response members | **missing**: AdjointSolution.importance returns ScalarFlux | two member kinds on their own spaces | R17 | W3 |
 | Co-vector | **one**: Covector, FunctionSpace.flat | unchanged (and used) | landed | - |
 | Cross-section field | **partial**: SigS densified 3 times; chi and nu-Sigma_f gathered twice | a member of a named space, gathered once | #648 | W3 |
+| Cell-moment factor and its member | **missing**: the cell average is lifted onto the moment axis by hand at 4 sites; 5 call sites tell flat from moment arrays by array rank | the within-cell moment is a typed factor; flat and moment-carrying members are distinct | R8 refined; #263 | W3 |
 | Boundary source | **missing**: the inflow sampler returns a bare array; no adjoint-side boundary term | a typed member on the inflow trace, and its response partner | proposed | W7 |
 | Positive cone | **one**: a predicate, by ruling | unchanged | landed | - |
 | **Operators** | | | | |
@@ -217,6 +237,7 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Splitting A = M - N | **misplaced**: Splitting is SN-only; numerics passes M and N loose; no .H | a numerics value with its adjoint | proposed | W2 |
 | Green of a split | **weld**: inverse wrapper + splitting + driver loop + residual promise; dual() drops the realisation | the inverse of a Splitting under a realisation | proposed | W2 |
 | Coarsening (homogenise, condense) | **missing**: the channel-weighting rule is written once for energy and once for space | one morphism; each slot's kind typed, weights from the pairing partner | R16 | W8b |
+| Kernel pair and gauge of an operator | **twin**: PredictedKernel and NearKernel are two records of (ker A, ker A^T); the raising leg is hand-rolled in both; gauges built per method | one kernel object produced by composition, with its gauge | proposed; #681, #682 | W2 |
 | Block and system role tags | **residue**: written and propagated; 0 production reads | retired | measured | W0 |
 | **Transport physics** | | | | |
 | Streaming | **partial**: declares full_field -> same; the coefficient has 2 homes (a 3rd flagged, #240) | flux -> source; one coefficient object per chart | R2, R6 | W4 |
@@ -224,6 +245,7 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Group transfer, S = R Lambda M | **partial**: Lambda declares the head only; acts on head x group x cells | true ends; role tied to its reaction channel | R1, R2 | W4 |
 | Fission production | **partial**: declares one space | flux -> source, rank-one in energy | R2 | W4 |
 | The implicit inverse (sweep) | **weld**: one private body is three inverses: plain, windowed, scheduled | three operators; source -> flux | proposed | W4 |
+| Sweep schedule and its walk | **twin**: the cell partial order lives as hub generators in 1-D and as a dependency graph for d >= 2; 16 walk classes; ScanMarch re-asks is_1d in 7 methods; a second copy of the octant epsilon | one schedule object (a partial order of cell visits) and one walk with a storage policy | proposed | W4 |
 | Gradient and divergence | **missing**: LeakageOperator fuses Fick's map, the divergence and the P1 closure; stencil written twice | a typed pair under volume and area metrics | proposed | W4 |
 | Wall law on its cone | **partial**: WallCondition is typed; the cone and its vector space are a free predicate and a mixin | a typed cone; one value per point | proposed | W7 |
 | Realized boundary operator | **twin**: SN and diffusion boundary operators duplicated and diverged; the ray corner re-realises the specular law by hand | per-factor realization; one operator on the trace | proposed | W7 |
@@ -236,7 +258,7 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | **Solution** | | | | |
 | Strategy | **missing**: KEigenvalue fuses question and strategy; inner algorithm is a string at 3 sites | a method-agnostic value: splitting, realisation, stopping rule | proposed | W5 |
 | Eigen driver and estimator | **twin**: SN forward on SNSolver, adjoint on KEigenvalue; k estimator spelled 5 times; gauge applied twice | one driver; k is the posing's Rayleigh quotient | proposed | W5 |
-| Iteration record | **one**: IterationRecord (verdict derived) | unchanged | landed (#340) | - |
+| Iteration record | **partial**: IterationRecord derives its verdict; it carries two estimators of one contraction factor, and source iteration stops in flat l2 while recording in the space's l2 | one estimator, one norm | proposed | W5 |
 | Outcome | **twin**: PowerIterationOutcome and EigenOutcome | one outcome, gauge recorded | proposed | W5 |
 | Solution five-tuple | **misplaced**: SolutionBase lives in sn/ (L3): 5 methods carry forced twin records | in transport/ (L2), consumed by every method | proposed | W5 |
 | Observable | **missing**: admission re-spelled per method | a co-vector on the flux | #405 P4 | W5 |
@@ -247,6 +269,7 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Collision probability | **missing**: 0 operator classes; imports reference internals | the implicit inverse projected on flat sources, as an integral operator | later, recycling | W9 |
 | Characteristics | **missing**: 0 operator classes; own quadrature carrier, own locator | the implicit inverse on a track space | later, recycling | W9 |
 | Monte Carlo | **missing**: 0 operator classes | a stochastic realisation; estimators are functionals | later, recycling | W9 |
+| Method parameter records | **weld**: CPParams, MCParams, THParams, KineticsParams, FuelRodGeometry: one record each fusing problem data, discretisation choices and solver knobs | split onto Problem, generators and Strategy when each method is re-spelled | later, recycling | W9 |
 | **Outside the algebra** | | | | |
 | Traced memo and import tracer | **misplaced**: 69 classes in numerics/; import only stdlib, numpy and values | a package of their own below numerics | proposed | W0 |
 | Code with no production caller | **residue**: 8 groups (quadrature selector, dense eigen engines, IntegralKernelOperator, solver_dae.py, ...) | retired, or moved to the test side | measured | W0 |
@@ -255,12 +278,12 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 
 ## The chart
 
-Eleven waves. A wave is a set of units with one outcome; inside a wave the units are cut when its specification is written. The order below is the dependency order, not a schedule: W1, W6 and W8a have no dependency on each other and run side by side after W0.
+Eleven waves. A wave is a set of units with one outcome; inside a wave the units are cut when its specification is written. The order below is the dependency order, not a schedule: W1, W6 and W8a depend only on W0 and run side by side after it.
 
 | wave | outcome | after | workflows | carries |
 |---|---|---|---|---|
 | **W0 Clear the ground** | Retire code with no caller; verify and fix the surfaced defects; move the traced memo below numerics; make the concept map a tracked, gated registry. | none | build-units | file-disjoint, mechanical |
-| **W1 The space algebra** | Every factor one kind of object with variance and one metric home; one tensor product, one direct sum, subspaces; the pairing as the only contraction; axis-built trace spaces; the four spaces. | W0, W8a | design-panel, spec-check, build-units | absorbs #707 A2 and posing unit 4 |
+| **W1 The space algebra** | Every factor one kind of object with variance and one metric home; one tensor product, one direct sum, subspaces; the pairing as the only contraction; axis-built trace spaces; the four spaces. | W0 | design-panel, spec-check, build-units | absorbs #707 A2 and posing unit 4 |
 | **W2 Operators on true ends** | Stored ends in numerics; an operator tensor product; natural maps on every factor; the adjoint from the pairing; a splitting value with its adjoint; the Green unwelded; predicted shortcuts. | W1 | spec-check, build-units | absorbs #707 A4-A5, #705, posing unit 5 |
 | **W3 Members follow spaces** | One member contract; flux, source, importance and response as variance patterns; cross-section fields gathered once. | W1 | spec-check, build-units | absorbs #707 A3, #664, #633, #666 |
 | **W4 Transport atoms** | Loss and gain re-bound flux to source; reaction role tied to its channel; schemes and closures as operators with derived transposes; the sweep's three inverses apart; gradient and divergence for diffusion. | W2, W3 | build-units (sequential slices on one branch) | absorbs #707 A6 and Steps B-D |
@@ -301,12 +324,13 @@ Eleven waves. A wave is a set of units with one outcome; inside a wave the units
 6. **`restriction siblings share no base`** was ruled because no consumer treated a restriction generically. W2's natural-map family is that consumer. Reopen?
 7. **The earlier ruling that kept `Mixture.condense` and `MaterialXSField.project_through` as separate verbs.** R16 (per-slot kind, weight from the pairing partner) appears to supersede it. Confirm.
 8. **Scope of the references.** `derivations/` is 111 classes, 33 one-to-one. The chart leaves it closed, except for the insulation. Confirm.
+9. **The surgical-carve exception.** Does O2 lift it for this campaign, so that Sonnet units build operator-algebra code under gates and Opus review, as the wave-2 trial did?
 
 ## Refuted candidates
 
 - **"Read the ontology off graph degree."** `[REFUTED 2026-11-13]` for the question "what are the concepts": degree ranks hubs. The top production class by code edges is `SNProblem` (828), and the top node of the whole graph is a test helper. The fact it establishes: where a change costs most.
 - **"The call edges pointing up the layer order are layering violations."** `[REFUTED 2026-11-13]`: they have no import edge beside them (0 import edges up the order among the core packages), so they are mis-resolved method names in the graph.
-- **Census claims of missing machinery that the reviewers refuted because the object exists**: the Riesz legs, the n-ary direct sum (`CoupledSpace`), point evaluation of a basis, a Gram object, a space norm, a factorisation, the angular section with its mass (`AxisSectionOperator`), the measure on oriented lines (`LineDomain`), `Splitting` and `PredictedKernel` on the SN side, a Pin protocol in the memo. The fact each establishes: the debt is consumption or placement, not a new object. This is why the chart's most common status is *partial* (24 of 79) and not *missing* (16).
+- **Census claims of missing machinery that the reviewers refuted because the object exists**: the Riesz legs, the n-ary direct sum (`CoupledSpace`), point evaluation of a basis, a Gram object, a space norm, a factorisation, the angular section with its mass (`AxisSectionOperator`), the measure on oriented lines (`LineDomain`), `Splitting` and `PredictedKernel` on the SN side, a Pin protocol in the memo. The fact each establishes: the debt is consumption or placement, not a new object. This is why the chart's most common status is *partial* (25 of 83) and not *missing* (17).
 - **Candidate law T1 as first written ("five kinds and nothing else").** `[REFUTED 2026-11-13]` as a description of the tree: 78 production classes are refusals and 95 are records with no concept of their own, most of them result and outcome records. Amended: five kinds of mathematical object, plus values that record a run (records, outcomes, certificates, refusals), which are a sixth kind with its own home.
 
 ## Implementation starts when
