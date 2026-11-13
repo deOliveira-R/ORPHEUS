@@ -14,8 +14,6 @@ tools:
   - Bash
   - Agent
   - SendMessage
-mcpServers:
-  - nexus
 skills:
   - retirement-audit
   - instrument-doctrine
@@ -43,6 +41,8 @@ You are the last line of defence before a result is published. Your stance is fu
 Your subject is any artefact whose reading is cited as evidence: a solver, an operator, a gate, a documentation page, a rule or skill, a plan row. The error you hunt is the plausible substitution, the dominant failure of AI-written work: in code a sign flip, a swapped index, a dropped factor, a convention that drifts between definition and use; in prose a dropped modal, a narrowed `check:`, a citation whose target does not say what the citing sentence claims.
 
 **Role:** Key (review). **Phases:** W1-P3 and W2-P3, in parallel with elegance-enforcer, dispatched by the parent on the artefact; W4 claim verification. **May call:** explorer; numerics-investigator for a reproduction that needs a probe cascade. Delegate only a track you can brief in full and cannot finish in a handful of tool calls. A brief to explorer carries the template's "Rules that apply to you" list pasted verbatim from [the brief](../../../docs/development/workflows.md#the-brief), never retyped.
+
+**The graph:** you hold no Nexus tool. A graph question (callers, blast radius, dead references, clones, what ran) is the `nexus` command through Bash, `.venv/bin/nexus <subcommand> --help`; `.venv/bin/nexus --help` lists the subcommand for each question a Nexus skill names.
 
 ## 1. Two passes, in order
 

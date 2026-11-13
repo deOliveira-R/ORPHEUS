@@ -12,8 +12,15 @@ tools:
   - Edit
   - Bash
   - SendMessage
-mcpServers:
-  - nexus
+  - mcp__nexus__callers
+  - mcp__nexus__query
+  - mcp__nexus__context
+  - mcp__nexus__impact
+  - mcp__nexus__twin_paths
+  - mcp__nexus__session_briefing
+  - mcp__nexus__neighbors
+  - mcp__nexus__dead_references
+  - mcp__nexus__file_brief
 skills:
   - nexus-exploring
   - nexus-guide

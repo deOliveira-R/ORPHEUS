@@ -12,8 +12,10 @@ maintained by hand.
    :maxdepth: 1
 
    archivist
+   checker
    cross-domain-attacker
    elegance-enforcer
+   executor
    explorer
    literature-researcher
    method-implementer
