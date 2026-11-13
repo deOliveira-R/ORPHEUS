@@ -16,6 +16,8 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 - **H6, the environment is in scope.** "If we find tool schemas and listings dominate then we shall try to trim it. We will figure out exactly how to do that."
 - **H7, Fable's place.** Fable is tested only on the most cognitively loaded tasks; its main function is orchestrating and advising. "There is probably no point in evaluating Fable if Opus or Sonnet are passing. We will have to figure out what hard means to Sonnet and Opus, and hill-climb them with coaching behaviour." The orchestrator's reading `[R]`: E2 is a ladder: a task goes to Sonnet first, to Opus where Sonnet fails, to Fable where Opus fails, and coaching is evaluated as what lifts a model over a task it fails bare.
 - **H8.** The accounting stage (E0) may run. It ran; results below.
+- **H9, typed roles.** "The typed agents dropping skills and tools inappropriate for their role in the workflow seems like a very good idea."
+- **H10, Nexus per role.** A per-role allowlist and the command line are both on the table. "What matters to me is that you and the agents have the tools they need (and some might need 0 Nexus tools during the workflow)."
 
 ## Baseline `[M]` 2026-11-13
 
@@ -117,6 +119,64 @@ Preloaded skills by weight: `vv-principles` 24.6K (in 5 agents), `numerical-bug-
 
 **Residue.** Fourteen headless sessions left transcripts in the user's Claude project folder (they hold the ablation data). The probe agent with memory enabled created an empty `.claude/agent-memory/p5-five-memory/`, removed.
 
+## E0b: what each role used, and what a narrow role costs `[M]` 2026-11-13
+
+**The usage record.** Every sub-agent transcript of this project with at least three turns, 2026-09-04 to 2026-11-13: 922 agents (`scratch/_harness_eval/e0/usage.py`). Tool calls are read from the transcripts, not reported by the agents.
+
+| agent type | agents | tool calls | of them Nexus | agents with any Nexus call | Nexus tools that carry the use |
+|---|---|---|---|---|---|
+| qa | 171 | 8 493 | 35 (0.4%) | 17 of 168 | `dead_references` 12 |
+| elegance-enforcer | 143 | 4 643 | 20 (0.4%) | 12 | `twin_paths` 4, `discriminations` 3 |
+| test-architect | 120 | 14 555 | 19 (0.1%) | 6 | `query` 8, `callers` 5 |
+| explorer | 120 | 7 194 | 256 (3.6%) | 69 of 118 | `callers` 91, `query` 54, `twin_paths` 15, `context` 15, `session_briefing` 15 |
+| archivist | 110 | 9 009 | 200 (2.2%) | 65 | `dead_references` 126, `query` 29 |
+| general-purpose | 98 | 4 586 | 1 | 1 | |
+| the untyped workflow agent | 63 | 3 439 | 4 | 1 | |
+| cross-domain-attacker | 38 | 1 534 | 18 (1.2%) | 7 | `query` 7 |
+| numerics-investigator | 25 | 1 345 | 5 | 1 | |
+| method-implementer | 11 | 720 | 1 | 1 | |
+| literature-researcher | 9 | 576 | 0 | 0 | |
+
+- `Bash` is 86% to 93% of every role's calls. 23 of the 45 Nexus tools were ever called by a sub-agent.
+- The `Agent` tool was called by 6 Key agents out of the 580 recorded (qa 1, test-architect 4, archivist 1).
+- The untyped workflow agents loaded a skill 9 times in 63 agents (`retirement-audit` 5, `coding-elegance` 4).
+- The `nexus` command line has a subcommand for each graph question (`nexus --help`: `callers`, `query`, `context`, `impact`, `dead-references`, `twin-paths`, `staleness` and the rest), and `Bash(.venv/bin/nexus:*)` is already allowed.
+
+**Role probes** (throwaway agents by `--agents`, each with CLAUDE.md and the rules; first-turn tokens):
+
+| shape | tokens |
+|---|---|
+| `Read`, `Write`, `Edit`, `Bash` | 33 944 |
+| the same with `SendMessage` | 35 958 |
+| the same four with the `Skill` tool (it brings the listing of 90 skills, 46 of them from the user-level plugins and other projects) | 45 050 |
+| `Read`, `Bash` and four Nexus tools named in `tools:` | 35 369 |
+| the same with `mcpServers: nexus` added | 53 431 |
+
+A Nexus tool named in `tools:` is held alone; `mcpServers: nexus` loads all 45 whatever `tools:` says. Every project agent that uses the graph declares the server today, which is why each pays 20.1K.
+
+## Proposed roles `[R]` (for the user's ruling; H9 and H10 give the direction)
+
+**New typed agents for the workflow stages that are untyped today** (the build, amend and verify stages of `build-units`; measure, draft and structural check of `spec-check`; the drafts of `design-panel`):
+
+| role | stages | tools | first turn |
+|---|---|---|---|
+| executor | build, amend, measure, draft | `Read`, `Write`, `Edit`, `Bash`, `SendMessage` | 36.0K (from 122.6K) |
+| checker | verify, structural check | `Read`, `Bash`, `Write`, `SendMessage` | about 35K |
+
+Neither holds a Nexus tool or the `Skill` tool: a graph question goes through the command line, and a skill a stage needs is named in its brief and read as a file. Whether these roles also drop CLAUDE.md and the rules (26.5K more) is E2's question, not decided here.
+
+**The nine existing agents: the server declaration is replaced by named tools.**
+
+| agent | Nexus tools kept | share of its recorded Nexus calls | saving |
+|---|---|---|---|
+| explorer | `callers`, `query`, `context`, `impact`, `twin_paths`, `session_briefing`, `neighbors`, `dead_references`, `file_brief` | 219 of 256 | about 16K |
+| archivist | `dead_references`, `query`, `context`, `staleness`, `provenance_chain`, `errors` | 184 of 200 | about 17K |
+| qa, elegance-enforcer, test-architect, numerics-investigator, method-implementer, cross-domain-attacker | none; the command line through `Bash` | | 20.1K each |
+
+The rest of each agent's graph use goes through the command line. The Nexus skills these agents preload name the MCP tools, so the six that lose the tools need the skills' command-line spelling (one line per skill, or the upstream change). The preloaded skills themselves stay as they are until E2.
+
+**Not proposed here:** removing the `Agent` tool from the Key agents (6 uses in 580, but invariant 2 is a ruling), and trimming the user-level skill listing (the environment, H6; it is 11.1K wherever `Skill` is held).
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
@@ -151,9 +211,8 @@ The orchestrator's own sense of which instructions it no longer needs. A model c
 
 ## Open questions for the user
 
-1. **The free saving (E0, item 3).** Dispatch every workflow stage as a typed agent with a short tool list now, before E1 and E2? It changes no instruction. The Nexus and `Skill` questions wait for the routing check.
-2. **How the Nexus tools reach an agent.** A per-role allowlist of graph tools, or the command line through `Bash` with the skills rewritten to it. The second is a change upstream in sphinxcontrib-nexus.
-3. **The scale of E2**, after the pilot.
+1. **The role table above.** Rule it, or change a tool list.
+2. **The scale of E2**, after the pilot.
 
 ## Implementation starts when
 
