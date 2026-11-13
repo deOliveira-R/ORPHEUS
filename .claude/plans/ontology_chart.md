@@ -15,11 +15,18 @@ It is a living plan in the sense of `plan-authoring` §0: the ontology is being 
 ## Rulings (the user, 2026-11-13)
 
 - **O1, the mode of work changes.** "Instead of making small changes like we have done so far, we're going to deliberately depart from this modus operandi." The route is planned whole, against an idealised target, before it is built.
-- **O2, no hand-holding.** "I had to hold hands a lot with previous models ... now we're going to cooperate without handholding." The orchestrator plans and executes with its own judgement; the user and the orchestrator discuss the chart until it is solid. `[R]` The orchestrator READS this, together with O3, as lifting the surgical-carve exception of the `workflows` rule (the main agent writes operator-algebra code turn by turn under the user's steering) for this campaign; the user has not said so in those words, and it is open question 9.
+- **O2, no hand-holding.** "I had to hold hands a lot with previous models ... now we're going to cooperate without handholding." The orchestrator plans and executes with its own judgement; the user and the orchestrator discuss the chart until it is solid. Confirmed by O7.
 - **O3, dynamic workflows build it.** Work is distributed to Opus and Sonnet agents through workflows. The division of labour is the one already measured in `workflow_orchestration.md`: Sonnet executes, Opus reviews, the orchestrator integrates and owns every ruling.
 - **O4, the communication medium.** Knowledge graphs, ontology and taxonomy: the maps above are the shared objects the discussion points at.
 
-Standing rulings this plan inherits and does not reopen: R1 to R17 of `true_ends.md` (#707); the sharpening order (discrete ordinates, diffusion and the homogeneous baseline first; collision probability, characteristics and Monte Carlo recycle the machinery later); references closed and insulated from production; effort is sizing, never a criterion. **R18 (the home of variance, `flux.dual(on="cells")`) is still NOT ruled**; it is an open node of the to-be map.
+**Rulings of the second exchange (the user, 2026-11-13):**
+
+- **O5, the wide review was the user's plan for R18.** "My plan was this wide review to spaces in a wider context. I think this review reached the correct conclusion (or at least is very close to it)." So the home of variance is no longer a separate question: it is settled inside W1 (the space algebra), whose finding is that every factor carries its variance. The exact spelling is W1's specification.
+- **O6, #707 is folded into the chart.** Its steps are the first slices of W1 to W4. The open issues are censused against the chart, and the insights they carry are used.
+- **O7, the surgical-carve exception is lifted.** "As long as the plan is well specified in a tasks, Sonnets should be capable of implementing and Opus should be capable of reviewing it and asking for corrections. In the end, as orchestrator of the workflow, you are responsible for the results, so you do a final review that it reached your standards of acceptance." The orchestrator's final review of every integrated unit is therefore a required stage, not an option.
+- **O8, `derivations/` stays closed** until production is in order.
+
+Standing rulings this plan inherits and does not reopen: R1 to R17 of `true_ends.md` (#707); the sharpening order (discrete ordinates, diffusion and the homogeneous baseline first; collision probability, characteristics and Monte Carlo recycle the machinery later); references closed and insulated from production; effort is sizing, never a criterion. R18 is resolved by O5 as a direction (variance per factor); its spelling is W1's.
 
 ## Method of the as-is measurement
 
@@ -276,6 +283,68 @@ Status today uses the map's vocabulary: **one** (one class, right home), **twin*
 | Reference insulation | **partial**: production CP imports 3 derivations symbols, one private; the gate forbids only the other direction | no production import of a reference | ruling 2026-10-06 | W9 |
 | The concept map as an instrument | **missing**: conceptual_view.rst is hand-written; most 'implements' edges in the graph are inferred from names (the Nexus tool's own figure for this project: 12 999 of 13 084, not re-measured) | a tracked concept registry; a gate holds one class per concept; the page is generated | proposed | W0 |
 
+## The graph the code forms `[M]` 2026-11-13 at `c04f4ba8`
+
+The user's hypothesis (second exchange): a well-organised code forms the graph of its ontology, a proper graph is acyclic, and acyclicity would demand each concept in its right place; and the suspected reason the graph is not acyclic today is that `numerics/` holds concepts of two later phases, strategy (the problem becomes an eigen or a source problem, cycles of unknowns are resolved, axes order a Gauss-Seidel) and solution (source iteration, Krylov, a matrix inverse).
+
+**Instruments.**
+- `scratch/ontology/deps.py`: an `ast` pass over the 260 production modules (`derivations/` excluded) that resolves every name a class body uses through the module's imports, including imports inside functions and under `TYPE_CHECKING`, to the class that defines it. 3 315 class-to-class references: 346 by inheritance, 1 776 through a module-level import or the same module, 149 through a late import, 1 044 typing-only. Positive controls: `FullFieldSpace` inherits `FunctionSpace`; `SNProblem` references `FunctionSpace`. It sees names; it cannot see a call through an object that was passed in.
+- `scratch/ontology/nodes.py`: every one of the 678 production classes is assigned to one node, a (package, kind) pair with a phase. The assignment is module-path rules written by the orchestrator, with the census category as fallback; it is a draft, and the page shows each node's classes so that it can be corrected. 65 nodes, 246 node-to-node runtime edges.
+
+**What was measured.**
+
+| question | result |
+|---|---|
+| references that point up the layer order, late imports included | 0 |
+| modules in a cycle (204 modules with a cross-module reference, 727 edges) | 0 |
+| cycles among classes at runtime | 15, each inside one module: the operator algebra's closure (9 classes in `operator.py`), the memo's pins (8), sum types with their arms, `FunctionSpace` with `DualSpace` and `TensorProductSpace` |
+| the same with typing-only references | 23, one of which spans 7 `sn` modules (12 classes): `SNProblem` and the operators it mints annotate each other |
+| cycles among the 65 nodes (support nodes excluded) | 1: `numerics` Spaces, Operators, Members |
+| references from a structure class (space, measure, member, operator) to a posing, strategy or solution class, whole tree | 0 of 409 |
+| references against the phase order, whole tree | 5, all one edge: the Green's realisations (`Richardson`, `Krylov`) import the drivers they build (`SourceIteration`, `KrylovAcceleration`) |
+
+The one concept cycle has four edges, and each is a placement the census had already flagged: `CoupledSpace` (a space) lives in the operator module `coupled_system.py`; `AngularTraceSpace` builds a `TraceRestrictionOperator`; `RankOneOperator` holds an `InnerProductFunctional`; `Field` uses `FunctionSpace`. Before two node splits the cycle had five nodes, and the splits were themselves findings: index sets and coefficient layouts sit below both spaces and bases, and "bases and frames" was two strata, bases below spaces and frames above operators.
+
+**Verdict on the hypothesis.**
+- `[REFUTED 2026-11-13]` **"The graph is not acyclic because numerics holds strategy and solution concepts."** The graph is acyclic at the module level, with zero references up the layer order and zero from structure to a later phase. The numerics-untangling campaign did that.
+- **Confirmed, in a sharper form: a concept graph demands right placement where a module graph does not.** At the granularity of concepts there is one cycle, and its edges name misplaced classes exactly.
+- **Acyclicity is necessary and far from sufficient.** The tree is acyclic and still carries 67 welds and 70 twins. A class that fuses two concepts contracts the arrow between them into itself, so no reference graph can see a weld: `GreenOperator` is an inverse (structure), a splitting (strategy) and a driver loop (solution) in one class, and shows as one clean node. The instrument that sees welds is the concept-to-class map, not the graph.
+- **The phases are real and not encoded.** Structure never consumes a later phase, so the order the user describes already holds as a fact. It is not structure: 22 numerics classes of posing, 4 of strategy and 19 of solution sit in one flat package beside 153 of structure; the strategy phase is nearly empty because its concepts are fused into operators and drivers (`GreenOperator`, `CoupledOperator`'s substitution, `KEigenvalue`, `SNSolver`, `DiffusionSolver`) or live at the wrong layer (`Splitting` in `sn/`).
+- **A legitimate cycle exists and is not debt**: the closure of an algebra. `LinearOperator.__add__` returns an `OperatorSum`, which is a `LinearOperator`; a space's `dual()` returns a space. The law is therefore not "no cycles among classes" but "every cycle among classes lies inside one concept".
+
+**Proposed laws** (the orchestrator, `[R]`, for the user to rule):
+
+- **T10, two coordinates.** Every concept has a layer (what it must know: values, geometry, mathematics, data, transport, one method) and a phase (structure: what is; posing: what is asked; strategy: how it is decomposed; solution: how it is run and what came out). A concept may consume only concepts at the same or a lower layer AND the same or an earlier phase. The layer axis is the existing criterion; the phase axis is new and is orthogonal to it: a splitting is mathematics, and so is a space, and knowledge alone cannot order them.
+- **T11, every cycle among classes lies inside one concept.** Checked on the concept registry: a strongly connected component of the class reference graph that spans two concepts is a weld, a misplacement, or two concepts that are one.
+- **T12, the algebra names an inverse; a strategy chooses its realisation; a solver runs it.** `A.inverse()` is a morphism with ends and laws. Which algorithm realises it (a sweep, a factorisation, a relaxation, a Krylov method) is a strategy value bound later, and the loop is the solution phase's. This is what unwelds `GreenOperator` and `CoupledOperator`, reverses the one inverted arrow (a driver consumes a realisation, not the reverse), and is the earlier ruling "algebra eager, performance lazy" stated as structure.
+- **Packaging, two options.** (a) Sub-packages by phase inside each layer (`numerics/{structure,posing,strategy,solution}`, the same four in `transport/` and in each method), with the layer gate extended to the product order. (b) Sibling packages by phase beside `numerics/`. The orchestrator recommends (a): each axis keeps one criterion, the knowledge criterion still says where a concept lives, and the transport and method layers need the same four phases (`Splitting` and the Solution five-tuple are transport-layer strategy and solution).
+- **The instrument becomes a gate.** The concept registry of W0 (class to concept, concept to layer and phase) carries three checks: one concept per class; edges monotone in both coordinates; every class cycle inside one concept. The page's graph is that registry's first draft.
+
+**Effect on the chart.** W0 gains the registry with the two coordinates. W2 gains T12 (the inverse and its realisation apart) and the phase split of `numerics/`. W5 places `Splitting` and the Solution shape as transport-layer strategy and solution. The typing-only cycle in `sn` (the hub and its operators) is W4's: an operator takes the spaces and fields it needs, not the Problem.
+
+## The open issues against the chart `[M]` 2026-11-13, run `wf_99d2fbf4-c0a`
+
+13 agents, 2.15 M tokens, 5.5 min. All 490 open issues were read (body included) by 12 Sonnet shards and placed on the chart; an Opus reviewer then re-derived a sample. Data: `scratch/ontology/issues/all.json` (per issue: disposition, wave, concept, the reason, and the insight written out in full).
+
+| wave | closes | closes part | carries an insight the wave must honour |
+|---|---|---|---|
+| W0 | 3 | 3 | 4 |
+| W1 | 5 | 10 | 7 |
+| W2 | 5 | 22 | 8 |
+| W3 | 10 | 10 | 6 |
+| W4 | 2 | 11 | 28 |
+| W5 | 7 | 15 | 24 |
+| W6 | 5 | 10 | 20 |
+| W7 | 0 | 7 | 7 |
+| W8a | 6 | 12 | 19 |
+| W8b | 0 | 1 | 1 |
+| W9 | 3 | 6 | 19 |
+| all | 46 | 107 | 143 |
+
+- 296 of 490 issues are on the chart; 194 are outside it: documentation, test infrastructure and the verification tree, the closed references, the harness, kinetics, fuel and thermal hydraulics.
+- **"Closes" is an upper bound.** The reviewer re-derived 15 of the issues marked as closed and moved 5 to "closes part" (applied in the table); the other 36 were not re-derived. Of 25 issues marked outside, 1 belonged to a wave.
+- 245 issues carry a written insight. Each wave's specification workflow receives its issues' insights as input. Examples the shards flagged: the predicted-shortcut kernel condition and its measurements (#705, W2); a nonlinear coupled low-order system that a Strategy type must admit beside a splitting (#318, W5); the trace metric's missing face area and what it moves (#680, W1); fission that is rank K over fissile isotopes, not rank one (#549, W4); an unowned octant order whose 25 patterns span a factor of 2.5 in iteration count (#343, W4); CP dropping its leakage term under vacuum (#512, #546, W9).
+
 ## The chart
 
 Eleven waves. A wave is a set of units with one outcome; inside a wave the units are cut when its specification is written. The order below is the dependency order, not a schedule: W1, W6 and W8a depend only on W0 and run side by side after it.
@@ -302,7 +371,7 @@ Eleven waves. A wave is a set of units with one outcome; inside a wave the units
 
 | campaign | state today | place on the chart |
 |---|---|---|
-| #707 true ends | Step A at A1; 118 gates red on `refactor/true-ends`; R18 open | its steps become the first slices of W1 (A2), W3 (A3), W2 (A4, A5) and W4 (A6, B to D). The red gates stay the gates. |
+| #707 true ends | Step A at A1; 118 gates red on `refactor/true-ends`; folded by O6 | its steps become the first slices of W1 (A2), W3 (A3), W2 (A4, A5) and W4 (A6, B to D). The red gates stay the gates. |
 | #705 predicted shortcuts | `7615c845` parked on `fix/predicted-shortcuts`, waits on #707 | W2 |
 | posing sequence #522, units 0 to 6 | ontology ruled; units scheduled, not opened | unit 2 in W8a, unit 3 in W8b, unit 4 in W1, unit 5 in W2 and W5, unit 6 in W5; units 0 and 1 in W0 |
 | boundary-law ontology, architecture E | ruled; waits on #405 | W6 (the coordinate system as a group) and W7 |
@@ -316,15 +385,14 @@ Eleven waves. A wave is a set of units with one outcome; inside a wave the units
 
 ## Open questions for the user
 
-1. **R18, the home of variance** (`flux.dual(on="cells")` against the alternatives in `true_ends.md`). W1 cannot be specified without it.
-2. **Fold #707 into the chart?** Proposal: yes, as the first slices of W1 to W4, on a fresh branch off `main` that takes A1 with it. The alternative is to finish #707 as planned and start the chart after it.
-3. **The discrete measure's phase taxonomy** (angular, spatial, energy inside `numerics/`, ruled 2026-09-01). The census reads it as the reason `DiscreteMeasure` is a weld and a transport vocabulary sits in L1. Keep, or re-rule in W8a?
-4. **Production CP imports reference internals** (`cp/solver.py:49-51`, one private symbol), and the layer gate forbids only the other direction. Debt to remove in W0 (a gate edge plus a local kernel), or accepted until W9?
-5. **Where the traced memo lives.** It needs only `values`; a package of its own between `values` and `numerics` is the lowest-knowledge home.
-6. **`restriction siblings share no base`** was ruled because no consumer treated a restriction generically. W2's natural-map family is that consumer. Reopen?
-7. **The earlier ruling that kept `Mixture.condense` and `MaterialXSField.project_through` as separate verbs.** R16 (per-slot kind, weight from the pairing partner) appears to supersede it. Confirm.
-8. **Scope of the references.** `derivations/` is 111 classes, 33 one-to-one. The chart leaves it closed, except for the insulation. Confirm.
-9. **The surgical-carve exception.** Does O2 lift it for this campaign, so that Sonnet units build operator-algebra code under gates and Opus review, as the wave-2 trial did?
+Answered 2026-11-13: R18 (O5), folding #707 (O6), the surgical-carve exception (O7), the references (O8). Still open:
+
+1. **T10 to T12 and the packaging of phases**: sub-packages inside each layer (recommended) or sibling packages.
+2. **The discrete measure's phase taxonomy** (angular, spatial, energy inside `numerics/`, ruled 2026-09-01). Keep, or re-rule in W8a?
+3. **Production CP imports reference internals** (`cp/solver.py:49-51`, #641). Remove in W0, or accept until W9?
+4. **Where the traced memo lives.** A package of its own between `values` and `numerics` is the lowest-knowledge home.
+5. **`restriction siblings share no base`**: W2's natural-map family is the generic consumer the ruling said was missing. Reopen?
+6. **The earlier ruling that kept `Mixture.condense` and `MaterialXSField.project_through` as separate verbs**: does R16 supersede it?
 
 ## Refuted candidates
 
