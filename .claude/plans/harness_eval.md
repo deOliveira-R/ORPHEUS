@@ -296,6 +296,30 @@ Ruling H17 (the user, 2026-11-13, on the order of the hard tasks and on when to 
 5. **The `grep` fact as the rule states it is wrong in scope** (`scratch/_harness_eval/e2/ugrep_probe.sh`): the shell's `grep` prints a false zero for a leading group `(^|[^...])` followed by a literal of exactly four characters (found 0 of 6 at length 4; 54 of 54 at lengths 1 to 3 and 5 to 10; `Gram`, the founding case, has four). A trailing group, a leading group with a plain alternative, `-P`, `-w` and `\b` are right. The rule's sentence "an anchor inside an alternation group matches nothing" over-states it, and the one-sentence fact should say what is measured.
 6. The limit that remains: this is a build of about ten turns. It tests the situations as incidental steps, not at depth in a long session.
 
+## E2 second rung, results: the review ablation `[M]` 2026-11-13
+
+Six Opus reviews of the same diff, three with the five skills in the system prompt and three with none (`scratch/_harness_eval/t6r/`: runner, the two system prompts, `out/<arm>_<n>/` with each transcript, findings file and report, `blind/` with the shuffled copies, the reader's `rescore.md` and `blind_key.txt`). All six ended normally; none ran a history command; no none-arm run opened a skill file. Scored by an Opus reader that saw six unlabelled reports and the rubric, one verbatim quote per credited cell; the session spot-checked five findings by keyword across the six files and found no disagreement.
+
+| | all 1 | all 2 | all 3 | none 1 | none 2 | none 3 |
+|---|---|---|---|---|---|---|
+| known findings reproduced, k of 8 (F-1 and F-3 excluded) | 3.5 | 5.5 | 4 | 2 | 3 | 3 |
+| k of 9 (F-1 excluded) | 4.5 | 6 | 5 | 2 | 3.5 | 4 |
+| findings reported outside the ten (not validated) | 10 | 6 | 7 | 9 | 14 | 13 |
+| first-turn tokens | 106.6K | 106.7K | 106.6K | 39.7K | 39.8K | 39.7K |
+| turns | 98 | 54 | 78 | 71 | 68 | 78 |
+| tokens over the run | 25.7M | 11.8M | 17.0M | 11.4M | 10.7M | 13.2M |
+| cost reported by the session | $13.20 | $8.55 | $9.54 | $9.68 | $7.35 | $8.24 |
+
+**By the rule fixed beforehand, the skills are credited with recall on this fixture**: the means are 4.33 and 2.67 of 8, a difference of 1.67 (the threshold was 1.5), and the ranges do not overlap (3.5 to 5.5 against 2 to 3). On k of 9 the means are 5.17 and 3.17. This is the first place in the evaluation where instruction text changes an outcome.
+
+Where the difference sits (credit summed over three runs, all against none): F-5, the static-typing gate that nothing runs, 2 against 0; F-7, the `hasattr`-guarded conjunction, 2 against 1; F-9, the path that depends on the working directory, 2 against 1; F-10, the wrapper comparison, 1 against 0; F-3, 2.5 against 1.5. F-2 and F-8 are found equally (2 and 2.5; 3 and 3). F-4, the displaced guard arm, is found by no run in either arm, as in September, although `vv-principles` states its class.
+
+What this does and does not show:
+- Three runs per arm, one fixture, one reader. The ground truth was written by a reviewer that carried these skills, so the fixture favours the all arm.
+- The none arm reported more findings outside the ten (12 on average against 7.7). Nobody has checked whether those are real, so "the skills raise recall" is established for the ten known findings and not for review quality as a whole.
+- The cost of carrying the skills is 67K tokens at the first turn and, here, $2 per review on average ($10.43 against $8.42).
+- Next, per the rule: a bisection, `vv-principles` alone (64K characters) against the other four (107K characters), three runs each, scored by the same blind protocol.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
