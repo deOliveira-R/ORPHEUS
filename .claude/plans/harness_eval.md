@@ -298,7 +298,7 @@ Ruling H17 (the user, 2026-11-13, on the order of the hard tasks and on when to 
 
 ## E2 second rung, results: the review ablation `[M]` 2026-11-13
 
-Six Opus reviews of the same diff, three with the five skills in the system prompt and three with none (`scratch/_harness_eval/t6r/`: runner, the two system prompts, `out/<arm>_<n>/` with each transcript, findings file and report, `blind/` with the shuffled copies, the reader's `rescore.md` and `blind_key.txt`). All six ended normally; none ran a history command; no none-arm run opened a skill file. Scored by an Opus reader that saw six unlabelled reports and the rubric, one verbatim quote per credited cell; the session spot-checked five findings by keyword across the six files and found no disagreement.
+Six Opus reviews of the same diff, three with the five skills in the system prompt and three with none (`scratch/_harness_eval/t6r/`: runner, the two system prompts, `out/<arm>_<n>/` with each transcript, findings file and report, `blind/` with the shuffled copies, the reader's `rescore.md` and `blind_key.txt`). All six ended normally; none ran a history command beyond the two commits of the diff (four ran `git show --stat b915cb90`); no none-arm run opened a skill file. Scored by an Opus reader that saw six unlabelled reports and the rubric, one verbatim quote per credited cell; the session spot-checked five findings by keyword across the six files and found no disagreement.
 
 | | all 1 | all 2 | all 3 | none 1 | none 2 | none 3 |
 |---|---|---|---|---|---|---|
@@ -312,6 +312,8 @@ Six Opus reviews of the same diff, three with the five skills in the system prom
 
 **By the rule fixed beforehand, the skills are credited with recall on this fixture**: the means are 4.33 and 2.67 of 8, a difference of 1.67 (the threshold was 1.5), and the ranges do not overlap (3.5 to 5.5 against 2 to 3). On k of 9 the means are 5.17 and 3.17. This is the first place in the evaluation where instruction text changes an outcome.
 
+`[REFUTED 2026-11-13]` as a credit under the rule: a second blind reader, scoring all twelve reviews of this fixture in one pass, reads the same six as 3.5, 5, 4.5 against 2, 3.5, 2.5. The means are unchanged (4.33 and 2.67) but the ranges now touch at 3.5, so the rule's verdict is "two more runs per arm", not a credit (the bisection section below).
+
 Where the difference sits (credit summed over three runs, all against none): F-5, the static-typing gate that nothing runs, 2 against 0; F-7, the `hasattr`-guarded conjunction, 2 against 1; F-9, the path that depends on the working directory, 2 against 1; F-10, the wrapper comparison, 1 against 0; F-3, 2.5 against 1.5. F-2 and F-8 are found equally (2 and 2.5; 3 and 3). F-4, the displaced guard arm, is found by no run in either arm, as in September, although `vv-principles` states its class.
 
 What this does and does not show:
@@ -320,32 +322,36 @@ What this does and does not show:
 - The cost of carrying the skills is 67K tokens at the first turn and, here, $2 per review on average ($10.43 against $8.42).
 - Next, per the rule: a bisection, `vv-principles` alone (64K characters) against the other four (107K characters), three runs each, scored by the same blind protocol.
 
-## E2 second rung, results: the bisection `[M]` 2026-11-13
+## E2 second rung, results: the bisection, and all twelve reviews under one reader `[M]` 2026-11-13
 
-Six more Opus reviews on the same fixture: three carrying `vv-principles` alone (arm vv, first turn 65.2K tokens) and three carrying the other four skills (arm rest, 81.1K). Scored by a second blind Opus reader under the same scoring rule (the prompt was rewritten from the rule's text, not reused verbatim), on eight shuffled reports: the six new ones and two from the first comparison as anchors (`scratch/_harness_eval/t6r/blind2/`, key in `blind2_key.txt`). The anchors: all 2 read 5.5 before and 5 now; none 1 read 2 both times. So the reader contributes about half a point.
+Six more Opus reviews on the same fixture: three carrying `vv-principles` alone (arm vv, first turn 65.2K tokens) and three carrying the other four skills (arm rest, 81.1K). A second blind Opus reader then scored all twelve reviews under the same scoring rule (its prompt was rewritten from the rule's text): eight shuffled reports first (the six new ones and two old ones), then the four remaining old ones in the same session (`scratch/_harness_eval/t6r/blind2/`, key `blind2_key.txt`, arithmetic `matrix.py`). Every number below is this one reader's. Against the first reader it moved 4 of the 6 old reviews by half a point (all 2 from 5.5 to 5, all 3 from 4 to 4.5, none 2 from 3 to 3.5, none 3 from 3 to 2.5).
 
-| | vv 1 | vv 2 | vv 3 | rest 1 | rest 2 | rest 3 |
-|---|---|---|---|---|---|---|
-| known findings reproduced, k of 8 | 2 | 3.5 | 4 | 2.5 | 2.5 | 5.5 |
-| k of 9 | 2.5 | 4.5 | 4 | 3 | 3 | 6 |
-| turns | 69 | 89 | 57 | 86 | 82 | 69 |
-| tokens over the run | 13.7M | 19.1M | 11.4M | 19.5M | 17.5M | 13.3M |
-| cost reported by the session | $9.32 | $10.83 | $10.23 | $14.54 | $12.29 | $8.50 |
+| arm | k of 8, per run | mean | union of two runs, per pair | mean |
+|---|---|---|---|---|
+| none | 2, 3.5, 2.5 | 2.67 | 4, 2.5, 4.5 | 3.67 |
+| vv | 2, 3.5, 4 | 3.17 | 3.5, 4, 5 | 4.17 |
+| rest | 2.5, 2.5, 5.5 | 3.50 | 3, 5.5, 5.5 | 4.67 |
+| all | 3.5, 5, 4.5 | 4.33 | 6.5, 5.5, 6 | 6.00 |
 
-Means of k of 8: none 2.67, vv 3.17, rest 3.50, all 4.33.
+Bisection runs: turns 69, 89, 57 (vv) and 86, 82, 69 (rest); cost $9.32, $10.83, $10.23 and $14.54, $12.29, $8.50.
 
-**The bisection does not localise the gain.** By the rule fixed beforehand each half alone shows no visible gain over none (differences 0.50 and 0.83, both under 1), and each half's range overlaps both the none arm's and the all arm's (vv 2 to 4, rest 2.5 to 5.5, none 2 to 3, all 3.5 to 5.5). Two readings fit, and three runs per arm cannot separate them: the gain needs the skills together, or the first comparison's 1.67 (just over its 1.5 threshold) was partly a draw. The spread inside one arm (rest: 2.5 to 5.5) is larger than any difference between arm means. Pooled, the nine runs that carried any skill average 3.67 of 8 against 2.67 for the three that carried none.
+What the rule says, read on this matrix:
+- **all against none: two more runs per arm.** The difference of means is 1.67, over the 1.5 threshold, but the ranges touch (none reaches 3.5, all starts at 3.5), so the credit of the previous section does not stand yet. The two runs per arm are launched (`batch3.sh`).
+- **Neither half alone shows a visible gain** (0.50 and 0.83 over none, both under 1), and each half's range overlaps both none's and all's. The bisection does not localise anything.
+- The means are ordered by the amount of skill text carried (2.67, 3.17, 3.50, 4.33), which is suggestive and, at three runs per arm with a spread of up to 3 points inside one arm, not more than that.
 
-Per finding (credit summed over three runs; vv, rest): F-5 1.5, 1; F-7 1, 0.5; F-9 0, 1; F-10 0.5, 1; F-6 0.5, 1. No finding belongs to one half. F-4 is found by no run of the twelve.
+Per finding (credit summed over three runs; none, vv, rest, all): F-5 0.5, 1.5, 1, 2; F-6 0.5, 0.5, 1, 1.5; F-7 0.5, 1, 0.5, 1.5; F-9 1, 0, 1, 2; F-10 0, 0.5, 1, 1; F-2 2.5, 3, 3, 2; F-8 3 in every arm. F-4 is found by no run of the twelve.
 
-Corrections and limits:
-- The count of findings outside the ten is reader-dependent (all 2 read 6 under the first reader and 12 under the second), so the first comparison's "none reports more outside the ten" is not carried forward.
+**A second review buys more than the skills do** `[M]` on this matrix: the union of two runs of one arm (the larger credit per finding) averages 1 to 1.67 points above a single run of that arm, in every arm. Two reviews without skills (3.67) do not reach one review with all five (4.33); two with all five reach 6 of 8.
+
+Checks and limits:
+- Arm purity: no run in the none, vv or rest arms read skill, rule, agent or evidence text from disk (`purity.py` over every tool input of the twelve transcripts; its planted control line is reported; the 5 hits are citations in the runs' own written text and two `git status` lines).
 - 6 of 12 runs had one or two commands refused by the headless permission layer (each a compound command that deletes and rebuilds a temporary tree); they are spread over all four arms and every run went on.
-- Every history command in the twelve runs is confined to the two commits of the diff (read from the transcripts, `hist.py`).
+- Cost does not track the skill text: the means are $8.42 (none), $10.13 (vv), $11.78 (rest), $10.43 (all), inside the run-to-run spread ($7.35 to $14.54). The earlier "$2 per review" is withdrawn.
+- The count of findings outside the ten is reader-dependent (all 2: 6 under the first reader, 12 under the second) and is not carried forward.
+- One fixture, and its ground truth was written by a reviewer that carried these skills.
 
-What follows for the roles `[R]`:
-- The reviewer keeps its five skills. They are the only instruction text in this evaluation with a measured positive effect, the cost is about $2 on a $8 to $10 review, and nothing here supports dropping any one of them.
-- Run-to-run spread is the larger lever. A second independent review of the same diff is the cheaper way to raise recall than any further text, and the workflows already run qa and the elegance-enforcer in parallel; whether two qa runs beat one is the next measurement if review recall matters more than its cost.
+What follows for the roles `[R]`: the reviewer keeps its five skills (no arm did better without them, and nothing supports dropping one); where review recall matters, a workflow runs two independent qa reviews and takes the union.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
