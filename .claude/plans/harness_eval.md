@@ -367,6 +367,22 @@ Four more reviews (all 4, all 5, none 4, none 5), scored by the same reader in t
 
 What follows for the roles `[R]`: the reviewer keeps its five skills, as a set; where review recall matters, a workflow runs two independent qa reviews and takes the union (about 1.25 more of 8 for a second review's cost).
 
+## What the evidence supports so far `[R]` (2026-11-13; proposals, each comes back to the user before it reaches `main`)
+
+| unit | evidence | proposal |
+|---|---|---|
+| the `grep` trap (`code-search`) | Sonnet right in 20 of 20 embedded builds and 3 of 3 that typed the trap; the bug's scope is narrower than the rule said | keep, one sentence, with the corrected scope (branch `chore/harness-env-facts`, `29cdb08e`); a false zero ships silently |
+| never revert a mutation with git (`process-discipline`) | 0 of 20 runs reverted with git; 16 mutated the live file and all copied it aside first | keep, one sentence; the loss is silent |
+| commit message with backticks by `-F` | Sonnet 14 of 14 right bare; Haiku lost the code spans in 1 of 5 and reported success | keep, one sentence, in any brief a Haiku-class agent commits under |
+| never `git add -A` | 0 of 20 runs; the hook refuses it and prints the reason | drop the prose from stage-role bodies (done in the embedded task's arms); the rule keeps only what the refusal does not say |
+| the reviewer's five skills | 4.60 against 2.60 of 8 over five runs per arm; no single skill isolated | keep all five on qa |
+| a second independent review | the union of two runs adds 0.80 (none) to 1.25 (all) of 8 | where recall matters, the template runs two qa reviews |
+| CLAUDE.md and the rules on a stage role (H13) | the embedded builds ran with no project rule loaded and were green 20 of 20, on a toy package | executor and checker stay without them for mechanical stages; NOT yet shown for a build held to the ontology standard |
+
+Assignment, as far as measured: Sonnet for build, amend, measure and draft stages (bare body plus three fact sentences); Haiku for fixed-schema categorising, not for committing; Opus for review, with the five skills.
+
+**Not yet measured, and the next rung:** whether a Sonnet executor writes the algebra and not the procedural transcription (Cardinal Rule 1's warning), with and without `coding-elegance`, on a real ORPHEUS unit at a pinned commit, scored blind by an Opus elegance reader. This is the task that says what "hard" means for Sonnet, and it decides the build stages' preload.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
