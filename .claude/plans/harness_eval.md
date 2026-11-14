@@ -500,7 +500,7 @@ What this supports:
 
 `[R]` A limit of the second criterion, stated after the fact: "does not pass on the amended build" mixes three things, a gate that guessed a spelling neither build used (the package-export gate fails on both builds in 13 of 15 L1 G2 runs), a gate that pins a decision the amend changed, and a wrong gate. The instrument cannot tell the first from the third, because neither build was written against these gates. With the second criterion set aside, one cell passes the first: Sonnet with the two skills on L1 (4 of 5), beside 3 of 4 for bare Sonnet, which is no separation. A scorer limit: the outcome parser cuts a parametrised test id at its first space, so node counts are approximate; run-level verdicts do not rest on them.
 
-Assignment this supports `[R]`: the gates stage runs on bare Sonnet from a gate list in the specification; no skill and no stronger model is credited there. The leverage is the specification (which gates it names, and whether its decisions are right) and the review.
+Assignment this supports `[R]`: no added skill and no stronger model is credited at the gates stage, and the gate list belongs in the specification. Whether the stage can run bare is not shown (the section on the trims: 2 of 5 bare L1 runs wrote float-rule gates with a wrong expected value). The leverage is the specification (which gates it names, and whether its decisions are right) and the review.
 
 ## E3 and E4: the trims drafted and the assignment table `[R]` (2026-11-14; each branch waits for the user before `main`)
 
