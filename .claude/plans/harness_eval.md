@@ -427,6 +427,40 @@ Changes to the design, made before the batch: the second fixture is unit L1 (the
 
 By the rule, bare does not pass rung 1 on L4 (the cycle) and matches the historical build on L1; all five gated findings recur in 5 of 5, so both added arms run on both fixtures (`batch2.sh`): Sonnet with `coding-elegance` in the system prompt, and bare Opus. The blind reader's pass over the full rubrics covers every arm in one session, after those runs.
 
+## E2 third rung, results: the two added arms and the blind rubric pass `[M]` 2026-11-14
+
+Twenty more builds (Sonnet with `coding-elegance` in the system prompt, first turn 22.9K tokens against 10.5K bare; bare Opus), five per fixture per arm. All 30 builds of the three arms: original gates green, inside the brief's file list, no read under the main checkout, no denial. One blind Opus reader per fixture judged every build's diff against the fixture's rubric, with the historical and the amended build among them unlabelled (`scratch/_harness_eval/sb/blind_<fixture>/scores.md`, keys `key_<fixture>.txt`, arithmetic `tab.py`).
+
+**The gated findings (deterministic; builds in which the amended gate row is red, of 5).**
+
+| | Sonnet bare | Sonnet + `coding-elegance` | Opus bare |
+|---|---|---|---|
+| L4, the folded rule's error | 5 | 5 | 5 |
+| L4, the package-cycle gate | 4 | 5 | 4 |
+| L1, the pairing's whole law | 5 | 5 | 5 |
+| L1, one agreement convention | 5 | 5 | 5 |
+| L1, the raw partition parsed | 5 | 5 | 0 |
+| L1, values state their invariants | 5 | 5 | 3 |
+| cost per build | $0.28 to $0.73 | $0.29 to $0.82 | $1.96 to $6.17 |
+
+**The rubric (blind reader; findings of the 2026-10-23 review present, mean per build).** The anchors read as they must on L4 (historical 9 of 9 present; amended 0 of 8, and the ninth item is the extra file the review accepted). On L1 the amended build reads 0 of 11 and the historical build 8 of 11: items B2, B7 and B9 do not separate the anchors (B2 was posed against a test the builds do not contain) and are dropped, leaving 8.
+
+| | historical build (full harness of that day, one draw) | Sonnet bare | Sonnet + `coding-elegance` | Opus bare |
+|---|---|---|---|---|
+| L4, of 9 | 9 | 4.67 (6 builds, the pilot included) | 4.80 | 5.00 |
+| L1, of the 8 valid | 8 | 7.80 | 8.00 | 4.60 |
+
+- **`coding-elegance` in the builder's prompt changes nothing** on either fixture, gated or read (4.80 against 4.67; 8.00 against 7.80). By the rule it is credited with no finding.
+- **The bare Sonnet build is no worse than the historical one**, and on L4 better (4.67 against 9 of 9: no bare build has the redundant guard, the unread read surface or the extra file). The harness text of 2026-10-23 did not help its builder on these findings.
+- **Opus as the builder is credited with three L1 findings** (present in 0 of 5: values that state their invariants, the raw input parsed, the sign of the scale under `np.spacing`), and with none on L4. These are completeness of a single function or type. It does not remove the findings about structure: the law stated in part (B1), the union re-spelled by hand (B3), the unrecorded twin (B4, A7), a convention with two addresses (B8), an illegal role left spellable (A4), an undeclared scope boundary (A5). Those are present in every build of every arm, 5 of 5.
+- The reader and the gates disagree in one place and it is the gate's shape: on L1 "values state their invariants" is red in 3 of 5 Opus builds and read absent in 5 of 5 (the gate asks for a specific refusal); on L4 the folded rule is red in 5 of 5 Opus builds and read present in 3.
+
+**What follows `[R]`.**
+- The build stage runs on Sonnet with the bare executor body. No skill preload is supported for it, and Opus buys the removal of the completeness findings at seven to ten times the cost; a reviewer and an amend stage already exist for those.
+- The structural findings are not reached by any builder arm at this rung. They are reached by the review (which is why the reviewer's skills and a second review matter), or by a gate: every one of them that was written as a gate row after the review would have been demanded of the builder had the gates stage written it. The leverage is upstream of the build, in the specification and the gates, which is the next thing to measure: the gates stage, by model and by preload, scored on whether its gates redden on the historical build's known defects.
+- A stage brief names the gates beyond the unit's own that the builder runs before committing (the package-cycle gate was red in 13 of 15 L4 builds and no brief named it).
+- Rungs 2 and 3 (less of the ontology handed over) were not run: rung 1 already leaves the structural findings in every build, so a thinner brief can only add to them.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
