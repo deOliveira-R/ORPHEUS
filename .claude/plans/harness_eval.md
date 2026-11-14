@@ -542,6 +542,28 @@ What the build rung already says about where the two differ `[M]`: on the second
 
 **The step, designed before any run.** One arm, `inv`: bare Sonnet plus two sentences that name no fixture (every value type added states its invariants at construction; every function added that receives raw input parses it and refuses malformed input). Five builds per unit. Read by the deterministic scorer only: the two amended gates above on the second unit; on both units the unit's own gates, the file list, and the gated findings of the build rung (no harm). The hypothesis holds on this unit if at least 4 of 5 builds pass each of the two gates; it is refuted for a gate that still fails in 4 of 5. Limit, stated now: the sentences were written after reading the two findings, so a pass shows that naming the obligation suffices on this unit, not that the sentences generalise; that needs a unit not used to write them.
 
+## The first hill-climbing step, results `[M]` 2026-11-14
+
+Ten Sonnet builds with the two sentences (arm `inv`), five per unit, from the commits that hold the gate files (`2f1d04e2`, `34c9c9fd`). A first batch was launched from the gates' parent commits by mistake, so its builders wrote their own gates; it is set aside (`runs_wrongbase/`) and counted nowhere below, though its five second-unit builds read the same on the probe (4 of 4 refused in 5 of 5). All ten ended `success`, committed, inside the file list, 0 reads of the main checkout; cost $0.31 to $0.81 per build (bare: $0.28 to $0.82).
+
+A second instrument was added, because the amended gate "the values state their invariants" bundles several findings and one exception type: `probe_inv.py` builds four malformed values directly (a decreasing partition; a non-bijective face map; an empty group; a group whose first element is not the identity) and records whether each is refused, with three valid constructions as controls (accepted in every row below). Anchors: the historical build refuses 0 of 4, the amended build 4 of 4.
+
+| second unit, five builds per arm | builds refusing 4 of 4 | gate "the raw partition is parsed" passes | gate "the values state their invariants" passes |
+|---|---|---|---|
+| Sonnet bare | 0 (each refuses 0 of 4) | 0 of 5 | 0 of 5 |
+| Sonnet with `coding-elegance` | 0 (two builds refuse 2 of 4, three refuse 0) | 0 of 5 | 0 of 5 |
+| Sonnet with the two sentences | 5 | 5 of 5 | 2 of 5 |
+| Opus bare | 5 | 5 of 5 | 2 of 5 |
+
+**The hypothesis holds on this unit for the obligations the sentences name.** By the rule written before the runs, the partition gate passes (5 of 5); the invariants gate is undecided by its own count (2 of 5), and the probe says why: all five builds refuse the four malformed values, and the three gate failures are one build that accepts a negative scale (the `np.spacing` finding, which the sentences do not name), one that raises `TypeError` where the gate expects `ValueError`, and one whose identity test differs. Bare Opus fails that gate in the same 3 of 5, so the earlier line "the values state their invariants fails on 3 of 5 Opus builds" was a reading of the gate's spelling: by the probe Opus refuses 4 of 4 in 5 of 5. `[REFUTED 2026-11-14]` for that line as a statement about invariants.
+
+What did not move, on either unit: the two structural gates of the second unit (the pairing law and its adjoint 0 of 5 pass; one agreement convention 0 of 5), and the first unit's folded-rule diagnosis (0 of 5). No harm on the first unit: its gates green 5 of 5; the package-cycle gate red in 3 of 5 (bare: 4 of 5), still what the template's ledger line is for.
+
+What this supports `[R]`:
+- On the one unit where Opus built better than Sonnet, the measured difference was two obligations the brief did not name, and two general sentences closed it at Sonnet's cost. A 35K-character skill did not; the sentences are an obligation stated as a requirement of every build, the skill is a body of guidance.
+- So the hill to climb is the brief: a difference between the models at the build stage is first read as an unnamed obligation, named in general terms, and re-measured. Opus is the answer for a kind of unit only where that fails.
+- Not shown: that these two sentences generalise (they were written from this unit's findings), or how many such obligations there are. The next step that would show it: a third unit, chosen before reading its review findings, built bare, with the sentences, and by Opus.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
