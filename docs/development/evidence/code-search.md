@@ -16,7 +16,7 @@ references. Nexus captures all of these as graph edges.
 
 ### 2026-08-26 the ugrep fixture
 
-Clause: `grep` here is ugrep, and an anchor inside an alternation group matches nothing, silently
+Clause: `grep` here is ugrep, and an anchor inside an alternation group can match nothing, silently
 
 `[M]` 2026-08-26. `grep` in this environment is a shell function wrapping
 **ugrep 7.5.0** (`ARGV0=ugrep … -G --ignore-files --hidden -I --exclude-dir=…`),
@@ -41,6 +41,17 @@ not preceded by a letter or underscore"* is how you separate `gram` from
 `programs`, or a retired module name from a surviving attribute of the same
 spelling — and writing it the natural way returns a confident, empty, wrong
 answer. `coding-standards`' three-search audit is built on greps like this.
+
+**The scope, measured 2026-11-13** (ugrep 7.8.4; `scratch/_harness_eval/e2/ugrep_probe.sh`,
+one line `x <word> y` per word, pattern `(^|[^a-z_])<word>`). The false zero depends on
+the LENGTH of the literal after the group: 0 of 6 words found at length 4 (`abcd`, `Gram`,
+`flux`, `Mesh`, `node`, `qzkw`), 54 of 54 found at lengths 1 to 3 and 5 to 10 (six words
+each). On `x Gram y`: the group written either way round, non-capturing, or followed by
+`(Gram)` or `Gra[m]`, prints 0; `(^| )Gram` (no bracket class), `(^|[^a-z_])Gram y` (a
+longer literal), a trailing `Gram($|[^a-z_])`, `\bGram\b` and `-P` print 1; the system
+`grep` prints 1 on all ten. So the clause is a prohibition, not a description: most
+anchored groups work, the four-letter case fails silently, and a positive control must be
+run on the pattern and the name actually searched, since a longer name passes.
 
 ### 2026-09-17 git grep has no word boundary
 

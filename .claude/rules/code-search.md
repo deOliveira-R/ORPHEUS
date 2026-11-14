@@ -23,19 +23,20 @@ agents, its shell. Founding cases: [the evidence page](../../docs/development/ev
   restructuring, assume it. check: rebuild first
   (`sphinx-build docs docs/_build/html`); the MCP server auto-reloads.
 
-## `grep` here is ugrep, and an anchor inside an alternation group matches nothing, silently
+## `grep` here is ugrep, and an anchor inside an alternation group can match nothing, silently
 
 `grep` in this environment is a shell function wrapping **ugrep**, not GNU or
-BSD grep, and one construction fails in the worst possible way:
-zero matches, exit 1, no message, indistinguishable from a clean tree. The
-failing construction is an anchor (`^` or `$`) INSIDE an alternation group:
-on a line containing `square Gram, while`, `grep -E '(^|[^a-z_])Gram'` returns
-0, while `\bGram\b`, `-P '(?<![A-Za-z_])Gram'` and the anchor-free
-`([^a-z_])Gram` return 1
-([case](../../docs/development/evidence/code-search.md#2026-08-26-the-ugrep-fixture)). This is
-exactly the idiom a retirement audit reaches for ("the symbol, but not preceded
-by a letter or underscore"), so `coding-standards`' three-search audit is built
-on greps like it.
+BSD grep, and one construction can fail in the worst possible way: zero
+matches, exit 1, no message, indistinguishable from a clean tree. It is an
+anchor (`^` or `$`) INSIDE an alternation group: on a line containing
+`square Gram, while`, `grep -E '(^|[^a-z_])Gram'` returns 0, while `\bGram\b`
+and `-P '(?<![A-Za-z_])Gram'` return 1. Measured, the false zero needs a
+literal of exactly four characters after the group (`Gram`, `flux`, `Mesh`),
+so a control run on a longer name passes and proves nothing about the
+four-letter one
+([case](../../docs/development/evidence/code-search.md#2026-08-26-the-ugrep-fixture)). It is the
+idiom a retirement audit reaches for ("the symbol, not preceded by a letter
+or underscore").
 
 - check: use `\b…\b`, or `-P` with a lookbehind, or drop the anchor; never put
   `^`/`$` inside a group. The mirror in `git grep -E`: there `\b` is the thing
