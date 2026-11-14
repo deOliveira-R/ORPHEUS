@@ -461,6 +461,20 @@ Twenty more builds (Sonnet with `coding-elegance` in the system prompt, first tu
 - A stage brief names the gates beyond the unit's own that the builder runs before committing (the package-cycle gate was red in 13 of 15 L4 builds and no brief named it).
 - Rungs 2 and 3 (less of the ontology handed over) were not run: rung 1 already leaves the structural findings in every build, so a thinner brief can only add to them.
 
+## E2 fourth rung: the gates stage (designed 2026-11-14, before any run)
+
+Ruling H19 (the user, 2026-11-14): "Yes. Go ahead with the gates-stage measurement."
+
+**A fact found while designing, which shapes the rung.** `[M]` the plan the gates stage received (`wave2_boundary_carve.md` at `34c9c9fd`, sections 5.1 and 5.4) enumerates each unit's done-when gates one by one, with the inputs and the mutation that reddens each (ten for L1, four for L4). The historical gates stage transcribed a list; the defects the review later found are the ones that list did not name. So the stage is measured at two rungs:
+- **G1, the literal brief** (the list given): does a gates writer add anything to the list that reddens on a known defect?
+- **G2, the list withheld**: the export's plan has the "Done-when gates" bullets of the unit's section removed and the brief says to write the gates the unit's types and laws require. This measures the writer's own gate design.
+
+**Fixtures:** the same two units, from the commit before the gates (L1 `d9d638e6`, L4 `f6690aeb`), exported and isolated as in the third rung. The writer commits tests only.
+
+**Scoring, deterministic.** The run's test files are laid over three trees and run by the scorer: the base (every gate must be red or erroring), the historical build, and the amended build. A test that fails on the historical build and passes on the amended one is a **catch**; a test that fails on the amended build is a **wrong gate** (it demands something the specification does not, or is broken). Catches are mapped to the rubric's findings by reading the failing assertion. Anchors: the historical gate files must read 0 catches, the amended gate files 1 (L4) and 4 (L1).
+
+**Arms and rule.** Sonnet bare at G1, five runs per fixture. The historical gates stage is the reference: 0 catches. An arm is credited at a rung when at least 4 of 5 runs have at least one catch and no more than one wrong gate. G2 runs for Sonnet bare, Sonnet with `vv-principles` and `instrument-doctrine` in the system prompt, and bare Opus, five runs per fixture each; G1 gets the added arms only if Sonnet bare is not credited there and G2 shows an arm that is.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
