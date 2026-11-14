@@ -475,6 +475,33 @@ Ruling H19 (the user, 2026-11-14): "Yes. Go ahead with the gates-stage measureme
 
 **Arms and rule.** Sonnet bare at G1, five runs per fixture. The historical gates stage is the reference: 0 catches. An arm is credited at a rung when at least 4 of 5 runs have at least one catch and no more than one wrong gate. G2 runs for Sonnet bare, Sonnet with `vv-principles` and `instrument-doctrine` in the system prompt, and bare Opus, five runs per fixture each; G1 gets the added arms only if Sonnet bare is not credited there and G2 shows an arm that is.
 
+## E2 fourth rung, results: the gates stage `[M]` 2026-11-14
+
+Forty runs, all ended `success`: 0 of 40 touched a production file, left uncommitted work, read the main checkout or the removed harness files, or met a permission denial. First turn: about 10.5K tokens bare, 28.8K with the two skills. Scorer: `gscore.py` (catch: fails on the historical build, passes on the amended one); `gcat.py` splits the gates that fail on the amended build by their outcome on the historical one. Archive: `scratch/_harness_eval/sb/` (`gruns/<run>/{run.jsonl,gates.diff,gscore.json,gcat.json}`).
+
+| cell | L4: runs with a catch | L1: runs with a catch | L4: runs with at most 1 gate failing on amended | L1: same | mean cost L4 / L1 |
+|---|---|---|---|---|---|
+| G1 (list given), Sonnet bare | 0 of 5 | 0 of 5 | 5 of 5 | 2 of 5 | $0.39 / $0.64 |
+| G2 (list withheld), Sonnet bare | 0 of 5 | 3 of 5 | 5 of 5 | 1 of 5 (a collection error) | $0.40 / $1.30 |
+| G2, Sonnet with `vv-principles` and `instrument-doctrine` | 0 of 5 | 4 of 5 | 3 of 5 | 0 of 5 | $0.57 / $1.53 |
+| G2, Opus bare | 0 of 5 | 2 of 5 | 4 of 5 | 4 of 5 | $3.06 / $5.46 |
+
+**By the rule written before the runs, no arm is credited at either rung on either unit.** L4 has 0 catches in 20 runs. On L1 only one run of 20 (Opus, run 2) has both a catch and at most one gate failing on the amended build.
+
+What the L1 catches are, by the finding they redden on (runs of 5): the raw partition is parsed (a malformed partition is refused): Sonnet bare 2, Sonnet with skills 4, Opus 1; the values state their invariants (the identity is first): Opus 2, both Sonnet arms 0; a self-paired face refuses a translation: Sonnet bare 1. The amended gate file catches four findings; no run of 20 reddens on "one agreement convention" or on the pairing law and its adjoint.
+
+What this supports:
+
+1. **With the gate list in the brief the gates writer adds nothing that catches a known defect** (0 of 10 runs), the same reading as the historical gates stage (0 catches on both units). The stage transcribes the list.
+2. **Without the list, the writer reaches some of L1's findings (9 of 15 runs) and none of L4's (0 of 15).** L4's finding (a folded rule diagnosed as having spent the mirror) was reached only by review. A gate catches what the writer can state as an input to refuse; the structural findings stay with the review.
+3. **The two verification skills are not credited for the gates writer.** 4 of 5 against 3 of 5 on L1 is inside what five runs can separate, and the same arm produced the two worst L4 runs (22 and 31 gates failing on both builds).
+4. **Opus is not better at this stage** (2 of 5 on L1, 0 of 5 on L4) at about four to eight times the cost. Its gates are the closest to what either build spells (4 of 5 runs with at most one failing gate on both units).
+5. **Gates fix the plan's decisions in place, including the ones the review later overturned.** Gates that pass on the historical build and fail on the amended one: all 5 Opus L4 runs assert that `TraceRole` names four tiers (the plan's decision 49; the amend replaced it with a separate type), and 11 of 20 L1 runs hold such a gate (the agreement convention, the self-pairing invariant, the digest rows). A gate written from the plan cannot catch an error in the plan.
+
+`[R]` A limit of the second criterion, stated after the fact: "does not pass on the amended build" mixes three things, a gate that guessed a spelling neither build used (the package-export gate fails on both builds in 12 of 15 L1 G2 runs), a gate that pins a decision the amend changed, and a wrong gate. The instrument cannot tell the first from the third, because neither build was written against these gates. The verdict in bold does not depend on it: no arm reaches 4 of 5 runs with a catch on both units under any reading of the second criterion.
+
+Assignment this supports `[R]`: the gates stage runs on bare Sonnet from a gate list in the specification; no skill and no stronger model is credited there. The leverage is the specification (which gates it names, and whether its decisions are right) and the review.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
