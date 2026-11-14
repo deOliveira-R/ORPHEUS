@@ -371,7 +371,7 @@ What follows for the roles `[R]`: the reviewer keeps its five skills, as a set; 
 
 | unit | evidence | proposal |
 |---|---|---|
-| the `grep` trap (`code-search`) | Sonnet right in 20 of 20 embedded builds and 3 of 3 that typed the trap; the bug's scope is narrower than the rule said | keep, one sentence, with the corrected scope (branch `chore/harness-env-facts`, `29cdb08e`); a false zero ships silently |
+| the `grep` trap (`code-search`) | Sonnet right in 20 of 20 embedded builds and 3 of 3 that typed the trap; the bug's scope is narrower than the rule said | keep, one sentence, with the corrected scope `[LANDED 29cdb08e]` (merged to `main` 2026-11-14 on the user's go-ahead); a false zero ships silently |
 | never revert a mutation with git (`process-discipline`) | 0 of 20 runs reverted with git; 16 mutated the live file and all copied it aside first | keep, one sentence; the loss is silent |
 | commit message with backticks by `-F` | Sonnet 14 of 14 right bare; Haiku lost the code spans in 1 of 5 and reported success | keep, one sentence, in any brief a Haiku-class agent commits under |
 | never `git add -A` | 0 of 20 runs; the hook refuses it and prints the reason | drop the prose from stage-role bodies (done in the embedded task's arms); the rule keeps only what the refusal does not say |
@@ -382,6 +382,29 @@ What follows for the roles `[R]`: the reviewer keeps its five skills, as a set; 
 Assignment, as far as measured: Sonnet for build, amend, measure and draft stages (bare body plus three fact sentences); Haiku for fixed-schema categorising, not for committing; Opus for review, with the five skills.
 
 **Not yet measured, and the next rung:** whether a Sonnet executor writes the algebra and not the procedural transcription (Cardinal Rule 1's warning), with and without `coding-elegance`, on a real ORPHEUS unit at a pinned commit, scored blind by an Opus elegance reader. This is the task that says what "hard" means for Sonnet, and it decides the build stages' preload.
+
+## E2 third rung: a build held to the ontology standard (designed 2026-11-14, before any run)
+
+Ruling H18 (the user, 2026-11-14): "Yes, merge and go ahead with the Sonnet evaluation."
+
+**The fixtures are the project's own record.** On 2026-10-23 the `build-units` workflow built wave 2 unit by unit: a Sonnet stage wrote the gates, a Sonnet stage built (`[M]` the template at those commits names `model: 'sonnet'` for both), Opus qa and elegance reviewed, and the amend commit's body lists each finding with its disposition. So each unit carries its literal brief (in `wave2_boundary_carve.md` at the gates commit), its red gates, one historical Sonnet build made under that day's full harness, the findings a review raised on it, and the amended build.
+
+| fixture | kind | base (gates red) | historical build | amended |
+|---|---|---|---|---|
+| L4, `ordinate_pairing` and the `TraceRole` tier | additive, numerics | `2f1d04e2` | `21a5e0e7` | `afc8ed6d` |
+| S3, the diffusion realizer table and binding | carve, diffusion | `232fccf5` | `9c0e8fde` | `508c6478` |
+
+`[M]` scorer anchors on L4 (`scratch/_harness_eval/sb/anchor.sh`): the original gates are 23 of 23 red at the base and 23 of 23 green on the historical build; the amended gate file reads 1 red of 25 on the historical build and 25 green on the amended one.
+
+**Rungs** are how much of the ontology the brief hands over, because that is a larger variable than any skill: (1) the literal brief with the plan sections and the red gates, as the workflow gives it; (2) the plan sections without the gates; (3) the outcome alone. Rung 1 runs first; a later rung runs only where the earlier one passes.
+
+**Arms.** Bare first: Sonnet with the executor body and the three environment facts, no CLAUDE.md, no rule, no skill; five runs per fixture. An arm is added only for a finding that recurs: `coding-elegance` in the system prompt (Sonnet), and Opus bare.
+
+**Isolation, each with a control.** The run directory is a `git archive` export of the base with a fresh one-commit history (no later commit is reachable). `.claude/` is removed except the two plan files the brief cites. The interpreter is a separate virtual environment that sees the project's dependencies and not its editable install, so `orpheus` resolves only to the export; control: the original gates are red in the export under a plain `python -m pytest`. Every transcript is scanned for a read under the main checkout.
+
+**Outcomes, scored by the session and never taken from the run:** the original gates green; the files touched inside the brief's list; the unit's neighbouring tests and the layer gate green; the amended gate file's reds; and, per fixture, a rubric of the historical findings (written from the amend commit's body and diff before any run), each judged present or absent in the run's diff by one blind Opus reader in one session, with the historical build and the amended build among the unlabelled diffs as anchors (the reader must find the findings in the first and not in the second, or its cells are not used).
+
+**The rule, fixed now.** Bare passes rung 1 on a fixture when at least 4 of 5 runs have the original gates green inside the file list AND the mean count of rubric findings present is no higher than the historical build's. A finding present in at least 3 of 5 bare runs is recorded as hard for Sonnet at this rung; for those, each added arm gets five runs, and it is credited with the finding when the rate falls to at most 1 of 5. No runs beyond that: a finding no arm removes stays the reviewer's, which is where the workflow already puts it.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
