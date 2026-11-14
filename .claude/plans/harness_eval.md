@@ -502,6 +502,31 @@ What this supports:
 
 Assignment this supports `[R]`: the gates stage runs on bare Sonnet from a gate list in the specification; no skill and no stronger model is credited there. The leverage is the specification (which gates it names, and whether its decisions are right) and the review.
 
+## E3 and E4: the trims drafted and the assignment table `[R]` (2026-11-14; each branch waits for the user before `main`)
+
+Two branches off `main` (`29cdb08e`), one unit each, not merged and not pushed:
+
+| branch | commit | what changes | evidence | check run |
+|---|---|---|---|---|
+| `chore/executor-bare` | `afcc4c84` | the executor's header sets `omitClaudeMd`; its body says the brief carries what binds it, keeps three environment facts (the `grep` false zero, the git revert, the commit message with backticks) and drops the `git add -A` prose; the texts that count "the three `omitClaudeMd` agents" say "Support agents"; a History paragraph on the workflows page | the third rung: 30 of 30 bare builds green and inside the file list, no more review findings than the full-harness build; the first rung for the three facts | `python -m tools.harness --check`: 0 problems; `tests/gates/test_harness_generated.py`: 2 passed; a probe: a dispatched executor reported CLAUDE.md and seven rules in context before, none after |
+| `chore/build-units-assignment` | `4fce32fb` | `build-units` dispatches the gates stage as `executor`, not `test-architect`; a new argument `qa_passes` (default 1) | the gates rung (0 of 10 with the list; no arm credited without it); the review rung (a second review adds 0.80 to 1.25 of 8) | the template parses; a stub run with `qa_passes: 2` dispatches gates and build as executor and two qa passes |
+
+Not changed, with the reason: the reviewer's five skills stay (credited as a set); the checker keeps CLAUDE.md and the rules (its stages were not measured); the tree-wide ledger line in the template's rules block stays (13 of 15 bare builds left the package-cycle gate red without it); the pyright paragraph of that block was not measured.
+
+The assignment for the workflow stages, as measured:
+
+| stage | model | agent | loads | basis |
+|---|---|---|---|---|
+| gates | Sonnet | executor | the brief, with the specification's gate list | the gates rung |
+| build, amend, measure, draft | Sonnet | executor | the brief and the template's rules block | the build rung |
+| review (qa) | Opus | qa | its five skills; two independent passes where recall matters | the review rung |
+| review (elegance) | Opus | elegance-enforcer | unchanged | not measured apart from qa `[HYPOTHESIS]` that it behaves as qa does |
+| verify, structural check | Opus | checker | unchanged | not measured |
+| fixed-schema categorising | Haiku | `general-purpose` | a schema; never commits | the first rung |
+| specification | not measured | | | the two rungs above put the leverage here: the gate list and the plan's decisions are fixed upstream of every stage measured |
+
+What "hard" means, as far as measured `[R]`: nothing in a build or a gates stage separated Sonnet from Opus in Sonnet's disfavour; the findings no builder or gates writer reached (the structural ones) were reached by Opus review with its skills, and by no arm at a lower rung. The specification stage and the Fable rung of ruling H7 are not measured.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
