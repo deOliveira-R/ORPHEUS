@@ -504,28 +504,33 @@ Assignment this supports `[R]`: the gates stage runs on bare Sonnet from a gate 
 
 ## E3 and E4: the trims drafted and the assignment table `[R]` (2026-11-14; each branch waits for the user before `main`)
 
-Two branches off `main` (`29cdb08e`), one unit each, not merged and not pushed:
+Two branches off `main` (`29cdb08e`), one unit each, not merged and not pushed. Both edit `build-units.js` on different lines, so the second to land is rebased. A first draft of each reached further than its evidence and was withdrawn after review: `omitClaudeMd` on the executor itself (it is also the drafter of `spec-check` and `design-panel` and the amender, none measured bare, and those two templates carry no rules block), and the gates stage as a bare executor (see below).
 
 | branch | commit | what changes | evidence | check run |
 |---|---|---|---|---|
-| `chore/executor-bare` | `afcc4c84` | the executor's header sets `omitClaudeMd`; its body says the brief carries what binds it, keeps three environment facts (the `grep` false zero, the git revert, the commit message with backticks) and drops the `git add -A` prose; the texts that count "the three `omitClaudeMd` agents" say "Support agents"; a History paragraph on the workflows page | the third rung: 30 of 30 bare builds green and inside the file list, no more review findings than the full-harness build; the first rung for the three facts | `python -m tools.harness --check`: 0 problems; `tests/gates/test_harness_generated.py`: 2 passed; a probe: a dispatched executor reported CLAUDE.md and seven rules in context before, none after |
-| `chore/build-units-assignment` | `4fce32fb` | `build-units` dispatches the gates stage as `executor`, not `test-architect`; a new argument `qa_passes` (default 1) | the gates rung (0 of 10 with the list; no arm credited without it); the review rung (a second review adds 0.80 to 1.25 of 8) | the template parses; a stub run with `qa_passes: 2` dispatches gates and build as executor and two qa passes |
+| `chore/builder-agent` | `3ba92923` | a new stage agent `builder` with `omitClaudeMd`, used by the build stage of `build-units` only; its body keeps two environment facts whose loss is silent (the `grep` false zero, the git revert); the executor keeps CLAUDE.md and the rules and drops the `git add -A` prose; the texts that count "the three `omitClaudeMd` agents" say "Support agents"; a History paragraph on the workflows page | the build rung: 10 of 10 bare Sonnet builds green and inside the file list, no more review findings than the full-harness build | `python -m tools.harness --check`: 0 problems; `test_harness_generated.py` and `test_docstring_xrefs.py`: 48 passed; a probe: a dispatched builder reported no CLAUDE.md and 0 rules in context, a dispatched executor CLAUDE.md and 7 rules. The header is read when the harness starts, so it reaches a dispatch after a restart. |
+| `chore/build-units-qa-passes` | `3a81ebb7` | a new argument `qa_passes` (default 1) | the review rung (a second review adds 0.80 to 1.25 of 8) | the template parses; a stub run dispatches two qa passes with `qa_passes: 2` and one by default |
 
-Not changed, with the reason: the reviewer's five skills stay (credited as a set); the checker keeps CLAUDE.md and the rules (its stages were not measured); the tree-wide ledger line in the template's rules block stays (13 of 15 bare builds left the package-cycle gate red without it); the pyright paragraph of that block was not measured.
+Not changed, with the reason:
+- The gates stage stays on the test-architect. `[M]` 2026-11-14: in 2 of 5 bare L1 runs with the list given, gates on the float rule assert an expected value that both builds contradict (run 1: five rows expect `(0,.1,.2,.30000001)` and its like refused as asymmetric; run 5: nine rows expect `(0,.1,.2,.3)` and its like symmetric), which is a wrong gate and not a spelling. The historical test-architect gates are one draw per unit with none, so the comparison is 2 of 5 against 0 of 1 and decides nothing; the bare writer adds no catch and is not shown to be as safe.
+- The reviewer's five skills stay (credited as a set). The checker and the executor keep CLAUDE.md and the rules (their stages were not measured bare).
+- The tree-wide ledger line in the template's rules block stays: the literal briefs carried none, and 13 of 15 L4 builds left `test_every_package_module_graph_is_acyclic_but_the_listed_cycles` (`tests/gates/test_layer_imports.py`, present at the base and named in that line) red. The trim "the brief template names the wider gates" is therefore already met by the template.
+- The `-F` commit fact is not in the builder's body: Sonnet was right 14 of 14 bare, and the template's rules block states it.
 
 The assignment for the workflow stages, as measured:
 
 | stage | model | agent | loads | basis |
 |---|---|---|---|---|
-| gates | Sonnet | executor | the brief, with the specification's gate list | the gates rung |
-| build, amend, measure, draft | Sonnet | executor | the brief and the template's rules block | the build rung |
+| gates | Sonnet | test-architect (unchanged) | as today | the gates rung: no arm credited; the bare writer not shown safe |
+| build | Sonnet, a ruling for the user (below) | builder | the brief and the template's rules block | the build rung |
+| amend, measure, draft | Sonnet | executor (unchanged) | as today | not measured bare |
 | review (qa) | Opus | qa | its five skills; two independent passes where recall matters | the review rung |
-| review (elegance) | Opus | elegance-enforcer | unchanged | not measured apart from qa `[HYPOTHESIS]` that it behaves as qa does |
+| review (elegance) | Opus | elegance-enforcer | unchanged | not measured apart from qa |
 | verify, structural check | Opus | checker | unchanged | not measured |
 | fixed-schema categorising | Haiku | `general-purpose` | a schema; never commits | the first rung |
-| specification | not measured | | | the two rungs above put the leverage here: the gate list and the plan's decisions are fixed upstream of every stage measured |
+| specification | not measured | | | the gates and build rungs put the leverage here: the gate list and the plan's decisions are fixed upstream of every stage measured |
 
-What "hard" means, as far as measured `[R]`: nothing in a build or a gates stage separated Sonnet from Opus in Sonnet's disfavour; the findings no builder or gates writer reached (the structural ones) were reached by Opus review with its skills, and by no arm at a lower rung. The specification stage and the Fable rung of ruling H7 are not measured.
+What "hard" means, as far as measured `[M]`: at the build stage Opus removes completeness findings that Sonnet leaves on the second unit (blind means 4.60 against 7.80 of 8 findings present; the raw partition left unparsed in 0 of 5 Opus builds against 5 of 5 Sonnet builds) and none on the first (5.00 against 4.67 of 9), at about five to ten times the cost per build ($1.96 to $6.17 against $0.28 to $0.82). The structural findings survive every builder arm and every gates arm, and were reached only by Opus review with its skills. So Sonnet for the build is a trade: the review and amend stages then carry the completeness findings Opus would not have left. The specification stage and the Fable rung of ruling H7 are not measured.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
