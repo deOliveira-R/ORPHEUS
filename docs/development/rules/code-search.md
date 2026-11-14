@@ -91,7 +91,7 @@ or underscore").
   ([case](../evidence/code-search.md#2026-08-19-a-sub-agent-has-no-toolsearch)):
   the routing rule states the fact and the check (a brief that depends on
   Nexus says what to do if it is missing); this page's `brief:` line is how
-  that sentence reaches the three `omitClaudeMd` agents, which load no rule.
+  that sentence reaches the three `omitClaudeMd` Support agents, which load no rule.
 - **A worktree's graph** ([L22](../evidence/lessons.md#l22-worktree-not-main))
   and **the briefing's silence**
   ([case](../evidence/code-search.md#2026-08-16-the-briefings-silence)): the

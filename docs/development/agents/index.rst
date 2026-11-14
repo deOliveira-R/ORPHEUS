@@ -16,6 +16,7 @@ maintained by hand.
    cross-domain-attacker
    elegance-enforcer
    executor
+   builder
    explorer
    literature-researcher
    method-implementer

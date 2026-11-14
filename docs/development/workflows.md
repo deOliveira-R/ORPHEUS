@@ -97,7 +97,7 @@ Every brief carries, in this order:
 Workflow: W<n> — phase P<k>
 Artefacts from the previous phase: <paths>
 Ask: <one paragraph, self-contained; assume zero context from this session>
-Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
+Rules that apply to you: <for the three `omitClaudeMd` Support agents, which see no
   project rule and no project memory index — only their AGENT.md, their own
   agent memory and their preloaded skills — this line is the only place a
   project rule reaches them; a `general-purpose` categoriser inherits the rules
@@ -217,3 +217,18 @@ tool call (six seconds later, on the sixth of eight polling calls); it held no
 `AskUserQuestion`, which the harness removes from every sub-agent. So a
 sub-agent can ask the orchestrator mid-dispatch, never the user, and the
 channel is open exactly when its allowlist names `SendMessage`.
+
+Measured 2026-11-14 (the harness evaluation, `.claude/plans/harness_eval.md`):
+the build stage runs without CLAUDE.md and the rules, as the `builder` agent.
+Ten headless Sonnet builds of two units of the 2026-10-23 boundary carve (an
+ordinate pairing in `numerics/`, the deck family in `geometry/`; five each),
+with no CLAUDE.md, no rule and no skill loaded, turned the unit's gates green
+in 10 of 10 and stayed inside the brief's file list in 10 of 10; read blind
+against the review's findings they carried no more of them than the build the
+full harness produced (4.67 of 9 against 9 on the first unit, 7.80 of 8
+against 8 on the second), and adding `coding-elegance` changed neither. What
+a bare build missed is what the template's rules block names: the literal
+brief carried no ledger line, and 13 of 15 builds of the first unit (all
+arms) left the package-cycle gate of `tests/gates/test_layer_imports.py` red.
+The amend, measure and draft stages were not measured bare and stay on the
+`executor`, which loads CLAUDE.md and the rules.

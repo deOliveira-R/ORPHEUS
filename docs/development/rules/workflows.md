@@ -20,7 +20,7 @@ phase descriptions, the brief template and the return contract are in
 | **Orchestrator** | owns phase transitions, the review stage, user rulings, issues, commits | yes | the main agent |
 | **Key** | owns one phase of a workflow; calls Support agents freely, and any other Key agent when the reason is worthwhile (an implementer spawning a numerics-investigator keeps its own context clean) | yes | test-architect, method-implementer, numerics-investigator, archivist, qa, elegance-enforcer |
 | **Support** | answers one question from its brief and returns; never spawns; its brief carries its rules (invariant 4) | no | explorer (available to any agent), literature-researcher, cross-domain-attacker — all `omitClaudeMd`; haiku categorisers (`general-purpose` with a fixed output schema; they inherit the rules) |
-| **Workflow stage** | carries out one stage of a workflow template from its brief; holds a short tool list, no Nexus tool and no `Skill` tool (a named skill is read as a file, a graph question is the `nexus` command) | no | executor (build, amend, measure, draft), checker (verify, structural check; read-only) |
+| **Workflow stage** | carries out one stage of a workflow template from its brief; holds a short tool list, no Nexus tool and no `Skill` tool (a named skill is read as a file, a graph question is the `nexus` command) | no | builder (the build stage; `omitClaudeMd`, so the template's rules block is how a rule reaches it), executor (amend, measure, draft), checker (verify, structural check; read-only) |
 
 ## Posture
 
@@ -72,7 +72,7 @@ user's signal, when routine refactor cycles resume.
 4. **Every brief carries** the workflow ID, the phase, the previous phase's
    artefact paths, and the return contract: a word cap (Opus runs long), files
    carry the detail, and a `NEEDS:` block for anything the agent could not
-   obtain. A brief to one of the three `omitClaudeMd` agents also carries the rules
+   obtain. A brief to one of the three `omitClaudeMd` Support agents also carries the rules
    that apply to it (the template's "Rules that apply to you" line):
    `omitClaudeMd` drops CLAUDE.md, every rule and the project memory index,
    not the agent's own memory or its preloaded skills (measured, with what a

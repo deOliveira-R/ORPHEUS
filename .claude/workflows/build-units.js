@@ -87,8 +87,8 @@ const results = await pipeline(
     const where = gate ? `Work in the existing worktree ${gate.worktree} (cd there first), on branch ${gate.branch}, where the test-architect committed the gates (${gate.commits.join(', ')}); its report:\n${gate.report}` : (u.worktree ? into : `You are in a fresh worktree; rename its branch to ${u.branch}.`)
     const built = await agent(
       `${head(u, 'Build')} You are the implementer. ${where}\n\nTurn the gates green by making the change below, with no shim and no residue; do not weaken a gate (if one is wrong, say so in NEEDS and leave it red).\n\nThe unit:\n${u.brief}\n${RULES}\nReturn at most 500 words through the schema: commits (\`git log --oneline ${BASE}..HEAD\`), what changed where, each gate red-then-green with its command, the tests run with counts, the residue census (instrument, population, control), what you did not do and why.`,
-      gate ? { label: `build:${u.key}`, phase: 'Build', model: 'sonnet', agentType: 'executor', schema: BUILT }
-           : { label: `build:${u.key}`, phase: 'Build', ...fresh, model: 'sonnet', agentType: 'executor', schema: BUILT },
+      gate ? { label: `build:${u.key}`, phase: 'Build', model: 'sonnet', agentType: 'builder', schema: BUILT }
+           : { label: `build:${u.key}`, phase: 'Build', ...fresh, model: 'sonnet', agentType: 'builder', schema: BUILT },
     )
     return { unit: u.key, gate, built }
   },
