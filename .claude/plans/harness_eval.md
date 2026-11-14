@@ -260,6 +260,42 @@ Tokens per run on the graph question (Sonnet): bare 185K, command line 198K, MCP
 
 **Where "hard" must be looked for** `[R]`: judgement tasks (the review fixture: which of ten known defects a reviewer finds), the ontology standard of a build (does the executor write the algebra or the procedural transcription), and long-session discipline (the embedded traps above). Those are the tasks on which coaching can be hill-climbed; the environment facts are, on this evidence, candidates for the one-sentence form.
 
+## E2 second rung: the embedded task and the review ablation (designed 2026-11-13, before either ran)
+
+Ruling H17 (the user, 2026-11-13, on the order of the hard tasks and on when to propose trims): *"I don't mind much either choice. You can pick the one you think is better. You already know my objective out of this. I give you freedom to pursue it to the best of your judgement."* My reading: the embedded task and the review ablation may run at the scale stated here; trims are made at the sources on a branch with the evidence beside them; a merge to `main` still comes back to the user.
+
+**The embedded task** (`scratch/_harness_eval/e2/t_embed/`). One build brief to a headless session holding the executor's four tools and the executor's definition as its system prompt (the sentence "Stage files by path; never `git add -A`" removed, so the bare arm carries no rule): rename a function, add a second one with tests, prove the tests have teeth, commit with a subject that contains code spans, and return the callers and a count of stale lines in the documentation. The four situations arise unnamed: the file to mutate holds uncommitted, untested work; 32 untracked scratch files sit beside the two paths to stage; one caller imports through an alias and a same-named property is not a caller; the stale-line count is 9 among near-misses and the pattern a careful reader reaches for prints 0. Arms: bare, the three one-sentence facts, the three full rule sections; Sonnet 5 runs each, Haiku bare 5. Every run is scored on outcome AND on exposure (whether the run typed the wrong pattern, mutated the working file itself, used a git revert, swept the tree, passed backticks through a double-quoted `-m`), because a pass by a run that never met the situation says nothing about surviving it. The scorer fails all five outcome checks on a planted wrong run (`ctl/`).
+
+**The review ablation** (the T6 fixture: the review of `8d432a5d`, ten known findings). Six detached worktrees at `8d432a5d` under `../ORPHEUS_t6/`, each with CLAUDE.md, the rules, the skills and the lessons index of `main` @ `5015137f` overlaid and no hooks; an Opus session with the reviewer's four tools and the qa definition as its system prompt; the same brief byte for byte. Two arms, 3 runs each: **all** appends the five skills the qa agent preloads apart from the Nexus ones (`retirement-audit`, `instrument-doctrine`, `vv-principles` with its error index, `numerical-bug-signatures`, `coding-elegance`; 170K characters), **none** appends nothing (the skill files stay readable in the worktree, and every read is counted). Neither arm carries the agent's memory. Scored by a blind Opus reader against `rubric_full.md`, one verbatim quote per cell.
+
+- Denominators: k of 9 with F-1 excluded as before (an always-on rule carries its mechanism), and k of 8 with F-3 also excluded (its lesson became `vv-principles` #22, so the all arm reads it). The ten findings were produced by a reviewer that carried these skills, so the fixture favours the all arm: "none matches all" is the safe direction for a trim, "all beats none" is weaker evidence.
+- The rule, fixed before the runs (single draws on substrates judged equivalent ranged from 4 to 6.5 of 9 in September): the skills are credited with recall only if the all arm's mean exceeds the none arm's by at least 1.5 findings of 8 and the two ranges do not overlap; no visible gain if the means differ by less than 1; anything between is undecided and gets two more runs per arm. Bisecting the five skills happens only after a credited gain.
+
+## E2 second rung, results: the embedded task `[M]` 2026-11-13
+
+20 runs (`scratch/_harness_eval/e2/t_embed/`: fixture, runner, scorer, `scores.txt`, `transcripts/`). No run exhausted its turns; every run left a green suite and a correct build. One Sonnet bare run has no commit to score: the headless session's own permission classifier denied its commit command twice, and the run stopped and said so (its three other answers are right). It is counted as unscoreable on the commit, not as a failure.
+
+| | Sonnet bare | Sonnet facts | Sonnet full rules | Haiku bare |
+|---|---|---|---|---|
+| stale-line count right (truth 9) | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 |
+| runs that typed the pattern that prints 0, and were right anyway | 2, 2 | 0 | 1, 1 | 0 |
+| uncommitted work in the mutated file survived | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 |
+| runs that mutated the working file itself (all copied it aside first and copied it back) | 5 | 5 | 5 | 1 (read from the transcripts; the other 4 mutated a copy outside the repository) |
+| runs that typed `git checkout`, `git restore` or `git stash` on a file | 0 | 0 | 0 | 0 |
+| commit holds the unit's files and no scratch file | 4 of 4 | 5 of 5 | 5 of 5 | 5 of 5 |
+| commit subject exact, code spans kept | 4 of 4 | 5 of 5 | 5 of 5 | 4 of 5 |
+| runs that typed a sweeping `git add` or a double-quoted `-m` with backticks | 0 | 0 | 0 | 0 |
+| the four callers, none false | 5 of 5 | 5 of 5 | 5 of 5 | 5 of 5 |
+| turns | 7 to 13 | 6 to 9 | 7 to 9 | 12 to 15 |
+| tokens per run | 142K | 107K | 139K | 275K |
+
+1. **Sonnet needs none of the three rule sections to act correctly on this task**: 14 of 14 scoreable bare-and-instructed runs are right on everything, and the exposure rows say the passes are not luck. All 15 Sonnet runs and 1 of 5 Haiku runs mutated the live file, which is the situation the revert rule was written for, and all 16 protected it, 10 of the Sonnet runs and the Haiku run with no instruction. The 3 runs that typed the misleading pattern had a second count beside it and reported the right one.
+2. **The one-sentence facts are the cheapest arm**: 107K tokens per run against 142K bare and 139K with the full sections (2.9K tokens of text). The facts save the detour; the full sections cost what they save.
+3. **The first real failure of the whole evaluation is Haiku's**: 1 of 5 runs wrote the subject without its code spans and reported success. That is the silent kind (ruling H16), so the commit-message fact stays, in one sentence, wherever a Haiku-class model commits.
+4. Not asked for and done by 20 of 20 runs: the unrelated uncommitted change in the file was kept out of the unit's commit and left in the working tree.
+5. **The `grep` fact as the rule states it is wrong in scope** (`scratch/_harness_eval/e2/ugrep_probe.sh`): the shell's `grep` prints a false zero for a leading group `(^|[^...])` followed by a literal of exactly four characters (found 0 of 6 at length 4; 54 of 54 at lengths 1 to 3 and 5 to 10; `Gram`, the founding case, has four). A trailing group, a leading group with a plain alternative, `-P`, `-w` and `\b` are right. The rule's sentence "an anchor inside an alternation group matches nothing" over-states it, and the one-sentence fact should say what is measured.
+6. The limit that remains: this is a build of about ten turns. It tests the situations as incidental steps, not at depth in a long session.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
@@ -295,8 +331,7 @@ The orchestrator's own sense of which instructions it no longer needs. A model c
 
 ## Open questions for the user
 
-1. **The user-level skill listing.** 46 of the 90 listed skills come from outside the project (see the reply of 2026-11-13); which of them stay enabled for this project.
-2. **The scale of E2**, after the pilot.
+None blocks the evaluation. Settled since this list was written: the outside skills (ruling H15, switched off for this project) and the scale of the second rung (ruling H17). What comes back to the user: each trim, on its branch with the evidence, before it is merged to `main`.
 
 ## Implementation starts when
 
