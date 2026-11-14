@@ -320,6 +320,33 @@ What this does and does not show:
 - The cost of carrying the skills is 67K tokens at the first turn and, here, $2 per review on average ($10.43 against $8.42).
 - Next, per the rule: a bisection, `vv-principles` alone (64K characters) against the other four (107K characters), three runs each, scored by the same blind protocol.
 
+## E2 second rung, results: the bisection `[M]` 2026-11-13
+
+Six more Opus reviews on the same fixture: three carrying `vv-principles` alone (arm vv, first turn 65.2K tokens) and three carrying the other four skills (arm rest, 81.1K). Scored by a second blind Opus reader under the same scoring rule (the prompt was rewritten from the rule's text, not reused verbatim), on eight shuffled reports: the six new ones and two from the first comparison as anchors (`scratch/_harness_eval/t6r/blind2/`, key in `blind2_key.txt`). The anchors: all 2 read 5.5 before and 5 now; none 1 read 2 both times. So the reader contributes about half a point.
+
+| | vv 1 | vv 2 | vv 3 | rest 1 | rest 2 | rest 3 |
+|---|---|---|---|---|---|---|
+| known findings reproduced, k of 8 | 2 | 3.5 | 4 | 2.5 | 2.5 | 5.5 |
+| k of 9 | 2.5 | 4.5 | 4 | 3 | 3 | 6 |
+| turns | 69 | 89 | 57 | 86 | 82 | 69 |
+| tokens over the run | 13.7M | 19.1M | 11.4M | 19.5M | 17.5M | 13.3M |
+| cost reported by the session | $9.32 | $10.83 | $10.23 | $14.54 | $12.29 | $8.50 |
+
+Means of k of 8: none 2.67, vv 3.17, rest 3.50, all 4.33.
+
+**The bisection does not localise the gain.** By the rule fixed beforehand each half alone shows no visible gain over none (differences 0.50 and 0.83, both under 1), and each half's range overlaps both the none arm's and the all arm's (vv 2 to 4, rest 2.5 to 5.5, none 2 to 3, all 3.5 to 5.5). Two readings fit, and three runs per arm cannot separate them: the gain needs the skills together, or the first comparison's 1.67 (just over its 1.5 threshold) was partly a draw. The spread inside one arm (rest: 2.5 to 5.5) is larger than any difference between arm means. Pooled, the nine runs that carried any skill average 3.67 of 8 against 2.67 for the three that carried none.
+
+Per finding (credit summed over three runs; vv, rest): F-5 1.5, 1; F-7 1, 0.5; F-9 0, 1; F-10 0.5, 1; F-6 0.5, 1. No finding belongs to one half. F-4 is found by no run of the twelve.
+
+Corrections and limits:
+- The count of findings outside the ten is reader-dependent (all 2 read 6 under the first reader and 12 under the second), so the first comparison's "none reports more outside the ten" is not carried forward.
+- 6 of 12 runs had one or two commands refused by the headless permission layer (each a compound command that deletes and rebuilds a temporary tree); they are spread over all four arms and every run went on.
+- Every history command in the twelve runs is confined to the two commits of the diff (read from the transcripts, `hist.py`).
+
+What follows for the roles `[R]`:
+- The reviewer keeps its five skills. They are the only instruction text in this evaluation with a measured positive effect, the cost is about $2 on a $8 to $10 review, and nothing here supports dropping any one of them.
+- Run-to-run spread is the larger lever. A second independent review of the same diff is the cheaper way to raise recall than any further text, and the workflows already run qa and the elegance-enforcer in parallel; whether two qa runs beat one is the next measurement if review recall matters more than its cost.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
