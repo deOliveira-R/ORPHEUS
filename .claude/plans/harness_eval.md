@@ -406,6 +406,27 @@ Ruling H18 (the user, 2026-11-14): "Yes, merge and go ahead with the Sonnet eval
 
 **The rule, fixed now.** Bare passes rung 1 on a fixture when at least 4 of 5 runs have the original gates green inside the file list AND the mean count of rubric findings present is no higher than the historical build's. A finding present in at least 3 of 5 bare runs is recorded as hard for Sonnet at this rung; for those, each added arm gets five runs, and it is credited with the finding when the rate falls to at most 1 of 5. No runs beyond that: a finding no arm removes stays the reviewer's, which is where the workflow already puts it.
 
+## E2 third rung, results: bare Sonnet at rung 1 `[M]` 2026-11-14
+
+Five bare Sonnet builds per fixture (`scratch/_harness_eval/sb/`: `mkrun.sh`, `run.sh`, `score.py`, the briefs, the rubrics, `runs/<fixture>_<model>_<arm>_<n>/` with the transcript, the build's diff and `score.json`), each from the literal brief with the gates already committed. The scorer ran every test itself. Anchors: the historical build and the amended build of each unit, exported and scored the same way.
+
+Changes to the design, made before the batch: the second fixture is unit L1 (the deck family and the colouring symmetry, geometry; base `34c9c9fd`, historical build `487d2d19`, amended `8a3e6c16`), not slice S3, whose build spans three commits; the export keeps every tracked plan file of the base, and for L1 the one untracked memo its brief cites (dated 2026-10-22).
+
+| | L4, 5 bare runs | L4 historical build | L1, 5 bare runs | L1 historical build |
+|---|---|---|---|---|
+| original gates green | 5 of 5 | yes | 5 of 5 | yes |
+| production files outside the brief's list | 0 of 5 | 1 file (`tangential.py`) | 0 of 5 | none |
+| amended gates red | the same 1 in 5 of 5 | that 1 | the same 4 in 5 of 5 | those 4 |
+| layer and neighbouring gates | the package-cycle gate red in 4 of 5 | green | green in 5 of 5 | green |
+| cost per build | $0.28 to $0.41 | | $0.54 to $0.73 | |
+
+- **Bare Sonnet reproduces the historical build's defects exactly as far as the amended gates see them**: every finding of the 2026-10-23 review that became a gate row is red in 10 of 10 bare builds, and it was red in the build made under that day's full harness. On these findings the harness text bought the Sonnet builder nothing, and its absence cost nothing.
+- **What "hard" means for Sonnet at this rung is everything the gates do not demand.** The five gated findings are: an error that does not name its real cause (the folded rule), a value whose constructor does not state its invariants, a raw input not parsed before use, a law checked on part of its statement (the pairing's linear part only), and one convention with two addresses. The builds turn the given gates green and stop there.
+- **One thing the bare builder does worse:** the L4 builds put the new function where the brief said and thereby closed an import cycle inside `numerics` (the cycle gate is red in 4 of 5, and in the untranscribed pilot). The historical builder avoided it by moving a constant to a new module outside its file list. The brief names neither the cycle gate nor the wider suite, and the 2026-10-23 builder had CLAUDE.md, which does. This is a fact a stage brief must carry: which gates beyond the unit's own to run before committing.
+- All ten runs: no read under the main checkout, no denial, one or two commits, nothing uncommitted. First turn 10.5K to 10.7K tokens.
+
+By the rule, bare does not pass rung 1 on L4 (the cycle) and matches the historical build on L1; all five gated findings recur in 5 of 5, so both added arms run on both fixtures (`batch2.sh`): Sonnet with `coding-elegance` in the system prompt, and bare Opus. The blind reader's pass over the full rubrics covers every arm in one session, after those runs.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
