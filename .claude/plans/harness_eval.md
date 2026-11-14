@@ -336,7 +336,7 @@ Six more Opus reviews on the same fixture: three carrying `vv-principles` alone 
 Bisection runs: turns 69, 89, 57 (vv) and 86, 82, 69 (rest); cost $9.32, $10.83, $10.23 and $14.54, $12.29, $8.50.
 
 What the rule says, read on this matrix:
-- **all against none: two more runs per arm.** The difference of means is 1.67, over the 1.5 threshold, but the ranges touch (none reaches 3.5, all starts at 3.5), so the credit of the previous section does not stand yet. The two runs per arm are launched (`batch3.sh`).
+- **all against none: two more runs per arm (run; see the subsection below).** The difference of means is 1.67, over the 1.5 threshold, but the ranges touch (none reaches 3.5, all starts at 3.5), so the credit of the previous section does not stand yet. The two runs per arm are launched (`batch3.sh`).
 - **Neither half alone shows a visible gain** (0.50 and 0.83 over none, both under 1), and each half's range overlaps both none's and all's. The bisection does not localise anything.
 - The means are ordered by the amount of skill text carried (2.67, 3.17, 3.50, 4.33), which is suggestive and, at three runs per arm with a spread of up to 3 points inside one arm, not more than that.
 
@@ -351,7 +351,21 @@ Checks and limits:
 - The count of findings outside the ten is reader-dependent (all 2: 6 under the first reader, 12 under the second) and is not carried forward.
 - One fixture, and its ground truth was written by a reviewer that carried these skills.
 
-What follows for the roles `[R]`: the reviewer keeps its five skills (no arm did better without them, and nothing supports dropping one); where review recall matters, a workflow runs two independent qa reviews and takes the union.
+### The two more runs per arm `[M]` 2026-11-13
+
+Four more reviews (all 4, all 5, none 4, none 5), scored by the same reader in the same session (S13 to S16), with the same purity and history checks (clean).
+
+| arm | k of 8, five runs | mean | union of two runs, mean over the 10 pairs | cost, mean |
+|---|---|---|---|---|
+| none | 2, 3.5, 2.5, 2, 3 | 2.60 | 3.40 | $7.52 |
+| all | 3.5, 5, 4.5, 6, 4 | 4.60 | 5.85 | $10.31 |
+
+- The difference of means is 2.00 of 8. In 24 of the 25 all-against-none pairs the all run scores higher, and the 25th is a tie at 3.5 (all 1 and none 2). The rule's letter (disjoint ranges) is missed by that one tie; the rule named no terminal test after the extra runs, so the verdict here is the session's judgement and is stated as such: **the five skills together raise the reviewer's recall of the known findings on this fixture by about 2 of 8.**
+- Where it sits (credit summed over five runs; all, none): F-5 4, 0.5; F-7 2.5, 0.5; F-6 2.5, 1; F-10 2, 0; F-9 3, 2; F-3 2.5, 2; F-2 4, 4; F-8 5, 5; F-4 0, 0.
+- One review with the skills (4.60) beats the union of two without (3.40); two with the skills reach 5.85.
+- Still one fixture, with ground truth written by a reviewer that carried these skills; which skill carries the gain is not known (the bisection above).
+
+What follows for the roles `[R]`: the reviewer keeps its five skills, as a set; where review recall matters, a workflow runs two independent qa reviews and takes the union (about 1.25 more of 8 for a second review's cost).
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
