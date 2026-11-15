@@ -635,6 +635,23 @@ What this supports:
 2. **The two kinds have different origins.** Per-field findings are mostly silence (8 of 11): the specification does not state a parse or an invariant and the builder does not add it; the two builder sentences address exactly these. Relational findings are mostly mandated (9 of 15): the specification wrote the relation wrong or half (one quantity stated twice, a law on the factory and not on the value). A sentence in the builder's brief cannot reach those; they are fixed in the specification or found by review.
 3. **The check round, as run, did not find them and added some.** 0 of 14 caught; 3 of 14 introduced by an adopted suggestion. A second check round of the same kind is not supported by this record; what the review stage did differently (it read CODE, with mutation, against the gates) is the candidate for what a specification check lacks.
 
+## E2 fifth rung, step 2: the specification check as a review task (designed 2026-11-15, before any full run)
+
+**Task.** An Opus reviewer reads one unit's sections of DRAFT 3.1 in an export of `4bdeb7af` (the tree before anything was built; no CLAUDE.md, no rule, no memo directory, no history) and writes `_review/findings.md`. Units: L4 and L1; S2a is held out for any sentence written from these two.
+
+**Known findings per unit:** the census's mandated and silent rows (L4: A1 to A8; L1: B1, B3, B4, B5, B6, B8, B10, B11; eight each), plus one planted error as the positive control (`plant.py`): L4, the mirror normal stated as the `+1` eigenvector; L1, the screw motion listed among the 2-D isometry classes and the glide reflection moved to 3-D. A reviewer arm that does not name the plant in at least 4 of 5 runs is not measured by its zeros.
+
+**Arms**, five runs each per unit, each with its agent body and skills in the system prompt:
+- `eleg`: the elegance lens, worded as `spec-check.js` words it (`elegance-enforcer` with `coding-elegance` and `retirement-audit`);
+- `struct`: the structure lens, as `spec-check.js` words it (`cross-domain-attacker` with `cross-domain-frames`);
+- `qa`: the reviewer that found these defects in the code (`qa` with its five skills), told one thing the census measured: the builder follows the text to the letter and adds nothing; find what, built to the letter, will be a defect.
+
+Differences from the historical check, stated: the historical lenses read the whole specification in one pass with a 400-word return; here each run reads one unit's sections, so every arm has more attention per unit than the historical check had.
+
+**Scoring.** One blind Opus reader for all cells of a unit, findings files unlabelled and shuffled, a verbatim quote per cell; a cell is "names the defect" (1), "names a related part" (0.5), or absent (0); proposing the amend's fix is not required. Read as: recall per run; and, at equal cost, the union of an `eleg` run with a `struct` run (the pair the workflow runs) against the union of two `qa` runs, over the five pairs formed by run number. An arm is credited over the pair of lenses if its two-run union is higher on at least 4 of 5 pairs on both units. Reference from the record: the historical check memos caught 0 of the 14 mandated rows in the form the review found.
+
+**Limit:** this measures whether a check of this kind finds what the code review later found, on two units of one specification; not whether the drafter is the bottleneck, and not the cost of a false finding (each run's findings beyond the rubric are counted, not judged).
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
