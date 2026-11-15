@@ -608,11 +608,32 @@ Across three units the measured record of "Sonnet or Opus at the build stage" is
 
 **Ruling H21** (the user, 2026-11-15): merge the two trim branches, and measure the specification stage next.
 
-**What exists to measure against** `[M]` 2026-11-15: the specification's first commit is DRAFT 3.1 (`4bdeb7af`); DRAFT 1 and DRAFT 2 survive nowhere, and the drafter's inputs cannot be pinned (the memo directory `scratch/layer_dag/wave2_spec/` is untracked and holds the later checks and probes beside the measurements). So a re-draft arm has no anchor. What is anchored: DRAFT 3.1 itself, the review findings of the three units built from it, and the historical check memos (`check_*.md`, `recheck_*.md`, `verify_draft3.md`).
+**What exists to measure against** `[M]` 2026-11-15: the specification's first commit is DRAFT 3.1 (`4bdeb7af`); DRAFT 2 survives nowhere (`[REFUTED 2026-11-15]` for DRAFT 1: the census found it untracked in `scratch/layer_dag/wave2_spec/parts/`), and the drafter's inputs cannot be pinned (the memo directory `scratch/layer_dag/wave2_spec/` is untracked and holds the later checks and probes beside the measurements). So a re-draft arm has no anchor. What is anchored: DRAFT 3.1 itself, the review findings of the three units built from it, and the historical check memos (`check_*.md`, `recheck_*.md`, `verify_draft3.md`).
 
 **Step 1, a census, before any run:** each of the 36 review findings of the three units (9, 11 and 16) is classed by origin (the specification mandated the defect; it was silent; it was right and the builder deviated), with a verbatim line of DRAFT 3.1 per row, the step that introduced a mandated text (first draft, a check's suggestion, an orchestrator decision), whether a check memo had raised it, and its kind (per-field, relational, other). Output: `scratch/_harness_eval/spec/census.md`.
 
 **Step 2, designed after the census reads:** the check stage as a review task, the review rung again with a specification as its object. Input: one unit's sections of DRAFT 3.1 exported at `4bdeb7af` with no memo directory. Known findings: the census's mandated and silent rows. Arms: the two lenses exactly as `spec-check.js` words them (the reference), and what the census suggests. Scored by one blind reader for every cell with a verbatim quote, the cell being "names the defect", not "proposes the amend's fix". One planted defect per unit (an invariant the text states, deleted) as the positive control. Any added sentence is written from the first two units and tested on the third. Limit, stated now: this measures whether another check round pays, not whether the drafter is the bottleneck.
+
+## E2 fifth rung, step 1: the census of findings by origin `[M]` 2026-11-15
+
+Instrument: one Opus reader over the 36 review findings of the three units, each row with its class, its kind and a verbatim line of DRAFT 3.1 (`4bdeb7af`); 53 quotes, each checked against its line (49 by script, 4 by hand); one row re-read by the orchestrator (S8, line 450). File: `scratch/_harness_eval/spec/census.md`. Limits: one reader, one pass; 7 of 36 rows bundle several defects and are classed by their headline (by the component the specification decides, 3 more become mandated, 17 of 36); the S2a rows are read from the amend's dispositions and diff, since no review report of S2a survives.
+
+| unit | the specification mandated the defect | it was silent | it was right and the builder deviated | other (a test, an infeasible file list) | N |
+|---|---|---|---|---|---|
+| L4 | 2 | 6 | 0 | 1 | 9 |
+| L1 | 4 | 4 | 0 | 3 | 11 |
+| S2a | 8 | 6 | 1 | 1 | 16 |
+| all | 14 | 16 | 1 | 5 | 36 |
+
+By kind: per-field (N=11) 2 mandated, 8 silent, 1 other; relational (N=15) 9 mandated, 3 silent, 1 deviated, 2 other; naming, placement and other (N=10) 3 mandated, 5 silent, 2 other.
+
+The 14 mandated rows by the step that introduced the text: 6 are DRAFT 1 text kept; 1 is DRAFT 1 text extended by an orchestrator decision; 3 are a check's suggestion adopted by the orchestrator (the four-tier `TraceRole`, the `inflow` facade, the `Approximated` fields); 2 are orchestrator decisions; 2 cannot be placed (DRAFT 2 is lost). What the check memos said of those 14 before the build: none raised the defect in the form the review found (0 of 14); they raised a related part for 2, proposed the defective text for 3, and read and cleared it for 2.
+
+What this supports:
+
+1. **The builder almost never deviates from the specification: 1 of 36 findings.** 30 of 36 trace to the specification (14 mandated, 16 silent). The build stage was faithful, which is why no builder arm moved the structural findings: they are in the text the builder was given.
+2. **The two kinds have different origins.** Per-field findings are mostly silence (8 of 11): the specification does not state a parse or an invariant and the builder does not add it; the two builder sentences address exactly these. Relational findings are mostly mandated (9 of 15): the specification wrote the relation wrong or half (one quantity stated twice, a law on the factory and not on the value). A sentence in the builder's brief cannot reach those; they are fixed in the specification or found by review.
+3. **The check round, as run, did not find them and added some.** 0 of 14 caught; 3 of 14 introduced by an adopted suggestion. A second check round of the same kind is not supported by this record; what the review stage did differently (it read CODE, with mutation, against the gates) is the candidate for what a specification check lacks.
 
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
