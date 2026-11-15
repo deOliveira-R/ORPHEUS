@@ -578,6 +578,28 @@ What this supports `[R]`:
 
 **The probe, written after the fifteen runs were launched** (`probe_s2a.py`, from the amend commit's sixteen dispositions and its gate diff). Thirteen malformed inputs in three groups, with seven valid controls: A, a value states its invariants (three contradictory `FaceSite`s; three illegal `Binding`s built directly); B, raw input is parsed (`Realized(1)`, `Refused` with a string axis, `Refused` with an integer reason, an `InflowTerms` term that is not a profile, `admit` handed a string); C, the admission sum is sealed (a subclass of a member, a fourth member), which neither sentence names. `[M]` anchors: the historical build refuses 2 of 13 (the `InflowTerms` row and the fourth member), the amended build 13 of 13, and both accept the seven controls; the pilot (Sonnet bare, $1.76, its 169 gates green, inside the file list) refuses 2 of 13. Not measured by the probe: the wrong-shape sample (disposition 4), the subclass of `WallCondition` as a key (8), and the structural dispositions (2, 7, 9, 10, 14, 16).
 
+## The second hill-climbing step, results `[M]` 2026-11-15
+
+Fifteen builds of the third unit, run one at a time; all ended `success`, committed, inside the file list, 0 reads of the main checkout, the unit's 169 gates green in 15 of 15, and the layer gate at 5 failed as on the historical build (the tree is red by design at this tip). Mean cost per build: Sonnet bare $4.71, Sonnet with the two sentences $4.86, Opus $11.18. All seven controls of the probe are accepted by all fifteen builds.
+
+| probe row (the historical build accepts each unless noted) | Sonnet bare | Sonnet with the two sentences | Opus bare |
+|---|---|---|---|
+| B: `Realized(1)` refused | 0 of 5 | 5 of 5 | 5 of 5 |
+| B: `Refused` with a string axis refused | 0 of 5 | 5 of 5 | 5 of 5 |
+| B: `Refused` with an integer reason refused | 0 of 5 | 5 of 5 | 5 of 5 |
+| B: `InflowTerms` with a non-profile term refused (historical: refused) | 5 of 5 | 5 of 5 | 5 of 5 |
+| B: `admit` refuses a string | 5 of 5 | 5 of 5 | 5 of 5 |
+| A: `Binding` with a face outside the inventory refused | 1 of 5 | 5 of 5 | 2 of 5 |
+| A: `FaceSite` flagged hollow on a Cartesian face refused | 0 of 5 | 3 of 5 | 0 of 5 |
+| A: the other two contradictory `FaceSite`s; `Binding` with a non-invariant condition; `Binding` with another carrier's group | 0 of 5 each | 0 of 5 each | 0 of 5 each |
+| C: a subclass of an admission member refused; a fourth member refused (historical: refused) | 0 of 5 each | 0 of 5 each | 0 of 5 each |
+
+**The hypothesis generalises to this unit, by the rule written before the runs.** Bare Sonnet misses three obligations that Opus meets in 5 of 5 builds (the three field parses of the admission members); all three are covered by the second sentence, and Sonnet with the sentences meets each in 5 of 5. There is no probed obligation that Opus meets in at least 4 of 5 builds and Sonnet with the sentences does not. On the two rows where the sentences moved Sonnet past Opus (5 against 2, 3 against 0) the counts are small and are not claimed as a ranking.
+
+**What no builder reaches:** the relational invariants (a `FaceSite` whose flag contradicts its face and chart; a `Binding` that must hold the laws of the door that builds it) and the sealing of the sum: 0 of 15 builds on six rows. These came from the review. The first sentence ("every value type states its invariants") makes Sonnet check each field, not find a law between fields or a law the constructor shares with a factory. `[R]` That is the same boundary as on the first two units: a builder supplies what can be read off the value's own fields; the review supplies what needs the value's relations.
+
+Across three units the measured record of "Sonnet or Opus at the build stage" is: on the first unit no difference; on the second and third, a difference confined to parsing and per-field invariants, closed by two sentences in the brief at Sonnet's cost (here $4.86 against $11.18). Limits: three units of one carve, all additive; a refactor or a retirement unit is not measured; the sentences have now been tested on one unit they were not written from.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
