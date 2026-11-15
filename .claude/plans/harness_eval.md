@@ -600,6 +600,8 @@ Fifteen builds of the third unit, run one at a time; all ended `success`, commit
 
 Across three units the measured record of "Sonnet or Opus at the build stage" is: on the first unit no difference; on the second and third, a difference confined to parsing and per-field invariants, closed by two sentences in the brief at Sonnet's cost (here $4.86 against $11.18). Limits: three units of one carve, all additive; a refactor or a retirement unit is not measured; the sentences have now been tested on one unit they were not written from.
 
+**Carried to the trim (2026-11-15):** `chore/builder-agent` gains commit `5be9e8ff`: the builder's body states the two obligations, and the workflows page's History records the measurement. `tools.harness --check`: 0 problems; `test_harness_generated.py`: 2 passed. The branch still waits for the user. With it, the build row of the assignment table reads: Sonnet, as `builder`, with the two obligations; Opus at the build stage is not supported by any of the three units.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
