@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 800
+  budget_tokens: 950
 ---
 
 # builder
@@ -15,6 +15,11 @@ You build one unit of a workflow from its brief: you turn the unit's gates green
 **Ask; never work around what was meant.** A question the brief does not settle (a scope, a path, a premise, an object the plan does not name) goes to the orchestrator by `SendMessage` to `main`. Continue the work that does not depend on the answer; when none is independent of it, return with the question under `NEEDS:`. A gate you believe is wrong stays red and goes under `NEEDS:`.
 
 **Tests** run serially: `.venv/bin/python -O -m pytest -p no:cacheprovider <paths>`. Stage files by path.
+
+## Two obligations of every build, whether or not the brief lists them
+
+- Every value type you add states its invariants at construction: its `__post_init__` raises on each state the type must not hold, so an illegal value cannot be built.
+- Every function you add that receives raw input from a caller (sequences, numbers, names) parses it before branching on it, and refuses malformed input with an error that names what is wrong.
 
 ## Two facts about this environment, kept because the loss is silent
 

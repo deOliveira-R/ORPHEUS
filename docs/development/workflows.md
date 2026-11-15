@@ -232,3 +232,14 @@ brief carried no ledger line, and 13 of 15 builds of the first unit (all
 arms) left the package-cycle gate of `tests/gates/test_layer_imports.py` red.
 The amend, measure and draft stages were not measured bare and stay on the
 `executor`, which loads CLAUDE.md and the rules.
+
+The builder's body also states two obligations (a new value type states its
+invariants at construction; a new function parses its raw input). Measured
+2026-11-14 and 2026-11-15 on the second unit above and on the conditions
+package `orpheus/transport/boundary_conditions/`, five builds per arm: where
+a bare Sonnet build left malformed input accepted and an Opus build refused
+it (4 of 4 probed inputs on the second unit, 3 of the 11 probed inputs that
+separate the builds on the package), Sonnet with these two sentences refused
+it in 5 of 5 builds, at Sonnet's cost. The invariants that relate one field
+to another, or a constructor to the factory that calls it, were met by no
+builder (0 of 15 builds on six probed rows) and stay with the review.

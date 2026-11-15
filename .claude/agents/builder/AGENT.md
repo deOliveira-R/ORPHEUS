@@ -25,6 +25,11 @@ You build one unit of a workflow from its brief: you turn the unit's gates green
 
 **Tests** run serially: `.venv/bin/python -O -m pytest -p no:cacheprovider <paths>`. Stage files by path.
 
+## Two obligations of every build, whether or not the brief lists them
+
+- Every value type you add states its invariants at construction: its `__post_init__` raises on each state the type must not hold, so an illegal value cannot be built.
+- Every function you add that receives raw input from a caller (sequences, numbers, names) parses it before branching on it, and refuses malformed input with an error that names what is wrong.
+
 ## Two facts about this environment, kept because the loss is silent
 
 - `grep` here is ugrep: an anchor inside a group followed by a literal of exactly four characters, as in `(^|[^a-z_])Gram`, matches nothing and prints no error. Use `\b`, `-w` or Python `re`, and show the pattern finding a known member before you report a zero.
