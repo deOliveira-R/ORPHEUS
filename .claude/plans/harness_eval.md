@@ -652,6 +652,33 @@ Differences from the historical check, stated: the historical lenses read the wh
 
 **Limit:** this measures whether a check of this kind finds what the code review later found, on two units of one specification; not whether the drafter is the bottleneck, and not the cost of a false finding (each run's findings beyond the rubric are counted, not judged).
 
+## E2 fifth rung, step 2, results `[M]` 2026-11-15
+
+Thirty reviews, all `success`, each wrote its findings file; 0 of 30 read the main checkout, the removed harness files or git history. (The pilot `qa` run used the main checkout's interpreter with its import path set to its own tree; the briefs then named the isolated interpreter, and the pilots are not counted.) Scored by one blind Opus reader per unit over unlabelled shuffled copies (`blind_l4/`, `blind_l1/`, keys `key_*.txt`, scores `scores_*.jsonl`, a verbatim quote per non-zero cell; the L4 reader checked its quotes by script; three L4 quotes re-read by the orchestrator). Archive: `scratch/_harness_eval/spec/`.
+
+**The control holds:** the planted error is named in 30 of 30 reviews.
+
+| of 8 known defects per unit | elegance lens | structure lens | `qa` | the pair the workflow runs (elegance + structure, by run number) | two `qa` runs |
+|---|---|---|---|---|---|
+| L4, per run | 6, 4, 5.5, 4.5, 5 (mean 5.00) | 4.5, 3.5, 4, 5, 4 (4.20) | 4, 4.5, 5, 4, 3 (4.10) | 6, 4, 5.5, 5.5, 5.5 (5.30) | 5, 5, 5, 4, 4 (4.60) |
+| L1, per run | 6.5, 6, 7, 6, 4.5 (6.00) | 3, 3, 4.5, 3.5, 4 (3.60) | 6.5, 4.5, 5, 6, 4.5 (5.30) | 6.5, 6, 7, 6.5, 6 (6.40) | 6.5, 6, 6.5, 6, 6.5 (6.30) |
+| mean cost per run, L4 / L1 | $2.65 / $2.83 | $3.08 / $3.02 | $4.81 / $4.57 | $5.73 / $5.85 | $9.62 / $9.14 |
+
+Findings outside the rubric, counted and not judged: a mean of 4.6 to 5.2 per review on L4 and 7.8 to 11.2 on L1.
+
+**By the rule written before the runs, `qa` is not credited over the pair of lenses:** its two-run union is higher on 1 of 5 pairs on L4 and 1 of 5 on L1, at about 1.6 times the cost.
+
+What this supports:
+
+1. **A check of one unit's sections of the final text names most of what the code review later found, before anything is built.** One run names 3 to 7 of 8; the pair the workflow already runs names 5.3 and 6.4 of 8; the 15 runs of a unit together name 7 of 8 (L4) and 8 of 8 (L1). The historical check round caught 0 of the 14 mandated rows in the form the review found. Two L4 defects are named by 15 of 15 reviews of every arm: the folded rule reported as a wrong pairing (the structural finding that no builder and no gates writer reached in 35 runs) and the four-tier `TraceRole` (a defect a historical check had proposed and the orchestrator adopted at DRAFT 3).
+2. **The lens matters less than the scope and the timing.** The three arms differ by about one finding of eight; what differs from the historical check is that each run read ONE unit of the FINAL draft. The historical lenses read the whole specification in one pass at DRAFT 1, a recheck read DRAFT 2, and the text DRAFT 3 added (decisions 45 to 57, among them the `TraceRole` widening) was read only by a verification of the repairs. `[R]` Which of the two, scope or timing, carries the effect is not separated by this measurement.
+3. **The lenses are complementary by item, not by total** `[R]` (read after the fact, not a pre-registered comparison): on L1 the elegance lens names the missing invariants of the values and the half-stated pairing law (5 and 4 of 5 runs) where `qa` names them in 0.5 and 1; `qa` names the unparsed partition and the signed scale (5 and 4) where the elegance lens names them in 3 and 2.5. An elegance run with a `qa` run reads 7.4 of 8 on L1 and 5.4 on L4.
+4. **What stays unfound on L4:** the docstring claims (A6, A8) and the scope-boundary tag (A5) are named in few runs; they are about text the build writes, which a reading of the specification cannot see.
+
+Limits: two units of one specification; one reader per unit, with half-scores on several items (the readers' notes are in their reports); the rubric holds only defects the code review found, so a check's other findings (5 to 11 per review) are neither credited nor charged, and the cost of acting on a wrong one is not measured; the reviewers knew nothing of the builds, but the rubric was written with them known.
+
+What it changes in the workflow `[R]`, for the user: `spec-check` runs its two lenses once, on the first draft of the whole specification. The measured gain is from a check per unit on the text the builders will receive, after the last amendment and before the gates stage. That is a change to the template (a per-unit check stage on the final text), not a new skill or a different model.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
