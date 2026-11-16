@@ -192,6 +192,31 @@ is the whole of what remains of the former `DISPATCH_REQUEST` /
 `DISPATCH_RESULT` relay: an agent that holds `Agent` dispatches for itself; an
 agent that does not (Support) asks in `NEEDS:`.
 
+## The stages of a workflow template: model and agent
+
+What each stage of the templates in `.claude/workflows/` runs as, and the
+measurement behind it (the harness evaluation, closed 2026-11-16:
+`.claude/plans/harness_eval.md`; what it left unmeasured is issue #715). The
+units measured were three additive carves of the 2026-10-23 boundary work, five
+runs per arm, scored blind against the findings of the historical review.
+
+| stage | model | agent | loads | basis |
+|---|---|---|---|---|
+| specification check (`spec-check` with `units` and `check_only`) | Opus | elegance-enforcer and cross-domain-attacker (the structure lens), once per unit, on the final text, before the gates stage | as each is defined | `[M]` the pair named 66%, 80% and 68% of the defects the later code review found on three units; the elegance lens carries most of it |
+| gates | Sonnet | test-architect | as defined | no cheaper arm was credited: 2 of 5 bare runs on one unit wrote a gate asserting a value both builds contradict |
+| build | Sonnet | builder | the brief and the template's rules block; no CLAUDE.md, no rule, no skill | `[M]` gates green and inside the file list in 10 of 10 bare builds; with the builder's two obligations it refuses the malformed input an Opus build refuses, at a fifth to a tenth of the cost |
+| amend, measure, draft | Sonnet | executor | CLAUDE.md and the rules | not measured without them |
+| review | Opus | qa (its five skills; `qa_passes: 2` where recall matters) and elegance-enforcer, in parallel | as defined | `[M]` qa with its skills 4.60 against 2.60 of 8 findings; a second pass adds 0.80 to 1.25 |
+| verify | Opus | checker | CLAUDE.md and the rules | not measured |
+| fixed-schema categorising | Haiku | `general-purpose` with a schema; never commits | | `[M]` it lost the code spans of a commit message in 1 of 5 and reported success |
+
+What stays with the review whatever the builder: the invariants that relate
+one field to another, or a constructor to the factory that calls it (met by
+0 of 15 builds on six probed rows), and the structural findings, which only
+an Opus review with its skills reached. No stage was measured on Fable: the
+user closed the evaluation on 2026-11-16 with the workflows on Sonnet and
+Opus, which the orchestrator reads `[R]` as the ladder ending there.
+
 ## History
 
 Until 2026-09 the `subagent-handoff-protocol` skill (retired 2026-09-20) carried
