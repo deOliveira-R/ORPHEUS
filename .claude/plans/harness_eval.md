@@ -679,6 +679,26 @@ Limits: two units of one specification; one reader per unit, with half-scores on
 
 What it changes in the workflow `[R]`, for the user: `spec-check` runs its two lenses once, on the first draft of the whole specification. The measured gain is from a check per unit on the text the builders will receive, after the last amendment and before the gates stage. That is a change to the template (a per-unit check stage on the final text), not a new skill or a different model.
 
+## E2 fifth rung, step 3: the held-out unit and the template change `[M]` 2026-11-16
+
+The user's go-ahead (2026-11-16) covered drafting the template change on a branch and running the third unit (S2a, the conditions package, section 2.4 and its gates in 6.2) through the same check first. S2a was held out of step 2: its rubric (`rubric_s2a.md`, 13 census rows: 7 mandated by the specification, 6 where it is silent, plus one planted error, the admission meet stated as the greater of two) was written from the census before any S2a review ran. Ten Opus reviews, five per lens, same instrument as step 2; 10 of 10 ended `success`, 0 of 10 read the main checkout. One blind Opus reader over shuffled copies (`blind_s2a/`, `key_s2a.txt`, `scores_s2a.jsonl`; it checked every quote by script). Archive: `scratch/_harness_eval/spec/s2a/`.
+
+| of 13 known defects | elegance lens | structure lens | the pair, by run number |
+|---|---|---|---|
+| per run | 8.5, 8.5, 7, 10.5, 6 (mean 8.10) | 5, 3, 4, 6.5, 7 (5.10) | 9.5, 9.5, 7, 11, 7 (8.80) |
+| the 7 mandated rows, mean | 5.5 | 2.5 | 5.6 |
+| the 6 silent rows, mean | 2.6 | 2.6 | 3.2 |
+| mean cost per run | $4.09 | $5.48 | $9.57 |
+
+- The planted error is named in 10 of 10.
+- The result of step 2 repeats on the unit it was not designed on: the pair names 8.8 of 13 (68 %), beside 5.3 of 8 (66 %) on L4 and 6.4 of 8 (80 %) on L1.
+- The rows the specification mandated are the ones the check finds (5.6 of 7); the historical check round caught 0 of the 14 mandated rows across the three units. The rows where the specification is silent are found about half the time (3.2 of 6).
+- Not found by any pair in full: the wrong-shape sample (S4), the face-name parse of `Binding` (S11), the recognition of a condition by type in `admit` (S6) and the parse of the profile alias (S15). All four are per-field parses of raw input on rows where the specification is silent, which is the class the builder's two obligations cover at the build stage (the second hill-climbing step).
+- The elegance lens carries most of the pair on this unit (8.1 of the pair's 8.8); the structure lens adds 0.7 for $5.48. `[R]` One unit, one reader; on L4 the structure lens added 0.3 and on L1 0.4, so on 3 of 3 units the second lens adds less than one finding. Whether a second elegance run, or a `qa` run, adds more than the structure lens is not measured on S2a (the post-hoc lead of step 2 says elegance with `qa`); the structure lens also returns findings outside this rubric (9 to 18 per review), which the rubric cannot credit.
+- Limits as in step 2; in addition the reader's half-scores on S1, S5 and S15 follow conventions it stated in its report.
+
+**The template change** is drafted on branch `chore/spec-check-per-unit` (worktree `../ORPHEUS_trim`, cut from `main` `0290492e`; not merged, waits for the user): `spec-check` takes `units: [{ key, sections }]`, so the Check phase runs both lenses once per unit with that unit's sections as scope, and `check_only: true`, which skips Measure and Draft and checks the text as it stands; the orchestrator runs that after the last amendment and before the gates stage. Without the two arguments the template dispatches as before (stub runs of both modes, `[M]` 2026-11-16). The lenses are left as they are: replacing the structure lens is a separate question that this rung raises and does not settle.
+
 ## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
