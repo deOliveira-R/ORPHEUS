@@ -18,6 +18,14 @@ agents, its shell. Founding cases: [the evidence page](../../docs/development/ev
   in `retirement-audit` A.2, and `dead_references` after a delete or a
   rename has its reason and its catcher in `retirement-audit` B.4
   ([case](../../docs/development/evidence/code-search.md#2026-04-restructuring-grep-misses)).
+- **An agent with no Nexus tool asks through the shell**, `.venv/bin/nexus`,
+  whose help maps every skill's tool to its command (`[M]` 2026-11-16: 3 of 3
+  agents, 0 calls failed on a command's name). Three tools have none:
+  `runtime_markers` (read `.nexus/traces/markers.json`), `node_at`
+  (`nexus file-brief --json` lists a file's nodes),
+  `use_workspace` (the command answers for the tree it runs in). A fresh
+  worktree has no `.venv` and no graph: the main checkout's `nexus`
+  `analyze orpheus --project-root .`, then `tests`, indexes it in 25 seconds.
 - **A stale graph announces itself** as a query returning an unexpected
   result: zero changes, an old module name. After a major file move or
   restructuring, assume it. check: rebuild first
