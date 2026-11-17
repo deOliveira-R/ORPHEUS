@@ -86,4 +86,5 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Transport carrier-surface typing](transport_carrier_surface_typing.md) — 3 of 7 L3 typing imports dead; three carrier-space spellings; getattr_static isinstance.
 - [LD cell basis + moment_layout](ld_cell_basis_and_moment_layout.md) — {1,ξ} Gram diag(1,1/3) is θ; LegendreBasis is angular; five member classes.
 - [Space membership + co-vector census](space_membership_and_covector_census.md) — no verb checks membership; payload-tail gates; energy overlay admitted.
+- [V* density-chart sites](v_star_density_chart_sites.md) — Covector integrated, SourceSink condensed; two sweep conventions; trace metric lacks area.
 - [Broadcast admission class](broadcast_admission_class.md) — ERR-122 is a class: 48 of 61 verbs unguarded; admit_array the only every-run parse.

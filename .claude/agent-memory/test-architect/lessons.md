@@ -260,6 +260,10 @@ only the ORPHEUS mechanisms they do not name.
 - **⛔ A verb whose contract is general (any two measures) but whose shipped callers are all one special case (a
   pushforward) is gated OUTSIDE that case**, or a primitive built for the special case passes every agreement row. → `L117`
 
+- **⛔ A side (primal V vs data V*) on a mixed-variance space is gated through its METRIC, never through `is V.dual()`
+  or a class** — the carve's spelling is open, the metric is not; and an oracle reading a frozen anchor is validated
+  by reproducing today's production value from that anchor exactly before its red is believed. → `L133`
+
 ## 3. Config blindness — the ORPHEUS fixture-fact inventory
 
 Generic rule: `AGENT.md` §0.6, `vv` §H2 / anti-#3 / anti-#4 / Mode 7. Below: the
@@ -289,6 +293,8 @@ shelf life — check it against a concrete row before trusting a green.
   exactly −1.0, the TRACE rows, at every k) while the BULK block is. A predicate
   spelled "positive-stable" refuses every SN problem; the honest one is
   `ρ(A⁻¹F) = k_eff < 1`. → `L84e`
+- **`FissionOperator.apply` raises on every LD `SNProblem`** (moment axis read as spatial), and `solve_sn` has no
+  `scheme` (no LD eigen); the scheme registry has DD and LD only (no Step). → `L133`
 - **The SN operator fixtures carry `placeholder_materials`** (SigS / χ / νΣf all
   zero) ⟹ `F` is the ZERO operator and its reciprocity row is `0 == 0`. Every
   `tests/gates/sn/architecture/_config` mesh is NON-FISSILE (`solve_sn` raises

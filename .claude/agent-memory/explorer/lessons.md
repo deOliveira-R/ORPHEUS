@@ -192,3 +192,14 @@ today: the 2026-09-21 candidates landed).
   legitimate tests + 1 mutant, which is the half-2 evidence a "refuse at the
   verb" design needs; the unattributed count alone read as "non-members
   exist". Plugin: `scratch/layer_dag/ipf_fix/explorer_member_plugin2.py`. → M-3.
+- **L-050** A runtime per-class verdict from SAMPLES is only as good as the
+  sample key: a cap of 12 samples per (class, verb) was spent on the angular
+  frames, which hid the Petrov–Galerkin homogenisation instance of
+  `FrameAnalysis` (B⊗I on angular, 0.5–1.5 off on the φ-weighted PG frame).
+  Key samples by INSTANCE (parts, shapes, space), or re-run the suspect test
+  files with fresh samples, before calling a class uniform. Exclude rows
+  whose call RAISED from any verdict: refusal gates feed misfits on purpose.
+  A signature row's `first` test names one test, not the call population;
+  to attribute production vs fixture, record the 3-frame caller chain
+  (`sys._getframe`) for the rows in question. Plugin:
+  `scratch/true_ends/census/plug/ends_spy.py` (#707). → M-3.

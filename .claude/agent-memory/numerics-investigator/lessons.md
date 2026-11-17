@@ -674,3 +674,14 @@ J = −(Ω·n̂)A_f, a SIGNED weight no metric carries; the left generators are 
 D⁻¹ under a row rescaling D, so a metric-image guess is a category error before it is a wrong number. Check: before
 guessing a left kernel, print the rows that the right kernel's DOFs enter and solve lᵀA = 0 column by column; completeness
 then follows from rank–nullity on the square A, not from the fit. Record: `scratch/membership_covector/u0/left_basis/MEMO.md`.
+
+## L32: A variance hidden by a unit metric is seen by a NON-UNIFORM MERGE's coarse EQUATION, never by a pairing or an adjoint
+
+#707 four-space consult (2026-11-12): on energy G_E = I, so every adjoint-vs-transpose number and every pairing is blind
+to E against E\*. And a restriction test is blind too: a swapped assignment (ψ† summed, q partner-averaged) keeps both
+pairings exact. The instrument is the coarse balance under a merge with UNEQUAL group sizes: the summed chart solves A_c to
+1e-15, while the mean chart misses by 1.19 (slab) and 10.3 (0-D) through S and F (n_G′/n_G). A uniform merge is exactly
+blind (1e-15), so it is the control leg. The gap: `vv-principles` mode 12 tells you to find space-side stabilisers by
+degenerating the fixture, but does not name refinement or merge as the probe for an INDEX that a unit metric hides.
+Second trap: a partner-weighted average zero-fills where its weight vanishes, so a localised source contaminates every
+"which weight" comparison; re-measure on a full-support source. Record: `scratch/true_ends/consult/four_space_probe.md`.
