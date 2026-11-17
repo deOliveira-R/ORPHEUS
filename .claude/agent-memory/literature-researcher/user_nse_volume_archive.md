@@ -63,3 +63,15 @@ JCP `0021-9991`, TTSP `0041-1450`, JQSRT `0022-4073`), then look the title up in
 this archive. Also: **Semantic Scholar `get_citations` on a seed DOI** is the
 best net for "what came after paper X" — it found every post-2010 follow-up that
 title search missed. Semantic Scholar `429`-rate-limits after ~2 rapid calls.
+
+## Counts on 2026-11-16
+
+`[M]` 2026-11-16 (Python `pathlib` globs): the archive directory holds 760
+`Vol_*.zip` bundles among 789 zip files. `scratch/literature/` holds 130 PDFs,
+not the "~70" stated above, and `scratch/literature_ocr/` holds 77 sidecars
+(75 from OCR, 2 named `*.textlayer.md`). Matched by file stem, 74 of the 130
+PDFs have a sidecar and 56 have none, so a sidecar search does not see those
+56. The `research` skill's
+sentences "ALL Nuclear Science & Engineering volumes are local" (said of
+`scratch/literature/`) and "Every PDF has a Mistral-OCR sidecar" are both
+false as written; a correction is proposed to the user.

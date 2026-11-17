@@ -94,3 +94,14 @@ both PDFs in full:
 Full head-to-head memo at
 `/workspaces/ORPHEUS/.claude/scratch/bickley_function_review.md`
 (section "Head-to-head: Davierwalla 1982 vs Amos 1983").
+
+## The in-tree functions on 2026-11-16 (moved from the index; tree read the same day)
+
+`[M]` 2026-11-16, `orpheus/derivations/common/kernels.py`: `ki_n(n, x,
+precision_digits=50)` at line 223, `ki_n_mp(n, x, precision_digits=50)` at
+line 263 and `ki_n_float(n, x)` at line 271. The table above names
+`ki_n_mp(dps=25)`; the default is now 50 digits. For a third-order Bickley
+reference value use `ki_n` or the Amos 1983 algorithm, never Lorensi 2025,
+which covers orders 1 and 2 only. The index said "Amos (n≥0, 18 digits)"; the
+table above is the accurate statement (1e-15 in IEEE double precision, the
+18-digit constants being a floor on older hardware).

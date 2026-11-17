@@ -1,47 +1,44 @@
 # Test Architect — Lessons (hot digest)
 
-Read whole at the START of every dispatch. ONE imperative per entry, stripped to
-the correction. Every measured number, war story and `file:line` lives in
-`lessons_archive.md` (sections L1–L86, war stories; L87–L88, cross-campaign
-lookup tables for families 6 and 8) — open ONLY the section a pointer names.
+Read whole at the start of every dispatch. One imperative per entry, stripped to
+the correction; the war story, the measured numbers and the `file:line` live in
+`lessons_archive.md` (sections L1–L135: L87 the carve-archetype lookup, L88 the
+pure-math primitive long form, L134 the date-headed blocks this digest retired on
+2026-11-16). Open only the section a pointer names.
 
 **Cite, never restate.** The failure-mode taxonomy (AI modes 1–6, test-design
-modes 7–12), the three pillars and anti-patterns #1–#36 are `vv-principles`; the
+modes 7–12), the three pillars and anti-patterns #1–#38 are `vv-principles`; the
 four evidence statements are `instrument-doctrine`; the retirement census is
 `retirement-audit`; the denominator clauses are `plan-authoring` §2; the `-O`
 scope and the guard-is-debt rule are `coding-standards`; the canonical
 invocation, the tolerance contract and the math-type law rule are `vv-testing`;
-the reference inventory and the XS mixtures are `AGENT.md`; the per-carve
-recipes are `MEMORY.md` §3. An entry exists HERE only because no rule and no
-skill carries it.
+the ladder, the claim kinds, activation, the tolerance table, the carve gates
+and the battery protocol are the definition (`AGENT.md` §1–§5); the ORPHEUS
+fixture facts are §3 below; the per-carve recipes are `MEMORY.md` §3. An entry
+exists here only because none of those carries it.
 
-**THE SPINE** (standing: `AGENT.md` §0.5 / §0.6 / §1.5). A plan is done not when
-the tests pass but when, for EVERY gate: (a) a named mutation reddens it under
-`python -O`; (b) the reference is structurally INDEPENDENT of the SUT; (c) the
-regime ACTIVATES the term the bug lives in.
-
-**Maintenance.** A new lesson adds its RULE here with a `→ LNN` and its war
-story as a NEW archive section — never a campaign-named block appended here. An
-entry recording a GAP gains a LANDING note the day the gap closes: `L3`'s "no SN
-MMS exercises `q.boundary ≠ 0`" was true when written, the §4.6 family closed
-it, and the stale entry then generated a whole phase brief for work already
-done (`L40a`).
+**Maintenance.** A new lesson adds its rule under the THEMATIC section it belongs
+to, with a `→ LNN`, and its war story as a new archive section; never a block
+headed by a campaign or a date (eleven had accreted by 2026-11-16). An entry
+recording a GAP gains a landing note the day the gap closes: a stale gap entry
+once generated a whole phase brief for work already done (`L40a`).
 
 ---
 
-## 0. Eight meta-lessons — most entries below are an instance of one
+## 0. The meta-lesson most entries below instance
 
 **M5 — THE TREE MOVES UNDER YOU.** The checkpoint protocol (`git status
---porcelain` and `git log` at the START and the END; a pristine copy before the
-first mutation, `diff -q` after) is `process-discipline` ("Trust git",
-"Mutation-testing an uncommitted file"), cited, not restated. What this tree
-adds: `ls`/`shasum` the target before any pre-carve claim and bracket every
+--porcelain` and `git log` at the start and the end; a pristine copy before the
+first mutation, `diff -q` after) is `process-discipline`. What this tree adds:
+`ls`/`shasum` the target before any pre-carve claim and bracket every
 measurement with the mutated thing's state, because a concurrent write can
-DEMOTE your measurement to a value-compared-with-itself; another agent's
+DEMOTE your measurement to a value compared with itself; another agent's
 deliberate mutation is indistinguishable from a production bug (re-read with
-`inspect.getsource` before reporting one); a carve can land twice, three times,
-or mid-sentence, and then every gate becomes MEASURED rather than predicted.
-→ `L28`, `L33`, `L43a`, `L44h`, `L72a`, `L75`, `L84a`
+`inspect.getsource` before reporting one); a carve can land twice, or
+mid-sentence, and then every gate is MEASURED rather than predicted. When the
+orchestrator writes the carve concurrently, read "today" from a detached
+worktree of HEAD, never the main tree (a battery there measured the
+half-written carve). → `L28`, `L33`, `L43a`, `L44h`, `L72a`, `L75`, `L84a`, `L129`
 
 ## 1. Gates that cannot red — the shapes `vv` Mode 8 / anti-#17 do not carry
 
@@ -70,6 +67,9 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   new law and an existing clause share one `__post_init__`, the old clause's
   historical witness violates BOTH, so each owes a DISCRIMINATING input and the
   ORDER owes its own row. → `L43c`, `L73g`
+- **⛔ A row meant to witness ONE clause owes a per-clause ablation** — remove that
+  clause alone and require the row to red; a `warn()`-call edit witnessed the
+  effect rule, not the outcome check it was written for. → `L129`
 - **⛔ A guard's REACHABILITY is decided by whatever runs before it.** Enumerate
   the guards ABOVE a refusal and the PRODUCERS of its predicate before
   re-wording it; a refusal no shipped input reaches is RETIRED, not re-worded.
@@ -127,6 +127,8 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   — ship the partition as two separately-messaged assertions. And a `(1+ε)`
   VALUE mutation cannot red an `is` row; a battery predicting it predicts the
   impossible. → `L84j`, `L84l`
+- **⛔ The discriminator for one content field is a pair differing in that field
+  ONLY.** → `L118`
 - **⛔ The identity family: three legs that are false reds waiting.** (a) A
   done-when spelled `is` on a VALUE type — `__post_init__` normalises, so the
   constructor returns a FRESH instance; gate a value-merge with
@@ -136,8 +138,13 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   CONTAINER, and run a constant-`__hash__` arm before ANY identity carve: its
   red set is the re-pose list. (c) A value-MERGE collapses roster denominators
   silently — assert `len(set(roster)) == len(roster) == N` and grep the roster's
-  docstring for the sentence the merge falsified. → `L70a`, `L72b`, `L72g`,
-  `L79e`
+  docstring for the sentence the merge falsified. (d) A raw constructor called
+  twice returns two EQUAL, distinct objects: re-basing a mint read
+  (`carrier.mint`) onto the constructor breaks every `is` row and every memoised
+  operator (`AxisRetractionOperator.of(space)`) silently; hoist one local per
+  test before believing a red, and rewrite a docstring carrying the same call
+  text first (it blocks a text-based hoist). → `L70a`, `L72b`, `L72g`, `L79e`,
+  `L126`
 - **⛔ Price every guard at EACH TIER, and ask which arm produces the headline.**
   A guard load-bearing at its API tier can be INERT where its end-to-end test
   lives (a later stage refuses first) — write the inert tier into the docstring.
@@ -161,7 +168,6 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   with its own tooth. And a reciprocity gate on a singular metric sees only
   `A[range, ker]`: writes into kernel rows and kernel→kernel maps are its
   stabiliser. → `L90`
-
 - **⛔ An "adjoint == closed form" gate whose reference is built from the SUT's
   own transpose is invariant under every change of that transpose that commutes
   with the metric** (a scaled extension: `r.H = 2ι` vs a reference `2ι`). Pair it
@@ -169,18 +175,140 @@ or mid-sentence, and then every gate becomes MEASURED rather than predicted.
   weights. The two legs have complementary stabilisers (reciprocity is blind to
   anything on the metric's kernel); only a singular member separates a Euclidean
   `.H` from the metric one when the law says they coincide. → `L91`
-
 - **⛔ Before a carve makes a declared field MANDATORY (retires `None`), vary the field at EVERY
   consumer with the other fields held, beside a control the probe can move.** A consumer that never
   reads the field has 0 reads, so `plan-authoring` §8 BRANCHED-ON-MEANS-INPUT (which enumerates the
   readers that branch on it) cannot see it; once the field is mandatory, each such consumer silently
   drops a declared value. And capture each consumer's RESOLVED default per face per test before
   making it explicit: one `None` resolved to four laws. → `L95`
+- **⛔ When a pin file gains a method, re-scope every control that ranges over
+  `ROWS` to its own method's rows** — a shared pin's teeth control was green only
+  because one method's columns copied the mechanism's, and a differing method's
+  column reddened it for an unrelated reason. Run the file BEFORE adding the
+  table to see which controls are coincidentally green. → `L134`
 
 ## 2. Harness discipline — the instrument lies before the code does
 
-`vv` anti-#17's nine checks and `instrument-doctrine` X1 are the rule. Below:
-only the ORPHEUS mechanisms they do not name.
+`vv` anti-#17's checks and `instrument-doctrine` X1 are the rule. Below: only the
+ORPHEUS mechanisms they do not name.
+
+### 2a. Shell, worktree and process
+
+- **⚠ Shell mechanisms that read as "the battery found nothing" rather than "the
+  battery ran nothing".** zsh's unsplit `$var` is `code-search`: pass a scope as
+  `${=SCOPE}`, an array, or a driver taking `"$@"`, and print the collected
+  count. A `nohup … &` chained AFTER an `until` loop in one tool call never
+  launches when the call is killed at its timeout, while `pgrep -f <script>` then
+  matches the dead shell's own heredoc and prints RUNNING; `pkill -f <script>`
+  kills every waiting shell whose command line names the script, dropping what
+  was chained after it. Launch long jobs with `run_in_background: true` and ONE
+  command. → `L63h`, `L68f`, `L80h`, `L108`
+- **⛔ The session scratchpad is shared with other agents: work in a fresh
+  directory of your own (`ta_<name>_$$`).** Copy a pristine file aside PRESERVING
+  ITS PATH (two production files named `solver.py` collapse into one in a flat
+  copy, silently). Build a comparison tree with `git worktree add` without
+  suppressing its stderr (a stale `head/` from an earlier dispatch made the add
+  fail unseen, and the "HEAD" run read the stale tree), and print
+  `git -C <dir> rev-parse --short HEAD` and the collected count beside the
+  result. → `L97`, `L134`
+- **⛔ A probe or a draft gate run for a worktree imports the MAIN tree unless
+  told otherwise.** A probe SCRIPT resolves `orpheus` through the editable
+  install (`sys.path[0]` is the script's directory, not cwd): set `PYTHONPATH` to
+  the worktree and still print `orpheus.__file__` first (refines `code-search`).
+  A draft gate under the main repo's `scratch/` runs against the main tree
+  whatever `PYTHONPATH` says (the main `pyproject.toml`'s `pythonpath = ["."]`
+  wins): stage it in the worktree with a `test_where` row, or run a copy from
+  outside the repository with `-c /dev/null`. → `L99`, `L118`, `L119`
+- **⛔ A battery reading `^FAILED (\S+)` collapses whitespace-bearing parametrize
+  ids** — mint ids without spaces and check `len(set)` against the summary count.
+  → `L99`
+- **⛔ pyright in a worktree reads clean for the wrong reason.** On a file under
+  `.claude/worktrees/` it checks NOTHING and prints `0 errors` (the main config
+  excludes `**/.*`); with the worktree as cwd it checks but resolves no
+  third-party import (no `.venv` there), so the real errors hide among
+  `Import "numpy" could not be resolved`. Run `npx pyright --pythonpath
+  <main>/.venv/bin/python <files>` from the worktree root (a scratch config with
+  relative `include` where needed), with a positive control in the same run: a
+  probe file with a known error, or a file whose errors at the base you know.
+  → `L117`, `L134`
+- **⛔ A red's REASON depends on import order when a base is broken.** A package
+  whose `__init__` raises half-imports: the first read per process is the
+  `ImportError`, later reads find the submodule in `sys.modules` and read
+  `AttributeError: no attribute <NewName>`; classify by the full red set, never a
+  log's first line. A directory whose `conftest.py` imports a not-yet-carved
+  module aborts the session and hides the gate's reason: host the gate where it
+  collects. Record the base red per file in a FRESH interpreter (a helper's
+  `sys.modules` stub contaminates the next file). A carve prototype in a detached
+  worktree (pytest run from inside it, `orpheus.__file__` printed) shows each
+  gate satisfiable and each arm biting. → `L119`, `L134`
+- **In an isolated workflow worktree the Bash guard refuses shell loops, `$VAR`
+  expansion, globs as arguments and heredocs, and `Write` refuses paths outside
+  the worktree and any report-like `.md`.** Put the loop inside a Python script
+  taking argv, write scripts in the worktree and `cp` them out by plain paths,
+  and return a report as text. → `L134`
+- **⛔ Never name a scratch script after a stdlib module** (`select.py`,
+  `types.py`, `json.py`): every script run from that directory gets it at
+  `sys.path[0]`, and `import subprocess` dies inside `selectors` far from the
+  cause. And a module-grain node match (`geometry:x`) must not accept a sibling
+  module of the same package: only the module itself or a package-grain read.
+  → `L134`
+- **⛔ A measuring harness's exported environment reaches the system under test and every process it starts.**
+  `PYTHONPYCACHEPREFIX`, exported by the cone store's workers, flipped a memo gate that deletes `__pycache__`
+  (reproduced with the variable alone, no store). Set an instrument's knobs in-process (`sys.pycache_prefix`),
+  never in `os.environ`, and gate the tests' environment under capture against a plain run. → `L128`
+- **A guarantee resting on "a new process loads the code" owes a same-second same-size edit row** (forced by `os.utime`): timestamp pycs serve stale code. A fork warning is not a thread count. → `L115`
+
+### 2b. Rebinding and textual arms
+
+- **⛔ A rebinding probe (identity-keyed monkeypatch of a symbol set) is undone by any `importlib.reload`
+  in the session and cannot see a subprocess** — key the install by (module, name) and re-install per
+  test, attribute subprocess workers by reading, and prefer a CALL-time lock inside the target for
+  anything permanent. → `L94`
+- **⛔ A rebinding arm cannot reach a row PARAMETRIZED OVER OBJECTS** — the parameter list is built at
+  collection, before the per-test rebind, so the row reads the original class and stays green. Key a
+  row a battery must reach by NAME, resolved on the module at run time. → `L100`
+- **⛔ A textual mutant exec'd into a fresh namespace is not the object the gates
+  read.** Exec'ing a module that defines a class mints a second class that
+  import-time UNIONS (`Evaluation = A | B | C`, a `get_args` tuple) do not name,
+  so every arm reds for the identity, not the mutation: patch the transformed
+  METHODS onto the live class, with the class name in the patched globals set to
+  the LIVE class. Exec'd into a COPY of the module's namespace, the mutant's
+  globals freeze, so a gate that later monkeypatches a module global (a route
+  gate's decoy) cannot reach it: exec into the module's own `__dict__`, restore
+  the original name, then rebind every binding (so the count is non-zero).
+  → `L104`, `L125`
+- **⛔ An arm that rewrites a field of a content value AFTER construction is blind on every identity row** — the
+  constructor's eager `content_digest(self)` is cached by `id` (`content._DIGESTS`), so `==`/`hash`/digest keep
+  reading the honest content: drop the cache entry in the arm. And key arms that must survive the real module to a
+  public method, a helper the spec itself names, or a SUPPRESSION wrapper keyed on the gate's pinned fragment
+  (its red set proves one witness per rule). → `L101`
+- **⛔ An arm whose subject is LATE BINDING itself is installed at
+  `pytest_collection_finish`, not the definition's `pytest_configure`** —
+  configure runs before any test module imports, so a from-import made at
+  collection binds the decoy too and the arm reads "late-bound" for both
+  spellings. Keep a from-import consumer in the run as the control; it must stay
+  green. → `L134`
+- **⛔ CPython runs an audit hook with tracing AND `sys.monitoring` paused unless
+  the hook sets `__cantrace__`** — code reached only from an audit hook never
+  fires PY_START, so an "un-declare it and expect a record" arm is blind there by
+  the interpreter. Make the hook traceable in the arm
+  (`monkeypatch.setattr(hook, "__cantrace__", True, raising=False)`) and report
+  the rest as dormant. → `L134`
+- **⛔ Before re-specifying gates onto a sketched change, RUN the existing files under a `-p` plugin that rebinds
+  the sketch's spelling: the red set is the re-baseline list — and read each red for whether the row loses its
+  SUBJECT (the change removes the mechanism it witnesses), not only its tolerance. → `L108`
+- **⛔ A served-versus-in-process (A-versus-B route) gate builds its subject
+  FRESH** — an `lru_cache`d sibling builder returns one object whose
+  `cached_property` keeps whichever route ran first, so the comparison is the
+  object against itself. Behind a traced memo (the definition §5 carries
+  `bypass()` and the textual arm) a SPY on a symbol inside the memoised stage is
+  blind too: spy the memo's binding in the consumer. → `L114`
+- **⛔ A mutation arm on a SYMBOLIC derivation can HANG instead of reddening** — a wrong
+  operator loses the structure that made a factorisation cheap (18 s → > 5 min). Budget such
+  arms per row, deselect the heavy rows by name, and report the hang-class blindness: `vv`
+  #17(c) covers a collection kill, not a hang. → `L93`
+
+### 2c. Reading reds, censuses and cones
 
 - **⛔ A red set entirely INSIDE the new gate class is not automatically `vv`
   #17(e)'s "mirror, not a gate"** — discriminate by asking whether the consumers
@@ -193,27 +321,6 @@ only the ORPHEUS mechanisms they do not name.
   not counted — "1 pre-existing red" yields nothing; "the GL case, 1 ULP, on the
   one rule the change does not touch" yields a `-k` filter and a do-not-absorb
   instruction. → `L42g`, `L44l`
-- **⚠ Two shell mechanisms that read as "the battery found nothing" rather than
-  "the battery ran nothing".** zsh does NOT word-split an unquoted parameter
-  expansion, so `pytest $SCOPE` passes ONE argument and collects 0 — use
-  `${=SCOPE}`, an array, or a driver taking `"$@"`, and print the collected
-  count. And a `nohup … &` chained AFTER an `until` loop in one tool call never
-  launches when the call is killed at its timeout, while `pgrep -f <script>`
-  then matches the dead shell's own heredoc and prints RUNNING — launch long
-  jobs with `run_in_background: true` and ONE command. → `L63h`, `L68f`, `L80h`
-- **⛔ A rebinding probe (identity-keyed monkeypatch of a symbol set) is undone by any `importlib.reload`
-  in the session and cannot see a subprocess** — key the install by (module, name) and re-install per
-  test, attribute subprocess workers by reading, and prefer a CALL-time lock inside the target for
-  anything permanent. → `L94`
-- **⛔ A rebinding arm cannot reach a row PARAMETRIZED OVER OBJECTS** — the parameter list is built at
-  collection, before the per-test rebind, so the row reads the original class and stays green. Key a
-  row a battery must reach by NAME, resolved on the module at run time. → `L100`
-- **⛔ Exec'ing a module that defines a class mints a second class that import-time UNIONS do not name** (`Evaluation = A | B | C`, a `get_args` tuple): rebinding names cannot reach a union object, so every arm reds for the identity, not the mutation. Patch the transformed METHODS onto the live class, and set the class name in the patched globals to the LIVE class (else the copied methods mint the mutant). → `L104`
-- **⛔ An arm that rewrites a field of a content value AFTER construction is blind on every identity row** — the
-  constructor's eager `content_digest(self)` is cached by `id` (`content._DIGESTS`), so `==`/`hash`/digest keep
-  reading the honest content: drop the cache entry in the arm. And key arms that must survive the real module to a
-  public method, a helper the spec itself names, or a SUPPRESSION wrapper keyed on the gate's pinned fragment
-  (its red set proves one witness per rule). → `L101`
 - **⛔ A NEW top-level package is invisible to two tree-wide gates until it is registered** — the layer linter
   (`_check_source` returns `[]` for a package missing from `FORBIDDEN_EDGES`) and S5.9's roster walk (`_PACKAGES`),
   so its zero violations and its unrostered content types read clean. The two registrations are the package's
@@ -221,27 +328,6 @@ only the ORPHEUS mechanisms they do not name.
   two hand lists). → `L102`
 - **⛔ `pytest -k <word>` matches the MODULE PATH too** — a word in the file name selects every row, so a battery
   scoped by it runs the rows it meant to exclude. Select by the test-name prefix and print the collected count. → `L106`
-- **⛔ Before re-specifying gates onto a sketched change, RUN the existing files under a `-p` plugin that rebinds
-  the sketch's spelling: the red set is the re-baseline list — and read each red for whether the row loses its
-  SUBJECT (the change removes the mechanism it witnesses), not only its tolerance. And `pkill -f <script>` kills
-  any waiting shell whose command line names the script, dropping what was chained after it. → `L108`
-- **⛔ A served-versus-in-process (A-versus-B route) gate builds its subject FRESH** — an `lru_cache`d sibling builder returns
-  one object whose `cached_property` keeps whichever route ran first, so the comparison is the object against itself. And
-  behind a traced memo every in-process arm and every spy on a symbol INSIDE the memoised stage is blind (the stage runs
-  from disk in a fresh interpreter): spy the memo's binding in the consumer, and run batteries textually or under
-  `bypass()` at configure. → `L114`
-- **⛔ Copy a pristine file aside PRESERVING ITS PATH, into a directory of your own** — two
-  production files named `solver.py` collapse into one in a flat copy, silently, and the session
-  scratchpad is shared with other agents. → `L97`
-- **⛔ A probe SCRIPT run against a worktree imports the MAIN tree** through the editable install
-  (`sys.path[0]` is the script's directory, not cwd): set `PYTHONPATH` to the worktree, and still print
-  `module.__file__` first. Refines `code-search`'s "run a probe script from outside the repository".
-  And a battery reading `^FAILED (\S+)` collapses whitespace-bearing parametrize ids: mint ids without
-  spaces and check `len(set)` against the summary count. → `L99`
-- **⛔ A draft gate under the main repo's `scratch/` runs against the MAIN tree whatever `PYTHONPATH` says** (the
-  main `pyproject.toml`'s `pythonpath = ["."]` wins): stage it in the worktree with a `test_where` row, or run a copy
-  from outside the repository with `-c /dev/null`. And the discriminator for one content field is a pair differing in
-  that field ONLY. Refines `L99`. → `L118`
 - **⚠ After adding a field to a type, grep the tests for REFLECTION walkers**
   (`vars(`, `asdict`, `fields(`) — a walker over arbitrary objects sweeps the
   new field's arrays into an unrelated count and reddens for the wrong reason.
@@ -251,25 +337,71 @@ only the ORPHEUS mechanisms they do not name.
   never a proxy** (the proxy said 128 of 128 spans corrupt; the honest
   instrument read 0 of 128). A latent hazard with 0 witnesses is a RIDER, not a
   defect. → `L74g`
-- **⛔ A mutation arm on a SYMBOLIC derivation can HANG instead of reddening** — a wrong
-  operator loses the structure that made a factorisation cheap (18 s → > 5 min). Budget such
-  arms per row, deselect the heavy rows by name, and report the hang-class blindness: `vv`
-  #17(c) covers a collection kill, not a hang. → `L93`
-- **⛔ pyright on a file under `.claude/worktrees/` checks NOTHING and prints `0 errors`** (the main config excludes
-  `**/.*`): positive-control it with a probe file in the same run, from a scratch config with relative `include`. → `L117`
+- **⛔ A landing check for moved test files runs every predicate of the gate it must pass, not the one you know** (the
+  test-layer gate also refuses string imports); and a split tool that prunes private names drops side-effect classes
+  (registry subclasses): diff the remainder's class set. → `L124`
+- **Converting a string import to a statement owes a shadow check per target.** `from pkg import leaf` binds
+  `getattr(pkg, "leaf")` before `sys.modules`, so a package re-exporting a same-named callable hands the statement the
+  callable: check `inspect.ismodule(getattr(parent, leaf))` for every target, with a known shadow as the control; a
+  shadow is a production defect, not a reason to keep the string. And a gate refusing string imports resolves a
+  module-level constant (`_MODULE = "orpheus.x"`) before calling a variable "a walk". → `L121`
+- **⛔ A tie broken by `set` iteration order is a draw of `PYTHONHASHSEED`** —
+  tied results move between processes while everything else is identical. Break
+  every tie on a total key (`(share, name)`) and run twice, `cmp`-ing the
+  outputs, before quoting a table. → `L134`
+- **⛔ Show a pre-declared coverage control EXECUTES a def before declaring it** —
+  a test asserting a module constant runs its line at import, under the empty
+  context, so its per-test cone is empty and the control reads `NOT FOUND`.
+  Print the candidate's cone first. → `L134`
+- **⛔ Declare a closure instrument's power from its shuffled NULL, never from the
+  DAG's shape** — the incomparable-pair fraction does not predict it; the def
+  mass in the incomparable region does. → `L134`
+- **⛔ An A/B timing ships a NULL arm (both arms stock) and a swapped-order arm,
+  on an IDLE host** (a concurrent battery made the null −4.9 %; idle, ±0.4 %); a
+  delta inside them is below resolution, and the number to quote is per-call
+  cost × measured call count. → `L122`
+- **⛔ A per-test cone recorded in a SHARED parent is order-dependent: `sys.modules` and collection-time caches are caches too.**
+  A module first imported (or a cache first filled) by an earlier module's collection is never re-run, so later tests lose it
+  and a "can only over-select" attribution under-selects. A containment control restricted to setup+call defs cannot see it
+  (round 2's 200/200); design the fixture pair (fill in module A's parametrize, hit in module B) before trusting any fork result. → `L127`
+- **⛔ A pin keyed on a run's whole name set is route-dependent until every machinery path is quiet: diagnose a row-identity red by
+  the SET DIFFERENCE of the two name sets, then grep the distinctive names to their code object.** Containment over such pins is a
+  names superset, not row identity. → `L130`
+- **⛔ Containment between two cones of ONE process is asked of NODE keys, never
+  of pin rows** — a `StatementsPin`'s `names`/`digest` project on the recording
+  run's entry names and an `ImportOutcomePin` is that run's import set, so two
+  cones name one module with different rows. Fractional containment is not
+  antisymmetric (21/22 and 22/22 form a 2-cycle), and a one-hop transitive
+  reduction then drops a third test's edge too. → `L134`
+- **⛔ A resolver that reads a TEST's bytecode reads pytest's assertion-rewritten code, not the source**: inside an
+  `assert`, `getattr(m, "X")` loads its constant into a `@py_assert` temporary, so a load-chain reader never pairs `X`
+  with `m`; and `co_names` cannot pair any attribute with its receiver at all (`[M]` 2026-11-07, B5 prototype: the
+  literal `co_names` pairing named a wrong layer node on 102 of 658 tests). Build the resolver's positive-control
+  fixture as a pytest module run under `-p` (never by calling the function directly), with one row per shape. Extends
+  `instrument-doctrine` X1 (a control per shape the filter must find). → `L131`
+- **⛔ A delegated reader's CLAIM sentence is checkable only through identifiers on statements it cites, and the
+  assertion line alone does not hold them**: the compared values are computed on binding lines. Require `binding_lines`
+  beside `assertion_lines` and check `mentions` against both (my own pilot failed 51 of 90 before it). And a shared
+  fixture registry that builds every row inflates the own cone: a prior home can differ from the subject for the
+  APPARATUS's reason, not the test's. → `L132`
+- **⛔ Price a traced-memo regeneration by PARTITIONING the cache with `validate()` on the current tree, never by reasoning from the carve.** Memo
+  entries are pinned by module SKELETONS (any new import, class or module-level statement in a pinned module re-validates every entry), and the
+  cache may already be entirely stale for other reasons (0 of 8064 valid, 2026-10-25). → `L120`
+
+### 2d. Design facts met while gating
+
 - **⛔ A verb whose contract is general (any two measures) but whose shipped callers are all one special case (a
   pushforward) is gated OUTSIDE that case**, or a primitive built for the special case passes every agreement row. → `L117`
-
 - **⛔ A side (primal V vs data V*) on a mixed-variance space is gated through its METRIC, never through `is V.dual()`
   or a class** — the carve's spelling is open, the metric is not; and an oracle reading a frozen anchor is validated
   by reproducing today's production value from that anchor exactly before its red is believed. → `L133`
 
 ## 3. Config blindness — the ORPHEUS fixture-fact inventory
 
-Generic rule: `AGENT.md` §0.6, `vv` §H2 / anti-#3 / anti-#4 / Mode 7. Below: the
-builders and corpora that SILENTLY null a channel. Each is a measurement with a
-shelf life — check it against a concrete row before trusting a green.
-
+Generic rule: the definition §3 (Activation), `vv` anti-#3 / anti-#4 / Mode 7.
+Below: the builders and corpora that SILENTLY null a channel. Each is a
+measurement with a shelf life — check it against a concrete row before trusting
+a green.
 - **`make_mixture` nulls TWO channels**: `sig_2` defaults to all-zero and there
   is NO `sig_l` parameter (it hardcodes `SigL = zeros(ng)`), so any (n,2n) or
   (n,α) term is identically nulled and a "balanced" fixture built through it is
@@ -301,7 +433,7 @@ shelf life — check it against a concrete row before trusting a green.
   *"leakage scale bridge is degenerate"*) and reads `|N2N·x| = 0`. "Reuse the
   existing fixture" is a hypothesis: measure it, and record WHY each neighbour
   was rejected. → `L26`, `L83`, `L84j`
-- **A cylindrical `SNMesh` admits only CARRYING quadratures** (15 of 15
+- **A cylindrical `SNProblem` (`SNMesh` when measured; renamed by #412, the facts not re-measured `[R]`) admits only CARRYING quadratures** (15 of 15
   `folded_product`; 0 of 20 `product`/`lebedev`/`level_symmetric`). So a
   folded-vs-UNFOLDED equivalence gate is UNWRITABLE there, every admissible rule
   IS the σ_y quotient, and the σ_y half of the cylinder's declared symmetry is
@@ -316,7 +448,7 @@ shelf life — check it against a concrete row before trusting a green.
 - **The SN regression corpus pins NO full-solve `angular_flux`** — the 14 DD
   cases pin `keff` + `scalar_flux`; `2d_octant_equivalence_*` pins angular
   per-SWEEP; the only full-solve angular wall is #448's 32 anchors.
-  `material_xs_field()` is a FRESH MINT per call; `geometry_cache_for` fires
+  the material cross-section field was a FRESH MINT per call (then `material_xs_field()`, now the `MaterialXSField` class; not re-measured `[R]`); `geometry_cache_for` fires
   1182× per 1-D eigen solve (intern-absorbed). → `L83k`
 - **`-W error::tests.gates.sn.regression._regression_assert.DriftWarning` is a 1-ULP
   wall but NOT absolute on this tree** (19 passed plain, 9 failed / 10 passed
@@ -370,6 +502,9 @@ shelf life — check it against a concrete row before trusting a green.
   `0.907457573` (`1/(1−k) = 10.8`, the strong discriminator); `L=8.0` refl|refl
   → `1.374233987` (the supercritical refusal witness). Three solves 1.17 s;
   three dense 160×160 pencil assemblies 0.23 s. → `L84f`
+- **`FaceLayout.structure` is `(key, offset, size)`** — a layout reference built
+  on it is blind to a transposed slot of one size; compare per-slot shapes.
+  → `L125`
 
 ## 4. Reference, claim layer, and the proactive refutation
 
@@ -447,7 +582,6 @@ shelf life — check it against a concrete row before trusting a green.
   reference's two-parameter ladder (spatial x angular, coupled when a kink
   angle moves with the node), the SN side read from the artefact that pins it,
   and the comparison on the SUT's own cells. → `L96`
-
 - **⛔ A brute-force rule is the SUT's rule when a resolution PARAMETER coincides** (θ = 16 against a reading with
   16 points per piece agreed to 1e-10; 24/32/48 sat 3e-6 away) — run the brute at two counts, neither the SUT's,
   and require them to agree with each other first. An UNSPLIT rule on a kinked integrand passes by node placement at
@@ -460,43 +594,49 @@ shelf life — check it against a concrete row before trusting a green.
   its outflow there): the band is then the solver's tolerance. And ship the tight self-consistency
   row and the loose independent-reference row together, with the arm that separates them (a
   shared-operator mutant reds only the second). → `L97`
-
 - **⛔ A bound or equality row against a PUBLISHED truth owes the truth's resolution (|dk/dparam| x half a unit of its
   last printed digit) beside the solver's bands; a margin below it decides nothing. And a converged reference that
   disagrees with printed digits is adjudicated by an independent ladder (Richardson on a production method) before
   the row is posed, never loosened. → `L109`
-
 - **⛔ A monotone/bound row (Rayleigh-Ritz, nesting) is blind to a defect that biases every rung the same way; its
   first red is a mutation that breaks the STRUCTURE the theorem needs (symmetry of the form), not a size error —
   confirm by battery before naming it. → `L109`
-
 - **⛔ A defect that only COSTS iterations under the default budget is a VALUE defect under the budget the honest
   contract promises suffices** — a restart clamp converges anyway with 1308 cycles; at `max_inner = 1` (one
   full-restart cycle spans the Krylov space) it misses the closed form by 1.3e-3. Gate the value at that budget, plus
   an activation premise (honest steps > the clamp) asserted after the value leg. And a normaliser is gated with no
   reference by a power-of-two scaling of the operand it normalises (iterates bit-identical, trajectory
   `array_equal`). → `L107`
-
 - **⛔ Put a value row EXACTLY on each boundary, not only beside it, and sweep the boundary law's parameter toward its
   degenerate end (an albedo to 0.99, not 0.6).** A probe point beside a wall becomes a panel end and grades the rule by
   accident; the exact point does not. And when a grading reaches below the resolution of the coordinate the nodes are
   formed in (y below sqrt(2 R ulp R) for b), it manufactures degenerate lines: gate the node set's degeneracy count
   with a floor-0 positive control. → `L111`
-
 - **⛔ Before speccing a carve from a PROTOTYPE, run the prototype on the interior of every law its measurements sat at the
   corner of, and re-measure each of its tuned parameters on the closed-form rows, not on its acceptance fixture.** A
   prototype timed on a mirror body (a = 1) carried a closure exact only at a in {0, 1} (1.1e-2 at a = 0.9), and a floor
   "moving the result under 1e-6" against a 1e-4 reading cost 1.3e-6 at the closed-form bar. Then census the FAST tier
   for a row in that interior: none existed. → `L112`
-
 - **⛔ Derive a gate's grid from the CONSUMER's index law, not the prototype's tested range** (the triangle reads K = 2n
   moments; checked to K = 32, broken at K >= 48). And a carve that changes WHAT an error is relative to (the whole piece's
   max|f| against the layer's value) reddens componentwise rows honestly: report it as a contract ruling, never a band. → `L113`
-
 - **⛔ When a new case enters an algebra through a FREE VECTOR (a unit, a seed, a gauge), the algebra's own laws
   (reciprocity, a section identity) hold for every value of it** — gate the vector against an independent ground
   and gate one functional it determines; then read which coordinates the new case carries (covariant moments under
   G⁺ versus contravariant coefficients under G) before accepting "the nodal case is today's". → `L116`
+- **Before routing an object to another module's verb, read the module-order gate for both ranks** (`test_concept_order`
+  counts lazy imports): a "parse through the induced space" was unspellable for metric/basis/measure. → `L122`
+- **⛔ The left kernel of a splitting is the fixed space of the DUAL split's map `M⁻ᴴNᴴ`, not of the adjoint of the forward
+  map `NᴴM⁻ᴴ`** (same spectrum, eigenvectors `Mᴴ ker Aᴴ`); and a route measured with dense surrogates owes one run through
+  the production doors (`M.inverse().H` does not exist on d ≥ 2) before any row rests on it. `onenormest(t≥2)` mutates the
+  global RNG. → `L123`
+- **⛔ A mixed-wall cell is the MEET of its units in CHAIN ORDER** —
+  `Admission.meet` keeps the FIRST refusal (specular chain before diffuse), so a
+  plan table's "both chains" cell can contradict the meet law. Read `meet` and
+  the unit order, and run a PROTOTYPE table on the shared mechanism through the
+  pin before typing a mixed cell. A pin keyed on units a method's table does not
+  register is a cell the plan states nowhere: pin today's behaviour in a
+  separate file and say so in NEEDS. → `L134`
 
 ## 5. Tolerance is a claim — choose it per law, from measurement
 
@@ -504,9 +644,8 @@ shelf life — check it against a concrete row before trusting a green.
   residual that scales with its input.** `on_points − on_directions == t` is NOT
   exact (`fl(a+t) − a ≠ t`); `on_points == on_directions + t` IS bit-exact
   6000/6000 because it recomputes the same expression — and is the stronger
-  assertion. An ABSOLUTE `atol` for a residual scaling `O(ops × ‖t‖ × eps)` reds
-  on correct code for large draws and is too loose for small: normalise by
-  `max(1, ‖desired‖_∞)`. → `L35j`
+  assertion. Normalising a residual is the definition §3; the
+  instance here: `max(1, ‖desired‖_∞)`. → `L35j`
 - **⛔ A DIFFERENCE of two members of an affine operator family is NOT
   bit-identical — the MATRIX form is.** `at(σ+τ) − at(σ) == −τ·M` differs on 144
   of 200 draws (catastrophic cancellation, not an identity) while
@@ -546,20 +685,20 @@ shelf life — check it against a concrete row before trusting a green.
   resolution (in ULP of the input) and put the bit-level witness on a different instrument (a producer
   fingerprint). Certify an exact reference against its DEFINING equation when its derivation is the
   production's own theorem. → `L98`
-
 - **⛔ A change of variable that makes the COORDINATE polynomial need not make the INTEGRAND so** — the turning map
   c = b + span u² left the Jacobian's branch point at u = ±i sqrt(2b/span), 2.5e-12 at 16 points for b = 1e-4, exact at
   b = 0 and at b = 1e-2. Sweep the parameter that moves the branch point toward the real axis over decades, both
   ends included, before believing a docstring's "polynomial in u". And a panel-local tolerance carries
-  (1 + max|a,b|/(b − a)): a thin panel far from the origin loses those digits in its own local map. → (2026-10-06, rung 2)
+  (1 + max|a,b|/(b − a)): a thin panel far from the origin loses those digits in its own local map. → `L134`
+- **`sum()` of floats is compensated since Python 3.12** — spell the naive left
+  fold with `functools.reduce` where a reference must reproduce it. → `L119`
 
 ## 6. Carve archetypes — where the load-bearing gate lives, by carve shape
 
-Reference material, not a per-dispatch rule: moved to `lessons_archive.md`
-§L87 on 2026-09-21 (60+ shapes indexed by their bold name — relocation,
-un-weld, type-collapse, admission/refusal, rename-a-field-and-move-its-
-meaning, kernel/datum-mint, ...). Skim §L87's bold names when a dispatch's
-carve matches one; open only that row.
+Reference material, not a per-dispatch rule: `lessons_archive.md` §L87 (60+ shapes
+indexed by their bold name — relocation, un-weld, type-collapse,
+admission/refusal, rename-a-field-and-move-its-meaning, kernel/datum-mint, ...).
+Skim §L87's bold names when a dispatch's carve matches one; open only that row.
 
 ## 7. Snapshots, generators, and exactness
 
@@ -595,8 +734,8 @@ carve matches one; open only that row.
   `dataclasses.replace` pre-carve and claim `array_equal` — but MEASURE it.**
   `dataclasses.replace` round-trips a frozen canonicalizing dataclass
   bit-identically (bytes, read-only flag, `eq`/`hash`, kw-only subclass fields,
-  idempotent canonicalization), so a `replace`-based field upgrade is
-  `coding-elegance` Pattern 4∩2 safe and needs no hand-written constructor.
+  idempotent canonicalization); that `replace` re-runs the invariant is
+  `coding-elegance` Pattern 4∩2.
   → `L65h`, `L80d`
 - **⛔ A derived space NAME is a future landmine when axis identity is
   per-SUBCLASS** — pin axis CONTENT and relative identity, never the name literal.
@@ -615,32 +754,21 @@ carve matches one; open only that row.
 ## 8. Verifying a pure-math PRIMITIVE (a group / algebra type)
 
 `vv-testing` § "A type that embodies a mathematical concept ships the test of its
-defining laws" is the obligation. Reference material for the fourteen further
-gate shapes (homomorphism laws, involution/affine blindness, the G-fixed
-centroid, bijectivity vs match window, the coset-search inverse-direction
-theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
-§L88 on 2026-09-21 — open it when the dispatch is a group/algebra-type gate.
-
+defining laws" is the obligation. The fourteen further gate shapes (homomorphism
+laws, involution/affine blindness, the G-fixed centroid, bijectivity vs match
+window, the coset-search inverse-direction theorem, the stabiliser-maximality
+gate, ...) are `lessons_archive.md` §L88: open it when the dispatch is a
+group/algebra-type gate.
 - **A Hasse walk that descends from every failing node equals its brute force for EVERY predicate** — their agreement is
   not a test of downward closure; gate the law itself. → `L117`
-- **A guarantee resting on "a new process loads the code" owes a same-second same-size edit row** (forced by `os.utime`): timestamp pycs serve stale code. A fork warning is not a thread count. → `L115`
-
-- **Wave 2 S2b (the SN consumers):** a directory whose `conftest.py` imports a not-yet-carved module aborts the session and hides the gate's reason, so host the
-  gate where it collects; record the base red per file in a FRESH interpreter (the S2a helper's `sys.modules` stub contaminates the next file); `sum()` of floats is
-  compensated since 3.12 (spell the naive fold with `reduce`); a `scratch/` script imports the venv's MAIN checkout (set `PYTHONPATH`, print `orpheus.__file__`). → `L119`
-
-- **⛔ Price a traced-memo regeneration by PARTITIONING the cache with `validate()` on the current tree, never by reasoning from the carve.** Memo
-  entries are pinned by module SKELETONS (any new import, class or module-level statement in a pinned module re-validates every entry), and the
-  cache may already be entirely stale for other reasons (0 of 8064 valid, 2026-10-25). → `L120`
 
 ## 9. Pointers
 
 - **Two instrument vocabularies, do not mix them.** THEOREM / REFERENCE / RECORD
-  (§4) is a TEST's claim kind. CONSTRAINT / RANKER / DIAGNOSTIC —
-  `docs/development/evidence/lessons.md` § "L51 instrument type" — is for a
-  DESIGN-RANKING instrument, and is the wrong vocabulary for a test (every
-  collected pytest test is a CONSTRAINT by construction, so that partition has one
-  non-empty cell).
+  (the definition §3) is a TEST's claim kind. CONSTRAINT / RANKER / DIAGNOSTIC
+  (`docs/development/evidence/lessons.md` § "L51 instrument type") is for a
+  DESIGN-RANKING instrument; every collected test is a CONSTRAINT, so for tests
+  that partition has one non-empty cell.
 - **V&V tagging idioms** (`foundation` must not carry `verifies`; module
   `pytestmark`; `slow` on params not functions) → `feedback_vv_tagging.md` (`L9`).
   **Cross-method agreement infra** (reuse the registry schema; `max(tol_a,
@@ -648,153 +776,3 @@ theorem, the stabiliser-maximality gate, ...) moved to `lessons_archive.md`
   `feedback_cross_method_protocol.md` (`L8`). **Per-carve RECIPES** → `MEMORY.md`
   §3. **Measured scope costs and the serial-host gate** → `MEMORY.md` §2 and the
   main memory's `reference_test_execution_env`.
-
-## S3 diffusion gates (2026-10-23, W3) — two traps; extends `vv-principles` #17(f) and #17(c)
-
-- **A shared pin's "honest table" control silently depended on one method's column equalling the mechanism's.** `test_the_pin_has_teeth` ran
-  `pin_disagreements(mechanism_table, ROWS)` over ALL rows; it was green only because the SN columns copied the mechanism's. Appending a
-  differing method's column (diffusion) reddened it for a reason unrelated to the new table. When a pin file gains a method, re-scope every
-  control that ranges over `ROWS` to its own method's rows, and run the file BEFORE adding the table to see which controls were
-  coincidentally green.
-- **A package whose `__init__` raises half-imports: red reasons change by test order.** The first read per process is the `ImportError`
-  of the base's real break; later reads find the submodule already in `sys.modules` and read `AttributeError: no attribute <NewName>`. Both
-  are the base's red, but a log read by its first line only will misname the cause; classify by the full red set, and a
-  carve prototype in a scratch worktree (`git worktree add --detach`, run pytest from inside it, print `orpheus.__file__`) is what shows
-  each gate satisfiable and each arm biting (21 arms, 0 blind, `scratch/wave2_s3/battery.py`).
-
-## S4 CP / MoC / MC gates (2026-10-23, W3) — one trap; extends `vv-principles` #17 and the S3 prototype lesson
-
-- **A mixed-wall cell is the MEET of its units in CHAIN ORDER, so a plan table's "both chains" cell can contradict the meet law.** `Admission.meet`
-  keeps the FIRST refusal (specular chain before diffuse), so MC's radial "both chains" is `Refused(TOPOLOGY, #547)` where section 4.2's text read
-  `Refused(PLUMBING, #654)`. Before typing a mixed cell into a pin, read `meet` and `_units` for the order, and run a PROTOTYPE table on the shared
-  mechanism through the pin: the meet rows reddened on the plan's own cell, which no reading of the table text shows (`scratch/wave2_s4/proto_tables.py`, 6 arms bit).
-  A pin keyed on units a method's table does not register (CP hollow inner, decks on a radial face) is a cell the plan states nowhere: pin today's
-  behaviour in a file apart from the shared grid and say so in NEEDS, so one ruling edits one test.
-
-## Sub-cone re-measurement r2 (2026-10-25) — two instrument traps; extends `instrument-doctrine` "Draw-stable statistics" and X1's control rule
-
-- **A tie broken by `set` iteration order is a draw of `PYTHONHASHSEED`.** `static_closure.py` picked a test's home among incomparable
-  maxima with `max(maxima, key=share)` over a `set`, so tied homes moved between processes while the purity lines stayed identical: the
-  pair table differed run to run. Break every tie on a total key (`(share, name)`) and rerun twice with `cmp` before quoting a table.
-  `[M]` `scratch/verification_tree/subcones_r2/`, 6 of 6 outputs byte-identical after the fix.
-- **A pre-declared coverage control must be shown to EXECUTE a def before it is declared.** A test asserting a module constant runs its
-  line at import, under the empty context, so its per-test cone is empty and the control reads `NOT FOUND`, not pure. Print the
-  candidate's cone first (one `load()` call). `[M]` geometry `test_sqrt_half_constant_is_correctly_rounded`, 0 defs.
-
-## Sub-cone r3 (2026-10-25, five small layers) — one instrument trap, one harness fact; extends `instrument-doctrine` X1 (a null is the measurement)
-
-- **A DAG's incomparable-PAIR fraction does not predict the closure instrument's power; the def mass in the incomparable region does.**
-  reference has 6 of 21 pairs incomparable, yet its shuffled null read 1.00 in 3 of 3 draws: the incomparable pairs sit on
-  `(init)`/`reading`/`withdrawal`, and the tests' lines sit at the end of a chain. Declare power from the null, never from the
-  graph's shape (`[M]` `scratch/layer_dag/refiling/subcones_r3/`, `dagshape_all.txt` vs `step_reference_closure_tc1.log`).
-- **In an isolated workflow worktree the Bash guard refuses shell loops, `$VAR` expansion, globs as arguments and heredocs, and
-  `Write` refuses paths outside the worktree and any report-like `.md`.** Put the loop inside a Python script that takes the
-  layers as argv, write scripts in the worktree and `cp` them out by plain paths, and return a report as text.
-
-## Layer-DAG 1b, the reference group (2026-10-26) — one trap; extends the definition's §5 battery clause and `vv-principles` #17(f)
-
-- **An arm whose subject is LATE BINDING itself cannot be installed at `pytest_configure`.** Configure runs before any test module
-  imports, so a from-import made at collection binds the decoy too and the arm reads "late-bound" for both spellings. Install it at
-  `pytest_collection_finish` and keep a from-import consumer in the run as the control (it must stay green). `[M]` the
-  `ReferenceSolution` rebind: at configure 31 reference + 16 derivations rows red; after collection 31 + 0
-  (`scratch/layer_dag/refiling/specs_1b/reference_battery/`).
-
-## Layer-DAG 1b, the mesh-geom group (2026-10-26) — refines the worktree-pyright entry above (`L117`)
-
-- **pyright run with the WORKTREE as cwd does check, but resolves no third-party import** (no `.venv` in the worktree): every
-  file prints `Import "numpy" could not be resolved` and the real errors hide among them. Run `npx pyright --pythonpath
-  <main>/.venv/bin/python <files>` from the worktree root; the positive control is a file whose errors at the base you know
-  (`[M]` `mesh/test_face_roles.py`: the same 7 errors at the base and on the branch, while a new file's narrowing error showed
-  and then cleared).
-- **Converting a string import to a statement owes a shadow check per target.** `from pkg import leaf` binds
-  `getattr(pkg, "leaf")` before `sys.modules`, so a package re-exporting a same-named callable hands the statement the
-  callable: check `inspect.ismodule(getattr(parent, leaf))` for every target, with a known shadow as the control; a
-  shadow is a production defect, not a reason to keep the string. And a gate refusing string imports resolves a
-  module-level constant (`_MODULE = "orpheus.x"`) before calling a variable "a walk". → `L121`
-
-## U1b one parse (2026-10-30) — extends `instrument-doctrine` "Draw-stable statistics" and the design-time read of a gate
-
-- **Before routing an object to another module's verb, read the module-order gate for both ranks** (`test_concept_order`
-  counts lazy imports): a "parse through the induced space" was unspellable for metric/basis/measure. → `L122`
-- **An A/B timing ships a NULL arm (both arms stock) and a swapped-order arm**; a delta inside them is below resolution,
-  and the number to quote is per-call cost × measured call count; run it on an IDLE host (a concurrent battery made the null −4.9 %, idle it read ±0.4 %). → `L122`
-
-## U3b witness spec (2026-10-31) — extends `instrument-doctrine` X1 (run the route through production before speccing it)
-
-- **⛔ The left kernel of a splitting is the fixed space of the DUAL split's map `M⁻ᴴNᴴ`, not of the adjoint of the forward
-  map `NᴴM⁻ᴴ`** (same spectrum, eigenvectors `Mᴴ ker Aᴴ`); and a route measured with dense surrogates owes one run through
-  the production doors (`M.inverse().H` does not exist on d ≥ 2) before any row rests on it. `onenormest(t≥2)` mutates the
-  global RNG. → `L123`
-
-## Layer DAG Phase 2 refresh (2026-11-01) — extends `retirement-audit` C.12 and `instrument-doctrine` X1 (a control per predicate)
-
-- **⛔ A landing check for moved test files runs every predicate of the gate it must pass, not the one you know** (the
-  test-layer gate also refuses string imports); and a split tool that prunes private names drops side-effect classes
-  (registry subclasses): diff the remainder's class set. → `L124`
-
-- **⛔ A textual mutant exec'd into a COPY of its module's namespace freezes its globals**: a gate that later
-  monkeypatches a module global (a route gate's decoy) cannot reach the mutant, and reds for the instrument's
-  reason. Exec into the module's own `__dict__`, restore the original name, then rebind every binding (so the count
-  is non-zero). And `FaceLayout.structure` is `(key, offset, size)`: a layout reference built on it is blind to a
-  transposed slot of one size; compare per-slot shapes. → `L125`
-- **⛔ A raw constructor called twice returns two EQUAL objects: re-basing `carrier.mint` reads onto it breaks every
-  `is` row and every memoised operator (`AxisRetractionOperator.of(space)`) silently into "not the same object".**
-  Hoist one local per test before believing a red; and a docstring hit of the same call text blocks a text-based
-  hoist (rewrite prose first). → `L126`
-
-## Cone store B1 spec (2026-11-01) — extends `instrument-doctrine` X1 (a control must reach the grain of the claim)
-
-- **⛔ A per-test cone recorded in a SHARED parent is order-dependent: `sys.modules` and collection-time caches are caches too.**
-  A module first imported (or a cache first filled) by an earlier module's collection is never re-run, so later tests lose it
-  and a "can only over-select" attribution under-selects. A containment control restricted to setup+call defs cannot see it
-  (round 2's 200/200); design the fixture pair (fill in module A's parametrize, hit in module B) before trusting any fork result. → `L127`
-- **⛔ A measuring harness's exported environment reaches the system under test and every process it starts.**
-  `PYTHONPYCACHEPREFIX`, exported by the cone store's workers, flipped a memo gate that deletes `__pycache__`
-  (reproduced with the variable alone, no store). Set an instrument's knobs in-process (`sys.pycache_prefix`),
-  never in `os.environ`, and gate the tests' environment under capture against a plain run. → `L128`
-
-## Cone store B2 spec (2026-11-02) — extends `instrument-doctrine` X1 (a negative or positive reading must come from the tree it names)
-
-- **⛔ When the orchestrator writes the carve concurrently, read "today" from a detached worktree of HEAD, never the main tree.**
-  A battery in the main tree measured the half-written carve (an arm patching a just-deleted class reddened every row). And a
-  row meant to witness ONE clause owes a per-clause ablation: a `warn()`-call edit witnessed the effect rule, not the outcome check. → `L129`
-- **⛔ A pin keyed on a run's whole name set is route-dependent until every machinery path is quiet: diagnose a row-identity red by
-  the SET DIFFERENCE of the two name sets, then grep the distinctive names to their code object.** Containment over such pins is a
-  names superset, not row identity. → `L130`
-
-## Cone store B3 gates (2026-11-03) — extends `instrument-doctrine` X4 (two cones of one process are not one row set)
-
-- **⛔ Containment between two cones of ONE process is asked of NODE keys, never of pin rows**: a `StatementsPin`'s
-  `names`/`digest` are a projection on the recording run's entry names, and an `ImportOutcomePin` is that run's import
-  set, so the own cone and the selection cone name the same module with different rows (`[M]` PH3 first draft red on
-  `pkg/__init__.py` for every test). And fractional containment is not antisymmetric: two uppers at 21/22 and 22/22
-  form a 2-cycle, and a one-hop transitive reduction then drops a third test's edge too (PL9's first fixture).
-- **⛔ CPython runs an audit hook with tracing AND `sys.monitoring` paused unless the hook sets `__cantrace__`** (read
-  at each call): code reached only from an audit hook never fires PY_START, so an "un-declare it and expect a record"
-  arm is blind there by the interpreter, not by the gate (`[M]` 2026-11-03, F2: 4 of 17 apparatus defs). Make the hook
-  traceable in the arm (`monkeypatch.setattr(hook, "__cantrace__", True, raising=False)`) and report the rest as
-  dormant. Extends `vv-principles` #17 (rule out "the mutation did not bite" before calling an arm blind).
-- **⛔ A resolver that reads a TEST's bytecode reads pytest's assertion-rewritten code, not the source**: inside an
-  `assert`, `getattr(m, "X")` loads its constant into a `@py_assert` temporary, so a load-chain reader never pairs `X`
-  with `m`; and `co_names` cannot pair any attribute with its receiver at all (`[M]` 2026-11-07, B5 prototype: the
-  literal `co_names` pairing named a wrong layer node on 102 of 658 tests). Build the resolver's positive-control
-  fixture as a pytest module run under `-p` (never by calling the function directly), with one row per shape. Extends
-  `instrument-doctrine` X1 (a control per shape the filter must find). → `L131`
-- **⛔ A comparison tree built by `git worktree add <dir> ... >/dev/null 2>&1` into the SHARED session scratchpad can
-  silently not exist**: a stale `head/` from an earlier dispatch (a plain directory with `tests/` and `pyproject.toml`)
-  made the add fail unseen, and the "HEAD" collection ran on that stale tree, printing a plausible diff (`[M]`
-  2026-11-08, the list-3 repair confirmation: 5763 collected and 1 error where HEAD collects 5808). Use a fresh
-  `ta_<name>_$$` directory, never suppress the add's stderr, and print `git -C <dir> rev-parse --short HEAD` and the
-  collected count beside the result. Extends `code-search` (a probe run from another tree states which tree it read).
-
-## Reading pass schema (2026-11-09) — extends `instrument-doctrine` X3 (find the line that fails if the prose is false)
-
-- **⛔ A delegated reader's CLAIM sentence is checkable only through identifiers on statements it cites, and the
-  assertion line alone does not hold them**: the compared values are computed on binding lines. Require `binding_lines`
-  beside `assertion_lines` and check `mentions` against both (my own pilot failed 51 of 90 before it). And a shared
-  fixture registry that builds every row inflates the own cone: a prior home can differ from the subject for the
-  APPARATUS's reason, not the test's. → `L132`
-- **⛔ Never name a scratch script after a stdlib module** (`select.py`, `types.py`, `json.py`): every script run from
-  that directory gets it at `sys.path[0]`, and `import subprocess` dies inside `selectors` with an AttributeError far
-  from the cause (`[M]` 2026-11-09, `second/select.py` broke `second/check_group.py`). And a module-grain node match
-  (`geometry:x`) must not accept a sibling module of the same package: only the module itself or a package-grain read.

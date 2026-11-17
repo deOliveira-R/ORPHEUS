@@ -1,121 +1,39 @@
 # Elegance Enforcer — Memory Index
 
-Slim index (one line per entry; detail lives in the topic files). The pattern/
-anti-pattern CATALOG is the preloaded `coding-elegance` skill; the cross-cutting
-institutional SMELLS (twin-delivery plumbing, role-grid, fuller-view-oracle
-exception, tells-to-grep) are in the definition's "Recurring shapes". This index
-holds only (1) review-PROCESS lessons, (2) git-true active state, (3) durable
-design-review reference.
+One line per entry; detail lives in the files. The pattern catalog is the
+preloaded `coding-elegance` skill and the recurring shapes are the definition's
+§5; this index holds review-process lessons and durable design-review rulings.
 
-## 1. Lessons — a HOT digest + a COLD archive (read the digest each review)
+## 1. Lessons
 
-- [lessons.md](lessons.md) — the hot digest (~540 ln; L-058 added 2026-11-11: a design re-declaring ends is graded by a stand-in operator through today's doors, and a new space object by its dual's involution under the distributing functor; L-057 added 2026-11-02: a centralised act primitive whose callers choose the absent-end fallback is graded by composing two consumers across one unbound end; L-056 added 2026-11-01: "reused, never re-spelled" is graded by whether the tool calls the owner's DOOR, not by part-name presence, and a message-parsing consumer is fed each refusal with its path both ways; L-055 added 2026-10-25: a Union retyped as a structural Protocol is graded by a non-member under pyright vs the HEAD union, probe outside the excluded `scratch/`; L-054 added 2026-10-23: a field parsed into a richer type than its annotation is graded by pyright against the downstream Protocol the plan names; L-053 added 2026-10-22: a spec's "builds with the existing builders" is graded by diffing each builder's live signature against the new type's parameters, and a "retained helpers" list beside types that re-spell them is checked against the retirement table; L-052 added 2026-10-22: a spec's listed identity gates are instantiated on the non-normal value it deliberately keeps and on the contentless leaf, before code exists; L-051 added 2026-10-21: an override on a derived accessor is bypassed by raw-field readers, census them and compose; L-050 added 2026-10-20: a derivation ruling on one field is the template for its siblings, probed on the best-effort face; L-049 added 2026-10-20: a functor match keyed on type beside an overridable capability flag — subclass, flip the flag, call both doors; L-048 added 2026-10-20: a runtime-only contract channel is graded through the production adapter that consumes it, and a second normaliser shares the first one's collapse predicate; L-045 added 2026-10-17: an independence gate written as a closure SUBTRACTION is blind to the subtracted closure, inject a code-under-test module inside it; L-044 added 2026-10-12: a tolerance constant keyed on a structural label — find the numerical variable that sets the error and run the "safe" path at its low values; L-043 added 2026-10-10: a body moved between methods leaves `.. implements:: :by:` on the shell; L-041 added 2026-10-08: a law clamped by a floor — swap the law for 0 and inf, identical-to-0 = inert; L-040 added 2026-10-06: an exact input-predicate refusal of a singular case — sweep toward its edge for the conditioning cliff, and feed a new consumer the reused type's admitted extremes; L-038 added 2026-10-03: an enumerating guard (deny-list) — probe it with a member outside its enumeration that the downstream evaluator still accepts; L-037 added 2026-10-03: a broad `except E` fallback — feed it every reason the constructor raises E; a "use X instead" refusal — build the state, call X; L-035 added 2026-10-02: a "key covers the schema" claim is graded by diffing emitted part names against declared fields per subclass at runtime; L-034 added 2026-10-01: on a RE-HOME feed the new consumer the stored values, guards for the old reader strip what the new one needs; L-033 added 2026-09-30: a guard on a family TAG — read the tag's body, then feed it every family PARAMETER, a sibling method's realizer as the oracle; L-032 added 2026-09-29: a twin kept "for bit identity" is graded by replaying the capture under the collapsed spelling + an exact-rounding oracle; L-031 added 2026-09-29: a diff adding a SCOPE-BOUNDARY/ELEGANCE-DEBT token owes the tree-wide ledger gate a run; probe every `from_*` with the primary's refusal fixtures; L-030 added 2026-09-29: on a GRAPH design build the legal input whose effect the structure ABSORBS (a cut whose SCC survives) and solve to the answer — `[M]` 13 gates + 4 arms blind, 7.8e-2 "converged"; check a declared-order constructor derives its cut; spy every "unspellable" verb; L-029 added 2026-09-28: an "enum collapsed into a derived pattern" claim is graded by the enum's production DISCRIMINATION count first (`[M]` 0 — test-pinned metadata, L-007 trim, not a missing type; make the census control an enum-operand compare); a battery that permutes the design's own data is blind to ALIEN admission, feed the other fixture's composite; re-count a concept-count claim under a stated definition adding back what the memo keeps; L-028 added 2026-09-28: an AST Name census is blind to a QUOTED forward-reference annotation, grep `["']Name\b` before a zero-consumer trim; on a RENAME set census the DESTINATIONS first, `[M]` 3 of 24 taken by a different quantity; prototype "bit-identical" on the CORNER fixture; L-027 added 2026-09-28: on a PLACEMENT review prototype every placement as the same numpy chain, census the READERS of what the object builds, `-p`-plugin the carrier's constructor for the refused state, spy `evaluate` for re-done work, read `git log` for a ruling's flip history; L-025 2026-09-27: count a refused state's producers at runtime; L-026 2026-09-27: on an induced-arrow unification check the ROLE per instance): the lessons no rule, skill or definition clause carries; nine that restated one or rested on `git stash` retired 2026-09-22 (L-001, L-002, L-004, L-005, L-006, L-009, L-011, L-015, L-020). Standalone
-  behavioral rules, grouped {standing review order · verify-before-you-flag ·
-  grading · blast radius · elegance calls · doc-carve certification}. Read every
-  dispatch. Lessons the `coding-elegance` skill has since absorbed (anti-#20 ⊃ L-001,
-  Pattern-4 `replace()` ⊃ L-008, Pattern-6 trim ⊃ L-007, anti-#19 ⊃ L-012) survive
-  there only as DETECTION heuristics — never re-add catalog content.
-- [lessons_archive.md](lessons_archive.md) — the cold archive (874 ln), byte-identical
-  predecessor of the digest. War stories, `file:line` forensics, per-review
-  inventories, the 16 L-013 doc-carve sharpenings. Load ONLY when a digest entry's
-  `→ archive L-NNN` pointer is the thing you need.
+- [lessons.md](lessons.md) — the hot digest, L-003..L-058: review-process corrections no carrier holds. Read every dispatch.
+- [lessons_archive.md](lessons_archive.md) — the cold archive: war stories behind L-001..L-019. Open only at a `→ archive` pointer.
 
 ## 2. Active state
 
 None. Merge status comes from git, never from this index (`process-discipline`).
 
-## 3. Durable reference (reusable design-review pointers)
+## 3. Durable reference (design-review rulings by shape)
 
-- [harness_as_artefact_rulings.md](harness_as_artefact_rulings.md) — ⭐⭐ reviewing the PROSE harness (rules/skills/CLAUDE.md) as code under Pattern 2: the STATED-vs-CITED predicate, the FORCED COPY (a reader that cannot load the definition wants a generated include, not a citation), a preamble that promises not to restate and does, intra-file duplicates, boilerplate preambles; and the ruling NOT to collapse a genuine four-face law.
-- [generator_tool_review_rulings.md](generator_tool_review_rulings.md) — ⭐⭐ reviewing a GENERATOR / `--check` tool: the five probes (does the check have a READER; does it re-derive what a venv library owns; is the stated DIRECTION asserted by any line; arm-activation counts; orphan census both ways) + the ruling that a `kind` string discriminated ONCE is not anti-#4.
-- [ends_select_the_body_rulings.md](ends_select_the_body_rulings.md) — ⭐⭐ CS4c step 5
-  (per-call carrier dispatch → ONE construction-selected body): the **four probes** any
-  dispatch→admission carve owes — does the new admission see the ROLE (space is SHARED
-  across a flux/source pair, so it does not); does a COMPOSITE admission admit both
-  blocks; is the declared guard LIVE (positive control, `[M]` inert on all shipped);
-  does the carve hand-roll a structure the tree already memoises. ⭐ **A string-keyed
-  branch whose two arms are provably EQUAL is the worst kind — its miscompilation is
-  numerically invisible and kills a deliberately-kept surface.** A hoist to a new base
-  is when a pre-existing half-admission must be completed.
-- [transfer_family_carve_rulings.md](transfer_family_carve_rulings.md) — ⭐⭐ #426 step 2
-  (two algebra TERMS collapsed onto one core with thin ROLE subclasses): a role's
-  content is DATA not methods (the `ClassVar` channel/binding shape, and why four
-  one-token-different classmethods are the retired twin's own generating mechanism);
-  a SHAPE predicate promoted to a VALUE predicate leaves stale synonyms of the word,
-  not the symbol; deriving a sub-binding beats storing it (the guard you don't need
-  is the proof); two new smells (a comment naming two guards where the body checks
-  one; a gate quoting the measurement its body ignores) + four reusable probes.
-- [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — ⭐⭐ #434 R1+R4+R2+R3
-  (R3: the ledger carve whose every violation was in the DERIVATION SURFACE — a geometry-local
-  cosine convention inverted in prose while the code stayed right; a re-bound Greek letter (Γ owed→unspent,
-  Ω minted where Ω is the direction); a predicate split whose refusal MESSAGE never split (`[M]` named a
-  satisfied fact on 17 of 17); the sibling-delegation home test; a prefix-truncated baseline gate.)
-  (R2: a kernel-MOVE's blast radius is the docstring XREF surface — `dead_references` is BLIND
-  until Sphinx rebuilds AND catches only the ADDRESS half, never the CONCEPT half; the
-  HALF-UPDATED SENTENCE tell; a module docstring's headline claim is written last and never
-  re-checked; a landed test module still wearing its DRAFT docstring; look for the WITNESS
-  before grading a smell). ⭐⭐ #434 R1+R4
-  (R4: a `compare=False` field + a memo keyed on the owner = call-order-dependent answers (L-023);
-  a guard resting on an unstated "generic point" where `max_p` IS the theorem; the general form of
-  an existing method belongs beside it). ⭐⭐ #434 R1
-  (group-as-realization): the tag-is-IDENTITY / one-functor-to-STRUCTURE shape; ⭐ **the guard
-  does not move with the mathematics** (new value types carrying the theorem shipped with no
-  `__post_init__`; `dim` spelled `len` where the math means RANK); a `dim ∈ {0,1,3}` branch is
-  ESSENTIAL; a dispatch→computation carve silently WIDENS the old refusals; reusable probes.
-- [scalar_to_stack_retype_rulings.md](scalar_to_stack_retype_rulings.md) — ⭐⭐ #426 step 1
-  (one matrix → a Legendre STACK): the pad rule spelled once per layer with one spelling
-  UNREACHABLE (count witnesses, don't read); the retype makes the EMPTY stack representable
-  where a scalar could not be absent; ⭐⭐ a rationale comment naming a structural invariant
-  that is FALSE on the one shipped input that motivated it; the twin a retype CREATES by
-  parameterising an already-padded gather; five in-process probes.
-- [orbit_space_invariance_rulings.md](orbit_space_invariance_rulings.md) — ⭐⭐ #429 2.2b
-  (the Γ-slot): the ambient-vs-orbit-space TWO-CAMPS pattern (census the shared EMBEDDING
-  helper, not the migrated method); the per-arm `ManifoldMap.domain/codomain` honesty tell;
-  replay-the-deleted-kernel as the kernel-swap regression instrument (`[M]` 3 of 230);
-  a guard downstream of a canonicalising map is a tautology.
-- [dsa_accelerator_rulings.md](dsa_accelerator_rulings.md) — consistent-DSA (#2) 3b:
-  the bar (derivation-pin = L-005 gold standard; 3-P0-frame ANTI-MINT; `integrate_angular`
-  single-source hoist + tangent-map; #208 torsor correction-is-a-DISPLACEMENT; teeth with
-  residual-VALUE witnesses). Design rulings: correction consumes the DISPLACEMENT not the
-  residual; edge-centered SN-side NOT the in-algebra `A_diff` (R4: diverges ρ 54.7); σ_s1
-  iff sweep retains ℓ≥1; trace arm load-bearing. Live finding = a clean L16 (3 stale doc
-  spots). For 3c + accelerator/inverse siblings.
-- [issue_226_inverse_as_operator_rulings.md](issue_226_inverse_as_operator_rulings.md) —
-  inverse family: delegation-not-reciprocal for value leaves; keystone FORCES
-  `solve=inner.apply`; the wrap-delegate twin collapses at the 3rd sibling (Green/Matrix).
-- [pyright_ratchet_harness_invariant.md](pyright_ratchet_harness_invariant.md) — harness SOFTWARE-INVARIANT review bar: dual-direction ratchet = illegal-slack-state unrepresentable; version-hint-not-skip beats skip-on-mismatch; single-source the COUNTING not just the data; the total==0 retirement trigger. Carries a `[M]` CORRECTION: a bare `assert` in a collected test module DOES fire under `-O`.
-- [pyright_carrier_generic_carve.md](pyright_carrier_generic_carve.md) — #226 carrier-generic
-  C2→C4: covariant-leg keystone principled; `default=` per variance (invariant `Any` vs
-  covariant-leg-type); the ratchet baseline must land WITH the carve (approval condition).
-- [coupled_block_boundary_unweld_rulings.md](coupled_block_boundary_unweld_rulings.md) —
-  per-system boundary block `B=Σ ι∘B∘π` (SN 1b un-weld): present-zero-forced IS the embedding;
-  role grid + twin-delivery single-sourced at the `_reflect_*` cores; recurring re-check list.
-- [frame_projection_coarsening_shape.md](frame_projection_coarsening_shape.md) —
-  homogenize/condense shape: axis-yields-views keystone; collapse-verb-on-the-XS-container;
-  Homog/Condens FALSE symmetry; `project()` = the diagonal/PoU special case.
-- [cs4a_kernel_binding_rulings.md](cs4a_kernel_binding_rulings.md) — CS4a "born bound":
-  a re-pose can DEMOTE a named functional to a raw pairing; a doctrine's noun with no
-  TYPE; "the mint closes it" closes nothing at zero consumers. ⛔ **refutes AGENT.md
-  §inst-knowledge #5's ClassVar-on-frozen-dataclass trap** (measured, Py 3.14 —
-  re-confirmed 2026-09-04 on `TransferOperator`).
-- [p6_adjoint_weighted_homogenization_rulings.md](p6_adjoint_weighted_homogenization_rulings.md)
-  — P6 #281 adjoint-weighted collapse: five-morphism taxonomy; B&G Ch.6 energy convention;
-  `is_same_phase_space`; transport-ScalarFlux / data-bare-array layering. For the B3 gates.
-- [doc_prose_rebalance_certification.md](doc_prose_rebalance_certification.md) — certifying a
-  docstring/comment-only rebalance (#231 P2): token+AST invariance, dropped-contract net,
-  in-pass-fixes-vs-live, pointer honesty (resolve ALL + content-check).
-- [doc_label_naming_certification.md](doc_label_naming_certification.md) — descriptive eq
-  `:label:` naming (#231): one-domain-term-two-concepts = SHOULD-CONSIDER not MUST-FIX;
-  collision-scan-by-concept-token; the section-anchor `-eq` rule.
+- [harness_as_artefact_rulings.md](harness_as_artefact_rulings.md) — reviewing rules, skills and CLAUDE.md as code: stated-vs-cited, the forced copy.
+- [generator_tool_review_rulings.md](generator_tool_review_rulings.md) — reviewing a generator or `--check` tool: five probes; a once-discriminated `kind` string.
+- [ends_select_the_body_rulings.md](ends_select_the_body_rulings.md) — a per-call dispatch carved into one construction-selected body: four probes.
+- [transfer_family_carve_rulings.md](transfer_family_carve_rulings.md) — two algebra terms on one core with role subclasses: role content is data.
+- [symmetry_realization_carve_rulings.md](symmetry_realization_carve_rulings.md) — group-as-realization carves: the guard does not move with the mathematics.
+- [scalar_to_stack_retype_rulings.md](scalar_to_stack_retype_rulings.md) — a scalar retyped to a stack: the empty stack, the pad rule twice.
+- [orbit_space_invariance_rulings.md](orbit_space_invariance_rulings.md) — ambient vs orbit-space consumers; replaying a deleted kernel as the regression instrument.
+- [dsa_accelerator_rulings.md](dsa_accelerator_rulings.md) — the consistent-DSA bar: derivation pins, displacement not residual, anti-mint.
+- [issue_226_inverse_as_operator_rulings.md](issue_226_inverse_as_operator_rulings.md) — the inverse family: delegation over reciprocal; the wrap-delegate twin collapses.
+- [pyright_ratchet_harness_invariant.md](pyright_ratchet_harness_invariant.md) — reviewing a harness invariant: the dual-direction ratchet; a bare test `assert` fires under `-O`.
+- [pyright_carrier_generic_carve.md](pyright_carrier_generic_carve.md) — carrier-generic typing carve: variance-specific `default=`; the baseline lands with the carve.
+- [coupled_block_boundary_unweld_rulings.md](coupled_block_boundary_unweld_rulings.md) — per-system boundary block `Σ ι∘B∘π`: the present zero is the embedding.
+- [frame_projection_coarsening_shape.md](frame_projection_coarsening_shape.md) — homogenize/condense shape: the axis yields views; the false symmetry.
+- [cs4a_kernel_binding_rulings.md](cs4a_kernel_binding_rulings.md) — "born bound" re-pose: a named functional demoted to a raw pairing.
+- [p6_adjoint_weighted_homogenization_rulings.md](p6_adjoint_weighted_homogenization_rulings.md) — adjoint-weighted collapse: the five-morphism taxonomy and the energy convention.
+- [doc_prose_rebalance_certification.md](doc_prose_rebalance_certification.md) — certifying a docstring-only rebalance: token and AST invariance, pointer honesty.
+- [doc_label_naming_certification.md](doc_label_naming_certification.md) — descriptive equation-label naming: the concept-token collision scan.
 
-Sibling-repo (`sphinxcontrib-nexus`) — kept because the invariants are reusable:
-- [nexus_architecture_survey.md](nexus_architecture_survey.md) — ⭐⭐ **whole-package Rule-2
-  survey (2026-08-16)** + the **METHOD LESSON**: the ADVERSARIAL phase comes FIRST
-  ("how would I break this / make it 100× better"), balance is Phase 2, and
-  "well-factored" belongs there as a WITHDRAWN ATTACK. Measured yield gap + the
-  flagship *inference-presented-as-fact* probe. Read before ANY architecture review.
-- [nexus_runtime_overlay.md](nexus_runtime_overlay.md) — #26 overlay: "MCP tools never raise
-  out"; missing-stale-node-guard crash; orthogonal-capabilities-as-flat-fields not tagged-union.
-- [nexus_workspace_resolution.md](nexus_workspace_resolution.md) — workspace/worktree wiring;
-  `_switch_workspace` single-source; the `q.knowledge_graph` SSOT accessor.
-  diagnostics mapped to my axes. NOT confirmed installed (2026-06-21) — verify before relying.
+Sibling repository (`sphinxcontrib-nexus`), kept for reusable invariants:
+- [nexus_architecture_survey.md](nexus_architecture_survey.md) — a whole-package Rule-2 survey; the inference-presented-as-fact probe.
+- [nexus_runtime_overlay.md](nexus_runtime_overlay.md) — MCP tools never raise out; the missing stale-node guard.
+- [nexus_workspace_resolution.md](nexus_workspace_resolution.md) — workspace and worktree wiring; one switch, one graph accessor.

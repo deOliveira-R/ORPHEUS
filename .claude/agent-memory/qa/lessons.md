@@ -4,15 +4,17 @@ Read every dispatch. **Behavioral rules only**: one imperative, the check that
 makes it decidable, and its `→ L-0NN` archive pointer.
 
 - **War stories, evidence, `file:line`, measured tables** live in
-  `lessons_archive.md` (`## L-0NN`, L-001..L-093). Open only the `L-0NN` a rule
+  `lessons_archive.md` (`## L-0NN`, L-001..L-106). Open only the `L-0NN` a rule
   points at; never read it whole.
 - **Doctrine is NOT restated here.** The preloaded skills own it: `vv-principles`
-  (#1–#36, Modes 7–12, bit-identity, 1-group degeneracy, the `catches`
-  directive), `numerical-bug-signatures` (Sig 1–10, H1–H5),
+  (#1–#38, Modes 7–12, bit-identity, 1-group degeneracy, the `catches`
+  directive), `numerical-bug-signatures` (Sig 1–11, H1–H5),
   `instrument-doctrine` (X1–X4 and their procedures), `retirement-audit` (items
-  1–25), `coding-elegance`; `qa/AGENT.md` owns make-it-RED (#11) and the
-  field-role contract (#10). A `[skill: …]` tag means the principle is there and
-  what follows is only the ORPHEUS mechanic. §I lists what retired INTO them.
+  1–25), `coding-elegance`; the qa definition (`qa/AGENT.md`) owns make-it-RED,
+  the behaviour-neutral retype, coverage-by-what-ran, the promised-vs-shipped
+  read, the prose audit (§4) and the verdict stamps (§5). A `[skill: …]` tag
+  means the principle is there and what follows is only the ORPHEUS mechanic.
+  §I says where the retired rules went.
 - New lesson ⟹ append `L-0NN` to the archive, land a 2–5 line rule here. Sharpen
   in place; never let this file grow narrative.
 
@@ -20,18 +22,17 @@ makes it decidable, and its `→ L-0NN` archive pointer.
 
 ## A. Making a gate RED — mutation mechanics
 
-`vv-principles` #17 (a)–(i) owns the arm taxonomy, #18 the algebraic-class rule,
-Mode 8 the fires-but-cannot-fail classes. Below: the ORPHEUS mechanics, and the
-arms that taxonomy does not name. The principle that a clean reading is a claim
-about the INSTRUMENT before it is a claim about the tree is `qa/AGENT.md` #12
-(2026-09-21); the instances stay here.
+`vv-principles` #17 (a)–(j) owns the arm taxonomy, #18 the algebraic-class rule,
+Mode 8 the fires-but-cannot-fail classes; "a zero is a claim about the
+instrument first" is the definition's §3. Below: the ORPHEUS mechanics, and the
+arms that taxonomy does not name.
 
-**A3. Mutate in-process; revert by RE-EDITING, never `git stash`/`checkout` on a
-path with uncommitted state.** Untracked files make `git diff` empty, so the
-revert proof is gate-green-again + zero mutation markers; a `-p <module>` plugin
-needs `PYTHONPATH`. When no file edit is licensed at all, hand the function a
-COPIED input (a mutated entry dict): control leg silent, mutated leg fires,
-nothing to restore. → L-039, L-043, L-052, L-086
+**A3. Revert a mutation by RE-EDITING.** [rule: `process-discipline`, "Mutation-testing
+an uncommitted file"] Untracked files make `git diff` empty, so the revert proof
+is gate-green-again + zero mutation markers; a `-p <module>` plugin needs
+`PYTHONPATH`. When no file edit is licensed at all, hand the function a COPIED
+input (a mutated entry dict): control leg silent, mutated leg fires, nothing to
+restore. → L-039, L-043, L-052, L-086
 
 **A4. Your OWN mutation needs a bite check.** [skill: Mode-8 METHOD WARNING] A
 capability REFUSAL is TWO-part — adding `apply_transpose` does not lift
@@ -75,8 +76,8 @@ workload with a STATIC reference census so "measures its workload only" names th
 real residual. → L-076, L-073
 
 **A15. A refusal DUPLICATED one frame down leaves the outer guard witnessless:
-run BOTH arms — swallow the inner raise, then let it propagate.** `[M]` #429:
-deleting a normaliser check reddened **0 of 670** because `Quotient.induced_action`
+run BOTH arms — swallow the inner raise, then let it propagate.** `[M]` deleting
+a normaliser check reddened **0 of 670** because `Quotient.induced_action`
 refuses the same motions; without the swallow it reddened **16**, so the outer
 guard's real job is converting a raise into a `False`, which its gate does not
 assert. A 0-red arm is *guard with a twin* or *provable optimisation* — decide by
@@ -86,10 +87,9 @@ algebra, not red count. Per-ARM pays: one body → 1 red, its five arms → 7/27
 never by flagging a shared verb.** A global mutation on a verb the driver also
 calls moves the CONVERGED answer instead of the reconstruction and reports false
 coverage; wrapping the producer and rewriting the record after it returns leaves
-the driver honest. `[M]` #448: dropping the boundary gain from `_driven.gains`
-reddened **8 of 14** rows — exactly the 4 arms with a live `B`. ⭐ The wrapper is
-a free CENSUS: 161 inner solves / **0** scheduled splittings named, in one
-number, an arm the new gate module never reaches. → L-080
+the driver honest (`[M]` 8 of 14 rows red, exactly the 4 arms with a live `B`).
+⭐ The wrapper is a free CENSUS: 161 inner solves / **0** scheduled splittings
+named, in one number, an arm the new gate module never reaches. → L-080
 
 **A22. A generator asserts source→target; ask who asserts target→source.** `[M]`
 deleting a manifest entry left its generated always-on rule (≈708 tokens) on disk
@@ -97,15 +97,11 @@ with `--check` reporting `0 problems, 0 drifted`. For a blind spot with an EMPTY
 present population: call it LATENT, give the denominator, and prove the class
 with a SYNTHETIC positive control rather than a tree witness. → L-082
 
-**A23. A RETIREMENT/ABSORPTION NOTE is a carrier claim — check it against the
-carrier's CHECK, not its topic, and count the SOURCE's own rules.** A lesson is a
-BUNDLE of 3–4 rules; the note is written from the TITLE, so it names the clause
-the title matches and the rest go uncarried (`[M]` 20 retired lessons: 12 FULL, 8
-PARTIAL, ~14 unstated mechanisms, one with 0 hits tree-wide). Duals: "mechanism
-superseded" written on a body whose own closing paragraph says why it stays (read
-the END first); and a ⛔ PROTECTION justified by "loaded at every session start"
-surviving into a COLD archive — grep a split archive for self-references to the
-hot file's LOADING. [skill: `retirement-audit` item 19 since 2026-09-21] → L-083
+**A23. Retirement notes: the residue `retirement-audit` item 19 does not carry.**
+[skill: item 19 owns "a note is a carrier claim; count the source's rules; read
+its closing paragraph"] A ⛔ PROTECTION justified by "loaded at every session
+start" survives into a COLD archive when a hot file is split: grep a split
+archive for self-references to the hot file's LOADING. → L-083
 
 **A24. For a PROSE census the positive control is a phrase PASTED from screen and
 `\s+`-normalised** — a remembered phrase carries neither the source's line
@@ -133,14 +129,12 @@ red of `no_middle`). Not `vv-principles` #17's parent/child process mechanism. �
 
 **B-DISPATCH. A claim about what a DISPATCH RECEIVES is measured by
 DISPATCHING** — frontmatter, a plan ruling and a `keep − omit` token probe all
-read TRUE on a false one (six role blocks said a Support agent has "no memory
-index"; one zero-tool explorer dispatch showed it keeps its OWN agent memory and
-skills, `omitClaudeMd` dropping CLAUDE.md, the rules and the PROJECT index only).
-A DIFFERENCE instrument cannot name what sits in BOTH arms, and a probe with 0
-tools carries no role block, so role-block growth cannot move it: price each part
-with a probe that CARRIES it. ⭐ A `skills:` preload is a claim about a TURN, not
-a dispatch — a skill generated mid-session arrived only at turn 2 — so a
-first-turn absence is **unadjudicated**, never "broken". → L-085, L-089
+read TRUE on a false one (the measured facts are now the `workflows` rule,
+invariant 4). A DIFFERENCE instrument cannot name what sits in BOTH arms, and a
+probe with 0 tools carries no role block, so role-block growth cannot move it:
+price each part with a probe that CARRIES it. ⭐ A `skills:` preload is a claim
+about a TURN, not a dispatch — a skill generated mid-session arrived only at
+turn 2 — so a first-turn absence is **unadjudicated**, never "broken". → L-085, L-089
 
 **B1. Instrument a CALL COUNT first, to find which twin the gate actually runs,
 and mutate the SHARED source rather than the dead-for-this-path method.**
@@ -178,22 +172,24 @@ diffusive material; a reflective `c≈1` probe is a TRAP, both schemes reading
 **B12. A CONVERGENCE flag at an eigenvalue entry is the OUTER fact only.**
 `solve_sn`/`solve_sn_adjoint` warn on `max_outer`/`keff_tol`; a within-group
 solve hitting `max_inner` never reaches the warning. Ask WHICH LOOP the flag
-belongs to and wrap `_certify_within_group_exit` for the other. Companion holes:
-a suppressed warning, an `xfail`-absorbed one, `-m "not slow"` deselection (#36). → L-067, L-053
+belongs to and wrap the within-group exit check for the other (`[R]` that check
+is `_check_convergence_claim` since `6e04f1f0`, formerly
+`_certify_within_group_exit`). Companion holes: a suppressed warning, an
+`xfail`-absorbed one, `-m "not slow"` deselection (#36). → L-067, L-053
 
 **B13-r. Gate a published COMMAND STRING with
-`_pytest.config.parse_warning_filter(s, escape=False)`.** [skill: Mode 8, eighth
-class] `[M]` `-W error::ConvergenceWarning` at 4 doc sites does NOT parse (an
-undotted category resolves against `builtins`; pytest exits ERROR, 0 collected)
-while the file's own "it is escalatable" test passes, installing the filter
+`_pytest.config.parse_warning_filter(s, escape=False)`.** [skill: Mode 8(8)]
+`[M]` `-W error::ConvergenceWarning` at 4 doc sites does NOT parse (an undotted
+category resolves against `builtins`; pytest exits ERROR, 0 collected) while the
+file's own "it is escalatable" test passes, installing the filter
 programmatically. → L-067
 
-**B14. The STATIC call graph cannot answer "did this test exercise it" — measure
-the EXERCISED set with `coverage`.** `[M]` 0 of 21 claiming tests reach
-`Quadrature.ordinate_permutation` statically, **7** do at runtime, because every
-production call site is annotation-mediated: `nexus callers` → 0 and
-`dead-functions` FLAGS a live method. Recipe: `dynamic_context = test_function` +
-`[json] show_contexts = True`, joined to
+**B14. Coverage by what ran: the ORPHEUS ladder and its blind rung.** [definition
+§3, "Coverage by what ran"; `nexus-verification` owns `run=` and the capture
+config] `[M]` 0 of 21 claiming tests reach `Quadrature.ordinate_permutation`
+statically, **7** do at runtime, because every production call site is
+annotation-mediated: `nexus callers` → 0 and `dead-functions` FLAGS a live method.
+Join recipe: `[json] show_contexts = True`, joined to
 `sphinxcontrib.nexus.runtime.build_node_index` spans. ⚠ It measures
 CO-EXECUTION, not co-constraint — a candidate list to mutation-verify. The ladder
 is CLAIMED 21 → EXERCISED 7 → ASSERTED ≤2 → MUTATION-VERIFIED 0, and **no edge
@@ -235,9 +231,11 @@ nodes against the same sum at the nodes the object REALISES from its stored
 coordinate. → L-100
 
 **B20. A row moved behind a memo is blind to in-process mutation in the warm run, so a
-bypass battery proves its teeth only under bypass.** check: for each arm whose reds fell ONLY on
-re-posed rows, re-run it WITHOUT bypass on a store target over the default tier; a red names the
-surviving in-process pin, a green is a lost pin; and a `catches` marker's row is re-read the same way. → L-103
+bypass battery proves its teeth only under bypass.** [skill: #17's closing paragraph owns
+"mutate a copied tree, or `bypass()`"] check: for each arm whose reds fell ONLY on re-posed
+rows, re-run it WITHOUT bypass on a store target over the default tier; a red names the
+surviving in-process pin, a green is a lost pin; and a `catches` marker's row is re-read the
+same way. → L-103
 
 **B21. When a carve makes the algebra NORMALISE (flatten, collect, collapse), census every fact
 STAMPED on an operator instance (`op.block_role = …`, `A.system_role = …`) and read it again after
@@ -250,8 +248,6 @@ first-party there.** check: one micro-capture of 5-10 real tests (about 30 s) re
 tool before crediting any fixture gate; compare against the spec's named expectations. → L-106
 
 ---
-
-
 
 ## C. Reference contamination & structural independence
 
@@ -282,7 +278,9 @@ confirm that file is green before crediting analytical grounding. → L-028, L-0
 **C6. For an adjoint, the independent reference is a DENSE matrix built by LOOPS,
 transposed directly, composed with metrics by hand.** Re-derive the inner-product
 identity first, then prove `(A⁻¹)ᵀ=(Aᵀ)⁻¹`. An ASYMMETRIC transpose pair is
-CORRECT when each transpose mirrors its OWN forward. → L-052, L-060
+CORRECT when each transpose mirrors its OWN forward. Where the metric commutes
+with `Aᵀ` (a spatially-diagonal operator, Mode 12's `[G,Aᵀ]=0`) no `.H` gate can
+witness a metric flip; the honest witness there is a construction refusal. → L-052, L-060, L-073 §2
 
 **C8-r. Prove a helper's independence MECHANICALLY:**
 `dis.Bytecode(f).codeobj.co_names` — the forbidden names usually appear only in
@@ -347,7 +345,10 @@ becomes the gap the moment there are two. → L-065
 directory for a commit that ALREADY made the decision** — the reds may be its
 REMAINDER, and the question is then completeness. `[M]` `39b46a31`'s universal
 "all 23 snapshots … the only two that changed" was scoped to ONE directory while
-7 further references had moved. [skill: #25 owns the per-mechanism null-check] → L-069
+7 further references had moved. [skill: #25 owns the per-mechanism null-check]
+⚠ Sig-10's sibling-pass discriminator is VOID when the changed code is
+single-geometry (the siblings never ran it, so their green carries no
+information): bisect with two revision-fingerprinted worktrees instead. → L-069
 
 **D15. A carve that DISSOLVES branches of HEAD (a `len(radii) == 1` fast path, a
 solid-only shortcut, a per-kind arm) owes its old-vs-new probe one fixture inside
@@ -386,29 +387,29 @@ through the shared token `"cell"`. Ask of any status: *what predicate sets it,
 and what is its weakest admissible evidence?* [skill: `nexus-verification` owns
 the inferred-`implements` and `claims_*` warnings] → L-070
 
-**E8. The graph's AST marker surface is PARTIAL — prefer the RESOLVED manifest.**
-`[M]` `foundation` (1515 usages / 308 files) and `regression` have no AST node
-attribute at all; only `verifies`/`vv_level`/`catches`/`slow` are lifted.
-`catches` is an ATTRIBUTE, not an edge, and no `ERR-NNN` node exists, so its
-claims cannot be joined to the catalogue by traversal; no `.npy` snapshot is a
-node, so a frozen reference cannot even be NAMED. ⭐ `runtime_markers` (a
-`--collect-only` manifest) resolves what pytest resolves — module `pytestmark`,
-class and conftest marks — and is the instrument for any marker census. → L-070
+**E8. The graph's AST marker surface is PARTIAL.** [definition §3: a marker
+census reads the resolved manifest] `[M]` `foundation` (1515 usages / 308 files)
+and `regression` have no AST node attribute at all; only
+`verifies`/`vv_level`/`catches`/`slow` are lifted. `catches` is an ATTRIBUTE, not
+an edge, and no `ERR-NNN` node exists, so its claims cannot be joined to the
+catalogue by traversal; no `.npy` snapshot is a node, so a frozen reference
+cannot even be NAMED. The resolved manifest is `runtime_markers` (a
+`--collect-only` capture). → L-070
 
 **E20. A production change that makes the SUT converge FASTER re-baselines every
 catcher whose defect needs the slow path to bite** (a restart cap, a budget, a
-stall). check: for each ERR the changed solver's catchers name, re-drop the defect
-on the new SUT and read the red set; a speed-up is a silent fixture change. → L-097
+stall). [skill: § "Log every caught bug" owns decay by fixture, tolerance or
+budget; this is decay by a change to the SUT] check: for each ERR the changed
+solver's catchers name, re-drop the defect on the new SUT and read the red set. → L-097
 
 ---
 
 ## E′. Auditing a rewrite, a distillation or a relocation
 
-**The meta-lesson.** A fidelity audit keyed on TEXT, on an IDENTITY or on a
-NUMBER returns clean while the behaviour is lost. Resolve every clause into its
-THREE parts — imperative, `check:`, `tell:` — each AT THE TARGET its citation
-names; audit the MODALS, not the numbers; recount PER BUCKET, never the total;
-and ask whether the clause's AUDIENCE moved. The instances, as pointers:
+The definition's §4 owns the method (imperative, `check:`, `tell:` per clause,
+at the cited target, per modal; a text- or total-keyed diff reads clean). Also
+recount PER BUCKET, never the total, and ask whether the clause's AUDIENCE moved
+(E18). The instances:
 
 **E19. Resolve the three parts SEPARATELY.** Consolidation leaves the imperative
 at the citing site and moves its `check:` to the cited home, so both ends look
@@ -420,11 +421,11 @@ diff, so audit the decision table per ROW; a count CREATED by a move inherits th
 replaced text's arithmetic — recount it from the MOVED text; a HEADING outlives
 its body, invisibly, when every citation uses the § PREFIX. → L-089
 
-**E11+E12. Audit a COMPRESSION for dropped MODALS and added LEDE-universals, not
-for changed numbers** — `[M]` over 30 restored items every number was exact and
-all four defects were modal. And when one sentence is dropped it is the one
-saying WHY, which is usually the CHECK: ask of every compressed clause *what
-experiment would I run?* — if the text does not say, it is recognition-only. → L-084
+**E11+E12. A compression's defects are MODAL, not numeric** (`[M]` over 30
+restored items every number was exact and all four defects were modal) — and it
+also ADDS lede-universals. When one sentence is dropped it is the one saying WHY,
+which is usually the CHECK: ask of every compressed clause *what experiment would
+I run?* — if the text does not say, it is recognition-only. → L-084
 
 **A20. The brief's denominator may assume a structure the SOURCE does not have**
 (a brief asked for "every bold-tagged clause" of an original that had none).
@@ -468,10 +469,6 @@ cited number is still a plausible-substitution error. → L-058
 closeout:** a residual hit is a defect only if (a) a direct reconstruction, (b)
 not transitively routed one level deeper, AND (c) in declared scope. → L-025
 
-**F6. A stress-ansatz mandated by the test-architect memo is a binding
-contract** — shipping the canonical `sin(πx/L)` 1G homogeneous case instead is a
-gate DOWNGRADE. Flag it even when all tests pass. → L-019
-
 **F8. Check what the test HELPER tolerates before crediting an enforcement
 claim** — a `squeeze_density` helper made the suite agnostic to `keepdims`, so
 the bit-identity claim held only up to a squeeze. → L-042
@@ -484,10 +481,11 @@ interim — but say so, and do not let a spec's wording credit the un-shipped ha
 before editing** (two phantoms in one brief). Byte-compile no-test generator
 SCRIPTS after a rewire: a broken import there is a breakage no test run surfaces. → L-051
 
-**F11. ACCEPT a floor-CHARACTER gate; do not demand a floor-REMOVAL gate.** When
-a fix cleans a RATE but leaves a floor, the honest claim is a falsifiable scaling
-pin (`err(S32) < err(S16)/2`): a closure-BUG floor is quadrature-independent
-(ratio ≈ 1 → fails). This is the pushback against over-demanding. → L-009
+**F11. ACCEPT a floor-CHARACTER gate; do not demand a floor-REMOVAL gate.**
+[definition §5: an over-demand is a review defect] When a fix cleans a RATE but
+leaves a floor, the honest claim is a falsifiable scaling pin
+(`err(S32) < err(S16)/2`): a closure-BUG floor is quadrature-independent
+(ratio ≈ 1 → fails). → L-009
 
 **F12. A retired/tombstoned claim is a CONJUNCTION — enumerate its legs; one
 routinely survives its siblings' death.** Legs come per SUCCESSOR (a tombstone
@@ -497,12 +495,12 @@ the periodic gate, the split gate's `a.codomain is b.codomain` being
 "residual zero at non-outflow" is inflow ⊔ tangential). Mutation-check per leg,
 and check the fixtures can EXPRESS the survivor at all. → L-063, L-064
 
-**F14. FILL a plan's ⏳PENDING decisive row yourself, and use the plan's own
-anchors as the probe's positive control.** A "decide nothing until X is measured"
-row is the highest-value thing you can produce, and the plan usually states what
-X must reproduce — that IS the control. Cache the expensive reference to disk so
-the arm sweep is cheap; grep `Solution.__dataclass_fields__` before assuming an
-attribute name (`keff`, not `k_eff`). → L-068
+**F14. A plan's ⏳PENDING decisive row: use the plan's own anchors as the probe's
+positive control.** [definition §5 owns "run the affordable measurement"] The
+plan usually states what X must reproduce — that IS the control. Cache the
+expensive reference to disk so the arm sweep is cheap; grep
+`Solution.__dataclass_fields__` before assuming an attribute name (`keff`, not
+`k_eff`). → L-068
 
 **F16. An inherited blast-radius number counts a NAME, not a TYPE — re-measure it
 with an in-process wrap before it sizes (or DEFERS) the work.** `[M]` "~87 reads"
@@ -522,7 +520,7 @@ that the author stopped there. → L-072
 
 **F23. A CALIBRATION of your cross-check is itself a ratio and owes the
 share-a-population test; an uncalibrated corroboration beats a mis-calibrated
-refutation.** `[M]` #426: calibrating a second route on the elastic channel gave
+refutation.** `[M]` calibrating a second route on the elastic channel gave
 `ΔTR/ΔP1 = 0.60`, which would have "shown" the direct route 2.6× too small — but
 **327 of 421** groups run a negative corrected diagonal in the elastic leg
 against **6** in the (n,2n) leg, so the factor is not transferable. ⟹ report a
@@ -550,6 +548,14 @@ spelling over every file that calls the guarded entry, withdrawn modules
 included, and diff the hits against the relabelled set (`[M]` ERR-094: one
 `white|white` CP slab left in a withdrawn, slow Peierls test). Extends
 `retirement-audit` census member (8). → L-093
+
+**F27. A guard in `__post_init__` and a retired dataclass field are both
+blind to unpickling: a value persisted before the carve loads as the new type
+with the old field in `__dict__`.** check: pickle the retired spelling in the
+pre-carve tree (`git archive <base>` into tmp, run from there) and load it in
+the carved tree; a silent load is the finding, a `__setstate__` that refuses
+is the fix. Extends `retirement-audit` (no persisted-state clause) and
+`coding-elegance` Pattern 4's `replace` corollary. → L-094
 
 ---
 
@@ -586,7 +592,6 @@ regenerated and the test file is untouched — on any regen, grep consumers for
 "frozen". A cited issue number can be wrong (trust git archaeology). A prose "the
 ERR-NNN class" citation is a nit; the same string inside `catches()` is a defect. → L-020, L-028, L-030, L-034
 
-
 **G-NX. After a retirement, grep `:by:` in `docs/` for every deleted name: a `.. implements::` / `.. verifies::`
 target that is gone is a `nexus.directive` WARNING, hence a red `-W` CI, not stale prose to defer to the archivist.**
 Re-point it at the successor in the same change. → L-105a
@@ -607,8 +612,9 @@ pointer, open it when you are in that situation.
   `solve_sn_fixed_source(...)` defaults to vacuum, so a divergent hand-replication
   usually means YOU dropped the BC. → L-011
 - *Baselining:* a READ-ONLY worktree + `PYTHONPATH`, and VERIFY it took — the
-  editable `.venv` otherwise resolves to the MAIN tree (`orpheus.__file__`); a
-  worktree pyright count needs the main `.venv` symlinked into its root. → L-041, L-045, L-049
+  editable `.venv` otherwise resolves to the MAIN tree (`orpheus.__file__`;
+  `code-search` carries the `python -c` CWD variant); a worktree pyright count
+  needs the main `.venv` symlinked into its root. → L-041, L-045, L-049
 - *pyright deltas:* apples-to-apples only after line-stripping and per-file
   reconciliation (a `(file, rule, msg)` diff gives FALSE net-new when a
   type-RENDERING string shifts); and removing a `NoReturn`-poisoned return
@@ -616,56 +622,41 @@ pointer, open it when you are in that situation.
 - *Hunting slow/timing-out tests:* batch into runs that COMPLETE — a SIGTERM'd
   run writes no junit-xml and loses the `-rfE` reasons; mark slow PARAMS with
   `pytest.param(..., marks=...)`, not the function. → L-005
-- *Reading a scipy status:* `disp=False` is the load-bearing half, not
-  `full_output=True` — with `disp` defaulted True a non-converged
-  `brentq`/`root_scalar` RAISES, so the `converged=False` leg is an unreachable
-  branch wearing an honest name. → L-066
+- *Running a battery beside a reaper:* a reaper keyed on a process-name pattern
+  owns every process with that pattern. Run nothing that spawns the pattern
+  while a battery reaps, or reap by process group. check: a red whose child
+  stderr is EMPTY is a kill until shown otherwise; re-run it uncontended. → L-096
 
 **H11. `full_output=True` does NOT make a scipy status readable — `disp=False`
 is the load-bearing half:** with `disp` defaulted True a non-converged
 `brentq`/`root_scalar` RAISES instead of returning `converged=False`, so the
 False leg is an unreachable branch wearing an honest name. → L-066
 
-**H12. The SUBJECT of your review can move while you review it — re-`wc -l` and
-`git log -1` the document before writing the verdict, and in a SHARED tree diff
-only your OWN touched files.** `[M]` the Q5.6.4 memo grew 721→879 lines
-mid-dispatch, adding the strongest defence of the link I was refuting; the
-harness's session-start git snapshot said `main` while git said a feature branch.
-⭐ For a CENSUS the document is the TREE: stamp `git rev-parse --short HEAD` +
-date at the start AND the end and re-run every finding as a PREDICATE at the end
-(`[M]` HEAD moved three times in 8 min while a parallel agent fixed 5 flagged
-files). Report the REMEDIATED set separately — a finding someone else silently
-fixed reads as a false positive and discredits the rest. → L-068, L-071
+**H12. The SUBJECT of your review can move while you review it.** [definition
+§5 owns the HEAD and `git diff | shasum` stamps, the end-of-review predicate
+re-run and the separate remediated set] The DOCUMENT under review moves too,
+and a commit landing on it mid-review changes the verdict's subject before the
+end stamp is read: re-`wc -l` and `git log -1` it before writing the verdict
+(`[M]` a memo grew 721→879 lines mid-dispatch, adding the strongest defence of
+the link I was refuting). In a SHARED tree diff only your OWN touched
+files, and trust git over the harness's session-start snapshot of the branch. → L-068, L-071
 
-**H13. `grep "^FAILED"` on COLOURED pytest output matches NOTHING — a false
-all-green, in the flattering direction** (ANSI escapes precede the `F`: my
-extraction once reported zero failures beside a `41 failed` summary; `code-search`
-carries the trap since 2026-09-21). Never pipe
-a BACKGROUND command through `grep` either — the task file then holds only the
-filtered output and the evidence cannot be re-extracted. Always `--color=no`,
-redirect FULL output to a file, filter afterwards. → L-069
+**H13. Never pipe a BACKGROUND command through `grep`** — the task file then
+holds only the filtered output and the evidence cannot be re-extracted. Always
+`--color=no`, redirect FULL output to a file, filter afterwards. [rule:
+`code-search` carries the coloured-`^FAILED` false all-green] → L-069
 
-**H14. THREE greps, three answers — run ≥2 and reconcile numerically.** `grep`
-here is a shell FUNCTION wrapping `ugrep`; `command grep` is real BSD grep;
-`git grep` is tracked-only. ⛔ The wrapper does NOT honour `.gitignore` (this file
-once claimed it did, which would have certified an inflated count as clean):
-`[M]` same query over `docs/` — wrapper **514**, `command grep` **793**,
-`git grep` **11**. Use `git grep` as the source-truth filter and `command grep`
-as the ignore-blind upper bound. ⚠ `git grep -- .claude` sweeps `plans/` and
-`agent-memory/` too: restrict the path list to the SAME trees or a denominator
-reads as a discrepancy. → L-071
-
-**H15. A `grep -rl` FILE COUNT over a repo with build trees is an artifact count
-until you exclude them — and the inflation always argues for the conclusion its
-author already reached.** `--include=*.py` does not save you; `_build/` holds
-`.rst` sources. ⟹ on ANY file-count claim: `--exclude-dir=_build
---exclude-dir=__pycache__ --exclude-dir=.nexus`, confirm with `git grep -l` (a
-second, independently-chosen filter), then `git check-ignore` + `git ls-files
-<tree> | wc -l` to prove the excluded tree is untracked. `[M]` a design
-assembly's sole quantitative blocker read "529 files reference the name"; **503
-of the 529 sat in eleven stale `docs/_build/html_*` trees, gitignored, 0 tracked
-files** — true radius **26**, 20× high, in the direction that made "don't rename"
-look forced. → L-090
+**H14+H15. THREE greps, three answers — run ≥2 and reconcile numerically.**
+[rule: `code-search` owns ugrep, `--exclude-dir=_build` and `git grep` as
+tracked-only] ⛔ The wrapper does NOT honour `.gitignore`: `[M]` same query over
+`docs/` — wrapper **514**, `command grep` (BSD) **793**, `git grep` **11**. Use
+`git grep` as the source-truth filter and `command grep` as the ignore-blind upper
+bound; `git grep -- .claude` sweeps `plans/` and `agent-memory/` too, so restrict
+both counts to the SAME trees. On a FILE-COUNT claim also exclude `__pycache__`
+and `.nexus`, and prove the excluded tree untracked (`git check-ignore`,
+`git ls-files <tree> | wc -l`): the inflation always argues for the conclusion
+its author already reached (`[M]` 529 files, 503 in stale gitignored
+`docs/_build/html_*` trees, true radius 26). → L-071, L-090
 
 **H16. The session scratchpad is SHARED by every agent of the session — a copy or
 probe at a generic path (`cp/`, `p1.py`) may be another agent's.** `mkdir -p` and
@@ -674,61 +665,25 @@ imports the extraction did not write. ⟹ every copy and probe lives under one
 fresh directory named for the review (`qa_<unit>_<hash>/`, `test -e` first), and
 a background battery's default 30-min limit is raised (`timeout`) or the battery
 split, then the mutated file is diffed against `git show <hash>:<path>` after a
-kill. `[M]` 2026-10-24, WF2.3 S5: `p1.py` printed another agent's probe output;
-the battery was killed at its limit with `reference_body.py` left mutated. → L-105b
+kill. `[M]` 2026-10-24: `p1.py` printed another agent's probe output; the battery
+was killed at its limit with `reference_body.py` left mutated. → L-105b
 
 ---
 
-- **A reaper keyed on a process-name pattern owns every process with that pattern.** Run nothing that spawns
-  the pattern while a battery reaps, or reap by process group. check: a red whose child stderr is EMPTY is a
-  kill until shown otherwise; re-run it uncontended. → L-096
-
 ## I. Retired INTO the skills and rules — point, don't restate
 
-Each row was a digest rule until this pass; its correction now lives at the named
-clause. Open the archive only for the ORPHEUS war story.
-
-| Retired rule | Now lives at | Archive |
-|---|---|---|
-| mutate per CALL SITE after a hoist (A12) | `vv-principles` #17(d) | L-074 |
-| red set == the NAMING set ⟹ no consumer (A13) | #17(e) | L-075 |
-| a two-stage census needs a control per STAGE (A17) | #17(g) | L-079 |
-| `arm k+1` is the repair the message prescribes; a config option once per CONSUMER kind (A21) | #17(i), #17(a) | L-082 |
-| mutate INSIDE the object's algebraic class (A8) | #18 | L-063 |
-| one control PER STATE a predicate accepts (A9) | `instrument-doctrine` X2, census protocol (7) | L-067 |
-| an α-normalised-AST check before crediting a "control" (A16) | #34 + X4 | L-077 |
-| a traffic census is per-INSTANCE, not an arm inventory (A14) | #29 (a)–(g) — ⛔ logged here as "OWED"; it LANDED | L-073, L-076 |
-| a guard keyed on OPTIONAL METADATA is inert where the field is `None` | #28 — landed; the ORPHEUS figure is **7 of 13** SN/diffusion bindings, not 8 | L-073 §2 |
-| a `slow`-only catcher is zero canonical coverage (B4 and the duplicate E7) | #36 | L-053, L-079 |
-| `catches` markers decay; re-verify per review (E2) | § "Log every caught bug" | L-031, L-054 |
-| `xfail(strict)` is satisfied by ANY failure (E4) | Mode 8(4) | L-008 |
-| read `-rs` skip reasons (H10) | Mode 8(6) | L-061 |
-| no bare `assert` in your own `-O` probe (H1) | Mode 8(1) + `coding-standards` § "A bare `assert`" | L-052 |
-| a TOLERANCE sweep needs its iteration count beside every row (A19) | #13, fifth disguise | L-080 |
-| a "behavior-neutral" claim holds for the ONE contract it was proven against (F1) | #12 | L-045, L-048 |
-| RUN the designed-green mutation; both directions are real (F3) | Mode 12 | L-058 |
-| an "honest cost" is a COMPARISON, not an absolute (F15) | #24(c) | L-068 |
-| a done-when or tell wider than the design's scope is DESIGNED-RED (F18) | `plan-authoring` §10 DESIGNED-RED | L-072 |
-| "X is not data of this operation" is decided at the CODOMAIN constructor (F19) | #30 | L-072 |
-| an overloaded unit name can invert a study's conclusion (F21) | #35 | L-078 |
-| two probes over one codebase share its conventions — close them against PHYSICS (F22) | #35 companion | L-078 |
-| large ULP at small magnitude; one-geometry huge-ULP = stale snapshot (D4) | § Bit-identity + `bug-signatures` Sig-10 | L-022, L-024, L-028 |
-| a retirement's CONCEPT grep covers hyphenations; no `automodule` ⟹ grep is the only gate (D12) | `retirement-audit` B.7, A.2 | L-064 |
-| a bundled change's per-artefact NULL reason, checked per mechanism (D14 half) | #25 | L-069 |
-| a refinement ladder `8/16/32/64` is ONE congruence class | #13, third disguise | L-068 |
-| validating an ADJUDICATING instrument (basis / rank-correlation / cost) | #24 | L-068 |
-| test count ≠ coverage; heterogeneous + multi-group + refinement | #3, #4; `bug-signatures` H1–H5; AGENT.md #5 | L-001 |
-| Mode-11 gate-never-executes-the-rewired-path + the plugin sentinel | Mode 11 | L-018, L-031, L-033, L-043 |
-| a mandatory-parameter flip's census is production ∪ TEST constructions (10 vs **165**) | `plan-authoring` §6b | L-073 |
-| the metric is INERT on a spatially-diagonal operator (`[G,Aᵀ]=0`), so no `.H` gate witnesses the flip; the honest witness is a construction refusal | #19 + Mode 12 | L-073 §2 |
-| ⚠ Sig-10's sibling-pass discriminator is VOID for a single-geometry carve — bisect instead | `bug-signatures` Sig-10 | L-069 |
-| a branch credited without a measured activation count (B8) | `instrument-doctrine` X1, activation count | L-016, L-059 |
-| a green gate is nothing until RED; the SN `.apply`/`.solve` role contract | `qa/AGENT.md` #11/#10 + the role memo | §A |
-
-**F27. A guard in `__post_init__` and a retired dataclass field are both
-blind to unpickling: a value persisted before the carve loads as the new type
-with the old field in `__dict__`.** check: pickle the retired spelling in the
-pre-carve tree (`git archive <base>` into tmp, run from there) and load it in
-the carved tree; a silent load is the finding, a `__setstate__` that refuses
-is the fix. Extends `retirement-audit` (no persisted-state clause) and
-`coding-elegance` Pattern 4's `replace` corollary. → L-094
+These digest rules retired into a skill or rule clause; the ledger (rule →
+clause → archive ID, with the ORPHEUS figures) is the `## Ledger` section at the
+end of `lessons_archive.md`. Before writing a new rule, check it is not one of
+these. `vv-principles`: A8 (#18), A12 (#17d), A13 (#17e), A16 (#34 + X4), A17
+(#17g), A19 (#13, fifth disguise), A21 (#17i, #17a), the A14 claim (#29), B4
+(#36), D4 (§ Bit-identity + Sig-10), E2 (§ "Log every caught bug"), E4 (Mode
+8(4)), F1 (#12), F3 (Mode 12), F15 (#24c), F19 (#30), F21 and F22 (#35), H1
+(Mode 8(1)), H10 (Mode 8(6)), plus the optional-metadata guard (#28), the
+congruence-class ladder (#13), the adjudicating instrument (#24), Mode 11 and
+test count ≠ coverage (#3, #4, H1–H5). `instrument-doctrine`: A9 (X2 census
+(7)), B8 (X1 activation count), the production ∪ TEST construction census (X2
+census (1)). `retirement-audit`: D12 (B.7, A.2), the A23 core (item 19).
+`plan-authoring` §10 and `instrument-doctrine` X1 full-success reading: F18 (DESIGNED-RED). The qa definition: F6 (§3 "the
+promised against the shipped"), make-it-RED and the behaviour-neutral retype
+(§3).

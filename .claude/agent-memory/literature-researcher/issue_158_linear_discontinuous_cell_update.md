@@ -513,3 +513,20 @@ caution + Gaps).
    moment system AND the diffusion-limit proof. Cross-reference
    LewMil only for the positivity-fixup menu (item 4); do not block on
    acquiring it.
+
+## The Adams-Martin sign flag is settled (moved from the index, 2026-11-16)
+
+The entry above lists "printed slope-redistribution signs vs naive basis
+integrals" as an open flag on Adams-Martin 1992 Appendix A. The second round
+of `scratch/lit_ld_curvilinear_sources.md` (2026-08-25) settles it: the
+printed minus on the two slope-coupled redistribution terms of (A.1a)/(A.1b)
+is a published typo. The four weights form one symmetric positive-definite
+Gram matrix `[[r_kΔr, Δr²/6], [Δr²/6, r_kΔr/3]]`, all with a plus sign, and
+five independent sources in that memo (its section Q6c) agree. A conservation
+check does not detect the sign.
+
+The memo's own caveat stays attached: the five sources fix the matrix to
+implement, but whether the authors meant a typo or an unstated sign convention
+cannot be recovered from the paper. The memo is an untracked scratch file;
+this paragraph was copied from it on 2026-11-16 and the paper was not read
+again.

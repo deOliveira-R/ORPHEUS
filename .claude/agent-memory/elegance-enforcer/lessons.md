@@ -5,61 +5,60 @@ the verdict?" Read this every dispatch.
 
 **Scoping — check these three owners before adding anything here.**
 - The pattern/anti-pattern CATALOG is the preloaded `coding-elegance` skill. NEVER
-  restate it; cite it (`Pattern N`, `anti-#N`). Several lessons that used to live here
-  were PROMOTED INTO the skill — anti-#20 ⊃ L-001, Pattern-4 `replace()` ⊃ L-008,
-  Pattern-6 self-conceding-trim ⊃ L-007, anti-#19 ⊃ L-012. What survives below is only
-  the *detection* half: how the smell LOOKS in a diff, and how I verify it.
-- The institutional SMELLS (twin-delivery plumbing, role grid, fuller-view oracle,
-  tells-to-grep) are AGENT.md §"Institutional knowledge".
-- The three-leg VIOLATION standard (name the future edit / coextensive-today→NIT /
-  verify the LIVE tree) is AGENT.md §"The VIOLATION standard". It governs every
-  verdict by definition; each lesson below is one face of it.
+  restate it; cite it (`Pattern N`, `anti-#N`). Lessons PROMOTED INTO the skill —
+  anti-#20 ⊃ L-001, Pattern-4 `replace()` ⊃ L-008, Pattern-6 self-conceding-trim ⊃
+  L-007, anti-#19 ⊃ L-012 — survive below only as the *detection* half: how the smell
+  LOOKS in a diff, and how I verify it.
+- The institutional SMELLS (twin delivery, role grid, the tells) are the definition's
+  §5 "Recurring shapes"; the scope, inward-reread, guard-classing, two-pass and
+  three-leg standards are its §1–§4. Each lesson below is one face of them.
+- The retirement audit is the preloaded `retirement-audit` skill; search hygiene
+  (`_build`, ugrep, positive controls) is the `code-search` rule and X1.
 
 **War stories, `file:line` forensics, per-review inventories → `lessons_archive.md`**
-— the byte-identical predecessor of this file; `→ archive L-NNN` points at its headings.
-L-NNN ids are load-bearing: sibling memo files cite them.
+— `→ archive L-NNN` points at its headings (L-001..L-019 there; L-021 onward are
+whole here unless the archive's appendix holds an earlier wording). L-NNN ids are
+load-bearing: sibling memo files cite them.
 
-## Standing review order (every dispatch)
+## Standing review order (every dispatch, after the definition's §1–§4)
 
-0. **⭐⭐ ADVERSARIAL PHASE FIRST — see L-020.** Never open with a balanced
-   survey. Ask "how would I BREAK this" (silent wrongness, weighted to defects
-   that fail in the REASSURING direction) and "how would I make this 100×
-   better" (reframe the JOB). Balance, and every "well-factored / do not touch",
-   is Phase 2 — written as a WITHDRAWN ATTACK with the reason you expected a
-   defect.
-1. **Scope from the LIVE tree, never the brief.** `git status --short` + `git diff
-   --stat HEAD` FRESH. Untracked (`??`) files never appear in `git diff` and are the
-   easiest coverage to miss — then grep the tested SYMBOLS across `tests/`. (L-011)
-2. **A surprising NULL is a tooling bug until re-verified with a differently-spelled
-   grep.** This self-catch fired three times and each time was about to become a false
-   MUST-FIX: zsh glob-expanded an unquoted `--include=*.rst`; a `\|` was literal under
-   `grep -E`. Never flag an absence off one pattern.
-3. **Filter `_build` on any tree-wide sweep.** Gitignored
-   `docs/_build/html/_sources/**` carries OLD anchor definitions and OLD page paths —
-   an apparent twin that is build cruft. `| grep -v _build`, or `test -f` the source.
-4. **Grade with the three legs.** If you cannot name the future edit that makes the two
-   things diverge, it is a CONCERN or NIT — write it as one.
+1. **Untracked (`??`) files never appear in `git diff`** and are the easiest coverage
+   to miss: after the fresh scope, grep the tested SYMBOLS across `tests/`. (L-011)
+2. **A surprising NULL is a tooling bug until a differently-spelled grep agrees.** Two
+   mechanisms the `code-search` rule does not list, each nearly a false MUST-FIX: zsh
+   glob-expanded an unquoted `--include=*.rst`; a `\|` is literal under `grep -E`.
+
+- **L-020** (restored 2026-11-16; the full text is in git at `8d80dc29^`). The break-it question is "what input makes this
+  confidently return a WRONG answer?"; weight the reassuring direction (a short list, an empty result, a `None`), because the
+  caller cannot tell it from correct. When the data stores `confidence` or `source`, grep whether the RESULT type carries them.
+  A 100× answer explains several independent break-it findings as ONE absence. A withdrawal ("by design, I had not read it")
+  differs from a surviving CONCERN ("the mechanism is real, no live instance exists"). Ask what objects are hiding and what
+  context they share, not which files the methods go into.
 
 ## A. Verify before you flag (leg-3 machinery)
 
 ### L-012 — PROVE a `# type: ignore` is dead; the error-count ratchet is BLIND to it
-`reportUnnecessaryTypeIgnoreComment` defaults OFF, so a dead ignore survives every
-error-count ratchet — and two carves CLAIMED retirements the live tree had not made.
-Don't eyeball: write a throwaway config under `scratch/` mirroring
-`pyrightconfig.json` + that rule as `"error"` + `include` the one file, pass it with
-`-p`, grep the lines (the write-scope hook refuses a config at the repository root). Read-only — never edit the file
-under review. Run it on any file that GAINS **or MOVES** an ignore: a relocated ignore
-can have been dead before the move, and a precedent-setting carve makes the dead ignore
-the template every sibling copies. → archive L-012
+The definition's §4 names the rule (`reportUnnecessaryTypeIgnoreComment`); this is the
+recipe. The rule defaults OFF, so a dead ignore survives every error-count ratchet, and
+two carves CLAIMED retirements the live tree had not made. Write a throwaway config
+under `scratch/` mirroring `pyproject.toml`'s `[tool.pyright]` (there is no
+`pyrightconfig.json` today) + that rule as `"error"` + `include` the one file, pass it
+with `-p`, grep the lines (the write-scope hook refuses a config at the repository
+root). The project config `exclude`s `scratch/`, so set the throwaway's own `exclude`
+and confirm the target file is analysed (`[R]`, recipe not re-run since the config
+moved). Read-only — never edit the file under review. Run it on any file that GAINS
+**or MOVES** an ignore: a relocated ignore can have been dead before the move, and a
+precedent-setting carve makes the dead ignore the template every sibling copies.
+→ archive L-012
 
-### L-017 — "This bound rejects that carrier" is a CONSUMER-site claim — CLI-pyright it
-I built a near-certain SHOULD-FIX by reading a `V bound=Vector` class-generic beside its
-ndarray-driving L0 tests. `npx pyright` on the consumer REFUTED it: a class-level TypeVar
-solves PER-CALL, and an unpinned `V` swallows the mismatch — zero errors at the
-instantiation. Never infer a rejection from the TypeVar declaration; the definition file
-is almost always clean. Run pyright at the CONSUMER and attribute every diagnostic to a
-line. The defensible verdict on a typing carve is earned by production-file pyright-0 +
-a suppression grep, never by the docstring's self-description. → archive L-017
+### L-017 — "This bound rejects that carrier" is a CONSUMER-site claim
+The definition's §4 says pyright at the consumer; the trap it does not name: a
+class-level TypeVar (`V bound=Vector`) solves PER CALL, so an unpinned `V` swallows the
+mismatch — zero errors at the instantiation while the declaration looks strict. Never
+infer a rejection from the TypeVar declaration (the definition file is almost always
+clean); attribute every diagnostic to a line. The defensible typing verdict is
+production-file pyright-0 + a suppression grep, never the docstring's self-description.
+→ archive L-017
 
 ## B. Grading the finding
 
@@ -74,20 +73,12 @@ is not a flag parameter. → archive L-003
 
 ## C. Blast radius — outside the diff, and inside the edited file
 
-### L-016b — A LANDED capability inverts the blast radius onto the stale DEFERRAL CONTRACT
-The mirror of L-004: when a carve flips deferred→implemented, every docstring naming the
-case "raises / deferred" is present-tense-FALSE. The half-cleanup signature — which
-recurred even when the author explicitly applied this lesson up front — is: the
-human-facing **rst ledger** gets rewritten, the machine-facing contracts do not. The four
-sites that keep surviving: the `@runtime_checkable` **Protocol stub**, the **base default**
-docstring the next implementer inherits, the **sibling operator CLASS** docstring, and
-**public operators in files the diff never touched**. Grep the deferred case's name AND
-its prose forms across the whole package, then discriminate BY ARM/SET: a matvec-transpose
-landing does NOT un-defer the transpose-SOLVE; only the adjoint row flips while α/transient
-rows stay genuine future seams. In a campaign-CLOSING phase it is MUST-FIX — "closing #NNN"
-is internally inconsistent with a row still tagged "future seam". Milder siblings: a
-blocker that CLEARED while the deferral stayed true (reason-staled ⟹ SHOULD-FIX); an
-in-diff comment describing a plan the same diff's later commit executed (L-015 in-diff).
+### L-016b — A LANDED capability: the residue `retirement-audit` "The mirror" does not list
+The mirror section carries the four surviving sites, the by-arm discrimination and the
+campaign-closing contradiction; it recurred even when the author applied it up front,
+so run it every time a deferred case lands. Two milder siblings it does not name: a
+blocker that CLEARED while the deferral stayed true (the reason staled ⟹ SHOULD-FIX);
+an in-diff comment describing a plan the same diff's later commit executed.
 → archive L-016 (2nd heading, + its three sharpenings)
 
 ### L-016a — Certifying the ARRIVAL of parked scaffold (the inverse of a gather/split)
@@ -103,38 +94,30 @@ site, outside the diff — read the whole owning file hunting a second definitio
 pointers + an explicit ownership rule + a functional partition; the residual habitat is
 that the ownership rule is unenforced prose. → archive L-016 (1st heading)
 
-### L-018 — A class SPLIT strands an IN-DIFF docstring contradiction — turn the lens INWARD
-After the outward `git grep`, re-read the EDITED file's own module/class docstrings top to
-bottom. The split INSERTED a correct "Two discrimination axes" section spelling
-`SolutionBase.is_eigenvalue` and left the intro 20 lines above still spelling
-`Solution.is_eigenvalue` — one docstring, two spellings of one fact. The recurring
-LLM-refactor shape: ADD corrected prose next to the change, never reconcile the older prose
-the change just falsified. In-diff ⟹ SHOULD-FIX now, unambiguously in scope. Leg-3
-restraint that kept me honest: with no build available I cited the PROSE drift (certain
-from reading) as the finding and flagged the `:meth:`Leaf.moved_method`` xref break as
-"verify on next build" — never upgrade an unverified xref break into the finding itself.
-→ archive L-018
+### L-018 — The inward re-read (definition §1): its grade and its restraint
+An in-diff contradiction (corrected prose added, the older prose it falsified left 20
+lines above) is SHOULD-FIX now, unambiguously in scope. Restraint: with no build
+available, cite the PROSE drift (certain from reading) as the finding and flag a
+suspected `:meth:` xref break as "verify on next build" — never upgrade an unverified
+xref break into the finding itself. → archive L-018
 
 ## D. Elegance calls (where the skill's catalog meets a judgment)
 
-### L-007 — Grep for PRODUCTION consumers before crediting any new predicate/Protocol/ABC
-Catalogued as Pattern-6's self-conceding-docstring trim. Detection: zero production
-consumers + a docstring conceding production won't use it ⟹ TRIM on sight, and retarget
-its tests to the pre-existing lower-level property it was minted to pin. KEEP only if a
-real production consumer lands in the SAME commit. Contrast I nearly over-called: a
-dunder-EMPTY role-marker mixin whose second consumer is IN THE SAME DIFF satisfies
-rule-of-two at landing — and a long docstring on an empty body is ELEGANT there, because
-the content is "absence of a gate," which cannot self-document via code. → archive L-007
+### L-007 — Before crediting a new predicate/Protocol/ABC, grep its PRODUCTION consumers
+Pattern 6's self-conceding-docstring trim is the detection. What it does not say: on a
+trim, retarget its tests to the pre-existing lower-level property it was minted to pin;
+KEEP only if a real production consumer lands in the SAME commit. Contrast I nearly
+over-called: a dunder-EMPTY role-marker mixin whose second consumer is IN THE SAME DIFF
+satisfies rule-of-two at landing — and a long docstring on an empty body is ELEGANT
+there, because the content is "absence of a gate," which cannot self-document via code.
+→ archive L-007
 
-### L-008 — Prefer the emergent invariant-gate over a hand-written dunder
-Catalogued in Pattern 4 (route same-type-producing ops through `replace()`). The review
-move: asked "should this type forbid operation X?", check whether a construction invariant
-already exists that `replace()` will RE-RUN. If yes, an explicit `__add__` override is a
-Pattern-2 duplicate of the law — flag it. If NO invariant exists (flux+flux is
-type-coherent but void), the explicit gate is CORRECT. Caveat worth a clarifying comment:
-`@runtime_checkable` Protocol conformance is method-PRESENCE only, so a gated-arithmetic
-leaf passes `isinstance` and then raises inside a generic accumulator loop.
-→ archive L-008
+### L-008 — Asked "should this type forbid operation X?", look for an invariant `replace()` re-runs
+Pattern 4's corollary flags the explicit dunder that restates an existing invariant. The
+other branch: if NO construction invariant exists (flux+flux is type-coherent but void),
+the explicit gate is CORRECT. Caveat worth a clarifying comment: `@runtime_checkable`
+Protocol conformance is method-PRESENCE only, so a gated-arithmetic leaf passes
+`isinstance` and then raises inside a generic accumulator loop. → archive L-008
 
 ### L-010 — On a library/tooling review, DIFF THE GUARD CLAUSES of sibling methods
 A guard present in N−1 siblings and absent in 1 is the latent bug (symmetry-in-code). The
@@ -158,11 +141,9 @@ that is the intended derivation/impl structural independence. → archive L-019
 ## E. Doc-carve certification (my largest recurring workload)
 
 ### L-013 — A doc gather/split/move is a RETIREMENT review; mechanize it, never eyeball
-Sixteen chapter-carve reviews collapse to seven rules. Instances (all 2026-07,
-COMMIT-READY or 1 MUST-FIX): promotion / multi-span-differential-depth / chapter-MINT /
-DEMOTION / wrapper-dissolution / H1-dissolved-3-ways / fresh-authored chapter / router /
-NO-CHANGE adjudication / notation-harmonization / page-level `git mv`. → archive L-013 +
-Sharpenings 1–16.
+The definition says a carve is reviewed as a retirement and a move is char-diffed against
+`git show HEAD:<page>`; these are the seven rules that make it mechanical (sixteen
+instances, the shapes and sharpenings 1–16: → archive L-013).
 
 1. **The certification kit.** Per-span `difflib` char-diff against `git show HEAD:<page>`;
    full-file `@@`-hunk enumeration (a per-span diff is BLIND to an out-of-span edit);
@@ -178,7 +159,7 @@ Sharpenings 1–16.
    MUST-FIX. A byte-exact traveled span carrying the same spelling ⟹ CONCERN, deferrable
    to the declared harmonization stage. Hold ONLY fresh content to the current standard —
    UNLESS the author touched it, which pulls it back into scope.
-3. **The live finding is ALMOST ALWAYS the external blast radius (L-004), and the author's
+3. **The live finding is ALMOST ALWAYS the external blast radius, and the author's
    blind spots are `tests/` and the FOUNDATION docs.** Causation oracle: `git show
    HEAD:<old page> | grep -c <label>` NONZERO **and** worktree `grep -c` ZERO ⟹ THIS stage
    staled it ⟹ MUST-FIX; both nonzero ⟹ pre-existing ⟹ SHOULD-FIX-for-completeness. Run it
@@ -236,21 +217,17 @@ retirement TOMBSTONES there, and grep each cut tombstone's claimed destination t
 the constraint landed. → archive L-014
 
 ### L-021 — A registry key added ONLY to route to a REFUSAL corrupts every consumer that reads the registry as an INVENTORY
-Detection, and it is grep-then-RUN. When a diff adds table/registry keys whose declared
-purpose is "reach the handler and be refused there" (a decoy key giving a better error than
-"no entry"), the fix is local and the damage is not: **find every site that enumerates the
-registry's keys and run it.** The recurring victim is the sibling error path — a
-`NotImplementedError` that prints `sorted(REGISTRY)` as *"catalogued today"* now advertises
-entries that unconditionally raise, so the message meant to be the map of what EXISTS is the
-one place still selling the retired spelling as live. `[M]` 2026-09-02, #432: 3 decoy
-`Sphere/SO2_a` keys made `SPHERE.quotient(Cn(4))` list 9 entries of which 3 are unobtainable.
-Grading: this is NOT a coextensive-today NIT — *catalogued* and *obtainable* disagree the
-moment the key lands, so leg 2 of the VIOLATION standard is met without any future edit.
-Structural fix to demand: split the two roles (a `_ALIASES` table consulted before the
-registry), never a filter in the message — a filter is the same fact spelled a third time.
-⭐ Generalises §10's shape (a metric invalidated by its own campaign's success) from a NUMBER
-to an ENUMERATED SET: ask of any registry-derived listing, *"after this change, is every
-member still deliverable?"*
+The definition's §4 says "an enumeration by running every site that enumerates it"; this
+is the shape that makes the run decisive. When a diff adds keys whose declared purpose is
+"reach the handler and be refused there" (a decoy key giving a better error than "no
+entry"), the recurring victim is the sibling error path: a `NotImplementedError` printing
+`sorted(REGISTRY)` as *"catalogued today"* now advertises entries that unconditionally
+raise. `[M]` 2026-09-02, #432: 3 decoy `Sphere/SO2_a` keys made `SPHERE.quotient(Cn(4))`
+list 9 entries of which 3 are unobtainable. Grading: not a coextensive-today NIT —
+*catalogued* and *obtainable* disagree the moment the key lands, so leg 2 is met with no
+future edit. Remedy to demand: split the two roles (an `_ALIASES` table consulted before
+the registry), never a filter in the message (the same fact spelled a third time). Ask of
+any registry-derived listing, *"after this change, is every member still deliverable?"*
 
 ### L-022 — A refusal placed in the DERIVATION instead of on the TYPE pays in import edges and re-derived arguments
 The tier question ("where does this new invariant live?") has a cheap tell: count what the

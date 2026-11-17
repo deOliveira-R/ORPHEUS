@@ -69,3 +69,11 @@ the sphere kernel. So when implementing Meaning (2) sphere, the parity
 reduction `ḡ_2(ρ'→ρ) = (ρ'/ρ)·[ḡ_0(ρ'→ρ) - ḡ_0(-ρ'→ρ)]` is already
 mathematically present in the codebase, just for a different purpose
 (criticality determinant vs. spectral kernel). Don't re-derive.
+
+## Path on 2026-11-16
+
+`[M]` 2026-11-16: the files this note calls
+`fn_method/{slab,sphere}/flux_reconstruction.py` are
+`orpheus/derivations/continuous/fn_method/slab/flux_reconstruction.py` and
+`orpheus/derivations/continuous/fn_method/sphere/flux_reconstruction.py`. Both
+exist. The function names above were not checked again.
