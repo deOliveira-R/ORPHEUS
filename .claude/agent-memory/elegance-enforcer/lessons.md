@@ -28,6 +28,13 @@ load-bearing: sibling memo files cite them.
    mechanisms the `code-search` rule does not list, each nearly a false MUST-FIX: zsh
    glob-expanded an unquoted `--include=*.rst`; a `\|` is literal under `grep -E`.
 
+- **L-020** (restored 2026-11-16; the full text is in git at `8d80dc29^`). The break-it question is "what input makes this
+  confidently return a WRONG answer?"; weight the reassuring direction (a short list, an empty result, a `None`), because the
+  caller cannot tell it from correct. When the data stores `confidence` or `source`, grep whether the RESULT type carries them.
+  A 100× answer explains several independent break-it findings as ONE absence. A withdrawal ("by design, I had not read it")
+  differs from a surviving CONCERN ("the mechanism is real, no live instance exists"). Ask what objects are hiding and what
+  context they share, not which files the methods go into.
+
 ## A. Verify before you flag (leg-3 machinery)
 
 ### L-012 — PROVE a `# type: ignore` is dead; the error-count ratchet is BLIND to it

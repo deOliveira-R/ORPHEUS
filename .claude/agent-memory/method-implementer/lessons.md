@@ -2,6 +2,12 @@
 
 Each lesson names the rule, skill or definition clause that does not already carry it (the workflows rule, invariant 6). Retired, each restated by a clause re-verified 2026-11-16: L-002 (this agent's definition, Done, `npx pyright <touched files>` against a `total: 0` baseline), L-003 (`retirement-audit` G.24), L-004 (`retirement-audit` A.1–A.3), L-005 (`process-discipline`, "Mutation-testing an uncommitted file"), L-007 (`vv-principles` Mode 10), L-012 (`coding-elegance` anti-pattern 20). L-010, L-011, L-014 and L-015 were retired on 2026-09-22 and are restored below with only the part no carrier holds. Numbers are not reused.
 
+
+## L-003 (residual, restored 2026-11-16)
+
+- check: after deleting a symbol, grep its module for the short name of every import the deleted body used (`spla.`, `sp.`);
+  an import with no remaining use is part of the retirement (`retirement-audit` G.24).
+
 ## L-001 -- Two typing traps the skill does not list
 
 `coding-elegance` anti-pattern 19 carries the ignore-free fixes for a reduction typed as `int` (`weights @ stacked`), an invariant typevar on a one-directional Protocol (declare the variance) and a stub obscured by a subclass override (`if TYPE_CHECKING:`). Two more:

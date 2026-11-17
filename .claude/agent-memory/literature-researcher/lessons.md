@@ -36,6 +36,10 @@ page). This is how the slot is read.
 
 ## L-003 — A section or equation pointer inside a correct citation is its own claim
 
+- check: a citation that resolves in a database can still be the wrong paper (a real diffusion paper cited for angular SN
+  machinery). Before reusing a citation taken from a docstring or a brief, open the cited paper and find the equation or the
+  construction in it; when it is not there, report the mismatch with the sites that carry it (restored 2026-11-16).
+
 A brief gave the right book and chapter with the wrong subsection: it cited
 the spherical section's equations for the cylinder. The book was right, so the
 citation looked verified.
