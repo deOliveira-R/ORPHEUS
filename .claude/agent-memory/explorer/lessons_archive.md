@@ -1644,3 +1644,184 @@ Salvaged 2026-09-22 from the retired memo `phase5_mu_resolved_primitive_inventor
 > the canonical no-Jacobian form Phase 5 wants.
 
 Still grounded at HEAD on 2026-09-22: `orpheus/derivations/continuous/peierls_nystrom/geometry.py` documents `compute_P_esc_mode`'s `(ρ_max/R)²` surface-to-observer Jacobian (line 3984) and names the "canonical no-Jacobian Mark-Lambert primitive" as a DIFFERENT helper (line 5639). `[M]` a grep for `most.connected|degree.*canonical|hub.*convention` over the digest, `AGENT.md`, the two Nexus skills and `.claude/rules/` found only the `god_nodes` tool descriptions: the caveat existed nowhere else.
+
+---
+
+## Digest and index text retired 2026-11-16 (verbatim)
+
+The memory distillation of 2026-11-16 shortened the entries below in
+`lessons.md` and dropped one block of `MEMORY.md`. Each is copied here as it
+stood at `0d68fc28`, so that a measured figure or an example the digest no
+longer carries can be recovered. The third-level headings are not L-number
+sections: archive §L-046 above is the graph-degree lesson, and the L-046
+copied here is the later, different lesson (the coverage map that goes stale
+during a session). M-4, M-5 and M-6, which several entries point to, retired
+into the definition on 2026-09-22 (§2 and Return).
+
+Two symbols these copies name have left production since they were written
+(`[M]` 2026-11-16, `git log -S` over `orpheus/`): the `apply = _apply_impl`
+alias of L-001 retired in `8d432a5d` (a gate in
+`tests/gates/transport/test_kernels.py` now asserts its absence), and
+`Basis.mass_matrix`, the example of L-032, retired in `cac6d401`.
+
+### The digest's header, as it stood
+Behavioural corrections only: *what mistake did I make exploring, and what
+changed how the NEXT exploration is run?* Each entry is an imperative, its
+tell, and a pointer. The war story behind every entry is cold, in
+`lessons_archive.md` under the same L-number: open a section only when a
+pointer needs checking. The HOW of every Nexus tool is the preloaded skills
+(`nexus-exploring`, `nexus-guide`); the standing directives are the
+definition's sections; neither is restated here. L-numbers are stable
+(topic files cite them); an entry that retired into a directive keeps a
+one-line stub. Rules reach this agent only through a brief's "Rules that
+apply to you" line (`articulation`, `code-search`, `coding-standards`,
+`instrument-doctrine`, `process-discipline`); an entry that restates a clause
+of one of those rules which the brief line does NOT carry is marked
+`[uplift]` and stays until the rule's brief line carries it (none is marked
+today: the 2026-09-21 candidates landed).
+
+### L-001, as it stood in the digest
+
+- **L-001** → the definition §4 (the four searches). Retained sharpening: two
+  constructs make `callers()` lie systematically — `apply = _apply_impl` with
+  `@singledispatchmethod` arms, and Protocol-typed receivers
+  (`solver: EigenvalueSolver`). A dispatch arm's liveness is decided by the
+  ACTUAL input type at the production call site: read the chain, let grep
+  enumerate the `op.apply` sites. → M-4; archive §L-001.
+
+### L-009, as it stood in the digest
+
+- **L-009** A dataclass-FIELD rename is a grep problem: Nexus mints no field
+  node (0 of 75 sites came from the graph). Grep
+  `\.<field>\b|<field>=|<field>:` plus `replace(`, `getattr`, `asdict`. Before
+  any replace strategy, check whether the old token is a substring of an
+  English word (`gains` ⊂ `against`: 679 hits; `loss` ⊂ `lossless`, `role` ⊂
+  `payroll`): grep with and without `\b` and hand the delta to the
+  implementer as a hazard line. → M-3, M-4.
+
+### L-029, as it stood in the digest
+
+- **L-029** A "build the capability vs refuse the input" fork: price the
+  capability's OUTPUT against the incumbent at equal cost (a marginalised LS
+  rule loses seven orders to `gauss_legendre`). "Does the primitive exist?"
+  is per TIER: read the candidate's MATCHING/precondition code, not its
+  docstring's verb (`quotient` refuses anything that moves a node). A guard's
+  QUANTITY may be annihilated by the input class's symmetry (the first
+  moment is 0 on every `O_h` rule). Sweep every shipped rule through the
+  real constructor and read the traceback FRAME. → M-5, M-6.
+
+### L-030, as it stood in the digest
+
+- **L-030** Before instrumenting a seam, `grep -n "return <Type>(\|return
+  _<tail>("` and patch EVERY site: a "the ONE construction site" docstring
+  was false (10 → 24 affected tests, silently). Build the census with two
+  counters at different depths so "config built, seam never reached" is a
+  row you must explain. `[REMEDIED]` the bypass arms have since been folded
+  (`[M]` 2026-09-21: 5 `return _package_solution(`, 0 `return Solution(`).
+  → the definition §3, M-3.
+
+### L-032, as it stood in the digest
+
+- **L-032** Equation-implementer hunt: the `vv-status rationale` naming the
+  answer sits on a NEIGHBOURING label (8 of 17: the test's `pytestmark`
+  comment, a sibling's sentinel, another page) — grep the LABEL across
+  `docs/` and `tests/`, not ±20 lines. A NEGATIVE sentinel ("carries no
+  vv-status because …") is evidence a `vv-status` grep misses. Before
+  `NOTHING:identity`, ask what object the LHS is and grep for a routine
+  returning it (`mass_matrix`, `balance_residual`). `equation_labels=(...)`
+  on case dataclasses are existing declarations. A dataclass field resolves
+  `py:attribute:`, illegal as an `implements` source — escalate to the class.
+  KIND prior: a page of ALGORITHMIC RULES is ~100 % declarable (MC 22 of
+  22), an ALGEBRAIC-LAW page ~50 % (operator algebra 21 of 40:
+  `{identity, law, canonical-form}` → NONE; `{typing-rule, definition}` →
+  look for a declaration site); the CP page's rationale comments answered
+  0 of 15, the tests' `pytestmark` comments all 15.
+
+### L-043, as it stood in the digest
+
+- **L-043** A kwarg's move census is an AST keyword census split BY RECEIVER
+  (148 sites vs 183 grep lines; 54 `La13511Case(scattering_order=…)` were a
+  record-FIELD homonym). Trace the VALUE per entry to where it is last
+  transformed (clamped on `SNSolver.__init__`, padded on the adjoint entries,
+  raw to DSA): a knob "lives" where it is last transformed, and per-entry
+  disagreement makes the move a twin-path repair. Grep the string class
+  (`"X"` in dicts, `cfg.get`) separately. → M-3.
+
+### L-044, as it stood in the digest
+
+- **L-044** A "bit-identical" verdict: state each wall's PREDICATE class
+  (band vs `nulp`/`array_equal`) beside it — every eigen fixture is a
+  `SAFETY × conv_tol` band; the only `nulp=1` walls cover `L + C`. ULP-probe
+  the two spellings at the operator level on a random operand (2–5 ULP
+  apart) and name the pre-carve `nulp` anchor that must be captured. Spy
+  pitfalls: patch the CALLER module's binding (`solver.py` holds its own
+  import; the definer's binding read 0), key the spy on BUILDS not lookups
+  (207 vs 1), assert the exact count. → M-4, M-5.
+
+### L-046, as it stood in the digest
+
+- **L-046** A coverage map built while a peer writes the successor gates
+  goes stale DURING the session: line numbers shifted ~40 lines in one file
+  and a new untracked gate file (B4c successor) appeared after the census.
+  Take `git status --short tests/` at open AND at close, re-derive every cited
+  `file:line` from its anchor last (a script over (file, anchor) pairs), and
+  mark each successor HEAD vs working tree. Not carried by the definition's
+  "close by re-running the empty searches": those re-runs see content, not a
+  NEW file. → M-3.
+
+### L-047, as it stood in the digest
+
+- **L-047** "Would hoisting this lazy import create a runtime cycle?": answer
+  by an in-memory hoist probe (a meta-path loader that inserts the import
+  statement at the top of ONE file's source; one fresh interpreter per import
+  order), never from the module graph alone. The group-level graph
+  underestimates: a package `__init__` executes its siblings, so 5 of 7
+  "needs a lazy hop" typing edges still failed at load time. Tell: the loader
+  must override `get_code`, or the cached `.pyc` skips `source_to_code` and
+  every probe passes silently; print a rewritten/NOT-REWRITTEN flag as the
+  control. Script: `scratch/numerics_untangling/hoist.py` (2026-10-18). → M-5.
+
+### L-048, as it stood in the digest
+
+- **L-048** `git grep -E` here does not honour `\w`: a class-name census
+  spelled `class \w*(Covector|Dual\w*)` returned 0 while `DualSpace` exists.
+  Use ugrep (`grep -rnE "class [A-Za-z_]*(...)"`) and run a sibling pattern
+  that MUST hit as the control in the same call (2026-10-30). → M-3.
+
+### L-049, as it stood in the digest
+
+- **L-049** A shape-membership census over a space's verbs must separate
+  production traffic from GATES that pin a convention: an attributed run
+  (record `PYTEST_CURRENT_TEST`) showed every non-member call came from 7
+  legitimate tests + 1 mutant, which is the half-2 evidence a "refuse at the
+  verb" design needs; the unattributed count alone read as "non-members
+  exist". Plugin: `scratch/layer_dag/ipf_fix/explorer_member_plugin2.py`. → M-3.
+
+### L-050, as it stood in the digest
+
+- **L-050** A runtime per-class verdict from SAMPLES is only as good as the
+  sample key: a cap of 12 samples per (class, verb) was spent on the angular
+  frames, which hid the Petrov–Galerkin homogenisation instance of
+  `FrameAnalysis` (B⊗I on angular, 0.5–1.5 off on the φ-weighted PG frame).
+  Key samples by INSTANCE (parts, shapes, space), or re-run the suspect test
+  files with fresh samples, before calling a class uniform. Exclude rows
+  whose call RAISED from any verdict: refusal gates feed misfits on purpose.
+  A signature row's `first` test names one test, not the call population;
+  to attribute production vs fixture, record the 3-frame caller chain
+  (`sys._getframe`) for the rows in question. Plugin:
+  `scratch/true_ends/census/plug/ends_spy.py` (#707). → M-3.
+
+### The index's section 2, as it stood
+
+Merge status comes from git and GitHub, never from this file.
+Landed milestones live in the theory pages' development history; the open
+backlog is GitHub issues.
+
+- No campaign is in flight for this agent. Every SN campaign it audited is merged (`[M]` 2026-09-21: `b23e972e` and `588f2429` are ancestors of HEAD; #276 CLOSED, record `.claude/plans/archive/adjoint_completion_campaign.md`; no local `feature/sn-adjoint-*` branch exists).
+
+### The index's line for the digest, and the section 3 preamble's last sentence, as they stood
+
+- [lessons.md](lessons.md) — the digest: the lessons no rule, skill or definition clause carries; 33 retired 2026-09-22 (the definition or the preloaded retirement-audit now carries them).
+
+Issue states as of
+2026-09-21.

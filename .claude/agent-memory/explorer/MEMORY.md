@@ -1,53 +1,43 @@
 # Explorer memory index
 
-One line per entry. Behavioural lessons live in `lessons.md` (read FIRST each
-dispatch); their war stories are cold in `lessons_archive.md`; durable
-subsystem shape lives in topic files here, and one that belongs to the project
-is proposed to the orchestrator for its owning page (the definition is
-generated). A hook here is at most 15 words and never restates a lesson. A
-topic file is retired only after a blast-radius audit, never by an index edit.
+One line per entry; a hook is at most 15 words and never restates a lesson.
+Durable subsystem shape lives in the topic files; one that belongs to the
+project is proposed to the orchestrator for its owning page. A topic file is
+retired only after a blast-radius audit, never by an index edit. Merge status
+comes from git, never from this file.
 
 ## 1. Lessons (read first)
 
-- [lessons.md](lessons.md) — the digest: the lessons no rule, skill or definition clause carries; 33 retired 2026-09-22 (the definition or the preloaded retirement-audit now carries them).
+- [lessons.md](lessons.md) — the digest: what no definition clause, preloaded skill or brief line carries.
 - [lessons_archive.md](lessons_archive.md) — the war stories, cold; open one section when a pointer needs checking.
 
-## 2. Active / in-flight state
-
-Merge status comes from git and GitHub, never from this file.
-Landed milestones live in the theory pages' development history; the open
-backlog is GitHub issues.
-
-- No campaign is in flight for this agent. Every SN campaign it audited is merged (`[M]` 2026-09-21: `b23e972e` and `588f2429` are ancestors of HEAD; #276 CLOSED, record `.claude/plans/archive/adjoint_completion_campaign.md`; no local `feature/sn-adjoint-*` branch exists).
-
-## 3. Durable reference (topic files)
+## 2. Durable reference (topic files)
 
 A topic file records the tree at its date; a present-tense finding inside one
-is a claim to re-verify before it is repeated. Issue states as of
-2026-09-21.
+is a claim to re-verify before it is repeated.
 
 - [CP equation→code truth](nexus82_cp_implementers.md) — two CP implementations; three zero-arithmetic facades.
 - [Operator-algebra implementers](nexus82_operator_algebra_implementers.md) — 21 of 40 declarable; the KIND split.
 - [Spatial transform category](spatial_transform_category_durable.md) — E(d), not O(3); the translation-group gap.
 - [Angular layer hidden transformations](angular_layer_hidden_transformations.md) — the `μ_x` polar axis; 26-part "octants".
-- [Quadrature landscape](quadrature_landscape_durable.md) — realizations per axis; LS degree tag since build-measured (#337).
-- [Convergence-knob semantics](convergence_knob_semantics_durable.md) — which knobs are the same quantity (#364 OPEN).
+- [Quadrature landscape](quadrature_landscape_durable.md) — realizations per axis; the LS degree tag is now build-measured.
+- [Convergence-knob semantics](convergence_knob_semantics_durable.md) — which knobs are the same quantity (#364).
 - [MoC equation→code truth](moc_equation_implementers.md) — two kernels; no rationale comments on the page.
 - [loss_representation implementers](nexus82_loss_representation_implementers.md) — laws vs computed; a stale resolution note.
 - [Monte Carlo implementers](nexus82_monte_carlo_implementers.md) — 22 of 22 declarable; no private kernel imported by tests.
 - [SN multigroup axis structure](sn_multigroup_axis_structure.md) — three-tier group-blindness; no group loop.
 - [GENDF ingest truncation](gendf_ingest_truncation_and_n2n_probe.md) — every channel Legendre-truncated at ingest; probe traps.
-- [HarmonicMomentField units](harmonic_moment_field_units_convention.md) — why a stored moment carries scalar-flux units.
+- [HarmonicMomentFlux units (the file keeps the class's old name)](harmonic_moment_field_units_convention.md) — why a stored moment carries scalar-flux units.
 - [Harmonic frame + folded quadrature](harmonic_frame_folded_quadrature_plumbing.md) — no computed Gram on the kernel path.
 - [No affine operator — the split convention](affine_operator_split_convention.md) — linear operator plus typed source; a ruling.
 - [SN α ends + ψ½ two-leg block](sn_alpha_and_psi_half_ends.md) — α one-sided; the two ends differ 8 %.
-- [Cylindrical level-order sensitivity](cylindrical_sn_level_order_sensitivity.md) — the half-range fix map (#326 CLOSED).
-- [Non-SN geometric-transform census](nonsn_geometric_transform_census.md) — MoC's two `_orbit_closure` clones; four orbit-sum spellings.
+- [Cylindrical level-order sensitivity](cylindrical_sn_level_order_sensitivity.md) — the half-range fix map (#326).
+- [Non-SN geometric-transform census](nonsn_geometric_transform_census.md) — MoC's two hand-rolled orbit-closure clones; four orbit-sum spellings.
 - [Pyright ignored-package measurement](reference_pyright_ignored_package_measurement.md) — the true error count for an ignored package.
 - [SN k-solve walls + build cadence](sn_k_solve_walls_and_build_cadence.md) — no bit-exact forward wall; one build per outer.
 - [Census predicates: bound reference + traceback](census_predicates_bound_reference_and_activation_traceback.md) — a bound verb reads dead; 3-frame traceback finds the hot client.
 - [Reference producer landscape](reference_producer_landscape.md) — registry mediates ~1 in 9 acquisitions; problem spelled 7 ways.
-- [Peierls Nyström blast set](peierls_nystrom_blast_set.md) — solve vs primitive halves; sole-verifier markers (Q-R2).
+- [Peierls Nyström blast set](peierls_nystrom_blast_set.md) — solve vs primitive halves; sole-verifier markers.
 - [Question and source vocabulary](question_and_source_vocabulary.md) — posings L1, adjoint is arity; intensional source precedent.
 - [Source by method](source_by_method_projection.md) — projection differs, source doesn't; CP/MoC fixed-source renormalise.
 - [Geometry value + mesh verb](geometry_value_and_mesh_verb.md) — StructuredGeometry is the value; BC unhashable; kind spelled 13 ways.
@@ -63,28 +53,28 @@ is a claim to re-verify before it is repeated. Issue states as of
 - [Ray/characteristic machinery map](ray_characteristic_machinery_map.md) — six chord bodies agree; chord_half_lengths straddles branches untested.
 - [Traced-memo client census](traced_memo_client_census.md) — unpickle skips __post_init__ (untraced); MR result all-data; key needs bind.
 - [Geometric computation census](geometric_computation_census.md) — RigidMotion typed, values absent; one quadratic; mesh metrics degenerate.
-- [Characteristic ref: SN consumers](characteristic_reference_sn_consumers.md) — 13 rows, one seam; D9 label collision; #516 name pin.
-- [Characteristic successor map, rows 1-60](characteristic_successor_map_rows_1_60.md) — D5 the only broad successor; no D8/D9/D10/WM-72.
+- [Characteristic reference: SN consumers](characteristic_reference_sn_consumers.md) — 13 rows, one re-point seam; label collisions; pinned names.
+- [Characteristic successor map, old rows 1-60](characteristic_successor_map_rows_1_60.md) — one broad successor law; the laws with no successor.
 - [Characteristic memo stage census](characteristic_memo_stage_census.md) — dry-run stub census; block is the seam; PointValue re-assembles blocks.
 - [Trajectory-resolvent retirement audit](trajectory_resolvent_retirement_audit.md) — origins stay; placement/catalogue/roster gates string-pin deleted files.
-- [C1 three types content identity](c1_three_types_content_identity_census.md) — RigidMotion already value-equal, aliases arrays; 0 runtime eq/hash; S5.9 roster.
-- [C2 cylinder point rows](c2_cylinder_point_row_census.md) — 239 s not 600-1200; 40 of 60 under bypass; row = attenuation rules.
+- [Content identity of three geometry types](c1_three_types_content_identity_census.md) — RigidMotion already value-equal, aliases arrays; 0 runtime eq/hash; a roster gate.
+- [Cylinder point-row cost](c2_cylinder_point_row_census.md) — 239 s per pass; 40 of 60 under bypass; cost is the attenuation rule.
 - [Characteristic slow rows, warm](characteristic_slow_rows_warm_anatomy.md) — 83 s SUT point readings; door matches to 1 ulp; system unkeyable.
 - [Traced-memo miss anatomy](traced_memo_miss_cost_anatomy.md) — manifest 1.8 s of 2.7; version() per code; double parse; fork template equal.
 - [Invariance kernel measure kinds](invariance_kernel_measure_kinds.md) — production asks only sphere-family; kernel pads others; AngularMeasure name taken.
 - [Moment metric slots](moment_metric_slots_and_cross_axis_forms.md) — axis-built spaces refuse cross-axis forms; two LD mass spellings; scheme.mint never built.
 - [Adjointability flag semantics](adjointability_flag_semantics.md) — one flag, "transpose coded"; multi-D sweep True-but-raises; folded L=4 fails kernel condition.
-- [Assembly axis shape](assembly_axis_shape.md) — 4 composite laws not 3; one route consumer; spy recipe (pre-S3).
+- [Assembly axis shape](assembly_axis_shape.md) — 4 composite laws not 3; one route consumer; spy recipe; vintage 2375992d.
 - [Green + sum-inverse seams](green_and_sum_inverse_seams.md) — no production Green; seed dropped by family; .H witness tautology.
-- [S6 dual metric + degeneracy census](s6_dual_metric_degeneracy_census.md) — composite duals Euclidean; V*==V on axes; degeneracy silent pinv.
-- [Operator composite algebra seam](operator_composite_algebra_seam.md) — the pre-S2 shape at 7621fc5f (dunders minted ~99%, operand-type fusion); S2 retired the fusion.
-- [S6b/S6c census facts](s6bc_census_facts.md) — PG superclasses Galerkin; SN leaves annihilate ker G; dual head fails MomentHead.
-- [S7 axis-identity design census](s7_axis_identity_design_census.md) — generated-eq space subclasses; alias-hidden Axis mints; 4 MomentHead doors.
-- [Geometry/numerics package cycle](geometry_numerics_package_cycle.md) — __init__-grain cycle; P1 inject-and-run probe; moves no longer re-key digests (ruling 13).
-- [P1 move probe](p1_geometry_numerics_move_probe.md) — inject-and-run recipe; path-segment hazards; digest/memo hazards retired.
-- [Boundary carve, eleventh exchange](boundary_carve_eleventh_exchange.md) — six string tag tables; law-key readers; spec keys boundaries via geometry.
+- [Dual metric + degeneracy census](s6_dual_metric_degeneracy_census.md) — composite duals Euclidean; V*==V on axes; degeneracy silent pinv.
+- [Operator composite algebra seam](operator_composite_algebra_seam.md) — vintage 7621fc5f: dunders mint ~99%; the operand-type fusion has since retired.
+- [Petrov–Galerkin frame + SN leaf facts](s6bc_census_facts.md) — PG superclasses Galerkin; SN leaves annihilate ker G; dual head fails MomentHead.
+- [Axis-identity design census](s7_axis_identity_design_census.md) — generated-eq space subclasses; alias-hidden Axis mints; 4 MomentHead doors.
+- [Geometry/numerics package cycle](geometry_numerics_package_cycle.md) — __init__-grain cycle; inject-and-run probe; moves no longer re-key digests.
+- [Module-move probe (geometry↔numerics)](p1_geometry_numerics_move_probe.md) — inject-and-run recipe; path-segment and in-string import hazards.
+- [Boundary tag tables + law-key readers](boundary_carve_eleventh_exchange.md) — six string tag tables; law-key readers; spec keys boundaries via geometry.
 - [Transport carrier-surface typing](transport_carrier_surface_typing.md) — 3 of 7 L3 typing imports dead; three carrier-space spellings; getattr_static isinstance.
-- [LD cell basis + moment_layout](ld_cell_basis_and_moment_layout.md) — {1,ξ} Gram diag(1,1/3) is θ; LegendreBasis is angular; five member classes.
+- [LD cell basis (file predates `moment_layout`'s retirement)](ld_cell_basis_and_moment_layout.md) — {1,ξ} Gram diag(1,1/3) is θ; LegendreBasis is angular; five member classes.
 - [Space membership + co-vector census](space_membership_and_covector_census.md) — no verb checks membership; payload-tail gates; energy overlay admitted.
 - [V* density-chart sites](v_star_density_chart_sites.md) — Covector integrated, SourceSink condensed; two sweep conventions; trace metric lacks area.
 - [Broadcast admission class](broadcast_admission_class.md) — ERR-122 is a class: 48 of 61 verbs unguarded; admit_array the only every-run parse.
