@@ -14153,3 +14153,79 @@ text with `-W` silent: `__all__` does not feed an explicit list. Not covered by 
 nor by §2a's `:noindex:` / un-automodule'd case: the module IS rendered, the member is not. Do: for every
 symbol a landing adds that the page will role-reference, grep the api page's `:members:` list for it and
 add it in the same pass (check with an assert over the list, as in this pass's `archivist_check.py`).
+
+## L-125 — digest-only lessons whose full text existed nowhere else (moved from the digest 2026-11-16)
+
+The 2026-11-16 distillation tightened these digest entries; their pre-distillation text was found
+in no archive section (`grep -c` over `lessons_archive.md`: `counter-record` 0, `8-part` 0,
+`forbidden sentence` 0, `phase block` 0), although the digest pointed them at L-114. They are kept
+here verbatim. Four of them (the counter-record, the phase-chain forward-pointer, the tombstone
+recipe, the refusal-era block) predate the `documentation` rule of 2026-09-22 and recommended
+in-body tombstones; the digest now re-homes the past to History, a `.. dropdown::` "first got
+wrong" box or the issue. The reason each one gives still holds.
+
+**The counter-record (digest §1f, verbatim).** When a fix OVERRIDES an artefact that still exists
+and will be read FIRST, the page is a COUNTER-RECORD, not a report. A literature memo's
+implementation note or a plan's pseudocode survives the fix and outranks it in a future search, so
+give the correction its own named subsection and carry the falsifying table VERBATIM (the no-op
+row, the pass, the redundant, the degenerate-coincidence). Without the table the next session
+re-applies the wrong injection point, because the surviving memo says so. The doc-side of
+`process-discipline`'s "a refuted candidate is first-class output": the structural reason must be
+findable *before* the artefact it refutes.
+
+**The two reading paths of a deep phase chain (digest §4, verbatim).** A deeply-nested phase chain
+has TWO reading paths and both need one: a reader scanning the block's top-of-section step summary
+meets the stale terminal claim ~700 lines before the deep tombstone renders, so place a
+forward-pointer `.. note::` at the TOP of the phase block listing which terminal decisions were
+reverted, BESIDE the inline tombstones. One close-out section does not catch a scanning reader.
+
+**The tombstone recipe (digest §4, verbatim).** Preserve the WHY; tombstone, don't delete. Retitle
+to the CONCEPT and KEEP the anchor (a bare `:ref:` renders the new title, so every citer improves
+for free); rename an anchor only when its name encodes a REFUTED concept, counting citers first and
+moving them in the SAME edit. A section corrected twice gets a SECOND dated note beside the first.
+A tombstone is prose you are authoring NOW: it owes evidence, and may only assert what YOUR page
+controls.
+
+**The refusal becoming a capability (digest §6, verbatim).** Five moves, and move 4 stops the
+over-read — keep the diagnosis and past-tense only the verdict · the refusal era verbatim under a ⛔
+with why it was correct then · SPLIT the recorded debt · say what did NOT ride along, measured · a
+new ERR CHAPTER, not a new number, since the landed gates already carry the old `catches`.
+
+**The 8-part peer template (digest §6, verbatim).** A campaign landing step after step into ONE page
+uses a shared 8-part peer `====` template: lead (commit chain · issue · date · one line placing the
+step against its predecessor) · Key Facts, 5–7 bullets, always one honest-scope · labelled
+equations each with its `vv-status` · ONE list-table that is the canonical at-a-glance index · the
+load-bearing rationale, usually a rejected-alternative catalogue (the Cardinal-Rule-3 payload) · a
+numerical-evidence list-table · an honest-scope `.. warning::` framed as the attacker's ABSENCE, not
+a hedge · cross-refs to the predecessors. The per-solver page gets Key-Facts bullets pointing here,
+never a second derivation.
+
+**The forbidden sentence (digest §7, verbatim).** When the WHOLE point is that the obvious reading is
+WRONG, name the FORBIDDEN SENTENCE in an explicit `.. warning::`, verbatim, with the correct framing
+beside it. A future session quoting the page for V&V reasoning meets the warning before the
+misreading. It is the page-level analogue of `vv-principles`' *"NEVER write 'MMS verifies the
+eigenvalue'"*, and it beats a hedge because it is greppable.
+
+**The architecture-pass source ladder (digest §6, verbatim; now carried by the definition §1).** An
+ARCHITECTURE pass has no Branch-1 SymPy, and its source ladder is the OTHER one: rich CODE
+docstrings (module / class / property) → the throwaway instruments in `derivations/diagnostics/`,
+which you READ *and RUN* to confirm every cited number → the commit bodies, which carry the exact
+ULP figures and the rationale, QUOTED → the cross-domain-attacker frame memos, where the hardest
+"why" lives. These ARE the algebra of record there. Pull numerical bounds from the TEST FILES,
+never from a brief's memo estimate.
+
+**The quality self-assessment (digest closing block, verbatim; its directive is gone from the
+definition).** Rate the six dimensions and log the weakest. On TERMINOLOGY / ROUTING / retirement
+passes the weak dimension is routinely "numerical evidence" — structurally ABSENT (no flux moves ⟹
+no convergence table), not a deficit. Say so; do not manufacture one.
+
+**The xref-gate blindness (digest §2b, verbatim; now carried by the definition §2 and #497).** ⛔⛔
+The project xref gate is ROLE-scoped-blind: `DEAD TARGETS: 0` certifies `:mod:` targets and NOTHING
+else, in `.rst` and in `.py` docstrings alike. `judge()` re-checks the target's HEAD carrying the
+ORIGINAL role, so every dead fully-qualified `orpheus.*` target under a non-`mod` role reads
+DECLINED. `[M]` 2026-09-17: a dead `:class:`/`:attr:`/`:meth:` → DECLINED while a dead `mod` →
+DEAD, and the gate printed `DEAD TARGETS: 0` over four live dead `:class:` roles. The 2026-08-24
+"appears repaired" note is REFUTED — it rested on two instruments sharing the blindness. ⟹
+acceptance for a page is YOUR OWN import probe carrying BOTH controls. The one-line fix
+(`head_role = "mod" if "." in target else role`) is still UNLANDED (`[M]` 2026-11-16: #497 OPEN;
+`git grep head_role -- tools tests` 0 hits).
