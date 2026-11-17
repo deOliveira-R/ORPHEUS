@@ -10,6 +10,8 @@ Precedent:
 
 ## The roles, by model
 
+`[REMEDIED 2026-11-16]` The table below is the division as ruled on 2026-10-22/23. Per stage it is superseded by the measured table on the workflows page (`docs/development/workflows.md`, "The stages of a workflow template: model and agent"): the build stage is the `builder` agent, the untyped stages are `executor` and `checker`, and the specification is checked per unit on its final text.
+
 | role | model | does | never does |
 |---|---|---|---|
 | **Orchestrator** | Opus (the main loop) | writes and launches each workflow; owns the user's rulings, the plans, integration (cherry-pick or rebase onto one branch), the full bar (suite, pyright, Sphinx, `dead_references`, census), commits on `main`, push, CI; synthesizes design panels | delegates a ruling, a merge or a push; answers a running workflow agent by `SendMessage` (it spawns a duplicate writer, memory `reference_sendmessage_resumes_duplicate`) |
