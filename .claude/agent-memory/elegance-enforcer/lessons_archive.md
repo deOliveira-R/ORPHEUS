@@ -872,3 +872,23 @@ production numpy einsum vs the SymPy builder is NOT a twin — that is the inten
 structural-independence (each pinned separately: builder by worth-zeroing theorem, production by a
 hand-reference smoke), the algebra-of-record split, not a Pattern-2 violation. (P6 #281 B1/B2
 adjoint-weighted homogenization review, 2026-07-26.)
+
+## L-021 (digest wording before the 2026-11-16 distillation)
+
+Moved here verbatim when the digest entry was tightened; the behaviour is unchanged in the digest.
+
+Detection, and it is grep-then-RUN. When a diff adds table/registry keys whose declared
+purpose is "reach the handler and be refused there" (a decoy key giving a better error than
+"no entry"), the fix is local and the damage is not: **find every site that enumerates the
+registry's keys and run it.** The recurring victim is the sibling error path — a
+`NotImplementedError` that prints `sorted(REGISTRY)` as *"catalogued today"* now advertises
+entries that unconditionally raise, so the message meant to be the map of what EXISTS is the
+one place still selling the retired spelling as live. `[M]` 2026-09-02, #432: 3 decoy
+`Sphere/SO2_a` keys made `SPHERE.quotient(Cn(4))` list 9 entries of which 3 are unobtainable.
+Grading: this is NOT a coextensive-today NIT — *catalogued* and *obtainable* disagree the
+moment the key lands, so leg 2 of the VIOLATION standard is met without any future edit.
+Structural fix to demand: split the two roles (a `_ALIASES` table consulted before the
+registry), never a filter in the message — a filter is the same fact spelled a third time.
+⭐ Generalises §10's shape (a metric invalidated by its own campaign's success) from a NUMBER
+to an ENUMERATED SET: ask of any registry-derived listing, *"after this change, is every
+member still deliverable?"*
