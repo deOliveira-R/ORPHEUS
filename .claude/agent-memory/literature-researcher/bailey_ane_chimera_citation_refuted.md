@@ -75,3 +75,24 @@ curvilinear-LD thread (#158, [[issue-158-linear-discontinuous-cell-update]]).
 See [[morel-montry-tau-angular-cell-edges]],
 [[lathrop-2000-angular-scheme-taxonomy]], [[refs-bib-g2-corrections]],
 [[sphere-sn-pole-closure-canonical]] (the entry-(B) retraction, L-003).
+
+## Status on 2026-11-16 (moved from the index; tree read the same day)
+
+- The repair of the nine citing sites is a re-point to `BaileyMorelChang2010`,
+  not a deletion: the equation numbers the false citation carried (50, 52, 74)
+  are correct for that paper. This sentence stood in the index.
+- `[M]` 2026-11-16: the second defect named above (the comment in
+  `directional.py` crediting its axis names to "Bailey 2009 / Hébert") is
+  remedied. The file is `orpheus/numerics/quadrature/directional.py`; its
+  comment at lines 399–411 now says that both sources assign μ = radial,
+  η = azimuthal, ξ = axial, and that the names used there are the project's
+  own. The line number 292 quoted above is out of date. The comment also says
+  that no audit has yet shown whether any arithmetic depends on the naming.
+- The statement above that the agent definition's notation table is inverted
+  is out of date: the definition's section 3 now gives the mapping this file
+  derives. The pointers `lessons.md` L-001 and `[[lessons-L010]]` no longer
+  resolve to lesson text; their content is the definition's sections 3 and 2.
+- From the retired lesson L-001, not checked again: for the geometry factor in
+  the curvilinear balance equation, start at Bailey-Morel-Chang 2010 §IV,
+  whose asymptotic analysis explains why the factor exists; Lewis and Miller
+  (1984) do not give that analysis.

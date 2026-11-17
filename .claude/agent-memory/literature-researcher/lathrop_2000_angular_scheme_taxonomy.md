@@ -142,3 +142,12 @@ See [[morel-montry-tau-angular-cell-edges]],
 [[reed-lathrop-1970-angular-truncation]],
 [[larsen-morel-2010-review-extraction]],
 [[user-nse-volume-archive]].
+
+## Status on 2026-11-16
+
+- The remark under "Bibliographic corrections" that the DOI string `NSE08-64`
+  appears as an example in the `research` skill is out of date: `[M]`
+  2026-11-16, the skill contains `NSE08-66` 9 times and `NSE08-64` 0 times.
+- The remark that `larsen_morel_2010_review_extraction.md` "carries none of
+  [the] verdict prose" of Larsen-Morel §1.5.1 is out of date: that file
+  records the passage as mined on 2026-08-12.

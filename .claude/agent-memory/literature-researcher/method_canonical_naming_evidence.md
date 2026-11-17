@@ -63,3 +63,13 @@ When asked "what does the literature call X" for an ORPHEUS package:
 3. Quote VERBATIM with paper + page in any naming proposal.
 4. Author names → registry of cases is OK; author names → folder
    name for a *method* is NOT.
+
+## Notes added 2026-11-16
+
+- The index labelled the Westfall-Metcalf quotation "WM-72". The quotation
+  above is from Westfall and Metcalf 1973, NSE 52, 1. `docs/refs.bib` holds
+  two keys, `WestfallMetcalf1972` and `WestfallMetcalf1973`; cite the 1973 one
+  for this quotation.
+- The path `/workspaces/ORPHEUS/scratch/literature/` above is a container
+  path from an earlier set-up; the folder is `scratch/literature/` under the
+  repository root.

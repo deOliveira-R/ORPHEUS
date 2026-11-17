@@ -97,6 +97,8 @@ Cylinder angular derivative is in the RADIAL cosine: Eq. (21)
 
 ## ⛔ NOTATION: R&L's cylinder cosines are a 3-CYCLE off BMC/Hébert
 
+`[REFUTED 2026-11-16]` This section's table is wrong; read "Correction, 2026-11-16" at the end of this file before using it.
+
 | axis | ORPHEUS | **Reed & Lathrop** | BMC / Hébert |
 |---|---|---|---|
 | radial | `mu_x` | **μ** | η |
@@ -149,3 +151,33 @@ I. P. Grant, "Numerical analysis of discrete ordinate methods," *J. Comput. Phys
 ansatz Eqs. (3)/(4) — the closure ORPHEUS ships, (b) the origin of the `[½,1]`
 weight interval, (c) an alternative α determination ("assumes an explicit form for
 α"). ⚠ OA: `is_oa False / closed`, no repo copy — a real acquisition decision.
+
+## Correction, 2026-11-16 — the "3-cycle" notation table above is wrong `[REFUTED 2026-11-16]`
+
+The section "NOTATION: R&L's cylinder cosines are a 3-CYCLE off BMC/Hébert" is
+refuted. Its "BMC / Hébert" column (radial η, azimuthal ξ, axial μ) matches
+the inverted table the agent definition carried until 2026-08-27 and was
+probably copied from it `[R]`. Both
+sources assign μ = radial, η = azimuthal, ξ = axial (Hébert 2009 Eqs.
+3.152/3.157; Bailey-Morel-Chang 2010 Eq. 48; see
+`bailey_ane_chimera_citation_refuted.md`).
+
+`[M]` read on the rendered page 2026-11-16 (PDF p. 7, printed p. 242):
+Reed and Lathrop's Eq. (20) is
+`μ ∂ψ′/∂r + (η/r) ∂ψ′/∂θ + ξ ∂ψ′/∂z − (η/r) ∂ψ′/∂ω + σψ′ = S`, with
+`μ = (1−ξ²)^{1/2} cos ω` and `η = (1−ξ²)^{1/2} sin ω`. Their μ multiplies the
+radial derivative, their η the azimuthal one and their ξ the axial one.
+
+Reed and Lathrop, Bailey-Morel-Chang and Hébert therefore use the same three
+letters for the same three axes. The table's "Reed & Lathrop" and "ORPHEUS"
+columns stand: radial `mu_x` = μ, azimuthal `mu_y` = η, axial `mu_z` = ξ. The
+warning about transcribing Eq. (28) "against a BMC-conditioned reading" falls
+with the table. The remark that their `α′` is area-scaled is unaffected.
+
+The same table stands in the untracked memo
+`scratch/q64_reed_lathrop_findings.md`, lines 562–569. `[M]` 2026-11-16: a
+Python search of 1523 text files under `orpheus/`, `docs/`, `.claude/plans/`,
+`.claude/agent-memory/`, `.claude/skills/` and `.claude/rules/` found the
+claim in no source file and no docs page (control: 30 of those files mention
+"Reed"); the other sites are this file, the index and the line in
+`morel_montry_tau_angular_cell_edges.md` corrected the same day.

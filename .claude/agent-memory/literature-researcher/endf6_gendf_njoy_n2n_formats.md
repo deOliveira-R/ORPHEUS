@@ -161,3 +161,10 @@ Also: MF=6/MT=16 has **`NZ=1`** (not self-shielded) while MF=6/MT=2 has `NZ=6`.
 
 Artifacts: `scratch/specs/{ENDF-102-2018.pdf,endf102.txt,njoy16.pdf,njoy16.txt,n_*.dat,
 openmc_mgxs.pdf,serpent_gc.html,s.py}`. Related: [[lessons]] L-015/L-016.
+
+## Pointer added 2026-11-16
+
+The method that produced the per-nuclide table above (answer the format, the
+evaluation and the processing from three separate sources; parse the real
+evaluated files; reproduce the user's number from the raw data) is lesson
+L-016 in `lessons.md`.

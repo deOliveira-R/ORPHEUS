@@ -79,3 +79,12 @@ drops out because `α_{1/2}=0`, giving a slab-like equation that initializes the
 α-cascade. The APPLY matvec must reproduce this fixed point; the symmetric
 average closure `ψ_{n+1/2} = (ψ_n + ψ_{n+1})/2` does NOT, by exactly the
 factor-of-2 the design memo identifies.
+
+## Status on 2026-11-16 (moved from the index; tree read the same day)
+
+`[M]` 2026-11-16: the citation error this file reports in
+`reduced_operator.py` is remedied. The file is
+`orpheus/sn/mesh/reduced_operator.py`; at line 239 the spherical dome
+recursion is credited to Hébert Eqs. 3.423–3.424 after Lathrop and Carlson
+1966, and the docstring says in so many words that "Bailey 2009 Eq. 50" was
+the wrong citation.

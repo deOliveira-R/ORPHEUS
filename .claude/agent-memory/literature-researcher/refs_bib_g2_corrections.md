@@ -63,3 +63,10 @@ BaileyMorelChang2010=10.13182/NSE08-66, MorelMontry1984=
 10.1080/00411458408211661 (pp 615–633), Pautz2002=10.13182/NSE02-1,
 Pomraning1989=10.13182/NSE89-A23622, Carlvik1968=10.13182/NSE31-295
 (pp 295–303, title recovered), Bickley=10.1080/14786443508561483.
+
+## Entry count on 2026-11-16
+
+The counts above (59 entries, then a 60th) describe 2026-07-22. The index
+later said "74 entries" with no command beside it. `[M]` 2026-11-16:
+`grep -c '^@' docs/refs.bib` prints 97. The corrections ledger above is
+unaffected; do not quote an entry count from this file without counting again.

@@ -190,3 +190,11 @@ with `case-method`, `reflected-bc`, `anisotropic-scattering`,
 is internally consistent, and Tables 2–10 are essentially a
 ready-made benchmark suite for the reflected+anisotropic Sood
 gap.
+
+## Where the method lives in the tree (moved from the index, 2026-11-16)
+
+Section 7 above recommends a new `case_method/` package. The package that
+exists is `orpheus/derivations/continuous/singular_eigenfunction/` (`[M]`
+2026-11-16, directory listing), the name
+`method_canonical_naming_evidence.md` argues for. Atalay's method does not
+extend the `fn_method` package.

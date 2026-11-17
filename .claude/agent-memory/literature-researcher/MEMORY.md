@@ -1,122 +1,128 @@
 # Literature Researcher — Memory Index
 
-**§2 is a negative-lookup inventory** — "have I already extracted this
-paper, and where?" It stays HOT because a miss costs a re-extraction.
-Rows are telegraphic BY DESIGN: key + signature + file. Derivations and
-value tables live in the linked file, greppable there; the row only
-decides whether to open it.
+Section 2 is a negative-lookup inventory: before extracting a paper, search this
+page for it. Each row links one topic file; the link text names the subject and
+the hook says what the file settles. The content is in the file, never here.
+A paper filed under another paper's name is listed in section 3.
 
 ## 1. Lessons
 
-- [lessons.md](lessons.md) — all sixteen lessons retired 2026-09-22 into the definition, the `research` skill and the rules; the file records which.
+- [lessons.md](lessons.md) — Eight lessons no carrier states, and a ledger of where the other parts are carried.
 
 ## 2. Extraction inventory by topic
 
-### Curvilinear / spherical SN
-- [⛔ "Bailey … 2009 Ann. Nucl. Energy 35, 1929-1936" = a CHIMERA, REFUTED](bailey_ane_chimera_citation_refuted.md) — **2026-08-27, 9 ORPHEUS sites.** Not a record: title←LLNL-CONF-407632 (Bailey-Adams-**Chang** 2008, RZ PWLD, OSTI 952424, free), authors←retracted JCP diffusion paper, vol/pages←**Zio & Zoia** BWR MCMC, year←nothing (ANE 35 = 2008). `[M]` only **4** Bailey items in all of ANE, none a match. ✅ The equations are REAL and LOCAL: **BMC 2010 NSE 165 Eq.50 = α dome recursion (R-Z, no factor 2), Eq.52 = the η-ascending per-level ordering (NOT 50), Eq.74 = M-M τ** — already in `refs.bib` as `BaileyMorelChang2010` ⟹ a RE-POINT, not a deletion. ⚠ Eqs. 50 AND 52 are self-referential PUBLISHED TYPOS. The second defect it named in `directional.py` is remedied (the note now states the literature's convention).
-- [⭐⭐ Lathrop 2000 = THE angular-scheme taxonomy](lathrop_2000_angular_scheme_taxonomy.md) — **Q68 2026-08-12** (deliverable `scratch/q68_curvilinear_angular_differencing_survey.md`). 5 schemes, sphere-only. **Eq.30 `[SCAN]`: any τ≠½ is FIRST-order in angle; only the midpoint node is O(Δμ²)**; Table II MEASURES WD losing to plain diamond **up to 3.93×** at grazing cosines, losing set GROWS with N ⟹ ORPHEUS's 2.5–3.0× is the expected published trade. Clamp **6/6 none**. + Larsen-Morel §1.5.1 (LOCAL, absent from its own entry) + **Chaland-Samba 2016 = a real 2-D (μ,φ) closure, NOW LOCAL**. ⛔ Wu-1999/Machorro-2007/Wang-2019 are SPATIAL despite angular titles. `[DB]` BMC = `10.13182/NSE08-66` not `-64`.
-- [Morel-Montry τ + angular cell edges](morel_montry_tau_angular_cell_edges.md) — ⭐⭐ **SETTLED across 3 passes; 31 KB topic file + `scratch/q64_{attempt2_lit_check,morel_montry_findings,tau_edge_convention_literature}.md` hold every derivation.** Headlines only: the **ω-vs-η ruling** (Hébert's cyl quadrature IS equispaced-ω midpoints ⟹ his τ≡½ is barycentric-in-ω; cylinder τ = BMC **Eq.74**, not 42/43); **β tension resolved** (BMC-β scalar ≠ Lathrop-β sequence, proven by reproducing BMC Table I digit-for-digit); **MM-1984 is LOCAL and read end-to-end** — endpoint question CLOSED, barycentric-in-μ wins as M&M's own DECLARED trade, cylinder appendix (A1)-(A4) ratifies the 6.4 partition and ORPHEUS's τ₁→¼ IS their own formula. ⛔ Self-refutations: BMC Eq.52 is NOT a law; β is BLIND on a symmetric equispaced-ω level (gate on ν-closure); BMC's "β=0 determines the MM weights" is FALSE (admits an (N−1)-dim family). ⛔ **Alcouffe-O'Dell / Dudziak-O'Dell-Alcouffe LA-7911-PR (1979) = the cylinder-edge + starting-direction primary, STILL UNREAD** (confirmed as Larsen-Morel ref [26] in Q68).
-- [Reed-Lathrop 1970 angular truncation](reed_lathrop_1970_angular_truncation.md) — ⭐⭐ NSE 41(2):237-248 `[M]`; full extraction `scratch/q64_reed_lathrop_findings.md`. ⭐ **"R&L weighted diamond" ≠ "MM weighted diamond"** — same closure, but R&L's third equation (13b) makes **ordinates OUTPUTS**; cost is their own Conclusions line. **Two solve-free gates**: `(τ−½)/w` bounded under N-refinement; the (13b) residual `O(w²)` POINTWISE. **HAS THE CYLINDER** (§II.B) and **Eq.28b keeps `w` and `Δμ` SEPARATE** = primary licence for weight ≠ cell-measure. `[M]` end-to-end gain product EXACTLY 1 via `τ_{M+1−m}=1−τ_m`. ⛔ NO stability/positivity analysis; R&L cylinder cosines are a 3-CYCLE off BMC. ⭐ **UNREAD: Grant 1968 JCP 2(4):381-402 `10.1016/0021-9991(68)90044-2`** — origin of the ansatz AND of the `[½,1]` (which is Grant's, on the SPATIAL weight).
-- [Slab & curvilinear LD](issue_158_linear_discontinuous_cell_update.md) — LM-1989 JCP 83 (4.1)-(4.3) slab; ⛔ "curvilinear LD unpublished" REFUTED 2026-08-25: **Adams-Martin 1992 NSE 111 App.A (LOCAL) = spherical LD (A.1)-(A.4), per-moment WD closure; printed slope signs are a TYPO (5 sources)**; ⛔ MWS-1996 is SLAB; Palmer-Adams-1993: plain sphere LD FAILS the thick-diffusion limit, FULLY-LUMPED passes. Memo `scratch/lit_ld_curvilinear_sources.md`.
-- [Multi-D LD closure](multi_d_ld_closure.md) — multi-D LD = BI/TRILINEAR DG-P1 (UBLD, MRM-2016 NSE), NOT simplex-P1 (Adams 2001: fails thick-diffusion limit).
-- [Sphere-SN pole closure](sphere_sn_pole_closure_canonical.md) — Hébert §3.9.4 (3.418)-(3.439) IS canonical; the `reduced_operator.py` citation it once flagged is remedied.
-- [Carlson coupled pole](phase_d_carlson_coupled_pole.md) — Hébert (3.432)-(3.435) verbatim; µ=−1 seed on-the-fly; cyl analog (3.407)-(3.410).
-- [Curvilinear sweep directness](curvilinear_sweep_directness_ruling.md) — RULING: DIRECT one-pass (Hébert / BMC / Lathrop-2000); NO published lagged-pole form; sole lag locus = albedo/white outer BC (3.415-3.417).
-- [Central cell r=0 diamond](spherical_sn_central_cell_spatial_order.md) — Hébert §3.9.4 + Stacey §9.9 BOTH plain midpoint diamond; (3.430) φ = VOLUME-AVERAGE = the O(h) MMS gap.
-- [Origin spatial order](sphere_sn_spatial_order_at_origin.md) — NO canonical ref gives an O(h²) central-cell SPATIAL closure (Lathrop 2000 + BMC = ANGULAR only); lead Wu 1999 NSE99-A2095.
-- [Space ⊗ angle separability](space_angle_discretization_separability.md) — splits spatial (Larsen-Morel-Miller JCP 69 1987) vs angular (Bailey-Morel-Chang NSE 165 2010) → tensor-product architecture.
-
-- [Face transmission = Padé](face_transmission_pade.md) — LR-1974 Thm 2 DG(k)=[k/k+1] (FREE Rennes copy LOCAL); MWS-96 Eq.74 LD; DD [1/1] Stacey/Hébert/LMM-87; multi-D DD −1 eig UNPUBLISHED.
+### Curvilinear and spherical SN
+- [The "Bailey 2009, Ann. Nucl. Energy 35" citation is refuted](bailey_ane_chimera_citation_refuted.md) — A fusion of three records; its equations are Bailey-Morel-Chang 2010 Eqs. 50, 52, 74.
+- [Lathrop 2000, the angular-scheme taxonomy](lathrop_2000_angular_scheme_taxonomy.md) — Five sphere schemes; any τ≠½ is first-order in angle; also Chaland-Samba 2016, Larsen-Morel §1.5.1.
+- [Morel-Montry τ and angular cell edges](morel_montry_tau_angular_cell_edges.md) — Sphere and cylinder τ rulings from Morel-Montry 1984, Bailey-Morel-Chang 2010 and Hébert.
+- [Reed-Lathrop 1970, angular truncation error](reed_lathrop_1970_angular_truncation.md) — Their weighted diamond solves for the ordinates; cylinder form; two solve-free gates.
+- [Linear discontinuous, slab and curvilinear](issue_158_linear_discontinuous_cell_update.md) — Larsen-Morel 1989 slab; Adams-Martin 1992 App. A spherical; Palmer-Adams 1993 diffusion limit.
+- [Multi-dimensional linear discontinuous closure](multi_d_ld_closure.md) — Bilinear or trilinear discontinuous elements, not simplex P1, which fails the thick-diffusion limit.
+- [Sphere SN pole closure](sphere_sn_pole_closure_canonical.md) — Hébert §3.9.4, Eqs. 3.418–3.439, is the canonical spherical closure.
+- [Carlson coupled pole](phase_d_carlson_coupled_pole.md) — Hébert Eqs. 3.432–3.435 verbatim; the μ=−1 seed; cylinder analogue 3.407–3.410.
+- [Curvilinear sweep directness](curvilinear_sweep_directness_ruling.md) — Ruling: the sweep is direct, one pass; the only published lag is the albedo boundary.
+- [Central cell at r=0](spherical_sn_central_cell_spatial_order.md) — Hébert and Stacey both use plain midpoint diamond; Eq. 3.430 flux is a volume average.
+- [Spatial order at the origin](sphere_sn_spatial_order_at_origin.md) — No canonical second-order central-cell spatial closure; the lead is Wu-Xie-Fischer 1999.
+- [Space and angle separability](space_angle_discretization_separability.md) — Spatial (Larsen-Morel-Miller 1987) and angular (Bailey-Morel-Chang 2010) diffusion-limit conditions are separate axes.
+- [Face transmission as a Padé approximant](face_transmission_pade.md) — Lesaint-Raviart 1974 Theorem 2; Morel-Wareing-Smith 1996 Eq. 74; diamond difference is Padé [1/1].
 
 ### Angular quadrature
-- [Galerkin quadrature metric + LD mass](galerkin_quadrature_metric_and_ld_mass.md) — GQ1/2/3 (Morel 89/17, Shands 25, LOCAL); W_gal=DᵗD (Sanchez-Ragusa Eq.21); AM (A.4) mass; FL = nodal row-sum; Hansen-Ghrist weighted sheaf.
-- [TY polar quadrature (MOC)](ty_polar_quadrature_moc.md) — NOT local; JNST 44(2):129-136 2007 (5 authors) + Knott-Yamamoto Handbook ch.9 2010 (= what OpenMOC actually cites, so "2007 Table 2" is mis-attributed); NO earlier Tabuchi; bronze-OA-but-Cloudflare; MINIMAX verified, order/range/bound UNKNOWN; weight convention decoded via the LOCAL Hébert-Leonard pair.
-- [LA-3186 + LA-4058 LS quadrature](la3186_level_symmetric_quadrature.md) — #337 FULL: axis-weight ansatz p{ijk}=aᵢ+aⱼ+aₖ = the systematic n>12 class rule; Table I = {4,6,8,12,16,20}, S20 p-column BLANK; "n>22 negative" = LEVEL weights; [M] point frontier S20 (+9.8e-4), S22 LP-infeasible; print μ₁ slips S6/S12/S16.
+- [Galerkin quadrature and the linear-discontinuous mass matrix](galerkin_quadrature_metric_and_ld_mass.md) — Morel 1989 and 2017, Shands 2025, Sanchez-Ragusa 2011; Adams-Martin (A.4) mass integrals.
+- [Tabuchi-Yamamoto polar quadrature](ty_polar_quadrature_moc.md) — Yamamoto 2007 JNST 44(2) is not local; table provenance, weight convention, access status.
+- [LA-3186 and LA-4058, level-symmetric quadrature](la3186_level_symmetric_quadrature.md) — Axis-weight construction, Table I contents, point-weight positivity up to S20, printed rounding slips.
 
-### SN solver / sweep theory
-- [DSA primaries](dsa_primaries_full_extraction.md) — issue #2, 7 sources → `.claude/plans/archive/dsa_literature_memo.md`: Alcouffe 1977 NSE 64:344 (print sign slips; ⅓ not ½) · Larsen I NSE 82:47 (four-step, K_N Table I) · McCoy-Larsen II NSE 82:64 · Morel 1982 NSE 82:34 · A&L 2002 · Adams-Martin 1992 M4S NSE 111:145 · Warsa 2004 k-IRAM. ⚠ NSE-147 TWIN trap; Σw=1 vs A&L Σw=2; absent WWM-147(2) / Yavuz-Larsen'88.
-- [Adams & Larsen 2002](adams_larsen_2002_iteration_theory.md) — PNE 40 FULL → `.claude/plans/archive/phase_i_survey_adams_larsen_2002.md`: ρ_SI=c (2.17/3.30), DSA 0.2247c (2.50/3.65), Krylov Tables 1/2; traps (λ in mfp; cyl µ=angle; OCR ⅓→½).
-- [Morel 1989 SI ≡ apply](morel_1989_si_vs_apply_equivalence.md) — p.75: SI sweep ≡ the linear system IFF angular leakage is lower-triangular; else Jacobi-on-RHS, ρ→1.
-- [Larsen & Morel 2010 review](larsen_morel_2010_review_extraction.md) — 84 pp; NO cyl-SN / adjoint / k-posing / verification; ρ=c + DSA 0.23c; their β ≡ BMC α, α = SPATIAL WD; PDF offset +12.
-- [Method naming evidence](method_canonical_naming_evidence.md) — quotes pinning "singular eigenfunction expansion" (Mitsis / WM-72 / Atalay / Sanchez-1977) vs "trajectory-based/resolvent" (Sanchez 2002/1986, PS-1982).
+### SN solver and sweep theory
+- [Diffusion synthetic acceleration, seven primaries](dsa_primaries_full_extraction.md) — Alcouffe 1977, Larsen 1982, McCoy-Larsen 1982, Morel 1982, Adams-Martin 1992, Warsa 2004; memo path.
+- [Adams and Larsen 2002](adams_larsen_2002_iteration_theory.md) — Where each convergence result sits in the review; notation traps; memo path.
+- [Morel 1989, sweep versus linear system](morel_1989_si_vs_apply_equivalence.md) — Page 75: source iteration equals the linear system only for lower-triangular angular leakage.
+- [Larsen and Morel 2010 review](larsen_morel_2010_review_extraction.md) — Equation map; no cylinder SN, adjoint or verification content; printed-page offset.
+- [Method naming evidence](method_canonical_naming_evidence.md) — Verbatim quotes for the "singular eigenfunction expansion" and "trajectory-based" method names.
 
-### Nuclear DATA formats (ENDF-6 / GENDF / NJOY) — ⭐ a domain the local library does NOT cover
-- [ENDF-6 + GENDF/NJOY, and MT=16 (n,2n) settled](endf6_gendf_njoy_n2n_formats.md) — **2026-08-31, full memo `scratch/n2n_data_format_spec.md` (855 ln).** Both primary specs are FREE + born-digital, one `curl` each (URLs + page offsets in file: ENDF-102 printed=PDF−18, NJOY printed=PDF−14). Headlines: **σ_Xℓ = σ·y·f_ℓ ⟹ σ₁/σ₀ ≡ µ̄ identically AND the multiplicity is ALREADY folded in (`[EVAL]` row-sum = 2.000000 — never ×2 again)**; GENDF record layout + the `NL·NZ` leading FLUX words; **`IG=0` is FISSION-ONLY** (separable χ is a GROUPR construct, not an ENDF object) ⟹ MT=16 structurally cannot have one; **NO ENDF law stores an E-independent spectrum**. ⛔⛔ **NJOY Eq.361: the CM→LAB transform MANUFACTURES ℓ≥1 moments from an ISOTROPIC CM distribution** — so a non-zero σ₁/σ₀ proves nothing on any `LCT=2` file. ⭐ Per-nuclide ENDF/B-VIII.0 census (9 files) — **Be-9 = LAW=7, `LCT=1` LAB, 24E×21µ, the ONE clean case**; Na-23 = MF4/MF5 with a 2-line `LI=1` isotropy declaration (⟹ its NL=1, proving NL is DATA-dependent); B-11/O-16 = LANG=2 Kalbach NA=1; Zr/U = LANG=1 NA→14/15. Q5: ISOTXS retains per-ℓ, WIMS format is P0+TC, and OpenMC (DOI 10.1080/00295450.2019.1571828) applies multiplicity as an **ℓ-independent scalar** = P0 shape wearing a P_N matrix.
+### Nuclear data formats
+- [ENDF-6, GENDF and NJOY: the (n,2n) rulings](endf6_gendf_njoy_n2n_formats.md) — Manual URLs and page offsets; Legendre convention; GENDF record layout; nine-nuclide ENDF/B-VIII.0 census.
 
-### Time (α) eigenvalue spectrum
-- [α existence, Corngold limit, artefacts, k-vs-α](alpha_eigenvalue_existence_spectrum.md) — Lehner–Wing slab α₀ ALWAYS exists (Dorning 2010 wrong); bounded multigroup has NO continuum; non-existence = v→0 thermalization (Mockel/Corngold/Vidav); B&G "pseudo-fundamental".
+### Time (α) eigenvalue
+- [α eigenvalue existence and spectrum](alpha_eigenvalue_existence_spectrum.md) — Lehner-Wing: the slab α₀ always exists; where non-existence arises; Dorning 2010 mis-states it.
 
-### Multi-group source indexing
-- [χ fission-source indexing](peierls_mg_fission_source_chi_indexing.md) — Hébert (3.57)/(3.58): emission χ is purely LOCAL — shares the SOURCE point with νΣ_f and φ.
+### Multigroup sources and collapse
+- [Fission-source χ indexing](peierls_mg_fission_source_chi_indexing.md) — Hébert Eqs. 3.57–3.58: the emission spectrum is local to the source point.
+- [Condensation formulas](energy_condensation_collapse_formulas.md) — Hébert §3.5 and Stamm'ler Ch. VI formulas; group nesting; NJOY weighting; Rahnema 2008 projection.
+- [Adjoint bilinear collapse](adjoint_bilinear_collapse_p6.md) — Bell-Glasstone Ch. 6, Eqs. 6.135–6.136 bilinear weighting; fission dyad; perturbation grounding.
+- [Spherical-harmonic moment projection](sh_flux_moment_projection_root_cause.md) — The moment matrix exists because scattering is anisotropic; Hébert, Brockmann, Ahrens, Fletcher equations.
 
-### Energy condensation / group collapse
-- [Condensation formulas](energy_condensation_collapse_formulas.md) — Hébert §3.5 (3.103)-(3.105)/(3.112 χ) ≡ Stammler Ch.VI(6a-6d); MALOCS REQUIRES nesting, GROUPR/OpenMC re-integrate continuum; NJOY IWT; GEC (Rahnema-Douglass-Forget 2008 NSE 160:41) = projection, rank-0 = flux-wt avg. Memo `.claude/plans/archive/p5_condensation_literature.md`; #274.
-- [Adjoint bilinear collapse](adjoint_bilinear_collapse_p6.md) — P6 #281. B&G Ch.6 [LOCAL]: (6.135) ⟨ψ†σψ⟩; (6.136) scattering = per-pair SINK-adjoint × SOURCE-flux; carriers (6.125)/(6.126); fission dyad χ†_g·(νσ_f)_{g′}; (6.90), δk (6.71). + Hébert Ch3 / Dorning ch8 / Roy ch4. Memo `.claude/plans/archive/p6_literature_memo.md`.
+### Interface currents
+- [Sanchez-McCormick 1982, rank-N currents](rank_n_interface_current_canonical.md) — §III.F is the only rank-N interface-current source in the textbook corpus.
+- [Sanchez-McCormick 1982, Eq. 166](sanchez_mccormick_rank_n_per_face.md) — The Eq. 166 cluster verbatim; the N=2 residual is a missing μ weight.
+- [Rank-N closure in four references](rank_n_closure_four_references_synthesis.md) — Ligou 1982, Sanchez 2002, Stamm'ler Ch. IV and Stacey 2007 are all scalar.
+- [Hébert 2009 Ch. 3, interface currents](hebert_2009_ch3_interface_currents.md) — Angular expansion only for 2-D Cartesian; 1-D curvilinear is scalar; Villarino-Stamm'ler renormalisation.
+- [Stamm'ler 1983, Ch. VI and Ch. IV](stammler_1983_ch6_interface_currents.md) — Ch. VI is SN; Ch. IV is collision probability with scalar currents.
+- [Sanchez 1977, NSE 64](sanchez_1977_nse64_canonical_ic.md) — Rank-3 surface modes, fixed source only; accuracy limits in Tables VI–VII.
+- [No curvilinear double-P_N reference tables](dpn_curvilinear_nonexistence.md) — None exist for cylinder or sphere; Sood 2003 is the surrogate.
+- [Rank-N curvilinear leads](rank_n_ic_curvilinear_literature_leads.md) — Bogado Leite 1998, Krishnani 1982, Mohanakrishnan 1982: read before any novelty claim.
+- [Lambert and Marshak bases](direction_q_lambert_marshak_derivation.md) — Sanchez 2014 NSE 177 is differential P_N, not integral transport; the change-of-basis derivation.
+- [Knyazev 1993](knyazev_1993_cylinder_anisotropic_ic.md) — Atomic Energy 74(5):368–374, the cylinder Ki_{2+k} source; "Knyazev-Selivanov 2014" does not exist.
 
-### SH angular flux → moment projection
-- [SH projection root cause](sh_flux_moment_projection_root_cause.md) — "M exists BECAUSE of anisotropic scattering" STANDS. Hébert (3.55)→(3.54), Brockmann (47), Ahrens LDO (7), Fletcher (7) → HarmonicFrame on Scattering, NOT phase-space.
+### Collision probability
+- [Collision-probability moment integrals](cp_moment_integrals.md) — Slab and cylinder closed forms from Abramowitz-Stegun §5.1 and Hébert §3.4–3.5.
+- [Carlvik 1967](carlvik_1967_finite_cylinder_cp.md) — A two-page note with E_3 kernels; the cylindrical-cell paper is Carlvik 1965, Geneva.
+- [Sphere collision probability and the white boundary](bickley_naylor_sphere_white_bc.md) — The sphere kernel is E_2, not a Bickley function; Hébert §3.8.5.
+- [Bickley function libraries](bickley_function_libraries.md) — Davierwalla 1982, Lorensi 2025 (Ki₁ and Ki₂ only) and Amos 1983 against the in-tree functions.
+- [Cylinder Peierls equation](phase4_cylinder_peierls.md) — Ki₁ against Ki₃, the 1/π prefactor, the two chord branches, the white boundary.
 
-### Interface currents (rank-N / DP_N)
-- [Sanchez-McCormick 1982](rank_n_interface_current_canonical.md) — §III.F = the LONE rank-N source in the corpus; Ligou / Sanchez-2002 / Stamm'ler / Stacey all scalar DP-0.
-- [S-M 1982 Eq.166](sanchez_mccormick_rank_n_per_face.md) — Eq.166 cluster verbatim; the σ_t-dependent N=2 residual = a missing (Ω·n) µ-weight, NOT (ρ/R)².
-- [Rank-N 4-ref synthesis](rank_n_closure_four_references_synthesis.md) — Ligou 1982 + Sanchez 2002 + Stamm'ler Ch.IV + Stacey 2007 all scalar/DP-0; ORPHEUS F.4 IS the textbook closure.
-- [Hébert 2009 Ch.3 IC](hebert_2009_ch3_interface_currents.md) — DP_N matches §III.F.1; only 2-D Cartesian instantiated; 1-D cyl/sph → scalar F.4; Villarino-Stamm'ler renorm.
-- [Stamm'ler 1983 Ch.VI](stammler_1983_ch6_interface_currents.md) — Ch.VI is SN; Ch.IV is CP + scalar (rank-0) IC. NO rank-N IC anywhere in Stamm'ler-Abbate.
-- [Sanchez 1977 NSE 64](sanchez_1977_nse64_canonical_ic.md) — PDF read. Rank-3 = 3 modes/face; NO multi-collision K_inf (fixed-source only); Class B cap ≈3% (Tables VI-VII).
-- [DP_N curvilinear gap](dpn_curvilinear_nonexistence.md) — no Stepanek-style DP_N k_eff tables for cyl/sphere; Sood 2003 F_N is the correct truth set.
-- [Rank-N curvilinear leads](rank_n_ic_curvilinear_literature_leads.md) — Bogado Leite 1998, Krishnani 1982, Mohanakrishnan 1982 = the only ANE title matches; Bogado Leite orphaned — read before any novelty claim.
-- [Lambert ↔ Marshak](direction_q_lambert_marshak_derivation.md) — Sanchez 2014 NSE 177 is gauge-theoretic at differential P_N, NOT integral CP; solid-harmonic change-of-basis on [0,1].
-- [Knyazev 1993](knyazev_1993_cylinder_anisotropic_ic.md) — *Atomic Energy* 74(5):368-374, DOI 10.1007/BF00844623 = THE cylinder Ki_{2+k} 3-D source; "Knyazev-Selivanov 2014" = phantom.
+### Continuous-μ specular reflection
+- [Continuous-μ specular kernels](phase5_continuous_mu_specular.md) — Hébert §3.8.3 and Sanchez 2002 Eq. 15 multi-bounce forms; the analytical references.
+- [Sanchez 1986, sphere](phase5_sanchez_1986_sphere_specular.md) — Eq. A6 is the continuous-μ multi-bounce specular kernel; the multi-region extension.
+- [Green's-function literature for the sphere](peierls_greens_function_lit.md) — Sanchez 2002 §III treats lattices, not spheres; the recommended formulation rests on Sanchez 1986.
+- [Extensions wishlist](peierls_greens_extensions_lit.md) — Candidate extensions by geometry and boundary condition; which references are local, which wanted.
+- [Pomraning-Siewert 1982 and Garcia 2021](ps1982_and_garcia_extraction.md) — Pomraning-Siewert Eq. 21 vacuum-sphere kernel; Garcia 2021 fixed-source Tables 5, 12, 18.
+- [Three meanings of "Green's function"](sanchez_chandrasekhar_three_meanings.md) — Chandrasekhar's angular function, Sanchez's source-reduction kernel, the trajectory method.
 
-### Collision probability (slab/cyl/sphere kernels)
-- [CP moment integrals](cp_moment_integrals.md) — J_k slab + T_k cylinder closed forms: A&S §5.1 + Hébert §3.4-3.5. Stamm'ler Ch.IV is rank-0 flat-source only.
-- [Carlvik 1967](carlvik_1967_finite_cylinder_cp.md) — PDF read. 2-pp Note, E_3 kernels (cuboid + cylinder); NO Bickley / rank-N. Real Wigner-Seitz CP paper = Carlvik 1965 Geneva Vol.2 p.225.
-- [Sphere CP + white BC](bickley_naylor_sphere_white_bc.md) — sphere kernel = E_2, NOT Bickley/Ki_n (cylinder-specific); Hébert §3.8.5 (3.324)-(3.336); G_bc = 4·P_esc.
-- [Bickley libraries](bickley_function_libraries.md) — Davierwalla 1982 / Lorensi 2025 / Amos 1983 TOMS 609 vs ORPHEUS `ki_n_float` (78 µs; 1e-13). Atkinson F_N floor uses E_1. ⛔ **Lorensi 2025 is Ki₁+Ki₂ ONLY** — never the Ki₃ oracle; Amos (n≥0, 18 digits) and in-tree `ki_n` (50 dps) are.
-- [Cylinder Peierls](phase4_cylinder_peierls.md) — Ki1 vs Ki3, 1/π prefactor, chord branches, rank-N_y white BC, benchmark radii.
+### F_N method and criticality benchmarks
+- [Sood LA-13511 (1999)](sood_fn_method_full_extraction.md) — The 75-problem catalogue and its naming convention; the method is in its references.
+- [Sood 2003 against 1999](sood_2003_vs_1999_extraction.md) — The journal version adds only a multigroup k_inf appendix.
+- [Sood 2003, cylinder values](sood_2003_cylinder_benchmarks.md) — Critical radii for the two one-group cylinder problems; vacuum boundary only.
+- [Kaper-Lindeman-Leaf 1974](kaper_lindeman_leaf_1974_fn_method.md) — Paywalled with no open copy; where else the F_N derivation is printed.
+- [Siewert-Thomas 1986, sphere](sphere_fn_method_extraction.md) — The sphere is the slab with an antisymmetric boundary condition; collocation details.
+- [F_N angular-flux reconstruction](meaning1_already_in_fn_method.md) — The reconstruction already exists in the tree's `fn_method` package; the gap is exposure.
+- [Atkinson product-Nyström](atkinson_product_nystrom_log_kernels.md) — Atkinson 1997 §4.2 and 1972: product integration on a graded mesh for logarithmic kernels.
 
-### Continuous-µ specular (Peierls Green's function)
-- [Continuous-µ specular](phase5_continuous_mu_specular.md) — Hébert §3.8.3 + Sanchez 2002 Eq.15 = the only textbook multi-bounce forms; Sanchez 1986 TTSP / PS-1982 / Milgram 1978 = analytical refs.
-- [Sanchez 1986 sphere](phase5_sanchez_1986_sphere_specular.md) — PDF read. Eq.(A6) IS the continuous-µ multi-bounce specular kernel; T(µ)=1/(1−α·exp(−2aµ)); multi-region via piecewise τ(µ).
-- [Peierls Green's function](peierls_greens_function_lit.md) — Sanchez 2002 §III is LATTICES not sphere; Sanchez 1986 supersedes PS-1982; use Variant α (closure-free op on A6); no sphere-specular k_eff precedent.
-- [Peierls extensions wishlist](peierls_greens_extensions_lit.md) — expansion list across geom/topology/BC/MG/multi-region; 22 PDFs LOCAL; wishlist Garcia 2021 JCP + Knyazev 1993 + Hébert Ch.6-9.
-- [PS-1982 + Garcia 2021](ps1982_and_garcia_extraction.md) — PS-1982 Eq.(21) = structurally-indep vacuum-sphere kernel (NO k_eff → homog-eigval + Sood c_crit); Garcia 2021 fixed-source ONLY, Tables 5/12/18.
-- ["Green's function" 3 meanings](sanchez_chandrasekhar_three_meanings.md) — M1 Chandrasekhar angular G / M2 Sanchez source-reduction kernel / M3 trajectory MoC; cylinder M2 needs Carlvik 1965 / Knyazev 1993.
+### Anisotropic and reflected criticality
+- [Atalay 1997](atalay_1997_reflected_anisotropic.md) — Prog. Nucl. Energy 31(3):229–252; Case singular eigenfunctions, not F_N; Tables 2–10.
+- [Burkart-Ishiguro-Siewert 1976](burkart_ishiguro_siewert_1976_two_region_anisotropic.md) — NSE 61:72–77; Case eigenfunctions, not F_N; Tables I and II, 40 rows each.
+- [Dahl-Sjöstrand 1979](dahl_sjostrand_1979_anisotropic_slab_sphere.md) — NSE 69:114–125; Legendre-Galerkin eigenvalue spectrum for the linearly anisotropic slab and sphere.
+- [Neshat-Maiorino 1980](neshat_maiorino_1980_reflected_slab_fn.md) — Ann. Nucl. Energy 7:79–81; reflected-slab F_N; Table 1 critical thicknesses.
 
-### F_N method (criticality benchmarks)
-- [Sood LA-13511 1999](sood_fn_method_full_extraction.md) — 75-problem catalogue + naming convention; F_N machinery is in KLL 1974 / Westfall-Metcalf / Siewert-Thomas, NOT the report.
-- [Sood 2003 vs 1999](sood_2003_vs_1999_extraction.md) — the journal port adds NO method beyond a general-multigroup k_inf appendix; both are TEST SET, not method papers.
-- [Sood 2003 cylinder values](sood_2003_cylinder_benchmarks.md) — `Ua-1-O-CY` (c=1.30) r_c=1.72500292 mfp; `PUb-1-O-CY` (c=1.40) r_c=1.396979 mfp; Westfall F_N, vacuum-only.
-- [Kaper-Lindeman-Leaf 1974](kaper_lindeman_leaf_1974_fn_method.md) — KLL NSE 54-94 paywalled, NO OA mirror; derivation also in Garcia-Siewert 1979 (paywalled); pivot to Case singular-EF (B&G Ch.2.6).
-- [Siewert-Thomas 1986 sphere](sphere_fn_method_extraction.md) — sphere = slab with anti-symmetric BC (one sign flip); F_α recursion + Chebyshev collocation + X-function reusable from slab.
-- [F_N flux reconstruction](meaning1_already_in_fn_method.md) — KLL X-function + A(ν)/B(ν) Fredholm + `*_angular_flux_from_scalar` ALREADY present (slab+sphere isotropic); gap = API exposure. See `fn_method/{slab,sphere}/flux_reconstruction.py`.
-- [Atkinson product-Nyström](atkinson_product_nystrom_log_kernels.md) — 1997 book §4.2 + 1972 Numer. Math. (both LOCAL); Bickley→log via Ki1(τ)~τ log τ; product-Simpson + q=4 graded mesh = the F_N fix.
+### Bibliography and mathematical foundations
+- [Corrections ledger for `docs/refs.bib`](refs_bib_g2_corrections.md) — Per-entry corrections; trust the bib over an in-text definition; two key consolidations.
+- [Riesz, adjoint, pseudoinverse and frame-letter citations](math_foundations_citations_riesz_penrose.md) — Kreyszig, Lee, Penrose and Moore page citations; which authors write T for synthesis.
+- [Frame and kernel hierarchy sources](frame_kernel_hierarchy_sources.md) — Frame, Markov-kernel and coupling definitions read across two passes; page offsets.
 
-### Anisotropic / reflected criticality (Case-EF & Galerkin)
-- [Atalay 1997](atalay_1997_reflected_anisotropic.md) — PNE 31(3):229-252, NOT in Zotero. Case singular-EF + Fredholm, unified slab/sphere; Tables 2-10 = reflected+anisotropic benchmark suite. NOT F_N → `orpheus/derivations/continuous/singular_eigenfunction/`.
-- [Burkart-Ishiguro-Siewert 1976](burkart_ishiguro_siewert_1976_two_region_anisotropic.md) — NSE 61:72-77, PDF read. Case-EF + Chandrasekhar H; Tables I (Milne endpoints) + II (critical half-thicknesses), 40 rows each. NOT F_N.
-- [Dahl-Sjöstrand 1979](dahl_sjostrand_1979_anisotropic_slab_sphere.md) — NSE 69:114-125. Legendre-Galerkin on Carlvik's integral eq; full c-eigenvalue SPECTRUM (≤11) × {µ̄, d}; PRIMARY for P_1 slab+sphere. NOT F_N.
-- [Neshat-Maiorino 1980](neshat_maiorino_1980_reflected_slab_fn.md) — ANE 7:79-81, PDF read. Reflected-slab F_N (3 boundary integrals → 3(N+1)); unlocks ~10-14 Sood reflected cases; Table 1 τ_c.
-
-### Corpus bibliography (#231 Phase G2)
-- [docs/refs.bib ledger](refs_bib_g2_corrections.md) — 74 entries, pybtex-clean, DOIs CrossRef-verified. **Trust the BIB over any page/docstring definition**; keys immutable, only FIELDS fixed (per-entry ledger in file). Swaps: PS1982→PomraningSiewert1982, Sood1999→SoodLA13511_1999.
-
-### Pure-math foundations citations (functional analysis / geometry / linear algebra)
-- [Riesz legs + frame letters verified](math_foundations_citations_riesz_penrose.md) — Kreyszig 3.8-1 p.188 / Def 3.9-1 p.196; Lee p.26; Penrose Thm 1; Moore 26:394-5. ⛔ Christensen AND Casazza-2000 use T=SYNTHESIS, S=TT*; T=analysis is Casazza-Lynch 2016. Springer `page-one` preview trick.
-
-- [Frame → kernel hierarchy sources](frame_kernel_hierarchy_sources.md) — 2026-09-28 two passes: all frame/Markov/coupling defs READ (AAG, Kaiser, BAG w-frame≠controlled, L-M, Giry, F-M, Cho-Jacobs); page offsets.
-
-### V&V benchmark anatomy / reference caching
-- [Verification error-ontology sources](verification_error_ontology_sources.md) — #405 P2: OT2002 Eq.2, Arioli Eq.12, Atkinson Thm 3.1.1/4.1.2, Trefethen 2008 Thm 4.2-4.3, A&L false conv.; paywalled list.
-- [Verification-case anatomy sources](verification_case_anatomy_sources.md) — #405: Oberkampf-Trucano 2007, ICSBEP (Briggs 2003), Ganapol 2008, ANL-7416 3-level IDs, build-system traces; OSTI flaky (retry).
+### Verification sources
+- [Numerical-error taxonomy sources](verification_error_ontology_sources.md) — Oberkampf-Trucano 2002, Arioli 2013, Atkinson 1997, Trefethen 2008 locators; the paywalled list.
+- [Verification-case anatomy sources](verification_case_anatomy_sources.md) — Oberkampf-Trucano 2007, ICSBEP, Ganapol 2008, ANL-7416 identifiers, build-system trace papers.
 
 ### Tooling
-- [⭐ Tier 0 is BIGGER — the full NSE run on disk](user_nse_volume_archive.md) — `/Users/rodrigo/Downloads/NSE/Vol_NNN(I)_*.zip`, per-article PDFs. **Grep the `unzip -l` listings before EVER calling an NSE paper not-local**; filenames truncate at ~95 chars so grep an EARLY fragment. Copy→rename→`ocr_literature.py`. Also: ⛔ OpenAlex free-text is blind to `S_N` (supernova collision) — use ISSN-scoped CrossRef + Semantic Scholar `get_citations`.
-- [Zotero failover](reference_zotero_flakiness.md) — dead-server signature = 0 hits on known items + conn-refused on port 23119 → Tier 2. Server down? Read a scratchpad COPY of `zotero.sqlite` with `mode=ro`.
+- [The full NSE run is on disk as zip bundles](user_nse_volume_archive.md) — Search the zip listings before calling an NSE paper not local; file names are truncated.
+- [Zotero when the server is down](reference_zotero_flakiness.md) — A read-only fallback through a scratchpad copy of `zotero.sqlite`.
 
-## 3. Active state
+## 3. Papers filed under another name
 
-- **No open literature pull.** Issue states come from `gh issue view`, never from this line.
-- Campaign mentions in topic files are kept for their equations; reconcile any "in-flight" claim against git and `gh`, never a frozen note.
-- "Zotero DOWN this session" notes in topic files are EPHEMERAL — re-query when an item's annotations matter.
-</content>
+- Chaland-Samba 2016 (two-angle closure), Hu-Azmy 2020–2021 and Wu-Xie-Fischer 1999: `lathrop_2000_angular_scheme_taxonomy.md`.
+- Adams-Martin 1992 App. A, Palmer-Adams 1993 and Morel-Wareing-Smith 1996: `issue_158_linear_discontinuous_cell_update.md`.
+- The Bailey-Morel-Chang 2010 equation map and the cylinder cosine map: `bailey_ane_chimera_citation_refuted.md`.
+- Westfall-Metcalf 1973 and Mitsis 1963, as naming quotes: `method_canonical_naming_evidence.md`.
+- Boyd 2019 (OpenMC multiplicity), ISOTXS and the WIMS library format: `endf6_gendf_njoy_n2n_formats.md`.
+- Christensen 2016, Casazza 2000 and Casazza-Lynch 2016, the operator letters: `math_foundations_citations_riesz_penrose.md`.
+
+## 4. Primaries named and still unread
+
+- Grant 1968, J. Comput. Phys. 2(4):381–402, origin of the weighted-diamond node: `reed_lathrop_1970_angular_truncation.md`.
+- Dudziak-O'Dell-Alcouffe 1979, LA-7911-PR, the starting-direction primary: `morel_montry_tau_angular_cell_edges.md`.
+- Bailey-Adams-Chang 2008, LLNL-CONF-407632, a spatial paper: `bailey_ane_chimera_citation_refuted.md`.
+- Bogado Leite 1998, rank-N currents in curvilinear geometry: `rank_n_ic_curvilinear_literature_leads.md`.
+- The body of Yamamoto 2007 (fit order, range and bound): `ty_polar_quadrature_moc.md`.
+
+## 5. Standing notes
+
+- An issue's state comes from `gh issue view`, and a campaign's from git, never from a topic file.
+- A "Zotero down" note in a topic file describes one session; query Zotero again.

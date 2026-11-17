@@ -445,7 +445,7 @@ cosine; inert for A2–A4, but never import M&M's ξ into a B&G/BMC context). ·
 sphere `μ` = streaming cosine · cylinder `μ = sinθ cos φ` = **radial** = ORPHEUS `mu_x`
 · `φ` = azimuth = ORPHEUS `ω` · `θ_ℓ` = level polar · `ξ`-level = θ-level.
 `Σ W_m = 1` (NOT 2) ⟹ **weight = HALF the cell μ-measure**, hence (15)'s `2W_m` and
-(1)'s `2/r` prefactor. ⚠ M&M's letters ≠ BMC's (BMC radial = η, azimuth = ω).
+(1)'s `2/r` prefactor. ⚠ M&M's letters ≠ BMC's (BMC radial = η, azimuth = ω). `[REFUTED 2026-11-16]`: see "Notes added 2026-11-16" at the end of this file.
 
 ### ⭐ Lead opened: the "Miller–Alcouffe" attribution mismatch
 In-text credits *"Miller and Alcouffe"*; **ref. 2 is D. J. Dudziak, R. D. O'Dell &
@@ -458,3 +458,21 @@ quarters. Resolve the exact record before citing. See [[lessons-L012]].
 See [[sphere-sn-pole-closure-canonical]], [[curvilinear-sweep-directness-ruling]],
 [[reed-lathrop-1970-angular-truncation]], [[lessons-L010]], [[lessons-L012]],
 [[lessons-L013]], [[lessons-L014]].
+
+## Notes added 2026-11-16
+
+- Correction. The last sentence of "Notation map (M&M → ORPHEUS)" reads "M&M's
+  letters ≠ BMC's (BMC radial = η, azimuth = ω)". The parenthesis is wrong and
+  contradicts the "Notation traps" section of this same file: in
+  Bailey-Morel-Chang 2010 Eq. (48) the radial cosine is μ and the azimuthal
+  cosine is η, ω being the angle (`[M]` on the scan, recorded in
+  `bailey_ane_chimera_citation_refuted.md`). Whether Morel and Montry's other
+  letters differ from Bailey-Morel-Chang's was not checked again in this pass.
+- Moved from the index. The report this file names as an unread lead
+  (Dudziak, O'Dell and Alcouffe, LA-7911-PR, 1979) is reference [26] of
+  Larsen and Morel 2010, which cites it for the starting-direction flux; the
+  reading is recorded in `lathrop_2000_angular_scheme_taxonomy.md`. The report
+  itself is still unread.
+- The pointer `[[lessons-L013]]` now resolves to L-013 in `lessons.md`, the
+  check that counts a condition's equations against the unknowns it is said
+  to determine.
