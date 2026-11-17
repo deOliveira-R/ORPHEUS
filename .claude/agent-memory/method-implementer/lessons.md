@@ -1,190 +1,103 @@
 # Method Implementer — Lessons
 
-Lessons each name the rule, skill or definition clause they are not already covered by (the workflows rule, invariant 6). Retired 2026-09-22 by the agent-definitions audit (`.claude/plans/archive/agent_definitions.md`, §8 step 3): L-002, L-003, L-004, L-005, L-007, L-010, L-011, L-012, L-014 and L-015, each restated by a clause of `retirement-audit`, `vv-principles`, `coding-elegance`, `process-discipline` or this agent's definition, or duplicated in `ld_curvilinear_shape.md`; numbers are not reused.
+Each lesson names the rule, skill or definition clause that does not already carry it (the workflows rule, invariant 6). Retired, each restated by a clause re-verified 2026-11-16: L-002 (this agent's definition, Done, `npx pyright <touched files>` against a `total: 0` baseline), L-003 (`retirement-audit` G.24), L-004 (`retirement-audit` A.1–A.3), L-005 (`process-discipline`, "Mutation-testing an uncommitted file"), L-007 (`vv-principles` Mode 10), L-012 (`coding-elegance` anti-pattern 20). L-010, L-011, L-014 and L-015 were retired on 2026-09-22 and are restored below with only the part no carrier holds. Numbers are not reused.
 
-## L-001 -- Principled typing beats suppression, every time
+## L-001 -- Two typing traps the skill does not list
 
-The recurring temptation under a pyright-net-new-0 gate is `# type: ignore`.
-It is almost never the right fix; nearly every pyright red I hit had a
-*principled* spelling that ALSO read like the math. The catalogue of
-traps and their ignore-free fixes:
+`coding-elegance` anti-pattern 19 carries the ignore-free fixes for a reduction typed as `int` (`weights @ stacked`), an invariant typevar on a one-directional Protocol (declare the variance) and a stub obscured by a subclass override (`if TYPE_CHECKING:`). Two more:
 
-- **`return sum(generator-of-arrays)` types as `int`** (`reportReturnType`).
-  Fix: spell the reduction as the linear-algebra contraction it IS —
-  a convex average is `weights @ stacked` (a matvec), not `sum(...)`,
-  not `np.sum` (wrong axis). The stacked matrix is the named
-  intermediate (Pattern 3). The math reads `Σ_i w_i χ_i`.
-- **A one-directional Protocol (`evaluate(x:V)->R`) reusing an invariant
-  `V`** reddens `reportInvalidTypeVarUse`. Fix: declare properly-variant
-  typevars — input `contravariant=True`, output `covariant=True`. (An
-  operator's `apply(x:V)->V` is invariant-by-dual-use and emits NO
-  warning — the asymmetry is real, mirror it.)
-- **A base abstract method that subclasses override + the base also has a
-  concrete method calling it** → a runtime `raise NotImplementedError`
-  stub reddens `reportRedeclaration` ("obscured by subclass"). Fix:
-  declare the signature under `if TYPE_CHECKING:`; pyright is satisfied,
-  the runtime override stands.
-- **`isinstance(<concrete>, <Protocol>)` in an intrinsic-property test**
-  trips `reportGeneralTypeIssues` "overlaps unsafely" when the concrete
-  structurally matches. Fix: route through an `object`-typed helper (the
-  runtime check is the deliberate point).
-- **A mode-discriminated attribute** indexed in the OTHER mode: keep it
-  the always-valid type (`axis: int`, default 0, ignored when unused),
-  NOT `T | None`. A legacy attribute meaningful in only one mode → a
-  `@property`, not stored state.
+- **`isinstance(<concrete>, <Protocol>)` in an intrinsic-property test** trips `reportGeneralTypeIssues` "overlaps unsafely" when the concrete type structurally matches. Fix: route the value through an `object`-typed helper; the runtime check is the deliberate point.
+- **An attribute meaningful in only one mode** and indexed in the other: keep it the always-valid type (`axis: int`, default 0, ignored when unused), not `T | None`. A legacy attribute meaningful in one mode only becomes a `@property`, not stored state. This is a typing patch, not a design: an `axis=` on a mathematical object is itself a weld (`coding-elegance`, "A weld is the failure to answer question 1"), so first ask whether the mode should be a type.
 
-How to apply: when pyright reddens on a NEW symbol, find the principled
-spelling FIRST (variance, TYPE_CHECKING, the contraction it actually is).
-Reach for `# type: ignore` only after proving no such spelling exists —
-which, in practice, has not yet happened. (#257 S5/S6/S8b/S4/S3a/S10b.)
+The symptom-to-fix map for the skill's three: `reportReturnType` on `sum(<arrays>)` is the contraction; `reportInvalidTypeVarUse` on a one-directional Protocol is the variance (input `contravariant=True`, output `covariant=True`; an operator's `apply(x: V) -> V` is invariant by dual use and emits no warning); `reportRedeclaration` on a base stub is `if TYPE_CHECKING:`.
 
 ---
 
-## L-006 -- Write the convention crosswalk BEFORE the carve — it is the teeth, not ceremony
+## L-006 -- The seam shapes a crosswalk must have a row for
 
-→ The GENERALIZED directive ("write the crosswalk before any
-convention-crossing carve") is now a standing step in AGENT.md
-(procedural workflow step 3b). The four forensic instances below stay
-here as the recall catalogue of *which seam shapes* bite.
+The directive to write the crosswalk first is this agent's definition (Readiness item 3) and `coding-elegance` "Convention crosswalk". Four seams bit in shipped carves, and none is among the skill's seven axes. The typed-field seam differs from the skill's "packed vs typed layout": that axis is how one quantity is stored, this one is the shape contract of the typed space, which the carve must widen. The first, second and fourth generalise (`candidates.md` of the 2026-11-16 distillation proposed them for the skill); the scan seam is LD-specific:
 
-Every multi-convention carve I shipped had its load-bearing bug exactly
-at the convention seam, and the crosswalk row (had I written it first)
-would have caught it at write-time. The instances, all the same shape:
+- **×V / ÷V reductions.** The ×V form carries an extra `θ·V`; the ÷V form does not. Tabulate which quantity carries θ and which carries V, then write the single-source helper. A first-draft `V·d2` (missing θ) was caught by the d=1 link test against an independently assembled dense primitive.
+- **Mass-weighted versus raw source.** The dense UBLD right-hand side is `M·S`, while `A = (L+C) − S` subtracts the scattering source raw. The matvec residual must be M-normalised, or the slope rows disagree by `θ^{|i|}`; the average row agrees by coincidence because `M_00 = 1` (a degenerate-regime false green).
+- **Scalar scan versus moment scan.** The convex face blend `ψ̄ = (1−w)ψ_in + w·ψ_out` decouples from `ψ_out` only for the flat-source LD. With a slope source the parallel-prefix scan propagates the face chain through a slope-augmented `b` and reconstructs `(ψ̄, ψ̂)` per cell by the Schur complement, not by `cell_average`. The closure's validity regime is a crosswalk row.
+- **Raw `.values` versus the typed field space.** A producer-side lift on raw ndarrays is cheap and byte-identical, but the iterate feeding it is a typed `Field` with a rigid `(ng, *spatial)` space. A crosswalk that maps the sweep, scattering and source plumbing but skips the field-space shape gate under-scopes the carve: the einsum accepts the wider axis and the typed accumulator cannot hold it without widening the space contract.
 
-- **×V / ÷V / ×V-scan reduction conventions:** the ×V form carries an
-  extra `θ·V`; the ÷V form does not. Write the "which quantity carries θ,
-  which carries V" table FIRST, then the single-source helper. A first-draft
-  `V·d2` (missing θ) was caught by the d=1 link-vs-dense-primitive test —
-  the link proof is the teeth.
-- **A "unify the matvec" carve** inherits a source-normalization mismatch:
-  the dense UBLD RHS is mass-weighted (`M·S⃗`) but `A=(L+C)−S` subtracts the
-  scattering source RAW at the OperatorSum. The matvec residual must be
-  M-normalized or the slope rows disagree by `θ^{|i|}` (the AVERAGE row
-  coincidentally agrees because `M_00=1` — a degenerate-regime false green).
-- **A moment-carrying parallel-prefix scan** is NOT a drop-in widening of
-  the scalar scan: the convex face-blend `ψ̄=(1−w)ψ_in+w·ψ_out` decouples
-  from ψ_out ONLY for the flat-source LD. With a slope source the scan must
-  propagate the FACE chain via a slope-augmented `b` and reconstruct `(ψ̄,ψ̂)`
-  per cell via the Schur — NOT `cell_average`. Map the closure-validity
-  regime as an explicit crosswalk row.
-- **The TYPED-FIELD space layer is a crosswalk row of its own.** A producer-side
-  lift on RAW `.values` ndarrays (below the field-space gate) is cheap and
-  byte-identical, but the iterate that FEEDS it lives ABOVE the gate (typed
-  `Field` with a rigid `(ng,*spatial)` space). A crosswalk that maps sweep/
-  scattering/source plumbing but skips the field-space (Pattern-4 shape) layer
-  under-scopes the carve: the einsum accepts the wider axis, the typed
-  accumulator cannot hold it without a space-contract widening.
-
-How to apply: for any carve crossing ×V/÷V, mass-weighted/raw, scalar/moment,
-or typed/raw boundaries, write the crosswalk table to the plan FIRST. The
-load-bearing rows are source-normalization and the field-space shape gate.
-The d=1-reduction link test against an independently-assembled primitive IS
-the catcher. (#240 D5b S1/unified-matvec/owed2-scan/S3-A; coding-elegance Pattern 7.)
+check: the d=1 reduction link test against an independently assembled primitive is the catcher for every row.
 
 ---
 
-## L-008 -- A source-text sentinel (sha256 of getsource) is bit-identity-load-bearing but NOT rename-transparent
+## L-008 -- A source-text sentinel is not rename-transparent
 
-A `sha256(inspect.getsource(...))` pin reddens on ANY identifier rename
-inside the pinned body, even when the FP reduction tree is provably untouched.
-
-How to apply: when a rename crosses such a sentinel, the re-hash is
-mandatory AND must cite the bit-identity proof (the strict regression gate
-stayed green at the same within-tol ULP values), not merely assert it.
-(#257/#241 reaction_xs rename.)
+A `sha256(inspect.getsource(...))` pin reddens on any identifier rename inside the pinned body, even when the floating-point reduction tree is untouched. When a rename crosses such a sentinel, the re-hash is mandatory and cites the bit-identity proof (the strict regression gate green at the same ULP values), not an assertion of it.
 
 ---
 
-## L-009 -- A codomain re-point is value-neutral only because the driver re-attaches — and its blast radius is 3 layers wider than the named leaves
+## L-009 -- A codomain re-point's blast radius is three layers wider than the named leaves
 
-Re-pointing operator matvec leaves from a history-bearing comonad to its
-timeless base is VALUE-NEUTRAL only because the iteration driver re-attaches
-the timed type via the carrier's `__add__` recombine (no `advance` call —
-verify `advance` is dead in production first; it is, for steady-state SI/Krylov).
-The blast radius is THREE layers wider than the named leaf set:
+Re-pointing operator matvec leaves from a history-bearing type (`TimedFullField`) to its timeless base (`FullField`) is value-neutral only because the iteration driver re-attaches the timed type through the carrier's `__add__` recombine; verify first that `advance` is dead on the production path. The surface is wider than the leaf set the brief names:
 
-(a) the shared producers that BOTH operators delegate to (`loss_action`);
-(b) any metric/space helper that hardcodes empty metadata on a rebuilt
-    composite — route it through the polymorphic `_recombine` hook instead;
-(c) EVERY test asserting `isinstance(out, TimedType)` / `out.history_depth`
-    (dozens — they break by design; re-point them to the timeless contract).
+(a) the shared producers both operators delegate to (`loss_action`);
+(b) any metric or space helper that hardcodes empty metadata on a rebuilt composite: route it through the polymorphic `_recombine` hook;
+(c) every test asserting `isinstance(out, TimedFullField)` or `out.history_depth` (dozens; they break by design and are re-pointed to the timeless contract).
 
-The resolvent `solve` is NOT a base arrow — it produces the driver's iterate
-and STAYS timed (covariant, Liskov-safe). Input-dispatch fibration
-(`@singledispatchmethod` on carrier TYPE) is ORTHOGONAL to the OUTPUT codomain.
+The resolvent `solve` is not a base arrow: it produces the driver's iterate and stays timed (covariant, Liskov-safe). Input dispatch on the carrier type (`@singledispatchmethod`) is orthogonal to the output codomain.
 
-How to apply: before a codomain re-point, enumerate the shared producers, the
-metadata-hardcoding helpers, and the isinstance-assertion tests — those are the
-real surface, not the leaf set the brief names. (#257 S8a/S8b.)
+---
+
+## L-010 -- A subclass promotion inherits the action and adds only the name
+
+When a brief says "promote leaf X onto general base B", the subclass body is the name, the back-compatible constructor and the domain-specific algebra dispatch, nothing else: inherit `apply`/`solve`/`apply_transpose` and delete the copied bodies. Keep the legacy attribute surface as properties off the base's field (then: `.sigma` returning `coefficient.values`; `[R]` the example's `.sigma` property was not found in the tree on 2026-11-16, `coefficient.values` is live in `orpheus/sn/operators/streaming.py`), so readers are byte-unchanged with no duplicate storage, and single-source the capability gate by building the engine and inheriting its spectrum, not re-deriving it. Before promoting a σ-dependent action, run L-011's probes.
+
+---
+
+## L-011 -- Prove an operator's affinity in σ before a σ-free or leaf-sum carve
+
+A carve that extracts pure streaming from a matvec monolithic in σ is possible without duplicating the discretisation only if the matvec is affine in σ. Two probes before the carve: `loss_action(0, ψ) == loss_action(σ, ψ) − σ·ψ`, and the candidate σ-free action evaluated at two very different σ returns the same field (the decisive σ-leak test). The σ-free primitive is then `loss_action(0, ψ)` named as its own action, and the production composite stays byte-identical. Today's spellings: `loss_action(self, sigma, psi)` and `streaming_action(self, psi)` in `orpheus/sn/loss_representation/__init__.py` (`[M]` 2026-11-16, signatures read; the probes were not re-run). The teeth for the override-versus-leaf-sum twin are `vv-principles` anti-pattern 17(j). A twin that is value-correct by coincidence shipped no wrong value, so it is a `foundation` gate with `verifies(...)`, not a `catches(ERR)`.
 
 ---
 
 ## L-013 -- The discrete curvilinear WDD/M-M operator is NOT additively separable
 
-A brief asked for the discrete curvilinear matvec to be positively constructed
-from three additive peer-leaves `(L_spatial + L_angular + C).apply(ψ)`, forbidding
-the subtractive form. This is impossible: the continuous operator splits cleanly
-(`Ω·∇ψ + (1−μ²)/r ∂ψ/∂μ`), but the DISCRETE WDD/M-M closure couples the spatial
-sweep and the angular redistribution in the cell balance — they do not commute as
-separate matvec leaves. The honest discrete form is the coupled (subtractive)
-operator.
+A brief asked for the discrete curvilinear matvec as three additive peer leaves `(L_spatial + L_angular + C).apply(ψ)`, forbidding the subtractive form. The continuous operator splits (`Ω·∇ψ + (1−μ²)/r ∂ψ/∂μ`), but the discrete WDD/M-M closure couples the spatial sweep and the angular redistribution in the cell balance; they do not commute as separate matvec leaves, and the landed form was the coupled (subtractive) operator. How to apply: when a brief mandates an additive-leaf decomposition of a curvilinear discrete operator, push back; do not contort the discretisation to fit a continuous-operator algebra the discrete form does not honour (the generic return is this agent's definition, "when the mathematics refuses a structure the plan prescribes").
 
-How to apply: when a brief mandates an additive-leaf decomposition of a
-curvilinear discrete operator, push back — the discrete closure is coupled. Do
-NOT contort the discretization to fit a continuous-operator algebra that the
-discrete form does not honor. (#197 typed-cylinder; landed via the subtractive form.)
+`[R]` possibly refuted, owed a re-measure before anyone cites it (#502): the redistribution operator was later measured to factor as `R = R_spatial ⊗ A_angular` (`.claude/plans/streaming_path_says_what_it_is.md`, finding F1), and that plan's option "remove the angular obligation from the spatial protocol" treats the two axes as separable. A tensor-product factor of one term is not by itself additive separability of the cell balance; measure which holds before relying on this lesson.
 
 ---
 
-## L-016 -- A quotient has TWO realizations; decide which one a predicate speaks BEFORE cataloguing an entry
+## L-014 -- A single-DOF scheme's scalar geometry constant is the corner of a Gram matrix
 
-An orbit space `M/H` is realizable two ways, and they are different objects
-that a single `realization`-style field cannot serve at once:
+When widening a scheme from one degree of freedom per cell to N (DD to LD, a scalar to a moment vector), every shipped scalar geometry constant is the `(0,0)` entry of some Gram matrix. Do not widen by multiplying the scalar into each moment row: derive the weak form and read off which inner product, under which measure, each constant belongs to. The scalar says nothing about the off-diagonal, which can be load-bearing; and the new scheme's `p = 0` truncation is often not the shipped scheme (LD truncates to STEP, not DD). check: before a moment-widening carve, tabulate the measure each term carries in the weighted-residual reduction; the table is the crosswalk. The curvilinear instance, with its numbers: `ld_curvilinear_shape.md`, rulings 1, 2 and 7.
 
-* **the invariant CHART's codomain** -- the image `p(M)` of the orbit map,
-  living in the invariant coordinates. Canonical (derived from the invariants),
-  and the thing the Procesi-Schwarz procedure actually emits.
-* **a fundamental DOMAIN** -- a subset of `M` meeting each orbit once, living
-  in the base's AMBIENT coordinates. This is what a "folded" quadrature ships.
+---
 
-Which one the tree ships is not a style choice; it is forced by the group:
+## L-015 -- Decide a design fork's visibility to the gate by one substitution
+
+`vv-principles` Mode 12 carries the principle (enumerate the stabiliser at gate-design time, the fixture side included). The recipe it does not state: for a design fork, compute `candidate_A − candidate_B` symbolically and substitute the intended gate's fixture. If it vanishes, the gate cannot rank the fork; say so in the plan and name a fixture that does not annihilate it. Two instances: `ld_curvilinear_shape.md`, rulings 2 and 5.
+
+---
+
+## L-016 -- A quotient has two realizations; decide which one a predicate speaks before cataloguing an entry
+
+An orbit space `M/H` is realized two ways:
+
+* **the invariant chart's codomain**: the image `p(M)` of the orbit map, in invariant coordinates; canonical, and what the Procesi-Schwarz procedure emits;
+* **a fundamental domain**: a subset of `M` meeting each orbit once, in the base's ambient coordinates; what a folded quadrature ships.
+
+The group decides which one ships:
 
 | | positive-dimensional `H` (e.g. `SO(2)`) | finite `H` (e.g. a mirror) |
 |---|---|---|
-| `dim(M/H)` | **drops** | **unchanged** |
-| chart as data | a real reduction (3 floats -> 1) | no reduction (3 -> 2, third recoverable) |
-| canonical section? | **no** (any half-meridian; the choice is arbitrary) | **yes** for a REFLECTION (the mirror fixes the half-space, and being fixed pointwise makes the CLOSED half strict) |
+| `dim(M/H)` | drops | unchanged |
+| chart as data | a real reduction (3 floats to 1) | no reduction (3 to 2, third recoverable) |
+| canonical section? | no (any half-meridian) | yes for a reflection (the fixed half-space, closed half strict) |
 | what ships | the chart | the section |
 
-⭐ **Three traps, all measured on `S^2/<sigma_y>` (2026-08-31, memo
-`scratch/sigma_y_orbit_derivation.md`, probe `scratch/probe_sigma_y_orbit.py`):**
+Three traps, measured on `S^2/<σ_y>` (`[M]` 2026-08-31, `scratch/sigma_y_orbit_derivation.md`, `scratch/probe_sigma_y_orbit.py`):
 
-1. **A chart is Mode-12 BLIND to any defect in the coordinate it drops.** The
-   `(x,y,z) -> (x,z)` chart admits the ERR-080 forgery `(mu,0,0)` after
-   projection -- `mu^2 + 0 <= 1` is a *legal* disk point, the orbit of
-   `(mu, +-sqrt(1-mu^2), 0)`. Not a tolerance question: the projection's kernel
-   *is* the error class. ⟹ at design time, intersect the chart's kernel with
-   the threat model before adopting chart coordinates for a membership check.
-2. **The FIRST catalogued entry's accidental shape becomes the field's TYPE,
-   and the second entry is where you find out.** `singular_stratum:
-   tuple[float, ...]` fits `S^2/SO(2)`'s two poles and cannot hold `sigma_y`'s
-   stratum, which is a CIRCLE. The general spelling is already present and
-   un-twinned: the stratum is the vanishing locus of `det_gram` = the
-   realization's topological boundary, in both entries.
-3. **The PRODUCER may already have decided, silently.** `DiscreteMeasure.
-   quotient` does `nodes[representative]` -- a selection of parent nodes, no
-   chart -- so *every* measure the tree derives that way is a section in the
-   base's ambient, by construction. Read the producer before ruling on the
-   type; it is cheaper than the argument.
+1. **A chart is blind to any defect in the coordinate it drops** (`vv-principles` Mode 12, applied to a projection). The `(x,y,z) -> (x,z)` chart admits the ERR-080 forgery `(μ,0,0)`: `μ² + 0 ≤ 1` is a legal disk point. check: intersect the chart's kernel with the threat model before adopting chart coordinates for a membership check.
+2. **The first catalogued entry's accidental shape becomes the field's type, and the second entry is where you find out.** `singular_stratum: tuple[float, ...]` fitted `S^2/SO(2)`'s two poles and could not hold `σ_y`'s circle; the general spelling is the vanishing locus of `det_gram`. [REMEDIED: `[M]` 2026-11-16, the field now holds that SymPy expression, `orpheus/geometry/manifold.py:1383`; the repairing commit was not identified.]
+3. **The producer may already have decided.** `DiscreteMeasure.quotient` (`orpheus/numerics/measure.py:1318`; `[M]` 2026-11-16 by AST) keeps `nodes[representative]`, a selection of parent nodes, so every measure derived that way is a section in the ambient coordinates. Read the producer before ruling on the type.
 
-⚠ And the counting rider that cost a wrong first answer: a *minimality* count
-needs its predicate written down. Counting decomposables with `k >= 1` (which
-includes the generators themselves) reported "0 new generators in EVERY degree"
--- i.e. that the empty set generates the invariant ring -- as a clean,
-internally consistent table. `k >= 2` is the predicate. Same shape as
-`plan-authoring` §2's FILTER clause, on an algebra count.
+The counting rider (not carried for code work: `plan-authoring` is path-scoped to `.claude/plans/**`): a minimality count needs its predicate written down. Counting decomposables with `k >= 1` includes the generators themselves and reported "0 new generators in every degree", a clean table saying the empty set generates the ring; `k >= 2` is the predicate.
 
-How to apply: before adding any orbit-space catalogue entry, state which
-realization the membership predicate speaks and check it against the nodes the
-tree's own producer emits. If the two disagree, that is a data-model ruling for
-the user, not a choice to make inside the entry.
+check: before adding an orbit-space catalogue entry, state which realization the membership predicate speaks and compare it with the nodes the tree's own producer emits. A disagreement is a data-model ruling for the user, not a choice inside the entry.
