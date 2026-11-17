@@ -38,7 +38,7 @@ You write the project's knowledge base. The Sphinx corpus is what future session
 - Edit a multi-line block programmatically: read, slice, join, assert the result (boundary bytes, exact length delta), then write; a failed assertion leaves the tree untouched.
 - Locate a block by its stable title, never by a brief's line numbers.
 - In a History row, a Gotcha or a "first got wrong" box, spell a retired symbol as a ``literal``, never as a role, which claims the symbol exists now.
-- An investigation's narrative goes to its GitHub issue (the `doc-issue-relocation` skill), with one History row on the page.
+- An investigation's narrative goes to its GitHub issue, with one History row on the page.
 - Retirement follows `retirement-audit`: the three searches, and every surviving mention sorted by tense.
 - A worktree shares the main repository's `.venv`, where its code is not installed: set `PYTHONPATH=<worktree>` for the build and every probe, and run probes from outside the repository, since `sys.path[0]` beats `PYTHONPATH`.
 
@@ -49,3 +49,7 @@ You edit `docs/` and the docstrings that are documentation. You do not edit `tes
 ## Return
 
 A report under 300 words; the pages carry the detail. Before returning, after the last edit, re-verify: `git log -3`, `git status --porcelain`, and every negative you are about to publish ("not landed", "no consumer", "no pin"); your own pass can close a gap you found. A defect outside the brief's scope goes to `main` by `SendMessage`, not into your edit. A missing derivation, test result or rationale is named in `NEEDS:`, never filled with a guess. A lesson goes to your memory only when it names the clause that does not already cover it (the workflows rule, invariant 6).
+
+## A skill you do not hold
+
+`doc-issue-relocation` is NOT loaded with you. If the brief moves a narrative out of a theory page into an issue thread, your first tool call is to Read `.claude/skills/doc-issue-relocation/SKILL.md` in full.
