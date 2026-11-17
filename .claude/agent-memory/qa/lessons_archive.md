@@ -6175,3 +6175,110 @@ real `orpheus/numerics/_traced_memo_boot.py` (outside the fixture repo), so the 
 in 10 of 10 real own cones never reached the fixture's store. PL12 planted a fake `_traced_memo_boot.py` inside
 the fixture and was green; the real micro-capture (11 tests, 33 s) homed 7 of 7 no-def tests at the recorder,
 pure, inflating pure_fraction 0.5 -> 0.8. Fix landed at the recorder (`@_apparatus`). Digest rule: B22.
+
+---
+
+## Ledger — digest rules retired into the skills and rules (moved from the digest's §I, 2026-11-16)
+
+This table was the digest's §I until the 2026-11-16 distillation; the digest now
+names only the rule IDs and their carriers. Each row's correction lives at the
+named clause; the archive ID holds the ORPHEUS war story. Corrections applied
+in the move: the production ∪ TEST census row named `plan-authoring` §6b, which
+does not carry it (no "165", no test-construction clause, 2026-11-16); its
+carrier is `instrument-doctrine` X2, census protocol (1) ("`tests/` is usually
+the majority and usually unranged"). The last row named "`qa/AGENT.md` #11/#10
++ the role memo"; the definition was rewritten without numbered items (make-it-RED
+and the retype are now its §3), and no role-memo file exists in qa memory.
+Two rows carried a lesson no skill holds; both returned to the digest: the
+Sig-10 single-geometry caveat (now D14-r) and the metric-inert construction
+refusal (now C6). Rows edited in the move, against the digest's §I: 8 of 34
+(the production ∪ TEST carrier, the role-contract row, the metric-inert and
+Sig-10 carrier cells, the E7 note marked `[R]`, F18's second carrier, the A14
+"OWED" wording, the test-count row's dead `AGENT.md #5`), and 1 row added (F6). Every remaining carrier was re-read by its own distinctive token on
+2026-11-16 (`[M]` 34 tokens, each 1 or more hits in the named file, for example
+`hoisted guard`, `red set by IDENTITY`, `Verify the DECODER`, `OPTIONAL METADATA`,
+`CODOMAIN constructor`, `congruence class`, `usually the majority`,
+`Activation count`, `COMMUTATOR`).
+
+| Retired rule | Now lives at | Archive |
+|---|---|---|
+| mutate per CALL SITE after a hoist (A12) | `vv-principles` #17(d) | L-074 |
+| red set == the NAMING set ⟹ no consumer (A13) | #17(e) | L-075 |
+| a two-stage census needs a control per STAGE (A17) | #17(g) | L-079 |
+| `arm k+1` is the repair the message prescribes; a config option once per CONSUMER kind (A21) | #17(i), #17(a) | L-082 |
+| mutate INSIDE the object's algebraic class (A8) | #18 | L-063 |
+| one control PER STATE a predicate accepts (A9) | `instrument-doctrine` X2, census protocol (7) | L-067 |
+| an α-normalised-AST check before crediting a "control" (A16) | #34 + X4 | L-077 |
+| a traffic census is per-INSTANCE, not an arm inventory (A14) | #29 (a)–(g) — once logged as "OWED"; it LANDED | L-073, L-076 |
+| a guard keyed on OPTIONAL METADATA is inert where the field is `None` | #28 — landed; the ORPHEUS figure is **7 of 13** SN/diffusion bindings, not 8 | L-073 §2 |
+| a `slow`-only catcher is zero canonical coverage (B4 and "the duplicate E7"; `[R]` an earlier E7, not today's Nexus-surface E7) | #36 | L-053, L-079 |
+| `catches` markers decay; re-verify per review (E2) | § "Log every caught bug" | L-031, L-054 |
+| `xfail(strict)` is satisfied by ANY failure (E4) | Mode 8(4) | L-008 |
+| read `-rs` skip reasons (H10) | Mode 8(6) | L-061 |
+| no bare `assert` in your own `-O` probe (H1) | Mode 8(1) + `coding-standards` § "A bare `assert`" | L-052 |
+| a TOLERANCE sweep needs its iteration count beside every row (A19) | #13, fifth disguise | L-080 |
+| a "behavior-neutral" claim holds for the ONE contract it was proven against (F1) | #12 | L-045, L-048 |
+| RUN the designed-green mutation; both directions are real (F3) | Mode 12 | L-058 |
+| an "honest cost" is a COMPARISON, not an absolute (F15) | #24(c) | L-068 |
+| a done-when or tell wider than the design's scope is DESIGNED-RED (F18) | `plan-authoring` §10 DESIGNED-RED (path-scoped to `.claude/plans/`) + `instrument-doctrine` X1, full-success reading ("designed-red") | L-072 |
+| "X is not data of this operation" is decided at the CODOMAIN constructor (F19) | #30 | L-072 |
+| an overloaded unit name can invert a study's conclusion (F21) | #35 | L-078 |
+| two probes over one codebase share its conventions — close them against PHYSICS (F22) | #35 companion | L-078 |
+| large ULP at small magnitude; one-geometry huge-ULP = stale snapshot (D4) | § Bit-identity + `bug-signatures` Sig-10 | L-022, L-024, L-028 |
+| a retirement's CONCEPT grep covers hyphenations; no `automodule` ⟹ grep is the only gate (D12) | `retirement-audit` B.7, A.2 | L-064 |
+| a bundled change's per-artefact NULL reason, checked per mechanism (D14 half) | #25 | L-069 |
+| a refinement ladder `8/16/32/64` is ONE congruence class | #13, third disguise | L-068 |
+| validating an ADJUDICATING instrument (basis / rank-correlation / cost) | #24 | L-068 |
+| test count ≠ coverage; heterogeneous + multi-group + refinement | #3, #4; `bug-signatures` H1–H5 | L-001 |
+| Mode-11 gate-never-executes-the-rewired-path + the plugin sentinel | Mode 11 | L-018, L-031, L-033, L-043 |
+| a mandatory-parameter flip's census is production ∪ TEST constructions (10 vs **165**) | `instrument-doctrine` X2, census protocol (1) | L-073 |
+| the metric is INERT on a spatially-diagonal operator (`[G,Aᵀ]=0`), so no `.H` gate witnesses the flip; the honest witness is a construction refusal | Mode 12 carries the commutator; the construction-refusal half returned to the digest as C6 | L-073 §2 |
+| ⚠ Sig-10's sibling-pass discriminator is VOID for a single-geometry carve — bisect instead | not carried by Sig-10; returned to the digest as D14-r (UPLIFT candidate) | L-069 |
+| a branch credited without a measured activation count (B8) | `instrument-doctrine` X1, activation count | L-016, L-059 |
+| a green gate is nothing until RED; the behaviour-neutral retype (role type AND bit-identity) | the qa definition §3 | §A |
+| a stress-ansatz mandated by the test-architect memo is a binding contract; shipping the canonical `sin(πx/L)` 1G homogeneous case is a gate DOWNGRADE (F6) | the qa definition §3, "the promised against the shipped" | L-019 |
+
+## Ledger — the review record (moved from `MEMORY.md` §2, 2026-11-16)
+
+Every campaign below was merged when recorded (`git merge-base --is-ancestor
+<hash> HEAD`, 2026-09-21). The verdict lives in its report (under `scratch/`,
+untracked, may be gone), the behaviour in its digest rule, the tense in git.
+
+| review | lesson → digest rule |
+|---|---|
+| W1 cone store B3 (2026-11-03) | L-106 → B22 |
+| WF2.3 S5 references' exterior (2026-10-24) | L-105b → H16 |
+| W2.3 S4 boundary carve, cp/moc/mc (2026-10-23) | L-105a → G-NX |
+| W3 numerics-untangling S2 linear combination (2026-10-20) | L-104 → B21 |
+| W1 #405 P3 concept 2 door re-pose (2026-10-17) | L-103 → B20 |
+| W1 P3 step 3e axial lift (2026-10-12) | L-102 → A26 |
+| W3 #578 P2 reference sites onto the kernel (2026-10-11) | L-101 → D15 |
+| W3 characteristic rung 5b reading (2026-10-08) | L-100 → B19 |
+| W3 characteristic rung 5a door (2026-10-07) | L-099 → B18 |
+| W3 characteristic rung 3 assembly (2026-10-06) | L-098 → B17 |
+| W3 #200 Krylov sweep preconditioner (2026-10-04) | L-097 → E20 |
+| W3 #405 P3 traced memo, second review (2026-10-04) | L-096 → H (reaper reach) |
+| W3 #405 P1 step 5 content identity (2026-10-02) | L-095 → A25 |
+| W3 reflective cleanup (2026-10-01) | L-094 → F27 |
+| W2 ERR-094 partial-reflector fixes (2026-09-30) | L-093 → F26 |
+| W3 P1 step 2b reference-body routing (2026-09-29) | L-092 → F25 |
+| W2 ERR-090 trajectory-resolvent regionwise source (2026-09-26) | L-091 → F24 |
+| harness re-evaluation, R5 second-reader recount (2026-09-21) | L-089 → E19, B-DISPATCH |
+| harness substrate: `tools/harness/` package refactor | L-087 → B16 |
+| harness substrate: generator mutation battery | L-082 → A21 (retired to #17), A22 |
+| harness substrate: rule-core and skill-core distillation fidelity | L-081 → A20, E9, E10 |
+| harness substrate: lessons-retirement claim | L-083 → A23, A24 |
+| harness substrate: T5 residue re-review | L-086 → E16, A3 |
+| harness substrate: K3b rule-generation fidelity | L-088 → E18 |
+| harness substrate: T5 Support-brief paragraphs | L-085 → B-DISPATCH |
+| harness substrate: restoration fidelity | L-084 → E11+E12, E13, E14, E9+E15 |
+| #428 four-solver (n,2n) | L-079 → §I (#36, #17g) |
+| #448 SN eigenvalue finalize | L-080 → A18, §I (#13) |
+| #429 symmetry/quotient carve | L-077 → A15, §I (#34) |
+| #426 (n,2n) anisotropy reproduction | L-078 → F23, §I (#35) |
+| CS4c step-0 feeding census | L-076 → A14-r |
+| SN specialization audit | L-075 → A13-r |
+| CS4a-R Phase-1 gate review; CS4a design assemblies | L-072, L-073, L-074 → F16, F17, F20, §I |
+| Task 51 CYL snapshot reds | L-069 → A10, D14-r, H13 |
+| Q5.6.4 SN cylindrical τ | L-068 → C1, F14, H12 |
+| L-001..L-067, the SN campaigns | the digest's §A–§H |
