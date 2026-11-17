@@ -12046,3 +12046,208 @@ only then is the red read as "today spells it wrong" rather than "the oracle is 
 (3) Fixture facts: `FissionOperator.apply` RAISES on every LD SNProblem (`material_field.py:483`, the moment axis
 read as spatial); `solve_sn` takes no scheme (no LD eigen); there is no Step scheme in the registry.
 Files: `scratch/true_ends/stepA/`.
+
+## L134 — the date-headed digest blocks, retired from `lessons.md` by the 2026-11-16 distillation (verbatim)
+
+The digest's rules from these blocks were re-homed under its thematic sections; the text below is the original,
+kept for the `[M]` figures and the paths it cites. Two further entries that left the digest's thematic sections
+with their only war-story text are first.
+
+### From §5 (the turning-map entry, then pointed at "2026-10-06, rung 2")
+
+- **⛔ A change of variable that makes the COORDINATE polynomial need not make the INTEGRAND so** — the turning map
+  c = b + span u² left the Jacobian's branch point at u = ±i sqrt(2b/span), 2.5e-12 at 16 points for b = 1e-4, exact at
+  b = 0 and at b = 1e-2. Sweep the parameter that moves the branch point toward the real axis over decades, both
+  ends included, before believing a docstring's "polynomial in u". And a panel-local tolerance carries
+  (1 + max|a,b|/(b − a)): a thin panel far from the origin loses those digits in its own local map. → (2026-10-06, rung 2)
+
+### From §8 (the Wave 2 S2b entry; its archive section is L119)
+
+- **Wave 2 S2b (the SN consumers):** a directory whose `conftest.py` imports a not-yet-carved module aborts the session and hides the gate's reason, so host the
+  gate where it collects; record the base red per file in a FRESH interpreter (the S2a helper's `sys.modules` stub contaminates the next file); `sum()` of floats is
+  compensated since 3.12 (spell the naive fold with `reduce`); a `scratch/` script imports the venv's MAIN checkout (set `PYTHONPATH`, print `orpheus.__file__`). → `L119`
+
+### The eleven date-headed blocks (digest lines 652–800 before the distillation)
+
+## S3 diffusion gates (2026-10-23, W3) — two traps; extends `vv-principles` #17(f) and #17(c)
+
+- **A shared pin's "honest table" control silently depended on one method's column equalling the mechanism's.** `test_the_pin_has_teeth` ran
+  `pin_disagreements(mechanism_table, ROWS)` over ALL rows; it was green only because the SN columns copied the mechanism's. Appending a
+  differing method's column (diffusion) reddened it for a reason unrelated to the new table. When a pin file gains a method, re-scope every
+  control that ranges over `ROWS` to its own method's rows, and run the file BEFORE adding the table to see which controls were
+  coincidentally green.
+- **A package whose `__init__` raises half-imports: red reasons change by test order.** The first read per process is the `ImportError`
+  of the base's real break; later reads find the submodule already in `sys.modules` and read `AttributeError: no attribute <NewName>`. Both
+  are the base's red, but a log read by its first line only will misname the cause; classify by the full red set, and a
+  carve prototype in a scratch worktree (`git worktree add --detach`, run pytest from inside it, print `orpheus.__file__`) is what shows
+  each gate satisfiable and each arm biting (21 arms, 0 blind, `scratch/wave2_s3/battery.py`).
+
+## S4 CP / MoC / MC gates (2026-10-23, W3) — one trap; extends `vv-principles` #17 and the S3 prototype lesson
+
+- **A mixed-wall cell is the MEET of its units in CHAIN ORDER, so a plan table's "both chains" cell can contradict the meet law.** `Admission.meet`
+  keeps the FIRST refusal (specular chain before diffuse), so MC's radial "both chains" is `Refused(TOPOLOGY, #547)` where section 4.2's text read
+  `Refused(PLUMBING, #654)`. Before typing a mixed cell into a pin, read `meet` and `_units` for the order, and run a PROTOTYPE table on the shared
+  mechanism through the pin: the meet rows reddened on the plan's own cell, which no reading of the table text shows (`scratch/wave2_s4/proto_tables.py`, 6 arms bit).
+  A pin keyed on units a method's table does not register (CP hollow inner, decks on a radial face) is a cell the plan states nowhere: pin today's
+  behaviour in a file apart from the shared grid and say so in NEEDS, so one ruling edits one test.
+
+## Sub-cone re-measurement r2 (2026-10-25) — two instrument traps; extends `instrument-doctrine` "Draw-stable statistics" and X1's control rule
+
+- **A tie broken by `set` iteration order is a draw of `PYTHONHASHSEED`.** `static_closure.py` picked a test's home among incomparable
+  maxima with `max(maxima, key=share)` over a `set`, so tied homes moved between processes while the purity lines stayed identical: the
+  pair table differed run to run. Break every tie on a total key (`(share, name)`) and rerun twice with `cmp` before quoting a table.
+  `[M]` `scratch/verification_tree/subcones_r2/`, 6 of 6 outputs byte-identical after the fix.
+- **A pre-declared coverage control must be shown to EXECUTE a def before it is declared.** A test asserting a module constant runs its
+  line at import, under the empty context, so its per-test cone is empty and the control reads `NOT FOUND`, not pure. Print the
+  candidate's cone first (one `load()` call). `[M]` geometry `test_sqrt_half_constant_is_correctly_rounded`, 0 defs.
+
+## Sub-cone r3 (2026-10-25, five small layers) — one instrument trap, one harness fact; extends `instrument-doctrine` X1 (a null is the measurement)
+
+- **A DAG's incomparable-PAIR fraction does not predict the closure instrument's power; the def mass in the incomparable region does.**
+  reference has 6 of 21 pairs incomparable, yet its shuffled null read 1.00 in 3 of 3 draws: the incomparable pairs sit on
+  `(init)`/`reading`/`withdrawal`, and the tests' lines sit at the end of a chain. Declare power from the null, never from the
+  graph's shape (`[M]` `scratch/layer_dag/refiling/subcones_r3/`, `dagshape_all.txt` vs `step_reference_closure_tc1.log`).
+- **In an isolated workflow worktree the Bash guard refuses shell loops, `$VAR` expansion, globs as arguments and heredocs, and
+  `Write` refuses paths outside the worktree and any report-like `.md`.** Put the loop inside a Python script that takes the
+  layers as argv, write scripts in the worktree and `cp` them out by plain paths, and return a report as text.
+
+## Layer-DAG 1b, the reference group (2026-10-26) — one trap; extends the definition's §5 battery clause and `vv-principles` #17(f)
+
+- **An arm whose subject is LATE BINDING itself cannot be installed at `pytest_configure`.** Configure runs before any test module
+  imports, so a from-import made at collection binds the decoy too and the arm reads "late-bound" for both spellings. Install it at
+  `pytest_collection_finish` and keep a from-import consumer in the run as the control (it must stay green). `[M]` the
+  `ReferenceSolution` rebind: at configure 31 reference + 16 derivations rows red; after collection 31 + 0
+  (`scratch/layer_dag/refiling/specs_1b/reference_battery/`).
+
+## Layer-DAG 1b, the mesh-geom group (2026-10-26) — refines the worktree-pyright entry above (`L117`)
+
+- **pyright run with the WORKTREE as cwd does check, but resolves no third-party import** (no `.venv` in the worktree): every
+  file prints `Import "numpy" could not be resolved` and the real errors hide among them. Run `npx pyright --pythonpath
+  <main>/.venv/bin/python <files>` from the worktree root; the positive control is a file whose errors at the base you know
+  (`[M]` `mesh/test_face_roles.py`: the same 7 errors at the base and on the branch, while a new file's narrowing error showed
+  and then cleared).
+- **Converting a string import to a statement owes a shadow check per target.** `from pkg import leaf` binds
+  `getattr(pkg, "leaf")` before `sys.modules`, so a package re-exporting a same-named callable hands the statement the
+  callable: check `inspect.ismodule(getattr(parent, leaf))` for every target, with a known shadow as the control; a
+  shadow is a production defect, not a reason to keep the string. And a gate refusing string imports resolves a
+  module-level constant (`_MODULE = "orpheus.x"`) before calling a variable "a walk". → `L121`
+
+## U1b one parse (2026-10-30) — extends `instrument-doctrine` "Draw-stable statistics" and the design-time read of a gate
+
+- **Before routing an object to another module's verb, read the module-order gate for both ranks** (`test_concept_order`
+  counts lazy imports): a "parse through the induced space" was unspellable for metric/basis/measure. → `L122`
+- **An A/B timing ships a NULL arm (both arms stock) and a swapped-order arm**; a delta inside them is below resolution,
+  and the number to quote is per-call cost × measured call count; run it on an IDLE host (a concurrent battery made the null −4.9 %, idle it read ±0.4 %). → `L122`
+
+## U3b witness spec (2026-10-31) — extends `instrument-doctrine` X1 (run the route through production before speccing it)
+
+- **⛔ The left kernel of a splitting is the fixed space of the DUAL split's map `M⁻ᴴNᴴ`, not of the adjoint of the forward
+  map `NᴴM⁻ᴴ`** (same spectrum, eigenvectors `Mᴴ ker Aᴴ`); and a route measured with dense surrogates owes one run through
+  the production doors (`M.inverse().H` does not exist on d ≥ 2) before any row rests on it. `onenormest(t≥2)` mutates the
+  global RNG. → `L123`
+
+## Layer DAG Phase 2 refresh (2026-11-01) — extends `retirement-audit` C.12 and `instrument-doctrine` X1 (a control per predicate)
+
+- **⛔ A landing check for moved test files runs every predicate of the gate it must pass, not the one you know** (the
+  test-layer gate also refuses string imports); and a split tool that prunes private names drops side-effect classes
+  (registry subclasses): diff the remainder's class set. → `L124`
+
+- **⛔ A textual mutant exec'd into a COPY of its module's namespace freezes its globals**: a gate that later
+  monkeypatches a module global (a route gate's decoy) cannot reach the mutant, and reds for the instrument's
+  reason. Exec into the module's own `__dict__`, restore the original name, then rebind every binding (so the count
+  is non-zero). And `FaceLayout.structure` is `(key, offset, size)`: a layout reference built on it is blind to a
+  transposed slot of one size; compare per-slot shapes. → `L125`
+- **⛔ A raw constructor called twice returns two EQUAL objects: re-basing `carrier.mint` reads onto it breaks every
+  `is` row and every memoised operator (`AxisRetractionOperator.of(space)`) silently into "not the same object".**
+  Hoist one local per test before believing a red; and a docstring hit of the same call text blocks a text-based
+  hoist (rewrite prose first). → `L126`
+
+## Cone store B1 spec (2026-11-01) — extends `instrument-doctrine` X1 (a control must reach the grain of the claim)
+
+- **⛔ A per-test cone recorded in a SHARED parent is order-dependent: `sys.modules` and collection-time caches are caches too.**
+  A module first imported (or a cache first filled) by an earlier module's collection is never re-run, so later tests lose it
+  and a "can only over-select" attribution under-selects. A containment control restricted to setup+call defs cannot see it
+  (round 2's 200/200); design the fixture pair (fill in module A's parametrize, hit in module B) before trusting any fork result. → `L127`
+- **⛔ A measuring harness's exported environment reaches the system under test and every process it starts.**
+  `PYTHONPYCACHEPREFIX`, exported by the cone store's workers, flipped a memo gate that deletes `__pycache__`
+  (reproduced with the variable alone, no store). Set an instrument's knobs in-process (`sys.pycache_prefix`),
+  never in `os.environ`, and gate the tests' environment under capture against a plain run. → `L128`
+
+## Cone store B2 spec (2026-11-02) — extends `instrument-doctrine` X1 (a negative or positive reading must come from the tree it names)
+
+- **⛔ When the orchestrator writes the carve concurrently, read "today" from a detached worktree of HEAD, never the main tree.**
+  A battery in the main tree measured the half-written carve (an arm patching a just-deleted class reddened every row). And a
+  row meant to witness ONE clause owes a per-clause ablation: a `warn()`-call edit witnessed the effect rule, not the outcome check. → `L129`
+- **⛔ A pin keyed on a run's whole name set is route-dependent until every machinery path is quiet: diagnose a row-identity red by
+  the SET DIFFERENCE of the two name sets, then grep the distinctive names to their code object.** Containment over such pins is a
+  names superset, not row identity. → `L130`
+
+## Cone store B3 gates (2026-11-03) — extends `instrument-doctrine` X4 (two cones of one process are not one row set)
+
+- **⛔ Containment between two cones of ONE process is asked of NODE keys, never of pin rows**: a `StatementsPin`'s
+  `names`/`digest` are a projection on the recording run's entry names, and an `ImportOutcomePin` is that run's import
+  set, so the own cone and the selection cone name the same module with different rows (`[M]` PH3 first draft red on
+  `pkg/__init__.py` for every test). And fractional containment is not antisymmetric: two uppers at 21/22 and 22/22
+  form a 2-cycle, and a one-hop transitive reduction then drops a third test's edge too (PL9's first fixture).
+- **⛔ CPython runs an audit hook with tracing AND `sys.monitoring` paused unless the hook sets `__cantrace__`** (read
+  at each call): code reached only from an audit hook never fires PY_START, so an "un-declare it and expect a record"
+  arm is blind there by the interpreter, not by the gate (`[M]` 2026-11-03, F2: 4 of 17 apparatus defs). Make the hook
+  traceable in the arm (`monkeypatch.setattr(hook, "__cantrace__", True, raising=False)`) and report the rest as
+  dormant. Extends `vv-principles` #17 (rule out "the mutation did not bite" before calling an arm blind).
+- **⛔ A resolver that reads a TEST's bytecode reads pytest's assertion-rewritten code, not the source**: inside an
+  `assert`, `getattr(m, "X")` loads its constant into a `@py_assert` temporary, so a load-chain reader never pairs `X`
+  with `m`; and `co_names` cannot pair any attribute with its receiver at all (`[M]` 2026-11-07, B5 prototype: the
+  literal `co_names` pairing named a wrong layer node on 102 of 658 tests). Build the resolver's positive-control
+  fixture as a pytest module run under `-p` (never by calling the function directly), with one row per shape. Extends
+  `instrument-doctrine` X1 (a control per shape the filter must find). → `L131`
+- **⛔ A comparison tree built by `git worktree add <dir> ... >/dev/null 2>&1` into the SHARED session scratchpad can
+  silently not exist**: a stale `head/` from an earlier dispatch (a plain directory with `tests/` and `pyproject.toml`)
+  made the add fail unseen, and the "HEAD" collection ran on that stale tree, printing a plausible diff (`[M]`
+  2026-11-08, the list-3 repair confirmation: 5763 collected and 1 error where HEAD collects 5808). Use a fresh
+  `ta_<name>_$$` directory, never suppress the add's stderr, and print `git -C <dir> rev-parse --short HEAD` and the
+  collected count beside the result. Extends `code-search` (a probe run from another tree states which tree it read).
+
+## Reading pass schema (2026-11-09) — extends `instrument-doctrine` X3 (find the line that fails if the prose is false)
+
+- **⛔ A delegated reader's CLAIM sentence is checkable only through identifiers on statements it cites, and the
+  assertion line alone does not hold them**: the compared values are computed on binding lines. Require `binding_lines`
+  beside `assertion_lines` and check `mentions` against both (my own pilot failed 51 of 90 before it). And a shared
+  fixture registry that builds every row inflates the own cone: a prior home can differ from the subject for the
+  APPARATUS's reason, not the test's. → `L132`
+- **⛔ Never name a scratch script after a stdlib module** (`select.py`, `types.py`, `json.py`): every script run from
+  that directory gets it at `sys.path[0]`, and `import subprocess` dies inside `selectors` with an AttributeError far
+  from the cause (`[M]` 2026-11-09, `second/select.py` broke `second/check_group.py`). And a module-grain node match
+  (`geometry:x`) must not accept a sibling module of the same package: only the module itself or a package-grain read.
+
+## L135 — the index's "Active verification work" list before the 2026-11-16 distillation (verbatim)
+
+The index now carries one line per item; the spec and battery paths below are what a resume opens. Merge status is
+git's, never this list's (`process-discipline`).
+
+
+Merge status comes from git and GitHub, never from this list (`process-discipline`).
+
+- **#432 — the axis-parameterised O(2) member** — issue OPEN; the stabiliser gates shipped. → **`L70`**
+- **#235 — the 2-D angular closure's ranking instrument** — design delivered, issue OPEN. → **`L48`**
+- **#358 — the test-dependence DAG** — memo delivered, issue OPEN. → **`L55`**
+- **#405 P1 steps 3-8 (W1/W3)** — specs `.claude/plans/reference_p1_spec.md` §1.3a-§1.8; batteries `scratch/reference_architecture/p1step{3,5,6,7,8}/`. Step 8 landed `eaa74163`. On resume: confirm landed; re-run each step's owed arms on the real modules. → `L95`, `L99`-`L101`
+- **Reflective cleanup (W3, `refactor/reflective-is-a-mirror`)** — gates delivered 2026-10-01: spec `scratch/boundary_ontology/reflective_cleanup_gates.md`; carry fixture + batteries `scratch/boundary_ontology/reflective_gates/`. On resume: re-run the carry gate post-carve.
+- **Platform drift W2 (`fix/platform-independent-quadrature`)** — gates (a) CR Gauss rules, (b) GL fingerprint, (c) exact k∞ + bound, spec `scratch/platform_drift/gates_spec.md` (2026-10-01). On resume: confirm landed, re-run `cr_sim`/`r1_sim` arms. → **`L98`**
+- **#405 P2, P3 and follow-ups (W3)** — specs `.claude/plans/reference_p2_spec.md`, `reference_p3_spec.md`; batteries `scratch/reference_architecture/p2/ta/`, `p3/ta/`, `p3/gates_repair/`. On resume: confirm landed; build the 7b.2 battery; re-run the P3 arms on the real module. → `L102`-`L106`
+- **#200 Krylov gates (W3)** — evidence `scratch/reference_architecture/p3/krylov200/`, `gates200b/`. On resume: confirm landed; tag the record rows with the new ERR id. → `L107`
+- **Characteristic-reference campaign (seed, P1 steps a–e, P2, P3 steps)** — CLOSED 2026-10-18 (`8ffafc6a`); each step's spec + battery under `scratch/characteristic_architecture/`; lessons `L108`–`L115`.
+- **Under-resolved adjoint rung (W2 follow-up, `docs/frame-square-closure`)** — 2026-10-18, uncommitted: `TestAdjointAtAnUnderResolvedOrder` (LS4 L=2/3/5) + frame edge row; battery `scratch/adjoint_rung/arms.py` (`ARM=drop|mixed|short`). On resume: confirm landed.
+- **Adjointability honesty gate (W2, ruling 27 of `numerics_untangling.md`)** — 2026-10-18, uncommitted on `main`: `tests/gates/numerics/test_adjointability_is_honest.py` (leg 1 flag⟺.H applies, leg 2 witness routes); battery `scratch/adjoint_honesty/battery/run.sh <arms>`. On resume: re-run after the fixes; 17 reds expected to clear.
+- **Numerics untangling S1-S7 (W3)** — specs `scratch/numerics_untangling/packages/S*_gate_spec.md`, batteries `S*_gates/`. S7 landed `47e7bfaa`/`ac6c6558`. On resume: re-run each step's arms and bit baselines on the landed tree. → `L116`-`L118`
+- **Wave 2 S2b/S3/S4 boundary carve gates (W3)** — prototypes + batteries `scratch/wave2_s2b/`, `wave2_s3/`, `wave2_s4/`. On resume: confirm landed; re-run the arms on the real realizer tables. → `L119`
+- **Sub-cone measurements r2/r3 (rulings 23, 30)** — `scratch/verification_tree/subcones_r2/report.md`, `scratch/layer_dag/refiling/subcones_r3/`. On resume: only on the orchestrator's rulings.
+- **#423 moment basis S0 (W3, `refactor/moment-basis`)** — spec 2026-10-25 `scratch/layer_dag/moment_basis/gate_spec.md`; drafts, plugins, batteries `.../ta/`. On resume: confirm the 3 drafts landed; re-run `ta/run_sites.sh` arms on the carved tree. → **`L120`**
+- **Layer DAG 1b, Phase 2, Phase 4 (W3)** — specs `scratch/layer_dag/refiling/specs_1b/*.md`, `specs_2r/numerics_laws.md`, `scratch/layer_dag/phase4/spec.md`. On resume: main's rulings on each spec's NEEDS; confirm landed. → `L121`, `L124`-`L126`
+- **Space membership U0-U3b (W3)** — specs `scratch/membership_covector/{spec,u0,u1b,u3b}/`; merged `1c1d8d1c`. On resume: only the owed multi-D arms (#616). → `L122`
+- **Cone store B1-B5 (W1/W3)** — specs `scratch/verification_tree/cone_store/{spec_b1.md,b2/,b3/,b4/,b5/}`. On resume: the owed post-capture arms per spec. → `L127`-`L131`
+- **#683 matrix carriers act on members (W3, `fix/683-assembled-operator-membership`)** — 2026-11-02: gates `tests/gates/numerics/test_matrix_carrier_membership.py` (17 rows) + 3 re-posed rows + Phase 2 fixture moved to Energy ⊗ point; spec `scratch/683/gate_spec.md`, battery `scratch/683/battery/`, census `scratch/683/census/`. On resume: SN census result; confirm landed.
+- **Cone store list 3 marker repair (W3, rulings 51-53)** — CONFIRMED landed in the tree 2026-11-08 (uncommitted, `fix/rests-on-repair`), spec `scratch/verification_tree/cone_store/b5/census/repair/spec.md` + `table.json` (248 judged after ruling 53: 18 KEEP, 7 RE-POINT, 223 REMOVE). On resume: re-run `place` after the edits; expect 0 failing outside `traced_memo`.
+- **Numerics reading pass design (W6, ruling 54)** — 2026-11-09: schema, `check.py` (rulings 55, 56 amended), 38 packages ≤1500 lines, a subject control per package, pilot X06 green; `scratch/verification_tree/cone_store/b5/reading/`. On resume: confirm the Sonnet readers ran. → `L132`
+- **#707 true ends Step A (W3, `refactor/true-ends`)** — 2026-11-12, uncommitted: spec `scratch/true_ends/stepA/gate_spec.md`; acceptance npz + chart-law anchor under `tests/gates/cross_method/`; red gates in sn/numerics/diffusion; battery `scratch/true_ends/stepA/battery/run.sh <arm>`. On resume: re-run the arms post-carve. → `L133`
+- Everything else is merged; the record is the SN theory page's development history and the archive.
+
