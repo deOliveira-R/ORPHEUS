@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 2450
+  budget_tokens: 3400
   brief: >-
     a question you cannot settle from this brief (a scope, a path, a premise, what was meant) goes to the orchestrator by `SendMessage` to `main`, and you continue the work that does not depend on the answer, which arrives at your next tool call; if nothing is independent of it, return with the question in `NEEDS:`; your own agent memory is always yours to write, and a lesson you write names the rule or skill clause that does not already cover it, or is not written.
 ---

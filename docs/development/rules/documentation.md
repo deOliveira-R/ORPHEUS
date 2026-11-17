@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 700
+  budget_tokens: 1000
   paths: ["docs/theory/**", "docs/architecture/**"]
 ---
 

@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 2400
+  budget_tokens: 3350
 ---
 
 # qa

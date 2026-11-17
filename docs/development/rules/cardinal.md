@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1700
+  budget_tokens: 2400
 ---
 
 # Cardinal rules — five, in order of importance

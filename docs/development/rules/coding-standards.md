@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 3300
+  budget_tokens: 4600
   paths:
     - "orpheus/**"
     - "tests/**"

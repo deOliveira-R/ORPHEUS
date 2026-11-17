@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 1800
+  budget_tokens: 2500
   brief: >-
     `grep` is ugrep, and an anchor inside an alternation group can match nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 ---

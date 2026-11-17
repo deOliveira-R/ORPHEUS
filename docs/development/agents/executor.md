@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 700
+  budget_tokens: 950
 ---
 
 # executor

@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 2000
+  budget_tokens: 2800
 ---
 
 # archivist

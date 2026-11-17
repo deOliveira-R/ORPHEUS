@@ -81,20 +81,25 @@ when a matching file is read, in the main agent and in a sub-agent alike:
 (`.claude/hooks/session-start.txt`: three skill cores, the lessons index, the
 Nexus briefing) is paid by the main agent only.
 
-**The budget is not this measurement.** Each source page declares
+**The budget and the measurement.** Each source page declares
 `harness: {kind, budget_tokens}`, and `python -m tools.harness --check` holds
-each generated file to it by an estimate, characters / 3.6
-(`tools/harness/budget.py`; 3.51 to 3.53 characters per token on 2026-09-20).
-The same text measured 2.6 characters per token on 2026-11-13 (a 49 582
-character file moved a probe by 18 671 tokens), so the estimate reads 28%
-low: `--check` prints the always-on block at ≈15.8K and the probe
-reads its part of the 26 528 above. A budget therefore bounds a file's
-length and is not a token count. The 2026-09 target for the always-on block,
-at most 16K by the keep-minus-omit probe, was set on a Haiku probe at the old
-rate (15 571 on 2026-09-21; 70 966 before that restructure); by the 2026-11
-probe the block reads 26 528, which includes the user's own CLAUDE.md (1.1K)
-and the memory index (4.6K). Whether the rate and the target are re-set is
-an open ruling (issue #714).
+each generated file to it by an estimate, characters / 2.6
+(`tools/harness/budget.py`). The rate is measured: a 49 582 character file
+moved a Sonnet first turn by 18 671 tokens on 2026-11-13, and tool schemas
+read 2.6 to 2.9. Until 2026-11-16 the rate was 3.6 (3.51 to 3.53 on a Haiku
+probe, 2026-09-20), which read 28% low on the current models; on that day
+the rate was changed and every `budget_tokens` multiplied by 3.6 / 2.6 and
+rounded up to 50, so each file's length limit stayed where it was and the
+printed numbers became tokens. `--check` prints the always-on block (CLAUDE.md,
+six generated rules and the installed Nexus rule) at ≈21.9K; the probe
+reads 26 528 for that block with the user's own CLAUDE.md (1.1K) and the
+memory index (4.6K). An estimate is still not a measurement: a budget bounds
+a file's length.
+
+The 2026-09 target for the always-on block, at most 16K by the keep-minus-omit
+probe, was met on a Haiku probe at the old rate (15 571 on 2026-09-21; 70 966
+before that restructure). At the measured rate the same block is 26.5K, so
+the target is not met and is open for a new ruling (issue #714).
 
 ## The one-way flow
 
