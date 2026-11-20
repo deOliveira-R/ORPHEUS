@@ -43,6 +43,12 @@ It is a living plan in the sense of `plan-authoring` §0: the ontology is being 
 - **O17, the 26 targets still marked *proposed* are settled in their wave's design panel** and come to the user at that wave's specification checkpoint, not one by one now.
 - **Starting point (option A, 2026-11-20).** `refactor/true-ends` merges to `main` with its 118 red Step A gates marked `xfail(strict=True)` (`c1072743`), after the full bar. `fix/predicted-shortcuts` and `park/u3b-sn-rcond` stay parked and are rebased onto the rewrite branch when their wave opens.
 
+**Rulings of the fifth exchange (the user, 2026-11-20: "I agree with the A1-A3 proposals and have no objection. I think the plan is polished. Let's begin."):**
+
+- **O18, A1, A2 and A3 of the adversarial round are accepted as proposed**: a role is a side of the trial and test pair and the variance pattern is derived (W1's panel takes it as its premise); `derivations/` is closed to redesign and new capability while each unit re-points the imports its change breaks, with no shim; T12 forbids a structure object that depends on a strategy value, and a kernel is declared by its generator.
+- **O19, no objection to B1 to B13**; they stand as the orchestrator's decisions.
+- **O20, the plan is polished. Implementation starts**, with W0, on `refactor/ontology` (cut from `main` at `eb45ee46`, which carries the starting point of option A).
+
 Standing rulings this plan inherits and does not reopen: R1 to R17 of `true_ends.md` (#707); the sharpening order (discrete ordinates, diffusion and the homogeneous baseline first; collision probability, characteristics and Monte Carlo recycle the machinery later); references closed and insulated from production; effort is sizing, never a criterion. R18 is resolved by O5 as a direction (variance per factor); its spelling is W1's.
 
 ## Method of the as-is measurement
@@ -470,7 +476,7 @@ Eleven waves. A wave is a set of units with one outcome; inside a wave the units
 
 The user: "I will give you a last round to adversarially attack parts of the plan, the ontology and try to foresee what is vague or badly formed." Three readers: the orchestrator (dependency closure, done-whens, the tree); a cross-domain attacker on the laws and the concept table (`scratch/ontology/attack/ontology_attack.md`, 14 findings); an Opus cold reader asked whether W0's specification can be written from this text alone (`scratch/ontology/attack/executability.md`; its verdict: no, 10 blocking questions). Neither report was itself reviewed by a second agent; the orchestrator re-read the cited lines of the findings it adopts below. The stale text they found is corrected in place above (the wave table's W0 and W7 rows, the R18 markers, the reference-insulation row, the "Branches" banner).
 
-### A. Proposed to the user (each changes the ontology or a standing ruling; `[R]`, not ruled)
+### A. Proposed to the user (each changes the ontology or a standing ruling); accepted by ruling O18, 2026-11-20
 
 - **A1, a role is a side of the trial and test pair; a variance pattern is its chart.** The discrete balance is a Petrov-Galerkin statement `A : U → T*` with a trial space `U` and a test space `T`. The four roles are the four spaces of that pair: flux in `U`, source in `T*`, importance in `T`, response in `U*`, with the pairings ⟨importance, source⟩ and ⟨response, flux⟩ as R14 has them. Whether a factor's coordinates are stored on the function side or the integrated side is then DERIVED per factor from how the scheme tests that factor: an integral-tested factor (cells, groups, Galerkin moments) flips between the state and the data side; a node-tested factor (the discrete ordinates) does not, and its quadrature supplies the pairing. R14's four patterns are the case of the ordinate layout with `U = T`. T3 and the rows "Factor of a space", "The four transport spaces" and "Flux and source members" read the pattern as the role, and three witnesses separate the two:
   - the flux in the moment layout is dual on the angular factor (R7, `true_ends.md:32`) and primal on it in the ordinate layout, so role and layout are not independent coordinates;
@@ -528,4 +534,4 @@ Answered: R18 (O5), folding #707 (O6), the surgical-carve exception (O7), the re
 
 ## Implementation starts when
 
-The user rules the chart polished. Until then this campaign writes plans, measurements and maps only.
+`[REMEDIED 2026-11-20]` The user ruled the chart polished (O20); W0 is open. The condition as it stood: the user rules the chart polished; until then this campaign writes plans, measurements and maps only.
