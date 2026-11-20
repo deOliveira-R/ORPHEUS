@@ -31,7 +31,7 @@ def write(path: pathlib.Path, text: str) -> pathlib.Path:
     return path
 
 
-def front(kind: str, tokens: int = 100, extra: str = "") -> str:
+def front(kind: str, tokens: int = 150, extra: str = "") -> str:
     return f"---\nharness:\n  kind: {kind}\n  budget_tokens: {tokens}\n{extra}---\n\n"
 
 
@@ -46,16 +46,19 @@ def page(kind: Kind, name: str = "p", body: str = "# P\n\nbody\n", budget_tokens
 
 # ---------------------------------------------------------------- budget
 
+SIZED = "x" * 360   # the slack tests are stated on its estimate, whatever the rate
+
+
 def test_budget_over_is_a_problem() -> None:
     assert "> budget" in (budget.check("x" * 3600, 999, "t") or "")
 
 
 def test_budget_slack_over_is_a_problem() -> None:
-    assert "SLACK_MAX" in (budget.check("x" * 360, 100 + budget.SLACK_MAX + 1, "t") or "")
+    assert "SLACK_MAX" in (budget.check(SIZED, budget.tokens(SIZED) + budget.SLACK_MAX + 1, "t") or "")
 
 
 def test_budget_within_slack_is_fine() -> None:
-    assert budget.check("x" * 360, 100 + budget.SLACK_MAX, "t") is None
+    assert budget.check(SIZED, budget.tokens(SIZED) + budget.SLACK_MAX, "t") is None
 
 
 # ----------------------------------------------------------------- links

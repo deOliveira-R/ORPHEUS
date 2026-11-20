@@ -1,4 +1,4 @@
-# What each model still needs from the harness: evaluate, sharpen or retire (living plan, opened 2026-11-13)
+# What each model still needs from the harness: evaluate, sharpen or retire (opened 2026-11-13, closed 2026-11-16)
 
 ## Goal
 
@@ -24,6 +24,39 @@ The harness here means: CLAUDE.md, the rules (`.claude/rules/`), the skills (`.c
 - **H14, go ahead** (2026-11-13, after the user restarted the harness). "Go ahead with the procedure." The orchestrator's reading `[R]`: E1, the task ladder and a pilot of E2 may run, since all three are measurement; a trim of any instruction comes back to the user per unit with its evidence, as the roles did.
 - **H15, the outside skills** (2026-11-13). The gitnexus, moose and graphify skills "should not exist"; edgartools in this project "makes no sense". Done: the 15 test folders moved to `~/.claude/skills-removed-2026-11-13`; `.claude/settings.local.json` switches off `edgartools`, the `engineering` plugin and the claude.ai skills, plugins and connectors for this project. A fresh session lists 44 skills (from 90) and starts at 99.7K (from 103.5K). The browser server stays.
 - **H16** (2026-11-13). The decision rule for E2 is accepted. The expensive ablation of the large skills is held until the cheap tasks are in.
+
+## Close-out (2026-11-16)
+
+**Ruling H22** (the user, 2026-11-16): "Let's close the evaluation. I think it has given enough information for the dynamic workflows with Sonnet and Opus to be effective and a general update of the harness." The orchestrator's reading `[R]`: the ladder of H7 closes at Sonnet and Opus, so the Fable rung is not owed; a general update of the harness follows as its own piece of work, and each trim in it still comes back per unit with its evidence (H14).
+
+**Where the result lives.** The stage, model and agent table with its basis is on the workflows page (`docs/development/workflows.md`, "The stages of a workflow template: model and agent"). The measured costs are on the harness page (`docs/development/harness.md`, "What loads, and what it costs"). This plan is the record of how each was measured; the sections below are in the order the work ran.
+
+**Every unit the evaluation touched, and where it ended.** All hashes are ancestors of `main` (`git merge-base --is-ancestor`, 2026-11-16).
+
+| unit | state |
+|---|---|
+| typed stage roles `executor` and `checker`; Nexus tools per role (E0 item 3, rulings H9 to H11) | `[LANDED 5015137f]`; an untyped stage went from 122.6K to about 36K at the first turn |
+| inside a workflow no agent holds `Agent` (E0 item 5, H12) | landed with the roles, in the `workflows` rule's invariant 2 |
+| the outside skills (H15) | switched off for this project on 2026-11-13 |
+| the `grep` trap in `code-search` | `[LANDED 29cdb08e]`, one sentence with the corrected scope |
+| the `builder` agent for the build stage, with its two obligations | `[LANDED 3ba92923]`, `[LANDED 5be9e8ff]` |
+| `qa_passes` in `build-units` | `[LANDED 46511f80]` |
+| the per-unit specification check (`units`, `check_only`; the lenses are elegance-enforcer and cross-domain-attacker) | `[LANDED 8d5d5e0d]`; run by stubs and headless reviews, not yet by real agents (#715) |
+| the reviewer's five skills | kept on evidence (4.60 against 2.60 of 8) |
+| never revert a mutation with git; a commit message by `-F` | kept: in the builder's body and the template's rules block; the rules' own text is unchanged |
+| the gates stage | unchanged, on test-architect; no arm credited |
+| CLAUDE.md and the rules on `executor` and `checker` | unchanged; not measured without them (#715) |
+| what a worktree-rooted agent loads (E0 item 6) | closed `[M]` 2026-11-16: test-architect dispatched with the `Agent` tool on Sonnet, one zero-tool probe per arm, first turn 116 866 from the repository root and 115 841 from a worktree under `.claude/worktrees/`; only the totals were compared, and the 1 025 difference is not attributed (the worktree is cut from `origin/main`, the root was on another branch); transcripts in `scratch/_harness_eval/e0/worktree_probe_2026-11-16/`. The loss E0 saw (about 9.5K) needs a working directory with no `.claude/` |
+| the budget gate's rate (E0 item 7) | open, a ruling for the user: #714. With the rate at 2.6 characters per token 26 of 28 generated targets exceed their budget, and the always-on block reads 26 528 by the probe against a ruled target of 16K |
+| the memory index in sub-agents (E0 item 3) | not acted on; 4.6K per dispatch that inherits it |
+| the preloaded skills of the other Key agents; the Fable rung; the stages listed in #715 | not measured; the Fable rung closed by H22 |
+
+**What the general update of the harness can rest on** `[R]`. Measured and not yet used: the budget rate and target (#714); the preloads, which are half of every Key agent's first turn and were evaluated for the reviewer only; the memory index in sub-agents. Everything else in the always-on text was either measured and kept or not measured, so a trim there needs its own arm first (H14, and "What is not evidence" below).
+
+**Instruments.** `scratch/_harness_eval/` (untracked, in the main checkout): `e0/` the accounting probes; `e2/` and `t6r/` the first two rungs; `sb/` the build and gates rungs (`mkrun.sh`, `run.sh`, `score.py`, `gscore.py`, the briefs, the rubrics, the blind copies and keys, and per run the transcript, the diff and the score file); `spec/` the specification rung. The run repositories, the comparison trees and the virtual environment were in the session's temporary folder and are not kept: a re-run rebuilds them from the pinned commits with `mkrun.sh`.
+
+**Residue.** `../ORPHEUS_t6/_old` (the review-ablation worktrees' leftovers) is still on disk. `refactor/true-ends` carries an older copy of this file from the commits made there during the evaluation; `main`'s copy is the record, and that branch takes it at its next rebase (`git checkout main -- .claude/plans/harness_eval.md` on an add/add conflict).
+
 
 ## Baseline `[M]` 2026-11-13
 
@@ -699,7 +732,7 @@ The user's go-ahead (2026-11-16) covered drafting the template change on a branc
 
 **The template change** `[LANDED 8d5d5e0d]` (merged to `main` on the user's go-ahead, 2026-11-16; CI green; branch deleted): `spec-check` takes `units: [{ key, sections }]`, so the Check phase runs both lenses once per unit with that unit's sections as scope, and `check_only: true`, which skips Measure and Draft and checks the text as it stands; the orchestrator runs that after the last amendment and before the gates stage. Without the two arguments the template dispatches as before (stub runs of both modes, `[M]` 2026-11-16). The lenses are left as they are: replacing the structure lens is a separate question that this rung raises and does not settle.
 
-## The design `[R]` (proposed 2026-11-13; nothing below is ruled)
+## The design `[R]` (proposed 2026-11-13; carried out as recorded in the sections above, and superseded where they differ)
 
 **E0, accounting.** No judgement involved. For each agent type and each model, a zero-tool probe reads the first-turn usage, and the floor is decomposed by removing one block at a time: the MCP servers, the skill listing, the tool allowlist, CLAUDE.md with the rules, each preloaded skill, the AGENT.md body, the agent's memory. Output: a table of tokens per block per agent, and which blocks the project controls. (As run: throwaway agents passed to a headless session by `--agents` vary every block, CLAUDE.md included through `omitClaudeMd`, with no separate checkout.)
 
@@ -734,8 +767,4 @@ The orchestrator's own sense of which instructions it no longer needs. A model c
 
 ## Open questions for the user
 
-None blocks the evaluation. Settled since this list was written: the outside skills (ruling H15, switched off for this project) and the scale of the second rung (ruling H17). What comes back to the user: each trim, on its branch with the evidence, before it is merged to `main`.
-
-## Implementation starts when
-
-The user rules the design. E0 has run.
+None. The evaluation is closed (ruling H22); what it left open is in the close-out section and in issues #714 and #715.

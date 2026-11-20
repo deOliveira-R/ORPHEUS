@@ -20,7 +20,7 @@ loads it, whole.
 """
 from __future__ import annotations
 
-CHARS_PER_TOKEN = 3.6  # [M] 2026-09-20: 3.51 and 3.53 chars/token on the API tokenizer, keep-minus-omit probe (plan, "T4 executed")
+CHARS_PER_TOKEN = 2.6  # [M] 2026-11-13: a 49 582-character file moved a Sonnet first turn by 18 671 tokens (2.66); 3.51 to 3.53 on 2026-09-20 (issue #714)
 SLACK_MAX = 400  # a budget more than this above the measured size lets growth in unreviewed
 
 

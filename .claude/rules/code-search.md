@@ -18,24 +18,33 @@ agents, its shell. Founding cases: [the evidence page](../../docs/development/ev
   in `retirement-audit` A.2, and `dead_references` after a delete or a
   rename has its reason and its catcher in `retirement-audit` B.4
   ([case](../../docs/development/evidence/code-search.md#2026-04-restructuring-grep-misses)).
+- **An agent with no Nexus tool asks through the shell**, `.venv/bin/nexus`,
+  whose help maps every skill's tool to its command (`[M]` 2026-11-16: 3 of 3
+  agents, 0 calls failed on a command's name). Three tools have none:
+  `runtime_markers` (read `.nexus/traces/markers.json`), `node_at`
+  (`nexus file-brief --json` lists a file's nodes),
+  `use_workspace` (the command answers for the tree it runs in). A fresh
+  worktree has no `.venv` and no graph: the main checkout's `nexus`
+  `analyze orpheus --project-root .`, then `tests`, indexes it in 25 seconds.
 - **A stale graph announces itself** as a query returning an unexpected
   result: zero changes, an old module name. After a major file move or
   restructuring, assume it. check: rebuild first
   (`sphinx-build docs docs/_build/html`); the MCP server auto-reloads.
 
-## `grep` here is ugrep, and an anchor inside an alternation group matches nothing, silently
+## `grep` here is ugrep, and an anchor inside an alternation group can match nothing, silently
 
 `grep` in this environment is a shell function wrapping **ugrep**, not GNU or
-BSD grep, and one construction fails in the worst possible way:
-zero matches, exit 1, no message, indistinguishable from a clean tree. The
-failing construction is an anchor (`^` or `$`) INSIDE an alternation group:
-on a line containing `square Gram, while`, `grep -E '(^|[^a-z_])Gram'` returns
-0, while `\bGram\b`, `-P '(?<![A-Za-z_])Gram'` and the anchor-free
-`([^a-z_])Gram` return 1
-([case](../../docs/development/evidence/code-search.md#2026-08-26-the-ugrep-fixture)). This is
-exactly the idiom a retirement audit reaches for ("the symbol, but not preceded
-by a letter or underscore"), so `coding-standards`' three-search audit is built
-on greps like it.
+BSD grep, and one construction can fail in the worst possible way: zero
+matches, exit 1, no message, indistinguishable from a clean tree. It is an
+anchor (`^` or `$`) INSIDE an alternation group: on a line containing
+`square Gram, while`, `grep -E '(^|[^a-z_])Gram'` returns 0, while `\bGram\b`
+and `-P '(?<![A-Za-z_])Gram'` return 1. Measured, the false zero needs a
+literal of exactly four characters after the group (`Gram`, `flux`, `Mesh`),
+so a control run on a longer name passes and proves nothing about the
+four-letter one
+([case](../../docs/development/evidence/code-search.md#2026-08-26-the-ugrep-fixture)). It is the
+idiom a retirement audit reaches for ("the symbol, not preceded by a letter
+or underscore").
 
 - check: use `\b…\b`, or `-P` with a lookbehind, or drop the anchor; never put
   `^`/`$` inside a group. The mirror in `git grep -E`: there `\b` is the thing
@@ -83,7 +92,7 @@ on greps like it.
   ([case](../../docs/development/evidence/code-search.md#2026-08-19-a-sub-agent-has-no-toolsearch)):
   the routing rule states the fact and the check (a brief that depends on
   Nexus says what to do if it is missing); this page's `brief:` line is how
-  that sentence reaches the three `omitClaudeMd` agents, which load no rule.
+  that sentence reaches the three `omitClaudeMd` Support agents, which load no rule.
 - **A worktree's graph** ([L22](../../docs/development/evidence/lessons.md#l22-worktree-not-main))
   and **the briefing's silence**
   ([case](../../docs/development/evidence/code-search.md#2026-08-16-the-briefings-silence)): the

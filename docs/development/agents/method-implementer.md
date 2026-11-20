@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 1800
+  budget_tokens: 2500
 ---
 
 # method-implementer

@@ -5,20 +5,101 @@ agents work from lives in this section of the docs; the `.claude/` directory is
 one harness's **generated** view of it. This page records what loads into an
 agent's context, what it costs, and the procedure for adding a rule, a skill or
 an agent. Measured numbers are marked `[M]` (the 2026-09 evaluation,
-`.claude/plans/harness_context_budget.md`, Parts I, VII and VIII); a budget is a
-budget, not a measurement.
+`.claude/plans/harness_context_budget.md`, Parts I, VII and VIII, and the
+2026-11 evaluation, `.claude/plans/harness_eval.md`); a budget is a budget, not
+a measurement.
 
 ## What loads, and what it costs
 
-| block | who pays | before (2026-09-04) | after this restructure |
-|---|---|---|---|
-| CLAUDE.md + `.claude/rules/*.md` + the auto-memory index — inherited by every dispatch that does not set `omitClaudeMd` | main agent and every Key agent | ≈64.6K tokens | budgeted in each page's `harness:` front matter; every always-on file is generated or installed (`tests/gates/test_harness_generated.py` fails on a rule that is neither), so the sum `python -m tools.harness --check` prints is the whole block but the memory index: six rule cores + CLAUDE.md ≈13.3K (`[M]` 2026-09-21 chars/3.6, after the conceptual-view campaign added the two halves, the vocabulary and the ontology duty to CLAUDE.md and the cardinal page; ≈11.5K after the re-evaluation the same day), with the memory index ≈2.5K on top; one always-on rule is installed, not generated, the Nexus routing rule `nexus-tools` that `nexus setup` writes from the extension and records in `.claude/nexus-install-manifest.json` (`[M]` 2026-09-21: 5 826 chars ≈ 1 618 tokens), printed by `--check` beside the generated sum. Four rules are path-scoped and load when a matching file is read, in the main agent and in a sub-agent alike: `coding-standards` ≈2.0K under `orpheus/**`, `tests/**`, `derivations/**`, `tools/**`; `plan-authoring` ≈7.8K under `.claude/plans/**`; `vv-testing` ≈1.0K under `tests/**` (ruled 2026-09-21 at the diff review, after a first ruling had kept the two larger ones always-on); `documentation` ≈0.6K under `docs/theory/**` and `docs/architecture/**` (ruled 2026-09-22). The keep − omit probe reads the whole block, memory index included, at **15 571** tokens (`[M]` 2026-09-21, haiku first turn on `docs/onboarding-conceptual-view` before its merge, session `85dd0f81`: keep 52 009 − omit 36 438, the attachment 55 741 chars in 8 files; 13 872 after the re-evaluation, session `5ba526f0`; 28 705 after K3b, 30 655 after P1, 70 966 before the restructure). The target is ≤ 16K by this probe, moved from ≤ 15K on 2026-09-21 by the ruling that let the probe decide once the conceptual view landed (the content outranks the round number, and the two X4 trims were already taken); a code session that also opens a plan pays ≈23.1K by the estimate
-| the session-start batch (`.claude/hooks/session-start.txt`): skill cores, the lessons index, the Nexus briefing | main agent only | ≈125K | ≈30K |
-| a Support agent with `omitClaudeMd: true` | explorer, literature-researcher, cross-domain-attacker, haiku categorisers | ≈107K per dispatch (haiku, zero tools) | ≈36.5K — the harness-fixed block only (tool schemas, skill index, roster); `[M]` 2026-09-21 the omit arm reads 36 536 |
+Measured 2026-11-13 and 2026-11-16 by the harness evaluation
+(`.claude/plans/harness_eval.md`, closed 2026-11-16; scripts and data in
+`scratch/_harness_eval/e0/`). The instrument is the first-turn usage of a
+zero-tool probe, read from its transcript as input + cache-creation +
+cache-read tokens; three repeats of one cell differ by 14 tokens, and Sonnet
+and Opus differ by 6 tokens per agent type, so the model does not change what
+an agent holds.
 
-Measured 2026-09-20 on Claude Code 2.1.278: `omitClaudeMd: true` drops CLAUDE.md,
-every rule file and the memory index together; the Nexus tool schemas (≈13K)
-remain, since the harness loads them eagerly.
+**The first turn of each agent** (Sonnet, dispatched with the `Agent` tool
+from the repository root, `[M]` 2026-11-13 after the typed stage roles landed):
+
+| agent | first turn | what dominates it |
+|---|---|---|
+| qa | 117.8K | its preloaded skills (69.3K) |
+| test-architect | 116.3K | its preloaded skills (65.8K) |
+| archivist | 112.7K | its preloaded skills (62.6K) |
+| numerics-investigator | 111.6K | its preloaded skills (61.9K) |
+| method-implementer | 106.4K | its preloaded skills (61.6K) |
+| elegance-enforcer | 77.3K | its preloaded skills (26.6K), CLAUDE.md and the rules |
+| literature-researcher | 37.5K | its definition and own memory |
+| explorer | 36.4K | nine Nexus tools, its definition and own memory |
+| executor (the build, amend, measure and draft stages) | 36.3K | CLAUDE.md and the rules |
+| checker (the verify and structural-check stages) | 35.9K | CLAUDE.md and the rules |
+| cross-domain-attacker | 29.7K | its definition and own memory |
+| an untyped agent (`general-purpose`, or a workflow stage that names no agent), by a workflow dispatch | 122.6K | tool schemas (77K), none of them the project's text |
+
+The `builder` (the build stage, `omitClaudeMd`) was not measured as a
+dispatch; it is the executor's tool list without CLAUDE.md, the rules and the
+memory index. An agent dispatched into a git worktree starts within 1%
+of the same agent at the repository root (`[M]` 2026-11-16, test-architect,
+one probe per arm, totals only: 115 841 against 116 866 tokens); an agent dispatched while the session's
+working directory is a folder with no `.claude/` loses its own memory and
+part of its preload without a message (`[M]` 2026-11-13: 120.7K against
+130.2K).
+
+**What one block costs** (tokens, `[M]` 2026-11-13, each a difference between
+two probes that differ by that block alone):
+
+| block | tokens |
+|---|---|
+| an agent holding one tool (`Read`), no CLAUDE.md | 5 271 |
+| four more built-in tools (`Write`, `Edit`, `Bash`, `SendMessage`) | +4 140 |
+| the Nexus server's 45 tools (`mcpServers: nexus`; a Nexus tool named in `tools:` is held alone) | +20 071 |
+| the browser server's 25 tools | +6 989 |
+| CLAUDE.md (the project's and the user's), the seven always-on rules and the memory index | +26 528 |
+| `vv-principles` preloaded | +25 590 |
+| `coding-elegance` preloaded | +12 856 |
+| agent memory enabled, on an agent with no memory files | +4 051 |
+| every tool a headless session holds (87) against five built-ins | +47 815 |
+
+The orchestrator's own first turn is 103.5K in a headless session (Sonnet
+103 471, Opus 103 590, Fable 104 899), and about 39K more in an interactive
+one, which holds more tools.
+
+**What the always-on block is.** CLAUDE.md, the rules in `.claude/rules/` with
+no `paths:` front matter, and the auto-memory index are inherited by every
+dispatch that does not set `omitClaudeMd`; `omitClaudeMd: true` drops all
+three together and nothing else. Every always-on file is generated or
+installed (`tests/gates/test_harness_generated.py` fails on a rule that is
+neither): one rule, the Nexus routing rule `nexus-tools`, is installed by
+`nexus setup` from the extension and recorded in
+`.claude/nexus-install-manifest.json`. Four rules are path-scoped and load
+when a matching file is read, in the main agent and in a sub-agent alike:
+`coding-standards` under `orpheus/**`, `tests/**`, `derivations/**` and
+`tools/**`; `plan-authoring` under `.claude/plans/**`; `vv-testing` under
+`tests/**` (ruled 2026-09-21); `documentation` under `docs/theory/**` and
+`docs/architecture/**` (ruled 2026-09-22). The session-start batch
+(`.claude/hooks/session-start.txt`: three skill cores, the lessons index, the
+Nexus briefing) is paid by the main agent only.
+
+**The budget and the measurement.** Each source page declares
+`harness: {kind, budget_tokens}`, and `python -m tools.harness --check` holds
+each generated file to it by an estimate, characters / 2.6
+(`tools/harness/budget.py`). The rate is measured: a 49 582 character file
+moved a Sonnet first turn by 18 671 tokens on 2026-11-13, and tool schemas
+read 2.6 to 2.9. Until 2026-11-16 the rate was 3.6 (3.51 to 3.53 on a Haiku
+probe, 2026-09-20), which read 28% low on the current models; on that day
+the rate was changed and every `budget_tokens` multiplied by 3.6 / 2.6 and
+rounded up to 50, so each file's length limit stayed where it was and the
+printed numbers became tokens. `--check` prints the always-on block (CLAUDE.md,
+six generated rules and the installed Nexus rule) at ≈21.9K; the probe
+reads 26 528 for that block with the user's own CLAUDE.md (1.1K) and the
+memory index (4.6K). An estimate is still not a measurement: a budget bounds
+a file's length.
+
+The 2026-09 target for the always-on block, at most 16K by the keep-minus-omit
+probe, was met on a Haiku probe at the old rate (15 571 on 2026-09-21; 70 966
+before that restructure). At the measured rate the same block is 26.5K, so
+the target is not met and is open for a new ruling (issue #714).
 
 ## The one-way flow
 

@@ -97,7 +97,7 @@ Every brief carries, in this order:
 Workflow: W<n> — phase P<k>
 Artefacts from the previous phase: <paths>
 Ask: <one paragraph, self-contained; assume zero context from this session>
-Rules that apply to you: <for the three `omitClaudeMd` agents, which see no
+Rules that apply to you: <for the three `omitClaudeMd` Support agents, which see no
   project rule and no project memory index — only their AGENT.md, their own
   agent memory and their preloaded skills — this line is the only place a
   project rule reaches them; a `general-purpose` categoriser inherits the rules
@@ -163,7 +163,7 @@ drift):
 
 <!-- BEGIN GENERATED brief rules — source: the harness.brief of every page under docs/development/rules/; edit the source, not this block -->
 - `articulation`: a report is complete sentences; `[M]` measured with its command, `[R]` reasoned, `[HYPOTHESIS]` proposed; a bare number is read as measured; `[M]` on an inherited claim certifies that some measurement answered some question, so a `[M]` on a negative (absent, discarded, no consumers) is re-measured against the question at hand before it is built on.
-- `code-search`: `grep` is ugrep, and an anchor inside an alternation group matches nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
+- `code-search`: `grep` is ugrep, and an anchor inside an alternation group can match nothing, silently: use `\b…\b` or `-P` with a lookbehind; a sub-agent has no `ToolSearch`, so if Nexus is missing say so in NEEDS: and fall back to Bash.
 - `coding-standards`: tests run as `python -O -m pytest`; a bare `assert` outside a collected test module is stripped under `-O`, so a contract is a `raise` and a test-side check is `np.testing.assert_*`.
 - `instrument-doctrine`: a zero from a filter is evidence only after a positive control of each shape it must find (X1); every count states its predicate, its tree and its exclusions, a universal is `k of N`, and a completeness claim is re-run in Python (`re` + `pathlib.rglob`) so its denominator is stated (X2); a membership or consumer question is answered by an AST pass, a line grep reported only as the prose column, since a public name's docstring fame reads as consumption.
 - `plan-authoring`: a cited precedent's adjectives are verified by reading it, at the layer (data or binder) that preserves arity; a proposed name is grepped in the prose corpus with the verb it would own; a step that adds a gate lands with the case it catches, an `⟺` checked in both directions and every symbol on a law's RHS checked against the datum's methods.
@@ -192,6 +192,31 @@ is the whole of what remains of the former `DISPATCH_REQUEST` /
 `DISPATCH_RESULT` relay: an agent that holds `Agent` dispatches for itself; an
 agent that does not (Support) asks in `NEEDS:`.
 
+## The stages of a workflow template: model and agent
+
+What each stage of the templates in `.claude/workflows/` runs as, and the
+measurement behind it (the harness evaluation, closed 2026-11-16:
+`.claude/plans/harness_eval.md`; what it left unmeasured is issue #715). The
+units measured were three additive carves of the 2026-10-23 boundary work, five
+runs per arm, scored blind against the findings of the historical review.
+
+| stage | model | agent | loads | basis |
+|---|---|---|---|---|
+| specification check (`spec-check` with `units` and `check_only`) | Opus | elegance-enforcer and cross-domain-attacker (the structure lens), once per unit, on the final text, before the gates stage | as each is defined | `[M]` the pair named 66%, 80% and 68% of the defects the later code review found on three units; the elegance lens carries most of it |
+| gates | Sonnet | test-architect | as defined | no cheaper arm was credited: 2 of 5 bare runs on one unit wrote a gate asserting a value both builds contradict |
+| build | Sonnet | builder | the brief and the template's rules block; no CLAUDE.md, no rule, no skill | `[M]` gates green and inside the file list in 10 of 10 bare builds; with the builder's two obligations it refuses the malformed input an Opus build refuses, at a fifth to a tenth of the cost |
+| amend, measure, draft | Sonnet | executor | CLAUDE.md and the rules | not measured without them |
+| review | Opus | qa (its five skills; `qa_passes: 2` where recall matters) and elegance-enforcer, in parallel | as defined | `[M]` qa with its skills 4.60 against 2.60 of 8 findings; a second pass adds 0.80 to 1.25 |
+| verify | Opus | checker | CLAUDE.md and the rules | not measured |
+| fixed-schema categorising | Haiku | `general-purpose` with a schema; never commits | | `[M]` it lost the code spans of a commit message in 1 of 5 and reported success |
+
+What stays with the review whatever the builder: the invariants that relate
+one field to another, or a constructor to the factory that calls it (met by
+0 of 15 builds on six probed rows), and the structural findings, which only
+an Opus review with its skills reached. No stage was measured on Fable: the
+user closed the evaluation on 2026-11-16 with the workflows on Sonnet and
+Opus, which the orchestrator reads `[R]` as the ladder ending there.
+
 ## History
 
 Until 2026-09 the `subagent-handoff-protocol` skill (retired 2026-09-20) carried
@@ -217,3 +242,28 @@ tool call (six seconds later, on the sixth of eight polling calls); it held no
 `AskUserQuestion`, which the harness removes from every sub-agent. So a
 sub-agent can ask the orchestrator mid-dispatch, never the user, and the
 channel is open exactly when its allowlist names `SendMessage`.
+
+Measured 2026-11-14 (the harness evaluation, `.claude/plans/harness_eval.md`):
+the build stage runs without CLAUDE.md and the rules, as the `builder` agent.
+Ten headless Sonnet builds of two units of the 2026-10-23 boundary carve (an
+ordinate pairing in `numerics/`, the deck family in `geometry/`; five each),
+with no CLAUDE.md, no rule and no skill loaded, turned the unit's gates green
+in 10 of 10 and stayed inside the brief's file list in 10 of 10; read blind
+against the review's findings they carried no more of them than the build the
+full harness produced (4.67 of 9 against 9 on the first unit, 7.80 of 8
+against 8 on the second), and adding `coding-elegance` changed neither. What
+a bare build missed is what the template's rules block names: the literal
+brief carried no ledger line, and 13 of 15 builds of the first unit (all
+arms) left the package-cycle gate of `tests/gates/test_layer_imports.py` red.
+The amend, measure and draft stages were not measured bare and stay on the
+`executor`, which loads CLAUDE.md and the rules.
+
+The builder's body also states two obligations (a new value type states its
+invariants at construction; a new function parses its raw input). Measured
+2026-11-14 and 2026-11-15 on the second unit above and on the conditions
+package `orpheus/transport/boundary_conditions/`, five builds per arm: where
+a bare Sonnet build left malformed input accepted and an Opus build refused
+it (4 of 4 probed inputs on the second unit, 3 of 13 on the package), Sonnet with these two sentences refused
+it in 5 of 5 builds, at Sonnet's cost. The invariants that relate one field
+to another, or a constructor to the factory that calls it, were met by no
+builder (0 of 15 builds on six probed rows) and stay with the review.

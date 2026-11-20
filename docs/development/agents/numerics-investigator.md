@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 2800
+  budget_tokens: 3900
 ---
 
 # numerics-investigator

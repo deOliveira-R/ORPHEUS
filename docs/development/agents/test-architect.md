@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 3150
+  budget_tokens: 4400
 ---
 
 # test-architect

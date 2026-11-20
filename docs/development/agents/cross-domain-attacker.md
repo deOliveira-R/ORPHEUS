@@ -1,7 +1,7 @@
 ---
 harness:
   kind: agent
-  budget_tokens: 1900
+  budget_tokens: 2650
 ---
 
 # cross-domain-attacker

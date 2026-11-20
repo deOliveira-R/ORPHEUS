@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 3500
+  budget_tokens: 4850
   brief: >-
     never `git checkout`, `git restore` or `git stash` a path that carries uncommitted edits: they revert to HEAD and destroy the work (L28); revert a mutation by monkeypatching in-process or by mutating a copy; a brief's framing is a claim, so take the count it presumes (branches, fibre, consumers by AST, fused attributes) before arguing its scope and report the smaller answer plainly; a rejected candidate carries its structural reason AND the question it was refuted for.
 ---

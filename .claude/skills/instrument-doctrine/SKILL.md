@@ -25,7 +25,7 @@ imports, CamelCase, a string-form `getattr("name")`); a staged filter (a name
 net, then a literal scan) needs a control per STAGE, named with the spelling
 you are least sure the net catches; a member the filter would find for the
 wrong reason is a null control. `grep` here is ugrep, and an anchor inside an
-alternation group matches nothing, silently (`code-search`). The nine
+alternation group can match nothing, silently (`code-search`). The nine
 battery-specific checks are `vv-principles` #17; the nine classes of a gate
 that fires and cannot fail, `vv-principles` mode 8; the design-time question a
 plan asks of a new gate, `plan-authoring` §6c. A gate that ranges over a LIST also reports its INPUT COUNT beside its finding count, because a correct filter over an empty list and a correct filter over a clean tree print the same zero and the first is a broken harness: print `len(inputs)`, assert it non-zero, and assert one input resolves to an existing path (`[M]` 2026-09-21, twice in one session: an unsplit shell `$FILES` made an xref probe and a markup scan each read one nonexistent path and print a clean 0). A counter DOWNSTREAM of a filter cannot count what the filter dropped, so a zero total is compatible with "nothing matched" and with "everything was discarded before the counter": require a per-reason drop breakdown between input and output (`[M]` 2026-09: `nodes: 0 / unresolved: 0`, exit 0, on a coverage report whose 339 file keys a path filter had dropped; normalised, 2 892 joined). And a relation whose rows are INFERRED, published under a DECLARED relation's name, is read for the predicate that sets its status before its number is quoted.

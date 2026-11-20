@@ -1,7 +1,7 @@
 ---
 harness:
   kind: onboarding
-  budget_tokens: 3000
+  budget_tokens: 4200
 ---
 
 # ORPHEUS — start here

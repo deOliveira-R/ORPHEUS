@@ -4,7 +4,7 @@ description: PROACTIVELY use when reviewing claims of correctness, designing ver
 allowed-tools: Bash
 harness:
   kind: skill
-  budget_tokens: 13650
+  budget_tokens: 18900
 ---
 
 # V&V Principles — claim taxonomy, evidence hierarchy, anti-patterns

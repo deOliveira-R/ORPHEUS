@@ -1,7 +1,7 @@
 ---
 harness:
   kind: index
-  budget_tokens: 3400
+  budget_tokens: 4750
 ---
 
 # Lessons — index

@@ -1,7 +1,7 @@
 ---
 harness:
   kind: rule
-  budget_tokens: 9700
+  budget_tokens: 13450
   brief: >-
     a cited precedent's adjectives are verified by reading it, at the layer (data or binder) that preserves arity; a proposed name is grepped in the prose corpus with the verb it would own; a step that adds a gate lands with the case it catches, an `⟺` checked in both directions and every symbol on a law's RHS checked against the datum's methods.
   paths:
