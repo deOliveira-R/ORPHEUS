@@ -513,6 +513,27 @@ The user: "I will give you a last round to adversarially attack parts of the pla
 - **W8b.** One Radon-Nikodym verb covers flux-weighted pushforwards; the diffusion coefficient, current weighting and discontinuity factors are not of that form.
 - **W9.** T7 holds for collision probability where scattering and fission factor through the flat-source projection; diffusion is an asymptotic limit of transport, not a realisation of its inverse; in Monte Carlo the estimator is a strategy choice and the Solution carries a covariance.
 
+## W0, opened 2026-11-20 at `820500d8`
+
+**Where it runs.** `[M]` `git diff --stat main -- .claude/ docs/development` shows only this plan, so this branch's harness is `main`'s; workflows are launched from the session that holds it. Scratch data is untracked and is passed to agents by absolute path under `/Users/rodrigo/git/nuclear/ORPHEUS/scratch/ontology/`; W0's own artefacts are under `scratch/ontology/w0/`.
+
+**Units** (keys used by the specification; the file sets are cut from the censuses below; decided by the orchestrator under O2, `[R]` until the censuses return):
+
+| key | outcome | settled by |
+|---|---|---|
+| `registry` | the tracked concept registry over every production class (not only the 83 concepts), its two ratchet gates (B1), the monotone-edge check, `test_concept_order.py` absorbed, the layer gate extended to the product order (B12) | design panel |
+| `digest` | one digest object for the blake2b convention; the boot module is stdlib-only and runs by path before `orpheus` imports, which the design must respect | design panel |
+| `memo` | the traced memo and import tracer in a package between `values` and `numerics` (O14, B6) | census |
+| `insulation` | production homes for the three symbols CP imports from `derivations/`; the gate edge (O14, B5); #641 | census |
+| `dead` | each group with no production caller retired, moved to the test side or kept, ruled per group (B4) | census |
+| `roles` | `BlockRole` and `SystemRole` retired with no replacement in W0; the derived block pattern is W1's and W2's | census |
+| `defects` | #708 to #711 as a root fix or a refusal tagged with the wave that retires it (B3); #713; the seven issues of B3 read in | census |
+| `posing` | the items of posing units 0 and 1 that no later wave owns; u1 item 1 goes to W4, items 4 and 7 to W5; a u0 rename whose target a later wave re-spells goes to that wave | census |
+
+**Done when** (replaces the wave table's W0 cell, which predates B1 and B4): both registry gates pass with a pending list whose every entry names its wave, and each has its named first red; 0 import or inheritance references against the product order; every row of the dead-group table is executed and `dead_references` reads 0 for the retired names; 0 production imports of `derivations/`, held by a gate edge; the memo package exists and `numerics/` holds none of its modules; #708 to #711, #713 and #641 are closed by hand with the integrating hash (B9). `[HYPOTHESIS]` until the specification fixes each instrument.
+
+**Order.** The panel (registry and digest) and the censuses run side by side; then the orchestrator's synthesis, `spec-check` with `units`, the amendment, `check_only` on the final text, and the user's checkpoint on the specification. No `build-units` before that checkpoint (step 2 of "How a wave runs").
+
 ## Open questions for the user
 
 `[REMEDIED 2026-11-20]` Questions 1 to 5 below are answered by rulings O13 to O15; none is open.
