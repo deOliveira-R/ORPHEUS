@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **20832**
+Total tests collected: **21100**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2249, 10.8%
-   L1, 2981, 14.3%
+   L0, 2249, 10.7%
+   L1, 2982, 14.1%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15454, 74.2%
+   foundation, 15721, 74.5%
    unmarked, 63, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20690
+   explicit, 20958
    class-name, 46
    func-name, 0
    case, 33
@@ -139,13 +139,16 @@ Module × level grid
    cross_method/test_family_convergence_contract, 0, 0, 0, 0, 45, 0
    cross_method/test_group_permutation_invariance, 0, 0, 10, 0, 0, 0
    cross_method/test_material_mesh_admission, 0, 0, 0, 0, 1, 0
+   cross_method/test_member_seam_builders, 0, 0, 0, 0, 23, 0
    cross_method/test_method, 0, 0, 0, 0, 5, 0
    cross_method/test_method_mesh_binding, 0, 4, 0, 0, 0, 0
    cross_method/test_one_parse_on_production, 56, 0, 0, 0, 0, 0
    cross_method/test_one_traced_face_list, 0, 0, 0, 0, 3, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
    cross_method/test_production_pairs_typed_members, 0, 0, 0, 0, 4, 0
+   cross_method/test_source_chart_law, 0, 0, 0, 0, 57, 0
    cross_method/test_specification_infinite_medium_k, 0, 2, 0, 0, 0, 0
+   cross_method/test_true_ends_acceptance, 0, 0, 0, 0, 23, 0
    cross_method/test_wave2_s4_tables, 0, 3, 0, 0, 2, 0
    curvilinear/test_282_direct_seed_fixed_point, 0, 1, 0, 0, 11, 0
    curvilinear/test_alpha_closed_form, 0, 20, 0, 0, 15, 0
@@ -321,6 +324,7 @@ Module × level grid
    diffusion/test_scalar_trace_is_the_raw_constructor, 0, 0, 0, 0, 5, 0
    diffusion/test_sigma_variant_reach, 0, 0, 0, 0, 1, 0
    diffusion/test_solver, 0, 0, 3, 0, 14, 0
+   diffusion/test_true_ends_step_a, 0, 0, 0, 0, 3, 0
    eigenvalue/test_heterogeneous_transport, 0, 2, 0, 0, 0, 0
    eigenvalue/test_keff_2d, 19, 0, 0, 0, 0, 0
    eigenvalue/test_keff_curvilinear, 0, 22, 13, 0, 0, 0
@@ -523,6 +527,7 @@ Module × level grid
    numerics/test_measure_partition, 12, 0, 0, 0, 0, 0
    numerics/test_measure_phase, 0, 0, 0, 0, 12, 0
    numerics/test_measured_quotient, 0, 0, 0, 0, 3, 0
+   numerics/test_member_seam_laws, 0, 0, 0, 0, 32, 0
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
    numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
@@ -581,6 +586,7 @@ Module × level grid
    numerics/test_traced_memo_statement_pins, 0, 0, 0, 0, 93, 0
    numerics/test_traced_memo_template, 0, 0, 0, 0, 45, 0
    numerics/test_traced_memo_validation, 0, 0, 0, 0, 27, 0
+   numerics/test_true_ends_member_seam, 0, 0, 0, 0, 5, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 6, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 8, 0
    numerics/test_zero_operator_spaces, 0, 0, 0, 0, 10, 0
@@ -685,6 +691,7 @@ Module × level grid
    sn/test_homogenization_order, 0, 0, 1, 0, 0, 0
    sn/test_material_xs_field_typed, 0, 0, 0, 0, 10, 0
    sn/test_solution_read, 0, 1, 0, 0, 14, 0
+   sn/test_true_ends_step_a, 0, 0, 0, 0, 121, 0
    solve/test_2d_anisotropic_windowing, 0, 6, 0, 0, 0, 0
    solve/test_affine_carve_bit_identity, 0, 0, 0, 0, 3, 0
    solve/test_b1pp_verification, 6, 3, 0, 0, 0, 0
@@ -728,7 +735,7 @@ Module × level grid
    spatial/test_face_transmission_xverif, 0, 66, 0, 0, 1, 0
    spatial/test_ld_slope_frame, 0, 0, 0, 0, 1, 0
    spatial/test_ld_ubld_primitive, 0, 0, 0, 0, 18, 0
-   spatial/test_ld_ubld_symbolic, 0, 0, 0, 0, 9, 0
+   spatial/test_ld_ubld_symbolic, 0, 1, 0, 0, 12, 0
    spatial/test_linear_discontinuous, 0, 0, 0, 0, 21, 0
    spatial/test_moment_axis_predicates, 0, 0, 0, 0, 4, 0
    spatial/test_no_angular_closure_twin, 0, 0, 0, 0, 1, 0
