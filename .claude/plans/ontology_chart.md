@@ -33,6 +33,16 @@ It is a living plan in the sense of `plan-authoring` §0: the ontology is being 
 - **O11, a preparatory phase precedes every build workflow: the harness evaluation.** The rules, skills and agent definitions were written for older models. They are evaluated per model (Sonnet, Opus, Fable), and what no longer changes an outcome is trimmed or retired, so that a workflow agent starts lighter. It has its own plan, `.claude/plans/harness_eval.md`, and its own branch off `main`; its findings also set which model each workflow stage is given.
 - **The plan's status.** The user: it "more or less matches my idealized vision", "we're generally in agreement and going in the same direction". That is agreement on the direction, not yet the ruling that the plan is polished; implementation waits for the harness evaluation and for that ruling. `[REMEDIED 2026-11-16]` the harness evaluation is closed (its ruling H22; record `harness_eval.md` on `main`), so only the ruling that the plan is polished remains. What the evaluation changes in this plan is in "How a wave runs", proposed 2026-11-17.
 
+**Rulings of the fourth exchange (the user, 2026-11-20: "I agree with your 8 proposals"):**
+
+- **O12, the rewrite has its own long-lived branch, `refactor/ontology`, cut from `main`** once every branch that holds a fragment of the starting point is merged there ("it will be a significant departure from the current shape of main"). Each wave's unit branches are cut from it and merge back into it; `main` stays as it is until the user decides the rewrite replaces it. This supersedes "W0, W6 and W8a are cut from `main` and merge as they finish" under "Branches".
+- **O13, the revised "How a wave runs" is accepted**, with: two qa passes for every unit that mints a type or states a law (W1 to W8), one for W0's moves and retirements, revisited from W0's record; W0 runs on the measured assignment and is itself the record for the unmeasured unit kinds, read before W1's build is launched.
+- **O14, W0 removes production CP's imports of reference internals (#641)**, and **the traced memo gets a package of its own between `values` and `numerics`**.
+- **O15, the discrete measure's phase taxonomy (ruled 2026-09-01) is re-opened in W8a's design panel.**
+- **O16, the placement of the campaigns in flight is confirmed as tabled.**
+- **O17, the 26 targets still marked *proposed* are settled in their wave's design panel** and come to the user at that wave's specification checkpoint, not one by one now.
+- **Starting point (option A, 2026-11-20).** `refactor/true-ends` merges to `main` with its 118 red Step A gates marked `xfail(strict=True)` (`c1072743`), after the full bar. `fix/predicted-shortcuts` and `park/u3b-sn-rcond` stay parked and are rebased onto the rewrite branch when their wave opens.
+
 Standing rulings this plan inherits and does not reopen: R1 to R17 of `true_ends.md` (#707); the sharpening order (discrete ordinates, diffusion and the homogeneous baseline first; collision probability, characteristics and Monte Carlo recycle the machinery later); references closed and insulated from production; effort is sizing, never a criterion. R18 is resolved by O5 as a direction (variance per factor); its spelling is W1's.
 
 ## Method of the as-is measurement
@@ -457,6 +467,8 @@ Eleven waves. A wave is a set of units with one outcome; inside a wave the units
 **Sizing** `[R]`, as duration and never as a reason: each wave is one design or specification workflow, two to four build workflows and one documentation pass; W1, W4 and W5 are the largest. The full suite (about 75 min) runs once per integration. Added 2026-11-17: each wave also carries one check of the final text, two Opus reads per unit, before its gates stage.
 
 ## Open questions for the user
+
+`[REMEDIED 2026-11-20]` Questions 1 to 5 below are answered by rulings O13 to O15; none is open.
 
 Answered: R18 (O5), folding #707 (O6), the surgical-carve exception (O7), the references (O8), T10 to T12 and the packaging (O9). Answered by the posing sequence's rulings (see the reconciliation): the restriction family, and the two condensation verbs. Still open, none blocking W0's specification:
 
