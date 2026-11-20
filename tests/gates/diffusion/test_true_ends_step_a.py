@@ -29,6 +29,7 @@ def _anchor() -> dict[str, np.ndarray]:
 
 
 @pytest.mark.parametrize("label", ["loss", "fission"])
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_df1_flux_to_source_ends(label: str) -> None:
     """DF-1 RED. The diffusion loss and fission run V → V* (census verdict c: ``LeakageOperator``,
     ``DiffusionBoundaryOperator``, ``MultiplicationOperator`` declare one space at both ends today)."""

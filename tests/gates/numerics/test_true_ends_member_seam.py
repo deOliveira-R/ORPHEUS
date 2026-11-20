@@ -99,6 +99,7 @@ def test_nm1_a_space_mints_its_members() -> None:
     assert isinstance(y, Covector) and y.space is V.dual() and np.array_equal(y.values, c)
 
 
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_nm2_the_flattened_seam_has_no_template() -> None:
     """NM-2 RED (design v2 item 6, census A: 19 448 production flux → sweep calls through the template).
 
@@ -109,6 +110,7 @@ def test_nm2_the_flattened_seam_has_no_template() -> None:
     assert "template" not in inspect.signature(FlattenedOperator.__init__).parameters
 
 
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_nm2_the_flattened_inverse_hands_its_inner_a_member_of_the_inverse_domain() -> None:
     """NM-2 RED, behavioural. On a V → V* operator, ``FlattenedOperator(A).inverse()`` hands ``A.inverse()`` a member of
     V*, never of V. First red today: the constructor needs a template, so the template-free form does not exist."""
@@ -128,6 +130,7 @@ def test_nm2_the_flattened_inverse_hands_its_inner_a_member_of_the_inverse_domai
     assert received and received[0].space is V.dual()
 
 
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_nm3_hilbert_adjoint_refuses_across_sides() -> None:
     """NM-3 RED. ``.H`` on an operator whose ends lie on opposite sides (V → V*) raises ``MissingAdjoint`` naming
     ``DualPairing`` (which owns the adjoint there); ``.dual()`` stays the metric-free arrow V** = V → V*.

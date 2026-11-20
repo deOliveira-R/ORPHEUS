@@ -71,6 +71,7 @@ def _expected_state_metric(problem, shape: tuple[int, ...]) -> np.ndarray:
 
 
 @pytest.mark.parametrize(("name", "atom"), _cases())
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa1_codomain_is_the_data_side(name: str, atom: str) -> None:
     """SA-1 RED. A flux → source atom's codomain is not its domain, and its bulk block carries the data-side metric.
 
@@ -94,6 +95,7 @@ def test_sa1_state_side_is_unchanged(name: str) -> None:
 
 
 @pytest.mark.parametrize(("name", "atom"), _cases())
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa2_the_member_lives_in_the_codomain(name: str, atom: str) -> None:
     """SA-2 RED. The atom's output is a member of the data side (its space is the codomain, not the flux space).
 
@@ -113,6 +115,7 @@ def test_sa2_the_member_lives_in_the_codomain(name: str, atom: str) -> None:
 
 
 @pytest.mark.parametrize("name", _PROBLEMS)
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa3_the_sweep_ends_are_reversed(name: str) -> None:
     """SA-3 RED. ``(L + C)⁻¹ : V* → V``: its domain is the loss's codomain and differs from its codomain."""
     lc = _atom(name, "StreamingCollisionOperator")
@@ -122,6 +125,7 @@ def test_sa3_the_sweep_ends_are_reversed(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", _PROBLEMS)
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa3_the_sweep_refuses_a_flux(name: str) -> None:
     """SA-3 RED. A flux member handed to the sweep is refused at the membership leg.
 
@@ -156,6 +160,7 @@ def test_sa4_loss_terms_compose(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", _PROBLEMS)
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa4_a_loss_does_not_compose_with_a_loss(name: str) -> None:
     """SA-4 RED. ``(L + C) ∘ (L + C)`` is ill-typed (V → V* then V → V*) and refuses.
 
@@ -179,6 +184,7 @@ def test_sa4_sweep_after_loss_composes(name: str) -> None:
 
 
 @pytest.mark.parametrize(("name", "atom"), _cases())
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa5_hilbert_adjoint_refuses_across_sides(name: str, atom: str) -> None:
     """SA-5 RED. ``.H`` (♯ ∘ dual ∘ ♭ with both ends' metrics) is not the transport adjoint of V → V*, and refuses,
     naming its replacement, ``DualPairing.adjoint`` (Pattern 4 corollary (3): the replacement refuses the old idiom).
@@ -295,6 +301,7 @@ def _adjoint_eigen():
 
 
 @pytest.mark.rests_on("tests/gates/cross_method/test_true_ends_acceptance.py::test_state_is_unmoved", "tests/gates/cross_method/test_source_chart_law.py::test_atom_output_is_integrated")
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa7_adjoint_gauge_is_the_pairing() -> None:
     """SA-7 RED (census C8, ``iteration.py:1590``; ruled 2026-11-12). The adjoint importance is gauged by the
     transport pairing, ``⟨F†ψ*, 1⟩ = 1``, not by the coordinate sum of ``F†ψ*``; the importance moves by one declared
@@ -309,6 +316,7 @@ def test_sa7_adjoint_gauge_is_the_pairing() -> None:
     assert abs(value - 1.0) <= 1e-9, f"⟨F†ψ*, 1⟩ = {value!r}, the gauge value is 1"
 
 
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa7_the_pairing_evaluates_the_gauge() -> None:
     """SA-7p RED. The production leg through ``DualPairing``: ``pairing(ψ*, F·1)`` equals the hand-built oracle
     ``⟨ψ*, F 1⟩`` (to 1e-13 relative). First red today: no ``DualPairing``."""
@@ -351,6 +359,7 @@ def _loss(a: dict, name: str, block: str) -> np.ndarray:
 
 
 @pytest.mark.rests_on("tests/gates/cross_method/test_source_chart_law.py::test_atom_output_is_integrated")
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_sa8_rayleigh_bulk_part_is_the_pairing() -> None:
     """SA-8 RED (census C9, ``posing.py:163``; ruled 2026-11-12: the Rayleigh estimator pairs over the FULL space,
     bulk ⊕ trace). Step A gates the BULK part: ``DualPairing`` evaluated on (1, y) with y's trace zeroed, for
@@ -404,6 +413,7 @@ def test_sa8b_rayleigh_pairs_the_full_space() -> None:
 
 
 @pytest.mark.parametrize("name", ("slab_ld_p1", "2d_ld"))
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_ldf_fission_acts_on_an_ld_problem(name: str) -> None:
     """LD-F RED. ``F`` on an LD problem returns the integrated, mass-weighted isotropic emission:
     ``(Fψ)[n, g, i, o] = V_i θ^{|o|} χ_g(i) Σ_{g'} νΣf_{g'}(i) φ_{g', i, o} / W``, with ``φ_o = Σ_n w_n ψ_{n, o}`` and
@@ -437,6 +447,7 @@ def test_ldf_fission_acts_on_an_ld_problem(name: str) -> None:
     assert float(np.max(np.abs(out - want))) <= 256 * np.finfo(float).eps * scale
 
 
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_ldf_the_ld_eigen_question_is_posable() -> None:
     """LD-F RED. The LD eigen question reads F: ``eigen_posing.rayleigh`` on an LD problem returns a finite number.
     (There is no public LD eigen entry: ``solve_sn`` takes no ``scheme``; this is the posing it would solve.) First red

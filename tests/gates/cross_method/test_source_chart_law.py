@@ -97,7 +97,7 @@ def test_population() -> None:
     assert ok, f"the anchor commit {commit} is not an ancestor of HEAD"
 
 
-@pytest.mark.parametrize("key", _atom_keys())
+@pytest.mark.parametrize("key", [pytest.param(k, marks=pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker (the bulk rows; the trace rows hold today)")) if k.endswith("/bulk") and k.split("/")[1] not in ("N2NOperator", "SNBoundaryOperator") else k for k in _atom_keys()])
 def test_atom_output_is_integrated(key: str) -> None:
     """Every flux → source atom's output: bulk ``V θ^{|o|} ⊙`` density, trace unchanged (Step A)."""
     name, atom, block = key.split("/")
@@ -115,6 +115,7 @@ def _door_keys() -> list[str]:
 
 
 @pytest.mark.parametrize("key", _door_keys())
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_input_door_integrates_once(key: str) -> None:
     """R10: a density handed to the external-source door is stored as ``V θ^{|o|} ⊙`` its lifted density, once."""
     from orpheus.sn.solver import _build_fixed_source_rhs
@@ -126,6 +127,7 @@ def test_input_door_integrates_once(key: str) -> None:
     _check(key, now, cc.sn_bulk_measure(problem, now.shape))
 
 
+@pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker")
 def test_detector_door_integrates_once() -> None:
     """R10: the detector response Σ_d (a density) reaches the adjoint posing as ``r = V ⊙ Σ_d`` per ordinate, no w_n."""
     problem = _problem("slab_dd_p1")
@@ -158,7 +160,7 @@ def test_detector_door_integrates_once() -> None:
 
 
 @pytest.mark.parametrize("label", ["loss", "fission"])
-@pytest.mark.parametrize("block", ["bulk", "trace"])
+@pytest.mark.parametrize("block", [pytest.param("bulk", marks=pytest.mark.xfail(strict=True, reason="#707 Step A: red by design until the true-ends carve (ontology chart W1 to W4); the flip-edit removes this marker (the bulk rows; the trace rows hold today)")), "trace"])
 def test_diffusion_output_is_integrated(label: str, block: str) -> None:
     """Diffusion's flux → source operators: bulk ``V ⊙`` density (census P18, ``operators.py:418``), trace unchanged."""
     solver = cc.diffusion_problem()
