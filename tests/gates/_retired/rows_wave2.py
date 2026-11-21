@@ -1,8 +1,9 @@
 """The rows of wave 2 (WF2.4, the typed-law vocabulary and its three homes), ported from ``tests/gates/test_wave2_retirement.py``.
 
 60 ``RetiredName`` rows (the retiring names with no surviving homonym; each reads 0 identifier hits in the five trees, the measured
-count of the port, 60 of 60 green), 2 ``Retired`` rows (the two properties ``geometry_map`` and ``response_kernel`` of the base class
-``BoundaryTraceLaw``, bound by definition site because the bare words are generic locals, decision D5) and 3 ``RetiredModule`` rows
+count of the port, 60 of 60 green), 6 ``Retired`` rows (the two properties ``geometry_map`` and ``response_kernel`` of the base class
+``BoundaryTraceLaw``, bound by definition site because the bare words are generic locals, decision D5, and the four doors of the
+string registries, which the method table tests asserted by hand until W0 and whose names survive in prose) and 3 ``RetiredModule`` rows
 (the three retired homes; each also asserts that its file and package directory are absent, decision E-D6). ``KEPT = ()``: the
 survivors that the old file's ``_HOMONYMS`` exempted exempt nothing under the narrowed reading (decision R2).
 """
@@ -76,6 +77,11 @@ ROWS: tuple[Row, ...] = (
     # the two properties of the retired base class: 0 definitions, 0 setter or import uses (2 of 2 green)
     Retired('orpheus/geometry/boundary/_base.py', 'BoundaryTraceLaw.geometry_map'),
     Retired('orpheus/geometry/boundary/_base.py', 'BoundaryTraceLaw.response_kernel'),
+    # the four doors of the string registries, each asserted by hand in its method's table test until W0 (4 of 4 green)
+    Retired('orpheus/cp/solver.py', 'CPMesh._resolve_bc'),
+    Retired('orpheus/moc/geometry.py', 'MOCMesh._resolve_bc'),
+    Retired('orpheus/diffusion/boundary_realizer.py', '_partial_current_albedo'),
+    Retired('orpheus/mc/solver.py', '_mc_bc_periodic'),
     # the three retired homes: 0 imports and no file or package directory (3 of 3 green)
     RetiredModule('orpheus.geometry.boundary'),
     RetiredModule('orpheus.transport.boundary_realization'),

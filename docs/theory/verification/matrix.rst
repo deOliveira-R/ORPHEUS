@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21201**
+Total tests collected: **21242**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2249, 10.6%
-   L1, 2982, 14.1%
+   L0, 2254, 10.6%
+   L1, 2996, 14.1%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15822, 74.6%
+   foundation, 15844, 74.6%
    unmarked, 63, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 21059
+   explicit, 21100
    class-name, 46
    func-name, 0
    case, 33
@@ -114,9 +114,12 @@ Module × level grid
    core/test_sweep_vs_apply_consistency, 0, 0, 0, 0, 3, 0
    core/test_unified_sweep_dispatch, 0, 0, 0, 0, 28, 0
    core/test_wavefront_cumprod_equivalence, 0, 0, 0, 0, 3, 0
-   cp/test_cp_boundary_carry, 0, 7, 0, 0, 1, 0
+   cp/test_cp_boundary_carry, 0, 8, 0, 0, 4, 0
+   cp/test_cp_chord_spelling, 0, 6, 0, 0, 1, 0
+   cp/test_cp_composite_rule, 0, 5, 0, 0, 6, 0
    cp/test_cp_dropped_laws_are_refused, 0, 0, 0, 0, 8, 0
    cp/test_cp_first_collision, 0, 24, 0, 0, 1, 0
+   cp/test_cp_kernel_is_the_numerics_ki3, 0, 3, 0, 0, 0, 0
    cp/test_cp_realizer_table, 0, 12, 0, 0, 2, 0
    cp/test_cp_vacuum_not_above_white, 0, 6, 0, 0, 1, 0
    cp/test_cylinder, 0, 9, 0, 0, 0, 0
@@ -142,7 +145,7 @@ Module × level grid
    cross_method/test_member_seam_builders, 0, 0, 0, 0, 23, 0
    cross_method/test_method, 0, 0, 0, 0, 5, 0
    cross_method/test_method_mesh_binding, 0, 4, 0, 0, 0, 0
-   cross_method/test_one_parse_on_production, 56, 0, 0, 0, 0, 0
+   cross_method/test_one_parse_on_production, 54, 0, 0, 0, 0, 0
    cross_method/test_one_traced_face_list, 0, 0, 0, 0, 3, 0
    cross_method/test_polymorphism, 0, 0, 0, 0, 2, 0
    cross_method/test_production_pairs_typed_members, 0, 0, 0, 0, 4, 0
@@ -159,7 +162,7 @@ Module × level grid
    curvilinear/test_angular_endpoint_defect, 0, 0, 0, 0, 6, 0
    curvilinear/test_apply_matvec_cylinder_invariants, 24, 0, 0, 0, 0, 0
    curvilinear/test_azimuthal_mirror_symmetry, 0, 0, 0, 0, 4, 0
-   curvilinear/test_compute_psi_half_per_level, 27, 0, 0, 0, 2, 0
+   curvilinear/test_compute_psi_half_per_level, 23, 0, 0, 0, 2, 0
    curvilinear/test_coupled_pole_mu_level_invariant, 0, 0, 0, 0, 17, 0
    curvilinear/test_cyl_sweep_regression, 3, 0, 4, 0, 0, 0
    curvilinear/test_psi_half_angle_seed, 4, 6, 0, 0, 5, 0
@@ -177,7 +180,7 @@ Module × level grid
    data/test_citation, 0, 0, 0, 0, 24, 0
    data/test_content_identity_data, 0, 0, 0, 0, 38, 0
    data/test_cross_section_data, 11, 0, 0, 0, 0, 0
-   data/test_emission_spectrum, 0, 0, 0, 0, 15, 0
+   data/test_emission_spectrum, 0, 0, 0, 0, 13, 0
    data/test_energy_grid, 0, 0, 0, 0, 31, 0
    data/test_gendf_canonical_order, 0, 0, 0, 0, 7, 0
    data/test_hdf5_store, 0, 0, 0, 0, 13, 0
@@ -224,6 +227,7 @@ Module × level grid
    derivations/test_chord_half_lengths, 3, 0, 0, 0, 0, 0
    derivations/test_continuous_registry_lazy, 0, 0, 0, 0, 6, 0
    derivations/test_cp_geometry, 48, 0, 0, 0, 0, 0
+   derivations/test_cp_ki3_copy, 0, 5, 0, 0, 1, 0
    derivations/test_curved_wraps_are_deck_errors, 0, 0, 0, 0, 11, 0
    derivations/test_diagnostics_resolve_their_imports, 0, 0, 0, 0, 10, 0
    derivations/test_dsa_production_tie, 0, 0, 0, 0, 5, 0
@@ -309,8 +313,8 @@ Module × level grid
    derivations/test_traced_memo_clients, 0, 0, 0, 0, 15, 0
    derivations/test_walls_of_reads_decks_and_amplitudes, 0, 0, 0, 0, 72, 0
    diffusion/test_assembly_of_the_diffusion_loss, 0, 0, 0, 0, 2, 0
-   diffusion/test_augmented_mesh, 0, 0, 0, 0, 17, 0
-   diffusion/test_boundary_realizer, 4, 0, 0, 0, 27, 0
+   diffusion/test_augmented_mesh, 0, 0, 0, 0, 16, 0
+   diffusion/test_boundary_realizer, 4, 0, 0, 0, 26, 0
    diffusion/test_continuous_reference, 0, 7, 0, 0, 0, 0
    diffusion/test_diffusion_boundary_carry, 0, 16, 0, 0, 1, 0
    diffusion/test_diffusion_hollow_inner_law, 0, 0, 0, 0, 4, 0
@@ -319,7 +323,7 @@ Module × level grid
    diffusion/test_mms, 0, 2, 0, 0, 0, 0
    diffusion/test_n2n_witness, 0, 2, 0, 0, 0, 0
    diffusion/test_near_kernel_witness, 0, 5, 0, 0, 0, 0
-   diffusion/test_operators, 17, 0, 0, 0, 22, 0
+   diffusion/test_operators, 17, 0, 0, 0, 19, 0
    diffusion/test_properties, 3, 0, 0, 0, 0, 0
    diffusion/test_scalar_trace_is_the_raw_constructor, 0, 0, 0, 0, 5, 0
    diffusion/test_sigma_variant_reach, 0, 0, 0, 0, 1, 0
@@ -331,17 +335,19 @@ Module × level grid
    eigenvalue/test_keff_estimator_gate, 0, 0, 0, 0, 28, 0
    eigenvalue/test_keff_slab, 0, 6, 0, 0, 0, 0
    eigenvalue/test_keigenvalue_on_the_sn_triple, 0, 3, 0, 0, 0, 0
-   fields/test_angular_boundary_flux, 0, 0, 0, 0, 36, 0
+   fields/test_angular_boundary_flux, 0, 0, 0, 0, 35, 0
    fields/test_angular_boundary_source_sink_residual, 0, 0, 0, 0, 29, 0
    fields/test_angular_flux, 0, 0, 0, 0, 24, 0
    fields/test_coefficient_fields, 0, 0, 0, 0, 9, 0
    fields/test_facefield_hierarchy, 0, 0, 0, 0, 7, 0
    fields/test_field_space_identity, 0, 0, 0, 0, 9, 0
    fields/test_flux_vector_algebra, 0, 0, 0, 0, 28, 0
-   fields/test_harmonic_moment_flux, 0, 0, 0, 0, 22, 0
+   fields/test_harmonic_moment_flux, 0, 0, 0, 0, 4, 0
    fields/test_meshless_construction, 0, 0, 0, 0, 8, 0
+   fields/test_moment_field_agrees_with_its_space, 0, 0, 0, 0, 15, 0
    fields/test_role_partners, 0, 0, 0, 0, 23, 0
    fields/test_scalar_boundary_flux, 0, 0, 0, 0, 15, 0
+   fields/test_scalar_source_does_not_add_to_an_angular_one, 0, 0, 0, 0, 5, 0
    fields/test_spatial_moment_field_space, 0, 0, 0, 0, 9, 0
    frames/test_binding_tightness, 0, 0, 0, 0, 20, 0
    frames/test_frame_mints_refuse_a_moment_space, 0, 0, 0, 0, 4, 0
@@ -359,7 +365,7 @@ Module × level grid
    geometry/test_chord_transits, 88, 0, 0, 0, 1, 0
    geometry/test_colouring_symmetry, 0, 0, 0, 0, 22, 0
    geometry/test_content_identity_geometry, 0, 0, 0, 0, 57, 0
-   geometry/test_coord, 0, 0, 0, 0, 15, 0
+   geometry/test_coord, 0, 0, 0, 0, 14, 0
    geometry/test_deck, 0, 0, 0, 0, 7, 0
    geometry/test_face_roles, 0, 0, 0, 0, 38, 0
    geometry/test_geometry, 0, 0, 0, 0, 14, 0
@@ -369,13 +375,13 @@ Module × level grid
    geometry/test_line, 0, 0, 0, 0, 9, 0
    geometry/test_line_domain, 3, 5, 0, 0, 22, 0
    geometry/test_line_measure, 0, 12, 0, 0, 0, 0
-   geometry/test_manifold, 0, 0, 0, 0, 245, 0
+   geometry/test_manifold, 0, 0, 0, 0, 244, 0
    geometry/test_measure_density, 6, 0, 0, 0, 0, 0
    geometry/test_named_face_constructors, 0, 0, 0, 0, 62, 0
    geometry/test_rays, 16, 0, 0, 0, 7, 0
    geometry/test_roots_of_unity, 0, 0, 0, 0, 251, 0
    geometry/test_structured_geometry, 0, 0, 0, 0, 58, 0
-   geometry/test_symmetry, 0, 0, 0, 0, 125, 2
+   geometry/test_symmetry, 0, 0, 0, 0, 123, 2
    geometry/test_transformation, 0, 0, 0, 0, 96, 0
    homogeneous/test_assembly_of_the_homogeneous_loss, 0, 0, 0, 0, 2, 0
    homogeneous/test_coda_anchors, 0, 0, 0, 0, 28, 0
@@ -398,6 +404,22 @@ Module × level grid
    mc/test_mc_dropped_laws_are_refused, 0, 0, 0, 0, 4, 0
    mc/test_monte_carlo, 0, 12, 0, 0, 0, 0
    mc/test_properties, 25, 0, 0, 0, 0, 0
+   memo/test_memo_boot_loads_the_convention, 0, 0, 0, 0, 16, 0
+   memo/test_memo_sources, 0, 0, 0, 0, 9, 0
+   memo/test_traced_memo_apparatus, 0, 0, 0, 0, 21, 0
+   memo/test_traced_memo_compiled_bytes, 0, 0, 0, 0, 17, 0
+   memo/test_traced_memo_data, 0, 0, 0, 0, 1, 0
+   memo/test_traced_memo_findings, 0, 0, 0, 0, 40, 0
+   memo/test_traced_memo_listing_ignores_bytecode, 0, 0, 0, 0, 2, 0
+   memo/test_traced_memo_manifest, 0, 0, 0, 0, 24, 0
+   memo/test_traced_memo_nested_recording, 0, 0, 0, 0, 3, 0
+   memo/test_traced_memo_ownership, 0, 0, 0, 0, 9, 0
+   memo/test_traced_memo_process, 0, 0, 0, 0, 31, 0
+   memo/test_traced_memo_records_each_file, 0, 0, 0, 0, 2, 0
+   memo/test_traced_memo_source_index, 0, 0, 0, 0, 24, 0
+   memo/test_traced_memo_statement_pins, 0, 0, 0, 0, 93, 0
+   memo/test_traced_memo_template, 0, 0, 0, 0, 45, 0
+   memo/test_traced_memo_validation, 0, 0, 0, 0, 27, 0
    mesh/test_angular_bulk_space, 0, 0, 0, 0, 24, 0
    mesh/test_axis_adapter_laws, 0, 0, 0, 0, 18, 0
    mesh/test_content_identity_mesh, 0, 0, 0, 0, 40, 0
@@ -405,7 +427,6 @@ Module × level grid
    mesh/test_face_roles, 0, 0, 0, 0, 56, 0
    mesh/test_factories, 0, 0, 0, 0, 4, 0
    mesh/test_harmonic_frame_on_the_problem, 0, 0, 0, 0, 1, 0
-   mesh/test_harmonic_moment_flux_on_the_problem, 0, 0, 0, 0, 4, 0
    mesh/test_hollow_inner_law, 0, 0, 0, 0, 2, 0
    mesh/test_hub_and_frame_agree_on_the_moment_space, 0, 0, 0, 0, 38, 0
    mesh/test_hub_owns_the_moment_space, 0, 0, 0, 0, 12, 0
@@ -471,21 +492,23 @@ Module × level grid
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 315, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 12, 0
+   numerics/test_axis_weights_agree_with_origin, 0, 0, 0, 0, 17, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 8
    numerics/test_content_identity_axis, 0, 0, 0, 0, 66, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
+   numerics/test_convergence_evidence_reader_is_exhaustive, 0, 0, 0, 0, 21, 0
    numerics/test_coordinate_space, 54, 0, 0, 0, 0, 0
-   numerics/test_coupled_operator, 0, 0, 0, 0, 91, 0
+   numerics/test_coupled_operator, 0, 0, 0, 0, 90, 0
    numerics/test_covector, 12, 0, 0, 0, 0, 0
    numerics/test_default_iteration_budget, 0, 0, 0, 0, 34, 0
    numerics/test_dense_metric, 0, 0, 0, 0, 14, 0
    numerics/test_descent, 0, 0, 0, 0, 20, 0
-   numerics/test_diagonal_operator, 19, 0, 0, 0, 3, 0
+   numerics/test_diagonal_operator, 17, 0, 0, 0, 3, 0
    numerics/test_dual_metric, 0, 0, 0, 0, 85, 0
-   numerics/test_eigenvalue, 0, 39, 0, 0, 0, 0
+   numerics/test_eigenvalue, 0, 33, 0, 0, 0, 0
    numerics/test_enclosure, 0, 0, 0, 0, 38, 0
    numerics/test_estimators_as_functionals, 0, 0, 0, 0, 4, 0
    numerics/test_exactness, 0, 0, 0, 0, 21, 0
@@ -495,25 +518,25 @@ Module × level grid
    numerics/test_factored_adjoint_identity, 13, 0, 0, 0, 0, 0
    numerics/test_field, 0, 0, 0, 0, 31, 0
    numerics/test_fixed_point_step, 0, 0, 0, 0, 9, 0
-   numerics/test_frame, 0, 18, 0, 0, 46, 5
+   numerics/test_frame, 0, 18, 0, 0, 47, 5
    numerics/test_fredholm_verdict, 13, 0, 0, 0, 0, 0
    numerics/test_full_field_space, 0, 0, 0, 0, 7, 3
-   numerics/test_gauge, 0, 0, 0, 0, 10, 0
+   numerics/test_gauge, 0, 0, 0, 0, 15, 0
    numerics/test_gauss_rule_fingerprint, 0, 14, 0, 0, 7, 0
    numerics/test_gauss_rules_correctly_rounded, 0, 234, 0, 0, 43, 0
    numerics/test_generating_measure, 0, 78, 0, 0, 229, 0
+   numerics/test_generating_measure_name_is_its_content, 0, 0, 0, 0, 13, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_harmonic_axis, 0, 0, 0, 0, 10, 0
-   numerics/test_heads_on_the_axis, 0, 0, 0, 0, 24, 0
+   numerics/test_heads_on_the_axis, 0, 0, 0, 0, 21, 0
    numerics/test_index_set, 0, 0, 0, 0, 2, 0
    numerics/test_indicator_basis, 0, 0, 0, 0, 10, 0
    numerics/test_indicator_basis_orientation, 0, 0, 0, 0, 2, 0
    numerics/test_inner_product_functional, 6, 0, 0, 0, 0, 0
    numerics/test_interval_legendre_basis, 0, 0, 0, 0, 66, 0
-   numerics/test_invariance, 0, 0, 0, 0, 111, 0
+   numerics/test_invariance, 0, 0, 0, 0, 107, 0
    numerics/test_invariance_composition, 0, 0, 0, 0, 1079, 0
    numerics/test_invariance_verdicts, 0, 0, 0, 0, 91, 0
-   numerics/test_inverse_metric_operator, 0, 0, 0, 0, 9, 0
    numerics/test_inverse_universal, 0, 0, 0, 0, 23, 0
    numerics/test_iteration, 0, 0, 0, 0, 42, 0
    numerics/test_iteration_record, 0, 0, 0, 0, 136, 4
@@ -530,18 +553,17 @@ Module × level grid
    numerics/test_member_seam_laws, 0, 0, 0, 0, 32, 0
    numerics/test_mesh_free_depends_on, 0, 0, 0, 0, 14, 0
    numerics/test_mesh_free_function, 0, 0, 0, 0, 54, 0
-   numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 81, 0
+   numerics/test_moment_head_axis_built_premise, 0, 0, 0, 0, 70, 0
    numerics/test_moment_layout_retired, 0, 0, 0, 0, 7, 0
    numerics/test_near_kernel, 12, 0, 0, 0, 0, 0
    numerics/test_observable, 0, 0, 0, 0, 50, 0
    numerics/test_operator, 0, 0, 0, 0, 59, 0
    numerics/test_operator_capability_predicates, 0, 0, 0, 0, 27, 0
-   numerics/test_operator_protocols, 0, 0, 0, 0, 16, 0
    numerics/test_ordinate_pairing, 0, 6, 0, 0, 19, 0
    numerics/test_outcome, 0, 0, 0, 0, 17, 0
    numerics/test_outer_dyad, 9, 0, 0, 0, 0, 0
    numerics/test_overlay_is_a_form_on_a_modal_block, 4, 0, 0, 0, 0, 0
-   numerics/test_pencil, 0, 0, 0, 0, 27, 0
+   numerics/test_pencil, 0, 0, 0, 0, 19, 0
    numerics/test_permutation_operator, 11, 2, 0, 0, 0, 0
    numerics/test_posing, 0, 0, 0, 0, 8, 0
    numerics/test_power_iteration_record, 0, 0, 0, 0, 26, 0
@@ -549,17 +571,17 @@ Module × level grid
    numerics/test_question, 0, 0, 0, 0, 66, 0
    numerics/test_quotient_metric, 0, 0, 0, 0, 32, 0
    numerics/test_rational_polynomial, 0, 0, 0, 0, 5, 0
-   numerics/test_registry, 0, 0, 0, 0, 112, 0
+   numerics/test_registry, 0, 0, 0, 0, 70, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 9, 0
    numerics/test_registry_rule_list, 0, 0, 0, 0, 12, 1
    numerics/test_retraction_adjoint_is_the_pullback, 0, 0, 0, 0, 30, 0
-   numerics/test_riesz_legs, 3, 0, 0, 0, 0, 8
+   numerics/test_riesz_legs, 3, 0, 0, 0, 6, 8
    numerics/test_rules_1d, 0, 10, 0, 0, 21, 0
    numerics/test_rules_circle, 0, 93, 0, 0, 57, 0
    numerics/test_rules_product, 0, 3, 0, 0, 45, 0
    numerics/test_rules_sphere, 0, 7, 0, 0, 67, 0
    numerics/test_slab_orbit_space, 0, 0, 0, 0, 17, 0
-   numerics/test_space, 0, 0, 0, 0, 15, 0
+   numerics/test_space, 0, 0, 0, 0, 11, 0
    numerics/test_space_algebra, 0, 0, 0, 0, 18, 0
    numerics/test_space_identity_is_structural, 0, 0, 0, 0, 15, 0
    numerics/test_space_membership, 9, 0, 0, 0, 0, 0
@@ -573,20 +595,6 @@ Module × level grid
    numerics/test_tensor_product_metric_is_factored, 0, 0, 0, 0, 10, 0
    numerics/test_tensor_product_operator, 33, 0, 0, 0, 0, 0
    numerics/test_trace_restriction_operator, 0, 0, 0, 0, 16, 0
-   numerics/test_traced_memo_apparatus, 0, 0, 0, 0, 21, 0
-   numerics/test_traced_memo_compiled_bytes, 0, 0, 0, 0, 17, 0
-   numerics/test_traced_memo_data, 0, 0, 0, 0, 1, 0
-   numerics/test_traced_memo_findings, 0, 0, 0, 0, 40, 0
-   numerics/test_traced_memo_listing_ignores_bytecode, 0, 0, 0, 0, 2, 0
-   numerics/test_traced_memo_manifest, 0, 0, 0, 0, 24, 0
-   numerics/test_traced_memo_nested_recording, 0, 0, 0, 0, 3, 0
-   numerics/test_traced_memo_ownership, 0, 0, 0, 0, 9, 0
-   numerics/test_traced_memo_process, 0, 0, 0, 0, 31, 0
-   numerics/test_traced_memo_records_each_file, 0, 0, 0, 0, 2, 0
-   numerics/test_traced_memo_source_index, 0, 0, 0, 0, 24, 0
-   numerics/test_traced_memo_statement_pins, 0, 0, 0, 0, 93, 0
-   numerics/test_traced_memo_template, 0, 0, 0, 0, 45, 0
-   numerics/test_traced_memo_validation, 0, 0, 0, 0, 27, 0
    numerics/test_true_ends_member_seam, 0, 0, 0, 0, 5, 0
    numerics/test_vector_protocol, 0, 0, 0, 0, 6, 0
    numerics/test_weighted_indicator_basis, 0, 0, 0, 0, 8, 0
@@ -598,7 +606,7 @@ Module × level grid
    operators/test_boundary_carrier_admission, 0, 0, 0, 0, 18, 0
    operators/test_boundary_conditions, 0, 0, 0, 0, 10, 0
    operators/test_boundary_source_from_specs, 0, 12, 0, 0, 0, 0
-   operators/test_capability_survival, 0, 0, 0, 0, 12, 0
+   operators/test_capability_survival, 0, 0, 0, 0, 10, 0
    operators/test_collision_operator, 0, 0, 0, 0, 54, 0
    operators/test_deck_kernel, 0, 34, 0, 0, 0, 0
    operators/test_declared_law_is_linear, 0, 0, 0, 0, 15, 0
@@ -607,8 +615,9 @@ Module × level grid
    operators/test_fission_adjoint_route, 0, 0, 0, 0, 4, 0
    operators/test_fission_kernel_crosscheck, 0, 0, 0, 0, 6, 0
    operators/test_fission_operator, 0, 0, 0, 0, 18, 0
-   operators/test_frame_conjugate_carve, 0, 0, 0, 0, 11, 0
+   operators/test_frame_conjugate_carve, 0, 0, 0, 0, 9, 0
    operators/test_g_adjoint_reciprocity, 0, 0, 0, 0, 46, 0
+   operators/test_gauge_evidence_reader_is_exhaustive, 0, 0, 0, 0, 9, 0
    operators/test_green_operator_sn, 0, 0, 0, 0, 5, 0
    operators/test_inverse_adjoint_coherence, 0, 0, 0, 0, 19, 0
    operators/test_inverse_operator_equivalence, 0, 0, 0, 0, 7, 0
@@ -625,27 +634,27 @@ Module × level grid
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_moment_domain_binding, 0, 0, 0, 0, 14, 0
    operators/test_multiplication_operator_on_the_problem, 0, 0, 0, 0, 6, 0
-   operators/test_n2n_operator, 0, 0, 0, 0, 14, 0
+   operators/test_n2n_operator, 0, 0, 0, 0, 13, 0
    operators/test_native_matvec, 0, 0, 0, 0, 18, 0
    operators/test_near_kernel_witness, 0, 15, 0, 0, 0, 0
    operators/test_one_octant_walk, 0, 0, 0, 0, 3, 0
    operators/test_one_representation_instance, 0, 0, 0, 0, 2, 0
-   operators/test_operator_block_role, 0, 0, 0, 0, 22, 0
    operators/test_operator_feeds_the_walk, 0, 0, 0, 0, 7, 0
    operators/test_operators_apply_typed, 0, 0, 0, 0, 17, 0
    operators/test_predicted_loss_kernel, 17, 0, 0, 0, 0, 0
    operators/test_production_rate_counts_n2n, 0, 0, 0, 0, 1, 0
-   operators/test_psi_half_coupling, 0, 2, 0, 0, 89, 0
+   operators/test_psi_half_coupling, 0, 2, 0, 0, 85, 0
    operators/test_pure_L_sigma_free, 0, 0, 0, 0, 9, 0
    operators/test_quotient_adjoint_sn, 0, 0, 0, 0, 22, 0
    operators/test_radial_characteristic_cylinder_arm, 5, 0, 0, 0, 0, 0
    operators/test_radial_characteristic_metric, 0, 0, 0, 0, 19, 0
+   operators/test_radial_ell0_scale_is_the_correctly_rounded_mass, 13, 0, 0, 0, 0, 0
    operators/test_ray_operator, 0, 6, 0, 0, 0, 0
    operators/test_reflect_helper_reexpression, 0, 0, 0, 0, 16, 0
    operators/test_removal_form_matvec_sweep, 0, 0, 0, 0, 21, 0
    operators/test_scattering_adjoint, 0, 0, 0, 0, 18, 0
    operators/test_scattering_kernel_crosscheck, 0, 0, 0, 0, 6, 0
-   operators/test_scattering_operator, 1, 0, 0, 0, 62, 0
+   operators/test_scattering_operator, 1, 0, 0, 0, 27, 0
    operators/test_sn_boundary_operator, 0, 0, 0, 0, 54, 0
    operators/test_sn_boundary_realizer, 10, 42, 0, 0, 0, 0
    operators/test_snmesh_realizer_wiring, 0, 10, 0, 0, 0, 0
@@ -666,7 +675,7 @@ Module × level grid
    primitives/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
    primitives/test_dag_ownership, 0, 0, 0, 0, 18, 0
    primitives/test_face_name_crosswalk, 0, 0, 0, 0, 4, 0
-   primitives/test_harmonic_moment_flux, 0, 0, 0, 0, 34, 0
+   primitives/test_harmonic_moment_flux, 0, 0, 0, 0, 25, 0
    primitives/test_method_space, 3, 0, 0, 0, 0, 0
    primitives/test_octants_property, 60, 0, 0, 0, 0, 0
    primitives/test_properties, 4, 0, 0, 0, 0, 0
@@ -675,12 +684,13 @@ Module × level grid
    primitives/test_snmesh_consumes_reduced, 0, 0, 0, 0, 16, 0
    primitives/test_snmesh_materials_pr_typed_0, 0, 0, 0, 0, 7, 0
    primitives/test_solution, 0, 0, 0, 0, 32, 0
-   primitives/test_typed_source_sinks, 0, 0, 0, 0, 36, 0
+   primitives/test_typed_source_sinks, 0, 0, 0, 0, 32, 0
    reference/test_published, 0, 0, 0, 0, 46, 0
    reference/test_readings, 0, 0, 0, 0, 98, 0
    reference/test_reference_certificate, 0, 0, 0, 0, 91, 0
    reference/test_reference_solution, 0, 0, 0, 0, 36, 0
    reference/test_verification, 0, 0, 0, 0, 82, 0
+   reference/test_verification_evidence_reader_is_exhaustive, 0, 0, 0, 0, 4, 0
    regression/test_dd_regression, 0, 0, 0, 0, 14, 0
    regression/test_walk_matvec_baselines, 0, 0, 0, 0, 5, 0
    residuals/test_typed_residuals, 0, 0, 0, 0, 32, 0
@@ -756,19 +766,23 @@ Module × level grid
    sweep/test_tau_arc_wellposedness, 0, 0, 0, 0, 10, 0
    test_adjointability_is_honest, 0, 0, 0, 0, 53, 0
    test_ambient_state, 0, 0, 0, 0, 14, 0
+   test_angular_mass_retirement_rows, 0, 0, 0, 0, 2, 0
    test_assembly_functor_census, 0, 0, 0, 0, 12, 0
    test_content_identity_census, 0, 0, 0, 0, 7, 0
+   test_dead_b_census_and_row_mutation, 0, 0, 0, 0, 2, 0
    test_dependencies_declared, 0, 0, 0, 0, 1, 0
    test_docstring_xrefs, 0, 0, 0, 0, 46, 0
-   test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
-   test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
+   test_elegance_debt_is_tagged, 0, 0, 0, 0, 7, 0
+   test_error_catalogue_reconciles, 0, 0, 0, 0, 13, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 534, 0
+   test_layer_imports, 0, 0, 0, 0, 582, 0
+   test_memo_old_path, 0, 0, 0, 0, 8, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_registries_are_disjoint, 0, 0, 0, 0, 1, 0
    test_retirements, 0, 0, 0, 0, 65, 0
+   test_retirements_roles, 0, 0, 0, 0, 2, 0
    test_space_identity_census, 0, 0, 0, 0, 1, 0
    test_test_layers, 0, 0, 0, 0, 39, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
@@ -780,10 +794,10 @@ Module × level grid
    tools/test_cone_store_ground_truth, 0, 0, 0, 0, 7, 0
    tools/test_cone_store_memo_coexistence, 0, 0, 0, 0, 5, 0
    tools/test_cone_store_phases, 0, 0, 0, 0, 5, 0
-   tools/test_cone_store_placement, 0, 0, 0, 0, 32, 0
+   tools/test_cone_store_placement, 0, 0, 0, 0, 33, 0
    tools/test_cone_store_placement_reads, 0, 0, 0, 0, 23, 0
    tools/test_cone_store_reads, 0, 0, 0, 0, 35, 0
-   tools/test_cone_store_recorder, 0, 0, 0, 0, 9, 0
+   tools/test_cone_store_recorder, 0, 0, 0, 0, 12, 0
    tools/test_cone_store_routes, 0, 0, 0, 0, 13, 0
    tools/test_cone_store_selection, 0, 0, 0, 0, 34, 0
    tools/test_cone_store_statement_grain, 0, 0, 0, 0, 25, 0
@@ -792,11 +806,12 @@ Module × level grid
    tools/test_write_guards, 0, 0, 0, 0, 22, 0
    transport/test_absorbing_chain_predictor, 15, 0, 0, 0, 0, 0
    transport/test_admission_matrix, 0, 0, 0, 0, 25, 0
-   transport/test_admission_mechanism, 0, 0, 0, 0, 14, 0
+   transport/test_admission_mechanism, 0, 0, 0, 0, 13, 0
    transport/test_angular_lift, 0, 0, 0, 0, 18, 0
+   transport/test_angular_lift_divides_by_the_sections_mass, 0, 0, 0, 0, 17, 0
    transport/test_binding, 0, 0, 0, 0, 5, 0
    transport/test_boundary_conditions_map, 0, 0, 0, 0, 1, 0
-   transport/test_boundary_conditions_package, 0, 0, 0, 0, 4, 0
+   transport/test_boundary_conditions_package, 0, 0, 0, 0, 3, 0
    transport/test_bulk_lift, 0, 0, 0, 0, 21, 0
    transport/test_composite, 0, 0, 0, 0, 15, 0
    transport/test_content_identity_transport, 0, 0, 0, 0, 110, 0
@@ -806,7 +821,7 @@ Module × level grid
    transport/test_functional_category, 0, 0, 0, 0, 11, 0
    transport/test_integral_kernel_category, 0, 0, 0, 0, 13, 0
    transport/test_integrated_reaction_rate, 0, 0, 0, 0, 11, 0
-   transport/test_kernels, 0, 0, 0, 0, 88, 0
+   transport/test_kernels, 0, 0, 0, 0, 87, 0
    transport/test_material_field, 0, 0, 0, 0, 46, 0
    transport/test_material_mesh, 0, 0, 0, 0, 11, 0
    transport/test_material_mesh_admission, 0, 0, 0, 0, 1, 0
@@ -832,6 +847,7 @@ Module × level grid
    transport/test_wave2_handoffs, 0, 0, 0, 0, 3, 0
    values/test_content_identity, 0, 0, 0, 0, 43, 0
    values/test_content_identity_relocation, 0, 0, 0, 0, 14, 0
+   values/test_digest_convention, 0, 0, 0, 0, 13, 0
    values/test_one_real_parser, 0, 0, 0, 0, 16, 0
 
 Equation coverage

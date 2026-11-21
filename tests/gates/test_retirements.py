@@ -916,7 +916,7 @@ def _first(engine: SimpleNamespace, kind: type):
 
 
 def _mutation_rows(engine: SimpleNamespace) -> list:
-    """Every row of ``rows_wave2`` plus the two types it has none of, so that a mutation is read against 65 + 3 entries."""
+    """Every row of ``rows_wave2`` plus the two types it has none of, so that a mutation is read against 69 + 3 entries."""
     R = engine.R
     return [
         *engine.rows_wave2.ROWS,
@@ -1055,7 +1055,7 @@ def test_the_default_rows_are_read_from_the_package_directory_and_never_from_the
     r"""Decision E-D4: the walk on a root that holds no rows module (an empty root, and a root that plants a ``rows_planted.py`` under
     ``tests/gates/_retired/``) reads the full row count of the package directory, counted here by importing each ``rows_*.py`` of
     the package directory by file location (a count independent of ``load_rows``), and none of the planted row. Red input: an engine
-    that globs under ``root`` reads 0 rows on both roots. The count is also asserted non-zero and at least wave 2's 65."""
+    that globs under ``root`` reads 0 rows on both roots. The count is also asserted non-zero and at least wave 2's 69."""
     modules = sorted(engine.package_dir.glob("rows_*.py"))
     assert modules, engine.package_dir
     expected = 0
@@ -1071,7 +1071,7 @@ def test_the_default_rows_are_read_from_the_package_directory_and_never_from_the
         finally:
             sys.modules.pop(spec.name, None)
         expected += len(module.ROWS) + len(module.KEPT)
-    assert expected >= 65, expected
+    assert expected >= 69, expected
     empty = tmp_path / "empty"
     empty.mkdir()
     assert len(engine.walk(empty)) == expected
@@ -1125,7 +1125,7 @@ def real_walk(engine: SimpleNamespace) -> dict:
 )
 def test_every_row_and_kept_entry_of_the_package_is_green_on_the_tree(engine: SimpleNamespace, real_walk: dict) -> None:
     r"""Every row of every rows module of the package (wave 2 and each unit's ``rows_w0_<unit>.py``) and every ``Kept`` entry read green on
-    the real tree: ``k of N`` is printed. RECORD of the tree. The wave-2 statement stays: 65 rows (2 ``Retired``, 60 ``RetiredName``, 3
+    the real tree: ``k of N`` is printed. RECORD of the tree. The wave-2 statement stays: 69 rows (6 ``Retired``, 60 ``RetiredName``, 3
     ``RetiredModule``; ``KEPT = ()``, decisions D5 and R2), the three module rows being the three paths the deleted path test named
     (decision E-D6), each module's file and package directory absent. The input count stands beside the finding count (X1): the walk
     holds one verdict per entry and the control, which reads red (a walk that scanned no file would read it green). Red input: a name,
@@ -1133,7 +1133,7 @@ def test_every_row_and_kept_entry_of_the_package_is_green_on_the_tree(engine: Si
     R = engine.R
     rows = list(engine.rows_wave2.ROWS)
     by_type = {name: sum(1 for r in rows if type(r).__name__ == name) for name in _ROW_TYPE_NAMES}
-    assert by_type == {"Retired": 2, "Moved": 0, "RetiredName": 60, "RetiredModule": 3}, by_type
+    assert by_type == {"Retired": 6, "Moved": 0, "RetiredName": 60, "RetiredModule": 3}, by_type
     assert tuple(engine.rows_wave2.KEPT) == ()
     assert real_walk[(R.RetiredName, R.RetiredName(_REAL_CONTROL))], "the control reads green: the walk scanned no file that uses it"
     total = _assert_every_row_green(engine, _REPO, verdicts=real_walk)
@@ -1156,13 +1156,13 @@ _PLANTED_HEAD = "from tests.gates._retired import Kept, Moved, Retired, RetiredM
     ids=["a red row", "a kept definition that does not exist"],
 )
 def test_the_real_tree_gate_fails_on_a_planted_rows_module_and_names_it(engine: SimpleNamespace, tmp_path: Path, body: str) -> None:
-    r"""The gate body, called with a rows directory holding a copy of ``rows_wave2.py`` (green: 65 of 65, no raise) and a planted
+    r"""The gate body, called with a rows directory holding a copy of ``rows_wave2.py`` (green: 69 of 69, no raise) and a planted
     ``rows_w0_planted.py`` whose one entry is red on the real tree, fails and names ``rows_w0_planted.py`` and not ``rows_wave2.py``.
     Red input: a gate that asserts the rows of wave 2 alone."""
     rows_dir = tmp_path / "rows"
     rows_dir.mkdir()
     shutil.copy(engine.package_dir / "rows_wave2.py", rows_dir / "rows_wave2.py")
-    assert _assert_every_row_green(engine, _REPO, rows_dir) == 65
+    assert _assert_every_row_green(engine, _REPO, rows_dir) == 69
     (rows_dir / "rows_w0_planted.py").write_text(_PLANTED_HEAD + body, encoding="utf-8")
     with pytest.raises(AssertionError, match=r"rows_w0_planted\.py") as raised:
         _assert_every_row_green(engine, _REPO, rows_dir)

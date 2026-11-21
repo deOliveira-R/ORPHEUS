@@ -107,10 +107,9 @@ implementations were live.
 .. warning::
 
    That contract is **no longer independently gated**.  The
-   factory-binding tests in ``tests/gates/geometry/test_reduced_operator.py``
+   factory-binding tests in ``tests/gates/sn/mesh/test_reduced_operator.py``
    compare this module's factory output against ``problem.reduced.*``
-   (and against the deprecated ``SNProblem.face_areas`` / ``delta_A``
-   read-throughs, which forward to the same object) — i.e. against
+   — i.e. against
    the value this module itself produced, through the mesh
    constructor.  They pin the WIRING (SNProblem really does bind to
    these factories) and would redden if that wiring broke; they can

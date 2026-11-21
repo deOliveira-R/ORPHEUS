@@ -83,7 +83,6 @@ def test_the_mc_table_is_sealed_and_the_old_registry_is_gone() -> None:
     assert isinstance(table, B.RealizerTable)
     assert table.method == "mc" and table.state_cone is B.StateCone.NONNEGATIVE_FLUX and table.unregistered_issue == 654
     table.catalogue()
-    assert not hasattr(solver, "_mc_bc_periodic")
     from orpheus.geometry.deck import TranslationDeck
 
     built = MC.mc_head(MC.mc_slab_mesh1d(left=TranslationDeck(), right=TranslationDeck()), 3.0)

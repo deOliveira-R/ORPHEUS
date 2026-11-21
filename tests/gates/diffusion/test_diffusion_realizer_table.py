@@ -120,7 +120,6 @@ def test_the_table_registers_the_six_realizers_and_is_sealed() -> None:
     ):
         assert issubclass(getattr(module, name), base), f"{name} is not a {base.__name__}"
     assert "sample" not in vars(module.DiffusionSource) and not hasattr(module.DiffusionSource, "realize"), "a source realizer has no body to stub"
-    assert not hasattr(module, "_partial_current_albedo"), "the retired door must be gone"
     assert callable(module._albedo_operator), "_albedo_operator stays (the shared scalar-to-operator collapse)"
     catalogue = table.catalogue()
     assert H.summary(catalogue[B.ZeroNetwork]) == ("R", True) and H.summary(catalogue[H.zero_flux_condition()]) == ("R", True)

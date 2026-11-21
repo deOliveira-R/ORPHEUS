@@ -3,7 +3,7 @@
 
 # L0 error catalogue — index
 
-**127 entries · 369 catching tests · 2 uncaught · 5 dormant.**
+**127 entries · 368 catching tests · 3 uncaught · 5 dormant.**
 
 Bodies live once, in the corpus. This index is derived from the graph;
 editing it by hand is a no-op.
@@ -31,6 +31,7 @@ A catalogued defect nothing pins is an unguarded regression.
 
 - **ERR-103** — The characteristic reference's direction rules were graded toward grazing and not toward the no…
 - **ERR-110** — CPSolver.compute_keff divides production by net removal with no leakage term, a premise ("L str…
+- **ERR-118** — The quadrature registry typed "positive weights" on the Lebedev family, and the selector return…
 
 ## Dormant — every catcher is withdrawn
 
@@ -166,7 +167,7 @@ closes (or run it with `ORPHEUS_RUN_WITHDRAWN=<issue>`).
 | ERR-115 | 2 |  | A regenerated traced-memo entry held the OLD answer and validated: the generating process ran t… |
 | ERR-116 | 3 |  | A traced-memo entry pinned its file-system inputs (a data file's bytes, a probed path's presenc… |
 | ERR-117 | 3 |  | One adjointability predicate answered two questions, "a Euclidean transpose is coded" and "the… |
-| ERR-118 | 1 |  | The quadrature registry typed "positive weights" on the Lebedev family, and the selector return… |
+| ERR-118 | 0 |  | The quadrature registry typed "positive weights" on the Lebedev family, and the selector return… |
 | ERR-119 | 3 |  | The transport multiplier broadcast σ over the leading ordinate axis only, so on a linear-discon… |
 | ERR-120 | 2 |  | A hollow cylinder's or sphere's declared inner boundary condition was dropped in silence, becau… |
 | ERR-121 | 1 |  | A dense form could be positioned on a counting-measure axis, so a cross-section space carried t… |
