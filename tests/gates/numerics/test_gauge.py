@@ -30,6 +30,11 @@ gauge reads their ``evaluate``.
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import warnings
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -99,3 +104,48 @@ class TestLawTheScaleGauge:
         prod, absn = by_production.functional(phi), by_absorption.functional(phi)
         _require(abs(prod - absn) > 1e-2 * abs(prod), f"the two functionals read different numbers on one state ({prod:.6g} vs {absn:.6g})")
         _require(not np.allclose(by_production.apply(phi), by_absorption.apply(phi)), "so the two representatives differ by a positive scalar the recorded gauge names")
+
+
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+class TestLawTheScaleSectionIsOverTheNonzeroReals:
+    """A reading of any complex dtype has no section and is refused (``ValueError``, fragment ``complex reading``).
+
+    First red today (X1): ``np.complex128(1+2j)`` returns ``1.0`` (the imaginary part discarded) and
+    ``np.complex128(2+0j)`` returns ``0.5`` after a ``ComplexWarning``, which ``simplefilter("error")`` turns
+    into a ``ComplexWarning`` and not the ``ValueError``; a Python ``complex`` raises ``TypeError``.
+    Mutation: restore ``n = float(self.functional(state))`` as the body of ``ScaleGauge.displacement``.
+    """
+
+    @pytest.mark.parametrize(
+        "reading",
+        [np.complex128(1 + 2j), np.complex128(2 + 0j), 1 + 2j, np.array(1 + 2j)],
+        ids=["complex128", "complex128-real-valued", "python-complex", "0d-complex-array"],
+    )
+    def test_negative_a_complex_reading_is_refused(self, reading: object) -> None:
+        gauge = ScaleGauge(lambda state: reading, 1.0)  # type: ignore[arg-type, return-value]
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            with pytest.raises(ValueError, match="complex reading"):
+                gauge.displacement(None)
+
+    def test_a_real_reading_is_unchanged(self) -> None:
+        assert ScaleGauge(lambda state: np.float64(2.0), 1.0).displacement(None) == 0.5
+
+    def test_negative_the_refusal_holds_under_python_O(self) -> None:
+        code = (
+            "import numpy as np\n"
+            "from orpheus.numerics.gauge import ScaleGauge\n"
+            "try:\n"
+            "    ScaleGauge(lambda s: np.complex128(1+2j), 1.0).displacement(None)\n"
+            "except ValueError as e:\n"
+            "    assert 'complex reading' in str(e)\n"
+            "    print('REFUSED')\n"
+        )
+        done = subprocess.run(
+            [sys.executable, "-O", "-P", "-c", code],
+            env={**os.environ, "PYTHONPATH": str(_REPO_ROOT)},
+            capture_output=True, cwd=_REPO_ROOT, text=True,
+        )
+        assert "REFUSED" in done.stdout, done.stdout + done.stderr
