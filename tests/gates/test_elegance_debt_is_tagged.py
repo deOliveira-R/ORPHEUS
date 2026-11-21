@@ -37,6 +37,8 @@ import re
 
 import pytest
 
+from tests.gates import _refusal_gates as rg
+
 pytestmark = pytest.mark.foundation
 
 _TOKEN = re.compile(r"ELEGANCE-DEBT\[guard\]")
@@ -242,9 +244,7 @@ def test_the_wave_predicate_reads_the_parenthesised_wave_and_nothing_else():
 
 def _imported_orpheus() -> pathlib.Path:
     """The ``orpheus/`` directory pytest imported (the repository's, except in a run on a patched copy)."""
-    import orpheus
-
-    return pathlib.Path(orpheus.__file__).resolve().parent
+    return rg.import_root() / "orpheus"
 
 
 def test_every_refusal_tag_of_w0_carries_the_wave_that_retires_it():
@@ -260,13 +260,7 @@ def test_mutation_deleting_a_wave_from_the_tag_is_one_violation_naming_its_issue
     """Mutation of the wave leg: copy every ``orpheus/**/*.py`` (no ``__pycache__``) to ``<tmp>/orpheus``, require the
     unmutated copy green (a reading red before the mutation proves nothing), delete ``(W3)`` from the #709 tag line
     of ``transport/fields/_bases.py`` in the copy, and require exactly one violation, naming 709."""
-    source = _imported_orpheus()
-    for path in source.rglob("*.py"):
-        if "__pycache__" in path.parts:
-            continue
-        target = tmp_path / "orpheus" / path.relative_to(source)
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_bytes(path.read_bytes())
+    rg.copy_orpheus_py(rg.import_root(), tmp_path)
     copy = tmp_path / "orpheus"
     _, _, lines = _tagged_guards(copy)
     before = _wave_violations(lines)

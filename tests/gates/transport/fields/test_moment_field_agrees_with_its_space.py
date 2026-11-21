@@ -108,8 +108,9 @@ def test_replace_re_runs_the_check(space):
 # ----------------------------------------------------------------- (3) the TypeError leg
 
 
-def test_a_space_that_is_not_a_tensor_product_still_raises_TypeError():
-    """A space with no head is refused by ``MomentField.head`` (kept): the rewired role test no longer builds one."""
+def test_a_space_that_is_not_a_tensor_product_is_now_refused_at_construction_with_TypeError():
+    """The #709 refusal reads ``head_layout``, so a space with no head is refused at construction (``TypeError`` from
+    ``MomentField.head``); before #709 such a field constructed. W3's retirement of the tag keeps or re-homes this."""
     odd = FunctionSpace(name="moments", shape=(2, 3, 2, 4))
     with pytest.raises(TypeError):
         HarmonicMomentFlux(values=np.zeros((2, 3, 2, 4)), space=odd, L=1)

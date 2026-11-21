@@ -88,7 +88,7 @@ def remove_refusal(root: pathlib.Path, relative_file: str, issue: int) -> None:
     if not candidates:
         raise Uninstallable(f"{relative_file}: no raise after the tag line {tag!r}")
     at = min(candidates)
-    end = at + len("raise ValueError(")  # both spellings have the same length
+    end = at + len("raise ValueError(" if text.startswith("raise ValueError(", at) else "raise TypeError(")
     path.write_text(text[:at] + "assert False, (" + text[end:], encoding="utf-8")
 
 

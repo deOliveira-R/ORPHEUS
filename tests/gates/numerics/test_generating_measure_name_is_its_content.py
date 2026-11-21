@@ -1,7 +1,7 @@
 r"""#711 (W8a): within a process one ``GeneratingMeasure`` name is one content.
 
-``GeneratingMeasure`` compares by ``name`` alone (``support`` and ``exact_recurrence`` are outside equality, the
-latter ``compare=False``); nothing checks the implementation against the name. The refusal is an intern table
+``GeneratingMeasure`` compares by ``name`` and ``support``; ``exact_recurrence`` alone is outside equality
+(``compare=False``), and nothing checks the implementation against the name. The refusal is an intern table
 ``_NAME_CONTENT`` from the name to ``_MeasureContent(support, alpha, beta)`` (the bytes of the first 8 float64
 recurrence coefficients) and ONE ``raise ValueError`` in ``GeneratingMeasure.__post_init__`` tagged
 ``ELEGANCE-DEBT[guard] #711 (W8a)``. Specification: ``.claude/plans/ontology_w0_spec.md`` 5.1 to 5.3.
@@ -30,6 +30,7 @@ import dataclasses
 import numpy as np
 import pytest
 
+from orpheus.geometry.manifold import Interval
 from orpheus.numerics import generating_measure as gm
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, CHEBYSHEV_U, LEGENDRE
 from tests.gates import _refusal_gates as rg
@@ -105,6 +106,27 @@ def test_one_name_for_two_measures_is_refused(isolated_name_table):
         dataclasses.replace(CHEBYSHEV_T, name=LEGENDRE.name)
     if LEGENDRE.name not in str(info.value):
         pytest.fail(f"the refusal does not name the name {LEGENDRE.name!r}: {info.value}")
+
+
+def test_a_name_swap_that_differs_in_alpha_only_is_refused(isolated_name_table):
+    """``jacobi(2, 1)`` renamed ``jacobi(1, 2)``: the supports and ``beta`` are equal and ``alpha`` has the opposite
+    sign, so the ALPHA field of the content is what refuses it."""
+    one_two, two_one = gm._jacobi.__wrapped__(1, 2), gm._jacobi.__wrapped__(2, 1)
+    (alpha_a, beta_a), (alpha_b, beta_b) = (m.recurrence(gm._CONTENT_PROBE_ORDER) for m in (one_two, two_one))
+    if one_two.support != two_one.support or not np.array_equal(beta_a, beta_b) or np.array_equal(alpha_a, alpha_b):
+        pytest.fail("CONTROL INVALID: the pair does not differ in alpha alone")
+    with pytest.raises(ValueError, match=FRAGMENT):
+        dataclasses.replace(two_one, name=one_two.name)
+
+
+def test_a_name_swap_that_differs_in_support_only_is_refused(isolated_name_table):
+    """``replace(LEGENDRE, support=Interval(0, 1))`` keeps the name and every recurrence coefficient and moves the
+    support: the SUPPORT field of the content is what refuses it."""
+    moved = Interval(0.0, 1.0)
+    if moved == LEGENDRE.support:
+        pytest.fail("CONTROL INVALID: the new support is the old one")
+    with pytest.raises(ValueError, match=FRAGMENT):
+        dataclasses.replace(LEGENDRE, support=moved)
 
 
 def test_the_refused_input_is_a_different_measure_today_by_its_gauss_weights():

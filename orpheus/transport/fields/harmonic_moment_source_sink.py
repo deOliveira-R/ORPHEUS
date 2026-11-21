@@ -44,10 +44,12 @@ harmonic family — the ``<angular head>(L) ⊗ CellGroup``
 the mesh's quadrature frame (#429 tracker 2.5), the
 :meth:`~orpheus.transport.fields._bases.MomentField.from_problem_and_L` /
 :meth:`~orpheus.transport.fields._bases.MomentField.zeros_for_problem_and_L`
-factories; the space check is the one enforcement, and #709 makes equal spaces imply equal ``L``) is inherited from
+factories) is inherited from
 :class:`~orpheus.transport.fields._bases.MomentField` — the shared
 moment-space machinery lifted there when this second moment leaf arrived
 (``feedback_unify_after_two_instances``; the "clean before extending" pass).
+Partner refusal is :meth:`~orpheus.numerics.field.Field._check_partner`'s
+space check; #709 makes equal spaces imply equal ``L``.
 This leaf adds only its **role identity**: the rate-density :attr:`UNITS` and
 a distinct cell-group space name.
 
@@ -129,8 +131,10 @@ class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
     :class:`~orpheus.numerics.field.Field` (``source + source → source`` is
     closed; since campaign 1 CS3, 2026-08-19, the flux siblings share this
     algebra too — the ``FluxRole`` affine gate is retired).
-    Construction (the space check is the one enforcement, and #709 makes equal spaces imply equal ``L``) and the shape contract
-    are inherited from :class:`~orpheus.transport.fields._bases.MomentField`.
+    Construction and the shape contract are inherited from
+    :class:`~orpheus.transport.fields._bases.MomentField`; partner refusal
+    is :meth:`~orpheus.numerics.field.Field._check_partner`'s space check,
+    and #709 makes equal spaces imply equal ``L``.
     Cross-class arithmetic with :class:`HarmonicMomentFlux` (same shape,
     different physical kind) is rejected by Field's Layer-1 class-identity
     gate — see the module docstring.

@@ -130,8 +130,10 @@ the same space" is a claim this corpus has **overturned**.
      kind, support, nodes, layout)*; the kind, the support, the atoms and
      the layout are read off its origin, never passed
      (:ref:`spaces-axis-identity`).
-     ``weights=None`` **is** the counting measure — deliberately and
-     always; an axis has no "unbound" state, so the legacy two-state
+     ``weights=None`` **is** the counting measure; on a ``FromMeasure`` or
+     ``FromQuadrature`` axis the weights must be the origin's (``None`` only
+     when those are all ones), refused at construction (#710, W1). An axis
+     has no "unbound" state, so the legacy two-state
      ambiguity of ``inner_product_weights`` cannot arise on this type.
    - **The metric is an OBJECT, and a space has exactly ONE source for
      it.** Since campaign 1 P7 a space may carry a typed
@@ -295,7 +297,9 @@ read off the origin at construction (``kind``, ``support``, ``nodes``,
        0 is refused — a factor with no index set has nothing to measure.
    * - ``weights``
      - ``NDArray | None`` over exactly ``shape``
-     - The **factor measure**. ``None`` IS the counting measure. This is
+     - The **factor measure**. ``None`` IS the counting measure (on a
+       ``FromMeasure`` or ``FromQuadrature`` axis the weights must be the
+       origin's, refused at construction, #710, W1). This is
        the slot the pairing consumes. A raw partition head carries
        ``None`` because a partition is measure-free until a frame binds a
        fine measure (ruling 88, :ref:`spaces-collapse-pair-frame`).

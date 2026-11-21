@@ -264,11 +264,13 @@ _NEWTON_STEP_LIMIT = 50
 # grows monotonically in |k|, so a short prefix decides it. Eight is
 # generous — jacobi(a, b) with a != b already separates at k = 0.
 _SYMMETRY_PROBE_ORDER = 8
+#: How many recurrence coefficients a name's content holds (the same probe order).
+_CONTENT_PROBE_ORDER = _SYMMETRY_PROBE_ORDER
 
 
 @dataclass(frozen=True)
 class _MeasureContent:
-    r"""What a name is held to: the support and the first eight recurrence
+    r"""What a name is held to: the support and the first ``_CONTENT_PROBE_ORDER`` recurrence
     coefficients, as the bytes of their float64 values (bit-equal recurrences
     are equal)."""
 
@@ -300,10 +302,10 @@ class GeneratingMeasure:
         two *constructions* of the same measure are the same measure, so
         ``jacobi(0, 0) == LEGENDRE`` is ``True`` even though the two
         carry different :attr:`exact_recurrence` callables and reach the
-        coefficients by different code paths. (That the two paths agree
-        is refused at construction: one name is one content, the support and
-        the first eight recurrence coefficients bit for bit, #711, W8a; and
-        both round to the same correctly rounded rule, bit for bit.)
+        coefficients by different code paths. (A disagreement between the two paths is refused at construction: one
+        name is one content, the support and the first eight recurrence
+        coefficients bit for bit, #711, W8a; and both round to the same
+        correctly rounded rule, bit for bit.)
     support : Manifold
         The interval the measure lives on.
     exact_recurrence : callable
@@ -325,10 +327,10 @@ class GeneratingMeasure:
     exact_recurrence: RecurrenceCoefficients = field(compare=False, repr=False)
 
     def __post_init__(self) -> None:
-        alpha_8, beta_8 = self.recurrence(8)
+        alpha_8, beta_8 = self.recurrence(_CONTENT_PROBE_ORDER)
         content = _MeasureContent(self.support, alpha_8.tobytes(), beta_8.tobytes())
         known = _NAME_CONTENT.setdefault(self.name, content)
-        # ELEGANCE-DEBT[guard] #711 (W8a): one name is one content (the support and the first 8 recurrence coefficients, bit for bit). Retires when W8a makes a measure's identity its content, which retires this process-global table and the lru_cache stores of _jacobi and _affine_remap (the machinery that exists today: GeneratingMeasure.recurrence; the call-site set W8a re-spells is the 5 direct constructors left in generating_measure.py plus the 2 test-side copies dead-A moved).
+        # ELEGANCE-DEBT[guard] #711 (W8a): one name is one content (the support and the first _CONTENT_PROBE_ORDER recurrence coefficients, bit for bit). Retires when W8a makes a measure's identity its content, which retires this process-global table and the lru_cache stores of _jacobi and _affine_remap (the machinery that exists today: GeneratingMeasure.recurrence; the call-site set W8a re-spells is every direct GeneratingMeasure( construction, counted by `git grep -c 'GeneratingMeasure(' -- orpheus tests`).
         if known != content:
             raise ValueError(
                 f"the name {self.name!r} already names a different measure "

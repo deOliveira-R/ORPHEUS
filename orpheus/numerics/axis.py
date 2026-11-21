@@ -248,8 +248,7 @@ AxisKind = BasisKind | Modal
 #
 # Each arm answers the reads an axis derives its content from (kind, support,
 # nodes, layout) and ``determined_weights``, the weights the arm fixes or
-# ``None``: the manifold the coordinates live on, and the atoms a nodal factor
-# samples.
+# ``None``.
 # An arm holding a generating object compares that object by IDENTITY
 # (``eq=False``): the arm is provenance, and the content it answers is
 # compared on the axis, where it is copied and read-only. ``Declared`` holds

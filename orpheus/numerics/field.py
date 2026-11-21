@@ -249,8 +249,8 @@ class Field(Member, ABC):
 
         The return is the parse-don't-validate face: subclass overrides
         chain ``partner = super()._check_partner(other)`` and receive the
-        partner re-typed as ``Self``, so their own guards (mesh identity,
-        ``L`` match, layout) need no narrowing ceremony.
+        partner re-typed as ``Self``, so their own guards (``FaceField``'s
+        layout and locus check) need no narrowing ceremony.
         """
         if not self._is_same_class(other):
             raise TypeError(

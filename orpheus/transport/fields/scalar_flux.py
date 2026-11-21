@@ -37,11 +37,11 @@ hand-coded dunder skeleton. The migration:
   ``mesh`` field is duck-typed; TYPE_CHECKING-only imports keep the
   layer contract clean.
 * Preserves the strict semantics: arithmetic across two
-  :class:`ScalarFlux` instances with DIFFERENT mesh identities is
-  forbidden, even when the meshes have matching shapes — enforced by
-  the inherited
-  :meth:`~orpheus.numerics.field.Field._check_partner`
-  (the mesh-identity guard lives on the storage base, not this leaf).
+  :class:`ScalarFlux` whose spaces differ in content is refused by the
+  inherited
+  :meth:`~orpheus.numerics.field.Field._check_partner`; distinct
+  instances with equal content mix (the mesh-identity arm retired at
+  CS4b S3).
 * Introduced ``from_mesh`` / ``from_ndarray`` classmethods for
   2-arg construction (retired at CS4b S5 — construction is space-primary
   on the carrier's cached ``mesh.bulk_space``; the dataclass stays
@@ -121,7 +121,8 @@ class ScalarFlux(ScalarField):
     plus diagnostics ``linf``, ``l2``, ``inner_product``, ``copy``).
     The inherited
     :meth:`~orpheus.numerics.field.Field._check_partner`
-    adds the mesh-identity check on top of Field's class-and-space gate.
+    refuses a partner of another class or of unequal space content (the
+    cell volumes included).
 
     Per-group selectors (:meth:`at_group`) return ``np.ndarray``
     VIEWS into ``values`` — downstream callers must not mutate them.

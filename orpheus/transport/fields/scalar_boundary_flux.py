@@ -94,8 +94,8 @@ class ScalarBoundaryFlux(ScalarBoundaryField):
 
     Notes
     -----
-    Algebra (same-class ``+``/``-``, scalar ``*``/``/``, mesh-identity
-    and layout guards) is inherited from :class:`BoundaryField`. The
+    Algebra (same-class ``+``/``-``, scalar ``*``/``/``, the space-content
+    and layout guards; the mesh-identity arm retired at CS4b S3) is inherited from :class:`BoundaryField`. The
     named-quantity accessors below own the P1 dictionary — no consumer
     re-derives it (Pattern 3 / the crosswalk contract).
     """

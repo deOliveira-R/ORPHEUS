@@ -905,14 +905,14 @@ class MomentField(BulkField):
 
     def __post_init__(self) -> None:
         super().__post_init__()  # Field: values.shape == space.shape.
-        # ELEGANCE-DEBT[guard] #709 (W3): the field's L and spatial_moments must be the ones its space states. Retires when W3 derives L and spatial_moments from the space (the machinery that exists today: MomentField.head_layout and spatial_moments_per_axis; the call-site set W3 re-spells is the 8 production and 12 test constructors of the two leaves).
+        # ELEGANCE-DEBT[guard] #709 (W3): the field's L and spatial_moments must be the ones its space states. Retires when W3 derives L and spatial_moments from the space (the machinery that exists today: MomentField.head_layout and spatial_moments_per_axis; the call-site set W3 re-spells is every construction of the two leaves, counted by `git grep -c -P '\b(HarmonicMomentFlux|HarmonicMomentSourceSink)\(' -- orpheus tests`; a non-tensor space is also refused at construction by this guard, because it reads head_layout, which W3's retirement keeps or re-homes).
         if (
             self.head_layout.L != self.L
             or self.spatial_moments_per_axis != self.spatial_moments
         ):
             raise ValueError(
-                f"{type(self).__name__}: L={self.L} and spatial_moments="
-                f"{self.spatial_moments} disagrees with its space, which states "
+                f"{type(self).__name__}: the pair (L, spatial_moments) = "
+                f"({self.L}, {self.spatial_moments}) disagrees with its space, which states "
                 f"head_layout.L={self.head_layout.L} and "
                 f"spatial_moments_per_axis={self.spatial_moments_per_axis} (#709)"
             )
