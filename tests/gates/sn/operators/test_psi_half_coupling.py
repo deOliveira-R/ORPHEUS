@@ -152,11 +152,7 @@ from orpheus.numerics.coupled_system import (
     CoupledSubstitutionOperator,
 )
 from orpheus.numerics.assembled_operator import MissingAssembly, assemble
-from orpheus.numerics.operator import (
-    IncompatibleOperatorComposition,
-    SystemRole,
-    _join_system_roles,
-)
+from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.sn.coupled_system import build_coupled_system
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
@@ -3011,70 +3007,6 @@ class TestA_AB_SeedInjection:
                         f"{type(out_t.interior).__name__}.")
 
 
-class TestSystemRoleLattice:
-    r"""4a — the ``SystemRole {A, B, COUPLED}`` two-system role lattice.
-
-    The COARSE two-system partition that makes System B first-class in the
-    operator algebra (orthogonal to :class:`~orpheus.numerics.operator.BlockRole`,
-    the within-System-A bulk↔boundary refinement): the self-block ``A_BB`` and
-    the ray boundary ``B_b`` are System B; the off-diagonal couplings ``A_AB`` /
-    ``A_BA`` span both systems (COUPLED); every model-generic System-A leaf stays
-    unclassified (``None``). The join is the two-system analogue of the
-    block-role union — ``A ⊔ B = COUPLED``. Foundation: a software-invariant
-    gate (no ``verifies`` — it pins no equation).
-    """
-
-    def test_join_is_the_two_system_union(self):
-        # The defining law A ⊔ B = COUPLED, its symmetry, idempotence, COUPLED
-        # absorption, and the conservative None propagation (an operator outside
-        # the two-system decomposition stays outside under a sum).
-        A, B, C = SystemRole.A, SystemRole.B, SystemRole.COUPLED
-        assert _join_system_roles(A, A) is A
-        assert _join_system_roles(B, B) is B
-        assert _join_system_roles(C, C) is C
-        assert _join_system_roles(A, B) is C
-        assert _join_system_roles(B, A) is C          # symmetric
-        assert _join_system_roles(A, C) is C
-        assert _join_system_roles(C, B) is C          # COUPLED absorbs
-        assert _join_system_roles(None, A) is None
-        assert _join_system_roles(A, None) is None
-        assert _join_system_roles(None, None) is None
-
-    def test_psi_half_blocks_carry_their_system_role(self):
-        # The four ψ½ blocks are stamped at the class level (the classification
-        # is a class attribute — readable without instantiation).
-        assert RadialCharacteristicOperator.system_role is SystemRole.B          # A_BB
-        assert RadialCharacteristicSeeding.system_role is SystemRole.COUPLED     # A_AB
-        assert RadialCharacteristicBoundaryOperator.system_role is SystemRole.B  # B_b
-        assert (
-            _rcr_mod.RadialCharacteristicReconstruction.system_role
-            is SystemRole.COUPLED  # A_BA
-        )
-
-    def test_model_generic_operators_stay_unclassified(self):
-        # The CONTROL: System-A model-generic leaves carry NO intrinsic
-        # two-system membership — an SN context composes them into System A, but
-        # they belong to no system by construction (the honest None default).
-        assert SNBoundaryOperator.system_role is None      # B_a (System A trace boundary)
-        assert MultiplicationOperator.system_role is None  # C (collision)
-        assert ScatteringOperator.system_role is None      # S
-        assert FissionOperator.system_role is None         # F
-
-    def test_role_propagates_through_the_composers(self):
-        # The derivation fires through the composers exactly as block_role does:
-        # OperatorSum joins its summands, the G-adjoint preserves. A_AB is
-        # σ-independent, so a sphere instance is cheap; it carries COUPLED, so
-        # both a sum with itself and its adjoint stay COUPLED.
-        sph = _sphere()
-        a_ab = RadialCharacteristicSeeding(sph)
-        # Two DISTINCT objects: since S2 ``a_ab + a_ab`` collects to 2·a_ab
-        # (one term) and exercises no join.
-        a_ab2 = RadialCharacteristicSeeding(sph)
-        assert (a_ab + a_ab2).system_role is SystemRole.COUPLED  # OperatorSum join
-        assert (2.0 * a_ab).system_role is SystemRole.COUPLED    # one-term combination passthrough
-        assert a_ab.H.system_role is SystemRole.COUPLED          # AdjointOperator passthrough
-
-
 # ── B.2c helpers: the co-producing builder (G-c2.x) ─────────────────────────
 #
 # build_coupled_system(problem, mat_xs) → (CoupledOperator, CoupledSpace) —
@@ -3132,7 +3064,7 @@ class TestCoupledBuilder:
         (identity — the F2 discipline); each block declares the member space
         its grid position requires (asserted DIRECTLY — the grid's own check
         is ``==``-blind between the unified and composite System-B spaces,
-        memo F2); the C-fwd ``SystemRole.A`` stamp rides the (A,A) block; and
+        memo F2); and
         ``grid.apply`` RUNS on a space-shaped :class:`CoupledField` — the
         SUFFICIENT runtime proof that every block speaks its typed carrier
         (construction alone is Mode-12-blind, F2)."""
@@ -3158,13 +3090,6 @@ class TestCoupledBuilder:
             pytest.fail("A_BA's codomain is not System B's member space.")
         if grid.blocks[1][1].domain != sn.radial_characteristic_field_space:
             pytest.fail("A_BB−B_b does not declare System B's member space.")
-        # Role stamps: the grid spans systems; the (A,A) block is explicitly
-        # SystemRole.A (C-fwd — its model-generic members join to None).
-        if grid.system_role is not SystemRole.COUPLED:
-            pytest.fail("the grid does not carry SystemRole.COUPLED.")
-        if grid.blocks[0][0].system_role is not SystemRole.A:
-            pytest.fail("the (A,A) block is not stamped SystemRole.A "
-                        "(the C-fwd explicit stamp).")
         # THE runtime proof (F2): apply runs and emits the member types.
         y = grid.apply(_coupled_template(sn))
         if type(y.systems[0]) is not FullField:
@@ -3459,7 +3384,7 @@ class TestWithinGroupSystem:
         r"""ONE construction: the loss grid, its space, M, and N share the
         SAME space OBJECT (`is` — the P1 co-production carried onto the
         record); N's (A,B) slot is the structural ∅ (Seeding lives in M);
-        the (A,A) gain is stamped ``SystemRole.A`` (C-fwd); the seedless
+        the seedless
         record is the pure re-package ``(L+C, (S, B_a))`` — the HUB's one
         record, which the solver reads by identity (C3b; the cache seam that
         injected a solver-held ``S`` retired 2026-09-13)."""
@@ -3501,8 +3426,6 @@ class TestWithinGroupSystem:
         if n_grid.blocks[0][1] is not None:
             pytest.fail("N's (A,B) slot is not the structural ∅ — Seeding "
                         "must live in M (the walk's welded feed), never in N.")
-        if n_grid.blocks[0][0].system_role is not SystemRole.A:
-            pytest.fail("N's (A,A) gain lost the C-fwd SystemRole.A stamp")
         if not isinstance(n_grid.blocks[1][0], RadialCharacteristicEmission):
             pytest.fail("N's (B,A) block is not the Emission")
         if not isinstance(n_grid.blocks[1][1], RadialCharacteristicBoundaryOperator):

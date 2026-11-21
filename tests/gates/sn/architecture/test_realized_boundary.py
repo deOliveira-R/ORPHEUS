@@ -355,9 +355,8 @@ def test_reciprocity(face: str) -> None:
 @pytest.mark.rests_on(f"{_THIS}::test_the_typed_operators_answer_from_their_type")
 @pytest.mark.parametrize("kind", ("zero", "specular", "translation", "diffuse", "sum"))
 def test_the_algebra_object_delegates(kind: str) -> None:
-    r"""``apply``, ``apply_transpose``, ``domain``, ``codomain`` and ``block_role`` of each realized type equal those of
-    the operator it builds (the shim contract of ``bound_compat.py:109-250``), and that operator carries
-    ``BlockRole.BOUNDARY``. Equality and hash are over the PARAMETERS (``type``, ``face``, ``partner``, ``alpha``, the
+    r"""``apply``, ``apply_transpose``, ``domain`` and ``codomain`` of each realized type equal those of
+    the operator it builds (the shim contract of ``bound_compat.py:109-250``). Equality and hash are over the PARAMETERS (``type``, ``face``, ``partner``, ``alpha``, the
     permutation's index bytes), not over a stored operator:
 
     * two types with equal ``alpha`` and different ``partner`` compare unequal;
@@ -367,8 +366,6 @@ def test_the_algebra_object_delegates(kind: str) -> None:
 
     Red input: the module does not exist at the base tip. Mutation: a ``__eq__`` that keeps the string arm.
     """
-    from orpheus.numerics.operator import BlockRole
-
     op, quad, trace = _build(kind, "gl8", "xmax")
     n_out = H.n_outflow(trace, "xmax") if kind != "translation" else H.n_outflow(trace, op.domain_face)
     x = H.positive_outflow(n_out)
@@ -376,7 +373,6 @@ def test_the_algebra_object_delegates(kind: str) -> None:
     y = np.asarray(op.apply(x))
     np.testing.assert_array_equal(op.apply_transpose(y), op.inner.apply_transpose(y))
     assert op.domain == op.inner.domain and op.codomain == op.inner.codomain
-    assert op.block_role == op.inner.block_role == BlockRole.BOUNDARY
 
     twin, _, _ = _build(kind, "gl8", "xmax")
     assert twin == op and hash(twin) == hash(op), "equal parameters must compare and hash equal"

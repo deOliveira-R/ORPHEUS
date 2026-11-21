@@ -10,13 +10,12 @@ boundary law is
 and the whole campaign is the claim that the realizer tier carries **only**
 :math:`L`, while :math:`q` travels the composite-source channel. Prescribed
 inflow is the :math:`L = 0` case, so its realized operator is the *zero
-morphism* — bound to :math:`\Gamma_+(f) \to \Gamma_-(f)`, stamped
-``BlockRole.BOUNDARY``, and contributing nothing to ``B``.
+morphism* — bound to :math:`\Gamma_+(f) \to \Gamma_-(f)`, and contributing nothing to ``B``.
 
 ⛔ **P3 fixed a LIVE bug here, not a hypothetical.** Before ``8d552395`` a
 declared ``PrescribedInflow`` realized to an *affine* operator carrying its own
 source, and :meth:`SNBoundaryOperator._face_operators` collects every face's realized operator with
-**no** ``block_role`` filter — so it reached ``B``. Measured then: ``|B(0)| =
+**no** role filter — so it reached ``B``. Measured then: ``|B(0)| =
 2.5``; the inflow was delivered TWICE through SI (``γ₋ψ = 5.0``, ratio exactly
 ``2.000000``); and on Krylov an affine ``A(x) = A_lin(x) − c`` breaks GMRES's
 Arnoldi relation ``A V_k = V_{k+1} H_k``, so the solve RAISED
@@ -105,10 +104,10 @@ whose live specular law is what makes ``B`` a non-trivial operator at all
 halves of that precondition, and every row below rests on it).
 
 The leaf-tier statement of §3's theorem is already landed
-(``test_operator_block_role.py::test_prescribed_inflow_realizes_the_same_object_vacuum_does``
+(``test_sn_boundary_operator.py::TestBoundaryLeaves::test_prescribed_inflow_realizes_the_same_object_vacuum_does``
 pins type + both spaces off the realizer). What it cannot say is what the
 ASSEMBLED ``B`` and the full matvec DO — and the assembled tier is precisely
-where the P3 defect lived, because the missing stamp was never read.
+where the P3 defect lived, because no role was ever read there.
 """
 
 from __future__ import annotations

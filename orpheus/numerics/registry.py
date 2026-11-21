@@ -51,12 +51,11 @@ retired in WF2.4 of the wave-2 carve.
 ⛔ This example was written against a hypothetical
 ``BoundaryOperator(LinearOperator, RegistryMixin, ABC)`` root with
 ``VacuumBoundaryOperator`` / ``SpecularBoundaryOperator`` members until
-2026-08-14. No such root has ever existed. Worse than a dangling name:
-`[M]` :class:`orpheus.numerics.operator.BoundaryOperator` **does** exist —
-as a ``_BlockRoleMeta`` class with no ``registry`` and no ``create`` — so a
-reader who greps the example's root **finds** a class and is confirmed in
-the wrong model. An illustrative example that names real symbols is
-strictly better than an invented one: it stays checkable.
+2026-08-14. No such root has ever existed. Worse than a dangling name: a
+class of that name did exist then (an ``isinstance`` marker with no ``registry``
+and no ``create``, since retired), so a reader who grepped the example's root
+**found** a class and was confirmed in the wrong model. An illustrative example
+that names real symbols is strictly better than an invented one: it stays checkable.
 
 Abstract intermediate classes (those that should not be reachable
 via :meth:`create`) omit the ``key=`` kwarg — :meth:`__init_subclass__`

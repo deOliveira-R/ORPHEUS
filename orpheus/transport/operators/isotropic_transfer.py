@@ -100,7 +100,6 @@ from typing import TYPE_CHECKING, ClassVar, Self
 
 import numpy as np
 
-from orpheus.numerics.operator import BlockRole
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.material_field import (
     FissionMaterialField,
@@ -198,10 +197,6 @@ class IsotropicTransfer(BoundOperator):
     #: for :math:`N_{2n}`); no default on the core, so a role that forgets it
     #: fails at its first mint.
     channel: ClassVar[Callable[["MaterialXSField"], "TransferMaterialField"]]
-    # A BULK energy operator (the scalar flux is the bulk block); no
-    # boundary action. A class-level default of the base's `block_role`
-    # instance attribute, deliberately unannotated (see TransferOperator).
-    block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
         # CS4a K2 → CS4c per-END form: refuse ends whose EnergyAxis
@@ -435,11 +430,6 @@ class IsotropicFission(BoundOperator):
     """
 
     fission: "FissionMaterialField"
-    # Fission emission is volumetric — bulk only, no face-trace action.
-    # A class-level default of the base's `block_role` instance attribute,
-    # deliberately unannotated (see TransferOperator).
-    block_role = BlockRole.BULK
-
     def __post_init__(self) -> None:
         # CS4a K2 → CS4c per-END form (one shared guard, per end), then the
         # plain-scalar admission: the gather sizes the factors from the

@@ -13,7 +13,7 @@ of the family's two carrier parses. These rows pin the verbs and
 * **linearity** with an ACTIVATION leg (`lessons L40c` — a zero morphism
   satisfies every linearity row);
 * **transpose reciprocity** ``⟨lift ψ, χ⟩ = ⟨ψ, liftᵀ χ⟩`` on raw flats;
-* **capability axes** delegate to the inner; ``block_role`` is BULK;
+* **capability axes** delegate to the inner;
 * **admission** — the inner bound off the composite's interiors, a plain
   end, a bare array, a typed field, a composite on ANOTHER interior: each
   a typed refusal naming the operator (the ends select the carrier);
@@ -47,7 +47,6 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.assembled_operator import MissingAssembly, assemble
-from orpheus.numerics.operator import BlockRole
 from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -160,8 +159,7 @@ class TestLaws:
         assert lhs != 0.0
         assert abs(lhs - rhs) <= 1e-13 * abs(lhs)
 
-    def test_capability_axes_and_role(self, inner, lift):
-        assert lift.block_role is BlockRole.BULK
+    def test_capability_axes(self, inner, lift):
         assert lift.is_adjointable is inner.is_adjointable is True
         assert lift.is_assemblable is inner.is_assemblable
         assert lift.is_invertible is False

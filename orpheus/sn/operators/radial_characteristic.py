@@ -122,7 +122,6 @@ from orpheus.numerics.operator import (
     InverseOperator,
     LinearOperator,
     NotInvertible,
-    SystemRole,
 )
 from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicInteriorSpace,
@@ -343,11 +342,6 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
     # the role (source / flux) lives on the member field types, not the
     # space. The unified `_ray_space` stays the ENGINE's carrier (slot views
     # inside the march), never the declared block boundary.
-    # block_role stays None (the base default): A_BB is System B's self-block
-    # on the ray space, not a bulk/full/boundary block of the FullField
-    # composite. Its two-system membership rides the SystemRole axis (campaign
-    # step 4a) — A_BB acts within System B alone.
-    system_role = SystemRole.B
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:
@@ -796,10 +790,6 @@ class RadialCharacteristicSeeding(
         numerator survives.
     """
 
-    # A_AB maps System B (the ray seed) → System A (the bulk residual): an
-    # off-diagonal block, so it spans both systems (campaign step 4a).
-    system_role = SystemRole.COUPLED
-
     def __init__(self, problem: "SNProblem") -> None:
         space = problem.radial_characteristic_interior_space
         if space is None:
@@ -1080,10 +1070,6 @@ class RadialCharacteristicReconstruction(LinearOperator):
         case. Fixed at construction so the transpose has a well-defined
         codomain ``(n_moments, ng, nx)``.
     """
-
-    # A_BA maps System A (the bulk emission) → System B (the ray source): an
-    # off-diagonal block, so it spans both systems (campaign step 4a).
-    system_role = SystemRole.COUPLED
 
     def __init__(
         self,
@@ -1588,10 +1574,6 @@ class RadialCharacteristicEmission(LinearOperator):
     coord : CoordSystem
         The geometry commitment, forwarded to the internal fold factor.
     """
-
-    # A_BA maps System A (bulk) → System B (ray): an off-diagonal block spanning
-    # both systems (campaign step 4a).
-    system_role = SystemRole.COUPLED
 
     def __init__(
         self,

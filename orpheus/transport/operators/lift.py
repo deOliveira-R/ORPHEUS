@@ -77,7 +77,6 @@ import numpy as np
 
 from orpheus.numerics.field import Field
 from orpheus.numerics.operator import (
-    BlockRole,
     LinearOperator,
     MissingAdjoint,
     adjointable,
@@ -351,8 +350,7 @@ class BulkLift(CompositeBound):
     unspellable). The lift acts by :func:`lift_pointwise` in both
     directions and assembles by :func:`embed_bulk_assembly`; its
     capability axes are the inner's (adjointable iff the inner is,
-    assemblable iff the inner is). ``block_role`` is BULK by definition —
-    this class IS the bulk-role composite action.
+    assemblable iff the inner is).
 
     The diffusion solver's binding (CS4c step 5, R-4): the energy
     bindings :class:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering`
@@ -372,8 +370,6 @@ class BulkLift(CompositeBound):
     """
 
     inner: "LinearOperator"
-
-    block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
         owner = type(self).__name__

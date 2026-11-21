@@ -53,7 +53,6 @@ from orpheus.transport.boundary_conditions.realization import (
     StateCone,
     TableNotSealedError,
     sample_terms,
-    stamp_boundary_role,
 )
 
 __all__ = [
@@ -104,5 +103,4 @@ __all__ = [
     "chain_composes",
     "hollow_inner_refusal",
     "sample_terms",
-    "stamp_boundary_role",
 ]

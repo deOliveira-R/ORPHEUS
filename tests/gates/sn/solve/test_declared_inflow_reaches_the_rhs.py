@@ -5,8 +5,8 @@ boundary law is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`, and the composite
 source :math:`q = q_{\rm bulk} \oplus q_\partial` has always been the channel
 :math:`q_\partial` belongs in. What was missing is the step *before* it: a
 :meth:`~orpheus.transport.boundary_conditions.WallCondition.uniform` **declared as a boundary
-condition** never reached that channel. It realized into an affine operator carrying
-no :attr:`BlockRole.BOUNDARY` stamp, which nothing consumed — so the
+condition** never reached that channel. It realized into an affine operator that
+nothing consumed — so the
 declaration was **silently inert**.
 
 ⭐ **Why these gates exist in this shape** (user ruling, 2026-08-05):

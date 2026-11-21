@@ -77,7 +77,7 @@ Gotchas
 =======
 
 * ``apply`` takes the face's outflow half-trace of the DOMAIN face (:attr:`~RealizedBoundary.domain_face`), which is the
-  partner for a translation wrap and the face itself otherwise; ``block_role`` is :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`.
+  partner for a translation wrap and the face itself otherwise.
 * A zero scale is the :class:`ZeroMap`, refused as an ``alpha`` here (``alpha`` lies in ``(0, 1]``); a super-Markov or non-finite
   scale is refused at construction.
 * ``return_fraction == alpha`` holds only if the permutation preserves the trace measure, so :class:`ScaledOrdinatePermutation`
@@ -122,7 +122,6 @@ from orpheus.numerics.operator import (
 )
 from orpheus.sn.boundary.angular import IsotropicEmissionOperator, PartialCurrentOperator
 from orpheus.transport.boundary_conditions.network import Chain, DiffuseChain, SpecularChain
-from orpheus.transport.boundary_conditions.realization import stamp_boundary_role
 from orpheus.values.scalars import parse_finite_real
 
 if TYPE_CHECKING:
@@ -143,15 +142,14 @@ _ORDINATE_AXIS: int = 0
 
 
 def _attenuated_kernel_operator(kernel: LinearOperator, alpha: float) -> LinearOperator:
-    r"""``alpha * (kernel (x) K_g)``, stamped :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`: the one shared body.
+    r"""``alpha * (kernel (x) K_g)``: the one shared body.
 
     The section-16A.10 decomposition of a boundary operator is ``B = G_patch (x) K_omega (x) K_g``; every leaf this module builds
     is that shape with the group factor an identity and the amplitude out front. The amplitude regimes are the algebra's, not
     branches: :math:`1 \cdot X` IS :math:`X` (the one-term collapse of the formal linear combination), so ``alpha = 1`` is the bare
-    tensor product, and the role lives on the LEAF (the user's ruling, 2026-10-20): the kernel is stamped, and ``alpha * kernel``
-    derives ``BOUNDARY`` by the join.
+    tensor product.
     """
-    return float(alpha) * stamp_boundary_role(kernel & IdentityOperator())
+    return float(alpha) * (kernel & IdentityOperator())
 
 
 def _parse_alpha(alpha: object, owner: str) -> float:
@@ -211,7 +209,7 @@ class RealizedBoundary(LinearOperator, ABC):
 
     The abstract base of the four images of the response network; replaces ``_BoundBoundaryOperator`` (a realized operator paired
     with the law it came from). The algebra object delegates: :meth:`apply`, :meth:`apply_transpose`, :attr:`domain`,
-    :attr:`codomain`, :attr:`block_role` and the structural predicates are those of :attr:`inner`, the operator the type builds
+    :attr:`codomain` and the structural predicates are those of :attr:`inner`, the operator the type builds
     from its parameters. The ``face`` attribute (a dataclass field of the leaves, a derived property of the sum) is the face whose
     INFLOW the operator fills.
 
@@ -285,10 +283,6 @@ class RealizedBoundary(LinearOperator, ABC):
         if not invertible(self.inner):
             raise NotInvertible(f"{type(self).__name__}.inverse: the realized {type(self.inner).__name__} is not invertible.")
         return self.inner.inverse()
-
-    @property
-    def block_role(self):  # type: ignore[override]
-        return getattr(self.inner, "block_role", None)
 
     def apply(self, psi: np.ndarray) -> np.ndarray:
         return self.inner.apply(psi)
@@ -381,7 +375,7 @@ class ZeroMap(RealizedBoundary):
         return False
 
     def _derive_inner(self) -> LinearOperator:
-        return stamp_boundary_role(ZeroMorphism(domain=self.trace.outflow_space(self.face), codomain=self.trace.inflow_space(self.face)))
+        return ZeroMorphism(domain=self.trace.outflow_space(self.face), codomain=self.trace.inflow_space(self.face))
 
     def _key(self) -> tuple:
         return (self.face, _spaces_key(self))

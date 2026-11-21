@@ -30,11 +30,10 @@ def integer(seed: int) -> np.ndarray:
 
 class Atom(FusedAtom):
     """A fused atom built as production atoms are: an expansion, an action
-    of its own, the expansion's roles adopted at construction."""
+    of its own."""
 
     def __init__(self, expansion: LinearOperator) -> None:
         self._expansion = expansion
-        self._adopt_expansion_roles()
 
     def expansion(self) -> LinearOperator:
         return self._expansion

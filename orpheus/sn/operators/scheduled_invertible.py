@@ -142,8 +142,6 @@ class ScheduledInvertibleOperator(FusedAtom["FullField"], ScheduleTriangularForw
         self.invertible: Final = invertible
         #: :math:`B_{\rm lower}`, the boundary couplings realized in-sweep.
         self.lower: Final = lower
-        # The roles of the expansion L + C − B_lower (FULL).
-        self._adopt_expansion_roles()
         # The scheduled forward substitution IS this composite's inverse —
 
     def expansion(self) -> "LinearOperator[FullField]":

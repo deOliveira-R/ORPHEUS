@@ -341,11 +341,7 @@ public surface is via the
 and
 :attr:`~orpheus.transport.operators.transfer.TransferOperator.full_transfer_kernel`
 properties on the operator classes — since #426 step 2 on the shared
-transfer core, so :math:`S` and :math:`N_{2n}` expose one surface). Wave O (`Issue #208
-<https://github.com/deOliveira-R/ORPHEUS/issues/208>`_) will introduce
-``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator`` Protocols
-that may promote some of these to public status if a downstream
-consumer surfaces.
+transfer core, so :math:`S` and :math:`N_{2n}` expose one surface).
 
 Discrete measures and partition (Wave 0 of SN performance plan):
 

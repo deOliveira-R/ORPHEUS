@@ -343,10 +343,8 @@ class Splitting:
         INVERTIBLE operator by construction — its ``inverse()`` is the
         driver's resolvent (the sweep / the scheduled forward substitution /
         the block back-substitution)."""
-        # ``SupportsInverse`` is a Protocol over a class with MUTABLE typed
-        # attributes (``system_role``), which pyright matches invariantly —
-        # so the concrete grids/composites, each carrying ``inverse()``,
-        # are stated to the checker rather than inferred.
+        # The concrete grids/composites, each carrying ``inverse()``, are
+        # stated to the checker rather than inferred.
         if self.system.is_coupled:
             return cast(
                 "SupportsInverse[Any, Any]", self._grid(self.implicit_pieces, negate=False),
@@ -442,9 +440,6 @@ class Splitting:
         blocks: list[list[LinearOperator | None]] = [
             [slots.get((i, j)) for j in range(n)] for i in range(n)
         ]
-        # System membership is stamped on the System-A LEAVES where they are
-        # built (``build_within_group_system``), so the (0, 0) slot derives it
-        # by the join, whatever the algebra rebuilt.
         return CoupledOperator(blocks, domain=space, codomain=space)
 
 

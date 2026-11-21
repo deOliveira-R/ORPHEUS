@@ -66,7 +66,7 @@ different spaces, so one parameter could not type both and a typed call of the s
 
 Theory: :ref:`bc-architecture-of-record`.
 
-Layer: ``transport`` (L2). Imports ``numerics`` (the ``BlockRole`` stamp), ``geometry`` (the deck vocabulary) and its
+Layer: ``transport`` (L2). Imports ``geometry`` (the deck vocabulary) and its
 siblings.
 """
 
@@ -82,7 +82,6 @@ from typing import TYPE_CHECKING, ClassVar, Generic, TypeVar, cast, get_args, ov
 import numpy as np
 
 from orpheus.geometry.deck import DeckTransformation, FacePairing, pairing_of
-from orpheus.numerics.operator import BlockRole
 from orpheus.transport.boundary_conditions.admission import Admission, FaceSite, Realized, RefusalAxis, Refused
 from orpheus.transport.boundary_conditions.condition import BoundaryCondition, WallCondition
 from orpheus.transport.boundary_conditions.errors import BoundaryError, BoundaryRefused
@@ -90,7 +89,6 @@ from orpheus.transport.boundary_conditions.inflow import InflowTerms
 from orpheus.transport.boundary_conditions.network import Chain, ZeroNetwork
 
 if TYPE_CHECKING:
-    from orpheus.numerics.operator import LinearOperator
     from orpheus.numerics.space import FunctionSpace
 
 SpaceT = TypeVar("SpaceT")
@@ -111,7 +109,6 @@ __all__ = [
     "StateCone",
     "TableNotSealedError",
     "sample_terms",
-    "stamp_boundary_role",
 ]
 
 class TableNotSealedError(BoundaryError):
@@ -153,39 +150,6 @@ def _units(declared: BoundaryCondition) -> tuple[tuple[type, object, float], ...
             return ((ZeroNetwork, ZeroNetwork(), 1.0),)
         return tuple((type(chain), chain, weight) for weight, chain in declared.network.terms)
     return ((type(declared), declared, 1.0),)
-
-
-def stamp_boundary_role(op: LinearOperator) -> LinearOperator:
-    r"""Stamp a realized boundary law with the :attr:`BlockRole.BOUNDARY` role.
-
-    This is the one definition (the copy in the retired ``orpheus.transport.boundary_realization`` was deleted in WF2.4).
-
-    A realized law is a boundary-block leaf (``A_ss`` only) on the
-    direct-sum transport state ``V = V_bulk ⊕ V_boundary`` — it maps the
-    outflow trace to the inflow trace with no bulk action (Issue #208 /
-    Wave O). The role lives on the INSTANCE (the realized op is a generic
-    numerics primitive — :class:`TensorProductOperator`,
-    :class:`OperatorSum`, :class:`IdentityOperator`, … — that plays
-    the BOUNDARY role only in this realization context), so it is stamped
-    at the producer sites — the functional method realizers — through this
-    ONE helper (``coding-elegance`` Pattern 7 / Pattern 2: the stamp is a
-    shared realizer-layer concept, defined once).
-
-    **Every realizable law is stamped, with no exception** (P3,
-    2026-08-05). The affine split survives (:ref:`bc-affine-source-channel`);
-    what is realized is the law ``γ₋ψ = L γ₊ψ + q``: a realizer realizes
-    ``L``, and prescribed inflow's ``L`` is the zero morphism — which is
-    linear, and is the same object vacuum realizes to. ``q`` reaches the
-    solve through the boundary-source channel.
-
-    ⚠ **The absence of a stamp never excluded a leaf from anything.** The
-    boundary operator collects every face's law with no ``block_role``
-    filter, so an unstamped operator entered ``B`` regardless and delivered
-    its source there. Read this stamp as a *classification* that consumers
-    may query, never as a gate that keeps something out.
-    """
-    op.block_role = BlockRole.BOUNDARY
-    return op
 
 
 class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):

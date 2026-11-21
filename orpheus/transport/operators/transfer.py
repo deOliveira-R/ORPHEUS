@@ -95,7 +95,6 @@ from orpheus.transport.frames import (
     HarmonicReconstructionOperator,
 )
 from orpheus.numerics.operator import (
-    BlockRole,
     LinearOperator,
 )
 

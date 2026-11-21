@@ -69,8 +69,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from collections.abc import Hashable, Iterable
-from enum import Enum
-from functools import cached_property, reduce
+from functools import cached_property
 from typing import (
     final,
     TYPE_CHECKING,
@@ -129,10 +128,6 @@ __all__ = [
     "SupportsInverse",
     "SupportsAdjoint",
     "SupportsTransposeSolve",
-    "BlockRole",
-    "BulkOperator",
-    "FullOperator",
-    "BoundaryOperator",
     "NotInvertible",
     "MissingAdjoint",
     "invertible",
@@ -158,7 +153,7 @@ __all__ = [
 
 
 # ───────────────────────────────────────────────────────────────────────
-# Block-role classification (Issue #208)
+# The block structure of an operator on a direct sum
 # ───────────────────────────────────────────────────────────────────────
 #
 # On the direct-sum transport state space ``V = V_bulk ⊕ V_boundary`` a
@@ -166,146 +161,6 @@ __all__ = [
 #
 #     A = [ A_bb  A_bs ]      A_bb : bulk → bulk        A_bs : boundary → bulk
 #         [ A_sb  A_ss ]      A_sb : bulk → boundary    A_ss : boundary → boundary
-#
-# :class:`BlockRole` classifies a leaf by WHICH blocks its action touches —
-# the single fact :meth:`OperatorSum.apply` dispatches on, and the adjoint
-# composition routes by. The classification is a partition
-# (each leaf is exactly one role), and it lives on the INSTANCE (via the
-# :attr:`LinearOperator.block_role` attribute), NOT the class, because
-# the same generic operator class can play different roles in different
-# contexts — e.g. :class:`IdentityOperator` is the bulk identity in one
-# composition and a realized vacuum boundary law in another.
-
-
-class BlockRole(Enum):
-    r"""Which bulk/boundary blocks an operator's action touches.
-
-    * :attr:`BULK` — only ``A_bb`` (bulk → bulk). The collision ``C``,
-      scattering ``S`` and fission ``F`` operators: they read the bulk
-      flux and write a bulk source/sink, with no boundary action.
-    * :attr:`FULL` — has off-diagonal coupling (``A_bs`` and/or ``A_sb``).
-      The streaming operator ``L``: it reads the inflow trace to seed the
-      sweep and writes the outflow trace, coupling bulk ↔ boundary. The
-      only irreducibly-full primitive.
-    * :attr:`BOUNDARY` — only ``A_ss`` (boundary → boundary). A realized
-      boundary law ``B`` (vacuum / reflective / albedo / white / periodic):
-      it maps the outflow trace to the inflow trace, with no bulk action.
-      The typed realized operators of SN
-      (:class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`) carry
-      this role on their leaves. ``B`` becomes a first-class
-      algebra leaf — a sibling of ``L`` in ``(L_full + C − S − F − B)`` —
-      when the boundary conditions are extracted from the streaming sweep;
-      until that wiring lands ``B`` carries the role but is still consumed
-      inside the sweep.
-    """
-
-    BULK = "bulk"
-    FULL = "full"
-    BOUNDARY = "boundary"
-
-
-class SystemRole(Enum):
-    r"""Which of the two coupled systems an operator's action maps between.
-
-    The curvilinear-S\ :sub:`N` within-group system is a 2×2 coupled block
-    operator over two systems (see
-    ``docs/theory/foundations/coupled_block_operator.rst §coupled-block-operator``):
-
-    .. math::
-
-        \begin{bmatrix} A_{AA} & A_{AB} \\ A_{BA} & A_{BB} \end{bmatrix}
-        \begin{bmatrix} \text{transport} \\ \text{ray} \end{bmatrix}
-
-    * **System A** — the transport bulk ⊕ trace (the angular-flux
-      :class:`~orpheus.transport.full_field.FullField`: a bulk field ⊕ its
-      spatial boundary trace), governed by ``A_AA = L + C − S − B``.
-    * **System B** — the ψ½ radial-characteristic ray (the starting-direction
-      cells at each radial cell), governed by ``A_BB`` (the radial
-      straight-characteristic march).
-
-    This role is the COARSE two-system partition — orthogonal to
-    :class:`BlockRole`, which refines the bulk ↔ boundary structure *within*
-    System A. An operator carries at most one:
-
-    * :attr:`A` — acts within System A only.
-    * :attr:`B` — acts within System B only: the self-block ``A_BB``
-      (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicOperator`)
-      and the ray boundary ``B_b``
-      (:class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`).
-    * :attr:`COUPLED` — maps BETWEEN the systems (an off-diagonal block, or the
-      assembled 2×2): the ray→bulk seed ``A_AB``
-      (:class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`),
-      the bulk→ray fold ``A_BA``, and the assembled ``CoupledOperator``.
-
-    Reading each role as the SET of systems its action touches (``A = {A}``,
-    ``B = {B}``, ``COUPLED = {A, B}``), a sum touches the union — see
-    :func:`_join_system_roles`. Operators outside the two-system decomposition
-    — every model-generic family (diffusion / CP / MoC) AND the model-generic
-    reaction leaves ``C`` / ``S`` / ``F`` that a curvilinear-S\ :sub:`N` context
-    COMPOSES into System A but that carry no intrinsic two-system membership —
-    leave :attr:`~LinearOperator.system_role` at its ``None`` default: the
-    conservative "not part of the ψ½ augmentation" reading, exactly as an
-    unclassified :attr:`~LinearOperator.block_role` is ``None``.
-    """
-
-    A = "system_a"
-    B = "system_b"
-    COUPLED = "coupled"
-
-
-def _join_block_roles(
-    a: Optional["BlockRole"], b: Optional["BlockRole"],
-) -> Optional["BlockRole"]:
-    r"""The block role of a SUM ``A + B`` — the union of the blocks touched.
-
-    Reading a role as the *set* of blocks its action touches
-    (:attr:`BlockRole.BULK` = ``{bulk}``, :attr:`BlockRole.BOUNDARY` =
-    ``{boundary}``, :attr:`BlockRole.FULL` = ``{bulk, boundary}``), the sum
-    touches the union: ``BULK ⊔ BULK = BULK``, ``BOUNDARY ⊔ BOUNDARY =
-    BOUNDARY``, and any mix (or anything with ``FULL``) is ``FULL``. So the
-    join is simply *"same role stays, anything different becomes FULL"*. If
-    either operand is unclassified (``None`` — a generic operator outside the
-    SN bulk/boundary partition) the sum is unclassified too: ``None``
-    propagates (a conservative "don't know" rather than a guessed role).
-
-    This is what lets ``(L + C - S - F - B)`` carry its role BY
-    CONSTRUCTION (no hand-stamped tag): ``L`` is ``FULL``, ``C``/``S``/``F``
-    are ``BULK``, ``B`` is ``BOUNDARY`` → every within-group loss sum joins
-    to ``FULL``, exactly the irreducibly bulk↔boundary-coupling streaming
-    role.
-
-    Twin of :func:`_join_system_roles` (the two-system analogue — ``COUPLED``
-    there plays the top-of-lattice role ``FULL`` plays here): both are the SAME
-    union-lattice join (two atoms + a top + ``None`` propagation) on ORTHOGONAL
-    role axes. Kept as a deliberate twin while only two axes exist — a generic
-    ``RoleAxis`` join would need ``setattr``-driven dispatch that regresses the
-    #226 pyright ratchet. **Collapse trigger:** a THIRD parallel role axis (a
-    DSA / multiphysics role) makes the shared abstraction pay — unify then.
-    """
-    if a is None or b is None:
-        return None
-    return a if a is b else BlockRole.FULL
-
-
-def _join_system_roles(
-    a: Optional["SystemRole"], b: Optional["SystemRole"],
-) -> Optional["SystemRole"]:
-    r"""The system role of a SUM ``A + B`` — the union of the systems touched.
-
-    Reading a role as the *set* of systems its action touches
-    (:attr:`SystemRole.A` = ``{A}``, :attr:`SystemRole.B` = ``{B}``,
-    :attr:`SystemRole.COUPLED` = ``{A, B}``), the sum touches the union:
-    ``A ⊔ A = A``, ``B ⊔ B = B``, and any mix (or anything with ``COUPLED``) is
-    ``COUPLED``. So the join is *"same role stays, anything different becomes
-    COUPLED"* — the two-system analogue of :func:`_join_block_roles` with
-    ``COUPLED`` playing the top-of-lattice role that ``FULL`` plays there. If
-    either operand is unclassified (``None`` — an operator outside the
-    two-system decomposition) the sum is unclassified too: ``None`` propagates
-    (a conservative "don't know" rather than a guessed role).
-    """
-    if a is None or b is None:
-        return None
-    return a if a is b else SystemRole.COUPLED
 
 
 def _agreed_space(
@@ -430,81 +285,6 @@ class _KeyedEquality:
 
     def __hash__(self) -> int:
         return hash(_algebra_key(self))
-
-
-class _BlockRoleMeta(type):
-    r"""Metaclass making ``isinstance(op, BulkOperator)`` read ``op.block_role``.
-
-    The role markers (:class:`BulkOperator`, :class:`FullOperator`,
-    :class:`BoundaryOperator`) are never instantiated and carry no
-    state. They exist so the block-role classification reads like the
-    domain (``isinstance(L, FullOperator)``) while the single source of
-    truth stays the :attr:`~LinearOperator.block_role` enum on the
-    operator instance. Exclusivity is automatic: an operator carries one
-    ``block_role`` and therefore satisfies at most one marker.
-
-    A value-based check is required (not a plain ``@runtime_checkable``
-    :class:`Protocol`) because Protocols can only test attribute
-    *presence*, never the *value* the partition discriminates on — every
-    operator has a ``block_role`` attribute, so a structural Protocol would
-    match them all.
-    """
-
-    _role: "BlockRole"
-
-    def __instancecheck__(cls, obj: object) -> bool:
-        return getattr(obj, "block_role", None) is cls._role
-
-
-class BulkOperator(metaclass=_BlockRoleMeta):
-    r"""``isinstance`` marker for a :attr:`BlockRole.BULK` operator (``A_bb`` only)."""
-
-    _role = BlockRole.BULK
-
-
-class FullOperator(metaclass=_BlockRoleMeta):
-    r"""``isinstance`` marker for a :attr:`BlockRole.FULL` operator (off-diagonal coupling)."""
-
-    _role = BlockRole.FULL
-
-
-class BoundaryOperator(metaclass=_BlockRoleMeta):
-    r"""``isinstance`` marker for a :attr:`BlockRole.BOUNDARY` operator (``A_ss`` only).
-
-    The realized boundary laws produced by the functional method
-    realizers —
-    :data:`~orpheus.sn.boundary.realizer.SN_REALIZERS`
-    (vacuum / reflective / white / albedo / periodic / prescribed inflow)
-    and
-    :data:`~orpheus.diffusion.boundary_realizer.DIFFUSION_REALIZERS`
-    (the albedo family incl. zero flux, #290) — carry
-    :attr:`BlockRole.BOUNDARY` via
-    :func:`~orpheus.transport.boundary_conditions.realization.stamp_boundary_role`.
-
-    **EVERY realizable law is stamped, prescribed inflow included** (P3,
-    2026-08-05). Until P3 this docstring named it as the one exception,
-    on the reading that the rank-0 affine source is the boundary *source*
-    ``q.boundary`` rather than a linear boundary operator ``B``. The
-    affine split is real and unchanged — see
-    :ref:`bc-affine-source-channel` — but it does not put the law outside
-    this marker: the law is ``γ₋ψ = L γ₊ψ + q``, the realizer realizes
-    ``L``, and for prescribed inflow ``L = 0``. A zero morphism is an
-    ordinary linear boundary operator, and it is the same one vacuum
-    realizes to.
-
-    ⛔ The exception was also not doing the job it appeared to do. An
-    unstamped leaf is NOT excluded from ``B``:
-    :attr:`~orpheus.sn.operators.boundary.SNBoundaryOperator._face_operators`
-    collects every face's operator with no ``block_role`` filter, so the
-    pre-P3 AFFINE operator reached the block regardless — measured
-    ``|B(0)| = q`` and ``|B(2x) − 2B(x)| = q``, and on the Krylov path a
-    raised ``ConvergenceClaimError``, because an affine map breaks
-    the Arnoldi relation GMRES's residual depends on. The stamp is
-    honest metadata about a leaf's role; it is not, and never was, the
-    fence.
-    """
-
-    _role = BlockRole.BOUNDARY
 
 
 class NotInvertible(TypeError):
@@ -655,41 +435,6 @@ class LinearOperator(Protocol[Domain, Codomain]):
     consumer needs shape information, it can probe ``op.apply(x)`` on a
     known-size probe vector once at setup.
     """
-
-    #: Block-role classification (Issue #208) — see
-    #: :class:`BlockRole`. A single enum value: the role is a
-    #: *partition* (an operator is exactly one of bulk/full/boundary),
-    #: so one enum makes the illegal "BULK and FULL at once" state
-    #: unrepresentable; a set would not.
-    #:
-    #: ``None`` = unclassified — the default for the generic algebra
-    #: (composition operators derive their role from operands).
-    #: ``None`` satisfies none of the :class:`BulkOperator` /
-    #: :class:`FullOperator` markers. Concrete leaves override with a
-    #: **plain (unannotated) class attribute** ``block_role = BlockRole.X``
-    #: — NOT a ``ClassVar[...]`` annotation, which under ``from __future__
-    #: import annotations`` is mis-detected by the ``@dataclass`` machinery
-    #: as a field (it became a string and the ClassVar heuristic missed
-    #: it). The annotation HERE is a **plain instance attribute** (NOT
-    #: ``ClassVar``) precisely because the composers
-    #: (:class:`OperatorSum` / :class:`AdjointOperator`) and the
-    #: :func:`~orpheus.transport.boundary_conditions.realization.stamp_boundary_role` stamp assign
-    #: ``self.block_role`` per-instance (the role is DERIVED from operands,
-    #: not fixed by the class). A ``ClassVar`` would (correctly) reject
-    #: that instance assignment. This base is not a ``@dataclass``, so the
-    #: annotation is never field-processed; the leaves' unannotated
-    #: class-attr override keeps the class-level read
-    #: (``ScatteringOperator.block_role``) working.
-    block_role: Optional[BlockRole] = None
-
-    #: The COARSE two-system membership (:class:`SystemRole` — System A / System
-    #: B / COUPLED) of a curvilinear-S_N augmented operator, orthogonal to
-    #: :attr:`block_role` (which refines the bulk↔boundary structure *within*
-    #: System A). ``None`` for every operator outside the ψ½ two-system
-    #: decomposition. Derived through composition exactly as :attr:`block_role`
-    #: is — the passthrough (:class:`AdjointOperator`) and the
-    #: :func:`_join_system_roles` union over the terms (:class:`OperatorSum`).
-    system_role: Optional[SystemRole] = None
 
     @property
     @abstractmethod
@@ -1652,14 +1397,6 @@ class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[
                 f"needs the space whose metric it meets.)"
             )
         self.inner = inner
-        # The G-adjoint transposes the 2×2 block matrix (A_bs ↔ A_sb^T),
-        # which preserves WHICH blocks are touched — so the role is the
-        # inner operator's role: ``L.H`` is FULL, ``B.H`` is BOUNDARY,
-        # ``C.H`` is BULK.
-        self.block_role = getattr(inner, "block_role", None)
-        # The G-adjoint also preserves which SYSTEMS are touched: A_AB.H
-        # (bulk→ray) is still COUPLED, A_BB.H still System B.
-        self.system_role = getattr(inner, "system_role", None)
         # The three factors, built HERE — the domain/codomain exchange
         # realized at construction (R2 ruling): the codomain-side ♭ and
         # the domain-side ♯ are the swapped ends' Riesz legs; the dual
@@ -1939,13 +1676,6 @@ def _zero_of(
             f"operator's domain and codomain (a declared scope edge: every "
             f"operator end a space is ruling 26, not yet built)."
         )
-    # The zero of a combination touches the blocks and systems its cancelled
-    # terms touched: ``0·B`` of a boundary law is still a boundary-block map
-    # (the role lives on the leaves and every composite derives it, the
-    # user's ruling of 2026-10-20).
-    if entered:
-        zero.block_role = reduce(_join_block_roles, (getattr(op, "block_role", None) for op in entered))
-        zero.system_role = reduce(_join_system_roles, (getattr(op, "system_role", None) for op in entered))
     return zero
 
 
@@ -1974,7 +1704,7 @@ class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
       operand's output (``test_composition_cost.py`` holds the allocation at
       ≤ 4 vectors per degree of freedom);
     * :meth:`apply_transpose`, :meth:`dual`, :attr:`is_assemblable`,
-      :attr:`is_adjointable`, :attr:`block_role`, :attr:`system_role`: the
+      :attr:`is_adjointable`: the
       fold of the terms' own;
     * :attr:`is_invertible`: only a ONE-term combination with an invertible
       word, :math:`(cA)^{-1} = c^{-1}A^{-1}`. A sum of two or more terms has
@@ -2001,15 +1731,6 @@ class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
         self._terms: Final = terms
         self._domain: Final = domain
         self._codomain: Final = codomain
-        # Roles DERIVED from the terms: the sum touches the union of the blocks
-        # (systems) its terms touch, so ``(L + C − S − F − B)`` carries FULL by
-        # construction, whatever order it was spelled in.
-        self.block_role = reduce(
-            _join_block_roles, (getattr(w, "block_role", None) for _, w in terms),
-        )
-        self.system_role = reduce(
-            _join_system_roles, (getattr(w, "system_role", None) for _, w in terms),
-        )
 
     @property
     def terms(self) -> "tuple[tuple[float, LinearOperator], ...]":
@@ -2424,9 +2145,8 @@ class FusedAtom(LinearOperator[Domain, Codomain]):
 
     Everything the atom does not realise itself is its expansion's, read from
     ONE cached expansion: the ends, the transpose (through the expansion's
-    dual arrow), the adjointability and metric-freeness, assemblability, and the
-    block and system roles (:meth:`_adopt_expansion_roles`, called by each
-    atom's constructor once its legs are set). A subclass overrides a face
+    dual arrow), the adjointability and metric-freeness, and assemblability.
+    A subclass overrides a face
     only where it has a realisation of its own (the sweep atom's
     :math:`M(\sigma)^{\mathsf T}`), so a capability its expansion gains reaches
     the atom with no edit here; the assembly functor reads the expansion too.
@@ -2440,11 +2160,6 @@ class FusedAtom(LinearOperator[Domain, Codomain]):
     def expanded(self) -> "LinearOperator[Domain, Codomain]":
         """The ONE cached :meth:`expansion` every non-realised face reads."""
         return self.expansion()
-
-    def _adopt_expansion_roles(self) -> None:
-        # The blocks and systems the realised expression touches.
-        self.block_role = getattr(self.expanded, "block_role", None)
-        self.system_role = getattr(self.expanded, "system_role", None)
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:

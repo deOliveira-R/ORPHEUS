@@ -822,8 +822,8 @@ it was meant to force.** Plan sub-step 1 was "give `ScatteringOperator` a domain
 `S+B` fold THROWS — forcing the honest composition." But the chosen design (variadic
 `(L_resolvent, *gains)` drivers, user-approved) retired the fold DIRECTLY — so the
 tripwire was moot (B is never summed with S again) AND the domain it wanted didn't
-exist (no bulk `FunctionSpace`; bulk operators type via `block_role`, not domain
-spaces). Executing it mechanically would have minted a speculative `V_bulk` for no
+exist (no bulk `FunctionSpace`; bulk operators had no domain space of their own to
+type by). Executing it mechanically would have minted a speculative `V_bulk` for no
 live benefit. **When a design fork lands, re-evaluate every downstream sub-step against
 the NEW state — a sub-step whose only job was to force an outcome already achieved is
 moot; demote it to a documented seam.**

@@ -100,7 +100,7 @@ rather than a match against something else's. See
    the affine boundary channel (``.claude/plans/archive/affine_boundary_source_channel.md``):
    the design of record already said prescribed inflow's realization IS
    ``q.boundary``, and the missing bridge was the reason SN had the fence
-   (no ``BlockRole.BOUNDARY`` stamp) without the channel. It takes a
+   without the channel. It takes a
    per-face mapping (``binding.sources``), because a boundary's faces carry different
    conditions. At the wave-2 carve it moved from the geometry-layer ``from_specs`` /
    ``from_problem_laws`` pair (``InflowSourceSpec.evaluate``) onto the declared terms.

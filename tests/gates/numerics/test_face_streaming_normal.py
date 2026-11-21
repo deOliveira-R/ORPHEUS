@@ -4,7 +4,7 @@ r"""``face_streaming_normal`` — the spatial-trace partial-current measure.
 magnitude of the normal streaming flux through a codim-1 **spatial**
 boundary face, weighted by the angular quadrature: with ``coeff = Ω·n_f``
 it is the partial-current metric ``G_s = |Ω·n_f|·w_n`` (Lewis & Miller
-§3.7), the boundary inner product under which the ``BoundaryOperator``
+§3.7), the boundary inner product under which the realized boundary laws'
 Hilbert adjoints are self-adjoint. It vanishes at **grazing** incidence
 (``Ω ⊥ n_f``).
 

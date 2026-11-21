@@ -1,4 +1,4 @@
-r"""B.2a — the N-system coupled block machinery (M1–M5 gate suite).
+r"""B.2a — the N-system coupled block machinery (M1–M4 gate suite).
 
 Intrinsic-property gates for
 :mod:`orpheus.numerics.coupled_system` — ``CoupledField`` (the block
@@ -33,7 +33,6 @@ later Phase-B sub-steps):
   ``G⁺/G`` conjugation in ``AdjointOperator.apply``) REDs O(1) — the
   ERR-067 / Mode-12 reopening a Euclidean block adjoint would cause;
   non-adjointable block ⟹ eager ``MissingAdjoint``.
-* **M5** — ``CoupledOperator.system_role is SystemRole.COUPLED``.
 
 Plus the ravellable-protocol interop rider (``_is_ravellable`` /
 ``_zeros_like`` / ``_unravel_like`` accept a ``CoupledField``): the ERR-053
@@ -78,7 +77,6 @@ from orpheus.numerics.operator import (
     MatrixTooLarge,
     MissingAdjoint,
     NotInvertible,
-    SystemRole,
     AdjointOperator,
 )
 from orpheus.numerics.space import DualSpace, FunctionSpace
@@ -928,28 +926,17 @@ class TestBlockAdjoint:
             pytest.fail("A.H must present the swapped coupled spaces")
 
 
-# ── M5 — the system-role stamp ─────────────────────────────────────────
-
-
-class TestSystemRoleStamp:
-    def test_coupled_operator_is_stamped_coupled(self) -> None:
-        if CoupledOperator.system_role is not SystemRole.COUPLED:
-            pytest.fail("class stamp missing")
-        if _operator().system_role is not SystemRole.COUPLED:
-            pytest.fail("instance stamp missing")
-
-
 # ── Step 5 — the block SOLVE mode (S1–S4 + the space zeros seam) ───────
 #
 # The step-5 gate spec rows (``coupled_operator_step5_solve_verification.md``):
 # S1 structural triangularity detection + route keying, S2 the substitution
 # value + the order/drop/sign teeth, S3 the transposed substitution vs the
 # dense ``Mᵀ``, S4 the structure-keyed ``inverse()`` factory — on the SAME
-# synthetic toys as M1–M5. Every fixture grid is ASYMMETRIC (random blocks;
+# synthetic toys as M1–M4. Every fixture grid is ASYMMETRIC (random blocks;
 # a symmetric grid is order/transpose-blind — Mode 12), with diagonally-
 # dominant diagonal blocks (``+3I``) so the LU/dense references are
 # well-conditioned. A LOCAL rng — the module-level ``_RNG`` stream feeding
-# the M1–M5 fixtures stays untouched.
+# the M1–M4 fixtures stays untouched.
 
 
 _SOLVE_RNG = np.random.default_rng(20260712)

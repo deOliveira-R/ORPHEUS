@@ -18,9 +18,6 @@ The claims (``vv-principles``), all STRUCTURE (an AST pass over the package), ea
   ``__init__`` holds re-exports and nothing else (no residue, no extra module).
 * ``test_the_facade_exports_what_the_tables_name``: every name of the tables is exported by the package, defined in
   one of its modules (not in ``__init__``), and ``__all__`` lists them.
-* ``test_stamp_boundary_role_is_copied_in``: ``stamp_boundary_role`` lives here (the old one in
-  ``boundary_realization.py`` was deleted in WF2.4, with the row that held the two bodies equal) and stamps the
-  ``BOUNDARY`` block role on the instance and returns it.
 
 First red, at the base tip ``4ec95bc6``: the package directory does not exist, so the file set, the scan and the
 facade read ``FileNotFoundError`` / ``ModuleNotFoundError`` at their first line; each scan's CONTROLS run first and
@@ -78,7 +75,7 @@ EXPORTS: dict[str, tuple[str, ...]] = {
     "binding": ("BoundaryCarrier", "Binding", "bind"),
     "admission": ("Realized", "Approximated", "Refused", "RefusalAxis", "Admission", "FaceSite", "SiteClass"),
     "realization": ("StateCone", "RealizerTable", "ResponseRealizer", "SourceRealizer", "DeckRealizer", "sample_terms",
-                    "stamp_boundary_role", "TableNotSealedError", "SealedTableError"),
+                    "TableNotSealedError", "SealedTableError"),
 }
 
 _PLANTED = {
@@ -187,7 +184,7 @@ def test_the_facade_exports_what_the_tables_name() -> None:
     """
     package = bc  # the lazy read; every attribute access below imports the package
     names = [(module, name) for module, listed in EXPORTS.items() for name in listed]
-    require(len(names) == 45, f"the export table lists {len(names)} names, not the 45 it was written with")
+    require(len(names) == 44, f"the export table lists {len(names)} names, not the 44 it was written with")
     exported = set(package.__all__)
     for module, name in names:
         require(hasattr(package, name), f"the package does not export {name} ({module}.py)")
@@ -196,18 +193,3 @@ def test_the_facade_exports_what_the_tables_name() -> None:
         owner = getattr(member, "__module__", None)
         if isinstance(member, type) or isinstance(member, types.FunctionType):
             require(owner == f"{PACKAGE}.{module}", f"{name} is defined in {owner}, the table places it in {module}.py")
-
-
-def test_stamp_boundary_role_is_copied_in() -> None:
-    """``stamp_boundary_role(op)`` stamps the ``BOUNDARY`` block role on the INSTANCE and returns it, unchanged
-    behaviour of the old helper (``orpheus/transport/boundary_realization.py``, deleted in WF2.4).
-
-    Reddens on: a copy that returns a stamped clone; one that stamps ``SOURCE``; one that does not return.
-    """
-    from orpheus.numerics.operator import BlockRole
-
-    op = types.SimpleNamespace(block_role=None)
-    stamped = bc.stamp_boundary_role(op)  # type: ignore[arg-type]  # a duck-typed stand-in operator
-    require(stamped is op, "stamp_boundary_role returns the instance it was given")
-    require(op.block_role is BlockRole.BOUNDARY, f"the block role is {op.block_role}")
-    require(bc.stamp_boundary_role.__module__ == f"{PACKAGE}.realization", "stamp_boundary_role is defined in realization.py")

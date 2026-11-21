@@ -38,8 +38,8 @@ Construction
 
 The per-face boundary laws already live on the
 :class:`~orpheus.sn.problem.SNProblem` in the face-name-keyed ``bc`` dict
-(each entry a :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`
-that carries :attr:`BlockRole.BOUNDARY`). The whole-trace
+(each entry a :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`).
+The whole-trace
 ``B`` is the block composition over the mesh's true boundary faces: for each
 face present in the trace it applies that face's operator, reading the half-trace of
 the face its type names (``domain_face``). That is the installation face for every
@@ -68,10 +68,8 @@ from typing import TYPE_CHECKING, NamedTuple
 import numpy as np
 
 from orpheus.numerics.operator import (
-    BlockRole,
     LinearOperator,
     MissingAdjoint,
-    SystemRole,
     adjointable,
 )
 
@@ -214,7 +212,7 @@ class SNBoundaryOperator(LinearOperator):
     :func:`~orpheus.numerics.operator._agreed_space` since G6.3 step 8.0) and
     always has, by design.
 
-    The role is :attr:`BlockRole.BOUNDARY`; the domain and codomain are the
+    The domain and codomain are the
     mesh's composite carrier
     :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
     (``problem.full_field_space``) — the SAME space ``L``/``C``/``S``/``F``
@@ -263,8 +261,6 @@ class SNBoundaryOperator(LinearOperator):
         composite carrier is bound to; the mesh-identity invariant of
         :class:`~orpheus.sn.operators.streaming.StreamingOperator` applies here too).
     """
-
-    block_role = BlockRole.BOUNDARY
 
     def __init__(self, problem: "SNProblem") -> None:
         self.problem = problem
@@ -800,13 +796,6 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         :class:`SNBoundaryOperator` applies here too).
     """
 
-    block_role = BlockRole.BOUNDARY
-    # B_b is System B's boundary — it acts within the ray system alone.
-    # Since the B.2b re-type that is STRUCTURAL, not padding: the carrier
-    # has no System-A bulk or trace slots to present-zero (see the class
-    # docstring's Pattern-4 note).  Campaign step 4a.
-    system_role = SystemRole.B
-
     def __init__(
         self,
         field_space: "FullFieldSpace | None",
@@ -1022,8 +1011,6 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
     transpose although that branch existed
     (``tests/gates/test_adjointability_is_honest.py``).
     """
-
-    block_role = BlockRole.BOUNDARY
 
     def __init__(
         self,

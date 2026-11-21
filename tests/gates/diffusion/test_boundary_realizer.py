@@ -12,7 +12,6 @@ realized operators carry, read through the door a problem uses:
 * the ruling-3 semantics — vacuum IS Marshak zero-incoming (:math:`J^- = 0`), zero-flux IS the Dirichlet idealization
   (:math:`\phi_\Gamma = 2(J^+ + J^-) = 0` under P1, 𝒜 = −1),
 * the structure-keyed collapses (Zero / Identity / 𝒜·Identity) mirroring the SN realizer's scalar branch,
-* the ``BlockRole.BOUNDARY`` stamp on every realized operator,
 * the refusals (a translation deck: trace-block wrap, not a per-face albedo; a boundary source: affine, not an operator),
 * the sum of a mixed wall (the functor), and
 * the :class:`DiffusionMethodSpace` construction surface (the SN mirror, ``SNMethodSpace.minimal`` / ``for_face``, retired in WF2.4: the SN method space is ``(quadrature, trace)``; #661 tracks the diffusion collapse).
@@ -39,7 +38,7 @@ from orpheus.diffusion.zero_flux import ZeroFluxCondition
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck, TranslationDeck
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.operator import BlockRole, BoundaryOperator, IdentityOperator, ZeroOperator
+from orpheus.numerics.operator import IdentityOperator, ZeroOperator
 from orpheus.transport.boundary_conditions import BoundaryCondition, BoundaryRefused, FaceSite, RefusalAxis, WallCondition
 
 # V&V LEVELS — B0.3 REPAIR (2026-07-30). This file used to carry a module-level ``pytestmark = [pytest.mark.foundation]`` blanket
@@ -135,13 +134,6 @@ class TestAlbedoTable:
     def test_structure_keyed_collapse(self, realize, declared, expected_type):
         """𝒜 ∈ {0, 1} collapses to the structural primitive (mirror of the SN realizer's scalar branch)."""
         assert isinstance(realize(declared), expected_type)
-
-    def test_every_realized_operator_is_boundary_block(self, realize):
-        """The A_ss stamp (#208 / Wave O): every realized condition carries ``BlockRole.BOUNDARY`` and satisfies the isinstance marker."""
-        for declared in (WallCondition.vacuum(), MirrorDeck(), WallCondition.white(1.0), WallCondition.white(0.37), ZeroFluxCondition()):
-            op = realize(declared)
-            assert op.block_role is BlockRole.BOUNDARY, type(declared).__name__
-            assert isinstance(op, BoundaryOperator), type(declared).__name__
 
 
 # ═══════════════════════════════════════════════════════════════════════

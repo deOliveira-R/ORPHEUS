@@ -136,7 +136,6 @@ from orpheus.transport.operators.lift import (
 )
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import (
-    BlockRole,
     InverseOperator,
     LinearOperator,
     NotInvertible,
@@ -216,12 +215,6 @@ class MultiplicationOperator(BoundOperator):
     #: both the capability freeze and the action read; the coefficient is
     #: immutable, so the stored engine cannot go stale).
     engine: "DiagonalOperator" = field(init=False, repr=False)
-
-    # Multiplication by a per-cell per-group coefficient is a BULK
-    # operator — diagonal in (cell, group, ordinate), no boundary action
-    # (A_bb only; Wave O / Issue #208). Class-level constant (unannotated
-    # so the dataclass does not treat it as a field).
-    block_role = BlockRole.BULK
 
     def __post_init__(self) -> None:
         # The SELECTION (CS4c step 5): the domain names the body. This is

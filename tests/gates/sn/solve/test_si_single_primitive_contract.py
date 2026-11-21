@@ -49,7 +49,6 @@ from orpheus.sn.operators.streaming import StreamingCollisionOperator
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.sn.operators.radial_characteristic import RadialCharacteristicEmission
-from orpheus.numerics.operator import BlockRole, SystemRole
 from orpheus.numerics import iteration as _iteration
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.fields import AngularSourceSink
@@ -187,8 +186,8 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
 
     if carrying:
         # (2a/2b carrying) The ONE gain is the N grid; its (B,A) block is the
-        # bulk→ray Emission (Fold∘K_iso∘integrate) and the grid spans systems
-        # (SystemRole.COUPLED). Same structural grid both paths.
+        # bulk→ray Emission (Fold∘K_iso∘integrate) and the grid spans systems.
+        # Same structural grid both paths.
         N_eig, N_fs = gains_eig[0], gains_fs[0]
         assert isinstance(N_eig, CoupledOperator)
         assert isinstance(N_fs, CoupledOperator)
@@ -197,7 +196,6 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
             N_eig.blocks[1][0], RadialCharacteristicEmission)
         assert isinstance(
             N_fs.blocks[1][0], RadialCharacteristicEmission)
-        assert N_eig.system_role is SystemRole.COUPLED
     else:
         # (2a seedless) gain 0 = S: the BULK scattering coupling.
         S_eig, S_fs = gains_eig[0], gains_fs[0]
@@ -206,7 +204,7 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
 
     # (2c) the BOUNDARY coupling. RULING P1's per-system direct sum is
     # STRUCTURAL since B.2d: on a carrying mesh B_a rides inside N's (A,A)
-    # sum and B_b sits at the (B,B) slot (the ray corner, BOUNDARY-role);
+    # sum and B_b sits at the (B,B) slot (the ray corner);
     # seedless, the last gain is B_a itself. Same structural boundary
     # primitive both paths (never folded into the bulk S).
     if carrying:
@@ -215,5 +213,3 @@ def test_fixed_source_si_and_eigenvalue_inner_share_one_primitive(
     else:
         B_eig, B_fs = gains_eig[-1], gains_fs[-1]
     assert type(B_eig) is type(B_fs)
-    assert B_eig.block_role is BlockRole.BOUNDARY
-    assert B_fs.block_role is BlockRole.BOUNDARY

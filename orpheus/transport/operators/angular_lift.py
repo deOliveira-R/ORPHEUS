@@ -86,7 +86,6 @@ from typing import TYPE_CHECKING, ClassVar, Generic, Self, TypeVar, cast
 
 import numpy as np
 
-from orpheus.numerics.operator import BlockRole
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.transport.fields._bases import (
@@ -224,13 +223,6 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
     source_reconstruction: "HarmonicReconstructionOperator[HarmonicMomentSourceSink, AngularSourceSink]" = field(
         kw_only=True,
     )
-
-    # A collision gain is volumetric — bulk only, no face-trace action; the
-    # lift enters the composite by extension-by-zero on the trace. A
-    # class-level default of the base's ``block_role`` instance attribute,
-    # deliberately unannotated (a ClassVar annotation would override the
-    # base's instance variable; a plain annotation would make it a field).
-    block_role = BlockRole.BULK
 
     #: The selected end — DERIVED from the ends in :meth:`__post_init__`,
     #: never a ctor argument.

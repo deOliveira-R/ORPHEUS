@@ -2791,8 +2791,7 @@ The SIO expansion is flattened over the **original** atoms,
 :math:`\mathrm{SCO} - B_{\rm lower}`: an expansion is algebraic content, and
 one that held a fused atom would refer back to a realisation (the S2 spec's
 finding 9). The generic algebra treats a fused atom as one term:
-``sco - S`` is a two-term combination whose first word is the atom, and its
-block role is the fold over its terms, ``FULL`` in every spelling order.
+``sco - S`` is a two-term combination whose first word is the atom.
 
 .. implements:: fused-atom-expansion
    :by: orpheus.sn.operators.streaming.StreamingCollisionOperator.expansion
@@ -2950,13 +2949,10 @@ Gotchas
   IdentityOperator()`` (two instances) is a two-term combination (`[M]`
   2026-10-20). The same holds for two separately built ``L``.
 * **A collapse can hand back a shared atom.** ``(A + B) - B is B``.
-  Production stamps roles after construction
-  (``A_AA.system_role = SystemRole.A`` in
-  :mod:`orpheus.sn.coupled_system`, ``head.system_role`` in
-  :mod:`orpheus.sn.splitting`); on a collapsed combination such a stamp
-  would mutate that leaf for every holder. `[R]` safe today (the stamped
-  combinations have several terms); derive a role from the terms rather
-  than stamp a new one (the S2 spec's finding 8).
+  A collapsed combination hands back the one shared leaf, so a tag written
+  onto a combination after construction would mutate that leaf for every
+  holder; production writes no such tag (the block and system role tags
+  retired with W0, with no replacement; the S2 spec's finding 8).
 * **The dunders' static return type is the base type.** ``a + b`` can
   return an atom, a zero or a combination, and ``a @ b`` a word or a
   one-term combination, so each is annotated ``LinearOperator``. No

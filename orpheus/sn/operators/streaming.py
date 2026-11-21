@@ -81,7 +81,6 @@ import numpy as np
 from functools import cached_property
 
 from orpheus.numerics.operator import (
-    BlockRole,
     FusedAtom,
     LinearOperator,
 )
@@ -234,12 +233,6 @@ class StreamingOperator(LinearOperator["FullField"]):
     problem: "SNProblem"
     spatial_closure: "DiscretizationSchemeBase"
     angular_closure: "AngularClosureBase"
-
-    # Streaming is the sole FULL operator — it couples bulk ↔ boundary
-    # (reads the inflow trace to seed the sweep, writes the outflow
-    # trace). Issue #208. Class-level constant (unannotated so the
-    # dataclass does not treat it as a field).
-    block_role = BlockRole.FULL
 
     @classmethod
     def pose(cls, problem: "SNProblem") -> "StreamingOperator":
@@ -568,8 +561,6 @@ class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForwa
         self.streaming: Final = streaming
         #: :math:`C = M[\sigma]`, the diagonal multiplier the sweep pairs with L.
         self.diagonal: Final = diagonal
-        # The roles of the expansion L + C: join(L=FULL, C=BULK) = FULL.
-        self._adopt_expansion_roles()
 
     def expansion(self) -> "LinearOperator[FullField]":
         r"""The plain combination :math:`L + C` this atom realises (ruling 52)."""

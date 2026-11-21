@@ -27,8 +27,8 @@ same-space operators, each padding the blocks it does not touch with
 present-zeros — was REJECTED (campaign re-scope, 2026-07-10): padding keeps
 **wrong multiplications representable**. A padded block accepts any composite;
 nothing at the type level stops a ray operator from receiving a bulk field or
-an emission from landing in the trace slot, and ``system_role`` tags are
-runtime metadata, not type constraints. The honest object is a **typed block
+an emission from landing in the trace slot, and a runtime tag is
+not a type constraint. The honest object is a **typed block
 operator over a typed block vector**, where the block matvec
 
 .. math:: y_i \;=\; \sum_j A_{ij}\, x_j
@@ -121,7 +121,7 @@ References
   driver wire).
 * ``.claude/agent-memory/test-architect/coupled_operator_step4_verification.md``
   — the gate spec this module's suite realizes (M1 block matvec, M2
-  assemble≡probe, M3 type-safety, M4 block-``.H`` Mode-12, M5 system role).
+  assemble≡probe, M3 type-safety, M4 block-``.H`` Mode-12; its M5, the system-role stamp, retired with the tag).
 * Trefethen & Bau (1997), *Numerical Linear Algebra*, §1 — the Hilbert
   adjoint :math:`G^{-1}A^{\mathsf T}G` vs. the representation transpose.
 * Hackbusch (2016), *Iterative Solution of Large Sparse Systems*, §11 —
@@ -145,7 +145,6 @@ from orpheus.numerics.operator import (
     MatrixTooLarge,
     MissingAdjoint,
     NotInvertible,
-    SystemRole,
     adjointable,
     transpose_invertible,
 )
@@ -782,10 +781,6 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
         coupling passes the same space twice; rectangular grids (restriction /
         prolongation stacks) are honest and admitted.
     """
-
-    # The grid spans systems by construction (campaign step 4a lattice).
-    # Plain (unannotated) class attribute per the LinearOperator base note.
-    system_role = SystemRole.COUPLED
 
     def __init__(
         self,

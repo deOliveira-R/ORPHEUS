@@ -61,12 +61,7 @@ from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.numerics.assembled_operator import assemble, dense
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
-from orpheus.numerics.operator import (
-    BlockRole,
-    BoundaryOperator,
-    FullOperator,
-    NotInvertible,
-)
+from orpheus.numerics.operator import NotInvertible
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.full_field import FullField
@@ -500,11 +495,6 @@ class TestFamilyLaws:
         x1 = A_inv.apply(q, initial_guess=rng.random(16))
         np.testing.assert_array_equal(np.asarray(x0), np.asarray(x1))
 
-    def test_loss_block_role_joins_to_full(self, mesh, mat_xs):
-        A = _loss(mesh, mat_xs)
-        assert A.block_role is BlockRole.FULL
-        assert isinstance(A, FullOperator)
-
     def test_composition_guard_validates_shared_space(self, mesh, mat_xs):
         """Every member advertises the SAME scalar composite space, so
         the OperatorSum guard actually validates the build."""
@@ -520,9 +510,6 @@ class TestFamilyLaws:
 
 @pytest.mark.foundation
 class TestLeakageOperator:
-    def test_block_role_full(self, mesh):
-        assert LeakageOperator(mesh).block_role is BlockRole.FULL
-
     # (The multi-D refusal moved to the PHASE SPACE at #290 P7a — a
     # multi-D DiffusionMesh is unrepresentable; gated in
     # test_augmented_mesh.py.)
@@ -618,11 +605,6 @@ class TestDiffusionBoundaryOperator:
     # trace share the one face_labels inventory; the positive invariant
     # is gated in test_augmented_mesh.py. The pre-P7a mismatched-dict
     # refusals guarded a state that is no longer representable.)
-
-    def test_block_role_boundary(self, mesh):
-        B = DiffusionBoundaryOperator(mesh)
-        assert B.block_role is BlockRole.BOUNDARY
-        assert isinstance(B, BoundaryOperator)
 
 
 # ═══════════════════════════════════════════════════════════════════════

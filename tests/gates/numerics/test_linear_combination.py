@@ -39,8 +39,9 @@ law it asserts (``operator_algebra.rst`` §composition-algebra,
 ``operator_inverse_family.rst`` ``green-split-inverse``), mapped by the
 row's own assertion. Rows that carry no ``verifies``, deliberately: c05 (a
 RECORD of the float limit of the scalar law: a limitation carries no
-``verifies``), c19 (the composition action, no label), c31 (the role fold,
-no label) and c32 (the retired idioms refuse: a software invariant).
+``verifies``), c19 (the composition action, no label), c32 (the retired
+idioms refuse: a software invariant), and c44 and c45 (a sum of two production
+atoms keeps both terms: the production-atom instance of c06).
 
 The ADAPTER block below is the one place that names the representation's
 accessors (``OperatorSum.terms``, ``OperatorProduct.factors``,
@@ -56,7 +57,6 @@ import pytest
 
 from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.operator import (
-    BlockRole,
     IdentityOperator,
     InverseOperator,
     LinearOperator,
@@ -64,6 +64,7 @@ from orpheus.numerics.operator import (
     NotInvertible,
     OperatorProduct,
     OperatorSum,
+    TensorProductOperator,
     ZeroMorphism,
     ZeroOperator,
 )
@@ -124,13 +125,10 @@ class Mat(LinearOperator):
     """A bound dense-matrix operator ``domain -> codomain`` (the test double:
     its predicates are its constructor flags)."""
 
-    def __init__(self, M, domain, codomain, *, invertible=False, adjointable=True,
-                 block_role=None):
+    def __init__(self, M, domain, codomain, *, invertible=False, adjointable=True):
         self.M = np.asarray(M, dtype=float)
         self._domain, self._codomain = domain, codomain
         self._inv, self._adj = invertible, adjointable
-        self.block_role = block_role
-        self.system_role = None
 
     @property
     def domain(self):
@@ -804,20 +802,8 @@ def test_c30_a_scaled_inverse_scales_its_seed():
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# 8. Roles, and the retired idioms refuse
+# 8. The retired idioms refuse
 # ═══════════════════════════════════════════════════════════════════════
-
-
-def test_c31_roles_fold_over_the_terms_whatever_the_order():
-    """``block_role`` of ``L + C`` with roles FULL and BULK is FULL in both
-    orders and with a third term. Green today for the two-term case; red
-    under ROLE_HEAD (role from the first term)."""
-    L = Mat(np.eye(4), V, V, block_role=BlockRole.FULL)
-    C = Mat(2 * np.eye(4), V, V, block_role=BlockRole.BULK)
-    X = Mat(3 * np.eye(4), V, V, block_role=BlockRole.BULK)
-    assert (L + C).block_role is BlockRole.FULL
-    assert (C + L).block_role is BlockRole.FULL
-    assert (C + X - L).block_role is BlockRole.FULL
 
 
 def test_c32_the_binary_idioms_are_gone(ABC):
@@ -868,23 +854,22 @@ def test_c41_a_one_term_combination_keeps_its_ends_inside_a_word():
         a @ bound_identity
 
 
-@pytest.mark.rests_on(_HERE + "::test_c31_roles_fold_over_the_terms_whatever_the_order")
-def test_c42_a_role_lives_on_the_leaves_and_survives_every_rebuild():
-    r"""A block role stamped on a LEAF survives every combination the algebra
-    rebuilds from it: ``−A``, ``αA``, ``0·A`` (the zero inherits the cancelled
-    term's role), ``A − A``, and a mix of two leaves of the same role; a mix of
-    two roles joins to FULL. The user's ruling of 2026-10-20 (the S2 review's
-    F1): a role is a fact about an atom, and composites derive it by the join.
-    Before it, a role stamped on a COMPOSITE was lost whenever the algebra
-    rebuilt the composite from its terms (``-op`` of a realized boundary law
-    read None at α = 0.5). Mutation: mint the zero without the role join, and
-    the ``0·A`` and ``A − A`` rows red."""
-    a = Mat(np.eye(4), V2, V2, block_role=BlockRole.BOUNDARY)
-    b = Mat(2.0 * np.eye(4), V2, V2, block_role=BlockRole.BOUNDARY)
-    bulk = Mat(3.0 * np.eye(4), V2, V2, block_role=BlockRole.BULK)
-    for rebuilt in (-a, 0.5 * a, 0.0 * a, a - a, 0.3 * a + 0.7 * b, -(0.3 * a + 0.7 * b)):
-        assert rebuilt.block_role is BlockRole.BOUNDARY, (rebuilt, rebuilt.block_role)
-    assert (a + bulk).block_role is BlockRole.FULL
+def test_c44_a_sum_of_the_identity_and_a_diagonal_keeps_both_terms():
+    """``I + D`` for a production diagonal atom is the combination of both
+    (``I`` is not absorbed): the production-atom instance of c06."""
+    s = IdentityOperator() + DiagonalOperator(np.ones(3), shape=(3,), spans=(0,))
+    assert isinstance(s, OperatorSum)
+
+
+def test_c45_two_equal_valued_tensor_products_stay_two_terms():
+    """Two ``TensorProductOperator((d0, d1))`` built apart are two terms of the
+    sum, not one term with coefficient 2: the sum of two production atoms."""
+    d0 = DiagonalOperator(np.ones(3), shape=(3, 4), spans=(0,))
+    d1 = DiagonalOperator(np.ones(4), shape=(3, 4), spans=(1,))
+    tp_a = TensorProductOperator((d0, d1))
+    tp_b = TensorProductOperator((d0, d1))
+    sotp = tp_a + tp_b
+    assert isinstance(sotp, OperatorSum) and len(_terms(sotp)) == 2
 
 
 @pytest.mark.verifies("combination-left-fold")

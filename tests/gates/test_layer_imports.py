@@ -641,7 +641,7 @@ _FORBIDDEN_LEGS = [
     ),
     # The operator-algebra shapes of the retired "geometry declares, never builds an operator" gate (its successor, D.14: the
     # general rule refuses what that gate refused, at every import kind).
-    ("geometry/deck.py", "from orpheus.numerics.operator import BlockRole\n", "geometry → numerics"),
+    ("geometry/deck.py", "from orpheus.numerics.operator import LinearOperator\n", "geometry → numerics"),
     ("geometry/deck.py", "def f():\n    from orpheus.numerics.operator import LinearOperator\n", "geometry → numerics"),
     ("geometry/deck.py", "from orpheus.numerics import operator\n", "geometry → numerics"),
 ]
@@ -664,8 +664,8 @@ _ADMITTED_LEGS = [
     # Layer DAG WP-E1: the realization reads the declarations, and both
     # method realizers read the realization.
     ("transport/x.py", "from orpheus.geometry.deck import MirrorDeck, TranslationDeck\n"),
-    ("sn/x.py", "from orpheus.transport.boundary_conditions.realization import stamp_boundary_role\n"),
-    ("diffusion/x.py", "from orpheus.transport.boundary_conditions.realization import stamp_boundary_role\n"),
+    ("sn/x.py", "from orpheus.transport.boundary_conditions.realization import RealizerTable\n"),
+    ("diffusion/x.py", "from orpheus.transport.boundary_conditions.realization import RealizerTable\n"),
 ]
 
 

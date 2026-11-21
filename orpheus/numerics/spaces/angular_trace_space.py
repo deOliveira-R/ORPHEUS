@@ -47,7 +47,7 @@ Inner product is the **partial-current metric**
 :math:`G_s = |\Omega\cdot\hat n_f|\odot w_n` (the cosine-weighted angular
 quadrature), installed at construction by :func:`_build_trace_metric_weights`.
 This is the physically-correct boundary inner product under which the
-``BoundaryOperator`` Hilbert adjoints (``B.H``) — reflective and white —
+Hilbert adjoints of the realized boundary laws (``B.H``) — reflective and white —
 are correct (Wave O / O.2b, #208). The metric is group-independent (a
 weight in angle, not energy). It is read ONLY by the adjoint path
 (:class:`~orpheus.numerics.operator.AdjointOperator` and
@@ -450,7 +450,7 @@ class AngularTraceSpace(FunctionSpace):
         omega_dot_n = build_omega_dot_n(quadrature, faces)
         # Wave O / O.2b (#208): the partial-current boundary metric
         # G_s = |Ω·n_f| ⊙ w_n — the cosine-weighted angular quadrature under
-        # which the BoundaryOperator Hilbert adjoints (B.H) are physically
+        # which the boundary-law Hilbert adjoints (B.H) are physically
         # correct.  Group-independent; built once at the producer (Pattern 7).
         inner_product_weights = _build_trace_metric_weights(
             omega_dot_n, quadrature.weights, layout,

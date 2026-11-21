@@ -162,13 +162,13 @@ def test_diffusion_vacuum_is_tier_1() -> None:
     hollow inner site's refusals are the admission matrix's diffusion column); ``specular(0.4)`` and ``white(0.4)``
     realize the same ``0.4 * IdentityOperator()`` (the same action on the probe, bit for bit, equal to ``0.4 * v``) with admission
     ``Realized(False)``; ``ZeroFluxCondition()`` realizes ``-IdentityOperator()`` (the action ``-v``) with ``Realized(True)``.
-    Every realized operator carries ``BlockRole.BOUNDARY``. The pairs ``(admit, realize)`` are read from the same call, so a
+    The pairs ``(admit, realize)`` are read from the same call, so a
     realizer whose body and admission disagree is seen.
 
     Red input: the base tip states none of these admissions (the table does not exist; the retired realizer returned a bare
     operator with no admission). Mutations: M-vacuum-tier-2, M-chain-tier-1, M-zero-flux-positive.
     """
-    from orpheus.numerics.operator import BlockRole, ZeroOperator
+    from orpheus.numerics.operator import ZeroOperator
 
     B = H.bc()
     W = B.WallCondition
@@ -178,19 +178,17 @@ def test_diffusion_vacuum_is_tier_1() -> None:
         for label, declared in (("vacuum", W.vacuum()), ("specular(0)", W.specular(0.0)), ("white(0)", W.white(0.0))):
             assert H.summary(H.table().admit(declared, where)) == ("R", True), f"{label} @ {kind}"
             op = H.table().realize(declared, where, H.minimal_space())
-            assert isinstance(op, ZeroOperator) and op.block_role is BlockRole.BOUNDARY, f"{label} @ {kind}: {type(op).__name__}"
+            assert isinstance(op, ZeroOperator), f"{label} @ {kind}: {type(op).__name__}"
             np.testing.assert_array_equal(H.realized_action(op), 0.0)
         images = []
         for label, declared in (("specular(0.4)", W.specular(0.4)), ("white(0.4)", W.white(0.4))):
             assert H.summary(H.table().admit(declared, where)) == ("R", False), f"{label} @ {kind}"
             op = H.table().realize(declared, where, H.minimal_space())
-            assert op.block_role is BlockRole.BOUNDARY
             np.testing.assert_array_equal(H.realized_action(op), 0.4 * H.PROBE)
             images.append(H.realized_action(op))
         np.testing.assert_array_equal(images[0], images[1])  # the tier-2 witness: one image for two spellings
         assert H.summary(H.table().admit(zero_flux, where)) == ("R", True), f"zero flux @ {kind}"
         op = H.table().realize(zero_flux, where, H.minimal_space())
-        assert op.block_role is BlockRole.BOUNDARY
         np.testing.assert_array_equal(H.realized_action(op), -H.PROBE)
 
 
@@ -293,12 +291,12 @@ def test_diffusion_translation_is_topological() -> None:
     a Cartesian site, ``realize`` raises ``BoundaryRefused`` carrying that admission, and a slab with ``TranslationDeck`` on both
     faces refuses at ``DiffusionMesh`` construction (the periodic slab, which the retired realizer refused with a bare
     ``BoundaryError``). ``MirrorDeck`` is ``Realized(False)`` (tier 2) and realizes ``IdentityOperator()`` (``A = 1``: the
-    action ``v``, the type ``IdentityOperator``), stamped ``BlockRole.BOUNDARY``.
+    action ``v``, the type ``IdentityOperator``).
 
     Red input: the base tip has no table. Mutation: M-translation-admitted.
     """
     from orpheus.geometry.deck import MirrorDeck, TranslationDeck
-    from orpheus.numerics.operator import BlockRole, IdentityOperator
+    from orpheus.numerics.operator import IdentityOperator
 
     B = H.bc()
     where = H.site("CART")
@@ -309,7 +307,7 @@ def test_diffusion_translation_is_topological() -> None:
     assert H.summary(info.value.admission) == ("F", "TOPOLOGY", None)
     assert H.summary(H.table().admit(MirrorDeck(), where)) == ("R", False)
     op = H.table().realize(MirrorDeck(), where, H.minimal_space())
-    assert type(op) is IdentityOperator and op.block_role is BlockRole.BOUNDARY
+    assert type(op) is IdentityOperator
     np.testing.assert_array_equal(H.realized_action(op), H.PROBE)
 
     with pytest.raises(B.BoundaryRefused) as info:

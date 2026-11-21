@@ -55,8 +55,7 @@ Method-facing structure:
   the method-mesh layer.
 * :mod:`orpheus.transport.boundary_conditions` — the conditions package and
   the realization seam: ``WallCondition`` and its response network, the
-  ``RealizerTable`` every method fills, and the ``BlockRole.BOUNDARY``
-  stamp (``realization.stamp_boundary_role``).
+  ``RealizerTable`` every method fills.
 * :mod:`orpheus.transport.spatial` — method-generic spatial discretization
   schemes (the per-cell closure layer).
 

@@ -32,8 +32,7 @@ Post-extraction (design (a) — the CORRECTED realization):
 * the curvilinear pole Carlson seed (``psi_view[:, :, 0, 0]``) STAYS —
   it is a regularity condition at r=0, NOT a boundary condition.
 
-The realized boundary law ``B`` (a ``BoundaryOperator`` leaf after
-O.4a.1) is assembled into a whole-trace operator and placed as a
+The realized boundary law ``B`` (a ``RealizedBoundary`` leaf) is assembled into a whole-trace operator and placed as a
 SIBLING ``−B`` so ``(L_full + C − S − F − B).apply(ψ)`` forms the FULL
 residual, with the boundary block carrying the consistency residual
 ``ψ.inflow − B·ψ.outflow − q_inflow``.

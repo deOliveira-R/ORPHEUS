@@ -52,13 +52,10 @@ class Mat(LinearOperator):
     """A bound dense-matrix operator ``domain -> codomain`` (the test double:
     its predicates are its constructor flags)."""
 
-    def __init__(self, M, domain, codomain, *, invertible=False, adjointable=True,
-                 block_role=None):
+    def __init__(self, M, domain, codomain, *, invertible=False, adjointable=True):
         self.M = np.asarray(M, dtype=float)
         self._domain, self._codomain = domain, codomain
         self._inv, self._adj = invertible, adjointable
-        self.block_role = block_role
-        self.system_role = None
 
     @property
     def domain(self):

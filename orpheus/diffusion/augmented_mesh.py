@@ -304,8 +304,7 @@ class DiffusionMesh(MethodMesh):
         :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` at construction) and returns the operator
         :math:`\mathcal{A}` on the outflow partial current (1-arg ``apply``, consumed by
         :class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`). A mixed wall realizes as the functor's SUM of its
-        chains' scalars; each summand is a leaf-stamped scaled identity, so the sum carries
-        :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` by the numerics role join and the stamp lives at ONE site
+        chains' scalars; each summand is a scaled identity built at ONE site
         (:func:`~orpheus.diffusion.boundary_realizer._albedo_operator`).
         """
         method_space = DiffusionMethodSpace.for_face(trace=self.scalar_trace, face=face)

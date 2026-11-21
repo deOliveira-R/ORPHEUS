@@ -35,10 +35,6 @@ are NOT uniform — the two off-diagonals differ, a trap worth spelling out:
 
 * ``(A,A) = L + C − S − B_a`` — System A's self-block: streaming +
   collision minus the bulk scattering gain minus the trace boundary gain.
-  Explicitly stamped ``SystemRole.A`` (the C-fwd elegance ruling: its
-  model-generic members all carry the honest ``None``, so the join would
-  poison to ``None`` — the SYSTEM membership is the composition context's
-  fact, stamped here, not derivable from the leaves).
 * ``(A,B) = +RadialCharacteristicSeeding`` — POSITIVE: its ``apply``
   already emits the seed's term of the fused bulk residual row
   (``−numer_seed/V`` — the loss sign is INTERNAL to the operator, matching
@@ -185,7 +181,7 @@ from orpheus.numerics.coupled_system import (
     CoupledSpace,
     SystemRestrictionOperator,
 )
-from orpheus.numerics.operator import LinearOperator, MissingAdjoint, SystemRole, adjointable
+from orpheus.numerics.operator import LinearOperator, MissingAdjoint, adjointable
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
     SNBoundaryOperator,
@@ -611,9 +607,7 @@ def build_within_group_system(
     ``[[S+N2N+B_a, ∅], [Emission, B_b]]``, gains on the rhs — is no longer
     built here: it is the Strategy's derivation from the factors
     (:attr:`~orpheus.sn.splitting.Splitting.explicit`).  The loss grid's
-    (A,A) entry is stamped ``SystemRole.A`` explicitly (the C-fwd ruling:
-    the model-generic members' honest ``None`` would poison the join); the
-    Strategy stamps its own.
+    (A,A) entry is the loss sum ``L+C−S−N2N−B_a`` of the leaves built here.
 
     Parameters
     ----------
@@ -651,15 +645,6 @@ def build_within_group_system(
     B_a = SNBoundaryOperator(problem)
     # The ONE fission operator — the hub's, never minted here (R-cc6 (ii)).
     F = problem.fission
-    # C-fwd explicit stamp: System membership is the composition context's
-    # fact — the model-generic members' honest None would poison the join.
-    # The role lives on the LEAVES (the user's ruling, 2026-10-20, S2 review
-    # F1): each System-A leaf built here is stamped, and every composite over
-    # them (A_AA, its negation, the Splitting's grids) derives System A by the
-    # join. A stamp on the composite was lost whenever the algebra rebuilt it
-    # from its terms (``(−A_AA).system_role`` read None).
-    for leaf in (LC, S, N2N, B_a):
-        leaf.system_role = SystemRole.A
     A_AA = LC - S - N2N - B_a
 
     # P2 presence predicate = System B's member space itself (the grid needs

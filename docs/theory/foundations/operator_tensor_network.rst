@@ -133,11 +133,10 @@ Key Facts
   and streaming (T.4). Only T.1 (BC realizers) and T.2 (fission rank-1)
   cleanly admit the clean tensor-product factorisation.
 
-- **Wave O typing constraint**: operator-role types
-  (``BulkOperator`` / ``FullOperator`` / ``BoundaryOperator``
-  Protocols, Issue #208) **MUST** accept non-SOTP summands. Any
-  contract that requires "all summands are
-  :class:`TensorProductOperator`" forecloses scattering and streaming.
+- **Typing constraint**: any contract on the summands of an
+  :class:`OperatorSum` **MUST** accept non-SOTP summands. A contract
+  that requires "all summands are :class:`TensorProductOperator`"
+  forecloses scattering and streaming.
 
 - **In-sweep streaming (the retired per-direction split, #238)**: the
   forward (μ_x > 0) and backward (μ_x < 0) WDD recurrences are walked in
@@ -1120,12 +1119,11 @@ the three originally-SOTP-targeted Wave-T substeps fell back to
 :class:`OperatorSum`-of-bespoke-leaves; only T.1 (BC realizers) and
 T.2 (fission rank-1) cleanly support the TP form.
 
-**Implication for Wave O (Issue #208)**. The operator-role typing
-work MUST accommodate non-SOTP :class:`OperatorSum` summands. Any
-contract of the form "every BulkOperator summand IS a
-:class:`TensorProductOperator`" forecloses scattering, streaming
-spatial, and curvilinear angular redistribution. The five-shape
-catalogue in :ref:`tensor-network-shape-table` is the constraint the Wave O
+**Implication**. Any typing of the summands of an :class:`OperatorSum`
+MUST accommodate non-SOTP summands. A contract of the form "every bulk
+summand IS a :class:`TensorProductOperator`" forecloses scattering,
+streaming spatial, and curvilinear angular redistribution. The five-shape
+catalogue in :ref:`tensor-network-shape-table` is the constraint such a
 typing must respect.
 
 

@@ -19,10 +19,10 @@ freedom per face per group. A linear homogeneous boundary law therefore collapse
     J^- \;=\; \mathcal{A}\, J^+ ,
 
 and the realization of a unit is the composition of two maps: the unit to its scalar :math:`\mathcal{A}`, then the scalar to the
-operator (:func:`_albedo_operator`, :math:`\mathcal{A}\cdot I` on a leaf-stamped identity, which the algebra collapses to ``ZeroOperator`` at :math:`\mathcal{A}=0` and ``IdentityOperator`` at :math:`\mathcal{A}=1`; the operator is face-slot-shape-agnostic, a scalar multiple of the
-identity on the ``(ng, *face_spatial)`` outflow data). The operator maps the outflow half of a face slot to the inflow half and is stamped
-:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` (the ``A_ss`` leaf of the composite state, consumed by
-:class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`).
+operator (:func:`_albedo_operator`, :math:`\mathcal{A}\cdot I` on an identity, which the algebra collapses to ``ZeroOperator`` at :math:`\mathcal{A}=0` and ``IdentityOperator`` at :math:`\mathcal{A}=1`; the operator is face-slot-shape-agnostic, a scalar multiple of the
+identity on the ``(ng, *face_spatial)`` outflow data). The operator maps the outflow half of a face slot to the inflow half and is the
+``A_ss`` leaf of the composite state, consumed by
+:class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`.
 
 **Diffusion annihilates the shape.** It sees :math:`\Pi_{P_1}\colon (s, d) \mapsto s + d` on the response network of a wall: the
 angular redistribution that tells a specular return from a Lambertian one (a permutation against a cosine-weighted average in SN)
@@ -141,7 +141,6 @@ from orpheus.transport.boundary_conditions import (
     StateCone,
     ZeroNetwork,
     hollow_inner_refusal,
-    stamp_boundary_role,
 )
 
 __all__ = [
@@ -158,15 +157,12 @@ __all__ = [
 def _albedo_operator(albedo: float) -> LinearOperator:
     r"""The structure-keyed collapse of :math:`J^- = \mathcal{A} J^+`.
 
-    One body, the leaf-stamp shape of the SN realizer (``_attenuated_kernel_operator``, ruling 2026-10-20): the
-    :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` stamp goes on the LEAF ``IdentityOperator`` and the scalar then
-    scales it, so the algebra's own collapse supplies the structure (``ZeroOperator`` at :math:`\mathcal{A}=0`,
-    ``IdentityOperator`` at :math:`\mathcal{A}=1`, a scaled identity otherwise) and a SUM of such operators (the functor's sum
-    on a mixed wall) joins to ``BOUNDARY`` by the numerics role join. The stamp is therefore applied at this ONE site; the
-    mesh does not re-stamp. The operator is face-slot-shape-agnostic: a scalar multiple of the identity on the
+    One body, the shape of the SN realizer (``_attenuated_kernel_operator``): the scalar scales the ``IdentityOperator``, so the algebra's own collapse supplies the structure (``ZeroOperator`` at :math:`\mathcal{A}=0`,
+    ``IdentityOperator`` at :math:`\mathcal{A}=1`, a scaled identity otherwise), and the functor's sum of such operators on a
+    mixed wall is the sum of the scalars' actions. The operator is face-slot-shape-agnostic: a scalar multiple of the identity on the
     ``(ng, *face_spatial)`` outflow data, whatever the face.
     """
-    return float(albedo) * stamp_boundary_role(IdentityOperator())
+    return float(albedo) * IdentityOperator()
 
 
 #: Diffusion's realizer table. ``SIGNED_CURRENT``: the trace state is a partial current, so a negative return fraction (zero flux) is

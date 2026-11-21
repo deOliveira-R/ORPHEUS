@@ -1,6 +1,6 @@
-r"""B4 carve safety net — capability + block-role SURVIVAL through the
+r"""B4 carve safety net — capability SURVIVAL through the
 property-based ``SNBoundaryOperator`` and the bare-mixin
-``IncomingSourceOperator`` (GAP-1b, GAP-2 of the verification plan).
+``IncomingSourceOperator`` (GAP-2 of the verification plan).
 
 The operator-inverse-algebra carve re-types the ``LinearOperator`` family
 (``Protocol[V]`` → ``Protocol[D, C]``) and reworks the solve axis. RC 2 of
@@ -11,13 +11,13 @@ leaf's advertised set, would change the capability closure of a composite
 ``(L + C − B)`` — invisible today because nothing pinned the composite's
 surviving set, only ``(L + C)``.
 
-These are foundation (software-invariant) pins: capability sets and the
-``None`` block-role default are set-equality / enum-identity facts, not
+These are foundation (software-invariant) pins: capability sets are
+set-equality facts, not
 convergence/flux/eigenvalue claims. References are closed-form (the
 advertised sets are fixed by the operators' definitions).
 
 See ``.claude/plans/archive/issue_226_b4_operator_generics_verification.md``
-(GAP-1b, GAP-2) and ``.claude/plans/archive/operator_inverse_algebra_carve.md`` §4.
+(GAP-2) and ``.claude/plans/archive/operator_inverse_algebra_carve.md`` §4.
 """
 from __future__ import annotations
 
@@ -26,18 +26,11 @@ import pytest
 
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.transport.boundary_conditions.realization import stamp_boundary_role
 from orpheus.numerics.green_operator import GreenOperator
-from orpheus.numerics.operator import NotInvertible, ZeroOperator
+from orpheus.numerics.operator import NotInvertible
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
-from orpheus.numerics.operator import (
-    BlockRole,
-    BoundaryOperator,
-    BulkOperator,
-    FullOperator,
-    OperatorSum,
-)
+from orpheus.numerics.operator import OperatorSum
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.boundary.realized_operators import ZeroMap
 from orpheus.sn.operators.boundary import SNBoundaryOperator
@@ -104,57 +97,6 @@ def _sphere_mesh(nx: int = 4, n_ord: int = 4, ng: int = 1) -> SNProblem:
     mesh = Mesher(geom).partition(CellsByCount.uniform_volume(nx)).mesh
     quad = Quadrature.gauss_legendre(n_ordinates=n_ord)
     return SNProblem(mesh, quad, placeholder_materials(ng=ng), boundary_conditions=conditions_for(mesh, _CONDITIONS))
-
-
-# ─────────────────────────────────────────────────────────────────────
-# GAP-1b — IncomingSourceOperator (bare-mixin) is unclassified by default
-# ─────────────────────────────────────────────────────────────────────
-
-
-class TestTheBlockRoleIsAnInstanceStampNotAClassFact:
-    r"""The bare-mixin ``None`` default survives the ``[D, C]`` re-typing —
-    pinned on the class that carries BOTH answers in production (RC 3 ∩ RC 1).
-
-    ⭐ **Why this subject, since P3.** This class previously asked the retired
-    ``IncomingSourceOperator`` whether it was unclassified, on the claim that
-    the rank-0 affine inflow source is ``q.boundary`` and not a linear boundary
-    operator ``B``. P3 refuted that claim: prescribed inflow's realization IS a
-    linear boundary operator — the ZERO one — and it is stamped like every
-    other law (see ``tests/gates/sn/operators/test_operator_block_role.py``, where
-    prescribed now sits in ``_LINEAR_LAWS``).
-
-    What survives the retirement, and is what this module actually needs, is the
-    orthogonal claim: :attr:`block_role` is an **instance stamp**, so the same
-    class reads ``None`` bare and ``BOUNDARY`` once
-    :func:`~orpheus.transport.boundary_conditions.realization.stamp_boundary_role` has been applied.
-    Post-P3 that is no longer hypothetical — :class:`ZeroOperator` genuinely
-    appears both ways in production: unstamped as the within-group zero fission
-    slot, and stamped as the realization of vacuum / prescribed inflow / a
-    re-emission law at ``α = 0``. A re-typing that turned the stamp into a class
-    attribute would collapse the two, and this is the row that sees it.
-    """
-
-    def test_an_unstamped_instance_is_unclassified(self) -> None:
-        op = ZeroOperator()
-        assert op.block_role is None
-        assert not isinstance(op, BulkOperator)
-        assert not isinstance(op, FullOperator)
-        assert not isinstance(op, BoundaryOperator)
-
-    def test_stamping_one_instance_leaves_the_class_alone(self) -> None:
-        """The negative leg: the stamp must not leak to a sibling instance.
-
-        Without this, ``block_role`` could be a CLASS attribute set by
-        ``stamp_boundary_role`` and every row above would still pass — read in
-        the wrong order, because the bare instance would be constructed before
-        the stamp ever ran.
-        """
-        stamped = stamp_boundary_role(ZeroOperator())
-        assert stamped.block_role is BlockRole.BOUNDARY
-        assert isinstance(stamped, BoundaryOperator)
-        # …and a FRESH sibling, built after the stamp, is still bare.
-        assert ZeroOperator().block_role is None
-        assert not isinstance(ZeroOperator(), BoundaryOperator)
 
 
 # ─────────────────────────────────────────────────────────────────────

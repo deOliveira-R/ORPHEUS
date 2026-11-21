@@ -143,7 +143,7 @@ import numpy as np
 from scipy import sparse
 
 from orpheus.numerics.face_layout import FaceLayout
-from orpheus.numerics.operator import BlockRole, LinearOperator
+from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
 from orpheus.transport.fields.scalar_flux import ScalarFlux
@@ -310,8 +310,6 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
         field), the widths / areas / volumes, and the scalar trace the
         composite is bound to.
     """
-
-    block_role = BlockRole.FULL
 
     def __init__(self, mesh: "DiffusionMesh") -> None:
         self.mesh = mesh
@@ -575,8 +573,6 @@ class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
         laws (``mesh.bc``) and the composite carrier the operator is
         bound to.
     """
-
-    block_role = BlockRole.BOUNDARY
 
     def __init__(self, mesh: "DiffusionMesh") -> None:
         self.mesh = mesh

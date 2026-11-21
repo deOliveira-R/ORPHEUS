@@ -74,10 +74,6 @@ import pytest
 from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.operator import (
-    BlockRole,
-    BoundaryOperator,
-    BulkOperator,
-    FullOperator,
     IncompatibleOperatorComposition,
     LinearOperator,
     MissingAdjoint,
@@ -197,14 +193,59 @@ def _scatter(rows: np.ndarray, values: np.ndarray, n_face: int) -> np.ndarray:
     return out
 
 
-class TestContract:
-    def test_block_role_is_boundary_and_exclusive(self) -> None:
-        B = SNBoundaryOperator(_sn(CoordSystem.CARTESIAN, (_V, _R)))
-        assert B.block_role is BlockRole.BOUNDARY
-        assert isinstance(B, BoundaryOperator)
-        assert not isinstance(B, BulkOperator)
-        assert not isinstance(B, FullOperator)
+#: The face under test of every row below: ``xmin`` of a one-slab, whose other face is its partner (the same deck for a
+#: periodic pair, a vacuum wall otherwise).
+_FACE = "xmin"
 
+
+def _boundary_under_test(declared):
+    """The realized operator of ``xmin`` when it declares ``declared`` (a ``WallCondition``, carried on a tag, or a deck), posed
+    through a real slab: the periodic pair is declared on BOTH faces (a translation quotient is symmetric); any other face has a
+    vacuum partner."""
+    from orpheus.numerics.quadrature import Quadrature as _Q
+
+    conditions: dict[int, WallCondition] = {}
+    if isinstance(declared, WallCondition):
+        conditions[0] = declared
+        left, right = 0, 1
+        conditions[1] = WallCondition.vacuum()
+    elif isinstance(declared, TranslationDeck):
+        left = right = declared
+    else:
+        left, right = declared, 0
+        conditions[0] = WallCondition.vacuum()
+    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=left, right=right)).partition(CellsByCount.uniform_volume(4)).mesh
+    sn = SNProblem(mesh, _Q.gauss_legendre(n_ordinates=4), placeholder_materials(ng=1), boundary_conditions=conditions)
+    return sn.bc[_FACE]
+
+
+class TestBoundaryLeaves:
+    def test_prescribed_inflow_realizes_the_same_object_vacuum_does(self) -> None:
+        r"""⭐ P3: vacuum and prescribed inflow differ ONLY in :math:`q`.
+
+        The two laws realize to the same TYPE with the same two spaces. The affine
+        form is :math:`\gamma_-\psi = L\,\gamma_+\psi + q`; both laws have
+        :math:`L = 0`, and the only difference between them lives in a term
+        this tier does not carry. If a future edit gave prescribed inflow its
+        own zero-ish operator again, this row would fail.
+        """
+        mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=1)).partition(CellsByCount.uniform_volume(4)).mesh
+        sn = SNProblem(
+            mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=1),
+            boundary_conditions={0: WallCondition.vacuum(), 1: WallCondition.uniform(2.5)},
+        )
+        vacuum, prescribed = sn.bc["xmin"], sn.bc["xmax"]
+        assert type(prescribed) is type(vacuum)
+        # one trace, so the identity of the bound spaces is available: each operator is bound to its OWN face's half-traces.
+        for face, op in (("xmin", vacuum), ("xmax", prescribed)):
+            assert op.domain is sn.angular_trace.outflow_space(face)
+            assert op.codomain is sn.angular_trace.inflow_space(face)
+        # …and the source amplitude is invisible here, which is the point: the LINEAR factor cannot depend on q.
+        sourceless = _boundary_under_test(WallCondition.uniform(0.0))
+        assert type(sourceless) is type(prescribed)
+
+
+class TestContract:
     def test_domain_and_codomain_are_the_full_field_space(self) -> None:
         # Wave O / O.2b R5: ``B`` is an endomorphism on the composite
         # carrier (bulk ⊕ trace) — ``B.apply`` consumes / emits a full

@@ -369,8 +369,8 @@ the reason the flux accessor is fenced ``p1_boundary_scalar_flux`` while
 The leakage leaf L and the boundary block B
 -------------------------------------------
 
-:math:`L` (:class:`~orpheus.diffusion.operators.LeakageOperator`,
-``BlockRole.FULL``) is the elliptic sibling of the S\ :sub:`N` streaming
+:math:`L` (:class:`~orpheus.diffusion.operators.LeakageOperator`)
+is the elliptic sibling of the S\ :sub:`N` streaming
 operator: the **one** leaf that couples bulk :math:`\leftrightarrow`
 boundary. Its bulk rows are the conservative finite-difference
 divergence :math:`[(A_f J)_{i+1/2} - (A_f J)_{i-1/2}]/V_i` with the
@@ -412,8 +412,8 @@ outflow row and the **inflow identity** on the inflow row,
 
 from Fick's law between the edge-cell centre and the face plus the
 dictionary :eq:`diffusion-partial-current-dictionary`. :math:`B`
-(:class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`,
-``BlockRole.BOUNDARY``) is the realized albedo block: it emits
+(:class:`~orpheus.diffusion.operators.DiffusionBoundaryOperator`)
+is the realized albedo block: it emits
 :math:`\mathcal{A}\,J^+` on the inflow row and nothing else, so that
 :math:`(L - B)` reads the boundary law :math:`J^- - \mathcal{A}\,J^+ = 0`
 exactly. Eliminating :math:`(J^+, J^-)` by a Schur complement onto the

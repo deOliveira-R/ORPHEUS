@@ -50,7 +50,6 @@ from orpheus.diffusion import ZeroFluxCondition
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck, TranslationDeck
 from orpheus.mesh import CellsByCount, Mesh1D, Mesh2D, Mesher
-from orpheus.numerics.operator import BlockRole
 from orpheus.transport.boundary_conditions import BoundaryRefused, RefusalAxis, SubmarkovViolationError, UnboundTagError, WallCondition
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from tests.gates._exterior import declare_sides
@@ -251,14 +250,3 @@ class TestConditionsAreThePhaseSpace:
         vac, white, white_again = _diffusion_mesh(WallCondition.vacuum()), _diffusion_mesh(WallCondition.white(0.5)), _diffusion_mesh(WallCondition.white(0.5))
         assert vac != white and not vac.same_phase_space(white)
         assert white == white_again and white.same_phase_space(white_again)
-
-
-class TestTheBoundaryStamp:
-    def test_every_realized_face_operator_is_a_boundary_leaf_mixed_wall_included(self):
-        """A mixed wall realizes as the functor's SUM of scaled leaves; the sum carries ``BOUNDARY`` (mutations M-leaf-unstamped
-        in ``_albedo_operator`` and the wrapper-stamp spelling, which loses the role at the sum, both redden here)."""
-        mixed = WallCondition.from_amplitudes(0.3, 0.5)
-        walls = [WallCondition.vacuum(), WallCondition.white(0.3), WallCondition.white(1.0), ZeroFluxCondition(), MirrorDeck(), mixed]
-        for wall in walls:
-            dm = _diffusion_mesh(wall)
-            assert dm.bc["xmin"].block_role is BlockRole.BOUNDARY, type(wall).__name__

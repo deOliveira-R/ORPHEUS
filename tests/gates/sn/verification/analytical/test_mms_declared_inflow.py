@@ -517,19 +517,8 @@ def test_B_is_the_zero_morphism_when_every_face_is_prescribed() -> None:
     sn, _, _ = _declared_solve(case, 20)
 
     from orpheus.sn.operators.boundary import SNBoundaryOperator
-    from orpheus.numerics.operator import BlockRole
 
     B = SNBoundaryOperator(sn)
-    _require(B.block_role is BlockRole.BOUNDARY, "B lost its block role")
-
-    for face, _ in _faces(case):
-        leaf = sn.bc[face]
-        _require(
-            leaf.block_role is BlockRole.BOUNDARY,
-            f"the realized law on {face} is unstamped — before P3 the affine "
-            f"operator carried no stamp, and its absence was (wrongly) believed "
-            f"to fence it out of B",
-        )
 
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux

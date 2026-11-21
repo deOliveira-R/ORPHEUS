@@ -113,10 +113,8 @@ angular flux ⊕ its spatial ``BoundaryField`` trace) and **System B** the
 each radial cell, carrying its two BC data). This is not a new tensor
 type — it is the composite biproduct re-partitioned,
 :math:`\mathrm{Mat}_2(\mathrm{Mat}_2(\mathcal C)) \cong
-\mathrm{Mat}_4(\mathcal C)`. The two-system membership is carried by the
-:class:`~orpheus.numerics.operator.SystemRole` axis (below), orthogonal to
-the bulk↔boundary :class:`~orpheus.numerics.operator.BlockRole` that
-refines System A.
+\mathrm{Mat}_4(\mathcal C)`. Production carries no tag for the two-system membership: which system
+an operator acts within is a fact of its two spaces.
 
 The four blocks
 ---------------
@@ -139,8 +137,7 @@ alone has no explicit object — it is the driver-level composite).
      - the driver composite :math:`L + C - S - N_{2n} - B_a`
      - System A's self-block: streaming + collision − bulk scattering
        gain − bulk :math:`(n,2n)` emission gain − trace boundary gain
-     - carries :class:`BlockRole` ``FULL`` by the join lattice;
-       ``solve`` = the WDD sweep
+     - ``solve`` = the WDD sweep
    * - :math:`A_{AB}`
      - :class:`~orpheus.sn.operators.radial_characteristic.RadialCharacteristicSeeding`
      - ray → bulk seed injection (the Morel–Montry angular seed) —
@@ -424,8 +421,8 @@ padding the blocks it does not touch with present-zeros — was **rejected**
 (campaign re-scope, 2026-07-10): padding keeps *wrong multiplications
 representable*. A padded block accepts any composite; nothing at the type
 level stops a ray operator from receiving a bulk field or an emission
-from landing in the trace slot, and ``system_role`` tags are runtime
-metadata, not type constraints. The honest object is a typed block
+from landing in the trace slot, and a runtime tag is not a
+type constraint. The honest object is a typed block
 operator over a typed block vector, where every term of
 :eq:`coupled-block-matvec` type-checks per block and a wrong pairing is
 **unconstructable** (``coding-elegance`` Pattern 1 ∘ Pattern 4 — the
@@ -818,28 +815,6 @@ with a singular metric it is not :math:`\iota_i`), the idempotence and the
 :math:`G`-orthogonality of :math:`P_i`, each red under a mutation of the law
 it names.
 
-The two-system role lattice — :class:`SystemRole`
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-:class:`~orpheus.numerics.operator.SystemRole` tags which of the two
-systems an operator's action maps between —
-:attr:`A` (within System A), :attr:`B` (within System B: the self-block
-:math:`A_{BB}` and the ray boundary :math:`B_b`), or :attr:`COUPLED` (an
-off-diagonal, or the assembled 2×2: :math:`A_{AB}`, :math:`A_{BA}`, and
-the grid). Reading each role as the *set* of systems its action touches
-(:math:`A = \{A\}`, :math:`B = \{B\}`, :math:`\text{COUPLED} = \{A,B\}`),
-a sum touches the union: "same role stays, anything different becomes
-COUPLED". This is the two-system analogue of the bulk↔boundary
-:class:`~orpheus.numerics.operator.BlockRole` join, with ``COUPLED``
-playing the top-of-lattice role ``FULL`` plays there — a deliberate twin
-kept while only two role axes exist (the collapse trigger is a third
-parallel axis, e.g. a DSA/multiphysics role). Model-generic leaves
-(``C``/``S``/``F``, every diffusion/CP/MoC operator) leave ``system_role``
-at ``None`` — the conservative "not part of the ψ½ augmentation" reading —
-so a System-A composite must be **stamped** ``SystemRole.A`` explicitly at
-its composition site (the model-generic members' honest ``None`` would
-otherwise poison the join to ``None``).
-
 The one production spelling — ``build_within_group_system``
 -----------------------------------------------------------
 
@@ -1221,7 +1196,7 @@ where a bundling is a legitimate local choice; see the note at
 off-diagonals are the restriction :math:`R` (transport residual → coarse)
 and prolongation :math:`P` (coarse correction → fine) operators. Those
 :math:`R`/:math:`P` operators **do not exist yet** — they are the future
-``SystemRole`` members Issue #2 will add; the seam is *named*, not built.
+off-diagonal members Issue #2 will add; the seam is *named*, not built.
 When they land, DSA consumes the same three modes (the block matvec, the
 assembly route the diffusion resolvent already rides via
 :ref:`operator-algebra-assembly-axis`, and the block ``solve``), and it

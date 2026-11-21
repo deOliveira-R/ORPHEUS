@@ -1511,7 +1511,6 @@ The steps ``R1`` to ``R20`` are the rows of the retirement's dependency table, i
    * - R17
      - ``orpheus/transport/boundary_realization.py``
      - ``orpheus/transport/boundary_conditions/realization.py``
-       (:func:`~orpheus.transport.boundary_conditions.stamp_boundary_role`)
    * - R17
      - ``orpheus/sn/boundary/bound_compat.py``
      - ``orpheus/sn/boundary/realized_operators.py``
@@ -3434,7 +3433,7 @@ unreachable on the realize path.
    see is that the operator was ALSO affine — it returned :math:`q`
    whatever it was handed — and that this put an affine term inside the
    linear :math:`B` block, which the missing ``BlockRole.BOUNDARY``
-   stamp did **not** prevent. See :ref:`bc-affine-source-channel` for
+   stamp (a tag since retired) did **not** prevent. See :ref:`bc-affine-source-channel` for
    the collapse, the measurement, and why vacuum and prescribed inflow
    realize to the same object.
 
@@ -3690,7 +3689,7 @@ realized through :meth:`SNProblem.realize_boundary_role
 .. (vv-status rationale) Structural/typing identity, not a solver claim: the
    two conditions realize to the SAME expression, so it is verified by object-
    and space-identity assertions, not by a value. Gated at the production tier
-   by ``tests/gates/sn/operators/test_operator_block_role.py``
+   by ``tests/gates/sn/operators/test_sn_boundary_operator.py``
    (``test_prescribed_inflow_realizes_the_same_object_vacuum_does``:
    ``type(...) is type(...)`` plus ``domain is`` / ``codomain is`` against the
    TRACE's own ``outflow_space`` / ``inflow_space``) and by
@@ -4122,7 +4121,7 @@ Until P3 the SN realizer answered ``PrescribedInflow`` with an
 ``IncomingSourceOperator`` whose ``apply`` **ignored its input** and
 returned :math:`q`. That is an affine map declared as a
 :class:`~orpheus.numerics.operator.LinearOperator`. It carried no
-:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` stamp, and the
+``BlockRole.BOUNDARY`` stamp (a tag that production has since retired), and the
 stamp's absence was *believed* to fence it out of the :math:`B` block.
 
 **It did not.** The property that assembled :math:`B` was
@@ -4137,13 +4136,12 @@ read
        for face in self.problem.angular_trace.layout.faces
    }
 
-— every face in the trace layout, with **no** ``block_role`` filter.
-:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` carried the
-stamp itself, applied every law it collected, and never asked a leaf
-what its role was. So the affine leaf reached the block, and :math:`B`
+— every face in the trace layout, with **no** role filter.
+:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator` applied every
+law it collected and never asked a leaf what its role was. So the affine leaf reached the block, and :math:`B`
 stopped being linear. Its successor, ``SNBoundaryOperator._face_operators``,
 reads ``self.problem.bc[face]`` over the same trace layout and still
-applies no ``block_role`` filter (gotcha 3 below).
+applies no role filter (gotcha 3 below).
 
 ``[M]`` in a worktree pinned at the pre-carve commit (``ef4c3537``,
 which already carried the P2′ source wiring), same 2-group
@@ -4161,7 +4159,7 @@ heterogeneous slab, ``xmin`` declaring
    * - faces collected (``_face_laws``, today ``_face_operators``)
      - ``['xmax', 'xmin']``
      - ``['xmax', 'xmin']`` — **unchanged; there was never a filter**
-   * - ``xmin`` leaf's ``block_role``
+   * - ``xmin`` leaf's ``block_role`` (a tag since retired)
      - ``None``
      - ``BlockRole.BOUNDARY``
    * - realized ``xmin`` leaf
@@ -4184,8 +4182,8 @@ heterogeneous slab, ``xmin`` declaring
 
 ``[M]`` the post column re-read at ``471c4737``
 (``scratch/wf25_bcB_measurements.py`` section S4, the same fixture with the
-declaration bound to a tag): the leaf is a ``ZeroMap``, ``block_role`` is
-``BlockRole.BOUNDARY``, :math:`\lVert B(0) \rVert_\infty = 0.0` and
+declaration bound to a tag): the leaf is a ``ZeroMap``, its ``block_role`` was
+``BlockRole.BOUNDARY`` (the tag has since retired), :math:`\lVert B(0) \rVert_\infty = 0.0` and
 :math:`\lVert B(2x) - 2B(x) \rVert_\infty = 0.0` on both faces, and
 ``B.is_adjointable`` is ``True``.
 
@@ -4533,26 +4531,22 @@ specification raises ``ValueError`` ("specified TWICE"), the row
 ``TestTheSourceCannotBeSpecifiedTwice`` of
 ``tests/gates/sn/solve/test_declared_inflow_reaches_the_rhs.py``.
 
-**3. The** ``BlockRole.BOUNDARY`` **stamp is honest metadata; it is
-NOT a fence.** ``[M]`` and stated plainly because a reader will
-otherwise assume it is load-bearing: ``_face_operators`` (``_face_laws``
+**3. The** ``BlockRole.BOUNDARY`` **stamp was honest metadata; it was
+NOT a fence.** ``[M]`` and stated plainly because a reader would
+otherwise have assumed it load-bearing: ``_face_operators`` (``_face_laws``
 before it) never filtered on ``block_role``, so the stamp's presence or
-absence changes **nothing** about :math:`B`'s behaviour. Making
-:func:`~orpheus.transport.boundary_conditions.realization.stamp_boundary_role`
-the identity in ``orpheus.sn.boundary.realized_operators`` reddens 12 of
-the 51 rows of
-``test_operator_block_role.py``, ``test_declared_inflow_reaches_the_rhs.py``
+absence changed **nothing** about :math:`B`'s behaviour. Making the
+stamp helper (``stamp_boundary_role``) the identity in
+``orpheus.sn.boundary.realized_operators`` reddened 12 of the 51 rows of
+``test_operator_block_role.py`` (deleted in W0), ``test_declared_inflow_reaches_the_rhs.py``
 and ``test_declared_law_is_linear.py`` (12 in the first, 0 in each of the
-other two): every red is a direct stamp assertion and none is numerical
-(``MUT=stamp PYTHONPATH=scratch:<worktree> python -O -m pytest -p
-wf25_bcB_mutplug <the three files>``; the control, unmutated, passes 51
-of 51). The stamp claim needs its own assertion, and a value gate
-structurally cannot supply one. What the stamp *does* do is describe a
-leaf's role for a reader and for the block-role marker classes; what it
-never did is keep anything out of the block. Post-P3 the stamp is also
-no longer an exception: every realized face type carries it, the zero
-map of a prescribed inflow included, because the leaf is genuinely
-linear.
+other two): every red was a direct stamp assertion and none was numerical
+(measured before W0 retired the tag, with the mutation plugin of the
+campaign, ``MUT=stamp``; the control, unmutated, passed 51 of 51; not
+re-run since). A tag that classified a leaf for a reader and for the marker
+classes, and kept nothing out of the block, was retired in W0 with no
+replacement (it had no composition law: the join of a block-diagonal sum
+read a different object from the one tagged).
 
 **4. A declared prescribed inflow is REFUSED on a radial outer face
 (the carrying 1-D curvilinear mesh), at posing — and the hand-supplied
@@ -4621,8 +4615,9 @@ prescribed face, against the **trace's** own spaces and not against a
 sibling, and the ``ZeroMap`` derives its two ends from the trace ladder
 at one site (``_derive_inner``). ``[M]`` the swap mutation reddens it:
 ``MUT=swap PYTHONPATH=scratch:<worktree> python -O -m pytest -p
-wf25_bcB_mutplug tests/gates/sn/operators/test_operator_block_role.py::TestBoundaryLeaves::test_prescribed_inflow_realizes_the_same_object_vacuum_does``
-passes unmutated (1 passed) and fails with
+wf25_bcB_mutplug tests/gates/sn/operators/test_sn_boundary_operator.py::TestBoundaryLeaves::test_prescribed_inflow_realizes_the_same_object_vacuum_does``
+(dated history: measured at the old path ``test_operator_block_role.py`` before
+the test was re-homed, not re-run) passes unmutated (1 passed) and fails with
 ``ZeroMap._derive_inner`` rebound to a ``ZeroMorphism`` of swapped ends
 (1 failed). The same discrimination for the hand-built type
 (``tests/gates/numerics/test_zero_operator_spaces.py``,
@@ -4757,8 +4752,7 @@ first and raises
 :class:`~orpheus.transport.boundary_conditions.BoundaryRefused` iff the
 admission is a refusal, then returns the method's operator type (for SN a
 :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary`, a
-:math:`\Gamma_+ \to \Gamma_-` operator carrying
-:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` whose facts are
+:math:`\Gamma_+ \to \Gamma_-` operator whose facts are
 properties of its type). Admission and realization are one table read, so
 the question "is this declaration admitted on this face" and the realization
 cannot disagree (the admission tables and their axes are
@@ -4909,8 +4903,7 @@ This is the realisation, for the boundary block, of the Wave T
 prediction (:ref:`tensor-network-decomposition`): "Wave O typing must accept
 non-SOTP summands." :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
 is the :math:`A_{ss}` leaf — a bespoke
-:class:`~orpheus.numerics.operator.LinearOperator` carrying
-:attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY`, NOT a
+:class:`~orpheus.numerics.operator.LinearOperator`, NOT a
 :class:`~orpheus.numerics.operator.TensorProductOperator`.
 
 
@@ -4919,7 +4912,7 @@ The block matrix
 
 On :math:`V = V_{\rm bulk} \oplus V_{\rm boundary}` the operator families
 occupy disjoint blocks of the :math:`2\times 2` block matrix, grouped by
-the three :class:`~orpheus.numerics.operator.BlockRole` values
+which blocks they touch
 (:math:`b` = bulk row/column, :math:`s` = surface/trace row/column):
 
 .. math::
@@ -4927,15 +4920,15 @@ the three :class:`~orpheus.numerics.operator.BlockRole` values
 
    \underbrace{
    \begin{bmatrix} A_{bb} & 0 \\ 0 & 0 \end{bmatrix}
-   }_{C,\,S,\,N_{2n},\,F\;(\text{BULK})}
+   }_{C,\,S,\,N_{2n},\,F\;(\text{bulk only})}
    \;+\;
    \underbrace{
    \begin{bmatrix} A_{bb} & A_{bs} \\ A_{sb} & A_{ss} \end{bmatrix}
-   }_{L_{\rm full}\;(\text{FULL})}
+   }_{L_{\rm full}\;(\text{couples})}
    \;-\;
    \underbrace{
    \begin{bmatrix} 0 & 0 \\ 0 & A_{ss} \end{bmatrix}
-   }_{B\;(\text{BOUNDARY})}
+   }_{B\;(\text{boundary only})}
 
 .. vv-status: bc-extraction-block-matrix documented
 
@@ -5281,14 +5274,14 @@ pieces are :math:`N = (S,\ N_{2n},\ B_a)`,
 the three lagged
 couplings the driver applies: the bulk scattering gain
 (:class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
-:attr:`block_role <orpheus.numerics.operator.BlockRole>` ``BULK``), the
+:math:`A_{bb}` only), the
 bulk :math:`(n,2n)` emission gain
-(:class:`~orpheus.transport.operators.n2n.N2NOperator`, ``block_role``
-``BULK`` — a third member since CS4c step 3;
+(:class:`~orpheus.transport.operators.n2n.N2NOperator`,
+:math:`A_{bb}` only — a third member since CS4c step 3;
 :ref:`the two collision gains <operator-algebra-two-gains>`) and the
 boundary reflection gain
 (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`,
-``block_role`` ``BOUNDARY``). On a *carrying* sphere the record poses the
+:math:`A_{ss}` only). On a *carrying* sphere the record poses the
 ψ½ System B as the second row of a coupled :math:`M - N` block grid — the
 full 2×2 coupled block operator documented in
 :ref:`coupled-block-operator` (its starting-direction physics in
@@ -7068,9 +7061,7 @@ it (2026-10-23), in the past tense:
      - the **zero map** :math:`\Gamma_+ \to \Gamma_-` — literally the
        same :class:`~orpheus.numerics.operator.ZeroOperator` expression
        the vacuum row above built, from the same
-       ``_narrowed_zero_operator`` body, stamped
-       :attr:`~orpheus.numerics.operator.BlockRole.BOUNDARY` like every
-       other law. The law stayed affine; this tier realized its LINEAR
+       ``_narrowed_zero_operator`` body. The law stayed affine; this tier realized its LINEAR
        factor, and for prescribed inflow that factor was zero, so
        **vacuum and prescribed inflow differed only in** :math:`q` — which
        travelled the boundary-source channel instead
@@ -7097,7 +7088,7 @@ The successors of these rows are the three realized types of
 (a mirror deck, a unit specular wall and a translation wrap are the same type, at
 weight one); ``RankOneReemission`` is the white and isotropic-closure rows;
 ``RealizedSum`` is the image of a sum of chains. They build a
-``PermutationOperator`` (scaled and role-stamped by the realizer, not a tensor
+``PermutationOperator`` (scaled by the realizer, not a tensor
 product with ``IdentityOperator``) and the factored Lambertian
 ``emission @ contraction`` from spaces read off the trace ladder, so the
 ``& IdentityOperator()`` tensor-product spelling above is retired with the
