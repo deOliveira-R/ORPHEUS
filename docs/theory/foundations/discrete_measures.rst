@@ -944,15 +944,7 @@ measured reasons:
    that some exact value lies so close to the midpoint between two adjacent
    floats that the 40-digit approximation could land on either side: the
    construction refuses to choose rather than choose silently.  This holds for an
-   APPROXIMATE value; an EXACT value on the midpoint involves no guess, and is
-   decided in rational arithmetic: when the error interval holds exactly one
-   boundary :math:`T`, a node equals :math:`T` iff :math:`\pi_n(T) = 0`, and a
-   weight equals :math:`T` iff its node is a root of
-   :math:`\gcd(\pi_n,\, K_n - 1/T)` over :math:`\mathbb{Q}` (:math:`K_n` the
-   sum of :math:`\pi_k^2/h_k`, so :math:`w_i = 1/K_n(x_i)`); if equal the value
-   is :math:`T` rounded half to even, otherwise it is refused as before.  The
-   affine pushforward of a rule makes exactly such values (the centre node and
-   the rational reference weights scaled by the exact :math:`s`).  This is the
+   APPROXIMATE value; it is the
    strategy of Ziv (1991) for correctly rounded functions.  Agreement of two
    precisions alone does not certify the rounding (a value within the
    60-digit error of a midpoint could round the same wrong way at both), so
@@ -962,8 +954,21 @@ measured reasons:
    stopping step and the Christoffel sum's few lost digits `[R]`), both ends
    of :math:`[v - \rho|v|, v + \rho|v|]` must round to the same float64,
    or the value is refused.  At 60 digits that radius is about 35 orders of
-   magnitude below a float64 spacing.  Each refusal has a witness in
-   ``tests/gates/numerics/test_generating_measure.py``:
+   magnitude below a float64 spacing.  An EXACT value on the midpoint
+   involves no guess, and the interval cannot decide it (it holds the
+   midpoint whatever the precision), so it is decided in rational
+   arithmetic: when the error interval holds exactly one boundary
+   :math:`T` (the two ends are adjacent floats), a node equals :math:`T` iff
+   :math:`\pi_n(T) = 0`, and a weight equals :math:`T` iff its node is a root
+   of :math:`\gcd(\pi_n,\, K_n - 1/T)` over :math:`\mathbb{Q}` (:math:`K_n`
+   the sum of :math:`\pi_k^2/h_k`, so :math:`w_i = 1/K_n(x_i)`); if equal the
+   value is :math:`T` rounded half to even, otherwise it is refused as
+   before.  The affine pushforward of a rule makes exactly such values (the
+   centre node and the rational reference weights scaled by the exact
+   :math:`s`).  The adjacency test is an implementation choice, not a refusal
+   the law needs: for a value known to equal :math:`T`, ``float(T)`` is
+   correctly rounded whatever the interval's width.  Each refusal has a
+   witness in ``tests/gates/numerics/test_generating_measure.py``:
    ``test_a_value_its_error_interval_cannot_certify_is_refused`` lowers the
    coarse precision to 16 digits, where no value of the 64-point Legendre
    rule can be certified, and requires the raise;
@@ -971,7 +976,13 @@ measured reasons:
    disarms the certification and requires the comparison to refuse the same
    rule (`[M]` 2026-10-01, removing the comparison reddens it); and
    ``test_a_node_newton_cannot_converge_is_refused`` sets the Newton step
-   limit to zero and requires the non-convergence refusal of step 3.
+   limit to zero and requires the non-convergence refusal of step 3;
+   ``test_a_single_boundary_straddle_that_is_not_the_exact_value_is_still_refused``
+   requires the refusal of a straddle of one boundary whose value is not that
+   boundary; ``test_the_weight_decision_refuses_an_unequal_tie_and_has_its_domain``
+   requires the ``does not isolate the node`` refusal and the decision's
+   domain; and ``test_an_exact_value_on_a_rounding_tie_is_rounded_half_even``
+   is the witness of the exact-tie gate itself.
 6. **Symmetry is a theorem, not an imposition.**  A weight is even exactly
    when :math:`\alpha_k \equiv 0`, which
    :attr:`~orpheus.numerics.generating_measure.GeneratingMeasure.is_symmetric`

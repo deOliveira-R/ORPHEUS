@@ -49,12 +49,11 @@ References
 from __future__ import annotations
 
 import contextlib
-import functools
 import math
 from collections.abc import Callable
 from dataclasses import dataclass
 from fractions import Fraction
-from typing import ContextManager, Protocol, TypeVar
+from typing import Any, ContextManager, Protocol, TypeVar
 
 import mpmath
 
@@ -88,10 +87,6 @@ class HighPrecision:
     """``mpmath.mpf`` at an explicit number of decimal digits."""
 
     digits: int
-
-    def __post_init__(self) -> None:
-        if isinstance(self.digits, bool) or not isinstance(self.digits, int) or self.digits < 1:
-            raise ValueError(f"HighPrecision: digits must be a positive int, got {self.digits!r}")
 
     def working(self) -> ContextManager:
         return mpmath.workdps(self.digits)
@@ -162,28 +157,34 @@ class _Rational:
 
 RATIONAL = _Rational()
 
-# Type of a recurrence-coefficient generator: (n, arithmetic) -> (alpha, beta),
+# A recurrence-coefficient generator: (n, arithmetic) -> (alpha, beta),
 # each a list of n numbers in the arithmetic's number type, with the storage
 # convention beta[0] = mu_0. The arithmetic is an ARGUMENT, not mpmath's
-# ambient setting, so a bare call cannot return 15-digit values under the name
-# "exact". The closed forms are written once; the float coefficients, every
-# Gauss rule and the exact-tie decision are derived from them, so they cannot
-# drift.
+# ambient setting, and the generator is a NOMINAL type: the only way to make
+# one is ``over_arithmetic``, which evaluates the closed form inside the
+# arithmetic's working context, so a closed form whose decorator was
+# forgotten is a bare function and ``GeneratingMeasure.exact_recurrence``
+# (annotated with this class) refuses it under pyright. The closed forms are
+# written once; the float coefficients, every Gauss rule and the exact-tie
+# decision are derived from them, so they cannot drift.
 
 
-class RecurrenceCoefficients(Protocol):
-    def __call__(self, n: int, arithmetic: Arithmetic[M], /) -> tuple[list[Number], list[Number | M]]: ...
+@dataclass(frozen=True)
+class RecurrenceCoefficients:
+    """A closed form ``(n, A) -> (alpha, beta)`` bound to evaluate inside ``A``'s working context."""
 
+    closed_form: Callable[[int, Arithmetic[Any]], tuple[list[Number], list[Any]]]
 
-def over_arithmetic(closed_form):
-    """Lift a closed form ``(n, A) -> (alpha, beta)`` to a :data:`RecurrenceCoefficients`: evaluate it inside the arithmetic's working context, never mpmath's ambient one."""
-
-    @functools.wraps(closed_form)
-    def recurrence(n, arithmetic):
+    def __call__(self, n: int, arithmetic: Arithmetic[M]) -> tuple[list[Number], list[Number | M]]:
         with arithmetic.working():
-            return closed_form(n, arithmetic)
+            return self.closed_form(n, arithmetic)
 
-    return recurrence
+
+def over_arithmetic(
+    closed_form: Callable[[int, Arithmetic[Any]], tuple[list[Number], list[Any]]],
+) -> RecurrenceCoefficients:
+    """Lift a closed form ``(n, A) -> (alpha, beta)`` to a :class:`RecurrenceCoefficients`: evaluated inside the arithmetic's working context, never mpmath's ambient one."""
+    return RecurrenceCoefficients(closed_form)
 
 
 @over_arithmetic

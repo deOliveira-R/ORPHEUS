@@ -235,7 +235,7 @@ from orpheus.geometry.manifold import (
 # precision), and the finer result must also round to one float64 across its
 # whole error interval (see ``_CERTIFIED_DIGITS``). Either failure is refused,
 # never resolved silently.
-_WORKING_DIGITS = (40, 60)
+_WORKING_PRECISIONS = (HighPrecision(40), HighPrecision(60))
 
 # The precision the float views (``recurrence``, ``mass``) and the symmetry
 # probe evaluate the closed forms at: far beyond float64, so each float is
@@ -562,10 +562,10 @@ def _rule_at(
     measure: GeneratingMeasure,
     n: int,
     seeds: np.ndarray,
-    digits: int,
+    precision: HighPrecision,
     rational: "_RationalRecurrence | None",
 ) -> "tuple[tuple[float, ...], tuple[float, ...]]":
-    r"""The rule computed at ``digits`` working digits, rounded once.
+    r"""The rule computed at ``precision`` (a :class:`HighPrecision`), rounded once.
 
     Each node is the root of :math:`\hat p_n` reached by Newton from its
     seed; its weight is the Christoffel number
@@ -576,9 +576,9 @@ def _rule_at(
     has that symmetry, and rounding commutes with negation, so the rounded
     rule has it bit for bit.
     """
-    alpha, beta = measure.exact_recurrence(n + 1, HighPrecision(digits))
-    with mpmath.workdps(digits):
-        tolerance = mpmath.mpf(10) ** (5 - digits)
+    alpha, beta = measure.exact_recurrence(n + 1, precision)
+    with precision.working():
+        tolerance = mpmath.mpf(10) ** (5 - precision.digits)
         symmetric = measure.is_symmetric
         roots = []
         for seed in (seeds[n // 2:] if symmetric else seeds):
@@ -604,7 +604,7 @@ def _rule_at(
             roots = mirrored + roots
             weights = list(reversed(weights[len(weights) - len(mirrored):])) + weights
         nodes = tuple(
-            _certified_float(x, digits, measure, n, is_exactly=_node_is_exactly(rational, n)) for x in roots
+            _certified_float(x, precision, measure, n, is_exactly=_node_is_exactly(rational, n)) for x in roots
         )
         if any(b <= a for a, b in zip(nodes, nodes[1:])):
             raise ArithmeticError(
@@ -612,7 +612,7 @@ def _rule_at(
                 f"root, or out of order: {nodes}"
             )
         return nodes, tuple(
-            _certified_float(w, digits, measure, n, is_exactly=_weight_is_exactly(rational, n, x, measure.name))
+            _certified_float(w, precision, measure, n, is_exactly=_weight_is_exactly(rational, n, x, measure.name))
             for x, w in zip(roots, weights)
         )
 
@@ -667,6 +667,10 @@ def _rational_recurrence(measure: GeneratingMeasure, n: int) -> _RationalRecurre
     mass, tail = beta[0], [b for b in beta[1:] if b is not None]
     if len(tail) != len(beta) - 1:
         return None
+    # The door parses what it lets through: the exact decision reads Fractions only, and a
+    # float or an mpf leaking out of a RATIONAL evaluation is outside its domain, never data.
+    if any(type(x) is not Fraction for x in (*alpha, *tail)) or not (mass is None or type(mass) is Fraction):
+        return None
     return _RationalRecurrence(alpha, mass, tail)
 
 
@@ -709,18 +713,18 @@ def _weight_is_exactly(rational: _RationalRecurrence | None, n: int, x, name: st
 
 
 def _certified_float(
-    value, digits: int, measure: "GeneratingMeasure", n: int, is_exactly: Callable[[Fraction], bool] | None = None
+    value, precision: HighPrecision, measure: "GeneratingMeasure", n: int, is_exactly: Callable[[Fraction], bool] | None = None
 ) -> float:
     r"""``value`` rounded to float64, certified: both ends of its error
     interval :math:`[v - \rho|v|, v + \rho|v|]`,
-    :math:`\rho = 10^{\texttt{_CERTIFIED_DIGITS} - \texttt{digits}}`, round to
+    :math:`\rho = 10^{\texttt{_CERTIFIED_DIGITS} - \texttt{precision.digits}}`, round to
     the same float64, so the exact value does too. A value within
     :math:`\rho` of a rounding boundary is refused rather than guessed,
     except an exact value on the boundary itself: when the interval holds
     exactly one boundary :math:`T` and ``is_exactly(T)`` says the value IS
     :math:`T`, the value is :math:`T` rounded half to even."""
-    with mpmath.workdps(digits):
-        radius = abs(value) * mpmath.mpf(10) ** (_CERTIFIED_DIGITS - digits)
+    with precision.working():
+        radius = abs(value) * mpmath.mpf(10) ** (_CERTIFIED_DIGITS - precision.digits)
         low, high = float(value - radius), float(value + radius)
     if low == high:
         return low
@@ -752,11 +756,11 @@ def _correctly_rounded_rule(
     """
     seeds = _float_seeds(measure, n)
     rational = _rational_recurrence(measure, n)
-    coarse, fine = (_rule_at(measure, n, seeds, d, rational) for d in _WORKING_DIGITS)
+    coarse, fine = (_rule_at(measure, n, seeds, d, rational) for d in _WORKING_PRECISIONS)
     if coarse != fine:
         raise ArithmeticError(
             f"{measure.name}.gauss({n}): the rule rounds differently at "
-            f"{_WORKING_DIGITS[0]} and {_WORKING_DIGITS[1]} digits, so some "
+            f"{_WORKING_PRECISIONS[0].digits} and {_WORKING_PRECISIONS[1].digits} digits, so some "
             f"value is unresolved at the coarser precision"
         )
     return fine

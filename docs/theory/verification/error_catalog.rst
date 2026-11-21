@@ -12275,7 +12275,7 @@ older entries classify against.
    writer that is correct by construction never produces and so no gate built on that writer reaches.
 
 .. error-entry:: ERR-127
-   :title: A rounding certificate correct for approximate values refused an exact value on a float64 tie, so LEGENDRE.on(a, b).gauss(n) raised on a panel whose centre or width is a tie
+   :title: A rounding certificate correct for approximate values refused an exact value on a float64 tie, so GeneratingMeasure.on(a, b).gauss(n) raised, for every family on [-1, 1], on a panel whose centre or width is a tie
 
    **Status:** ✅ **FIXED**, merged @ ``<hash, filled at integration>``. Stub: the full text (the defect, how it hid, the fix,
    the lesson) is the archivist's at the wave's documentation pass.
@@ -12285,4 +12285,4 @@ older entries classify against.
    **Failure mode:** a certificate correct for approximate values (a Newton root, a Christoffel number) applied to an exact
    rational that sits on the midpoint of two adjacent floats, where there is no guess to refuse (failure modes 4 and 6, hybrid).
 
-   **Caught by:** ``tests/gates/numerics/test_generating_measure.py::test_an_exact_value_on_a_rounding_tie_is_rounded_half_even``
+   **Caught by:** ``tests/gates/numerics/test_generating_measure.py::test_an_exact_value_on_a_rounding_tie_is_rounded_half_even``, ``tests/gates/numerics/test_generating_measure.py::test_every_family_rounds_its_exact_tie_half_even``

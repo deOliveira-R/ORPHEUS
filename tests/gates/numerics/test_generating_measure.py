@@ -48,6 +48,7 @@ from orpheus.numerics.generating_measure import (
 from orpheus.geometry.manifold import CIRCLE, COSINE_INTERVAL, SPHERE
 from orpheus.geometry.symmetry import SubgroupOfO3
 from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _ROSTER
+import orpheus.numerics.recurrence as r
 
 # Every shipped family, as (label, measure). Parameterised families are
 # sampled at a non-degenerate point so the general code path runs.
@@ -734,7 +735,7 @@ def test_a_value_its_error_interval_cannot_certify_is_refused(monkeypatch) -> No
     import orpheus.numerics.generating_measure as gm
 
     LEGENDRE.gauss(64)  # positive control: the shipped precisions certify
-    monkeypatch.setattr(gm, "_WORKING_DIGITS", (16, 60))
+    monkeypatch.setattr(gm, "_WORKING_PRECISIONS", (r.HighPrecision(16), r.HighPrecision(60)))
     gm._correctly_rounded_rule.cache_clear()
     try:
         with pytest.raises(ArithmeticError, match="cannot be certified"):
@@ -752,8 +753,8 @@ def test_a_rule_that_rounds_differently_at_the_two_precisions_is_refused(monkeyp
     certification, which would otherwise fire first."""
     import orpheus.numerics.generating_measure as gm
 
-    monkeypatch.setattr(gm, "_WORKING_DIGITS", (16, 60))
-    monkeypatch.setattr(gm, "_certified_float", lambda value, digits, measure, n, **_: float(value))
+    monkeypatch.setattr(gm, "_WORKING_PRECISIONS", (r.HighPrecision(16), r.HighPrecision(60)))
+    monkeypatch.setattr(gm, "_certified_float", lambda value, precision, measure, n, **_: float(value))
     gm._correctly_rounded_rule.cache_clear()
     try:
         with pytest.raises(ArithmeticError, match="rounds differently"):
@@ -957,7 +958,10 @@ def test_the_weight_decision_refuses_an_unequal_tie_and_has_its_domain() -> None
         ("jacobi(1.5, 1.5) n=5", jacobi(1.5, 1.5), (0.2, 0.4), 5),
         ("jacobi(0, 0) width tie n=1", jacobi(0.0, 0.0), _WIDTH_TIE, 1),
     ],
-    ids=lambda v: v if isinstance(v, str) else "",
+    ids=[
+        "chebyshev_t n=1", "chebyshev_t n=3", "chebyshev_u n=3", "jacobi(1, 1) n=3",
+        "jacobi(1.5, 1.5) n=5", "jacobi(0, 0) width tie n=1",
+    ],
 )
 def test_every_family_rounds_its_exact_tie_half_even(label, measure, panel, n) -> None:
     r"""The law is not Legendre's: every family on ``[-1, 1]`` rounds its exact tie half to even.
@@ -965,7 +969,8 @@ def test_every_family_rounds_its_exact_tie_half_even(label, measure, panel, n) -
     ``jacobi(1, 1)`` (mass ``4/3``) and ``jacobi(1.5, 1.5)`` (mass irrational) carry NO classical alias, so no
     Chebyshev construction can serve them (``jacobi(+-1/2, +-1/2)`` are the Chebyshevs by name and would test
     Chebyshev again); ``jacobi(0, 0)`` has the rational mass 2 and equals ``LEGENDRE`` by name, so on a width tie
-    its WEIGHT must equal Legendre's.  Each row builds through ``_fresh`` (a remap cached for the equal constant
+    its WEIGHT must equal Legendre's.  Every row is a SYMMETRIC rule (the stabiliser of the node-weight pairing:
+    reversing it would redden no row here, and an asymmetric rational weight tie is not known to exist).  Each row builds through ``_fresh`` (a remap cached for the equal constant
     would be returned without running the Jacobi builder), and the ``jacobi(0, 0)`` row builds its constant
     through ``_fresh`` too and asserts that two constructions ran (the positive control)."""
     a, b = panel
@@ -1025,6 +1030,46 @@ def test_the_generic_builders_admit_the_tabulated_rationals(label, getter, mass)
         for q, h in list(zip(alpha, high_alpha)) + list(zip(beta[1:], high_beta[1:])):
             exact = mpmath.mpf(q.numerator) / q.denominator
             assert (abs(exact - h) <= mpmath.mpf(10) ** -55 * abs(h)) if h != 0 else (exact == 0)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("label, getter, mass", _BUILDER_ROWS, ids=[row[0] for row in _BUILDER_ROWS])
+def test_a_generator_evaluates_inside_its_arithmetic_never_at_the_ambient_precision(label, getter, mass) -> None:
+    """The door is nominal: every builder is a ``RecurrenceCoefficients``, whose call enters the arithmetic's
+    working context.  The positive control is the undecorated ``closed_form`` called at the ambient 15 digits,
+    which carries ``1/3`` at 1e-16 only; the decorated call carries it to 1e-55 at 60 digits."""
+    import mpmath
+
+    builder = getter(r)
+    assert isinstance(builder, r.RecurrenceCoefficients)
+    _, beta = r.legendre_recurrence(3, r.HighPrecision(60))
+    _, bare = r.legendre_recurrence.closed_form(3, r.HighPrecision(60))
+    with mpmath.workdps(60):
+        third = mpmath.mpf(1) / 3
+        assert abs(beta[1] - third) < mpmath.mpf(10) ** -55
+        assert abs(bare[1] - third) > mpmath.mpf(10) ** -30
+
+
+@pytest.mark.foundation
+def test_the_rational_door_admits_fractions_only() -> None:
+    """``_rational_recurrence`` parses what it lets through: a recurrence whose RATIONAL evaluation leaks a float
+    or an ``mpf`` is outside the domain (``None``, so the value is refused as before), never decided on.  The
+    positive control is ``LEGENDRE``, which the door admits."""
+    import dataclasses
+
+    import mpmath
+
+    import orpheus.numerics.generating_measure as gm
+
+    assert gm._rational_recurrence(LEGENDRE, 3) is not None
+    for leak in (0.5, mpmath.mpf(1) / 2):
+        leaking = dataclasses.replace(
+            LEGENDRE,
+            exact_recurrence=r.over_arithmetic(
+                lambda n, A, leak=leak: ([A.lift(0)] * n, [A.mass(lambda: A.lift(2))] + [leak] * (n - 1))
+            ),
+        )
+        assert gm._rational_recurrence(leaking, 3) is None
 
 
 @pytest.mark.foundation
