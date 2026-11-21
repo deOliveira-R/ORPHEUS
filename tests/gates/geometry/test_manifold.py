@@ -82,6 +82,7 @@ from orpheus.geometry.manifold import (
 )
 from tests.gates.geometry._manifold_fixtures import UNIT_INTERVAL
 from orpheus.numerics.index_set import EnergyGroups, IndexSet
+from tests.gates.numerics._measure_fixtures import ENERGY
 from orpheus.geometry.symmetry import SubgroupOfO3
 
 # 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
@@ -125,7 +126,7 @@ _ALL: tuple[Manifold, ...] = (
     REAL_LINE,
     RealSpace(1),
     RealSpace(3),
-    EnergyGroups(),
+    ENERGY,
     IndexSet("angular", 8),
     SPHERE * COSINE_INTERVAL,
     Ball(2),
@@ -201,7 +202,7 @@ class TestTypeLaws:
         assert UNIT_INTERVAL.name == "[0,1]"
         assert HALF_LINE.name == "[0,inf)"
         assert REAL_LINE.name == "R"
-        assert EnergyGroups().name == "energy"
+        assert ENERGY.name == "energy"
         assert RealSpace(1).name == "spatial_R1"
         assert IndexSet("angular").name == "index(angular)"
 
@@ -225,8 +226,8 @@ class TestProduct:
 
     def test_the_product_is_a_manifold_so_it_composes(self):
         """Associativity of the concept, not of the constructor."""
-        triple = (COSINE_INTERVAL * CIRCLE) * EnergyGroups()
-        other = COSINE_INTERVAL * (CIRCLE * EnergyGroups())
+        triple = (COSINE_INTERVAL * CIRCLE) * ENERGY
+        other = COSINE_INTERVAL * (CIRCLE * ENERGY)
         assert isinstance(triple, Product) and isinstance(other, Product)
         assert triple.dim == other.dim == 2
 
@@ -775,7 +776,7 @@ class TestAmbientDimensionLaws:
         RealSpace(1): 1,
         RealSpace(3): 3,
         Ball(2): 2,
-        EnergyGroups(): 1,
+        ENERGY: 1,
         EnergyGroups(4): 1,
         IndexSet("angular", 8): 1,
     }
@@ -790,7 +791,7 @@ class TestAmbientDimensionLaws:
             for right in atoms:
                 assert (left * right).ambient_dim == left.ambient_dim + right.ambient_dim
         # associative because additive: the nesting does not change the width
-        assert ((SPHERE * EnergyGroups()) * CIRCLE).ambient_dim == (SPHERE * (EnergyGroups() * CIRCLE)).ambient_dim == 6
+        assert ((SPHERE * ENERGY) * CIRCLE).ambient_dim == (SPHERE * (ENERGY * CIRCLE)).ambient_dim == 6
 
     def test_the_fundamental_domain_keeps_its_bases_columns(self) -> None:
         # bases of widths 3, 2 and 1, so a constant answer coincides with at most one
@@ -1500,7 +1501,7 @@ class TestQuotientOnto:
         assert quotient_onto(slab_entry, SPHERE) is None
         assert quotient_onto(fold_entry, SPHERE) is None
         assert quotient_onto(slab_entry, fold_entry) is None
-        assert quotient_onto(SPHERE, EnergyGroups()) is None
+        assert quotient_onto(SPHERE, ENERGY) is None
 
         # the lattice fact the refusal reads
         assert not SubgroupOfO3.Trivial.contains(SubgroupOfO3.SO2("x"))
