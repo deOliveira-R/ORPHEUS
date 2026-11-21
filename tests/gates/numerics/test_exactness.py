@@ -34,10 +34,10 @@ from orpheus.numerics.exactness import (
 from orpheus.numerics.generating_measure import (
     CHEBYSHEV_T,
     CHEBYSHEV_U,
-    HERMITE,
     LEGENDRE,
     jacobi,
 )
+from tests.gates.numerics._measure_fixtures import HERMITE
 from orpheus.geometry.manifold import Manifold
 from orpheus.geometry.manifold import CIRCLE, COSINE_INTERVAL
 

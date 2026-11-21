@@ -35,16 +35,15 @@ import numpy as np
 import pytest
 from scipy.special import gammaln, roots_chebyu, roots_jacobi
 
-from orpheus.geometry.manifold import UNIT_INTERVAL
+from tests.gates.geometry._manifold_fixtures import UNIT_INTERVAL
 from orpheus.numerics.generating_measure import (
     CHEBYSHEV_T,
     CHEBYSHEV_U,
-    HERMITE,
     LEGENDRE,
     GeneratingMeasure,
     jacobi,
-    laguerre,
 )
+from tests.gates.numerics._measure_fixtures import HERMITE, laguerre
 from orpheus.geometry.manifold import CIRCLE, COSINE_INTERVAL, SPHERE
 from orpheus.geometry.symmetry import SubgroupOfO3
 from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _ROSTER

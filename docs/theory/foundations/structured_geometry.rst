@@ -149,11 +149,11 @@ Key facts
   or hollow, of any number of regions.
 * Discrete production solvers take ``(materials, mesh, params)``
   where ``mesh`` is built by a ``Mesher``.
-* Slab convention: :attr:`StructuredGeometry.domain_extent_cm` is
+* Slab convention: the extent ``breakpoints[-1] - breakpoints[0]`` is
   :math:`r_R - r_0`, the **full slab width** on a slab (end to end).
   F_N's natural half-thickness ``a = L / 2`` is recovered inside
   :class:`MomentSpace`. On a solid cylinder or sphere the same
-  property is the outer radius, and on a hollow one the shell
+  difference is the outer radius, and on a hollow one the shell
   thickness.
 * The Sood case registry adapter is
   :meth:`La13511Case.to_geometry()
@@ -293,12 +293,12 @@ construction names each of them, and the dataclass is frozen:
        content identity (:ref:`structured-geometry-content-identity`),
        whatever the exterior model is.
 
-Five properties are derived, never stored: ``is_hollow`` and
+Four properties are derived, never stored: ``is_hollow`` and
 ``boundary_points`` (the next sections), ``tags`` (the tags the faces
-carry, the decks excluded), ``symmetry``
-(:ref:`structured-geometry-colouring-symmetry`) and
-:attr:`StructuredGeometry.domain_extent_cm`, the width
-:math:`r_R - r_0` of the interval of positions. The three sequence
+carry, the decks excluded) and ``symmetry``
+(:ref:`structured-geometry-colouring-symmetry`); the width
+:math:`r_R - r_0` of the interval of positions is
+``breakpoints[-1] - breakpoints[0]``. The three sequence
 fields are parsed alike: any sequence is canonicalised to a tuple (of
 ``float``, of ``int``, of roles), and a non-sequence, a string included,
 is refused with a ``TypeError`` naming the field.
@@ -355,7 +355,7 @@ A declaration for each shape of boundary:
        face_roles=(1, 0),
    )
    assert shell.boundary_points == (0.5, 2.0)
-   assert shell.domain_extent_cm == 1.5
+   assert shell.breakpoints[-1] - shell.breakpoints[0] == 1.5
    assert shell.tags == frozenset({0, 1})
 
 `[M]` 2026-10-24, run in a worktree at the carve tip (the import
@@ -907,7 +907,7 @@ system. The coordinate system owns the definition
 :math:`T`), the geometry answers it through
 :meth:`~orpheus.geometry.structured_geometry.StructuredGeometry.measure`,
 and the measure of an interval is the one-cell case,
-``measure([r_k, r_{k+1}])``. ``compute_volumes_1d`` is the same call.
+``measure([r_k, r_{k+1}])``.
 There is no second spelling anywhere in the mesh layer.
 
 :math:`T` is evaluated on numpy arrays, whose power is correctly
@@ -1651,7 +1651,7 @@ interval; ``TestRefine``; ``TestEveryBreakpointIsAnEdge``, whose stub
 rules miss their interval and are refused; ``TestSessionRefusals``;
 ``TestIssue495Mesh``). ``tests/gates/geometry/test_coord.py`` carries the
 measure (``TestTheOneMeasure``: the measure is ``c * diff(T(edges))``,
-``compute_volumes_1d`` its delegate, the measure coordinate, a geometry
+the measure coordinate, a geometry
 asking it) and the witness that the tests' oracle of it is written once
 (``TestTheMeasureOracleHasOneHome``, the oracle being
 ``tests/gates/geometry/_measure.py``). ``tests/gates/mesh/test_partition.py``
@@ -3556,7 +3556,7 @@ unequal, while ``simplify`` reduces their difference to 0. That costs
 a cache miss and never a wrong hit, which is the only direction a cache
 key may err in; deciding equality of two expressions in general is not
 something a key can afford. `[M]` the round trip
-``Symbolic.from_srepr(s.srepr) == s`` holds, with assumptions kept, on
+``Symbolic(srepr=s.srepr, sympy_version=s.sympy_version) == s`` holds, with assumptions kept, on
 the gate's four-member population (a polynomial; :math:`\sin(\pi r)
 e^{-\mu} + \cos\varphi\,\sqrt{1-\mu^2}\,r`; a ``Piecewise`` with a
 30-digit ``Float`` and a ``Rational``; a 12-term sum), and the digest is
@@ -3580,7 +3580,7 @@ srepr format: every Symbolic cache key is invalidated (the version part
 already forces the miss); re-pin with the version"*).
 
 **Stored text is parsed through a whitelist, never by** ``eval``
-**alone.** The first ``from_srepr`` evaluated stored text with
+**alone.** The first ``from_srepr`` (a classmethod until 2026-11-20, then a test-side helper over the constructor) evaluated stored text with
 ``sympify``, which calls ``eval``; the qa review (2026-10-02) wrote a
 file with a stored string. A cache is a store of text a later process
 reads back, so the parse is an input boundary. The text is parsed to a
@@ -3592,7 +3592,7 @@ literals; a unary sign on a literal; keywords and tuples. Anything else
 is refused before evaluation, naming the node or the name (an attribute,
 a subscript, a lambda, ``getattr``, ``Matrix``, a syntax error; gate
 S6.16's six rows), and the admitted tree is evaluated with no builtins.
-`[M]` ``Symbolic.from_srepr(("__import__('os')",))`` is refused:
+`[M]` ``Symbolic(srepr=("__import__('os')",), sympy_version=...)`` is refused:
 the message names ``'__import__'`` as "not a SymPy class or
 constant".
 
@@ -3642,7 +3642,7 @@ ten rows):
    r, mu, phi = Symbolic.r, Symbolic.mu, Symbolic.phi
    q = Symbolic.of(sp.exp(-r) * (1 + mu), sp.Integer(2))   # two groups
    assert q.n_groups == 2 and not q.is_isotropic
-   assert Symbolic.from_srepr(q.srepr, q.sympy_version) == q
+   assert Symbolic(srepr=q.srepr, sympy_version=q.sympy_version) == q
    assert Symbolic.of(sp.sin(phi)**2 + sp.cos(phi)**2).is_isotropic
 
    table = RegionwiseConstant([[1.0, 0.5], [0.0, 2.0], [1.0, 0.5]])  # 3 regions, 2 groups

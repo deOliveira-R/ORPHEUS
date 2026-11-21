@@ -79,11 +79,8 @@ from .ordinate_pairing import (
 from .registry import (
     GEOMETRY_ANGULAR_SYMMETRY,
     AngularSymmetry,
-    QuadratureSelectionError,
     QuadratureSpec,
-    SelectionLog,
     quadrature_registry,
-    select_quadrature,
 )
 from .rules_1d import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit
 from .rules_circle import NODE_ALIGNED, STAGGERED, periodic_trapezoid
@@ -106,9 +103,7 @@ __all__ = [
     "PairingNotMeasurePreservingError",
     "Quadrature",
     "QuadratureNotClosedUnderMotionError",
-    "QuadratureSelectionError",
     "QuadratureSpec",
-    "SelectionLog",
     "gauss_legendre_on_mu",
     "gauss_legendre_on_polar_orbit",
     "lebedev_sphere",
@@ -116,6 +111,5 @@ __all__ = [
     "periodic_trapezoid",
     "product_mu_phi",
     "quadrature_registry",
-    "select_quadrature",
     "spherical_product",
 ]

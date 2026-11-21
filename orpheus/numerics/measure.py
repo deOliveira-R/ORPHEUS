@@ -148,8 +148,9 @@ if TYPE_CHECKING:
 # predicate, its quotient and product algebra — instead of a tag that only a
 # reader could interpret. The six ``SPACE_*`` string constants below retired
 # with it; their replacements are the shipped ``Manifold`` members
-# (``REAL_LINE``, ``HALF_LINE``, ``COSINE_INTERVAL``, ``UNIT_INTERVAL``,
-# ``CIRCLE``, ``SPHERE``, ``ENERGY``) and every one of them reproduces the
+# (``REAL_LINE``, ``HALF_LINE``, ``COSINE_INTERVAL``,
+# ``CIRCLE``, ``SPHERE``; the unit interval and the energy axis moved to the
+# test side on 2026-11-20) and every one of them reproduces the
 # retired tag's spelling bit-identically through :attr:`Manifold.name`
 # (``[M]`` 10 of 10 at the retype).
 # ⭐ The circle names the MANIFOLD, not a chart of it — a distinction that
@@ -1819,89 +1820,6 @@ class BundleMeasure:
 
 
 # ---------------------------------------------------------------------------
-# 1-D primitive constructors
-# ---------------------------------------------------------------------------
-
-
-def equispaced(a: float, b: float, n: int) -> DiscreteMeasure:
-    r"""Equispaced (midpoint-rule) measure on :math:`[a, b]`.
-
-    Returns the discrete measure with :math:`n` nodes at the midpoints
-    of an equal partition of :math:`[a, b]`, all carrying weight
-    :math:`(b - a) / n`:
-
-    .. math::
-
-       x_i = a + \left(i - \tfrac{1}{2}\right)\,\frac{b - a}{n},
-       \qquad w_i = \frac{b - a}{n}.
-
-    The midpoint rule has degree of exactness ``1`` (exact for
-    constants and linears, not for quadratics in general).
-
-    This primitive is offered for tensor-product azimuthal quadrature,
-    but it is **not** what the shipped SN product rule uses. The φ-axis
-    of :func:`~orpheus.numerics.quadrature.product_mu_phi` is
-    :func:`~orpheus.numerics.quadrature.periodic_trapezoid` at
-    ``shift=NODE_ALIGNED`` — the left-endpoint grid
-    :math:`\varphi_m = 2\pi m / n_\varphi`, generated as roots of
-    unity, not midpoints. (That convention was carried by the SN-side
-    ``ProductQuadrature`` adapter this docstring used to point at;
-    R-1 Phase A detour-C retired all four per-family adapters into
-    classmethod factories on the one ``Quadrature`` type, and the
-    convention now lives in the rule function.) Midpoints are offered
-    here because they integrate constants exactly while preserving
-    symmetry under reflection through the centre of the interval —
-    but the shift a rule *needs* is a well-posedness question (whether
-    a node sits on the mirror axis), so select it deliberately rather
-    than reaching for this primitive by default.
-
-    Parameters
-    ----------
-    a, b : float
-        Endpoints of the interval; ``a < b`` is required.
-    n : int
-        Number of nodes; must be :math:`\ge 1`.
-
-    Returns
-    -------
-    DiscreteMeasure
-        On ``support=Interval(a, b)`` with ``degree_of_exactness=1``.
-    """
-    if n < 1:
-        raise ValueError(f"equispaced requires n >= 1, got n={n}")
-    if not (a < b):
-        raise ValueError(f"equispaced requires a < b, got a={a}, b={b}")
-    from orpheus.numerics.exactness import (
-        ExactnessClaim,
-        OrthogonalSystem,
-        UniformMeasure,
-    )
-
-    h = (b - a) / n
-    nodes = a + (np.arange(n) + 0.5) * h
-    weights = np.full(n, h)
-    support = Interval(a, b)
-    return DiscreteMeasure(
-        nodes=nodes,
-        weights=weights,
-        support=support,
-        # ALGEBRAIC degree 1, against Lebesgue measure on THIS INTERVAL —
-        # and naming both halves is the point. The same nodes read as a
-        # rule on the CIRCLE are the periodic trapezoid, exact to
-        # trigonometric degree n-1; that is a different claim about a
-        # different reference, and it belongs to a circle rule rather
-        # than to this one (§4: a rule on a domain is ONE object).
-        exactness=ExactnessClaim(
-            reference=UniformMeasure(
-                support=support,
-                orthogonal_system=OrthogonalSystem.ALGEBRAIC,
-            ),
-            degree=1,
-        ),
-    )
-
-
-# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
@@ -1911,5 +1829,4 @@ __all__ = [
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
     "WEIGHT_ATOL",
-    "equispaced",
 ]

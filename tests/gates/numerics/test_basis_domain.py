@@ -77,7 +77,8 @@ from orpheus.numerics.basis import (
 from orpheus.numerics.basis.spherical_harmonic_basis import (
     MirrorEvenSphericalHarmonicBasis,
 )
-from orpheus.numerics.index_set import ENERGY, EnergyGroups, IndexSet
+from orpheus.numerics.index_set import EnergyGroups, IndexSet
+from tests.gates.numerics._measure_fixtures import ENERGY
 from orpheus.geometry.manifold import SPHERE, Manifold, Quotient, RealSpace
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure

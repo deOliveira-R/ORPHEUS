@@ -441,7 +441,7 @@ Slab convention: returns the FULL slab width (``2 *
 critical_dimension_mfp / Σ_t``) with vacuum-vacuum BCs — the
 production-natural convention. F_N's natural half-thickness is
 recovered inside :class:`MomentSpace` from
-``geom.domain_extent_cm / 2``. This wastes the slab's natural
+``(geom.breakpoints[-1] - geom.breakpoints[0]) / 2``. This wastes the slab's natural
 half-symmetry; a future improvement would encode Sood symmetric
 slabs as half-slabs with reflective+vacuum BCs (half the cells in
 production solves at the same accuracy).
@@ -551,7 +551,7 @@ per-``geometry_kind`` conventions:
      - Builds the FULL symmetric slab :math:`[0, 2a]` where :math:`a`
        is the published critical half-thickness. F_N method's
        natural half-thickness is recovered inside
-       :class:`MomentSpace` from ``domain_extent_cm / 2``.
+       :class:`MomentSpace` from the extent ``/ 2``.
    * - ``"sphere"``
      - ``cm``
      - vacuum at the outer surface; the centre :math:`r=0` is an

@@ -995,8 +995,9 @@ def test_a_subnormal_projected_speed_lifts_to_infinite_lengths_never_nan(omega_x
     with warnings.catch_warnings():
         warnings.simplefilter("error", RuntimeWarning)
         chord = part.chord(Line.through(np.array([0.5, 0.0, 0.0]), np.array([omega_x, 0.0, 1.0])))
-        lengths, starts = chord.slot_length, chord.slot_start
+        lengths = chord.slot_length
         parameters = chord.crossings.parameter
+        starts = parameters[..., :-1]
     assert chord.image.impact_parameter == 0.0
     assert not np.isnan(lengths).any() and not np.isnan(starts).any() and not np.isnan(parameters).any()
     np.testing.assert_array_equal(lengths, [np.inf, np.inf, 0.0, np.inf, np.inf])

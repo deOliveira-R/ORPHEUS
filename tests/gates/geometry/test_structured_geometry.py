@@ -366,7 +366,7 @@ class TestWignerSeitzPinCell:
         g = StructuredGeometry.wigner_seitz_pin_cell(
             r_fuel=0.9, r_clad=1.1, pitch=3.6,
         )
-        assert g.domain_extent_cm == float(3.6 / np.sqrt(np.pi))
+        assert g.breakpoints[-1] - g.breakpoints[0] == float(3.6 / np.sqrt(np.pi))
 
 
 class TestPwrSlabHalfCell:

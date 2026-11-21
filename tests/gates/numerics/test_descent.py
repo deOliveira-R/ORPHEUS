@@ -49,7 +49,7 @@ from orpheus.numerics.basis.spherical_harmonic_basis import (
     SphericalHarmonicBasis,
 )
 from orpheus.geometry.manifold import CIRCLE, SPHERE
-from orpheus.numerics.index_set import ENERGY
+from tests.gates.numerics._measure_fixtures import ENERGY
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.geometry.symmetry import SubgroupOfO3
 
@@ -115,7 +115,6 @@ def test_the_two_realizations_agree_at_the_BIT(label: str) -> None:
     assert descent.max_abs_difference(nodes) == 0.0, (
         f"{label}: {descent.max_abs_difference(nodes):.3e}"
     )
-    assert descent.is_isomorphism(nodes)
     # the shape is the honest denominator: ONE column per degree, not one
     # per table slot (the |m| > l padding descends vacuously — B5b).
     assert descent.upstairs_columns(nodes).shape == (nodes.shape[0], 5)
@@ -270,10 +269,6 @@ def test_the_discriminator_picks_downstairs_iff_the_quotient_has_a_classical_bas
     trivial_entry = Descent.for_entry(SPHERE.quotient(SubgroupOfO3.Trivial), 3)
     assert trivial_entry.downstairs == SphericalHarmonicBasis(L=3)
     assert trivial_entry.frame_basis == SphericalHarmonicBasis(L=3)
-
-    # the discriminator states itself, and the sentence names both branches
-    sentence = legendre_entry.discriminator
-    assert "downstairs" in sentence and "upstairs" in sentence
 
     # NEGATIVE: a mirror entry must NOT answer Legendre, and an SO(2) entry
     # must NOT answer the mirror basis — the two branches are exclusive.

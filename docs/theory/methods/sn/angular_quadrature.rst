@@ -260,8 +260,8 @@ shipping a silent second construction under one name.
 The frontier is **computed, not tabulated** — the builder reads the sign of its
 own solution — so it tracks the node set instead of going stale beside it.  If
 a different :math:`\mu_1` seed pushes it up, the refusal moves with it and
-:func:`~orpheus.numerics.quadrature.registry.select_quadrature` follows,
-because its inverter **asks the family** (attempts the construction, returns
+the registry's inverter follows,
+because it **asks the family** (attempts the construction, returns
 the documented ``None`` on refusal) rather than consulting a second copy of the
 limit that would drift.  Above :math:`S_{18}`, use Lebedev or the product rule
 — and :math:`S_{18}` is the end of the road for THIS family, not a solver

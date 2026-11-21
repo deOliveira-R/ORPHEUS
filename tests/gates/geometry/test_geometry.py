@@ -1,7 +1,7 @@
 """The geometry's measure formulas: cell volumes and face areas.
 
 Tests cover the closed-form volume of a cell and area of a face for every
-coordinate system: :func:`compute_volumes_1d` and :func:`compute_areas_1d` in
+coordinate system: :meth:`CoordSystem.measure` and :func:`compute_areas_1d` in
 1-D (slab, cylinder, sphere), :func:`compute_volumes_2d` in 2-D (Cartesian and
 cylindrical ``(r, z)``), and the refusal of a spherical 2-D chart.
 
@@ -23,7 +23,6 @@ import pytest
 from orpheus.geometry import (
     CoordSystem,
     compute_areas_1d,
-    compute_volumes_1d,
     compute_volumes_2d,
 )
 
@@ -49,45 +48,45 @@ class TestVolumes1D:
 
     def test_cartesian_single_cell(self):
         edges = np.array([1.0, 3.0])
-        vol = compute_volumes_1d(CoordSystem.CARTESIAN, edges)
+        vol = CoordSystem.CARTESIAN.measure(edges)
         np.testing.assert_allclose(vol, [2.0])
 
     def test_cartesian_multiple_cells(self):
         edges = np.array([0.0, 0.5, 1.5, 4.0])
-        vol = compute_volumes_1d(CoordSystem.CARTESIAN, edges)
+        vol = CoordSystem.CARTESIAN.measure(edges)
         np.testing.assert_allclose(vol, [0.5, 1.0, 2.5])
 
     def test_cylindrical_single_cell(self):
         edges = np.array([1.0, 2.0])
-        vol = compute_volumes_1d(CoordSystem.CYLINDRICAL, edges)
+        vol = CoordSystem.CYLINDRICAL.measure(edges)
         expected = np.pi * (4.0 - 1.0)  # pi * (r2^2 - r1^2)
         np.testing.assert_allclose(vol, [expected])
 
     def test_cylindrical_zero_inner_radius(self):
         edges = np.array([0.0, 1.0])
-        vol = compute_volumes_1d(CoordSystem.CYLINDRICAL, edges)
+        vol = CoordSystem.CYLINDRICAL.measure(edges)
         np.testing.assert_allclose(vol, [np.pi])
 
     def test_cylindrical_multiple_cells(self):
         edges = np.array([0.0, 0.5, 1.0, 2.0])
-        vol = compute_volumes_1d(CoordSystem.CYLINDRICAL, edges)
+        vol = CoordSystem.CYLINDRICAL.measure(edges)
         expected = np.pi * np.diff(edges**2)
         np.testing.assert_allclose(vol, expected)
 
     def test_spherical_single_cell(self):
         edges = np.array([1.0, 2.0])
-        vol = compute_volumes_1d(CoordSystem.SPHERICAL, edges)
+        vol = CoordSystem.SPHERICAL.measure(edges)
         expected = (4.0 / 3.0) * np.pi * (8.0 - 1.0)
         np.testing.assert_allclose(vol, [expected])
 
     def test_spherical_zero_inner_radius(self):
         edges = np.array([0.0, 1.0])
-        vol = compute_volumes_1d(CoordSystem.SPHERICAL, edges)
+        vol = CoordSystem.SPHERICAL.measure(edges)
         np.testing.assert_allclose(vol, [(4.0 / 3.0) * np.pi])
 
     def test_spherical_multiple_cells(self):
         edges = np.array([0.0, 0.5, 1.0, 2.0])
-        vol = compute_volumes_1d(CoordSystem.SPHERICAL, edges)
+        vol = CoordSystem.SPHERICAL.measure(edges)
         expected = (4.0 / 3.0) * np.pi * np.diff(edges**3)
         np.testing.assert_allclose(vol, expected)
 

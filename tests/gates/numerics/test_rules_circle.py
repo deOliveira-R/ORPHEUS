@@ -29,7 +29,8 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.exactness import OrthogonalSystem
-from orpheus.numerics.measure import DiscreteMeasure, equispaced
+from orpheus.numerics.measure import DiscreteMeasure
+from tests.gates.numerics._measure_fixtures import equispaced
 from orpheus.geometry.manifold import CIRCLE
 from orpheus.numerics.quadrature.rules_circle import (
     NODE_ALIGNED,

@@ -3088,8 +3088,9 @@ carries are labelled:
   product and its reduction tree are those of the retired engine, so the
   change is bit-identical (`[M]` ``112106eb``'s record: the 32-key per-verb
   head capture moved 0 of 32). A weight on one axis is the placement
-  ``spans=(k,)``; ``DiagonalOperator.from_measure(measure, shape=…,
-  axis=k)`` is that spelling, not a second mode.
+  ``spans=(k,)``, spelled ``DiagonalOperator(measure.weights, shape=…,
+  spans=(k,))`` (the convenience ``from_measure`` retired on 2026-11-20),
+  not a second mode.
   :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`
   mints its engine as ``DiagonalOperator(f.values, shape=bulk.shape,
   spans=bulk.positions_spanned_by(f.space))`` and its assembled diagonal

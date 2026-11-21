@@ -430,32 +430,6 @@ class DirectionDomain:
             case AxialImage():
                 raise ValueError("a slab line has no impact parameter: the slab's group fixes the kept space")
 
-    def tangencies(self, level: float) -> np.ndarray:
-        r"""The values of the first axis where the line through :attr:`point` is tangent to :math:`c` = ``level``.
-
-        Defined where the chart's group acts on the kept space, for
-        :math:`0 < \ell \le c`, where :math:`b = \ell` has solutions:
-        :math:`\Omega_x = \pm\sqrt{(1 - \ell/c)(1 + \ell/c)}` on the sphere,
-        :math:`\alpha = \arcsin(\ell/c)` and :math:`\pi - \arcsin(\ell/c)` on
-        the cylinder, one value (the grazing direction) at :math:`\ell = c`.
-        Sorted; empty elsewhere, on the slab and on a stratum.
-        """
-        r, l = self.orbit_coordinate, float(level)
-        if not self.chart.acts_on_kept_space or not 0.0 < l <= r:
-            return np.empty(0)
-        ratio = l / r
-        match self.shape:
-            case DirectionShape.COSINE:
-                m = float(_sine(np.asarray(ratio)))
-                return np.unique([-m, m])
-            case DirectionShape.ANGLE_AXIAL:
-                a = float(np.arcsin(ratio))
-                return np.unique([a, pi - a])
-            case DirectionShape.WHOLE | DirectionShape.AXIAL_COSINE:
-                return np.empty(0)
-            case unreachable:
-                assert_never(unreachable)
-
 
 class LineShape(Enum):
     r"""The shapes of the orbit space of oriented lines under the three charts' groups, each a box.

@@ -63,15 +63,17 @@ from orpheus.geometry.manifold import (
     HALF_LINE,
     REAL_LINE,
     SPHERE,
-    UNIT_INTERVAL,
     Ball,
     Interval,
     Quotient,
     RealSpace,
 )
+from tests.gates.geometry._manifold_fixtures import UNIT_INTERVAL
 from orpheus.numerics import measure
-from orpheus.numerics.index_set import ENERGY, EnergyGroups, IndexSet
-from orpheus.numerics.measure import DiscreteMeasure, equispaced
+from orpheus.numerics.index_set import EnergyGroups, IndexSet
+from tests.gates.numerics._measure_fixtures import ENERGY
+from orpheus.numerics.measure import DiscreteMeasure
+from tests.gates.numerics._measure_fixtures import equispaced
 from orpheus.numerics.quadrature import Quadrature, quadrature_registry
 from orpheus.numerics.quadrature.rules_1d import (
     gauss_legendre_on_mu,

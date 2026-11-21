@@ -77,7 +77,7 @@ def _landing_residual(nodes: np.ndarray, ops) -> float:
     misses carrying the node set onto itself.
 
     Deliberately the raw distance rather than
-    :meth:`~orpheus.geometry.transformation.RigidMotion.permutes`, whose
+    the ``permutes`` oracle (``tests/gates/geometry/_geometry_oracles.py``), whose
     ``atol`` would absorb exactly the quantity being measured.
     """
     worst = 0.0

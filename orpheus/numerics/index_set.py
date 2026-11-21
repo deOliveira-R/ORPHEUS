@@ -31,7 +31,7 @@ from numpy.typing import ArrayLike
 
 from orpheus.geometry.manifold import Manifold
 
-__all__ = ["ENERGY", "EnergyGroups", "IndexSet"]
+__all__ = ["EnergyGroups", "IndexSet"]
 
 
 @dataclass(frozen=True)
@@ -103,8 +103,3 @@ class EnergyGroups(Manifold):
         if self.ng is None:
             return bool(np.all(arr >= 0))
         return bool(np.all((arr >= 0) & (arr < self.ng)))
-
-
-#: The energy axis of unspecified group count, the support a multigroup
-#: measure declares before it knows ``ng``.
-ENERGY = EnergyGroups()

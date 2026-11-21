@@ -27,6 +27,7 @@ import pytest
 import sympy as sp
 
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
+from tests.gates.numerics._measure_fixtures import from_srepr
 
 pytestmark = pytest.mark.foundation
 
@@ -139,7 +140,7 @@ def _population() -> dict[str, tuple[sp.Expr, ...]]:
 @pytest.mark.parametrize("name", list(_population()))
 def test_s6_14_the_text_round_trips(name: str) -> None:
     value = Symbolic.of(*_population()[name])
-    back = Symbolic.from_srepr(value.srepr, value.sympy_version)
+    back = from_srepr(value.srepr, value.sympy_version)
     if back != value or back.content_digest != value.content_digest:
         pytest.fail(f"{name}: from_srepr(s.srepr) is not s")
     for original, parsed in zip(_population()[name], back.expressions):
@@ -263,7 +264,7 @@ def test_s6_16_stored_text_is_parsed_through_a_whitelist(text: str, fragment: st
     calls to SymPy classes and constants, literals and keywords are parsed,
     with no builtins."""
     with pytest.raises(ValueError, match=fragment):
-        Symbolic.from_srepr((text,))
+        from_srepr((text,))
 
 
 # ── S6.17: the SymPy version is content ─────────────────────────────────

@@ -76,10 +76,35 @@ from orpheus.geometry.transformation import (
     NotAFinitePointGroupError,
     Permutation,
     RigidMotion,
+    _MAX_ELEMENT_ORDER,
     close_group,
+    permutation_between,
 )
+from tests.gates.geometry._geometry_oracles import permutes
 
 pytestmark = pytest.mark.foundation
+
+
+def element_order(rigid_motion: RigidMotion, *, atol: float = 1e-9) -> int | None:
+    r"""The smallest :math:`k \ge 1` with :math:`g^k = e`, or ``None`` if the element has infinite order.
+
+    Was ``RigidMotion.element_order``, a method no production path read (row 34 of the dead census); the production constant
+    ``_MAX_ELEMENT_ORDER`` it searched to stays and is imported.
+
+    Returns the order itself rather than answering "is the order :math:`n`?", because :math:`g^n = e` is satisfied by every element
+    whose order *divides* :math:`n`: an involution passes a ":math:`g^4 = e`" check. Only the smallest such :math:`k` pins the element.
+
+    ``None`` covers both irrational rotation angles and elements whose linear part has finite order but which carry a translation off
+    the fixed subspace (a glide reflection, a screw): these generate infinite cyclic groups, and reporting the linear part's order for
+    them would be a lie about the element.
+    """
+    identity = RigidMotion.identity(rigid_motion.dimension)
+    power = rigid_motion
+    for k in range(1, _MAX_ELEMENT_ORDER + 1):
+        if power.approximately_equals(identity, atol=atol):
+            return k
+        power = rigid_motion @ power
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -495,7 +520,7 @@ def test_a6_a_generating_set_of_infinite_order_is_refused() -> None:
     product = far @ near
     _assert_close(product.linear, np.eye(3))
     _assert_close(product.translation, [1.0, 0.0, 0.0])
-    assert product.element_order() is None, "a pure translation has infinite order"
+    assert element_order(product) is None, "a pure translation has infinite order"
     with pytest.raises(NotAFinitePointGroupError, match="no common seat"):
         close_group([near, far])
 
@@ -716,13 +741,13 @@ def test_c1_a_reflection_is_an_involution(d: int) -> None:
     """
     e = RigidMotion.identity(d)
     for label, sigma in _reflection_family(d):
-        assert sigma.element_order() == 2, label
+        assert element_order(sigma) == 2, label
         squared = sigma @ sigma
         np.testing.assert_allclose(
             squared.linear, e.linear, atol=1e-15, rtol=0.0, err_msg=label
         )
         seated = sigma.seated_at(np.arange(1.0, d + 1) * 0.21)
-        assert seated.element_order() == 2, f"{label} seated"
+        assert element_order(seated) == 2, f"{label} seated"
 
     coordinate = RigidMotion.reflection(normal=np.eye(d)[0])
     np.testing.assert_array_equal(
@@ -749,11 +774,11 @@ def test_c2_the_cyclic_generator_has_order_exactly_n(n: int) -> None:
     """
     plane = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]
     generator = RigidMotion.rotation(plane=plane, angle=2.0 * np.pi / n)
-    assert generator.element_order() == n
+    assert element_order(generator) == n
 
     for k in range(1, n + 1):
         power = RigidMotion.rotation(plane=plane, angle=2.0 * np.pi * k / n)
-        assert power.element_order() == n // math.gcd(k, n), f"k={k}"
+        assert element_order(power) == n // math.gcd(k, n), f"k={k}"
 
 
 @pytest.mark.parametrize("d", [1, 2, 3])
@@ -1135,7 +1160,7 @@ def test_e3_conjugation_is_a_class_function(d: int) -> None:
     for h in conjugators:
         for g in subjects:
             moved = g.conjugated_by(h)
-            assert moved.element_order() == g.element_order()
+            assert element_order(moved) == element_order(g)
             assert moved.determinant == pytest.approx(g.determinant, abs=1e-12)
             assert moved.fixed_subspace_dimension == g.fixed_subspace_dimension
 
@@ -1311,7 +1336,7 @@ def test_o1_permutes_returns_a_genuine_permutation() -> None:
     """
     for label, points, elements in _point_set_cases():
         for g in elements:
-            pi = g.permutes(points, atol=_TOL_MATCH)
+            pi = permutes(g, points, atol=_TOL_MATCH)
             assert pi is not None, f"{label}: an invariant set was refused"
             assert isinstance(pi, Permutation)
             np.testing.assert_array_equal(
@@ -1325,7 +1350,7 @@ def test_o1_permutes_returns_a_genuine_permutation() -> None:
     for n in (6, 7):
         lattice = _cell_centres(n, origin=-0.05 * n)
         mirror = RigidMotion.reflection(normal=[1.0])
-        pi = mirror.permutes(lattice, atol=_TOL_MATCH)
+        pi = permutes(mirror, lattice, atol=_TOL_MATCH)
         assert pi is not None
         np.testing.assert_array_equal(pi.indices, np.arange(n)[::-1])
 
@@ -1360,9 +1385,9 @@ def test_o2_the_induced_permutation_is_a_group_homomorphism(
     subset = elements[:12] if len(elements) > 12 else elements
     reversed_disagreements = 0
     for a, b in itertools.product(subset, repeat=2):
-        pi_a = a.permutes(points, atol=_TOL_MATCH)
-        pi_b = b.permutes(points, atol=_TOL_MATCH)
-        pi_ab = (a @ b).permutes(points, atol=_TOL_MATCH)
+        pi_a = permutes(a, points, atol=_TOL_MATCH)
+        pi_b = permutes(b, points, atol=_TOL_MATCH)
+        pi_ab = permutes(a @ b, points, atol=_TOL_MATCH)
         assert pi_a is not None and pi_b is not None and pi_ab is not None
         assert pi_ab == pi_a @ pi_b, (
             f"{label}: π(a∘b) != π(a)∘π(b) — "
@@ -1377,10 +1402,10 @@ def test_o2_the_induced_permutation_is_a_group_homomorphism(
 
     n = len(points)
     identity = RigidMotion.identity(points.shape[1])
-    assert identity.permutes(points, atol=_TOL_MATCH) == Permutation.identity(n)
+    assert permutes(identity, points, atol=_TOL_MATCH) == Permutation.identity(n)
     for g in subset:
-        pi = g.permutes(points, atol=_TOL_MATCH)
-        pi_inv = g.inverse().permutes(points, atol=_TOL_MATCH)
+        pi = permutes(g, points, atol=_TOL_MATCH)
+        pi_inv = permutes(g.inverse(), points, atol=_TOL_MATCH)
         assert pi is not None and pi_inv is not None
         assert pi_inv == pi.inverse()
         assert pi @ pi.inverse() == Permutation.identity(n)
@@ -1394,14 +1419,14 @@ def test_o3_a_non_invariant_set_is_refused() -> None:
     """
     asymmetric = np.array([[1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.3, 0.4, 0.9]])
     sigma = RigidMotion.reflection(normal=[1.0, 0.0, 0.0])
-    assert sigma.permutes(asymmetric, atol=_TOL_MATCH) is None
+    assert permutes(sigma, asymmetric, atol=_TOL_MATCH) is None
     assert (
         _weighted_permutation(sigma, asymmetric, np.ones(3))
         is None
     )
     # …and a set that IS invariant is not refused, so the guard is not simply
     # returning None for everything.
-    assert sigma.permutes(_cube_vertices(), atol=_TOL_MATCH) is not None
+    assert permutes(sigma, _cube_vertices(), atol=_TOL_MATCH) is not None
 
 
 @pytest.mark.catches("ERR-073")
@@ -1431,7 +1456,7 @@ def test_o4_a_duplicated_point_is_refused_and_guard_two_is_the_one_that_fires() 
 
     guard_one = guard_two = guard_three = 0
     for g in _hyperoctahedral(3):
-        assert g.permutes(duplicated, atol=_TOL_MATCH) is None
+        assert permutes(g, duplicated, atol=_TOL_MATCH) is None
         assert (
             _weighted_permutation(g, duplicated, weights)
             is None
@@ -1461,13 +1486,15 @@ def test_o5_the_match_window_is_an_explicit_parameter_and_it_bites() -> None:
     a ``1e-7`` window with a **perfectly injective** ``π``. Window and
     bijection are INDEPENDENT failure modes.
 
-    ``atol`` is keyword-only and REQUIRED on the production signature, so this
+    ``atol`` is keyword-only and REQUIRED on the production signature of
+    ``permutation_between`` (the primitive that owns the window; the former
+    method ``RigidMotion.permutes`` retired to the test-side oracle), so this
     gate is not signature-tautological: the varying input is genuinely
     reachable from production. The first assertion pins that.
     """
     import inspect
 
-    signature = inspect.signature(RigidMotion.permutes)
+    signature = inspect.signature(permutation_between)
     atol_param = signature.parameters["atol"]
     assert atol_param.kind is inspect.Parameter.KEYWORD_ONLY
     assert atol_param.default is inspect.Parameter.empty, (
@@ -1479,7 +1506,7 @@ def test_o5_the_match_window_is_an_explicit_parameter_and_it_bites() -> None:
     for delta in (1e-15, 1e-12, 1e-9, 1e-6):
         perturbed = np.array([[1.0, 0.0, 0.0], [-1.0 + delta, 0.0, 0.0]])
         for window in (1e-13, 1e-7):
-            pi = sigma.permutes(perturbed, atol=window)
+            pi = permutes(sigma, perturbed, atol=window)
             if delta <= window:
                 assert pi is not None, (delta, window)
                 # …and when it certifies, the map really is a bijection: the
@@ -1507,7 +1534,7 @@ def test_o6_the_weighted_question_is_permutes_plus_exactly_one_weight_guard() ->
     points = np.array([[1.0, 0.0, 0.0], [-1.0, 0.0, 0.0]])
     sigma = RigidMotion.reflection(normal=[1.0, 0.0, 0.0])
 
-    pi = sigma.permutes(points, atol=_TOL_MATCH)
+    pi = permutes(sigma, points, atol=_TOL_MATCH)
     assert pi is not None
     np.testing.assert_array_equal(pi.indices, [1, 0])
     assert (
@@ -1522,7 +1549,7 @@ def test_o6_the_weighted_question_is_permutes_plus_exactly_one_weight_guard() ->
     for label, pts, elements in _point_set_cases():
         weights = np.full(len(pts), 0.31)
         for g in elements:
-            assert _weighted_permutation(g, pts, weights) == g.permutes(pts, atol=_TOL_MATCH), label
+            assert _weighted_permutation(g, pts, weights) == permutes(g, pts, atol=_TOL_MATCH), label
     with pytest.raises(ValueError, match="nodes and weights disagree on N"):
         _weighted_permutation(sigma, points, np.ones(3))
 
@@ -1548,7 +1575,7 @@ def test_o7_orbit_stabiliser_against_the_published_wyckoff_table() -> None:
             points = np.asarray(build(), dtype=float)
             stabiliser = np.zeros(len(points), dtype=int)
             for g in group:
-                pi = g.permutes(points, atol=_TOL_MATCH)
+                pi = permutes(g, points, atol=_TOL_MATCH)
                 assert pi is not None, f"{label}: not invariant under the full group"
                 stabiliser[pi.fixed_points] += 1
             assert len(points) == expected_orbit, label
@@ -1563,7 +1590,7 @@ def test_o7_orbit_stabiliser_against_the_published_wyckoff_table() -> None:
         lattice = _cell_centres(n, origin=-0.05 * n)
         stabiliser = np.zeros(n, dtype=int)
         for g in mirror_group:
-            pi = g.permutes(lattice, atol=_TOL_MATCH)
+            pi = permutes(g, lattice, atol=_TOL_MATCH)
             assert pi is not None
             stabiliser[pi.fixed_points] += 1
         assert int((stabiliser > 1).sum()) == expected_fixed, (n, stabiliser.tolist())
@@ -1627,8 +1654,8 @@ def test_o8_the_seat_is_forced_by_the_centroid_theorem() -> None:
         )
         assert centre == pytest.approx(origin + n * h / 2.0, abs=1e-15)
         mirror = RigidMotion.reflection(normal=[1.0])
-        assert mirror.permutes(lattice, atol=_TOL_MATCH) is None
-        seated_pi = mirror.seated_at([centre]).permutes(lattice, atol=_TOL_MATCH)
+        assert permutes(mirror, lattice, atol=_TOL_MATCH) is None
+        seated_pi = permutes(mirror.seated_at([centre]), lattice, atol=_TOL_MATCH)
         assert seated_pi is not None
         np.testing.assert_array_equal(seated_pi.indices, np.arange(n)[::-1])
 
@@ -1726,10 +1753,10 @@ def test_x3_a_glide_has_infinite_order_though_its_linear_part_does_not() -> None
     seated reflection).
     """
     mirror = RigidMotion.reflection(normal=[1.0, 0.0, 0.0])
-    assert mirror.element_order() == 2
+    assert element_order(mirror) == 2
 
     glide = RigidMotion.translation_by([0.0, 1.0, 0.0]) @ mirror
-    assert glide.element_order() is None, "a glide reflection has infinite order"
+    assert element_order(glide) is None, "a glide reflection has infinite order"
     squared = glide @ glide
     np.testing.assert_allclose(squared.linear, np.eye(3), atol=1e-15, rtol=0.0)
     np.testing.assert_allclose(
@@ -1738,13 +1765,13 @@ def test_x3_a_glide_has_infinite_order_though_its_linear_part_does_not() -> None
 
     # Control: a translation ALONG the normal is a seated reflection — finite.
     seated = RigidMotion.translation_by([1.0, 0.0, 0.0]) @ mirror
-    assert seated.element_order() == 2
+    assert element_order(seated) == 2
 
     # And a screw: a rotation carrying a translation along its own axis.
     screw = RigidMotion.translation_by([0.0, 0.0, 1.0]) @ RigidMotion.rotation_about_axis(
         axis=[0.0, 0.0, 1.0], angle=np.pi / 2.0
     )
-    assert screw.element_order() is None
+    assert element_order(screw) is None
 
 
 # ===========================================================================
@@ -1765,7 +1792,7 @@ def test_h1_r1_is_complete_and_correct() -> None:
     np.testing.assert_array_equal(sigma.linear, [[-1.0]])
     assert sigma.determinant == pytest.approx(-1.0, abs=0.0)
     assert sigma.fixed_subspace_dimension == 0
-    assert sigma.element_order() == 2
+    assert element_order(sigma) == 2
     assert not sigma.is_proper
 
     centre = 0.3
@@ -1886,6 +1913,6 @@ def test_h3_mixing_dimensions_raises() -> None:
     # tracker 2.2b): the match is `permutation_between` on `on_points`'s
     # image, so the refusal is `on_points`'s — one home for the contract.
     with pytest.raises(ValueError, match="trailing dimension"):
-        three.permutes(np.zeros((4, 2)), atol=_TOL_MATCH)
+        permutes(three, np.zeros((4, 2)), atol=_TOL_MATCH)
     with pytest.raises(ValueError, match="compose permutations"):
         _ = Permutation.identity(3) @ Permutation.identity(4)

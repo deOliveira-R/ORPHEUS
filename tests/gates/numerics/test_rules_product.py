@@ -229,7 +229,7 @@ def test_e4_the_theorem_refuses_the_wrong_systems() -> None:
     from orpheus.numerics.exactness import OrthogonalSystem as OS
     from orpheus.numerics.generating_measure import LEGENDRE
     from orpheus.geometry.manifold import CIRCLE
-    from orpheus.numerics.measure import equispaced
+    from tests.gates.numerics._measure_fixtures import equispaced
     from orpheus.numerics.quadrature.rules_product import (
         spherical_product_claim,
     )
@@ -481,7 +481,7 @@ def test_an_interval_rule_as_the_fiber_is_refused_by_its_space() -> None:
     end: an interval rule carrying the azimuthal ANGLES is a different
     object from the circle rule carrying the POINTS, and the support
     tag is what discriminates them here."""
-    from orpheus.numerics.measure import equispaced
+    from tests.gates.numerics._measure_fixtures import equispaced
     from orpheus.numerics.quadrature import gauss_legendre_on_mu, spherical_product
 
     angles_as_interval_rule = equispaced(0.0, 2.0 * np.pi, 8)

@@ -38,14 +38,14 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE, UNIT_INTERVAL, Interval, Quotient
+from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE, Interval, Quotient
+from tests.gates.geometry._manifold_fixtures import UNIT_INTERVAL
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.quadrature import (
     Quadrature,
     gauss_legendre_on_mu,
     gauss_legendre_on_polar_orbit,
-    select_quadrature,
 )
 from orpheus.numerics.quadrature.registry import GEOMETRY_ANGULAR_SYMMETRY
 from orpheus.geometry.symmetry import SubgroupOfO3
@@ -194,13 +194,12 @@ def test_b2_stage_0_refuses_the_chart_level_rule_and_the_wrong_axis(
 
 
 @pytest.mark.foundation
-def test_b3_the_selector_still_hands_the_slab_its_declared_rule() -> None:
-    """End to end: selection for a slab returns a quadrature whose measure lives on the slab's
-    orbit space, with the reference the geometry asks for."""
-    quadrature, log = select_quadrature("slab", target_degree=7)
+def test_b3_the_slab_rule_lives_on_the_slab_orbit_space() -> None:
+    """The slab's rule, ``Quadrature.gauss_legendre(4)`` (the rule the retired selector handed the slab at
+    degree 7), is a quadrature whose measure lives on the slab's orbit space, with the reference the geometry
+    asks for."""
+    quadrature = Quadrature.gauss_legendre(4)
     measure = quadrature.measure
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "GaussLegendre1D"
     assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
     space = FunctionSpace.of_measure(measure, measure.axis_label)
     assert space.axes is not None and space.axes[0].label == "angular"

@@ -211,24 +211,6 @@ class CoordSystem(Enum):
 
 # ── 1-D formulas ─────────────────────────────────────────────────────
 
-def compute_volumes_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:
-    """Cell volumes from 1-D edge positions.
-
-    Parameters
-    ----------
-    coord : CoordSystem
-        Coordinate system.
-    edges : ndarray, shape (N+1,)
-        Monotonically increasing edge positions.
-
-    Returns
-    -------
-    ndarray, shape (N,)
-        Volume of each cell.
-    """
-    return coord.measure(edges)
-
-
 def compute_areas_1d(coord: CoordSystem, edges: np.ndarray) -> np.ndarray:
     """Face areas at each 1-D edge position.
 

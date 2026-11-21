@@ -91,10 +91,14 @@ See Also
 
 :ref:`discrete-measures` (theory page) — section "Symmetry groups for
 quadrature invariance" — narrates how invariance ties into the
-quadrature-selection logic, which ships:
-:func:`~orpheus.numerics.quadrature.registry.select_quadrature` consults
-:meth:`SubgroupOfO3.contains` at stage 0 and the measure's own nodes at
-stage 1.  (This paragraph said "Issue 5 … will install" until 2026-09-03.)
+quadrature-admission legs of the registry:
+:meth:`AngularSymmetry.admits_domain
+<orpheus.numerics.quadrature.registry.AngularSymmetry.admits_domain>` consults
+:meth:`SubgroupOfO3.contains` and
+:meth:`AngularSymmetry.admits_symmetry
+<orpheus.numerics.quadrature.registry.AngularSymmetry.admits_symmetry>` the
+measure's own nodes.  (This paragraph said "Issue 5 … will install" until
+2026-09-03.)
 """
 
 from __future__ import annotations
@@ -921,32 +925,6 @@ class SubgroupOfO3:
         """
         return self.realization.normalises(other.realization, atol=atol)
 
-    @property
-    def identity_component(self) -> "SubgroupOfO3":
-        r"""The connected component of the identity, :math:`G^0` — as a NAMED
-        member: :attr:`Trivial` for every finite member (a finite subgroup of
-        :math:`O(3)` is discrete, so its identity component is :math:`\{e\}`),
-        :math:`SO(2)_a` for the axial families and :math:`D_{\infty h}`,
-        :math:`SO(3)` for :math:`SO(3)` and :math:`O(3)`.
-
-        The half of a continuous group whose action on a finite point set is
-        decided by CONNECTEDNESS rather than by enumeration: its orbits are
-        connected, so it fixes every point of any finite invariant set
-        (:meth:`IdentityComponent.fixes`).  `[M]` until 2026-09-02 this
-        returned the group ITSELF for every finite member — wrong on 12 of 22
-        expressible members, contradicting its own docstring on 11, and
-        invisible because it had zero readers; the two places that needed the
-        component destructured a private helper instead.  Now it is what the
-        realization says, and the dimension law on
-        :class:`~orpheus.geometry.manifold.Quotient` reads it.
-        """
-        component = self.realization.component
-        if component.dim == 0:
-            return SubgroupOfO3.Trivial
-        if component.dim == 3:
-            return SubgroupOfO3.SO3
-        return SubgroupOfO3.SO2(_letter_of(component.axis))
-
     def generic_images(self, points: "np.ndarray") -> list["np.ndarray"]:
         r"""The images of ``points`` under a GENERIC set of this group's elements.
 
@@ -1488,13 +1466,6 @@ def _realize(tag) -> Realization:
     return Realization(IdentityComponent(()), tuple(_close_group(generators)))
 
 
-def _group_elements(tag) -> "list[RigidMotion] | None":
-    """Every element of a FINITE tag's group (memoised through
-    :func:`_realize`), or ``None`` for a continuous one."""
-    realization = _realize(tag)
-    return list(realization.elements) if realization.is_finite else None
-
-
 _INCOMMENSURATE_ANGLES: tuple[float, ...] = (
     1.0, float(np.sqrt(2.0)), float(np.e), 2.5, float(np.sqrt(7.0)),
     float(np.pi / 3.0 + 0.1),
@@ -1751,7 +1722,7 @@ class OrbitCertificate:
       identity** — exact, with no tolerance. The only place a tolerance
       enters is matching nodes while BUILDING :math:`\pi`, which is the
       one place the question is honestly numerical.
-    * :attr:`stabilizer_order` — :math:`|\mathrm{Stab}(x_i)|`, the orbit
+    * ``stabilizer_order`` (the test-side oracle) — :math:`|\mathrm{Stab}(x_i)|`, the orbit
       type; by orbit-stabilizer the orbit length is :math:`|G|` divided
       by it.
     * :meth:`orbits` — the :math:`G`-orbits themselves.
@@ -1801,19 +1772,6 @@ class OrbitCertificate:
         for perm in self._non_identity:
             fixed[perm.fixed_points] = True
         return np.flatnonzero(fixed)
-
-    @property
-    def stabilizer_order(self) -> np.ndarray:
-        r""":math:`|\mathrm{Stab}(x_i)|` for every node ``i``.
-
-        ``1`` exactly on the regular (free) points; the singular set is
-        ``> 1``. Meaningful only when the certificate was built from the
-        FULL group rather than a generating set.
-        """
-        order = np.zeros(self.n_points, dtype=np.int64)
-        for perm in self.permutations:
-            order[perm.fixed_points] += 1
-        return order
 
     def orbits(self) -> tuple[np.ndarray, ...]:
         """The :math:`G`-orbits, as arrays of node indices."""

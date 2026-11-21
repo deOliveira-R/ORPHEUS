@@ -22,7 +22,6 @@ Verifies the operator's invariants:
 * Invertibility: ``is_invertible`` iff the coefficient is all non-zero
   (the value-dependent arm; the guard raises :class:`NotInvertible`).
 * Composition under the operator algebra (``+``, ``-``, ``*``, ``@``).
-* Construction from a ``DiscreteMeasure`` via :meth:`from_measure`.
 * Refusals: an operand of another shape (:class:`NotInCoordinateSpace`,
   at run time) and a malformed placement (``ValueError``, at construction).
   The construction refusal over every mis-filled placement is
@@ -33,9 +32,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.geometry.manifold import UNIT_INTERVAL
 from orpheus.numerics.coordinate_space import NotInCoordinateSpace
-from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -154,28 +151,6 @@ class TestDiagonalComposition:
         diff = D - I
         x = np.array([1.0, 1.0])
         np.testing.assert_array_equal(diff.apply(x), np.array([2.0, 4.0]))
-
-
-@pytest.mark.l0
-class TestDiagonalFromMeasure:
-    def test_from_discrete_measure(self):
-        nodes = np.array([0.1, 0.5, 0.9])
-        weights = np.array([0.2, 0.4, 0.4])
-        measure = DiscreteMeasure(nodes=nodes, weights=weights, support=UNIT_INTERVAL)
-        D = DiagonalOperator.from_measure(measure, shape=(3,))
-        np.testing.assert_array_equal(D.weights, weights)
-        x = np.array([1.0, 1.0, 1.0])
-        np.testing.assert_array_equal(D.apply(x), weights)
-
-    def test_from_measure_axis_argument(self):
-        nodes = np.array([0.1, 0.5])
-        weights = np.array([0.5, 0.5])
-        measure = DiscreteMeasure(nodes=nodes, weights=weights, support=UNIT_INTERVAL)
-        D = DiagonalOperator.from_measure(measure, shape=(3, 2, 4), axis=1)
-        x = np.ones((3, 2, 4))
-        out = D.apply(x)
-        # axis=1 of size 2 scaled by (0.5, 0.5)
-        np.testing.assert_allclose(out, 0.5)
 
 
 @pytest.mark.l0

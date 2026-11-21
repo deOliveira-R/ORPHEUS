@@ -157,18 +157,10 @@ class Descent:
         )
 
     @property
-    def discriminator(self) -> str:
-        r"""The sentence that says which realization a frame binds — and why."""
-        return (
-            "downstairs when the quotient has a classical named basis "
-            "(S^2/O(2)_a -> {P_l}), upstairs otherwise (S^2/sigma_a has no "
-            "classical family; its sigma-even harmonics are the only "
-            "spellable realization)"
-        )
-
-    @property
     def frame_basis(self) -> Basis:
-        r"""The basis a frame on THIS orbit space binds — the discriminator, applied."""
+        r"""The basis a frame on THIS orbit space binds — downstairs when the quotient has a classical named basis
+        (S^2/O(2)_a -> {P_l}), upstairs otherwise (S^2/sigma_a has no
+        classical family; its sigma-even harmonics are the only spellable realization)."""
         down = self.downstairs
         if down is not None:
             return down
@@ -213,11 +205,6 @@ class Descent:
             return np.ones(self.descending_slots.shape, dtype=bool)
         return np.asarray(live, dtype=bool)
 
-    @cached_property
-    def descending_real_slots(self) -> NDArray:
-        r"""``descending_slots`` restricted to the parent's live slots — the honest denominator."""
-        return self.descending_slots & self.live_slots
-
     def max_abs_difference(self, points: NDArray) -> float:
         r"""``max |downstairs(π(points)) − upstairs(points)|`` — ``0.0`` at the bit on every shipped rule."""
         down = self.downstairs
@@ -234,10 +221,6 @@ class Descent:
                 f"downstairs {descended.shape}, upstairs {upstairs.shape}."
             )
         return float(np.max(np.abs(descended - upstairs)))
-
-    def is_isomorphism(self, points: NDArray) -> bool:
-        r"""``True`` iff the two realizations agree bit-for-bit at ``points``."""
-        return self.max_abs_difference(points) == 0.0
 
 
 def _truncation_order(basis: Basis) -> int:

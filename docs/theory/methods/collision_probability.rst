@@ -113,7 +113,7 @@ two layers:
 
 1. **Base geometry** --- :class:`~orpheus.mesh.structured.Mesh1D` stores cell edges,
    material IDs, and the coordinate system.  It computes volumes and
-   face areas via :func:`~geometry.coord.compute_volumes_1d` and
+   face areas via :meth:`~geometry.coord.CoordSystem.measure` and
    :func:`~geometry.coord.compute_areas_1d`.
 
 2. **Augmented geometry** --- :class:`CPMesh` wraps a ``Mesh1D`` and adds

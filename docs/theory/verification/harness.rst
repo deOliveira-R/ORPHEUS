@@ -358,7 +358,7 @@ But some tests exist that are **not** about physics:
    * - Example
      - What it verifies
    * - ``test_geometry::TestVolumes1D``
-     - ``compute_volumes_1d`` returns the coordinate system's measure
+     - ``CoordSystem.measure`` returns the coordinate system's measure
        of each cell, checked against hand-computed closed forms for the
        slab, the cylinder and the sphere (``test_cartesian_single_cell``:
        the slab interval ``[1, 3]`` has measure ``2``). This is the

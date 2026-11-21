@@ -767,17 +767,20 @@ The 1-D rules a reader meets first are:
   Gauss-Chebyshev (first kind) on :math:`[-1, 1]`, exact to algebraic
   degree :math:`2n - 1` **against** ``chebyshev_t``, whose weight is
   :math:`(1 - x^2)^{-1/2}`; weights sum to :math:`\pi`.
-- :func:`~orpheus.numerics.measure.equispaced`
-  ``(a, b, n)`` — midpoint rule on :math:`[a, b]`, exact to algebraic
-  degree 1 against ``uniform([a,b])``; weights sum to :math:`b - a`.
+- ``equispaced(a, b, n)`` (a test-side fixture,
+  ``tests/gates/numerics/_measure_fixtures.py``, since 2026-11-20) —
+  midpoint rule on :math:`[a, b]`, exact to algebraic degree 1 against
+  ``uniform([a,b])``; weights sum to :math:`b - a`.
 
 The module once also shipped ``gauss_legendre(n)`` and
 ``gauss_chebyshev(n)`` as functions; each was the one-line body
 ``LEGENDRE.gauss(n)`` / ``CHEBYSHEV_T.gauss(n)`` under a second name, with
 no production caller, and both were retired (2026-10-19, ruling 12 of
 the numerics untangling) so that a generating measure is the one place a
-Gauss rule is made. ``equispaced`` stays: it is the only non-Gauss rule on
-an interval, and the measure-algebra tests use it as their fixture.
+Gauss rule is made. ``equispaced`` was the only non-Gauss rule on
+an interval, and the measure-algebra tests used it as their fixture; it
+moved to the test side on 2026-11-20 (wave W0, unit ``dead``), where its
+fixture users read it.
 
 .. important::
 
@@ -789,14 +792,14 @@ an interval, and the measure-algebra tests use it as their fixture.
    Chebyshev gives :math:`0.981748`. The **reference measure** is the
    only thing that distinguishes them, which is why a degree is stored
    as half of an :class:`~orpheus.numerics.exactness.ExactnessClaim`
-   rather than as a bare integer, and why the quadrature selector's V
-   conjunct compares claims rather than degrees
+   rather than as a bare integer, and why the (retired) quadrature selector's V
+   conjunct compared claims rather than degrees
    (:ref:`quadrature-selection-algorithm`, stage 2). A degree is an
    index into the orthogonal system *of a measure*; the integer alone
    does not say which.
 
 Higher-dimensional rules are built by composition. The tensor product
-``LEGENDRE.gauss(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` gives a rule
+``LEGENDRE.gauss(n_mu) * equispaced(0.0, 2*np.pi, n_phi)`` (with the test-side ``equispaced``) gives a rule
 on the **parameter rectangle**
 :math:`(\mu, \varphi) \in [-1,1] \times [0, 2\pi)` — the standard
 polar-azimuthal split.
@@ -1906,21 +1909,36 @@ known characteristic of the check, not an accident of it.
 Quadrature selection algorithm
 ==============================
 
-Issue 5 of the SN reshape campaign installs a tagged registry over four
+.. note::
+
+   ⛔ **The selector this section narrates retired on 2026-11-20** (wave
+   W0, unit ``dead``; ERR-118 is recorded as retired with its code in
+   :doc:`/theory/verification/error_catalog`). It had no production
+   caller (``solve_sn`` takes an explicit quadrature), and a caller names
+   its rule through the
+   :class:`~orpheus.numerics.quadrature.directional.Quadrature` factories.
+   What survives is the **catalogue** (the four
+   :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec` values in
+   :data:`~orpheus.numerics.quadrature.registry.quadrature_registry`) and
+   the stage-0 and stage-1 legs, which are the methods of
+   :class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`
+   (``admits_domain``, ``domain_refusal``, ``admits_symmetry``). Every
+   statement below about the "selector", its "log" and its "stages 2 to
+   4" is the record of that design, in the past tense.
+
+Issue 5 of the SN reshape campaign installed a tagged registry over four
 of the quadrature-rule primitives — Gauss-Legendre on :math:`\mu`,
 Lebedev, level-symmetric :math:`S_N`, and the polar-times-azimuthal
-product rule — plus a selector that picks the right
+product rule — plus a selector that picked the right
 :class:`~orpheus.numerics.measure.DiscreteMeasure` for a
 geometry-and-target-degree pair. The registry entries are the four
 :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec` values in
-:data:`~orpheus.numerics.quadrature.registry.quadrature_registry`; the
-selector lives at :mod:`orpheus.numerics.quadrature.registry`.
+:data:`~orpheus.numerics.quadrature.registry.quadrature_registry`.
 
-Selection is fundamentally a **five-stage filter** in priority order.
-The stages are numbered here exactly as the selector numbers them, so a
-rejection message read off a
-:class:`~orpheus.numerics.quadrature.registry.SelectionLog` — which
-always names its stage — points at the paragraph that explains it.
+Selection was fundamentally a **five-stage filter** in priority order.
+The stages are numbered here exactly as the selector numbered them, so a
+rejection message read off the selector's log — which
+always named its stage — pointed at the paragraph that explains it.
 
 0. **Domain compatibility.** The rule's nodes must live on the angular
    domain the geometry's *dimensional reduction* left behind —
@@ -2078,7 +2096,7 @@ always names its stage — points at the paragraph that explains it.
 
    Asking the nodes cannot go wrong either way: a computed group cannot
    lie about the object it was computed from. This is pinned by
-   ``test_selector_asks_the_nodes_not_the_declared_tag``, which injects
+   ``test_the_symmetry_leg_asks_the_nodes_not_the_declared_tag``, which injects
    the understated-but-true declaration precisely so the gate is not
    defended by a counter-example that a later bug fix could dissolve.
    All four shipped rules now declare their maximal group honestly —
@@ -2156,14 +2174,12 @@ always names its stage — points at the paragraph that explains it.
 
    **An inversion is a request, not evidence.** So the claim the *built*
    rule actually carries is verified, and there are three ways to fail
-   it, each with its own gate in
-   :file:`tests/gates/numerics/test_registry.py`: the rule carries **no
-   claim** at all (``test_a_rule_with_no_exactness_claim_at_all_is_refused``);
-   its claim is against the **wrong reference**
-   (``test_a_rule_exact_against_the_wrong_measure_is_refused``); or its
+   it (the three gates of the selector's V stage in
+   :file:`tests/gates/numerics/test_registry.py`, retired with the selector on
+   2026-11-20): the rule carries **no
+   claim** at all; its claim is against the **wrong reference**; or its
    degree falls **short of the target**, which is a spec whose own
-   inversion over-promised and is therefore caught rather than trusted
-   (``test_an_inversion_that_over_promises_is_caught_not_trusted``).
+   inversion over-promised and was therefore caught rather than trusted.
    Each arm is mutation-verified to bite — disabling it reddens exactly
    one gate (measured at the change, 2026-08-14; the unmutated control
    leaves 55 passing).
@@ -2275,46 +2291,29 @@ Formally, the selection criterion is
    \;\wedge\; F_{\text{req}} \subseteq F_Q
    \,\Bigr\},
 
-.. (vv-status rationale) quadrature-selection-criterion: Verified
-   transitively by the foundation tests in
-   :file:`tests/gates/numerics/test_registry.py` — every stage of the
-   five-stage filter has a happy-path test
-   (``test_select_slab_returns_gauss_legendre``,
-   ``test_select_sphere_returns_gauss_legendre``,
-   ``test_select_cylinder_with_level_structured_returns_product``,
-   ``test_select_cartesian2d_prefers_lebedev_over_ls_sn``); the two
-   conjuncts added on 2026-08-02 carry their own gates
-   (``test_support_is_derived_from_the_spent_group_not_declared`` for
-   the derived domain,
-   ``test_the_two_stages_are_independent_and_both_load_bearing`` for
-   their independence,
-   ``test_owed_symmetry_selects_by_azimuthal_parity`` and
-   ``test_select_cylinder_rejects_odd_azimuthal_product_rule`` for what
-   the owed group discriminates, and
-   ``test_selector_asks_the_nodes_not_the_declared_tag`` for
-   computed-not-declared); the two conjuncts stage 0 acquired on
-   2026-09-02 and 2026-09-03 carry the class
-   ``TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry``, with a
-   live witness for EACH; and there is a negative path
-   (``test_no_rule_fits_raises_with_log``,
-   ``test_truly_incompatible_flags_raises``). Tagged ``foundation``
-   rather than carrying a verification ladder slot because the
-   selection chain is a software invariant (the predicate
-   :math:`S^2/K_{\text{geom}} \twoheadrightarrow \mathcal{D}_Q \wedge
-   H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}} \wedge
-   R_{\text{geom}} \subseteq \operatorname{Sym}(Q) \wedge
-   \mathcal{E}(Q) \succeq (\lambda_{\text{geom}}, d) \wedge
-   F_{\text{req}} \subseteq F_Q`), not a physics-equation claim with
-   an L0..L3 ladder slot — the ladder lives on the rules themselves
-   (``test_rules_*.py``). The exactness conjunct's own three rejection
-   arms carry a gate each
-   (``test_a_rule_with_no_exactness_claim_at_all_is_refused``,
-   ``test_a_rule_exact_against_the_wrong_measure_is_refused``,
-   ``test_an_inversion_that_over_promises_is_caught_not_trusted``),
-   with ``test_gauss_chebyshev_clears_every_stage_except_the_reference``
-   as the independence witness for the reference half and
+.. (vv-status rationale) quadrature-selection-criterion: A record of the
+   selector's design; the selector retired on 2026-11-20 (wave W0, unit
+   ``dead``) together with the happy-path, negative-path and V-stage
+   tests that read it. What
+   :file:`tests/gates/numerics/test_registry.py` still gates are the
+   conjuncts that live on as the legs of ``AngularSymmetry`` and the
+   catalogue: the derived domain
+   (``test_support_is_derived_from_the_spent_group_not_declared``), the
+   independence of the domain and symmetry legs
+   (``test_the_two_stages_are_independent_and_both_load_bearing``), what the
+   owed group discriminates (``test_owed_symmetry_selects_by_azimuthal_parity``),
+   computed-not-declared
+   (``test_the_symmetry_leg_asks_the_nodes_not_the_declared_tag``), the two
+   conjuncts stage 0 acquired on 2026-09-02 and 2026-09-03 (the class
+   ``TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry``, a live witness for
+   EACH), the independence witness for the reference half
+   (``test_gauss_chebyshev_clears_every_stage_except_the_reference``) and
    ``test_every_registered_rule_speaks_one_of_the_two_reference_measures``
-   pinning the shipped registry against the two derived references.
+   pinning the shipped registry against the two derived references. Tagged
+   ``foundation`` rather than carrying a verification ladder slot: the
+   predicate is a software invariant, not a physics-equation claim with an
+   L0..L3 ladder slot; the ladder lives on the rules themselves
+   (``test_rules_*.py``).
 .. vv-status: quadrature-selection-criterion documented
 
 where :math:`n(Q)` is the number of nodes,
@@ -2800,11 +2799,10 @@ divergence-capable one — the same single-source argument that makes the
 spec carry no invariance group and no parallel node-count formula.
 
 The cost of building a candidate before rejecting it is real and
-accepted: ``[M]``
-:func:`~orpheus.numerics.quadrature.registry.select_quadrature` has no
-production consumer today — ``solve_sn`` takes an explicit quadrature,
+accepted: ``[M]`` the selector had no
+production consumer — ``solve_sn`` takes an explicit quadrature,
 for the reasons under *Why a registry and not a hardcoded ladder*
-below — so selection is not a hot path, and paying a construction to
+below — so selection was not a hot path, and paying a construction to
 ask an honest question is the right trade against caching a claim that
 can go stale.
 
@@ -3023,7 +3021,9 @@ in one line.
 Worked examples
 ---------------
 
-The four canonical happy-path selections:
+The four canonical happy-path selections (the record of what the retired
+selector returned; each rule is now named by its
+:class:`~orpheus.numerics.quadrature.directional.Quadrature` factory):
 
 * ``select_quadrature("slab", target_degree=15)``: the three
   :math:`S^2` rules fail stage 0, `[M]` verbatim (re-measured
@@ -3079,10 +3079,10 @@ already has, not a second one. Each :class:`~orpheus.numerics.quadrature.registr
 ``.level_symmetric``, ``.product``), ``QuadratureSpec.build`` returns the
 :class:`~orpheus.numerics.quadrature.directional.Quadrature` (its level
 structure rides with it; the old ``build`` unpacked ``(measure, LevelStructure)``
-to a bare measure and dropped the structure), and
-:func:`~orpheus.numerics.quadrature.registry.select_quadrature` returns
-``(Quadrature, SelectionLog)``. The selector reads ``quadrature.measure`` where it
-asks the domain, symmetry and exactness questions. The Gauss-Legendre
+to a bare measure and dropped the structure); the selector, which returned
+``(Quadrature, SelectionLog)``, retired on 2026-11-20. A consumer reads
+``quadrature.measure`` where it asks the domain, symmetry and exactness
+questions. The Gauss-Legendre
 parameter is spelled ``n_ordinates`` in the spec, as in the classmethod
 (it was ``n``).
 
@@ -3109,49 +3109,31 @@ would be refused at stage 2 ("the rule carries no exactness claim") on every
 geometry, and typing the parent product's degree onto it would be a table
 that asserts nothing about the built rule. The prerequisite is that
 reference measure; the guard
-``TestTheSelectorIsUNMOVEDByTheCarve::test_the_fold_is_not_registered_so_no_selection_reaches_it``
+``TestTheFoldIsNotRegistered::test_the_fold_is_not_registered_so_no_entry_reaches_it``
 is the pin that stays until then.
 
 Explainability log
 ------------------
 
-Every :func:`~orpheus.numerics.quadrature.registry.select_quadrature`
-call returns a
-:class:`~orpheus.numerics.quadrature.registry.SelectionLog` carrying
-the full decision provenance:
+The selector returned a ``SelectionLog`` with every rejected candidate under
+the stage that disqualified it (``domain mismatch``, ``symmetry mismatch``),
+and raised a ``QuadratureSelectionError`` carrying that log when no rule fit.
+Both retired with the selector on 2026-11-20. The stage-0 reason survives
+as the string :meth:`AngularSymmetry.domain_refusal
+<orpheus.numerics.quadrature.registry.AngularSymmetry.domain_refusal>`
+returns (``None`` when the rule is admitted), for example, for the Gauss-Legendre
+rule on the cartesian2d geometry:
 
-.. code-block:: python
+.. code-block:: text
 
-   quadrature, log = select_quadrature("cartesian2d", target_degree=5)
-   print(log.summary())
-   # select_quadrature(geometry='cartesian2d', target_degree=5)
-   # -> LebedevSphere({'order': 5}) [1 rejected]
+   the rule's nodes live on S^2/O2_x, a fold by O2_x, which is not a
+   symmetry the solution has in this geometry's frame (unspent sigma_z,
+   spent Trivial)
 
-   for name, reason in log.rejected:
-       print(f"  - {name}: {reason}")
-   # - GaussLegendre1D: domain mismatch: geometry 'cartesian2d'
-   #   discretises S^2, but the rule's nodes live on S^2/O2_x, a fold
-   #   by O2_x, which is not a symmetry the solution has in this
-   #   geometry's frame (unspent sigma_z, spent Trivial)
-
-The rejection names its *stage*, and the stage is the diagnosis. A
-``domain mismatch`` says the rule is the wrong shape of object for
-this geometry; a ``symmetry mismatch`` says it is the right shape but
-breaks a symmetry the geometry needs, and names the group:
-
-.. code-block:: python
-
-   _, log = select_quadrature(
-       "cylinder", target_degree=4, level_structured=True
-   )
-   print(dict(log.rejected)["ProductQuadrature"])
-   # symmetry mismatch: geometry 'cylinder' owes D_2h, which the
-   # rule's nodes at {'n_mu': 3, 'n_phi': 5} are not invariant under
-
-When no rule fits the constraints, :func:`select_quadrature` raises
-:class:`~orpheus.numerics.quadrature.registry.QuadratureSelectionError`
-with a fully-populated ``exc.log`` so the caller can introspect the
-failure without re-running the search.
+A refusal names its *clause*, and the clause is the diagnosis: a missing
+descent arrow says the rule is the wrong shape of object for this geometry;
+a fold outside the unspent group says it is the right shape but a symmetry
+the solution does not have.
 
 Why a registry and not a hardcoded ladder
 ------------------------------------------
@@ -3267,7 +3249,7 @@ rule:
 
   **A rule on a domain is one object, and the domain decides the
   claim.** Its nodes coincide numerically with
-  :func:`~orpheus.numerics.measure.equispaced`'s on
+  the test-side ``equispaced``'s on
   :math:`[0, 2\pi]` — and the two claims are incomparable: degree
   :math:`n - 1` against the Fourier basis on :math:`S^1` versus
   degree :math:`1` against polynomials on an interval. Composing a
@@ -3372,10 +3354,10 @@ object — composability via
 :meth:`~DiscreteMeasure.__mul__` /
 :meth:`~DiscreteMeasure.pushforward` /
 :meth:`~DiscreteMeasure.restrict`, plus the ``invariance_group``
-that the
-:func:`~orpheus.numerics.quadrature.registry.select_quadrature`
-registry (Issue 5; see "Quadrature selection algorithm" above)
-consumes for automated rule selection.
+that the quadrature registry's
+:class:`~orpheus.numerics.quadrature.registry.AngularSymmetry` legs
+(Issue 5; see "Quadrature selection algorithm" above) consumed for
+automated rule selection, before the selector retired on 2026-11-20.
 
 .. _discrete-measures-quadrature-axis:
 
@@ -3476,9 +3458,9 @@ in subsequent issues of the SN reshape campaign:
   in Phase 0 because retrofitting it later would force a rewrite
   of MoC's quadrature handling.
 
-Issue 5's ``select_quadrature`` registry has landed and is documented
-in the "Quadrature selection algorithm" section above
-(:eq:`quadrature-selection-criterion`).
+Issue 5's quadrature registry landed and is documented, with the selector
+it once carried (retired on 2026-11-20), in the "Quadrature selection
+algorithm" section above (:eq:`quadrature-selection-criterion`).
 
 The narrative in :ref:`theory-reference-solvers` and
 :ref:`theory-discrete-ordinates` will progressively replace any

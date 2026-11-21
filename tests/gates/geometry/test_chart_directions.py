@@ -36,6 +36,7 @@ from orpheus.geometry.coord import CoordSystem
 from orpheus.geometry.line import Line
 from orpheus.geometry.transformation import RigidMotion
 from orpheus.geometry.symmetry import SubgroupOfO3
+from tests.gates.geometry._geometry_oracles import tangencies
 
 _EPS = np.finfo(float).eps
 _HERE = "tests/gates/geometry/test_chart_directions.py::"
@@ -474,7 +475,7 @@ def test_the_tangencies_are_the_closed_form_break_set(chart: Chart, breakpoints,
     dom = chart.directions_at(r)
     scale = math.pi if dom.axes[0] == "angle" else 1.0
     for level in (*breakpoints, -0.3, 0.0):
-        got = np.asarray(dom.tangencies(level), dtype=float)
+        got = np.asarray(tangencies(dom, level), dtype=float)
         expected = _closed_tangencies(dom.axes, r, level, chart.acts_on_kept_space)
         assert got.shape == (len(expected),), f"level {level}: {got} vs {[mp.nstr(e, 17) for e in expected]}"
         assert np.all(np.diff(got) > 0), f"level {level}: not sorted"
@@ -493,7 +494,7 @@ def test_no_tangency_on_the_slab_or_at_a_stratum(chart: Chart, r: float) -> None
     """
     dom = chart.directions_at(r)
     for level in (-0.7, 0.0, 0.3, 0.5, 1.1, 2.0):
-        assert np.asarray(dom.tangencies(level)).size == 0
+        assert np.asarray(tangencies(dom, level)).size == 0
 
 
 def _crossing_count(partition: ConcentricPartition, dom, q: np.ndarray, k: int) -> np.ndarray:
@@ -538,7 +539,7 @@ def test_the_tangencies_are_where_the_kernels_crossings_change(chart: Chart, bre
     grid = lo + (hi - lo) * (np.arange(4001) + 1.0 / math.sqrt(5.0)) / 4001.5
     checked = 0
     for k, level in enumerate(breakpoints):
-        taus = np.asarray(dom.tangencies(level), dtype=float)
+        taus = np.asarray(tangencies(dom, level), dtype=float)
         if level <= 0.0 or level > r:
             continue
         if level < r:
@@ -656,6 +657,6 @@ def test_the_tangencies_are_scale_free(scale: float) -> None:
     ``r = 1e-200`` and ``+-inf`` at ``r >= 1e160``.
     """
     for chart in (_SPH, _CYL):
-        unit = chart.directions_at(2.0).tangencies(1.0)
-        scaled = chart.directions_at(2.0 * scale).tangencies(1.0 * scale)
+        unit = tangencies(chart.directions_at(2.0), 1.0)
+        scaled = tangencies(chart.directions_at(2.0 * scale), 1.0 * scale)
         np.testing.assert_allclose(scaled, unit, rtol=2 * _EPS, atol=0.0)

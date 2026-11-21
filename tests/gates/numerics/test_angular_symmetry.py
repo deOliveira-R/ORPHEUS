@@ -40,7 +40,6 @@ from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.quadrature.registry import (
     GEOMETRY_ANGULAR_SYMMETRY,
     AngularSymmetry,
-    select_quadrature,
 )
 from orpheus.geometry.symmetry import SubgroupOfO3
 from tests.gates.numerics import NUMERICS_DATA
@@ -718,18 +717,14 @@ class TestR3TheStageZeroREASONIsPinnedWhereItIsDECIDED:
     r"""**F2/F3** — the wording half of stage 0, which the frozen table deliberately
     does NOT pin.
 
-    ⛔ **The R2 gate did not cover R3 — it RED.**  ``TestR2SelectionIsUnchanged``
-    pinned the whole frozen record including every ``rejected`` string, and `[M]`
-    2026-09-03 **96 of 96 domain-mismatch strings moved** while **0 of 48** chosen
-    specs / parameters / point counts did.  The repair that landed is the right one
-    and is NOT duplicated here: that gate now pins stage 0 at its STAGE
-    (``stage_of``) and keeps the frozen table as the value anchor.
+    ⛔ **The R2 gate did not cover R3 — it RED.**  The R2 selection gate (retired
+    with the selector on 2026-11-20, with its frozen table) pinned the whole frozen
+    record including every ``rejected`` string, and `[M]` 2026-09-03 **96 of 96
+    domain-mismatch strings moved** while **0 of 48** chosen specs / parameters /
+    point counts did.
 
-    ⚠ So this class deliberately carries **no** whole-table row.  Re-pinning the 48
-    verdicts here would be a Pattern-2 twin of
-    ``tests/gates/numerics/test_invariance.py::TestR2SelectionIsUnchanged``, and a twin
-    that drifts is worse than no gate.  What is left is the half that gate hands
-    over: the WORDING, pinned once, where the decision is made.
+    ⚠ So this class deliberately carries **no** whole-table row.  What it pins is the
+    WORDING, once, where the decision is made.
     """
 
     @pytest.mark.foundation
@@ -743,20 +738,15 @@ class TestR3TheStageZeroREASONIsPinnedWhereItIsDECIDED:
         # for a 2-D geometry passes the arrow — `quotient_onto(S^2, S^2/O2_x)` is
         # the entry's OWN quotient map — and is refused by COVERAGE.  Which clause
         # refuses which input is a measurement, not an intuition.
-        _, log = select_quadrature("cartesian2d", 5)
-        reasons = [r for name, r in log.rejected if name == "GaussLegendre1D"]
-        assert reasons, "GaussLegendre1D was not rejected for cartesian2d"
-        message = reasons[0]
-        assert "domain mismatch" in message
+        message = GEOMETRY_ANGULAR_SYMMETRY["cartesian2d"].domain_refusal(
+            Quadrature.gauss_legendre(8).measure
+        )
+        assert message is not None, "GaussLegendre1D was not refused for cartesian2d"
         assert "unspent sigma_z" in message, message
         assert "no descent arrow" not in message, (
             "`domain_refusal` reports the ONE failing clause; naming the other is "
             f"the disjunctive message the refusal verb retired: {message}"
         )
-        # and the ARROW clause's own selector witness, on the geometry that has it
-        _, slab_log = select_quadrature("slab", 5)
-        arrow = [r for name, r in slab_log.rejected if name == "LebedevSphere"]
-        assert arrow and "no descent arrow" in arrow[0] and "unspent" not in arrow[0]
 
     @pytest.mark.foundation
     def test_f3_the_two_refusal_REASONS_are_disjoint_and_each_has_a_witness(self) -> None:

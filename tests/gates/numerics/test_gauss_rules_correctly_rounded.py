@@ -72,12 +72,11 @@ from scipy import special
 from orpheus.numerics.generating_measure import (
     CHEBYSHEV_T,
     CHEBYSHEV_U,
-    HERMITE,
     LEGENDRE,
     GeneratingMeasure,
     jacobi,
-    laguerre,
 )
+from tests.gates.numerics._measure_fixtures import HERMITE, laguerre
 
 _HERE = "tests/gates/numerics/test_gauss_rules_correctly_rounded.py"
 

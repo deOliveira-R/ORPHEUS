@@ -89,7 +89,8 @@ def _harmonic_basis(support: Manifold, L: int) -> Basis:
     * the bare sphere: the full real harmonics
       :class:`~orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`;
     * an orbit space of the sphere: whatever
-      :class:`~orpheus.numerics.basis.descent.Descent`'s discriminator
+      :attr:`Descent.frame_basis
+      <orpheus.numerics.basis.descent.Descent.frame_basis>`
       says for that ENTRY: the Legendre basis on :math:`S^2/O(2)_a` (a
       1-D rule, THE FIX for ERR-080, 2026-09-02), the sigma-even harmonics
       on :math:`S^2/\sigma_a` (the fold; rectangular layout, odd columns

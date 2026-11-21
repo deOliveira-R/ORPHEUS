@@ -194,7 +194,7 @@ class La13511Case:
         with the vacuum tag on both faces. This is the production-natural
         convention — F_N's natural half-thickness is recovered inside
         :class:`MomentSpace` from
-        :attr:`StructuredGeometry.domain_extent_cm` ``/ 2``.
+        the geometry's extent ``breakpoints[-1] - breakpoints[0]`` ``/ 2``.
 
         Note: this encoding wastes the slab's natural half-symmetry —
         a future improvement would encode Sood symmetric slabs as

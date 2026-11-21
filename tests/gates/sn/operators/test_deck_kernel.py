@@ -15,7 +15,7 @@ the deck group gives
 
    \gamma_-\psi|_f(\Omega) \;=\; \gamma_+\psi|_{f'}(h^{-1}\Omega),
 
-so with :meth:`~orpheus.geometry.transformation.RigidMotion.permutes`' convention :math:`h(x_i) = x_{\pi(i)}` the row for inflow
+so with :func:`~tests.gates.geometry._geometry_oracles.permutes`' convention :math:`h(x_i) = x_{\pi(i)}` the row for inflow
 ordinate ``j`` gathers global ordinate :math:`\pi^{-1}(j)`, remapped into :math:`\Gamma_+(f')`'s local index by ``to_local``.
 
 **What this file keeps, and why only this.** Every SHIPPED deck is an involution (the mirror) or the identity (the wrap), for which
@@ -57,6 +57,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
 from orpheus.sn.boundary.realized_operators import ScaledOrdinatePermutation
 from orpheus.sn.mesh.method_space import SNMethodSpace
+from tests.gates.geometry._geometry_oracles import permutes
 
 pytestmark = pytest.mark.l1
 
@@ -200,7 +201,7 @@ class TestTheGatherIsThePreimage:
 
     * the **witness-check** — ``nodes[gather] == h⁻¹·nodes[inflow]``. It
       *verifies* the claimed partner instead of *searching* for one, so it
-      shares no machinery with :meth:`RigidMotion.permutes` (a
+      shares no machinery with ``permutes`` (a
       nearest-neighbour search) and survives ``reflection_index``'s
       retirement. Works for every law, including the ones where the direction
       is unobservable.
@@ -321,7 +322,7 @@ class TestTheGatherIsThePreimage:
         ``index(level, p)`` is ``index(level, (p − n_φ/4) mod n_φ)``.
 
         The reference is built from ``(n_mu, n_phi)`` by integer arithmetic —
-        it never calls :meth:`RigidMotion.permutes`, never calls
+        it never calls ``permutes``, never calls
         ``reflection_index``, never touches the kernel. Structural
         independence in the strongest form this object admits (``vv`` L11 /
         lessons §8: exact integer arithmetic needs no reference at all).
@@ -426,7 +427,7 @@ class TestTheGatherIsThePreimage:
         quad, _, method_space, gamma_out, nodes = _deck_fixture(
             case, face="xmin", domain_face="ymin"
         )
-        pi = _linear_part(_rotation_90()).permutes(nodes, atol=1e-13)
+        pi = permutes(_linear_part(_rotation_90()), nodes, atol=1e-13)
         assert pi is not None
         inflow = _inflow(method_space, "xmin")
         forward = pi.indices[inflow]

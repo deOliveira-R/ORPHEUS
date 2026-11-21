@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.mesh_free_function import RegionwiseConstant, Symbolic
+from tests.gates.numerics._measure_fixtures import from_srepr
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -39,7 +40,7 @@ def _symbolic(*extra: str, version: str | None = None) -> Symbolic:
     import sympy as sp
 
     expressions = (1 + Symbolic.mu * sp.exp(-Symbolic.r), Symbolic.r**2 + sp.cos(Symbolic.phi))
-    return Symbolic.from_srepr(tuple(sp.srepr(e) for e in expressions) + extra, version)
+    return from_srepr(tuple(sp.srepr(e) for e in expressions) + extra, version)
 
 
 def _symbolic_moved_coefficient() -> Symbolic:

@@ -51,6 +51,7 @@ from orpheus.reference.reading import Uncertified
 from orpheus.specification.specification import GeometrySpecification
 from tests.gates._corroboration import references_in
 from tests.gates.derivations import _characteristic_point_mp as mpref
+from tests.gates.geometry._geometry_oracles import tangencies
 from tests.gates.derivations import _posed_walls as walls_of
 from tests.gates.derivations._characteristic_mp import specular_sphere_total
 from tests.gates.derivations.test_characteristic_assembly import (
@@ -998,7 +999,7 @@ def test_the_angular_flux_integrated_over_the_box_is_the_reading(chart, breakpoi
     toward_grazing = toward_grazing[toward_grazing > 2.0 * floor]
     breaks = np.r_[-1.0, -toward_grazing, -floor, floor, toward_grazing, 1.0]
     if chart != "slab":
-        breaks = np.r_[breaks, np.concatenate([domain.tangencies(r) for r in ends if 0.0 < r < x])]
+        breaks = np.r_[breaks, np.concatenate([tangencies(domain, r) for r in ends if 0.0 < r < x])]
     breaks = np.unique(breaks)
     mu, w = _box_rule(breaks, 16)
     keep = np.abs(mu) > floor                                     # the sliver |mu| < floor is the slab's closed form

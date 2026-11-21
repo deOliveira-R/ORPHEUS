@@ -108,7 +108,6 @@ Coordinate Systems
 :class:`~orpheus.geometry.coord.CoordSystem` enum and the
 coordinate-aware volume / surface primitives:
 
-* ``compute_volumes_1d(coord, edges)``
 * ``compute_areas_1d(coord, edges)``
 * ``compute_volumes_2d(coord, edges_x, edges_y)``
 

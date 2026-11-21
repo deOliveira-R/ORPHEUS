@@ -35,6 +35,7 @@ from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.measure import WEIGHT_ATOL, _node_window
 from orpheus.geometry.symmetry import candidate_groups
 
+from tests.gates.geometry._geometry_oracles import stabilizer_order
 from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _every_spellable_group, _R4_I3
 
 
@@ -908,7 +909,7 @@ def test_orbit_stabilizer_theorem_holds_on_every_certificate() -> None:
         cert = mu.certificate_under(group)
         assert cert is not None, name
         order = len(_close_group(_realized_ops(group._tag)))  # type: ignore[arg-type]
-        stab = cert.stabilizer_order
+        stab = stabilizer_order(cert)
         for orbit in cert.orbits():
             for i in orbit:
                 assert len(orbit) * int(stab[i]) == order, (

@@ -37,7 +37,7 @@ wrappers around the existing function-level API in
 Slab convention reminder
 ------------------------
 
-:attr:`StructuredGeometry.domain_extent_cm` is the FULL slab width
+The geometry's extent ``breakpoints[-1] - breakpoints[0]`` is the FULL slab width
 (production-natural convention). F_N's natural half-thickness
 :math:`a = L / 2` is computed inside
 :meth:`MomentSpace.solve_critical` from the geometry's full extent.

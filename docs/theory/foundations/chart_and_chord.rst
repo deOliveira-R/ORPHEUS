@@ -859,10 +859,8 @@ has length 0.
 
 The slots are not stored beside the crossings; they are read from them.
 :attr:`Chord.slot_region <orpheus.geometry.chord.Chord.slot_region>` is
-the crossings' ``region_entered`` without its last column, and
-:attr:`Chord.slot_start <orpheus.geometry.chord.Chord.slot_start>` the
-crossings' ``parameter`` without its last column (:math:`-\infty` on a
-parallel line). An absent crossing keeps the parameter where it would be
+the crossings' ``region_entered`` without its last column, and a slot's
+start is the crossings' ``parameter`` without its last column. An absent crossing keeps the parameter where it would be
 (the closest approach on the curved charts, where its half-chord is 0), so
 the slot it opens has length 0 and a start that is still in order. The
 one stored length array is ``traversed_length``, the cancellation-free
@@ -2680,8 +2678,8 @@ kink wherever the line becomes tangent to a breakpoint's surface: the
 half-chord :math:`h_k = \sqrt{(r_k - b)(r_k + b)}` has an infinite
 derivative in :math:`b` at :math:`b = r_k`, and a pair of crossings
 appears or disappears. A direction rule at :math:`x` is split there.
-:meth:`DirectionDomain.tangencies
-<orpheus.geometry.chart.DirectionDomain.tangencies>` returns the values of
+The closed form (``tangencies`` of ``tests/gates/geometry/_geometry_oracles.py``,
+a method of ``DirectionDomain`` until 2026-11-20) gives the values of
 the first axis where :math:`b = \ell` for a level :math:`\ell`, sorted:
 
 .. math::
@@ -3538,7 +3536,7 @@ Gotchas
   here.
 - **Parameters are measured from the foot of the caller's line**, not
   from the base point the line was built from and not in the partition's
-  canonical frame: ``slot_start``, the image's ``closest_approach`` and
+  canonical frame: the slot starts, the image's ``closest_approach`` and
   the crossing parameters are :math:`t` with :math:`x = \text{foot} + t\,\Omega` on
   the line passed to ``chord``, whatever the pose. Convert a base point
   with :meth:`Line.parameter_of <orpheus.geometry.line.Line.parameter_of>`.

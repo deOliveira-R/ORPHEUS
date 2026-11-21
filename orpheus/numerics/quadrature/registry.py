@@ -1,197 +1,26 @@
-r"""Tagged quadrature registry with G + V + structural selector.
+r"""Tagged quadrature registry: the catalogue of rules and the geometry-to-symmetry table.
 
-This module installs the **automated quadrature selector** that closes
-the loop on Issues 3 (symmetry tagging) and 4 (rule-side wrappers): given
-a geometry and a target polynomial degree, walk the registry of all known
-rules and return the cheapest measure whose tags satisfy the geometry's
-demands.
-
-Motivation
-----------
-
-Quadrature selection is *fundamentally* a five-stage filter, in priority
-order:
-
-0. **Domain compatibility.**
-   The rule's nodes must live on the angular domain the geometry's
-   *dimensional reduction* left behind, :math:`S^2 / K_{\text{geom}}` with
-   :math:`K` the stabiliser the reduction SPENT — or on a FOLD of it by a
-   symmetry the solution still HAS in the local frame: the descent arrow
-   :math:`S^2/K \to \mathcal{D}_Q` must exist, and the group
-   :math:`H_Q` the rule's support was quotiented by must satisfy
-   :math:`H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}}`, with
-   :math:`\Gamma` the finite UNSPENT symmetry
-   (:meth:`SubgroupOfO3.is_subset_of_product
-   <orpheus.geometry.symmetry.SubgroupOfO3.is_subset_of_product>`). A slab
-   integrates :math:`\phi` out analytically and wants a :math:`\mu`-marginal
-   on :math:`[-1,1]`; a cylinder retains both angular degrees of freedom and
-   wants :math:`S^2` or its :math:`\sigma_y` / :math:`\sigma_z` fold; a
-   z-uniform Cartesian plane admits the :math:`\sigma_z` fold and REFUSES
-   the :math:`\sigma_y` one (until R3 of #434 it admitted it — the
-   symmetry recorded for reflecting faces was read as a fold licence, and
-   two of the four sweep quadrants were empty). This stage is **not** a
-   refinement of the symmetry stage below — it is a different fact about
-   the geometry (see :class:`AngularSymmetry`), and without it the symmetry
-   stage alone admits a Lebedev rule for a slab.
-1. **G compatibility** (symmetry).
-   :math:`R_{\text{geom}} \subseteq \operatorname{Sym}(Q)` — the
-   rule must be invariant under the symmetry the geometry still OWES: the
-   closure a reflecting face consumes, which must be realized as an
-   ordinate permutation. A quadrature with **less** symmetry imprints spurious
-   low-order asymmetry on a symmetric problem (Lebedev 1976, §1;
-   Stiefel & Fässler 1979 Ch. 5) and cannot represent a reflecting
-   boundary exactly. A quadrature with **more** symmetry is fine —
-   the extra symmetry is unused, not violated.
-
-   :math:`\operatorname{Sym}(Q)` is **computed from the rule's nodes**
-   (:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`),
-   never read from a declared tag. A declared group is a claim with no
-   construction behind it, and the claim that used to sit here was
-   false: ``product_mu_phi`` advertised :math:`SO(2)`, which no finite
-   point set on :math:`S^2` can satisfy, and that falsehood was the
-   only reason this gate admitted the product rule for a cylinder.
-2. **V compatibility** (exactness).
-   :math:`\mathcal{E}(Q) \succeq (\lambda_{\text{geom}}, d)` — the rule's
-   exactness **claim** must dominate the query's, where one claim dominates
-   another iff they are against the **same reference measure** and the
-   degree is at least as large.
-
-   The reference is not decoration. A degree is an *index into the
-   orthogonal system of a measure*, so the same integer means different
-   things against different measures, and a rule can match on space, on
-   system and on degree while being exact against the wrong thing: `[M]`
-   Gauss-Legendre and Gauss-Chebyshev at :math:`n = 4` agree on all three
-   and differ by **0.696** on :math:`\int_{-1}^{1} x^6 dx`. Transport
-   integrates :math:`\phi = \int \psi \, d\Omega` unweighted, so
-   :math:`\lambda_{\text{geom}}` is Lebesgue measure on the geometry's
-   angular domain — derived from the spent group by
-   :attr:`AngularSymmetry.reference`, exactly as the domain is.
-
-   ⛔ This conjunct read :math:`\deg(Q) \ge d` until 2026-08-14 and was
-   never *checked* at all — the stage only **inverted**, asking each spec
-   for parameters and trusting the answer. Both halves are now verified
-   against the claim the built rule carries: see the two-part evaluation
-   note below.
-
-   Most rules have a parameter-dependent degree (:math:`2n - 1` for
-   Gauss-Legendre, ``order`` for Lebedev), and the selector inverts this to
-   choose the smallest parameter set satisfying the constraint.
-   ⚠ Level-symmetric :math:`S_N` has **no formula**: its
-   realized degree is build-measured, and :math:`N - 1` is only a lower
-   bound the inversion uses — see :func:`_ls_sn_invert` for the measured
-   table and the over-shoot it causes. (This list read ":math:`N - 1` for
-   level-symmetric :math:`S_N`" as though it were the degree, until
-   2026-08-14.)
-3. **Structural compatibility**.
-   Boolean flags the consumer can request (``positive_weights``,
-   ``axis_aligned``, ``level_structured``, ``half_range_clean``) — the
-   rule's flag set must be a superset of the requested set.
-4. **Minimum points**.
-   Among rules passing 0-3, pick the smallest :math:`N`. This is the
-   cost minimisation: each ordinate is a sweep direction in the SN
-   solver, and sweeps dominate the runtime. The count is read off the
-   **built** measure, which stages 0 and 1 have already forced into
-   existence — never from a parallel formula that could drift from it.
-   (Read "passing 1-3" here until 2026-08-14, from before stage 0.)
-
-Formally,
-
-.. math::
-   :label: quadrature-selection-criterion
-
-   Q^{\star} \;=\; \arg\min\Bigl\{\, n(Q) \;:\;\;
-   S^2 / K_{\text{geom}} \twoheadrightarrow \mathcal{D}_Q
-   \;\wedge\; H_Q \subseteq \Gamma_{\text{geom}} K_{\text{geom}}
-   \;\wedge\; R_{\text{geom}} \subseteq \operatorname{Sym}(Q)
-   \;\wedge\; \mathcal{E}(Q) \succeq (\lambda_{\text{geom}},\, d)
-   \;\wedge\; F_{\text{req}} \subseteq F_Q
-   \,\Bigr\},
-
-where :math:`n(Q)` is the number of nodes,
-:math:`\mathcal{D}_Q` is the domain the rule's nodes live on and
-:math:`H_Q` the group it was folded by (:math:`\{e\}` for a bare rule),
-:math:`K_{\text{geom}}`, :math:`\Gamma_{\text{geom}}` and
-:math:`R_{\text{geom}}` are what the geometry SPENT, what its solution
-keeps UNSPENT, and what it OWES — the reflection closure — (:class:`AngularSymmetry`;
-:math:`\Omega` is the direction throughout, never a group),
-:math:`\operatorname{Sym}(Q)` is the group
-the rule's nodes are actually invariant under,
-:math:`\mathcal{E}(Q)` is the rule's exactness claim
-(:class:`~orpheus.numerics.exactness.ExactnessClaim` — a reference
-measure together with a degree against it),
-:math:`\lambda_{\text{geom}}` is the measure the geometry integrates
-against, and
-:math:`F_Q \subseteq \{\text{positive\_weights}, \text{axis\_aligned},
-\text{level\_structured}, \text{half\_range\_clean}\}` is the rule's
-structural-flag set. **Domination** is
-
-.. math::
-
-   \mathcal{E}(Q) \succeq (\lambda, d)
-   \quad\Longleftrightarrow\quad
-   \operatorname{ref}\mathcal{E}(Q) = \lambda
-   \;\wedge\;
-   \deg\mathcal{E}(Q) \ge d ,
-
-a partial order, not a total one: two claims against different
-references are simply **incomparable**, which is the whole point —
-:math:`\deg = 7` against ``chebyshev_t`` is neither better nor worse
-than :math:`\deg = 7` against ``legendre``, it is an answer to a
-different question.
-
-The conjunction is order-free, but the *evaluation* is not, and it
-splits **one conjunct across two moments**:
-
-* :math:`\mathcal{E}(Q)` is a property of an instantiated rule, and the
-  nodes need parameters that only the V constraint determines. So the V
-  stage runs **first as an inversion** (ask the spec for the smallest
-  parameters reaching :math:`d`), the rule is built, and then the claim
-  it actually carries is **verified** against
-  :math:`(\lambda_{\text{geom}}, d)`.
-* The verification runs *after* stages 0 and 1 rather than immediately,
-  because :math:`\lambda_{\text{geom}}` encodes :math:`\mathcal{D}_Q`: a
-  rule on the wrong space fails both, and the domain stage gives the
-  better diagnosis. What the verification uniquely catches is a rule on
-  the **right** space carrying the **wrong measure**.
-
-This split is a real consequence of the theorem, not an implementation
-detail. Likewise a rule's invariance group is **parameter-dependent**
-(the product rule's is :math:`D_{n_\phi h}`), so no parameter-free field
-on :class:`QuadratureSpec` can express it, and the older design that
-tried to had to lie. The same is true of the claim: it is read off the
-built measure, never declared on the spec.
-
-The :func:`select_quadrature` function returns both the chosen
-:class:`~orpheus.numerics.quadrature.directional.Quadrature` **and** a :class:`SelectionLog` listing every rejected candidate with
-the stage-and-reason that disqualified it. The log makes the choice
-explainable for the SN solver's diagnostic output and for teaching:
-"why was rule X picked over rule Y?" answers itself.
-
-Why a registry, not a hardcoded ladder
---------------------------------------
-
-``solve_sn`` keeps explicit quadrature-passing as the canonical API
-(per the design note in ``.claude/plans/sn_reshape.md`` Issue 5):
-explicit is better than implicit, and a quadrature is a load-bearing
-modelling choice the user must own. The registry adds
-:func:`select_quadrature` as **opt-in convenience**: a default for
-"run this geometry with target degree :math:`d`" prototyping.
-
-⛔ This paragraph also claimed the registry was "a documentation artifact —
-every entry's docstring becomes a Sphinx table row narrating the trade-off"
-until 2026-08-14. That described a mechanism that **cannot exist**:
-:class:`QuadratureSpec` is a dataclass, so its four *instances* share the class
-docstring (`[M]` ``spec.__doc__ is type(spec).__doc__`` for all four) and an
-instance cannot carry prose of its own — the entries at
-:data:`quadrature_registry` carry inline ``#`` comments, which no builder reads.
-And nothing here renders: this module has **no** ``automodule`` directive
-(deliberately — see ``docs/api/discrete_ordinates.rst``, which cross-references
-it rather than rendering it to avoid duplicate-label collisions with the theory
-pages), so no docstring in this file becomes a table row at any severity.
-⟹ the per-rule narration lives in the theory page
-:doc:`/theory/foundations/discrete_measures`, and a rule's own docstring is on
-its factory in ``rules_*.py``. If per-entry narration is ever wanted *here*, it
-needs a field to live in — it cannot be inferred from a shared class docstring.
+The module holds two catalogues. :data:`quadrature_registry` lists every
+rule the tree can build, one :class:`QuadratureSpec` per family: the
+:class:`~orpheus.numerics.quadrature.directional.Quadrature` factory, the
+inversion of the rule's degree-of-exactness formula
+(:attr:`QuadratureSpec.degree_of_exactness_for`), and the two facts a
+parameter-free field can state truthfully (``axis_aligned``,
+``half_range_clean``). :data:`GEOMETRY_ANGULAR_SYMMETRY` assigns each
+geometry its :class:`AngularSymmetry`: the angular domain the dimensional
+reduction left behind, the symmetry its solution keeps, and the closure a
+reflecting face still owes. A rule is admitted for a geometry by the
+domain leg (:meth:`AngularSymmetry.admits_domain`,
+:meth:`AngularSymmetry.domain_refusal`) and the symmetry leg
+(:meth:`AngularSymmetry.admits_symmetry`); the symmetry of a rule is
+**computed from its nodes**
+(:meth:`~orpheus.numerics.measure.DiscreteMeasure.is_invariant_under`),
+never read from a declared tag, and its exactness claim is read off the
+built measure
+(:class:`~orpheus.numerics.exactness.ExactnessClaim`), never declared on
+the spec. A caller names its rule through the
+:class:`~orpheus.numerics.quadrature.directional.Quadrature` factories
+with an explicit parameter, which is a modelling choice the user owns.
 
 Geometry → angular-symmetry assignment
 --------------------------------------
@@ -263,8 +92,8 @@ closure :math:`R` still **owed** to a reflecting face.
        :math:`\sigma_y`. Owed is :math:`D_{2h}`, the coordinate-plane
        mirrors. The cylindrical SN sweep additionally requires
        per-:math:`\mu` polar-level structure for the azimuthal
-       redistribution coefficients; request it via the
-       ``level_structured=True`` structural flag.
+       redistribution coefficients; the rule carries it as its
+       ``level_structure`` (:class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`).
    * - ``"cartesian2d"``
      - trivial
      - :math:`S^2`
@@ -339,25 +168,13 @@ References
   equation-number map, the ⚠ published-typo warning on Eq. (50) and the
   scoping note on Eq. (52): ``docs/theory/methods/sn/curvilinear_one_group.rst`` §bmc-equation-map.
 
-See Also
---------
-:ref:`quadrature-selection-algorithm` (theory page) — narrates the
-five-stage precedence chain in prose, with the worked examples and the
-independence witnesses. It is the RENDERED statement of this design; this
-module is deliberately not ``automodule``-rendered, so the page is what a
-reader sees. (Read "the four-stage precedence chain" here until
-2026-08-14 — the count predates stage 0, and the anchor was the whole
-page rather than the section.)
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import cache
-from collections.abc import Sequence
 from typing import Any, Callable
-
-import numpy as np
 
 from ..exactness import UNIFORM_ON_SPHERE, ReferenceMeasure
 from ..generating_measure import pushforward_reference
@@ -400,14 +217,14 @@ def _lebedev_orders() -> tuple[int, ...]:
     own comment read *"probed at registry-construction time on the SciPy
     installed in this dev container"*. That probe is ``60f9fb29``,
     **2026-05-06**, and was never re-run. `[M]` the installed SciPy 1.17.1
-    serves **32** orders topping at **131**, so the selector refused degrees
+    serves **32** orders topping at **131**, so the selector (retired 2026-11-20) refused degrees
     the tree could deliver: ``_lebedev_invert(53)`` returned ``None`` while
     ``lebedev_sphere(53)`` builds 974 nodes summing to :math:`4\pi`. A
     frozen probe is a measurement whose configuration (the installed SciPy)
     can change underneath it without anything going red.
 
-    Cost is paid at most once per process, and only if selection is used
-    (`[M]` the selector has zero production consumers). `[M]` 16.6 ms.
+    Cost is paid at most once per process, and only if an inverter is called
+    (`[M]` the retired selector had zero production consumers). `[M]` 16.6 ms.
 
     Raises
     ------
@@ -454,19 +271,18 @@ def _lebedev_order_is_available(order: int) -> bool:
 class QuadratureSpec:
     r"""Tagged registry entry for a single quadrature rule.
 
-    Each spec captures what :func:`select_quadrature` needs to reach a
-    candidate rule: the parameter-inversion logic, the structural flags,
-    and the factory.
+    Each spec captures what a caller needs to reach a candidate rule: the
+    parameter-inversion logic, the two catalogue flags, and the factory.
 
     ⛔ It read "…needs to *rank* the rule **without instantiating it**:
     … the node-count formula …" until 2026-08-14, and carried an
     ``expected_node_count`` callable to serve that. The premise had not
-    held since the 2026-08-02 stage-0/1 rework: :func:`select_quadrature`
-    **must** instantiate every surviving candidate, because stages 0 and 1
-    ask the nodes. So the cost was computed twice — once as a formula here,
-    once implicitly by the measure the selector was already holding — and
-    `[M]` the two agreed on all 25 shipped configurations, which is exactly
-    what makes a twin source dangerous rather than safe. The rank now reads
+    held since the 2026-08-02 stage-0/1 rework: the selector (retired on
+    2026-11-20) **had to** instantiate every surviving candidate, because
+    its stages 0 and 1 asked the nodes. So the cost was computed twice — once
+    as a formula here, once implicitly by the measure the selector was already
+    holding — and `[M]` the two agreed on all 25 shipped configurations, which
+    is exactly what makes a twin source dangerous rather than safe. The rank read
     :attr:`~orpheus.numerics.measure.DiscreteMeasure.n_points` off the built
     measure, so a formula cannot drift from the rule it claims to describe.
     (The first family that would have broken it already exists:
@@ -488,8 +304,8 @@ class QuadratureSpec:
     Attributes
     ----------
     name : str
-        Human-readable identifier (used in :class:`SelectionLog`
-        messages and Sphinx documentation).
+        Human-readable identifier (used in messages and Sphinx
+        documentation).
     factory : callable
         The :class:`~orpheus.numerics.quadrature.directional.Quadrature`
         classmethod that makes the rule (``Quadrature.gauss_legendre``,
@@ -533,11 +349,10 @@ class QuadratureSpec:
     amplify quadrature noise) and ``level_structured`` (the rule carries a
     :class:`~orpheus.numerics.quadrature.rules_sphere.LevelStructure`, which
     the cylindrical redistribution of Bailey-Morel-Chang 2010 Eq. (50)
-    marches over). :meth:`structural_flags` reads them off the rule.
-    `[M]` 2026-10-19: the typed ``positive_weights=True`` on Lebedev was
-    false for 3 of its 32 orders (13, 25, 27), and
-    ``select_quadrature("cartesian2d", 12, positive_weights=True)`` returned
-    order 13, whose weights include -0.372 (ERR-118).
+    marches over). `[M]` 2026-10-19: the typed ``positive_weights=True`` on
+    Lebedev was false for 3 of its 32 orders (13, 25, 27); the selector
+    (retired with ERR-118 on 2026-11-20) returned order 13 for cartesian2d at
+    degree 12, whose weights include -0.372.
     """
 
     name: str
@@ -546,30 +361,13 @@ class QuadratureSpec:
     axis_aligned: bool
     half_range_clean: bool
 
-    def structural_flags(self, quadrature: Quadrature) -> dict[str, bool]:
-        """The four structural flags of ``quadrature``, a rule this spec built.
-
-        The selector uses this to verify
-        :math:`F_{\\text{req}} \\subseteq F_Q`: every requested flag
-        must hold ``True``. ``positive_weights`` and ``level_structured``
-        are read off the built rule (see the class docstring);
-        ``axis_aligned`` and ``half_range_clean`` are the spec's
-        declarations.
-        """
-        return {
-            "positive_weights": bool(np.all(quadrature.weights > 0.0)),
-            "axis_aligned": self.axis_aligned,
-            "level_structured": quadrature.level_structure is not None,
-            "half_range_clean": self.half_range_clean,
-        }
-
     def build(self, parameters: dict[str, Any]) -> Quadrature:
         """Instantiate the rule at ``parameters``.
 
         The factory is a :class:`~orpheus.numerics.quadrature.directional.Quadrature`
         classmethod, so the result is the quadrature itself, level structure
-        included. The selector reads ``.measure`` where it asks the domain,
-        symmetry and exactness questions, and returns the quadrature it built.
+        included. A consumer reads ``.measure`` where it asks the domain,
+        symmetry and exactness questions.
         """
         return self.factory(**parameters)
 
@@ -611,8 +409,8 @@ def _lebedev_invert(target_degree: int) -> dict[str, Any] | None:
     The admissible set is gappy and is discovered by
     :func:`_lebedev_orders`, never tabulated here. If no available order
     reaches ``target_degree``, the rule cannot satisfy the constraint and
-    the inversion returns ``None`` (the selector then rejects this
-    spec at the V-compatibility stage with a clear message).
+    the inversion returns ``None`` (a caller reads it as "this spec
+    cannot reach the degree").
 
     ⛔ Read ``_LEBEDEV_ORDERS``, a frozen 18-tuple topping at 47, until
     2026-08-14. `[M]` that made this return ``None`` for every target in
@@ -672,16 +470,16 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
     node seed. `[M]` 2026-08-13: :math:`S_{14}/S_{16}/S_{18}` build with
     smallest weight ``0.012990`` / ``0.016300`` / ``1.75e-4``;
     :math:`S_{20}`/:math:`S_{22}` refuse. Above the frontier the rule does not
-    exist, so this inverter returns ``None`` — the selector's own "cannot reach
-    target_degree with any supported parameters" channel — and the caller falls
-    through to Lebedev or the product rule.
+    exist, so this inverter returns ``None`` — the "cannot reach
+    target_degree with any supported parameters" channel of this field — and
+    the caller falls through to Lebedev or the product rule.
 
     ⚠ The bound is discovered by ATTEMPTING the construction, not by comparing
     against a constant. A literal here would be a second copy of a frontier
     that lives in the solve, and the two would drift the first time the node
-    set changes — the selector would then either refuse a rule that works or
-    hand back one that raises. Selection is not a hot path (`[M]` the selector
-    has no production consumers at all today), so the honest check is
+    set changes — an inverter would then either refuse a rule that works or
+    hand back one that raises. Inversion is not a hot path (`[M]` the retired
+    selector had no production consumers at all), so the honest check is
     affordable.
 
     ⭐ **That ruling was VINDICATED by a real event, and its own prose was the
@@ -748,7 +546,7 @@ def _product_invert(target_degree: int) -> dict[str, Any] | None:
     docstring). Match that minimum to ``target_degree`` by sizing
     each factor independently.
 
-    The selector picks the smallest pair satisfying the constraint:
+    The inverse picks the smallest pair satisfying the constraint:
 
     - :math:`n_\\mu = \\lceil (d + 1)/2 \\rceil`
     - :math:`n_\\phi = d + 1`
@@ -756,7 +554,7 @@ def _product_invert(target_degree: int) -> dict[str, Any] | None:
     For SN cylindrical-sweep compatibility the :math:`\\phi`-count
     must be at least :math:`4 n_\\mu` to avoid azimuthal-resolution
     pathology — but this is a *consumer* requirement, not a
-    polynomial-exactness one. :func:`select_quadrature` has no path to
+    polynomial-exactness one. the catalogue has no path to
     request a larger ``n_phi``; a consumer that needs one builds the rule
     directly with :meth:`Quadrature.product
     <orpheus.numerics.quadrature.directional.Quadrature.product>`. The base
@@ -782,15 +580,13 @@ def _registry(*specs: QuadratureSpec) -> tuple[QuadratureSpec, ...]:
     **Immutability.** `[M]` 2026-08-14 ``quadrature_registry`` was the only
     module-level *list*-shaped registry in ``orpheus/``; every sibling
     (``LOSS_REPRESENTATIONS``, ``SHIPPED_CLASS_A``, …) is a ``tuple``. A
-    mutable global that a selector reads is an invitation to append at
+    mutable global that a reader walks is an invitation to append at
     runtime and get a different answer per import order.
 
     **Unique names.** :attr:`QuadratureSpec.name` is not merely a label —
-    it is what :class:`SelectionLog` reports rejections under, and the
-    theory page teaches ``dict(log.rejected)["ProductQuadrature"]`` as the
-    way to read one. `dict` keeps the LAST value for a repeated key, so two
-    rules sharing a name would make one rejection **silently vanish** from
-    that view while the log itself still listed both. Nothing would warn.
+    it is the key a reader addresses a spec by, and a `dict` keyed on it keeps
+    the LAST value for a repeated key, so two rules sharing a name would make
+    one of them **silently vanish** from that view. Nothing would warn.
 
     ⟹ raise here, at import, rather than gate it in a test: the failure is
     a property of the registry's construction, and the earliest possible
@@ -801,8 +597,8 @@ def _registry(*specs: QuadratureSpec) -> tuple[QuadratureSpec, ...]:
     if duplicated:
         raise ValueError(
             f"quadrature registry has duplicate spec name(s) {duplicated}; "
-            f"names must be unique because SelectionLog reports rejections "
-            f"under them and dict(log.rejected) would silently drop all but "
+            f"names must be unique because a spec is addressed by "
+            f"its name and a dict keyed on it would silently drop all but "
             f"the last"
         )
     return specs
@@ -988,7 +784,7 @@ class AngularSymmetry:
         that orbit space's group).  Until #429 tracker 3.1 (2026-09-02) this
         property was the hat-box theorem's second home — ``LEGENDRE``
         tabulated here for any rotation axis — the same twin :attr:`support`
-        was until tracker 2.4 (`[M]` one production reader, the selector's V
+        was until tracker 2.4 (`[M]` one production reader, the retired selector's V
         stage).
 
         The one arm that is not a catalogue read is the geometry that spends
@@ -1077,7 +873,7 @@ class AngularSymmetry:
         r"""Stage 0's verdict WITH its reason — the one failing clause, or
         ``None`` when the rule is admitted.
 
-        :meth:`admits_domain` is this predicate's ``is None``; the selector
+        :meth:`admits_domain` is this predicate's ``is None``; a caller
         appends the returned reason.  Spelled once, so the report cannot
         drift from the decision (`[M]` 2026-09-03, over 4 geometries × 7
         rules — the five ``Quadrature`` factories, ``gauss_legendre_on_mu``
@@ -1120,7 +916,7 @@ class AngularSymmetry:
 
 # Static table — one entry per supported geometry. New geometries
 # (hexagonal lattice, 2-D / 3-D spherical, …) are added here, not in
-# the selector itself.
+# a consumer.
 #
 # `slab` / `sphere`: the 1-D reductions. The stabiliser O(2) of the
 #   local axis — the rotations about it and the mirrors through it — is
@@ -1189,374 +985,9 @@ GEOMETRY_ANGULAR_SYMMETRY: dict[str, AngularSymmetry] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Selection log
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class SelectionLog:
-    """Explainability record of a single :func:`select_quadrature` call.
-
-    Returned alongside the chosen quadrature so consumers can render the
-    decision in diagnostic output ("why did the selector pick rule X?").
-    The log is also the right place to inspect when a selection
-    **fails**: every spec that was tried is listed with the precise
-    stage-and-reason that disqualified it.
-
-    Attributes
-    ----------
-    geometry : str
-        The geometry tag from the original call.
-    angular_symmetry : AngularSymmetry
-        The geometry's angular-symmetry ledger — spent, unspent, owed —
-        resolved from :data:`GEOMETRY_ANGULAR_SYMMETRY`. Carries the
-        required ``support``, the fold licence ``unspent`` and the owed
-        closure, so a reader of
-        the log can reconstruct stages 0 and 1 without re-deriving
-        them.
-    target_degree : int
-        The polynomial-exactness target from the original call.
-    requested_flags : dict[str, bool]
-        The structural flags requested via ``**structural``. Only the
-        keys with value ``True`` are stored — these are the *required*
-        flags. (False values are interpreted as "don't care".)
-    chosen_spec : QuadratureSpec | None
-        The spec selected, or ``None`` if no spec passed every stage.
-    chosen_parameters : dict[str, Any] | None
-        The parameter dict used to instantiate the chosen rule.
-    rejected : list[tuple[str, str]]
-        For each rejected spec, ``(spec.name, reason)``. The reason
-        string identifies the failing stage (domain / symmetry / V /
-        structural) and the missing predicate.
-    """
-
-    geometry: str
-    angular_symmetry: AngularSymmetry
-    target_degree: int
-    requested_flags: dict[str, bool]
-    chosen_spec: QuadratureSpec | None
-    chosen_parameters: dict[str, Any] | None
-    rejected: list[tuple[str, str]] = field(default_factory=list)
-
-    def summary(self) -> str:
-        """One-line summary for log output / Sphinx tables."""
-        if self.chosen_spec is None:
-            return (
-                f"select_quadrature(geometry={self.geometry!r}, "
-                f"target_degree={self.target_degree}, "
-                f"flags={self.requested_flags}) -> NO MATCH "
-                f"(rejected {len(self.rejected)} candidates)"
-            )
-        return (
-            f"select_quadrature(geometry={self.geometry!r}, "
-            f"target_degree={self.target_degree}) -> "
-            f"{self.chosen_spec.name}"
-            f"({self.chosen_parameters}) "
-            f"[{len(self.rejected)} rejected]"
-        )
-
-
-# ---------------------------------------------------------------------------
-# Selector
-# ---------------------------------------------------------------------------
-
-
-class QuadratureSelectionError(ValueError):
-    """Raised when no registered spec satisfies the constraints.
-
-    The exception's :attr:`log` attribute is a fully-populated
-    :class:`SelectionLog` so callers can introspect *why* selection
-    failed without re-running the search.
-    """
-
-    def __init__(self, message: str, log: SelectionLog) -> None:
-        super().__init__(message)
-        self.log = log
-
-
-def select_quadrature(
-    geometry: str,
-    target_degree: int,
-    *,
-    registry: Sequence[QuadratureSpec] | None = None,
-    **structural: bool,
-) -> tuple[Quadrature, SelectionLog]:
-    r"""Pick the cheapest registered quadrature satisfying every constraint.
-
-    Implements :eq:`quadrature-selection-criterion` over the global
-    :data:`quadrature_registry` (or a caller-supplied ``registry`` for
-    testing). The **five**-stage filter — domain, symmetry, V, structural,
-    minimum-points — runs in priority order and produces an explainability
-    log alongside the chosen quadrature.
-
-    ⛔ This read *"The four-stage filter — G, V, structural,
-    minimum-points"* until 2026-08-14. Both halves were wrong, and in the
-    same way: **stage 0 (domain) is missing**. It was added 2026-08-02 as
-    the other half of the geometry's angular-symmetry decomposition —
-    the stabiliser spent by the dimensional reduction, the closure still
-    owed to the quadrature — and without it the symmetry stage alone admits
-    a Lebedev rule for a slab. See the module docstring's stages 0-4, and
-    :ref:`quadrature-selection-algorithm` for the measured witness.
-
-    Parameters
-    ----------
-    geometry : str
-        Geometry tag — one of the keys of
-        :data:`GEOMETRY_ANGULAR_SYMMETRY`
-        (``"slab"``, ``"sphere"``, ``"cylinder"``, ``"cartesian2d"``).
-        Case-sensitive. Unknown tags raise :class:`KeyError` immediately
-        (this is a programming error, not a selection failure).
-    target_degree : int
-        Minimum polynomial-exactness degree :math:`d` required.
-        :math:`d = 0` accepts any rule that integrates constants
-        exactly.
-    registry : Sequence[QuadratureSpec], optional
-        Override the global registry — primarily for unit tests.
-        Defaults to :data:`quadrature_registry`.
-    **structural : bool
-        Required structural flags. Only flags passed with value
-        ``True`` are required; ``False`` and missing keys are
-        interpreted as "don't care." Recognised keys are the four flag
-        names of :class:`QuadratureSpec`:
-        ``positive_weights``, ``axis_aligned``, ``level_structured``,
-        ``half_range_clean``.
-
-    Returns
-    -------
-    Quadrature
-        The chosen quadrature, built by its spec's classmethod factory:
-        its ``.measure`` is the discrete measure, and its
-        ``level_structure`` rides with it for the rules that have one.
-    SelectionLog
-        Decision record: chosen spec + parameters + rejection list.
-
-    Raises
-    ------
-    KeyError
-        If ``geometry`` is not in :data:`GEOMETRY_ANGULAR_SYMMETRY`.
-    QuadratureSelectionError
-        If no registered spec satisfies every stage. The exception's
-        ``log`` attribute carries the full :class:`SelectionLog` for
-        introspection.
-    """
-    if geometry not in GEOMETRY_ANGULAR_SYMMETRY:
-        raise KeyError(
-            f"unknown geometry {geometry!r}; expected one of "
-            f"{sorted(GEOMETRY_ANGULAR_SYMMETRY.keys())}"
-        )
-    if registry is None:
-        registry = quadrature_registry
-
-    angular_symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
-
-    # Normalise the structural request: only True values are
-    # constraints. (Passing flag=False is "don't care" — we never
-    # filter rules out for *not* having a flag.)
-    requested_flags = {k: True for k, v in structural.items() if v}
-
-    # Reject unknown flag keys early — better to fail loudly than to
-    # silently ignore a typo.
-    valid_flags = {
-        "positive_weights",
-        "axis_aligned",
-        "level_structured",
-        "half_range_clean",
-    }
-    unknown = set(structural.keys()) - valid_flags
-    if unknown:
-        raise KeyError(
-            f"unknown structural flag(s) {sorted(unknown)}; "
-            f"valid flags are {sorted(valid_flags)}"
-        )
-
-    rejected: list[tuple[str, str]] = []
-    # The quadrature rides along: stages 0/1 had to build it, so rebuilding
-    # the winner afterwards would be a second, divergence-capable
-    # construction of the same object.
-    candidates: list[
-        tuple[QuadratureSpec, dict[str, Any], int, Quadrature]
-    ] = []
-
-    for spec in registry:
-        # ---- Stage 2: V compatibility (FIRST — it fixes the
-        #      parameters, and stages 0 and 1 need the nodes) ----------
-        params = spec.degree_of_exactness_for(target_degree)
-        if params is None:
-            rejected.append((
-                spec.name,
-                f"V mismatch: rule cannot reach target_degree="
-                f"{target_degree} with any supported parameters",
-            ))
-            continue
-
-        quadrature = spec.build(params)
-        measure = quadrature.measure
-
-        # ---- Stage 0: angular domain ----------------------------------
-        domain_refusal = angular_symmetry.domain_refusal(measure)
-        if domain_refusal is not None:
-            rejected.append((
-                spec.name,
-                f"domain mismatch: geometry {geometry!r} discretises "
-                f"{angular_symmetry.support.name}, but {domain_refusal}",
-            ))
-            continue
-
-        # ---- Stage 1: the owed discrete symmetry ----------------------
-        #
-        # Computed from the instantiated nodes. Note this is NOT
-        # `measure.invariance_group.contains(owed)`: a declared
-        # tag is only required to be TRUE of the nodes, never maximal, so
-        # the lattice route can reject a rule that satisfies the owed
-        # symmetry perfectly well. Asking the nodes directly cannot go
-        # wrong that way.
-        #
-        # ⛔ This cited "the 1-D rule declares SO(2), the group its domain
-        # was quotiented BY" as the worked example until 2026-08-14. `[M]`
-        # gauss_legendre_on_mu(8).invariance_group is Mirror('x') — the
-        # 2026-08-02 slab/sphere correction reached the rule's declared tag
-        # too — and `[M]` walking ``measure.symmetry_groups()`` over all four
-        # registry rules, 0 of 4 are true-but-not-maximal today. The
-        # argument stands on the CONTRACT (a declaration may be modest);
-        # the example it used to lean on no longer exists.
-        if not angular_symmetry.admits_symmetry(measure):
-            rejected.append((
-                spec.name,
-                f"symmetry mismatch: geometry {geometry!r} owes "
-                f"{angular_symmetry.owed.name}, which the rule's "
-                f"nodes at {params} are not invariant under",
-            ))
-            continue
-
-        # ---- Stage 2 (second half): the V conjunct, checked WHOLE -----
-        #
-        # Stage 2 above only INVERTED — it asked the spec for parameters
-        # and trusted the answer. A degree is not a claim on its own: it
-        # is an index into the orthogonal system of a REFERENCE MEASURE,
-        # and the same integer means different things against different
-        # measures (see orpheus.numerics.exactness). So the claim the
-        # built rule actually carries is verified here, against the claim
-        # the query asked for.
-        #
-        # It runs AFTER stages 0 and 1, not before, because the reference
-        # encodes the domain: a rule on the wrong space fails both, and
-        # the domain stage gives the better message. What can only be
-        # caught here is a rule on the RIGHT space carrying the WRONG
-        # measure — Gauss-Chebyshev for a slab, which matches on support,
-        # on orthogonal system and on degree.
-        claim = measure.exactness
-        wanted = angular_symmetry.reference
-        if claim is None:
-            rejected.append((
-                spec.name,
-                f"V mismatch: the rule carries no exactness claim, so "
-                f"nothing certifies it integrates anything exactly against "
-                f"{wanted.name}",
-            ))
-            continue
-        if claim.reference != wanted:
-            rejected.append((
-                spec.name,
-                f"V mismatch: the rule is exact against "
-                f"{claim.reference.name}, but geometry {geometry!r} "
-                f"integrates against {wanted.name}. A degree is an index "
-                f"into its reference's orthogonal system, so "
-                f"{claim.degree} against {claim.reference.name} is not "
-                f"{claim.degree} against {wanted.name}",
-            ))
-            continue
-        if claim.degree < target_degree:
-            rejected.append((
-                spec.name,
-                f"V mismatch: the rule built at {params} is exact only to "
-                f"degree {claim.degree} against {wanted.name}, short of "
-                f"target_degree={target_degree} — the spec's inversion "
-                f"promised a parameter set that its own rule does not "
-                f"deliver",
-            ))
-            continue
-
-        # ---- Stage 3: structural compatibility -----------------------
-        spec_flags = spec.structural_flags(quadrature)
-        missing = [
-            k for k in requested_flags
-            if not spec_flags.get(k, False)
-        ]
-        if missing:
-            rejected.append((
-                spec.name,
-                f"structural mismatch: rule does not satisfy "
-                f"requested flag(s) {missing}",
-            ))
-            continue
-
-        # ---- Stage 4: cost (minimum points) tracked here -------------
-        # The cost is the measure's OWN node count. Stages 0 and 1 have
-        # already built it, so a second, formula-shaped source for the same
-        # number would be a twin that can only ever drift.
-        candidates.append((spec, params, measure.n_points, quadrature))
-
-    def _selection_log(
-        chosen_spec: QuadratureSpec | None,
-        chosen_parameters: dict[str, Any] | None,
-    ) -> SelectionLog:
-        """Build the SelectionLog with the shared selection context.
-
-        One typed construction site for the two outcomes (no-match raise vs
-        success): the four context fields are passed with their precise
-        types instead of splatting a union-valued ``dict`` — which pyright
-        cannot match against the dataclass's distinct field types.
-        """
-        return SelectionLog(
-            chosen_spec=chosen_spec,
-            chosen_parameters=chosen_parameters,
-            rejected=rejected,
-            geometry=geometry,
-            angular_symmetry=angular_symmetry,
-            target_degree=target_degree,
-            requested_flags=requested_flags,
-        )
-
-    if not candidates:
-        log = _selection_log(chosen_spec=None, chosen_parameters=None)
-        raise QuadratureSelectionError(
-            f"no registered quadrature satisfies geometry={geometry!r}, "
-            f"target_degree={target_degree}, flags={requested_flags}. "
-            f"Rejected {len(rejected)} candidates; "
-            f"see exc.log.rejected for per-rule reasons.",
-            log,
-        )
-
-    # Stage 4 tie-break: smallest node count wins. Equal costs are broken
-    # by registry order, because `list.sort` is stable.
-    #
-    # ⛔ This comment claimed registry order "puts the most specialised rule
-    # first" until 2026-08-14. Nothing establishes that: the order is
-    # GaussLegendre1D, LebedevSphere, LevelSymmetricSN, ProductQuadrature,
-    # and no docstring, test, or commit states a specialisation ranking it
-    # is meant to encode. `[M]` no test exercises the tie-break at all — no
-    # shipped pair of rules produces an equal node count on any geometry —
-    # so the policy is both unstated and unpinned. Stability is a real
-    # guarantee and is worth keeping; the rationale offered for it was not
-    # a claim about this code. If registry order is to MEAN something, it
-    # has to be said and gated (cf. LOSS_REPRESENTATIONS, whose own comment
-    # states "the registry ORDER is the default-selection policy").
-    candidates.sort(key=lambda c: c[2])
-    chosen_spec, chosen_params, _, quadrature = candidates[0]
-
-    log = _selection_log(
-        chosen_spec=chosen_spec, chosen_parameters=chosen_params,
-    )
-    return quadrature, log
-
-
 __all__ = [
     "AngularSymmetry",
     "GEOMETRY_ANGULAR_SYMMETRY",
-    "QuadratureSelectionError",
     "QuadratureSpec",
-    "SelectionLog",
     "quadrature_registry",
-    "select_quadrature",
 ]

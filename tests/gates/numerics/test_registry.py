@@ -1,12 +1,13 @@
 """Foundation tests for ``orpheus.numerics.quadrature.registry``.
 
-Verifies the five-stage selection chain (domain → symmetry → V →
-structural → minimum points) end-to-end on the four canonical geometry
-tags shipped today (``slab``, ``sphere``, ``cylinder``,
-``cartesian2d``), plus the explainability log and the negative paths
-(no-rule-fits, unknown flags, unknown geometry).
+Verifies the catalogue of rules (the inversions of the degree formulas, the
+frozen registry) and the geometry-to-symmetry table on the four canonical
+geometry tags shipped today (``slab``, ``sphere``, ``cylinder``,
+``cartesian2d``). The selector that once walked the catalogue retired on
+2026-11-20 (wave W0, unit ``dead``); its law, the admission of a rule by a
+geometry's symmetry, lives in the legs below.
 
-Stages 0 and 1 are the two halves of :class:`AngularSymmetry`: the
+The domain and symmetry legs are the two halves of :class:`AngularSymmetry`: the
 continuous isotropy the dimensional reduction SPENDS (which fixes the
 angular domain) and the discrete residual still OWED (which the rule
 must realize as an ordinate permutation). Before 2026-08-02 the table
@@ -38,11 +39,8 @@ from orpheus.numerics.quadrature import (
     Quadrature,
     GEOMETRY_ANGULAR_SYMMETRY,
     AngularSymmetry,
-    QuadratureSelectionError,
     QuadratureSpec,
-    SelectionLog,
     quadrature_registry,
-    select_quadrature,
 )
 from orpheus.numerics.quadrature.rules_sphere import level_symmetric_sn
 from orpheus.numerics.quadrature.registry import (
@@ -65,7 +63,6 @@ from orpheus.geometry.manifold import (
     SPHERE,
     Ball,
     Quotient,
-    barycentre,
     quotient_onto,
 )
 from orpheus.numerics.measure import DiscreteMeasure
@@ -101,11 +98,11 @@ def test_registry_specs_are_well_formed() -> None:
 
     A spec deliberately carries NO invariance group: a rule's symmetry
     is parameter-dependent, so a parameter-free field cannot state it
-    truthfully. The selector computes it from the built measure.
+    truthfully. The admission legs compute it from the built measure.
 
     ⭐ It carries no ``expected_node_count`` either, for the same reason
-    one level down. The cost is a property of the rule the selector has
-    *already built* (stages 0 and 1 force the instantiation), so a
+    one level down. The cost is a property of the rule the selector (retired on
+    2026-11-20) had *already built* (its stages 0 and 1 forced the instantiation), so a
     formula-shaped second source could only ever drift from it. `[M]`
     2026-08-14 the two agreed on all 25 shipped configurations — which is
     what makes a twin dangerous rather than safe — and the first family
@@ -114,7 +111,7 @@ def test_registry_specs_are_well_formed() -> None:
 
     Both absence assertions below are the load-bearing half of this
     gate: they are what stops either field being re-added by a
-    contributor who reads the selector and reaches for a cheap tag.
+    contributor who reaches for a cheap tag.
     """
     for spec in quadrature_registry:
         assert isinstance(spec, QuadratureSpec)
@@ -123,14 +120,6 @@ def test_registry_specs_are_well_formed() -> None:
         assert not hasattr(spec, "invariance_group")
         assert not hasattr(spec, "expected_node_count")
         assert not hasattr(spec, "parameters")  # the classmethod's signature is the one list
-        # Structural-flags accessor must surface the four flags.
-        flags = spec.structural_flags(spec.build(spec.degree_of_exactness_for(3)))
-        assert set(flags) == {
-            "positive_weights",
-            "axis_aligned",
-            "level_structured",
-            "half_range_clean",
-        }
 
 
 @pytest.mark.foundation
@@ -343,135 +332,6 @@ def test_gauss_chebyshev_clears_every_stage_except_the_reference() -> None:
 
 
 @pytest.mark.foundation
-def test_a_rule_exact_against_the_wrong_measure_is_refused() -> None:
-    """The selector must reject Gauss-Chebyshev for an unweighted query.
-
-    Two registries, because the two failure modes are different: alone it
-    must be REFUSED (not merely out-competed), and beside Gauss-Legendre it
-    must still be refused rather than winning on a tie-break.
-    """
-    gc_only = [_gauss_chebyshev_spec()]
-    with pytest.raises(QuadratureSelectionError) as excinfo:
-        select_quadrature("slab", target_degree=5, registry=gc_only)
-
-    reason = next(
-        r for name, r in excinfo.value.log.rejected
-        if name == "GaussChebyshev1D"
-    )
-    assert "V mismatch" in reason
-    assert "chebyshev_t" in reason and "legendre" in reason
-
-    # Chebyshev FIRST, so registry order would hand it the win if the
-    # conjunct were absent (ties break on order, and both cost 4 nodes).
-    both = [_gauss_chebyshev_spec()] + [
-        s for s in quadrature_registry if s.name == "GaussLegendre1D"
-    ]
-    quadrature, log = select_quadrature("slab", target_degree=5, registry=both)
-    measure = quadrature.measure
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "GaussLegendre1D"
-    assert "GaussChebyshev1D" in {name for name, _ in log.rejected}
-    assert measure.exactness is not None
-    assert measure.exactness.reference == GEOMETRY_ANGULAR_SYMMETRY[
-        "slab"
-    ].reference
-
-
-@pytest.mark.foundation
-def test_a_rule_with_no_exactness_claim_at_all_is_refused() -> None:
-    r"""No claim is not a weak claim — it is no certification whatsoever.
-
-    A measure may carry ``exactness=None``. Nothing then establishes that
-    it integrates *anything* exactly, so it cannot satisfy a V constraint
-    at any target degree, including 0.
-
-    ⚠ **This arm is reachable, but not by any rule the registry ships**, so
-    it needs a constructed witness or it would be an unfalsifiable guard —
-    `[M]` 2026-08-14, disabling it in-process left all 54 gates green
-    before this test existed, which is precisely the "cannot fail, wearing
-    an authoritative name" shape.
-
-    The real future occupant is ``Quadrature.folded_product``: `[M]` it is
-    the one shipped angular family whose measure carries
-    ``exactness=None`` (and ``invariance_group=None``, on support
-    ``'S^2/sigma_y'``). It cannot be registered today — its quotient
-    support matches no geometry, so stage 0 would refuse it first — but
-    when that is resolved this arm is what stops it being selected on a
-    degree it never claimed.
-    """
-    claimless = QuadratureSpec(
-        name="ClaimlessGL",
-        factory=lambda n_ordinates: Quadrature(measure=replace(_on_slab(LEGENDRE.gauss(n_ordinates)), exactness=None), level_structure=None),
-        degree_of_exactness_for=_gl1d_invert,
-        axis_aligned=True,
-        half_range_clean=True,
-    )
-    # It clears every other stage: same nodes, same support, same symmetry.
-    probe = claimless.build({"n_ordinates": 4}).measure
-    slab = GEOMETRY_ANGULAR_SYMMETRY["slab"]
-    assert slab.admits_domain(probe) and slab.admits_symmetry(probe)
-    assert probe.exactness is None
-
-    for target in (0, 5):
-        with pytest.raises(QuadratureSelectionError) as excinfo:
-            select_quadrature(
-                "slab", target_degree=target, registry=[claimless]
-            )
-        reason = next(
-            r for name, r in excinfo.value.log.rejected
-            if name == "ClaimlessGL"
-        )
-        assert "V mismatch" in reason
-        assert "no exactness claim" in reason
-
-
-@pytest.mark.foundation
-def test_an_inversion_that_over_promises_is_caught_not_trusted() -> None:
-    """A spec cannot talk its way past the V stage.
-
-    ``degree_of_exactness_for`` is a per-spec callable the selector used to
-    take on faith: it returned parameters, and the rule built from them was
-    assumed to meet the target. It is a *search hint*, and the authority is
-    the claim the built rule carries.
-
-    Here a spec's inversion always answers ``n = 1`` — Gauss-Legendre at one
-    node is exact to degree 1 — while claiming to serve any target. The
-    selector must refuse it rather than return a rule three degrees short.
-
-    ⭐ This is the arm that would have caught ``_ls_sn_invert`` had its
-    ``N - 1`` inversion erred the other way. `[M]` it over-shoots (returns
-    an order 2 higher than needed at 6 of 9 buildable orders), which is safe
-    and merely expensive; the same class of staleness pointing the other
-    direction returns a rule that silently misses the requested accuracy,
-    and nothing downstream re-checks.
-    """
-    lying = QuadratureSpec(
-        name="OverPromisingGL",
-        factory=lambda n_ordinates: Quadrature(measure=_on_slab(LEGENDRE.gauss(n_ordinates)), level_structure=None),
-        degree_of_exactness_for=lambda _target: {"n_ordinates": 1},
-        axis_aligned=True,
-        half_range_clean=True,
-    )
-    with pytest.raises(QuadratureSelectionError) as excinfo:
-        select_quadrature("slab", target_degree=5, registry=[lying])
-
-    reason = next(
-        r for name, r in excinfo.value.log.rejected
-        if name == "OverPromisingGL"
-    )
-    assert "V mismatch" in reason
-    assert "degree 1" in reason and "target_degree=5" in reason
-
-    # And the honest twin passes, so the gate is not just refusing everything.
-    honest = replace(lying, name="HonestGL", degree_of_exactness_for=_gl1d_invert)
-    quadrature, log = select_quadrature("slab", target_degree=5, registry=[honest])
-    measure = quadrature.measure
-    assert log.chosen_spec is not None and log.chosen_spec.name == "HonestGL"
-    assert measure.exactness is not None
-    assert measure.exactness.degree >= 5
-
-
-@pytest.mark.foundation
 def test_every_registered_rule_speaks_one_of_the_two_reference_measures(
 ) -> None:
     r"""Close the reference vocabulary, and gate the closure.
@@ -517,12 +377,10 @@ def test_every_registered_rule_speaks_one_of_the_two_reference_measures(
 def test_the_registry_is_frozen_and_cannot_carry_a_duplicate_name() -> None:
     r"""Two rules cannot share a name, and the tuple cannot be appended to.
 
-    ``name`` is not merely a label: :class:`SelectionLog` reports every
-    rejection under it, and the theory page teaches
-    ``dict(log.rejected)["ProductQuadrature"]`` as the way to read one.
+    ``name`` is not merely a label: it is the key a spec is addressed by.
     ``dict`` keeps the LAST value for a repeated key, so two rules sharing
-    a name make one rejection **silently vanish** from that view while the
-    log still lists both — a disappearing diagnostic, with nothing warning.
+    a name make one of them **silently vanish** from a view keyed on it,
+    with nothing warning.
 
     `[M]` 2026-08-14 ``quadrature_registry`` was also the only module-level
     *list*-shaped registry in ``orpheus/``; every sibling
@@ -741,465 +599,6 @@ def test_product_invert() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Selector — happy paths
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.foundation
-def test_select_slab_returns_gauss_legendre() -> None:
-    """A slab discretises S^2/SO(2) = [-1,1], so GL1D is the only rule
-    on the right domain — the three S^2 rules fail stage 0."""
-    quadrature, log = select_quadrature("slab", target_degree=15)
-    measure = quadrature.measure
-
-    assert isinstance(measure, DiscreteMeasure)
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "GaussLegendre1D"
-    assert log.chosen_parameters == {"n_ordinates": 8}
-    assert measure.n_points == 8
-    assert measure.degree_of_exactness == 15
-    assert measure.invariance_group == SubgroupOfO3.Mirror("x")
-    # Every S^2 rule is rejected at the DOMAIN stage.
-    rejected_names = {name for name, _ in log.rejected}
-    assert rejected_names == {
-        "LebedevSphere",
-        "LevelSymmetricSN",
-        "ProductQuadrature",
-    }
-
-
-@pytest.mark.foundation
-def test_select_sphere_returns_gauss_legendre() -> None:
-    """1-D radial spherical SN reduces to GL on :math:`\\mu_r` — the
-    same spent/owed split as the slab, so the same rule wins.
-
-    The spent half is not free here: its fiber action reappears in the
-    curvilinear sweep as the angular-redistribution alpha term."""
-    quadrature, log = select_quadrature("sphere", target_degree=15)
-    measure = quadrature.measure
-
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "GaussLegendre1D"
-    assert log.chosen_parameters == {"n_ordinates": 8}
-    assert measure.degree_of_exactness == 15
-
-
-@pytest.mark.foundation
-def test_select_cylinder_with_level_structured_returns_product() -> None:
-    """Cylindrical SN sweep needs polar-level structure, and the
-    product rule supplies it — *when its azimuthal count is even*.
-
-    ``target_degree=5`` inverts to ``n_phi = 6``. D_2h needs mirror
-    planes at 0 and pi/2, and D_{n h} carries them at k*pi/n, so
-    ``n_phi`` even is exactly the admissibility condition.
-    """
-    quadrature, log = select_quadrature(
-        "cylinder", target_degree=5, level_structured=True
-    )
-    measure = quadrature.measure
-
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "ProductQuadrature"
-    assert log.chosen_parameters == {"n_mu": 3, "n_phi": 6}
-    # GL1D is rejected at the DOMAIN stage now, not the structural one:
-    # a mu-marginal cannot carry a cylinder's two angular DOF at all,
-    # which is a stronger and earlier objection than "no levels".
-    gl_reason = next(
-        reason for name, reason in log.rejected
-        if name == "GaussLegendre1D"
-    )
-    assert "domain mismatch" in gl_reason
-
-
-@pytest.mark.foundation
-def test_select_cylinder_rejects_odd_azimuthal_product_rule() -> None:
-    """ERR-042, structurally: an odd-``n_phi`` product rule is NOT
-    invariant under the cylinder's owed D_2h, and the selector must
-    refuse it rather than hand back an asymmetric rule.
-
-    ``target_degree=4`` inverts to ``n_phi = 5``. The sigma_x mirror
-    sends phi -> 180 - phi, mapping the 0-degree node to 180 degrees,
-    which is not a node of a 5-fold grid. Before 2026-08-02 this rule
-    was ADMITTED here, on the strength of a false ``SO(2)`` tag.
-
-    The selector degrades gracefully: it falls back to a rule that
-    genuinely carries the symmetry, rather than failing.
-    """
-    _, log = select_quadrature(
-        "cylinder", target_degree=4, level_structured=True
-    )
-
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "LevelSymmetricSN"
-
-    product_reason = next(
-        reason for name, reason in log.rejected
-        if name == "ProductQuadrature"
-    )
-    assert "symmetry mismatch" in product_reason
-    assert "D_2h" in product_reason
-
-    # And the discriminator is parity, not degree: one step up in
-    # target degree makes n_phi even and the same rule admissible.
-    _, log_even = select_quadrature(
-        "cylinder", target_degree=5, level_structured=True
-    )
-    assert log_even.chosen_spec is not None
-    assert log_even.chosen_spec.name == "ProductQuadrature"
-
-
-@pytest.mark.foundation
-@pytest.mark.parametrize(
-    "geometry", ["slab", "sphere", "cylinder", "cartesian2d"],
-)
-def test_the_winner_really_is_the_argmin_over_the_survivors(
-    geometry: str,
-) -> None:
-    r"""Stage 4 states :math:`\arg\min\{n(Q)\}` — pin the ``argmin``.
-
-    The four ``test_select_*`` gates pin stage 4 by EXAMPLE (Lebedev's 14
-    nodes beat 48 and 18 on ``cartesian2d``). This pins the *criterion*:
-    across every geometry, no rule that survived stages 0-3 has fewer
-    nodes than the one that was returned.
-
-    The survivor set is read from the log's own rejection list rather than
-    re-derived here, so this does not re-implement the filter — it checks
-    only the minimisation, which is the one part of the criterion no
-    per-example gate states in general.
-
-    Independent of the cost SOURCE by construction: it would redden for a
-    reversed sort, an off-by-one in the tie-break, or a candidate tuple
-    whose cost slot drifted away from the measure it accompanies.
-
-    ⚠ **2 of these 4 rows cannot catch an argmin bug, and say so here
-    rather than being counted as coverage** (``vv-principles`` #20). `[M]`
-    2026-08-14 at ``target_degree=5``: ``slab`` and ``sphere`` leave a
-    **singleton** survivor set (only ``GaussLegendre1D``, 4 nodes — the
-    three :math:`S^2` rules are rejected on domain), so no ordering over it
-    can be wrong and the loop's assertion is trivially true. Only
-    ``cylinder`` and ``cartesian2d`` have a real choice
-    (``LebedevSphere``\ =14, ``ProductQuadrature``\ =18,
-    ``LevelSymmetricSN``\ =48; winner 14).
-    ⟹ mutation-verified at **2 rows**, not 4: `[M]` replacing the stage-4
-    sort with ``reverse=True`` reddens 3 gates (both real rows here, plus
-    ``test_select_cartesian2d_prefers_lebedev_over_ls_sn``) and leaves the
-    two singleton rows green. The singleton rows are kept anyway — they
-    still assert that every geometry admits *something* and that each
-    survivor's inversion is non-``None`` — but they are not evidence about
-    the minimisation.
-    """
-    quadrature, log = select_quadrature(geometry, target_degree=5)
-    measure = quadrature.measure
-    rejected_names = {name for name, _ in log.rejected}
-    survivors = [s for s in quadrature_registry if s.name not in rejected_names]
-    assert survivors, f"{geometry}: nothing survived, so there is no argmin"
-
-    for spec in survivors:
-        params = spec.degree_of_exactness_for(5)
-        assert params is not None, (
-            f"{spec.name} survived stage 2 but its inversion returns None"
-        )
-        assert measure.n_points <= spec.build(params).measure.n_points, (
-            f"{geometry}: {log.chosen_spec.name if log.chosen_spec else '?'} "
-            f"was returned with {measure.n_points} nodes, but {spec.name} "
-            f"survived every stage with fewer"
-        )
-
-
-@pytest.mark.foundation
-def test_select_cartesian2d_prefers_lebedev_over_ls_sn() -> None:
-    """2-D Cartesian owes :math:`D_{2h}`. Lebedev, LS_N and the
-    even-``n_phi`` product rule all satisfy it; Lebedev wins on
-    minimum-points (14 nodes for order 5 vs 48 for LS_6, 18 for the
-    product rule).
-
-    The :class:`SelectionLog` must record this preference: the losers
-    on cost are NOT in the rejected list.
-
-    Only GL1D is rejected, and on DOMAIN — a mu-marginal cannot serve
-    a geometry that keeps both angular degrees of freedom. Before
-    2026-08-02 the product rule was rejected here too, because the
-    table over-claimed :math:`O_h`: that demands the x<->z exchange,
-    never a symmetry of a z-uniform problem.
-    """
-    quadrature, log = select_quadrature("cartesian2d", target_degree=5)
-    measure = quadrature.measure
-
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "LebedevSphere"
-    assert log.chosen_parameters == {"order": 5}
-    assert measure.n_points == 14
-
-    rejected_names = {name for name, _ in log.rejected}
-    assert rejected_names == {"GaussLegendre1D"}
-    gl_reason = next(
-        reason for name, reason in log.rejected
-        if name == "GaussLegendre1D"
-    )
-    assert "domain mismatch" in gl_reason
-
-
-# ---------------------------------------------------------------------------
-# Selector — explainability log
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.foundation
-def test_log_records_geometry_metadata() -> None:
-    """The :class:`SelectionLog` must carry the geometry, group, target
-    degree, and requested flags from the call so consumers can render
-    the decision."""
-    quadrature, log = select_quadrature(
-        "cylinder", target_degree=4, level_structured=True
-    )
-    measure = quadrature.measure
-    assert log.geometry == "cylinder"
-    assert log.angular_symmetry == AngularSymmetry(
-        spent=SubgroupOfO3.Trivial,
-        unspent=SubgroupOfO3.Dnh(1),
-        owed=SubgroupOfO3.Dnh(2),
-    )
-    # All three entries are reconstructible from the log, so a reader can
-    # replay stages 0 and 1 without re-deriving the ledger.
-    assert log.angular_symmetry.support == SPHERE
-    assert log.target_degree == 4
-    assert log.requested_flags == {"level_structured": True}
-
-
-@pytest.mark.foundation
-def test_log_summary_string_is_informative() -> None:
-    """``log.summary()`` is the one-line debug string used by SN
-    diagnostic output — must include geometry, target degree, chosen
-    rule, and parameters."""
-    _, log = select_quadrature("slab", target_degree=15)
-    summary = log.summary()
-    assert "slab" in summary
-    assert "15" in summary
-    assert "GaussLegendre1D" in summary
-    assert "n" in summary  # parameter key
-
-
-@pytest.mark.foundation
-def test_log_rejected_list_carries_reasons() -> None:
-    """Each rejection must come with a reason string identifying the
-    failing stage (domain / symmetry / V / structural)."""
-    _, log = select_quadrature("slab", target_degree=15)
-    assert log.rejected, "expected the S^2 rules to be rejected for a slab"
-    stages = set()
-    for name, reason in log.rejected:
-        assert isinstance(name, str)
-        assert isinstance(reason, str)
-        # The CLAIM: every rejection names the stage that rejected it. That is
-        # what this row is for, and it holds for all of them.
-        assert any(
-            marker in reason
-            for marker in ("domain mismatch", "V mismatch", "symmetry",
-                           "structural")
-        ), f"{name} was rejected without naming a stage: {reason!r}"
-        stages.add("V" if "V mismatch" in reason else "domain")
-
-    # ⭐ RE-POSED at #327. This used to assert ``"domain mismatch" in reason``
-    # for EVERY rejection — true only incidentally, because every rule could
-    # reach every target degree, so the V stage never rejected anything and
-    # domain was always the first refusal. The level-symmetric family is now
-    # BOUNDED (no positive solution above S12), so at ``target_degree=15`` it
-    # is rejected at V — which runs FIRST by design, since V fixes the
-    # parameters the domain check needs nodes for.
-    #
-    # The domain claim is kept where it still applies: any rule that CAN reach
-    # the target still has to be rejected for living on S^2.
-    for name, reason in log.rejected:
-        if "V mismatch" not in reason:
-            assert "domain mismatch" in reason and "S^2/O2_x" in reason, (
-                f"{name} reached the domain stage but its reason does not name "
-                f"the S^2 vs S^2/O2_x mismatch: {reason!r}"
-            )
-    assert "domain" in stages, (
-        "every rule was rejected at V, so this row no longer exercises the "
-        "domain stage at all — pick a target_degree the S^2 rules can reach"
-    )
-
-
-@pytest.mark.foundation
-def test_dont_care_flags_dont_filter() -> None:
-    """Passing a flag with value ``False`` must NOT filter rules — only
-    ``True`` constrains."""
-    # No flag request: any structural set is accepted.
-    measure_a_quadrature, _ = select_quadrature("slab", target_degree=15)
-    measure_a = measure_a_quadrature.measure
-    # axis_aligned=False (don't care): same answer.
-    measure_b_quadrature, _ = select_quadrature(
-        "slab", target_degree=15, axis_aligned=False
-    )
-    measure_b = measure_b_quadrature.measure
-    assert measure_a.n_points == measure_b.n_points
-
-
-# ---------------------------------------------------------------------------
-# Selector — negative paths
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.foundation
-def test_unknown_geometry_raises() -> None:
-    """Unknown geometry tags raise :class:`KeyError` immediately —
-    this is a programming error, not a selection failure."""
-    with pytest.raises(KeyError, match="hexagonal"):
-        select_quadrature("hexagonal", target_degree=5)
-
-
-@pytest.mark.foundation
-def test_unknown_structural_flag_raises() -> None:
-    """A typo in a structural flag must fail loudly, not be silently
-    ignored."""
-    with pytest.raises(KeyError, match="level_strucutred"):
-        select_quadrature(
-            "cylinder", target_degree=4, level_strucutred=True
-        )
-
-
-@pytest.mark.foundation
-def test_no_rule_fits_raises_with_log() -> None:
-    """Asking for a target degree no rule can supply must raise
-    :class:`QuadratureSelectionError` carrying a populated
-    :class:`SelectionLog`.
-
-    Forcing this state with the full registry is awkward because LS_N
-    inversion accepts arbitrarily large :math:`N`. Instead we override
-    the registry to contain only Lebedev and ask for a degree beyond
-    everything the installed SciPy serves, which forces a V-stage
-    rejection.
-
-    ⛔ This asked for ``target_degree=100`` against a Lebedev "which tops
-    out at order 47" until 2026-08-14. `[M]` SciPy 1.17.1 serves order
-    **101**, so the selection succeeded and this gate stopped proving a
-    refusal — it would have gone red on the fix, for the right reason.
-    The target is now **derived** from the discovered set, so the gate
-    keeps proving a refusal when SciPy's table grows instead of pinning
-    a number that expires.
-    """
-    beyond_scipy = max(_lebedev_orders()) + 2
-    only_lebedev = [
-        s for s in quadrature_registry if s.name == "LebedevSphere"
-    ]
-    with pytest.raises(QuadratureSelectionError) as excinfo:
-        select_quadrature(
-            "cartesian2d", target_degree=beyond_scipy, registry=only_lebedev
-        )
-
-    assert excinfo.value.log is not None
-    assert excinfo.value.log.chosen_spec is None
-    rejected_names = {name for name, _ in excinfo.value.log.rejected}
-    assert "LebedevSphere" in rejected_names
-    leb_reason = next(
-        reason for name, reason in excinfo.value.log.rejected
-        if name == "LebedevSphere"
-    )
-    assert "V mismatch" in leb_reason or "target_degree" in leb_reason
-
-
-@pytest.mark.foundation
-def test_slab_cannot_supply_polar_levels_and_says_so() -> None:
-    """Asking a slab for ``level_structured=True`` is a category error,
-    and the log must be able to say why.
-
-    A slab discretises the quotient S^2/SO(2) = [-1,1]. Its angular
-    variable IS the polar axis, so there are no per-mu polar *levels*
-    to expose — a level structure is a fibration of S^2 over mu, and
-    the slab has already taken that quotient.
-
-    Every rule is therefore rejected, and the two rejection reasons
-    are the two different objections: the S^2 rules fail on DOMAIN,
-    and the one domain-admissible rule (GL1D) fails on the structural
-    flag. Before 2026-08-02 this returned ProductQuadrature — an S^2
-    rule handed to a 1-D solver, admitted only because the geometry
-    table compared spent-group to spent-group.
-    """
-    with pytest.raises(QuadratureSelectionError) as excinfo:
-        select_quadrature(
-            "slab",
-            target_degree=4,
-            level_structured=True,
-            half_range_clean=True,
-        )
-
-    log = excinfo.value.log
-    assert log.chosen_spec is None
-    reasons = dict(log.rejected)
-    assert set(reasons) == {
-        "GaussLegendre1D",
-        "LebedevSphere",
-        "LevelSymmetricSN",
-        "ProductQuadrature",
-    }
-    assert "structural mismatch" in reasons["GaussLegendre1D"]
-    assert "level_structured" in reasons["GaussLegendre1D"]
-    for name in ("LebedevSphere", "LevelSymmetricSN", "ProductQuadrature"):
-        assert "domain mismatch" in reasons[name]
-
-    # GL1D rejected at structural (no level structure).
-    gl_reason = next(
-        reason for name, reason in log.rejected
-        if name == "GaussLegendre1D"
-    )
-    assert "structural" in gl_reason.lower()
-
-
-@pytest.mark.foundation
-def test_truly_incompatible_flags_raises() -> None:
-    """Cylinder + ``axis_aligned=True`` + ``level_structured=True``:
-    no rule on S^2 carries both flags, so the request has no candidate
-    and must raise with a populated log."""
-    with pytest.raises(QuadratureSelectionError) as excinfo:
-        select_quadrature(
-            "cylinder",
-            target_degree=4,
-            level_structured=True,
-            axis_aligned=True,
-        )
-    log = excinfo.value.log
-    assert log.chosen_spec is None
-    # Every spec must appear in the rejected list.
-    rejected_names = {name for name, _ in log.rejected}
-    assert rejected_names == {
-        "GaussLegendre1D",
-        "LebedevSphere",
-        "LevelSymmetricSN",
-        "ProductQuadrature",
-    }
-
-
-# ---------------------------------------------------------------------------
-# Selector — registry override
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.foundation
-def test_registry_override_failure_path() -> None:
-    """Registry override that excludes the only matching rule must
-    raise :class:`QuadratureSelectionError`."""
-    only_gl = [s for s in quadrature_registry if s.name == "GaussLegendre1D"]
-    with pytest.raises(QuadratureSelectionError):
-        select_quadrature("cartesian2d", target_degree=5, registry=only_gl)
-
-
-@pytest.mark.foundation
-def test_registry_override_success_path() -> None:
-    """Registry override containing only one matching rule must succeed
-    and return that rule."""
-    only_lebedev = [
-        s for s in quadrature_registry if s.name == "LebedevSphere"
-    ]
-    quadrature, log = select_quadrature(
-        "cartesian2d", target_degree=5, registry=only_lebedev
-    )
-    measure = quadrature.measure
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "LebedevSphere"
-    assert measure.invariance_group == SubgroupOfO3.OctahedralOh
-
-
-# ---------------------------------------------------------------------------
 # AngularSymmetry — the type's own laws
 # ---------------------------------------------------------------------------
 #
@@ -1297,8 +696,8 @@ def test_owed_symmetry_selects_by_azimuthal_parity() -> None:
 
 
 @pytest.mark.foundation
-def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
-    r"""Stage 1 must not route through ``measure.invariance_group``.
+def test_the_symmetry_leg_asks_the_nodes_not_the_declared_tag() -> None:
+    r"""The symmetry leg (``admits_symmetry``) must not route through ``measure.invariance_group``.
 
     **Re-posed 2026-08-03, because its original witness was DISSOLVED by a
     fix — and that is the more interesting story.** It used to read: a
@@ -1343,10 +742,6 @@ def test_selector_asks_the_nodes_not_the_declared_tag() -> None:
     # ...while stage 1, which asks the NODES, is unmoved.
     assert slab.admits_symmetry(understated)
 
-    # End-to-end: the slab does get Gauss-Legendre.
-    _, log = select_quadrature("slab", target_degree=15)
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "GaussLegendre1D"
 
 
 @pytest.mark.foundation
@@ -1466,38 +861,38 @@ def test_the_support_is_DERIVED_as_the_stabiliser_orbit_space(geometry: str) -> 
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("geometry", ["slab", "sphere"])
-def test_selection_still_lands_on_GaussLegendre1D_over_the_stabiliser_orbit_space(
+def test_the_stabiliser_orbit_space_admits_GaussLegendre1D_and_refuses_the_three_S2_rules(
     geometry: str,
 ) -> None:
-    r"""End-to-end: the renamed orbit space must not move the selector's
-    answer, and the three :math:`S^2` rules must still be rejected on DOMAIN
-    with a message naming the new entry.
+    r"""The domain leg: ``Quadrature.gauss_legendre(4)`` (the rule the retired
+    selector chose at ``target_degree=5``) lives on ``S^2/O2_x`` and is
+    admitted; the three :math:`S^2` rules are refused on DOMAIN with a
+    message naming the entry.
 
     `[M]` 2026-09-02 at ``target_degree=5``: ``GaussLegendre1D`` with
     ``n = 4``, measure on ``S^2/O2_x`` carrying ``invariance_group ==
-    sigma_x``, and all three sphere rules rejected as *"geometry '…'
+    sigma_x``, and all three sphere rules refused as *"geometry '…'
     discretises S^2/O2_x, but the rule's nodes live on S^2"*.
 
-    ⚠ The rejection REASON is asserted because it is the one place the
-    entry's NAME reaches a user-facing string; a stage-0 comparison that had
-    kept comparing charts would still choose GL1D and would print the old
-    name, so the choice alone is not a discriminating observation.
+    ⚠ The refusal REASON is asserted because it is the one place the
+    entry's NAME reaches a user-facing string; a domain comparison that had
+    kept comparing charts would still admit GL1D and would print the old
+    name, so the admission alone is not a discriminating observation.
     """
-    quadrature, log = select_quadrature(geometry, target_degree=5)
-    measure = quadrature.measure
-    assert log.chosen_spec is not None
-    assert log.chosen_spec.name == "GaussLegendre1D"
-    assert log.chosen_parameters == {"n_ordinates": 4}
+    symmetry = GEOMETRY_ANGULAR_SYMMETRY[geometry]
+    measure = Quadrature.gauss_legendre(4).measure
+    assert symmetry.admits_domain(measure)
     assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
     assert measure.invariance_group == SubgroupOfO3.Mirror("x")
 
-    rejected = dict(log.rejected)
-    assert set(rejected) == {
-        "LebedevSphere", "LevelSymmetricSN", "ProductQuadrature",
-    }
-    for name, reason in rejected.items():
+    for name, rule in (
+        ("LebedevSphere", Quadrature.lebedev(5)),
+        ("LevelSymmetricSN", Quadrature.level_symmetric(4)),
+        ("ProductQuadrature", Quadrature.product(n_mu=3, n_phi=5)),
+    ):
+        reason = symmetry.domain_refusal(rule.measure)
+        assert reason is not None, name
         assert "S^2/O2_x" in reason, f"{name}: {reason}"
-        assert "domain mismatch" in reason, f"{name}: {reason}"
 
 
 # =============================================================================
@@ -1514,8 +909,6 @@ def _g22b_trivially_quotiented_product() -> DiscreteMeasure:
         Quadrature.product(4, 8).measure,
         support=SPHERE.quotient(SubgroupOfO3.Trivial),
     )
-
-
 
 
 def _g22b_rot(axis: str, theta: float) -> RigidMotion:
@@ -1564,16 +957,16 @@ class TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry:
       slab's own rule — ``σ_x ⊉ O(2)_x`` — and needed the identity case
       short-circuited).
 
-    ⚠ **And the honest scope of the coverage leg at the selector tier.**
-    `[M]` at ``select_quadrature`` it changes the REASON and never the
-    selection: ``GaussLegendre1D`` IS registered and IS a fold (``S^2/O2_x``,
-    ``H = O(2)_x``), and the shipped log for ``select_quadrature("cylinder",
-    5)`` refuses it at stage 0 by the coverage clause (*"a fold by O2_x …
-    unspent D_1h, spent Trivial"*); neuter the leg in-process and the refusal
-    moves to stage 2's V conjunct while the choice, ``LebedevSphere(5)``,
-    stays — 0 of 48 (geometry × degree) choices move.  So the leg's gate
-    belongs HERE, at the ``admits_domain`` tier, and no end-to-end selector
-    row may be credited to it.  (Until 2026-09-03 this paragraph said
+    ⚠ **And the honest scope of the coverage leg at the selector tier (the
+    selector retired on 2026-11-20).** `[M]` at the selector it changed the
+    REASON and never the selection: ``GaussLegendre1D`` IS registered and IS
+    a fold (``S^2/O2_x``, ``H = O(2)_x``), and the shipped log for the
+    cylinder at degree 5 refused it at stage 0 by the coverage clause (*"a
+    fold by O2_x … unspent D_1h, spent Trivial"*); neutering the leg
+    in-process moved the refusal to stage 2's V conjunct while the choice,
+    ``LebedevSphere(5)``, stayed — 0 of 48 (geometry × degree) choices moved.
+    So the leg's gate belongs HERE, at the ``admits_domain`` tier, and no
+    end-to-end row may be credited to it.  (Until 2026-09-03 this paragraph said
     "nothing registered is a fold" and named stage 2 as the refuser — both
     false, the archivist measured.)
     """
@@ -1660,20 +1053,17 @@ class TestStageZeroIsTheDescentArrowPlusTheUnspentSymmetry:
         refusal (`[M]` 14 of 17 shipped stage-0 refusals fail the arrow only,
         3 the licence only, 0 both) and this row was named for the arrow.
         """
-        from orpheus.numerics.quadrature.registry import select_quadrature
-
-        _, log = select_quadrature("cylinder", 5)
-        reasons = [r for name, r in log.rejected if name == "GaussLegendre1D"]
-        assert reasons, "GaussLegendre1D was not rejected for the cylinder"
-        assert "domain mismatch" in reasons[0]
-        assert "S^2/O2_x" in reasons[0]
-        assert "fold by O2_x" in reasons[0] and "unspent D_1h" in reasons[0]
-        assert "arrow" not in reasons[0]
+        reason = GEOMETRY_ANGULAR_SYMMETRY["cylinder"].domain_refusal(
+            Quadrature.gauss_legendre(8).measure
+        )
+        assert reason is not None, "GaussLegendre1D was not refused for the cylinder"
+        assert "S^2/O2_x" in reason
+        assert "fold by O2_x" in reason and "unspent D_1h" in reason
+        assert "arrow" not in reason
         # ... and a rule with NO arrow is told exactly that, and nothing else
-        _, log = select_quadrature("slab", 5)
-        reasons = [r for name, r in log.rejected if name == "LebedevSphere"]
-        assert reasons and "no descent arrow" in reasons[0]
-        assert "unspent" not in reasons[0]
+        reason = GEOMETRY_ANGULAR_SYMMETRY["slab"].domain_refusal(Quadrature.lebedev(5).measure)
+        assert reason is not None and "no descent arrow" in reason
+        assert "unspent" not in reason
 
 
 # =============================================================================
@@ -1734,51 +1124,16 @@ class TestStageOneOnAFoldAsksTheOrbitSpaceNotTheRepresentatives:
 
 # G14 — tests/gates/numerics/test_registry.py
 # =============================================================================
-class TestTheSelectorIsUNMOVEDByTheCarve:
-    r"""(ix) ``select_quadrature`` end-to-end.
-
-    ``folded_product`` is NOT registered (the design records the structural
-    reasons), so **no end-to-end selection exercises the fold** and the carve
-    cannot be credited with an end-to-end row.  What the selector owes
-    instead is a REGRESSION statement: `[M]` 4 geometries × 4 degrees = 16
-    rows, the chosen spec, its parameters and its point count are identical
-    before and after the carve.
+class TestTheFoldIsNotRegistered:
+    r"""(ix) ``folded_product`` is NOT registered (the design records the
+    structural reasons), so **no shipped catalogue entry reaches the fold**
+    and the carve cannot be credited with an end-to-end row.  (The selector
+    that once chose among the entries, and whose 16-row regression table
+    pinned that choice, retired on 2026-11-20.)
     """
 
-    _EXPECTED = {
-        ("slab", 1): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
-        ("slab", 3): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
-        ("slab", 5): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
-        ("slab", 7): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
-        ("sphere", 1): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
-        ("sphere", 3): ("GaussLegendre1D", {"n_ordinates": 2}, 2),
-        ("sphere", 5): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
-        ("sphere", 7): ("GaussLegendre1D", {"n_ordinates": 4}, 4),
-        ("cylinder", 1): ("ProductQuadrature", {"n_mu": 1, "n_phi": 2}, 2),
-        ("cylinder", 3): ("LebedevSphere", {"order": 3}, 6),
-        ("cylinder", 5): ("LebedevSphere", {"order": 5}, 14),
-        ("cylinder", 7): ("LebedevSphere", {"order": 7}, 26),
-        ("cartesian2d", 1): ("ProductQuadrature", {"n_mu": 1, "n_phi": 2}, 2),
-        ("cartesian2d", 3): ("LebedevSphere", {"order": 3}, 6),
-        ("cartesian2d", 5): ("LebedevSphere", {"order": 5}, 14),
-        ("cartesian2d", 7): ("LebedevSphere", {"order": 7}, 26),
-    }
-
     @pytest.mark.foundation
-    @pytest.mark.parametrize("key", sorted(_EXPECTED))
-    def test_the_chosen_rule_is_unmoved(self, key):
-        from orpheus.numerics.quadrature.registry import select_quadrature
-
-        geometry, degree = key
-        name, params, n_points = self._EXPECTED[key]
-        quadrature, log = select_quadrature(geometry, degree)
-        measure = quadrature.measure
-        assert log.chosen_spec.name == name
-        assert log.chosen_parameters == params
-        assert measure.n_points == n_points
-
-    @pytest.mark.foundation
-    def test_the_fold_is_not_registered_so_no_selection_reaches_it(self):
+    def test_the_fold_is_not_registered_so_no_entry_reaches_it(self):
         from orpheus.numerics.quadrature.registry import quadrature_registry
 
         assert "folded" not in {s.name.lower() for s in quadrature_registry}
@@ -1791,38 +1146,9 @@ class TestTheSelectorIsUNMOVEDByTheCarve:
 
 
 @pytest.mark.foundation
-@pytest.mark.catches("ERR-118")
-@pytest.mark.parametrize("geometry", ["cartesian2d", "cylinder", "sphere"])
-def test_a_rule_selected_for_positive_weights_has_positive_weights(geometry) -> None:
-    """ERR-118: ``positive_weights=True`` is a fact of the BUILT rule.
-
-    The flag was a typed field on the spec, ``True`` for Lebedev, while
-    3 of Lebedev's 32 orders (13, 25, 27) carry a non-positive weight and
-    the selector returned order 13 (weights include -0.372) for
-    ``("cartesian2d", 12, positive_weights=True)``. Every degree the
-    selector can reach on the geometry is asked, so the order-13 row is in
-    the population whichever spec wins elsewhere.
-    """
-    reached = 0
-    for degree in range(0, 22):
-        try:
-            quadrature, _ = select_quadrature(geometry, degree, positive_weights=True)
-        except QuadratureSelectionError:
-            continue
-        reached += 1
-        if not np.all(quadrature.weights > 0.0):
-            pytest.fail(
-                f"{geometry} at degree {degree}: positive_weights=True selected a "
-                f"rule with min weight {quadrature.weights.min():.3e}"
-            )
-    assert reached > 0, f"no rule selected on {geometry}: the gate asked nothing"
-
-
-@pytest.mark.foundation
 def test_lebedev_order_13_is_not_positive_weighted() -> None:
-    """The witness ERR-118 rests on: the flag read off Lebedev order 13 is False."""
-    spec = next(s for s in quadrature_registry if s.name == "LebedevSphere")
-    assert spec.structural_flags(spec.build({"order": 13}))["positive_weights"] is False
+    """The fact ERR-118 recorded, read off the built rule: Lebedev order 13 carries a non-positive weight (3 of 32 orders)."""
+    assert not np.all(Quadrature.lebedev(order=13).weights > 0.0)
 
 
 # =============================================================================

@@ -6221,9 +6221,9 @@ older entries classify against.
    ``tests/gates/geometry/test_transformation.py::test_o4_a_duplicated_point_is_refused_and_guard_two_is_the_one_that_fires``
    (a duplicated cube vertex, with guard isolation: the bijection guard, not
    the partner guard, is the one that refuses). The guard itself now lives in
-   :meth:`RigidMotion.permutes
-   <orpheus.geometry.transformation.RigidMotion.permutes>`, which RETURNS the
-   permutation (``None`` when the match is not a bijection), so the
+   :func:`~orpheus.geometry.transformation.permutation_between`, which RETURNS the
+   permutation (the method ``RigidMotion.permutes``, retired to the test side on
+   2026-11-20, called it) (``None`` when the match is not a bijection), so the
    ``-> bool`` that hid the defect is gone from the primitive; the measure's
    verdict, :meth:`DiscreteMeasure.is_invariant_under
    <orpheus.numerics.measure.DiscreteMeasure.is_invariant_under>`, composes
@@ -7078,7 +7078,8 @@ older entries classify against.
      ``domain``, ``codomain`` and ``apply``, so a map's target is a
      *field* rather than something a call site asserts. Three arrows
      were typed, and one of them is exactly this defect's:
-     :func:`~orpheus.geometry.manifold.barycentre`, the orbit-barycentre
+     ``barycentre`` (since retired in favour of
+     :attr:`Quotient.lift <orpheus.geometry.manifold.Quotient.lift>`), the orbit-barycentre
      map :math:`\mu \mapsto \mu\,\hat e_a` out of
      :math:`S^2/O(2)_a`, whose codomain is
      :class:`~orpheus.geometry.manifold.Ball`\ ``(3)`` — because
@@ -7098,7 +7099,7 @@ older entries classify against.
      spelling of the same map, ``_embedded_nodes`` (in ``symmetry`` when
      this was measured, in ``orpheus.numerics.invariance`` since #434 R2
      on 2026-09-03), READ
-     :func:`~orpheus.geometry.manifold.barycentre` from that step on
+     ``barycentre`` from that step on
      (`[M]` bit-identical on 12 rows), so the Pattern-2 twin was
      collapsed and only the forgery remained. ⚠ Since #429 tracker 2.2b
      (2026-09-02) that read goes one hop further, through the entry's
@@ -11608,10 +11609,17 @@ older entries classify against.
 
    **Status:** ✅ **FIXED 2026-10-19 — numerics untangling, wave 4 review.**
    :class:`~orpheus.numerics.quadrature.registry.QuadratureSpec` no longer
-   carries ``positive_weights`` or ``level_structured`` as fields:
-   :meth:`~orpheus.numerics.quadrature.registry.QuadratureSpec.structural_flags`
-   reads them off the rule the spec built (every weight :math:`> 0`; a
-   ``LevelStructure`` present).
+   carries ``positive_weights`` or ``level_structured`` as fields: an
+   accessor on the spec read them off the rule the spec built (every
+   weight :math:`> 0`; a ``LevelStructure`` present); it retired with the
+   selector on 2026-11-20.
+
+   **Retired:** with its code: orpheus/numerics/quadrature/registry.py:select_quadrature, orpheus/numerics/quadrature/registry.py:QuadratureSpec.structural_flags
+
+   The selector and its flags accessor were removed on 2026-11-20 (wave W0,
+   unit ``dead``): the selector had no production caller, and the
+   typed-flag defect it caught is unspellable without the selector and its
+   flags accessor.
 
    **Failure mode:** **#6 (convention drift)** — a property of each built
    rule was stated once, for the whole family, at the definition site of
@@ -11631,20 +11639,21 @@ older entries classify against.
 
    - The selector already held the built rule at stage 3, and read the
      spec's field instead.
-   - No production path calls ``select_quadrature``, so no solve met the
-     rule.
+   - No production path called ``select_quadrature``, so no solve met the
+     rule (it retired with its code on 2026-11-20).
    - The registry gates checked the degree column against the built rule,
      not the flag columns. The flags were a table nothing compared with
      behaviour.
 
-   **Catching tests.**
-   ``tests/gates/numerics/test_registry.py::test_a_rule_selected_for_positive_weights_has_positive_weights``
-   asks every degree from 0 to 21 on three geometries for a
-   positive-weight rule, and requires every chosen rule's weights to be
-   positive. `[M]` with the typed flag restored in-process, 3 of its
-   4 tests redden. The witness
-   ``test_lebedev_order_13_is_not_positive_weighted`` pins the order-13
-   fact the population rests on.
+   **Catching tests.** None since 2026-11-20 (retired with its code). The
+   catcher, a test of the registry module under ``tests/gates/numerics``
+   (past tense), asked every degree from 0 to 21 on three geometries for a
+   positive-weight rule through the selector and required every chosen
+   rule's weights to be positive; `[M]` with the typed flag restored
+   in-process, 3 of its 4 tests reddened. Its witness survives without a
+   marker, rewired to the built rule:
+   ``tests/gates/numerics/test_registry.py::test_lebedev_order_13_is_not_positive_weighted``
+   pins the order-13 fact the population rested on.
 
    **Lesson.** ⭐ **A flag that a parameter decides is a property of the
    built object, never a field of the family: read it off the thing you

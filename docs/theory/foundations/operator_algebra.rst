@@ -3157,8 +3157,9 @@ The equation is the one-position case of the general engine: a
 coefficient :math:`c` spanning the positions ``spans`` acts as
 :math:`(Dx)_{\mathbf i} = c_{\mathbf i|_{\rm spans}}\,x_{\mathbf i}`,
 the tensor action :math:`M_c \otimes I` on the positions it does not
-span. ``DiagonalOperator.from_measure(measure, shape=…, axis=k)`` is the
-one-position mint ``spans=(k,)`` with the measure's weights, not a second
+span. ``DiagonalOperator(measure.weights, shape=…, spans=(k,))`` is the
+one-position mint with the measure's weights (the convenience
+``from_measure`` retired on 2026-11-20), not a second
 mode. Until U1b (``112106eb``, 2026-10-30) the engine had a rank-agnostic
 one-axis mode, whose placement was read off each operand's rank, and an
 N-D ``broadcast_axes=`` mode whose check compared only the operand's rank;

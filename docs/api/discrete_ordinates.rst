@@ -84,9 +84,9 @@ The per-ordinate angular data is exposed through the cached
 :attr:`~orpheus.numerics.quadrature.Quadrature.octants` partition and
 the :func:`~orpheus.numerics.frame_faces.angular_frame`
 / :meth:`~orpheus.numerics.quadrature.Quadrature.ordinate_permutation`
-methods. The selection driver is
-:func:`~orpheus.numerics.quadrature.select_quadrature`, backed by the
-:data:`~orpheus.numerics.quadrature.quadrature_registry`. The full
+methods. The catalogue of rules is the
+:data:`~orpheus.numerics.quadrature.quadrature_registry` (the selector that walked
+it retired on 2026-11-20). The full
 mathematical narrative — the level-symmetric construction, the
 selection criterion, and the product-rule cosine layout — lives at
 :ref:`discrete-measures` and in the per-module docstrings, accessible

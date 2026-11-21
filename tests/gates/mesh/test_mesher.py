@@ -34,7 +34,7 @@ import re
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry, compute_volumes_1d
+from orpheus.geometry import CoordSystem, MirrorDeck, StructuredGeometry
 from orpheus.mesh import (
     CellEdges,
     CellsByCount,
@@ -671,7 +671,7 @@ class TestMeshingAGeometry:
         mesh = _three_region_mesh(coord)
         p = _EXPONENT[mesh.coord]
         eps = np.finfo(float).eps
-        rederived = compute_volumes_1d(mesh.coord, mesh.edges)
+        rederived = mesh.coord.measure(mesh.edges)
         start = 0
         for k, n in enumerate(_THREE_REGION_CELLS):
             cells = slice(start, start + n)

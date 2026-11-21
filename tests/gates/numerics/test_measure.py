@@ -26,7 +26,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.measure import BundleMeasure, DiscreteMeasure, equispaced
+from orpheus.numerics.measure import BundleMeasure, DiscreteMeasure
+from tests.gates.numerics._measure_fixtures import equispaced
 from orpheus.numerics.generating_measure import CHEBYSHEV_T, LEGENDRE
 from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
@@ -34,11 +35,12 @@ from orpheus.geometry.manifold import (
     ManifoldMap,
     REAL_LINE,
     SPHERE,
-    UNIT_INTERVAL,
 )
+from tests.gates.geometry._manifold_fixtures import UNIT_INTERVAL
 from orpheus.numerics.index_set import IndexSet
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.quadrature.directional import Quadrature
+from tests.gates.geometry._geometry_oracles import stabilizer_order
 
 
 # ============================================================================
@@ -878,7 +880,7 @@ def test_quotient_weights_are_orbit_stabilizer_derived() -> None:
     folded = mu.quotient(group)
     assert folded.n_points == len(cert.orbits())
 
-    stab = cert.stabilizer_order
+    stab = stabilizer_order(cert)
     for k in range(folded.n_points):
         (rep,) = np.flatnonzero(
             np.linalg.norm(mu.nodes - folded.nodes[k], axis=1) < 1e-14

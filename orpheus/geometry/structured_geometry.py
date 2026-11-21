@@ -239,16 +239,6 @@ class StructuredGeometry(ContentIdentity):
         """
         return self.coord.measure(edges)
 
-    @property
-    def domain_extent_cm(self) -> float:
-        r"""The width :math:`r_R - r_0` of the interval of positions, in cm.
-
-        The full slab width on a slab (the production convention: a user
-        with "a slab of thickness L" means L); the outer radius on a
-        solid cylinder or sphere; the shell thickness on a hollow one.
-        """
-        return self.breakpoints[-1] - self.breakpoints[0]
-
     # ─────────────────────────────────────────────────────────────────
     # Constructors that name each boundary point's role
     # ─────────────────────────────────────────────────────────────────

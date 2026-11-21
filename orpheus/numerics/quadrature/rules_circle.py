@@ -26,7 +26,7 @@ Why it is a separate module from :mod:`.rules_1d`
 even when their nodes coincide**, and this rule exists to make that
 distinction structural rather than a matter of the caller's intent.
 `[M]` At :math:`s = \tfrac{1}{2}` these nodes are numerically the
-midpoints that :func:`~orpheus.numerics.measure.equispaced` produces on
+midpoints that the test-side ``equispaced`` produces on
 :math:`[0, 2\pi]` — yet the two carry incomparable claims:
 
 .. list-table::

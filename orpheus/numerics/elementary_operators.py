@@ -649,17 +649,6 @@ class DiagonalOperator(PointwiseOperator):
         #: The coefficient expanded on :attr:`broadcast_axes`, once (a view).
         self.placed_coefficient = np.expand_dims(coeff, self.broadcast_axes)
 
-    @classmethod
-    def from_measure(
-        cls, measure, *, shape: tuple[int, ...], axis: int = 0,
-    ) -> "DiagonalOperator":
-        """The diagonal of a :class:`DiscreteMeasure`'s weights, on position ``axis`` of ``shape``.
-
-        ``DiagonalOperator.from_measure(quad.measure, shape=psi.shape)`` is the
-        Grand Report v3 §9 ``AngularWeightMatrix``.
-        """
-        return cls(measure.weights, shape=shape, spans=(axis,))
-
     @property
     def weights(self) -> np.ndarray:
         """The 1-D coefficient vector (the historical ``weights`` name).

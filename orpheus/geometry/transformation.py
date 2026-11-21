@@ -66,7 +66,7 @@ well-posed question.**
 
 * A symmetry **preserves the structure**, and for a weighted point set that
   structure is distance and volume. A non-isometry carries the set to a
-  *different* set, so :meth:`RigidMotion.permutes` (and the weighted question
+  *different* set, so the permutation a motion induces on a point set (the test-side oracle ``permutes``, over :func:`permutation_between`; and the weighted question
   a measure asks through it, :meth:`DiscreteMeasure.permutation_under
   <orpheus.numerics.measure.DiscreteMeasure.permutation_under>`;
   ``RigidMotion.preserves`` until S5, 2026-10-19) would not be answering a hard
@@ -193,7 +193,7 @@ _CLOSURE_KEY_DECIMALS = 9
 #: generate a finite group fails loudly instead of exhausting memory.
 _MAX_GROUP_ORDER = 2000
 
-#: Refusal threshold for :meth:`RigidMotion.element_order`.
+#: Refusal threshold for the test-side oracle ``element_order`` (a method of this class until 2026-11-20).
 _MAX_ELEMENT_ORDER = 1000
 
 #: Singular-value threshold for the rank used by
@@ -214,7 +214,7 @@ class Permutation:
 
     Composition follows the maps it represents: :math:`(\pi \circ \rho)(i) =
     \pi(\rho(i))`, i.e. ``(a @ b).indices == a.indices[b.indices]``. Paired
-    with :meth:`RigidMotion.permutes`' convention :math:`g(x_i) = x_{\pi(i)}`
+    with the convention of the test-side oracle ``permutes`` :math:`g(x_i) = x_{\pi(i)}`
     this makes :math:`\pi` a group **homomorphism**,
     :math:`\pi_{g \circ h} = \pi_g \circ \pi_h` — the one law that pins the
     composition order, the row-versus-column action, and the
@@ -293,7 +293,7 @@ def permutation_between(
     r"""The permutation :math:`\pi` with :math:`\text{images}_i =
     \text{points}_{\pi(i)}`, or ``None`` if the images are not the point set.
 
-    The point-set half of :meth:`RigidMotion.permutes`, on its own because
+    The point-set half of the test-side oracle ``permutes``, on its own because
     an ACTION is not always an isometry of the ambient space: the action
     an isometry INDUCES on an orbit space (:meth:`GSpace.action
     <orpheus.geometry.manifold.GSpace.action>` on a quotient) maps chart points
@@ -485,30 +485,6 @@ class RigidMotion(ContentIdentity):
         rank = np.linalg.matrix_rank(self.linear - np.eye(d), tol=_RANK_ATOL)
         return d - int(rank)
 
-    def element_order(self, *, atol: float = 1e-9) -> int | None:
-        r"""The smallest :math:`k \ge 1` with :math:`g^k = e`, or ``None`` if
-        the element has infinite order.
-
-        Returns the order itself rather than answering "is the order
-        :math:`n`?", because :math:`g^n = e` is satisfied by every element
-        whose order *divides* :math:`n` — an involution passes a
-        ":math:`g^4 = e`" check. Only the smallest such :math:`k` pins the
-        element.
-
-        ``None`` covers both irrational rotation angles and elements whose
-        linear part has finite order but which carry a translation off the
-        fixed subspace (a glide reflection, a screw): these generate infinite
-        cyclic groups, and reporting the linear part's order for them would be
-        a lie about the element.
-        """
-        identity = RigidMotion.identity(self.dimension)
-        power = self
-        for k in range(1, _MAX_ELEMENT_ORDER + 1):
-            if power.approximately_equals(identity, atol=atol):
-                return k
-            power = self @ power
-        return None
-
     # -- the group operations --------------------------------------------
 
     def __matmul__(self, other: "RigidMotion") -> "RigidMotion":
@@ -656,40 +632,6 @@ class RigidMotion(ContentIdentity):
         """Element-wise ``True`` where ``g(x) == x`` — the *affine* fixed set."""
         x = np.asarray(points, dtype=float)
         return np.all(np.abs(self.on_points(x) - x) <= atol, axis=-1)
-
-    # -- action on a finite point set -------------------------------------
-
-    def permutes(
-        self, points: "ArrayLike", *, atol: float
-    ) -> "Permutation | None":
-        r"""The permutation :math:`\pi` with :math:`g(x_i) = x_{\pi(i)}`, or
-        ``None`` if ``g`` does not map the set onto itself.
-
-        Returns the permutation rather than a ``bool``, because a predicate
-        that internally builds the permutation and throws it away *is* the
-        missing primitive: every downstream reading — orbits, stabilisers, the
-        singular set — is a reading of :math:`\pi`, and a returned permutation
-        makes its own bijectivity assertable where a ``bool`` makes it
-        unfalsifiable.
-
-        Two guards, and the second is the one that is easy to omit:
-
-        1. every image is within ``atol`` of some point of the set;
-        2. the match is a **bijection**.
-
-        Nearest-neighbour matching alone proves only that every image has
-        *a* partner, which is strictly weaker than "the action permutes the
-        set": two distinct sources may land on one target, leaving some point
-        unmatched entirely. Appending a bit-identical duplicate of any point
-        to an invariant set is the minimal witness — the duplicated position
-        then carries twice the mass of its image, and every match map is
-        non-injective, while an injectivity-free check certifies it.
-        Since :math:`\pi` maps an :math:`n`-set to an :math:`n`-set,
-        injectivity is equivalent to bijectivity, so counting distinct targets
-        suffices. (ERR-073.)
-        """
-        x = np.asarray(points, dtype=float)
-        return permutation_between(x, self.on_points(x), atol=atol)
 
     # -- equality ---------------------------------------------------------
     #

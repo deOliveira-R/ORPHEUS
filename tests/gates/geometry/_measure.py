@@ -11,8 +11,7 @@ One known copy remains outside them, the table in ``tests/gates/geometry/test_me
 twice (``_EXPONENT``, ``_CONSTANT``, ``_measure`` and ``_MEASURE_POWER``, ``_MEASURE_PREFACTOR``,
 ``_closed_form_region_volume``) and the third wrote the exponent a third time.
 
-It is an ORACLE: it reads no production measure (``CoordSystem.measure``, ``measure_constant``, ``measure_coordinate``,
-``compute_volumes_1d``), because a pin routed through production compares the definition with itself
+It is an ORACLE: it reads no production measure (``CoordSystem.measure``, ``measure_constant``, ``measure_coordinate``), because a pin routed through production compares the definition with itself
 (``retirement-audit`` D.14). ``CoordSystem`` is imported for its members as dictionary keys only. The witness of both
 properties is ``tests/gates/geometry/test_coord.py::TestTheMeasureOracleHasOneHome``.
 

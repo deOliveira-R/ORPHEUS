@@ -152,7 +152,7 @@ consumers landed May 2026):
   ``DiagonalOperator(coefficient, *, shape, spans)``; every operand is
   parsed at the exact ``shape`` (:ref:`spaces-membership`). The
   ``AngularWeightMatrix`` :math:`W` of Grand Report v3 §9 is
-  ``DiagonalOperator.from_measure(quad.measure, shape=psi.shape, axis=0)``,
+  ``DiagonalOperator(quad.measure.weights, shape=psi.shape, spans=(0,))``,
   the one-position placement ``spans=(0,)``.
 * :class:`~orpheus.numerics.operator.TensorProductOperator` —
   per-axis tensor product :math:`A \otimes B \otimes \cdots`. Built
@@ -711,7 +711,7 @@ chart the direction is read in is
    :members: n_regions, n_groups
 
 .. autoclass:: orpheus.numerics.mesh_free_function.Symbolic
-   :members: of, from_srepr, expressions, n_groups, depends_on, is_isotropic
+   :members: of, expressions, n_groups, depends_on, is_isotropic
 
 Question values — :mod:`orpheus.numerics.question`, what is asked of a
 system with no physics in it: ``Eigen(parameter, point, mode, gauge)``,

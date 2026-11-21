@@ -2775,7 +2775,7 @@ site on the numerics layer today (#700):
 * **Four reads dropped with no unresolved row** (qa's F4): a class-level
   case table read by a method's ``parametrize`` (``class T: CASES = …``; the
   class body's load resolves against the module's globals; `[M]` 1 site,
-  ``test_registry.py::TestTheSelectorIsUNMOVEDByTheCarve``, def-placed, so its
+  ``test_registry.py::TestTheSelectorIsUNMOVEDByTheCarve`` (retired with the selector on 2026-11-20), def-placed, so its
   home is unaffected); a module-level ``__getattr__`` (0 in the tree); an
   in-function import of a module absent from ``sys.modules``; a file under
   two module names (0 ``ambiguous`` rows in qa's 237-test capture).

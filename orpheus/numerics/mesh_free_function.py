@@ -153,8 +153,8 @@ class Symbolic(ContentIdentity):
     (``f(r)``); a ``Piecewise`` with no otherwise branch, which has no value
     outside its conditions.
 
-    Build one from expressions with :meth:`of`, or from stored text with
-    :meth:`from_srepr`.
+    Build one from expressions with :meth:`of`, or from stored text by
+    constructing it with the ``srepr`` and ``sympy_version`` fields.
     """
 
     srepr: tuple[str, ...]
@@ -188,13 +188,6 @@ class Symbolic(ContentIdentity):
         import sympy
 
         return cls(srepr=tuple(sympy.srepr(sympy.sympify(e)) for e in expressions), sympy_version=sympy.__version__)
-
-    @classmethod
-    def from_srepr(cls, srepr: tuple[str, ...], sympy_version: str | None = None) -> "Symbolic":
-        """Stored text, with the version of the SymPy that wrote it (this process's when omitted)."""
-        import sympy
-
-        return cls(srepr=tuple(srepr), sympy_version=sympy.__version__ if sympy_version is None else sympy_version)
 
     @property
     def expressions(self) -> tuple["sympy.Expr", ...]:

@@ -78,7 +78,7 @@ group elements' raw matrices with scipy's assignment solver.
    strictly" — :math:`C_{n_\phi}` is an index-4 subgroup of the real
    answer. The false tag was load-bearing: it was the only reason
    the registry's geometry gate admitted this rule for a cylinder
-   (see :func:`~orpheus.numerics.quadrature.registry.select_quadrature`).
+   (see :class:`~orpheus.numerics.quadrature.registry.AngularSymmetry`).
 
 References
 ----------

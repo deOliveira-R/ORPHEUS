@@ -4,7 +4,7 @@ The measure of the cells of an interval is owned by the coordinate system,
 :math:`m_j = c\,(T(r_{j+1}) - T(r_j))` with :math:`T(r) = r^d` evaluated by
 numpy (``CoordSystem.measure``, :mod:`orpheus.geometry.coord`). This file pins
 that definition (``TestTheOneMeasure``): the measure is ``c * diff(T(edges))``
-bitwise, ``compute_volumes_1d`` is a delegate of it, the measure coordinate
+bitwise, the measure coordinate
 ``T`` is the system's, and a ``StructuredGeometry`` asks it. It also holds the
 witness that the tests' oracle of the measure is written once
 (``TestTheMeasureOracleHasOneHome``).
@@ -32,8 +32,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import orpheus.geometry.coord as coord_module
-from orpheus.geometry import CoordSystem, compute_volumes_1d
+from orpheus.geometry import CoordSystem
 from orpheus.geometry.coord import MeasureCoordinate
 from tests.gates.geometry._measure import CONSTANT as _CONSTANT
 from tests.gates.geometry._measure import EXPONENT as _EXPONENT
@@ -56,7 +55,7 @@ _COORDS = (_SLAB, _CYLINDER, _SPHERE)
 class TestTheOneMeasure:
     r"""The measure has one definition, owned by the coordinate system (the
     ruling of 2026-09-29): ``coord.measure(edges) = c * diff(T(edges))``,
-    ``T`` numpy's power; the geometry asks it; ``compute_volumes_1d`` is it.
+    ``T`` numpy's power; the geometry asks it.
 
     Claim kind: THEOREM. The route row, which swaps the definition for a
     decoy and requires every MESH reader to move, is
@@ -71,15 +70,6 @@ class TestTheOneMeasure:
             if not np.array_equal(coord.measure(edges), _measure(coord, edges)):
                 failures.append(f"[{a}, {b}] n={n}")
         _report(failures, 3 * len(_LAW_INTERVALS), f"{coord.name} measure")
-
-    def test_compute_volumes_1d_is_a_delegate(self):
-        """RECORD of the retirement's residue: the legacy name survives only
-        as a one-line delegate (3b's migration retires it)."""
-        import inspect
-
-        body = inspect.getsource(coord_module.compute_volumes_1d)
-        assert "coord.measure(edges)" in body
-        assert "match" not in body
 
     @pytest.mark.parametrize("coord", _COORDS, ids=lambda c: c.name.lower())
     def test_the_measure_coordinate_is_the_systems(self, coord):
@@ -172,7 +162,7 @@ def _measure_copies(source: str) -> list[str]:
 
 
 #: The production attributes and names the oracle must never read.
-_PRODUCTION_MEASURE = {"measure", "measure_constant", "measure_coordinate", "compute_volumes_1d", "compute_volumes"}
+_PRODUCTION_MEASURE = {"measure", "measure_constant", "measure_coordinate"}
 
 
 def _production_reads(source: str) -> list[str]:
@@ -182,8 +172,6 @@ def _production_reads(source: str) -> list[str]:
             reads.append(f"line {node.lineno}: .{node.attr}")
         elif isinstance(node, ast.Name) and node.id in _PRODUCTION_MEASURE:
             reads.append(f"line {node.lineno}: {node.id}")
-        elif isinstance(node, ast.alias) and node.name.split(".")[-1] in _PRODUCTION_MEASURE:
-            reads.append(f"line {getattr(node, 'lineno', '?')}: import {node.name}")
     return reads
 
 
@@ -228,6 +216,5 @@ class TestTheMeasureOracleHasOneHome:
 
     def test_the_oracle_reads_no_production_measure(self) -> None:
         assert _production_reads("def f(coord, e):\n    return coord.measure(e)\n") == ["line 2: .measure"]  # the positive control
-        assert _production_reads("from orpheus.geometry import compute_volumes_1d\n")  # an import is a read
         reads = _production_reads((_ROOT / _ORACLE).read_text())
         assert not reads, f"{_ORACLE} reads the production measure it pins: {reads}"

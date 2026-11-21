@@ -212,7 +212,6 @@ from .recurrence import (
     RecurrenceCoefficients,
     chebyshev_t_recurrence,
     chebyshev_u_recurrence,
-    hermite_recurrence,
     jacobi_recurrence,
     laguerre_recurrence,
     legendre_recurrence,
@@ -225,7 +224,6 @@ from orpheus.geometry.manifold import (
     Manifold,
     Point,
     Quotient,
-    REAL_LINE,
     Sphere,
 )
 
@@ -802,14 +800,6 @@ CHEBYSHEV_U = GeneratingMeasure(
     exact_recurrence=chebyshev_u_recurrence,
 )
 
-#: Weight :math:`w(x) = e^{-x^2}` on :math:`\mathbb{R}`.
-HERMITE = GeneratingMeasure(
-    name="hermite",
-    support=REAL_LINE,
-    exact_recurrence=hermite_recurrence,
-)
-
-
 def jacobi(a: float, b: float) -> GeneratingMeasure:
     """The Jacobi measure for exponents ``(a, b)``; see :func:`_jacobi`.
 
@@ -867,15 +857,6 @@ def _jacobi_name(a: float, b: float) -> str:
         if a == known_a and b == known_b:
             return known.name
     return f"jacobi(a={a}, b={b})"
-
-
-def laguerre(a: float = 0.0) -> GeneratingMeasure:
-    """The generalised Laguerre measure for exponent ``a``; see :func:`_laguerre`.
-
-    Cached per ``float(a)``, so a repeated call returns the same measure,
-    with the same recurrence, and hits the rule cache.
-    """
-    return _laguerre(float(a))
 
 
 @functools.lru_cache(maxsize=None)
@@ -971,10 +952,8 @@ def pushforward_reference(orbit_space: Quotient) -> ReferenceMeasure | None:
 __all__ = [
     "CHEBYSHEV_T",
     "CHEBYSHEV_U",
-    "HERMITE",
     "LEGENDRE",
     "GeneratingMeasure",
     "jacobi",
-    "laguerre",
     "pushforward_reference",
 ]

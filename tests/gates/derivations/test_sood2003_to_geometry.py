@@ -16,9 +16,9 @@ These tests cover:
 * Cylinder (1G): a solid cylinder of radius cm + one outer vacuum law.
 * Infinite-medium: raises :class:`ValueError` pointing the caller at
   ``MomentSpace.solve_kinf`` / ``solve_homogeneous_infinite``.
-* Round-trip consistency: the new-API ``domain_extent_cm`` matches
-  the legacy ``geometry_spec.domain_extent_cm`` to machine precision
-  modulo author transcription rounding.
+* Round-trip consistency: the new-API extent ``breakpoints[-1] -
+  breakpoints[0]`` matches the legacy ``geometry_spec.domain_extent_cm``
+  to machine precision modulo author transcription rounding.
 * The cases' citations are gated in
   ``tests/gates/derivations/test_registry_citations_resolve.py``.
 """
@@ -73,7 +73,7 @@ def test_slab_to_geometry_full_width_with_vacuum_bcs() -> None:
     assert geom.breakpoints[0] == 0.0
     assert math.isclose(geom.breakpoints[-1], expected_full_width_cm, rel_tol=1e-12)
     assert math.isclose(
-        geom.domain_extent_cm, expected_full_width_cm, rel_tol=1e-12,
+        geom.breakpoints[-1] - geom.breakpoints[0], expected_full_width_cm, rel_tol=1e-12,
     )
 
     # A slab has two boundary points (left, right); both carry the one vacuum tag, which the
@@ -110,7 +110,7 @@ def test_sphere_to_geometry_radius_with_vacuum_outer_bc() -> None:
     assert geom.mat_ids == (0,)  # registry convention: primary mixture at mat_id=0
     assert geom.breakpoints[0] == 0.0
     assert math.isclose(geom.breakpoints[-1], expected_R_cm, rel_tol=1e-12)
-    assert math.isclose(geom.domain_extent_cm, expected_R_cm, rel_tol=1e-12)
+    assert math.isclose(geom.breakpoints[-1] - geom.breakpoints[0], expected_R_cm, rel_tol=1e-12)
 
     # A solid body has one boundary point, the outer surface; the centre
     # is an interior point and carries no role.
@@ -145,7 +145,7 @@ def test_cylinder_to_geometry_radius_with_vacuum_outer_bc() -> None:
     assert geom.mat_ids == (0,)  # registry convention: primary mixture at mat_id=0
     assert geom.breakpoints[0] == 0.0
     assert math.isclose(geom.breakpoints[-1], expected_R_cm, rel_tol=1e-12)
-    assert math.isclose(geom.domain_extent_cm, expected_R_cm, rel_tol=1e-12)
+    assert math.isclose(geom.breakpoints[-1] - geom.breakpoints[0], expected_R_cm, rel_tol=1e-12)
 
     # A solid body has one boundary point, the outer surface; the centre
     # is an interior point and carries no role.
@@ -202,7 +202,7 @@ def test_infinite_2g_to_geometry_raises() -> None:
     ],
 )
 def test_to_geometry_extent_matches_truth_mfp(case_id: str) -> None:
-    r"""``geom.domain_extent_cm`` derives from ``truth.critical_dimension_mfp``.
+    r"""The extent ``geom.breakpoints[-1] - geom.breakpoints[0]`` derives from ``truth.critical_dimension_mfp``.
 
     For ``"slab"``: the full slab width is :math:`2 \cdot
     (\text{cd}_{\rm mfp} / \Sigma_t)`. For ``"sphere"`` /
@@ -215,9 +215,10 @@ def test_to_geometry_extent_matches_truth_mfp(case_id: str) -> None:
     sigma_t = float(case.materials[0].SigT[0])
     cd_cm = float(case.truth.critical_dimension_mfp) / sigma_t
     expected_cm = 2.0 * cd_cm if case.geometry_kind == "slab" else cd_cm
-    assert math.isclose(geom.domain_extent_cm, expected_cm, rel_tol=1e-12), (
+    extent = geom.breakpoints[-1] - geom.breakpoints[0]
+    assert math.isclose(extent, expected_cm, rel_tol=1e-12), (
         f"{case_id}: truth-derived extent={expected_cm}, "
-        f"to_geometry()={geom.domain_extent_cm}"
+        f"to_geometry()={extent}"
     )
 
 

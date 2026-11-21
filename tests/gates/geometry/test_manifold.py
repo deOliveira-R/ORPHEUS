@@ -69,7 +69,6 @@ from orpheus.geometry.manifold import (
     Ball,
     FundamentalDomain,
     SPHERE,
-    UNIT_INTERVAL,
     Circle,
     Interval,
     Manifold,
@@ -81,7 +80,8 @@ from orpheus.geometry.manifold import (
     _coordinate_chart,
     quotient_onto,
 )
-from orpheus.numerics.index_set import ENERGY, EnergyGroups, IndexSet
+from tests.gates.geometry._manifold_fixtures import UNIT_INTERVAL
+from orpheus.numerics.index_set import EnergyGroups, IndexSet
 from orpheus.geometry.symmetry import SubgroupOfO3
 
 # 2.2b gates (test-architect, 2026-09-02) — the draft's imports, verbatim
@@ -94,7 +94,6 @@ from orpheus.geometry.manifold import (
     SPHERE,
     Ball,
     Quotient,
-    barycentre,
     quotient_onto,
 )
 from orpheus.numerics.quadrature.directional import Quadrature
@@ -126,7 +125,7 @@ _ALL: tuple[Manifold, ...] = (
     REAL_LINE,
     RealSpace(1),
     RealSpace(3),
-    ENERGY,
+    EnergyGroups(),
     IndexSet("angular", 8),
     SPHERE * COSINE_INTERVAL,
     Ball(2),
@@ -202,7 +201,7 @@ class TestTypeLaws:
         assert UNIT_INTERVAL.name == "[0,1]"
         assert HALF_LINE.name == "[0,inf)"
         assert REAL_LINE.name == "R"
-        assert ENERGY.name == "energy"
+        assert EnergyGroups().name == "energy"
         assert RealSpace(1).name == "spatial_R1"
         assert IndexSet("angular").name == "index(angular)"
 
@@ -226,8 +225,8 @@ class TestProduct:
 
     def test_the_product_is_a_manifold_so_it_composes(self):
         """Associativity of the concept, not of the constructor."""
-        triple = (COSINE_INTERVAL * CIRCLE) * ENERGY
-        other = COSINE_INTERVAL * (CIRCLE * ENERGY)
+        triple = (COSINE_INTERVAL * CIRCLE) * EnergyGroups()
+        other = COSINE_INTERVAL * (CIRCLE * EnergyGroups())
         assert isinstance(triple, Product) and isinstance(other, Product)
         assert triple.dim == other.dim == 2
 
@@ -776,7 +775,7 @@ class TestAmbientDimensionLaws:
         RealSpace(1): 1,
         RealSpace(3): 3,
         Ball(2): 2,
-        ENERGY: 1,
+        EnergyGroups(): 1,
         EnergyGroups(4): 1,
         IndexSet("angular", 8): 1,
     }
@@ -791,7 +790,7 @@ class TestAmbientDimensionLaws:
             for right in atoms:
                 assert (left * right).ambient_dim == left.ambient_dim + right.ambient_dim
         # associative because additive: the nesting does not change the width
-        assert ((SPHERE * ENERGY) * CIRCLE).ambient_dim == (SPHERE * (ENERGY * CIRCLE)).ambient_dim == 6
+        assert ((SPHERE * EnergyGroups()) * CIRCLE).ambient_dim == (SPHERE * (EnergyGroups() * CIRCLE)).ambient_dim == 6
 
     def test_the_fundamental_domain_keeps_its_bases_columns(self) -> None:
         # bases of widths 3, 2 and 1, so a constant answer coincides with at most one
@@ -861,10 +860,10 @@ class TestManifoldMap:
     :math:`(\psi \circ \varphi)_*\mu = \psi_*(\varphi_*\mu)`.  Then the two
     named maps, each with a positive leg AND the refusal leg
     (``vv-principles`` #11): :func:`archimedes` lands on the sphere for
-    every axis and collapses the fibre onto the stratum; :func:`barycentre`
+    every axis and collapses the fibre onto the stratum; :attr:`Quotient.lift`
     lands INSIDE the ball and on the sphere only at the poles — which is the
     ERR-080 discriminator stated as a property of a map rather than of a
-    quadrature — and refuses any orbit space that is not an axial one.
+    quadrature.
 
     Re-filed 2026-10-25 (layer-DAG ruling 23): one row asserts a numerics object's verb,
     so it moved to numerics, keeping this class's name:
@@ -941,15 +940,14 @@ class TestManifoldMap:
             archimedes("w")
 
     @pytest.mark.parametrize("axis", ["x", "y", "z"])
-    def test_barycentre_lands_in_the_ball_and_on_the_sphere_only_at_the_poles(
+    def test_the_lift_lands_in_the_ball_and_on_the_sphere_only_at_the_poles(
         self, axis: str
     ) -> None:
         from orpheus.geometry.faces import AXIS_INDEX
-        from orpheus.geometry.manifold import barycentre
 
         orbit_space = SPHERE.quotient(SubgroupOfO3.O2(axis))
-        centre = barycentre(orbit_space)
-        assert centre.domain is orbit_space  # the memoised entry itself
+        centre = orbit_space.lift
+        assert centre.domain is orbit_space
         assert centre.codomain == Ball(3)
 
         mu = np.linspace(-1.0, 1.0, 9)
@@ -966,25 +964,8 @@ class TestManifoldMap:
         assert np.array_equal(image[:, a], mu)
         assert not np.any(image[:, [i for i in range(3) if i != a]])
 
-    def test_barycentre_refuses_a_bare_manifold_and_nothing_else(self) -> None:
-        r"""Since R4 of #434 (2026-09-03) the barycentre map is the lift of
-        EVERY catalogued entry — the Reynolds projector — so the refusal is
-        for a point set that is not an orbit space at all; the widened
-        positive side over all entries is
-        ``TestR4TheLiftIsADerivationOutputNotATagBranch``."""
-        from orpheus.geometry.manifold import barycentre
-
-        for entry in (
-            SPHERE.quotient(SubgroupOfO3.O2("x")),
-            SPHERE.quotient(SubgroupOfO3.Mirror("y")),
-            SPHERE.quotient(SubgroupOfO3.Trivial),
-        ):
-            assert barycentre(entry).domain == entry  # positive legs
-        with pytest.raises(ValueError, match="not orbits"):
-            barycentre(COSINE_INTERVAL)  # type: ignore[arg-type]
-
     @pytest.mark.parametrize("axis", ["x", "y", "z"])
-    def test_barycentre_is_the_embedding_the_invariance_check_reads(
+    def test_the_lift_is_the_embedding_the_invariance_check_reads(
         self, axis: str
     ) -> None:
         """Pattern 2: the honest spelling of the map READS the map.
@@ -994,13 +975,12 @@ class TestManifoldMap:
         motion-preservation check embed a polar marginal through; since
         2.3 it is this map, so the two cannot drift.
         """
-        from orpheus.geometry.manifold import barycentre
         from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
 
         rule = gauss_legendre_on_polar_orbit(8, axis)
         assert isinstance(rule.support, Quotient)
         assert np.array_equal(
-            rule.support.ambient_points(rule.nodes), barycentre(rule.support)(rule.nodes)
+            rule.support.ambient_points(rule.nodes), rule.support.lift(rule.nodes)
         )
 
 
@@ -1160,15 +1140,14 @@ class TestTheEntryCarriesItsQuotientMapAndItsReference:
             assert np.array_equal(composite(points), mu), (axis, n)
 
     @pytest.mark.parametrize("axis", _AXES)
-    def test_barycentre_after_pi_is_the_axial_projection(self, axis: str) -> None:
+    def test_the_lift_after_pi_is_the_axial_projection(self, axis: str) -> None:
         r""":math:`\beta_a \circ \pi_a : \Omega \mapsto (\Omega \cdot \hat e_a)
         \hat e_a` — the orbit's centre, and the ERR-080 forgery's honest
         spelling: a point of the ball, on the sphere only at the poles."""
         from orpheus.geometry.faces import AXIS_INDEX
-        from orpheus.geometry.manifold import barycentre
 
         q = SPHERE.quotient(SubgroupOfO3.O2(axis))
-        composite = barycentre(q) @ q.quotient_map
+        composite = q.lift @ q.quotient_map
         assert composite.domain is SPHERE and composite.codomain == Ball(3)
         omega = _random_directions(256, seed=4)
         projection = np.zeros_like(omega)
@@ -1521,7 +1500,7 @@ class TestQuotientOnto:
         assert quotient_onto(slab_entry, SPHERE) is None
         assert quotient_onto(fold_entry, SPHERE) is None
         assert quotient_onto(slab_entry, fold_entry) is None
-        assert quotient_onto(SPHERE, ENERGY) is None
+        assert quotient_onto(SPHERE, EnergyGroups()) is None
 
         # the lattice fact the refusal reads
         assert not SubgroupOfO3.Trivial.contains(SubgroupOfO3.SO2("x"))
@@ -1878,8 +1857,8 @@ class TestTheLiftIsARightInverseOfTheQuotientMap:
     @pytest.mark.foundation
     def test_the_sphere_lifts_land_in_the_BALL_and_say_so(self):
         r"""⚠ A sphere entry's lift is NOT a section, and its codomain is the
-        honest record of that: `[M]` ``barycentre(S^2/O2_x).codomain`` and
-        ``barycentre(S^2/sigma_y).codomain`` are both ``D^3`` (the mirror
+        honest record of that: `[M]` the ``lift.codomain`` of ``S^2/O2_x`` and
+        of ``S^2/sigma_y`` are both ``D^3`` (the mirror
         entry joined the axial one at R4 of #434, 2026-09-03 — until then it
         lifted through a hemisphere SECTION onto ``S^2``, and this row's
         docstring argued that one uniform codomain across the three families
@@ -1888,7 +1867,6 @@ class TestTheLiftIsARightInverseOfTheQuotientMap:
         into the ball declared as a map into the sphere is the forgery."""
         axial = SPHERE.quotient(SubgroupOfO3.O2("x"))
         assert isinstance(axial.lift.codomain, Ball)
-        assert axial.lift.codomain == barycentre(axial).codomain
         assert isinstance(SPHERE.quotient(SubgroupOfO3.Mirror("y")).lift.codomain, Ball)
         trivial = SPHERE.quotient(SubgroupOfO3.Trivial)
         assert trivial.lift.codomain == trivial.base
@@ -1996,7 +1974,7 @@ def _disk_points() -> np.ndarray:
 
 
 def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
-    from orpheus.geometry.symmetry import _group_elements
+    from tests.gates.geometry._geometry_oracles import _group_elements
 
     elems = _group_elements(group._tag)
     assert elems is not None
@@ -2975,31 +2953,28 @@ class TestR4TheLiftIsADerivationOutputNotATagBranch:
         assert not SPHERE.contains(image)
 
     @pytest.mark.foundation
-    def test_barycentre_is_defined_on_EVERY_entry_and_refuses_only_a_BARE_manifold(
+    def test_the_lift_is_defined_on_EVERY_entry(
         self,
     ) -> None:
-        r"""Item 4 of the carve: ``barycentre(entry)`` IS ``entry.lift`` for
-        every catalogued entry, no longer axial-only.
+        r"""Item 4 of the carve: ``entry.lift`` is defined for every
+        catalogued entry, no longer axial-only.
 
-        ``[M]`` 2026-09-03 on the PRE-carve tree ``barycentre`` refuses the
-        mirror AND the trivial entries by name (*"...by an axial group; got
-        'S^2/Trivial'"*), which is what makes this row red before the carve.
-        The refusal leg survives, narrowed to what it was always ABOUT — an
-        argument that is not an orbit space at all (``vv-principles`` #11: the
-        positive leg is what turns "it raises" into "the claim is right").
+        ``[M]`` 2026-09-03 on the PRE-carve tree the retired ``barycentre``
+        refused the mirror AND the trivial entries by name (*"...by an axial
+        group; got 'S^2/Trivial'"*), which is what made this row red before
+        the carve.  The map is no longer spelled twice (the retired public
+        alias and the property), so the row reads the property alone.
         """
         for label in _R4_ENTRY_LABELS:
             entry = _r4_entry(label)
-            arrow = barycentre(entry)
-            assert arrow.domain is entry
+            arrow = entry.lift
+            assert arrow.domain == entry
             assert arrow.codomain == entry.lift_codomain
             chart = _r4_chart_of(entry, _r4_sphere_points())
             np.testing.assert_array_equal(
                 np.asarray(arrow(chart), dtype=float),
                 np.asarray(entry.lift_coordinates(chart), dtype=float),
             )
-        with pytest.raises(ValueError):
-            barycentre(COSINE_INTERVAL)  # type: ignore[arg-type]
 
 
 # =====================================================================
@@ -3160,7 +3135,7 @@ class TestR4TheTrivialGroupIsAskedOfTheTypeNotOfItsName:
         # and lives in its own row — a mixed-subject assertion here would make
         # its red unattributable.  See
         # ``TestR4TheLiftIsADerivationOutputNotATagBranch
-        # ::test_barycentre_is_defined_on_EVERY_entry_and_refuses_only_a_BARE_manifold``.
+        # ::test_the_lift_is_defined_on_EVERY_entry``.
 
 
 class TestR4TheLiftCodomainIsComparedAndGated:
@@ -3168,7 +3143,7 @@ class TestR4TheLiftCodomainIsComparedAndGated:
 
     `[M]` with ``lift_codomain`` excluded from ``__eq__``,
     ``replace(entry, lift_codomain=SPHERE)`` compared EQUAL to the catalogue
-    entry and — ``barycentre`` being memoised on the entry — whichever was
+    entry and — the retired ``barycentre`` being memoised on the entry — whichever was
     asked first answered for both: an arrow off the sphere declaring itself
     onto it, ERR-080's shape, re-minted by the field built to refuse it.  Two
     legs: the field is compared, and a codomain of the wrong width is refused
@@ -3182,8 +3157,8 @@ class TestR4TheLiftCodomainIsComparedAndGated:
         assert forged != entry
         assert hash(forged) != hash(entry)
         # and the memo cannot be poisoned through the forgery
-        assert barycentre(entry).codomain == Ball(3)
-        assert barycentre(forged).codomain == SPHERE
+        assert entry.lift.codomain == Ball(3)
+        assert forged.lift.codomain == SPHERE
 
     @pytest.mark.foundation
     def test_a_codomain_of_the_wrong_width_is_refused(self) -> None:

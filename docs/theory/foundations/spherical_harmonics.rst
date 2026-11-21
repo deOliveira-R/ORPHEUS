@@ -767,7 +767,7 @@ measure of the basis's one coefficient axis. It equals
       vocabulary to say what the padding *is*. The map
       :math:`\mu \mapsto \mu\,\hat e_a` is the **orbit barycentre**,
       typed as
-      :func:`~orpheus.geometry.manifold.barycentre` with codomain
+      :attr:`~orpheus.geometry.manifold.Quotient.lift` with codomain
       :class:`~orpheus.geometry.manifold.Ball`\ ``(3)`` — because
       :math:`1 - \lVert\mu\hat e_a\rVert^2 = 1-\mu^2 = \tfrac14\det P`,
       the same squared orbit radius as above. So ERR-080's level-1 half
@@ -968,7 +968,7 @@ degree (:ref:`manifold-descending-slots`).
 .. (vv-status rationale) A representation-theoretic identity naming
    which functions descend; it is not a solver claim. Its verifiable
    content is the entry's isotypic probe (a foundation gate) and the
-   bit-identity of the two realizations, ``Descent.is_isomorphism``.
+   bit-identity of the two realizations, ``Descent.max_abs_difference == 0.0``.
 .. vv-status: sh-legendre-is-the-trivial-isotypic documented
 
 Conventions, and the one that is a measured constraint

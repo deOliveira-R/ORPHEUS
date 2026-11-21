@@ -46,7 +46,7 @@ from collections.abc import Callable
 import numpy as np
 import pytest
 
-from orpheus.geometry import CoordSystem, StructuredGeometry, compute_volumes_1d
+from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.coord import MeasureCoordinate
 from orpheus.mesh import (
     CellEdges,
@@ -128,8 +128,7 @@ class TestTheOneMeasure:
     r"""The route leg of the one measure: every MESH reader asks it.
 
     The definition (``coord.measure(edges) = c * diff(T(edges))``,
-    ``compute_volumes_1d`` its delegate, the measure coordinate, the geometry
-    asking it) is geometry's claim and is pinned in
+    the measure coordinate, the geometry asking it) is geometry's claim and is pinned in
     ``tests/gates/geometry/test_coord.py::TestTheOneMeasure`` (re-filed by the
     layer DAG, 2026-10-26). This row stays here because two of its readers are
     the interval rules' equal shares and realised shells.
@@ -142,13 +141,12 @@ class TestTheOneMeasure:
     @pytest.mark.rests_on(_ONE_MEASURE)
     def test_every_reader_asks_the_one_definition(self, monkeypatch):
         """A ROUTE gate: with ``CoordSystem.measure`` replaced by a decoy
-        (twice the honest measure), ``compute_volumes_1d``, the geometry's
+        (twice the honest measure), the geometry's
         ``measure`` and both kinds of rule measure (equal shares and realised
         shells) all move by exactly that factor."""
         g = _geometry(_SPHERE, (0.5, 2.0))
         edges = _r2_edges(1, 0.5, 2.0, 7)
         honest = {
-            "compute_volumes_1d": compute_volumes_1d(_SPHERE, edges),
             "geometry.measure": g.measure(edges),
             "equal shares": CellsByCount.uniform_volume(7).cells(g, (0.5, 2.0))[1],
             "realised shells": CellsByCount.uniform_width(7).cells(g, (0.5, 2.0))[1],
@@ -156,7 +154,6 @@ class TestTheOneMeasure:
         original = CoordSystem.measure
         monkeypatch.setattr(CoordSystem, "measure", lambda self, e: 2.0 * original(self, e))
         decoyed = {
-            "compute_volumes_1d": compute_volumes_1d(_SPHERE, edges),
             "geometry.measure": g.measure(edges),
             "equal shares": CellsByCount.uniform_volume(7).cells(g, (0.5, 2.0))[1],
             "realised shells": CellsByCount.uniform_width(7).cells(g, (0.5, 2.0))[1],

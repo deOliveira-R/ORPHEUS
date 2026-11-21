@@ -47,7 +47,7 @@ from .deck import (
     parse_face_role,
     translation_motion,
 )
-from .coord import AngularChart, CoordSystem, MeasureCoordinate, compute_areas_1d, compute_volumes_1d, compute_volumes_2d
+from .coord import AngularChart, CoordSystem, MeasureCoordinate, compute_areas_1d, compute_volumes_2d
 from .structured_geometry import StructuredGeometry
 from .transformation import (
     NotAFinitePointGroupError,
@@ -81,7 +81,6 @@ __all__ = [
     "close_group",
     "colouring_symmetry",
     "compute_areas_1d",
-    "compute_volumes_1d",
     "compute_volumes_2d",
     "mirror_motion",
     "pairing_of",

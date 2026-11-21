@@ -128,14 +128,12 @@ __all__ = [
     "Quotient",
     "SPHERE",
     "CIRCLE",
-    "UNIT_INTERVAL",
     "COSINE_INTERVAL",
     "HALF_LINE",
     "REAL_LINE",
     "POINT",
     "ManifoldMap",
     "archimedes",
-    "barycentre",
     "quotient_onto",
 ]
 
@@ -926,7 +924,7 @@ class Quotient(GSpace):
     #: agrees on ``(base, by)`` and disagrees on where its lift lands is two
     #: orbit spaces, not one — `[M]` 2026-09-03 (elegance review) with the
     #: field excluded, ``replace(entry, lift_codomain=SPHERE)`` compared EQUAL
-    #: to the catalogue entry and, :func:`barycentre` being memoised on the
+    #: to the catalogue entry and, the retired ``barycentre`` having been memoised on the
     #: entry, whichever was asked FIRST answered for both: ERR-080's shape
     #: (an arrow off the sphere declaring itself onto it), re-minted by the
     #: field built to refuse it.  Gated in ``__post_init__`` against the base's
@@ -984,7 +982,7 @@ class Quotient(GSpace):
            (:func:`_assert_named_by_stabiliser`).  `[M]` 2026-09-02, before
            this check: ``replace(SPHERE.quotient(O2("x")), by=SO2("x"))``
            constructed, compared unequal to the catalogue entry, and was
-           accepted by :func:`barycentre` and the polar-axis reader —
+           accepted by the (since retired) ``barycentre`` and the polar-axis reader —
            ERR-080's own defect class (one orbit space, two objects) reopened
            by the very idiom Pattern 4 blesses, because the refusal then
            lived in ONE builder rather than on the type.
@@ -1139,7 +1137,7 @@ class Quotient(GSpace):
         2026-09-02: :math:`\pi_a \circ \varphi_a = \mathrm{pr}_1`
         bit-exactly on 12 of 12 (three axes × four Gauss orders) and
         :math:`\beta_a \circ \pi_a` the axial projection on 3 of 3 —
-        :func:`archimedes` and :func:`barycentre` are the arrows on either
+        :func:`archimedes` and :attr:`lift` are the arrows on either
         side of this one.
         """
         return ManifoldMap(
@@ -1172,8 +1170,7 @@ class Quotient(GSpace):
 
         Typed honestly: the domain is this entry in its chart coordinates, the
         codomain :attr:`lift_codomain` — the ball for a sphere entry, the base
-        for the identity — so a reader learns which it was handed
-        (:func:`barycentre` is this arrow under its public name).
+        for the identity — so a reader learns which it was handed.
         """
         return ManifoldMap(
             domain=self, codomain=self.lift_codomain, apply=self.lift_coordinates,
@@ -1395,7 +1392,6 @@ class Quotient(GSpace):
 SPHERE = Sphere()
 CIRCLE = Circle()
 COSINE_INTERVAL = Interval(-1.0, 1.0)  # replaced SPACE_INTERVAL_M11
-UNIT_INTERVAL = Interval(0.0, 1.0)  # replaced SPACE_INTERVAL_01
 HALF_LINE = Interval(0.0, float(np.inf))  # replaced SPACE_HALF_LINE
 REAL_LINE = Interval(float(-np.inf), float(np.inf))  # replaced SPACE_R
 POINT = Point()
@@ -1467,7 +1463,7 @@ class ManifoldMap:
     of what this type buys.  (`[M]` 2026-09-02: :class:`Ball` had no consumer
     outside this module — ``Ball(2)`` is the :math:`\sigma_y` entry's
     :attr:`~Quotient.realization` — and ``Ball(3)`` had never been
-    constructed; :func:`barycentre` is the first arrow whose CODOMAIN is a
+    constructed; :attr:`Quotient.lift` is the first arrow whose CODOMAIN is a
     ball, which is what makes the forged codomain refusable in kind.)
 
     **Composition** is ``psi @ phi`` for :math:`\psi \circ \varphi`, refused
@@ -1615,63 +1611,6 @@ def archimedes(axis: str = "z") -> ManifoldMap:
     return ManifoldMap(
         domain=COSINE_INTERVAL * CIRCLE, codomain=SPHERE, apply=apply
     )
-
-
-@functools.cache
-def barycentre(orbit_space: Quotient) -> ManifoldMap:
-    r"""The orbit-barycentre map of a catalogued orbit space — its
-    :attr:`~Quotient.lift`, under the name that says what it is.
-
-    For :math:`S^2/O(2)_a` this is :math:`\mu \mapsto \mu\,\hat e_a`: an
-    orbit of the axial group is the circle :math:`\{\Omega : \Omega \cdot
-    \hat e_a = \mu\}` of radius :math:`\sqrt{1-\mu^2}` about the point
-    :math:`\mu\,\hat e_a` on the axis — the orbit's mean under the fibre's
-    uniform measure, **inside the ball, off the sphere**: :math:`1 -
-    \|\mu\hat e_a\|^2 = 1 - \mu^2 = \tfrac14 \det P`, the squared orbit
-    radius the catalogue records as :attr:`Quotient.det_gram`.  For
-    :math:`S^2/\sigma_a` it is :math:`(x_b, x_c) \mapsto (0, x_b, x_c)`, the
-    midpoint of :math:`\{p, \sigma_a p\}`, on the sphere only on the equator;
-    for :math:`M/\{e\}` the identity.  Every one is the Reynolds projector
-    :math:`P_H` onto :math:`H`'s fixed subspace, which is why one formula
-    serves (:func:`_coordinate_chart`) and why the codomain is
-    :class:`Ball` for a sphere entry and can be nothing else.  Until
-    2026-09-03 (#434 R4) this arrow existed for the axial entries alone and
-    the mirror entries lifted through a hemisphere section instead.
-
-    **This is the map ERR-080 forges.**  `[M]` 2026-09-02 the tree spelled it
-    twice: ``_embedded_nodes`` (then in ``symmetry``, in ``invariance`` from
-    R2; :meth:`Quotient.ambient_points` since S5 — honestly: an invariance
-    check wants
-    the barycentre, because a rotation about :math:`a` fixes it), and
-    ``Quadrature._harmonic_frame_measure``'s 1-D arm, which computed the
-    same :math:`(\mu, 0, 0)` and declared it a measure on ``SPHERE``.  The
-    first reads this arrow; the second was RETIRED with #429's fused commit —
-    a 1-D rule's frame reads the rule's own measure and binds the Legendre
-    basis on the orbit space — and it could not have been re-spelled through
-    this map without lying about the codomain, which was the point.
-
-    Not a section: a section lands ON the base by picking a representative,
-    and for a positive-dimensional group none is canonical
-    (:attr:`Quotient.fundamental_domain` is ``None`` for every axial entry on
-    purpose).  The barycentre is canonical precisely because it is not a
-    representative.  Memoised, so ``barycentre(e) is barycentre(e)``; note
-    that ``e.lift`` assembles a FRESH (and ``==``-equal) arrow on every read
-    from the same two fields, so an agreement between the two spellings of
-    this one arrow is stated by ``==``, never by ``is``.
-
-    Raises
-    ------
-    ValueError
-        If ``orbit_space`` is not a :class:`Quotient` — a point of a bare
-        interval is not an orbit at all.
-    """
-    if not isinstance(orbit_space, Quotient):
-        raise ValueError(
-            f"the barycentre map is defined on an orbit space M/H; got "
-            f"{getattr(orbit_space, 'name', orbit_space)!r}, whose points are "
-            f"not orbits."
-        )
-    return orbit_space.lift
 
 
 # ---------------------------------------------------------------------------

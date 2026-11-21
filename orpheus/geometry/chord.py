@@ -358,11 +358,6 @@ class Chord:
         return self.crossings.region_entered[..., :-1]
 
     @property
-    def slot_start(self) -> np.ndarray:
-        """The parameter where each slot begins, ``(..., S)``; :math:`-\\infty` on a parallel line."""
-        return np.where(self.parallel[..., None], -np.inf, self.crossings.parameter[..., :-1])
-
-    @property
     def interface(self) -> np.ndarray:
         r"""For a parallel line lying in :math:`c = r_k`, :math:`k`; :attr:`ConcentricPartition.no_interface` otherwise.
 

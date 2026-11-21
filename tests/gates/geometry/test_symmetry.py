@@ -31,6 +31,7 @@ from orpheus.geometry.transformation import RigidMotion
 from orpheus.geometry.manifold import SPHERE
 from orpheus.geometry.roots_of_unity import roots_of_unity
 from orpheus.geometry.symmetry import IdentityComponent, Realization, SubgroupOfO3, _ELEMENT_ATOL
+from tests.gates.geometry._geometry_oracles import permutes
 
 from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _g22b_mirror, _every_spellable_group
 
@@ -816,7 +817,7 @@ def test_the_whole_spellable_lattice_obeys_the_order_relation_laws() -> None:
     it — 484 ``contains`` calls rather than 10648, which is what makes the
     triple loop affordable (`[M]` 0.43 s for the matrix before R1's memo).
     """
-    from orpheus.geometry.symmetry import _group_elements
+    from tests.gates.geometry._geometry_oracles import _group_elements
 
     n = len(_SPELLABLE)
     assert n == 22, f"the spellable set moved: {n} members"
@@ -1240,7 +1241,7 @@ def _closed(group: SubgroupOfO3) -> list[RigidMotion]:
     """The group's realized ELEMENTS (the closure), for the brute-force
     conjugation controls above — the draft defined it beside the manifold
     gates; the symmetry gates need it too."""
-    from orpheus.geometry.symmetry import _group_elements
+    from tests.gates.geometry._geometry_oracles import _group_elements
 
     elems = _group_elements(group._tag)
     assert elems is not None
@@ -1586,21 +1587,6 @@ _r1_ORDERS = {"Trivial": 1, "Oh": 48, "Ih": 120,
               **{f"sigma_{a}": 2 for a in _r1_AXES},
               **{f"C_{n}": n for n in range(1, 9)},
               **{f"D_{n}h": 4 * n for n in range(1, 9)}}
-
-
-#: `[M]` 2026-09-02 — the corrected table.  Every FINITE member's identity
-#: component is the TRIVIAL group (a discrete group's identity component is a
-#: point); before R1 the property returned the group ITSELF, which is wrong on
-#: 21 of the roster's 22 finite members (all but ``Trivial``).
-_r1_IDENTITY_COMPONENT = {
-    "Trivial": "Trivial", "Dinfh": "SO2_z", "Oh": "Trivial", "Ih": "Trivial",
-    "SO3": "SO3", "O3": "SO3",
-    **{f"sigma_{a}": "Trivial" for a in _r1_AXES},
-    **{f"SO2_{a}": f"SO2_{a}" for a in _r1_AXES},
-    **{f"O2_{a}": f"SO2_{a}" for a in _r1_AXES},
-    **{f"C_{n}": "Trivial" for n in range(1, 9)},
-    **{f"D_{n}h": "Trivial" for n in range(1, 9)},
-}
 
 
 #: `[M]` the dimension of each member as a Lie group.  Note what is ABSENT:
@@ -2086,11 +2072,11 @@ def _r1_product_directions(n_phi: int) -> np.ndarray:
 
 
 def _r1_permuted_by_every_element(points: np.ndarray, group: SubgroupOfO3) -> bool:
-    """Every element of the finite ``group`` maps the point set onto itself (``RigidMotion.permutes``)."""
+    """Every element of the finite ``group`` maps the point set onto itself (the test-side ``permutes`` oracle)."""
     realization = group.realization
     if not realization.is_finite:
         raise ValueError(f"{group.name} is continuous: it has no finite element set to permute by")
-    return all(g.permutes(points, atol=1e-13) is not None for g in realization.elements)
+    return all(permutes(g, points, atol=1e-13) is not None for g in realization.elements)
 
 
 class TestR1AConnectedGroupIsDecidedByItsLieAlgebra:
@@ -2296,50 +2282,6 @@ class TestR1TheGroupIsAFrozenValue:
         lookup = {g: g.name for g in members}
         for g in members:
             assert lookup[g] == g.name
-
-
-# --------------------------------------------------------------------------
-# G8 — identity_component, corrected
-# --------------------------------------------------------------------------
-
-
-class TestR1TheIdentityComponentIsTheConnectedHalf:
-    r"""``identity_component`` is :math:`G^0`, the CONNECTED component of the
-    identity — which for a discrete group is a point, i.e. :math:`\{e\}`.
-
-    Before R1 the property returned the group ITSELF for every finite member.
-    `[M]` that is wrong on **21 of the roster's 22** finite members (all but
-    ``Trivial``), and it had **zero** readers tree-wide — a property with no
-    consumer and no test, which is exactly how a wrong answer survives.
-    """
-
-    @pytest.mark.foundation
-    def test_the_named_table_over_the_whole_roster(self) -> None:
-        """`[M]` 2026-09-02: every finite member answers ``Trivial``; the axial
-        pair answers its own ``SO2_a``; ``D_∞h`` answers ``SO2_z``; ``O(3)``
-        answers ``SO(3)``.  31 of 31 rows written out, because a table is the
-        only way to state which rows the carve MOVED."""
-        for name in _r1_MEMBERS:
-            got = _r1_group(name).identity_component
-            assert got.name == _r1_IDENTITY_COMPONENT[name], (
-                f"{name}: identity_component is {got.name}, "
-                f"expected {_r1_IDENTITY_COMPONENT[name]}"
-            )
-
-    @pytest.mark.foundation
-    def test_it_obeys_the_three_laws_G0_must_obey(self) -> None:
-        r"""Independent of the table: :math:`G^0 \subseteq G`,
-        :math:`\dim G^0 = \dim G` (the component carries the whole dimension),
-        and :math:`(G^0)^0 = G^0` (idempotence — a connected group is its own
-        identity component).  A table can be transcribed wrongly; these cannot.
-        """
-        for name in _r1_MEMBERS:
-            group = _r1_group(name)
-            component = group.identity_component
-            assert group.contains(component), name
-            assert component.dim == group.dim, (name, component.dim, group.dim)
-            assert component.identity_component == component, name
-            assert component.realization.component.dim == group.realization.component.dim
 
 
 # --------------------------------------------------------------------------
