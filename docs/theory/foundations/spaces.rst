@@ -8029,8 +8029,13 @@ status.
        ``Axis.generator_as``
        — a typed narrow whose refusal names both the axis and the asking
        consumer, and which is load-bearing rather than defensive because
-       the declared union's other arm cannot answer either read. The
-       angular-closure family's construction contract widens to
+       the declared union's other arm cannot answer either read.
+       ⛔ dated: S7a (``47e7bfaa``, ``refactor(numerics): S7a, an axis is
+       identified by what fixes its space``) retired
+       ``generator_as``
+       into :attr:`Axis.origin <orpheus.numerics.axis.Axis.origin>`; the
+       recovery above now reads ``case FromQuadrature(quad)`` on the origin.
+       The angular-closure family's construction contract widens to
        ``cls(angular, pairing, angular_axis)``, so both concrete members
        mint through the same narrow. In the other direction the
        **courier dies** — the field whose docstring said it was *"held

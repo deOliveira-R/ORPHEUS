@@ -220,7 +220,7 @@ from numpy.typing import NDArray
 from orpheus.geometry.faces import face_normal
 from orpheus.numerics.fredholm import PredictedKernel
 from orpheus.numerics.kernel_projection_gauge import KernelSummand, diagonal_metric
-from orpheus.numerics.evidence import Evidence, Measured
+from orpheus.numerics.evidence import Evidence, measured_value
 from orpheus.transport.spatial.scheme import FaceModeDamping
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -472,10 +472,14 @@ def warn_if_gauge_freedom(
       number, or the typed reason nothing was measured), which carries it
       either way.
 
+    A ``correction`` outside :data:`~orpheus.numerics.evidence.Evidence` raises
+    ``AssertionError`` before the verdict is read.
+
     The warning reports an **action taken**, not a configuration property. That
     is what keeps it off the standard ``k_inf`` lattice, which is all-reflective
     by default and would otherwise warn on every solve.
     """
+    reading = measured_value(correction)
     verdict = gauge_freedom(problem)
 
     if verdict.undetermined:
@@ -495,14 +499,14 @@ def warn_if_gauge_freedom(
         )
         return
 
-    if not verdict.present or not isinstance(correction, Measured):
+    if not verdict.present or reading is None:
         return
-    if correction.value <= _GAUGE_AUDIBLE_FLOOR:
+    if reading <= _GAUGE_AUDIBLE_FLOOR:
         return
 
     warnings.warn(
         f"{where}: the returned boundary trace was GAUGE-FIXED — "
-        f"{correction.value:.2%} of it lay in ker(L+C-S-B), which is exactly "
+        f"{reading:.2%} of it lay in ker(L+C-S-B), which is exactly "
         f"singular here, so the solve had converged to an arbitrary member of "
         f"a solution manifold rather than to a point. {verdict.because}. The "
         f"trace returned is now the canonical minimum-norm member (the one the "

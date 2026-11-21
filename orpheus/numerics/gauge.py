@@ -96,7 +96,10 @@ class ScaleGauge:
     ``_dense_eigen_oracle``) is one case of this
     section, not a second convention.  A ZERO functional value has no section
     (the state is orthogonal to the functional — nothing to scale against) and
-    is refused with a ``ValueError`` naming the functional.  ``[M]``
+    is refused with a ``ValueError`` naming the functional.  A reading of a
+    complex dtype has no section and is refused with a ``ValueError`` (fragment
+    ``complex reading``), whatever its imaginary part: the section is over the
+    nonzero reals.  ``[M]``
     ``power_iteration``'s own rescale is guarded by ``if p > 0.0``
     (``eigenvalue.py:437-447``), so it silently skips BOTH the zero reading
     (where no section exists) and a negative one (where this section exists
@@ -108,7 +111,14 @@ class ScaleGauge:
 
     def displacement(self, state: Any) -> float:
         r"""The group element :math:`t / n(\psi)` that carries ``state`` onto the section."""
-        n = float(self.functional(state))
+        reading = self.functional(state)
+        if np.iscomplexobj(reading):
+            # ELEGANCE-DEBT[guard] #725 (W5): the scale functional is typed Callable[[Any], float] but a producer may return a complex carrier. Retires when the scale functional is typed real by construction (W5): the producer returns a checked real, and the machinery that exists today is the real-codomain functional of the three production constructors.
+            raise ValueError(
+                f"ScaleGauge: the functional {self.functional!r} read the complex value {reading!r}; "
+                f"the scale quotient is over the nonzero reals, so a complex reading has no section (complex reading)"
+            )
+        n = float(reading)
         if n == 0.0:
             raise ValueError(
                 f"ScaleGauge: the functional {self.functional!r} reads 0 on the "

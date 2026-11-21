@@ -2056,7 +2056,13 @@ them.  Trust ``git``, not this column.
        ``angular_frame(L)`` → ``from_galerkin``), interned at BOTH
        hops, so "one frame per (axis content, :math:`L`)" is an object
        identity and :math:`S`, :math:`F` and the windowing method share
-       one frame and one cached table.  The tier-2 classmethod mints
+       one frame and one cached table.
+       ⛔ dated: S7a (``47e7bfaa``) retired
+       ``generator_as``
+       into :attr:`Axis.origin <orpheus.numerics.axis.Axis.origin>`; the
+       chain now reads ``case FromQuadrature(quadrature)`` on the leading
+       axis's origin, then ``angular_frame(quadrature, L)``, then
+       ``from_galerkin``.  The tier-2 classmethod mints
        the faces and forgets the frame; the ``frame`` accessor is
        PROVENANCE riding on a retained face (zero extra state).  The
        eigenbasis principle is untouched — what came apart is

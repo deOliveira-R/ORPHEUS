@@ -12,8 +12,9 @@ import nothing.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import assert_never
 
-__all__ = ["Asserted", "Evidence", "Measured", "NotApplicable", "NotYet"]
+__all__ = ["Asserted", "Evidence", "Measured", "NotApplicable", "NotYet", "measured_value"]
 
 
 @dataclass(frozen=True)
@@ -53,3 +54,16 @@ class NotYet:
 
 
 Evidence = Measured | Asserted | NotApplicable | NotYet
+
+
+def measured_value(e: Evidence) -> float | None:
+    """The measured number of ``e``, or ``None`` when ``e`` carries none (an asserted bound, a question that does not arise, open work).
+
+    The exhaustive projection of the union onto its measured number: a fifth arm is an edit of the alias, after which this function reddens (``assert_never``)."""
+    match e:
+        case Measured(value=value):
+            return value
+        case Asserted() | NotApplicable() | NotYet():
+            return None
+        case _:
+            assert_never(e)

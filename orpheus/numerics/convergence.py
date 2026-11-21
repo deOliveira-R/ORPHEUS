@@ -216,7 +216,7 @@ import warnings
 from collections.abc import Iterator
 from dataclasses import dataclass, replace
 
-from orpheus.numerics.evidence import Evidence, Measured, NotApplicable
+from orpheus.numerics.evidence import Evidence, NotApplicable, measured_value
 
 __all__ = [
     "ESCALATION_FLAG",
@@ -1527,9 +1527,11 @@ def warn_if_unconverged(
         one — SN's exit report; :class:`~orpheus.numerics.evidence.NotApplicable`
         / :class:`~orpheus.numerics.evidence.NotYet` / :class:`~orpheus.numerics.evidence.Asserted`
         otherwise — CP, MoC and diffusion pass the default).  Only a MEASURED
-        value renders; every other case is an ABSENT clause rather than the
-        words "unavailable", because an empty
-        clause cannot be misread as a measurement.
+        value renders; every other arm of the union is an ABSENT clause rather
+        than the words "unavailable", because an empty clause cannot be
+        misread as a measurement.  A value outside the union raises
+        ``AssertionError`` (from :func:`~orpheus.numerics.evidence.measured_value`),
+        before the converged-record return.
 
     Notes
     -----
@@ -1597,6 +1599,7 @@ def warn_if_unconverged(
     must assert the exact ``filename`` **and** ``lineno``, not a containment
     predicate.
     """
+    reading = measured_value(balance_defect)
     if record.fully_converged:
         return
 
@@ -1716,9 +1719,9 @@ def warn_if_unconverged(
     # nothing rather than "unavailable" — an empty clause cannot be misread
     # as a measurement.
     balance = (
-        "" if not isinstance(balance_defect, Measured) else
+        "" if reading is None else
         f"The returned iterate leaves a per-group balance defect of "
-        f"‖R_g‖/‖Q_g‖ = {balance_defect.value:.3e} — a DIAGNOSTIC "
+        f"‖R_g‖/‖Q_g‖ = {reading:.3e} — a DIAGNOSTIC "
         f"magnitude, NOT a verdict: it tracks the error in keff better than "
         f"the raw residual does, but benign and corrupting solves overlap, "
         f"so weigh it and do not threshold it. "
