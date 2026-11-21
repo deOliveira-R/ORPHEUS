@@ -80,7 +80,7 @@ class Worker:
         self.boot: ModuleType = _recorder.boot()
 
     def result_path(self, nodeid: str) -> Path:
-        return Path(self.config.results, f"{self.boot.digest(nodeid.encode())[:40]}.json")
+        return Path(self.config.results, f"{self.boot._CONVENTION.hexdigest(nodeid.encode())[:40]}.json")
 
     def write(self, nodeid: str, route: str, outcome: str, cone: dict[str, Any] | None, unknown: tuple[str, ...] = (),
               own: dict[str, Any] | None = None, reads: list[list[Any]] | None = None) -> None:

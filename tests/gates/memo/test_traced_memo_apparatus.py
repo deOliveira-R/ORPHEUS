@@ -54,9 +54,9 @@ def test_a_probed_path_records_no_apparatus(tmp_path):
 def test_the_rest_of_the_recorder_is_recorded_like_any_code():
     """A run that calls a recorder def outside the apparatus records it: the file is not excluded wholesale, so a
     test of the recorder still depends on what it ran."""
-    names, _ = _recorded_boot_defs(lambda: _traced_memo_boot.digest(b"x"))
-    if "digest" not in names:
-        pytest.fail(f"the recorder's own `digest` was not recorded: {sorted(names)}")
+    names, _ = _recorded_boot_defs(lambda: _traced_memo_boot.frame(b"x"))
+    if "frame" not in names:
+        pytest.fail(f"the recorder's own `frame` was not recorded: {sorted(names)}")
 
 
 def test_every_hook_the_recording_installs_is_declared_apparatus():

@@ -676,8 +676,11 @@ def test_b14_the_index_and_the_memos_own_source_are_no_dependency_of_a_run(tmp_p
     record = api.read_entry(parent)
     sources = os.path.realpath(REPO / ".cache" / "sources")
     memo_sources = {os.path.realpath(path) for path in api.name("_MEMO_SOURCES")}
-    # Four files since B2 (#689): the memo, its boot, its import-time statement module, and the values identity.
-    assert {os.path.basename(path) for path in memo_sources} == {"traced_memo.py", "_traced_memo_boot.py", "_import_time.py", "content.py"} and all(os.path.isfile(path) for path in memo_sources), memo_sources
+    # The closure of the memo's import statements over its two packages (gate G7 holds the set); here each is a real file and the
+    # values identity is among them.
+    from orpheus.values import content
+
+    assert os.path.realpath(content.__file__) in memo_sources and all(os.path.isfile(path) for path in memo_sources), memo_sources
     paths = [p for kind in ("DataPin", "PresencePin", "ListingPin") for p, *_ in api.manifest_rows(record, kind)]
     assert not [p for p in paths if os.path.realpath(p).startswith(sources)], paths
     data = [p for p, *_ in api.manifest_rows(record, "DataPin")]
@@ -809,7 +812,7 @@ def test_b17_old_memo_code_cannot_write_an_index_under_new_codes_name(tmp_path):
     (values / "__init__.py").write_text("")
     for name in ("traced_memo.py", "_traced_memo_boot.py", "_import_time.py"):
         shutil.copy2(REPO / "orpheus" / "memo" / name, package)
-    for name in ("content.py", "scalars.py"):
+    for name in sorted(p.name for p in (REPO / "orpheus" / "values").glob("*.py")):
         shutil.copy2(REPO / "orpheus" / "values" / name, values)
     memo_file = package / "traced_memo.py"
     old, new = b"isinstance(first.value.value, str)", b"isinstance(first.value.value, int)"

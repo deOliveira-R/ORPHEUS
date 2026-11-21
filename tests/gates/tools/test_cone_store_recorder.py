@@ -159,14 +159,14 @@ def _imported(tree: ast.AST) -> set[str]:
 def test_r7_the_store_defines_no_digest_of_its_own() -> None:
     """R7. One definition per quantity (X4): ``tools/cone_store/`` computes no digest of a source. No
     ``hashlib``, ``ast.parse`` or ``ast.dump``, no def whose name holds ``digest``, and every ``digest`` name it
-    uses is imported from the memo (``orpheus.memo._traced_memo_boot`` or ``traced_memo``). Its def and
+    uses is imported from the memo (``orpheus.memo._traced_memo_boot`` or ``traced_memo``) or from ``orpheus.values.digest``. Its def and
     statement digests come with the memo's pins (``collect_pins``), which some module of the package names.
     Census: every module of the package, the count asserted non-zero, and the known member naming
     ``collect_pins`` found. (Re-pointed in review round 1: the store no longer imports ``function_digest``; it
     reads the digests off the pins.)"""
     modules = _tool_modules()
     banned = {"hashlib", "ast.parse", "ast.dump", "blake2b", "sha256"}
-    memo_modules = ("orpheus.memo._traced_memo_boot.", "orpheus.memo.traced_memo.")
+    memo_modules = ("orpheus.memo._traced_memo_boot.", "orpheus.memo.traced_memo.", "orpheus.values.digest.")
     for path, tree in modules:
         where = path.relative_to(REPO)
         hit = (_calls(tree) | _imported(tree)) & banned

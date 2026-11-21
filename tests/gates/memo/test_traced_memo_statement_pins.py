@@ -373,7 +373,7 @@ def test_the_import_outcome_is_not_served_across_a_change_of_the_memos_own_sourc
         return real_run(*args, **kwargs)
 
     monkeypatch.setattr(memo.subprocess, "run", counting)
-    modules = (("pkgo/m.py", memo._digest((tmp_path / "pkgo" / "m.py").read_bytes()), "pkgo.m"),)
+    modules = (("pkgo/m.py", memo.hexdigest((tmp_path / "pkgo" / "m.py").read_bytes()), "pkgo.m"),)
     monkeypatch.setattr(memo, "_INDEX_MEMO_DIGEST", "a" * 64)
     first = memo._import_outcome(modules, [str(tmp_path)]).digest
     monkeypatch.setattr(memo, "_INDEX_MEMO_DIGEST", "b" * 64)
@@ -457,12 +457,12 @@ def test_a_kept_set_missing_once_is_read_when_it_appears_and_a_corrupt_one_is_re
     monkeypatch.setattr(memo, "_KEPT_SETS", tmp_path / "sets")
     monkeypatch.setattr(memo, "_KEPT_SETS_READ", {})
     value = ["kappa_a", "kappa_b"]
-    name = memo._digest(json.dumps(value, separators=(",", ":")).encode())
+    name = memo.hexdigest(json.dumps(value, separators=(",", ":")).encode())
     assert memo._read_kept_set(name) is None, "a set never kept was read"
     assert memo._keep_set(value) == name
     assert memo._read_kept_set(name) == tuple(value), "K1: a set missing once stays missing in this process"
     other = ["kappa_c"]
-    other_name = memo._digest(json.dumps(other, separators=(",", ":")).encode())
+    other_name = memo.hexdigest(json.dumps(other, separators=(",", ":")).encode())
     (tmp_path / "sets").mkdir(exist_ok=True)
     (tmp_path / "sets" / f"{other_name}.json").write_bytes(b'["truncated"')
     assert memo._read_kept_set(other_name) is None, "a corrupt set was served"
@@ -482,7 +482,7 @@ def test_a_kept_name_set_is_built_once_per_process_and_a_miss_is_not_remembered(
     monkeypatch.setattr(memo, "_KEPT_SETS_READ", {})
     monkeypatch.setattr(memo, "_KEPT_NAMES_READ", {})
     value = ["kappa_a", "kappa_b"]
-    name = memo._digest(json.dumps(value, separators=(",", ":")).encode())
+    name = memo.hexdigest(json.dumps(value, separators=(",", ":")).encode())
     store = memo.Store(tmp_path / "store")
     first, second = memo._Checkout(store), memo._Checkout(store)
     assert first.names(name) is None, "a name set never kept was read"

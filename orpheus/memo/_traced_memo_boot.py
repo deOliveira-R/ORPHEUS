@@ -1,6 +1,8 @@
 """The traced memo's recorder, and the first code its generating process runs (#405 P3).
 
-This module imports only the standard library, so the generating process can start recording before any
+This module imports only the standard library, and loads one file of :mod:`orpheus.values`, ``digest.py``, by path (in a
+process that already imported ``orpheus``, through the import system), because the loader below hashes every first-party
+source before ``orpheus`` is importable, so the generating process can start recording before any
 ``orpheus`` code runs: it is run by path with ``-P`` (``python -P _traced_memo_boot.py``), and its
 ``main`` starts a :class:`Recording` on its first line, then loads the job and
 :mod:`orpheus.memo.traced_memo`. Importing it runs nothing (a roster walk over the package imports it),
@@ -38,7 +40,7 @@ Audit hooks cannot be removed, so one hook is installed per process and serves t
 moment of each event; the ``os.stat`` probe is installed while a recording is active and removed after.
 """
 import copy
-import hashlib
+import importlib
 import importlib.machinery
 import marshal
 import os
@@ -131,11 +133,6 @@ def _by_importer(depth: int) -> bool:
         return False
     filename = frame.f_code.co_filename
     return filename.startswith(("<frozen importlib", *_IMPORTLIB))
-
-
-def digest(data: bytes) -> str:
-    """The memo's one digest: of a source, a data file, a manifest's payload, an index's key."""
-    return hashlib.blake2b(data, digest_size=32).hexdigest()
 
 
 def presence(path: str) -> str:
@@ -242,7 +239,7 @@ def file_digest(path: str, witness: Witness | None = None) -> str:
         return "absent"
     try:
         with open(path, "rb") as file:
-            return digest(file.read())
+            return _CONVENTION.hexdigest(file.read())
     except FileNotFoundError:
         return "absent"
 
@@ -264,7 +261,7 @@ def listing_digest(path: str, witness: Witness | None = None) -> str:
     found = (witness or Witness()).stat(path)
     if found is None or not stat.S_ISDIR(found.st_mode):
         return "absent"
-    return digest("\0".join(sorted(name for name in os.listdir(path) if name not in _LISTING_IGNORED)).encode())
+    return _CONVENTION.hexdigest("\0".join(sorted(name for name in os.listdir(path) if name not in _LISTING_IGNORED)).encode())
 
 
 class Observation(NamedTuple):
@@ -546,7 +543,33 @@ class spawning:
 #: The repository's cache directory (gitignored), the one root of the memo's stores: the entries (``references``),
 #: the source indexes (``sources``), the pinned bytecode (``bytecode``), the sets a pin names by digest (``sets``)
 #: and the import outcomes (``import_outcomes``).
-CACHE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), ".cache")
+#: The ``orpheus`` package directory, from this file's own real path (``orpheus/memo/_traced_memo_boot.py``): the one
+#: anchor of the store root and of the convention's file.
+_PACKAGE = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+CACHE = os.path.join(os.path.dirname(_PACKAGE), ".cache")
+_CONVENTION_PATH = os.path.join(_PACKAGE, "values", "digest.py")
+if "orpheus" in sys.modules:
+    #: The hash convention: in a process that imported ``orpheus`` the import system compiled it and gives the one module object.
+    _CONVENTION = importlib.import_module("orpheus.values.digest")
+else:
+    #: The bytes of the convention's file, read once; they are what ``_CONVENTION`` was compiled from. Defined in this branch only:
+    #: its one reader, :func:`_install_pinned_sources`, runs in the generating process, where this branch ran.
+    with open(_CONVENTION_PATH, "rb") as _stream:
+        _CONVENTION_SOURCE = _stream.read()
+    _CONVENTION = types.ModuleType("orpheus.values.digest")
+    _CONVENTION.__file__ = _CONVENTION_PATH
+    exec(compile(_CONVENTION_SOURCE, _CONVENTION_PATH, "exec"), _CONVENTION.__dict__)
+
+
+def adopt_convention() -> None:
+    """Once ``orpheus.values`` is imported, the by-path module becomes THE module of its dotted name: a later
+    ``import orpheus.values.digest`` (``content.py``'s, ``traced_memo.py``'s) finds it, so the process holds one module
+    object of the file and has read it once. ``orpheus/__init__.py`` and ``orpheus/values/__init__.py`` import nothing
+    (gate G18), so ``import orpheus.values`` cannot load a dotted copy first."""
+    import orpheus.values
+
+    sys.modules["orpheus.values.digest"] = _CONVENTION
+    orpheus.values.digest = _CONVENTION
 #: Where the pinned-source loader keeps bytecode, one directory per interpreter and ``-O`` level. An entry is
 #: named by the digest of (path, interpreter, ``-O`` level, source bytes), so sharing it across stores and
 #: processes is sound.
@@ -569,7 +592,21 @@ def write_atomically(path, data: bytes) -> None:
 
 def _bytecode_key(path: str, source: bytes) -> bytes:
     head = f"{path}\0{sys.implementation.cache_tag}\0{sys.flags.optimize}\0".encode()
-    return hashlib.blake2b(head + source, digest_size=32).digest()
+    return _CONVENTION.digest(head + source)
+
+
+def seal_entry(key: bytes, payload: bytes) -> bytes:
+    """A bytecode-cache entry: ``key`` (a digest, ``DIGEST_SIZE`` bytes), the digest of ``payload``, ``payload``."""
+    return key + _CONVENTION.digest(payload) + payload
+
+
+def unseal_entry(key: bytes, entry: bytes) -> bytes | None:
+    """The payload of ``entry`` when it begins with ``key`` and the digest of the rest; ``None`` otherwise (a torn or foreign file)."""
+    size = _CONVENTION.DIGEST_SIZE
+    payload = entry[2 * size:]
+    if entry[:size] == key and entry[size:2 * size] == _CONVENTION.digest(payload):
+        return payload
+    return None
 
 
 class _PinnedSourceLoader(importlib.machinery.SourceFileLoader):
@@ -586,22 +623,26 @@ class _PinnedSourceLoader(importlib.machinery.SourceFileLoader):
     def get_code(self, fullname: str):  # type: ignore[override]
         with unrecorded():
             path = self.get_filename(fullname)
-            source = self.get_data(path)
-            if PINNED_SOURCES is not None:
-                PINNED_SOURCES[os.path.realpath(path)] = source
+            real = os.path.realpath(path)
+            if PINNED_SOURCES is not None and real in PINNED_SOURCES:
+                source = PINNED_SOURCES[real]
+            else:
+                source = self.get_data(path)
+                if PINNED_SOURCES is not None:
+                    PINNED_SOURCES[real] = source
             key = _bytecode_key(path, source)
             entry = os.path.join(_BYTECODE, key.hex())
             try:
                 with open(entry, "rb") as stored:
                     data = stored.read()
-                if data[:32] == key and data[32:64] == hashlib.blake2b(data[64:], digest_size=32).digest():
-                    return marshal.loads(data[64:])
+                if (payload := unseal_entry(key, data)) is not None:
+                    return marshal.loads(payload)
             except (OSError, EOFError, ValueError, TypeError):
                 pass
             code = self.source_to_code(source, path)
             payload = marshal.dumps(code)
             try:
-                write_atomically(entry, key + hashlib.blake2b(payload, digest_size=32).digest() + payload)
+                write_atomically(entry, seal_entry(key, payload))
             except OSError:
                 pass
             return code
@@ -659,9 +700,10 @@ def _install_pinned_sources(recording: "Recording") -> None:
             os.path.realpath(f) for module in list(sys.modules.values())
             if isinstance(f := getattr(module, "__file__", None), str) and f.endswith(".py")
         }
-        for path in started:
+        for path in started - {_CONVENTION_PATH}:
             with open(path, "rb") as source:
                 recording.sources[path] = source.read()
+        recording.sources[_CONVENTION_PATH] = _CONVENTION_SOURCE
     sys.meta_path.insert(0, _PinnedSourceFinder)
 
 
@@ -763,6 +805,7 @@ def _boot():
     if envelope is None:
         os._exit(0)
     sys.path[:] = pickle.loads(envelope)["sys_path"]
+    adopt_convention()
     from orpheus.memo import traced_memo
 
     return recording, answers, jobs, traced_memo

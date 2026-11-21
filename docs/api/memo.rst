@@ -3,8 +3,7 @@ Traced memo (``memo``)
 
 The :mod:`orpheus.memo` package sits between :mod:`orpheus.values` and ``numerics``, beside ``geometry``: it imports the
 standard library, numpy and ``orpheus.values`` only, and neither ``values`` nor ``geometry`` imports it (the gate is
-``tests/gates/test_layer_imports.py``; the layer is on :doc:`/architecture/layering`). It was
-``orpheus.numerics.traced_memo`` and its two private modules until the move that made it a package of its own.
+``tests/gates/test_layer_imports.py``; the layer is on :doc:`/architecture/layering`). It was three modules of ``numerics`` until the move that made it a package of its own.
 
 The traced memo — :mod:`orpheus.memo.traced_memo`, a pure function of
 content-identified arguments memoised on disk under ``.cache/references/``

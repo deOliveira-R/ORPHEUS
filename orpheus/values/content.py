@@ -11,7 +11,7 @@ the one definition of "same content":
 * :func:`encode` turns a value into bytes, recursively, every chunk
   TYPE-TAGGED and LENGTH-PREFIXED, so no two different values share a byte
   stream (the encoding is injective on the values it admits);
-* :func:`content_digest` is the blake2b-256 of those bytes;
+* :func:`content_digest` is the digest of those bytes, under the hash convention of :mod:`orpheus.values.digest` (blake2b-256);
 * :class:`ContentIdentity` derives ``==`` and ``hash`` from the digest, so a
   type's equality and its cache key cannot drift (X4: one definition);
 * :class:`FrozenMapping` is the one frozen, picklable mapping value the
@@ -102,7 +102,7 @@ is therefore not a persistent type, nothing in the package defines one, and the
 uniqueness gate above holds the package's classes to distinct names.
 
 This module imports only :mod:`orpheus.values.scalars` (the one definition
-of a real number, itself a leaf), so the data, geometry, mesh and numerics
+of a real number, itself a leaf) and :mod:`orpheus.values.digest` (the hash convention, standard library only), so the data, geometry, mesh and numerics
 layers all use it with no new layer edge.
 """
 
@@ -110,7 +110,6 @@ from __future__ import annotations
 
 import dataclasses
 import enum
-import hashlib
 import struct
 import weakref
 from collections.abc import Iterable, Iterator, Mapping
@@ -118,6 +117,7 @@ from typing import Any, ClassVar, Generic, TypeVar
 
 import numpy as np
 
+from orpheus.values import digest as _convention
 from orpheus.values.scalars import canonical_reals, exact_double
 
 __all__ = [
@@ -130,15 +130,6 @@ __all__ = [
     "encode_exact",
     "name_digest",
 ]
-
-#: Content digests are blake2b-256: wide enough that a collision between two
-#: specifications is not a failure mode a cache needs to consider.
-_DIGEST_SIZE = 32
-
-#: The width, in bytes, of the digest a derived space NAME carries. A name is
-#: a label and a diagnostic, not a persistent key (space identity is
-#: structural since CS4c step 6), so eight bytes suffice.
-_NAME_DIGEST_SIZE = 8
 
 class ContentlessError(TypeError):
     r"""A value with no content identity reached the encoder.
@@ -470,15 +461,15 @@ def encode_exact(value: Any) -> bytes:
 
 
 def content_digest(value: Any) -> bytes:
-    """The blake2b-256 digest of :func:`encode` of ``value``."""
+    """The digest of :func:`encode` of ``value`` (:func:`orpheus.values.digest.digest`)."""
     if isinstance(value, ContentIdentity):
         return value.content_digest
-    return hashlib.blake2b(encode(value), digest_size=_DIGEST_SIZE).digest()
+    return _convention.digest(encode(value))
 
 
 def name_digest(value: Any) -> str:
     """The short hex digest a derived space NAME carries (eight bytes)."""
-    return content_digest(value)[:_NAME_DIGEST_SIZE].hex()
+    return content_digest(value)[:_convention.NAME_SIZE].hex()
 
 
 #: Digests cached by object id, dropped when the object dies. Not stored on
@@ -527,10 +518,7 @@ class ContentIdentity:
             return cached
         # Through ``_encode``, the one route, like every other value (a
         # field-less type would otherwise reach only the schema tag).
-        digest = hashlib.blake2b(
-            _encode(self, type(self).__qualname__, False),
-            digest_size=_DIGEST_SIZE,
-        ).digest()
+        digest = _convention.digest(_encode(self, type(self).__qualname__, False))
         try:
             weakref.finalize(self, _DIGESTS.pop, key, None)
         except TypeError:  # a slotted class without __weakref__: no cache

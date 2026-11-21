@@ -28,6 +28,16 @@ the parsers refuse it, is :ref:`structured-geometry-one-real-parser`.
 .. automodule:: orpheus.values.scalars
    :members:
 
+The hash
+--------
+
+The hash convention — :mod:`orpheus.values.digest`, blake2b with a 32-byte
+digest as bytes and as hex: the one definition, standard library only, that
+the content digest and the traced memo both call.
+
+.. automodule:: orpheus.values.digest
+   :members:
+
 The equality
 ------------
 

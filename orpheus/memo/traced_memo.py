@@ -99,11 +99,11 @@ import numpy as np
 
 from orpheus.memo import _import_time, _traced_memo_boot
 from orpheus.memo._traced_memo_boot import (
-    CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child, ReadChild,
+    CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child, ReadChild,
     spawning, unrecorded, write_atomically,
 )
-from orpheus.values import content as _content
 from orpheus.values.content import ContentIdentity, _rebuild, constructor_arguments, encode_exact
+from orpheus.values.digest import hexdigest
 
 __all__ = [
     "Absent", "AmbiguousOwner", "ChangedByRun", "ChildPin", "CollectedPins", "Corrupt", "DataPin", "DefPin",
@@ -294,7 +294,7 @@ def _without_docstrings(tree: ast.Module) -> ast.Module:
 
 def _ast_digest(node: ast.AST) -> str:
     """The digest of ``node``'s structure: line and column attributes excluded, so layout never moves it."""
-    return _digest(ast.dump(node, include_attributes=False).encode())
+    return hexdigest(ast.dump(node, include_attributes=False).encode())
 
 
 _span = _import_time.span
@@ -373,7 +373,7 @@ class _SourceIndex:
     def projection(self, names: frozenset[str]) -> str:
         """The digest of the import-time statements a run with entry names ``names`` observes, in source order
         (:func:`~orpheus.memo._import_time.observed_digests`)."""
-        return _digest("\n".join(_import_time.observed_digests(self.statements, names)).encode())
+        return hexdigest("\n".join(_import_time.observed_digests(self.statements, names)).encode())
 
 
 def _scope_name(node: ast.AST) -> str:
@@ -448,7 +448,7 @@ def _read_index(path: Path, header: Mapping[str, str]) -> _SourceIndex | _Corrup
         return _CorruptIndex(f"{type(error).__name__}: {error}")
     try:
         head, body = raw.split(b"\n", 1)
-        if json.loads(head) != {**header, "body": _digest(body)}:
+        if json.loads(head) != {**header, "body": hexdigest(body)}:
             return _CorruptIndex("the header names other bytes, or the body does not match its digest")
         return _SourceIndex.from_json(body)
     except (ValueError, TypeError, KeyError) as error:
@@ -468,9 +468,9 @@ def _source_index(data: bytes) -> _SourceIndex:
     writing (qa's round-two review of #602: a process running old code wrote an index under new code's name,
     and a later process read the old normalisation's digests as its own). ``[M]`` #602: 128 indexes read back
     in 9.6 ms against 225 ms of parsing; building them costs 0.56 s once per content."""
-    parts = (_digest(data), _python_identity(), _INDEX_MEMO_DIGEST)
+    parts = (hexdigest(data), _python_identity(), _INDEX_MEMO_DIGEST)
     header: dict[str, str] = dict(zip(("bytes", "python", "memo"), parts, strict=True))
-    path = _SOURCE_INDEXES / f"{_digest(chr(0).join(parts).encode())}.json"
+    path = _SOURCE_INDEXES / f"{hexdigest(chr(0).join(parts).encode())}.json"
     with unrecorded():
         found = _read_index(path, header)
         if isinstance(found, _SourceIndex):
@@ -478,7 +478,7 @@ def _source_index(data: bytes) -> _SourceIndex:
         index = _parsed_index(data)
         if _RUNNING_MEMO_DIGEST is not None:
             body = index.to_json()
-            write_atomically(path, json.dumps({**header, "body": _digest(body)}).encode() + b"\n" + body)
+            write_atomically(path, json.dumps({**header, "body": hexdigest(body)}).encode() + b"\n" + body)
         return index
 
 
@@ -493,11 +493,11 @@ _KEPT_SETS = Path(CACHE) / "sets"
 def _keep_set(value: list[Any]) -> str:
     """Keep ``value`` (a JSON list) under the digest of its canonical form, and return the digest."""
     body = json.dumps(value, separators=(",", ":")).encode()
-    name = _digest(body)
+    name = hexdigest(body)
     path = _KEPT_SETS / f"{name}.json"
     with unrecorded():
         try:
-            intact = _digest(path.read_bytes()) == name
+            intact = hexdigest(path.read_bytes()) == name
         except OSError:
             intact = False
         if not intact:
@@ -518,7 +518,7 @@ def _read_kept_set(name: str) -> tuple[Any, ...] | None:
                 body = (_KEPT_SETS / f"{name}.json").read_bytes()
             except OSError:
                 return None
-        if _digest(body) != name:
+        if hexdigest(body) != name:
             return None
         _KEPT_SETS_READ[name] = tuple(json.loads(body))
     return _KEPT_SETS_READ[name]
@@ -589,7 +589,7 @@ def _import_outcome(modules: tuple[tuple[str, str, str], ...], roots: list[str])
     pytest's ``pythonpath`` ini (``src/``) was not importable by the cone store's ``select``, so a comment edit to it
     gave another outcome (the test-architect's SG7, 2026-11-02)."""
     with unrecorded():
-        key = _digest(json.dumps([_INDEX_MEMO_DIGEST, _python_identity(), _environment_digest(), roots, modules]).encode())
+        key = hexdigest(json.dumps([_INDEX_MEMO_DIGEST, _python_identity(), _environment_digest(), roots, modules]).encode())
         path = _IMPORT_OUTCOMES / f"{key}.json"
         try:
             kept = json.loads(path.read_bytes())
@@ -602,7 +602,7 @@ def _import_outcome(modules: tuple[tuple[str, str, str], ...], roots: list[str])
             run = subprocess.run([sys.executable, "-B", "-c", _IMPORT_OUTCOME_PROGRAM], input=json.dumps(job).encode(),
                                  capture_output=True, env=_child_environment(), timeout=_IMPORT_OUTCOME_TIMEOUT)
         measured = run.stdout if run.returncode == 0 else f"died {run.returncode}: {run.stderr.decode()[-2000:]}".encode()
-        outcome = _digest(measured)
+        outcome = hexdigest(measured)
         text = measured.decode(errors="replace")
         write_atomically(path, json.dumps({"outcome": outcome, "measured": text}).encode())
         return _ImportOutcome(outcome, _import_errors(text, modules))
@@ -742,7 +742,7 @@ def _find_installed(key: tuple[str, tuple[str, ...], str], witness: Witness) -> 
         for file in ("METADATA", "PKG-INFO", "RECORD"):
             witness.stat(os.path.join(info, file))
     record = distribution.read_text("RECORD")
-    return distribution.version, _digest(record.encode()) if record is not None else "absent"
+    return distribution.version, hexdigest(record.encode()) if record is not None else "absent"
 
 
 #: What validations have found installed, kept for the process (``[M]`` 2026-10-17: 38 142 finds held 47.7 of
@@ -847,10 +847,54 @@ def fork_platform() -> tuple[str, str, str]:
 #: The memo's own source and the code its write path runs after the recording stops (the payload's
 #: constructor form is :func:`~orpheus.values.content.constructor_arguments`): an edit to any of it makes
 #: every entry stale (qa finding 8, and its second review, 2026-10-04).
-_MEMO_SOURCES = (
-    *(Path(__file__).resolve().with_name(name) for name in ("traced_memo.py", "_traced_memo_boot.py", "_import_time.py")),
-    Path(_content.__file__).resolve(),
-)
+#: The set is the closure of the memo's ``import`` statements over the two packages it may import (``orpheus/memo/`` and
+#: ``orpheus/values/``), derived by :func:`_memo_sources`.
+def _memo_sources() -> tuple[Path, ...]:
+    """The memo's source and the code its write path runs: the files of ``orpheus/memo/`` and
+    ``orpheus/values/`` that this module's import runs, read from the ``import`` statements of the files
+    (each package's ``__init__.py`` included), so the set is a function of the tree and never of what
+    the process imported before the memo. Sorted by path (the memo pin is an ordered, length-framed concatenation: :func:`_memo_pin`)."""
+    top = Path(__file__).resolve().parent.parent                      # the ``orpheus`` package directory
+    roots = (top / "memo", top / "values")
+    pinned = _traced_memo_boot.PINNED_SOURCES or {}
+
+    def file_of(module: str) -> Path | None:
+        head, *rest = module.split(".")
+        if head != "orpheus" or not rest:
+            return None
+        base = top.joinpath(*rest)
+        return next((f for f in (base.with_suffix(".py"), base / "__init__.py") if f.is_file()), None)
+
+    def package_of(path: Path) -> str:
+        parts = path.relative_to(top.parent).with_suffix("").parts
+        return ".".join(parts[:-1])
+
+    found: set[Path] = set()
+    pending = [Path(__file__).resolve()]
+    with unrecorded():
+        while pending:
+            path = pending.pop()
+            if path in found or not any(path.is_relative_to(root) for root in roots):
+                continue
+            found.add(path)
+            package = package_of(path)
+            names = [".".join(package.split(".")[:k]) for k in range(2, package.count(".") + 2)]  # enclosing packages
+            source = pinned.get(str(path)) or path.read_bytes()
+            for node in ast.walk(ast.parse(source)):
+                if isinstance(node, ast.Import):
+                    names += [".".join(a.name.split(".")[:k]) for a in node.names for k in range(1, a.name.count(".") + 2)]
+                elif isinstance(node, ast.ImportFrom):
+                    base = node.module or ""
+                    if node.level:
+                        anchor = package.split(".")[: len(package.split(".")) - node.level + 1]
+                        base = ".".join([*anchor, *([base] if base else [])])
+                    names += [".".join(base.split(".")[:k]) for k in range(1, base.count(".") + 2)]
+                    names += [f"{base}.{a.name}" for a in node.names]
+            pending += [f for name in names if (f := file_of(name)) is not None]
+    return tuple(sorted(found))
+
+
+_MEMO_SOURCES = _memo_sources()
 
 #: The programs a run may start, each pinned by its executable's bytes: queries whose answer the machine fixes.
 #: ``uname`` is run by ``platform.processor()`` during the imports of the P3 clients (``[M]`` 2026-10-04); it is
@@ -949,7 +993,7 @@ class _Checkout:
         """The digest of the source a pin's ``path`` names now, as an import set's row keeps it (``"absent"``: none);
         the cone store's refresh keeps the same quantity beside a file's identity."""
         text = self.text(path)
-        return "absent" if text is None else _digest(text)
+        return "absent" if text is None else hexdigest(text)
 
     def found(self, path: str) -> str | None:
         """The real file a pin's ``path`` names now: the one :meth:`text` reads (``None``: none)."""
@@ -975,10 +1019,18 @@ class _Checkout:
 
 
 
+def _memo_pin(blobs: Iterable[bytes]) -> str:
+    """The memo pin: the digest of the source files' bytes, each preceded by its length (8 bytes, big-endian), so that
+    moving bytes across the boundary of two adjacent files changes the pin (a bare concatenation is not uniquely
+    decodable). The one definition of the pin, read by the writer (:func:`_pinned_memo_digest`) and by every reader
+    (:func:`_read_memo_digest`)."""
+    return hexdigest(b"".join(len(blob).to_bytes(8, "big") + blob for blob in blobs))
+
+
 def _read_memo_digest(paths: tuple[Path, ...], witness: Witness) -> str:
     for path in paths:
         witness.stat(str(path))
-    return _digest(b"".join(path.read_bytes() for path in paths))
+    return _memo_pin(path.read_bytes() for path in paths)
 
 
 _MEMO_DIGESTS = Kept(_read_memo_digest)
@@ -1001,7 +1053,12 @@ def _pinned_memo_digest() -> str | None:
     pinned = _traced_memo_boot.PINNED_SOURCES
     if pinned is None:
         return None
-    return _digest(b"".join(pinned[os.path.realpath(p)] for p in _MEMO_SOURCES))
+    with unrecorded():
+        for path in _MEMO_SOURCES:
+            real = os.path.realpath(path)
+            if real not in pinned:      # a member the process has not compiled yet: read once, pinned, and the loader compiles these bytes
+                pinned[real] = path.read_bytes()
+    return _memo_pin(pinned[os.path.realpath(p)] for p in _MEMO_SOURCES)
 
 
 #: The memo's source this process RAN, named by its pinned bytes in a generating process (``None``
@@ -1189,7 +1246,7 @@ def _environment_digest(environment: Mapping[str, str] | None = None) -> str:
     """The digest of the pinned variables of ``environment`` (default: what this process would hand a
     generation now)."""
     received = _child_environment(environment)
-    return _digest(json.dumps(sorted((k, received[k]) for k in _PINNED_ENVIRONMENT if k in received)).encode())
+    return hexdigest(json.dumps(sorted((k, received[k]) for k in _PINNED_ENVIRONMENT if k in received)).encode())
 _PIN_KINDS: Mapping[str, Callable[..., Pin]] = {kind.__name__: kind for kind in typing.get_args(Pin)}
 
 
@@ -1233,7 +1290,7 @@ class Manifest:
         """This manifest, holding also the whole bytes each first-party source was compiled from: a process that
         keeps running that code (a template) is stale when any of them differs on disk, an edit to a def body
         that never ran included, which the statement and def pins do not see."""
-        return Manifest(self.pins | {DataPin(path, _digest(text)) for path, text in sources.items()})
+        return Manifest(self.pins | {DataPin(path, hexdigest(text)) for path, text in sources.items()})
 
     def replacing(self, kind: type[Any], pins: Iterable[Pin]) -> Manifest:
         """This manifest with every pin of ``kind`` replaced by ``pins``."""
@@ -1363,7 +1420,7 @@ def collect_pins(recording: Recording, store: Store) -> CollectedPins:
     for real in imported:
         if real in compiled and real not in named and real not in read_whole:
             pinned(lambda: _raise(UnnamedModule(real)))
-    if imported_rows := {real: (_pin_path(real), _digest(compiled[real]), named[real])
+    if imported_rows := {real: (_pin_path(real), hexdigest(compiled[real]), named[real])
                          for real in imported if real in compiled and real in named}:
         if (outcome := pinned(lambda: _measured_import_outcome(imported_rows))) is not None:
             pins.add(ImportOutcomePin(_keep_set([list(row) for row in imported_rows.values()]), outcome))
@@ -1627,7 +1684,7 @@ def _payload_digest(tree: Any, arrays: Mapping[str, np.ndarray]) -> str:
     for name in sorted(arrays):
         array = np.ascontiguousarray(arrays[name])
         parts.append(f"{name}|{array.dtype.str}|{array.shape}|".encode() + array.tobytes())
-    return _digest(b"\0".join(parts))
+    return hexdigest(b"\0".join(parts))
 
 
 # ── the store ───────────────────────────────────────────────────────────────────────────────────────
@@ -2063,7 +2120,7 @@ class TracedMemo(Generic[P, R]):
         return bound
 
     def _key(self, bound: inspect.BoundArguments) -> str:
-        return _digest(encode_exact((self.function_id, dict(bound.arguments), platform_tag())))
+        return hexdigest(encode_exact((self.function_id, dict(bound.arguments), platform_tag())))
 
     def key(self, *args: P.args, **kwargs: P.kwargs) -> str:
         return self._key(self._arguments(args, kwargs))

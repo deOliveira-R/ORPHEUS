@@ -8,7 +8,8 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from orpheus.memo import traced_memo
-from orpheus.memo._traced_memo_boot import digest, file_digest
+from orpheus.memo._traced_memo_boot import file_digest
+from orpheus.values.digest import hexdigest
 
 #: What the interpreter, the BLAS and pytest read from the process environment and a cone can follow, by name: the
 #: memo's own list of the variables it fixes for a generation (``PYTHONHASHSEED`` and the thread counts: one list,
@@ -60,4 +61,4 @@ def environment_key(repo: Path | str | None = None, conftests: Sequence[str] = (
         "variables": {name: os.environ.get(name) for name in VARIABLES},
         "configuration": {} if repo is None else {name: file_digest(str(Path(repo) / name)) for name in INI_FILES},
     }
-    return digest(json.dumps(parts, sort_keys=True).encode())
+    return hexdigest(json.dumps(parts, sort_keys=True).encode())

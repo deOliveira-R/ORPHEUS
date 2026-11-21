@@ -1,6 +1,6 @@
 r"""Values: what a value is, and when two values are the same.
 
-A value type is a set with an equality. This package holds the two halves,
+A value type is a set with an equality. This package holds the two halves and the hash they share,
 and every layer of ORPHEUS that admits a value imports them from here:
 
 * :mod:`orpheus.values.scalars` is the set: the one definition of a real
@@ -9,7 +9,9 @@ and every layer of ORPHEUS that admits a value imports them from here:
 * :mod:`orpheus.values.content` is the equality: two values are the same
   when their content is the same, one encoder and one digest, from which
   :class:`~orpheus.values.content.ContentIdentity` derives ``==`` and
-  ``hash``.
+  ``hash``;
+* :mod:`orpheus.values.digest` is the hash convention both the content digest
+  and the traced memo use: blake2b with a 32-byte digest, standard library only.
 
 It is the lowest layer of the package graph and imports nothing from
 ``orpheus`` (``tests/gates/test_layer_imports.py``). A module joins only if

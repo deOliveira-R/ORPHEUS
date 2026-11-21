@@ -637,11 +637,12 @@ def test_q5_absence_probed_by_exists_is_a_dependency(make):
 
 def test_q8_the_memo_pin_covers_the_write_path():
     """Finding 8, its second half: the payload's constructor form (``content.constructor_arguments``) runs
-    on the write path after the recording stops, so the memo's pin covers ``content.py`` too; and since B2 (#689)
-    ``_import_time.py`` computes every statement pin's projection, so it is the memo's own source as well."""
+    on the write path after the recording stops, so the memo's pin covers ``content.py`` too; the set is the closure of the memo's
+    import statements over its two packages (gate G7 holds it)."""
+    from orpheus.values import content
+
     sources = api.name("_MEMO_SOURCES")
-    names = {path.name for path in sources}
-    assert names == {"traced_memo.py", "_traced_memo_boot.py", "_import_time.py", "content.py"}, names
+    assert Path(content.__file__).resolve() in sources, sources
     # A pin on a path that does not exist pins nothing: each source is the file the memo runs.
     assert all(path.is_file() for path in sources), sources
 
