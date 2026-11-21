@@ -339,10 +339,10 @@ class _Tree:
 
 
 def _module_level(body: list[ast.stmt]) -> Iterator[ast.stmt]:
-    """The statements of a module body in source order, descending into ``if``, ``try`` and ``with`` blocks and never into a ``def`` or ``class``."""
+    """The statements of a module body in source order, descending into ``if``, ``try`` (and ``try``/``except*``) and ``with`` blocks and never into a ``def`` or ``class``."""
     for node in body:
         yield node
-        if isinstance(node, (ast.If, ast.Try, ast.With)):
+        if isinstance(node, (ast.If, ast.Try, ast.With, ast.TryStar)):
             blocks = [node.body, getattr(node, "orelse", []), getattr(node, "finalbody", []), *(h.body for h in getattr(node, "handlers", []))]
             for block in blocks:
                 yield from _module_level(block)
@@ -357,15 +357,16 @@ def _leg_definition(row: Retired | Moved, tree: _Tree) -> set[tuple[str, int]]:
     dotted_qualname = "." in row.qualname
     last = row.qualname.split(".")[-1]
     owner = row.qualname.rsplit(".", 1)[0] if dotted_qualname else None
-    ancestors = tree.valid_ancestors(module, row.qualname.split(".")[0])  # E-D1, for the import leg and the setter leg alike
-    setter_owners = {f"{module}.{owner}", *(f"{a}.{owner}" for a in ancestors)} if dotted_qualname else {module}
+    ancestors = tree.valid_ancestors(module, row.qualname.split(".")[0])  # E-D1: the import, ``__all__``, attribute and setter legs alike
+    readers = {module, *ancestors}  # E-D1: one rule for when an ancestor package counts, read by the attribute leg and the undotted setter leg
+    setter_owners = {f"{module}.{owner}", *(f"{a}.{owner}" for a in ancestors)} if dotted_qualname else readers
     for f in tree.files.values():
         if not dotted_qualname:
             for line, _statement, names in f.imports:
                 if f"{module}.{last}" in names or any(f"{a}.{last}" in names for a in ancestors):
                     out.add((f.rel, line))
             for value, line in f.attributes.get(last, ()):
-                if module in f.resolve(value):
+                if readers & f.resolve(value):
                     out.add((f.rel, line))
             if last in f.all_members:
                 here = _module_of(f.rel)

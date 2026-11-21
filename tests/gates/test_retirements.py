@@ -661,6 +661,120 @@ def test_the_ancestor_binding_follows_every_link_and_a_dead_link_counts(engine: 
         _assert_exactly(found, set() if reads_nothing else plant.planted)
 
 
+# The controls of one rule for when an ancestor package counts (decision E-D1), each a function of the walk it reads so that the
+# mutation tests below run the very same control against a mutated copy of the engine.
+
+_ANCESTOR_USES = {
+    "attribute_import_as": "import orpheus.p as g\ng.NAME  #*",
+    "attribute_from_import": "from orpheus import p\np.NAME  #*",
+    "getattr_through_ancestor": 'import orpheus.p as g\ngetattr(g, "NAME")  #*',
+    "setattr_through_ancestor": 'import orpheus.p as g\ndef test(monkeypatch):\n    monkeypatch.setattr(g, "NAME", v)  #*',
+}
+
+
+def _control_ancestor_use(walk, R, tmp_path: Path, use: str, homonym: bool) -> None:
+    """The row ``(orpheus/p/m.py, NAME)``; the ancestor package ``orpheus.p`` re-exports ``NAME`` from the row's module (or, with
+    ``homonym``, defines a different ``NAME`` of its own) and a consumer reads ``NAME`` off the PACKAGE. Reported (one finding per
+    planted line, the package's own import included) or, for the homonym, nothing."""
+    plant = Plant(tmp_path)
+    plant.add(_M, '"""Defines nothing."""')
+    if homonym:
+        plant.add("orpheus/p/other.py", "NAME = 1")
+        plant.add("orpheus/p/__init__.py", "from .other import NAME")
+    else:
+        plant.add("orpheus/p/__init__.py", "from .m import NAME  #*")
+    plant.add("tests/u.py", _ANCESTOR_USES[use])
+    row = R.Retired(_M, "NAME")
+    _assert_exactly(_findings(walk(tmp_path, rows=[row]), (R.Retired, row)), set() if homonym else plant.planted)
+
+
+def _control_absent_link_module(walk, R, tmp_path: Path) -> None:
+    """``orpheus/p/__init__.py: from .api import NAME`` with NO ``api.py`` under the root: the link leads to a module of the five
+    trees that is gone, the binding is "none", the ancestor counts and the consumer's leftover import is reported."""
+    plant = Plant(tmp_path)
+    plant.add(_M, '"""Defines nothing."""')
+    plant.add("orpheus/p/__init__.py", "from .api import NAME")
+    plant.add("tests/u.py", "from orpheus.p import NAME  #*")
+    row = R.Retired(_M, "NAME")
+    _assert_exactly(_findings(walk(tmp_path, rows=[row]), (R.Retired, row)), plant.planted)
+
+
+def _control_try_star(walk, R, tmp_path: Path) -> None:
+    """The ancestor ``__init__`` binds ``NAME`` to a DIFFERENT object inside an ``except*`` handler at module level: the binding is
+    "other" (the homonym), so the consumer's ``from orpheus.p import NAME`` reads nothing. An engine that does not descend into
+    ``ast.TryStar`` sees no binding, counts the ancestor, and reports the consumer."""
+    plant = Plant(tmp_path)
+    plant.add(_M, '"""Defines nothing."""')
+    plant.add("orpheus/p/other.py", "NAME = 1")
+    plant.add("orpheus/p/__init__.py", "try:\n    pass\nexcept* ValueError:\n    from .other import NAME")
+    plant.add("tests/u.py", "from orpheus.p import NAME  #*")
+    row = R.Retired(_M, "NAME")
+    _assert_exactly(_findings(walk(tmp_path, rows=[row]), (R.Retired, row)), set())
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
+@pytest.mark.parametrize("use", sorted(_ANCESTOR_USES))
+def test_an_undotted_name_read_off_an_ancestor_package_is_reported_and_a_homonym_ancestor_is_not(
+    engine: SimpleNamespace, tmp_path: Path, use: str
+) -> None:
+    r"""One rule for when an ancestor counts, on every leg (E-D1): ``g.NAME`` (``import orpheus.p as g`` or ``from orpheus import p``),
+    ``getattr(g, "NAME")`` and ``monkeypatch.setattr(g, "NAME", v)`` with ``g`` the package that re-exports the row's ``NAME`` are
+    each reported (2 findings per root: the use and the package's import); the same uses where the package defines its own,
+    different ``NAME`` read nothing. Red input: an attribute leg or an undotted setter leg that reads the row's own module alone
+    reads 1 of the 2 planted lines (``test_a_walk_that_restores_the_own_module_alone_...`` runs that mutation)."""
+    _control_ancestor_use(engine.walk, engine.R, tmp_path / "positive", use, homonym=False)
+    _control_ancestor_use(engine.walk, engine.R, tmp_path / "homonym", use, homonym=True)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
+def test_a_link_to_a_module_file_that_is_absent_binds_nothing_and_an_except_star_block_is_read(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""Two shapes of ``_Tree.binding``: a chain link ``from .api import NAME`` whose ``api.py`` does not exist is "none" (the
+    existing dead-link case plants an EMPTY ``api.py``, which takes the other branch), and a binding inside ``except*`` is read.
+    Red input: classing the absent module as "other" reads 0 for the first; not descending into ``ast.TryStar`` reports the consumer
+    of the second."""
+    _control_absent_link_module(engine.walk, engine.R, tmp_path / "absent")
+    _control_try_star(engine.walk, engine.R, tmp_path / "star")
+
+
+def _mutated_walk(engine: SimpleNamespace, tmp_path: Path, old: str, new: str):
+    """``walk`` of a COPY of ``_walk.py`` under ``tmp_path`` with ``old`` replaced by ``new`` (the tracked file is never touched)."""
+    source = Path(engine.walk_module.__file__).read_text(encoding="utf-8")
+    assert source.count(old) == 1, f"the mutation site must occur once, found {source.count(old)}: {old!r}"
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    path = tmp_path / "_walk_mutant.py"
+    path.write_text(source.replace(old, new), encoding="utf-8")
+    spec = importlib.util.spec_from_file_location("_walk_mutant", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.walk
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_an_undotted_name_read_off_an_ancestor_package_is_reported_and_a_homonym_ancestor_is_not")
+@pytest.mark.parametrize("use", sorted(_ANCESTOR_USES))
+def test_a_walk_that_restores_the_own_module_alone_misses_the_ancestor_reads(engine: SimpleNamespace, tmp_path: Path, use: str) -> None:
+    """Mutation on a copy: the readers of the attribute and undotted setter legs revert to ``{module}``; each positive reddens."""
+    walk = _mutated_walk(engine, tmp_path / "copy", "readers = {module, *ancestors}", "readers = {module}")
+    with pytest.raises(AssertionError, match="missing"):
+        _control_ancestor_use(walk, engine.R, tmp_path / "run", use, homonym=False)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_a_link_to_a_module_file_that_is_absent_binds_nothing_and_an_except_star_block_is_read")
+def test_mutations_of_the_absent_link_and_the_except_star_descent_redden_their_controls(engine: SimpleNamespace, tmp_path: Path) -> None:
+    """Mutations on copies: an absent link module classed "other" misses the leftover import; ``ast.TryStar`` dropped from the
+    descent reports the consumer of the homonym."""
+    absent = _mutated_walk(engine, tmp_path / "c1", 'return "none" if module.split(".")[0] in SCAN_TREES else "other"', 'return "other"')
+    with pytest.raises(AssertionError, match="missing"):
+        _control_absent_link_module(absent, engine.R, tmp_path / "r1")
+    star = _mutated_walk(engine, tmp_path / "c2", "(ast.If, ast.Try, ast.With, ast.TryStar)", "(ast.If, ast.Try, ast.With)")
+    with pytest.raises(AssertionError, match="unexpected"):
+        _control_try_star(star, engine.R, tmp_path / "r2")
+
+
 @pytest.mark.foundation
 @pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
 @pytest.mark.parametrize("planted_rel", ["orpheus/p/m.py", "orpheus/p/m/__init__.py", "orpheus/p/m/stray.py"])
