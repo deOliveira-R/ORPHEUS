@@ -44,6 +44,7 @@ from orpheus.data.materials import energy_axis_of
 from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.transport.kernels import FissionKernel, TransferKernel
+from orpheus.transport.mesh.material_xs_field import MaterialXSField
 from tests.gates.transport._carrier_helpers import unit_cell_carrier
 from tests.gates.transport._transfer_oracles import dense_per_material
 from orpheus.transport.operators.fission import FissionOperator
@@ -74,12 +75,12 @@ _SHIPPED_PAIRS = [
 ]
 
 
-def fission_production_per_material(mat_xs, material_id: int) -> np.ndarray:
+def fission_production_per_material(mat_xs: MaterialXSField, material_id: int) -> np.ndarray:
     r""":math:`\nu \Sigma_f` ``(ng,)`` vector for one material (the mixture's ``SigP``)."""
     return mat_xs.materials[material_id].SigP
 
 
-def chi_per_material(mat_xs, material_id: int) -> np.ndarray:
+def chi_per_material(mat_xs: MaterialXSField, material_id: int) -> np.ndarray:
     r""":math:`\chi` ``(ng,)`` vector for one material (the mixture's ``chi``)."""
     return mat_xs.materials[material_id].chi
 

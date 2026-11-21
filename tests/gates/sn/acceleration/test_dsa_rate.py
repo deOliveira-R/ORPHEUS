@@ -40,8 +40,9 @@ that changes the fixed point. Its catchers here:
   outside D3's 1e-7 identity band ⟹ the FP-invariance gate has the
   fold in its teeth. Files **ERR-070**.
 * **D10** (``TestD10RoutingSentinel``): the structural fence — the
-  foldable accessors' production consumers are exactly the definition
-  site, the split layer, and the DSA low-order build; a new consumer
+  foldable accessors' production consumers are exactly the two audited
+  files (the definition site ``material_xs_field.py`` and the DSA
+  low-order build ``dsa.py``); a new consumer
   (someone wiring the fold into a sweep) reds the sentinel at design
   time, before any numerics run.
 """
@@ -1174,8 +1175,8 @@ def _fold_accessor_callers(root: Path) -> set[str]:
 
 class TestD10RoutingSentinel:
     """D10 — the structural #215 fence: the σ_r-fold data (the foldable
-    accessors) must never grow a production consumer outside the three
-    audited files. A sweep builder reaching for ``foldable_sigma`` reds
+    accessors) must never grow a production consumer outside the two
+    audited files (``_FOLD_ALLOWLIST``). A sweep builder reaching for ``foldable_sigma`` reds
     this sentinel at design time — before any numerics can be wrong."""
 
     pytestmark = [pytest.mark.foundation, pytest.mark.catches("ERR-070")]
@@ -1184,6 +1185,8 @@ class TestD10RoutingSentinel:
         root = Path(__file__).resolve().parents[4] / "orpheus"
         callers = _fold_accessor_callers(root)
         unexpected = callers - _FOLD_ALLOWLIST
+        missing = _FOLD_ALLOWLIST - callers
+        assert not missing, f"the allow-list names files the scanner no longer sees: {sorted(missing)}"
         if unexpected:
             pytest.fail(
                 f"NEW production consumer(s) of the foldable accessors: "

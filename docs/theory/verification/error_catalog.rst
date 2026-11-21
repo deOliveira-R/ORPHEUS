@@ -5764,7 +5764,7 @@ older entries classify against.
    - ``tests/gates/sn/acceleration/test_dsa_rate.py::TestD10RoutingSentinel``
      (``catches("ERR-070")``) — the structural fence: an AST sweep of
      ``orpheus/`` confirms the foldable accessors' consumers are exactly
-     {the definition site, the split layer, the DSA low-order build};
+     {the definition site ``material_xs_field.py``, the DSA low-order build ``dsa.py``};
      a new consumer reds at design time, before numerics can be wrong.
      Tooth: a planted ``mat_xs.foldable_sigma()`` module is flagged.
    - ``tests/gates/sn/architecture/test_stage_separation.py::

@@ -134,7 +134,7 @@ class _ForeignTruncatedBasis(Basis):
 
     def _parent(self) -> Basis:
         # the parent FOLLOWS this twin's order, so a re-mint at another order
-        # (``at_order``, item 6.2c-ii — the head truncates through it) still
+        # (``at_order``, item 6.2c-ii — the head truncated through it until 2026-11-20) still
         # delegates to the honest family at THAT order
         return self.parent.at_order(self.L) if getattr(self.parent, "L", None) != self.L else self.parent  # type: ignore[attr-defined]
 

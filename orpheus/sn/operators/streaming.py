@@ -122,13 +122,15 @@ class StreamingOperator(LinearOperator["FullField"]):
     :class:`~orpheus.numerics.operator.LinearOperator` leaf.
 
     The "L" of the Phase G four-operator algebra
-    :math:`A_{\rm wg} = L + C - S_{\rm foldable}`. Carries the spatial
+    :math:`A_{\rm wg} = L + C - S`; the foldable form :math:`S_{\rm foldable}`
+    retired 2026-11-20 (the fold now lives only in the DSA low-order build,
+    through ``MaterialXSField.foldable_sigma``). Carries the spatial
     streaming math plus the curvilinear angular redistribution — the
     cell-collision term lives in the separate collision multiplier
     :math:`C = M[\sigma_t]` (a
     :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`).
     The split lets the within-group operator be pure algebra
-    (``L + C - S_foldable``); no ``WithinGroupOperator`` wrapper.
+    (``L + C - S``); no ``WithinGroupOperator`` wrapper.
 
     Pure σ-free streaming ``apply`` (#257 S8b)
     ------------------------------------------

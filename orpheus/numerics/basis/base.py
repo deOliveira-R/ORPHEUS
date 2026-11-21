@@ -178,8 +178,9 @@ class TruncatedBasis(Protocol):
 
     def at_order(self, L_new: int, /) -> "TruncatedBasis":
         """THIS family at the truncation order ``L_new`` — the same functions
-        cut at another degree (same domain, same spent axis), the verb a
-        head is re-minted at a lower order THROUGH (CS4c step 6 item 6.2c-ii)."""
+        cut at another degree (same domain, same spent axis). Reached through
+        ``GalerkinFrame.at_order``; the head re-minting that once called it
+        retired 2026-11-20 (CS4c step 6 item 6.2c-ii)."""
         ...
 
 

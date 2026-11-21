@@ -6583,8 +6583,9 @@ spatial basis — the tensor-Legendre DG tower, ``per_axis**ndim``
 coefficients, carried by the discretization scheme's own MODAL
 :meth:`moment_axis
 <orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis>`.
-The only change-of-basis within it is the identity (and ``truncate`` /
-inclusion, which stay within the same family and return the same tower).
+The only change-of-basis within it is the identity (and a truncation /
+inclusion, which stay within the same family and return the same tower;
+the retired ``HarmonicMomentFlux.truncate`` was one).
 Clause 1 fails: no non-canonical dual coexists.  So
 the spatial moment rides as a property — a trailing AXIS on the bulk
 leaf's SPACE (minted by
@@ -6642,7 +6643,7 @@ move is to lift ``SpatialMomentField`` and its nodal dual into the
 :math:`M` / :math:`R` pair — the ABC already exists as a thin family marker
 anticipating exactly this second instance.  p-adaptivity that needs modelled
 ``prolong`` / ``restrict`` operators flips toward typed OPERATORS within one
-family (like ``truncate``), not a new field type, because those morphisms are
+family (as the retired ``HarmonicMomentFlux.truncate`` was), not a new field type, because those morphisms are
 canonical within one Legendre tower.
 
 

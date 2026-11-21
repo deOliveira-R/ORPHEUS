@@ -143,6 +143,9 @@ class TestPartialCurrentLaws:
             pc.net_current("xmax"), (j_plus - j_minus)[0]
         )
         np.testing.assert_array_equal(
+            2.0 * (pc.outflow_view("xmax") + pc.inflow_view("xmax")), 2.0 * (j_plus + j_minus)[0]
+        )
+        np.testing.assert_array_equal(
             p1_boundary_scalar_flux(pc, "xmax"), 2.0 * (j_plus + j_minus)[0]
         )
 

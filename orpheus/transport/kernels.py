@@ -298,7 +298,8 @@ class FissionKernel:
     co-vector :math:`\nu\Sigma_f`, then emission along the spectrum
     :math:`\chi`. The kernel stores the **factors, never the outer
     product** — rank-1-ness, the transpose-is-the-factor-swap theorem
-    (``outer(chi, nu_sig_f).T == outer(nu_sig_f, chi)``), and the
+    (gated on the operator side in
+    ``tests/gates/sn/operators/test_isotropic_fission.py``), and the
     χ↔νΣf-coupled condensation are all facts *about the factors* that a
     stored ``(ng, ng)`` matrix would obscure. On an energy-only space the
     dyad fully determines the adjoint (counting measure ⟹ metric adjoint

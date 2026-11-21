@@ -33,9 +33,11 @@ tests/gates/diffusion/test_scalar_trace_is_the_raw_constructor.py).
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import FrozenInstanceError
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from orpheus.geometry import StructuredGeometry
@@ -56,7 +58,7 @@ from tests.gates.transport._phase_space_cases import slab_mesh
 pytestmark = [pytest.mark.foundation]
 
 
-def face_views(face_field: AngularBoundaryFlux) -> dict:
+def face_views(face_field: AngularBoundaryFlux) -> Mapping[str, NDArray]:
     """``{face_key: slice_view}`` for every face in the layout, memory-shared with ``face_field.values``."""
     return {key: face_field.face_view(key) for key in face_field.layout.faces}
 
@@ -264,13 +266,6 @@ class TestFaceLayoutSliceViews:
         assert bf.face_view("xmax").shape == (N, 2, 2)
         assert bf.face_view("ymin").shape == (N, 2, 3)
         assert bf.face_view("ymax").shape == (N, 2, 3)
-
-    def test_face_views_dict_keys_match_layout(self) -> None:
-        m = _cartesian_2d_mesh()
-        trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
-        bf = AngularBoundaryFlux.zeros(trace)
-        views = face_views(bf)
-        assert set(views) == set(bf.layout.faces)
 
     def test_unknown_face_raises(self) -> None:
         m = slab_mesh(nx=5)

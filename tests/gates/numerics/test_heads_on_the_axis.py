@@ -226,6 +226,16 @@ def test_H6_legendre_about_two_axes_differ_by_domain_not_by_a_spent_axis_field()
     assert a.axes[0].layout == b.axes[0].layout, "PREMISE: one layout, so the support separates them"
 
 
+@pytest.mark.parametrize("rule,L", [("gl8", 2), ("product48", 2), ("folded24", 2)])
+def test_H7_the_frame_cut_at_a_lower_order_is_the_frame_minted_there(rule, L):
+    """The law the retired ``truncated_head`` stated, now on its mechanism: ``GalerkinFrame.at_order(L_new)`` has
+    the head of the frame minted at ``L_new`` (a lower-order head is a lower-order frame's dressing)."""
+    q = {"gl8": lambda: Quadrature.gauss_legendre(8), "product48": lambda: Quadrature.product(4, 8),
+         "folded24": lambda: Quadrature.folded_product(n_mu=2, n_phi=4)}[rule]()
+    for L_new in range(L + 1):
+        assert ff.basis_space(ff.angular_frame(q, L).at_order(L_new)) == ff.basis_space(ff.angular_frame(q, L_new))
+
+
 def test_H8_the_pending_concept_edges_are_closed():
     """G0: basis/ and measure.py import no space module; coefficient_layout is tier 0."""
     from tests.gates.numerics import test_concept_order as G0

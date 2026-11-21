@@ -1865,12 +1865,13 @@ and, on any other arm, raises
 message. It names the axis, the asking consumer and the arm the axis was
 minted through, so a refusal is diagnosable from its text alone. The match
 is a type claim, not a ``None`` check: a measure-minted axis handed to a
-consumer that needs a quadrature refuses, naming ``FromMeasure``. Two more
-``match`` sites read the other arms:
-``GalerkinFrame.at_order`` and ``TruncatedBasis.at_order`` re-mint a head
-through ``FromFrame`` or ``FromBasis`` (:ref:`spaces-moment-head-axis-built`),
-and the axis marginal refuses a raw cell head through ``FromBasis``
-(:ref:`spaces-collapse-pair-frame`). The census of the ``FromQuadrature`` sites is
+consumer that needs a quadrature refuses, naming ``FromMeasure``. One more
+``match`` site reads another arm: the axis marginal refuses a raw cell head
+through ``FromBasis`` (:ref:`spaces-collapse-pair-frame`). Until 2026-11-20 the
+function ``truncated_head`` was a further site, re-minting a head through
+``FromFrame`` or ``FromBasis`` (:ref:`spaces-moment-head-axis-built`); it
+retired with its only caller, and ``GalerkinFrame.at_order`` and
+``TruncatedBasis.at_order`` match on no origin. The census of the ``FromQuadrature`` sites is
 gated: ``tests/gates/numerics/test_axis_identity.py`` O3.
 
 **Proving that a consumer reads through the axis.** When a re-point changes
@@ -5014,13 +5015,14 @@ provenance reddened 48 gate rows asserting that the head's recorded
 object is ``frame.basis``.
 
 **Truncation re-mints through the origin.**
-The head is lowered to ``L_new`` by matching its axis's origin (the function
-``truncated_head`` did this until it retired on 2026-11-20 with its only caller): ``FromFrame`` re-poses the
-frame at the lower order and returns its dressed head
+Until 2026-11-20 the function ``truncated_head`` lowered a head to ``L_new``
+by matching its axis's origin, and retired with its only caller. What it
+read stays as two verbs, neither now called by production code: ``FromFrame``
+re-posed the frame at the lower order and returned its dressed head
 (:meth:`GalerkinFrame.at_order
 <orpheus.numerics.frame.GalerkinFrame.at_order>`), ``FromBasis``
-re-spans the basis (``basis.at_order(L_new)``) and returns its
-``of_basis``; any other origin refuses. Never a slice of the parent's
+re-spanned the basis (``basis.at_order(L_new)``) and returned its
+``of_basis``, and any other origin was refused by ``truncated_head``. Never a slice of the parent's
 dressing: the discrete Gram's verdict can flip with :math:`L` (`[M]`
 ``folded_product(2, 4)`` is DENSE at :math:`L = 2` and DIAGONAL at
 :math:`L = 1`), so a slice is undefined there. `[M]` 2026-10-22, the

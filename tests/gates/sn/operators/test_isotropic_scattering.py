@@ -216,7 +216,7 @@ class TestDensePerMaterial:
         for mid, sig in xs.items():
             np.testing.assert_array_equal(
                 dense[mid], sig.T,
-                err_msg="IsotropicScattering.dense_per_material must be Σ_s0ᵀ (M @ φ == apply).",
+                err_msg="the ``dense_per_material`` oracle must be Σ_s0ᵀ (M @ φ == apply).",
             )
 
     def test_n2n_dense_is_two_sig2_transpose(self):
