@@ -19,8 +19,8 @@ from tests.gates._retired import Kept, Moved, Retired, RetiredModule, Row
 ROWS: tuple[Row, ...] = (
     RetiredModule('orpheus.sn.loss_representation.assembly'),  # the whole-module delete of rows 85, 86, 141, 142, 143
     Moved('orpheus/mesh/axis.py', 'n_unknowns_flat', 'tests/gates/sn/primitives/test_axis_primitive.py', 'n_unknowns_flat'),  # row 37; free function n_unknowns_flat(axes, quad, ng)
-    Moved('orpheus/sn/angular/closure.py', '_MMHalfGrid.downstream_per_ordinate', 'tests/gates/sn/sweep/curvilinear/_psi_half.py', 'downstream_per_ordinate'),  # row 80; free function downstream_per_ordinate(half_grid)  # was a property
-    Moved('orpheus/sn/angular/closure.py', '_MMHalfGrid.upstream', 'tests/gates/sn/sweep/curvilinear/_psi_half.py', 'upstream'),  # row 81; free function upstream(half_grid, m)
+    Retired('orpheus/sn/angular/closure.py', '_MMHalfGrid.downstream_per_ordinate'),  # row 80; free function downstream_per_ordinate(half_grid)  # was a property; moved to the test side 2026-11-20, retired 2026-11-21 (no consumer)
+    Retired('orpheus/sn/angular/closure.py', '_MMHalfGrid.upstream'),  # row 81; free function upstream(half_grid, m); moved to the test side 2026-11-20, retired 2026-11-21 (no consumer)
     Moved('orpheus/sn/angular/closure.py', 'compute_psi_half_per_level', 'tests/gates/sn/sweep/curvilinear/_psi_half.py', 'compute_psi_half_per_level'),  # row 82; free function compute_psi_half_per_level(psi_level, tau_level, *, psi_half_seed=None)
     Retired('orpheus/sn/coupled_system.py', 'build_coupled_system'),
     Moved('orpheus/sn/loss_representation/assembly.py', 'ordinate_walk_order', 'tests/gates/sn/sweep/_ordinate_assembly.py', 'ordinate_walk_order'),  # row 85; free function ordinate_walk_order(problem, ordinate)

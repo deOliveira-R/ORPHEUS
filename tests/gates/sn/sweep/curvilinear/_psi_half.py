@@ -1,13 +1,12 @@
-r"""Test-side accessors of the Morel-Montry half-angle grid (moved off production).
+r"""Test-side kernel of the Morel-Montry half-angle grid (moved off production).
 
-``compute_psi_half_per_level`` and the two slices ``downstream_per_ordinate`` and
-``upstream`` of :class:`orpheus.sn.angular.closure._MMHalfGrid` had no production
-caller (the matvec reads ``upstream_per_ordinate`` and the kernel
-``_psi_half_grid_single_level`` directly); they are the hand-built-coefficient
-verification surface of the M-M recurrence and live here, in the gate directory of
-the package they left. Each was a method or a property of the grid and is now a free
-function of it: ``half_grid.upstream(m)`` is ``upstream(half_grid, m)`` and
-``half_grid.downstream_per_ordinate`` is ``downstream_per_ordinate(half_grid)``.
+``compute_psi_half_per_level`` of :class:`orpheus.sn.angular.closure._MMHalfGrid`'s
+module had no production caller (the matvec reads ``upstream_per_ordinate`` and the
+kernel ``_psi_half_grid_single_level`` directly); it is the hand-built-coefficient
+verification surface of the M-M recurrence and lives here, in the gate directory of
+the package it left. The two slices that moved with it on 2026-11-20
+(``upstream`` and ``downstream_per_ordinate``) had no consumer once their own
+indexing tests went, and were retired on 2026-11-21.
 """
 from __future__ import annotations
 
@@ -16,22 +15,6 @@ import numpy as np
 from orpheus.sn.angular.closure import _MMHalfGrid, _psi_half_grid_single_level
 
 
-def downstream_per_ordinate(half_grid: _MMHalfGrid) -> np.ndarray:
-    r"""Shape ``(ng, M, nx)`` — downstream half-face flux for each ordinate.
-
-    ``[g, m, i]`` is :math:`\phi_{m+1/2, i, g}` — the downstream face of ordinate
-    ``m`` (equivalently, the upstream face of ordinate ``m+1``). Excludes the
-    leading face ``faces[:, 0, :]``, the Carlson seed.
-    """
-    return half_grid.faces[:, 1:, :]
-
-
-def upstream(half_grid: _MMHalfGrid, m: int) -> np.ndarray:
-    r"""Shape ``(ng, nx)`` — upstream half-face of ordinate ``m``.
-
-    Returns :math:`\phi_{m-1/2, i, g}` per ``(g, i)``.
-    """
-    return half_grid.faces[:, m, :]
 
 
 def compute_psi_half_per_level(
