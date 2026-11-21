@@ -64,7 +64,7 @@ def dominant_column(overlap_basis) -> np.ndarray:
     For a NESTED (one-hot) table this is the exact containing-coarse map; for a straddling fine row it is the coarse cell
     receiving the largest fraction (a reporting view; the real apportionment is the full table).
     """
-    return overlap_basis.overlap_table.argmax(axis=1).astype(int)
+    return overlap_basis.overlap_table.argmax(axis=1)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -248,19 +248,10 @@ class TestOverlapToIntrinsic:
         coarse = EnergyGrid(self._coarse_grid())
         return fine.overlap_to(coarse)
 
-    @staticmethod
-    def _coarse_of_fine(overlap) -> np.ndarray:
-        """The per-fine-group dominant coarse index as a 1-D int array.
-
-        ``dominant_column`` is the containing-interval map for a
-        nested grid (and the argmax-fraction for a straddle).
-        """
-        return np.asarray(dominant_column(overlap), dtype=int).ravel()
-
     def test_every_fine_maps_to_exactly_one_coarse(self) -> None:
         """Containing-interval: each fine group → exactly one coarse group."""
         overlap = self._build()
-        cof = self._coarse_of_fine(overlap)
+        cof = dominant_column(overlap)
         np.testing.assert_array_equal(
             cof.shape, (8,), err_msg="one coarse index per fine group"
         )
@@ -275,7 +266,7 @@ class TestOverlapToIntrinsic:
     def test_partition_is_contiguous_no_gaps_overlaps(self) -> None:
         """Each coarse group's fine-group set is a contiguous run (no gaps)."""
         overlap = self._build()
-        cof = self._coarse_of_fine(overlap)
+        cof = dominant_column(overlap)
         # The expected fast-first contiguous partition of 8 fine into 3 coarse.
         np.testing.assert_array_equal(
             cof, np.array([0, 0, 1, 1, 1, 2, 2, 2]),
@@ -299,7 +290,7 @@ class TestOverlapToIntrinsic:
         edges would silently reverse this — coarse 0 would be thermal.
         """
         overlap = self._build()
-        cof = self._coarse_of_fine(overlap)
+        cof = dominant_column(overlap)
         # Fine group 0 (fastest) MUST land in coarse group 0.
         np.testing.assert_array_equal(
             cof[0], 0,
@@ -521,7 +512,7 @@ class TestF2PartitionOfUnity:
         overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
         T = np.asarray(overlap.overlap_table, dtype=float)
         # Independent one-hot oracle from the containing-interval map.
-        cof = np.asarray(dominant_column(overlap), dtype=int).ravel()
+        cof = dominant_column(overlap)
         one_hot = np.zeros_like(T)
         one_hot[np.arange(T.shape[0]), cof] = 1.0
         np.testing.assert_array_equal(
@@ -572,7 +563,7 @@ class TestF3NestedDegeneracy:
         coarse_e = np.array([1e7, 1e6, 1e0, 1e-3])
         overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
         np.testing.assert_array_equal(
-            np.asarray(dominant_column(overlap), dtype=int).ravel(),
+            dominant_column(overlap),
             np.array([0, 0, 1, 1, 1, 2, 2, 2]),
             err_msg="nested dominant_column must be the contiguous fast-first partition",
         )

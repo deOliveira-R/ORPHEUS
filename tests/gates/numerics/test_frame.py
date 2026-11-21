@@ -1734,3 +1734,43 @@ class TestTheStabiliserDecidesAdmissionOnAMirrorFold:
         message = str(excinfo.value)
         for fragment in ("S^2/O2_x", "S^2/sigma_x", "no quotient map"):
             assert fragment in message, f"{fragment!r} missing from: {message}"
+
+
+@pytest.mark.foundation
+def test_the_frame_can_now_spell_its_own_projector():
+    r"""⭐ ``conjugate(G⁻¹)`` is the projector — spelled with the frame's own arrow.
+
+    ``conjugate(frame, CrossGramInverse.of(frame))`` composes
+    :math:`R \circ G^{-1} \circ M`, which for a Galerkin frame (test ==
+    trial) is the orthogonal projector onto ``span(basis)``.  Asserted
+    the way a projector is defined — idempotence — plus agreement with
+    the frame's own ``project``/``reconstruction`` pair, so the operator
+    spelling and the array spelling cannot drift.
+
+    The arrow (:class:`~orpheus.numerics.frame_faces.CrossGramInverse`) is :math:`G^{-1}`
+    with the faces' ends as its type.
+    """
+    frame = GalerkinFrame(SphericalHarmonicBasis(L=3), lebedev_sphere(13))
+    projector = frame_faces.conjugate(frame, frame_faces.CrossGramInverse.of(frame))
+
+    rng = np.random.default_rng(0)
+    # The field lives on the MEASURE's nodes (``table`` is ``(n_nodes, …)``),
+    # which is the analysis face's domain.
+    field = rng.standard_normal(frame.table.shape[0])
+
+    once = projector.apply(field)
+    twice = projector.apply(once)
+    np.testing.assert_allclose(twice, once, atol=1e-12, err_msg="not idempotent")
+
+    # Same answer as the hand-rolled chain the frame already supports.
+    np.testing.assert_allclose(
+        once, frame_faces.FrameReconstruction.of(frame).apply(frame_faces.project(frame, field)), atol=1e-12,
+    )
+
+    # An exact SH frame at L=3 reproduces an in-span field exactly, so the
+    # projector is not merely idempotent-by-being-zero.
+    in_span = frame_faces.FrameReconstruction.of(frame).apply(frame_faces.project(frame, field))
+    np.testing.assert_allclose(
+        projector.apply(in_span), in_span, atol=1e-12,
+    )
+    assert np.linalg.norm(once) > 1e-6, "degenerate fixture: nothing projected"

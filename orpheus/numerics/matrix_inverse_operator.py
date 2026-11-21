@@ -60,8 +60,9 @@ functions — the latent consumer that made the promotion finishable
 verification is the point). The homogeneous solver is the FIRST
 production consumer (taxonomy step 5b):
 :func:`~orpheus.homogeneous.solver.solve_homogeneous_infinite` spells
-``K = MatrixInverseOperator(loss) @ production`` and eigendecomposes
-``K.as_matrix()`` — the explicit direct-realization choice over the
+``K = MatrixInverseOperator(loss) @ production`` and reads the eigenvalue
+by the rank-one route, :math:`k = \langle \nu\Sigma_f, A^{-1}\chi\rangle`
+(one ``MatrixInverseOperator`` apply, no dense eigen-solve) — the explicit direct-realization choice over the
 structure-keyed ``loss.inverse()`` (which would return the iterative
 Green splitting). CP's ``[P]`` — dense by construction, §14b — is the
 next production method in line.

@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from orpheus.numerics.space import FunctionSpace
 
-def project_live(function_space: Any, x: Any) -> Any:
+
+def project_live(function_space: FunctionSpace, x: Any) -> Any:
     r"""The G-orthogonal projector onto the live part, :math:`P = G^{+}G`, of ``function_space`` applied to ``x``.
 
     :math:`P` is the orthogonal projector onto :math:`\operatorname{range} G = (\ker G)^{\perp}`; it is the identity on a

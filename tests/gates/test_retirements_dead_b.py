@@ -31,7 +31,6 @@ from tests.gates._retired import Kept, Moved, Retired, RetiredName, _walk
 from tests.gates._retired import rows_w0_dead_b as dead_b
 
 _REPO = Path(__file__).resolve().parents[2]
-_THIS = "tests/gates/test_retirements_dead_b.py"
 _ENGINE = "tests/gates/test_retirements.py"
 _CONTROL = RetiredName("LinearOperator")  # a name the five trees use today: the walk must read it red (X1)
 
@@ -58,8 +57,10 @@ def tree_walk() -> dict:
 def test_every_dead_b_row_is_green_on_the_tree_and_every_kept_entry_stays_defined(tree_walk: dict) -> None:
     """Specification 3.7 done-when 1, for this sub-unit. Counts first (12 ``Retired``, 7 ``Moved``, 8 ``Kept``, the engine's
     ``Row`` types), then the control row read red, then every row green. Red input: any of the 19 definitions still present, any of
-    the 7 homes missing its name, any reference by import resolution, ancestor package, ``getattr`` or ``setattr`` string, or a
-    ``Kept`` definition gone."""
+    the 7 homes missing its name, a definition leg or a setter string on a resolvable class for a dotted qualname,
+    any reference by import resolution, ancestor package, ``getattr`` or ``setattr`` string for a bare name, or a ``Kept`` definition
+    gone. Instance uses of a dotted row (``obj.method()``, ``getattr(obj, 'x')``) are not read by the engine; the residue census is
+    their instrument."""
     by_type = {t.__name__: sum(1 for r in dead_b.ROWS if type(r) is t) for t in (Retired, Moved)}
     assert by_type == {"Retired": 12, "Moved": 7}, by_type
     assert len(dead_b.KEPT) == 8 and all(type(k) is Kept for k in dead_b.KEPT)
@@ -92,15 +93,15 @@ def _scan_for(pattern: re.Pattern[str], trees: tuple[str, ...], excluded: tuple[
 
 
 @pytest.mark.foundation
-def test_no_line_spells_the_retired_rayleigh_quotient_iteration_and_its_test_class_is_gone() -> None:
+def test_no_line_spells_the_retired_rqi_and_its_test_class_is_gone() -> None:
     """Specification 3.2 D4. Population: the ``.py``, ``.rst`` and ``.md`` files of ``orpheus``, ``tests``, ``tools``, ``examples`` and
     ``docs`` (without ``docs/_build``), excluding ``tests/gates/_retired`` and ``docs/theory/verification/error_catalog.rst``. The
-    positive control is the pattern read over the name with a following word character and over a line that holds the name (the
-    filter finds a known member); the file count is asserted non-zero. Red input at the base: ``orpheus/numerics/eigenvalue.py``
+    pattern is a plain substring, as the specification's ``git grep`` predicate; the positive control is the pattern read over a line that
+    holds the name and over one that embeds it in a longer identifier; the file count is asserted non-zero. Red input at the base: ``orpheus/numerics/eigenvalue.py``
     (the definition), ``tests/gates/numerics/test_eigenvalue.py`` (the six tests, bound by a ``getattr`` that skips silently) and the
     docs lines of the tense table."""
-    pattern = re.compile(r"(?<![A-Za-z0-9_])" + re.escape(_RQI) + r"(?![A-Za-z0-9_])")
-    assert pattern.search(f"x = getattr(_eig, '{_RQI}', None)") and not pattern.search(f"{_RQI}_x")
+    pattern = re.compile(re.escape(_RQI))  # a plain substring, as the specification's git grep predicate (X2)
+    assert pattern.search(f"x = getattr(_eig, '{_RQI}', None)") and pattern.search(f"def test_{_RQI}_x")
     seen, hits = _scan_for(
         pattern,
         ("orpheus", "tests", "tools", "examples", "docs"),
@@ -110,7 +111,7 @@ def test_no_line_spells_the_retired_rayleigh_quotient_iteration_and_its_test_cla
     assert not hits, f"{len(hits)} of {seen} files' lines spell the retired name: {hits[:12]}"
     tree = ast.parse((_REPO / "tests/gates/numerics/test_eigenvalue.py").read_text(encoding="utf-8"))
     classes = {n.name for n in ast.walk(tree) if isinstance(n, ast.ClassDef)}
-    assert "TestRayleighQuotientInversion" not in classes  # a control: the filter distinguishes a neighbouring class name
+    assert "TestStandardEigenproblem" in classes, sorted(classes)  # the positive control: the AST filter finds a class that exists
     assert _RQI_CLASS not in classes, "the six tests skip silently once the symbol is gone (vv-principles mode 8(6))"
 
 
@@ -141,7 +142,8 @@ def test_the_direct_eigenvalue_row_goes_red_when_its_definition_returns_and_when
     (required first); (i) the definition planted back in the root's ``numerics/eigenvalue.py`` turns exactly the row red by the
     definition leg; (ii) on a fresh root a test file holding ``from orpheus.numerics import eigenvalue as m`` and
     ``monkeypatch.setattr(m, "direct_eigenvalue", f)`` turns exactly the row red by the setter leg, in that file. The row is read
-    from the rows module, so a misspelt file, qualname or home in the rows reddens the unmutated precondition."""
+    from the rows module; the synthetic root is built from the row's own fields, so this gate does not check the spelling of those
+    fields (gate 1 reads them on the tree)."""
     row = next(r for r in dead_b.ROWS if type(r) is Moved and r.qualname == "direct_eigenvalue")
 
     def root(sub: str) -> Path:

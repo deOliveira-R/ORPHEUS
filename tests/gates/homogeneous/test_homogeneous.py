@@ -268,8 +268,7 @@ def test_the_rank_one_route_is_the_homogeneous_call_path(monkeypatch):
         (scipy.linalg, "eig"),
         (scipy.linalg, "eigvals"),
     ):
-        if hasattr(ns, name):
-            monkeypatch.setattr(ns, name, forbid)
+        monkeypatch.setattr(ns, name, forbid)
     try:
         routed = solve_homogeneous_infinite(mix)
     except _ForbiddenEigenSolve as exc:

@@ -124,21 +124,6 @@ FISSILE: dict[int, GroupData] = {
 }
 
 
-def non_fissile(ng: int) -> GroupData:
-    """The same loss with NO production (rank 0)."""
-    d = FISSILE[ng]
-    return GroupData(d.sigma_t, d.transfer, (), ())
-
-
-def two_spectra(ng: int) -> GroupData:
-    """Two independent emission dyads (rank 2; ``ng ≥ 2``) — a rank the
-    one-spectrum families cannot reach."""
-    d = FISSILE[ng]
-    chi2 = np.zeros(ng); chi2[-1] = 1.0
-    nu2 = np.linspace(0.05, 0.01, ng)
-    return GroupData(d.sigma_t, d.transfer, (d.spectra[0], chi2), (d.productions[0], nu2))
-
-
 #: The quotient point: the infinite medium has no mesh, so the spatial factor
 #: is the one-cell counting axis, declared (the homogeneous pose's spelling).
 POINT = Axis("spatial", (1,), origin=Declared(BasisKind.NODAL))

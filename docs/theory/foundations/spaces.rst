@@ -3743,9 +3743,15 @@ legs then does not return the identity. From the third and fourth Penrose condit
    \sharp_V \circ \flat_V \;=\; G^{+} G \;=\; P_{\operatorname{range}(G)} ,
 
 .. implements:: spaces-riesz-round-trip
+   :by: orpheus.numerics.operator.RieszLowerOperator.apply
+
+   **Implemented by** the lowering leg, the first factor of the composition below.
+
+.. implements:: spaces-riesz-round-trip
    :by: orpheus.numerics.operator.RieszRaiseOperator.apply
 
-   **Implemented by** the raising leg applied after the lowering leg: the
+   **Implemented by** the raising leg applied after the lowering leg,
+   ``(RieszRaiseOperator(V) @ RieszLowerOperator(V)).apply(x)``: the
    round trip of the two legs' arithmetic,
    ``apply_inverse_metric(apply_metric(x))``, read through the space so a
    composite applies it block by block (:ref:`spaces-quotient`). The composite adjoint uses

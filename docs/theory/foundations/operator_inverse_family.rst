@@ -1707,7 +1707,9 @@ bullet; that engine is now the test-side oracle). The consumers, from latent to 
   verification is the point — so it was never going to be the *production*
   spelling. That spelling landed at **task #138 (step 5b)**: the homogeneous
   solver now composes ``K = MatrixInverseOperator(loss) @ production`` and
-  eigendecomposes ``K.as_matrix()``, making it the **first production
+  (since the rank-one route of 2026-10-01) reads the eigenvalue as
+  :math:`k = \langle \nu\Sigma_f, A^{-1}\chi\rangle`, one
+  ``MatrixInverseOperator`` apply and no dense eigen-solve, making it the **first production
   consumer** of the class. It constructs the matrix inverse *explicitly*
   rather than through an iterative inverse: the loss
   :math:`C - K_{\rm iso}` is a combination with no inverse of its own, and

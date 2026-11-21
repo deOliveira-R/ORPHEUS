@@ -63,7 +63,10 @@ from orpheus.numerics.operator import (
     RieszRaiseOperator,
     AdjointOperator,
 )
+from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import DualSpace, FunctionSpace
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────
@@ -308,3 +311,104 @@ def test_adjoint_transpose_is_the_leg_theorem():
         "the negative control collapsed: the fixture's metrics cancel and "
         "these identity rows are vacuous on it — change the weights"
     )
+
+# ── Trace-space rows: the raising leg on the SN boundary-trace metric ─────
+#
+# The inverse metric G^+ : V* -> V of a space is the raising leg (the arrow's two ends are G-H4's, above). Here its laws on the
+# angular trace space, whose metric G = |Omega . n| w_n is EXACTLY zero on tangential ordinates, so the pseudo-inverse masking
+# is the normal case. Layer DAG Phase 2: the trace space is built in numerics (``AngularTraceSpace.from_quadrature_and_layout``),
+# not through an ``SNProblem`` (`[M]` the same space, see ``_trace_space``).
+
+#: The four faces of a 3 × 3 two-group 2-D box, each slot ``(N, ng, 3)`` — the
+#: layout the SN hub derives for that box (``SNProblem.boundary_face_layout``).
+_FACES = ("xmin", "xmax", "ymin", "ymax")
+
+
+def _trace_space(quadrature: Quadrature) -> AngularTraceSpace:
+    """The boundary-trace space of a 3 × 3, two-group 2-D box, built from the
+    quadrature and the face layout alone (numerics; no mesh, no hub).
+
+    ``[M]`` 2026-10-30 (``scratch/layer_dag/refiling/specs_2/proto/probe_trace.py``):
+    ``==`` the space the SN hub mints for the all-reflective 3 × 3 ``Mesh2D``,
+    ``inner_product_weights`` ``array_equal``, for both quadratures below.
+    """
+    n = quadrature.n_ordinates
+    layout = FaceLayout.from_named_shapes([(face, (n, 2, 3)) for face in _FACES])
+    return AngularTraceSpace.from_quadrature_and_layout(quadrature, layout)
+
+
+#: ``level_symmetric`` has NO tangential ordinate, ``product`` has many —
+#: the pair is the point (a nondegenerate and a degenerate metric).
+_QUADRATURES = {
+    "level_symmetric(4)": Quadrature.level_symmetric(4),
+    "product(4,4)": Quadrature.product(n_mu=4, n_phi=4),
+}
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("name", sorted(_QUADRATURES))
+def test_the_raising_leg_is_self_adjoint_on_a_trace_space(name):
+    """A real diagonal weight is its own transpose: ``apply_transpose(f)`` is bit-equal to ``apply(f)`` and
+    ``<apply(f), g> = <f, apply(g)>`` over ``V*`` under the canonical (Euclidean) pairing."""
+    space = _trace_space(_QUADRATURES[name])
+    operator = RieszRaiseOperator(space)
+    rng = np.random.default_rng(0)
+    shape = np.asarray(space.inner_product_weights).shape
+    f, g = rng.standard_normal(shape), rng.standard_normal(shape)
+    assert operator.is_adjointable
+    np.testing.assert_array_equal(operator.apply(f), operator.apply_transpose(f))
+    np.testing.assert_allclose(np.sum(operator.apply(f) * g), np.sum(f * operator.apply(g)), rtol=1e-12)
+
+
+@pytest.mark.foundation
+def test_the_raising_leg_has_no_solve_and_is_spelled_by_ABSENCE():
+    """``is_invertible`` is ``False`` AND there is no ``inverse`` method.
+
+    On a degenerate metric this is a Moore–Penrose pseudo-inverse, so
+    ``G⁺G ≠ I`` and "invert me" is not a question it can answer.  The
+    house spelling for that is the ABSENCE of the method
+    (``TraceRestrictionOperator``), never a raising stub — so misuse is
+    a static error rather than a runtime one.
+    """
+    operator = RieszRaiseOperator(_trace_space(_QUADRATURES["product(4,4)"]))
+    assert operator.is_invertible is False
+    assert not hasattr(operator, "inverse")
+
+
+@pytest.mark.foundation
+def test_the_raising_leg_masks_the_trace_metrics_null_space():
+    """`[M]` 192 of 384 ``product(4,4)`` trace rows carry ``G == 0`` exactly.
+
+    On those rows the pseudo-inverse returns 0 — it does NOT divide.
+    The ``level_symmetric`` control has zero such rows, which is exactly
+    why it cannot witness this and the pair must both be exercised.
+    """
+    degenerate = _trace_space(_QUADRATURES["product(4,4)"])
+    weights = np.asarray(degenerate.inner_product_weights)
+    null_rows = np.abs(weights.ravel()) == 0.0
+    assert null_rows.any(), "fixture no longer has a degenerate metric"
+
+    ones = np.ones(weights.shape)
+    out = RieszRaiseOperator(degenerate).apply(ones).ravel()
+    assert np.all(out[null_rows] == 0.0)
+    assert np.all(np.isfinite(out)), "a masked row must not divide by zero"
+
+    control = np.asarray(
+        _trace_space(_QUADRATURES["level_symmetric(4)"]).inner_product_weights
+    )
+    assert not np.any(np.abs(control.ravel()) == 0.0), (
+        "level_symmetric is the NONDEGENERATE control; if it grows a "
+        "tangential ordinate the pair stops discriminating."
+    )
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("name", sorted(_QUADRATURES))
+def test_the_raising_leg_inverts_the_trace_metric_off_the_null_space(name):
+    """``G (G⁺ x) == x`` wherever the metric is nonzero (``x`` annihilates ``ker G``) — the actual contract."""
+    space = _trace_space(_QUADRATURES[name])
+    weights = np.asarray(space.inner_product_weights)
+    live = np.abs(weights.ravel()) > 0.0
+    x = np.ones(weights.shape)
+    round_trip = space.apply_metric(RieszRaiseOperator(space).apply(x))
+    np.testing.assert_allclose(round_trip.ravel()[live], x.ravel()[live])
