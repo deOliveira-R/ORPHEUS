@@ -207,3 +207,72 @@ def test_r9_the_fork_guard_is_the_memos() -> None:
         assert not hit, f"{path.relative_to(REPO)} assembles a guard of its own: {sorted(hit)}"
         literals = {n.value for n in ast.walk(tree) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
         assert "ps" not in literals, f"{path.relative_to(REPO)} runs ps"
+
+
+# ---- unit memo-digest (part B 4.1 G12, 4.2 G15) -------------------------------------------------------------------
+
+_DIGEST_HOMES = frozenset({"orpheus.memo._traced_memo_boot", "orpheus.memo.traced_memo", "orpheus.values.digest"})
+
+
+def _foreign_digest_imports(root: Path) -> tuple[int, list[str]]:
+    """``(modules read, "file: module.name")`` for every name ending in ``digest`` that a module under ``root`` imports from a module
+    outside :data:`_DIGEST_HOMES`: the convention has three homes, and a tool computes no digest of its own."""
+    files = sorted(root.glob("*.py"))
+    found = []
+    for path in files:
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                found += [f"{path.name}: {node.module}.{a.name}" for a in node.names
+                          if a.name.endswith("digest") and node.module not in _DIGEST_HOMES]
+    return len(files), found
+
+
+def test_g15_the_cone_store_imports_its_digests_only_from_the_memo_and_the_convention(tmp_path: Path) -> None:
+    """G15. Red at base: ``environment.py`` imports ``digest`` from the OLD boot path, which is in no home. Green after the move (the
+    boot's new path) and after D (``orpheus.values.digest``). Positive control: a planted import from ``content`` is found."""
+    count, found = _foreign_digest_imports(_TOOL)
+    assert count > 10 and not found, (count, found)
+    (tmp_path / "planted.py").write_text("from orpheus.values.content import content_digest\nfrom orpheus.values.digest import hexdigest\n")
+    assert _foreign_digest_imports(tmp_path) == (1, ["planted.py: orpheus.values.content.content_digest"])
+
+
+def test_g12_the_capture_loads_the_boot_from_its_new_path_by_path_with_no_orpheus_import() -> None:
+    """G12 (a). The capture mode: ``_recorder.boot()`` in a child that has not imported ``orpheus``. Red at base: the boot is found at
+    the old path (``_recorder.py`` builds it from segments, which no regex reads). The child exits unless ``orpheus`` resolves to this
+    tree, and refuses to run when the boot would be loaded from elsewhere."""
+    import json
+    import subprocess
+    import sys
+
+    probe = (
+        "import importlib.util, json, os, sys\n"
+        f"R = {str(REPO)!r}\n"
+        "spec = importlib.util.find_spec('orpheus')\n"
+        "if spec is None or not os.path.realpath(spec.origin).startswith(R): raise SystemExit('wrong tree')\n"
+        "s = importlib.util.spec_from_file_location('rec', os.path.join(R, 'tools', 'cone_store', '_recorder.py'))\n"
+        "m = importlib.util.module_from_spec(s); s.loader.exec_module(m)\n"
+        "b = m.boot()\n"
+        "print(json.dumps({'name': b.__name__, 'file': os.path.realpath(b.__file__), 'alias': m._NAME, 'orpheus_loaded': 'orpheus' in sys.modules}))\n")
+    done = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, cwd=REPO)
+    assert done.returncode == 0, done.stderr
+    facts = json.loads(done.stdout.splitlines()[-1])
+    assert facts["name"] == facts["alias"] == "orpheus.memo._traced_memo_boot", facts
+    assert facts["file"] == str((REPO / "orpheus" / "memo" / "_traced_memo_boot.py").resolve()), facts
+    assert not facts["orpheus_loaded"], "the capture's boot is loaded before any orpheus import"
+
+
+def test_g12_the_worker_result_path_is_the_blake2b_of_the_node_id_through_the_boots_convention(tmp_path: Path) -> None:
+    """G12 (b), sub-unit D. ``Worker.result_path`` reads the convention through the boot it holds (``boot._CONVENTION.hexdigest``),
+    and the path equals a hash this witness spells itself. Red at base: the boot holds no ``_CONVENTION`` (its ``digest`` is its own).
+    Mutation: restore ``self.boot.digest`` in a copy of ``worker.py`` (an AttributeError after D)."""
+    import hashlib
+    from types import SimpleNamespace
+
+    from tools.cone_store import worker
+
+    instance = object.__new__(worker.Worker)
+    instance.config = SimpleNamespace(results=str(tmp_path))
+    instance.boot = worker._recorder.boot()
+    assert hasattr(instance.boot, "_CONVENTION"), "the boot holds no convention module"
+    node = "tests/gates/x.py::test_y[1]"
+    assert instance.result_path(node) == Path(tmp_path, hashlib.blake2b(node.encode(), digest_size=32).hexdigest()[:40] + ".json")

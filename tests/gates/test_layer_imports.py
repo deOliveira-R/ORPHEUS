@@ -1268,3 +1268,83 @@ def test_every_package_module_graph_is_acyclic_but_the_listed_cycles() -> None:
     assert not stale, (
         "a listed open cycle no longer exists; retire its _OPEN_INTRA_PACKAGE_CYCLES row: " + "; ".join(stale)
     )
+
+
+# ---------------------------------------------------------------------------
+# The memo package (unit memo-digest, specification part B 2.3, gates G1, G9, G13)
+# ---------------------------------------------------------------------------
+#
+# ``orpheus/memo/`` sits between ``values`` and ``numerics``, beside ``geometry``: it imports the standard library, numpy and
+# ``orpheus.values`` only; ``values`` and ``geometry`` do not import it. A source package with no row is UNCHECKED
+# (``_check_source`` returns nothing), so the first red of G1 is the absent row.
+
+_MEMO_FORBIDDEN_LEGS = [
+    ("memo/x.py", "from orpheus.numerics.measure import M\n", "memo → numerics"),
+    ("memo/x.py", "def f():\n    from orpheus.numerics import space\n", "memo → numerics"),
+    ("memo/x.py", "from orpheus.geometry.chart import C\n", "memo → geometry"),
+    ("geometry/x.py", "from orpheus.memo.traced_memo import traced_memo\n", "geometry → memo"),
+    ("geometry/x.py", "from orpheus import memo\n", "geometry → memo"),
+    ("values/x.py", "from orpheus.memo import traced_memo\n", "values → memo"),
+]
+_MEMO_ADMITTED_LEGS = [
+    ("memo/x.py", "from orpheus.values.content import encode\nimport numpy\n"),
+    ("memo/x.py", "from . import traced_memo\nfrom orpheus.memo import traced_memo\n"),
+    ("numerics/x.py", "from orpheus.memo.traced_memo import traced_memo\n"),
+]
+
+
+@pytest.mark.foundation
+def test_the_memo_package_has_its_layer_row_and_geometry_and_values_forbid_it() -> None:
+    """G1. Red at base: ``orpheus/memo/`` does not exist, so the name is in no set and the row is absent."""
+    assert (ORPHEUS_ROOT / "memo" / "__init__.py").is_file(), "orpheus/memo/ is not a package"
+    assert "memo" in ORPHEUS_TOP_LEVEL
+    assert "memo" in FORBIDDEN_EDGES, "the memo has no row: a module of orpheus/memo/ is unchecked"
+    assert FORBIDDEN_EDGES["memo"] == ORPHEUS_TOP_LEVEL - VALUES_PACKAGES - {"memo"}
+    assert "memo" in FORBIDDEN_EDGES["geometry"] and "memo" in FORBIDDEN_EDGES["values"]
+    assert "memo" not in FORBIDDEN_EDGES["numerics"]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source", "edge"), _MEMO_FORBIDDEN_LEGS)
+def test_the_linter_refuses_each_edge_into_or_out_of_the_memo(rel: str, source: str, edge: str) -> None:
+    violations = _check_source(pathlib.PurePosixPath(rel), source)
+    assert len(violations) == 1 and f"(forbidden: {edge})" in violations[0], violations
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _MEMO_ADMITTED_LEGS)
+def test_the_linter_admits_each_allowed_memo_edge(rel: str, source: str) -> None:
+    assert _check_source(pathlib.PurePosixPath(rel), source) == []
+
+
+@pytest.mark.foundation
+def test_the_real_memo_geometry_and_values_modules_obey_the_memo_rows() -> None:
+    memo = sorted((ORPHEUS_ROOT / "memo").glob("*.py"))
+    assert len(memo) >= 4, f"input count {len(memo)}: orpheus/memo/ holds the package and the three modules"
+    checked = [*memo, *sorted((ORPHEUS_ROOT / "geometry").rglob("*.py")), *sorted((ORPHEUS_ROOT / "values").glob("*.py"))]
+    assert not [v for path in checked for v in _check_module(path)]
+
+
+@pytest.mark.foundation
+def test_the_reference_interface_names_only_numerics_modules_that_exist_and_not_the_memo() -> None:
+    """G9. The existence leg is green at base; the absence of ``traced_memo`` is red at base (the member is listed today); the
+    planted member shows the existence leg can fail."""
+    def missing(names: frozenset[str]) -> list[str]:
+        return sorted(n for n in names if not ((ORPHEUS_ROOT / "numerics" / f"{n}.py").is_file() or (ORPHEUS_ROOT / "numerics" / n / "__init__.py").is_file()))
+
+    assert missing(REFERENCE_INTERFACE_NUMERICS | {"no_such_module"}) == ["no_such_module"]
+    assert missing(REFERENCE_INTERFACE_NUMERICS) == []
+    assert "traced_memo" not in REFERENCE_INTERFACE_NUMERICS, "the memo is a package of its own that a reference imports freely"
+
+
+@pytest.mark.foundation
+def test_the_memo_loads_only_values_and_itself_in_a_fresh_interpreter() -> None:
+    """G13. Red at base: ``orpheus.memo`` does not exist (the child raises); today the numerics home loads 50 orpheus modules.
+    The child exits unless ``orpheus.__file__`` is under ORPHEUS_ROOT (a child run elsewhere imports the main tree)."""
+    probe = (f"import orpheus, os\nif not os.path.realpath(orpheus.__file__).startswith({str(ORPHEUS_ROOT)!r}): raise SystemExit('wrong tree')\n"
+             "import orpheus.memo.traced_memo")
+    loaded = _cold_loaded_modules(probe)
+    assert "orpheus.memo.traced_memo" in loaded, loaded
+    outside = sorted(m for m in loaded if m != "orpheus" and m.split(".")[1] not in ("memo", "values"))
+    assert not outside, f"importing the memo loaded modules outside orpheus.memo and orpheus.values: {outside}"
+    assert "orpheus.values.content" in loaded

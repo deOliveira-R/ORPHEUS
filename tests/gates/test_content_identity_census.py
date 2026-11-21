@@ -394,3 +394,17 @@ def test_s5_7_the_production_digest_bytes_are_recorded() -> None:
             f"{name}: the digest bytes moved ({got[name]} != {pin}): every cache key of P3 "
             f"is invalidated; re-pin only with the reason",
         )
+
+
+def test_the_roster_walk_includes_the_memo_package() -> None:
+    """G10 (unit memo-digest, part B 4.1). The memo's content classes (69 under ``numerics`` today) are walked from their new home.
+    Red at base: ``orpheus.memo`` does not exist. Silent without the edit: a moved clone leaves ``_PACKAGES`` unedited and the gate
+    green while the 69 classes leave the walk, so the assertion reads the population's ``__module__`` names, not the tuple alone.
+    Mutation: drop ``orpheus.memo`` from ``_PACKAGES`` (monkeypatch): the module-name leg reddens."""
+    import orpheus.memo  # noqa: F401  (inside the body: a missing package is one red, not a collection error)
+
+    assert orpheus.memo in _PACKAGES
+    modules = {c.__module__ for c in _content_classes()}
+    memo = sorted(m for m in modules if m.startswith("orpheus.memo."))
+    assert memo, "no content class of orpheus.memo is walked"
+    assert not [m for m in modules if m.startswith("orpheus.numerics.") and "traced_memo" in m]

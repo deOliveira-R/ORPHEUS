@@ -488,3 +488,16 @@ def test_pl31_a_target_holding_only_the_upper_is_counted_unmeasured(verdict_plac
     alone = VD + "TestAlone::test_alone"
     assert not [r for r in verdict_placed["declared_rests_on"] if r["upper"] == alone]
     assert not [v for v in verdict_placed["declared_verdicts"] if v["upper"] == alone]
+
+
+def test_g11_the_memo_is_upstream_code_of_the_numerics_layer() -> None:
+    """G11 (unit memo-digest, part B 4.1). ``orpheus/memo/`` is a layer BELOW numerics, so a def of it is upstream code and not an
+    above-layer finding; ``orpheus/values/`` is the control that reads ``Upstream`` today. Red at base: the memo path reads
+    ``Above(package='orpheus/memo')``. Mutation: ``Layer.upstream_layers`` set to the old pair reddens it."""
+    from tools.cone_store import placement
+
+    layer = placement.Layer("orpheus/numerics")
+    assert isinstance(layer.region("orpheus/values/content.py"), placement.Upstream)
+    region = layer.region("orpheus/memo/traced_memo.py")
+    assert isinstance(region, placement.Upstream), region
+    assert region.module == "orpheus/memo/traced_memo", region
