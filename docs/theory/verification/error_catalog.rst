@@ -12072,7 +12072,7 @@ older entries classify against.
    review round, ``39ee20f2``, moved that set onto ``Recording.codes``. Full account:
    :ref:`verification-reference-cache-codes-by-file`.
 
-   **Module:** ``numerics`` (``Recording`` in :mod:`orpheus.memo._traced_memo_boot`, read by
+   **Module:** ``memo`` (``Recording`` in :mod:`orpheus.memo._traced_memo_boot`, read by
    :func:`~orpheus.memo.traced_memo.collect_pins`).
 
    **Failure mode:** outside the numbered substitution modes: a container's equivalence relation was coarser than
@@ -12126,7 +12126,7 @@ older entries classify against.
    no store" in :ref:`verification-cone-store-cone`, and the ``ChildPin`` row and "Directory listings" of
    :ref:`verification-reference-cache-manifest`.
 
-   **Module:** ``numerics`` (:func:`~orpheus.memo.traced_memo.collect_pins` and the lookup's
+   **Module:** ``memo`` (:func:`~orpheus.memo.traced_memo.collect_pins` and the lookup's
    :class:`~orpheus.memo.traced_memo.Hit`; ``Recording`` and the listing observation in
    :mod:`orpheus.memo._traced_memo_boot`) and ``tools`` (the cone store's recorder, ``tools/cone_store/``).
 
@@ -12241,7 +12241,7 @@ older entries classify against.
    input any gate had produced that leaves an entry of zero bytes, and the reader's ``lookup`` raised on it. Full
    account: the ``Corrupt`` verdict in :ref:`verification-reference-cache-validation`.
 
-   **Module:** ``numerics`` (``Store._lookup`` in :mod:`orpheus.memo.traced_memo`).
+   **Module:** ``memo`` (``Store._lookup`` in :mod:`orpheus.memo.traced_memo`).
 
    **Failure mode:** outside the numbered substitution modes: an exception tuple narrower than the set of errors its
    guarded block raises. The block's contract is "any failure to parse the entry's bytes is ``Corrupt``"; the tuple

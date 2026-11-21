@@ -1,6 +1,6 @@
 """The traced memo's recorder, and the first code its generating process runs (#405 P3).
 
-This module imports only the standard library, and loads one file of :mod:`orpheus.values`, ``digest.py``, by path (in a
+This module imports only the standard library, and loads one file of :mod:`orpheus.values`, ``digest.py``, by path (and, in a
 process that already imported ``orpheus``, through the import system), because the loader below hashes every first-party
 source before ``orpheus`` is importable, so the generating process can start recording before any
 ``orpheus`` code runs: it is run by path with ``-P`` (``python -P _traced_memo_boot.py``), and its

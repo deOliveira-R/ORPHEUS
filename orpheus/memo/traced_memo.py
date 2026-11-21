@@ -72,6 +72,7 @@ import dataclasses
 import functools
 import importlib
 import importlib.metadata
+import importlib.util
 import inspect
 import io
 import json
@@ -844,11 +845,6 @@ def fork_platform() -> tuple[str, str, str]:
 
 # ── the manifest ────────────────────────────────────────────────────────────────────────────────────
 
-#: The memo's own source and the code its write path runs after the recording stops (the payload's
-#: constructor form is :func:`~orpheus.values.content.constructor_arguments`): an edit to any of it makes
-#: every entry stale (qa finding 8, and its second review, 2026-10-04).
-#: The set is the closure of the memo's ``import`` statements over the two packages it may import (``orpheus/memo/`` and
-#: ``orpheus/values/``), derived by :func:`_memo_sources`.
 def _memo_sources() -> tuple[Path, ...]:
     """The memo's source and the code its write path runs: the files of ``orpheus/memo/`` and
     ``orpheus/values/`` that this module's import runs, read from the ``import`` statements of the files
@@ -879,21 +875,23 @@ def _memo_sources() -> tuple[Path, ...]:
             found.add(path)
             package = package_of(path)
             names = [".".join(package.split(".")[:k]) for k in range(2, package.count(".") + 2)]  # enclosing packages
-            source = pinned.get(str(path)) or path.read_bytes()
+            source = pinned[str(path)] if str(path) in pinned else path.read_bytes()
             for node in ast.walk(ast.parse(source)):
                 if isinstance(node, ast.Import):
                     names += [".".join(a.name.split(".")[:k]) for a in node.names for k in range(1, a.name.count(".") + 2)]
                 elif isinstance(node, ast.ImportFrom):
-                    base = node.module or ""
-                    if node.level:
-                        anchor = package.split(".")[: len(package.split(".")) - node.level + 1]
-                        base = ".".join([*anchor, *([base] if base else [])])
+                    base = importlib.util.resolve_name("." * node.level + (node.module or ""), package)
                     names += [".".join(base.split(".")[:k]) for k in range(1, base.count(".") + 2)]
                     names += [f"{base}.{a.name}" for a in node.names]
             pending += [f for name in names if (f := file_of(name)) is not None]
     return tuple(sorted(found))
 
 
+#: The memo's own source and the code its write path runs after the recording stops (the payload's
+#: constructor form is :func:`~orpheus.values.content.constructor_arguments`): an edit to any of it makes
+#: every entry stale (qa finding 8, and its second review, 2026-10-04).
+#: The set is the closure of the memo's ``import`` statements over the two packages it may import (``orpheus/memo/`` and
+#: ``orpheus/values/``), derived by :func:`_memo_sources`.
 _MEMO_SOURCES = _memo_sources()
 
 #: The programs a run may start, each pinned by its executable's bytes: queries whose answer the machine fixes.

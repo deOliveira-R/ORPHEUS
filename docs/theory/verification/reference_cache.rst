@@ -4640,7 +4640,7 @@ the memo. The 2026-10-04 rows sat on the branch
        fresh interpreter when a byte of it changes, kept under
        ``.cache/import_outcomes``) replace it; the refusals
        ``UnnamedModule`` and ``UnmeasurableImport``; the statement model in
-       ``orpheus/numerics/_import_time.py``, a pinned memo source; the
+       ``orpheus/numerics/_import_time.py`` (path at the time), a pinned memo source; the
        source index's ``statements`` in place of ``skeleton``, a PEP 695
        alias recorded as a scope; the recorder leaves code started under
        ``unrecorded()`` unrecorded and enabled, and the fork template runs

@@ -3687,7 +3687,7 @@ History
        per module on the run's kept entry names), ``ImportOutcomePin`` (the
        import set re-imported by dotted name in a fresh interpreter when a
        byte of it changes) and the refusals ``UnnamedModule`` and ``UnmeasurableImport`` replace them;
-       the statement model is ``orpheus/numerics/_import_time.py``; the
+       the statement model is ``orpheus/numerics/_import_time.py`` (path at the time); the
        recorder ignores code started under ``unrecorded()`` and the fork
        template's own work runs there; the store's rows carry
        ``FORMAT = 2``. Gates SG0 to SG5 and the memo's 91 statement-pin

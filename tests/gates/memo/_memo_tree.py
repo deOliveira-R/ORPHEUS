@@ -28,13 +28,13 @@ class Uninstallable(Exception):
 
 
 def build_tree(dest: Path, *, extra_values: dict[str, str] | None = None, memo_edit: tuple[str, str, str] | None = None,
-               values_edit: tuple[str, str, str] | None = None) -> Path:
-    """Copy ``orpheus/__init__.py``, ``orpheus/memo/*.py`` and ``orpheus/values/*.py`` to ``dest/orpheus`` and return ``dest``.
+               values_edit: tuple[str, str, str] | None = None, source: Path = ORPHEUS) -> Path:
+    """Copy ``<source>/__init__.py``, ``<source>/memo/*.py`` and ``<source>/values/*.py`` (``source`` is the real ``orpheus`` package by default) to ``dest/orpheus`` and return ``dest``.
 
     ``extra_values`` adds ``orpheus/values/<name>``; an edit is ``(file name, anchor, replacement)`` and raises :class:`Uninstallable`
     unless the anchor occurs exactly once in the copied file."""
     package = dest / "orpheus"
-    sources = {"memo": sorted((ORPHEUS / "memo").glob("*.py")), "values": sorted((ORPHEUS / "values").glob("*.py"))}
+    sources = {"memo": sorted((source / "memo").glob("*.py")), "values": sorted((source / "values").glob("*.py"))}
     if not sources["memo"] or not sources["values"]:
         raise Uninstallable(f"the tree to copy is empty: memo {len(sources['memo'])} files, values {len(sources['values'])} files")
     package.mkdir(parents=True)

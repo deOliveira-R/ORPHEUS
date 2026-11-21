@@ -151,8 +151,10 @@ def test_arm_4_a_pin_without_the_completion_raises_a_key_error_at_the_memo_impor
 
 
 def test_the_gate_cannot_run_on_an_empty_tree(tmp_path: Path) -> None:
-    """The instrument refuses a vacuous population (runs at base through ``Uninstallable`` only when ``orpheus/memo`` is absent)."""
-    if any((_memo_tree.ORPHEUS / "memo").glob("*.py")):
-        pytest.skip("orpheus/memo exists: the refusal is not reachable")
+    """The instrument refuses a vacuous population: ``build_tree`` over a source root with no memo and no values files raises
+    ``Uninstallable``. Positive control: over the real source root it builds."""
+    empty = tmp_path / "empty"
+    empty.mkdir()
     with pytest.raises(_memo_tree.Uninstallable, match="empty"):
-        build_tree(tmp_path / "t")
+        build_tree(tmp_path / "t", source=empty)
+    assert (build_tree(tmp_path / "real") / "orpheus" / "memo").is_dir()

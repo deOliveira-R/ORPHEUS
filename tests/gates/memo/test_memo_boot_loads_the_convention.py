@@ -165,7 +165,7 @@ def test_the_two_init_files_that_import_orpheus_values_import_nothing(tmp_path: 
 # ================================================================ G6: one module object of the convention
 _GENERATING_BODY = '''
 import gc, hashlib, importlib, types
-x = _convention()
+import orpheus.values.digest as x
 from orpheus.values.digest import digest as d
 from orpheus.values import digest as y
 import orpheus.values.content as c
