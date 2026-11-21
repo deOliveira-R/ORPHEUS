@@ -930,7 +930,7 @@ def test_reference_insulation_admits_the_interface_and_the_exempt(rel: str, sour
 # ``L0_PACKAGES``; the scan is the one the reference block runs (``_imported_targets`` plus
 # ``_dynamic_imports``). Coverage holds by construction: the population is the ``rglob`` of ``orpheus/``.
 # Declared blind spots: a dynamic import whose name is built at run time (an f-string head), and the
-# run-time ``_resolve`` of ``orpheus/numerics/traced_memo.py``; the cold-import gate reads import-time
+# run-time ``_resolve`` of ``orpheus/memo/traced_memo.py``; the cold-import gate reads import-time
 # executions only.
 
 # Production importing the reference tree: refused.

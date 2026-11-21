@@ -51,11 +51,11 @@ _PAST_ROWS: tuple[tuple[str, str], ...] = (
     ('docs/development/evidence/vv-anti-patterns.md',
      "**Surprise.** #405 P3 step 2c (C1) memoised one group's characteristic transport block on disk (`group_transport`, a traced memo, `orpheus/numerics/traced_memo.py`, the path at the time). A miss generates the block in a fresh interpreter from the source ON DISK, and a hit serves what that source computed, so a monkeypatch or a `-p` plugin rebinding a kernel symbol in the pytest process never reaches a block read through the memo. `[M]` 2026-10-14, the test-architect's C1 battery (`scratch/characteristic_architecture/p3/c1/gate_spec.md` §4.3, §4.4, §6): with the system's blocks built at construction (arm `eager-blocks`), the old spy on `LineRule.of` reddened 4 construction rows and stayed green on the other 4 (F5 on three charts, D11), because those blocks' `LineRule.of` ran in the generating interpreter; re-pointed onto the system module's binding of `group_transport`, the same arm reddened all 8. And B1, which compares a served block with one computed under `bypass()`, reddens under ANY in-process kernel mutation, because only the bypassed side sees it: the control arm `control-kernel-garbage` reddened B1 on 4 of 4 fixtures and B6b."),
     ('docs/theory/verification/cone_store.rst',
-     '       the statement model is ``orpheus/numerics/_import_time.py``; the'),
+     '       the statement model is ``orpheus/numerics/_import_time.py`` (path at the time); the'),
     ('docs/theory/verification/error_catalog.rst',
      '   HEAD:orpheus/numerics/traced_memo.py`` on ``f0d47585``). Full account:'),
     ('docs/theory/verification/reference_cache.rst',
-     '       ``orpheus/numerics/_import_time.py``, a pinned memo source; the'),
+     '       ``orpheus/numerics/_import_time.py`` (path at the time), a pinned memo source; the'),
 )
 
 

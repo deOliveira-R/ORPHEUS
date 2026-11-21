@@ -1035,14 +1035,17 @@ def test_the_generic_builders_admit_the_tabulated_rationals(label, getter, mass)
 @pytest.mark.parametrize("label, getter, mass", _BUILDER_ROWS, ids=[row[0] for row in _BUILDER_ROWS])
 def test_a_generator_evaluates_inside_its_arithmetic_never_at_the_ambient_precision(label, getter, mass) -> None:
     """The door is nominal: every builder is a ``RecurrenceCoefficients``, whose call enters the arithmetic's
-    working context.  The positive control is the undecorated ``closed_form`` called at the ambient 15 digits,
-    which carries ``1/3`` at 1e-16 only; the decorated call carries it to 1e-55 at 60 digits."""
+    working context.  The positive control is the undecorated ``closed_form`` called at an ambient 15 digits,
+    which carries ``1/3`` at 1e-16 only; the decorated call carries it to 1e-55 at 60 digits.  The control sets
+    its own ambient: 11 test files write ``mp.dps`` globally, so the process's ambient precision depends on
+    the order of the run."""
     import mpmath
 
     builder = getter(r)
     assert isinstance(builder, r.RecurrenceCoefficients)
-    _, beta = r.legendre_recurrence(3, r.HighPrecision(60))
-    _, bare = r.legendre_recurrence.closed_form(3, r.HighPrecision(60))
+    with mpmath.workdps(15):
+        _, beta = r.legendre_recurrence(3, r.HighPrecision(60))
+        _, bare = r.legendre_recurrence.closed_form(3, r.HighPrecision(60))
     with mpmath.workdps(60):
         third = mpmath.mpf(1) / 3
         assert abs(beta[1] - third) < mpmath.mpf(10) ** -55
