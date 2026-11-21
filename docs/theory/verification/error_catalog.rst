@@ -3914,9 +3914,9 @@ older entries classify against.
    :title: Reflection-index table inconsistent with quadrature weights (measure-non-preserving G)
 
 
-   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
-   ships with ``assert_geometry_map_measure_preserving`` override in
-   Wave 7 ReflectiveBoundary.
+   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** The catching test then
+   promised on a ``ReflectiveBoundary`` law went with the law family (retired
+   2026-10-24); the catcher is the one named under "Catching test" below.
 
    **Failure mode:** **#5 (index error)** + **#6 (convention drift)**
    — a reflection table built against ``mu_x`` but applied to a
@@ -3997,8 +3997,9 @@ older entries classify against.
    :title: Reflection permutation is not an involution (perm ∘ perm ≠ id)
 
 
-   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
-   ships with Wave 7 ReflectiveBoundary invariant override.
+   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** The catching test then
+   promised on a ``ReflectiveBoundary`` law went with the law family (retired
+   2026-10-24); the catcher is the one named under "Catching test" below.
 
    **Failure mode:** **#5 (index error)** — the reflection-index
    construction produces a permutation that, applied twice, does NOT
@@ -4039,8 +4040,9 @@ older entries classify against.
    :title: Reflection maps an inflow ordinate to itself rather than to its outflow partner
 
 
-   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** Catching test
-   ships with Wave 7 ReflectiveBoundary invariant override.
+   **Status:** **TYPE SHIPPED Wave 3 2026-05-11.** The catching test then
+   promised on a ``ReflectiveBoundary`` law went with the law family (retired
+   2026-10-24); the catcher is the one named under "Catching test" below.
 
    **Failure mode:** **#5 (index error)** — for a non-axis-aligned
    reflection (or an axis-aligned reflection on a quadrature node

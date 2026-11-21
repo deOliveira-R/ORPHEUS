@@ -492,8 +492,8 @@ new habitat); the producer is one site by construction.
    wrong contract — rewrite the test to pin the new convention.
 
 Generalisation: applies wherever a typed object has multiple
-consumers with shared convention expectations: BoundaryRealizer
-output, AngularFlux trace decoders, source `/W` rescaling, cross-
+consumers with shared convention expectations: a realized boundary
+operator's output, AngularFlux trace decoders, source `/W` rescaling, cross-
 section group-ordering choices.
 
 Cross-reference: the `coding-elegance` skill (Pattern 6, "concept-count test") — fewer
