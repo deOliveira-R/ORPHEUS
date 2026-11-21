@@ -48,13 +48,14 @@ def _ki3_integral(tau: float) -> mpmath.mpf:
 def ki3_scaled_chebyshev() -> np.polynomial.Chebyshev:
     r"""The Chebyshev interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` on :math:`[0, 50]`, degree 63, built once (about 0.3 s).
 
-    Its coefficients are read-only: the object is cached and shared, so a write would change every later kernel call."""
+    Its coefficients, domain and window are read-only: the object is cached and shared, so a write would change every later kernel call."""
 
     def scaled(tau: np.ndarray) -> np.ndarray:
         return np.array([float(_ki3_integral(float(t))) * float(np.exp(t)) for t in tau])
 
     poly = np.polynomial.Chebyshev.interpolate(scaled, deg=_KI3_DEG, domain=[0.0, _KI3_TAU_MAX])
-    poly.coef.flags.writeable = False
+    for array in (poly.coef, poly.domain, poly.window):
+        array.flags.writeable = False
     return poly
 
 

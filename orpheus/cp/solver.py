@@ -155,15 +155,16 @@ def _e3(x):
     return expn(3, np.maximum(x, 0.0))
 
 
-def _composite_gauss_legendre(breakpoints: Sequence[float], n_per_panel: int) -> DiscreteMeasure:
+def _composite_gauss_legendre(partition: ConcentricPartition, n_per_panel: int) -> DiscreteMeasure:
     r"""The composite Gauss-Legendre rule on the panels between consecutive ``breakpoints``: the direct sum of the panels' rules, each pushed
     forward along the inclusion of its panel into ``Interval(breakpoints[0], breakpoints[-1])``.
 
-    ``breakpoints`` are validated by ``ConcentricPartition`` (at least two, finite, strictly increasing, ``r_0 >= 0``) and are not re-checked here.
+    The panels are those of ``partition.breakpoints`` (at least two, finite, strictly increasing, ``r_0 >= 0``: the partition's own precondition, stated by the type).
     Laws: (b) ``nodes.shape == weights.shape == ((len(breakpoints) - 1) * n_per_panel,)``; (c) the nodes are strictly increasing and panel ``k``
     lies in ``[b_k, b_{k+1}]``; (d) exact PER PANEL: for ``f`` a polynomial of degree at most ``2 * n_per_panel - 1`` on each panel,
     ``weights @ f(nodes)`` equals the integral over ``[b_0, b_last]`` to rounding.
     """
+    breakpoints = partition.breakpoints
     whole = Interval(breakpoints[0], breakpoints[-1])
     panels = (LEGENDRE.on(lo, hi).gauss(n_per_panel) for lo, hi in zip(breakpoints[:-1], breakpoints[1:]))
     return functools.reduce(
@@ -264,7 +265,7 @@ class CPMesh(Mesh1DMethodMesh[CPClosure]):
         p = self.params
         chart = Chart(self.mesh.coord)
         partition = ConcentricPartition(chart, tuple(self.mesh.edges.tolist()))
-        rule = _composite_gauss_legendre(partition.breakpoints, p.n_quad_y)
+        rule = _composite_gauss_legendre(partition, p.n_quad_y)
         pts, wts = rule.nodes, rule.weights
         # The measure on lines over the impact parameter y, in the plane
         # (|PΩ| = 1): 2 on the cylinder (the two lines at ±y), 2πy on the

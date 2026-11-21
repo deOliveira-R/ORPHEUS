@@ -8,7 +8,7 @@ runs, forms its slots from the same ``region_half_lengths`` of the same ``half_c
 no behavioural first red: this gate lands green at the base tip, and its first red is a test-only input, the mutation. What it pins is the
 SLOT CHOICE and the TRANSPOSITION (the outbound half, regions ``0..n-1``, ``.T``): the slot layout decoded by position
 (``[..., -n:]``) is the producer's convention read at the consumer. The behavioural pin of the chord is the carry row ``sphere-white_1.0``
-(``test_cp_boundary_carry``), and the arm below that runs the carry file with the inbound half unreversed.
+(``test_cp_boundary_carry``), and the mutation `slot_length[..., :n].T` (inbound half, measured [M] on a copy of solver.py) reddens four carry rows by value, `sphere-white_1.0` reading k = 1.874842571648509 against 0.41788630836116436.
 
 Hollow bodies. A hollow ``CPMesh`` cannot be built (#513 refuses the declared inner face, ``BoundaryRefused``), so no hollow ``k`` exists to
 capture; the function-level leg discharges the question: for breakpoints ``[0.1, 0.3, 0.5]`` on the cylinder and the sphere and seven

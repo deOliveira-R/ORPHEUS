@@ -95,8 +95,8 @@ These are the **source of truth** for all equations in this chapter:
   goes through :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` (the reference) and
   :func:`orpheus.numerics.bickley.ki3` (production, its twin) — a
   Chebyshev interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`
-  built from ``ki_n_mp`` at 30 dps (~:math:`5\times 10^{-6}`
-  accuracy). The legacy ``BickleyTables`` tabulation was retired
+  built from ``ki_n_mp`` at 30 dps (2.6e-6 relative accuracy,
+  measured in the production-kernel paragraph below). The legacy ``BickleyTables`` tabulation was retired
   in Phase B.4 (commit ``6badbe5``, Issue #94)
 - ``orpheus/derivations/common/eigenvalue.py`` --- shared eigenvalue computation via
   :func:`~orpheus.derivations.common.eigenvalue.kinf_from_cp` and
@@ -177,7 +177,7 @@ path** (number of mean free paths) between the two points:
 .. implements:: optical-path
    :by: orpheus.cp.solver.CPMesh._compute_radial_rcp
 
-   **Implemented by** 4 sites. Every symbol that executes this
+   **Implemented by** 5 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
@@ -185,6 +185,9 @@ path** (number of mean free paths) between the two points:
 
 .. implements:: optical-path
    :by: orpheus.cp.solver.CPMesh._compute_slab_rcp
+
+.. implements:: optical-path
+   :by: orpheus.geometry.chord.ConcentricPartition.chord
 
 .. implements:: optical-path
    :by: orpheus.derivations.common.kernels.chord_half_lengths
@@ -971,8 +974,12 @@ closed-form expression.  The derivation path is now
 :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` (a Chebyshev interpolant of
 the canonical-:math:`\mathrm{Ki}_3` scaled kernel
 :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`); the solver and the
-derivation share the *same* code path so there is no kernel-split
-bias across the CP V&V stack. See :ref:`ki-table-construction` for
+derivation hold equal copies of that interpolant (production:
+:func:`orpheus.numerics.bickley.ki3`; reference: ``_ki3_mp``), pinned bit
+for bit by ``tests/gates/derivations/test_cp_ki3_copy.py``. That check
+compares the copies with each other, so a defect of the shared
+approximation is invisible to it; the accuracy leg of the same file
+measures it against the defining integral. See :ref:`ki-table-construction` for
 the full account of what this replaced.
 
 **Sphere (3D):** Full spherical symmetry absorbs all angular variables
@@ -1873,11 +1880,13 @@ Verified against
    order BELOW the code's, and the two names collide.**  Measured
    2026-08-10 (Issue #346 corpus pass):
 
-   * The shipped cylindrical kernel is
-     :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`
-     (a degree-63 Chebyshev interpolant of
+   * The cylindrical kernel is
+     :func:`orpheus.numerics.bickley.ki3` in production (the reference
+     holds a twin copy,
+     :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`;
+     before #641 the solver imported the latter), a degree-63 Chebyshev interpolant of
      :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`).  ``[M]``
-     ``_ki3_mp(0) = 0.7853961``, ``_ki3_mp(1) = 0.2378450`` — i.e. the
+     ``_ki3_mp(0) = 0.7853961``, ``_ki3_mp(1) = 0.2378450`` (the twin copies are equal) — i.e. the
      **standard** :math:`\mathrm{Ki}_3`, whose
      ``mpmath`` values are :math:`\pi/4 = 0.7853982` and
      :math:`0.2378450`.
@@ -2013,8 +2022,8 @@ Geometry Comparison
      - Sphere
    * - Kernel :math:`F(\tau)`
      - :math:`E_3` (:func:`_e3`)
-     - this page's :math:`\text{Ki}_4`, shipped as
-       :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`
+     - this page's :math:`\text{Ki}_4`, implemented in production by
+       :func:`orpheus.numerics.bickley.ki3` (twin: ``_ki3_mp``)
        (:ref:`index caveat <cp-cylindrical-kernel-index-caveat>`)
      - :math:`e^{-\tau}`
    * - :math:`F(0)`
@@ -2496,12 +2505,14 @@ In code: ``phi[:, g] = P_inf[:, :, g].T @ source``
 Ki\ :sub:`3` Kernel Construction (historical: Ki\ :sub:`3`/Ki\ :sub:`4` tables)
 -------------------------------------------------------------------------------
 
-**Current path (post-Phase B.4, commit 6badbe5).** Both the
-derivation module and the runtime solver consume the **same**
-kernel via :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`: a Chebyshev
+**Current path (post-Phase B.4, commit 6badbe5).** The
+runtime solver uses :func:`orpheus.numerics.bickley.ki3` and the
+derivation module holds a twin copy,
+:func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`
+(before #641 both consumed ``_ki3_mp``): a Chebyshev
 polynomial of degree 63 fit to the scaled kernel
 :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` (canonical A&S) on
-:math:`[0, 50]` at Chebyshev-Gauss-Lobatto nodes. The tabulation
+:math:`[0, 50]` at Chebyshev points of the first kind. The tabulation
 values are computed once at module load by
 :func:`~orpheus.derivations.common.kernels.ki_n_mp` at 30 dps and cached via
 :func:`functools.lru_cache`; Chebyshev fitting of the

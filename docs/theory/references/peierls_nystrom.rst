@@ -7019,8 +7019,8 @@ The headline measured impacts are:
   ~:math:`4\times 10^{-4}` (Bickley's trapezoidal :math:`O(\Delta x^2)`
   bias was the dominant residual error; each post-Phase-B.4 value is
   closer to exact mpmath).
-- **Solver/reference agreement** is now to machine precision (same
-  ``_ki3_mp`` kernel on both sides); the nine ``cp_cyl1D_*`` L1
+- **Solver/reference agreement** is now to machine precision (at that commit the same
+  ``_ki3_mp`` kernel was on both sides; since #641 the solver holds a twin copy); the nine ``cp_cyl1D_*`` L1
   eigenvalue tests pass at ``tolerance = 1e-5`` with actual error
   ~:math:`10^{-7}` (≈100× headroom).
 - **Tabulation-size sensitivity** retired; ``n_ki_table`` is a no-op

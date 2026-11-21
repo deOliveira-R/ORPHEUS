@@ -2096,11 +2096,11 @@ reference code and 1 is production.
      - ``Chart.beam_density`` as its weight over the impact parameter
    * - ``orpheus.cp.solver`` (production)
      - ``Chart.beam_density`` as its weight over the impact parameter
-       (:ref:`chart-and-chord-measure`), and ``chord_half_lengths``
-       through ``kernels``
+       (:ref:`chart-and-chord-measure`), and ``ConcentricPartition.chord``
+       for its chords (#641, W0)
 
 Collision probability is the only production consumer, and it reads the
-density alone: its chords, its regions and its rule stay its own
+density and the chord: its rule over the impact parameter stays its own
 (:ref:`chart-and-chord-deferred`).
 
 
@@ -3250,8 +3250,8 @@ computes the same thing, each with its reason:
   chords, its locator and its line density (#595, which also carries the
   :math:`10^{-12}` band that misassigns whole segments); Monte Carlo's
   three locators with two conventions (#596); collision probability's
-  chords and its rule over the impact parameter (plain Gauss–Legendre on
-  the edges, not the visibility-cone substitution), though its density is
+  rule over the impact parameter (plain Gauss–Legendre on
+  the edges, not the visibility-cone substitution), though its density and its chords are
   the kernel's;
 - **the mpmath integrands**: the chord functions inside the Peierls
   hollow transmissions and the analytical integrands of

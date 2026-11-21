@@ -15,7 +15,7 @@ separately.
 First red at the base tip: ``ModuleNotFoundError`` for ``orpheus.numerics.bickley`` (imported at call time, so every row reds on its own).
 Mutations: M-degree-62 (``_KI3_DEG`` patched to 62 and the ``lru_cache`` of ``ki3_scaled_chebyshev`` cleared, AND cleared again on teardown
 after ``monkeypatch.undo()``: otherwise every later cylinder solve of the session reads the degree-62 kernel) reddens (a) and (b); leg (c)
-reddens when the mutant is accurate to less than 3e-6, which the row reports. The accuracy checker's own control is ``test_the_integral_check_sees_a_wrong_kernel``,
+is BLIND to a degree-62 interpolant (measured [M]: only legs (a), (b) and two cylinder carry rows redden), because the degree-62 fit is still within 3e-6. The accuracy checker's own control is ``test_the_integral_check_sees_a_wrong_kernel``,
 green today: the reference passes it and ``exp(-tau)`` does not.
 """
 

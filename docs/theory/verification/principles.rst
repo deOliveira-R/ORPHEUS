@@ -948,7 +948,7 @@ Every verification case defines three things:
      - Same explicit gate tolerances, plus the interpolant's fixed
        precision (⛔ the 20 000-point Ki lookup table was superseded by a
        fixed-precision Chebyshev interpolant at Phase B.4, #94 —
-       ``orpheus/cp/solver.py:68-70``)
+       the production kernel is ``orpheus/numerics/bickley.py``)
    * - SN (homogeneous)
      - < 10⁻⁸
      - Power iteration

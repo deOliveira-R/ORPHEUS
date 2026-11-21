@@ -1,6 +1,6 @@
 r"""G3 of the unit ``insulation`` (#641 item 1): the composite Gauss-Legendre rule CP draws over the impact parameter.
 
-``orpheus.cp.solver._composite_gauss_legendre(breakpoints, n_per_panel)`` is the DIRECT SUM of the panels' Gauss-Legendre measures, each
+``orpheus.cp.solver._composite_gauss_legendre(partition, n_per_panel)`` (``partition.breakpoints`` the panel ends) is the DIRECT SUM of the panels' Gauss-Legendre measures, each
 pushed forward along the inclusion of its panel into ``Interval(b_0, b_last)`` and returned as a ``DiscreteMeasure``. Its laws:
 
 * (b) size: ``nodes.shape == weights.shape == ((len(b) - 1) * n,)`` and ``support == Interval(b_0, b_last)``;
@@ -48,7 +48,9 @@ def _breakpoints() -> tuple[float, ...]:
 def _helper(breakpoints: tuple[float, ...], n: int):
     from orpheus.cp import solver
 
-    return solver._composite_gauss_legendre(breakpoints, n)
+    partition = ConcentricPartition(Chart(CoordSystem.CYLINDRICAL), _EDGES)
+    assert partition.breakpoints == breakpoints
+    return solver._composite_gauss_legendre(partition, n)
 
 
 def _exact_kinked_integral() -> float:
