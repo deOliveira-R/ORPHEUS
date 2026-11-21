@@ -31,12 +31,11 @@ import pytest
 from orpheus.numerics import convergence, evidence
 from orpheus.numerics.convergence import IterationBudget, IterationRecord, StoppingCriterion
 from orpheus.numerics.evidence import Evidence, Measured, NotApplicable
-from tests.gates.numerics._evidence_arms import ARM_FIXTURES, NewKind
+from tests.gates.numerics._evidence_arms import ARM_FIXTURES, SILENT_ARMS, NewKind
 
 pytestmark = pytest.mark.foundation
 
 _ARM_NAMES = {c.__name__ for c in typing.get_args(Evidence)}
-_LEGITIMATE_SILENT = [a for a in ARM_FIXTURES if a is not Measured]
 
 
 def _stalled() -> IterationRecord:
@@ -108,11 +107,11 @@ def test_the_arm_fixtures_cover_the_union() -> None:
 
 class TestMeasuredValue:
     def test_a_measured_arm_projects_to_its_number(self) -> None:
-        assert evidence.measured_value(Measured(0.5)) == 0.5  # type: ignore[attr-defined]
+        assert evidence.measured_value(Measured(0.5)) == 0.5
 
-    @pytest.mark.parametrize("arm", _LEGITIMATE_SILENT, ids=lambda a: a.__name__)
+    @pytest.mark.parametrize("arm", SILENT_ARMS, ids=lambda a: a.__name__)
     def test_the_arms_that_carry_no_number_project_to_none(self, arm: type) -> None:
-        assert evidence.measured_value(ARM_FIXTURES[arm]) is None  # type: ignore[attr-defined]
+        assert evidence.measured_value(ARM_FIXTURES[arm]) is None
 
     @pytest.mark.parametrize("foreign", [NewKind(), None], ids=["NewKind", "None"])
     def test_a_value_outside_the_union_is_refused(self, foreign: object) -> None:
@@ -122,11 +121,11 @@ class TestMeasuredValue:
 
 class TestTheStaticLaw:
     def test_measured_value_ends_in_assert_never(self) -> None:
-        assert _reads_exhaustively(inspect.getsource(evidence.measured_value))  # type: ignore[attr-defined]
+        assert _reads_exhaustively(inspect.getsource(evidence.measured_value))
 
     def test_control_the_predicate_rejects_a_raise_in_place_of_assert_never(self) -> None:
         """The mutation that keeps every runtime leg green and silences pyright on a fifth arm."""
-        source = inspect.getsource(evidence.measured_value)  # type: ignore[attr-defined]
+        source = inspect.getsource(evidence.measured_value)
         assert "assert_never(e)" in source
         assert not _reads_exhaustively(source.replace("assert_never(e)", "raise AssertionError()"))
 
@@ -136,7 +135,7 @@ class TestWarnIfUnconverged:
         (message,) = _messages(_stalled(), Measured(1e-3))
         assert "balance defect" in message
 
-    @pytest.mark.parametrize("arm", _LEGITIMATE_SILENT, ids=lambda a: a.__name__)
+    @pytest.mark.parametrize("arm", SILENT_ARMS, ids=lambda a: a.__name__)
     def test_the_arms_without_a_number_leave_the_clause_absent(self, arm: type) -> None:
         (message,) = _messages(_stalled(), ARM_FIXTURES[arm])
         (reference,) = _messages(_stalled(), ARM_FIXTURES[NotApplicable])

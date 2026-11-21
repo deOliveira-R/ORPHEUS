@@ -15,18 +15,16 @@ reddens the ``undetermined=True`` legs.
 from __future__ import annotations
 
 import types
-import typing
 import warnings
 
 import pytest
 
-from orpheus.numerics.evidence import Evidence, Measured
+from orpheus.numerics.evidence import Measured
 from orpheus.sn.operators import loss_kernel_gauge as K
-from tests.gates.numerics._evidence_arms import ARM_FIXTURES, NewKind
+from tests.gates.numerics._evidence_arms import ARM_FIXTURES, SILENT_ARMS, NewKind
 
 pytestmark = pytest.mark.foundation
 
-_SILENT = [a for a in ARM_FIXTURES if a is not Measured]
 
 
 def _warnings(monkeypatch: pytest.MonkeyPatch, ev: object, *, undetermined: bool) -> list[warnings.WarningMessage]:
@@ -39,15 +37,11 @@ def _warnings(monkeypatch: pytest.MonkeyPatch, ev: object, *, undetermined: bool
     return list(caught)
 
 
-def test_the_arm_fixtures_cover_the_union() -> None:
-    assert set(ARM_FIXTURES) == set(typing.get_args(Evidence))
-
-
 def test_a_measured_correction_above_the_floor_warns_once(monkeypatch: pytest.MonkeyPatch) -> None:
     assert len(_warnings(monkeypatch, Measured(0.5), undetermined=False)) == 1
 
 
-@pytest.mark.parametrize("arm", _SILENT, ids=lambda a: a.__name__)
+@pytest.mark.parametrize("arm", SILENT_ARMS, ids=lambda a: a.__name__)
 def test_the_arms_without_a_number_are_silent(monkeypatch: pytest.MonkeyPatch, arm: type) -> None:
     assert _warnings(monkeypatch, ARM_FIXTURES[arm], undetermined=False) == []
 
@@ -63,4 +57,4 @@ def test_a_value_outside_the_union_is_refused_whichever_the_verdict(
 
 def test_an_undetermined_closure_still_warns_for_a_legitimate_arm(monkeypatch: pytest.MonkeyPatch) -> None:
     """Control: the first-statement read does not silence the undetermined branch for the four arms."""
-    assert len(_warnings(monkeypatch, ARM_FIXTURES[_SILENT[0]], undetermined=True)) == 1
+    assert len(_warnings(monkeypatch, ARM_FIXTURES[SILENT_ARMS[0]], undetermined=True)) == 1

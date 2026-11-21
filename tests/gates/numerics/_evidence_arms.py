@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from orpheus.numerics.evidence import Asserted, Measured, NotApplicable, NotYet
 
-__all__ = ["ARM_FIXTURES", "NewKind"]
+__all__ = ["ARM_FIXTURES", "SILENT_ARMS", "NewKind"]
 
 
 @dataclass(frozen=True)
@@ -25,3 +25,5 @@ ARM_FIXTURES = {
     NotApplicable: NotApplicable("x"),
     NotYet: NotYet(1, "r"),
 }
+
+SILENT_ARMS = [arm for arm in ARM_FIXTURES if arm is not Measured]

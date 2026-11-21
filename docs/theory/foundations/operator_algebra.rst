@@ -8346,7 +8346,7 @@ than an assumption:
   case** of :eq:`scale-gauge-section`, which is the elegance argument for
   the type: one object absorbs a convention that was a separate helper.
 
-⚠ **A zero reading has NO section**, and this is the one place the type
+⚠ **A zero reading has NO section**, and this is one of two places the type
 is *stricter* than the tree it replaces.  :math:`n(\psi) = 0` means the
 state is orthogonal to the gauge functional, so no member of the ray
 satisfies :math:`n = t` and the quotient has nothing to pick;
@@ -8358,6 +8358,12 @@ division with ``if p > 0.0`` and **skips the rescale silently** when it
 fails — which folds together two different situations: a zero reading
 (no section exists) and a negative one (a section exists, and it flips
 the sign).
+
+The second refusal: a reading of complex dtype (a NumPy complex scalar, a
+Python ``complex``, a 0-d complex array) is refused with a ``ValueError``
+(fragment ``complex reading``) whatever its imaginary part, because the
+section is over the nonzero reals; the refusal precedes the ``float`` call, so
+no ``ComplexWarning`` is emitted (issue #725).
 
 **Why the functional is stored as the OBJECT that ran, never as a label.**
 This is the finding that motivated the type.  ``[M]`` the tree applies

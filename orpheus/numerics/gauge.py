@@ -116,7 +116,7 @@ class ScaleGauge:
             # ELEGANCE-DEBT[guard] #725 (W5): the scale functional is typed Callable[[Any], float] but a producer may return a complex carrier. Retires when the scale functional is typed real by construction (W5): the producer returns a checked real, and the machinery that exists today is the real-codomain functional of the three production constructors.
             raise ValueError(
                 f"ScaleGauge: the functional {self.functional!r} read the complex value {reading!r}; "
-                f"the scale quotient is over the nonzero reals, so a complex reading has no section (complex reading)"
+                f"the scale quotient is over the nonzero reals, so a complex reading has no section"
             )
         n = float(reading)
         if n == 0.0:
