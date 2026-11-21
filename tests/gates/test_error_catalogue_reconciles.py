@@ -132,8 +132,11 @@ def test_every_declared_entry_has_a_catching_test():
     `vv-principles` defines a `catches` marker as a coverage CLAIM, so
     the absence of one is the honest signal that the claim was never
     made.
+
+    An entry whose catcher AND subject are both gone carries a ``**Retired:**`` paragraph and is exempt
+    (``_retired_ids``, read from the tree; a catalogued defect cannot be re-pinned once its code is gone).
     """
-    uncaught = _catalogue_ids() - _marker_ids() - _open_ids()
+    uncaught = _uncaught_ids(_catalogue_ids(), _marker_ids(), _open_ids(), _retired_ids())
     assert not uncaught, (
         f"{len(uncaught)} catalogued defect(s) have no `@pytest.mark.catches`: "
         f"{sorted(uncaught)}. Either add the gate, or say in the entry why no "
@@ -401,3 +404,126 @@ def test_an_open_entry_names_its_issue_and_has_no_catcher_yet():
     stale = opened & _marker_ids()
     assert not stale, f"entries marked OPEN carry a `catches` marker, so their status is stale: {sorted(stale)}"
 
+
+
+# ---------------------------------------------------------------------------
+# Gate D3 (specification ontology_w0_spec.md 3.1): an entry "retired with its code"
+# ---------------------------------------------------------------------------
+
+#: The paragraph an entry carries when its catcher and its subject are both gone:
+#: ``**Retired:** with its code: <file>:<qualname>[, <file>:<qualname>...]`` then one sentence of date and reason. The paragraph runs to
+#: the next blank line, so a wrapped paragraph is read whole; the pairs are the tokens ``path.py:qualname`` (a date sentence has none).
+_RETIRED_PARA_RE = re.compile(r"^[ \t]*\*\*Retired:\*\* with its code:(.*?)(?:\n[ \t]*\n|\Z)", re.M | re.S)
+_RETIRED_PAIR_RE = re.compile(r"[\w/]+\.py:\w+(?:\.\w+)*")
+
+
+def _retired_pairs(text: str) -> dict[str, list[str]]:
+    """``ERR-NNN -> [file:qualname, ...]`` for every entry that carries a ``**Retired:**`` paragraph."""
+    found: dict[str, list[str]] = {}
+    for err, body in _entry_bodies(text).items():
+        paragraph = _RETIRED_PARA_RE.search(body)
+        if paragraph is not None:
+            found[err] = _RETIRED_PAIR_RE.findall(paragraph.group(1))
+    return found
+
+
+def _is_defined(root: Path, pair: str) -> bool:
+    """Is ``file:qualname`` defined in ``root/file``? Read by the ONE definition finder of the retirement engine (a second finder would
+    be a second spelling of one predicate, and a bare-name search would let a later homonym un-retire the entry)."""
+    from tests.gates._retired._finder import definitions
+
+    rel, qualname = pair.split(":", 1)
+    path = root / rel
+    return path.is_file() and qualname in definitions(path.read_text(encoding="utf-8"))
+
+
+def _retired_ids(root: Path = REPO_ROOT, text: str | None = None, markers: set[str] | None = None) -> set[str]:
+    """Ids of the entries that are RETIRED WITH THEIR CODE: the ``**Retired:**`` paragraph names at least one pair, none of the named
+    pairs is defined under ``root``, and the entry carries no ``catches`` marker (an entry with both is stale, never retired)."""
+    text = CATALOG.read_text(encoding="utf-8") if text is None else text
+    markers = _marker_ids() if markers is None else markers
+    return {
+        err
+        for err, pairs in _retired_pairs(text).items()
+        if pairs and err not in markers and not any(_is_defined(root, pair) for pair in pairs)
+    }
+
+
+def _uncaught_ids(catalogue: set[str], markers: set[str], opened: set[str], retired: set[str]) -> set[str]:
+    return catalogue - markers - opened - retired
+
+
+@pytest.mark.foundation
+def test_the_retired_state_of_an_entry_is_read_from_the_tree_and_the_markers():
+    """D3's positive control (X1), one synthetic entry per shape: a retired line naming a gone function retires; naming a defined
+    one does not; a wrapped two-line paragraph is read whole (a pair on its second line that is still defined keeps the entry live);
+    a retired line plus a marker is stale; an entry with no retired line, and one whose line names no pair, retire nothing; an absent
+    file is a gone definition. Red input: a reader that takes the first line only, that searches names bare, or that ignores markers."""
+    here = "tests/gates/test_error_catalogue_reconciles.py"
+    gone, live = f"{here}:no_such_function_xyz", f"{here}:_retired_ids"
+
+    def entry(err: str, *lines: str) -> str:
+        return f".. error-entry:: {err}\n\n   :title: x\n\n" + "".join(f"   {line}\n" for line in lines) + "\n"
+
+    text = "".join([
+        entry("ERR-900", f"**Retired:** with its code: {live}. 2026-11-20, a date and a reason."),
+        entry("ERR-901", f"**Retired:** with its code: {gone}. 2026-11-20, a date and a reason."),
+        entry("ERR-902", f"**Retired:** with its code: {gone},", f"{here}:also_gone. 2026-11-20 and a reason."),
+        entry("ERR-903", f"**Retired:** with its code: {gone},", f"{live}. 2026-11-20 and a reason."),
+        entry("ERR-904", f"**Retired:** with its code: {gone}. 2026-11-20."),
+        entry("ERR-905", "**Bug:** nothing retired here."),
+        entry("ERR-906", "**Retired:** with its code: nothing to parse here."),
+        entry("ERR-907", "**Retired:** with its code: tests/gates/no_such_file_at_all.py:thing."),
+    ])
+    assert _retired_ids(REPO_ROOT, text, markers={"ERR-904"}) == {"ERR-901", "ERR-902", "ERR-907"}
+    assert set(_retired_pairs(text)) == {"ERR-90%d" % k for k in (0, 1, 2, 3, 4, 6, 7)}
+    assert _uncaught_ids({"ERR-1", "ERR-2"}, set(), set(), {"ERR-2"}) == {"ERR-1"}
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on("tests/gates/test_error_catalogue_reconciles.py::test_the_retired_state_of_an_entry_is_read_from_the_tree_and_the_markers")
+def test_err_118_is_retired_with_its_code_and_no_retired_entry_is_stale():
+    """Dead-A, gate D3. ERR-118's catcher called ``select_quadrature`` and its subject was ``QuadratureSpec.structural_flags``; both
+    retire with the selector, so the entry carries the ``**Retired:**`` paragraph naming the two ``file:qualname`` pairs, and no entry
+    that carries one is stale (a pair still defined, or a marker still present). Red input in today's tree: the entry carries no such
+    paragraph (and both pairs are defined)."""
+    text = CATALOG.read_text(encoding="utf-8")
+    pairs = _retired_pairs(text).get("ERR-118", [])
+    assert pairs == [
+        "orpheus/numerics/quadrature/registry.py:select_quadrature",
+        "orpheus/numerics/quadrature/registry.py:QuadratureSpec.structural_flags",
+    ], pairs
+    stale = set(_retired_pairs(text)) - _retired_ids()
+    assert not stale, f"entries carry a `**Retired:**` paragraph but are not retired (a pair is defined, or a marker remains): {sorted(stale)}"
+    assert "ERR-118" in _retired_ids()
+
+
+def _retired_root(tmp_path: Path, append: str = "") -> Path:
+    """A root holding only the CURRENT ``registry.py`` at its relative path, with ``append`` added at its end."""
+    rel = Path("orpheus/numerics/quadrature/registry.py")
+    target = tmp_path / rel
+    target.parent.mkdir(parents=True)
+    target.write_text((REPO_ROOT / rel).read_text(encoding="utf-8") + append, encoding="utf-8")
+    return tmp_path
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on("tests/gates/test_error_catalogue_reconciles.py::test_err_118_is_retired_with_its_code_and_no_retired_entry_is_stale")
+@pytest.mark.parametrize(
+    "append, markers",
+    [
+        ("\n\ndef select_quadrature():\n    return None\n", set()),
+        ("\n\nclass QuadratureSpec:\n    def structural_flags(self):\n        return None\n", set()),
+        ("", {"ERR-118"}),
+    ],
+    ids=["the-selector-redefined", "the-flags-accessor-redefined", "a-marker-returns"],
+)
+def test_err_118_leaves_the_retired_set_when_a_pair_is_redefined_or_a_marker_returns(tmp_path: Path, append: str, markers: set[str]):
+    """Gate D3's mutation, one arm per leg of the predicate (``vv-principles`` #17a). The root is a copy of ``registry.py`` alone, at its
+    relative path, so the tracked file is never touched: the unmutated copy must retire ERR-118 (the precondition: a reading that is
+    red before the mutation proves nothing), and re-adding ONE named definition, or a ``catches`` marker, must un-retire it. Red input
+    in today's tree: the precondition (the entry carries no ``**Retired:**`` paragraph, the copy still defines both pairs)."""
+    honest = _retired_ids(_retired_root(tmp_path / "honest"), markers=set())
+    assert "ERR-118" in honest, "precondition: the unmutated copy retires ERR-118"
+    mutant = _retired_ids(_retired_root(tmp_path / "mutant", append), markers=markers)
+    assert "ERR-118" not in mutant
