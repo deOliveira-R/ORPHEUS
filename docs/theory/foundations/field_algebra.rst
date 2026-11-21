@@ -1762,7 +1762,7 @@ status.
        divisor of the producer-side :math:`1/W` is the section's mass, the
        correctly rounded sum of the stored weights, for every reader.
      - #708, #288
-     - (in development)
+     - refactor/ontology, W0 sub-unit angular-mass (2026-11-21)
    * - 2026-08-24
      - **A field is an element of a SPACE, and the fiber is space
        CONTENT** (campaign 1, phase CS4b). The leaves' space source

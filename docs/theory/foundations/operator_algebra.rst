@@ -11108,7 +11108,7 @@ the cheapest tell.
        divisor of the producer-side :math:`1/W` is the section's mass, the
        correctly rounded sum of the stored weights, for every reader.
      - #708, #288
-     - (in development)
+     - refactor/ontology, W0 sub-unit angular-mass (2026-11-21)
    * - 2026-11-01
      - **The transport phase spaces have raw constructors, and the transport
        tests are posed on them** (Phase 4 of ``.claude/plans/layer_dag.md``,

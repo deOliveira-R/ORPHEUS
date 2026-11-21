@@ -7709,7 +7709,7 @@ status.
        divisor of the producer-side :math:`1/W` is the section's mass, the
        correctly rounded sum of the stored weights, for every reader.
      - #708, #288
-     - (in development)
+     - refactor/ontology, W0 sub-unit angular-mass (2026-11-21)
    * - 2026-11-02
      - **The flat chart is a concept of the space** (#683). The space
        gained :attr:`~orpheus.numerics.space.FunctionSpace.n_coordinates`,

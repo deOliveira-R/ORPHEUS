@@ -808,4 +808,4 @@ milestones of *this page's* subject.
        divisor of the producer-side :math:`1/W` is the section's mass, the
        correctly rounded sum of the stored weights, for every reader.
      - #708, #288
-     - (in development)
+     - refactor/ontology, W0 sub-unit angular-mass (2026-11-21)
