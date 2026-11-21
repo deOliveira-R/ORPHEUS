@@ -55,6 +55,8 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.numerics.axis_marginal import AxisSectionOperator
 
 if TYPE_CHECKING:
+    from orpheus.numerics.space import FunctionSpace
+    from orpheus.transport.fields.scalar_source_sink import ScalarSourceSink
     from orpheus.transport.mesh.material_mesh import MaterialMesh
 
 
@@ -139,5 +141,13 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
                 f"(ng, *spatial) = {expected}; got {iso_values.shape}"
             )
         # The section's divisor is the correctly rounded mass (math.fsum of the stored weights), the one definition every reader of 1/W divides by (#708).
-        space = cls._space_for_problem(problem)
-        return cls(values=AxisSectionOperator.of(space, "angular").apply(iso_values), space=space)
+        return cls.from_scalar(iso_values, cls._space_for_problem(problem))
+
+    @classmethod
+    def from_scalar(cls, iso: "NDArray | ScalarSourceSink", into: "FunctionSpace") -> "AngularSourceSink":
+        r"""The one injection of an iso scalar source into the per-ordinate
+        class: the angular section of ``into`` (divide by the mass, then
+        scatter across the ordinates), wrapped in this class on ``into``.
+        :meth:`from_isotropic` and the lift's producer-side combine both
+        call it, so the injection is spelled once."""
+        return cls(values=AxisSectionOperator.of(into, "angular").apply(iso), space=into)

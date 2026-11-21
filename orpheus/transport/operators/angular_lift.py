@@ -419,13 +419,14 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
     def _combine(
         self, iso: ScalarSourceSink, aniso: AngularSourceSink | None,
     ) -> AngularSourceSink:
-        r"""The producer-side combine, the :math:`1/W` convention's ONE home
-        (its normalisation chain: ``docs/theory/methods/sn/slab_multigroup.rst``).
-        The isotropic source is injected through the angular section
-        :math:`E` (divide by the mass, then scatter across the ordinates)
-        and the anisotropic part is added within one class."""
-        section = AxisSectionOperator.of(self._codomain_interior, "angular")
-        injected = AngularSourceSink(values=section.apply(iso), space=self._codomain_interior)
+        r"""The producer-side combine (its normalisation chain:
+        ``docs/theory/methods/sn/slab_multigroup.rst``). The :math:`\ell = 0`
+        part is injected through the angular section :math:`E`
+        (:meth:`AngularSourceSink.from_scalar`: divide by the mass, then
+        scatter across the ordinates); the :math:`\ell \ge 1` part arrives
+        already divided by ``total_weight``, which is the same mass. The two
+        are added within one class."""
+        injected = AngularSourceSink.from_scalar(iso, self._codomain_interior)
         return injected if aniso is None else injected + aniso
 
     def apply_transpose(self, x: FullField, /) -> FullField:

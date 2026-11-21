@@ -62,7 +62,7 @@ Phase space and fields
        canonical dim-agnostic form is ``axis_cosines(i)`` — and
        there is no separate ordinate storage to drift.
    * - :math:`W`
-     - ``quadrature.weights.sum()``
+     - ``AxisSectionOperator.of(space, "angular").mass``
      - The weight sum — **the** normalization pivot:
        :math:`W = 2` for Gauss–Legendre
        (:meth:`~orpheus.numerics.quadrature.directional.Quadrature.gauss_legendre`),

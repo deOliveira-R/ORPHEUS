@@ -3153,14 +3153,16 @@ the change.
    slab and on the gate's own 2-D heterogeneous fixture
    (``tests/gates/sn/operators/test_scattering_kernel_crosscheck.py``).
 
-   The spelling reached this shape in three moves, each recorded: it read
+   The spelling reached this shape in four moves, each recorded: it read
    ``frame.reconstruct(…)`` until the F-1 carve moved the binding from
    frame VERBS onto the minted FACES; it read
    ``float(self.weights.sum())`` until the CS4c rebind retired the stored
    weight vector in favour of the faces' own frame measure
    (:ref:`scattering-binding-cs4c`); and it was a registered
    ``HarmonicMomentFlux`` **arm** of the angular operator until CS4c step
-   5 made it the moment binding's own body.
+   5 made it the moment binding's own body. Since #708 a fourth move: the
+   divisor ``total_weight`` reads the angular section's mass
+   (``math.fsum`` of the stored weights), not the faces' frame measure.
 
    ⛔ The ndarray ``reconstruct_after(Λ)`` primitive
    ``_aniso_source_from_moment_values`` — described here until 2026-09-04

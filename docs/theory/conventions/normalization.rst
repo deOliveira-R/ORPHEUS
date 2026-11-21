@@ -88,10 +88,12 @@ path's precomputed recurrence needed
    :math:`(\text{iso}/W) + \text{aniso}` of the shared **lift base**,
    so fission's :math:`\ell = 0` emission divides by the same
    :math:`W`, through the same line, as scattering's and
-   :math:`(n,2n)`'s. :math:`W` is read off the binding's frame MEASURE
-   (``frame.measure.weights.sum()``), never a stored weight vector — the
-   measure IS the normalisation carrier this page is about, so there is
-   exactly one place the divisor can come from
+   :math:`(n,2n)`'s. :math:`W` is the angular section's mass
+   (``AxisSectionOperator.of(space, "angular").mass`` on the emitted
+   interior, the correctly rounded ``math.fsum`` of the stored weights
+   since #708), never a stored weight vector — the section IS the
+   normalisation carrier this page is about, so there is exactly one place
+   the divisor can come from
    (:ref:`cs4c-ends-select-the-body`).
 
 .. implements:: normalization-dd-source-coefficient

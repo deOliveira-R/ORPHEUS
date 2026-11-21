@@ -7079,7 +7079,6 @@ gate G5-mass: Gauss–Legendre 2 to 64, level-symmetric 2 to 16,
      - 0
      - 0 (``array_equal`` on 120 of 120)
 
-Every divisor of the angular mass in production reads the section's mass.
 So no spelling but the correctly rounded one is the same number on every
 rule, and the one the pair shipped with was the furthest from it. The
 lesson for a gate: pin the divisor against ``math.fsum`` of the stored

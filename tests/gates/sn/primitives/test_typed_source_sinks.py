@@ -197,7 +197,7 @@ class TestAngularSource:
 
 
 class TestIsotropicInjection:
-    def test_iso_plus_aniso_returns_per_ordinate(self) -> None:
+    def test_injected_iso_plus_aniso_is_per_ordinate(self) -> None:
         """``from_isotropic(iso) + aniso → AngularSourceSink``: the isotropic
         source divided by the mass, broadcast across the ordinates, then added."""
         m = _slab_mesh()

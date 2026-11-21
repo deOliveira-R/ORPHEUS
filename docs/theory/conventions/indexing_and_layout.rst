@@ -1947,7 +1947,7 @@ that wrap the right-hand side of the transport equation
 
    Source module: :mod:`orpheus.transport.fields`.
    Foundation tests:
-   :file:`tests/gates/sn/primitives/test_typed_source_sinks.py` (32 cases).
+   :file:`tests/gates/sn/primitives/test_typed_source_sinks.py` (33 cases).
    Closeout memo:
    :file:`.claude/agent-memory/method-implementer/issue_197_pr_typed_3_closeout.md`.
 

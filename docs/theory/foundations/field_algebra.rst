@@ -1142,7 +1142,8 @@ because it is easy to carry the old sentence forward.** As of CS3:
 
 The conclusion the old reading supported — Role must be a class,
 Representation must be a class, and the flat multiple-inheritance leaf is
-the unique normal form — rests on units identity. The full argument, with
+the unique normal form — stands on the five obstructions; Role's
+obstruction (a) now rests on units identity alone (since #708). The full argument, with
 its five obstructions re-derived under the cone, lives at
 :ref:`carrier-grid-flat-leaf-normal-form`.
 

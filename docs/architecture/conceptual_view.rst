@@ -682,8 +682,7 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   (12 of 12 S\ :sub:`N` cases) and the Green's-function sphere by a typed
   :math:`4\pi`, where one Branch-1 measure object should derive it
   (#557); a composite holding a retraction daggers through the generic
-  sandwich rather than the leaf pullback (#558), (the cross-class source dunder that spelled
-  :math:`\pi^{*}` outside its type retired with #708).
+  sandwich rather than the leaf pullback (#558).
 - **Chords, point location and the measure on lines are spelled outside
   their kernel** (`[M]` 2026-10-05, the geometry census at ``a336bde4``,
   :ref:`chart-and-chord-deferred`): 13 chord square roots and 14
