@@ -152,17 +152,6 @@ __all__ = [
 ]
 
 
-# ───────────────────────────────────────────────────────────────────────
-# The block structure of an operator on a direct sum
-# ───────────────────────────────────────────────────────────────────────
-#
-# On the direct-sum transport state space ``V = V_bulk ⊕ V_boundary`` a
-# linear operator is, by the biproduct theorem, a 2×2 block matrix::
-#
-#     A = [ A_bb  A_bs ]      A_bb : bulk → bulk        A_bs : boundary → bulk
-#         [ A_sb  A_ss ]      A_sb : bulk → boundary    A_ss : boundary → boundary
-
-
 def _agreed_space(
     ops: tuple, role: str, owner: str,
 ) -> Optional["FunctionSpace"]:

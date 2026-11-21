@@ -2,7 +2,7 @@
 ``tests/gates/_retired/rows_w0_roles.py`` and read by the shared engine's walk.
 
 The root is ``orpheus/numerics/operator.py`` alone, copied to its relative path in a temporary directory (the file the roles rows
-bind). The unmutated walk of that root is required green first: a red reading before the mutation proves nothing (X1). Then:
+bind). Each mutation test first asserts the unmutated walk of that root green: a red reading before the mutation proves nothing (X1). Then:
 
 * a class ``LinearOperator`` with a class attribute ``block_role`` is appended: the red set is exactly the ``Retired`` row
   ``LinearOperator.block_role`` and the ``RetiredName`` row ``block_role``;
@@ -41,12 +41,6 @@ def _copy_operator(root: Path) -> Path:
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text((_REPO / _OPERATOR).read_text(encoding="utf-8"), encoding="utf-8")
     return target
-
-
-def test_the_copy_of_operator_py_alone_reads_green_before_any_mutation(tmp_path: Path) -> None:
-    """The control of both mutations below: 25 rows and the one ``Kept`` entry, none red on the unmutated copy."""
-    _copy_operator(tmp_path)
-    assert _red(walk(tmp_path, rows=_entries())) == set()
 
 
 def test_a_block_role_planted_on_a_linear_operator_reddens_its_two_rows(tmp_path: Path) -> None:
