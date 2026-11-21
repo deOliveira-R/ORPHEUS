@@ -15,6 +15,8 @@ escapes.
 
 from __future__ import annotations
 
+from tests.gates.sn.operators._hub_kernel import hub_kernel
+
 import numpy as np
 import pytest
 
@@ -132,7 +134,7 @@ def test_a_unit_specular_WALL_closes_its_axis_exactly_as_a_mirror_deck_does():
     decks = _sn_mesh_2d(xmin=_R, xmax=_R, ymin=_R, ymax=_R)
     assert walls.reflective_axes == decks.reflective_axes == (0, 1)
     assert gauge_freedom(walls).present and gauge_freedom(decks).present
-    assert walls.pencil.kernel.projector.dimension == decks.pencil.kernel.projector.dimension == 12
+    assert hub_kernel(walls).projector.dimension == hub_kernel(decks).projector.dimension == 12
 
     partial = _sn_mesh_2d({0: WallCondition.specular(0.9)}, xmin=0, xmax=0, ymin=0, ymax=0)
     assert partial.reflective_axis_pairs == 0

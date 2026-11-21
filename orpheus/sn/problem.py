@@ -373,7 +373,8 @@ class SNProblem(MethodMesh):
 
         # ── Boundary trace + realized laws ──
         # Build ONE unified trace space per SNProblem, keyed on the mesh's
-        # TRUE boundary faces (``angular_trace.layout``): slab
+        # TRUE boundary faces (the layout ``transport.phase_spaces.angular_face_layout``
+        # derives from ``mesh.axis.trace_face_shapes``): slab
         # ``xmin``/``xmax``, curvilinear ``xmax`` only (the pole at r=0
         # is the angular closure's regularity condition, not a BC
         # face), multi-D Cartesian all ``2·ndim`` faces. Inflow /
@@ -833,8 +834,10 @@ class SNProblem(MethodMesh):
         r"""The unified boundary :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`.
 
         One concrete trace space for the whole boundary :math:`\Gamma`,
-        built (A.2/A.3) from this Problem's quadrature +
-        its ``layout`` (geometry-blind since C5.3, #225).
+        built (A.2/A.3) from this Problem's quadrature and the face layout
+        :func:`~orpheus.transport.phase_spaces.angular_face_layout` derives from the
+        mesh's :func:`~orpheus.mesh.axis.trace_face_shapes` (geometry-blind since
+        C5.3, #225).
         It is the single source of truth for the signed projection
         :math:`\Omega\cdot\hat n_f` per face; the inflow / outflow
         *selectors*

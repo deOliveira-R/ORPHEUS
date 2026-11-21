@@ -527,7 +527,7 @@ This is the elegance argument in its sharpest form: a refactor that aligns the n
 
 Before: `np.sum(Σ_p · φ · V[:, None]) / np.sum(Σ_a · φ · V[:, None])` — anonymous intermediate `(N, ng)`.
 
-After: `compute_group_production_rate(phi).sum() / compute_group_absorption_rate(phi).sum()` — per-group rate vectors (named, inspectable, reusable).
+After: the production and absorption `IntegratedReactionRate` (per-group, integrated over the cells) summed to scalars — per-group rate vectors (named, inspectable, reusable).
 
 The bit-identity broke at FP-non-associativity ULP. Principled per `vv-principles` because the named intermediate IS a reactor-physics quantity. Pattern 3 in textbook form.
 

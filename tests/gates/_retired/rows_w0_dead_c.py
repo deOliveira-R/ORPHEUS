@@ -6,6 +6,11 @@ decision D1 of the sixth pass); ``KEPT`` holds rows 83 and 100 and the deferred 
 
 First red at the base tip: every ``Retired`` and ``Moved`` row is defined today and the ``RetiredModule`` file exists. The ``Kept`` entries
 are green today and must stay green.
+
+Exclusion of the reference leg (done-when 4 resolves a reference by import): it cannot see an INSTANCE-ATTRIBUTE read of a retired
+member (``m.loss_kernel_gauge``, ``m.boundary_face_layout``, ``m.n_unknowns_flat``, ``s.compute_group_absorption_rate``,
+``term.is_gain``). The only catcher of such a read is the ``AttributeError`` raised when the reading test runs (``[M]``: planting
+``layout = m.boundary_face_layout`` in a copy of ``test_boundary_face_layout.py`` turned 0 rows red).
 """
 
 from __future__ import annotations

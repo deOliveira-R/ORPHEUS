@@ -212,7 +212,8 @@ WDD difference relations) and :math:`C` is the collision diagonal
       * - :math:`ASSEMBLE`
         - materialize :math:`[L+C]` as ``(row, col, value)`` triplets
         - the **structural sparse emission**
-        - ``assemble_ordinate_blocks``
+        - ``assemble_ordinate_blocks`` (the test-side oracle,
+          ``tests.gates.sn.sweep._ordinate_assembly``; no production entry)
 
 This is the **L21 invariant** referenced throughout the SN code: *the
 sweep and the matvec are two actions of the SAME operator* — they are

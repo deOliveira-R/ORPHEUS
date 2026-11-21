@@ -53,7 +53,6 @@ from orpheus.sn.sweep.psi_half_angle_seed import (
 )
 from tests.gates.sn.sweep.curvilinear._psi_half import (
     compute_psi_half_per_level,
-    downstream_per_ordinate,
     upstream,
 )
 
@@ -141,8 +140,10 @@ class TestMMHalfGridAccessors:
     half-faces.
 
     Pattern 4 — illegal states unrepresentable. The matvec's
-    ``psi_angular_upstream`` argument is populated via
-    the ``upstream`` accessor (semantic, not raw indexing).
+    ``angular_numer_upstream`` argument is populated from the grid's
+    ``upstream_per_ordinate`` accessor (semantic, not raw indexing;
+    ``orpheus/sn/angular/closure.py``). The test-side ``upstream(grid, m)``
+    is a plain slice of ``faces`` and is read only by the chain test.
     """
 
     def _build_grid(self) -> tuple[_MMHalfGrid, int, int, int]:
@@ -178,25 +179,6 @@ class TestMMHalfGridAccessors:
         upstream_faces = grid.upstream_per_ordinate
         assert upstream_faces.shape == (ng, M, nx)
         np.testing.assert_array_equal(upstream_faces, grid.faces[:, :-1, :])
-
-    @pytest.mark.l0
-    def test_downstream_per_ordinate_drops_leading_face(self) -> None:
-        """``downstream_per_ordinate`` is shape ``(ng, M, nx)`` — the
-        last ``M`` faces, which are the downstream-per-ordinate set."""
-        grid, ng, M, nx = self._build_grid()
-        downstream = downstream_per_ordinate(grid)
-        assert downstream.shape == (ng, M, nx)
-        np.testing.assert_array_equal(downstream, grid.faces[:, 1:, :])
-
-    @pytest.mark.l0
-    def test_upstream_indexing(self) -> None:
-        """``upstream(m)`` returns ``faces[:, m, :]`` — the upstream
-        face of ordinate ``m`` (= downstream of ``m-1``)."""
-        grid, _, M, _ = self._build_grid()
-        for m in range(M):
-            np.testing.assert_array_equal(
-                upstream(grid, m), grid.faces[:, m, :],
-            )
 
     @pytest.mark.l0
     def test_downstream_indexing(self) -> None:

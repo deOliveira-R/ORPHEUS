@@ -100,6 +100,8 @@ for that reason; do not trim them to speed the suite up.**
 
 from __future__ import annotations
 
+from tests.gates.sn.operators._hub_kernel import hub_kernel
+
 from pathlib import Path
 
 from typing import TYPE_CHECKING, cast
@@ -801,8 +803,8 @@ def test_the_basis_never_reads_a_CROSS_SECTION():
 def test_the_mesh_caches_the_gauge():
     """One build per mesh — the setup cost must not ride the per-solve path."""
     mesh = _mesh((3, 4), [(_R, _R)] * 2)
-    assert mesh.pencil.kernel.projector is mesh.pencil.kernel.projector
-    assert mesh.pencil.kernel.projector.dimension == predicted_kernel_dimension(mesh)
+    assert hub_kernel(mesh).projector is hub_kernel(mesh).projector
+    assert hub_kernel(mesh).projector.dimension == predicted_kernel_dimension(mesh)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -958,7 +960,7 @@ def test_the_rebuilt_gauge_agrees_with_the_retired_class_within_the_declared_reb
     bound = json.loads(_REBASELINES.read_text())["events"][-1]["bound"]
     eps = np.finfo(float).eps
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = mesh.pencil.kernel.projector   # since U0 the full-field projector: the carry reads its trace part on [0_bulk, x]
+    gauge = hub_kernel(mesh).projector   # since U0 the full-field projector: the carry reads its trace part on [0_bulk, x]
     assert isinstance(gauge, KernelProjectionGauge)
     x = carry[f"{label}|x"]
     applied, reference = _on_trace(mesh, gauge, "apply", x), carry[f"{label}|apply"]
@@ -999,7 +1001,7 @@ def _exit_reading(mesh, x, kernel=_THE_HUBS, bulk_seed=None):
     if bulk_seed is not None:
         interior = np.random.default_rng(bulk_seed).standard_normal(np.shape(interior))
     psi = replace(psi, interior=replace(psi.interior, values=interior), boundary=replace(psi.boundary, values=x))
-    return _exit_gauge(psi, kernel=mesh.pencil.kernel if kernel is _THE_HUBS else cast("PredictedKernel | None", kernel))
+    return _exit_gauge(psi, kernel=hub_kernel(mesh) if kernel is _THE_HUBS else cast("PredictedKernel | None", kernel))
 
 
 _UNIFORM_TRACE_METRIC = "d2 (3,4) LS2 ng=1"
@@ -1061,7 +1063,7 @@ def test_the_exit_reads_the_protocol_only():
 def _gauge_production():
     """The production gauge on the reflective 3x4 box (test_loss_kernel_gauge's fixture): since U0 the hub's
     predicted kernel's projector, on the full field."""
-    return _mesh((3, 4), [(_R, _R)] * 2).pencil.kernel.projector
+    return hub_kernel(_mesh((3, 4), [(_R, _R)] * 2)).projector
 
 
 @pytest.mark.foundation

@@ -55,6 +55,8 @@ kernel mode is decided by the TRANSVERSE cell count of that face — see
 
 from __future__ import annotations
 
+from tests.gates.sn.operators._hub_kernel import hub_kernel
+
 import numpy as np
 import pytest
 
@@ -311,8 +313,8 @@ def test_the_T_plus_R_split_is_exact_per_quadrature(
         f"{predicted_kernel_dimension(problem)} but the SVD's R is {remainder} "
         f"— the law and the operator disagree on the R/T boundary"
     )
-    assert problem.pencil.kernel.projector.dimension == remainder, (
-        f"{label}: the gauge spans {problem.pencil.kernel.projector.dimension} "
+    assert hub_kernel(problem).projector.dimension == remainder, (
+        f"{label}: the gauge spans {hub_kernel(problem).projector.dimension} "
         f"dimensions but R is {remainder}"
     )
     gap = rank_gap(singular, nullity)

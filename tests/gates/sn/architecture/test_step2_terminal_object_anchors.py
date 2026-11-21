@@ -79,6 +79,8 @@ Marks
 
 from __future__ import annotations
 
+from tests.gates.sn.operators._hub_kernel import hub_kernel
+
 import dataclasses
 
 import numpy as np
@@ -492,7 +494,7 @@ class TestLawTheGaugeIsSigmaFree:
     false red) — and the per-hub IDENTITY half stays on ONE hub.
 
     ⟹ W0 dead-C retired ``SNProblem.loss_kernel_gauge`` for
-    ``problem.pencil.kernel.projector``, so the gauge IS read through the
+    ``hub_kernel(problem).projector``, so the gauge IS read through the
     pencil now.  The hazard it pinned, "deriving the gauge from the pencil would
     rebuild it on every ``.at(σ)``", does not arise on this route (``[M]`` read
     at ``orpheus/numerics/pencil.py`` lines 91 to 96: ``OperatorPencil.at(σ)``
@@ -506,7 +508,7 @@ class TestLawTheGaugeIsSigmaFree:
         from tests.gates.sn.architecture._config import slab_seedless
 
         problem = slab_seedless()
-        assert problem.pencil.kernel.projector is problem.pencil.kernel.projector, (
+        assert hub_kernel(problem).projector is hub_kernel(problem).projector, (
             "the loss-kernel gauge (the hub pencil's kernel projector) is cached "
             "per hub — if this reds it was demoted to a method or the pencil "
             "rebuilds per access (H3)."
@@ -519,7 +521,7 @@ class TestLawTheGaugeIsSigmaFree:
         hub_b = problem.with_cross_sections(
             np.asarray(problem.mat_xs.total_cross_section) * 3.0,
         )
-        g1, g2 = problem.pencil.kernel.projector, hub_b.pencil.kernel.projector
+        g1, g2 = hub_kernel(problem).projector, hub_kernel(hub_b).projector
         assert g2 is not g1, "two hubs, two cached objects (the identity half is per hub)"
         assert np.array_equal(g1.as_matrix(), g2.as_matrix()), (
             "the loss-kernel gauge is documented σ-free; a ×3 σ-variant hub "
