@@ -7,7 +7,10 @@ under two declarations of the outer wall: vacuum and white (6 rows, key ``keff_c
 mirror CP's kernel images (section 4.2): the HEAD capture declared ``BC.reflective`` there. The same problems, spelled in the NEW
 vocabulary (``tests/gates/cp/_cp_s4_helpers.cp_mesh`` and ``cp_solve``: a ``MirrorDeck`` at the slab's left face, the outer face
 a tag bound to ``WallCondition.vacuum()`` or ``white(1.0)``, rule R4), must give the same ``k`` BIT-EQUAL (``==`` on the float; a non-bit
-difference is a finding to investigate, never a tolerance to widen).
+difference is a finding to investigate, never a tolerance to widen). Three rows are the exception since the unit ``insulation`` (#641 item 1): CP
+draws its impact-parameter rule from the correctly rounded production Gauss-Legendre rule and no longer from the reference's
+``numpy.polynomial.legendre.leggauss`` (the platform eigensolver output), so those three ``k`` move by 1 to 30 ulp; they are read against
+``_REBASELINED_BY_THE_RULE`` below, and the fixture is not edited (14 test files read it, and it is a capture of a named commit).
 
 What each row can and cannot see
 ================================
@@ -45,6 +48,17 @@ from tests.gates.transport import _carry_cases as carry
 _THIS = "tests/gates/cp/test_cp_boundary_carry.py"
 _FIXTURE_TEST = "tests/gates/sn/architecture/test_wave2_carry.py::test_the_fixture_is_the_head_capture"
 _CASES = [(chart, d) for chart in carry.CHARTS for d in carry.CP_DECLARATIONS]
+
+# The three rows whose k moved when CP's y-rule became the correctly rounded production Gauss-Legendre rule (the reference's
+# ``leggauss`` is the platform eigensolver output; the moves are 1, 30 and 3 ulp; #641 item 1). Keyed by ``(chart, declaration)``. The trigger
+# to delete this table is a recapture of ``carry_head.npz``; until then ``test_the_override_differs_from_the_fixture`` reddens on a
+# recapture (which would make an entry a stale second source of the expected k). ``sphere-white_1.0`` does not move: it is the one
+# row that witnesses the chord and the exponential kernel, and it stays bit-exact.
+_REBASELINED_BY_THE_RULE: dict[tuple, float] = {
+    ("cylinder", ("vacuum",)): 0.9706012427174181,  # the fixture's 0.970601242717418
+    ("cylinder", ("white", 1.0)): 0.7349098770721564,  # the fixture's 0.7349098770721597
+    ("sphere", ("vacuum",)): 0.6319877457593566,  # the fixture's 0.6319877457593569
+}
 _IDS = [f"{chart}-{carry.tag(d)}" for chart, d in _CASES]
 
 
@@ -86,13 +100,41 @@ def test_the_fixture_holds_the_cp_rows() -> None:
 @pytest.mark.rests_on(f"{_THIS}::test_the_fixture_holds_the_cp_rows")
 @pytest.mark.parametrize("chart,declaration", _CASES, ids=_IDS)
 def test_the_carry_of_the_cp_solves(chart: str, declaration: tuple) -> None:
-    r"""``solve_cp`` in the new spelling equals the HEAD ``k`` bit for bit, on the chart and wall of the row.
+    r"""``solve_cp`` in the new spelling equals the HEAD ``k`` bit for bit, on the chart and wall of the row; for the three rows of
+    ``_REBASELINED_BY_THE_RULE`` it equals the ``k`` of the correctly rounded production rule.
 
-    Red input: ``ImportError`` at the base tip (every row). Mutations: M-vacuum-as-white, M-white-as-identity, M-left-face-white.
+    Red input at the base tip (the unit ``insulation``): the three overridden rows (the base draws the reference rule, so its ``k`` is still
+    the HEAD value, which the override differs from by 1, 30 and 3 ulp). Mutations: M-vacuum-as-white, M-white-as-identity, M-left-face-white;
+    and the override emptied (``test_the_rebaseline_is_not_blind``).
     """
     k = CP.cp_solve(CP.cp_mesh(chart), {0: _condition(declaration)}).keff
-    expected = H.fixture_k("cp", chart, declaration)
-    assert k == expected, f"{chart} / {carry.tag(declaration)}: k = {k!r}, the HEAD k = {expected!r}"
+    expected = _REBASELINED_BY_THE_RULE.get((chart, declaration), H.fixture_k("cp", chart, declaration))
+    assert k == expected, f"{chart} / {carry.tag(declaration)}: k = {k!r}, the HEAD k (or the rule's k) = {expected!r}"
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("key", sorted(_REBASELINED_BY_THE_RULE), ids=lambda key: f"{key[0]}-{carry.tag(key[1])}")
+def test_the_override_differs_from_the_fixture(key: tuple) -> None:
+    """Each override differs from the fixture's value for its row (a recapture of ``carry_head.npz`` would make the entry a stale second
+    source of the expected k and read red here), and by a few tens of ulp only (a move of more is not the rule's rounding).
+    Red input: a test-only input, an override set equal to the fixture value."""
+    chart, declaration = key
+    fixture = H.fixture_k("cp", chart, declaration)
+    override = _REBASELINED_BY_THE_RULE[key]
+    assert override != fixture
+    assert abs(override - fixture) <= 64 * np.spacing(fixture), (override, fixture)
+
+
+@pytest.mark.l1
+def test_the_rebaseline_is_not_blind() -> None:
+    """D.17, the first pin is the one most likely blind: with the three overrides REMOVED the three rows are read against the old fixture
+    values, and each must read red because its ``k`` moved. Red input at the base tip: all three (the base ``k`` is still the fixture
+    value, so no row moved and the override is not yet carrying anything); green once the rule is the production rule."""
+    moved = {}
+    for chart, declaration in sorted(_REBASELINED_BY_THE_RULE):
+        k = CP.cp_solve(CP.cp_mesh(chart), {0: _condition(declaration)}).keff
+        moved[(chart, declaration)] = k != H.fixture_k("cp", chart, declaration)
+    assert all(moved.values()), f"rows whose k did not move off the old fixture value: {[key for key, m in moved.items() if not m]}"
 
 
 @pytest.mark.l1

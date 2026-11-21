@@ -916,6 +916,181 @@ def test_reference_insulation_admits_the_interface_and_the_exempt(rel: str, sour
 
 
 # ---------------------------------------------------------------------------
+# Production insulation: no production module imports the reference tree
+# ---------------------------------------------------------------------------
+#
+# The direction the closed-reference block above does not read: production importing ``derivations``
+# (#641 item 1). It is a function beside the table and not new ``FORBIDDEN_EDGES`` rows because plain rows
+# would put 100 (file, package) rows in 95 test files, the method gates that read their references, into
+# ``tests/gates/test_test_layers.py``, and ``plotting.py`` has no row to carry one. The refused set is
+# ``L0_PACKAGES``; the scan is the one the reference block runs (``_imported_targets`` plus
+# ``_dynamic_imports``). Coverage holds by construction: the population is the ``rglob`` of ``orpheus/``.
+# Declared blind spots: a dynamic import whose name is built at run time (an f-string head), and the
+# run-time ``_resolve`` of ``orpheus/numerics/traced_memo.py``; the cold-import gate reads import-time
+# executions only.
+
+# Production importing the reference tree: refused.
+_PRODUCTION_INSULATION_REFUSED_LEGS = [
+    ("cp/x.py", "from orpheus.derivations.common.kernels import chord_half_lengths\n"),
+    ("sn/x.py", "def f():\n    from orpheus.derivations.common.kernels import chord_half_lengths\n"),
+    ("transport/x.py", "from ..derivations import get\n"),
+    ("sn/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.derivations.common import quadrature\n"),
+    ("plotting.py", "import orpheus.derivations.common.kernels\n"),
+    ("sn/x.py", "import importlib\nm = importlib.import_module('orpheus.derivations.common.kernels')\n"),
+]
+
+# Admitted: production importing production; the reference importing production (the other direction, which stays legal);
+# text that names the package and imports nothing; a third-party module named ``derivations``.
+_PRODUCTION_INSULATION_ADMITTED_LEGS = [
+    ("sn/x.py", "from orpheus.numerics import quadrature\n"),
+    ("derivations/x.py", "from orpheus.geometry import StructuredGeometry\n"),
+    ("cp/x.py", '"""See orpheus.derivations.common.kernels."""\n'),
+    ("sn/x.py", "import derivations\n"),
+]
+
+
+def _production_insulation_violations(rel: pathlib.PurePosixPath, src: str) -> list[str]:
+    """The imports, static and string-literal dynamic, that a production module makes of the reference tree.
+
+    A target is a violation iff its first dotted component is ``orpheus`` and its second is in ``L0_PACKAGES``
+    (a third-party module named ``derivations`` is not). The population is every module whose top-level
+    package is not in ``L0_PACKAGES``; ``plotting.py`` and ``orpheus/__init__.py`` included."""
+    if rel.parts[0] in L0_PACKAGES:
+        return []
+    return [
+        f"{rel} imports {target} (production never imports the reference tree {sorted(L0_PACKAGES)}, #641)"
+        for target in _imported_targets(rel, src) + _dynamic_imports(src)
+        if (parts := target.split("."))[0] == "orpheus" and len(parts) > 1 and parts[1] in L0_PACKAGES
+    ]
+
+
+def _production_population() -> list[pathlib.Path]:
+    return sorted(
+        p for p in _iter_python_modules(ORPHEUS_ROOT)
+        if p.relative_to(ORPHEUS_ROOT).parts[0] not in L0_PACKAGES
+    )
+
+
+def _production_violations_of_the_tree() -> list[str]:
+    return [
+        v
+        for p in _production_population()
+        for v in _production_insulation_violations(
+            pathlib.PurePosixPath(p.relative_to(ORPHEUS_ROOT).as_posix()), p.read_text(encoding="utf-8")
+        )
+    ]
+
+
+@pytest.mark.foundation
+def test_production_imports_nothing_from_the_reference_tree() -> None:
+    """G1, the real tree: 0 production imports of ``orpheus.derivations``.
+
+    Red input at the base tip: ``orpheus/cp/solver.py`` lines 49, 50 and 51 (3 statements in 1 production file, by an AST pass
+    independent of this scanner). The population is asserted non-empty and to hold ``cp/solver.py``, so an empty walk cannot
+    read as a clean tree.
+    """
+    population = _production_population()
+    assert len(population) > 200 and any(p.name == "solver.py" and p.parent.name == "cp" for p in population), len(population)
+    violations = _production_violations_of_the_tree()
+    assert not violations, "\n".join(violations)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _PRODUCTION_INSULATION_REFUSED_LEGS)
+def test_production_insulation_refuses_each_import_shape(rel: str, source: str) -> None:
+    violations = _production_insulation_violations(pathlib.PurePosixPath(rel), source)
+    assert len(violations) == 1 and "never imports the reference tree" in violations[0], violations
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize(("rel", "source"), _PRODUCTION_INSULATION_ADMITTED_LEGS)
+def test_production_insulation_admits_the_legal_direction_and_text(rel: str, source: str) -> None:
+    assert _production_insulation_violations(pathlib.PurePosixPath(rel), source) == []
+
+
+@pytest.mark.foundation
+def test_production_insulation_reads_a_reinjected_import_in_the_real_source() -> None:
+    """Mutation of the landed source: prepend one reference import to a COPY of the text of ``cp/solver.py``; the scan counts exactly
+    one more violation than on the file (the control that the function reads a real module's syntax, not only the synthetic legs)."""
+    rel = pathlib.PurePosixPath("cp/solver.py")
+    source = (ORPHEUS_ROOT / "cp" / "solver.py").read_text(encoding="utf-8")
+    mutant = "from orpheus.derivations.common.kernels import chord_half_lengths\n" + source
+    assert len(_production_insulation_violations(rel, mutant)) == len(_production_insulation_violations(rel, source)) + 1
+
+
+@pytest.mark.foundation
+def test_production_insulation_population_holds_a_known_member_of_each_shape() -> None:
+    """Positive control for the population: ``plotting.py``, ``orpheus/__init__.py`` and ``cp/solver.py`` are in it; ``derivations/`` is not."""
+    names = {p.relative_to(ORPHEUS_ROOT).as_posix() for p in _production_population()}
+    assert {"plotting.py", "__init__.py", "cp/solver.py"} <= names, sorted(names)[:5]
+    assert not any(n.startswith("derivations/") for n in names)
+
+
+# G2: a cold interpreter per production package imports every module under it. The AST rows cannot see an import a module
+# performs when it runs; this reads what loaded. Declared blind spot: an import executed lazily inside a call.
+_COLD_PACKAGE_CODE = (
+    "import importlib, pkgutil\n"
+    "import orpheus.{pkg} as p\n"
+    "for m in pkgutil.walk_packages(p.__path__, p.__name__ + '.'):\n"
+    "    importlib.import_module(m.name)\n"
+)
+
+_PRODUCTION_PACKAGES = sorted(
+    d.name for d in ORPHEUS_ROOT.iterdir() if d.is_dir() and (d / "__init__.py").is_file() and d.name not in L0_PACKAGES
+)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("package", _PRODUCTION_PACKAGES)
+def test_a_production_package_loads_nothing_of_the_reference_tree_cold(package: str) -> None:
+    """G2: after importing every module under ``orpheus.<package>`` in a fresh interpreter, no loaded module is under an
+    ``L0_PACKAGES`` package.
+
+    Red input at the base tip: ``cp`` (``import orpheus.cp.solver`` loads 11 ``orpheus.derivations*`` modules; 0 for the 17 other
+    packages). The control row below reads the filter on a module known to load them."""
+    loaded = _cold_loaded_modules(_COLD_PACKAGE_CODE.format(pkg=package))
+    assert f"orpheus.{package}" in loaded, sorted(loaded)[:5]
+    leaked = sorted(m for m in loaded if len(m.split(".")) > 1 and m.split(".")[1] in L0_PACKAGES)
+    assert not leaked, f"importing every module of orpheus.{package} loaded the reference tree: {leaked}"
+
+
+@pytest.mark.foundation
+def test_the_cold_filter_sees_the_reference_tree_when_it_is_imported() -> None:
+    """Positive control of G2's filter: importing a reference module loads ``orpheus.derivations*`` modules, and the package list
+    the gate ranges over is non-empty and holds ``cp``, ``sn`` and ``numerics``."""
+    loaded = _cold_loaded_modules("import orpheus.derivations.common.kernels")
+    assert any(m.split(".")[1:2] == ["derivations"] for m in loaded), sorted(loaded)
+    assert {"cp", "sn", "numerics"} <= set(_PRODUCTION_PACKAGES), _PRODUCTION_PACKAGES
+
+
+@pytest.mark.foundation
+def test_the_cold_gate_reddens_on_a_reinjected_import_in_a_mutant_cp_solver(tmp_path: pathlib.Path) -> None:
+    """G2's mutation, in a cold interpreter: load a COPY of ``cp/solver.py`` with the three base-tip imports re-added as
+    ``orpheus.cp.solver`` (registered in ``sys.modules`` before ``exec_module``) and require ``orpheus.derivations*`` modules loaded.
+    A shadow directory on ``sys.path`` would not do: ``orpheus.cp.solver.__file__`` would stay the tree's."""
+    source = (ORPHEUS_ROOT / "cp" / "solver.py").read_text(encoding="utf-8")
+    imports = (
+        "from orpheus.derivations.common.kernels import chord_half_lengths\n"
+        "from orpheus.derivations.common.quadrature import composite_gauss_legendre\n"
+        "from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel\n"
+    )
+    anchor = "from __future__ import annotations\n"
+    assert source.count(anchor) == 1, "the mutant anchor is missing"
+    mutant = tmp_path / "solver.py"
+    mutant.write_text(source.replace(anchor, anchor + imports, 1), encoding="utf-8")
+    code = (
+        "import importlib.util, sys\n"
+        "import orpheus.cp\n"
+        f"spec = importlib.util.spec_from_file_location('orpheus.cp.solver', {str(mutant)!r})\n"
+        "mod = importlib.util.module_from_spec(spec)\n"
+        "sys.modules['orpheus.cp.solver'] = mod\n"
+        "spec.loader.exec_module(mod)\n"
+    )
+    loaded = _cold_loaded_modules(code)
+    assert any(m.startswith("orpheus.derivations") for m in loaded), sorted(loaded)[:5]
+
+
+# ---------------------------------------------------------------------------
 # Every exemption row names a live edge
 # ---------------------------------------------------------------------------
 #
