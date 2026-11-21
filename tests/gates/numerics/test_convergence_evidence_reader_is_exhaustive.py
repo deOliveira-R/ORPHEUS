@@ -116,7 +116,7 @@ class TestMeasuredValue:
     @pytest.mark.parametrize("foreign", [NewKind(), None], ids=["NewKind", "None"])
     def test_a_value_outside_the_union_is_refused(self, foreign: object) -> None:
         with pytest.raises(AssertionError):
-            evidence.measured_value(foreign)  # type: ignore[attr-defined]
+            evidence.measured_value(foreign)  # type: ignore[arg-type]
 
 
 class TestTheStaticLaw:

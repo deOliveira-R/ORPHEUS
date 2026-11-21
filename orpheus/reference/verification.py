@@ -59,7 +59,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from fractions import Fraction
-from typing import Protocol, final, get_args, runtime_checkable
+from typing import Protocol, assert_never, final, get_args, runtime_checkable
 
 from orpheus.numerics.enclosure import Enclosure
 from orpheus.numerics.observable import Observable
@@ -350,6 +350,8 @@ def verify_order(
                 raise Unestablished(f"verification: answer {index}'s algebraic error {item!r} is above tolerance/10")
             case NotYet() | NotApplicable():
                 raise Unestablished(f"verification: answer {index}'s algebraic error is unestablished ({item!r})")
+            case _:
+                assert_never(item)
     reference_reading = _reference_enclosure(reference, observable)
     if Fraction(reference_reading.bound) > floor:
         raise Unestablished(f"verification: the reference's bound {reference_reading.bound!r} is above tolerance/10")

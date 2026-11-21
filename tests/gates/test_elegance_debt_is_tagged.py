@@ -200,7 +200,7 @@ def test_every_scope_boundary_names_its_machinery_ruling_and_revisit_condition()
 #: The issues of the W0 units that tag a refusal (``ontology_w0_spec.md`` 5.3, decision 9): each token line
 #: naming one carries ``#<issue> (W<digit>[ab]?)``, the wave that retires the refusal, written ONCE, in the tag.
 #: The wave that retires a refusal deletes the refusal and its tag in one diff and removes its issue from this set.
-_WAVE_TAGGED_ISSUES = frozenset({709, 710, 711})
+_WAVE_TAGGED_ISSUES = frozenset({709, 710, 711, 725})
 
 
 def _wave_violations(token_lines: list[tuple[str, str]]) -> list[str]:
@@ -226,6 +226,7 @@ def test_the_wave_predicate_reads_the_parenthesised_wave_and_nothing_else():
         "# ELEGANCE-DEBT[guard] #709 (W3): x. Retires when y.",
         "# ELEGANCE-DEBT[guard] #710 (W1): x. Retires when y.",
         "# ELEGANCE-DEBT[guard] #711 (W8a): x. Retires when y.",
+        "# ELEGANCE-DEBT[guard] #725 (W5): x. Retires when y.",
     ]
     if _wave_violations(tags(*well)):
         pytest.fail(f"the predicate flagged well-formed tags: {_wave_violations(tags(*well))}")
