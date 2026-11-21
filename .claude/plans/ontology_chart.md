@@ -49,6 +49,15 @@ It is a living plan in the sense of `plan-authoring` §0: the ontology is being 
 - **O19, no objection to B1 to B13**; they stand as the orchestrator's decisions.
 - **O20, the plan is polished. Implementation starts**, with W0, on `refactor/ontology` (cut from `main` at `eb45ee46`, which carries the starting point of option A).
 
+**Rulings of the sixth exchange (the user, 2026-11-20, at W0's specification checkpoint: "Agreed" to items 1, 2, 4, 5 and 6; a question on item 3):**
+
+- **O21, T11 is re-worded.** The concept graph is acyclic on inheritance, strict from W0; it is acyclic on references except inside one algebra closure (a set of classes with a hub that every member inherits), as a ratchet whose pending entries each name the wave that removes them.
+- **O22, "one class per concept" means one head per concept.** A head is one definition site: a class, or a named closed sum whose arms are listed. A concept whose members obey different laws is split (the kernel pair and the gauge; the realizer and the realized operator).
+- **O23, the vocabulary.** The six method concepts and the two work items (`insulation`, `registry`) leave the class registry; the five targets not yet built (`four`, `quotient`, `impresp`, `cellmoment`, `merge`) stay, marked missing with their wave; the 12 extension concepts are admitted after the eight two-sense concepts are split.
+- **O24, the sixth kind stays "values that record a run".** Specification, citation and parameter records are data, not records.
+- **O25, the builds of the specifications' parts A and B may start before the registry is settled.** The registry integrates last and reads final module paths.
+- **Open with the user: the kind of the traced memo.** The orchestrator's recommendation after the user asked what the memo does: its manifest, pins and lookup verdicts are sixth-kind values (they record and certify a generation run); its recorder, boot, import tracer and store are `apparatus`, machinery that observes the program and not the problem, with no phase. Not ruled.
+
 Standing rulings this plan inherits and does not reopen: R1 to R17 of `true_ends.md` (#707); the sharpening order (discrete ordinates, diffusion and the homogeneous baseline first; collision probability, characteristics and Monte Carlo recycle the machinery later); references closed and insulated from production; effort is sizing, never a criterion. R18 is resolved by O5 as a direction (variance per factor); its spelling is W1's.
 
 ## Method of the as-is measurement
