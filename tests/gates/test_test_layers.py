@@ -62,9 +62,15 @@ a synthetic package's module text); and the TRANSITIVE cone of a root helper
 separately and lists the third under ``forbidden_via_root_helper``.
 
 Today's violations are listed EXACTLY in ``OPEN_TEST_LAYER_VIOLATIONS``,
-keyed by (file, imported package), the way ``_OPEN_INTRA_PACKAGE_CYCLES``
-lists the open module cycles: a new violation is red, and a listed row that no
-longer violates (or whose file is gone) is red too, so the list only shrinks.
+keyed by (file, layer), the layer being the bare directory name (``"sn"``,
+``"numerics"``), the way ``_OPEN_INTRA_PACKAGE_CYCLES`` lists the open module
+cycles: a new violation is red, and a listed row that no longer violates (or
+whose file is gone) is red too, so the list only shrinks. The key is the layer
+because that is what the gate judges: a definition moving between
+``orpheus.<pkg>`` and ``tests.gates.<pkg>`` changes no layer edge of its
+importers, so it must neither add nor retire a row. The failure message still
+names the import statement's package string, so the reader sees which import
+to fix.
 A test move of the re-filing campaign (ruling 23) is measured as rows deleted
 from it.
 
@@ -119,16 +125,21 @@ def _target_layer(module_name: str) -> tuple[str, str] | None:
 
 
 def _test_layer_violations(rel: pathlib.PurePosixPath, src: str) -> set[tuple[str, str]]:
-    """The (file, imported package) violations of one gate file, ``rel`` relative to ``tests/gates/``."""
+    """The (file, layer) violations of one gate file, ``rel`` relative to ``tests/gates/``."""
+    return set(_test_layer_packages(rel, src))
+
+
+def _test_layer_packages(rel: pathlib.PurePosixPath, src: str) -> dict[tuple[str, str], set[str]]:
+    """Each (file, layer) violation of one gate file with the import package strings that spell it."""
     layer = _layer_of(rel)
     if layer is None:
-        return set()
+        return {}
     forbidden = FORBIDDEN_EDGES[layer]
-    found: set[tuple[str, str]] = set()
+    found: dict[tuple[str, str], set[str]] = {}
     for module_name, _is_tc in _imports_of_source(rel, src, _GATES_PACKAGE):
         target = _target_layer(module_name)
         if target is not None and target[1] in forbidden:
-            found.add((rel.as_posix(), target[0]))
+            found.setdefault((rel.as_posix(), target[1]), set()).add(target[0])
     return found
 
 
@@ -138,12 +149,19 @@ def _gate_files() -> list[pathlib.Path]:
 
 def _list_diff(
     found: set[tuple[str, str]], listed: frozenset[tuple[str, str]], existing: set[str],
+    packages: Mapping[tuple[str, str], set[str]] | None = None,
 ) -> tuple[list[str], list[str]]:
-    """(new, stale) rows: found and not listed; listed and not found (the file named, or gone)."""
-    new = [f"{file} imports {package}" for file, package in sorted(found - listed)]
+    """(new, stale) rows: found and not listed; listed and not found (the file named, or gone).
+
+    A row is keyed by (file, layer); a new row names the import statements' package strings when ``packages``
+    carries them, so the reader sees which import to fix."""
+    def spelled(pair: tuple[str, str]) -> str:
+        return ", ".join(sorted((packages or {}).get(pair) or {pair[1]}))
+
+    new = [f"{pair[0]} imports {spelled(pair)}" for pair in sorted(found - listed)]
     stale = [
-        f"{file} imports {package}" + ("" if file in existing else " (no such file)")
-        for file, package in sorted(listed - found)
+        f"{file} imports {layer}" + ("" if file in existing else " (no such file)")
+        for file, layer in sorted(listed - found)
     ]
     return new, stale
 
@@ -156,45 +174,43 @@ def _list_diff(
 # ``orpheus/transport/phase_spaces.py``). The list only shrinks.
 OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
     {
-        ("cp/test_cp_vacuum_not_above_white.py", "orpheus.sn"),
-        ("data/test_cells.py", "orpheus.mesh"),
-        ("data/test_cells.py", "orpheus.specification"),
-        ("data/test_cells.py", "orpheus.transport"),
-        ("data/test_cells.py", "tests.gates.specification"),
-        ("data/test_content_identity_data.py", "orpheus.mesh"),
-        ("data/test_content_identity_data.py", "orpheus.transport"),
-        ("data/test_n2n_yield_convention.py", "orpheus.transport"),
-        ("derivations/_characteristic_ladders.py", "tests.gates.sn"),
-        ("derivations/test_characteristic_albedos.py", "tests.gates.sn"),
-        ("derivations/test_characteristic_convergence.py", "tests.gates.sn"),
-        ("derivations/test_characteristic_reference.py", "tests.gates.sn"),
-        ("derivations/test_characteristic_system.py", "tests.gates.sn"),
-        ("derivations/test_dsa_production_tie.py", "orpheus.sn"),
-        ("derivations/test_dsa_production_tie.py", "orpheus.transport"),
-        ("derivations/test_reference_pairing_loop.py", "orpheus.transport"),
-        ("derivations/test_sn_mms_ld_2d_stress_symbolic.py", "orpheus.sn"),
-        ("derivations/test_sn_mms_ld_2d_stress_symbolic.py", "orpheus.transport"),
-        ("derivations/test_sn_mms_ld_2d_stress_symbolic.py", "tests.gates.sn"),
-        ("derivations/test_sood_registry_compatibility.py", "orpheus.cp"),
-        ("derivations/test_sood_registry_compatibility.py", "orpheus.sn"),
-        ("diffusion/test_augmented_mesh.py", "orpheus.sn"),
-        ("diffusion/test_solver.py", "orpheus.homogeneous"),
-        ("geometry/test_angular_chart.py", "orpheus.numerics"),
-        ("geometry/test_face_roles.py", "orpheus.transport"),
-        ("geometry/test_geometry_extent.py", "tests.gates.specification"),
-        ("geometry/test_kernel_corroboration.py", "orpheus.mc"),
-        ("geometry/test_kernel_corroboration.py", "orpheus.moc"),
-        ("geometry/test_manifold.py", "orpheus.numerics"),
-        ("geometry/test_symmetry.py", "orpheus.numerics"),
-        ("geometry/test_transformation.py", "orpheus.numerics"),
-        ("mc/test_cross_verification.py", "orpheus.cp"),
-        ("moc/test_verification.py", "orpheus.cp"),
-        ("sn/mesh/test_hub_owns_the_moment_space.py", "orpheus.diffusion"),
-        ("sn/operators/test_isotropic_fission.py", "orpheus.diffusion"),
-        ("sn/operators/test_space_content_witnesses.py", "orpheus.diffusion"),
-        ("sn/solve/test_subcritical_multiplying_source.py", "orpheus.homogeneous"),
-        ("sn/verification/analytical/test_cp_standoff_curvilinear.py", "orpheus.cp"),
-        ("specification/test_exterior_on_the_specification.py", "orpheus.transport"),
+        ("cp/test_cp_vacuum_not_above_white.py", "sn"),
+        ("data/test_cells.py", "mesh"),
+        ("data/test_cells.py", "specification"),
+        ("data/test_cells.py", "transport"),
+        ("data/test_content_identity_data.py", "mesh"),
+        ("data/test_content_identity_data.py", "transport"),
+        ("data/test_n2n_yield_convention.py", "transport"),
+        ("derivations/_characteristic_ladders.py", "sn"),
+        ("derivations/test_characteristic_albedos.py", "sn"),
+        ("derivations/test_characteristic_convergence.py", "sn"),
+        ("derivations/test_characteristic_reference.py", "sn"),
+        ("derivations/test_characteristic_system.py", "sn"),
+        ("derivations/test_dsa_production_tie.py", "sn"),
+        ("derivations/test_dsa_production_tie.py", "transport"),
+        ("derivations/test_reference_pairing_loop.py", "transport"),
+        ("derivations/test_sn_mms_ld_2d_stress_symbolic.py", "sn"),
+        ("derivations/test_sn_mms_ld_2d_stress_symbolic.py", "transport"),
+        ("derivations/test_sood_registry_compatibility.py", "cp"),
+        ("derivations/test_sood_registry_compatibility.py", "sn"),
+        ("diffusion/test_augmented_mesh.py", "sn"),
+        ("diffusion/test_solver.py", "homogeneous"),
+        ("geometry/test_angular_chart.py", "numerics"),
+        ("geometry/test_face_roles.py", "transport"),
+        ("geometry/test_geometry_extent.py", "specification"),
+        ("geometry/test_kernel_corroboration.py", "mc"),
+        ("geometry/test_kernel_corroboration.py", "moc"),
+        ("geometry/test_manifold.py", "numerics"),
+        ("geometry/test_symmetry.py", "numerics"),
+        ("geometry/test_transformation.py", "numerics"),
+        ("mc/test_cross_verification.py", "cp"),
+        ("moc/test_verification.py", "cp"),
+        ("sn/mesh/test_hub_owns_the_moment_space.py", "diffusion"),
+        ("sn/operators/test_isotropic_fission.py", "diffusion"),
+        ("sn/operators/test_space_content_witnesses.py", "diffusion"),
+        ("sn/solve/test_subcritical_multiplying_source.py", "homogeneous"),
+        ("sn/verification/analytical/test_cp_standoff_curvilinear.py", "cp"),
+        ("specification/test_exterior_on_the_specification.py", "transport"),
     }
 )
 
@@ -204,34 +220,34 @@ OPEN_TEST_LAYER_VIOLATIONS: frozenset[tuple[str, str]] = frozenset(
 # ---------------------------------------------------------------------------
 
 _FORBIDDEN_SOURCES = [
-    pytest.param("from orpheus.sn.solver import solve_sn\n", "orpheus.sn", id="top"),
-    pytest.param("import orpheus.sn.solver\n", "orpheus.sn", id="import"),
-    pytest.param("from orpheus import sn\n", "orpheus.sn", id="from-orpheus-import-package"),
-    pytest.param("def f():\n    from orpheus.sn.solver import solve_sn\n", "orpheus.sn", id="lazy"),
-    pytest.param("class C:\n    from orpheus.sn import solver\n", "orpheus.sn", id="class-body"),
+    pytest.param("from orpheus.sn.solver import solve_sn\n", "sn", id="top"),
+    pytest.param("import orpheus.sn.solver\n", "sn", id="import"),
+    pytest.param("from orpheus import sn\n", "sn", id="from-orpheus-import-package"),
+    pytest.param("def f():\n    from orpheus.sn.solver import solve_sn\n", "sn", id="lazy"),
+    pytest.param("class C:\n    from orpheus.sn import solver\n", "sn", id="class-body"),
     pytest.param(
         "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n",
-        "orpheus.sn", id="type-checking",
+        "sn", id="type-checking",
     ),
     pytest.param(
         "import typing\nif typing.TYPE_CHECKING:\n    from orpheus.sn.problem import SNProblem\n",
-        "orpheus.sn", id="typing-type-checking",
+        "sn", id="typing-type-checking",
     ),
-    pytest.param("from tests.gates.sn._fixtures import fixture\n", "tests.gates.sn", id="helper"),
-    pytest.param("from tests.gates import sn\n", "tests.gates.sn", id="from-gates-import-dir"),
-    pytest.param("from ..sn import _fixtures\n", "tests.gates.sn", id="relative-helper"),
+    pytest.param("from tests.gates.sn._fixtures import fixture\n", "sn", id="helper"),
+    pytest.param("from tests.gates import sn\n", "sn", id="from-gates-import-dir"),
+    pytest.param("from ..sn import _fixtures\n", "sn", id="relative-helper"),
 ]
 
 
 @pytest.mark.foundation
-@pytest.mark.parametrize(("source", "package"), _FORBIDDEN_SOURCES)
-def test_the_predicate_finds_each_import_shape(source: str, package: str) -> None:
+@pytest.mark.parametrize(("source", "layer"), _FORBIDDEN_SOURCES)
+def test_the_predicate_finds_each_import_shape(source: str, layer: str) -> None:
     """A ``numerics`` gate importing SN, at every import kind and through a helper of the ``sn`` directory,
     is a violation; the same source in an ``sn`` gate is clean (the negative leg), and so is the same source
     in the exempt ``cross_method`` directory."""
     assert "sn" in FORBIDDEN_EDGES["numerics"], sorted(FORBIDDEN_EDGES["numerics"])
     rel = pathlib.PurePosixPath("numerics/test_probe.py")
-    assert _test_layer_violations(rel, source) == {(rel.as_posix(), package)}
+    assert _test_layer_violations(rel, source) == {(rel.as_posix(), layer)}
     assert _test_layer_violations(pathlib.PurePosixPath("sn/test_probe.py"), source) == set()
     assert _test_layer_violations(pathlib.PurePosixPath("cross_method/test_probe.py"), source) == set()
     assert _test_layer_violations(pathlib.PurePosixPath("test_probe.py"), source) == set()
@@ -243,19 +259,31 @@ def test_a_nested_file_is_judged_as_its_first_directory() -> None:
     source = "from orpheus.sn.solver import solve_sn\n"
     assert _test_layer_violations(pathlib.PurePosixPath("sn/regression/test_probe.py"), source) == set()
     deep = pathlib.PurePosixPath("numerics/sub/test_probe.py")
-    assert _test_layer_violations(deep, source) == {(deep.as_posix(), "orpheus.sn")}
+    assert _test_layer_violations(deep, source) == {(deep.as_posix(), "sn")}
     # a relative import climbs from the nested package: `...sn` from numerics/sub/ is tests.gates.sn
-    assert _test_layer_violations(deep, "from ...sn import _fixtures\n") == {(deep.as_posix(), "tests.gates.sn")}
+    assert _test_layer_violations(deep, "from ...sn import _fixtures\n") == {(deep.as_posix(), "sn")}
 
 
 @pytest.mark.foundation
 def test_the_diff_reports_a_new_and_a_stale_row() -> None:
-    found = {("numerics/test_a.py", "orpheus.sn")}
-    listed = frozenset({("numerics/test_b.py", "orpheus.sn"), ("numerics/test_gone.py", "orpheus.sn")})
+    found = {("numerics/test_a.py", "sn")}
+    listed = frozenset({("numerics/test_b.py", "sn"), ("numerics/test_gone.py", "sn")})
     new, stale = _list_diff(found, listed, {"numerics/test_a.py", "numerics/test_b.py"})
-    assert new == ["numerics/test_a.py imports orpheus.sn"]
-    assert stale == ["numerics/test_b.py imports orpheus.sn", "numerics/test_gone.py imports orpheus.sn (no such file)"]
+    assert new == ["numerics/test_a.py imports sn"]
+    assert stale == ["numerics/test_b.py imports sn", "numerics/test_gone.py imports sn (no such file)"]
     assert _list_diff(found, frozenset(found), {"numerics/test_a.py"}) == ([], [])
+    # the failure message names the import statements' package strings
+    named = {("numerics/test_a.py", "sn"): {"orpheus.sn", "tests.gates.sn"}}
+    assert _list_diff(found, frozenset(), set(), named)[0] == ["numerics/test_a.py imports orpheus.sn, tests.gates.sn"]
+
+
+@pytest.mark.foundation
+def test_both_package_spellings_of_one_layer_are_one_row() -> None:
+    """``orpheus.sn`` and ``tests.gates.sn`` in one file are one (file, layer) edge, spelled two ways."""
+    rel = pathlib.PurePosixPath("numerics/test_probe.py")
+    source = "from orpheus.sn.solver import solve_sn\nfrom tests.gates.sn._fixtures import fixture\n"
+    assert _test_layer_violations(rel, source) == {(rel.as_posix(), "sn")}
+    assert _test_layer_packages(rel, source) == {(rel.as_posix(), "sn"): {"orpheus.sn", "tests.gates.sn"}}
 
 
 # ---------------------------------------------------------------------------
@@ -273,10 +301,11 @@ def test_every_gate_file_imports_only_its_layer_but_the_listed_rows() -> None:
     assert len(judged) > 400, len(judged)
     assert any(rel.parts[0] == "cross_method" for rel in rels), "the walk reached no exempt directory"
     assert any(len(rel.parts) > 2 for rel in judged), "the walk reached no nested gate file"
-    found: set[tuple[str, str]] = set()
+    spelled: dict[tuple[str, str], set[str]] = {}
     for path, rel in zip(files, rels):
-        found |= _test_layer_violations(rel, path.read_text(encoding="utf-8"))
-    new, stale = _list_diff(found, OPEN_TEST_LAYER_VIOLATIONS, {rel.as_posix() for rel in rels})
+        for pair, packages in _test_layer_packages(rel, path.read_text(encoding="utf-8")).items():
+            spelled.setdefault(pair, set()).update(packages)
+    new, stale = _list_diff(set(spelled), OPEN_TEST_LAYER_VIOLATIONS, {rel.as_posix() for rel in rels}, spelled)
     assert not new, (
         f"{len(new)} gate file(s) import above their layer (move the test to the layer its imports name, "
         "or re-base it onto fixtures of its own layer): " + "; ".join(new)
