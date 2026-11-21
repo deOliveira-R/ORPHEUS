@@ -34,6 +34,8 @@ Two solver modes are available:
 
 from __future__ import annotations
 
+import functools
+import operator
 import time
 from dataclasses import dataclass, field
 from collections.abc import Mapping, Sequence
@@ -46,13 +48,16 @@ from scipy.special import expn
 
 from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.cell_xs import CellXS, assemble_cell_xs
-from orpheus.derivations.common.kernels import chord_half_lengths
-from orpheus.derivations.common.quadrature import composite_gauss_legendre
-from orpheus.derivations.continuous.flat_source_cp.geometry import _ki3_mp as _ki3_kernel
 from orpheus.geometry import CoordSystem
 from orpheus.geometry.chart import Chart
+from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
+from orpheus.geometry.line import Line
+from orpheus.geometry.manifold import Interval, ManifoldMap
 from orpheus.mesh import Mesh1D
+from orpheus.numerics.bickley import ki3
+from orpheus.numerics.generating_measure import LEGENDRE
+from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.boundary_conditions import (
     Admission,
@@ -95,9 +100,9 @@ class CPParams:
     max_outer: int = 500
     keff_tol: float = 1e-6
     flux_tol: float = 1e-5
-    # n_ki_table, ki_max: retained for backwards compatibility; as of
-    # Phase B.4 the cylinder kernel is a fixed-precision Chebyshev
-    # interpolant in orpheus.derivations.continuous.flat_source_cp.geometry (see #94).
+    # n_ki_table, ki_max: inert, retained for backwards compatibility (see #94); the
+    # cylinder kernel is the fixed Chebyshev interpolant of orpheus.numerics.bickley,
+    # whose bound is its own ``_KI3_TAU_MAX``.
     n_ki_table: int = 20000
     ki_max: float = 50.0
     n_quad_y: int = 64
@@ -150,10 +155,20 @@ def _e3(x):
     return expn(3, np.maximum(x, 0.0))
 
 
-# Q4 of the quadrature-architecture rollout: the private composite-GL
-# helper that used to live here is subsumed by the unified
-# :func:`orpheus.derivations.common.quadrature.composite_gauss_legendre`
-# constructor.  See the call site in ``_setup_radial_quadrature`` below.
+def _composite_gauss_legendre(breakpoints: Sequence[float], n_per_panel: int) -> DiscreteMeasure:
+    r"""The composite Gauss-Legendre rule on the panels between consecutive ``breakpoints``: the direct sum of the panels' rules, each pushed
+    forward along the inclusion of its panel into ``Interval(breakpoints[0], breakpoints[-1])``.
+
+    ``breakpoints`` are validated by ``ConcentricPartition`` (at least two, finite, strictly increasing, ``r_0 >= 0``) and are not re-checked here.
+    Laws: (b) ``nodes.shape == weights.shape == ((len(breakpoints) - 1) * n_per_panel,)``; (c) the nodes are strictly increasing and panel ``k``
+    lies in ``[b_k, b_{k+1}]``; (d) exact PER PANEL: for ``f`` a polynomial of degree at most ``2 * n_per_panel - 1`` on each panel,
+    ``weights @ f(nodes)`` equals the integral over ``[b_0, b_last]`` to rounding.
+    """
+    whole = Interval(breakpoints[0], breakpoints[-1])
+    panels = (LEGENDRE.on(lo, hi).gauss(n_per_panel) for lo, hi in zip(breakpoints[:-1], breakpoints[1:]))
+    return functools.reduce(
+        operator.add, (m.pushforward(ManifoldMap(domain=m.support, codomain=whole, apply=lambda x: x)) for m in panels)
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -181,7 +196,7 @@ class CPMesh(Mesh1DMethodMesh[CPClosure]):
     kernel is selected automatically based on the mesh coordinate system:
 
     * **Cartesian** — E₃ kernel (slab), scalar computation.
-    * **Cylindrical** — Ki₄ kernel, y-quadrature with chord half-lengths.
+    * **Cylindrical** — Ki₃ kernel, y-quadrature with chord half-lengths.
     * **Spherical** — exp(-τ) kernel, y-quadrature with y-weighted chords.
 
     Parameters
@@ -189,7 +204,7 @@ class CPMesh(Mesh1DMethodMesh[CPClosure]):
     mesh : Mesh1D
         Base geometry; its boundary faces carry a role each (a deck, or an integer tag).
     params : CPParams, optional
-        Solver parameters (Ki table size, quadrature order, etc.).
+        Solver parameters (quadrature order, etc.).
     boundary_conditions : BoundaryConditions or mapping of int to BoundaryCondition, optional
         The exterior condition of each tag the mesh's faces carry (keyword-only, default none: a mesh with an unbound tag is
         refused, naming the tag).
@@ -247,32 +262,32 @@ class CPMesh(Mesh1DMethodMesh[CPClosure]):
         """Shared: build y-quadrature and chord half-lengths for
         cylindrical or spherical meshes."""
         p = self.params
-        radii = self.mesh.edges[1:]
-        # ``composite_gauss_legendre`` declares ``breakpoints: Sequence[float]``
-        # and immediately does ``np.asarray(..., dtype=float)`` internally, so a
-        # 1-D float ndarray is accepted at runtime; ``.tolist()`` supplies the
-        # declared Sequence type with no numerical change.
-        q = composite_gauss_legendre(self.mesh.edges.tolist(), p.n_quad_y)
+        chart = Chart(self.mesh.coord)
+        partition = ConcentricPartition(chart, tuple(self.mesh.edges.tolist()))
+        rule = _composite_gauss_legendre(partition.breakpoints, p.n_quad_y)
+        pts, wts = rule.nodes, rule.weights
         # The measure on lines over the impact parameter y, in the plane
         # (|PΩ| = 1): 2 on the cylinder (the two lines at ±y), 2πy on the
         # sphere (Chart.beam_density, #578).
         in_plane = np.array([0.0, 1.0, 0.0])
-        self._y_pts = q.pts
-        self._y_wts = q.wts * Chart(self.mesh.coord).beam_density(q.pts, in_plane)
-        self._chords = chord_half_lengths(radii, self._y_pts)
+        self._y_pts = pts
+        self._y_wts = wts * chart.beam_density(pts, in_plane)
+        points = np.stack([pts, np.zeros_like(pts), np.zeros_like(pts)], axis=-1)
+        line = Line.through(points, np.broadcast_to(in_plane, points.shape))
+        n = partition.n_regions
+        self._chords = partition.chord(line).slot_length[..., -n:].T  # outbound half: regions 0..n-1, shape (n, n_y)
 
     def _setup_cylindrical(self) -> None:
         """Cylindrical: canonical Ki_3 kernel + y-quadrature.
 
-        Shares the Chebyshev interpolant of ``exp(τ)·Ki_3(τ)`` built
-        in :mod:`orpheus.derivations.continuous.flat_source_cp.geometry` so the solver's
-        ``keff`` and the derivation's ``k_inf`` reference use
-        bit-identical kernel evaluations. Accuracy about :math:`10^{-6}`
+        The kernel is :func:`orpheus.numerics.bickley.ki3`, the Chebyshev
+        interpolant of ``exp(τ)·Ki_3(τ)``; the reference derivation holds a
+        twin copy of the same interpolant. Accuracy about :math:`10^{-6}`
         absolute (cf legacy cumulative-sum tabulation at about :math:`10^{-3}`)."""
         self._setup_radial_quadrature()
         n_y = len(self._y_pts)
-        self._kernel = _ki3_kernel
-        self._kernel_zero = _ki3_kernel(np.zeros(n_y))
+        self._kernel = ki3
+        self._kernel_zero = ki3(np.zeros(n_y))
 
     def _setup_spherical(self) -> None:
         """Spherical: exp(-τ) kernel + y-weighted quadrature."""
@@ -358,7 +373,7 @@ class CPMesh(Mesh1DMethodMesh[CPClosure]):
     def _compute_radial_rcp(self, sig_t_g: np.ndarray) -> np.ndarray:
         """Reduced collision probabilities for radial geometries.
 
-        Shared by cylindrical (Ki₄ kernel) and spherical (exp kernel).
+        Shared by cylindrical (Ki₃ kernel) and spherical (exp kernel).
         The kernel and y-quadrature weights are set during setup.
 
         Returns rcp[i,j] = Σ_t(i) · V(i) · P_cell(i,j) (un-normalized).
@@ -1053,7 +1068,7 @@ def solve_cp(
     tolerances and chord-quadrature order.
 
     The kernel is selected automatically based on ``mesh.coord``:
-    Cartesian (slab E₃), Cylindrical (Ki₄), or Spherical (exp).
+    Cartesian (slab E₃), Cylindrical (Ki₃), or Spherical (exp).
 
     Parameters
     ----------
@@ -1070,7 +1085,7 @@ def solve_cp(
         the slab kernel computes there whatever is declared, and a hollow
         cylinder or sphere takes no inner condition (#513).
     params : CPParams, optional
-        Solver parameters (tolerances, Ki table size, chord-quadrature
+        Solver parameters (tolerances, chord-quadrature
         order via ``n_quad_y``, solver mode, inner-iteration limits).
     boundary_conditions : BoundaryConditions or mapping of int to BoundaryCondition, optional
         The exterior condition of each tag the mesh's faces carry (keyword-only). With no ``mesh`` and no conditions the default

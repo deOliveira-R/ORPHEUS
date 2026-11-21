@@ -351,9 +351,10 @@ def composite_gauss_legendre(
     the resulting rule integrates over
     :math:`[a, b] = [\mathrm{breakpoints}[0], \mathrm{breakpoints}[-1]]`
     with ``n_per_panel`` GL nodes per sub-panel. Subsumes
-    :func:`peierls_geometry.composite_gl_r` and the private
-    ``_composite_gauss_legendre`` in the CP solver — both are now
-    thin wrappers (or call sites) of this constructor.
+    :func:`peierls_geometry.composite_gl_r`, now a thin wrapper of this
+    constructor; the CP solver's private ``_composite_gauss_legendre`` was
+    a call site until W0 (#641) and is now an independent production rule,
+    for which this is the reference oracle.
 
     For non-uniform per-panel ``n``, build each panel with
     :func:`gauss_legendre` directly and concatenate via the ``|``

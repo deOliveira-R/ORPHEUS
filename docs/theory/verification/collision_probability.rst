@@ -157,7 +157,7 @@ replaced the table with the Chebyshev interpolant
 :math:`\mathrm{Ki}_3`, which reaches ~:math:`5\times 10^{-6}`
 absolute accuracy; the declared ``< 1e-5`` tolerance is now
 ~100× larger than the actual solver/reference error
-(~:math:`10^{-7}`, same kernel on both sides).  See
+(~:math:`10^{-7}`, one interpolant held as a twin copy on both sides: production's ``orpheus.numerics.bickley.ki3`` and the reference's ``_ki3_mp``).  See
 :ref:`ki-table-construction` for the full postmortem.  The old
 convergence-with-table-size regression
 ``tests/gates/cp/test_verification.py::TestKi4Resolution`` was replaced by

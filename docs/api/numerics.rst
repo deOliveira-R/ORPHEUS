@@ -819,6 +819,11 @@ theory, with the proofs and the refuted designs, is
 .. automodule:: orpheus.numerics.evidence
    :members:
 
+The Bickley-Naylor kernel of cylindrical collision probability, :mod:`orpheus.numerics.bickley`, is a special function:
+
+.. automodule:: orpheus.numerics.bickley
+   :members:
+
 The near-kernel witness — :mod:`orpheus.numerics.near_kernel` — measures an
 operator's spectrum at zero (its right and left near-null vectors, their
 count, and the gap behind them) so that a gate can check a

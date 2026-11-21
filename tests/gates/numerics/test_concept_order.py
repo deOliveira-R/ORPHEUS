@@ -44,7 +44,7 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # sets, members of geometry's ``Manifold`` sum, and imports no numerics module;
     # ``tangential`` holds the one grazing tolerance both ``spaces`` and ``quadrature``
     # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
-    ("evidence", "face_layout", "gauge", "index_set", "instance_cache", "metric",
+    ("bickley", "evidence", "face_layout", "gauge", "index_set", "instance_cache", "metric",
      "rational_polynomial", "recurrence", "registry", "tangential", "units", "vector"),
     # the coefficient layouts are content values a basis carries (ruling 81); ``_import_time``
     # is the traced memo's rule for which import-time statements a run observed, and imports

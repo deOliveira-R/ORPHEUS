@@ -21,7 +21,7 @@ Key Facts
 - Convention: ``P[i,j]`` = birth in *j*, collision in *i*; flux update uses :math:`P^T` (see :ref:`scattering-matrix-convention`)
 - Row sums = 1 (conservation), reciprocity: :math:`\Sigma_{t,i} V_i P(i,j) = \Sigma_{t,j} V_j P(j,i)`
 - **Slab**: :math:`E_3` exponential-integral kernel (``scipy.special.expn``)
-- **Cylinder**: Bickley-Naylor kernel (⛔ the 20 000-point lookup table was superseded at Phase B.4 by a fixed-precision Chebyshev interpolant in ``orpheus.derivations.continuous.flat_source_cp.geometry``, #94; ``CPParams.n_ki_table``/``ki_max`` are retained for backwards compatibility only — ``orpheus/cp/solver.py:68-70``. ⚠ which Bickley index the shipped kernel is, is #348)
+- **Cylinder**: Bickley-Naylor kernel (⛔ the 20 000-point lookup table was superseded at Phase B.4 by a fixed-precision Chebyshev interpolant, now :func:`orpheus.numerics.bickley.ki3` (#94, #641); ``CPParams.n_ki_table``/``ki_max`` are inert, retained for backwards compatibility only (see the comment under ``CPParams`` in ``orpheus/cp/solver.py``). ⚠ which Bickley index the shipped kernel is, is #348)
 - **Sphere**: exponential kernel
 - White-BC approximation: isotropic return at cell boundary → ~1% gap vs reflective SN
 - Inner iteration IS needed: self-scatter :math:`\Sigma_s(g \to g) \cdot \phi_g` makes source depend on solution
@@ -63,9 +63,9 @@ Three geometries are supported:
 - **Slab** (1D Cartesian) --- the :math:`E_3` exponential-integral kernel
 - **Concentric cylinders** (1D radial) --- the canonical
   :math:`\mathrm{Ki}_3` Bickley--Naylor kernel (A&S 11.2), evaluated via
-  :func:`orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` (Chebyshev
-  interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
-  :func:`~orpheus.derivations.common.kernels.ki_n_mp` at 30 dps)
+  :func:`orpheus.numerics.bickley.ki3` (Chebyshev
+  interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from the defining
+  integral at 30 dps; the reference derivation holds a twin copy)
 - **Concentric spheres** (1D radial) --- the exponential kernel with
   :math:`y`-weighted quadrature
 
@@ -92,7 +92,8 @@ These are the **source of truth** for all equations in this chapter:
   :func:`scipy.special.expn`); arbitrary-precision :math:`\mathrm{Ki}_n`
   via :func:`~orpheus.derivations.common.kernels.ki_n_mp` (wraps
   :func:`mpmath.quad`). Double-precision :math:`\mathrm{Ki}_3`
-  goes through :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` — a
+  goes through :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp` (the reference) and
+  :func:`orpheus.numerics.bickley.ki3` (production, its twin) — a
   Chebyshev interpolant of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)`
   built from ``ki_n_mp`` at 30 dps (~:math:`5\times 10^{-6}`
   accuracy). The legacy ``BickleyTables`` tabulation was retired
@@ -840,6 +841,25 @@ of :math:`e^{\tau}\,\mathrm{Ki}_3(\tau)` built from
 ``BickleyTables`` tabulation that preceded ``_ki3_mp`` was retired
 in Phase B.4 (commit ``6badbe5``, Issue #94).
 
+**The Bickley-Naylor kernel in production** (:func:`orpheus.numerics.bickley.ki3`). The function is
+
+.. math::
+
+   \mathrm{Ki}_3(\tau) = \int_0^{\pi/2}\cos^2\theta\,e^{-\tau/\cos\theta}\,d\theta
+   = \int_0^\infty (1+u^2)^{-2}\,e^{-\tau\sqrt{1+u^2}}\,du ,
+
+the second form being the substitution :math:`u=\tan\theta`. Rationale: :math:`\mathrm{Ki}_3` decays like :math:`e^{-\tau}`, so the
+solver interpolates the scaled kernel :math:`e^{\tau}\mathrm{Ki}_3(\tau)`, which varies slowly, by a degree-63 Chebyshev polynomial on
+:math:`[0, 50]` and clamps to zero beyond 50 (:math:`\mathrm{Ki}_3(50)\approx 3\times 10^{-23}`). The interpolant is rebuilt from the integral at 30
+decimal digits, lazily and once, never stored. Evidence: the relative error against the integral is at most :math:`2.6\times 10^{-6}` (at
+:math:`\tau=0`), over 81 points of :math:`[0, 49.9]`. No ``verifies`` marker is attached: ``Ki_3`` has no labelled equation (the
+labelled :eq:`ki3-def` defines :math:`\mathrm{Ki}_2`, #348 is open). Production holds a COPY of the interpolant that the reference
+``flat_source_cp`` holds, equal bit for bit, so a defect of the shared approximation is invisible to the cross-check; an independent
+verification chain for the kernel (#641 item 2) is a filed issue. The Gauss--Legendre rule over the impact parameter is the direct sum
+of the panels' correctly rounded rules (a ``DiscreteMeasure`` on the interval the panels tile), not the reference's ``leggauss``: three
+carry rows of ``tests/gates/cp/test_cp_boundary_carry.py`` (cylinder vacuum, cylinder white, sphere vacuum) moved by 1 to 30 ulp of ``k`` and
+are re-baselined in the test with that reason.
+
 
 Why the Kernel Differs by Geometry
 -----------------------------------
@@ -1442,10 +1462,11 @@ with :math:`R_0 = 0`.
   region :math:`k` --- no inner intersection.
 - **Case 3** (:math:`y \ge R_k`): Chord misses region :math:`k` entirely.
 
-Computed by
-:func:`~orpheus.derivations.common.kernels.chord_half_lengths` — one shared primitive, imported by
-both the solver (``orpheus/cp/solver.py``, in
-``CPMesh._setup_radial_quadrature``) and the semi-analytical derivation,
+Computed in the solver by ``ConcentricPartition.chord``
+(``CPMesh._setup_radial_quadrature``), the outbound half of its slots, and in the
+semi-analytical derivation by
+:func:`~orpheus.derivations.common.kernels.chord_half_lengths`; both read one
+upstream ``region_half_lengths``, so they agree bit for bit (a tautology, X4),
 returning shape ``(N, n_y)``.  It was two private twins
 (``CPMesh._chord_half_lengths`` and a ``cylinder.py``-local
 ``_chord_half_lengths``) until the helper was hoisted to
@@ -1790,7 +1811,8 @@ Geometry built via :meth:`~orpheus.geometry.structured_geometry.StructuredGeomet
 
 The CP matrix integrates :math:`\text{Ki}_4` second-differences over
 chord heights using composite Gauss--Legendre quadrature
-(:func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`) with breakpoints at each
+(the solver's private ``_composite_gauss_legendre``, the direct sum of correctly rounded Gauss--Legendre panels; the reference oracle is
+:func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`) with breakpoints at each
 annular boundary to capture chord-length discontinuities.
 
 Second-Difference Formula (Cylindrical)
@@ -1839,7 +1861,7 @@ quadrature, with breakpoints at each annular boundary to capture the
 chord-length discontinuities.
 
 Implemented in :meth:`CPMesh._compute_radial_rcp`, whose ``self._kernel``
-is :func:`~orpheus.derivations.continuous.flat_source_cp.geometry._ki3_mp`.
+is :func:`orpheus.numerics.bickley.ki3`.
 Verified against
 :func:`~orpheus.derivations.continuous.flat_source_cp.cylinder._cylinder_cp_matrix`.
 

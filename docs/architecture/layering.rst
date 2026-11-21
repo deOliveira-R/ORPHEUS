@@ -293,17 +293,17 @@ A few notes the table is too compact to capture:
   derivation: it needs only the ``Mixture`` vocabulary. It moved to
   :mod:`orpheus.data.macro_xs.synthetic`, and the four rows were closed
   (``layer_dag.md`` ruling 29). The only importer of ``derivations`` outside
-  itself is :mod:`orpheus.cp` (3 top-level statements; a method may import L0,
-  which is the L3-uses-L0 pattern). So a reference may use the mathematics
+  itself WAS :mod:`orpheus.cp` (3 top-level statements, retired by #641: production imports nothing of ``derivations``,
+  read by its own table, ``_production_insulation_violations`` in ``tests/gates/test_layer_imports.py``, plus a cold-import leg per
+  production package; plain ``FORBIDDEN_EDGES`` rows would have put 100 rows of 95 test files into ``test_test_layers``). So a reference may use the mathematics
   layer and describe its problem in input-layer vocabulary (a geometry, a
   mesh, a ``Mixture``, a specification, the face roles a deck or an integer
   tag names), and it may never name a transport object such as
   ``MaterialMesh`` or a wall condition; lifting a reference's problem to a
   method's problem is a production verb at L2 and above. The derivations
   ship reference solvers built from SymPy, ``mpmath``, or pure analytical
-  closed forms. Production code that needs a structurally independent
-  reference imports L0; the L3-uses-L0 pattern is documented in
-  :doc:`/theory/verification/index`. Inside L0, the closed references
+  closed forms. Production code does not import L0; a test that needs a structurally
+  independent reference does (:doc:`/theory/verification/index`). Inside L0, the closed references
   (``derivations/continuous/`` and ``derivations/common/``) are held to a
   stricter rule than the layer table: they never import
   :mod:`orpheus.mesh`, and of :mod:`orpheus.numerics` they may import only

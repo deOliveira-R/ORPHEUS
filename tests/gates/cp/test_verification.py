@@ -1099,7 +1099,7 @@ class TestKi4Resolution:
 
     def test_cylindrical_ki3_kernel_is_insensitive_to_n_ki_table(self):
         """[L2] After Phase B.4, the cylindrical solver routes through
-        the Chebyshev interpolant in orpheus.derivations.cp_geometry
+        the Chebyshev interpolant ``orpheus.numerics.bickley.ki3``
         (fixed ~1e-6 absolute accuracy), so ``n_ki_table`` is a no-op.
         This test pins the new invariant: tuning ``n_ki_table`` does
         not move ``keff`` at all.
