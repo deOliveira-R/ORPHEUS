@@ -2021,7 +2021,7 @@ zero (the **null spectrum**) for a non-fissile material:
 ORPHEUS encodes this law in
 :class:`~orpheus.data.emission_spectrum.EmissionSpectrum`, a
 :class:`numpy.ndarray` subclass that carries the law as inspectable
-methods (``assert_normalized`` / ``is_emitting`` / ``assert_null``) — so
+methods (``assert_normalized`` / ``assert_null``) — so
 ``mixture.chi.assert_normalized()`` reads like a law the data carries.
 Both :class:`~orpheus.data.micro_xs.isotope.Isotope` and
 :class:`~orpheus.data.macro_xs.mixture.Mixture` coerce ``chi`` to this

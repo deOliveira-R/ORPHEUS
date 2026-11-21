@@ -637,7 +637,7 @@ them.  Trust ``git``, not this column.
        the pair :math:`(A, M)` on ONE space, with an ends law at
        construction, ``at(σ) = A − σM`` (``at(0)`` returning the ``lhs``
        object itself, because the algebra refuses
-       ``ScaledOperator(0.0, ·)``), ``.H``, ``is_regular``, ``rhs_rank``
+       ``ScaledOperator(0.0, ·)``), ``.H``
        — and deliberately NO inverse and NO resolvent.  Layer 2 is the
        kind-typed question:
        :class:`~orpheus.numerics.posing.EigenPosing` ``(pencil,
@@ -2603,7 +2603,7 @@ them.  Trust ``git``, not this column.
        measured three independent ways.
      - #344
      - ``5def63b0`` (the derived predicate +
-       :class:`~orpheus.numerics.operator.InverseMetricOperator`),
+       ``InverseMetricOperator``, since retired),
        ``f934ff57`` (the closed-form kernel + the gauge), ``b51bc802`` (fired
        at every exit, warned, recorded), ``1a2be025`` (the characterization
        promoted into CI)
@@ -3268,10 +3268,10 @@ them.  Trust ``git``, not this column.
        re-spelled onto ``K = MatrixInverseOperator(loss, basis_shape=(ng,1))
        @ production``, the eigenpair extracted by the NEW shared
        Perron–Frobenius primitive
-       :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` — the ONE
+       ``dominant_eigenpair`` (since moved to the test side) — the ONE
        home of the argmax-real selection, complex-dominant rejection, and
        ``φ.sum() ≥ 0`` sign convention
-       (:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` now
+       (``direct_eigenvalue`` now
        delegates and keeps zero production consumers as the
        ``(A, F)``-posed sibling engine; RQI's inline sign-flip folded onto
        the same ``_sign_normalised``). The explicit

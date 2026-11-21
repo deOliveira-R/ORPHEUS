@@ -92,7 +92,8 @@ class ScaleGauge:
     -----
     A negative functional value is a legal input: the displacement is then
     negative and :meth:`apply` flips the sign — the :math:`\mathbb{Z}/2` leg
-    the dense engines fix by hand (``_sign_normalised``) is one case of this
+    the dense oracle fixes by hand (``_sign_normalised`` of the test-side
+    ``_dense_eigen_oracle``) is one case of this
     section, not a second convention.  A ZERO functional value has no section
     (the state is orthogonal to the functional — nothing to scale against) and
     is refused with a ``ValueError`` naming the functional.  ``[M]``

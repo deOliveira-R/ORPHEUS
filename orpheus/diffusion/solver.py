@@ -111,7 +111,8 @@ Verification (the P5 gates, ``tests/gates/diffusion/test_solver.py``)
 =====================================================================
 
 * cross-engine: ``power_iteration`` ≡
-  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` on the
+  ``direct_eigenvalue`` (the test-side dense oracle,
+  ``tests/gates/numerics/_dense_eigen_oracle.py``) on the
   materialized ``(A, F)`` pair at :math:`10^{-10}` in k (and the full
   composite eigenvector), across the albedo family;
 * L2 infinite-medium: reflective diffusion k ≡ homogeneous

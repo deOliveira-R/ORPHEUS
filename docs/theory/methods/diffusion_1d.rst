@@ -1107,7 +1107,7 @@ family, and drives
   ``e_per_fission`` power window and its ``fi /= max`` conditioning hack
   are both retired by this contract.
 - **Cross-engine gate.** The dense
-  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
+  ``direct_eigenvalue`` (the test-side oracle)
   (:math:`k = \lambda_{\max}(A^{-1}F)`) and the iterative
   :func:`~orpheus.numerics.eigenvalue.power_iteration` are cross-checked
   at :math:`10^{-10}` on the materialised :math:`(A, F)` pair, across the

@@ -288,10 +288,6 @@ class TensorLayout(ContentIdentity):
     def shape(self) -> tuple[int, ...]:
         return (int(np.prod(self.factor_shape)),)
 
-    def multi_index(self, flat: int, /) -> tuple[int, ...]:
-        """The per-factor degrees ``(k_0, ..., k_{d-1})`` of the flat coefficient ``flat``."""
-        return tuple(int(k) for k in np.unravel_index(flat, self.factor_shape))
-
     @property
     def unit(self) -> NDArray:
         unit = np.array([1.0])

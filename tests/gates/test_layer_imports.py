@@ -842,9 +842,9 @@ def test_closed_references_import_only_the_numerics_interface() -> None:
 
 
 _INSULATION_REFUSED_LEGS = [
-    ("derivations/common/x.py", "from orpheus.numerics.eigenvalue import dominant_eigenpair\n"),
+    ("derivations/common/x.py", "from orpheus.numerics.eigenvalue import power_iteration\n"),
     ("derivations/continuous/x/y.py", "import orpheus.numerics.quadrature.registry\n"),
-    ("derivations/common/x.py", "from ...numerics.eigenvalue import dominant_eigenpair\n"),
+    ("derivations/common/x.py", "from ...numerics.eigenvalue import power_iteration\n"),
     ("derivations/common/x.py", "def f():\n    from orpheus.numerics.pencil import OperatorPencil\n"),
     ("derivations/common/x.py", "from typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    from orpheus.numerics.operator import LinearOperator\n"),
     ("derivations/common/x.py", "from orpheus.numerics import power_iteration\n"),
@@ -858,7 +858,7 @@ _INSULATION_ADMITTED_LEGS = [
     ("derivations/common/x.py", "from orpheus.numerics import question\n"),
     ("derivations/continuous/x/y.py", "from orpheus.numerics.traced_memo import traced_memo\n"),
     ("derivations/continuous/mms/sn.py", "from orpheus.numerics.quadrature import Quadrature\n"),
-    ("derivations/discrete/sn/x.py", "from orpheus.numerics.eigenvalue import dominant_eigenpair\n"),
+    ("derivations/discrete/sn/x.py", "from orpheus.numerics.eigenvalue import power_iteration\n"),
     ("derivations/common/x.py", "import numpy as np\nimport scipy.linalg\n"),
     ("derivations/continuous/mms/sn.py", "from orpheus.mesh import Mesh1D\n"),
     ("derivations/common/x.py", "from orpheus.geometry import StructuredGeometry\nfrom orpheus.data.materials import Materials\n"),

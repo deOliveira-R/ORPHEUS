@@ -3419,21 +3419,17 @@ three places:
   (:eq:`energy-condensation-overlap-fraction`) — a bounded, named,
   selectable assumption, not a silent invention.
 * **The provenance report.**
-  :attr:`OverlapBasis.fractional_columns
-  <orpheus.numerics.basis.overlap_basis.OverlapBasis.fractional_columns>`
-  (carried on the trial basis :meth:`overlap_to
-  <orpheus.data.energy_grid.EnergyGrid.overlap_to>` returns)
-  lists the coarse-group indices whose data leaned on :math:`w(E)`
+  The ``overlap_table`` of the trial basis :meth:`overlap_to
+  <orpheus.data.energy_grid.EnergyGrid.overlap_to>` returns
+  lists, in the columns that hold a strictly fractional entry, the coarse-group indices whose data leaned on :math:`w(E)`
   (the columns that received a *fractional* — strictly between 0 and 1 —
   contribution). It is **empty** for a nested condensation (pure
   rate-preserving collapse, no assumption) and non-empty exactly where
   the coarse grid is locally finer than the fine grid. This is the
   data-vs-assumption provenance: a caller can see precisely which coarse
   groups are pure collapse and which lean on the spectral model. (The
-  companion :attr:`OverlapBasis.dominant_column
-  <orpheus.numerics.basis.overlap_basis.OverlapBasis.dominant_column>` —
-  the ``argmax`` containing-coarse map — is the former
-  ``GroupCondensation.coarse_of_fine``.)
+  ``argmax`` of each fine row of the table is the containing-coarse
+  map, the former ``GroupCondensation.coarse_of_fine``.)
 
 .. warning::
 
@@ -3665,9 +3661,9 @@ The discriminator and the companion invariants:
        downsampling-only guard), with a positive control that a valid
        downsample succeeds.
    * - ``TestF6LocalInterpolationReport``
-     - :attr:`OverlapBasis.fractional_columns
-       <orpheus.numerics.basis.overlap_basis.OverlapBasis.fractional_columns>`
-       is empty for a nested condensation and lists the straddle columns
+     - The fractional columns of ``OverlapBasis.overlap_table`` (the test-side
+       ``fractional_columns`` oracle)
+       are empty for a nested condensation and lists the straddle columns
        for a non-nested one (the data-vs-assumption provenance).
    * - ``TestG4BalanceRegression`` (positive + negative)
      - A condensed balanced ``Mixture`` passes
@@ -3700,8 +3696,8 @@ boundaries — the #265 monotonicity slice — all-positive energies,
 partition completeness, with positive *and* negative legs), and the
 fractional-overlap trial
 :class:`~orpheus.numerics.basis.OverlapBasis` (the partition-of-unity
-law, ``rows.sum == 1``; and the containing-interval law on its
-:attr:`~orpheus.numerics.basis.overlap_basis.OverlapBasis.dominant_column`:
+law, ``rows.sum == 1``; and the containing-interval law on the ``argmax`` of its table (the test-side
+``dominant_column``):
 every fine group → exactly one *dominant* coarse group, contiguous,
 **fast-first** ordering — the orientation pin that catches the silent
 descending-edge column-reversal trap, vv Mode 6).

@@ -69,8 +69,8 @@ Key Facts
   than calling the structure-keyed ``loss.inverse()``, which would return the
   **iterative** :class:`~orpheus.numerics.green_operator.GreenOperator`
   splitting — **is** the direct-realization strategy choice, encoded as a type
-  rather than a flag. :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
-  (the ``(A, F)``-posed sibling engine) is **no longer on the homogeneous call
+  rather than a flag. ``direct_eigenvalue``
+  (the ``(A, F)``-posed sibling engine, now the test-side oracle) is **no longer on the homogeneous call
   path**
 - **The problem is a HUB** (:ref:`the-problem-hub`).
   :class:`~orpheus.homogeneous.solver.HomogeneousProblem` — a frozen
@@ -1242,14 +1242,11 @@ is:
 .. implements:: two-group-M
    :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
 
-   **Implemented by** 3 sites. Every symbol that executes this
+   **Implemented by** 2 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
    others.
-
-.. implements:: two-group-M
-   :by: orpheus.numerics.eigenvalue.direct_eigenvalue
 
 .. implements:: two-group-M
    :by: orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous
@@ -2017,19 +2014,15 @@ follows directly:
 .. implements:: keff-update
    :by: orpheus.homogeneous.solver.solve_homogeneous_infinite
 
-   **Implemented by** 4 sites. Every symbol that executes this
+   **Implemented by** 3 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
    others. The solver and the exact rational reference execute the
    right-hand form (one solve, one inner product); the dense engine and
    the registry's oracle execute the middle form (an eigen-solve of the
-   materialized :math:`\mathbf{M}`; ``direct_eigenvalue`` delegates the
-   extraction to
-   :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`).
-
-.. implements:: keff-update
-   :by: orpheus.numerics.eigenvalue.direct_eigenvalue
+   materialized :math:`\mathbf{M}`; ``direct_eigenvalue``, the test-side dense
+   oracle, delegates the extraction to its ``dominant_eigenpair``).
 
 .. implements:: keff-update
    :by: orpheus.derivations.common.exact_homogeneous.exact_pencil_eigenpair
@@ -2217,7 +2210,7 @@ its degree contract, and why it carries no inverse — is
 This hub is also where the type is cheapest to *interrogate*, because
 its operators are dense enough to materialise.  ``[M]`` over the four
 shipped mixture families at 1, 2 and 4 groups,
-:attr:`~orpheus.numerics.pencil.OperatorPencil.rhs_rank` reads **1** for
+the rank of the pencil's ``rhs`` (read then through an accessor, ``rhs_rank``, since retired) reads **1** for
 the fissile ``A`` family and **0** for ``B``/``C``/``D`` — the
 Weierstrass–Kronecker count of *finite* eigenvalues, which for a rank-1
 :math:`\mathbf{F}` — the dyad :eq:`fission-matrix` — says the whole
@@ -2295,7 +2288,7 @@ an explicit :math:`[\mathbf{A}^{-1}]` and never multiplied into a
 :math:`\kinf = \langle\nu\Sigma_f, \mathbf{u}\rangle`.  The route is
 gated as a route, not only by its output:
 ``tests/gates/homogeneous/test_homogeneous.py::test_the_rank_one_route_is_the_homogeneous_call_path``
-replaces every dense eigen driver (``dominant_eigenpair`` and the
+replaces every dense eigen driver (the
 ``numpy``/``scipy`` ``eig``/``eigvals``) by a decoy that raises and requires
 the solve to succeed with the same answer, and replaces
 ``MatrixInverseOperator.apply`` by a decoy returning :math:`2\mathbf{A}^{-1}x`
@@ -2317,20 +2310,21 @@ right; encoding that decision as the *type* ``MatrixInverseOperator`` — not a
 seam realized honestly (the type **is** the choice).
 
 The ``(A, F)``-posed engine
-:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` is the **dense
+``direct_eigenvalue`` is the **dense
 sibling** of this route: it forms the resolvent from a dense ``(A, F)`` pair
 via :func:`numpy.linalg.solve` and extracts the dominant eigenpair with
-:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
+``dominant_eigenpair``
 (:func:`numpy.linalg.eig`, the largest-real eigenpair, a sign convention, and
 a refusal of a complex dominant eigenvalue).  The homogeneous route shares
-neither step with it, and `[M]` 2026-10-06 neither engine has a caller in
+neither step with it, and `[M]` 2026-10-06 neither engine had a caller in
 ``orpheus/`` outside :mod:`orpheus.numerics` itself: the derivation oracle
 ``kinf_and_adjoint_spectrum_homogeneous``, formerly the only caller of
 ``dominant_eigenpair``, moved to the reference kernel
 (:class:`~orpheus.derivations.common.dense_pencil.DensePencil`) when the
 references were insulated from production numerics (2026-10-06).
-Both remain the dense members of the three-engine family
-(:ref:`three-eigenvalue-engines`), and ``direct_eigenvalue`` is the
+Both then had no production caller and moved to the test side in W0
+(2026-11-20, ``tests/gates/numerics/_dense_eigen_oracle.py``;
+:ref:`three-eigenvalue-engines`), and ``direct_eigenvalue`` is the
 cross-engine oracle of
 ``tests/gates/homogeneous/test_homogeneous.py::test_kinf_matches_direct_eigenvalue_engine_of_the_assembled_pair``:
 the solver's rank-one :math:`\kinf` against the dense engine's eigenvalue of
@@ -2685,16 +2679,13 @@ asserts the *materialized matrix itself* equals the reference resolvent,
 
 
 .. implements:: resolvent-object-gate
-   :by: orpheus.numerics.eigenvalue.direct_eigenvalue
+   :by: orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator
 
-   **Implemented by** 4 sites. Every symbol that executes this
+   **Implemented by** 3 sites. Every symbol that executes this
    equation's arithmetic is declared, not only the canonical one: a
    test is adjudicated against the transcription it actually ran, so
    declaring a single site would refute the tests that exercise the
    others.
-
-.. implements:: resolvent-object-gate
-   :by: orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator
 
 .. implements:: resolvent-object-gate
    :by: orpheus.numerics.operator.LinearOperator.as_matrix
@@ -2715,52 +2706,37 @@ feeds.
 
 .. _three-eigenvalue-engines:
 
-Why a direct engine: the three eigenvalue realisations
-------------------------------------------------------
+The eigenvalue realisations: one in production, the dense one an oracle
+-----------------------------------------------------------------------
 
 The dominant eigenpair of :math:`\mathbf{A}^{-1}\mathbf{F}` is what *every*
 deterministic ORPHEUS solver ultimately wants; what differs is the
-**realisation**.  :mod:`orpheus.numerics.eigenvalue` ships three siblings of
-the same generalised eigenproblem
-:math:`\mathbf{A}\boldsymbol{\phi} = \tfrac{1}{k}\mathbf{F}\boldsymbol{\phi}`:
+**realisation** of the generalised eigenproblem
+:math:`\mathbf{A}\boldsymbol{\phi} = \tfrac{1}{k}\mathbf{F}\boldsymbol{\phi}`.
+:mod:`orpheus.numerics.eigenvalue` ships one,
+:func:`~orpheus.numerics.eigenvalue.power_iteration`: iterative, **linear**
+(rate :math:`|k_1/k_0|`), for the large, **sweep-only** loss operators that are
+never densely formed (SN, CP, MoC, diffusion).  These only *apply*
+:math:`\mathbf{A}^{-1}` (a :term:`sweep` or Krylov inner solve) and drive
+:math:`k` up the dominant mode through the
+:class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol, which sees
+only a normalised-source fixed point, never a dense matrix.
 
-.. list-table:: The three eigenvalue engines (:mod:`orpheus.numerics.eigenvalue`)
-   :header-rows: 1
-   :widths: 26 22 52
+Two siblings of the same problem once sat beside it and are retired from
+production (W0, 2026-11-20), because no production path called them.  The
+**dense** engine ``direct_eigenvalue`` forms the dense resolvent
+:math:`\mathbf{A}^{-1}\mathbf{F}` via :func:`numpy.linalg.solve`, delegates the
+extraction to the shared Perron-Frobenius primitive ``dominant_eigenpair`` and
+returns the EXACT dominant eigenpair in one LAPACK shot, the right tool for
+small, densifiable operators; it now lives on the test side as the oracle
+``tests/gates/numerics/_dense_eigen_oracle.py`` that gates compare production
+against.  **Rayleigh-quotient iteration** (superlinear polishing of an
+eigenpair estimate to the eigenpair NEAREST its Rayleigh quotient, in the
+bordered form) was retired with its tests; it was never wired into a meshed
+solver, and its use as the adjoint-:math:`\phi^*` vehicle is
+`#277 <https://github.com/deOliveira-R/ORPHEUS/issues/277>`_.
 
-   * - Engine
-     - Convergence
-     - When it is the right realisation
-   * - :func:`~orpheus.numerics.eigenvalue.power_iteration`
-     - iterative, **linear** (rate :math:`|k_1/k_0|`)
-     - Large, **sweep-only** loss operators that are never densely formed
-       (SN, CP, MoC, diffusion).  These only *apply* :math:`\mathbf{A}^{-1}`
-       — a :term:`sweep` or Krylov inner solve — and drive :math:`k` up the dominant
-       mode through the
-       :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver` Protocol, which
-       sees only a normalised-source fixed point, never a dense matrix.
-   * - :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`
-     - **exact** (one LAPACK shot)
-     - **Small, densifiable** operators posed as a dense
-       :math:`(\mathbf{A}, \mathbf{F})` pair — few-group / few-region
-       problems.  Forms the dense resolvent
-       :math:`\mathbf{A}^{-1}\mathbf{F}` via :func:`numpy.linalg.solve` and
-       delegates the extraction to
-       :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`.  The direct
-       (non-iterative) sibling of ``power_iteration``.  The 0-D homogeneous
-       medium does not use it: its rank-one fission makes the eigenpair one
-       solve and one inner product (:ref:`direct-eigensolve-solve`).
-   * - :func:`~orpheus.numerics.eigenvalue.rayleigh_quotient_iteration`
-     - iterative, **superlinear** (locally quadratic)
-     - Polishing an eigenpair *estimate* to the eigenpair NEAREST its
-       Rayleigh quotient — **not** necessarily the dominant one (warm-start
-       near the mode you want).  The bordered / augmented-Newton form, in
-       which the previous iterate enters as the normalisation **row**.  Not
-       yet wired into a meshed solver — that integration, and its use as the
-       adjoint-:math:`\phi^*` vehicle, is
-       `#277 <https://github.com/deOliveira-R/ORPHEUS/issues/277>`_.
-
-The infinite-medium :math:`\kinf` takes **none of the three**: it is the
+The infinite-medium :math:`\kinf` takes **neither**: it is the
 closed form :math:`\langle\nu\Sigma_f, \mathbf{A}^{-1}\boldsymbol{\chi}\rangle`
 (:ref:`homogeneous-rank-one-route`), one LU solve and one inner product.  An
 iterative engine would only approximate, at a convergence tolerance, an answer
@@ -2786,15 +2762,14 @@ step from any start with a component along :math:`\mathbf{A}^{-1}\boldsymbol{\ch
    :math:`K` fissile isotopes has rank up to :math:`K`
    (`#549 <https://github.com/deOliveira-R/ORPHEUS/issues/549>`_).
 
-**The pure-math verification of the engines.**  All three engines — and the
-shared :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` extraction the
-dense one delegates to — are verified against a **transport-unrelated,
+**The pure-math verification of the dense oracle.**  The dense engine,
+``direct_eigenvalue``, and the shared ``dominant_eigenpair`` extraction it
+delegates to are verified against a **transport-unrelated,
 hand-derived closed-form eigenproblem** — :math:`\mathbf{M} =
 V\operatorname{diag}(\lambda)V^{-1}` with chosen eigenpairs, and the rank-1
 closed form :math:`k = v^{\mathsf T} A^{-1} u` — in the pure-math gate
-``tests/gates/numerics/test_eigenvalue.py`` (the closed-form eigenproblem, the direct
-``dominant_eigenpair`` surface with its one-home relocation proofs, and the RQI
-gates).  This is a **closed-form** reference: V&V pillar 1, the *only* pillar
+``tests/gates/numerics/test_eigenvalue.py`` (the closed-form eigenproblem and the direct
+``dominant_eigenpair`` surface with its one-home relocation proofs).  This is a **closed-form** reference: V&V pillar 1, the *only* pillar
 that proves an eigenvalue (MMS is source-driven and cannot).  In that file no
 reference VALUE is produced by :func:`numpy.linalg.eig`: `[M]` 2026-10-01 its
 four calls to it are a precondition that the host's LAPACK still returns a
@@ -2806,7 +2781,7 @@ each named mutation reddens its gate.
 Once an engine is pinned against domain-independent ground truth it is
 **trusted machinery**, and two routes may both call it without contamination,
 provided they assemble its input differently.  That is the relationship
-between :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` and the
+between ``direct_eigenvalue`` and the
 registry's oracle
 :func:`~orpheus.derivations.common.eigenvalue.kinf_and_spectrum_homogeneous`:
 both end in :func:`numpy.linalg.eig`, one on the pair the hub assembles
@@ -3514,7 +3489,7 @@ hash, and ``git`` outranks this column.
        the solver composed ``K = MatrixInverseOperator(loss) @ production``,
        materialized :math:`[\mathbf{K}]` column by column (:math:`G` LU
        backsolves) and took its eigenpair with
-       :func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`
+       ``dominant_eigenpair``
        (:func:`numpy.linalg.eig`, largest real part, a
        :math:`\sum\phi \ge 0` sign convention, a refusal of a complex
        dominant).  Step 5b's re-baseline note justified the operator

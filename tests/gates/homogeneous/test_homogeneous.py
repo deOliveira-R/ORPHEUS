@@ -5,10 +5,10 @@ import dataclasses
 import numpy as np
 import pytest
 
-import orpheus.numerics.eigenvalue as _eig
 from orpheus.derivations import get
 from orpheus.homogeneous.solver import solve_homogeneous_infinite
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
+from tests.gates.numerics import _dense_eigen_oracle as _eig
 
 # File-level verifies marker: every test in this file exercises the
 # homogeneous eigenvalue chain end-to-end by asserting k_inf matches
@@ -239,9 +239,8 @@ class _ForbiddenEigenSolve(RuntimeError):
 def test_the_rank_one_route_is_the_homogeneous_call_path(monkeypatch):
     """ROUTE gate (Mode-11 + the decoy swap), two legs.
 
-    (1) NO dense eigen-solve on the path: ``dominant_eigenpair`` (every
-    binding: the solver's namespace if it still imports it, and the
-    definition site) and the dense eigen drivers ``numpy.linalg.eig`` /
+    (1) NO dense eigen-solve on the path: the dense eigen drivers
+    ``numpy.linalg.eig`` /
     ``eigvals`` and ``scipy.linalg.eig`` / ``eigvals`` are replaced by decoys
     that RAISE; the solve must still succeed and hand back the same answer.
     (2) k∞ is READ OFF ``MatrixInverseOperator.apply``: a decoy ``apply``
@@ -256,8 +255,6 @@ def test_the_rank_one_route_is_the_homogeneous_call_path(monkeypatch):
     import numpy.linalg
     import scipy.linalg
 
-    import orpheus.homogeneous.solver as hsolver
-
     case = get("homo_2eg_n2n")
     mix = next(iter(case.materials.values()))
     honest = solve_homogeneous_infinite(mix)
@@ -266,8 +263,6 @@ def test_the_rank_one_route_is_the_homogeneous_call_path(monkeypatch):
         raise _ForbiddenEigenSolve("a dense eigen-solve was called on the homogeneous path")
 
     for ns, name in (
-        (hsolver, "dominant_eigenpair"),
-        (_eig, "dominant_eigenpair"),
         (numpy.linalg, "eig"),
         (numpy.linalg, "eigvals"),
         (scipy.linalg, "eig"),

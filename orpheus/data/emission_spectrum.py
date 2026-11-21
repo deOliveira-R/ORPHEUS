@@ -12,7 +12,7 @@ for a *fissile* material. A *non-fissile* material emits no fission
 neutrons, so its spectrum is identically zero (the **null spectrum**).
 
 ``EmissionSpectrum`` is a :class:`numpy.ndarray` SUBCLASS that carries
-these laws as methods (``assert_normalized`` / ``is_emitting`` /
+these laws as methods (``assert_normalized`` /
 ``assert_null``) — so the invariant reads like a law the data carries,
 the way an operator carries its adjoint. Every existing call site that
 treats :math:`\chi` as a bare array (``chi[None, :, :]`` per-cell
@@ -58,8 +58,6 @@ class EmissionSpectrum(np.ndarray):
     --------
     >>> chi = EmissionSpectrum(np.array([0.6, 0.35, 0.05]))
     >>> chi.assert_normalized()        # passes: simplex
-    >>> chi.is_emitting
-    True
     >>> EmissionSpectrum(np.zeros(3)).assert_null()   # passes: null spectrum
     """
 
@@ -103,20 +101,6 @@ class EmissionSpectrum(np.ndarray):
                 f"{np.asarray(self)!r} (a probability simplex requires "
                 f"chi_g >= 0 for all g)"
             )
-
-    @property
-    def is_emitting(self) -> bool:
-        r"""``True`` iff the spectrum is non-null (any :math:`\chi_g > 0`).
-
-        A SPECTRUM-level query about the array's own values — it asks
-        whether *this* spectrum carries any probability mass, not whether
-        the owning material produces fission neutrons. The two coincide
-        for a correctly-constructed spectrum, but they are distinct
-        concepts: production is a material predicate (``νΣ_f > 0``), and
-        the simplex/null law (enforced by :func:`enforce_emission_spectrum`)
-        is what ties the producing material to a non-null spectrum.
-        """
-        return bool(np.any(self > 0))
 
     def assert_null(self) -> None:
         r"""Raise unless :math:`\chi_g \equiv 0` for every group.

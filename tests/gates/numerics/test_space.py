@@ -3,8 +3,7 @@
 Tests the FunctionSpace primitive shipped in Phase B / Issue 9.6 of
 the SN reshape campaign — equality / hash semantics on
 ``(name, shape)``, repr formatting, weighted vs Euclidean inner
-product, norm consistency, and the pre-populated common-space
-factories.
+product, norm consistency.
 """
 
 from __future__ import annotations
@@ -12,11 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.space import (
-    FunctionSpace,
-    angular_flux_space,
-    scalar_flux_space,
-)
+from orpheus.numerics.space import FunctionSpace
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -150,48 +145,6 @@ def test_norm_consistent_with_inner_product():
     x = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
     expected = np.sqrt(1 + 4 + 9 + 16 + 25)
     assert sp.norm(x) == pytest.approx(expected)
-
-
-# ─────────────────────────────────────────────────────────────────────
-# Pre-populated common-space factories
-# ─────────────────────────────────────────────────────────────────────
-
-
-@pytest.mark.foundation
-def test_angular_flux_space_shape():
-    sp = angular_flux_space(n_cells=10, n_ordinates=8, n_groups=2)
-    assert sp.shape == (10, 8, 2)
-    assert sp.name == "angular_flux"
-    assert sp.inner_product_weights is None
-
-
-@pytest.mark.foundation
-def test_angular_flux_space_with_quadrature_weights():
-    n_ord = 8
-    qw = np.linspace(0.1, 0.9, n_ord)
-    sp = angular_flux_space(
-        n_cells=10, n_ordinates=n_ord, n_groups=2,
-        quadrature_weights=qw,
-    )
-    assert sp.inner_product_weights is not None
-    assert sp.inner_product_weights.shape == (1, n_ord, 1)
-
-
-@pytest.mark.foundation
-def test_angular_flux_space_quadrature_weights_shape_check():
-    with pytest.raises(ValueError, match="quadrature_weights"):
-        angular_flux_space(
-            n_cells=10, n_ordinates=8, n_groups=2,
-            quadrature_weights=np.ones(7),  # wrong length
-        )
-
-
-@pytest.mark.foundation
-def test_scalar_flux_space_shape():
-    sp = scalar_flux_space(n_cells=10, n_groups=2)
-    assert sp.shape == (10, 2)
-    assert sp.name == "scalar_flux"
-    assert sp.inner_product_weights is None
 
 
 # NOTE: the directional ``boundary_trace_space()`` factory was retired

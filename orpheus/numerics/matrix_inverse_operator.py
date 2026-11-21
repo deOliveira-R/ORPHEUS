@@ -52,7 +52,8 @@ two-sided inverse), and exact singularity (a zero LU pivot raises
 composition-time-not-call-time principle; NEAR-singularity is not
 refused, it is priced into the M-direct :math:`\kappa(A)` bound).
 
-**Consumers.** :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`'s
+**Consumers.** ``direct_eigenvalue``'s (the test-side dense oracle,
+``tests/gates/numerics/_dense_eigen_oracle.py``, once in production)
 dense ``np.linalg.solve(A, F)`` IS this operator's action written as free
 functions — the latent consumer that made the promotion finishable
 (taxonomy §5); the engine itself stays ndarray-pure (its closed-form

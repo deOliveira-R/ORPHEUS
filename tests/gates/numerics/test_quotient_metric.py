@@ -2,8 +2,8 @@ r"""S6b — a degenerate metric is a quotient (rulings 74 and 80): its rank and 
 
 A metric owns its degeneracy: :meth:`~orpheus.numerics.metric.HilbertMetric.rank`
 on each realisation, :attr:`~orpheus.numerics.space.FunctionSpace.rank` and
-:meth:`~orpheus.numerics.space.FunctionSpace.project_live` (``P = G⁺G``, the
-G-orthogonal projector onto range G) on a space. The adjoint is posed on
+the test-side ``project_live`` (``P = G⁺G``, the
+G-orthogonal projector onto range G, ``tests/gates/numerics/_space_oracles.py``) on a space. The adjoint is posed on
 ``V / ker G``, so its laws hold modulo the kernel and are gated in the
 G-seminorm, never component-wise on the kernel. The rows on the S\ :sub:`N`
 carriers (the trace ranks, ruling 80's kernel-preservation property, the sweep's
@@ -31,6 +31,7 @@ from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import AdjointOperator, RieszLowerOperator, RieszRaiseOperator, adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from tests.gates.numerics._space_oracles import project_live
 
 pytestmark = pytest.mark.foundation
 
@@ -220,7 +221,7 @@ def _spaces():
 
 def _P_matrix(V):
     n = int(np.prod(V.shape))
-    return np.array([np.ravel(V.project_live(np.eye(n)[i].reshape(V.shape))) for i in range(n)]).T
+    return np.array([np.ravel(project_live(V, np.eye(n)[i].reshape(V.shape))) for i in range(n)]).T
 
 
 @pytest.mark.parametrize("name", list(_spaces()))
@@ -244,13 +245,13 @@ def test_B3_project_live_is_the_g_orthogonal_projector_onto_range_g(name):
     np.testing.assert_allclose(Pm @ Pm, Pm, atol=tol, rtol=0)
     _require(int(np.linalg.matrix_rank(Pm, tol=1e-8)) == V.rank, f"[{name}] rank(P) != V.rank")
     x, y = _rng(1).standard_normal(V.shape), _rng(2).standard_normal(V.shape)
-    lhs, rhs = V.inner_product(V.project_live(x), y), V.inner_product(x, V.project_live(y))
+    lhs, rhs = V.inner_product(project_live(V, x), y), V.inner_product(x, project_live(V, y))
     _require(abs(lhs - rhs) <= tol * max(1.0, abs(lhs)), f"[{name}] P is not G-self-adjoint: {lhs!r} vs {rhs!r}")
-    k = x - V.project_live(x)
+    k = x - project_live(V, x)
     _require(np.abs(V.apply_metric(k)).max() <= tol * max(1.0, np.abs(V.apply_metric(x)).max()),
              f"[{name}] the residual x − Px is not in ker G")
     if V.rank == n:
-        np.testing.assert_allclose(V.project_live(x), x, rtol=4 * _EPS, atol=0)
+        np.testing.assert_allclose(project_live(V, x), x, rtol=4 * _EPS, atol=0)
 
 
 def test_B3b_project_live_zeroes_exactly_the_hand_kernel():
@@ -259,11 +260,11 @@ def test_B3b_project_live_zeroes_exactly_the_hand_kernel():
     live vector (1, 1, 0) to itself."""
     V = FunctionSpace("s6b_k", (4,), inner_product_weights=_W_SING)
     x = np.array([1.0, 2.0, 3.0, 4.0])
-    np.testing.assert_array_equal(V.project_live(x), np.where(_W_SING != 0, x, 0.0))
+    np.testing.assert_array_equal(project_live(V, x), np.where(_W_SING != 0, x, 0.0))
     D = FunctionSpace("s6b_kd", (3,), metric=DenseMetric(_G_SING))
     ker, live = np.array([1.0, -1.0, 0.0]) / np.sqrt(2.0), np.array([1.0, 1.0, 0.0])
-    np.testing.assert_allclose(D.project_live(ker), 0.0, atol=8 * _EPS)
-    np.testing.assert_allclose(D.project_live(live), live, rtol=8 * _EPS, atol=8 * _EPS)
+    np.testing.assert_allclose(project_live(D, ker), 0.0, atol=8 * _EPS)
+    np.testing.assert_allclose(project_live(D, live), live, rtol=8 * _EPS, atol=8 * _EPS)
 
 
 @pytest.mark.parametrize("name", ["diag_singular", "dense_rank2", "head_product48_L4"])
@@ -276,7 +277,7 @@ def test_B4_the_riesz_round_trip_is_the_live_projector(name):
     as its own arithmetic that drifts from the legs."""
     V = _spaces()[name]
     x = _rng(3).standard_normal(V.shape)
-    np.testing.assert_array_equal(RieszRaiseOperator(V).apply(RieszLowerOperator(V).apply(x)), V.project_live(x))
+    np.testing.assert_array_equal(RieszRaiseOperator(V).apply(RieszLowerOperator(V).apply(x)), project_live(V, x))
 
 
 # ═══════════════════════════════════════════════════════════════════════

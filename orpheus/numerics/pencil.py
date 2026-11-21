@@ -31,9 +31,7 @@ the Neumann series and holds no operator pair; stated, not papered over.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
-
-import numpy as np
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from orpheus.numerics.operator import LinearOperator, Vector
 
@@ -99,24 +97,3 @@ class OperatorPencil(Generic[V]):
     def H(self) -> "OperatorPencil[V]":
         r"""The adjoint pencil :math:`(A^\dagger, M^\dagger)` — the same spectrum, NO extra datum."""
         return OperatorPencil(self.lhs.H, self.rhs.H, kernel=None if self.kernel is None else self.kernel.H)
-
-    # ── the queries ─────────────────────────────────────────────────────
-    @property
-    def is_regular(self) -> bool:
-        r"""Regular iff :math:`\det(A - \lambda M) \not\equiv 0` — certified here by
-        the σ = 0 member being invertible (a sufficient condition; the one the
-        transport pencils satisfy because ``at(0)`` is what the sweep inverts)."""
-        return bool(self.lhs.is_invertible)
-
-    @property
-    def rhs_rank(self) -> int:
-        r"""The number of FINITE eigenvalues (Weierstrass–Kronecker) = :math:`\operatorname{rank} M`.
-
-        Dense (``rhs.as_matrix()``): a diagnostic for the fixtures that can
-        assemble; the SN composite refuses ``as_matrix`` (``[M]`` D-limit).
-        """
-        return int(np.linalg.matrix_rank(np.asarray(self.rhs.as_matrix())))
-
-    def apply_at(self, sigma: float, x: Any) -> Any:
-        """``at(σ).apply(x)`` spelled without materialising the member (the applied law's spelling)."""
-        return self.at(sigma).apply(x)

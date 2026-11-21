@@ -423,8 +423,7 @@ and scipy only. It is a kernel primitive in the same sense as
 matrix stands on it, so it is verified on its own, against manufactured
 matrices with chosen spectra, before any reference uses it.
 
-**Why the references carry their own.** Production has an eigen-extraction
-(:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`) and a pencil
+**Why the references carry their own.** Production has a pencil
 (:class:`~orpheus.numerics.pencil.OperatorPencil`), built for versatility
 and changed whenever production grows. A reference is closed, purpose
 built and limited in scope, and is useful only while it stays put, so it
@@ -672,15 +671,16 @@ refusal: the theorem says nothing about them except that they are not
 the fundamental mode. It refuses only a singular loss form, which shows as
 an infinite or undefined eigenvalue of the QZ reduction.
 
-**The two twins, side by side.** Production's
-:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair` takes the
+**The two twins, side by side.** The dense oracle's
+``dominant_eigenpair`` (production's until W0 moved it to
+``tests/gates/numerics/_dense_eigen_oracle.py``) takes the
 eigenvalue with the largest real part of a materialised resolvent
 :math:`A^{-1}F` and refuses only a complex one; it does not check
 positivity, dominance or the sign of the vector, although its docstring
 says the criticality contract is enforced
 (`#580 <https://github.com/deOliveira-R/ORPHEUS/issues/580>`_). For a
 well-posed problem the eigenvalue of largest real part and the eigenvalue
-of largest modulus coincide, so production answers correctly there; the
+of largest modulus coincide, so the oracle answers correctly there; the
 reference kernel is the stricter of the two because a reference is the
 instrument that must refuse rather than answer when the posing is wrong.
 
@@ -854,7 +854,7 @@ reference value survives.
    :math:`\operatorname{eig}(M^{\mathsf T})`; the S\ :sub:`N` daggered solve
    disagreed with it on first contact (campaign #276, gate P1.4), and the
    law was corrected to :math:`(A^{\mathsf T})^{-1}F^{\mathsf T}` by hand,
-   with production's ``dominant_eigenpair`` doing the extraction. In the
+   with the dense oracle's ``dominant_eigenpair`` (then production's) doing the extraction. In the
    kernel the adjoint is
    :meth:`DensePencil.adjoint <orpheus.derivations.common.dense_pencil.DensePencil.adjoint>`,
    the transposed pair :eq:`reference-kernel-adjoint-pencil`, and a

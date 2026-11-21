@@ -2833,7 +2833,7 @@ weight.
    successor states it on the shared type, `[M]` 2026-10-24, the diffusion table's
    realization of each value on a Cartesian face, applied to one positive outflow
    probe (the setup of ``tests/gates/diffusion/test_boundary_realizer.py``,
-   ``DiffusionMethodSpace.minimal()``):
+   ``DiffusionMethodSpace()``):
 
    .. code-block:: text
 

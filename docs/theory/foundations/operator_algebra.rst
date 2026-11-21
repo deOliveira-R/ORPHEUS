@@ -7425,8 +7425,7 @@ pencil**
    (tests/gates/numerics/test_pencil.py: at(0) is the lhs object, at(σ) is the
    affine combination bit-identically in matrix form, .H is the pair of
    adjoints on the counting pose AND G⁻¹(A − σF)ᵀG on a weighted one-axis
-   space whose Gram is not a scalar, rhs_rank counts the finite spectrum
-   over 8 cases of ranks 0, 1 and 2).  The closed form k_inf ==
+   space whose Gram is not a scalar).  The closed form k_inf ==
    trace(A⁻¹F) is not a row of this suite: the k_inf pin is
    tests/gates/homogeneous/test_kinf_exact_reference.py
    (test_kinf_is_the_exact_eigenvalue_within_the_derived_bound), the
@@ -7453,29 +7452,22 @@ pencil**
 \mathcal{A}(\sigma)^{-1}`.  The pencil is **regular** iff
 :math:`\det(A - \mu M) \not\equiv 0`; the transport pencils are, because
 :math:`\mathcal{A}(0) = A` is the very operator the sweep inverts, which
-is the sufficient condition
-:attr:`~orpheus.numerics.pencil.OperatorPencil.is_regular` certifies.
+is the sufficient condition (the invertibility of ``at(0)``), which the
+pencil once certified through an accessor, ``is_regular``, since retired.
 
 The consequence that matters numerically is **Weierstrass–Kronecker**:
 when :math:`M` is rank-deficient the pencil has exactly
 :math:`\operatorname{rank} M` **finite** eigenvalues, the rest being
 infinite.  So the k-problem is not an :math:`n`-dimensional eigenproblem
 at all — it is an :math:`r`-dimensional one on :math:`\operatorname{range}
-F`, and :attr:`~orpheus.numerics.pencil.OperatorPencil.rhs_rank` reports
-:math:`r`.  Measured on the shipped 0-D fixtures: :math:`r = 1` for every
+F`, and the rank of ``rhs`` reports
+:math:`r` (an accessor, ``rhs_rank``, read it until it was retired).  Measured on the shipped 0-D fixtures: :math:`r = 1` for every
 group count of the fissile ``A`` family (the energy dyad :math:`|\chi\rangle
 \langle\nu\Sigma_f|` is rank one) and :math:`r = 0` for ``B``/``C``/``D``,
-which carry no :math:`\nu\Sigma_f`.  Those twelve mixtures are not twelve
-cases for the rank law, which reads :math:`F` alone: at a fixed group
-count the three non-fissile mixtures hand it one input, the zero matrix.
-The pencil's gate (``tests/gates/numerics/test_pencil.py``,
-``TestLawTheRank``) is therefore posed on numerics data, not on the
-mixtures: one non-fissile and one fissile pencil at 1, 2 and 4 groups
-(ranks 0 and 1), plus a pencil with two independent emission dyads at 2
-and 4 groups (rank 2, a rank no shipped mixture reaches) — 8 cases, a
-three-sided reading.  A rank that saturates at one,
-``min(1, rank)``, reddens exactly the two rank-2 cases (``[M]`` the layer
-DAG Phase 2 spec's mutation battery).
+which carry no :math:`\nu\Sigma_f`.  The rank law itself (``rhs_rank`` counts the finite spectrum, gated over
+8 cases of ranks 0, 1 and 2 on numerics data, a rank-2 pencil included) was
+retired with its accessor in W0 (2026-11-20): no production consumer read it,
+and the rank of the dense ``rhs`` is one ``numpy`` call where a test wants it.
 The rank-one case has a closed form,
 
 .. math::
@@ -7497,7 +7489,7 @@ a trace row pinned at ``rtol=1e-13`` in 3 of 3).  On a
 meshed S\ :sub:`N` Problem the same query is the
 count of **fissile cells**: ``[M]`` the seedless two-region slab anchor
 (four fuel cells of mixture ``A``, four of the non-fissile ``B``, 160
-degrees of freedom) reads ``pencil.rhs_rank == 4``.
+degrees of freedom) read ``4`` as the finite-eigenvalue count of the pencil (the accessor ``rhs_rank`` is retired).
 
 The eigenvalue kind's remaining properties mirror the source kind's point
 for point.  Its unknown is a **ray** — Krein–Rutman gives a unique
@@ -7980,8 +7972,7 @@ The gates, and what each one can see:
        adjoints, ``.H`` reading the metric on a weighted space
        (``test_law_H_reads_the_metric_on_a_weighted_space``:
        :math:`\mathcal{A}(1)^{\dagger} = G^{-1}(A - F)^{\mathsf T}G \ne
-       (A - F)^{\mathsf T}` on a non-scalar diagonal Gram), ``rhs_rank``
-       over 8 cases of ranks 0, 1 and 2, and the opaque (CP-shaped) pair.
+       (A - F)^{\mathsf T}` on a non-scalar diagonal Gram), and the opaque (CP-shaped) pair.
        The closed-form :math:`k_\infty` pin is
        ``tests/gates/homogeneous/test_kinf_exact_reference.py``; the hub
        identity ``hub.pencil.lhs is hub.system.loss`` is the S\ :sub:`N`
@@ -8350,8 +8341,8 @@ than an assumption:
 * **the sign leg is subsumed, not a second convention.**  Degree-1
   homogeneity holds over :math:`\mathbb{R}`, so :math:`n(-\psi) =
   -n(\psi)`, the displacement is negative, and :math:`\sigma(-\psi) =
-  \sigma(\psi)`.  The dense engines' hand-written :math:`\mathbb{Z}/2`
-  fix (``_sign_normalised``, the ``v.sum() >= 0`` convention) is **one
+  \sigma(\psi)`.  The dense oracle's hand-written :math:`\mathbb{Z}/2`
+  fix (``_sign_normalised`` of the test-side ``_dense_eigen_oracle``, the ``v.sum() >= 0`` convention) is **one
   case** of :eq:`scale-gauge-section`, which is the elegance argument for
   the type: one object absorbs a convention that was a separate helper.
 
@@ -11379,7 +11370,7 @@ the cheapest tell.
        with a diagonal metric, so a spaceless ``DiagonalOperator.H``
        refuses (#625). S6b: ``HilbertMetric.rank(shape)``,
        ``FunctionSpace.rank`` (a composite sums its members') and
-       ``FunctionSpace.project_live`` :math:`= G^{+}G`; today's adjoint is
+       the live projector :math:`= G^{+}G` (then ``FunctionSpace.project_live``, since moved to the test side); today's adjoint is
        already the quotient adjoint (87 of 87 production rows map the
        kernel into the kernel), and its laws are gated modulo the kernel.
        No production number moves. Pinned by

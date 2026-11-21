@@ -102,9 +102,7 @@ __all__ = [
     "act_on_flat_coordinates",
     "admit_matrix",
     "coordinate_space_of",
-    "angular_flux_space",
     "factor_tail",
-    "scalar_flux_space",
 ]
 
 #: The space's element type (what a member of :math:`V` IS): a bare
@@ -986,21 +984,6 @@ class FunctionSpace(Generic[Carrier]):
             return self.n_coordinates
         return metric.rank(self.shape)
 
-    def project_live(self, x: Carrier) -> Carrier:
-        r"""The G-orthogonal projector onto the live part, :math:`P = G^{+}G`.
-
-        :math:`P` is the orthogonal projector onto :math:`\operatorname{range} G
-        = (\ker G)^{\perp}`; it is the identity on a non-degenerate space (to
-        rounding: `[M]` at most 2.7e-16 relative, the two metric faces applied
-        in turn) and zeroes the kernel coordinates of a degenerate one. Two elements are
-        the same element of the quotient :math:`V / \ker G` iff their live
-        projections agree, which is how an adjoint law that holds modulo the
-        kernel is stated and gated (ruling 74; e.g. ``A.H.H`` and ``A`` agree
-        after the codomain's projection). One definition for every space: the
-        composites' block-wise metric verbs make it block-wise.
-        """
-        return self.apply_inverse_metric(self.apply_metric(x))
-
     def kernel_basis(self) -> NDArray:
         r"""An orthonormal basis of :math:`\ker G`, the ``(n, n − rank)`` columns
         in the flat C-order chart (:meth:`HilbertMetric.kernel_basis`; none on a
@@ -1765,63 +1748,4 @@ def factor_tail(width: int) -> tuple[int, ...]:
     behind every trailing spatial-moment axis, on cells and on faces alike.
     """
     return () if width == 1 else (width,)
-
-
-def angular_flux_space(
-    n_cells: int,
-    n_ordinates: int,
-    n_groups: int,
-    *,
-    quadrature_weights: NDArray | None = None,
-) -> FunctionSpace:
-    r"""Construct the angular-flux space for an SN solve.
-
-    Shape is ``(n_cells, n_ordinates, n_groups)``. When
-    ``quadrature_weights`` is provided, it is broadcast along the
-    ordinate axis as the inner-product metadata so the canonical
-    angular inner product
-    :math:`\langle \psi, \varphi \rangle_\Omega = \sum_n w_n \,
-    \psi_n \, \varphi_n` (summed over cells / groups too) becomes
-    :meth:`FunctionSpace.inner_product`.
-
-    Parameters
-    ----------
-    n_cells, n_ordinates, n_groups : int
-        Tensor dimensions.
-    quadrature_weights : NDArray, optional
-        Shape ``(n_ordinates,)`` quadrature weights along the
-        ordinate axis. Reshaped to ``(1, n_ordinates, 1)`` so it
-        broadcasts against the full angular-flux tensor.
-    """
-    weights: NDArray | None = None
-    if quadrature_weights is not None:
-        w = np.asarray(quadrature_weights)
-        if w.shape != (n_ordinates,):
-            raise ValueError(
-                f"quadrature_weights must have shape ({n_ordinates},), "
-                f"got {w.shape}"
-            )
-        weights = w.reshape(1, n_ordinates, 1)
-    return FunctionSpace(
-        name="angular_flux",
-        shape=(n_cells, n_ordinates, n_groups),
-        inner_product_weights=weights,
-    )
-
-
-def scalar_flux_space(n_cells: int, n_groups: int) -> FunctionSpace:
-    r"""Construct the scalar-flux space.
-
-    Shape is ``(n_cells, n_groups)``. No inner-product weights — the
-    canonical inner product on scalar-flux space is the Euclidean
-    sum (or, equivalently, the volume-weighted L² inner product when
-    the cell volumes are absorbed into the operator that produced
-    :math:`\phi`; see :meth:`Mesh1D.volume_measure` for the
-    volume-weighted variant).
-    """
-    return FunctionSpace(
-        name="scalar_flux",
-        shape=(n_cells, n_groups),
-    )
-
 

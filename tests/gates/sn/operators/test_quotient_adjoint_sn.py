@@ -31,6 +31,7 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates.numerics._space_oracles import project_live
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -207,7 +208,7 @@ def test_K80_every_degenerate_ended_leaf_maps_the_kernel_into_the_kernel(name):
                 no_input += 1
                 continue
             x, y = pair
-            leak = W.project_live(op.apply(x - V.project_live(x)))
+            leak = project_live(W, op.apply(x - project_live(V, x)))
             r = float(np.linalg.norm(_flat(leak)) / max(np.linalg.norm(_flat(y)), 1e-300))
             reached[type(op).__name__] += 1
             rows.append((type(op).__name__, r))
@@ -286,7 +287,11 @@ def test_A3_the_implicit_part_inverts_the_sweep_on_the_quotient(name):
     S = M.inverse()
     q = _source_sample(M, t, 21)
     r = M.apply(S.apply(q))
-    P = _ends(M)[1].project_live
+    codomain = _ends(M)[1]
+
+    def P(v):
+        return project_live(codomain, v)
+
     nq = float(np.linalg.norm(_flat(q)))
     _require(np.linalg.norm(_flat(r) - _flat(P(q))) <= 1e-14 * nq, f"[{name}] M M⁻¹ q != P q")
     _require(np.linalg.norm(_flat(r) - _flat(q)) > 1e-3 * nq, f"[{name}] activation: M M⁻¹ = I in the full norm")

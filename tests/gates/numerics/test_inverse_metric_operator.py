@@ -1,17 +1,12 @@
-r"""``InverseMetricOperator`` — a space's inverse metric AS an operator.
+r"""The inverse metric of a space as an OPERATOR: the laws of :class:`~orpheus.numerics.operator.RieszRaiseOperator` on a trace space.
 
-The adapter lets a SPACE's inverse metric enter the operator algebra —
-the trace metrics' :math:`G^{+}`, a degenerate metric's Moore–Penrose face.
-:func:`test_the_frame_can_now_spell_its_own_projector` was its founding
-reason: the projection algebra :math:`\Pi = R \circ G^{-1} \circ M` was
-written down in the tree but the frame's probe was a ``FunctionSpace``
-while :func:`~orpheus.numerics.frame_faces.conjugate` wants a
-``LinearOperator``. Since CS4c step 6 item 6.2c-ii the frame owns that
-factor as a typed arrow (:meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`,
-``test_space → basis_space``): an endomorphism of a metric-twin space
-cannot compose with the faces once the metric enters space identity, so the
-projector row below spells the frame's own arrow, and this adapter keeps
-the space-side rows (the degenerate trace metrics) as its justification.
+A space's inverse metric :math:`G^{+} : V^{*} \to V` enters the operator algebra as the Riesz RAISING leg, an arrow from the
+dual space to the primal one (``domain == V.dual()``, ``codomain is V``). The same array action was once also spelled as an
+endomorphism of the primal space; that mistyped arrow is retired and these rows state the laws for the surviving type, the
+two ends included.
+:func:`test_the_frame_can_now_spell_its_own_projector` was the adapter's founding reason: the projection algebra
+:math:`\Pi = R \circ G^{-1} \circ M` is spelled by the frame's own typed arrow
+(:meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of`, ``test_space → basis_space``).
 
 ⚠ The degenerate-metric rows are the load-bearing ones.  `[M]` the SN
 trace metric :math:`G = |\Omega\cdot\hat n| w_n` is EXACTLY zero on
@@ -33,7 +28,7 @@ import pytest
 from orpheus.numerics.basis import SphericalHarmonicBasis
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.frame import GalerkinFrame
-from orpheus.numerics.operator import InverseMetricOperator
+from orpheus.numerics.operator import RieszRaiseOperator
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics import frame_faces
@@ -66,17 +61,15 @@ _QUADRATURES = {
 
 @pytest.mark.foundation
 @pytest.mark.parametrize("name", sorted(_QUADRATURES))
-def test_the_operator_is_bound_to_the_space_on_both_ends(name):
-    """``domain`` and ``codomain`` are the space itself.
+def test_the_operator_is_the_arrow_from_the_dual_space_to_the_space(name):
+    """``domain == V.dual()`` and ``codomain is V``: the inverse metric takes a co-vector to a vector.
 
-    The metric re-weights a carrier; it does not move between spaces.
-    Binding BOTH ends is what lets ``OperatorProduct``'s compatibility
-    guard check a composition that contains it — an unbound factor
-    poisons that end of the product.
+    The two ends differ (the pseudo-inverse of the metric is the inverse Riesz map, not an endomorphism of the primal
+    space), and binding BOTH is what lets ``OperatorProduct``'s compatibility guard check a composition that contains it.
     """
     space = _trace_space(_QUADRATURES[name])
-    operator = InverseMetricOperator(space)
-    assert operator.domain is space
+    operator = RieszRaiseOperator(space)
+    assert operator.domain == space.dual()
     assert operator.codomain is space
     assert operator.space is space
 
@@ -84,15 +77,16 @@ def test_the_operator_is_bound_to_the_space_on_both_ends(name):
 @pytest.mark.foundation
 @pytest.mark.parametrize("name", sorted(_QUADRATURES))
 def test_it_is_self_adjoint(name):
-    """A real diagonal weight is its own transpose."""
+    """A real diagonal weight is its own transpose: ``apply_transpose(f)`` is bit-equal to ``apply(f)`` and
+    ``<apply(f), g> = <f, apply(g)>`` over ``V*`` under the canonical (Euclidean) pairing."""
     space = _trace_space(_QUADRATURES[name])
-    operator = InverseMetricOperator(space)
+    operator = RieszRaiseOperator(space)
     rng = np.random.default_rng(0)
-    x = rng.standard_normal(np.asarray(space.inner_product_weights).shape)
+    shape = np.asarray(space.inner_product_weights).shape
+    f, g = rng.standard_normal(shape), rng.standard_normal(shape)
     assert operator.is_adjointable
-    np.testing.assert_array_equal(
-        operator.apply(x), operator.apply_transpose(x),
-    )
+    np.testing.assert_array_equal(operator.apply(f), operator.apply_transpose(f))
+    np.testing.assert_allclose(np.sum(operator.apply(f) * g), np.sum(f * operator.apply(g)), rtol=1e-12)
 
 
 @pytest.mark.foundation
@@ -105,7 +99,7 @@ def test_no_solve_and_it_is_spelled_by_ABSENCE():
     (``TraceRestrictionOperator``), never a raising stub — so misuse is
     a static error rather than a runtime one.
     """
-    operator = InverseMetricOperator(_trace_space(_QUADRATURES["product(4,4)"]))
+    operator = RieszRaiseOperator(_trace_space(_QUADRATURES["product(4,4)"]))
     assert operator.is_invertible is False
     assert not hasattr(operator, "inverse")
 
@@ -124,7 +118,7 @@ def test_the_pseudo_inverse_masks_the_metrics_null_space():
     assert null_rows.any(), "fixture no longer has a degenerate metric"
 
     ones = np.ones(weights.shape)
-    out = InverseMetricOperator(degenerate).apply(ones).ravel()
+    out = RieszRaiseOperator(degenerate).apply(ones).ravel()
     assert np.all(out[null_rows] == 0.0)
     assert np.all(np.isfinite(out)), "a masked row must not divide by zero"
 
@@ -140,12 +134,12 @@ def test_the_pseudo_inverse_masks_the_metrics_null_space():
 @pytest.mark.foundation
 @pytest.mark.parametrize("name", sorted(_QUADRATURES))
 def test_it_inverts_the_metric_off_the_null_space(name):
-    """``G⁺ G x == x`` wherever the metric is nonzero — the actual contract."""
+    """``G (G⁺ x) == x`` wherever the metric is nonzero (``x`` annihilates ``ker G``) — the actual contract."""
     space = _trace_space(_QUADRATURES[name])
     weights = np.asarray(space.inner_product_weights)
     live = np.abs(weights.ravel()) > 0.0
     x = np.ones(weights.shape)
-    round_trip = space.apply_metric(InverseMetricOperator(space).apply(x))
+    round_trip = space.apply_metric(RieszRaiseOperator(space).apply(x))
     np.testing.assert_allclose(round_trip.ravel()[live], x.ravel()[live])
 
 

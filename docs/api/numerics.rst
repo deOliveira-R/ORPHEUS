@@ -52,25 +52,19 @@ absolute flux (e.g. for power calibration, dose calculations) must
 post-normalise, typically by fixing the total integral fission
 source or the total power deposition.
 
-**Direct and Rayleigh-quotient siblings.**
+**The dense and Rayleigh-quotient siblings (retired).**
 :func:`~orpheus.numerics.eigenvalue.power_iteration` is the iterative engine
-for large, sweep-only operators that are never densely formed.  Two siblings
-in :mod:`orpheus.numerics.eigenvalue` solve the same generalised
-eigenproblem by different realisations:
-:func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` forms the dense
-resolvent :math:`\mathbf{A}^{-1}\mathbf{F}` from a posed
-:math:`(\mathbf{A}, \mathbf{F})` pair via :func:`numpy.linalg.solve` and
-returns the EXACT dominant eigenpair — the right tool for small, densifiable
-operators — and
-:func:`~orpheus.numerics.eigenvalue.rayleigh_quotient_iteration` polishes an
-eigenpair *estimate* to the NEAREST eigenpair superlinearly (bordered /
-augmented-Newton).  Both direct engines terminate in one shared
-Perron–Frobenius extraction primitive,
-:func:`~orpheus.numerics.eigenvalue.dominant_eigenpair`, which takes a
-materialized resolvent :math:`\mathbf{M}` — *however* it was formed —
-selects the dominant eigenpair, sign-normalises the mode, and rejects a
-complex dominant as a malformed problem.  The homogeneous :math:`k_\infty`
-solve uses none of them: its fission operator has rank one, so the eigenpair
+for large, sweep-only operators that are never densely formed, and the only
+realisation of the generalised eigenproblem that
+:mod:`orpheus.numerics.eigenvalue` ships.  Two siblings once sat beside it and
+were retired in W0 (2026-11-20) because no production path called them: the
+dense ``direct_eigenvalue`` (the exact dominant eigenpair of the dense
+resolvent :math:`\mathbf{A}^{-1}\mathbf{F}`, with the shared Perron–Frobenius
+extraction ``dominant_eigenpair``) now lives on the test side as the oracle
+``tests/gates/numerics/_dense_eigen_oracle.py``, and Rayleigh-quotient
+iteration, which polished an eigenpair *estimate* to the NEAREST eigenpair, was
+deleted with its tests.  The homogeneous :math:`k_\infty`
+solve uses neither: its fission operator has rank one, so the eigenpair
 is one solve and one inner product
 (:ref:`homogeneous-rank-one-route`).  The full
 three-engine comparison, and the pure-math verification principle that lets a
@@ -436,12 +430,11 @@ discipline-type hierarchy, GitHub #268):
   precomputed overlap table) — a no-op extension through the inherited
   contractions — and declares
   :attr:`~orpheus.numerics.basis.base.GramStructure.PARTITION_OF_UNITY`.
-  Two table diagnostics carry the re-binning provenance:
-  :attr:`~orpheus.numerics.basis.overlap_basis.OverlapBasis.dominant_column`
-  (the ``argmax`` containing-coarse map) and
-  :attr:`~orpheus.numerics.basis.overlap_basis.OverlapBasis.fractional_columns`
-  (the coarse columns that received a strictly-fractional contribution —
-  empty for a nested table).
+  The re-binning provenance is read off ``overlap_table`` itself: the
+  ``argmax`` of each fine row is its dominant coarse column, and the
+  coarse columns holding a strictly-fractional entry are those that
+  leaned on the within-group model (none for a nested table); the two
+  readings are oracles of the gate, not methods of the basis.
 * :class:`~orpheus.numerics.basis.WeightedIndicatorBasis` — the
   Petrov-Galerkin **test**-side basis: a weight (flux / spectrum /
   production) carried as an *analysis* weight on the cell/group

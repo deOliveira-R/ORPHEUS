@@ -1683,7 +1683,7 @@ factory routing waited. Taxonomy **step 5b closed that loop**: the homogeneous
 solver is now the **first production consumer** (below). What still waits is
 the *factory routing* — an automatic ``.inverse()`` that returns this type —
 which homogeneous deliberately **bypasses** (see the ``direct_eigenvalue``
-bullet). The consumers, from latent to landed:
+bullet; that engine is now the test-side oracle). The consumers, from latent to landed:
 
 * **The retired ``_as_dense``.** The homogeneous solver's private
   apply-to-basis loop was retired into
@@ -1699,7 +1699,7 @@ bullet). The consumers, from latent to landed:
   own ``as_matrix`` forms :math:`[\mathbf K] = \mathbf A^{-1}\mathbf F`.) See
   :ref:`theory-homogeneous`.
 * **``direct_eigenvalue`` — the latent consumer, now realized.**
-  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue`'s dense
+  ``direct_eigenvalue``'s dense
   ``np.linalg.solve(A, F)`` **is** this operator's action written as free
   functions — the latent consumer that made the promotion finishable
   (taxonomy §5: "no current consumer" often means "consumer not yet
@@ -1714,8 +1714,9 @@ bullet). The consumers, from latent to landed:
   its iterative inverse would be the Green of a named split,
   ``GreenOperator(C, K_iso)`` — the direct-realization strategy encoded as
   a type. With the operator
-  spelling live, ``direct_eigenvalue`` has **zero production consumers**,
-  retained as the ``(A, F)``-posed sibling engine and the RQI test oracle.
+  spelling live, ``direct_eigenvalue`` had **zero production consumers**; it
+  moved to the test side in W0 (2026-11-20) as the ``(A, F)``-posed dense oracle
+  (``tests/gates/numerics/_dense_eigen_oracle.py``).
   See :ref:`direct-eigensolve-solve`.
 * **CP :math:`[P]` — the next production method in line.** The
   collision-probability matrix is dense **by construction**

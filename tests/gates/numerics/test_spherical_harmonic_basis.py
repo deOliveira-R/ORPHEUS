@@ -1,7 +1,7 @@
 r"""Tests for :class:`orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis`.
 
-The class's :meth:`evaluate` / :meth:`evaluate_from_components` methods
-return the :math:`(N, L+1, 2L+1)` table of real spherical harmonics
+The class's :meth:`evaluate` method
+returns the :math:`(N, L+1, 2L+1)` table of real spherical harmonics
 under the no-:math:`4\pi/(2\ell+1)`-prefactor convention used by the
 SN Galerkin reconstruction. The invariants below are the test hooks
 the architecture catalog (§B-table) names for the harmonic basis:
@@ -118,7 +118,7 @@ class TestAdditionTheorem:
             mu_x = v[:, 0]
             mu_y = v[:, 1]
             mu_z = v[:, 2]
-            Y = basis.evaluate_from_components(mu_x, mu_y, mu_z)
+            Y = basis.evaluate(np.column_stack([mu_x, mu_y, mu_z]))
             # cos(angle) = Ω · Ω'
             cos_alpha = float(np.dot(v[0], v[1]))
             for l in range(L + 1):
@@ -153,7 +153,7 @@ class TestDiscreteOrthogonalityOnLebedev:
         w = measure.weights
         deg = measure.degree_of_exactness
         L = deg // 2  # safe order so ℓ+ℓ' ≤ deg
-        Y = SphericalHarmonicBasis(L=L).evaluate_from_components(mu_x, mu_y, mu_z)
+        Y = SphericalHarmonicBasis(L=L).evaluate(np.column_stack([mu_x, mu_y, mu_z]))
         # Build flat (Y_lm) basis indexed by (l, m_offset).
         flat = []
         labels = []
@@ -182,7 +182,7 @@ def test_on_axis_safe_no_division_by_zero():
     mu_y = np.array([0.0, 0.0, 1.0])
     mu_z = np.array([0.0, 0.0, 0.0])
     with np.errstate(divide="raise", invalid="raise"):
-        Y = SphericalHarmonicBasis(L=3).evaluate_from_components(mu_x, mu_y, mu_z)
+        Y = SphericalHarmonicBasis(L=3).evaluate(np.column_stack([mu_x, mu_y, mu_z]))
     assert np.all(np.isfinite(Y))
 
 
@@ -232,11 +232,6 @@ class TestEvaluateRefusesDirectionsOffTheSphere:
 
         with pytest.raises(ValueError, match=r"8 of 8 directions are not points of S\^2"):
             SphericalHarmonicBasis(L=2).evaluate(forged)
-
-        # the same refusal one layer in: evaluate_from_components routes
-        # through evaluate, so the component door cannot bypass it.
-        with pytest.raises(ValueError, match="not points of S"):
-            SphericalHarmonicBasis(L=2).evaluate_from_components(mu, zeros, zeros)
 
         # …and the forged MEASURE, assembled the way production used to —
         # this is the object the fix retired, kept alive here as the witness.

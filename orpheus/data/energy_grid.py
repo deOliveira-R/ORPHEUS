@@ -55,8 +55,8 @@ a *finer* structure from group-integrated data fabricates sub-group detail the d
 never carried, so :meth:`overlap_to` **refuses** a coarse target with more groups than
 the source (the upscaling guard). Where the coarse grid is *locally* finer than the fine
 grid, the within-group model performs a bounded, explicit interpolation — those coarse
-groups are reported by :attr:`~orpheus.numerics.basis.OverlapBasis.fractional_columns`
-so the data-vs-assumption provenance is visible. (Faithful reconstruction / honest
+groups are the columns of :attr:`~orpheus.numerics.basis.OverlapBasis.overlap_table` that
+hold a strictly-fractional entry, so the data-vs-assumption provenance is visible in the table. (Faithful reconstruction / honest
 upscaling via rank>0 GEC moments is a future capability — GitHub #275.)
 
 The reuse — index-space membership, the existing PG frame

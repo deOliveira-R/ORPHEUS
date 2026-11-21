@@ -12,10 +12,11 @@ objects that carry its structure:
   coarse)``.
 * ``OverlapBasis`` (returned by ``overlap_to``) — the fine→coarse trial
   carrying the fractional membership table ``overlap_table`` (a partition
-  of unity, rows summing to 1; nested → one-hot). Its ``dominant_column``
-  is the per-fine-group dominant coarse index (the former
-  ``GroupCondensation.coarse_of_fine``), and ``fractional_columns`` reports
-  the coarse groups that leaned on the within-group model (the former
+  of unity, rows summing to 1; nested → one-hot). The per-fine-group dominant
+  coarse index is the ``argmax`` of that table (``dominant_column`` below, the
+  former ``GroupCondensation.coarse_of_fine``), and the test-side
+  ``fractional_columns`` (``tests/gates/numerics/_overlap_basis_oracles.py``)
+  reports the coarse groups that leaned on the within-group model (the former
   ``GroupCondensation.locally_interpolated``).
 
 This file pins the DEFINING LAWS of those types (the user's standing
@@ -52,8 +53,18 @@ from orpheus.numerics.axis import EnergyAxis
 from tests.gates.numerics.test_indicator_basis_orientation import _EG_DESC  # the small descending grid, 4 groups fast-first
 import dataclasses
 from orpheus.data.macro_xs.synthetic import get_mixture
+from tests.gates.numerics._overlap_basis_oracles import fractional_columns
 
 pytestmark = pytest.mark.foundation
+
+
+def dominant_column(overlap_basis) -> np.ndarray:
+    r"""The DOMINANT coarse column of each fine row: ``argmax`` of ``overlap_basis.overlap_table``, shape ``(n_fine,)``.
+
+    For a NESTED (one-hot) table this is the exact containing-coarse map; for a straddling fine row it is the coarse cell
+    receiving the largest fraction (a reporting view; the real apportionment is the full table).
+    """
+    return overlap_basis.overlap_table.argmax(axis=1).astype(int)
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -241,10 +252,10 @@ class TestOverlapToIntrinsic:
     def _coarse_of_fine(overlap) -> np.ndarray:
         """The per-fine-group dominant coarse index as a 1-D int array.
 
-        ``OverlapBasis.dominant_column`` is the containing-interval map for a
+        ``dominant_column`` is the containing-interval map for a
         nested grid (and the argmax-fraction for a straddle).
         """
-        return np.asarray(overlap.dominant_column, dtype=int).ravel()
+        return np.asarray(dominant_column(overlap), dtype=int).ravel()
 
     def test_every_fine_maps_to_exactly_one_coarse(self) -> None:
         """Containing-interval: each fine group → exactly one coarse group."""
@@ -510,7 +521,7 @@ class TestF2PartitionOfUnity:
         overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
         T = np.asarray(overlap.overlap_table, dtype=float)
         # Independent one-hot oracle from the containing-interval map.
-        cof = np.asarray(overlap.dominant_column, dtype=int).ravel()
+        cof = np.asarray(dominant_column(overlap), dtype=int).ravel()
         one_hot = np.zeros_like(T)
         one_hot[np.arange(T.shape[0]), cof] = 1.0
         np.testing.assert_array_equal(
@@ -561,7 +572,7 @@ class TestF3NestedDegeneracy:
         coarse_e = np.array([1e7, 1e6, 1e0, 1e-3])
         overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
         np.testing.assert_array_equal(
-            np.asarray(overlap.dominant_column, dtype=int).ravel(),
+            np.asarray(dominant_column(overlap), dtype=int).ravel(),
             np.array([0, 0, 1, 1, 1, 2, 2, 2]),
             err_msg="nested dominant_column must be the contiguous fast-first partition",
         )
@@ -625,7 +636,7 @@ class TestF6LocalInterpolationReport:
         fine_e = np.array([1e7, 5e6, 1e6, 1e3, 1e1, 1e0, 1e-1, 1e-2, 1e-3])
         coarse_e = np.array([1e7, 1e6, 1e0, 1e-3])  # all cuts on fine edges
         overlap = _build_fractional(fine_e, coarse_e, within_group=InverseEnergySpectrum())
-        li = np.asarray(overlap.fractional_columns, dtype=int).ravel()
+        li = np.asarray(fractional_columns(overlap), dtype=int).ravel()
         np.testing.assert_array_equal(
             li.size, 0,
             err_msg="nested condensation must report NO locally-interpolated groups",
@@ -641,7 +652,7 @@ class TestF6LocalInterpolationReport:
             _FINE_STRADDLE, _COARSE_STRADDLE,
             within_group=InverseEnergySpectrum(),
         )
-        li = set(np.asarray(overlap.fractional_columns, dtype=int).ravel().tolist())
+        li = set(np.asarray(fractional_columns(overlap), dtype=int).ravel().tolist())
         np.testing.assert_array_less(
             0, len(li),
             err_msg="a straddle must report ≥1 locally-interpolated coarse group",

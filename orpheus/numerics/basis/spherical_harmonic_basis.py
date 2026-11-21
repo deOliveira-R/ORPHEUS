@@ -239,32 +239,6 @@ class SphericalHarmonicBasis(Basis):
             self.L, directions[:, 0], directions[:, 1], directions[:, 2],
         )
 
-    def evaluate_from_components(
-        self,
-        mu_x: NDArray,
-        mu_y: NDArray,
-        mu_z: NDArray,
-    ) -> NDArray:
-        r"""Tabulate from separated direction-cosine arrays.
-
-        Equivalent to :meth:`evaluate` but accepts three :math:`(N,)`
-        arrays instead of one :math:`(N, 3)` array. Provided for
-        :class:`~orpheus.numerics.quadrature.Quadrature` and other
-        per-component consumers (the SN quadratures historically expose
-        ``mu_x`` / ``mu_y`` / ``mu_z`` as separate attributes).
-
-        Parameters
-        ----------
-        mu_x, mu_y, mu_z : NDArray, shape ``(N,)``
-            Direction-cosine arrays.
-
-        Returns
-        -------
-        NDArray, shape ``(N, L+1, 2L+1)``
-            Same layout as :meth:`evaluate`.
-        """
-        return self.evaluate(np.column_stack([mu_x, mu_y, mu_z]))
-
     # ── Table contractions (the Frame caches the table, delegates here) ───
 
     def _synthesize(self, coefficients: NDArray, table: NDArray) -> NDArray:
@@ -501,15 +475,6 @@ class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
         table = super().evaluate(directions)
         return table * self.even_slot_mask[None, :, :]
 
-    def evaluate_from_components(
-        self,
-        mu_x: NDArray,
-        mu_y: NDArray,
-        mu_z: NDArray,
-    ) -> NDArray:
-        table = super().evaluate_from_components(mu_x, mu_y, mu_z)
-        return table * self.even_slot_mask[None, :, :]
-
 
 # ─────────────────────────────────────────────────────────────────────
 # Algorithm body (private — preserved bit-identical from
@@ -529,9 +494,8 @@ def _evaluate_real_sh(
     :math:`(L, \Omega) \mapsto Y` table): it was carved out so the
     now-retired back-compat shim ``orpheus.numerics.spherical_harmonics``
     could re-export it without instantiating a class, and it stays free
-    because :meth:`SphericalHarmonicBasis.evaluate` and
-    :meth:`SphericalHarmonicBasis.evaluate_from_components` are both
-    thin callers of it. Algorithm preserved bit-identical to the legacy
+    because :meth:`SphericalHarmonicBasis.evaluate` is
+    a thin caller of it. Algorithm preserved bit-identical to the legacy
     ``evaluate_real_sh`` so the snapshots at
     ``tests/gates/sn/regression/snapshots/`` continue to pass.
 

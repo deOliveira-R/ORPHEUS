@@ -5,7 +5,7 @@ Three gate families over :class:`orpheus.diffusion.DiffusionSolver` /
 
 * **cross-engine** — the protocol-driven
   :func:`~orpheus.numerics.eigenvalue.power_iteration` path ≡
-  :func:`~orpheus.numerics.eigenvalue.direct_eigenvalue` on the
+  ``direct_eigenvalue`` (the test-side dense oracle) on the
   materialized ``(A, F)`` pair, ``|Δk| < 1e-10`` + the full composite
   eigenvector, across the albedo family (the campaign's committed
   engine gate);
@@ -41,9 +41,10 @@ from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import declare_sides
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.homogeneous import solve_homogeneous_infinite
-from orpheus.numerics.eigenvalue import ProductionRateSolver, direct_eigenvalue
+from orpheus.numerics.eigenvalue import ProductionRateSolver
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
+from tests.gates.numerics._dense_eigen_oracle import direct_eigenvalue
 
 # ═══════════════════════════════════════════════════════════════════════
 # Materials — heterogeneous asymmetric 2G (the P4 anti-degeneracy tables)

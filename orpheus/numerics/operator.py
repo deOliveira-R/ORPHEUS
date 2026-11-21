@@ -147,7 +147,6 @@ __all__ = [
     "RieszRaiseOperator",
     "IdentityOperator",
     "PointwiseOperator",
-    "InverseMetricOperator",
     "TensorProductOperator",
 ]
 
@@ -2234,7 +2233,7 @@ class PointwiseOperator(LinearOperator[Domain, Domain]):
     many spaces, yet permuting does NOT commute with a general diagonal
     metric, so its adjoint genuinely needs the spaces — it is correctly
     NOT a member. Bound multipliers (``MultiplicationOperator``,
-    :class:`InverseMetricOperator`) are pointwise in ACTION but defined
+    :class:`RieszRaiseOperator`) are pointwise in ACTION but defined
     by a space's data — they stay bound classes.
     """
 
@@ -2899,91 +2898,3 @@ class TensorProductOperator(LinearOperator):
     def is_metric_free_adjoint(self) -> bool:
         # A tensor product of metric-free operators is metric-free (derived).
         return all(op.is_metric_free_adjoint for op in self.ops)
-
-
-
-
-class InverseMetricOperator(LinearOperator):
-    r"""A :class:`~orpheus.numerics.space.FunctionSpace`'s inverse metric, as an OPERATOR.
-
-    :math:`G^{+} : V^{*} \to V` — the adapter that lets a space's metric
-    enter the operator algebra instead of only being *applied* to arrays.
-
-    **Why this exists.** A space's metric enters the operator algebra
-    through this adapter — the trace metrics' inverses, a degenerate
-    metric's Moore–Penrose face — wherever :math:`G^{+}` of a SPACE is the
-    operator wanted. (Until CS4c step 6 item 6.2c-ii the frame's projector
-    was spelled through it too, as
-    ``conjugate(frame, InverseMetricOperator(frame.gram))`` over a metric-twin
-    of the test space; the frame now owns that factor as a typed arrow,
-    :meth:`~orpheus.numerics.frame_faces.CrossGramInverse.of` — an endomorphism
-    of a twin space cannot compose with the faces once the metric enters
-    space identity.)
-
-    **The arithmetic is the SPACE's, not ours** (Cardinal Rule 2): every
-    apply delegates to
-    :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric`, so
-    the Moore–Penrose masking on a degenerate metric —
-    :math:`1/G` where :math:`G \neq 0`, **0** on
-    :math:`\ker G` — is single-sourced there and cannot drift.  That
-    masking is not academic: `[M]` the SN trace metric
-    :math:`G = |\Omega\cdot\hat n|\,w_n` is **exactly zero** on tangential
-    ordinates — 50 % of rows under ``product(4,4)``, 16 % under
-    ``lebedev(11)``, 0 % under ``level_symmetric``.
-
-    ⛔ **Not invertible, and it says so by ABSENCE.** On a degenerate
-    metric this is a pseudo-inverse, so ``G⁺G ≠ I`` and there is no
-    ``inverse()`` method to call — the
-    :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` spelling, not a raising stub
-    (:attr:`is_invertible` stays ``False``).  ⚠ Consequently
-    ``InverseMetricOperator(space)`` composed with a forward metric does
-    **not** cancel; if you want the round trip, assert it on a field you
-    know is off the null space.
-
-    Self-adjoint: the metric is a symmetric positive-semi-definite form —
-    a diagonal weight, or since P7 a dense
-    :class:`~orpheus.numerics.metric.DenseMetric` (symmetry guarded at its
-    construction) — so :math:`(G^{+})^{\mathsf T} = G^{+}` and
-    ``apply_transpose`` is ``apply`` for every realization.
-
-    Parameters
-    ----------
-    space :
-        The space whose metric to invert.  Serves as BOTH ``domain`` and
-        ``codomain`` — the metric is an endomorphism of the carrier's
-        shape (it re-weights, it does not move between spaces), and
-        binding both ends is what lets
-        :class:`OperatorProduct`'s compatibility guard check the
-        composition.
-    """
-
-    def __init__(self, space: FunctionSpace) -> None:
-        self._space = space
-
-    @property
-    def space(self) -> FunctionSpace:
-        """The space whose metric this inverts."""
-        return self._space
-
-    @property
-    def domain(self) -> Optional[FunctionSpace]:
-        return self._space
-
-    @property
-    def codomain(self) -> Optional[FunctionSpace]:
-        return self._space
-
-    def apply(self, x: np.ndarray) -> np.ndarray:
-        return self._space.apply_inverse_metric(x)
-
-    def apply_transpose(self, x: np.ndarray) -> np.ndarray:
-        # Self-adjoint: a real diagonal weight is its own transpose.
-        return self._space.apply_inverse_metric(x)
-
-    @property
-    def is_adjointable(self) -> bool:
-        return True
-
-    def __repr__(self) -> str:
-        return f"InverseMetricOperator({self._space!r})"
-

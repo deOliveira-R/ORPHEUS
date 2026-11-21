@@ -278,6 +278,7 @@ from orpheus.data.group_structures.ornl import ORNL_421
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates.numerics._overlap_basis_oracles import fractional_columns
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -419,7 +420,7 @@ def test_real_pwr_421_to_wims69_condensation_succeeds():
     )
 
     # fractional_columns reported (non-empty — the non-nested straddle groups).
-    li = np.asarray(overlap.fractional_columns, dtype=int).ravel()
+    li = np.asarray(fractional_columns(overlap), dtype=int).ravel()
     np.testing.assert_array_less(
         0, li.size,
         err_msg="421→WIMS-69 is NON-NESTED → fractional_columns must be "

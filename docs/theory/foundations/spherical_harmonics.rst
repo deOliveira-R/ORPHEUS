@@ -1113,9 +1113,7 @@ Implementation map
 
 The pure-Python reference implementation is
 :meth:`SphericalHarmonicBasis.evaluate
-<orpheus.numerics.basis.SphericalHarmonicBasis.evaluate>` (and its
-per-component sibling
-:meth:`~orpheus.numerics.basis.SphericalHarmonicBasis.evaluate_from_components`).
+<orpheus.numerics.basis.SphericalHarmonicBasis.evaluate>`.
 Its return value is the ``(N, L+1, 2L+1)`` **table** consumed by the
 spherical-harmonic :class:`~orpheus.numerics.frame.GalerkinFrame`. The frame
 caches the table once (``frame.table``) and the two faces delegate.

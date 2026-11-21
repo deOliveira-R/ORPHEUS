@@ -25,7 +25,7 @@ import re
 import numpy as np
 import pytest
 
-from tests.gates.numerics._energy_pencil import FISSILE, POINT, EnergyPencil, GroupData, bound, energy_space, non_fissile, two_spectra, weighted_space
+from tests.gates.numerics._energy_pencil import FISSILE, POINT, EnergyPencil, GroupData, bound, energy_space, weighted_space
 
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.operator import LinearOperator
@@ -117,18 +117,6 @@ class TestLawTheAdjoint:
         H = np.asarray(p.pencil.at(1.0).H.as_matrix(), dtype=float)
         _require(not np.allclose(metric_adjoint, (A - F).T), "non-vacuity: the metric adjoint differs from the transpose here")
         _require(np.allclose(H, metric_adjoint, rtol=1e-14, atol=0.0), f"at(1).H must be G⁻¹(A − F)ᵀG; got {H}")
-
-
-_RANK_CASES = [(ng, fam, rank) for ng in (1, 2, 4) for fam, rank in (("fissile", 1), ("non-fissile", 0), ("two spectra", 2)) if not (fam == "two spectra" and ng == 1)]
-_FAMILY = {"fissile": lambda ng: FISSILE[ng], "non-fissile": non_fissile, "two spectra": two_spectra}
-
-
-class TestLawTheRank:
-    @pytest.mark.parametrize("ng,family,rank", _RANK_CASES, ids=[f"{f}-{n}g" for n, f, _ in _RANK_CASES])
-    def test_law_rhs_rank_counts_the_finite_spectrum(self, ng: int, family: str, rank: int) -> None:
-        """Weierstrass–Kronecker: exactly rank(M) finite eigenvalues — a three-sided gate (0, 1, 2; rank 2 needs ng ≥ 2)."""
-        pencil = EnergyPencil.of(_FAMILY[family](ng)).pencil
-        _require(pencil.rhs_rank == rank, f"{family}/{ng}g: rhs_rank {pencil.rhs_rank} ≠ {rank}")
 
 
 class _Dense(LinearOperator):

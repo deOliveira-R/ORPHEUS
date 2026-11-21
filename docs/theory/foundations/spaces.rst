@@ -1403,8 +1403,7 @@ flattened row-major with **factor 0 outermost**: the multi-index
 ``np.kron(c_0, c_1, ...)``. For the Cartesian axes :math:`x, y, z` as factors
 0, 1, 2 this is the order :eq:`spatial-moment-kronecker-order` records
 (:math:`x` outer, the cell average in slot 0), and
-:meth:`TensorLayout.multi_index
-<orpheus.numerics.coefficient_layout.TensorLayout.multi_index>` inverts it
+``np.unravel_index`` over the layout's ``factor_shape`` inverts it
 (``[M]`` at :math:`d = 2`: ``[(0, 0), (0, 1), (1, 0), (1, 1)]``). The
 consequences, each a property of the object:
 
@@ -3724,8 +3723,11 @@ legs then does not return the identity. From the third and fourth Penrose condit
 .. (vv-status rationale) An identity of the pseudo-inverse, not a solver
    claim: G⁺G is the orthogonal projector onto range(G) for any symmetric
    G (Penrose conditions 1, 2 and 4). Implemented by
-   FunctionSpace.project_live (S6b, ruling 74), which forms exactly
-   apply_inverse_metric(apply_metric(x)). Its measurement is
+   the composition of the two legs (RieszRaiseOperator after
+   RieszLowerOperator), which forms exactly
+   apply_inverse_metric(apply_metric(x)) (S6b, ruling 74; the space's
+   ``project_live`` method is retired, its oracle lives in
+   tests/gates/numerics/_space_oracles.py). Its measurement is
    tests/gates/numerics/test_riesz_legs.py G-H1: identity on a strictly
    positive metric (the positivity precondition asserted), the
    kernel-zeroing projector on a singular diagonal one, and non-finite
@@ -3741,12 +3743,12 @@ legs then does not return the identity. From the third and fourth Penrose condit
    \sharp_V \circ \flat_V \;=\; G^{+} G \;=\; P_{\operatorname{range}(G)} ,
 
 .. implements:: spaces-riesz-round-trip
-   :by: orpheus.numerics.space.FunctionSpace.project_live
+   :by: orpheus.numerics.operator.RieszRaiseOperator.apply
 
-   **Implemented by** the live projector, whose body is
-   ``self.apply_inverse_metric(self.apply_metric(x))``: the round trip of
-   the two legs' arithmetic, read through the space so a composite applies
-   it block by block (:ref:`spaces-quotient`). The composite adjoint uses
+   **Implemented by** the raising leg applied after the lowering leg: the
+   round trip of the two legs' arithmetic,
+   ``apply_inverse_metric(apply_metric(x))``, read through the space so a
+   composite applies it block by block (:ref:`spaces-quotient`). The composite adjoint uses
    the legs in the other order around an operator (below). The identity
    is what makes the legs *honest* on a singular metric, and it is
    measured by G-H1.
@@ -4365,7 +4367,8 @@ Two readings make the quotient explicit:
   <orpheus.numerics.space.FunctionSpace.rank>` reads its metric (the
   element size when the space is Euclidean), and a direct sum or a coupled
   space sums its members' ranks.
-- :meth:`FunctionSpace.project_live <orpheus.numerics.space.FunctionSpace.project_live>`
+- The live projector (the test-side oracle ``project_live``, the space's own
+  method having been retired)
   is :math:`P = G^{+}G` (:eq:`spaces-riesz-round-trip`), the orthogonal
   projector onto :math:`\operatorname{range} G = (\ker G)^{\perp}`. It is
   the identity on a non-degenerate space and zeroes the kernel

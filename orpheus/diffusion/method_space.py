@@ -69,7 +69,7 @@ class DiffusionMethodSpace:
 
     All fields default to ``None`` so the realizer's rank-1
     albedo-family dispatch — which reads nothing from the method
-    space — works on a :meth:`minimal` instance. The canonical
+    space — works on the default-constructed ``DiffusionMethodSpace()``. The canonical
     construction site is :meth:`for_face` (the
     ``DiffusionMesh.realize_boundary_role`` wiring — the diffusion arm
     of the #290 P7b ``TransportMethod`` hook), which validates the face
@@ -78,16 +78,6 @@ class DiffusionMethodSpace:
 
     face: Optional[str] = None
     trace: "Optional[ScalarTraceSpace]" = None
-
-    @classmethod
-    def minimal(cls) -> "DiffusionMethodSpace":
-        """Metadata-free method space.
-
-        Sufficient for realizing any single albedo-family law — the
-        realized operator is a face-slot-shape-agnostic scalar multiple
-        of the identity, so no trace metadata is consulted.
-        """
-        return cls()
 
     @classmethod
     def for_face(

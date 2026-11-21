@@ -4,7 +4,7 @@ The fission emission spectrum :math:`\\chi` is a probability simplex:
 :math:`\\sum_g \\chi_g = 1` and :math:`\\chi_g \\ge 0\\ \\forall g`.
 S10a introduces ``orpheus.data.emission_spectrum.EmissionSpectrum`` — a
 ``numpy.ndarray`` subclass that carries this invariant as methods
-(``assert_normalized`` / ``is_emitting`` / ``assert_null``).
+(``assert_normalized`` / ``assert_null``).
 
 This file is the vv-anti-pattern-#11 gate: EACH validator gets BOTH a
 positive leg (a correct instance MUST NOT raise) AND a negative leg (a
@@ -168,28 +168,6 @@ class TestAssertNormalized:
         chi = EmissionSpectrum(np.array([0.5, 0.5 + 1e-6]))
         with pytest.raises((ValueError, AssertionError)):
             chi.assert_normalized()
-
-
-# ══════════════════════════════════════════════════════════════════════
-# is_emitting — boolean property (gate 1, both legs)
-# ══════════════════════════════════════════════════════════════════════
-
-
-class TestIsEmitting:
-    """``is_emitting`` is True iff any χ_g > 0."""
-
-    def test_nonzero_is_emitting(self):
-        # ``is_emitting`` is specified as ``bool(np.any(...))`` — a Python
-        # ``bool``. Pin that exactly (an ``np.bool_`` leak would fail the
-        # ``type`` check, catching a missing ``bool(...)`` coercion).
-        chi = EmissionSpectrum(np.array([1.0, 0.0]))
-        _require(chi.is_emitting is True, "nonzero spectrum must be emitting")
-        _require(type(chi.is_emitting) is bool, "is_emitting must be a Python bool")
-
-    def test_all_zero_is_not_emitting(self):
-        chi = EmissionSpectrum(np.zeros(3))
-        _require(chi.is_emitting is False, "all-zero spectrum must not be emitting")
-        _require(type(chi.is_emitting) is bool, "is_emitting must be a Python bool")
 
 
 # ══════════════════════════════════════════════════════════════════════

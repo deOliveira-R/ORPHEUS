@@ -60,7 +60,7 @@ def zero_flux_condition() -> Any:
 
 def minimal_space() -> Any:
     """The metadata-free method space the albedo-family realizers read nothing from."""
-    return method_space.DiffusionMethodSpace.minimal()
+    return method_space.DiffusionMethodSpace()
 
 
 def site(kind: str, face: str = "xmax") -> Any:

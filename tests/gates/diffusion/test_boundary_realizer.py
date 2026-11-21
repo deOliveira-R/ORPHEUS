@@ -53,7 +53,7 @@ _SITE = FaceSite("xmax", CoordSystem.CARTESIAN, 1)
 
 @pytest.fixture
 def minimal_ms() -> DiffusionMethodSpace:
-    return DiffusionMethodSpace.minimal()
+    return DiffusionMethodSpace()
 
 
 @pytest.fixture
@@ -245,8 +245,8 @@ class TestDiffusionMethodSpace:
         mesh1d = Mesher(geometry).partition(CellsByCount.uniform_width(4)).mesh
         return DiffusionMesh(mesh1d, {0: get_mixture("A", "2g")})
 
-    def test_minimal_is_metadata_free(self):
-        ms = DiffusionMethodSpace.minimal()
+    def test_the_default_construction_is_metadata_free(self):
+        ms = DiffusionMethodSpace()
         assert ms.face is None and ms.trace is None
 
     def test_for_face_stores_the_mesh_trace(self):
@@ -267,6 +267,6 @@ class TestDiffusionMethodSpace:
             DiffusionMethodSpace.for_face(trace=self._mesh().scalar_trace, face="ymax")
 
     def test_frozen(self):
-        ms = DiffusionMethodSpace.minimal()
+        ms = DiffusionMethodSpace()
         with pytest.raises(AttributeError):
             ms.face = "xmin"  # type: ignore[misc]

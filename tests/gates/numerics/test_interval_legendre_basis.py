@@ -39,6 +39,11 @@ from orpheus.geometry.manifold import Interval, Product
 from orpheus.numerics.basis import IntervalLegendreBasis, TensorProductBasis, spatial_moment_basis
 from orpheus.numerics.coefficient_layout import PolynomialLayout, TensorLayout
 
+
+def multi_index(tensor_layout: TensorLayout, flat: int, /) -> tuple[int, ...]:
+    """The per-factor degrees ``(k_0, ..., k_{d-1})`` of the flat coefficient ``flat`` of a ``TensorLayout``."""
+    return tuple(int(k) for k in np.unravel_index(flat, tensor_layout.factor_shape))
+
 pytestmark = [pytest.mark.foundation]
 
 _XI = sp.Symbol("xi", real=True)
@@ -215,7 +220,7 @@ def test_the_kronecker_order_is_the_recorded_one() -> None:
         [1.0, c, b_, b_ * c, a, a * c, a * b_, (a * b_) * c],
     )
     layout = spatial_moment_basis(2, 2).layout
-    assert [layout.multi_index(k) for k in range(4)] == [(0, 0), (0, 1), (1, 0), (1, 1)]
+    assert [multi_index(layout, k) for k in range(4)] == [(0, 0), (0, 1), (1, 0), (1, 1)]
     import orpheus
 
     page = pathlib.Path(orpheus.__file__).resolve().parents[1] / "docs/theory/methods/sn/cartesian_multid.rst"
