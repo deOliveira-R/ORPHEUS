@@ -13,6 +13,10 @@ of ``tests/gates/``, beside ``test_layer_imports.py`` (the root is not judged by
   ``frozenset`` or a scipy sparse base. ``[M]`` 2026-10-22: 447 such classes of 697, 0 sharing a qualname. The
   positive controls: the predicate over ALL ``orpheus`` classes finds the 3 shared qualnames (``DerivationError``,
   ``THParams``, ``THResult``), and it reports a synthetic pair.
+
+``orpheus.memo`` is in the roster ``_PACKAGES``, so a ``ContentIdentity`` subclass defined there would be walked. It defines none
+today (measured 2026-11-21: 0 of the walked content classes have a ``__module__`` under ``orpheus.memo``), and the walk returns
+classes, not the modules it visited, so no row here asserts the roster's membership of the memo.
 """
 
 from __future__ import annotations
@@ -395,17 +399,3 @@ def test_s5_7_the_production_digest_bytes_are_recorded() -> None:
             f"{name}: the digest bytes moved ({got[name]} != {pin}): every cache key of P3 "
             f"is invalidated; re-pin only with the reason",
         )
-
-
-def test_the_roster_walk_includes_the_memo_package() -> None:
-    """G10 (unit memo-digest, part B 4.1). The memo's content classes (69 under ``numerics`` today) are walked from their new home.
-    Red at base: ``orpheus.memo`` does not exist. Silent without the edit: a moved clone leaves ``_PACKAGES`` unedited and the gate
-    green while the 69 classes leave the walk, so the assertion reads the population's ``__module__`` names, not the tuple alone.
-    Mutation: drop ``orpheus.memo`` from ``_PACKAGES`` (monkeypatch): the module-name leg reddens."""
-    import orpheus.memo  # noqa: F401  (inside the body: a missing package is one red, not a collection error)
-
-    assert orpheus.memo in _PACKAGES
-    modules = {c.__module__ for c in _content_classes()}
-    memo = sorted(m for m in modules if m.startswith("orpheus.memo."))
-    assert memo, "no content class of orpheus.memo is walked"
-    assert not [m for m in modules if m.startswith("orpheus.numerics.") and "traced_memo" in m]

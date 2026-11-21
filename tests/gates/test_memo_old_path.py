@@ -1,7 +1,8 @@
 """Gates G2 and G3 of unit ``memo-digest`` (specification part B 4.1): the traced memo is in no old home, and no file spells the old home.
 
 G2a: ``orpheus/numerics/`` holds no file named for a memo module and no class named ``Recording`` or ``TracedMemo``.
-G2b: the 21 ``RetiredModule`` rows of ``tests/gates/_retired/rows_w0_memo.py`` (the engine reads imports; this reads the rows).
+G2b: the engine's module rows are read red by a planted import and a planted leftover file (the positive control; the 21 rows of
+``tests/gates/_retired/rows_w0_memo.py`` are asserted green on the real tree by ``test_retirements.py``, the one engine).
 G3: the old path is spelled nowhere as TEXT (the three patterns of 2.2, the test-location pattern, the segment form and the
 path-expression form), over every tracked file of ``orpheus tools tests examples`` except ``tests/gates/_retired/`` and this file,
 and over ``docs/`` with an exemption rule for a git path at a past commit (``git show <hash>:<path>`` must keep working).
@@ -97,20 +98,7 @@ def test_the_old_home_walk_finds_a_planted_file_and_a_planted_class(tmp_path: Pa
         _old_home_findings(tmp_path / "empty")
 
 
-# ---------------------------------------------------------------- G2b: the 21 module rows
-def test_the_memo_rows_are_the_21_old_module_paths_and_the_engine_reads_each_red_or_green_by_its_own_leg() -> None:
-    from tests.gates._retired import Retired, RetiredModule, _walk, rows_w0_memo
-
-    modules = [r for r in rows_w0_memo.ROWS if isinstance(r, RetiredModule)]
-    expected = [_OLD + "." + n for n in _MEMO_NAMES] + ["tests.gates." + _OLD_DIR + "." + n for n in _TESTS]
-    assert [r.module for r in modules] == expected and len(modules) == 21
-    assert sum(isinstance(r, Retired) for r in rows_w0_memo.ROWS) == 3 and rows_w0_memo.KEPT == ()
-    verdicts = _walk.walk(REPO, rows=list(modules))
-    assert len(verdicts) == 21
-    red = {row.module: found for (_kind, row), found in verdicts.items() if found}
-    assert not red, f"{len(red)} of 21 old module paths still exist or are imported: {sorted(red)}"
-
-
+# ---------------------------------------------------------------- G2b: the module rows' positive control
 def test_the_module_rows_are_red_for_a_planted_import_and_a_planted_leftover_file(tmp_path: Path) -> None:
     """Positive control of G2b (runs at base): a planted import statement, a planted import_module string and a planted leftover file."""
     from tests.gates._retired import RetiredModule, _walk
