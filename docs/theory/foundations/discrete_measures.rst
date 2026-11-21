@@ -124,7 +124,7 @@ Key Facts
   :ref:`the space layer's page <spaces-axis-generator>`; ``kind`` is
   never a parameter of either mint — the generator's TYPE implies it.
 - **Every Gauss rule is correctly rounded**: each node and weight is the
-  float64 nearest its exact value, computed by Newton on the orthonormal
+  float64 nearest its exact value (an exact tie to the even neighbour), computed by Newton on the orthonormal
   recurrence in arbitrary precision (seeded by the float Golub–Welsch
   eigenvalues) and rounded once, at two working precisions that must agree,
   with every value certified against its error interval.
@@ -836,7 +836,10 @@ The Gauss rules are correctly rounded
 **The contract.**  Every node and every weight a
 :class:`~orpheus.numerics.generating_measure.GeneratingMeasure` returns from
 :meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.gauss` is the
-float64 **nearest to its exact value**.  A correctly rounded real is unique,
+float64 **nearest to its exact value**.  Where an exact value lies on the
+midpoint of two adjacent floats, the nearest is not unique and the rule is the
+IEEE 754 default: the even neighbour.  A correctly rounded real is unique
+otherwise,
 so the rule is a property of the measure and of nothing else: not of the
 platform's linear-algebra library, its version or its thread count.  The
 contract covers every family the module ships (Legendre, Chebyshev of the
@@ -891,8 +894,9 @@ measured reasons:
 
 1. **One definition of the measure.**  Each family's recurrence coefficients
    :math:`(\alpha_k, \beta_k)`, with Gautschi's storage convention
-   :math:`\beta_0 = \mu_0`, are written once, as closed forms evaluated at the
-   caller's working precision, in the module :mod:`orpheus.numerics.recurrence`
+   :math:`\beta_0 = \mu_0`, are written once, as closed forms evaluated in the
+   arithmetic the caller passes (``HighPrecision(digits)``, or exact rationals
+   so that the exact-tie decision of step 5 reads the same definition), in the module :mod:`orpheus.numerics.recurrence`
    (one builder per family, e.g. :func:`~orpheus.numerics.recurrence.jacobi_recurrence`)
    and carried by
    :attr:`~orpheus.numerics.generating_measure.GeneratingMeasure.exact_recurrence`.
@@ -939,7 +943,16 @@ measured reasons:
    or the construction raises :class:`ArithmeticError`.  A disagreement means
    that some exact value lies so close to the midpoint between two adjacent
    floats that the 40-digit approximation could land on either side: the
-   construction refuses to choose rather than choose silently.  This is the
+   construction refuses to choose rather than choose silently.  This holds for an
+   APPROXIMATE value; an EXACT value on the midpoint involves no guess, and is
+   decided in rational arithmetic: when the error interval holds exactly one
+   boundary :math:`T`, a node equals :math:`T` iff :math:`\pi_n(T) = 0`, and a
+   weight equals :math:`T` iff its node is a root of
+   :math:`\gcd(\pi_n,\, K_n - 1/T)` over :math:`\mathbb{Q}` (:math:`K_n` the
+   sum of :math:`\pi_k^2/h_k`, so :math:`w_i = 1/K_n(x_i)`); if equal the value
+   is :math:`T` rounded half to even, otherwise it is refused as before.  The
+   affine pushforward of a rule makes exactly such values (the centre node and
+   the rational reference weights scaled by the exact :math:`s`).  This is the
    strategy of Ziv (1991) for correctly rounded functions.  Agreement of two
    precisions alone does not certify the rounding (a value within the
    60-digit error of a midpoint could round the same wrong way at both), so
@@ -988,7 +1001,8 @@ measured reasons:
    :math:`n = 128` at 60 digits, once per process.
 9. **The affine remap stays correctly rounded.**
    :meth:`~orpheus.numerics.generating_measure.GeneratingMeasure.on`
-   transforms the coefficients in the working precision
+   transforms the coefficients in the working precision and, for the
+   exact-tie decision, exactly in the rationals
    (:math:`\alpha'_k = s\alpha_k + c`, :math:`\beta'_0 = s\beta_0`,
    :math:`\beta'_k = s^2\beta_k` with :math:`s = (b-a)/2`,
    :math:`c = (a+b)/2`); float endpoints are binary rationals and enter

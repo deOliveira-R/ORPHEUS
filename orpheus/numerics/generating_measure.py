@@ -63,13 +63,14 @@ at :math:`n = 64`. The construction now:
    :math:`d` digits) — that interval check is what certifies "correctly
    rounded", since two precisions can agree on the same wrong side of a tie.
    Either failure raises: a value that cannot be certified is refused, never
-   guessed;
+   guessed, unless it is exactly a tie of the float64 grid (an exact rational
+   such as the centre node of a panel): then it is rounded half to even;
 4. for an even weight computes the non-negative half and mirrors it, with an
    odd rule's centre at exactly zero: the exact rule is symmetric, and
    rounding commutes with negation.
 
-The recurrence coefficients are written ONCE, in arbitrary precision
-(:attr:`GeneratingMeasure.exact_recurrence`); the float coefficients
+The recurrence coefficients are written ONCE, in an arithmetic: high
+precision or the rationals (:attr:`GeneratingMeasure.exact_recurrence`); the float coefficients
 (:meth:`GeneratingMeasure.recurrence`) are their correctly rounded image. The
 zeroth-moment renormalisation the float construction ended with is gone: it
 would un-round correctly rounded weights. Rules are cached per
@@ -193,14 +194,21 @@ References
 from __future__ import annotations
 
 import functools
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from fractions import Fraction
+from typing import NamedTuple
 
 import mpmath
 import numpy as np
 
 from .exactness import ExactnessClaim, OrthogonalSystem, ReferenceMeasure
 from .measure import DiscreteMeasure
+from . import rational_polynomial as _rp
 from .recurrence import (
+    RATIONAL,
+    HighPrecision,
+    Irrational,
     RecurrenceCoefficients,
     chebyshev_t_recurrence,
     chebyshev_u_recurrence,
@@ -208,6 +216,7 @@ from .recurrence import (
     jacobi_recurrence,
     laguerre_recurrence,
     legendre_recurrence,
+    over_arithmetic,
 )
 from orpheus.geometry.manifold import (
     COSINE_INTERVAL,
@@ -284,10 +293,12 @@ class GeneratingMeasure:
     support : Manifold
         The interval the measure lives on.
     exact_recurrence : callable
-        ``(n, digits) -> (alpha, beta)``, each a list of ``n``
-        ``mpmath.mpf`` evaluated at ``digits`` decimal digits, following Gautschi's
+        ``(n, arithmetic) -> (alpha, beta)``, each a list of ``n`` numbers
+        in the arithmetic's number type (``HighPrecision(digits)``: ``mpmath.mpf``;
+        ``RATIONAL``: ``fractions.Fraction``, with the mass ``beta[0]`` ``None``
+        when it is irrational), following Gautschi's
         storage convention :math:`\beta_0 := \mu_0`. The closed forms live
-        here ONCE, in arbitrary precision; :meth:`recurrence` (the float
+        here ONCE, each evaluated in either arithmetic; :meth:`recurrence` (the float
         view) and :meth:`gauss` (the rule) are derived from it. Carrying
         the zeroth moment *inside* the recurrence rather than beside it
         means the mass and the family that defines it cannot disagree.
@@ -308,7 +319,7 @@ class GeneratingMeasure:
         The float view of the one definition, so a consumer reading
         coefficients and a consumer reading the rule read the same numbers.
         """
-        alpha, beta = self.exact_recurrence(n, _VIEW_DIGITS)
+        alpha, beta = self.exact_recurrence(n, HighPrecision(_VIEW_DIGITS))
         return (
             np.array([float(a) for a in alpha]),
             np.array([float(b) for b in beta]),
@@ -339,7 +350,7 @@ class GeneratingMeasure:
         when ``a == b``, which the derivation gets right without being
         told.
         """
-        alpha, _ = self.exact_recurrence(_SYMMETRY_PROBE_ORDER, _VIEW_DIGITS)
+        alpha, _ = self.exact_recurrence(_SYMMETRY_PROBE_ORDER, HighPrecision(_VIEW_DIGITS))
         return all(a == 0 for a in alpha)
 
     @property
@@ -414,8 +425,13 @@ class GeneratingMeasure:
         ArithmeticError
             When the two working precisions round some node or weight
             differently, when a value's error interval straddles a float64
-            rounding boundary (it cannot be certified), or when Newton fails
-            to converge from the float seed.
+            rounding boundary (it cannot be certified), when Newton fails
+            to converge from the float seed, or when the rational bracket of
+            a node holds no sign change of :math:`\pi_n` (two nodes closer
+            than :math:`2\times 10^{-20}` relative, or a node that is not a
+            root). A value that is exactly a float64 rounding tie (an exact
+            rational on the midpoint of two adjacent floats) is not refused:
+            it is rounded half to even (IEEE 754 ``roundTiesToEven``).
         """
         if n < 1:
             raise ValueError(f"{self.name}.gauss requires n >= 1, got n={n}")
@@ -454,7 +470,8 @@ class GeneratingMeasure:
         :math:`J` under a square root, so it scales linearly there).
         The transform is applied in the working precision, so the remapped
         rule is correctly rounded too (the float endpoints are exact
-        binary numbers and enter exactly).
+        binary numbers and enter exactly), and exactly in the rationals, so
+        the exact-tie decision reads the remapped recurrence.
 
         Defined only for measures on :math:`[-1,1]`; the unbounded
         families have no finite interval to remap onto.
@@ -476,14 +493,14 @@ def _affine_remap(measure: GeneratingMeasure, a: float, b: float) -> GeneratingM
         raise ValueError(f"require a < b, got a={a}, b={b}")
     inner = measure.exact_recurrence
 
-    def remapped(n: int, digits: int) -> "tuple[list, list]":
-        alpha, beta = inner(n, digits)
-        with mpmath.workdps(digits):
-            scale = (mpmath.mpf(b) - mpmath.mpf(a)) / 2
-            shift = (mpmath.mpf(a) + mpmath.mpf(b)) / 2
-            alpha = [scale * x + shift for x in alpha]
-            beta = [scale * beta[0]] + [scale**2 * x for x in beta[1:]]
-        return alpha, beta
+    @over_arithmetic
+    def remapped(n, A):
+        alpha, beta = inner(n, A)
+        scale, shift = (A.lift(b) - A.lift(a)) / 2, (A.lift(a) + A.lift(b)) / 2
+        return (
+            [scale * x + shift for x in alpha],
+            [None if beta[0] is None else scale * beta[0]] + [scale**2 * x for x in beta[1:]],
+        )
 
     return GeneratingMeasure(
         name=f"{measure.name}_on[{a},{b}]",
@@ -542,7 +559,11 @@ def _float_seeds(measure: GeneratingMeasure, n: int) -> np.ndarray:
 
 
 def _rule_at(
-    measure: GeneratingMeasure, n: int, seeds: np.ndarray, digits: int
+    measure: GeneratingMeasure,
+    n: int,
+    seeds: np.ndarray,
+    digits: int,
+    rational: "_RationalRecurrence | None",
 ) -> "tuple[tuple[float, ...], tuple[float, ...]]":
     r"""The rule computed at ``digits`` working digits, rounded once.
 
@@ -555,7 +576,7 @@ def _rule_at(
     has that symmetry, and rounding commutes with negation, so the rounded
     rule has it bit for bit.
     """
-    alpha, beta = measure.exact_recurrence(n + 1, digits)
+    alpha, beta = measure.exact_recurrence(n + 1, HighPrecision(digits))
     with mpmath.workdps(digits):
         tolerance = mpmath.mpf(10) ** (5 - digits)
         symmetric = measure.is_symmetric
@@ -582,31 +603,136 @@ def _rule_at(
             mirrored = [-x for x in reversed(roots) if x != 0]
             roots = mirrored + roots
             weights = list(reversed(weights[len(weights) - len(mirrored):])) + weights
-        nodes = tuple(_certified_float(x, digits, measure, n) for x in roots)
+        nodes = tuple(
+            _certified_float(x, digits, measure, n, is_exactly=_node_is_exactly(rational, n)) for x in roots
+        )
         if any(b <= a for a, b in zip(nodes, nodes[1:])):
             raise ArithmeticError(
                 f"{measure.name}.gauss({n}): Newton converged two seeds to one "
                 f"root, or out of order: {nodes}"
             )
-        return nodes, tuple(_certified_float(w, digits, measure, n) for w in weights)
+        return nodes, tuple(
+            _certified_float(w, digits, measure, n, is_exactly=_weight_is_exactly(rational, n, x, measure.name))
+            for x, w in zip(roots, weights)
+        )
 
 
-def _certified_float(value, digits: int, measure: "GeneratingMeasure", n: int) -> float:
+# ---------------------------------------------------------------------------
+# The exact tie
+# ---------------------------------------------------------------------------
+#
+# An exact value (a rational) on the midpoint of two adjacent floats has no
+# unique nearest float; the rule is IEEE 754's default, the even neighbour.
+# The error interval of ``_certified_float`` cannot decide such a value (it
+# holds the tie whatever the precision), so, when the interval holds exactly
+# one boundary T, the value is compared with T in exact rational arithmetic:
+# a node is T iff pi_n(T) = 0; a weight is T iff its node is a root of
+# gcd(pi_n, K_n - 1/T). Where the recurrence has no rational image the
+# decision does not exist and the value is refused.
+
+_ISOLATION = Fraction(1, 10**20)  # relative half-width of the rational bracket that isolates a node
+
+
+class _RationalRecurrence(NamedTuple):
+    """The monic recurrence of a measure over Q: ``alpha_0 .. alpha_n``, the mass ``beta_0`` (None when irrational) and ``beta_1 .. beta_n``."""
+
+    alpha: list[Fraction]
+    mass: Fraction | None
+    tail: list[Fraction]
+
+
+def _exact(x) -> Fraction:
+    """An ``mpf`` as the exact rational it is, SIGN INCLUDED (``man_exp`` drops the sign). NOT ``Fraction(str(x))`` and NOT ``mpf(x)``:
+    re-rounding to the ambient precision would move a 136-bit node by 1e-16 and the bracket of 1e-20 would no longer isolate it."""
+    sign, mantissa, exponent, _ = x._mpf_
+    return Fraction(-int(mantissa) if sign else int(mantissa)) * Fraction(2) ** int(exponent)
+
+
+def _monic_family(alpha: list[Fraction], tail: list[Fraction], n: int) -> list[_rp.Polynomial]:
+    """pi_0 .. pi_n over Q: pi_{k+1} = (x - alpha_k) pi_k - beta_k pi_{k-1}, with beta_k = tail[k - 1] (beta_0 is not read)."""
+    pis, previous = [_rp.ONE], _rp.ZERO
+    for k in range(n):
+        step = _rp.multiply((-alpha[k], Fraction(1)), pis[-1])
+        nxt = _rp.add(step, _rp.scale(previous, -tail[k - 1])) if k > 0 else step
+        previous = pis[-1]
+        pis.append(nxt)
+    return pis
+
+
+def _rational_recurrence(measure: GeneratingMeasure, n: int) -> _RationalRecurrence | None:
+    try:
+        alpha, beta = measure.exact_recurrence(n + 1, RATIONAL)
+    except Irrational:
+        return None
+    mass, tail = beta[0], [b for b in beta[1:] if b is not None]
+    if len(tail) != len(beta) - 1:
+        return None
+    return _RationalRecurrence(alpha, mass, tail)
+
+
+def _node_is_exactly(rational: _RationalRecurrence | None, n: int) -> Callable[[Fraction], bool] | None:
+    if rational is None:
+        return None
+    return lambda tie: _rp.evaluate(_monic_family(rational.alpha, rational.tail, n)[n], tie) == 0
+
+
+def _weight_is_exactly(rational: _RationalRecurrence | None, n: int, x, name: str) -> Callable[[Fraction], bool] | None:
+    if rational is None or rational.mass is None:
+        return None
+    alpha, tail = rational.alpha, rational.tail
+    mass = rational.mass
+
+    def decide(tie: Fraction) -> bool:
+        pis = _monic_family(alpha, tail, n)
+        norms, h = [], mass
+        for k in range(n):
+            if k > 0:
+                h *= tail[k - 1]
+            norms.append(h)
+        reciprocal_christoffel = _rp.ZERO
+        for k in range(n):
+            reciprocal_christoffel = _rp.add(
+                reciprocal_christoffel, _rp.scale(_rp.multiply(pis[k], pis[k]), 1 / norms[k])
+            )
+        common = _rp.gcd(pis[n], _rp.add(reciprocal_christoffel, (-1 / tie,)))
+        if len(common) == 1:
+            return False
+        centre = _exact(x)
+        half = _ISOLATION * max(1, abs(centre))
+        low, high = centre - half, centre + half
+        if (_rp.evaluate(pis[n], low) > 0) == (_rp.evaluate(pis[n], high) > 0):
+            raise ArithmeticError(f"{name}.gauss({n}): the rational bracket does not isolate the node")
+        at_low, at_high = _rp.evaluate(common, low), _rp.evaluate(common, high)
+        return (at_low > 0) != (at_high > 0) or at_low == 0 or at_high == 0
+
+    return decide
+
+
+def _certified_float(
+    value, digits: int, measure: "GeneratingMeasure", n: int, is_exactly: Callable[[Fraction], bool] | None = None
+) -> float:
     r"""``value`` rounded to float64, certified: both ends of its error
     interval :math:`[v - \rho|v|, v + \rho|v|]`,
     :math:`\rho = 10^{\texttt{_CERTIFIED_DIGITS} - \texttt{digits}}`, round to
     the same float64, so the exact value does too. A value within
-    :math:`\rho` of a rounding boundary is refused rather than guessed."""
+    :math:`\rho` of a rounding boundary is refused rather than guessed,
+    except an exact value on the boundary itself: when the interval holds
+    exactly one boundary :math:`T` and ``is_exactly(T)`` says the value IS
+    :math:`T`, the value is :math:`T` rounded half to even."""
     with mpmath.workdps(digits):
         radius = abs(value) * mpmath.mpf(10) ** (_CERTIFIED_DIGITS - digits)
         low, high = float(value - radius), float(value + radius)
-    if low != high:
-        raise ArithmeticError(
-            f"{measure.name}.gauss({n}): {float(value)!r} lies within its error "
-            f"radius of a float64 rounding boundary, so it cannot be certified "
-            f"correctly rounded"
-        )
-    return low
+    if low == high:
+        return low
+    if is_exactly is not None and float(np.nextafter(low, np.inf)) == high:
+        tie = (Fraction(low) + Fraction(high)) / 2
+        if is_exactly(tie):
+            return float(tie)
+    raise ArithmeticError(
+        f"{measure.name}.gauss({n}): {float(value)!r} lies within its error "
+        f"radius of a float64 rounding boundary, so it cannot be certified "
+        f"correctly rounded"
+    )
 
 
 @functools.lru_cache(maxsize=None)
@@ -625,12 +751,13 @@ def _correctly_rounded_rule(
     ``jacobi(0, 0)`` / Legendre agreement a cross-check).
     """
     seeds = _float_seeds(measure, n)
-    coarse, fine = (_rule_at(measure, n, seeds, d) for d in _WORKING_DIGITS)
+    rational = _rational_recurrence(measure, n)
+    coarse, fine = (_rule_at(measure, n, seeds, d, rational) for d in _WORKING_DIGITS)
     if coarse != fine:
         raise ArithmeticError(
             f"{measure.name}.gauss({n}): the rule rounds differently at "
-            f"{_WORKING_DIGITS[0]} and {_WORKING_DIGITS[1]} digits, so some exact "
-            f"node or weight sits on a float64 rounding tie"
+            f"{_WORKING_DIGITS[0]} and {_WORKING_DIGITS[1]} digits, so some "
+            f"value is unresolved at the coarser precision"
         )
     return fine
 
@@ -639,9 +766,9 @@ def _correctly_rounded_rule(
 # The classical families
 # ---------------------------------------------------------------------------
 #
-# Coefficients: Gautschi 2004 §1.3, each written once in arbitrary precision
-# (mpmath arithmetic at the precision ``_at_digits`` sets, in
-# ``orpheus.numerics.recurrence``). Each family's rule is verified against an independent correctly rounded reference in
+# Coefficients: Gautschi 2004 §1.3, each written once, evaluated in the
+# arithmetic the caller passes (``HighPrecision(digits)`` or ``RATIONAL``,
+# through ``over_arithmetic`` in ``orpheus.numerics.recurrence``). Each family's rule is verified against an independent correctly rounded reference in
 # tests/gates/numerics/test_gauss_rules_correctly_rounded.py, and the
 # parameterised families are cross-checked against the constants they
 # specialise to in tests/gates/numerics/test_generating_measure.py.
