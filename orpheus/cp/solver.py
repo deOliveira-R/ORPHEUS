@@ -52,7 +52,6 @@ from orpheus.geometry import CoordSystem
 from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.deck import DeckTransformation, FacePairing, MirrorDeck, TranslationDeck
-from orpheus.geometry.line import Line
 from orpheus.geometry.manifold import Interval, ManifoldMap
 from orpheus.mesh import Mesh1D
 from orpheus.numerics.bickley import ki3
@@ -273,8 +272,10 @@ class CPMesh(Mesh1DMethodMesh[CPClosure]):
         in_plane = np.array([0.0, 1.0, 0.0])
         self._y_pts = pts
         self._y_wts = wts * chart.beam_density(pts, in_plane)
-        points = np.stack([pts, np.zeros_like(pts), np.zeros_like(pts)], axis=-1)
-        line = Line.through(points, np.broadcast_to(in_plane, points.shape))
+        # The representative line at impact parameter y of each chart (cylinder: normal to the axis, theta = pi/2).
+        domain = chart.line_domain()
+        coordinates = pts[:, None] if len(domain.axes) == 1 else np.stack([pts, np.full_like(pts, np.pi / 2.0)], axis=-1)
+        line = domain.lines(coordinates)
         n = partition.n_regions
         self._chords = partition.chord(line).slot_length[..., -n:].T  # outbound half: regions 0..n-1, shape (n, n_y)
 

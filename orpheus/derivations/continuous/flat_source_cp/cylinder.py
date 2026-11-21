@@ -17,9 +17,9 @@ integration hierarchy and the unified :math:`\\Delta^{2}` operator.
    :math:`e^{\\tau}\\,\\mathrm{Ki}_3(\\tau)` in
    :func:`~.cp_geometry._ki3_mp`, built from
    :func:`~._kernels.ki_n_mp` at 30 dps. The solver
-   (``orpheus.cp.solver``) shares the same kernel to guarantee
-   bit-identical evaluations between solver ``keff`` and derivation
-   ``k_inf``.
+   (``orpheus.cp.solver``) holds ``orpheus.numerics.bickley.ki3`` and this
+   reference holds a twin copy of the same interpolant, pinned bit for bit
+   by ``tests/gates/derivations/test_cp_ki3_copy.py``.
 """
 
 from __future__ import annotations
