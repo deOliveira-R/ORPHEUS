@@ -574,7 +574,7 @@ def adopt_convention() -> None:
     import orpheus.values
 
     sys.modules["orpheus.values.digest"] = _CONVENTION
-    orpheus.values.digest = _CONVENTION
+    setattr(orpheus.values, "digest", _CONVENTION)  # what the import system does when it binds a submodule to its package
 #: Where the pinned-source loader keeps bytecode, one directory per interpreter and ``-O`` level. An entry is
 #: named by the digest of (path, interpreter, ``-O`` level, source bytes), so sharing it across stores and
 #: processes is sound.
