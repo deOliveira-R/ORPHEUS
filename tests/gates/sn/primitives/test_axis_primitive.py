@@ -9,8 +9,12 @@ F0.6 — :func:`face_outflow_ordinates` mask matches the inline expression at
        the 5+ legacy sites (``np.where(sign * mu_axis > 1e-15)[0]``).
 F0.7 — Synthetic 3-D admission: ``(AxisMesh(5), AxisMesh(7), AxisMesh(9))``
        produces 6 face labels via the pure shape functions (no SNProblem).
-F0.8 — :attr:`SNProblem.n_unknowns_flat` matches manual computation across
-       slab, sphere, 2-D Cartesian, and synthetic 3-D.
+F0.8 — :func:`n_unknowns_flat` (a test-side counting helper below; it was
+       ``SNProblem.n_unknowns_flat`` and ``orpheus.mesh.n_unknowns_flat``) matches
+       a hand count across slab, sphere, 2-D Cartesian, and synthetic 3-D. The
+       delegate property was compared with its own target before; those
+       comparisons are gone, and the three ``SNProblem`` legs now pin that
+       ``from_axes`` carries ``axes``, ``quad`` and ``ng`` against the hand count.
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ import pytest
 
 from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.mesh import (
+    Axis1D,
     AxisCoord,
     AxisMesh,
     FaceLabel,
@@ -27,8 +32,8 @@ from orpheus.mesh import (
     face_labels,
     face_outflow_ordinates,
     face_shape,
-    n_unknowns_flat,
     spatial_shape,
+    trace_face_shapes,
 )
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -381,6 +386,21 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:
 # ─── F0.8 ────────────────────────────────────────────────────────────────
 
 
+def n_unknowns_flat(axes: tuple[Axis1D, ...], quad, ng: int) -> int:
+    """Independent count of the flat size of a typed ``AngularFlux`` on ``axes``.
+
+    Cells contribute ``N * ng * prod(spatial_shape)``; each face of the trace
+    inventory contributes ``|outflow| * ng * prod(face spatial shape)``.
+    """
+    shape = spatial_shape(axes)
+    n_cells = int(quad.n_ordinates) * int(ng) * int(np.prod(shape, dtype=np.int64))
+    n_face = 0
+    for label, face_spatial in trace_face_shapes(axes):
+        outflow = face_outflow_ordinates(axes, label, quad)
+        n_face += int(outflow.size) * int(ng) * int(np.prod(face_spatial, dtype=np.int64))
+    return n_cells + n_face
+
+
 def test_f0_8_n_unknowns_flat_slab() -> None:
     """Slab 1-D: n_cells + outflow at min + outflow at max."""
     axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11), role_low=_REFLECTIVE, role_high=_REFLECTIVE),)  # n=10
@@ -392,8 +412,7 @@ def test_f0_8_n_unknowns_flat_slab() -> None:
     n_max = np.where(quad.mu_x > 1e-15)[0].size
     n_min = np.where(-quad.mu_x > 1e-15)[0].size
     expected = N * ng * 10 + (n_max + n_min) * ng * 1  # face_shape=()
-    assert mesh.n_unknowns_flat == expected
-    assert n_unknowns_flat(axes, quad, ng) == expected
+    assert n_unknowns_flat(mesh.axes, mesh.quad, mesh.ng) == expected
 
 
 def test_f0_8_n_unknowns_flat_sphere() -> None:
@@ -410,7 +429,7 @@ def test_f0_8_n_unknowns_flat_sphere() -> None:
     N, ng = quad.n_ordinates, 1
     n_outer = np.where(quad.mu_x > 1e-15)[0].size
     expected = N * ng * 20 + n_outer * ng * 1
-    assert mesh.n_unknowns_flat == expected
+    assert n_unknowns_flat(mesh.axes, mesh.quad, mesh.ng) == expected
 
 
 def test_f0_8_n_unknowns_flat_2d_cartesian() -> None:
@@ -433,7 +452,7 @@ def test_f0_8_n_unknowns_flat_2d_cartesian() -> None:
         + (n_xneg + n_xpos) * ng * 7              # xmin + xmax over y
         + (n_yneg + n_ypos) * ng * 5              # ymin + ymax over x
     )
-    assert mesh.n_unknowns_flat == expected
+    assert n_unknowns_flat(mesh.axes, mesh.quad, mesh.ng) == expected
 
 
 def test_f0_8_n_unknowns_flat_synthetic_3d() -> None:

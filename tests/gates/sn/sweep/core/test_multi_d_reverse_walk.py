@@ -95,7 +95,7 @@ from orpheus.sn.loss_representation import (
     _OctantWalk,
     _reverse_octant_traversal,
 )
-from orpheus.sn.loss_representation.assembly import assemble_ordinate_blocks
+from tests.gates.sn.sweep._ordinate_assembly import assemble_ordinate_blocks
 from orpheus.sn.loss_representation.sweep_graph import (
     SweepDependencyGraph,
     _CellResidualTranspose,

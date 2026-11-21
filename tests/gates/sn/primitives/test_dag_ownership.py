@@ -37,6 +37,7 @@ from orpheus.sn.loss_representation import (
 )
 from orpheus.sn.loss_representation.sweep_graph import OctantLabel, SweepDependencyGraph
 from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates.sn.sweep._sweep_graph_faces import face_in_x, face_in_y, face_out_x, face_out_y
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
 from orpheus.geometry.deck import MirrorDeck
@@ -287,8 +288,8 @@ class TestGraphsAgreeWithLegacyDiagCache:
         for (sx, sy), legacy_entry in legacy.items():
             graph = graphs[OctantLabel((sx, sy))]
             np.testing.assert_array_equal(
-                [graph.face_in_x, graph.face_out_x,
-                 graph.face_in_y, graph.face_out_y],
+                [face_in_x(graph), face_out_x(graph),
+                 face_in_y(graph), face_out_y(graph)],
                 [legacy_entry["ix_in"], legacy_entry["ix_out"],
                  legacy_entry["iy_in"], legacy_entry["iy_out"]],
                 err_msg=f"octant ({sx},{sy}): face offsets",

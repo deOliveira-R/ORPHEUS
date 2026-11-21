@@ -5,7 +5,7 @@ The Wave-8 SNProblem routes BC resolution through the realizer table
 the resolution surface dimension-generic: ONE loop over the face
 labels populates the face-name-keyed :attr:`SNProblem.bc` dict
 (``sn.bc["xmin"]`` …), whose keys equal
-``boundary_face_layout.faces`` by construction (both derived from
+``angular_trace.layout.faces`` by construction (both derived from
 ``face_labels`` through the single-sourced
 :attr:`FaceLabel.face_name` crosswalk). Since #290 P7b that loop is
 the ONE shared ``TransportMethod`` body
@@ -293,7 +293,7 @@ def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
 
 
 def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
-    """``set(sn.bc) == set(boundary_face_layout.faces)`` — by construction.
+    """``set(sn.bc) == set(angular_trace.layout.faces)`` — by construction.
 
     Both sides derive from ``face_labels`` through the SAME
     ``FaceLabel.face_name`` crosswalk, so the BC inventory and the
@@ -336,8 +336,8 @@ def test_bc_inventory_equals_face_layout_across_geometries(quad_1d, quad_2d):
     for name, (sn, faces) in expected.items():
         if set(sn.bc) != faces:
             pytest.fail(f"{name}: bc keys {set(sn.bc)} != {faces}")
-        if set(sn.bc) != set(sn.boundary_face_layout.faces):
-            pytest.fail(f"{name}: bc keys drift from boundary_face_layout")
+        if set(sn.bc) != set(sn.angular_trace.layout.faces):
+            pytest.fail(f"{name}: bc keys drift from angular_trace.layout")
 
 
 def test_bc_dict_misses_and_retired_attributes_fail_loud(quad_1d):

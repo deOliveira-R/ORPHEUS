@@ -175,8 +175,9 @@ block's generators to
 .. note::
 
     The rank that SVD finds **is** the counting law of §3, computed by a
-    completely different route.  :func:`predicted_kernel_dimension` evaluates the
-    law combinatorially without building a single vector, so the two can be — and
+    completely different route.  The test-side oracle ``predicted_kernel_dimension``
+    (``tests/gates/sn/operators/_kernel_dimension.py``) evaluates the law
+    combinatorially without building a single vector, so the two can be — and
     are — checked against each other.
 
 6. Scope: component R only
@@ -234,7 +235,6 @@ __all__ = [
     "predicted_loss_kernel",
     "predicted_physical_kernel",
     "gauge_freedom",
-    "predicted_kernel_dimension",
     "warn_if_gauge_freedom",
 ]
 
@@ -553,41 +553,6 @@ def _anova_dimension(cells: tuple[int, ...]) -> int:
         - int(np.prod(cells))
         + int(np.prod([n - 1 for n in cells]))
     )
-
-
-def predicted_kernel_dimension(problem: "SNProblem") -> int:
-    r"""``dim ker A`` from the counting law — **without building any vector**.
-
-    The structurally independent check on :func:`predicted_discretization_kernel`: this walks
-    the combinatorics of §3 and returns an integer, while the gauge walks the
-    generators and takes an SVD.  Agreement between them is evidence that
-    neither has a bookkeeping error; it is what
-    :func:`~tests.gates.sn.operators.test_loss_kernel_gauge` asserts in place of the
-    dense SVD at sizes where the dense SVD is not viable.
-
-    Counts the **R** component only, matching the gauge's scope —
-    the tangential component ``T`` contributes one dimension per tangential
-    trace DOF and is not gauged.
-    """
-    if not gauge_freedom(problem).present:
-        return 0
-    spatial = tuple(int(n) for n in problem.spatial_shape)
-    total = 0
-    for _orbit, active in _reflection_orbits(problem):
-        if len(active) < 2:
-            continue
-        per_orbit = 0
-        for size in range(2, len(active) + 1):
-            for subset in combinations(active, size):
-                spectators = int(np.prod(
-                    [spatial[c] for c in range(problem.ndim)
-                     if c not in subset] or [1]
-                ))
-                per_orbit += _anova_dimension(
-                    tuple(spatial[c] for c in subset)
-                ) * spectators
-        total += per_orbit
-    return total * int(problem.ng)
 
 
 # ─────────────────────────────────────────────────────────────────────

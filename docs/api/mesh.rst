@@ -364,7 +364,6 @@ The shape algebra is a set of pure functions on a tuple of axes
 :func:`~orpheus.mesh.axis.face_labels`,
 :func:`~orpheus.mesh.axis.face_shape`,
 :func:`~orpheus.mesh.axis.face_outflow_ordinates`,
-:func:`~orpheus.mesh.axis.n_unknowns_flat`,
 :func:`~orpheus.mesh.axis.coord_system`), so a gate can exercise it on a
 synthetic axis tuple without building a full phase space.
 The architectural narrative, the axis tuple as the key of the

@@ -24,6 +24,7 @@ import numpy as np
 import pytest
 
 from orpheus.transport.spatial.diamond import DiamondDifference
+from tests.gates.sn.sweep._sweep_graph_faces import face_in_x, face_in_y, face_out_x, face_out_y
 from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
@@ -84,10 +85,10 @@ class TestFromCartesian2D:
     ):
         """assert_upwind_orientation: face_in/out indices match sign conv."""
         g = SweepDependencyGraph.from_cartesian((4, 4), label=OctantLabel((sx, sy)))
-        assert g.face_in_x == fix
-        assert g.face_out_x == fox
-        assert g.face_in_y == fiy
-        assert g.face_out_y == foy
+        assert face_in_x(g) == fix
+        assert face_out_x(g) == fox
+        assert face_in_y(g) == fiy
+        assert face_out_y(g) == foy
 
     def test_pure_z_label_raises(self):
         with pytest.raises(ValueError, match="degenerate"):
@@ -178,8 +179,8 @@ class TestAssertFacePairingConsistent:
         #            cell (i-1, j) incoming face is (i-1)+1 = i. ✓
         # The invariant is: face_out_x == 1 + face_in_x - sx (always -1+sx-?)
         # Simplest check: face_out_x + face_in_x == 1 (one is 0, the other is 1).
-        assert g.face_in_x + g.face_out_x == 1
-        assert g.face_in_y + g.face_out_y == 1
+        assert face_in_x(g) + face_out_x(g) == 1
+        assert face_in_y(g) + face_out_y(g) == 1
 
 
 # ─────────────────────────────────────────────────────────────────────

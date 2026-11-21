@@ -39,8 +39,8 @@ labelling site (:meth:`~orpheus.sn.splitting.Splitting.from_schedule`) and
 consumed by the drivers AS IT IS — so "the driver runs the objects the value
 advertises" holds by construction on every arm, and the strict-xfail marker
 this file carried for R7 is gone (it XPASSed).  What keeps teeth is the LAW
-``A = M − N`` per VALUE (AC-b′ below; the value's own
-:meth:`~orpheus.sn.splitting.Splitting.law_residual`), and the pair of
+``A = M − N`` per VALUE (AC-b′ below; the test-side
+``law_residual`` of ``_splitting_oracles.py``), and the pair of
 schedules that must differ on the trace while agreeing on the limit
 (``tests/gates/sn/architecture/test_step2_terminal_object_anchors.py``).
 

@@ -251,7 +251,7 @@ each of which mints the splitting VALUE its own schedule calls for.
      (:ref:`sn-splitting-is-a-strategy-value`).  Two labellings ship:
      Jacobi (every geometry) and boundary Gauss-Seidel (multi-D
      Cartesian, seedless), and a value certifies itself against the
-     Problem by :meth:`~orpheus.sn.splitting.Splitting.law_residual`.
+     Problem by the test-side ``law_residual`` (``tests/gates/sn/architecture/_splitting_oracles.py``).
    * Both inner paths — source iteration and Krylov — consume that SAME
      posed record over the SAME one-walk discretization (matvec ≡
      :term:`sweep`, #206 Phase C): the same solution **set**, different
@@ -885,7 +885,7 @@ one labelling site,
      only in rate — the pair is what a Mode-9 invariance gate needs.
    * The law :math:`M - N = A` is a property of the value and is
      checkable per value:
-     :meth:`~orpheus.sn.splitting.Splitting.law_residual`.  It is
+     the test-side ``law_residual``.  It is
      **bit-exact** on the seedless arm (the Gauss-Seidel split writes
      disjoint rows, so no addition is reordered) and round-off-close on
      the carrying arm (the block grid re-associates).
@@ -1007,7 +1007,7 @@ holds by construction rather than by convention — write it out:
    construction, not a claim about a solve.  Its verifiable content —
    that the objects the value actually derives satisfy it on real
    operands — is what
-   :meth:`~orpheus.sn.splitting.Splitting.law_residual` computes and
+   the test-side ``law_residual`` computes and
    what the two gate modules named above assert, bit-exactly on the
    seedless arm and at ``nulp=8`` on the carrying one.
 .. vv-status: sn-splitting-law documented
@@ -1161,7 +1161,7 @@ own block type-check is what makes a mis-placed coupling
 The law, and what it is measured at
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:meth:`~orpheus.sn.splitting.Splitting.law_residual` evaluates
+The test-side ``law_residual`` (``_splitting_oracles.py``) evaluates
 :math:`\bigl(M - \sum_i N_i - A\bigr)x` on a state and returns it flat,
 aligned with :math:`A x`.  It is the value's **certificate against the
 Problem it was minted from**: :math:`A` is read off
@@ -2180,12 +2180,15 @@ indistinguishable, in its return value, from one that skipped it.
 The gauge is σ-free, and that is now stated across two Problems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-:attr:`SNProblem.loss_kernel_gauge
-<orpheus.sn.problem.SNProblem.loss_kernel_gauge>` is a
+``SNProblem.pencil.kernel.projector`` (the gauge was a property of the hub,
+``SNProblem.loss_kernel_gauge``, until W0 dead-C read it through the pencil's
+kernel instead) is a
 :func:`~functools.cached_property` over :math:`\sigma`-free data, and
-the campaign pins that it stays so — otherwise a later "derive the gauge
-from the pencil" simplification would rebuild it on every
-:math:`\texttt{at}(\sigma)` with no value test able to notice.
+the campaign pins that it stays so: the pencil's
+:math:`\texttt{at}(\sigma)` returns the member :math:`A - \sigma M` and never
+touches the kernel, and a per-access rebuild of the projector would be
+invisible to every value test, so the identity row pins that it is cached once
+per hub.
 
 Before O-5 the claim was spelled *on one solver*: rebind, then check the
 hub returned the **same object**.  With :math:`\sigma` a Problem datum it

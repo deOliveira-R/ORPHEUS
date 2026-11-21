@@ -118,8 +118,8 @@ def test_d2_metadata_byte_identical_axis_vs_legacy() -> None:
     for face in legacy.bc:
         np.testing.assert_equal(type(native.bc[face]), type(legacy.bc[face]))
     np.testing.assert_equal(
-        native.boundary_face_layout.faces.keys(),
-        legacy.boundary_face_layout.faces.keys(),
+        native.angular_trace.layout.faces.keys(),
+        legacy.angular_trace.layout.faces.keys(),
     )
 
 
@@ -280,7 +280,7 @@ def test_d3_cartesian_builds_trace_and_bc_inventory() -> None:
     )
     six = ("xmin", "xmax", "ymin", "ymax", "zmin", "zmax")
     np.testing.assert_equal(tuple(m.angular_trace.layout.faces), six)
-    np.testing.assert_equal(tuple(m.boundary_face_layout.faces), six)
+    np.testing.assert_equal(tuple(m.angular_trace.layout.faces), six)
     np.testing.assert_equal(sorted(m.bc), sorted(six))
     np.testing.assert_equal(
         tuple(label.face_name for label in m.face_labels), six,

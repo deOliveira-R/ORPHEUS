@@ -1,4 +1,4 @@
-r"""The ψ½ coupled system — ``build_coupled_system``, instance #1 of the block machinery.
+r"""The ψ½ coupled system — ``build_within_group_system``, instance #1 of the block machinery.
 
 The co-producing builder of the campaign's 2×2 coupled block operator (step
 4d.2 / Phase B.2c): the within-group augmented SN system posed as a typed
@@ -213,69 +213,9 @@ __all__ = [
     "RadialCharacteristicFactors",
     "SNLossFactors",
     "WithinGroupSystem",
-    "build_coupled_system",
     "build_streaming_collision",
     "build_within_group_system",
 ]
-
-
-def build_coupled_system(
-    problem: "SNProblem",
-    mat_xs: "MaterialXSField",
-) -> "tuple[CoupledOperator, CoupledSpace]":
-    r"""Build the ψ½ coupled block operator and its space, aligned by construction.
-
-    Since B.2d this is the loss-grid VIEW of :func:`build_within_group_system`
-    (delegation — one construction site): a consumer needing only the loss
-    surface ``A`` will take this pair — the PLANNED such consumers are the
-    d2 ``evaluate_residual`` re-type, the assembly arm, and the DSA
-    substrate (#2); today the campaign gates are the callers. The drivers
-    take the full :class:`WithinGroupSystem` record (loss + factors) and
-    mint their splitting from it.
-
-    The co-producing mechanism (P1): the typed grid and the
-    :class:`~orpheus.numerics.coupled_system.CoupledSpace` it is typed
-    against are emitted together — ``op.domain == op.codomain == space`` and
-    every block sits at the grid position its declared spaces admit (a
-    mis-placed coupling raises
-    :class:`~orpheus.numerics.operator.IncompatibleOperatorComposition` at
-    construction). Presence is structural (P2): the returned grid is 2×2 on
-    a seed-carrying mesh, 1×1 (``[[A_AA]]``) otherwise. See the module
-    docstring for the block table, the sign conventions, and the
-    transitional dead-slot hazard.
-
-    Parameters
-    ----------
-    problem : SNProblem
-        The SN Problem — supplies both member spaces, the
-        quadrature, and the R12a presence predicate
-        (``radial_characteristic_field_space is not None``).
-    mat_xs : MaterialXSField
-        The mesh-materialized macroscopic cross sections (the hub's
-        ``problem.mat_xs``, one field per Problem): σ_t feeds ``C`` AND ``A_BB`` (one
-        typed field object — the mesh-identity invariant holds by
-        construction), the scattering table feeds ``S``; the emission
-        block consumes the solver-composed ``K_iso =
-        S.isotropic_energy + N2N.isotropic_energy`` (§14.1 — single-sourced per
-        channel LEAF).
-    scattering_order : int
-        Legendre truncation for ``S`` (0 = P0 — the
-        :class:`~orpheus.sn.solver.SNSolver` default).
-
-    Returns
-    -------
-    (CoupledOperator, CoupledSpace)
-        The within-group loss grid and its carrier space. The grid carries
-        ``apply``/``apply_transpose`` (and ``.H`` via the member-wise
-        metrics) and, since step 5, the DIRECT solve surface: the full
-        2×2 is ``is_invertible`` via the materialize/LU route (the space's
-        zero exemplar is wired), the EXTRACT the R5/R11 swap-law gates
-        ride — production solves stay the splitting iteration on a
-        :class:`~orpheus.sn.splitting.Splitting` value minted from the
-        record's factors.
-    """
-    system = build_within_group_system(problem, mat_xs)
-    return (system.loss, system.space)
 
 
 # ───────────────────────────────────────────────────────────────────────

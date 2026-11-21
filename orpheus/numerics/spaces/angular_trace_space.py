@@ -435,8 +435,8 @@ class AngularTraceSpace(FunctionSpace):
         layout : FaceLayout
             The boundary face layout (canonically
             :func:`~orpheus.transport.phase_spaces.angular_face_layout`,
-            which :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`
-            returns — the single source of truth for which faces exist and
+            which :attr:`~orpheus.sn.problem.SNProblem.angular_trace`
+            carries as its ``layout`` — the single source of truth for which faces exist and
             their flat packing). Its ordered faces drive the
             :attr:`omega_dot_n` rows; its ``total_size`` sets the space
             shape.

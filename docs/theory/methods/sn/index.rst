@@ -43,7 +43,7 @@ Discrete Ordinates Method (S\ :sub:`N`)
         source_posing: "SNProblem.source_posing(q) — the AFFINE question over this Problem: SourcePosing(pencil.at(1), q), i.e. (A - F)psi = q, since C3b-2 (2026-09-14, fork 2 (a)). ALWAYS at(1): on a non-fissile hub the production is the zero dyad, so the member IS the pure transport operator in value and there is no discrimination on the datum. A bare (seedless) full-field source is LIFTED into the one-system coupled state, because the pencil's ends are the coupled space and SourcePosing's ends law refuses the unlifted pair. Admissibility (rho(A^-1 F) < 1) is a spectral fact the DRIVER certifies with the hub's k-solve — a Problem-side object never solves. The (M, q) cell's production entry is solve_sn_multiplying_source. Canonical: ref sn-subcritical-multiplying-source"
       strategy:                        # solver-owned; NOT members of the posed record
         sigma_stratum: "StreamingCollisionOperator.sigma_stratum — sigma bound ONCE for this operator's walks (C3b-2, 2026-09-14, fork 1 (ii)): a cached_property returning loss_representation.bind_sigma(self.sigma). Two realizations, one per walk kind — RawSigmaStratum(sig_t) for the multi-D wavefronts (which read sigma inside the cell update) and ScanStratum(geom, coll, sig_t) for the 1-D Blelloch scan (which marches a precomputed chain, so binding sigma means building Stratum 2 against the interned Stratum 1). Every sweep/sweep_transpose consumes it, so a walk can never serve a stale sigma; the retired hub memo _coll_cache could ([M] two sigma on one strategy returned the SAME array). This member is also the geometry table's strong holder, which retired SNSolver.geom_cache/coll_cache. Canonical: ref sn-sigma-bound-once-at-the-operator"
-        splitting: "A = M − N is a Strategy VALUE (orpheus.sn.splitting.Splitting), never a member of the posed WithinGroupSystem record. The primitive is the LABELLING of A's terms (LossTerm = an operator together with the ±1 coefficient it carries in A); M and N are DERIVED from it, so they cannot disagree with it. Two labellings ship: jacobi (every geometry, and the only one admitted on a seed-carrying Problem) and gauss_seidel (multi-D Cartesian, seedless — splits B_a into B_lower implicit + B_upper explicit on disjoint rows). The law M − N = A is checkable per value (Splitting.law_residual): bit-exact seedless, round-off on the carrying block grid. Until 2026-09-13 the record carried the pair as implicit_operator/explicit_gains, while the Gauss-Seidel driver re-derived a second one behind it. Canonical: ref sn-splitting-is-a-strategy-value"
+        splitting: "A = M − N is a Strategy VALUE (orpheus.sn.splitting.Splitting), never a member of the posed WithinGroupSystem record. The primitive is the LABELLING of A's terms (LossTerm = an operator together with the ±1 coefficient it carries in A); M and N are DERIVED from it, so they cannot disagree with it. Two labellings ship: jacobi (every geometry, and the only one admitted on a seed-carrying Problem) and gauss_seidel (multi-D Cartesian, seedless — splits B_a into B_lower implicit + B_upper explicit on disjoint rows). The law M − N = A is checkable per value (the test-side law_residual of the architecture gates): bit-exact seedless, round-off on the carrying block grid. Until 2026-09-13 the record carried the pair as implicit_operator/explicit_gains, while the Gauss-Seidel driver re-derived a second one behind it. Canonical: ref sn-splitting-is-a-strategy-value"
         green: "Splitting.green(realisation) mints the GreenOperator (M − N)⁻¹ of the value (numerics untangling package S4, rulings 65–70). Its faces: apply (the promise, converged or ConvergenceFailure), driver(max_iter, tol) (the relaxation every within-group solve and the k-eigenvalue inner run) and step (the splitting map, the finalize). The realisation is Richardson(representation, corrector) with the preconditioner derived from M, or Krylov(P, restart) with a free left preconditioner. Canonical: ref green-strategy-mints"
         schedule: "the inner_schedule string becomes a SweepSchedule at ONE site, orpheus.sn.splitting.resolve_schedule, which carries the geometry gate (is_cartesian and not is_1d); nothing downstream of it reads the string"
       key_types: [AngularFlux, SNProblem, HarmonicMomentFlux, SweepDependencyGraph]
@@ -1014,7 +1014,7 @@ What moved, concretely
    was a *space* or a geometry-only projector
    (:attr:`~orpheus.sn.problem.SNProblem.full_field_space`,
    :attr:`~orpheus.sn.problem.SNProblem.angular_trial_space`,
-   :attr:`~orpheus.sn.problem.SNProblem.loss_kernel_gauge`);
+   the pencil kernel's projector, ``SNProblem.pencil.kernel.projector``);
    :attr:`~orpheus.sn.problem.SNProblem.fission` is the ONE
    fission operator of the problem, minted once and read by the forward
    k-outer and by the adjoint alike.  That is the Problem side of the
@@ -1529,9 +1529,10 @@ generator::
    <orpheus.sn.mesh.reduced_operator.ReducedStreamingOperator.angular_axis>`,
    recovered by a typed narrow, and the courier field it used to read
    through is gone (:ref:`spaces-generator-route-gate`).  It did **not**
-   re-point the walk.  `[M]` there are 19 ``.quad`` reads across
+   re-point the walk.  `[M]` there were 19 ``.quad`` reads across
    :mod:`orpheus.sn.loss_representation` (15 in the module body, 2 in
-   ``assembly.py``, 2 in ``sweep_schedule.py``), every one of them
+   ``assembly.py``, 2 in ``sweep_schedule.py``; ``assembly.py`` moved to
+   the test side in W0, so 17 remain), every one of them
    handed the hub, and they stay.
 
    The reason is a role distinction, not a backlog.  A *producer* that

@@ -1406,7 +1406,8 @@ be):
   particle balance) HIDES — for example the curvilinear pole-cell spike
   (the ERR-026 failure-mode-7 class, where the SI gives a large
   pole-cell error while global balance looks fine).
-- :func:`~orpheus.sn.solver.boundary_vs_interior_split` — splits the
+- ``boundary_vs_interior_split`` (a test-side diagnostic of
+  ``tests/gates/sn/operators/test_typed_residual_evaluation.py``) — splits the
   composite into :math:`(\lVert r_\partial \rVert, \lVert r_{\rm bulk}
   \rVert)` (with :math:`\sqrt{b^2 + i^2} = \lVert r\rVert`, the same
   flat metric the SI test uses), discriminating a BC-realizer /

@@ -5,7 +5,7 @@ The residual mint :meth:`AngularResidual.from_balance` /
 :func:`orpheus.sn.solver.evaluate_residual` types the within-group balance
 defect :math:`r = (L+C-S-B)\psi - q` as a composite
 ``TimedFullField(interior=AngularResidual, boundary=AngularBoundaryResidual)`` — a
-diagnostic (``balance_map`` / ``boundary_vs_interior_split`` / ``relative_to``)
+diagnostic (``balance_map`` / ``relative_to``)
 and the consistent-DSA (`#2`) low-order-correction substrate.
 
 Config: a 1-D slab, 2 groups, fuel|moderator heterogeneous, P1-anisotropic
@@ -42,7 +42,7 @@ from orpheus.sn.splitting import Splitting
 from orpheus.sn.solver import (
     SNSolver,
     _within_group_green_si,
-    boundary_vs_interior_split,
+    _system_a_member,
     evaluate_residual,
 )
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -52,6 +52,12 @@ from orpheus.transport.fields import AngularSourceSink, AngularBoundarySourceSin
 from orpheus.transport.timed_full_field import TimedFullField
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from orpheus.numerics.coupled_system import CoupledField
+    from orpheus.transport.full_field import FullField
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -170,6 +176,20 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
 
 
 # ── T4.3 — boundary_vs_interior_split quadrature-sums to ‖r‖
+
+
+def boundary_vs_interior_split(residual: "FullField | CoupledField") -> tuple[float, float]:
+    """Split a typed System-A residual into ``(boundary, interior)`` L2 norms.
+
+    A test-side diagnostic (it lived in ``orpheus.sn.solver`` with no production caller):
+    the flat-L2 norm of the boundary residual and of the interior (bulk) residual, so
+    :math:`\\sqrt{b^2 + i^2} = \\lVert r_A\\rVert`. A coupled residual funnels to its
+    System-A member; System B's defect is its own typed member.
+    """
+    member = _system_a_member(residual)
+    interior = float(np.linalg.norm(np.asarray(member.interior.values).ravel()))
+    boundary = float(np.linalg.norm(np.asarray(member.boundary.values).ravel()))
+    return boundary, interior
 
 
 @pytest.mark.foundation

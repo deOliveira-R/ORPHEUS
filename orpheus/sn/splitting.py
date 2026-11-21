@@ -19,7 +19,7 @@ site (:meth:`Splitting.from_schedule`), whose members ``M``
 (:attr:`Splitting.implicit`) and ``N`` (:attr:`Splitting.explicit`) are
 DERIVED from the labelled terms, and whose law ``M − N = A`` is a property
 of the value, certifiable against the Problem it was minted from
-(:meth:`Splitting.law_residual`).
+(the test-side ``law_residual`` of ``tests/gates/sn/architecture/_splitting_oracles.py``).
 
 The O-3 query contract (ruled at the campaign's §27.6): *the Problem answers
 with the operators as POSED — original, unmodified; the Strategy answers with
@@ -131,9 +131,7 @@ from functools import cached_property, reduce
 from operator import add
 from typing import TYPE_CHECKING, Any, cast
 
-import numpy as np
-
-from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
+from orpheus.numerics.coupled_system import CoupledOperator
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.operator import (
     LinearOperator,
@@ -181,11 +179,6 @@ class LossTerm:
                 f"LossTerm: the coefficient of a term in the loss is +1 or -1; "
                 f"got {self.sign!r} for {type(self.operator).__name__}."
             )
-
-    @property
-    def is_gain(self) -> bool:
-        """Whether the term is a GAIN (a ``−`` term of the loss)."""
-        return self.sign < 0
 
 
 def resolve_schedule(problem: "SNProblem", inner_schedule: str) -> "SweepSchedule":
@@ -389,29 +382,6 @@ class Splitting:
         """
         lagged = reduce(add, (*self.explicit, *extra_gains))
         return GreenOperator(self.implicit, lagged, realisation=realisation)
-
-    # ── the law ────────────────────────────────────────────────────────
-    def law_residual(self, state: "CoupledField") -> np.ndarray:
-        r"""The residual of the splitting law, ``(M − Σ N_i − A)·x``, flat and
-        aligned with ``A·x`` — the value's certificate against the Problem
-        it was minted from (exactly ``0.0`` on every shipped labelling: the
-        pieces are the loss's own terms, and the Gauss-Seidel split writes
-        disjoint rows).  The carrier bridge lives here: on a carrying mesh
-        ``M`` and ``N`` consume the coupled state; on a seedless mesh they
-        are System-A operators and the state's single member is applied
-        (the asymmetry the partition phase's gain grid on both arms
-        removes)."""
-        loss_image = self.system.loss.apply(state).to_flat()
-        if self.system.is_coupled:
-            image = self.implicit.apply(state).to_flat()
-            for gain in self.explicit:
-                image = image - gain.apply(state).to_flat()
-            return image - loss_image
-        member = state.systems[0]
-        image = self.implicit.apply(member).to_flat()
-        for gain in self.explicit:
-            image = image - gain.apply(member).to_flat()
-        return image - loss_image
 
     # ── block placement by ends (the carrying arm) ─────────────────────
     def _grid(self, terms: "tuple[LossTerm, ...]", *, negate: bool) -> "CoupledOperator":

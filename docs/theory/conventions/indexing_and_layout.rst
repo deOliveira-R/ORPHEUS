@@ -1634,8 +1634,7 @@ one instance.
   :func:`~orpheus.transport.phase_spaces.angular_trace_space`
   ``(mesh, quadrature, scheme)`` are the rule of
   :attr:`~orpheus.sn.problem.SNProblem.angular_trace` (and of
-  :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`, which reads the
-  trace's layout back);
+  the trace's ``layout``, which ``SNProblem.angular_trace.layout`` reads);
 - :func:`~orpheus.transport.phase_spaces.scalar_trace_space` ``(mesh)`` is the
   rule of :attr:`~orpheus.diffusion.augmented_mesh.DiffusionMesh.scalar_trace`.
   It refuses a mesh of two or more axes, whose face measure is a per-face-cell

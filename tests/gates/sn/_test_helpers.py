@@ -572,8 +572,9 @@ def redistribution_via_live_path(
     returned for one level, but through the production algebra:
 
     * the half-angle ψ-thread :math:`\phi_{m\pm 1/2,i,g}` comes from the
-      module-level
-      :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+      test-side
+      ``compute_psi_half_per_level``
+      (``tests/gates/sn/sweep/curvilinear/_psi_half.py``)
       — the pure-algebra surface whose recurrence kernel
       (``_psi_half_grid_single_level``) is the SAME one the matvec's
       :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes (the C5
@@ -604,7 +605,7 @@ def redistribution_via_live_path(
     route (a) — it now consumes the mesh-bound closure's ``precompute_psi_state``
     per-level half-angle grid directly.)
     """
-    from orpheus.sn.angular.closure import (
+    from tests.gates.sn.sweep.curvilinear._psi_half import (
         compute_psi_half_per_level,
     )
 
@@ -1187,7 +1188,7 @@ def mms_prescribed_inflow(case: NonVacuumMMSCase, problem: "SNProblem"):
     :class:`~orpheus.transport.fields.AngularBoundarySourceSink` lives here, beside the tests that
     pair the case with a solve (the user's ruling of 2026-10-22; layer DAG P4c). The closure width
     is :attr:`~orpheus.sn.problem.SNProblem.n_face_moments`, the attribute the trace layout
-    :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` packs its moment tail from, so the
+    :attr:`~orpheus.sn.problem.SNProblem.angular_trace` (its ``layout``) packs its moment tail from, so the
     case's trace and the producer's slot agree by construction: a DD/Step problem receives the
     scalar face trace and an LD problem the moment-resolved slot.
     """

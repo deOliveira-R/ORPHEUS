@@ -61,6 +61,7 @@ import numpy as np
 import pytest
 
 from orpheus.transport.spatial.diamond import DiamondDifference
+from tests.gates.sn.sweep import _sweep_graph_faces as _faces
 from orpheus.sn.loss_representation.sweep_graph import (
     OctantLabel,
     SweepDependencyGraph,
@@ -558,8 +559,8 @@ def test_d2_from_cartesian_matches_legacy(nx, ny, sx, sy):
         )
     # Same face-offset conventions (the upwind orientation crosswalk).
     np.testing.assert_array_equal(
-        [generic.face_in_x, generic.face_out_x,
-         generic.face_in_y, generic.face_out_y],
+        [_faces.face_in_x(generic), _faces.face_out_x(generic),
+         _faces.face_in_y(generic), _faces.face_out_y(generic)],
         list(legacy_faces),
         err_msg="face-offset convention drift between generic and legacy",
     )

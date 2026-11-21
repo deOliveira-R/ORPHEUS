@@ -1989,7 +1989,7 @@ that is already its flat chart, so its members are the flat vectors: the
 carriers posed on composites (the diffusion resolvent's, the flattened
 views) act on flat vectors because those ARE the members. The S\ :sub:`N`
 per-ordinate blocks are built unposed by
-:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`
+``assemble_ordinate_blocks`` (the test-side oracle ``tests/gates/sn/sweep/_ordinate_assembly.py``)
 and act on :math:`\mathbb R^{\text{cols}}`.
 
 The same two functions serve every carrier that holds a matrix:
@@ -2166,7 +2166,7 @@ transport
 :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
 the carrier itself, and the three domain composites of the next
 subsection. The SN per-ordinate blocks are assembled outside the functor,
-by :func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`,
+by ``assemble_ordinate_blocks`` (the test-side oracle),
 which builds its carriers directly
 (:ref:`loss-rep-three-modes`).
 

@@ -152,7 +152,7 @@ def _build_composite(
     bulk_values : np.ndarray
         Shape ``(N, ng, *spatial)`` — the angular flux values.
     boundary_values : np.ndarray, optional
-        Shape matching ``problem.boundary_face_layout.total_size``.  If
+        Shape matching ``problem.angular_trace.layout.total_size``.  If
         ``None``, an all-zero boundary is used (the typical migration
         target — Gate 1.1/1.4 etc. zero the boundary because they
         compute the cell-block residual only).

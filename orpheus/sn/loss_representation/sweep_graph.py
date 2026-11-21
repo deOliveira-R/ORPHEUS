@@ -401,12 +401,12 @@ class SweepDependencyGraph:
         is a pair of ``int`` arrays of equal length ``n_diag``
         carrying the cell-i / cell-j indices on that level. Walked
         in topological order.
-    face_in_x, face_out_x, face_in_y, face_out_y :
-        Per-axis face-index offsets. ``face_in`` is the offset added
-        to ``ii`` (or ``jj``) to get the incoming-face index;
-        ``face_out`` for the outgoing face. For ``sx ≥ 0``:
-        ``face_in_x = 0`` (the "lower" x-face), ``face_out_x = 1``
-        (the "upper"). For ``sx < 0``: reversed.
+    face_in, face_out :
+        Per-axis face-index offsets. ``face_in[a]`` is the offset added
+        to the axis-``a`` cell index to get the incoming-face index;
+        ``face_out[a]`` for the outgoing face. For ``s_a ≥ 0``:
+        ``face_in[a] = 0`` (the "lower" face), ``face_out[a] = 1``
+        (the "upper"). For ``s_a < 0``: reversed.
 
     Notes
     -----
@@ -458,22 +458,6 @@ class SweepDependencyGraph:
     @property
     def ny(self) -> int:
         return self.spatial_shape[1]
-
-    @property
-    def face_in_x(self) -> int:
-        return self.face_in[0]
-
-    @property
-    def face_out_x(self) -> int:
-        return self.face_out[0]
-
-    @property
-    def face_in_y(self) -> int:
-        return self.face_in[1]
-
-    @property
-    def face_out_y(self) -> int:
-        return self.face_out[1]
 
     # ── Construction ────────────────────────────────────────────────
 

@@ -125,11 +125,11 @@ keff = np.sum(nu_sigma_f * phi * V[:, None]) / np.sum(sigma_a * phi * V[:, None]
 
 # Elegant: every intermediate is named, dimensioned, and verifiable.
 production_rate_per_group = compute_group_production_rate(phi)   # (ng,) [1/s]
-absorption_rate_per_group = compute_group_absorption_rate(phi)   # (ng,) [1/s]
-keff = production_rate_per_group.sum() / absorption_rate_per_group.sum()  # [dimensionless]
+absorption_rate = IntegratedReactionRate(CrossSectionField.absorption_of(mat_xs)).evaluate(phi)   # [1/s]
+keff = production_rate_per_group.sum() / absorption_rate  # [dimensionless]
 ```
 
-The second form admits dimensional analysis. The total production rate has units `[1/s]`. The total absorption rate has units `[1/s]`. Their ratio is dimensionless — and that dimensionless ratio IS the named quantity `k_eff` (the reactor multiplication factor). Each step is verifiable against analytic limits (e.g., for a homogeneous reflective system, `k_eff → k_∞ = νΣ_f / Σ_a`, and both `production_rate_per_group` and `absorption_rate_per_group` should agree with closed-form independently).
+The second form admits dimensional analysis. The total production rate has units `[1/s]`. The total absorption rate has units `[1/s]`. Their ratio is dimensionless — and that dimensionless ratio IS the named quantity `k_eff` (the reactor multiplication factor). Each step is verifiable against analytic limits (e.g., for a homogeneous reflective system, `k_eff → k_∞ = νΣ_f / Σ_a`, and both `production_rate_per_group.sum()` and `absorption_rate` should agree with closed-form independently).
 
 **Implication for code review**: when reading scientific code, every line should support the question "what is this quantity, in physical units?" A line that does not (a magic constant, a flat reduction over unnamed dimensions, an inline multi-factor formula without a left-hand side that names the result) is a code-review blocker — not because the code is ugly, but because the physics is opaque. Demand the name. If the author cannot supply one, the math is suspect.
 

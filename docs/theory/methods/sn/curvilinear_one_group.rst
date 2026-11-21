@@ -3705,8 +3705,9 @@ flat-flux invariance, and asymptotic accuracy:
   .. implements:: pole-mm-recurrence
      :by: orpheus.sn.angular.closure.march_psi_half_step
 
-     **Implemented by** 5 sites, all inside the angular closure since
-     P4.9a (2026-08-28).  Every symbol that executes this equation's
+     **Implemented by** 5 sites, four inside the angular closure since
+     P4.9a (2026-08-28) and one test-side (``compute_psi_half_per_level``,
+     moved there in W0).  Every symbol that executes this equation's
      arithmetic is declared, not only the canonical one: a test is
      adjudicated against the transcription it actually ran, and this
      equation's five ``verifies`` gates call ``compute_psi_half_per_level``
@@ -3716,7 +3717,8 @@ flat-flux invariance, and asymptotic accuracy:
      (:ref:`sn-p49a-two-forms`).  ``_psi_half_grid_single_level`` is the
      batch kernel that writes the **seed** line and loops the step,
      delegating the body so the delegation is bit-neutral;
-     ``compute_psi_half_per_level`` is its public exposure and
+     ``compute_psi_half_per_level`` is its test-side exposure
+     (``tests/gates/sn/sweep/curvilinear/_psi_half.py``) and
      ``MorelMontryAngularSweep._psi_half_grid_for_level`` the hub-bound
      wrapper that reads :math:`\tau_n` from the strategy;
      ``AngularClosureBase.advance_psi_half`` is the per-cell entry the
@@ -3729,7 +3731,7 @@ flat-flux invariance, and asymptotic accuracy:
      :by: orpheus.sn.angular.closure._psi_half_grid_single_level
 
   .. implements:: pole-mm-recurrence
-     :by: orpheus.sn.angular.closure.compute_psi_half_per_level
+     :by: tests.gates.sn.sweep.curvilinear._psi_half.compute_psi_half_per_level
 
   .. implements:: pole-mm-recurrence
      :by: orpheus.sn.angular.closure.MorelMontryAngularSweep._psi_half_grid_for_level
@@ -3771,8 +3773,8 @@ flat-flux invariance, and asymptotic accuracy:
      one.**  The ray-**decoupled** :math:`(A,A)` diagonal block substitutes a
      zero seed by construction — there is no fold entry on that block, so the
      M-M thread has nothing to read and its cotangent propagates nowhere
-     (:ref:`sn-loss-rep-ray-decoupled-block`).  The kernel
-     :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+     (:ref:`sn-loss-rep-ray-decoupled-block`).  The kernel,
+     reached through the test-side ``compute_psi_half_per_level``,
      therefore keeps ``psi_half_seed=None`` → zero as its API default, and
      that default — **not** the shipped scheme — is what the equation's
      ``verifies`` gates in
@@ -4145,7 +4147,8 @@ Half-angle grid exposure
 .. todo:: Archivist expansion needed.
 
    The Issue #197 PR-TYPED-6b dispatch added the public surface
-   :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+   ``compute_psi_half_per_level`` (since moved to the test side,
+   ``tests/gates/sn/sweep/curvilinear/_psi_half.py``)
    exposing the M-M recurrence's half-angle grid
    :math:`\phi_{m\pm 1/2,i,g}` for one level.  (Originally an instance
    method on ``MorelMontryAngularSweep``, served by the unbound
@@ -4168,7 +4171,7 @@ Half-angle grid exposure
    recurrence body lives once, in the module-level kernel
    ``_psi_half_grid_single_level`` of
    :mod:`orpheus.sn.angular.closure`.  Both the
-   public ``compute_psi_half_per_level`` AND the live production path
+   test-side ``compute_psi_half_per_level`` AND the live production path
    route through it: the matvec/sweep call
    :meth:`~orpheus.sn.angular.closure.AngularClosureBase.precompute_psi_state`,
    which dispatches per level through ``_psi_half_grid_for_level``,

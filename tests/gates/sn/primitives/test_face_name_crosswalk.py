@@ -63,7 +63,7 @@ class TestFaceNameCrosswalk:
 
         No Mesh3D exists (C5); the crosswalk being a pure function on
         ``FaceLabel`` is exactly what makes the 3-axis rendering
-        verifiable NOW, so ``boundary_face_layout``'s derived loop is
+        verifiable NOW, so the derived loop of ``angular_trace.layout`` is
         z-correct by construction the day a 3-axis mesh constructs.
         """
         rendered = [

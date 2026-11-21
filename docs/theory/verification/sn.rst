@@ -1292,7 +1292,7 @@ is **mis-cited and 100 % spurious on physical fields**:
       stands.**  `[M]` 2026-08-11, feeding a strictly positive analytic
       shadow profile :math:`\exp(-6\cos\omega)` through the production
       kernel
-      :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+      (the test-side ``compute_psi_half_per_level`` over ``_psi_half_grid_single_level``)
       on level 0 of ``Quadrature.folded_product(4, 32)``
       (:math:`M = 16`) with a positive constant seed — i.e. squarely in
       the inconsistent-seed regime — all four :math:`\tau` conventions
@@ -2239,7 +2239,7 @@ see the honest-scope note below.
      (**#251**).  The boundary trace ``mesh.angular_trace`` carries the
      :math:`2^{d-1}` transverse face-moments per face per ordinate per group
      (a moment-resolved slot ``(N, ng, *face_shape, 2^{d-1})`` minted by
-     :attr:`orpheus.sn.problem.SNProblem.boundary_face_layout`, appending the
+     ``SNProblem.angular_trace.layout``, appending the
      single-source tail rule, since 2026-10-25
      :func:`orpheus.numerics.space.factor_tail`),
      so a moment-resolved prescribed inflow can carry the along-face
@@ -2279,7 +2279,7 @@ see the honest-scope note below.
    typed-union bulk widening, the Mode-10 structural-teeth design, and the
    M1–M4 mutation table — is the subsection :ref:`ld-cartesian-2d-legA`
    immediately below.  The full Leg B narrative — the
-   :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` moment-tail
+   ``boundary_face_layout`` (now ``SNProblem.angular_trace.layout``) moment-tail
    storage lever, the ``_inflow_to_moments`` rank-discriminated pass-through,
    the four outflow capture-collapse DROP sites, the
    :meth:`~orpheus.transport.fields.AngularBoundarySourceSink.prescribed_inflow`
@@ -2713,7 +2713,7 @@ claim, not just its sign (the "improves-on-flat" leg that closed Leg A is
 where the O(1)-isolating-companion half of the recipe is genuinely unavailable —
 is the load-bearing lesson, and the reason this is recorded in full.
 
-The ``boundary_face_layout`` moment-tail storage lever (the CRUX)
+The ``angular_trace.layout`` moment-tail storage lever (the CRUX)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Leg A had a free ride: the BULK iterate :math:`\hat\phi` already carried its
@@ -2726,7 +2726,7 @@ single attribute on the Problem.
 The trace's per-face slot shape is owned not by the
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` itself but by the
 :class:`~orpheus.numerics.face_layout.FaceLayout` it is built from, and that
-layout is minted by :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`.
+layout is minted by the trace's rule and read as ``SNProblem.angular_trace.layout``.
 The widening is therefore ONE site: append the scheme's per-face transverse
 moment tail to each slot,
 
@@ -2741,7 +2741,7 @@ moment tail to each slot,
 
 .. (vv-status rationale) representational: the boundary-trace per-face slot
 .. SHAPE (the codimension-1 :math:`2^{d-1}` transverse-moment tail appended by
-.. ``SNProblem.boundary_face_layout``). A storage-layout identity; its
+.. ``SNProblem.angular_trace.layout``). A storage-layout identity; its
 .. verifiable content — the live slot shapes (LD ``(24,2,6,2)`` vs DD
 .. ``(24,2,6)``) and the DD/Step byte-identical negative control — is pinned
 .. by the FOUNDATION LD gates in the (owned) ``test_mms_ld_2d.py`` /
@@ -2790,7 +2790,7 @@ Three properties make this the clean lever:
   exponent :math:`d-1` vanishes.
 
 The scheme is reachable: ``SNProblem`` sets ``self.scheme`` before it builds the
-trace, so ``boundary_face_layout`` can read ``self.scheme.spatial_basis_per_axis``
+trace, so the layout can read ``self.scheme.spatial_basis_per_axis``
 to compute the tail.  Verified live: with LD the face slots are
 :math:`(24, 2, 6, 2)` / :math:`(24, 2, 8, 2)` (the trailing ``2`` is the
 :math:`2^{d-1}` transverse-moment axis); with DD they are :math:`(24, 2, 6)` /
@@ -3179,7 +3179,7 @@ Sources and gates
 ^^^^^^^^^^^^^^^^^
 
 The production change spans three files: the storage lever in
-:attr:`orpheus.sn.problem.SNProblem.boundary_face_layout` (appending
+``SNProblem.angular_trace.layout`` (appending
 :func:`~orpheus.numerics.space.factor_tail` since 2026-10-25); the inflow lift
 :meth:`_LossRepresentation._inflow_to_moments`, the oracle seed
 :meth:`FullFieldWavefront._octant_face_cochain`, and the four outflow
@@ -3324,7 +3324,7 @@ the problem's cell basis (:meth:`scheme.face_moment_count(ndim)
 which reads
 :meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.face_dimension`)
 and the SAME attribute
-:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` packs the slot width
+``SNProblem.angular_trace.layout`` packs the slot width
 from, so the case's trace and the producer's slot agree by construction. The
 case refuses a width outside ``{1, 2}``; a width of 1 on an LD problem is
 accepted by the producer and seeds slot 0 only, which is why the width is read
@@ -3463,7 +3463,7 @@ whose ``_check_partner`` adds nothing beyond class identity would be a vacuous
 naming leaf — type-theatrics by the project's own "if the type hint does not
 prevent a bug by construction it is theatrics" standard.  So the moment rides as
 a PROPERTY (the flat face buffer already holds the moment tail via
-:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`), and the
+``SNProblem.angular_trace.layout``), and the
 first-class ``SpatialMomentField`` type is DEFERRED to the collocation
 trigger (nodal-DG / Lagrange-FEM, where a
 nodal point-value basis coexists with the modal coefficients and a Vandermonde

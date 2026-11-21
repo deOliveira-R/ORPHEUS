@@ -510,9 +510,9 @@ These are pinned by ``tests/gates/sn/test_sweep_graph.py`` (63 L0 tests):
 
 * **Upwind orientation** — for each octant
   :math:`\sigma = (\mathrm{sgn}\,\mu_x, \mathrm{sgn}\,\mu_y)`, the
-  ``face_in_x`` and ``face_out_x`` offsets satisfy
-  ``face_in_x + face_out_x == 1`` and
-  ``face_in_x = 0`` iff :math:`\mathrm{sgn}\,\mu_x \ge 0` (and
+  ``face_in[0]`` and ``face_out[0]`` offsets satisfy
+  ``face_in[0] + face_out[0] == 1`` and
+  ``face_in[0] = 0`` iff :math:`\mathrm{sgn}\,\mu_x \ge 0` (and
   analogously on :math:`y`).  Asserted by
   ``test_face_pairing_consistent`` and ``test_upwind_orientation``.
 * **Topological sort** — every level's cells depend only on cells in
@@ -6202,7 +6202,7 @@ proportional to :math:`n_g`; ``[M]`` an absorber and a fissile mixture
 on the same box give **bit-identical** residuals
 (:math:`2.799\times10^{-16}`), which is what makes the kernel a
 **Stratum-1** geometry-only object, cached once per mesh on
-:attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
+``SNProblem.pencil.kernel.projector``
 and reused across every group, every outer and every eigenvalue iterate.
 
 Both counting laws, as theorems
@@ -6252,7 +6252,7 @@ ordinate **orbits** under the reflection group
    others.
 
 .. implements:: dd-null-counting-law
-   :by: orpheus.sn.operators.loss_kernel_gauge.predicted_kernel_dimension
+   :by: tests.gates.sn.operators._kernel_dimension.predicted_kernel_dimension
 
 .. (vv-status rationale) Structural identity: a combinatorial count derived
    from dd-null-balance-combinatorial, carrying no solver claim. It is
@@ -6352,7 +6352,7 @@ the full 3-D ordinate count :math:`N` and reads :math:`N/4`.
 
 The two columns are computed by structurally different routes and that
 is the point: ``law`` is
-:func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_kernel_dimension`,
+``predicted_kernel_dimension`` (the test-side counting-law oracle),
 which walks the combinatorics of :eq:`dd-null-counting-law` and **builds
 no vector at all**, while ``built`` is the rank the construction's
 weighted SVD finds.  A bookkeeping error in either would separate them.
@@ -6661,7 +6661,7 @@ projector is numerics'.  The generators travel inside the hub's
 (a :class:`~orpheus.numerics.fredholm.PredictedKernel` on the full field,
 bulk :math:`\oplus` trace, since the space-membership unit U0,
 2026-10-31; :ref:`sn-loss-kernel-predicted`), whose projector is
-:attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`.
+``SNProblem.pencil.kernel.projector``.
 For the diamond-difference half,
 :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_discretization_kernel`
 hands one right
@@ -6760,7 +6760,7 @@ What ships
        co-vectors, plus one mode per absorption-free closed class
        (:ref:`sn-loss-kernel-predicted`).  The hub's pencil carries it,
        rebased onto the coupled space, and every entry's verdict reads it
-   * - :attr:`SNProblem.loss_kernel_gauge <orpheus.sn.problem.SNProblem.loss_kernel_gauge>`
+   * - ``SNProblem.pencil.kernel.projector``
      - the prediction's projector, a
        :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`
        on the coupled space.

@@ -6600,7 +6600,7 @@ which is the one composer every widened space rides — the angular and
 scalar mints, and, since CS4c step 6 item 6.2c-iii, the carrier's
 harmonic-moment product too), and the flat face-buffer moment tail minted by
 :func:`~orpheus.transport.phase_spaces.angular_face_layout` (read back as
-:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout`) on
+``SNProblem.angular_trace.layout``) on
 the boundary — rather than as its own field type.  A ``BoundaryMomentField`` leaf whose
 partner-check added nothing beyond class identity would be the vacuous naming
 leaf the criterion warns against; the transverse boundary moment is therefore a
@@ -8443,7 +8443,7 @@ kernel:
    the Euclidean transpose differing from Π, range = span, σ ⊥_G ker,
    minimum norm, residual neutrality with its off-kernel negative control,
    the overlap rule), plus the S_N production instance, the hub's
-   loss_kernel_gauge (a KernelProjectionGauge whose generators S_N
+   pencil kernel projector, ``problem.pencil.kernel.projector`` (a KernelProjectionGauge whose generators S_N
    supplies), in tests/gates/sn/operators/test_loss_kernel_gauge.py:
    test_it_is_an_idempotent_G_self_adjoint_projector,
    test_gauging_cannot_move_any_convergence_check, and
@@ -10444,7 +10444,7 @@ state:
      - :math:`\sum(F^\dagger\psi^*)` — **fission only**
    * - the three source entries
      - the hub's :class:`~orpheus.numerics.gauge.KernelGauge` —
-       ``problem.loss_kernel_gauge``
+       ``problem.pencil.kernel.projector``
      - nothing; it is a projector, and its group element comes from the
        trace
 

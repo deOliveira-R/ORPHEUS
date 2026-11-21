@@ -60,7 +60,7 @@ import pytest
 
 from orpheus.geometry.faces import face_normal
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.operators.loss_kernel_gauge import predicted_kernel_dimension
+from tests.gates.sn.operators._kernel_dimension import predicted_kernel_dimension
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
 from tests.gates.sn._singular_loss_box import (
     LS4,
@@ -258,7 +258,7 @@ def test_the_T_plus_R_split_is_exact_per_quadrature(
     :eq:`dd-null-counting-law` ends in ``+ #{tangential trace DOFs}``, and
     **that term has no other test**: every fixture in the gauge suite's
     ``_SINGULAR`` list is ``level_symmetric``, where it is zero.
-    :func:`~orpheus.sn.operators.loss_kernel_gauge.predicted_kernel_dimension`
+    ``predicted_kernel_dimension`` (``tests/gates/sn/operators/_kernel_dimension.py``)
     deliberately counts ``R`` only (its own docstring says so), so the law as
     published and the law as implemented differ by exactly this term.
 
@@ -311,8 +311,8 @@ def test_the_T_plus_R_split_is_exact_per_quadrature(
         f"{predicted_kernel_dimension(problem)} but the SVD's R is {remainder} "
         f"— the law and the operator disagree on the R/T boundary"
     )
-    assert problem.loss_kernel_gauge.dimension == remainder, (
-        f"{label}: the gauge spans {problem.loss_kernel_gauge.dimension} "
+    assert problem.pencil.kernel.projector.dimension == remainder, (
+        f"{label}: the gauge spans {problem.pencil.kernel.projector.dimension} "
         f"dimensions but R is {remainder}"
     )
     gap = rank_gap(singular, nullity)

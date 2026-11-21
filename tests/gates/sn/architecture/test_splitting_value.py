@@ -48,6 +48,7 @@ from orpheus.sn.loss_representation.sweep_schedule import (
 from orpheus.sn.operators.boundary import SNMaskedBoundaryOperator
 from orpheus.sn.operators.scheduled_invertible import ScheduledInvertibleOperator
 from orpheus.sn.splitting import LossTerm, Splitting, resolve_schedule
+from tests.gates.sn.architecture._splitting_oracles import law_residual
 from tests.gates.sn.architecture._config import (
     cart2d_seedless,
     random_state,
@@ -80,7 +81,7 @@ class TestLawTheSplittingLaw:
         value = _value(cart2d_seedless, schedule)
         state = random_state(value.system, seed=_SEED)
         np.testing.assert_array_equal(
-            value.law_residual(state), 0.0,
+            law_residual(value, state), 0.0,
             err_msg=f"M − N != A on the seedless arm under {schedule!r}",
         )
 
@@ -90,7 +91,7 @@ class TestLawTheSplittingLaw:
         value = _value(sphere_carrying, "jacobi")
         state = random_state(value.system, seed=_SEED)
         scale = float(np.max(np.abs(value.system.loss.apply(state).to_flat())))
-        residual = float(np.max(np.abs(value.law_residual(state))))
+        residual = float(np.max(np.abs(law_residual(value, state))))
         assert scale > 0.0, "the probe state does not excite A"
         assert residual <= 8.0 * np.finfo(float).eps * scale, (
             f"carrying-arm law residual {residual:.3e} exceeds 8 ε · ‖A·x‖∞ "
@@ -111,7 +112,7 @@ class TestLawTheSplittingLaw:
         )
         state = random_state(value.system, seed=_SEED)
         np.testing.assert_array_equal(
-            moved.law_residual(state), 0.0,
+            law_residual(moved, state), 0.0,
             err_msg="a label transfer moved the law — the sign did not travel with the term",
         )
 
@@ -137,7 +138,7 @@ class TestLawThePartition:
         value = _value(cart2d_seedless, schedule)
         state = random_state(value.system, seed=_SEED)
         dropped = dataclasses.replace(value, explicit_pieces=value.explicit_pieces[1:])
-        defect = float(np.max(np.abs(dropped.law_residual(state))))
+        defect = float(np.max(np.abs(law_residual(dropped, state))))
         assert defect > 1e-3, f"dropping the first lagged piece moved the law by only {defect:.3e}"
 
     def test_flipping_a_terms_sign_reds_the_law(self) -> None:
@@ -150,7 +151,7 @@ class TestLawThePartition:
             value,
             explicit_pieces=(LossTerm(first.operator, -first.sign),) + value.explicit_pieces[1:],
         )
-        defect = float(np.max(np.abs(flipped.law_residual(state))))
+        defect = float(np.max(np.abs(law_residual(flipped, state))))
         assert defect > 1e-3, f"flipping a term's sign moved the law by only {defect:.3e}"
 
     def test_a_corrupt_sign_is_unspellable(self) -> None:

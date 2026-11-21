@@ -358,8 +358,7 @@ def evaluate_residual(
     ``r_B`` the split ψ½ residual pair — System B's defect is a typed
     member that cannot be silently dropped.
 
-    A diagnostic (``balance_map`` / :func:`boundary_vs_interior_split` /
-    ``relative_to``) AND the substrate the consistent-DSA low-order
+    A diagnostic (``balance_map`` / ``relative_to``) AND the substrate the consistent-DSA low-order
     correction (`#2`) will consume (``r`` is the transport residual the
     diffusion solve corrects). NOT in the convergence path — evaluated on
     a (typically converged) flux, additive. Arm-level equations that no
@@ -410,27 +409,6 @@ def evaluate_residual(
             "bare FullField pair, not a coupled wrapper."
         )
     return _typed_balance(_bare_loss_arm(system), psi, q_ext)
-
-
-def boundary_vs_interior_split(
-    residual: "FullField | CoupledField",
-) -> tuple[float, float]:
-    r"""Split a typed System-A residual into ``(boundary, interior)`` L2 norms.
-
-    Returns the flat-L2 norm of the boundary residual and of the interior
-    (bulk) residual, so :math:`\sqrt{b^2 + i^2} = \lVert r_A\rVert` (System
-    A's composite flat norm — EXACT since B.2d made ``FullField`` 2-block;
-    the pre-eviction 3-block silently excluded the seed rows from this
-    identity, the closed diagnostic gap). Discriminates a BC-realizer /
-    reflective-trace defect (large ``boundary``) from an interior-streaming
-    defect (large ``interior``). A coupled residual funnels to its System-A
-    member; System B's defect is its own typed member — read
-    ``residual.systems[1]`` directly (its flat norm is the ray-row defect).
-    """
-    member = _system_a_member(residual)
-    interior = float(np.linalg.norm(np.asarray(member.interior.values).ravel()))
-    boundary = float(np.linalg.norm(np.asarray(member.boundary.values).ravel()))
-    return boundary, interior
 
 
 class ConvergenceClaimError(RuntimeError):
@@ -1568,28 +1546,6 @@ class SNSolver:
 
         return rate
 
-    def compute_group_absorption_rate(
-        self, flux_distribution: "np.ndarray | ScalarFlux",
-    ) -> np.ndarray:
-        r"""Per-group volume-integrated absorption rate, shape ``(ng,)``.
-
-        Component :math:`a_g = \int_V \Sigma_{a,g}(\mathbf{r})\,\phi_g(\mathbf{r})\,dV`.
-
-        Volume-integrated via ``mesh.volume_measure`` (Issue 9.6 wiring).
-        ``.sum()`` of this vector is the ABSORPTION term of the
-        ``compute_keff`` denominator (net removal = absorption + leakage
-        − (n,2n) emission since #291/R7).
-
-        Issue #196 PR-INDEX-5: ``flux_distribution`` is principled
-        ``(ng, nx, ny)``, parsed at the problem's bulk space (a
-        :class:`ScalarFlux` by content, a bare array at the exact shape).
-        """
-        per_cell_per_group = np.einsum(
-            "g...,g...->g...", self.problem.mat_xs.absorption_cross_section,
-            self.problem.bulk_space.coordinates_of(flux_distribution),
-        )
-        return self.problem.integrate_per_group(per_cell_per_group)
-
     def _scalar_flux(self, flux_distribution: np.ndarray) -> ScalarFlux:
         r"""The power-iteration protocol vector as the typed member it is: a scalar flux on the problem's bulk.
 
@@ -1674,9 +1630,8 @@ class SNSolver:
         — so this reduces **bit-identically** to the historical lattice
         functional ``production / absorption``.
 
-        The per-group :meth:`compute_group_production_rate` /
-        :meth:`compute_group_absorption_rate` remain available as
-        spectral diagnostics (not on the keff path).
+        The per-group :meth:`compute_group_production_rate` remains available
+        as a spectral diagnostic (not on the keff path).
         """
         phi = self._scalar_flux(flux_distribution)
         production = IntegratedReactionRate(

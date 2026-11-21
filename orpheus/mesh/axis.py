@@ -19,8 +19,7 @@ This module declares the per-axis primitive used to build that product:
 
 The dim-agnostic shape primitives are exposed as **pure functions on
 axis tuples** — :func:`spatial_shape`, :func:`face_labels`,
-:func:`face_shape`, :func:`face_outflow_ordinates`,
-:func:`n_unknowns_flat`. The :class:`~orpheus.sn.problem.SNProblem` class
+:func:`face_shape`, :func:`face_outflow_ordinates`. The :class:`~orpheus.sn.problem.SNProblem` class
 delegates to these so 3-D admission gates can exercise the shape
 algebra on a synthetic axis tuple without instantiating a full SN
 phase space — no ``Mesh3D`` exists today, and the pure-function form
@@ -488,40 +487,6 @@ def face_outflow_ordinates(
     mu_axis = quad.mean_axis_cosine(label.axis_index)
     sign = +1.0 if label.endpoint in _OUTWARD_ENDPOINTS else -1.0
     return np.where(sign * mu_axis > _OUTFLOW_COSINE_TOL)[0]
-
-
-def n_unknowns_flat(
-    axes: tuple[Axis1D, ...], quad, ng: int,
-) -> int:
-    r"""Total flat-vector size for typed :class:`AngularFlux` on this mesh.
-
-    The pack convention (C3) is the direct-sum decomposition
-    :math:`V = V_\text{cells} \oplus \bigoplus_\ell V_{\text{face}, \ell}`
-    where the cells block has size
-    :math:`N \cdot n_g \cdot \prod_i n_i` and each face block has size
-    :math:`|\text{outflow}_\ell| \cdot n_g \cdot \prod_{i \ne \text{axis}(\ell)} n_i`.
-
-    Parameters
-    ----------
-    axes : tuple of Axis1D
-        The axis tuple (i.e. :attr:`SNProblem.axes`).
-    quad : Quadrature
-        Angular quadrature; needed for the per-face outflow mask.
-    ng : int
-        Number of energy groups.
-    """
-    shape = spatial_shape(axes)
-    n_cells = int(quad.n_ordinates) * int(ng) * int(np.prod(shape, dtype=np.int64))
-    n_face = 0
-    for label, face_spatial in trace_face_shapes(axes):
-        outflow = face_outflow_ordinates(axes, label, quad)
-        block = (
-            int(outflow.size)
-            * int(ng)
-            * int(np.prod(face_spatial, dtype=np.int64))
-        )
-        n_face += block
-    return n_cells + n_face
 
 
 def coord_system(axes: tuple[Axis1D, ...]):

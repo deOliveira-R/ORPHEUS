@@ -6,10 +6,11 @@ Two welds, both object-level (Mode 12: pin matrices, never functionals):
    reduced (per-ordinate DD balance + closure + zero inflow, in the
    production density convention :math:`(\mu/h)\Delta\psi + \sigma_T
    \bar\psi`) has its edge-eliminated cell operator EQUAL to the
-   production ``assemble_ordinate_blocks`` output, entry for entry, per
+   ``assemble_ordinate_blocks`` output (the test-side oracle, assembled through the
+   production kernel), entry for entry, per
    (ordinate, group), on a heterogeneous non-uniform slab. This proves
-   the object the theorems reduced IS the object the production
-   assembler emits — the load-bearing premise of "consistent by
+   the object the theorems reduced IS the object the assembly oracle
+   emits through the production kernel — the load-bearing premise of "consistent by
    derivation".
 
 2. **The realized low-order system**: :func:`build_consistent_dd_system`
@@ -34,7 +35,7 @@ from orpheus.derivations.discrete.sn import dsa
 from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellEdges, CellsByCount, Mesher
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.sn.loss_representation.assembly import assemble_ordinate_blocks
+from tests.gates.sn.sweep._ordinate_assembly import assemble_ordinate_blocks
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for

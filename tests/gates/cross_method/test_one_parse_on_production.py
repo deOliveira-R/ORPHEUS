@@ -131,10 +131,6 @@ class TestTheSilentRowsAreRefused:
         with pytest.raises(ValueError, match=EXACT):
             getattr(sn["engine"], verb)(x)
 
-    def test_the_sn_absorption_rate_refuses_a_column(self, sn):          # [M] Σ 0.516 (0.424), asserts on too
-        with pytest.raises(ValueError, match=EXACT):
-            sn["solver"].compute_group_absorption_rate(sn["phi"][:, :1])
-
     def test_the_reaction_rate_density_refuses_a_column_cross_section(self, sn, sn_solution):   # [M] Σ 4.10 (3.35)
         xs = np.asarray(sn["prob"].mat_xs.absorption_cross_section)
         with pytest.raises(ValueError, match=EXACT):
@@ -229,7 +225,7 @@ def _patch_primitive(monkeypatch):
 
 
 #: The correct-operand call of each admission spelling and each parse site, resolved by NAME at run time (a
-#: rebinding arm cannot reach a row parametrized over objects built at collection, lessons L100). 28 independent
+#: rebinding arm cannot reach a row parametrized over objects built at collection, lessons L100). 27 independent
 #: sites: the space's two verbs, ``Member``, ``admit_array``, the axis marginal, the objects below the space, the
 #: transport and SN operators, and the solver and solution observables. ``harmonic_frame._admit`` is not a row: it
 #: is typed-only, with no shape leg of its own, so it could see the primitive only through the carrier's
@@ -240,7 +236,7 @@ _SITES = [
     "DiagonalOperator.apply", "DiagonalMetric.apply_block", "DenseMetric.apply_block", "FactoredMetric.apply",
     "DiscreteMeasure.integrate", "InnerProductFunctional.evaluate", "Basis.reconstruct", "Basis.analyze",
     "FrameAnalysis.apply", "FrameReconstruction.apply", "CrossGramInverse.apply",
-    "SNSolver.compute_group_absorption_rate", "SNSolver.compute_group_production_rate",
+    "SNSolver.compute_group_production_rate",
     "Solution.reaction_rate_density", "PartialCurrentOperator.apply", "IsotropicEmissionOperator.apply_transpose",
     "MaterialXSField.project_through_bilinear", "SourcePosing.__post_init__",
     "RadialCharacteristicReconstruction.apply",
@@ -368,7 +364,6 @@ def _site_calls(site, homog, sn, sn_solution, sphere):
         "DiagonalOperator.apply": (lambda: sn["engine"].apply(np.ones((sn["n_ord"], 2, 12))), "DiagonalOperator.apply"),
         "InnerProductFunctional.evaluate": (lambda: homog.production.production_rate.evaluate(np.array([[0.6], [0.4]])), "InnerProductFunctional.evaluate"),
         "DiscreteMeasure.integrate": (lambda: fine.integrate(np.ones(fine.n_points)), "DiscreteMeasure.integrate"),
-        "SNSolver.compute_group_absorption_rate": (lambda: sn["solver"].compute_group_absorption_rate(phi), repr(prob.bulk_space)),
         "SNSolver.compute_group_production_rate": (lambda: sn["solver"].compute_group_production_rate(phi), repr(prob.bulk_space)),
         "Solution.reaction_rate_density": (lambda: sn_solution.reaction_rate_density(
             np.asarray(prob.mat_xs.absorption_cross_section)), repr(sn_solution.scalar_flux.space)),

@@ -31,10 +31,10 @@ from orpheus.mesh import AxisMesh
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.operators.loss_kernel_gauge import (
     predicted_discretization_kernel,
-    predicted_kernel_dimension,
     predicted_physical_kernel,
 )
 from orpheus.sn.solver import _as_problem
+from tests.gates.sn.operators._kernel_dimension import predicted_kernel_dimension
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates.sn.operators.test_loss_kernel_gauge import _R, _apply_loss, _loss_system, _mesh
 

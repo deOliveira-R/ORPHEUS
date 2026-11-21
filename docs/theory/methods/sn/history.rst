@@ -926,7 +926,7 @@ them.  Trust ``git``, not this column.
        first constructor of the mechanism a later partition phase
        generalises to :math:`A_{ij} = R_i A J_j`.
        **(4) The law is per value.**
-       :meth:`~orpheus.sn.splitting.Splitting.law_residual` certifies
+       the test-side ``law_residual`` (``tests/gates/sn/architecture/_splitting_oracles.py``) certifies
        :math:`M - N = A` against the loss the *posing* built (never
        re-assembled from the splitting's own pieces).  ``[M]``
        **bit-exact** on the seedless arm under both schedules — the
@@ -3071,7 +3071,8 @@ them.  Trust ``git``, not this column.
        the same per-ordinate ``L(+C)`` coefficients are emitted as
        ``(row, col, value)`` by a **closure-generic symbolic walk** of the
        :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`
-       (:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`;
+       (``assemble_ordinate_blocks``, now the test-side oracle
+       ``tests/gates/sn/sweep/_ordinate_assembly.py``;
        DD + LD). The emitter owns **no** stencil spelling — it extracts
        every coefficient by unit probes of the production kernel
        (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`,
@@ -3154,7 +3155,7 @@ them.  Trust ``git``, not this column.
        ``sn_mesh`` is REQUIRED, the family's ``cls(sn_mesh)`` construction
        contract is total, and the pure-algebra recurrence surface moved
        back to module level
-       (:func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+       (``compute_psi_half_per_level``, since moved to the test side
        — hand-built-coefficient verification needs no instance).  The
        ``SNMesh`` closure override became a **class** parameter
        (``pole_angular_closure: type[AngularClosureBase]``) — an

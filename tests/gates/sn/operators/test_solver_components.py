@@ -30,6 +30,9 @@ from tests.gates.sn._independent_dd_sweep import (
     sweep_agreement_tolerances,
 )
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
+from orpheus.transport.fields.cross_section_field import CrossSectionField
+from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from orpheus.transport.fields.angular_flux import AngularFlux
 from dataclasses import replace
 from orpheus.numerics import frame_faces
@@ -229,19 +232,23 @@ class TestComputeGroupRates:
                                    rtol=1e-13,
                                    err_msg="group production rate sum")
 
-    def test_absorption_rate_shape_and_sum(self, solver_2g):
+    def test_absorption_rate_sum(self, solver_2g):
         solver, *_ = solver_2g
         np.random.seed(101)
         flux = np.random.rand(solver.ng, *solver.problem.spatial_shape) + 0.1
 
-        rate_g = solver.compute_group_absorption_rate(flux)
-        assert rate_g.shape == (solver.ng,)
+        # The per-group ``SNSolver.compute_group_absorption_rate`` retired; the absorption term of
+        # ``compute_keff`` is this integrated reaction rate of the typed flux.
+        phi = ScalarFlux(values=flux, space=solver.problem.bulk_space)
+        rate = IntegratedReactionRate(
+            CrossSectionField.absorption_of(solver.problem.mat_xs)
+        ).evaluate(phi)
 
         vol = solver.volume  # (nx, ny)
         ref_absorption = float(np.einsum("gxy,gxy,xy->", solver.problem.mat_xs.absorption_cross_section, flux, vol))
-        np.testing.assert_allclose(float(rate_g.sum()), ref_absorption,
+        np.testing.assert_allclose(float(rate), ref_absorption,
                                    rtol=1e-13,
-                                   err_msg="group absorption rate sum")
+                                   err_msg="absorption rate")
 
     def test_integrate_per_group_is_the_volume_integral_itself(self, solver_2g):
         r"""The extracted primitive's DEFINING property, not its callers'.

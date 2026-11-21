@@ -27,7 +27,7 @@ from orpheus.numerics.quadrature import Quadrature
 
 # ─────────────────────────────────────────────────────────────────────
 # Helpers — build the (quadrature, layout) pair the unified
-# AngularTraceSpace consumes. Layouts mirror SNProblem.boundary_face_layout:
+# AngularTraceSpace consumes. Layouts mirror SNProblem.angular_trace.layout:
 # slab xmin/xmax, curvilinear xmax-only, 2-D xmin/xmax/ymin/ymax.
 # ─────────────────────────────────────────────────────────────────────
 

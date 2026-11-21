@@ -6375,7 +6375,7 @@ projection is not constructible.
 **Geometry-blind, layout-driven (post Issue #225 / C5.3).** The factory
 is **geometry-blind**: it takes only the angular quadrature and a
 :class:`~orpheus.numerics.face_layout.FaceLayout` (canonically
-:attr:`SNProblem.boundary_face_layout <orpheus.sn.problem.SNProblem>`), and
+``SNProblem.angular_trace.layout``), and
 reads every datum from those two — the layout's ``"{axis}{min|max}"``
 face names imply axis-aligned outward normals, so the
 :math:`\Omega\cdot\hat n` row for an axis-:math:`a` face is
@@ -7455,7 +7455,7 @@ which takes the angular quadrature and the face layout
 problem's material mesh, quadrature and scheme (the single source of truth for
 which faces exist; the problem's one call is
 :func:`~orpheus.transport.phase_spaces.angular_trace_space`, and
-:attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` reads the layout back
+``SNProblem.angular_trace.layout`` is that layout read back
 off the trace) and nothing else. The trace stores the **signed
 projection** :math:`\Omega\cdot\hat n_f` once per face, as an ``(n_faces, N)``
 array, not two boolean masks: inflow and outflow are **selectors** over this one
@@ -9376,7 +9376,7 @@ Three SN-side structures key on the same boundary-face string names
      - Structure
      - Role
    * - **Face layout**
-     - :attr:`SNProblem.boundary_face_layout`
+     - ``SNProblem.angular_trace.layout``
        (:class:`~orpheus.numerics.face_layout.FaceLayout`)
      - The flat-buffer descriptor: which faces exist, each face's
        per-face shape ``(N, ng, *codim-1 cells)``, and the offsets
@@ -9426,7 +9426,7 @@ single-sourced rendering on the structural face key:
 :attr:`FaceLabel.face_name <orpheus.mesh.axis.FaceLabel.face_name>`
 is THE rendering of the structural identity ``(axis_index,
 endpoint)`` into the ``"{axis}{min|max}"`` string world. Both
-producers — :attr:`SNProblem.boundary_face_layout` and the shared
+producers — the trace layout of the problem's ``angular_trace`` and the shared
 :func:`~orpheus.transport.method.realize_boundary` body (its ``traced`` set
 is ``{label.face_name for label in face_labels(method.axes)}``) — read it, so
 a key drift between the face layout and the BC dict is **unrepresentable by
@@ -9495,7 +9495,7 @@ structure:
         ▼
    SNProblem.face_labels  (tuple[FaceLabel, ...])
         │
-        ├─── boundary_face_layout : one slot per label,
+        ├─── angular_trace.layout : one slot per label,
         │       named  label.face_name,  shaped (N, ng, *face_shape(label), *tail)
         │       (the rule: phase_spaces.angular_face_layout over trace_face_shapes)
         │
@@ -9569,8 +9569,8 @@ The face-layout producer is the dual comprehension. Since layer DAG Phase 4
 (2026-11-01) its rule is the raw constructor
 :func:`~orpheus.transport.phase_spaces.angular_face_layout`, a function of the
 material mesh, the quadrature and the scheme, and
-:attr:`SNProblem.boundary_face_layout <orpheus.sn.problem.SNProblem>` returns the
-layout of the problem's one angular trace, ``self.angular_trace.layout``, which
+``SNProblem.angular_trace.layout`` is the
+layout of the problem's one angular trace, which
 the problem built with
 :func:`~orpheus.transport.phase_spaces.angular_trace_space` over that rule:
 
@@ -9593,7 +9593,7 @@ over :func:`~orpheus.mesh.axis.face_labels` that pairs each label with its
 The rule of reading is one line: a reader that needs only the labels (the
 ``traced`` set of ``realize_boundary`` above, the diffusion closure loop) reads
 ``face_labels``, and a reader that needs the shapes (the two layouts, the
-unknown count ``n_unknowns_flat``) reads ``trace_face_shapes``. Until Phase 4
+unknown count of the gates' test-side ``n_unknowns_flat`` counter) reads ``trace_face_shapes``. Until Phase 4
 the comprehension was spelled twice, in ``SNProblem.boundary_face_layout`` and
 in ``DiffusionMesh``'s scalar-trace construction.
 
@@ -9830,7 +9830,7 @@ strategy reflects that:
   foundation-tagged):
 
   - ``test_bc_inventory_equals_face_layout_across_geometries`` —
-    ``set(sn.bc) == set(boundary_face_layout.faces)`` across slab
+    ``set(sn.bc) == set(angular_trace.layout.faces)`` across slab
     (2 faces), 2-D Cartesian (4), sphere (1), cylinder (1), the
     Issue #220 acceptance set.
   - ``test_2d_reflective_y_face_builds_y_axis_permutation`` — the
@@ -9850,7 +9850,7 @@ C4 closure
 
 The face-name carve lands in two parts under Issue #220 (the SN N-D
 layout campaign): C4.1 (the :attr:`FaceLabel.face_name` crosswalk +
-the :attr:`boundary_face_layout` loop collapse) and the bc-dict
+the ``boundary_face_layout`` loop collapse, since retired for ``angular_trace.layout``) and the bc-dict
 resolution loop + named-attribute retirement. The carve is byte-identical
 on every numerical output (affine ``sha256`` goldens unchanged) and
 leaves the SN boundary keying **3-D-correct by construction** ahead of

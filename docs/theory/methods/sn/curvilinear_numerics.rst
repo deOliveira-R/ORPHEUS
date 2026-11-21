@@ -248,8 +248,8 @@ Phase D Carlson coupled-pole sweep (Issue #168 Phase D)
      the canonical Hébert §3.9.4 Eqs. (3.432)–(3.435) inward
      :math:`\mu = -1` sweep output.
    * The seed lives in the **M-M angular recurrence**
-     (:func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
-     in ``orpheus/sn/angular/closure.py``), **NOT**
+     (``_psi_half_grid_single_level``
+     in ``orpheus/sn/angular/closure.py``, reached by the test-side ``compute_psi_half_per_level``), **NOT**
      in the WDD spatial pole-face initial condition the
      :ref:`Phase C plan <sn-curvilinear-characteristic-reference-crosscheck-section>`
      proposed.  The diagnostic memo at
@@ -1220,7 +1220,7 @@ The full Phase D footprint (per the closeout memo at
   :class:`MorelMontryAngularSweep` gains a
   ``psi_half_seed: PsiHalfAngleSeed`` field; the per-level M-M
   recurrence (then ``_mm_weighted_angular_recurrence_single_level``,
-  now :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`)
+  now the test-side ``compute_psi_half_per_level`` over ``_psi_half_grid_single_level``)
   accepts an
   optional ``psi_half_seed`` array; Protocol signatures extended
   with an optional ``carlson_context`` kwarg (Legacy + Bailey

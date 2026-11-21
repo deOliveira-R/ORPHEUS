@@ -27,8 +27,7 @@ the strategy methods abstract on it — the Protocol was left orphaned and
 divergent).  Conformance is now ABC inheritance, and the hand-calc
 redistribution algebra (formerly pinned through the dead legacy
 ``__call__`` bundle interface) is re-pinned through the LIVE production
-surface: the half-angle ψ-thread via the module-level
-:func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+surface: the half-angle ψ-thread via the test-side ``compute_psi_half_per_level``
 (the same recurrence kernel ``_psi_half_grid_single_level`` the matvec's
 :meth:`~MorelMontryAngularSweep.precompute_psi_state` consumes) composed
 with the geometry redistribution fold ``(ΔA/w)/V·(α_{m+1/2}ψ_{m+1/2} −
@@ -257,7 +256,7 @@ class TestMorelMontryHandCalc:
     """Verbatim Hébert §3.9.4 algebra on a 2-ordinate sphere fixture.
 
     Issue #248 — re-pinned onto the LIVE production path (the half-angle
-    ψ-thread via :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+    ψ-thread via the test-side ``compute_psi_half_per_level``
     plus the explicit geometry redistribution fold) after the dead legacy
     ``__call__`` bundle interface was retired.  The expected redistribution
     values (sphere ``R_0 = 2/√3``, ``R_1 = -2/√3``) are unchanged; only the
@@ -283,8 +282,7 @@ class TestMorelMontryHandCalc:
                 = 1·(0·4 - 1/√3·2) / 1 = -2/√3.
 
         The ψ-thread (``ψ_face_{3/2} = 2``, ``ψ_face_{5/2} = 4``) is pinned
-        by the live
-        :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
+        by the test-side ``compute_psi_half_per_level``
         recurrence; the α-weighted geometry fold gives ``R_0``/``R_1``.
         """
         psi, alpha, dAw, tau, V = two_ordinate_sphere_fixture
@@ -325,8 +323,8 @@ class TestCylindricalLevelDispatch:
     scatters back to global ordinate slots.
 
     Issue #248 — the dead legacy ``__call__(... level_indices=...)`` bundle
-    is gone; the per-level dispatch is reconstructed here through the LIVE
-    :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level` recurrence
+    is gone; the per-level dispatch is reconstructed here through the
+    test-side ``compute_psi_half_per_level`` recurrence
     (one call per level on the level's ordinate slice) plus the explicit
     geometry fold.  This mirrors how production drives cylindrical: the
     matvec's :meth:`~MorelMontryAngularSweep.precompute_psi_state` loops
@@ -399,10 +397,8 @@ def test_strategy_is_linear_in_psi():
     behind the advertised ``MorelMontryAngularSweep.is_linear = True``.
     Verify ``f(αψ + βφ) = α·f(ψ) + β·f(φ)``.
 
-    Issue #248 — driven through the LIVE redistribution path (the
-    module-level
-    :func:`~orpheus.sn.angular.closure.compute_psi_half_per_level`
-    recurrence composed with the geometry fold) instead of the retired
+    Issue #248 — driven through the LIVE redistribution path (the test-side
+    ``compute_psi_half_per_level`` recurrence composed with the geometry fold) instead of the retired
     ``__call__`` bundle.  Linearity is the load-bearing property for the
     matvec's consumption: both the recurrence and the α-weighted fold are
     linear in ``psi``, so the redistribution is too."""

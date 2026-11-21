@@ -97,6 +97,7 @@ from orpheus.sn.coupled_system import (
 )
 from orpheus.sn.solver import solve_sn, solve_sn_adjoint
 from orpheus.sn.splitting import Splitting, resolve_schedule
+from tests.gates.sn.architecture._splitting_oracles import law_residual
 from tests.gates.sn.architecture._config import (
     cart2d_seedless,
     record_for,
@@ -347,8 +348,8 @@ class TestLawTheSplittingLawHoldsPerStrategy:
     per schedule, so the law's denominator is the Strategy's value set — and
     the gate that flipped (*"the driver runs the objects the record
     advertises"*) is true BY CONSTRUCTION.  This is the row that keeps
-    teeth; the value's own :meth:`~orpheus.sn.splitting.Splitting.law_residual`
-    is the same statement as a method, asserted at ``0.0`` alongside (exact
+    teeth; the test-side ``law_residual`` (``tests/gates/sn/architecture/_splitting_oracles.py``)
+    is the same statement as a function, asserted at ``0.0`` alongside (exact
     on the seedless arm — one flat operator sum; the carrying arm's block
     grid re-associates and is gated at nulp in ``test_stage_separation.py``).
 
@@ -368,8 +369,8 @@ class TestLawTheSplittingLawHoldsPerStrategy:
         loss_image = record.loss.apply(state).to_flat()
         splitting = Splitting.from_schedule(record, resolve_schedule(problem, schedule))
         np.testing.assert_array_equal(
-            splitting.law_residual(state), np.zeros_like(loss_image),
-            err_msg=f"Splitting.law_residual is not exactly zero for {schedule!r}",
+            law_residual(splitting, state), np.zeros_like(loss_image),
+            err_msg=f"the splitting law residual is not exactly zero for {schedule!r}",
         )
         np.testing.assert_array_equal(
             loss_image, _splitting_image(record, schedule, problem, state),
@@ -476,7 +477,7 @@ class TestLawTheStrategyPredicate:
 
 
 class TestLawTheGaugeIsSigmaFree:
-    r"""HAZARD H3 — ``loss_kernel_gauge`` is σ-FREE while ``loss`` is not.
+    r"""HAZARD H3 — the loss-kernel gauge (``pencil.kernel.projector``) is σ-FREE while ``loss`` is not.
 
     History: ``[M]`` ``probes2/p4_spaces_and_seeds.py`` (pre-C3a) — after a
     ×3 σ_t rebind on a live solver the hub returned the SAME
@@ -490,20 +491,25 @@ class TestLawTheGaugeIsSigmaFree:
     and its U3 successor ``KernelProjectionGauge``'s is — so ``==`` would be a
     false red) — and the per-hub IDENTITY half stays on ONE hub.
 
-    ⟹ deriving the gauge from the pencil would make it rebuild on every
-    ``.at(σ)`` — invisible to every value test, because the rebuilt gauge has
-    the same values.  The identity row pins the σ-freedom so that a later
-    "derive it from the pencil" simplification reds on a COUNT, not on a
-    value.
+    ⟹ W0 dead-C retired ``SNProblem.loss_kernel_gauge`` for
+    ``problem.pencil.kernel.projector``, so the gauge IS read through the
+    pencil now.  The hazard it pinned, "deriving the gauge from the pencil would
+    rebuild it on every ``.at(σ)``", does not arise on this route (``[M]`` read
+    at ``orpheus/numerics/pencil.py`` lines 91 to 96: ``OperatorPencil.at(σ)``
+    returns ``lhs - σ·rhs`` and never touches ``kernel``, which is the hub's
+    σ-free predicted kernel, cached with the pencil).  The identity row still
+    pins that the projector is cached once per hub, so a later per-access
+    rebuild reds on an identity, not on a value.
     """
 
     def test_law_the_gauge_is_cached_per_hub_by_identity(self) -> None:
         from tests.gates.sn.architecture._config import slab_seedless
 
         problem = slab_seedless()
-        assert problem.loss_kernel_gauge is problem.loss_kernel_gauge, (
-            "the loss-kernel gauge is a cached_property of the hub — if this "
-            "reds it was demoted to a method or derived from the pencil (H3)."
+        assert problem.pencil.kernel.projector is problem.pencil.kernel.projector, (
+            "the loss-kernel gauge (the hub pencil's kernel projector) is cached "
+            "per hub — if this reds it was demoted to a method or the pencil "
+            "rebuilds per access (H3)."
         )
 
     def test_law_a_sigma_variant_hub_has_an_EQUAL_gauge(self) -> None:
@@ -513,7 +519,7 @@ class TestLawTheGaugeIsSigmaFree:
         hub_b = problem.with_cross_sections(
             np.asarray(problem.mat_xs.total_cross_section) * 3.0,
         )
-        g1, g2 = problem.loss_kernel_gauge, hub_b.loss_kernel_gauge
+        g1, g2 = problem.pencil.kernel.projector, hub_b.pencil.kernel.projector
         assert g2 is not g1, "two hubs, two cached objects (the identity half is per hub)"
         assert np.array_equal(g1.as_matrix(), g2.as_matrix()), (
             "the loss-kernel gauge is documented σ-free; a ×3 σ-variant hub "

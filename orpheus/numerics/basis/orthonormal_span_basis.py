@@ -55,7 +55,7 @@ __all__ = ["OrthonormalSpanBasis", "SPAN_RANK_RTOL"]
 #: reflective boxes keep at least ``3.68e-1`` and discard at most ``5.5e-16``.
 #: Any cut in ``[1e-14, 1e-2]`` returns the same rank on all of them; the SN
 #: rank is independently checked against its counting law
-#: (``predicted_kernel_dimension``).
+#: (the test-side oracle ``predicted_kernel_dimension``).
 SPAN_RANK_RTOL = 1e-10
 
 

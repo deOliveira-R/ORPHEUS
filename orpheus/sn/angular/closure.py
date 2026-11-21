@@ -688,8 +688,8 @@ class AngularClosureBase(RegistryMixin, ABC):
 # The underscore prefix declares "module-private": consumers (matvec, sweep,
 # tests) see only the public API of :class:`MorelMontryAngularSweep` and treat
 # the half-grid as opaque strategy state; external code consumes via the
-# :meth:`upstream` / :attr:`upstream_per_ordinate` / :attr:`trailing_face`
-# accessors.
+# :attr:`upstream_per_ordinate` / :attr:`trailing_face` accessors (the
+# single-ordinate slices ``faces[:, m, :]`` are read from :attr:`faces`).
 #
 # ⛔ This comment claimed until 2026-08-13 that "the redistribution body inside
 # the M-M class accesses the raw :attr:`faces` array directly".  That consumer
@@ -719,8 +719,8 @@ class _MMHalfGrid:
     * The **unified matvec** consumes the upstream-per-ordinate slice — one
       ``(ng, nx)`` block per ordinate feeding ``cell_balance_for_streaming``'s
       ``angular_numer_upstream`` argument (via :meth:`cell_contribution`'s
-      assembly). Use :meth:`upstream` (single
-      ordinate) or :attr:`upstream_per_ordinate` (all ordinates).  This is
+      assembly). Use :attr:`upstream_per_ordinate`
+      (all ordinates).  This is
       the ONLY production consumer (:meth:`cell_contribution`).
     * The **endpoint defect** reads the far end alone. Use
       :attr:`trailing_face`.
@@ -735,8 +735,8 @@ class _MMHalfGrid:
     stated reason the raw array is exposed.
 
     The off-by-one trap (``faces[g, m, i]`` vs ``faces[g, m+1, i]``) is
-    impossible by API design when consumers use :meth:`upstream` — the
-    method's name AND signature enforce upstream-per-ordinate semantics. The
+    impossible by API design when consumers use :attr:`upstream_per_ordinate`
+    — the property's name enforces upstream-per-ordinate semantics. The
     raw :attr:`faces` array stays exposed so the redist body keeps its
     bit-identical paired access.
 
@@ -825,31 +825,12 @@ class _MMHalfGrid:
         """
         return self.faces[:, -1, :]
 
-    @property
-    def downstream_per_ordinate(self) -> np.ndarray:
-        r"""Shape ``(ng, M, nx)`` — downstream half-face flux for each ordinate.
-
-        ``[g, m, i]`` is :math:`\phi_{m+1/2, i, g}` — the downstream face
-        of ordinate ``m`` (equivalently, the upstream face of ordinate
-        ``m+1``). Excludes the leading face ``faces[:, 0, :]`` which is
-        the Carlson seed (upstream of m=0, not any ordinate's downstream).
-        """
-        return self.faces[:, 1:, :]
-
-    def upstream(self, m: int) -> np.ndarray:
-        r"""Shape ``(ng, nx)`` — upstream half-face of ordinate ``m``.
-
-        Returns :math:`\phi_{m-1/2, i, g}` per ``(g, i)``. The unified
-        matvec consumes one of these per ordinate to assemble
-        ``cell_balance_for_streaming``'s ``angular_numer_upstream`` argument.
-        """
-        return self.faces[:, m, :]
-
     def downstream(self, m: int) -> np.ndarray:
         r"""Shape ``(ng, nx)`` — downstream half-face of ordinate ``m``.
 
         Returns :math:`\phi_{m+1/2, i, g}` per ``(g, i)``. Note that
-        ``downstream(m) == upstream(m+1)`` for ``m < M-1``.
+        ``downstream(m)`` is the upstream face of ordinate ``m+1`` for
+        ``m < M-1``.
         """
         return self.faces[:, m + 1, :]
 
@@ -1397,8 +1378,10 @@ def morel_montry_tau_per_level(
 # data (``ψ_level``, ``τ_level``, an optional seed) via arguments, no mesh
 # state.  The Problem-bound strategy composes it (``_psi_half_grid_for_level``
 # reads τ from ``self`` and delegates); algebraic-identity tests call
-# :func:`compute_psi_half_per_level` with hand-built coefficient arrays — no
-# closure instance (and hence no mesh) required.
+# ``compute_psi_half_per_level``, a test-side helper of
+# ``tests/gates/sn/sweep/curvilinear/_psi_half.py`` that wraps
+# :func:`_psi_half_grid_single_level` — no closure instance (and hence no
+# mesh) required.
 
 
 def march_psi_half_step(
@@ -1453,8 +1436,8 @@ def _psi_half_grid_single_level(
     sphere / 3.412/3.414 cylinder):
     ``ψ_{m+1/2,i,g} = (ψ_{m,i,g} - (1-τ_m)·ψ_{m-1/2,i,g}) / τ_m``.
 
-    Pure kernel — accepts all data via arguments.  Used by the public
-    :func:`compute_psi_half_per_level` exposure and by the mesh-bound
+    Pure kernel — accepts all data via arguments.  Used by the test-side
+    ``compute_psi_half_per_level`` helper and by the mesh-bound
     :meth:`MorelMontryAngularSweep._psi_half_grid_for_level` (which
     reads ``tau_level`` from the strategy) via
     :meth:`MorelMontryAngularSweep.precompute_psi_state`.
@@ -1475,55 +1458,6 @@ def _psi_half_grid_single_level(
     return psi_half
 
 
-def compute_psi_half_per_level(
-    psi_level: np.ndarray,
-    tau_level: np.ndarray,
-    *,
-    psi_half_seed: np.ndarray | None = None,
-) -> _MMHalfGrid:
-    r"""Return the half-angle grid :math:`\phi_{m\pm 1/2, i, g}`
-    for one level under the M-M recurrence, wrapped in the private
-    :class:`_MMHalfGrid` typed accessor.
-
-    The hand-built-coefficient verification surface for the M-M
-    recurrence — ``tau_level`` arrives via argument so
-    algebraic-identity tests can verify the recurrence under
-    hand-built :math:`\tau` (no closure instance, no mesh).
-    Production code uses
-    :meth:`MorelMontryAngularSweep.precompute_psi_state`, which reads
-    :math:`\tau` from the Problem-bound strategy state and runs the SAME
-    :func:`_psi_half_grid_single_level` kernel (Pattern 2 — single
-    source of truth for the algebra).
-
-    Parameters
-    ----------
-    psi_level :
-        Shape ``(ng, M_p, nx)`` — the cell-centre angular flux at
-        the :math:`M_p` ordinates of one level (sphere: every
-        ordinate; cylinder: a per-:math:`\mu`-level azimuthal
-        subset).
-    tau_level :
-        Shape ``(M_p,)``: the Morel-Montry angular closure weights
-        :math:`\tau` for the level (there is no clamp — the
-        :math:`[\tfrac12, 1]` absorber retired at Q5.6.4).
-    psi_half_seed :
-        The half-angle face flux seed VALUES :math:`\phi_{1/2,i,g}`,
-        shape ``(ng, nx)``.  ``None`` seeds the recurrence at zero.
-        Hand-built tests pass the array they mean; production seeds come
-        from :meth:`MorelMontryAngularSweep.precompute_psi_state` (route (a)).
-
-    Returns
-    -------
-    _MMHalfGrid
-        Typed accessor wrapping the half-angle grid
-        ``faces`` of shape ``(ng, M_p+1, nx)``.
-    """
-    faces = _psi_half_grid_single_level(
-        psi_level, tau_level, psi_half_seed=psi_half_seed,
-    )
-    return _MMHalfGrid(faces=faces)
-
-
 # ═══════════════════════════════════════════════════════════════════════
 # MorelMontryAngularSweep — Phase B canonical (default)
 # ═══════════════════════════════════════════════════════════════════════
@@ -1532,7 +1466,7 @@ def compute_psi_half_per_level(
 # consumer goes through the strategy's public surface:
 # :meth:`precompute_psi_state` + :meth:`cell_contribution` (the live
 # matvec/sweep path); hand-built-coefficient verification goes through
-# the module-level :func:`compute_psi_half_per_level` (same kernel).
+# the test-side ``compute_psi_half_per_level`` helper (same kernel).
 
 
 class MorelMontryAngularSweep(
@@ -1623,8 +1557,8 @@ class MorelMontryAngularSweep(
     M-M precomputes α-dome, ΔA/w, τ, c_in, c_out, level partition, μ_x,
     weights, Δr at construction; the strategy methods read these from
     ``self`` (no M-M data through arguments).  Tests that need the
-        recurrence under hand-built coefficient arrays use the module-level
-        :func:`compute_psi_half_per_level` (same kernel, all data via
+        recurrence under hand-built coefficient arrays use the test-side
+        ``compute_psi_half_per_level`` helper (same kernel, all data via
         arguments).
     """
 
@@ -2344,7 +2278,6 @@ __all__ = [
     "AngularClosureBase",
     "angular_cell_edges_per_level",
     "assert_carrying_quadrature",
-    "compute_psi_half_per_level",
     "default_angular_closure_class",
     "march_start_structure_per_level",
     "morel_montry_tau_per_level",

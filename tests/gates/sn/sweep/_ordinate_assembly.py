@@ -1,4 +1,9 @@
-r"""Per-ordinate structural assembly of the Cartesian SN streaming block.
+r"""Per-ordinate structural assembly of the Cartesian SN streaming block (a test-side oracle).
+
+This module is the fuller-view oracle of the assembly mode: it lived in
+``orpheus.sn.loss_representation`` and moved to the test side whole (dead-C of
+the W0 retirement), because no production path reads it. Its consumers are the
+walk-order, the reverse-walk and the DSA production-tie gates.
 
 The SN arm of the assembly mode (stencil-assembly campaign 2b): emit, per
 ``(ordinate, group)``, the sparse matrix :math:`M` of the within-group

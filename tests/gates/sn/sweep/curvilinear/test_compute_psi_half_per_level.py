@@ -1,15 +1,17 @@
-r"""Foundation + L0 tests for the module-level ``compute_psi_half_per_level``.
+r"""Foundation + L0 tests for the test-side ``compute_psi_half_per_level``.
 
-Issue #197 PR-TYPED-6b — the public surface that exposes the
+Issue #197 PR-TYPED-6b — the surface that exposes the
 :math:`\phi_{m\pm 1/2, i, g}` half-angle grid the unified matvec
 needs to consume.  It is the load-bearing exposure of the
 M-M recurrence's intermediate state; this test gate pins:
 
-* **Foundation**: the function exists at module level and is
-  invocable (C5, 2026-07-03: the unbound ``MorelMontryAngularSweep()``
-  legacy mode was retired, and the pure-algebra surface moved off the
-  class to :func:`orpheus.sn.angular.closure.compute_psi_half_per_level`
-  — hand-built-coefficient verification needs no closure instance).
+* **Foundation**: the function exists and is invocable (C5, 2026-07-03:
+  the unbound ``MorelMontryAngularSweep()`` legacy mode was retired, and the
+  pure-algebra surface moved off the class to a module-level function of
+  ``orpheus.sn.angular.closure``; W0 dead-C then moved it to
+  ``tests/gates/sn/sweep/curvilinear/_psi_half.py``, which wraps the kernel
+  ``_psi_half_grid_single_level`` — hand-built-coefficient verification
+  needs no closure instance).
 * **L0 — shape contract**: returns ``(ng, M+1, nx)``.
 * **L0 — recurrence formula**: the half-angle grid satisfies the
   Hébert §3.9.4 Eqs. 3.437 / 3.439 recurrence
@@ -45,10 +47,14 @@ import pytest
 from orpheus.sn.angular.closure import (
     _MMHalfGrid,
     _psi_half_grid_single_level,
-    compute_psi_half_per_level,
 )
 from orpheus.sn.sweep.psi_half_angle_seed import (
     carlson_inward_sweep_from_source,
+)
+from tests.gates.sn.sweep.curvilinear._psi_half import (
+    compute_psi_half_per_level,
+    downstream_per_ordinate,
+    upstream,
 )
 
 
@@ -58,7 +64,7 @@ from orpheus.sn.sweep.psi_half_angle_seed import (
 
 
 class TestFunctionExists:
-    """The public function is a stable public surface."""
+    """The test-side function is a stable surface of the hand-built-coefficient gates."""
 
     @pytest.mark.foundation
     def test_function_at_module_level(self) -> None:
@@ -136,7 +142,7 @@ class TestMMHalfGridAccessors:
 
     Pattern 4 — illegal states unrepresentable. The matvec's
     ``psi_angular_upstream`` argument is populated via
-    :meth:`_MMHalfGrid.upstream` (semantic, not raw indexing).
+    the ``upstream`` accessor (semantic, not raw indexing).
     """
 
     def _build_grid(self) -> tuple[_MMHalfGrid, int, int, int]:
@@ -169,16 +175,16 @@ class TestMMHalfGridAccessors:
         """``upstream_per_ordinate`` is shape ``(ng, M, nx)`` — the
         first ``M`` faces, which are the upstream-per-ordinate set."""
         grid, ng, M, nx = self._build_grid()
-        upstream = grid.upstream_per_ordinate
-        assert upstream.shape == (ng, M, nx)
-        np.testing.assert_array_equal(upstream, grid.faces[:, :-1, :])
+        upstream_faces = grid.upstream_per_ordinate
+        assert upstream_faces.shape == (ng, M, nx)
+        np.testing.assert_array_equal(upstream_faces, grid.faces[:, :-1, :])
 
     @pytest.mark.l0
     def test_downstream_per_ordinate_drops_leading_face(self) -> None:
         """``downstream_per_ordinate`` is shape ``(ng, M, nx)`` — the
         last ``M`` faces, which are the downstream-per-ordinate set."""
         grid, ng, M, nx = self._build_grid()
-        downstream = grid.downstream_per_ordinate
+        downstream = downstream_per_ordinate(grid)
         assert downstream.shape == (ng, M, nx)
         np.testing.assert_array_equal(downstream, grid.faces[:, 1:, :])
 
@@ -189,7 +195,7 @@ class TestMMHalfGridAccessors:
         grid, _, M, _ = self._build_grid()
         for m in range(M):
             np.testing.assert_array_equal(
-                grid.upstream(m), grid.faces[:, m, :],
+                upstream(grid, m), grid.faces[:, m, :],
             )
 
     @pytest.mark.l0
@@ -209,7 +215,7 @@ class TestMMHalfGridAccessors:
         grid, _, M, _ = self._build_grid()
         for m in range(M - 1):
             np.testing.assert_array_equal(
-                grid.downstream(m), grid.upstream(m + 1),
+                grid.downstream(m), upstream(grid, m + 1),
             )
 
     @pytest.mark.l0

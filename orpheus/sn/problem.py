@@ -36,7 +36,6 @@ from orpheus.mesh import (
     face_outflow_ordinates as _axis_face_outflow_ordinates,
     face_shape as _axis_face_shape,
     legacy_mesh_from_axes,
-    n_unknowns_flat as _axis_n_unknowns_flat,
 )
 from orpheus.transport.method import MethodMesh
 from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -75,7 +74,6 @@ if TYPE_CHECKING:
 
     from orpheus.data.materials import Materials
     from orpheus.data.macro_xs.mixture import Mixture
-    from orpheus.numerics.face_layout import FaceLayout
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.transport.fields import AngularBoundarySourceSink
@@ -87,7 +85,6 @@ if TYPE_CHECKING:
     from orpheus.geometry.deck import DeckTransformation
     from orpheus.transport.boundary_conditions import BoundaryCondition, RealizerTable
     from orpheus.numerics.fredholm import PredictedKernel
-    from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge
     # NOTE (B.5.A): the mesh provides SPACE data only and does NOT import
     # transport-field types — zero-allocation lives on the field types
     # (``Field.zeros(space)`` / ``TimedFullField.zeros(..., space=)``,
@@ -171,8 +168,7 @@ class SNProblem(MethodMesh):
         The declared conditions joined to this problem's faces by :func:`~orpheus.transport.boundary_conditions.bind` (the carrier
         is this problem: its ``face_roles`` and its colouring ``symmetry``).
     bc : dict[str, RealizedBoundary]
-        Realized boundary operator per face WITH A TRACE, keyed by the face name, the SAME keys as :attr:`boundary_face_layout` /
-        ``angular_trace.layout.faces``, both derived from :attr:`face_labels` through the single-sourced
+        Realized boundary operator per face WITH A TRACE, keyed by the face name, the SAME keys as :attr:`angular_trace`'s ``layout.faces``, derived from :attr:`face_labels` through the single-sourced
         :attr:`~orpheus.mesh.axis.FaceLabel.face_name` crosswalk (C4, #220). Each value is a typed
         :class:`~orpheus.sn.boundary.realized_operators.RealizedBoundary` whose facts (``return_fraction``, ``permutes_ordinates``,
         ``domain_face``, ``is_vacuum``) are properties of its TYPE, so a consumer asks the operator what the face DOES and never the
@@ -377,7 +373,7 @@ class SNProblem(MethodMesh):
 
         # ── Boundary trace + realized laws ──
         # Build ONE unified trace space per SNProblem, keyed on the mesh's
-        # TRUE boundary faces (``boundary_face_layout``): slab
+        # TRUE boundary faces (``angular_trace.layout``): slab
         # ``xmin``/``xmax``, curvilinear ``xmax`` only (the pole at r=0
         # is the angular closure's regularity condition, not a BC
         # face), multi-D Cartesian all ``2·ndim`` faces. Inflow /
@@ -644,19 +640,6 @@ class SNProblem(MethodMesh):
         """
         return _axis_face_outflow_ordinates(self.axes, label, self.quad)
 
-    @property
-    def n_unknowns_flat(self) -> int:
-        r"""Total flat-vector size for typed :class:`AngularFlux`.
-
-        The pack convention (C3) is the direct-sum decomposition
-        :math:`V = V_\text{cells} \oplus \bigoplus_\ell V_{\text{face}, \ell}`;
-        ``n_unknowns_flat`` is the dimension of that vector space.
-        Cells contribute :math:`N \cdot n_g \cdot \prod_i n_i`; each
-        face :math:`\ell` contributes
-        :math:`|\text{outflow}_\ell| \cdot n_g \cdot \prod_{i \ne \text{axis}(\ell)} n_i`.
-        """
-        return _axis_n_unknowns_flat(self.axes, self.quad, self.ng)
-
     @classmethod
     def from_axes(
         cls,
@@ -851,7 +834,7 @@ class SNProblem(MethodMesh):
 
         One concrete trace space for the whole boundary :math:`\Gamma`,
         built (A.2/A.3) from this Problem's quadrature +
-        :attr:`boundary_face_layout` (geometry-blind since C5.3, #225).
+        its ``layout`` (geometry-blind since C5.3, #225).
         It is the single source of truth for the signed projection
         :math:`\Omega\cdot\hat n_f` per face; the inflow / outflow
         *selectors*
@@ -1069,21 +1052,6 @@ class SNProblem(MethodMesh):
         from orpheus.sn.operators.loss_kernel_gauge import predicted_loss_kernel
 
         return predicted_loss_kernel(self)
-
-    @property
-    def loss_kernel_gauge(self) -> "KernelProjectionGauge":
-        r"""The :math:`G`-orthogonal projector onto :math:`\ker(L + C - S - B)` on the coupled space.
-
-        The pencil's kernel's projector. Zero summands when there is
-        nothing to fix: its section is the identity, so no consumer needs a
-        ``None`` branch. Ask
-        :func:`~orpheus.sn.operators.loss_kernel_gauge.gauge_freedom` for the
-        diamond-difference half's reason (and for the warning owed when a
-        closure is UNDETERMINED).
-        """
-        kernel = self.pencil.kernel
-        assert kernel is not None  # type narrowing: the hub's pencil always carries its prediction
-        return kernel.projector
 
     @cached_property
     def system(self) -> "WithinGroupSystem":
@@ -1487,84 +1455,11 @@ class SNProblem(MethodMesh):
 
         The closure width of every boundary face slot: ``1`` for the cell-average
         closures (DD/Step, no moment axis) and ``2^{d-1}`` for the bilinear UBLD
-        Linear-Discontinuous closure. :attr:`boundary_face_layout` packs its moment
+        Linear-Discontinuous closure. ``angular_trace.layout`` packs its moment
         tail from this attribute, so a consumer that sizes a face trace from it
         agrees with the trace layout by construction (layer DAG P4c).
         """
         return self.scheme.face_moment_count(self.ndim)
-
-    @property
-    def boundary_face_layout(self) -> "FaceLayout[str]":
-        r"""Flat :class:`~orpheus.numerics.face_layout.FaceLayout` of boundary faces.
-
-        Depth B step D-G primitive. Returns the per-geometry boundary
-        face descriptor: which faces exist, their per-face shapes, and
-        the flat-buffer offsets that pack them. The post-D-G pure-Field
-        :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-        consumes this layout to lay out its flat backing buffer.
-
-        The layout of the problem's one :attr:`angular_trace`, whose rule is
-        :func:`~orpheus.transport.phase_spaces.angular_face_layout`, over the
-        traced faces of :func:`~orpheus.mesh.axis.trace_face_shapes` (C4):
-        one slot per label, named
-        by the single-sourced :attr:`FaceLabel.face_name` crosswalk,
-        shaped ``(N, ng, *face_shape(label), *moment_tail)`` (the tail is
-        below) — axis-count generic, no
-        per-geometry hand-list. The geometry mapping falls out:
-
-        * 1-D slab — two faces ``xmin`` / ``xmax``, each ``(N, ng)``.
-        * 1-D curvilinear sphere / cylinder — one face ``xmax``, shape
-          ``(N, ng)`` (the single ``"outer"`` endpoint renders as
-          ``xmax``; the geometric pole at r=0 is a regularity
-          condition, not a BC face, so it has no label and no slot).
-        * 2-D Cartesian — four faces: ``xmin`` / ``xmax`` shape
-          ``(N, ng, ny)``; ``ymin`` / ``ymax`` shape ``(N, ng, nx)``.
-        * A 3-axis mesh (C5) would yield six slots ``xmin`` … ``zmax``
-          with codimension-1 shapes — no edit needed here.
-
-        Spatial-moment tail (#251 — Leg B of #247)
-        ------------------------------------------
-        A multi-moment closure (LD's bilinear UBLD face) carries a
-        trailing ``2^{d-1}``-transverse-moment axis per face slot, so a
-        moment-resolved prescribed inflow can carry the along-face
-        (transverse) Legendre slope and the sweep outflow can STORE
-        those ``2^{d-1}`` moments instead of collapsing to the average
-        (slot 0).  The width is the scheme's per-face count
-        ``per_axis^{d-1}``, appended via the single-source
-        :func:`~orpheus.numerics.space.factor_tail` (the
-        same "append iff > 1" policy the cell-cochain
-        :attr:`_LossRepresentation._n_face_moments` /
-        :attr:`_spatial_moment_tail` key on).  DD/Step
-        (``per_axis == 1`` → ``per_axis^{d-1} == 1`` → ``factor_tail(1)
-        == ()``) leaves every slot shape untouched, so the trace stays
-        byte-identical — the negative control.  A 1-D slab face is a
-        point (``face_shape == ()`` → ``per_axis^0 == 1`` → no tail even
-        for LD-1D), so the transverse face-moment is a 2-D-and-higher
-        concern by construction.
-
-        Returns
-        -------
-        FaceLayout
-            Per-geometry face descriptor. Total flat size = sum of
-            ``prod(shape)`` over all faces. Slot order = the canonical
-            :attr:`face_labels` order (axis ascending, endpoint in axis
-            order), which reproduces the historical hand-listed order.
-
-        Notes
-        -----
-        The layout contains ONLY boundary face slots. Interior
-        wavefront cache cells (pre-D-G stored in AngularBoundaryFlux's 2-D
-        ``xmin_xmax_buf`` / ``ymin_ymax_buf`` interior positions) are
-        explicitly excluded — post-D-G they are **ephemeral local
-        arrays inside the sweep**, allocated per sweep and never
-        persisted (the boundary trace is the sole persistent face-state
-        carrier). A short-lived ``SweepScratch`` type was introduced to
-        hold them and deleted in the same step: a sweep-private
-        persistent type re-created exactly the boundary/interior
-        conflation D-G was dissolving.
-        """
-        # The layout of the problem's one angular trace instance, built by ``phase_spaces.angular_face_layout``.
-        return self.angular_trace.layout
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 

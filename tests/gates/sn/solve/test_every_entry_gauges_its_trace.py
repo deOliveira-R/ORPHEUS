@@ -375,7 +375,7 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
             inner_schedule="gauss_seidel", inner_tol=1e-13, max_inner=400_000,
         )
     gauged = np.asarray(solution.boundary_flux.values, dtype=float)
-    gauge = problem.loss_kernel_gauge
+    gauge = problem.pencil.kernel.projector
     weights = np.asarray(_QUAD.weights, dtype=float)
     metric = np.asarray(problem.angular_trace.inner_product_weights, dtype=float)
 
@@ -438,7 +438,7 @@ def test_an_EVEN_mesh_is_excited_too_once_the_source_stops_being_symmetric():
     problem = _as_problem(axes, _QUAD, {0: _absorber()})
 
     # The operator does not care about the source, and never did.
-    assert problem.loss_kernel_gauge.dimension > 0, (
+    assert problem.pencil.kernel.projector.dimension > 0, (
         "the configuration must be singular for either row below to mean "
         "anything — this is the claim the parity rule obscured"
     )

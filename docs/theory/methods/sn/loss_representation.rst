@@ -61,7 +61,8 @@ Key Facts
      (matvec), the same per-cell closure coefficients can be emitted as
      ``(row, col, value)`` triplets and scattered into a global
      :mod:`scipy.sparse` matrix —
-     :func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`.
+     ``assemble_ordinate_blocks`` (a test-side oracle,
+     ``tests/gates/sn/sweep/_ordinate_assembly.py``).
      The assembler carries **no stencil spelling of its own**: it reads
      every coefficient by unit probes of the production matvec kernel
      (:meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.residual_kernel_batch`,
@@ -919,7 +920,8 @@ routine consume them:
      - cells in walk order, threading the face rows
 
 The assembler is
-:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`;
+``assemble_ordinate_blocks``, a test-side oracle
+(``tests/gates/sn/sweep/_ordinate_assembly.py``);
 it lands its output in a numerics carrier,
 :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`,
 which is a *serialization* of the operator, **not** a fifth
@@ -971,7 +973,7 @@ traces :math:`\psi^{\rm in}_b`, and the source :math:`\bar Q`:
    \psi^{\rm out}_a \;=\; T_a\,\vec\psi \;+\; \sum_b \alpha_{ab}\,\psi^{\rm in}_b .
 
 .. implements:: loss-rep-affine-kernel-maps
-   :by: orpheus.sn.loss_representation.assembly._probe_coefficient_blocks
+   :by: tests.gates.sn.sweep._ordinate_assembly._probe_coefficient_blocks
 
    Returns exactly the equation's four coefficient blocks —
    ``(diag, inflow, trace, memory)`` :math:`= (\bar A, C_b, T_a,
@@ -1058,7 +1060,7 @@ mesh — the :math:`Q/\Sigma_t` short-circuit) has no graph and no face
 threading; its block is the cell-probe diagonal alone.
 
 .. implements:: loss-rep-walk-order-rows
-   :by: orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks
+   :by: tests.gates.sn.sweep._ordinate_assembly.assemble_ordinate_blocks
 
    The walk body *is* the equation. Per cell it forms
    ``cell_rows -= inflow[b] @ row_in`` for each incoming face and
@@ -1104,7 +1106,7 @@ consumer is the scattering source (:eq:`ld-ubld-slope-angular-reduction`)
 or, here, the global sparse matrix.
 
 .. implements:: loss-rep-sweep-global-conjugation
-   :by: orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks
+   :by: tests.gates.sn.sweep._ordinate_assembly.assemble_ordinate_blocks
 
    The conjugation is applied by ``_to_global_frame``, whose body is
    ``vals * dof_signs[rows] * dof_signs[cols]`` — the row and column
@@ -1116,7 +1118,7 @@ or, here, the global sparse matrix.
 
    ⚠ ``_to_global_frame`` is a **nested** function and therefore not an
    addressable node in the knowledge graph, so the enclosing
-   :func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`
+   ``assemble_ordinate_blocks``
    is the implementer this equation can name. That is the right granularity
    in any case: the conjugation is applied at two sites inside that
    function — once on the degenerate cell-diagonal branch and once on the
@@ -4319,7 +4321,7 @@ matrix landed instead as the third **consumption mode**
 (:ref:`loss-rep-three-modes`) — a numerics carrier
 :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator`
 emitted by
-:func:`~orpheus.sn.loss_representation.assembly.assemble_ordinate_blocks`
+``assemble_ordinate_blocks`` (the test-side oracle)
 — rather than a new schedule in the registry, because assemble **reuses**
 the four schedules' machinery (it walks the same
 :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`)

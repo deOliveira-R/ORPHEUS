@@ -34,7 +34,7 @@ Post-D-G this class:
   **on the** :class:`AngularTraceSpace` **(A.5)**, not as a separate field
   attribute. ``mesh.angular_trace`` is the cached source; the underlying
   per-geometry descriptor is still
-  :attr:`~orpheus.sn.problem.SNProblem.boundary_face_layout` (1-D slab:
+  ``SNProblem.angular_trace.layout`` (1-D slab:
   ``xmin``, ``xmax``; 1-D curvilinear: ``xmax``; 2-D: ``xmin``,
   ``xmax``, ``ymin``, ``ymax``). The :attr:`layout` read-through
   property preserves the ``boundary.layout`` access surface.

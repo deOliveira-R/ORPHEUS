@@ -19,7 +19,7 @@ here is pinned against something the construction does not touch:
 claim                                          independent reference
 ============================================  ==========================================
 the dimension is right                         the combinatorial counting law
-                                               (:func:`predicted_kernel_dimension`,
+                                               (``predicted_kernel_dimension``,
                                                which builds no vector), AND a dense
                                                SVD of the assembled :math:`A`
 the vectors really are in :math:`\ker A`       the production matvec, per mode, ALL modes
@@ -123,8 +123,8 @@ from orpheus.sn.operators.loss_kernel_gauge import (
     _anova_dimension,
     _reflection_orbits,
     gauge_freedom,
-    predicted_kernel_dimension,
 )
+from tests.gates.sn.operators._kernel_dimension import predicted_kernel_dimension
 from orpheus.sn.solver import SNSolver, _as_problem, _unwindowed_cold_start
 from orpheus.mesh import AxisMesh
 from orpheus.transport.spatial.linear_discontinuous import LinearDiscontinuous
@@ -259,7 +259,7 @@ def test_the_dimension_matches_the_combinatorial_counting_law(
         label, cells, bcs, kwargs):
     r"""``gauge.dimension`` == the law, computed by a route that builds nothing.
 
-    :func:`predicted_kernel_dimension` walks the ANOVA combinatorics of the
+    ``predicted_kernel_dimension`` walks the ANOVA combinatorics of the
     theory and returns an integer; the gauge walks the pair generators and takes
     an SVD. They share the orbit decomposition and nothing else, so agreement is
     real evidence — and it is the ONLY available oracle at production sizes,
@@ -801,8 +801,8 @@ def test_the_basis_never_reads_a_CROSS_SECTION():
 def test_the_mesh_caches_the_gauge():
     """One build per mesh — the setup cost must not ride the per-solve path."""
     mesh = _mesh((3, 4), [(_R, _R)] * 2)
-    assert mesh.loss_kernel_gauge is mesh.loss_kernel_gauge
-    assert mesh.loss_kernel_gauge.dimension == predicted_kernel_dimension(mesh)
+    assert mesh.pencil.kernel.projector is mesh.pencil.kernel.projector
+    assert mesh.pencil.kernel.projector.dimension == predicted_kernel_dimension(mesh)
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -958,7 +958,7 @@ def test_the_rebuilt_gauge_agrees_with_the_retired_class_within_the_declared_reb
     bound = json.loads(_REBASELINES.read_text())["events"][-1]["bound"]
     eps = np.finfo(float).eps
     mesh = _mesh(cells, bcs, **kwargs)
-    gauge = mesh.loss_kernel_gauge   # since U0 the full-field projector: the carry reads its trace part on [0_bulk, x]
+    gauge = mesh.pencil.kernel.projector   # since U0 the full-field projector: the carry reads its trace part on [0_bulk, x]
     assert isinstance(gauge, KernelProjectionGauge)
     x = carry[f"{label}|x"]
     applied, reference = _on_trace(mesh, gauge, "apply", x), carry[f"{label}|apply"]
@@ -1061,7 +1061,7 @@ def test_the_exit_reads_the_protocol_only():
 def _gauge_production():
     """The production gauge on the reflective 3x4 box (test_loss_kernel_gauge's fixture): since U0 the hub's
     predicted kernel's projector, on the full field."""
-    return _mesh((3, 4), [(_R, _R)] * 2).loss_kernel_gauge
+    return _mesh((3, 4), [(_R, _R)] * 2).pencil.kernel.projector
 
 
 @pytest.mark.foundation

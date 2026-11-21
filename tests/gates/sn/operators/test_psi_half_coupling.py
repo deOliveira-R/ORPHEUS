@@ -153,7 +153,6 @@ from orpheus.numerics.coupled_system import (
 )
 from orpheus.numerics.assembled_operator import MissingAssembly, assemble
 from orpheus.numerics.operator import IncompatibleOperatorComposition
-from orpheus.sn.coupled_system import build_coupled_system
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -3008,8 +3007,8 @@ class TestA_AB_SeedInjection:
 
 # ── B.2c helpers: the co-producing builder (G-c2.x) ─────────────────────────
 #
-# build_coupled_system(problem, mat_xs) → (CoupledOperator, CoupledSpace) —
-# the ψ½ instance #1 of the numerics block machinery. The gates below realize
+# build_within_group_system(problem, mat_xs).loss / .space → (CoupledOperator,
+# CoupledSpace) — the ψ½ instance #1 of the numerics block machinery. The gates below realize
 # the test-architect delta memo coupled_operator_b2c_builder_verification
 # (G-c2.1–2.6): P1 alignment + the F2 runtime proof, P2 presence-structural,
 # THE grid≡fused centrepiece (per-row tolerances — the bulk row is the
@@ -3043,7 +3042,7 @@ def _m_minus_n_reference(sn, mat_xs, coupled):
 
 
 class TestCoupledBuilder:
-    r"""B.2c — ``build_coupled_system``: the typed ψ½ 2×2 grid, co-produced
+    r"""B.2c — ``build_within_group_system``: the typed ψ½ 2×2 loss grid, co-produced
     with its :class:`CoupledSpace` (campaign step 4d.2; SUBSUMES the step-6
     presence collapse for the grid arm).
 
@@ -3068,7 +3067,8 @@ class TestCoupledBuilder:
         SUFFICIENT runtime proof that every block speaks its typed carrier
         (construction alone is Mode-12-blind, F2)."""
         sn = _sphere()
-        grid, space = build_coupled_system(sn, sn.mat_xs)
+        wg_system = build_within_group_system(sn, sn.mat_xs)
+        grid, space = wg_system.loss, wg_system.space
         if type(space) is not CoupledSpace:
             pytest.fail(f"space is {type(space).__name__}, not CoupledSpace.")
         if grid.domain is not space or grid.codomain is not space:
@@ -3109,7 +3109,8 @@ class TestCoupledBuilder:
         bypassed could not construct System B (Pattern 4: the illegal grid
         is unrepresentable, not merely un-built)."""
         sn = _sphere()
-        grid, space = build_coupled_system(sn, sn.mat_xs)
+        wg_system = build_within_group_system(sn, sn.mat_xs)
+        grid, space = wg_system.loss, wg_system.space
         if not (grid.n_rows == grid.n_cols == 2):
             pytest.fail(f"carrying sphere built {grid.n_rows}×{grid.n_cols}, "
                         f"expected 2×2.")
@@ -3127,13 +3128,14 @@ class TestCoupledBuilder:
             )).partition(CellsByCount.uniform_width(5)).mesh,
             Quadrature.folded_product(n_mu=4, n_phi=8),
             {0: _mixture(1.0, 0.4, 2)}, boundary_conditions=_CONDITIONS)
-        op_cyl, _space_cyl = build_coupled_system(
-            cyl_folded, cyl_folded.mat_xs)
+        wg_system = build_within_group_system(cyl_folded, cyl_folded.mat_xs)
+        op_cyl, _space_cyl = wg_system.loss, wg_system.space
         if not (op_cyl.n_rows == op_cyl.n_cols == 2):
             pytest.fail(f"carrying folded cylinder built "
                         f"{op_cyl.n_rows}×{op_cyl.n_cols}, expected 2×2.")
         for mesh, label in ((slab, "slab"),):
-            op1, space1 = build_coupled_system(mesh, mesh.mat_xs)
+            wg_system = build_within_group_system(mesh, mesh.mat_xs)
+            op1, space1 = wg_system.loss, wg_system.space
             if not (op1.n_rows == op1.n_cols == 1):
                 pytest.fail(f"non-carrying {label} built "
                             f"{op1.n_rows}×{op1.n_cols}, expected 1×1.")
@@ -3184,7 +3186,8 @@ class TestCoupledBuilder:
         dropped B_b); ≥2G; the live-ray + live-corner non-vacuity asserted."""
         sn = _sphere(bc="reflective")
         mat_xs = sn.mat_xs
-        grid, _ = build_coupled_system(sn, mat_xs)
+        wg_system = build_within_group_system(sn, mat_xs)
+        grid = wg_system.loss
         for seed in (21, 22):
             rng = np.random.default_rng(seed)
             coupled = _random_pair(sn, rng)
@@ -3222,7 +3225,8 @@ class TestCoupledBuilder:
         REFLECTIVE sphere (on vacuum B_b ≡ 0 would mask the drop — F1)."""
         sn = _sphere(bc="reflective")
         mat_xs = sn.mat_xs
-        grid, space = build_coupled_system(sn, mat_xs)
+        wg_system = build_within_group_system(sn, mat_xs)
+        grid, space = wg_system.loss, wg_system.space
         with pytest.raises(IncompatibleOperatorComposition):
             CoupledOperator(
                 [[grid.blocks[0][0], grid.blocks[1][0]],
@@ -3257,7 +3261,8 @@ class TestCoupledBuilder:
         sees deferral, not a bug. Tooth: a slice table that drops System B
         reds the coverage pin."""
         sn = _sphere()
-        grid, space = build_coupled_system(sn, sn.mat_xs)
+        wg_system = build_within_group_system(sn, sn.mat_xs)
+        grid, space = wg_system.loss, wg_system.space
         coupled = _random_pair(sn, np.random.default_rng(24))
         flat = coupled.to_flat()
         slices = space.system_slices
@@ -3309,7 +3314,8 @@ class TestCoupledBuilder:
         composite bulk⊕trace⊕seed metric is non-trivial on every geometry
         (the step-4 memo's burned 'slab stays green' lesson)."""
         sn = _sphere(bc="reflective")
-        grid, space = build_coupled_system(sn, sn.mat_xs)
+        wg_system = build_within_group_system(sn, sn.mat_xs)
+        grid, space = wg_system.loss, wg_system.space
         rng = np.random.default_rng(25)
         psi = _random_pair(sn, rng)
         x = _random_pair(sn, rng)

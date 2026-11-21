@@ -736,7 +736,7 @@ class _LossRepresentation:
         bilinear UBLD Linear-Discontinuous closure (#240 D5b — d=2: 2).  Reads
         the multi-moment face-cochain width from the cell basis,
         :meth:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis.face_dimension`
-        (shared with the trace producer :meth:`~orpheus.sn.problem.SNProblem.boundary_face_layout`)."""
+        (shared with the trace producer, :attr:`~orpheus.sn.problem.SNProblem.angular_trace`'s ``layout``)."""
         return self.problem.n_face_moments
 
     def _moment_frame_signs(
@@ -794,7 +794,7 @@ class _LossRepresentation:
           correctly blind to the transverse slope).
         * **moment-resolved inflow** (the #251 moment-resolved boundary trace,
           ``2^{d-1}``-valued): PASS THROUGH — the producer (the widened trace,
-          ``geometry.boundary_face_layout``) already carries the projected
+          ``angular_trace.layout``) already carries the projected
           transverse face-slope; this method threads it unchanged.  Validates the
           trailing transverse-moment width == ``2^{d-1}`` (a clear ValueError
           otherwise — the moment-resolved relaxation must not swallow a real shape
@@ -2006,7 +2006,7 @@ class MovingFrontierWindow(_DAGWavefront):
             angular_flux[oct_idx] = angular_flux_oct
         # The domain-edge capture carries the trailing 2^{d-1}-transverse-moment
         # axis at a multi-moment closure; the moment-resolved boundary trace
-        # (#251 — geometry.boundary_face_layout) STORES it whole (the outflow
+        # (#251 — ``angular_trace.layout``) STORES it whole (the outflow
         # moments land in the now-moment-shaped slot, no longer collapsed to the
         # average).  DD/Step (n_face_moments == 1) → no moment axis, byte-identical.
         return capture
