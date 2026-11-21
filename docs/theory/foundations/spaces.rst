@@ -5969,20 +5969,13 @@ along the axis times the marginal field, with no metric in it:
 .. implements:: spaces-collapse-adjoint-is-pullback
    :by: py:method:orpheus.numerics.axis_marginal.AxisPullbackOperator.apply
 
-   **Implemented by** 3 sites. The pullback's ``apply`` is the right-hand
+   **Implemented by** 2 sites. The pullback's ``apply`` is the right-hand
    side, :math:`u \otimes \varphi`; the retraction's ``adjoint`` is the
    equality itself, returning that operator as :math:`R^{\dagger}` (so
-   ``R.H`` is the closed form, not the generic wrapper). The third site
-   is a hand-written twin on the angular axis, where :math:`u = \mathbf
-   1`: ``AngularSourceSink.__add__`` with an isotropic partner adds
-   ``other.values[None]``, the same broadcast spelled outside its type
-   (:ref:`spaces-collapse-pair-pullback`, the warning).
+   ``R.H`` is the closed form, not the generic wrapper).
 
 .. implements:: spaces-collapse-adjoint-is-pullback
    :by: py:method:orpheus.numerics.axis_marginal.AxisRetractionOperator.adjoint
-
-.. implements:: spaces-collapse-adjoint-is-pullback
-   :by: py:method:orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__
 
 So :math:`(R, R^{\dagger}) = (\pi_*, \pi^{*})` is the discrete
 realization of the fibre-integration / pullback adjunction, and the
@@ -6475,16 +6468,11 @@ re-spelling would have moved 297 of 300 detectors by up to 3 ULP.
 
 .. warning::
 
-   **The adjoint has a second spelling still, and a hand broadcast
-   survives.** A composite operator that holds a retraction (a sum or
-   a product with :math:`R` as a leaf) daggers through the generic
-   sandwich, not through the leaf's pullback, so :math:`R^{\dagger}`
-   has two spellings in the tree (#558). And
-   ``AngularSourceSink.__add__`` with a ``ScalarSourceSink`` partner
-   adds ``other.values[None]``, a hand-written :math:`\pi^{*}`
-   (the dunder note in :doc:`/theory/foundations/operator_algebra`
-   records that it is the pullback and not the section). Neither is
-   wrong in value; both are the concept spelled outside its type.
+   **The adjoint has a second spelling still.** A composite operator that holds
+   a retraction (a sum or a product with :math:`R` as a leaf) daggers through
+   the generic sandwich, not through the leaf's pullback, so
+   :math:`R^{\dagger}` has two spellings in the tree (#558). Neither is wrong
+   in value; both are the concept spelled outside its type.
 
 **The gates.** ``tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py``
 (``foundation``; the specification is
@@ -7091,6 +7079,7 @@ gate G5-mass: Gauss–Legendre 2 to 64, level-symmetric 2 to 16,
      - 0
      - 0 (``array_equal`` on 120 of 120)
 
+Every divisor of the angular mass in production reads the section's mass.
 So no spelling but the correctly rounded one is the same number on every
 rule, and the one the pair shipped with was the furthest from it. The
 lesson for a gate: pin the divisor against ``math.fsum`` of the stored
@@ -7708,6 +7697,20 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-11-20
+     - **The cross-class source dunder and BulkField.CONTAINS retired; the
+       angular mass single-sourced on the section.** The dunder was the
+       pullback :math:`\pi^{*}` spelled outside its type, with no division
+       by the mass, summing two dimensionally different rates; its only
+       production caller, ``AngularLift._combine``, already divided by the
+       mass first. The isotropic source enters through the section
+       :math:`E` (``AngularSourceSink.from_isotropic``, and
+       ``AngularLift._combine`` as the one combine); ``ScalarSourceSink +
+       AngularSourceSink`` is refused by ``Field._check_partner``. The
+       divisor of the producer-side :math:`1/W` is the section's mass, the
+       correctly rounded sum of the stored weights, for every reader.
+     - #708, #288
+     - (in development)
    * - 2026-11-02
      - **The flat chart is a concept of the space** (#683). The space
        gained :attr:`~orpheus.numerics.space.FunctionSpace.n_coordinates`,

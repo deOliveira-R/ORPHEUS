@@ -1508,8 +1508,8 @@ form, two different float programs.
    :math:`w` arithmetic on any adjoint path went with it.
    ``N2NOperator.weights`` no longer exists;
    :attr:`~orpheus.transport.operators.transfer.TransferOperator.total_weight`
-   derives :math:`W` from the retained frame's measure, as :math:`S`
-   does.
+   is :math:`W`, the angular section's mass on the emitted interior (the
+   correctly rounded sum of the stored weights), as it is for :math:`S`.
 
    ⛔ Both names in that sentence are themselves history now.  #426
    step 2 (2026-09-04) collapsed the two channels onto one binding, so

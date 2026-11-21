@@ -5113,10 +5113,10 @@ role transition itself is the carriers' declared partnership
    / self.total_weight`` — i.e.
    :math:`\tfrac{1}{W}(R\circ\Lambda\circ M)`, the equation with its
    producer-side normalisation applied at the ``apply`` boundary.
-   :math:`W` is read off the retained faces' frame measure
-   (``flux_analysis.frame.measure``), not off a stored weight vector:
-   the measure IS the binding's metric, so there is one place it can
-   come from (:ref:`scattering-binding-cs4c`).
+   :math:`W` is the angular section's mass on the emitted interior
+   (``AxisSectionOperator.mass``), the correctly rounded sum of the stored
+   weights, so there is one place it can come from
+   (:ref:`scattering-binding-cs4c`).
 
 .. implements:: scattering-aniso-composite
    :by: orpheus.transport.operators.transfer.TransferOperator.kernel
@@ -5730,14 +5730,14 @@ The role axis carries no behaviour, and that is the type-vs-property rule
 `[M]` **no flux leaf defines** ``__add__`` **or** ``__sub__``:
 :class:`~orpheus.transport.fields.angular_flux.AngularFlux`'s MRO is
 ``AngularField → BulkField → Field → ABC``, with the algebra inherited
-whole. The only leaf on the grid that overrides an additive dunder is
-:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`,
-and what it overrides is *cross-representation*, not cross-role: it
-accepts a
-:class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
-partner and applies the canonical subspace-containment injection before
-adding (the refined #207 exception; Issue #288 records that this is
-statically unspellable against Field's ``(T, T) -> T``).
+whole. No leaf on the grid overrides ``__add__`` or ``__sub__`` either: the
+isotropic source enters the per-ordinate one through the angular section
+(:meth:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic`)
+and the sum of a
+:class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink` with an
+:class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink` is
+refused by ``Field._check_partner`` (Issue #288 is closed by that
+retirement).
 
 This is the project's type-vs-property rule (CLAUDE.md Cardinal Rule 2;
 the ``coding-elegance`` "build the primitive" pattern) working: mint a
@@ -5787,64 +5787,18 @@ Two cells are deliberately empty, and both absences are designed.
   :class:`~orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux`,
   so the contrast is gone and the residual hole stands alone.)
 
-* **The** ``iso + aniso → AngularSourceSink`` **source injection is a
-  hand-rolled Representation traversal inside a dunder, and it is
-  endorsed.** :meth:`AngularSourceSink.__add__ <orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__>`
-  accepts a :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
-  partner and applies the **canonical subspace-containment injection**: a
-  scalar (isotropic) source lives in the subspace of the per-ordinate
-  (angular) source where every ordinate carries the same value, and the
-  injection :math:`\text{iso} \to \mathbf 1 \otimes \text{iso}` (broadcast
-  across the :math:`\Omega` axis) maps it in before the add. This is a
-  *Representation* change (Scalar → Angular) performed inside a *Role*
-  operation (source + source), so it sits slightly outside the clean
-  "horizontal morphisms are frame faces" story — it is a one-off
-  representation embedding baked into a leaf's arithmetic. It is kept
-  because the embedding is the genuine mathematical relation between an
-  isotropic and an anisotropic source (the :math:`\ell=0` block *is* the
-  isotropic part), and it was **endorsed at creation** as the right home
-  for the iso/aniso combine. It is documented here as a recognised,
-  deliberate exception so a future reader does not "tidy it away".
-
-  Since CS4c step 5 the production ``iso + aniso`` combine has ONE
-  home — ``AngularLift._combine``, the shared lift base's producer-side
-  method, which performs ``(iso / W) + aniso`` through this injection and
-  is where the producer-side :math:`1/W` convention lives.  Every
-  isotropically-lifted producer routes through it: :math:`S`'s
-  :math:`P_0` half (combined with its :math:`\ell\ge1` part), the
-  :math:`(n,2n)` gain's, and fission's whole action
-  (:ref:`cs4c-ends-select-the-body`).
-
-  ⛔ **It was a free function until 2026-09-04.**  ``(iso / W) + aniso``
-  was hoisted out of :math:`S` as ``assemble_per_ordinate_isotropic`` in
-  ``orpheus/transport/operators/_per_ordinate.py`` at the moment the
-  second consumer appeared — the defer-until-two rule taken at its word —
-  and that module's own docstring named its retirement trigger: *"when a
-  third isotropic lifted channel appears, this is the seed of the generic
-  lift operator"*.  The third channel is fission (CS4c step 4), so the
-  trigger fired, the seed grew into the ``AngularLift`` base, and the
-  module was deleted into it.  ⭐ The record is worth keeping precisely
-  because the prediction was *written down with its trigger* and then
-  honoured: the function did not drift into a utility module, it was
-  promoted on the condition it had declared.
-
-  ⚠ **This dunder is the PULLBACK, not the section — and this bullet
-  said otherwise until 2026-08-24.** It read *"it is single-sourced
-  through*
-  :meth:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic`\ *"*,
-  which is false at HEAD and is the exact confusion the two-arrow
-  design exists to prevent: `[M]` the dunder's body is
-  ``self.values[None] + other.values`` — the **plain** broadcast
-  :math:`\pi^{*}`, with no division — while ``from_isotropic`` applies
-  the producer-side :math:`1/\Sigma w` and is therefore the **section**
-  :math:`E`. The two differ by exactly the axis's total weight
-  (:ref:`spaces-collapse-pair-two-arrows` on
-  :doc:`/theory/foundations/spaces`), so they are not one another's
-  single source and never were interchangeable. Use the dunder when the
-  caller has ALREADY divided; use ``from_isotropic`` when it has not.
-  What the two DO share since CS4b S3 is their coherence check — both
-  demand that the iso operand's space BE the angular operand's
-  non-angular marginal, compared axis-wise by CONTENT.
+* **The isotropic source enters the per-ordinate one through the angular
+  section.** The production combine has ONE home,
+  ``AngularLift._combine``, the shared lift base's producer-side method: it
+  applies the angular section :math:`E` (divide by the mass, then scatter
+  across the ordinates) to the isotropic source and adds the anisotropic part
+  within one class. Every isotropically-lifted producer routes through it:
+  :math:`S`'s :math:`P_0` half, the :math:`(n,2n)` gain's, and fission's
+  whole action (:ref:`cs4c-ends-select-the-body`). The producer entry for an
+  external isotropic source is
+  :meth:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic`.
+  The mixed sum ``ScalarSourceSink + AngularSourceSink`` is refused by
+  ``Field._check_partner``: the units differ by :math:`1/\mathrm{sr}`.
 
 
 .. _carrier-grid-flat-leaf-normal-form:
@@ -5878,18 +5832,8 @@ The argument is five obstructions, each fatal on its own.
      - **Role changes the arithmetic interface ⟹ Role MUST be a class.**
      - A phantom type parameter (``Generic[Role]``) is **erased at
        runtime**, so it cannot specialize a dunder — and it cannot be read
-       by a runtime gate either. Two facts make Role's interface
-       role-dependent. First, `[M]` the Source role owns a
-       *cross-representation* ``__add__``
-       (:meth:`AngularSourceSink.__add__
-       <orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__>`
-       accepts a ``ScalarSourceSink`` partner and injects it by
-       subspace containment) that no other role has; a single ``__add__``
-       body shared across ``Carrier[Rep, Flux]`` and
-       ``Carrier[Rep, Source]`` under one phantom ``Role`` **cannot** admit
-       that partner for one and refuse it for the other, because the
-       parameter that would select between them does not exist at the
-       moment ``__add__`` runs. Second, role identity **is** units identity
+       by a runtime gate either. The obstruction rests on units
+       identity: role identity **is** units identity
        (one ``UNITS`` class constant per leaf), and
        :meth:`Field._check_partner
        <orpheus.numerics.field.Field._check_partner>` reads it as
@@ -5903,8 +5847,8 @@ The argument is five obstructions, each fatal on its own.
        Flux role must make* ``flux + flux`` **raise** *while the Source
        role must make* ``source + source`` **succeed**\ *"*. That gate was
        retired at campaign-1 CS3 (:ref:`cone-the-overturned-affine-design`)
-       and the obstruction is re-derived above from the two facts that
-       survive it. The conclusion is unchanged.
+       and the obstruction is re-derived above from units identity. The
+       conclusion is unchanged.
    * - **(b)**
      - **Representation changes the array shape ⟹ Representation MUST be a
        class.**
@@ -11151,6 +11095,20 @@ the cheapest tell.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-11-20
+     - **The cross-class source dunder and BulkField.CONTAINS retired; the
+       angular mass single-sourced on the section.** The dunder was the
+       pullback :math:`\pi^{*}` spelled outside its type, with no division
+       by the mass, summing two dimensionally different rates; its only
+       production caller, ``AngularLift._combine``, already divided by the
+       mass first. The isotropic source enters through the section
+       :math:`E` (``AngularSourceSink.from_isotropic``, and
+       ``AngularLift._combine`` as the one combine); ``ScalarSourceSink +
+       AngularSourceSink`` is refused by ``Field._check_partner``. The
+       divisor of the producer-side :math:`1/W` is the section's mass, the
+       correctly rounded sum of the stored weights, for every reader.
+     - #708, #288
+     - (in development)
    * - 2026-11-01
      - **The transport phase spaces have raw constructors, and the transport
        tests are posed on them** (Phase 4 of ``.claude/plans/layer_dag.md``,

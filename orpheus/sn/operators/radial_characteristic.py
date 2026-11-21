@@ -117,6 +117,7 @@ from typing import TYPE_CHECKING, Optional, Protocol
 
 import numpy as np
 
+from orpheus.numerics.axis_marginal import AxisSectionOperator
 from orpheus.numerics.coordinate_space import coordinates
 from orpheus.numerics.operator import (
     InverseOperator,
@@ -1060,9 +1061,10 @@ class RadialCharacteristicReconstruction(LinearOperator):
         The geometry commitment — selects the fold family (CYLINDRICAL =
         the arc family's ℓ = 0 reproducing weight; otherwise the sphere's
         Legendre kernel path).
-    quadrature : Quadrature
-        The angular rule whose total weight Σw spells the arc family's
-        constant-reproducing fold weight ``1/Σw``.
+    angular_bulk_space : FunctionSpace
+        The problem's axis-built angular space (``SNProblem.angular_bulk_space``);
+        its angular section's mass M, the correctly rounded sum of the stored
+        weights, spells the arc family's constant-reproducing fold weight 1/M.
     n_moments : int, default 1
         The operator's domain dimension — the number of angular Legendre
         moments it reconstructs from. ``1`` is the isotropic production reach
@@ -1076,7 +1078,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
         field_space: "FullFieldSpace | None",
         *,
         coord: "CoordSystem",
-        quadrature: "Quadrature",
+        angular_bulk_space: "FunctionSpace",
         n_moments: int = 1,
     ) -> None:
         from orpheus.geometry import CoordSystem
@@ -1117,7 +1119,8 @@ class RadialCharacteristicReconstruction(LinearOperator):
         #: composite space.
         self._ray_space = space
         #: The arc family's ℓ = 0 fold weight — the CONSTANT function's
-        #: reproducing weight ``1/Σw`` (a level-constant moment's value at
+        #: reproducing weight ``1/M`` with ``M`` the angular section's mass,
+        #: the correctly rounded sum of the stored weights ``Σw`` (a level-constant moment's value at
         #: ANY direction is q₀/∫dμ; the sphere's Legendre (2·0+1)/2 = ½ is
         #: the same identity at Σw = 2).  ``None`` selects the sphere's
         #: Legendre kernel path.  Q5.6: the sphere's hard-coded ½ applied
@@ -1125,7 +1128,7 @@ class RadialCharacteristicReconstruction(LinearOperator):
         #: source 2π-fold — `[M]` the c = 0.4 flat-flux equilibrium read
         #: 158 % off before this weight, machine-exact after.
         self._ell0_scale: float | None = (
-            1.0 / float(quadrature.weights.sum()) if arc_family else None
+            1.0 / AxisSectionOperator.of(angular_bulk_space, "angular").mass if arc_family else None
         )
 
     # ── Predicates / spaces ───────────────────────────────────────────
@@ -1568,7 +1571,9 @@ class RadialCharacteristicEmission(LinearOperator):
         System A's composite carrier — the domain (bulk ⊕ trace).
     angular_bulk_space, angular_trace : FunctionSpace
         The transpose's output spaces (per-ordinate bulk pullback over a
-        zero trace).
+        zero trace); ``angular_bulk_space`` is also forwarded to the fold
+        factor, the space whose angular section's mass M spells the arc
+        family's fold weight 1/M.
     quadrature : Quadrature
         The angular rule whose weights spell the ``(∫dμ)ᵀ`` broadcast.
     coord : CoordSystem
@@ -1611,7 +1616,7 @@ class RadialCharacteristicEmission(LinearOperator):
         self._quadrature = quadrature
         #: The fold factor (the migrated reconstruction, ℓ=0 production reach).
         self._fold = RadialCharacteristicReconstruction(
-            field_space, coord=coord, quadrature=quadrature,
+            field_space, coord=coord, angular_bulk_space=angular_bulk_space,
         )
         space = field_space.interior_space
         assert isinstance(space, RadialCharacteristicInteriorSpace)  # System-B mint; narrowing only

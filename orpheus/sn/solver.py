@@ -1057,7 +1057,7 @@ def _radial_characteristic_fission_seed(
     return RadialCharacteristicReconstruction(
         problem.radial_characteristic_field_space,
         coord=problem.coord,
-        quadrature=problem.quad,
+        angular_bulk_space=problem.angular_bulk_space,
     ).apply(
         np.asarray(fission_source)[None],
     )

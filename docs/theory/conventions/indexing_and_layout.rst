@@ -898,8 +898,8 @@ step 2 (2026-09-04): its :math:`P_0` emission is scalar-driven and its
 :class:`~orpheus.transport.operators.n2n.N2NOperator` — a role of the
 same :class:`~orpheus.transport.operators.transfer.TransferOperator`
 core as :math:`S` (:ref:`n2n-reactions`).  Both gains reach the
-per-ordinate carrier through the ONE shared ``(iso / W) + aniso``
-combine, which is now single-sourced on that core rather than once per
+per-ordinate carrier through the ONE shared combine (the isotropic part through the
+angular section, plus the anisotropic part), which is now single-sourced on that core rather than once per
 channel.
 
 ⛔ This paragraph read *"both isotropic producers"* until 2026-09-04,
@@ -1940,12 +1940,6 @@ that wrap the right-hand side of the transport equation
 
    The rich-narrative version should walk through:
 
-   * The math of why iso + aniso = per-ordinate (broadcast across the
-     N axis is the algebraic content of the dunder).
-   * How the typed dunder dissolves the procedural
-     ``np.broadcast_to(Q_iso[None, :, :, :], psi.shape).copy(); Q +=
-     Q_aniso`` pattern that historically lived inside
-     :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.apply`.
    * Why source and flux types stay distinct (same storage shape;
      different algebraic role; cross-type addition undefined).
    * The decision to keep ``sig_t`` as bare ndarray (static-parameter
@@ -1953,39 +1947,20 @@ that wrap the right-hand side of the transport equation
 
    Source module: :mod:`orpheus.transport.fields`.
    Foundation tests:
-   :file:`tests/gates/sn/primitives/test_typed_source_sinks.py` (37 cases).
+   :file:`tests/gates/sn/primitives/test_typed_source_sinks.py` (32 cases).
    Closeout memo:
    :file:`.claude/agent-memory/method-implementer/issue_197_pr_typed_3_closeout.md`.
 
-The load-bearing dunder
+The isotropic injection
 -----------------------
 
-The cross-type sum of a
-:class:`~orpheus.transport.fields.ScalarSourceSink` and an
-:class:`~orpheus.transport.fields.AngularSourceSink`, written once in the
-class of the containing space
-(:meth:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink.__add__`
-and its reflected add, which ``iso + aniso`` reaches because the scalar
-class defers to a class whose ``CONTAINS`` names it), is
-the load-bearing pattern of PR-TYPED-3.  It replaces the procedural
-broadcast-and-copy pattern with a single algebraic line::
-
-    # Before PR-TYPED-3 (scattering.py ``apply`` body):
-    Q = np.broadcast_to(Q_iso[None, :, :, :], psi.shape).copy()
-    Q += Q_aniso
-
-    # After PR-TYPED-3:
-    combined: AngularSourceSink = iso_source + aniso_source
-
-The new path reads as the math: the iso → per-ordinate broadcast is
-internal to the dunder (the canonical subspace-containment injection
-``iso → 1 ⊗ iso`` — :class:`ScalarSourceSink` lives in the subspace of
-:class:`AngularSourceSink` where every ordinate carries the same
-value); the caller spells the algebra.  The cross-class dunder is
-**preserved** under the refined Issue #207 principle (cross-class
-arithmetic is permitted when there is a canonical subspace-containment
-relation between the operands' spaces) — see the
-:mod:`orpheus.transport.fields` module docstrings.
+The isotropic source enters the per-ordinate one through the angular section
+(:meth:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink.from_isotropic`:
+divide by the mass, then scatter across the ordinates), followed by a
+within-class add; no leaf overrides ``__add__``, and the sum of a
+:class:`~orpheus.transport.fields.ScalarSourceSink` with an
+:class:`~orpheus.transport.fields.AngularSourceSink` is refused by
+``Field._check_partner``.
 
 Zero-source allocation
 ----------------------

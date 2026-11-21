@@ -1135,19 +1135,14 @@ because it is easy to carry the old sentence forward.** As of CS3:
   ``__add__`` nor ``__sub__``. The flux role's arithmetic *is* the
   inherited vector algebra.
 - :class:`~orpheus.transport.fields.angular_source_sink.AngularSourceSink`
-  **does** define its own ``__add__`` — the canonical
-  subspace-containment injection that accepts a
-  :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`
-  partner and broadcasts the isotropic operand across the
-  :math:`\hat\Omega` axis before adding (the refined #207 exception;
-  statically unspellable against Field's ``(T, T) -> T``, which is
-  Issue #288).
+  defines no ``__add__`` either: no leaf overrides ``__add__``, so no axis
+  changes the arithmetic interface, and the sum of a
+  :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink` with
+  an angular source is refused by ``Field._check_partner`` (units identity).
 
-So the axis that "changes the arithmetic interface" is now the *source*
-axis, not the flux axis. The **conclusion** the old reading supported
-survives untouched — Role must be a class, Representation must be a
-class, and the flat multiple-inheritance leaf is the unique normal form
-— but the *example* that carried it has moved. The full argument, with
+The conclusion the old reading supported — Role must be a class,
+Representation must be a class, and the flat multiple-inheritance leaf is
+the unique normal form — rests on units identity. The full argument, with
 its five obstructions re-derived under the cone, lives at
 :ref:`carrier-grid-flat-leaf-normal-form`.
 
@@ -1753,6 +1748,20 @@ status.
      - Architectural milestone
      - Issue
      - Where
+   * - 2026-11-20
+     - **The cross-class source dunder and BulkField.CONTAINS retired; the
+       angular mass single-sourced on the section.** The dunder was the
+       pullback :math:`\pi^{*}` spelled outside its type, with no division
+       by the mass, summing two dimensionally different rates; its only
+       production caller, ``AngularLift._combine``, already divided by the
+       mass first. The isotropic source enters through the section
+       :math:`E` (``AngularSourceSink.from_isotropic``, and
+       ``AngularLift._combine`` as the one combine); ``ScalarSourceSink +
+       AngularSourceSink`` is refused by ``Field._check_partner``. The
+       divisor of the producer-side :math:`1/W` is the section's mass, the
+       correctly rounded sum of the stored weights, for every reader.
+     - #708, #288
+     - (in development)
    * - 2026-08-24
      - **A field is an element of a SPACE, and the fiber is space
        CONTENT** (campaign 1, phase CS4b). The leaves' space source

@@ -48,9 +48,8 @@ fluxes. Per Issue #207's architectural principle and Depth B plan §3.6,
 cross-class arithmetic between a source/sink and a flux is forbidden by
 the Field ABC's Layer 1 class-identity gate — even when shape and units
 might align. Cross-class same-units operations (e.g. combining an
-isotropic source/sink with a per-ordinate one) go through the canonical
-subspace-containment injection or a NAMED composition factory, not an
-ad-hoc cross-class dunder.
+isotropic source/sink with a per-ordinate one) go through the angular
+section (``AngularSourceSink.from_isotropic``) or a NAMED composition factory.
 
 Interior face access — NO per-face type
 ========================================

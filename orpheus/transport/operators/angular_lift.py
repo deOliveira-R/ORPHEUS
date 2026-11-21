@@ -110,7 +110,7 @@ from orpheus.transport.fields import (
     ScalarSourceSink,
 )
 from orpheus.numerics import frame_faces
-from orpheus.numerics.axis_marginal import AxisRetractionOperator
+from orpheus.numerics.axis_marginal import AxisRetractionOperator, AxisSectionOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
@@ -309,10 +309,11 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
 
     @property
     def total_weight(self) -> float:
-        r""":math:`W = \int_{S^2} d\Omega` — the binding measure's total
-        angular weight (the producer-side :math:`/W`), read off the
-        frame's MEASURE (operative data)."""
-        return float(np.asarray(self.frame.measure.weights).sum())
+        r""":math:`W = \langle m, u\rangle`, the mass of the emitted
+        interior's angular axis (the producer-side :math:`1/W`): the angular
+        section's mass, the correctly rounded sum of the stored weights, the
+        one definition every reader of :math:`1/W` divides by (#708)."""
+        return AxisSectionOperator.of(self._codomain_interior, "angular").mass
 
     @property
     def _moment_space(self) -> FunctionSpace:
@@ -418,19 +419,14 @@ class AngularLift(CompositeBound, Generic[EnergyT]):
     def _combine(
         self, iso: ScalarSourceSink, aniso: AngularSourceSink | None,
     ) -> AngularSourceSink:
-        r"""The producer-side combine :math:`(\text{iso}/W) + \text{aniso}`
-        — the :math:`1/W` convention's ONE home (its normalisation chain:
-        ``docs/theory/methods/sn/slab_multigroup.rst``). The zero
-        accumulator of a purely isotropic lift rides the emitted
-        interior; the containment dunder's cross-class arm returns the
-        LARGER (angular) class (the #288 principled LSP exception)."""
-        aniso_part = (
-            aniso if aniso is not None
-            else AngularSourceSink.zeros(self._codomain_interior)
-        )
-        return cast(
-            AngularSourceSink, (iso / self.total_weight) + aniso_part,
-        )
+        r"""The producer-side combine, the :math:`1/W` convention's ONE home
+        (its normalisation chain: ``docs/theory/methods/sn/slab_multigroup.rst``).
+        The isotropic source is injected through the angular section
+        :math:`E` (divide by the mass, then scatter across the ordinates)
+        and the anisotropic part is added within one class."""
+        section = AxisSectionOperator.of(self._codomain_interior, "angular")
+        injected = AngularSourceSink(values=section.apply(iso), space=self._codomain_interior)
+        return injected if aniso is None else injected + aniso
 
     def apply_transpose(self, x: FullField, /) -> FullField:
         r"""The Euclidean transpose :math:`T^{\mathsf T}\chi` on the

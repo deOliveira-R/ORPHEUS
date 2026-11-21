@@ -2,15 +2,17 @@
 
 Pins the structural contract of :class:`ScalarSourceSink` and
 :class:`AngularSourceSink` — shape validation, dunder algebra
-(within-type AND the load-bearing cross-type), and the bit-identity
-of the new dunder path with the procedural
-``np.broadcast_to(...).copy() + Q_aniso`` pattern it replaces.
+(within-type; the cross-type sum is refused), and the isotropic
+injection ``AngularSourceSink.from_isotropic`` against the
+platform-free reference ``iso / math.fsum(weights)`` broadcast.
 
 The foundation mark: these tests verify software invariants
 (constructor shape check, frozen-ness, dunder algebra) rather than
 physics claims.
 """
 from __future__ import annotations
+
+import math
 
 from orpheus.numerics.space import FunctionSpace
 
@@ -186,122 +188,65 @@ class TestAngularSource:
 
 
 # ════════════════════════════════════════════════════════════════════
-# Cross-class arithmetic via canonical subspace containment (refined
-# Issue #207 principle): ScalarSourceSink ⊂ AngularSourceSink via the
-# broadcast injection iso → 1 ⊗ iso. The dunder applies the injection
-# inside the operation; result type is the LARGER (containing) space.
+# The isotropic source enters an angular one through the angular section
+# (``AngularSourceSink.from_isotropic``: divide by the mass, scatter across
+# the ordinates), then a within-class add; the mixed ``iso + aniso`` is
+# refused by ``Field._check_partner`` (tests/gates/transport/fields/
+# test_scalar_source_does_not_add_to_an_angular_one.py).
 # ════════════════════════════════════════════════════════════════════
 
 
-class TestCrossClassDunder:
+class TestIsotropicInjection:
     def test_iso_plus_aniso_returns_per_ordinate(self) -> None:
-        """``ScalarSourceSink + AngularSourceSink → AngularSourceSink``.
-
-        The canonical subspace-containment dunder: iso is broadcast
-        across the Ω axis, then added to the per-ordinate operand.
-        Reads as the math ``Q_total = Q_iso + Q_aniso``.
-        """
+        """``from_isotropic(iso) + aniso → AngularSourceSink``: the isotropic
+        source divided by the mass, broadcast across the ordinates, then added."""
         m = _slab_mesh()
         rng = np.random.default_rng(11)
         iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
         aniso_values = rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
-        iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
         aniso = AngularSourceSink(values=aniso_values, space=m.angular_bulk_space)
 
-        combined = iso + aniso
+        combined = AngularSourceSink.from_isotropic(iso_values, m) + aniso
         assert isinstance(combined, AngularSourceSink)
-        # Broadcast: per-ordinate the combined value is iso + aniso[n].
-        expected = iso_values[None] + aniso_values
+        expected = np.broadcast_to(
+            (iso_values / math.fsum(m.quad.weights))[None], aniso_values.shape,
+        ) + aniso_values
         np.testing.assert_array_equal(combined.values, expected)
         assert combined.space is m.angular_bulk_space
 
-    def test_aniso_plus_iso_commutative(self) -> None:
-        """``AngularSourceSink + ScalarSourceSink → AngularSourceSink``
-        (commutative — delegates to ScalarSourceSink for Pattern 2)."""
-        m = _slab_mesh()
-        rng = np.random.default_rng(13)
-        iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
-        aniso_values = rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
-        iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
-        aniso = AngularSourceSink(values=aniso_values, space=m.angular_bulk_space)
-
-        forward = iso + aniso
-        reverse = aniso + iso
-        assert isinstance(reverse, AngularSourceSink)
-        np.testing.assert_array_equal(forward.values, reverse.values)
-
-    def test_iso_plus_aniso_coherence_is_the_marginal(self) -> None:
-        """CS4b S3 (F2): the cross-class dunder's coherence is the SPACE
-        relation — the iso operand must be the angular operand's
-        non-angular marginal. Twin carriers satisfy it (the EQUAL leg);
+    def test_sum_requires_equal_space(self) -> None:
+        """The within-class sum's coherence is the SPACE relation (Field's
+        ``requires equal space``): twin carriers satisfy it (the EQUAL leg);
         a volumes-differing carrier breaks it (the UNEQUAL leg)."""
         m1 = _slab_mesh()
         m2 = _slab_mesh()  # distinct instance, same content
-        iso = ScalarSourceSink(values=np.ones((m1.ng, *m1.spatial_shape)), space=m1.bulk_space)
+        iso = AngularSourceSink.from_isotropic(np.ones((m1.ng, *m1.spatial_shape)), m1)
         aniso = AngularSourceSink(values=np.ones((m2.quad.n_ordinates, m2.ng, *m2.spatial_shape)), space=m2.angular_bulk_space)
-        _ = iso + aniso  # twin content — legal since the F2 re-key
+        _ = iso + aniso  # twin content, legal
         m3 = _stretched_mesh()
         aniso3 = AngularSourceSink(values=np.ones((m3.quad.n_ordinates, m3.ng, *m3.spatial_shape)), space=m3.angular_bulk_space)
-        with pytest.raises(ValueError, match="marginal"):
+        with pytest.raises(ValueError, match="requires equal space"):
             _ = iso + aniso3
 
-    def test_pattern_7_normalised_iso_plus_aniso(self) -> None:
-        r"""Pattern 7 producer-side normalisation: divide by sum_w
-        BEFORE the cross-class add. Mirrors the ScatteringOperator
-        call site at ``scattering.py:942``.
-
-        ``(iso / sum_w) + aniso`` reads as the math
-        :math:`Q_n = Q_{\text{iso}} / W + Q_{\text{aniso},n}` —
-        the per-ordinate magnitude after the producer's dimensional
-        normalisation.
-        """
-        m = _slab_mesh()
-        rng = np.random.default_rng(17)
-        iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
-        aniso_values = rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape))
-        iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
-        aniso = AngularSourceSink(values=aniso_values, space=m.angular_bulk_space)
-        sum_w = float(m.quad.weights.sum())
-
-        # Pattern 7 entry point — caller-applied /sum_w.
-        combined = (iso / sum_w) + aniso
-
-        # Bit-identical reference: broadcast iso/sum_w into per-ordinate,
-        # add aniso element-wise.
-        Q_reference = np.broadcast_to(
-            (iso_values / sum_w)[None], aniso_values.shape,
-        ).copy()
-        Q_reference += aniso_values
-        np.testing.assert_array_equal(combined.values, Q_reference)
-
     def test_per_ordinate_from_isotropic_alternative_factory(self) -> None:
-        r"""Named factory :meth:`AngularSourceSink.from_isotropic` is
-        the alternative to caller-applied /sum_w + cross-class dunder.
-
-        It bakes the ``/sum_w`` normalisation into the factory,
-        equivalent to ``(iso / sum_w).as_per_ordinate()``. Caller
-        chooses between this and the dunder form based on which
-        better reads at the call site.
-        """
+        r"""The factory :meth:`AngularSourceSink.from_isotropic` against the
+        platform-free reference: ``iso / math.fsum(weights)`` broadcast across
+        the ordinates (the section against an independent definition of the
+        mass, not against another reduction of the same weights)."""
         m = _slab_mesh()
         rng = np.random.default_rng(23)
         iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
-        iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
 
-        via_factory = AngularSourceSink.from_isotropic(iso.values, m)
-        # CS4b S4: ``as_per_ordinate`` retired with the field's mesh —
-        # the surviving spelling of the un-normalised broadcast is the
-        # containment dunder against the angular zero.
-        via_dunder = (
-            iso / float(m.quad.weights.sum())
-        ) + AngularSourceSink.zeros(m.angular_bulk_space)
-        np.testing.assert_array_equal(via_factory.values, via_dunder.values)
+        via_factory = AngularSourceSink.from_isotropic(iso_values, m)
+        reference = np.broadcast_to(
+            (iso_values / math.fsum(m.quad.weights))[None], via_factory.values.shape,
+        )
+        np.testing.assert_array_equal(via_factory.values, reference)
 
     def test_iso_plus_iso_stays_isotropic(self) -> None:
         """``ScalarSourceSink + ScalarSourceSink → ScalarSourceSink``.
 
-        Within-type addition must STAY within type — the cross-type
-        path only fires when the partner is :class:`AngularSourceSink`.
+        Within-type addition stays within type.
         """
         m = _slab_mesh()
         a = ScalarSourceSink(values=np.ones((m.ng, *m.spatial_shape)), space=m.bulk_space)
@@ -322,35 +267,18 @@ class TestCrossClassDunder:
 
 
 # ════════════════════════════════════════════════════════════════════
-# The un-normalised broadcast injection — the containment dunder
-# (``as_per_ordinate`` retired at CS4b S4: the broadcast target needs the
-# ANGULAR axis, carrier knowledge a scalar field's space cannot carry; the
-# dunder against the angular zero is the surviving spelling)
+# The injected sum owns its data
 # ════════════════════════════════════════════════════════════════════
 
 
 class TestBroadcastInjection:
-    def test_dunder_broadcast_shape_and_values(self) -> None:
+    def test_injected_sum_owns_data(self) -> None:
+        """The injected sum must be writable: the within-class add allocates a
+        fresh array, so no readonly-broadcast-view surprise reaches the caller."""
         m = _slab_mesh()
-        rng = np.random.default_rng(19)
-        iso_values = rng.standard_normal((m.ng, *m.spatial_shape))
-        iso = ScalarSourceSink(values=iso_values, space=m.bulk_space)
-
-        aniso = iso + AngularSourceSink.zeros(m.angular_bulk_space)
-        assert isinstance(aniso, AngularSourceSink)
-        assert aniso.values.shape == (m.quad.n_ordinates, m.ng, *m.spatial_shape)
-        # Every ordinate slice IS the isotropic source.
-        for n in range(m.quad.n_ordinates):
-            np.testing.assert_array_equal(aniso.values[n], iso_values)
-
-    def test_dunder_broadcast_owns_data(self) -> None:
-        """The result must own its data (writable) — the dunder's
-        ``self.values[None] + other.values`` allocates a fresh array, so
-        no readonly-broadcast-view surprise reaches the caller."""
-        m = _slab_mesh()
-        iso = ScalarSourceSink(values=np.ones((m.ng, *m.spatial_shape)), space=m.bulk_space)
-        aniso = iso + AngularSourceSink.zeros(m.angular_bulk_space)
-        assert aniso.values.flags.writeable
+        injected = AngularSourceSink.from_isotropic(np.ones((m.ng, *m.spatial_shape)), m)
+        total = injected + AngularSourceSink.zeros(m.angular_bulk_space)
+        assert total.values.flags.writeable
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -366,13 +294,13 @@ class Test2DTypedSources:
         assert iso.values.shape == (m.ng, *m.spatial_shape)
         assert aniso.values.shape == (m.quad.n_ordinates, m.ng, *m.spatial_shape)
 
-    def test_cross_type_add_2d(self) -> None:
+    def test_isotropic_injection_2d(self) -> None:
         m = _2d_mesh()
         rng = np.random.default_rng(29)
-        iso = ScalarSourceSink(values=rng.standard_normal((m.ng, *m.spatial_shape)), space=m.bulk_space)
+        iv = rng.standard_normal((m.ng, *m.spatial_shape))
         aniso = AngularSourceSink(values=rng.standard_normal((m.quad.n_ordinates, m.ng, *m.spatial_shape)), space=m.angular_bulk_space)
-        combined = iso + aniso
-        expected = iso.values[None] + aniso.values
+        combined = AngularSourceSink.from_isotropic(iv, m) + aniso
+        expected = np.broadcast_to((iv / math.fsum(m.quad.weights))[None], aniso.values.shape) + aniso.values
         np.testing.assert_array_equal(combined.values, expected)
 
 
@@ -509,7 +437,7 @@ class TestHarmonicMomentSourceSink:
 
     def test_cross_class_with_angular_source_rejected(self) -> None:
         """``source + AngularSourceSink`` (different storage family) →
-        TypeError; there is no containment injection for the moment leaf."""
+        TypeError; the moment leaf has no cross-class sum."""
         m = _slab_mesh()
         q = HarmonicMomentSourceSink.from_problem_and_L(
             np.ones(_moment_shape(m, 2)), m, L=2,
@@ -520,8 +448,8 @@ class TestHarmonicMomentSourceSink:
 
     def test_cross_class_with_scalar_source_rejected(self) -> None:
         """``source + ScalarSourceSink`` → TypeError — unlike the
-        Scalar↔Angular pair, the moment leaf carries no subspace-
-        containment dunder (no consumer yet; build-the-seam-not-spec)."""
+        Scalar↔Angular pair (also refused), the moment leaf has no
+        injection from a scalar source (no consumer yet; build-the-seam-not-spec)."""
         m = _slab_mesh()
         q = HarmonicMomentSourceSink.from_problem_and_L(
             np.ones(_moment_shape(m, 2)), m, L=2,

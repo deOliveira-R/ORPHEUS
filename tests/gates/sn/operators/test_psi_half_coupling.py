@@ -115,7 +115,7 @@ def _rc_fold(sn, n_moments: int = 1):
     return _rcr_mod.RadialCharacteristicReconstruction(
         sn.radial_characteristic_field_space,
         coord=sn.coord,
-        quadrature=sn.quad,
+        angular_bulk_space=sn.angular_bulk_space,
         n_moments=n_moments,
     )
 import orpheus.sn.solver as _solver_mod

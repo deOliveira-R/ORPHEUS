@@ -182,7 +182,7 @@ class TestO11ReconstructionTranspose:
             RadialCharacteristicReconstruction(
                 sn.radial_characteristic_field_space,
                 coord=sn.coord,
-                quadrature=sn.quad,
+                angular_bulk_space=sn.angular_bulk_space,
             ).apply_transpose(cot)
 
     def test_forward_arm_sibling_still_witnessed(self):

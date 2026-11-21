@@ -160,10 +160,6 @@ its own repair:
 * **One concept in two files.** A sum type whose one constructor must name
   both cases (the wall arithmetic's exit returns a ``WallCondition`` inside
   the cone and a ``WallDisplacement`` outside it) is one module.
-* **An embedding written in the smaller class.** A sum across a canonical
-  containment belongs to the class of the larger space
-  (``AngularSourceSink`` answers ``iso + aniso``; the smaller class defers
-  through ``BulkField.CONTAINS``), so the smaller class names no larger one.
 * **A part that holds its whole.** A constituent that stores the hub that
   owns it (the cross-section field once stored its ``MaterialMesh``) takes
   the hub's parts instead, and the hub mints it.
@@ -899,3 +895,32 @@ was added on 2026-10-06 with the reference kernel, as the precursor of the
 characteristic references' rebuild (#405); its first red was the
 infinite-medium adjoint spectrum's import of the production
 eigen-extraction.
+
+Development history
+===================
+
+Reverse-chronological (latest first) changelog of the architectural
+milestones of *this page's* subject.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 50 12 28
+
+   * - When
+     - Architectural milestone
+     - Issue
+     - Where
+   * - 2026-11-20
+     - **The cross-class source dunder and BulkField.CONTAINS retired; the
+       angular mass single-sourced on the section.** The dunder was the
+       pullback :math:`\pi^{*}` spelled outside its type, with no division
+       by the mass, summing two dimensionally different rates; its only
+       production caller, ``AngularLift._combine``, already divided by the
+       mass first. The isotropic source enters through the section
+       :math:`E` (``AngularSourceSink.from_isotropic``, and
+       ``AngularLift._combine`` as the one combine); ``ScalarSourceSink +
+       AngularSourceSink`` is refused by ``Field._check_partner``. The
+       divisor of the producer-side :math:`1/W` is the section's mass, the
+       correctly rounded sum of the stored weights, for every reader.
+     - #708, #288
+     - (in development)

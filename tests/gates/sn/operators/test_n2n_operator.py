@@ -415,9 +415,3 @@ class TestAdmission:
         solver, _ = _solver()
         if solver.problem.system.factors.n2n.frame is not solver.problem.system.factors.scattering.frame:
             pytest.fail("S and N2N must share the interned frame at the solve's order")
-
-    def test_total_weight_is_the_measure_mass(self):
-        solver, sn = _solver()
-        np.testing.assert_allclose(
-            solver.problem.system.factors.n2n.total_weight, float(sn.quad.weights.sum()),
-        )

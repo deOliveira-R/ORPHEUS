@@ -682,9 +682,8 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   (12 of 12 S\ :sub:`N` cases) and the Green's-function sphere by a typed
   :math:`4\pi`, where one Branch-1 measure object should derive it
   (#557); a composite holding a retraction daggers through the generic
-  sandwich rather than the leaf pullback (#558), and
-  ``AngularSourceSink.__add__`` with an isotropic partner adds a hand-written broadcast,
-  :math:`\pi^{*}` outside its type.
+  sandwich rather than the leaf pullback (#558), (the cross-class source dunder that spelled
+  :math:`\pi^{*}` outside its type retired with #708).
 - **Chords, point location and the measure on lines are spelled outside
   their kernel** (`[M]` 2026-10-05, the geometry census at ``a336bde4``,
   :ref:`chart-and-chord-deferred`): 13 chord square roots and 14
@@ -782,3 +781,32 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   times in 27 files under ``orpheus/`` excluding ``derivations/`` (119 in
   39 with it), the population a retirement audit walks (``[M]``
   2026-10-03, a line count over ``orpheus/**/*.py``).
+
+Development history
+===================
+
+Reverse-chronological (latest first) changelog of the architectural
+milestones of *this page's* subject.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 50 12 28
+
+   * - When
+     - Architectural milestone
+     - Issue
+     - Where
+   * - 2026-11-20
+     - **The cross-class source dunder and BulkField.CONTAINS retired; the
+       angular mass single-sourced on the section.** The dunder was the
+       pullback :math:`\pi^{*}` spelled outside its type, with no division
+       by the mass, summing two dimensionally different rates; its only
+       production caller, ``AngularLift._combine``, already divided by the
+       mass first. The isotropic source enters through the section
+       :math:`E` (``AngularSourceSink.from_isotropic``, and
+       ``AngularLift._combine`` as the one combine); ``ScalarSourceSink +
+       AngularSourceSink`` is refused by ``Field._check_partner``. The
+       divisor of the producer-side :math:`1/W` is the section's mass, the
+       correctly rounded sum of the stored weights, for every reader.
+     - #708, #288
+     - (in development)
