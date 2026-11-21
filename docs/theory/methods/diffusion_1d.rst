@@ -1182,7 +1182,7 @@ MMS gate are in :ref:`diffusion-2rg-verification` and
        flip. Pins the *object*, not just its spectrum.
    * - **Cross-engine consistency**
      - :math:`\lvert\Delta k\rvert < 10^{-10}` between
-       ``direct_eigenvalue`` and ``power_iteration`` (and the full
+       ``direct_eigenvalue`` (the test-side dense oracle) and ``power_iteration`` (and the full
        composite eigenvector), across the albedo family.
    * - **L2 infinite medium**
      - reflective diffusion :math:`k \equiv` the homogeneous

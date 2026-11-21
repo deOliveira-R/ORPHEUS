@@ -2770,8 +2770,8 @@ each on a copy restored with a clean diff:
 * an import of ``orpheus.numerics.quadrature`` at the top of the oracle
   module;
 * an import of ``characteristic.lines`` inside one of its functions;
-* an import of ``orpheus.geometry.boundary`` in ``_characteristic_mp``,
-  which the oracle imports.
+* an import of ``orpheus.geometry.boundary`` (a module since retired) in
+  ``_characteristic_mp``, which the oracle imports.
 
 *The refuted first version.* The first gate compared the ``orpheus``
 modules that fresh interpreters hold after importing the memo and after
@@ -2795,7 +2795,7 @@ run at import, beside the distribution pins of numpy and scipy). Since B2
 of the cone store a module is pinned by the import-time statements the
 run observes, so an edit to an import or to another effect statement
 anywhere in ``orpheus.numerics``'s loaded modules or in the geometry they
-load (``orpheus.geometry.boundary`` included) regenerates both routes, and
+load (``orpheus.geometry.faces`` included) regenerates both routes, and
 so does an edit to a constant or a signature the run reads, about 993 s at
 the profile's per-point figures (`[R]`); an edit to a constant nothing the
 run executed reads does not. It costs minutes and never changes a value: by

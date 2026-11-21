@@ -148,8 +148,8 @@ can't happen in valid input". **Domain example:** `L.solve(q)` raises
 can be typed; `(L + C).solve(q)` is the only spelling of the sweep. Compare
 `streaming_op.solve(q, include_collision=False)`: the invalid combination is
 expressible and the type system cannot help. **Other
-instances:** capability `frozenset`s on `LinearOperator`; `BoundaryRealizer` as a
-constructor parameter of L (so "sweep without BC" is not a value);
+instances:** capability `frozenset`s on `LinearOperator`; the wall conditions bound at
+`SNProblem`'s construction and realized through `SN_REALIZERS` (so "sweep without BC" is not a value);
 `DiscreteOrdinatesPhaseSpace` (one object, not three swappable args).
 **Corollary (Pattern 4 ∩ 2):** an operation producing a NEW instance of the same
 frozen type routes through `dataclasses.replace(...)`, which re-runs

@@ -4939,8 +4939,8 @@ cell centres. The boundary-edge sequence is:
    outflow_at_boundary[:, outgoing_mask] = psi_face_out
 
    # ── BC trace law at boundary edge ────────────────────────────
-   # bc_outer is the realised BC (``BoundaryTraceLaw``) from SNMethodSpace
-   # via ``SNBoundaryRealizer.realize()`` — a 1-arg LinearOperator
+   # bc_outer is the realised boundary (a ``RealizedBoundary``), realized
+   # from the wall condition by ``SN_REALIZERS`` — a 1-arg LinearOperator
    # whose apply maps Γ_+ → Γ_-, per the affine-bc-form contract.
    inflow_full = bc_outer.apply(outflow_at_boundary.T)
 
