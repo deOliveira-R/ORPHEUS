@@ -9,8 +9,8 @@ shared engines (P5):
   scalar ``(J⁺, J⁻)`` trace + boundary laws realized at construction;
 * ``DiffusionSolver`` / ``DiffusionResult`` — the
   ``EigenvalueSolver``-protocol implementer and its typed result;
-* ``LeakageOperator`` (``L``, FULL) / ``DiffusionBoundaryOperator``
-  (``B``, BOUNDARY) — the two diffusion-owned operator leaves
+* ``LeakageOperator`` (``L``, couples bulk and boundary) / ``DiffusionBoundaryOperator``
+  (``B``, boundary only) — the two diffusion-owned operator leaves
   (``C``/``S``/``F`` are the shared transport operators);
 * ``DIFFUSION_REALIZERS`` / ``DiffusionMethodSpace`` — the realizer
   table of the albedo family ``J⁻ = 𝒜·J⁺`` (closes #182) and its method
@@ -46,8 +46,8 @@ from .method_space import DiffusionMethodSpace
 from .zero_flux import ZeroFluxCondition
 
 # #290 P4 -- the diffusion operator family's two new leaves on the
-# scalar composite: the elliptic leakage L (FULL) and the realized
-# boundary block B (BOUNDARY). C/S/F are the shared transport operators
+# scalar composite: the elliptic leakage L (couples bulk and boundary) and the realized
+# boundary block B (boundary only). C/S/F are the shared transport operators
 # (MultiplicationOperator / K_iso / FissionOperator), which gained
 # their scalar-composite arms in the same phase.
 from .operators import DiffusionBoundaryOperator, LeakageOperator

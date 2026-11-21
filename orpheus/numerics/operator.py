@@ -1362,7 +1362,7 @@ class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[
     :class:`~orpheus.numerics.metric.HilbertMetric`); this class holds
     the composition plus what only the named arrow can carry: the
     eager refusals, the #280 swap law (:meth:`inverse` — an object
-    identity), the role passthrough, and the dagger laws as structure:
+    identity), and the dagger laws as structure:
 
     * involution — ``A.H.H is A`` (:meth:`adjoint` returns the inner);
     * transpose of the adjoint — a THEOREM of the legs,
@@ -2160,6 +2160,10 @@ class FusedAtom(LinearOperator[Domain, Codomain]):
     def expanded(self) -> "LinearOperator[Domain, Codomain]":
         """The ONE cached :meth:`expansion` every non-realised face reads."""
         return self.expansion()
+
+    def _check_expansion_agrees(self) -> None:
+        """Evaluate :attr:`expanded` at construction: the expansion's agreement law refuses a mis-spaced pair here, not on the first ``.domain`` read."""
+        self.expanded
 
     @property
     def domain(self) -> Optional["FunctionSpace"]:

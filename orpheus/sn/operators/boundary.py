@@ -1,4 +1,4 @@
-r"""The realized boundary law ``B`` as a whole-trace BOUNDARY-block operator.
+r"""The realized boundary law ``B`` as a whole-trace boundary-block operator.
 
 Wave O (Issue #208) extracts the boundary conditions from the streaming
 operator ``L`` so that ``(L_full + C − S − F − B)\psi = q`` is the canonical
@@ -13,13 +13,13 @@ Block structure
 
 On ``V = V_bulk ⊕ V_boundary`` the four operator families are::
 
-    C, S, F  →  [ A_bb  0 ]   (BULK   — bulk → bulk only)
+    C, S, F  →  [ A_bb  0 ]   (bulk only — bulk → bulk)
                 [ 0     0 ]
 
-    L_full   →  [ A_bb  A_bs ] (FULL   — streaming couples bulk ↔ boundary)
+    L_full   →  [ A_bb  A_bs ] (couples bulk and boundary — streaming couples bulk ↔ boundary)
                 [ A_sb  0    ]
 
-    B        →  [ 0     0   ] (BOUNDARY — boundary → boundary only, ``A_ss``)
+    B        →  [ 0     0   ] (boundary only — boundary → boundary, ``A_ss``)
                 [ 0     A_ss]
 
 The whole boundary block is the direct sum ``B = B_a + B_b`` of the two

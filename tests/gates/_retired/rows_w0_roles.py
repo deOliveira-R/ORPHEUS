@@ -7,7 +7,7 @@ The 12 names are ``BlockRole SystemRole _BlockRoleMeta BulkOperator FullOperator
 _join_block_roles _join_system_roles stamp_boundary_role _adopt_expansion_roles``. ``BoundaryOperator`` is a whole identifier, so the
 live ``SNBoundaryOperator``, ``DiffusionBoundaryOperator`` and the like are other identifiers and are not read by its row. A
 ``Retired`` row binds a definition site; a ``RetiredName`` row reads the bare word anywhere in the five trees (identifier, ``__all__``
-member, ``getattr``/``setattr`` string); each name below has 0 surviving homonym (specification 4.2 R1, ``roles_count.py``).
+member, ``getattr``/``setattr`` string); each name below has 0 surviving homonym (specification 4.2 R1; the counts are the trailing comments of the rows, measured with the counter of the 4.5 list).
 
 ``D2`` is kept: the ``TypeVar`` of the quoted annotation of ``LinearOperator.__matmul__`` (row 63), read only inside a string, so a
 builder pruning the imports of ``operator.py`` could delete it silently; the engine asserts it is still defined.
@@ -39,19 +39,19 @@ ROWS: tuple[Row, ...] = (
     Retired(_OPERATOR, "LinearOperator.system_role"),
     Retired("orpheus/transport/boundary_conditions/realization.py", "stamp_boundary_role"),
     Retired("orpheus/sn/boundary/realized_operators.py", "RealizedBoundary.block_role"),
-    # the 12 bare identifiers (each with 0 homonym)
-    RetiredName("BlockRole"),
-    RetiredName("SystemRole"),
-    RetiredName("_BlockRoleMeta"),
-    RetiredName("BulkOperator"),
-    RetiredName("FullOperator"),
-    RetiredName("BoundaryOperator"),
-    RetiredName("block_role"),
-    RetiredName("system_role"),
-    RetiredName("_join_block_roles"),
-    RetiredName("_join_system_roles"),
-    RetiredName("stamp_boundary_role"),
-    RetiredName("_adopt_expansion_roles"),
+    # the 12 bare identifiers (counts: identifier tokens and string constants equal to the name over the five trees at 954c4a4f, `git ls-tree` + `tokenize` + `ast`; 0 homonym = the surviving count outside this module's own two strings per name)
+    RetiredName("BlockRole"),  # 105 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("SystemRole"),  # 41 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("_BlockRoleMeta"),  # 4 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("BulkOperator"),  # 22 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("FullOperator"),  # 28 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("BoundaryOperator"),  # 30 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("block_role"),  # 91 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("system_role"),  # 35 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("_join_block_roles"),  # 3 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("_join_system_roles"),  # 14 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("stamp_boundary_role"),  # 14 identifier occurrences at 954c4a4f, 0 homonym
+    RetiredName("_adopt_expansion_roles"),  # 4 identifier occurrences at 954c4a4f, 0 homonym
 )
 KEPT: tuple[Kept, ...] = (
     Kept(_OPERATOR, "D2", "row 63: the TypeVar of the quoted annotation of LinearOperator.__matmul__"),

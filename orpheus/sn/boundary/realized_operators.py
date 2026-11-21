@@ -38,8 +38,7 @@ operators on different discretizations are therefore unequal and hash apart. The
 
 **One body per builder (decision 45).** This module OWNS the one body of each operator builder. The realizer's four builders
 (``_narrowed_zero_operator``, ``_deck_kernel``, ``_checked_angular_average`` and ``_specular_crossed_diagnosis``) retired in the
-commit that added this file, and the only helper shared by the constructors is :func:`_attenuated_kernel_operator` (scale and
-role stamp). The import edge is ``realizer -> realized_operators`` only; this module imports nothing from ``realizer.py``.
+commit that added this file, and the only helper shared by the constructors is :func:`_attenuated_kernel_operator` (the scale). The import edge is ``realizer -> realized_operators`` only; this module imports nothing from ``realizer.py``.
 
 **The divisor rule.** ``E`` divides by the INFLOW mass (a plain ``numpy`` sum of the inflow half-space's metric), which is what
 makes ``Rt_in o E = id`` and the return fraction exactly ``alpha``. The shipped operator before this carve divided by the

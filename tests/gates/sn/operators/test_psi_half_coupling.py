@@ -155,7 +155,6 @@ from orpheus.numerics.assembled_operator import MissingAssembly, assemble
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.sn.coupled_system import build_coupled_system
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
-from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux

@@ -561,6 +561,8 @@ class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForwa
         self.streaming: Final = streaming
         #: :math:`C = M[\sigma]`, the diagonal multiplier the sweep pairs with L.
         self.diagonal: Final = diagonal
+        # The expansion L + C is built now: its agreement law refuses a mis-spaced C at construction.
+        self._check_expansion_agrees()
 
     def expansion(self) -> "LinearOperator[FullField]":
         r"""The plain combination :math:`L + C` this atom realises (ruling 52)."""

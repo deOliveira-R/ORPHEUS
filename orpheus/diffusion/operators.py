@@ -28,13 +28,13 @@ The block structure (the #208 partition, transferred verbatim)
 On ``V = V_bulk ⊕ V_trace`` with trace unknowns the per-face partial
 currents ``(J⁺, J⁻)`` (ruling 2; crosswalk)::
 
-    C, S, F  →  [ A_bb  0 ]   (BULK)
+    C, S, F  →  [ A_bb  0 ]   (bulk only)
                 [ 0     0 ]
 
-    L        →  [ A_bb  A_bs ] (FULL — the elliptic sibling of streaming)
+    L        →  [ A_bb  A_bs ] (couples bulk and boundary — the elliptic sibling of streaming)
                 [ A_sb  A_ss^L]
 
-    B        →  [ 0     0    ] (BOUNDARY — the realized albedo block)
+    B        →  [ 0     0    ] (boundary only — the realized albedo block)
                 [ 0     A_ss^B]
 
 ``L``'s trace block mirrors the SN streaming convention exactly: the
@@ -273,7 +273,7 @@ class _FaceClosure:
 
 class LeakageOperator(LinearOperator["FullField", "FullField"]):
     r"""The elliptic leakage leaf :math:`L = -\nabla\!\cdot D\nabla` — the
-    FULL primitive of the diffusion algebra.
+    primitive of the diffusion algebra that couples bulk and boundary.
 
     The diffusion sibling of SN's
     :class:`~orpheus.sn.operators.streaming.StreamingOperator`: the ONE

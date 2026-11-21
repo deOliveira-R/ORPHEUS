@@ -193,30 +193,14 @@ def _scatter(rows: np.ndarray, values: np.ndarray, n_face: int) -> np.ndarray:
     return out
 
 
-#: The face under test of every row below: ``xmin`` of a one-slab, whose other face is its partner (the same deck for a
-#: periodic pair, a vacuum wall otherwise).
-_FACE = "xmin"
-
-
-def _boundary_under_test(declared):
-    """The realized operator of ``xmin`` when it declares ``declared`` (a ``WallCondition``, carried on a tag, or a deck), posed
-    through a real slab: the periodic pair is declared on BOTH faces (a translation quotient is symmetric); any other face has a
-    vacuum partner."""
-    from orpheus.numerics.quadrature import Quadrature as _Q
-
-    conditions: dict[int, WallCondition] = {}
-    if isinstance(declared, WallCondition):
-        conditions[0] = declared
-        left, right = 0, 1
-        conditions[1] = WallCondition.vacuum()
-    elif isinstance(declared, TranslationDeck):
-        left = right = declared
-    else:
-        left, right = declared, 0
-        conditions[0] = WallCondition.vacuum()
-    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=left, right=right)).partition(CellsByCount.uniform_volume(4)).mesh
-    sn = SNProblem(mesh, _Q.gauss_legendre(n_ordinates=4), placeholder_materials(ng=1), boundary_conditions=conditions)
-    return sn.bc[_FACE]
+def _boundary_under_test(declared: WallCondition):
+    """The realized operator of ``xmin`` when it declares ``declared``, posed through a real slab whose other face is vacuum."""
+    mesh = Mesher(StructuredGeometry.slab((0.0, 2.0), (0,), left=0, right=1)).partition(CellsByCount.uniform_volume(4)).mesh
+    sn = SNProblem(
+        mesh, Quadrature.gauss_legendre(n_ordinates=4), placeholder_materials(ng=1),
+        boundary_conditions={0: declared, 1: WallCondition.vacuum()},
+    )
+    return sn.bc["xmin"]
 
 
 class TestBoundaryLeaves:

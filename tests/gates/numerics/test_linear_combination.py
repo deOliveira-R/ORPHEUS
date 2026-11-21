@@ -858,7 +858,7 @@ def test_c44_a_sum_of_the_identity_and_a_diagonal_keeps_both_terms():
     """``I + D`` for a production diagonal atom is the combination of both
     (``I`` is not absorbed): the production-atom instance of c06."""
     s = IdentityOperator() + DiagonalOperator(np.ones(3), shape=(3,), spans=(0,))
-    assert isinstance(s, OperatorSum)
+    assert isinstance(s, OperatorSum) and len(_terms(s)) == 2
 
 
 def test_c45_two_equal_valued_tensor_products_stay_two_terms():

@@ -343,16 +343,13 @@ class Splitting:
         INVERTIBLE operator by construction — its ``inverse()`` is the
         driver's resolvent (the sweep / the scheduled forward substitution /
         the block back-substitution)."""
-        # The concrete grids/composites, each carrying ``inverse()``, are
-        # stated to the checker rather than inferred.
         if self.system.is_coupled:
-            return cast(
-                "SupportsInverse[Any, Any]", self._grid(self.implicit_pieces, negate=False),
-            )
+            return self._grid(self.implicit_pieces, negate=False)
         # The realisation is chosen here, by the owner (ruling 52): the result
         # carries ``inverse()`` by construction — the CAPABILITY the
         # annotation names (never a class: the scheduled composite retires
-        # with the partition phase without touching this signature).
+        # with the partition phase without touching this signature). The cast
+        # narrows ``_sweep_realization``'s declared ``LinearOperator`` to it.
         return cast("SupportsInverse[Any, Any]", _sweep_realization(self.implicit_pieces))
 
     @cached_property

@@ -4900,8 +4900,8 @@ single source of truth — see :ref:`trace-spaces-doc`).
 .. vv-status: bc-extraction-direct-sum-state documented
 
 This is the realisation, for the boundary block, of the Wave T
-prediction (:ref:`tensor-network-decomposition`): "Wave O typing must accept
-non-SOTP summands." :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
+prediction (:ref:`tensor-network-decomposition`): any contract on the
+summands of an :class:`OperatorSum` must accept non-SOTP summands. :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
 is the :math:`A_{ss}` leaf — a bespoke
 :class:`~orpheus.numerics.operator.LinearOperator`, NOT a
 :class:`~orpheus.numerics.operator.TensorProductOperator`.
@@ -4993,21 +4993,20 @@ table below, whose inflow-identity and outflow-defect rows are both
 downstream derivation consumed it — but the root-page triangularity
 argument was about to.)
 
-The three operator roles (Wave O block-role typing, Issue #208) read
-off the block structure directly:
+The operator families read off the block structure directly:
 
-.. list-table:: Block occupancy by operator role
+.. list-table:: Block occupancy by operator
    :header-rows: 1
    :widths: 16 16 30 38
 
    * - Operator(s)
-     - Role
+     - Blocks touched
      - Reads / writes
      - Block content
    * - :math:`L_{\rm full}`
        (:class:`~orpheus.sn.operators.streaming.StreamingOperator`,
        via :class:`~orpheus.sn.operators.streaming.StreamingCollisionOperator` ``L+C``)
-     - ``FULL``
+     - couples bulk and boundary
      - Reads :math:`\psi.\text{bulk}` **and** the *given*
        :math:`\psi.\text{inflow}` trace; writes :math:`\psi.\text{bulk}`
        and the :math:`\psi.\text{outflow}` trace.
@@ -5024,12 +5023,12 @@ off the block structure directly:
        — :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`,
        :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
        :class:`~orpheus.transport.operators.fission.FissionOperator`)
-     - ``BULK``
+     - bulk only
      - Bulk → bulk only.
      - :math:`A_{bb}` only; the boundary block is zero.
    * - :math:`B`
        (:class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`)
-     - ``BOUNDARY``
+     - boundary only
      - Maps :math:`V_{\rm outflow} \to V_{\rm inflow}` via the
        realized per-face operator :math:`\psi.\text{inflow} =
        B\,\psi.\text{outflow}`.
