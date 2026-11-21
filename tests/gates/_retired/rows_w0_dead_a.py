@@ -13,6 +13,11 @@ from __future__ import annotations
 
 from tests.gates._retired import Kept, Moved, Retired, Row
 
+#: The two rows the mutation tests of ``test_retirements_dead_a.py`` plant a definition and a reference for, bound by name here so that
+#: a later row of the same shape cannot make the test's pick ambiguous.
+SELECTOR = Retired('orpheus/numerics/quadrature/registry.py', 'select_quadrature')
+SELECTION_ERROR = Retired('orpheus/numerics/quadrature/registry.py', 'QuadratureSelectionError')
+
 ROWS: tuple[Row, ...] = (
     Moved('orpheus/geometry/chart.py', 'DirectionDomain.tangencies', 'tests/gates/geometry/_geometry_oracles.py', 'tangencies'),  # row 6; free function tangencies(direction_domain, level)
     Retired('orpheus/geometry/chord.py', 'Chord.slot_start'),
@@ -35,9 +40,9 @@ ROWS: tuple[Row, ...] = (
     Moved('orpheus/numerics/measure.py', 'equispaced', 'tests/gates/numerics/_measure_fixtures.py', 'equispaced'),  # row 60; free function equispaced(a, b, n)
     Moved('orpheus/numerics/mesh_free_function.py', 'Symbolic.from_srepr', 'tests/gates/numerics/_measure_fixtures.py', 'from_srepr'),  # row 61; free function from_srepr(srepr, sympy_version=None), its body names `Symbolic`  # was a classmethod: the class parameter is dropped (decision D2)
     Retired('orpheus/numerics/quadrature/registry.py', 'SelectionLog.summary'),
-    Retired('orpheus/numerics/quadrature/registry.py', 'select_quadrature'),
+    SELECTOR,
     Retired('orpheus/numerics/quadrature/registry.py', 'SelectionLog'),
-    Retired('orpheus/numerics/quadrature/registry.py', 'QuadratureSelectionError'),
+    SELECTION_ERROR,
     Retired('orpheus/numerics/quadrature/registry.py', 'QuadratureSpec.structural_flags'),  # not a row: the ruled closure member of row 73 (3.0 item 3, 8.24)
 )
 

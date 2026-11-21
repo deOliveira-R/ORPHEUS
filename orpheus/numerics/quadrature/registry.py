@@ -271,7 +271,7 @@ def _lebedev_order_is_available(order: int) -> bool:
 class QuadratureSpec:
     r"""Tagged registry entry for a single quadrature rule.
 
-    Each spec captures what a caller needs to reach a candidate rule: the
+    Each spec captures what a caller needs to build a rule at a degree: the
     parameter-inversion logic, the two catalogue flags, and the factory.
 
     ⛔ It read "…needs to *rank* the rule **without instantiating it**:
@@ -471,8 +471,7 @@ def _ls_sn_invert(target_degree: int) -> dict[str, Any] | None:
     smallest weight ``0.012990`` / ``0.016300`` / ``1.75e-4``;
     :math:`S_{20}`/:math:`S_{22}` refuse. Above the frontier the rule does not
     exist, so this inverter returns ``None`` — the "cannot reach
-    target_degree with any supported parameters" channel of this field — and
-    the caller falls through to Lebedev or the product rule.
+    target_degree with any supported parameters" channel of this field — (the retired selector fell through to Lebedev or the product rule on it).
 
     ⚠ The bound is discovered by ATTEMPTING the construction, not by comparing
     against a constant. A literal here would be a second copy of a frontier
@@ -554,7 +553,7 @@ def _product_invert(target_degree: int) -> dict[str, Any] | None:
     For SN cylindrical-sweep compatibility the :math:`\\phi`-count
     must be at least :math:`4 n_\\mu` to avoid azimuthal-resolution
     pathology — but this is a *consumer* requirement, not a
-    polynomial-exactness one. the catalogue has no path to
+    polynomial-exactness one. The catalogue has no path to
     request a larger ``n_phi``; a consumer that needs one builds the rule
     directly with :meth:`Quadrature.product
     <orpheus.numerics.quadrature.directional.Quadrature.product>`. The base
@@ -608,11 +607,11 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
     QuadratureSpec(
         name="GaussLegendre1D",
         # The rule the SLAB/SPHERE geometries admit is the polar marginal
-        # about x — declared as such, so that stage 0 compares an orbit
+        # about x — declared as such, so that the domain leg compares an orbit
         # space naming its group against a geometry naming the group it
         # spends. The chart-level `gauss_legendre_on_mu` (the product
         # rules' polar factor) is deliberately NOT registered: it names no
-        # axis, and stage 0 refuses it for exactly that reason.
+        # axis, and the domain leg refuses it for exactly that reason.
         factory=Quadrature.gauss_legendre,
         degree_of_exactness_for=_gl1d_invert,
         axis_aligned=True,        # 1-D nodes ARE the axis (μ-axis)
@@ -671,8 +670,7 @@ class AngularSymmetry:
       still has in the geometry's local frame, which the reduction did not
       spend and which a FOLD may.  A z-uniform problem is even in
       :math:`\mu_z`; an axisymmetric cylinder is even under the local
-      azimuthal reflection as well.  What this part determines is which
-      folds stage 0 admits: a rule on :math:`S^2/H` is admissible iff
+      azimuthal reflection as well.  What this part determines is which folds the domain leg admits: a rule on :math:`S^2/H` is admissible iff
       :math:`H \subseteq \Gamma K` — the fold spent nothing the solution
       does not have.
     * :attr:`owed` :math:`R` — the closure a reflecting face needs,
@@ -680,10 +678,10 @@ class AngularSymmetry:
       n}` maps ordinate :math:`m` to ordinate :math:`m'` *exactly* only if
       the node set is closed under :math:`\sigma_{\hat n}`.  It cannot be
       integrated away; it must be realized as a permutation of the
-      ordinates (stage 1).
+      ordinates (the symmetry leg).
 
     ⚠ Until R3 of #434 (2026-09-03) the ledger had two entries and the
-    owed closure did the unspent symmetry's job: stage 0 admitted any fold
+    owed closure did the unspent symmetry's job: the domain leg admitted any fold
     by a subgroup of what the geometry OWED, so a :math:`\sigma_y` fold —
     legitimate on the cylinder — was admitted for ``cartesian2d``, whose
     solution is even in :math:`\mu_z` only, and 2 of the 4 sweep quadrants
@@ -790,7 +788,7 @@ class AngularSymmetry:
         The one arm that is not a catalogue read is the geometry that spends
         NOTHING. Its domain is the bare sphere, not the trivial quotient
         (:attr:`support` returns ``SPHERE`` so that every 2-D / 3-D rule's
-        declared support matches at stage 0), and Lebesgue on :math:`S^2`
+        declared support matches at the domain leg), and Lebesgue on :math:`S^2`
         is ``UNIFORM_ON_SPHERE`` — a property of the base, which is why
         ``pushforward_reference`` of the trivial entry is ``None`` (user-ruled
         2026-09-02).
@@ -840,7 +838,7 @@ class AngularSymmetry:
         return UNIFORM_ON_SPHERE
 
     def admits_domain(self, measure: DiscreteMeasure) -> bool:
-        r"""Stage 0 — the rule lives on this geometry's angular domain, or
+        r"""The domain leg — the rule lives on this geometry's angular domain, or
         on a FOLD of it by a symmetry the solution still has.
 
         Two conditions, both read off the lattice and neither declared: the
@@ -870,7 +868,7 @@ class AngularSymmetry:
         return self.domain_refusal(measure) is None
 
     def domain_refusal(self, measure: DiscreteMeasure) -> str | None:
-        r"""Stage 0's verdict WITH its reason — the one failing clause, or
+        r"""The domain leg's verdict WITH its reason — the one failing clause, or
         ``None`` when the rule is admitted.
 
         :meth:`admits_domain` is this predicate's ``is None``; a caller
@@ -904,7 +902,7 @@ class AngularSymmetry:
         return None
 
     def admits_symmetry(self, measure: DiscreteMeasure) -> bool:
-        """Stage 1 — is the rule closed under the owed discrete symmetry?
+        """The symmetry leg — is the rule closed under the owed discrete symmetry?
 
         Computed from the nodes, never read from a declared tag — the
         measure's own question (:meth:`DiscreteMeasure.is_invariant_under
@@ -930,8 +928,9 @@ class AngularSymmetry:
 #   mirror through the plane normal to **x**; σ_z is a different matrix.
 #   The rows were harmless only because two independent guards kept the
 #   σ_z realization unreachable (the 1-D dispatch never builds it, and
-#   stage 0 rejects every S² rule for these geometries before stage 1
-#   asks) — an accident of dispatch, not a designed invariant.
+#   the domain leg rejected every S² rule for these geometries before the
+#   symmetry leg asked, in the retired selector's pipeline) — an accident of
+#   dispatch, not a designed invariant.
 # `cylinder` / `cartesian2d`: nothing continuous is spent — both
 #   angular degrees of freedom survive. Owed is D_2h ≅ (ℤ₂)³, the group
 #   generated by the three coordinate-plane mirrors, whose chambers are

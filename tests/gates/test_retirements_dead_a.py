@@ -36,6 +36,7 @@ def dead_a() -> SimpleNamespace:
     return SimpleNamespace(
         Kept=Kept, Moved=Moved, Retired=Retired, RetiredName=RetiredName, walk=_walk.walk,
         rows=tuple(rows_w0_dead_a.ROWS), kept=tuple(rows_w0_dead_a.KEPT),
+        selector=rows_w0_dead_a.SELECTOR, selection_error=rows_w0_dead_a.SELECTION_ERROR,
     )
 
 
@@ -100,27 +101,19 @@ def tree_copy(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def _cut_definition(source: str, qualname: str) -> str:
-    """``source`` without the definition ``qualname`` (decorators included), found by ``ast`` and cut by line range."""
-    node: ast.AST = ast.parse(source)
-    for part in qualname.split("."):
-        node = next(
-            n for n in ast.iter_child_nodes(node)
-            if (isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name == part)
-            or (isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == part for t in n.targets))
-            or (isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name) and n.target.id == part)
-        )
+    """``source`` without the definition ``qualname`` (decorators included): its line is the engine's finder's (the one qualname
+    walker), the span is the ``ast`` node that starts on that line."""
+    from tests.gates._retired._finder import definitions
+
+    line = definitions(source)[qualname]
+    node = next(
+        n for n in ast.walk(ast.parse(source))
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Assign, ast.AnnAssign)) and n.lineno == line
+    )
     lines = source.splitlines(keepends=True)
-    first = min([node.lineno, *(d.lineno for d in getattr(node, "decorator_list", []))])  # type: ignore[attr-defined]
-    del lines[first - 1:node.end_lineno]  # type: ignore[attr-defined]
+    first = min([node.lineno, *(d.lineno for d in getattr(node, "decorator_list", []))])
+    del lines[first - 1:node.end_lineno]
     return "".join(lines)
-
-
-def _registry_row(dead_a: SimpleNamespace, wanted) -> object:
-    """The one ``Retired`` row of ``registry.py`` whose qualname satisfies ``wanted``. Selected by shape, never by spelling: the rows
-    name retired symbols by design, and a done-when ``git grep`` of the unit excludes only the rows modules."""
-    rows = [r for r in dead_a.rows if isinstance(r, dead_a.Retired) and r.file.endswith("quadrature/registry.py") and wanted(r.qualname)]
-    assert len(rows) == 1, rows
-    return rows[0]
 
 
 def _walk_copy(dead_a: SimpleNamespace, root: Path, edits: dict[str, str]) -> dict:
@@ -166,7 +159,7 @@ def test_redefining_the_selector_reddens_exactly_its_row(dead_a: SimpleNamespace
     """The definition leg: a ``def`` of the selector's name appended to the copy of ``registry.py`` reddens the ``Retired`` row of
     that name and no other. Red input at the base tip: the precondition (the row reads red there, the definition exists)."""
     rel = "orpheus/numerics/quadrature/registry.py"
-    row = _registry_row(dead_a, lambda q: q[0].islower() and "." not in q)  # the selector: the one lowercase top-level name
+    row = dead_a.selector
     target = (dead_a.Retired, row)
     source = (tree_copy / rel).read_text(encoding="utf-8")
     assert _gains(dead_a, tree_copy, {rel: source + f"\n\ndef {row.qualname}():\n    return None\n"}, target) == {target}
@@ -179,7 +172,7 @@ def test_importing_a_retired_name_through_its_package_reddens_its_row(dead_a: Si
     error class from ``orpheus.numerics.quadrature`` reddens the row of that name and no other (the package
     ``__init__`` re-exports it today; after the unit it binds nothing of the name, and the leftover counts). Red input at the base tip:
     the precondition."""
-    row = _registry_row(dead_a, lambda q: q.endswith("Error") and "." not in q)  # the selector's error class
+    row = dead_a.selection_error
     target = (dead_a.Retired, row)
     plant = "tests/gates/numerics/test_planted_dead_a_reference.py"
     # built at run time from the row: this file spells no retired name, so the walk (which scans it) does not read its own plant

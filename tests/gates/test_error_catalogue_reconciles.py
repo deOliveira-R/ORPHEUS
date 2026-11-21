@@ -437,11 +437,27 @@ def _is_defined(root: Path, pair: str) -> bool:
     return path.is_file() and qualname in definitions(path.read_text(encoding="utf-8"))
 
 
-def _retired_ids(root: Path = REPO_ROOT, text: str | None = None, markers: set[str] | None = None) -> set[str]:
+def _row_pairs() -> set[str]:
+    """``file:qualname`` of every ``Retired`` and ``Moved`` row of the engine's rows modules: the one home of the retired set."""
+    from tests.gates._retired import Moved, Retired, _walk
+
+    return {f"{row.file}:{row.qualname}" for row in _walk.load_rows()[0] if isinstance(row, (Retired, Moved))}
+
+
+def _retired_ids(
+    root: Path = REPO_ROOT, text: str | None = None, markers: set[str] | None = None, rows: set[str] | None = None
+) -> set[str]:
     """Ids of the entries that are RETIRED WITH THEIR CODE: the ``**Retired:**`` paragraph names at least one pair, none of the named
-    pairs is defined under ``root``, and the entry carries no ``catches`` marker (an entry with both is stale, never retired)."""
+    pairs is defined under ``root``, and the entry carries no ``catches`` marker (an entry with both is stale, never retired).
+
+    Every pair must be the ``file:qualname`` of a ``Retired`` or ``Moved`` row (``rows``, default the engine's): a pair that is no row
+    is an ``AssertionError``, because a pair naming an absent file reads as a gone definition and a misspelt path would retire its
+    entry for good. The rows were red at their base, which proves their paths existed; the engine's walk decides the code is gone."""
     text = CATALOG.read_text(encoding="utf-8") if text is None else text
     markers = _marker_ids() if markers is None else markers
+    rows = _row_pairs() if rows is None else rows
+    unknown = sorted(pair for pairs in _retired_pairs(text).values() for pair in pairs if pair not in rows)
+    assert not unknown, f"`**Retired:**` pairs that are no Retired or Moved row of tests/gates/_retired: {unknown}"
     return {
         err
         for err, pairs in _retired_pairs(text).items()
@@ -458,7 +474,8 @@ def test_the_retired_state_of_an_entry_is_read_from_the_tree_and_the_markers():
     """D3's positive control (X1), one synthetic entry per shape: a retired line naming a gone function retires; naming a defined
     one does not; a wrapped two-line paragraph is read whole (a pair on its second line that is still defined keeps the entry live);
     a retired line plus a marker is stale; an entry with no retired line, and one whose line names no pair, retire nothing; an absent
-    file is a gone definition. Red input: a reader that takes the first line only, that searches names bare, or that ignores markers."""
+    file is a gone definition, but only for a pair that is a row; a pair that is no row is
+    refused. Red input: a reader that takes the first line only, that searches names bare, or that ignores markers."""
     here = "tests/gates/test_error_catalogue_reconciles.py"
     gone, live = f"{here}:no_such_function_xyz", f"{here}:_retired_ids"
 
@@ -475,8 +492,12 @@ def test_the_retired_state_of_an_entry_is_read_from_the_tree_and_the_markers():
         entry("ERR-906", "**Retired:** with its code: nothing to parse here."),
         entry("ERR-907", "**Retired:** with its code: tests/gates/no_such_file_at_all.py:thing."),
     ])
-    assert _retired_ids(REPO_ROOT, text, markers={"ERR-904"}) == {"ERR-901", "ERR-902", "ERR-907"}
+    rows = {live, gone, f"{here}:also_gone", "tests/gates/no_such_file_at_all.py:thing"}
+    assert _retired_ids(REPO_ROOT, text, markers={"ERR-904"}, rows=rows) == {"ERR-901", "ERR-902", "ERR-907"}
     assert set(_retired_pairs(text)) == {"ERR-90%d" % k for k in (0, 1, 2, 3, 4, 6, 7)}
+    # the negative control: a misspelt path (a pair that is no row) is refused, not read as a gone definition
+    with pytest.raises(AssertionError, match="no Retired or Moved row"):
+        _retired_ids(REPO_ROOT, text, markers={"ERR-904"}, rows=rows - {"tests/gates/no_such_file_at_all.py:thing"})
     assert _uncaught_ids({"ERR-1", "ERR-2"}, set(), set(), {"ERR-2"}) == {"ERR-1"}
 
 

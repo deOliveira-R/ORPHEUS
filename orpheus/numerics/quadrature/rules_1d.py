@@ -34,7 +34,7 @@ curvilinear :math:`\alpha` term — is thus carried by the orbit space
 itself (:attr:`Quotient.by`), and the
 geometry table's
 :attr:`~orpheus.numerics.quadrature.registry.AngularSymmetry.spent`
-names the same group; stage 0 of quadrature selection compares the two.
+names the same group; the retired selector's domain leg compared the two.
 Until 2026-08-03 the spent group was carried in the invariance TAG; see
 the note at :func:`gauss_legendre_on_mu`'s return statement for why that
 had to move, :class:`~orpheus.geometry.symmetry.SO2` for why the
@@ -153,7 +153,7 @@ def gauss_legendre_on_mu(n: int) -> DiscreteMeasure:
         # The spent half is NOT lost: `gauss_legendre_on_polar_orbit`
         # declares the orbit space S²/O(2)_a this rule is read on, and
         # `AngularSymmetry.spent` (registry.py) names the
-        # same group for the geometry — stage 0 compares the two.
+        # same group for the geometry — the retired selector compared the two.
         invariance_group=SubgroupOfO3.Mirror("x"),
     )
 

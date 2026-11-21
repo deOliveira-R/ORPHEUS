@@ -172,6 +172,8 @@ def _production_reads(source: str) -> list[str]:
             reads.append(f"line {node.lineno}: .{node.attr}")
         elif isinstance(node, ast.Name) and node.id in _PRODUCTION_MEASURE:
             reads.append(f"line {node.lineno}: {node.id}")
+        elif isinstance(node, ast.alias) and node.name.split(".")[-1] in _PRODUCTION_MEASURE:
+            reads.append(f"line {getattr(node, 'lineno', '?')}: import {node.name}")
     return reads
 
 
@@ -216,5 +218,6 @@ class TestTheMeasureOracleHasOneHome:
 
     def test_the_oracle_reads_no_production_measure(self) -> None:
         assert _production_reads("def f(coord, e):\n    return coord.measure(e)\n") == ["line 2: .measure"]  # the positive control
+        assert _production_reads("from orpheus.geometry.coord import measure_coordinate\n")  # an import is a read
         reads = _production_reads((_ROOT / _ORACLE).read_text())
         assert not reads, f"{_ORACLE} reads the production measure it pins: {reads}"

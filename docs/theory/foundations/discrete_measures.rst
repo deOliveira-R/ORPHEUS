@@ -3026,48 +3026,48 @@ selector returned; each rule is now named by its
 :class:`~orpheus.numerics.quadrature.directional.Quadrature` factory):
 
 * ``select_quadrature("slab", target_degree=15)``: the three
-  :math:`S^2` rules fail stage 0, `[M]` verbatim (re-measured
+  :math:`S^2` rules failed the domain leg (the retired stage 0), `[M]` verbatim (re-measured
   2026-09-03) —
   ``domain mismatch: geometry 'slab' discretises S^2/O2_x, but the
   rule's nodes live on S^2, and S^2/O2_x has no descent arrow onto it``
   — leaving GL1D (n_ordinates=8 → degree 15, 8
-  nodes), whose own measure `[M]` declares ``support=S^2/O2_x``.
-  ⭐ The message names **one** clause, the one that actually bit; the
-  same rejection for a cylinder is the OTHER clause and says so:
+  nodes), whose own measure `[M]` declared ``support=S^2/O2_x``.
+  ⭐ The message named **one** clause, the one that actually bit; the
+  same rejection for a cylinder was the OTHER clause and said so:
   `[M]` ``…the rule's nodes live on S^2/O2_x, a fold by O2_x, which is
   not a symmetry the solution has in this geometry's frame (unspent
-  D_1h, spent Trivial)`` — the arrow :math:`S^2 \to S^2/O(2)_x` exists
-  there and it is the coverage test that refuses, because
+  D_1h, spent Trivial)`` — the arrow :math:`S^2 \to S^2/O(2)_x` existed
+  there and it was the coverage test that refused, because
   :math:`SO(2)_x \not\subseteq \{0\}` on the identity components.
   ⛔ Until #434 R3 (2026-09-03) the message was a **disjunction** —
   *"no descent arrow onto it, or a fold by a group outside the owed
   sigma_x"* — naming both causes on every refusal, and `[M]` on the
   28-row grid it named a SATISFIED fact 17 times out of 17.
 
-* ``select_quadrature("sphere", target_degree=15)``: same path as
+* ``select_quadrature("sphere", target_degree=15)``: the same path as
   slab — an identical ledger row after the 1-D radial reduction.
 
 * ``select_quadrature("cylinder", target_degree=5,
   level_structured=True)``: ``ProductQuadrature`` with
-  ``n_mu=3, n_phi=6``. GL1D is rejected on *domain* (a
-  :math:`\mu`-marginal cannot carry two angular degrees of freedom),
-  which is a stronger and earlier objection than "no level structure".
+  ``n_mu=3, n_phi=6``. GL1D was rejected on *domain* (a
+  :math:`\mu`-marginal could not carry two angular degrees of freedom),
+  which was a stronger and earlier objection than "no level structure".
 
 * ``select_quadrature("cylinder", target_degree=4,
   level_structured=True)``: the inversion asks for ``n_phi=5``, and an
   **odd** azimuthal count is not :math:`D_{2h}`-invariant —
   :math:`\sigma_x` sends :math:`\phi \to 180^\circ - \phi`, mapping the
   :math:`0^\circ` node onto :math:`180^\circ`, which is not a node of
-  a 5-fold grid. The selector refuses it and falls back to
-  ``LevelSymmetricSN``. This is ERR-042 expressed structurally rather
-  than as a hand-written guard, and it is the decisive behavioural
+  a 5-fold grid. The selector refused it and fell back to
+  ``LevelSymmetricSN``. This was ERR-042 expressed structurally rather
+  than as a hand-written guard, and it was the decisive behavioural
   difference from the old table.
 
 * ``select_quadrature("cartesian2d", target_degree=5)``: Lebedev,
-  LS_N and the even-:math:`n_\phi` product rule all satisfy
-  :math:`D_{2h}`; Lebedev wins on cost (14 nodes vs 48 and 18). Only
-  GL1D is rejected, on domain. The log shows the cost losers as
-  *valid candidates that lost*, not rejections — their names are
+  LS_N and the even-:math:`n_\phi` product rule all satisfied
+  :math:`D_{2h}`; Lebedev won on cost (14 nodes vs 48 and 18). Only
+  GL1D was rejected, on domain. The log showed the cost losers as
+  *valid candidates that lost*, not rejections — their names were
   absent from ``log.rejected``.
 
 One rule list (ruling 32, 2026-10-19)
@@ -3105,8 +3105,8 @@ carries no degree: for every ``(n_mu, n_phi)`` in
 n_phi).measure.exactness`` is ``None``, because ``DiscreteMeasure.quotient``
 drops the claim when the quotient's reference measure (Lebesgue on
 ``S^2/sigma_y``) has no ``ReferenceMeasure`` realization. A registered spec
-would be refused at stage 2 ("the rule carries no exactness claim") on every
-geometry, and typing the parent product's degree onto it would be a table
+would carry no exactness claim for its inverter to invert (the retired selector refused it for that reason, "the rule carries no exactness claim", on every
+geometry), and typing the parent product's degree onto it would be a table
 that asserts nothing about the built rule. The prerequisite is that
 reference measure; the guard
 ``TestTheFoldIsNotRegistered::test_the_fold_is_not_registered_so_no_entry_reaches_it``
