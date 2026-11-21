@@ -47,6 +47,8 @@ ORPHEUS_ROOT = pathlib.Path(__file__).resolve().parents[2] / "orpheus"
 # Layer DAG ruling 6: what a value is (the admitted reals) and when two values are
 # the same (content identity); the lowest package, importing nothing from orpheus.
 VALUES_PACKAGES: frozenset[str] = frozenset({"values"})
+# The traced memo (``orpheus/memo/``): between ``values`` and ``numerics``, beside ``geometry``; it imports ``values`` and itself only.
+MEMO_PACKAGES: frozenset[str] = frozenset({"memo"})
 L0_PACKAGES: frozenset[str] = frozenset({"derivations"})
 INPUT_PACKAGES: frozenset[str] = frozenset({"geometry", "data"})
 # Wave 2 WF2.4 (the retirement of orpheus/geometry/boundary/): geometry is the declarative layer below numerics and
@@ -90,8 +92,9 @@ ORPHEUS_TOP_LEVEL: frozenset[str] = frozenset(
 
 FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
     "values": ORPHEUS_TOP_LEVEL - VALUES_PACKAGES,
+    "memo": ORPHEUS_TOP_LEVEL - VALUES_PACKAGES - MEMO_PACKAGES,
     "numerics": DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
-    "geometry": NUMERICS_PACKAGES | DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
+    "geometry": NUMERICS_PACKAGES | MEMO_PACKAGES | DATA_PACKAGES | MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
     "data": MESH_PACKAGES | SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
     "mesh": SPECIFICATION_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
     "specification": MESH_PACKAGES | REFERENCE_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
@@ -274,7 +277,7 @@ def test_values_imports_nothing_from_orpheus(target: str) -> None:
     """Ruling 6: ``values`` is the bottom of the package graph. A values module importing any other
     orpheus package or module is a violation; the row reads it on a synthetic source, so the gate's
     red exists in the tree (X1), and ``ORPHEUS_TOP_LEVEL`` is checked to hold the names it must."""
-    assert {"numerics", "geometry", "plotting", "values"} <= ORPHEUS_TOP_LEVEL, sorted(ORPHEUS_TOP_LEVEL)
+    assert {"numerics", "geometry", "plotting", "values", "memo"} <= ORPHEUS_TOP_LEVEL, sorted(ORPHEUS_TOP_LEVEL)
     violations = _check_source(pathlib.PurePosixPath("values/probe.py"), f"import {target}\n")
     assert violations and "forbidden: values" in violations[0], violations
 
@@ -692,7 +695,8 @@ def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
 # changes as production grows, so churn must stay in production. A reference
 # under `derivations/continuous/` or `derivations/common/` imports from
 # `orpheus.numerics` only the vocabulary it shares with its consumers (the
-# question, the observables, the answer function and the traced memo); content
+# question, the observables and the answer function; the traced memo is a package of its own, ``orpheus.memo``, that a
+# reference imports freely); content
 # identity and the scalar parsers are `orpheus.values`, below every package, so
 # a reference imports them freely; its mathematics is the reference kernel's
 # (`orpheus/derivations/common/dense_pencil.py`, `quadrature.py`), on numpy,
@@ -703,7 +707,7 @@ def test_the_linter_admits_each_allowed_edge(rel: str, source: str) -> None:
 # with the rule the content encoder applies (#405 P3 step 2c, C1).
 
 REFERENCE_INTERFACE_NUMERICS: frozenset[str] = frozenset(
-    {"question", "observable", "mesh_free_function", "traced_memo"}
+    {"question", "observable", "mesh_free_function"}
 )
 
 _CLOSED_REFERENCE_ROOTS: tuple[str, ...] = ("derivations/continuous/", "derivations/common/")
@@ -856,7 +860,7 @@ _INSULATION_REFUSED_LEGS = [
 _INSULATION_ADMITTED_LEGS = [
     ("derivations/common/x.py", "from orpheus.numerics.question import Eigen\n"),
     ("derivations/common/x.py", "from orpheus.numerics import question\n"),
-    ("derivations/continuous/x/y.py", "from orpheus.numerics.traced_memo import traced_memo\n"),
+    ("derivations/continuous/x/y.py", "from orpheus.memo.traced_memo import traced_memo\n"),
     ("derivations/continuous/mms/sn.py", "from orpheus.numerics.quadrature import Quadrature\n"),
     ("derivations/discrete/sn/x.py", "from orpheus.numerics.eigenvalue import power_iteration\n"),
     ("derivations/common/x.py", "import numpy as np\nimport scipy.linalg\n"),
@@ -1148,7 +1152,7 @@ def test_every_exemption_row_names_a_live_edge() -> None:
 
 _OPEN_INTRA_PACKAGE_CYCLES: dict[str, frozenset[frozenset[str]]] = {
     # The traced-memo boot pair (numerics_untangling.md: by design, a bootstrap).
-    "numerics": frozenset({frozenset({"_traced_memo_boot", "traced_memo"})}),
+    "memo": frozenset({frozenset({"_traced_memo_boot", "traced_memo"})}),
     # The SN hub caches values built from above it (`system`, the loss-kernel
     # gauge): the discretization welded to the posing layer (#529).
     "sn": frozenset({frozenset({"coupled_system", "loss_representation", "operators", "problem", "sweep"})}),

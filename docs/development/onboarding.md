@@ -86,8 +86,9 @@ define it, and imports flow only from more knowledge to less;
 | layer | packages | knows |
 |---|---|---|
 | values | `values/` | what a value is (the admitted reals) and when two values are the same (content identity); imports nothing from `orpheus` |
+| memo | `memo/` | the traced memo: content-keyed disk memo; imports only `values/`; `geometry/` and `values/` forbid it |
 | geometry | `geometry/` | shapes, point groups, decks, face naming; imports only `values/`; gate forbids `numerics/`, `mesh/`, `specification/`, `reference/`, L2, L3 |
-| L1 | `numerics/` | mathematics only; no neutrons; imports `geometry/`; gate forbids `data/`, `mesh/`, `specification/`, `reference/`, L2, L3 |
+| L1 | `numerics/` | mathematics only; no neutrons; imports `geometry/` and `memo/`; gate forbids `data/`, `mesh/`, `specification/`, `reference/`, L2, L3 |
 | data | `data/` | nuclear data; above `numerics/` |
 | input | `mesh/`, `specification/` | the mesh (an overlay on the geometry) and the specification (a question with its materials); siblings, above `data/` |
 | reference | `reference/` | reference solutions; above `specification/` |

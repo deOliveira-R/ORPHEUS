@@ -29,7 +29,7 @@ coefficients (R1) say so, since their claim is the reading and not the solve.
 Every value row reads through the traced memo (since #405 P3 step 2c): a derivation's
 solve is one memo entry, a child of every reading of it, so one solve serves its
 readings. The rows that patch production, or whose claim is the in-process side, still
-enter :func:`~orpheus.numerics.traced_memo.bypass` and say why. A first-red arm that
+enter :func:`~orpheus.memo.traced_memo.bypass` and say why. A first-red arm that
 rebound production in this process reached the value rows only under ``bypass()``; a
 re-drop now edits a copy of the tree (``vv-principles`` #17). Bands are measured (`[M]` 2026-10-07, ``.venv/bin/python -O``,
 ``scratch/characteristic_architecture/p1_step_b5/ta/``); each row's first red is a
@@ -64,7 +64,7 @@ from orpheus.geometry.chord import ConcentricPartition
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, PointValue, Ratio
 from orpheus.numerics.question import Eigen, FixedSource, Nearest, Response
-from orpheus.numerics.traced_memo import bypass
+from orpheus.memo.traced_memo import bypass
 from orpheus.reference.reading import Uncertified
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.specification.specification import GeometrySpecification, InfiniteMediumSpecification
@@ -78,7 +78,7 @@ from tests.gates.derivations.test_characteristic_system import (
 )
 from tests.gates.derivations import _posed_walls as walls_of
 from tests.gates.derivations._posed_walls import MIRROR as WALL_MIRROR, VACUUM as WALL_VACUUM, WHITE as WALL_WHITE
-from tests.gates.numerics import _traced_memo_api as memo_api
+from tests.gates.memo import _traced_memo_api as memo_api
 
 pytestmark = pytest.mark.filterwarnings("error::RuntimeWarning")
 
@@ -1298,7 +1298,7 @@ def _tiny_spec(question: Any = None) -> GeometrySpecification:
 
 @pytest.mark.foundation
 @pytest.mark.rests_on(_HERE + "test_c2_evaluate_is_a_traced_memo",
-                      "tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never")
+                      "tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never")
 def test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not(tmp_path, monkeypatch) -> None:
     """[C3] A first reading of a one-region sphere at the smallest resolution asks for a generation; a FRESH
     derivation of equal content reads the same observable with 0 generations and the same value

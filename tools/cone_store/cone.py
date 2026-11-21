@@ -1,7 +1,7 @@
 """A recorded run read as a cone: the memo's pins, restricted and relocated for the store.
 
-The pins come from :func:`orpheus.numerics.traced_memo.collect_pins`, which returns every refusal beside the pins
-(ruling 40). A refusal is a value of the memo's closed :class:`~orpheus.numerics.traced_memo.PinRefusal` set, read in
+The pins come from :func:`orpheus.memo.traced_memo.collect_pins`, which returns every refusal beside the pins
+(ruling 40). A refusal is a value of the memo's closed :class:`~orpheus.memo.traced_memo.PinRefusal` set, read in
 one ``match`` (:func:`_unknown`): a dependency no pin can name makes the cone UNKNOWN (an unadmitted process, a file
 of the repository the run read and then changed, code that ran without being imported, a distribution file no
 ``RECORD`` lists, an imported module whose import cannot be measured again), and is dropped when it concerns something that is not the repository's (a temporary file the run

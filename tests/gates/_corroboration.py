@@ -52,7 +52,7 @@ spelling is evaluated, every code object of the new modules that starts
 ``set_local_events``, so no code outside the new modules pays for it), plus
 the named entry points, so that a refusal names what was reached at the door
 as well as the function that ran. The old evaluation runs under
-:func:`orpheus.numerics.traced_memo.bypass`: a ``@traced_memo`` call otherwise
+:func:`orpheus.memo.traced_memo.bypass`: a ``@traced_memo`` call otherwise
 runs in a fresh interpreter on a miss and runs nothing on a hit, so an
 in-process spy would read 0 either way. What it cannot see: code of the new
 modules that runs in another process, and C code the new modules call.
@@ -78,7 +78,7 @@ from typing import Any, TypeVar
 
 import pytest
 
-from orpheus.numerics.traced_memo import bypass
+from orpheus.memo.traced_memo import bypass
 
 T = TypeVar("T")
 

@@ -18,9 +18,9 @@ the test runs it too).
   straddles each omitted edge kind explains.
 * Code of the layers below (``upstream_layers``) is counted per test by its module, never a straddle; code of any other
   first-party package is ABOVE-LAYER, a finding of its own; test helpers are counted, and so is code in no region.
-* The memo's recorder (``orpheus/numerics/_traced_memo_boot.py``) is an ordinary node: the code its hooks run on a
-  run's events is its declared apparatus, which it never records (``_APPARATUS``), so a test's own cone holds a
-  recorder def only when the test ran one.
+* The memo's recorder (``orpheus/memo/_traced_memo_boot.py``) is upstream code, like the rest of ``orpheus/memo/``: the
+  code its hooks run on a run's events is its declared apparatus, which it never records (``_APPARATUS``), so a test's
+  own cone holds a recorder def only when the test ran one.
 * A test is UNPLACED, with its reason, when its cone is unknown, it did not pass, or it read nothing of the layer or
   of the apparatus.
 
@@ -89,7 +89,7 @@ import numpy as np
 from scipy.sparse import csr_array
 from scipy.sparse.csgraph import breadth_first_order, connected_components
 
-from orpheus.numerics import traced_memo as memo
+from orpheus.memo import traced_memo as memo
 
 from tools.cone_store.reads import MODULE_ITEM, Channel, Read, in_test_tree, is_hook
 from tools.cone_store.store import FORMAT, ConeStore, stored_format
@@ -147,7 +147,7 @@ class Layer:
 
     root: str
     package: str = "orpheus"
-    upstream_layers: tuple[str, ...] = ("orpheus/geometry", "orpheus/values")
+    upstream_layers: tuple[str, ...] = ("orpheus/geometry", "orpheus/memo", "orpheus/values")
 
     def node_of(self, path: str) -> str | None:
         """The node of a layer file (a module or a package directly under the root); ``None`` for a file outside

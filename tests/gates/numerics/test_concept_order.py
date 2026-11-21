@@ -46,11 +46,8 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
     ("bickley", "evidence", "face_layout", "gauge", "index_set", "instance_cache", "metric",
      "rational_polynomial", "recurrence", "registry", "tangential", "units", "vector"),
-    # the coefficient layouts are content values a basis carries (ruling 81); ``_import_time``
-    # is the traced memo's rule for which import-time statements a run observed, and imports
-    # nothing from ``orpheus`` (cone store B2, #689)
-    ("_import_time", "_traced_memo_boot", "coefficient_layout", "enclosure", "mesh_free_function"),
-    ("traced_memo",),
+    # the coefficient layouts are content values a basis carries (ruling 81)
+    ("coefficient_layout", "enclosure", "mesh_free_function"),
     ("basis", "exactness", "observable", "question"),
     ("measure",),
     # the frame's data = join(basis, measure); the Gauss rule. Invariance is no module:
@@ -86,10 +83,6 @@ TIERS: tuple[tuple[str, ...], ...] = (
     ("green_operator",),
 )
 RANK: dict[str, int] = {m: i for i, tier in enumerate(TIERS) for m in tier}
-
-# The memo's boot split is deliberate: the boot module imports the memo
-# lazily so the memo can boot itself (plan finding F7).
-EXEMPT: frozenset[tuple[str, str]] = frozenset({("traced_memo", "_traced_memo_boot")})
 
 # (imported module, importing module) -> the plan package that removes the edge.
 PENDING: dict[tuple[str, str], str] = {}
@@ -165,7 +158,7 @@ def import_edges(root: pathlib.Path = NUMERICS) -> set[tuple[str, str]]:
 
 
 def violations(edges: set[tuple[str, str]]) -> set[tuple[str, str]]:
-    return {(a, b) for a, b in edges if RANK[a] >= RANK[b]} - EXEMPT
+    return {(a, b) for a, b in edges if RANK[a] >= RANK[b]}
 
 
 def _modules() -> set[str]:

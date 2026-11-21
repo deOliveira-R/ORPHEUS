@@ -3,7 +3,7 @@ r"""#602 round two, B: what a manifest and a validation read from a source file,
 Spec ``scratch/characteristic_architecture/p3/m602/round2_gate_spec.md`` §1, rows B1–B14.
 
 A miss used to parse every source file the generation touched, and a process's first validation parsed every
-pinned file. The index (:class:`~orpheus.numerics.traced_memo._SourceIndex`) is what those reads take from a
+pinned file. The index (:class:`~orpheus.memo.traced_memo._SourceIndex`) is what those reads take from a
 tree: the import-time statements' digests, each outermost def with its span and digest, and each node a code object can be
 compiled from, with its span. It is kept under ``.cache/sources`` and keyed by the file's bytes,
 the interpreter and the memo's own source.
@@ -43,16 +43,16 @@ import pytest
 
 import orpheus  # the repository root is read off the package (any test directory)
 
-from tests.gates.numerics import _traced_memo_api as api
-from tests.gates.numerics.test_traced_memo_findings import _Package
+from tests.gates.memo import _traced_memo_api as api
+from tests.gates.memo.test_traced_memo_findings import _Package
 
 pytestmark = pytest.mark.foundation
 
 REPO = Path(orpheus.__file__).resolve().parents[1]  # the repository root, from any test directory
-_M13B = 'tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def'
-_M21 = 'tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed'
-_B1 = 'tests/gates/numerics/test_traced_memo_source_index.py::test_b1_an_index_survives_its_json_round_trip'
-_B3 = 'tests/gates/numerics/test_traced_memo_source_index.py::test_b3_def_pin_from_the_index_is_def_pin_from_the_tree'
+_M13B = 'tests/gates/memo/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def'
+_M21 = 'tests/gates/memo/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed'
+_B1 = 'tests/gates/memo/test_traced_memo_source_index.py::test_b1_an_index_survives_its_json_round_trip'
+_B3 = 'tests/gates/memo/test_traced_memo_source_index.py::test_b3_def_pin_from_the_index_is_def_pin_from_the_tree'
 
 #: qa's adversarial fixture of 26 defs (``scratch/characteristic_architecture/p3/m602/qa/shapes.py``, ``FIX``):
 #: a def under every block, decorators with lambdas, async, ``try*``, ``match`` with a guard, PEP 695, overloads.
@@ -449,7 +449,7 @@ def test_b9_an_index_is_the_same_under_minus_o(tmp_path):
     bodies = []
     for flag in ([], ["-O"]):
         directory = tmp_path / f"sources{len(bodies)}"  # each process builds its own: nothing is read back
-        script = ("import sys; from pathlib import Path; from orpheus.numerics import traced_memo as tm; "
+        script = ("import sys; from pathlib import Path; from orpheus.memo import traced_memo as tm; "
                   f"tm._SOURCE_INDEXES = Path({str(directory)!r}); "
                   f"sys.stdout.buffer.write(tm._source_index(Path({str(data)!r}).read_bytes()).to_json())")
         bodies.append(subprocess.run([sys.executable, *flag, "-c", script], cwd=REPO, capture_output=True, check=True).stdout)
@@ -530,7 +530,7 @@ def test_b11_concurrent_writers_never_expose_a_partial_index(tmp_path, monkeypat
     writer = textwrap.dedent(f'''
         import os
         from pathlib import Path
-        from orpheus.numerics import traced_memo as tm
+        from orpheus.memo import traced_memo as tm
         tm._SOURCE_INDEXES = Path({str(directory)!r})
         tm._RUNNING_MEMO_DIGEST = tm._INDEX_MEMO_DIGEST  # the generating condition: only a generation writes
         data = Path({str(tmp_path / "data.py")!r}).read_bytes()
@@ -562,7 +562,7 @@ _B12_VALIDATE = '''
 import ast, json, sys
 from pathlib import Path
 sys.path.insert(0, {root!r})
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 tm._SOURCE_INDEXES = Path({sources!r})
 parses = []
 real = ast.parse
@@ -620,7 +620,7 @@ def test_b13_a_miss_indexes_only_bytes_it_has_not_indexed(tmp_path):
     memo = api.module()
     directory = REPO / ".cache" / "sources"  # where a generating process of this tree writes
     witness = f"# a content no other module has: {uuid.uuid4().hex}\n"
-    package = _Package(tmp_path, m=witness + "from orpheus.numerics.traced_memo import traced_memo\n\n\n"
+    package = _Package(tmp_path, m=witness + "from orpheus.memo.traced_memo import traced_memo\n\n\n"
                        "@traced_memo\ndef f(x: float) -> float:\n    return x + 1.0\n")
     try:
         with api.cache_root(tmp_path / "cache"):
@@ -645,21 +645,21 @@ def test_b13_a_miss_indexes_only_bytes_it_has_not_indexed(tmp_path):
     assert not replaced and not written, f"the second miss replaced {replaced} and wrote {written}"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_findings.py::test_a_parent_does_not_pin_its_childs_sources_as_data')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_findings.py::test_a_parent_does_not_pin_its_childs_sources_as_data')
 def test_b14_the_index_and_the_memos_own_source_are_no_dependency_of_a_run(tmp_path):
     """B14: a generation that validates a child entry (so reads indexes) has no pin under ``.cache/sources``,
     and no data pin on the memo's own source (which the running memo digests at its import, inside the
     generation). First red: that import-time digest recorded as the run's read."""
     memo = api.module()
     package = _Package(tmp_path, m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
         from .n import inner
 
         @traced_memo
         def outer(x: float) -> float:
             return inner(x) + 1.0
     ''', n='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def inner(x: float) -> float:
@@ -693,7 +693,7 @@ import os, sys, threading, time
 sys.path[:0] = [{tree!r}]
 import orpheus
 assert orpheus.__file__.startswith({tree!r}), orpheus.__file__
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 import memo_edit_fixture.m as m
 outcome = []
 def call():
@@ -708,7 +708,7 @@ with tm.cache_root({cache!r}):
     while not os.path.exists({ready!r}):
         assert time.monotonic() < deadline
         time.sleep(0.01)
-    with open(os.path.join({tree!r}, "orpheus", "numerics", "traced_memo.py"), "a") as handle:
+    with open(os.path.join({tree!r}, "orpheus", "memo", "traced_memo.py"), "a") as handle:
         handle.write("# an edit to the memo while a generation runs\\n")
     open({go!r}, "w").close()
     thread.join(120)
@@ -717,7 +717,7 @@ with tm.cache_root({cache!r}):
 
 
 @pytest.mark.timeout(600)
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_compiled_bytes.py::test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_compiled_bytes.py::test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale')
 def test_b15_the_memos_own_source_edited_during_a_generation_leaves_the_entry_stale(tmp_path):
     """B15 (the elegance review's F4, the shape of P2): the memo's own source is edited while a generation runs.
     The generation ran the old memo, so its entry pins the memo as that process imported it, and the entry is
@@ -737,7 +737,7 @@ def test_b15_the_memos_own_source_edited_during_a_generation_leaves_the_entry_st
         import os
         import time
 
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -782,7 +782,7 @@ def test_b16_a_process_that_is_not_generating_never_writes_an_index(tmp_path, mo
 _B17_PROCESS = '''
 import sys
 sys.path.insert(0, sys.argv[1])
-import orpheus.numerics.traced_memo as tm
+import orpheus.memo.traced_memo as tm
 assert tm.__file__.startswith(sys.argv[1]), tm.__file__
 data = open(sys.argv[2], "rb").read()
 served, parsed = tm._source_index(data).digest("f"), tm._parsed_index(data).digest("f")
@@ -800,7 +800,7 @@ def test_b17_old_memo_code_cannot_write_an_index_under_new_codes_name(tmp_path):
     import shutil
 
     tree = tmp_path / "tree"
-    package = tree / "orpheus" / "numerics"
+    package = tree / "orpheus" / "memo"
     values = tree / "orpheus" / "values"
     package.mkdir(parents=True)
     values.mkdir()
@@ -808,7 +808,7 @@ def test_b17_old_memo_code_cannot_write_an_index_under_new_codes_name(tmp_path):
     (package / "__init__.py").write_text("")
     (values / "__init__.py").write_text("")
     for name in ("traced_memo.py", "_traced_memo_boot.py", "_import_time.py"):
-        shutil.copy2(REPO / "orpheus" / "numerics" / name, package)
+        shutil.copy2(REPO / "orpheus" / "memo" / name, package)
     for name in ("content.py", "scalars.py"):
         shutil.copy2(REPO / "orpheus" / "values" / name, values)
     memo_file = package / "traced_memo.py"
@@ -840,7 +840,7 @@ def test_b17_old_memo_code_cannot_write_an_index_under_new_codes_name(tmp_path):
     assert c_served == c_parsed, "a process running old memo code wrote an index under the new code's name"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_source_index.py::test_b12_a_processs_first_validation_reads_indexes_instead_of_parsing')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_source_index.py::test_b12_a_processs_first_validation_reads_indexes_instead_of_parsing')
 def test_b18_a_validation_run_inside_a_recording_does_not_pin_the_index(isolated):
     """B18: the one caller that reaches the index while a recording is active outside the store's own lookup is a
     recorded run that validates a manifest itself (``trace_call`` of a function calling :func:`validate`). Its

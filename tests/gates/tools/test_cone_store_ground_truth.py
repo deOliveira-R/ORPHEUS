@@ -63,7 +63,7 @@ T3_FILES = ("tests/gates/numerics/test_invariance.py", "tests/gates/numerics/tes
 def _names(pin) -> frozenset[str]:
     """The entry names a ``StatementsPin`` keeps (``.cache/sets``); a missing set reads as none, so it cannot hide a
     miss."""
-    from orpheus.numerics import traced_memo
+    from orpheus.memo import traced_memo
 
     return frozenset(traced_memo._read_kept_set(pin.names) or ())
 
@@ -71,7 +71,7 @@ def _names(pin) -> frozenset[str]:
 def _observed(repo: Path, path: str, names: frozenset[str]) -> frozenset[int]:
     """The import-time statements of ``path`` (relative to ``repo``, as it reads now) that a run with entry
     names ``names`` observes: the selection a ``StatementsPin`` projects (``_import_time.observed_digests``)."""
-    from orpheus.numerics import _import_time, traced_memo
+    from orpheus.memo import _import_time, traced_memo
 
     return frozenset(_import_time.selection(traced_memo._source_index((repo / path).read_bytes()).statements, names))
 

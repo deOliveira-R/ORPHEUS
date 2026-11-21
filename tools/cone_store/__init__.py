@@ -5,8 +5,8 @@ tests a working-tree change requires.
 
 ``capture`` runs the tests under a grandparent process that records (the memo's ``Recording``) from before the
 root conftest is imported, forks one collecting parent per test module, and forks one child per test; each child's
-cone is the recording's pins (``orpheus.numerics.traced_memo.collect_pins``): the defs that ran and the import-time
-statements the test could observe (``orpheus.numerics._import_time``: by a name its executed code read, or by
+cone is the recording's pins (``orpheus.memo.traced_memo.collect_pins``): the defs that ran and the import-time
+statements the test could observe (``orpheus.memo._import_time``: by a name its executed code read, or by
 effect) of first-party code (any source under the repository that is not the interpreter's or a distribution's,
 ``tools/`` included), the outcome of importing the modules it
 imported, data, presence and listing pins of paths under the repository, memo children read and distributions. ``select`` lists the collected tests whose cone is stale, new, unknown,

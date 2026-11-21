@@ -83,7 +83,7 @@ from numpy.typing import ArrayLike
 from orpheus.geometry.chart import LineShape
 from orpheus.values.content import ContentIdentity
 from orpheus.values.scalars import canonical_reals
-from orpheus.numerics.traced_memo import traced_memo
+from orpheus.memo.traced_memo import traced_memo
 
 from .basis import PanelBasis
 from .closure import FULL_SOLID_ANGLE, DiffuseWalls, WallCoupling
@@ -288,7 +288,7 @@ def group_transport(
 
     The block is the reference's dominant cost and a function of the basis, the walls, the group's
     :math:`\Sigma_t`, the resolution and the emitting regions ``support`` alone, so it is its own traced-memo
-    entry (:mod:`orpheus.numerics.traced_memo`): it pins the transport kernel's defs only, and an edit to a
+    entry (:mod:`orpheus.memo.traced_memo`): it pins the transport kernel's defs only, and an edit to a
     consumer (the system, the reading, the door) leaves it valid (#405 P3 step 2c, C1). The canonical forms of
     ``sigma_t`` and ``support`` are the block's own first conversions, so a served block and one computed here
     are one value; the basis, the walls and the resolution are content values. The line rule's piece chunk and

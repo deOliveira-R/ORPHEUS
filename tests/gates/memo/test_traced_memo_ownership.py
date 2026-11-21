@@ -25,12 +25,12 @@ from pathlib import Path
 
 import pytest
 
-from tests.gates.numerics import _traced_memo_api as api
+from tests.gates.memo import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
 
-_M15 = 'tests/gates/numerics/test_traced_memo_manifest.py::test_m1_5_every_shape_of_traced_file_is_classified'
-_D2 = 'tests/gates/numerics/test_traced_memo_ownership.py::test_d2_files_under_a_shared_namespace_top_belong_to_their_own_distributions'
+_M15 = 'tests/gates/memo/test_traced_memo_manifest.py::test_m1_5_every_shape_of_traced_file_is_classified'
+_D2 = 'tests/gates/memo/test_traced_memo_ownership.py::test_d2_files_under_a_shared_namespace_top_belong_to_their_own_distributions'
 
 
 class _FakeSite:

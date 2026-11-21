@@ -36,7 +36,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, NamedTuple
 
-from orpheus.numerics import traced_memo as memo
+from orpheus.memo import traced_memo as memo
 
 from tools.cone_store import pins as pin_rows
 from tools.cone_store.reads import Read

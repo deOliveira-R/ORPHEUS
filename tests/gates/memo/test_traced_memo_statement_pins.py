@@ -37,14 +37,14 @@ from ._statement_pin_cases import ALL_CASES, BY_ID, Case
 
 pytestmark = pytest.mark.foundation
 
-_THIS = "tests/gates/numerics/test_traced_memo_statement_pins.py"
+_THIS = "tests/gates/memo/test_traced_memo_statement_pins.py"
 _TABLE = f"{_THIS}::test_the_case_table_spans_every_kind"
 
 REPO = Path(__file__).resolve().parents[3]
 
 _TRACE = r'''
 import json, sys
-from orpheus.numerics.traced_memo import trace_call
+from orpheus.memo.traced_memo import trace_call
 
 import fxrun
 
@@ -55,7 +55,7 @@ print("STMT-TRACE " + json.dumps({"value": repr(value), "manifest": manifest.to_
 _VALIDATE = r'''
 import json, sys
 from pathlib import Path
-from orpheus.numerics.traced_memo import Manifest, validate
+from orpheus.memo.traced_memo import Manifest, validate
 
 rows = json.loads(Path(sys.argv[1]).read_text())
 reasons = list(validate(Manifest.from_json(rows)))
@@ -260,7 +260,7 @@ import orpheus.mesh.axis as axis
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import AxisMesh, FaceLabel
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.traced_memo import trace_call
+from orpheus.memo.traced_memo import trace_call
 
 axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 5), role_low=MirrorDeck(), role_high=MirrorDeck()),)
 quad = Quadrature.gauss_legendre(n_ordinates=8)
@@ -272,7 +272,7 @@ _SHADOW_VALIDATE = r'''
 import json, sys
 from pathlib import Path
 sys.path.insert(0, sys.argv[2])  # the shadow root: its orpheus/mesh/axis.py is the one the pin's path names now
-from orpheus.numerics.traced_memo import Manifest, validate
+from orpheus.memo.traced_memo import Manifest, validate
 
 print("STMT-VALID " + json.dumps({"reasons": list(validate(Manifest.from_json(json.loads(Path(sys.argv[1]).read_text())))),
                                   "value": None}))
@@ -358,7 +358,7 @@ def test_the_import_outcome_is_not_served_across_a_change_of_the_memos_own_sourc
     second memo digest is served the first one's outcome: 1 file, 1 measurement)."""
     import subprocess as subprocess_module
 
-    from orpheus.numerics import traced_memo as memo
+    from orpheus.memo import traced_memo as memo
 
     (tmp_path / "pkgo").mkdir()
     (tmp_path / "pkgo" / "__init__.py").write_text("")
@@ -404,7 +404,7 @@ sys.meta_path.append(_Editable)
 '''
 _FINDER_TRACE = _FINDER + r'''
 import json
-from orpheus.numerics.traced_memo import Unpinnable, trace_call
+from orpheus.memo.traced_memo import Unpinnable, trace_call
 import fxrunf
 try:
     value, manifest = trace_call(fxrunf.run)
@@ -452,7 +452,7 @@ def test_a_kept_set_missing_once_is_read_when_it_appears_and_a_corrupt_one_is_re
     the same process once a generation keeps it (a miss is not remembered). K2: a kept-set file whose bytes do not
     digest to its name is rewritten by the next ``_keep_set`` of that value, and then read. Reddening mutations: K1,
     remember a miss (cache ``None`` in ``_read_kept_set``); K2, write only when the file is absent (``_keep_set``)."""
-    from orpheus.numerics import traced_memo as memo
+    from orpheus.memo import traced_memo as memo
 
     monkeypatch.setattr(memo, "_KEPT_SETS", tmp_path / "sets")
     monkeypatch.setattr(memo, "_KEPT_SETS_READ", {})
@@ -476,7 +476,7 @@ def test_a_kept_name_set_is_built_once_per_process_and_a_miss_is_not_remembered(
     same set object (building it on every ask made a warm hit's validation 94 ms where it is 11 ms, `[M]`
     2026-11-02). A miss is not remembered, as K1 above. Reddening mutations: build the frozenset on every call
     (the identity fails); remember a miss (the later read fails)."""
-    from orpheus.numerics import traced_memo as memo
+    from orpheus.memo import traced_memo as memo
 
     monkeypatch.setattr(memo, "_KEPT_SETS", tmp_path / "sets")
     monkeypatch.setattr(memo, "_KEPT_SETS_READ", {})
@@ -499,8 +499,8 @@ def test_the_blas_tag_is_pinned_by_its_def_and_by_the_statement_it_reads() -> No
     the projection on ``_blas``'s code names; and a traced call of ``platform_tag`` made after the cache is warm still
     pins ``_blas`` (its code starts on every call). Reddening mutation: cache ``_blas`` itself (``functools.cache``):
     the warm call pins no ``_blas`` def."""
-    from orpheus.numerics import _import_time
-    from orpheus.numerics import traced_memo as memo
+    from orpheus.memo import _import_time
+    from orpheus.memo import traced_memo as memo
 
     source = Path(memo.__file__).read_bytes()
     index = memo._source_index(source)

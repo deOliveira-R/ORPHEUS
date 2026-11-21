@@ -6078,13 +6078,13 @@ fourth rung's source pencil), a complex nearest eigenvalue, and a pencil
 with no fundamental mode.
 
 **A reading is an entry; the solve it reads is a child entry.** Two
-methods are traced memos (:mod:`orpheus.numerics.traced_memo`, #405 P3):
+methods are traced memos (:mod:`orpheus.memo.traced_memo`, #405 P3):
 ``evaluate``, keyed on the derivation and the observable, and ``solve``,
 keyed on the derivation alone. The generation of a reading runs in a fresh
 process, rebuilds the derivation from its content and reads ``answer``,
 which calls ``solve``; that call is a memo lookup inside the generation,
 so the reading's manifest records the solve as one
-:class:`~orpheus.numerics.traced_memo.ChildPin`, and every observable of
+:class:`~orpheus.memo.traced_memo.ChildPin`, and every observable of
 one derivation reads the same solve entry. This is the unit of caching
 the user ruled for P3 (ruling 2 of ``.claude/plans/reference_cache.md``:
 the solve is a child entry shared by every observable of that solve), and
@@ -6135,7 +6135,7 @@ A transport block is an entry of its own
 ----------------------------------------
 
 **What is memoised.** One group's transport block is a traced memo
-(:mod:`orpheus.numerics.traced_memo`):
+(:mod:`orpheus.memo.traced_memo`):
 
 .. code-block:: text
 
@@ -6230,7 +6230,7 @@ content identity and one spelling per value:
   function the body itself calls first (``LineRule.of`` reads
   ``sigma_t`` through the first, ``LineRule.transport`` reads the mask
   through the second), so the canonical form and the body are one
-  function. This matters because :func:`~orpheus.numerics.traced_memo.bypass`
+  function. This matters because :func:`~orpheus.memo.traced_memo.bypass`
   calls the wrapped function with the raw arguments: a canonical form that
   differed from the body's first conversion (a float32 rounding, the
   test-architect's arm ``canonical-float32``) would make a served block

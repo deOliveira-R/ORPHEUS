@@ -34,7 +34,7 @@ def _entry_files(tmp_path):
     return api.entry_files(tmp_path / "cache")
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed', 'tests/gates/numerics/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit', 'tests/gates/numerics/test_traced_memo_validation.py::test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed', 'tests/gates/memo/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit', 'tests/gates/memo/test_traced_memo_validation.py::test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only')
 def test_m3_1_a_miss_generates_once_and_a_hit_never(package, tmp_path):
     """M3.1: the first call generates in one child (1 generation) and writes one entry; the second is a ``Hit``
     with 0 generations; both return the same float, bit for bit, as the function called directly here."""
@@ -50,7 +50,7 @@ def test_m3_1_a_miss_generates_once_and_a_hit_never(package, tmp_path):
 
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_1b_a_memo_under_a_wrapping_decorator_generates_its_own_body(package, tmp_path):
     """M3.1b: a memo stacked under ``functools.lru_cache`` (the module attribute is the cache, whose ``__wrapped__``
     is the memo) generates once from its body and serves the value its body returns. First red: the child resolving
@@ -78,7 +78,7 @@ MEMO_WITNESSES = [
 ]
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed', 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed', 'tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 @pytest.mark.parametrize("row,old,new,miss", MEMO_WITNESSES, ids=[w[0] for w in MEMO_WITNESSES])
 def test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does(package, row, old, new, miss):
     """M3.2, the X1 witnesses through the memo: after an edit to a traced def or to a constant it reads, the
@@ -93,7 +93,7 @@ def test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does(package, row
     assert (after != before) is (row in ("traced-body", "constant-read")), (row, before, after)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_3_the_signature_binds_one_call_to_one_key(package):
     """M3.3: an omitted default, the default spelled explicitly, a positional argument spelled by keyword, and
     keyword-only defaults are ONE key and ONE generation (the census: without the binding, ``Billiard``'s
@@ -109,7 +109,7 @@ def test_m3_3_the_signature_binds_one_call_to_one_key(package):
     assert alpha.solve.key(4, 2.5) not in keys and alpha.solve.key(5) not in keys
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
 def test_m3_4_the_key_separates_what_content_identifies_and_the_function_tells_apart(package):
     """M3.4: ``content_digest`` identifies a float32 array with its float64 twin and ``8`` with ``8.0``
     (``[M]`` 2026-10-04 on the main tree, ``probes/probe_key_hazards.log``), and a function can tell each pair
@@ -127,7 +127,7 @@ def test_m3_4_the_key_separates_what_content_identifies_and_the_function_tells_a
         alpha.solve(8.0)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
 def test_m3_5_a_declared_canonical_form_is_both_the_key_and_what_the_child_receives(package):
     """M3.5: ``total`` declares ``x`` canonical as a float64 array: a list and an array of equal values share
     one key and one generation, and the generator receives the canonical form (its answer carries +0.5 only for
@@ -139,7 +139,7 @@ def test_m3_5_a_declared_canonical_form_is_both_the_key_and_what_the_child_recei
     assert package.generations("total") == 1
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
 def test_m3_6_an_argument_with_no_content_is_refused_by_name(package):
     """M3.6: an argument with no content identity cannot be keyed: ``ContentlessError`` naming the parameter,
     before any generation."""
@@ -149,7 +149,7 @@ def test_m3_6_an_argument_with_no_content_is_refused_by_name(package):
     assert package.generations() == 0
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_3_the_signature_binds_one_call_to_one_key')
 def test_m3_7_the_function_and_the_platform_are_in_the_key(package, monkeypatch):
     """M3.7: two functions given the same arguments are two keys; a different platform tag is a different key
     (an entry restored from another machine is never looked up here)."""
@@ -160,7 +160,7 @@ def test_m3_7_the_function_and_the_platform_are_in_the_key(package, monkeypatch)
     assert alpha.generate.key(2.0) != before
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_8_the_child_is_born_clean_and_imports_from_the_parents_path(package, tmp_path):
     """M3.8: the package root is on this process's ``sys.path`` only (not ``PYTHONPATH``, not the working
     directory), and the child still imports it: it inherits the path, so a worktree parent never spawns a
@@ -175,7 +175,7 @@ def test_m3_8_the_child_is_born_clean_and_imports_from_the_parents_path(package,
     assert "orpheus/values/content.py" in modules, sorted(modules)[:10]
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_9_arguments_cross_through_their_constructor(package, tmp_path):
     """M3.9, finding F1: a frozen dataclass argument is rebuilt in the child by its constructor, so its
     ``__post_init__`` is in the entry's manifest, and an edit to it makes the entry stale. (Default pickling
@@ -189,7 +189,7 @@ def test_m3_9_arguments_cross_through_their_constructor(package, tmp_path):
     assert api.verdict_kind(alpha.read_spec.lookup(alpha.Spec(3))) == "Stale"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_10_a_patch_in_the_parent_never_reaches_an_entry_and_bypass_reads_and_writes_nothing(package, tmp_path, monkeypatch):
     """M3.10: (a) a parent-side patch of a helper does not reach the child: the entry and the answer are
     honest; (b) under ``bypass()`` the patched function runs HERE and returns the decoy, a warm honest entry is
@@ -210,7 +210,7 @@ def test_m3_10_a_patch_in_the_parent_never_reaches_an_entry_and_bypass_reads_and
     assert alpha.generate(1.5) == honest  # (c)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_11_a_raising_generator_writes_nothing_and_raises_its_own_error(package, tmp_path):
     """M3.11: the child's exception reaches the caller with its type and message; no entry is written, so the
     next call generates (and raises) again: a refusal is never cached."""
@@ -222,7 +222,7 @@ def test_m3_11_a_raising_generator_writes_nothing_and_raises_its_own_error(packa
     assert _entry_files(tmp_path) == []
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3c_signature_scopes_are_pinned_by_the_statements_not_by_a_body', 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_3c_signature_scopes_are_pinned_by_the_statements_not_by_a_body', 'tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_12a_a_parent_entry_pins_its_child_by_reference(package, tmp_path):
     """M3.12 (a): ``outer`` calls the memo ``inner``. The outer entry's manifest records the inner entry (its
     key and payload digest) and does NOT list ``inner``'s def, which ran only in the grandchild: the parent
@@ -235,7 +235,7 @@ def test_m3_12a_a_parent_entry_pins_its_child_by_reference(package, tmp_path):
     assert "inner" not in {q for _, q, *_ in api.manifest_rows(outer, "DefPin")}
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
 @pytest.mark.parametrize("warm_child", [False, True], ids=["cold-child", "warm-child"])
 def test_m3_12b_a_mutation_only_a_child_traced_makes_the_parent_stale(package, warm_child):
     """M3.12 (b), recursive validation: an edit to ``inner``'s body, which only the CHILD entry traced, makes
@@ -252,7 +252,7 @@ def test_m3_12b_a_mutation_only_a_child_traced_makes_the_parent_stale(package, w
     assert api.verdict_kind(verdict) == "Stale" and any("child" in r for r in verdict.reasons), verdict
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_12b_a_mutation_only_a_child_traced_makes_the_parent_stale')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_12b_a_mutation_only_a_child_traced_makes_the_parent_stale')
 def test_m3_12c_a_child_regenerated_with_another_answer_makes_the_parent_stale(package):
     """M3.12 (c): the child entry is regenerated after an edit that changes its answer; the parent's recorded
     payload digest no longer matches, and the reason says so (the child is a valid ``Hit``, so only the digest
@@ -265,7 +265,7 @@ def test_m3_12c_a_child_regenerated_with_another_answer_makes_the_parent_stale(p
     assert api.verdict_kind(verdict) == "Stale" and any("payload" in r for r in verdict.reasons), verdict
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
 def test_m3_12d_two_calls_of_one_child_in_one_generation_are_one_entry(package, tmp_path):
     """M3.12 (d): ``outer_twice`` calls ``inner(x)`` twice: one inner generation, one recorded reference."""
     beta = package.module("beta")
@@ -275,7 +275,7 @@ def test_m3_12d_two_calls_of_one_child_in_one_generation_are_one_entry(package, 
     assert len(api.manifest_rows(outer, "ChildPin")) == 1
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference')
 def test_m3_12e_a_child_generated_by_its_parent_serves_a_direct_caller(package, tmp_path):
     """M3.12 (e): after ``outer`` generated ``inner`` as its child, a DIRECT call of ``inner`` with the same
     argument is a ``Hit``, starts no generation, and returns the parent's child value bit for bit: one child entry,
@@ -324,7 +324,7 @@ def _edit_json(path, change):
     api.write_entry(path, entry)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 @pytest.mark.parametrize("row,corrupt", CORRUPTIONS, ids=[c[0] for c in CORRUPTIONS])
 def test_m3_13_a_corrupted_entry_is_refused_and_regenerated_never_served(package, tmp_path, row, corrupt):
     """M3.13: a flipped byte, a truncated file, a truncated entry JSON, and a payload value edited in place
@@ -340,7 +340,7 @@ def test_m3_13_a_corrupted_entry_is_refused_and_regenerated_never_served(package
     assert again.k == honest.k and np.array_equal(again.field, honest.field)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_13b_an_edited_manifest_is_stale(package, tmp_path):
     """M3.13 (b): a manifest edited on disk (a function digest replaced) is ``Stale``, never served."""
     alpha = package.module("alpha")
@@ -350,7 +350,7 @@ def test_m3_13b_an_edited_manifest_is_stale(package, tmp_path):
     assert api.verdict_kind(alpha.solve.lookup(5)) == "Stale"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only', 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only', 'tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_14_a_served_payload_is_fresh_read_only_and_bit_identical(package):
     """M3.14: the miss's return and every hit's return are the same bits as the direct call; each served
     array is read-only and shares no memory with another load (a consumer that writes into a hit raises)."""
@@ -366,7 +366,7 @@ def test_m3_14_a_served_payload_is_fresh_read_only_and_bit_identical(package):
         hit.field[0] = 0.0
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_15_two_processes_racing_on_one_miss_leave_one_valid_entry(package, tmp_path):
     """M3.15: two parent processes miss the same key at once; both return the same answer and the entry left
     behind is a ``Hit`` (the write is atomic: a reader never sees a half-written entry)."""
@@ -392,7 +392,7 @@ def test_m3_15_two_processes_racing_on_one_miss_leave_one_valid_entry(package, t
     assert api.verdict_kind(alpha.solve.lookup(7)) == "Hit"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_16_the_generating_process_sees_no_orpheus_environment(package, monkeypatch):
     """M3.16, the runtime backstop of M5.1: the child receives the DECLARED environment only (re-posed after
     qa's second review, 2026-10-04: a variable outside every key served a stale value), so a generator that

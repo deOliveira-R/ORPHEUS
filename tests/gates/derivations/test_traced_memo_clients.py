@@ -24,7 +24,7 @@ import pytest
 
 import orpheus  # the repository root is read off the package (any test directory)
 
-from tests.gates.numerics import _traced_memo_api as api
+from tests.gates.memo import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
 
@@ -219,8 +219,8 @@ _CONSTRUCTION = {"CharacteristicDerivation.__post_init__", "Walls.of", "PanelBas
                  "GalerkinSystem.__post_init__"}
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_9_arguments_cross_through_their_constructor',
-                      'tests/gates/numerics/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference',
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_9_arguments_cross_through_their_constructor',
+                      'tests/gates/memo/test_traced_memo_process.py::test_m3_12a_a_parent_entry_pins_its_child_by_reference',
                       'tests/gates/derivations/test_characteristic_reference.py::test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not')
 def test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve(tmp_path):
     """M4.3, re-posed on the characteristic reading, and #592's first done-when: the reading entry's manifest holds
@@ -296,7 +296,7 @@ def test_m4_11_two_observables_of_one_cold_derivation_share_one_solve(tmp_path):
 
 
 @pytest.mark.rests_on('tests/gates/derivations/test_traced_memo_clients.py::test_m4_11_two_observables_of_one_cold_derivation_share_one_solve',
-                      'tests/gates/numerics/test_traced_memo_process.py::test_m3_14_a_served_payload_is_fresh_read_only_and_bit_identical')
+                      'tests/gates/memo/test_traced_memo_process.py::test_m3_14_a_served_payload_is_fresh_read_only_and_bit_identical')
 def test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones(tmp_path):
     """#592's third done-when: after a reading has written the solve entry, a fresh derivation's ``solve()`` in this
     process is a ``Hit``; its arrays (the flux and the emission) are read-only, and a write into one raises; they
@@ -366,7 +366,7 @@ _CHARACTERISTIC_DRIVER = textwrap.dedent('''
     assert orpheus.__file__.startswith(copy), orpheus.__file__
 ''') + _CHARACTERISTIC_DRIVER_SETUP + textwrap.dedent('''
     from orpheus.numerics.observable import Eigenvalue
-    from orpheus.numerics.traced_memo import cache_root
+    from orpheus.memo.traced_memo import cache_root
     with cache_root(cache):
         d = tiny_sphere()
         if action == "generate":
@@ -396,7 +396,7 @@ def _drive_characteristic(copy: Path, cache: Path, action: str) -> str:
     return lines[-1][len("VERDICT "):]
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does',
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does',
                       'tests/gates/derivations/test_traced_memo_clients.py::test_m4_3c_the_characteristic_reading_manifest_holds_its_construction_and_pins_one_solve')
 @pytest.mark.parametrize("row,file,anchor,method,reading", CHARACTERISTIC_TREE_WITNESSES,
                          ids=[w[0] for w in CHARACTERISTIC_TREE_WITNESSES])
@@ -421,7 +421,7 @@ def test_m4_4c_an_edit_to_the_copied_tree_misses_exactly_where_the_characteristi
     assert _drive_characteristic(copy, cache, "lookup") == reading, row
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit',
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit',
                       'tests/gates/derivations/test_characteristic_reference.py::test_c3_an_equal_derivation_reads_from_the_memo_and_a_new_resolution_does_not')
 def test_m4_5c_a_served_characteristic_reading_is_the_fresh_reading_bit_for_bit(tmp_path):
     """M4.5, re-posed: the memo's characteristic readings equal the in-process readings under ``bypass()`` bit for
@@ -442,7 +442,7 @@ def test_m4_5c_a_served_characteristic_reading_is_the_fresh_reading_bit_for_bit(
     assert served == generated == fresh
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_11_a_raising_generator_writes_nothing_and_raises_its_own_error',
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_11_a_raising_generator_writes_nothing_and_raises_its_own_error',
                       'tests/gates/derivations/test_characteristic_reference.py::test_c4_a_refusal_crosses_the_memo_with_its_type')
 def test_m4_8c_a_characteristic_refusal_is_never_cached(tmp_path, monkeypatch):
     """M4.8, re-posed: the characteristic reference is a direct solve (no iteration to leave unconverged), so its
@@ -483,7 +483,7 @@ _GAUGE_DRIVER = textwrap.dedent('''
     from orpheus.derivations.continuous.characteristic import CharacteristicDerivation
     from orpheus.numerics.observable import Eigenvalue, PointValue
     from orpheus.numerics.question import Eigen
-    from orpheus.numerics.traced_memo import cache_root
+    from orpheus.memo.traced_memo import cache_root
     make = lambda: CharacteristicDerivation(_hetero_sphere(Eigen(_K)), _TINY)
     print("ORDER", repr([c for c in make().specification.question.gauge.cells]))
     if sys.argv[3] == "run":
@@ -520,7 +520,7 @@ def _parent_seed_that_reorders_the_gauge(tmp_path: Path) -> str:
 
 
 @pytest.mark.rests_on('tests/gates/derivations/test_traced_memo_clients.py::test_m4_12_a_served_solve_is_read_only_and_its_readings_are_the_in_process_ones',
-                      'tests/gates/numerics/test_traced_memo_findings.py::test_s1_one_call_is_one_key_under_every_hash_seed')
+                      'tests/gates/memo/test_traced_memo_findings.py::test_s1_one_call_is_one_key_under_every_hash_seed')
 def test_m4_11b_m4_12b_a_parent_at_another_hash_seed_shares_the_readings_solve(tmp_path):
     """The (n,2n)-gauge leg of M4.11 and M4.12 (qa, #592 review): ``_tiny_characteristic_sphere``'s gauge holds ONE
     cell, so no hash seed can reorder it (a space-side stabiliser); ``_hetero_sphere(Eigen(_K))`` (an (n,2n)

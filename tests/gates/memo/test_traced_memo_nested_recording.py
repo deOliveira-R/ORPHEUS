@@ -13,7 +13,7 @@ import sys
 
 import pytest
 
-from orpheus.numerics import _traced_memo_boot, traced_memo
+from orpheus.memo import _traced_memo_boot, traced_memo
 
 pytestmark = pytest.mark.foundation
 
@@ -37,7 +37,7 @@ def test_the_inner_manifest_still_pins_the_file(traced_module):
         pytest.fail(f"the inner manifest does not pin nested_subject.py: {sorted(map(str, manifest.pins))}")
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_traced_memo_nested_recording.py::test_the_inner_manifest_still_pins_the_file")
+@pytest.mark.rests_on("tests/gates/memo/test_traced_memo_nested_recording.py::test_the_inner_manifest_still_pins_the_file")
 def test_an_enclosing_recording_is_not_offered_the_manifests_re_read(traced_module):
     """Around a ``trace_call``, an outer recording holds no read of the subject's source: the import's read is
     the loader's, and the manifest's re-read is the memo's."""

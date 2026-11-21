@@ -94,7 +94,7 @@ from orpheus.values.content import ContentIdentity
 from orpheus.numerics.mesh_free_function import MeshFreeFunction, RegionwiseConstant, Symbolic
 from orpheus.numerics.observable import Eigenvalue, FluxIntegral, Linear, PointValue
 from orpheus.numerics.question import Eigen, FixedSource, Fundamental, Nearest, Response
-from orpheus.numerics.traced_memo import traced_memo
+from orpheus.memo.traced_memo import traced_memo
 from orpheus.reference.reading import Uncertified
 from orpheus.reference.solution import ReferenceSolution
 from orpheus.specification.specification import GeometrySpecification

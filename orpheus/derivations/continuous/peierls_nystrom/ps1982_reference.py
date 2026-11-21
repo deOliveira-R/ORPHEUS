@@ -89,7 +89,7 @@ from scipy.integrate import quad
 from scipy.interpolate import CubicSpline
 from scipy.special import exp1
 
-from orpheus.numerics.traced_memo import traced_memo
+from orpheus.memo.traced_memo import traced_memo
 
 
 @dataclass(frozen=True)

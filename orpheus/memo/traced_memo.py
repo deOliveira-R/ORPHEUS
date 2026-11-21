@@ -3,7 +3,7 @@ r"""The traced memo: a pure function of content, memoised on disk and keyed on w
 A reference reading costs seconds to minutes and changes only when something that produces it changes. The
 memo stores each call's answer under ``.cache/references/`` and serves it again for as long as nothing the
 call depended on has changed. The dependencies are not declared, they are RECORDED: on a miss the call is
-generated in a fresh interpreter recording from its first line (:mod:`~orpheus.numerics._traced_memo_boot`),
+generated in a fresh interpreter recording from its first line (:mod:`~orpheus.memo._traced_memo_boot`),
 and the entry keeps the :class:`Manifest` of that run beside the answer.
 
 * **The key** is the digest of the function's identity, its signature-bound arguments (defaults applied,
@@ -14,7 +14,7 @@ and the entry keeps the :class:`Manifest` of that run beside the answer.
 * **The manifest** is a set of :data:`Pin`\ s, each able to say whether the checkout still matches it:
   each first-party def that ran by the digest of its normalised source (docstrings, comments and layout
   excluded), each first-party module that ran by the import-time statements the run could observe (by a name
-  its executed code read, or by effect: :mod:`~orpheus.numerics._import_time`) together with the outcome of
+  its executed code read, or by effect: :mod:`~orpheus.memo._import_time`) together with the outcome of
   importing the modules it imported, each third-party distribution by its version, the
   interpreter, each file the run read and each directory it listed (a missing one included: the run
   depended on its absence), the working directory when the run read a relative path, each memo entry the
@@ -97,8 +97,8 @@ from typing import Any, Generic, NamedTuple, ParamSpec, TypeVar, overload
 
 import numpy as np
 
-from orpheus.numerics import _import_time, _traced_memo_boot
-from orpheus.numerics._traced_memo_boot import (
+from orpheus.memo import _import_time, _traced_memo_boot
+from orpheus.memo._traced_memo_boot import (
     CACHE, CONTENT, FORK_MEASURED, LISTING, Kept, Witness, PRESENCE, Observation, Recording, _read_frame, _write_frame, digest as _digest, file_digest as _file_digest, listing_digest as _listing_digest, presence as _presence, frame, note_child, ReadChild,
     spawning, unrecorded, write_atomically,
 )
@@ -302,7 +302,7 @@ _span = _import_time.span
 
 #: Code objects Python generates from a SIGNATURE or a class body rather than from a def body: lazy
 #: annotations (PEP 649, ``__annotate__``) and the scopes of type parameters (PEP 695). Their source is the
-#: signature, which the def's statement pins (:mod:`~orpheus.numerics._import_time`); they never pin the body of the
+#: signature, which the def's statement pins (:mod:`~orpheus.memo._import_time`); they never pin the body of the
 #: def they belong to (reading a def's annotations does not run it).
 _SIGNATURE_SCOPES = ("__annotate__", "<generic parameters of ", "<TypeVar bound of ", "<TypeVar constraint of ",
                      "<TypeAlias ", "<type parameters of ")
@@ -334,7 +334,7 @@ class _Scope(NamedTuple):
 @dataclasses.dataclass(frozen=True)
 class _SourceIndex:
     """What a manifest and a validation read from one source text: every outermost def, every node a code object can be compiled from, and every import-time statement
-    (:mod:`~orpheus.numerics._import_time`). It holds no tree, so it is written to disk and read back
+    (:mod:`~orpheus.memo._import_time`). It holds no tree, so it is written to disk and read back
     (:func:`_source_index`); :func:`_parsed_index` builds it from the text."""
 
     defs: tuple[_IndexedDef, ...]
@@ -372,7 +372,7 @@ class _SourceIndex:
 
     def projection(self, names: frozenset[str]) -> str:
         """The digest of the import-time statements a run with entry names ``names`` observes, in source order
-        (:func:`~orpheus.numerics._import_time.observed_digests`)."""
+        (:func:`~orpheus.memo._import_time.observed_digests`)."""
         return _digest("\n".join(_import_time.observed_digests(self.statements, names)).encode())
 
 
@@ -837,7 +837,7 @@ def platform_tag() -> str:
 
 
 def fork_platform() -> tuple[str, str, str]:
-    """The platform as the fork protocol's table names it (:data:`~orpheus.numerics._traced_memo_boot.FORK_MEASURED`):
+    """The platform as the fork protocol's table names it (:data:`~orpheus.memo._traced_memo_boot.FORK_MEASURED`):
     the operating system, the machine and the BLAS."""
     return sys.platform, platform.machine(), _blas()
 
@@ -1032,7 +1032,7 @@ class DefPin(NamedTuple):
 
 class StatementsPin(NamedTuple):
     """A first-party module that ran, by the import-time statements the run could observe
-    (:mod:`~orpheus.numerics._import_time`): ``names`` names the run's entry names, a set kept by its digest
+    (:mod:`~orpheus.memo._import_time`): ``names`` names the run's entry names, a set kept by its digest
     (``_keep_set``); ``digest`` is the module's projection on them (``_SourceIndex.projection``). It goes
     stale when an observed statement changes, and when a statement binding one of the names is added or removed;
     an edit to a statement the run could not observe leaves it valid (the run's :class:`ImportOutcomePin` still

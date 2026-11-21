@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from orpheus.numerics import traced_memo as memo
+from orpheus.memo import traced_memo as memo
 
 from ._cone_store_fixture import build, capture, copy_captured, edit, environment, paths
 
@@ -255,7 +255,7 @@ def test_r21_an_attribute_after_a_fused_pair_of_loads(reads: dict) -> None:
 
 _VALIDATE = r'''
 import json, sys
-from orpheus.numerics import traced_memo as memo
+from orpheus.memo import traced_memo as memo
 from tools.cone_store.store import ConeStore
 
 checkout = memo._Checkout(memo.Store.current())

@@ -53,7 +53,7 @@ def reader(tmp_path):
         del sys.modules[key]
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never')
 def test_m3_17_an_edit_to_a_data_file_the_generation_read_is_a_miss(reader):
     """M3.17: ``lookup("a")`` reads ``table.json``; after the table's value changes, the lookup is ``Stale``
     and the call returns the NEW value. Without a record of files read, the entry stays a ``Hit`` and serves

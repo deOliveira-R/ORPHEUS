@@ -36,6 +36,7 @@ principles, harness, and the auto-generated V&V matrix — lives at
    :caption: API Reference
 
    api/values
+   api/memo
    api/numerics
    api/transport
    api/data

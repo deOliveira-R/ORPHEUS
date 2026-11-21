@@ -96,7 +96,7 @@ def _k(name: str) -> float:
     from orpheus.derivations.continuous.characteristic import CharacteristicDerivation, Resolution, TransportResolution
     from orpheus.numerics.observable import Eigenvalue
     from orpheus.numerics.question import Eigen
-    from orpheus.numerics.traced_memo import bypass
+    from orpheus.memo.traced_memo import bypass
     from orpheus.specification.specification import GeometrySpecification
 
     _n, chart, bp, faces = next(c for c in cases.CASES if c[0] == name)

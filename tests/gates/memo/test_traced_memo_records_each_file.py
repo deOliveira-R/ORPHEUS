@@ -14,8 +14,8 @@ import textwrap
 
 import pytest
 
-from orpheus.numerics import traced_memo
-from orpheus.numerics.traced_memo import DefPin, StatementsPin
+from orpheus.memo import traced_memo
+from orpheus.memo.traced_memo import DefPin, StatementsPin
 
 pytestmark = pytest.mark.foundation
 
@@ -59,7 +59,7 @@ def test_the_premise_equal_code_objects_from_two_files(two_equal_files):
 
 
 @pytest.mark.catches("ERR-124")
-@pytest.mark.rests_on("tests/gates/numerics/test_traced_memo_records_each_file.py::test_the_premise_equal_code_objects_from_two_files")
+@pytest.mark.rests_on("tests/gates/memo/test_traced_memo_records_each_file.py::test_the_premise_equal_code_objects_from_two_files")
 def test_both_files_of_an_equal_pair_are_pinned(two_equal_files):
     """A traced run through two equal defs in two files, importing two empty packages, pins all four files."""
     value, manifest = traced_memo.trace_call(_run_both)

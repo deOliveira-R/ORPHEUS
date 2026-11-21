@@ -183,7 +183,7 @@ class Recorded(Worker):
         from _pytest import main as pytest_main
         from _pytest import python as pytest_python
         from _pytest.assertion import rewrite
-        from orpheus.numerics._traced_memo_boot import Recording  # the aliased module: imports no package
+        from orpheus.memo._traced_memo_boot import Recording  # the aliased module: imports no package
 
         # Pytest's own reads are not the test's dependencies: the assertion rewriter reads each test module's source
         # to compile it, and collection lists each directory to find the test files in it (a conftest that appears is
@@ -211,7 +211,7 @@ class Recorded(Worker):
         manager._try_load_conftest = self.unrecorded_call(manager._try_load_conftest)
         manager._loadconftestmodules = self.recorded_call(manager._loadconftestmodules)
         self.recording = Recording().start()
-        from orpheus.numerics import traced_memo  # after the recorder starts, so its import is recorded
+        from orpheus.memo import traced_memo  # after the recorder starts, so its import is recorded
 
         self.memo = traced_memo
         if self.config.memo_root is not None:

@@ -12,7 +12,7 @@ import os
 
 import pytest
 
-from orpheus.numerics import _traced_memo_boot as boot
+from orpheus.memo import _traced_memo_boot as boot
 
 pytestmark = pytest.mark.foundation
 

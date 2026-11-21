@@ -200,7 +200,7 @@ def test_pl11_a_store_without_own_cones_is_refused(captured: Path, tmp_path: Pat
 def test_pl13_an_import_cycle_closes_exactly_whatever_the_visiting_order() -> None:
     """PL13 (the elegance review of B3, 2026-11-03). ``ancestors`` on a cycle: ``a`` and ``b`` import each other
     and ``c`` imports ``a``, so ``c``'s ancestors are ``{a, b}`` and each of ``a``, ``b`` has the other. The
-    memoised walk it replaces answered ``{b, c}`` or ``{}`` by visiting order. The live witness: the numerics
+    memoised walk it replaces answered ``{b, c}`` or ``{}`` by visiting order. The live witness: the memo
     graph's ``traced_memo`` <-> ``_traced_memo_boot`` cycle, where the top-level import must be in the widest
     closure of ``traced_memo``."""
     from tests.gates.numerics.test_concept_order import import_kinds
@@ -210,7 +210,8 @@ def test_pl13_an_import_cycle_closes_exactly_whatever_the_visiting_order() -> No
     for nodes in (["a", "b", "c"], ["c", "b", "a"], ["b", "c", "a"]):
         widest = placement.ancestors(kinds, nodes, ("runtime", "lazy"))
         assert widest == {"a": frozenset({"b"}), "b": frozenset({"a"}), "c": frozenset({"a", "b"})}, nodes
-    live = placement.ancestors(import_kinds(), ["traced_memo", "_traced_memo_boot"], ("runtime", "lazy", "typing"))
+    memo_root = Path(__file__).resolve().parents[3] / "orpheus" / "memo"
+    live = placement.ancestors(import_kinds(memo_root), ["traced_memo", "_traced_memo_boot"], ("runtime", "lazy", "typing"))
     assert "_traced_memo_boot" in live["traced_memo"] and "traced_memo" in live["_traced_memo_boot"]
 
 

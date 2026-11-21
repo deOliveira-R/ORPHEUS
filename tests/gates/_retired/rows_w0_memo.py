@@ -30,12 +30,9 @@ MEMO_TEST_MODULES: tuple[str, ...] = (
     "_traced_memo_api", "_traced_memo_synthetic", "_statement_pin_cases", "_statement_pin_qa_rows",
 )
 
-ROWS: tuple[RetiredModule | Retired, ...] = (
+ROWS: tuple[RetiredModule, ...] = (
     *(RetiredModule(_OLD + name) for name in MEMO_MODULES),
     *(RetiredModule(_OLD_TESTS + name) for name in MEMO_TEST_MODULES),
-    Retired("orpheus/memo/_traced_memo_boot.py", "digest"),
-    Retired("orpheus/values/content.py", "_DIGEST_SIZE"),
-    Retired("orpheus/values/content.py", "_NAME_DIGEST_SIZE"),
 )
 
 KEPT: tuple[Kept, ...] = ()

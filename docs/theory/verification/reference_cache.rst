@@ -64,7 +64,7 @@ one run per file, concurrent with other work, so an upper bound; seven of
 the files are in the table of "The numbers" below). A reading changes
 only when something that produces it changes, so the same answer was
 recomputed on every run of the suite. This chapter documents the
-primitive that stops that: :class:`~orpheus.numerics.traced_memo.TracedMemo`,
+primitive that stops that: :class:`~orpheus.memo.traced_memo.TracedMemo`,
 a pure function of content-identified arguments, memoised on disk under
 ``.cache/references/`` (ignored by git), whose entry is served again for
 as long as nothing the call depended on has changed. Its dependencies are
@@ -147,10 +147,10 @@ Key facts
   outcome of the run's import set is measured again in a fresh interpreter,
   once per checkout state (:ref:`verification-cone-store-import-outcome`).
   It returns one of four verdicts,
-  :class:`~orpheus.numerics.traced_memo.Hit`,
-  :class:`~orpheus.numerics.traced_memo.Absent`,
-  :class:`~orpheus.numerics.traced_memo.Stale` (with every reason) or
-  :class:`~orpheus.numerics.traced_memo.Corrupt`. Only a ``Hit`` is
+  :class:`~orpheus.memo.traced_memo.Hit`,
+  :class:`~orpheus.memo.traced_memo.Absent`,
+  :class:`~orpheus.memo.traced_memo.Stale` (with every reason) or
+  :class:`~orpheus.memo.traced_memo.Corrupt`. Only a ``Hit`` is
   served; every other verdict regenerates.
 * **The payload is exact and is never a pickle**: floats as
   ``float.hex``, arrays in the entry's ``.npz`` with their dtype and
@@ -442,7 +442,7 @@ Comparing the ``.pyc`` against the source a second time would have
 narrowed the window without closing it, since the edit during a
 generation needs no ``.pyc``.
 
-The parts, all in :mod:`orpheus.numerics._traced_memo_boot`:
+The parts, all in :mod:`orpheus.memo._traced_memo_boot`:
 
 * **What it covers.** The boot script starts the recording on its first
   line and, before any ``orpheus`` import, calls
@@ -469,7 +469,7 @@ The parts, all in :mod:`orpheus.numerics._traced_memo_boot`:
 * **The bytes it records.** ``get_code`` reads the source once, offers
   the bytes to every active recording whose ``sources`` field is a
   dictionary (keyed by the file's real path), and compiles from them.
-  ``_compiled_bytes`` in :mod:`orpheus.numerics.traced_memo` gives the
+  ``_compiled_bytes`` in :mod:`orpheus.memo.traced_memo` gives the
   manifest those bytes, so every import-time statement digest and every
   def digest are of the text that ran.
 * **Its reads are the memo's, not the run's.** The whole body runs
@@ -528,7 +528,7 @@ code object whose file is a first-party source the loader never compiled
 (an ``exec`` of a file read by hand, ``runpy``) has no recorded bytes, and
 a re-read after the run is the very pin this section removes, so
 ``_compiled_bytes`` raises
-:class:`~orpheus.numerics.traced_memo.Unpinnable`, naming exec and runpy
+:class:`~orpheus.memo.traced_memo.Unpinnable`, naming exec and runpy
 (gate P7). `[M]` the test-architect's AST census over the 390 files of
 ``orpheus/`` (``ta/p9_exec_census.py``, its positive controls found all 8
 spellings): 4 calls of ``exec``, ``eval``, ``compile``, ``runpy.*``,
@@ -703,7 +703,7 @@ decides more than the leaves:
   the 64 strings iterate in at least two orders over the seeds), and its
   witness ``test_s1_the_iteration_order_arm_splits_the_keys``, which
   restores the iteration-order spelling in each child and requires the
-  keys to split (``tests/gates/numerics/test_traced_memo_findings.py``);
+  keys to split (``tests/gates/memo/test_traced_memo_findings.py``);
 * **a sparse matrix is keyed by its class as well as its format** (a
   ``csr_matrix`` is not a ``csr_array``), and one that stores no arrays (a
   ``dok_matrix``) is refused;
@@ -723,7 +723,7 @@ passing ``8`` where another passed ``8.0``, or one dictionary order where
 another passed the other, which is the safe direction.
 
 **The platform tag** (Q3) is
-:func:`~orpheus.numerics.traced_memo.platform_tag`: the interpreter's
+:func:`~orpheus.memo.traced_memo.platform_tag`: the interpreter's
 cache tag, the operating system, the machine, the ``-O`` level and the
 name of numpy's BLAS. The ``-O`` level is in it because a bare ``assert``
 in a generator is stripped under ``-O``, so the two levels can answer
@@ -746,7 +746,7 @@ identity. An argument with no content identity is refused with its path
 The manifest: twelve kinds of pin
 =================================
 
-A :class:`~orpheus.numerics.traced_memo.Manifest` is a frozen set of
+A :class:`~orpheus.memo.traced_memo.Manifest` is a frozen set of
 pins. Each pin is a small value that can say, by itself, whether the
 current checkout still matches what it recorded (its ``stale`` method
 returns a reason or nothing). The JSON form tags every row with its pin's
@@ -760,13 +760,13 @@ kind and is parsed once, in ``Manifest.from_json``.
      - What it pins, and by what
      - What it guards against
      - Where it came from
-   * - :class:`~orpheus.numerics.traced_memo.DefPin`
+   * - :class:`~orpheus.memo.traced_memo.DefPin`
      - A first-party def that ran: its file, its qualified name, its
        rank among the defs of that name, and the digest of its normalised
        source.
      - An edit to the body of a function that ran.
      - The design; the rank from qa finding 1.
-   * - :class:`~orpheus.numerics.traced_memo.StatementsPin`
+   * - :class:`~orpheus.memo.traced_memo.StatementsPin`
      - A first-party module whose code ran, by its projection: the digest
        of the ordered import-time statements the run could observe, by a
        name its executed code read or by effect, selected on the run's
@@ -776,7 +776,7 @@ kind and is parsed once, in ``Manifest.from_json``.
        name it read; any change to an effect statement.
      - B2 of the cone store (#689, ruling 43 of the verification-tree
        plan); before it, ``ModulePin``, the module's skeleton.
-   * - :class:`~orpheus.numerics.traced_memo.ImportOutcomePin`
+   * - :class:`~orpheus.memo.traced_memo.ImportOutcomePin`
      - The first-party modules the run imported, in order, with each
        one's bytes digest and dotted name (a set kept by its digest), and
        the outcome of importing them in a fresh interpreter: each module's
@@ -786,19 +786,19 @@ kind and is parsed once, in ``Manifest.from_json``.
        it).
      - B2 (ruling 43, R3 amended; the dotted name from qa's build review,
        finding F1).
-   * - :class:`~orpheus.numerics.traced_memo.DistributionPin`
+   * - :class:`~orpheus.memo.traced_memo.DistributionPin`
      - A third-party distribution whose code ran or whose file was read,
        by its installed version and the digest of its ``RECORD`` text.
      - A dependency upgrade (numpy, scipy, mpmath, SymPy), and a rebuild
        reinstalled under the same version.
      - The design; the ``RECORD`` from qa's review of #602 cut E
        (finding 6).
-   * - :class:`~orpheus.numerics.traced_memo.InterpreterPin`
+   * - :class:`~orpheus.memo.traced_memo.InterpreterPin`
      - The interpreter's version and bytecode tag.
      - The standard library and generated code changing under a new
        Python.
      - The design.
-   * - :class:`~orpheus.numerics.traced_memo.DataPin`
+   * - :class:`~orpheus.memo.traced_memo.DataPin`
      - A file the run opened for reading, by absolute path and the bytes
        it held when the run first opened it; ``"absent"`` when no regular
        file was there; a ``.py`` file read as data included. Also an admitted program the run started (``uname``), by
@@ -808,7 +808,7 @@ kind and is parsed once, in ``Manifest.from_json``.
      - Q4 (M3.17); absence from qa finding 5; ``.py`` as data from the
        second review's finding r5; programs from the fix rounds; the
        first-touch observation from ERR-116.
-   * - :class:`~orpheus.numerics.traced_memo.PresencePin`
+   * - :class:`~orpheus.memo.traced_memo.PresencePin`
      - A path the run probed without opening it (``os.stat``,
        ``os.lstat``, and through them ``os.path.exists``, ``isfile``,
        ``isdir`` and ``pathlib``'s ``exists``), by what was there at its
@@ -816,28 +816,28 @@ kind and is parsed once, in ``Manifest.from_json``.
        ``"absent"``.
      - An answer that branched on whether a file exists.
      - qa finding 5, the half the first fix left open.
-   * - :class:`~orpheus.numerics.traced_memo.ListingPin`
+   * - :class:`~orpheus.memo.traced_memo.ListingPin`
      - A directory the run listed, outside the import system, by the
        sorted names in it at its first listing (or ``"absent"``).
      - A file added to or removed from a directory a generator scanned.
      - qa finding 5.
-   * - :class:`~orpheus.numerics.traced_memo.EnvironmentPin`
+   * - :class:`~orpheus.memo.traced_memo.EnvironmentPin`
      - The declared variables the generating process received, ``PATH``
        excluded, by their digest.
      - A thread count or a locale that changed what ran.
      - The second review (an undeclared variable read by a generator).
-   * - :class:`~orpheus.numerics.traced_memo.WorkingDirectoryPin`
+   * - :class:`~orpheus.memo.traced_memo.WorkingDirectoryPin`
      - The directory the run started in, recorded only when the run read a
        relative path.
      - The same relative path naming another file from another directory.
      - qa finding 5; the starting directory from finding r7.
-   * - :class:`~orpheus.numerics.traced_memo.ChildPin`
+   * - :class:`~orpheus.memo.traced_memo.ChildPin`
      - A memo entry the run read from the store its pins are collected
        for, by its function id, its key and the digest of the payload it
        served. An entry read from another store is pinned instead by the
        pins its lookup validated it on, children flattened in
        (``Hit.pins``, recorded with the read as a
-       :class:`~orpheus.numerics._traced_memo_boot.ReadChild`), since a
+       :class:`~orpheus.memo._traced_memo_boot.ReadChild`), since a
        ``ChildPin`` is judged against the collecting store. No production
        generation enters another store (`[M]` 2026-11-03: 0 calls of
        ``cache_root`` under ``orpheus/`` outside its definition), so this
@@ -846,7 +846,7 @@ kind and is parsed once, in ``Manifest.from_json``.
      - A child entry that went stale, or was regenerated with another
        answer.
      - The design (recursive validation).
-   * - :class:`~orpheus.numerics.traced_memo.MemoPin`
+   * - :class:`~orpheus.memo.traced_memo.MemoPin`
      - The memo's own three source files (``traced_memo.py``,
        ``_traced_memo_boot.py`` and ``_import_time.py``) and
        ``content.py``, whose constructor form the write path runs; in a generation, by the bytes
@@ -913,7 +913,7 @@ decorators, signatures with their annotations and defaults, class
 attributes and dataclass fields. A function reads ``_EXACT_DIGITS = 60``
 by name, so its own source does not change when the constant does, and the
 constant's statement does. A module whose code ran is pinned by the
-statements the run could observe (:class:`~orpheus.numerics.traced_memo.StatementsPin`):
+statements the run could observe (:class:`~orpheus.memo.traced_memo.StatementsPin`):
 those binding a name its executed code read, closed over what the selected
 statements themselves read at import, and every effect statement (one that
 does more than bind: an import, a call outside a short list of pure
@@ -924,7 +924,7 @@ reads leaves the entry valid (the row ``constant-unread`` of M2.1). The
 rule, why each of its parts is there, the 42 attack rows it was built
 against and what it cannot see are
 :ref:`verification-cone-store-statements`; the statement model is
-:mod:`orpheus.numerics._import_time`. Every first-party module whose body
+:mod:`orpheus.memo._import_time`. Every first-party module whose body
 ran gets a statement pin; the census counted 103 to 121 such modules per
 generation, because the generating process imports from its first line.
 
@@ -934,17 +934,17 @@ unread table names it raises ``NameError`` at import. So the run's import
 set (the first-party modules whose module code started, in order, each
 with its bytes digest and the dotted name it was imported by) is kept with
 the outcome of importing it in a fresh interpreter
-(:class:`~orpheus.numerics.traced_memo.ImportOutcomePin`). Validation
+(:class:`~orpheus.memo.traced_memo.ImportOutcomePin`). Validation
 measures that outcome again only when some module's bytes differ, and the
 measurement is kept under ``.cache/import_outcomes`` by the digest of what
 it was measured on, the memo's own source among it, so one checkout state
 is measured once (:ref:`verification-cone-store-import-outcome`). A
 first-party module the run imported that no ``sys.modules`` entry names
 cannot be imported again by name, and is refused
-(:class:`~orpheus.numerics.traced_memo.UnnamedModule`); so is a module the
+(:class:`~orpheus.memo.traced_memo.UnnamedModule`); so is a module the
 run imported that the fresh interpreter fails to import at capture, since
 the run reached it by machinery of its own process and the outcome could
-never move (:class:`~orpheus.numerics.traced_memo.UnmeasurableImport`).
+never move (:class:`~orpheus.memo.traced_memo.UnmeasurableImport`).
 
 **Code that is not a def body.** Python 3.14 generates code objects from
 a signature or a class body rather than from a def body: lazy annotations
@@ -971,11 +971,11 @@ it pins, so they never pin the body of a def (M1.3c):
   ``tests/`` then, by AST).
 
 Code compiled under a file's name at a line where the file holds no such
-code is refused as :class:`~orpheus.numerics.traced_memo.Unpinnable`
+code is refused as :class:`~orpheus.memo.traced_memo.Unpinnable`
 (M1.6): it ran, and no pin can describe it.
 
 **Where a file belongs**, decided once by
-:func:`~orpheus.numerics.traced_memo.origin`: generated code
+:func:`~orpheus.memo.traced_memo.origin`: generated code
 (``<string>``, ``<frozen …>``) is dropped, because the interpreter pin and
 the statement that generated it cover it (and its names still enter the
 run's entry names: a dataclass's generated ``__init__`` names every field); a standard-library file is
@@ -988,7 +988,7 @@ install's version never moves: every generating process runs the editable
 ``RECORD`` of ``orpheus`` lists. A ``site-packages`` file that no
 ``RECORD`` lists is refused as unpinnable; so is every file of an
 ``*.egg-info`` install, whose file list is not a ``RECORD`` (`[M]`
-2026-10-15: no such install in the environment). :func:`~orpheus.numerics.traced_memo.origin`
+2026-10-15: no such install in the environment). :func:`~orpheus.memo.traced_memo.origin`
 takes the ownership table as a required argument, so no caller can build
 it once per file.
 
@@ -1034,7 +1034,7 @@ and the text read holds none (`[M]` 2026-10-16, the archivist's probe on
 numpy 2.4.4, scipy 1.17.1, mpmath 1.3.0 and SymPy 1.14.0).
 
 A file that several ``RECORD`` files list is refused as
-:class:`~orpheus.numerics.traced_memo.Unpinnable`: pinning one owner's
+:class:`~orpheus.memo.traced_memo.Unpinnable`: pinning one owner's
 version would leave an upgrade of the other unseen, a stale hit. qa's
 round-two review of #602 (finding F2) showed it on a fake site directory
 in which two distributions list ``ns/x.py`` and the last one read was
@@ -1048,7 +1048,7 @@ name-to-version mismatches and 0 duplicate normalised names).
 Over the 474 site-packages files a
 characteristic import loads, the new owner equals the old on 473; the one
 that moved is ``sphinxcontrib/tikz.py`` (``scratch/characteristic_architecture/p3/m602/fix/d1_probe.py``).
-The gates are ``tests/gates/numerics/test_traced_memo_ownership.py`` (D1
+The gates are ``tests/gates/memo/test_traced_memo_ownership.py`` (D1
 to D8 and D2b; D1 checks each owner against the standard library's own ``RECORD``
 reader, an independent route, over the site files that importing the
 libraries a characteristic block reaches loads: h5py, mpmath, numpy,
@@ -1077,7 +1077,7 @@ only the import system's own reads are exempt (the next paragraph).
 input: a file it opened for reading (by its bytes), a path it probed (by
 what was there: a file, a directory, something else or nothing), and a
 directory it listed (by its sorted names). The three kinds are one
-table in :mod:`orpheus.numerics._traced_memo_boot`: ``Observation(field,
+table in :mod:`orpheus.memo._traced_memo_boot`: ``Observation(field,
 observe, changed_by)``, with the values ``CONTENT`` (the field
 ``opened``, observed by ``file_digest``), ``PRESENCE`` (``probed``,
 ``presence``) and ``LISTING`` (``listed``, ``listing_digest``);
@@ -1138,7 +1138,7 @@ hung the miss).
 observed a path and THEN wrote, truncated, renamed or removed it, the
 state it saw no longer exists, so no state a later lookup can find pins
 the answer. The manifest raises
-:class:`~orpheus.numerics.traced_memo.Unpinnable`
+:class:`~orpheus.memo.traced_memo.Unpinnable`
 (``_unchanged_by_the_run``, applied to every kind: a path is refused when
 its kind's ``changed_by`` says the run's writes reach it and its state
 now differs from the observation; the message reads "the run observed it
@@ -1159,7 +1159,7 @@ its names are then not the ones the run saw.
 Gates ``test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left``,
 ``test_n3_a_character_device_opened_for_reading_is_never_digested`` and
 ``test_writes_through_os_open_and_a_rename_are_the_runs_own``, on both
-routes, in ``tests/gates/numerics/test_traced_memo_template.py``. The
+routes, in ``tests/gates/memo/test_traced_memo_template.py``. The
 first row was written for the retired pin-at-the-end rule and still
 asserts that N2's cache file is a ``Hit``; its revision for the refusal,
 and the rows for a counter, a presence flag, a listing and a truncation,
@@ -1168,14 +1168,14 @@ are owed by the test-architect.
 **Presence probes.** While a recording is active, ``os.stat`` and
 ``os.lstat`` are replaced by probes that record the path, so
 ``os.path.exists`` and its relatives are dependencies: each probed path
-becomes a :class:`~orpheus.numerics.traced_memo.PresencePin` holding what
+becomes a :class:`~orpheus.memo.traced_memo.PresencePin` holding what
 was there at the first probe (the previous paragraph). The probes are removed when the last active recording stops (recordings nest: every active recording is offered each event, and each holds its own ``sys.monitoring`` tool id). In P3, 0 of the 3 clients read a nuclear-data file (`[M]` the
 AST census: 4 files under ``orpheus/`` read data, all in ``micro_xs`` and
 the Sood cache), so the hook is for P4's generators.
 
 **Directory listings** (``os.listdir``, ``os.scandir``) are recorded,
 with the digest of the directory's sorted names at the first listing.
-:func:`~orpheus.numerics._traced_memo_boot.listing_digest` leaves out the
+:func:`~orpheus.memo._traced_memo_boot.listing_digest` leaves out the
 names in ``_LISTING_IGNORED``, today the interpreter's bytecode cache
 ``__pycache__``: it appears in a package directory as soon as anything
 imports from the directory and writes bytecode, and no run reads it by
@@ -1183,7 +1183,7 @@ name, so counting it moved the listing pin of every package directory after
 any ordinary run (`[M]` 2026-11-01, the cone store's builder: a plain
 ``pytest`` run between a capture and a ``select`` re-selected the whole
 suite). A real name added, removed or renamed still moves the digest. Gate
-``tests/gates/numerics/test_traced_memo_listing_ignores_bytecode.py``
+``tests/gates/memo/test_traced_memo_listing_ignores_bytecode.py``
 creates ``__pycache__`` (the digest must not move), then adds a module (the
 activation leg: it must); the test-architect's battery arm that empties
 ``_LISTING_IGNORED`` reddens it. A directory whose own name is ignored is
@@ -1216,7 +1216,7 @@ inside a generation looks its entry up, and that lookup validates the
 entry's manifest by reading each of its source files. The lookup runs
 quiet (``_traced_memo_boot.unrecorded``, a thread-local flag the audit
 hook and the ``os.stat`` probe both honour), so a parent holds its child
-by its :class:`~orpheus.numerics.traced_memo.ChildPin` only, and an edit
+by its :class:`~orpheus.memo.traced_memo.ChildPin` only, and an edit
 to one of the child's source files reaches the parent through the child's
 own validation, never as a data pin of the parent.
 
@@ -1228,7 +1228,7 @@ program whose answer the machine fixes: ``_ADMITTED_PROGRAMS`` holds
 resolved), never by its name, so a script named ``uname`` earlier on
 ``PATH`` is refused (third review); it is pinned by its executable's bytes
 (an operating-system update can replace it). Every other start is refused as
-:class:`~orpheus.numerics.traced_memo.Unpinnable`, because a started
+:class:`~orpheus.memo.traced_memo.Unpinnable`, because a started
 program's own reads and children are unrecorded: a pinned ``cat`` of an
 unpinned file served ``1.0`` where ``50.0`` was computed, and
 ``shell=True`` and ``/usr/bin/env python3`` slipped past a refusal keyed on
@@ -1262,7 +1262,7 @@ arm B-s, the pin read again after the run, reddens B15 alone. The same
 digest names the source indexes a generation writes
 (:ref:`verification-reference-cache-index-write-rule`). Validation
 compares the pin with the three files on disk now, as for every other
-source pin. :func:`~orpheus.numerics.traced_memo.trace_call` has no
+source pin. :func:`~orpheus.memo.traced_memo.trace_call` has no
 loader and keeps the read after the call
 (:ref:`verification-reference-cache-unseen`).
 
@@ -1319,7 +1319,7 @@ stale hit.
 A recording keys each code object by its file
 ---------------------------------------------
 
-``Recording.codes`` (:class:`~orpheus.numerics._traced_memo_boot.Recording`) maps
+``Recording.codes`` (:class:`~orpheus.memo._traced_memo_boot.Recording`) maps
 ``(co_filename, code)`` to the code object, one entry for each code object the run started, and the manifest reads
 its values. The key carries the file because a code object's equality does not: CPython's ``==`` and ``hash`` on a
 code object compare its name, its first line, its bytecode, its constants and its names, and never
@@ -1342,7 +1342,7 @@ Where equal code objects occur `[M]` 2026-11-01 (the archivist's census: every c
   empty. The cone store records ``tests/`` as first-party code (:ref:`verification-cone-store`), so it met the
   collision on its first fixture.
 
-The gate is ``tests/gates/numerics/test_traced_memo_records_each_file.py``: a premise row asserts that two equal
+The gate is ``tests/gates/memo/test_traced_memo_records_each_file.py``: a premise row asserts that two equal
 defs in two files, and two empty modules, still compare equal (if CPython ever makes them unequal, the file guards
 nothing and says so), and ``test_both_files_of_an_equal_pair_are_pinned``, which carries
 ``@pytest.mark.catches("ERR-124")``, traces a call through both twin defs and requires all four files (two empty
@@ -1355,12 +1355,12 @@ reddens it ("module pins lost to code equality") and leaves the premise row gree
 Refusals are values: ``collect_pins``
 -------------------------------------
 
-:func:`~orpheus.numerics.traced_memo.collect_pins` reads a stopped recording as pins and returns a
-:class:`~orpheus.numerics.traced_memo.CollectedPins`: the frozen set of pins of what the run did (``pins``: the code
+:func:`~orpheus.memo.traced_memo.collect_pins` reads a stopped recording as pins and returns a
+:class:`~orpheus.memo.traced_memo.CollectedPins`: the frozen set of pins of what the run did (``pins``: the code
 it ran, the files it read, probed and listed, and the ``ChildPin`` of each entry it read from the collecting store),
 named ``ran``; the frozen set of pins it depends on through an entry it read from another store (``through_reads``:
 what that entry was validated on, placed where the read found it, run by the generating process; the run may have
-run some of them too, so the two sets can meet); and a tuple of :class:`~orpheus.numerics.traced_memo.PinRefusal` values, one for each dependency no pin can
+run some of them too, so the two sets can meet); and a tuple of :class:`~orpheus.memo.traced_memo.PinRefusal` values, one for each dependency no pin can
 name, in the order the recording's events are read. A manifest and the cone store's selection cone hold the union
 (``CollectedPins.every``); the cone store's own cone, which placement reads as what the test ran, holds ``ran``
 alone (`[M]` 2026-11-04: with the two folded together, the numerics layer's 70 readers of a store under their own
@@ -1368,7 +1368,7 @@ alone (`[M]` 2026-11-04: with the two folded together, the numerics layer's 70 r
 ``convergence``). Every helper that can refuse (``origin``, the distribution pin, the
 compiled bytes of a source, the def pin, the program pin, the changed-by-the-run check, the import set's naming and
 its measured outcome) is called through one local
-wrapper, ``pinned``, which turns an :class:`~orpheus.numerics.traced_memo.Unpinnable` into an entry of the tuple and
+wrapper, ``pinned``, which turns an :class:`~orpheus.memo.traced_memo.Unpinnable` into an entry of the tuple and
 skips that one dependency, so one refusal does not lose the other pins. The manifest is the policy on top:
 ``_manifest`` raises ``Unpinnable(refusals[0])`` when the tuple is not empty and otherwise returns
 ``Manifest(every)``, because a generation's answer may be served only when everything it depended on is pinned. With
@@ -1390,47 +1390,47 @@ spelled absolute or relative).
    * - Kind
      - Field
      - What no pin can name
-   * - :class:`~orpheus.numerics.traced_memo.AmbiguousOwner`
+   * - :class:`~orpheus.memo.traced_memo.AmbiguousOwner`
      - ``path``
      - a ``site-packages`` file that the ``RECORD`` of several installed distributions lists, so no one version
        pins it
-   * - :class:`~orpheus.numerics.traced_memo.UnownedSitePackage`
+   * - :class:`~orpheus.memo.traced_memo.UnownedSitePackage`
      - ``path``
      - a ``site-packages`` file that no installed distribution's ``RECORD`` lists
-   * - :class:`~orpheus.numerics.traced_memo.UninstalledDistribution`
+   * - :class:`~orpheus.memo.traced_memo.UninstalledDistribution`
      - ``name``
      - a distribution that owns a file the run touched, with no version installed
-   * - :class:`~orpheus.numerics.traced_memo.NoDefAtLine`
+   * - :class:`~orpheus.memo.traced_memo.NoDefAtLine`
      - ``path``, ``line``, ``qualname``
      - code compiled under a file's name at a line where the file holds no def of that name
-   * - :class:`~orpheus.numerics.traced_memo.ChangedByRun`
+   * - :class:`~orpheus.memo.traced_memo.ChangedByRun`
      - ``path``
      - a path the run observed and then changed (the rule above), so no state of it pins the answer
-   * - :class:`~orpheus.numerics.traced_memo.NoRecordedBytes`
+   * - :class:`~orpheus.memo.traced_memo.NoRecordedBytes`
      - ``path``
      - code of a file that ran in a generating process without being imported (an ``exec``, a ``runpy``), so the
        loader recorded no bytes for it
-   * - :class:`~orpheus.numerics.traced_memo.SourceGone`
+   * - :class:`~orpheus.memo.traced_memo.SourceGone`
      - ``path``
      - code of a file that ran in a process without the pinned-source loader (``trace_call``, a cone store
        capture), whose bytes are read after the run, when the file no longer exists: the run, or something during
        it, removed the source
-   * - :class:`~orpheus.numerics.traced_memo.UnadmittedProcess`
+   * - :class:`~orpheus.memo.traced_memo.UnadmittedProcess`
      - ``program``
      - a process the run started that is not an admitted machine query, whose own reads and children no recording
        sees
-   * - :class:`~orpheus.numerics.traced_memo.UnnamedModule`
+   * - :class:`~orpheus.memo.traced_memo.UnnamedModule`
      - ``path``
      - a first-party module the run imported that no ``sys.modules`` entry names, so its import outcome cannot be
        measured again by name (:ref:`verification-cone-store-import-outcome`)
-   * - :class:`~orpheus.numerics.traced_memo.UnmeasurableImport`
+   * - :class:`~orpheus.memo.traced_memo.UnmeasurableImport`
      - ``name``, ``error``
      - a module the run imported that a fresh interpreter, importing it by its dotted name, fails to import (the run
        reached it through import machinery of its own process), so its import outcome could never move
 
 ``SourceGone`` exists because a source removed during the run would otherwise make ``_compiled_bytes`` raise a bare
 ``FileNotFoundError``, which is not an ``Unpinnable`` and so escapes ``pinned``: a run that deletes a module it
-imported and ran (``tests/gates/numerics/test_traced_memo_validation.py::test_m2_2_a_removed_def_and_a_removed_file_are_stale``
+imported and ran (``tests/gates/memo/test_traced_memo_validation.py::test_m2_2_a_removed_def_and_a_removed_file_are_stale``
 does) would kill a cone store capture child and make ``trace_call`` raise (`[M]` the test-architect, 2026-11-01,
 ``scratch/verification_tree/cone_store/m1_diagnosis.md``). The gates are in
 ``tests/gates/tools/test_cone_store_memo_coexistence.py``: ``test_m3_collect_pins_returns_every_refusal_and_manifest_raises_the_first``
@@ -1448,7 +1448,7 @@ alone.
 Validation runs nothing in its own process
 ==========================================
 
-:func:`~orpheus.numerics.traced_memo.validate` asks every pin whether the
+:func:`~orpheus.memo.traced_memo.validate` asks every pin whether the
 checkout still matches it and returns every reason it does not, sorted. It
 imports nothing and runs nothing in its own process (M2.4 counts it): a
 def pin reads its def's digest from the source index of the file's current
@@ -1472,19 +1472,19 @@ the read-back validation of the cheap-miss fixture at ``155fbdbd`` and at
 
 A lookup's verdict is the closed sum ``Hit | Absent | Stale | Corrupt``:
 
-* :class:`~orpheus.numerics.traced_memo.Hit`: the entry validates. It
+* :class:`~orpheus.memo.traced_memo.Hit`: the entry validates. It
   carries the payload digest, the payload tree and the arrays exactly as
   they were verified, and those are what is decoded and served: a second
   read of the file after verifying it could meet an interleaved write and
   serve a value no generation produced (review finding qa 7).
-* :class:`~orpheus.numerics.traced_memo.Absent`: no entry.
-* :class:`~orpheus.numerics.traced_memo.Stale`: the manifest no longer
+* :class:`~orpheus.memo.traced_memo.Absent`: no entry.
+* :class:`~orpheus.memo.traced_memo.Stale`: the manifest no longer
   describes the checkout, with every reason (``function <path>:<qualname>
   changed``, ``module <path>: an import-time statement the run observes
   changed``, ``importing the run's <N> first-party modules gives another
   outcome``, ``module <path>: the entry names … are not kept``, ``import
   set … is not kept``, ``child …: its payload … became …``).
-* :class:`~orpheus.numerics.traced_memo.Corrupt`: the entry cannot be read,
+* :class:`~orpheus.memo.traced_memo.Corrupt`: the entry cannot be read,
   or its payload does not match its digest. Every error raised while the
   entry's bytes are parsed (the ``.npz`` opened, the entry's JSON decoded,
   the manifest rebuilt) is this verdict and never an exception out of
@@ -1525,7 +1525,7 @@ the system, reading and assembly gates ran warm in 222 s and with no memo
 in 221 s: a warm store saved nothing, where on 2026-10-14 the prototype's
 warm pass had saved 140 s. A cProfile of the warm run, 292.5 s under the
 profiler, put 111.5 s in the 5 346 calls of
-:func:`~orpheus.numerics.traced_memo.validate` (5 347 lookups). Over the
+:func:`~orpheus.memo.traced_memo.validate` (5 347 lookups). Over the
 whole profiled process there were 832 287 file opens, 711 872 of them
 through ``Path.read_bytes``, and 1 406 174 ``stat`` calls; the lookup of
 a pinned source's file on ``sys.path`` (``_locate``) ran 690 354 times,
@@ -1546,20 +1546,20 @@ pin validates its child recursively with a checkout of its own, so one
 hit of a solve read the same sources once more per child.
 
 **The primitive.** Three objects in the standard-library-only boot module
-:mod:`orpheus.numerics._traced_memo_boot` (the user's ruling of
+:mod:`orpheus.memo._traced_memo_boot` (the user's ruling of
 2026-10-17: the change-detection layer is a primitive of that module, so
 it moves with the harness package of #501 and imports nothing from
 ``orpheus``; it is the first stage of the change-detection layer of
 ``.claude/plans/verification_tree_refinement.md``, ruling 15):
 
-* :class:`~orpheus.numerics._traced_memo_boot.FileIdentity` is a path's
+* :class:`~orpheus.memo._traced_memo_boot.FileIdentity` is a path's
   identity on disk as ``stat`` reads it: its device, its inode, its size,
   and its modification and change times in nanoseconds.
-* :class:`~orpheus.numerics._traced_memo_boot.Witness` records the stats
+* :class:`~orpheus.memo._traced_memo_boot.Witness` records the stats
   one read makes, each taken BEFORE the read of what it guards, and
   whether every one of them was settled. A stat that finds nothing is
   recorded too, as ``None``.
-* :class:`~orpheus.numerics._traced_memo_boot.Kept` is a read kept for
+* :class:`~orpheus.memo._traced_memo_boot.Kept` is a read kept for
   the life of the process. It is built from a function
   ``read(key, witness)``. Its key holds the read's inputs that are not
   files (a ``sys.path``, a working directory, a name); its witness holds
@@ -1593,7 +1593,7 @@ and requires the next validation to name the edit.
 can leave the size and both times as the first write left them; git calls
 such index entries "racily clean". A stat is settled when the later of
 its modification and change times lies more than
-:data:`~orpheus.numerics._traced_memo_boot.TRUSTED_AGE_NS` (2 s, which
+:data:`~orpheus.memo._traced_memo_boot.TRUSTED_AGE_NS` (2 s, which
 covers FAT's two-second timestamps, the coarsest of a common filesystem)
 before the process's wall clock. A read with any unsettled stat is
 returned and not kept, so the next call reads again. A read that depended
@@ -1616,7 +1616,7 @@ elegance review of the store's first increment, finding V4, found it
 written twice before the parameter existed).
 
 **The five kept reads**, each a module-level ``Kept`` of
-:mod:`orpheus.numerics.traced_memo`:
+:mod:`orpheus.memo.traced_memo`:
 
 .. list-table:: What a validation keeps for the process
    :header-rows: 1
@@ -1644,16 +1644,16 @@ written twice before the parameter existed).
    * - ``_FILE_DIGESTS``
      - the data pin's path (absolute, as the recording observed it)
      - the file
-     - :class:`~orpheus.numerics.traced_memo.DataPin`
+     - :class:`~orpheus.memo.traced_memo.DataPin`
    * - ``_LISTINGS``
      - the listing pin's path
      - the directory
-     - :class:`~orpheus.numerics.traced_memo.ListingPin`
+     - :class:`~orpheus.memo.traced_memo.ListingPin`
    * - ``_MEMO_DIGESTS``
      - the memo's four source files (``traced_memo.py``,
        ``_traced_memo_boot.py``, ``_import_time.py``, ``content.py``)
      - the four files
-     - :class:`~orpheus.numerics.traced_memo.MemoPin`, and the memo pin
+     - :class:`~orpheus.memo.traced_memo.MemoPin`, and the memo pin
        of a manifest built outside a generation (``trace_call``'s)
 
 ``sys.path`` and the working directory are in the KEY, never in the
@@ -1667,8 +1667,8 @@ a change, the read is made again, and the shadowing file is the one read
 (gate M2.3f). ``_DISTRIBUTIONS`` names the files it guards from the found
 directory and not from what ``RECORD`` lists, so a distribution whose
 ``RECORD`` does not list its ``METADATA`` is still guarded (the elegance
-review, A6). :func:`~orpheus.numerics._traced_memo_boot.file_digest` and
-:func:`~orpheus.numerics._traced_memo_boot.listing_digest` take an
+review, A6). :func:`~orpheus.memo._traced_memo_boot.file_digest` and
+:func:`~orpheus.memo._traced_memo_boot.listing_digest` take an
 optional witness, so a recording's observation of a file and a pin's
 validation of it are one definition.
 
@@ -1747,7 +1747,7 @@ installs a numpy ``9.9.9`` into a directory already on ``sys.path`` and
 then rewrites that install's ``RECORD`` in place.
 
 **The gates and their first reds.** The rows are in
-``tests/gates/numerics/test_traced_memo_validation.py``. Each arm is
+``tests/gates/memo/test_traced_memo_validation.py``. Each arm is
 applied at ``pytest_configure`` in the process pytest runs, over the 27
 rows of the file (`[M]` 2026-10-17,
 ``scratch/characteristic_architecture/p3/c3/hitcost/arms2.log``):
@@ -1891,7 +1891,7 @@ What an index holds, and why it holds no tree
 ---------------------------------------------
 
 An index is a ``_SourceIndex`` (a frozen value, private to
-:mod:`orpheus.numerics.traced_memo`), built from one parse of a text's
+:mod:`orpheus.memo.traced_memo`), built from one parse of a text's
 bytes by ``_parsed_index(data)``. It has three parts:
 
 * ``defs``: one ``_IndexedDef`` per outermost def, in the order of the
@@ -1909,7 +1909,7 @@ bytes by ``_parsed_index(data)``. It has three parts:
   ``<setcomp>``, ``<dictcomp>``) and the node's inclusive span. A PEP 695
   alias (``type V = …``) is a scope named ``V``: its value is evaluated
   lazily by a code object of that name.
-* ``statements``: one ``Statement`` (:mod:`orpheus.numerics._import_time`)
+* ``statements``: one ``Statement`` (:mod:`orpheus.memo._import_time`)
   per import-time statement, in source order (a class statement followed by
   its body's statements): its digest (every def body read as ``pass``), the
   names it binds, the names it reads at import, whether it is an effect, an
@@ -1921,7 +1921,7 @@ Four queries read it:
 * ``digest(qualname, ordinal)``: the digest of the ``ordinal``-th def of
   that name (``-1``, the default, is the last, the one Python binds), or
   ``None`` when there is none, which ``DefPin.stale`` reports as "gone".
-  The public :func:`~orpheus.numerics.traced_memo.function_digest` is this
+  The public :func:`~orpheus.memo.traced_memo.function_digest` is this
   query.
 * ``enclosing(line)``: the outermost def whose span holds ``line``, or
   ``None``.
@@ -1941,7 +1941,7 @@ before its def's ``body_line``. Otherwise the def that holds it is
 ``enclosing(line)``, and ``holds`` must confirm that a node of that name
 spans the line inside that def; the pin is that def's ``DefPin``, or none
 when no def encloses the line. A code object no node accounts for is
-refused as :class:`~orpheus.numerics.traced_memo.Unpinnable`
+refused as :class:`~orpheus.memo.traced_memo.Unpinnable`
 (:ref:`verification-reference-cache-manifest`, "Code that is not a def
 body").
 
@@ -1958,7 +1958,7 @@ body").
   was a second type beside the index, a parsed text holding its tree and
   its defs, and the two answered ``digest`` with α-identical bodies (the
   elegance review of #602 round two, finding F1): one concept twice, which
-  would let the public :func:`~orpheus.numerics.traced_memo.function_digest`
+  would let the public :func:`~orpheus.memo.traced_memo.function_digest`
   and the pins drift apart under a change to one of them. The parse is now
   the index's constructor, and one type answers every query.
 
@@ -2022,7 +2022,7 @@ pinned-source loader's cache), and beside ``sets`` (the sets a pin names by
 their digest: a run's entry names, a run's import set) and
 ``import_outcomes`` (the measured import outcomes). The stores share one
 root, ``CACHE``,
-defined once in :mod:`orpheus.numerics._traced_memo_boot` as the real path
+defined once in :mod:`orpheus.memo._traced_memo_boot` as the real path
 of the repository's ``.cache``; before ``155fbdbd`` the root was spelled
 three times, two of them resolving symbolic links and one not (the
 elegance review, finding F3). The file is one header line, then the body:
@@ -2048,7 +2048,7 @@ writes the file again over it. The reads run under
 no recording pins a file under ``.cache/sources`` (gates B14 and B18).
 
 **Writing** goes through ``write_atomically`` in
-:mod:`orpheus.numerics._traced_memo_boot`, the one atomic write of the
+:mod:`orpheus.memo._traced_memo_boot`, the one atomic write of the
 memo's stores: the bytes go to ``<path>.<pid>.<thread id>.part`` in
 the same directory and are moved into place with one ``os.replace``, so a
 reader finds a whole index or none (gate B11, four processes writing and
@@ -2142,7 +2142,7 @@ lookup.
 The gates and their witnesses
 -----------------------------
 
-The rows are ``tests/gates/numerics/test_traced_memo_source_index.py``,
+The rows are ``tests/gates/memo/test_traced_memo_source_index.py``,
 except B5, which reads a real manifest of characteristic blocks and is
 therefore a derivations row,
 ``tests/gates/derivations/test_characteristic_block_memo.py``
@@ -2244,8 +2244,8 @@ corrupt.
 The payload: exact, typed, never a pickle
 =========================================
 
-The answer is written by :func:`~orpheus.numerics.traced_memo.encode_payload`
-and read by :func:`~orpheus.numerics.traced_memo.decode_payload`. It admits
+The answer is written by :func:`~orpheus.memo.traced_memo.encode_payload`
+and read by :func:`~orpheus.memo.traced_memo.decode_payload`. It admits
 exactly these types, and nothing that merely subclasses one of them:
 
 * ``None``, ``bool``, ``str``, ``int`` (as its decimal text) and
@@ -2265,7 +2265,7 @@ exactly these types, and nothing that merely subclasses one of them:
 what makes a subclass the subclass: a ``NamedTuple`` comes back a
 ``tuple``, an ``IntEnum`` an ``int``, and a masked array loses its mask
 (review finding qa 3). A subclass of an admitted type is therefore refused
-with :class:`~orpheus.numerics.traced_memo.Unencodable`, never written as
+with :class:`~orpheus.memo.traced_memo.Unencodable`, never written as
 its base.
 
 **Only declared dataclasses.** A payload may name only a type the
@@ -2311,7 +2311,7 @@ envelope frame carrying the parent's ``sys.path``, on the standard input of
 
 .. code-block:: text
 
-   <the parent's interpreter> [-O…] -P orpheus/numerics/_traced_memo_boot.py
+   <the parent's interpreter> [-O…] -P orpheus/memo/_traced_memo_boot.py
 
 started in the parent's working directory with a declared environment only
 (below). That is the fresh route; on a platform where forking is measured
@@ -2342,7 +2342,7 @@ the same arguments". `[M]` 2026-10-17: the first stacked client,
 ``phi_cylinder_vacuum`` under ``lru_cache``, failed
 ``test_a_small_cylinders_layer_is_graded_outside_slow[interface]`` with
 exactly that error. Two gates in
-``tests/gates/numerics/test_traced_memo_process.py``, each with its first
+``tests/gates/memo/test_traced_memo_process.py``, each with its first
 red:
 
 * **M3.1b**: a memo under ``lru_cache`` in the synthetic ``beta`` module
@@ -2359,15 +2359,15 @@ say why). The resolution is the door for any later wrapping decorator.
 
 **The boot script imports only the standard library**, so it can start
 recording before any ``orpheus`` code runs: the shared start of a
-generating process and a template, ``_boot``, starts a :class:`~orpheus.numerics._traced_memo_boot.Recording`,
+generating process and a template, ``_boot``, starts a :class:`~orpheus.memo._traced_memo_boot.Recording`,
 and only then does it load the job and the memo. It is run by path with
 ``-P``, because the script's own directory would otherwise be first on
 ``sys.path``, and ``orpheus/numerics/operator.py`` would shadow the
 standard library's ``operator``.
 
-**One recorder.** :class:`~orpheus.numerics._traced_memo_boot.Recording`
+**One recorder.** :class:`~orpheus.memo._traced_memo_boot.Recording`
 serves both the generating process and
-:func:`~orpheus.numerics.traced_memo.trace_call`, the in-process
+:func:`~orpheus.memo.traced_memo.trace_call`, the in-process
 instrument the manifest gates use, so the gates exercise the production
 recorder (elegance finding S2). A recording holds, across every thread of
 the process, every code object that started, every path opened for
@@ -2431,7 +2431,7 @@ until 2026-10-26; the store then held one population per shell (`[M]`
 entry. A thread count changes the order in which BLAS sums a product, so
 it belongs to the answer; fixing it, rather than dropping it from the
 pin, keeps it there and makes it one value. The
-pin, an :class:`~orpheus.numerics.traced_memo.EnvironmentPin`, holds the
+pin, an :class:`~orpheus.memo.traced_memo.EnvironmentPin`, holds the
 declared variables as the run RECEIVED them, ``PATH`` excluded: ``PATH``
 is passed (``uname`` is found through it) but the one program a
 generation may start is admitted by its system path and pinned by its
@@ -2457,7 +2457,7 @@ rule P4 inherits is that a withdrawn generator is never memoised.
 The bypass
 ==========
 
-``with bypass():`` (:func:`~orpheus.numerics.traced_memo.bypass`, Q9)
+``with bypass():`` (:func:`~orpheus.memo.traced_memo.bypass`, Q9)
 makes every memoised call inside the block run in the calling process,
 reading and writing nothing. It is the spelling for a test that
 monkeypatches anything a generation runs: a patch never reaches a fresh
@@ -2485,14 +2485,14 @@ and the eight slow cylinder point-reading rows that read through
 ``CharacteristicDerivation.evaluate`` (concept 2; the clients, below). A
 battery or a ``catches`` re-drop on such rows mutates textually (a copied
 tree or a worktree, so the defect is on disk) or has its plugin enter
-:func:`~orpheus.numerics.traced_memo.bypass` at ``pytest_configure``;
+:func:`~orpheus.memo.traced_memo.bypass` at ``pytest_configure``;
 otherwise it reads 0 reds and reports a catcher as blind, or the tree as
 clean (``vv-principles`` #17).
 
 The bypass is a context manager, not an environment variable, because an
 environment variable is exactly the ambient state the ambient-state step
 removed (below). It and
-:func:`~orpheus.numerics.traced_memo.cache_root` (read and write under
+:func:`~orpheus.memo.traced_memo.cache_root` (read and write under
 another root) are entries on one process-wide stack of targets; a stack
 in context variables would not reach a worker thread (review finding qa 2,
 elegance finding C3). The other side of that choice is a declared limit:
@@ -2739,7 +2739,7 @@ function a value takes.
 
 *Why no* ``lru_cache`` *sits above the memo.* A function cache stacked above
 a memo serves, for the life of the process, whatever the memo returned
-first, so under :func:`~orpheus.numerics.traced_memo.bypass` it serves the
+first, so under :func:`~orpheus.memo.traced_memo.bypass` it serves the
 value from before the bypass. `[M]` the elegance review's probe2: after a
 module constant was patched under ``bypass()``, a memo under ``lru_cache``
 returned 2.0 before and 2.0 after the patch, a bare memo 2.0 and 10.0.
@@ -2761,7 +2761,7 @@ and, since concept 3, ``[ps1982]``, the PS-1982 solver's module. ``tests.gates._
 module imports at any depth of its source, a function body's import
 included; the gate reads the oracle module and every ``tests`` module it
 reaches through its imports, at any depth, and allows one ``orpheus``
-name, ``orpheus.numerics.traced_memo`` (with its ``traced_memo``). Its
+name, ``orpheus.memo.traced_memo`` (with its ``traced_memo``). Its
 control, in the same gate: the same census of the characteristic
 reference's ``lines`` module must find ``orpheus`` imports beyond the
 memo, or the gate fails with "the census sees no import". Its first reds,
@@ -3435,10 +3435,10 @@ imports already done, so the interpreter's start and the imports are
 paid once per template instead of once per miss. The design is cut E of
 the round-two specification
 (``scratch/characteristic_architecture/p3/m602/round2_gate_spec.md`` §3);
-the code is :func:`~orpheus.numerics._traced_memo_boot.template` and, in
+the code is :func:`~orpheus.memo._traced_memo_boot.template` and, in
 the asking process, ``_SLOT.answer`` and ``_Template`` in
-:mod:`orpheus.numerics.traced_memo`; the gates are
-``tests/gates/numerics/test_traced_memo_template.py``.
+:mod:`orpheus.memo.traced_memo`; the gates are
+``tests/gates/memo/test_traced_memo_template.py``.
 
 **Why a forked child may stand in for a fresh process.** The ruling of
 :ref:`verification-reference-cache-fresh-process` is about what the
@@ -3506,7 +3506,7 @@ the imports are done it builds the manifest of the snapshot
 (``_manifest``), adds a data pin on the whole bytes of every first-party
 source the loader compiled (``Manifest.with_compiled_sources``), and
 before each fork it validates that manifest
-(:func:`~orpheus.numerics.traced_memo.validate`). The compiled sources are
+(:func:`~orpheus.memo.traced_memo.validate`). The compiled sources are
 pinned whole, not only by the def and statement pins of the imports' own
 run, because that run pins a def only if its body ran: the body of a def
 the imports defined and never called has no pin in it, yet a generation
@@ -3546,7 +3546,7 @@ product; battery F arm E-e, the refusal removed, reddens E5 and S4 (below).
 
 **The answers are a closed sum.** Every frame a generating process or a
 template sends back unpickles to one of four types in
-:mod:`orpheus.numerics.traced_memo`:
+:mod:`orpheus.memo.traced_memo`:
 
 * ``_Generated``: the entry is written;
 * ``_Failed(error, described)``: the call, or the writing of its entry,
@@ -3605,7 +3605,7 @@ new state and validates).
   and an answer is never served from a template that refused.
 
   The refusal is warned once, when forking turns off, as
-  :class:`~orpheus.numerics.traced_memo.TemplateRefused` with the
+  :class:`~orpheus.memo.traced_memo.TemplateRefused` with the
   template's reasons. Until then it was silent. A process that turned
   forking off ran slower, and its forked-route rows skipped, with no
   cause printed. ``[M]`` 2026-10-16: one full ``-m "not slow"`` run of the
@@ -3646,10 +3646,10 @@ new state and validates).
   call's direct entry pins.
 
 **The scope boundary: the platform the protocol ran on.**
-``FORK_MEASURED`` in :mod:`orpheus.numerics._traced_memo_boot` is one
+``FORK_MEASURED`` in :mod:`orpheus.memo._traced_memo_boot` is one
 table, the only door to forking: a platform, named by the operating
 system, the machine and numpy's BLAS
-(:func:`~orpheus.numerics.traced_memo.fork_platform`), forks only when the
+(:func:`~orpheus.memo.traced_memo.fork_platform`), forks only when the
 table lists it, with that platform's OS-thread counter. Today it lists
 one, ``("darwin", "arm64", "accelerate")``, the platform the fork-safety
 protocol ran on. Every other platform, Linux with OpenBLAS on continuous
@@ -3659,7 +3659,7 @@ is the protocol run on the other platform and an OS-thread counter for
 it.
 
 **One question before a fork:**
-:func:`~orpheus.numerics._traced_memo_boot.fork_blockers` takes the
+:func:`~orpheus.memo._traced_memo_boot.fork_blockers` takes the
 platform (``fork_platform()``) and returns why the asking process must not
 fork now: ``"the fork protocol is not measured on <platform>"`` when the
 table does not list it, otherwise the reasons of the thread check (more
@@ -3672,7 +3672,7 @@ cone store asks it before each of its forks (:ref:`verification-cone-store-captu
 so the store re-spells neither the table nor the counter (its gate R9
 asserts that ``tools/cone_store/`` calls ``fork_blockers`` and names
 neither ``FORK_MEASURED`` nor ``_fork_unsafe``). One check stays outside
-it: ``_forks_here`` in :mod:`orpheus.numerics.traced_memo`, which decides
+it: ``_forks_here`` in :mod:`orpheus.memo.traced_memo`, which decides
 whether a miss starts a template at all, reads the platform half of the
 table directly (``fork_platform() in FORK_MEASURED``) beside its two other
 conditions (no pinned-source loader, no refused template); the thread half
@@ -3785,7 +3785,7 @@ none of those ways touched the three real clients. Hardening without end
 against generators nobody writes was refused; instead the memo states the
 contract a memoised function obeys, and what the contract excludes the
 recorder does not try to see. The contract, as it stands in
-:mod:`orpheus.numerics.traced_memo`'s module docstring:
+:mod:`orpheus.memo.traced_memo`'s module docstring:
 
 * reads data only by opening real files (``open``, ``Path.read_*``,
   ``np.load``), never through a loader (``pkgutil.get_data``) or a
@@ -3840,7 +3840,7 @@ the fourth in the cone store's review of 2026-11-01):
   and the same for one that depends on what the cache holds. `[M]`
   2026-11-01 (qa): the four directory censuses in the tree filtered
   ``__pycache__`` then (the comment above ``_LISTING_IGNORED`` in
-  :mod:`orpheus.numerics._traced_memo_boot`).
+  :mod:`orpheus.memo._traced_memo_boot`).
 
 
 .. _verification-reference-cache-unseen:
@@ -3883,10 +3883,10 @@ what the generator contract excludes (the section above):
   process an ``exec`` of a first-party file read by hand, or ``runpy``,
   produces code whose bytes no loader recorded; a re-read after the run
   could pin bytes that never ran, so the manifest refuses it as
-  :class:`~orpheus.numerics.traced_memo.Unpinnable` (gate P7). No
+  :class:`~orpheus.memo.traced_memo.Unpinnable` (gate P7). No
   generator in ``orpheus/`` does it (`[M]` the census in
   :ref:`verification-reference-cache-pinned-source-loader`).
-* :func:`~orpheus.numerics.traced_memo.trace_call` **keeps the re-read,
+* :func:`~orpheus.memo.traced_memo.trace_call` **keeps the re-read,
   and with it the window.** The in-process instrument has no loader: the
   modules it runs were imported before it was called, possibly from a
   timestamp ``.pyc``, so it pins a source file by reading it after the
@@ -3906,7 +3906,7 @@ what the generator contract excludes (the section above):
   Offered, the enclosing recording took the whole bytes of every traced
   source as its caller's data dependency, so a docstring edit to that source
   re-selected the caller (`[M]` 2026-11-01, the cone store's builder). Gate
-  ``tests/gates/numerics/test_traced_memo_nested_recording.py``: an outer
+  ``tests/gates/memo/test_traced_memo_nested_recording.py``: an outer
   ``Recording`` around a ``trace_call`` holds no read of the traced source,
   and the inner manifest still pins it (the activation leg); the
   test-architect's battery arm that builds the manifest outside
@@ -4083,7 +4083,7 @@ module that nothing reads leaves it valid (since B2 of the cone store,
 ``python -O -m pytest --durations=0`` per file, serially; the scripts and
 logs are in ``scratch/reference_architecture/p3/timing/``). Each file ran
 four times, in this order over the whole list: with the memo bypassed (a
-pytest plugin entering :func:`~orpheus.numerics.traced_memo.bypass` for
+pytest plugin entering :func:`~orpheus.memo.traced_memo.bypass` for
 the session: today's arithmetic), cold (an empty store), and warm twice.
 "Cold" is cold for the first file only: a later file of the cold pass
 meets the entries the earlier ones wrote. The warm column is the minimum
@@ -4241,7 +4241,7 @@ Each limit is a phase of #405 in the plan of record
 * **An** ``*.egg-info`` **install is refused.** A site-packages file is
   pinned by the version and ``RECORD`` of the distribution whose ``RECORD`` lists it,
   and an egg-info install has no ``RECORD``, so a run that touches one of
-  its files is :class:`~orpheus.numerics.traced_memo.Unpinnable` and
+  its files is :class:`~orpheus.memo.traced_memo.Unpinnable` and
   writes no entry. Before ``0c569df8`` such a file was pinned through the
   top-level map; the refusal is loud, never a stale hit, and `[M]`
   2026-10-15 no egg-info install is in the environment. A generator that
@@ -4257,7 +4257,7 @@ findings on the first commit, 7 of which served a stale or a wrong value;
 the elegance-enforcer found 2 violations and 3 concerns, overlapping qa's
 on the def walk, the type tree and the data pins. All were fixed in P3, at
 their roots, before anything reached ``main``. Each finding is now a gate
-in ``tests/gates/numerics/test_traced_memo_findings.py`` (18 rows), the
+in ``tests/gates/memo/test_traced_memo_findings.py`` (18 rows), the
 assertion form of qa's reproducer. The rows lettered A, P, E and N are
 earlier: the test-architect's gates found them in the prototype the
 specification was written against, before the memo was built. The three

@@ -33,7 +33,7 @@ from pathlib import Path
 
 import pytest
 
-from orpheus.numerics import _traced_memo_boot
+from orpheus.memo import _traced_memo_boot
 
 from . import _traced_memo_api as api
 from .test_traced_memo_findings import _Package
@@ -41,8 +41,8 @@ from .test_traced_memo_findings import _Package
 pytestmark = pytest.mark.foundation
 
 REPO = Path(__file__).resolve().parents[3]
-_M31 = 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never'
-_M32 = 'tests/gates/numerics/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does'
+_M31 = 'tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never'
+_M32 = 'tests/gates/memo/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does'
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ def _entry_is_whole(data: bytes, key: bytes | None = None) -> bool:
 
 
 GENERATOR = '''
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
     SCALE = 3.0
 
@@ -133,7 +133,7 @@ def test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale(make, tmp
         import os
         import time
 
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         SCALE = 3.0
 
@@ -222,7 +222,7 @@ def test_p4_a_module_found_by_a_meta_path_finder_is_compiled_from_pinned_bytes(m
     loose.write_text("def f(x):\n    return x + 1.0\n")
     name = f"loose_p4_{os.urandom(4).hex()}"
     package = make(__init__=LOOSE_INIT.format(loose=str(loose), name=name), m=f'''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -245,7 +245,7 @@ import sys
 sys.path.insert(0, {root!r})
 import orpheus  # through the editable install's finder: the repository root is on no sys.path entry
 assert not any(p and orpheus.__file__.startswith(p.rstrip("/") + "/") for p in sys.path), (orpheus.__file__, sys.path)
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 import {name}.m as m
 with tm.cache_root({cache!r}):
     print(m.generate(1.5))
@@ -279,7 +279,7 @@ def test_p5_the_generation_writes_no_pycache_and_its_bytecode_entry_carries_its_
     the digest of the payload (32 bytes) and the marshalled code. First red: the loader not installed, which
     writes a timestamp ``.pyc`` for ``n``."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -299,7 +299,7 @@ def test_p5_the_generation_writes_no_pycache_and_its_bytecode_entry_carries_its_
 _P6_DRIVER = '''
 import sys
 sys.path[:0] = [{repo!r}, {root!r}]  # the tree under test first, so a copy's boot is the one generating
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 import {name}.m as m
 with tm.cache_root({cache!r}):
     print(m.debug_level(0.0))
@@ -313,7 +313,7 @@ def test_p6_each_optimisation_level_has_its_own_bytecode(make, tmp_path):
     this level then still answers with this level's value, and the two levels' entries lie in two directories.
     First red: a cache key and directory without the ``-O`` level, which serves the other level's code."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -332,7 +332,7 @@ def test_p6_each_optimisation_level_has_its_own_bytecode(make, tmp_path):
 
 
 _P7_SOURCE = '''
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
     SIBLING = {sibling!r}
 
@@ -359,7 +359,7 @@ def test_p7_code_of_a_file_the_loader_did_not_compile_is_refused(make, tmp_path)
     assert api.entry_files(tmp_path / "cache") == []
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_compiled_bytes.py::test_p7_code_of_a_file_the_loader_did_not_compile_is_refused')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_compiled_bytes.py::test_p7_code_of_a_file_the_loader_did_not_compile_is_refused')
 def test_p7b_trace_call_still_pins_the_exec_d_file_by_a_re_read(make):
     """P7b: :func:`trace_call`, the in-process instrument, has no loader; it keeps the re-read, so the same
     generator's sibling def is pinned. First red: the refusal applied to ``trace_call`` too."""
@@ -417,7 +417,7 @@ def _corruptions(data: bytes, other: bytes) -> dict[str, bytes]:
             "digest-bit": flip(data, 40), "other-file": other}
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_compiled_bytes.py::test_p5_the_generation_writes_no_pycache_and_its_bytecode_entry_carries_its_key')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_compiled_bytes.py::test_p5_the_generation_writes_no_pycache_and_its_bytecode_entry_carries_its_key')
 @pytest.mark.parametrize("kind", ["empty", "half", "payload-bit", "digest-bit", "other-file"])
 def test_p9_a_corrupt_bytecode_entry_is_recompiled_never_run(make, kind):
     """P9: the cache entry of the generator's module is corrupted (truncated to nothing or to half, one bit of
@@ -428,7 +428,7 @@ def test_p9_a_corrupt_bytecode_entry_is_recompiled_never_run(make, kind):
     m = package.module()
     assert m.generate(1.0) == 3.0
     path = _bytecode_entry(package.dir / "m.py")
-    code = compile("SCALE = 99.0\nfrom orpheus.numerics.traced_memo import traced_memo\n"
+    code = compile("SCALE = 99.0\nfrom orpheus.memo.traced_memo import traced_memo\n"
                    "@traced_memo\ndef generate(x: float) -> float:\n    return x * SCALE\n", str(package.dir / "m.py"), "exec")
     payload = marshal.dumps(code)
     other = hashlib.blake2b(b"another source", digest_size=32).digest() + hashlib.blake2b(payload, digest_size=32).digest() + payload
@@ -446,7 +446,7 @@ def test_a1_a_protocol_stub_whose_annotations_are_read_generates(make, tmp_path)
     package = make(m='''
         import typing
 
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         class Proto(typing.Protocol):

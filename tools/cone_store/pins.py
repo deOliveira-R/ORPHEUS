@@ -1,6 +1,6 @@
 """The memo's pins as the store keeps them: one row form (the memo's own) and paths relative to the repository.
 
-A pin is the memo's own object (:data:`orpheus.numerics.traced_memo.Pin`); its row is the memo's
+A pin is the memo's own object (:data:`orpheus.memo.traced_memo.Pin`); its row is the memo's
 (``Manifest.to_json``: ``[kind, *fields]``) and its decoder the memo's (``Manifest.from_json``). The one
 difference between a pin as the memo makes it and as the store keeps it is where a path points: the memo's
 ``DefPin`` and ``StatementsPin`` name a file relative to a ``sys.path`` entry (or absolutely), and its ``DataPin``,
@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 
-from orpheus.numerics import traced_memo as memo
+from orpheus.memo import traced_memo as memo
 
 #: Pins that name a file's bytes: judged by the file's identity first (stage one), by the pin second.
 CONTENT_PINS = (memo.DefPin, memo.StatementsPin, memo.DataPin)

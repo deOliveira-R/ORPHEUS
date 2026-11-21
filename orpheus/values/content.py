@@ -260,7 +260,7 @@ class _Exactly:
         processes for one call (qa, #592 review, 2026-10-10: five unseeded processes split three and two over
         an eigen gauge's two cells). The generation never sees the caller's order either: it rebuilds its
         arguments under ``PYTHONHASHSEED=0``. Iteration order is therefore no input of a memoised function,
-        and the generator contract says so (:mod:`~orpheus.numerics.traced_memo`)."""
+        and the generator contract says so (:mod:`~orpheus.memo.traced_memo`)."""
         return sorted(encoded)
 
     def items(self, encoded: list[bytes]) -> list[bytes]:

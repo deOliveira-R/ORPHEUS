@@ -114,6 +114,12 @@ measured edges are stated separately (the paragraph after the table).
        they act on, the decks and the face naming; declarative, and below
        numerics
      - :mod:`orpheus.geometry`
+   * - **(memo)**
+     - the traced memo and its import tracer: a pure function of content
+       memoised on disk; imports only the standard library, numpy and
+       ``values``; the gate forbids it every other package, and ``geometry``
+       and ``values`` forbid it
+     - :mod:`orpheus.memo`
    * - **(values)**
      - what a value is (the admitted reals) and when two values are the
        same (content identity); imports nothing from ``orpheus``
@@ -130,7 +136,8 @@ measured edges are stated separately (the paragraph after the table).
 top-level, function-body and ``TYPE_CHECKING`` alike, at the carve tip
 471c4737): the package graph has no cycle at any depth (package SCCs over the
 three kinds: none), and the bottom of it is as the table reads. ``values``
-imports nothing from ``orpheus``. ``geometry`` imports ``values`` and no other
+imports nothing from ``orpheus``. ``memo`` imports ``values`` and no other
+package. ``geometry`` imports ``values`` and no other
 package. ``numerics`` imports ``geometry`` and ``values`` (the 45 import
 statements naming geometry, 32 top-level, 6 function-body and 7
 ``TYPE_CHECKING``, are the measures' supports: the point groups, the manifolds, the
@@ -152,7 +159,7 @@ included, and resolves an import of a package's facade through the facade's
 own imports. The cycles still open are listed exactly
 (``_OPEN_INTRA_PACKAGE_CYCLES``): a new cycle is red, and a listed cycle that
 no longer exists is red too. `[M]` 2026-10-25: two remain, the traced-memo
-bootstrap pair in ``numerics`` (a bootstrap by design) and the five ``sn``
+bootstrap pair in ``memo`` (a bootstrap by design) and the five ``sn``
 children around ``SNProblem``, which caches objects built from modules above
 it (#529 retires it). The cycles broken at the module grain so far took four shapes, each with
 its own repair:
@@ -200,7 +207,7 @@ A few notes the table is too compact to capture:
   :mod:`orpheus.geometry`, sits **below** L1; :mod:`orpheus.data`,
   :mod:`orpheus.mesh` and :mod:`orpheus.specification` sit above it.
   :mod:`orpheus.geometry` is below :mod:`orpheus.numerics`: the gate's row for ``geometry`` forbids
-  ``numerics``, ``mesh``, ``specification``, ``reference``, L2 and L3, at
+  ``memo``, ``numerics``, ``mesh``, ``specification``, ``reference``, L2 and L3, at
   every import kind (``test_geometry_imports_nothing_from_numerics`` feeds
   six import shapes, absolute, ``import a.b``, ``from orpheus.numerics
   import space``, function-body, ``TYPE_CHECKING`` and relative, and
@@ -653,7 +660,8 @@ consumers: it receives a question, it is read through observables, it is
 keyed and memoised by content. That vocabulary is shared, so it is
 imported; what is computed is not. The allowlist is the set
 ``REFERENCE_INTERFACE_NUMERICS`` in :file:`tests/gates/test_layer_imports.py`,
-four submodules of :mod:`orpheus.numerics`. Content identity and the scalar
+three submodules of :mod:`orpheus.numerics`; the traced memo is a package of its own,
+:mod:`orpheus.memo`, below ``numerics``, which a reference imports freely. Content identity and the scalar
 parsers were members until layer DAG ruling 6 (2026-10-22) moved them to
 :mod:`orpheus.values`, below every package, which every reference imports
 freely; a reference still normalises a memo key's argument at its definition
@@ -677,8 +685,6 @@ applies, so the key and the stored value agree (#405 P3 step 2c, C1).
    * - :mod:`orpheus.numerics.mesh_free_function`
      - the mesh-free functions a specification states (a per-region table,
        a symbolic function)
-   * - :mod:`orpheus.numerics.traced_memo`
-     - the traced memo, a pure function of content memoised on disk
 
 The test for membership is whether the module computes anything a
 reference's value depends on. The posed-question types

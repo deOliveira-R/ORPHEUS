@@ -2,7 +2,7 @@
 
 Spec: ``scratch/verification_tree/cone_store/b2/gate_spec.md`` §1 (the store rows) and §5 (control 1 on the production
 tree). The memo-level rows, one per shape of the design's census, are
-``tests/gates/numerics/test_traced_memo_statement_pins.py``; this file asks the same questions of ``select``.
+``tests/gates/memo/test_traced_memo_statement_pins.py``; this file asks the same questions of ``select``.
 
 Before B2 (B1, `e9df7ed9`) a test's cone pinned every first-party module whose code ran (at collection or in the test) by its skeleton, so an
 edit to one constant selects every test whose process imported the module. After B2 it selects the tests whose

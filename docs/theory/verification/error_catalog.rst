@@ -11274,7 +11274,7 @@ older entries classify against.
 
    (a) **A miss took longer than the window.** The gate that should have
    seen it, M3.2's row ``constant-read``
-   (``tests/gates/numerics/test_traced_memo_process.py``), edits
+   (``tests/gates/memo/test_traced_memo_process.py``), edits
    ``SCALE = 3.0`` to ``SCALE = 4.0`` after one generation and asserts the
    regeneration returns the new answer. Its edit lands one whole
    generation after the module's previous write, and before #602 a cheap
@@ -11299,10 +11299,10 @@ older entries classify against.
    of a data file was itself wrong whenever the file changed during the
    run: ERR-116, fixed 2026-10-16 by a digest at the first open.)
 
-   **Module:** ``orpheus/numerics/_traced_memo_boot.py`` (the pinned-source
+   **Module:** ``orpheus/memo/_traced_memo_boot.py`` (the pinned-source
    loader ``_PinnedSourceLoader``, the finder ``_PinnedSourceFinder`` at
    ``sys.meta_path[0]``, ``_install_pinned_sources``, the field
-   ``Recording.sources``), ``orpheus/numerics/traced_memo.py``
+   ``Recording.sources``), ``orpheus/memo/traced_memo.py``
    (``_compiled_bytes``, which ``_manifest`` now reads in place of the
    file).
 
@@ -11317,7 +11317,7 @@ older entries classify against.
    is keyed on the source bytes, never on a timestamp.
 
    **Caught by:**
-   ``tests/gates/numerics/test_traced_memo_compiled_bytes.py::test_p1_a_same_size_edit_in_the_same_second_regenerates_the_new_answer``
+   ``tests/gates/memo/test_traced_memo_compiled_bytes.py::test_p1_a_same_size_edit_in_the_same_second_regenerates_the_new_answer``
    (the probe as a gate: the edit with the size and the modification time
    kept; the regeneration must return 6.0 and then validate) and
    ``::test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale``
@@ -11416,12 +11416,12 @@ older entries classify against.
    :ref:`verification-reference-cache-manifest`), so no served entry was
    exposed; the defect waited for P4's generators.
 
-   **Module:** ``orpheus/numerics/_traced_memo_boot.py`` (``Observation``
+   **Module:** ``orpheus/memo/_traced_memo_boot.py`` (``Observation``
    and its kinds ``CONTENT``, ``PRESENCE``, ``LISTING``, ``_observe``,
    ``_access``, ``file_digest``, ``presence``, ``listing_digest``,
    ``_note_written``,
    the fields ``Recording.opened``, ``probed``, ``listed`` and
-   ``written``), ``orpheus/numerics/traced_memo.py`` (``_manifest`` and
+   ``written``), ``orpheus/memo/traced_memo.py`` (``_manifest`` and
    ``_unchanged_by_the_run``).
 
    **Fix.** Every input is observed at the run's first touch, by one
@@ -11452,7 +11452,7 @@ older entries classify against.
    chapter).
 
    **Caught by:**
-   ``tests/gates/numerics/test_traced_memo_template.py::test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale``,
+   ``tests/gates/memo/test_traced_memo_template.py::test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale``,
    both rows (``[fresh]`` and ``[forked]``): the generator reads the file,
    touches a ready file and waits; the test rewrites the data file and
    releases it; the call must raise "does not validate" and the lookup
@@ -12072,8 +12072,8 @@ older entries classify against.
    review round, ``39ee20f2``, moved that set onto ``Recording.codes``. Full account:
    :ref:`verification-reference-cache-codes-by-file`.
 
-   **Module:** ``numerics`` (``Recording`` in :mod:`orpheus.numerics._traced_memo_boot`, read by
-   :func:`~orpheus.numerics.traced_memo.collect_pins`).
+   **Module:** ``numerics`` (``Recording`` in :mod:`orpheus.memo._traced_memo_boot`, read by
+   :func:`~orpheus.memo.traced_memo.collect_pins`).
 
    **Failure mode:** outside the numbered substitution modes: a container's equivalence relation was coarser than
    the identity its reader needed. The recording means "each code object that started, with the file it came
@@ -12100,11 +12100,11 @@ older entries classify against.
    defect on its first fixture. No memo gate imported two files with equal code.
 
    **Fix.** ``Recording.codes`` is a ``dict`` keyed by ``(co_filename, code)``, so two equal code objects of two
-   files are two entries; :func:`~orpheus.numerics.traced_memo.collect_pins` reads its values. The fix touches
+   files are two entries; :func:`~orpheus.memo.traced_memo.collect_pins` reads its values. The fix touches
    ``_traced_memo_boot.py``, one of the memo's three pinned sources, so every stored entry's memo pin moved and
    every entry regenerates once.
 
-   **Catching test.** ``tests/gates/numerics/test_traced_memo_records_each_file.py::test_both_files_of_an_equal_pair_are_pinned``
+   **Catching test.** ``tests/gates/memo/test_traced_memo_records_each_file.py::test_both_files_of_an_equal_pair_are_pinned``
    carries ``@pytest.mark.catches("ERR-124")`` (not ``slow``; it rests on the premise row
    ``test_the_premise_equal_code_objects_from_two_files``, which fails if CPython ever makes code objects of two
    files unequal). `[M]` 2026-11-01, ``python -O -m pytest`` on the file: the honest tree passes 2 of 2; an
@@ -12126,9 +12126,9 @@ older entries classify against.
    no store" in :ref:`verification-cone-store-cone`, and the ``ChildPin`` row and "Directory listings" of
    :ref:`verification-reference-cache-manifest`.
 
-   **Module:** ``numerics`` (:func:`~orpheus.numerics.traced_memo.collect_pins` and the lookup's
-   :class:`~orpheus.numerics.traced_memo.Hit`; ``Recording`` and the listing observation in
-   :mod:`orpheus.numerics._traced_memo_boot`) and ``tools`` (the cone store's recorder, ``tools/cone_store/``).
+   **Module:** ``numerics`` (:func:`~orpheus.memo.traced_memo.collect_pins` and the lookup's
+   :class:`~orpheus.memo.traced_memo.Hit`; ``Recording`` and the listing observation in
+   :mod:`orpheus.memo._traced_memo_boot`) and ``tools`` (the cone store's recorder, ``tools/cone_store/``).
 
    **Failure mode:** outside the numbered substitution modes: two dependency records judged against a context other
    than the one they were recorded in. Both halves fail in the safe direction, over-selection: a test is re-run that
@@ -12186,15 +12186,15 @@ older entries classify against.
 
    **Fix.** ``b65674fc``, in two halves.
 
-   - *The foreign child.* The memo's lookup returns, with a :class:`~orpheus.numerics.traced_memo.Hit`, the pins it
+   - *The foreign child.* The memo's lookup returns, with a :class:`~orpheus.memo.traced_memo.Hit`, the pins it
      validated the entry on, each child replaced by its own entry's pins (``Hit.pins``, flattened by the validation),
-     and the read is recorded with them as a :class:`~orpheus.numerics._traced_memo_boot.ReadChild`: the real path of
+     and the read is recorded with them as a :class:`~orpheus.memo._traced_memo_boot.ReadChild`: the real path of
      the store's root, the key, the payload digest, the pins, and the reader's ``sys.path`` and working directory.
-     :func:`~orpheus.numerics.traced_memo.collect_pins` keeps the ``ChildPin`` for a child of the collecting store and
+     :func:`~orpheus.memo.traced_memo.collect_pins` keeps the ``ChildPin`` for a child of the collecting store and
      pins a child of any other store by those pins, reading no store a second time. Each source path is resolved
      against the ``sys.path`` recorded with the read (``_as_read``; an ``ImportOutcomePin``'s rows through
      ``_relocated_rows``, which the cone store's ``relocated_rows`` delegates to), and a source no entry holds a file
-     at any more is the refusal :class:`~orpheus.numerics.traced_memo.SourceGone` (the cone is then unknown), never a
+     at any more is the refusal :class:`~orpheus.memo.traced_memo.SourceGone` (the cone is then unknown), never a
      pin dropped in silence. The cone store records the identity of a file only the child's generation read, instead
      of writing it as missing (qa's F3, which had turned off the store's first freshness stage for that file).
    - *The listing.* An ``Observation`` carries ``ignored_names``; a path whose own name is in it is not observed, so
@@ -12213,12 +12213,12 @@ older entries classify against.
    source's relative pin instead of refusing it reddens the source-gone gate alone; the arm that empties the listing's
    ``ignored_names`` reddens the walk gate alone. None is ``slow``.
 
-   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_child_read_from_another_store_is_pinned_by_what_its_entry_depended_on``;
-   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_child_of_another_store_is_pinned_by_what_was_validated_when_it_was_read``;
-   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_foreign_childs_pins_are_placed_where_the_read_found_them``
+   - ``tests/gates/memo/test_traced_memo_findings.py::test_a_child_read_from_another_store_is_pinned_by_what_its_entry_depended_on``;
+   - ``tests/gates/memo/test_traced_memo_findings.py::test_a_child_of_another_store_is_pinned_by_what_was_validated_when_it_was_read``;
+   - ``tests/gates/memo/test_traced_memo_findings.py::test_a_foreign_childs_pins_are_placed_where_the_read_found_them``
      (qa's F1);
-   - ``tests/gates/numerics/test_traced_memo_findings.py::test_a_foreign_childs_source_gone_at_collection_is_refused_never_dropped``;
-   - ``tests/gates/numerics/test_traced_memo_listing_ignores_bytecode.py::test_a_walk_records_no_listing_of_a_bytecode_cache``.
+   - ``tests/gates/memo/test_traced_memo_findings.py::test_a_foreign_childs_source_gone_at_collection_is_refused_never_dropped``;
+   - ``tests/gates/memo/test_traced_memo_listing_ignores_bytecode.py::test_a_walk_records_no_listing_of_a_bytecode_cache``.
 
    On the cone store's side, ``tests/gates/tools/test_cone_store_selection.py::test_s23_a_reader_of_its_own_stores_entry_is_selected_by_the_generated_code_only``
    asserts the whole path on a fixture tree (no ``ChildPin``, the generation-only file's identity recorded, no
@@ -12241,7 +12241,7 @@ older entries classify against.
    input any gate had produced that leaves an entry of zero bytes, and the reader's ``lookup`` raised on it. Full
    account: the ``Corrupt`` verdict in :ref:`verification-reference-cache-validation`.
 
-   **Module:** ``numerics`` (``Store._lookup`` in :mod:`orpheus.numerics.traced_memo`).
+   **Module:** ``numerics`` (``Store._lookup`` in :mod:`orpheus.memo.traced_memo`).
 
    **Failure mode:** outside the numbered substitution modes: an exception tuple narrower than the set of errors its
    guarded block raises. The block's contract is "any failure to parse the entry's bytes is ``Corrupt``"; the tuple
@@ -12250,7 +12250,7 @@ older entries classify against.
 
    **The defect.** ``Store._lookup`` reads the entry file's bytes, opens them with ``np.load`` as an ``.npz``,
    decodes the entry's JSON, checks the payload against its digest and parses the manifest, and turns any error of
-   that block into the verdict :class:`~orpheus.numerics.traced_memo.Corrupt`, on which the memo regenerates the
+   that block into the verdict :class:`~orpheus.memo.traced_memo.Corrupt`, on which the memo regenerates the
    entry and overwrites it. ``np.load(io.BytesIO(b""))`` raises ``EOFError("No data left in file")``, and
    ``EOFError`` derives from ``Exception`` directly, not from ``OSError`` or ``ValueError``, so it was not caught: a
    zero-length ``<key>.npz`` made ``lookup`` raise. The memoised call (which looks the key up before deciding to
@@ -12272,7 +12272,7 @@ older entries classify against.
    entry's bytes (the file read is outside it, and its ``FileNotFoundError`` is the verdict ``Absent``), so an
    ``EOFError`` there can only mean a truncated entry and catching it hides no other defect.
 
-   **Catching test.** ``tests/gates/numerics/test_traced_memo_findings.py::test_q10_an_empty_entry_is_corrupt_never_raised``
+   **Catching test.** ``tests/gates/memo/test_traced_memo_findings.py::test_q10_an_empty_entry_is_corrupt_never_raised``
    carries ``@pytest.mark.catches("ERR-126")`` (not ``slow``): it writes a zero-length file at the entry's path and
    asserts that ``lookup`` returns ``Corrupt``. `[M]` 2026-11-09, ``python -O -m pytest -p no:cacheprovider`` on the
    test: red before the fix with ``EOFError``; re-dropped by the archivist with an in-process ``-p`` plugin that

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from orpheus.numerics import traced_memo as _traced_memo
+from orpheus.memo import traced_memo as _traced_memo
 
 #: The module's name, for the sources the gates write (a synthetic package's or a subprocess's import line).
 MODULE = _traced_memo.__name__

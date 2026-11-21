@@ -3,7 +3,7 @@
 Used by ``test_characteristic_reading.py``. NOTHING here imports the code under test: the backward path from the
 point, its passages through the regions, the reflections at the walls, the angular integrals and the escape and
 transmission probabilities are written in mpmath from the closed forms (``instrument-doctrine`` X4). Its one
-``orpheus`` import, at any depth, is :func:`~orpheus.numerics.traced_memo.traced_memo`
+``orpheus`` import, at any depth, is :func:`~orpheus.memo.traced_memo.traced_memo`
 (``test_each_stored_reference_imports_nothing_but_the_memo``, an AST census of this module and of the test modules it
 imports). The memo stores the routes that take seconds to minutes a point; a route that takes milliseconds is
 not stored, since its lookup alone (about 8 ms a hit) would cost about what it does and its first call a miss
@@ -47,7 +47,7 @@ from typing import Any
 
 import mpmath as mp
 
-from orpheus.numerics.traced_memo import traced_memo
+from orpheus.memo.traced_memo import traced_memo
 
 from tests.gates.derivations._characteristic_mp import bickley_ki1
 

@@ -27,9 +27,9 @@ ORPHEUS = REPO / "orpheus"
 #: generator (spec §1.5, rider R5.1).
 ENVIRONMENT_READERS_ALLOWED = {
     "orpheus/derivations/common/withdrawal.py",
-    "orpheus/numerics/traced_memo.py",
+    "orpheus/memo/traced_memo.py",
     # The recorder snapshots the environment a run RECEIVED, to pin its declared variables (#405 P3).
-    "orpheus/numerics/_traced_memo_boot.py",
+    "orpheus/memo/_traced_memo_boot.py",
 }
 #: The census's positive control: a reader that exists on today's tree. (The traced memo reads the environment
 #: only to hand a generating process its declared variables, and its recorder to pin them, M3.16; neither

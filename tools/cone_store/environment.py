@@ -7,8 +7,8 @@ import os
 from collections.abc import Sequence
 from pathlib import Path
 
-from orpheus.numerics import traced_memo
-from orpheus.numerics._traced_memo_boot import digest, file_digest
+from orpheus.memo import traced_memo
+from orpheus.memo._traced_memo_boot import digest, file_digest
 
 #: What the interpreter, the BLAS and pytest read from the process environment and a cone can follow, by name: the
 #: memo's own list of the variables it fixes for a generation (``PYTHONHASHSEED`` and the thread counts: one list,
@@ -22,7 +22,7 @@ _ROOT = Path(__file__).resolve().parents[2]
 #: The modules of this package that only READ a store (``select``, ``place``): an edit to them changes no cone.
 _READERS = ("selection.py", "placement.py")
 #: The capture's instrument: the memo's own source (the recorder, which records nothing of its own apparatus, and
-#: the pin reader; :data:`~orpheus.numerics.traced_memo._MEMO_SOURCES`, one list) and every module of this package
+#: the pin reader; :data:`~orpheus.memo.traced_memo._MEMO_SOURCES`, one list) and every module of this package
 #: but its readers (a new module counts until it is named a reader). A cone holds no pin on them (the memo pin is
 #: dropped, the apparatus never recorded), so a store is valid only under the instrument that captured it: the
 #: memo's own rule for its entries, read as a key.

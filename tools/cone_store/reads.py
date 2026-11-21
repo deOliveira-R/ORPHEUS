@@ -14,7 +14,7 @@ through) is followed while the next module binds the same object (``is``), so a 
 ``TYPE_CHECKING`` import stops at the module whose statement really binds it; each module passed through is recorded
 (``reexport``), never a node. Module-level and class-body code ran at import, so it is not kept: it is compiled again
 from the module's bytes and read with the same instruction reader, and an instruction is mapped to its statement by
-its line (:func:`~orpheus.numerics._import_time.holding`, the innermost statement holding it, so a class's header
+its line (:func:`~orpheus.memo._import_time.holding`, the innermost statement holding it, so a class's header
 holds its bases and decorators and its member statements hold the body). This package parses no source (R7).
 
 The channels of a :class:`Read` (:class:`Channel`):

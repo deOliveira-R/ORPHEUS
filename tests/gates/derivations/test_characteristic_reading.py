@@ -187,7 +187,7 @@ def _check_route(chart, breakpoints, laws, x, band=_GIVEN_BAND, read=_given, **k
 
 
 
-_MEMO = "orpheus.numerics.traced_memo"
+_MEMO = "orpheus.memo.traced_memo"
 
 
 def _imports_closure(module: str) -> dict[str, set[str]]:

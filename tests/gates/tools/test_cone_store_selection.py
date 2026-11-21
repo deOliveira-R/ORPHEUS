@@ -79,7 +79,7 @@ def test_s6_each_component_moves_the_environment_key(component: str, monkeypatch
     ``OMP_NUM_THREADS``. One id per component: a four-part key is four claims."""
     import importlib.metadata
 
-    from orpheus.numerics import traced_memo
+    from orpheus.memo import traced_memo
 
     monkeypatch.setenv("OMP_NUM_THREADS", "1")
     before = cone.environment_key()

@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from orpheus.numerics import _traced_memo_boot as boot
-from orpheus.numerics import traced_memo
+from orpheus.memo import _traced_memo_boot as boot
+from orpheus.memo import traced_memo
 
 from ._cone_store_fixture import REPO, code_keys
 
@@ -135,7 +135,7 @@ def test_m2_a_nested_trace_call_is_seen_by_the_capture_and_unpolluted_by_it(tmp_
     assert ("DefPin", "pkg/user.py", "above", 0) in code_keys(store.pins("tests/test_m.py::test_nested"))
 
 
-_MEMO_SUITES = (*sorted(str(p.relative_to(REPO)) for p in (REPO / "tests/gates/numerics").glob("test_traced_memo_*.py")),
+_MEMO_SUITES = (*sorted(str(p.relative_to(REPO)) for p in (REPO / "tests/gates/memo").glob("test_traced_memo_*.py")),
                 "tests/gates/derivations/test_traced_memo_clients.py")
 
 

@@ -3,8 +3,8 @@
 This module imports only the standard library, so the generating process can start recording before any
 ``orpheus`` code runs: it is run by path with ``-P`` (``python -P _traced_memo_boot.py``), and its
 ``main`` starts a :class:`Recording` on its first line, then loads the job and
-:mod:`orpheus.numerics.traced_memo`. Importing it runs nothing (a roster walk over the package imports it),
-and :func:`orpheus.numerics.traced_memo.trace_call` records through the same :class:`Recording`: one
+:mod:`orpheus.memo.traced_memo`. Importing it runs nothing (a roster walk over the package imports it),
+and :func:`orpheus.memo.traced_memo.trace_call` records through the same :class:`Recording`: one
 definition of what a generation depends on.
 
 A recording holds, for the time it runs, across every thread of the process:
@@ -24,7 +24,7 @@ after it has written it is its own output, not an input. A path the run observed
 by the manifest: the state the run saw no longer exists, so no later state pins the answer.
 * every process the run started, by its program or, when none can be named, by its event;
 * the working directory the run started in, and whether it read a relative path;
-* the memo entries the run read, which :mod:`~orpheus.numerics.traced_memo` adds as it serves them.
+* the memo entries the run read, which :mod:`~orpheus.memo.traced_memo` adds as it serves them.
 
 The import system's own reads, probes and listings are not recorded: they are how it finds a module, and the
 module it finds is pinned where its code runs. Recording them would make every new file in any ``sys.path``
@@ -69,7 +69,7 @@ _STAT = {"stat": os.stat, "lstat": os.lstat}
 #: marks around its own work. It runs
 #: inside every recording before any :class:`unrecorded` stretch can begin, so the quiet flag cannot exempt it;
 #: ``started`` never records it instead. It is the instrument, pinned whole by the memo's own source
-#: (:class:`~orpheus.numerics.traced_memo.MemoPin`), never a run's code: recorded, it put the same six defs in
+#: (:class:`~orpheus.memo.traced_memo.MemoPin`), never a run's code: recorded, it put the same six defs in
 #: every cone the cone store read, and homed every test with no def of its own at the recorder (the archivist,
 #: ``[M]`` 2026-11-03, 10 of 10 own cones of the B3 sample). The audit hook and the defs only it calls (``_access``,
 #: ``_note_written``, ``_program``) are declared although CPython runs an audit hook with monitoring paused (no
@@ -748,7 +748,7 @@ def _boot():
     # This file runs as ``__main__``; the memo imports it by name. Without the alias that import would load a
     # second copy whose list of active recordings is empty, so every memo entry the run read, and the memo's
     # own start of a nested generating process, would be offered to nobody.
-    sys.modules["orpheus.numerics._traced_memo_boot"] = sys.modules[__name__]
+    sys.modules["orpheus.memo._traced_memo_boot"] = sys.modules[__name__]
     del sys.argv[1:]
     recording = Recording().start()
     _install_pinned_sources(recording)
@@ -763,7 +763,7 @@ def _boot():
     if envelope is None:
         os._exit(0)
     sys.path[:] = pickle.loads(envelope)["sys_path"]
-    from orpheus.numerics import traced_memo
+    from orpheus.memo import traced_memo
 
     return recording, answers, jobs, traced_memo
 
@@ -787,12 +787,12 @@ def template() -> None:
     end. Before each fork the template checks that the manifest of its imports still validates, the bytes of
     every first-party source it compiled included (an edit to a def body the imports never ran, a data file, a
     listing or a distribution they read), and that it runs one OS thread; if not, it answers
-    :class:`~orpheus.numerics.traced_memo._Refused` and exits, and the parent starts another. A parent that
+    :class:`~orpheus.memo.traced_memo._Refused` and exits, and the parent starts another. A parent that
     ends closes the job pipe, and the template exits at its end.
 
     Protocol, on file descriptors: the parent writes frames on standard input (the envelope, then one job per
     frame); the template answers one frame per job on the descriptor that was standard output: the child's
-    answer, :class:`~orpheus.numerics.traced_memo._Refused`, or :class:`~orpheus.numerics.traced_memo._Died`."""
+    answer, :class:`~orpheus.memo.traced_memo._Refused`, or :class:`~orpheus.memo.traced_memo._Died`."""
     recording, answers, jobs, traced_memo = _boot()
     import pickle
 

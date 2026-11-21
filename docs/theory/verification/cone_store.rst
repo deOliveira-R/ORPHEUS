@@ -175,7 +175,7 @@ Key facts
 * **Evidence.** 127 gate ids in 10 files under ``tests/gates/tools/``
   (4 of them ``slow``; `[M]` 2026-11-03, the verification matrix the docs
   build regenerates, and the ``slow`` decorators), and 91
-  memo-level rows in ``tests/gates/numerics/test_traced_memo_statement_pins.py``;
+  memo-level rows in ``tests/gates/memo/test_traced_memo_statement_pins.py``;
   B1's 35-arm mutation battery with a positive control, every arm reddening
   its target, and a 14-arm round after review, every arm reddening its
   target and no declared-green row; B3's two batteries, each arm reddening
@@ -304,7 +304,7 @@ S23 (``tests/gates/tools/test_cone_store_selection.py``): a test reading
 its own store's entry, whose generation imports a module the test never
 imports, is not selected with no edit and is selected by an edit to that
 module's def; the memo-side gates are in
-``tests/gates/numerics/test_traced_memo_findings.py``.
+``tests/gates/memo/test_traced_memo_findings.py``.
 
 
 .. _verification-cone-store-statements:
@@ -318,7 +318,7 @@ def is called, and the memo pins it by its own digest when it runs
 module's top-level statements and the statements of every class body. That
 code is pinned per statement, by the statements a test could observe, not
 per module. The statements, the rule that selects them and the closure are
-:mod:`orpheus.numerics._import_time`, a module of the memo's that imports
+:mod:`orpheus.memo._import_time`, a module of the memo's that imports
 nothing from ``orpheus`` and is one of the memo's own sources (an edit to it
 makes every memo entry stale through ``MemoPin``); the cone store reads the
 memo's pins and owns none of this machinery (ruling 15 of the plan).
@@ -354,7 +354,7 @@ Observed by name: the entry names, closed over the statements
 **The seed.** Every code object the test started contributes its
 ``co_names`` and the identifier tokens of its string constants, recursing
 through tuples and frozensets (``code_names`` and ``string_names`` in
-:mod:`orpheus.numerics._import_time`):
+:mod:`orpheus.memo._import_time`):
 
 * ``co_names`` holds every name a code object reads as a global or an
   attribute (``LOAD_GLOBAL``, ``LOAD_ATTR``) and every global it stores
@@ -586,7 +586,7 @@ when all are equal the pin is valid with no measurement, and otherwise the
 set is measured again as it now is and the two outcomes are compared.
 
 **The instrument.** ``_import_outcome`` in
-:mod:`orpheus.numerics.traced_memo` runs ``python -B -c`` with a program
+:mod:`orpheus.memo.traced_memo` runs ``python -B -c`` with a program
 held as a string in the memo's source, the set's dotted names and their
 roots on its standard input, under the generation's environment and inside
 the memo's ``spawning()``, so the measurement is never recorded as the
@@ -712,7 +712,7 @@ exempt the code the recorder itself runs on every event: the audit hook,
 the ``os.stat`` and ``os.lstat`` probes and what they call run inside every
 recording, before any ``unrecorded()`` stretch can begin, and the
 ``unrecorded`` and ``spawning`` stretches' own ``__enter__`` and
-``__exit__`` run at its edges. So ``orpheus/numerics/_traced_memo_boot.py``
+``__exit__`` run at its edges. So ``orpheus/memo/_traced_memo_boot.py``
 declares that code at its definition with the decorator ``_apparatus``,
 into the set ``_APPARATUS`` keyed by (file, code object): ``_audit``,
 ``_probing`` and each probe it makes, ``_observe``, ``_path``,
@@ -733,7 +733,7 @@ never by a run's cone. `[M]` 2026-11-03, the same 10 sample tests captured
 before and after: the recorder's defs in the own cones went from 6 to 0 in
 10 of 10 tests, and in the selection cones from 7 to 2 (``Kept.__init__``
 and ``_apparatus``, the module-level code that importing the recorder
-runs). Gate ``tests/gates/numerics/test_traced_memo_apparatus.py``: a run
+runs). Gate ``tests/gates/memo/test_traced_memo_apparatus.py``: a run
 that probes a path and reads a file records no recorder def, with the
 probe's observation as the activation leg; a run that calls the recorder's
 ``digest`` records it; every hook a recording installs is read off the
@@ -847,7 +847,7 @@ The evidence for B2
 -------------------
 
 * **Memo level**,
-  ``tests/gates/numerics/test_traced_memo_statement_pins.py`` (91 rows,
+  ``tests/gates/memo/test_traced_memo_statement_pins.py`` (91 rows,
   `[M]` ``pytest --collect-only``, 2026-11-02), one small package per case
   (``_statement_pin_cases.py``; qa's 42 rows transcribed by script into
   ``_statement_pin_qa_rows.py``, never by hand). Each row traces a call in
@@ -1004,7 +1004,7 @@ from the role named on its command line:
    pytest imports the root conftest; ``pytest_configure`` would be too late,
    the conftest being imported by then. The recorder module is loaded by
    path (``tools/cone_store/_recorder.py``), registered under its dotted
-   name ``orpheus.numerics._traced_memo_boot``: importing it by name would
+   name ``orpheus.memo._traced_memo_boot``: importing it by name would
    run ``orpheus/__init__`` and ``orpheus/numerics/__init__`` before the
    recorder started, and code that ran before the recorder is in nobody's
    cone. Pytest then imports its initial conftests, and the grandparent
@@ -1041,7 +1041,7 @@ child inherits. The own cone is a second recording, not a re-arming of this
 one (:ref:`verification-cone-store-own-cone`).
 
 **The fork guard.** Before every fork the process asks the memo's
-:func:`~orpheus.numerics._traced_memo_boot.fork_blockers` with the platform
+:func:`~orpheus.memo._traced_memo_boot.fork_blockers` with the platform
 as it is now (:ref:`verification-reference-cache-fork-template`): a
 platform outside ``FORK_MEASURED`` or more than one OS thread is a reason
 not to fork. A collecting parent that may not fork runs each test in a FRESH
@@ -1165,7 +1165,7 @@ object the first time the object starts, then returns
 ``sys.monitoring.DISABLE``, which turns that event off for that code object
 and for that monitoring tool only. Each ``Recording`` takes a tool id of its
 own when it starts (the first free id among 2, 3, 4 and 5;
-``Recording.start`` in ``orpheus/numerics/_traced_memo_boot.py``), so on a
+``Recording.start`` in ``orpheus/memo/_traced_memo_boot.py``), so on a
 code object the outer recording has disabled, the inner recording's event
 is still enabled. A def the conftests ran at import, and that the test runs
 again, is therefore reported to the own recording when the test starts it;
@@ -1258,7 +1258,7 @@ BEFORE any pin reads the file's bytes (the memo's stat-before-read order,
 than ``TRUSTED_AGE_NS`` (2 s) before the capture began, or during it, is
 stored unsettled.
 
-**The pins.** :func:`~orpheus.numerics.traced_memo.collect_pins` returns
+**The pins.** :func:`~orpheus.memo.traced_memo.collect_pins` returns
 the pins and every refusal as values
 (:ref:`verification-reference-cache-refusals`). The cone keeps:
 
@@ -2959,7 +2959,7 @@ so each test row carries the digest of:
 * the interpreter, its version string and bytecode tag
   (``traced_memo._python_identity``);
 * the platform: the operating system, the machine, the ``-O`` level and
-  numpy's BLAS (:func:`~orpheus.numerics.traced_memo.platform_tag`);
+  numpy's BLAS (:func:`~orpheus.memo.traced_memo.platform_tag`);
 * every installed distribution with its version;
 * the environment variables a cone can follow: the memo's own list of the
   variables it fixes for a generation (``PYTHONHASHSEED`` and the five
@@ -3129,7 +3129,7 @@ The gates, ``tests/gates/tools/test_cone_store_*.py``, every one
 ``foundation`` (`[M]` 2026-11-04, ``python -O -m pytest --collect-only`` over
 the 10 files: 129 ids, and 0 of them left by ``-m "not foundation"``; 4 of them carry
 ``slow``, M1, T3, SG4 and SG9, none parametrised; and the recorder's
-apparatus gate beside them, ``tests/gates/numerics/test_traced_memo_apparatus.py``,
+apparatus gate beside them, ``tests/gates/memo/test_traced_memo_apparatus.py``,
 21 ids by the same command):
 
 .. list-table::
@@ -3204,7 +3204,7 @@ apparatus gate beside them, ``tests/gates/numerics/test_traced_memo_apparatus.py
      - PL1 to PL11, PL13 to PL16
      - ``place`` on a fixture layer
        (:ref:`verification-cone-store-place-gates`)
-   * - ``tests/gates/numerics/test_traced_memo_apparatus.py``
+   * - ``tests/gates/memo/test_traced_memo_apparatus.py``
      - 6 tests, one of them 16 arm cases (21 ids)
      - the recorder never records its apparatus, on every hook path and
        in a nested recording, and records the rest of its file

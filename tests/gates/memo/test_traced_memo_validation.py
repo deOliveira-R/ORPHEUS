@@ -20,7 +20,7 @@ import textwrap
 import numpy as np
 import pytest
 
-from orpheus.numerics import _traced_memo_boot
+from orpheus.memo import _traced_memo_boot
 
 from . import _traced_memo_api as api
 from ._traced_memo_synthetic import Package
@@ -61,7 +61,7 @@ WITNESSES = [
 ]
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer', 'tests/gates/numerics/test_traced_memo_manifest.py::test_m1_4_the_manifest_is_what_ran')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer', 'tests/gates/memo/test_traced_memo_manifest.py::test_m1_4_the_manifest_is_what_ran')
 @pytest.mark.parametrize("row,module,old,new,stale,fragment", WITNESSES, ids=[w[0] for w in WITNESSES])
 def test_m2_1_validation_misses_exactly_when_something_that_ran_changed(package, row, module, old, new, stale, fragment):
     """M2.1, the X1 witnesses at the manifest: an edit inside a traced def (a body, a method, a lambda nested in
@@ -77,7 +77,7 @@ def test_m2_1_validation_misses_exactly_when_something_that_ran_changed(package,
         assert any(fragment in r for r in reasons), f"{row}: no reason names {fragment!r}: {reasons}"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
 def test_m2_2_a_removed_def_and_a_removed_file_are_stale(package):
     """M2.2: a traced def that no longer exists, and a module file that is gone, are reasons (a lookup by
     qualname that returns nothing must not read as "unchanged")."""
@@ -88,7 +88,7 @@ def test_m2_2_a_removed_def_and_a_removed_file_are_stale(package):
     assert any("gone" in r for r in api.validate(manifest))
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_7_the_interpreter_is_in_the_manifest')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_7_the_interpreter_is_in_the_manifest')
 def test_m2_3_a_distribution_version_and_the_interpreter_are_validated(package):
     """M2.3: a manifest recording another numpy version, or another interpreter, is stale. The rows edit the
     MANIFEST (the installed environment is not mutable from a gate); the reason names the distribution."""
@@ -119,7 +119,7 @@ def _install(site, version):
     return info
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3_a_distribution_version_and_the_interpreter_are_validated')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_3_a_distribution_version_and_the_interpreter_are_validated')
 def test_m2_3b_an_install_between_two_validations_of_one_process_is_a_reason(package, monkeypatch, tmp_path):
     """M2.3 (b): what a validation found installed is kept for the process (``_DISTRIBUTIONS``) while every
     stat its find made is unchanged, so an install that lands between two validations is a reason in the
@@ -140,7 +140,7 @@ def test_m2_3b_an_install_between_two_validations_of_one_process_is_a_reason(pac
     assert first != second and any("RECORD" in r for r in second), f"a RECORD rewritten in place went unseen: {first} / {second}"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3b_an_install_between_two_validations_of_one_process_is_a_reason')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_3b_an_install_between_two_validations_of_one_process_is_a_reason')
 def test_m2_3h_a_metadata_rewritten_in_place_is_a_reason(package, monkeypatch, tmp_path):
     """M2.3 (h): the found distribution's ``METADATA`` is witnessed from its directory, so a version changed in
     place (same size, same directory) is a reason (qa's review of the hit-cost fix, finding 5). First red: arm
@@ -156,7 +156,7 @@ def test_m2_3h_a_metadata_rewritten_in_place_is_a_reason(package, monkeypatch, t
     assert any("9.9.8" in r for r in api.validate(manifest)), "a METADATA rewritten in place went unseen"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
 def test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process(package, monkeypatch):
     """M2.3 (c), the saving: a second validation in the process makes no read of a pinned source while every
     stat the first read made is unchanged (``[M]`` 2026-10-17, the warm three-file run made 832 287 opens for a
@@ -171,7 +171,7 @@ def test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process(package, monk
     assert reads == [], f"a validation with nothing changed read {sorted(set(reads))}"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
 def test_m2_3d_an_edit_that_keeps_size_and_modification_time_is_a_reason(package, monkeypatch):
     """M2.3 (d): an edit of the same size with the modification time set back to what it was (``os.utime``)
     changes only the file's change time, which no call sets back on POSIX; the second validation reads it again
@@ -187,7 +187,7 @@ def test_m2_3d_an_edit_that_keeps_size_and_modification_time_is_a_reason(package
     assert any("helper" in r for r in api.validate(manifest)), "a same-size edit with its time set back went unseen"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
 def test_m2_3e_a_write_too_recent_to_trust_is_read_again(package, monkeypatch):
     """M2.3 (e), the racy guard: on a filesystem whose timestamps are coarse, a second write in the same tick
     leaves the identity as it was. Simulated by an identity whose two times never move (every write in one
@@ -208,7 +208,7 @@ def test_m2_3e_a_write_too_recent_to_trust_is_read_again(package, monkeypatch):
     assert any("helper" in r for r in api.validate(manifest)), "a write within the tick of the last read was served from the cache"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
 def test_m2_3f_a_file_shadowing_the_pinned_one_on_an_earlier_entry_is_a_reason(package, monkeypatch, tmp_path):
     """M2.3 (f): a pin's path is relative to its ``sys.path`` entry, and the read witnesses every candidate up to
     the one it read, a missing one included, so a module that appears in an earlier entry ALREADY on ``sys.path``
@@ -225,7 +225,7 @@ def test_m2_3f_a_file_shadowing_the_pinned_one_on_an_earlier_entry_is_a_reason(p
     assert any("helper" in r for r in api.validate(manifest)), "a file shadowing the pinned one went unseen"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
 def test_m2_3g_a_write_right_after_the_read_is_read_again(package, monkeypatch):
     """M2.3 (g): the stat comes before the read it guards, so a write landing between the read and the next
     validation is kept under the identity before it and read again (qa's review, finding 2). First red: arm
@@ -250,7 +250,7 @@ def test_m2_3g_a_write_right_after_the_read_is_read_again(package, monkeypatch):
     assert any("helper" in r for r in api.validate(manifest)), "a write between the read and the next stat was served from the cache"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_3c_a_source_unchanged_on_disk_is_read_once_per_process')
 def test_m2_3i_a_data_file_and_a_listing_changed_between_two_validations_are_reasons(monkeypatch, tmp_path):
     """M2.3 (i): a data pin's file and a listing pin's directory are kept for the process too (``_FILE_DIGESTS``,
     ``_LISTINGS``), so a same-size edit with its time set back, and a name added to a listed directory, are
@@ -272,7 +272,7 @@ def test_m2_3i_a_data_file_and_a_listing_changed_between_two_validations_are_rea
     assert listing_pin.stale(checkout) is not None, "a name added to a listed directory went unseen"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
 def test_m2_4_validation_imports_and_runs_nothing(package, tmp_path):
     """M2.4: a manifest of the ``marker`` module (whose import writes a file) validates in a FRESH interpreter
     without the marker reappearing and without importing the package; the positive control imports it and the
@@ -303,7 +303,7 @@ def test_m2_4_validation_imports_and_runs_nothing(package, tmp_path):
     assert package.marker.exists(), "the control: importing the module writes the marker " + control.stderr
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_1_validation_misses_exactly_when_something_that_ran_changed')
 def test_m2_5_a_later_edit_in_the_same_process_is_seen(package):
     """M2.5: validation has no in-process cache that outlives an edit: validate (valid), edit, validate again
     in the same process (stale), restore the text (valid again). A cache keyed by path, or by modification
@@ -346,7 +346,7 @@ def test_m2_6_floats_cross_the_payload_bit_for_bit():
         assert out == value and type(out) is type(value), (value, out)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit')
 def test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only():
     """M2.7: an array keeps its dtype, shape and bits; every decode hands out a FRESH array (no shared memory
     with the last load) that is READ-ONLY, so a consumer that writes into a served payload raises instead of
@@ -365,7 +365,7 @@ def test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only():
     assert type(first[3]) is np.float64 and first[3] == 1.25
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_7_arrays_keep_dtype_shape_and_bits_and_load_fresh_and_read_only')
 def test_m2_8_a_dataclass_is_rebuilt_through_its_constructor_and_only_if_declared(package):
     """M2.8: a frozen dataclass payload is rebuilt by its constructor (its laws re-run: a payload whose field
     violates ``Spec``'s law is refused with ``Spec``'s own message), and only a type the function DECLARES it
@@ -385,7 +385,7 @@ def test_m2_8_a_dataclass_is_rebuilt_through_its_constructor_and_only_if_declare
         api.decode_payload(tree_spec, arrays_spec, {f"{alpha.__name__}:Spec"})
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_validation.py::test_m2_6_floats_cross_the_payload_bit_for_bit')
 def test_m2_9_what_has_no_exact_payload_is_refused():
     """M2.9: an object array, a set, a list, a complex scalar, a function and a plain object have no exact,
     pickle-free payload: ``Unencodable``, never a lossy write."""

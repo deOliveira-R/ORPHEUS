@@ -1,6 +1,6 @@
 r"""The qa review of the traced memo (#405 P3, 2026-10-04): one gate per finding, each red on ``99897d10``.
 
-qa reproduced 13 findings against the first build of :mod:`orpheus.numerics.traced_memo` (the list is
+qa reproduced 13 findings against the first build of :mod:`orpheus.memo.traced_memo` (the list is
 ``scratch/reference_architecture/p3/qa/findings.md``; the reproducers ``probes/probe_findings.py``). Seven
 served a stale or a wrong value, which is the one failure a cache must never have. Each gate below is that
 reproducer turned into an assertion of the right behaviour; the finding's number is in the gate's name.
@@ -24,7 +24,7 @@ import pytest
 
 import orpheus  # the repository root is read off the package (any test directory)
 
-from tests.gates.numerics import _traced_memo_api as api
+from tests.gates.memo import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
 
@@ -83,7 +83,7 @@ def test_q1_the_def_that_ran_is_pinned_among_defs_of_one_name(make):
     qualified name; the pin is the def that RAN (by its rank), so an edit to it is ``Stale`` (it was a ``Hit``
     serving 11.0 where a fresh call gives 12.0)."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         class Box:
             @property
@@ -118,7 +118,7 @@ def test_q2_a_memo_called_from_a_worker_thread_is_pinned_as_a_child(make, tmp_pa
     generation is the generation's child and is written under the caller's store (it was neither)."""
     package = make(m='''
         from concurrent.futures import ThreadPoolExecutor
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def inner(x: float) -> float:
@@ -146,7 +146,7 @@ def test_q3_a_subclass_of_a_payload_type_is_refused_never_written_as_its_base(ma
         import enum
         from typing import NamedTuple
         import numpy as np
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         class Pair(NamedTuple):
             k: float
@@ -179,7 +179,7 @@ def test_q4_the_key_is_exact_below_the_top_level(make):
     encoding: the sign of zero and a field's type are part of it."""
     package = make(m='''
         import dataclasses, math
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @dataclasses.dataclass(frozen=True)
         class Spec:
@@ -209,7 +209,7 @@ def test_q5_absence_a_listing_and_a_bytes_path_are_dependencies(make):
     package = make(m='''
         import os
         from pathlib import Path
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         HERE = Path(__file__).parent
 
@@ -246,7 +246,7 @@ def test_q5_a_relative_read_pins_the_working_directory(make, tmp_path, monkeypat
     """Finding 5, the working directory: ``open("table.txt")`` read from one directory was served in another.
     A run that read a relative path pins its working directory."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def table(a: float) -> float:
@@ -268,7 +268,7 @@ def test_q6_a_def_under_any_module_level_block_is_pinned(make):
     """Finding 6: defs under a module-level ``for`` and ``match`` were pinned by nothing (the skeleton then held no
     body), so an edit was served stale (101.0 instead of 105.0)."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         for _i in range(1):
             def looped(x):
@@ -305,7 +305,7 @@ def test_q8_the_memo_pins_its_own_source(make, tmp_path):
     """Finding 8: the memo writes the entry after the recording stops, so its own code was in no manifest; an
     entry written by a defective memo stayed a hit after the fix. Every entry pins the memo's source."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def third(a: float) -> float:
@@ -326,7 +326,7 @@ def test_q9_a_print_in_a_generator_never_corrupts_the_answer(make):
     (``data/macro_xs/mixture.py`` prints so) made the caller raise although the entry was written, and a
     raising generator that printed lost its own exception."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def gen(a: float) -> float:
@@ -373,7 +373,7 @@ def test_q11_an_exception_that_cannot_be_rebuilt_crosses_described(make):
     ``__init__`` takes other arguments than its ``args``) arrived anonymous; it crosses as a ``RuntimeError``
     carrying the original type, message and traceback."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         class Refusal(Exception):
             def __init__(self, what, why):
@@ -392,7 +392,7 @@ def test_q11_an_undeclared_dataclass_return_is_refused_before_it_is_written(make
     written, then refused on every load. It is refused at the write, and nothing is cached."""
     package = make(m='''
         import dataclasses
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @dataclasses.dataclass(frozen=True)
         class R:
@@ -431,7 +431,7 @@ def test_q13_a_memo_calling_itself_with_its_own_arguments_is_refused(make):
     """Finding 13: ``f(x)`` calling ``f(x)`` would start interpreters without end; the generating process
     knows the calls it is answering and refuses the cycle."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def f(x: float) -> float:
@@ -447,7 +447,7 @@ def test_a_started_program_is_pinned_and_a_started_python_is_refused(make, tmp_p
     is refused, since the code it ran is code no recording saw."""
     package = make(m=f'''
         import subprocess, sys
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def external(a: float) -> float:
@@ -479,7 +479,7 @@ def test_r1_the_key_is_exact_all_the_way_up(make):
         import dataclasses
         from typing import NamedTuple
         import numpy as np
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         class P(NamedTuple):
             a: float
@@ -527,7 +527,7 @@ def test_r2_r3_only_a_declared_program_may_be_started(make, starter):
     start only a declared machine query (``uname``); every other start is refused."""
     package = make(m='''
         import multiprocessing, subprocess
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         def _double(x):
             return 2.0 * x
@@ -558,7 +558,7 @@ def test_r4_a_listing_made_by_a_module_body_during_its_import_is_pinned(make):
     package = make(m='''
         import os
         from pathlib import Path
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def gen(a: float) -> float:
@@ -582,7 +582,7 @@ def test_r5_a_python_file_read_as_data_is_pinned(make):
     as data served 3.0 against 30.0. Only the import system's own reads are exempt."""
     package = make(m='''
         from pathlib import Path
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def gen(a: float) -> float:
@@ -601,7 +601,7 @@ def test_r7_a_run_that_changes_directory_then_reads_a_relative_path_is_a_hit(mak
     started in."""
     package = make(m='''
         import os
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def gen(a: float, where: str) -> float:
@@ -622,7 +622,7 @@ def test_q5_absence_probed_by_exists_is_a_dependency(make):
     probe's finding is pinned."""
     package = make(m='''
         from pathlib import Path
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def override(a: float) -> float:
@@ -723,7 +723,7 @@ def test_q13_a_chain_of_generations_through_distinct_keys_is_bounded(make):
     through DISTINCT keys (``f(n)`` calling ``f(n + 1)``) has no repeated key for the ancestry to catch, so
     the depth of nested generations is bounded."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def f(n: int) -> int:
@@ -739,14 +739,14 @@ def test_a_parent_does_not_pin_its_childs_sources_as_data(make, tmp_path):
     a solve's modules pinned by bytes on the reading). A comment in the child's module then made the parent
     stale. The memo's own reading of the store is unrecorded: the parent holds the child by reference only."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
         from .n import inner
 
         @traced_memo
         def outer(x: float) -> float:
             return inner(x) + 1.0
     ''', n='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def inner(x: float) -> float:
@@ -777,14 +777,14 @@ def _recorded_reads(package, tmp_path):
 
 
 _NESTED = dict(m='''
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
     from .n import inner
 
     @traced_memo
     def outer(x: float) -> float:
         return inner(x) + 1.0
 ''', n='''
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
     @traced_memo
     def inner(x: float) -> float:
@@ -945,7 +945,7 @@ def test_e_the_environment_pin_follows_what_the_run_received(make, monkeypatch):
     makes it stale."""
     package = make(m='''
         import os
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def plain(a: float) -> float:
@@ -975,7 +975,7 @@ def test_u_a_program_named_uname_is_not_admitted_by_its_name(make, tmp_path, mon
     fake.chmod(0o755)
     package = make(m='''
         import subprocess
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def gen(a: float) -> float:

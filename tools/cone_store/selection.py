@@ -20,8 +20,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from orpheus.numerics import traced_memo
-from orpheus.numerics._traced_memo_boot import FileIdentity, Witness
+from orpheus.memo import traced_memo
+from orpheus.memo._traced_memo_boot import FileIdentity, Witness
 
 from tools.cone_store import pins as pin_rows
 from tools.cone_store.collect import collect_ids

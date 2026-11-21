@@ -315,7 +315,7 @@ def _aba_sphere() -> None:
     from orpheus.derivations.continuous.characteristic import characteristic_reference
     from orpheus.geometry import CoordSystem
     from orpheus.numerics.observable import Eigenvalue
-    from orpheus.numerics.traced_memo import bypass
+    from orpheus.memo.traced_memo import bypass
     from tests.gates.sn.regression import _generate_snapshots as snapshots
     from tests.gates.sn.verification.analytical import _aba_reference as aba
 
@@ -341,7 +341,7 @@ def _aba_cylinder(degrees: tuple[int, ...]) -> None:
     from orpheus.derivations.continuous.characteristic import characteristic_reference
     from orpheus.geometry import CoordSystem
     from orpheus.numerics.observable import Eigenvalue
-    from orpheus.numerics.traced_memo import bypass
+    from orpheus.memo.traced_memo import bypass
     from tests.gates.sn.regression import _generate_snapshots as snapshots
     from tests.gates.sn.verification.analytical import _aba_reference as aba
 
@@ -401,7 +401,7 @@ def edge_kinf(body: str) -> float:
 def _partial_reflector() -> None:
     from orpheus.derivations.continuous.characteristic import characteristic_reference
     from orpheus.numerics.observable import Eigenvalue
-    from orpheus.numerics.traced_memo import bypass
+    from orpheus.memo.traced_memo import bypass
 
     for body in ("slab", "sphere"):
         k = {}
@@ -416,7 +416,7 @@ def _partial_reflector() -> None:
 def _edge() -> None:
     from orpheus.derivations.continuous.characteristic import characteristic_reference
     from orpheus.numerics.observable import Eigenvalue
-    from orpheus.numerics.traced_memo import bypass
+    from orpheus.memo.traced_memo import bypass
 
     import numpy as np
 

@@ -393,7 +393,7 @@ _STRING_IMPORTS = [
     pytest.param('import pytest\nes = pytest.importorskip("orpheus.data.emission_spectrum")\n', id="importorskip"),
     pytest.param('import importlib\n_MODULE = "orpheus.numerics.enclosure"\ndef f():\n    return importlib.import_module(_MODULE)\n',
                  id="module-constant"),
-    pytest.param('import importlib\nMODULE: str = "orpheus.numerics.traced_memo"\nimportlib.import_module(MODULE)\n', id="annotated-constant"),
+    pytest.param('import importlib\nMODULE: str = "orpheus.memo.traced_memo"\nimportlib.import_module(MODULE)\n', id="annotated-constant"),
 ]
 
 _NOT_STRING_IMPORTS = [
@@ -428,7 +428,7 @@ def test_what_stays_dynamic_is_not_a_string_import(source: str) -> None:
 _KEPT = (
     ("numerics/test_axis_identity.py", "walk: pkgutil.walk_packages over orpheus"),
     ("transport/fields/test_role_partners.py", "walk: the transport packages' iter_modules"),
-    ("numerics/_traced_memo_synthetic.py", "synthetic package: written under tmp_path at test time"),
+    ("memo/_traced_memo_synthetic.py", "synthetic package: written under tmp_path at test time"),
     ("numerics/test_invariance_composition.py", "absence: find_spec of the deleted module"),
     ("mesh/test_module_layout.py", "absence: find_spec of the old homes"),
 )

@@ -33,13 +33,13 @@ from orpheus.geometry.chart import Chart
 from orpheus.geometry.chord import ConcentricPartition
 from orpheus.geometry.coord import CoordSystem
 from orpheus.specification.exterior import WallAmplitudes
-from tests.gates.numerics import _traced_memo_api as api
+from tests.gates.memo import _traced_memo_api as api
 
 pytestmark = pytest.mark.foundation
 
 REPO = Path(__file__).resolve().parents[3]
 _HERE = "tests/gates/derivations/test_characteristic_block_memo.py::"
-_MEMO = "tests/gates/numerics/test_traced_memo_process.py::"
+_MEMO = "tests/gates/memo/test_traced_memo_process.py::"
 
 _COORD = {"sphere": CoordSystem.SPHERICAL, "cylinder": CoordSystem.CYLINDRICAL, "slab": CoordSystem.CARTESIAN}
 _MR3, _SLB3 = (0.0, 0.5, 1.5, 2.0), (0.0, 0.4, 1.5, 2.3)
@@ -244,7 +244,7 @@ _CONSUMER_PREFIXES = ("GalerkinSystem.", "PointRule.", "CharacteristicDerivation
 
 
 @pytest.mark.rests_on(_HERE + "test_b1_a_served_block_is_the_in_process_block_bit_for_bit",
-                      "tests/gates/numerics/test_traced_memo_manifest.py::test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer")
+                      "tests/gates/memo/test_traced_memo_manifest.py::test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer")
 def test_b4_a_block_entry_pins_the_kernel_and_none_of_its_consumers(tmp_path) -> None:
     """[B4] A sphere block's entry pins the kernel defs it ran (``_KERNEL``, one per kernel module) and no def of a
     consumer (the system, the point rule, the door, the dense pencil, the cross sections), and no child entry: the
@@ -269,7 +269,7 @@ def test_b4_a_block_entry_pins_the_kernel_and_none_of_its_consumers(tmp_path) ->
 # ── B5: an edit misses exactly where the block ran (on a copy of the tree) ──
 
 from tests.gates.derivations.test_traced_memo_clients import _copy_tree, _neutral_edit  # noqa: E402
-from tests.gates.numerics.test_traced_memo_source_index import _fresh, _generating  # noqa: E402
+from tests.gates.memo.test_traced_memo_source_index import _fresh, _generating  # noqa: E402
 
 _LOOKUP_DRIVER = textwrap.dedent("""
     import os, sys
@@ -278,13 +278,13 @@ _LOOKUP_DRIVER = textwrap.dedent("""
     import orpheus
     assert orpheus.__file__.startswith(copy), orpheus.__file__
     if os.environ.get("C1_ARM") == "validate-off":          # the Stale rows' witness: a memo serving unvalidated entries
-        import orpheus.numerics.traced_memo as memo
+        import orpheus.memo.traced_memo as memo
         memo.validate = lambda manifest, store=None: ()
     from tests.gates.derivations.test_characteristic_block_memo import _BLOCKS
     from tests.gates.derivations.test_traced_memo_clients import _tiny_characteristic_sphere
     from orpheus.derivations.continuous.characteristic.assembly import group_transport
     from orpheus.numerics.observable import PointValue
-    from orpheus.numerics.traced_memo import cache_root
+    from orpheus.memo.traced_memo import cache_root
     with cache_root(cache):
         args = _BLOCKS["sphere3-white"]()
         reading, observable = _tiny_characteristic_sphere(), PointValue(position=0.4, group=1)
@@ -353,7 +353,7 @@ def _generated_copy(tmp_path_factory):
 
 
 @pytest.mark.parametrize("row,file,anchor,method,block,reading", _EDITS, ids=[e[0] for e in _EDITS])
-@pytest.mark.rests_on("tests/gates/numerics/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does",
+@pytest.mark.rests_on("tests/gates/memo/test_traced_memo_process.py::test_m3_2_an_edit_to_what_ran_regenerates_and_nothing_else_does",
                       _HERE + "test_b4_a_block_entry_pins_the_kernel_and_none_of_its_consumers")
 def test_b5_an_edit_to_the_copied_tree_misses_exactly_where_the_block_ran(_generated_copy, row, file, anchor, method,
                                                                           block, reading) -> None:
@@ -496,7 +496,7 @@ def test_b6_a_system_on_served_blocks_is_the_in_process_system(tmp_path) -> None
 # ── moved here by the layer DAG Phase 2 refresh (specs_2r §5) ──
 
 
-_B3 = "tests/gates/numerics/test_traced_memo_source_index.py::test_b3_def_pin_from_the_index_is_def_pin_from_the_tree"
+_B3 = "tests/gates/memo/test_traced_memo_source_index.py::test_b3_def_pin_from_the_index_is_def_pin_from_the_tree"
 
 
 @pytest.mark.rests_on(_B3)
@@ -505,7 +505,7 @@ def test_b5_a_real_manifest_is_the_same_from_a_cold_and_a_warm_index(tmp_path, m
     directory (every index parsed and written) and with the indexes it wrote (every index read, 0 parses).
     First red: an index that does not survive the disk."""
     memo = api.module()
-    from orpheus.numerics import _traced_memo_boot as boot
+    from orpheus.memo import _traced_memo_boot as boot
     import numpy as np
 
     from orpheus.derivations.continuous.characteristic import PanelBasis, TransportResolution, Wall, Walls

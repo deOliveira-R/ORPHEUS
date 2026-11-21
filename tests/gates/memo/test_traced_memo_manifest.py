@@ -104,7 +104,7 @@ def test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer(e
     assert (before_st != after_st) is statements_move, f"{edit}: the statements moved={before_st != after_st}"
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_1_and_m1_2_the_digests_move_exactly_with_what_can_change_an_answer')
 def test_m1_3a_a_method_and_the_last_def_of_a_name_resolve_by_qualname():
     """M1.3 (a): ``Holder.act`` is found by qualname, and a second ``def target`` shadows the first, as Python
     binds it: the digest is the LAST def's, so a validation reads the code that would run."""
@@ -115,7 +115,7 @@ def test_m1_3a_a_method_and_the_last_def_of_a_name_resolve_by_qualname():
     assert api.function_digest(shadowed, "target") == api.function_digest(alone, "target")
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3a_a_method_and_the_last_def_of_a_name_resolve_by_qualname')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_3a_a_method_and_the_last_def_of_a_name_resolve_by_qualname')
 def test_m1_3b_nested_code_maps_to_its_outermost_def(package):
     """M1.3 (b): a nested def, a lambda and a generator expression inside ``nested_user`` are pinned by
     ``nested_user``'s digest; a method by ``Box.method``; no ``<locals>`` qualname reaches the manifest."""
@@ -126,7 +126,7 @@ def test_m1_3b_nested_code_maps_to_its_outermost_def(package):
     assert not any("<" in q for _, q, *_ in manifest.functions), manifest.functions
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def')
 def test_m1_3c_signature_scopes_are_pinned_by_the_statements_not_by_a_body(package):
     """M1.3 (c), Python 3.14: evaluating a def's lazy annotations runs a generated ``__annotate__`` code object
     reported at the def's line, and a PEP 695 generic runs a ``<generic parameters of ...>`` scope. Neither is
@@ -144,7 +144,7 @@ def test_m1_3c_signature_scopes_are_pinned_by_the_statements_not_by_a_body(packa
     assert value == 5.0  # 2.0 + three hints (x, y, return)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_3b_nested_code_maps_to_its_outermost_def')
 def test_m1_4_the_manifest_is_what_ran(package):
     """M1.4: the traced defs are exactly the ones that ran (``unused`` and ``Box.other`` absent: the negative
     leg that a whole-module hash would fail), the module's statement pin is present, numpy is pinned by its installed
@@ -179,7 +179,7 @@ def test_m1_5_every_shape_of_traced_file_is_classified():
         api.classify(orphan)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_manifest.py::test_m1_3a_a_method_and_the_last_def_of_a_name_resolve_by_qualname')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_manifest.py::test_m1_3a_a_method_and_the_last_def_of_a_name_resolve_by_qualname')
 def test_m1_6_code_with_no_def_at_its_line_is_refused(package, tmp_path):
     """M1.6: a function compiled from a string under a REAL file's name, at a line where that file defines
     no such function, has no source the validation could re-hash: the manifest refuses it."""

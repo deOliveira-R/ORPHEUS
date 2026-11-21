@@ -40,13 +40,13 @@ from .test_traced_memo_findings import _Package
 pytestmark = pytest.mark.foundation
 
 REPO = Path(__file__).resolve().parents[3]
-_M31 = 'tests/gates/numerics/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never'
-_E1 = 'tests/gates/numerics/test_traced_memo_template.py::test_e1_a_forked_childs_manifest_is_a_fresh_processs'
+_M31 = 'tests/gates/memo/test_traced_memo_process.py::test_m3_1_a_miss_generates_once_and_a_hit_never'
+_E1 = 'tests/gates/memo/test_traced_memo_template.py::test_e1_a_forked_childs_manifest_is_a_fresh_processs'
 
 GENERATOR = '''
     import functools
 
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
     SCALE = 3.0
 
@@ -176,7 +176,7 @@ sys.path[:0] = [{tree!r}]
 import orpheus
 assert orpheus.__file__.startswith({tree!r}), orpheus.__file__
 from pathlib import Path
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 import e3_fixture.m as m
 assert tm._forks_here()
 content = Path({tree!r}) / "orpheus" / "values" / "content.py"
@@ -221,7 +221,7 @@ def test_e3_an_edit_to_a_module_the_template_imported_is_run_new(tmp_path, old, 
     (tree / "e3_fixture" / "__init__.py").write_text("")
     (tree / "e3_fixture" / "m.py").write_text(textwrap.dedent('''
         from orpheus.values import content
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -245,7 +245,7 @@ def test_e3_an_edit_to_a_module_the_template_imported_is_run_new(tmp_path, old, 
 
 
 @needs_fork
-@pytest.mark.rests_on(_E1, 'tests/gates/numerics/test_traced_memo_process.py::test_m3_10_a_patch_in_the_parent_never_reaches_an_entry_and_bypass_reads_and_writes_nothing')
+@pytest.mark.rests_on(_E1, 'tests/gates/memo/test_traced_memo_process.py::test_m3_10_a_patch_in_the_parent_never_reaches_an_entry_and_bypass_reads_and_writes_nothing')
 def test_e4_a_patch_made_before_the_template_starts_never_reaches_it(make, monkeypatch):
     """E4: the helper is patched in this process BEFORE the template starts (no template exists when the row
     begins), and the miss is forked: the entry holds the honest answer. A template is an interpreter of its own,
@@ -271,8 +271,8 @@ def test_e5_the_thread_counter_sees_native_threads_and_a_second_thread_refuses_t
     threads, or a template that does not ask it."""
     probe = textwrap.dedent('''
         import threading, numpy as np
-        from orpheus.numerics import _traced_memo_boot as boot
-        from orpheus.numerics import traced_memo as tm
+        from orpheus.memo import _traced_memo_boot as boot
+        from orpheus.memo import traced_memo as tm
         count = boot.FORK_MEASURED[tm.fork_platform()]()
         a = count()
         e = threading.Event(); t = threading.Thread(target=e.wait); t.start(); b = count(); e.set(); t.join()
@@ -299,7 +299,7 @@ def test_e6_a_change_of_environment_working_directory_or_path_reaches_the_next_g
     entry validates against it and its answer follows it. First red: one template for every state, whose
     children carry the state of its start."""
     reader = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -318,7 +318,7 @@ def test_e6_a_change_of_environment_working_directory_or_path_reaches_the_next_g
     monkeypatch.setenv("TMPDIR", str(tmp_path / "tmp"))  # a declared variable that passes through (not a fixed one)
     assert reader.read_relative(0.125) == 2.125
     assert api.verdict_kind(reader.read_relative.lookup(0.125)) == "Hit", "the entry pins another environment"
-    later = make(m="from orpheus.numerics.traced_memo import traced_memo\n\n\n@traced_memo\ndef g(x: float) -> float:\n    return x + 7.0\n").module()
+    later = make(m="from orpheus.memo.traced_memo import traced_memo\n\n\n@traced_memo\ndef g(x: float) -> float:\n    return x + 7.0\n").module()
     assert later.g(1.0) == 8.0, "the generation could not import a package put on sys.path after the template started"
 
 
@@ -337,9 +337,9 @@ def _alive(pid: int) -> bool:
 _E7_PARENT = '''
 import os, signal, sys
 sys.path[:0] = [{repo!r}, {root!r}]  # the tree under test first: a script's own directory is sys.path[0]
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 assert tm.__file__.startswith({repo!r}), tm.__file__
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 import {name}.m as m
 with tm.cache_root({cache!r}):
     m.generate(1.0)
@@ -391,7 +391,7 @@ def test_e7c_a_child_that_aborts_is_reported_and_the_template_lives_on(make):
     m = make(m='''
         import os
 
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -426,7 +426,7 @@ def test_e7d_many_misses_leave_no_zombie_no_fd_growth_and_a_bounded_template(mak
     size grew about 16 kB per fork in the protocol). First reds: a template that does not reap its children;
     a template never replaced."""
     memo = _memo()
-    m = make(m="from orpheus.numerics.traced_memo import traced_memo\n\n\n@traced_memo\ndef g(x: float) -> float:\n    return x + 1.0\n").module()
+    m = make(m="from orpheus.memo.traced_memo import traced_memo\n\n\n@traced_memo\ndef g(x: float) -> float:\n    return x + 1.0\n").module()
     m.g(0.0)
     first = memo._SLOT.template.process.pid
     fds_start = _template_fds(first)
@@ -445,7 +445,7 @@ def test_e7d_many_misses_leave_no_zombie_no_fd_growth_and_a_bounded_template(mak
 
 
 @needs_fork
-@pytest.mark.rests_on(_E1, 'tests/gates/numerics/test_traced_memo_process.py::test_m3_12e_a_child_generated_by_its_parent_serves_a_direct_caller')
+@pytest.mark.rests_on(_E1, 'tests/gates/memo/test_traced_memo_process.py::test_m3_12e_a_child_generated_by_its_parent_serves_a_direct_caller')
 def test_e8_a_nested_entry_is_the_entry_a_direct_call_writes(make, tmp_path):
     """E8: an entry generated inside a forked generation (a nested miss, which spawns a fresh interpreter: the
     forked child is a generating process) pins exactly what the same call's entry pins when it is the asking
@@ -453,14 +453,14 @@ def test_e8_a_nested_entry_is_the_entry_a_direct_call_writes(make, tmp_path):
     template is a fresh interpreter, never a fork of the generating child, so that mutation is safe by design;
     no realisable mutation reddens this row today."""
     package = make(m='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
         from .n import inner
 
         @traced_memo
         def outer(x: float) -> float:
             return inner(x) + 1.0
     ''', n='''
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
         @traced_memo
         def inner(x: float) -> float:
@@ -494,7 +494,7 @@ def test_a_platform_the_fork_protocol_never_ran_on_spawns_fresh(make, monkeypatc
 
 
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on(_M31, 'tests/gates/numerics/test_traced_memo_findings.py::test_e_the_environment_pin_follows_what_the_run_received')
+@pytest.mark.rests_on(_M31, 'tests/gates/memo/test_traced_memo_findings.py::test_e_the_environment_pin_follows_what_the_run_received')
 def test_the_environment_pin_is_what_the_generation_was_handed(make, monkeypatch, route):
     """The environment a generation's entry pins is the one the asking process HANDED it, the projection a
     validation compares against; never the generating interpreter's own ``os.environ`` after its start. A parent
@@ -522,7 +522,7 @@ sys.path[:0] = [{tree!r}]
 import orpheus
 assert orpheus.__file__.startswith({tree!r}), orpheus.__file__
 from pathlib import Path
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 import e9_fixture.m as m
 assert tm._forks_here()
 frames = []
@@ -554,7 +554,7 @@ E9_VALUE = float(_e9_pathlib.Path(__file__).with_name("e9_value.txt").read_text(
 
 
 @needs_fork
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_e3_an_edit_to_a_module_the_template_imported_is_run_new')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_e3_an_edit_to_a_module_the_template_imported_is_run_new')
 def test_e9_a_data_file_the_templates_imports_read_is_read_new(tmp_path):
     """E9: on a copy of the package's Python files, a module the TEMPLATE imports (``orpheus.values.content`` of
     the copy) reads a first-party data file at import into a module constant, and a memoised function returns
@@ -575,7 +575,7 @@ def test_e9_a_data_file_the_templates_imports_read_is_read_new(tmp_path):
     (tree / "e9_fixture" / "__init__.py").write_text("")
     (tree / "e9_fixture" / "m.py").write_text(textwrap.dedent('''
         from orpheus.values import content
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -610,7 +610,7 @@ def test_qa1_threads_missing_at_once_each_get_their_own_answer(make, monkeypatch
     calls = _forked_calls(monkeypatch)
     # The generation sleeps, so the four threads' misses overlap in the template's pipes (an instant generator
     # lets the interpreter's lock serialise them, and the row reads green without the template's lock).
-    m = make(m="import time\n\nfrom orpheus.numerics.traced_memo import traced_memo\n\n\n@traced_memo\n"
+    m = make(m="import time\n\nfrom orpheus.memo.traced_memo import traced_memo\n\n\n@traced_memo\n"
                "def g(x: float) -> float:\n    time.sleep(0.05)\n    return x * 2.0\n").module()
     m.g(-1.0)  # the template, started once
     results: dict[float, object] = {}
@@ -639,7 +639,7 @@ _TOCTOU = '''
     import os
     import time
 
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
 
     @traced_memo
@@ -656,7 +656,7 @@ _TOCTOU = '''
 @pytest.mark.timeout(300)
 @pytest.mark.catches("ERR-116")
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_compiled_bytes.py::test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_compiled_bytes.py::test_p2_an_edit_landing_during_a_generation_leaves_the_entry_stale')
 def test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale(make, tmp_path, monkeypatch, route):
     """qa 2 (a time-of-check to time-of-use window): a generator reads a data file, and the file is rewritten
     while the generator still runs. The entry pins the bytes the run READ, so it is born stale: the call raises
@@ -695,7 +695,7 @@ _PROBE = '''
     import select
     import sys
 
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
 
     @traced_memo
@@ -725,7 +725,7 @@ def test_qa3_qa4_a_generation_sees_the_same_argv_and_an_ended_stdin_on_both_rout
     assert forked == (1.0, 0.0) and fresh == (1.5, 0.5), (forked, fresh)
 
 
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_ownership.py::test_d6_an_upgrade_between_two_manifests_in_one_process_is_seen')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_ownership.py::test_d6_an_upgrade_between_two_manifests_in_one_process_is_seen')
 def test_qa6_a_distribution_rebuilt_under_the_same_version_is_another_install(tmp_path, monkeypatch):
     """qa 6: a distribution reinstalled under the SAME version with other files (a rebuild: its ``RECORD`` lists
     other hashes) makes an entry that ran its code stale; the pin is the version and the digest of the
@@ -755,7 +755,7 @@ import sys
 sys.path[:0] = [{tree!r}]
 import orpheus
 assert orpheus.__file__.startswith({tree!r}), orpheus.__file__
-from orpheus.numerics import traced_memo as tm
+from orpheus.memo import traced_memo as tm
 import s4_fixture.m as m
 assert tm._forks_here()
 starts = []
@@ -780,7 +780,7 @@ _s4_threading.Thread(target=_s4_wait.wait, daemon=True).start()
 
 
 @needs_fork
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_e5_the_thread_counter_sees_native_threads_and_a_second_thread_refuses_the_fork')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_e5_the_thread_counter_sees_native_threads_and_a_second_thread_refuses_the_fork')
 def test_s4_a_fresh_template_that_refuses_makes_the_process_spawn_from_then_on(tmp_path):
     """S4: on a copy of the package's Python files, a module the template imports starts an OS thread, so a fresh
     template refuses its first job (two OS threads). The process then spawns every miss: three misses are
@@ -795,7 +795,7 @@ def test_s4_a_fresh_template_that_refuses_makes_the_process_spawn_from_then_on(t
     content.write_text(content.read_text() + _S4_THREAD)
     (tree / "s4_fixture").mkdir()
     (tree / "s4_fixture" / "__init__.py").write_text("")
-    (tree / "s4_fixture" / "m.py").write_text("from orpheus.numerics.traced_memo import traced_memo\n\n\n@traced_memo\ndef g(x: float) -> float:\n    return x + 1.0\n")
+    (tree / "s4_fixture" / "m.py").write_text("from orpheus.memo.traced_memo import traced_memo\n\n\n@traced_memo\ndef g(x: float) -> float:\n    return x + 1.0\n")
     driver = tmp_path / "driver.py"
     driver.write_text(_S4_DRIVER.format(tree=str(tree), cache=str(tmp_path / "cache")))
     run = subprocess.run([sys.executable, *(["-O"] if sys.flags.optimize else []), str(driver)], cwd=tmp_path,
@@ -815,7 +815,7 @@ def test_s4_a_fresh_template_that_refuses_makes_the_process_spawn_from_then_on(t
 _OWN_FILES = '''
     import os
 
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
     DIRECTORY = {directory!r}
 
@@ -911,7 +911,7 @@ def _route(monkeypatch, route: str) -> None:
 
 @pytest.mark.timeout(120)
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale')
 def test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left(make, tmp_path, monkeypatch, route):
     """N1 and N2 (qa's second and third reviews). N1: a scratch file the run writes, reads back and deletes is
     its own output, never observed as an input: the value, then a ``Hit``. N2: a cache file read while ABSENT,
@@ -945,7 +945,7 @@ def test_n3_a_character_device_opened_for_reading_is_never_digested(make, tmp_pa
 
 @pytest.mark.timeout(120)
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left')
 def test_a_file_written_through_os_open_is_the_runs_own(make, tmp_path, monkeypatch, route):
     """The write detection's flag spelling: a file the run creates and rewrites through ``os.open`` (write flags,
     no mode string), reading it in between, is its own output: the value, then a ``Hit``. First red (battery G
@@ -961,7 +961,7 @@ def test_a_file_written_through_os_open_is_the_runs_own(make, tmp_path, monkeypa
 
 @pytest.mark.parametrize("case", ["counter", "renamed_into_place", "truncated"])
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left')
 def test_a_file_the_run_read_and_then_changed_is_refused(make, tmp_path, monkeypatch, route, case):
     """qa's third review, F1 and the change events: a file that existed before the run, read by it and then
     changed by it, by a write (``counter``: read n, write n + 1, return n), a rename of its own temporary file onto
@@ -985,7 +985,7 @@ _OBSERVED_THEN_CHANGED = '''
     import os
     import time
 
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
     DIRECTORY, READY = {directory!r}, {ready!r}
 
@@ -1011,7 +1011,7 @@ _OBSERVED_THEN_CHANGED = '''
 @pytest.mark.timeout(300)
 @pytest.mark.parametrize("case", ["presence", "listing"])
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_qa2_a_data_file_rewritten_during_the_run_leaves_the_entry_stale')
 def test_a_probe_and_a_listing_are_observed_when_the_run_made_them(make, tmp_path, monkeypatch, route, case):
     """qa's third review, F2: a presence probe and a directory listing are pinned by what the run SAW, at its
     first touch, like an opened file (qa2). The generator probes a path (or lists a directory), signals that it
@@ -1055,7 +1055,7 @@ _ACCESS = '''
     import os
     import tempfile
 
-    from orpheus.numerics.traced_memo import traced_memo
+    from orpheus.memo.traced_memo import traced_memo
 
     DIRECTORY = {directory!r}
 
@@ -1108,7 +1108,7 @@ _ACCESS = '''
 
 @pytest.mark.catches("ERR-116")
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_a_file_the_run_read_and_then_changed_is_refused')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_a_file_the_run_read_and_then_changed_is_refused')
 def test_an_open_that_reads_and_writes_is_an_input_first(make, tmp_path, monkeypatch, route):
     """The elegance review's B1: an open's access is decoded from its ``O_*`` flags. An ``"r+"`` open that reads n
     and writes n + 1 is an input the run then changed: refused. An ``os.open(O_RDWR)`` used for reading only is
@@ -1130,7 +1130,7 @@ def test_an_open_that_reads_and_writes_is_an_input_first(make, tmp_path, monkeyp
 
 
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_n1_n2_a_runs_own_files_are_pinned_by_what_it_left')
 def test_files_the_run_only_writes_are_its_outputs(make, tmp_path, monkeypatch, route):
     """A file opened ``"w"`` (truncating), opened ``"a"`` (appending, never read), or created by ``mkstemp``
     (``O_CREAT | O_EXCL``) reads nothing that was there: the run's own outputs, never inputs. The value, then a
@@ -1145,7 +1145,7 @@ def test_files_the_run_only_writes_are_its_outputs(make, tmp_path, monkeypatch, 
 
 
 @pytest.mark.parametrize("route", ["fresh", "forked"])
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_a_probe_and_a_listing_are_observed_when_the_run_made_them')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_a_probe_and_a_listing_are_observed_when_the_run_made_them')
 def test_a_listing_the_run_writes_into_is_refused(make, tmp_path, monkeypatch, route):
     """The elegance review's P1: a directory listed and then written into by the run lists other names than the
     run saw, and no state of it pins the answer: refused, as a file read and then changed is. First red
@@ -1160,7 +1160,7 @@ def test_a_listing_the_run_writes_into_is_refused(make, tmp_path, monkeypatch, r
 
 @needs_fork
 @pytest.mark.timeout(120)
-@pytest.mark.rests_on('tests/gates/numerics/test_traced_memo_template.py::test_e7a_a_template_ends_when_the_process_that_started_it_is_killed')
+@pytest.mark.rests_on('tests/gates/memo/test_traced_memo_template.py::test_e7a_a_template_ends_when_the_process_that_started_it_is_killed')
 def test_a_fork_of_the_asking_process_does_not_keep_its_template_alive(make):
     """The elegance review's P3: a child forked from a process that holds a template closes its copies of the
     template's pipes (``_SLOT.forget`` at fork), so when the parent releases its own ends the template reaches

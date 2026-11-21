@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from orpheus.numerics import _traced_memo_boot
+from orpheus.memo import _traced_memo_boot
 
 pytestmark = pytest.mark.foundation
 
@@ -171,7 +171,7 @@ def _in_a_fresh_interpreter(entry: str, *args: str) -> None:
     audit hook these runs set from reaching a recording around the test."""
     run = subprocess.run(
         [sys.executable, "-O", "-c",
-         f"import sys; from tests.gates.numerics.test_traced_memo_apparatus import {entry}; "
+         f"import sys; from tests.gates.memo.test_traced_memo_apparatus import {entry}; "
          f"sys.exit({entry}(*sys.argv[1:]))", *args],
         cwd=_REPO, capture_output=True, text=True, timeout=300)
     if run.returncode != 0:
@@ -222,7 +222,7 @@ def _arm(qualname: str, directory: str) -> int:
     return 1
 
 
-@pytest.mark.rests_on("tests/gates/numerics/test_traced_memo_apparatus.py::"
+@pytest.mark.rests_on("tests/gates/memo/test_traced_memo_apparatus.py::"
                       "test_a_nested_recording_records_no_apparatus_on_any_hook_path")
 @pytest.mark.parametrize("declared", _DECLARED, ids=[code.co_qualname for _, code in _DECLARED])
 def test_each_declaration_is_reached_by_the_nested_run(declared, tmp_path):

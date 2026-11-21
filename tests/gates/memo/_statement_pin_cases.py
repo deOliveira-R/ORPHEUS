@@ -2,7 +2,7 @@
 
 Spec: ``scratch/verification_tree/cone_store/b2/gate_spec.md``. Each :class:`Case` is a small package ``fx`` written
 under a temporary root, an entry ``fxrun.run`` whose body is the case's ``run``, and one edit. The gate
-(``test_traced_memo_statement_pins.py``) traces ``fxrun.run`` with :func:`~orpheus.numerics.traced_memo.trace_call` in
+(``test_traced_memo_statement_pins.py``) traces ``fxrun.run`` with :func:`~orpheus.memo.traced_memo.trace_call` in
 one fresh process, applies the edit, and validates the manifest in a second fresh process (the memo's source reads are
 kept per process, so an in-process validation after an on-disk edit could read the bytes from before it). ``run``
 imports ``fx`` INSIDE the traced call, so the modules' import-time code runs under the recorder, as it does in a

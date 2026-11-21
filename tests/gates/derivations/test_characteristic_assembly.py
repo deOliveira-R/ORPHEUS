@@ -71,7 +71,7 @@ from orpheus.derivations.continuous.characteristic import (
     GroupTransport, LineRule, PanelBasis, TransportResolution, TrappedSource, Wall, Walls,
 )
 from orpheus.derivations.continuous.characteristic.assembly import group_transport
-from orpheus.numerics.traced_memo import bypass
+from orpheus.memo.traced_memo import bypass
 from orpheus.derivations.continuous.characteristic.lines import Lines, OpticalScale, impact_rule, polar_rule
 from orpheus.derivations.common.quadrature import composite_gauss_legendre, gauss_legendre
 from orpheus.derivations.continuous.characteristic.grading import graded_ends

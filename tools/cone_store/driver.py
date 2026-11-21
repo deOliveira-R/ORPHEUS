@@ -11,7 +11,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from orpheus.numerics._traced_memo_boot import Witness
+from orpheus.memo._traced_memo_boot import Witness
 
 from tools.cone_store.collect import collect_ids, normalise
 from tools.cone_store.cone import Cone, Reading
@@ -98,7 +98,7 @@ def capture(repo: str | Path, store: str | Path, package: str = "orpheus", memo_
                 data = json.loads(path.read_text())
                 found[data["id"]] = data
         share = json.loads(Path(results, "gp.json").read_text()) if Path(results, "gp.json").exists() else None
-    from orpheus.numerics import traced_memo
+    from orpheus.memo import traced_memo
 
     with ConeStore(store) as database:
         for module in collected.errors:  # a module that does not import is recorded, not lost: select always lists it

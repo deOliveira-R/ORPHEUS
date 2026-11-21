@@ -26,7 +26,7 @@ REPO = Path(__file__).resolve().parents[3]
 #: How long a written file must age before its identity is trusted (the memo's ``TRUSTED_AGE_NS``, 2 s),
 #: plus a margin. Read from the memo, never restated: a change there moves this.
 def _trusted_age_s() -> float:
-    from orpheus.numerics._traced_memo_boot import TRUSTED_AGE_NS
+    from orpheus.memo._traced_memo_boot import TRUSTED_AGE_NS
 
     return TRUSTED_AGE_NS / 1e9 + 0.2
 
@@ -176,7 +176,7 @@ _BASE: dict[str, str] = {
     """,
     "tests/test_m.py": """
         from pkg import user
-        from orpheus.numerics.traced_memo import DefPin, trace_call
+        from orpheus.memo.traced_memo import DefPin, trace_call
 
 
         def test_nested():
@@ -191,7 +191,7 @@ _BASE: dict[str, str] = {
 #: The memo's part (spec §2, test_e): a stored reference, its validation test and a reader.
 _MEMO: dict[str, str] = {
     "pkg/oracle.py": """
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         def _oracle_body(n):
@@ -203,7 +203,7 @@ _MEMO: dict[str, str] = {
             return _oracle_body(n)
     """,
     "tests/test_e.py": """
-        from orpheus.numerics.traced_memo import bypass
+        from orpheus.memo.traced_memo import bypass
         from pkg.oracle import oracle
 
 
@@ -227,7 +227,7 @@ _OWN_STORE: dict[str, str] = {
             return float(n) * 0.25
     """,
     "pkg/own_oracle.py": """
-        from orpheus.numerics.traced_memo import traced_memo
+        from orpheus.memo.traced_memo import traced_memo
 
 
         @traced_memo
@@ -237,7 +237,7 @@ _OWN_STORE: dict[str, str] = {
             return _deep_body(n)
     """,
     "tests/test_own.py": """
-        from orpheus.numerics.traced_memo import cache_root
+        from orpheus.memo.traced_memo import cache_root
         from pkg.own_oracle import own_oracle
 
 
@@ -1067,7 +1067,7 @@ _threading.Thread(target=_time.sleep, args=(3600,), daemon=True).start()
 """
 
 _UNMEASURED_PLATFORM_LINES = """
-from orpheus.numerics import traced_memo as _traced_memo
+from orpheus.memo import traced_memo as _traced_memo
 
 _traced_memo.fork_platform = lambda: ("linux", "x86_64", "openblas")
 """

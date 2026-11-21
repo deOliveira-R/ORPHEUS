@@ -37,6 +37,7 @@ import orpheus.derivations.continuous.characteristic
 import orpheus.diffusion
 import orpheus.geometry
 import orpheus.mesh
+import orpheus.memo
 import orpheus.numerics
 import orpheus.reference
 import orpheus.specification
@@ -174,7 +175,7 @@ class TestTheUniquenessGateSeesACollision:
 #: The packages whose classes S5.9 walks. Of ``orpheus.derivations``, the package whose derivation is a reference
 #: solution (its receiver is a traced-memo key); the rest of ``orpheus.derivations`` is NOT walked. The
 #: trajectory-resolvent package was the second until step (e2) of the characteristic-reference campaign deleted it.
-_PACKAGES = (orpheus.values, orpheus.data, orpheus.geometry, orpheus.mesh, orpheus.numerics, orpheus.specification, orpheus.reference,
+_PACKAGES = (orpheus.values, orpheus.data, orpheus.geometry, orpheus.mesh, orpheus.memo, orpheus.numerics, orpheus.specification, orpheus.reference,
              orpheus.transport, orpheus.derivations.continuous.characteristic, orpheus.diffusion)
 
 
