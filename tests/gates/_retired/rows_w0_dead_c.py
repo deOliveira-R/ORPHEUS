@@ -1,8 +1,8 @@
 """The rows of unit ``dead`` sub-unit dead-C (the sn package; specification ``ontology_w0_spec.md`` Appendix D-C.7).
 
 22 rows of Appendix D-C.1 as 1 ``RetiredModule`` (the whole-module delete of ``orpheus/sn/loss_representation/assembly.py``, rows 85, 86,
-141, 142, 143), 16 ``Moved`` rows (to the test side), 6 ``Retired`` rows (row 92 is a delegate of row 37, so ``Retired`` with a rewire,
-decision D1 of the sixth pass); ``KEPT`` holds rows 83 and 100 and the deferred row 99 (decision D2, private state). Row 126 is dead-D's.
+141, 142, 143), 15 ``Moved`` rows (to the test side), 7 ``Retired`` rows (row 92 is a delegate of row 37, so ``Retired`` with a rewire,
+decision D1 of the sixth pass; row 37 was ``Moved`` until the W0 re-pose retired the moved helper); ``KEPT`` holds rows 83 and 100 and the deferred row 99 (decision D2, private state). Row 126 is dead-D's.
 
 First red at the base tip: every ``Retired`` and ``Moved`` row is defined today and the ``RetiredModule`` file exists. The ``Kept`` entries
 are green today and must stay green.
@@ -18,7 +18,7 @@ from __future__ import annotations
 from tests.gates._retired import Kept, Moved, Retired, RetiredModule, Row
 ROWS: tuple[Row, ...] = (
     RetiredModule('orpheus.sn.loss_representation.assembly'),  # the whole-module delete of rows 85, 86, 141, 142, 143
-    Moved('orpheus/mesh/axis.py', 'n_unknowns_flat', 'tests/gates/sn/primitives/test_axis_primitive.py', 'n_unknowns_flat'),  # row 37; free function n_unknowns_flat(axes, quad, ng)
+    Retired('orpheus/mesh/axis.py', 'n_unknowns_flat'),  # row 37; moved to the test side by dead-C, then retired by the W0 re-pose: it counted the OUTFLOW ordinates per face, a size no production object has, and the F0.8 legs now assert SNProblem.full_field_space against a closed-form count
     Retired('orpheus/sn/angular/closure.py', '_MMHalfGrid.downstream_per_ordinate'),  # row 80; free function downstream_per_ordinate(half_grid)  # was a property; moved to the test side 2026-11-20, retired 2026-11-21 (no consumer)
     Retired('orpheus/sn/angular/closure.py', '_MMHalfGrid.upstream'),  # row 81; free function upstream(half_grid, m); moved to the test side 2026-11-20, retired 2026-11-21 (no consumer)
     Moved('orpheus/sn/angular/closure.py', 'compute_psi_half_per_level', 'tests/gates/sn/sweep/curvilinear/_psi_half.py', 'compute_psi_half_per_level'),  # row 82; free function compute_psi_half_per_level(psi_level, tau_level, *, psi_half_seed=None)
@@ -30,7 +30,7 @@ ROWS: tuple[Row, ...] = (
     Moved('orpheus/sn/loss_representation/sweep_graph.py', 'SweepDependencyGraph.face_in_y', 'tests/gates/sn/sweep/_sweep_graph_faces.py', 'face_in_y'),  # row 89; free function face_in_y(sweep_dependency_graph)  # was a property
     Moved('orpheus/sn/loss_representation/sweep_graph.py', 'SweepDependencyGraph.face_out_y', 'tests/gates/sn/sweep/_sweep_graph_faces.py', 'face_out_y'),  # row 90; free function face_out_y(sweep_dependency_graph)  # was a property
     Moved('orpheus/sn/operators/loss_kernel_gauge.py', 'predicted_kernel_dimension', 'tests/gates/sn/operators/_kernel_dimension.py', 'predicted_kernel_dimension'),  # row 91; free function predicted_kernel_dimension(problem)
-    Retired('orpheus/sn/problem.py', 'SNProblem.n_unknowns_flat'),  # row 92; a DELEGATE of row 37 (`SNProblem.n_unknowns_flat` is `return _axis_n_unknowns_flat(self.axes, self.quad, self.ng)`): nothing moves, because no second definition exists; the row is `Retired` with a rewire (decision D1 of the sixth pass): every `p.n_unknowns_flat` is rewritten `n_unknowns_flat(p.axes, p.quad, p.ng)`, a call of row 37's helper (D6)
+    Retired('orpheus/sn/problem.py', 'SNProblem.n_unknowns_flat'),  # row 92; a DELEGATE of row 37 (`SNProblem.n_unknowns_flat` is `return _axis_n_unknowns_flat(self.axes, self.quad, self.ng)`): nothing moves, because no second definition exists; the row is `Retired` with a rewire (decision D1 of the sixth pass): every `p.n_unknowns_flat` was rewritten `n_unknowns_flat(p.axes, p.quad, p.ng)`, a call of row 37's helper (D6); the W0 re-pose then retired that helper and re-posed its callers on `SNProblem.full_field_space`
     Retired('orpheus/sn/problem.py', 'SNProblem.loss_kernel_gauge'),
     Retired('orpheus/sn/problem.py', 'SNProblem.boundary_face_layout'),
     Moved('orpheus/sn/solver.py', 'boundary_vs_interior_split', 'tests/gates/sn/operators/test_typed_residual_evaluation.py', 'boundary_vs_interior_split'),  # row 95; free function boundary_vs_interior_split(residual)

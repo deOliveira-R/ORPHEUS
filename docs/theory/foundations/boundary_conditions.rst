@@ -9592,8 +9592,8 @@ over :func:`~orpheus.mesh.axis.face_labels` that pairs each label with its
 (the scalar trace through :func:`~orpheus.transport.phase_spaces.scalar_trace_space`).
 The rule of reading is one line: a reader that needs only the labels (the
 ``traced`` set of ``realize_boundary`` above, the diffusion closure loop) reads
-``face_labels``, and a reader that needs the shapes (the two layouts, the
-unknown count of the gates' test-side ``n_unknowns_flat`` counter) reads ``trace_face_shapes``. Until Phase 4
+``face_labels``, and a reader that needs the shapes (the two layouts) reads
+``trace_face_shapes``. Until Phase 4
 the comprehension was spelled twice, in ``SNProblem.boundary_face_layout`` and
 in ``DiffusionMesh``'s scalar-trace construction.
 

@@ -9,12 +9,19 @@ F0.6 — :func:`face_outflow_ordinates` mask matches the inline expression at
        the 5+ legacy sites (``np.where(sign * mu_axis > 1e-15)[0]``).
 F0.7 — Synthetic 3-D admission: ``(AxisMesh(5), AxisMesh(7), AxisMesh(9))``
        produces 6 face labels via the pure shape functions (no SNProblem).
-F0.8 — :func:`n_unknowns_flat` (a test-side counting helper below; it was
-       ``SNProblem.n_unknowns_flat`` and ``orpheus.mesh.n_unknowns_flat``) matches
-       a hand count across slab, sphere, 2-D Cartesian, and synthetic 3-D. The
-       delegate property was compared with its own target before; those
-       comparisons are gone, and the three ``SNProblem`` legs now pin that
-       ``from_axes`` carries ``axes``, ``quad`` and ``ng`` against the hand count.
+F0.8 — The production full field ``SNProblem.full_field_space`` of a problem
+       posed by :meth:`SNProblem.from_axes` has the closed-form size
+       ``N·ng·∏cells + Σ_faces N·ng·∏(face cells)`` (every ordinate on every
+       traced face) on a slab, a solid sphere, a 2-D and a 3-D Cartesian mesh,
+       two groups each. The legs read the interior block, the trace block and
+       their sum, so they pin both the trace's per-face ordinate and group
+       counts and that ``from_axes`` poses on the caller's axes, quadrature and
+       materials. ``[M]`` 2026-11-21: a ``from_axes`` that drops the caller's
+       quadrature for a fixed one on a Cartesian mesh reddens the slab, 2-D and
+       3-D legs; at d = 1 it reddens no test of the 13 other files that call
+       ``from_axes`` (``-m "not slow"``). (Until the W0 re-pose these legs compared a
+       test-side outflow-only counter, the retired ``n_unknowns_flat``, with a
+       count of the same outflow sets; no production object has that size.)
 """
 
 from __future__ import annotations
@@ -33,7 +40,6 @@ from orpheus.mesh import (
     face_outflow_ordinates,
     face_shape,
     spatial_shape,
-    trace_face_shapes,
 )
 from orpheus.sn.problem import SNProblem
 from orpheus.numerics.quadrature import Quadrature
@@ -384,102 +390,107 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:
 
 
 # ─── F0.8 ────────────────────────────────────────────────────────────────
+#
+# The production full field of the angular flux is the direct sum
+# ``V_bulk ⊕ V_trace`` (``SNProblem.full_field_space``): the interior carries
+# every ordinate of every group in every cell, and EVERY traced face carries
+# EVERY ordinate of every group on each of its face cells (inflow, outflow and
+# tangential alike; the inflow / outflow split is a selector over the trace's
+# signed Ω·n, not a size). Each leg poses the problem through
+# ``SNProblem.from_axes`` and asserts the three sizes against a closed-form
+# count written here from the cell counts, the face inventory and the
+# quadrature's ordinate count; nothing in the count calls the code that builds
+# the spaces. Two groups, so a dropped energy axis on either block is visible
+# (one group nulls the group factor).
 
 
-def n_unknowns_flat(axes: tuple[Axis1D, ...], quad, ng: int) -> int:
-    """Independent count of the flat size of a typed ``AngularFlux`` on ``axes``.
-
-    Cells contribute ``N * ng * prod(spatial_shape)``; each face of the trace
-    inventory contributes ``|outflow| * ng * prod(face spatial shape)``.
-    """
-    shape = spatial_shape(axes)
-    n_cells = int(quad.n_ordinates) * int(ng) * int(np.prod(shape, dtype=np.int64))
-    n_face = 0
-    for label, face_spatial in trace_face_shapes(axes):
-        outflow = face_outflow_ordinates(axes, label, quad)
-        n_face += int(outflow.size) * int(ng) * int(np.prod(face_spatial, dtype=np.int64))
-    return n_cells + n_face
+def _two_group_mixture():
+    """A 2-group, 1-region, non-fissile mixture with downscatter; sizes only, gated on its own balance."""
+    sig_t = np.array([1.0, 2.0])
+    sig_c = np.array([0.5, 1.0])
+    sig_s = np.array([[0.4, 0.1], [0.0, 1.0]])  # [from, to]
+    # the mixture's consistency identity (``vv-testing``): sigma_t = sigma_c + sigma_f + sum_to SigS[from, to]
+    np.testing.assert_allclose(sig_t, sig_c + sig_s.sum(axis=1), rtol=0, atol=0)
+    return make_mixture(sig_t=sig_t, sig_c=sig_c, sig_f=np.zeros(2), nu=np.zeros(2), chi=np.zeros(2), sig_s=sig_s)
 
 
-def test_f0_8_n_unknowns_flat_slab() -> None:
-    """Slab 1-D: n_cells + outflow at min + outflow at max."""
-    axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11), role_low=_REFLECTIVE, role_high=_REFLECTIVE),)  # n=10
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    mesh = SNProblem.from_axes(
-        axes, quadrature=quad, materials={0: _one_group_mixture()}, boundary_conditions=conditions_for(axes, _CONDITIONS),
+def _pose(axes: tuple[Axis1D, ...], quad: Quadrature) -> SNProblem:
+    return SNProblem.from_axes(
+        axes, quadrature=quad, materials={0: _two_group_mixture()},
+        boundary_conditions=conditions_for(axes, _CONDITIONS),
     )
-    N, ng = quad.n_ordinates, 1
-    n_max = np.where(quad.mu_x > 1e-15)[0].size
-    n_min = np.where(-quad.mu_x > 1e-15)[0].size
-    expected = N * ng * 10 + (n_max + n_min) * ng * 1  # face_shape=()
-    assert n_unknowns_flat(mesh.axes, mesh.quad, mesh.ng) == expected
 
 
-def test_f0_8_n_unknowns_flat_sphere() -> None:
-    """Sphere 1-D: n_cells + outflow at outer (single face)."""
-    axes = (RadialAxisMesh(
-        edges=np.linspace(0.0, 1.0, 21),
-        coord=AxisCoord.RADIAL_SPHERICAL,
-        role_outer=0,
-    ),)
-    quad = Quadrature.gauss_legendre(n_ordinates=8)
-    mesh = SNProblem.from_axes(
-        axes, quadrature=quad, materials={0: _one_group_mixture()}, boundary_conditions=conditions_for(axes, _CONDITIONS),
+def _require_sizes(problem: SNProblem, *, interior: int, trace: int) -> None:
+    """The interior block, the trace block and their direct sum, each against its closed-form count."""
+    space = problem.full_field_space
+    got = (space.interior_space.n_coordinates, space.trace_space.n_coordinates, space.n_coordinates)
+    if got != (interior, trace, interior + trace):
+        pytest.fail(f"full field (interior, trace, sum) reads {got}; the closed form is {(interior, trace, interior + trace)}")
+
+
+@pytest.mark.rests_on(
+    "tests/gates/transport/test_phase_spaces.py::test_the_face_layout_is_the_hand_layout",
+    "tests/gates/mesh/test_trace_face_shapes.py::test_the_traced_faces_are_the_hand_inventory",
+)
+def test_f0_8_full_field_size_slab() -> None:
+    """Slab, 10 cells, GL8 (8 ordinates), 2 groups: the two point faces each carry all 8 ordinates."""
+    axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11), role_low=_REFLECTIVE, role_high=_REFLECTIVE),)
+    N, ng = 8, 2  # a Gauss-Legendre rule of n points has n ordinates
+    _require_sizes(
+        _pose(axes, Quadrature.gauss_legendre(n_ordinates=8)),
+        interior=N * ng * 10,
+        trace=2 * N * ng,  # xmin + xmax, each a point (face shape ())
     )
-    N, ng = quad.n_ordinates, 1
-    n_outer = np.where(quad.mu_x > 1e-15)[0].size
-    expected = N * ng * 20 + n_outer * ng * 1
-    assert n_unknowns_flat(mesh.axes, mesh.quad, mesh.ng) == expected
 
 
-def test_f0_8_n_unknowns_flat_2d_cartesian() -> None:
-    """2-D Cart: n_cells + (xmin + xmax) faces over y + (ymin + ymax) over x."""
+@pytest.mark.rests_on(
+    "tests/gates/transport/test_phase_spaces.py::test_the_face_layout_is_the_hand_layout",
+    "tests/gates/mesh/test_trace_face_shapes.py::test_the_traced_faces_are_the_hand_inventory",
+)
+def test_f0_8_full_field_size_sphere() -> None:
+    """Solid sphere, 20 shells, GL8, 2 groups: one traced face (the outer surface; the pole is not a face)."""
+    axes = (RadialAxisMesh(edges=np.linspace(0.0, 1.0, 21), coord=AxisCoord.RADIAL_SPHERICAL, role_outer=0),)
+    N, ng = 8, 2
+    _require_sizes(
+        _pose(axes, Quadrature.gauss_legendre(n_ordinates=8)),
+        interior=N * ng * 20,
+        trace=N * ng,  # xmax only, a point
+    )
+
+
+@pytest.mark.rests_on(
+    "tests/gates/transport/test_phase_spaces.py::test_the_face_layout_is_the_hand_layout",
+    "tests/gates/mesh/test_trace_face_shapes.py::test_the_traced_faces_are_the_hand_inventory",
+)
+def test_f0_8_full_field_size_2d_cartesian() -> None:
+    """2-D Cartesian 5 x 7, level-symmetric S4, 2 groups: x faces span the 7 y-cells, y faces the 5 x-cells."""
     axes = (
         AxisMesh(edges=np.linspace(0.0, 1.0, 6), role_low=_REFLECTIVE, role_high=_REFLECTIVE),  # n=5
         AxisMesh(edges=np.linspace(0.0, 1.0, 8), role_low=_REFLECTIVE, role_high=_REFLECTIVE),  # n=7
     )
-    quad = _level_symmetric_quad_2d(order=4)
-    mesh = SNProblem.from_axes(
-        axes, quadrature=quad, materials={0: _one_group_mixture()}, boundary_conditions=conditions_for(axes, _CONDITIONS),
+    N, ng = 4 * (4 + 2), 2  # a level-symmetric S_n rule has n(n+2) ordinates over the sphere
+    _require_sizes(
+        _pose(axes, _level_symmetric_quad_2d(order=4)),
+        interior=N * ng * 5 * 7,
+        trace=2 * N * ng * 7 + 2 * N * ng * 5,  # xmin + xmax over y, ymin + ymax over x
     )
-    N, ng = quad.n_ordinates, 1
-    n_xpos = np.where(quad.mu_x > 1e-15)[0].size
-    n_xneg = np.where(-quad.mu_x > 1e-15)[0].size
-    n_ypos = np.where(quad.mu_y > 1e-15)[0].size
-    n_yneg = np.where(-quad.mu_y > 1e-15)[0].size
-    expected = (
-        N * ng * 5 * 7                            # cells
-        + (n_xneg + n_xpos) * ng * 7              # xmin + xmax over y
-        + (n_yneg + n_ypos) * ng * 5              # ymin + ymax over x
-    )
-    assert n_unknowns_flat(mesh.axes, mesh.quad, mesh.ng) == expected
 
 
-def test_f0_8_n_unknowns_flat_synthetic_3d() -> None:
-    """Synthetic 3-D (no SNProblem): n_unknowns_flat from pure function.
-
-    LS4 already exposes ``mu_z`` as a concrete-class attribute (the
-    Protocol declaration catches up in C2), so axis-2 outflow IS
-    non-empty for this 3-D admission gate.
-    """
+@pytest.mark.rests_on(
+    "tests/gates/transport/test_phase_spaces.py::test_the_face_layout_is_the_hand_layout",
+    "tests/gates/mesh/test_trace_face_shapes.py::test_the_traced_faces_are_the_hand_inventory",
+)
+def test_f0_8_full_field_size_3d_cartesian() -> None:
+    """3-D Cartesian 5 x 7 x 9, level-symmetric S4, 2 groups: six faces, each spanning the other two axes."""
     axes = (
         AxisMesh(edges=np.linspace(0.0, 1.0, 6), role_low=_REFLECTIVE, role_high=_REFLECTIVE),   # n=5
         AxisMesh(edges=np.linspace(0.0, 1.0, 8), role_low=_REFLECTIVE, role_high=_REFLECTIVE),   # n=7
         AxisMesh(edges=np.linspace(0.0, 1.0, 10), role_low=_REFLECTIVE, role_high=_REFLECTIVE),  # n=9
     )
-    quad = _level_symmetric_quad_2d(order=4)
-    ng = 1
-    N = quad.n_ordinates
-    n_xpos = np.where(quad.mu_x > 1e-15)[0].size
-    n_xneg = np.where(-quad.mu_x > 1e-15)[0].size
-    n_ypos = np.where(quad.mu_y > 1e-15)[0].size
-    n_yneg = np.where(-quad.mu_y > 1e-15)[0].size
-    n_zpos = np.where(quad.mu_z > 1e-15)[0].size
-    n_zneg = np.where(-quad.mu_z > 1e-15)[0].size
-    expected = (
-        N * ng * 5 * 7 * 9
-        + (n_xneg + n_xpos) * ng * 7 * 9
-        + (n_yneg + n_ypos) * ng * 5 * 9
-        + (n_zneg + n_zpos) * ng * 5 * 7
+    N, ng = 4 * (4 + 2), 2
+    _require_sizes(
+        _pose(axes, _level_symmetric_quad_2d(order=4)),
+        interior=N * ng * 5 * 7 * 9,
+        trace=2 * N * ng * (7 * 9 + 5 * 9 + 5 * 7),  # x faces over (y, z), y faces over (x, z), z faces over (x, y)
     )
-    assert n_unknowns_flat(axes, quad, ng) == expected

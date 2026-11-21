@@ -386,8 +386,8 @@ _SAMPLE = tuple(f"{_MODULE}::{name}" for name in (
     "test_f0_6_face_outflow_ordinates_2d_LS4",
     "test_f0_6_face_outflow_ordinates_radial",
     "test_f0_7_synthetic_3d_face_outflow_axis_beyond_quad_dim_is_empty",
-    "test_f0_8_n_unknowns_flat_slab",
-    "test_f0_8_n_unknowns_flat_2d_cartesian",
+    "test_f0_8_full_field_size_slab",
+    "test_f0_8_full_field_size_2d_cartesian",
 ))
 
 _MONITOR = r'''
