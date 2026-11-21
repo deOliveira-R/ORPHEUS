@@ -32,8 +32,8 @@ _KI3_DEG = 63  # 64 Chebyshev points of the first kind
 _KI3_DPS = 30
 
 
-def _ki3_integral(tau: float) -> mpmath.mpf:
-    r""":math:`\mathrm{Ki}_3(\tau)` as :math:`\int_0^\infty (1+u^2)^{-2} e^{-\tau\sqrt{1+u^2}}\,du` at ``_KI3_DPS`` digits."""
+def _ki3_integral(tau: float):
+    r""":math:`\mathrm{Ki}_3(\tau)` as :math:`\int_0^\infty (1+u^2)^{-2} e^{-\tau\sqrt{1+u^2}}\,du`, an ``mpmath.mpf`` at ``_KI3_DPS`` digits."""
     with mpmath.workdps(_KI3_DPS):
         tau_mp = mpmath.mpf(float(tau))
 
