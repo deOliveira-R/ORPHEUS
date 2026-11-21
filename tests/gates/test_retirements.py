@@ -3,17 +3,17 @@ r"""The gates of the shared retirement engine (specification ``ontology_w0_spec.
 The engine is ``tests/gates/_retired/`` (the five row types in ``__init__``, the definition finder ``_finder``, the walk
 ``_walk``) and its data are the ``rows_*.py`` modules of that package. This file is its done-when: each test below names the input
 that reddens it (X1) and each is RED at the base tip because the engine does not exist there (the fixture :func:`engine` fails with
-``ModuleNotFoundError`` on every node; a module-level import would read as one collection error and ``FAILED = 0``).
+``ImportError``, ``cannot import name '_retired'``, on every node; a module-level import would read as one collection error and ``FAILED = 0``).
 
 **The seam this file pins (choices of the gate author, section 1.5 not fixing the spelling).** A builder conforms to these names:
 
 * ``tests.gates._retired``: the NamedTuples ``Retired``, ``Moved``, ``RetiredName``, ``RetiredModule``, ``Kept`` (fields as 1.5).
 * ``tests.gates._retired._finder.definitions(source: str) -> dict[str, int]``: qualname to line of every definition of ``source``.
-* ``tests.gates._retired._walk.load_rows(rows_dir: Path | None = None) -> list``: the ``ROWS`` then ``KEPT`` of every
-  ``rows_*.py`` of ``rows_dir`` (default: the package directory, resolved from ``_walk.__file__``).
+* ``tests.gates._retired._walk.load_rows(rows_dir: Path | None = None) -> tuple[tuple, tuple]``: the pair ``(rows, kept)``, the ``ROWS``
+  and the ``KEPT`` of every ``rows_*.py`` of ``rows_dir`` (default: the package directory, resolved from ``_walk.__file__``).
 * ``tests.gates._retired._walk.walk(root: Path, rows: Iterable | None = None, rows_dir: Path | None = None) -> dict``: the per-row
   verdicts. ``rows`` (rows and ``Kept`` entries mixed) overrides the loader. The key of a verdict is
-  ``(type(row).__name__, row)`` (decision C12: ``RetiredName('x') == RetiredModule('x')`` as tuples); the value is a list of
+  ``(type(row), row)`` (decision C12: ``RetiredName('x') == RetiredModule('x')`` as tuples); the value is a list of
   ``(file, line)`` pairs, ``file`` the posix path relative to ``root``, one pair per finding (decision C9: one finding per
   ``(row, file, line)``), ``line`` ``0`` for a finding that has no line (an absent file, a home lacking its name, a module file
   that exists).
@@ -226,6 +226,13 @@ _INVALID_ROWS = {
     "empty module": ("RetiredModule('')", "empty"),
     "empty home_name": ("Moved('orpheus/p/m.py', 'f', 'orpheus/p/h.py', '')", "empty"),
     "file not py": ("Retired('orpheus/p/m.txt', 'f')", r"\.py"),
+    "path leading space": ("Retired(' orpheus/p/m.py', 'f')", "repository path"),
+    "path absolute": ("Retired('/abs/orpheus/p/m.py', 'f')", "repository path"),
+    "path dot slash": ("Retired('./orpheus/p/m.py', 'f')", "repository path"),
+    "path outside the five trees": ("Retired('scratch/m.py', 'f')", "repository path"),
+    "home path leading space": ("Moved('orpheus/p/m.py', 'f', ' orpheus/p/h.py', 'f')", "repository path"),
+    "kept inside ROWS": ("Kept('orpheus/p/m.py', 'f', 'a wave')", "ROWS"),
+    "retired and moved of one definition": ("Retired('orpheus/p/m.py', 'f'), Moved('orpheus/p/m.py', 'f', 'orpheus/p/h.py', 'f')", "duplicate"),
     "home not py": ("Moved('orpheus/p/m.py', 'f', 'orpheus/p/h', 'f')", r"\.py"),
     "duplicate row": ("RetiredName('g'), RetiredName('g')", "duplicate"),
     "duplicate moved": ("Moved('orpheus/p/m.py', 'f', 'orpheus/p/h.py', 'f'), Moved('orpheus/p/m.py', 'f', 'orpheus/p/h.py', 'f')", "duplicate"),
@@ -275,18 +282,38 @@ def test_an_empty_keeper_a_kept_collision_and_an_unparsable_file_are_gate_errors
 @pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
 def test_a_verdict_key_carries_the_type_of_its_row(engine: SimpleNamespace, tmp_path: Path) -> None:
     r"""``RetiredName('x') == RetiredModule('x')`` as tuples (C12), so a mapping keyed by the bare row would merge them. Input: both
-    rows in one list; the walk returns two keys, ``(type name, row)`` each. Red input: an engine keyed by the bare tuple returns
-    one key. Positive control: a ``Retired`` and a ``Kept`` of equal fields are also two keys."""
+    rows in one list; the walk returns two keys, ``(type, row)`` each. Red input: an engine keyed by the bare tuple returns
+    one key. (A ``Retired`` and a ``Kept`` of equal fields are no second control: they are refused as one definition named twice.)"""
     R = engine.R
     verdicts = engine.walk(tmp_path, rows=[R.RetiredName("x"), R.RetiredModule("x")])
-    assert set(verdicts) == {("RetiredName", R.RetiredName("x")), ("RetiredModule", R.RetiredModule("x"))}
-    both = engine.walk(tmp_path, rows=[R.Retired("a.py", "b"), R.Kept("a.py", "b", "k")])
-    assert {k[0] for k in both} == {"Retired", "Kept"} and len(both) == 2
+    assert set(verdicts) == {(engine.R.RetiredName, R.RetiredName("x")), (engine.R.RetiredModule, R.RetiredModule("x"))}
 
 
 # ---------------------------------------------------------------------------
 # Controls: one finding per planted line, positive and negative on separate roots
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.foundation
+def test_the_kept_and_the_rows_are_typed_apart_and_one_definition_is_one_entry(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""``load_rows`` returns ``(rows, kept)``: a ``Retired`` inside a ``KEPT`` is a gate error, and a ``Kept`` and a ``Retired`` of one
+    ``(file, qualname)`` (a gate permanently red with a misleading verdict) are refused as one definition named twice. Positive
+    control: a valid module returns the two tuples typed apart."""
+    R = engine.R
+    (tmp_path / "good").mkdir()
+    rows, kept = engine.load_rows(_rows_dir_with(tmp_path / "good", _VALID_ROWS))
+    assert len(rows) == 4 and len(kept) == 1 and all(isinstance(k, R.Kept) for k in kept)
+    bodies = {
+        "retired inside KEPT": ("ROWS = ()\nKEPT = (Retired('orpheus/p/m.py', 'f'),)\n", "KEPT"),
+    }
+    for label, (body, fragment) in bodies.items():
+        with pytest.raises(engine.GateError, match=fragment):
+            (tmp_path / label.replace(" ", "_")).mkdir()
+            engine.load_rows(_rows_dir_with(tmp_path / label.replace(" ", "_"), body))
+    root = tmp_path / "root"
+    root.mkdir()
+    with pytest.raises(engine.GateError, match=r"(?i)duplicate"):
+        engine.walk(root, rows=[R.Retired("orpheus/p/m.py", "f"), R.Kept("orpheus/p/m.py", "f", "a wave")])
 
 
 @pytest.mark.foundation
@@ -310,7 +337,7 @@ def test_the_positive_control_of_a_definition_row_finds_each_of_nine_planted_lin
         row = engine.R.Retired(_M, "NAME")
     assert len(plant.planted) == 9
     verdicts = engine.walk(tmp_path, rows=[row])
-    _assert_exactly(_findings(verdicts, (type(row).__name__, row)), plant.planted)
+    _assert_exactly(_findings(verdicts, (type(row), row)), plant.planted)
 
 
 @pytest.mark.foundation
@@ -330,7 +357,7 @@ def test_the_negative_control_of_a_definition_row_reads_nothing(engine: SimpleNa
         rows = [engine.R.Moved(_M, "NAME", "orpheus/p/home.py", "NAME"), engine.R.Retired(_M, "laguerre")]
     verdicts = engine.walk(tmp_path, rows=rows)
     for row in rows:
-        _assert_exactly(_findings(verdicts, (type(row).__name__, row)), set())
+        _assert_exactly(_findings(verdicts, (type(row), row)), set())
 
 
 @pytest.mark.foundation
@@ -344,7 +371,7 @@ def test_the_leftover_of_a_retirement_is_found_through_a_package_that_binds_noth
     plant.add("orpheus/p/__init__.py", '"""Binds nothing."""')
     plant.add("tests/left.py", "from orpheus.p import NAME  #*")
     row = engine.R.Retired(_M, "NAME")
-    _assert_exactly(_findings(engine.walk(tmp_path, rows=[row]), ("Retired", row)), plant.planted)
+    _assert_exactly(_findings(engine.walk(tmp_path, rows=[row]), (engine.R.Retired, row)), plant.planted)
 
 
 @pytest.mark.foundation
@@ -362,31 +389,37 @@ def test_an_ancestor_chain_is_read_through_an_absolute_link_and_a_homonym_throug
     reach.add("orpheus/p/sub/__init__.py", "from .m import NAME  #*")
     reach.add("orpheus/p/__init__.py", "from orpheus.p.sub import NAME  #*")
     reach.add("tests/user.py", "from orpheus.p import NAME  #*")
-    _assert_exactly(_findings(engine.walk(tmp_path / "reach", rows=[row]), ("Retired", row)), reach.planted)
+    _assert_exactly(_findings(engine.walk(tmp_path / "reach", rows=[row]), (engine.R.Retired, row)), reach.planted)
     other = Plant(tmp_path / "other")
     other.add("orpheus/p/sub/m.py", '"""Defines nothing."""')
     other.add("orpheus/p/other.py", "NAME = 1")
     other.add("orpheus/p/__init__.py", "from orpheus.p.other import NAME")
     other.add("tests/user.py", "from orpheus.p import NAME")
-    _assert_exactly(_findings(engine.walk(tmp_path / "other", rows=[row]), ("Retired", row)), set())
+    _assert_exactly(_findings(engine.walk(tmp_path / "other", rows=[row]), (engine.R.Retired, row)), set())
 
 
 @pytest.mark.foundation
 @pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
 def test_the_string_leg_reads_a_relative_fixture_import_by_its_suffix_for_a_definition_row_only(engine: SimpleNamespace, tmp_path: Path) -> None:
     r"""Decision C22 and the string leg of 1.5: the fixture string ``"from ..m import NAME"`` (a relative import whose module is a
-    dotted suffix of the row's module at component boundaries) is found for a ``Retired`` row, ``"from ..xm import NAME"`` (a
-    suffix NOT at a component boundary) is not, and a ``RetiredName`` row never reads a fixture string (another gate's planted
+    dotted suffix of the row's module at component boundaries) is found for a ``Retired`` row, and on a row of ``p/xm.py`` (the
+    row's module ends in the characters ``m`` but not in the component ``.m``) it is not, and a ``RetiredName`` row never reads a fixture string (another gate's planted
     control must be able to spell a retired name). Red input: an engine with no suffix rule, a character suffix, or a
     ``RetiredName`` walk over strings."""
     plant = Plant(tmp_path)
     plant.add(_M, '"""Defines nothing."""')
     plant.add("tests/s1.py", 'S = "from ..m import NAME\\n"  #*')
-    plant.add("tests/s2.py", 'S = "from ..xm import NAME\\n"')
     rows = [engine.R.Retired(_M, "NAME"), engine.R.RetiredName("NAME")]
     verdicts = engine.walk(tmp_path, rows=rows)
-    _assert_exactly(_findings(verdicts, ("Retired", rows[0])), plant.planted)
-    _assert_exactly(_findings(verdicts, ("RetiredName", rows[1])), set())
+    _assert_exactly(_findings(verdicts, (engine.R.Retired, rows[0])), plant.planted)
+    _assert_exactly(_findings(verdicts, (engine.R.RetiredName, rows[1])), set())
+    # the boundary: on a row of ``orpheus/p/xm.py`` the string ``from ..m import NAME`` names ``m``, and ``orpheus.p.xm`` ends in the
+    # characters ``m`` but not in the component ``.m`` (the character rule is red here, the boundary rule reads nothing)
+    other = Plant(tmp_path / "boundary")
+    other.add("orpheus/p/xm.py", '"""Defines nothing."""')
+    other.add("tests/s2.py", 'S = "from ..m import NAME\\n"')
+    row = engine.R.Retired("orpheus/p/xm.py", "NAME")
+    _assert_exactly(_findings(engine.walk(tmp_path / "boundary", rows=[row]), (engine.R.Retired, row)), set())
 
 
 @pytest.mark.foundation
@@ -402,9 +435,9 @@ def test_a_definition_in_the_rows_own_file_is_the_first_leg_and_an_absent_file_d
         """)
     nested, flat, absent = engine.R.Retired(_M, "C.NAME"), engine.R.Retired(_M, "NAME"), engine.R.Retired("orpheus/p/missing.py", "C.NAME")
     verdicts = engine.walk(tmp_path, rows=[nested, flat, absent])
-    _assert_exactly(_findings(verdicts, ("Retired", nested)), plant.planted)
-    _assert_exactly(_findings(verdicts, ("Retired", flat)), set())
-    _assert_exactly(_findings(verdicts, ("Retired", absent)), set())
+    _assert_exactly(_findings(verdicts, (engine.R.Retired, nested)), plant.planted)
+    _assert_exactly(_findings(verdicts, (engine.R.Retired, flat)), set())
+    _assert_exactly(_findings(verdicts, (engine.R.Retired, absent)), set())
 
 
 @pytest.mark.foundation
@@ -423,7 +456,7 @@ def test_the_home_leg_is_green_for_a_home_that_defines_the_name_and_red_for_one_
         plant.add(_M, '"""Defines nothing."""')
         if home_text is not None:
             plant.add("orpheus/p/home.py", home_text)
-        _assert_exactly(_findings(engine.walk(root, rows=[row]), ("Moved", row)), expected)
+        _assert_exactly(_findings(engine.walk(root, rows=[row]), (engine.R.Moved, row)), expected)
 
 
 @pytest.mark.foundation
@@ -446,14 +479,58 @@ def test_the_positive_control_of_a_name_row_finds_each_of_seven_planted_lines_an
         """)
     row = engine.R.RetiredName("NAME")
     assert len(positive.planted) == 7
-    _assert_exactly(_findings(engine.walk(tmp_path / "pos", rows=[row]), ("RetiredName", row)), positive.planted)
+    _assert_exactly(_findings(engine.walk(tmp_path / "pos", rows=[row]), (engine.R.RetiredName, row)), positive.planted)
     negative = Plant(tmp_path / "neg")
     negative.add("tests/rn.py", """
         hasattr(m, "NAME")
         S = "from m import NAME\\n"
         T = ("NAME", "other")
         """)
-    _assert_exactly(_findings(engine.walk(tmp_path / "neg", rows=[row]), ("RetiredName", row)), set())
+    _assert_exactly(_findings(engine.walk(tmp_path / "neg", rows=[row]), (engine.R.RetiredName, row)), set())
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_positive_control_of_a_name_row_finds_each_of_seven_planted_lines_and_its_negative_none")
+def test_a_name_row_reads_the_binding_forms_that_are_not_name_nodes(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""``RetiredName('NAME')`` also reads the stores that are not ``Name`` nodes: ``except E as NAME``, ``global NAME``, the module
+    of ``from NAME import x``, a ``match`` capture, ``__all__ += ["NAME"]`` and an annotated ``__all__: list[str] = ["NAME"]``
+    (6 of 6, one root each line of text). Red input: an engine that reads ``Name`` nodes and keywords only."""
+    plant = Plant(tmp_path)
+    plant.add("tests/rn.py", """
+        try:
+            pass
+        except Exception as NAME:  #*
+            pass
+        def f():
+            global NAME  #*
+        from NAME import x  #*
+        match 1:
+            case NAME:  #*
+                pass
+        __all__ = []
+        __all__ += ["NAME"]  #*
+        __all__: list[str] = ["NAME"]  #*
+        """)
+    row = engine.R.RetiredName("NAME")
+    _assert_exactly(_findings(engine.walk(tmp_path, rows=[row]), (engine.R.RetiredName, row)), plant.planted)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_positive_control_of_a_definition_row_finds_each_of_nine_planted_lines")
+def test_a_local_name_bound_by_two_imports_reads_both_bindings(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""C6 read strictly: ``from orpheus.p import m`` at the top and ``from q import m`` inside a function bind one local name to two
+    targets, and ``m.NAME`` is read against both, so the row is red (1 of 1). Red input: an engine whose alias map keeps the last
+    binding (``ast.walk`` visits the function body last) reads 0."""
+    plant = Plant(tmp_path)
+    plant.add(_M, '"""Defines nothing."""')
+    plant.add("tests/two.py", """
+        from orpheus.p import m
+        m.NAME  #*
+        def f():
+            from q import m
+        """)
+    row = engine.R.Retired(_M, "NAME")
+    _assert_exactly(_findings(engine.walk(tmp_path, rows=[row]), (engine.R.Retired, row)), plant.planted)
 
 
 def _module_positive(plant: Plant) -> None:
@@ -486,33 +563,123 @@ def test_the_positive_control_of_a_module_row_finds_each_of_seven_planted_lines_
     _module_positive(positive)
     row = engine.R.RetiredModule("orpheus.p.m")
     assert len(positive.planted) == 7
-    _assert_exactly(_findings(engine.walk(tmp_path / "pos", rows=[row]), ("RetiredModule", row)), positive.planted)
+    _assert_exactly(_findings(engine.walk(tmp_path / "pos", rows=[row]), (engine.R.RetiredModule, row)), positive.planted)
     negative = Plant(tmp_path / "neg")
     negative.add("tests/n.py", """
         import orpheus.p.m2
         import orpheus.p.mx
         T = ("orpheus.p.m", "other")
         """)
-    _assert_exactly(_findings(engine.walk(tmp_path / "neg", rows=[row]), ("RetiredModule", row)), set())
+    _assert_exactly(_findings(engine.walk(tmp_path / "neg", rows=[row]), (engine.R.RetiredModule, row)), set())
+
+
 
 
 @pytest.mark.foundation
 @pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
-@pytest.mark.parametrize("planted_rel", ["orpheus/p/m.py", "orpheus/p/m/__init__.py"])
+def test_the_legs_with_no_other_control_find_each_of_their_planted_lines(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""The legs of 1.5 that no control above plants: the dotted-qualname setter (``getattr(C, "attr")`` and
+    ``monkeypatch.setattr(C, "attr", v)`` with ``C`` imported from the row's module, a row ``(m.py, "C.attr")``), the dotted-target
+    setter (``monkeypatch.setattr("orpheus.p.m.NAME", v)``), the C19 chain (``import orpheus.p.m`` then ``orpheus.p.m.NAME``) and
+    the submodule string (``importlib.import_module("orpheus.p.m.sub")``). Negatives on the same root: ``getattr(D, "attr")`` for a
+    class ``D`` of another module, and a homonym class ``C`` re-exported by the ancestor package (``from .other import C``), which
+    must not redden the row. Red input: an engine that lacks one of the four legs reads 0 of that leg's planted lines."""
+    plant = Plant(tmp_path)
+    plant.add(_M, '"""Defines nothing."""')
+    plant.add("tests/d1.py", """
+        from orpheus.p.m import C
+        getattr(C, "attr")  #*
+        def test(monkeypatch):
+            monkeypatch.setattr(C, "attr", 1)  #*
+        """)
+    plant.add("tests/d2.py", """
+        from other import D
+        getattr(D, "attr")
+        """)
+    plant.add("tests/d3.py", """
+        def test(monkeypatch):
+            monkeypatch.setattr("orpheus.p.m.NAME", 1)  #*
+        """)
+    plant.add("tests/d4.py", """
+        import orpheus.p.m
+        orpheus.p.m.NAME  #*
+        """)
+    plant.add("tests/d5.py", """
+        import importlib
+        importlib.import_module("orpheus.p.m.sub")  #*
+        """)
+    rows = [engine.R.Retired(_M, "C.attr"), engine.R.Retired(_M, "NAME")]
+    verdicts = engine.walk(tmp_path, rows=rows)
+    expected_dotted = {("tests/d1.py", 2), ("tests/d1.py", 4)}
+    _assert_exactly(_findings(verdicts, (engine.R.Retired, rows[0])), expected_dotted)
+    _assert_exactly(_findings(verdicts, (engine.R.Retired, rows[1])), {("tests/d3.py", 2), ("tests/d4.py", 2)})
+    module_row = engine.R.RetiredModule("orpheus.p.m")
+    _assert_exactly(_findings(engine.walk(tmp_path, rows=[module_row]), (engine.R.RetiredModule, module_row)),
+                    {("tests/d1.py", 1), ("tests/d4.py", 1), ("tests/d5.py", 2), (_M, 0)})
+    homonym = Plant(tmp_path / "homonym")
+    homonym.add(_M, '"""Defines nothing."""')
+    homonym.add("orpheus/p/other.py", "class C: pass")
+    homonym.add("orpheus/p/__init__.py", "from .other import C")
+    homonym.add("tests/h.py", 'from orpheus.p import C\ngetattr(C, "attr")\n')
+    _assert_exactly(_findings(engine.walk(tmp_path / "homonym", rows=[rows[0]]), (engine.R.Retired, rows[0])), set())
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
+def test_the_ancestor_binding_follows_every_link_and_a_dead_link_counts(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""Decision E-D1 on the shapes a package can bind a name by. Each root plants the row ``(orpheus/p/m.py, NAME)``, a package
+    ``orpheus/p/__init__.py``, a consumer ``tests/u.py: from orpheus.p import NAME`` and reports (1) a link through a sibling module
+    that is gone (``from .api import NAME``, ``api.py`` empty: the leftover of a retirement, reported at the consumer), (2) a chain
+    through a sibling that re-exports the row (``api.py: from .m import NAME``: reported at the consumer and at ``api.py``), (3) the
+    explicit re-export idiom ``from .m import NAME as NAME`` (reported at the consumer and the package line), (4) a link to a sibling
+    that defines its own ``NAME`` (a different object: nothing reported), (5) a function-body import in the package, which is no module-level binding (the consumer is
+    reported), (6) an external link ``from numpy import NAME`` (another object: nothing). Red input: an engine that reads a sibling
+    chain, an ``as`` that repeats the name or a nested import as a different object reads 0 for roots 1 to 3 and 5."""
+    row = engine.R.Retired(_M, "NAME")
+
+    def root(label: str, init: str, extra: dict[str, str]) -> tuple[Path, Plant]:
+        path = tmp_path / label
+        plant = Plant(path)
+        plant.add(_M, '"""Defines nothing."""')
+        plant.add("orpheus/p/__init__.py", init)
+        for rel, text in extra.items():
+            plant.add(rel, text)
+        plant.add("tests/u.py", "from orpheus.p import NAME  #*")
+        return path, plant
+
+    cases = [
+        ("dead_link", "from .api import NAME", {"orpheus/p/api.py": '"""Empty."""'}, False),
+        ("sibling_chain", "from .api import NAME", {"orpheus/p/api.py": "from .m import NAME  #*"}, False),
+        ("as_same_name", "from .m import NAME as NAME  #*", {}, False),
+        ("own_definition", "from .api import NAME", {"orpheus/p/api.py": "NAME = 1"}, True),
+        ("external", "from numpy import NAME", {}, True),
+        ("nested_only", "def f():\n    from .other import NAME", {"orpheus/p/other.py": "NAME = 1"}, False),
+    ]
+    for label, init, extra, reads_nothing in cases:
+        path, plant = root(label, init, extra)
+        found = _findings(engine.walk(path, rows=[row]), (engine.R.Retired, row))
+        _assert_exactly(found, set() if reads_nothing else plant.planted)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_finder_reads_every_definition_shape_it_must")
+@pytest.mark.parametrize("planted_rel", ["orpheus/p/m.py", "orpheus/p/m/__init__.py", "orpheus/p/m/stray.py"])
 def test_the_absence_leg_reports_a_leftover_module_file_or_package_and_is_silent_on_a_root_with_neither(
     engine: SimpleNamespace, tmp_path: Path, planted_rel: str,
 ) -> None:
     r"""Decision E-D6: ``RetiredModule('orpheus.p.m')`` is red when ``orpheus/p/m.py`` or ``orpheus/p/m/__init__.py`` exists under
-    the root, though nothing imports it (1 of 1 each, one root each); a root holding neither is silent. Red input: an engine
+    the root, or any ``.py`` under the directory ``orpheus/p/m/`` (``stray.py`` with no ``__init__.py``: a namespace package, which the
+    deleted homes test, ``path.exists()`` on the directory, read red), though nothing imports it (1 of 1 each, one root each); a root
+    holding none is silent. Red input: an engine
     with the import legs only (the wave-2 shape of the check lived in a separate path test that the port deletes)."""
     row = engine.R.RetiredModule("orpheus.p.m")
     planted = Plant(tmp_path / "planted")
     planted.add(planted_rel, '"""A leftover."""  #*')
-    found = _findings(engine.walk(tmp_path / "planted", rows=[row]), ("RetiredModule", row))
+    found = _findings(engine.walk(tmp_path / "planted", rows=[row]), (engine.R.RetiredModule, row))
     assert len(found) == 1 and found[0][0] == planted_rel, found
     clean = Plant(tmp_path / "clean")
     clean.add("orpheus/p/other.py", "x = 1")
-    _assert_exactly(_findings(engine.walk(tmp_path / "clean", rows=[row]), ("RetiredModule", row)), set())
+    _assert_exactly(_findings(engine.walk(tmp_path / "clean", rows=[row]), (engine.R.RetiredModule, row)), set())
 
 
 @pytest.mark.foundation
@@ -527,7 +694,7 @@ def test_a_kept_entry_is_green_while_defined_and_red_when_its_definition_or_file
         plant.add("tests/benign.py", "x = 1")
         if text is not None:
             plant.add("orpheus/p/k.py", text)
-        _assert_exactly(_findings(engine.walk(tmp_path / label, rows=[entry]), ("Kept", entry)), expected)
+        _assert_exactly(_findings(engine.walk(tmp_path / label, rows=[entry]), (engine.R.Kept, entry)), expected)
 
 
 @pytest.mark.foundation
@@ -546,7 +713,7 @@ def test_the_walk_reads_the_five_trees_and_not_its_own_files_or_the_rows_directo
     for rel in ("leak_outside/leak.py", "tests/gates/_retired/leak.py", _THIS):
         plant.add(rel, user)
     row = engine.R.Retired(_M, "NAME")
-    _assert_exactly(_findings(engine.walk(tmp_path, rows=[row]), ("Retired", row)), plant.planted)
+    _assert_exactly(_findings(engine.walk(tmp_path, rows=[row]), (engine.R.Retired, row)), plant.planted)
 
 
 # ---------------------------------------------------------------------------
@@ -610,8 +777,8 @@ def test_a_definition_planted_in_the_copy_turns_exactly_its_retired_row_red(engi
         (root / row.file).write_text("class Owner:\n    attr = None\n", encoding="utf-8")
 
     red, after = _mutate_and_read(engine, tmp_path, mutate)
-    assert red == {("Retired", row)}, sorted(map(repr, red))
-    assert (row.file, 2) in {tuple(f) for f in after[("Retired", row)]}
+    assert red == {(engine.R.Retired, row)}, sorted(map(repr, red))
+    assert (row.file, 2) in {tuple(f) for f in after[(engine.R.Retired, row)]}
 
 
 @pytest.mark.foundation
@@ -625,8 +792,8 @@ def test_a_use_planted_in_the_copy_turns_exactly_its_name_row_red(engine: Simple
         (root / "tests" / "planted_use.py").write_text(f"{row.name} = 1\n", encoding="utf-8")
 
     red, after = _mutate_and_read(engine, tmp_path, mutate)
-    assert red == {("RetiredName", row)}, sorted(map(repr, red))
-    assert ("tests/planted_use.py", 1) in {tuple(f) for f in after[("RetiredName", row)]}
+    assert red == {(engine.R.RetiredName, row)}, sorted(map(repr, red))
+    assert ("tests/planted_use.py", 1) in {tuple(f) for f in after[(engine.R.RetiredName, row)]}
 
 
 @pytest.mark.foundation
@@ -640,8 +807,8 @@ def test_an_import_planted_in_the_copy_turns_exactly_its_module_row_red(engine: 
         (root / "tests" / "planted_use.py").write_text(f"import {row.module}\n", encoding="utf-8")
 
     red, after = _mutate_and_read(engine, tmp_path / "import", by_import)
-    assert red == {("RetiredModule", row)}, sorted(map(repr, red))
-    assert ("tests/planted_use.py", 1) in {tuple(f) for f in after[("RetiredModule", row)]}
+    assert red == {(engine.R.RetiredModule, row)}, sorted(map(repr, red))
+    assert ("tests/planted_use.py", 1) in {tuple(f) for f in after[(engine.R.RetiredModule, row)]}
 
     def by_file(root: Path) -> None:
         target = root / (row.module.replace(".", "/") + ".py")
@@ -649,7 +816,7 @@ def test_an_import_planted_in_the_copy_turns_exactly_its_module_row_red(engine: 
         target.write_text("x = 1\n", encoding="utf-8")
 
     red, _ = _mutate_and_read(engine, tmp_path / "file", by_file)
-    assert red == {("RetiredModule", row)}, sorted(map(repr, red))
+    assert red == {(engine.R.RetiredModule, row)}, sorted(map(repr, red))
 
 
 @pytest.mark.foundation
@@ -663,13 +830,13 @@ def test_a_moved_row_goes_red_when_its_old_definition_returns_and_when_its_home_
         (root / row.file).write_text(f"def {row.qualname}(): pass\n", encoding="utf-8")
 
     red, _ = _mutate_and_read(engine, tmp_path / "returns", returns)
-    assert red == {("Moved", row)}, sorted(map(repr, red))
+    assert red == {(engine.R.Moved, row)}, sorted(map(repr, red))
 
     def loses(root: Path) -> None:
         (root / row.home).write_text("y = 1\n", encoding="utf-8")
 
     red, _ = _mutate_and_read(engine, tmp_path / "loses", loses)
-    assert red == {("Moved", row)}, sorted(map(repr, red))
+    assert red == {(engine.R.Moved, row)}, sorted(map(repr, red))
 
 
 @pytest.mark.foundation
@@ -684,7 +851,7 @@ def test_deleting_a_kept_definition_in_the_copy_turns_exactly_that_kept_entry_re
         (root / entries[0].file).write_text(f"def {entries[1].qualname}(): pass\n", encoding="utf-8")
 
     red, _ = _mutate_and_read(engine, tmp_path, mutate)
-    assert red == {("Kept", entries[0])}, sorted(map(repr, red))
+    assert red == {(engine.R.Kept, entries[0])}, sorted(map(repr, red))
 
 
 # ---------------------------------------------------------------------------
@@ -722,7 +889,7 @@ def test_the_default_rows_are_read_from_the_package_directory_and_never_from_the
     Plant(planted).add("tests/gates/_retired/rows_planted.py", "from tests.gates._retired import RetiredName\nROWS = (RetiredName('only_in_the_root'),)\nKEPT = ()\n")
     verdicts = engine.walk(planted)
     assert len(verdicts) == expected
-    assert ("RetiredName", engine.R.RetiredName("only_in_the_root")) not in verdicts
+    assert (engine.R.RetiredName, engine.R.RetiredName("only_in_the_root")) not in verdicts
 
 
 # ---------------------------------------------------------------------------
@@ -730,10 +897,15 @@ def test_the_default_rows_are_read_from_the_package_directory_and_never_from_the
 # ---------------------------------------------------------------------------
 
 
+_REAL_CONTROL = "LinearOperator"  # a retired-name row that is RED on the real tree: a name the five trees use today
+
+
 @pytest.fixture(scope="module")
 def real_walk(engine: SimpleNamespace) -> dict:
-    """One walk of the real tree (about 40 s) with the default rows; every row-reading test below shares it."""
-    return engine.walk(_REPO)
+    """One walk of the real tree with the default rows and one control row, ``RetiredName(_REAL_CONTROL)``, that must read red: a walk
+    that scanned no file would read every row green, and the control is the row it cannot read green (X1)."""
+    rows, kept = engine.load_rows()
+    return engine.walk(_REPO, rows=[*rows, *kept, engine.R.RetiredName(_REAL_CONTROL)])
 
 
 @pytest.mark.foundation
@@ -753,7 +925,8 @@ def test_every_wave2_row_is_green_on_the_tree(engine: SimpleNamespace, real_walk
     by_type = {name: sum(1 for r in rows if type(r).__name__ == name) for name in _ROW_TYPE_NAMES}
     assert by_type == {"Retired": 2, "Moved": 0, "RetiredName": 60, "RetiredModule": 3}, by_type
     assert tuple(engine.rows_wave2.KEPT) == ()
-    red = {key: real_walk[key] for key in ((type(r).__name__, r) for r in rows) if real_walk[key]}
+    assert real_walk[(R.RetiredName, R.RetiredName(_REAL_CONTROL))], "the control reads green: the walk scanned no file that uses it"
+    red = {key: real_walk[key] for key in ((type(r), r) for r in rows) if real_walk[key]}
     print(f"wave-2 rows green: {len(rows) - len(red)} of {len(rows)}")
     assert not red, f"{len(rows) - len(red)} of {len(rows)} wave-2 rows green; red: " + "; ".join(f"{k[1]}: {v[:3]}" for k, v in sorted(red.items(), key=repr))
     for row in rows:
@@ -765,9 +938,9 @@ def test_every_wave2_row_is_green_on_the_tree(engine: SimpleNamespace, real_walk
 @pytest.mark.foundation
 @pytest.mark.rests_on(f"{_THIS}::test_every_wave2_row_is_green_on_the_tree")
 def test_the_real_walk_reads_every_row_of_the_package(engine: SimpleNamespace, real_walk: dict) -> None:
-    """The input count beside the finding count (X1): the real walk holds one verdict per entry of ``load_rows()``, non-zero."""
-    entries = engine.load_rows()
-    assert entries and len(real_walk) == len(entries), (len(real_walk), len(entries))
+    """The input count beside the finding count (X1): the real walk holds one verdict per entry of ``load_rows()`` and the control, non-zero."""
+    rows, kept = engine.load_rows()
+    assert rows and len(real_walk) == len(rows) + len(kept) + 1, (len(real_walk), len(rows), len(kept))
 
 
 # ---------------------------------------------------------------------------

@@ -13,20 +13,24 @@ from __future__ import annotations
 import ast
 import importlib.util
 import sys
+import re
 import warnings
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from pathlib import Path
+from typing import TypeGuard, assert_never
 
 from tests.gates._import_scan import forbidden_imports, imported_names
-from tests.gates._retired import Kept, Moved, Retired, RetiredModule, RetiredName
+from tests.gates._retired import Kept, Moved, Retired, RetiredModule, RetiredName, Row
 from tests.gates._retired._finder import definitions
 
 HERE = Path(__file__).resolve().parent
 SCAN_TREES = ("orpheus", "tests", "tools", "examples", "student_resources")
 _SELF = "tests/gates/test_retirements.py"
 _EXCLUDED = "tests/gates/_retired/"
-_ENTRY_TYPES = (Retired, Moved, RetiredName, RetiredModule, Kept)
+_ROW_TYPES = (Retired, Moved, RetiredName, RetiredModule)
+_REPO_PATH = re.compile(r"^(orpheus|tests|tools|examples|student_resources)/[A-Za-z0-9_/]+\.py$")
+Verdicts = dict[tuple[type, object], list[tuple[str, int]]]
 _ATTRIBUTE_SETTERS = ("getattr", "setattr", "delattr")
 
 
@@ -34,12 +38,17 @@ class GateError(Exception):
     """A malformed rows module or an unparsable file: the gate is red, not silent."""
 
 
-def load_rows(rows_dir: Path | None = None) -> list:
-    """The ``ROWS`` then the ``KEPT`` of every ``rows_*.py`` of ``rows_dir`` (default: this package's directory), in file-name order."""
+def load_rows(rows_dir: Path | None = None) -> tuple[tuple[Row, ...], tuple[Kept, ...]]:
+    """The ``ROWS`` and the ``KEPT`` of every ``rows_*.py`` of ``rows_dir`` (default: this package's directory), in file-name order.
+
+    The two are kept apart and typed: a ``Kept`` inside a ``ROWS`` or a row inside a ``KEPT`` is a gate error (1.5: ``Kept`` is not a
+    member of ``ROWS``).
+    """
     directory = HERE if rows_dir is None else Path(rows_dir)
     if not directory.is_dir():
         raise GateError(f"the rows directory is not a directory: {directory}")
-    entries: list = []
+    rows: list[Row] = []
+    kept: list[Kept] = []
     for path in sorted(directory.glob("rows_*.py")):
         name = f"_retired_rows_{path.stem}_{abs(hash(str(path)))}"
         spec = importlib.util.spec_from_file_location(name, path)
@@ -54,29 +63,42 @@ def load_rows(rows_dir: Path | None = None) -> list:
         for attribute in ("ROWS", "KEPT"):
             if not hasattr(module, attribute):
                 raise GateError(f"{path.name} defines no {attribute}")
-            entries += list(getattr(module, attribute))
-    return entries
+        for entry in module.ROWS:
+            if not isinstance(entry, _ROW_TYPES):
+                raise GateError(f"{path.name}: ROWS holds a non-row entry (a Kept belongs in KEPT): {entry!r}")
+            rows.append(entry)
+        for entry in module.KEPT:
+            if not isinstance(entry, Kept):
+                raise GateError(f"{path.name}: KEPT holds a non-Kept entry (a row belongs in ROWS): {entry!r}")
+            kept.append(entry)
+    return tuple(rows), tuple(kept)
 
 
-def validate(entries: list) -> None:
-    """Refuse an invalid entry: a non-row, an empty field, a ``file`` or ``home`` not ending ``.py``, a duplicate, a collision."""
+def validate(entries: Iterable[object]) -> list[Row | Kept]:
+    """Parse ``entries`` into typed rows or refuse: a non-row, an empty field, a ``file`` or ``home`` that is not a repository
+    ``.py`` path of the five trees, a row listed twice, a ``(file, qualname)`` named by two of ``Retired``, ``Moved`` and ``Kept``,
+    a ``RetiredName`` that is the last component of a ``Kept`` qualname."""
+    checked: list[Row | Kept] = []
     seen: set[tuple] = set()
     for entry in entries:
-        if not isinstance(entry, _ENTRY_TYPES):
+        if not isinstance(entry, (*_ROW_TYPES, Kept)):
             raise GateError(f"not a row type: {entry!r}")
         if any(not isinstance(value, str) or value == "" for value in entry):
             raise GateError(f"empty or non-string field in {entry!r}")
         for field in ("file", "home"):
-            if field in entry._fields and not getattr(entry, field).endswith(".py"):
-                raise GateError(f"{field} must end in .py: {entry!r}")
-        key = (type(entry).__name__, tuple(entry))
+            if field in entry._fields and not _REPO_PATH.match(getattr(entry, field)):
+                raise GateError(f"{field} must be a repository path of the five trees ending in .py (no space, no ./, no absolute path): {entry!r}")
+        # one retirement or keeping per (file, qualname) across Retired, Moved and Kept; one entry per fields otherwise
+        key = ("definition", entry.file, entry.qualname) if isinstance(entry, (Retired, Moved, Kept)) else (type(entry), tuple(entry))
         if key in seen:
-            raise GateError(f"duplicate entry: {entry!r}")
+            raise GateError(f"duplicate entry (or one definition named by two of Retired, Moved and Kept): {entry!r}")
         seen.add(key)
-    kept_last = {entry.qualname.split(".")[-1] for entry in entries if isinstance(entry, Kept)}
-    for entry in entries:
+        checked.append(entry)
+    kept_last = {entry.qualname.split(".")[-1] for entry in checked if isinstance(entry, Kept)}
+    for entry in checked:
         if isinstance(entry, RetiredName) and entry.name in kept_last:
             raise GateError(f"RetiredName {entry.name!r} is the last component of a Kept qualname")
+    return checked
 
 
 def _package_of(rel: str) -> str:
@@ -105,7 +127,7 @@ def _dotted(expr: ast.expr) -> str | None:
     return None
 
 
-def _is_str(node: ast.expr, value: str | None = None) -> bool:
+def _is_str(node: ast.expr, value: str | None = None) -> TypeGuard[ast.Constant]:
     return isinstance(node, ast.Constant) and isinstance(node.value, str) and (value is None or node.value == value)
 
 
@@ -117,7 +139,7 @@ class _File:
         self.tree = tree
         self.package = _package_of(rel)
         self.imports: list[tuple[int, str, list[str]]] = []  # (line, unparsed statement, resolved dotted names)
-        self.alias: dict[str, str] = {}  # C6, C15: a name bound by an import binds file-wide
+        self.alias: dict[str, set[str]] = defaultdict(set)  # C6, C15: a name bound by an import binds file-wide, to every target it is bound to
         self.plain_heads: set[str] = set()  # the head of `import a.b.m` (C19)
         self.identifiers: dict[str, set[int]] = defaultdict(set)  # RetiredName: name -> lines
         self.attributes: dict[str, list[tuple[ast.expr, int]]] = defaultdict(list)  # attr -> (value, line)
@@ -138,15 +160,18 @@ class _File:
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.asname:
-                        self.alias[alias.asname] = alias.name
+                        self.alias[alias.asname].add(alias.name)
                     else:
                         self.plain_heads.add(alias.name.split(".")[0])
             else:
+                for part in filter(None, (node.module or "").split(".")):
+                    self.identifiers[part].add(node.lineno)
                 for alias in node.names:
                     if alias.name != "*":
-                        self.alias[alias.asname or alias.name] = f"{names[0]}.{alias.name}"
+                        self.alias[alias.asname or alias.name].add(f"{names[0]}.{alias.name}")
         elif isinstance(node, ast.alias):
-            self.identifiers[node.name.split(".")[-1]].add(node.lineno)
+            for part in node.name.split("."):
+                self.identifiers[part].add(node.lineno)
             if node.asname:
                 self.identifiers[node.asname].add(node.lineno)
         elif isinstance(node, ast.Name):
@@ -160,13 +185,25 @@ class _File:
                 self.identifiers[name].add(node.lineno)
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             self.identifiers[node.name].add(node.lineno)
-        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+        elif isinstance(node, ast.ExceptHandler):
+            if node.name:
+                self.identifiers[node.name].add(node.lineno)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            for name in node.names:
+                self.identifiers[name].add(node.lineno)
+        elif isinstance(node, (ast.MatchAs, ast.MatchStar, ast.TypeVar, ast.ParamSpec, ast.TypeVarTuple)):
+            if node.name:
+                self.identifiers[node.name].add(node.lineno)
+        elif isinstance(node, ast.MatchMapping):
+            if node.rest:
+                self.identifiers[node.rest].add(node.lineno)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             if any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets) and isinstance(node.value, (ast.List, ast.Tuple)):
                 for element in node.value.elts:
                     if _is_str(element):
-                        self.all_members[element.value].append(element.lineno)  # type: ignore[attr-defined]
-                        self.identifiers[element.value].add(element.lineno)  # type: ignore[attr-defined]
+                        self.all_members[element.value].append(element.lineno)
+                        self.identifiers[element.value].add(element.lineno)
         elif isinstance(node, ast.Call):
             self._index_call(node)
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -178,25 +215,25 @@ class _File:
         is_method_setter = isinstance(func, ast.Attribute) and func.attr == "setattr"  # C20: any receiver
         if (isinstance(func, ast.Name) and name in _ATTRIBUTE_SETTERS) or is_method_setter:
             if len(call.args) >= 2 and _is_str(call.args[1]):
-                target = call.args[1].value  # type: ignore[attr-defined]
+                target = call.args[1].value
                 self.setters[target].append((call.args[0], call.lineno))
                 self.identifiers[target].add(call.lineno)
             if is_method_setter and call.args and _is_str(call.args[0]):
-                self.setter_targets.append((call.args[0].value, call.lineno))  # type: ignore[attr-defined]
+                self.setter_targets.append((call.args[0].value, call.lineno))
         if name in ("import_module", "__import__") and call.args and _is_str(call.args[0]):
-            self.module_strings.append((call.args[0].value, call.lineno))  # type: ignore[attr-defined]
+            self.module_strings.append((call.args[0].value, call.lineno))
 
-    def resolve(self, expr: ast.expr) -> str | None:
-        """The dotted name an expression denotes when its head is bound by an import of this file, else ``None`` (C7)."""
+    def resolve(self, expr: ast.expr) -> frozenset[str]:
+        """The dotted names an expression denotes when its head is bound by an import of this file (every binding of the head, C6), else none (C7)."""
         dotted = _dotted(expr)
         if dotted is None:
-            return None
+            return frozenset()
         head, _, rest = dotted.partition(".")
-        if head in self.alias:
-            return self.alias[head] + ("." + rest if rest else "")
+        suffix = "." + rest if rest else ""
+        denoted = {target + suffix for target in self.alias.get(head, ())}
         if head in self.plain_heads:
-            return dotted
-        return None
+            denoted.add(dotted)
+        return frozenset(denoted)
 
     def string_imports(self) -> list[tuple[int, str, list[str]]]:
         """C16, C17: every string constant that parses as Python, read for its imports only (relative ones against this file's package)."""
@@ -230,7 +267,6 @@ class _Tree:
                     continue
                 self.files[rel] = _File(rel, self._parse(rel, path))
         self._defs: dict[str, dict[str, int] | None] = {}
-        self._inits: dict[str, tuple[ast.Module | None, Path]] = {}
 
     @staticmethod
     def _parse(rel: str, path: Path) -> ast.Module:
@@ -252,44 +288,64 @@ class _Tree:
                     raise GateError(f"unparsable file under the root: {rel}: {error}") from error
         return self._defs[rel]
 
-    def _init(self, package: str) -> tuple[ast.Module | None, Path]:
-        if package not in self._inits:
-            directory = self.root / package.replace(".", "/")
-            init = directory / "__init__.py"
-            self._inits[package] = (self._parse(f"{package}/__init__.py", init) if init.is_file() else None, directory)
-        return self._inits[package]
+    def _read(self, module: str) -> tuple[str, ast.Module] | None:
+        """The package ``__init__`` or the ``.py`` of ``module`` under the root, as ``(rel, tree)``: the indexed tree when the scan holds it."""
+        base = module.replace(".", "/")
+        for rel in (f"{base}/__init__.py", f"{base}.py"):
+            if rel in self.files:
+                return rel, self.files[rel].tree
+            if (self.root / rel).is_file():
+                return rel, self._parse(rel, self.root / rel)
+        return None
 
-    def binding(self, package: str, name: str, target: str, depth: int = 0) -> str:
-        """What ``package`` binds ``name`` to: ``"row"`` (the module ``target``, through relative or absolute import links),
-        ``"other"`` (a definition, an import from elsewhere, or a submodule of that name) or ``"none"`` (decision E-D1, C18)."""
-        init, directory = self._init(package)
-        if init is None or depth > 8:
+    def binding(self, module: str, name: str, target: str, depth: int = 0) -> str:
+        """What ``module`` (a package or a module) binds ``name`` to: ``"row"`` (the module ``target``, through a chain of
+        ``from X import name`` links into any module, relative or absolute), ``"other"`` (a definition, a renamed import, an import
+        of another object or of an external module, or a submodule of that name) or ``"none"`` (nothing, or a link that leads to a
+        module of the five trees that is gone: the leftover of a retirement counts; decision E-D1, C18). Only the module-level
+        statements are read, and an ``as`` that repeats the name is no rename."""
+        read = self._read(module)
+        if read is None:
+            return "none" if module.split(".")[0] in SCAN_TREES else "other"
+        if depth > 8:
             return "none"
-        for node in ast.walk(init):
+        rel, tree = read
+        result = "none"
+        for node in _module_level(tree.body):
             if isinstance(node, ast.ImportFrom):
                 for alias in node.names:
-                    if (alias.asname or alias.name) == name:
-                        base = imported_names(ast.unparse(node), package)[0]
-                        if base == package:  # `from . import name`: a submodule or another object of that name
-                            return "other"
-                        if alias.asname is None and alias.name == name:
-                            if base == target:
-                                return "row"
-                            if target.startswith(base + "."):
-                                return self.binding(base, name, target, depth + 1)
-                        return "other"
+                    if (alias.asname or alias.name) != name:
+                        continue
+                    base = imported_names(ast.unparse(node), _package_of(rel))[0]
+                    if base == _package_of(rel) or alias.name != name:  # `from . import name`, or a rename: another object
+                        result = "other"
+                    else:
+                        result = "row" if base == target else self.binding(base, name, target, depth + 1)
             elif isinstance(node, ast.Import):
                 if any((alias.asname or alias.name.split(".")[0]) == name for alias in node.names):
-                    return "other"
-        if name in definitions(ast.unparse(init)):
+                    result = "other"
+        if result != "none":
+            return result
+        if name in (self.defs(rel) or {}):
             return "other"
-        if (directory / f"{name}.py").exists() or (directory / name).is_dir():
+        directory = self.root / module.replace(".", "/")
+        if rel.endswith("__init__.py") and ((directory / f"{name}.py").exists() or (directory / name).is_dir()):
             return "other"
         return "none"
 
     def valid_ancestors(self, module: str, name: str) -> list[str]:
         """The ancestor packages whose import of ``name`` counts: those that do not bind ``name`` to a different object (E-D1)."""
         return [a for a in _ancestors(module) if self.binding(a, name, module) != "other"]
+
+
+def _module_level(body: list[ast.stmt]) -> Iterator[ast.stmt]:
+    """The statements of a module body in source order, descending into ``if``, ``try`` and ``with`` blocks and never into a ``def`` or ``class``."""
+    for node in body:
+        yield node
+        if isinstance(node, (ast.If, ast.Try, ast.With)):
+            blocks = [node.body, getattr(node, "orelse", []), getattr(node, "finalbody", []), *(h.body for h in getattr(node, "handlers", []))]
+            for block in blocks:
+                yield from _module_level(block)
 
 
 def _leg_definition(row: Retired | Moved, tree: _Tree) -> set[tuple[str, int]]:
@@ -301,24 +357,22 @@ def _leg_definition(row: Retired | Moved, tree: _Tree) -> set[tuple[str, int]]:
     dotted_qualname = "." in row.qualname
     last = row.qualname.split(".")[-1]
     owner = row.qualname.rsplit(".", 1)[0] if dotted_qualname else None
-    ancestors = [] if dotted_qualname else tree.valid_ancestors(module, last)
+    ancestors = tree.valid_ancestors(module, row.qualname.split(".")[0])  # E-D1, for the import leg and the setter leg alike
+    setter_owners = {f"{module}.{owner}", *(f"{a}.{owner}" for a in ancestors)} if dotted_qualname else {module}
     for f in tree.files.values():
         if not dotted_qualname:
             for line, _statement, names in f.imports:
                 if f"{module}.{last}" in names or any(f"{a}.{last}" in names for a in ancestors):
                     out.add((f.rel, line))
             for value, line in f.attributes.get(last, ()):
-                if f.resolve(value) == module:
+                if module in f.resolve(value):
                     out.add((f.rel, line))
             if last in f.all_members:
                 here = _module_of(f.rel)
                 if here == module or (f.rel.endswith("__init__.py") and here in ancestors):
                     out.update((f.rel, line) for line in f.all_members[last])
         for first, line in f.setters.get(last, ()):
-            resolved = f.resolve(first)
-            if (not dotted_qualname and resolved == module) or (
-                dotted_qualname and (resolved == f"{module}.{owner}" or any(resolved == f"{a}.{owner}" for a in _ancestors(module)))
-            ):
+            if f.resolve(first) & setter_owners:
                 out.add((f.rel, line))
         out.update((f.rel, line) for target, line in f.setter_targets if target == f"{module}.{row.qualname}")
     if not dotted_qualname:
@@ -356,10 +410,12 @@ def _leg_module(row: RetiredModule, tree: _Tree) -> set[tuple[str, int]]:
             if forbidden_imports(statement, [row.module], f.package):
                 out.add((f.rel, line))
         out.update((f.rel, line) for value, line in f.module_strings if value == row.module or value.startswith(row.module + "."))
-    base = row.module.replace(".", "/")
-    for candidate in (f"{base}.py", f"{base}/__init__.py"):  # E-D6: the absence leg
-        if (tree.root / candidate).is_file():
-            out.add((candidate, 0))
+    base = row.module.replace(".", "/")  # E-D6: the absence leg: the module file, or any .py under the package directory
+    if (tree.root / f"{base}.py").is_file():
+        out.add((f"{base}.py", 0))
+    directory = tree.root / base
+    if directory.is_dir():
+        out.update((p.relative_to(tree.root).as_posix(), 0) for p in directory.rglob("*.py") if "__pycache__" not in p.parts)
     return out
 
 
@@ -368,27 +424,32 @@ def _leg_kept(entry: Kept, tree: _Tree) -> set[tuple[str, int]]:
     return set() if defined is not None and entry.qualname in defined else {(entry.file, 0)}
 
 
-def walk(root: Path, rows: Iterable | None = None, rows_dir: Path | None = None) -> dict[tuple[str, object], list[tuple[str, int]]]:
-    """The verdict of every row and ``Kept`` entry on ``root``: ``(type name, row)`` to its sorted ``(file, line)`` findings.
+def walk(root: Path, rows: Iterable[object] | None = None, rows_dir: Path | None = None) -> Verdicts:
+    """The verdict of every row and ``Kept`` entry on ``root``: ``(type of the row, row)`` to its sorted ``(file, line)`` findings.
 
     ``rows`` (rows and ``Kept`` entries mixed) overrides the loader, which reads ``rows_dir`` (default: this package's directory).
-    The key carries the type name because ``RetiredName('x') == RetiredModule('x')`` as tuples (C12).
+    The key carries the type because ``RetiredName('x') == RetiredModule('x')`` as tuples (C12).
     """
     root = Path(root)
     if not root.is_dir():
         raise GateError(f"the root to walk is not a directory: {root}")
-    entries = list(load_rows(rows_dir) if rows is None else rows)
-    validate(entries)
+    if rows is None:
+        loaded_rows, loaded_kept = load_rows(rows_dir)
+        rows = [*loaded_rows, *loaded_kept]
+    entries = validate(rows)
     tree = _Tree(root)
-    verdicts: dict[tuple[str, object], list[tuple[str, int]]] = {}
+    verdicts: Verdicts = {}
     for entry in entries:
-        if isinstance(entry, (Retired, Moved)):
-            findings = _leg_definition(entry, tree)
-        elif isinstance(entry, RetiredName):
-            findings = _leg_name(entry, tree)
-        elif isinstance(entry, RetiredModule):
-            findings = _leg_module(entry, tree)
-        else:
-            findings = _leg_kept(entry, tree)
-        verdicts[(type(entry).__name__, entry)] = sorted(findings)
+        match entry:
+            case Retired() | Moved():
+                findings = _leg_definition(entry, tree)
+            case RetiredName():
+                findings = _leg_name(entry, tree)
+            case RetiredModule():
+                findings = _leg_module(entry, tree)
+            case Kept():
+                findings = _leg_kept(entry, tree)
+            case _:
+                assert_never(entry)
+        verdicts[(type(entry), entry)] = sorted(findings)
     return verdicts
