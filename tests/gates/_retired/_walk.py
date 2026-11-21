@@ -18,7 +18,7 @@ import warnings
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import TypeGuard, assert_never
+from typing import assert_never
 
 from tests.gates._import_scan import forbidden_imports, imported_names
 from tests.gates._retired import Kept, Moved, Retired, RetiredModule, RetiredName, Row
@@ -136,8 +136,9 @@ def _dotted(expr: ast.expr) -> str | None:
     return None
 
 
-def _is_str(node: ast.expr, value: str | None = None) -> TypeGuard[ast.Constant]:
-    return isinstance(node, ast.Constant) and isinstance(node.value, str) and (value is None or node.value == value)
+def _string(node: ast.expr | None) -> str | None:
+    """The value of a string constant, else ``None``."""
+    return node.value if isinstance(node, ast.Constant) and isinstance(node.value, str) else None
 
 
 class _File:
@@ -210,9 +211,10 @@ class _File:
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             if any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets) and isinstance(node.value, (ast.List, ast.Tuple)):
                 for element in node.value.elts:
-                    if _is_str(element):
-                        self.all_members[element.value].append(element.lineno)
-                        self.identifiers[element.value].add(element.lineno)
+                    member = _string(element)
+                    if member is not None:
+                        self.all_members[member].append(element.lineno)
+                        self.identifiers[member].add(element.lineno)
         elif isinstance(node, ast.Call):
             self._index_call(node)
         if isinstance(node, ast.Constant) and isinstance(node.value, str):
@@ -223,14 +225,16 @@ class _File:
         name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
         is_method_setter = isinstance(func, ast.Attribute) and func.attr == "setattr"  # C20: any receiver
         if (isinstance(func, ast.Name) and name in _STRING_ATTRIBUTE_ACCESSORS) or is_method_setter:
-            if len(call.args) >= 2 and _is_str(call.args[1]):
-                target = call.args[1].value
+            target = _string(call.args[1]) if len(call.args) >= 2 else None
+            if target is not None:
                 self.setters[target].append((call.args[0], call.lineno))
                 self.identifiers[target].add(call.lineno)
-            if is_method_setter and call.args and _is_str(call.args[0]):
-                self.setter_targets.append((call.args[0].value, call.lineno))
-        if name in ("import_module", "__import__") and call.args and _is_str(call.args[0]):
-            self.module_strings.append((call.args[0].value, call.lineno))
+            dotted_target = _string(call.args[0]) if is_method_setter and call.args else None
+            if dotted_target is not None:
+                self.setter_targets.append((dotted_target, call.lineno))
+        module = _string(call.args[0]) if name in ("import_module", "__import__") and call.args else None
+        if module is not None:
+            self.module_strings.append((module, call.lineno))
 
     def resolve(self, expr: ast.expr) -> frozenset[str]:
         """The dotted names an expression denotes when its head is bound by an import of this file (every binding of the head, C6), else none (C7)."""
