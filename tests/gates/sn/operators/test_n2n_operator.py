@@ -59,7 +59,6 @@ from orpheus.transport.full_field import FullField
 from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.operators.n2n import N2NOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
 from tests.gates.sn._test_helpers import material_xs_from_raw
 from tests.gates.sn.operators._composite_operand import (
@@ -70,6 +69,7 @@ from tests.gates.sn.operators._composite_operand import (
 from orpheus.numerics import frame_faces
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates.transport._transfer_oracles import on_frame
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -145,7 +145,7 @@ class TestTheBindingAtTheSolveOrder:
         basis = S.frame.basis
         assert isinstance(basis, TruncatedBasis)
         assert basis.L == S.legendre_order == n2n.legendre_order == _L
-        moment = LegendreMomentTransfer.on_frame(
+        moment = on_frame(
             TransferMaterialField.n2n(solver.problem.mat_xs), S.frame, skip_l0=False,
         )
         conjugated = frame_faces.conjugate(S.frame, moment).apply(psi.values)

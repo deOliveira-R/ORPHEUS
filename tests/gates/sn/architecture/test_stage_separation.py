@@ -421,7 +421,7 @@ def test_the_sigma_r_fold_is_a_splitting_only_with_its_anisotropic_remainder():
     splitting = splitting_for(problem, "jacobi", scattering_order=0)
     factors = splitting.system.factors
     scattering, boundary = factors.scattering, factors.boundary
-    sigma_s0 = sigma_s0_times_identity(problem, scattering)
+    sigma_s0 = sigma_s0_times_identity(problem)
     folded_implicit = factors.streaming_collision - sigma_s0
     honest_gains = (scattering, boundary, -sigma_s0)
 
@@ -481,7 +481,7 @@ def test_the_two_sigma_s0_operators_are_indistinguishable_on_a_flat_flux():
     problem = isotropic_slab(c=0.9)
     record = record_for(problem, scattering_order=0)
     scattering = record.factors.scattering
-    sigma_s0 = sigma_s0_times_identity(problem, scattering)
+    sigma_s0 = sigma_s0_times_identity(problem)
 
     flat = system_a(random_state(record, seed=4242, angularly_flat=True))
     anisotropic = system_a(random_state(record, seed=4242))

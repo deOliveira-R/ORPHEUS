@@ -1652,7 +1652,7 @@ Two catchers, one numeric and one structural:
   wiring of the fold into the accelerated path;
 * the **D10 routing sentinel** (``catches("ERR-070")``) — an AST sweep
   of ``orpheus/`` asserting the foldable accessors' production consumers
-  are exactly ``{definition site, split layer, the DSA build}``.  A new
+  are exactly ``{definition site, the DSA build}`` (the split layer's accessor retired 2026-11-20).  A new
   consumer reds at *design time*, before numerics can be wrong; the
   tooth is a planted ``foldable_sigma`` module the sentinel flags.
 

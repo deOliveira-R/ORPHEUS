@@ -117,10 +117,6 @@ class Binding(ContentIdentity):
         """The condition of a tagged face: ``declared[tags[face]]``."""
         return self.declared[self.tags[face]]
 
-    def faces_of(self, tag: int) -> tuple[str, ...]:
-        """The faces carrying ``tag``, in inventory order."""
-        return tuple(face for face in self.faces if self.tags.get(face) == tag)
-
     @property
     def sources(self) -> FrozenMapping[str, InflowTerms]:
         """The tagged faces whose condition has a nonzero source, read through ``BoundaryCondition.source`` of every condition."""

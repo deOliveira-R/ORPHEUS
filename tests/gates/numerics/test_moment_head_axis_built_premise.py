@@ -64,7 +64,7 @@ from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.coefficient_layout import HarmonicLayout, LegendreLayout
-from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis, truncated_head
+from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Modal
 
@@ -347,51 +347,6 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
 # ═══════════════════════════════════════════════════════════════════════
 # The two RED-BEFORE structural records 6.2c must repair
 # ═══════════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.parametrize("label", sorted(_HEADS))
-def test_truncated_re_mints_through_the_generator_and_KEEPS_the_axes(label: str) -> None:
-    r"""P1 (was the ⛔ RECORD of the pre-6.2c-ii behaviour — ``truncated``
-    re-minted through ``from_L`` and LOST the axes, `[M]` 2026-09-07).
-
-    A basis-generated head truncates through its BASIS: the lower head is
-    axis-built and equal to the ``L_new`` mint of the same family and spent
-    axis (:func:`~orpheus.numerics.spaces.moment_head.truncated_head`).
-    Negative control: the retired dense-slot twin of the lower mint is NOT
-    what comes back.
-    """
-    head = _HEADS[label]()
-    L = head_layout(head).L
-    if L == 0:
-        pytest.skip("L = 0 has no lower order to truncate to")
-    lower = truncated_head(head, L - 1)
-    assert lower.axes is not None, "truncated_head keeps the axes (re-mints through the origin)"
-    assert head_layout(lower) == type(head_layout(head))(L - 1)
-    minted = FunctionSpace.of_basis(moment_head_axis(head).origin.basis.at_order(L - 1))
-    assert lower == minted
-    assert lower != _dense_slot_twin(minted)
-    assert minted.axes is not None
-    assert lower.axes[0].origin.basis == minted.axes[0].origin.basis
-
-
-@pytest.mark.parametrize("label", ["gauss_legendre(8)", "lebedev(11)", "folded_product(4,8)"])
-def test_a_frame_dressed_head_truncates_to_the_frames_dressed_head_at_the_lower_order(label: str) -> None:
-    r"""P1, the FRAME arm: the head a moment field carries is the frame's
-    Parseval-dressed one, and it truncates through its FRAME — the lower
-    head is the frame at ``L_new``'s dressed space (re-dressed, never
-    sliced: the Gram verdict can flip with ``L``), structurally equal to the
-    quadrature's own interned frame's head at that order — on both families.
-    Negative control: the basis's continuum head at ``L_new`` is another space.
-    """
-    quad = _RULES[label]()
-    L = 2
-    dressed = frame_faces.basis_space(frame_faces.angular_frame(quad, L))
-    assert dressed.axes is not None and dressed.axes[0].origin.frame is frame_faces.angular_frame(quad, L)
-    lower = truncated_head(dressed, L - 1)
-    assert lower.axes is not None and head_layout(lower) == type(head_layout(dressed))(L - 1)
-    assert lower == frame_faces.basis_space(frame_faces.angular_frame(quad, L - 1))
-    assert lower != FunctionSpace.of_basis(frame_faces.angular_frame(quad, L - 1).basis)
-    assert lower.axes[0].origin.frame == frame_faces.angular_frame(quad, L - 1)
 
 
 def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> None:

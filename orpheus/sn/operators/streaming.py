@@ -128,7 +128,7 @@ class StreamingOperator(LinearOperator["FullField"]):
     :math:`C = M[\sigma_t]` (a
     :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`).
     The split lets the within-group operator be pure algebra
-    (``L + C - S.foldable_part()``); no ``WithinGroupOperator`` wrapper.
+    (``L + C - S_foldable``); no ``WithinGroupOperator`` wrapper.
 
     Pure σ-free streaming ``apply`` (#257 S8b)
     ------------------------------------------

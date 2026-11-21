@@ -5,7 +5,7 @@ The residual mint :meth:`AngularResidual.from_balance` /
 :func:`orpheus.sn.solver.evaluate_residual` types the within-group balance
 defect :math:`r = (L+C-S-B)\psi - q` as a composite
 ``TimedFullField(interior=AngularResidual, boundary=AngularBoundaryResidual)`` — a
-diagnostic (``balance_map`` / ``relative_to``)
+diagnostic (the per-cell balance defect / ``boundary_vs_interior_split`` / ``relative_to``)
 and the consistent-DSA (`#2`) low-order-correction substrate.
 
 Config: a 1-D slab, 2 groups, fuel|moderator heterogeneous, P1-anisotropic
@@ -130,25 +130,25 @@ def test_from_balance_mints_residual_with_correct_type_units_space():
         _ = AngularResidual.from_balance(lhs=flux, rhs=q)  # type: ignore[arg-type]
 
 
-# ── T4.2 — balance_map ≈ 0 at convergence / detectably ≠ 0 on perturbed ψ
+# ── T4.2 — the per-cell balance defect ≈ 0 at convergence / detectably ≠ 0 on perturbed ψ
 
 
 @pytest.mark.l0
-def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
-    r"""[term: (L+C-S-B)ψ-q] balance_map() ≈ 0 per-cell at the SI fixed point,
+def test_balance_defect_zero_at_convergence_nonzero_on_perturbation():
+    r"""[term: (L+C-S-B)ψ-q] the per-cell balance defect ``max_n |r_n|`` ≈ 0 at the SI fixed point,
     detectably ≠ 0 when one interior cell is perturbed.
 
-    The typed per-ordinate flat-flux residual probe (Signature 1 / §H3): the
+    The per-ordinate flat-flux residual probe (Signature 1 / §H3), read as ``max_n |r_n|`` (the retired ``AngularResidual.balance_map``): the
     per-cell defect global conservation HIDES. L11-paired: converged → ≈0
     (POSITIVE); perturbed → ≠0 localised (NEGATIVE — proves the map reads the
     defect, not a latent dud)."""
     _solver, system, q_ext, psi = _converged_slab_2g()
     r = evaluate_residual(system, psi, q_ext)             # POSITIVE
-    bmap = r.interior.balance_map()                            # (ng, *spatial)
+    bmap = np.max(np.abs(r.interior.values), axis=0)           # (ng, *spatial): the per-cell, per-group balance defect
     q_scale = float(np.abs(q_ext.interior.values).max())
     rel = float(np.abs(bmap).max()) / max(q_scale, 1e-30)
     if not (rel < 1e-7):
-        raise AssertionError(f"balance_map not ≈0 at convergence: rel={rel:.2e}")
+        raise AssertionError(f"balance defect not ≈0 at convergence: rel={rel:.2e}")
 
     # NEGATIVE — perturb one interior cell (group 0, all ordinates) by 10 %.
     bad_vals = psi.interior.values.copy()
@@ -159,10 +159,10 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
         boundary=psi.boundary, _history=(), history_depth=psi.history_depth,
     )
     r_bad = evaluate_residual(system, psi_bad, q_ext)
-    bmap_bad = r_bad.interior.balance_map()
+    bmap_bad = np.max(np.abs(r_bad.interior.values), axis=0)
     if not (np.abs(bmap_bad).max() > 100.0 * max(np.abs(bmap).max(), 1e-30)):
         raise AssertionError(
-            "balance_map did not detect a deliberate ψ perturbation — latent dud."
+            "balance defect did not detect a deliberate ψ perturbation — latent dud."
         )
     # Locality: the perturbed cell's balance is broken (its residual is large).
     # The defect ALSO spreads to streaming neighbours (the L stencil couples
@@ -171,7 +171,7 @@ def test_balance_map_zero_at_convergence_nonzero_on_perturbation():
     if not (np.abs(bmap_bad[:, ix]).max()
             > 100.0 * max(np.abs(bmap).max(), 1e-30)):
         raise AssertionError(
-            "balance_map shows no defect AT the perturbed cell — not localised"
+            "balance defect shows no defect AT the perturbed cell — not localised"
         )
 
 

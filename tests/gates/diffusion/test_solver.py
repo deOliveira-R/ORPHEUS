@@ -39,6 +39,7 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import declare_sides
+from tests.gates.transport.fields._scalar_boundary_oracles import p1_boundary_scalar_flux
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesher
 from orpheus.homogeneous import solve_homogeneous_infinite
 from orpheus.numerics.eigenvalue import ProductionRateSolver
@@ -276,7 +277,7 @@ class TestSolutionTraceSemantics:
         atol = 1e-12 * self._trace_scale(trace)
         for face in ("xmin", "xmax"):
             np.testing.assert_allclose(
-                trace.p1_boundary_scalar_flux(face), 0.0, atol=atol,
+                p1_boundary_scalar_flux(trace, face), 0.0, atol=atol,
             )
 
     def test_asymmetric_bcs_pin_the_face_mapping(self):
@@ -289,7 +290,7 @@ class TestSolutionTraceSemantics:
         atol = 1e-12 * self._trace_scale(trace)
         np.testing.assert_allclose(trace.net_current("xmin"), 0.0, atol=atol)
         np.testing.assert_allclose(
-            trace.p1_boundary_scalar_flux("xmax"), 0.0, atol=atol,
+            p1_boundary_scalar_flux(trace, "xmax"), 0.0, atol=atol,
         )
         # The flux sags toward the Dirichlet sink: higher at the
         # reflective edge than at the zero-flux edge, every group.

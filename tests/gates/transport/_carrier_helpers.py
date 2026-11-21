@@ -17,7 +17,7 @@ keys, ``cells_by_material`` (spectator retention preserved —
 ``{0: ([0],), 1: ([],)}``), ``bulk_space`` (``==`` the fabricated
 carrier's AND ``==`` the problem's pose), and EVERY facade array
 (``total_cross_section``, ``fission_production``, ``sig_s_legendre``,
-``n2n_matrix``, ``chi_per_material``, ``fission_production_per_material``,
+``n2n_matrix``,
 the three cross-section fields' values, the fields' space ``==`` the pose)
 are bit-identical to the fabricated carrier's. The ONE difference is
 ``volume_measure.nodes.shape`` — ``(1,)`` here (``Mesh1D``'s measure) vs

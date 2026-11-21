@@ -48,7 +48,6 @@ from orpheus.transport.operators.isotropic_transfer import (
 )
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
 from orpheus.transport.operators.scattering import ScatteringOperator
-from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from tests._harness.predicates import (
     INVERTIBLE,
     STRUCTURAL_ABSENT,
@@ -64,6 +63,7 @@ from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBas
 from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates.transport._transfer_oracles import on_basis
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -294,10 +294,10 @@ class TestPredicateFaithfulness:
             # posed composite, like S.
             IsotropicFission.from_material_xs(mat, space=survey_space),
             FissionOperator.from_solver_data(mat_xs=mat, space=composite),
-            LegendreMomentTransfer.on_basis(
+            on_basis(
             TransferMaterialField.scattering(mat), SphericalHarmonicBasis(L=1), skip_l0=True,
         ),
-            LegendreMomentTransfer.on_basis(
+            on_basis(
             TransferMaterialField.n2n(mat), SphericalHarmonicBasis(L=1), skip_l0=False,
         ),
             ScatteringOperator.from_solver_data(

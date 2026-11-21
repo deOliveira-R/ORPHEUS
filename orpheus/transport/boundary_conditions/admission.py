@@ -9,7 +9,7 @@ the theory page's (``docs/theory/foundations/boundary_conditions.rst``, ``bc-met
   ``Realized(faithful=True)``;
 * **tier 2**, exact but not faithful: the projection identifies laws that differ upstairs (at P1 specular and Lambertian
   both give :math:`J^- = \alpha J^+`): ``Realized(faithful=False)``;
-* **tier 3**, not exact: the law depends on structure the method does not represent: ``Approximated(names, issues)``
+* **tier 3**, not exact: the law depends on structure the method does not represent: ``Approximated(approximations)``
   (also a named DOMAIN approximation, #547);
 * **refused**, on exactly one of three axes (:class:`RefusalAxis`: angular resolution, topology, state cone) or on the
   fourth thing that is not an axis, ``PLUMBING`` (a missing registry entry or an unwired channel, with no theory behind
@@ -39,17 +39,17 @@ CP's slab-left-face rule is CP's own predicate on ``site.face`` (decision 56).
 * There are two levels: the TYPE level (the front end's drop-down; the upper bound) and the INSTANCE level (per face
   and per value, plus the quadrature's equivariance certified by ``ordinate_pairing``). Both read ONE table per method
   (:mod:`.realization`), so the query and the realization cannot disagree.
-* ``Approximated.of(name, issue)`` is the one-member spelling the tables write; ``names`` and ``issues`` are derived
-  projections of the stored pairs, never stored.
+* ``Approximated.of(name, issue)`` is the one-member spelling the tables write; ``names`` is a derived
+  projection of the stored pairs, never stored.
 * The sum is sealed at the SUBCLASS level and by identity: ``Realized``, ``Approximated`` and ``Refused`` are the only
   members, each a DIRECT subclass of :class:`Admission`; once the module has defined them every further subclass is
   refused, a subclass of a member and a foreign class reusing a member's name alike. Each member parses its fields (a
   ``Realized`` holds a ``bool``, an ``Approximated`` a non-empty set of ``(str, int)`` pairs, a ``Refused`` an axis, a
   reason and an optional issue).
-* :attr:`FaceSite.hollow_inner` is DERIVED, never stored: the face name and the coordinate system already say whether
-  a face is the inner surface of a hollow radial body, because a solid body has no inner face (``face_inventory``
-  omits it). A stored flag would be a second spelling of that fact, constructible in contradiction with it (the
-  orchestrator's ruling, 2026-10-23, after the S2a review).
+* A face's being the inner surface of a hollow radial body is DERIVED, never stored: the face name and the coordinate
+  system already say it (:attr:`FaceSite.site_class` is ``RAD_INNER``), because a solid body has no inner face
+  (``face_inventory`` omits it). A stored flag would be a second spelling of that fact, constructible in contradiction
+  with it (the orchestrator's ruling, 2026-10-23, after the S2a review).
 
 Theory: :ref:`bc-architecture-of-record`.
 
@@ -141,11 +141,6 @@ class Approximated(Admission):
         """The approximations' names (derived)."""
         return frozenset(name for name, _ in self.approximations)
 
-    @property
-    def issues(self) -> frozenset[int]:
-        """The tracking issues (derived)."""
-        return frozenset(issue for _, issue in self.approximations)
-
 
 @dataclass(frozen=True)
 class Refused(Admission):
@@ -214,11 +209,6 @@ class FaceSite:
         if not self.is_curved:
             return SiteClass.CART
         return SiteClass.RAD_INNER if face_normal(self.face)[1] < 0 else SiteClass.RAD_OUTER
-
-    @property
-    def hollow_inner(self) -> bool:
-        """Whether the face is the inner surface of a hollow radial body (derived, since a solid body has no inner face at all)."""
-        return self.site_class is SiteClass.RAD_INNER
 
 
 def hollow_inner_refusal(reason: str) -> Refused:

@@ -385,9 +385,8 @@ class GalerkinFrame(PetrovGalerkinFrame):
 
     def at_order(self, L_new: int, /) -> "GalerkinFrame":
         r"""THIS frame over the same measure with its truncated trial family
-        cut at ``L_new`` — the verb a frame-dressed moment head truncates
-        THROUGH (:func:`~orpheus.numerics.spaces.moment_head.truncated_head`,
-        CS4c step 6 item 6.2c-ii): the head's metric is the frame's to
+        cut at ``L_new`` — the verb a frame-dressed moment head is re-minted
+        at a lower order THROUGH (CS4c step 6 item 6.2c-ii): the head's metric is the frame's to
         install at every order (the discrete Gram's verdict can flip with
         :math:`L`), so a lower-order head is a lower-order FRAME's dressing,
         never a slice of the parent's. The same class (a

@@ -492,7 +492,7 @@ def _removal_form_solver_entry() -> str | None:
     :mod:`orpheus.sn.solver` ``solve_*`` name, or any :func:`solve_sn`
     parameter, whose spelling contains a word from
     :data:`_REMOVAL_FORM_SPELLINGS`.  The σ_r machinery already exists at the
-    OPERATOR tier (:meth:`ScatteringOperator.foldable_part`,
+    OPERATOR tier (the data accessor
     :meth:`~orpheus.transport.mesh.material_xs_field.MaterialXSField.foldable_sigma`);
     what #575 owes is a solver entry that consumes it, which is what the
     eigenvalue claim below needs in order to be posable at all.

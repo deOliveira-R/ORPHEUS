@@ -1227,8 +1227,7 @@ retired at package S2, 2026-10-20).
    * - :math:`S`
      - :class:`~orpheus.transport.operators.scattering.ScatteringOperator`
      - Full Legendre scattering :math:`\sum_\ell \Sigma_{s,\ell}\,
-       P_\ell\,\phi_{\ell m}`; foldable P₀ within-group part
-       :meth:`~orpheus.transport.operators.scattering.ScatteringOperator.foldable_part`
+       P_\ell\,\phi_{\ell m}`; the foldable P₀ within-group part
        absorbs into :math:`\Sigma_r`
    * - :math:`N_{2n}`
      - :class:`~orpheus.transport.operators.n2n.N2NOperator`
@@ -1273,12 +1272,9 @@ Two derived combinations carry their own names:
   own ``solve`` override runs the sweep on its selected representation
   rather than the unfused Krylov outer-iteration — the generic
   ``OperatorSum`` carries no ``solve`` at all since carve P4).
-  :meth:`foldable_part
-  <orpheus.transport.operators.transfer.TransferOperator.foldable_part>`
-  is defined on the **shared** transfer core, so the :math:`(n,2n)` gain
-  has one too and enters this target the same way; the single symbol is
-  written here because the fold's algebra does not distinguish the two
-  gains (:ref:`the two collision gains <operator-algebra-two-gains>`).
+  The foldable P₀ within-group part belongs to the **shared** transfer
+  core, so the :math:`(n,2n)` gain has one too and enters this target the
+  same way; the fold's algebra does not distinguish the two gains (:ref:`the two collision gains <operator-algebra-two-gains>`).
 - The multiplication operator :math:`K = A_{\text{loss}}^{-1} F`
   carries the k-eigenvalue iteration; it lives implicitly in the outer
   :func:`~orpheus.numerics.eigenvalue.power_iteration` loop, which
@@ -1562,7 +1558,7 @@ The three types
    * - :class:`~orpheus.transport.fields.scalar_flux.ScalarFlux`
      - ``(ng, nx, ny)``
      - :math:`\phi_g(\vec r) = \int_{4\pi} \psi\,d\Omega`.  Dunder
-       arithmetic: ``a + b``, ``α · phi``, ``phi.at_group(g)``.
+       arithmetic: ``a + b``, ``α · phi``.
    * - :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
      - Per-face: 1-D ``(N, ng)``; 2-D persistent ``(N, ng, nx+1, ny)``
        / ``(N, ng, nx, ny+1)``.

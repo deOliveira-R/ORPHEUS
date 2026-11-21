@@ -87,7 +87,6 @@ from typing import TYPE_CHECKING, ClassVar, Self, cast, overload
 import numpy as np
 
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.transport.frames import (
     HarmonicAnalysisOperator,
@@ -109,17 +108,14 @@ from orpheus.transport.fields import (
     AngularSourceSink,
     HarmonicMomentSourceSink,
 )
-from orpheus.transport.kernels import TransferKernel
 from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.operators.angular_lift import AngularEnd, AngularLift, MomentEnd
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.isotropic_transfer import IsotropicTransfer
 from orpheus.transport.operators.lift import interior_space_of
-from orpheus.numerics import frame_faces
 
 if TYPE_CHECKING:
     from orpheus.numerics.coefficient_layout import DegreeLayout
-    from orpheus.numerics.frame import FrameBase
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
 
@@ -202,61 +198,6 @@ class LegendreMomentTransfer(BoundOperator):
 
     transfer: "TransferMaterialField"
     skip_l0: bool = True
-
-    @classmethod
-    def on_basis(
-        cls,
-        transfer: "TransferMaterialField",
-        basis: TruncatedBasis,
-        *,
-        skip_l0: bool = True,
-    ) -> "LegendreMomentTransfer":
-        r"""Tier-2 mint: bring a channel's field to the basis's order and
-        bind the endomorphic ends on the BASIS's own coefficient space
-        (``FunctionSpace.of_basis(basis)`` supplying both — the endomorphism sugar lives
-        HERE, never on the exact ctor). The basis names the FAMILY (#429
-        tracker 2.5: an integer cannot say which — full harmonics on a
-        sphere rule, Legendre on a 1-D rule), so the ends are that basis's
-        continuum-Gram space, never re-minted from ``L``. This is the
-        frame-less algebra mint (the test tier's); PRODUCTION binds Λ on
-        the frame's Parseval-dressed ``basis_space`` through the exact
-        ctor (:meth:`TransferOperator._moment_transfer`), the ONE moment
-        space the tree carries since CS4c step 6 item 6.2c-ii."""
-        ends = FunctionSpace.of_basis(basis)
-        return cls(
-            transfer.at_order(basis.L),
-            skip_l0=skip_l0,
-            domain=ends,
-            codomain=ends,
-        )
-
-    @classmethod
-    def on_frame(
-        cls,
-        transfer: "TransferMaterialField",
-        frame: "FrameBase",
-        *,
-        skip_l0: bool = True,
-    ) -> "LegendreMomentTransfer":
-        r"""Tier-2 mint on the FRAME's Parseval-dressed coefficient space —
-        the ends production binds (CS4c step 6 item 6.2c-ii, ruling
-        R-6.2c-1), so the factor composes with the frame's faces
-        (``conjugate(frame, Λ)``) by construction. The order is the frame's
-        bound family's; :meth:`on_basis` is the frame-less sibling on the
-        basis's own continuum space."""
-        basis = frame.basis
-        if not isinstance(basis, TruncatedBasis):
-            raise TypeError(
-                f"LegendreMomentTransfer.on_frame: the frame's trial "
-                f"{type(basis).__name__} carries no truncation order."
-            )
-        ends = frame_faces.basis_space(frame)
-        return cls(
-            transfer.at_order(basis.L),
-            skip_l0=skip_l0,
-            domain=ends,
-            codomain=ends,
-        )
 
     @property
     def _head(self) -> "DegreeLayout":
@@ -701,126 +642,3 @@ class TransferOperator(AngularLift[IsotropicTransfer]):
             cast(HarmonicMomentFlux, bulk),
         )
         return self.source_reconstruction.apply(emitted) / self.total_weight
-
-    # ── Foldable / residual split ─────────────────────────────────────
-    #
-    # T = T_foldable + T_residual, additive at rtol=1e-14: T_foldable is the
-    # P0 within-group self-transfer (diagonal y·Σ_{c,0}^{g→g}, foldable into
-    # the removal cross-section σ_r = σ_t − y·Σ_{c,0}^{g→g}); T_residual
-    # carries everything else (cross-group P0, all Pℓ≥1). Generic in the
-    # yield (#426 step 2, ruling §4.4): the SI splitting reads S's; folding
-    # the (n,2n) within-group block is a later, measured decision. Data API
-    # only — no solver/sweep/iteration consumes these methods yet; the
-    # intended consumer is a consistent DSA preconditioner (#2). Theory (why
-    # each residual piece is unfoldable):
-    # docs/theory/methods/sn/loss_representation.rst §loss-rep-removal-sigma.
-    #
-    # ⚠ LATENT CORRECTNESS TRAP (#215): do NOT wire the σ_r-SWEEP as the
-    # within-group A_wg.inverse(). The σ_r-sweep inverts a DIAGONAL-in-angle
-    # removal, but T_foldable = Σ_c0·P_iso is the ISOTROPIC-PROJECTION
-    # self-transfer — the two coincide ONLY for isotropic flux, so the wiring
-    # ships 46–56 % silent flux errors on anisotropic problems. Use consistent
-    # DSA (#2) or Krylov (splitting-invariant, already production). Any
-    # within-group accelerator MUST be gated on an ANISOTROPIC config — the
-    # isotropic box cannot see this error. Full failure table:
-    # docs/theory/methods/sn/slab_one_group.rst §si-sigma-r-fold-mismatch.
-
-    def _sibling(
-        self, field_: "TransferMaterialField",
-    ) -> Self:
-        r"""A sibling binding of ``field_`` on the SAME ends and of the SAME
-        role — faces re-minted from the HUB at the sibling field's own
-        order (the interned frame chain, so an order-0 sibling gets
-        order-0 faces). An ANGULAR endomorphism's sibling: on a moment
-        binding the re-minted faces' moment end no longer matches the
-        domain's interior, and the lift's selection refuses loudly.
-        """
-        interior = self._codomain_interior
-        frame = HarmonicFrame.for_space(interior, field_.order)
-        return type(self)(
-            field_,
-            flux_analysis=frame.flux_analysis_on(interior),
-            source_reconstruction=frame.source_reconstruction_on(interior),
-            domain=self.domain,
-            codomain=self.codomain,
-        )
-
-    def foldable_part(self) -> Self:
-        r"""Return the P0 within-group self-transfer sibling of :math:`T`.
-
-        Carries only the diagonal of each material's :math:`\Sigma_{c,0}`
-        — the within-group self-transfer cross-section
-        :math:`\Sigma_{c,0}^{g\to g}` per energy group (the yield travels
-        in the sibling's kernels, so the sibling emits
-        :math:`y\,\Sigma_{c,0}^{g\to g}`). All other channels (cross-group
-        P0, every :math:`P_\ell \ge 1`) live in :meth:`residual_part`.
-
-        Returns
-        -------
-        Self
-            An order-0 sibling (of this operator's role) whose
-            per-material kernel is the diagonal P0 head, on the same
-            bound ends.
-        """
-        fold = TransferMaterialField(
-            per_material={
-                mid: TransferKernel(
-                    moments=(np.diag(np.diag(k.p0)),),
-                    multiplicity=k.multiplicity,
-                )
-                for mid, k in self.transfer.per_material.items()
-            },
-            cells_by_material=self.transfer.cells_by_material,
-        )
-        return self._sibling(fold)
-
-    def residual_part(self) -> Self:
-        r"""Return the non-foldable sibling of :math:`T`.
-
-        Carries everything :meth:`foldable_part` does not: the
-        off-diagonal of each material's :math:`\Sigma_{c,0}` (cross-group
-        P0) and every :math:`P_\ell \ge 1` block verbatim.
-
-        Notes
-        -----
-        Algebraic contract:
-        ``T.apply(ψ) ≈ T.foldable_part().apply(ψ) +
-        T.residual_part().apply(ψ)`` at ``rtol=1e-14``.
-        """
-        residual = TransferMaterialField(
-            per_material={
-                mid: TransferKernel(
-                    moments=(
-                        k.p0 - np.diag(np.diag(k.p0)),
-                        *k.moments[1:],
-                    ),
-                    multiplicity=k.multiplicity,
-                )
-                for mid, k in self.transfer.per_material.items()
-            },
-            cells_by_material=self.transfer.cells_by_material,
-        )
-        return self._sibling(residual)
-
-    def is_foldable_into_sigma_r(self) -> bool:
-        r"""``True`` iff this operator is structurally the
-        :meth:`foldable_part` of some parent :math:`T` — order 0 with
-        every material's P0 diagonal.
-        """
-        if self.legendre_order != 0:
-            return False
-        return all(
-            np.allclose(k.p0, np.diag(np.diag(k.p0)))
-            for k in self.transfer.per_material.values()
-        )
-
-    def foldable_sigma(self) -> dict[int, np.ndarray]:
-        r"""The per-material foldable cross-section
-        :math:`(y\,\Sigma_{c,0}^{g\to g})_g` — ``{mid: (ng,)}``, fresh
-        copies, read off the bound kernel field (the removal fold
-        :math:`\Sigma_r = \Sigma_t - y\,\Sigma_{c,0}^{g\to g}`; the yield
-        is 1 for scattering, so the shipped fold is unchanged)."""
-        return {
-            mid: k.multiplicity * np.diag(k.p0)
-            for mid, k in self.transfer.per_material.items()
-        }

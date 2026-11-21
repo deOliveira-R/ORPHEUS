@@ -2,7 +2,7 @@
 (a :class:`~orpheus.transport.operators.multiplication_operator.MultiplicationOperator`).
 
 Phase G Step 3+4.b.i (Issue #196). The "C" of the four-operator
-algebra ``A_wg = L + C - S.foldable_part()``. #261 retired the former
+algebra ``A_wg = L + C - S_foldable``. #261 retired the former
 ``CollisionOperator`` thin subclass — the collision instance is now a
 plain ``MultiplicationOperator`` carrying ``σ_t`` as its coefficient.
 

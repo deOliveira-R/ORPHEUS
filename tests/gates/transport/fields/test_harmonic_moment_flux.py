@@ -1,33 +1,14 @@
 r"""Member contracts of :class:`HarmonicMomentFlux` (#399 / CS4b S6.1 — G6.7).
 
-The derived-view members — :meth:`truncate`, :meth:`isotropic_part`,
-:meth:`anisotropic_part`, :meth:`l_block` — plus :meth:`scalar_flux`'s
-self-derive contract, gated at BOTH widths (``spatial_moments`` 1 and 2).
-
-#399's finding (census 2026-08-21) was that the members were
-spatial-moment-blind. Re-measured at HEAD 2026-08-24 before designing
-(the plan-authoring shelf-life check): the parts were ALREADY
-tail-correct — the S4 space-passing rework repaired them, ungated — and
-``truncate`` carried a loud widened ``NotImplementedError`` defer, not
-the census's latent broadcast crash. S6.1 lifted the defer with a
-space-derived rebuild (swap the spherical-harmonic head factor, keep
-every remaining factor verbatim) and this module is the first gate
-coverage the members have at ANY width — `[M]` 2026-08-24, zero callers
-of all four members in orpheus/ or tests/ before it.
-
-Mutation record (G6.7's row, `[M]` in-process 2026-08-24): restoring the
-un-tailed ``new_shape = (L+1, 2L+1, *spatial-only)`` in ``truncate``
-reddens the widened truncation row; dropping the tail factor from the
-rebuilt space (the pre-S6.1 ``factors[1]``-only rebuild) reddens the
-space-content row; zeroing the partition's ℓ=0 copy reddens the
-partition law.
+The :meth:`scalar_flux` self-derive contract, gated at BOTH widths (``spatial_moments`` 1 and 2). (The derived-view
+members ``truncate``, ``isotropic_part``, ``anisotropic_part`` and ``l_block``, which this module first gated, were
+retired with their zero production callers, 2026-11-20.)
 
 vv Mode-8 discipline: assertions are function calls (``np.testing.*`` /
 ``pytest.raises`` / ``pytest.fail``) — canonical invocation is
 ``python -O``.
 
-Layer DAG Phase 4 (2026-11-01): posed on a material mesh with the frame's moment_space_on (the SN problem's factory
-row moved to tests/gates/sn/mesh/test_harmonic_moment_flux_on_the_problem.py).
+Layer DAG Phase 4 (2026-11-01): posed on a material mesh with the frame's moment_space_on.
 """
 
 from __future__ import annotations
@@ -57,7 +38,7 @@ _L, _NG, _NX = 2, 2, 5
 #: ⛔ RE-KEYED 2026-09-02 (#429). The whole module rode ONE 1-D fixture and
 #: built its values as ``(L+1, 2L+1, …)`` — the RECTANGULAR spherical-harmonic
 #: head — on a rule that now binds the FLAT Legendre head ``(L+1,)``. The
-#: claims here (truncate, the ℓ-partition, the views) are layout-GENERIC, so
+#: claims here (the scalar self-derive) are layout-GENERIC, so
 #: the repair is to read the layout off the frame and to run every row on
 #: BOTH families: a gate keyed on one certifies the other by accident.
 _FAMILIES: tuple[str, ...] = ("flat", "rectangular")
@@ -86,8 +67,7 @@ def _sn(family: str = "flat") -> Posed:
     # carrier is refused rather than given a Euclidean tail. Width-1 rows
     # are scheme-blind (no tail).
     # the moment space is the frame's ``moment_space_on`` of the angular bulk, widened by the scheme's ``trial_space``
-    # at width 2 (``_phase_space_cases.moment_space``); the SN problem's factory is gated in
-    # ``tests/gates/sn/mesh/test_harmonic_moment_flux_on_the_problem.py``
+    # at width 2 (``_phase_space_cases.moment_space``)
     return Posed(MaterialMesh(mesh, placeholder_materials(ng=_NG)), quadrature, LinearDiscontinuous())
 
 
@@ -104,108 +84,10 @@ def _field(sn: Posed, spatial_moments: int, seed: int) -> HarmonicMomentFlux:
     return HarmonicMomentFlux(values=values, space=moment_space(sn.mesh, sn.quadrature, _L, sn.scheme if spatial_moments > 1 else None), L=_L, spatial_moments=spatial_moments)
 
 
-# ── truncate — the space-derived rebuild (both widths) ───────────────
-
-
-class TestTruncate:
-
-    @pytest.mark.parametrize("family", _FAMILIES)
-    def test_truncate_widened_reads_the_width_off_its_space(self, family):
-        """The truncated widened field's SPACE carries the moment factor
-        (the single source): spatial_moments_per_axis reads 2 off it."""
-        g = _field(_sn(family), 2, seed=23).truncate(0)
-        if g.spatial_moments_per_axis != 2:
-            pytest.fail(
-                f"the truncated space must carry the moment factor; "
-                f"per-axis width read {g.spatial_moments_per_axis}"
-            )
-
-    @pytest.mark.parametrize("family", _FAMILIES)
-    @pytest.mark.parametrize("sm", [1, 2])
-    def test_truncate_at_full_order_is_the_identity(self, sm, family):
-        """truncate(self.L) reproduces the field bit-exactly, same-space
-        content — the no-op leg of the truncation contract."""
-        f = _field(_sn(family), sm, seed=25 + sm)
-        g = f.truncate(f.L)
-        npt.assert_array_equal(g.values, f.values)
-        if g.space != f.space:
-            pytest.fail("full-order truncation must keep the space content")
-
-    @pytest.mark.parametrize("family", _FAMILIES)
-    def test_truncate_range_refusals(self, family):
-        f = _field(_sn(family), 1, seed=27)
-        with pytest.raises(ValueError, match="L_new=3 >"):
-            f.truncate(_L + 1)
-        with pytest.raises(ValueError, match="< 0"):
-            f.truncate(-1)
-
-
-# ── the ℓ-partition (both widths) ────────────────────────────────────
-
-
-class TestPartition:
-    @pytest.mark.parametrize("family", _FAMILIES)
-    @pytest.mark.parametrize("sm", [1, 2])
-    def test_parts_partition_bit_exactly(self, sm, family):
-        """iso + aniso == self, values bit-exact (the partition law the
-        docstring names), at both widths — the sm=2 legs are #399's
-        other two flipped witnesses (already repaired by S4, first
-        GATED here). Reddened by zeroing the partition's ℓ=0 copy."""
-        sn = _sn(family)
-        f = _field(sn, sm, seed=30 + sm)
-        head = _head(sn)
-        iso, aniso = f.isotropic_part(), f.anisotropic_part()
-        npt.assert_array_equal(iso.values + aniso.values, f.values)
-        # the slots are enumerated through the HEAD, never through a layout
-        # literal: ``values[0, 1:]`` on a flat head is group 1's spatial slice
-        # (a real array of the wrong quantity, no exception).
-        keep = np.zeros(head.shape, dtype=bool)
-        keep[head.isotropic_slot] = True
-        if np.any(iso.values[~keep]):
-            pytest.fail("isotropic_part must zero every non-isotropic slot")
-        if np.any(aniso.values[head.isotropic_slot]):
-            pytest.fail("anisotropic_part must zero the isotropic slot")
-
-    @pytest.mark.parametrize("family", _FAMILIES)
-    @pytest.mark.parametrize("sm", [1, 2])
-    def test_parts_share_the_space_instance(self, sm, family):
-        """The parts are replace-style derivations: SAME space instance
-        (not a re-mint), same L, same width — the space-derived
-        contract's cheapest observable."""
-        f = _field(_sn(family), sm, seed=33 + sm)
-        for part in (f.isotropic_part(), f.anisotropic_part()):
-            if part.space is not f.space:
-                pytest.fail("a part must carry the parent's space instance")
-            if part.L != f.L or part.spatial_moments != sm:
-                pytest.fail("a part must thread L and spatial_moments")
-
-
-# ── l_block (view) + scalar_flux (self-derive contract) ──────────────
+# ── scalar_flux (self-derive contract) ──────────────
 
 
 class TestViews:
-    @pytest.mark.parametrize("family", _FAMILIES)
-    def test_l_block_shapes_carry_the_tail(self, family):
-        """l_block(l) is a raw view of the head's degree block, tail riding.
-
-        The block's own leading extent is the HEAD's: ``2l+1`` on the
-        rectangular harmonics, no leading axis at all on the flat Legendre
-        head (one coefficient per degree).
-        """
-        sn = _sn(family)
-        f = _field(sn, 2, seed=36)
-        head = _head(sn)
-        for l in range(_L + 1):
-            blk = f.l_block(l)
-            lead = np.zeros(head.shape)[head.degree_block(l)].shape
-            if blk.shape != (*lead, _NG, _NX, 2):
-                pytest.fail(
-                    f"[{family}] l_block({l}) shape {blk.shape} != "
-                    f"{(*lead, _NG, _NX, 2)}"
-                )
-        with pytest.raises(ValueError, match="out of range"):
-            f.l_block(_L + 1)
-
     @pytest.mark.parametrize("family", _FAMILIES)
     def test_scalar_flux_width1_self_derives_the_bulk_factor(self, family):
         """Width-1 scalar_flux derives its target from the product's

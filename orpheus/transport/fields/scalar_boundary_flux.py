@@ -132,11 +132,3 @@ class ScalarBoundaryFlux(ScalarBoundaryField):
         orientation row).
         """
         return np.asarray(self.outflow_view(face) - self.inflow_view(face))
-
-    def p1_boundary_scalar_flux(self, face: str) -> NDArray:
-        r"""P1 boundary scalar flux ``φ_Γ = 2(J⁺ + J⁻)`` on ``face`` (a copy).
-
-        The other half of the Cauchy pair, reconstructed through the P1
-        closure — the single site of that dictionary (crosswalk).
-        """
-        return np.asarray(2.0 * (self.outflow_view(face) + self.inflow_view(face)))

@@ -358,7 +358,8 @@ def evaluate_residual(
     ``r_B`` the split ψ½ residual pair — System B's defect is a typed
     member that cannot be silently dropped.
 
-    A diagnostic (``balance_map`` / ``relative_to``) AND the substrate the consistent-DSA low-order
+    A diagnostic (``boundary_vs_interior_split`` /
+    ``relative_to``) AND the substrate the consistent-DSA low-order
     correction (`#2`) will consume (``r`` is the transport residual the
     diffusion solve corrects). NOT in the convergence path — evaluated on
     a (typically converged) flux, additive. Arm-level equations that no

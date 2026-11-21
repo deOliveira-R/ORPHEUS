@@ -4172,9 +4172,9 @@ consumers re-minting it from the integer :math:`L`:
    * - ``HarmonicMomentFlux.truncate``
      - the head of the truncated space
      - ``head.truncated(L_new)`` — the head's OWN family (a method of
-       the head classes that retired at S7; today
-       :func:`truncated_head(head, L_new)
-       <orpheus.numerics.spaces.moment_head.truncated_head>`)
+       the head classes that retired at S7, then a function
+       ``truncated_head`` that retired 2026-11-20 with its only caller;
+       the mechanism is ``at_order`` of the frame or the basis)
 
 The third column is the tracker-2.5 reading. Since item 6.2c-ii
 (2026-09-08) every row reads the frame's Parseval-dressed
@@ -4231,10 +4231,10 @@ tree; tracker 2.5 removes it before the repair, not with it.
 the basis's own ``space`` property — and the other five are docstring
 mentions. (``SphericalHarmonicSpace.truncated`` called
 ``type(self).from_L`` inside the space's own module, which is where a
-family is *entitled* to name itself; from 2026-09-08 it delegated to
-:func:`~orpheus.numerics.spaces.moment_head.truncated_head`, and since S7
-the class is gone and ``truncated_head`` is the one verb, re-minting
-through the head axis's origin — see the truncation paragraph below.)
+family is *entitled* to name itself; from 2026-09-08 it delegated to a function
+``truncated_head``, and since S7 the class is gone; ``truncated_head`` re-minted
+through the head axis's origin and retired on 2026-11-20 — see the
+truncation paragraph below.)
 
 Which space, though — the basis's own head or ``basis_space``?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -4828,29 +4828,22 @@ carries, and the moment field's norm is its energy on every factor (ruling
 R-6.2c-1's ONE-space principle, applied to the tail). Gated in
 ``tests/gates/transport/spatial/test_spatial_moment_tail_is_the_schemes_axis.py``.
 
-Truncation is the same rule applied to a *lower* order.
-:meth:`HarmonicMomentFlux.truncate
-<orpheus.transport.fields.harmonic_moment_flux.HarmonicMomentFlux.truncate>`
-asks the current head for **its own family** one order down
-(:func:`truncated_head(head, L_new)
-<orpheus.numerics.spaces.moment_head.truncated_head>`) and slices the
-kept block by the new head's own shape, so a spherical-harmonic head
-truncates to a spherical-harmonic head and a Legendre head to a Legendre
-head. ``truncated_head`` re-mints through the head axis's origin, so the
-truncated head is the space the same frame (or basis) mints at ``L_new``.
+Truncation was the same rule applied to a *lower* order. ``HarmonicMomentFlux.truncate``
+asked the current head for **its own family** one order down (the function
+``truncated_head(head, L_new)``) and sliced the kept block by the new head's own
+shape; both retired on 2026-11-20 with their zero production callers. The
+mechanism they read stays: the head axis remembers what minted it, so the
+lower head is the space the same frame (``GalerkinFrame.at_order``) or basis
+(``TruncatedBasis.at_order``) mints at ``L_new``.
 
-⛔ **The re-mint is item 6.2c-ii's, and it replaced a ``from_L(L_new)``
+⛔ **The re-mint was item 6.2c-ii's, and it replaced a ``from_L(L_new)``
 call — a change of MECHANISM, not of spelling (ruling O-3: re-mint AND
-re-axis, never slice).** It was a method of the head classes,
-``head.truncated(L_new)``, until S7 retired the classes; the function is
-the one verb now. Once the head carries its metric
+re-axis, never slice).** Once the head carries its metric
 as an axis MEASURE, "the same family one order down" stops being a pure
 function of :math:`L`: the metric belongs to whichever object DRESSED the
-head, and only that object can re-derive it at the new order.
-:func:`~orpheus.numerics.spaces.moment_head.truncated_head` therefore
-matches the head axis's origin — ``FromBasis`` of a
-:class:`~orpheus.numerics.basis.base.TruncatedBasis` re-spans the continuum
-family and hands back ITS ``of_basis`` space; ``FromFrame`` of a
+head, and only that object can re-derive it at the new order. A ``FromBasis``
+origin of a :class:`~orpheus.numerics.basis.base.TruncatedBasis` re-spans the
+continuum family and hands back ITS ``of_basis`` space; a ``FromFrame`` origin of a
 :class:`~orpheus.numerics.frame.GalerkinFrame` re-poses itself through
 :meth:`~orpheus.numerics.frame.GalerkinFrame.at_order` and hands back its
 dressed space at that order. ⚠ And a *slice* of the parent's dressing is
@@ -4859,12 +4852,8 @@ verdict can FLIP with :math:`L` — `[M]` ``folded_product(2,4)`` is DENSE at
 :math:`L = 2` and DIAGONAL at :math:`L = 1`, so the parent's metric is a
 matrix :math:`G^{+}` and the child's a diagonal :math:`G^{-1}`, and no
 sub-block of the first is the second. A truncated moment field therefore
-lands on exactly the space its carrier mints at ``L_new`` (structurally
-equal, ruling O-5), never on a second-metric twin. ⚠ The kept block is
-the head's leading corner in each of its own axes — a lower order keeps
-the low-index modes of every head layout — which is what makes the slice
-layout-agnostic rather than hard-coded to the harmonics'
-:math:`(L{+}1, 2L{+}1)` rectangle.
+landed on exactly the space its carrier mints at ``L_new`` (structurally
+equal, ruling O-5), never on a second-metric twin.
 
 The gates, and the input each one rejects
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -5146,7 +5135,7 @@ indexed ``values[0, 0]`` or sliced ``values[l, :2l+1]`` was spelling the
 first family's layout as if it were the contract. On a
 :math:`(L+1, n_g, n_x)` tensor, ``values[0, 0]`` is *group 0's spatial
 slice* — a well-shaped array of the wrong thing. `[M]` the sites:
-``scalar_flux``, ``isotropic_part``, ``anisotropic_part``, ``l_block``,
+``scalar_flux``, the since-retired ``isotropic_part``, ``anisotropic_part`` and ``l_block``,
 the fission :math:`\ell = 0` dyad, ``ng`` (which located the group axis
 at a hard-coded index 2), ``zeros_for_problem_and_L``, and — the one no
 census had listed — the material field's per-degree group contraction,
@@ -6349,8 +6338,7 @@ Implementation map
 * :meth:`GalerkinFrame.at_order
   <orpheus.numerics.frame.GalerkinFrame.at_order>` — THIS frame over the
   same measure with its truncated trial family cut at ``L_new``; the verb
-  a frame-dressed moment head truncates through
-  (:func:`~orpheus.numerics.spaces.moment_head.truncated_head`).
+  a frame-dressed moment head is re-minted at a lower order through.
 * :class:`~orpheus.numerics.basis.GramStructure` — the trial basis's
   projection-validity declaration (``DIAGONAL`` / ``PARTITION_OF_UNITY``
   / ``DENSE``) that decides whether :func:`project <orpheus.numerics.frame_faces.project>` uses the row-sum probe or

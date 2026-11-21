@@ -41,6 +41,7 @@ from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from tests.gates.transport._materials import material_xs_from_raw
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from tests.gates.transport._transfer_oracles import on_basis
 
 
 pytestmark = pytest.mark.foundation
@@ -118,7 +119,7 @@ class TestSFamilyTierTwoEquivalence:
     def test_moment_pair_from_material_xs_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
         sh = FunctionSpace.of_basis(SphericalHarmonicBasis(L=1))
-        rich = LegendreMomentTransfer.on_basis(
+        rich = on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         exact = LegendreMomentTransfer(
@@ -132,7 +133,7 @@ class TestSFamilyTierTwoEquivalence:
         ):
             pytest.fail("Λ datum drifted")
 
-        rich_n = LegendreMomentTransfer.on_basis(
+        rich_n = on_basis(
             TransferMaterialField.n2n(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         exact_n = LegendreMomentTransfer(

@@ -30,6 +30,7 @@ from orpheus.transport.operators.isotropic_transfer import (
     IsotropicScattering,
     IsotropicN2N,
 )
+from tests.gates.transport._transfer_oracles import dense_per_material
 
 pytestmark = pytest.mark.foundation
 
@@ -209,9 +210,9 @@ class TestDensePerMaterial:
     )
     def test_iso_dense_is_operator_matrix(self, factory, xs):
         mat = _mat_xs()
-        dense = factory.from_material_xs(
+        dense = dense_per_material(factory.from_material_xs(
             mat, space=mat.space,
-        ).dense_per_material()
+        ))
         for mid, sig in xs.items():
             np.testing.assert_array_equal(
                 dense[mid], sig.T,
@@ -220,7 +221,7 @@ class TestDensePerMaterial:
 
     def test_n2n_dense_is_two_sig2_transpose(self):
         mat = _mat_xs()
-        dense = IsotropicN2N.from_material_xs(mat, space=mat.space).dense_per_material()
+        dense = dense_per_material(IsotropicN2N.from_material_xs(mat, space=mat.space))
         for mid, sig in {0: _SIG2_A, 1: _SIG2_B}.items():
             np.testing.assert_array_equal(dense[mid], 2.0 * sig.T)
 
@@ -229,7 +230,7 @@ class TestDensePerMaterial:
         mat = _mat_xs()
         phi = _phi(seed=7)
         op = IsotropicScattering.from_material_xs(mat, space=mat.space)
-        dense, got = op.dense_per_material(), op.apply(phi)
+        dense, got = dense_per_material(op), op.apply(phi)
         mat_of = {0: mat.cells_by_material[0], 1: mat.cells_by_material[1]}
         for mid, (ix, iy) in mat_of.items():
             for c in range(len(ix)):

@@ -49,6 +49,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.spatial import LinearDiscontinuous, UpstreamState
 from orpheus.numerics.basis import AVERAGE_MOMENT, spatial_moment_basis
 from orpheus.transport.spatial._ubld import (
+    D1ClosedForm,
     assemble_inflow_axis,
     assemble_inflow_axis_transpose,
     assemble_ubld,
@@ -289,6 +290,15 @@ def _dense_d1_reference(
     return psi[..., 0], psi[..., 0] + psi[..., 1]
 
 
+def kernel_rhs(d1_closed_form: D1ClosedForm, Q_cells: np.ndarray, psi_in: np.ndarray) -> np.ndarray:
+    r"""The ÷V (DAG-kernel) RHS: ``Q + g·ψ_in + g·(g/θ)·ψ_in/d2``.
+
+    ``Q_cells`` is the per-volume average-moment source (flat, ``Q̂ = 0``); ``psi_in`` the upstream face flux. The ÷V
+    Schur balance is then ``eff_denom · ψ̄ = kernel_rhs``.
+    """
+    return Q_cells + d1_closed_form.g * psi_in + d1_closed_form.g * d1_closed_form.g_over_theta * psi_in / d1_closed_form.d2
+
+
 class TestClosedFormEqualsDenseReduction:
     r"""``d1_closed_form`` (the fast path) == the dense primitive's d=1 solve."""
 
@@ -305,7 +315,7 @@ class TestClosedFormEqualsDenseReduction:
         pbar_d, pout_d = _dense_d1_reference(mu, h, sig, Qbar, psi_in)
 
         cf = d1_closed_form(mu / h, sig, THETA)         # g = |μ|face_area_downstream/V = μ/h
-        pbar = cf.kernel_rhs(Qbar, psi_in) / cf.eff_denom
+        pbar = kernel_rhs(cf, Qbar, psi_in) / cf.eff_denom
         pout = outgoing_face_from_average(pbar, psi_in, cf.w)
         np.testing.assert_allclose(pbar, pbar_d, rtol=1e-12, atol=1e-13)
         np.testing.assert_allclose(pout, pout_d, rtol=1e-12, atol=1e-13)

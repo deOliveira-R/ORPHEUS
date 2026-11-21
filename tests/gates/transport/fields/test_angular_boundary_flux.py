@@ -56,6 +56,11 @@ from tests.gates.transport._phase_space_cases import slab_mesh
 pytestmark = [pytest.mark.foundation]
 
 
+def face_views(face_field: AngularBoundaryFlux) -> dict:
+    """``{face_key: slice_view}`` for every face in the layout, memory-shared with ``face_field.values``."""
+    return {key: face_field.face_view(key) for key in face_field.layout.faces}
+
+
 # ───────────────────────────────────────────────────────────────────────
 # Geometry fixtures (mirrored from tests/gates/sn/test_typed_fields.py)
 # ───────────────────────────────────────────────────────────────────────
@@ -264,7 +269,7 @@ class TestFaceLayoutSliceViews:
         m = _cartesian_2d_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bf = AngularBoundaryFlux.zeros(trace)
-        views = bf.face_views
+        views = face_views(bf)
         assert set(views) == set(bf.layout.faces)
 
     def test_unknown_face_raises(self) -> None:

@@ -1,7 +1,7 @@
 r"""Foundation tests for :class:`orpheus.sn.operators.streaming.StreamingOperator`.
 
 The "L" of the four-operator algebra
-``A_wg = L + C - S.foldable_part()`` (Issue #196, Resolution A).
+``A_wg = L + C - S_foldable`` (Issue #196, Resolution A).
 :class:`StreamingOperator` is the typed leaf; the within-group
 sweep-invertible composite is :class:`StreamingCollisionOperator` (= ``L + C``).
 

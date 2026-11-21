@@ -407,7 +407,7 @@ class D1ClosedForm:
 
     * **÷V (DAG kernel)** — ``eff_denom`` is the ÷V Schur ``S``; the RHS folds
       ``g·(1 + g_over_theta/d2)·ψ_in`` and the source ``Q`` (per-volume); the
-      outflow rides ``w``.  See :meth:`kernel_rhs`.
+      outflow rides ``w``.
     * **×V (per-cell / scan)** — multiply by the cell volume ``V``:
       ``S_×V = V·eff_denom``; the scan transmission ``a`` and the per-cell
       Schur intermediates follow.  See :meth:`schur_xV` / :meth:`scan_xV`.
@@ -424,15 +424,6 @@ class D1ClosedForm:
     w: np.ndarray             #: ``1/(1+k)`` — cell-average blend weight
     eff_denom: np.ndarray     #: ``(g+Σ_t) + g·k`` — the ÷V Schur diagonal S/V
     theta: float              #: the slope-moment weight θ (SN-exact 1/3)
-
-    def kernel_rhs(self, Q_cells: np.ndarray, psi_in: np.ndarray) -> np.ndarray:
-        r"""The ÷V (DAG-kernel) RHS: ``Q + g·ψ_in + g·(g/θ)·ψ_in/d2``.
-
-        ``Q_cells`` is the per-volume average-moment source (flat, ``Q̂ = 0``);
-        ``psi_in`` the upstream face flux.  The ÷V Schur balance is then
-        ``eff_denom · ψ̄ = kernel_rhs``.
-        """
-        return Q_cells + self.g * psi_in + self.g * self.g_over_theta * psi_in / self.d2
 
     def _xV(self, V: np.ndarray | float) -> tuple[np.ndarray, np.ndarray]:
         r"""The ×V streaming ``m = |μ|face_area_downstream = g·V`` and Schur diagonal ``S = V·eff_denom``.

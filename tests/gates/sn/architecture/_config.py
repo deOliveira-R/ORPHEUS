@@ -67,7 +67,6 @@ if TYPE_CHECKING:
     from orpheus.numerics.operator import LinearOperator
     from orpheus.sn.coupled_system import WithinGroupSystem
     from orpheus.sn.splitting import Splitting
-    from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
@@ -305,17 +304,15 @@ def reconstruction_residual(
     return float(np.max(np.abs(defect))) / denominator
 
 
-def sigma_s0_times_identity(
-    problem: SNProblem, scattering: "ScatteringOperator",
-) -> "MultiplicationOperator":
+def sigma_s0_times_identity(problem: SNProblem) -> "MultiplicationOperator":
     r"""The σ_r fold's WRONG operator: :math:`\Sigma_{s0}^{g\to g}\,\mathbb{1}`.
 
     Diagonal in angle.  The right one is
-    :math:`\Sigma_{s0}\,P_{\text{iso}}` (what ``S.foldable_part()`` realizes).
+    :math:`\Sigma_{s0}\,P_{\text{iso}}` (the isotropic-projection self-transfer).
     The two agree **exactly** on an angularly-flat flux and nowhere else —
     which is the whole of #215 (46–56 % silent flux error) in one sentence.
     """
-    per_material = scattering.foldable_sigma()          # {mid: (ng,)}
+    per_material = problem.mat_xs.foldable_sigma()      # {mid: (ng,)}
     mat_ids = np.asarray(problem.mat_map).reshape(problem.spatial_shape)
     field = np.zeros((problem.ng, *problem.spatial_shape))
     for mid, sigma in per_material.items():

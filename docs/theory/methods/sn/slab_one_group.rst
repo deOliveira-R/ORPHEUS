@@ -904,9 +904,7 @@ operator**: the correct synthetic acceleration of the
 isotropic-projection self-scatter is a diffusion solve whose removal
 matches the transport operator's low-order limit, not a directional
 sweep with a doctored denominator.  The
-:meth:`ScatteringOperator.foldable_part <orpheus.transport.operators.scattering.ScatteringOperator.foldable_part>`
-/ :meth:`residual_part <orpheus.transport.operators.scattering.ScatteringOperator.residual_part>`
-split (the data API landed under Issue #197 PR-TYPED-1) produces
+foldable / residual split of the scattering operator (the data API landed under Issue #197 PR-TYPED-1 and retired on 2026-11-20 with its zero production callers; ``MaterialXSField.foldable_sigma`` remains) produces
 :math:`\Sigma_{s,0}^{g\to g}` precisely as the input a DSA
 preconditioner consumes (the diffusion removal coefficient) — it is
 the right input **for DSA**, NOT for a sweep fold.  Any future

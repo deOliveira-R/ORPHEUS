@@ -224,7 +224,7 @@ def test_bind_invariance() -> None:
 def test_binding_invariants() -> None:
     """``decks`` and ``tags`` partition the faces (disjoint, together the inventory in order); ``set(tags.values())``
     equals ``declared.tags`` EXACTLY, so a ``Binding`` joining a face to a condition of another tag cannot be built;
-    ``condition_of``, ``faces_of`` and ``sources`` are derived from ``(tags, declared)``; ``sources`` reads the
+    ``condition_of`` and ``sources`` are derived from ``(tags, declared)``; ``sources`` reads the
     ``source`` accessor of EVERY condition type (a method-only condition with a nonzero source appears); a
     binding holding an opaque sampler has no digest (``ContentlessError``).
 
@@ -238,12 +238,12 @@ def test_binding_invariants() -> None:
     require(binding.decks["xmin"] == MirrorDeck() and binding.tags["xmax"] == 0, "the partition holds the wrong values")
     require(binding.faces == ("xmin", "xmax"), f"faces are {binding.faces}")
     require(binding.condition_of("xmax") == white, "condition_of(xmax) is the declared condition of its tag")
-    require(binding.faces_of(0) == ("xmax",) and binding.faces_of(9) == (), "faces_of")
+    require(tuple(f for f in binding.faces if binding.tags.get(f) == 0) == ("xmax",) and tuple(f for f in binding.faces if binding.tags.get(f) == 9) == (), "the faces carrying a tag")
     require(len(binding.sources) == 0, "a source-free binding has sources")
 
     two = bc.bind(slab_mesh({"xmin": 0, "xmax": 0}), {0: bc.WallCondition.uniform(2.0)})
     require(set(two.sources) == {"xmin", "xmax"} and all(t.uniform == 2.0 for t in two.sources.values()), "sources lost a face or its weight")
-    require(two.faces_of(0) == ("xmin", "xmax"), "faces_of keeps the inventory order")
+    require(tuple(f for f in two.faces if two.tags.get(f) == 0) == ("xmin", "xmax"), "the faces carrying a tag keep the inventory order")
     one = bc.bind(slab_mesh({"xmin": 0, "xmax": 1}), {0: vac, 1: bc.WallCondition.uniform(2.0)})
     require(set(one.sources) == {"xmax"}, f"sources holds {set(one.sources)}: only the faces whose condition has a nonzero source")
     sourced = local().SourcedProbe()

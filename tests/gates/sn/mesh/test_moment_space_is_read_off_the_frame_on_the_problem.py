@@ -5,7 +5,7 @@ angular moment space had EIGHT homes. The frame carried it
 (``frame.basis.space``) and seven production sites re-minted it from the
 integer ``L`` as ``SphericalHarmonicSpace.from_L(L)`` — the scattering
 operator's :math:`\Lambda` ends (three spellings), the fission and (n,2n)
-:math:`\ell = 0` ends, the moment-flux field's head, and ``truncate`` —
+:math:`\ell = 0` ends, the moment-flux field's head, and the (since retired) ``truncate`` —
 while two ``isinstance`` doors on :class:`HarmonicFrame` admitted one basis
 class only. Every copy silently chose the full-sphere family; the day a
 1-D rule binds its Legendre basis, every copy mismatches the frame at the
@@ -84,6 +84,7 @@ from orpheus.transport.material_field import TransferMaterialField
 from tests.gates.transport._materials import material_xs_from_raw, placeholder_materials
 from orpheus.numerics import frame_faces
 from orpheus.geometry.deck import MirrorDeck
+from tests.gates.transport._transfer_oracles import on_basis
 
 pytestmark = pytest.mark.foundation
 
@@ -261,23 +262,13 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     field = HarmonicMomentFlux.zeros_for_problem_and_L(sn, L)
     assert isinstance(field.space, TensorProductSpace)
     assert field.space.factors[0] == head
-    # truncation stays in the head's OWN family, one order down — re-minted
-    # through the head's origin (the foreign frame); a truncate that re-minted
-    # the family from an integer would hand back the honest head
-    truncated = field.truncate(0).space
-    assert isinstance(truncated, TensorProductSpace)
-    # the truncated head keeps its own FAMILY's L = 0 layout — ``(1, 1)`` for
-    # the rectangular harmonics, ``(1,)`` for the flat Legendre family the
-    # slab now binds. Read off the honest head, so this line cannot drift.
-    assert truncated.factors[0].shape == FunctionSpace.of_basis(frame_faces.angular_frame(sn.quad, 0).basis).shape
-    assert truncated.factors[0] == head0
 
     foreign = _ForeignTruncatedBasis.like(frame_faces.angular_frame(sn.quad, L).basis)
     assert FunctionSpace.of_basis(foreign) != FunctionSpace.of_basis(foreign.parent)
-    assert LegendreMomentTransfer.on_basis(
+    assert on_basis(
             TransferMaterialField.scattering(mat), foreign,
         ).domain == FunctionSpace.of_basis(foreign)
-    assert LegendreMomentTransfer.on_basis(
+    assert on_basis(
             TransferMaterialField.n2n(mat), foreign, skip_l0=False,
         ).codomain == FunctionSpace.of_basis(foreign)
 

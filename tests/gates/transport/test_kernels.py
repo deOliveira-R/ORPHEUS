@@ -45,6 +45,7 @@ from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.numerics.axis import EnergyAxis
 from orpheus.transport.kernels import FissionKernel, TransferKernel
 from tests.gates.transport._carrier_helpers import unit_cell_carrier
+from tests.gates.transport._transfer_oracles import dense_per_material
 from orpheus.transport.operators.fission import FissionOperator
 from orpheus.transport.operators.isotropic_transfer import (
     IsotropicFission,
@@ -71,6 +72,16 @@ _SHIPPED_PAIRS = [
     for region in ("A", "B", "C", "D")
     for ng_key in ("1g", "2g", "4g")
 ]
+
+
+def fission_production_per_material(mat_xs, material_id: int) -> np.ndarray:
+    r""":math:`\nu \Sigma_f` ``(ng,)`` vector for one material (the mixture's ``SigP``)."""
+    return mat_xs.materials[material_id].SigP
+
+
+def chi_per_material(mat_xs, material_id: int) -> np.ndarray:
+    r""":math:`\chi` ``(ng,)`` vector for one material (the mixture's ``chi``)."""
+    return mat_xs.materials[material_id].chi
 
 
 def _asymmetric_fissile_2g() -> Mixture:
@@ -241,9 +252,9 @@ def test_kernel_equals_carrier_cache_bit_identical(build_mixture):
         )
 
         fission = FissionKernel.from_mixture(mixture)
-        np.testing.assert_array_equal(fission.chi, mat_xs.chi_per_material(mid))
+        np.testing.assert_array_equal(fission.chi, chi_per_material(mat_xs, mid))
         np.testing.assert_array_equal(
-            fission.nu_sig_f, mat_xs.fission_production_per_material(mid)
+            fission.nu_sig_f, fission_production_per_material(mat_xs, mid)
         )
 
 
@@ -254,7 +265,7 @@ def test_kernel_equals_carrier_cache_bit_identical(build_mixture):
 def test_p0_and_emission_are_what_the_iso_pair_consumes():
     """**G1.4** — ``p0``/``emission_matrix`` against the storage-side oracle.
 
-    ``dense_per_material`` is a transpose-copy VIEW of the same carrier
+    ``dense_per_material`` (the oracle of ``_transfer_oracles``) is a transpose-copy VIEW of the same carrier
     cache G1.3 already compares (re-scoped at CS4a-R QA-F2: ``p0 ==
     iso[mid].T`` cancels to an identity under a SHARED convention
     inversion, so orientation-BETWEEN-views and the multiplicity are
@@ -271,12 +282,12 @@ def test_p0_and_emission_are_what_the_iso_pair_consumes():
     itself re-points at the kernel.
     """
     mat_xs, mixtures = _two_material_carrier()
-    iso_scatter = IsotropicScattering.from_material_xs(
+    iso_scatter = dense_per_material(IsotropicScattering.from_material_xs(
         mat_xs, space=mat_xs.space,
-    ).dense_per_material()
-    iso_n2n = IsotropicN2N.from_material_xs(
+    ))
+    iso_n2n = dense_per_material(IsotropicN2N.from_material_xs(
         mat_xs, space=mat_xs.space,
-    ).dense_per_material()
+    ))
 
     for mid, mixture in mixtures.items():
         np.testing.assert_array_equal(
@@ -448,36 +459,6 @@ def test_bulk_space_energy_arm_reads_only_reachable_materials():
     # view production uses, and the gridded/synthetic split is asserted on its own.
     assert axes[0] == EnergyAxis.of_edges(_EDGES_2G)
     assert axes[0] != EnergyAxis.synthetic(2)
-
-
-# ═════════════════════════════════════════════════════════════════════════
-# G1.7 — the fission dyad: direction pinned, transpose = the factor swap
-# ═════════════════════════════════════════════════════════════════════════
-
-def test_fission_dyad_direction_and_transpose_theorem():
-    """**G1.7** — ``dyad()`` is |χ⟩⟨νΣf| and its transpose is the factor swap.
-
-    Both rows read the RAW mixture factors on the right-hand side, so a
-    kernel that swaps the factors in the forward direction reds here on
-    the χ ∦ νΣf fixture (and only there — parallel factors annihilate
-    the swap, which is why the fixture asserts its own non-parallelism).
-
-    Scope (verification plan §2(h).4): this is a THEOREM about the dyad,
-    gated at the kernel tier with no operator in the room. Since CS4c
-    step 4 the production realization consumes this datum: the energy
-    binding's cached ``kernel`` (``IsotropicFission``) is the one dyad
-    home, and its ``TensorProductOperator`` transpose IS this factor
-    swap — gated operator-side in ``test_isotropic_fission.py``.
-    """
-    mixture = _asymmetric_fissile_2g()
-    chi = np.asarray(mixture.chi, dtype=float)
-    nu_sig_f = np.asarray(mixture.SigP, dtype=float)
-    cosine = float(chi @ nu_sig_f / (np.linalg.norm(chi) * np.linalg.norm(nu_sig_f)))
-    assert cosine < 0.999  # χ ∦ νΣf — the swap is observable
-
-    kernel = FissionKernel.from_mixture(mixture)
-    np.testing.assert_array_equal(kernel.dyad(), np.outer(chi, nu_sig_f))
-    np.testing.assert_array_equal(kernel.dyad().T, np.outer(nu_sig_f, chi))
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -1052,7 +1033,8 @@ class TestFissionCondensationGF1:
 
         fine = _xd9_fine_mixture()
         coarse = fine.condense(EnergyGrid(_XD9_EG_COARSE), _XD9_PHI)
-        return FissionKernel.from_mixture(coarse).dyad()
+        kernel = FissionKernel.from_mixture(coarse)
+        return np.outer(kernel.chi, kernel.nu_sig_f)
 
     def test_law_ruled_morphism_pair(self):
         _assert_condensation_activates(_XD9_PARTITION, _XD9_PHI)

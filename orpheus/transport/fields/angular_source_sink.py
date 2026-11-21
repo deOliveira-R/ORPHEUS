@@ -219,9 +219,3 @@ class AngularSourceSink(AngularField, flux=AngularFlux):
         # re-key now; its retirement question is re-posed at S7).
         space = cls._space_for_problem(problem)
         return cls(values=AxisSectionOperator.of(space, "angular").apply(iso_values), space=space)
-
-    # ── Selectors ────────────────────────────────────────────────────
-
-    def at_ordinate(self, n: int) -> NDArray:
-        r"""Return the per-ordinate slice ``values[n]``, shape ``(ng, nx, ny)``."""
-        return self.values[n]

@@ -173,16 +173,3 @@ class ScalarTraceSpace(FunctionSpace):
 
     def __repr__(self) -> str:
         return f"ScalarTraceSpace({self.name!r}, shape={self.shape})"
-
-    def slot_shape(self, face: str) -> tuple[int, ...]:
-        """The ``(2, ng, *face_spatial)`` shape of one face slot."""
-        if self.layout is None:
-            raise RuntimeError(
-                "ScalarTraceSpace has no FaceLayout; build it via "
-                "ScalarTraceSpace.for_faces, not the bare constructor."
-            )
-        if face not in self.layout.faces:
-            raise ValueError(
-                f"Unknown face {face!r}; available: {tuple(self.layout.faces)}"
-            )
-        return self.layout.faces[face].shape

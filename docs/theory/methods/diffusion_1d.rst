@@ -361,7 +361,7 @@ shared metric is exactly what makes the future DSA restriction
 well-posed; see :ref:`diffusion-dsa-seam`.) Within the pair
 :math:`J = J^+ - J^-` is **exact** for any angular distribution, while
 :math:`\phi_\Gamma = 2(J^+ + J^-)` holds only under the P1 closure —
-the reason the flux accessor is fenced ``p1_boundary_scalar_flux`` while
+the reason the flux closure was fenced ``p1_boundary_scalar_flux`` (now a test-side oracle) while
 ``net_current`` is unprefixed.
 
 .. _diffusion-leakage-boundary-leaves:

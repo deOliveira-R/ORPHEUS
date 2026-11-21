@@ -2809,7 +2809,7 @@ They are not: they are the image of distinct values under a non-injective
 method does not represent: an anisotropic response kernel below P1 is
 the canonical case. Here :eq:`bc-realizability-square` genuinely fails
 and no amount of care in the realizer recovers it. The table states it as
-``Approximated(names, issues)``, each approximation carried with the issue that tracks it. The
+``Approximated(approximations)``, each approximation carried with the issue that tracks it as a ``(name, issue)`` pair. The
 one shipped row is MoC's unit specular wall on a cylinder, which MoC realizes on a different
 domain, an equal-area square cell with reflecting flat faces
 (``Approximated.of("an equal-area square cell with reflecting flat faces, not the declared

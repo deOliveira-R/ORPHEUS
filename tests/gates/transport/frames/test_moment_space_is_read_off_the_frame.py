@@ -5,7 +5,7 @@ angular moment space had EIGHT homes. The frame carried it
 (``frame.basis.space``) and seven production sites re-minted it from the
 integer ``L`` as ``SphericalHarmonicSpace.from_L(L)`` — the scattering
 operator's :math:`\Lambda` ends (three spellings), the fission and (n,2n)
-:math:`\ell = 0` ends, the moment-flux field's head, and ``truncate`` —
+:math:`\ell = 0` ends, the moment-flux field's head, and the (since retired) ``truncate`` —
 while two ``isinstance`` doors on :class:`HarmonicFrame` admitted one basis
 class only. Every copy silently chose the full-sphere family; the day a
 1-D rule binds its Legendre basis, every copy mismatches the frame at the

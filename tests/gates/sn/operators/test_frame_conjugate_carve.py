@@ -67,6 +67,7 @@ from orpheus.transport.material_field import TransferMaterialField
 from dataclasses import replace
 from orpheus.numerics import frame_faces
 from orpheus.geometry.deck import MirrorDeck
+from tests.gates.transport._transfer_oracles import on_frame
 
 pytestmark = pytest.mark.foundation
 
@@ -150,7 +151,7 @@ class TestLegendreMomentTransferHasRealSpaces:
     def test_lambda_domain_is_codomain_is_basis_space(self, solver_p1_het):
         op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
-        lam = LegendreMomentTransfer.on_frame(
+        lam = on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         # Λ is endomorphic on coefficient (basis) space.
@@ -177,7 +178,7 @@ class TestLegendreMomentTransferHasRealSpaces:
         ``(R∘Λ∘M)ᵀ`` falls out for free).
         """
         op = solver_p1_het.problem.system.factors.scattering
-        lam = LegendreMomentTransfer.on_frame(
+        lam = on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         require(
@@ -211,7 +212,7 @@ class TestLegendreMomentTransferHasRealSpaces:
         """
         op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
-        lam = LegendreMomentTransfer.on_frame(
+        lam = on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         inner = lam @ frame_faces.FrameAnalysis.of(frame)  # S2: the word via @
@@ -259,7 +260,7 @@ class TestFrameConjugateEqualsRLambdaM:
         op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
-        lam = LegendreMomentTransfer.on_frame(
+        lam = on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
@@ -303,7 +304,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         reconstruct_after = _require_reconstruct_after(frame)
-        lam = LegendreMomentTransfer.on_frame(
+        lam = on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
@@ -335,7 +336,7 @@ class TestFrameReconstructAfterEqualsRLambda:
         frame = op.frame
         conjugate = _require_conjugate(frame)
         reconstruct_after = _require_reconstruct_after(frame)
-        lam = LegendreMomentTransfer.on_frame(
+        lam = on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)
@@ -374,7 +375,7 @@ class TestProductionApplyEqualsComposedOperator:
         op = solver_p1_het.problem.system.factors.scattering
         frame = op.frame
         conjugate = _require_conjugate(frame)
-        lam = LegendreMomentTransfer.on_frame(
+        lam = on_frame(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
         )
         psi = _aniso_psi(solver_p1_het)

@@ -1363,7 +1363,7 @@ consumer**. It evaluates the within-group balance defect
 .. Rationale: the DEFINITION of the typed residual (a named composition,
 .. not a computed physical law) — structural, so `documented`. Its
 .. verifiable content is pinned by tests/.../test_typed_residual_evaluation.py
-.. (l0 + foundation): balance_map ~ 0 at the SI fixed point, detectably
+.. (l0 + foundation): the per-cell balance defect ~ 0 at the SI fixed point, detectably
 .. localised under a 10% cell perturbation, the type/units/space of the
 .. mint, the boundary/interior split identity, and relative_to.
 
@@ -1394,18 +1394,17 @@ through ``from_balance``.
    orthogonal to the affine question, and ``from_balance`` is still the
    answer.
 
-The residual carries three diagnostics (a typed defect a flux cannot
-be):
+The residual carries two diagnostics (a typed defect a flux cannot
+be). (Two more existed and are gone from the class. On 2026-11-20
+``AngularResidual.balance_map``, the per-cell / per-group maximum over
+ordinates :math:`\max_n |r_n(\vec r, g)|`, was retired with its zero
+production callers; the gate reads it as ``np.max(np.abs(r.values),
+axis=0)``, which exposes WHERE the discrete balance is violated per
+cell, the localised defect that *global* conservation hides, for example
+the curvilinear pole-cell spike of the ERR-026 failure-mode-7 class. The
+production-side ``boundary_vs_interior_split`` moved to the test side the
+same day.)
 
-- :meth:`AngularResidual.balance_map <orpheus.transport.residuals.angular_residual.AngularResidual.balance_map>`
-  — the per-cell / per-group transport-balance violation
-  :math:`\max_n |r_n(\vec r, g)|`. This is the **typed form of the
-  per-ordinate flat-flux residual probe** (``vv-principles``
-  Signature 1): it exposes WHERE the discrete balance is violated per
-  cell, the localised defect that *global* conservation (telescoping
-  particle balance) HIDES — for example the curvilinear pole-cell spike
-  (the ERR-026 failure-mode-7 class, where the SI gives a large
-  pole-cell error while global balance looks fine).
 - ``boundary_vs_interior_split`` (a test-side diagnostic of
   ``tests/gates/sn/operators/test_typed_residual_evaluation.py``) — splits the
   composite into :math:`(\lVert r_\partial \rVert, \lVert r_{\rm bulk}
@@ -1680,7 +1679,7 @@ Numerical evidence
        latter two, which this makes neither.
    * - ``tests/.../test_typed_residual_evaluation.py``
      - ``l0`` + ``foundation``
-     - ``balance_map`` :math:`\approx 0` at the SI fixed point (relative
+     - the per-cell balance defect :math:`\approx 0` at the SI fixed point (relative
        defect :math:`< 10^{-7}`), detectably :math:`\ne 0` and localised
        when one interior cell is perturbed by 10 %
        (:math:`> 100\times` the converged peak, at the perturbed cell);

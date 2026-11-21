@@ -2023,7 +2023,7 @@ PRODUCES one.  Filling the slope rows requires (all S3-A proper, owed):
 * The **two source seams** — the :math:`d \ge 2` wavefront genuine
   :math:`(2^d, ng)` moment source through the dense ``_ubld_system``, and the
   :math:`d = 1` scan slope source threaded via
-  :meth:`~orpheus.transport.spatial._ubld.D1ClosedForm.kernel_rhs` and the Schur
+  the ÷V kernel RHS (``kernel_rhs``, a test-side oracle) and the Schur
   ``schur_xV`` term.
 
 The verification chain for the completed S3 is the thick-diffusion-limit
@@ -3191,7 +3191,7 @@ projection (aggressive-retirement discipline).
                  \;=\; (\texttt{integrate\_angular}\;\psi),
 
    read directly off the moment tensor's :math:`\ell{=}0` block with no
-   rescale (``phi_moments.l_block(0)[0]``). This is what lets the
+   rescale (``phi_moments.values[0, 0]`` on the rectangular head). This is what lets the
    windowed P0 + (n,2n) fast path consume the moments with **zero**
    conversion arithmetic, and what makes the eigenvalue outer's scalar
    flux bit-identical to the full-angular ``integrate_angular`` (the
@@ -3448,7 +3448,7 @@ Implementation map
 * The **eigenvalue** inner
   (:meth:`SNSolver._solve_source_iteration <orpheus.sn.solver.SNSolver._solve_source_iteration>`)
   is reconstruction-free: it returns the scalar flux read off the
-  :math:`\ell{=}0` moment block (``psi_typed.bulk.l_block(0)[0]``, the
+  :math:`\ell{=}0` moment block (the ``(0, 0)`` slot of ``psi_typed.bulk.values``, the
   :math:`Y_0^0 = 1` identity), since the outer power iteration rebuilds
   from the scalar flux.
 * The **fixed-source** inner

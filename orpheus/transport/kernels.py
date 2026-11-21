@@ -54,8 +54,8 @@ module follows it):
   ``[g_from, g_to]`` — the :attr:`Mixture.SigS` storage convention. The
   *action* on a flux is the transpose contraction :math:`(\Sigma^T\phi)_g
   = \sum_{g'} \Sigma(g'\!\to\!g)\,\phi_{g'}`; emission-side views
-  (:meth:`TransferKernel.emission_matrix`, :meth:`FissionKernel.dyad`)
-  return ``[g_to, g_from]`` operator matrices with ``M @ phi == action``.
+  (:meth:`TransferKernel.emission_matrix`) return ``[g_to, g_from]``
+  operator matrices with ``M @ phi == action``.
 * The Legendre index :math:`\ell` **is the Funk–Hecke eigenbasis index**:
   on the sphere, a rotationally-invariant transfer kernel is diagonal in
   spherical harmonics with eigenvalue :math:`\Sigma_{c,\ell}` on the whole
@@ -215,14 +215,14 @@ class TransferKernel:
         r"""The isotropic transfer matrix :math:`\Sigma_{c,0}` — ``moments[0]``, ``[g_from, g_to]``.
 
         The slice the isotropic energy binding consumes: the operator
-        matrix of
-        :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer.dense_per_material`
+        matrix of the isotropic energy binding (the storage-side oracle
+        ``dense_per_material`` of the gate tier)
         is exactly :math:`y\,\mathtt{p0}^T` (:meth:`emission_matrix`).
 
         Aliasing semantics (CS4a-R EE-9c): this property returns the
         STORED read-only array itself (``p0 is moments[0]``) — unlike
-        :meth:`emission_matrix` and :meth:`FissionKernel.dyad`, which
-        mint a fresh WRITABLE copy per call. Do not cache one expecting
+        :meth:`emission_matrix`, which
+        mints a fresh WRITABLE copy per call. Do not cache one expecting
         the other's semantics.
         """
         return self.moments[0]
@@ -247,7 +247,7 @@ class TransferKernel:
         the P0 in-scatter for :math:`y = 1`, the :math:`(n,2n)` source for
         :math:`y = 2`. A fresh copy per call (the storage-side-view
         convention of
-        :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicTransfer.dense_per_material`,
+        the gate tier's ``dense_per_material`` oracle,
         which this equals entry for entry). The multiplicity enters the
         emission HERE and in the field's verbs — never the stored stack.
         """
@@ -298,7 +298,7 @@ class FissionKernel:
     co-vector :math:`\nu\Sigma_f`, then emission along the spectrum
     :math:`\chi`. The kernel stores the **factors, never the outer
     product** — rank-1-ness, the transpose-is-the-factor-swap theorem
-    (gated as algebra: ``dyad().T == outer(nu_sig_f, chi)``), and the
+    (``outer(chi, nu_sig_f).T == outer(nu_sig_f, chi)``), and the
     χ↔νΣf-coupled condensation are all facts *about the factors* that a
     stored ``(ng, ng)`` matrix would obscure. On an energy-only space the
     dyad fully determines the adjoint (counting measure ⟹ metric adjoint
@@ -364,13 +364,3 @@ class FissionKernel:
     def ng(self) -> int:
         """Number of energy groups (derived from the factors; not a field)."""
         return self.chi.shape[0]
-
-    def dyad(self) -> np.ndarray:
-        r"""The dense dyad :math:`|\chi\rangle\langle\nu\Sigma_f|` — ``[g_to, g_from]``, fresh per call.
-
-        ``dyad() @ phi`` is the fission source. A *view* for oracles and
-        small dense consumers — production realizations keep the factors
-        (rank-1 apply is :math:`\chi\,(\nu\Sigma_f\cdot\phi)`, never a
-        matmul against this).
-        """
-        return np.outer(self.chi, self.nu_sig_f)

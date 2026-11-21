@@ -1142,19 +1142,10 @@ class TestSigmaRFoldCaught:
 
 _FOLD_ACCESSORS = frozenset({"foldable_sigma", "residual_sig_s"})
 #: The complete legitimate production surface for the σ_r-fold data:
-#: the definition site, the split layer (whose residual_part IS the
-#: safe spelling), and the DSA low-order build (the fenced consumer —
+#: the definition site and the DSA low-order build (the fenced consumer —
 #: correction→0 makes the fold legitimate THERE and only there).
 _FOLD_ALLOWLIST = frozenset({
     "orpheus/transport/mesh/material_xs_field.py",
-    # #426 step 2 (2026-09-04): the operator-tier fold family (foldable_part /
-    # residual_part / foldable_sigma / is_foldable_into_sigma_r) moved with
-    # the ScatteringOperator body onto the shared TransferOperator core in
-    # transfer.py — a RE-HOME of the audited consumer, not an extension of the
-    # allowlist: it stays "Data API only" (no solver / sweep reads it) and is
-    # generic in the yield, which is what makes the facade's y-blind half the
-    # one to watch (#449).
-    "orpheus/transport/operators/transfer.py",
     "orpheus/sn/acceleration/dsa.py",
 })
 

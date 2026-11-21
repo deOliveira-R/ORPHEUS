@@ -10,7 +10,7 @@ layer per row (``vv-principles``):
 
 * (a) ``test_plumbing_needs_an_issue``, ``test_the_lattice_of_admissions``: THEOREM on the lattice
   ``Realized(True) > Realized(False) > Approximated > Refused``, defined ONCE: ``Admission.meet`` is the lesser, the
-  ``Approximated`` names and issues union, the first ``Refused`` wins, the empty meet is ``Realized(True)``; and a
+  ``Approximated`` ``(name, issue)`` pairs union, the first ``Refused`` wins, the empty meet is ``Realized(True)``; and a
   refusal on the plumbing axis owes the issue that tracks the missing machinery.
 * (b) ``test_registration_by_class_keyword``: STRUCTURE. A realizer registers at class creation (a class keyword), a
   duplicate, a key outside the closed set, a sealed table and a second ``DeckRealizer`` are refused, an unsealed
@@ -28,7 +28,8 @@ layer per row (``vv-principles``):
   of one chain is that chain's realizer's with the weight beside it, the image of a sum is the sum of the images
   (in ``CHAIN_ORDER``), the zero network is consulted only for an empty network, the source only for a nonzero one.
 * (i) ``test_face_site``: the three geometric site classes are derived once, from ``(face, coord, dimension)``;
-  ``test_hollow_inner_is_derived_never_stored`` pins that the hollow inner face is a derived property, not a field.
+  that the hollow inner face is derived (a ``RAD_INNER`` site class), not a stored field, was pinned by a
+  ``hollow_inner`` test retired with the property, 2026-11-20.
 * (j) ``test_the_source_verb``: ``sample_inflow`` is ``require`` plus the registered ``SourceRealizer.sample``,
   whose default is ``sample_terms``.
 
@@ -111,7 +112,7 @@ def test_plumbing_needs_an_issue() -> None:
     for axis in (Axis.ANGULAR_RESOLUTION, Axis.TOPOLOGY, Axis.STATE_CONE):
         require(bc.Refused(axis, "r").issue is None, f"{axis.name} owes no issue")
     approx = bc.Approximated(frozenset({("a square cell", 547)}))
-    require(isinstance(approx.approximations, frozenset) and approx.names == {"a square cell"} and approx.issues == {547}, "Approximated holds pairs; names and issues project them")
+    require(isinstance(approx.approximations, frozenset) and approx.names == {"a square cell"}, "Approximated holds pairs; names projects them")
     require(bc.Approximated.of("a square cell", 547) == approx, "Approximated.of is the one-member spelling")
     require(bc.Realized(True) != bc.Realized(False) and bc.Realized(True) == bc.Realized(True), "tier 1 and tier 2 differ")
     for member in (approx, bc.Realized(True), bc.Refused(Axis.TOPOLOGY, "r")):
@@ -732,23 +733,6 @@ def test_the_sum_is_sealed_and_each_member_parses() -> None:
     assert isinstance(merged, bc.Approximated)
     require(merged.approximations == frozenset({("x", 1), ("y", 2)}), f"the meet lost which issue tracks which name: {merged}")
     require(merged != bc.Approximated(frozenset({("x", 2), ("y", 1)})), "control: swapping the issues must be a different value")
-
-
-def test_hollow_inner_is_derived_never_stored() -> None:
-    """``FaceSite.hollow_inner`` is a property derived from the face and the coordinate system (true exactly on the
-    inner face of a radial body, which only a hollow body has), not a field: ``FaceSite`` has the three fields
-    ``face``, ``coord`` and ``dimension``, so no contradictory site can be built.
-
-    Reddens on: a stored ``hollow_inner`` field (the field set grows, and a four-argument construction builds); a
-    derivation that flags the outer face or a Cartesian face.
-    """
-    Cart, Cyl, Sph = CoordSystem.CARTESIAN, CoordSystem.CYLINDRICAL, CoordSystem.SPHERICAL
-    require([f.name for f in dataclasses.fields(bc.FaceSite)] == ["face", "coord", "dimension"], f"FaceSite stores {[f.name for f in dataclasses.fields(bc.FaceSite)]}")
-    with pytest.raises(TypeError):
-        bc.FaceSite("xmin", Sph, 1, True)  # type: ignore[call-arg]
-    rows = [(("xmin", Sph, 1), True), (("xmin", Cyl, 1), True), (("xmin", Cyl, 2), True), (("xmax", Sph, 1), False), (("xmin", Cart, 1), False), (("ymin", Cyl, 2), False)]
-    for args, hollow in rows:
-        require(bc.FaceSite(*args).hollow_inner is hollow, f"{args}: hollow_inner {bc.FaceSite(*args).hollow_inner}, expected {hollow}")
 
 
 def test_the_source_door_is_met_for_every_condition() -> None:

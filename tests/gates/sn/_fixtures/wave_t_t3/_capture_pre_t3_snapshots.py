@@ -76,6 +76,7 @@ from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBas
 from orpheus.transport.material_field import TransferMaterialField
 from dataclasses import replace
 from orpheus.geometry.deck import MirrorDeck
+from tests.gates.transport._transfer_oracles import on_basis
 
 OUT_FILE = Path(__file__).parent / "pre_t3_snapshots.npz"
 
@@ -224,14 +225,13 @@ def _capture_legendre_moments(
     from orpheus.transport.fields.harmonic_moment_flux import (
         HarmonicMomentFlux,
     )
-    from orpheus.transport.operators.transfer import LegendreMomentTransfer
 
     quad = solver.quad
     moments_values = frame_faces.FrameAnalysis.of(frame_faces.angular_frame(quad, L)).apply(psi.values)
     moments = HarmonicMomentFlux.from_problem_and_L(
         moments_values, solver.problem, L,
     )
-    Lam = LegendreMomentTransfer.on_basis(
+    Lam = on_basis(
             TransferMaterialField.scattering(solver.problem.mat_xs), SphericalHarmonicBasis(L=L), skip_l0=False,
         )
     scattered = Lam.apply(moments)

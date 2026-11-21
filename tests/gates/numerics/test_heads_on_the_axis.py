@@ -226,17 +226,6 @@ def test_H6_legendre_about_two_axes_differ_by_domain_not_by_a_spent_axis_field()
     assert a.axes[0].layout == b.axes[0].layout, "PREMISE: one layout, so the support separates them"
 
 
-@pytest.mark.parametrize("rule,L", [("gl8", 2), ("product48", 2), ("folded24", 2)])
-def test_H7_truncated_head_is_the_frame_head_at_the_lower_order(rule, L):
-    """Green on both commits (one body); S7b re-routes it through the layout."""
-    from orpheus.numerics.spaces.moment_head import truncated_head
-    q = {"gl8": lambda: Quadrature.gauss_legendre(8), "product48": lambda: Quadrature.product(4, 8),
-         "folded24": lambda: Quadrature.folded_product(n_mu=2, n_phi=4)}[rule]()
-    head = ff.basis_space(ff.angular_frame(q, L))
-    for L_new in range(L + 1):
-        assert truncated_head(head, L_new) == ff.basis_space(ff.angular_frame(q, L_new))
-
-
 def test_H8_the_pending_concept_edges_are_closed():
     """G0: basis/ and measure.py import no space module; coefficient_layout is tier 0."""
     from tests.gates.numerics import test_concept_order as G0

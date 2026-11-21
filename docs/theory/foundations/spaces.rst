@@ -1867,7 +1867,7 @@ minted through, so a refusal is diagnosable from its text alone. The match
 is a type claim, not a ``None`` check: a measure-minted axis handed to a
 consumer that needs a quadrature refuses, naming ``FromMeasure``. Two more
 ``match`` sites read the other arms:
-:func:`~orpheus.numerics.spaces.moment_head.truncated_head` re-mints a head
+``GalerkinFrame.at_order`` and ``TruncatedBasis.at_order`` re-mint a head
 through ``FromFrame`` or ``FromBasis`` (:ref:`spaces-moment-head-axis-built`),
 and the axis marginal refuses a raw cell head through ``FromBasis``
 (:ref:`spaces-collapse-pair-frame`). The census of the ``FromQuadrature`` sites is
@@ -5014,8 +5014,8 @@ provenance reddened 48 gate rows asserting that the head's recorded
 object is ``frame.basis``.
 
 **Truncation re-mints through the origin.**
-:func:`~orpheus.numerics.spaces.moment_head.truncated_head` lowers a head
-to ``L_new`` by matching its axis's origin: ``FromFrame`` re-poses the
+The head is lowered to ``L_new`` by matching its axis's origin (the function
+``truncated_head`` did this until it retired on 2026-11-20 with its only caller): ``FromFrame`` re-poses the
 frame at the lower order and returns its dressed head
 (:meth:`GalerkinFrame.at_order
 <orpheus.numerics.frame.GalerkinFrame.at_order>`), ``FromBasis``
@@ -5023,10 +5023,10 @@ re-spans the basis (``basis.at_order(L_new)``) and returns its
 ``of_basis``; any other origin refuses. Never a slice of the parent's
 dressing: the discrete Gram's verdict can flip with :math:`L` (`[M]`
 ``folded_product(2, 4)`` is DENSE at :math:`L = 2` and DIAGONAL at
-:math:`L = 1`), so a slice is undefined there. `[M]` 2026-10-22,
-``truncated_head`` of the :math:`L = 3` dressed head of
-``level_symmetric(6)`` equals the frame's own :math:`L = 1` dressed head
-(gate H7).
+:math:`L = 1`), so a slice is undefined there. `[M]` 2026-10-22, the
+:math:`L = 1` truncation of the :math:`L = 3` dressed head of
+``level_symmetric(6)`` equalled the frame's own :math:`L = 1` dressed head
+(gate H7, retired with ``truncated_head``).
 
 **A zero modal unit is legal** (ruling 86, amending ruling 41's
 "nonzero"). It is the honest unit of a factor whose span is orthogonal to
@@ -5093,7 +5093,7 @@ of the rectangular layout returns the wrong array and raises NOTHING.** A
 consumer indexing ``values[0, 0]`` on an :math:`(L+1, n_g, n_x)` tensor
 gets *group 0's spatial slice* — well-shaped, silently wrong. The sites
 that read the rectangular layout as if it were the contract until #429
-(2026-09-02): ``scalar_flux``, ``isotropic_part``, ``anisotropic_part``,
+(2026-09-02): ``scalar_flux``, the since-retired ``isotropic_part``, ``anisotropic_part``,
 ``l_block``, the fission :math:`\ell = 0` dyad, ``ng`` (which located the
 group axis at a hard-coded index 2), ``zeros_for_problem_and_L``, and the
 material field's per-degree group contraction, whose ``einsum`` spelled

@@ -264,9 +264,10 @@ class IsotropicTransfer(BoundOperator):
         column IS every cell's block column ``M_cell[:, g']`` exactly
         (unit inputs make the kernel's products coefficient reads — no
         summation error). ``ng`` kernel calls emit the whole
-        cell-block-diagonal. Deliberately NOT :meth:`dense_per_material`
-        — that is the storage-side transpose-convention ORACLE (vv L11)
-        and must stay realization-independent of production consumption.
+        cell-block-diagonal. Deliberately NOT the storage-side
+        transpose-convention ORACLE (``dense_per_material`` of
+        ``tests/gates/transport/_transfer_oracles.py``, vv L11), which must
+        stay realization-independent of production consumption.
         The flat layout is the domain's C-ravel (group-major); the
         composite embedding (zero trace rows/columns) is
         :func:`~orpheus.transport.operators.lift.embed_bulk_assembly`'s.
@@ -296,30 +297,6 @@ class IsotropicTransfer(BoundOperator):
             (np.concatenate(vals), (np.concatenate(rows), np.concatenate(cols))),
             shape=(n, n),
         )
-
-    def dense_per_material(self) -> dict[int, np.ndarray]:
-        r"""Per-material operator matrix :math:`y\,\Sigma_{c,0}^{T}` (``[g_to, g_from]``)
-        — the STORAGE-SIDE oracle view, not a production consumption mode.
-
-        Returns ``{mid: M}`` with ``M @ φ_cell == apply(φ)_cell``, i.e.
-        ``M = y · p0.T`` (``p0`` is stored ``[g_from, g_to]``), read
-        DIRECTLY off the stored cross sections through the kernel's own
-        :meth:`~orpheus.transport.kernels.TransferKernel.emission_matrix`
-        — structurally independent of the
-        :meth:`~orpheus.transport.material_field.TransferMaterialField.add_p0_source`
-        einsum that realizes :meth:`apply`.  That independence is this
-        method's job: the verification gates use it as the
-        transpose-convention oracle for ``apply``/``apply_transpose``
-        (`vv-principles` L11 — the two sides of an oracle pair must not
-        share a realization).  Production materialization — the LHS-fold
-        ``A = C − K_iso`` the homogeneous solver densifies — goes through
-        :func:`~orpheus.numerics.assembled_operator.dense` (through
-        :meth:`assembled_matrix`, which reads its blocks through ``apply``).  Each entry is a fresh copy.
-        """
-        return {
-            mid: kernel.emission_matrix()
-            for mid, kernel in self.transfer.per_material.items()
-        }
 
 
 class IsotropicScattering(IsotropicTransfer):

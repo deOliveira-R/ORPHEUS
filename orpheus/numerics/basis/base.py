@@ -179,8 +179,7 @@ class TruncatedBasis(Protocol):
     def at_order(self, L_new: int, /) -> "TruncatedBasis":
         """THIS family at the truncation order ``L_new`` — the same functions
         cut at another degree (same domain, same spent axis), the verb a
-        head truncates THROUGH (:func:`~orpheus.numerics.spaces.moment_head.truncated_head`,
-        CS4c step 6 item 6.2c-ii)."""
+        head is re-minted at a lower order THROUGH (CS4c step 6 item 6.2c-ii)."""
         ...
 
 

@@ -160,7 +160,7 @@ def test_width_one_appends_nothing_and_the_tail_rule_is_space_composition() -> N
 
 
 @pytest.mark.parametrize("label", list(_LD), ids=list(_LD))
-def test_a_widened_moment_field_self_derives_its_scalar_flux_and_truncates_on_the_hubs_space(label: str) -> None:
+def test_a_widened_moment_field_self_derives_its_scalar_flux_on_the_hubs_space(label: str) -> None:
     sn = _LD[label]()
     L = 1
     field = HarmonicMomentFlux.zeros_for_problem_and_L(sn, L, spatial_moments=2)
@@ -168,7 +168,4 @@ def test_a_widened_moment_field_self_derives_its_scalar_flux_and_truncates_on_th
     scalar = field.scalar_flux()
     assert scalar.space == BulkField.compose_spatial_moments(sn.bulk_space, sn, 2)
     assert _tail_axes(scalar.space) and _tail_axes(scalar.space)[0] == sn.scheme.moment_axis(sn.axes)
-    truncated = field.truncate(0)
-    assert truncated.space == sn.moment_space(0, spatial_moments=2)
-    assert truncated.spatial_moments == 2
 

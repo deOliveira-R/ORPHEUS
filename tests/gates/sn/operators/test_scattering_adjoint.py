@@ -41,12 +41,12 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
-from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.transport.material_field import TransferMaterialField
 from tests.gates.sn.operators._composite_operand import bulk_apply, transpose_values
 from dataclasses import replace
 from orpheus.geometry.deck import MirrorDeck
+from tests.gates.transport._transfer_oracles import on_basis
 
 pytestmark = pytest.mark.foundation
 
@@ -124,7 +124,7 @@ def _moment_field(op, nx, ny, seed):
 
 class TestLambdaTranspose:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        lam = LegendreMomentTransfer.on_basis(
+        lam = on_basis(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1),
         )
         require(lam.is_adjointable,
@@ -136,7 +136,7 @@ class TestLambdaTranspose:
         r"""``⟨Λ m, c⟩ = ⟨m, Λᵀ c⟩`` (full moment-tensor contraction, per L27)."""
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        lam = LegendreMomentTransfer.on_basis(
+        lam = on_basis(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 1); c = _moment_field(op, nx, ny, 2)
@@ -159,7 +159,7 @@ class TestLambdaTranspose:
         """
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        lam = LegendreMomentTransfer.on_basis(
+        lam = on_basis(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         c = _moment_field(op, nx, ny, 3)
@@ -185,7 +185,7 @@ class TestLambdaTranspose:
         r"""Discriminator: with asymmetric Σ_s, Λᵀ ≠ Λ (the transpose has teeth)."""
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        lam = LegendreMomentTransfer.on_basis(
+        lam = on_basis(
             TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 4)
@@ -241,7 +241,7 @@ class TestKernelTranspose:
 
 class TestN2NMomentTransfer:
     def test_predicates_adjointable_not_invertible(self, solver_p1_het):
-        n2n = LegendreMomentTransfer.on_basis(
+        n2n = on_basis(
             TransferMaterialField.n2n(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         require(n2n.is_adjointable, "N2N must advertise the adjoint axis.")
@@ -260,7 +260,7 @@ class TestN2NMomentTransfer:
         """
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        n2n = LegendreMomentTransfer.on_basis(
+        n2n = on_basis(
             TransferMaterialField.n2n(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 6)
@@ -276,7 +276,7 @@ class TestN2NMomentTransfer:
     def test_moment_space_transpose_identity(self, solver_p1_het):
         op = solver_p1_het.problem.system.factors.scattering
         nx, ny = solver_p1_het.problem.mat_xs.spatial_shape
-        n2n = LegendreMomentTransfer.on_basis(
+        n2n = on_basis(
             TransferMaterialField.n2n(solver_p1_het.problem.mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
         m = _moment_field(op, nx, ny, 7); c = _moment_field(op, nx, ny, 8)

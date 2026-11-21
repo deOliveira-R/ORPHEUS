@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from tests.gates.transport.fields._scalar_boundary_oracles import p1_boundary_scalar_flux
 
 from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.transport.mesh.material_mesh import MaterialMesh
@@ -77,8 +78,9 @@ class TestScalarTraceSpace:
         np.testing.assert_array_equal(ts.shape, (2 * 2 * 2,))
         if ts.face_names != ("xmin", "xmax"):
             pytest.fail(f"slab faces should be (xmin, xmax); got {ts.face_names}")
-        if ts.slot_shape("xmax") != (2, 2):
-            pytest.fail(f"slot shape should be (2, ng); got {ts.slot_shape('xmax')}")
+        assert ts.layout is not None
+        if ts.layout.faces["xmax"].shape != (2, 2):
+            pytest.fail(f"slot shape should be (2, ng); got {ts.layout.faces['xmax'].shape}")
         # Slab boundary areas are exactly 1 → the metric is exactly ones.
         np.testing.assert_array_equal(
             ts.inner_product_weights, np.ones(ts.shape)
@@ -141,7 +143,7 @@ class TestPartialCurrentLaws:
             pc.net_current("xmax"), (j_plus - j_minus)[0]
         )
         np.testing.assert_array_equal(
-            pc.p1_boundary_scalar_flux("xmax"), 2.0 * (j_plus + j_minus)[0]
+            p1_boundary_scalar_flux(pc, "xmax"), 2.0 * (j_plus + j_minus)[0]
         )
 
     def test_albedo_family_identities(self):
@@ -158,7 +160,7 @@ class TestPartialCurrentLaws:
         vacuum = with_albedo(0.0)
         np.testing.assert_array_equal(vacuum.inflow_view("xmax"), np.zeros(2))
         np.testing.assert_array_equal(
-            vacuum.p1_boundary_scalar_flux("xmax"),
+            p1_boundary_scalar_flux(vacuum, "xmax"),
             2.0 * vacuum.net_current("xmax"),
         )
         reflective = with_albedo(1.0)
@@ -167,7 +169,7 @@ class TestPartialCurrentLaws:
         )
         zero_flux = with_albedo(-1.0)
         np.testing.assert_array_equal(
-            zero_flux.p1_boundary_scalar_flux("xmax"), np.zeros(2)
+            p1_boundary_scalar_flux(zero_flux, "xmax"), np.zeros(2)
         )
 
     def test_views_share_backing_buffer(self):

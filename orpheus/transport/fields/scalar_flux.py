@@ -90,8 +90,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import ClassVar
 
-from numpy.typing import NDArray
-
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import ScalarField
 
@@ -123,18 +121,9 @@ class ScalarFlux(ScalarField):
     :meth:`~orpheus.numerics.field.Field._check_partner`
     refuses a partner of another class or of unequal space content (the
     cell volumes included).
-
-    Per-group selectors (:meth:`at_group`) return ``np.ndarray``
-    VIEWS into ``values`` — downstream callers must not mutate them.
     """
 
     #: Dimensional identity (View-G, B.4): areal angle-integrated flux
     #: ``1/(cm²·s)`` (eV-free — see module docstring). Metadata, not the
     #: arithmetic gate. See :mod:`orpheus.numerics.units`.
     UNITS: ClassVar[Unit] = SCALAR_FLUX_UNITS
-
-    # ── Selectors ────────────────────────────────────────────────────
-
-    def at_group(self, g: int) -> NDArray:
-        r"""Return the per-group slice ``values[g]``, shape ``(nx, ny)``."""
-        return self.values[g]

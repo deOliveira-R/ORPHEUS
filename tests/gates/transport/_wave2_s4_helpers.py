@@ -97,7 +97,7 @@ def summary(admission: Any) -> tuple:
     if isinstance(admission, B.Realized):
         return ("R", admission.faithful)
     if isinstance(admission, B.Approximated):
-        return ("A", tuple(sorted(admission.names)), tuple(sorted(admission.issues)))
+        return ("A", tuple(sorted(admission.names)), tuple(sorted(issue for _, issue in admission.approximations)))
     if not isinstance(admission, B.Refused):
         raise TypeError(f"{admission!r} is not an admission")
     return ("F", admission.axis.name, admission.issue)

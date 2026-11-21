@@ -140,11 +140,6 @@ class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
     gate — see the module docstring.
     """
 
-    #: Distinct cell-group factor name (the source/sink space identity,
-    #: keeping it non-``==`` to the flux leaf's ``"cell_group"`` — the
-    #: class-identity gate is the arithmetic guard, this is for clarity).
-    _CELL_GROUP_NAME: ClassVar[str] = "cell_group_source_sink"
-
     #: Dimensional identity: angle-integrated rate density ``1/(cm³·s)`` —
     #: :data:`~orpheus.numerics.units.SCALAR_RATE_UNITS`, shared with
     #: :class:`~orpheus.transport.fields.scalar_source_sink.ScalarSourceSink`

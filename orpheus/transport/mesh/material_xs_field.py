@@ -9,10 +9,8 @@ of the cross-section data leaked through every consumer:
   ``cells_by_mat: dict[int, (ix, iy)]`` constructor parameter and
   iterated it explicitly in :meth:`~ScatteringOperator.add_iso_source`,
   :meth:`~ScatteringOperator.add_n2n_source`,
-  :meth:`~ScatteringOperator.foldable_part`,
-  :meth:`~ScatteringOperator.residual_part`,
-  :meth:`~ScatteringOperator.is_foldable_into_sigma_r`,
-  :meth:`~ScatteringOperator.foldable_sigma`, and
+  the foldable / residual split (``foldable_part``, ``residual_part``,
+  ``is_foldable_into_sigma_r``, ``foldable_sigma``; retired 2026-11-20), and
   :meth:`~orpheus.transport.operators.transfer.LegendreMomentTransfer.apply`.
 * :class:`~orpheus.sn.solver.SNSolver` carried a parallel
   ``_cells_by_mat`` and seven separate XS attributes
@@ -32,7 +30,6 @@ dict plus the spatial distribution carried by the :class:`SNProblem`'s
   ``(ng, nx, ny)`` arrays every operator's per-cell math consumes.
   Built lazily on first access via :func:`assemble_cell_xs`; cached.
 * **Per-material accessors** (``scattering_legendre``, ``n2n_matrix``,
-  ``fission_production_per_material``, ``chi_per_material``,
   ``cells_by_material``) — for operations that genuinely exploit
   per-material structure (group-coupling matmul on small ``(ng, ng)``
   matrices, anisotropic moment scattering).
@@ -594,14 +591,6 @@ class MaterialXSField:
             self._build_dense_caches()
         return self._n2n_dense[material_id]  # type: ignore[index]
 
-    def fission_production_per_material(self, material_id: int) -> np.ndarray:
-        r""":math:`\nu \Sigma_f` ``(ng,)`` vector for one material."""
-        return self.materials[material_id].SigP
-
-    def chi_per_material(self, material_id: int) -> np.ndarray:
-        r""":math:`\chi` ``(ng,)`` vector for one material."""
-        return self.materials[material_id].chi
-
     def _build_dense_caches(self) -> None:
         """Populate dense Legendre scattering + (n,2n) caches.
 
@@ -673,9 +662,8 @@ class MaterialXSField:
         P0 (off-diagonal) plus every :math:`\ell \ge 1` block verbatim.
         Consumed by the DSA coefficient assembly
         (``orpheus/sn/acceleration/dsa.py``) for the residual
-        transport correction. (``ScatteringOperator.residual_part``
-        read this until CS4c step 3; it now derives its sibling
-        kernels from the bound field directly.)
+        transport correction. (The operator-tier ``residual_part`` read
+        this until CS4c step 3 and was retired 2026-11-20.)
 
         Returns
         -------

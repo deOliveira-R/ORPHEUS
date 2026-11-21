@@ -72,9 +72,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
-import numpy as np
-from numpy.typing import NDArray
-
 from orpheus.numerics.units import ANGULAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import AngularField
 
@@ -156,21 +153,6 @@ class AngularResidual(AngularField):
         return cls._from_balance(lhs, rhs)
 
     # ── Diagnostics (#208 — the typed per-ordinate balance probe) ────────
-
-    def balance_map(self) -> NDArray:
-        r"""Per-cell/per-group transport-balance violation :math:`(ng, nx, ny)`.
-
-        The maximum over ordinates of the absolute per-ordinate defect
-        :math:`\max_n |r_n(\vec r, g)|` — the **typed form of the per-ordinate
-        flat-flux residual probe** (``vv-principles`` Signature 1 / §H3). It
-        exposes WHERE the discrete balance :math:`(L+C-S-B)\psi - q` is violated
-        per cell and group — the localised defect that global conservation
-        (telescoping particle balance) HIDES (e.g. the curvilinear pole-cell
-        spike, ERR-026; a material-interface streaming bug). Reduce over the
-        ordinate axis because a balance violation at any ordinate is a defect of
-        that cell's balance.
-        """
-        return np.max(np.abs(self.values), axis=0)
 
     def relative_to(self, source: "Field") -> float:
         r"""The tolerance-portable relative residual :math:`\lVert r\rVert /

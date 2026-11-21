@@ -105,9 +105,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar
 
-import numpy as np
-from numpy.typing import NDArray
-
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, Unit
 from orpheus.transport.fields._bases import MomentField
 
@@ -165,57 +162,6 @@ class HarmonicMomentFlux(MomentField):
     #: "Units" section above and :mod:`orpheus.numerics.units`.
     UNITS: ClassVar[Unit] = SCALAR_FLUX_UNITS
 
-    # ── Slicing / decomposition (Pattern 3 — named intermediates) ────
-
-    def l_block(self, l: int) -> NDArray:
-        r"""View of one :math:`\ell`-block, shape ``(2ℓ+1, ng, nx, ny)``.
-
-        Returns the slice ``values[l, :2*l+1]`` — the legitimate
-        :math:`m`-entries for that :math:`\ell` (the trailing
-        zero-padding outside :math:`|m| \le \ell` is excluded). Use
-        this to retire the explicit ``moments[l, :n_m][..., ix, iy]``
-        slicing pattern (``coding-elegance`` Pattern 3).
-        """
-        if not 0 <= l <= self.L:
-            raise ValueError(
-                f"HarmonicMomentFlux.l_block: l={l} out of range "
-                f"[0, {self.L}]"
-            )
-        return self.values[self.head_layout.degree_block(l)]
-
-    def isotropic_part(self) -> "HarmonicMomentFlux":
-        r"""Return the :math:`\ell = 0` (isotropic) projection.
-
-        Same shape as ``self``; all :math:`\ell \ge 1` blocks zeroed.
-        Used by the foldable-vs-residual scattering split when the
-        consumer wants the :math:`P_0` content alone.
-        """
-        iso = self.head_layout.isotropic_slot
-        out = np.zeros_like(self.values)
-        out[iso] = self.values[iso]
-        return HarmonicMomentFlux(
-            values=out, space=self.space, L=self.L,
-            spatial_moments=self.spatial_moments,
-        )
-
-    def anisotropic_part(self) -> "HarmonicMomentFlux":
-        r"""Return the :math:`\ell \ge 1` (anisotropic) projection.
-
-        Same shape as ``self``; the :math:`\ell = 0, m = 0` slot zeroed.
-        Pairs with :meth:`isotropic_part` to partition the moment field;
-        ``self.values == isotropic_part().values + anisotropic_part().values``
-        bit-exactly.
-
-        Mirrors the ``skip_l0`` pattern in
-        :class:`~orpheus.transport.operators.transfer.LegendreMomentTransfer`.
-        """
-        out = self.values.copy()
-        out[self.head_layout.isotropic_slot] = 0.0
-        return HarmonicMomentFlux(
-            values=out, space=self.space, L=self.L,
-            spatial_moments=self.spatial_moments,
-        )
-
     def scalar_flux(
         self, *, space: "FunctionSpace | None" = None,
     ) -> "ScalarFlux":
@@ -264,69 +210,4 @@ class HarmonicMomentFlux(MomentField):
         return ScalarFlux(
             values=self.values[iso].copy(),
             space=self.space.factors[1],
-        )
-
-    # ── Truncation ───────────────────────────────────────────────────
-
-    def truncate(self, L_new: int) -> "HarmonicMomentFlux":
-        r"""Return a new :class:`HarmonicMomentFlux` truncated to
-        :math:`L_{\rm new} \le L`.
-
-        Drops the :math:`\ell > L_{\rm new}` blocks and the
-        corresponding zero-padded :math:`m`-columns; the trailing dims —
-        ``ng``, spatial, and any spatial-moment tail — ride unchanged,
-        so a widened (``spatial_moments > 1``) field truncates like any
-        other (#399 / CS4b S6.1: both the shape AND the rebuilt space
-        are derived from ``self.space``, never re-assembled from mesh
-        knowledge).
-
-        The truncated space is a structural edit of the CURRENT space:
-        the angular head factor is asked for ITS OWN family one order
-        down (``truncated_head(head, L_new)`` — a spherical-harmonic head
-        truncates to a spherical-harmonic head, a Legendre head to a
-        Legendre head; #429 tracker 2.5, never re-minted from an integer)
-        and every remaining factor (the cell-group bulk, carrying the
-        scheme's moment axis on a widened field) is kept verbatim —
-        `[M]` content-equal to the factory's own mint at
-        ``(mesh, L_new, spatial_moments)`` on both widths (gated:
-        ``tests/gates/transport/fields/test_harmonic_moment_flux.py``).
-
-        Parameters
-        ----------
-        L_new : int
-            Target order, must satisfy ``0 <= L_new <= self.L``.
-        """
-        if L_new > self.L:
-            raise ValueError(
-                f"HarmonicMomentFlux.truncate: L_new={L_new} > "
-                f"current L={self.L}"
-            )
-        if L_new < 0:
-            raise ValueError(
-                f"HarmonicMomentFlux.truncate: L_new={L_new} < 0"
-            )
-        from functools import reduce
-        from operator import mul
-
-        from orpheus.numerics.space import TensorProductSpace
-        from orpheus.numerics.spaces.moment_head import truncated_head
-
-        assert isinstance(self.space, TensorProductSpace)  # type-narrowing
-        head = self.head
-        new_head = truncated_head(head, L_new)
-        # CS4b: the trailing dims are the space's own shape contract
-        # (everything after the head's axes — ng, spatial, and the optional
-        # moment tail), and the kept block is the head's own leading corner
-        # in each of ITS axes (a lower order keeps the low-index modes of
-        # every head layout), so the copy below is tail- and head-correct
-        # at every width with no branch.
-        keep = tuple(slice(0, n) for n in new_head.shape)
-        new_shape = (*new_head.shape, *self.space.shape[len(head.shape):])
-        new_values = np.zeros(new_shape, dtype=self.values.dtype)
-        new_values[keep] = self.values[keep]
-        return HarmonicMomentFlux(
-            values=new_values,
-            space=reduce(mul, self.space.factors[1:], new_head),
-            L=L_new,
-            spatial_moments=self.spatial_moments,
         )

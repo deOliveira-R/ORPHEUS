@@ -184,14 +184,6 @@ class TestAngularSource:
         assert isinstance(c, AngularSourceSink)
         assert np.all(c.values == 2.5)
 
-    def test_at_ordinate_selector(self) -> None:
-        m = _slab_mesh()
-        shape = (m.quad.n_ordinates, m.ng, *m.spatial_shape)
-        rng = np.random.default_rng(7)
-        values = rng.standard_normal(shape)
-        a = AngularSourceSink(values=values, space=m.angular_bulk_space)
-        np.testing.assert_array_equal(a.at_ordinate(2), values[2])
-
 
 # ════════════════════════════════════════════════════════════════════
 # Cross-class arithmetic via canonical subspace containment (refined

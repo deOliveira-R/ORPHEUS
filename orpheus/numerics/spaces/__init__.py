@@ -52,7 +52,7 @@ References
 from __future__ import annotations
 
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis, truncated_head
+from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import (
     AngularFaceTraceSpace,
@@ -68,5 +68,4 @@ __all__ = [
     "TraceRole",
     "head_layout",
     "moment_head_axis",
-    "truncated_head",
 ]

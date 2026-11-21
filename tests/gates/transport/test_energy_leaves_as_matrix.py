@@ -7,6 +7,7 @@ import pytest
 from scipy.sparse import csr_matrix
 from orpheus.numerics.assembled_operator import dense
 from dataclasses import replace
+from tests.gates.transport._transfer_oracles import dense_per_material
 
 
 pytestmark = pytest.mark.foundation
@@ -59,7 +60,7 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
 
     ``as_matrix(basis_shape=(ng,1))`` drives ``apply`` → the
     ``add_p0_source`` einsum kernel of either channel (per-column matvec
-    accumulation over g'); ``dense_per_material()[mid]`` reads
+    accumulation over g'); ``dense_per_material(op)[mid]`` reads
     ``sig_s_legendre(mid)[0].T`` — a direct storage TRANSPOSE-copy. Neither
     computes the other: they agree ONLY if the apply is faithful to the
     stored cross sections — exactly the L0 claim. The mixture is ≥2G with
@@ -86,7 +87,7 @@ def test_as_matrix_energy_leaves_vs_storage_oracle():
         ),
     ):
         got = op.as_matrix(basis_shape=(ng, 1))
-        ref = op.dense_per_material()[0]  # the single material
+        ref = dense_per_material(op)[0]  # the single material
         np.testing.assert_allclose(
             got, ref, rtol=0, atol=4 * _EPS * np.abs(ref).max(),
             err_msg=f"{type(op).__name__}: apply-to-basis ≠ storage transpose",

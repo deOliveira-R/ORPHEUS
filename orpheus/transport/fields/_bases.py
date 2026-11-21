@@ -1179,14 +1179,6 @@ class FaceField(RolePair, Field, Generic[K]):
             )
         return self.layout.faces[key].slice_view(self.values)
 
-    @property
-    def face_views(self) -> Mapping[K, NDArray]:
-        r"""Mapping ``{face_key: slice_view}`` for every face in the layout.
-
-        All views memory-shared with :attr:`values`.
-        """
-        return {key: self.face_view(key) for key in self.layout.faces}
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # Boundary locus (spatial faces)

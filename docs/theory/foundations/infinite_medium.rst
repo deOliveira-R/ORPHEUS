@@ -1950,8 +1950,7 @@ is minted from it and from nothing else.
    :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`
    **constructor** (one eager materialization + LU factorization, then one
    backsolve against :math:`\chi`; see :ref:`direct-eigensolve-solve`). (The operators'
-   :meth:`~orpheus.transport.operators.isotropic_transfer.IsotropicScattering.dense_per_material`
-   accessor — the transpose read straight off the stored cross sections — is
+   ``dense_per_material`` accessor (a test-side oracle since 2026-11-20) — the transpose read straight off the stored cross sections — is
    a storage-side *oracle* used by the verification gates as a
    structurally-independent cross-check, **not** a production assembly path.)
 
