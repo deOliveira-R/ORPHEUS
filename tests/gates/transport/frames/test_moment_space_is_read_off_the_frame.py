@@ -59,7 +59,7 @@ from __future__ import annotations
 
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 import numpy as np
 import pytest
@@ -120,13 +120,7 @@ class _ForeignTruncatedBasis(Basis):
         return cls(L=order, parent=basis)
 
     def _parent(self) -> Basis:
-        # the parent FOLLOWS this twin's order, so a re-mint at another order
-        # (``at_order``, item 6.2c-ii — the head truncated through it until 2026-11-20) still
-        # delegates to the honest family at THAT order
-        return self.parent.at_order(self.L) if getattr(self.parent, "L", None) != self.L else self.parent  # type: ignore[attr-defined]
-
-    def at_order(self, L_new: int, /) -> "_ForeignTruncatedBasis":
-        return replace(self, L=L_new)
+        return self.parent
 
     def evaluate(self, points, /):
         return self._parent().evaluate(points)

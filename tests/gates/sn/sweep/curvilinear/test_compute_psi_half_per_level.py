@@ -53,7 +53,6 @@ from orpheus.sn.sweep.psi_half_angle_seed import (
 )
 from tests.gates.sn.sweep.curvilinear._psi_half import (
     compute_psi_half_per_level,
-    upstream,
 )
 
 
@@ -136,14 +135,13 @@ class TestShapeContract:
 
 class TestMMHalfGridAccessors:
     """The :class:`_MMHalfGrid` wrapper exposes named accessors so the
-    matvec consumer cannot off-by-one between upstream and downstream
-    half-faces.
+    matvec consumer cannot off-by-one between the upstream half-faces
+    and the trailing one.
 
     Pattern 4 — illegal states unrepresentable. The matvec's
     ``angular_numer_upstream`` argument is populated from the grid's
     ``upstream_per_ordinate`` accessor (semantic, not raw indexing;
-    ``orpheus/sn/angular/closure.py``). The test-side ``upstream(grid, m)``
-    is a plain slice of ``faces`` and is read only by the chain test.
+    ``orpheus/sn/angular/closure.py``).
     """
 
     def _build_grid(self) -> tuple[_MMHalfGrid, int, int, int]:
@@ -179,26 +177,6 @@ class TestMMHalfGridAccessors:
         upstream_faces = grid.upstream_per_ordinate
         assert upstream_faces.shape == (ng, M, nx)
         np.testing.assert_array_equal(upstream_faces, grid.faces[:, :-1, :])
-
-    @pytest.mark.l0
-    def test_downstream_indexing(self) -> None:
-        """``downstream(m)`` returns ``faces[:, m+1, :]`` — the
-        downstream face of ordinate ``m`` (= upstream of ``m+1``)."""
-        grid, _, M, _ = self._build_grid()
-        for m in range(M):
-            np.testing.assert_array_equal(
-                grid.downstream(m), grid.faces[:, m + 1, :],
-            )
-
-    @pytest.mark.l0
-    def test_upstream_downstream_chain(self) -> None:
-        """``downstream(m) == upstream(m+1)`` for adjacent ordinates —
-        the half-face identity that makes the M-M recurrence consistent."""
-        grid, _, M, _ = self._build_grid()
-        for m in range(M - 1):
-            np.testing.assert_array_equal(
-                grid.downstream(m), upstream(grid, m + 1),
-            )
 
     @pytest.mark.l0
     def test_mm_half_grid_is_frozen(self) -> None:

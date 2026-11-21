@@ -4174,7 +4174,8 @@ consumers re-minting it from the integer :math:`L`:
      - ``head.truncated(L_new)`` — the head's OWN family (a method of
        the head classes that retired at S7, then a function
        ``truncated_head`` that retired 2026-11-20 with its only caller;
-       the mechanism is ``at_order`` of the frame or the basis)
+       the mechanism, ``at_order`` of the frame or the basis, retired
+       2026-11-21)
 
 The third column is the tracker-2.5 reading. Since item 6.2c-ii
 (2026-09-08) every row reads the frame's Parseval-dressed
@@ -4832,9 +4833,10 @@ Truncation was the same rule applied to a *lower* order. ``HarmonicMomentFlux.tr
 asked the current head for **its own family** one order down (the function
 ``truncated_head(head, L_new)``) and sliced the kept block by the new head's own
 shape; both retired on 2026-11-20 with their zero production callers. The
-mechanism they read stays: the head axis remembers what minted it, so the
-lower head is the space the same frame (``GalerkinFrame.at_order``) or basis
-(``TruncatedBasis.at_order``) mints at ``L_new``.
+mechanism they read, the verbs ``GalerkinFrame.at_order`` and
+``TruncatedBasis.at_order``, retired on 2026-11-21 with no production caller
+left: the lower head is the head of the frame minted at ``L_new``
+(:func:`~orpheus.numerics.frame_faces.angular_frame`).
 
 ⛔ **The re-mint was item 6.2c-ii's, and it replaced a ``from_L(L_new)``
 call — a change of MECHANISM, not of spelling (ruling O-3: re-mint AND
@@ -4842,10 +4844,10 @@ re-axis, never slice).** Once the head carries its metric
 as an axis MEASURE, "the same family one order down" stops being a pure
 function of :math:`L`: the metric belongs to whichever object DRESSED the
 head, and only that object can re-derive it at the new order. A ``FromBasis``
-origin of a :class:`~orpheus.numerics.basis.base.TruncatedBasis` re-spans the
+origin of a :class:`~orpheus.numerics.basis.base.TruncatedBasis` re-spanned the
 continuum family and hands back ITS ``of_basis`` space; a ``FromFrame`` origin of a
-:class:`~orpheus.numerics.frame.GalerkinFrame` re-poses itself through
-:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order` and hands back its
+:class:`~orpheus.numerics.frame.GalerkinFrame` re-posed itself through
+``GalerkinFrame.at_order`` (retired 2026-11-21) and handed back its
 dressed space at that order. ⚠ And a *slice* of the parent's dressing is
 not merely inelegant, it is **undefined**: the discrete Gram's diagonality
 verdict can FLIP with :math:`L` — `[M]` ``folded_product(2,4)`` is DENSE at
@@ -5353,21 +5355,22 @@ give the map its own type and let its ends be the ends it actually has.
 
 .. _frame-at-order:
 
-A frame can re-pose itself at another order
-============================================
+A frame could re-pose itself at another order (retired)
+=======================================================
 
-:meth:`GalerkinFrame.at_order <orpheus.numerics.frame.GalerkinFrame.at_order>`
-returns THIS frame over the same measure with its trial family cut at
+``GalerkinFrame.at_order`` (retired 2026-11-21: its only production caller,
+``truncated_head``, retired 2026-11-20, and the verb had none left)
+returned THIS frame over the same measure with its trial family cut at
 ``L_new``: same class, same measure, the trial basis's own
-:meth:`~orpheus.numerics.basis.base.TruncatedBasis.at_order`. It exists
+``TruncatedBasis.at_order`` (retired with it). It existed
 because the frame is the head axis's origin, ``FromFrame(frame)``
 (:ref:`frame-the-one-moment-space`)
 and a head must be re-dressable at every order — the metric is the frame's
 to install, and the discrete Gram's verdict can change with :math:`L`
 (:ref:`frame-moment-space-single-home`, the truncation paragraph). It
-refuses a trial that carries no truncation order, by name; and the frame it
-returns is structurally equal to the quadrature's own interned frame at
-that order, so truncation does not fork the frame cache.
+refused a trial that carried no truncation order, by name; and the frame it
+returned was structurally equal to the quadrature's own interned frame at
+that order, so truncation did not fork the frame cache.
 
 
 .. _frame-least-squares-discipline:
@@ -6335,10 +6338,6 @@ Implementation map
   (:math:`G^{-1}M`) with its :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>` cross-Gram arrow
   (:class:`~orpheus.numerics.frame_faces.CrossGramInverse`,
   ``test_space → basis_space``).
-* :meth:`GalerkinFrame.at_order
-  <orpheus.numerics.frame.GalerkinFrame.at_order>` — THIS frame over the
-  same measure with its truncated trial family cut at ``L_new``; the verb
-  a frame-dressed moment head is re-minted at a lower order through.
 * :class:`~orpheus.numerics.basis.GramStructure` — the trial basis's
   projection-validity declaration (``DIAGONAL`` / ``PARTITION_OF_UNITY``
   / ``DENSE``) that decides whether :func:`project <orpheus.numerics.frame_faces.project>` uses the row-sum probe or
@@ -6588,9 +6587,8 @@ metric-blind ``(name, shape)`` seam is **gone**
 the typed arrow :class:`~orpheus.numerics.frame_faces.CrossGramInverse`, because
 its metric-twin spelling stopped type-checking under structural identity
 (:ref:`frame-gram-inverse-arrow`); and truncation re-mints through the
-head axis's generator, with :meth:`GalerkinFrame.at_order
-<orpheus.numerics.frame.GalerkinFrame.at_order>` as the frame-side verb
-(:ref:`frame-at-order`). `[M]` the converged flux, the residual trajectory
+head axis's generator, with ``GalerkinFrame.at_order`` as the frame-side verb
+(retired 2026-11-21; :ref:`frame-at-order`). `[M]` the converged flux, the residual trajectory
 and ``n_inner`` are unchanged; what moves is the SI increment DIAGNOSTIC —
 ``‖Δφ‖`` by 91.6 % and ρ by 3.85 % relative — pinned for the first time by
 ``tests/gates/sn/solve/test_windowed_si_diagnostic_trajectory.py``.

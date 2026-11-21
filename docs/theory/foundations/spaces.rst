@@ -1227,7 +1227,7 @@ indicator head is ``Modal(masses)`` until S6c (ruling 83, #633).
 **Two related surfaces.** The harmonic family also satisfies the
 structural protocol :class:`~orpheus.numerics.basis.base.TruncatedBasis`
 (a truncation order :math:`L`, a degree layout, a domain, the continuum
-Gram ``coefficient_weights``, and ``at_order``), which is
+Gram ``coefficient_weights``; the ``at_order`` verb retired 2026-11-21), which is
 what a consumer asks for when it needs "the coefficient space of order
 :math:`L`" without naming one class; and
 :class:`~orpheus.numerics.basis.descent.Descent` pulls a basis back along
@@ -1870,8 +1870,8 @@ consumer that needs a quadrature refuses, naming ``FromMeasure``. One more
 through ``FromBasis`` (:ref:`spaces-collapse-pair-frame`). Until 2026-11-20 the
 function ``truncated_head`` was a further site, re-minting a head through
 ``FromFrame`` or ``FromBasis`` (:ref:`spaces-moment-head-axis-built`); it
-retired with its only caller, and ``GalerkinFrame.at_order`` and
-``TruncatedBasis.at_order`` match on no origin. The census of the ``FromQuadrature`` sites is
+retired with its only caller, and the two verbs it read, ``GalerkinFrame.at_order`` and
+``TruncatedBasis.at_order``, retired after it on 2026-11-21. The census of the ``FromQuadrature`` sites is
 gated: ``tests/gates/numerics/test_axis_identity.py`` O3.
 
 **Proving that a consumer reads through the axis.** When a re-point changes
@@ -5017,10 +5017,10 @@ object is ``frame.basis``.
 **Truncation re-mints through the origin.**
 Until 2026-11-20 the function ``truncated_head`` lowered a head to ``L_new``
 by matching its axis's origin, and retired with its only caller. What it
-read stays as two verbs, neither now called by production code: ``FromFrame``
+read were two verbs, which retired after it on 2026-11-21 (no production
+code called either): ``FromFrame``
 re-posed the frame at the lower order and returned its dressed head
-(:meth:`GalerkinFrame.at_order
-<orpheus.numerics.frame.GalerkinFrame.at_order>`), ``FromBasis``
+(``GalerkinFrame.at_order``), ``FromBasis``
 re-spanned the basis (``basis.at_order(L_new)``) and returned its
 ``of_basis``, and any other origin was refused by ``truncated_head``. Never a slice of the parent's
 dressing: the discrete Gram's verdict can flip with :math:`L` (`[M]`

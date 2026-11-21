@@ -334,8 +334,8 @@ def _dressed(
     metric), a dense one empties the axis's measure and POSITIONS the form
     on the space's derived metric object (item 6.2c-i) — and in both the
     axis's origin becomes :class:`~orpheus.numerics.axis.FromFrame`, which
-    holds the object that can re-dress the head at another order
-    (:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order`) and re-derives
+    holds the frame that dresses the head (a head at another order is the
+    head of the frame minted at that order) and re-derives
     the head's :attr:`~orpheus.numerics.axis.Axis.unit`: a dressed head holds
     COVARIANT moments, so the coordinates of the constant function there are
     its moments :math:`u = \Phi^{\mathsf T} w`, not the basis's coefficient

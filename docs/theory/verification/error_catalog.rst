@@ -6961,7 +6961,7 @@ older entries classify against.
      repair, and nothing else.** Both doors now demand the
      :class:`~orpheus.numerics.basis.base.TruncatedBasis` *surface*
      (``L`` + ``space`` then; ``L``, ``layout``, ``domain``,
-     ``coefficient_weights`` and ``at_order`` since S7) rather than a
+     ``coefficient_weights`` and, from S7 until 2026-11-21, ``at_order``) rather than a
      class, and every one of the seven
      sites READS ``frame.basis.space``, so the family a quadrature
      chooses propagates by construction. `[M]` 2026-09-02 over 33 rows

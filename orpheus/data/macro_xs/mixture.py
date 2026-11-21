@@ -220,11 +220,6 @@ class Mixture(ContentIdentity):
         return self.SigF + self.SigC + self.SigL + self.n2n_out_xs
 
     @property
-    def in_scattering_xs(self) -> np.ndarray:
-        """(NG,) in-group (elastic) scattering XS (P0 diagonal)."""
-        return np.array(self.SigS[0].diagonal()).ravel()
-
-    @property
     def total_scattering_xs(self) -> np.ndarray:
         """(NG,) total scattering XS (P0 row sum = in + out)."""
         return np.array(self.SigS[0].sum(axis=1)).ravel()

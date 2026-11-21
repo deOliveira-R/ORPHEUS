@@ -109,7 +109,7 @@ from functools import cached_property
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
+from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.geometry.manifold import ManifoldMap, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
 
@@ -382,27 +382,3 @@ class GalerkinFrame(PetrovGalerkinFrame):
     def test_table(self) -> NDArray:
         # test is trial → reuse the trial table (same array; 0-ULP-identical analysis).
         return self.table
-
-    def at_order(self, L_new: int, /) -> "GalerkinFrame":
-        r"""THIS frame over the same measure with its truncated trial family
-        cut at ``L_new``. A frame-dressed moment head at a lower order is
-        a lower-order frame's dressing (CS4c step 6 item 6.2c-ii; the function
-        that re-minted heads through this verb retired 2026-11-20 and no
-        production code calls it now): the head's metric is the frame's to
-        install at every order (the discrete Gram's verdict can flip with
-        :math:`L`), so a lower-order head is a lower-order FRAME's dressing,
-        never a slice of the parent's. The same class (a
-        :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`
-        re-poses as a ``HarmonicFrame``), the same measure; structurally
-        equal to the quadrature's own interned frame at that order.
-        """
-        basis = self.basis
-        if not isinstance(basis, TruncatedBasis):
-            raise TypeError(
-                f"{type(self).__name__}.at_order: the trial "
-                f"{type(basis).__name__} carries no truncation order, so "
-                f"there is no family to cut at L_new={L_new}."
-            )
-        lower = basis.at_order(L_new)
-        assert isinstance(lower, Basis)  # narrowing only: the protocol's conformers are bases
-        return type(self)(lower, self.measure)

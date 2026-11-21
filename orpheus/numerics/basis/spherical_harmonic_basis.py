@@ -93,7 +93,7 @@ References
 
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from functools import cached_property
 from math import factorial, sqrt
 from typing import TYPE_CHECKING
@@ -364,11 +364,6 @@ class SphericalHarmonicBasis(Basis):
         (:func:`~orpheus.numerics.frame_faces.basis_space`), and that dressed
         head is the moment space the tree binds."""
         return self.layout.spread(self.metric_per_ell)
-
-    def at_order(self, L_new: int, /) -> "SphericalHarmonicBasis":
-        r"""This family (the same class — the σ-even restriction stays σ-even)
-        cut at degree ``L_new``."""
-        return replace(self, L=L_new)
 
 
 

@@ -79,7 +79,7 @@ level-symmetric rule — user-ruled 2026-09-02).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from functools import cached_property
 from typing import TYPE_CHECKING
 
@@ -278,7 +278,3 @@ class LegendreBasis(Basis):
     def coefficient_weights(self) -> NDArray:
         r"""The continuum Gram diagonal per degree, :attr:`metric_per_ell`."""
         return self.layout.spread(self.metric_per_ell)
-
-    def at_order(self, L_new: int, /) -> "LegendreBasis":
-        r"""This family about the same spent axis, cut at degree ``L_new``."""
-        return replace(self, L=L_new)

@@ -418,8 +418,9 @@ class FromFrame:
     moments, :math:`u = \Phi^{\mathsf T} w`, the trial basis's analysis of
     :math:`1` (ruling 37), not the basis's coefficient :math:`e_0`. The
     frame is the Stage-2 generator: the pairing basis ⊗ measure induces the
-    head's metric, and only the frame can re-dress the head at another order
-    (:meth:`~orpheus.numerics.frame.GalerkinFrame.at_order`).
+    head's metric, and only a frame can dress a head at another order (the frame
+    minted at that order, :func:`~orpheus.numerics.frame_faces.angular_frame`;
+    the verb that cut a frame at a lower order retired 2026-11-21).
     """
 
     frame: FrameBase

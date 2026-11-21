@@ -825,15 +825,6 @@ class _MMHalfGrid:
         """
         return self.faces[:, -1, :]
 
-    def downstream(self, m: int) -> np.ndarray:
-        r"""Shape ``(ng, nx)`` — downstream half-face of ordinate ``m``.
-
-        Returns :math:`\phi_{m+1/2, i, g}` per ``(g, i)``. Note that
-        ``downstream(m)`` is the upstream face of ordinate ``m+1`` for
-        ``m < M-1``.
-        """
-        return self.faces[:, m + 1, :]
-
 
 # ═══════════════════════════════════════════════════════════════════════
 # Morel–Montry τ producer — the ANGULAR-scheme weight, owned by the closure
