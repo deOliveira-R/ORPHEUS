@@ -69,19 +69,28 @@ def _violations_in(text: str, *, label: str) -> list[str]:
     return out
 
 
-def _tagged_guards() -> tuple[list[str], list[str]]:
-    """``(token sites, violations)`` over every ``orpheus/**/*.py``."""
-    root = _repo_root() / "orpheus"
+def _tagged_guards(
+    root: pathlib.Path | None = None,
+) -> tuple[list[str], list[str], list[tuple[str, str]]]:
+    """``(token sites, violations, token lines)`` over every ``*.py`` under ``root``.
+
+    ``root`` is an ``orpheus/`` directory (default: the repository's); a mutation is a copy of it
+    (``plan`` 5.3: every walk takes a root path). A token line is ``(site, text)``; the wave leg
+    reads those, so the token is walked once.
+    """
+    root = _repo_root() / "orpheus" if root is None else root
     sites: list[str] = []
     violations: list[str] = []
+    token_lines: list[tuple[str, str]] = []
     for path in sorted(root.rglob("*.py")):
         text = path.read_text(encoding="utf-8")
-        rel = path.relative_to(_repo_root()).as_posix()
+        rel = path.relative_to(root.parent).as_posix()
         for i, line in enumerate(text.splitlines()):
             if _TOKEN.search(line):
                 sites.append(f"{rel}:{i + 1}")
+                token_lines.append((f"{rel}:{i + 1}", line))
         violations.extend(_violations_in(text, label=rel))
-    return sites, violations
+    return sites, violations, token_lines
 
 
 def test_the_predicate_flags_a_tag_without_an_issue_number():
@@ -107,7 +116,7 @@ def test_every_tagged_guard_carries_its_issue_and_its_retiring_change():
     """The ledger: ≥ 1 tagged guard in ``orpheus/`` (non-vacuity), and every
     one carries ``#<issue>`` on its line and names the change that retires it
     within three lines."""
-    sites, violations = _tagged_guards()
+    sites, violations, _ = _tagged_guards()
     if not sites:
         pytest.fail(
             "no ELEGANCE-DEBT[guard] token in orpheus/ — the ledger is empty, "
@@ -182,3 +191,94 @@ def test_every_scope_boundary_names_its_machinery_ruling_and_revisit_condition()
         pytest.fail("the orbit catalogue's door carries no SCOPE-BOUNDARY[guard] token; the ledger's known member is missing")
     if violations:
         pytest.fail("SCOPE-BOUNDARY[guard] ledger violations:\n  " + "\n  ".join(violations))
+
+
+# ------------------------------------------------------------------ the wave leg
+
+#: The issues of the W0 units that tag a refusal (``ontology_w0_spec.md`` 5.3, decision 9): each token line
+#: naming one carries ``#<issue> (W<digit>[ab]?)``, the wave that retires the refusal, written ONCE, in the tag.
+#: The wave that retires a refusal deletes the refusal and its tag in one diff and removes its issue from this set.
+_WAVE_TAGGED_ISSUES = frozenset({709, 710, 711})
+
+
+def _wave_violations(token_lines: list[tuple[str, str]]) -> list[str]:
+    """Every token line naming an issue of the set without ``#<issue> (W<digit>[ab]?)`` right after the number, and every
+    issue of the set with no token line at all. The wave token sits INSIDE parentheses after the number: a bare
+    ``\\bW3\\b`` would be met by the tag's own sentence ``Retires when W3`` and a wrong wave would pass."""
+    out: list[str] = []
+    for issue in sorted(_WAVE_TAGGED_ISSUES):
+        mine = [(site, line) for site, line in token_lines if re.search(rf"#{issue}(?!\d)", line)]
+        if not mine:
+            out.append(f"#{issue}: no ELEGANCE-DEBT[guard] token line names it")
+        for site, line in mine:
+            if not re.search(rf"#{issue}(?!\d)\s*\(W\d[ab]?\)", line):
+                out.append(f"{site}: the tag of #{issue} carries no wave in the form '#{issue} (W<digit>)'")
+    return out
+
+
+def test_the_wave_predicate_reads_the_parenthesised_wave_and_nothing_else():
+    """POSITIVE CONTROL, inside the body: the wave in the sentence only is a violation; a well-formed tag is clean;
+    ``#7090`` is not ``#709``; an issue with no token line is a violation."""
+    tags = lambda *lines: [(f"p:{i}", ln) for i, ln in enumerate(lines)]  # noqa: E731
+    well = [
+        "# ELEGANCE-DEBT[guard] #709 (W3): x. Retires when y.",
+        "# ELEGANCE-DEBT[guard] #710 (W1): x. Retires when y.",
+        "# ELEGANCE-DEBT[guard] #711 (W8a): x. Retires when y.",
+    ]
+    if _wave_violations(tags(*well)):
+        pytest.fail(f"the predicate flagged well-formed tags: {_wave_violations(tags(*well))}")
+    sentence_only = [well[0].replace("#709 (W3)", "#709"), *well[1:]]
+    if len(_wave_violations(tags(*sentence_only))) != 1:
+        pytest.fail("the predicate did not flag a wave written in the sentence only")
+    wrong_form = [well[0].replace("(W3)", "(3)"), *well[1:]]
+    if len(_wave_violations(tags(*wrong_form))) != 1:
+        pytest.fail("the predicate did not flag a wave that is not W<digit>")
+    prefix_only = ["# ELEGANCE-DEBT[guard] #7090 (W3): x. Retires when y.", *well[1:]]
+    if not any(v.startswith("#709:") for v in _wave_violations(tags(*prefix_only))):
+        pytest.fail("the predicate read #7090 as #709")
+    if len(_wave_violations(tags(*well[1:]))) != 1:
+        pytest.fail("the predicate did not flag an issue with no token line")
+
+
+def _imported_orpheus() -> pathlib.Path:
+    """The ``orpheus/`` directory pytest imported (the repository's, except in a run on a patched copy)."""
+    import orpheus
+
+    return pathlib.Path(orpheus.__file__).resolve().parent
+
+
+def test_every_refusal_tag_of_w0_carries_the_wave_that_retires_it():
+    """First red: 0 of the 3 tag lines exist today. The leg makes the tag carry its wave and nothing more; it does not
+    force the retirement (the wave's own done-when does)."""
+    _, _, token_lines = _tagged_guards(_imported_orpheus())
+    violations = _wave_violations(token_lines)
+    if violations:
+        pytest.fail("wave leg violations:\n  " + "\n  ".join(violations))
+
+
+def test_mutation_deleting_a_wave_from_the_tag_is_one_violation_naming_its_issue(tmp_path):
+    """Mutation of the wave leg: copy every ``orpheus/**/*.py`` (no ``__pycache__``) to ``<tmp>/orpheus``, require the
+    unmutated copy green (a reading red before the mutation proves nothing), delete ``(W3)`` from the #709 tag line
+    of ``transport/fields/_bases.py`` in the copy, and require exactly one violation, naming 709."""
+    source = _imported_orpheus()
+    for path in source.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        target = tmp_path / "orpheus" / path.relative_to(source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(path.read_bytes())
+    copy = tmp_path / "orpheus"
+    _, _, lines = _tagged_guards(copy)
+    before = _wave_violations(lines)
+    if before:
+        raise RuntimeError(f"UNINSTALLABLE: the unmutated copy is already red, so the mutation proves nothing: {before}")
+    bases = copy / "transport" / "fields" / "_bases.py"
+    text = bases.read_text(encoding="utf-8")
+    tag = [ln for ln in text.splitlines() if "ELEGANCE-DEBT[guard] #709" in ln]
+    if len(tag) != 1 or tag[0].count("(W3)") != 1:
+        raise RuntimeError(f"UNINSTALLABLE: the #709 tag line is not unique with one '(W3)': {tag}")
+    bases.write_text(text.replace(tag[0], tag[0].replace("(W3)", "")), encoding="utf-8")
+    _, _, mutated = _tagged_guards(copy)
+    after = _wave_violations(mutated)
+    if len(after) != 1 or "#709" not in after[0]:
+        pytest.fail(f"expected exactly one violation naming 709, got {after}")

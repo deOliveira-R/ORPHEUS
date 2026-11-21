@@ -195,9 +195,12 @@ class TestIntoRole:
         from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
         from orpheus.transport.fields import HarmonicMomentSourceSink
 
-        space = FunctionSpace(name="moments", shape=(2, 3, 2, 4))
-        m = HarmonicMomentFlux(values=np.zeros((2, 3, 2, 4)), space=space, L=1)
-        q = m.into_role(FieldRole.SOURCE_SINK, np.ones((2, 3, 2, 4)))
+        from tests.gates.transport._phase_space_cases import moment_space, posing_quadrature, slab_mesh
+
+        mesh = slab_mesh()
+        space = moment_space(mesh, posing_quadrature(mesh), 1)
+        m = HarmonicMomentFlux(values=np.zeros(space.shape), space=space, L=1)
+        q = m.into_role(FieldRole.SOURCE_SINK, np.ones(space.shape))
         assert type(q) is HarmonicMomentSourceSink
         assert q.L == 1 and q.spatial_moments == 1 and q.space is space
 
