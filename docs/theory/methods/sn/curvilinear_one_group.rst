@@ -3705,9 +3705,9 @@ flat-flux invariance, and asymptotic accuracy:
   .. implements:: pole-mm-recurrence
      :by: orpheus.sn.angular.closure.march_psi_half_step
 
-     **Implemented by** 5 sites, four inside the angular closure since
-     P4.9a (2026-08-28) and one test-side (``compute_psi_half_per_level``,
-     moved there in W0).  Every symbol that executes this equation's
+     **Implemented by** 4 sites, all inside the angular closure since
+     P4.9a (2026-08-28); a fifth spelling, ``compute_psi_half_per_level``,
+     moved to the test side in W0 and is an oracle, not an implementer.  Every symbol that executes this equation's
      arithmetic is declared, not only the canonical one: a test is
      adjudicated against the transcription it actually ran, and this
      equation's five ``verifies`` gates call ``compute_psi_half_per_level``
@@ -3717,8 +3717,8 @@ flat-flux invariance, and asymptotic accuracy:
      (:ref:`sn-p49a-two-forms`).  ``_psi_half_grid_single_level`` is the
      batch kernel that writes the **seed** line and loops the step,
      delegating the body so the delegation is bit-neutral;
-     ``compute_psi_half_per_level`` is its test-side exposure
-     (``tests/gates/sn/sweep/curvilinear/_psi_half.py``) and
+     ``compute_psi_half_per_level`` is its test-side exposure, declared
+     nowhere (``tests/gates/sn/sweep/curvilinear/_psi_half.py``) and
      ``MorelMontryAngularSweep._psi_half_grid_for_level`` the hub-bound
      wrapper that reads :math:`\tau_n` from the strategy;
      ``AngularClosureBase.advance_psi_half`` is the per-cell entry the
@@ -3729,9 +3729,6 @@ flat-flux invariance, and asymptotic accuracy:
 
   .. implements:: pole-mm-recurrence
      :by: orpheus.sn.angular.closure._psi_half_grid_single_level
-
-  .. implements:: pole-mm-recurrence
-     :by: tests.gates.sn.sweep.curvilinear._psi_half.compute_psi_half_per_level
 
   .. implements:: pole-mm-recurrence
      :by: orpheus.sn.angular.closure.MorelMontryAngularSweep._psi_half_grid_for_level

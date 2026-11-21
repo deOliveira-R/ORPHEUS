@@ -6245,14 +6245,11 @@ ordinate **orbits** under the reflection group
 .. implements:: dd-null-counting-law
    :by: orpheus.sn.operators.loss_kernel_gauge._anova_dimension
 
-   **Implemented by** 2 sites. Every symbol that executes this
-   equation's arithmetic is declared, not only the canonical one: a
-   test is adjudicated against the transcription it actually ran, so
-   declaring a single site would refute the tests that exercise the
-   others.
-
-.. implements:: dd-null-counting-law
-   :by: tests.gates.sn.operators._kernel_dimension.predicted_kernel_dimension
+   **Implemented by** 1 site, ``_anova_dimension``. The free function
+   ``predicted_kernel_dimension`` evaluates the law without building a vector;
+   it lives on the test side
+   (``tests/gates/sn/operators/_kernel_dimension.py``) and is the oracle the
+   tests below compare against, not an implementer.
 
 .. (vv-status rationale) Structural identity: a combinatorial count derived
    from dd-null-balance-combinatorial, carrying no solver claim. It is

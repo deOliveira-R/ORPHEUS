@@ -973,17 +973,17 @@ traces :math:`\psi^{\rm in}_b`, and the source :math:`\bar Q`:
    \qquad
    \psi^{\rm out}_a \;=\; T_a\,\vec\psi \;+\; \sum_b \alpha_{ab}\,\psi^{\rm in}_b .
 
-.. implements:: loss-rep-affine-kernel-maps
-   :by: tests.gates.sn.sweep._ordinate_assembly._probe_coefficient_blocks
-
-   Returns exactly the equation's four coefficient blocks —
-   ``(diag, inflow, trace, memory)`` :math:`= (\bar A, C_b, T_a,
-   \alpha_{ab})` — by driving the production matvec kernel with unit
-   inputs. Its reading is an algebraic identity rather than a fit
-   *only because* the maps are affine, which is what this equation
-   asserts; the precondition is enforced at the assembler's entry, which
-   raises :class:`~orpheus.numerics.assembled_operator.MissingAssembly` for a
-   closure that does not declare ``is_linear``.
+The test-side oracle ``_probe_coefficient_blocks``
+(``tests/gates/sn/sweep/_ordinate_assembly.py``) exercises this equation; it
+implements nothing in production, so it carries no ``implements`` declaration.
+It returns exactly the equation's four coefficient blocks —
+``(diag, inflow, trace, memory)`` :math:`= (\bar A, C_b, T_a,
+\alpha_{ab})` — by driving the production matvec kernel with unit
+inputs. Its reading is an algebraic identity rather than a fit
+*only because* the maps are affine, which is what this equation
+asserts; the precondition is enforced at the assembler's entry, which
+raises :class:`~orpheus.numerics.assembled_operator.MissingAssembly` for a
+closure that does not declare ``is_linear``.
 
 .. implements:: loss-rep-affine-kernel-maps
    :by: orpheus.transport.spatial.diamond.DiamondDifference.residual_kernel_batch
@@ -1060,17 +1060,17 @@ degenerate label (a pure-:math:`z` ordinate over a lower-dimensional
 mesh — the :math:`Q/\Sigma_t` short-circuit) has no graph and no face
 threading; its block is the cell-probe diagonal alone.
 
-.. implements:: loss-rep-walk-order-rows
-   :by: tests.gates.sn.sweep._ordinate_assembly.assemble_ordinate_blocks
-
-   The walk body *is* the equation. Per cell it forms
-   ``cell_rows -= inflow[b] @ row_in`` for each incoming face and
-   ``row_out = trace[a] @ E_c + Σ_b memory[a][b] @ row_in`` for each
-   outgoing one, where :math:`E_c` is realised as the column slice
-   ``[:, base:base + cm]`` into the cell's own DOF block. The in-flight
-   ``face_blocks`` dict carries :math:`R^{\rm in}_b`; a face absent from
-   it is a boundary inflow, which is the zero block — the zero-inflow
-   posing, spelled as an absence rather than as a stored zero.
+No production symbol implements this equation since ``assemble_ordinate_blocks``
+moved to the test side (``tests/gates/sn/sweep/_ordinate_assembly.py``); the
+equation is documented here and exercised by that oracle, so it carries no
+``implements`` declaration. The oracle's walk body *is* the equation. Per cell it forms
+``cell_rows -= inflow[b] @ row_in`` for each incoming face and
+``row_out = trace[a] @ E_c + Σ_b memory[a][b] @ row_in`` for each
+outgoing one, where :math:`E_c` is realised as the column slice
+``[:, base:base + cm]`` into the cell's own DOF block. The in-flight
+``face_blocks`` dict carries :math:`R^{\rm in}_b`; a face absent from
+it is a boundary inflow, which is the zero block — the zero-inflow
+posing, spelled as an absence rather than as a stored zero.
 
 The two face closures print two triangular shapes: DD's :math:`\alpha=-1`
 memory propagates each face row down the whole upstream chain (dense
@@ -1106,25 +1106,20 @@ frame *before* it enters a frame-agnostic consumer, whether that
 consumer is the scattering source (:eq:`ld-ubld-slope-angular-reduction`)
 or, here, the global sparse matrix.
 
-.. implements:: loss-rep-sweep-global-conjugation
-   :by: tests.gates.sn.sweep._ordinate_assembly.assemble_ordinate_blocks
+No production symbol implements this equation either (the assembler is the
+test-side oracle ``tests/gates/sn/sweep/_ordinate_assembly.py``), so it carries
+no ``implements`` declaration. In the oracle the conjugation is applied by ``_to_global_frame``, whose body is
+``vals * dof_signs[rows] * dof_signs[cols]`` — the row and column
+factors of :math:`\Phi M \Phi`, applied to the COO triplets rather
+than to a materialised matrix. ``dof_signs`` is
+:func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`
+tiled over cells, and is ``None`` for a single-moment closure, where
+the function short-circuits to the identity.
 
-   The conjugation is applied by ``_to_global_frame``, whose body is
-   ``vals * dof_signs[rows] * dof_signs[cols]`` — the row and column
-   factors of :math:`\Phi M \Phi`, applied to the COO triplets rather
-   than to a materialised matrix. ``dof_signs`` is
-   :func:`~orpheus.transport.spatial._ubld.octant_moment_frame_signs`
-   tiled over cells, and is ``None`` for a single-moment closure, where
-   the function short-circuits to the identity.
-
-   ⚠ ``_to_global_frame`` is a **nested** function and therefore not an
-   addressable node in the knowledge graph, so the enclosing
-   ``assemble_ordinate_blocks``
-   is the implementer this equation can name. That is the right granularity
-   in any case: the conjugation is applied at two sites inside that
-   function — once on the degenerate cell-diagonal branch and once on the
-   walked block — and a declaration on the inner helper would hide the
-   fact that both branches are conjugated by the same rule.
+``_to_global_frame`` is a **nested** function of the oracle
+``assemble_ordinate_blocks``. The conjugation is applied at two sites inside that
+function — once on the degenerate cell-diagonal branch and once on the
+walked block — by the same rule.
 
 Zero-inflow posing — the trace coupling is a separate block
 -----------------------------------------------------------
@@ -3947,8 +3942,12 @@ failure Mode 8).
 Declared implementers — and the three equations that have none
 --------------------------------------------------------------
 
-Every labelled equation above carries one or more ``.. implements::``
-directives naming, by dotted path, the symbol that realises it. These are
+Every labelled equation above that a production symbol realises carries one
+or more ``.. implements::`` directives naming, by dotted path, that symbol
+(two equations, :eq:`loss-rep-walk-order-rows` and
+:eq:`loss-rep-sweep-global-conjugation`, are realised only by the test-side
+oracle ``assemble_ordinate_blocks`` since W0 and carry none; test code
+implements no production equation). These are
 not decoration. The knowledge graph otherwise **guesses** the
 code-to-equation link from shared name tokens, and a declaration stands
 that guessing down for the whole equation — so the directives are the
