@@ -42,6 +42,7 @@ moment of each event; the ``os.stat`` probe is installed while a recording is ac
 import copy
 import importlib
 import importlib.machinery
+import importlib.util
 import marshal
 import os
 import stat
@@ -556,8 +557,12 @@ else:
     #: its one reader, :func:`_install_pinned_sources`, runs in the generating process, where this branch ran.
     with open(_CONVENTION_PATH, "rb") as _stream:
         _CONVENTION_SOURCE = _stream.read()
-    _CONVENTION = types.ModuleType("orpheus.values.digest")
-    _CONVENTION.__file__ = _CONVENTION_PATH
+    #: A spec WITH NO LOADER, so ``importlib.util.find_spec("orpheus.values.digest")`` answers in a generating process as it does
+    #: in an ordinary one and the memo's ``_module_names`` keeps ``digest.py``, while nothing can re-read the file through the
+    #: spec. ``spec_from_file_location`` is not used: its ``SourceFileLoader`` can serve a stale timestamp ``.pyc``.
+    _CONVENTION_SPEC = importlib.machinery.ModuleSpec("orpheus.values.digest", None, origin=_CONVENTION_PATH)
+    _CONVENTION_SPEC.has_location = True  # ``module_from_spec`` then sets ``__file__`` from the origin
+    _CONVENTION = importlib.util.module_from_spec(_CONVENTION_SPEC)
     exec(compile(_CONVENTION_SOURCE, _CONVENTION_PATH, "exec"), _CONVENTION.__dict__)
 
 

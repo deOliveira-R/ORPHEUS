@@ -242,6 +242,79 @@ def test_g6_mutation_a_boot_that_does_not_adopt_leaves_two_module_objects(tmp_pa
     assert not _good(mutant), (label, mutant)
 
 
+# ================================================================ G6 (iv), (v): the by-path module has a spec and is not served stale bytecode
+_SPEC_BODY = '''
+import importlib.util
+import orpheus.values.digest as x
+found = importlib.util.find_spec("orpheus.values.digest")
+facts.update(spec_is_own=found is x.__spec__, spec_loader=repr(x.__spec__.loader),
+             named=os.path.realpath(x.__file__) in traced_memo._module_names())
+'''
+
+
+def test_a_generating_process_answers_find_spec_for_the_convention_and_names_its_file(tmp_path: Path) -> None:
+    """G6 (iv). The by-path module carries a spec, so ``find_spec`` returns the module's own ``__spec__`` (it raised ``ValueError``
+    on a module with no ``__spec__``) and the memo's ``_module_names`` keeps ``digest.py``; the spec has NO loader, so nothing can
+    re-read the file through it. Red before the fix: ``find_spec`` raised and ``named`` was False."""
+    facts = generating_child(build_tree(tmp_path / "t"), _SPEC_BODY, tmp_path / "w")
+    assert facts["spec_is_own"] is True and facts["named"] is True and facts["spec_loader"] == "None", facts
+
+
+_STALE_BODY = '''
+import re
+x_text = open(os.path.join(R, "orpheus", "values", "digest.py"), encoding="utf-8").read()
+import orpheus.values.digest as x
+facts.update(running=x.NAME_SIZE, disk=int(re.search(r"NAME_SIZE: Final = (\\d+)", x_text).group(1)))
+'''
+_CONTROL = ("import orpheus.values.digest as x\nprint(x.NAME_SIZE)\n")
+
+
+def _tree_with_a_stale_pyc(dest: Path, *, memo_edit: tuple[str, str, str] | None = None) -> Path:
+    """A copy of the tree whose ``digest.py`` has a timestamp ``.pyc`` (both optimisation levels) of ``NAME_SIZE = 8`` while the file
+    says ``9``: the same-size edit, the file's mtime restored, so the interpreter finds the ``.pyc`` valid."""
+    import os
+    import py_compile
+
+    tree = build_tree(dest, memo_edit=memo_edit)
+    path = tree / "orpheus" / "values" / "digest.py"
+    before = path.stat()
+    for level in (0, 1):
+        py_compile.compile(str(path), doraise=True, optimize=level, invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)
+    mutate(path, "NAME_SIZE: Final = 8", "NAME_SIZE: Final = 9")
+    os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))
+    assert path.stat().st_size == before.st_size
+    return tree
+
+
+def _stale_readings(tree: Path, tmp_path: Path) -> tuple[str, dict[str, object]]:
+    control = _memo_tree.cold_child(tree, _CONTROL).strip()
+    return control, generating_child(tree, _STALE_BODY, tmp_path / "w")
+
+
+def test_a_generating_process_computes_with_the_disk_value_when_a_stale_pyc_is_live(tmp_path: Path) -> None:
+    """G6 (v). The positive control: an ordinary import in the same tree reads the stale ``.pyc`` (``8``) while the disk says ``9``;
+    a generating process compiles the bytes it pins and so runs ``9``. Green before and after the spec fix, by design: its teeth
+    are the next test's mutation (an ordinary import in place of the by-path load)."""
+    control, facts = _stale_readings(_tree_with_a_stale_pyc(tmp_path / "t"), tmp_path)
+    assert control == "8", control  # the stale .pyc is live
+    assert (facts["running"], facts["disk"]) == (9, 9), facts
+
+
+def test_g6_mutation_an_ordinary_import_in_place_of_the_by_path_load_runs_the_stale_pyc(tmp_path: Path) -> None:
+    """G6 (v) mutation: replace the by-path load by ``importlib.import_module`` (with the tree on ``sys.path``): the generating
+    process then runs the ``.pyc``'s ``8`` against a disk of ``9``, and the honest leg above reads red."""
+    text = BOOT.read_text(encoding="utf-8")
+    start = text.index("    with open(_CONVENTION_PATH")
+    stop = text.index("def adopt_convention")
+    anchor = text[start:stop].rstrip("\n") + "\n"
+    replacement = (
+        "    sys.path.insert(0, os.path.dirname(_PACKAGE))\n    _CONVENTION = importlib.import_module(\"orpheus.values.digest\")\n"
+        "    sys.path.remove(os.path.dirname(_PACKAGE))\n    _CONVENTION_SOURCE = open(_CONVENTION_PATH, \"rb\").read()\n")
+    tree = _tree_with_a_stale_pyc(tmp_path / "t", memo_edit=("_traced_memo_boot.py", anchor, replacement))
+    _, facts = _stale_readings(tree, tmp_path)
+    assert (facts["running"], facts["disk"]) == (8, 9), facts
+
+
 # ================================================================ G16: a recorded call is pinned; the sealed entry's law
 def _api():
     from tests.gates.memo import _traced_memo_api
