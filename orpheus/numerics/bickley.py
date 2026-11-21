@@ -41,7 +41,7 @@ def _ki3_integral(tau: float):
             s = mpmath.sqrt(1 + u * u)
             return s ** -4 * mpmath.exp(-tau_mp * s)
 
-        return mpmath.quad(integrand, [0, mpmath.inf])
+        return mpmath.mpf(mpmath.quad(integrand, [0, mpmath.inf]))  # quad's declared return also admits (value, error): this arm is the value
 
 
 @functools.lru_cache(maxsize=1)
