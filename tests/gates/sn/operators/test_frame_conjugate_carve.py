@@ -51,10 +51,7 @@ from scipy.sparse import csr_matrix
 
 from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.mesh import Mesh2D
-from orpheus.numerics.operator import (
-    LinearOperator,
-    OperatorProduct,
-)
+from orpheus.numerics.operator import OperatorProduct
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
@@ -142,92 +139,66 @@ def _aniso_psi(solver, seed=20260624):
 
 
 class TestLegendreMomentTransferHasRealSpaces:
-    """Λ is an endomorphism on the SH coefficient space (``= basis_space(frame)``).
+    """The PRODUCTION Λ, the middle factor of ``S.kernel = R∘Λ∘M``, as the P2 carve left it.
 
-    Catches: the cast at ``scattering.py:663`` is gone because Λ now carries
-    real ``domain``/``codomain`` so ``OperatorProduct`` admits it natively.
+    Where the real-spaces law is held now (W0 re-pose, 2026-11-21). The P2
+    carve gave Λ real ``domain``/``codomain`` (``basis_space(frame)``) in place
+    of the cast at ``scattering.py:663``. Two rows here once asserted it on
+    a Λ the TEST minted with those ends (its ends, and the codomain of
+    ``Λ∘M``), so they read back the ends they had supplied and touched no
+    production Λ (``[M]``: a ``_moment_transfer`` minting no ends, or the
+    basis's continuum space, left both green). They are retired; the law is
+    held on production's Λ by:
+
+    * no ends at all is unspellable in use: Λ reads its moment head off its
+      own ``domain`` at ``apply``, so ``S.kernel.apply`` raises ``TypeError``
+      (``[M]`` arm "the ℓ≥1 arm mints Λ with no ends": red in
+      ``TestProductionApplyEqualsComposedOperator`` below, both rows);
+    * the wrong space as ends is refused by ``conjugate``'s composition guard
+      (``[M]`` arm "continuum ends": red in
+      ``test_kernel_remains_typed_operator_product`` and the three production
+      rows below);
+    * the ends ARE the frame's Parseval-dressed space, equal to the carrier's
+      cached moment head: ``tests/gates/sn/mesh/
+      test_moment_space_is_read_off_the_frame_on_the_problem.py::
+      test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one``
+      (red under both arms on the ℓ≥0 mint).
     """
 
-    def test_lambda_domain_is_codomain_is_basis_space(self, solver_p1_het):
-        op = solver_p1_het.problem.system.factors.scattering
-        frame = op.frame
-        lam = on_frame(
-            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
-        )
-        # Λ is endomorphic on coefficient (basis) space.
-        require(
-            getattr(lam, "domain", None) is not None,
-            "P2: LegendreMomentTransfer.domain must be a real FunctionSpace "
-            "(== basis_space(frame)), not None — the cast at scattering.py:663 "
-            "papered over None spaces; the carve gives Λ real spaces.",
-        )
-        require(
-            lam.domain == frame_faces.basis_space(frame) and lam.codomain == frame_faces.basis_space(frame),
-            f"P2: Λ must be an endomorphism on the SH coefficient space "
-            f"(basis_space(frame)={frame_faces.basis_space(frame)!r}); got domain={lam.domain!r}, "
-            f"codomain={lam.codomain!r}.",
-        )
-
     def test_lambda_apply_and_transpose_not_solve(self, solver_p1_het):
-        """Λ advertises apply + apply_transpose (Λᵀ, campaign #276), never solve.
+        """Production's Λ advertises apply + apply_transpose (Λᵀ, campaign #276), never solve.
 
-        The P2 real-spaces (cast retirement) did not change the no-``solve``
-        property (the ℓ=0 block is rank-deficient by design); campaign #276 added
-        ``apply_transpose`` — the per-ℓ group-transpose Λᵀ, the only group-
-        asymmetric factor of the frame-conjugated kernel ``R∘Λ∘M`` (so
-        ``(R∘Λ∘M)ᵀ`` falls out for free).
+        Read off the live operator: the middle factor of both conjugated
+        kernels, ``S.kernel`` (ℓ≥1) and ``S.full_transfer_kernel`` (ℓ≥0). The
+        P2 real spaces did not change the no-``solve`` property (the ℓ=0 block
+        is rank-deficient by design); campaign #276 added ``apply_transpose``,
+        the per-ℓ group-transpose Λᵀ, the only group-asymmetric factor of the
+        frame-conjugated kernel ``R∘Λ∘M`` (so ``(R∘Λ∘M)ᵀ`` falls out for
+        free). First reds (``[M]`` 2026-11-21): ``is_adjointable`` reading
+        False, and the class growing a ``solve``.
         """
         op = solver_p1_het.problem.system.factors.scattering
-        lam = on_frame(
-            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
-        )
-        require(
-            lam.is_adjointable and not lam.is_invertible,
-            f"Λ must carry a working apply_transpose (campaign #276) and NO "
-            f"inverse; got is_adjointable={lam.is_adjointable}, "
-            f"is_invertible={lam.is_invertible}.",
-        )
-        require(
-            not hasattr(lam, "inverse") and not hasattr(lam, "solve"),
-            "Λ is structurally non-invertible — no inverse()/solve declared "
-            "(carve P4 rewire of the strict caps-equality pin).",
-        )
-
-    def test_inner_lambda_product_carries_real_spaces(self, solver_p1_het):
-        """The INNER ``Λ∘M`` product's codomain must be Λ's (real) codomain.
-
-        IMPORTANT (design note, surfaced at spec-write time): the OUTER
-        ``S.kernel`` already reports real ``domain``/``codomain`` TODAY —
-        ``(R @ Λ @ M).domain`` reads ``M.domain``
-        (the measure_space) and ``.codomain`` reads ``R.codomain``, NEITHER of
-        which is Λ. So an outer-product domain/codomain check does NOT gate the
-        cast removal — it is green pre-carve.
-
-        The fact that genuinely changes is the INNER product
-        ``(Λ @ M).codomain``, which reads ``Λ.codomain``: ``None``
-        pre-carve (Λ unparametrised), ``basis_space(frame)`` post-carve. This
-        row reads that inner codomain and demands it be real — so it is RED
-        until Λ gets spaces. Build the inner product explicitly (mirrors the
-        kernel's construction) and read its codomain.
-        """
-        op = solver_p1_het.problem.system.factors.scattering
-        frame = op.frame
-        lam = on_frame(
-            TransferMaterialField.scattering(solver_p1_het.problem.mat_xs), op.frame, skip_l0=True,
-        )
-        inner = lam @ frame_faces.FrameAnalysis.of(frame)  # S2: the word via @
-        require(
-            inner.codomain is not None,
-            "P2: (Λ @ M).codomain must be Λ's real codomain "
-            "(== basis_space(frame)), not None. It is None pre-carve because Λ "
-            "is unparametrised; the carve gives Λ real spaces so the cast at "
-            "scattering.py:663 retires.",
-        )
-        require(
-            inner.codomain == frame_faces.basis_space(frame),
-            f"P2: the inner Λ∘M product's codomain must be basis_space(frame) "
-            f"(Λ is endomorphic on coefficient space); got {inner.codomain!r}.",
-        )
+        for name, kernel in (("kernel", op.kernel), ("full_transfer_kernel", op.full_transfer_kernel)):
+            require(
+                isinstance(kernel, OperatorProduct) and len(kernel.factors) == 3,
+                f"S.{name} must be the word (R, Λ, M); got {type(kernel).__name__}.",
+            )
+            lam = kernel.factors[1]
+            require(
+                isinstance(lam, LegendreMomentTransfer),
+                f"the middle factor of S.{name} must be Λ; got {type(lam).__name__}.",
+            )
+            require(
+                lam.is_adjointable and not lam.is_invertible,
+                f"S.{name}'s Λ must carry a working apply_transpose (campaign #276) and NO "
+                f"inverse; got is_adjointable={lam.is_adjointable}, "
+                f"is_invertible={lam.is_invertible}.",
+            )
+            require(
+                not hasattr(lam, "inverse") and not hasattr(lam, "solve"),
+                f"S.{name}'s Λ is structurally non-invertible: no inverse()/solve declared "
+                "(carve P4 rewire of the strict caps-equality pin).",
+            )
 
     def test_kernel_remains_typed_operator_product(self, solver_p1_het):
         """``S.kernel`` stays a typed OperatorProduct (R∘Λ∘M) post-carve —
