@@ -123,6 +123,12 @@ reason. Exec into `module.__dict__` itself, or read every spy row's message befo
 counting it (`[M]` 2026-10-12: G1b red under `ratio2` and `no_middle`, the only
 red of `no_middle`). Not `vv-principles` #17's parent/child process mechanism. → L-102
 
+**A27. A deleted "metadata-only" body that READS a lazy attribute (`cached_property`, a
+`getattr` on a built expression) was also an EVALUATION: retiring it moves every raise that
+evaluation could produce from construction to first use.** check: for each deleted body, list
+the lazy attributes it touched and probe `"<attr>" in vars(obj)` after construction at base and
+HEAD; then run the WHOLE directory of the class's tests, not the brief's file list. → L-107
+
 ---
 
 ## B. Where a gate is structurally blind (ORPHEUS shapes)

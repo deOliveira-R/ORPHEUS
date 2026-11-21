@@ -6176,6 +6176,17 @@ in 10 of 10 real own cones never reached the fixture's store. PL12 planted a fak
 the fixture and was green; the real micro-capture (11 tests, 33 s) homed 7 of 7 no-def tests at the recorder,
 pure, inflating pure_fraction 0.5 -> 0.8. Fix landed at the recorder (`@_apparatus`). Digest rule: B22.
 
+## L-107 — a retired "tag-only" read of a cached_property was the construction-time evaluation of a law (2026-11-20, W0 roles qa, `2feeddaf`)
+
+Not covered by: `retirement-audit` A-G (every item asks who READS the retired name; none asks what the retired
+code's own reads FORCED), nor D.14-D.16 (demotion of a surviving gate's comparison). `FusedAtom._adopt_expansion_roles`
+read `getattr(self.expanded, "block_role", None)` in `__init__`; `expanded` is a `cached_property` building `L + C`,
+whose OperatorSum agreement law refused a mis-spaced `C`. Deleting the tag-only method made the expansion lazy
+(`[M]` `"expanded" in vars(op)`: True at base, False at HEAD) and moved the refusal to first `.domain` read:
+`test_typed_residual_evaluation.py::test_mis_spaced_collision_reds_the_production_loss_build` red (DID NOT RAISE)
+at HEAD, green at base. The builder's done-when list did not name that file; only a whole-directory run found it
+(1 failed of 7500, 24 min). Digest rule: A27.
+
 ---
 
 ## Ledger — digest rules retired into the skills and rules (moved from the digest's §I, 2026-11-16)
