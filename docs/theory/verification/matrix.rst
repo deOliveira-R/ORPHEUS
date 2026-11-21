@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21100**
+Total tests collected: **21201**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2249, 10.7%
+   L0, 2249, 10.6%
    L1, 2982, 14.1%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15721, 74.5%
+   foundation, 15822, 74.6%
    unmarked, 63, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 20958
+   explicit, 21059
    class-name, 46
    func-name, 0
    case, 33
@@ -501,7 +501,7 @@ Module × level grid
    numerics/test_gauge, 0, 0, 0, 0, 10, 0
    numerics/test_gauss_rule_fingerprint, 0, 14, 0, 0, 7, 0
    numerics/test_gauss_rules_correctly_rounded, 0, 234, 0, 0, 43, 0
-   numerics/test_generating_measure, 0, 78, 0, 0, 182, 0
+   numerics/test_generating_measure, 0, 78, 0, 0, 229, 0
    numerics/test_green_operator, 0, 0, 0, 0, 11, 0
    numerics/test_harmonic_axis, 0, 0, 0, 0, 10, 0
    numerics/test_heads_on_the_axis, 0, 0, 0, 0, 24, 0
@@ -548,6 +548,7 @@ Module × level grid
    numerics/test_quadrature_directional, 0, 0, 0, 0, 81, 0
    numerics/test_question, 0, 0, 0, 0, 66, 0
    numerics/test_quotient_metric, 0, 0, 0, 0, 32, 0
+   numerics/test_rational_polynomial, 0, 0, 0, 0, 5, 0
    numerics/test_registry, 0, 0, 0, 0, 112, 0
    numerics/test_registry_mixin, 0, 0, 0, 0, 9, 0
    numerics/test_registry_rule_list, 0, 0, 0, 0, 12, 1
@@ -762,15 +763,16 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 4, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 8, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 533, 0
+   test_layer_imports, 0, 0, 0, 0, 534, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
    test_pyright_ratchet, 0, 0, 0, 0, 1, 0
    test_registries_are_disjoint, 0, 0, 0, 0, 1, 0
+   test_retirements, 0, 0, 0, 0, 65, 0
    test_space_identity_census, 0, 0, 0, 0, 1, 0
-   test_test_layers, 0, 0, 0, 0, 38, 0
+   test_test_layers, 0, 0, 0, 0, 39, 0
    test_vv_harness_audit, 17, 0, 0, 0, 0, 0
-   test_wave2_retirement, 0, 0, 0, 0, 21, 0
+   test_wave2_retirement, 0, 0, 0, 0, 3, 0
    test_withdrawal, 0, 0, 0, 0, 47, 0
    test_withdrawal_binders, 0, 0, 0, 0, 1, 0
    tools/test_cone_store_collection, 0, 0, 0, 0, 8, 0

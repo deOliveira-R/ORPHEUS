@@ -12277,7 +12277,7 @@ older entries classify against.
 .. error-entry:: ERR-127
    :title: A rounding certificate correct for approximate values refused an exact value on a float64 tie, so GeneratingMeasure.on(a, b).gauss(n) raised, for every family on [-1, 1], on a panel whose centre or width is a tie
 
-   **Status:** ✅ **FIXED**, merged @ ``<hash, filled at integration>``. Stub: the full text (the defect, how it hid, the fix,
+   **Status:** ✅ **FIXED**, integrated on refactor/ontology, W0 unit quadrature-ties (2026-11-21). Stub: the full text (the defect, how it hid, the fix,
    the lesson) is the archivist's at the wave's documentation pass.
 
    **Module:** ``numerics`` (``_certified_float`` in :mod:`orpheus.numerics.generating_measure`).
