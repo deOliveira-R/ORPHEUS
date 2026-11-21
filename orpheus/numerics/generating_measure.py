@@ -267,6 +267,21 @@ _SYMMETRY_PROBE_ORDER = 8
 
 
 @dataclass(frozen=True)
+class _MeasureContent:
+    r"""What a name is held to: the support and the first eight recurrence
+    coefficients, as the bytes of their float64 values (bit-equal recurrences
+    are equal)."""
+
+    support: Manifold
+    alpha: bytes
+    beta: bytes
+
+
+#: Process-global intern table: one name, one content (#711).
+_NAME_CONTENT: dict[str, _MeasureContent] = {}
+
+
+@dataclass(frozen=True)
 class GeneratingMeasure:
     r"""A continuous measure :math:`d\lambda = w(x)\,dx` that generates a
     Gauss rule, and that the rule's exactness claim is about.
@@ -286,8 +301,9 @@ class GeneratingMeasure:
         ``jacobi(0, 0) == LEGENDRE`` is ``True`` even though the two
         carry different :attr:`exact_recurrence` callables and reach the
         coefficients by different code paths. (That the two paths agree
-        is a separate, testable claim, and it is tested: both round to the
-        same correctly rounded rule, bit for bit.)
+        is refused at construction: one name is one content, the support and
+        the first eight recurrence coefficients bit for bit, #711, W8a; and
+        both round to the same correctly rounded rule, bit for bit.)
     support : Manifold
         The interval the measure lives on.
     exact_recurrence : callable
@@ -307,6 +323,17 @@ class GeneratingMeasure:
     name: str
     support: Manifold
     exact_recurrence: RecurrenceCoefficients = field(compare=False, repr=False)
+
+    def __post_init__(self) -> None:
+        alpha_8, beta_8 = self.recurrence(8)
+        content = _MeasureContent(self.support, alpha_8.tobytes(), beta_8.tobytes())
+        known = _NAME_CONTENT.setdefault(self.name, content)
+        # ELEGANCE-DEBT[guard] #711 (W8a): one name is one content (the support and the first 8 recurrence coefficients, bit for bit). Retires when W8a makes a measure's identity its content, which retires this process-global table and the lru_cache stores of _jacobi and _affine_remap (the machinery that exists today: GeneratingMeasure.recurrence; the call-site set W8a re-spells is the 5 direct constructors left in generating_measure.py plus the 2 test-side copies dead-A moved).
+        if known != content:
+            raise ValueError(
+                f"the name {self.name!r} already names a different measure "
+                f"(support or recurrence coefficients differ); refused at construction (#711)"
+            )
 
     # -- derived quantities -------------------------------------------
 

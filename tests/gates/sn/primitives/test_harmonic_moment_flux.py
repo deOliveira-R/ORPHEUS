@@ -539,9 +539,8 @@ class TestHarmonicMomentFluxAlgebra:
         # because different L values produce different
         # SphericalHarmonicSpace shapes, which propagates to different
         # TensorProductSpace identities. Field._check_partner's space
-        # check fires before the explicit L check in
-        # HarmonicMomentFlux._check_partner. Both gate the same
-        # invariant; the space-level message is more general.
+        # check is the one refusal of the sum: the L agreement is
+        # refused at construction (#709), so equal spaces imply equal L.
         #
         # Exercised through ``__sub__`` (either binary op reaches
         # _check_partner since the CS3 cone carve).

@@ -5937,9 +5937,8 @@ The argument is five obstructions, each fatal on its own.
        erasure.**
      - The field algebra enforces units/meaning at runtime with a
        **class-identity** check — ``type(self) is type(other)`` in
-       :meth:`~orpheus.numerics.field.Field._check_partner` (extended by
-       :meth:`BulkField._check_partner <orpheus.transport.fields._bases.BulkField._check_partner>`
-       for the mesh binding). Under a generic ``Carrier[Rep, Role]`` the
+       :meth:`~orpheus.numerics.field.Field._check_partner` (whose space-content
+       check carries the mesh binding). Under a generic ``Carrier[Rep, Role]`` the
        runtime class is the *erased* ``Carrier`` for **every** cell, so the
        identity check would read all cells as the same type and **admit**
        cross-representation, cross-role addition that is physically

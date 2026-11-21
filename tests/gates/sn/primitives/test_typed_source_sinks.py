@@ -503,7 +503,7 @@ class TestHarmonicMomentSourceSink:
         with pytest.raises(TypeError):  # the surviving distinction
             _ = phi_a + q_a  # type: ignore[operator]
 
-    # ── The gates: class identity, L-match, mesh-binding (negative) ──
+    # ── The gates: class identity, space content (negative) ──
 
     def test_cross_class_with_flux_rejected(self) -> None:
         """``source + flux`` (same shape, different role) → TypeError via
@@ -543,10 +543,9 @@ class TestHarmonicMomentSourceSink:
 
         Different ``L`` produces different ``SphericalHarmonicSpace`` shapes,
         so Field's space-equality check fires first with the more-general
-        "requires equal space" message (the explicit L-match in
-        ``MomentField._check_partner`` is the documented belt-and-suspenders
-        secondary gate — same as the flux leaf, see
-        ``test_harmonic_moment_flux.py``). Both gate the same invariant.
+        "requires equal space" message (the ``L`` agreement is
+        refused at construction (#709), so ``Field._check_partner``'s space
+        check is the one refusal of the sum).
         """
         m = _slab_mesh()
         a = HarmonicMomentSourceSink.from_problem_and_L(

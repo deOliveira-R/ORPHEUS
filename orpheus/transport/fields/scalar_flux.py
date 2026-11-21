@@ -40,7 +40,7 @@ hand-coded dunder skeleton. The migration:
   :class:`ScalarFlux` instances with DIFFERENT mesh identities is
   forbidden, even when the meshes have matching shapes — enforced by
   the inherited
-  :meth:`~orpheus.transport.fields._bases.BulkField._check_partner`
+  :meth:`~orpheus.numerics.field.Field._check_partner`
   (the mesh-identity guard lives on the storage base, not this leaf).
 * Introduced ``from_mesh`` / ``from_ndarray`` classmethods for
   2-arg construction (retired at CS4b S5 — construction is space-primary
@@ -120,7 +120,7 @@ class ScalarFlux(ScalarField):
     (dunders ``+``, ``-``, unary ``-``, scalar ``*``, scalar ``/``,
     plus diagnostics ``linf``, ``l2``, ``inner_product``, ``copy``).
     The inherited
-    :meth:`~orpheus.transport.fields._bases.BulkField._check_partner`
+    :meth:`~orpheus.numerics.field.Field._check_partner`
     adds the mesh-identity check on top of Field's class-and-space gate.
 
     Per-group selectors (:meth:`at_group`) return ``np.ndarray``

@@ -20,22 +20,25 @@ The slots, precisely
   admissible (a spherical-harmonic axis is ``(L+1, 2L+1)``; a rank-``d``
   spatial axis is a legal design choice for CS2).
 * ``weights`` — the **factor measure** over exactly ``shape``.
-  ``None`` **is the counting measure, deliberately and always**: an axis
+  ``None`` **is the counting measure**: on a :class:`FromMeasure` /
+  :class:`FromQuadrature` axis the weights must be the origin's
+  (``None`` only when those are all ones), refused at construction
+  (#710, W1); on the other arms the axis carries its own weights. An axis
   has no "unbound" state, so the two-state ambiguity of the legacy
   ``FunctionSpace.inner_product_weights`` (``None`` = "no canonical
   quadrature" *or* "Euclidean") cannot arise on this type.
 * ``origin`` — **provenance, never identity**: a closed sum of five arms
   (ruling 64 of the numerics untangling), read by exhaustive ``match``:
 
-  ============================  =====================  ==================  =================
-  arm                           kind it implies        ``support``         ``nodes``
-  ============================  =====================  ==================  =================
-  :class:`FromMeasure` (μ)      ``NODAL``              ``μ.support``       ``μ.nodes``
-  :class:`FromQuadrature` (q)   ``NODAL``              ``q.measure``'s     ``q.measure``'s
-  :class:`FromBasis` (b)        its layout's kind      ``b.domain``        none
-  :class:`FromFrame` (f)        ``Modal(Φᵀw)``         ``f.basis.domain``  none
-  :class:`Declared` (k)         ``k``                  none                none
-  ============================  =====================  ==================  =================
+  ============================  =====================  ==================  ================= =====================
+  arm                           kind it implies        ``support``         ``nodes``         ``determined_weights``
+  ============================  =====================  ==================  ================= =====================
+  :class:`FromMeasure` (μ)      ``NODAL``              ``μ.support``       ``μ.nodes``       ``μ.weights``
+  :class:`FromQuadrature` (q)   ``NODAL``              ``q.measure``'s     ``q.measure``'s   ``q.measure.weights``
+  :class:`FromBasis` (b)        its layout's kind      ``b.domain``        none              none
+  :class:`FromFrame` (f)        ``Modal(Φᵀw)``         ``f.basis.domain``  none              none
+  :class:`Declared` (k)         ``k``                  none                none              none
+  ============================  =====================  ==================  ================= =====================
 
   The generating object rides inside its arm so a consumer can recover
   what the axis forgot (direction cosines, the level fibration, the frame
@@ -243,8 +246,10 @@ AxisKind = BasisKind | Modal
 # The origin — what minted an axis (ruling 64)
 # ---------------------------------------------------------------------------
 #
-# Each arm answers the three reads an axis derives its content from: the kind,
-# the manifold the coordinates live on, and the atoms a nodal factor samples.
+# Each arm answers the reads an axis derives its content from (kind, support,
+# nodes, layout) and ``determined_weights``, the weights the arm fixes or
+# ``None``: the manifold the coordinates live on, and the atoms a nodal factor
+# samples.
 # An arm holding a generating object compares that object by IDENTITY
 # (``eq=False``): the arm is provenance, and the content it answers is
 # compared on the axis, where it is copied and read-only. ``Declared`` holds
@@ -292,6 +297,10 @@ class Declared:
     def layout(self) -> None:
         return None
 
+    @property
+    def determined_weights(self) -> None:
+        return None
+
 
 @dataclass(frozen=True, eq=False)
 class FromMeasure:
@@ -315,6 +324,10 @@ class FromMeasure:
     @property
     def layout(self) -> None:
         return None
+
+    @property
+    def determined_weights(self) -> NDArray:
+        return self.measure.weights
 
 
 @dataclass(frozen=True, eq=False)
@@ -347,6 +360,10 @@ class FromQuadrature:
     @property
     def layout(self) -> None:
         return None
+
+    @property
+    def determined_weights(self) -> NDArray:
+        return self.quadrature.measure.weights
 
 
 @dataclass(frozen=True, eq=False)
@@ -388,6 +405,10 @@ class FromBasis:
     def layout(self) -> CoefficientLayout:
         return self.basis.layout
 
+    @property
+    def determined_weights(self) -> None:
+        return None
+
 
 @dataclass(frozen=True, eq=False)
 class FromFrame:
@@ -427,6 +448,10 @@ class FromFrame:
     def layout(self) -> CoefficientLayout:
         return self.frame.basis.layout
 
+    @property
+    def determined_weights(self) -> None:
+        return None
+
 
 #: What minted an axis, the closed sum of its five arms (ruling 64).
 Origin = FromMeasure | FromQuadrature | FromBasis | FromFrame | Declared
@@ -445,8 +470,11 @@ class Axis(ContentIdentity):
     shape : tuple[int, ...]
         The factor's index shape, rank ≥ 1 (refused otherwise).
     weights : NDArray | None, default None
-        The factor measure over exactly ``shape``. ``None`` IS the
-        counting measure (identity metric) — deliberately, always; an
+        The factor measure over exactly ``shape``. ``None`` is the
+        counting measure (identity metric). On a ``FromMeasure`` /
+        ``FromQuadrature`` axis the weights must be the origin's (``None``
+        only when those are all ones), refused at construction (#710, W1);
+        on the other arms the axis carries its own weights. An
         all-ones array is CANONICALIZED to ``None`` at construction so
         the counting measure has one spelling and one identity. Stored
         canonicalized (``w + 0.0``, killing ``-0.0``), defensively
@@ -535,6 +563,16 @@ class Axis(ContentIdentity):
                 # allocation (defensive copy even when the input was
                 # already a contiguous float array).
                 object.__setattr__(self, "weights", _read_only(w))
+        wanted = self.origin.determined_weights
+        if wanted is not None:
+            carried = np.ones(shape) if self.weights is None else self.weights
+            # ELEGANCE-DEBT[guard] #710 (W1): on a measure arm the weights must be the origin measure's. Retires when W1 gives the two determining arms (FromMeasure, FromQuadrature) a construction path that takes no weights (they are read from origin.determined_weights) and a passed value on those arms is unspellable; stopping the storage of Axis.weights alone does not retire it, and the constructions that carry weights on the other three arms are untouched.
+            if not np.array_equal(carried, np.reshape(np.asarray(wanted, dtype=float), shape)):
+                raise ValueError(
+                    f"axis '{self.label}': the weights disagree with the measure its "
+                    f"origin records, on the arm {type(self.origin).__name__}; "
+                    f"refused at construction (#710)"
+                )
 
     @property
     def unit(self) -> NDArray:

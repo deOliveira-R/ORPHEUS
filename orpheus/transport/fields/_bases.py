@@ -809,8 +809,7 @@ class MomentField(BulkField):
     share: the ``L`` truncation-order + ``spatial_moments`` fields, the
     ``(L+1, 2L+1, ng, *spatial[, …])`` shape contract (validated by
     Field's values-vs-space check, the pre-S4 ``_phase_space_shape``
-    hook's successor), the
-    ``L``-match :meth:`_check_partner`, and the
+    hook's successor), and the
     :class:`~orpheus.numerics.space.TensorProductSpace`-building
     :meth:`from_problem_and_L` / :meth:`zeros_for_problem_and_L` factories
     (keyed, S6 re-home pending; the positional ``from_ndarray`` alias
@@ -840,9 +839,10 @@ class MomentField(BulkField):
     #: ``values.shape[:2] == (L+1, 2L+1)`` for the harmonic family the
     #: full-sphere rules bind (a flat head, one axis, once a 1-D rule binds
     #: its Legendre basis — #429 tracker 3.4). Encoded in ``space.shape``
-    #: AND kept as a top-level field for ergonomic hot-path read access
+    #: AND kept as a top-level field for hot-path read access
     #: (avoids a per-read composition-tree traversal of the head factor's
-    #: own ``L``).
+    #: own ``L``); construction refuses an ``L`` that is not its space's
+    #: (#709, W3).
     L: int
 
     #: Optional within-cell spatial-moment basis size per axis (#240
@@ -903,23 +903,19 @@ class MomentField(BulkField):
 
     # ── Algebra extension (over BulkField) ───────────────────────────
 
-    def _check_partner(self, other: Field) -> Self:
-        r"""Add the ``L``-match on top of the base class/space-content gate.
-
-        :meth:`Field._check_partner` already rejects on class identity and
-        space CONTENT equality (the S3 re-key; the mesh-identity arm is
-        retired). This override adds an explicit ``L`` match for a clearer
-        error message at the truncation-mismatch site (the space check
-        also catches it via shape mismatch, but the message is less
-        specific).
-        """
-        partner = super()._check_partner(other)
-        if self.L != partner.L:
+    def __post_init__(self) -> None:
+        super().__post_init__()  # Field: values.shape == space.shape.
+        # ELEGANCE-DEBT[guard] #709 (W3): the field's L and spatial_moments must be the ones its space states. Retires when W3 derives L and spatial_moments from the space (the machinery that exists today: MomentField.head_layout and spatial_moments_per_axis; the call-site set W3 re-spells is the 8 production and 12 test constructors of the two leaves).
+        if (
+            self.head_layout.L != self.L
+            or self.spatial_moments_per_axis != self.spatial_moments
+        ):
             raise ValueError(
-                f"{type(self).__name__} arithmetic requires matching L; "
-                f"got self.L={self.L}, other.L={partner.L}."
+                f"{type(self).__name__}: L={self.L} and spatial_moments="
+                f"{self.spatial_moments} disagrees with its space, which states "
+                f"head_layout.L={self.head_layout.L} and "
+                f"spatial_moments_per_axis={self.spatial_moments_per_axis} (#709)"
             )
-        return partner
 
     # ── Construction factories ───────────────────────────────────────
 

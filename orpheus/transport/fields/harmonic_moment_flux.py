@@ -44,11 +44,11 @@ D-E Field-inheritance migration:
   :math:`L`) — the **first
   TensorProductSpace consumer in a typed Field** (D-B's L1 primitive
   is now load-bearing).
-* Preserves the mesh-identity strict semantic via a
-  :meth:`_check_partner` override.
+* Arithmetic is refused by :meth:`Field._check_partner`'s class and
+  space-content check; the space check is the one enforcement.
 * The ``L`` parameter is encoded in ``space.shape`` (and queryable via
   the composition-tree walk per Issue #207); the redundant ``L`` field
-  is kept as a top-level attribute for ergonomic access — equivalent
+  is refused at construction unless it is its space's (#709, W3) — equivalent
   to the head's layout order (``head_layout(self.space.factors[0]).L``) but avoiding
   the traversal at hot-path read sites.
 * Introduces :meth:`from_problem_and_L` for ergonomic 3-arg construction
@@ -149,12 +149,8 @@ class HarmonicMomentFlux(MomentField):
     Algebra is inherited from :class:`~orpheus.numerics.field.Field`
     (dunders ``+``, ``-``, unary ``-``, scalar ``*``, scalar ``/``,
     plus diagnostics ``linf``, ``l2``, ``inner_product``, ``copy``).
-    The :meth:`_check_partner` override adds the SN-specific
-    mesh-identity check on top of Field's class-and-space gate. The
-    ``L`` match is implicit via the space check (different ``L`` values
-    produce different head shapes, so different
-    ``space`` instances) but checked explicitly in :meth:`_check_partner`
-    for a clearer error message at the L-mismatch site.
+    The ``L`` agreement is refused at construction (#709), so
+    :meth:`Field._check_partner`'s space check is the one refusal of the sum.
 
     Cross-class arithmetic with :class:`AngularFlux` / :class:`ScalarFlux`
     is forbidden by Field's Layer 1 gate (`coding-elegance` Pattern 4).
