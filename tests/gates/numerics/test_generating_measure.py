@@ -1064,6 +1064,7 @@ def test_the_rational_door_admits_fractions_only() -> None:
     for leak in (0.5, mpmath.mpf(1) / 2):
         leaking = dataclasses.replace(
             LEGENDRE,
+            name=f"legendre-leaking-{type(leak).__name__}",  # a distinct name: one name is one content (#711)
             exact_recurrence=r.over_arithmetic(
                 lambda n, A, leak=leak: ([A.lift(0)] * n, [A.mass(lambda: A.lift(2))] + [leak] * (n - 1))
             ),

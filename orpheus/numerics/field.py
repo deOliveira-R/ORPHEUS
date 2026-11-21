@@ -249,8 +249,12 @@ class Field(Member, ABC):
 
         The return is the parse-don't-validate face: subclass overrides
         chain ``partner = super()._check_partner(other)`` and receive the
-        partner re-typed as ``Self``, so their own guards (``FaceField``'s
-        layout and locus check) need no narrowing ceremony.
+        partner re-typed as ``Self``, so a subclass guard needs no
+        narrowing ceremony. No subclass of :class:`Field` overrides this
+        with a check today: ``FaceField._check_partner`` calls ``super()``
+        and returns (its layout arm is retired); ``Composite`` and
+        ``CoupledField`` define a ``_check_partner`` of their own but are
+        not :class:`Field` subclasses.
         """
         if not self._is_same_class(other):
             raise TypeError(
