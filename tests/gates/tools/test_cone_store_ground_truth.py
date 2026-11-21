@@ -54,7 +54,8 @@ T2_SAMPLE = {
 T2_SPAWNER = "tests/gates/tools/test_test_durations.py::test_node_ids_are_the_ones_pytest_collects"
 T2_IDS = tuple(t for group in T2_SAMPLE.values() for t in group)
 
-#: Round 2's sample N: 200 tests collected (``[M]`` 2026-11-01).
+#: Round 2's sample N: 196 tests collected (``[M]`` 2026-11-21; 200 on 2026-11-01, before the four cases of
+#: ``TestR2SelectionIsUnchanged`` retired with the quadrature selector they read, W0 dead-A).
 T3_FILES = ("tests/gates/numerics/test_invariance.py", "tests/gates/numerics/test_measure.py",
             "tests/gates/numerics/test_space_of_axes.py")
 
@@ -187,14 +188,14 @@ def test_t4_the_fork_and_the_alone_run_give_the_same_outcomes_on_the_sample(real
 
 @pytest.mark.slow
 def test_t3_round_2s_sample_n_contains_its_alone_cones(tmp_path: Path) -> None:
-    """T3. Round 2's sample N, 200 tests, at the grain round 2 omitted (module code, ``tests/``, reads): 0 misses
+    """T3. Round 2's sample N, 196 tests, at the grain round 2 omitted (module code, ``tests/``, reads): 0 misses
     (:func:`_misses`). The activation leg: some alone pin observes a statement by name, beyond those every run
     observes by effect, so a store that lost names would read as a miss. Budget about 45 min."""
     store_path, alone_path = tmp_path / "store.sqlite", tmp_path / "alone.sqlite"
     _real_cli("capture", store_path, *T3_FILES, timeout=600)
     store = cone.open_store(store_path)
     tests = sorted(store.tests())
-    assert len(tests) == 200, len(tests)
+    assert len(tests) == 196, len(tests)
     for test in tests:
         _real_cli("capture", alone_path, "--route", "fresh", test, timeout=120)
     alone = cone.open_store(alone_path)
