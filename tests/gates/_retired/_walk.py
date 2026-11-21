@@ -37,6 +37,8 @@ class GateError(Exception):
 def load_rows(rows_dir: Path | None = None) -> list:
     """The ``ROWS`` then the ``KEPT`` of every ``rows_*.py`` of ``rows_dir`` (default: this package's directory), in file-name order."""
     directory = HERE if rows_dir is None else Path(rows_dir)
+    if not directory.is_dir():
+        raise GateError(f"the rows directory is not a directory: {directory}")
     entries: list = []
     for path in sorted(directory.glob("rows_*.py")):
         name = f"_retired_rows_{path.stem}_{abs(hash(str(path)))}"
@@ -158,8 +160,9 @@ class _File:
                 self.identifiers[name].add(node.lineno)
         elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             self.identifiers[node.name].add(node.lineno)
-        elif isinstance(node, ast.Assign):
-            if any(isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets) and isinstance(node.value, (ast.List, ast.Tuple)):
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            if any(isinstance(t, ast.Name) and t.id == "__all__" for t in targets) and isinstance(node.value, (ast.List, ast.Tuple)):
                 for element in node.value.elts:
                     if _is_str(element):
                         self.all_members[element.value].append(element.lineno)  # type: ignore[attr-defined]
@@ -267,6 +270,8 @@ class _Tree:
                 for alias in node.names:
                     if (alias.asname or alias.name) == name:
                         base = imported_names(ast.unparse(node), package)[0]
+                        if base == package:  # `from . import name`: a submodule or another object of that name
+                            return "other"
                         if alias.asname is None and alias.name == name:
                             if base == target:
                                 return "row"
@@ -370,6 +375,8 @@ def walk(root: Path, rows: Iterable | None = None, rows_dir: Path | None = None)
     The key carries the type name because ``RetiredName('x') == RetiredModule('x')`` as tuples (C12).
     """
     root = Path(root)
+    if not root.is_dir():
+        raise GateError(f"the root to walk is not a directory: {root}")
     entries = list(load_rows(rows_dir) if rows is None else rows)
     validate(entries)
     tree = _Tree(root)

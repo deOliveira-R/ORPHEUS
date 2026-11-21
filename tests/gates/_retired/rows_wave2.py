@@ -9,9 +9,10 @@ survivors that the old file's ``_HOMONYMS`` exempted exempt nothing under the na
 
 from __future__ import annotations
 
-from tests.gates._retired import Retired, RetiredModule, RetiredName, Row
+from tests.gates._retired import Kept, Retired, RetiredModule, RetiredName, Row
 
 ROWS: tuple[Row, ...] = (
+    # the 60 bare names: each reads 0 identifier hits in the five trees at the port (60 of 60 green)
     RetiredName('AlbedoBoundary'),
     RetiredName('BC'),
     RetiredName('BC_REGISTRY'),
@@ -72,10 +73,12 @@ ROWS: tuple[Row, ...] = (
     RetiredName('resolve_boundary_conditions'),
     RetiredName('specular_albedo'),
     RetiredName('to_alpha'),
+    # the two properties of the retired base class: 0 definitions, 0 setter or import uses (2 of 2 green)
     Retired('orpheus/geometry/boundary/_base.py', 'BoundaryTraceLaw.geometry_map'),
     Retired('orpheus/geometry/boundary/_base.py', 'BoundaryTraceLaw.response_kernel'),
+    # the three retired homes: 0 imports and no file or package directory (3 of 3 green)
     RetiredModule('orpheus.geometry.boundary'),
     RetiredModule('orpheus.transport.boundary_realization'),
     RetiredModule('orpheus.sn.boundary.bound_compat'),
 )
-KEPT: tuple[()] = ()
+KEPT: tuple[Kept, ...] = ()

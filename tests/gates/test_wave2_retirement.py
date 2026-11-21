@@ -2,8 +2,8 @@ r"""The retirement of wave 2 (WF2.4, unit R): the typed-law vocabulary and its t
 
 The carve (slices S1 to S5) replaced the law classes of ``orpheus/geometry/boundary/`` (16 modules), the realization seam
 ``orpheus/transport/boundary_realization.py`` and the SN shim ``orpheus/sn/boundary/bound_compat.py``. A retirement that only
-deletes loses coverage and leaves orphans (``retirement-audit`` C and G), so this file is the done-when of the deletion commit:
-every row below is RED at the base tip (``8c5578c5`` plus the S5 checkpoint) and green exactly when the retirement is complete.
+deletes loses coverage and leaves orphans (``retirement-audit`` C and G), so this file was the done-when of the deletion commit:
+every check it held was RED at the base tip (``8c5578c5`` plus the S5 checkpoint) and green exactly when the retirement is complete.
 Plan: ``.claude/plans/wave2_boundary_carve.md`` section 7 (7.1 census, 7.2 dependency table, 7.3 the edits).
 
 The name and module census of this retirement is the shared engine's (``tests/gates/test_retirements.py``, rows in
@@ -21,7 +21,7 @@ The claims kept here, each with its kind (``vv-principles``) and the input that 
 ``tests/gates/derivations/_capture_reference_carry_head.py`` spelled the retired API by design (frozen records of how
 ``carry_head.npz`` and ``reference_carry_head.json`` were captured from ``5d04c296``). The ruling of 2026-10-24 deletes them: the
 fixtures stay, each reading gate's docstring names the capture commit and the script's git path (recoverable with ``git show``),
-and until the deletion the scripts are live users the census reads like any other file.
+and until the deletion the scripts were live users the census read like any other file.
 """
 
 from __future__ import annotations
@@ -32,8 +32,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.gates._retired import RetiredModule
-from tests.gates._retired.rows_wave2 import ROWS
+from tests.gates._retired import RetiredModule, rows_wave2
 
 _REPO = Path(__file__).resolve().parents[2]
 
@@ -68,7 +67,7 @@ def test_the_cold_import_list_of_the_layer_gate_names_no_retired_module() -> Non
     fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "test_entry_point_imports_in_a_fresh_interpreter")
     entries = [c.value for d in fn.decorator_list for c in ast.walk(d) if isinstance(c, ast.Constant) and isinstance(c.value, str)]
     assert len(entries) >= 30 and "orpheus.mesh" in entries, entries
-    retired_modules = tuple(r.module for r in ROWS if isinstance(r, RetiredModule))
+    retired_modules = tuple(r.module for r in rows_wave2.ROWS if isinstance(r, RetiredModule))
     retired = [e for e in entries if e in retired_modules]
     assert not retired, f"the cold-import list names retired modules: {retired}"
 
