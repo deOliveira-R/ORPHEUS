@@ -31,25 +31,26 @@ _EXCLUDED = "tests/gates/_retired/"
 _ROW_TYPES = (Retired, Moved, RetiredName, RetiredModule)
 _REPO_PATH = re.compile(r"^(orpheus|tests|tools|examples|student_resources)/[A-Za-z0-9_/]+\.py$")
 Verdicts = dict[tuple[type, object], list[tuple[str, int]]]
-_ATTRIBUTE_SETTERS = ("getattr", "setattr", "delattr")
+_STRING_ATTRIBUTE_ACCESSORS = ("getattr", "setattr", "delattr", "hasattr")  # read or write an attribute by a string: ``hasattr`` answers False silently once it is gone
 
 
 class GateError(Exception):
     """A malformed rows module or an unparsable file: the gate is red, not silent."""
 
 
-def load_rows(rows_dir: Path | None = None) -> tuple[tuple[Row, ...], tuple[Kept, ...]]:
-    """The ``ROWS`` and the ``KEPT`` of every ``rows_*.py`` of ``rows_dir`` (default: this package's directory), in file-name order.
+def load_rows_by_module(rows_dir: Path | None = None) -> dict[str, tuple[tuple[Row, ...], tuple[Kept, ...]]]:
+    """The ``(ROWS, KEPT)`` of every ``rows_*.py`` of ``rows_dir`` (default: this package's directory), keyed by file name, in file-name order.
 
     The two are kept apart and typed: a ``Kept`` inside a ``ROWS`` or a row inside a ``KEPT`` is a gate error (1.5: ``Kept`` is not a
-    member of ``ROWS``).
+    member of ``ROWS``). The module of an entry is what a failure message names.
     """
     directory = HERE if rows_dir is None else Path(rows_dir)
     if not directory.is_dir():
         raise GateError(f"the rows directory is not a directory: {directory}")
-    rows: list[Row] = []
-    kept: list[Kept] = []
+    by_module: dict[str, tuple[tuple[Row, ...], tuple[Kept, ...]]] = {}
     for path in sorted(directory.glob("rows_*.py")):
+        rows: list[Row] = []
+        kept: list[Kept] = []
         name = f"_retired_rows_{path.stem}_{abs(hash(str(path)))}"
         spec = importlib.util.spec_from_file_location(name, path)
         if spec is None or spec.loader is None:
@@ -71,7 +72,15 @@ def load_rows(rows_dir: Path | None = None) -> tuple[tuple[Row, ...], tuple[Kept
             if not isinstance(entry, Kept):
                 raise GateError(f"{path.name}: KEPT holds a non-Kept entry (a row belongs in ROWS): {entry!r}")
             kept.append(entry)
-    return tuple(rows), tuple(kept)
+        by_module[path.name] = (tuple(rows), tuple(kept))
+    return by_module
+
+
+def load_rows(rows_dir: Path | None = None) -> tuple[tuple[Row, ...], tuple[Kept, ...]]:
+    """The ``ROWS`` and the ``KEPT`` of every ``rows_*.py`` of ``rows_dir`` (default: this package's directory), in file-name order:
+    the flat pair of :func:`load_rows_by_module`."""
+    by_module = load_rows_by_module(rows_dir)
+    return tuple(r for rows, _ in by_module.values() for r in rows), tuple(k for _, kept in by_module.values() for k in kept)
 
 
 def validate(entries: Iterable[object]) -> list[Row | Kept]:
@@ -213,7 +222,7 @@ class _File:
         func = call.func
         name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
         is_method_setter = isinstance(func, ast.Attribute) and func.attr == "setattr"  # C20: any receiver
-        if (isinstance(func, ast.Name) and name in _ATTRIBUTE_SETTERS) or is_method_setter:
+        if (isinstance(func, ast.Name) and name in _STRING_ATTRIBUTE_ACCESSORS) or is_method_setter:
             if len(call.args) >= 2 and _is_str(call.args[1]):
                 target = call.args[1].value
                 self.setters[target].append((call.args[0], call.lineno))
@@ -359,21 +368,21 @@ def _leg_definition(row: Retired | Moved, tree: _Tree) -> set[tuple[str, int]]:
     owner = row.qualname.rsplit(".", 1)[0] if dotted_qualname else None
     ancestors = tree.valid_ancestors(module, row.qualname.split(".")[0])  # E-D1: the import, ``__all__``, attribute and setter legs alike
     readers = {module, *ancestors}  # E-D1: one rule for when an ancestor package counts, read by the attribute leg and the undotted setter leg
-    setter_owners = {f"{module}.{owner}", *(f"{a}.{owner}" for a in ancestors)} if dotted_qualname else readers
+    owners = {f"{module}.{owner}", *(f"{a}.{owner}" for a in ancestors)} if dotted_qualname else readers  # what an attribute read or a string accessor must denote
     for f in tree.files.values():
         if not dotted_qualname:
             for line, _statement, names in f.imports:
                 if f"{module}.{last}" in names or any(f"{a}.{last}" in names for a in ancestors):
                     out.add((f.rel, line))
-            for value, line in f.attributes.get(last, ()):
-                if readers & f.resolve(value):
-                    out.add((f.rel, line))
             if last in f.all_members:
                 here = _module_of(f.rel)
                 if here == module or (f.rel.endswith("__init__.py") and here in ancestors):
                     out.update((f.rel, line) for line in f.all_members[last])
+        for value, line in f.attributes.get(last, ()):  # ``<expr>.last``: the module or an ancestor, or for a dotted row the class (an instance read stays unread)
+            if owners & f.resolve(value):
+                out.add((f.rel, line))
         for first, line in f.setters.get(last, ()):
-            if f.resolve(first) & setter_owners:
+            if f.resolve(first) & owners:
                 out.add((f.rel, line))
         out.update((f.rel, line) for target, line in f.setter_targets if target == f"{module}.{row.qualname}")
     if not dotted_qualname:

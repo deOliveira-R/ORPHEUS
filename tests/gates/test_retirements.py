@@ -38,6 +38,7 @@ from __future__ import annotations
 import ast
 import importlib.util
 import inspect
+import shutil
 import textwrap
 from pathlib import Path
 from types import SimpleNamespace
@@ -57,7 +58,7 @@ def engine() -> SimpleNamespace:
     from tests.gates._retired import _finder, _walk, rows_wave2
 
     return SimpleNamespace(
-        R=_retired, finder=_finder, walk=_walk.walk, load_rows=_walk.load_rows, GateError=_walk.GateError,
+        R=_retired, finder=_finder, walk=_walk.walk, load_rows=_walk.load_rows, load_rows_by_module=_walk.load_rows_by_module, GateError=_walk.GateError,
         walk_module=_walk, rows_wave2=rows_wave2, package_dir=Path(_walk.__file__).resolve().parent,
     )
 
@@ -133,8 +134,8 @@ def _positive_retired(plant: Plant) -> None:
 
 
 def _negative_retired(plant: Plant) -> None:
-    """Statements that must read nothing (1.5): a homonym ancestor, a different object, an unbound receiver, ``hasattr``, a fixture
-    string of another module."""
+    """Statements that must read nothing (1.5): a homonym ancestor, a different object, an unbound receiver, ``hasattr`` on a receiver
+    that is not the row's module, a fixture string of another module."""
     plant.add(_M, '"""Defines nothing."""')
     plant.add("orpheus/p/other.py", "NAME = 1")
     plant.add("orpheus/p/__init__.py", "from .other import NAME")
@@ -146,7 +147,8 @@ def _negative_retired(plant: Plant) -> None:
         """)
     plant.add("tests/n2.py", """
         import orpheus.p.m as m
-        hasattr(m, "NAME")
+        import numpy as np
+        hasattr(np, "NAME")
         getattr(x, "NAME")
         from q import NAME
         S = "from q import NAME\\n"
@@ -346,9 +348,9 @@ def test_the_positive_control_of_a_definition_row_finds_each_of_nine_planted_lin
 def test_the_negative_control_of_a_definition_row_reads_nothing(engine: SimpleNamespace, tmp_path: Path, moved: bool) -> None:
     r"""On its own root (the negative needs ``p/__init__.py`` to bind ``NAME`` to ``.other``, the positive to ``.m``): a module-level
     ``NAME = 1`` and ``f(NAME=True)`` in a file importing nothing from ``p.m``, ``np.polynomial.laguerre`` against a row
-    ``(m.py, laguerre)``, ``getattr(x, "NAME")`` with ``x`` unbound, ``hasattr(m, "NAME")``, ``from q import NAME`` and its fixture
+    ``(m.py, laguerre)``, ``getattr(x, "NAME")`` with ``x`` unbound, ``hasattr(np, "NAME")`` with ``np`` another module, ``from q import NAME`` and its fixture
     string with ``q`` not an ancestor, and an ancestor that re-exports a DIFFERENT object under the row's name (the homonym). Red
-    input: an engine that matches an import by spelling alone, reads ``hasattr``, or counts every ancestor import."""
+    input: an engine that matches an import by spelling alone, reads ``hasattr`` off any receiver, or counts every ancestor import."""
     plant = Plant(tmp_path)
     _negative_retired(plant)
     rows: list = [engine.R.Retired(_M, "NAME"), engine.R.Retired(_M, "laguerre")]
@@ -464,9 +466,9 @@ def test_the_home_leg_is_green_for_a_home_that_defines_the_name_and_red_for_one_
 def test_the_positive_control_of_a_name_row_finds_each_of_seven_planted_lines_and_its_negative_none(engine: SimpleNamespace, tmp_path: Path) -> None:
     r"""``RetiredName('NAME')``: ``getattr(x, "NAME")``, ``x.NAME``, ``__all__ = ["NAME"]``, ``monkeypatch.setattr(m, "NAME", f)``,
     ``from m import NAME``, ``NAME = 1`` and ``f(NAME=True)`` are each found (7 of 7, a ``Store`` and a keyword included). Its
-    negative on its own root (``hasattr(m, "NAME")``, the fixture string ``"from m import NAME"``, a bare ``"NAME"`` in a tuple)
-    reads nothing. Red input: an engine that reads strings, reads ``hasattr`` (every absence witness of a retirement would
-    redden), or misses a store, a keyword or an ``__all__`` member."""
+    negative on its own root (the fixture string ``"from m import NAME"``, a bare ``"NAME"`` in a tuple) reads nothing; the ``hasattr``
+    string is read as an identifier like ``getattr``'s (``test_hasattr_reads_...`` below). Red input: an engine that reads the strings
+    of a fixture, or misses a store, a keyword or an ``__all__`` member."""
     positive = Plant(tmp_path / "pos")
     positive.add("tests/rn.py", """
         getattr(x, "NAME")  #*
@@ -482,7 +484,6 @@ def test_the_positive_control_of_a_name_row_finds_each_of_seven_planted_lines_an
     _assert_exactly(_findings(engine.walk(tmp_path / "pos", rows=[row]), (engine.R.RetiredName, row)), positive.planted)
     negative = Plant(tmp_path / "neg")
     negative.add("tests/rn.py", """
-        hasattr(m, "NAME")
         S = "from m import NAME\\n"
         T = ("NAME", "other")
         """)
@@ -738,6 +739,63 @@ def test_a_link_to_a_module_file_that_is_absent_binds_nothing_and_an_except_star
     _control_try_star(engine.walk, engine.R, tmp_path / "star")
 
 
+def _control_hasattr(walk, R, tmp_path: Path) -> None:
+    """``hasattr(g, "NAME")`` reads a retired attribute by a string and answers False once it is gone. Positive root: ``g`` is the
+    row's module by import (a ``Retired`` row reports the line), and a ``RetiredName`` row reads the string as an identifier, as for
+    ``getattr``. Negative root: ``hasattr`` on another module and on an unbound receiver reads nothing for the ``Retired`` row."""
+    plant = Plant(tmp_path / "pos")
+    plant.add(_M, '"""Defines nothing."""')
+    plant.add("tests/h.py", 'import orpheus.p.m as g\nhasattr(g, "NAME")  #*')
+    retired, named = R.Retired(_M, "NAME"), R.RetiredName("NAME")
+    verdicts = walk(tmp_path / "pos", rows=[retired, named])
+    _assert_exactly(_findings(verdicts, (R.Retired, retired)), plant.planted)
+    _assert_exactly(_findings(verdicts, (R.RetiredName, named)), plant.planted)
+    negative = Plant(tmp_path / "neg")
+    negative.add(_M, '"""Defines nothing."""')
+    negative.add("tests/h.py", 'import numpy as np\nhasattr(np, "NAME")\nhasattr(x, "NAME")')
+    _assert_exactly(_findings(walk(tmp_path / "neg", rows=[retired]), (R.Retired, retired)), set())
+
+
+def _control_class_qualified(walk, R, tmp_path: Path) -> None:
+    """A row ``(m.py, "Owner.member")`` is read by ``<expr>.member`` where ``<expr>`` resolves by the file's imports to ``p.m.Owner`` or
+    to ``<ancestor>.Owner``: the class by a from-import, by a module alias, by the plain dotted chain, and through an ancestor package
+    that re-exports it (4 positives). Negatives: a homonym ``Owner`` of another module, and an instance read ``x.member`` with ``x`` not
+    resolvable by an import (the documented limit)."""
+    plant = Plant(tmp_path / "pos")
+    plant.add(_M, '"""Defines nothing."""')
+    plant.add("orpheus/p/__init__.py", "from .m import Owner")
+    plant.add("tests/c1.py", "from orpheus.p.m import Owner\nOwner.member()  #*")
+    plant.add("tests/c2.py", "import orpheus.p.m as mm\nmm.Owner.member  #*")
+    plant.add("tests/c3.py", "import orpheus.p.m\norpheus.p.m.Owner.member  #*")
+    plant.add("tests/c4.py", "from orpheus.p import Owner\nOwner.member  #*")
+    row = R.Retired(_M, "Owner.member")
+    _assert_exactly(_findings(walk(tmp_path / "pos", rows=[row]), (R.Retired, row)), plant.planted)
+    negative = Plant(tmp_path / "neg")
+    negative.add(_M, '"""Defines nothing."""')
+    negative.add("orpheus/p/other.py", "class Owner: pass")
+    negative.add("orpheus/p/__init__.py", "from .other import Owner")
+    negative.add("tests/n1.py", "from orpheus.p.other import Owner\nOwner.member")
+    negative.add("tests/n2.py", "from orpheus.p import Owner\nOwner.member")
+    negative.add("tests/n3.py", "from orpheus.p.m import Owner\nx = Owner()\nx.member")
+    _assert_exactly(_findings(walk(tmp_path / "neg", rows=[row]), (R.Retired, row)), set())
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_positive_control_of_a_definition_row_finds_each_of_nine_planted_lines")
+def test_hasattr_reads_a_retired_attribute_by_its_string(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""``hasattr(g, "NAME")`` is a reader by string beside ``getattr``, ``setattr`` and ``delattr`` (``hasattr`` returns False silently
+    once the attribute is gone, so an unread one hides a leftover). Red input: an engine whose string accessors omit ``hasattr``."""
+    _control_hasattr(engine.walk, engine.R, tmp_path)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_the_positive_control_of_a_definition_row_finds_each_of_nine_planted_lines")
+def test_a_dotted_row_is_read_by_a_class_qualified_attribute(engine: SimpleNamespace, tmp_path: Path) -> None:
+    r"""``Owner.member`` read off the class resolved by import (module, alias or ancestor), reported; a homonym class and an instance
+    read are not. Red input: an engine that reads a dotted row by its definition and its string setters alone."""
+    _control_class_qualified(engine.walk, engine.R, tmp_path)
+
+
 def _mutated_walk(engine: SimpleNamespace, tmp_path: Path, old: str, new: str):
     """``walk`` of a COPY of ``_walk.py`` under ``tmp_path`` with ``old`` replaced by ``new`` (the tracked file is never touched)."""
     source = Path(engine.walk_module.__file__).read_text(encoding="utf-8")
@@ -760,6 +818,24 @@ def test_a_walk_that_restores_the_own_module_alone_misses_the_ancestor_reads(eng
     walk = _mutated_walk(engine, tmp_path / "copy", "readers = {module, *ancestors}", "readers = {module}")
     with pytest.raises(AssertionError, match="missing"):
         _control_ancestor_use(walk, engine.R, tmp_path / "run", use, homonym=False)
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_hasattr_reads_a_retired_attribute_by_its_string")
+def test_a_walk_without_hasattr_among_its_string_accessors_misses_the_hasattr_read(engine: SimpleNamespace, tmp_path: Path) -> None:
+    """Mutation on a copy: ``hasattr`` removed from the string accessors; the positive of the hasattr control reddens."""
+    walk = _mutated_walk(engine, tmp_path / "copy", '"delattr", "hasattr")', '"delattr")')
+    with pytest.raises(AssertionError, match="missing"):
+        _control_hasattr(walk, engine.R, tmp_path / "run")
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(f"{_THIS}::test_a_dotted_row_is_read_by_a_class_qualified_attribute")
+def test_a_walk_that_reads_no_class_qualified_attribute_misses_the_dotted_read(engine: SimpleNamespace, tmp_path: Path) -> None:
+    """Mutation on a copy: the attribute leg is switched off for a dotted row; the class-qualified positives redden."""
+    walk = _mutated_walk(engine, tmp_path / "copy", "if owners & f.resolve(value):", "if not dotted_qualname and owners & f.resolve(value):")
+    with pytest.raises(AssertionError, match="missing"):
+        _control_class_qualified(walk, engine.R, tmp_path / "run")
 
 
 @pytest.mark.foundation
@@ -1014,6 +1090,22 @@ def test_the_default_rows_are_read_from_the_package_directory_and_never_from_the
 _REAL_CONTROL = "LinearOperator"  # a retired-name row that is RED on the real tree: a name the five trees use today
 
 
+def _assert_every_row_green(engine: SimpleNamespace, root: Path, rows_dir: Path | None = None, verdicts: dict | None = None) -> int:
+    """The one gate over a tree: every row of every ``rows_*.py`` of ``rows_dir`` (default: the package) and every ``Kept`` entry is
+    green on ``root``. The failure message lists each red entry with the file name of its rows module and its first findings.
+    ``verdicts`` is a walk already made of these entries (the real-tree fixture, which carries a control row besides). Returns the
+    number of entries read."""
+    by_module = engine.load_rows_by_module(rows_dir)
+    entries = [(name, entry) for name, (rows, kept) in by_module.items() for entry in (*rows, *kept)]
+    if verdicts is None:
+        verdicts = engine.walk(root, rows_dir=rows_dir)
+    red = [(name, entry, verdicts[(type(entry), entry)]) for name, entry in entries if verdicts[(type(entry), entry)]]
+    assert not red, f"{len(entries) - len(red)} of {len(entries)} entries green; red: " + "; ".join(
+        f"{name}: {entry}: {found[:3]}" for name, entry, found in red
+    )
+    return len(entries)
+
+
 @pytest.fixture(scope="module")
 def real_walk(engine: SimpleNamespace) -> dict:
     """One walk of the real tree with the default rows and one control row, ``RetiredName(_REAL_CONTROL)``, that must read red: a walk
@@ -1028,33 +1120,53 @@ def real_walk(engine: SimpleNamespace) -> dict:
     f"{_THIS}::test_the_positive_control_of_a_name_row_finds_each_of_seven_planted_lines_and_its_negative_none",
     f"{_THIS}::test_the_positive_control_of_a_module_row_finds_each_of_seven_planted_lines_and_its_negative_none",
     f"{_THIS}::test_the_absence_leg_reports_a_leftover_module_file_or_package_and_is_silent_on_a_root_with_neither",
+    f"{_THIS}::test_hasattr_reads_a_retired_attribute_by_its_string",
+    f"{_THIS}::test_a_dotted_row_is_read_by_a_class_qualified_attribute",
 )
-def test_every_wave2_row_is_green_on_the_tree(engine: SimpleNamespace, real_walk: dict) -> None:
-    r"""The 65 wave-2 rows (2 ``Retired`` for the two retired properties, 60 ``RetiredName``, 3 ``RetiredModule``; ``KEPT = ()``, decisions
-    D5 and R2) read green on the real tree: ``k of 65`` is printed, and the three counts are the specification's. RECORD of the tree.
-    The three module rows are the three paths the deleted path test named (decision E-D6): each module's file and package directory
-    are absent. Red input: a wave-2 name, module or definition still present anywhere in the five trees."""
+def test_every_row_and_kept_entry_of_the_package_is_green_on_the_tree(engine: SimpleNamespace, real_walk: dict) -> None:
+    r"""Every row of every rows module of the package (wave 2 and each unit's ``rows_w0_<unit>.py``) and every ``Kept`` entry read green on
+    the real tree: ``k of N`` is printed. RECORD of the tree. The wave-2 statement stays: 65 rows (2 ``Retired``, 60 ``RetiredName``, 3
+    ``RetiredModule``; ``KEPT = ()``, decisions D5 and R2), the three module rows being the three paths the deleted path test named
+    (decision E-D6), each module's file and package directory absent. The input count stands beside the finding count (X1): the walk
+    holds one verdict per entry and the control, which reads red (a walk that scanned no file would read it green). Red input: a name,
+    module or definition of any row still present anywhere in the five trees; the control below plants one in a rows module."""
     R = engine.R
     rows = list(engine.rows_wave2.ROWS)
     by_type = {name: sum(1 for r in rows if type(r).__name__ == name) for name in _ROW_TYPE_NAMES}
     assert by_type == {"Retired": 2, "Moved": 0, "RetiredName": 60, "RetiredModule": 3}, by_type
     assert tuple(engine.rows_wave2.KEPT) == ()
     assert real_walk[(R.RetiredName, R.RetiredName(_REAL_CONTROL))], "the control reads green: the walk scanned no file that uses it"
-    red = {key: real_walk[key] for key in ((type(r), r) for r in rows) if real_walk[key]}
-    print(f"wave-2 rows green: {len(rows) - len(red)} of {len(rows)}")
-    assert not red, f"{len(rows) - len(red)} of {len(rows)} wave-2 rows green; red: " + "; ".join(f"{k[1]}: {v[:3]}" for k, v in sorted(red.items(), key=repr))
+    total = _assert_every_row_green(engine, _REPO, verdicts=real_walk)
+    assert total and len(real_walk) == total + 1, (len(real_walk), total)
+    print(f"rows green: {total} of {total}; wave-2 rows green: {len(rows)} of {len(rows)}")
     for row in rows:
         if isinstance(row, R.RetiredModule):
             base = _REPO / row.module.replace(".", "/")
             assert not base.with_suffix(".py").exists() and not (base / "__init__.py").exists(), row
 
 
+_PLANTED_HEAD = "from tests.gates._retired import Kept, Moved, Retired, RetiredModule, RetiredName\n"
+
+
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_THIS}::test_every_wave2_row_is_green_on_the_tree")
-def test_the_real_walk_reads_every_row_of_the_package(engine: SimpleNamespace, real_walk: dict) -> None:
-    """The input count beside the finding count (X1): the real walk holds one verdict per entry of ``load_rows()`` and the control, non-zero."""
-    rows, kept = engine.load_rows()
-    assert rows and len(real_walk) == len(rows) + len(kept) + 1, (len(real_walk), len(rows), len(kept))
+@pytest.mark.rests_on(f"{_THIS}::test_every_row_and_kept_entry_of_the_package_is_green_on_the_tree")
+@pytest.mark.parametrize(
+    "body",
+    ["ROWS = (RetiredName('LinearOperator'),)\nKEPT = ()\n", "ROWS = ()\nKEPT = (Kept('orpheus/p/not_a_module.py', 'not_defined', 'a wave'),)\n"],
+    ids=["a red row", "a kept definition that does not exist"],
+)
+def test_the_real_tree_gate_fails_on_a_planted_rows_module_and_names_it(engine: SimpleNamespace, tmp_path: Path, body: str) -> None:
+    r"""The gate body, called with a rows directory holding a copy of ``rows_wave2.py`` (green: 65 of 65, no raise) and a planted
+    ``rows_w0_planted.py`` whose one entry is red on the real tree, fails and names ``rows_w0_planted.py`` and not ``rows_wave2.py``.
+    Red input: a gate that asserts the rows of wave 2 alone."""
+    rows_dir = tmp_path / "rows"
+    rows_dir.mkdir()
+    shutil.copy(engine.package_dir / "rows_wave2.py", rows_dir / "rows_wave2.py")
+    assert _assert_every_row_green(engine, _REPO, rows_dir) == 65
+    (rows_dir / "rows_w0_planted.py").write_text(_PLANTED_HEAD + body, encoding="utf-8")
+    with pytest.raises(AssertionError, match=r"rows_w0_planted\.py") as raised:
+        _assert_every_row_green(engine, _REPO, rows_dir)
+    assert "rows_wave2.py" not in str(raised.value), str(raised.value)
 
 
 # ---------------------------------------------------------------------------
@@ -1076,7 +1188,7 @@ _KEPT_TESTS = frozenset({
 
 
 @pytest.mark.foundation
-@pytest.mark.rests_on(f"{_THIS}::test_every_wave2_row_is_green_on_the_tree")
+@pytest.mark.rests_on(f"{_THIS}::test_every_row_and_kept_entry_of_the_package_is_green_on_the_tree")
 def test_the_wave2_file_keeps_only_its_checks_that_are_not_name_walks() -> None:
     r"""Section 1.5: the wave-2 file's own name and module walks, their planted controls, the homes test (decision E-D6) and the
     names only they read are deleted, three tests stay (the capture scripts, the cold-import list, the SN method space), its

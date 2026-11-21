@@ -49,7 +49,6 @@ def test_no_old_package_re_exports_a_mesh_name(package: types.ModuleType, names:
 
 def test_the_boundary_tag_and_its_package_are_gone() -> None:
     assert importlib.util.find_spec("orpheus.geometry.boundary") is None
-    assert not hasattr(orpheus.geometry, "BC") and "BC" not in orpheus.geometry.__all__
     assert importlib.util.find_spec("orpheus.geometry.deck") is not None  # the positive control: the successor home resolves
 
 

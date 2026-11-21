@@ -293,7 +293,6 @@ class TestFaceLawsIsRetired:
 
     def test_the_module_and_the_class_are_gone(self) -> None:
         require(importlib.util.find_spec("orpheus.mesh.face_laws") is None, "orpheus.mesh.face_laws is renamed, not copied")
-        require(not hasattr(mesh_package, "FaceLaws") and "FaceLaws" not in mesh_package.__all__, "FaceLaws is not exported")
         require(hasattr(mesh_package, "FaceRoles") and "FaceRoles" in mesh_package.__all__, "FaceRoles is")
 
     def test_the_inventory_has_one_home(self) -> None:

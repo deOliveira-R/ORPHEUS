@@ -120,7 +120,7 @@ def test_the_table_registers_the_six_realizers_and_is_sealed() -> None:
     ):
         assert issubclass(getattr(module, name), base), f"{name} is not a {base.__name__}"
     assert "sample" not in vars(module.DiffusionSource) and not hasattr(module.DiffusionSource, "realize"), "a source realizer has no body to stub"
-    assert not hasattr(module, "DiffusionBoundaryRealizer") and not hasattr(module, "_partial_current_albedo"), "the retired door must be gone"
+    assert not hasattr(module, "_partial_current_albedo"), "the retired door must be gone"
     assert callable(module._albedo_operator), "_albedo_operator stays (the shared scalar-to-operator collapse)"
     catalogue = table.catalogue()
     assert H.summary(catalogue[B.ZeroNetwork]) == ("R", True) and H.summary(catalogue[H.zero_flux_condition()]) == ("R", True)
@@ -355,10 +355,6 @@ def test_super_markov_albedo_is_unspellable() -> None:
     with pytest.raises(TypeError):
         H.diffusion_mesh(H.chart_mesh("slab", left=0, right=0), {0: displacement})  # type: ignore[dict-item]
 
-    augmented = augmented_mesh
-    assert not hasattr(augmented.DiffusionMesh, "BOUNDARY_OPERATOR_REGISTRY"), "the string-tag registry is the old door of albedo = 5.0"
-    assert not hasattr(boundary_realizer, "DiffusionBoundaryRealizer")
-
     slab = H.chart_mesh("slab", left=0, right=0)
     ks = [H.solve(slab, {0: W.white(a)}).keff for a in (0.3, 0.7, 1.0)]
     mirror = H.solve(H.chart_mesh("slab", left=MirrorDeck(), right=MirrorDeck())).keff
@@ -404,9 +400,5 @@ def test_the_mesh_reads_the_binding_through_the_shared_door(monkeypatch: pytest.
     arm = mesh.realize_boundary_role(W.white(0.5), "xmax")
     np.testing.assert_array_equal(H.realized_action(arm), 0.5 * H.PROBE)
 
-    method = augmented_mesh
-    import orpheus.transport.method as shared
-
-    assert not hasattr(shared, "resolve_boundary_conditions") and not hasattr(method, "resolve_boundary_conditions")
     with pytest.raises(B.UnboundTagError):
         H.diffusion_mesh(H.chart_mesh("slab", left=0, right=0))

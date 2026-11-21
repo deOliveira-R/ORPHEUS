@@ -67,7 +67,7 @@ def test_the_moc_table_is_sealed_and_the_old_registry_is_gone() -> None:
     assert isinstance(table, B.RealizerTable)
     assert table.method == "moc" and table.state_cone is B.StateCone.NONNEGATIVE_FLUX and table.unregistered_issue == 654
     table.catalogue()
-    assert not hasattr(geometry.MOCMesh, "BC_REGISTRY") and not hasattr(geometry.MOCMesh, "_resolve_bc")
+    assert not hasattr(geometry.MOCMesh, "_resolve_bc")
     assert not hasattr(geometry, "_moc_bc_reflective"), "the registry's factory is retired with the registry"
     built = MOC.moc_head(MOC.moc_mesh1d(), {0: B.WallCondition.specular(1.0)})
     assert not hasattr(built, "bc_kind"), "bc_kind has 0 readers and retires (section 2.8)"

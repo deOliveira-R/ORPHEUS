@@ -90,8 +90,6 @@ def test_bc_holds_realized_boundaries_and_the_binding() -> None:
     hollow = S.problem(S.mesh_of("hollow_cylinder", outer=0, inner=1), S.quadrature_of("hollow_cylinder"), {0: B.WallCondition.vacuum(), 1: B.WallCondition.specular(1.0)})
     assert set(hollow.bc) == {"xmax"}, "the hollow inner face has no trace and no bc entry"
     assert set(hollow.binding.tags) == {"xmin", "xmax"} and hollow.binding.tags["xmin"] == 1
-    for problem in (vac, mirrored, hollow):
-        assert not hasattr(type(problem), "BOUNDARY_OPERATOR_REGISTRY") and not hasattr(problem, "realize_boundary_law")
 
 
 @pytest.mark.foundation

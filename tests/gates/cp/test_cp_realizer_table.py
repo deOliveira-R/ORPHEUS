@@ -79,7 +79,7 @@ def test_the_cp_table_is_sealed_and_the_old_registry_is_gone() -> None:
     assert isinstance(table, B.RealizerTable)
     assert table.method == "cp" and table.state_cone is B.StateCone.NONNEGATIVE_FLUX and table.unregistered_issue == 654
     table.catalogue()  # raises TableNotSealedError iff the table is not sealed
-    assert not hasattr(solver.CPMesh, "BC_REGISTRY") and not hasattr(solver.CPMesh, "_resolve_bc"), "the string registry must be retired"
+    assert not hasattr(solver.CPMesh, "_resolve_bc"), "the string registry must be retired"
     stale = [name for name in _RETIRED if hasattr(solver, name)]
     assert not stale, f"retired in the same commit as the table, still defined: {stale}"
 

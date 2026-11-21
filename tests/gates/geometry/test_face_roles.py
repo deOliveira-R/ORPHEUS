@@ -336,7 +336,7 @@ def test_the_retired_spellings_are_gone() -> None:
     """No dual spelling: the old geometry API stops working in S1. Layer: architecture; kind STRUCTURE.
 
     ``boundaries`` is no field, the keyword and the property are gone, ``parse_boundary_law(s)`` are undefined and
-    the facade's ``BC`` is not exported. Each row names the old spelling it rejects; the controls are the new ones.
+    the facade's ``BC`` is gone (asserted by the retirement engine's rows, ``tests/gates/_retired``). Each row names the old spelling it rejects; the controls are the new ones.
     """
     import dataclasses
 
@@ -346,7 +346,6 @@ def test_the_retired_spellings_are_gone() -> None:
     for name in ("parse_boundary_law", "parse_boundary_laws"):
         require(not hasattr(structured, name), f"{name} is retired")
         require(name not in getattr(structured, "__all__", ()), f"{name} is not exported")
-    require(not hasattr(geometry_package, "BC") and "BC" not in geometry_package.__all__, "the facade drops BC")
     with pytest.raises(TypeError, match="boundaries"):
         StructuredGeometry(coord=_CART, breakpoints=(0.0, 1.0), mat_ids=(0,), boundaries=(0, 1))  # type: ignore[call-arg]
 

@@ -96,7 +96,6 @@ def test_the_table_registers_the_five_realizers_and_is_sealed() -> None:
     for name, base in (("SNZero", B.ResponseRealizer), ("SNSpecularChain", B.ResponseRealizer), ("SNDiffuseChain", B.ResponseRealizer), ("SNSource", B.SourceRealizer), ("SNDecks", B.DeckRealizer)):
         assert issubclass(getattr(realizer, name), base), f"{name} is not a {base.__name__}"
     assert not hasattr(realizer.SNSource, "realize"), "a source realizer has no realize (decision 53)"
-    assert not hasattr(realizer, "SNBoundaryRealizer"), "the 400-line isinstance ladder must be gone"
     catalogue = table.catalogue()
     for unit in (B.SpecularChain, B.DiffuseChain, B.ZeroNetwork):
         assert catalogue[unit] == B.Realized(True), f"{unit.__name__}: {catalogue.get(unit)!r}"
