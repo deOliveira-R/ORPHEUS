@@ -29,6 +29,8 @@ family by theorem, so they are tested generically rather than per-family.
 
 from __future__ import annotations
 
+from fractions import Fraction
+
 import numpy as np
 import pytest
 from scipy.special import gammaln, roots_chebyu, roots_jacobi
@@ -751,7 +753,7 @@ def test_a_rule_that_rounds_differently_at_the_two_precisions_is_refused(monkeyp
     import orpheus.numerics.generating_measure as gm
 
     monkeypatch.setattr(gm, "_WORKING_DIGITS", (16, 60))
-    monkeypatch.setattr(gm, "_certified_float", lambda value, digits, measure, n: float(value))
+    monkeypatch.setattr(gm, "_certified_float", lambda value, digits, measure, n, **_: float(value))
     gm._correctly_rounded_rule.cache_clear()
     try:
         with pytest.raises(ArithmeticError, match="rounds differently"):
@@ -773,6 +775,274 @@ def test_a_node_newton_cannot_converge_is_refused(monkeypatch) -> None:
             LEGENDRE.gauss(6)
     finally:
         gm._correctly_rounded_rule.cache_clear()
+
+
+# ---------------------------------------------------------------------------
+# The exact tie: an exact value on a float64 rounding tie is rounded half to even
+# (unit `quadrature-ties`; the law is 2.0.3 of `.claude/plans/ontology_w0_spec.md`).
+#
+# Ladder.  `test_rational_polynomial.py` (the polynomial ring over Q) and the generic-builder
+# rows (G6) are the foundations; the decision called directly (G4) rests on both; the
+# consumer-level rows (G1, G5) rest on G4; G2 and G3 are the controls that an untied value
+# is unchanged and an unequal single-boundary value is still refused.  Every private name
+# is read THROUGH the module (``gm.<name>``), never imported by name, so a monkeypatch of
+# ``gm`` reaches it.
+# ---------------------------------------------------------------------------
+
+_THIS = "tests/gates/numerics/test_generating_measure.py::"
+_G6 = _THIS + "test_the_generic_builders_admit_the_tabulated_rationals"
+_G6C = _THIS + "test_the_remap_maps_the_rational_recurrence_exactly"
+_G4 = _THIS + "test_the_weight_decision_refuses_an_unequal_tie_and_has_its_domain"
+_G7 = "tests/gates/numerics/test_rational_polynomial.py::test_gcd_is_the_monic_greatest_common_divisor"
+
+_WIDTH_TIE = (0.2615032494292951, 0.7646335475579331)  # (b - a) on a tie, (a + b)/2 not: the even-n witness
+_N3_OUTER = (0.29134508037323065, 1.218729331071271)  # 5 s/9 on a tie (the n = 3 outer weights)
+_N3_CENTRE = (0.08349338193695595, 2.0129640274100478)  # 8 s/9 on a tie (the n = 3 centre weight)
+_LOWER = (0.5118216247002567, 0.9504636963259353)  # the centre's half-even neighbour is the LOWER float
+_MIRROR = (-_WIDTH_TIE[1], -_WIDTH_TIE[0])  # the panel of the only rows with negative nodes
+
+
+def _centre(a: float, b: float) -> Fraction:
+    return (Fraction(a) + Fraction(b)) / 2
+
+
+def _half_width(a: float, b: float) -> Fraction:
+    return (Fraction(b) - Fraction(a)) / 2
+
+
+def _is_tie(value: Fraction) -> bool:
+    """``value`` is exactly the midpoint of two adjacent float64 (so "nearest" names two floats)."""
+    f = float(value)
+    if Fraction(f) == value:
+        return False
+    other = float(np.nextafter(f, np.inf if Fraction(f) < value else -np.inf))
+    return (Fraction(f) + Fraction(other)) / 2 == value
+
+
+def _clear_caches() -> None:
+    import orpheus.numerics.generating_measure as gm
+
+    gm._affine_remap.cache_clear()
+    gm._correctly_rounded_rule.cache_clear()
+
+
+def _fresh(measure, panel):
+    """``measure.on(*panel)`` built with both ``lru_cache`` s cleared: a measure compares equal to another by
+    NAME, so a remap cached by an earlier row would otherwise be returned without running this row's builder."""
+    _clear_caches()
+    return measure.on(*panel)
+
+
+# (panel, n, which array, index, exact closed form of the tied value)
+_TIE_ROWS = [
+    ((0.2, 0.4), 1, "nodes", 0, _centre(0.2, 0.4)),
+    ((0.2, 0.4), 3, "nodes", 1, _centre(0.2, 0.4)),
+    ((0.55, 0.63), 63, "nodes", 31, _centre(0.55, 0.63)),
+    (_LOWER, 3, "nodes", 1, _centre(*_LOWER)),
+    (_WIDTH_TIE, 1, "weights", 0, 2 * _half_width(*_WIDTH_TIE)),
+    (_WIDTH_TIE, 2, "weights", 0, _half_width(*_WIDTH_TIE)),
+    (_WIDTH_TIE, 2, "weights", 1, _half_width(*_WIDTH_TIE)),
+    (_N3_OUTER, 3, "weights", 0, _half_width(*_N3_OUTER) * Fraction(5, 9)),
+    (_N3_OUTER, 3, "weights", 2, _half_width(*_N3_OUTER) * Fraction(5, 9)),
+    (_N3_CENTRE, 3, "weights", 1, _half_width(*_N3_CENTRE) * Fraction(8, 9)),
+    (_MIRROR, 2, "weights", 0, _half_width(*_MIRROR)),
+    (_MIRROR, 2, "weights", 1, _half_width(*_MIRROR)),
+    (_MIRROR, 1, "weights", 0, 2 * _half_width(*_MIRROR)),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-127")
+@pytest.mark.rests_on(_G4, _G6, _G6C, _G7)
+@pytest.mark.parametrize("panel, n, field, index, exact", _TIE_ROWS, ids=lambda v: str(v))
+def test_an_exact_value_on_a_rounding_tie_is_rounded_half_even(panel, n, field, index, exact) -> None:
+    r"""An exact value of ``LEGENDRE.on(a, b).gauss(n)`` that sits on a float64 rounding tie is the float64
+    neighbour that is even, never a refusal (the law of 2.0.3).
+
+    The oracle is the CLOSED FORM of the tied value (``c = (a + b)/2``, ``s = (b - a)/2``, ``2 s``, ``s``,
+    ``5 s/9``, ``8 s/9``) rounded by ``Fraction.__float__`` (correctly rounded, half to even), independent of the
+    rational recurrence the decision reads.  Rows: centres at odd ``n`` (one whose half-even neighbour is the
+    LOWER float, the round-up mutant's witness), width ties at ``n = 1`` and at EVEN ``n = 2`` (parity is not the
+    law), the non-dyadic reference weights ``5/9`` and ``8/9`` at ``n = 3``, and the three MIRRORED rows, the only
+    ones with negative nodes (a sign-dropping rational image of a node refuses them).  Each row first asserts that
+    its closed form is a tie, so a row that stopped being one cannot pass vacuously."""
+    assert _is_tie(exact), "fixture control: the closed form must sit exactly on a float64 tie"
+    _clear_caches()
+    try:
+        rule = LEGENDRE.on(*panel).gauss(n)
+        assert getattr(rule, field)[index] == float(exact)
+    finally:
+        _clear_caches()
+
+
+@pytest.mark.foundation
+def test_the_untied_sibling_is_unchanged() -> None:
+    """Control (builds today and after): an untied odd panel's centre is the representable midpoint."""
+    assert not _is_tie(_centre(0.0, 1.0))
+    assert LEGENDRE.on(0.0, 1.0).gauss(3).nodes[1] == 0.5
+
+
+@pytest.mark.foundation
+def test_a_single_boundary_straddle_that_is_not_the_exact_value_is_still_refused(monkeypatch) -> None:
+    r"""The anti-guesser, nodes: ``_CERTIFIED_DIGITS = 23`` widens the radius to :math:`10^{23-d}` (relative), so
+    22 of the 128 values of ``LEGENDRE.on(0.0, 1.0).gauss(64)`` straddle exactly ONE boundary at 40 digits and
+    none straddles several.  The first is a NODE, and none of them is a tie, so the decision must say "not equal"
+    and the value stays refused.  The ``match`` is load-bearing: a decision that always says "equal" is refused
+    later, by the two-precision comparison (``rounds differently``), so a bare ``pytest.raises(ArithmeticError)``
+    stays green under it and only ``cannot be certified`` reddens."""
+    import orpheus.numerics.generating_measure as gm
+
+    monkeypatch.setattr(gm, "_CERTIFIED_DIGITS", 23)
+    _clear_caches()
+    try:
+        with pytest.raises(ArithmeticError, match="cannot be certified"):
+            LEGENDRE.on(0.0, 1.0).gauss(64)
+    finally:
+        _clear_caches()
+
+
+@pytest.mark.foundation
+@pytest.mark.rests_on(_G6, _G6C, _G7)
+def test_the_weight_decision_refuses_an_unequal_tie_and_has_its_domain() -> None:
+    r"""The decision "is this float64 midpoint the exact weight of this node?" (``gm._weight_is_exactly``),
+    called directly: G3 stops on a NODE, so the unequal arm of the WEIGHT decision has no witness at consumer
+    level.
+
+    ``LEGENDRE.on(0.0, 1.0)`` at ``n = 3`` has weights ``5/18, 4/9, 5/18``.  At the centre node the tie ``4/9``
+    is equal; at an outer node ``5/18`` is equal, ``4/9`` is unequal with a NON-trivial gcd (the node is not one
+    of its roots) and ``1/3`` is unequal with a trivial gcd.  A point that is not a node does not isolate
+    (``ArithmeticError``).  The nodes are built inside ``mpmath.workdps(40)`` and the decisions are called
+    OUTSIDE it, at the ambient 15 digits (a conversion that re-rounds the node to the ambient precision fails the
+    1e-20 bracket); a NEGATIVE node (the mirrored panel) decides alike (a conversion that drops the sign fails).
+    The domain row: a Chebyshev T measure has an irrational mass, so its weight decision does not exist
+    (``None``) while its node decision does."""
+    import mpmath
+
+    import orpheus.numerics.generating_measure as gm
+
+    def decide(measure, node):
+        return gm._weight_is_exactly(gm._rational_recurrence(measure, 3), 3, node, measure.name)
+
+    unit, mirrored = LEGENDRE.on(0.0, 1.0), LEGENDRE.on(-1.0, 0.0)
+    with mpmath.workdps(40):
+        centre = mpmath.mpf(1) / 2
+        outer = mpmath.mpf(1) / 2 + mpmath.sqrt(mpmath.mpf(3) / 5) / 2
+        off_node = mpmath.mpf("0.3")
+        negative_outer = -outer
+    assert decide(unit, centre)(Fraction(4, 9)) is True
+    assert decide(unit, outer)(Fraction(5, 18)) is True
+    assert decide(unit, outer)(Fraction(4, 9)) is False  # gcd non-trivial, this node not a root of it
+    assert decide(unit, outer)(Fraction(1, 3)) is False  # gcd trivial
+    with pytest.raises(ArithmeticError, match="does not isolate"):
+        decide(unit, off_node)(Fraction(4, 9))
+    assert decide(mirrored, negative_outer)(Fraction(5, 18)) is True
+    assert decide(mirrored, negative_outer)(Fraction(4, 9)) is False
+    assert decide(mirrored, negative_outer)(Fraction(1, 3)) is False
+    cheb = CHEBYSHEV_T.on(0.2, 0.4)
+    rational = gm._rational_recurrence(cheb, 3)
+    assert gm._weight_is_exactly(rational, 3, centre, cheb.name) is None
+    assert gm._node_is_exactly(rational, 3) is not None
+
+
+@pytest.mark.foundation
+@pytest.mark.catches("ERR-127")
+@pytest.mark.rests_on(_G4, _G6, _G6C, _G7)
+@pytest.mark.parametrize(
+    "label, measure, panel, n",
+    [
+        ("chebyshev_t n=1", CHEBYSHEV_T, (0.2, 0.4), 1),
+        ("chebyshev_t n=3", CHEBYSHEV_T, (0.2, 0.4), 3),
+        ("chebyshev_u n=3", CHEBYSHEV_U, (0.2, 0.4), 3),
+        ("jacobi(1, 1) n=3", jacobi(1.0, 1.0), (0.2, 0.4), 3),
+        ("jacobi(1.5, 1.5) n=5", jacobi(1.5, 1.5), (0.2, 0.4), 5),
+        ("jacobi(0, 0) width tie n=1", jacobi(0.0, 0.0), _WIDTH_TIE, 1),
+    ],
+    ids=lambda v: v if isinstance(v, str) else "",
+)
+def test_every_family_rounds_its_exact_tie_half_even(label, measure, panel, n) -> None:
+    r"""The law is not Legendre's: every family on ``[-1, 1]`` rounds its exact tie half to even.
+
+    ``jacobi(1, 1)`` (mass ``4/3``) and ``jacobi(1.5, 1.5)`` (mass irrational) carry NO classical alias, so no
+    Chebyshev construction can serve them (``jacobi(+-1/2, +-1/2)`` are the Chebyshevs by name and would test
+    Chebyshev again); ``jacobi(0, 0)`` has the rational mass 2 and equals ``LEGENDRE`` by name, so on a width tie
+    its WEIGHT must equal Legendre's.  Each row builds through ``_fresh`` (a remap cached for the equal constant
+    would be returned without running the Jacobi builder), and the ``jacobi(0, 0)`` row builds its constant
+    through ``_fresh`` too and asserts that two constructions ran (the positive control)."""
+    a, b = panel
+    try:
+        built = _fresh(measure, panel)
+        assert built.gauss(n).nodes[n // 2] == float(_centre(a, b))
+        if label.startswith("jacobi(1"):
+            assert built.name.startswith("jacobi(")  # no classical alias serves it
+        if label.startswith("jacobi(0, 0)"):
+            constant = _fresh(LEGENDRE, panel)
+            jacobi_built = _fresh(measure, panel)
+            assert jacobi_built is not constant
+            assert jacobi_built.exact_recurrence is not constant.exact_recurrence
+            assert jacobi_built.gauss(n).weights[0] == constant.gauss(n).weights[0] == float(2 * _half_width(a, b))
+    finally:
+        _clear_caches()
+
+
+_BUILDER_ROWS = [
+    # (label, builder from the recurrence module, the mass beta_0 in RATIONAL)
+    ("legendre", lambda r: r.legendre_recurrence, Fraction(2)),
+    ("chebyshev_t", lambda r: r.chebyshev_t_recurrence, None),
+    ("chebyshev_u", lambda r: r.chebyshev_u_recurrence, None),
+    ("hermite", lambda r: r.hermite_recurrence, None),
+    ("jacobi(0, 0)", lambda r: r.jacobi_recurrence(0.0, 0.0), Fraction(2)),
+    ("jacobi(2, 3)", lambda r: r.jacobi_recurrence(2.0, 3.0), Fraction(16, 15)),
+    ("jacobi(-0.5, 0.5)", lambda r: r.jacobi_recurrence(-0.5, 0.5), None),
+    ("jacobi(1.5, 2.25)", lambda r: r.jacobi_recurrence(1.5, 2.25), None),
+    ("laguerre(0)", lambda r: r.laguerre_recurrence(0.0), Fraction(1)),
+    ("laguerre(2)", lambda r: r.laguerre_recurrence(2.0), Fraction(2)),
+    ("laguerre(1.5)", lambda r: r.laguerre_recurrence(1.5), None),
+]
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("label, getter, mass", _BUILDER_ROWS, ids=[row[0] for row in _BUILDER_ROWS])
+def test_the_generic_builders_admit_the_tabulated_rationals(label, getter, mass) -> None:
+    r"""The six closed forms are ONE definition each, evaluated in two number types (2.0.4).
+
+    (a) The DOMAIN: in ``RATIONAL`` every ``alpha_k`` and every ``beta_k`` (``k >= 1``) is a ``Fraction`` and the
+    mass ``beta_0`` is exactly the tabulated value (``None`` where it is a multiple of ``pi`` or ``sqrt(pi)``, or
+    a Gamma value of a non-integer).  (b) The AGREEMENT of the two arithmetics to 1e-55 relative at 60 digits:
+    both evaluate one body, so this is tautological in the body and pins the TABLE (the rational evaluation takes
+    the same branch as the high-precision one).  The remap's law is the next test."""
+    import mpmath
+
+    import orpheus.numerics.recurrence as r
+
+    builder = getter(r)
+    alpha, beta = builder(6, r.RATIONAL)
+    assert len(alpha) == 6 and len(beta) == 6
+    assert all(isinstance(x, Fraction) for x in alpha)
+    assert all(isinstance(x, Fraction) for x in beta[1:])
+    assert beta[0] == mass and (beta[0] is None) == (mass is None)
+    high_alpha, high_beta = builder(6, r.HighPrecision(60))
+    with mpmath.workdps(60):
+        for q, h in list(zip(alpha, high_alpha)) + list(zip(beta[1:], high_beta[1:])):
+            exact = mpmath.mpf(q.numerator) / q.denominator
+            assert (abs(exact - h) <= mpmath.mpf(10) ** -55 * abs(h)) if h != 0 else (exact == 0)
+
+
+@pytest.mark.foundation
+@pytest.mark.parametrize("panel", [(0.2, 0.4), _WIDTH_TIE], ids=str)
+def test_the_remap_maps_the_rational_recurrence_exactly(panel) -> None:
+    r"""The affine remap's law in ``RATIONAL`` against the moments of the uniform measure on ``[a, b]`` (an
+    oracle that is not a recurrence): ``alpha'_0 = (a + b)/2`` (the mean), ``beta'_0 = b - a`` (the mass),
+    ``beta'_1 = (b - a)^2/12`` (the variance)."""
+    from orpheus.numerics.recurrence import RATIONAL
+
+    a, b = panel
+    try:
+        alpha, beta = _fresh(LEGENDRE, panel).exact_recurrence(3, RATIONAL)
+    finally:
+        _clear_caches()
+    assert alpha[0] == _centre(a, b)
+    assert beta[0] == Fraction(b) - Fraction(a)
+    assert beta[1] == (Fraction(b) - Fraction(a)) ** 2 / 12
 
 
 # =============================================================================
