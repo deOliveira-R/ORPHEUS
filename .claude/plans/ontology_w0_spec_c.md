@@ -406,9 +406,120 @@ Each issue needs the three labels (`module:`, `level:`, `type:`) from `gh label 
 
 The eight items, in the order of amendment decision E. Each states its numbers and the default the text is drafted on; the text changes if the user rules otherwise.
 
-1. **Comment placement (informational) and the memo regeneration cost.** The preview showed the comment on the line above the class. Measured: a trailing comment on the header-end line leaves every code object, including line numbers and line tables, unchanged (814 of 814 on a copy of the tree), while the line above moves the later definitions' line numbers in 47 of 47, 110 of 111 and 89 of 89 definitions of three files (M4). Neither placement changes a `DefPin` or `StatementsPin`; both change the `MemoPin` of 4 of the 8 memo source files (75 of the 676 declarations). The four files are declared like every other (no exemption, no reader fallback), so every stored memo entry regenerates once. The cost: one full regeneration of the reference store, which last took one full bar (`[M]` 2026-11-21, the plan's close-out block: 7371 s, log `scratch/ontology/w0/build/full_bar_w0_b.log`) plus the slow cone-store tests (`[M]` 2026-11-21, same block: 15102 s, log `cone_store_slow_b.log`); this stage did not re-run them. The specification takes the trailing form and the regeneration, with the snapshot before and the witness after (2.10).
+1. **Comment placement and the memo regeneration cost (a confirm; two options).** The preview the user selected put the comment on the line above the class. The specification instead places it as a trailing comment on the line that ends the class header, for this reason: [M] a trailing comment leaves every code object, including `co_firstlineno` and `co_linetable`, unchanged (814 of 814 on a copy of the tree), while the line above moves the later definitions' line numbers in 47 of 47, 110 of 111 and 89 of 89 definitions of three files (M4), so tracebacks, coverage and every line-keyed reading would move with it. Neither placement changes a `DefPin` or `StatementsPin`; both change the `MemoPin` of 4 of the 8 memo source files (75 of the 676 declarations). The two options for those four files, side by side: **(a), the default**: declare the four files like every other (no exemption, no reader fallback), so every stored memo entry regenerates once; the cost is one full regeneration of the reference store, which last took one full bar (`[M]` 2026-11-21, the plan's close-out block: 7371 s, log `scratch/ontology/w0/build/full_bar_w0_b.log`) plus the slow cone-store tests (`[M]` 2026-11-21, same block: 15102 s, log `cone_store_slow_b.log`); this stage did not re-run them. **(b)**: exempt those four files from the comment and hold their 75 class rows in the table file; this needs a second source for a declaration in the reader (comment on 601 classes, table rows for 75) and a gate that keeps the 75 rows equal to the tree, so it breaks the rule that the fact lives on the class (O32) for 75 classes in exchange for no regeneration. The specification is drafted on (a), with the snapshot before and the witness after (2.10). Confirm the placement and choose (a) or (b).
 2. **T10's layer clause is read per class, not per concept (decision A1).** The product order of T10 is enforced as G5 (the phase order on concept coordinates), G6 (the head sits in the concept's layer and every other row in that package or one that may import it) and G5L (0 class edges of any kind run against `FORBIDDEN_EDGES` on the classes' own packages). Measured on concept coordinates, the layer half had 163 violations (top 65, typing 82, late 14, inherits 2): 153 have a non-head source row in a package above its concept's layer (a method's arm of a lower concept, which G6 allows) and 10 are the shadow of a misplaced row (8 of the 10 a destination row outside its concept's layer, 2 a head source in `sn` whose concept's layer is transport, `StreamingOperator` and `Splitting`); on each class's own package it has 0 of every kind, which is what the green layer gate says (M15). The default is the per-class reading; the per-concept reading would re-pin the 163 and make the layer gate and G5 disagree on one tree. Confirm.
 3. **O21 and O31 against the measured cycles (decision A2).** O21 says the concept graph is acyclic on references "except inside one algebra closure". Measured: the three closures that have a head hub are `RealizedBoundary`, `Manifold` and `HilbertMetric` (3, not O31's 5, which was read on the earlier table; 3 of 23 class components); dropping the 13 class edges inside them changes no concept component, so the exception has no witness and is not a gate arm. What the tree shows instead: on the judged edges G5 accepts, 3 cycles of 39, 6 and 4 concepts, each in one phase, pinned by equality as `cycle` (waves W1 to W8a, W6 and W8a, W2 W4 W5). The operator algebra's own cycle runs through `LinearOperator`, a weld of `ends` and not a head, with the shortest cycle `AdjointOperator -> LinearOperator -> AdjointOperator`; cutting the five operator concepts (`adjoint`, `compose`, `inverse`, `otensor`, `transpose`) out of the 39 takes 26 class edges (14 concept edges), and it leaves a 3-concept core `adjoint`, `inverse`, `transpose`. The user rules whether O21's wording is amended to say "acyclic on references except pinned cycles, each owned by the waves of its concepts" or whether a weld that is the operation set (`LinearOperator`) may serve as hub.
+3a. **The phase of each concept (a ruling: G5 and G7 are judged on it).** G5 reads the phase order structure, posing, strategy, solution on every judged edge and G7 builds its quotient on the edges G5 accepts, so a wrong phase puts an edge in the debt list or hides a cycle; the phases were never put before the user, and the re-review of the class rows carried no phase field, so **no reviewer checked them**. Where each comes from [M] `amend/pass3/splice_phase.py`, reading `spec/build_concepts.py`, `vocab/vocabulary_v2.md` and `assign/vocabulary.md`: for the 77 ids that `vocabulary_v2.md` lists (after the removal of `roles`), the phase is the vocabulary's own phase column (`memo`, an apparatus by O26, has no phase); for the 11 `EXT:` ids the seed script takes the phase column of the extension's proposal row in `assign/vocabulary.md` (the extension proposals' own table, not reviewed as a phase), with two overrides written in the script, `EXT:subclass-registry` to none (the proposal says structure; an apparatus has no phase, O26) and `EXT:enclosure` to solution (the same as the proposal). So 11 of 88 phases are chosen and not stated in `vocabulary_v2.md`, and 77 are stated. The table, all 88 concepts:
+
+<!-- table phase begins (generated: amend/pass3/splice_phase.py) -->
+| concept | phase | stated in `vocabulary_v2.md` or chosen | rows |
+|---|---|---|---|
+| `EXT:citation` | structure | chosen: `assign/vocabulary.md` proposal row says `structure` | 1 |
+| `EXT:coarse-correction` | strategy | chosen: `assign/vocabulary.md` proposal row says `strategy` | 2 |
+| `EXT:continuum-function` | posing | chosen: `assign/vocabulary.md` proposal row says `posing` | 3 |
+| `EXT:enclosure` | solution | chosen: `assign/vocabulary.md` proposal row says `solution` | 1 |
+| `EXT:fluid-state` | structure | chosen: `assign/vocabulary.md` proposal row says `structure` | 2 |
+| `EXT:nuclide-data` | structure | chosen: `assign/vocabulary.md` proposal row says `structure` | 2 |
+| `EXT:reaction-channel` | structure | chosen: `assign/vocabulary.md` proposal row says `structure` | 1 |
+| `EXT:reference-solution` | solution | chosen: `assign/vocabulary.md` proposal row says `solution` | 18 |
+| `EXT:specification` | posing | chosen: `assign/vocabulary.md` proposal row says `posing` | 2 |
+| `EXT:subclass-registry` | (absent: apparatus) | chosen: `assign/vocabulary.md` proposal row says `structure`, seed `(absent: apparatus)` by override (apparatus has no phase, O26) | 1 |
+| `EXT:verification-certificate` | solution | chosen: `assign/vocabulary.md` proposal row says `solution` | 10 |
+| `adjoint` | structure | stated | 5 |
+| `algorithm` | strategy | stated | 39 |
+| `basis` | structure | stated | 13 |
+| `block` | structure | stated | 1 |
+| `bsource` | structure | stated | 6 |
+| `cellmoment` | structure | stated | 0 |
+| `closure` | structure | stated | 7 |
+| `compose` | structure | stated | 4 |
+| `cone` | structure | stated | 1 |
+| `coord` | structure | stated | 4 |
+| `covector` | structure | stated | 2 |
+| `digest` | structure | stated | 2 |
+| `driver` | solution | stated | 9 |
+| `dsum` | structure | stated | 2 |
+| `dual` | structure | stated | 1 |
+| `ends` | structure | stated | 11 |
+| `face` | structure | stated | 3 |
+| `faces` | structure | stated | 9 |
+| `factor` | structure | stated | 9 |
+| `fission` | structure | stated | 3 |
+| `fluxsrc` | structure | stated | 18 |
+| `fmetric` | structure | stated | 6 |
+| `four` | structure | stated | 2 |
+| `frame` | structure | stated | 4 |
+| `gauge` | posing | stated | 3 |
+| `graddiv` | structure | stated | 2 |
+| `green` | strategy | stated | 3 |
+| `group` | structure | stated | 16 |
+| `groups` | structure | stated | 1 |
+| `hub` | structure | stated | 20 |
+| `impresp` | structure | stated | 0 |
+| `inverse` | structure | stated | 11 |
+| `layout` | structure | stated | 8 |
+| `locate` | structure | stated | 10 |
+| `manifold` | structure | stated | 16 |
+| `measure` | structure | stated | 6 |
+| `member` | structure | stated | 22 |
+| `memo` | (absent: apparatus) | stated | 69 |
+| `merge` | structure | stated | 0 |
+| `mesh` | structure | stated | 18 |
+| `multiplier` | structure | stated | 6 |
+| `natural` | structure | stated | 12 |
+| `nullspace` | structure | stated | 8 |
+| `observable` | posing | stated | 5 |
+| `orbit` | structure | stated | 12 |
+| `otensor` | structure | stated | 1 |
+| `outcome` | solution | stated | 7 |
+| `pairing` | structure | stated | 1 |
+| `parameter` | structure | stated | 2 |
+| `pencil` | posing | stated | 4 |
+| `posing` | posing | stated | 7 |
+| `quadrature` | structure | stated | 12 |
+| `question` | posing | stated | 5 |
+| `quotient` | structure | stated | 0 |
+| `rate` | structure | stated | 3 |
+| `rayspace` | structure | stated | 4 |
+| `realized` | structure | stated | 9 |
+| `realizer` | structure | stated | 38 |
+| `record` | solution | stated | 5 |
+| `refmeasure` | structure | stated | 14 |
+| `regions` | structure | stated | 1 |
+| `restrict` | structure | stated | 4 |
+| `role` | structure | stated | 6 |
+| `schedule` | strategy | stated | 5 |
+| `scheme` | structure | stated | 11 |
+| `solution` | solution | stated | 16 |
+| `splitting` | strategy | stated | 5 |
+| `strategy` | strategy | stated | 3 |
+| `streaming` | structure | stated | 6 |
+| `subspace` | structure | stated | 1 |
+| `tensor` | structure | stated | 2 |
+| `trace` | structure | stated | 2 |
+| `transfer` | structure | stated | 7 |
+| `transpose` | structure | stated | 3 |
+| `value` | structure | stated | 5 |
+| `walllaw` | structure | stated | 21 |
+| `xsfield` | structure | stated | 14 |
+<!-- table phase ends -->
+The 42 edges of the `edge` debt list (G5's phase order), grouped by source concept and destination concept, each with its phases [M] generated from `spec/seed/concept_debt.toml`:
+
+<!-- table groups begins (generated: amend/pass3/splice_phase.py) -->
+| source concept (phase) | destination concept (phase) | edges | kinds | classes at the two ends |
+|---|---|---|---|---|
+| `posing` (posing) | `outcome` (solution) | 16 | top 16 | EigenPosing, Gauge, Solve, SourcePosing to Asserted, Measured, NotApplicable, NotYet |
+| `algorithm` (strategy) | `record` (solution) | 7 | top 7 | KrylovAcceleration, SourceIteration to ConvergenceWarning, IterationBudget, IterationRecord, StoppingCriterion |
+| `mesh` (structure) | `EXT:continuum-function` (posing) | 4 | top 4 | Mesh1D, Mesh2D to RegionwiseConstant, Symbolic |
+| `streaming` (structure) | `algorithm` (strategy) | 4 | typing 3, inherits 1 | StreamingCollisionOperator, StreamingOperator to FusedAtom, LossRepresentation, SigmaStratum |
+| `hub` (structure) | `pencil` (posing) | 3 | late 2, typing 1 | HomogeneousProblem, SNProblem to OperatorPencil, WithinGroupSystem |
+| `hub` (structure) | `posing` (posing) | 3 | late 3 | HomogeneousProblem, SNProblem to EigenPosing, SourcePosing |
+| `realized` (structure) | `splitting` (strategy) | 2 | top 2 | SNBoundaryOperator to BoundarySplit, SNMaskedBoundaryOperator |
+| `rate` (structure) | `driver` (solution) | 1 | typing 1 | _StateProductionRate to SNSolver |
+| `realized` (structure) | `schedule` (strategy) | 1 | typing 1 | SNBoundaryOperator to SweepSchedule |
+| `streaming` (structure) | `schedule` (strategy) | 1 | typing 1 | StreamingCollisionOperator to SweepSchedule |
+<!-- table groups ends -->
+What makes three of the groups, from the code (so that the user can judge whether an edge is code debt or a wrong phase): `hub -> pencil` (3 edges): `HomogeneousProblem.pencil` (`orpheus/homogeneous/solver.py`, line 380) and `SNProblem.pencil` (`orpheus/sn/problem.py`, line 1108) import `OperatorPencil` inside the method body and return it, and `SNProblem.system` names `WithinGroupSystem` (a `pencil` class) in its return annotation; the hub mints its pencil, which is the architecture of the problem hub, so this is a wrong-phase candidate (the hub, phase structure, owns a posing-phase object) rather than a stray import. `hub -> posing` (3 edges): `HomogeneousProblem.eigen_posing` (`homogeneous/solver.py`, line 387), `SNProblem.eigen_posing` (`sn/problem.py`, line 1116) and `SNProblem.source_posing` (line 1132) import `EigenPosing` or `SourcePosing` inside the method and construct it; the same reading, the hub poses its question. `streaming -> algorithm` (4 edges): `StreamingCollisionOperator` inherits `FusedAtom` in its class header (`sn/operators/streaming.py`, line 416; `FusedAtom` is a weld of `algorithm`), and the return annotations of `StreamingCollisionOperator.loss_representation` (line 591), `StreamingCollisionOperator.sigma_stratum` (line 604) and `StreamingOperator.loss_representation` (line 387) name `LossRepresentation` and `SigmaStratum`; the inheritance edge is a real dependency of an operator on a fused algorithm atom, and the three annotations are `typing` references, so this group is code debt unless the user rules that `streaming` is an algorithm-phase object.
 4. **`digest` and the `functions` head form (an amendment of O30; decision B1).** `digest` is realised by the functions of `orpheus/values/digest.py` (`orpheus.values.digest.digest` and `.hexdigest`) and has no class and no alias. Drafted default: the head forms are a closed sum of four (a class, a named sum, `functions`, `missing` with its wave); the `functions` form has no class and no wave and is admitted only on a row whose `ruling` names the ruling that admits it (`O30`, the one that said a head is a class or a named sum: the amendment is the user's). `digest`'s `ruling` is stored as `O30` in the seed (it was `O23`) and is to be read "O30 as amended at the checkpoint of specification C (pending the user)". `quotient` stays `missing` with its wave W1 although `FunctionSpace.rank` is listed in its `functions` (O30 had said its target head is a method). The `functions` field itself is general: 22 concepts carry it, 36 entries in all (33 from the old table's second column, 2 for `digest`, 1 for `quotient`). If the user refuses the form: `digest` becomes `missing = true` with a wave (the schema then needs a wave for it, which O23 does not give it), and its two functions stay in the field.
 5. **The new role `component` and the other rulings of `conventions_v3.md` section 7 (informational).** The sheet's section 7 added a role, `component` (a public value type that belongs to a concept's definition and that consumers name to use it: 48 of 676 rows), and widened `part` (a referrer counts as inside when it is a class of the concept, a class whose `welded` list holds it, or a function of a module defining such a class), widened `arm` (inheriting a twin; structural conformance to a Protocol head), ruled that a generic subscript is not a base, that a Protocol belongs to the concept whose law its members state, that `algorithm` is a realisation of one morphism, that a weld may name a missing concept, that the five residual leaves are `fluxsrc` members (the table files them `twin`, like their twelve siblings: 17 of the 18 rows of `fluxsrc` are twins and 1 is a weld, and `fluxsrc` has no head and no listed arms, so the sheet's word "arms" is not what the seed holds; [M] `amend/pass3/p_r.py` reads `ScalarResidual`, `AngularResidual`, `AngularBoundaryResidual`, `RadialCharacteristicInteriorResidual` and `RadialCharacteristicBoundaryResidual` as `fluxsrc` twins), that `BoundaryConditions` is `walllaw`, and that a class that is a weld and a second root is filed `weld`. They are in the specification through G3's tests and the seed. The user has not seen them as rulings.
 6. **11 extension ids, not 12 (informational).** O23 lists 12; `EXT:state-history` has 0 rows and no `welded` list names it [M: `welded` ids absent from the concept set are exactly `cellmoment` and `merge`], so the table carries 11. The text of O23 changes from 12 to 11 if the user agrees.
@@ -632,3 +743,10 @@ One line per decision of `amend/amendment_decisions_1.md`, with the sections it 
 - verify N13: applied, 2.8 debt equality.
 - verify residual leaves: applied, 5 item 5. seed agrees: 5 of 5 are fluxsrc twins (p_r.py).
 <!-- pass 3 ends -->
+<!-- pass 3b begins -->
+
+### Pass 3b (2026-11-21), section 5 made visible
+
+- Section 5 item 1: "(informational)" replaced by a confirm with options (a) and (b) side by side, and the reason the trailing placement differs from the selected preview: 5 item 1.
+- Section 5 item 3a (new, after the O21 and O31 item; numbered 3a so that no reference to items 4 to 8 moves): the phase of each concept, its source, the 88-row table (11 chosen, 77 stated), the 42 phase-order edges grouped, and the code reading of three groups: 5 item 3a.
+<!-- pass 3b ends -->
