@@ -105,10 +105,10 @@ def test_g0_mutations_redden_the_table():
     m, w = ct(), world()
     labels, resolve = m.checks.doc_labels(ROOT / "docs"), m.checks.function_resolver(ROOT)
     tensor = next(c for c in w.concepts if c.id == "tensor")
-    eq = next((t for t in tensor.theory if t.startswith("eq:")), None)
+    eq = next((t for t in tensor.theory if t.kind == "eq"), None)
     if eq is None:
         raise Uninstallable("`tensor` carries no eq: theory label")
-    broken = tuple(dataclasses.replace(c, theory=tuple(t + "x" if t == eq else t for t in c.theory)) if c is tensor else c for c in w.concepts)
+    broken = tuple(dataclasses.replace(c, theory=tuple(m.table.TheoryLink(t.kind, t.label + "x") if t == eq else t for t in c.theory)) if c is tensor else c for c in w.concepts)
     assert m.checks.check_table(broken, _known_layers(), EXPECTED_CONCEPTS, labels, resolve), "an undefined equation label"
     dropped = tuple(c for c in w.concepts if c.id != "tensor")
     assert m.checks.check_table(dropped, _known_layers(), EXPECTED_CONCEPTS, labels, resolve), "87 rows"

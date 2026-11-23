@@ -431,9 +431,12 @@ The concepts
      - 
      - O36
      - functions
+
+       - ``orpheus.values.digest.digest`` (``orpheus/values/digest.py``)
+       - ``orpheus.values.digest.hexdigest`` (``orpheus/values/digest.py``)
      - part 2
-     - - ``orpheus.values.digest.digest``
-       - ``orpheus.values.digest.hexdigest``
+     - - ``orpheus.values.digest.digest`` (``orpheus/values/digest.py``)
+       - ``orpheus.values.digest.hexdigest`` (``orpheus/values/digest.py``)
    * - :ref:`driver <concept-driver>`
      - Driver
      - the loop that runs an algorithm and its estimator (T12: "the loop is the solution phase's")

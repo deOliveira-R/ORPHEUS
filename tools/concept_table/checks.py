@@ -217,8 +217,9 @@ def doc_labels(docs_root: Path) -> dict[str, str]:
     return out
 
 
-def function_resolver(root: Path) -> Callable[[str], bool]:
-    """A resolver ``name -> bool`` for the dotted names of a ``functions`` field, reading ``root/orpheus`` by ``ast``.
+def function_resolver(root: Path) -> Callable[[str], str | None]:
+    """A resolver for the dotted names of a ``functions`` field, reading ``root/orpheus`` by ``ast``: the repository-relative
+    file that defines the name (a non-empty string, true), or ``None`` (false) when the name is not defined.
 
     The longest dotted prefix that is a file ``orpheus/<path>.py`` or ``orpheus/<path>/__init__.py`` is the module; the
     rest is ``<name>`` (a module-level ``def``, ``class`` or assignment) or ``<Class>.<member>`` (a ``def``, an annotated
@@ -241,7 +242,7 @@ def function_resolver(root: Path) -> Callable[[str], bool]:
                 return n
         return None
 
-    def resolve(name: str) -> bool:
+    def resolve(name: str) -> str | None:
         parts = name.split(".")
         for i in range(len(parts), 0, -1):
             base = root.joinpath(*parts[:i])
@@ -250,20 +251,20 @@ def function_resolver(root: Path) -> Callable[[str], bool]:
                 continue
             rest = parts[i:]
             if not rest or len(rest) > 2:
-                return False
+                return None
             node = defines(tree(path).body, rest[0], members=False)
             if node is None:
-                return False
-            if len(rest) == 1:
-                return True
-            return isinstance(node, ast.ClassDef) and defines(node.body, rest[1], members=True) is not None
-        return False
+                return None
+            if len(rest) == 2 and not (isinstance(node, ast.ClassDef) and defines(node.body, rest[1], members=True) is not None):
+                return None
+            return path.relative_to(root).as_posix()
+        return None
 
     return resolve
 
 
 def check_table(concepts: tuple[Concept, ...], known_layers: Collection[str], expected: int, labels: Mapping[str, str],
-                resolve: Callable[[str], bool]) -> frozenset[str]:
+                resolve: Callable[[str], str | None]) -> frozenset[str]:
     """The facts of the table that need two rows or the tree; every single-row fact was refused when the table was loaded.
 
     Ids are unique; the row count is ``expected``; each layer is a package of the tree; the slugs are unique; each
@@ -285,9 +286,9 @@ def check_table(concepts: tuple[Concept, ...], known_layers: Collection[str], ex
         for entry in c.functions:
             if not resolve(entry):
                 out.add(f"concept {c.id!r}: functions entry {entry!r} is not defined in the tree; fix it in {TABLE_FILE}")
-        for label in c.theory:
-            kind, _, name = label.partition(":")
-            if labels.get(name.lower()) not in (kind, "both"):
+        for link in c.theory:
+            label, kind = str(link), link.kind
+            if labels.get(link.label.lower()) not in (kind, "both"):
                 out.add(f"concept {c.id!r}: theory label {label!r} is not a defined {'equation ' if kind == 'eq' else ''}label of docs/; fix it in {TABLE_FILE}")
             if owner.setdefault(label, c.id) != c.id:
                 out.add(f"concept {c.id!r}: theory label {label!r} is also under {owner[label]!r}; fix it in {TABLE_FILE}")

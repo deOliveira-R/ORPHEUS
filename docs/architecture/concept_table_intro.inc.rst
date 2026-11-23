@@ -8,8 +8,8 @@ printed below from the tuples of the code that checks them, so this prose names 
 Every class of ``orpheus/`` outside ``derivations/`` declares its concept, its role and its kind in one comment on the
 physical line that ends its class header, in the grammar printed below. The class that defines a concept is the one
 that declares that role for it; which class that is, and whether the concept has a class at all, is derived by the
-reader and never stored. A concept with no class yet carries the wave that creates it and lists the classes that
-already realise it.
+reader and never stored. A concept with no class yet carries the wave that creates it and lists the classes, if any,
+that already realise it.
 
 The **pending entries** are the exceptions the gates pin by equality, in ``docs/architecture/concept_debt.toml``. A
 list never grows without a ruling, since every change of one is a visible edit of a tracked file, and an entry takes the

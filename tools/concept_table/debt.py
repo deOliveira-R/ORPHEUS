@@ -34,7 +34,7 @@ class DebtError(ValueError):
     """A debt or seed file that is not well formed."""
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, order=True)
 class ClassDebt:
     """A class on the twin, weld or misplaced list."""
 
@@ -44,7 +44,7 @@ class ClassDebt:
         return str(self.key)
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, order=True)
 class RoleTestDebt:
     """A class that fails the structural test ``test`` of its role."""
 
@@ -59,7 +59,7 @@ class RoleTestDebt:
         return f"{self.key} [{self.test}]"
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, order=True)
 class EdgeDebt:
     """A reference between two classes that the phase order (or the layer order) refuses."""
 
@@ -88,8 +88,12 @@ class CycleDebt:
     def __str__(self) -> str:
         return f"concepts [{', '.join(sorted(self.concepts))}]"
 
+    def __lt__(self, other: CycleDebt) -> bool:
+        """The larger cycle first, then by the sorted concept ids (a set has no order of its own)."""
+        return (-len(self.concepts), sorted(self.concepts)) < (-len(other.concepts), sorted(other.concepts))
 
-@dataclasses.dataclass(frozen=True)
+
+@dataclasses.dataclass(frozen=True, order=True)
 class KindLawDebt:
     """A class that violates the kind law ``law``."""
 
@@ -104,7 +108,7 @@ class KindLawDebt:
         return f"{self.key} [{self.law}]"
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, order=True)
 class OffAlgebraDebt:
     """A class with sub-kind ``operator`` that is not on the operator algebra."""
 
@@ -114,7 +118,7 @@ class OffAlgebraDebt:
         return f"{self.key} [operator_off_algebra]"
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, order=True)
 class CovectorOffLineageDebt:
     """A class with sub-kind ``covector`` that is not on the lineage of ``Covector``."""
 

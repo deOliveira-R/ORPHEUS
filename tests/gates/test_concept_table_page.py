@@ -11,8 +11,10 @@ by ``read_tree``) and committed. This file asserts, one claim per test:
   ``derivations/`` read by this file's own ``ast`` walk, which shares no code with ``read_tree`` or ``walk_classes``;
 * every concept has its ``.. _<slug>:`` label on a heading, no class or function carries a Sphinx role, and every
   theory link of the table is on the page with its explicit link text (the conservation of the replaced hand-written
-  table: 107 occurrences on 102 distinct targets, 36 ``functions`` entries; the multiset equality with the old table
-  was checked once by the builder and is recorded in its commit message, and no tracked gate reads ``scratch/``);
+  table: the 107 occurrences of the old table sit on 102 distinct targets, each attached to one concept, so the table
+  holds 102 ``theory`` entries; the multiset equality of the 107 with the old table was checked once by the builder and
+  is recorded in its commit message, and no tracked gate reads ``scratch/``), and every ``functions`` entry carries
+  the file that defines it;
 * the enumerations the page shows are the code's own (``tuple(ROLE_INFO) == ROLES``);
 * the generator is registered in ``docs/conf.py``, the toctree and the ``gates`` workflow name the page, and the hand
   written table of ``conceptual_view.rst`` is replaced by a pointer.
@@ -54,8 +56,8 @@ pytestmark = pytest.mark.foundation
 
 PAGE_FILE = "docs/architecture/concept_table.rst"
 MODULE = "tools.concept_table.page"
-# The conservation counts of the replaced hand-written table (specification C 3.3), over the tracked table.
-THEORY_OCCURRENCES_CARRIED = 107
+# The conservation counts over the tracked table (specification C 3.3): one theory entry per distinct carried target.
+# The 107 occurrences of the replaced table, 5 of them repeats, are conserved by the builder's one-time check.
 THEORY_TARGETS_CARRIED = 102
 FUNCTIONS_ENTRIES = 36
 BULLET = re.compile(r"^- ``(?P<qualname>[^`]+)`` \(``(?P<file>[^`]+\.py)``\) ``(?P<kind>[a-z.]+)``(?: \[welded: (?P<welded>[^\]]*)\])?$")
@@ -91,9 +93,10 @@ def first_difference(a: str, b: str) -> str:
     return f"lengths differ: {len(a)} against {len(b)}"
 
 
-def rendered(table=None, debt=None, population=None) -> str:
-    t, d, p = inputs()
-    return page().render(t if table is None else table, d if debt is None else debt, p if population is None else population)
+def rendered(table=None, debt=None, population=None, defined=None) -> str:
+    t, d, p, f = inputs()
+    return page().render(t if table is None else table, d if debt is None else debt, p if population is None else population,
+                         f if defined is None else defined)
 
 
 # --- the page is the table --------------------------------------------------------------------------------------
@@ -121,25 +124,46 @@ def test_page_opens_with_the_generator_marker() -> None:
     assert first.startswith("..") and MODULE in first, first
 
 
-@pytest.mark.parametrize("field,edit", [
-    ("definition", lambda c: dataclasses.replace(c, definition=c.definition + " (edited)")),
-    ("name", lambda c: dataclasses.replace(c, name=c.name + " edited")),
-    ("ruling", lambda c: dataclasses.replace(c, ruling="O1" if c.ruling != "O1" else "O2")),
-])
-def test_page_reddens_on_a_concept_field(field, edit) -> None:
-    """Mutation (a): a field of the concept ``digest`` changed in a copy of the table makes ``render`` differ from the page.
+def _edits():
+    """One edit per field the page shows of a concept row, each a function of the concept; ``tensor`` is a class head, so every field is spellable."""
+    from tools.concept_table.table import TheoryLink
+    return {
+        "name": lambda c: dataclasses.replace(c, name=c.name + " edited"),
+        "definition": lambda c: dataclasses.replace(c, definition=c.definition + " (edited)"),
+        "kind": lambda c: dataclasses.replace(c, kind="set" if c.kind != "set" else "measure"),
+        "phase": lambda c: dataclasses.replace(c, phase="posing" if c.phase != "posing" else "strategy"),
+        "layer": lambda c: dataclasses.replace(c, layer="values" if c.layer != "values" else "memo"),
+        "wave": lambda c: dataclasses.replace(c, wave="W2" if c.wave != "W2" else "W3"),
+        "ruling": lambda c: dataclasses.replace(c, ruling="O1" if c.ruling != "O1" else "O2"),
+        "functions": lambda c: dataclasses.replace(c, functions=(*c.functions, "orpheus.values.digest.digest")),
+        "theory": lambda c: dataclasses.replace(c, theory=(*c.theory, TheoryLink("ref", "architecture-conceptual-view"))),
+    }
 
-    Control: the unmutated copy renders to the committed page (the reading is not trivially red). Precondition: the
-    edited row differs from the original, so a mutation that bit nothing cannot pass.
+
+@pytest.mark.parametrize("field", list(_edits()))
+def test_page_reddens_on_a_concept_field(field) -> None:
+    """Mutation (a): each field the page shows of the concept ``tensor`` (a class head, so every field is spellable), changed in a copy of the table, makes ``render`` differ from the page.
+
+    The fields are name, definition, kind, phase, layer, wave, ruling, functions and theory. Control: the unmutated copy
+    renders to the committed page (the reading is not trivially red). Precondition: the edited row differs from the
+    original and is a well-formed row (a ``TableError`` or ``PageError`` of the mutant is ``Uninstallable``, never a red).
     """
-    table, _, _ = inputs()
-    original = next(c for c in table if c.id == "digest")
-    mutant = edit(original)
+    from tools.concept_table.table import TableError
+    table, _, _, _ = inputs()
+    original = next(c for c in table if c.id == "tensor")
+    try:
+        mutant = _edits()[field](original)
+    except TableError as error:
+        raise Uninstallable(f"editing {field} of tensor is not a row: {error}") from error
     if mutant == original:
-        raise Uninstallable(f"editing {field} of digest changed nothing")
-    changed = tuple(mutant if c.id == "digest" else c for c in table)
+        raise Uninstallable(f"editing {field} of tensor changed nothing")
+    changed = tuple(mutant if c.id == "tensor" else c for c in table)
     assert rendered(table=tuple(table)) == committed()
-    assert rendered(table=changed) != committed(), f"the page does not show the {field} of a concept"
+    try:
+        text = rendered(table=changed)
+    except page().PageError as error:
+        raise Uninstallable(f"the mutant cannot be rendered: {error}") from error
+    assert text != committed(), f"the page does not show the {field} of a concept"
 
 
 @pytest.mark.parametrize("name", ["role_test", "misplaced", "edge", "cycle", "kind_law", "operator_off_algebra", "covector_off_lineage"])
@@ -148,7 +172,7 @@ def test_page_reddens_on_a_removed_debt_entry(name) -> None:
 
     Precondition: the list is non-empty, so the removal bites. Control: the unmutated debt renders to the page.
     """
-    _, debt, _ = inputs()
+    _, debt, _, _ = inputs()
     entries = getattr(debt, name)
     if not entries:
         raise Uninstallable(f"debt list {name} is empty, nothing to remove")
@@ -163,7 +187,7 @@ def test_page_counts_the_twin_and_weld_lists(name) -> None:
 
     Reddens: a removal from either list that leaves the page unchanged.
     """
-    _, debt, _ = inputs()
+    _, debt, _, _ = inputs()
     entries = getattr(debt, name)
     if not entries:
         raise Uninstallable(f"debt list {name} is empty")
@@ -182,7 +206,7 @@ def test_render_is_invariant_under_permutation_of_its_inputs() -> None:
     from tools.concept_table.debt import CycleDebt
     from tools.concept_table.population import Population, read_sources
 
-    table, debt, population = inputs()
+    table, debt, population, _ = inputs()
     sources, skipped = read_sources(ROOT)
     reversed_sources = Population.from_sources(dict(reversed(list(sources.items()))), skipped)
     assert reversed_sources == population
@@ -264,7 +288,7 @@ def test_member_lists_redden_on_a_dropped_class() -> None:
     The dropped class is a ``part``, ``component`` or ``arm`` row that no ``missing`` head names as an arm, so ``render``
     still succeeds. Precondition: the copy has one row fewer. Control: the unmutated population renders the walked set.
     """
-    table, _, population = inputs()
+    table, _, population, _ = inputs()
     named = {k for c in table if hasattr(c.head, "arms") for k in c.head.arms}
     victim = next(r for r in population.rows if r.declaration is not None and r.declaration.role in ("part", "component", "arm")
                   and r.key not in named)
@@ -282,7 +306,7 @@ def test_every_concept_has_its_label_on_a_heading() -> None:
     Reddens: a missing label, a doubled prefix (``concept-concept-``), a label on a table cell and not a title.
     """
     lines = committed().split("\n")
-    table, _, _ = inputs()
+    table, _, _, _ = inputs()
     assert not any("concept-concept-" in line for line in lines)
     for c in table:
         at = [n for n, line in enumerate(lines) if line == f".. _{c.slug}:"]
@@ -306,50 +330,92 @@ def test_classes_and_functions_carry_no_sphinx_role() -> None:
     """
     text = committed()
     assert not PYTHON_ROLES.search(text), PYTHON_ROLES.search(text)
-    table, _, _ = inputs()
+    table, _, _, _ = inputs()
     for c in table:
         for entry in c.functions:
-            assert f"``{entry}``" in text, entry
+            found = re.search(rf"``{re.escape(entry)}`` \(``(orpheus/[a-z_/]+\.py)``\)", text)
+            assert found, f"{entry} carries no file path"
+            names = {n.name for n in ast.walk(ast.parse((ROOT / found[1]).read_text())) if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+            assert entry.split(".")[-1] in names, (entry, found[1])
 
 
 def test_theory_links_are_conserved_on_the_page() -> None:
-    """Conservation (3.3): the table carries 107 theory occurrences on 102 distinct targets, each on one concept, each on the page with its explicit link text.
+    """Conservation (3.3): the table carries 102 theory entries on 102 distinct targets, each on one concept, each on the page with its explicit link text.
 
-    Pinned counts are the measurement of the integration; a change of a count is a ruled edit of the table. The multiset
-    equality with the replaced table was checked once by the builder (recorded in the commit message).
-    Reddens: a target on two concepts, a target missing from the page, a ``ref`` without link text (a label on a paragraph fails ``-W``).
+    The replaced table had 107 occurrences on these 102 targets (5 repeats); a per-concept field holds one entry per
+    target, so the occurrence count is the builder's one-time check (multiset equality with the old table, recorded in
+    the commit message) and not a quantity of the table. The pinned counts are the measurement of the integration; a
+    change of a count is a ruled edit of the table. Reddens: a target on two concepts, a target missing from the page, a ``ref`` without link text (a label on a paragraph fails ``-W``).
     """
-    table, _, _ = inputs()
-    owner: dict[str, set[str]] = {}
+    table, _, _, _ = inputs()
+    owner: dict[tuple[str, str], set[str]] = {}
     for c in table:
         for t in c.theory:
-            owner.setdefault(t, set()).add(c.id)
-    assert sum(len(c.theory) for c in table) == THEORY_OCCURRENCES_CARRIED
-    assert len(owner) == THEORY_TARGETS_CARRIED
+            owner.setdefault((t.kind, t.label), set()).add(c.id)
+    assert sum(len(c.theory) for c in table) == len(owner) == THEORY_TARGETS_CARRIED
     assert all(len(v) == 1 for v in owner.values()), sorted(t for t, v in owner.items() if len(v) > 1)
     assert sum(len(c.functions) for c in table) == FUNCTIONS_ENTRIES
     text = committed()
-    for t in owner:
-        kind, label = t.split(":", 1)
+    for kind, label in owner:
         shown = f":ref:`{label} <{label}>`" if kind == "ref" else f":eq:`{label}`"
-        assert shown in text, t
+        assert shown in text, (kind, label)
 
 
-def test_enumerations_are_the_codes_own() -> None:
-    """``tuple(ROLE_INFO) == ROLES``, and the page shows every role, kind, phase, gloss and gate from the code's own constants (never re-typed).
+def section(text: str, title: str) -> list[str]:
+    """The lines of ``text`` under the heading ``title`` (its underline included) up to the next underlined heading."""
+    lines = text.split("\n")
+    start = next(n for n, line in enumerate(lines) if line == title and lines[n + 1] and set(lines[n + 1]) <= set("=-~") and len(lines[n + 1]) == len(title))
+    end = next((n for n in range(start + 2, len(lines) - 1) if lines[n] and set(lines[n + 1]) <= set("=-~") and len(lines[n + 1]) == len(lines[n])
+                and lines[n + 1] and lines[n].strip() == lines[n]), len(lines))
+    return lines[start:end]
 
-    Reddens: a role added to ``ROLES`` with no gloss, a gloss that falls out of the page.
-    """
-    from tools.concept_table.declaration import KINDS, ROLES, SUBKINDS
+
+def table_rows(lines: list[str]) -> list[list[str]]:
+    """The data rows of the ``list-table`` in ``lines``, each as its cells (the header row is dropped)."""
+    rows: list[list[str]] = []
+    for line in lines:
+        if line.startswith("   * - "):
+            rows.append([line[7:]])
+        elif line.startswith("     - ") and rows:
+            rows[-1].append(line[7:])
+    return rows[1:]
+
+
+def assert_enumerations(text: str) -> None:
+    """The roles table, the kinds table and the phases line of ``text`` are the code's own tuples, in order."""
+    from tools.concept_table.declaration import KINDS, ROLES, SUBKINDS, grammar
     from tools.concept_table.table import PHASE_ORDER
 
     mod = page()
     assert tuple(mod.ROLE_INFO) == ROLES
+    roles = table_rows(section(text, "The roles"))
+    assert roles == [[f"``{r}``", mod.ROLE_INFO[r][0], mod.ROLE_INFO[r][1]] for r in ROLES]
+    kinds = table_rows(section(text, "The kinds"))
+    assert kinds == [[f"``{k}``", ", ".join(f"``{s}``" for s in SUBKINDS.get(k, ())) or "none"] for k in KINDS]
+    phases = section(text, "The phases")
+    assert any(line.endswith(": " + ", ".join(f"``{p}``" for p in PHASE_ORDER) + ".") for line in phases), phases
+    assert f"   {grammar()}" in section(text, "The declaration")
+
+
+def test_enumerations_are_the_codes_own() -> None:
+    """The roles table, the kinds table (with sub-kinds), the phases line and the grammar line, each read from its own section, equal the code's tuples in order.
+
+    The check is on the emitted structure and not on substring presence (every word also occurs in the member bullets).
+    Reddens (in-process, on a copy of the page text, the controls of this test): the kinds section, the phases line or a
+    roles row removed; ``tuple(ROLE_INFO) == ROLES`` fails for a role with no gloss.
+    """
     text = committed()
-    for role, (gloss, gate) in mod.ROLE_INFO.items():
-        assert gloss in text and gate in text, role
-    for word in (*KINDS, *PHASE_ORDER, *(s for subs in SUBKINDS.values() for s in subs)):
-        assert word in text, word
+    assert_enumerations(text)
+    for title in ("The roles", "The kinds", "The phases", "The declaration"):
+        assert len(section(text, title)) > 3, title
+    kinds = "\n".join(section(text, "The kinds"))
+    phases_line = next(line for line in section(text, "The phases") if line.startswith("In order"))
+    first_role = table_rows(section(text, "The roles"))[0][0]
+    for what, mutant in (("kinds table", text.replace(kinds, "The kinds\n~~~~~~~~~\n")), ("phases line", text.replace(phases_line, "")),
+                         ("roles row", text.replace(f"   * - {first_role}\n", "   * - ``gone``\n"))):
+        assert mutant != text, what
+        with pytest.raises(AssertionError):
+            assert_enumerations(mutant)
 
 
 # --- the unit's wiring ------------------------------------------------------------------------------------------

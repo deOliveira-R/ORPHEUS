@@ -20,7 +20,7 @@ import re
 import tomllib
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar, Literal, NamedTuple, get_args
 
 from .declaration import CONCEPT_ID, KINDS
 from .population import ClassKey, Population
@@ -32,13 +32,36 @@ FUNCTIONS_HEAD_RULING = "O36"
 _LAYER = re.compile(r"[a-z][a-z0-9_]*\Z")
 _RULING = re.compile(r"O[0-9]+\Z")
 _FUNCTION = re.compile(r"orpheus(\.[A-Za-z_][A-Za-z0-9_]*)+\Z")
-_THEORY = re.compile(r"(ref|eq):\S+\Z")
 _KEYS = ("id", "name", "definition", "kind", "phase", "layer", "wave", "ruling", "sum", "functions_head", "missing", "arms",
          "functions", "theory")
 
 
 class TableError(ValueError):
     """A row of the concept table that is not well formed, or a table that is not TOML."""
+
+
+class TheoryLink(NamedTuple):
+    """A link of a concept to a theory page: ``ref:<label>`` (a section label) or ``eq:<label>`` (an equation label).
+
+    The one parse of the stored spelling; ``str(link)`` is that spelling and ``role()`` the Sphinx role that cites it.
+    """
+
+    kind: Literal["ref", "eq"]
+    label: str
+
+    @classmethod
+    def parse(cls, text: str) -> TheoryLink:
+        kind, sep, label = text.partition(":")
+        if not sep or kind not in ("ref", "eq") or not label or any(ch.isspace() for ch in label):
+            raise ValueError(f"theory label {text!r} is not 'ref:<label>' or 'eq:<label>'")
+        return cls(kind, label)  # type: ignore[arg-type]
+
+    def __str__(self) -> str:
+        return f"{self.kind}:{self.label}"
+
+    def role(self) -> str:
+        """The role that cites the label, with its link text when it is a section (a bare ``:ref:`` of a paragraph label fails ``-W``)."""
+        return f":ref:`{self.label} <{self.label}>`" if self.kind == "ref" else f":eq:`{self.label}`"
 
 
 def rank(phase: str) -> int:
@@ -50,10 +73,14 @@ def rank(phase: str) -> int:
 class ClassHead:
     """The head is the one class that declares ``role: head`` for the concept."""
 
+    form: ClassVar[str] = "class"
+
 
 @dataclasses.dataclass(frozen=True)
 class SumHead:
     """The head is a named closed sum: the module-level union alias ``alias`` of ``file``."""
+
+    form: ClassVar[str] = "sum"
 
     file: str
     alias: str
@@ -67,15 +94,21 @@ class SumHead:
 class FunctionsHead:
     """The concept is realised by the entries of its ``functions`` field; it has no class, no alias and no wave."""
 
+    form: ClassVar[str] = "functions"
+
 
 @dataclasses.dataclass(frozen=True)
 class MissingHead:
     """The head does not exist yet; ``arms`` names the classes that already realise the concept."""
 
+    form: ClassVar[str] = "missing"
+
     arms: tuple[ClassKey, ...] = ()
 
 
 Head = ClassHead | SumHead | FunctionsHead | MissingHead
+#: The forms of a head, in the order of the sum: the one enumeration (each arm names its own ``form``).
+HEAD_FORMS: tuple[str, ...] = tuple(arm.form for arm in get_args(Head))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -92,7 +125,7 @@ class Concept:
     ruling: str
     head: Head
     functions: tuple[str, ...] = ()
-    theory: tuple[str, ...] = ()
+    theory: tuple[TheoryLink, ...] = ()
 
     def __post_init__(self) -> None:
         def refuse(field: str, value: object, allowed: str) -> None:
@@ -126,9 +159,6 @@ class Concept:
         for entry in self.functions:
             if not _FUNCTION.match(entry):
                 refuse("functions entry", entry, "a dotted name 'orpheus.<module>.<name>'")
-        for label in self.theory:
-            if not _THEORY.match(label):
-                refuse("theory label", label, "'ref:<label>' or 'eq:<label>'")
 
     @property
     def slug(self) -> str:
@@ -175,6 +205,16 @@ def _text(row: Mapping[str, Any], field: str, cid: str) -> str:
     return value
 
 
+def _theory(row: Mapping[str, Any], cid: str) -> tuple[TheoryLink, ...]:
+    out = []
+    for text in _strings(row, "theory", cid):
+        try:
+            out.append(TheoryLink.parse(text))
+        except ValueError as error:
+            raise TableError(f"concept {cid!r}: theory label {text!r} is not 'ref:<label>' or 'eq:<label>'") from error
+    return tuple(out)
+
+
 def _strings(row: Mapping[str, Any], field: str, cid: str) -> tuple[str, ...]:
     value = row.get(field, [])
     if not isinstance(value, list) or not all(isinstance(x, str) for x in value):
@@ -210,7 +250,7 @@ def loads_table(text: str) -> tuple[Concept, ...]:
             id=_text(row, "id", cid), name=_text(row, "name", cid), definition=_text(row, "definition", cid),
             kind=_text(row, "kind", cid), phase=phase, layer=_text(row, "layer", cid), wave=wave,
             ruling=_text(row, "ruling", cid), head=_head_of(row, cid), functions=_strings(row, "functions", cid),
-            theory=_strings(row, "theory", cid)))
+            theory=_theory(row, cid)))
     return tuple(out)
 
 

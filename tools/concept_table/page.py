@@ -13,14 +13,16 @@ from __future__ import annotations
 
 import collections
 import sys
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
+from typing import assert_never
 
-from .debt import Debt, Entry, load_debt, wave_of
-from .declaration import KINDS, ROLES, SUBKINDS, Declaration
+from .checks import function_resolver
+from .debt import Debt, load_debt, wave_of
+from .declaration import KINDS, ROLES, SUBKINDS, Declaration, grammar
 from .paths import DEBT_FILE, ROOT, TABLE_FILE
 from .population import ClassKey, Population, read_tree
-from .table import PHASE_ORDER, Concept, FunctionsHead, MissingHead, SumHead, heads, load_table
+from .table import HEAD_FORMS, PHASE_ORDER, WAVES, ClassHead, Concept, FunctionsHead, MissingHead, SumHead, heads, load_table
 
 PAGE_FILE = "docs/architecture/concept_table.rst"
 INTRO = "concept_table_intro.inc.rst"
@@ -38,8 +40,8 @@ ROLE_INFO: dict[str, tuple[str, str]] = {
     "annex": ("a record kept beside the concept that is not part of it", "G4, kind law 2"),
 }
 
-_EXAMPLES = (Declaration("measure", ROLES[0], KINDS[1], None, ()),
-             Declaration("a", "weld", "element", SUBKINDS["element"][0], ("a", "b")))
+_EXAMPLES = (Declaration("measure", "head", "measure", None, ()),
+             Declaration("a", "weld", "element", "member", ("a", "b")))
 _BULLET = "- "
 
 
@@ -58,10 +60,6 @@ def _lit(qualname: str, file: str) -> str:
     return f"``{qualname}`` (``{file}``)"
 
 
-def _kind(kind: str, subkind: str | None) -> str:
-    return kind + (f".{subkind}" if subkind else "")
-
-
 def _row(cells: Sequence[Sequence[str]]) -> list[str]:
     out: list[str] = []
     for n, cell in enumerate(cells):
@@ -70,7 +68,7 @@ def _row(cells: Sequence[Sequence[str]]) -> list[str]:
             out.append(lead.rstrip())
             continue
         out.append(lead + cell[0])
-        out.extend("       " + line for line in cell[1:])
+        out.extend(("       " + line).rstrip() for line in cell[1:])
     return out
 
 
@@ -86,96 +84,60 @@ def _heading(text: str, char: str) -> list[str]:
     return [text, char * len(text), ""]
 
 
-def _module_file(dotted: str, files: frozenset[str]) -> str | None:
-    """The file of the longest module prefix of ``dotted`` that is a file of the population, or ``None``."""
-    parts = dotted.split(".")
-    for n in range(len(parts), 0, -1):
-        base = "/".join(parts[:n])
-        for candidate in (base + ".py", base + "/__init__.py"):
-            if candidate in files:
-                return candidate
-    return None
+def _function_line(entry: str, defined: Mapping[str, str]) -> str:
+    return _BULLET + f"``{entry}`` (``{defined[entry]}``)"
 
 
-def _status(concept: Concept) -> str:
-    if isinstance(concept.head, SumHead):
-        return "sum"
-    if isinstance(concept.head, FunctionsHead):
-        return "functions"
-    if isinstance(concept.head, MissingHead):
-        return "missing"
-    return "class"
+def _head_cell(concept: Concept, found: Sequence[ClassKey], defined: Mapping[str, str]) -> list[str]:
+    """The head of a concept as its form states it: one case per arm of the sum ``Head``, closed by ``assert_never``."""
+    head = concept.head
+    match head:
+        case SumHead():
+            return [_lit(head.alias, head.file) + " (sum)"]
+        case FunctionsHead():
+            return ["functions", ""] + [_function_line(entry, defined) for entry in concept.functions]
+        case MissingHead():
+            arms = sorted(head.arms)
+            return ["missing"] + ([f"arms: {', '.join(_lit(k.qualname, k.file) for k in arms)}"] if arms else [])
+        case ClassHead():
+            return [_lit(k.qualname, k.file) for k in sorted(found)] or ["no class head"]
+        case _:
+            assert_never(head)
 
 
-def _head_cell(concept: Concept, found: Sequence[ClassKey]) -> list[str]:
-    if isinstance(concept.head, SumHead):
-        return [_lit(concept.head.alias, concept.head.file) + " (sum)"]
-    if isinstance(concept.head, FunctionsHead):
-        return ["functions"]
-    if isinstance(concept.head, MissingHead):
-        arms = sorted(concept.head.arms)
-        return ["missing"] + ([f"arms: {', '.join(_lit(k.qualname, k.file) for k in arms)}"] if arms else [])
-    if not found:
-        return ["no class head"]
-    return [_lit(k.qualname, k.file) for k in sorted(found)]
+def _realised_cell(concept: Concept, defined: Mapping[str, str]) -> list[str]:
+    return ([_function_line(entry, defined) for entry in concept.functions]
+            + [_BULLET + link.role() for link in concept.theory])
 
 
-def _realised_cell(concept: Concept, files: frozenset[str]) -> list[str]:
-    out = []
-    for entry in concept.functions:
-        file = _module_file(entry, files)
-        out.append(_BULLET + f"``{entry}``" + (f" (``{file}``)" if file else ""))
-    for link in concept.theory:
-        kind, label = link.split(":", 1)
-        out.append(_BULLET + (f":ref:`{label} <{label}>`" if kind == "ref" else f":eq:`{label}`"))
-    return out
-
-
-def _entry_line(entry: Entry) -> str:
-    """The one line of a debt entry: the spelling of ``str`` with the class keys as literals."""
-    return f"``{entry}``"
-
-
-def _sorted_entries(name: str, entries: Sequence[Entry]) -> list[Entry]:
-    keys = {
-        "role_test": lambda e: (e.test, e.key),
-        "misplaced": lambda e: e.key,
-        "edge": lambda e: (e.src, e.dst, e.kind),
-        "cycle": lambda e: (-len(e.concepts), min(e.concepts)),
-        "kind_law": lambda e: (e.law, e.key),
-        "operator_off_algebra": lambda e: e.key,
-        "covector_off_lineage": lambda e: e.key,
-    }
-    return sorted(entries, key=keys[name])
-
-
-def render(table: tuple[Concept, ...], debt: Debt, population: Population) -> str:
-    """The text of the page: one function of the table, the debt and the population, each read as a set."""
+def render(table: tuple[Concept, ...], debt: Debt, population: Population, defined: Mapping[str, str]) -> str:
+    """The text of the page: one function of the table, the debt, the population and the file of each ``functions`` entry, each read as a set."""
     concepts = tuple(sorted(table, key=lambda c: c.id))
     ids = {c.id for c in concepts}
-    files = frozenset(r.key.file for r in population.rows)
+    unresolved = sorted({e for c in concepts for e in c.functions} - defined.keys())
+    if unresolved:
+        raise PageError(f"functions entries with no defining file: {unresolved}")
     found = heads(population, concepts)
-    members: dict[str, list[tuple[str, ClassKey, Declaration]]] = {c.id: [] for c in concepts}
+    members: dict[str, dict[str, list[tuple[ClassKey, Declaration]]]] = {c.id: {role: [] for role in ROLES} for c in concepts}
     for row in population.rows:
         d = row.declaration
         if d is None:
             raise PageError(f"{row.key} has no parsable declaration")
         if d.concept not in ids:
             raise PageError(f"{row.key} declares concept {d.concept!r}, which the table does not hold")
-        members[d.concept].append((d.role, row.key, d))
+        members[d.concept][d.role].append((row.key, d))
 
-    by_role: collections.Counter[str] = collections.Counter(d.role for ms in members.values() for _, _, d in ms)
-    by_kind: collections.Counter[str] = collections.Counter(d.kind for ms in members.values() for _, _, d in ms)
-    status: collections.Counter[str] = collections.Counter(_status(c) for c in concepts)
+    by_role: collections.Counter[str] = collections.Counter(d.role for by in members.values() for ms in by.values() for _, d in ms)
+    by_kind: collections.Counter[str] = collections.Counter(d.kind for by in members.values() for ms in by.values() for _, d in ms)
+    status: collections.Counter[str] = collections.Counter(c.head.form for c in concepts)
 
     out: list[str] = [MARKER, "", ".. _architecture-concept-table:", ""]
     out += _heading("The concept table", "=")
     out += [f".. include:: {INTRO}", ""]
 
     out += _heading("The declaration", "-")
-    example = " | ".join(f"{k}: {v}" for k, v in (("concept", "<id>"), ("role", "<role>"), ("kind", "<kind>[.<subkind>]")))
     out += ["The comment on the line that ends a class header, in exactly this field order:", "",
-            ".. code-block:: text", "", f"   # {example} [| welded: <id>, <id>, ...]", ""]
+            ".. code-block:: text", "", f"   {grammar()}", ""]
     out += ["Two examples, as the code renders them:", "", ".. code-block:: text", ""]
     out += [f"   {d.render()}" for d in _EXAMPLES] + [""]
     out += _heading("The roles", "~")
@@ -193,17 +155,17 @@ def render(table: tuple[Concept, ...], debt: Debt, population: Population) -> st
         [["concepts"], [str(len(concepts))]],
         *([[f"classes by role: ``{r}``"], [str(by_role[r])]] for r in ROLES),
         *([[f"classes by kind: ``{k}``"], [str(by_kind[k])]] for k in KINDS),
-        *([[f"concepts with head status ``{s}``"], [str(status[s])]] for s in ("class", "sum", "functions", "missing")),
+        *([[f"concepts with head status ``{s}``"], [str(status[s])]] for s in HEAD_FORMS),
     ])
 
     out += _heading("The concepts", "-")
     rows = []
     for c in concepts:
-        counts = collections.Counter(role for role, _, _ in members[c.id])
+        by_role_of_c = members[c.id]
         rows.append([
             [f":ref:`{c.id} <{c.slug}>`"], [_escape(c.name)], [_escape(c.definition)], [c.kind], [c.phase or ""],
-            [c.layer], [c.wave or ""], [c.ruling], _head_cell(c, found[c.id]),
-            [", ".join(f"{r} {counts[r]}" for r in ROLES if counts[r])], _realised_cell(c, files)])
+            [c.layer], [c.wave or ""], [c.ruling], _head_cell(c, found[c.id], defined),
+            [", ".join(f"{r} {len(by_role_of_c[r])}" for r in ROLES if by_role_of_c[r])], _realised_cell(c, defined)])
     out += _table(["id", "name", "definition", "kind", "phase", "layer", "wave", "ruling", "head", "rows by role",
                    "realised by; theory"], [8, 8, 24, 5, 6, 6, 4, 5, 14, 8, 12], rows)
 
@@ -211,14 +173,13 @@ def render(table: tuple[Concept, ...], debt: Debt, population: Population) -> st
     for c in concepts:
         out += [f".. _{c.slug}:", ""] + _heading(c.id, "~")
         for role in ROLES:
-            listed = sorted((k for r, k, _ in members[c.id] if r == role))
+            listed = sorted(members[c.id][role], key=lambda member: member[0])
             if not listed:
                 continue
             out += [f".. rubric:: {role}", ""]
-            for key in listed:
-                d = next(d for r, k, d in members[c.id] if k == key)
+            for key, d in listed:
                 welded = f" [welded: {', '.join(d.welded)}]" if d.welded else ""
-                out.append(f"- ``{key.qualname}`` (``{key.file}``) ``{_kind(d.kind, d.subkind)}``{welded}")
+                out.append(f"- ``{key.qualname}`` (``{key.file}``) ``{d.kind_text}``{welded}")
             out.append("")
 
     out += _heading("Pending entries (concept_debt.toml)", "-")
@@ -233,21 +194,30 @@ def render(table: tuple[Concept, ...], debt: Debt, population: Population) -> st
         for entry in entries:
             per_wave.update(wave_of(entry, concepts, population))
         count_rows.append([[f"``{name}``"], [str(len(entries))],
-                           [", ".join(f"{w} {n}" for w, n in sorted(per_wave.items())) or "none"]])
+                           [", ".join(f"{w} {per_wave[w]}" for w in WAVES if per_wave[w]) or "none"]])
     out += _table(["list", "total", "per wave"], [30, 10, 60], count_rows)
     for name, entries in lists.items():
         if name in ("twin", "weld"):
             continue
         out += _heading(name, "~")
-        shown = _sorted_entries(name, entries)
-        out += [_BULLET + _entry_line(e) for e in shown] if shown else ["none"]
+        out += [_BULLET + f"``{e}``" for e in sorted(entries)] or ["none"]
         out.append("")
     return "\n".join(out).rstrip("\n") + "\n"
 
 
-def load_inputs(root: Path = ROOT) -> tuple[tuple[Concept, ...], Debt, Population]:
-    """The table, the debt and the population of the tree at ``root``."""
-    return load_table(root / TABLE_FILE), load_debt(root / DEBT_FILE), read_tree(root)
+def load_inputs(root: Path = ROOT) -> tuple[tuple[Concept, ...], Debt, Population, dict[str, str]]:
+    """The table, the debt, the population and the defining file of each ``functions`` entry, of the tree at ``root``.
+
+    The file is the one ``checks.function_resolver`` finds (the resolver G0 uses), so the page and the check cannot
+    disagree on where an entry lives; an entry that does not resolve is refused.
+    """
+    table = load_table(root / TABLE_FILE)
+    resolve = function_resolver(root)
+    defined = {entry: file for c in table for entry in c.functions if (file := resolve(entry)) is not None}
+    missing = sorted({e for c in table for e in c.functions} - defined.keys())
+    if missing:
+        raise PageError(f"functions entries not defined in the tree: {missing}")
+    return table, load_debt(root / DEBT_FILE), read_tree(root), defined
 
 
 def main(argv: list[str]) -> int:

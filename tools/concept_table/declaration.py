@@ -13,6 +13,11 @@ from dataclasses import dataclass
 ROLES = ("head", "arm", "weld", "part", "component", "interface", "twin", "annex")
 KINDS = ("set", "measure", "space", "element", "morphism", "record", "apparatus")
 SUBKINDS = {"element": ("member", "covector"), "morphism": ("operator",)}
+#: The fields of a declaration in their one order, the separator between them and the comment prefix: the one spelling
+#: of the grammar, consumed by ``Declaration.render``, by ``parse_declaration`` and by ``grammar`` (the page's line).
+FIELDS = ("concept", "role", "kind", "welded")
+SEPARATOR = " | "
+PREFIX = "# "
 _MARK = re.compile(r"#\s*concept:")
 CONCEPT_ID = re.compile(r"(EXT:)?[a-z][a-z0-9-]*\Z")
 
@@ -43,10 +48,25 @@ class Declaration:
         if self.welded and (self.welded[0] != self.concept or len(self.welded) < 2 or len(set(self.welded)) != len(self.welded)):
             raise DeclarationError("welded starts with the row's concept, holds at least two distinct ids")
 
+    @property
+    def kind_text(self) -> str:
+        """The kind as written: ``kind`` or ``kind.subkind``."""
+        return self.kind + (f".{self.subkind}" if self.subkind else "")
+
     def render(self) -> str:
-        kind = self.kind + (f".{self.subkind}" if self.subkind else "")
-        text = f"# concept: {self.concept} | role: {self.role} | kind: {kind}"
-        return text + (f" | welded: {', '.join(self.welded)}" if self.welded else "")
+        values = (self.concept, self.role, self.kind_text, ", ".join(self.welded))
+        return _line(values[:4 if self.welded else 3])
+
+
+def _line(values: tuple[str, ...]) -> str:
+    """The declaration comment whose fields ``FIELDS[:len(values)]`` have ``values``."""
+    return PREFIX + SEPARATOR.join(f"{field}: {value}" for field, value in zip(FIELDS, values))
+
+
+def grammar() -> str:
+    """The grammar as one line, from ``FIELDS``, ``SEPARATOR`` and ``PREFIX``: the line ``Declaration.render`` fills in."""
+    required = _line(("<id>", "<role>", "<kind>[.<subkind>]"))
+    return required + f" [{SEPARATOR.strip()} {FIELDS[3]}: <id>, <id>, ...]"
 
 
 def parse_declaration(comment: str) -> Declaration:
@@ -54,13 +74,13 @@ def parse_declaration(comment: str) -> Declaration:
     body = comment.split("#")[1]
     keys: list[str] = []
     got: dict[str, str] = {}
-    for field in body.split("|"):
+    for field in body.split(SEPARATOR.strip()):
         key, sep, value = field.strip().partition(":")  # an id may hold ':' ("EXT:citation"): only the first ':' splits
-        if not sep or key not in ("concept", "role", "kind", "welded") or key in got:
+        if not sep or key not in FIELDS or key in got:
             raise DeclarationError(f"field {field.strip()!r} is not 'concept:', 'role:', 'kind:' or 'welded:', or is repeated")
         keys.append(key)
         got[key] = value.strip()
-    if keys not in (["concept", "role", "kind"], ["concept", "role", "kind", "welded"]):
+    if keys not in (list(FIELDS[:3]), list(FIELDS)):
         raise DeclarationError(f"fields are concept, role, kind and optionally welded, in that order; got {keys}")
     kind, _, sub = got["kind"].partition(".")
     welded = tuple(x.strip() for x in got["welded"].split(",")) if "welded" in got else ()

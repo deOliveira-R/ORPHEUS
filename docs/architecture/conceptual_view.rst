@@ -4,15 +4,15 @@ The conceptual view — a Problem, a Solution, and the mathematics between them
 =============================================================================
 
 This page maps ORPHEUS as mathematics: what the code is made of, in the
-order a reader meets it, with every concept pointing at the theory page
-that defines it and at the class that realises it. It defines nothing
-itself. The layering page (:ref:`architecture-layering`) says where each
-package lives; this page says what the packages are, together. A concept
+order a reader meets it. The table of concepts, each with its definition,
+its theory links and the classes that realise it, is the generated page
+:doc:`concept_table`; this page is the prose around it and defines no concept. The
+layering page (:ref:`architecture-layering`) says where each package lives; this page says what the packages are, together. A concept
 whose definition the corpus does not yet carry is said to be owed, with
 the nearest page, rather than defined here.
 
 The tree it describes is ``main`` at ``b4865b5e`` (2026-09-21), except
-that every row and paragraph on the boundary was rewritten at the tip of
+that every paragraph on the boundary was rewritten at the tip of
 the wave-2 boundary carve, ``471c4737`` (2026-10-24), which replaced the
 trace-law architecture by the face role, the wall condition on a cone, the
 binding and the per-method realizer table (the present architecture is
@@ -528,7 +528,7 @@ vector) and ``dominant_eigenpair`` (the dense gate oracle's, in production until
 docstring claims the full contract, `#580 <https://github.com/deOliveira-R/ORPHEUS/issues/580>`_). They differ in
 strength by design, and they exist twice so that a reference agreeing with production shares no extraction code with it.
 
-**From a face role to a wall, in the closed references.** :func:`~orpheus.derivations.common.reference_body.amplitudes_at`
+**From a face role to a wall, in the closed references.** ``orpheus.derivations.common.reference_body.amplitudes_at`` (``orpheus/derivations/common/reference_body.py``)
 is the one reader of a face role's amplitudes, read by
 :meth:`Walls.of <orpheus.derivations.continuous.characteristic.walls.Walls.of>` and by
 :func:`~orpheus.derivations.common.reference_body.specular_albedos` (:ref:`characteristic-walls-roles`,
@@ -537,7 +537,7 @@ ruling of 2026-10-06); the only translation to production's conditions is the te
 ``tests/gates/_reference_pairing.py``, built on the primitives-taking
 :meth:`WallCondition.from_amplitudes <orpheus.transport.boundary_conditions.WallCondition.from_amplitudes>`.
 
-**The module role.** :mod:`orpheus.numerics.coefficient_layout` is a module, not a function; it realises the concept
+**The module role.** ``orpheus.numerics.coefficient_layout`` (``orpheus/numerics/coefficient_layout.py``) is a module, not a function; it realises the concept
 ``layout``, whose arms the concept table lists.
 
 
