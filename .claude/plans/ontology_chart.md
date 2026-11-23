@@ -735,6 +735,22 @@ What the specification's measurements decided `[M]` 2026-11-23 (files `scratch/o
 
 Orchestrator decisions of the amendment (O2), beyond the synthesis: the build order is leaves first, twelve serial units with one parallel pair (harness; dense-inverse with half-range; factor; tensor-core; direct-sum; trace; closing; four; pairing; trace-area; production-typing); no production factor is ever minted with a placeholder variance; stored coordinates are always on the axis's full index set, so the dual and the Riesz map keep the stored shape; the orientation of a face is a function, and a face's summand is identified by its label; legality of the Riesz map is stated once, on the density end; the legacy leaf branches stay in the base under a tag between tensor-core and closing.
 
+**The per-unit check and the two layers** `[M]` 2026-11-23, run `wf_540f206b-6de`: 20 reads (an elegance read and a structure read on each of 10 scopes), 221 findings, with findings that block the build in 10 of 10 scopes (`scratch/ontology/w1/spec/check2/triage.md`). A large share depend on the tree the previous unit leaves (file sets, successors of deleted members, first reds). The orchestrator's decision (O2): the specification has two layers. The design layer (sections 1 to 5 and 8 to 12, with the unit plan table 6.0a) is finished for the user's checkpoint. Each unit's sections 6.x and 7.x are marked NOT FINAL and are finalised when the unit opens, on the tree the previous unit left: the opening measurements, the amendment on that unit's findings (`scratch/ontology/w1/spec/check2/opening_<unit>.md`, twelve files), a per-unit check of the final text, then the build. The specification is 1026 lines after passes 2 and 2b; the rulings are `scratch/ontology/w1/spec/amendment_decisions_2.md` (P2-1 to P2-15) and `amendment_decisions_2b.md` (P2b-1 to P2b-10).
+
+What passes 2 and 2b changed in the design:
+- **An illegal factor cannot be constructed** (P2-1): on an axis with a singular form the factor states the quotient that removes the kernel, so `dual` and `riesz` are total; of the 324 states of the 4-coordinate axis 216 construct and 108 are refused.
+- **A 1-D face's spatial factor is one point with index shape `()`** (P2-2): no stored array changes shape; `numerics/axis.py:534` refuses rank 0 today, and the rest of the axis stack on a rank-0 axis is `[R]` until the trace unit opens.
+- **A face summand has a fourth factor where the scheme has face moments** (P2-3); its chart is W3's, tagged.
+- **The frame head** (P2-4): today's moment space is the integrated factor and its form is the inverse of the basis Gram, returned by the existing constructors. Frame coefficient axes have rank 2 `[M]`, so subquotient declarations live on the flattened index set.
+- **The completion is a map** `e_V` (P2-12), and the member norms go through it (`numerics/iteration.py:808` makes 4,171 `space.norm` calls in one SN gate file).
+- **Six cutoffs on the sign of a direction cosine get one owner** (P2-7, P2b-5), `[R]` until the half-range unit's opening read; the seventh, in MoC, stays on #750.
+- **Digests of axis-built spaces move at the factor unit and again at the tensor-core unit**, with no transitional encoder (P2b-1; 0 literal pins of a space digest `[M]`).
+- **`InnerProductFunctional` stays until W2** under a tag and loses only its head role (P2b-8, correcting P2-14): `RankOneOperator` decides the fission transpose by an `isinstance` on it inside `numerics/`, and moving the body to `transport/` would be a forbidden import edge. W1 retires 12 classes.
+- **All three sharp methods declare their pair** in the last unit (P2b-6).
+- **Two new type names collided** with existing classes and are renamed `VarianceChart` and `NoForm` (P2b-7).
+- **`Axis` stays declared a weld** until W8a (P2b-3), which adds 0 role rows; re-tagging it a component would have added 7.
+- **Two concept-table questions for the user under U8**, with the tool's own checks simulated: (a) a named closed sum for the space on a new concept `space` forces `tensor` and `dsum` to merge into it (0 new debt rows); (b) a new concept `pair` in `numerics` for the trial-and-test pair mints 2 role rows (`FieldRole`, `RolePair`) until W3.
+
 **The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
 
 ## Open questions for the user
