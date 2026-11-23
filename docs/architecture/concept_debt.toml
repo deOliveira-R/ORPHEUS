@@ -743,10 +743,6 @@ concepts = ["algorithm", "green", "schedule", "strategy"]
 
 [[kind_law]]
 law = "head_arm_kind"
-class = "orpheus/numerics/functional.py::InnerProductFunctional"
-
-[[kind_law]]
-law = "head_arm_kind"
 class = "orpheus/numerics/observable.py::FluxIntegral"
 
 [[kind_law]]
@@ -764,10 +760,6 @@ class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolveMoment"
 [[kind_law]]
 law = "head_arm_kind"
 class = "orpheus/transport/fields/_bases.py::RolePair"
-
-[[kind_law]]
-law = "head_arm_kind"
-class = "orpheus/transport/reaction_rate_functional.py::ReactionRateFunctional"
 
 [[kind_law]]
 law = "apparatus_row"

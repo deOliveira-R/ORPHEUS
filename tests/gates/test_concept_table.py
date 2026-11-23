@@ -27,7 +27,7 @@ import pytest
 
 from tests.gates.test_concept_table_machinery import ct, key
 from tests.gates.test_layer_imports import FORBIDDEN_EDGES
-from tools.concept_table.paths import ARCH, ROOT
+from tools.concept_table.paths import DEBT_FILE, ROOT, SEED_FILE, TABLE_FILE
 
 pytestmark = pytest.mark.foundation
 
@@ -49,8 +49,8 @@ def world() -> types.SimpleNamespace:
     pop = m.population.Population.from_sources(sources)
     edges = frozenset(m.refs.read_edges(sources, pop))
     return types.SimpleNamespace(
-        sources=sources, pop=pop, edges=edges, concepts=m.table.load_table(ARCH / "concept_table.toml"),
-        debt=m.debt.load_debt(ARCH / "concept_debt.toml"), seed=m.debt.load_seed(ARCH / "concept_seed.toml"))
+        sources=sources, pop=pop, edges=edges, concepts=m.table.load_table(ROOT / TABLE_FILE),
+        debt=m.debt.load_debt(ROOT / DEBT_FILE), seed=m.debt.load_seed(ROOT / SEED_FILE))
 
 
 def _known_layers() -> frozenset[str]:
@@ -112,7 +112,7 @@ def test_g0_mutations_redden_the_table():
     assert m.checks.check_table(broken, _known_layers(), EXPECTED_CONCEPTS, labels, resolve), "an undefined equation label"
     dropped = tuple(c for c in w.concepts if c.id != "tensor")
     assert m.checks.check_table(dropped, _known_layers(), EXPECTED_CONCEPTS, labels, resolve), "87 rows"
-    text = (ARCH / "concept_table.toml").read_text()
+    text = (ROOT / TABLE_FILE).read_text()
 
     def row_edit(cid: str, old: str, new: str) -> str:
         head = text.find(f'id = "{cid}"')
