@@ -673,6 +673,22 @@ The user: "I will give you a last round to adversarially attack parts of the pla
 
 **Order.** The panel (registry and digest) and the censuses run side by side; then the orchestrator's synthesis, `spec-check` with `units`, the amendment, `check_only` on the final text, and the user's checkpoint on the specification. No `build-units` before that checkpoint (step 2 of "How a wave runs").
 
+## W1, opened 2026-11-23 at `2a13b45a`
+
+**Ruling of the ninth exchange (the user, 2026-11-23, on the W0 close-out report: "I agree with those rulings. You can start."):**
+
+- **O40, the two wave assignments stand:** `covector` is owned by W1 and `manifold` by W6; the eight concepts with no wave (`cone`, `digest`, `memo`, the five extension ids) keep none. W1 is opened.
+- **Not read as ruled:** #748 (three types for one reference triple; no one value for the tree the concept-table tool reads). The report listed it as needing a ruling and gave no recommendation, so the user's sentence is not taken as one. `[R]` the orchestrator's recommendation, to put at W1's checkpoint: accept both findings (each is one definition per quantity) as a unit of its own on the tool, outside W1's file set.
+
+**Where it runs.** The branch is `refactor/ontology`; `c1072743` (the 118 Step A gates as strict expected failures) is an ancestor of the tip `[M]` `git merge-base --is-ancestor c1072743 HEAD`, exit 0. W1's artefacts are under `scratch/ontology/w1/` (untracked, passed by absolute path). The 16 local branches `worktree-*` left by earlier workflow runs were all ancestors of the tip and are deleted (`git branch -d`); the W0 close-out report's "only two branches remain" was false until then.
+
+**Order (steps 1 to 3 of "How a wave runs"; no `build-units` before the user's checkpoint).**
+1. Re-measure the wave table's done-when for W1 on the tip (it is `[HYPOTHESIS]` there), and take the measurements a panel drafter cannot (no Nexus tool): the classes and the debt of the 12 concepts the table assigns to W1 (`covector`, `dsum`, `dual`, `factor`, `fmetric`, `four`, `layout`, `pairing`, `quotient`, `subspace`, `tensor`, `trace`), W1's share of the pinned cycles, the Step A gates that are W1's, the W1 issues with their states re-read.
+2. `design-panel`. Binding and not re-litigated: R1 to R17 of `true_ends.md` (R4 as re-ruled: the S_N boundary state is the flux on the non-tangential ordinates, the quotient, with the current view through the Riesz legs), A1 to A3 (O18), B10 (two contracts fixed first: what a factor reads from its generator, what the trace reads from a face), B11, B12, section C's inputs for W1, O33, O34, O38, O39, and posing unit 4's ruled scope.
+3. The orchestrator's synthesis, `spec-check` with `units`, the amendment, `check_only` on the final text, the user's checkpoint with the O17 targets.
+
+**The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
+
 ## Open questions for the user
 
 `[REMEDIED 2026-11-20]` Questions 1 to 5 below are answered by rulings O13 to O15; none is open.
