@@ -309,21 +309,20 @@ def check_declarations(population: Population, concept_ids: Collection[str]) -> 
         where = f"{row.key}"
         if "derivations" in row.key.file.split("/"):
             out.add(f"{where}: a class under derivations/ is outside the population")
-        if not row.markers:
-            out.add(f"{where}: no declaration; add the trailing comment on line {row.header_end} of {row.key.file}")
+        if len(row.markers) != 1:
+            out.add(f"{where}: {len(row.markers)} declarations" if row.markers else
+                    f"{where}: no declaration; add the trailing comment on line {row.header_end} of {row.key.file}")
             continue
-        if len(row.markers) > 1:
-            out.add(f"{where}: {len(row.markers)} declarations")
-            continue
+        (marker,) = row.markers
         try:
-            declaration = parse_declaration(row.markers[0])
+            declaration = parse_declaration(marker)
         except ValueError as error:
             out.add(f"{where}: unparsable ({error})")
             continue
         if declaration.concept not in ids:
             out.add(f"{where}: concept {declaration.concept!r} is not in the table")
         out.update(f"{where}: welded concept {w!r} is not in the table" for w in declaration.welded[1:] if w not in ids)
-        if row.markers[0].split("#")[1].strip() != declaration.render()[2:].strip():
+        if marker.split("#")[1].strip() != declaration.render()[2:].strip():
             out.add(f"{where}: the declaration is not canonical; write '{declaration.render()}'")
     out.update(f"{file}:{line}: a concept comment on no class header-end line" for file, line in population.orphan_markers)
     return frozenset(out)

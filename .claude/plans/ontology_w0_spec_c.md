@@ -883,3 +883,8 @@ Section 3 is left as written; where it differs from the tree, the tree decides. 
 - **3.3, the assignment file** is `scratch/ontology/w0/registry/amend/theory_assignment.json`; no file of that name exists under `spec/seed/`.
 - **3.6, commits.** The unit landed as three commits (gate, build, review fixes), not the two the section names.
 - **Added by the review, beyond section 3:** `declaration.py` exports `FIELDS`, `SEPARATOR`, `PREFIX`, `grammar()` and `Declaration.kind_text`, read by the renderer, the parser and the page; `table.py` exports `HEAD_FORMS` and `TheoryLink(kind, label)`, parsed once in `loads_table`; the debt entry types are ordered.
+
+### Pass 9, as built (2026-11-23, `5abfd2e8`)
+
+- 2.2 and 2.8, the unweld rule: the fingerprint hashes every name token that spells the class's own name as one placeholder, and arm 2 reads "no class off the twin and weld lists carries the fingerprint of a seed entry" (looked up by fingerprint, not by key). A relabel in place, a move and a rename are one case.
+- 2.8, the seed file: an entry is never removed. `python -m tools.concept_table seed` writes the file; the gate asserts equality with its output, and reads the fingerprints of listed classes only.
