@@ -873,3 +873,13 @@ One line per decision of `amend/amendment_decisions_1.md`, with the sections it 
 - 3.4: `:ref:` users of the page label are 6 lines in 3 pages, not 5 pages [M] `amend/pass7/m5.py`.
 - 3.5: `read_population` (does not exist) became `read_tree`; the independent walk must not call `walk_classes` (shared walker, X4); `from_sources` signature.
 - Checked and unchanged: 3.2 role counts, status counts (66, 5, 1, 16), 88 concepts, 676 classes, one function-local class, 0 nested classes, 9 definitions with backticks, 0 needing escape, 3, 14, 42, 3, 10, 7 list lengths, the four G8 mutation targets, 36 `functions` entries, 102 theory labels (71 `ref`, 31 `eq`), `conceptual_view.rst` title at line 492, debt heading at line 627, dead-reference baseline 3 of 74.
+
+### Pass 8, as built (2026-11-23, unit `concept-page`, commits `ab88ac39`, `bd4a3dc1`, `90a3100c`)
+
+Section 3 is left as written; where it differs from the tree, the tree decides. The differences:
+
+- **3.1 and 3.2, signatures.** `load_inputs(root)` returns four values, `(table, debt, population, defined)`, and `render(table, debt, population, defined) -> str` takes four. `defined` maps each `functions` entry to the file that defines it. It exists because the page shows a path for every entry and `orpheus/values/digest.py` holds no class, so the population alone cannot place `digest`'s two functions. The one resolver is `checks.function_resolver`, which now returns the defining file (`str | None`).
+- **3.3, the `theory` field holds 102 entries, not 107.** The field holds one entry per distinct carried target (102). The 107 is the count of carried occurrences in the replaced text, of which 5 are repeats; it is conserved by the builder's one-time check (recorded in the message of `bd4a3dc1`) and is not a quantity of the table. G8 pins `sum(len(theory)) == distinct == 102`.
+- **3.3, the assignment file** is `scratch/ontology/w0/registry/amend/theory_assignment.json`; no file of that name exists under `spec/seed/`.
+- **3.6, commits.** The unit landed as three commits (gate, build, review fixes), not the two the section names.
+- **Added by the review, beyond section 3:** `declaration.py` exports `FIELDS`, `SEPARATOR`, `PREFIX`, `grammar()` and `Declaration.kind_text`, read by the renderer, the parser and the page; `table.py` exports `HEAD_FORMS` and `TheoryLink(kind, label)`, parsed once in `loads_table`; the debt entry types are ordered.

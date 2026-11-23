@@ -37,7 +37,8 @@ you: *what is this, mathematically, and what structure is it an instance
 of?* Scientific code with this level of ontological rigour is rare in your
 training corpus, so what you would write unprompted is the procedural
 transcription, and the standard here is the other thing. The concepts as
-they stand: [the conceptual view](../../architecture/conceptual_view.rst);
+they stand: [the concept table](../../architecture/concept_table.rst), read through
+[the conceptual view](../../architecture/conceptual_view.rst);
 how a concept is found when the ontology is being searched: `plan-authoring`
 §0.
 

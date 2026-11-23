@@ -67,8 +67,8 @@ bulk ⊕ trace. The metric is an object, the Riesz legs ♭ and ♯ are operator
 the adjoint is `♯ ∘ dual ∘ ♭`, and there is no `.T`. Flux lives in the
 positive cone, a predicate. A symmetry group is realised, never tabulated;
 invariance is the measure's question; an orbit space is named by its
-stabiliser; the lift from an orbit space is the Reynolds projector. Each concept with its class
-and the theory page that defines it, and the list of what is still
+stabiliser; the lift from an orbit space is the Reynolds projector. Each concept's classes:
+[the concept table](docs/architecture/concept_table.rst); what is still
 hand-rolled: [the conceptual view](docs/architecture/conceptual_view.rst).
 
 ## The architecture map
