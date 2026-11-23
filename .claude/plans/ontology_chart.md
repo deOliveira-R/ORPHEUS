@@ -698,6 +698,32 @@ The user: "I will give you a last round to adversarially attack parts of the pla
 - **Filed:** #750, the half-range of a face is selected with two cutoffs (`4·eps` in the trace space, `1e-15` in `mesh/axis.py`).
 - **The design panel** is run `wf_4c545312-08b`; its brief is `scratch/ontology/w1/panel/context.md`, three angles (the algebra down, the tree up, the consumers inward) and three lenses (structure, elegance, qa).
 
+**The design panel returned and is synthesised** `[M]` 2026-11-23 (run `wf_4c545312-08b`: 6 agents, 0 errors; designs and attacks under `scratch/ontology/w1/panel/`). The orchestrator's synthesis is `scratch/ontology/w1/synth/synthesis.md`: 32 decisions, each with its owner, its source, whether an attacker read it, and who rules it; its refuted candidates carry their structural reasons there. Three points the attackers did not agree on were probed before they became defaults (`scratch/ontology/w1/synth/p1/p1_variance.md`, `p2/p2_energy_metric.md`), and the four decisions that were in no draft were attacked a second time (`synth/attack2/attack2.md`), which changed 14 rows.
+
+The design in one sentence: the generator owns what it knows (index set, form, kernel, cosines); the factor owns the variance; the scheme, through the trial and test pair, owns the testing; the face factor owns the orientation, inside its identity.
+
+- **A factor is `(axis, kind, chart, S/K)`.** Kind is function or measure (R16), intrinsic to the index set (functions pull back along an index map, measures push forward). Chart is density or integrated, the Radon-Nikodym identification, which exists only where the axis has a form. `S/K` is a subquotient of the axis's coordinates. `dual` flips kind and chart; `riesz` flips the chart only and is typed iff the labels are formed blocks and `S ∩ ker G ⊆ K`. `[M]` the per-slot kind passes all seven tests of probe P1, one bit per space and no kind each fail one; the Klein four-group holds on 216 of 216 legal states (attack 2 A3); on the full singular face slot the Riesz round trip misses by 1.996 and on the quotient by 2.2e-16.
+- **Spaces are a closed sum of two arms**, the tensor product (a slot list) and the labelled direct sum (one or more summands). Subspace and quotient are the factor's subquotient, not arms.
+- **The pair** `TrialTest(trial, test, testing)` derives source and response; R14's 12 cells and A1's three witnesses are reproduced `[M]` P1.
+- **Energy has no form.** `[M]` P2: 6 Riesz-leg lines, all in `numerics/operator.py`, reached by 72 adjoint constructions with energy-bearing ends; they are re-pointed to the formed blocks in W1 and the numbers do not move `[R]`.
+- **The trace** is a direct sum over faces from one builder; the face-angular factor is R4's quotient from W1, with coordinates stored as representatives on the full ordinate set, so no stored array changes.
+- **Measured against the wave table:** W1 turns 0 of the 128 Step A markers green; the prototype's 77 direct-sum gates do not import on the tip (0 of 77 run), so the bit-identity instrument is rebuilt first; the exact dense inverse is bit-equal to today on 19 of 19 dense production Grams only with numpy's own product order.
+- **Not a new defect:** the structure attack's leak of scattering out of the moment space on under-resolved rules is `true_ends.md` line 105 (D4 refuted 2026-11-11: 9.2e-2 and 0.16 on 2 of 4 rows). What W1 adds is its type: the moment slot is `Ann K`.
+
+**For the user at the checkpoint** (the specification is drafted on the defaults, each dependent section marked). The first three are contradictions among binding rulings, not open targets:
+- **U1, the variance.** The factor as above; R16 read as a per-slot kind stored in W1; R18's unruled `flux.dual(on="cells")` becomes `flux.riesz(on={"cells"})`.
+- **U2, energy against R15.** R15's "V*'s own inner product" does not exist on energy (`[M]` two refinement limits, 0.0891 and 0.0519); default: no form, with the named completion `euclidean()` for a residual norm.
+- **U7, R11 against R14 and R15.** The Step A helper `pairing_of(flux, source)` is refused by R15 on energy; default: re-spell it to pair importance with source.
+- **U3, #706:** refuse a negative weight (`[M]` 0 of 16 shipped rules carry one); the Krein arm is named, not built.
+- **U4, an edge of A3:** an under-resolved frame owns one named tolerance for its rank until W8a types exactness.
+- **U5, the concept table:** `subspace` and `quotient` become one concept whose head is the factor's subquotient.
+- **U6, a precision of A1:** the data side is derived; the state chart is declared by the layout.
+- **U8, the heads** of `trace` (a builder, the form O36 admits), `dual` (the variance), `four` (the pair), and #748.
+
+**Orchestrator decisions (O2), reported:** units built at the same time share no file, and a serial chain may re-edit a merged file (B10's "in flight"); the coarse-balance gate is written in W1 on a toy pair and production's condensation meeting it is W8b's, so the wave table's "closes" is re-worded at the specification; `partition_by` is built in W1 (posing unit 4 item 4); the 7 hand retractions of the done-when census are W2's; `DiscreteMeasure.__add__` over differing supports (posing unit 4 item 1) is W8a's.
+
+**The specification** is `.claude/plans/ontology_w1_spec.md`, by `spec-check`.
+
 **The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
 
 ## Open questions for the user
