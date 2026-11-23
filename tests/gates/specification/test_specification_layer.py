@@ -27,7 +27,7 @@ pytestmark = pytest.mark.foundation
 
 _ROOT = Path(__file__).resolve().parents[3]
 _ABOVE = ("orpheus.transport", "orpheus.mesh", "orpheus.derivations", "orpheus.plotting") + tuple(
-    f"orpheus.{p}" for p in ("sn", "pn", "moc", "cp", "mc", "diffusion", "kinetics", "fuel",
+    f"orpheus.{p}" for p in ("sn", "moc", "cp", "mc", "diffusion", "kinetics", "fuel",
                              "thermal_hydraulics", "homogeneous")
 )
 

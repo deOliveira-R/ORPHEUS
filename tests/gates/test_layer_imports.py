@@ -12,7 +12,7 @@ Layers (per plan §P3.0):
                          imports geometry and numerics; geometry,
                          data and numerics never import it.
   L2  (transport/)     — transport vocabulary; method-agnostic.
-  L3  (sn/, pn/, moc/, cp/, mc/, diffusion/, kinetics/,
+  L3  (sn/, moc/, cp/, mc/, diffusion/, kinetics/,
        fuel/, thermal_hydraulics/, homogeneous/) — one method's
        machinery; method-specific.
   L4  (plotting.py)    — orchestration; consumes everything.
@@ -68,7 +68,6 @@ L2_PACKAGES: frozenset[str] = frozenset({"transport"})
 L3_PACKAGES: frozenset[str] = frozenset(
     {
         "sn",
-        "pn",
         "moc",
         "cp",
         "mc",
@@ -101,7 +100,6 @@ FORBIDDEN_EDGES: dict[str, frozenset[str]] = {
     "reference": MESH_PACKAGES | L2_PACKAGES | L3_PACKAGES | L0_PACKAGES | L4_PACKAGES,
     "transport": L3_PACKAGES | L4_PACKAGES,
     "sn": L3_PACKAGES - {"sn"} | L4_PACKAGES,
-    "pn": L3_PACKAGES - {"pn"} | L4_PACKAGES,
     "moc": L3_PACKAGES - {"moc"} | L4_PACKAGES,
     "cp": L3_PACKAGES - {"cp"} | L4_PACKAGES,
     "mc": L3_PACKAGES - {"mc"} | L4_PACKAGES,

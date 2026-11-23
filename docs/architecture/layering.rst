@@ -84,8 +84,7 @@ measured edges are stated separately (the paragraph after the table).
      - thin scripts; ``plotting.py``
    * - **L3** discretization
      - one method's machinery
-     - :mod:`orpheus.sn`, ``orpheus.pn`` (named in the gate's L3 set;
-       no such package exists yet),
+     - :mod:`orpheus.sn`,
        :mod:`orpheus.moc`, :mod:`orpheus.cp`, :mod:`orpheus.mc`,
        :mod:`orpheus.diffusion`, :mod:`orpheus.kinetics` (transitional —
        dissolves under P3.6), :mod:`orpheus.fuel`,
@@ -502,7 +501,6 @@ The forbidden-edge dictionary is:
 
        # L3 methods cannot import sibling L3 packages.
        "sn":         L3_PACKAGES - {"sn"} | L4_PACKAGES,
-       "pn":         L3_PACKAGES - {"pn"} | L4_PACKAGES,
        # ... etc for every L3 package ...
 
        # L0 (derivations) never imports transport or a method.

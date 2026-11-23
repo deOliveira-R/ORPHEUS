@@ -11,7 +11,7 @@ Layer rules (enforced by ``tests/gates/test_layer_imports.py``):
 * ``transport`` imports from ``numerics`` (L1), ``geometry`` /
   ``data`` (input), and standard library / numpy / scipy. It does
   NOT import from any L3 package (``sn``, ``cp``, ``moc``,
-  ``diffusion``, ``mc``, ``kinetics``, ``pn``, ``homogeneous``,
+  ``diffusion``, ``mc``, ``kinetics``, ``homogeneous``,
   ``fuel``, ``thermal_hydraulics``).
 * L3 packages may import freely from ``transport`` — the L2 types
   are the canonical contracts the methods implement.
