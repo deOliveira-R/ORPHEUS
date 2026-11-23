@@ -77,7 +77,7 @@ def _assert_legendre_stacks(owner: str, ng: int, **stacks: Sequence[csr_matrix])
 
 
 @dataclass(frozen=True, eq=False)
-class Mixture(ContentIdentity):
+class Mixture(ContentIdentity):  # concept: xsfield | role: weld | kind: element.member | welded: xsfield, merge, groups
     """Macroscopic cross sections for a homogeneous mixture — a VALUE.
 
     Frozen, with read-only data and CONTENT identity (consumers campaign

@@ -82,7 +82,7 @@ def _kron_all(vectors: list[NDArray]) -> NDArray:
 
 
 @dataclass(frozen=True)
-class IntervalLegendreBasis(Basis):
+class IntervalLegendreBasis(Basis):  # concept: basis | role: arm | kind: morphism
     r"""The Legendre polynomials :math:`P_0, \dots, P_{n-1}` on :math:`[-1, 1]`, :math:`P_k(1) = 1`.
 
     Parameters
@@ -180,7 +180,7 @@ class IntervalLegendreBasis(Basis):
 
 
 @dataclass(frozen=True)
-class TensorProductBasis(Basis):
+class TensorProductBasis(Basis):  # concept: basis | role: arm | kind: morphism
     r"""The tensor product of orthogonal interval bases, factor 0 outermost.
 
     Parameters

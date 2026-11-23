@@ -45,7 +45,7 @@ __all__ = ["Printed", "ReferenceReading", "Uncertified"]
 
 
 @dataclass(frozen=True, eq=False)
-class Printed(ContentIdentity):
+class Printed(ContentIdentity):  # concept: EXT:reference-solution | role: component | kind: element
     """A value as printed in a cited work: its decimal text and the place it is printed."""
 
     text: str
@@ -92,7 +92,7 @@ class Printed(ContentIdentity):
 
 @final
 @dataclass(frozen=True, eq=False)
-class Uncertified(ContentIdentity):
+class Uncertified(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """A reference's value with no derived bound: its family cannot yet bound its distance to the exact answer.
 
     It carries no ``enclosure()``: an uncertified value guarantees nothing, so

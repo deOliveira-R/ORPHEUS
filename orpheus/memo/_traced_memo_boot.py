@@ -148,7 +148,7 @@ def presence(path: str) -> str:
 # ── reads kept while what they read is unchanged on disk ─────────────────────────────────────────────
 
 
-class FileIdentity(NamedTuple):
+class FileIdentity(NamedTuple):  # concept: memo | role: annex | kind: record
     """A path's identity on disk, as ``stat`` reads it: its device, its inode, its size and its modification
     and change times in nanoseconds. On POSIX any write moves the change time and no call sets it back, and a
     replace by rename moves the inode, so an unchanged identity says the bytes (a directory's names) are the
@@ -181,7 +181,7 @@ def identity(path: str) -> FileIdentity | None:
         return None
 
 
-class Witness:
+class Witness:  # concept: memo | role: part | kind: apparatus
     """The stats one read makes, each taken BEFORE the read of what it guards (a write after it then shows in the
     next stat, so the read is made again; never the other way round), and whether every one was settled.
 
@@ -210,7 +210,7 @@ class Witness:
         self.settled = False
 
 
-class Kept[K, V]:
+class Kept[K, V]:  # concept: memo | role: part | kind: apparatus
     """A read kept for the life of the process: served again while every stat it witnessed shows the same
     identity, made again otherwise. The key holds the read's inputs that are not files (a ``sys.path``, a working
     directory, a name); the witness holds the files and directories it looked at, a missing one included (one
@@ -265,7 +265,7 @@ def listing_digest(path: str, witness: Witness | None = None) -> str:
     return _CONVENTION.hexdigest("\0".join(sorted(name for name in os.listdir(path) if name not in _LISTING_IGNORED)).encode())
 
 
-class Observation(NamedTuple):
+class Observation(NamedTuple):  # concept: memo | role: part | kind: apparatus
     """One kind of input: the :class:`Recording` field that maps each path to what the run saw there, what is
     seen at a path, whether the run's own writes change what is seen there, and the names of the paths that are
     not inputs of this kind."""
@@ -390,7 +390,7 @@ def _probing(name: str):
 _RUN_STATE = ("codes", "opened", "written", "probed", "listed", "spawned", "children", "relative", "directory", "environment")
 
 
-class Recording:
+class Recording:  # concept: memo | role: part | kind: apparatus
     """What one run depends on, recorded while it runs (module docstring)."""
 
     def __init__(self) -> None:
@@ -484,7 +484,7 @@ class Recording:
                 os.stat, os.lstat = _STAT["stat"], _STAT["lstat"]
 
 
-class ReadChild(NamedTuple):
+class ReadChild(NamedTuple):  # concept: memo | role: annex | kind: record
     """A memo entry a run read: the real path of its store's root, its function id, its key, the digest of the payload
     it served, the pins it was validated on with its children's flattened in (the memo's ``Hit.pins``), and the
     ``sys.path`` and working directory of the read, against which those pins' source paths resolve. The memo pins it
@@ -507,7 +507,7 @@ def note_child(child: ReadChild) -> None:
         recording.children.add(child)
 
 
-class unrecorded:
+class unrecorded:  # concept: memo | role: part | kind: apparatus
     """The memo's own reading of the store (a lookup and its validation), which no run depends on."""
 
     _QUIET_INSIDE = True
@@ -522,14 +522,14 @@ class unrecorded:
         _QUIET.on = self._outer
 
 
-class recorded(unrecorded):
+class recorded(unrecorded):  # concept: memo | role: part | kind: apparatus
     """The run's own work again, inside an :class:`unrecorded` stretch: the cone store's capture runs pytest's
     protocol for one test, and loads the conftests, from inside its own unrecorded bookkeeping."""
 
     _QUIET_INSIDE = False
 
 
-class spawning:
+class spawning:  # concept: memo | role: part | kind: apparatus
     """The memo's own start of a generating process, which is not a dependency of the run that asked."""
 
     @_apparatus
@@ -614,7 +614,7 @@ def unseal_entry(key: bytes, entry: bytes) -> bytes | None:
     return None
 
 
-class _PinnedSourceLoader(importlib.machinery.SourceFileLoader):
+class _PinnedSourceLoader(importlib.machinery.SourceFileLoader):  # concept: memo | role: part | kind: apparatus
     """A first-party module compiled from the bytes this process read, never from a timestamp ``.pyc``.
 
     CPython accepts a timestamp ``.pyc`` when the source's whole-second mtime and its size match, so a
@@ -664,7 +664,7 @@ def _vendor_dirs() -> tuple[str, ...]:
     return tuple(sorted({os.path.realpath(d) + os.sep for d in dirs}, key=len, reverse=True))
 
 
-class _PinnedSourceFinder:
+class _PinnedSourceFinder:  # concept: memo | role: part | kind: apparatus
     """The first entry of ``sys.meta_path`` in a generating process: it finds a module through every finder
     after it, in order (so a module only an editable install's finder knows is covered), and gives a
     first-party source module the pinned-source loader."""
@@ -738,7 +738,7 @@ def _libproc_thread_counter() -> Callable[[], int]:
     ``threading`` cannot see)."""
     import ctypes
 
-    class TaskInfo(ctypes.Structure):  # libproc's struct proc_taskinfo
+    class TaskInfo(ctypes.Structure):  # concept: memo | role: part | kind: apparatus  # libproc's struct proc_taskinfo
         _fields_ = [(name, ctypes.c_uint64) for name in ("virtual", "resident", "user", "system", "threads_user",
                                                           "threads_system")] + \
                    [(name, ctypes.c_int32) for name in ("policy", "faults", "pageins", "cow_faults", "sent", "received",

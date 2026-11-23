@@ -147,7 +147,7 @@ _MEMBERSHIP_ATOL = 1e-12
 
 
 @dataclass(frozen=True)
-class Manifold(ABC):
+class Manifold(ABC):  # concept: manifold | role: head | kind: set
     r"""The point set a measure is supported on — the closed sum's base.
 
     Only the operations **every** manifold answers live here.  Anything a
@@ -257,7 +257,7 @@ class Manifold(ABC):
 
 
 @dataclass(frozen=True)
-class GSpace(Manifold):
+class GSpace(Manifold):  # concept: manifold | role: arm | kind: set
     r"""A manifold the rigid motions of its ambient space act on — a
     :math:`G`-space, :math:`G \le E(d)`.
 
@@ -437,7 +437,7 @@ def _apply_motion(motion: "RigidMotion", points: NDArray) -> NDArray:
 
 
 @dataclass(frozen=True)
-class Refusal:
+class Refusal:  # concept: manifold | role: annex | kind: record
     """Why a rigid motion does not act on a :class:`GSpace` — a closed sum of
     three kinds, each carrying the message :meth:`GSpace.action` raises."""
 
@@ -445,17 +445,17 @@ class Refusal:
 
 
 @dataclass(frozen=True)
-class OutOfDimension(Refusal):
+class OutOfDimension(Refusal):  # concept: manifold | role: annex | kind: record
     """The motion is not one of :math:`E(d)` for the space's acting dimension."""
 
 
 @dataclass(frozen=True)
-class DoesNotMap(Refusal):
+class DoesNotMap(Refusal):  # concept: manifold | role: annex | kind: record
     r"""The motion does not carry the manifold onto itself: :math:`g(M) \ne M`."""
 
 
 @dataclass(frozen=True)
-class DoesNotNormalise(Refusal):
+class DoesNotNormalise(Refusal):  # concept: manifold | role: annex | kind: record
     r"""On an orbit space :math:`M/H`: the motion does not normalise :math:`H`,
     so :math:`[p] \mapsto [g p]` is not a function of the orbit."""
 
@@ -477,7 +477,7 @@ def _origin_refusal(manifold: Manifold, motion: "RigidMotion") -> DoesNotMap | N
 
 
 @dataclass(frozen=True)
-class Sphere(GSpace):
+class Sphere(GSpace):  # concept: manifold | role: arm | kind: set
     r""":math:`S^2 = \{\Omega \in \mathbb{R}^3 : \|\Omega\| = 1\}`."""
 
     @property
@@ -506,7 +506,7 @@ class Sphere(GSpace):
 
 
 @dataclass(frozen=True)
-class Circle(GSpace):
+class Circle(GSpace):  # concept: manifold | role: arm | kind: set
     r""":math:`S^1 = \{u \in \mathbb{R}^2 : \|u\| = 1\}`.
 
     The circle names the MANIFOLD, not a chart of it — the tag was
@@ -546,7 +546,7 @@ class Circle(GSpace):
 
 
 @dataclass(frozen=True)
-class Interval(GSpace):
+class Interval(GSpace):  # concept: manifold | role: arm | kind: set
     r"""The real interval :math:`[a, b]`, endpoints included.
 
     One family, not three tags: the retired ``SPACE_INTERVAL_M11``,
@@ -617,7 +617,7 @@ class Interval(GSpace):
 
 
 @dataclass(frozen=True)
-class RealSpace(GSpace):
+class RealSpace(GSpace):  # concept: manifold | role: arm | kind: set
     r""":math:`\mathbb{R}^d` — the spatial manifold, indexed by ``d``.
 
     Replaces the interpolated ``support=f"spatial_R{ndim}"``.
@@ -659,7 +659,7 @@ class RealSpace(GSpace):
 
 
 @dataclass(frozen=True)
-class Product(Manifold):
+class Product(Manifold):  # concept: manifold | role: arm | kind: set
     r""":math:`M \times N`, with coordinates concatenated in that order."""
 
     left: Manifold
@@ -692,7 +692,7 @@ class Product(Manifold):
 
 
 @dataclass(frozen=True)
-class Ball(GSpace):
+class Ball(GSpace):  # concept: manifold | role: arm | kind: set
     r"""The closed unit ball :math:`D^d = \{p \in \mathbb{R}^d : \|p\| \le 1\}`.
 
     Minted 2026-08-31 because the derivation demanded it: ``S^2/sigma_y``
@@ -732,7 +732,7 @@ class Ball(GSpace):
 
 
 @dataclass(frozen=True)
-class Point(Manifold):
+class Point(Manifold):  # concept: manifold | role: arm | kind: set
     r"""The one-point manifold: dimension 0, carried in 0 coordinates.
 
     The orbit space of a group acting TRANSITIVELY is a point: :math:`O(3)`
@@ -770,7 +770,7 @@ class Point(Manifold):
 
 
 @dataclass(frozen=True)
-class FundamentalDomain(Manifold):
+class FundamentalDomain(Manifold):  # concept: orbit | role: part | kind: set
     r"""A strict fundamental domain of :math:`H` acting on ``base`` — the
     IMAGE of a section of :math:`M \to M/H`, in the BASE's coordinates.
 
@@ -845,7 +845,7 @@ class FundamentalDomain(Manifold):
 
 
 @dataclass(frozen=True)
-class Quotient(GSpace):
+class Quotient(GSpace):  # concept: orbit | role: head | kind: set
     r"""The orbit space :math:`M/H`, and the derivation that produced it.
 
     ⭐ **The fields below ARE the derivation procedure's output**, not a
@@ -1425,7 +1425,7 @@ _GENERIC_SPHERE_PROBE: NDArray = (
 
 
 @dataclass(frozen=True)
-class ManifoldMap:
+class ManifoldMap:  # concept: manifold | role: component | kind: morphism
     r"""A map :math:`\varphi : M \to N` between manifolds — an arrow, TYPED.
 
     The point-level analogue of a

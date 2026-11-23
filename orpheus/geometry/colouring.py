@@ -62,7 +62,7 @@ __all__ = [
 
 
 @dataclass(frozen=True, eq=False)
-class FaceIsometry(ContentIdentity):
+class FaceIsometry(ContentIdentity):  # concept: group | role: component | kind: element
     r"""An affine isometry of the domain and the permutation it induces on the boundary faces.
 
     ``motion`` carries its position (:math:`x \mapsto a + b - x`); ``faces`` maps each boundary face to its image.
@@ -82,7 +82,7 @@ class FaceIsometry(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class ColouringSymmetry(ContentIdentity):
+class ColouringSymmetry(ContentIdentity):  # concept: group | role: twin | kind: set
     """The stabiliser of the fundamental domain: ``elements`` with the identity first (one or two for a slab)."""
 
     elements: tuple[FaceIsometry, ...]
@@ -93,7 +93,7 @@ class ColouringSymmetry(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class UncomputedSymmetries(ContentIdentity):
+class UncomputedSymmetries(ContentIdentity):  # concept: group | role: annex | kind: record
     """The typed pessimistic answer where no group machinery exists yet; ``carrier`` names the carrier, e.g. ``"Mesh2D"``."""
 
     carrier: str

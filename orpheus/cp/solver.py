@@ -93,7 +93,7 @@ from orpheus.numerics.eigenvalue import power_iteration
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass
-class CPParams:
+class CPParams:  # concept: hub | role: weld | kind: element | welded: hub, strategy, quadrature
     """Solver parameters for the collision probability method."""
 
     max_outer: int = 500
@@ -111,7 +111,7 @@ class CPParams:
 
 
 @dataclass
-class CPResult:
+class CPResult:  # concept: solution | role: twin | kind: record
     """Results of a collision probability calculation."""
 
     keff: float
@@ -188,7 +188,7 @@ CP_REALIZERS: RealizerTable["CPMesh", CPClosure, FunctionSpace] = RealizerTable(
 )
 
 
-class CPMesh(Mesh1DMethodMesh[CPClosure]):
+class CPMesh(Mesh1DMethodMesh[CPClosure]):  # concept: hub | role: weld | kind: element | welded: hub, quadrature, inverse, realized
     r"""Augmented geometry for the collision probability method.
 
     Wraps a :class:`~geometry.mesh.Mesh1D` and adds the CP-specific
@@ -537,7 +537,7 @@ def _dropped_face(site: FaceSite) -> Refused | None:
     return None
 
 
-class _CPFaces(ResponseRealizer):
+class _CPFaces(ResponseRealizer):  # concept: realizer | role: part | kind: morphism
     """What the three CP response realizers share (an abstract base: it names no table, so it registers nothing): the faces CP drops are refused first."""
 
     def admit(self, unit: object, weight: float, site: FaceSite, space: CPMesh | None = None) -> Admission:
@@ -547,7 +547,7 @@ class _CPFaces(ResponseRealizer):
         return self.status
 
 
-class CPZero(_CPFaces, table=CP_REALIZERS, realizes=ZeroNetwork):
+class CPZero(_CPFaces, table=CP_REALIZERS, realizes=ZeroNetwork):  # concept: realizer | role: part | kind: morphism
     r"""The empty network (vacuum, ``specular(0)``, ``white(0)``): escaped neutrons are lost, :math:`P_\infty = P_{\rm cell}`.
 
     ``Realized(True)``. The eigenvalue CP computes with it omits the leakage term of the balance (#546, the defect the strict xfails of
@@ -560,14 +560,14 @@ class CPZero(_CPFaces, table=CP_REALIZERS, realizes=ZeroNetwork):
         return _vacuum_closure
 
 
-class CPSpecularChain(RefusingRealizer, _CPFaces, table=CP_REALIZERS, realizes=SpecularChain):
+class CPSpecularChain(RefusingRealizer, _CPFaces, table=CP_REALIZERS, realizes=SpecularChain):  # concept: realizer | role: annex | kind: record
     """A specular chain: not built (the retired registry held no reflective closure at the outer face; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "CP's table holds the white wall and the vacuum only; a specular return is not built", 654)
 
 
 
-class CPDiffuseChain(_CPFaces, table=CP_REALIZERS, realizes=DiffuseChain):
+class CPDiffuseChain(_CPFaces, table=CP_REALIZERS, realizes=DiffuseChain):  # concept: realizer | role: part | kind: morphism
     r"""A diffuse chain at unit weight: isotropic (white) re-entry, :math:`P_\infty = P_{\rm cell} + P_{\rm out}\otimes P_{\rm in} / (1 - P_{\rm inout})`.
 
     The closure is the infinite-lattice approximation, the default of CP eigenvalue problems. ``Realized(True)`` at weight 1.0 only: the
@@ -587,7 +587,7 @@ class CPDiffuseChain(_CPFaces, table=CP_REALIZERS, realizes=DiffuseChain):
         return space._apply_white_bc
 
 
-class CPDecks(DeckRealizer, table=CP_REALIZERS):
+class CPDecks(DeckRealizer, table=CP_REALIZERS):  # concept: realizer | role: part | kind: morphism
     """The decks: the mirror at the slab's left face is what the kernel computes there; every other deck is refused (#513 at the left face, #654 elsewhere).
 
     The match is exhaustive over :data:`~orpheus.geometry.deck.DeckTransformation`.
@@ -623,7 +623,7 @@ CP_REALIZERS.seal()
 # CP solver class (satisfies EigenvalueSolver protocol)
 # ═══════════════════════════════════════════════════════════════════════
 
-class CPSolver:
+class CPSolver:  # concept: driver | role: weld | kind: morphism | welded: driver, algorithm, transfer, fission, rate, xsfield
     """Geometry-independent CP eigenvalue solver.
 
     Once the infinite-lattice CP matrices P_inf are built (by

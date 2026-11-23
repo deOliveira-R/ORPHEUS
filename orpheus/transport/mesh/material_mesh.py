@@ -115,7 +115,7 @@ def _axis_key(ax) -> tuple:
     )
 
 
-class MaterialMesh:
+class MaterialMesh:  # concept: mesh | role: weld | kind: set | welded: mesh, regions, xsfield, digest, hub
     r"""Method-agnostic mesh + materials carrier.
 
     Axis-primary (C5.1, #225): the canonical spatial representation is

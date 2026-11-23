@@ -103,7 +103,7 @@ __all__ = ["HarmonicMomentSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):
+class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):  # concept: fluxsrc | role: twin | kind: element.member
     r"""Real-spherical-harmonic moment source/sink :math:`q_\ell^m(\vec r, g)`.
 
     Parameters

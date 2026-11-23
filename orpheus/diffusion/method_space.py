@@ -60,7 +60,7 @@ __all__ = ["DiffusionMethodSpace"]
 
 
 @dataclass(frozen=True)
-class DiffusionMethodSpace:
+class DiffusionMethodSpace:  # concept: hub | role: component | kind: element
     r"""Diffusion method space carrying scalar-trace metadata.
 
     See the module docstring for the per-field semantics and for why

@@ -135,7 +135,7 @@ def _extract_mf3(mt: int, temp_idx: int, m: np.ndarray) -> np.ndarray | None:
     return sig
 
 
-class _MF6Section(NamedTuple):
+class _MF6Section(NamedTuple):  # concept: EXT:nuclide-data | role: part | kind: element
     """One MF=6 transfer section at one temperature — the parser's named product.
 
     ``ifrom`` / ``ito`` are the 1-based (source, sink) group pairs the section

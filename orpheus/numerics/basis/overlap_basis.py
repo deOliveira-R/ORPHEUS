@@ -41,7 +41,7 @@ __all__ = ["OverlapBasis"]
 
 
 @dataclass(frozen=True, eq=False)
-class OverlapBasis(IndicatorBasis):
+class OverlapBasis(IndicatorBasis):  # concept: basis | role: arm | kind: morphism
     r"""Cell-indicator basis carrying a precomputed FRACTIONAL membership table.
 
     Parameters

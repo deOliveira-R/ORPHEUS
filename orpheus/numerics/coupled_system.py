@@ -165,7 +165,7 @@ __all__ = [
 ]
 
 
-class SystemField(Protocol):
+class SystemField(Protocol):  # concept: member | role: interface | kind: element.member
     r"""One system's complete field — the member contract of :class:`CoupledField`.
 
     Structural (duck-typed): the transport ``Composite`` family (``FullField``,
@@ -238,7 +238,7 @@ def _is_system_field(member: object) -> bool:
 
 
 @dataclass(frozen=True, kw_only=True, eq=False)
-class CoupledField:
+class CoupledField:  # concept: member | role: weld | kind: element.member | welded: member, record
     r"""The N-system block vector: one member field per coupled system.
 
     The state of a coupled solve — e.g. the ψ½ instance's
@@ -440,7 +440,7 @@ class CoupledField:
 
 
 @dataclass(frozen=True, eq=False)
-class CoupledSpace(FunctionSpace["CoupledField"]):
+class CoupledSpace(FunctionSpace["CoupledField"]):  # concept: dsum | role: head | kind: space
     r"""The N-system direct sum :math:`V = V_1 \oplus \cdots \oplus V_N`.
 
     The carrier space of a :class:`CoupledOperator`: one member
@@ -738,7 +738,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):
 # ───────────────────────────────────────────────────────────────────────
 
 
-class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
+class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concept: block | role: head | kind: morphism.operator | welded: block, inverse, algorithm, strategy
     r"""The N×N typed block grid ``A_ij : System_j → System_i``.
 
     The block matvec ``y_i = Σ_j A_ij x_j`` is the ONLY spelling of the
@@ -1330,7 +1330,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):
 class CoupledSubstitutionOperator(
     InverseWrapMixin["CoupledOperator"],
     LinearOperator["CoupledField", "CoupledField"],
-):
+):  # concept: inverse | role: weld | kind: morphism.operator | welded: inverse, algorithm
     r"""``A⁻¹`` of a block-triangular :class:`CoupledOperator`, realized by
     block back/forward SUBSTITUTION.
 
@@ -1394,7 +1394,7 @@ class CoupledSubstitutionOperator(
 # ───────────────────────────────────────────────────────────────────────
 
 
-class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
+class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):  # concept: restrict | role: arm | kind: morphism.operator
     r"""Restriction onto ONE member system of a coupling:
     :math:`r_i : \bigoplus_j V_j \to V_i` (as the legitimate 1-member
     degenerate coupling).

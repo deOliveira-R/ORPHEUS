@@ -1,0 +1,825 @@
+# docs/architecture/concept_debt.toml: the pinned debt lists of decision D5, compared by equality with what the gates measure.
+# No entry carries a wave: the wave of an entry is the `wave` of its concept (single-sourced in concept_table.toml); a `cycle` entry has the waves of its concepts.
+# `operator_off_algebra` is debt: each entry's wave is its concept's (O37 as sharpened, pass 5; `covector_off_lineage`, pass 6: each entry's wave is its concept's).
+# The fingerprints are in docs/architecture/concept_seed.toml (specification 2.2), not here: an entry leaves this file when its class leaves the list, the seed entry never does.
+
+[[twin]]
+class = "orpheus/cp/solver.py::CPResult"
+
+[[twin]]
+class = "orpheus/data/cell_xs.py::CellXS"
+
+[[twin]]
+class = "orpheus/data/energy_grid.py::InverseEnergySpectrum"
+
+[[twin]]
+class = "orpheus/data/material_properties/h2o_properties.py::SatProps"
+
+[[twin]]
+class = "orpheus/diffusion/solver.py::DiffusionResult"
+
+[[twin]]
+class = "orpheus/diffusion/solver.py::DiffusionSourceSolution"
+
+[[twin]]
+class = "orpheus/fuel/solver.py::FuelBehaviourResult"
+
+[[twin]]
+class = "orpheus/geometry/colouring.py::ColouringSymmetry"
+
+[[twin]]
+class = "orpheus/kinetics/solver.py::KineticsResult"
+
+[[twin]]
+class = "orpheus/mc/solver.py::MCResult"
+
+[[twin]]
+class = "orpheus/mc/solver.py::PeriodicWrap"
+
+[[twin]]
+class = "orpheus/mesh/axis.py::AxisCoord"
+
+[[twin]]
+class = "orpheus/mesh/axis.py::AxisMesh"
+
+[[twin]]
+class = "orpheus/mesh/axis.py::FaceLabel"
+
+[[twin]]
+class = "orpheus/mesh/axis.py::RadialAxisMesh"
+
+[[twin]]
+class = "orpheus/moc/quadrature.py::MOCQuadrature"
+
+[[twin]]
+class = "orpheus/moc/solver.py::MoCResult"
+
+[[twin]]
+class = "orpheus/numerics/eigenvalue.py::PowerIterationOutcome"
+
+[[twin]]
+class = "orpheus/numerics/elementary_operators.py::RankOneOperator"
+
+[[twin]]
+class = "orpheus/numerics/frame_faces.py::CrossGramInverse"
+
+[[twin]]
+class = "orpheus/numerics/gauge.py::ScaleGauge"
+
+[[twin]]
+class = "orpheus/numerics/measure.py::BundleMeasure"
+
+[[twin]]
+class = "orpheus/numerics/operator.py::_KeyedEquality"
+
+[[twin]]
+class = "orpheus/numerics/posing.py::SourcePosing"
+
+[[twin]]
+class = "orpheus/numerics/spaces/full_field_space.py::FullFieldSpace"
+
+[[twin]]
+class = "orpheus/reference/published.py::PublishedSolution"
+
+[[twin]]
+class = "orpheus/reference/verification.py::OrderVerification"
+
+[[twin]]
+class = "orpheus/reference/verification.py::UncertifiedComparison"
+
+[[twin]]
+class = "orpheus/sn/boundary/angular.py::IsotropicEmissionOperator"
+
+[[twin]]
+class = "orpheus/sn/boundary/angular.py::PartialCurrentOperator"
+
+[[twin]]
+class = "orpheus/sn/coupled_system.py::WithinGroupSystem"
+
+[[twin]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicReconstruction"
+
+[[twin]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicSeeding"
+
+[[twin]]
+class = "orpheus/sn/operators/windowing.py::AngularMomentWindow"
+
+[[twin]]
+class = "orpheus/specification/exterior.py::WallAmplitudes"
+
+[[twin]]
+class = "orpheus/thermal_hydraulics/solver.py::THResult"
+
+[[twin]]
+class = "orpheus/thermal_hydraulics/solver_dae.py::THResult"
+
+[[twin]]
+class = "orpheus/transport/boundary_conditions/admission.py::FaceSite"
+
+[[twin]]
+class = "orpheus/transport/boundary_conditions/network.py::DiffuseChain"
+
+[[twin]]
+class = "orpheus/transport/boundary_conditions/network.py::SpecularChain"
+
+[[twin]]
+class = "orpheus/transport/boundary_conditions/network.py::ZeroNetwork"
+
+[[twin]]
+class = "orpheus/transport/fields/angular_boundary_flux.py::AngularBoundaryFlux"
+
+[[twin]]
+class = "orpheus/transport/fields/angular_flux.py::AngularFlux"
+
+[[twin]]
+class = "orpheus/transport/fields/harmonic_moment_flux.py::HarmonicMomentFlux"
+
+[[twin]]
+class = "orpheus/transport/fields/harmonic_moment_source_sink.py::HarmonicMomentSourceSink"
+
+[[twin]]
+class = "orpheus/transport/fields/radial_characteristic_boundary_flux.py::RadialCharacteristicBoundaryFlux"
+
+[[twin]]
+class = "orpheus/transport/fields/radial_characteristic_boundary_source_sink.py::RadialCharacteristicBoundarySourceSink"
+
+[[twin]]
+class = "orpheus/transport/fields/radial_characteristic_interior_flux.py::RadialCharacteristicInteriorFlux"
+
+[[twin]]
+class = "orpheus/transport/fields/radial_characteristic_interior_source_sink.py::RadialCharacteristicInteriorSourceSink"
+
+[[twin]]
+class = "orpheus/transport/fields/scalar_boundary_flux.py::ScalarBoundaryFlux"
+
+[[twin]]
+class = "orpheus/transport/fields/scalar_boundary_source_sink.py::ScalarBoundarySourceSink"
+
+[[twin]]
+class = "orpheus/transport/fields/scalar_flux.py::ScalarFlux"
+
+[[twin]]
+class = "orpheus/transport/fields/scalar_source_sink.py::ScalarSourceSink"
+
+[[twin]]
+class = "orpheus/transport/full_field.py::Composite"
+
+[[twin]]
+class = "orpheus/transport/material_field.py::MaterialField"
+
+[[twin]]
+class = "orpheus/transport/method.py::Mesh1DMethodMesh"
+
+[[twin]]
+class = "orpheus/transport/reaction_rate_functional.py::IntegratedReactionRate"
+
+[[twin]]
+class = "orpheus/transport/residuals/angular_boundary_residual.py::AngularBoundaryResidual"
+
+[[twin]]
+class = "orpheus/transport/residuals/angular_residual.py::AngularResidual"
+
+[[twin]]
+class = "orpheus/transport/residuals/radial_characteristic_boundary_residual.py::RadialCharacteristicBoundaryResidual"
+
+[[twin]]
+class = "orpheus/transport/residuals/radial_characteristic_interior_residual.py::RadialCharacteristicInteriorResidual"
+
+[[twin]]
+class = "orpheus/transport/residuals/scalar_residual.py::ScalarResidual"
+
+[[weld]]
+class = "orpheus/cp/solver.py::CPMesh"
+
+[[weld]]
+class = "orpheus/cp/solver.py::CPParams"
+
+[[weld]]
+class = "orpheus/cp/solver.py::CPSolver"
+
+[[weld]]
+class = "orpheus/data/cells.py::CellCoefficient"
+
+[[weld]]
+class = "orpheus/data/macro_xs/mixture.py::Mixture"
+
+[[weld]]
+class = "orpheus/diffusion/operators.py::DiffusionBoundaryOperator"
+
+[[weld]]
+class = "orpheus/diffusion/operators.py::LeakageOperator"
+
+[[weld]]
+class = "orpheus/diffusion/solver.py::DiffusionSolver"
+
+[[weld]]
+class = "orpheus/fuel/solver.py::FuelRodGeometry"
+
+[[weld]]
+class = "orpheus/geometry/chart.py::Chart"
+
+[[weld]]
+class = "orpheus/geometry/chart.py::DirectionDomain"
+
+[[weld]]
+class = "orpheus/geometry/chart.py::LineDomain"
+
+[[weld]]
+class = "orpheus/geometry/chord.py::ConcentricPartition"
+
+[[weld]]
+class = "orpheus/geometry/coord.py::CoordSystem"
+
+[[weld]]
+class = "orpheus/geometry/deck.py::FacePairing"
+
+[[weld]]
+class = "orpheus/geometry/structured_geometry.py::StructuredGeometry"
+
+[[weld]]
+class = "orpheus/homogeneous/solver.py::HomogeneousProblem"
+
+[[weld]]
+class = "orpheus/homogeneous/solver.py::HomogeneousResult"
+
+[[weld]]
+class = "orpheus/kinetics/solver.py::KineticsParams"
+
+[[weld]]
+class = "orpheus/mc/solver.py::ConcentricPinCell"
+
+[[weld]]
+class = "orpheus/mc/solver.py::MCMesh"
+
+[[weld]]
+class = "orpheus/mc/solver.py::MCParams"
+
+[[weld]]
+class = "orpheus/mc/solver.py::NeutronBank"
+
+[[weld]]
+class = "orpheus/mc/solver.py::SlabPinCell"
+
+[[weld]]
+class = "orpheus/mc/solver.py::_PrecomputedXS"
+
+[[weld]]
+class = "orpheus/mesh/structured.py::Mesh1D"
+
+[[weld]]
+class = "orpheus/mesh/structured.py::Mesh2D"
+
+[[weld]]
+class = "orpheus/moc/core.py::MOCSolver"
+
+[[weld]]
+class = "orpheus/moc/geometry.py::MOCMesh"
+
+[[weld]]
+class = "orpheus/moc/geometry.py::Track"
+
+[[weld]]
+class = "orpheus/numerics/axis.py::Axis"
+
+[[weld]]
+class = "orpheus/numerics/basis/base.py::Basis"
+
+[[weld]]
+class = "orpheus/numerics/basis/descent.py::Descent"
+
+[[weld]]
+class = "orpheus/numerics/coupled_system.py::CoupledField"
+
+[[weld]]
+class = "orpheus/numerics/coupled_system.py::CoupledOperator"
+
+[[weld]]
+class = "orpheus/numerics/coupled_system.py::CoupledSubstitutionOperator"
+
+[[weld]]
+class = "orpheus/numerics/field.py::Field"
+
+[[weld]]
+class = "orpheus/numerics/functional.py::InnerProductFunctional"
+
+[[weld]]
+class = "orpheus/numerics/green_operator.py::GreenOperator"
+
+[[weld]]
+class = "orpheus/numerics/iteration.py::KEigenvalue"
+
+[[weld]]
+class = "orpheus/numerics/iteration.py::KrylovAcceleration"
+
+[[weld]]
+class = "orpheus/numerics/iteration.py::SourceIteration"
+
+[[weld]]
+class = "orpheus/numerics/kernel_projection_gauge.py::KernelProjectionGauge"
+
+[[weld]]
+class = "orpheus/numerics/matrix_inverse_operator.py::MatrixInverseOperator"
+
+[[weld]]
+class = "orpheus/numerics/measure.py::DiscreteMeasure"
+
+[[weld]]
+class = "orpheus/numerics/operator.py::FusedAtom"
+
+[[weld]]
+class = "orpheus/numerics/operator.py::LinearOperator"
+
+[[weld]]
+class = "orpheus/numerics/quadrature/directional.py::Quadrature"
+
+[[weld]]
+class = "orpheus/numerics/quadrature/registry.py::AngularSymmetry"
+
+[[weld]]
+class = "orpheus/numerics/quadrature/rules_sphere.py::LevelStructure"
+
+[[weld]]
+class = "orpheus/numerics/space.py::FunctionSpace"
+
+[[weld]]
+class = "orpheus/numerics/spaces/angular_trace_space.py::AngularTraceSpace"
+
+[[weld]]
+class = "orpheus/numerics/spaces/radial_characteristic_space.py::RadialCharacteristicBoundarySpace"
+
+[[weld]]
+class = "orpheus/numerics/spaces/scalar_trace_space.py::ScalarTraceSpace"
+
+[[weld]]
+class = "orpheus/sn/acceleration/dsa.py::DSACorrection"
+
+[[weld]]
+class = "orpheus/sn/angular/closure.py::AngularClosureBase"
+
+[[weld]]
+class = "orpheus/sn/angular/closure.py::MorelMontryAngularSweep"
+
+[[weld]]
+class = "orpheus/sn/loss_representation/__init__.py::_LossRepresentation"
+
+[[weld]]
+class = "orpheus/sn/loss_representation/__init__.py::_OctantWalk"
+
+[[weld]]
+class = "orpheus/sn/loss_representation/__init__.py::_OneDimScanWalk"
+
+[[weld]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::SweepDependencyGraph"
+
+[[weld]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolve"
+
+[[weld]]
+class = "orpheus/sn/loss_representation/sweep_schedule.py::OctantSweep"
+
+[[weld]]
+class = "orpheus/sn/mesh/reduced_operator.py::ReducedStreamingOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/boundary.py::RadialCharacteristicBoundaryOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/boundary.py::SNBoundaryOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/boundary.py::SNMaskedBoundaryOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicEmission"
+
+[[weld]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/streaming.py::StreamingCollisionOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/sweep_operator.py::SweepOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/windowing.py::BulkAnalysisOperator"
+
+[[weld]]
+class = "orpheus/sn/operators/windowing.py::WindowedSweep"
+
+[[weld]]
+class = "orpheus/sn/problem.py::SNProblem"
+
+[[weld]]
+class = "orpheus/sn/solution.py::Solution"
+
+[[weld]]
+class = "orpheus/sn/solver.py::SNSolver"
+
+[[weld]]
+class = "orpheus/sn/sweep/cache.py::StreamingCoefficientCache"
+
+[[weld]]
+class = "orpheus/thermal_hydraulics/solver.py::THParams"
+
+[[weld]]
+class = "orpheus/thermal_hydraulics/solver_dae.py::THParams"
+
+[[weld]]
+class = "orpheus/transport/boundary_conditions/binding.py::Binding"
+
+[[weld]]
+class = "orpheus/transport/fields/_bases.py::BulkField"
+
+[[weld]]
+class = "orpheus/transport/fields/_bases.py::MomentField"
+
+[[weld]]
+class = "orpheus/transport/fields/angular_boundary_source_sink.py::AngularBoundarySourceSink"
+
+[[weld]]
+class = "orpheus/transport/fields/angular_source_sink.py::AngularSourceSink"
+
+[[weld]]
+class = "orpheus/transport/material_field.py::TransferMaterialField"
+
+[[weld]]
+class = "orpheus/transport/mesh/material_mesh.py::MaterialMesh"
+
+[[weld]]
+class = "orpheus/transport/mesh/material_xs_field.py::MaterialXSField"
+
+[[weld]]
+class = "orpheus/transport/operators/angular_lift.py::AngularLift"
+
+[[weld]]
+class = "orpheus/transport/operators/fission.py::FissionOperator"
+
+[[weld]]
+class = "orpheus/transport/operators/multiplication_operator.py::MultiplicationOperator"
+
+[[weld]]
+class = "orpheus/transport/operators/transfer.py::LegendreMomentTransfer"
+
+[[weld]]
+class = "orpheus/transport/operators/transfer.py::TransferOperator"
+
+[[weld]]
+class = "orpheus/transport/spatial/scheme.py::DiscretizationSchemeBase"
+
+[[role_test]]
+test = "component_no_core_reader"
+class = "orpheus/geometry/transformation.py::Permutation"
+
+[[role_test]]
+test = "part_no_core_reader"
+class = "orpheus/mesh/mesher.py::Mesher"
+
+[[role_test]]
+test = "part_no_core_reader"
+class = "orpheus/mesh/partition.py::CellsByCount"
+
+[[misplaced]]
+class = "orpheus/data/cell_xs.py::CellXS"
+
+[[misplaced]]
+class = "orpheus/data/emission_spectrum.py::EmissionSpectrum"
+
+[[misplaced]]
+class = "orpheus/data/macro_xs/mixture.py::Mixture"
+
+[[misplaced]]
+class = "orpheus/data/materials.py::InconsistentMaterialsError"
+
+[[misplaced]]
+class = "orpheus/data/materials.py::Materials"
+
+[[misplaced]]
+class = "orpheus/diffusion/operators.py::LeakageOperator"
+
+[[misplaced]]
+class = "orpheus/numerics/eigenvalue.py::PowerIterationOutcome"
+
+[[misplaced]]
+class = "orpheus/reference/verification.py::ProductionAnswer"
+
+[[misplaced]]
+class = "orpheus/sn/boundary/realized_operators.py::RealizedBoundary"
+
+[[misplaced]]
+class = "orpheus/sn/operators/streaming.py::StreamingOperator"
+
+[[misplaced]]
+class = "orpheus/sn/solution.py::SolutionBase"
+
+[[misplaced]]
+class = "orpheus/sn/splitting.py::Splitting"
+
+[[misplaced]]
+class = "orpheus/specification/exterior.py::WallAmplitudes"
+
+[[misplaced]]
+class = "orpheus/transport/operators/bound_operator.py::BoundOperator"
+
+[[edge]]
+src = "orpheus/homogeneous/solver.py::HomogeneousProblem"
+dst = "orpheus/numerics/pencil.py::OperatorPencil"
+kind = "late"
+
+[[edge]]
+src = "orpheus/homogeneous/solver.py::HomogeneousProblem"
+dst = "orpheus/numerics/posing.py::EigenPosing"
+kind = "late"
+
+[[edge]]
+src = "orpheus/mesh/structured.py::Mesh1D"
+dst = "orpheus/numerics/mesh_free_function.py::RegionwiseConstant"
+kind = "top"
+
+[[edge]]
+src = "orpheus/mesh/structured.py::Mesh1D"
+dst = "orpheus/numerics/mesh_free_function.py::Symbolic"
+kind = "top"
+
+[[edge]]
+src = "orpheus/mesh/structured.py::Mesh2D"
+dst = "orpheus/numerics/mesh_free_function.py::RegionwiseConstant"
+kind = "top"
+
+[[edge]]
+src = "orpheus/mesh/structured.py::Mesh2D"
+dst = "orpheus/numerics/mesh_free_function.py::Symbolic"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Gauge"
+dst = "orpheus/numerics/evidence.py::Asserted"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Gauge"
+dst = "orpheus/numerics/evidence.py::Measured"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Gauge"
+dst = "orpheus/numerics/evidence.py::NotApplicable"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Gauge"
+dst = "orpheus/numerics/evidence.py::NotYet"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Solve"
+dst = "orpheus/numerics/evidence.py::Asserted"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Solve"
+dst = "orpheus/numerics/evidence.py::Measured"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Solve"
+dst = "orpheus/numerics/evidence.py::NotApplicable"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/fredholm.py::Solve"
+dst = "orpheus/numerics/evidence.py::NotYet"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/iteration.py::KrylovAcceleration"
+dst = "orpheus/numerics/convergence.py::ConvergenceWarning"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/iteration.py::KrylovAcceleration"
+dst = "orpheus/numerics/convergence.py::IterationBudget"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/iteration.py::KrylovAcceleration"
+dst = "orpheus/numerics/convergence.py::IterationRecord"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/iteration.py::KrylovAcceleration"
+dst = "orpheus/numerics/convergence.py::StoppingCriterion"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/iteration.py::SourceIteration"
+dst = "orpheus/numerics/convergence.py::IterationBudget"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/iteration.py::SourceIteration"
+dst = "orpheus/numerics/convergence.py::IterationRecord"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/iteration.py::SourceIteration"
+dst = "orpheus/numerics/convergence.py::StoppingCriterion"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::EigenPosing"
+dst = "orpheus/numerics/evidence.py::Asserted"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::EigenPosing"
+dst = "orpheus/numerics/evidence.py::Measured"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::EigenPosing"
+dst = "orpheus/numerics/evidence.py::NotApplicable"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::EigenPosing"
+dst = "orpheus/numerics/evidence.py::NotYet"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::SourcePosing"
+dst = "orpheus/numerics/evidence.py::Asserted"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::SourcePosing"
+dst = "orpheus/numerics/evidence.py::Measured"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::SourcePosing"
+dst = "orpheus/numerics/evidence.py::NotApplicable"
+kind = "top"
+
+[[edge]]
+src = "orpheus/numerics/posing.py::SourcePosing"
+dst = "orpheus/numerics/evidence.py::NotYet"
+kind = "top"
+
+[[edge]]
+src = "orpheus/sn/operators/boundary.py::SNBoundaryOperator"
+dst = "orpheus/sn/loss_representation/sweep_schedule.py::SweepSchedule"
+kind = "typing"
+
+[[edge]]
+src = "orpheus/sn/operators/boundary.py::SNBoundaryOperator"
+dst = "orpheus/sn/operators/boundary.py::BoundarySplit"
+kind = "top"
+
+[[edge]]
+src = "orpheus/sn/operators/boundary.py::SNBoundaryOperator"
+dst = "orpheus/sn/operators/boundary.py::SNMaskedBoundaryOperator"
+kind = "top"
+
+[[edge]]
+src = "orpheus/sn/operators/streaming.py::StreamingCollisionOperator"
+dst = "orpheus/numerics/operator.py::FusedAtom"
+kind = "inherits"
+
+[[edge]]
+src = "orpheus/sn/operators/streaming.py::StreamingCollisionOperator"
+dst = "orpheus/sn/loss_representation/__init__.py::LossRepresentation"
+kind = "typing"
+
+[[edge]]
+src = "orpheus/sn/operators/streaming.py::StreamingCollisionOperator"
+dst = "orpheus/sn/loss_representation/__init__.py::SigmaStratum"
+kind = "typing"
+
+[[edge]]
+src = "orpheus/sn/operators/streaming.py::StreamingCollisionOperator"
+dst = "orpheus/sn/loss_representation/sweep_schedule.py::SweepSchedule"
+kind = "typing"
+
+[[edge]]
+src = "orpheus/sn/operators/streaming.py::StreamingOperator"
+dst = "orpheus/sn/loss_representation/__init__.py::LossRepresentation"
+kind = "typing"
+
+[[edge]]
+src = "orpheus/sn/problem.py::SNProblem"
+dst = "orpheus/numerics/pencil.py::OperatorPencil"
+kind = "late"
+
+[[edge]]
+src = "orpheus/sn/problem.py::SNProblem"
+dst = "orpheus/numerics/posing.py::EigenPosing"
+kind = "late"
+
+[[edge]]
+src = "orpheus/sn/problem.py::SNProblem"
+dst = "orpheus/numerics/posing.py::SourcePosing"
+kind = "late"
+
+[[edge]]
+src = "orpheus/sn/problem.py::SNProblem"
+dst = "orpheus/sn/coupled_system.py::WithinGroupSystem"
+kind = "typing"
+
+[[edge]]
+src = "orpheus/sn/solver.py::_StateProductionRate"
+dst = "orpheus/sn/solver.py::SNSolver"
+kind = "typing"
+
+[[cycle]]
+concepts = ["adjoint", "block", "bsource", "closure", "compose", "covector", "dsum", "dual", "ends", "faces", "factor", "fission", "fluxsrc", "four", "frame", "groups", "hub", "inverse", "member", "mesh", "multiplier", "natural", "nullspace", "otensor", "pairing", "rate", "rayspace", "realized", "realizer", "restrict", "scheme", "streaming", "subspace", "tensor", "trace", "transfer", "transpose", "walllaw", "xsfield"]
+
+[[cycle]]
+concepts = ["group", "manifold", "measure", "orbit", "quadrature", "refmeasure"]
+
+[[cycle]]
+concepts = ["algorithm", "green", "schedule", "strategy"]
+
+[[kind_law]]
+law = "head_arm_kind"
+class = "orpheus/numerics/functional.py::InnerProductFunctional"
+
+[[kind_law]]
+law = "head_arm_kind"
+class = "orpheus/numerics/observable.py::FluxIntegral"
+
+[[kind_law]]
+law = "head_arm_kind"
+class = "orpheus/numerics/observable.py::PointValue"
+
+[[kind_law]]
+law = "head_arm_kind"
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolveAngular"
+
+[[kind_law]]
+law = "head_arm_kind"
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolveMoment"
+
+[[kind_law]]
+law = "head_arm_kind"
+class = "orpheus/transport/fields/_bases.py::RolePair"
+
+[[kind_law]]
+law = "head_arm_kind"
+class = "orpheus/transport/reaction_rate_functional.py::ReactionRateFunctional"
+
+[[kind_law]]
+law = "apparatus_row"
+class = "orpheus/sn/loss_representation/__init__.py::_GeometryIntern"
+
+[[operator_off_algebra]]
+class = "orpheus/numerics/gauge.py::KernelGauge"
+
+[[operator_off_algebra]]
+class = "orpheus/numerics/iteration.py::_SeededExactApply"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellResidual"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellResidualTranspose"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolve"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolveAngular"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolveMoment"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolveTranspose"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellTranspose"
+
+[[operator_off_algebra]]
+class = "orpheus/sn/operators/sweep_operator.py::ScheduleTriangularForward"
+
+[[covector_off_lineage]]
+class = "orpheus/data/cells.py::CellCoefficient"
+
+[[covector_off_lineage]]
+class = "orpheus/numerics/functional.py::InnerProductFunctional"
+
+[[covector_off_lineage]]
+class = "orpheus/numerics/observable.py::FluxIntegral"
+
+[[covector_off_lineage]]
+class = "orpheus/numerics/observable.py::PointValue"
+
+[[covector_off_lineage]]
+class = "orpheus/sn/solver.py::_StateProductionRate"
+
+[[covector_off_lineage]]
+class = "orpheus/transport/reaction_rate_functional.py::IntegratedReactionRate"
+
+[[covector_off_lineage]]
+class = "orpheus/transport/reaction_rate_functional.py::ReactionRateFunctional"

@@ -191,7 +191,7 @@ __all__ = [
 ]
 
 
-class DiffusionSolver:
+class DiffusionSolver:  # concept: driver | role: weld | kind: morphism | welded: driver, pencil, posing, nullspace, inverse, strategy, fission, rate
     r"""Multigroup diffusion k-eigenvalue solver on the scalar composite.
 
     Implements the :class:`~orpheus.numerics.eigenvalue.EigenvalueSolver`
@@ -457,7 +457,7 @@ class DiffusionSolver:
 
 
 @dataclass(frozen=True, eq=False)
-class DiffusionResult:
+class DiffusionResult:  # concept: solution | role: twin | kind: record
     r"""Converged diffusion eigenmode (the modern, typed result).
 
     ``flux`` is the full composite — the bulk :class:`ScalarFlux` AND
@@ -585,7 +585,7 @@ def solve_diffusion_1d(
 
 
 @dataclass(frozen=True)
-class DiffusionSourceSolution:
+class DiffusionSourceSolution:  # concept: solution | role: twin | kind: record
     r"""The answer to diffusion's fixed-source question :math:`A\phi = q`: the outcome and its exit report."""
 
     outcome: SourceOutcome

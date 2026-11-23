@@ -161,7 +161,7 @@ _EngineVerb = Callable[[np.ndarray], np.ndarray]
 
 
 @dataclass(eq=False)
-class MultiplicationOperator(BoundOperator):
+class MultiplicationOperator(BoundOperator):  # concept: multiplier | role: weld | kind: morphism.operator | welded: multiplier, restrict
     r"""The promotion :math:`M[f]` of a coefficient field to a diagonal operator.
 
     Stores ONLY the coefficient and its ends; the raw pointwise multiply

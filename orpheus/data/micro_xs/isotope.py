@@ -14,7 +14,7 @@ NG = 421  # number of energy groups
 
 
 @dataclass
-class Isotope:
+class Isotope:  # concept: EXT:nuclide-data | role: head | kind: element.member
     """Microscopic cross section data for one isotope at one temperature.
 
     All cross sections are in barns; energy boundaries in eV.

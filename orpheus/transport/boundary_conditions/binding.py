@@ -74,7 +74,7 @@ __all__ = ["Binding", "BoundaryCarrier", "bind"]
 
 
 @runtime_checkable
-class BoundaryCarrier(Protocol):
+class BoundaryCarrier(Protocol):  # concept: mesh | role: interface | kind: set
     """The object that owns the faces and their colouring symmetry."""
 
     @property
@@ -89,7 +89,7 @@ class BoundaryCarrier(Protocol):
 
 
 @dataclass(frozen=True, eq=False)
-class Binding(ContentIdentity):
+class Binding(ContentIdentity):  # concept: walllaw | role: weld | kind: element | welded: walllaw, role
     """The declared conditions joined to a carrier's faces: ``decks``, ``tags``, ``declared`` and the ``symmetry``."""
 
     decks: FrozenMapping[str, DeckTransformation]

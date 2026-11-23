@@ -69,7 +69,7 @@ from typing import Any, ClassVar, Optional
 __all__ = ["RegistryMixin"]
 
 
-class RegistryMixin:
+class RegistryMixin:  # concept: EXT:subclass-registry | role: head | kind: apparatus
     """Self-registering subclass mixin.
 
     Each registry root re-declares its own :pydata:`registry` ClassVar

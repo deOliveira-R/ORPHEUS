@@ -123,8 +123,8 @@ class Population:
         return cls(tuple(sorted(rows, key=lambda r: r.key)), tuple(orphans), len(sources), 0)
 
 
-def read_tree(root: Path) -> Population:
-    """The population of ``root/orpheus/**/*.py``: sorted, without ``__pycache__`` and without ``derivations/``."""
+def read_sources(root: Path) -> tuple[dict[str, str], int]:
+    """``({file: source text}, files skipped under derivations/)`` of ``root/orpheus/**/*.py``, sorted, without ``__pycache__``."""
     root = Path(root)
     if not (root / "orpheus").is_dir():
         raise ValueError(f"{root} holds no orpheus/ directory")
@@ -137,4 +137,10 @@ def read_tree(root: Path) -> Population:
             skipped += 1
             continue
         sources[path.relative_to(root).as_posix()] = path.read_text()
+    return sources, skipped
+
+
+def read_tree(root: Path) -> Population:
+    """The population of ``root/orpheus/**/*.py``: sorted, without ``__pycache__`` and without ``derivations/``."""
+    sources, skipped = read_sources(root)
     return dataclasses.replace(Population.from_sources(sources), files_skipped_derivations=skipped)

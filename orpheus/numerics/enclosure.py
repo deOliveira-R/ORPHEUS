@@ -54,7 +54,7 @@ def _up(x: float) -> float:
 
 
 @dataclass(frozen=True, eq=False)
-class Enclosure(ContentIdentity):
+class Enclosure(ContentIdentity):  # concept: EXT:enclosure | role: head | kind: element
     """The exact number lies within ``bound`` of ``value``."""
 
     value: float

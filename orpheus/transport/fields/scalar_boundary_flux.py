@@ -73,7 +73,7 @@ __all__ = ["ScalarBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarBoundaryFlux(ScalarBoundaryField):
+class ScalarBoundaryFlux(ScalarBoundaryField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""Partial-current pair :math:`(J^+, J^-)` per boundary face per group.
 
     Parameters

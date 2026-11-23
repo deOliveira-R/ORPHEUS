@@ -35,7 +35,7 @@ __all__ = ["SNMethodSpace"]
 
 
 @dataclass(frozen=True)
-class SNMethodSpace:
+class SNMethodSpace:  # concept: hub | role: component | kind: element
     r"""The method space of an SN face realization: the quadrature and the trace ladder over the problem's faces.
 
     See the module docstring for the field semantics. The canonical construction site is ``SNProblem.realize_boundary_role``,

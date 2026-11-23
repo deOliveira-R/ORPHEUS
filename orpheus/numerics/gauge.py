@@ -72,7 +72,7 @@ from numpy.typing import NDArray
 
 
 @dataclass(frozen=True)
-class ScaleGauge:
+class ScaleGauge:  # concept: gauge | role: twin | kind: morphism
     r"""The section of the :math:`\mathbb{R}_+`-quotient a degree-1 functional fixes.
 
     Parameters
@@ -133,7 +133,7 @@ class ScaleGauge:
 
 
 @runtime_checkable
-class KernelGauge(Protocol):
+class KernelGauge(Protocol):  # concept: gauge | role: head | kind: morphism.operator
     r"""The section of the :math:`(\ker A, +)`-quotient: :math:`\psi \mapsto \psi - \Pi\psi`.
 
     A structural contract — :class:`~orpheus.numerics.kernel_projection_gauge.KernelProjectionGauge`

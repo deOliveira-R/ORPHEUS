@@ -1,0 +1,961 @@
+# docs/architecture/concept_table.toml: one row per concept (decision D2), read by tools/concept_table and the concept-table gates; edited by hand.
+
+[[concept]]
+id = "EXT:citation"
+name = "Citation"
+definition = "A published work named by bibliography key with a locator inside it."
+kind = "element"
+phase = "structure"
+layer = "data"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:coarse-correction"
+name = "Coarse correction"
+definition = "A coarse-space correction P A_low^-1 G R: an approximate inverse of the transport loss built from a restricted low-order (diffusion) system and applied to the iterate increment (DSA)."
+kind = "morphism"
+phase = "strategy"
+layer = "sn"
+wave = "W2"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:continuum-function"
+name = "Continuum function"
+definition = "An intensional function on continuous phase space, stated before any mesh exists, carrying no space and no role; a projection maps it onto a discrete member."
+kind = "element"
+phase = "posing"
+layer = "numerics"
+ruling = "O23"
+sum = "orpheus/numerics/mesh_free_function.py:MeshFreeFunction"
+theory = ["ref:structured-geometry-mesh-free-functions", "ref:structured-geometry-two-lifts-branch-1"]
+
+[[concept]]
+id = "EXT:enclosure"
+name = "Enclosure"
+definition = "A real number with a guaranteed non-negative error radius: the exact value lies in [v - b, v + b]."
+kind = "element"
+phase = "solution"
+layer = "numerics"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:fluid-state"
+name = "Fluid state"
+definition = "The thermophysical state (and saturation properties) of water or steam."
+kind = "element"
+phase = "structure"
+layer = "data"
+wave = "W9"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:nuclide-data"
+name = "Nuclide data"
+definition = "Microscopic multigroup cross sections of one nuclide at one temperature, and the parsed evaluated-data sections they come from."
+kind = "element"
+phase = "structure"
+layer = "data"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:reaction-channel"
+name = "Reaction channel"
+definition = "The closed index set of a mixture's reaction or emission channels (fission, scattering, (n,2n))."
+kind = "set"
+phase = "structure"
+layer = "data"
+wave = "W3"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:reference-solution"
+name = "Reference solution"
+definition = "A reference method's answer to a specification, with the certificate, the readings, the standing (published, withdrawn) and the refusals about it."
+kind = "record"
+phase = "solution"
+layer = "reference"
+wave = "W9"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:specification"
+name = "Specification"
+definition = "The method-agnostic statement of what is asked (materials, geometry, exterior, question) before any method poses it."
+kind = "element"
+phase = "posing"
+layer = "specification"
+wave = "W5"
+ruling = "O23"
+sum = "orpheus/specification/specification.py:Specification"
+theory = ["ref:structured-geometry-specification", "ref:structured-geometry-specification-layer", "ref:structured-geometry-specification-canonical"]
+
+[[concept]]
+id = "EXT:subclass-registry"
+name = "Subclass registry"
+definition = "A self-registering, string-keyed registry of the concrete subclasses of a root class."
+kind = "apparatus"
+layer = "numerics"
+ruling = "O23"
+
+[[concept]]
+id = "EXT:verification-certificate"
+name = "Verification certificate"
+definition = "The comparison of a production reading (or an observed order) with a reference enclosure, and the refusals that bar one."
+kind = "record"
+phase = "solution"
+layer = "reference"
+wave = "W9"
+ruling = "O23"
+
+[[concept]]
+id = "adjoint"
+name = "Adjoint"
+definition = "the adjoint"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+theory = ["ref:spaces-riesz-legs", "eq:spaces-riesz-lower-raise", "eq:spaces-riesz-round-trip", "ref:g-adjoint", "eq:g-adjoint-definition", "eq:spaces-adjoint-riesz-composition"]
+
+[[concept]]
+id = "algorithm"
+name = "Algorithm"
+definition = "a realisation of one inverse: a point of the set of algorithms that compute it"
+kind = "element"
+phase = "strategy"
+layer = "numerics"
+wave = "W2"
+ruling = "O29"
+missing = true
+arms = ["orpheus/numerics/green_operator.py::Richardson", "orpheus/numerics/green_operator.py::Krylov", "orpheus/sn/loss_representation/__init__.py::_LossRepresentation"]
+functions = ["orpheus.numerics.eigenvalue.power_iteration"]
+theory = ["ref:green-realisations"]
+
+[[concept]]
+id = "basis"
+name = "Basis"
+definition = "a synthesis map `ℝ^I → F(X)` (a function family)"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W8a"
+ruling = "O23"
+functions = ["orpheus.numerics.basis.interval_legendre_basis.spatial_moment_basis"]
+theory = ["ref:spaces-basis", "ref:spaces-cell-basis", "eq:spaces-interval-legendre-gram", "ref:characteristic-panel-basis"]
+
+[[concept]]
+id = "block"
+name = "Block operator"
+definition = "a block operator on a direct sum"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+
+[[concept]]
+id = "bsource"
+name = "Boundary source"
+definition = "the boundary source: the affine part q of a wall"
+kind = "element"
+phase = "structure"
+layer = "transport"
+wave = "W7"
+ruling = "O23"
+
+[[concept]]
+id = "cellmoment"
+name = "Cell moment"
+definition = "the cell-moment factor and its member"
+kind = "space"
+phase = "structure"
+layer = "transport"
+wave = "W3"
+ruling = "O23"
+missing = true
+
+[[concept]]
+id = "closure"
+name = "Closure"
+definition = "the angular closure: a recurrence on the angular cell edges"
+kind = "morphism"
+phase = "structure"
+layer = "sn"
+wave = "W4"
+ruling = "O23"
+
+[[concept]]
+id = "compose"
+name = "Operator word"
+definition = "a word of operators (sum, product) with derived ends and adjoint"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+missing = true
+arms = ["orpheus/numerics/operator.py::OperatorSum", "orpheus/numerics/operator.py::OperatorProduct"]
+
+[[concept]]
+id = "cone"
+name = "Cone"
+definition = "the positive cone a trace state lives in"
+kind = "set"
+phase = "structure"
+layer = "transport"
+ruling = "O23"
+functions = ["orpheus.numerics.field.Field.cone_violations"]
+
+[[concept]]
+id = "coord"
+name = "Coordinate system"
+definition = "the coordinate system: measure, density and chart derived from the group"
+kind = "morphism"
+phase = "structure"
+layer = "geometry"
+wave = "W6"
+ruling = "O23"
+functions = ["orpheus.geometry.coord.CoordSystem.measure", "orpheus.geometry.coord.CoordSystem.measure_density", "orpheus.geometry.coord.CoordSystem.angular_chart"]
+theory = ["eq:geometry-radial-coordinate", "eq:geometry-measure-density", "ref:structured-geometry-angular-chart"]
+
+[[concept]]
+id = "covector"
+name = "Covector"
+definition = "a co-vector"
+kind = "element"
+phase = "structure"
+layer = "numerics"
+ruling = "O23"
+functions = ["orpheus.numerics.space.FunctionSpace.flat", "orpheus.numerics.space.FunctionSpace.integral", "orpheus.numerics.space.FunctionSpace.unit"]
+theory = ["ref:spaces-covector"]
+
+[[concept]]
+id = "digest"
+name = "Digest"
+definition = "the content digest: one hash of one encoding"
+kind = "morphism"
+phase = "structure"
+layer = "values"
+ruling = "O36"
+functions_head = true
+functions = ["orpheus.values.digest.digest", "orpheus.values.digest.hexdigest"]
+
+[[concept]]
+id = "driver"
+name = "Driver"
+definition = "the loop that runs an algorithm and its estimator (T12: \"the loop is the solution phase's\")"
+kind = "morphism"
+phase = "solution"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+
+[[concept]]
+id = "dsum"
+name = "Direct sum"
+definition = "the direct sum of spaces"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+theory = ["ref:coupled-block-n-general-machinery"]
+
+[[concept]]
+id = "dual"
+name = "Dual"
+definition = "the dual of a factor"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+
+[[concept]]
+id = "ends"
+name = "Operator with true ends"
+definition = "an operator with true ends"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+theory = ["ref:cs4c-ends-select-the-body", "ref:bound-operator"]
+
+[[concept]]
+id = "face"
+name = "Face"
+definition = "a typed face of a region (axis, sign, normal, partner)"
+kind = "set"
+phase = "structure"
+layer = "geometry"
+wave = "W6"
+ruling = "O23"
+missing = true
+
+[[concept]]
+id = "faces"
+name = "Frame faces"
+definition = "analysis and reconstruction of a frame"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+missing = true
+arms = ["orpheus/numerics/projection.py::AnalysisOperator", "orpheus/numerics/projection.py::ReconstructionOperator"]
+theory = ["eq:galerkin-pair"]
+
+[[concept]]
+id = "factor"
+name = "Factor"
+definition = "a factor of a space with its variance"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+functions = ["orpheus.numerics.axis.Axis.unit"]
+theory = ["ref:spaces-the-axis", "ref:spaces-axis-origin", "ref:spaces-axis-identity", "ref:spaces-axis-unit"]
+
+[[concept]]
+id = "fission"
+name = "Fission"
+definition = "fission production, rank one in energy"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W4"
+ruling = "O23"
+
+[[concept]]
+id = "fluxsrc"
+name = "Flux and source member"
+definition = "a cell of the role × layout grid: a member with a variance pattern"
+kind = "element"
+phase = "structure"
+layer = "transport"
+wave = "W3"
+ruling = "O23"
+missing = true
+
+[[concept]]
+id = "fmetric"
+name = "Factor metric"
+definition = "the metric of a factor"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+theory = ["ref:spaces-metric-object", "ref:spaces-metric-propagation"]
+
+[[concept]]
+id = "four"
+name = "Variance pattern"
+definition = "the variance pattern (flux, source, importance, response) of one factor list"
+kind = "element"
+phase = "structure"
+layer = "transport"
+wave = "W1"
+ruling = "O29"
+
+[[concept]]
+id = "frame"
+name = "Frame"
+definition = "a (trial, test) pair of bases with `M R = I`"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W4"
+ruling = "O23"
+functions = ["orpheus.numerics.frame.FrameBase.discrete_gram"]
+theory = ["ref:galerkin-projection", "eq:galerkin-frame-idempotency", "eq:galerkin-construction", "eq:petrov-galerkin-construction", "ref:frame-analysis-is-the-gram-section", "eq:frame-discrete-gram", "ref:frame-parseval-metric"]
+
+[[concept]]
+id = "gauge"
+name = "Gauge"
+definition = "a section of the quotient by a group (the kernel, the positive scale)"
+kind = "morphism"
+phase = "posing"
+layer = "numerics"
+wave = "W2"
+ruling = "O29"
+
+[[concept]]
+id = "graddiv"
+name = "Gradient and divergence"
+definition = "gradient and divergence"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W4"
+ruling = "O23"
+
+[[concept]]
+id = "green"
+name = "Green"
+definition = "the inverse of a split, realised"
+kind = "morphism"
+phase = "strategy"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+theory = ["ref:green-strategy-mints"]
+
+[[concept]]
+id = "group"
+name = "Group"
+definition = "a subgroup of E(d) and its elements"
+kind = "set"
+phase = "structure"
+layer = "geometry"
+wave = "W6"
+ruling = "O23"
+functions = ["orpheus.geometry.colouring.colouring_symmetry"]
+theory = ["ref:manifold-realization"]
+
+[[concept]]
+id = "groups"
+name = "Energy groups"
+definition = "the multigroup energy partition"
+kind = "set"
+phase = "structure"
+layer = "data"
+wave = "W8a"
+ruling = "O23"
+
+[[concept]]
+id = "hub"
+name = "Hub"
+definition = "the System on a Discretization: the point a method's spaces and operators are minted from; holds no question"
+kind = "element"
+phase = "structure"
+layer = "transport"
+wave = "W5"
+ruling = "O23"
+theory = ["ref:the-problem-hub"]
+
+[[concept]]
+id = "impresp"
+name = "Importance and response member"
+definition = "importance and response members"
+kind = "element"
+phase = "structure"
+layer = "numerics"
+wave = "W3"
+ruling = "O23"
+missing = true
+
+[[concept]]
+id = "inverse"
+name = "Inverse"
+definition = "the inverse `A⁻¹`, a morphism with ends (T12)"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+theory = ["eq:eigen-resolvent"]
+
+[[concept]]
+id = "layout"
+name = "Layout"
+definition = "a finite index set with a flat order, with its product (tensor) and coproduct (offsets)"
+kind = "set"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O29"
+missing = true
+arms = ["orpheus/numerics/coefficient_layout.py::HarmonicLayout", "orpheus/numerics/coefficient_layout.py::LegendreLayout", "orpheus/numerics/coefficient_layout.py::CellLayout", "orpheus/numerics/coefficient_layout.py::ModeLayout", "orpheus/numerics/coefficient_layout.py::PolynomialLayout", "orpheus/numerics/coefficient_layout.py::TensorLayout", "orpheus/numerics/face_layout.py::FaceLayout"]
+theory = ["ref:spaces-moment-head"]
+
+[[concept]]
+id = "locate"
+name = "Point location"
+definition = "point location and chords"
+kind = "set"
+phase = "structure"
+layer = "geometry"
+wave = "W6"
+ruling = "O23"
+theory = ["ref:chart-and-chord-chord", "eq:geometry-line-crossing-law", "eq:geometry-crossing-order", "eq:geometry-chord-segment-lengths", "eq:geometry-cylinder-axial-factor", "ref:chart-and-chord-location", "eq:geometry-cauchy-mean-chord"]
+
+[[concept]]
+id = "manifold"
+name = "Manifold"
+definition = "a manifold or G-space, finite index sets included"
+kind = "set"
+phase = "structure"
+layer = "geometry"
+ruling = "O23"
+functions = ["orpheus.geometry.manifold.GSpace.action"]
+theory = ["ref:manifold-three-levels", "ref:manifold-gspace"]
+
+[[concept]]
+id = "measure"
+name = "Measure"
+definition = "a discrete measure `Σ wᵢ δ_xᵢ`, the particle population included"
+kind = "measure"
+phase = "structure"
+layer = "numerics"
+wave = "W8a"
+ruling = "O23"
+functions = ["orpheus.numerics.measure.DiscreteMeasure.relabelling_to"]
+theory = ["eq:discrete-measure-definition", "eq:discrete-measure-g-invariance", "eq:manifold-invariance-composition"]
+
+[[concept]]
+id = "member"
+name = "Member"
+definition = "an element of a space"
+kind = "element"
+phase = "structure"
+layer = "numerics"
+wave = "W3"
+ruling = "O23"
+functions = ["orpheus.numerics.space.FunctionSpace.coordinates_of"]
+theory = ["ref:cone-ordered-vector-space", "eq:positive-cone-definition", "ref:cone-membership-is-a-predicate", "ref:spaces-membership"]
+
+[[concept]]
+id = "memo"
+name = "Traced memo"
+definition = "the traced memo: its recorder, boot, tracer and store are apparatus; its manifest, pins and lookup verdicts are annex records"
+kind = "apparatus"
+layer = "memo"
+ruling = "O23"
+
+[[concept]]
+id = "merge"
+name = "Merge"
+definition = "coarsening (radon_nikodym)"
+kind = "morphism"
+phase = "structure"
+layer = "data"
+wave = "W8b"
+ruling = "O23"
+missing = true
+
+[[concept]]
+id = "mesh"
+name = "Mesh"
+definition = "a partition laid over geometry"
+kind = "set"
+phase = "structure"
+layer = "mesh"
+wave = "W6"
+ruling = "O23"
+missing = true
+theory = ["ref:architecture-layering"]
+
+[[concept]]
+id = "multiplier"
+name = "Multiplier"
+definition = "multiplication by a function, `M_f`; identity and zero its unit and absorbing element"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W4"
+ruling = "O29"
+
+[[concept]]
+id = "natural"
+name = "Natural maps"
+definition = "the natural maps of a product (retraction, section, pullback; dyads)"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+functions = ["orpheus.numerics.axis_marginal.AxisRetractionOperator.covector"]
+theory = ["eq:spaces-axis-marginal-integral", "ref:spaces-collapse-pair", "ref:spaces-collapse-pair-naming", "ref:spaces-collapse-pair-pullback", "ref:spaces-collapse-pair-two-lifts"]
+
+[[concept]]
+id = "nullspace"
+name = "Null space"
+definition = "the pair (ker A, ker Aᵀ), predicted from structure"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O29"
+
+[[concept]]
+id = "observable"
+name = "Observable"
+definition = "a co-vector on the flux"
+kind = "morphism"
+phase = "posing"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+sum = "orpheus/numerics/observable.py:Observable"
+
+[[concept]]
+id = "orbit"
+name = "Orbit space"
+definition = "an orbit space M/G with its fundamental domain"
+kind = "set"
+phase = "structure"
+layer = "geometry"
+wave = "W6"
+ruling = "O23"
+functions = ["orpheus.geometry.chart.Chart.measure_density", "orpheus.geometry.chart.Chart.beam_density", "orpheus.geometry.chart.Chart.line_domain"]
+theory = ["ref:manifold-orbit-space", "ref:manifold-orbit-space-stabiliser", "ref:manifold-quotient-map", "ref:manifold-reynolds-projector-section", "ref:manifold-descent", "ref:chart-and-chord-chart", "ref:chart-and-chord-isotropy", "ref:chart-and-chord-strata", "ref:chart-and-chord-lines", "eq:geometry-measure-on-lines", "eq:geometry-line-domain"]
+
+[[concept]]
+id = "otensor"
+name = "Operator tensor product"
+definition = "the tensor product of operators"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+
+[[concept]]
+id = "outcome"
+name = "Outcome"
+definition = "`(posing, state)`: the answer, strategy-invariant"
+kind = "record"
+phase = "solution"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+missing = true
+arms = ["orpheus/numerics/outcome.py::EigenOutcome", "orpheus/numerics/outcome.py::SourceOutcome"]
+theory = ["ref:the-solution-outcome"]
+
+[[concept]]
+id = "pairing"
+name = "Pairing"
+definition = "the pairing of a space with its dual"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+
+[[concept]]
+id = "parameter"
+name = "Parameter"
+definition = "a coordinate of the problem family's parameter space (a cell coefficient, an interval width)"
+kind = "element"
+phase = "structure"
+layer = "geometry"
+wave = "W5"
+ruling = "O29"
+missing = true
+arms = ["orpheus/geometry/extent.py::GeometryExtent", "orpheus/data/cells.py::CellCoefficient"]
+theory = ["ref:structured-geometry-specification-coordinates"]
+
+[[concept]]
+id = "pencil"
+name = "Pencil"
+definition = "the parameter curve of a question: `A − λF`"
+kind = "morphism"
+phase = "posing"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+theory = ["ref:the-operator-pencil", "eq:pencil-family"]
+
+[[concept]]
+id = "posing"
+name = "Posing"
+definition = "a pencil with its data, and its adjoint"
+kind = "morphism"
+phase = "posing"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+theory = ["ref:eigenvalue-posing", "ref:sn-the-problem-poses-its-pencil"]
+
+[[concept]]
+id = "quadrature"
+name = "Quadrature"
+definition = "a discrete measure with an exactness claim"
+kind = "measure"
+phase = "structure"
+layer = "numerics"
+wave = "W8a"
+ruling = "O23"
+
+[[concept]]
+id = "question"
+name = "Question"
+definition = "a question: a point (curve + functional)"
+kind = "element"
+phase = "posing"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+sum = "orpheus/numerics/question.py:Question"
+theory = ["ref:structured-geometry-question-values", "ref:structured-geometry-question-values-role"]
+
+[[concept]]
+id = "quotient"
+name = "Quotient space"
+definition = "the quotient by a metric kernel"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+missing = true
+functions = ["orpheus.numerics.space.FunctionSpace.rank"]
+
+[[concept]]
+id = "rate"
+name = "Rate"
+definition = "a reaction rate: the metric pairing with a weight"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W5"
+ruling = "O23"
+
+[[concept]]
+id = "rayspace"
+name = "Ray space"
+definition = "the ψ½ spaces of the radial characteristic (System B: interior cells, boundary corner)"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W4"
+ruling = "O29"
+
+[[concept]]
+id = "realized"
+name = "Realized"
+definition = "a realized face operator `Γ+ → Γ−`"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W7"
+ruling = "O23"
+
+[[concept]]
+id = "realizer"
+name = "Realizer"
+definition = "a method's homomorphism from the wall-law algebra to its operators, with admission"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W7"
+ruling = "O29"
+functions = ["orpheus.transport.method.realize_boundary", "orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing"]
+theory = ["ref:bc-realizer-layer", "ref:bc-method-realizability", "ref:bc-refusal-axes"]
+
+[[concept]]
+id = "record"
+name = "Record"
+definition = "the iteration record"
+kind = "record"
+phase = "solution"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+
+[[concept]]
+id = "refmeasure"
+name = "Reference measure"
+definition = "a continuous reference measure with mass and moments"
+kind = "measure"
+phase = "structure"
+layer = "numerics"
+wave = "W8a"
+ruling = "O23"
+
+[[concept]]
+id = "regions"
+name = "Region map"
+definition = "a region map with faces"
+kind = "set"
+phase = "structure"
+layer = "geometry"
+wave = "W6"
+ruling = "O23"
+
+[[concept]]
+id = "restrict"
+name = "Pullback pair"
+definition = "the pullback pair of a point map (restriction, permutation, extension)"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+missing = true
+arms = ["orpheus/numerics/coupled_system.py::SystemRestrictionOperator", "orpheus/numerics/elementary_operators.py::PermutationOperator", "orpheus/numerics/elementary_operators.py::TraceRestrictionOperator", "orpheus/transport/operators/lift.py::BulkLift"]
+theory = ["eq:bc-trace-restriction-pair", "ref:coupled-block-system-restriction", "eq:coupled-block-system-restriction-pair", "eq:coupled-block-system-restriction-laws"]
+
+[[concept]]
+id = "role"
+name = "Role"
+definition = "the face role: a deck transformation or a tag"
+kind = "element"
+phase = "structure"
+layer = "geometry"
+wave = "W6"
+ruling = "O23"
+sum = "orpheus/geometry/deck.py:DeckTransformation"
+functions = ["orpheus.geometry.deck.pairing_of", "orpheus.geometry.deck.parse_face_roles"]
+theory = ["ref:geometry-face-roles"]
+
+[[concept]]
+id = "schedule"
+name = "Schedule"
+definition = "the partial order of cell visits"
+kind = "set"
+phase = "strategy"
+layer = "sn"
+wave = "W4"
+ruling = "O23"
+
+[[concept]]
+id = "scheme"
+name = "Scheme"
+definition = "a per-cell Petrov–Galerkin frame with its closure relation"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W4"
+ruling = "O23"
+functions = ["orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis", "orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis"]
+theory = ["ref:discretization-closures"]
+
+[[concept]]
+id = "solution"
+name = "Solution"
+definition = "an outcome with its provenance"
+kind = "record"
+phase = "solution"
+layer = "transport"
+wave = "W5"
+ruling = "O23"
+theory = ["ref:sn-solution-carries-its-posing"]
+
+[[concept]]
+id = "splitting"
+name = "Splitting"
+definition = "a splitting `A = M − N`"
+kind = "morphism"
+phase = "strategy"
+layer = "transport"
+wave = "W2"
+ruling = "O23"
+functions = ["orpheus.sn.splitting.resolve_schedule"]
+theory = ["ref:sn-splitting-is-a-strategy-value"]
+
+[[concept]]
+id = "strategy"
+name = "Strategy"
+definition = "the plan and the binding"
+kind = "element"
+phase = "strategy"
+layer = "numerics"
+wave = "W5"
+ruling = "O23"
+missing = true
+
+[[concept]]
+id = "streaming"
+name = "Streaming"
+definition = "streaming"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W4"
+ruling = "O23"
+
+[[concept]]
+id = "subspace"
+name = "Subspace"
+definition = "a subspace on an index subset"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+theory = ["ref:bc-half-trace"]
+
+[[concept]]
+id = "tensor"
+name = "Tensor"
+definition = "the tensor product of spaces"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+functions = ["orpheus.numerics.space.FunctionSpace.identity_key", "orpheus.numerics.space.FunctionSpace.of_measure", "orpheus.numerics.space.FunctionSpace.of_basis"]
+theory = ["eq:spaces-axis-product", "ref:spaces-identity-key"]
+
+[[concept]]
+id = "trace"
+name = "Trace space"
+definition = "the boundary trace space, a summand of the direct sum"
+kind = "space"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+missing = true
+theory = ["ref:bc-trace-structure"]
+
+[[concept]]
+id = "transfer"
+name = "Transfer"
+definition = "the group-transfer kernel and its angular lift"
+kind = "morphism"
+phase = "structure"
+layer = "transport"
+wave = "W4"
+ruling = "O23"
+
+[[concept]]
+id = "transpose"
+name = "Transpose"
+definition = "the transpose"
+kind = "morphism"
+phase = "structure"
+layer = "numerics"
+wave = "W2"
+ruling = "O23"
+functions = ["orpheus.numerics.operator.LinearOperator.dual"]
+
+[[concept]]
+id = "value"
+name = "Value"
+definition = "an admitted value with content identity"
+kind = "element"
+phase = "structure"
+layer = "values"
+wave = "W2"
+ruling = "O23"
+theory = ["ref:structured-geometry-question-values-point"]
+
+[[concept]]
+id = "walllaw"
+name = "Wall law"
+definition = "a wall law: the response network (terms, chains, factors) on its cone"
+kind = "element"
+phase = "structure"
+layer = "transport"
+wave = "W7"
+ruling = "O23"
+functions = ["orpheus.transport.boundary_conditions.binding.bind", "orpheus.specification.exterior.admit_exterior", "orpheus.transport.boundary_conditions.condition.WallCondition.from_amplitudes"]
+theory = ["ref:bc-architecture-of-record", "eq:affine-bc-form", "ref:characteristic-walls-roles"]
+
+[[concept]]
+id = "xsfield"
+name = "Cross-section field"
+definition = "a cross-section field: a member of a coefficient space"
+kind = "element"
+phase = "structure"
+layer = "transport"
+wave = "W3"
+ruling = "O23"

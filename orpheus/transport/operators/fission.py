@@ -134,7 +134,7 @@ __all__ = ["FissionMomentOperator", "FissionOperator"]
 
 
 @dataclass(eq=False)
-class FissionMomentOperator(BoundOperator):
+class FissionMomentOperator(BoundOperator):  # concept: fission | role: part | kind: morphism.operator
     r"""The :math:`\ell=0` moment-space fission factor — the dyad on the
     ``[0, 0]`` harmonic block.
 
@@ -208,7 +208,7 @@ class FissionMomentOperator(BoundOperator):
 
 
 @dataclass(eq=False)
-class FissionOperator(AngularLift[IsotropicFission]):
+class FissionOperator(AngularLift[IsotropicFission]):  # concept: fission | role: weld | kind: morphism.operator | welded: fission, natural
     r"""The fission source operator :math:`F` on the angular composite —
     the frame's :math:`\ell=0` conjugation of the energy dyad (module
     docstring): the shared lift

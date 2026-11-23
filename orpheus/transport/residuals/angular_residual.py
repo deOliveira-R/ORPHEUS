@@ -83,7 +83,7 @@ __all__ = ["AngularResidual"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularResidual(AngularField):
+class AngularResidual(AngularField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""L2 per-ordinate transport-balance residual on ``(N, ng, nx, ny)``.
 
     Parameters

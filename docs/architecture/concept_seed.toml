@@ -1,0 +1,622 @@
+# docs/architecture/concept_seed.toml: the fingerprint (BLAKE2b-256 of the class's token stream, comments and docstrings dropped; specification 2.2) of every class that was on the twin or weld list when its entry was written.
+# An entry is never removed when its class leaves a list; it is removed only when no class with that key exists any more.
+
+[[seed]]
+class = "orpheus/cp/solver.py::CPMesh"
+fingerprint = "blake2b:7d8088db0935bffc1736e4269a10fbe9700e9befb12e1b2fd5508d7bdd077726"
+
+[[seed]]
+class = "orpheus/cp/solver.py::CPParams"
+fingerprint = "blake2b:7bd1461f04be1eef8aa7f9a3b68a2ce7cef2fd1bd874dd6555b0e9bb3a49d9d9"
+
+[[seed]]
+class = "orpheus/cp/solver.py::CPResult"
+fingerprint = "blake2b:7ecb6223278fbbed4bf654b384d264432e6a1c5068f51e23d0ede0cafe10939f"
+
+[[seed]]
+class = "orpheus/cp/solver.py::CPSolver"
+fingerprint = "blake2b:5a96e89eac36bc29fea5ff3a31878430bcaa3ac3f6aefa1dd4046891c7efd435"
+
+[[seed]]
+class = "orpheus/data/cell_xs.py::CellXS"
+fingerprint = "blake2b:980bb0041dcf88e519dd3fc6c1073b38286ea6fdadf57fc294ae66e85140021b"
+
+[[seed]]
+class = "orpheus/data/cells.py::CellCoefficient"
+fingerprint = "blake2b:54de3cd4ec1edd4c2fd561af840dd05e7b40d3759973dc609345feea2494dd8e"
+
+[[seed]]
+class = "orpheus/data/energy_grid.py::InverseEnergySpectrum"
+fingerprint = "blake2b:656399245cc04bb46e650587f0324331b6a75a74390239985b6c54d9ae0f6148"
+
+[[seed]]
+class = "orpheus/data/macro_xs/mixture.py::Mixture"
+fingerprint = "blake2b:c0a7363b1922aa96f267d302709b7970650836a8c3477870c111a1726c4a622a"
+
+[[seed]]
+class = "orpheus/data/material_properties/h2o_properties.py::SatProps"
+fingerprint = "blake2b:bd8213a8666bf6aba56cbe690c6698cc0eea0b17e1869731a8b997a79568f49f"
+
+[[seed]]
+class = "orpheus/diffusion/operators.py::DiffusionBoundaryOperator"
+fingerprint = "blake2b:d2f979f6325a016b5563fba09b442ed350031c76d8369b82acc8eb5e7b29f15d"
+
+[[seed]]
+class = "orpheus/diffusion/operators.py::LeakageOperator"
+fingerprint = "blake2b:58e7707b03dbc88b44b5681cceffa31ec46f5bc6e46f6cf63aee764de40c0fdb"
+
+[[seed]]
+class = "orpheus/diffusion/solver.py::DiffusionResult"
+fingerprint = "blake2b:eaf96f1d5151d67015951cb0b29ec2e9189c71aefc6507fdccbb3841cd073ed0"
+
+[[seed]]
+class = "orpheus/diffusion/solver.py::DiffusionSolver"
+fingerprint = "blake2b:9d6fe6f788a41615719935a780c752e3fcc1f4f52f8b8b4a74e431682216a6a6"
+
+[[seed]]
+class = "orpheus/diffusion/solver.py::DiffusionSourceSolution"
+fingerprint = "blake2b:6cec6fe85c910b2fa3ab38a8bae2b0eda41f039a62de4fc3b2cbf54fc7569ec3"
+
+[[seed]]
+class = "orpheus/fuel/solver.py::FuelBehaviourResult"
+fingerprint = "blake2b:d17690cdc09c4eb78f6acb6a05a89e4d25335fac3763eff0ca70180f0d5d54d7"
+
+[[seed]]
+class = "orpheus/fuel/solver.py::FuelRodGeometry"
+fingerprint = "blake2b:150ad4537a552feab602f2d19e60d40c408df1494a2eeb479dd4ae9718b46aec"
+
+[[seed]]
+class = "orpheus/geometry/chart.py::Chart"
+fingerprint = "blake2b:465f1627d3d4e813a0f8bad476256f65eca2a02ed1f2bc9bbed0465c8cc81789"
+
+[[seed]]
+class = "orpheus/geometry/chart.py::DirectionDomain"
+fingerprint = "blake2b:9e7bd57310f207bcc1d68f8db56c4d4828592fbd6b103ba7bd0606403022e71a"
+
+[[seed]]
+class = "orpheus/geometry/chart.py::LineDomain"
+fingerprint = "blake2b:6636294a50c5786b68f870e944d370b3bfefbe6481a17a0fbe7c1748ca04ce26"
+
+[[seed]]
+class = "orpheus/geometry/chord.py::ConcentricPartition"
+fingerprint = "blake2b:b4d7c4c518b0e30a66472b44fffbbc913ad61312a2a268c27a42bd6145d742b5"
+
+[[seed]]
+class = "orpheus/geometry/colouring.py::ColouringSymmetry"
+fingerprint = "blake2b:cf1489a6eaf162decc303fd1090d53b32c66fad767e3aa2a93d37ab2fcc448dc"
+
+[[seed]]
+class = "orpheus/geometry/coord.py::CoordSystem"
+fingerprint = "blake2b:fe404c1999e79f96b6d9b76649c4d95e6465c4ba85264accee46c4cd0bbbec2b"
+
+[[seed]]
+class = "orpheus/geometry/deck.py::FacePairing"
+fingerprint = "blake2b:b5bd023a98abb69f78d147808ea0f3300ee4cbefe98322b27d9a238ca91788c4"
+
+[[seed]]
+class = "orpheus/geometry/structured_geometry.py::StructuredGeometry"
+fingerprint = "blake2b:5ddaf2febe6badb4aa3dedc8b16b1fa8d0c632e3f424e3c6b470bb1d301f5c9d"
+
+[[seed]]
+class = "orpheus/homogeneous/solver.py::HomogeneousProblem"
+fingerprint = "blake2b:3b18f17423aa7593d51593a03755d58075a1d17773d34e49e5695856a6bee5b1"
+
+[[seed]]
+class = "orpheus/homogeneous/solver.py::HomogeneousResult"
+fingerprint = "blake2b:92c78f9b86757caae9e1d54159307edb82a9ad794fc2f5fd662fe1bf0423debf"
+
+[[seed]]
+class = "orpheus/kinetics/solver.py::KineticsParams"
+fingerprint = "blake2b:0cdb79f7991a1d6f9f95f203eafedfe942238b7ab36f90febc5890340f9e986d"
+
+[[seed]]
+class = "orpheus/kinetics/solver.py::KineticsResult"
+fingerprint = "blake2b:2251755a75294161700982053aefa9372bbac1e27844ce7d44d516e92e23cb4f"
+
+[[seed]]
+class = "orpheus/mc/solver.py::ConcentricPinCell"
+fingerprint = "blake2b:d5961392ae3aa6200225a6312d639278d4f2eea526857f7c74283da7f3cf9d89"
+
+[[seed]]
+class = "orpheus/mc/solver.py::MCMesh"
+fingerprint = "blake2b:8dc2e78f277c816654d9f1e98377a46c6007d53efa8326e7026eefcf22badb5d"
+
+[[seed]]
+class = "orpheus/mc/solver.py::MCParams"
+fingerprint = "blake2b:7a70dcde1aed59ed33849447fab926beecb7f4605b71b8f14e1c5e795c58356f"
+
+[[seed]]
+class = "orpheus/mc/solver.py::MCResult"
+fingerprint = "blake2b:90f672f0991b92a629964c05b9a636d798a1b5474091b5fe61139391a085103d"
+
+[[seed]]
+class = "orpheus/mc/solver.py::NeutronBank"
+fingerprint = "blake2b:365dfc0e6774bccc65b6b2a7bc90350386a566658f608bb44edf7ddfae4707cc"
+
+[[seed]]
+class = "orpheus/mc/solver.py::PeriodicWrap"
+fingerprint = "blake2b:052c64c078309436e868a1ccce597462e27cd4730f152e6eff3f9686c7b919a7"
+
+[[seed]]
+class = "orpheus/mc/solver.py::SlabPinCell"
+fingerprint = "blake2b:c02b4c94bbe14b5c21191d2c55e450d7771742a59be8461cad81f7f225e51c91"
+
+[[seed]]
+class = "orpheus/mc/solver.py::_PrecomputedXS"
+fingerprint = "blake2b:c1e75ac531161c7a1591bd41e56099d2cda2257f430207f1ad9e46141c84b5ae"
+
+[[seed]]
+class = "orpheus/mesh/axis.py::AxisCoord"
+fingerprint = "blake2b:af9c6f3a13166565e03df5b6e15438bf2eff76bb5e3bb8173753151dc6c5f4b2"
+
+[[seed]]
+class = "orpheus/mesh/axis.py::AxisMesh"
+fingerprint = "blake2b:05628af13501c4793a0e04f504d1f0a2b337268dcfe0bdc3c245bfaa590b2a6e"
+
+[[seed]]
+class = "orpheus/mesh/axis.py::FaceLabel"
+fingerprint = "blake2b:0654ca7e2a2b2bfbfa39734dfb1b1754e8f945096d55194ebabdde22baac258d"
+
+[[seed]]
+class = "orpheus/mesh/axis.py::RadialAxisMesh"
+fingerprint = "blake2b:3e7d9959e83bddd153a56acdc2de5c7665c53b4e346302192a44efe45ed1c0fe"
+
+[[seed]]
+class = "orpheus/mesh/structured.py::Mesh1D"
+fingerprint = "blake2b:3bb26c925c830eb8cee3b27f44f41d1c37798a1742b99d025190a0f5c94c91fd"
+
+[[seed]]
+class = "orpheus/mesh/structured.py::Mesh2D"
+fingerprint = "blake2b:89fbe4bc161269a73b397476ae89d8b294ed3d36ecb5ae54cd672791d85b6bef"
+
+[[seed]]
+class = "orpheus/moc/core.py::MOCSolver"
+fingerprint = "blake2b:274d83a599c2775e11a13ce60deaead48a780f18a11c5e01b431884245573fcd"
+
+[[seed]]
+class = "orpheus/moc/geometry.py::MOCMesh"
+fingerprint = "blake2b:886b5a3145dddda8ace7d71eaccaa84ac47a5e27612f970e3b4e298dc7180ca9"
+
+[[seed]]
+class = "orpheus/moc/geometry.py::Track"
+fingerprint = "blake2b:289258b905540110759466445e8074eb6de4a13eb733129f7fb76598f881a22f"
+
+[[seed]]
+class = "orpheus/moc/quadrature.py::MOCQuadrature"
+fingerprint = "blake2b:d3f7f7ce40a6522f6433e35db9ac4056bfc355b7432315ff798a631229eae2b1"
+
+[[seed]]
+class = "orpheus/moc/solver.py::MoCResult"
+fingerprint = "blake2b:34e7611e287a0a5f3b254b4ef4b9fa4f466f17633c8c92f1f4b8dfb41da321fd"
+
+[[seed]]
+class = "orpheus/numerics/axis.py::Axis"
+fingerprint = "blake2b:5c5c6c4fd40bfa6e4dd0c04496c924ea450cfbc78c354e014cab44f40bad40ea"
+
+[[seed]]
+class = "orpheus/numerics/basis/base.py::Basis"
+fingerprint = "blake2b:f3f28621ed0d1592481999edde2f1c5ad5b87a61dab094345b44bcf22c9f0725"
+
+[[seed]]
+class = "orpheus/numerics/basis/descent.py::Descent"
+fingerprint = "blake2b:97c8ebbeaf10007fef245f72d09b849813873df1f4ada17dfed184d064f07919"
+
+[[seed]]
+class = "orpheus/numerics/coupled_system.py::CoupledField"
+fingerprint = "blake2b:6b431a4df77ad7204cde1a3cb1be787b48122d7184f378efbdaf0ba0cdf47802"
+
+[[seed]]
+class = "orpheus/numerics/coupled_system.py::CoupledOperator"
+fingerprint = "blake2b:48de9e4af41f23ec6d805fc50f6289e7f02037de72c0a12ff73fe7fe87bfb2c2"
+
+[[seed]]
+class = "orpheus/numerics/coupled_system.py::CoupledSubstitutionOperator"
+fingerprint = "blake2b:220e115da08a0b2eb186e913f0a58284c0f4d7983b6556cf92c36c1691603677"
+
+[[seed]]
+class = "orpheus/numerics/eigenvalue.py::PowerIterationOutcome"
+fingerprint = "blake2b:95dd523f8aa3e941c0dc3f7935157bd8a8dbe304a64f1e491b7b4ed31aebdef3"
+
+[[seed]]
+class = "orpheus/numerics/elementary_operators.py::RankOneOperator"
+fingerprint = "blake2b:48043dfa49083398c5f29ddc3b1f45fe48b21d63066e0350f0ebcae2f72f8a95"
+
+[[seed]]
+class = "orpheus/numerics/field.py::Field"
+fingerprint = "blake2b:16dbbc0fbd111020504ec820a624c8b8054422e494ae67f514ea14bc9e0de928"
+
+[[seed]]
+class = "orpheus/numerics/frame_faces.py::CrossGramInverse"
+fingerprint = "blake2b:989297f0462fd16f9bfda5361118cb641078819d51c72b059833b11f511367da"
+
+[[seed]]
+class = "orpheus/numerics/functional.py::InnerProductFunctional"
+fingerprint = "blake2b:1b786d751edd06be7391cdc5ef481b6b1eb44acd708536755f5706809d353870"
+
+[[seed]]
+class = "orpheus/numerics/gauge.py::ScaleGauge"
+fingerprint = "blake2b:b237b8426cd7bfae88c3071de0f6cd797d192700717d5b5f25afe0a914ae4c1b"
+
+[[seed]]
+class = "orpheus/numerics/green_operator.py::GreenOperator"
+fingerprint = "blake2b:2f2371f7e7f43ab0d371c872fd10a2cd7b6d4c18ba0b8bed333ef2b1da282955"
+
+[[seed]]
+class = "orpheus/numerics/iteration.py::KEigenvalue"
+fingerprint = "blake2b:fde3cdd9144d1343f58d0de2a948c6b22988a1cdb9e2d77df9e12b1b0162da32"
+
+[[seed]]
+class = "orpheus/numerics/iteration.py::KrylovAcceleration"
+fingerprint = "blake2b:07ec30ac7968bab6d73562b3a9aa6edd5cb855f6de2e245d791e15317a860a80"
+
+[[seed]]
+class = "orpheus/numerics/iteration.py::SourceIteration"
+fingerprint = "blake2b:41e3b5e39d3a014da7112788be8a9915d15a8bd467f0c6320017a3f135e81474"
+
+[[seed]]
+class = "orpheus/numerics/kernel_projection_gauge.py::KernelProjectionGauge"
+fingerprint = "blake2b:08fd177d6142a367dd884f2df40ac2613f5b9b561fe98473fa95bac6ec7bb1c8"
+
+[[seed]]
+class = "orpheus/numerics/matrix_inverse_operator.py::MatrixInverseOperator"
+fingerprint = "blake2b:30528169018a61c31ddfe91011ef8d7814463c92f52fac66a0e23f5a712eb92d"
+
+[[seed]]
+class = "orpheus/numerics/measure.py::BundleMeasure"
+fingerprint = "blake2b:41c840cbbfa04374a62286dcb25a5e553a9803d6f58a6ea4bd0afdf4b2bbec87"
+
+[[seed]]
+class = "orpheus/numerics/measure.py::DiscreteMeasure"
+fingerprint = "blake2b:cf4a2f59dc37d5f863e2853ad3f2092dc47958c95556ee42277d97f40807c139"
+
+[[seed]]
+class = "orpheus/numerics/operator.py::FusedAtom"
+fingerprint = "blake2b:4d99558dae2fa43d57ba10ef1aab83c18825547f07543f8db0ee4058cefbf57f"
+
+[[seed]]
+class = "orpheus/numerics/operator.py::LinearOperator"
+fingerprint = "blake2b:6ec102aaee4462f68d8511ccc634f55696df71242cce97dc1b64982c0e9a605c"
+
+[[seed]]
+class = "orpheus/numerics/operator.py::_KeyedEquality"
+fingerprint = "blake2b:03676508fbdff1eee71dabb49e0cf890e0b9dff808609c2f0ce8600b75b7c679"
+
+[[seed]]
+class = "orpheus/numerics/posing.py::SourcePosing"
+fingerprint = "blake2b:4acffd47b28c9fe0c9f19bad78474a56d7c60adb0dabb6eb1b69298928a0152c"
+
+[[seed]]
+class = "orpheus/numerics/quadrature/directional.py::Quadrature"
+fingerprint = "blake2b:15ff45d7edc57231add733b5d79f972dbebfe27b386f7614d2481722b0f12738"
+
+[[seed]]
+class = "orpheus/numerics/quadrature/registry.py::AngularSymmetry"
+fingerprint = "blake2b:133e990a3d540b34cea515143bf6f20f32445f05d68443136f51c76ff94aab6a"
+
+[[seed]]
+class = "orpheus/numerics/quadrature/rules_sphere.py::LevelStructure"
+fingerprint = "blake2b:b416f009d2ef34d629a9bed0632cd1e6f880d9abd547256a55c698b51663eed5"
+
+[[seed]]
+class = "orpheus/numerics/space.py::FunctionSpace"
+fingerprint = "blake2b:001fad83cd49d66d4d99e8caaabf27b680e3bba87982013152f14a6a190d3f50"
+
+[[seed]]
+class = "orpheus/numerics/spaces/angular_trace_space.py::AngularTraceSpace"
+fingerprint = "blake2b:07bf25eaee9a192436e558d7fcb10e4d8042667ff5543bc8c9408a8c456b0a02"
+
+[[seed]]
+class = "orpheus/numerics/spaces/full_field_space.py::FullFieldSpace"
+fingerprint = "blake2b:4c4c2c53dcb538e9f533bde7c9b158a60413401249c2ed3e2e27a7e4d4e73710"
+
+[[seed]]
+class = "orpheus/numerics/spaces/radial_characteristic_space.py::RadialCharacteristicBoundarySpace"
+fingerprint = "blake2b:b3d0c9c98a825dea040f2175e04bcfcfb88e69152b2ec9ea042299b39777030c"
+
+[[seed]]
+class = "orpheus/numerics/spaces/scalar_trace_space.py::ScalarTraceSpace"
+fingerprint = "blake2b:1b59ff718af7eb642dbb471b2d14bf443217eb3901fb246620cf9fc8930f11a2"
+
+[[seed]]
+class = "orpheus/reference/published.py::PublishedSolution"
+fingerprint = "blake2b:9aa2e361e6679f43513bf11245ac27ab937864b89c9482ffebd2efcd9c129af6"
+
+[[seed]]
+class = "orpheus/reference/verification.py::OrderVerification"
+fingerprint = "blake2b:265fbf117be8dead0aec7dda86e5a78f65df357b997d7554bd3cf5169eb738b4"
+
+[[seed]]
+class = "orpheus/reference/verification.py::UncertifiedComparison"
+fingerprint = "blake2b:d3cdc0c566dd2b3f0014810b0b5032cc08474dc502193d09c604cebff374c9a6"
+
+[[seed]]
+class = "orpheus/sn/acceleration/dsa.py::DSACorrection"
+fingerprint = "blake2b:21cd2052beae75f6128d46b175ae111bba740940cb4058a64c09c42796129d40"
+
+[[seed]]
+class = "orpheus/sn/angular/closure.py::AngularClosureBase"
+fingerprint = "blake2b:0420b906a996612742def350100d12067af083ae93f0174035f53170ead00430"
+
+[[seed]]
+class = "orpheus/sn/angular/closure.py::MorelMontryAngularSweep"
+fingerprint = "blake2b:669ea392dbd59f3f23fbd4be66009d07015f872eca7054929b6718f71fa03746"
+
+[[seed]]
+class = "orpheus/sn/boundary/angular.py::IsotropicEmissionOperator"
+fingerprint = "blake2b:ff6d559de9d8cc91df513472c68c0b86890db94dca784a57b1b35a3d7bae3e56"
+
+[[seed]]
+class = "orpheus/sn/boundary/angular.py::PartialCurrentOperator"
+fingerprint = "blake2b:0a148e782dd5275727e1675f856707b206db25332f05b6fc0a738c510f5568ce"
+
+[[seed]]
+class = "orpheus/sn/coupled_system.py::WithinGroupSystem"
+fingerprint = "blake2b:8ed07044834334867afa38faf80b955b75f62fc2e4f1d467788352d068513a06"
+
+[[seed]]
+class = "orpheus/sn/loss_representation/__init__.py::_LossRepresentation"
+fingerprint = "blake2b:4d60934854a1602afbbe598c1edef689788b73e2eb1e6e0bb1238a01dd9b10cd"
+
+[[seed]]
+class = "orpheus/sn/loss_representation/__init__.py::_OctantWalk"
+fingerprint = "blake2b:0b72b43c259d5776ce3378b084b30102374b8625e72baf03f470aa7592a401ba"
+
+[[seed]]
+class = "orpheus/sn/loss_representation/__init__.py::_OneDimScanWalk"
+fingerprint = "blake2b:1b1bdbe838e4aeb88d92b9df3e23316ba71818026bb8f90835dce9840f432e13"
+
+[[seed]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::SweepDependencyGraph"
+fingerprint = "blake2b:33f2fb5940e3926c74697ebd24a2dbf636204250cb5d5c3ba0e3ab34ecd3451e"
+
+[[seed]]
+class = "orpheus/sn/loss_representation/sweep_graph.py::_CellSolve"
+fingerprint = "blake2b:2da655d7680179b5b7a1fa9648836bd012952ba9c937fcbefe30f1078691806b"
+
+[[seed]]
+class = "orpheus/sn/loss_representation/sweep_schedule.py::OctantSweep"
+fingerprint = "blake2b:ba835ad897cfce3eb1c3b69d145192d97444283f8bd697a514052143aa9f86a2"
+
+[[seed]]
+class = "orpheus/sn/mesh/reduced_operator.py::ReducedStreamingOperator"
+fingerprint = "blake2b:91be383e266dbfeb453f3b6273d50037590e505ba378e0706b08001f87605d0d"
+
+[[seed]]
+class = "orpheus/sn/operators/boundary.py::RadialCharacteristicBoundaryOperator"
+fingerprint = "blake2b:4125bdc5397e7c9f3d4aa6392926abf7e931a44ace936dbe6e742ee2da11c7a1"
+
+[[seed]]
+class = "orpheus/sn/operators/boundary.py::SNBoundaryOperator"
+fingerprint = "blake2b:cdb3eaf26c5fd093a0b07b679c95a7f9beffb74e7a3588c42a038a1597e8ded8"
+
+[[seed]]
+class = "orpheus/sn/operators/boundary.py::SNMaskedBoundaryOperator"
+fingerprint = "blake2b:5b4d4198803c7a7399c3c0f668b3c5e546ae2cc99f4407286685d27c763b4121"
+
+[[seed]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicEmission"
+fingerprint = "blake2b:b410afd963c8eda54763205266d94a2cf8f4e76de2a5dd6f942ab5d0bb3579da"
+
+[[seed]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicOperator"
+fingerprint = "blake2b:d89befd2cb41990d27b776886ff5414dcf8bf553ae91e091e058236314998867"
+
+[[seed]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicReconstruction"
+fingerprint = "blake2b:5240238f9529ab089a709c46c96dea9a50aeed11350d3f795a0f12af7d2c0c30"
+
+[[seed]]
+class = "orpheus/sn/operators/radial_characteristic.py::RadialCharacteristicSeeding"
+fingerprint = "blake2b:9b2bf4a0654a3493d7f9e3eef33fe06d7506aa603e8589c6a4376f4be6a2f18f"
+
+[[seed]]
+class = "orpheus/sn/operators/streaming.py::StreamingCollisionOperator"
+fingerprint = "blake2b:535f56a3eea5d599f5a347f3823f2a7a3f0bfe0500e978250618fd283463ed65"
+
+[[seed]]
+class = "orpheus/sn/operators/sweep_operator.py::SweepOperator"
+fingerprint = "blake2b:32b8c90ec60e831e7929c33f21a1b1daa7eebd08dafc287e8b0fb2818e241829"
+
+[[seed]]
+class = "orpheus/sn/operators/windowing.py::AngularMomentWindow"
+fingerprint = "blake2b:1b65a31199564cbffe00d28dd916f16563df6a4603a6ec4cb59221a473c5c203"
+
+[[seed]]
+class = "orpheus/sn/operators/windowing.py::BulkAnalysisOperator"
+fingerprint = "blake2b:30cd66f58560752e524963e21e40118fe14e0867591647e081a4e734104142d2"
+
+[[seed]]
+class = "orpheus/sn/operators/windowing.py::WindowedSweep"
+fingerprint = "blake2b:4409c2b8aaeb61d03aa28545750715c269ed3d685697939c07d7a20b72fb173a"
+
+[[seed]]
+class = "orpheus/sn/problem.py::SNProblem"
+fingerprint = "blake2b:19b5d3798b113b4b0bdcb8031987f993ab66ccd199ffbc32a05f13a8ed1144e7"
+
+[[seed]]
+class = "orpheus/sn/solution.py::Solution"
+fingerprint = "blake2b:2d0b9e23465cab63649693c48358fa68491d11b75e33b83881594a8c0a6a3c9b"
+
+[[seed]]
+class = "orpheus/sn/solver.py::SNSolver"
+fingerprint = "blake2b:4d404789d6134f119f15ab9eab3cb35cd23ef29a0ff35c5dcc3dc8082814e243"
+
+[[seed]]
+class = "orpheus/sn/sweep/cache.py::StreamingCoefficientCache"
+fingerprint = "blake2b:f344288ddf31639882fa0d16ce691a2a9627da9309c6af780679a10b9aa7ccc4"
+
+[[seed]]
+class = "orpheus/specification/exterior.py::WallAmplitudes"
+fingerprint = "blake2b:8537d75ebef6e5b90c8cf90335905090cd14f2fcb62f6bc5a916d52192aa5cbc"
+
+[[seed]]
+class = "orpheus/thermal_hydraulics/solver.py::THParams"
+fingerprint = "blake2b:6434993a7c2ddb1fd1f50ab353ecd37470f8d1e2b0892a3fc4e462d7994a6fd5"
+
+[[seed]]
+class = "orpheus/thermal_hydraulics/solver.py::THResult"
+fingerprint = "blake2b:90816b46ee3797433a6a304b24e59faa32cfc74ed0848fc92dc0bf04e75b1de8"
+
+[[seed]]
+class = "orpheus/thermal_hydraulics/solver_dae.py::THParams"
+fingerprint = "blake2b:6434993a7c2ddb1fd1f50ab353ecd37470f8d1e2b0892a3fc4e462d7994a6fd5"
+
+[[seed]]
+class = "orpheus/thermal_hydraulics/solver_dae.py::THResult"
+fingerprint = "blake2b:90816b46ee3797433a6a304b24e59faa32cfc74ed0848fc92dc0bf04e75b1de8"
+
+[[seed]]
+class = "orpheus/transport/boundary_conditions/admission.py::FaceSite"
+fingerprint = "blake2b:eb741555e7ab79e75dff2f92515d583babfd20a84871c7759e6a74d24a00096d"
+
+[[seed]]
+class = "orpheus/transport/boundary_conditions/binding.py::Binding"
+fingerprint = "blake2b:9a0bdfe994c9080a33ec7ce3cd2a4cdc7bbf739e8909e85779a3d72792c12a39"
+
+[[seed]]
+class = "orpheus/transport/boundary_conditions/network.py::DiffuseChain"
+fingerprint = "blake2b:fbe61a89cd00e866d23f7867155741aba0764272453aa56a13794f3b8a550d51"
+
+[[seed]]
+class = "orpheus/transport/boundary_conditions/network.py::SpecularChain"
+fingerprint = "blake2b:f43d9789700132c2e14b04afff0e35d1dd43b57a20eeda3dc5bf1249b914649f"
+
+[[seed]]
+class = "orpheus/transport/boundary_conditions/network.py::ZeroNetwork"
+fingerprint = "blake2b:899c98174630576c9d9fde4384fca560aaa1d973699814ceebe37e0f2a2b6e01"
+
+[[seed]]
+class = "orpheus/transport/fields/_bases.py::BulkField"
+fingerprint = "blake2b:0e2d3d9d7f38a33ecd19cb8f9f259aad16845b940cfc8bb3522d7648c750f2f6"
+
+[[seed]]
+class = "orpheus/transport/fields/_bases.py::MomentField"
+fingerprint = "blake2b:7a1483a70a26928038554ba8c7f1b27b298c73c5c533836aaa9ed3f8cfe0c212"
+
+[[seed]]
+class = "orpheus/transport/fields/angular_boundary_flux.py::AngularBoundaryFlux"
+fingerprint = "blake2b:a63c64e1de7b1195e14aa7c1bac54447f22f25e7498e7b4dd9fb6b772c734860"
+
+[[seed]]
+class = "orpheus/transport/fields/angular_boundary_source_sink.py::AngularBoundarySourceSink"
+fingerprint = "blake2b:4aa260b60d3d6811ef9e92a6e8444c23f7572e0e19c62d439f618783f53de2a2"
+
+[[seed]]
+class = "orpheus/transport/fields/angular_flux.py::AngularFlux"
+fingerprint = "blake2b:9a0c530c3810e8f33dd56a214eccb02f32b2e97cfbb1d06cb1665b7a837a9e60"
+
+[[seed]]
+class = "orpheus/transport/fields/angular_source_sink.py::AngularSourceSink"
+fingerprint = "blake2b:e58cffc787c29296f0d0e4bdf19e3f66cde3bf811ac16c6ccf417b0addefde7e"
+
+[[seed]]
+class = "orpheus/transport/fields/harmonic_moment_flux.py::HarmonicMomentFlux"
+fingerprint = "blake2b:d0b9587ef1acd77f1b5ff573f3731aee520167c494ceb139841e71562c977bf6"
+
+[[seed]]
+class = "orpheus/transport/fields/harmonic_moment_source_sink.py::HarmonicMomentSourceSink"
+fingerprint = "blake2b:0d6f49baf9a9cc2e7b8a94c884964694e680303b2796c8ab08467e93cedc6d22"
+
+[[seed]]
+class = "orpheus/transport/fields/radial_characteristic_boundary_flux.py::RadialCharacteristicBoundaryFlux"
+fingerprint = "blake2b:de1060d58997813532912aec24290afe03f9741e9a050151eeb0dd86d506a041"
+
+[[seed]]
+class = "orpheus/transport/fields/radial_characteristic_boundary_source_sink.py::RadialCharacteristicBoundarySourceSink"
+fingerprint = "blake2b:25855cb4ba3e8cd04797dd4ed3984d417e3693e016bce2eae57debd57340120a"
+
+[[seed]]
+class = "orpheus/transport/fields/radial_characteristic_interior_flux.py::RadialCharacteristicInteriorFlux"
+fingerprint = "blake2b:24a4bf68cd386a069eac8b6630d9e68d0355632c007906d2e58efc353500991d"
+
+[[seed]]
+class = "orpheus/transport/fields/radial_characteristic_interior_source_sink.py::RadialCharacteristicInteriorSourceSink"
+fingerprint = "blake2b:58c82725c472071e6357cbddc55deac2bcf74076375f2c47614f9a5fc37690ac"
+
+[[seed]]
+class = "orpheus/transport/fields/scalar_boundary_flux.py::ScalarBoundaryFlux"
+fingerprint = "blake2b:274adf053f6f72077d05435a321662b7b4bcf39d2957a31bc64e82250b57afab"
+
+[[seed]]
+class = "orpheus/transport/fields/scalar_boundary_source_sink.py::ScalarBoundarySourceSink"
+fingerprint = "blake2b:a989d20289a985779675451ddda0637faac314e4b99862e0a75d1c0c1e656e1b"
+
+[[seed]]
+class = "orpheus/transport/fields/scalar_flux.py::ScalarFlux"
+fingerprint = "blake2b:503bb81947b1d49d60ab95d5a3bbfe4f08b7060ab9cf7c146951b6a81132879d"
+
+[[seed]]
+class = "orpheus/transport/fields/scalar_source_sink.py::ScalarSourceSink"
+fingerprint = "blake2b:bb3371cfda2499ae9aeaec8fa1cfe46bde6e3c2da429091c539d1fb11c19a72e"
+
+[[seed]]
+class = "orpheus/transport/full_field.py::Composite"
+fingerprint = "blake2b:d23a1e8d8a6294171b0880ab1dbc3693825c68be295f72d6dca1a07fddecbbdd"
+
+[[seed]]
+class = "orpheus/transport/material_field.py::MaterialField"
+fingerprint = "blake2b:c0844621ac228529ed65f5b8e7c0dee7036aad465229c6e7e963eb9b79f960ee"
+
+[[seed]]
+class = "orpheus/transport/material_field.py::TransferMaterialField"
+fingerprint = "blake2b:b2d1fa9f858cbad32bc90b747b3358342d55b6d7eba58167b8a8eeba33fbd8a9"
+
+[[seed]]
+class = "orpheus/transport/mesh/material_mesh.py::MaterialMesh"
+fingerprint = "blake2b:ae49701a514367d78c7c941b554e23bda18109283504c008a2acccdbce8d784c"
+
+[[seed]]
+class = "orpheus/transport/mesh/material_xs_field.py::MaterialXSField"
+fingerprint = "blake2b:177f82fe3755c6d64344493138b48093f560ae61ff922d6827cacbbeb5308d47"
+
+[[seed]]
+class = "orpheus/transport/method.py::Mesh1DMethodMesh"
+fingerprint = "blake2b:72afcbeb14509937049e51f92fc31b25f8bf2275910e04c162ea9b5c010c189d"
+
+[[seed]]
+class = "orpheus/transport/operators/angular_lift.py::AngularLift"
+fingerprint = "blake2b:1e91514c3a6abe3995efc673f4dbde007206a3086f17fcaa80bbdea216a2286a"
+
+[[seed]]
+class = "orpheus/transport/operators/fission.py::FissionOperator"
+fingerprint = "blake2b:5eaa8bc4a341807f320f3d7c1c3dba99793e81477209a557f873f72b0718a4df"
+
+[[seed]]
+class = "orpheus/transport/operators/multiplication_operator.py::MultiplicationOperator"
+fingerprint = "blake2b:ac98f41fd0352ded9b988b6fe106c3435bfe69214b9776cd5926b42eee95dd69"
+
+[[seed]]
+class = "orpheus/transport/operators/transfer.py::LegendreMomentTransfer"
+fingerprint = "blake2b:9c2998a327b243ca3347a306fa54fa4d07346756c8c49f8fc65174098fe9000f"
+
+[[seed]]
+class = "orpheus/transport/operators/transfer.py::TransferOperator"
+fingerprint = "blake2b:ed294d0ade3afa20d911e91bac4d10be5a492aee6a0dac99bb856738076a7913"
+
+[[seed]]
+class = "orpheus/transport/reaction_rate_functional.py::IntegratedReactionRate"
+fingerprint = "blake2b:86b38d1814a2a59f7d3f23fb867ef41c59d355b1fa2b40d9ee3bee48fd92b0aa"
+
+[[seed]]
+class = "orpheus/transport/residuals/angular_boundary_residual.py::AngularBoundaryResidual"
+fingerprint = "blake2b:998bfbb66be35cc3da8c5268d9a248a491cbf0506b1b4ee1ad5e046df0e18b76"
+
+[[seed]]
+class = "orpheus/transport/residuals/angular_residual.py::AngularResidual"
+fingerprint = "blake2b:64f658d8f6933740108f10bbb25ee9f76ad94e029d7b0871ff867bf55a730854"
+
+[[seed]]
+class = "orpheus/transport/residuals/radial_characteristic_boundary_residual.py::RadialCharacteristicBoundaryResidual"
+fingerprint = "blake2b:ffb9e57652b8ef8618f63fcfedd7f8598dc053586ebe2bb345d0ad006d9046de"
+
+[[seed]]
+class = "orpheus/transport/residuals/radial_characteristic_interior_residual.py::RadialCharacteristicInteriorResidual"
+fingerprint = "blake2b:c67e7fbdb55ec11bdc446f74a99a84eac2977a523816295899fd1043db3dfc86"
+
+[[seed]]
+class = "orpheus/transport/residuals/scalar_residual.py::ScalarResidual"
+fingerprint = "blake2b:6cf97d1648f3ef82a56ee97e15d1042c5e07046ffaccaff77de12835b339281b"
+
+[[seed]]
+class = "orpheus/transport/spatial/scheme.py::DiscretizationSchemeBase"
+fingerprint = "blake2b:f9e5941318cb775a1f9b7e466584311559c2398ada090d60628b51c11d1a889e"

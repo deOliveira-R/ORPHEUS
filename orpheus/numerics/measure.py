@@ -221,7 +221,7 @@ def _as_columns(points: np.ndarray) -> np.ndarray:
 
 
 @dataclass(frozen=True)
-class DiscreteMeasure:
+class DiscreteMeasure:  # concept: measure | role: head | kind: measure | welded: measure, factor, quadrature
     r"""A finite weighted point measure on a measurable space.
 
     Algebraic shape: :math:`\mu = \sum_i w_i \, \delta_{x_i}`.
@@ -1670,7 +1670,7 @@ class DiscreteMeasure:
 
 
 @dataclass(frozen=True)
-class DiscreteMeasurePartition:
+class DiscreteMeasurePartition:  # concept: measure | role: component | kind: measure
     r"""One entry of a :meth:`DiscreteMeasure.partition_by` decomposition.
 
     Carries a partition label, the indices into the parent measure,
@@ -1723,7 +1723,7 @@ def _to_python_scalar(v):
 
 
 @dataclass(frozen=True)
-class BundleMeasure:
+class BundleMeasure:  # concept: measure | role: twin | kind: measure
     r"""Disintegrated measure on a fibered space.
 
     A fibered space is a measurable space :math:`\mathcal{X}` equipped

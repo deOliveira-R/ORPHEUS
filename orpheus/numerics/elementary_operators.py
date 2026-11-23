@@ -63,7 +63,7 @@ __all__ = [
 ]
 
 
-class PermutationOperator(LinearOperator):
+class PermutationOperator(LinearOperator):  # concept: restrict | role: arm | kind: morphism.operator
     r"""Index permutation along a configurable axis: :math:`(P x)_i = x_{\pi(i)}`.
 
     For a permutation :math:`\pi : \{0, \ldots, N-1\} \to \{0, \ldots, N-1\}`
@@ -297,7 +297,7 @@ def checked_space_extent(
     return space
 
 
-class TraceRestrictionOperator(LinearOperator):
+class TraceRestrictionOperator(LinearOperator):  # concept: restrict | role: arm | kind: morphism.operator
     r"""Restriction onto an index subset along an axis:
     :math:`(\gamma_S x)_i = x_{S(i)}`.
 
@@ -563,7 +563,7 @@ class TraceRestrictionOperator(LinearOperator):
         return True
 
 
-class DiagonalOperator(PointwiseOperator):
+class DiagonalOperator(PointwiseOperator):  # concept: multiplier | role: arm | kind: morphism.operator
     r"""Diagonal (pointwise) multiplication by a coefficient placed on a fixed domain shape.
 
     The coefficient :math:`c` occupies the positions ``spans`` of a domain of
@@ -718,7 +718,7 @@ class DiagonalOperator(PointwiseOperator):
 
 
 
-class RankOneOperator(LinearOperator):
+class RankOneOperator(LinearOperator):  # concept: natural | role: twin | kind: morphism.operator
     r"""The rank-1 dyad :math:`|v\rangle\langle w|` — a reconstruction column ⊗ a functional row.
 
     A :class:`RankOneOperator` is the outer product of a **reconstruction**

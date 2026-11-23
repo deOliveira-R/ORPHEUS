@@ -322,7 +322,7 @@ def embed_bulk_assembly(
 
 
 @dataclass(eq=False)
-class CompositeBound(BoundOperator["FullField", "FullField"]):
+class CompositeBound(BoundOperator["FullField", "FullField"]):  # concept: ends | role: arm | kind: morphism.operator
     r"""A two-end binding whose ends are COMPOSITE spaces — the interior reads
     every composite-bound operator shares (the angular lifts, the bulk lift),
     kept off :class:`~orpheus.transport.operators.bound_operator.BoundOperator`
@@ -341,7 +341,7 @@ class CompositeBound(BoundOperator["FullField", "FullField"]):
 
 
 @dataclass(eq=False)
-class BulkLift(CompositeBound):
+class BulkLift(CompositeBound):  # concept: restrict | role: arm | kind: morphism.operator
     r"""A bulk-born operator lifted onto the composite ``bulk ⊕ trace``.
 
     ``inner`` is bound on the composite's interior spaces (its ``domain``

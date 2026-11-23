@@ -91,7 +91,7 @@ _TEST_ONLY = (
 
 
 @dataclass(frozen=True, eq=False)
-class WeightedIndicatorBasis(Basis):
+class WeightedIndicatorBasis(Basis):  # concept: basis | role: arm | kind: morphism
     r"""Cell indicators reweighted by a nodal weight — the Petrov-Galerkin test side.
 
     The analysis functional is :math:`\langle\chi_R, f\rangle_W = \int_R w f\,

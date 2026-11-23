@@ -86,24 +86,24 @@ __all__ = [
 MEASURE_RTOL: float = 1e-12
 
 
-class OrdinatePairingError(ValueError):
+class OrdinatePairingError(ValueError):  # concept: quadrature | role: annex | kind: record
     """The motion has no certified ordinate pairing on the quadrature."""
 
 
-class QuadratureNotClosedUnderMotionError(OrdinatePairingError):
+class QuadratureNotClosedUnderMotionError(OrdinatePairingError):  # concept: quadrature | role: annex | kind: record
     """No bijective weight-preserving match of the ordinates onto their
     images (e.g. an odd-``n_phi`` product rule has no x-mirror closure)."""
 
 
-class PairingNotMeasurePreservingError(OrdinatePairingError):
+class PairingNotMeasurePreservingError(OrdinatePairingError):  # concept: quadrature | role: annex | kind: record
     """ERR-042: the pairing does not preserve :math:`w\\,|\\mu_a|`."""
 
 
-class PairingNotInvolutiveError(OrdinatePairingError):
+class PairingNotInvolutiveError(OrdinatePairingError):  # concept: quadrature | role: annex | kind: record
     """ERR-044: the pairing is not its own inverse."""
 
 
-class PairingDoesNotCrossError(OrdinatePairingError):
+class PairingDoesNotCrossError(OrdinatePairingError):  # concept: quadrature | role: annex | kind: record
     """ERR-045: a non-tangential ordinate is not paired with the opposite
     sign class on the motion's axis."""
 

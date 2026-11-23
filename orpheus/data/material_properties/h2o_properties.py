@@ -62,7 +62,7 @@ def _iapws_viscosity(T_K: float, rho: float) -> float:
 
 
 @dataclass
-class FluidProps:
+class FluidProps:  # concept: EXT:fluid-state | role: head | kind: element
     """Thermodynamic properties of a fluid state."""
     T: float       # temperature (K)
     p: float       # pressure (MPa)
@@ -78,7 +78,7 @@ class FluidProps:
 
 
 @dataclass
-class SatProps:
+class SatProps:  # concept: EXT:fluid-state | role: twin | kind: element
     """Saturation properties for one phase."""
     T: float       # saturation temperature (K)
     h: float       # specific enthalpy (J/kg)

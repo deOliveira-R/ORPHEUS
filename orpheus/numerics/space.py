@@ -117,7 +117,7 @@ Carrier = TypeVar("Carrier", default=Any)
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class Member:
+class Member:  # concept: member | role: head | kind: element.member
     r"""A typed element of a space: its coordinates and the space they belong to.
 
     The nominal type the space's membership check reads. A member is
@@ -154,7 +154,7 @@ class Member:
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class Covector(Member):
+class Covector(Member):  # concept: covector | role: head | kind: element.covector
     r"""A co-vector: a member of the dual :math:`V^{*}`, paired canonically with :math:`V`.
 
     The functional :math:`\langle w, \cdot\rangle_V` of a density :math:`w`
@@ -192,7 +192,7 @@ class Covector(Member):
 
 
 @dataclass(frozen=True, eq=False)
-class FunctionSpace(Generic[Carrier]):
+class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: space | welded: tensor, fmetric, factor
     r"""A finite-dimensional vector space of discrete fields.
 
     Parameters
@@ -1386,7 +1386,7 @@ def _tensor_product_factored_metric(
 
 
 @dataclass(frozen=True, eq=False)
-class TensorProductSpace(FunctionSpace):
+class TensorProductSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
     r"""A function space that decomposes as
     :math:`V = V_1 \otimes V_2 \otimes \cdots \otimes V_k`.
 
@@ -1511,7 +1511,7 @@ class TensorProductSpace(FunctionSpace):
 
 
 @dataclass(frozen=True, eq=False)
-class DualSpace(FunctionSpace):
+class DualSpace(FunctionSpace):  # concept: dual | role: head | kind: space
     r"""The dual :math:`V^*` of a leaf :class:`FunctionSpace`: its covectors.
 
     :math:`V^*` has the primal's coordinates and carries the inverse Riesz

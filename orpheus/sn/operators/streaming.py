@@ -117,7 +117,7 @@ __all__ = [
 
 
 @dataclass
-class StreamingOperator(LinearOperator["FullField"]):
+class StreamingOperator(LinearOperator["FullField"]):  # concept: streaming | role: head | kind: morphism.operator
     r"""Pure streaming + angular-redistribution operator :math:`L` as a
     :class:`~orpheus.numerics.operator.LinearOperator` leaf.
 
@@ -413,7 +413,7 @@ class StreamingOperator(LinearOperator["FullField"]):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForward):
+class StreamingCollisionOperator(FusedAtom["FullField"], ScheduleTriangularForward):  # concept: streaming | role: weld | kind: morphism.operator | welded: streaming, multiplier, algorithm, faces, splitting
     r"""The sweep-invertible atom :math:`L + C`, carrying ``.solve`` = the WDD sweep.
 
     The SN-specific algebraic identity

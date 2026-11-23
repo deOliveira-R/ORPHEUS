@@ -52,7 +52,7 @@ from orpheus.geometry.deck import (
 # Coordinate-system enum for an axis
 # ═══════════════════════════════════════════════════════════════════════
 
-class AxisCoord(StrEnum):
+class AxisCoord(StrEnum):  # concept: coord | role: twin | kind: set
     """Coordinate system carried by a single 1-D axis.
 
     Distinct from :class:`orpheus.geometry.coord.CoordSystem` (which
@@ -93,7 +93,7 @@ _ENDPOINT_SUFFIX = {"min": "min", "max": "max", "outer": "max"}
 
 
 @dataclass(frozen=True, slots=True)
-class FaceLabel:
+class FaceLabel:  # concept: face | role: twin | kind: element
     r"""Canonical key identifying one boundary face of a D-dim SN mesh.
 
     A face is identified by *which axis it lies on* (``axis_index``)
@@ -159,7 +159,7 @@ class FaceLabel:
 # ═══════════════════════════════════════════════════════════════════════
 
 @runtime_checkable
-class Axis1D(Protocol):
+class Axis1D(Protocol):  # concept: mesh | role: interface | kind: set
     r"""Capability contract for a 1-D mesh axis.
 
     Implementations declare:
@@ -228,7 +228,7 @@ class Axis1D(Protocol):
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True, slots=True)
-class AxisMesh:
+class AxisMesh:  # concept: mesh | role: twin | kind: set
     r"""Cartesian 1-D axis. Two endpoints (``min``, ``max``).
 
     ``edges`` is the source of truth — ``n`` is derived as
@@ -299,7 +299,7 @@ class AxisMesh:
 
 
 @dataclass(frozen=True, slots=True)
-class RadialAxisMesh:
+class RadialAxisMesh:  # concept: mesh | role: twin | kind: set
     r"""Radial 1-D axis (sphere or cylinder). One trace endpoint (``outer``).
 
     The pole at :math:`r=0` is **not** an endpoint in this abstraction

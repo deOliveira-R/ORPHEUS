@@ -120,7 +120,7 @@ __all__ = ["MirrorEvenSphericalHarmonicBasis", "SphericalHarmonicBasis"]
 
 
 @dataclass(frozen=True)
-class SphericalHarmonicBasis(Basis):
+class SphericalHarmonicBasis(Basis):  # concept: basis | role: arm | kind: morphism
     r"""Real spherical harmonics on :math:`S^2`, truncated at degree :math:`L`.
 
     The first concrete :class:`~orpheus.numerics.basis.base.Basis` — the
@@ -369,7 +369,7 @@ class SphericalHarmonicBasis(Basis):
 
 
 @dataclass(frozen=True)
-class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):
+class MirrorEvenSphericalHarmonicBasis(SphericalHarmonicBasis):  # concept: basis | role: arm | kind: morphism
     r"""The σ-EVEN subspace of the degree-:math:`L` real SH basis — the
     QUOTIENT's basis (Q5.6).
 

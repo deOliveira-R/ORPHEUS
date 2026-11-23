@@ -18,7 +18,7 @@ __all__ = ["Asserted", "Evidence", "Measured", "NotApplicable", "NotYet", "measu
 
 
 @dataclass(frozen=True)
-class Measured:
+class Measured:  # concept: outcome | role: annex | kind: record
     """A number was measured on the returned state."""
 
     value: float
@@ -31,7 +31,7 @@ class Measured:
 
 
 @dataclass(frozen=True)
-class Asserted:
+class Asserted:  # concept: outcome | role: annex | kind: record
     """No number was needed: the convergence-claim check ASSERTED the bound (raising on a defect beyond it)."""
 
     bound: float
@@ -39,14 +39,14 @@ class Asserted:
 
 
 @dataclass(frozen=True)
-class NotApplicable:
+class NotApplicable:  # concept: outcome | role: annex | kind: record
     """The question does not arise for this posing / configuration — say why."""
 
     reason: str
 
 
 @dataclass(frozen=True)
-class NotYet:
+class NotYet:  # concept: outcome | role: annex | kind: record
     """Open work — the issue that will make it measurable, and what is missing."""
 
     issue: int

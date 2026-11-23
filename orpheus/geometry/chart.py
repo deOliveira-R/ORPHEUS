@@ -83,7 +83,7 @@ _MEMBERSHIP_ATOL = 1e-12
 
 
 @dataclass(frozen=True)
-class SingularStratum:
+class SingularStratum:  # concept: orbit | role: part | kind: set
     r"""A stratum of the orbit space where the isotropy of :math:`G_c` jumps.
 
     The orbit coordinate is not a submersion there, so a level set through
@@ -105,7 +105,7 @@ class SingularStratum:
 
 
 @dataclass(frozen=True)
-class Chart:
+class Chart:  # concept: orbit | role: weld | kind: set | welded: orbit, coord, group
     r"""The orbit space of a 1-D coordinate system's symmetry group :math:`G_c`.
 
     Attributes
@@ -278,7 +278,7 @@ class Chart:
         )
 
 
-class DirectionShape(Enum):
+class DirectionShape(Enum):  # concept: orbit | role: part | kind: set
     r"""The shapes of :math:`S^2 / \mathrm{Stab}(x)` the three charts produce, each a box of measure-uniform coordinates.
 
     ``WHOLE``: the stabiliser is :math:`O(3)` (the sphere's centre), one
@@ -321,7 +321,7 @@ def _in_box(coordinates: np.ndarray, axes: tuple[str, ...]) -> np.ndarray:
 
 
 @dataclass(frozen=True, eq=False)
-class DirectionDomain:
+class DirectionDomain:  # concept: orbit | role: weld | kind: set | welded: orbit, refmeasure
     r"""The directions at the point :math:`c\,\hat e_x` of a chart modulo its stabiliser (:meth:`Chart.directions_at`).
 
     A box in the coordinates of its :attr:`shape` (:class:`DirectionShape`),
@@ -431,7 +431,7 @@ class DirectionDomain:
                 raise ValueError("a slab line has no impact parameter: the slab's group fixes the kept space")
 
 
-class LineShape(Enum):
+class LineShape(Enum):  # concept: orbit | role: part | kind: set
     r"""The shapes of the orbit space of oriented lines under the three charts' groups, each a box.
 
     ``IMPACT`` (the sphere, :math:`O(3)`): the impact parameter
@@ -451,7 +451,7 @@ class LineShape(Enum):
 
 
 @dataclass(frozen=True, eq=False)
-class LineDomain:
+class LineDomain:  # concept: orbit | role: weld | kind: set | welded: orbit, refmeasure
     r"""The oriented lines of space modulo a chart's group, with the invariant measure (:meth:`Chart.line_domain`).
 
     A box in the coordinates of its :attr:`shape` (:class:`LineShape`); every
@@ -614,7 +614,7 @@ def half_chord(
 
 
 @dataclass(frozen=True, eq=False)
-class RadialImage:
+class RadialImage:  # concept: orbit | role: component | kind: morphism
     r"""A line's image where the chart's group acts as :math:`O(d)` on the kept space.
 
     The image is a straight line in the kept space at impact parameter
@@ -756,7 +756,7 @@ class RadialImage:
 
 
 @dataclass(frozen=True, eq=False)
-class AxialImage:
+class AxialImage:  # concept: orbit | role: component | kind: morphism
     r"""A line's image where the chart's group fixes the kept space: :math:`c(t) = c_0 + \dot c\,(t - t_0)`.
 
     Attributes

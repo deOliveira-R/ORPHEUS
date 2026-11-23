@@ -29,7 +29,7 @@ __all__ = ["RadialCharacteristicBoundaryResidual"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicBoundaryResidual(RadialCharacteristicBoundaryField):
+class RadialCharacteristicBoundaryResidual(RadialCharacteristicBoundaryField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""The r = R corner block of System B's typed equation residual.
 
     Formed ONLY by the named balance :meth:`from_balance` (the residual

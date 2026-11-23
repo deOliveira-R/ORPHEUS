@@ -47,7 +47,7 @@ from orpheus.values.scalars import parse_integer, parse_real
 
 
 @dataclass(frozen=True, eq=False)
-class WallAmplitudes(ContentIdentity):
+class WallAmplitudes(ContentIdentity):  # concept: walllaw | role: twin | kind: element
     """The linear part of a wall as coordinates in the triangle K: ``specular`` and ``diffuse`` returned fractions."""
 
     specular: float

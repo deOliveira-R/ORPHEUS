@@ -162,7 +162,7 @@ def angular_frame(quadrature: Quadrature, L: int) -> GalerkinFrame:
     )
 
 
-class CrossGramInverse(LinearOperator):
+class CrossGramInverse(LinearOperator):  # concept: faces | role: twin | kind: morphism.operator
     r"""The row-sum-collapsed inverse cross Gram :math:`G^{-1}` of a frame, as
     a typed arrow ``test_space → basis_space`` (CS4c step 6 item 6.2c-ii).
 
@@ -498,7 +498,7 @@ def measure_space(frame: FrameBase) -> FunctionSpace:
 
 
 @dataclass(frozen=True)
-class FrameAnalysis(AnalysisOperator):
+class FrameAnalysis(AnalysisOperator):  # concept: faces | role: arm | kind: morphism.operator
     r"""The analysis face :math:`M = T`: ``measure_space → test_space``.
 
     A frame-backed :class:`AnalysisOperator` view; the math lives on the TEST basis
@@ -538,7 +538,7 @@ class FrameAnalysis(AnalysisOperator):
 
 
 @dataclass(frozen=True)
-class FrameReconstruction(ReconstructionOperator):
+class FrameReconstruction(ReconstructionOperator):  # concept: faces | role: arm | kind: morphism.operator
     r"""The reconstruction face :math:`R`: ``basis_space → measure_space``.
 
     A frame-backed :class:`ReconstructionOperator` view delegating to the TRIAL basis's

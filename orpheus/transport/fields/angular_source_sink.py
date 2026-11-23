@@ -64,7 +64,7 @@ __all__ = ["AngularSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularSourceSink(AngularField, flux=AngularFlux):
+class AngularSourceSink(AngularField, flux=AngularFlux):  # concept: fluxsrc | role: weld | kind: element.member | welded: fluxsrc, natural
     r"""Per-ordinate source field :math:`Q^{\rm aniso}(\vec r, \hat\Omega_n, g)`.
 
     Parameters

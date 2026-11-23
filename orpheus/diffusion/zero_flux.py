@@ -58,7 +58,7 @@ __all__ = ["ZeroFluxCondition"]
 
 
 @dataclass(frozen=True, eq=False)
-class ZeroFluxCondition(BoundaryCondition):
+class ZeroFluxCondition(BoundaryCondition):  # concept: walllaw | role: arm | kind: element
     r"""Zero scalar flux at the face, :math:`\phi_\Gamma = 0`, i.e. :math:`J^- = -J^+` (:math:`\mathcal{A} = -1`).
 
     No fields. The condition lies outside the sub-Markov cone (its return fraction is negative), which only a method whose

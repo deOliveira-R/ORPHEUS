@@ -48,7 +48,7 @@ __all__ = ["Current", "NotPrinted", "PublishedSolution", "Standing"]
 
 @final
 @dataclass(frozen=True, eq=False)
-class Current(ContentIdentity):
+class Current(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """In good standing: not withdrawn."""
 
 
@@ -56,13 +56,13 @@ Standing: TypeAlias = Current | Withdrawal
 """Whether a publication or a reference certificate stands, or is withdrawn with its reason and issue."""
 
 
-class NotPrinted(LookupError):
+class NotPrinted(LookupError):  # concept: EXT:reference-solution | role: annex | kind: record
     """The publication does not print the observable asked for."""
 
 
 @final
 @dataclass(frozen=True, eq=False)
-class PublishedSolution(ContentIdentity):
+class PublishedSolution(ContentIdentity):  # concept: EXT:reference-solution | role: twin | kind: record
     """The values a cited work prints for a specification, per observable."""
 
     specification: Specification

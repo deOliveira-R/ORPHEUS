@@ -67,7 +67,7 @@ _HARMONIC_POLAR_AXIS = "x"
 
 
 @dataclass(frozen=True)
-class Descent:
+class Descent:  # concept: basis | role: weld | kind: morphism | welded: basis, orbit
     r"""The descent of a basis on the base to an orbit-space ENTRY.
 
     Parameters

@@ -66,7 +66,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True, eq=False)
-class RegionwiseConstant(ContentIdentity):
+class RegionwiseConstant(ContentIdentity):  # concept: EXT:continuum-function | role: arm | kind: element.member
     r"""One real value per (region, energy group): a function on the angle-integrated space.
 
     ``values`` has shape ``(regions, groups)``, at least one of each, and is
@@ -104,7 +104,7 @@ class RegionwiseConstant(ContentIdentity):
         return int(self.values.shape[1])
 
 
-class _OwnedSymbol:
+class _OwnedSymbol:  # concept: EXT:continuum-function | role: part | kind: element
     """A coordinate symbol of :class:`Symbolic`, named by its attribute and
     built on first access (no import-time SymPy)."""
 
@@ -123,7 +123,7 @@ def _owned_symbols() -> dict[str, "sympy.Symbol"]:
 
 
 @dataclass(frozen=True, eq=False)
-class Symbolic(ContentIdentity):
+class Symbolic(ContentIdentity):  # concept: EXT:continuum-function | role: arm | kind: element.member
     r"""One SymPy expression :math:`q_g(r, \mu, \varphi)` per energy group, a function on phase space.
 
     **The coordinates** are the class's own symbols :attr:`r`, :attr:`mu`

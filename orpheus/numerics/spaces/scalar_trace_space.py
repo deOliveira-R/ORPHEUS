@@ -56,7 +56,7 @@ __all__ = ["ScalarTraceSpace"]
 
 
 @dataclass(frozen=True, eq=False)
-class ScalarTraceSpace(FunctionSpace):
+class ScalarTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: space | welded: trace, dsum, fmetric
     r"""Boundary space of per-face ``(J⁺, J⁻)`` partial-current pairs.
 
     One concrete space for the whole boundary :math:`\Gamma` of a material

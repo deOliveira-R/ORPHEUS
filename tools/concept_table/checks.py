@@ -187,16 +187,23 @@ def _tarjan(graph: Mapping[str, Collection[str]]) -> list[frozenset[str]]:
 # --- G0: the table ---------------------------------------------------------------------------------------------------
 
 def doc_labels(docs_root: Path) -> dict[str, str]:
-    """The labels defined in ``docs/**/*.rst``, lowercased, each mapped to ``"ref"`` (an explicit target) or ``"eq"`` (a math label)."""
+    """The labels defined in ``docs/**/*.rst``, lowercased, each mapped to its kind.
+
+    ``"ref"`` is an explicit target (``.. _label:``), ``"eq"`` the label of a math directive (``:label:``), and ``"both"``
+    a name that the docs define as both, which ``:ref:`` and ``:eq:`` each resolve.
+    """
     out: dict[str, str] = {}
     for path in sorted(Path(docs_root).rglob("*.rst")):
         if "_build" in path.parts:
             continue
         for line in path.read_text().split("\n"):
             if (m := _LABEL.match(line)) is not None:
-                out.setdefault(m.group(1).strip().lower(), "ref")
+                name, kind = m.group(1).strip().lower(), "ref"
             elif (m := _MATH_LABEL.match(line)) is not None:
-                out.setdefault(m.group(1).lower(), "eq")
+                name, kind = m.group(1).lower(), "eq"
+            else:
+                continue
+            out[name] = kind if out.get(name, kind) == kind else "both"
     return out
 
 
@@ -270,7 +277,7 @@ def check_table(concepts: tuple[Concept, ...], known_layers: Collection[str], ex
                 out.add(f"concept {c.id!r}: functions entry {entry!r} is not defined in the tree; fix it in {TABLE_FILE}")
         for label in c.theory:
             kind, _, name = label.partition(":")
-            if labels.get(name.lower()) != kind:
+            if labels.get(name.lower()) not in (kind, "both"):
                 out.add(f"concept {c.id!r}: theory label {label!r} is not a defined {'equation ' if kind == 'eq' else ''}label of docs/; fix it in {TABLE_FILE}")
             if owner.setdefault(label, c.id) != c.id:
                 out.add(f"concept {c.id!r}: theory label {label!r} is also under {owner[label]!r}; fix it in {TABLE_FILE}")

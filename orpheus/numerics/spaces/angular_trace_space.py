@@ -325,7 +325,7 @@ def _build_trace_metric_weights(
 
 
 @dataclass(frozen=True, eq=False)
-class AngularTraceSpace(FunctionSpace):
+class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: space | welded: trace, dsum, fmetric
     r"""The boundary-trace function space (View-G, role-agnostic).
 
     One concrete space for the whole boundary :math:`\Gamma`. Inflow and
@@ -772,7 +772,7 @@ def _face_space_name(face: str, role: "TraceRole") -> str:
 
 
 @dataclass(frozen=True, eq=False)
-class AngularFaceTraceSpace(FunctionSpace):
+class AngularFaceTraceSpace(FunctionSpace):  # concept: subspace | role: head | kind: space
     r"""One directional tier of the boundary trace at ONE face.
 
     The three tiers — :math:`\Gamma(f)` (the whole ordinate slot),

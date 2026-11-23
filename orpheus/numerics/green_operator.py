@@ -165,7 +165,7 @@ __all__ = [
 ]
 
 
-class ConvergenceFailure(RuntimeError):
+class ConvergenceFailure(RuntimeError):  # concept: green | role: annex | kind: record
     r"""An iterative inverse application failed to reach its tolerance.
 
     Raised by :meth:`GreenOperator.apply` when the splitting iteration
@@ -193,7 +193,7 @@ class ConvergenceFailure(RuntimeError):
     """
 
 
-class Richardson:
+class Richardson:  # concept: algorithm | role: arm | kind: element
     r"""Realise a Green :math:`(M - N)^{-1}` as the preconditioned source
     iteration :math:`\psi \leftarrow P\,(q + N\psi)`, with an optional
     synthetic-acceleration corrector on the increment.
@@ -239,7 +239,7 @@ class Richardson:
         return f"Richardson(representation={self.representation!r}, corrector={self.corrector!r})"
 
 
-class Krylov:
+class Krylov:  # concept: algorithm | role: arm | kind: element
     r"""Realise a Green :math:`(M - N)^{-1}` as GMRES on :math:`M - N` with a
     left preconditioner.
 
@@ -278,7 +278,7 @@ class Krylov:
         return f"Krylov({self.left_preconditioner!r}, restart={self.restart})"
 
 
-class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):
+class GreenOperator(InverseWrapMixin[LinearOperator], LinearOperator):  # concept: green | role: head | kind: morphism.operator | welded: green, inverse, splitting, driver
     r"""The inverse operator :math:`(M - N)^{-1}` of a split operator, realized
     as the convergent :math:`M`-preconditioned splitting.
 

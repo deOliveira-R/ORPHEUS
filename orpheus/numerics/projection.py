@@ -85,7 +85,7 @@ __all__ = [
 # ─────────────────────────────────────────────────────────────────────
 
 
-class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
+class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):  # concept: faces | role: arm | kind: morphism.operator
     r"""Abstract :math:`M : V \to W` — the fine→coarse (measured) side of a frame.
 
     Generic over the two carrier types ``[Domain, Codomain]`` because the role
@@ -133,7 +133,7 @@ class AnalysisOperator(LinearOperator[Domain, Codomain], ABC):
         ...
 
 
-class ReconstructionOperator(LinearOperator[Domain, Codomain], ABC):
+class ReconstructionOperator(LinearOperator[Domain, Codomain], ABC):  # concept: faces | role: arm | kind: morphism.operator
     r"""Abstract :math:`R : W \to V`. Sibling of :class:`AnalysisOperator`.
 
     Generic over ``[Domain, Codomain]`` for the same reason as

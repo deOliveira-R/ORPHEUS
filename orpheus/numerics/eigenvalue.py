@@ -102,7 +102,7 @@ in every one, and invisible to any single-file review.
 """
 
 
-class EigenvalueSolver(Protocol[Carrier]):
+class EigenvalueSolver(Protocol[Carrier]):  # concept: driver | role: head | kind: morphism
     """The method-agnostic boundary that :func:`power_iteration` consumes.
 
     Any deterministic eigenvalue solver — SN sweep, CP collision matrix,
@@ -218,7 +218,7 @@ class EigenvalueSolver(Protocol[Carrier]):
 
 
 @runtime_checkable
-class RecordingSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
+class RecordingSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):  # concept: driver | role: arm | kind: morphism
     """An :class:`EigenvalueSolver` that retains its inner solves' records.
 
     Structurally OPTIONAL, modelled exactly like :class:`ProductionRateSolver`
@@ -266,7 +266,7 @@ class RecordingSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
 
 
 @runtime_checkable
-class ProductionRateSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
+class ProductionRateSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):  # concept: driver | role: arm | kind: morphism
     """An :class:`EigenvalueSolver` that has adopted the production-rate
     normalisation contract (ERR-052).
 
@@ -300,7 +300,7 @@ class ProductionRateSolver(EigenvalueSolver[Carrier], Protocol[Carrier]):
 
 
 @dataclass(frozen=True)
-class PowerIterationOutcome(Generic[Carrier]):
+class PowerIterationOutcome(Generic[Carrier]):  # concept: solution | role: twin | kind: record
     r"""What :func:`power_iteration` produced, INCLUDING why it stopped.
 
     The loop knows whether it broke on the convergence test or ran out of

@@ -35,7 +35,7 @@ import numpy as np
 
 
 @dataclass(frozen=True)
-class MeasureCoordinate:
+class MeasureCoordinate:  # concept: coord | role: component | kind: morphism
     r"""The coordinate :math:`T(r) = r^{p}`, :math:`p \in \{1, 2, 3\}`, and its inverse.
 
     A measure on the position axis that is uniform in :math:`T` gives an
@@ -74,7 +74,7 @@ class MeasureCoordinate:
 
 
 @dataclass(frozen=True)
-class AngularChart:
+class AngularChart:  # concept: coord | role: component | kind: morphism
     r"""The chart :math:`(\mu, \varphi)` on the direction sphere a coordinate system declares.
 
     A direction :math:`\Omega` is written in the local orthonormal frame at the
@@ -120,7 +120,7 @@ class AngularChart:
             )
 
 
-class CoordSystem(Enum):
+class CoordSystem(Enum):  # concept: coord | role: head | kind: morphism | welded: coord, refmeasure
     r"""Coordinate system identifier, and the measure of its position axis.
 
     The measure of the cells between edges :math:`r_0 < r_1 < \dots` is

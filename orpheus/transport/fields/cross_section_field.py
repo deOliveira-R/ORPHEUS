@@ -76,7 +76,7 @@ __all__ = ["CrossSectionField"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class CrossSectionField(CoefficientRole, ScalarField):
+class CrossSectionField(CoefficientRole, ScalarField):  # concept: xsfield | role: head | kind: element.member
     r"""Macroscopic cross-section field :math:`\Sigma_x(\vec r, g)` ``[1/cm]``.
 
     Parameters

@@ -107,7 +107,7 @@ if TYPE_CHECKING:
 __all__ = ["BoundaryCondition", "WallCondition", "WallDisplacement"]
 
 
-class BoundaryCondition(ContentIdentity, ABC):
+class BoundaryCondition(ContentIdentity, ABC):  # concept: walllaw | role: head | kind: element
     r"""The base of every exterior condition: three accessors, no storage.
 
     A leaf spells its own storage (``WallCondition`` stores ``inflow`` and exposes it as ``source``).
@@ -159,7 +159,7 @@ def _pair_of(operand: object) -> tuple[ResponseNetwork, InflowTerms] | None:
     return None
 
 
-class _PairArithmetic:
+class _PairArithmetic:  # concept: walllaw | role: part | kind: space
     """The affine arithmetic of a ``(network, inflow)`` pair: ``+``, ``-``, unary ``-`` and scalar ``*``, ONE definition.
 
     Shared by :class:`WallCondition` and :class:`WallDisplacement`, so a chain of arithmetic needs no
@@ -205,7 +205,7 @@ def _amplitude(chain: Chain, specular: float, diffuse: float) -> float:
 
 
 @dataclass(frozen=True, eq=False)
-class WallCondition(_PairArithmetic, BoundaryCondition):
+class WallCondition(_PairArithmetic, BoundaryCondition):  # concept: walllaw | role: arm | kind: element.member
     r"""The ONE shared exterior type: the affine pair :math:`(R, q)` of a wall.
 
     ``network`` is parsed against the cone (every weight non-negative, ``return_fraction <= 1``) and ``inflow``
@@ -277,7 +277,7 @@ class WallCondition(_PairArithmetic, BoundaryCondition):
 
 
 @dataclass(frozen=True, eq=False)
-class WallDisplacement(_PairArithmetic, ContentIdentity):
+class WallDisplacement(_PairArithmetic, ContentIdentity):  # concept: walllaw | role: part | kind: element.member
     """A combination outside the cone: a point of the affine hull of the wall cone times the source space. Never bindable."""
 
     network: ResponseNetwork

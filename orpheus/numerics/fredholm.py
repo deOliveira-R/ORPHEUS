@@ -97,12 +97,12 @@ CONSISTENCY_RTOL = 1e-10
 SEMISIMPLE_RTOL = 1e-10
 
 
-class NoSolution(ValueError):
+class NoSolution(ValueError):  # concept: posing | role: annex | kind: record
     r"""The source is not annihilated by :math:`\ker A^{\mathsf T}`: :math:`A\psi = q` has no steady solution."""
 
 
 @dataclass(frozen=True, eq=False)
-class PredictedKernel:
+class PredictedKernel:  # concept: nullspace | role: head | kind: space
     r""":math:`\ker A` and :math:`\ker A^{\mathsf T}` on ``space``, predicted from structure.
 
     Parameters
@@ -362,7 +362,7 @@ def _embedded_span(summands: tuple[KernelSummand, ...], n: int) -> NDArray:
 
 
 @dataclass(frozen=True)
-class Solve:
+class Solve:  # concept: posing | role: annex | kind: record
     r""":math:`\ker A = \{0\}`: the posing has one solution.
 
     ``because`` is the predictor's reason; ``conditioning`` what is known of
@@ -376,7 +376,7 @@ class Solve:
 
 
 @dataclass(frozen=True)
-class Gauge:
+class Gauge:  # concept: posing | role: annex | kind: record
     r"""A kernel and a consistent source: a coset of solutions, and the section that picks one.
 
     ``projector`` is the kernel's :math:`G`-orthogonal projector (its

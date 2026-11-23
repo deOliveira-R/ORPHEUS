@@ -57,7 +57,7 @@ __all__ = ["ScalarSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarSourceSink(ScalarField, flux=ScalarFlux):
+class ScalarSourceSink(ScalarField, flux=ScalarFlux):  # concept: fluxsrc | role: twin | kind: element.member
     r"""Isotropic source field :math:`Q(\vec r, g)`.
 
     Parameters

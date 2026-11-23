@@ -74,7 +74,7 @@ if TYPE_CHECKING:
     from orpheus.transport.timed_full_field import TimedFullField
 
 
-class ScheduleTriangularForward(ABC):
+class ScheduleTriangularForward(ABC):  # concept: inverse | role: component | kind: morphism.operator
     r"""The NOMINAL type of a forward :math:`A` whose inverse is ONE forward-substitution scan.
 
     The schedule-triangular family: the plain WDD composite ``(L+C)``
@@ -121,7 +121,7 @@ class ScheduleTriangularForward(ABC):
 
 class SweepOperator(
     InverseWrapMixin[ScheduleTriangularForward], LinearOperator["FullField"],
-):
+):  # concept: inverse | role: weld | kind: morphism.operator | welded: inverse, algorithm
     r"""The inverse operator :math:`A^{-1}` of a schedule-triangular forward
     ``A`` — :class:`StreamingCollisionOperator` ``(L+C)`` or
     :class:`ScheduledInvertibleOperator` ``M = (L+C−B_lower)`` (#226 step 2).

@@ -97,7 +97,7 @@ if TYPE_CHECKING:
 __all__ = ["ScheduledInvertibleOperator"]
 
 
-class ScheduledInvertibleOperator(FusedAtom["FullField"], ScheduleTriangularForward):
+class ScheduledInvertibleOperator(FusedAtom["FullField"], ScheduleTriangularForward):  # concept: splitting | role: part | kind: morphism.operator
     r"""The sweep-invertible schedule-folded atom :math:`M = (L+C-B_{\rm lower})`.
 
     An atom with two named legs, :attr:`invertible` (the

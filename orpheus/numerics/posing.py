@@ -108,7 +108,7 @@ def _pencil_annihilation(pencil: OperatorPencil[Any], kernel: PredictedKernel) -
 
 
 @dataclass(frozen=True)
-class SpectralMap:
+class SpectralMap:  # concept: posing | role: part | kind: morphism
     r"""The bijection between the pencil's eigenvalue μ and the physical eigenvalue λ.
 
     ``of_quotient(a, m)`` states λ as ONE division of the two pairings
@@ -140,7 +140,7 @@ same α is :math:`-1/\mu`; this map once carried that formula (ERR-089)."""
 
 
 @dataclass(frozen=True)
-class EigenPosing(Generic[V]):
+class EigenPosing(Generic[V]):  # concept: posing | role: head | kind: morphism
     """The eigenvalue question over a pencil, with its spectral map."""
 
     pencil: OperatorPencil[V]
@@ -195,7 +195,7 @@ class EigenPosing(Generic[V]):
 
 
 @dataclass(frozen=True)
-class SourcePosing(Generic[V]):
+class SourcePosing(Generic[V]):  # concept: posing | role: twin | kind: morphism
     r"""The affine question :math:`A\psi = q` over one operator and one source."""
 
     operator: LinearOperator[V, V]

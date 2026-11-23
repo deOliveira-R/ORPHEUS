@@ -111,15 +111,15 @@ __all__ = [
     "sample_terms",
 ]
 
-class TableNotSealedError(BoundaryError):
+class TableNotSealedError(BoundaryError):  # concept: realizer | role: annex | kind: record
     """A query reached a table whose defining module has not called ``seal()`` (registrations may be missing)."""
 
 
-class SealedTableError(BoundaryError):
+class SealedTableError(BoundaryError):  # concept: realizer | role: annex | kind: record
     """A registration reached a sealed table."""
 
 
-class StateCone(Enum):
+class StateCone(Enum):  # concept: cone | role: head | kind: set
     """The cone a method's trace state lives in (an Enum, not a bool that a forgetful method gets for free)."""
 
     NONNEGATIVE_FLUX = "psi >= 0 on the trace"  # SN, CP, MoC, MC
@@ -152,7 +152,7 @@ def _units(declared: BoundaryCondition) -> tuple[tuple[type, object, float], ...
     return ((type(declared), declared, 1.0),)
 
 
-class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
+class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):  # concept: realizer | role: head | kind: morphism
     """The realizers of ONE method, keyed by unit type; registered by class keyword, then sealed (see the module docstring)."""
 
     def __init__(self, method: str, *, state_cone: StateCone, unregistered_issue: int) -> None:
@@ -310,7 +310,7 @@ class RealizerTable(Generic[SpaceT, OpT, SourceSpaceT]):
         return self._source.sample(terms, site, space)
 
 
-class ResponseRealizer(ABC, Generic[K, SpaceT, OpT]):
+class ResponseRealizer(ABC, Generic[K, SpaceT, OpT]):  # concept: realizer | role: component | kind: morphism
     """A method's realizer of one unit (a chain, ``ZeroNetwork`` or a method-only condition); registers by class keyword."""
 
     #: The catalogue entry, the upper bound of :meth:`admit` over all values and sites.
@@ -332,7 +332,7 @@ class ResponseRealizer(ABC, Generic[K, SpaceT, OpT]):
         """The operator of ``weight * unit`` on ``site``."""
 
 
-class RefusingRealizer(ResponseRealizer[K, SpaceT, OpT]):
+class RefusingRealizer(ResponseRealizer[K, SpaceT, OpT]):  # concept: realizer | role: annex | kind: record
     """A unit a table registers only to REFUSE, with a reason sharper than the unregistered door's (a named axis, a site-dependent cell).
 
     Its admission is a ``Refused`` at every value and site, so the table's ``realize`` (which runs ``require`` first) never reaches the
@@ -349,7 +349,7 @@ class RefusingRealizer(ResponseRealizer[K, SpaceT, OpT]):
         raise AssertionError(f"{type(self).__name__}: the unit is refused at admission, so it is never realized")
 
 
-class SourceRealizer(ABC, Generic[SourceSpaceT]):
+class SourceRealizer(ABC, Generic[SourceSpaceT]):  # concept: realizer | role: component | kind: morphism
     """Exactly one per table that admits a source: the realizer of the key ``InflowTerms``. A source is an array, never an operator."""
 
     status: ClassVar[Admission]
@@ -368,7 +368,7 @@ class SourceRealizer(ABC, Generic[SourceSpaceT]):
         return sample_terms(terms, space)
 
 
-class DeckRealizer(ABC, Generic[SpaceT, OpT]):
+class DeckRealizer(ABC, Generic[SpaceT, OpT]):  # concept: realizer | role: component | kind: morphism
     """Exactly one per table: the realizer of the decks, one exhaustive match over ``DeckTransformation``."""
 
     def __init_subclass__(cls, *, table: RealizerTable | None = None, **kwargs: object) -> None:

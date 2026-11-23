@@ -131,7 +131,7 @@ __all__ = [
     "name_digest",
 ]
 
-class ContentlessError(TypeError):
+class ContentlessError(TypeError):  # concept: value | role: annex | kind: record
     r"""A value with no content identity reached the encoder.
 
     The message names the value's type and its PATH from the root value
@@ -145,7 +145,7 @@ def _chunk(tag: bytes, payload: bytes) -> bytes:
     return tag + len(payload).to_bytes(8, "little") + payload
 
 
-class _ByEquality:
+class _ByEquality:  # concept: digest | role: part | kind: morphism
     """Leaves encoded by their value under ``==``: one canonical double per real (``True == 1 == 1.0``,
     ``-0.0 == 0.0``), NaN and integers beyond :math:`2^{53}` refused; an array is its values on its shape, its
     dtype storage. The content identity of the module docstring."""
@@ -194,7 +194,7 @@ class _ByEquality:
         return _chunk(b"C", b"".join(parts))
 
 
-class _Exactly:
+class _Exactly:  # concept: digest | role: part | kind: morphism
     """Leaves encoded exactly, with their types: ``True``, ``1``, ``1.0`` and ``np.float32(1)`` are four
     leaves, ``-0.0`` is not ``0.0``, a NaN is its bits; an array is its dtype and its bytes. A memo key's
     encoding (:func:`encode_exact`): a function can tell apart what ``==`` identifies, so a key that followed
@@ -479,7 +479,7 @@ def name_digest(value: Any) -> str:
 _DIGESTS: dict[int, bytes] = {}
 
 
-class ContentIdentity:
+class ContentIdentity:  # concept: value | role: head | kind: element
     r"""Equality and hash derived from the content digest.
 
     A subclass is a frozen value: a frozen dataclass declared ``eq=False``
@@ -584,7 +584,7 @@ _K = TypeVar("_K")
 _V = TypeVar("_V")
 
 
-class FrozenMapping(ContentIdentity, Mapping[_K, _V], Generic[_K, _V]):
+class FrozenMapping(ContentIdentity, Mapping[_K, _V], Generic[_K, _V]):  # concept: value | role: arm | kind: element
     r"""A frozen, picklable mapping VALUE with content identity.
 
     Keeps the declared order for iteration (order is behaviour: a caller may
@@ -631,7 +631,7 @@ class FrozenMapping(ContentIdentity, Mapping[_K, _V], Generic[_K, _V]):
         return (("items", _OwnedItems(self._index)),)
 
 
-class _OwnedItems(Mapping[_K, _V]):
+class _OwnedItems(Mapping[_K, _V]):  # concept: value | role: part | kind: element
     """The items of a :class:`FrozenMapping`, as its content part.
 
     A read-only view over storage only the frozen mapping holds, so the

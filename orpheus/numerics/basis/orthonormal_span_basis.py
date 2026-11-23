@@ -60,7 +60,7 @@ SPAN_RANK_RTOL = 1e-10
 
 
 @dataclass(frozen=True, eq=False)
-class OrthonormalSpanBasis(Basis):
+class OrthonormalSpanBasis(Basis):  # concept: basis | role: arm | kind: morphism
     r"""A precomputed :math:`G`-orthonormal table over a finite support.
 
     ``eq=False`` (identity equality) follows

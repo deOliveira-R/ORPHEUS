@@ -53,7 +53,7 @@ __all__ = [
 ]
 
 
-class BoundaryError(ValueError):
+class BoundaryError(ValueError):  # concept: walllaw | role: annex | kind: record
     """The root of every refusal about a boundary declaration; ``.declaration`` is the refused object or its type."""
 
     def __init__(self, message: str, declaration: object = None) -> None:
@@ -61,15 +61,15 @@ class BoundaryError(ValueError):
         self.declaration = declaration
 
 
-class SubmarkovViolationError(BoundaryError):
+class SubmarkovViolationError(BoundaryError):  # concept: walllaw | role: annex | kind: record
     """The return fraction of a wall exceeds one: not a physical wall."""
 
 
-class BoundaryResponseNotPositiveError(BoundaryError):
+class BoundaryResponseNotPositiveError(BoundaryError):  # concept: walllaw | role: annex | kind: record
     """A response or inflow weight is negative: outside the positive cone."""
 
 
-class BoundaryRefused(BoundaryError):
+class BoundaryRefused(BoundaryError):  # concept: realizer | role: annex | kind: record
     """A method's realizer table refused a declaration; the ``admission`` says on which axis and under which issue."""
 
     def __init__(self, message: str, declaration: object = None, *, method: str, face: str, admission: Refused) -> None:
@@ -79,7 +79,7 @@ class BoundaryRefused(BoundaryError):
         self.admission = admission
 
 
-class UnboundTagError(BoundaryError):
+class UnboundTagError(BoundaryError):  # concept: walllaw | role: annex | kind: record
     """A face carries a tag with no declared condition."""
 
     def __init__(self, message: str, declaration: object = None, *, tag: int, face: str) -> None:
@@ -88,7 +88,7 @@ class UnboundTagError(BoundaryError):
         self.face = face
 
 
-class UnusedConditionError(BoundaryError):
+class UnusedConditionError(BoundaryError):  # concept: walllaw | role: annex | kind: record
     """A condition is declared for a tag no face carries."""
 
     def __init__(self, message: str, declaration: object = None, *, tag: int) -> None:
@@ -96,7 +96,7 @@ class UnusedConditionError(BoundaryError):
         self.tag = tag
 
 
-class NonInvariantConditionError(BoundaryError):
+class NonInvariantConditionError(BoundaryError):  # concept: walllaw | role: annex | kind: record
     """A condition is not invariant under the colouring group of its carrier (``isometry`` is None where the group is not computed)."""
 
     def __init__(self, message: str, declaration: object = None, *, tag: int, isometry: FaceIsometry | None, faces: tuple[str, ...]) -> None:

@@ -288,7 +288,7 @@ def _system_b_member(
 
 
 @dataclass(frozen=True)
-class RadialCharacteristicFactors:
+class RadialCharacteristicFactors:  # concept: pencil | role: part | kind: morphism
     r"""System B's four bound leaves on a seed-CARRYING mesh (R12a) — the
     ψ½ radial-characteristic quartet, by ROLE.
 
@@ -312,7 +312,7 @@ class RadialCharacteristicFactors:
 
 
 @dataclass(frozen=True)
-class SNLossFactors:
+class SNLossFactors:  # concept: pencil | role: part | kind: morphism
     r"""The bound LEAVES of the within-group loss :math:`A = L + C - S -
     N_{2n} - B` (+ System B's quartet on a carrying mesh), by ROLE — the
     Problem's factors, ORIGINAL and unmodified (the consumers campaign's
@@ -354,7 +354,7 @@ class SNLossFactors:
 
 
 @dataclass(frozen=True)
-class WithinGroupSystem:
+class WithinGroupSystem:  # concept: pencil | role: twin | kind: morphism
     r"""The POSED within-group record — the loss ``A``, the space it is typed
     against, and the FACTORS it was composed from.
 

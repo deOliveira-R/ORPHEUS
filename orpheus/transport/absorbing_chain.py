@@ -110,7 +110,7 @@ def closed_faces(binding: "Optional[Binding]") -> bool:
 
 
 @dataclass(frozen=True)
-class ClosedClass:
+class ClosedClass:  # concept: nullspace | role: part | kind: set
     r"""An absorption-free closed class of the energy groups, with the transient groups that feed it.
 
     ``members`` is the final class (sorted); ``feeders`` the groups outside

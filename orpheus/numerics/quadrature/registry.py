@@ -268,7 +268,7 @@ def _lebedev_order_is_available(order: int) -> bool:
 
 
 @dataclass(frozen=True)
-class QuadratureSpec:
+class QuadratureSpec:  # concept: quadrature | role: part | kind: element
     r"""Tagged registry entry for a single quadrature rule.
 
     Each spec captures what a caller needs to build a rule at a degree: the
@@ -647,7 +647,7 @@ quadrature_registry: tuple[QuadratureSpec, ...] = _registry(
 
 
 @dataclass(frozen=True)
-class AngularSymmetry:
+class AngularSymmetry:  # concept: group | role: weld | kind: element | welded: group, quadrature
     r"""What a geometry demands of its angular discretisation — a ledger.
 
     A geometry's symmetry does not act on the angular variable as one

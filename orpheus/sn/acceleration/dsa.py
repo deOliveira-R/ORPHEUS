@@ -143,7 +143,7 @@ __all__ = ["DSALowOrderSystem", "DSACorrection"]
 
 
 @dataclass(frozen=True)
-class DSALowOrderSystem:
+class DSALowOrderSystem:  # concept: EXT:coarse-correction | role: component | kind: morphism
     r"""Per-group consistent low-order edge systems for the DD slab sweep.
 
     Holds, for every group :math:`g`, the LU-factored edge operator
@@ -477,7 +477,7 @@ class DSALowOrderSystem:
         )
 
 
-class DSACorrection(LinearOperator["FullField", "FullField"]):
+class DSACorrection(LinearOperator["FullField", "FullField"]):  # concept: EXT:coarse-correction | role: head | kind: morphism.operator | welded: EXT:coarse-correction, restrict, faces, inverse
     r"""The DSA correction operator on the within-group iterate composite.
 
     Maps the iterate **increment** :math:`\Delta\psi = \psi^{l+1/2} -

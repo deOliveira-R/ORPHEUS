@@ -42,7 +42,7 @@ V = TypeVar("V", bound=Vector)  # the operator algebra's own carrier bound
 
 
 @dataclass(frozen=True)
-class OperatorPencil(Generic[V]):
+class OperatorPencil(Generic[V]):  # concept: pencil | role: head | kind: morphism
     r"""The pair ``(lhs, rhs)`` = :math:`(A, M)` on one space; ``at(σ) = A − σ·M``.
 
     The ENDS LAW at construction: both operators must agree on domain and on

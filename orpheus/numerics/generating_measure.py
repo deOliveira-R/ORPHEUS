@@ -269,7 +269,7 @@ _CONTENT_PROBE_ORDER = _SYMMETRY_PROBE_ORDER
 
 
 @dataclass(frozen=True)
-class _MeasureContent:
+class _MeasureContent:  # concept: refmeasure | role: part | kind: element
     r"""What a name is held to: the support and the first ``_CONTENT_PROBE_ORDER`` recurrence
     coefficients, as the bytes of their float64 values (bit-equal recurrences
     are equal)."""
@@ -284,7 +284,7 @@ _NAME_CONTENT: dict[str, _MeasureContent] = {}
 
 
 @dataclass(frozen=True)
-class GeneratingMeasure:
+class GeneratingMeasure:  # concept: refmeasure | role: arm | kind: measure
     r"""A continuous measure :math:`d\lambda = w(x)\,dx` that generates a
     Gauss rule, and that the rule's exactness claim is about.
 
@@ -660,7 +660,7 @@ def _rule_at(
 _ISOLATION = Fraction(1, 10**20)  # relative half-width of the rational bracket that isolates a node
 
 
-class _RationalRecurrence(NamedTuple):
+class _RationalRecurrence(NamedTuple):  # concept: refmeasure | role: part | kind: element
     """The monic recurrence of a measure over Q: ``alpha_0 .. alpha_n``, the mass ``beta_0`` (None when irrational) and ``beta_1 .. beta_n``."""
 
     alpha: list[Fraction]

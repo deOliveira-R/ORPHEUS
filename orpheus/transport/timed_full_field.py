@@ -147,7 +147,7 @@ __all__ = ["TimedFullField"]
 
 
 @dataclass(frozen=True, kw_only=True)
-class TimedFullField(FullField):
+class TimedFullField(FullField):  # concept: member | role: arm | kind: element.member
     r"""Cofree comonad over :class:`~orpheus.transport.full_field.FullField`.
 
     The history-bearing composite — a current timeless ``bulk ⊕

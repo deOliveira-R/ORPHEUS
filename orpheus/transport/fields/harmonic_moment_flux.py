@@ -117,7 +117,7 @@ __all__ = ["HarmonicMomentFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class HarmonicMomentFlux(MomentField):
+class HarmonicMomentFlux(MomentField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""Real-spherical-harmonic moment field :math:`\phi_\ell^m(\vec r, g)`.
 
     Parameters

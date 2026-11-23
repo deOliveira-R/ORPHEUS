@@ -67,7 +67,7 @@ _PURE_MODULES = frozenset({
 _BUILTINS = frozenset(dir(builtins))
 
 
-class Statement(NamedTuple):
+class Statement(NamedTuple):  # concept: memo | role: annex | kind: record
     """One import-time statement of a module, as the selection reads it.
 
     ``digest``: the digest of its normalised source, every def body read as ``pass`` (a class statement's own body is
@@ -300,7 +300,7 @@ def _effect(statement: ast.stmt, trusted: frozenset[str], split: bool) -> bool:
     return False
 
 
-class _Hollowed(ast.NodeTransformer):
+class _Hollowed(ast.NodeTransformer):  # concept: memo | role: part | kind: apparatus
     """Every def body read as ``pass``: the def's own pin digests the body."""
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.AST:

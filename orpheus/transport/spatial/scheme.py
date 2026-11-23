@@ -108,7 +108,7 @@ if TYPE_CHECKING:  # pragma: no cover
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True, slots=True)
-class StreamingTerms:
+class StreamingTerms:  # concept: streaming | role: component | kind: element
     """Per-(cell, direction) inputs a spatial scheme's cell update consumes.
 
     ⚠ Not "purely geometric" — that claim stood on this class until
@@ -284,7 +284,7 @@ class StreamingTerms:
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True, slots=True)
-class CellVisit:
+class CellVisit:  # concept: scheme | role: part | kind: element
     r"""One visit to one cell during a transport sweep.
 
     A cell-graph transport sweep (S\ :sub:`N` is the producer today) is
@@ -374,7 +374,7 @@ class CellVisit:
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True, slots=True)
-class UpstreamState:
+class UpstreamState:  # concept: scheme | role: component | kind: element
     r"""Per-cell input state that a :class:`DiscretizationScheme` consumes.
 
     Attributes
@@ -401,7 +401,7 @@ class UpstreamState:
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True, slots=True)
-class CellResult:
+class CellResult:  # concept: scheme | role: component | kind: element
     r"""Per-cell output state produced by a :class:`DiscretizationScheme`.
 
     Attributes
@@ -434,7 +434,7 @@ class CellResult:
 # ``SNProblem.reflective_axis_pairs``)
 # ═══════════════════════════════════════════════════════════════════════
 
-class FaceModeDamping(Enum):
+class FaceModeDamping(Enum):  # concept: scheme | role: annex | kind: record
     r"""Does this closure damp every mode of its own face transmission?
 
     The three states are genuinely distinct and the third is not a
@@ -457,7 +457,7 @@ class FaceModeDamping(Enum):
 
 
 @dataclass(frozen=True, slots=True)
-class FaceTransmissionSpectrum:
+class FaceTransmissionSpectrum:  # concept: scheme | role: annex | kind: record
     r"""The measured verdict of :meth:`DiscretizationSchemeBase.face_transmission_spectrum`.
 
     Attributes
@@ -595,7 +595,7 @@ def _face_transmission_spectrum(
 # ═══════════════════════════════════════════════════════════════════════
 
 @runtime_checkable
-class DiscretizationScheme(Protocol):
+class DiscretizationScheme(Protocol):  # concept: scheme | role: head | kind: morphism
     r"""Strategy contract for a per-cell SN sweep update.
 
     Concrete implementations (e.g. :class:`DiamondDifference` shipping
@@ -879,7 +879,7 @@ class DiscretizationScheme(Protocol):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class DiscretizationSchemeBase(RegistryMixin, ABC):
+class DiscretizationSchemeBase(RegistryMixin, ABC):  # concept: scheme | role: weld | kind: morphism | welded: scheme, algorithm, transpose
     r"""Concrete abstract base for self-registering cell-update strategies.
 
     Layered on :class:`RegistryMixin`: strategies that inherit it self-register

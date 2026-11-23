@@ -214,7 +214,7 @@ def _agreed_space(
     return agreed
 
 
-class _Identity:
+class _Identity:  # concept: compose | role: part | kind: element
     r"""An operator compared by OBJECT IDENTITY, never by its own ``__eq__``.
 
     The free vector space is the free vector space on operator OBJECTS (ruling
@@ -252,7 +252,7 @@ def _algebra_key(op: object) -> Hashable:
     return op._algebra_key() if isinstance(op, _KeyedEquality) else _Identity(op)
 
 
-class _KeyedEquality:
+class _KeyedEquality:  # concept: value | role: twin | kind: element
     r"""Equality and hashing by :func:`_algebra_key` — the formal objects.
 
     Mixed into the classes whose identity is their structure: the
@@ -275,7 +275,7 @@ class _KeyedEquality:
         return hash(_algebra_key(self))
 
 
-class NotInvertible(TypeError):
+class NotInvertible(TypeError):  # concept: inverse | role: annex | kind: record
     r"""Asked for the inverse of an operator that cannot produce one.
 
     The INVERSE-axis refusal: raised **eagerly** by
@@ -294,7 +294,7 @@ class NotInvertible(TypeError):
     """
 
 
-class MissingAdjoint(TypeError):
+class MissingAdjoint(TypeError):  # concept: adjoint | role: annex | kind: record
     r"""Asked for the Hilbert adjoint of an operator that has none.
 
     The ADJOINT-axis refusal: raised **eagerly**
@@ -307,7 +307,7 @@ class MissingAdjoint(TypeError):
     """
 
 
-class IncompatibleOperatorComposition(ValueError):
+class IncompatibleOperatorComposition(ValueError):  # concept: compose | role: annex | kind: record
     """A composition's operands carry incompatible function spaces.
 
     Raised at composition time when two operators with declared
@@ -320,7 +320,7 @@ class IncompatibleOperatorComposition(ValueError):
     """
 
 
-class MatrixTooLarge(RuntimeError):
+class MatrixTooLarge(RuntimeError):  # concept: ends | role: annex | kind: record
     r"""A :meth:`LinearOperator.as_matrix` materialization exceeds its size gate.
 
     A **resource effect on a TOTAL functor**: every
@@ -390,7 +390,7 @@ def _resolve_basis_shape(
 
 
 @runtime_checkable
-class LinearOperator(Protocol[Domain, Codomain]):
+class LinearOperator(Protocol[Domain, Codomain]):  # concept: ends | role: weld | kind: morphism.operator | welded: ends, compose, adjoint, transpose, otensor
     r"""Contract for a matrix-free linear operator on a flux vector.
 
     Any object exposing :meth:`apply` participates. The further
@@ -969,7 +969,7 @@ class LinearOperator(Protocol[Domain, Codomain]):
 # runtime→static conversion.
 
 
-class SupportsInverse(LinearOperator[Domain, Codomain], Protocol):
+class SupportsInverse(LinearOperator[Domain, Codomain], Protocol):  # concept: inverse | role: interface | kind: morphism.operator
     r"""Narrowing target: an operator whose :meth:`inverse` may be called.
 
     Extends :class:`LinearOperator`, so a branch narrowed by
@@ -984,7 +984,7 @@ class SupportsInverse(LinearOperator[Domain, Codomain], Protocol):
     def inverse(self) -> "LinearOperator[Codomain, Domain]": ...
 
 
-class SupportsAdjoint(LinearOperator[Domain, Codomain], Protocol):
+class SupportsAdjoint(LinearOperator[Domain, Codomain], Protocol):  # concept: transpose | role: interface | kind: morphism.operator
     r"""Narrowing target: an operator whose ``apply_transpose`` may be called.
 
     Extends :class:`LinearOperator`; the branch narrowed by
@@ -999,7 +999,7 @@ class SupportsAdjoint(LinearOperator[Domain, Codomain], Protocol):
     def apply_transpose(self, x: Codomain, /) -> Domain: ...
 
 
-class SupportsTransposeSolve(LinearOperator[Domain, Codomain], Protocol):
+class SupportsTransposeSolve(LinearOperator[Domain, Codomain], Protocol):  # concept: transpose | role: interface | kind: morphism.operator
     r"""Narrowing target: an operator whose ``solve_transpose`` may be called.
 
     The transposed-solve sibling of :class:`SupportsInverse` /
@@ -1110,7 +1110,7 @@ def _inverse_transposes(op: "LinearOperator[Domain, Codomain]") -> bool:
 # ---------------------------------------------------------------------------
 
 
-class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
+class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):  # concept: adjoint | role: part | kind: morphism.operator
     r"""The Riesz LOWERING leg :math:`\flat : V \to V^*` — apply the metric.
 
     ``♭ x = G x``: the isomorphism a Hilbert space's inner product induces
@@ -1168,7 +1168,7 @@ class RieszLowerOperator(LinearOperator[Domain, Domain], Generic[Domain]):
         return True
 
 
-class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
+class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):  # concept: adjoint | role: part | kind: morphism.operator
     r"""The Riesz RAISING leg :math:`\sharp : V^* \to V` — apply the
     pseudo-inverse metric.
 
@@ -1222,7 +1222,7 @@ class RieszRaiseOperator(LinearOperator[Domain, Domain], Generic[Domain]):
         return True
 
 
-class _DualOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
+class _DualOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):  # concept: transpose | role: head | kind: morphism.operator
     r"""The dual arrow :math:`A^{\mathsf T} : W^* \to V^*` — the
     representation transpose with honest dual-space bookkeeping.
 
@@ -1304,7 +1304,7 @@ class _DualOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Do
             )
         return self.inner.inverse().dual()
 
-class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):
+class AdjointOperator(_KeyedEquality, LinearOperator[Codomain, Domain], Generic[Domain, Codomain]):  # concept: adjoint | role: head | kind: morphism.operator
     r"""The Hilbert-adjoint ARROW :math:`A^{*} : W \to V` — first-class.
 
     Public since CS4c step 1 (the dagger-arrow promotion, R2 ruling —
@@ -1667,7 +1667,7 @@ def _zero_of(
     return zero
 
 
-class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):
+class OperatorSum(_KeyedEquality, LinearOperator[Domain, Codomain]):  # concept: compose | role: arm | kind: morphism.operator
     r"""A formal linear combination :math:`\sum_i c_i\,w_i` of operator words.
 
     The element of the free vector space on operator words, :math:`V \to W`:
@@ -1947,7 +1947,7 @@ def composition(*operators: "LinearOperator") -> "LinearOperator":
     return word if coefficient == 1.0 else linear_combination(((coefficient, word),))
 
 
-class OperatorProduct(_KeyedEquality, LinearOperator[Domain, Codomain]):
+class OperatorProduct(_KeyedEquality, LinearOperator[Domain, Codomain]):  # concept: compose | role: arm | kind: morphism.operator
     r"""A word :math:`A_1 A_2 \cdots A_n` of operators, :math:`n \ge 2`.
 
     The element of the free monoid: :attr:`factors` holds the factors left
@@ -2120,7 +2120,7 @@ class OperatorProduct(_KeyedEquality, LinearOperator[Domain, Codomain]):
         return "(" + " @ ".join(repr(f) for f in self._factors) + ")"
 
 
-class FusedAtom(LinearOperator[Domain, Codomain]):
+class FusedAtom(LinearOperator[Domain, Codomain]):  # concept: algorithm | role: weld | kind: morphism.operator | welded: algorithm, compose
     r"""An atom that realises an algebraic expression with an action of its own.
 
     The free algebra never fuses (numerics_untangling.md ruling 52): ``+`` and
@@ -2182,7 +2182,7 @@ class FusedAtom(LinearOperator[Domain, Codomain]):
         return self.expanded.is_assemblable
 
 
-class PointwiseOperator(LinearOperator[Domain, Domain]):
+class PointwiseOperator(LinearOperator[Domain, Domain]):  # concept: multiplier | role: head | kind: morphism.operator
     r"""The space-polymorphic POINTWISE (multiplier) family — an
     endomorphism at EVERY admissible space, acting identically.
 
@@ -2253,7 +2253,7 @@ class PointwiseOperator(LinearOperator[Domain, Domain]):
         return True  # the Euclidean transpose of a real multiplier is itself
 
 
-class ConstantMultiplier(PointwiseOperator[Domain]):
+class ConstantMultiplier(PointwiseOperator[Domain]):  # concept: multiplier | role: arm | kind: morphism.operator
     r"""Multiplication by a constant :math:`c`, the scalar multiples of the
     identity: the pointwise members whose Hilbert adjoint needs no metric.
 
@@ -2273,7 +2273,7 @@ class ConstantMultiplier(PointwiseOperator[Domain]):
         return self
 
 
-class IdentityOperator(ConstantMultiplier[Domain]):
+class IdentityOperator(ConstantMultiplier[Domain]):  # concept: multiplier | role: arm | kind: morphism.operator
     r"""The identity operator :math:`I\,x = x` — multiplication by ``1``,
     the pointwise family's unit (:class:`PointwiseOperator`).
 
@@ -2301,7 +2301,7 @@ class IdentityOperator(ConstantMultiplier[Domain]):
 
 
 
-class ZeroOperator(ConstantMultiplier[Domain]):
+class ZeroOperator(ConstantMultiplier[Domain]):  # concept: multiplier | role: arm | kind: morphism.operator
     r"""The ENDOMORPHIC zero :math:`0\,x = 0` — multiplication by ``0``,
     the pointwise family's absorbing element (:class:`PointwiseOperator`).
 
@@ -2343,7 +2343,7 @@ class ZeroOperator(ConstantMultiplier[Domain]):
     # is_invertible inherits the base ``False`` — the zero map is singular.
 
 
-class ZeroMorphism(LinearOperator):
+class ZeroMorphism(LinearOperator):  # concept: ends | role: arm | kind: morphism.operator
     r"""The zero MAP between two DECLARED spaces:
     :math:`0 : \mathcal D \to \mathcal C`.
 
@@ -2439,7 +2439,7 @@ class ZeroMorphism(LinearOperator):
     # the same Design-C surface as the endomorphic ZeroOperator.
 
 
-class _WrappedForward(Protocol):
+class _WrappedForward(Protocol):  # concept: ends | role: interface | kind: morphism.operator
     r"""The MINIMAL structural contract the wrap-delegate back-half consumes.
 
     Exactly what :class:`InverseWrapMixin` itself reads of its wrapped
@@ -2471,7 +2471,7 @@ class _WrappedForward(Protocol):
     def apply(self, x: Any, /) -> Any: ...
 
 
-class _InvertibleForward(_WrappedForward, Protocol):
+class _InvertibleForward(_WrappedForward, Protocol):  # concept: inverse | role: interface | kind: morphism.operator
     r"""A solve-backed invertible forward — :class:`InverseOperator`'s narrowing.
 
     Extends the family-minimal :class:`_WrappedForward` with the two
@@ -2494,7 +2494,7 @@ class _InvertibleForward(_WrappedForward, Protocol):
 _ForwardT = TypeVar("_ForwardT", bound=_WrappedForward)
 
 
-class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
+class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):  # concept: inverse | role: part | kind: morphism
     r"""The wrap-delegate back-half shared by every inverse-family sibling.
 
     An inverse operator in this codebase is a thin typed wrapper around
@@ -2644,7 +2644,7 @@ class InverseWrapMixin(Generic[_ForwardT], metaclass=ABCMeta):
         return bool(getattr(self.inner, "is_metric_free_adjoint", False))
 
 
-class InverseOperator(_KeyedEquality, InverseWrapMixin[_InvertibleForward], LinearOperator):
+class InverseOperator(_KeyedEquality, InverseWrapMixin[_InvertibleForward], LinearOperator):  # concept: inverse | role: head | kind: morphism.operator
     r"""The inverse operator :math:`A^{-1}` of a solve-backed leaf, in operator form.
 
     The GENERIC member of the #226 inverse family — the name is earned by
@@ -2718,7 +2718,7 @@ class InverseOperator(_KeyedEquality, InverseWrapMixin[_InvertibleForward], Line
 
 
 
-class TensorProductOperator(LinearOperator):
+class TensorProductOperator(LinearOperator):  # concept: otensor | role: head | kind: morphism.operator
     r"""Per-axis tensor product :math:`A \otimes B \otimes \cdots`.
 
     Given a tuple of linear operators :math:`A_1, A_2, \ldots, A_k`

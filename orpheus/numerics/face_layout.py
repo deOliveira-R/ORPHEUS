@@ -86,7 +86,7 @@ K = TypeVar("K", bound=Hashable)
 
 
 @dataclass(frozen=True)
-class FaceSlot(Generic[K]):
+class FaceSlot(Generic[K]):  # concept: layout | role: part | kind: set
     r"""Per-face slot in a flat boundary buffer.
 
     Parameters
@@ -143,7 +143,7 @@ class FaceSlot(Generic[K]):
 
 
 @dataclass(frozen=True)
-class FaceLayout(Generic[K]):
+class FaceLayout(Generic[K]):  # concept: layout | role: arm | kind: set
     r"""Descriptor mapping face keys to slices in a flat backing buffer.
 
     Parameters

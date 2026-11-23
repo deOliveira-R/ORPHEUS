@@ -101,7 +101,7 @@ __all__ = ["IndicatorBasis"]
 
 
 @dataclass(frozen=True, eq=False)
-class IndicatorBasis(Basis):
+class IndicatorBasis(Basis):  # concept: basis | role: arm | kind: morphism
     r"""Piecewise-constant cell-indicator basis on a tensor-product partition.
 
     Parameters

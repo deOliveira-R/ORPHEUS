@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @dataclass
-class CellXS:
+class CellXS:  # concept: xsfield | role: twin | kind: element.member
     """Per-cell macroscopic cross sections on a spatial mesh.
 
     All arrays have shape (N_cells, ng) where N_cells is the number

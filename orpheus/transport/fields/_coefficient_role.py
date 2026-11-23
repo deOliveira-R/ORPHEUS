@@ -74,7 +74,7 @@ References
 from __future__ import annotations
 
 
-class CoefficientRole:
+class CoefficientRole:  # concept: xsfield | role: part | kind: element
     r"""Role marker for the cross-section coefficient leaves.
 
     Keeps the plain :class:`~orpheus.numerics.field.Field` vector-space

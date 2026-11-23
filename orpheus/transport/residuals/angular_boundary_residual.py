@@ -82,7 +82,7 @@ __all__ = ["AngularBoundaryResidual"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularBoundaryResidual(AngularBoundaryField):
+class AngularBoundaryResidual(AngularBoundaryField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""L2 boundary-balance residual — the *residual* role leaf of
     :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 

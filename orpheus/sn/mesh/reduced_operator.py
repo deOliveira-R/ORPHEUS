@@ -218,7 +218,7 @@ from orpheus.sn.angular.redistribution import (
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass
-class ReducedStreamingOperator:
+class ReducedStreamingOperator:  # concept: streaming | role: weld | kind: element | welded: streaming, coord, closure
     """Connection-coefficient data for a curvilinear (or slab) sweep.
 
     Carries all geometry- and quadrature-dependent precomputed arrays

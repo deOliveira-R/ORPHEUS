@@ -55,7 +55,7 @@ from .quadrature import MOCQuadrature
 # ── Data structures ─────────────────────────────────────────────────
 
 @dataclass(frozen=True)
-class Segment:
+class Segment:  # concept: locate | role: part | kind: set
     """One segment of a ray through a flat-source region."""
 
     region_id: int
@@ -63,7 +63,7 @@ class Segment:
 
 
 @dataclass(frozen=True)
-class Track:
+class Track:  # concept: locate | role: weld | kind: set | welded: locate, realized
     """A single characteristic ray across the unit cell.
 
     Each track supports two traversal directions:
@@ -311,7 +311,7 @@ MOC_REALIZERS: RealizerTable["MOCMesh", TrackLinking, FunctionSpace] = RealizerT
 )
 
 
-class MOCMesh(Mesh1DMethodMesh[TrackLinking]):
+class MOCMesh(Mesh1DMethodMesh[TrackLinking]):  # concept: hub | role: weld | kind: element | welded: hub, locate, realized
     """Augmented geometry for the Method of Characteristics.
 
     Wraps a cylindrical :class:`~geometry.mesh.Mesh1D` (Wigner-Seitz pin
@@ -522,14 +522,14 @@ class MOCMesh(Mesh1DMethodMesh[TrackLinking]):
 # MoC registers no deck realizer (a deck is not spellable on a radial face, and the guard refuses every mesh that is not a solid cylinder),
 # so a deck meets the table's unregistered door, #654; the table holds the three response units only.
 
-class MoCZero(RefusingRealizer, table=MOC_REALIZERS, realizes=ZeroNetwork):
+class MoCZero(RefusingRealizer, table=MOC_REALIZERS, realizes=ZeroNetwork):  # concept: realizer | role: annex | kind: record
     """The empty network: not built (the retired registry held ``reflective`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MoC links specular tracks only; a vacuum wall is not built", 654)
 
 
 
-class MoCSpecularChain(ResponseRealizer, table=MOC_REALIZERS, realizes=SpecularChain):
+class MoCSpecularChain(ResponseRealizer, table=MOC_REALIZERS, realizes=SpecularChain):  # concept: realizer | role: part | kind: morphism
     r"""A specular chain of weight 1: the track linking MoC applies at the square cell's flat faces. ``Approximated``, #547.
 
     MoC reads the solid cylinder as the Wigner-Seitz cylinder of a square pin cell (``pitch = r_cell \sqrt{\pi}``) and links its tracks by
@@ -549,7 +549,7 @@ class MoCSpecularChain(ResponseRealizer, table=MOC_REALIZERS, realizes=SpecularC
         return MOCMesh._link_tracks
 
 
-class MoCDiffuseChain(RefusingRealizer, table=MOC_REALIZERS, realizes=DiffuseChain):
+class MoCDiffuseChain(RefusingRealizer, table=MOC_REALIZERS, realizes=DiffuseChain):  # concept: realizer | role: annex | kind: record
     """A diffuse chain: not built, at any weight (the retired registry held ``reflective`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MoC links specular tracks only; a white wall is not built", 654)

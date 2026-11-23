@@ -26,7 +26,7 @@ from orpheus.mesh.partition import IntervalRule
 from orpheus.mesh.structured import Mesh1D
 
 
-class Mesher:
+class Mesher:  # concept: mesh | role: part | kind: morphism
     r"""A meshing session on one geometry: partition by rules, refine, read the mesh.
 
     Parameters

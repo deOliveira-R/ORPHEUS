@@ -46,7 +46,7 @@ from orpheus.geometry.faces import face_inventory, why_faces_differ
 from orpheus.values.content import FrozenMapping
 
 
-class FaceRoles(FrozenMapping[str, FaceRole]):
+class FaceRoles(FrozenMapping[str, FaceRole]):  # concept: mesh | role: component | kind: element
     """One boundary role per face of a mesh: an ordered, frozen, picklable mapping.
 
     Built by :meth:`over`, which checks the declaration against the mesh's

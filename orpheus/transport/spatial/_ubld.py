@@ -395,7 +395,7 @@ def per_cell_solve(assembled: dict, rhs: np.ndarray) -> np.ndarray:
 
 
 @dataclass(frozen=True, slots=True)
-class D1ClosedForm:
+class D1ClosedForm:  # concept: scheme | role: part | kind: morphism
     r"""The vectorized analytic Schur of the d=1 UBLD ``2×2`` (the fast path).
 
     The single source of the slab-LD ``2×2`` algebra.  Built by

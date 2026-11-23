@@ -139,7 +139,7 @@ def _admit(
 
 class HarmonicAnalysisOperator(
     AnalysisOperator, Generic[AngularFieldT, MomentFieldT],
-):
+):  # concept: faces | role: arm | kind: morphism.operator
     r"""A minted analysis face :math:`M \otimes I_{\text{cells}}` — bound and
     carrier-typed.
 
@@ -227,7 +227,7 @@ class HarmonicAnalysisOperator(
 
 class HarmonicReconstructionOperator(
     ReconstructionOperator, Generic[MomentFieldT, AngularFieldT],
-):
+):  # concept: faces | role: arm | kind: morphism.operator
     r"""A minted reconstruction face :math:`R \otimes I_{\text{cells}}` — bound
     and carrier-typed.
 
@@ -327,7 +327,7 @@ def _admit_truncated(basis: Basis, door: str) -> TruncatedBasis:
 
 
 @dataclass(frozen=True, init=False)
-class HarmonicFrame(GalerkinFrame):
+class HarmonicFrame(GalerkinFrame):  # concept: frame | role: arm | kind: morphism
     r"""The angular spherical-harmonic :class:`GalerkinFrame` — the shared
     operator factory that mints the carrier-typed faces.
 

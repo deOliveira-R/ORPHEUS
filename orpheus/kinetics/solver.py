@@ -42,7 +42,7 @@ from orpheus.data.material_properties.h2o_properties import h2o_density, h2o_ent
 
 
 @dataclass
-class KineticsParams:
+class KineticsParams:  # concept: hub | role: weld | kind: element | welded: hub, strategy
     """Physical parameters for the RIA simulation."""
 
     # --- axial mesh ---
@@ -105,7 +105,7 @@ class KineticsParams:
 
 
 @dataclass
-class KineticsResult:
+class KineticsResult:  # concept: solution | role: twin | kind: record
     """Complete time-history of the RIA simulation."""
 
     time: np.ndarray  # (nt,)

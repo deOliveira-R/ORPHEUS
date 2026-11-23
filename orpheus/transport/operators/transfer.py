@@ -128,7 +128,7 @@ def _moment_head_of(space: "FunctionSpace | None", owner: str) -> "DegreeLayout"
 
 
 @dataclass(eq=False)
-class LegendreMomentTransfer(BoundOperator):
+class LegendreMomentTransfer(BoundOperator):  # concept: transfer | role: weld | kind: morphism.operator | welded: transfer, subspace
     r"""Per-ℓ block-diagonal transfer :math:`\Lambda` on the moment space.
 
     The diagonal spectrum of the sum-of-tensor-products form
@@ -321,7 +321,7 @@ class LegendreMomentTransfer(BoundOperator):
 
 
 @dataclass(eq=False)
-class TransferOperator(AngularLift[IsotropicTransfer]):
+class TransferOperator(AngularLift[IsotropicTransfer]):  # concept: transfer | role: weld | kind: morphism.operator | welded: transfer, natural
     r"""The angular binding of a transfer channel: :math:`T = R\,\Lambda\,M/W` (P0 + Pℓ).
 
     **The CS4c binding (design record §14, step 5), generic in the channel

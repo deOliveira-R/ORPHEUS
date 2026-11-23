@@ -74,7 +74,7 @@ from orpheus.values.scalars import parse_finite_real, parse_index, parse_member
 __all__ = ["Eigenvalue", "FluxIntegral", "Linear", "Observable", "PointValue", "Ratio"]
 
 
-class _SupportsQuotient(Protocol):
+class _SupportsQuotient(Protocol):  # concept: observable | role: part | kind: element
     """A reading that divides by another reading of the same kind."""
 
     def __truediv__(self, other: Any, /) -> Any: ...
@@ -82,7 +82,7 @@ class _SupportsQuotient(Protocol):
 
 @final
 @dataclass(frozen=True, eq=False)
-class FluxIntegral(ContentIdentity):
+class FluxIntegral(ContentIdentity):  # concept: observable | role: arm | kind: element.covector
     r"""The flux paired with a weight, :math:`\langle w, \phi\rangle`."""
 
     weight: MeshFreeFunction
@@ -99,7 +99,7 @@ class FluxIntegral(ContentIdentity):
 
 @final
 @dataclass(frozen=True, eq=False)
-class Ratio(ContentIdentity):
+class Ratio(ContentIdentity):  # concept: observable | role: arm | kind: morphism
     """The quotient of two linear observables."""
 
     numerator: Linear
@@ -117,13 +117,13 @@ class Ratio(ContentIdentity):
 
 @final
 @dataclass(frozen=True, eq=False)
-class Eigenvalue(ContentIdentity):
+class Eigenvalue(ContentIdentity):  # concept: observable | role: arm | kind: morphism
     """The eigenvalue of an eigen question's answer."""
 
 
 @final
 @dataclass(frozen=True, eq=False)
-class PointValue(ContentIdentity):
+class PointValue(ContentIdentity):  # concept: observable | role: arm | kind: element.covector
     """The scalar flux of one group at one position on a one-dimensional axis."""
 
     position: float

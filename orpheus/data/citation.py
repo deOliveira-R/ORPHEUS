@@ -33,7 +33,7 @@ _BIBKEY = re.compile(r"[A-Za-z][A-Za-z0-9_]*")
 
 
 @dataclass(frozen=True)
-class Citation:
+class Citation:  # concept: EXT:citation | role: head | kind: element
     """A published work, by its ``docs/refs.bib`` key, and a place in it.
 
     Parameters

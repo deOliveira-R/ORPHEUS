@@ -81,12 +81,12 @@ def _admit_key(key: Any, where: str) -> None:
 
 
 @dataclass(frozen=True, eq=False)
-class Fundamental(ContentIdentity):
+class Fundamental(ContentIdentity):  # concept: question | role: part | kind: element
     """The first pole met from the removal-dominated end of the direction."""
 
 
 @dataclass(frozen=True, eq=False)
-class Nearest(ContentIdentity):
+class Nearest(ContentIdentity):  # concept: question | role: part | kind: element
     """The pole nearest ``tau``, read in the parameter's chart."""
 
     tau: float
@@ -99,7 +99,7 @@ Mode: TypeAlias = Fundamental | Nearest
 
 
 @dataclass(frozen=True, eq=False)
-class Eigen(ContentIdentity):
+class Eigen(ContentIdentity):  # concept: question | role: arm | kind: element
     """Where, on the line through ``point`` along ``parameter``, is the family singular?
 
     ``gauge`` declares the functional an eigen flux is scaled by (an
@@ -123,7 +123,7 @@ class Eigen(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class FixedSource(ContentIdentity):
+class FixedSource(ContentIdentity):  # concept: question | role: arm | kind: element
     r""":math:`E(p_0)^{-1} q`, for a source ``q`` that does not depend on the unknown."""
 
     source: MeshFreeFunction
@@ -136,7 +136,7 @@ class FixedSource(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class Response(ContentIdentity):
+class Response(ContentIdentity):  # concept: question | role: arm | kind: element
     r"""The importance of a detector ``R``, :math:`E(p_0)^{-\dagger} R`."""
 
     detector: MeshFreeFunction

@@ -172,7 +172,7 @@ def _zero_bulk_source(problem: "SNProblem"):
     return AngularSourceSink.zeros(problem.angular_trial_space)
 
 
-class SNBoundaryOperator(LinearOperator):
+class SNBoundaryOperator(LinearOperator):  # concept: realized | role: weld | kind: morphism.operator | welded: realized, restrict, splitting
     r"""``B_a`` — System A's (trace) boundary law, the SN ``A_ss`` block.
 
     The boundary operator of the transport system (System A of the 2×2 coupled
@@ -740,7 +740,7 @@ class SNBoundaryOperator(LinearOperator):
         return self._apply_faces(psi, "apply_transpose")
 
 
-class RadialCharacteristicBoundaryOperator(LinearOperator):
+class RadialCharacteristicBoundaryOperator(LinearOperator):  # concept: realized | role: weld | kind: morphism.operator | welded: realized, restrict
     r"""``B_b`` — System B's (ψ½ ray-corner) boundary law, the ray ``A_ss`` block.
 
     The boundary operator of the radial-characteristic system (System B of the
@@ -986,7 +986,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):
         return self._apply_faces(ray, "apply_transpose")
 
 
-class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
+class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):  # concept: splitting | role: weld | kind: morphism.operator | welded: splitting, restrict, algorithm, schedule
     r"""One half of the schedule split ``B = B_lower + B_upper`` — the
     whole-trace :class:`SNBoundaryOperator` restricted to a per-face set of
     inflow ordinate ROWS (#226 §17 W2).
@@ -1123,7 +1123,7 @@ class SNMaskedBoundaryOperator(LinearOperator["FullField", "FullField"]):
         )
 
 
-class BoundarySplit(NamedTuple):
+class BoundarySplit(NamedTuple):  # concept: splitting | role: part | kind: morphism
     """The named ``B = B_lower + B_upper`` pair from :meth:`SNBoundaryOperator.split`."""
 
     lower: SNMaskedBoundaryOperator

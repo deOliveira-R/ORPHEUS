@@ -88,7 +88,7 @@ PRODUCTION_READINGS: tuple[type, ...] = (Measured,)
 
 
 @dataclass(frozen=True)
-class ExitReport:
+class ExitReport:  # concept: outcome | role: annex | kind: record
     r"""What the exit measured about the RETURNED state, member by member (see the module docstring)."""
 
     balance: Evidence
@@ -106,7 +106,7 @@ class ExitReport:
 
 
 @dataclass(frozen=True)
-class EigenOutcome(Generic[Carrier]):
+class EigenOutcome(Generic[Carrier]):  # concept: outcome | role: arm | kind: record
     r"""The eigen kind's answer: a ray representative, λ, the λ-trajectory, the scale section.
 
     Parameters
@@ -195,7 +195,7 @@ class EigenOutcome(Generic[Carrier]):
 
 
 @dataclass(frozen=True)
-class SourceOutcome(Generic[Carrier]):
+class SourceOutcome(Generic[Carrier]):  # concept: outcome | role: arm | kind: record
     r"""The source kind's answer: a coset representative and the kernel section that picked it.
 
     Parameters

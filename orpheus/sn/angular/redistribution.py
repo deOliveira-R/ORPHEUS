@@ -220,7 +220,7 @@ if TYPE_CHECKING:
 # Angular-measure adapter (Issue 4 contract — local, structural)
 # ═══════════════════════════════════════════════════════════════════════
 
-class AngularMeasure(Protocol):
+class AngularMeasure(Protocol):  # concept: quadrature | role: interface | kind: measure
     """Minimal contract this module needs from an angular quadrature.
 
     The concrete implementer is
@@ -439,7 +439,7 @@ def _assert_alpha_dome_closes(
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True)
-class AngularRedistribution:
+class AngularRedistribution:  # concept: closure | role: part | kind: element
     r"""The angular measure's redistribution structure on a coordinate chart.
 
     **The object exists because the redistribution operator FACTORS.**  The

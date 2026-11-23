@@ -61,7 +61,7 @@ __all__ = [
 # ─────────────────────────────────────────────────────────────────────
 
 
-class PartialCurrentOperator(LinearOperator):
+class PartialCurrentOperator(LinearOperator):  # concept: natural | role: twin | kind: morphism.operator
     r""":math:`C : \Gamma_+(f) \to S(f)` — the cosine-weighted partial current.
 
     .. math::
@@ -184,7 +184,7 @@ class PartialCurrentOperator(LinearOperator):
         )
 
 
-class IsotropicEmissionOperator(LinearOperator):
+class IsotropicEmissionOperator(LinearOperator):  # concept: natural | role: twin | kind: morphism.operator
     r""":math:`B : S(f) \to \Gamma_-(f)` — a current, re-emitted isotropically.
 
     .. math::

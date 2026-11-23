@@ -152,7 +152,7 @@ if TYPE_CHECKING:
 __all__ = ["AngularBoundarySourceSink", "AngularTraceMethod"]
 
 
-class AngularTraceMethod(Protocol):
+class AngularTraceMethod(Protocol):  # concept: hub | role: interface | kind: element
     r"""The four coordinates of one method-mesh that :meth:`AngularBoundarySourceSink.from_method` reads (structural, never imported by a method)."""
 
     @property
@@ -167,7 +167,7 @@ class AngularTraceMethod(Protocol):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):
+class AngularBoundarySourceSink(AngularBoundaryField, flux=AngularBoundaryFlux):  # concept: bsource | role: weld | kind: element.member | welded: bsource, fluxsrc, restrict
     r"""L2 boundary-trace inflow source — the *source* role leaf of
     :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 

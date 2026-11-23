@@ -57,7 +57,7 @@ __all__ = ["AngularFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularFlux(AngularField):
+class AngularFlux(AngularField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""L2 typed angular flux: pure :class:`Field` on (N, ng, nx, ny).
 
     Parameters

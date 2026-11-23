@@ -30,7 +30,7 @@ __all__ = ["RadialCharacteristicInteriorFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicInteriorFlux(RadialCharacteristicInteriorField):
+class RadialCharacteristicInteriorFlux(RadialCharacteristicInteriorField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""System B's interior ψ½ flux state — the marched cells.
 
     Parameters

@@ -230,7 +230,7 @@ __all__ = [
 ]
 
 
-class ConvergenceWarning(RuntimeWarning):
+class ConvergenceWarning(RuntimeWarning):  # concept: record | role: annex | kind: record
     r"""An iterative solve exhausted its budget; the answer is best-effort.
 
     Emitted by a public solver entry when the returned result carries
@@ -417,7 +417,7 @@ def resolve_iteration_budget(max_iter: int | None, tolerance: float) -> int:
 
 
 @dataclass(frozen=True)
-class StoppingCriterion:
+class StoppingCriterion:  # concept: record | role: annex | kind: record
     r"""One quantity an iteration drives below one tolerance.
 
     A stopping test is a conjunction of these — SN's k-eigenvalue outer stops
@@ -690,7 +690,7 @@ class StoppingCriterion:
 
 
 @dataclass(frozen=True)
-class IterationBudget:
+class IterationBudget:  # concept: record | role: component | kind: element
     r"""A ceiling, the knob that set it, and **what one unit of it buys**.
 
     A budget and an iteration count are comparable only when they count the
@@ -909,7 +909,7 @@ class IterationBudget:
 
 
 @dataclass(frozen=True)
-class IterationRecord:
+class IterationRecord:  # concept: record | role: head | kind: record
     r"""One LEVEL of an iterative solve: what it wanted, what it got, why it
     stopped — and, recursively, the same for every level beneath it.
 

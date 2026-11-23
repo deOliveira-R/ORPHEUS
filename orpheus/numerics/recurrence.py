@@ -65,11 +65,11 @@ Number = mpmath.mpf | Fraction
 M = TypeVar("M", covariant=True)
 
 
-class Irrational(ArithmeticError):
+class Irrational(ArithmeticError):  # concept: refmeasure | role: annex | kind: record
     """The rational arithmetic was asked for a quantity with no rational value (a transcendental mass)."""
 
 
-class Arithmetic(Protocol[M]):
+class Arithmetic(Protocol[M]):  # concept: refmeasure | role: interface | kind: element
     """The number type a closed form is evaluated in, with the few transcendental functions a mass needs."""
 
     def working(self) -> ContextManager: ...
@@ -83,7 +83,7 @@ class Arithmetic(Protocol[M]):
 
 
 @dataclass(frozen=True)
-class HighPrecision:
+class HighPrecision:  # concept: refmeasure | role: part | kind: element
     """``mpmath.mpf`` at an explicit number of decimal digits."""
 
     digits: int
@@ -115,7 +115,7 @@ class HighPrecision:
         return thunk()
 
 
-class _Rational:
+class _Rational:  # concept: refmeasure | role: part | kind: element
     """Exact ``fractions.Fraction``; a transcendental quantity raises :class:`Irrational`."""
 
     def working(self) -> ContextManager:
@@ -170,7 +170,7 @@ RATIONAL = _Rational()
 
 
 @dataclass(frozen=True)
-class RecurrenceCoefficients:
+class RecurrenceCoefficients:  # concept: refmeasure | role: part | kind: morphism
     """A closed form ``(n, A) -> (alpha, beta)`` bound to evaluate inside ``A``'s working context."""
 
     closed_form: Callable[[int, Arithmetic[Any]], tuple[list[Number], list[Any]]]

@@ -58,7 +58,7 @@ if TYPE_CHECKING:
 __all__ = ["InconsistentMaterialsError", "Materials", "energy_axis_of"]
 
 
-class InconsistentMaterialsError(ValueError):
+class InconsistentMaterialsError(ValueError):  # concept: xsfield | role: annex | kind: record
     """The materials of one problem disagree on the group count.
 
     Every operator that consumes a problem's materials assumes one energy
@@ -69,7 +69,7 @@ class InconsistentMaterialsError(ValueError):
 
 
 @dataclass(frozen=True, eq=False)
-class Materials(ContentIdentity):
+class Materials(ContentIdentity):  # concept: xsfield | role: component | kind: element
     r"""The materials of THIS problem — ``{id → Mixture}``, a declaration.
 
     A frozen VALUE with content identity

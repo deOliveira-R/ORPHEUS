@@ -143,7 +143,7 @@ _IDENTITY_3: np.ndarray = np.eye(3)
 # ---------------------------------------------------------------------------
 
 
-class _NamedSubgroup(Enum):
+class _NamedSubgroup(Enum):  # concept: group | role: part | kind: set
     """Named, parameter-free subgroups of :math:`O(3)`.
 
     Parameterised families (:class:`Cn`, :class:`Dnh`, :class:`Mirror`,
@@ -186,7 +186,7 @@ class _NamedSubgroup(Enum):
 
 
 @dataclass(frozen=True)
-class Cn:
+class Cn:  # concept: group | role: part | kind: set
     """Cyclic group :math:`C_n` of :math:`n`-fold proper rotations
     about a fixed axis.
 
@@ -209,7 +209,7 @@ class Cn:
 
 
 @dataclass(frozen=True)
-class Dnh:
+class Dnh:  # concept: group | role: part | kind: set
     """Dihedral group :math:`D_{nh}` of order :math:`4n`.
 
     :math:`D_{nh}` is the full symmetry group of an :math:`n`-prism:
@@ -234,7 +234,7 @@ class Dnh:
 
 
 @dataclass(frozen=True)
-class Mirror:
+class Mirror:  # concept: group | role: part | kind: set
     r"""The order-2 reflection group :math:`\{e, \sigma_a\}`.
 
     **Parameterised by the plane, because the plane is not a
@@ -299,7 +299,7 @@ class Mirror:
 
 
 @dataclass(frozen=True)
-class SO2:
+class SO2:  # concept: group | role: part | kind: set
     r"""The continuous group :math:`C_\infty` of proper rotations about a
     named coordinate axis.
 
@@ -359,7 +359,7 @@ class SO2:
 
 
 @dataclass(frozen=True)
-class O2:
+class O2:  # concept: group | role: part | kind: set
     r"""The continuous group :math:`O(2)_a = C_{\infty v}` — the stabiliser
     of a named coordinate axis in :math:`O(3)`.
 
@@ -449,7 +449,7 @@ class O2:
 
 
 @dataclass(frozen=True, slots=True)
-class SubgroupOfO3:
+class SubgroupOfO3:  # concept: group | role: head | kind: set
     """Subgroup-of-:math:`O(3)` lattice with containment + invariance checks.
 
     Class attributes (named entries) are pre-instantiated singletons:
@@ -1066,7 +1066,7 @@ def _in_span(generators: "tuple[np.ndarray, ...]", matrix: np.ndarray, atol: flo
 
 
 @dataclass(frozen=True, eq=False)
-class IdentityComponent:
+class IdentityComponent:  # concept: group | role: part | kind: set
     r"""The connected component of the identity, :math:`G^0 = \exp\mathfrak g`.
 
     ``generators`` is a basis of :math:`\mathfrak g \subseteq
@@ -1267,7 +1267,7 @@ class IdentityComponent:
 
 
 @dataclass(frozen=True, eq=False)
-class Realization:
+class Realization:  # concept: group | role: part | kind: set
     r"""A closed subgroup of :math:`O(3)` as :math:`G = \bigsqcup_r r\,G^0` —
     its identity component and ONE representative per connected component,
     the identity first.  For a finite group the representatives are every
@@ -1703,7 +1703,7 @@ SubgroupOfO3.O3 = SubgroupOfO3._from_named(_NamedSubgroup.O3)
 
 
 @dataclass(frozen=True)
-class OrbitCertificate:
+class OrbitCertificate:  # concept: orbit | role: annex | kind: record
     r"""The realized action of a group on a point set.
 
     Returned by the closure check instead of a bare ``True``. The check

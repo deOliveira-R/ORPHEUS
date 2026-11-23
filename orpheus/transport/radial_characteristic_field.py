@@ -86,7 +86,7 @@ __all__ = ["RadialCharacteristicField"]
 @dataclass(frozen=True, kw_only=True)
 class RadialCharacteristicField(
     Composite[RadialCharacteristicInteriorField, RadialCharacteristicBoundaryField],
-):
+):  # concept: member | role: arm | kind: element.member
     r"""System B: the ψ½ ray as an ``interior ⊕ boundary`` composite.
 
     ``interior`` is a

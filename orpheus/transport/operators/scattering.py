@@ -74,7 +74,7 @@ if TYPE_CHECKING:
 __all__ = ["ScatteringOperator"]
 
 
-class ScatteringOperator(TransferOperator):
+class ScatteringOperator(TransferOperator):  # concept: transfer | role: arm | kind: morphism.operator
     r"""Scattering source operator :math:`S` (P0 + Pℓ) — the scattering role of the transfer binding.
 
     The :math:`S` instance of

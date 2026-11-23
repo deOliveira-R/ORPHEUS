@@ -171,7 +171,7 @@ __all__ = [
 
 
 @unique
-class BasisKind(Enum):
+class BasisKind(Enum):  # concept: factor | role: component | kind: element
     """The NODAL arm of a space factor's kind (the other arm is :class:`Modal`).
 
     ``NODAL`` — components are point/cell VALUES (indicator-like basis):
@@ -193,7 +193,7 @@ class BasisKind(Enum):
 
 
 @dataclass(frozen=True, eq=False)
-class Modal(ContentIdentity):
+class Modal(ContentIdentity):  # concept: factor | role: component | kind: element
     r"""The MODAL arm of a space factor's kind, carrying the factor's unit.
 
     Components are expansion COEFFICIENTS (a spectral basis): no coordinate
@@ -262,7 +262,7 @@ def _read_only(array: NDArray) -> NDArray:
 
 
 @dataclass(frozen=True)
-class Declared:
+class Declared:  # concept: factor | role: component | kind: element
     r"""The origin of an axis no generating object minted: the kind is declared.
 
     Used where the content is complete without atoms — the energy axes
@@ -302,7 +302,7 @@ class Declared:
 
 
 @dataclass(frozen=True, eq=False)
-class FromMeasure:
+class FromMeasure:  # concept: factor | role: part | kind: element
     r"""The origin of the axis a discrete measure samples: ``NODAL``, on the
     measure's support, at its atoms."""
 
@@ -330,7 +330,7 @@ class FromMeasure:
 
 
 @dataclass(frozen=True, eq=False)
-class FromQuadrature:
+class FromQuadrature:  # concept: factor | role: component | kind: element
     r"""The origin of the angular axis a directional quadrature samples.
 
     The content is the rule's measure's (``NODAL``, its support, its
@@ -366,7 +366,7 @@ class FromQuadrature:
 
 
 @dataclass(frozen=True, eq=False)
-class FromBasis:
+class FromBasis:  # concept: factor | role: component | kind: element
     r"""The origin of a basis's continuum coefficient axis, on the basis's
     domain, indexed by its layout (ruling 81).
 
@@ -410,7 +410,7 @@ class FromBasis:
 
 
 @dataclass(frozen=True, eq=False)
-class FromFrame:
+class FromFrame:  # concept: factor | role: component | kind: element
     r"""The origin of a moment head a frame has dressed with its Parseval metric.
 
     The head holds COVARIANT moments :math:`\varphi = \Phi^{\mathsf T} W
@@ -458,7 +458,7 @@ Origin = FromMeasure | FromQuadrature | FromBasis | FromFrame | Declared
 
 
 @dataclass(frozen=True, eq=False)
-class Axis(ContentIdentity):
+class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | welded: factor, fmetric
     r"""One tensor factor of a function space — a frozen value object.
 
     Parameters
@@ -656,7 +656,7 @@ def quadrature_refusal(axis: Axis, consumer: str) -> ValueError:
 
 
 @dataclass(frozen=True, eq=False)
-class EnergyAxis(Axis):
+class EnergyAxis(Axis):  # concept: factor | role: arm | kind: space
     r"""The multigroup energy factor — a 1-D mesh in energy.
 
     **The faces reading.** A multigroup group structure (the data layer's

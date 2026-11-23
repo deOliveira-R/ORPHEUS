@@ -163,7 +163,7 @@ V = TypeVar("V", bound=Vector)
 
 
 @runtime_checkable
-class IntegralKernelOperator(LinearOperator[V], Protocol[V]):
+class IntegralKernelOperator(LinearOperator[V], Protocol[V]):  # concept: ends | role: arm | kind: morphism.operator
     r"""Structural contract for a §5.6 *Kernel*: a NONLOCAL linear operator.
 
     An :class:`IntegralKernelOperator` is a

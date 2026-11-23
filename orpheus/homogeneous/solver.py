@@ -80,7 +80,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 @dataclass
-class HomogeneousResult:
+class HomogeneousResult:  # concept: solution | role: weld | kind: record | welded: solution, merge
     """Result of a homogeneous infinite reactor calculation.
 
     The energy-grid diagnostics (``representative_energy``, ``energy_widths``,
@@ -221,7 +221,7 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
 
 
 @dataclass(frozen=True, eq=False)
-class HomogeneousProblem:
+class HomogeneousProblem:  # concept: hub | role: weld | kind: element | welded: hub, pencil, posing, nullspace
     r"""The infinite-medium problem — the HUB the homogeneous family's consumed objects live on.
 
     Ruled at the CS4c coda (R-c1, the user, 2026-09-08): *"The homogeneous

@@ -156,7 +156,7 @@ __all__ = [
 
 
 @dataclass(frozen=True)
-class LossTerm:
+class LossTerm:  # concept: splitting | role: part | kind: morphism
     r"""One term of the within-group loss — an operator and the coefficient
     it carries in :math:`A` (``+1`` for the sweepable structure ``L+C``,
     seeding and march; ``−1`` for every gain).
@@ -222,7 +222,7 @@ def resolve_schedule(problem: "SNProblem", inner_schedule: str) -> "SweepSchedul
 
 
 @dataclass(frozen=True)
-class Splitting:
+class Splitting:  # concept: splitting | role: head | kind: morphism
     r"""A splitting ``A = M − N`` of a posed within-group system, as a VALUE.
 
     The primitive is the ASSIGNMENT — the loss terms labelled implicit

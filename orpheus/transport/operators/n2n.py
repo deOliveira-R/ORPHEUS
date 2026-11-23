@@ -85,7 +85,7 @@ if TYPE_CHECKING:
 __all__ = ["N2NOperator"]
 
 
-class N2NOperator(TransferOperator):
+class N2NOperator(TransferOperator):  # concept: transfer | role: arm | kind: morphism.operator
     r"""The :math:`(n,2n)` source operator :math:`N_{2n}` — the :math:`(n,2n)` role of the transfer binding.
 
     The :math:`N_{2n}` instance of

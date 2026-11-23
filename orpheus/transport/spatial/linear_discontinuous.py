@@ -197,7 +197,7 @@ def _ld_source_moments(source: np.ndarray, ng: int) -> tuple[np.ndarray, np.ndar
 
 
 @dataclass(frozen=True, slots=True)
-class _LDCellTerms:
+class _LDCellTerms:  # concept: scheme | role: part | kind: element
     r"""Per-cell LD Schur intermediates — the single source of the slab LD
     algebra for BOTH the solve (:meth:`LinearDiscontinuous.update`) and apply
     (:meth:`LinearDiscontinuous.residual`) directions.
@@ -235,7 +235,7 @@ class _LDCellTerms:
                 - self._mu * self._psi_in) / self._d2p
 
 
-class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):
+class LinearDiscontinuous(DiscretizationSchemeBase, key="linear_discontinuous"):  # concept: scheme | role: arm | kind: morphism
     r"""Linear-Discontinuous (LD) cell-update strategy — slab / Cartesian.
 
     Two spatial moments per (group, ordinate) cell: the cell-average flux and

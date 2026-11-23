@@ -257,7 +257,7 @@ _TANGENTIAL_MU = 4.0 * float(np.finfo(np.float64).eps)
 # ─────────────────────────────────────────────────────────────────────
 # The warning — the freedom must be AUDIBLE, and the root fix named
 # ─────────────────────────────────────────────────────────────────────
-class GaugeFreedomWarning(RuntimeWarning):
+class GaugeFreedomWarning(RuntimeWarning):  # concept: gauge | role: annex | kind: record
     r"""The returned trace was repaired, or could not be classified.
 
     ⚠ **Deliberately NOT a**
@@ -305,7 +305,7 @@ GAUGE_ESCALATION_FLAG = (
 # The verdict — is there a gauge to fix?
 # ─────────────────────────────────────────────────────────────────────
 @dataclass(frozen=True, slots=True)
-class GaugeFreedom:
+class GaugeFreedom:  # concept: nullspace | role: annex | kind: record
     """Whether ``A`` has a null space on this configuration, and why.
 
     Three states, because "we could not classify the closure" is genuinely
@@ -690,7 +690,7 @@ def _pair_generators(
 
 
 @dataclass(frozen=True, slots=True)
-class _FacePlacement:
+class _FacePlacement:  # concept: nullspace | role: part | kind: set
     """Where one ``(face, ordinate)``'s values land in a block's flat vector."""
 
     axis: int

@@ -147,7 +147,7 @@ R_co = TypeVar("R_co", covariant=True)
 
 
 @runtime_checkable
-class Functional(Protocol[V_contra, R_co]):
+class Functional(Protocol[V_contra, R_co]):  # concept: covector | role: interface | kind: element.covector
     r"""Structural contract for a §5.6 functional: a field → scalar map.
 
     A :class:`Functional` consumes a :class:`~orpheus.numerics.vector.Vector`
@@ -183,7 +183,7 @@ class Functional(Protocol[V_contra, R_co]):
 
 
 @dataclass(frozen=True, eq=False)
-class InnerProductFunctional:
+class InnerProductFunctional:  # concept: pairing | role: head | kind: element.covector | welded: pairing, natural, multiplier
     r"""The generic co-vector :math:`\langle w, \cdot\rangle` — the canonical §5.6 Functional.
 
     Contracts a carrier against a fixed **weight** :math:`w` over one axis:

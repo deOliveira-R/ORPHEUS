@@ -174,7 +174,7 @@ DIFFUSION_REALIZERS: RealizerTable[DiffusionMethodSpace, LinearOperator, Functio
 )
 
 
-class _DiffusionSites(ResponseRealizer[Any, DiffusionMethodSpace, LinearOperator]):
+class _DiffusionSites(ResponseRealizer[Any, DiffusionMethodSpace, LinearOperator]):  # concept: realizer | role: part | kind: morphism
     r"""What the four response realizers share (an abstract base: it names no table, so it registers nothing): the hollow radial body's inner face, where only the unit specular return is admitted.
 
     The diffusion stencil assembles its boundary closures from the trace inventory (``face_labels``), which omits the inner face
@@ -195,7 +195,7 @@ class _DiffusionSites(ResponseRealizer[Any, DiffusionMethodSpace, LinearOperator
         return hollow_inner_refusal(self._INNER_REFUSAL) if site.site_class is SiteClass.RAD_INNER else self.status
 
 
-class DiffusionZero(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=ZeroNetwork):
+class DiffusionZero(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=ZeroNetwork):  # concept: realizer | role: part | kind: morphism
     r"""The empty network: :math:`\mathcal{A} = 0` exactly, ``ZeroOperator``. Tier 1: a scalar commutes with every projection."""
 
     status = Realized(True)
@@ -204,7 +204,7 @@ class DiffusionZero(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=ZeroNet
         return _albedo_operator(0.0)
 
 
-class DiffusionSpecularChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=SpecularChain):
+class DiffusionSpecularChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=SpecularChain):  # concept: realizer | role: part | kind: morphism
     r"""A specular chain of weight :math:`w`: :math:`\mathcal{A} = w`. Tier 2: the shape (a permutation) is annihilated by :math:`\Pi_{P_1}`.
 
     The hollow inner face admits it only at :math:`w = 1`, the zero-current cavity the stencil computes there (#511).
@@ -221,7 +221,7 @@ class DiffusionSpecularChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realize
         return _albedo_operator(weight)
 
 
-class DiffusionDiffuseChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=DiffuseChain):
+class DiffusionDiffuseChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=DiffuseChain):  # concept: realizer | role: part | kind: morphism
     r"""A diffuse chain of weight :math:`w`: :math:`\mathcal{A} = w`. Tier 2: the shape (a rank-one re-emission) is annihilated by :math:`\Pi_{P_1}`."""
 
     status = Realized(False)
@@ -230,7 +230,7 @@ class DiffusionDiffuseChain(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes
         return _albedo_operator(weight)
 
 
-class DiffusionZeroFlux(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=ZeroFluxCondition):
+class DiffusionZeroFlux(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=ZeroFluxCondition):  # concept: realizer | role: part | kind: morphism
     r"""Zero flux, :math:`\phi_\Gamma = 0`: :math:`\mathcal{A} = -1`, the operator :math:`-I`. Tier 1."""
 
     status = Realized(True)
@@ -239,7 +239,7 @@ class DiffusionZeroFlux(_DiffusionSites, table=DIFFUSION_REALIZERS, realizes=Zer
         return _albedo_operator(unit.return_fraction)
 
 
-class DiffusionSource(SourceRealizer[FunctionSpace], table=DIFFUSION_REALIZERS):
+class DiffusionSource(SourceRealizer[FunctionSpace], table=DIFFUSION_REALIZERS):  # concept: realizer | role: annex | kind: record
     r"""The source channel: refused. The affine part :math:`q` of the trace map has no channel in diffusion yet (#656, plumbing).
 
     No ``realize`` (a source is an array, never an operator) and no ``sample`` override (the table's door raises before the
@@ -249,7 +249,7 @@ class DiffusionSource(SourceRealizer[FunctionSpace], table=DIFFUSION_REALIZERS):
     status = Refused(RefusalAxis.PLUMBING, "diffusion's affine boundary source has no channel: J^- = q is a vector of the inflow half-trace the scalar trace carries, and the fixed-source arm is not wired", 656)
 
 
-class DiffusionDecks(DeckRealizer, table=DIFFUSION_REALIZERS):
+class DiffusionDecks(DeckRealizer, table=DIFFUSION_REALIZERS):  # concept: realizer | role: part | kind: morphism
     r"""The decks: a mirror plane is :math:`\mathcal{A} = 1` (tier 2); a translation wrap is refused on the topological axis.
 
     The match is exhaustive over :data:`~orpheus.geometry.deck.DeckTransformation`.

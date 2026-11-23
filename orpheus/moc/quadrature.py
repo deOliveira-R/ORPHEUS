@@ -65,7 +65,7 @@ _TY_TABLES: dict[int, tuple[np.ndarray, np.ndarray]] = {
 
 
 @dataclass(frozen=True)
-class MOCQuadrature:
+class MOCQuadrature:  # concept: quadrature | role: twin | kind: measure
     r"""Product quadrature for 2-D Method of Characteristics.
 
     Azimuthal: ``n_azi`` uniform midpoint angles in [0, pi) — the grid

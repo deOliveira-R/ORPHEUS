@@ -147,7 +147,7 @@ __all__ = [
 ]
 
 
-class NotAFinitePointGroupError(ValueError):
+class NotAFinitePointGroupError(ValueError):  # concept: group | role: annex | kind: record
     r"""A generating set generates an INFINITE group.
 
     Named rather than bare, because the configuration that raises it is
@@ -202,7 +202,7 @@ _RANK_ATOL = 1e-10
 
 
 @dataclass(frozen=True, eq=False)
-class Permutation:
+class Permutation:  # concept: group | role: component | kind: element
     r"""A bijection of :math:`\{0, \dots, n-1\}`, stored as the index array
     :math:`\pi` with :math:`i \mapsto \pi(i)`.
 
@@ -333,7 +333,7 @@ def permutation_between(
 
 
 @dataclass(frozen=True, eq=False)
-class RigidMotion(ContentIdentity):
+class RigidMotion(ContentIdentity):  # concept: group | role: component | kind: element
     r"""An element :math:`(Q, t)` of :math:`E(d)`, acting as
     :math:`x \mapsto Qx + t`.
 

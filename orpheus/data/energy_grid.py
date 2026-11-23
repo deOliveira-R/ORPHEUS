@@ -111,7 +111,7 @@ _SPAN_RTOL = 1e-9
 
 
 @dataclass(frozen=True, eq=False)
-class EnergyGrid:
+class EnergyGrid:  # concept: groups | role: head | kind: set
     r"""A multigroup energy structure: strictly DESCENDING boundary energies.
 
     The canonical ORPHEUS energy axis (see :ref:`canonical-group-convention`): group
@@ -351,7 +351,7 @@ class EnergyGrid:
 
 
 @runtime_checkable
-class WithinGroupSpectrum(Protocol):
+class WithinGroupSpectrum(Protocol):  # concept: refmeasure | role: interface | kind: measure
     r"""The assumed sub-fine-group flux shape :math:`w(E)`.
 
     Apportioning a fine group that straddles a coarse boundary needs a within-group
@@ -367,7 +367,7 @@ class WithinGroupSpectrum(Protocol):
 
 
 @dataclass(frozen=True)
-class InverseEnergySpectrum:
+class InverseEnergySpectrum:  # concept: refmeasure | role: twin | kind: measure
     r"""Within-group flux model :math:`w(E)\propto 1/E` — flat in lethargy (the default).
 
     The asymptotic slowing-down spectrum: :math:`\int_{lo}^{hi} \mathrm{d}E/E =

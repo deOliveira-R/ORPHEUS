@@ -90,7 +90,7 @@ __all__ = ["AngularBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularBoundaryFlux(AngularBoundaryField):
+class AngularBoundaryFlux(AngularBoundaryField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""L2 boundary trace flux — the *flux* role leaf of
     :class:`~orpheus.transport.fields._bases.AngularBoundaryField`.
 

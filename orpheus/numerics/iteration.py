@@ -190,7 +190,7 @@ __all__ = [
 ]
 
 
-class SupportsSeededApply(Protocol[V]):
+class SupportsSeededApply(Protocol[V]):  # concept: inverse | role: interface | kind: morphism
     r"""Static contract: the inverse-application operator an iterative
     driver steps through — the inverse family's CANONICAL apply signature
     (#226 taxonomy step 3).
@@ -221,7 +221,7 @@ class SupportsSeededApply(Protocol[V]):
     def apply(self, rhs: V, /, *, initial_guess: V | None = None) -> V: ...
 
 
-class _SeededExactApply:
+class _SeededExactApply:  # concept: inverse | role: part | kind: morphism.operator
     r"""Adapt a SEEDLESS algebra-closed inverse to the driver's seeded contract.
 
     The two-kinds split (taxonomy §12 step 5, canonical statement on
@@ -376,7 +376,7 @@ def _unravel_like(template, flat: np.ndarray):
     return flat.reshape(template.shape)
 
 
-class _CarrierMatvecOperator(spla.LinearOperator):
+class _CarrierMatvecOperator(spla.LinearOperator):  # concept: algorithm | role: part | kind: morphism
     """Flat scipy face of a carrier-space matvec (see :func:`_as_scipy_linop`).
 
     Subclassing is scipy's recommended construction API (define ``_matvec``,
@@ -472,7 +472,7 @@ def lagged_source(
 # ───────────────────────────────────────────────────────────────────────
 
 
-class SourceIteration(Generic[V]):
+class SourceIteration(Generic[V]):  # concept: algorithm | role: weld | kind: element | welded: algorithm, driver
     r"""Fixed-point iteration for :math:`\bigl(A - \sum_i g_i\bigr)\,\psi =
     q_{\rm ext}`.
 
@@ -830,7 +830,7 @@ class SourceIteration(Generic[V]):
 # ───────────────────────────────────────────────────────────────────────
 
 
-class KrylovAcceleration(Generic[V]):
+class KrylovAcceleration(Generic[V]):  # concept: algorithm | role: weld | kind: element | welded: algorithm, driver
     r"""GMRES on :math:`\bigl(A - \sum_i g_i\bigr)\,\psi = q_{\rm ext}` —
     sibling of :class:`SourceIteration` for the same algebra.
 
@@ -1260,7 +1260,7 @@ class KrylovAcceleration(Generic[V]):
 # ───────────────────────────────────────────────────────────────────────
 
 
-class Representation(Protocol):
+class Representation(Protocol):  # concept: strategy | role: interface | kind: morphism
     r"""The space a source iteration's iterate lives in, relative to the
     split's own space (numerics_untangling.md rulings 68 and 70).
 
@@ -1286,7 +1286,7 @@ class Representation(Protocol):
     def reconstruct(self, step: Any, q: Any, iterate: Any) -> Any: ...
 
 
-class _Native:
+class _Native:  # concept: strategy | role: part | kind: morphism
     r"""The split's own space: :math:`P = M^{-1}`, every gain and every
     state as it is."""
 
@@ -1311,7 +1311,7 @@ class _Native:
 NATIVE: Representation = _Native()
 
 
-class SupportsRelaxation(Protocol):
+class SupportsRelaxation(Protocol):  # concept: green | role: interface | kind: morphism
     r"""A split inverse's relaxation face: the best-effort driver of
     :math:`(M - N)^{-1}` under a budget (ruling 68).
 
@@ -1330,7 +1330,7 @@ class SupportsRelaxation(Protocol):
 # ───────────────────────────────────────────────────────────────────────
 
 
-class KEigenvalue(Generic[V]):
+class KEigenvalue(Generic[V]):  # concept: driver | role: weld | kind: morphism | welded: driver, posing, strategy, rate
     r"""The k-eigenvalue problem :math:`(A - S)\,\psi = F\psi/k` — an
     :class:`~orpheus.numerics.posing.EigenPosing` over the pencil
     :math:`(A - S,\; F)` plus the Strategy's Green of the loss for the inner

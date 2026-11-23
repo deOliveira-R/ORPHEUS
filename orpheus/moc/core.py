@@ -45,7 +45,7 @@ def _relative_increment(new: np.ndarray, old: np.ndarray) -> float:
     )
 
 
-class MOCSolver:
+class MOCSolver:  # concept: driver | role: weld | kind: morphism | welded: driver, algorithm, realized, transfer, fission, xsfield
     """2-D Method of Characteristics eigenvalue solver.
 
     Satisfies the :class:`~numerics.eigenvalue.EigenvalueSolver` protocol.

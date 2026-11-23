@@ -250,7 +250,7 @@ def _validate_ray_space_inputs(
     return levels, cell_volumes
 
 
-class _RayLeg(NamedTuple):
+class _RayLeg(NamedTuple):  # concept: rayspace | role: part | kind: set
     r"""One shared leg of the ψ½ layout walk (see :func:`_radial_characteristic_legs`)."""
 
     #: ``"cells"`` (interior) or ``"corner"`` (boundary).
@@ -321,7 +321,7 @@ def _radial_characteristic_legs(
 
 
 @dataclass(frozen=True, eq=False)
-class _RadialCharacteristicSubSpace(FunctionSpace):
+class _RadialCharacteristicSubSpace(FunctionSpace):  # concept: rayspace | role: head | kind: space
     r"""Shared base of the two SPLIT ψ½ spaces (interior cells / boundary corner).
 
     Phase B (the coupled-block campaign) poses the ψ½ ray as **System B** — its
@@ -467,7 +467,7 @@ class _RadialCharacteristicSubSpace(FunctionSpace):
 
 
 @dataclass(frozen=True, eq=False)
-class RadialCharacteristicInteriorSpace(_RadialCharacteristicSubSpace):
+class RadialCharacteristicInteriorSpace(_RadialCharacteristicSubSpace):  # concept: rayspace | role: arm | kind: space
     r"""The ψ½ interior (``cells``) space — System B's interior block.
 
     The ``(ng, nx)`` half-angle flux at every radial cell, per seed-carrying
@@ -482,7 +482,7 @@ class RadialCharacteristicInteriorSpace(_RadialCharacteristicSubSpace):
 
 
 @dataclass(frozen=True, eq=False)
-class RadialCharacteristicBoundarySpace(_RadialCharacteristicSubSpace):
+class RadialCharacteristicBoundarySpace(_RadialCharacteristicSubSpace):  # concept: rayspace | role: weld | kind: space | welded: rayspace, trace
     r"""The ψ½ boundary (``corner``) space — System B's boundary block.
 
     The ``(ng,)`` half-angle flux at r = R, per seed-carrying ``(level, sign)``

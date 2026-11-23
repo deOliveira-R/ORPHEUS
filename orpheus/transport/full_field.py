@@ -178,7 +178,7 @@ CompositeT = TypeVar("CompositeT", bound="Composite")
 
 
 @dataclass(frozen=True, kw_only=True)
-class Composite(Generic[Interior, Boundary]):
+class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | kind: element.member
     r"""The generic ``interior ⊕ boundary`` composite carrier.
 
     A structural two-block composite: an ``interior`` volumetric field paired
@@ -514,7 +514,7 @@ class Composite(Generic[Interior, Boundary]):
 
 
 @dataclass(frozen=True, kw_only=True)
-class FullField(Composite[BulkField, BoundaryField]):
+class FullField(Composite[BulkField, BoundaryField]):  # concept: member | role: arm | kind: element.member
     r"""The SN composite: ``interior ⊕ boundary`` with the SN locus guards.
 
     The :class:`Composite` specialization the SN operator algebra acts on —

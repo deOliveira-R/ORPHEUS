@@ -201,7 +201,7 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class Compatibility:
+class Compatibility:  # concept: algorithm | role: annex | kind: record
     """Whether a strategy applies to a mesh, with a human-readable reason.
 
     ``ok`` is the machine-checkable verdict; ``reason`` is the explanation a
@@ -215,7 +215,7 @@ class Compatibility:
     reason: str
 
 
-class IncompatibleRepresentation(ValueError):
+class IncompatibleRepresentation(ValueError):  # concept: algorithm | role: annex | kind: record
     """A :class:`LossRepresentation` was constructed for a mesh it cannot sweep.
 
     Raised by the construction guard (:meth:`_LossRepresentation.__post_init__`)
@@ -252,7 +252,7 @@ def _curvilinear_capability(
 
 
 @runtime_checkable
-class LossRepresentation(Protocol):
+class LossRepresentation(Protocol):  # concept: algorithm | role: interface | kind: element
     r"""One algorithm for the within-group transport solve and its twin.
 
     A strategy is constructed *for a mesh* (``Strategy(mesh)``); the
@@ -509,7 +509,7 @@ class LossRepresentation(Protocol):
 #: ``_ensure_geom_cache``, 550 per slab eigen solve, +55 %); the per-hub
 #: map is what keeps the count at 1 until C3b's operator-owned stratum
 #: holds the table itself.
-class _GeometryIntern:
+class _GeometryIntern:  # concept: algorithm | role: part | kind: apparatus
     """Stratum-1 tables shared by content, held by the hubs that use them."""
 
     def __init__(self) -> None:
@@ -566,7 +566,7 @@ def geometry_cache_for(
 
 
 @runtime_checkable
-class SigmaStratum(Protocol):
+class SigmaStratum(Protocol):  # concept: algorithm | role: interface | kind: element
     """What a walk consumes for σ: the σ-BOUND stratum (consumers campaign step 2
     C3b-2, 2026-09-14, fork 1 (ii)).  Bound ONCE by the operator that owns σ
     (:attr:`~orpheus.sn.operators.streaming.StreamingCollisionOperator.sigma_stratum`)
@@ -579,14 +579,14 @@ class SigmaStratum(Protocol):
 
 
 @dataclass(frozen=True)
-class RawSigmaStratum:
+class RawSigmaStratum:  # concept: algorithm | role: part | kind: element
     """The multi-D walks' stratum: σ_t per cell, read inside the cell update."""
 
     sig_t: "np.ndarray"
 
 
 @dataclass(frozen=True)
-class ScanStratum:
+class ScanStratum:  # concept: algorithm | role: part | kind: element
     """The 1-D scan's stratum: the σ-free geometry table (Stratum 1, shared by
     content through the intern — this object is its strong HOLDER) and the
     σ-bound collision table (Stratum 2) bound together for one σ."""
@@ -609,7 +609,7 @@ def _scan_stratum(stratum: "SigmaStratum") -> ScanStratum:
 
 
 @dataclass(frozen=True)
-class _LossRepresentation:
+class _LossRepresentation:  # concept: algorithm | role: weld | kind: element | welded: algorithm, cellmoment, natural
     """Base for every concrete strategy: the mesh + the two closures + the guard.
 
     A frozen dataclass carrying the state every strategy needs — the
@@ -1002,7 +1002,7 @@ def _reverse_octant_traversal(
 
 
 @dataclass(frozen=True)
-class _ApplyOperands:
+class _ApplyOperands:  # concept: algorithm | role: part | kind: element
     r"""Problem data of the APPLY-frame matvecs :math:`(L+C)\,\psi` /
     :math:`(L+C)^{\mathsf T}\varphi`, and of the solve transpose
     :math:`(L+C)^{-\mathsf T}` (#616).
@@ -1031,7 +1031,7 @@ class _ApplyOperands:
 
 
 @dataclass(frozen=True)
-class _SolveOperands:
+class _SolveOperands:  # concept: algorithm | role: part | kind: element
     r"""Problem data of the SOLVE direction :math:`(L+C)^{-1} q`.
 
     The sweep's mirror of :class:`_ApplyOperands`: the solve direction is
@@ -1071,7 +1071,7 @@ def _moment_broadcast_sigma(
 
 
 @dataclass(frozen=True)
-class _SweepEmit(ABC):
+class _SweepEmit(ABC):  # concept: algorithm | role: part | kind: element
     r"""Solve-direction OUTPUT mode — angular field XOR harmonic moments.
 
     The Phase 5c output DI (which buffers are given selects the mode —
@@ -1111,7 +1111,7 @@ class _SweepEmit(ABC):
 
 
 @dataclass(frozen=True)
-class _SweepEmitAngular(_SweepEmit):
+class _SweepEmitAngular(_SweepEmit):  # concept: algorithm | role: part | kind: element
     """Angular-field output mode — per-octant ψ + accumulated scalar."""
 
     angular_flux: "np.ndarray"                  # (N, ng, *spatial)
@@ -1125,7 +1125,7 @@ class _SweepEmitAngular(_SweepEmit):
 
 
 @dataclass(frozen=True)
-class _SweepEmitMoment(_SweepEmit):
+class _SweepEmitMoment(_SweepEmit):  # concept: algorithm | role: part | kind: element
     """Harmonic-moment output mode — accumulated φ_ℓ^m, no angular field."""
 
     moment_buf: "np.ndarray"                    # (L+1, 2L+1, ng, *spatial)
@@ -1139,7 +1139,7 @@ class _SweepEmitMoment(_SweepEmit):
 
 
 @dataclass(frozen=True)
-class _OctantWalk:
+class _OctantWalk:  # concept: algorithm | role: weld | kind: element | welded: algorithm, schedule, transpose
     r"""THE in-plane octant traversal of the Cartesian loss operator.
 
     The sweep (forward substitution :math:`(L+C)^{-1} q`) and the matvec
@@ -1661,7 +1661,7 @@ class _OctantWalk:
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class CumprodScan(_LossRepresentation):
+class CumprodScan(_LossRepresentation):  # concept: algorithm | role: arm | kind: element
     r"""1-D parallel-prefix scan — slab, sphere, cylinder via one body.
 
     Intrinsically 1-D: a prefix scan needs a total order (a chain).  The
@@ -1800,7 +1800,7 @@ class CumprodScan(_LossRepresentation):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class _DAGWavefront(_LossRepresentation):
+class _DAGWavefront(_LossRepresentation):  # concept: algorithm | role: arm | kind: element
     r"""Base for the two buffer policies over the per-octant DAG walk.
 
     ``FullFieldWavefront`` (full-field buffer; the oracle) and
@@ -1876,7 +1876,7 @@ class _DAGWavefront(_LossRepresentation):
         return type(self.spatial_closure).has_transpose_solve_kernel
 
 
-class MovingFrontierWindow(_DAGWavefront):
+class MovingFrontierWindow(_DAGWavefront):  # concept: algorithm | role: arm | kind: element
     r"""Wavefront sweep — rolling :math:`(d{-}1)`-frontier buffer.
 
     The anti-diagonal (level-scheduled) sweep over the per-octant DAG,
@@ -2203,7 +2203,7 @@ class MovingFrontierWindow(_DAGWavefront):
         )
         return bulk_oct, capture
 
-class FullFieldWavefront(_DAGWavefront):
+class FullFieldWavefront(_DAGWavefront):  # concept: algorithm | role: arm | kind: element
     r"""Verification-oracle wavefront sweep — the dimension-generic SPINE.
 
     Walks the same per-octant DAG as :class:`MovingFrontierWindow` but
@@ -2633,7 +2633,7 @@ class FullFieldWavefront(_DAGWavefront):
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class ScanMarch(_LossRepresentation):
+class ScanMarch(_LossRepresentation):  # concept: algorithm | role: arm | kind: element
     r"""Scan-march sweep — ``scan(x)`` marched over the transverse axes (#222).
 
     Reframes the d-D diamond-difference sweep as forward substitution along the
@@ -3263,7 +3263,7 @@ _MU_DIRECTION_EPS = 1e-15
 
 
 @dataclass(frozen=True)
-class _WalkLeg:
+class _WalkLeg:  # concept: algorithm | role: part | kind: set
     r"""One (μ-level × direction) chain of the 1-D walk DAG.
 
     The 1-D sweep DAG's node set factorizes into LEGS: for each quadrature
@@ -3307,7 +3307,7 @@ def _reverse_traversal(legs: "tuple[_WalkLeg, ...]") -> "tuple[_WalkLeg, ...]":
 
 
 @dataclass(frozen=True)
-class _OneDimScanWalk:
+class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | welded: algorithm, transpose, streaming
     r"""The shared 1-D-scan frame — the 1-D analogue of :class:`_OctantWalk`.
 
     Owns the geometry-blind 1-D SN sweep (the SOLVE direction), shared by

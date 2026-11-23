@@ -103,7 +103,7 @@ __all__ = ["MaterialXSField"]
 
 
 @dataclass(eq=False)
-class MaterialXSField:
+class MaterialXSField:  # concept: xsfield | role: weld | kind: element.member | welded: xsfield, merge, transfer, splitting
     r"""Macroscopic cross-section field over a material mesh.
 
     Owns the per-material :class:`~orpheus.data.macro_xs.mixture.Mixture`

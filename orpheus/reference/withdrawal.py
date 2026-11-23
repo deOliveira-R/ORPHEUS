@@ -35,7 +35,7 @@ from orpheus.values.content import ContentIdentity, content_digest
 __all__ = ["Withdrawal"]
 
 
-class _MarkLike(Protocol):
+class _MarkLike(Protocol):  # concept: EXT:reference-solution | role: part | kind: element
     """The two fields of a ``pytest`` ``Mark`` that :meth:`Withdrawal.from_mark` reads."""
 
     @property
@@ -47,7 +47,7 @@ class _MarkLike(Protocol):
 
 @final
 @dataclass(frozen=True, eq=False)
-class Withdrawal(ContentIdentity):
+class Withdrawal(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """A ruling that a reference generator is withdrawn, and the issue that records it.
 
     Parameters

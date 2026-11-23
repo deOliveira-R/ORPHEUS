@@ -113,7 +113,7 @@ __all__ = [
 ]
 
 
-class MissingAssembly(TypeError):
+class MissingAssembly(TypeError):  # concept: ends | role: annex | kind: record
     r"""Asked for the sparse assembly of an operator that has none.
 
     The ASSEMBLY-axis refusal, sibling of
@@ -127,7 +127,7 @@ class MissingAssembly(TypeError):
     """
 
 
-class SupportsAssembly(Protocol):
+class SupportsAssembly(Protocol):  # concept: ends | role: interface | kind: morphism.operator
     r"""An operator that emits its own raw sparse matrix.
 
     ``assembled_matrix(emit)`` returns the operator's matrix in the flat
@@ -156,7 +156,7 @@ def assemblable(op: "LinearOperator") -> "TypeGuard[SupportsAssembly]":
     return op.is_assemblable
 
 
-class SparseAssembledOperator(LinearOperator):
+class SparseAssembledOperator(LinearOperator):  # concept: ends | role: arm | kind: morphism.operator
     r"""A structurally-assembled sparse matrix, conforming to the operator algebra.
 
     (Deliberately unparameterized — the ndarray-carrier family convention,

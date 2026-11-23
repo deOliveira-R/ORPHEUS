@@ -44,7 +44,7 @@ __all__ = ["RadialCharacteristicBoundarySourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicBoundarySourceSink(RadialCharacteristicBoundaryField, flux=RadialCharacteristicBoundaryFlux):
+class RadialCharacteristicBoundarySourceSink(RadialCharacteristicBoundaryField, flux=RadialCharacteristicBoundaryFlux):  # concept: fluxsrc | role: twin | kind: element.member
     r"""System B's boundary q½ source/sink — the r = R corner data slots.
 
     Parameters

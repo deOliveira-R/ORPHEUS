@@ -35,7 +35,7 @@ __all__ = ["EnergyGroups", "IndexSet"]
 
 
 @dataclass(frozen=True)
-class IndexSet(Manifold):
+class IndexSet(Manifold):  # concept: manifold | role: arm | kind: set
     r"""A finite index set — ``n`` points with no metric structure.
 
     Two shipped sites minted this concept under incompatible spellings:
@@ -73,7 +73,7 @@ class IndexSet(Manifold):
 
 
 @dataclass(frozen=True)
-class EnergyGroups(Manifold):
+class EnergyGroups(Manifold):  # concept: manifold | role: arm | kind: set
     r"""The multigroup energy axis — a counting set of ``ng`` groups.
 
     Distinct from a bare :class:`IndexSet` because the measure's PHASE

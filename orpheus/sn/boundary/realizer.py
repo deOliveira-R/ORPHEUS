@@ -102,7 +102,7 @@ __all__ = ["SN_REALIZERS", "SNDecks", "SNDiffuseChain", "SNSource", "SNSpecularC
 SN_REALIZERS: RealizerTable[SNMethodSpace, RealizedBoundary, AngularFaceTraceSpace] = RealizerTable("sn", state_cone=StateCone.NONNEGATIVE_FLUX, unregistered_issue=659)
 
 
-class _SNSites:
+class _SNSites:  # concept: realizer | role: part | kind: morphism
     """What the five realizers share: the readings of a site and of a method space (no module-level helper functions)."""
 
     #: The hollow radial body's inner face: a tag with no trace and so no ``realize`` (``require`` is its only door).
@@ -126,7 +126,7 @@ class _SNSites:
         return ordinate_pairing(space.quadrature, mirror_motion(AXIS_NAMES[axis], dimension))
 
 
-class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwork):
+class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwork):  # concept: realizer | role: part | kind: morphism
     r"""The image of the empty network: the zero map :math:`\Gamma_+ \to \Gamma_-`.
 
     Vacuum's whole content is :math:`R = 0`. The same object is the linear image of a pure inflow (the affine :math:`q` travels the
@@ -143,7 +143,7 @@ class SNZero(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=ZeroNetwor
         return ZeroMap(face=site.face, trace=space.trace)
 
 
-class SNSpecularChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=SpecularChain):
+class SNSpecularChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=SpecularChain):  # concept: realizer | role: part | kind: morphism
     r"""The image of ``s * SpecularChain``: :math:`s\,P_\pi`, the scaled ordinate permutation of the face's own mirror plane.
 
     ``ordinate_pairing`` certifies the pairing (measure-preserving, involutive, inflow to outflow) and RETURNS the permutation the
@@ -172,7 +172,7 @@ class SNSpecularChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=S
         )
 
 
-class SNDiffuseChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=DiffuseChain):
+class SNDiffuseChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=DiffuseChain):  # concept: realizer | role: part | kind: morphism
     r"""The image of ``d * DiffuseChain``: :math:`d\,(E\circ R_t)`, the factored Lambertian.
 
     The chain asks no pairing, so every quadrature admits it on a Cartesian face. A radial outer face is refused (#653: the corner
@@ -196,7 +196,7 @@ class SNDiffuseChain(ResponseRealizer, _SNSites, table=SN_REALIZERS, realizes=Di
         return RankOneReemission(alpha=weight, face=site.face, trace=space.trace)
 
 
-class SNSource(SourceRealizer[AngularFaceTraceSpace], _SNSites, table=SN_REALIZERS):
+class SNSource(SourceRealizer[AngularFaceTraceSpace], _SNSites, table=SN_REALIZERS):  # concept: realizer | role: part | kind: morphism
     r"""The source channel: :math:`q` as an ARRAY on :math:`\Gamma_-`, never an operator (no ``realize``).
 
     Admitted on a Cartesian face. A radial outer face is refused (#653: a source is a free parameter the corner block, a linear
@@ -227,7 +227,7 @@ class SNSource(SourceRealizer[AngularFaceTraceSpace], _SNSites, table=SN_REALIZE
         return sample_terms(terms, space)
 
 
-class SNDecks(DeckRealizer, _SNSites, table=SN_REALIZERS):
+class SNDecks(DeckRealizer, _SNSites, table=SN_REALIZERS):  # concept: realizer | role: part | kind: morphism
     r"""The decks: a mirror plane or a translation wrap, realized as the unit scaled permutation :math:`\alpha = 1`.
 
     * ``MirrorDeck``: the ordinate permutation of the face's own mirror, certified by ``ordinate_pairing`` (the refusal is on the

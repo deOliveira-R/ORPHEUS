@@ -73,7 +73,7 @@ __all__ = ["Chord", "ConcentricPartition", "Crossings", "Rays", "Transits", "reg
 
 
 @dataclass(frozen=True, eq=False)
-class ConcentricPartition(ContentIdentity):
+class ConcentricPartition(ContentIdentity):  # concept: locate | role: weld | kind: set | welded: locate, regions
     r"""The level sets :math:`c = r_0 < r_1 < \dots < r_n` of a chart, posed in space.
 
     **Identity is content** (:class:`~orpheus.values.content.ContentIdentity`):
@@ -260,7 +260,7 @@ class ConcentricPartition(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class Crossings:
+class Crossings:  # concept: locate | role: part | kind: set
     r"""The crossings of a batch of lines with a partition's surfaces, in order along each line.
 
     Every array is ``(..., m)``, one column per potential crossing in the
@@ -305,7 +305,7 @@ class Crossings:
 
 
 @dataclass(frozen=True, eq=False)
-class Chord:
+class Chord:  # concept: locate | role: head | kind: set
     r"""The chord of a batch of lines through a :class:`ConcentricPartition`.
 
     The chord is a fixed sequence of **slots**, the stretches between
@@ -581,7 +581,7 @@ _MAX_TRANSITS = 2
 
 
 @dataclass(frozen=True, eq=False)
-class Transits:
+class Transits:  # concept: locate | role: part | kind: set
     r"""The transits of a batch of lines: the maximal runs inside the domain, in order along each line.
 
     Every array is ``(..., 2)``, one column per possible transit in the
@@ -693,7 +693,7 @@ def _lifted(orbit_length: np.ndarray, obliquity: np.ndarray) -> np.ndarray:
 
 
 @dataclass(frozen=True, eq=False)
-class Rays:
+class Rays:  # concept: locate | role: part | kind: set
     r"""The chord of the lines through points, read from the points (:meth:`ConcentricPartition.rays_from`).
 
     Attributes

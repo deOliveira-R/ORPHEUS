@@ -120,7 +120,7 @@ def _read_only_copy(values: np.ndarray, *, name: str, ndim: int) -> np.ndarray:
 
 
 @dataclass(frozen=True)
-class TransferKernel:
+class TransferKernel:  # concept: xsfield | role: component | kind: element.member
     r"""The Legendre transfer stack :math:`\{\Sigma_{c,\ell}\}_{\ell=0}^{L}` of one material's channel, with its yield.
 
     ``moments[l]`` is the dense ``(ng, ng)`` group-transfer matrix of
@@ -290,7 +290,7 @@ class TransferKernel:
 
 
 @dataclass(frozen=True)
-class FissionKernel:
+class FissionKernel:  # concept: xsfield | role: component | kind: element.member
     r"""The fission channel of one material — the factor pair :math:`(\chi, \nu\Sigma_f)`.
 
     The fission source is the rank-1 dyad :math:`F = |\chi\rangle\langle

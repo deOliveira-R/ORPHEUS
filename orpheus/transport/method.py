@@ -127,7 +127,7 @@ OpT = TypeVar("OpT")
 
 
 @runtime_checkable
-class TransportMethod(Protocol[OpT_co]):
+class TransportMethod(Protocol[OpT_co]):  # concept: hub | role: interface | kind: element
     r"""Structural Protocol of the method-mesh layer.
 
     A method-mesh, a :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` subclass carrying one transport method's
@@ -186,7 +186,7 @@ class TransportMethod(Protocol[OpT_co]):
         ...
 
 
-class MethodMesh(MaterialMesh):
+class MethodMesh(MaterialMesh):  # concept: hub | role: head | kind: element
     r"""The base of the method-meshes: a :class:`MaterialMesh` that owns a ``binding``, and the two duties that follow from owning one.
 
     A method-mesh joins the declared exterior conditions to its faces (:attr:`binding`, set by the subclass's constructor through
@@ -216,7 +216,7 @@ class MethodMesh(MaterialMesh):
         return {"boundary_conditions": self.binding.declared}
 
 
-class Mesh1DMethodMesh(Generic[OpT]):
+class Mesh1DMethodMesh(Generic[OpT]):  # concept: hub | role: twin | kind: element
     r"""The base of the method-meshes that wrap a :class:`~orpheus.mesh.Mesh1D`: the mesh as the method's space, and the bind-and-realize step.
 
     Collision probability, characteristics and Monte Carlo each hold a ``Mesh1D`` (``self.mesh``) and no trace space: the face they

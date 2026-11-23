@@ -144,7 +144,7 @@ def lebedev_sphere(order: int) -> DiscreteMeasure:
 # ---------------------------------------------------------------------------
 
 
-class PolarInvariant(Enum):
+class PolarInvariant(Enum):  # concept: quadrature | role: component | kind: element
     r"""Which invariant a quadrature's levels are the fibers OF.
 
     A level is a **fiber of an invariant**, not an orbit, and the two
@@ -170,7 +170,7 @@ class PolarInvariant(Enum):
 
 
 @dataclass(frozen=True)
-class LevelStructure:
+class LevelStructure:  # concept: quadrature | role: weld | kind: set | welded: quadrature, schedule
     r"""Per-level metadata for a triangular SN-style sphere quadrature.
 
     Captured alongside the :class:`DiscreteMeasure` returned by

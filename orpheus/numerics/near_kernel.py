@@ -105,7 +105,7 @@ _SEED = 20261031
 
 
 @dataclass(frozen=True)
-class NearKernel:
+class NearKernel:  # concept: nullspace | role: annex | kind: record
     r"""The measured near-kernel of an operator: its right and left near-null vectors and the gap behind them.
 
     ``right`` is ``(n, k)``, an orthonormal basis of the measured

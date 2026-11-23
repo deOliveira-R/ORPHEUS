@@ -92,7 +92,7 @@ if TYPE_CHECKING:
 __all__ = ["Basis", "GramStructure", "TruncatedBasis"]
 
 
-class GramStructure(Enum):
+class GramStructure(Enum):  # concept: basis | role: annex | kind: record
     r"""The structure of a TRIAL basis's frame-Gram — the projection-validity declaration.
 
     When a basis is the **trial** side of a :class:`~orpheus.numerics.frame.FrameBase`,
@@ -126,7 +126,7 @@ class GramStructure(Enum):
 
 
 @runtime_checkable
-class TruncatedBasis(Protocol):
+class TruncatedBasis(Protocol):  # concept: basis | role: interface | kind: morphism
     r"""A basis indexed by a truncation ORDER :math:`L` — the harmonic family's shared surface.
 
     The real spherical harmonics, their σ-even restriction and the Legendre
@@ -187,7 +187,7 @@ def _nodes(values: NDArray, table: NDArray, owner: str) -> NDArray:
     return leading_coordinates(values, table.shape[:1], owner=owner)
 
 
-class Basis(ABC):
+class Basis(ABC):  # concept: basis | role: head | kind: morphism | welded: basis, faces
     r"""Abstract discrete spectral basis — the synthesis side of a :class:`FrameBase`.
 
     Concrete bases (real spherical harmonics today; Legendre, Chebyshev,

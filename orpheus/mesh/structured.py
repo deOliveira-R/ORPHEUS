@@ -69,7 +69,7 @@ def _volume_ulps(coord: CoordSystem) -> int:
 
 
 @dataclass(frozen=True, eq=False)
-class Mesh1D(ContentIdentity):
+class Mesh1D(ContentIdentity):  # concept: mesh | role: weld | kind: set | welded: mesh, regions
     r"""A 1-D mesh: cells in one coordinate system, a region label on each, a role on each boundary face.
 
     The general constructor takes exactly what a 1-D discretisation is. A
@@ -410,7 +410,7 @@ class Mesh1D(ContentIdentity):
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass(frozen=True, eq=False)
-class Mesh2D(ContentIdentity):
+class Mesh2D(ContentIdentity):  # concept: mesh | role: weld | kind: set | welded: mesh, regions
     """Two-dimensional mesh: Cartesian (x, y) or cylindrical (r, z).
 
     The boundary faces follow the one topology rule of

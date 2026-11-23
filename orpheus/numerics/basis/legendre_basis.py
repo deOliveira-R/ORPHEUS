@@ -125,7 +125,7 @@ def legendre_table(L: int, mu: NDArray) -> NDArray:
 
 
 @dataclass(frozen=True)
-class LegendreBasis(Basis):
+class LegendreBasis(Basis):  # concept: basis | role: arm | kind: morphism
     r"""Legendre polynomials :math:`\{P_\ell\}_{\ell \le L}` on :math:`S^2/O(2)_a`.
 
     Parameters

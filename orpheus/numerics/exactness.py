@@ -116,7 +116,7 @@ from orpheus.geometry.manifold import Manifold
 from orpheus.geometry.manifold import CIRCLE, SPHERE
 
 
-class OrthogonalSystem(Enum):
+class OrthogonalSystem(Enum):  # concept: refmeasure | role: component | kind: element
     r"""Which family of functions a degree of exactness indexes.
 
     A **value**, not a hierarchy: the systems differ in what they span,
@@ -149,7 +149,7 @@ class OrthogonalSystem(Enum):
 
 
 @runtime_checkable
-class ReferenceMeasure(Protocol):
+class ReferenceMeasure(Protocol):  # concept: refmeasure | role: head | kind: measure
     r"""The continuous measure an exactness claim is **about**.
 
     Deliberately narrower than
@@ -178,7 +178,7 @@ class ReferenceMeasure(Protocol):
 
 
 @dataclass(frozen=True)
-class UniformMeasure:
+class UniformMeasure:  # concept: refmeasure | role: arm | kind: measure
     r"""Lebesgue measure on a domain — a reference that generates nothing.
 
     The second realization of :class:`ReferenceMeasure`, and the one that
@@ -241,7 +241,7 @@ UNIFORM_ON_SPHERE = UniformMeasure(
 
 
 @dataclass(frozen=True)
-class ProductMeasure:
+class ProductMeasure:  # concept: refmeasure | role: arm | kind: measure
     r"""The product reference :math:`\lambda_1 \otimes \lambda_2`.
 
     A tensor product of rules lands on the **product space**, so its
@@ -303,7 +303,7 @@ class ProductMeasure:
 
 
 @dataclass(frozen=True)
-class ExactnessClaim:
+class ExactnessClaim:  # concept: quadrature | role: annex | kind: record
     r"""A quadrature rule's exactness, stated whole: :eq:`exactness-claim`.
 
     Bundling the degree with its reference is the point. As two loose

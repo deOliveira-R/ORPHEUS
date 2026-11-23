@@ -78,7 +78,7 @@ SUMMAND_ORTHOGONALITY_TOL = 1e-12
 
 
 @dataclass(frozen=True, eq=False)
-class KernelSummand:
+class KernelSummand:  # concept: nullspace | role: part | kind: element
     r"""One summand of a kernel: a spanning set of generators over a support.
 
     Parameters
@@ -126,7 +126,7 @@ class KernelSummand:
 
 
 @dataclass(frozen=True, slots=True)
-class _ProjectedSummand:
+class _ProjectedSummand:  # concept: nullspace | role: part | kind: morphism
     r"""One term :math:`\gamma_b^{\mathsf T} \Pi_b \gamma_b` of the projector, built."""
 
     gather: TraceRestrictionOperator
@@ -172,7 +172,7 @@ def _flat_chart(space: FunctionSpace) -> FunctionSpace:
                          metric=DiagonalMetric(diagonal_metric(space)))
 
 
-class KernelProjectionGauge(LinearOperator):
+class KernelProjectionGauge(LinearOperator):  # concept: nullspace | role: weld | kind: morphism.operator | welded: nullspace, gauge
     r"""The :math:`G`-orthogonal projector :math:`\Pi` onto a kernel given by spanning summands.
 
     An endomorphism of ``space``. :meth:`gauge` is the section

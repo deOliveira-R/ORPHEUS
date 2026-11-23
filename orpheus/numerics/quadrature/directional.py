@@ -153,7 +153,7 @@ def _octant_sign_predicate(nodes: np.ndarray) -> np.ndarray:
 
 
 @dataclass(eq=False)
-class Quadrature:
+class Quadrature:  # concept: quadrature | role: head | kind: measure | welded: quadrature, schedule, orbit, value
     r"""Directional quadrature: a :class:`DiscreteMeasure` on the
     sphere or polar interval, with cached SN-derived data.
 

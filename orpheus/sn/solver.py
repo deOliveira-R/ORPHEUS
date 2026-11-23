@@ -412,7 +412,7 @@ def evaluate_residual(
     return _typed_balance(_bare_loss_arm(system), psi, q_ext)
 
 
-class ConvergenceClaimError(RuntimeError):
+class ConvergenceClaimError(RuntimeError):  # concept: record | role: annex | kind: record
     r"""A within-group solve CLAIMED convergence but the honest equation
     residual disagrees — the production lag-death classifier (step 5,
     R-5.2).
@@ -665,7 +665,7 @@ def _exit_report(
 
 
 @dataclass(frozen=True)
-class _StateProductionRate:
+class _StateProductionRate:  # concept: rate | role: part | kind: element.covector
     r"""The SN production-rate FUNCTIONAL on the returned STATE — the section
     ``power_iteration`` fixed the representative on, spelled as the object that
     ran: :meth:`SNSolver.compute_production_rate` (fission **plus** the (n,2n)
@@ -1099,7 +1099,7 @@ def _coupled_source_state(
     return CoupledField(systems=(q_a, q_half))
 
 
-class InnerSolve(NamedTuple):
+class InnerSolve(NamedTuple):  # concept: driver | role: annex | kind: record
     r"""What the LAST within-group solve left behind — the posed
     :class:`~orpheus.sn.coupled_system.WithinGroupSystem` record (the
     Problem's face: the loss and its factors, ORIGINAL), the
@@ -1284,7 +1284,7 @@ def _within_group_green_si(
 # Solver class (EigenvalueSolver protocol)
 # ═══════════════════════════════════════════════════════════════════════
 
-class SNSolver:
+class SNSolver:  # concept: driver | role: weld | kind: morphism | welded: driver, strategy, fission, rate
     """Unified SN eigenvalue solver satisfying the EigenvalueSolver protocol.
 
     Constructs the operator triple :math:`(L, S, F)` at construction
@@ -3437,7 +3437,7 @@ def _admits_multiplying_source(k: float) -> bool:
     return k < 1.0
 
 
-class SupercriticalSourceProblem(ValueError):
+class SupercriticalSourceProblem(ValueError):  # concept: posing | role: annex | kind: record
     """The multiplying source problem ``(A − F)ψ = q`` is not well posed: the
     medium is not subcritical (:math:`\\rho(A^{-1}F) = k_{\\rm eff} \\ge 1`)."""
 

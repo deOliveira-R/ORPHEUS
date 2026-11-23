@@ -73,7 +73,7 @@ __all__ = ["ReactionRateFunctional", "IntegratedReactionRate"]
 
 
 @dataclass(frozen=True, eq=False, init=False, repr=False)
-class ReactionRateFunctional(InnerProductFunctional):
+class ReactionRateFunctional(InnerProductFunctional):  # concept: rate | role: head | kind: element.covector
     r"""The reaction-rate co-vector :math:`\langle \Sigma_x, \phi\rangle`.
 
     A domain-typed :class:`~orpheus.numerics.functional.InnerProductFunctional`
@@ -116,7 +116,7 @@ class ReactionRateFunctional(InnerProductFunctional):
 
 
 @dataclass(frozen=True, eq=False, init=False, repr=False)
-class IntegratedReactionRate:
+class IntegratedReactionRate:  # concept: rate | role: twin | kind: element.covector
     r"""The volume-integrated reaction rate :math:`\langle \Sigma_x, \phi\rangle_V`, the co-vector :math:`\flat_V \Sigma_x`.
 
     A :class:`~orpheus.numerics.functional.Functional` returning a **scalar**

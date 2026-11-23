@@ -253,7 +253,7 @@ def _trace_dof_columns(
 
 
 @dataclass(frozen=True)
-class _FaceClosure:
+class _FaceClosure:  # concept: graddiv | role: part | kind: element
     r"""Precomputed geometry + closure data for ONE boundary face
     (named intermediates — Pattern 3; every entry has physical identity).
     """
@@ -271,7 +271,7 @@ class _FaceClosure:
     c_inflow: np.ndarray
 
 
-class LeakageOperator(LinearOperator["FullField", "FullField"]):
+class LeakageOperator(LinearOperator["FullField", "FullField"]):  # concept: graddiv | role: head | kind: morphism.operator | welded: graddiv, restrict
     r"""The elliptic leakage leaf :math:`L = -\nabla\!\cdot D\nabla` — the
     primitive of the diffusion algebra that couples bulk and boundary.
 
@@ -542,7 +542,7 @@ class LeakageOperator(LinearOperator["FullField", "FullField"]):
         return matrix
 
 
-class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):
+class DiffusionBoundaryOperator(LinearOperator["FullField", "FullField"]):  # concept: realized | role: weld | kind: morphism.operator | welded: realized, restrict
     r"""The whole-trace boundary law ``B`` — the ``A_ss`` block of the
     diffusion algebra.
 

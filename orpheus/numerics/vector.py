@@ -92,7 +92,7 @@ __all__ = ["Vector", "V"]
 
 
 @runtime_checkable
-class Vector(Protocol):
+class Vector(Protocol):  # concept: member | role: interface | kind: element.member
     r"""Structural contract for an element of the algebra's vector space.
 
     A :class:`Vector` supports the four vector-space operations the

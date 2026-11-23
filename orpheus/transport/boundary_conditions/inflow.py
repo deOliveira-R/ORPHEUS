@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 __all__ = ["FaceFrameInflow", "InflowProfile", "InflowSampler", "InflowTerms", "LabFrameInflow"]
 
 
-class InflowSampler(Protocol):
+class InflowSampler(Protocol):  # concept: bsource | role: interface | kind: morphism
     """The open protocol of a profile: its values on a method's boundary-source space."""
 
     def sample(self, space: FunctionSpace) -> np.ndarray:
@@ -69,14 +69,14 @@ class InflowSampler(Protocol):
 
 
 @dataclass(frozen=True)
-class FaceFrameInflow:
+class FaceFrameInflow:  # concept: bsource | role: component | kind: element
     """A profile written in the face's own frame; face-local."""
 
     sampler: InflowSampler
 
 
 @dataclass(frozen=True)
-class LabFrameInflow:
+class LabFrameInflow:  # concept: bsource | role: component | kind: element
     """A profile written in laboratory directions; NOT face-local (the invariance check of ``bind`` owes it)."""
 
     sampler: InflowSampler
@@ -86,7 +86,7 @@ InflowProfile: TypeAlias = FaceFrameInflow | LabFrameInflow
 
 
 @dataclass(frozen=True, eq=False)
-class InflowTerms(ContentIdentity):
+class InflowTerms(ContentIdentity):  # concept: bsource | role: head | kind: element.member
     r""":math:`q` as a weighted sum of profiles: ``uniform`` (all uniform contributions folded) plus ``sampled``.
 
     ``sampled`` is a tuple of ``(weight, profile)`` in first-appearance order; the parse drops a zero weight, merges

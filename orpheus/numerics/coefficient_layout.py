@@ -75,7 +75,7 @@ def _check_order(L: int, owner: str) -> int:
 
 
 @dataclass(frozen=True, eq=False)
-class HarmonicLayout(ContentIdentity):
+class HarmonicLayout(ContentIdentity):  # concept: layout | role: arm | kind: set
     r"""The rectangular ``(L+1, 2L+1)`` table of the real spherical harmonics.
 
     Row :math:`\ell`, column :math:`\ell + m` (the addition-theorem shift), zero
@@ -122,7 +122,7 @@ class HarmonicLayout(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class LegendreLayout(ContentIdentity):
+class LegendreLayout(ContentIdentity):  # concept: layout | role: arm | kind: set
     r"""The flat ``(L+1,)`` row of the Legendre basis on an orbit space
     :math:`S^2/O(2)_a`: one coefficient per degree."""
 
@@ -162,7 +162,7 @@ class LegendreLayout(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class CellLayout(ContentIdentity):
+class CellLayout(ContentIdentity):  # concept: layout | role: arm | kind: set
     r"""One coefficient per cell of a tensor partition, flat, row-major.
 
     ``edges`` is the partition's per-axis cell edges (a tuple of strictly
@@ -200,7 +200,7 @@ class CellLayout(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class ModeLayout(ContentIdentity):
+class ModeLayout(ContentIdentity):  # concept: layout | role: arm | kind: set
     r"""A flat row of ``n`` mode amplitudes with no degree structure: a basis
     computed from data (the loss-kernel gauge's G-orthonormal kernel modes).
 
@@ -231,7 +231,7 @@ class ModeLayout(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class PolynomialLayout(ContentIdentity):
+class PolynomialLayout(ContentIdentity):  # concept: layout | role: arm | kind: set
     r"""One coefficient per polynomial degree :math:`k = 0, \dots, n-1`, flat.
 
     The index of a polynomial family on an interval (the interval Legendre
@@ -261,7 +261,7 @@ class PolynomialLayout(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class TensorLayout(ContentIdentity):
+class TensorLayout(ContentIdentity):  # concept: layout | role: arm | kind: set
     r"""The index of a tensor product of bases, flat, factor 0 outermost.
 
     Coefficient :math:`(k_0, \dots, k_{d-1})` sits at the row-major flat index,

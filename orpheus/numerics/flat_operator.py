@@ -83,7 +83,7 @@ if TYPE_CHECKING:
 __all__ = ["FlattenedOperator"]
 
 
-class FlattenedOperator(LinearOperator):
+class FlattenedOperator(LinearOperator):  # concept: ends | role: arm | kind: morphism.operator
     r"""``flat ∘ A ∘ unflat`` — a typed-carrier operator on bare 1-D vectors.
 
     (Deliberately unparameterized, the ndarray-carrier family

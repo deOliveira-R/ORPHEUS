@@ -96,7 +96,7 @@ __all__ = ["OctantSweep", "OctantSweepGroup", "SweepSchedule"]
 
 
 @dataclass(frozen=True, slots=True)
-class OctantSweep:
+class OctantSweep:  # concept: schedule | role: weld | kind: set | welded: schedule, subspace
     """One octant's sweep unit: its in-plane :class:`OctantLabel` (selects the
     per-octant :class:`~orpheus.sn.loss_representation.sweep_graph.SweepDependencyGraph`) + the
     ordinate indices into the ``(N, …)`` angular axis it sweeps."""
@@ -106,7 +106,7 @@ class OctantSweep:
 
 
 @dataclass(frozen=True, slots=True)
-class OctantSweepGroup:
+class OctantSweepGroup:  # concept: schedule | role: component | kind: set
     """Octants swept together over ONE frozen inflow; after the group, its
     ``reflect_faces`` are re-reflected so later groups read the fresh inflow.
 
@@ -120,7 +120,7 @@ class OctantSweepGroup:
 
 
 @dataclass(frozen=True, slots=True)
-class SweepSchedule:
+class SweepSchedule:  # concept: schedule | role: head | kind: set
     """Polymorphic octant-group schedule for the SI resolvent's uniform
     sweep-and-reflect loop. See the module docstring for the Jacobi/G-S split.
     """

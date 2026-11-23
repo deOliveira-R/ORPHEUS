@@ -143,7 +143,7 @@ an affine one (a coset, a kernel gauge).  Constrained rather than bounded so a
 
 
 @dataclass(frozen=True)
-class SolutionBase(Generic[O]):
+class SolutionBase(Generic[O]):  # concept: solution | role: head | kind: record
     r"""Shared carrier for SN transport solutions — the role-agnostic base.
 
     **A Solution is the pair (Problem, posing) plus the Strategy that produced
@@ -367,7 +367,7 @@ def _posed_domain(outcome: "EigenOutcome | SourceOutcome"):
 
 
 @dataclass(frozen=True)
-class Solution(SolutionBase[O]):
+class Solution(SolutionBase[O]):  # concept: solution | role: weld | kind: record | welded: solution, observable, merge, rate
     r"""Canonical return type for the FORWARD solvers.
 
     The forward role of the :class:`SolutionBase` carrier — what
@@ -837,7 +837,7 @@ class Solution(SolutionBase[O]):
 
 
 @dataclass(frozen=True)
-class AdjointSolution(SolutionBase[O]):
+class AdjointSolution(SolutionBase[O]):  # concept: solution | role: arm | kind: record
     r"""Canonical return type for the ADJOINT solvers.
 
     The adjoint role of the :class:`SolutionBase` carrier — what
@@ -886,7 +886,7 @@ class AdjointSolution(SolutionBase[O]):
 
 
 @dataclass(frozen=True)
-class SolutionDiff:
+class SolutionDiff:  # concept: solution | role: annex | kind: record
     r"""Result of :meth:`SolutionBase.compare` (both roles).
 
     Parameters

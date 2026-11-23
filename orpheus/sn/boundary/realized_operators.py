@@ -203,7 +203,7 @@ def _crossing(permutation: "Permutation", outflow: "AngularFaceTraceSpace", infl
         ) from error
 
 
-class RealizedBoundary(LinearOperator, ABC):
+class RealizedBoundary(LinearOperator, ABC):  # concept: realized | role: head | kind: morphism.operator
     r"""A realized face operator :math:`\Gamma_+ \to \Gamma_-`, with the facts its consumers read as properties of its TYPE.
 
     The abstract base of the four images of the response network; replaces ``_BoundBoundaryOperator`` (a realized operator paired
@@ -336,7 +336,7 @@ def _spaces_key(op: "ZeroMap | ScaledOrdinatePermutation | RankOneReemission") -
 
 
 @dataclass(frozen=True, eq=False)
-class ZeroMap(RealizedBoundary):
+class ZeroMap(RealizedBoundary):  # concept: realized | role: arm | kind: morphism.operator
     r"""The image of the empty network, :math:`R = 0`: the zero map :math:`\Gamma_+(f) \to \Gamma_-(f)`.
 
     Vacuum's whole content is :math:`R = 0`; a prescribed inflow's linear part is zero too (its content is the affine :math:`q`,
@@ -381,7 +381,7 @@ class ZeroMap(RealizedBoundary):
 
 
 @dataclass(frozen=True, eq=False)
-class ScaledOrdinatePermutation(RealizedBoundary):
+class ScaledOrdinatePermutation(RealizedBoundary):  # concept: realized | role: arm | kind: morphism.operator
     r"""The image of ``alpha * SpecularChain`` (and of a deck): :math:`R = \alpha\,P_\pi`, :math:`\Gamma_+(f') \to \Gamma_-(f)`.
 
     Row :math:`j` of the image reads the preimage of the :math:`j`-th inflow ordinate under :math:`\pi`, at that ordinate's
@@ -464,7 +464,7 @@ class ScaledOrdinatePermutation(RealizedBoundary):
 
 
 @dataclass(frozen=True, eq=False)
-class RankOneReemission(RealizedBoundary):
+class RankOneReemission(RealizedBoundary):  # concept: realized | role: arm | kind: morphism.operator
     r"""The image of ``alpha * DiffuseChain``: :math:`R = \alpha\,(E \circ R_t)`, the factored Lambertian :math:`\Gamma_+(f) \to \Gamma_-(f)`.
 
     The two-link chain :math:`\Gamma_+ \xrightarrow{R_t} S \xrightarrow{E} \Gamma_-`: the contraction against the trace measure
@@ -520,7 +520,7 @@ class RankOneReemission(RealizedBoundary):
 
 
 @dataclass(frozen=True, eq=False)
-class RealizedSum(RealizedBoundary):
+class RealizedSum(RealizedBoundary):  # concept: realized | role: arm | kind: morphism.operator
     r"""The image of a sum of chains: the sum of the images, :math:`R = \sum_k R_k` (a mixed wall).
 
     PARSED: at least two leaf terms (one term is the term, a zero term is the identity and a sum is flattened: ``a + b`` does all

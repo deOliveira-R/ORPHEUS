@@ -162,7 +162,7 @@ def _cell_balance_n1(
 
 
 @dataclass(frozen=True, slots=True)
-class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):
+class DiamondDifference(DiscretizationSchemeBase, key="diamond_difference"):  # concept: scheme | role: arm | kind: morphism
     r"""Diamond-Difference (DD) cell-update strategy — geometry-polymorphic.
 
     A **single** body handles slab, sphere, cylinder, and the

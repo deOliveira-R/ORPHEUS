@@ -31,7 +31,7 @@ __all__ = ["GeometryExtent"]
 
 
 @dataclass(frozen=True, eq=False)
-class GeometryExtent(ContentIdentity):
+class GeometryExtent(ContentIdentity):  # concept: parameter | role: arm | kind: element
     """The width of interval ``interval``, in cm, every interval outside it translated outward.
 
     ``interval`` is a non-negative index from the innermost interval. A

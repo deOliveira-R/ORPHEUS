@@ -118,7 +118,7 @@ if TYPE_CHECKING:
 __all__ = ["DiffusionMesh"]
 
 
-class DiffusionMesh(MethodMesh):
+class DiffusionMesh(MethodMesh):  # concept: hub | role: arm | kind: element
     r"""Diffusion method-mesh: MaterialMesh + scalar trace + realized BCs.
 
     See the module docstring for the data/behavior axis, the

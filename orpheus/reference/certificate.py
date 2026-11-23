@@ -82,7 +82,7 @@ __all__ = [
 _EXACT_DIGITS = 60
 
 
-class Uncertifiable(ValueError):
+class Uncertifiable(ValueError):  # concept: EXT:reference-solution | role: annex | kind: record
     """A finite real constant whose value SymPy cannot certify to the working precision (cancellation).
 
     The one refusal of :class:`Exact` that means "no bound can be derived":
@@ -102,7 +102,7 @@ class Uncertifiable(ValueError):
 
 @final
 @dataclass(frozen=True, eq=False)
-class Exact(ContentIdentity):
+class Exact(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """The exact value, a real constant expression (SymPy ``srepr`` text), and the self-check that proves it."""
 
     expression: str
@@ -151,7 +151,7 @@ class Exact(ContentIdentity):
 
 @final
 @dataclass(frozen=True, eq=False)
-class DerivedBound(ContentIdentity):
+class DerivedBound(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """An enclosure established by an a posteriori bound with computable constants, and the method that derived it."""
 
     derived: Enclosure
@@ -173,7 +173,7 @@ Establishment: TypeAlias = Exact | DerivedBound
 
 @final
 @dataclass(frozen=True, eq=False)
-class Claim(ContentIdentity):
+class Claim(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """One observable's claim: the target its bound must meet, and how its enclosure is established."""
 
     target: float
@@ -191,7 +191,7 @@ class Claim(ContentIdentity):
 
 @final
 @dataclass(frozen=True, eq=False)
-class Corroboration(ContentIdentity):
+class Corroboration(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """A published solution of the same problem, as an anchor, with why it is independent of the reference."""
 
     anchor: PublishedSolution
@@ -223,7 +223,7 @@ def parse_resolutions(values: Iterable[object], where: str) -> tuple[float, ...]
 
 @final
 @dataclass(frozen=True, eq=False)
-class Refinement(ContentIdentity):
+class Refinement(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """One observable's enclosures at a sequence of resolutions: falsifying evidence, never a certifier."""
 
     observable: Observable
@@ -258,13 +258,13 @@ class Refinement(ContentIdentity):
 
 @final
 @dataclass(frozen=True, eq=False)
-class Valid(ContentIdentity):
+class Valid(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """Every claim meets its target, every anchor and every refinement agrees with it."""
 
 
 @final
 @dataclass(frozen=True, eq=False)
-class Invalid(ContentIdentity):
+class Invalid(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """At least one check failed; every failed check's reason."""
 
     reasons: tuple[str, ...]
@@ -283,7 +283,7 @@ State: TypeAlias = Valid | Invalid | Withdrawal
 
 @final
 @dataclass(frozen=True, eq=False)
-class ReferenceCertificate(ContentIdentity):
+class ReferenceCertificate(ContentIdentity):  # concept: EXT:reference-solution | role: annex | kind: record
     """A reference's claims per observable, the evidence that can refute them, and its standing."""
 
     claims: Mapping[Observable, Claim]

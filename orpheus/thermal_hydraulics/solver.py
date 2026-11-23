@@ -34,7 +34,7 @@ from orpheus.data.material_properties.h2o_properties import h2o_density, h2o_ent
 
 
 @dataclass
-class THParams:
+class THParams:  # concept: hub | role: weld | kind: element | welded: hub, strategy
     """Geometry, boundary conditions and time parameters for the LOCA simulation."""
 
     # --- axial mesh ---
@@ -106,7 +106,7 @@ class THParams:
 
 
 @dataclass
-class THResult:
+class THResult:  # concept: solution | role: twin | kind: record
     """Complete time-history of the thermal-hydraulics LOCA calculation."""
 
     time: np.ndarray  # (nt,)

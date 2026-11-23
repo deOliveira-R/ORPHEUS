@@ -75,7 +75,7 @@ _TRANSPOSE = "fg,gc...->fc..."
 
 
 @dataclass(frozen=True)
-class MaterialField(Generic[K]):
+class MaterialField(Generic[K]):  # concept: xsfield | role: twin | kind: element.member
     r"""A per-material kernel datum distributed over a mesh's material layout.
 
     The representation-free pairing a channel binding retains: the frozen
@@ -187,7 +187,7 @@ def _block_contraction(head: "DegreeLayout", *, transposed: bool) -> str:
 
 
 @dataclass(frozen=True)
-class TransferMaterialField(MaterialField[TransferKernel]):
+class TransferMaterialField(MaterialField[TransferKernel]):  # concept: xsfield | role: weld | kind: element.member | welded: xsfield, transfer, transpose, rate
     r"""A transfer channel's field: yield-carrying Legendre stacks over the layout.
 
     ONE channel per field — every kernel carries the same
@@ -417,7 +417,7 @@ class TransferMaterialField(MaterialField[TransferKernel]):
 
 
 @dataclass(frozen=True)
-class FissionMaterialField(MaterialField[FissionKernel]):
+class FissionMaterialField(MaterialField[FissionKernel]):  # concept: xsfield | role: arm | kind: element.member
     r"""The fission channel's field: validated factor pairs over the layout.
 
     :class:`~orpheus.transport.kernels.FissionKernel`'s first production

@@ -99,7 +99,7 @@ from orpheus.numerics.operator import (
 __all__ = ["MatrixInverseOperator"]
 
 
-class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):
+class MatrixInverseOperator(InverseWrapMixin["LinearOperator"], LinearOperator):  # concept: inverse | role: weld | kind: morphism.operator | welded: inverse, algorithm
     r"""The inverse operator :math:`A^{-1}` of a small materializable ``A``,
     realized as a one-time LU factorization of ``dense(inner)`` (its
     structural assembly where it emits one, else its probed

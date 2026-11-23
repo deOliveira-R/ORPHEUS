@@ -38,7 +38,7 @@ from .core import MOCSolver
 # ---------------------------------------------------------------------------
 
 @dataclass
-class MoCResult:
+class MoCResult:  # concept: solution | role: twin | kind: record
     """Results of a Method of Characteristics calculation."""
 
     keff: float

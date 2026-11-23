@@ -66,7 +66,7 @@ __all__ = ["ScalarResidual"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarResidual(ScalarField):
+class ScalarResidual(ScalarField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""L2 angle-integrated transport-balance residual on ``(ng, nx, ny)``.
 
     Parameters

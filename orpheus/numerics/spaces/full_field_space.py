@@ -114,7 +114,7 @@ if TYPE_CHECKING:
 __all__ = ["CompositeField", "FullFieldSpace"]
 
 
-class _CompositeLeaf(Protocol):
+class _CompositeLeaf(Protocol):  # concept: member | role: interface | kind: element.member
     """One block of a composite field: a frozen dataclass carrying ``values``.
 
     The ``__dataclass_fields__`` ClassVar makes the protocol satisfy
@@ -128,7 +128,7 @@ class _CompositeLeaf(Protocol):
     def values(self) -> np.ndarray: ...
 
 
-class CompositeField(Protocol):
+class CompositeField(Protocol):  # concept: member | role: interface | kind: element.member
     """The composite-field contract (see module docstring) made static.
 
     The carrier of :class:`FullFieldSpace` — a bulk ⊕ boundary block pair
@@ -162,7 +162,7 @@ class CompositeField(Protocol):
 
 
 @dataclass(frozen=True, eq=False)
-class FullFieldSpace(FunctionSpace[CompositeField]):
+class FullFieldSpace(FunctionSpace[CompositeField]):  # concept: dsum | role: twin | kind: space
     r"""Direct sum :math:`V_{\rm bulk} \oplus V_{\rm trace}` with a per-block metric.
 
     Parameters

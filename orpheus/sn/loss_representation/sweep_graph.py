@@ -122,7 +122,7 @@ def _reframe(
 
 
 @dataclass(frozen=True, slots=True)
-class OctantLabel:
+class OctantLabel:  # concept: schedule | role: component | kind: element
     r"""Octant signature for the dimension-generic wavefront sweep.
 
     Carries one direction sign per spatial axis,
@@ -175,7 +175,7 @@ class OctantLabel:
 
 
 @dataclass(frozen=True)
-class _LevelFrontier:
+class _LevelFrontier:  # concept: algorithm | role: part | kind: set
     r"""Mesh-time slab addressing for ONE anti-hyperplane level (storage-B).
 
     All :math:`d`-dependent index arithmetic for one level of the rolling
@@ -222,7 +222,7 @@ class _LevelFrontier:
 
 
 @dataclass(frozen=True)
-class _FrontierPlan:
+class _FrontierPlan:  # concept: algorithm | role: part | kind: set
     r"""The whole-sweep rolling :math:`(d{-}1)`-frontier window plan (storage-B).
 
     A face produced at level ``k`` is consumed at ``k+1``, so the interior face
@@ -266,7 +266,7 @@ class _FrontierPlan:
         return len(self.free_bbox) == 0
 
 
-class _MovingFrontier:
+class _MovingFrontier:  # concept: algorithm | role: part | kind: element.member
     r"""The rolling :math:`(d{-}1)`-frontier interior face cochain (storage-B).
 
     Holds one slab per spatial axis (a FREE axis ghosted ``+1`` on its own
@@ -368,7 +368,7 @@ class _MovingFrontier:
 
 
 @dataclass(frozen=True)
-class SweepDependencyGraph:
+class SweepDependencyGraph:  # concept: schedule | role: weld | kind: set | welded: schedule, algorithm
     r"""Per-octant causal cell DAG for the 2-D Cartesian wavefront sweep.
 
     The DAG topology is a regular pattern: cells :math:`(i, j)` and
@@ -834,7 +834,7 @@ def _cell_face_selector(
 
 
 @dataclass(frozen=True, kw_only=True)
-class _CellSolve(ABC):
+class _CellSolve(ABC):  # concept: algorithm | role: weld | kind: morphism.operator | welded: algorithm, natural
     r"""SOLVE-direction level operation: solve the WDD balance for
     :math:`\bar\psi`, emit angular or harmonic-moment output.
 
@@ -933,7 +933,7 @@ class _CellSolve(ABC):
 
 
 @dataclass(frozen=True, kw_only=True)
-class _CellSolveAngular(_CellSolve):
+class _CellSolveAngular(_CellSolve):  # concept: algorithm | role: arm | kind: morphism.operator
     r"""Angular-output solve op: per-octant angular field + scalar sum."""
 
     angular_flux_octant: np.ndarray   # (N_oct, ng, *spatial[, 2^d]) — written
@@ -950,7 +950,7 @@ class _CellSolveAngular(_CellSolve):
 
 
 @dataclass(frozen=True, kw_only=True)
-class _CellSolveMoment(_CellSolve):
+class _CellSolveMoment(_CellSolve):  # concept: algorithm | role: arm | kind: morphism.operator
     r"""Moment-output solve op: harmonic tensor accumulation, no angular field."""
 
     moment_buf: np.ndarray            # (L+1, 2L+1, ng, *spatial[, 2^d])
@@ -966,7 +966,7 @@ class _CellSolveMoment(_CellSolve):
 
 
 @dataclass(frozen=True)
-class _CellResidual:
+class _CellResidual:  # concept: algorithm | role: part | kind: morphism.operator
     r"""APPLY-direction level operation: evaluate the operator residual
     :math:`r = (\Sigma_t + \sum_a s_a)\,\bar\psi - (Q + \sum_a s_a\,
     \psi^{\rm in}_a)` at the GIVEN probe, reconstructing the outgoing faces
@@ -1029,7 +1029,7 @@ class _CellResidual:
 
 
 @dataclass(frozen=True, kw_only=True)
-class _CellTranspose(ABC):
+class _CellTranspose(ABC):  # concept: algorithm | role: part | kind: morphism.operator
     r"""The TRANSPOSED level operations: the exact VJP of a forward one, on the mirror graph.
 
     The two forward directions (:class:`_CellSolve`, :class:`_CellResidual`)
@@ -1131,7 +1131,7 @@ class _CellTranspose(ABC):
 
 
 @dataclass(frozen=True, kw_only=True)
-class _CellResidualTranspose(_CellTranspose):
+class _CellResidualTranspose(_CellTranspose):  # concept: algorithm | role: part | kind: morphism.operator
     r"""APPLY-TRANSPOSE: the exact VJP of :class:`_CellResidual` (#310 C3) — residual cotangent in, probe cotangent out."""
 
     def _vjp(self, bulk_bar, *, psi_out_bar, s_axes, reaction_xs):
@@ -1141,7 +1141,7 @@ class _CellResidualTranspose(_CellTranspose):
 
 
 @dataclass(frozen=True, kw_only=True)
-class _CellSolveTranspose(_CellTranspose):
+class _CellSolveTranspose(_CellTranspose):  # concept: algorithm | role: part | kind: morphism.operator
     r"""SOLVE-TRANSPOSE: the exact VJP of :class:`_CellSolve` (#616) — cell-average cotangent in, source cotangent out."""
 
     def _vjp(self, bulk_bar, *, psi_out_bar, s_axes, reaction_xs):

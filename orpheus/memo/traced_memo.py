@@ -121,7 +121,7 @@ _T = TypeVar("_T")
 
 
 @dataclasses.dataclass(frozen=True)
-class PinRefusal:
+class PinRefusal:  # concept: memo | role: annex | kind: record
     """Why one dependency of a recorded run cannot be pinned. A closed set of kinds, each naming what it is about;
     its ``str`` is the refusal's message. :func:`collect_pins` returns them as data and :class:`Unpinnable` carries
     one, so a reader (the cone store, ``tools/cone_store``) dispatches on the kind and never parses the message."""
@@ -131,7 +131,7 @@ class PinRefusal:
 
 
 @dataclasses.dataclass(frozen=True)
-class AmbiguousOwner(PinRefusal):
+class AmbiguousOwner(PinRefusal):  # concept: memo | role: annex | kind: record
     """A site-packages file that the ``RECORD`` of several installed distributions lists."""
 
     path: str
@@ -141,7 +141,7 @@ class AmbiguousOwner(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class UnownedSitePackage(PinRefusal):
+class UnownedSitePackage(PinRefusal):  # concept: memo | role: annex | kind: record
     """A site-packages file that no installed distribution's ``RECORD`` lists."""
 
     path: str
@@ -151,7 +151,7 @@ class UnownedSitePackage(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class UninstalledDistribution(PinRefusal):
+class UninstalledDistribution(PinRefusal):  # concept: memo | role: annex | kind: record
     """A distribution that owns a file the run touched, with no version installed."""
 
     name: str
@@ -161,7 +161,7 @@ class UninstalledDistribution(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class NoDefAtLine(PinRefusal):
+class NoDefAtLine(PinRefusal):  # concept: memo | role: annex | kind: record
     """Code compiled under a file's name at a line where the file holds no def of that name."""
 
     path: str
@@ -173,7 +173,7 @@ class NoDefAtLine(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class ChangedByRun(PinRefusal):
+class ChangedByRun(PinRefusal):  # concept: memo | role: annex | kind: record
     """A path the run observed and then changed, so no state of it pins the answer."""
 
     path: str
@@ -183,7 +183,7 @@ class ChangedByRun(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class NoRecordedBytes(PinRefusal):
+class NoRecordedBytes(PinRefusal):  # concept: memo | role: annex | kind: record
     """Code of a file that ran without being imported (an ``exec``, a ``runpy``), so no bytes were recorded."""
 
     path: str
@@ -196,7 +196,7 @@ class NoRecordedBytes(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class SourceGone(PinRefusal):
+class SourceGone(PinRefusal):  # concept: memo | role: annex | kind: record
     """Code of a file that ran, read after the run (no pinned-source loader), when the file no longer exists: the
     run itself, or something during it, removed the source, so no bytes pin the code that ran."""
 
@@ -207,7 +207,7 @@ class SourceGone(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class UnadmittedProcess(PinRefusal):
+class UnadmittedProcess(PinRefusal):  # concept: memo | role: annex | kind: record
     """A process the run started that is not an admitted machine query, whose own reads no recording sees."""
 
     program: str
@@ -220,7 +220,7 @@ class UnadmittedProcess(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class UnnamedModule(PinRefusal):
+class UnnamedModule(PinRefusal):  # concept: memo | role: annex | kind: record
     """A first-party module whose module code ran, that no ``sys.modules`` entry names and that the run did not read
     whole (a file ``exec``'d from its bytes is pinned by them): its import cannot be measured again
     (:class:`ImportOutcomePin`), since loading the file alone, outside its package, measures another thing."""
@@ -232,7 +232,7 @@ class UnnamedModule(PinRefusal):
 
 
 @dataclasses.dataclass(frozen=True)
-class UnmeasurableImport(PinRefusal):
+class UnmeasurableImport(PinRefusal):  # concept: memo | role: annex | kind: record
     """A module the run imported that importing again, in a fresh interpreter, does not import: the run reached it
     through import machinery of its own process (a finder it installed), so its import outcome cannot be measured
     again and an edit that makes it raise could not be seen (:class:`ImportOutcomePin`)."""
@@ -245,7 +245,7 @@ class UnmeasurableImport(PinRefusal):
                 f"cannot be measured again")
 
 
-class Unpinnable(RuntimeError):
+class Unpinnable(RuntimeError):  # concept: memo | role: annex | kind: record
     """A run depends on something no manifest can pin; :attr:`refusal` says what and why (:class:`PinRefusal`)."""
 
     def __init__(self, refusal: PinRefusal) -> None:
@@ -253,14 +253,14 @@ class Unpinnable(RuntimeError):
         self.refusal = refusal
 
 
-class TemplateRefused(RuntimeWarning):
+class TemplateRefused(RuntimeWarning):  # concept: memo | role: annex | kind: record
     """A fresh fork template refused its first job, so this process generates every later miss in a fresh
     interpreter: still correct, slower, and the forked route goes unexercised. Warned once, when it happens,
     with the template's reasons. While it was silent, a full run could lose the forked-route rows to skips and
     print no cause (``[M]`` 2026-10-16: three extra skips in one run, not reproduced, cause unrecovered)."""
 
 
-class Unencodable(TypeError):
+class Unencodable(TypeError):  # concept: memo | role: annex | kind: record
     """A return value the payload cannot write exactly; it is refused, never written lossily."""
 
 
@@ -310,7 +310,7 @@ _SIGNATURE_SCOPES = ("__annotate__", "<generic parameters of ", "<TypeVar bound 
 _ANONYMOUS_NAME = _import_time.ANONYMOUS_NAME
 
 
-class _IndexedDef(NamedTuple):
+class _IndexedDef(NamedTuple):  # concept: memo | role: annex | kind: record
     """An outermost def: its qualified name, its rank among the defs of that name (0 first), its span with
     decorators (first and last line, inclusive), the line of its stripped body's first statement, and the
     digest of its normalised source."""
@@ -323,7 +323,7 @@ class _IndexedDef(NamedTuple):
     digest: str
 
 
-class _Scope(NamedTuple):
+class _Scope(NamedTuple):  # concept: memo | role: annex | kind: record
     """A node a code object can be compiled from (a def, a class, a lambda, a comprehension): the name of that
     code object and the node's span (inclusive)."""
 
@@ -333,7 +333,7 @@ class _Scope(NamedTuple):
 
 
 @dataclasses.dataclass(frozen=True)
-class _SourceIndex:
+class _SourceIndex:  # concept: memo | role: annex | kind: record
     """What a manifest and a validation read from one source text: every outermost def, every node a code object can be compiled from, and every import-time statement
     (:mod:`~orpheus.memo._import_time`). It holds no tree, so it is written to disk and read back
     (:func:`_source_index`); :func:`_parsed_index` builds it from the text."""
@@ -432,7 +432,7 @@ def function_digest(source: bytes | str, qualname: str, ordinal: int = -1) -> st
 _SOURCE_INDEXES = Path(CACHE) / "sources"
 
 
-class _CorruptIndex(NamedTuple):
+class _CorruptIndex(NamedTuple):  # concept: memo | role: annex | kind: record
     """An index file that does not hold the index of the key it is named by (a parse error, a body that does
     not match its digest, a header for other bytes) or cannot be read. It is rebuilt, never read."""
 
@@ -565,7 +565,7 @@ sys.stdout.write(json.dumps(outcome))
 """
 
 
-class _ImportOutcome(NamedTuple):
+class _ImportOutcome(NamedTuple):  # concept: memo | role: annex | kind: record
     """What importing a set gave: the digest the pin keeps, and the error each module failed with (none: absent)."""
 
     digest: str
@@ -667,7 +667,7 @@ def _stdlib_dirs() -> tuple[str, ...]:
     return tuple({_real(paths["stdlib"]) + os.sep, _real(paths["platstdlib"]) + os.sep})
 
 
-class _Installed:
+class _Installed:  # concept: memo | role: part | kind: apparatus
     """The installed environment as one checkout reads it: which distribution owns each file under the
     site-packages directories, and each distribution's version. Built once per checkout (one manifest or one
     validation), each part on first use.
@@ -751,25 +751,25 @@ def _find_installed(key: tuple[str, tuple[str, ...], str], witness: Witness) -> 
 _DISTRIBUTIONS = Kept(_find_installed)
 
 
-class Dropped(NamedTuple):
+class Dropped(NamedTuple):  # concept: memo | role: annex | kind: record
     """Generated code (``<string>``, ``<frozen …>``): pinned by the interpreter and by the statement that generated it."""
 
     filename: str
 
 
-class Interpreter(NamedTuple):
+class Interpreter(NamedTuple):  # concept: memo | role: annex | kind: record
     """A standard-library file: pinned by the interpreter."""
 
     path: str
 
 
-class Distribution(NamedTuple):
+class Distribution(NamedTuple):  # concept: memo | role: annex | kind: record
     """A file of an installed distribution: pinned by the distribution's version."""
 
     name: str
 
 
-class Source(NamedTuple):
+class Source(NamedTuple):  # concept: memo | role: annex | kind: record
     """A file pinned by its content: first-party source, an editable install's own file, a data file."""
 
     path: str
@@ -964,7 +964,7 @@ _FILE_DIGESTS = Kept(_file_digest)
 _LISTINGS = Kept(_listing_digest)
 
 
-class _Checkout:
+class _Checkout:  # concept: memo | role: part | kind: apparatus
     """One validation's view of the checkout: one state per source file (every pin of a file is judged against
     one read of it; this does not reach across files or across children, each of which validates with its own
     checkout), the installed environment, and the store children live in."""
@@ -1068,7 +1068,7 @@ _RUNNING_MEMO_DIGEST = _pinned_memo_digest()
 _INDEX_MEMO_DIGEST = _RUNNING_MEMO_DIGEST if _RUNNING_MEMO_DIGEST is not None else _memo_digest()
 
 
-class DefPin(NamedTuple):
+class DefPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """A first-party def that ran: its file, its qualified name, its rank among the defs of that name, and
     the digest of its normalised source."""
 
@@ -1085,7 +1085,7 @@ class DefPin(NamedTuple):
         return f"function {self.path}:{self.qualname} changed" if found != self.digest else None
 
 
-class StatementsPin(NamedTuple):
+class StatementsPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """A first-party module that ran, by the import-time statements the run could observe
     (:mod:`~orpheus.memo._import_time`): ``names`` names the run's entry names, a set kept by its digest
     (``_keep_set``); ``digest`` is the module's projection on them (``_SourceIndex.projection``). It goes
@@ -1109,7 +1109,7 @@ class StatementsPin(NamedTuple):
         return None
 
 
-class ImportOutcomePin(NamedTuple):
+class ImportOutcomePin(NamedTuple):  # concept: memo | role: annex | kind: record
     """The first-party modules a run imported, in the order it imported them, and what importing them gives
     (``_import_outcome``: each module's error, and the warnings it emitted). An edit to a statement no run reads
     by name can still make an import raise or warn (a def deleted while a table names it, ruling 43 of the
@@ -1134,7 +1134,7 @@ class ImportOutcomePin(NamedTuple):
         return None
 
 
-class DistributionPin(NamedTuple):
+class DistributionPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """A third-party distribution whose code ran or whose file was read, by its version and its ``RECORD``."""
 
     name: str
@@ -1150,7 +1150,7 @@ class DistributionPin(NamedTuple):
         return None
 
 
-class InterpreterPin(NamedTuple):
+class InterpreterPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """The interpreter that ran (its version and bytecode tag): the standard library and generated code."""
 
     identity: str
@@ -1159,7 +1159,7 @@ class InterpreterPin(NamedTuple):
         return f"python: {self.identity!r} != {_python_identity()!r}" if self.identity != _python_identity() else None
 
 
-class DataPin(NamedTuple):
+class DataPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """A file the run opened for reading, by its absolute path and its bytes (``"absent"``: it was missing)."""
 
     path: str
@@ -1169,7 +1169,7 @@ class DataPin(NamedTuple):
         return f"data {self.path} changed" if _FILE_DIGESTS(self.path) != self.digest else None
 
 
-class ListingPin(NamedTuple):
+class ListingPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """A directory the run listed, by its absolute path and the names in it (``"absent"``: it was missing)."""
 
     path: str
@@ -1179,7 +1179,7 @@ class ListingPin(NamedTuple):
         return f"listing {self.path} changed" if _LISTINGS(self.path) != self.digest else None
 
 
-class PresencePin(NamedTuple):
+class PresencePin(NamedTuple):  # concept: memo | role: annex | kind: record
     """A path the run probed (``exists``, ``isfile``, ``stat``) without opening it, by what was there."""
 
     path: str
@@ -1189,7 +1189,7 @@ class PresencePin(NamedTuple):
         return f"presence {self.path}: {self.kind} became {_presence(self.path)}" if _presence(self.path) != self.kind else None
 
 
-class EnvironmentPin(NamedTuple):
+class EnvironmentPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """The environment the generating process received (the declared variables only), by its digest."""
 
     digest: str
@@ -1198,7 +1198,7 @@ class EnvironmentPin(NamedTuple):
         return "the generation's environment changed" if _environment_digest() != self.digest else None
 
 
-class WorkingDirectoryPin(NamedTuple):
+class WorkingDirectoryPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """The working directory a run started in, when it read a relative path (from another, the same path is
     another file); the starting one, since a run that changes directory does so deterministically from it."""
 
@@ -1208,7 +1208,7 @@ class WorkingDirectoryPin(NamedTuple):
         return f"working directory {self.path} != {os.getcwd()}" if os.getcwd() != self.path else None
 
 
-class ChildPin(NamedTuple):
+class ChildPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """A memo entry the run read, hit or generated, by its key and the digest of the payload it served. It names no
     store: it is judged against the store its manifest is validated with, so :func:`collect_pins` pins a child read
     from another store by the entry's own pins instead (``Hit.pins``)."""
@@ -1227,7 +1227,7 @@ class ChildPin(NamedTuple):
         return None
 
 
-class MemoPin(NamedTuple):
+class MemoPin(NamedTuple):  # concept: memo | role: annex | kind: record
     """The memo's own source, which wrote the entry after the recording stopped (qa finding 8, 2026-10-04)."""
 
     digest: str
@@ -1249,7 +1249,7 @@ _PIN_KINDS: Mapping[str, Callable[..., Pin]] = {kind.__name__: kind for kind in 
 
 
 @dataclasses.dataclass(frozen=True)
-class Manifest:
+class Manifest:  # concept: memo | role: annex | kind: record
     """What one generation depended on, pinned so that a later checkout can be compared with it without
     running it. JSON rows are tagged by their pin's kind and parsed once, in :meth:`from_json`."""
 
@@ -1324,7 +1324,7 @@ def _unchanged_by_the_run(recording: Recording, kind: Observation, path: str, se
     return seen
 
 
-class CollectedPins(NamedTuple):
+class CollectedPins(NamedTuple):  # concept: memo | role: annex | kind: record
     """A recorded run read as pins, with every refusal kept as a reason instead of raised: the pins of what the run
     did (``ran``: what it ran, read, probed and listed, and the ``ChildPin`` of each entry it read from the collecting
     store), the pins it depends on through the entries it read from another store (``through_reads``: what those
@@ -1689,7 +1689,7 @@ def _payload_digest(tree: Any, arrays: Mapping[str, np.ndarray]) -> str:
 
 
 @dataclasses.dataclass(frozen=True)
-class Hit:
+class Hit:  # concept: memo | role: annex | kind: record
     """A valid entry: the digest of its payload, its tree and its arrays, as verified (qa finding 7: the value
     served is the one the digest was checked on, never a second read), and the pins it was validated on, each child
     replaced by its own entry's (:meth:`_Checkout.flattened`): what the served value depends on, with no store named,
@@ -1702,19 +1702,19 @@ class Hit:
 
 
 @dataclasses.dataclass(frozen=True)
-class Absent:
+class Absent:  # concept: memo | role: annex | kind: record
     """No entry."""
 
 
 @dataclasses.dataclass(frozen=True)
-class Stale:
+class Stale:  # concept: memo | role: annex | kind: record
     """An entry whose manifest no longer describes the checkout, with every reason."""
 
     reasons: tuple[str, ...]
 
 
 @dataclasses.dataclass(frozen=True)
-class Corrupt:
+class Corrupt:  # concept: memo | role: annex | kind: record
     """An entry that cannot be read, or whose payload does not match its digest."""
 
     reason: str
@@ -1732,7 +1732,7 @@ def default_root() -> Path:
 
 
 @dataclasses.dataclass(frozen=True)
-class Store:
+class Store:  # concept: memo | role: part | kind: apparatus
     """The entries under one root, one file each: ``<root>/<function id>/<key>.npz``."""
 
     root: Path
@@ -1779,7 +1779,7 @@ class Store:
         write_atomically(self.path(function_id, key), written.getvalue())
 
 
-class InProcess:
+class InProcess:  # concept: memo | role: part | kind: apparatus
     """The target of a call under :func:`bypass`: it runs in this process and reads and writes nothing."""
 
 
@@ -1820,7 +1820,7 @@ def bypass() -> Generator[None]:
 # ── the key and the process boundary ────────────────────────────────────────────────────────────────
 
 
-class _ConstructorPickler(pickle.Pickler):
+class _ConstructorPickler(pickle.Pickler):  # concept: memo | role: part | kind: apparatus
     """Every dataclass crosses into the generating process through its constructor, so its construction
     runs, and is recorded, there (census finding F1: a default unpickle restores the built object, and in 2
     of 2 traced trajectory runs its construction was absent from the trace)."""
@@ -1847,7 +1847,7 @@ _ANCESTRY: tuple[tuple[str, str], ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
-class _Job:
+class _Job:  # concept: memo | role: part | kind: apparatus
     """One generation, as the generating process receives it."""
 
     memo: TracedMemo[..., Any]
@@ -1863,11 +1863,11 @@ class _Job:
     environment: dict[str, str]
 
 
-class _Generated(NamedTuple):
+class _Generated(NamedTuple):  # concept: memo | role: annex | kind: record
     """A generating process's answer: the entry is written."""
 
 
-class _Failed(NamedTuple):
+class _Failed(NamedTuple):  # concept: memo | role: annex | kind: record
     """A generating process's answer: the call, or the writing of its entry, raised. The exception is pickled,
     and described in case the parent cannot rebuild it."""
 
@@ -1875,14 +1875,14 @@ class _Failed(NamedTuple):
     described: str
 
 
-class _Refused(NamedTuple):
+class _Refused(NamedTuple):  # concept: memo | role: annex | kind: record
     """A template's answer: it will not fork (what its imports depended on changed, or it holds more than one
     OS thread); it exits after answering."""
 
     reasons: tuple[str, ...]
 
 
-class _Died(NamedTuple):
+class _Died(NamedTuple):  # concept: memo | role: annex | kind: record
     """A template's answer: the child it forked ended without answering, with this wait status."""
 
     status: int
@@ -1929,7 +1929,7 @@ def _forks_here() -> bool:
     return _traced_memo_boot.PINNED_SOURCES is None and _SLOT.refused is None and fork_platform() in FORK_MEASURED
 
 
-class _Launch(NamedTuple):
+class _Launch(NamedTuple):  # concept: memo | role: part | kind: apparatus
     """How a generating process is started, by either route: the interpreter, the ``-O`` level, ``sys.path``,
     the working directory and the environment the job is handed. A template serves a job iff it was started
     with an equal launch, since the generation's manifest pins that state as it was at the template's start."""
@@ -1965,7 +1965,7 @@ def _answer(data: bytes | None, errors: str) -> _Generated | _Failed | _Refused 
     raise RuntimeError(f"traced_memo: a generating process ended without answering:\n{errors}")
 
 
-class _Template:
+class _Template:  # concept: memo | role: part | kind: apparatus
     """A template process (``_traced_memo_boot.template``) and the launch it was started with."""
 
     def __init__(self, launch: _Launch) -> None:
@@ -2012,7 +2012,7 @@ class _Template:
             self.process.wait()
 
 
-class _TemplateSlot:
+class _TemplateSlot:  # concept: memo | role: part | kind: apparatus
     """This process's template, if it has started one; the lock that gives one miss at a time its pipes (two
     threads missing at once interleaved their frames and read each other's answers: qa's review of #602 cut E,
     ``[M]`` 14 of 40 calls raised); and why a fresh template refused its first job, if one has. The refusal's
@@ -2071,7 +2071,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 
-class TracedMemo(Generic[P, R]):
+class TracedMemo(Generic[P, R]):  # concept: memo | role: head | kind: apparatus
     """A pure function of content-identified arguments, memoised on disk and generated in a fresh process."""
 
     def __init__(self, function: Callable[P, R], canonical: Mapping[str, Callable[[Any], Any]] | None = None) -> None:

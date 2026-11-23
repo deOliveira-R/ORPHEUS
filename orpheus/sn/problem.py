@@ -97,7 +97,7 @@ if TYPE_CHECKING:
 # SNProblem
 # ═══════════════════════════════════════════════════════════════════════
 
-class SNProblem(MethodMesh):
+class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | welded: hub, mesh, quadrature, scheme, closure, coord, trace, dsum, xsfield, pencil, posing, streaming, fission, realizer, schedule, digest, cellmoment, nullspace
     """The SN Problem — the data hub every discrete-ordinates consumer reads.
 
     A :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh` augmented with

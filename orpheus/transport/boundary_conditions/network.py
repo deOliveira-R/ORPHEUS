@@ -97,7 +97,7 @@ __all__ = [
 
 
 @dataclass(frozen=True)
-class MirrorPermutation:
+class MirrorPermutation:  # concept: walllaw | role: component | kind: element
     r""":math:`P`, the ordinate permutation of the face's mirror plane, :math:`\Gamma_+ \to \Gamma_-`.
 
     Face-local: it holds no axis and no outward sign, because the realizer reads the face's normal from the face name.
@@ -108,7 +108,7 @@ class MirrorPermutation:
 
 
 @dataclass(frozen=True)
-class CurrentRetraction:
+class CurrentRetraction:  # concept: walllaw | role: component | kind: element
     r""":math:`Rt`, the retraction of the split pair: :math:`\Gamma_+ \to S`, integration against :math:`|\Omega\cdot n_f|\,w`."""
 
     domain: ClassVar[TraceRole] = "outflow"
@@ -116,7 +116,7 @@ class CurrentRetraction:
 
 
 @dataclass(frozen=True)
-class IsotropicSection:
+class IsotropicSection:  # concept: walllaw | role: component | kind: element
     r""":math:`E`, the section of the split pair: :math:`S \to \Gamma_-`, :math:`EJ = J/M_-` (divides by the INFLOW mass)."""
 
     domain: ClassVar[TraceRole] = "current"
@@ -127,7 +127,7 @@ Factor: TypeAlias = MirrorPermutation | CurrentRetraction | IsotropicSection
 
 
 @dataclass(frozen=True)
-class SpecularChain:
+class SpecularChain:  # concept: walllaw | role: twin | kind: element
     r""":math:`s\,P`, the specular chain; ``factors`` are listed in the order they are applied."""
 
     factors: ClassVar[tuple[type[Factor], ...]] = (MirrorPermutation,)
@@ -135,7 +135,7 @@ class SpecularChain:
 
 
 @dataclass(frozen=True)
-class DiffuseChain:
+class DiffuseChain:  # concept: walllaw | role: twin | kind: element
     r""":math:`d\,(E\circ Rt)`, the diffuse (Lambertian) chain; ``factors`` are listed in the order they are applied."""
 
     factors: ClassVar[tuple[type[Factor], ...]] = (CurrentRetraction, IsotropicSection)
@@ -173,12 +173,12 @@ _refuse_a_chain_that_does_not_compose()
 
 
 @dataclass(frozen=True)
-class ZeroNetwork:
+class ZeroNetwork:  # concept: walllaw | role: twin | kind: element
     r"""The marker of the empty network (:math:`R = 0`): the key under which a method registers its zero image."""
 
 
 @dataclass(frozen=True, eq=False)
-class ResponseNetwork(ContentIdentity):
+class ResponseNetwork(ContentIdentity):  # concept: walllaw | role: component | kind: element.member
     r"""The linear part :math:`R = \sum_c w_c\,c` of a wall, a weighted sum of chains in canonical form.
 
     ``weights`` is parsed on construction: every key is a member of the closed sum :data:`Chain`, every weight a finite

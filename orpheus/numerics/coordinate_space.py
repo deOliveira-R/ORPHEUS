@@ -56,7 +56,7 @@ import numpy as np
 __all__ = ["NotInCoordinateSpace", "coordinates", "leading_coordinates"]
 
 
-class NotInCoordinateSpace(ValueError):
+class NotInCoordinateSpace(ValueError):  # concept: member | role: annex | kind: record
     r"""An array is not an element of the coordinate space a verb acts on.
 
     A wrong shape is a wrong value of the right type, so this is a

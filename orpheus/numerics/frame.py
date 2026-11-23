@@ -164,7 +164,7 @@ def _descent_arrow(basis: Basis, measure: DiscreteMeasure, role: str) -> Manifol
 
 
 @dataclass(frozen=True)
-class FrameBase(ABC):
+class FrameBase(ABC):  # concept: frame | role: head | kind: morphism
     r"""A discrete frame: a :class:`Basis` bound to a :class:`DiscreteMeasure`.
 
     The abstract base carries the **discipline-free** data — the trial table, the
@@ -311,7 +311,7 @@ class FrameBase(ABC):
 
 
 @dataclass(frozen=True)
-class PetrovGalerkinFrame(FrameBase):
+class PetrovGalerkinFrame(FrameBase):  # concept: frame | role: arm | kind: morphism
     r"""A frame with an explicit **test** basis (the Petrov-Galerkin discipline).
 
     The analysis measures against test functions :math:`\chi_k` that need NOT equal the
@@ -351,7 +351,7 @@ class PetrovGalerkinFrame(FrameBase):
 
 
 @dataclass(frozen=True, init=False)
-class GalerkinFrame(PetrovGalerkinFrame):
+class GalerkinFrame(PetrovGalerkinFrame):  # concept: frame | role: arm | kind: morphism
     r"""The Galerkin specialisation: the test basis IS the trial basis.
 
     A :class:`GalerkinFrame` is constructed from ``(basis, measure)`` alone — it binds

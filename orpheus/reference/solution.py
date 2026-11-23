@@ -60,7 +60,7 @@ Evaluation: TypeAlias = Establishment | Uncertified
 
 
 @runtime_checkable
-class Derivation(Protocol):
+class Derivation(Protocol):  # concept: EXT:reference-solution | role: interface | kind: element
     """A reference method's natural extension, evaluated with its derived bound where the family has one."""
 
     def evaluate(self, observable: Eigenvalue | Linear) -> Evaluation:
@@ -70,7 +70,7 @@ class Derivation(Protocol):
 
 @final
 @dataclass(frozen=True, eq=False)
-class ReferenceSolution:
+class ReferenceSolution:  # concept: EXT:reference-solution | role: head | kind: record
     """A reference method's answer to a specification, read on demand through its derivation."""
 
     specification: Specification

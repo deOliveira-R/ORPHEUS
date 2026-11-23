@@ -98,7 +98,7 @@ __all__ = ["ScalarFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarFlux(ScalarField):
+class ScalarFlux(ScalarField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""Scalar flux field :math:`\phi(\vec r, g)`.
 
     Parameters

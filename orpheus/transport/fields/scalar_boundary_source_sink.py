@@ -58,7 +58,7 @@ __all__ = ["ScalarBoundarySourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarBoundarySourceSink(ScalarBoundaryField, flux=ScalarBoundaryFlux):
+class ScalarBoundarySourceSink(ScalarBoundaryField, flux=ScalarBoundaryFlux):  # concept: fluxsrc | role: twin | kind: element.member
     r"""Scalar boundary-trace source/sink — ``(J⁺, J⁻)``-row rate pairs
     per face per group.
 

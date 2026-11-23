@@ -42,7 +42,7 @@ __all__ = ["RadialCharacteristicInteriorResidual"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicInteriorResidual(RadialCharacteristicInteriorField):
+class RadialCharacteristicInteriorResidual(RadialCharacteristicInteriorField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""The marched-cells block of System B's typed equation residual.
 
     Formed ONLY by the named balance :meth:`from_balance` (the residual

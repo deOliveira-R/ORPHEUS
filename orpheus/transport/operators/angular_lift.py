@@ -131,7 +131,7 @@ EnergyT = TypeVar("EnergyT", bound=BoundOperator)
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class AngularEnd:
+class AngularEnd:  # concept: natural | role: component | kind: element
     r"""The domain's interior is the analysis face's DOMAIN: the operand is
     the per-ordinate flux :math:`\psi`."""
 
@@ -154,7 +154,7 @@ class AngularEnd:
         return AngularSourceSink(values=values, space=lift._domain_interior)
 
 
-class MomentEnd:
+class MomentEnd:  # concept: natural | role: component | kind: element
     r"""The domain's interior is the analysis face's CODOMAIN: the operand
     is already :math:`M\psi` (the windowed moment iterate)."""
 
@@ -191,7 +191,7 @@ class MomentEnd:
 
 
 @dataclass(eq=False)
-class AngularLift(CompositeBound, Generic[EnergyT]):
+class AngularLift(CompositeBound, Generic[EnergyT]):  # concept: natural | role: weld | kind: morphism.operator | welded: natural, faces
     r"""An energy binding lifted onto the angular composite — see the module
     docstring.
 

@@ -160,7 +160,7 @@ def _admit_plain_scalar_ends(op: "BoundOperator", ng: int) -> None:
 
 
 @dataclass(eq=False)
-class IsotropicTransfer(BoundOperator):
+class IsotropicTransfer(BoundOperator):  # concept: transfer | role: head | kind: morphism.operator
     r"""The P0 energy binding of a transfer channel: :math:`y\,\Sigma_{c,0}^{T}` on the scalar flux.
 
     Per cell of material :math:`m`, :math:`(y\,\Sigma_{c,0}^{T}\phi)_g =
@@ -299,7 +299,7 @@ class IsotropicTransfer(BoundOperator):
         )
 
 
-class IsotropicScattering(IsotropicTransfer):
+class IsotropicScattering(IsotropicTransfer):  # concept: transfer | role: arm | kind: morphism.operator
     r"""The P0 isotropic in-scatter energy operator :math:`\Sigma_{s,0}` — the :math:`S` term's energy binding.
 
     The scattering instance of :class:`IsotropicTransfer` (yield 1): a
@@ -315,7 +315,7 @@ class IsotropicScattering(IsotropicTransfer):
     )
 
 
-class IsotropicN2N(IsotropicTransfer):
+class IsotropicN2N(IsotropicTransfer):  # concept: transfer | role: arm | kind: morphism.operator
     r"""The :math:`(n,2n)` isotropic energy operator :math:`2\,\Sigma_{2n}` — the :math:`N_{2n}` term's energy binding.
 
     The :math:`(n,2n)` instance of :class:`IsotropicTransfer` (yield
@@ -348,7 +348,7 @@ class IsotropicN2N(IsotropicTransfer):
 
 
 @dataclass(eq=False)
-class IsotropicFission(BoundOperator):
+class IsotropicFission(BoundOperator):  # concept: fission | role: head | kind: morphism.operator
     r"""The fission energy operator :math:`F = |\chi\rangle\langle\nu\Sigma_f|` on the scalar flux.
 
     Per cell, :math:`(F\phi)_g = \chi_g \sum_{g'}\nu\Sigma_{f,g'}\,

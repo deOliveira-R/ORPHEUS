@@ -141,7 +141,7 @@ def _unit_label(obj: object) -> str:
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class Field(Member, ABC):
+class Field(Member, ABC):  # concept: member | role: weld | kind: element.member | welded: member, fluxsrc
     r"""Algebraic base of every typed transport field.
 
     A :class:`Field` is the pair ``(values, space)`` with

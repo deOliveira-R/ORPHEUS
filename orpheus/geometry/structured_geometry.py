@@ -120,7 +120,7 @@ from .faces import face_inventory, face_name, why_faces_differ
 
 
 @dataclass(frozen=True, kw_only=True, eq=False)
-class StructuredGeometry(ContentIdentity):
+class StructuredGeometry(ContentIdentity):  # concept: regions | role: head | kind: set | welded: regions, coord, role
     r"""A 1-D geometry: a coordinate system, breakpoints, one material id
     per interval and one face role per boundary point.
 

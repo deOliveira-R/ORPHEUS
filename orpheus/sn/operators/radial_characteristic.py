@@ -191,7 +191,7 @@ def march_start_cosines(
     return {p: abs(float(starts[p])) for p in lvls}
 
 
-class _EmissionKernel(Protocol):
+class _EmissionKernel(Protocol):  # concept: adjoint | role: interface | kind: morphism.operator
     r"""The isotropic :math:`\ell = 0` emission kernel — ``A_BA``'s factor between
     the angular integral and the fold: an ``ndarray → ndarray`` operator carrying
     a Euclidean transpose.
@@ -221,7 +221,7 @@ __all__ = [
 ]
 
 
-class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
+class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):  # concept: streaming | role: weld | kind: morphism.operator | welded: streaming, multiplier, algorithm
     r"""``A_BB`` — the radial straight-characteristic transport operator on ψ½.
 
     System B's self-block of the 2×2 coupled block operator: the banded
@@ -723,7 +723,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
 class RadialCharacteristicSeeding(
     LinearOperator["RadialCharacteristicField", "FullField"],
-):
+):  # concept: closure | role: twin | kind: morphism.operator
     r"""``A_AB`` — the ray→bulk seed injection (the Morel–Montry angular seed).
 
     The off-diagonal ``(transport, ray)`` block of the 2×2 coupled block
@@ -1006,7 +1006,7 @@ class RadialCharacteristicSeeding(
         )
 
 
-class RadialCharacteristicReconstruction(LinearOperator):
+class RadialCharacteristicReconstruction(LinearOperator):  # concept: faces | role: twin | kind: morphism.operator
     r"""Reconstruct a bulk angular source at the closed μ=±1 rays — the ``A_BA`` fold.
 
     The shared factor of the ``A_BA`` bulk→ray coupling block
@@ -1475,7 +1475,7 @@ def radial_characteristic_source_from_angular(
     return seed
 
 
-class RadialCharacteristicEmission(LinearOperator):
+class RadialCharacteristicEmission(LinearOperator):  # concept: natural | role: weld | kind: morphism.operator | welded: natural, compose
     r"""``A_BA`` — the bulk→ray coupling (the ψ½ emission ``Fold ∘ K ∘ integrate``).
 
     The off-diagonal ``(ray, transport)`` block of the 2×2 coupled block

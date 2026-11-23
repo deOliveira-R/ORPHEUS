@@ -26,5 +26,5 @@ from orpheus.transport.boundary_conditions.errors import BoundaryError
 __all__ = ["BoundarySourceNotOnIncomingTraceError"]
 
 
-class BoundarySourceNotOnIncomingTraceError(BoundaryError):
+class BoundarySourceNotOnIncomingTraceError(BoundaryError):  # concept: bsource | role: annex | kind: record
     r"""ERR-047: a boundary source was sampled on a space that is not the inflow half-trace :math:`\Gamma_-` of its face."""

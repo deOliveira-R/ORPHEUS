@@ -46,7 +46,7 @@ from __future__ import annotations
 import numpy as np
 
 
-class EmissionSpectrum(np.ndarray):
+class EmissionSpectrum(np.ndarray):  # concept: xsfield | role: part | kind: measure
     r"""A validated fission emission spectrum :math:`\chi` (probability simplex).
 
     A thin :class:`numpy.ndarray` subclass that carries the simplex /

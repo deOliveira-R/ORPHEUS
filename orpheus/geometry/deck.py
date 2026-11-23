@@ -90,11 +90,11 @@ __all__ = [
 ]
 
 
-class DeckError(ValueError):
+class DeckError(ValueError):  # concept: role | role: annex | kind: record
     """The geometry's refusal of an ill-posed deck declaration (not a boundary-condition error)."""
 
 
-class IsometryClass(Enum):
+class IsometryClass(Enum):  # concept: role | role: component | kind: element
     """The six types of non-identity isometries of :math:`E^n`, :math:`n \\le 3` (Chasles)."""
 
     TRANSLATION = "translation"
@@ -119,7 +119,7 @@ ISOMETRY_CLASSES_BY_DIMENSION: Mapping[int, frozenset[IsometryClass]] = MappingP
 
 
 @dataclass(frozen=True, eq=False)
-class MirrorDeck(ContentIdentity):
+class MirrorDeck(ContentIdentity):  # concept: role | role: arm | kind: element
     r"""The face is glued to itself by the reflection in its own plane: the domain continues as its mirror image.
 
     No field: the face fixes the plane. Two mirror decks are equal whichever face they sit on, and generate the
@@ -130,7 +130,7 @@ class MirrorDeck(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class TranslationDeck(ContentIdentity):
+class TranslationDeck(ContentIdentity):  # concept: role | role: arm | kind: element
     r"""The face is glued to the opposite face of the same axis by a translation: the domain is periodic.
 
     No field: the face fixes the partner (:func:`~orpheus.geometry.faces.face_opposite`) and the direction. The
@@ -149,7 +149,7 @@ FaceRole: TypeAlias = DeckTransformation | int
 
 
 @dataclass(frozen=True)
-class DeferredDeck:
+class DeferredDeck:  # concept: role | role: annex | kind: record
     """An isometry class named and not minted: the type it will have and the machinery that mints it."""
 
     isometry_class: IsometryClass
@@ -230,7 +230,7 @@ def translation_motion(face: str, dimension: int) -> RigidMotion:
 
 
 @dataclass(frozen=True)
-class FacePairing:
+class FacePairing:  # concept: role | role: weld | kind: element | welded: role, face
     r"""What a realizer reads of a deck: the face, its partner and the rigid motion carrying the partner onto it.
 
     Derived from a deck and a face by :func:`pairing_of`, never stored on the deck. The class states the whole law,

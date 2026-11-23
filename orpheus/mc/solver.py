@@ -73,7 +73,7 @@ from orpheus.transport.method import Mesh1DMethodMesh
 # ═══════════════════════════════════════════════════════════════════════
 
 @runtime_checkable
-class MCGeometry(Protocol):
+class MCGeometry(Protocol):  # concept: locate | role: interface | kind: set
     """Geometry interface for Monte Carlo delta-tracking.
 
     Implementations must provide:
@@ -93,7 +93,7 @@ class MCGeometry(Protocol):
 
 
 @dataclass
-class ConcentricPinCell:
+class ConcentricPinCell:  # concept: locate | role: weld | kind: set | welded: locate, regions, mesh
     """Concentric cylindrical pin cell in a square lattice.
 
     Parameters
@@ -132,7 +132,7 @@ class ConcentricPinCell:
         )
 
 
-class SlabPinCell:
+class SlabPinCell:  # concept: locate | role: weld | kind: set | welded: locate, regions, mesh
     """1D slab geometry embedded in a 2D square cell (for MATLAB compatibility).
 
     Determines material based on x-coordinate only. Matches the original
@@ -189,7 +189,7 @@ def _refuse_a_mesh_mc_misreads(mesh: Mesh1D) -> None:
 
 
 @dataclass(frozen=True)
-class PeriodicWrap:
+class PeriodicWrap:  # concept: realized | role: twin | kind: morphism
     r"""What MC's translation deck realizes: the periodic wrap of a position by the unit cell's ``pitch``, :math:`x' = x \bmod p`.
 
     A marker with the one number that defines it. The flight loop (``_random_walk``) applies the modulo inline and does not read this
@@ -209,7 +209,7 @@ MC_REALIZERS: RealizerTable["MCMesh", PeriodicWrap, FunctionSpace] = RealizerTab
 )
 
 
-class MCMesh(Mesh1DMethodMesh[PeriodicWrap]):
+class MCMesh(Mesh1DMethodMesh[PeriodicWrap]):  # concept: hub | role: weld | kind: element | welded: hub, locate
     """Augmented geometry for Monte Carlo delta-tracking.
 
     Wraps a :class:`~geometry.mesh.Mesh1D` and provides point-wise material
@@ -290,14 +290,14 @@ _TORUS = (
 )
 
 
-class MCZero(RefusingRealizer, table=MC_REALIZERS, realizes=ZeroNetwork):
+class MCZero(RefusingRealizer, table=MC_REALIZERS, realizes=ZeroNetwork):  # concept: realizer | role: annex | kind: record
     """The empty network: not built (the retired registry held ``periodic`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a vacuum wall is not built", 654)
 
 
 
-class MCSpecularChain(RefusingRealizer, table=MC_REALIZERS, realizes=SpecularChain):
+class MCSpecularChain(RefusingRealizer, table=MC_REALIZERS, realizes=SpecularChain):  # concept: realizer | role: annex | kind: record
     r"""A specular chain: refused at every weight.
 
     On a solid cylinder it is ``Refused(TOPOLOGY, ..., #547)`` (the user's ruling): MC samples a periodic equal-area SQUARE lattice cell,
@@ -316,14 +316,14 @@ class MCSpecularChain(RefusingRealizer, table=MC_REALIZERS, realizes=SpecularCha
 
 
 
-class MCDiffuseChain(RefusingRealizer, table=MC_REALIZERS, realizes=DiffuseChain):
+class MCDiffuseChain(RefusingRealizer, table=MC_REALIZERS, realizes=DiffuseChain):  # concept: realizer | role: annex | kind: record
     """A diffuse chain: not built, at any weight (the retired registry held ``periodic`` only; #654)."""
 
     status = Refused(RefusalAxis.PLUMBING, "MC wraps its faces periodically; a white wall is not built", 654)
 
 
 
-class MCDecks(DeckRealizer, table=MC_REALIZERS):
+class MCDecks(DeckRealizer, table=MC_REALIZERS):  # concept: realizer | role: part | kind: morphism
     """The decks: the translation wrap is what MC computes, ``Realized(True)``; a mirror is refused (#654).
 
     The translation's pitch is NOT compared with the declared extent (#655, a defect filed and not fixed here). The match is exhaustive
@@ -357,7 +357,7 @@ MC_REALIZERS.seal()
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass
-class Particle:
+class Particle:  # concept: measure | role: part | kind: element
     """Base class for transported particles.
 
     Designed for future extension to gamma transport or other particle
@@ -371,7 +371,7 @@ class Particle:
 
 
 @dataclass
-class Neutron(Particle):
+class Neutron(Particle):  # concept: measure | role: part | kind: element
     """A neutron with discrete energy group."""
 
     group: int = 0
@@ -381,7 +381,7 @@ class Neutron(Particle):
 # NeutronBank — population management
 # ═══════════════════════════════════════════════════════════════════════
 
-class NeutronBank:
+class NeutronBank:  # concept: measure | role: weld | kind: measure | welded: measure, algorithm
     """Array-backed population of neutrons.
 
     Stores parallel arrays for performance-critical inner loops while
@@ -469,7 +469,7 @@ class NeutronBank:
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass
-class _PrecomputedXS:
+class _PrecomputedXS:  # concept: xsfield | role: weld | kind: element | welded: xsfield, groups, algorithm
     """Cached cross-section data that doesn't change between cycles.
 
     The energy-grid fields (``eg``, ``eg_mid``, ``du``) are ``None`` when
@@ -652,7 +652,7 @@ def _split_heavy(bank: NeutronBank, rng: np.random.Generator) -> None:
 # ═══════════════════════════════════════════════════════════════════════
 
 @dataclass
-class MCParams:
+class MCParams:  # concept: hub | role: weld | kind: element | welded: hub, strategy, locate
     """Monte Carlo simulation parameters."""
 
     n_neutrons: int = 100        # source neutrons per cycle
@@ -664,7 +664,7 @@ class MCParams:
 
 
 @dataclass
-class MCResult:
+class MCResult:  # concept: solution | role: twin | kind: record
     """Results of a Monte Carlo calculation.
 
     The energy-grid fields (``eg``, ``eg_mid``, ``flux_per_lethargy``)

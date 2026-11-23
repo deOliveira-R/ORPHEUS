@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 __all__ = ["CellCoefficient", "Channel"]
 
 
-class Channel(enum.Enum):
+class Channel(enum.Enum):  # concept: EXT:reaction-channel | role: head | kind: set
     """The emission channels whose scaling today's operators realise (a closed set)."""
 
     FISSION_EMISSION = "fission emission"
@@ -92,7 +92,7 @@ def _admit_channel(channel: Any) -> Channel:
 
 
 @dataclass(frozen=True, eq=False)
-class CellCoefficient(ContentIdentity):
+class CellCoefficient(ContentIdentity):  # concept: parameter | role: weld | kind: element.covector | welded: parameter, covector
     """The direction that scales a set of ``(material id, Channel)`` cells together.
 
     ``cells`` is an iterable of explicit pairs and

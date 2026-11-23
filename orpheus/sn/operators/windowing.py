@@ -68,7 +68,7 @@ if TYPE_CHECKING:
 __all__ = ["AngularMomentWindow", "BulkAnalysisOperator", "WindowedSweep"]
 
 
-class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
+class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):  # concept: faces | role: weld | kind: morphism.operator | welded: faces, restrict
     r"""The minted flux-analysis face on the BULK ⊕ identity on the trace —
     the spelled word :math:`P = \mathrm{lift}(M) \oplus \mathrm{Id}_{\Gamma}`.
 
@@ -166,7 +166,7 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):
         return f"BulkAnalysisOperator({self.face!r})"
 
 
-class WindowedSweep(FusedAtom["FullField", "TimedFullField"]):
+class WindowedSweep(FusedAtom["FullField", "TimedFullField"]):  # concept: algorithm | role: weld | kind: morphism.operator | welded: algorithm, compose
     r"""The fused evaluation of ``P @ A.inverse()`` — same morphism, deforested.
 
     An atom with two named legs, :attr:`p` and :attr:`sweep`, whose algebraic
@@ -246,7 +246,7 @@ class WindowedSweep(FusedAtom["FullField", "TimedFullField"]):
         return f"WindowedSweep({self.p!r} @ {self.sweep!r})"
 
 
-class AngularMomentWindow:
+class AngularMomentWindow:  # concept: strategy | role: twin | kind: element
     r"""The 2-D Cartesian source iteration's representation: the iterate is
     held as harmonic moments, the codomain of the analysis factor
     :math:`\mathcal P` (numerics_untangling.md rulings 68 and 70).

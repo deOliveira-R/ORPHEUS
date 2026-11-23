@@ -42,7 +42,7 @@ __all__ = ["RadialCharacteristicInteriorSourceSink"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicInteriorSourceSink(RadialCharacteristicInteriorField, flux=RadialCharacteristicInteriorFlux):
+class RadialCharacteristicInteriorSourceSink(RadialCharacteristicInteriorField, flux=RadialCharacteristicInteriorFlux):  # concept: fluxsrc | role: twin | kind: element.member
     r"""System B's interior q½ source/sink — the folded volumetric emission cells.
 
     Parameters

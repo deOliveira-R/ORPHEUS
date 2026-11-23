@@ -58,7 +58,7 @@ __all__ = ["BoundOperator"]
 @dataclass(eq=False)
 class BoundOperator(
     LinearOperator[Domain, Codomain], Generic[Domain, Codomain],
-):
+):  # concept: ends | role: head | kind: morphism.operator
     r"""The two-space binding base — see the module docstring.
 
     The two fields realize the base's abstract ``domain`` / ``codomain``

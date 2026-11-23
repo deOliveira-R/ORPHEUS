@@ -90,36 +90,36 @@ __all__ = [
 ]
 
 
-class ReferenceNotValid(ValueError):
+class ReferenceNotValid(ValueError):  # concept: EXT:verification-certificate | role: annex | kind: record
     """The reference cannot stand as one: it has no certificate, or its certificate is not ``Valid``."""
 
 
-class ReadingUncertified(ValueError):
+class ReadingUncertified(ValueError):  # concept: EXT:verification-certificate | role: annex | kind: record
     """A valid reference reads the observable uncertified (no derived bound), so the reading cannot anchor a verification."""
 
 
-class ReadingCertified(ValueError):
+class ReadingCertified(ValueError):  # concept: EXT:verification-certificate | role: annex | kind: record
     """An uncertified comparison was asked of a reading a valid reference certifies: verify it instead."""
 
 
-class Unestablished(ValueError):
+class Unestablished(ValueError):  # concept: EXT:verification-certificate | role: annex | kind: record
     """An order verdict needs a floor (an algebraic error, a reference bound, a resolved error) that is not established."""
 
 
-class ReferenceTooLoose(AssertionError):
+class ReferenceTooLoose(AssertionError):  # concept: EXT:verification-certificate | role: annex | kind: record
     """The reference's bound is above a tenth of the tolerance: it is too loose to verify that tolerance."""
 
 
-class Disagreement(AssertionError):
+class Disagreement(AssertionError):  # concept: EXT:verification-certificate | role: annex | kind: record
     """Production's reading and the reference's enclosure disagree at the tolerance."""
 
 
-class OrderNotObserved(AssertionError):
+class OrderNotObserved(AssertionError):  # concept: EXT:verification-certificate | role: annex | kind: record
     """An observed order lies outside the declared band about the declared order."""
 
 
 @runtime_checkable
-class ProductionAnswer(Protocol):
+class ProductionAnswer(Protocol):  # concept: solution | role: interface | kind: record
     """A production answer that reads an observable as its self-report."""
 
     def read(self, observable: Observable) -> ProductionReading:
@@ -196,7 +196,7 @@ def observed_order(coarse: tuple[float, Fraction], fine: tuple[float, Fraction])
 
 @final
 @dataclass(frozen=True)
-class VerificationCertificate:
+class VerificationCertificate:  # concept: EXT:verification-certificate | role: head | kind: record
     """One comparison of a production answer's reading with a valid reference's enclosure, and its verdict.
 
     Built from the answer and the reference, it reads both at construction:
@@ -256,7 +256,7 @@ def verify_agreement(
 
 @final
 @dataclass(frozen=True)
-class OrderVerification:
+class OrderVerification:  # concept: EXT:verification-certificate | role: twin | kind: record
     r"""Production's observed order of accuracy over a refinement, against a valid reference.
 
     Each answer's error :math:`e_i = m_i - v_{\rm ref}` is known only within
@@ -371,7 +371,7 @@ def verify_order(
 
 @final
 @dataclass(frozen=True)
-class UncertifiedComparison:
+class UncertifiedComparison:  # concept: EXT:verification-certificate | role: twin | kind: record
     """A production answer's reading compared with an unverifiable reference value: a weaker claim, not a verification.
 
     Built from the answer and the reference, it reads both at construction. A

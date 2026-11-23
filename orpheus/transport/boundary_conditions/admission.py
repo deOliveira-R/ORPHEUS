@@ -67,7 +67,7 @@ from orpheus.geometry.faces import face_normal
 __all__ = ["Admission", "Approximated", "FaceSite", "Realized", "RefusalAxis", "Refused", "SiteClass", "hollow_inner_refusal"]
 
 
-class RefusalAxis(Enum):
+class RefusalAxis(Enum):  # concept: realizer | role: annex | kind: record
     """On which axis a method refuses a declaration; ``PLUMBING`` is the fourth thing, not an axis of theory."""
 
     ANGULAR_RESOLUTION = "angular resolution"  # can the method represent R's angular structure?
@@ -76,7 +76,7 @@ class RefusalAxis(Enum):
     PLUMBING = "plumbing"  # no theory refuses it: a missing registry entry or an unwired channel
 
 
-class Admission:
+class Admission:  # concept: realizer | role: annex | kind: record
     """The sum ``Realized | Approximated | Refused``, sealed, with the lattice's ``meet`` defined once."""
 
     __slots__ = ()
@@ -106,7 +106,7 @@ _SUM_CLOSED = False
 
 
 @dataclass(frozen=True)
-class Realized(Admission):
+class Realized(Admission):  # concept: realizer | role: annex | kind: record
     """Exact: ``faithful`` is True at tier 1 and False at tier 2."""
 
     faithful: bool
@@ -117,7 +117,7 @@ class Realized(Admission):
 
 
 @dataclass(frozen=True)
-class Approximated(Admission):
+class Approximated(Admission):  # concept: realizer | role: annex | kind: record
     """Tier 3, or a named domain approximation: the non-empty SET of ``(name, issue)`` pairs, each approximation with its tracking issue."""
 
     approximations: frozenset[tuple[str, int]]
@@ -143,7 +143,7 @@ class Approximated(Admission):
 
 
 @dataclass(frozen=True)
-class Refused(Admission):
+class Refused(Admission):  # concept: realizer | role: annex | kind: record
     """Not realized; ``PLUMBING`` owes the ``issue`` that tracks the missing machinery."""
 
     axis: RefusalAxis
@@ -179,7 +179,7 @@ def _rank(member: Admission) -> int:
             raise TypeError(f"not an Admission: {member!r}")
 
 
-class SiteClass(Enum):
+class SiteClass(Enum):  # concept: face | role: component | kind: set
     """The three GEOMETRIC classes of a face of the admission table."""
 
     CART = "cartesian"
@@ -188,7 +188,7 @@ class SiteClass(Enum):
 
 
 @dataclass(frozen=True)
-class FaceSite:
+class FaceSite:  # concept: face | role: twin | kind: element
     """Where a declaration is placed; derived from the carrier, computable before a method space exists."""
 
     face: str

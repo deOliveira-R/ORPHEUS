@@ -39,7 +39,7 @@ _UNIT_ULPS = 8.0
 
 
 @dataclass(frozen=True, eq=False)
-class Line:
+class Line:  # concept: orbit | role: component | kind: element
     r"""A batch of oriented lines :math:`\{p + t\,\Omega\}` in Plücker coordinates.
 
     Build from points with :meth:`through`. Two base points on one line

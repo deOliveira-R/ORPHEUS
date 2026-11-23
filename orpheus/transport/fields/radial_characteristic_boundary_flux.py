@@ -31,7 +31,7 @@ __all__ = ["RadialCharacteristicBoundaryFlux"]
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicBoundaryFlux(RadialCharacteristicBoundaryField):
+class RadialCharacteristicBoundaryFlux(RadialCharacteristicBoundaryField):  # concept: fluxsrc | role: twin | kind: element.member
     r"""System B's boundary ψ½ flux state — the r = R corner.
 
     Parameters

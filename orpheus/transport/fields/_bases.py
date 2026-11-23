@@ -144,7 +144,7 @@ __all__ = [
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class FieldRole(Enum):
+class FieldRole(Enum):  # concept: four | role: component | kind: set
     r"""The two roles a transport field can play on one carrier space.
 
     A *flux* is a state; a *source/sink* is a signed rate density — the
@@ -162,7 +162,7 @@ class FieldRole(Enum):
     SOURCE_SINK = "source_sink"
 
 
-class RolePair:
+class RolePair:  # concept: four | role: head | kind: morphism
     r"""Mixin: a role leaf that knows its partner across the flux ↔
     source/sink pair.
 
@@ -335,7 +335,7 @@ def is_moment_valued_by_rank(array: NDArray, reference: NDArray) -> bool:
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BulkField(RolePair, Field):
+class BulkField(RolePair, Field):  # concept: member | role: weld | kind: element.member | welded: member, fluxsrc, cellmoment, four
     r"""Bulk-locus storage base — a :class:`Field` on the grid's cell centres.
 
     Carries the machinery shared by every bulk transport field: the
@@ -617,7 +617,7 @@ class BulkField(RolePair, Field):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularField(BulkField):
+class AngularField(BulkField):  # concept: member | role: arm | kind: element.member
     r"""Per-ordinate bulk family on ``(N, ng, nx, ny)``.
 
     The storage base for the angular role leaves (``AngularFlux``,
@@ -714,7 +714,7 @@ class AngularField(BulkField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarField(BulkField):
+class ScalarField(BulkField):  # concept: member | role: arm | kind: element.member
     r"""Scalar bulk family on ``(ng, nx, ny)``.
 
     The storage base for the scalar role leaves (``ScalarFlux``,
@@ -754,7 +754,7 @@ class ScalarField(BulkField):
 
 
 @runtime_checkable
-class _CarriesAngularBulkSpace(Protocol):
+class _CarriesAngularBulkSpace(Protocol):  # concept: hub | role: interface | kind: element
     """A carrier that OWNS the angular bulk space — the SN hub's cached
     :attr:`~orpheus.sn.problem.SNProblem.angular_bulk_space` (campaign 1 CS4b)."""
 
@@ -763,7 +763,7 @@ class _CarriesAngularBulkSpace(Protocol):
 
 
 @runtime_checkable
-class _CarriesMomentSpace(Protocol):
+class _CarriesMomentSpace(Protocol):  # concept: hub | role: interface | kind: element
     """A carrier that OWNS its harmonic-moment spaces — the SN hub's surface
     (:meth:`orpheus.sn.problem.SNProblem.moment_space`, CS4c step 6
     item 6.2b): one cached space per ``(L, spatial_moments)``, the angular
@@ -776,7 +776,7 @@ class _CarriesMomentSpace(Protocol):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class MomentField(BulkField):
+class MomentField(BulkField):  # concept: member | role: weld | kind: element.member | welded: member, cellmoment, four
     r"""Real-spherical-harmonic moment-space bulk family (storage base).
 
     The storage base for the moment role leaves —
@@ -1008,7 +1008,7 @@ class MomentField(BulkField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class FaceField(RolePair, Field, Generic[K]):
+class FaceField(RolePair, Field, Generic[K]):  # concept: member | role: arm | kind: element.member
     r"""Codim-1 face storage base — a mesh-bound flat-buffer :class:`Field`
     on a layout-bearing face space (method- and locus-agnostic).
 
@@ -1164,7 +1164,7 @@ class FaceField(RolePair, Field, Generic[K]):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class BoundaryField(FaceField[str]):
+class BoundaryField(FaceField[str]):  # concept: member | role: arm | kind: element.member
     r"""Spatial-face storage base — the SPATIAL locus of :class:`FaceField`.
 
     The boundary of the SPATIAL domain: codim-1 faces keyed by name
@@ -1249,7 +1249,7 @@ class BoundaryField(FaceField[str]):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class AngularBoundaryField(BoundaryField):
+class AngularBoundaryField(BoundaryField):  # concept: member | role: arm | kind: element.member
     r"""Angular boundary-trace storage base — the SN family of the
     :class:`BoundaryField` locus.
 
@@ -1304,7 +1304,7 @@ class AngularBoundaryField(BoundaryField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class ScalarBoundaryField(BoundaryField):
+class ScalarBoundaryField(BoundaryField):  # concept: member | role: arm | kind: element.member
     r"""Scalar boundary-trace storage base — the ``(J⁺, J⁻)`` family of
     the :class:`BoundaryField` locus (#290 P2).
 
@@ -1378,7 +1378,7 @@ class ScalarBoundaryField(BoundaryField):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):
+class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):  # concept: member | role: arm | kind: element.member
     r"""System B's INTERIOR locus — the ψ½ cells (Phase B split).
 
     The ``(ng, nx)`` half-angle flux at every radial cell, per seed-carrying
@@ -1440,7 +1440,7 @@ class RadialCharacteristicInteriorField(FaceField[tuple[int, int]]):
 
 
 @dataclass(frozen=True, eq=False, kw_only=True, repr=False)
-class RadialCharacteristicBoundaryField(FaceField[tuple[int, int]]):
+class RadialCharacteristicBoundaryField(FaceField[tuple[int, int]]):  # concept: member | role: arm | kind: element.member
     r"""System B's BOUNDARY locus — the ψ½ r = R corner (Phase B split).
 
     The ``(ng,)`` half-angle flux at the outer radius r = R, per seed-carrying

@@ -239,7 +239,7 @@ def _require_single_moment_pairing(pairing: np.ndarray, who: str) -> None:
         )
 
 
-class AngularClosureBase(RegistryMixin, ABC):
+class AngularClosureBase(RegistryMixin, ABC):  # concept: closure | role: head | kind: morphism | welded: closure, otensor, transpose
     r"""Concrete abstract base for self-registering angular-closure strategies.
 
     Subclasses inherit this ABC and pass ``key="..."`` in the class
@@ -703,7 +703,7 @@ class AngularClosureBase(RegistryMixin, ABC):
 
 
 @dataclass(frozen=True, slots=True)
-class _MMHalfGrid:
+class _MMHalfGrid:  # concept: closure | role: part | kind: element.member
     r"""Typed accessor for the Morel-Montry half-angle face grid.
 
     Pattern 4 (illegal states unrepresentable) for the off-by-one trap the
@@ -845,7 +845,7 @@ class _MMHalfGrid:
 
 
 @dataclass(frozen=True)
-class MarchStart:
+class MarchStart:  # concept: closure | role: part | kind: element
     r"""Structural facts about a μ-level's angular-march START edge (R12a).
 
     The two DISTINCT degeneracies that the raw first-ordinate
@@ -1462,7 +1462,7 @@ def _psi_half_grid_single_level(
 
 class MorelMontryAngularSweep(
     AngularClosureBase, key="morel_montry_angular_sweep",
-):  # noqa: E501  (#282 route (a) notes:)
+):  # concept: closure | role: weld | kind: morphism | welded: closure, otensor, transpose  # noqa: E501  (#282 route (a) notes:)
     # #282 route (a): the M-M recurrence's half-angle seed ``ψ_{1/2,i,g}`` is
     # no longer a swappable strategy.  Seed dispatch (R12a): on a CARRYING
     # level (the GL sphere, and since Q5.6.3 EVERY admitted cylinder level —
@@ -2112,7 +2112,7 @@ class MorelMontryAngularSweep(
 # contributes zero to both the cell-balance denominator and upstream numerator.
 
 
-class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure"):
+class IdentityAngularClosure(AngularClosureBase, key="identity_angular_closure"):  # concept: closure | role: arm | kind: morphism
     r"""No-op angular closure for Cartesian (slab + 2-D rectilinear).
 
     The Cartesian SN balance equation has no angular-redistribution term —

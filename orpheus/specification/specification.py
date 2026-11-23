@@ -105,7 +105,7 @@ def _names(alias: Any) -> str:
 
 
 @dataclass(frozen=True, eq=False)
-class InfiniteMediumSpecification(ContentIdentity):
+class InfiniteMediumSpecification(ContentIdentity):  # concept: EXT:specification | role: arm | kind: element
     """One material and a question, posed on energy alone (no geometry: the infinite medium)."""
 
     material_id: int
@@ -141,7 +141,7 @@ class InfiniteMediumSpecification(ContentIdentity):
 
 
 @dataclass(frozen=True, eq=False)
-class GeometrySpecification(ContentIdentity):
+class GeometrySpecification(ContentIdentity):  # concept: EXT:specification | role: arm | kind: element
     """The materials, a finite geometry, a question and the exterior; the materials kept are those the geometry assigns.
 
     Attributes

@@ -286,7 +286,7 @@ def _broadcast_leading(w: NDArray, target_ndim: int) -> NDArray:
     return w.reshape(w.shape + (1,) * (target_ndim - w.ndim))
 
 
-class PositionedMetric(Protocol):
+class PositionedMetric(Protocol):  # concept: fmetric | role: interface | kind: morphism
     r"""A metric that applies to ONE interior index block of an element — the
     positioned leaf form a :class:`FactoredMetric` composes
     (:class:`DiagonalMetric`, :class:`DenseMetric`, and the
@@ -302,7 +302,7 @@ class PositionedMetric(Protocol):
     ) -> NDArray: ...
 
 
-class HilbertMetric(ABC):
+class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
     r"""A symmetric positive-semi-definite bilinear form, as an object.
 
     The contract is three verbs and one derived pairing:
@@ -414,7 +414,7 @@ def _frozen_copy(array: NDArray) -> NDArray:
 
 
 @dataclass(frozen=True)
-class DiagonalMetric(HilbertMetric):
+class DiagonalMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
     r"""The Hadamard realization: a diagonal weight array, leading-aligned.
 
     The special case every pre-P7 metric was. ``apply`` broadcasts the
@@ -509,7 +509,7 @@ class DiagonalMetric(HilbertMetric):
 
 
 @dataclass(frozen=True)
-class DenseMetric(HilbertMetric):
+class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
     r"""A dense symmetric matrix metric on the flattened leading block.
 
     ``matrix`` is :math:`G`, ``(K, K)`` with ``K`` the row-major flattening
@@ -693,7 +693,7 @@ class DenseMetric(HilbertMetric):
 
 
 @dataclass(frozen=True)
-class FactoredMetric(HilbertMetric):
+class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
     r"""A lazy tensor product of per-block metrics — :math:`G = G_1 \otimes G_2 \otimes \cdots`.
 
     Each entry is ``(block_shape, factor)``, the factor one of the
@@ -833,7 +833,7 @@ class FactoredMetric(HilbertMetric):
             )
 
 
-class DualMetric(HilbertMetric):
+class DualMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
     r"""The metric of a dual space :math:`V^*`: a primal metric with its two faces swapped.
 
     :math:`V^*`'s inner product is the inverse Riesz form,

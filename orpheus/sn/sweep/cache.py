@@ -132,7 +132,7 @@ if TYPE_CHECKING:  # pragma: no cover
 
 
 @dataclass(frozen=True, slots=True, weakref_slot=True)
-class StreamingCoefficientCache:
+class StreamingCoefficientCache:  # concept: streaming | role: weld | kind: element | welded: streaming, schedule, mesh
     r"""The Σ\ :sub:`t`\ -free half of the DD scan coefficients, built ONCE per
     ``SNProblem`` × ``Quadrature``.
 
@@ -399,7 +399,7 @@ class StreamingCoefficientCache:
 
 
 @dataclass(frozen=True, slots=True)
-class CollisionCache:
+class CollisionCache:  # concept: algorithm | role: part | kind: element
     r"""Stratum 2: geometry :math:`\times \Sigma_t`.  Built once per :math:`\Sigma_t`.
 
     Combines :class:`StreamingCoefficientCache` with the per-cell-per-group

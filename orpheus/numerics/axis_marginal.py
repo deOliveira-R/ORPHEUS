@@ -83,7 +83,7 @@ if TYPE_CHECKING:
 __all__ = ["AxisPullbackOperator", "AxisRetractionOperator", "AxisSectionOperator"]
 
 
-class _AxisMarginalBase(LinearOperator):
+class _AxisMarginalBase(LinearOperator):  # concept: natural | role: head | kind: morphism.operator
     r"""What the three arrows of one axis marginal retain.
 
     The bound product spaces, the ndarray dims the axis occupies, the axis's
@@ -144,7 +144,7 @@ class _AxisMarginalBase(LinearOperator):
         return True
 
 
-class AxisRetractionOperator(_AxisMarginalBase):
+class AxisRetractionOperator(_AxisMarginalBase):  # concept: natural | role: arm | kind: morphism.operator
     r"""The retraction :math:`R = \pi_* = m^{\mathsf T} \otimes \mathrm{id}`:
     fibre integration over one named axis,
     :math:`(R\psi)(\cdot) = \sum_n m_n\, \psi(n, \cdot)`.
@@ -235,7 +235,7 @@ class AxisRetractionOperator(_AxisMarginalBase):
         )
 
 
-class AxisSectionOperator(_AxisMarginalBase):
+class AxisSectionOperator(_AxisMarginalBase):  # concept: natural | role: arm | kind: morphism.operator
     r"""The section of the axis retraction,
     :math:`E = (u / \langle m, u\rangle) \otimes \mathrm{id}`:
     :math:`(E\phi)(n, \cdot) = u_n\, \phi(\cdot) / \langle m, u\rangle`.
@@ -336,7 +336,7 @@ class AxisSectionOperator(_AxisMarginalBase):
         return self._contract(coordinates, self._unit) / self._mass
 
 
-class AxisPullbackOperator(_AxisMarginalBase):
+class AxisPullbackOperator(_AxisMarginalBase):  # concept: natural | role: arm | kind: morphism.operator
     r"""The pullback :math:`\pi^* = u \otimes \mathrm{id}` along the
     projection that forgets one axis: :math:`(\pi^*\phi)(n, \cdot) = u_n\,
     \phi(\cdot)`, the constant function along the axis times :math:`\phi`.
@@ -406,7 +406,7 @@ class AxisPullbackOperator(_AxisMarginalBase):
         return self._retraction
 
 
-class _AxisMarginal(NamedTuple):
+class _AxisMarginal(NamedTuple):  # concept: natural | role: part | kind: morphism
     """One axis's marginal arrows (``section`` is ``None`` iff the mass is 0)."""
 
     retraction: AxisRetractionOperator

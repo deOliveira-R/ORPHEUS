@@ -76,7 +76,7 @@ _MAX_CELLS = 2**31
 # ═══════════════════════════════════════════════════════════════════════
 
 
-class Spacing(ABC):
+class Spacing(ABC):  # concept: mesh | role: part | kind: morphism
     r"""The measure coordinate whose equal steps place an interval's cells."""
 
     @abstractmethod
@@ -114,7 +114,7 @@ class Spacing(ABC):
 
 
 @dataclass(frozen=True)
-class EqualWidth(Spacing):
+class EqualWidth(Spacing):  # concept: mesh | role: part | kind: morphism
     r"""Cells of equal width: equal steps of :math:`r` in every coordinate system."""
 
     def coordinate(self, coord: CoordSystem) -> MeasureCoordinate:
@@ -122,7 +122,7 @@ class EqualWidth(Spacing):
 
 
 @dataclass(frozen=True)
-class EqualVolume(Spacing):
+class EqualVolume(Spacing):  # concept: mesh | role: part | kind: morphism
     r"""Cells of equal measure: equal steps of the coordinate system's measure coordinate."""
 
     def coordinate(self, coord: CoordSystem) -> MeasureCoordinate:
@@ -144,7 +144,7 @@ def _parse_spacing(spacing: object, where: str) -> Spacing:
 
 
 @runtime_checkable
-class IntervalRule(Protocol):
+class IntervalRule(Protocol):  # concept: mesh | role: interface | kind: morphism
     """How one interval of a geometry is divided into cells."""
 
     def cells(self, geometry: "StructuredGeometry", interval: Interval) -> Cells:
@@ -156,7 +156,7 @@ class IntervalRule(Protocol):
         ...
 
 
-class CountedRule(ABC):
+class CountedRule(ABC):  # concept: mesh | role: part | kind: morphism
     r"""An interval rule that places a number of cells by a spacing rule.
 
     ``k * rule`` is its refinement (:class:`Refined`).
@@ -177,7 +177,7 @@ class CountedRule(ABC):
 
 
 @dataclass(frozen=True)
-class CellsByCount(CountedRule):
+class CellsByCount(CountedRule):  # concept: mesh | role: part | kind: morphism
     r"""``n_cells`` cells, placed by a spacing rule (there is no default spacing)."""
 
     n_cells: int
@@ -205,7 +205,7 @@ class CellsByCount(CountedRule):
 
 
 @dataclass(frozen=True)
-class CellsByMaxWidth(CountedRule):
+class CellsByMaxWidth(CountedRule):  # concept: mesh | role: part | kind: morphism
     r"""The fewest cells whose nominal widest cell is no wider than ``width``.
 
     The count is the least :math:`n` with
@@ -268,7 +268,7 @@ def _parse_factor(factor: object) -> int:
 
 
 @dataclass(frozen=True)
-class Refined(CountedRule):
+class Refined(CountedRule):  # concept: mesh | role: part | kind: morphism
     r"""``factor`` times the cells ``rule`` places, by the same spacing.
 
     ``k * rule`` spells it. Every coarse edge is a fine edge, bit for bit,
@@ -301,7 +301,7 @@ class Refined(CountedRule):
 
 
 @dataclass(frozen=True, eq=False)
-class CellEdges(ContentIdentity):
+class CellEdges(ContentIdentity):  # concept: mesh | role: part | kind: morphism
     r"""One interval's cell edges, written out; the geometry gives their measures.
 
     For cells no rule places (a grid whose irregularity is the point). The

@@ -32,7 +32,7 @@ from orpheus.data.material_properties import matpro
 
 
 @dataclass
-class FuelRodGeometry:
+class FuelRodGeometry:  # concept: hub | role: weld | kind: element | welded: hub, strategy
     """As-fabricated fuel rod geometry and operating parameters."""
 
     # --- fuel ---
@@ -68,7 +68,7 @@ class FuelRodGeometry:
 
 
 @dataclass
-class FuelBehaviourResult:
+class FuelBehaviourResult:  # concept: solution | role: twin | kind: record
     """Complete time-history of the fuel-rod calculation."""
 
     time: np.ndarray  # (nt,) seconds

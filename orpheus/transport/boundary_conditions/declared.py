@@ -37,7 +37,7 @@ __all__ = ["BoundaryConditions"]
 
 
 @dataclass(frozen=True, eq=False)
-class BoundaryConditions(ContentIdentity):
+class BoundaryConditions(ContentIdentity):  # concept: walllaw | role: component | kind: element
     """The conditions declared for a problem: tag -> condition, in declared order (the twin of ``Materials``)."""
 
     conditions: Mapping[int, BoundaryCondition]
