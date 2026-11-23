@@ -12,7 +12,7 @@ from __future__ import annotations
 import dataclasses
 import re
 import tomllib
-from collections.abc import Hashable, Mapping
+from collections.abc import Hashable, Iterable, Mapping
 from pathlib import Path
 from typing import Any, TypeVar
 
@@ -258,6 +258,13 @@ def loads_seed(text: str) -> tuple[SeedEntry, ...]:
     if len(set(keys)) != len(keys):
         raise DebtError(f"the seed file has two entries for {sorted({str(k) for k in keys if keys.count(k) > 1})}")
     return entries
+
+
+def dumps_seed(entries: Iterable[SeedEntry], header: str) -> str:
+    """The seed file's text: ``header`` (its comment lines), then one ``[[seed]]`` entry per class, sorted by key."""
+    body = "".join(f'\n[[seed]]\nclass = "{e.key}"\nfingerprint = "{e.fingerprint}"\n'
+                   for e in sorted(entries, key=lambda e: str(e.key)))
+    return header + body
 
 
 def load_seed(path: Path) -> tuple[SeedEntry, ...]:

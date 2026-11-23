@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import dataclasses
 import functools
+import importlib
+import re
 import subprocess
 import sys
 import types
@@ -396,6 +398,17 @@ def test_unweld_rule_on_the_tree_and_its_mutations():
     mutated = edit(w.sources, k.file, k.qualname, role="arm")
     pop, _ = _measure(mutated)
     assert m.debt.ClassDebt(k) in m.checks.check_unweld(pop, w.seed, mutated)[1], "relabel without code motion"
+    moved_to = "orpheus/cp/_moved.py"
+    assert moved_to not in w.sources
+    node = m.checks._class_node(mutated[k.file], k.qualname)
+    lines = mutated[k.file].splitlines(keepends=True)
+    body = "".join(lines[min([node.lineno, *(d.lineno for d in node.decorator_list)]) - 1:node.end_lineno])
+    moved = {**w.sources, k.file: mutated[k.file].replace(body, ""), moved_to: body}
+    pop, _ = _measure(moved)
+    assert m.debt.ClassDebt(key(moved_to, k.qualname)) in m.checks.check_unweld(pop, w.seed, moved)[1], "relabel and move to another file"
+    renamed = {**w.sources, k.file: re.sub(r"\bCPResult\b", "CPOutcome", mutated[k.file])}
+    pop, _ = _measure(renamed)
+    assert m.debt.ClassDebt(key(k.file, "CPOutcome")) in m.checks.check_unweld(pop, w.seed, renamed)[1], "relabel and rename"
     seed = tuple(s for s in w.seed if s.key != k)
     assert len(seed) == len(w.seed) - 1, "precondition: CPResult has a seed entry"
     assert m.debt.ClassDebt(k) in m.checks.check_unweld(w.pop, seed, w.sources)[0], "arm 1: a listed class with no seed entry"
@@ -403,8 +416,11 @@ def test_unweld_rule_on_the_tree_and_its_mutations():
 
 def test_seed_fingerprints_reproduce_on_the_tree():
     m, w = ct(), world()
-    bad = [str(s.key) for s in w.seed if m.checks.fingerprint(w.sources[s.key.file], s.key.qualname) != s.fingerprint]
-    assert len(w.seed) > 0 and not bad, f"{len(bad)} of {len(w.seed)} fingerprints differ: {bad[:5]}"
+    listed = {d.key for d in m.checks.measure_twin(w.pop) | m.checks.measure_weld(w.pop)}
+    on_list = [s for s in w.seed if s.key in listed]
+    bad = [str(s.key) for s in on_list if m.checks.fingerprint(w.sources[s.key.file], s.key.qualname) != s.fingerprint]
+    assert len(on_list) > 0 and not bad, f"{len(bad)} of {len(on_list)} fingerprints of listed classes differ: {bad[:5]}"
+    assert (ROOT / SEED_FILE).read_text() == importlib.import_module("tools.concept_table.__main__").reseed(ROOT), "concept_seed.toml is not what `python -m tools.concept_table seed` writes"
 
 
 def test_g2_g3_control_4_modal_axis_edges_and_components():

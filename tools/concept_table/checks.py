@@ -602,6 +602,7 @@ def _position(lines: list[str], row: int, col: int) -> int:
     return len(lines[row - 1].encode()[:col].decode())
 
 
+_OWN_NAME = "\x00"  # no token of a Python source holds a NUL, so the placeholder collides with no name
 _SKIPPED = {tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.INDENT, tokenize.DEDENT}
 
 
@@ -611,9 +612,12 @@ def fingerprint(source: str, qualname: str) -> str:
     The lines from the first decorator (or the ``class`` line) to the last line of the class are tokenized; comment, newline,
     indent and dedent tokens are dropped and so is every string token inside a docstring (a string-constant expression
     statement first in the body of the class or of any function in it). A trailing declaration comment, a docstring edit and
-    a comment edit leave it unchanged; one added statement changes it.
+    a comment edit leave it unchanged; one added statement changes it. Every name token that spells the class's own name
+    is hashed as one fixed placeholder, so the digest is of the class's body and not of where it sits or what it is called:
+    a class moved to another file, or renamed with its self-references, keeps its fingerprint.
     """
     node = _class_node(source, qualname)
+    own = qualname.rsplit(".", 1)[-1]
     lines = source.splitlines(keepends=True)
     start = min([node.lineno, *(d.lineno for d in node.decorator_list)])
     text = "".join(lines[start - 1:node.end_lineno])
@@ -633,7 +637,8 @@ def fingerprint(source: str, qualname: str) -> str:
         z = (tok.end[0] + start - 1, tok.end[1])
         if tok.type == tokenize.STRING and any(s <= a and z <= e for s, e in spans):
             continue
-        stream.append(f"{tokenize.tok_name[tok.type]}\x1f{tok.string}\x1e")
+        string = _OWN_NAME if tok.type == tokenize.NAME and tok.string == own else tok.string
+        stream.append(f"{tokenize.tok_name[tok.type]}\x1f{string}\x1e")
     return "blake2b:" + hexdigest("".join(stream).encode())
 
 
@@ -641,16 +646,19 @@ def check_unweld(population: Population, seed: Iterable[SeedEntry],
                  sources: Mapping[str, str]) -> tuple[frozenset[ClassDebt], frozenset[ClassDebt]]:
     """``(uncovered, relabelled)``: a class leaves the twin or weld list only with code motion.
 
-    Arm 1: every class declared ``twin``, ``weld`` or a welded head has a seed entry. Arm 2: for every seed entry whose
-    class is declared none of those today, either no class with that key exists or its fingerprint differs from the seed's;
-    otherwise the class was relabelled without code motion. A class that stays on a list may change freely.
+    Arm 1: every class declared ``twin``, ``weld`` or a welded head has a seed entry. Arm 2: no class that is declared
+    none of those today carries the fingerprint of a seed entry. The class is looked up by its fingerprint and not by its
+    key, so the body of a seeded class that reappears unchanged off the lists is red wherever it sits and whatever it is
+    called: a relabel in place, a move to another file and a rename are one case. One added statement is motion (the
+    rule detects a relabel; it does not judge whether the motion unwelds). An unlisted class whose body equals a listed
+    class's is red too: it is that twin's copy.
     """
     seed = tuple(seed)
     listed = {d.key for d in measure_twin(population) | measure_weld(population)}
     seeded = {s.key for s in seed}
     uncovered = frozenset(ClassDebt(k) for k in listed if k not in seeded)
-    present = {r.key for r in population.rows}
+    seeded_fingerprints = {s.fingerprint for s in seed}
     relabelled = frozenset(
-        ClassDebt(s.key) for s in seed
-        if s.key not in listed and s.key in present and fingerprint(sources[s.key.file], s.key.qualname) == s.fingerprint)
+        ClassDebt(r.key) for r in population.rows
+        if r.key not in listed and fingerprint(sources[r.key.file], r.key.qualname) in seeded_fingerprints)
     return uncovered, relabelled

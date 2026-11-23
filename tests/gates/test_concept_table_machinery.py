@@ -659,3 +659,10 @@ def test_unweld_needs_code_motion():
     uncovered, _ = m.checks.check_unweld(m.population.Population.from_sources(src), (), src)
     assert uncovered == frozenset({m.debt.ClassDebt(k)}), "arm 1: a listed class with no seed entry"
     assert m.checks.check_unweld(m.population.Population.from_sources({}), (m.debt.SeedEntry(k, fp),), {})[1] == frozenset(), "a deleted class is green"
+    seed = (m.debt.SeedEntry(k, m.checks.fingerprint(klass("T", "x", "twin", body="    def f(self) -> 'T':\n        return T()"), "T")),)
+    for file, name in (("orpheus/b.py", "T"), ("orpheus/a.py", "U"), ("orpheus/b.py", "U")):
+        src = {file: klass(name, "x", "arm", body=f"    def f(self) -> 'T':\n        return {name}()")}
+        got = m.checks.check_unweld(m.population.Population.from_sources(src), seed, src)[1]
+        assert got == frozenset({m.debt.ClassDebt(key(file, name))}), f"an unchanged body is found as {file}::{name}"
+    src = {"orpheus/b.py": klass("U", "x", "arm", body="    def f(self) -> 'T':\n        return U() or None")}
+    assert not m.checks.check_unweld(m.population.Population.from_sources(src), seed, src)[1], "a moved, renamed and edited class is motion"
