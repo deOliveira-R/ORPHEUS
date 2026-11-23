@@ -22,14 +22,13 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
-from .declaration import KINDS
+from .declaration import CONCEPT_ID, KINDS
 from .population import ClassKey, Population
 
 #: The phases of the order structure, earliest first. The absence of a phase is not a member.
 PHASE_ORDER = ("structure", "posing", "strategy", "solution")
 WAVES = ("W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8a", "W8b", "W9")
 FUNCTIONS_HEAD_RULING = "O36"
-_ID = re.compile(r"(EXT:)?[a-z][a-z0-9-]*\Z")
 _LAYER = re.compile(r"[a-z][a-z0-9_]*\Z")
 _RULING = re.compile(r"O[0-9]+\Z")
 _FUNCTION = re.compile(r"orpheus(\.[A-Za-z_][A-Za-z0-9_]*)+\Z")
@@ -99,7 +98,7 @@ class Concept:
         def refuse(field: str, value: object, allowed: str) -> None:
             raise TableError(f"concept {self.id!r}: {field} {value!r} is not {allowed}")
 
-        if not _ID.match(self.id):
+        if not CONCEPT_ID.match(self.id):
             refuse("id", self.id, "an id ('[a-z][a-z0-9-]*', optionally prefixed 'EXT:')")
         if not self.name.strip() or not self.definition.strip():
             refuse("name or definition", "", "empty")

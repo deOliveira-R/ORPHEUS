@@ -6,7 +6,8 @@ An edge is a reference from the class that owns a piece of code to a class named
 imported inside a function body of the owner) and ``typing`` (a name imported under ``if TYPE_CHECKING:``, or a string
 that is one identifier). Of the edges between one pair of classes the strongest kind is kept.
 
-A module-level class owns every reference in its body, nested definitions included; a module-level function, assignment
+A module-level class owns every reference in its body, nested definitions included; a class nested in a class (``Outer.Inner``) is a
+class of the population too, owns its own body besides, and is the end of a reference spelled ``Outer.Inner``; a module-level function, assignment
 or annotated assignment is owned by the pseudo-owner of its file (``FunctionEdge``), and the module's ``__all__`` list is
 no reference, being strings. A generic subscript is not a base: ``class A(Base[Arg])`` inherits ``Base`` and only refers
 to ``Arg``. A module-level union alias of plain names (``A | B``, ``Union[A, B]``, ``A | None``) is expanded: a name that
@@ -22,6 +23,7 @@ import functools
 import re
 from collections.abc import Mapping
 
+from .declaration import walk_classes
 from .population import ClassKey, Population
 
 EDGE_KINDS = ("inherits", "top", "late", "typing")
@@ -108,6 +110,8 @@ class _Pass:
         except SyntaxError as error:
             raise ValueError(f"the reference pass cannot parse a source: {error}") from error
         self.defs = {m: {n.name for n in ast.walk(t) if isinstance(n, ast.ClassDef)} for m, t in self.trees.items()}
+        # Classes nested in a class, by qualified name: ``Outer.Inner`` is a class of its own, an edge end and an owner.
+        self.nested = {m: {q: c for q, c in walk_classes(t) if "." in q and "<locals>" not in q} for m, t in self.trees.items()}
         self.alias: dict[str, dict[str, list[str]]] = {}
         for m, tree in self.trees.items():
             for node in tree.body:
@@ -253,10 +257,26 @@ class _Pass:
                 continue
             if found and found[0] != owner:
                 edges[(owner, found[0], found[1])] += 1
+            if found and isinstance(n, ast.Attribute):  # ``Outer.Inner`` refers to the nested class too
+                inner = (found[0][0], f"{found[0][1]}.{n.attr}")
+                if inner[1] in self.nested.get(inner[0], ()) and inner != owner:
+                    edges[(owner, inner, found[1])] += 1
             if found is None and isinstance(n, ast.Name):
                 for cls, kind in self._alias_targets(m, local, n.id):
                     if cls != owner:
                         edges[(owner, cls, kind)] += 1
+
+    def _inherits(self, owner: _Cls, m: str, cls: ast.ClassDef, counted: collections.Counter) -> None:
+        for base in cls.bases:
+            base = base.value if isinstance(base, ast.Subscript) else base
+            for k in ast.walk(base):
+                found = None
+                if isinstance(k, ast.Name):
+                    found = self._target(m, {}, k.id)
+                elif isinstance(k, ast.Attribute) and isinstance(k.value, ast.Name):
+                    found = self._target(m, {}, k.value.id, (k.attr,))
+                if found and found[0] != owner:
+                    counted[(owner, found[0], "inherits")] += 1
 
     def edges(self) -> dict[tuple[_Cls, _Cls], str]:
         """The strongest kind of every (owner, class) pair; a function owner is ``(module, '<functions>')``."""
@@ -264,17 +284,12 @@ class _Pass:
         for m, tree in self.trees.items():
             for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
                 owner = (m, cls.name)
-                for base in cls.bases:
-                    base = base.value if isinstance(base, ast.Subscript) else base
-                    for k in ast.walk(base):
-                        found = None
-                        if isinstance(k, ast.Name):
-                            found = self._target(m, {}, k.id)
-                        elif isinstance(k, ast.Attribute) and isinstance(k.value, ast.Name):
-                            found = self._target(m, {}, k.value.id, (k.attr,))
-                        if found and found[0] != owner:
-                            counted[(owner, found[0], "inherits")] += 1
+                self._inherits(owner, m, cls, counted)
                 self._scan(owner, m, cls, {}, counted)
+                for qualname, inner in self.nested[m].items():
+                    if qualname.startswith(cls.name + "."):  # a nested class owns its own body, beside the class that holds it
+                        self._inherits((m, qualname), m, inner, counted)
+                        self._scan((m, qualname), m, inner, {}, counted)
             functions = (m, "<functions>")
             for node in tree.body:
                 if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets):

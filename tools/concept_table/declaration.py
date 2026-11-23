@@ -7,13 +7,14 @@ import ast
 import io
 import re
 import tokenize
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 ROLES = ("head", "arm", "weld", "part", "component", "interface", "twin", "annex")
 KINDS = ("set", "measure", "space", "element", "morphism", "record", "apparatus")
 SUBKINDS = {"element": ("member", "covector"), "morphism": ("operator",)}
 _MARK = re.compile(r"#\s*concept:")
-_ID = re.compile(r"(EXT:)?[a-z][a-z0-9-]*\Z")
+CONCEPT_ID = re.compile(r"(EXT:)?[a-z][a-z0-9-]*\Z")
 
 
 class DeclarationError(ValueError):
@@ -33,7 +34,7 @@ class Declaration:
             raise DeclarationError(f"role {self.role!r} or kind {self.kind!r} is not in the vocabulary")
         if self.subkind is not None and self.subkind not in SUBKINDS.get(self.kind, ()):
             raise DeclarationError(f"subkind {self.subkind!r} is not allowed after kind {self.kind!r}")
-        if not _ID.match(self.concept):
+        if not CONCEPT_ID.match(self.concept):
             raise DeclarationError(f"concept id {self.concept!r} is not an id")
         if self.role == "weld" and not self.welded:
             raise DeclarationError("a weld names its concepts")
@@ -85,6 +86,25 @@ def header_end(tokens: list[tokenize.TokenInfo], node: ast.ClassDef) -> int:
     raise DeclarationError(f"no header colon for the class at line {node.lineno}")
 
 
+def walk_classes(tree: ast.AST) -> Iterator[tuple[str, ast.ClassDef]]:
+    """Every class of a module with its qualified name: ``Outer.Inner`` inside a class, ``outer.<locals>.Name`` inside a function.
+
+    The one qualname walk: the declaration reader, the population, the fingerprint and the reference pass all take their
+    classes from it, so no two of them can disagree on what a class is called.
+    """
+    def walk(n: ast.AST, prefix: str) -> Iterator[tuple[str, ast.ClassDef]]:
+        for c in ast.iter_child_nodes(n):
+            if isinstance(c, ast.ClassDef):
+                yield prefix + c.name, c
+                yield from walk(c, prefix + c.name + ".")
+            elif isinstance(c, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                yield from walk(c, prefix + c.name + ".<locals>.")
+            else:
+                yield from walk(c, prefix)
+
+    yield from walk(tree, "")
+
+
 def read_declarations(source: str) -> tuple[dict[str, tuple[int, int, list[str]]], list[int]]:
     """({qualname: (class line, header-end line, [marker comments on the header-end line])}, lines of marker comments that are on no header-end line).
     A marker is a comment token matching `# concept:`. The qualname of a function-local class is `outer.<locals>.Name`."""
@@ -92,19 +112,8 @@ def read_declarations(source: str) -> tuple[dict[str, tuple[int, int, list[str]]
     markers = {t.start[0]: t.string for t in tokens if t.type == tokenize.COMMENT and _MARK.match(t.string)}
     out: dict[str, tuple[int, int, list[str]]] = {}
     used: set[int] = set()
-
-    def walk(n: ast.AST, prefix: str) -> None:
-        for c in ast.iter_child_nodes(n):
-            if isinstance(c, ast.ClassDef):
-                q = prefix + c.name
-                end = header_end(tokens, c)
-                out[q] = (c.lineno, end, [markers[end]] if end in markers else [])
-                used.add(end)
-                walk(c, q + ".")
-            elif isinstance(c, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                walk(c, prefix + c.name + ".<locals>.")
-            else:
-                walk(c, prefix)
-
-    walk(ast.parse(source), "")
+    for q, c in walk_classes(ast.parse(source)):
+        end = header_end(tokens, c)
+        out[q] = (c.lineno, end, [markers[end]] if end in markers else [])
+        used.add(end)
     return out, sorted(set(markers) - used)

@@ -18,14 +18,14 @@ import tokenize
 from collections.abc import Callable, Collection, Iterable, Mapping
 from pathlib import Path
 
-from .declaration import parse_declaration
+from .declaration import Declaration, parse_declaration, walk_classes
 from .debt import (ClassDebt, CovectorOffLineageDebt, CycleDebt, Debt, EdgeDebt, KindLawDebt, OffAlgebraDebt, RoleTestDebt,
                    SeedEntry, wave_of)
-from .population import ClassKey, ClassRow, Population
+from .paths import TABLE_FILE
+from .population import ClassKey, Population
 from .refs import Edge, alias_leaves, read_function_edges
 from .table import ClassHead, Concept, FunctionsHead, MissingHead, SumHead, heads, rank
 
-TABLE_FILE = "docs/architecture/concept_table.toml"
 CORE_ROLES = ("head", "arm", "weld", "twin")
 OPERATOR_PROTOCOL = ClassKey("orpheus/numerics/operator.py", "LinearOperator")
 MEMBER_CLASS = ClassKey("orpheus/numerics/space.py", "Member")
@@ -55,23 +55,21 @@ def _tree(source: str) -> ast.Module:
     return ast.parse(source)
 
 
+@functools.lru_cache(maxsize=2048)
+def _class_nodes(source: str) -> dict[str, ast.ClassDef]:
+    return dict(walk_classes(_tree(source)))
+
+
 def _class_node(source: str, qualname: str) -> ast.ClassDef:
-    """The ``ClassDef`` named by a qualified name (``Outer.Inner`` or ``outer.<locals>.Name``) in ``source``."""
-    node: ast.AST = _tree(source)
-    for part in qualname.split("."):
-        if part == "<locals>":
-            continue
-        found = None
-        for child in ast.walk(node):
-            if isinstance(child, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and child.name == part and child is not node:
-                found = child
-                break
-        if found is None:
-            raise ValueError(f"no class {qualname!r} in the source")
-        node = found
-    if not isinstance(node, ast.ClassDef):
-        raise ValueError(f"{qualname!r} is not a class")
-    return node
+    """The ``ClassDef`` named by a qualified name (``Outer.Inner`` or ``outer.<locals>.Name``) in ``source``.
+
+    The lookup is in the map of ``walk_classes``, the walk that gave the population its qualnames; a qualname that is not
+    there is refused, never answered by a class of another name.
+    """
+    try:
+        return _class_nodes(source)[qualname]
+    except KeyError:
+        raise ValueError(f"no class {qualname!r} in the source") from None
 
 
 def _members(source: str, qualname: str) -> frozenset[str]:
@@ -83,6 +81,16 @@ def _members(source: str, qualname: str) -> frozenset[str]:
         if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name):
             out.add(n.target.id)
     return frozenset(out)
+
+
+def conforms(sources: Mapping[str, str], cls: ClassKey, protocol: ClassKey) -> bool:
+    """Whether ``cls`` defines every non-dunder member of ``protocol``, and ``protocol`` has at least one.
+
+    The one structural-conformance predicate: the arm test of the role check and the operator law of the kind check both
+    call it, so a refinement of it (inherited members, signatures) lands on both.
+    """
+    wanted = _members(sources[protocol.file], protocol.qualname)
+    return bool(wanted) and wanted <= _members(sources[cls.file], cls.qualname)
 
 
 def _imported_protocol_names(source: str) -> tuple[frozenset[str], frozenset[str]]:
@@ -111,8 +119,9 @@ def is_protocol(source: str, qualname: str) -> bool:
     return False
 
 
-def _declared(population: Population) -> dict[ClassKey, ClassRow]:
-    return {r.key: r for r in population.rows if r.declaration is not None}
+def _declared(population: Population) -> dict[ClassKey, Declaration]:
+    """The declaration of every class that has a parsed one: the rows with none are filtered out, and the type says so."""
+    return {r.key: r.declaration for r in population.rows if r.declaration is not None}
 
 
 def _inheritors(edges: Iterable[Edge]) -> dict[ClassKey, frozenset[ClassKey]]:
@@ -343,8 +352,8 @@ def check_heads(population: Population, concepts: tuple[Concept, ...], sources: 
             if len(leaves) < 2:
                 out.add(f"concept {c.id!r}: sum alias {head.alias!r} not found in {head.file} as a union of at least two classes")
             for leaf in leaves:
-                row = declared.get(leaf)
-                if row is None or row.declaration is None or row.declaration.concept != c.id or row.declaration.role != "arm":
+                d = declared.get(leaf)
+                if d is None or d.concept != c.id or d.role != "arm":
                     out.add(f"concept {c.id!r}: sum leaf {leaf} does not declare an arm of the concept")
         elif isinstance(head, FunctionsHead):
             if have:
@@ -353,8 +362,8 @@ def check_heads(population: Population, concepts: tuple[Concept, ...], sources: 
             if have:
                 out.add(f"concept {c.id!r}: missing but head exists ({names}); drop 'missing' in {TABLE_FILE}")
             for arm in head.arms:
-                row = declared.get(arm)
-                if row is None or row.declaration is None or row.declaration.concept != c.id:
+                d = declared.get(arm)
+                if d is None or d.concept != c.id:
                     out.add(f"concept {c.id!r}: arm {arm} is not a class that declares the concept")
     return frozenset(out)
 
@@ -389,37 +398,29 @@ def check_roles(population: Population, edges: Iterable[Edge], concepts: tuple[C
     for fe in read_function_edges(sources, population):
         function_readers[fe.dst].add(fe.src_file)
     concept_files: dict[str, set[str]] = collections.defaultdict(set)
-    for r in declared.values():
-        d = r.declaration
-        if d is not None:
-            for cid in (d.concept, *d.welded[1:]):
-                concept_files[cid].add(r.key.file)
+    for k, d in declared.items():
+        for cid in (d.concept, *d.welded[1:]):
+            concept_files[cid].add(k.file)
 
     def inside(src: ClassKey, cid: str) -> bool:
-        row = declared.get(src)
-        return row is not None and row.declaration is not None and cid in (row.declaration.concept, *row.declaration.welded)
+        d = declared.get(src)
+        return d is not None and cid in (d.concept, *d.welded)
 
     out: set[RoleTestDebt] = set()
-    for k, row in declared.items():
-        d = row.declaration
-        assert d is not None
+    for k, d in declared.items():
         cid = d.concept
-        lineage = any(a in declared and declared[a].declaration.concept == cid and declared[a].declaration.role in CORE_ROLES  # type: ignore[union-attr]
+        lineage = any(a in declared and declared[a].concept == cid and declared[a].role in CORE_ROLES
                       for a in ancestors.get(k, ()))
         is_listed = k in listed.get(cid, ())
         head = head_of.get(cid)
-        conforms = False
-        if head is not None and head != k and is_protocol(sources[head.file], head.qualname):
-            wanted = _members(sources[head.file], head.qualname)
-            conforms = bool(wanted) and wanted <= _members(sources[k.file], k.qualname)
-        if d.role == "arm" and not (lineage or is_listed or conforms):
+        arm_by_protocol = head is not None and head != k and is_protocol(sources[head.file], head.qualname) and conforms(sources, k, head)
+        if d.role == "arm" and not (lineage or is_listed or arm_by_protocol):
             out.add(RoleTestDebt("arm", k))
-        if d.role == "twin" and (lineage or is_listed or conforms):
+        if d.role == "twin" and (lineage or is_listed or arm_by_protocol):
             out.add(RoleTestDebt("twin_is_arm", k))
         if d.role == "interface" and not is_protocol(sources[k.file], k.qualname):
             out.add(RoleTestDebt("interface", k))
-        core = [s for s in readers.get(k, ()) if s in declared and declared[s].declaration.concept == cid  # type: ignore[union-attr]
-                and declared[s].declaration.role in CORE_ROLES]  # type: ignore[union-attr]
+        core = [s for s in readers.get(k, ()) if s in declared and declared[s].concept == cid and declared[s].role in CORE_ROLES]
         if d.role == "component" and not core:
             out.add(RoleTestDebt("component_no_core_reader", k))
         if d.role == "part":
@@ -439,15 +440,12 @@ def _operator_hits(population: Population, edges: Iterable[Edge], sources: Mappi
     if OPERATOR_PROTOCOL not in keys:
         return frozenset()
     ancestors = _inheritors(edges)
-    wanted = _members(sources[OPERATOR_PROTOCOL.file], OPERATOR_PROTOCOL.qualname)
     return frozenset(
         k for k in keys if k == OPERATOR_PROTOCOL or OPERATOR_PROTOCOL in ancestors.get(k, ())
-        or (bool(wanted) and wanted <= _members(sources[k.file], k.qualname)))
+        or conforms(sources, k, OPERATOR_PROTOCOL))
 
 
-def _declared_sub(row: ClassRow) -> tuple[str, str | None, str]:
-    d = row.declaration
-    assert d is not None
+def _declared_sub(d: Declaration) -> tuple[str, str | None, str]:
     return d.kind, d.subkind, d.role
 
 
@@ -467,10 +465,8 @@ def check_kinds(population: Population, concepts: tuple[Concept, ...], edges: It
     ancestors = _inheritors(edges)
     hits = _operator_hits(population, edges, sources)
     out: set[KindLawDebt] = set()
-    for k, row in declared.items():
-        kind, sub, role = _declared_sub(row)
-        d = row.declaration
-        assert d is not None
+    for k, d in declared.items():
+        kind, sub, role = _declared_sub(d)
         concept_kind = kind_of.get(d.concept)
         if role in ("head", "arm") and concept_kind is not None and kind != concept_kind:
             out.add(KindLawDebt("head_arm_kind", k))
@@ -490,16 +486,16 @@ def check_kinds(population: Population, concepts: tuple[Concept, ...], edges: It
 def check_off_algebra(population: Population, edges: Iterable[Edge], sources: Mapping[str, str]) -> frozenset[OffAlgebraDebt]:
     """The converse of Law 3: a class that is not an interface, has sub-kind operator and is not on the operator algebra."""
     hits = _operator_hits(population, tuple(edges), sources)
-    return frozenset(OffAlgebraDebt(k) for k, row in _declared(population).items()
-                     if _declared_sub(row)[1] == "operator" and _declared_sub(row)[2] != "interface" and k not in hits)
+    return frozenset(OffAlgebraDebt(k) for k, d in _declared(population).items()
+                     if d.subkind == "operator" and d.role != "interface" and k not in hits)
 
 
 def check_covector_lineage(population: Population, edges: Iterable[Edge]) -> frozenset[CovectorOffLineageDebt]:
     """The converse of Law 6: a class that is not an interface, has sub-kind covector and is neither ``Covector`` nor its inheritor."""
     ancestors = _inheritors(tuple(edges))
     return frozenset(
-        CovectorOffLineageDebt(k) for k, row in _declared(population).items()
-        if _declared_sub(row)[1] == "covector" and _declared_sub(row)[2] != "interface"
+        CovectorOffLineageDebt(k) for k, d in _declared(population).items()
+        if d.subkind == "covector" and d.role != "interface"
         and k != COVECTOR_CLASS and COVECTOR_CLASS not in ancestors.get(k, ()))
 
 
@@ -511,8 +507,8 @@ def _judged(edges: Iterable[Edge], population: Population) -> list[tuple[Edge, s
     out = []
     for e in edges:
         a, b = declared.get(e.src), declared.get(e.dst)
-        if a is not None and b is not None and a.declaration and b.declaration and a.declaration.concept != b.declaration.concept:
-            out.append((e, a.declaration.concept, b.declaration.concept))
+        if a is not None and b is not None and a.concept != b.concept:
+            out.append((e, a.concept, b.concept))
     return out
 
 
@@ -546,9 +542,7 @@ def check_placement(population: Population, concepts: tuple[Concept, ...], forbi
     package or in one that may reference it."""
     layer = {c.id: c.layer for c in concepts}
     out = set()
-    for k, row in _declared(population).items():
-        d = row.declaration
-        assert d is not None
+    for k, d in _declared(population).items():
         want = layer.get(d.concept)
         if want is None:
             continue
@@ -558,38 +552,42 @@ def check_placement(population: Population, concepts: tuple[Concept, ...], forbi
     return frozenset(out)
 
 
-def check_cycles(edges: Iterable[Edge], population: Population, concepts: tuple[Concept, ...]) -> frozenset[CycleDebt]:
-    """The cycles of the concept graph (T11 as amended): the strict inheritance half and the quotient half.
+def _concept_graph(chosen: Iterable[tuple[Edge, str, str]]) -> dict[str, set[str]]:
+    g: dict[str, set[str]] = collections.defaultdict(set)
+    for _, a, b in chosen:
+        g[a].add(b)
+    return g
 
-    The inheritance half: the concept graph of the judged ``inherits`` edges is acyclic. The quotient half: the graph of
-    the judged edges that are not phase violations has its strongly connected components of at least two concepts as the
-    cycles; each is a ``CycleDebt``.
+
+def check_inheritance_cycles(edges: Iterable[Edge], population: Population) -> frozenset[frozenset[str]]:
+    """The strict half of T11: the strongly connected components, of at least two concepts, of the concept graph of the
+    judged ``inherits`` edges.
+
+    The result is a set of concept sets and no ``Debt`` value, because no debt list pins it: the gate asserts it empty.
     """
+    return frozenset(frozenset(c) for c in _tarjan(_concept_graph(j for j in _judged(edges, population) if j[0].kind == "inherits")))
+
+
+def check_cycles(edges: Iterable[Edge], population: Population, concepts: tuple[Concept, ...]) -> frozenset[CycleDebt]:
+    """The quotient half of T11 as amended: the graph of the judged edges that are not phase violations has its strongly
+    connected components of at least two concepts as the cycles; each is a ``CycleDebt``. The inheritance half is
+    ``check_inheritance_cycles``, which no debt entry can absorb."""
     judged = _judged(edges, population)
     violating = _phase_violations(judged, concepts)
-
-    def graph(chosen: Iterable[tuple[Edge, str, str]]) -> dict[str, set[str]]:
-        g: dict[str, set[str]] = collections.defaultdict(set)
-        for _, a, b in chosen:
-            g[a].add(b)
-        return g
-
-    inheritance = _tarjan(graph(j for j in judged if j[0].kind == "inherits"))
-    quotient = _tarjan(graph(j for j in judged if j[0] not in violating))
-    return frozenset(CycleDebt(c) for c in (*inheritance, *quotient))
+    return frozenset(CycleDebt(c) for c in _tarjan(_concept_graph(j for j in judged if j[0] not in violating)))
 
 
 # --- the debt lists, the wave rule, the unweld rule ------------------------------------------------------------------
 
 def measure_twin(population: Population) -> frozenset[ClassDebt]:
     """The classes whose declared role is ``twin``."""
-    return frozenset(ClassDebt(k) for k, r in _declared(population).items() if r.declaration and r.declaration.role == "twin")
+    return frozenset(ClassDebt(k) for k, d in _declared(population).items() if d.role == "twin")
 
 
 def measure_weld(population: Population) -> frozenset[ClassDebt]:
     """The classes whose declared role is ``weld``, and the heads that carry a welded list."""
-    return frozenset(ClassDebt(k) for k, r in _declared(population).items()
-                     if r.declaration and (r.declaration.role == "weld" or (r.declaration.role == "head" and r.declaration.welded)))
+    return frozenset(ClassDebt(k) for k, d in _declared(population).items()
+                     if d.role == "weld" or (d.role == "head" and d.welded))
 
 
 def check_wave_rule(debt: Debt, concepts: tuple[Concept, ...], population: Population) -> frozenset:

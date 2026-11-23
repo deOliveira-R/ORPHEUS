@@ -100,8 +100,11 @@ class Population:
             raise ValueError("file counts are not negative")
 
     @classmethod
-    def from_sources(cls, sources: Mapping[str, str]) -> Population:
-        """The population of a mapping ``{file: source text}``; every file given is read, ``derivations/`` included."""
+    def from_sources(cls, sources: Mapping[str, str], files_skipped_derivations: int = 0) -> Population:
+        """The population of a mapping ``{file: source text}``; every file given is read, ``derivations/`` included.
+
+        ``files_skipped_derivations`` is the count of files the caller left out under ``derivations/``, which the sources
+        cannot say themselves."""
         rows: list[ClassRow] = []
         orphans: list[tuple[str, int]] = []
         for file in sorted(sources):
@@ -120,7 +123,7 @@ class Population:
                     except DeclarationError:
                         declaration = None
                 rows.append(ClassRow(ClassKey(file, qualname), lineno, end, declaration, tuple(markers)))
-        return cls(tuple(sorted(rows, key=lambda r: r.key)), tuple(orphans), len(sources), 0)
+        return cls(tuple(sorted(rows, key=lambda r: r.key)), tuple(orphans), len(sources), files_skipped_derivations)
 
 
 def read_sources(root: Path) -> tuple[dict[str, str], int]:
@@ -143,4 +146,4 @@ def read_sources(root: Path) -> tuple[dict[str, str], int]:
 def read_tree(root: Path) -> Population:
     """The population of ``root/orpheus/**/*.py``: sorted, without ``__pycache__`` and without ``derivations/``."""
     sources, skipped = read_sources(root)
-    return dataclasses.replace(Population.from_sources(sources), files_skipped_derivations=skipped)
+    return Population.from_sources(sources, skipped)

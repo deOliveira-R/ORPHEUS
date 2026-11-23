@@ -239,8 +239,37 @@ def test_refs_control_2_generic_subscript_is_not_a_base():
 
 
 def test_refs_control_3_all_list_is_not_a_reference():
-    got = _edges({"orpheus/a.py": '__all__ = ["B"]\nclass B:\n    pass\n'})
+    """Neither a class edge nor a function-owned edge: an ``__all__`` string belongs to the module, not to a class, so the
+    class half alone cannot see the skip (removing it read green there and red only on the tree's role gate)."""
+    m = ct()
+    sources = {"orpheus/a.py": '__all__ = ["B"]\nclass B:\n    pass\n'}
+    got = _edges(sources)
     assert not any(d.endswith("::B") for _, d, _ in got)
+    pop = m.population.Population.from_sources(sources)
+    assert not [e for e in m.refs.read_function_edges(sources, pop) if e.dst.qualname == "B"]
+    positive = {"orpheus/a.py": "class B:\n    pass\nx = B\n"}
+    assert [e.dst.qualname for e in m.refs.read_function_edges(positive, m.population.Population.from_sources(positive))] == ["B"], \
+        "positive control: a function-owned reference to B is read"
+
+
+def test_refs_nested_class_is_an_edge_end_and_an_owner():
+    """``Outer.Inner`` is a class of the population: a reference to it from another file is an edge to it, and its own body's
+    references are its own, beside those the class that holds it owns."""
+    sources = {"orpheus/a.py": "class Base:\n    pass\nclass Other:\n    pass\nclass Outer:\n    class Inner(Base):\n        x: Other\n",
+               "orpheus/b.py": "from orpheus.a import Outer\nclass User:\n    x: Outer.Inner\n"}
+    got = _edges(sources)
+    assert ("orpheus/b.py::User", "orpheus/a.py::Outer.Inner", "top") in got
+    assert ("orpheus/a.py::Outer.Inner", "orpheus/a.py::Base", "inherits") in got
+    assert ("orpheus/a.py::Outer.Inner", "orpheus/a.py::Other", "top") in got
+    assert ("orpheus/a.py::Outer", "orpheus/a.py::Other", "top") in got
+
+
+def test_class_node_is_looked_up_by_the_qualname_walk():
+    c = ct().checks
+    src = "class A:\n    def m(self):\n        class B:\n            pass\n"
+    assert c._class_node(src, "A").lineno == 1 and c._class_node(src, "A.m.<locals>.B").lineno == 3
+    with pytest.raises(ValueError):
+        c._class_node(src, "A.B")  # a class B inside a method is not a class B of A
 
 
 def test_refs_control_4_union_alias_expands_to_its_leaves():
@@ -388,6 +417,13 @@ def test_check_declarations_planted():
     assert _decls({"orpheus/derivations/d.py": klass("D", "x", "arm")}), "a class under derivations"
 
 
+def test_check_declarations_orphan_marker_arm_alone():
+    """A declared class plus a stray marker on a body line: the class is not the finding, only the orphan arm can be."""
+    found = _decls({"orpheus/a.py": klass("A", "x", "arm", body=f"    x = 1  {decl('x', 'arm', 'set')}")})
+    assert any("on no class header-end line" in f for f in found), found
+    assert not any("no declaration" in f for f in found)
+
+
 # --- G2 ----------------------------------------------------------------------------------------------------------
 
 def _heads(table_text: str, sources: dict[str, str]):
@@ -409,6 +445,8 @@ def test_check_heads_planted():
     assert not _heads(sumrow, ok)
     assert _heads(sumrow, {"orpheus/numerics/a.py": klass("A", "x", "arm") + klass("B", "x", "arm") + "class U:\n    pass\n"}), "alias is a class"
     assert _heads(sumrow, {"orpheus/numerics/a.py": klass("A", "x", "arm") + klass("B", "y", "arm") + "U = A | B\n"}), "a leaf of another concept"
+    wrong_role = _heads(sumrow, {"orpheus/numerics/a.py": klass("A", "x", "arm") + klass("B", "x", "part") + "U = A | B\n"})
+    assert any("sum leaf" in f for f in wrong_role), "a leaf of the concept that is not declared an arm"
     assert _heads(sumrow, {"orpheus/numerics/a.py": klass("A", "x", "arm") + klass("B", "x", "arm") + klass("H", "x", "head") + "U = A | B\n"}), "head beside a sum"
     miss = toml_row("x", extra='missing = true\narms = ["orpheus/numerics/a.py::A", "orpheus/numerics/a.py::Z"]')
     assert _heads(miss, {"orpheus/numerics/a.py": klass("A", "x", "arm")}), "an arm key that is no class"
@@ -552,8 +590,33 @@ def test_check_cycles_planted():
     m = ct()
     assert _cycles([("A", "B", "top"), ("B", "A", "top")]) == frozenset({m.debt.CycleDebt(frozenset({"a", "b"}))}), "green on G5, red on G7"
     assert not _cycles([("A", "B", "top")]), "negative reading: one direction only"
-    assert _cycles([("A", "B", "inherits"), ("B", "A", "inherits")]), "the strict inheritance half"
+    assert _cycles([("A", "B", "inherits"), ("B", "A", "inherits")]), "the quotient half also sees an inheritance cycle inside one phase"
     assert not _cycles([("A", "C", "top"), ("C", "A", "top")]), "an edge rising in phase is G5's, and is not counted in the quotient"
+
+
+def _inheritance_cycles(edges, text=toml_row("a") + toml_row("b") + toml_row("c", phase="solution")):
+    m = ct()
+    src = {"orpheus/numerics/a.py": klass("A", "a", "head") + klass("B", "b", "head") + klass("C", "c", "head")}
+    pop = m.population.Population.from_sources(src)
+    ks = {n: key("orpheus/numerics/a.py", n) for n in "ABC"}
+    return m.checks.check_inheritance_cycles(tuple(m.refs.Edge(ks[s], ks[d], k) for s, d, k in edges), pop)
+
+
+def test_check_inheritance_cycles_planted():
+    """The strict half of T11 has a witness of its own, and no debt entry can pin it."""
+    m = ct()
+    assert _inheritance_cycles([("A", "B", "inherits"), ("B", "A", "inherits")]) == frozenset({frozenset({"a", "b"})})
+    assert not _inheritance_cycles([("A", "B", "inherits")]), "negative reading: one direction only"
+    assert not _inheritance_cycles([("A", "B", "top"), ("B", "A", "top")]), "a cycle of other kinds is the quotient's"
+    # A cycle across two phases: the quotient half drops the phase-violating edge and is silent, so only this half sees it.
+    cross = [("A", "C", "inherits"), ("C", "A", "inherits")]
+    assert _inheritance_cycles(cross) == frozenset({frozenset({"a", "c"})})
+    assert not _cycles(cross), "the quotient half does not see the cross-phase inheritance cycle"
+    # A pinned quotient set equal to the inheritance component does not absorb it: the strict half returns a set that no
+    # pin touches, so the gate's assertion that it is empty stays red.
+    quotient = _cycles([("A", "B", "top"), ("B", "A", "top")])
+    assert m.debt.pin(quotient, quotient) == (frozenset(), frozenset())
+    assert _inheritance_cycles([("A", "B", "inherits"), ("B", "A", "inherits")]), "still red beside the pin"
 
 
 # --- debt equality, the wave rule and the unweld rule ------------------------------------------------------------

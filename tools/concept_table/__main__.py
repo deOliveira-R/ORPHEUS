@@ -8,25 +8,22 @@ the checks do not judge (those owned by module-level functions) and the files sk
 from __future__ import annotations
 
 import collections
-import dataclasses
 import sys
 from pathlib import Path
 
 from .debt import load_debt, wave_of
+from .paths import DEBT_FILE, ROOT, TABLE_FILE
 from .population import Population, read_sources
 from .refs import read_function_edges
 from .table import load_table
-
-ROOT = Path(__file__).resolve().parents[2]
-ARCH = ROOT / "docs" / "architecture"
 
 
 def report(root: Path = ROOT) -> list[str]:
     """The lines of the report on the tree at ``root``."""
     sources, skipped = read_sources(root)
-    population = dataclasses.replace(Population.from_sources(sources), files_skipped_derivations=skipped)
-    concepts = load_table(root / "docs" / "architecture" / "concept_table.toml")
-    debt = load_debt(root / "docs" / "architecture" / "concept_debt.toml")
+    population = Population.from_sources(sources, skipped)
+    concepts = load_table(root / TABLE_FILE)
+    debt = load_debt(root / DEBT_FILE)
     lists = debt.lists()
     waves: collections.Counter[str] = collections.Counter()
     for entries in lists.values():

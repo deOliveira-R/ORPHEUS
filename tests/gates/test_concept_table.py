@@ -23,17 +23,14 @@ import functools
 import subprocess
 import sys
 import types
-from pathlib import Path
-
 import pytest
 
 from tests.gates.test_concept_table_machinery import ct, key
 from tests.gates.test_layer_imports import FORBIDDEN_EDGES
+from tools.concept_table.paths import ARCH, ROOT
 
 pytestmark = pytest.mark.foundation
 
-ROOT = Path(__file__).resolve().parents[2]
-ARCH = ROOT / "docs" / "architecture"
 EXPECTED_CONCEPTS = 88
 
 
@@ -42,12 +39,7 @@ class Uninstallable(Exception):
 
 
 def _sources() -> dict[str, str]:
-    out = {}
-    for p in sorted((ROOT / "orpheus").rglob("*.py")):
-        if "derivations" in p.parts or "__pycache__" in p.parts:
-            continue
-        out[p.relative_to(ROOT).as_posix()] = p.read_text()
-    return out
+    return ct().population.read_sources(ROOT)[0]
 
 
 @functools.lru_cache(maxsize=None)
@@ -243,6 +235,16 @@ def test_g4_mutation_reddens_its_law(file, qualname, changes, law):
     assert any(k.law == law and k.key.qualname == qualname for k in new), (law, sorted(map(str, new)))
 
 
+def test_g4_apparatus_mutation_is_also_a_head_arm_kind_violation():
+    """Specification 2.8, G4: the ``ContentIdentity`` mutation (kind apparatus on a row of a concept that is not an apparatus)
+    breaks the apparatus law and, the concept having a different kind, the head-or-arm law, so a test asserts both."""
+    m, w = ct(), world()
+    mutated = edit(w.sources, "orpheus/values/content.py", "ContentIdentity", kind="apparatus")
+    pop, edges = _measure(mutated)
+    new = m.checks.check_kinds(pop, w.concepts, edges, mutated) - frozenset(w.debt.kind_law)
+    assert {k.law for k in new if k.key.qualname == "ContentIdentity"} >= {"apparatus_row", "head_arm_kind"}, sorted(map(str, new))
+
+
 def test_g4_converse_mutations_name_the_class():
     m, w = ct(), world()
     op = edit(w.sources, "orpheus/numerics/metric.py", "HilbertMetric", subkind="operator")
@@ -344,14 +346,21 @@ def test_g7_mutation_adds_a_fourth_component():
     assert m.debt.CycleDebt(frozenset({"digest", "value"})) in got - frozenset(w.debt.cycle)
 
 
-def test_g7_inheritance_half_is_acyclic_and_the_control_moves_rolepair():
+def test_g7_inheritance_half_is_acyclic_on_the_tree():
+    m, w = ct(), world()
+    assert not m.checks.check_inheritance_cycles(tuple(w.edges), w.pop), "no pin can absorb an inheritance cycle"
+
+
+def test_g7_inheritance_control_moves_rolepair():
+    """Positive control of the strict half: moving ``RolePair`` to concept ``fluxsrc`` closes a cycle of inheritance edges,
+    and the half returns exactly that component."""
     m, w = ct(), world()
     inherits = tuple(e for e in w.edges if e.kind == "inherits")
     assert inherits, "positive control: the tree has inheritance edges"
     k = key("orpheus/transport/fields/_bases.py", "RolePair")
     moved = edit(w.sources, k.file, k.qualname, concept="fluxsrc")
     pop, edges = _measure(moved)
-    assert m.checks.check_cycles(tuple(edges), pop, w.concepts) != m.checks.check_cycles(tuple(w.edges), w.pop, w.concepts)
+    assert m.checks.check_inheritance_cycles(tuple(edges), pop) == frozenset({frozenset({"fluxsrc", "member"})})
 
 
 # --- debt equality, the wave rule, the unweld rule ----------------------------------------------------------------
@@ -410,6 +419,14 @@ def test_g2_g3_control_4_modal_axis_edges_and_components():
 # --- the report -------------------------------------------------------------------------------------------------
 
 def test_report_first_line():
+    """The line is parsed, not matched: the counts are printed for the reader and asserted only where each equals the
+    population it counts, so a correctly declared new class does not redden CI (specification 2.7, 2.11 item 1)."""
+    m, w = ct(), world()
     out = subprocess.run([sys.executable, "-m", "tools.concept_table", "report"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
-    assert out.splitlines()[0] == ("classes 676 declared 676 concepts 88 twin 62 weld 93 role_test 3 misplaced 14 edge 42 cycle 3 "
-                                   "kind_law 8 operator_off_algebra 10 covector_off_lineage 7")
+    words = out.splitlines()[0].split()
+    fields = {name: int(n) for name, n in zip(words[0::2], words[1::2], strict=True)}
+    lists = w.debt.lists()
+    assert fields["classes"] == fields["declared"] == len(w.pop.rows)
+    assert fields["concepts"] == EXPECTED_CONCEPTS
+    assert {n: fields[n] for n in lists} == {n: len(entries) for n, entries in lists.items()}
+    assert len(lists) == 9
