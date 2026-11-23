@@ -11,12 +11,13 @@ from __future__ import annotations
 import ast
 import collections
 import functools
-import hashlib
 import io
 import re
 import tokenize
 from collections.abc import Callable, Collection, Iterable, Mapping
 from pathlib import Path
+
+from orpheus.values.digest import hexdigest
 
 from .declaration import Declaration, parse_declaration, walk_classes
 from .debt import (ClassDebt, CovectorOffLineageDebt, CycleDebt, Debt, EdgeDebt, KindLawDebt, OffAlgebraDebt, RoleTestDebt,
@@ -623,7 +624,7 @@ def fingerprint(source: str, qualname: str) -> str:
                 assert first.end_lineno is not None and first.end_col_offset is not None
                 spans.append(((first.lineno, _position(lines, first.lineno, first.col_offset)),
                               (first.end_lineno, _position(lines, first.end_lineno, first.end_col_offset))))
-    digest = hashlib.blake2b(digest_size=32)
+    stream = []
     for tok in tokenize.generate_tokens(io.StringIO(text).readline):
         if tok.type in _SKIPPED:
             continue
@@ -631,8 +632,8 @@ def fingerprint(source: str, qualname: str) -> str:
         z = (tok.end[0] + start - 1, tok.end[1])
         if tok.type == tokenize.STRING and any(s <= a and z <= e for s, e in spans):
             continue
-        digest.update(f"{tokenize.tok_name[tok.type]}\x1f{tok.string}\x1e".encode())
-    return "blake2b:" + digest.hexdigest()
+        stream.append(f"{tokenize.tok_name[tok.type]}\x1f{tok.string}\x1e")
+    return "blake2b:" + hexdigest("".join(stream).encode())
 
 
 def check_unweld(population: Population, seed: Iterable[SeedEntry],
