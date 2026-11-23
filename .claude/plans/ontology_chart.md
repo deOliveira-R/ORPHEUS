@@ -722,7 +722,18 @@ The design in one sentence: the generator owns what it knows (index set, form, k
 
 **Orchestrator decisions (O2), reported:** units built at the same time share no file, and a serial chain may re-edit a merged file (B10's "in flight"); the coarse-balance gate is written in W1 on a toy pair and production's condensation meeting it is W8b's, so the wave table's "closes" is re-worded at the specification; `partition_by` is built in W1 (posing unit 4 item 4); the 7 hand retractions of the done-when census are W2's; `DiscreteMeasure.__add__` over differing supports (posing unit 4 item 1) is W8a's.
 
-**The specification** is `.claude/plans/ontology_w1_spec.md`, by `spec-check`.
+**The specification** is `.claude/plans/ontology_w1_spec.md` (845 lines after amendment passes 1 and 1b; `spec-check` run `wf_50bc530d-7cc`: 5 measurements, the draft, an elegance read and a structure read of the whole text with 30 findings; the orchestrator's decisions on them are `scratch/ontology/w1/spec/amendment_decisions_1.md`). The per-unit check of the amended text is run `wf_540f206b-6de` (10 scopes over the 12 units, two Opus reads each).
+
+What the specification's measurements decided `[M]` 2026-11-23 (files `scratch/ontology/w1/spec/measure_*.md`):
+- **The dense inverse:** the declared-count SVD is bit-equal to today on 21 of 21 dense Grams production builds in a 101-file sample; 10 of 16 frame Grams have their rank from the cutoff only (all spherical-harmonic or mirror-even, under-resolved), so the frame's named tolerance has its witnesses.
+- **The face area (R9)** is absent from the angular trace weight on 5 of 5 SN fixtures and is multiplied in by hand in `sn/solver.py`; putting it in the metric reddened 12 of 793 tests in a sample of 20 of 158 files (a lower bound), 4 of them a double count with that hand multiply, which retires in the same unit.
+- **The scalar trace is not a pushforward of the angular trace** `[REFUTED 2026-11-23]` for "is today's scalar weight the pushforward of `|mu| w`" (ratios 1.0425, 1.0115, 1.1547). W1 states no such law; the numbers are an input of W7.
+- **The two bare sums of the eigenvalue estimator** (`numerics/posing.py:55`, `numerics/iteration.py:1590`) contract density-chart operands with no leg; any typed pairing moves them (431 of 431 and 146 of 146 hits). W1 leaves them tagged for W5 and corrects the docstring; filed as #751. W1's done-when on pairings is re-worded to the five full contractions it types.
+- **The 15 `np.linalg.norm` sites are coordinate norms** and stay; two completions are named (`euclidean()`, `counting()`).
+- **The reference store** has no key that holds a space; it is source-driven, so each edit of a pinned source stales 2117 of 2122 live entries. It regenerates once, at W1's close.
+- **The leakage sign:** on the sphere albedo fixture an orientation-blind sum is `(1+α)/(1-α)` times today's net current (1.857 and 5.667 at 0.3 and 0.7), so the leakage law pairs with the sign of the cosine, a function on the angular index set.
+
+Orchestrator decisions of the amendment (O2), beyond the synthesis: the build order is leaves first, twelve serial units with one parallel pair (harness; dense-inverse with half-range; factor; tensor-core; direct-sum; trace; closing; four; pairing; trace-area; production-typing); no production factor is ever minted with a placeholder variance; stored coordinates are always on the axis's full index set, so the dual and the Riesz map keep the stored shape; the orientation of a face is a function, and a face's summand is identified by its label; legality of the Riesz map is stated once, on the density end; the legacy leaf branches stay in the base under a tag between tensor-core and closing.
 
 **The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
 
