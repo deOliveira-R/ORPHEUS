@@ -727,8 +727,8 @@ for the references and ``dominant_eigenpair`` for the dense oracle of the gates
 (a production function until W0 moved it to
 ``tests/gates/numerics/_dense_eigen_oracle.py``). The duplicate is the point (each copy is verified on its
 own, so a reference agreeing with a production solver shares no
-eigen-extraction code with it), and it is recorded by name in the concept
-table of :ref:`architecture-conceptual-view` so that no later review merges
+eigen-extraction code with it), and it is recorded by name in
+:ref:`architecture-concept-table-outside` so that no later review merges
 the two.
 
 **The gate.** :file:`tests/gates/test_layer_imports.py`, section "The

@@ -492,137 +492,56 @@ rather than out of a second solver.
 The concept table
 -----------------
 
-.. list-table::
-   :header-rows: 1
-   :widths: 22 34 44
+The concept table is generated: one row per concept, its head, its members by role, its theory links and the pending
+entries are on :doc:`concept_table`, written by ``python -m tools.concept_table.page`` from
+``docs/architecture/concept_table.toml``, ``concept_debt.toml`` and the declarations in the classes themselves, and
+asserted equal to the tree by the gate ``tests/gates/test_concept_table_page.py``. That page is the one definition of
+which class realises which concept.
 
-   * - Concept
-     - Class or function
-     - Defined at
-   * - Space, axis, basis kind, origin, coefficient layout
-     - :class:`~orpheus.numerics.space.FunctionSpace` (its :meth:`~orpheus.numerics.space.FunctionSpace.identity_key`, :meth:`~orpheus.numerics.space.FunctionSpace.of_measure`, :meth:`~orpheus.numerics.space.FunctionSpace.of_basis`), :class:`~orpheus.numerics.axis.Axis`, :class:`~orpheus.numerics.axis.BasisKind`, :class:`~orpheus.numerics.axis.Modal`, the origin arms :class:`~orpheus.numerics.axis.FromMeasure`, :class:`~orpheus.numerics.axis.FromQuadrature`, :class:`~orpheus.numerics.axis.FromBasis`, :class:`~orpheus.numerics.axis.FromFrame`, :class:`~orpheus.numerics.axis.Declared`; :mod:`orpheus.numerics.coefficient_layout`
-     - :ref:`spaces-the-axis`, :eq:`spaces-axis-product`, :ref:`spaces-axis-origin`, :ref:`spaces-axis-identity`, :ref:`spaces-identity-key`, :ref:`spaces-moment-head`
-   * - Discrete measure; manifold; quadrature
-     - :class:`~orpheus.numerics.measure.DiscreteMeasure`, :class:`~orpheus.geometry.manifold.Manifold`, :class:`~orpheus.numerics.quadrature.directional.Quadrature`
-     - :eq:`discrete-measure-definition`
-   * - Basis
-     - :class:`~orpheus.numerics.basis.base.Basis`, :class:`~orpheus.numerics.basis.base.GramStructure`; the cell basis :class:`~orpheus.numerics.basis.interval_legendre_basis.IntervalLegendreBasis`, :class:`~orpheus.numerics.basis.interval_legendre_basis.TensorProductBasis` (:func:`~orpheus.numerics.basis.interval_legendre_basis.spatial_moment_basis`). On the reference side of the branch line, which imports none of these (:ref:`architecture-reference-insulation`): :class:`~orpheus.derivations.continuous.characteristic.basis.PanelBasis`, discontinuous nodal Lagrange panels over a body's orbit coordinate, graded toward walls and interfaces and even (polynomials in :math:`c^2`) on the panel touching a singular stratum, with its Gram matrix in the chart's volume measure, whose density is the kernel's :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`, the derivative of :meth:`CoordSystem.measure <orpheus.geometry.coord.CoordSystem.measure>`'s one definition. No production basis is nodal Lagrange, so it has no twin.
-     - :ref:`spaces-basis`, :ref:`manifold-three-levels`; :ref:`spaces-cell-basis`, :eq:`spaces-interval-legendre-gram`; :ref:`characteristic-panel-basis`
-   * - Cone
-     - :meth:`~orpheus.numerics.field.Field.cone_violations`
-     - :ref:`cone-ordered-vector-space`, :eq:`positive-cone-definition`, :ref:`cone-membership-is-a-predicate`
-   * - Frame; analysis; reconstruction
-     - :class:`~orpheus.numerics.frame.FrameBase`, :class:`~orpheus.numerics.frame.PetrovGalerkinFrame`, :class:`~orpheus.numerics.frame.GalerkinFrame`, :class:`~orpheus.transport.frames.harmonic_frame.HarmonicFrame`; :class:`~orpheus.numerics.projection.AnalysisOperator`, :class:`~orpheus.numerics.projection.ReconstructionOperator`
-     - :ref:`galerkin-projection`, :eq:`galerkin-pair`, :eq:`galerkin-frame-idempotency`, :eq:`galerkin-construction`, :eq:`petrov-galerkin-construction`
-   * - Gram; Parseval metric
-     - :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`
-     - :ref:`frame-analysis-is-the-gram-section`, :eq:`frame-discrete-gram`, :ref:`frame-parseval-metric`
-   * - Scheme
-     - :class:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase`, its :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.cell_basis` and :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.moment_axis`
-     - :ref:`discretization-closures`
-   * - Unit of an axis (the constant function's coordinates); covector of integration
-     - :attr:`~orpheus.numerics.axis.Axis.unit`, :attr:`~orpheus.numerics.axis_marginal.AxisRetractionOperator.covector`
-     - :ref:`spaces-axis-unit`, :eq:`spaces-axis-marginal-integral`
-   * - Retraction; section; pullback (the retraction's adjoint)
-     - :class:`~orpheus.numerics.axis_marginal.AxisRetractionOperator`, :class:`~orpheus.numerics.axis_marginal.AxisSectionOperator`, :class:`~orpheus.numerics.axis_marginal.AxisPullbackOperator`
-     - :ref:`spaces-collapse-pair`, :ref:`spaces-collapse-pair-naming`, :ref:`spaces-collapse-pair-pullback`, :ref:`spaces-collapse-pair-two-lifts`
-   * - Trace restriction; trace space; half-trace
-     - :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`
-     - :eq:`bc-trace-restriction-pair`, :ref:`bc-trace-structure`, :ref:`half-trace <bc-half-trace>`
-   * - System restriction; coupled space
-     - :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`, :class:`~orpheus.numerics.coupled_system.CoupledSpace`
-     - :ref:`coupled-block-system-restriction`, :eq:`coupled-block-system-restriction-pair`, :eq:`coupled-block-system-restriction-laws`; the coupled space: :ref:`coupled-block-n-general-machinery`
-   * - Lift; full-field space
-     - :class:`~orpheus.transport.operators.lift.BulkLift`, :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-     - :ref:`cs4c-ends-select-the-body`
-   * - Face role; deck; boundary tag
-     - ``FaceRole`` (a deck or an ``int``), :class:`~orpheus.geometry.deck.MirrorDeck`, :class:`~orpheus.geometry.deck.TranslationDeck`, :func:`~orpheus.geometry.deck.pairing_of` (the :class:`~orpheus.geometry.deck.FacePairing` a realizer reads), :func:`~orpheus.geometry.deck.parse_face_roles`; the value both meshes store, ``orpheus.mesh.face_roles.FaceRoles`` (``Mesh1D.face_roles``, ``outer_role``)
-     - :ref:`geometry-face-roles`, :ref:`bc-architecture-of-record`
-   * - Wall condition on the cone; response network; inflow; displacement
-     - :class:`~orpheus.transport.boundary_conditions.WallCondition` (the facades ``vacuum``, ``specular``, ``white``, ``uniform``, ``framed`` and ``from_amplitudes``), :class:`~orpheus.transport.boundary_conditions.ResponseNetwork`, :class:`~orpheus.transport.boundary_conditions.InflowTerms`, :class:`~orpheus.transport.boundary_conditions.WallDisplacement`; the method-only conditions share the base :class:`~orpheus.transport.boundary_conditions.BoundaryCondition` (zero flux is ``orpheus.diffusion.zero_flux.ZeroFluxCondition``)
-     - :eq:`affine-bc-form`, :ref:`bc-architecture-of-record`
-   * - Binding; declared conditions
-     - :class:`~orpheus.transport.boundary_conditions.BoundaryConditions` (the twin of ``Materials``), :class:`~orpheus.transport.boundary_conditions.Binding`, :func:`~orpheus.transport.boundary_conditions.bind`
-     - :ref:`bc-architecture-of-record`
-   * - Colouring stabiliser
-     - :func:`~orpheus.geometry.colouring.colouring_symmetry`, :class:`~orpheus.geometry.colouring.ColouringSymmetry`, :class:`~orpheus.geometry.colouring.UncomputedSymmetries` (the typed pessimistic answer of a carrier with no group machinery)
-     - :ref:`bc-architecture-of-record`
-   * - Admission; realizer table; realization
-     - :class:`~orpheus.transport.boundary_conditions.RealizerTable`, :class:`~orpheus.transport.boundary_conditions.Admission` (:class:`~orpheus.transport.boundary_conditions.Realized`, :class:`~orpheus.transport.boundary_conditions.Approximated`, :class:`~orpheus.transport.boundary_conditions.Refused`), :func:`~orpheus.transport.method.realize_boundary`; the tables ``SN_REALIZERS``, ``DIFFUSION_REALIZERS``, ``CP_REALIZERS``, ``MOC_REALIZERS``, ``MC_REALIZERS``; the typed SN operators ``RealizedBoundary`` and its arms ``ZeroMap``, ``ScaledOrdinatePermutation``, ``RankOneReemission``, ``RealizedSum`` (``orpheus.sn.boundary.realized_operators``); the certification :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing`
-     - :ref:`bc-realizer-layer`, :ref:`bc-method-realizability`, :ref:`bc-refusal-axes`
-   * - Retired 2026-10-24 (wave-2 carve): boundary law; realizer
-     - ``BoundaryTraceLaw`` and its concretes, ``LawSum`` and ``LawScaled``, the ``BC`` tag, ``SNBoundaryRealizer`` and the ``BoundaryRealizer`` Protocol, the string registries, ``FaceLaws`` and ``face_laws``. Successors: the rows above.
-     - :ref:`bc-wave2-crosswalk`
-   * - Metric
-     - :class:`~orpheus.numerics.metric.HilbertMetric`
-     - :ref:`spaces-metric-object`
-   * - Riesz legs
-     - :class:`~orpheus.numerics.operator.RieszLowerOperator`, :class:`~orpheus.numerics.operator.RieszRaiseOperator`
-     - :ref:`spaces-riesz-legs`, :eq:`spaces-riesz-lower-raise`, :eq:`spaces-riesz-round-trip`
-   * - Co-vector (a member of :math:`V^{*}`); the integral :math:`\flat 1`; membership
-     - :class:`~orpheus.numerics.space.Covector` minted by :meth:`~orpheus.numerics.space.FunctionSpace.flat`; :attr:`~orpheus.numerics.space.FunctionSpace.integral`, :attr:`~orpheus.numerics.space.FunctionSpace.unit`; :class:`~orpheus.numerics.space.Member`, :meth:`~orpheus.numerics.space.FunctionSpace.coordinates_of`
-     - :ref:`spaces-covector`, :ref:`spaces-membership`
-   * - Bound operator
-     - :class:`~orpheus.numerics.operator.LinearOperator` (its ``domain`` and ``codomain``), :class:`~orpheus.transport.operators.bound_operator.BoundOperator`
-     - :ref:`bound-operator`
-   * - Adjoint; dual
-     - :class:`~orpheus.numerics.operator.AdjointOperator`, :meth:`~orpheus.numerics.operator.LinearOperator.dual`
-     - :ref:`g-adjoint`, :eq:`g-adjoint-definition`, :eq:`spaces-adjoint-riesz-composition`, :ref:`spaces-metric-propagation`
-   * - Symmetry group; invariance
-     - :class:`~orpheus.geometry.symmetry.SubgroupOfO3`; :class:`~orpheus.geometry.manifold.GSpace` (its :meth:`~orpheus.geometry.manifold.GSpace.action`); :meth:`~orpheus.numerics.measure.DiscreteMeasure.relabelling_to` and the invariance verbs on :class:`~orpheus.numerics.measure.DiscreteMeasure`
-     - :ref:`manifold-realization`, :eq:`discrete-measure-g-invariance`, :ref:`manifold-gspace`, :eq:`manifold-invariance-composition`
-   * - Orbit space; quotient; descent
-     - :class:`~orpheus.geometry.manifold.Quotient`, :class:`~orpheus.numerics.basis.descent.Descent`
-     - :ref:`manifold-orbit-space`, :ref:`manifold-orbit-space-stabiliser`, :ref:`manifold-quotient-map`, :ref:`manifold-reynolds-projector-section`, :ref:`manifold-descent`
-   * - Chart (a coordinate system's orbit map and symmetry group); singular stratum; the measure's density (the area of a level set)
-     - :class:`~orpheus.geometry.chart.Chart` (derived from its kept columns and its linear group), :class:`~orpheus.geometry.chart.SingularStratum`; a line's image :class:`~orpheus.geometry.chart.RadialImage`, :class:`~orpheus.geometry.chart.AxialImage`; :meth:`CoordSystem.measure_density <orpheus.geometry.coord.CoordSystem.measure_density>` (read through :meth:`Chart.measure_density <orpheus.geometry.chart.Chart.measure_density>`)
-     - :ref:`chart-and-chord-chart`, :eq:`geometry-radial-coordinate`, :ref:`chart-and-chord-isotropy`, :ref:`chart-and-chord-strata`, :eq:`geometry-measure-density`
-   * - Line (Plücker coordinates); ray as a line with a start
-     - :class:`~orpheus.geometry.line.Line`
-     - :ref:`chart-and-chord-lines`
-   * - Concentric partition; chord; crossings; measure on lines; the orbit space of oriented lines (the line domain)
-     - :class:`~orpheus.geometry.chord.ConcentricPartition`, :class:`~orpheus.geometry.chord.Chord`, :class:`~orpheus.geometry.chord.Crossings`; :meth:`~orpheus.geometry.chart.Chart.beam_density`; :class:`~orpheus.geometry.chart.LineDomain` (:meth:`Chart.line_domain <orpheus.geometry.chart.Chart.line_domain>`)
-     - :ref:`chart-and-chord-chord`, :eq:`geometry-line-crossing-law`, :eq:`geometry-crossing-order`, :eq:`geometry-chord-segment-lengths`, :eq:`geometry-cylinder-axial-factor`, :ref:`chart-and-chord-location`, :eq:`geometry-measure-on-lines`, :eq:`geometry-cauchy-mean-chord`, :eq:`geometry-line-domain`
-   * - Mesh-free function; angular chart
-     - :class:`~orpheus.numerics.mesh_free_function.RegionwiseConstant`, :class:`~orpheus.numerics.mesh_free_function.Symbolic`; :class:`~orpheus.geometry.coord.AngularChart` (:attr:`CoordSystem.angular_chart <orpheus.geometry.coord.CoordSystem.angular_chart>`)
-     - :ref:`structured-geometry-mesh-free-functions`, :ref:`structured-geometry-angular-chart`, :ref:`structured-geometry-two-lifts-branch-1`
-   * - Material mesh; method hubs
-     - :class:`~orpheus.transport.mesh.material_mesh.MaterialMesh`, :class:`~orpheus.sn.problem.SNProblem`, :class:`~orpheus.diffusion.augmented_mesh.DiffusionMesh`, :class:`~orpheus.homogeneous.solver.HomogeneousProblem`
-     - :ref:`architecture-layering`; hub: :ref:`the-problem-hub`
-   * - Pencil; posings
-     - :class:`~orpheus.numerics.pencil.OperatorPencil`, :class:`~orpheus.numerics.posing.EigenPosing`, :class:`~orpheus.numerics.posing.SourcePosing`
-     - :ref:`the-operator-pencil`, :eq:`pencil-family`, :ref:`eigenvalue-posing`, :ref:`sn-the-problem-poses-its-pencil`
-   * - Reference kernel: dense pencil in weak form, fundamental mode, least solution; and its deliberate twin across the branch line
-     - :class:`~orpheus.derivations.common.dense_pencil.DensePencil` (:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.fundamental`, :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.spectrum`, :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.adjoint`, :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.least_solution`, :meth:`~orpheus.derivations.common.dense_pencil.DensePencil.reach`), :func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`. **Twins, never to be merged:** :meth:`DensePencil.fundamental <orpheus.derivations.common.dense_pencil.DensePencil.fundamental>` (the references' Perron–Frobenius extraction: refuses a complex, non-positive or not strictly dominant eigenvalue and a sign-changing vector) and ``dominant_eigenpair`` (the dense gate oracle's, in production until W0 moved it to ``tests/gates/numerics/_dense_eigen_oracle.py``: takes the largest real part and refuses only a complex one; its docstring claims the full contract, `#580 <https://github.com/deOliveira-R/ORPHEUS/issues/580>`_). They differ in strength by design, and they exist twice so that a reference agreeing with production shares no extraction code with it.
-     - :ref:`verification-reference-kernel`, :ref:`architecture-reference-insulation`
-   * - Face role to wall, in the closed references; and the one translation to production, test-side
-     - :class:`~orpheus.specification.exterior.WallAmplitudes` (a wall's coordinates in the triangle K of sub-Markov walls, with the vertices ``VACUUM``, ``MIRROR``, ``WHITE``), :func:`~orpheus.specification.exterior.admit_exterior` (the exterior as an exact cover of the geometry's tags, admitted once and called by every reference that holds the pair), :func:`~orpheus.derivations.common.reference_body.amplitudes_at` (the one reader of a face role's amplitudes; read by :meth:`Walls.of <orpheus.derivations.continuous.characteristic.walls.Walls.of>` and by :func:`~orpheus.derivations.common.reference_body.specular_albedos`). The reference imports no production response and no typed law (the user's ruling of 2026-10-06). The only translation from a reference's amplitudes to production's conditions is the test-side loop ``tests/gates/_reference_pairing.py``, built on the primitives-taking :meth:`WallCondition.from_amplitudes <orpheus.transport.boundary_conditions.WallCondition.from_amplitudes>`; the string-tag registry and its twin parse ``_law_from_tag`` are retired with the typed law family, so no pair of twins remains across the branch line at this row.
-     - :ref:`characteristic-walls-roles`, :ref:`architecture-reference-insulation`
-   * - Question; mode; point
-     - :class:`~orpheus.numerics.question.Eigen`, :class:`~orpheus.numerics.question.FixedSource`, :class:`~orpheus.numerics.question.Response`; :class:`~orpheus.numerics.question.Fundamental`, :class:`~orpheus.numerics.question.Nearest`; the point a :class:`~orpheus.values.content.FrozenMapping`
-     - :ref:`structured-geometry-question-values`, :ref:`structured-geometry-question-values-point`, :ref:`structured-geometry-question-values-role`
-   * - Reference specification; coordinate; channel
-     - :class:`~orpheus.specification.specification.InfiniteMediumSpecification`, :class:`~orpheus.specification.specification.GeometrySpecification`; :class:`~orpheus.data.cells.CellCoefficient`, :class:`~orpheus.geometry.extent.GeometryExtent`; :class:`~orpheus.data.cells.Channel`
-     - :ref:`structured-geometry-specification`, :ref:`structured-geometry-specification-layer`, :ref:`structured-geometry-specification-canonical`, :ref:`structured-geometry-specification-coordinates`
-   * - Strategy; splitting; schedule
-     - :class:`~orpheus.sn.splitting.Splitting`, :func:`~orpheus.sn.splitting.resolve_schedule`
-     - :ref:`sn-splitting-is-a-strategy-value`
-   * - Resolvent
-     - :class:`~orpheus.sn.operators.sweep_operator.SweepOperator`, :class:`~orpheus.numerics.coupled_system.CoupledSubstitutionOperator`
-     - :eq:`eigen-resolvent`
-   * - Green of a split; realisation; representation
-     - :class:`~orpheus.numerics.green_operator.GreenOperator`, :class:`~orpheus.numerics.green_operator.Richardson`, :class:`~orpheus.numerics.green_operator.Krylov`, :class:`~orpheus.numerics.iteration.Representation`
-     - :ref:`green-strategy-mints`, :ref:`green-realisations`
-   * - Iteration; outer loop
-     - :class:`~orpheus.numerics.iteration.SourceIteration`, :class:`~orpheus.numerics.iteration.KrylovAcceleration`, :func:`~orpheus.numerics.eigenvalue.power_iteration`
-     - :ref:`eigenvalue-posing`
-   * - Record; exit report; gauge
-     - :class:`~orpheus.numerics.convergence.IterationRecord`, :class:`~orpheus.numerics.outcome.ExitReport`, :class:`~orpheus.numerics.gauge.ScaleGauge`
-     - :ref:`the-solution-outcome`
-   * - Outcome; Solution
-     - :class:`~orpheus.numerics.outcome.EigenOutcome`, :class:`~orpheus.numerics.outcome.SourceOutcome`, :class:`~orpheus.sn.solution.SolutionBase`, :class:`~orpheus.sn.solution.Solution`, :class:`~orpheus.sn.solution.AdjointSolution`
-     - :ref:`the-solution-outcome`, :ref:`sn-solution-carries-its-posing`
 
+.. _architecture-concept-table-outside:
+
+Entries outside the concept table
+---------------------------------
+
+Three theory targets and the function-like entries that follow have no class in the population and no concept row that
+could hold them, so they stay here as sentences.
+
+**The retired boundary law.** Retired 2026-10-24 (wave-2 carve): boundary law; realizer ``BoundaryTraceLaw`` and its
+concretes, ``LawSum`` and ``LawScaled``, the ``BC`` tag, ``SNBoundaryRealizer`` and the ``BoundaryRealizer`` Protocol,
+the string registries, ``FaceLaws`` and ``face_laws``. The successors are the classes of the concept table, and the
+crosswalk is :ref:`bc-wave2-crosswalk`.
+
+**The reference kernel.** The dense pencil in weak form, its fundamental mode and its least solution, and its deliberate
+twin across the branch line (:ref:`verification-reference-kernel`, :ref:`architecture-reference-insulation`), live under
+``derivations/``, outside the population:
+:class:`~orpheus.derivations.common.dense_pencil.DensePencil` (:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.fundamental`,
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.spectrum`,
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.adjoint`,
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.least_solution`,
+:meth:`~orpheus.derivations.common.dense_pencil.DensePencil.reach`) and
+:func:`~orpheus.derivations.common.quadrature.composite_gauss_legendre`. **Twins, never to be merged:**
+:meth:`DensePencil.fundamental <orpheus.derivations.common.dense_pencil.DensePencil.fundamental>` (the references'
+Perron–Frobenius extraction: refuses a complex, non-positive or not strictly dominant eigenvalue and a sign-changing
+vector) and ``dominant_eigenpair`` (the dense gate oracle's, in production until W0 moved it to
+``tests/gates/numerics/_dense_eigen_oracle.py``: takes the largest real part and refuses only a complex one; its
+docstring claims the full contract, `#580 <https://github.com/deOliveira-R/ORPHEUS/issues/580>`_). They differ in
+strength by design, and they exist twice so that a reference agreeing with production shares no extraction code with it.
+
+**From a face role to a wall, in the closed references.** :func:`~orpheus.derivations.common.reference_body.amplitudes_at`
+is the one reader of a face role's amplitudes, read by
+:meth:`Walls.of <orpheus.derivations.continuous.characteristic.walls.Walls.of>` and by
+:func:`~orpheus.derivations.common.reference_body.specular_albedos` (:ref:`characteristic-walls-roles`,
+:ref:`architecture-reference-insulation`). The reference imports no production response and no typed law (the user's
+ruling of 2026-10-06); the only translation to production's conditions is the test-side loop
+``tests/gates/_reference_pairing.py``, built on the primitives-taking
+:meth:`WallCondition.from_amplitudes <orpheus.transport.boundary_conditions.WallCondition.from_amplitudes>`.
+
+**The module role.** :mod:`orpheus.numerics.coefficient_layout` is a module, not a function; it realises the concept
+``layout``, whose arms the concept table lists.
+
+
+.. _architecture-hand-rolled-debt:
 
 What is still hand-rolled — the debt list
 -----------------------------------------

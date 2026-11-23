@@ -166,6 +166,10 @@ _GENERATORS = [
     # harness-independent source; plan harness_context_budget.md K7).
     # Nothing in the build includes the outputs, so the event is free.
     ("tools.harness", "harness view", "builder-inited"),
+    # docs/architecture/concept_table.rst from the concept table, the
+    # pinned debt and the tree (gate G8 asserts the committed page is
+    # what the generator writes).
+    ("tools.concept_table.page", "concept table", "builder-inited"),
 ]
 
 

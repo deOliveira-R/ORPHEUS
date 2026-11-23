@@ -12,3 +12,4 @@ package-to-layer assignment, and the import-linter test that enforces it.
 
    layering
    conceptual_view
+   concept_table
