@@ -613,7 +613,8 @@ def fingerprint(source: str, qualname: str) -> str:
     statement first in the body of the class or of any function in it). A trailing declaration comment, a docstring edit and
     a comment edit leave it unchanged; one added statement changes it. Every name token that spells the class's own name
     is hashed as one fixed placeholder, so the digest is of the class's body and not of where it sits or what it is called:
-    a class moved to another file, or renamed with its self-references, keeps its fingerprint.
+    a class moved to another file, or renamed with its self-references, keeps its fingerprint. Only name tokens are replaced:
+    a class that spells its own name inside a string (a quoted annotation) changes fingerprint when it is renamed.
     """
     node = _class_node(source, qualname)
     own = qualname.rsplit(".", 1)[-1]
