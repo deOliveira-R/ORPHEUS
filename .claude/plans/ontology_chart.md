@@ -687,6 +687,17 @@ The user: "I will give you a last round to adversarially attack parts of the pla
 2. `design-panel`. Binding and not re-litigated: R1 to R17 of `true_ends.md` (R4 as re-ruled: the S_N boundary state is the flux on the non-tangential ordinates, the quotient, with the current view through the Riesz legs), A1 to A3 (O18), B10 (two contracts fixed first: what a factor reads from its generator, what the trace reads from a face), B11, B12, section C's inputs for W1, O33, O34, O38, O39, and posing unit 4's ruled scope.
 3. The orchestrator's synthesis, `spec-check` with `units`, the amendment, `check_only` on the final text, the user's checkpoint with the O17 targets.
 
+**W1's done-when re-measured on `d2cae4cf`** `[M]` 2026-11-23 (a Sonnet executor, report `scratch/ontology/w1/measure/m1_done_when.md`; a Sonnet explorer, report `scratch/ontology/w1/measure/m2_asis_spaces.md`; the orchestrator read the two reports and re-read the two cutoff lines, not each command):
+- **The retraction on a trace:** 5 of 5 trace-side spaces raise `TypeError` (`numerics/space.py:583`, "not axis-built"); the angular bulk succeeds (control). As the wave table says.
+- **One tensor product:** on 4 of 4 axis pairs `of_axes(a, b)` is a `FunctionSpace` and `of_axes(a) * of_axes(b)` a `TensorProductSpace`; they are `==` and hash-equal. The predicate "have one type" is false today, as intended; production reaches `*` at 1 site.
+- **`FullFieldSpace`** is a class, named in 22 production files, 36 test files, 15 docs files and 0 of 59 `tools/` files. `DirectSumSpace` does not exist.
+- **Pairings by hand:** the wave table gave no predicate. The executor's `[R]`: 10 of 29 hand contractions in the posing and iterating files are pairings (17 norms, 2 neither); diffusion has 0 with 4 norms as control. The specification states the predicate it gates.
+- **The non-uniform coarse-balance gate does not exist** (0 of 805 test files); the wave table's "closes" read as if it were red. It is owed with its uniform control.
+- **The Step A gates:** the #707 gate files hold 128 strict expected failures, not 118; the difference is not attributed. By gate-name prefix: A2 3, A3 26, A4 67, A5 29, A6 2, B 1. So W1 as tabled turns almost none green, and its gates are new. Run per file: 495 passed, 197 xfailed, 0 unexpected passes, 34 skipped. `[HYPOTHESIS]` unexplained: one process over the 24 files stalled at 0 % CPU for the executor, while the full bar runs them.
+- **The concepts:** 36 production classes on W1's 12 concepts, 3 with head form `missing` (`layout`, `quotient`, `trace`); 9 debt entries with W1 in their wave (twin 1, weld 5, cycle 1, kind_law 1, covector_off_lineage 1). Removing every reference that leaves a W1 concept takes W1 out of the 39-concept cycle and leaves a 2-concept cycle `{dual, tensor}`.
+- **Filed:** #750, the half-range of a face is selected with two cutoffs (`4·eps` in the trace space, `1e-15` in `mesh/axis.py`).
+- **The design panel** is run `wf_4c545312-08b`; its brief is `scratch/ontology/w1/panel/context.md`, three angles (the algebra down, the tree up, the consumers inward) and three lenses (structure, elegance, qa).
+
 **The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
 
 ## Open questions for the user
