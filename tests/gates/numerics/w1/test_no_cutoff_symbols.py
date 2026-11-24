@@ -6,12 +6,15 @@ Two ``ast`` arms over source files, with no import of the modules read (the arm 
 (ii) in the 9 production files that held a cutoff, the ``Compare`` nodes that carry a tolerance operand equal the allow-list (one
 comparison, ``reading <= _GAUGE_AUDIBLE_FLOOR`` of ``loss_kernel_gauge.py``), keyed on the file and the source segment, never a line.
 
-What it cannot see: a cutoff under a new name in a file outside the eight, a cutoff held in a parameter or a local, a tolerance passed
-to ``np.isclose`` or ``np.allclose``, a name not ending ``EPS`` or ``TOL``, a literal above ``1e-6``, ``moc/geometry.py:143`` and
+What it cannot see: a cutoff under a new name in a file outside the nine, a cutoff held in a parameter (a default or an argument), a
+tolerance passed to ``np.isclose`` or ``np.allclose``, an imported name not ending ``EPS`` or ``TOL``, a literal above ``1e-6``, ``moc/geometry.py:143`` and
 ``:153`` (they stay), and an exact comparison of a cosine (G02g and issue #752 are about those).
 
-Exact on any host: parse trees only. First red today: (i) 5 of 5 names are defined; (ii) 13 comparisons carry a tolerance operand in
-the 8 files, 12 of them not on the allow-list. Each arm is run on a mutant source (a copy of ``mesh/axis.py`` with a cutoff appended) in
+Exact on any host: parse trees only. First red on the base tip of the unit (``37a82d78``): (i) the six names are defined (the sixth,
+``_DEGENERATE_ABS_ETA_THRESHOLD``, as a class attribute of ``SNProblem`` with 4 hits in ``sn/problem.py``); (ii) 13 comparisons carry a
+tolerance operand in the first 8 files, 12 of them not on the allow-list, and 2 of the reads of the class attribute in ``sn/problem.py``
+are seen, since the arm resolves a tolerance bound in a class body or a function and read as an attribute of the same file (a read
+through a local bound to the attribute, and a read from another file, are seen by arm (i) only). Each arm is run on a mutant source (a copy of ``mesh/axis.py`` with a cutoff appended) in
 a row that is green on any tree.
 """
 

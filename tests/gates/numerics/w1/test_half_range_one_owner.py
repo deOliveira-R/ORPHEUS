@@ -12,7 +12,7 @@ First red on the tip ``37a82d78`` (each recorded with its command in the unit's 
 
 * value row, refusals, partition, ``sign()``: import-only (``half_range`` does not exist); the behavioural witness is that today's three
   selectors give ``[2]``, ``[1, 2]`` and ``[-1, 0, 1]`` on ``[-0.5, 9.5e-16, 0.5]`` and accept ``[nan, 0.5]``;
-* the call arm: 0 of 8 consumers call ``half_range``;
+* the call arm: 0 of 8 consumers (the table then had 8 rows; it has 10 since the seventh cutoff, ``26f9815a``) call ``half_range``;
 * G02g: 13 ``Compare`` nodes read a cosine array in the scopes.
 
 Each instrument is run on its mutant (``_half_range_helpers``: a tolerance classifier, an unguarded classifier, a copy of a consumer
@@ -79,13 +79,13 @@ def test_the_value_row_reads_the_exact_classifier_as_right() -> None:
 
 
 def test_every_consumer_calls_the_owner() -> None:
-    r"""In each of the 8 consumer functions the body contains a call named ``half_range``."""
+    r"""In each of the 10 consumer functions the body contains a call named ``half_range``."""
     rows = H.consumer_calls(H.orpheus_root(), "half_range")
-    assert len(rows) == 8, f"the consumer table has {len(rows)} rows, wanted 8"
+    assert len(rows) == 10, f"the consumer table has {len(rows)} rows, wanted 10"
     not_found = [(f, q) for f, q, calls in rows if calls is None]
     assert not not_found, f"consumer functions not found on this tree (a named object that does not exist): {not_found}"
     missing = [(f, q) for f, q, calls in rows if not calls]
-    assert not missing, f"{len(missing)} of 8 consumers do not call half_range: {missing}"
+    assert not missing, f"{len(missing)} of 10 consumers do not call half_range: {missing}"
 
 
 def test_the_call_predicate_reads_a_deleted_call_as_missing_on_synthetic_text() -> None:
@@ -99,7 +99,7 @@ def test_the_call_predicate_reads_a_deleted_call_as_missing_on_synthetic_text() 
 
 @pytest.mark.parametrize("rel, qual", H.CONSUMERS, ids=[q for _, q in H.CONSUMERS])
 def test_deleting_the_call_from_a_consumer_reddens_the_arm(rel: str, qual: str) -> None:
-    r"""Mutation, 8 copies: the consumer's own source with its ``half_range`` calls renamed away reads as not calling the owner.
+    r"""Mutation, 10 copies: the consumer's own source with its ``half_range`` calls renamed away reads as not calling the owner.
 
     The first assertion is the precondition (the honest consumer calls the owner), so this row is red until the consumer is re-pointed.
     """

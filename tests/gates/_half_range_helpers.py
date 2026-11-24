@@ -245,7 +245,7 @@ def partition_refusal_violations(half_range_cls, coord_cls) -> list[str]:
 # ``ast`` arms
 # ─────────────────────────────────────────────────────────────────────
 
-#: The 8 consumer functions of G02a's call arm: ``(path under orpheus/, dotted qualified name)``.
+#: The 10 consumer functions of G02a's call arm: ``(path under orpheus/, dotted qualified name)``.
 CONSUMERS: tuple[tuple[str, str], ...] = (
     ("mesh/axis.py", "face_outflow_ordinates"),
     ("numerics/quadrature/ordinate_pairing.py", "ordinate_pairing"),
@@ -255,6 +255,8 @@ CONSUMERS: tuple[tuple[str, str], ...] = (
     ("sn/loss_representation/__init__.py", "_OneDimScanWalk._dag_legs"),
     ("sn/loss_representation/__init__.py", "_OneDimScanWalk._degenerate_positions"),
     ("sn/sweep/cache.py", "StreamingCoefficientCache.from_mesh_and_quad"),
+    ("sn/problem.py", "SNProblem._representative_ordinate"),
+    ("sn/problem.py", "SNProblem._iter_cylindrical_visits"),
 )
 
 
@@ -295,7 +297,7 @@ def calls_name(node: ast.AST, name: str) -> bool:
 
 
 def consumer_calls(root: Path, name: str) -> list[tuple[str, str, bool | None]]:
-    r"""``(file, qualname, calls)`` for each of the 8 consumers: ``calls`` is ``None`` when the function is not found in its file."""
+    r"""``(file, qualname, calls)`` for each of the 10 consumers: ``calls`` is ``None`` when the function is not found in its file."""
     out: list[tuple[str, str, bool | None]] = []
     for rel, qual in CONSUMERS:
         fn = find_function(ast.parse((root / rel).read_text()), qual)
@@ -375,7 +377,7 @@ def scope_cosine_compares(root: Path) -> list[tuple[str, int]]:
     return hits
 
 
-#: The five cutoff names of G02c (i).
+#: The six cutoff names of G02c (i).
 CUTOFF_NAMES = ("TANGENTIAL_EPS", "_OUTFLOW_COSINE_TOL", "_TANGENTIAL_MU", "_MU_DIRECTION_EPS", "_OCTANT_SIGN_EPS", "_DEGENERATE_ABS_ETA_THRESHOLD")
 
 #: The 9 edited production files that held a cutoff (G02c (ii)).
@@ -426,10 +428,11 @@ def _literal(n: ast.AST) -> object:
 
 def tolerance_compares(source: str) -> list[tuple[int, str]]:
     r"""``(line, source segment)`` of each ``Compare`` that carries a tolerance operand: a float literal ``0 < v <= 1e-6``, a
-    module-level name bound to one or to a ``finfo`` expression, an imported name ending ``EPS`` or ``TOL``, or ``.eps``."""
+    name bound to one or to a ``finfo`` expression at module level, in a class body or in a function (read bare or as an attribute),
+    an imported name ending ``EPS`` or ``TOL``, or ``.eps``."""
     tree = ast.parse(source)
     tolerance_names: set[str] = set()
-    for st in tree.body:
+    for st in ast.walk(tree):  # every binding: module level, a class body (a ``ClassVar``), a function local
         target: str | None = None
         value: ast.AST | None = None
         if isinstance(st, ast.Assign) and len(st.targets) == 1 and isinstance(st.targets[0], ast.Name):
@@ -454,7 +457,7 @@ def tolerance_compares(source: str) -> list[tuple[int, str]]:
                     hit = True
                 elif isinstance(x, ast.Name) and x.id in tolerance_names:
                     hit = True
-                elif isinstance(x, ast.Attribute) and x.attr == "eps":
+                elif isinstance(x, ast.Attribute) and (x.attr == "eps" or x.attr in tolerance_names):
                     hit = True
         if hit:
             out.append((node.lineno, ast.get_source_segment(source, node) or ""))

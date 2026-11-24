@@ -1625,11 +1625,12 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
 
         Cell-iteration order matches :meth:`dag_walk`:
 
-        * Slab, sphere, cylinder non-degenerate: ``range(nx)`` for
-          :math:`\mu_n \ge 0`, ``range(nx-1, -1, -1)`` for :math:`\mu_n < 0`.
-        * Cylindrical pure-azimuthal degenerate
-          (:math:`\eta_n = 0` exactly): ``range(nx)`` regardless of
-          ``direction_sign`` — same as :meth:`dag_walk`.
+        * ``range(nx)`` for ``direction_sign = +1`` and
+          ``range(nx-1, -1, -1)`` for ``direction_sign = -1``, on slab,
+          sphere and cylinder alike. The order is read from the sign of
+          the representative ordinate's cosine, and
+          :meth:`_representative_ordinate` never returns a tangential
+          ordinate, so that cosine is never zero here.
         """
         if not self.is_1d:
             # Same honest predicate as :meth:`dag_walk` (P4.5).
@@ -1658,7 +1659,6 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         else:
             mu_n = float(self.quad.mu_x[ordinate_idx])
 
-        # A tangential ordinate (radial cosine exactly zero) iterates forward with the outward ones.
         if mu_n >= 0:
             yield from range(self.nx)
         else:
@@ -1822,7 +1822,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         * :math:`\\eta_n = 0` exactly, pure-azimuthal degenerate (the
           ``tangential`` part of the radial half-range):
           forward iteration (so the angular M-M closure runs in a
-          natural order) but ``face_area_downstream`` is ``None`` —
+          natural order) and ``face_area_downstream`` is ``0.0`` —
           no spatial face flow.
         """
         assert self.reduced is not None

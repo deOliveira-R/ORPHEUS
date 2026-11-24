@@ -524,7 +524,7 @@ class TestCylindricalDegenerate:
         op = cylindrical_streaming(mesh, quad)
 
         # Pull a real cylindrical streaming-terms packet, then
-        # construct a synthetic one with abs_mu below the threshold.
+        # construct a synthetic one with a vanishing abs_mu.
         # Cylindrical streaming_terms requires mu_level_idx.
         st_real = op.streaming_terms(
             cell_idx=1, direction_idx=0, mu_level_idx=0,
