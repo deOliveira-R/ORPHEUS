@@ -767,6 +767,13 @@ What passes 2 and 2b changed in the design:
 - **What the opening changed** (the orchestrator's rulings ON00-1 to ON00-8, then one Opus check: 1 blocking finding, 10 text repairs, 10 notes; 29 of 30 numbers reproduced from recorded output): the harness lives in `tests/gates/cross_method/w1/` (the test-layer gate forbids its imports under `numerics/`); the stored-bytes gate is keyed to a host stamp, fails on another host and is not in CI, while the in-process controls are; the snapshot set gained three spaces (the first set reacted to a reversed slot order on 24 of 96 arrays, the added ones on 72 of 72); the fixtures use non-dyadic extents; the snapshots are stored compressed (286,152 bytes against 5,239,562).
 - **Procedure note** `[R]`: the per-unit check at the opening found a build-blocking placement that 20 earlier reads of the draft had not, because it ran the layer gate's own predicate on the final file list. A check at the opening runs the gates a unit's new files fall under.
 
+**N00 `harness` built and integrated (2026-11-24).** `[LANDED d79f701e]` on `refactor/ontology` by fast-forward (commits `7d97effc`, `cf4b3df8`, `d79f701e`; 23 files, all under `tests/gates/cross_method/w1/`; 0 paths under `orpheus/`). Run `wf_aabe45d9-7fe`: one Sonnet builder, two Opus quality reviews and one Opus elegance review (16 findings, 0 blocking), a Sonnet amend, an Opus verify (16 of 16 answered).
+
+- `[M]` on the main checkout after the merge, `python -O`: `test_snapshot_harness.py` 1 passed, `test_snapshot_controls.py` 4 passed, the test-layer and layer-import gates 621 passed; the stored sha1 of 336 of 336 arrays equal the prototype's.
+- **One ruling at the build:** the arrays that come from the metric verbs are stored as flat C-order bytes (102 of 168 had the space type's own shape, which a later unit would have changed with every byte equal).
+- **Carried to later openings** (untracked `opening_N01.md`, `opening_N04.md`, `opening_N05.md`, `opening_N06.md`, `opening_N07.md`, each under a heading "Added at N00's opening" or "build"): who re-points which getter, the 21 dense builders at N01, the slot-order control at N04, the fate of `NotInCoordinateSpace` at N07.
+- The stored-bytes gate is local to this host (macOS arm64, Accelerate, numpy 2.4.4, scipy 1.17.1); if the host changes, the orchestrator re-takes the snapshots at the last commit on which the harness was green, in a commit of its own.
+
 **The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
 
 ## Open questions for the user
