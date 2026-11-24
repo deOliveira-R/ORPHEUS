@@ -3673,9 +3673,12 @@ older entries classify against.
    slot at any level. P7 made the metric a typed object that is
    **applied** rather than multiplied
    (:ref:`spaces-metric-object`), and the frame's ``DENSE`` arm now
-   installs ``DenseMetric.inverse_of(discrete_gram)``: the Moore–Penrose
+   installed ``DenseMetric.inverse_of(discrete_gram)``: the Moore–Penrose
    pseudo-inverse of the symmetrized measured Gram at a pinned cutoff,
-   with the exact Gram kept as the inverse face. The pseudo-inverse was
+   with the exact Gram kept as the inverse face (the cutoff retired at
+   ``[REMEDIED 2026-11-24 @d481637c]``, in the Penrose-guard finding of the dense-metric entry
+   later in this catalogue: the
+   arm now passes the frame's declared kernel and no cutoff is read). The pseudo-inverse was
    forced rather than chosen — `[M]` the slab Gram then was
    :math:`15\times15` with 5 live slots and **rank 4**, so
    ``np.linalg.inv`` raised (that Gram is diagonal since the ERR-080
@@ -7262,7 +7265,7 @@ older entries classify against.
      so the public entry point raises. ``[M]`` verified end-to-end:
      ``solve_sn_fixed_source(gauss_legendre(16), scattering_order=4)`` →
      ``ValueError: DenseMetric was handed an inconsistent inverse face:
-     max|G G+ G - G| = 7.117e-04``. ``[REMEDIED 2026-11-24, N01 of wave
+     max|G G+ G - G| = 7.117e-04``. ``[REMEDIED 2026-11-24 @d481637c, N01 of wave
      W1]`` the Penrose guard no longer exists: ``DenseMetric`` builds its
      inverse face from a declared kernel and admits no inverse by a
      tolerance, so this refusal cannot occur (issue 634 is closed by that

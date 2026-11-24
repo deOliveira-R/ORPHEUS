@@ -85,10 +85,10 @@ def _metric_rows():
 
 @pytest.mark.parametrize("row", _metric_rows(), ids=lambda r: r[0])
 def test_B1_metric_rank_is_the_hand_count(row):
-    """``m.rank(shape)`` equals the count written in the row: nonzero weights;
-    the dense matrix's rank times the trailing multiplicity; a product of block
-    ranks (a Euclidean block counting full); a dual's rank its primal's. First
-    red: a rank counting the element size (blind to the kernel)."""
+    """``m.rank(shape)`` equals the count written in the row: nonzero weights; for a dense metric ``(n - kernel.dim)`` times the
+    trailing multiplicity, the declared kernel being the row's own declaration (the dense rows pin the arithmetic of the declared
+    rank; the declaration is checked against the spectrum by ``test_B1c`` and G01d); a product of block ranks (a Euclidean block
+    counting full); a dual's rank its primal's. First red: a rank counting the element size (blind to the kernel)."""
     name, m, shape, hand = row
     _require(m.rank(shape) == hand, f"[{name}] rank {m.rank(shape)} != hand count {hand}")
 
@@ -113,15 +113,15 @@ def _inverted_directions(m, n):
 @pytest.mark.parametrize("rel", [1e-8, 1e-6, 1e-4, 1e-14],
                          ids=["1e-8", "1e-6", "1e-4", "below_cutoff_1e-14"])
 def test_B1b_dense_rank_counts_the_directions_the_inverse_face_inverts(rel):
-    """A dense metric with one eigenvalue at ``rel`` of the scale: its rank is
-    the number of directions its inverse face inverts (5 above the 1e-12 cutoff,
-    4 below), and the rank of ``G⁺G``. The three mid-band rows sit between the
-    cutoff and 1e-3, where a rank with its own cutoff (``matrix_rank`` at rtol
-    1e-6 or 1e-3) disagrees with the inverse face (qa, S6b review: neither was
-    pinned). First red: a rank computed with a cutoff other than the inverse
-    face's."""
+    """A dense metric with one eigenvalue at ``rel`` of the scale and the kernel declared as ``5 - hand`` (``hand`` from the pinv
+    oracle at ``rcond = 1e-12``, computed here): the rank is ``(n - kernel.dim)`` times the trailing multiplicity, the inverse face
+    inverts exactly the declared directions (read through ``apply_inverse . apply``, never through ``rank``), and the rank goes to the
+    dual. The rank is declared, so ``rank == hand`` on its own returns the declaration; the pins that check the declaration against the
+    spectrum are the oracle in this test, ``test_B1c`` and G01d. What this row bites: a metric whose inverse face inverts a count other
+    than the declared one (a cutoff added back at ``1e-6`` reddens the ``1e-8`` row). First red: a rank not read from the declaration."""
     g = _gram([1.0, 0.5, 0.3, 0.2, rel])
-    hand = 5 if rel > 1e-12 else 4
+    hand = int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=1e-12) @ g))))
+    _require(hand == (5 if rel > 1e-12 else 4), f"fixture: the pinv oracle reads rank {hand} at eigenvalue {rel:g}")
     m = DenseMetric(g, kernel=declared_kernel(g, 5 - hand))
     _require(_inverted_directions(m, 5) == hand, f"fixture: the inverse face inverts {_inverted_directions(m, 5)}")
     _require(m.rank((5,)) == hand, f"rank {m.rank((5,))} vs the {hand} inverted directions (eigenvalue {rel:g})")

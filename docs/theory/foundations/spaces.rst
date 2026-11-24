@@ -2714,9 +2714,8 @@ Three construction choices in
 
 #. **The rank is declared, never read from a cutoff.** The constructor
    takes a ``kernel`` declaration
-   (:class:`~orpheus.numerics.declaration.Coord`,
-   :class:`~orpheus.numerics.declaration.Spanned` or
-   :class:`~orpheus.numerics.declaration.Ann`): ``Coord(K, ())`` for a
+   (:class:`~orpheus.numerics.declaration.Coord` of the form ``Coord(K, ())``
+   or a :class:`~orpheus.numerics.declaration.Spanned`): ``Coord(K, ())`` for a
    full-rank form and a ``Spanned`` of the kernel's dimension otherwise,
    and the rank is :math:`K` minus that dimension. The inverse face zeroes
    exactly that many of the smallest singular values and reads no
@@ -2728,7 +2727,7 @@ Three construction choices in
    a frame's Gram at or below that fraction of the largest and declares
    the count through ``frame_gram_kernel``. `[M]` on the frame-built Grams
    the dropped singular values are at most :math:`2.3\times10^{-16}` of the
-   largest and the kept ones at least :math:`1.8\times10^{-2}`, four orders
+   largest and the kept ones at least :math:`1.6\times10^{-2}`, four orders
    from the rule on both sides, so the rule separates a structural kernel
    from a genuine range with a wide margin.
 #. **The inverse is one hermitian decomposition.** The body
@@ -2761,8 +2760,14 @@ on another dimension, a non-empty ``Coord`` or an ``Ann`` as the kernel
 (the decomposition drops the smallest singular directions, so a named
 index could disagree with them), and, in a build that keeps
 ``__debug__``, a kept direction whose eigenvalue is not positive. That
-last check is a misuse check on the raw constructor and not a guarantee: a
-frame's Gram is positive semi-definite by construction, and under
+last check is a misuse check on the raw constructor and not a guarantee, and
+it is not a rank detector: it sees the sign of a round-off eigenvalue only.
+`[M]` 2026-11-24 over the 14 deficient Grams of the bit-identity harness,
+each declared one dimension short, it refused 6 of 14 under ``__debug__``; the
+other 8 were accepted, and under ``python -O`` 13 of 14 were accepted, with
+:math:`\max|G^{+}|` up to :math:`2.5\times10^{15}`. A frame's Gram is positive
+semi-definite by construction and its declaration comes from
+``frame_gram_kernel``, so the formal path does not rely on it; under
 ``python -O`` a kept exact zero divides by zero.
 
 .. _spaces-metric-parseval-theorem:

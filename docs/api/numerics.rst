@@ -814,6 +814,30 @@ near-kernel witness reaches SN's sweep. The laws are
    :undoc-members:
    :show-inheritance:
 
+The declaration of a subspace, :mod:`orpheus.numerics.declaration`: the
+language in which a dense form states its kernel
+(:class:`~orpheus.numerics.declaration.Coord`,
+:class:`~orpheus.numerics.declaration.Spanned`,
+:class:`~orpheus.numerics.declaration.Ann`, and the verbs
+:func:`~orpheus.numerics.declaration.contains` and
+:func:`~orpheus.numerics.declaration.intersect`). The theory is
+:ref:`spaces-metric-object`.
+
+.. automodule:: orpheus.numerics.declaration
+   :members:
+   :show-inheritance:
+
+The dense metric, :mod:`orpheus.numerics.metric`, whose rank is the
+declared kernel's complement, and the frame's one rank rule,
+:func:`~orpheus.numerics.frame_faces.frame_gram_kernel` with the constant
+:data:`~orpheus.numerics.frame_faces.FRAME_GRAM_RANK_RTOL`.
+
+.. automodule:: orpheus.numerics.metric
+   :members: DenseMetric
+
+.. automodule:: orpheus.numerics.frame_faces
+   :members: frame_gram_kernel, FRAME_GRAM_RANK_RTOL
+
 The :class:`~orpheus.numerics.operator.LinearOperator` Protocol,
 its three-layer inverse/adjoint surface, and the composition /
 tensor-product primitives are documented at :ref:`operator-algebra`

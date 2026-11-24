@@ -3,7 +3,9 @@ r"""G01b: ``numerics/metric.py`` holds no numerical cutoff (N01, spec 7.2, 3.3).
 ``ast`` over the module: no call named ``pinv`` or ``allclose`` and no keyword named ``rcond``, ``rtol`` or ``atol``, with no
 exemption. The symmetry admission ``_DENSE_METRIC_SYMMETRY_RTOL`` is a module constant, neither a call nor a keyword, so the
 predicate does not see it. The predicate is also run on the module source with a forbidden construct appended (the positive
-control of the instrument): each of three forms must read red. First red today: ``pinv`` at two sites and ``rcond`` at two.
+control of the instrument): each of three forms must read red. The predicate reads calls and keywords only: a cutoff spelled as a
+comparison against a float literal is NOT seen here, and the behavioural gate that sees it is ``test_dense_kernel_declared.py::
+test_inverse_of_honours_a_declaration_that_differs_from_the_retired_count`` (G01c). First red today: ``pinv`` at two sites and ``rcond`` at two.
 """
 
 from __future__ import annotations

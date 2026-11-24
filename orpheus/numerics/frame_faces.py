@@ -470,6 +470,8 @@ def frame_gram_kernel(gram: NDArray) -> Declaration:
     dim = int(np.sum(singular <= FRAME_GRAM_RANK_RTOL * singular.max()))
     if dim == 0:
         return Coord(n, ())
+    if dim == n:
+        raise ValueError(f"a frame Gram has no value above {FRAME_GRAM_RANK_RTOL:.0e} of its largest: it is the zero form, which carries no inner product")
     g_sym.setflags(write=False)
     return Spanned(n, ("frame-gram-kernel", content_digest(g_sym)), dim)
 

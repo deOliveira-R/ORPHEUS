@@ -273,3 +273,77 @@ def test_the_frame_count_equals_the_pinv_nullity_across_the_cutoff() -> None:
             bad.append((round(float(f), 4), declared, oracle))
     _require(not bad, f"the frame's count differs from pinv's nullity at {len(bad)} of 201: {bad[:5]}")
     _require(counts == {0, 1}, f"activation: the sweep must straddle the cutoff with declared dimensions {{0, 1}}, got {counts}")
+
+
+def test_the_rank_rule_counts_an_exact_tie_as_dropped() -> None:
+    """The rank rule is ``<=``: a value exactly at ``FRAME_GRAM_RANK_RTOL`` of the largest is dropped, as ``pinv`` at that ``rcond`` does.
+
+    ``diag([1, 1e-12])`` is the exact tie (the product ``1e-12 * 1.0`` is the stored value). A mutation to ``<`` declares ``Coord(2, ())``.
+    """
+    g = np.diag([1.0, FF.FRAME_GRAM_RANK_RTOL])
+    declared = FF.frame_gram_kernel(g)
+    oracle = 2 - int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=FF.FRAME_GRAM_RANK_RTOL) @ g))))
+    _require(oracle == 1, f"the pinv oracle reads nullity {oracle} on the tie, expected 1 (the control that the tie is a tie)")
+    _require(declared.dim == 1, f"the tie is declared with dimension {declared.dim}, expected 1 (a value at the cutoff is dropped)")
+
+
+def test_the_frame_kernel_key_is_the_digest_of_the_symmetrised_gram() -> None:
+    """The content key is ``('frame-gram-kernel', digest)``, and two different deficient Grams of equal ``n`` and ``dim`` are unequal."""
+    from orpheus.values.content import content_digest
+
+    g1 = _gram([1.0, 0.5, 0.3, 0.0, 0.0])
+    g2 = _gram([1.0, 0.5, 0.7, 0.0, 0.0])
+    k1, k2 = FF.frame_gram_kernel(g1), FF.frame_gram_kernel(g2)
+    _require(isinstance(k1, Spanned) and isinstance(k2, Spanned) and k1.dim == k2.dim == 2 and k1.n == k2.n == 5, "the two Grams are not a same-(n, dim) pair")
+    sym = DenseMetric.symmetrised(g1)
+    sym.setflags(write=False)
+    _require(k1.key == ("frame-gram-kernel", content_digest(sym)), f"the kernel key {k1.key} is not ('frame-gram-kernel', digest of the symmetrised Gram)")
+    _require(k1 != k2, "two different deficient Grams of equal n and dim declared equal kernels")
+    _require(k1 == FF.frame_gram_kernel(g1.copy()), "one Gram declared twice must declare one kernel")
+
+
+def test_inverse_of_honours_a_declaration_that_differs_from_the_retired_count() -> None:
+    """The production door reads the declared count and no cutoff: ``inverse_of(diag([1, 5e-13]), kernel=Coord(2, ()))`` inverts ``5e-13`` (#634)."""
+    m = DenseMetric.inverse_of(np.diag([1.0, 5e-13]), kernel=Coord(2, ()))
+    expected = np.diag([1.0, 1.0 / 5e-13])
+    _require(np.asarray(m.matrix).tobytes() == expected.tobytes(), f"the metric face {np.asarray(m.matrix).tolist()} differs from {expected.tolist()}")
+    _require(m.rank((2,)) == 2, f"rank {m.rank((2,))}, expected 2")
+
+
+def test_both_doors_share_one_parse() -> None:
+    """One bad input is one refusal on both doors, in every mode: the kernel and the shape are parsed before any decomposition."""
+    cases = [
+        (np.diag([1.0, 0.0, 0.0]), Coord(5, ()), ValueError, "kernel is declared on R"),
+        (np.diag([1.0, 2.0]), 3, TypeError, "must be a Declaration"),
+        (np.diag([1.0, 2.0]), None, TypeError, "must be a Declaration"),
+        (np.diag([1.0, 2.0]), Ann(2, Spanned(2, ("k",), 1)), ValueError, "kernel is not declared by a spanned subspace"),
+        (np.ones((2, 3)), Coord(2, ()), ValueError, "square 2-D"),
+    ]
+    for matrix, kernel, exc, msg in cases:
+        with pytest.raises(exc, match=msg):
+            DenseMetric(matrix, kernel=kernel)  # type: ignore[arg-type]
+        with pytest.raises(exc, match=msg):
+            DenseMetric.inverse_of(matrix, kernel=kernel)  # type: ignore[arg-type]
+
+
+def test_the_frame_refuses_the_zero_gram_in_its_own_words() -> None:
+    with pytest.raises(ValueError, match="frame Gram has no value above"):
+        FF.frame_gram_kernel(np.zeros((3, 3)))
+
+
+def test_inverse_of_runs_two_decompositions_per_mint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """3.3: ``inverse_of`` decomposes the Gram once, and the bare door's second face is not recomputed (a spy on ``np.linalg.svd``)."""
+    calls: list[int] = []
+    real = np.linalg.svd
+
+    def spy(*a, **k):
+        calls.append(1)
+        return real(*a, **k)
+
+    monkeypatch.setattr(np.linalg, "svd", spy)
+    g = _gram([1.0, 0.5, 0.3, 0.2, 0.1])
+    DenseMetric.inverse_of(g, kernel=Coord(5, ()))
+    _require(len(calls) == 1, f"inverse_of made {len(calls)} decompositions of the Gram, expected 1")
+    calls.clear()
+    DenseMetric(g, kernel=Coord(5, ()))
+    _require(len(calls) == 1, f"the bare door made {len(calls)} decompositions, expected 1")

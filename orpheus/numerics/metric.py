@@ -144,7 +144,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from functools import cached_property
-from typing import Optional, Protocol, cast
+from typing import Protocol, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -183,8 +183,11 @@ def _exact_inverse(matrix: NDArray, kernel_dim: int) -> NDArray:
 
     Under ``if __debug__:`` the sign of ``u_i . vt_i`` (the sign of the i-th eigenvalue of a symmetric matrix) is tested on the
     kept directions, and a kept value that is not positive is refused: a kept exact zero contradicts the declared rank as surely as
-    a negative one. This is a misuse check on the raw path, not a guarantee; under ``python -O`` a kept zero divides by zero and the
-    faces are NaN.
+    a negative one. This is a misuse check on the raw path, not a guarantee, and it is not a rank detector: it sees only the sign of a
+    round-off eigenvalue, so an under-declared kernel whose smallest kept value is a round-off residue is caught only when that residue
+    happens to be negative or zero. `[M]` 2026-11-24 over the 14 deficient harness Grams declared one dimension short: accepted on 6 of
+    14 under ``__debug__`` and on 13 of 14 under ``python -O``, with ``max|G+|`` up to ``2.5e15`` when accepted. Under ``python -O`` a
+    kept exact zero divides by zero and the faces are NaN.
     """
     u, s, vt = np.linalg.svd(matrix, hermitian=True)
     kept = s.shape[0] - kernel_dim
@@ -198,6 +201,31 @@ def _exact_inverse(matrix: NDArray, kernel_dim: int) -> NDArray:
     sinv = np.zeros_like(s)
     sinv[:kept] = 1.0 / s[:kept]
     return vt.T @ (sinv[:, None] * u.T)
+
+
+def _require_square(matrix: NDArray) -> None:
+    r"""Refuse a matrix that is not square and 2-D: the one shape check of both construction doors of :class:`DenseMetric`."""
+    shape = np.shape(matrix)
+    if len(shape) != 2 or shape[0] != shape[1]:
+        raise ValueError(f"DenseMetric requires a square 2-D matrix, got shape {shape}")
+
+
+def _parse_kernel(kernel: object, n: int) -> Declaration:
+    r"""``kernel`` as the declared kernel of a dense form on :math:`\mathbb{R}^n`, else the refusal: the one parse of both doors.
+
+    A dense form's kernel is ``Coord(n, ())`` (full rank) or a :class:`~orpheus.numerics.declaration.Spanned`: the decomposition
+    drops the smallest singular directions, so a named index set or an annihilator could disagree with them.
+    """
+    if not isinstance(kernel, Declaration):
+        raise TypeError(f"DenseMetric kernel must be a Declaration, got {type(kernel).__name__}")
+    if kernel.n != n:
+        raise ValueError(f"kernel is declared on R^{kernel.n}, the matrix is {n} x {n}")
+    if isinstance(kernel, Ann) or (isinstance(kernel, Coord) and kernel.indices):
+        raise ValueError(
+            f"kernel is not declared by a spanned subspace: got {kernel!r}; a dense form's kernel is "
+            f"Coord({n}, ()) (full rank) or a Spanned"
+        )
+    return kernel
 
 
 def _broadcast_leading(w: NDArray, target_ndim: int) -> NDArray:
@@ -466,15 +494,11 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
 
     matrix: NDArray
     kernel: Declaration = field(kw_only=True)
-    inverse_matrix: Optional[NDArray] = field(default=None, init=False, compare=False)
+    inverse_matrix: NDArray = field(init=False, compare=False)
 
     def __post_init__(self) -> None:
         m = np.asarray(self.matrix, dtype=float)
-        if m.ndim != 2 or m.shape[0] != m.shape[1]:
-            raise ValueError(
-                f"DenseMetric requires a square 2-D matrix, got shape "
-                f"{np.shape(self.matrix)}"
-            )
+        _require_square(m)
         scale = max(1.0, float(np.max(np.abs(m)))) if m.size else 1.0
         asym = float(np.max(np.abs(m - m.T))) if m.size else 0.0
         if asym > _DENSE_METRIC_SYMMETRY_RTOL * scale:
@@ -485,19 +509,10 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
                 f"{scale:.3e}. An asymmetric form is not an inner product — "
                 f"symmetrize at the producer."
             )
-        if not isinstance(self.kernel, (Coord, Spanned, Ann)):
-            raise TypeError(f"DenseMetric kernel must be a Declaration, got {type(self.kernel).__name__}")
-        if self.kernel.n != m.shape[0]:
-            raise ValueError(
-                f"kernel is declared on R^{self.kernel.n}, the matrix is {m.shape[0]} x {m.shape[0]}"
-            )
-        if isinstance(self.kernel, Ann) or (isinstance(self.kernel, Coord) and self.kernel.indices):
-            raise ValueError(
-                f"kernel is not declared by a spanned subspace: got {self.kernel!r}; a dense form's kernel is "
-                f"Coord({m.shape[0]}, ()) (full rank) or a Spanned"
-            )
+        kernel = _parse_kernel(self.kernel, m.shape[0])
         object.__setattr__(self, "matrix", _frozen_copy(m))
-        object.__setattr__(self, "inverse_matrix", _frozen_copy(_exact_inverse(m, self.kernel.dim)))
+        if "inverse_matrix" not in self.__dict__:  # installed already by inverse_of, which holds the Gram itself
+            object.__setattr__(self, "inverse_matrix", _frozen_copy(_exact_inverse(m, kernel.dim)))
 
     @staticmethod
     def symmetrised(gram: NDArray) -> NDArray:
@@ -514,9 +529,14 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
         is exact for a symmetric positive semi-definite form (:math:`(G^{+})^{+} = G`) and better conditioned than a second
         inversion.
         """
+        _require_square(np.asarray(gram))
         g_sym = cls.symmetrised(gram)
-        obj = cls(matrix=_exact_inverse(g_sym, kernel.dim), kernel=kernel)
+        declared = _parse_kernel(kernel, g_sym.shape[0])
+        obj = object.__new__(cls)
+        object.__setattr__(obj, "matrix", _exact_inverse(g_sym, declared.dim))
+        object.__setattr__(obj, "kernel", declared)
         object.__setattr__(obj, "inverse_matrix", _frozen_copy(g_sym))
+        obj.__post_init__()  # the one parse and admission of the bare door; it keeps the installed gram face
         return obj
 
     @property
@@ -532,9 +552,7 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
         return self._matmul_leading(self.matrix, x)
 
     def apply_inverse(self, x: NDArray) -> NDArray:
-        inv = self.inverse_matrix
-        assert inv is not None  # established by __post_init__; narrowing only
-        return self._matmul_leading(inv, x)
+        return self._matmul_leading(self.inverse_matrix, x)
 
     def rank(self, shape: tuple[int, ...]) -> int:
         r"""``(K - kernel.dim)`` times the trailing multiplicity ``size // K``: the declared rank, read from no cutoff."""
@@ -542,12 +560,9 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
         return (self.dim - self.kernel.dim) * (size // self.dim)
 
     def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
-        r"""Orthonormal live and kernel bases from the STORED faces: the
-        eigenvectors of the projector :math:`I − G^{+}G`, the kernel the
-        ``dim − rank`` of largest eigenvalue (rank read as :meth:`rank` reads
-        it, from the declared kernel), on the leading
-        ``dim`` slots and repeated over each trailing coordinate: column
-        ``kron(b, e_t)`` (C-order, the block leading)."""
+        r"""Orthonormal live and kernel bases of the block, from :meth:`_head_split`, on the leading ``dim`` slots and repeated over each
+        trailing coordinate: column ``kron(b, e_t)`` (C-order, the block leading). The vectors are the eigenvectors of the symmetrised
+        ``matrix`` and the kernel is its first ``kernel.dim`` columns, the count :meth:`rank` reads."""
         size = int(np.prod(block_shape)) if block_shape else self.dim
         trailing = np.eye(size // self.dim)
         live, kernel = self._head_split()
@@ -590,7 +605,6 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
         ``(lead, K, trail)`` around the block's row-major flattening and
         the matrix acts on the middle axis."""
         m = self.inverse_matrix if inverse else self.matrix
-        assert m is not None  # established by __post_init__; narrowing only
         out = np.asarray(x)
         leading_coordinates(out, out.shape[:start] + block_shape, owner="DenseMetric.apply_block")
         lead_shape = out.shape[:start]
