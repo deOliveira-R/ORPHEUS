@@ -4,10 +4,13 @@ Not a test module (no ``test_`` prefix). Every function here RETURNS data and no
 imports is removed by ``python -O`` (the canonical command), so a helper that asserted would turn a red gate green. The two test
 modules next to this file hold every assertion.
 
-Spaces are reached only through the table of named getters below (attribute chains off a problem or a mesh, never a class) and
-read only through the four verbs ``apply_metric``, ``apply_inverse_metric``, ``metric_diagonal`` and ``n_coordinates``. A later
-unit that deletes or re-spells an accessor re-points the getter here and leaves the stored bytes alone. The one place a class
-is named is the dense-metric builder of the frame families, which reads the two faces of the metric by role.
+Spaces are reached only through the tables of named getters below (attribute chains off a problem or a mesh) and read only
+through the four verbs ``apply_metric``, ``apply_inverse_metric``, ``metric_diagonal`` and ``n_coordinates``. A later unit that
+deletes or re-spells an accessor re-points the getter here and leaves the stored bytes alone. No space class is named. Three
+classes are, each for a reason no accessor replaces and none on a retirement row of section 5 of
+``.claude/plans/ontology_w1_spec.md``: ``FlattenedOperator`` densifies an operator (quantity group a), ``DenseMetric`` builds
+the dense metric of a Gram (group c), and ``NotInCoordinateSpace`` is the refusal the function-space arm raises for a flat vector,
+on which the verbs fall back to the space's own shape.
 
 Taking the snapshots (a commit of its own, on the host named by the stamp)::
 
@@ -45,41 +48,37 @@ Families = list[tuple[str, str, Callable[[], np.ndarray]]]
 # ─────────────────────────── the table of named getters ───────────────────────────
 
 
-def _through(parent: Any, attribute: str) -> Any:
-    """``getattr(parent, attribute)``, or ``None`` when the parent is absent (the radial system exists on curvilinear problems only)."""
-    return None if parent is None else getattr(parent, attribute)
+Row = tuple[str, Callable[[Any], Any], frozenset[str]]
+TRACE, PROBED = "b", "d"  # quantity group b: ``apply_metric(ones)`` and ``metric_diagonal()``; group d: ``apply_metric(v)`` and ``apply_inverse_metric(v)``
 
 
-#: ``{name: getter(problem)}`` for the SN problem. A getter returns ``None`` for a space the problem does not have.
-SN_GETTERS: dict[str, Callable[[Any], Any]] = {
-    "bulk_space": lambda p: p.bulk_space,
-    "angular_bulk_space": lambda p: p.angular_bulk_space,
-    "angular_trial_space": lambda p: p.angular_trial_space,
-    "moment_space(2)": lambda p: p.moment_space(2),
-    "full_field_space": lambda p: p.full_field_space,
-    "full_field_space.trace_space": lambda p: p.full_field_space.trace_space,
-    "radial_characteristic_boundary_space": lambda p: p.radial_characteristic_boundary_space,
-    "radial_characteristic_interior_space": lambda p: p.radial_characteristic_interior_space,
-    "radial_characteristic_field_space": lambda p: p.radial_characteristic_field_space,
-    "radial_characteristic_field_space.trace_space": lambda p: _through(p.radial_characteristic_field_space, "trace_space"),
-}
-#: The trace-side spaces of the SN problem: read for ``apply_metric(ones)`` and ``metric_diagonal()`` (quantity group b).
-SN_TRACE = ("full_field_space.trace_space", "radial_characteristic_boundary_space", "radial_characteristic_field_space.trace_space")
-#: The spaces read for ``apply_metric(v)`` and ``apply_inverse_metric(v)`` (quantity group d).
-SN_PROBED = (
-    "bulk_space", "angular_bulk_space", "angular_trial_space", "moment_space(2)", "full_field_space",
-    "radial_characteristic_boundary_space", "radial_characteristic_interior_space", "radial_characteristic_field_space",
+def _trace_of_radial_field(problem: Any) -> Any:
+    field = problem.radial_characteristic_field_space
+    return None if field is None else field.trace_space  # the radial system exists on curvilinear problems only
+
+
+#: One row per space of the SN problem: ``(name, getter(problem), groups)``. A getter returns ``None`` for a space the problem
+#: does not have. A row is one value, so a group cannot name a space that has no getter.
+SN_ROWS: tuple[Row, ...] = (
+    ("bulk_space", lambda p: p.bulk_space, frozenset({PROBED})),
+    ("angular_bulk_space", lambda p: p.angular_bulk_space, frozenset({PROBED})),
+    ("angular_trial_space", lambda p: p.angular_trial_space, frozenset({PROBED})),
+    ("moment_space(2)", lambda p: p.moment_space(2), frozenset({PROBED})),
+    ("full_field_space", lambda p: p.full_field_space, frozenset({PROBED})),
+    ("full_field_space.trace_space", lambda p: p.full_field_space.trace_space, frozenset({TRACE})),
+    ("radial_characteristic_boundary_space", lambda p: p.radial_characteristic_boundary_space, frozenset({TRACE, PROBED})),
+    ("radial_characteristic_interior_space", lambda p: p.radial_characteristic_interior_space, frozenset({PROBED})),
+    ("radial_characteristic_field_space", lambda p: p.radial_characteristic_field_space, frozenset({PROBED})),
+    ("radial_characteristic_field_space.trace_space", _trace_of_radial_field, frozenset({TRACE})),
 )
 
 #: The same for the diffusion slab, whose getters take the ``DiffusionMesh``.
-DIFFUSION_GETTERS: dict[str, Callable[[Any], Any]] = {
-    "bulk_space": lambda m: m.bulk_space,
-    "full_field_space": lambda m: m.full_field_space,
-    "full_field_space.trace_space": lambda m: m.full_field_space.trace_space,
-    "scalar_trace": lambda m: m.scalar_trace,
-}
-DIFFUSION_TRACE = ("full_field_space.trace_space", "scalar_trace")
-DIFFUSION_PROBED = ("bulk_space", "full_field_space")
+DIFFUSION_ROWS: tuple[Row, ...] = (
+    ("bulk_space", lambda m: m.bulk_space, frozenset({PROBED})),
+    ("full_field_space", lambda m: m.full_field_space, frozenset({PROBED})),
+    ("full_field_space.trace_space", lambda m: m.full_field_space.trace_space, frozenset({TRACE})),
+    ("scalar_trace", lambda m: m.scalar_trace, frozenset({TRACE})),
+)
 
 
 # ─────────────────────────── the verbs ───────────────────────────
@@ -101,22 +100,19 @@ def _apply(space: Any, verb: str, x_flat: np.ndarray) -> np.ndarray:
         return np.asarray(method(x_flat.reshape(space.shape)))
 
 
-def _space_arrays(problem: Any, getters: Mapping[str, Callable[[Any], Any]], trace: tuple[str, ...], probed: tuple[str, ...]) -> dict[str, np.ndarray]:
-    unknown = [name for name in (*trace, *probed) if name not in getters]
-    if unknown:
-        raise KeyError(f"the quantities name spaces without a getter: {unknown}")
+def _space_arrays(problem: Any, rows: tuple[Row, ...]) -> dict[str, np.ndarray]:
     arrays: dict[str, np.ndarray] = {}
-    for name, getter in getters.items():
+    for name, getter, groups in rows:
         space = getter(problem)
         if space is None:
             continue
         n = int(space.n_coordinates)
-        if name in trace:
+        if TRACE in groups:
             arrays[f"b.{name}.apply_metric_ones"] = _apply(space, "apply_metric", np.ones(n))
             diagonal = space.metric_diagonal()
             if diagonal is not None:
                 arrays[f"b.{name}.metric_diagonal"] = np.asarray(diagonal)
-        if name in probed:
+        if PROBED in groups:
             v = _probe_vector(n)
             arrays[f"d.{name}.apply_metric"] = _apply(space, "apply_metric", v)
             arrays[f"d.{name}.apply_inverse_metric"] = _apply(space, "apply_inverse_metric", v)
@@ -131,9 +127,12 @@ def _dense(operators: Mapping[str, tuple[Any, Any]]) -> dict[str, np.ndarray]:
 # ─────────────────────────── the capture ───────────────────────────
 
 
-def fixture_names() -> list[str]:
-    """The 15 fixture names, ``<family>_ng<n>``, in capture order."""
-    return [f"sn_{kind}_ng{ng}" for kind in fx.SN_KINDS for ng in fx.GROUPS] + [f"diff_slab_ng{ng}" for ng in fx.GROUPS]
+def sn_fixture_name(kind: str, ng: int) -> str:
+    return f"sn_{kind}_ng{ng}"
+
+
+def diffusion_fixture_name(ng: int) -> str:
+    return f"diff_slab_ng{ng}"
 
 
 def capture_problems() -> tuple[dict[Key, np.ndarray], list[tuple[str, str]]]:
@@ -142,7 +141,7 @@ def capture_problems() -> tuple[dict[Key, np.ndarray], list[tuple[str, str]]]:
     builders: list[tuple[str, str]] = []
     for kind in fx.SN_KINDS:
         for ng in fx.GROUPS:
-            name = f"sn_{kind}_ng{ng}"
+            name = sn_fixture_name(kind, ng)
             problem, text = fx.sn_problem(kind, ng)
             system = problem.system
             produced = _dense({
@@ -151,19 +150,19 @@ def capture_problems() -> tuple[dict[Key, np.ndarray], list[tuple[str, str]]]:
                 # B lives on the full-field space, not on the coupled space of the sphere and the cylinder.
                 "B": (system.factors.boundary, problem.full_field_space.zeros()),
             })
-            produced.update(_space_arrays(problem, SN_GETTERS, SN_TRACE, SN_PROBED))
+            produced.update(_space_arrays(problem, SN_ROWS))
             arrays.update({(name, key): value for key, value in produced.items()})
             builders.append((name, text + " | densified by FlattenedOperator(problem.system.loss | production, system.space.zeros()) "
                                           "and FlattenedOperator(problem.system.factors.boundary, problem.full_field_space.zeros())"))
     for ng in fx.GROUPS:
-        name = f"diff_slab_ng{ng}"
+        name = diffusion_fixture_name(ng)
         mesh, solver, text = fx.diffusion_problem(ng)
         produced = _dense({
             "A": (solver.loss, solver.template),
             "F": (solver.fission, solver.template),
             "B": (solver.boundary, solver.template),
         })
-        produced.update(_space_arrays(mesh, DIFFUSION_GETTERS, DIFFUSION_TRACE, DIFFUSION_PROBED))
+        produced.update(_space_arrays(mesh, DIFFUSION_ROWS))
         arrays.update({(name, key): value for key, value in produced.items()})
         builders.append((name, text + " | densified by FlattenedOperator(solver.loss | fission | boundary, solver.template)"))
     return arrays, builders
@@ -252,8 +251,41 @@ def load_snapshots(directory: Path) -> dict[Key, np.ndarray]:
 
 
 def directory_bytes(directory: Path) -> int:
-    """The total size in bytes of the files directly in ``directory``."""
-    return sum(p.stat().st_size for p in Path(directory).iterdir() if p.is_file())
+    """The total size in bytes of every file under ``directory``, subdirectories included."""
+    return sum(p.stat().st_size for p in Path(directory).rglob("*") if p.is_file())
+
+
+def manifest_keys(lines: list[str]) -> set[Key]:
+    """The ``(fixture, name)`` of each array line of ``MANIFEST.txt``."""
+    return {(f, n) for f, n, *_ in (line.split("\t") for line in lines)}
+
+
+def read_builders(path: Path) -> list[tuple[str, str]]:
+    """The ``(id, constructor call)`` lines of ``BUILDERS.txt``."""
+    return [tuple(line.split("\t", 1)) for line in Path(path).read_text().splitlines()]  # type: ignore[misc]
+
+
+def difference_report(a: Mapping[Key, np.ndarray], b: Mapping[Key, np.ndarray], limit: int = 10) -> list[tuple[Key, str, float]]:
+    """``(key, reason, max|a-b| / max|b|)`` for the first ``limit`` keys of ``differing_keys(a, b)``. Never asserts.
+
+    The reason is ``missing from a``, ``missing from b``, ``shape``, ``dtype`` or ``bytes``; the relative difference is ``nan``
+    unless the two arrays have one shape and a finite common type.
+    """
+    rows = []
+    for key in differing_keys(a, b)[:limit]:
+        if key not in a or key not in b:
+            rows.append((key, f"missing from {'a' if key not in a else 'b'}", float("nan")))
+            continue
+        x, y = np.asarray(a[key]), np.asarray(b[key])
+        if x.shape != y.shape:
+            rows.append((key, f"shape {x.shape} against {y.shape}", float("nan")))
+        elif x.dtype != y.dtype:
+            rows.append((key, f"dtype {x.dtype} against {y.dtype}", float("nan")))
+        else:
+            scale = float(np.max(np.abs(y))) if y.size else 0.0
+            rel = float(np.max(np.abs(x.astype(float) - y.astype(float)))) / scale if scale else float("nan")
+            rows.append((key, "bytes", rel))
+    return rows
 
 
 def write_snapshots(directory: Path) -> dict[Key, np.ndarray]:

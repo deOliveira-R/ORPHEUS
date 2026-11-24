@@ -40,6 +40,8 @@ BOX_CELLS = (2, 2)
 BOX_EXTENTS = (1.3, 0.7)  # non-dyadic
 BOX_LEVEL_SYMMETRIC_ORDER = 2
 DIFFUSION_CELL_EDGES = ((0.0, 0.3, 0.5), (0.5, 1.4, 3.0), (3.0, 4.1, 5.0))  # non-dyadic; region edges 0.5 | 3.0 | 5.0
+SPECULAR_ALBEDO = 1.0  # the albedos of the wall conditions of the fixtures; the texts of ``snapshots/BUILDERS.txt`` read them
+WHITE_ALBEDO = 0.3
 
 # ─────────────────────────── copied from the gates ───────────────────────────
 
@@ -156,7 +158,7 @@ def _sn_mixtures(ng: int):
 
 
 def _sn_table() -> dict[int, Any]:
-    return {0: WallCondition.specular(1.0), 1: WallCondition.vacuum(), 2: WallCondition.white(0.3)}
+    return {0: WallCondition.specular(SPECULAR_ALBEDO), 1: WallCondition.vacuum(), 2: WallCondition.white(WHITE_ALBEDO)}
 
 
 def _regions(counts):
@@ -176,7 +178,7 @@ def sn_problem(kind: str, ng: int) -> tuple[SNProblem, str]:
         quad = Quadrature.gauss_legendre(n_ordinates=GAUSS_LEGENDRE_ORDER)
         qn = f"Quadrature.gauss_legendre(n_ordinates={GAUSS_LEGENDRE_ORDER})"
         mats = {0: m0, 1: m1}
-        note = "slab, thicknesses (0.5, 0.9, 0.5), faces (MirrorDeck, tag 1 vacuum)"
+        note = f"slab, thicknesses {SLAB_THICKNESSES}, faces (MirrorDeck, tag 1 vacuum)"
     elif kind in ("sphere", "cylinder"):
         coord = CoordSystem.SPHERICAL if kind == "sphere" else CoordSystem.CYLINDRICAL
         geometry = StructuredGeometry.from_thicknesses(
@@ -191,7 +193,7 @@ def sn_problem(kind: str, ng: int) -> tuple[SNProblem, str]:
             qn = f"Quadrature.folded_product(n_mu={n_mu}, n_phi={n_phi})"
         mats = {0: m0, 1: m1}
         # A vacuum outer face made the boundary coupling identically zero, so the outer face is specular.
-        note = f"{kind}, radii (0.5, 0.9, 0.5) by CellsByCount.uniform_volume, outer face tag 0 specular(1.0)"
+        note = f"{kind}, radii {SLAB_THICKNESSES} by CellsByCount.uniform_volume, outer face tag 0 specular({SPECULAR_ALBEDO})"
     else:
         nx, ny = BOX_CELLS
         material_map = np.zeros((nx, ny), dtype=int)
@@ -203,10 +205,10 @@ def sn_problem(kind: str, ng: int) -> tuple[SNProblem, str]:
         qn = f"Quadrature.level_symmetric(sn_order={BOX_LEVEL_SYMMETRIC_ORDER})"
         mats = {2: m0, 0: m1}
         note = (f"box {nx}x{ny} cells, extents {BOX_EXTENTS}; faces xmin MirrorDeck, xmax tag 1 vacuum, "
-                f"ymin tag 0 specular(1.0), ymax tag 2 white(0.3)")
+                f"ymin tag 0 specular({SPECULAR_ALBEDO}), ymax tag 2 white({WHITE_ALBEDO})")
     problem = SNProblem(mesh, quad, mats, scheme=None, scattering_order=0, boundary_conditions=conditions_for(mesh, table))
     text = (f"{note}; quadrature {qn}; materials {mix_note}; SNProblem(mesh, quad, mats, scheme=None, scattering_order=0, "
-            f"boundary_conditions=conditions_for(mesh, {{0: specular(1.0), 1: vacuum, 2: white(0.3)}}))")
+            f"boundary_conditions=conditions_for(mesh, {{0: specular({SPECULAR_ALBEDO}), 1: vacuum, 2: white({WHITE_ALBEDO})}}))")
     return problem, text
 
 
@@ -218,7 +220,7 @@ def diffusion_problem(ng: int) -> tuple[DiffusionMesh, DiffusionSolver, str]:
     _check_groups(ng)
     # The body of ``_het_mesh(WallCondition.vacuum(), WallCondition.white(0.3))`` (tests/gates/diffusion/test_solver.py:101),
     # with the cell edges of this harness in place of the gate's 1 / 2 / 1 cells.
-    (role_left, role_right), conditions = declare_sides(WallCondition.vacuum(), WallCondition.white(0.3))
+    (role_left, role_right), conditions = declare_sides(WallCondition.vacuum(), WallCondition.white(WHITE_ALBEDO))
     geometry = StructuredGeometry.slab((0.0, 0.5, 3.0, 5.0), (0, 1, 0), left=role_left, right=role_right)
     mesh = Mesher(geometry).partition(tuple(CellEdges(np.array(e)) for e in DIFFUSION_CELL_EDGES)).mesh
     if ng == 2:
@@ -229,7 +231,7 @@ def diffusion_problem(ng: int) -> tuple[DiffusionMesh, DiffusionSolver, str]:
         m = _fuel_3g()
         mats, note = {0: m, 1: m}, "_fuel_3g() for both regions"
     diffusion_mesh = DiffusionMesh(mesh, mats, boundary_conditions=conditions)
-    text = (f"the body of _het_mesh(WallCondition.vacuum(), WallCondition.white(0.3)) with cell edges {DIFFUSION_CELL_EDGES}; "
+    text = (f"the body of _het_mesh(WallCondition.vacuum(), WallCondition.white({WHITE_ALBEDO})) with cell edges {DIFFUSION_CELL_EDGES}; "
             f"materials {note}; DiffusionSolver(DiffusionMesh(mesh, materials, boundary_conditions=conditions))")
     return diffusion_mesh, DiffusionSolver(diffusion_mesh), text
 
@@ -255,6 +257,7 @@ def frame_families() -> list[tuple[str, str, Callable[[], np.ndarray]]]:
         return lambda: np.asarray(FF.angular_frame(q(), L).discrete_gram, float)
 
     def equi(L, n):
+        # tests/gates/numerics/test_dense_metric.py:45 (``_equispaced_legendre_gram``): the same linspace, weights 2/n and S^2/O2_x measure.
         def build():
             mu = np.linspace(-1.0, 1.0, n + 2)[1:-1]
             w = np.full(mu.size, 2.0 / mu.size)
@@ -263,12 +266,14 @@ def frame_families() -> list[tuple[str, str, Callable[[], np.ndarray]]]:
         return build
 
     def overlap():
+        # A construction of the harness (no gate holds it): a two-cell overlap basis on the line and three equal-weight nodes.
         ob = OverlapBasis(edges_per_axis=(np.array([-0.5, 0.5, 1.5]),), partition_of=RealSpace(1),
                           overlap_table=np.array([[1.0, 0.0], [0.5, 0.5], [0.0, 1.0]]), fine=RealSpace(1))
         m = DiscreteMeasure(nodes=np.array([0.0, 0.5, 1.0]), weights=np.ones(3), support=RealSpace(1))
         return np.asarray(GalerkinFrame(ob, m).discrete_gram, float)
 
     def ls4_legendre():
+        # A construction of the harness (no gate holds it): the Legendre basis of degree 4 on the level-symmetric order-4 measure.
         q = Quadrature.level_symmetric(4)
         return np.asarray(GalerkinFrame(LegendreBasis(L=4, axis="x"), q.measure).discrete_gram, float)
 
