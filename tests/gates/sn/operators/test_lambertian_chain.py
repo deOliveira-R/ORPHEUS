@@ -379,6 +379,43 @@ class TestTheDomainIsGammaPlus:
         with pytest.raises(ValueError, match=r"PartialCurrentOperator\.apply \(\|Γ₊\|\).*leading shape"):
             lam.R.apply(np.ones((retired_strict.size, _NG)))
 
+    def test_the_domain_is_the_owners_outflow_on_a_nudged_fixture(self):
+        r"""The domain is the owner's outflow set: a cosine of ``eps`` is genuine outflow, not tangential.
+
+        Replaces ``test_the_domain_is_the_tangential_band_not_the_strict_compare`` (unit N02, ruling ``[ON02-2]``: the half-range is
+        read exactly, ``c > 0``). The fixture is ``product(2, 4)`` with its 4 exactly-zero ``mu_x`` replaced by
+        ``np.finfo(np.float64).eps``, strictly positive and below the retired band ``4 eps``; the nudge goes into the measure, so the
+        trace space and the chain are both built from it.
+
+        The teeth are the counts: the trace outflow tier at ``xmax`` has 6 ordinates and the chain's domain has 6 rows (the retired
+        band read 2); the equality with ``half_range`` alone would be a tautology once the trace reads the owner. The first assertion
+        is the activation guard.
+        """
+        eps = float(np.finfo(np.float64).eps)
+        shipped = Quadrature.product(n_mu=2, n_phi=4)
+        nodes = np.array(shipped.measure.nodes, copy=True)
+        nodes[nodes[:, 0] == 0.0, 0] = eps
+        quad = replace(shipped, measure=replace(shipped.measure, nodes=nodes))
+
+        odn = _signed_projection(quad, "xmax")
+        nudged = np.flatnonzero((odn > 0.0) & (odn < 4.0 * eps))
+        assert nudged.size == 4, f"fixture not activated: cosines in (0, 4 eps) at {nudged.tolist()}"
+
+        trace = _trace(quad, ("xmin", "xmax"))
+        outflow = trace.outflow_indices_for_face("xmax")
+        assert outflow.size == 6, f"the trace outflow tier has {outflow.size} ordinates at xmax, wanted 6: {outflow.tolist()}"
+        assert set(nudged.tolist()) <= set(outflow.tolist()), "a cosine of eps is not read as outflow"
+
+        lam = _Lambertian(trace, "xmax")
+        assert lam.gamma_plus.shape[0] == 6, f"the chain reads {lam.gamma_plus.shape[0]} rows, wanted 6"
+        assert np.all(lam.cos_w > 0.0)
+        out = lam.R.apply(np.ones((6, _NG)))
+        assert np.all(np.isfinite(out)) and out.shape == (2, _NG)
+
+        from orpheus.numerics.tangential import half_range
+
+        assert tuple(outflow.tolist()) == tuple(half_range(quad, 0, sign=+1).outflow.indices)
+
 
 # ─────────────────────────────────────────────────────────────────────
 # B — cosine-weighted current conservation (L1)
