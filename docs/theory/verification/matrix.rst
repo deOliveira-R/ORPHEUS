@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21570**
+Total tests collected: **21614**
 
 V&V level distribution
 ----------------------
@@ -18,11 +18,11 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2254, 10.4%
+   L0, 2253, 10.4%
    L1, 2996, 13.9%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 16167, 75.0%
+   foundation, 16212, 75.0%
    unmarked, 68, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 21423
+   explicit, 21467
    class-name, 46
    func-name, 0
    case, 33
@@ -483,7 +483,7 @@ Module × level grid
    numerics/test_advertised_degree_is_measured, 0, 0, 0, 0, 41, 0
    numerics/test_angular_face_trace_space, 0, 0, 0, 0, 132, 0
    numerics/test_angular_symmetry, 0, 0, 0, 0, 39, 0
-   numerics/test_angular_trace_space, 10, 14, 0, 0, 12, 0
+   numerics/test_angular_trace_space, 10, 14, 0, 0, 11, 0
    numerics/test_assembled_operator, 0, 0, 0, 0, 21, 0
    numerics/test_assembly_functor, 0, 0, 0, 0, 36, 0
    numerics/test_axis, 0, 0, 0, 0, 18, 0
@@ -629,7 +629,7 @@ Module × level grid
    operators/test_legendre_moment_scattering, 9, 0, 0, 0, 0, 0
    operators/test_linear_combination_sn, 5, 0, 0, 0, 0, 0
    operators/test_loss_action_convention, 0, 0, 0, 0, 4, 0
-   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 71, 7
+   operators/test_loss_kernel_gauge, 0, 0, 0, 0, 72, 7
    operators/test_loss_nullspace_reflective_box, 0, 0, 0, 0, 12, 0
    operators/test_loss_transpose_solve, 0, 0, 0, 0, 16, 0
    operators/test_moment_domain_binding, 0, 0, 0, 0, 14, 0
@@ -677,7 +677,7 @@ Module × level grid
    primitives/test_face_name_crosswalk, 0, 0, 0, 0, 4, 0
    primitives/test_harmonic_moment_flux, 0, 0, 0, 0, 25, 0
    primitives/test_method_space, 3, 0, 0, 0, 0, 0
-   primitives/test_octants_property, 60, 0, 0, 0, 0, 0
+   primitives/test_octants_property, 59, 0, 0, 0, 0, 0
    primitives/test_properties, 4, 0, 0, 0, 0, 0
    primitives/test_quadrature, 50, 0, 0, 0, 0, 0
    primitives/test_quadrature_fold, 0, 0, 0, 0, 14, 0
@@ -858,10 +858,15 @@ Module × level grid
    w1/test_dense_inverse_admission, 0, 0, 0, 0, 25, 0
    w1/test_dense_inverse_bytes, 0, 0, 0, 0, 43, 0
    w1/test_dense_kernel_declared, 0, 0, 0, 0, 39, 0
+   w1/test_half_range_one_owner, 0, 0, 0, 0, 24, 0
+   w1/test_half_range_population, 0, 0, 0, 0, 8, 0
+   w1/test_half_range_selectors, 0, 0, 0, 0, 7, 0
    w1/test_no_cutoff_in_metric, 0, 0, 0, 0, 5, 0
+   w1/test_no_cutoff_symbols, 0, 0, 0, 0, 4, 0
    w1/test_signature_guarantee, 0, 0, 0, 0, 24, 0
    w1/test_snapshot_controls, 0, 0, 0, 0, 0, 4
    w1/test_snapshot_harness, 0, 0, 0, 0, 0, 1
+   w1/test_trace_half_range_coherence, 0, 0, 0, 0, 2, 0
 
 Equation coverage
 -----------------
