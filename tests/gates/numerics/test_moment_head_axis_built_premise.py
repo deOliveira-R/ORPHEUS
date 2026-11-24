@@ -60,6 +60,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind
+from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
@@ -368,7 +369,7 @@ def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> N
     from orpheus.numerics.metric import FactoredMetric
 
     G = np.eye(3) + 0.25
-    dense = DenseMetric.inverse_of(G)
+    dense = DenseMetric.inverse_of(G, kernel=Coord(3, ()))
     axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, origin=Declared(Modal(np.eye(3)[0])))
     with pytest.raises(ValueError, match="positioned over them"):
         FunctionSpace(name="probe", shape=(3,), axes=(axis,), metric=dense)

@@ -51,7 +51,8 @@ from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE, RealSpace
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.metric import _DENSE_METRIC_RCOND, DenseMetric, FactoredMetric
+from orpheus.numerics.frame_faces import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
+from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.numerics.coefficient_layout import HarmonicLayout
@@ -912,7 +913,7 @@ def test_the_dense_matrix_parseval_dressing_rides_a_quotient_basis_frame():
     np.testing.assert_allclose(
         metric.matrix,
         np.linalg.pinv(
-            (gram + gram.T) / 2.0, hermitian=True, rcond=_DENSE_METRIC_RCOND
+            (gram + gram.T) / 2.0, hermitian=True, rcond=FRAME_GRAM_RANK_RTOL
         ),
         rtol=1e-12, atol=1e-15,
     )
@@ -1008,7 +1009,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     # basis axis is refused as a second source beside the counting measure)
     dressed = frame_faces._dressed(
         FunctionSpace.of_basis(frame.basis), frame=frame,
-        dense=DenseMetric.inverse_of(frame.discrete_gram),
+        dense=DenseMetric.inverse_of(frame.discrete_gram, kernel=frame_gram_kernel(frame.discrete_gram)),
     )
     vars(frame)["_frame_faces"] = {"basis_space": dressed}  # pre-seed the frame_faces cache
     assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds on the seed
@@ -1034,7 +1035,7 @@ def test_dense_frames_are_dressed_with_the_pseudo_inverse_gram(make_frame):
 
     Four mechanisms, one law: verdict DENSE ⟹ ``basis_space`` carries a
     :class:`DenseMetric` whose matrix is the Moore–Penrose pseudo-inverse
-    of the measured (symmetrized) Gram at the module's pinned ``rcond``,
+    of the measured (symmetrized) Gram at the frame's declared rank (``FRAME_GRAM_RANK_RTOL``),
     and the Galerkin identity ``test_space is basis_space`` survives the
     dressing.
     """
@@ -1043,7 +1044,7 @@ def test_dense_frames_are_dressed_with_the_pseudo_inverse_gram(make_frame):
     metric = _dense_metric_of(frame)
     g = frame.discrete_gram
     expected = np.linalg.pinv(
-        (g + g.T) / 2.0, hermitian=True, rcond=_DENSE_METRIC_RCOND
+        (g + g.T) / 2.0, hermitian=True, rcond=FRAME_GRAM_RANK_RTOL
     )
     np.testing.assert_allclose(metric.matrix, expected, rtol=1e-12, atol=1e-15)
     assert frame_faces.test_space(frame) is frame_faces.basis_space(frame)

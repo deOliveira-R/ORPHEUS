@@ -874,6 +874,17 @@ wave = "W4"
 ruling = "O23"
 
 [[concept]]
+id = "declaration"
+name = "Declaration"
+definition = "the declaration of a subspace of R^n: an exact index subset, a subspace known by a content key, or the annihilator of one"
+kind = "set"
+phase = "structure"
+layer = "numerics"
+wave = "W1"
+ruling = "O23"
+sum = "orpheus/numerics/declaration.py:Declaration"
+
+[[concept]]
 id = "subspace"
 name = "Subspace"
 definition = "a subspace on an index subset"

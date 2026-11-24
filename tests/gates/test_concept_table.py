@@ -33,7 +33,7 @@ from tools.concept_table.paths import DEBT_FILE, ROOT, SEED_FILE, TABLE_FILE
 
 pytestmark = pytest.mark.foundation
 
-EXPECTED_CONCEPTS = 88
+EXPECTED_CONCEPTS = 89
 
 
 class Uninstallable(Exception):
@@ -96,7 +96,7 @@ def _red(findings, needle: str = "") -> bool:
 
 # --- G0 ---------------------------------------------------------------------------------------------------------
 
-def test_g0_table_is_well_formed_and_has_88_rows():
+def test_g0_table_is_well_formed_and_has_89_rows():
     m, w = ct(), world()
     assert len(w.concepts) == EXPECTED_CONCEPTS
     findings = m.checks.check_table(w.concepts, _known_layers(), EXPECTED_CONCEPTS, m.checks.doc_labels(ROOT / "docs"), m.checks.function_resolver(ROOT))

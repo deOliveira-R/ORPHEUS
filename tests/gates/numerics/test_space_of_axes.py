@@ -456,6 +456,7 @@ class TestThreeSourceExclusivity:
         """B1 — the three positive legs: each source ALONE constructs,
         and its metric ACTS (the matching realization, read through the
         public verb rather than a private attribute)."""
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric
 
         x = np.array([1.0, 2.0])
@@ -473,7 +474,7 @@ class TestThreeSourceExclusivity:
             "the dense-weights source must act as the Hadamard metric",
         )
         by_object = FunctionSpace(
-            "m", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 4.0]]))
+            "m", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 4.0]]), kernel=Coord(2, ()))
         )
         _require(
             bool(np.array_equal(by_object.apply_metric(x), [3.0, 8.5])),
@@ -491,10 +492,11 @@ class TestThreeSourceExclusivity:
         form beside an axis that also carries a measure is two sources on
         one block and stays refused. Until then ANY object beside axes was
         refused ("one metric source only")."""
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric, FactoredMetric
 
         ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
-        dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]))
+        dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()))
         with pytest.raises(ValueError, match="positioned over them"):
             FunctionSpace("bad", (2,), axes=(ax,), metric=dense)
         with pytest.raises(ValueError, match="two metric sources on one block"):
@@ -517,6 +519,7 @@ class TestThreeSourceExclusivity:
         """B3 — the (dense, metric) arm: the one the pre-P7 structure
         could not reach (``if self.axes is None: return`` short-circuited
         before any check). Battery arm M10c is its teeth."""
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric
 
         with pytest.raises(ValueError, match="one metric source"):
@@ -524,7 +527,7 @@ class TestThreeSourceExclusivity:
                 "bad",
                 (2,),
                 inner_product_weights=np.array([1.0, 2.0]),
-                metric=DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]])),
+                metric=DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ())),
             )
 
 

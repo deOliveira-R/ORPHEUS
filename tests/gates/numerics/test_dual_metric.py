@@ -44,6 +44,8 @@ from orpheus.numerics import frame_faces
 from orpheus.numerics import operator as op_mod
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.elementary_operators import DiagonalOperator
+from orpheus.numerics.declaration import Coord
+from tests.gates._dense import declared_kernel
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, DualMetric, FactoredMetric
 from orpheus.numerics.operator import (
     AdjointOperator,
@@ -87,10 +89,10 @@ def _metrics():
     return {
         "diag_pos": (DiagonalMetric(_W_POS), (3,)),
         "diag_sing": (DiagonalMetric(_W_SING), (4,)),
-        "dense": (DenseMetric(_G), (3,)),
-        "dense_inverse_of_singular": (DenseMetric.inverse_of(_G_SING), (3,)),
+        "dense": (DenseMetric(_G, kernel=Coord(3, ())), (3,)),
+        "dense_inverse_of_singular": (DenseMetric.inverse_of(_G_SING, kernel=declared_kernel(_G_SING, 1)), (3,)),
         "factored_dense_diag": (
-            FactoredMetric((((3,), DenseMetric(_G)), ((2,), DiagonalMetric(np.array([2.0, 0.5]))))),
+            FactoredMetric((((3,), DenseMetric(_G, kernel=Coord(3, ()))), ((2,), DiagonalMetric(np.array([2.0, 0.5]))))),
             (3, 2),
         ),
         "factored_euclid_block": (
@@ -105,7 +107,7 @@ def _leaf_spaces():
     return {
         "named_weights": FunctionSpace("s6a_V", (3,), inner_product_weights=_W_POS),
         "named_singular": FunctionSpace("s6a_Vs", (4,), inner_product_weights=_W_SING),
-        "dense": FunctionSpace("s6a_VD", (3,), metric=DenseMetric(_G)),
+        "dense": FunctionSpace("s6a_VD", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()))),
         "of_axes": FunctionSpace.of_axes(Axis("a", (2,), weights=w, origin=Declared(BasisKind.NODAL))),
         "basis_space_gl8_L2": frame_faces.basis_space(
             frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2)
@@ -113,7 +115,7 @@ def _leaf_spaces():
         "basis_space_product48_L4": frame_faces.basis_space(
             frame_faces.angular_frame(Quadrature.product(4, 8), 4)
         ),
-        "tensor_dense_diag": FunctionSpace("s6a_T1", (3,), metric=DenseMetric(_G))
+        "tensor_dense_diag": FunctionSpace("s6a_T1", (3,), metric=DenseMetric(_G, kernel=Coord(3, ())))
         * FunctionSpace("s6a_T2", (2,), inner_product_weights=np.array([2.0, 0.5])),
     }
 
@@ -168,21 +170,21 @@ def test_M2_the_dual_is_an_involution_by_identity(name):
 
 def test_M3_a_dense_dual_computes_no_new_inverse(monkeypatch):
     """The dense dual reads the two stored faces: it is the one face-swap
-    wrapper (:class:`DualMetric`) over the dense metric, no ``pinv`` runs when
+    wrapper (:class:`DualMetric`) over the dense metric, no inversion runs when
     it is built or applied, and its faces are the stored matrices bit for bit
-    (census §1). First red: a dual that re-inverts (``DenseMetric(m.inverse_matrix)``
-    derives a second pseudo-inverse: ``pinv`` runs and the inverse face moves)."""
+    (census §1). First red: a dual that re-inverts (``DenseMetric(m.inverse_matrix, ...)``
+    derives a second inverse: the exact-count body runs and the inverse face moves)."""
     import orpheus.numerics.metric as metric_mod
 
-    m = DenseMetric(_G)
+    m = DenseMetric(_G, kernel=Coord(3, ()))
     inv = m.inverse_matrix if m.inverse_matrix is not None else pytest.fail("primal has no inverse face")
     calls = []
-    real = np.linalg.pinv
-    monkeypatch.setattr(metric_mod.np.linalg, "pinv", lambda *a, **k: calls.append(1) or real(*a, **k))
+    real = metric_mod._exact_inverse
+    monkeypatch.setattr(metric_mod, "_exact_inverse", lambda *a, **k: calls.append(1) or real(*a, **k))
     d = m.dual()
     x = _sample((3, 2), 5)
     fwd, back = d.apply(x), d.apply_inverse(x)
-    _require(calls == [], f"the dense dual ran pinv {len(calls)} time(s)")
+    _require(calls == [], f"the dense dual ran an inversion {len(calls)} time(s)")
     _require(type(d) is DualMetric and isinstance(d, DualMetric) and d.primal is m,
              f"the dense dual is a {type(d).__name__}, not the face-swap wrapper over the metric")
     np.testing.assert_array_equal(fwd, inv @ x)
@@ -251,7 +253,7 @@ def test_S2b_dense_dual_pairing_against_the_exact_rational_inverse():
                 fac = A[r][c]
                 A[r] = [a - fac * b for a, b in zip(A[r], A[c])]
     Ginv = np.array([[float(v) for v in row[n:]] for row in A])
-    V = FunctionSpace("s6a_S2b", (3,), metric=DenseMetric(_G))
+    V = FunctionSpace("s6a_S2b", (3,), metric=DenseMetric(_G, kernel=Coord(3, ())))
     f, g = _sample((3,), 12), _sample((3,), 13)
     exact = float(f @ Ginv @ g)
     kappa = float(np.linalg.cond(_G))
@@ -541,7 +543,7 @@ def test_D1_the_dual_arrow_has_no_adjoint_of_its_own():
 def _square_fixtures():
     V = FunctionSpace("s6a_sqV", (3,), inner_product_weights=_W_POS)
     W = FunctionSpace("s6a_sqW", (2,), inner_product_weights=np.array([3.0, 0.25]))
-    VD = FunctionSpace("s6a_sqVD", (3,), metric=DenseMetric(_G))
+    VD = FunctionSpace("s6a_sqVD", (3,), metric=DenseMetric(_G, kernel=Coord(3, ())))
     Vs = FunctionSpace("s6a_sqVs", (4,), inner_product_weights=_W_SING)
     rng = np.random.default_rng(23)
     return {
@@ -572,7 +574,7 @@ def test_D2_the_dagger_dual_square_commutes_bitwise(name):
 # Q — #625: a spaceless pointwise operator acts on coordinates
 # ═══════════════════════════════════════════════════════════════════════
 
-_VD = FunctionSpace("s6a_Q_VD", (3,), metric=DenseMetric(_G))
+_VD = FunctionSpace("s6a_Q_VD", (3,), metric=DenseMetric(_G, kernel=Coord(3, ())))
 
 
 def _wip(space, x, y):

@@ -24,7 +24,9 @@ from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.deck import DeckTransformation, MirrorDeck
 from orpheus.mesh import CellEdges, CellsByCount, Mesh2D, Mesher
 from orpheus.mesh.axis import roles_of_axes
+from orpheus.numerics.declaration import Coord, Declaration, Spanned
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.values.content import content_digest
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.boundary_conditions import WallCondition
 
@@ -239,11 +241,35 @@ def diffusion_problem(ng: int) -> tuple[DiffusionMesh, DiffusionSolver, str]:
 # ─────────────────────────── the dense-metric Gram families ───────────────────────────
 
 
-def frame_families() -> list[tuple[str, str, Callable[[], np.ndarray]]]:
-    """The 21 families as ``(id, constructor call, builder of the raw Gram)``: 16 frame-built and 5 synthetic.
+#: The four hand-written families and the nullity each is declared with (the builder's own declaration: an independent witness of the
+#: frame's rank rule on those four). The other 17 families are built by a frame and declare through ``frame_faces.frame_gram_kernel``.
+HAND_KERNEL_DIMS: dict[str, int] = {"syn.rank2_3x3": 1, "syn.pou_3x3": 0, "syn.kappa1e4_8x8": 0, "syn.near_cutoff_5x5": 1}
 
-    The 16 frame-built Grams are the ones the 101-file spy of ``scratch/ontology/w1/spec/inv/spy2.pkl.rows`` saw, rebuilt
-    explicitly. The synthetic ids start with ``syn.``.
+
+def declared_kernel_of(family: str, gram: np.ndarray) -> tuple[Declaration, str]:
+    """``(kernel, constructor text)`` the harness declares for the family's raw ``gram``.
+
+    A frame-built family declares through the frame's rule; a hand-written one by its own dimension, spelled inline here (this
+    module imports no other test module), keyed ``("test-gram-kernel", content_digest(g_sym))``.
+    """
+    from orpheus.numerics import frame_faces as FF
+
+    if family not in HAND_KERNEL_DIMS:
+        return FF.frame_gram_kernel(gram), "frame_gram_kernel(gram)"
+    g_sym = (gram + gram.T) / 2.0
+    n, dim = g_sym.shape[0], HAND_KERNEL_DIMS[family]
+    if dim == 0:
+        return Coord(n, ()), f"Coord({n}, ())"
+    frozen = np.array(g_sym, dtype=float)
+    frozen.setflags(write=False)
+    return Spanned(n, ("test-gram-kernel", content_digest(frozen)), dim), f"Spanned({n}, ('test-gram-kernel', content_digest(g_sym)), {dim})"
+
+
+def frame_families() -> list[tuple[str, str, Callable[[], np.ndarray]]]:
+    """The 21 families as ``(id, constructor call, builder of the raw Gram)``: 17 frame-built and 4 hand-written.
+
+    The 17 frame-built Grams are the ones the 101-file spy of ``scratch/ontology/w1/spec/inv/spy2.pkl.rows`` saw, rebuilt
+    explicitly (``syn.equi8.L4_5x5`` is one of them). The synthetic ids start with ``syn.``; four of those are hand-written.
     """
     from orpheus.geometry.manifold import SPHERE, RealSpace
     from orpheus.geometry.symmetry import SubgroupOfO3

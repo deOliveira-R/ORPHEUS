@@ -45,6 +45,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
+from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
@@ -205,7 +206,7 @@ def test_a_positioned_dense_block_is_admitted_and_applied():
     NEGATIVE CONTROL: the same axes with NO object (the counting-axis route
     the old short-circuit would have taken) differ at O(1)."""
     axes, gram = _dense_gram_on_the_head()
-    dense = DenseMetric(gram)
+    dense = DenseMetric(gram, kernel=Coord(6, ()))
     spatial_w = axes[1].weights
     assert spatial_w is not None
     positioned = FactoredMetric((((2, 3), dense), ((4,), None)))
@@ -241,7 +242,7 @@ def test_a_product_of_axis_built_factors_carries_the_overlay_beside_its_axes():
     head_axis = axes[0]
     head = FunctionSpace(
         name="dense_head", shape=(2, 3), axes=(head_axis,),
-        metric=FactoredMetric((((2, 3), DenseMetric(gram)),)),
+        metric=FactoredMetric((((2, 3), DenseMetric(gram, kernel=Coord(6, ()))),)),
     )
     bulk = FunctionSpace.of_axes(
         EnergyAxis(label="energy", shape=(2,)), axes[1],
@@ -278,7 +279,7 @@ def test_the_guard_refuses_an_object_not_positioned_over_the_axes():
         FunctionSpace(name="bad_whole", shape=(2, 3, 4), axes=axes, metric=whole)
     # Blocks that concatenate to the SPACE shape (so the object's own
     # validate_for passes) but do not follow the AXES' blocks.
-    misaligned = FactoredMetric((((2,), None), ((3, 4), DenseMetric(np.eye(12)))))
+    misaligned = FactoredMetric((((2,), None), ((3, 4), DenseMetric(np.eye(12), kernel=Coord(12, ())))))
     with pytest.raises(ValueError, match="do not follow the axes"):
         FunctionSpace(name="bad_blocks", shape=(2, 3, 4), axes=axes, metric=misaligned)
     # A diagonal measure spelled OFF its axis.
@@ -286,7 +287,7 @@ def test_the_guard_refuses_an_object_not_positioned_over_the_axes():
     with pytest.raises(ValueError, match="the axis's own to carry"):
         FunctionSpace(name="bad_diag", shape=(2, 3, 4), axes=axes, metric=off_axis)
     # A form on the WEIGHTED spatial axis — two sources on one block.
-    shadowing = FactoredMetric((((2, 3), None), ((4,), DenseMetric(np.eye(4)))))
+    shadowing = FactoredMetric((((2, 3), None), ((4,), DenseMetric(np.eye(4), kernel=Coord(4, ())))))
     with pytest.raises(ValueError, match="two metric sources on one block"):
         FunctionSpace(name="bad_shadow", shape=(2, 3, 4), axes=axes, metric=shadowing)
     # The weights slot stays refused beside axes — unchanged.

@@ -36,8 +36,10 @@ NUMERICS = pathlib.Path(__file__).resolve().parents[3] / "orpheus" / "numerics"
 TIERS: tuple[tuple[str, ...], ...] = (
     # coordinate-space membership, the shape leg of the one parse: below every
     # concept, so that a measure, a basis and a metric block, which own their
-    # domain shapes but cannot name a space, parse with it (U1b, 2026-10-30)
-    ("coordinate_space",),
+    # domain shapes but cannot name a space, parse with it (U1b, 2026-10-30);
+    # ``declaration`` is the language a metric states its kernel in, imported by ``metric``
+    # (and by ``tangential`` from N02), so it ranks below tier 1
+    ("coordinate_space", "declaration"),
     # primitives, and the orthogonal-polynomial recurrence (upstream of both measures)
     # (``symmetry``, ``roots_of_unity`` and ``manifold``'s geometric half left for
     # geometry at layer DAG WP-B, 2026-10-22; ``index_set`` holds the finite index

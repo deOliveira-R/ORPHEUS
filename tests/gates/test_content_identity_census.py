@@ -60,6 +60,7 @@ from tests.gates.numerics.test_content_identity_mesh_free import ROSTER as MESH_
 from tests.gates.numerics.test_content_identity_question import ROSTER as QUESTION_ROSTER
 from tests.gates.numerics.test_content_identity_observable import ROSTER as OBSERVABLE_ROSTER
 from tests.gates.numerics.test_enclosure import ROSTER as ENCLOSURE_ROSTER
+from tests.gates.numerics.w1.test_content_identity_declaration import ROSTER as DECLARATION_ROSTER
 from tests.gates.reference.test_readings import ROSTER as READING_ROSTER
 from tests.gates.reference.test_published import ROSTER as PUBLISHED_ROSTER
 from tests.gates.reference.test_reference_certificate import ROSTER as CERTIFICATE_ROSTER
@@ -86,7 +87,7 @@ DIFFUSION_ROSTER: tuple[Entry, ...] = (
     ),
 )
 
-ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + TRANSPORT_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER + DIFFUSION_ROSTER
+ROSTER: tuple[Entry, ...] = DATA_ROSTER + GEOMETRY_ROSTER + MESH_ROSTER + AXIS_ROSTER + MESH_FREE_ROSTER + QUESTION_ROSTER + SPECIFICATION_ROSTER + TRANSPORT_ROSTER + ENCLOSURE_ROSTER + READING_ROSTER + OBSERVABLE_ROSTER + PUBLISHED_ROSTER + CERTIFICATE_ROSTER + CHARACTERISTIC_ROSTER + DIFFUSION_ROSTER + DECLARATION_ROSTER
 
 
 # ═════════════════════════════════════════════════════════════════════════════

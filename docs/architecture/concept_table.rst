@@ -97,13 +97,13 @@ Summary
    * - quantity
      - count
    * - classes
-     - 676
+     - 679
    * - concepts
-     - 88
+     - 89
    * - classes by role: ``head``
      - 66
    * - classes by role: ``arm``
-     - 117
+     - 120
    * - classes by role: ``weld``
      - 81
    * - classes by role: ``part``
@@ -117,7 +117,7 @@ Summary
    * - classes by role: ``annex``
      - 138
    * - classes by kind: ``set``
-     - 72
+     - 75
    * - classes by kind: ``measure``
      - 14
    * - classes by kind: ``space``
@@ -133,7 +133,7 @@ Summary
    * - concepts with head status ``class``
      - 66
    * - concepts with head status ``sum``
-     - 5
+     - 6
    * - concepts with head status ``functions``
      - 1
    * - concepts with head status ``missing``
@@ -422,6 +422,17 @@ The concepts
        - ``orpheus.numerics.space.FunctionSpace.integral`` (``orpheus/numerics/space.py``)
        - ``orpheus.numerics.space.FunctionSpace.unit`` (``orpheus/numerics/space.py``)
        - :ref:`spaces-covector <spaces-covector>`
+   * - :ref:`declaration <concept-declaration>`
+     - Declaration
+     - the declaration of a subspace of R^n: an exact index subset, a subspace known by a content key, or the annihilator of one
+     - set
+     - structure
+     - numerics
+     - W1
+     - O23
+     - ``Declaration`` (``orpheus/numerics/declaration.py``) (sum)
+     - arm 3
+     -
    * - :ref:`digest <concept-digest>`
      - Digest
      - the content digest: one hash of one encoding
@@ -1634,6 +1645,17 @@ covector
 .. rubric:: interface
 
 - ``Functional`` (``orpheus/numerics/functional.py``) ``element.covector``
+
+.. _concept-declaration:
+
+declaration
+~~~~~~~~~~~
+
+.. rubric:: arm
+
+- ``Ann`` (``orpheus/numerics/declaration.py``) ``set``
+- ``Coord`` (``orpheus/numerics/declaration.py``) ``set``
+- ``Spanned`` (``orpheus/numerics/declaration.py``) ``set``
 
 .. _concept-digest:
 

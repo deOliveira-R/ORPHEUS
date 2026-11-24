@@ -22,6 +22,7 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
 from orpheus.values.content import content_digest
 from orpheus.numerics.frame import GalerkinFrame, PetrovGalerkinFrame
 from orpheus.geometry.manifold import Quotient
+from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
@@ -120,11 +121,11 @@ def test_I5_a_dense_overlay_is_part_of_the_identity():
     """Pair 5 (S7a, design §1.5). Equal axes, different positioned dense forms. TODAY equal (the overlay
     lives outside the identity); the metric demonstrably differs (activation)."""
     base, G = _dense_pair()
-    s1, s2 = base._with_overlay((DenseMetric(G),)), base._with_overlay((DenseMetric(2.0 * G),))
+    s1, s2 = base._with_overlay((DenseMetric(G, kernel=Coord(3, ())),)), base._with_overlay((DenseMetric(2.0 * G, kernel=Coord(3, ())),))
     x = np.ones(3)
     assert not np.array_equal(s1.apply_metric(x), s2.apply_metric(x)), "ACTIVATION: the metrics differ"
     _separated(s1, s2, "two dense overlays on equal axes")
-    _one(s1, base._with_overlay((DenseMetric(G.copy()),)), "control: one dense form, two mints")
+    _one(s1, base._with_overlay((DenseMetric(G.copy(), kernel=Coord(3, ())),)), "control: one dense form, two mints")
     _separated(s1, base, "a dense overlay vs the bare head")
 
 
@@ -138,7 +139,7 @@ def test_I5c_a_dense_form_is_its_matrix_not_its_inverse_face():
     form = bs._overlay_forms()[0]
     assert isinstance(form, DenseMetric)
     G = np.array(form.matrix)
-    rebuilt = FunctionSpace.of_axes(*bs.axes)._with_overlay((DenseMetric(G.copy()),))
+    rebuilt = FunctionSpace.of_axes(*bs.axes)._with_overlay((DenseMetric(G.copy(), kernel=form.kernel),))
     assert not np.array_equal(np.asarray(form.inverse_matrix), np.asarray(rebuilt._overlay_forms()[0].inverse_matrix)), \
         "PREMISE: the two inverse faces differ in round-off"
     _one(bs, rebuilt, "one dense form, its inverse supplied vs derived")
@@ -156,7 +157,7 @@ def test_I5b_the_production_dense_head_carries_its_overlay_in_its_identity():
     assert isinstance(form, DenseMetric)
     G = form.matrix
     assert bs.axes is not None
-    twice = FunctionSpace.of_axes(*bs.axes)._with_overlay((DenseMetric(2.0 * np.asarray(G)),))
+    twice = FunctionSpace.of_axes(*bs.axes)._with_overlay((DenseMetric(2.0 * np.asarray(G), kernel=form.kernel),))
     _separated(bs, twice, "the dressed head vs the head with twice its Gram form")
 
 

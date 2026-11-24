@@ -55,6 +55,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -118,7 +119,7 @@ V = V2
 #: multiple of 1/4): the Q1 witness space, where a pointwise term's own
 #: ``.H is self`` is not its adjoint.
 _G = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
-VD = FunctionSpace("s2_dense3", (3,), metric=DenseMetric(_G))
+VD = FunctionSpace("s2_dense3", (3,), metric=DenseMetric(_G, kernel=Coord(3, ())))
 
 
 class Mat(LinearOperator):

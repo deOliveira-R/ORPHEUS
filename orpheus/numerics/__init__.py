@@ -1,5 +1,6 @@
 """Model-independent numerical methods for reactor physics."""
 
+from .declaration import Ann, Coord, Declaration, Spanned
 from .coupled_system import CoupledField, CoupledOperator, CoupledSpace, SystemField
 from .eigenvalue import EigenvalueSolver, ProductionRateSolver, power_iteration
 from .field import Field
@@ -36,11 +37,14 @@ from .vector import V, Vector
 
 __all__ = [
     "AnalysisOperator",
+    "Ann",
     "Basis",
     "BundleMeasure",
     "CoupledField",
     "CoupledOperator",
     "CoupledSpace",
+    "Coord",
+    "Declaration",
     "DiagonalOperator",
     "DiscreteMeasure",
     "DiscreteMeasurePartition",
@@ -68,6 +72,7 @@ __all__ = [
     "R_co",
     "RankOneOperator",
     "SourceIteration",
+    "Spanned",
     "SphericalHarmonicBasis",
     "SupportsAdjoint",
     "SupportsInverse",

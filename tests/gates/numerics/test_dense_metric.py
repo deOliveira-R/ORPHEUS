@@ -23,12 +23,14 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.geometry.manifold import SPHERE
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.metric import (
-    _DENSE_METRIC_RCOND,
     _DENSE_METRIC_SYMMETRY_RTOL,
     DenseMetric,
     DiagonalMetric,
 )
+from orpheus.numerics.declaration import Coord
+from orpheus.numerics.frame_faces import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
 from orpheus.numerics.quadrature.directional import Quadrature
+from tests.gates._dense import declared_kernel
 from orpheus.numerics.space import FunctionSpace
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics import frame_faces
@@ -80,7 +82,7 @@ class TestDenseMetricLaws:
         yᵀGx = 3/2 − 13/4 + 25 = 93/4 = 23.25 — all exact binary fractions,
         so the comparison is ``==``, not a tolerance.
         """
-        metric = DenseMetric(_G_LITERAL)
+        metric = DenseMetric(_G_LITERAL, kernel=Coord(3, ()))
         _require(
             bool(np.array_equal(metric.apply(_X), [3.0, 3.25, 12.5])),
             f"G@x != hand literal: {metric.apply(_X)!r}",
@@ -95,10 +97,11 @@ class TestDenseMetricLaws:
     def test_dense_metric_matrix_and_pairing_are_symmetric(self):
         r"""A2 — the INSTALLED matrix is symmetric up to its own spelling's DERIVED rounding, element by element.
 
-        ``inverse_of`` installs ``pinv(G_sym, hermitian=True)``, which numpy
-        spells as :math:`M = U\,\mathrm{diag}(s_k t_k)\,U^{\mathsf T}` from ONE
+        ``inverse_of`` installs the exact-count inverse of ``G_sym`` (a hermitian
+        SVD recombination, the spelling numpy's hermitian ``pinv`` shares), which is
+        :math:`M = U\,\mathrm{diag}(s_k t_k)\,U^{\mathsf T}` from ONE
         eigendecomposition :math:`G_{\rm sym} = U \Lambda U^{\mathsf T}`
-        (``t_k = fl(1/|λ_k|)`` on the retained modes, zero below the cutoff,
+        (``t_k = fl(1/|λ_k|)`` on the kept modes, zero on the declared kernel,
         ``s_k = sign λ_k`` exact). Each element is a sum of ``K`` terms
         :math:`U_{ik} s_k t_k U_{jk}`, two roundings per term, in any
         association, so both :math:`M_{ij}` and :math:`M_{ji}` lie within
@@ -141,7 +144,7 @@ class TestDenseMetricLaws:
             g_sym = (gram + gram.T) / 2.0
             lam, u = np.linalg.eigh(g_sym)
             mag = np.abs(lam)
-            retained = mag > _DENSE_METRIC_RCOND * mag.max()
+            retained = mag > FRAME_GRAM_RANK_RTOL * mag.max()
             t = np.zeros_like(mag)
             t[retained] = 1.0 / mag[retained]
             k = mag.size
@@ -171,7 +174,7 @@ class TestDenseMetricLaws:
             ("constructed-kappa1e4", constructed_gram(8, 1e4)),
         ):
             bound = honest_asymmetry_bound(gram)
-            metric = DenseMetric.inverse_of(gram)
+            metric = DenseMetric.inverse_of(gram, kernel=frame_gram_kernel(gram))
             outside = asymmetry(metric.matrix) > bound
             if np.any(outside):
                 i, j = np.argwhere(outside)[0]
@@ -185,7 +188,7 @@ class TestDenseMetricLaws:
             # same per-element bound (vv-principles #19: only the
             # wrong-spelling reading tells you the gate is loaded).
             symmetric = (gram + gram.T) / 2.0
-            naive = np.linalg.pinv(symmetric, rcond=_DENSE_METRIC_RCOND)
+            naive = np.linalg.pinv(symmetric, rcond=FRAME_GRAM_RANK_RTOL)
             _require(
                 bool(np.any(asymmetry(naive) > 10 * bound)),
                 f"{label}: the naive pinv spelling sits inside 10x the derived bound "
@@ -212,14 +215,14 @@ class TestDenseMetricLaws:
             "the gate's docstring quotes a stale threshold",
         )
         with pytest.raises(ValueError, match="requires a symmetric matrix"):
-            DenseMetric(np.array([[1.0, 2.0], [0.0, 1.0]]))
+            DenseMetric(np.array([[1.0, 2.0], [0.0, 1.0]]), kernel=Coord(2, ()))
 
     def test_dense_metric_refuses_a_matrix_that_does_not_span_the_space_shape(self):
         """A4 — the admission check at space construction: a (3,3) matrix
         cannot serve a (4,)-shaped space (modelled on the axes' own shape
         refusal, so the vocabulary stays greppable)."""
         with pytest.raises(ValueError, match="cannot serve a space"):
-            FunctionSpace("wrong", (4,), metric=DenseMetric(_G_LITERAL))
+            FunctionSpace("wrong", (4,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ())))
 
     def test_dense_inverse_metric_is_the_range_projector_not_the_identity(self):
         """A5 — the Moore–Penrose doctrine, hand-derived and exact.
@@ -231,7 +234,8 @@ class TestDenseMetricLaws:
         off-range leg is what makes the on-range leg informative
         (vv-principles #19): the separation is ~4.5e15×.
         """
-        s = DenseMetric(np.array([[1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [0.0, 0.0, 2.0]]))
+        rank2 = np.array([[1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [0.0, 0.0, 2.0]])
+        s = DenseMetric(rank2, kernel=declared_kernel(rank2, 1))
         on_range = np.array([1.0, 1.0, 0.0])
         off_range = np.array([1.0, -1.0, 0.0])
         round_on = s.apply_inverse(s.apply(on_range))
@@ -256,7 +260,7 @@ class TestDenseMetricLaws:
         for n in (3, 15, 225):
             w = rng.standard_normal(n) ** 2 + 0.1
             x = rng.standard_normal(n)
-            dense = DenseMetric(np.diag(w)).apply(x)
+            dense = DenseMetric(np.diag(w), kernel=Coord(n, ())).apply(x)
             hadamard = DiagonalMetric(w).apply(x)
             _require(
                 bool(np.array_equal(dense, hadamard)),
@@ -279,7 +283,7 @@ class TestDenseMetricLaws:
             x = rng.standard_normal(n)
             y = rng.standard_normal(n)
             dense = FunctionSpace(
-                f"d{n}", (n,), metric=DenseMetric(np.diag(w))
+                f"d{n}", (n,), metric=DenseMetric(np.diag(w), kernel=Coord(n, ()))
             ).inner_product(x, y)
             hadamard = FunctionSpace(
                 f"h{n}", (n,), inner_product_weights=w
@@ -300,7 +304,7 @@ class TestDenseMetricLaws:
         a = rng.standard_normal((k, k))
         g = a.T @ a + np.eye(k)
         x = rng.standard_normal(shape)
-        got = DenseMetric(g).apply(x)
+        got = DenseMetric(g, kernel=Coord(k, ())).apply(x)
         ref = np.einsum("jk,k->j", g, x.ravel(order="C")).reshape(shape)
         _require(
             bool(np.allclose(got, ref, rtol=1e-14, atol=0.0)),
@@ -320,8 +324,8 @@ class TestDenseMetricLaws:
         the content digest and never reaches the matrix.
         """
         bare = FunctionSpace("same", (3,))
-        dressed = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL))
-        twin = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL.copy()))
+        dressed = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ())))
+        twin = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL.copy(), kernel=Coord(3, ())))
         _require((bare == dressed) is False, "a metric did not move space equality")
         _require((dressed == twin) is True, "equal metric content compared unequal")
         _require(hash(dressed) == hash(twin), "equal metric content hashed apart")
@@ -342,7 +346,7 @@ class TestDenseMetricPropagation:
         ``==``. [M] the pre-repair behaviour dropped the dense factor
         entirely (Euclidean on that block); battery arm M8 is the revert.
         """
-        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL))
+        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ())))
         w = FunctionSpace(
             "W", (2,), inner_product_weights=np.array([2.0, 0.5])
         )
@@ -364,7 +368,7 @@ class TestDenseMetricPropagation:
         EQUAL to the primal's (23.25): the dual carried G. (The pre-P7
         defect it was born from, a Euclidean dual reading 4.5, is a third
         state; both old states red here.)"""
-        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL))
+        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ())))
         dual = v.dual()
         inv = np.linalg.pinv(_G_LITERAL, hermitian=True, rcond=1e-12)
         got = dual.inner_product(_X, _Y)

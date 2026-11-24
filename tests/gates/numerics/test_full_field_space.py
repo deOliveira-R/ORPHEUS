@@ -105,10 +105,11 @@ def test_a_composite_block_carrying_a_dense_metric_delegates_it():
     """
     from types import SimpleNamespace
 
+    from orpheus.numerics.declaration import Coord
     from orpheus.numerics.metric import DenseMetric
 
     g = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
-    interior = FunctionSpace("bulk3", (3,), metric=DenseMetric(g))
+    interior = FunctionSpace("bulk3", (3,), metric=DenseMetric(g, kernel=Coord(3, ())))
     trace = FunctionSpace(
         "tr2", (2,), inner_product_weights=np.array([2.0, 0.5])
     )

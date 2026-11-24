@@ -51,8 +51,10 @@ from orpheus.numerics.axis import FromFrame
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
+from orpheus.numerics.declaration import Coord, Declaration, Spanned
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.instance_cache import cached_on
+from orpheus.values.content import content_digest
 from orpheus.geometry.manifold import Manifold, Quotient, Sphere
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import LinearOperator, NotInvertible
@@ -411,7 +413,7 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
     (:attr:`~orpheus.numerics.frame.FrameBase.discrete_gram_structure` DENSE — e.g.
     ``folded_product(4, 4).angular_frame(2)``, where NO diagonal metric
     satisfies Parseval), the metric is the
-    matrix pseudo-inverse :math:`G^{+}` installed as a
+    matrix pseudo-inverse :math:`G^{+}` (exact, with the kernel the frame declares) installed as a
     :class:`~orpheus.numerics.metric.DenseMetric` (campaign 1, P7):
     Parseval is then a THEOREM for any Gram, singular or not
     (:math:`\|Mc\|^2_{G^{+}} = c^{\mathsf T} G G^{+} G c =
@@ -443,6 +445,35 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
     return cached_on(frame, _SLOT, "basis_space", lambda: _parseval_dressed(frame))
 
 
+#: The one rank rule of a frame's Gram: the count of its singular values at or below ``FRAME_GRAM_RANK_RTOL`` of the largest.
+#: SCOPE-BOUNDARY[guard] machinery: an exactness-degree certificate on the quadrature (W8a); consumer: the harmonic head on
+#: under-resolved rules; ruling: D9/U4, orchestrator, 2026-11-23; revisit: W8a's exactness certificate
+FRAME_GRAM_RANK_RTOL: float = 1e-12
+
+
+def frame_gram_kernel(gram: NDArray) -> Declaration:
+    r"""The kernel a frame declares for its discrete Gram ``gram``.
+
+    ``Coord(n, ())`` when no singular value of the symmetrised Gram is at or below ``FRAME_GRAM_RANK_RTOL`` of the largest,
+    else a ``Spanned`` of the number of such values, keyed on the digest of the symmetrised Gram. The count reads the
+    singular values of ``np.linalg.svd(g_sym, hermitian=True)`` with the vectors, the call :class:`DenseMetric` makes on the same
+    matrix, so the declared count and the inverse the metric builds split one decomposition at the cutoff.
+    """
+    g = np.asarray(gram, dtype=float)
+    if g.ndim != 2 or g.shape[0] != g.shape[1]:
+        raise ValueError(f"a frame Gram is a square 2-D matrix, got shape {g.shape}")
+    g_sym = DenseMetric.symmetrised(g)
+    n = g_sym.shape[0]
+    if n == 0:
+        return Coord(0, ())
+    singular = np.linalg.svd(g_sym, hermitian=True)[1]
+    dim = int(np.sum(singular <= FRAME_GRAM_RANK_RTOL * singular.max()))
+    if dim == 0:
+        return Coord(n, ())
+    g_sym.setflags(write=False)
+    return Spanned(n, ("frame-gram-kernel", content_digest(g_sym)), dim)
+
+
 def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
     r"""The trial coefficient space dressed with the Parseval metric (see :func:`basis_space`)."""
     space = FunctionSpace.of_basis(frame.basis)
@@ -455,8 +486,9 @@ def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
         # this arm exactly as the diagonal arm overwrites it (on an
         # axis-built head the form is POSITIONED on the derived object
         # and the axis carries no measure, item 6.2c-i).
+        gram = frame.discrete_gram
         return _dressed(
-            space, dense=DenseMetric.inverse_of(frame.discrete_gram), frame=frame,
+            space, dense=DenseMetric.inverse_of(gram, kernel=frame_gram_kernel(gram)), frame=frame,
         )
     diag = np.diagonal(frame.discrete_gram).reshape(space.shape)
     live = diag > 0.0

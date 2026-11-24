@@ -894,6 +894,7 @@ def test_the_adjoint_sandwich_takes_a_dense_metric_unmodified():
     different codomain metric must FAIL — the only reading separating
     loaded from blind.
     """
+    from orpheus.numerics.declaration import Coord
     from orpheus.numerics.metric import DenseMetric
 
     rng = np.random.default_rng(20260830)
@@ -902,8 +903,8 @@ def test_the_adjoint_sandwich_takes_a_dense_metric_unmodified():
     g_v = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
     a_w = rng.standard_normal((n_cod, n_cod))
     g_w = a_w.T @ a_w + np.eye(n_cod)
-    domain = FunctionSpace(name="Vd", shape=(n_dom,), metric=DenseMetric(g_v))
-    codomain = FunctionSpace(name="Wd", shape=(n_cod,), metric=DenseMetric(g_w))
+    domain = FunctionSpace(name="Vd", shape=(n_dom,), metric=DenseMetric(g_v, kernel=Coord(n_dom, ())))
+    codomain = FunctionSpace(name="Wd", shape=(n_cod,), metric=DenseMetric(g_w, kernel=Coord(n_cod, ())))
     A = _SpacedMatrixOperator(M, domain, codomain)
     u = rng.standard_normal(n_dom)
     v = rng.standard_normal(n_cod)
@@ -918,7 +919,7 @@ def test_the_adjoint_sandwich_takes_a_dense_metric_unmodified():
     # codomain metric and the identity must break.
     a2 = rng.standard_normal((n_cod, n_cod))
     wrong_codomain = FunctionSpace(
-        name="W2", shape=(n_cod,), metric=DenseMetric(a2.T @ a2 + 3.0 * np.eye(n_cod)),
+        name="W2", shape=(n_cod,), metric=DenseMetric(a2.T @ a2 + 3.0 * np.eye(n_cod), kernel=Coord(n_cod, ())),
     )
     lhs_wrong = wrong_codomain.inner_product(A.apply(u), v)
     assert not np.isclose(lhs_wrong, rhs, rtol=1e-3), (

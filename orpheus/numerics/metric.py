@@ -76,7 +76,7 @@ pseudo-inverse is the only inverse that exists. `[M]` 2026-10-18
   rank 23.
 
 On each of the three ``np.linalg.inv`` raises ``Singular matrix``, while
-:func:`np.linalg.pinv` returns the exact object Parseval needs:
+the exact inverse of :func:`_exact_inverse`, zeroing the declared kernel, is the object Parseval needs:
 :math:`G G^{+} G = G` holds to a max-abs residual of ``1.8e-15`` on the
 first (relative ``1.4e-16`` to :math:`\max|G| = 4\pi`), ``4.0e-15`` and
 ``3.0e-15`` on the other two. That identity makes
@@ -150,6 +150,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .coordinate_space import leading_coordinates
+from .declaration import Ann, Coord, Declaration, Spanned
 
 __all__ = [
     "HilbertMetric",
@@ -160,114 +161,43 @@ __all__ = [
 ]
 
 
-#: Relative cutoff handed to :func:`np.linalg.pinv` by
-#: :meth:`DenseMetric.inverse_of` (and by :class:`DenseMetric` when it must
-#: derive its own inverse face). Pinned rather than left to numpy's default:
-#: an implicit default is a silent dependency on a numpy version, and the
-#: mutation battery's over-truncation arm is only meaningful against a
-#: pinned value.
+#: Symmetry admission threshold for :class:`DenseMetric`, relative to the matrix's own scale. An asymmetric form is not an inner
+#: product, so an asymmetric matrix is refused rather than silently symmetrised; the producer symmetrises, as
+#: :meth:`DenseMetric.inverse_of` does through :meth:`DenseMetric.symmetrised`. `[M]` 2026-10-18 over six dense frames: a
+#: general-purpose inverse leaves ``max|M - M^T|`` up to ``1.75e-15`` (``frame_faces.angular_frame(product(4, 4), 2)``), so a
+#: producer's round-off sits more than two decades below this threshold and what is refused is a form that is asymmetric in fact.
 #:
-#: **What it is FOR: structural RANK DETERMINATION, not noise suppression.**
-#: A frame whose rule cannot resolve its basis has a Gram that is
-#: rank-deficient by construction. `[M]` 2026-10-18 on
-#: ``frame_faces.angular_frame(folded_product(4, 4), 2)``: the dropped singular value is
-#: ``2.2e-17`` of the largest, and its singular vector annihilates the
-#: evaluation **table** (``‖A v‖∞ = 2.8e-16``), not merely the Gram. So the
-#: dropped value is the floating-point residue of an EXACT zero, not a
-#: small-but-real mode, and ``rcond`` separates a genuine range from a
-#: structural kernel.
-#:
-#: The admissible window has TWO edges. Configuration for every number
-#: below: the shipped :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`
-#: of the three dense production heads, numpy 2.4.4, `[M]` 2026-10-18,
-#: ``scratch/metric_docstring/probe_window.py``.
-#:
-#: * **Upper: over-truncation**, at the ratio of the smallest kept to the
-#:   largest singular value: ``2.000000e-01`` on
-#:   ``frame_faces.angular_frame(folded_product(4, 4), 2)``, ``1.224672e-01`` on its
-#:   ``angular_frame(4)``, ``6.666667e-02`` on
-#:   ``frame_faces.angular_frame(product(4, 8), 4)``. Construction cannot see it
-#:   (``G⁺ G G⁺ = G⁺`` holds for a TRUNCATED pinv too, so
-#:   :data:`_DENSE_METRIC_PENROSE_RTOL` is blind). The catchers are the
-#:   Parseval gates on dense frames: `[M]` with the module global mutated
-#:   in-process (``scratch/metric_docstring/mutate_rcond.py`` over
-#:   ``tests/gates/numerics/test_frame.py`` and ``test_dense_metric.py``),
-#:   ``rcond = 0.25`` reddens 5 of 82: the three dense rows of
-#:   ``test_parseval_analysis_is_an_isometry_onto_its_image`` (the three
-#:   heads above),
-#:   ``test_the_dressing_lands_parseval_on_the_production_anisotropic_frame``
-#:   (``frame_faces.angular_frame(product(4, 4), 2)``, edge ``0.2``) and one
-#:   ``test_dense_metric.py`` law; ``rcond = 0.5`` reddens 7, the three
-#:   ``frame_faces.angular_frame(folded_product(2, 4), 3)`` gates joining (edge
-#:   ``1/3``); ``1e-12`` reddens 0.
-#: * **Lower: a construction REFUSAL**, at the largest relative round-off
-#:   residue as ``eigh`` reports it (the decomposition
-#:   ``pinv(hermitian=True)`` actually cuts on): ``1.670e-16`` on
-#:   ``frame_faces.angular_frame(folded_product(4, 4), 2)``, ``1.46e-16`` on the other
-#:   two. Below it the residue is inverted and
-#:   :meth:`DenseMetric.__post_init__` refuses the pair: `[M]`
-#:   :meth:`inverse_of` raises at half the residue and builds at twice it,
-#:   on all three. So no ADMISSIBLE rcond can admit the kernel.
-#:
-#: ``1e-12`` sits ``11.30`` decades below the upper edge and ``3.78`` above
-#: the lower on ``frame_faces.angular_frame(folded_product(4, 4), 2)`` (``10.82`` and
-#: ``3.84`` on ``frame_faces.angular_frame(product(4, 8), 4)``). ⚠ The lower margin must
-#: stay wide **because the number it is measured from is round-off with no
-#: stable value**: `[M]` the same matrix's largest residue reads
-#: ``1.67e-16`` (``eigh``), ``4.71e-17`` (``eigvalsh`` and
-#: ``svd(hermitian=True)``) and ``2.17e-17`` (general ``svd``), a 7.7×
-#: spread over four numpy routines, so it moves with the LAPACK driver, the
-#: BLAS and the machine.
-#:
-#: **The census at this rcond.** `[M]` 2026-10-18,
-#: ``scratch/probe_rcond_16_census.py`` re-run unchanged (``REFUSED`` =
-#: ``basis_space`` raises, ``BREACH`` = builds but ``|Parseval − 1| >
-#: 1e-12``, seed 1234): **0 of 105** slab rows (``gauss_legendre`` orders
-#: ``2,3,4,5,6,7,8,9,11,12,16,17,24,32,33`` × ``L ∈ {0,1,2,3,4,5,7}``) and
-#: **0 of 196** 3-D rows (``level_symmetric(2..16)``, ``product``,
-#: ``folded_product``, ``lebedev(5..29)``, same ``L`` grid) are affected.
-#: The census can read positive: with the global mutated to ``0.1`` it
-#: reports 1 slab and 27 3-D rows in BREACH
-#: (``scratch/metric_docstring/probe_census_control.py``). The dense arm is
-#: taken on 59 of the 196 3-D rows and on 15 of the 105 slab rows, every one
-#: of them with ``L ≥ n``, more Legendre modes than nodes (15 of the grid's
-#: 16 such rows, each of rank ``n``). The 89 slab rows with ``L ≤ n − 1`` are
-#: all DIAGONAL, exactly ``2/(2ℓ+1)`` with ``cond = 2L+1``, because
-#: Gauss–Legendre integrates the Legendre products exactly to degree
-#: ``2n − 1``. The smallest distance from the pin to a kept or a dropped
-#: singular value is 4.44 decades on the slab (``GL2``, ``L = 7``) and 3.71
-#: on 3-D (``product(3, 6)``, ``L = 7``).
-#:
-#: History. Until the ERR-080 repair (#429, 2026-09-02) this block was
-#: measured on the slab ``frame_faces.angular_frame(gauss_legendre(8), 2)``, whose Gram
-#: was rank-deficient because a 1-D rule fabricated an azimuth; it first read
-#: the dropped mode as a "noise floor" (refuted 2026-08-31), and the census
-#: then found 31 of 105 slab rows affected and 0 of 196 3-D rows. The repair
-#: retired all 31, as predicted. Its other prediction, that no
-#: :class:`DenseMetric` would be built on a slab and the constant would
-#: become a pure conditioning guard, did not hold: the dense arm survives on
-#: under-resolved slab rows and on the 3-D heads above, where the kernel is
-#: structural.
-_DENSE_METRIC_RCOND: float = 1e-12
-
-#: Symmetry admission threshold for :class:`DenseMetric`, relative to the
-#: matrix's own scale. An asymmetric form is not an inner product, so an
-#: asymmetric matrix is REFUSED rather than silently symmetrized — the
-#: producer symmetrizes (as :meth:`DenseMetric.inverse_of` does). `[M]`
-#: 2026-10-18 over six dense frames
-#: (``scratch/metric_docstring/probe_hermitian.py``): ``np.linalg.pinv``
-#: WITHOUT ``hermitian=True`` leaves ``max|M − Mᵀ|`` up to ``1.75e-15``
-#: (``frame_faces.angular_frame(product(4, 4), 2)``), and at most ``6.9e-17`` with it.
-#: Both sit more than two decades below this threshold, so `[R]` what it
-#: refuses is a form that is asymmetric in fact, not round-off. (On the
-#: pre-ERR-080 slab Gram the non-hermitian spelling read ``4.74e-14``.)
+#: ELEGANCE-DEBT[guard] #753 -- retires when a Gram producer returns an exactly symmetric type, so an asymmetric matrix is
+#: unspellable.
 _DENSE_METRIC_SYMMETRY_RTOL: float = 1e-12
 
-#: Penrose-consistency admission threshold for an explicitly supplied
-#: inverse face: ``M @ M⁺ @ M`` must reproduce ``M`` to this relative
-#: tolerance, or the pair is refused — an inconsistent (matrix, inverse)
-#: pair is an illegal state, not a representation choice.
-_DENSE_METRIC_PENROSE_RTOL: float = 1e-10
+
+def _exact_inverse(matrix: NDArray, kernel_dim: int) -> NDArray:
+    r"""The Moore-Penrose inverse of the symmetric ``matrix``, zeroing exactly ``kernel_dim`` singular values.
+
+    One body for both faces of :class:`DenseMetric`. The hermitian singular value decomposition
+    :math:`G = U \Sigma V^{\mathsf T}` is read once; the ``kernel_dim`` smallest singular values are the declared kernel and
+    are mapped to zero, the others to their reciprocals, and the inverse is :math:`V \Sigma^{+} U^{\mathsf T}`. No cutoff is read:
+    the declaration is the rank. The split is well defined when every kept value exceeds every dropped one strictly, which a
+    frame's own rule guarantees; a raw-path declaration at a tie is the caller's.
+
+    Under ``if __debug__:`` the sign of ``u_i . vt_i`` (the sign of the i-th eigenvalue of a symmetric matrix) is tested on the
+    kept directions, and a kept value that is not positive is refused: a kept exact zero contradicts the declared rank as surely as
+    a negative one. This is a misuse check on the raw path, not a guarantee; under ``python -O`` a kept zero divides by zero and the
+    faces are NaN.
+    """
+    u, s, vt = np.linalg.svd(matrix, hermitian=True)
+    kept = s.shape[0] - kernel_dim
+    if __debug__:
+        signs = np.einsum("ji,ij->i", u, vt)[:kept]
+        if not np.all(signs > 0.0):
+            raise ValueError(
+                f"DenseMetric: a kept eigenvalue is not positive (the matrix is not positive semi-definite of rank "
+                f"{kept}): the declared kernel of dimension {kernel_dim} does not contain every non-positive direction."
+            )
+    sinv = np.zeros_like(s)
+    sinv[:kept] = 1.0 / s[:kept]
+    return vt.T @ (sinv[:, None] * u.T)
 
 
 def _broadcast_leading(w: NDArray, target_ndim: int) -> NDArray:
@@ -512,39 +442,31 @@ class DiagonalMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
 class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
     r"""A dense symmetric matrix metric on the flattened leading block.
 
-    ``matrix`` is :math:`G`, ``(K, K)`` with ``K`` the row-major flattening
-    of the metric's block — the same layout as
-    :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram`
-    (``table.reshape(N, K)`` order), so a frame's Gram algebra and this
-    realization agree on what "slot :math:`k`" means by construction.
-    Elements with extra **trailing** axes are handled leading-aligned, like
-    every metric in the tree: ``apply`` reshapes to ``(K, -1)``, matmuls,
-    and reshapes back.
+    ``matrix`` is :math:`G^{+}` or :math:`G` as the caller states it, ``(K, K)`` with ``K`` the row-major flattening of the
+    metric's block, the same layout as :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` (``table.reshape(N, K)`` order), so
+    a frame's Gram algebra and this realization agree on what "slot :math:`k`" means by construction. Elements with extra
+    **trailing** axes are handled leading-aligned, like every metric in the tree: ``apply`` reshapes to ``(K, -1)``, matmuls, and
+    reshapes back.
 
-    Construction refuses two illegal states (the guard thresholds are the
-    module constants — a gate on this type must quote them, per
-    ``vv-principles`` #16):
+    The rank is declared, never read from a cutoff. ``kernel`` is the declared kernel of the matrix: ``Coord(K, ())`` for a
+    full-rank form, else a :class:`~orpheus.numerics.declaration.Spanned` of dimension :math:`\dim\ker`. A non-empty ``Coord``
+    and an ``Ann`` are refused, because the decomposition drops the smallest singular directions and a named index could disagree
+    with them. The signature of the form is then :math:`(K - \dim\ker,\ \dim\ker,\ 0)` by the declaration.
 
-    * an **asymmetric** matrix (an asymmetric form is not an inner
-      product) — producers symmetrize, this type does not;
-    * an explicitly supplied inverse face that fails the **Penrose
-      identity** :math:`G G^{+} G = G` (an inconsistent pair is an illegal
-      state, not a representation choice).
+    The second face, :attr:`inverse_matrix`, is derived data and not content: it is the exact-count inverse of ``matrix``
+    (:func:`_exact_inverse`) taken as stored, or, on the :meth:`inverse_of` path, the symmetrised Gram itself. No supplied-inverse
+    keyword exists and the field is not an initialiser argument.
 
-    When no inverse face is supplied it is derived here, once, as
-    ``np.linalg.pinv(matrix, hermitian=True, rcond=_DENSE_METRIC_RCOND)``.
-    Prefer :meth:`inverse_of` when what you hold is the GRAM whose inverse
-    the metric should BE (the Parseval case): it keeps the exact Gram as
-    the inverse face instead of a second pseudo-inversion.
+    The faces are named by role: ``metric`` is ``matrix`` (:math:`G^{+}` on the Parseval path) and ``gram`` is ``inverse_matrix``
+    (the symmetrised Gram). Prefer :meth:`inverse_of` when what you hold is the Gram whose inverse the metric should BE.
+
+    Construction refuses an **asymmetric** matrix (an asymmetric form is not an inner product: producers symmetrise, this type
+    does not), a ``kernel`` on another dimension, and, under ``if __debug__:``, a kept direction whose eigenvalue is not positive.
     """
 
     matrix: NDArray
-    # Derived from ``matrix`` (the pseudo-inverse of a symmetric form is
-    # unique), so not content: a form supplied with its exact inverse face and
-    # the same form inverting itself are ONE metric, and a positioned overlay's
-    # identity must not read the round-off between the two faces (S7, the
-    # archivist's finding on the dense-dressed head; ``test_axis_identity.py`` I5c).
-    inverse_matrix: Optional[NDArray] = field(default=None, compare=False)
+    kernel: Declaration = field(kw_only=True)
+    inverse_matrix: Optional[NDArray] = field(default=None, init=False, compare=False)
 
     def __post_init__(self) -> None:
         m = np.asarray(self.matrix, dtype=float)
@@ -563,46 +485,39 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
                 f"{scale:.3e}. An asymmetric form is not an inner product — "
                 f"symmetrize at the producer."
             )
-        object.__setattr__(self, "matrix", _frozen_copy(m))
-        if self.inverse_matrix is None:
-            inv = np.linalg.pinv(
-                m, hermitian=True, rcond=_DENSE_METRIC_RCOND
+        if not isinstance(self.kernel, (Coord, Spanned, Ann)):
+            raise TypeError(f"DenseMetric kernel must be a Declaration, got {type(self.kernel).__name__}")
+        if self.kernel.n != m.shape[0]:
+            raise ValueError(
+                f"kernel is declared on R^{self.kernel.n}, the matrix is {m.shape[0]} x {m.shape[0]}"
             )
-            object.__setattr__(self, "inverse_matrix", _frozen_copy(inv))
-        else:
-            inv = np.asarray(self.inverse_matrix, dtype=float)
-            if inv.shape != m.shape:
-                raise ValueError(
-                    f"DenseMetric inverse face shape {inv.shape} does not "
-                    f"match the matrix shape {m.shape}"
-                )
-            residual = float(np.max(np.abs(m @ inv @ m - m)))
-            if residual > _DENSE_METRIC_PENROSE_RTOL * scale:
-                raise ValueError(
-                    f"DenseMetric was handed an inconsistent inverse face: "
-                    f"max|G G+ G - G| = {residual:.3e} exceeds "
-                    f"{_DENSE_METRIC_PENROSE_RTOL:.0e} of the matrix scale "
-                    f"{scale:.3e} (the Penrose identity fails)."
-                )
-            object.__setattr__(self, "inverse_matrix", _frozen_copy(inv))
+        if isinstance(self.kernel, Ann) or (isinstance(self.kernel, Coord) and self.kernel.indices):
+            raise ValueError(
+                f"kernel is not declared by a spanned subspace: got {self.kernel!r}; a dense form's kernel is "
+                f"Coord({m.shape[0]}, ()) (full rank) or a Spanned"
+            )
+        object.__setattr__(self, "matrix", _frozen_copy(m))
+        object.__setattr__(self, "inverse_matrix", _frozen_copy(_exact_inverse(m, self.kernel.dim)))
+
+    @staticmethod
+    def symmetrised(gram: NDArray) -> NDArray:
+        r"""The exact symmetrisation :math:`(G + G^{\mathsf T}) / 2`, spelled once."""
+        g = np.asarray(gram, dtype=float)
+        return (g + g.T) / 2.0
 
     @classmethod
-    def inverse_of(cls, gram: NDArray) -> "DenseMetric":
-        r"""The metric whose MATRIX is the pseudo-inverse of ``gram``.
+    def inverse_of(cls, gram: NDArray, *, kernel: Declaration) -> "DenseMetric":
+        r"""The metric whose ``metric`` face (``matrix``) is the Moore-Penrose inverse of ``gram``.
 
-        The Parseval constructor: the frame's discrete Gram :math:`G` goes
-        in, the metric :math:`G^{+}` comes out — with the (symmetrized)
-        Gram itself installed as the inverse face, which is EXACT for a
-        symmetric PSD form (:math:`(G^{+})^{+} = G` globally: both share
-        the range, and :math:`G` is already zero on its own kernel) and
-        strictly better conditioned than a second pseudo-inversion.
+        The Parseval constructor: the frame's discrete Gram :math:`G` goes in with its declared ``kernel``, the metric
+        :math:`G^{+}` comes out, with the symmetrised Gram itself installed as the ``gram`` face (``inverse_matrix``), which
+        is exact for a symmetric positive semi-definite form (:math:`(G^{+})^{+} = G`) and better conditioned than a second
+        inversion.
         """
-        g = np.asarray(gram, dtype=float)
-        g_sym = (g + g.T) / 2.0
-        matrix = np.linalg.pinv(
-            g_sym, hermitian=True, rcond=_DENSE_METRIC_RCOND
-        )
-        return cls(matrix=matrix, inverse_matrix=g_sym)
+        g_sym = cls.symmetrised(gram)
+        obj = cls(matrix=_exact_inverse(g_sym, kernel.dim), kernel=kernel)
+        object.__setattr__(obj, "inverse_matrix", _frozen_copy(g_sym))
+        return obj
 
     @property
     def dim(self) -> int:
@@ -622,22 +537,15 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
         return self._matmul_leading(inv, x)
 
     def rank(self, shape: tuple[int, ...]) -> int:
-        # Read off the STORED faces, never a second eigen-solve: G⁺G is the
-        # orthogonal projector onto range G, and a projector's trace is its
-        # rank, so the count is exactly the directions the inverse face
-        # inverts (`[M]` 2026-10-21, the S6b qa review: a separate
-        # ``matrix_rank`` disagreed with ``pinv`` at a tie on the cutoff).
-        inv = self.inverse_matrix
-        assert inv is not None  # established by __post_init__; narrowing only
-        rank = int(round(float(np.trace(inv @ self.matrix))))
+        r"""``(K - kernel.dim)`` times the trailing multiplicity ``size // K``: the declared rank, read from no cutoff."""
         size = int(np.prod(shape)) if shape else 1
-        return rank * (size // self.dim)
+        return (self.dim - self.kernel.dim) * (size // self.dim)
 
     def _block_split(self, block_shape: tuple[int, ...]) -> tuple[NDArray, NDArray]:
         r"""Orthonormal live and kernel bases from the STORED faces: the
         eigenvectors of the projector :math:`I − G^{+}G`, the kernel the
         ``dim − rank`` of largest eigenvalue (rank read as :meth:`rank` reads
-        it, so the two counts cannot disagree at a cutoff tie), on the leading
+        it, from the declared kernel), on the leading
         ``dim`` slots and repeated over each trailing coordinate: column
         ``kron(b, e_t)`` (C-order, the block leading)."""
         size = int(np.prod(block_shape)) if block_shape else self.dim
@@ -648,16 +556,15 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
     def _head_split(self) -> tuple[NDArray, NDArray]:
         r"""The ``(dim, rank)`` and ``(dim, dim − rank)`` bases on the block itself.
 
-        The COUNT is :meth:`rank`'s (the trace of the stored projector
-        :math:`G^{+}G`), so the two cannot disagree at a cutoff tie. The
-        VECTORS are the eigenvectors of :math:`G` itself, positive
+        The COUNT is the declared ``kernel.dim``, the one count :meth:`rank`
+        reads, so the two cannot disagree. The VECTORS are the eigenvectors of :math:`G` itself, positive
         semi-definite, so its ``dim − rank`` smallest eigenvalues span the
         kernel: an eigen-solve of the projector :math:`I − G^{+}G` instead
         loses digits as :math:`\varepsilon / \lambda_{\min}` of the live
         spectrum (``[M]`` the A1 qa review, 2026-11-12: ‖GK‖/‖G‖ up to
         5.9e-6 at a live eigenvalue of 1.2e-12, against ≤ 2e-16 here)."""
-        n_kernel = self.dim - self.rank((self.dim,))
-        _, vectors = np.linalg.eigh((self.matrix + self.matrix.T) / 2.0)
+        n_kernel = self.kernel.dim
+        _, vectors = np.linalg.eigh(self.symmetrised(self.matrix))
         # eigh sorts ascending: the kernel is the first n_kernel columns.
         return vectors[:, n_kernel:], vectors[:, :n_kernel]
 

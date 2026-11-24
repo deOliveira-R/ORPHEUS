@@ -322,13 +322,14 @@ class TestG3Reciprocity:
         the non-product spaces of the tree (FullFieldSpace, 6 of 6 problems) are axes-less
         and refused by the by-label resolver."""
         from orpheus.numerics.axis import Axis, BasisKind
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric
         from orpheus.numerics.space import FunctionSpace
 
         a = Axis("angular", (2,), weights=np.array([0.5, 1.5]), origin=Declared(BasisKind.NODAL))
         b = Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))
         with pytest.raises(ValueError, match="DERIVED from its axes"):
-            FunctionSpace("np", (2, 3), axes=(a, b), metric=DenseMetric(np.eye(6) + 0.1))
+            FunctionSpace("np", (2, 3), axes=(a, b), metric=DenseMetric(np.eye(6) + 0.1, kernel=Coord(6, ())))
 
 
 # ═══ G4 — the section laws ════════════════════════════════════════════════════

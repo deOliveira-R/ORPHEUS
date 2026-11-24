@@ -387,8 +387,9 @@ class TestTheProtocolAndTheMetric:
 
     @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_non_diagonal_metric_is_a_declared_scope_boundary(self):
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric
-        dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]])))
+        dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ())))
         with pytest.raises(ValueError, match="the metric is not diagonal"):
             KernelProjectionGauge.direct_sum(dense, ())
 
@@ -472,30 +473,34 @@ class TestTheMetricDiagonalVerb:
     the hand-written weights (never the SUT's ``apply``)."""
 
     def test_a_diagonal_metric_returns_its_weights(self):
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DiagonalMetric
         np.testing.assert_array_equal(DiagonalMetric(_G).diagonal((_N,)), _G)
 
     def test_a_dense_metric_is_not_known_to_be_diagonal(self):
         """Arm ``dense_says_diagonal`` reddens it, and the scope-boundary row."""
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric
-        assert DenseMetric(np.diag(_G)).diagonal((_N,)) is None
+        assert DenseMetric(np.diag(_G), kernel=Coord(_N, ())).diagonal((_N,)) is None
 
     @pytest.mark.rests_on(_PRIMITIVE)
     def test_a_factored_metric_is_diagonal_iff_every_block_is(self):
         """Arm ``factored_ignores_blocks`` reddens the Dense-block leg."""
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
         w = np.array([1.0, 3.0])
         diag = FactoredMetric((((2,), DiagonalMetric(w)), ((3,), None)))
         np.testing.assert_array_equal(diag.diagonal((2, 3)), np.repeat(w[:, None], 3, axis=1))
-        assert FactoredMetric((((2,), DenseMetric(np.eye(2))), ((3,), None))).diagonal((2, 3)) is None
+        assert FactoredMetric((((2,), DenseMetric(np.eye(2), kernel=Coord(2, ()))), ((3,), None))).diagonal((2, 3)) is None
 
     def test_a_dual_metric_is_diagonal_iff_its_primal_is(self):
         """Arm ``dual_is_primal`` reddens the diagonal leg."""
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric, DiagonalMetric, DualMetric
         diagonal = DualMetric(DiagonalMetric(_G)).diagonal((_N,))
         assert diagonal is not None
         np.testing.assert_allclose(diagonal, 1.0 / _G, rtol=1e-15, atol=0)
-        assert DualMetric(DenseMetric(np.diag(_G))).diagonal((_N,)) is None
+        assert DualMetric(DenseMetric(np.diag(_G), kernel=Coord(_N, ()))).diagonal((_N,)) is None
 
     @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_euclidean_space_reads_ones(self):
@@ -526,10 +531,11 @@ class TestTheCompositeMetricDiagonal:
 
     @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_composite_with_a_dense_block_is_not_diagonal(self):
+        from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric
         from orpheus.numerics.coupled_system import CoupledSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-        dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]])))
+        dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ())))
         assert FullFieldSpace.from_blocks(self._A, dense).metric_diagonal() is None
         assert CoupledSpace.from_systems((self._A, dense)).metric_diagonal() is None
 

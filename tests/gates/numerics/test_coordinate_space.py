@@ -27,6 +27,7 @@ from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics import frame_faces
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.functional import InnerProductFunctional
+from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, Member
@@ -167,7 +168,7 @@ class TestBelowTheSpaceEachObjectParsesItsDomain:
     def test_a_dense_block_parses_its_block(self):
         # [M] before U1b: (4,) against a dim-2 block returned (4,), sum 8
         with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
-            DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]])).apply_block(np.ones(4), start=0, block_shape=(2,), inverse=False)
+            DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ())).apply_block(np.ones(4), start=0, block_shape=(2,), inverse=False)
 
     def test_a_factored_metric_parses_its_concatenated_blocks(self):
         """A Euclidean (``None``) block applies nothing, so no block alone sees its extent: the product parses."""
