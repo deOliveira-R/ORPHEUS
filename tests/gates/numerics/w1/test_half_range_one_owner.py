@@ -160,11 +160,26 @@ def test_the_partition_instrument_reads_a_dropped_cover_check_as_wrong() -> None
     assert [b.split(":")[0] for b in bad] == ["parts that do not cover"], bad
 
 
+def test_the_extent_is_parsed_like_a_coord_extent() -> None:
+    r"""``HalfRange(..., n=3.0)`` is refused as ``Coord`` refuses a float extent, and ``n=3`` is accepted (review finding: ``3.0 == 3`` hashed alike)."""
+    from orpheus.numerics.declaration import Coord
+
+    cls = _half_range_class()
+    parts = (Coord(3, (0,)), Coord(3, (1,)), Coord(3, (2,)))
+    assert cls(*parts, 3).n == 3
+    with pytest.raises(TypeError):
+        cls(*parts, 3.0)
+    with pytest.raises(TypeError):
+        cls(*parts, True)
+
+
 # ── G02f ─────────────────────────────────────────────────────────────
 
 
 def test_octant_labels_are_the_owners_signs() -> None:
-    r"""``Quadrature.octants`` labels equal ``np.stack([half_range(quad, i).sign() ...], axis=1)`` on the 17 rules and the nudged rule.
+    r"""``Quadrature.octants`` labels equal ``np.sign`` of the quadrature's own cosines, and the owner's ``sign()`` equals it too, on the 17 rules and the nudged rule.
+
+    The expected value is read from ``mean_axis_cosine`` by ``np.sign`` against exact zero, so it shares no code with ``half_range``.
 
     The behavioural red comes first: on the nudged ``product(2, 4)`` the x label is ``+1`` on the 4 nudged ordinates; today it is ``0``.
     """
@@ -184,7 +199,10 @@ def test_octant_labels_are_the_owners_signs() -> None:
             assert set(np.unique(s).tolist()) <= {-1, 0, 1}, f"{name} axis {i}: sign() takes values {np.unique(s).tolist()}"
             tangential = np.asarray(half_range(quad, i).tangential.indices, dtype=np.int64)
             assert np.array_equal(np.flatnonzero(s == 0), tangential), f"{name} axis {i}: sign() is 0 off the tangential set"
-        want = signs[0] if dim == 1 else np.stack(signs, axis=1)
+        independent = [np.sign(np.asarray(quad.mean_axis_cosine(i), dtype=np.float64)).astype(np.int8) for i in range(dim)]
+        for i in range(dim):
+            assert np.array_equal(signs[i], independent[i]), f"{name} axis {i}: the owner's sign() differs from np.sign of the cosines"
+        want = independent[0] if dim == 1 else np.stack(independent, axis=1)
         got = H.octant_labels(quad)
         assert np.array_equal(got, want), f"{name}: octants labels differ from the owner's signs on {int(np.sum(got != want))} entries"
 

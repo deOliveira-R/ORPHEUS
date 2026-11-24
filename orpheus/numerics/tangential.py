@@ -4,9 +4,10 @@ For a face whose outward normal is the axis ``axis_index`` taken with a ``sign``
 :math:`\mathrm{sign}\,\mu_n > 0`, *inflow* when it is :math:`< 0` and *tangential* when it is exactly :math:`0`. The comparisons are
 exact: no tolerance, band or epsilon decides a class. The tangential set and the kernel of the form :math:`\mathrm{Diag}(|\mu_n| w_n)`
 are one datum on every shipped rule, because a rule carries no zero weight on a non-tangential ordinate, and a tolerance on the cosine
-would split them. Every shipped tangential cosine is exactly ``0.0`` (the azimuths are roots of unity); a generator that emitted
-round-off cosines would have those ordinates read as genuine outflow or inflow, and the gate of
-:func:`half_range` on a rotated rule is the control that catches it.
+would split them. Every tangential cosine of the 17 enumerated shipped rules is exactly ``0.0`` (the azimuths are roots of unity); a generator
+that emitted round-off cosines would have those ordinates read as genuine outflow or inflow. The census row
+``test_the_round_off_gap_is_empty_and_the_floor_is_genuine`` of ``tests/gates/numerics/w1/test_half_range_population.py`` is the
+check on those 17 rules (no nonzero ``|cos|`` below ``1e-10``); a new generator joins that list to be covered.
 
 A leaf of ``numerics`` whose only intra-package import is the declaration module, so that the angular trace spaces, the quadrature
 certification (:func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing`) and the octant partition of
@@ -21,7 +22,7 @@ from typing import Protocol
 
 import numpy as np
 
-from orpheus.numerics.declaration import Coord
+from orpheus.numerics.declaration import Coord, _parse_extent
 
 __all__ = ["AxisCosineSource", "HalfRange", "half_range"]
 
@@ -48,14 +49,15 @@ class HalfRange:  # concept: trace | role: part | kind: set
     n: int
 
     def __post_init__(self) -> None:
+        n = _parse_extent("HalfRange.n", self.n)
         for name in ("outflow", "inflow", "tangential"):
             part = getattr(self, name)
-            if part.n != self.n:
-                raise ValueError(f"the {name} part is not on the ordinate set: Coord.n = {part.n}, n = {self.n}")
+            if part.n != n:
+                raise ValueError(f"the {name} part is not on the ordinate set: Coord.n = {part.n}, n = {n}")
         out, inn, tan = (set(p.indices) for p in (self.outflow, self.inflow, self.tangential))
         if out & inn or out & tan or inn & tan:
             raise ValueError("the outflow, inflow and tangential parts are not disjoint")
-        if len(out) + len(inn) + len(tan) != self.n:
+        if len(out) + len(inn) + len(tan) != n:
             raise ValueError("the outflow, inflow and tangential parts do not cover the ordinates")
 
     def sign(self) -> np.ndarray:

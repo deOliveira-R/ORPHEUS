@@ -113,7 +113,7 @@ References
   redistribution / starting-direction closure at :math:`r=0`).
 * ``.claude/plans/field_role_typing_view_g.md`` — A.2/A.3 AngularTraceSpace
   unification design (View-G, signed-:math:`\Omega\cdot\hat n`,
-  principled eps, face-naming reconciliation).
+  face-naming reconciliation; its tolerance clause is superseded by the exact half-range).
 * Issue #208 comment (2026-05-31) — the
   :math:`|\Omega\cdot\hat n|`-weighted partial-current boundary inner
   product for the Wave-O adjoint work (landed Phase 4 / O.2b).
@@ -210,8 +210,10 @@ def build_omega_dot_n(
 
     Returns a ``(n_faces, n_ordinates)`` float array whose row ``f`` is
     :math:`\mathrm{sign}_f \cdot \mu_{\text{axis}(f)}` — the outward
-    projection of every ordinate onto face ``f``'s normal. Inflow /
-    outflow / tangential are derived from its sign on demand.
+    projection of every ordinate onto face ``f``'s normal. The inflow,
+    outflow and tangential classes are the face's half-range
+    (:func:`~orpheus.numerics.tangential.half_range`), stored once by the
+    factory; this table feeds the partial-current metric only.
 
     C5.3 (#225): geometry-blind — every datum comes from the quadrature
     and the face NAMES (the axis-aligned outward normals are implied by
@@ -356,7 +358,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
     """
 
     # Required (an AngularTraceSpace cannot even size itself without its layout,
-    # and the selectors read omega_dot_n unconditionally — a trace space
+    # and the partial-current metric reads omega_dot_n — a trace space
     # missing either is an illegal state); kw_only sidesteps the
     # inherited-defaults field-ordering rule. Construct via
     # :meth:`from_quadrature_and_layout`.
@@ -366,6 +368,20 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
     #: The half-range of each face, in the row order of :attr:`omega_dot_n`, built once by the factory. The selectors
     #: return its index sets, so no selector classifies a cosine array.
     half_ranges: tuple[HalfRange, ...] = field(kw_only=True, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+        if __debug__:
+            # A raw constructor (``dataclasses.replace``) could pair a half-range with a projection table it does not
+            # come from; the factory builds both from one quadrature, so the two agree on every built space.
+            rows = self.omega_dot_n.shape[0]
+            if len(self.half_ranges) != rows:
+                raise ValueError(f"{len(self.half_ranges)} half-ranges for {rows} faces of omega_dot_n")
+            for row, selector in enumerate(self.half_ranges):
+                if selector.n != self.omega_dot_n.shape[1]:
+                    raise ValueError(f"face row {row}: the half-range is on {selector.n} ordinates, omega_dot_n on {self.omega_dot_n.shape[1]}")
+                if not np.array_equal(selector.sign(), np.sign(self.omega_dot_n[row]).astype(np.int8)):
+                    raise ValueError(f"face row {row}: the half-range disagrees with the sign of omega_dot_n")
 
     @property
     def partial_current_metric(self) -> NDArray:

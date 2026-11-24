@@ -740,7 +740,7 @@ def test_quotient_is_pushforward_then_consolidate_with_orbifold_weights() -> Non
         ManifoldMap(SPHERE, SPHERE.quotient(SubgroupOfO3.Mirror("y")), to_representative),
     ).consolidate()
 
-    n_fixed = int((np.abs(q.mu_y) < 1e-14).sum())
+    n_fixed = int((q.mu_y == 0.0).sum())
     assert folded.n_points == (mu.n_points + n_fixed) // 2  # Burnside
     assert float(folded.weights.sum()) == pytest.approx(
         float(mu.weights.sum()), rel=1e-12

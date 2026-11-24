@@ -3255,8 +3255,8 @@ class _WalkLeg:  # concept: algorithm | role: part | kind: set
     r"""One (μ-level × direction) chain of the 1-D walk DAG.
 
     The 1-D sweep DAG's node set factorizes into LEGS: for each quadrature
-    μ-level ``p`` and each direction class (``μ > +eps`` outward,
-    ``μ < −eps`` inward) the member ordinates march the SAME cell chain in
+    μ-level ``p`` and each direction class (``μ > 0`` outward,
+    ``μ < 0`` inward; the tangential set ``μ = 0`` is on neither) the member ordinates march the SAME cell chain in
     the SAME order, carrying one face flux (forward) or one face cotangent
     (adjoint).  A leg is that chain with its ordinate bundle — the unit
     :meth:`_OneDimScanWalk._loop_walk` traverses.

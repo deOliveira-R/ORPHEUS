@@ -147,6 +147,9 @@ class TestOctantsInvariants:
         The unified :class:`Quadrature` class always exposes ``mu_x``,
         ``mu_y``, ``mu_z`` as :func:`@property` views, so use the
         label-tuple shape — not :func:`hasattr` — as the dispatch.
+
+        Pins the labels against the quadrature's own cosines, read independently of the half-range owner:
+        the expected sign of each ordinate is ``np.sign`` of ``mu_x`` / ``mu_y`` / ``mu_z``, an exact comparison with zero.
         """
         quad = factory()
         for entry in quad.octants:
@@ -155,14 +158,14 @@ class TestOctantsInvariants:
             if len(label) == 3:
                 # Sphere cubature: label is (s_x, s_y, s_z).
                 actual = np.column_stack([
-                    half_range(quad, axis).sign()[indices] for axis in range(3)
-                ])
+                    np.sign(mu[indices]) for mu in (quad.mu_x, quad.mu_y, quad.mu_z)
+                ]).astype(int)
                 expected = np.broadcast_to(
                     np.array(label, dtype=int), actual.shape,
                 )
             else:
                 # Slab quadrature: label is (s,) — only μ_x carries the sign.
-                actual = half_range(quad, 0).sign()[indices]
+                actual = np.sign(quad.mu_x[indices]).astype(int)
                 expected = np.full(actual.shape, label[0], dtype=int)
             np.testing.assert_array_equal(actual, expected)
 

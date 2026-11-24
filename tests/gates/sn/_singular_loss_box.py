@@ -267,7 +267,7 @@ def tangential_dof_count(problem) -> int:
     for index, face in enumerate(layout.faces):
         slot = layout.faces[face]
         per_ordinate = int(np.prod(slot.shape[1:]))
-        total += int(np.sum(np.abs(omega_dot_n[index]) < 1e-14)) * per_ordinate
+        total += int(np.sum(omega_dot_n[index] == 0.0)) * per_ordinate
     return total
 
 

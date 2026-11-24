@@ -163,7 +163,7 @@ def test_axis_aligned_ordinates_excluded_from_both_selectors():
     quad = Quadrature.lebedev(11)
     space = _trace_2d(quad)
     z_axis = np.where(
-        (np.abs(quad.mu_x) < 1e-12) & (np.abs(quad.mu_y) < 1e-12)
+        (quad.mu_x == 0.0) & (quad.mu_y == 0.0)
         & (np.abs(quad.mu_z) > 0.5)
     )[0]
     assert z_axis.size >= 2, "expected (0,0,±1) ordinates in Lebedev 11"

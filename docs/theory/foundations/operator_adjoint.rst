@@ -1245,9 +1245,9 @@ second out on the S\ :sub:`N` loss:
   (:meth:`AngularTraceSpace.outflow_indices_for_face
   <orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace>`)
   classify an ordinate as inflow
-  (:math:`\Omega\cdot\hat n < -\epsilon`), outflow
-  (:math:`> +\epsilon`), or **tangential**
-  (:math:`|\cdot|\le\epsilon`), and the boundary operators read and
+  (:math:`\Omega\cdot\hat n < 0`), outflow
+  (:math:`> 0`), or **tangential**
+  (:math:`= 0`, all three by exact comparison), and the boundary operators read and
   write **only** the inflow and outflow slots.
 * **The streaming operator reads a grazing slot and annihilates it.**
   The multi-dimensional sweep walk carries a grazing ordinate as if it

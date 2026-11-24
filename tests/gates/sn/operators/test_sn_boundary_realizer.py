@@ -157,7 +157,7 @@ class TestRealizeVacuum:
         quad = Quadrature.lebedev(17)
         space = _on(quad, "ymax", faces=("xmin", "xmax", "ymin", "ymax"))
         # An independent spelling of the face's orientation: Omega.n_ymax = +mu_y, so inflow <=> mu_y < 0.
-        np.testing.assert_array_equal(_inflow(space), np.flatnonzero(quad.mu_y < -1e-12))
+        np.testing.assert_array_equal(_inflow(space), np.flatnonzero(quad.mu_y < 0.0))
         psi = np.arange(quad.n_ordinates * 3, dtype=float).reshape(quad.n_ordinates, 3)
         out = _realize(WallCondition.vacuum(), space).apply(psi[_outflow(space)])
         assert out.shape == (_inflow(space).size, 3)
@@ -554,7 +554,7 @@ class TestVacuumRealizesOnTheTrace:
         trace = on.space.trace
         assert op.domain == trace.outflow_space(face)
         assert op.codomain == trace.inflow_space(face)
-        incoming = np.flatnonzero(quad.mu_x > 1e-12) if face == "xmin" else np.flatnonzero(quad.mu_x < -1e-12)
+        incoming = np.flatnonzero(quad.mu_x > 0.0) if face == "xmin" else np.flatnonzero(quad.mu_x < 0.0)
         np.testing.assert_array_equal(op.codomain.ordinate_indices, incoming)
         np.testing.assert_array_equal(_inflow(on), incoming)
 

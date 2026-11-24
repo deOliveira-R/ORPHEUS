@@ -276,11 +276,11 @@ class TestTheDomainIsGammaPlus:
 
         np.testing.assert_array_equal(
             lam.trace.outflow_indices_for_face(face), outflow,
-            err_msg=f"Γ₊({face}) is not the hand-spelled sign·μ > +ε set.",
+            err_msg=f"Γ₊({face}) is not the hand-spelled sign·μ > 0 set.",
         )
         np.testing.assert_array_equal(
             lam.trace.inflow_indices_for_face(face), inflow,
-            err_msg=f"Γ₋({face}) is not the hand-spelled sign·μ < −ε set.",
+            err_msg=f"Γ₋({face}) is not the hand-spelled sign·μ < 0 set.",
         )
         assert lam.gamma_plus.shape[0] == outflow.size
         assert lam.gamma_minus.shape[0] == inflow.size

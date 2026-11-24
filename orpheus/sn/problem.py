@@ -630,9 +630,10 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         r"""Ordinate indices whose direction-cosine is OUTWARD at face ``label``.
 
         At the ``max`` / ``outer`` endpoint of an axis, outflow is
-        :math:`\mu_{axis} > +10^{-15}`; at ``min``, outflow is
-        :math:`\mu_{axis} < -10^{-15}`. Ordinates exactly tangent to
-        the face contribute neither inflow nor outflow.
+        :math:`\mu_{axis} > 0`; at ``min``, outflow is
+        :math:`\mu_{axis} < 0` (exact comparisons: the outflow part of
+        :func:`~orpheus.numerics.tangential.half_range`). Ordinates exactly tangent to
+        the face (:math:`\mu_{axis} = 0`) contribute neither inflow nor outflow.
 
         This method is the canonical producer for the per-face
         outflow mask used by the pack convention (C3),

@@ -86,7 +86,7 @@ class TestTheRecipeLandsOnTheInflowSlotsOnly:
         others[inflow] = False
         assert others.any(), (
             "this fixture has no non-inflow ordinates, so the claim is vacuous — pick a quadrature/face where Γ₊ or the "
-            "tangential band is non-empty"
+            "tangential set is non-empty"
         )
         np.testing.assert_array_equal(view[others], 0.0)
 

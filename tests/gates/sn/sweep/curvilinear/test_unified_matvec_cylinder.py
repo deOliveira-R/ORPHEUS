@@ -96,7 +96,7 @@ def _build_cyl(n_cells: int, quad) -> SNProblem:
 def _bc_fill_outer(psi_view: np.ndarray, problem: SNProblem) -> np.ndarray:
     """Make psi_view BC-consistent at the outer face (incoming ordinates)."""
     quad = problem.quad
-    incoming_mask = quad.mu_x < -1e-15
+    incoming_mask = quad.mu_x < 0.0
     if not incoming_mask.any():
         return psi_view
     outer_face = psi_view[:, :, -1]
@@ -119,7 +119,7 @@ def _extract_at_unknown_slots(
     quad = problem.quad
     nx = problem.nx
     ng = field_4d.shape[1]
-    inflow_outer = quad.mu_x < -1e-15  # (N,)
+    inflow_outer = quad.mu_x < 0.0  # (N,)
     cols = []
     for ix in range(nx):
         for n in range(quad.n_ordinates):

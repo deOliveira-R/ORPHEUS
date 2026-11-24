@@ -116,7 +116,7 @@ def test_cylinder_apply_matvec_preserves_flat_psi(
     # D-J (2026-05-30): equation slots derived from quad direction signs
     # (replaces ``EquationMap`` slot map — curvilinear set is all
     # ``(n, ix, 0)`` except inward ordinates at outermost cell).
-    inflow_outer = quad.mu_x < -1e-15  # (N,)
+    inflow_outer = quad.mu_x < 0.0  # (N,)
     ord_list, ix_list = [], []
     for ix in range(nx):
         for n in range(quad.n_ordinates):

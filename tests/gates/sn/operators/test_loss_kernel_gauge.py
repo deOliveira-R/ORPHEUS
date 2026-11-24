@@ -777,6 +777,30 @@ def test_a_quadrature_not_closed_under_a_mirror_is_REFUSED():
     assert _reflection_orbits(mesh)
 
 
+@pytest.mark.foundation
+def test_a_tangential_ordinate_is_off_the_active_set_of_its_reflective_axis():
+    """An orbit whose representative has cosine exactly zero on a reflective axis does not carry that axis in ``S``.
+
+    ``Quadrature.product(4, 4)`` has 8 ordinates with ``mu_x == 0.0`` (a hand count below) and is closed under both mirrors, so on
+    a doubly reflective 2-D box those ordinates are tangential to axis 0. The expected active set of each orbit is spelled here
+    from the cosines by an exact comparison with zero; it is read against ``_reflection_orbits`` orbit by orbit, with the two
+    populations that make the claim non-vacuous: orbits that drop axis 0 and orbits that keep it.
+    """
+    quad = Quadrature.product(4, 4)
+    mesh = _mesh((3, 4), [(_R, _R)] * 2, quad=quad)
+    mu = np.column_stack([np.asarray(quad.mu_x, dtype=float), np.asarray(quad.mu_y, dtype=float)])
+    assert int(np.sum(mu[:, 0] == 0.0)) == 8, "the fixture's tangential count on axis 0 changed"
+
+    orbits = _reflection_orbits(mesh)
+    dropped = kept = 0
+    for members, active in orbits:
+        expected = tuple(axis for axis in (0, 1) if mu[members[0], axis] != 0.0)
+        assert active == expected, (members, active, expected)
+        dropped += int(0 not in active)
+        kept += int(0 in active)
+    assert dropped > 0 and kept > 0, (dropped, kept)
+
+
 # ─────────────────────────────────────────────────────────────────────
 # 8. the kernel is geometry-only, and the mesh caches it
 # ─────────────────────────────────────────────────────────────────────

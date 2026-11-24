@@ -52,5 +52,5 @@ def test_the_space_holds_the_trace_its_half_spaces_are_read_from():
     trace = _trace(quad, ("xmin", "xmax", "ymin", "ymax"))
     space = SNMethodSpace(quadrature=quad, trace=trace)
     assert space.quadrature is quad and space.trace is trace
-    np.testing.assert_array_equal(space.trace.inflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x > 1e-12))
-    np.testing.assert_array_equal(space.trace.inflow_indices_for_face("ymax"), np.flatnonzero(quad.mu_y < -1e-12))
+    np.testing.assert_array_equal(space.trace.inflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x > 0.0))
+    np.testing.assert_array_equal(space.trace.inflow_indices_for_face("ymax"), np.flatnonzero(quad.mu_y < 0.0))

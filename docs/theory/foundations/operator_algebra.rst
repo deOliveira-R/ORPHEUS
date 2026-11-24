@@ -6760,21 +6760,21 @@ methods), which carry a **per-face directional mask**:
 
    \mathrm{inflow\_mask}[f, n]
    \;=\;
-   \bigl(\Omega_n \cdot \hat n_f < -\epsilon\bigr).
+   \bigl(\Omega_n \cdot \hat n_f < 0\bigr).
 
 .. implements:: per-face-inflow-mask
-   :by: orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n
+   :by: orpheus.numerics.tangential.half_range
 
-   **Implemented by** the builder of the
-   ``(n_faces, n_ordinates)`` table of :math:`\Omega_n\cdot\hat n_f` that
-   the mask is a predicate **on**.
+   **Implemented by** the half-range selector, which reads the quadrature's
+   direction cosines along the face's axis (``mean_axis_cosine``), takes the
+   sign of the face's outward normal, and compares with zero exactly.
 
 .. implements:: per-face-inflow-mask
    :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face
 
    **Implemented by** the predicate itself — the ``inflow`` part of the face's
    half-range (:func:`~orpheus.numerics.tangential.half_range`), which the factory builds
-   once from the face row of that table by exact comparisons with zero.
+   once from the quadrature's cosines along the face's axis by exact comparisons with zero.
 
 .. vv-status: per-face-inflow-mask documented
 

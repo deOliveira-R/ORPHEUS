@@ -106,7 +106,7 @@ where they re-spell it, and a name in double backticks there is retired.
   map and differ only in :math:`q`. Gates: ``test_the_functor_law`` and ``test_the_source_verb`` in ``tests/gates/transport/test_admission_mechanism.py``,
   ``tests/gates/sn/operators/test_boundary_source_from_specs.py``. Derivation: :ref:`bc-aor-inflow`, :ref:`bc-affine-source-channel`.
 - **The face ordinate partition is THREE-way**, not two: :math:`\{1..N\} = I_f \sqcup O_f \sqcup T_f` with
-  :math:`T_f = \{|\Omega\cdot\hat n| \le \texttt{TANGENTIAL\_EPS}\}` (:eq:`ordinate-partition-inflow-outflow`). **"Not inflow"
+  :math:`T_f = \{\Omega\cdot\hat n = 0\}`, an exact comparison with zero (:eq:`ordinate-partition-inflow-outflow`). **"Not inflow"
   is NOT "outflow".** Measured: a cylinder under ``product(n_mu=2, n_phi=4)`` carries **4 of 8** ordinates tangential at
   ``xmax``; ``gauss_legendre(5)`` carries 1; every ``lebedev`` carries 4 to 8; only ``gauss_legendre(4)`` is the clean two-way
   case, so **the slab is the unrepresentative fixture.** Measured too: :math:`|\Gamma_+| = |\Gamma_-|` on every quadrature and

@@ -195,9 +195,9 @@ def test_dag_walk_cylindrical_per_level_matches():
             # direction-keyed sweep. The degenerate branch is the
             # special case |η| < 1e-15.
             if sign == +1:
-                matches = np.where(eta_at_level > 1e-15)[0]
+                matches = np.where(eta_at_level > 0.0)[0]
             else:
-                matches = np.where(eta_at_level < -1e-15)[0]
+                matches = np.where(eta_at_level < 0.0)[0]
             if matches.size == 0:
                 continue
             seq_by_dir = [

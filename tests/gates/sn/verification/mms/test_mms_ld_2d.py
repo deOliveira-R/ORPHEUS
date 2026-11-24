@@ -276,7 +276,7 @@ def test_ld_2d_krylov_equals_si_pure_z_quadrature():
     # genuine mu_y — the cheap pure-z habitat (the production 2-D Cartesian MMS
     # uses Lebedev order 17 / N=110 with the same 2 pure-z ordinates).
     quad = Quadrature.lebedev(order=5)
-    is_pure_z = (np.abs(quad.mu_x) < 1e-12) & (np.abs(quad.mu_y) < 1e-12)
+    is_pure_z = (quad.mu_x == 0.0) & (quad.mu_y == 0.0)
     if not np.any(is_pure_z):
         pytest.fail(
             "test premise broken: the quadrature has NO pure-z ordinate, so the "

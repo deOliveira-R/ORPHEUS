@@ -142,8 +142,8 @@ def test_2d_cartesian_vacuum_xmin_is_the_zero_map(quad_2d):
     # trailing, the declared trace shape (the bound ZeroMorphism emits its
     # DECLARED codomain zero, not an echo of arbitrary probe trailing).
     psi = rng.uniform(0.5, 2.0, size=(quad_2d.n_ordinates, 1, 3))
-    inflow = np.flatnonzero(quad_2d.mu_x > 1e-12)
-    outflow = np.flatnonzero(quad_2d.mu_x < -1e-12)
+    inflow = np.flatnonzero(quad_2d.mu_x > 0.0)
+    outflow = np.flatnonzero(quad_2d.mu_x < 0.0)
     out = sn.bc["xmin"].apply(psi[outflow])
     assert out.shape == (inflow.size, 1, 3), (
         f"vacuum on xmin emitted {out.shape}; the narrowed codomain is Γ₋."
@@ -257,7 +257,7 @@ def test_2d_cartesian_construction_populates_trace(quad_2d):
     # xmin: inflow ordinates have mu_x > 0
     np.testing.assert_array_equal(
         sn._trace.inflow_indices_for_face("xmin"),
-        np.flatnonzero(quad_2d.mu_x > 1e-12),
+        np.flatnonzero(quad_2d.mu_x > 0.0),
     )
 
 
@@ -280,8 +280,8 @@ def test_1d_cartesian_vacuum_right_is_the_zero_map(quad_1d):
 
     # S4-amendment: an honest Γ₊ element carries the declared ng=1 tail.
     psi = np.arange(quad_1d.n_ordinates, dtype=float).reshape(quad_1d.n_ordinates, 1)
-    inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
-    outflow = np.flatnonzero(quad_1d.mu_x > +1e-12)
+    inflow = np.flatnonzero(quad_1d.mu_x < 0.0)
+    outflow = np.flatnonzero(quad_1d.mu_x > 0.0)
     out = sn.bc["xmax"].apply(psi[outflow])
     assert out.shape == (inflow.size, 1)
     np.testing.assert_array_equal(out, 0.0)
@@ -400,7 +400,7 @@ def test_1d_spherical_vacuum_routes_through_realizer(quad_1d):
     assert sn._trace.face_names == ("xmax",)
     # The outer-face inflow indices are the mu_x < 0 ordinates
     # (Ω · n_xmax = +mu_x; inflow iff Ω · n < 0).
-    expected_inflow = np.flatnonzero(quad_1d.mu_x < -1e-12)
+    expected_inflow = np.flatnonzero(quad_1d.mu_x < 0.0)
     np.testing.assert_array_equal(
         sn._trace.inflow_indices_for_face("xmax"),
         expected_inflow,

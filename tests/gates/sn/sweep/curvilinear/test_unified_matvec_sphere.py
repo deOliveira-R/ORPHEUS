@@ -96,7 +96,7 @@ def _bc_fill_outer(
     # Identify BC-resolved positions: outer cell (i=nx-1) for incoming ordinates.
     # For sphere with reflective BC, these are mu_x < 0 at i=nx-1.
     quad = problem.quad
-    incoming_mask = quad.mu_x < -1e-15
+    incoming_mask = quad.mu_x < 0.0
     if not incoming_mask.any():
         return psi_view
     # Apply BC: outgoing → incoming at the outer face.
@@ -123,7 +123,7 @@ def _extract_at_unknown_slots(
     quad = problem.quad
     nx = problem.nx
     ng = field_4d.shape[1]
-    inflow_outer = quad.mu_x < -1e-15  # (N,)
+    inflow_outer = quad.mu_x < 0.0  # (N,)
     cols = []
     for ix in range(nx):
         for n in range(quad.n_ordinates):

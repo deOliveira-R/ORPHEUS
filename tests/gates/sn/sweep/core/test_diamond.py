@@ -436,7 +436,7 @@ def _curvilinear_row(cell_idx, direction_idx, outward, total_xs, Q, psi_spat_in,
     quad = Quadrature.gauss_legendre(8)
     op = spherical_streaming(mesh, quad)
     st = op.streaming_terms(cell_idx, direction_idx)
-    if not st.abs_mu >= 1e-15:
+    if not st.abs_mu > 0.0:
         pytest.fail("degenerate ordinate")
     if (quad.mu_x[direction_idx] > 0) != outward:
         pytest.fail("direction sign is not the row's")
@@ -487,7 +487,7 @@ class TestCurvilinearCellUpdate:
 # ═══════════════════════════════════════════════════════════════════════
 
 class TestCylindricalDegenerate:
-    """Cylindrical pure-azimuthal degenerate (``abs_mu < 1e-15``).
+    """Cylindrical pure-azimuthal degenerate (``abs_mu == 0``, so ``face_area_downstream == 0.0``).
 
     For cylindrical 1-D radial sweeps with a product quadrature, an
     ordinate with axial direction cosine :math:`|\\mu_z| \\to 1` has
@@ -508,11 +508,11 @@ class TestCylindricalDegenerate:
         "dd-cylindrical-degenerate",
     )
     def test_degenerate_cell_synthetic(self):
-        """Synthetic StreamingTerms with abs_mu < 1e-15.
+        """Synthetic StreamingTerms with a vanishing abs_mu.
 
         Constructed directly via the
         :class:`~orpheus.transport.spatial.scheme.StreamingTerms`
-        constructor with a tiny ``abs_mu`` — gates the branch
+        constructor with a vanishing ``abs_mu`` — gates the branch
         without depending on the choice of quadrature.  The other
         fields (``face_area_inner`` / ``face_area_outer``, ``volume``)
         come from a real cylindrical streaming-terms instance so the
@@ -529,8 +529,7 @@ class TestCylindricalDegenerate:
         st_real = op.streaming_terms(
             cell_idx=1, direction_idx=0, mu_level_idx=0,
         )
-        # Construct degenerate variant with abs_mu = 1e-16 (well
-        # below the 1e-15 threshold).
+        # Construct degenerate variant with a vanishing abs_mu = 1e-16.
         dAw_real = _dAw_of(op, 1, 0, mu_level_idx=0)
         st = StreamingTerms(
             face_area_inner=st_real.face_area_inner,
@@ -1025,7 +1024,7 @@ class TestResidual:
       (downstream face = inner).
     * **cylinder** — curvilinear non-degenerate (1-D radial product
       quadrature, μ-level 0).
-    * **cylinder_degenerate** — ``abs_mu < 1e-15`` branch (axial
+    * **cylinder_degenerate** — ``abs_mu == 0`` branch (axial
       cosine :math:`|\mu_z| \to 1`).
 
     Mode 7 (`vv-principles` MMS simplification bias): each test

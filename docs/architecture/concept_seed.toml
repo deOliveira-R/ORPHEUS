@@ -303,7 +303,7 @@ fingerprint = "blake2b:31ad0e2b43702e25399eb6fd3f01081f0ff83a45a64948fc7d3fc84ee
 
 [[seed]]
 class = "orpheus/numerics/spaces/angular_trace_space.py::AngularTraceSpace"
-fingerprint = "blake2b:26fc6b6576baaf7761b3c1950c9723812cb3da898b81a9b922b0410d7f73ba31"
+fingerprint = "blake2b:0a09c3da66fd646c178c27682326c0cb968204435cc8fac4ee15ded13606dd86"
 
 [[seed]]
 class = "orpheus/numerics/spaces/full_field_space.py::FullFieldSpace"

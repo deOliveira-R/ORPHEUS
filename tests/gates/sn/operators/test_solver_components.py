@@ -500,7 +500,7 @@ class TestQuadratureWeightConservation:
         ang, _ = sweep_once(AngularSourceSink.from_isotropic(Q, solver.problem), solver.problem.mat_xs.total_cross_section, solver.problem, AngularBoundaryFlux.zeros(solver.problem.angular_trace))
 
         for n in range(quad.n_ordinates):
-            if abs(quad.mu_x[n]) < 1e-15 and abs(quad.mu_y[n]) < 1e-15:
+            if quad.mu_x[n] == 0.0 and quad.mu_y[n] == 0.0:
                 assert np.all(ang[n] > 0), (
                     f"Z-directed ordinate {n} has zero angular flux"
                 )

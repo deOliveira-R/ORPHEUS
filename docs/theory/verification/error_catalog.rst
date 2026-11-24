@@ -3809,8 +3809,8 @@ older entries classify against.
    ``|Ω · n_f| <= eps`` (a quadrature node that grazes the face within
    floating-point tolerance) is inappropriately included in either the
    inflow or the outflow half. The Wave 2 ``_TANGENTIAL_EPS=1e-12``
-   already excludes such ordinates from BOTH masks in
-   ``InflowTraceSpace`` / ``OutflowTraceSpace``, but a downstream consumer
+   excluded such ordinates from BOTH masks in the since-retired
+   ``InflowTraceSpace`` / ``OutflowTraceSpace`` (the half-range now excludes the exactly tangential set by exact comparison), but a downstream consumer
    that assumes the inflow + outflow partition is a strict cover of the
    ordinate set will silently miscount the tangential ordinate.
 

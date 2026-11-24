@@ -6,7 +6,7 @@ F0.3 — :meth:`SNProblem.from_axes` 2-D shape + 4 face labels.
 F0.4 — Spherical/cylindrical 1-D mesh has 1 face label (the pole is NOT a face).
 F0.5 — :func:`face_shape` derivation matches per-axis cell counts.
 F0.6 — :func:`face_outflow_ordinates` mask matches the inline expression at
-       the 5+ legacy sites (``np.where(sign * mu_axis > 1e-15)[0]``).
+       the 5+ legacy sites (``np.where(sign * mu_axis > 0.0)[0]``).
 F0.7 — Synthetic 3-D admission: ``(AxisMesh(5), AxisMesh(7), AxisMesh(9))``
        produces 6 face labels via the pure shape functions (no SNProblem).
 F0.8 — The production full field ``SNProblem.full_field_space`` of a problem
@@ -265,13 +265,13 @@ def test_f0_5_face_shape_radial_solid_no_inner_face() -> None:
 
 
 def test_f0_6_face_outflow_ordinates_matches_inline_expression_1d() -> None:
-    """Outflow ordinate mask matches np.where(sign * mu > 1e-15)."""
+    """Outflow ordinate mask matches np.where(sign * mu > 0.0)."""
     axes = (AxisMesh(edges=np.linspace(0.0, 1.0, 11), role_low=_REFLECTIVE, role_high=_REFLECTIVE),)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     out_max = face_outflow_ordinates(axes, FaceLabel(0, "max"), quad)
     out_min = face_outflow_ordinates(axes, FaceLabel(0, "min"), quad)
-    np.testing.assert_array_equal(out_max, np.where(quad.mu_x > 1e-15)[0])
-    np.testing.assert_array_equal(out_min, np.where(-quad.mu_x > 1e-15)[0])
+    np.testing.assert_array_equal(out_max, np.where(quad.mu_x > 0.0)[0])
+    np.testing.assert_array_equal(out_min, np.where(-quad.mu_x > 0.0)[0])
     # In 1-D GL even-N the two are complementary halves of (0..N-1).
     assert out_max.size == out_min.size == quad.n_ordinates // 2
 
@@ -287,10 +287,10 @@ def test_f0_6_face_outflow_ordinates_2d_LS4() -> None:
     out_xmin = face_outflow_ordinates(axes, FaceLabel(0, "min"), quad)
     out_ymax = face_outflow_ordinates(axes, FaceLabel(1, "max"), quad)
     out_ymin = face_outflow_ordinates(axes, FaceLabel(1, "min"), quad)
-    np.testing.assert_array_equal(out_xmax, np.where(quad.mu_x > 1e-15)[0])
-    np.testing.assert_array_equal(out_xmin, np.where(-quad.mu_x > 1e-15)[0])
-    np.testing.assert_array_equal(out_ymax, np.where(quad.mu_y > 1e-15)[0])
-    np.testing.assert_array_equal(out_ymin, np.where(-quad.mu_y > 1e-15)[0])
+    np.testing.assert_array_equal(out_xmax, np.where(quad.mu_x > 0.0)[0])
+    np.testing.assert_array_equal(out_xmin, np.where(-quad.mu_x > 0.0)[0])
+    np.testing.assert_array_equal(out_ymax, np.where(quad.mu_y > 0.0)[0])
+    np.testing.assert_array_equal(out_ymin, np.where(-quad.mu_y > 0.0)[0])
 
 
 def test_f0_6_face_outflow_ordinates_radial() -> None:
@@ -301,7 +301,7 @@ def test_f0_6_face_outflow_ordinates_radial() -> None:
     ),)
     quad = Quadrature.gauss_legendre(n_ordinates=8)
     out_outer = face_outflow_ordinates(axes, FaceLabel(0, "outer"), quad)
-    np.testing.assert_array_equal(out_outer, np.where(quad.mu_x > 1e-15)[0])
+    np.testing.assert_array_equal(out_outer, np.where(quad.mu_x > 0.0)[0])
 
 
 # ─── F0.7 ────────────────────────────────────────────────────────────────
@@ -382,8 +382,8 @@ def test_f0_7_synthetic_3d_face_outflow_axis_2_ls4_native_mu_z() -> None:
     quad = _level_symmetric_quad_2d(order=4)
     out_zmax = face_outflow_ordinates(axes, FaceLabel(2, "max"), quad)
     out_zmin = face_outflow_ordinates(axes, FaceLabel(2, "min"), quad)
-    np.testing.assert_array_equal(out_zmax, np.where(quad.mu_z > 1e-15)[0])
-    np.testing.assert_array_equal(out_zmin, np.where(-quad.mu_z > 1e-15)[0])
+    np.testing.assert_array_equal(out_zmax, np.where(quad.mu_z > 0.0)[0])
+    np.testing.assert_array_equal(out_zmin, np.where(-quad.mu_z > 0.0)[0])
     # LS4 is symmetric over the unit sphere: half the ordinates have
     # mu_z > 0, half have mu_z < 0.
     assert out_zmax.size == out_zmin.size == quad.n_ordinates // 2
