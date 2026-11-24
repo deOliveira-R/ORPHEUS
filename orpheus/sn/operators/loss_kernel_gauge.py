@@ -221,6 +221,7 @@ from orpheus.geometry.faces import face_normal
 from orpheus.numerics.fredholm import PredictedKernel
 from orpheus.numerics.kernel_projection_gauge import KernelSummand, diagonal_metric
 from orpheus.numerics.evidence import Evidence, measured_value
+from orpheus.numerics.tangential import half_range
 from orpheus.transport.spatial.scheme import FaceModeDamping
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
