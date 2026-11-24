@@ -272,8 +272,8 @@ class StreamingTerms:  # concept: streaming | role: component | kind: element
     :math:`\\eta` for cylinder, and both are real-valued, so the
     absolute value is always well-defined.
 
-    The cylindrical pure-azimuthal degenerate case (``abs_mu <
-    1e-15``) is signalled by cell-update strategies via
+    The cylindrical pure-azimuthal degenerate case (``abs_mu ==
+    0``) is signalled by cell-update strategies via
     :attr:`~orpheus.transport.spatial.scheme.CellResult.outgoing_spatial_flux`
     set to ``None`` (no radial face flow on the cell).
     """
@@ -345,10 +345,10 @@ class CellVisit:  # concept: scheme | role: part | kind: element
           boundary → centre): equals
           ``streaming_terms.face_area_inner``.
         * For the cylindrical pure-azimuthal degenerate case
-          (``abs_mu < 1e-15``): ``0.0`` — the cell has no spatial
+          (``abs_mu == 0``): ``0.0`` — the cell has no spatial
           face flow, so the ``2|\mu| A_{\rm down}`` term vanishes
-          via ``face_area_downstream = 0`` (geometric truth) rather than via the
-          numerical threshold ``abs_mu < 1e-15``.
+          via ``face_area_downstream = 0`` (geometric truth) rather than via a
+          threshold on ``abs_mu``.
     Notes
     -----
     The companion :attr:`UpstreamState.spatial_upstream` is **also**
@@ -413,7 +413,7 @@ class CellResult:  # concept: scheme | role: component | kind: element
     outgoing_spatial_flux :
         Shape ``(ng,)`` for the typical case; ``None`` for the
         cylindrical pure-azimuthal degenerate case
-        (``streaming_terms.abs_mu < 1e-15``) where the cell has no
+        (``streaming_terms.abs_mu == 0``) where the cell has no
         radial face flow.  For Diamond Difference,
         :math:`\psi_{i+1/2} = 2\overline{\psi}_i - \psi_{i-1/2}`.
     P4.9a: the former ``outgoing_angular_state`` field left — a spatial

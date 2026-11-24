@@ -813,8 +813,8 @@ def test_singular_set_membership_is_exact_not_thresholded() -> None:
 def test_singular_set_under_d2h_reproduces_the_epsilon_detectors() -> None:
     r"""The retirement warrant for the three ad-hoc epsilon detectors.
 
-    ``_OCTANT_SIGN_EPS``, ``_MU_DIRECTION_EPS`` and ``TANGENTIAL_EPS`` all ask
-    "is a direction cosine zero", i.e. does this node lie on a COORDINATE
+    The three retired epsilon detectors (the octant sign, the radial-direction
+    and the tangential cutoffs) all asked "is a direction cosine zero", i.e. does this node lie on a COORDINATE
     mirror. That is :math:`\Sigma` under :math:`D_{2h}` — the group generated
     by the three coordinate reflections, isomorphic to
     :math:`(\mathbb{Z}_2)^3`, whose chambers are exactly the octants. Naming

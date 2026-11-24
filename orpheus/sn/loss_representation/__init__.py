@@ -118,6 +118,7 @@ from orpheus.geometry import CoordSystem
 from orpheus.geometry.deck import mirror_motion
 from orpheus.numerics.basis import AVERAGE_MOMENT
 from orpheus.numerics.space import factor_tail
+from orpheus.numerics.tangential import half_range
 from orpheus.transport.fields._bases import (
     is_moment_valued_by_flat_rank,
     is_moment_valued_by_rank,
@@ -3249,19 +3250,6 @@ def default_for(
 # ═══════════════════════════════════════════════════════════════════════
 
 
-
-#: The one μ-direction trichotomy threshold of the 1-D walk: an ordinate is a
-#: FORWARD leg member at ``μ > +eps``, a BACKWARD leg member at ``μ < −eps``,
-#: and DEGENERATE (pure-azimuthal — no radial streaming, not on any leg) at
-#: ``|μ| ≤ eps``.  Single source for the leg masks (:meth:`_OneDimScanWalk.
-#: _dag_legs`) and the degenerate set (:meth:`_OneDimScanWalk.
-#: _degenerate_positions`) so the three classes PARTITION the quadrature by
-#: construction — two thresholds could silently drop or double-count an
-#: ordinate.  (``_run``'s slab ``μ >= 0`` split is a separate micro-seam no
-#: GL ordinate hits; it re-poses at 2.5b.)
-_MU_DIRECTION_EPS = 1e-15
-
-
 @dataclass(frozen=True)
 class _WalkLeg:  # concept: algorithm | role: part | kind: set
     r"""One (μ-level × direction) chain of the 1-D walk DAG.
@@ -3352,26 +3340,25 @@ class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | weld
         given traces).  The FORWARD orientation traverses this order; the
         ADJOINT traverses :func:`_reverse_traversal` of it.
 
-        The ±eps direction masks and the ``dag_walk_cell_indices`` order
-        are materialized HERE ONCE for both orientations — the leg
+        The direction masks (the ``outflow`` and ``inflow`` parts of the
+        half-range along the radial axis) and the ``dag_walk_cell_indices``
+        order are materialized HERE ONCE for both orientations — the leg
         decomposition can no longer drift between the forward and adjoint
         walks (the pre-2.5a lockstep duplication).  Ordinates with
-        :math:`|\mu| \le` ``_MU_DIRECTION_EPS`` are on NO leg — they are
+        :math:`\mu = 0` are on NO leg — they are
         the :meth:`_degenerate_positions` set (volumetric balance, no
         face march).
         """
         problem = self.problem
         mu_x = problem.quad.mu_x
+        half = half_range(problem.quad, 0)
         level_indices = self.angular_closure.level_indices
         legs: list[_WalkLeg] = []
         for direction_sign in (-1, +1):
             for p, level_idx in enumerate(level_indices):
                 level_idx_arr = np.asarray(level_idx)
-                mu_level = mu_x[level_idx_arr]
-                within_mask = (
-                    mu_level > +_MU_DIRECTION_EPS if direction_sign > 0
-                    else mu_level < -_MU_DIRECTION_EPS
-                )
+                leg_side = half.outflow if direction_sign > 0 else half.inflow
+                within_mask = np.isin(level_idx_arr, leg_side.indices)
                 if not np.any(within_mask):
                     continue
                 ordinates = level_idx_arr[within_mask]
@@ -3426,8 +3413,8 @@ class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | weld
     def _degenerate_positions(self) -> "tuple[np.ndarray, list[int], list[int]]":
         r"""The degenerate pure-azimuthal ordinates + their level positions.
 
-        Global indices ``global_deg`` with :math:`|\mu_x| \le`
-        ``_MU_DIRECTION_EPS`` (no radial streaming — e.g. the
+        Global indices ``global_deg`` with :math:`\mu_x = 0`
+        exactly, the ``tangential`` part of the half-range (no radial streaming — e.g. the
         :math:`\varphi = \pi/2,\,3\pi/2` samples of an equispaced product
         quadrature), each resolved to its ``(level, within-level position)``
         pair for the closure's positional API.  These ordinates sit on NO
@@ -3436,9 +3423,9 @@ class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | weld
         in a dedicated per-cell block OUTSIDE :meth:`_loop_walk` — the 1-D
         sibling of ``_OctantWalk``'s ``pure_z`` branch.
         """
-        mu_x = self.problem.quad.mu_x
+        half = half_range(self.problem.quad, 0)
         level_indices = self.angular_closure.level_indices
-        global_deg = np.where(np.abs(mu_x) < _MU_DIRECTION_EPS)[0]
+        global_deg = np.asarray(half.tangential.indices, dtype=np.intp)
         deg_level: list[int] = []
         deg_within: list[int] = []
         for n_global in global_deg:

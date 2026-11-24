@@ -1667,7 +1667,7 @@ thread itself through
 This is the one production path that visits degenerate cells one at a
 time (:ref:`sn-p49a-closure-owns-the-march`).
 
-The numerical threshold is ``streaming_terms.abs_mu < 1e-15``, with
+The degenerate ordinates are those the half-range along the radial axis reads as tangential (``streaming_terms.abs_mu == 0``), with
 ``abs_mu`` populated from the **global ordinate**
 :math:`|\eta|` on the streaming-terms packet (resolved through
 ``level_indices`` for cylindrical geometry — see

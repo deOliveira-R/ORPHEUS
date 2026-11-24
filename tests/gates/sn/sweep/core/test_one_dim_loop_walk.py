@@ -42,7 +42,7 @@ pytestmark = pytest.mark.foundation
 
 
 def _product_cylinder(ng: int = 1) -> SNProblem:
-    """The degenerate-class cylinder (φ = π/2, 3π/2 ⇒ |μ_x| ≈ 6e-17) —
+    """The degenerate-class cylinder (φ = π/2, 3π/2 ⇒ μ_x exactly 0) —
     the reciprocity file's :func:`_make_cyl_product` builder, mesh only.
     The partition pin below needs a quadrature where all three direction
     classes are non-empty (the ``level_symmetric`` rule has no degenerate
@@ -232,10 +232,10 @@ def test_legs_and_degenerates_partition_the_quadrature():
     are disjoint and jointly exhaustive.
 
     Run on the product-quadrature cylinder where the degenerate class is
-    NON-EMPTY (φ = π/2, 3π/2 → |μ_x| ≈ 6e-17) — a two-threshold drift
+    NON-EMPTY (φ = π/2, 3π/2 → μ_x exactly 0) — a drift
     between the leg masks and the degenerate mask would silently drop or
-    double-count exactly these ordinates (the single-source
-    ``_MU_DIRECTION_EPS`` contract).
+    double-count exactly these ordinates (the single-source half-range
+    contract: all three classes are read from one ``half_range``).
     """
     from orpheus.sn.loss_representation import _OneDimScanWalk
 
@@ -249,7 +249,7 @@ def test_legs_and_degenerates_partition_the_quadrature():
 
     if not degenerates:
         pytest.fail(
-            "product(n_mu=2, n_phi=4) produced NO degenerate ordinates — "
+            "folded_product(n_mu=2, n_phi=6) produced NO degenerate ordinates — "
             "the partition pin needs a non-empty degenerate class "
             "(quadrature layout changed?)"
         )

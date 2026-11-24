@@ -44,7 +44,7 @@ TIERS: tuple[tuple[str, ...], ...] = (
     # (``symmetry``, ``roots_of_unity`` and ``manifold``'s geometric half left for
     # geometry at layer DAG WP-B, 2026-10-22; ``index_set`` holds the finite index
     # sets, members of geometry's ``Manifold`` sum, and imports no numerics module;
-    # ``tangential`` holds the one grazing tolerance both ``spaces`` and ``quadrature``
+    # ``tangential`` holds the one half-range selector both ``spaces`` and ``quadrature``
     # read, a leaf so that quadrature need not import spaces, layer DAG WF2.2)
     ("bickley", "evidence", "face_layout", "gauge", "index_set", "instance_cache", "metric",
      "rational_polynomial", "recurrence", "registry", "tangential", "units", "vector"),

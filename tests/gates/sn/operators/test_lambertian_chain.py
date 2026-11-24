@@ -31,14 +31,12 @@ emission guards all live there. The complements this module adds are:
   :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`, the
   primitive production reads. The arithmetic (:math:`\mathrm{sign}\cdot\mu`) is
   necessarily the same on both sides; what the hand spelling keeps independent
-  is *which face carries which outward normal* and *where the tangential band
+  is *which face carries which outward normal* and *where the tangential set
   is*.
-* **the B3.4a twin classifier.** :meth:`TestTheDomainIsGammaPlus.\
-  test_the_domain_is_the_tangential_band_not_the_strict_compare` is the only
-  gate in the tree that discriminates ``> 0.0`` from ``> TANGENTIAL_EPS``, and
-  the successor's own ``cos_w > 0`` constructor guard is provably **blind** to
-  it — the mis-admitted weights are ``6.98e-16``, strictly positive. That
-  measurement is pinned inside the gate.
+* **the one classifier.**
+  :meth:`TestTheDomainIsGammaPlus.test_the_domain_is_the_owners_outflow_on_a_nudged_fixture` reads a cosine of one machine epsilon
+  as genuine outflow: the trace and the chain read the half-range of :func:`~orpheus.numerics.tangential.half_range`, whose
+  comparisons with zero are exact, so a second classifier with a band would read 2 rows where the owner reads 6.
 * **the mirror-face adjoint.** :class:`TestReciprocityAgainstTheMirrorFace`
   says *what* :math:`R^{*}` is (the Lambertian kernel of the reversed face, a
   second production object) rather than that ``.H`` is self-consistent with
@@ -66,10 +64,7 @@ from orpheus.numerics.face_layout import FaceLayout
 from orpheus.geometry.faces import face_opposite
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces import AngularTraceSpace
-from orpheus.numerics.spaces.angular_trace_space import (
-    TANGENTIAL_EPS,
-    AngularFaceTraceSpace,
-)
+from orpheus.numerics.spaces.angular_trace_space import AngularFaceTraceSpace
 from orpheus.sn.boundary.angular import (
     IsotropicEmissionOperator,
     PartialCurrentOperator,
@@ -133,15 +128,15 @@ def _signed_projection(quad: Quadrature, face: str) -> np.ndarray:
 
 
 def _half_traces(quad: Quadrature, face: str) -> tuple[np.ndarray, np.ndarray]:
-    r"""``(Γ₊, Γ₋)`` index arrays for ``face``, by the tangential-band rule.
+    r"""``(Γ₊, Γ₋)`` index arrays for ``face``, by the exact sign of the projection.
 
     The face partition is THREE-way — :math:`\Gamma_+ \sqcup \Gamma_- \sqcup`
     tangential — so "not inflow" is never spelled as "outflow" here.
     """
     odn = _signed_projection(quad, face)
     return (
-        np.flatnonzero(odn > +TANGENTIAL_EPS),
-        np.flatnonzero(odn < -TANGENTIAL_EPS),
+        np.flatnonzero(odn > 0.0),
+        np.flatnonzero(odn < 0.0),
     )
 
 
@@ -303,81 +298,6 @@ class TestTheDomainIsGammaPlus:
         assert isinstance(codomain, AngularFaceTraceSpace)
         assert (domain.face, domain.role) == (face, "outflow")
         assert (codomain.face, codomain.role) == (face, "inflow")
-
-    def test_the_domain_is_the_tangential_band_not_the_strict_compare(self):
-        r"""The domain is :math:`\Gamma_+` at ``TANGENTIAL_EPS`` — NOT the
-        retired private ``(sign·μ) > 0.0`` set.
-
-        ⭐ **The load-bearing row of the migration.** It is the only gate in the
-        tree that discriminates the B3.4a twin classifier, and the successor's
-        own construction guard cannot replace it: on this fixture the
-        mis-admitted rows carry ``cos_w ≈ 7e-16`` — **strictly positive** — so
-        :class:`PartialCurrentOperator`'s ``cos_w > 0`` refusal (gated next door
-        by ``test_the_contraction_refuses_a_full_face_weight_vector``) is blind
-        to them. That measurement is asserted below rather than trusted, so if
-        the guard ever does become sufficient this row says so.
-
-        What catches the twin after the retirement is the **domain size**: the
-        trace space classifies at the band, so the chain reads 2 rows where the
-        strict compare would read 6, and a caller still classifying the old way
-        is refused at apply.
-
-        ⚠ **The fixture is CONSTRUCTED, and why is the point.** It used to be
-        the shipped ``product(2, 4)``, which discriminated because its
-        :math:`\varphi = \pm\pi/2` azimuths came out of
-        ``np.cos(np.linspace(...))`` as :math:`\pm 6.1\text{e-}17` — i.e. the
-        gate was activated by round-off. Once the azimuths became roots of unity
-        (E3/E4, issue #325) those ordinates are *exactly* tangential and no
-        shipped rule discriminates any more. The nudge goes into the MEASURE, so
-        the trace space and the chain are both built from it and the claim is
-        about production, not about a hand-made comparison array.
-
-        The first assertion is the ACTIVATION guard — without it this row
-        silently decays into a restatement of its siblings (``vv`` Mode-8
-        class 7). It is what caught that decay on 2026-08-02.
-        """
-        shipped = Quadrature.product(n_mu=2, n_phi=4)
-        nodes = np.array(shipped.measure.nodes, copy=True)
-        nodes[nodes[:, 0] == 0.0, 0] = TANGENTIAL_EPS / 2.0
-        quad = replace(shipped, measure=replace(shipped.measure, nodes=nodes))
-
-        odn = _signed_projection(quad, "xmax")
-        gamma_plus = np.flatnonzero(odn > +TANGENTIAL_EPS)
-        retired_strict = np.flatnonzero(odn > 0.0)
-        assert not np.array_equal(gamma_plus, retired_strict), (
-            f"fixture no longer discriminates: Γ₊ {gamma_plus.tolist()} and the "
-            f"retired '> 0.0' set {retired_strict.tolist()} agree, so this gate "
-            f"cannot see the classifier the narrowing retired."
-        )
-
-        trace = _trace(quad, ("xmin", "xmax"))
-        np.testing.assert_array_equal(
-            trace.outflow_indices_for_face("xmax"), gamma_plus,
-            err_msg="the trace space is not classifying at TANGENTIAL_EPS.",
-        )
-        lam = _Lambertian(trace, "xmax")
-        assert lam.gamma_plus.shape[0] == gamma_plus.size, (
-            f"the chain reads {lam.gamma_plus.shape[0]} ordinates; Γ₊ "
-            f"(|Ω·n̂| > TANGENTIAL_EPS) has {gamma_plus.size}. A domain of "
-            f"{retired_strict.size} would be the retired '> 0.0' classifier."
-        )
-
-        # `[M]` the constructor guard is BLIND here — pin it, so a future
-        # strengthening of the guard is visible rather than assumed.
-        mis_admitted = np.setdiff1d(retired_strict, gamma_plus)
-        weights = np.asarray(
-            trace.face_space("xmax").inner_product_weights
-        )[mis_admitted]
-        assert mis_admitted.size and np.all(weights > 0.0), (
-            f"the mis-admitted rows now carry non-positive weights "
-            f"({weights!r}), so PartialCurrentOperator's `cos_w > 0` guard "
-            f"would refuse them — this gate's premise has changed."
-        )
-
-        # …and a caller that still classifies the old way is refused, rather
-        # than silently averaging six rows against two weights.
-        with pytest.raises(ValueError, match=r"PartialCurrentOperator\.apply \(\|Γ₊\|\).*leading shape"):
-            lam.R.apply(np.ones((retired_strict.size, _NG)))
 
     def test_the_domain_is_the_owners_outflow_on_a_nudged_fixture(self):
         r"""The domain is the owner's outflow set: a cosine of ``eps`` is genuine outflow, not tangential.

@@ -79,7 +79,6 @@ from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.geometry.transformation import Permutation, RigidMotion
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature import ordinate_pairing as ordinate_pairing_module
-from orpheus.numerics.tangential import TANGENTIAL_EPS
 
 #: This file's own path: the target of the ``rests_on`` edge below.
 _THIS_FILE = "tests/gates/numerics/test_ordinate_pairing.py"
@@ -290,7 +289,7 @@ def test_ordinate_pairing_returns_the_certified_permutation(name: str, axis: str
     n = int(quad.n_ordinates)
     np.testing.assert_array_equal(got.indices[got.indices], np.arange(n))
     mu = quad.mean_axis_cosine(AXIS_NAMES.index(axis))
-    active = np.abs(mu) > TANGENTIAL_EPS
+    active = mu != 0.0
     if active.any():
         assert (np.sign(mu[got.indices][active]) == -np.sign(mu[active])).all()
 

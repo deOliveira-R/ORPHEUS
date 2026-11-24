@@ -65,8 +65,8 @@ retired the scalar one onto it (2026-08-28).  The geometry cases:
 * **Cylindrical pure-azimuthal degenerate** —
   ``CellVisit.face_area_downstream = 0.0`` (geometric truth: no
   radial face on this ordinate).  The ``2|μ|·face_area_downstream`` term
-  vanishes via ``face_area_downstream = 0`` (not via the numerical threshold
-  ``|μ| < 1e-15``).
+  vanishes via ``face_area_downstream = 0`` (not via a threshold on
+  ``|μ|``).
 
 The solve branch returns ``psi_avg = (source + numer_upstream) /
 denom``; the apply branch returns ``denom · cell_avg − (source +

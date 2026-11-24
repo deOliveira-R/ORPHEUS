@@ -4458,7 +4458,7 @@ The cylindrical case adds an outer loop over the :math:`\mu`-levels
 (the per-level azimuthal-DAG topology is intrinsic to cylindrical's
 structure), but each level still operates on whole within-level
 ordinate subsets via the same masking pattern. A third pass handles
-pure-azimuthal degenerate ordinates (:math:`|\eta_n| < 10^{-15}`)
+pure-azimuthal degenerate ordinates (:math:`\eta_n = 0`)
 whose streaming term is zero by construction but whose
 redistribution + collision contributions still must be scattered to
 the equation map.

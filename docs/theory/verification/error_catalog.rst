@@ -4070,7 +4070,7 @@ older entries classify against.
    **Catching test (WF2.4 of the wave-2 carve):** the invariant is the third check of
    :func:`~orpheus.numerics.quadrature.ordinate_pairing.ordinate_pairing`: every non-tangential ordinate's partner must be
    non-tangential with OPPOSITE sign on the mirror's axis (the tangential exemption rides the one shared
-   ``TANGENTIAL_EPS``), and a violation raises ``PairingDoesNotCrossError``. It was born as the law-side
+   half-range, :func:`~orpheus.numerics.tangential.half_range`), and a violation raises ``PairingDoesNotCrossError``. It was born as the law-side
    ``assert_reflection_maps_inflow_to_outflow`` at the coupled-block campaign task #52 (``51c22396``, 2026-07-12). The
    identity-table mutant passes involution AND measure and reds ONLY here: the three-independent-invariants lesson, realized
    as three MEASURED independent checks. Catchers tagged ``@pytest.mark.catches("ERR-042", "ERR-044", "ERR-045")`` on

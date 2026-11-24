@@ -120,6 +120,8 @@ from typing import TYPE_CHECKING, ClassVar
 
 import numpy as np
 
+from orpheus.numerics.tangential import half_range
+
 if TYPE_CHECKING:  # pragma: no cover
     from ..angular.closure import AngularClosureBase
     from orpheus.sn.problem import SNProblem
@@ -289,6 +291,7 @@ class StreamingCoefficientCache:  # concept: streaming | role: weld | kind: elem
 
         # ── Per-ordinate scalars (slab carries neutral M-M constants) ─
         abs_mu = np.abs(np.asarray(quad.mu_x, dtype=np.float64))  # (N,)
+        tangential = set(half_range(quad, 0).tangential.indices)
 
         # ── Per-ordinate-per-cell chain-ordered tensors ───────────────
         chain_idx = np.empty((N, nx), dtype=np.int64)
@@ -352,7 +355,7 @@ class StreamingCoefficientCache:  # concept: streaming | role: weld | kind: elem
             # Cylindrical pure-azimuthal degenerate: visit carries
             # face_area_downstream == 0.0 (geometric truth).  The slow
             # per-cell path handles these ordinates.
-            if visits[0].face_area_downstream == 0.0 and abs_mu[global_n] < 1e-15:
+            if visits[0].face_area_downstream == 0.0 and global_n in tangential:
                 is_degenerate[global_n] = True
 
         # ── The angular-closure block is NOT copied here (P4b) ────────

@@ -875,7 +875,7 @@ The evidence for B2
   SG4 (``slow``), control 1 exact on the production tree; SG5, a store in
   B1's form. **SG4**: a copy-on-write clone of ``orpheus/``, ``tests/`` and
   ``tools/``, the tests of ``tests/gates/sn/primitives/test_axis_primitive.py``
-  captured, ``_OUTFLOW_COSINE_TOL`` of ``orpheus/mesh/axis.py`` edited in the
+  captured, ``_OUTWARD_ENDPOINTS`` of ``orpheus/mesh/axis.py`` edited in the
   clone, and ``select`` required to equal the readers found by an
   independent monitor (each test alone in a fresh interpreter, a
   ``sys.monitoring`` watch on ``face_outflow_ordinates``). `[M]` 2026-11-02:

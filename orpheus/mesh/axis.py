@@ -79,6 +79,7 @@ class AxisCoord(StrEnum):  # concept: coord | role: twin | kind: set
 #: import); SN consumers keep importing it from here, next to the axis
 #: primitives it names.
 from orpheus.geometry.faces import AXIS_NAMES  # noqa: E402
+from orpheus.numerics.tangential import half_range  # noqa: E402
 
 #: Canonical ``FaceLabel.endpoint`` → face-name suffix crosswalk. A
 #: solid radial axis's single ``"outer"`` endpoint renders as the
@@ -465,7 +466,6 @@ def trace_face_shapes(axes: tuple[Axis1D, ...]) -> tuple[tuple[FaceLabel, tuple[
 
 
 _OUTWARD_ENDPOINTS = frozenset({"max", "outer"})
-_OUTFLOW_COSINE_TOL = 1e-15
 
 
 def face_outflow_ordinates(
@@ -473,20 +473,21 @@ def face_outflow_ordinates(
 ) -> np.ndarray:
     r"""Ordinate indices whose direction-cosine is OUTWARD at this face.
 
-    At the ``max`` / ``outer`` endpoint of an axis, ordinates with
-    :math:`\mu_{axis} > 0` are outflowing; at ``min``, outflow is
-    :math:`\mu_{axis} < 0`. The strictly-positive cutoff (``> 1e-15``)
-    excludes ordinates exactly tangent to the face — these contribute
-    neither inflow nor outflow at the boundary and are skipped by
-    every consumer (the sweep, the matvec, and the pack convention).
+    The ``outflow`` part of the face's half-range
+    (:func:`~orpheus.numerics.tangential.half_range`): at the ``max`` /
+    ``outer`` endpoint of an axis, ordinates with :math:`\mu_{axis} > 0` are
+    outflowing; at ``min``, outflow is :math:`\mu_{axis} < 0`. The comparison
+    with zero is exact, so ordinates exactly tangent to the face are excluded:
+    they contribute neither inflow nor outflow at the boundary and are skipped
+    by every consumer (the sweep, the matvec, and the pack convention).
     """
-    # ``mean_axis_cosine``, not ``axis_cosines`` (phase 0.2): "is this ordinate
-    # outflowing at this face?" is a FLUX question, so on an axis the rule has
-    # suppressed, zero is the answer — and the tolerance below then correctly
-    # classifies every such ordinate as neither inflow nor outflow.
-    mu_axis = quad.mean_axis_cosine(label.axis_index)
-    sign = +1.0 if label.endpoint in _OUTWARD_ENDPOINTS else -1.0
-    return np.where(sign * mu_axis > _OUTFLOW_COSINE_TOL)[0]
+    # The half-range reads ``mean_axis_cosine``, not ``axis_cosines`` (phase
+    # 0.2): "is this ordinate outflowing at this face?" is a FLUX question, so
+    # on an axis the rule has suppressed, zero is the answer — and every such
+    # ordinate is then tangential: neither inflow nor outflow.
+    sign = +1 if label.endpoint in _OUTWARD_ENDPOINTS else -1
+    half = half_range(quad, label.axis_index, sign=sign)
+    return np.asarray(half.outflow.indices, dtype=np.int64)
 
 
 def coord_system(axes: tuple[Axis1D, ...]):

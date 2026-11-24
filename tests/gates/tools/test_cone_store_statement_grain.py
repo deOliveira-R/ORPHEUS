@@ -469,7 +469,7 @@ def _select_ids(root: Path) -> frozenset[str]:
 @pytest.mark.rests_on(f"{_GT}::test_t2_a_mechanism_sample_of_the_real_suite_contains_its_alone_cones", _SG0)
 def test_sg4_control_1_exact_on_the_production_tree(tmp_path: Path) -> None:
     """SG4 (positive control 1 exact, production tree). In a clone of the repository, the sample is captured, then
-    ``_OUTFLOW_COSINE_TOL`` (``orpheus/mesh/axis.py``, read only by ``face_outflow_ordinates``) is edited: ``select``
+    ``_OUTWARD_ENDPOINTS`` (``orpheus/mesh/axis.py``, read only by ``face_outflow_ordinates``) is edited: ``select``
     lists exactly the sample's tests whose run started that def, by an independent monitor. The sample holds at least
     one reader and one test that imports ``axis.py`` and never reaches the reader, or exactness is vacuous. RED
     at B1: every test of the sample was selected (each pinned ``axis.py``'s skeleton)."""
@@ -482,7 +482,7 @@ def test_sg4_control_1_exact_on_the_production_tree(tmp_path: Path) -> None:
     assert readers and non_readers, f"the sample does not discriminate: readers {sorted(readers)}"
     _cone(root, "capture", *_SAMPLE)
     assert _select_ids(root) == frozenset(), "the sample is selected with no edit (the negative leg)"
-    edit(root, _AXIS, "_OUTFLOW_COSINE_TOL = 1e-15", "_OUTFLOW_COSINE_TOL = 2e-15")
+    edit(root, _AXIS, '_OUTWARD_ENDPOINTS = frozenset({"max", "outer"})', '_OUTWARD_ENDPOINTS = frozenset({"outer", "max"})')
     selected = _select_ids(root)
     assert selected == readers, (f"{len(selected)} of {len(_SAMPLE)} selected; extra (non-readers) "
                                  f"{sorted(selected - readers)}; missing {sorted(readers - selected)}")

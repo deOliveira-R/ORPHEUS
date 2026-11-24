@@ -63,38 +63,23 @@ For each face with outward unit normal :math:`\hat n_f`, the signed
 projection :math:`\Omega_n \cdot \hat n_f = \mathrm{sign}_f \cdot
 \mu_{\text{axis}(f)}` classifies ordinate :math:`\Omega_n` as:
 
-* **Inflow** iff :math:`\Omega_n \cdot \hat n_f < -\epsilon`
+* **Inflow** iff :math:`\Omega_n \cdot \hat n_f < 0`
   (direction points INTO the domain),
-* **Outflow** iff :math:`\Omega_n \cdot \hat n_f > +\epsilon`
+* **Outflow** iff :math:`\Omega_n \cdot \hat n_f > 0`
   (direction points OUT of the domain),
-* **Tangential** iff :math:`|\Omega_n \cdot \hat n_f| \leq \epsilon`
+* **Tangential** iff :math:`\Omega_n \cdot \hat n_f = 0`
   (grazes the face; in NEITHER selector).
 
-Principled tolerance (not a magic number)
------------------------------------------
-
-``TANGENTIAL_EPS = 4 * np.finfo(np.float64).eps`` (:math:`\approx
-8.9\times10^{-16}`). It is a safety factor over the IEEE-754
-dot-product round-off bound :math:`d \cdot u` (:math:`d \leq 3` spatial
-dimensions, :math:`u = \epsilon_{\mathrm{mach}}/2` the unit round-off)
-for the unit-vector projection :math:`\Omega\cdot\hat n = \langle \hat
-n, \mu\rangle`. Empirically (``eps_probe.py``, Gauss-Legendre
-``N=2..64`` + Lebedev orders ``3..53``): nominally-tangential cosines
-are **exactly** ``0.0`` (quadrature symmetry — odd-N central node, all
-off-axis 1-D components, Lebedev axis nodes), while the smallest
-*genuine* cosine is :math:`2.44\times10^{-2}`. The gap
-:math:`[0, 0.024]` spans ~14 orders, so this eps sits 4× above the
-round-off floor and :math:`2.7\times10^{13}\times` below any genuine
-projection — making the inflow/outflow masks **bit-identical** to both
-the operator's former ``1e-15`` and the realizer's former ``1e-12``
-(the band ``(eps, 1e-12)`` is empty). Since #325's node repoint every
-shipped rule's tangential cosines are EXACTLY ``0.0`` (group-action
-generation, no trig round-off), so the band ``(0, eps]`` is empty too
-and the selectors classify identically to a bare sign test: the eps is
-**demoted from classifier to provably-inert defensive guard**.
-:func:`test_eps_sits_in_the_round_off_to_genuine_gap` (in
-``tests/gates/numerics/test_angular_trace_space.py``) pins the gap across
-every shipped family so a future quadrature cannot silently reopen it.
+The three classes are the half-range
+(:func:`~orpheus.numerics.tangential.half_range`), the one selector, and its
+comparisons with zero are exact: no tolerance decides a class. The factory
+builds one half-range per face and the two selectors return its index sets.
+Every shipped rule's tangential cosines are exactly ``0.0`` (group-action
+generation, no trig round-off), so the exact test reads the same classes a
+round-off band would; a rule that carried round-off cosines would have those
+ordinates read as genuine outflow or inflow, and the population gate of the
+half-range (``tests/gates/numerics/w1/test_half_range_population.py``) pins
+that no shipped cosine lies in the round-off gap.
 
 Coord-system coverage
 =====================
@@ -146,7 +131,7 @@ from numpy.typing import NDArray
 from orpheus.geometry.faces import AXIS_NAMES, face_normal
 from orpheus.numerics.face_layout import face_streaming_normal
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.tangential import TANGENTIAL_EPS
+from orpheus.numerics.tangential import HalfRange, half_range
 
 if TYPE_CHECKING:
     from orpheus.numerics.face_layout import FaceLayout
@@ -157,7 +142,6 @@ if TYPE_CHECKING:
 __all__ = [
     "AngularFaceTraceSpace",
     "AngularTraceSpace",
-    "TANGENTIAL_EPS",
     "OrdinateTraceRole",
     "TraceRole",
     "build_omega_dot_n",
@@ -166,7 +150,7 @@ __all__ = [
 #: Which directional class a per-face tier of the Γ ladder carries.
 #: ``"full"`` is the whole ordinate slot Γ(f); ``"outflow"`` / ``"inflow"``
 #: are the half-traces Γ₊(f) / Γ₋(f). The three do NOT partition: tangential
-#: ordinates (``|Ω·n| <= TANGENTIAL_EPS``) belong to ``"full"`` alone, which
+#: ordinates (``Ω·n == 0``) belong to ``"full"`` alone, which
 #: is why ``"not inflow"`` must never be spelled ``"outflow"``. ``"current"``
 #: is the fourth tier: not a subset of ordinates but the angle-integrated
 #: per-face trace S(f) (``_current_spaces``); the ONE enumeration of the
@@ -176,12 +160,6 @@ __all__ = [
 #: ``"current"``, so the four names are still spelled once.
 OrdinateTraceRole = Literal["full", "outflow", "inflow"]
 TraceRole = Literal[OrdinateTraceRole, "current"]
-
-
-# ``TANGENTIAL_EPS`` (the tangential tolerance for ``Ω · n``) is defined in
-# :mod:`orpheus.numerics.tangential` and re-exported here: the quadrature
-# certification needs it, and ``quadrature`` must not import ``spaces`` (the
-# module-cycle gate counts every import kind).
 
 
 # The face → outward-normal parse is
@@ -385,6 +363,9 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
     layout: "FaceLayout[str]" = field(kw_only=True, repr=False, compare=False)
     omega_dot_n: NDArray = field(kw_only=True, repr=False, compare=False)
     directions: NDArray = field(kw_only=True, repr=False, compare=False)
+    #: The half-range of each face, in the row order of :attr:`omega_dot_n`, built once by the factory. The selectors
+    #: return its index sets, so no selector classifies a cosine array.
+    half_ranges: tuple[HalfRange, ...] = field(kw_only=True, repr=False, compare=False)
 
     @property
     def partial_current_metric(self) -> NDArray:
@@ -455,6 +436,10 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         inner_product_weights = _build_trace_metric_weights(
             omega_dot_n, quadrature.weights, layout,
         )
+        half_ranges = tuple(
+            half_range(quadrature, axis, sign=sign)
+            for axis, sign in map(face_normal, faces)
+        )
         # CS4b S3 (F2): the name carries a CONTENT digest, so the inherited
         # ``(name, shape)`` equality IS content equality — the same
         # mechanism as ``FunctionSpace.of_axes``'s derived name. Folded in:
@@ -481,6 +466,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
             inner_product_weights=inner_product_weights,
             layout=layout,
             omega_dot_n=omega_dot_n,
+            half_ranges=half_ranges,
             # The ordinate directions, kept verbatim. This factory is the ONLY
             # construction site of an AngularTraceSpace (`[M]` zero direct
             # ``AngularTraceSpace(...)`` calls in orpheus/ or tests/), which is
@@ -500,22 +486,18 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
             ) from exc
 
     def inflow_indices_for_face(self, face: str) -> np.ndarray:
-        r"""Ordinate indices that are inflow at ``face``.
+        r"""Ordinate indices that are inflow at ``face``: the ``inflow`` part of the face's half-range.
 
-        Inflow iff :math:`\Omega\cdot\hat n_f < -\epsilon` (direction
-        points into the domain). Tangential ordinates are excluded.
+        Tangential ordinates are excluded.
         """
-        row = self.omega_dot_n[self._face_row(face)]
-        return np.flatnonzero(row < -TANGENTIAL_EPS)
+        return np.asarray(self.half_ranges[self._face_row(face)].inflow.indices, dtype=np.int64)
 
     def outflow_indices_for_face(self, face: str) -> np.ndarray:
-        r"""Ordinate indices that are outflow at ``face``.
+        r"""Ordinate indices that are outflow at ``face``: the ``outflow`` part of the face's half-range.
 
-        Outflow iff :math:`\Omega\cdot\hat n_f > +\epsilon` (direction
-        points out of the domain). Tangential ordinates are excluded.
+        Tangential ordinates are excluded.
         """
-        row = self.omega_dot_n[self._face_row(face)]
-        return np.flatnonzero(row > +TANGENTIAL_EPS)
+        return np.asarray(self.half_ranges[self._face_row(face)].outflow.indices, dtype=np.int64)
 
     # ── The selectors, as OPERATORS: the trace maps γ± ────────────────
 
@@ -574,7 +556,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
 
         Its transpose is the scatter back into the full face slot. Note the
         pair is NOT a partition of that slot: the third class, **tangential**
-        ordinates at :math:`|\Omega\cdot\hat n| \le \epsilon`, belongs to
+        ordinates at :math:`\Omega\cdot\hat n = 0`, belongs to
         neither restriction — which is why "not inflow" must never be spelled
         as "outflow".
         """
@@ -650,7 +632,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
 
         The **middle tier** of the ladder, and NOT the direct sum
         :math:`\Gamma_+ \oplus \Gamma_-`: the tangential ordinates
-        (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither half, and
+        (:math:`\Omega\cdot\hat n = 0`) belong to neither half, and
         `[M]` there are 0 / 8 / 12 of them on ``gauss_legendre(4)`` /
         ``product(4,4)`` / ``lebedev(17)``. It is the DOMAIN of both trace
         maps :math:`\gamma_\pm`.
@@ -805,7 +787,7 @@ class AngularFaceTraceSpace(FunctionSpace):  # concept: subspace | role: head | 
     -----
     **Why the middle tier exists.** :math:`\Gamma(f)` is not recoverable as
     :math:`\Gamma_+ \oplus \Gamma_-`, because the tangential ordinates
-    (:math:`|\Omega\cdot\hat n| \le \epsilon`) belong to neither half. `[M]`
+    (:math:`\Omega\cdot\hat n = 0`) belong to neither half. `[M]`
     counts are 0 / 8 / 12 on ``gauss_legendre(4)`` / ``product(4,4)`` /
     ``lebedev(17)``. ⚠ Note the first: **``gauss_legendre(4)`` has no
     tangential ordinates at all**, so a gate written only on it is blind to
@@ -823,7 +805,7 @@ class AngularFaceTraceSpace(FunctionSpace):  # concept: subspace | role: head | 
            (\Gamma_+ \sqcup \Gamma_-),
 
        because both sides are exactly
-       :math:`|\Omega\cdot\hat n| \le \epsilon`. The rows the halves exclude
+       :math:`\Omega\cdot\hat n = 0`. The rows the halves exclude
        are precisely the rows the metric annihilates.
 
        Two consequences, neither derivable from either statement alone:

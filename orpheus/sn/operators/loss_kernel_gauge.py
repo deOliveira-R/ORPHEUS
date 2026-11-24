@@ -248,12 +248,6 @@ __all__ = [
 #: throughout. Any threshold in ``[1e-12, 1e-4]`` gives the same verdict.
 _GAUGE_AUDIBLE_FLOOR = 1e-10
 
-#: A direction cosine below this is TANGENTIAL to that axis, so the axis leaves
-#: the ordinate's active set ``S``. Matches the trace layer's own threshold
-#: vocabulary (``angular_trace_space.TANGENTIAL_EPS``) rather than minting a
-#: second one; every shipped rule's tangential cosine is exactly ``0.0`` (#325).
-_TANGENTIAL_MU = 4.0 * float(np.finfo(np.float64).eps)
-
 # ─────────────────────────────────────────────────────────────────────
 # The warning — the freedom must be AUDIBLE, and the root fix named
 # ─────────────────────────────────────────────────────────────────────
@@ -611,6 +605,8 @@ def _reflection_orbits(
             )
         partners[axis] = found
 
+    # An axis whose cosine is tangential (exactly zero) for the orbit's representative leaves its active set ``S``.
+    tangential = {axis: set(half_range(problem.quad, axis).tangential.indices) for axis in reflective}
     seen = np.zeros(mu.shape[0], dtype=bool)
     orbits: list[tuple[tuple[int, ...], tuple[int, ...]]] = []
     for start in range(mu.shape[0]):
@@ -628,7 +624,7 @@ def _reflection_orbits(
                     stack.append(partner)
         active = tuple(
             axis for axis in reflective
-            if abs(mu[members[0], axis]) > _TANGENTIAL_MU
+            if members[0] not in tangential[axis]
         )
         orbits.append((tuple(sorted(members)), active))
     return tuple(orbits)

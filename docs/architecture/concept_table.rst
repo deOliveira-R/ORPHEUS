@@ -97,7 +97,7 @@ Summary
    * - quantity
      - count
    * - classes
-     - 679
+     - 681
    * - concepts
      - 89
    * - classes by role: ``head``
@@ -107,23 +107,23 @@ Summary
    * - classes by role: ``weld``
      - 81
    * - classes by role: ``part``
-     - 131
+     - 132
    * - classes by role: ``component``
      - 48
    * - classes by role: ``interface``
-     - 33
+     - 34
    * - classes by role: ``twin``
      - 62
    * - classes by role: ``annex``
      - 138
    * - classes by kind: ``set``
-     - 75
+     - 76
    * - classes by kind: ``measure``
      - 14
    * - classes by kind: ``space``
      - 15
    * - classes by kind: ``element``
-     - 193
+     - 194
    * - classes by kind: ``morphism``
      - 198
    * - classes by kind: ``record``
@@ -939,7 +939,7 @@ The concepts
      - W8a
      - O23
      - ``Quadrature`` (``orpheus/numerics/quadrature/directional.py``)
-     - head 1, weld 1, part 1, component 1, interface 1, twin 1, annex 6
+     - head 1, weld 1, part 1, component 1, interface 2, twin 1, annex 6
      -
    * - :ref:`question <concept-question>`
      - Question
@@ -1177,7 +1177,7 @@ The concepts
      - W1
      - O23
      - missing
-     - weld 2
+     - weld 2, part 1
      - - :ref:`bc-trace-structure <bc-trace-structure>`
    * - :ref:`transfer <concept-transfer>`
      - Transfer
@@ -2598,6 +2598,7 @@ quadrature
 
 .. rubric:: interface
 
+- ``AxisCosineSource`` (``orpheus/numerics/tangential.py``) ``element``
 - ``AngularMeasure`` (``orpheus/sn/angular/redistribution.py``) ``measure``
 
 .. rubric:: twin
@@ -3035,6 +3036,10 @@ trace
 
 - ``AngularTraceSpace`` (``orpheus/numerics/spaces/angular_trace_space.py``) ``space`` [welded: trace, dsum, fmetric]
 - ``ScalarTraceSpace`` (``orpheus/numerics/spaces/scalar_trace_space.py``) ``space`` [welded: trace, dsum, fmetric]
+
+.. rubric:: part
+
+- ``HalfRange`` (``orpheus/numerics/tangential.py``) ``set``
 
 .. _concept-transfer:
 

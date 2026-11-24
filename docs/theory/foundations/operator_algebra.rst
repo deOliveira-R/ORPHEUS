@@ -6730,18 +6730,18 @@ transport equation's boundary trace. Per Grand Report v3 §5.3 and
    :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face
 
    **Implemented by** the :math:`\Gamma_-` selector — the ordinate
-   indices with :math:`\Omega\cdot\hat n_f < -\epsilon`, i.e. the strictly
+   indices with :math:`\Omega\cdot\hat n_f < 0`, i.e. the strictly
    **inward** half.
 
 .. implements:: trace-half-decomposition
    :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.outflow_indices_for_face
 
    **Implemented by** the :math:`\Gamma_+` selector, :math:`\Omega\cdot
-   \hat n_f > +\epsilon`.
+   \hat n_f > 0`.
 
    Between them the two selectors realize exactly the property the
    surrounding prose insists on: **disjoint but not exhaustive**. Each
-   excludes the tangential band independently, so "not inflow" is never
+   excludes the tangential set independently, so "not inflow" is never
    "outflow" — a fact no single mask could carry.
 
 .. vv-status: trace-half-decomposition documented
@@ -6772,17 +6772,15 @@ methods), which carry a **per-face directional mask**:
 .. implements:: per-face-inflow-mask
    :by: orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace.inflow_indices_for_face
 
-   **Implemented by** the predicate itself — ``np.flatnonzero(row <
-   -TANGENTIAL_EPS)`` on that table's face row, where ``TANGENTIAL_EPS = 4 *
-   np.finfo(np.float64).eps`` is the :math:`\epsilon` of the equation
-   (:math:`\approx 8.88\times 10^{-16}`).
+   **Implemented by** the predicate itself — the ``inflow`` part of the face's
+   half-range (:func:`~orpheus.numerics.tangential.half_range`), which the factory builds
+   once from the face row of that table by exact comparisons with zero.
 
 .. vv-status: per-face-inflow-mask documented
 
 The mask has shape ``(n_faces, n_ordinates)`` boolean; the
-tangential band :math:`|\Omega_n \cdot \hat n_f| \leq \epsilon`
-(``TANGENTIAL_EPS = 4 * np.finfo(np.float64).eps``, i.e.
-:math:`\approx 8.9\times 10^{-16}`) is in neither half — so **"not
+tangential set :math:`\Omega_n \cdot \hat n_f = 0`
+(decided by exact comparison in :func:`~orpheus.numerics.tangential.half_range`) is in neither half — so **"not
 inflow" is never "outflow"**, and the two index sets are disjoint but
 NOT exhaustive.
 

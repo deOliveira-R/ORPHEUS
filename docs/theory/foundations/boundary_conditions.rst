@@ -204,7 +204,7 @@ Let :math:`F` be the set of boundary faces of a domain :math:`D`; a face is name
 ``orpheus/geometry/faces.py`` (``xmin``, ``xmax``, ``ymin``, ...). For a face :math:`f` with outward unit normal :math:`\hat n_f`
 the **outflow half-trace** is :math:`\Gamma_+(f) = f \times \{\Omega : \Omega\cdot\hat n_f > 0\}` and the **inflow half-trace**
 :math:`\Gamma_-(f)` is its complement :math:`\{\Omega\cdot\hat n_f < 0\}`, both carrying the trace measure
-:math:`|\Omega\cdot\hat n_f|\,d\Omega\,dA`. Ordinates with :math:`|\Omega\cdot\hat n_f|` at most ``TANGENTIAL_EPS`` belong to neither
+:math:`|\Omega\cdot\hat n_f|\,d\Omega\,dA`. Ordinates with :math:`\Omega\cdot\hat n_f = 0` belong to neither
 half (:eq:`ordinate-partition-inflow-outflow`). A transport equation on :math:`D` is closed when :math:`\gamma_-\psi` is given on
 every face, and :math:`\gamma_-\psi|_f` is determined in exactly two ways, which are different objects.
 
@@ -2463,7 +2463,7 @@ Two consequences to carry:
 2. **The full per-face tier can never be the intermediate.**
    :math:`\Gamma(f)`'s metric :math:`|\Omega\cdot\hat n| \odot w_n`
    **vanishes** on the tangential ordinates
-   (:math:`|\Omega\cdot\hat n| \le \varepsilon_{\text{tan}}`), so it is
+   (:math:`\Omega\cdot\hat n = 0`), so it is
    only semi-definite; the two half-traces are strictly positive
    precisely because they exclude those rows
    (:ref:`bc-trace-structure`). That retroactively gives the G6.1 gate
@@ -3335,8 +3335,9 @@ off the outgoing hemisphere by its OWN test,
 ``(outward_sign * mu_n) > 0.0``. That is a **second outflow
 classifier**, and it disagreed with the trace space's wherever a
 quadrature carries tangential ordinates, because the trace space
-classifies against ``TANGENTIAL_EPS`` while a strict ``> 0.0`` compare
-does not. Measured at ``xmax``:
+classified against a tolerance band (``4 eps``, retired since in favour of
+the exact half-range) while a strict ``> 0.0`` compare did not. Measured at
+``xmax`` at the time:
 
 .. list-table:: Tangential ordinates, and where the two classifiers diverge
    :header-rows: 1
@@ -3387,8 +3388,11 @@ B3.4a's fix was to route the classification through the codebase's
 **single** face-name :math:`\to` signed-projection primitive:
 ``(axis, outward_sign)`` is rendered as the face NAME and handed to
 :func:`~orpheus.numerics.spaces.angular_trace_space.build_omega_dot_n`,
-which classifies against ``TANGENTIAL_EPS`` exactly as the trace space
-does. It landed on the welded operator's own ``from_quadrature``
+which classified against the trace space's tolerance band, as the trace
+space did. (The band is retired: the one classifier is now the exact
+half-range :func:`~orpheus.numerics.tangential.half_range`, and the twin
+could not be respelled without a second comparison of a cosine array, which
+``tests/gates/numerics/w1/test_half_range_one_owner.py`` forbids.) It landed on the welded operator's own ``from_quadrature``
 constructor, and after **G6.3 step 3b** retired that operator the same
 lines lived one layer out, in the realizer's ``_checked_angular_average``
 factory, until wave 2 replaced that factory by the typed
@@ -6209,15 +6213,19 @@ they belong to neither half. For axis-aligned ordinates on
 axis-aligned faces these arise exactly (no round-off) for face
 normals perpendicular to the ordinate's direction cosine; for
 general curvilinear faces or generic ordinates they arise only
-at a measure-zero subset that the discrete representation
-identifies via a small tolerance
-(``TANGENTIAL_EPS = 4 * np.finfo(np.float64).eps``, i.e.
-:math:`\approx 8.9\times 10^{-16}`, defined in ``orpheus.numerics.tangential``
-and re-exported by :mod:`orpheus.numerics.spaces.angular_trace_space`). That constant is
-the codebase's ONE outflow/inflow classifier: campaign phase **B3.4a**
-retired the white operator's private ``> 0.0`` twin precisely because a
-strict compare disagrees with it wherever a quadrature carries
-tangential ordinates (:ref:`bc-narrowing-b34a`).
+at a measure-zero subset. The discrete representation compares a
+cosine with exact zero: every shipped rule's tangential cosines are exactly
+``0.0``, and the one classifier is the half-range
+:func:`~orpheus.numerics.tangential.half_range` of ``orpheus.numerics.tangential``
+(outflow where the signed cosine is positive, inflow where it is negative,
+tangential where it is zero). Campaign phase **B3.4a** retired the white
+operator's private ``> 0.0`` twin because it disagreed with the trace space's
+then-banded classifier (:ref:`bc-narrowing-b34a`); unit N02 of the space
+algebra removed the band, so the two readings are one and a second classifier
+is unspellable. A rule that carried round-off cosines would have those
+ordinates read as genuine outflow or inflow; the population gate
+(``tests/gates/numerics/w1/test_half_range_population.py``) pins that no
+shipped cosine lies in the round-off gap.
 
 In the discrete setting, the spatial boundary is a union of finite
 faces :math:`\{f_1, \ldots, f_F\}` and the angular variable is a
@@ -6229,18 +6237,18 @@ sign predicate :eq:`trace-half-decomposition` then collapses to a
    :label: inflow-mask-discrete
 
    \mathrm{inflow\_mask}[f, n]
-   \;=\; \bigl(\Omega_n \cdot \hat n_f < -\epsilon\bigr),
+   \;=\; \bigl(\Omega_n \cdot \hat n_f < 0\bigr),
    \qquad
    \mathrm{outflow\_mask}[f, n]
-   \;=\; \bigl(\Omega_n \cdot \hat n_f > +\epsilon\bigr).
+   \;=\; \bigl(\Omega_n \cdot \hat n_f > 0\bigr).
 
 .. _bc-half-trace:
 
 **A half-trace is the restriction of the whole-boundary trace space to
 one face's inflow or outflow selector**: :math:`\Gamma_-(f)`, the rows of
 face :math:`f`'s ordinate slot with :math:`\Omega_n\cdot\hat n_f <
--\epsilon`, or :math:`\Gamma_+(f)`, the rows with :math:`\Omega_n\cdot\hat
-n_f > +\epsilon`, each carrying the trace metric
+0`, or :math:`\Gamma_+(f)`, the rows with :math:`\Omega_n\cdot\hat
+n_f > 0`, each carrying the trace metric
 :math:`|\Omega_n\cdot\hat n_f|\,w_n` restricted to its own rows. It is a
 space in its own right,
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace`,
@@ -6269,12 +6277,12 @@ to neither, and the count of them depends on the quadrature:
 
    import numpy as np
    from orpheus.numerics.quadrature import Quadrature
-   from orpheus.numerics.tangential import TANGENTIAL_EPS
+   from orpheus.numerics.tangential import half_range
 
    for name, rule in [("gauss_legendre(4)", Quadrature.gauss_legendre(4)),
                       ("product(4,4)", Quadrature.product(4, 4)),
                       ("lebedev(17)", Quadrature.lebedev(17))]:
-       tangential = int(np.sum(np.abs(rule.axis_cosines(0)) <= TANGENTIAL_EPS))
+       tangential = len(half_range(rule, 0).tangential.indices)
        print(f"{name:18s} {tangential:3d} of {rule.n_ordinates:3d} ordinates are tangential on an x face")
 
 .. code-block:: text
@@ -7005,7 +7013,7 @@ it (2026-10-23), in the past tense:
        the second broadcast it over
        :math:`\Gamma_-`. Both half-traces came from the single
        face-name :math:`\to` signed-projection primitive classified
-       against ``TANGENTIAL_EPS``, so the pre-B3.4a private
+       through the tolerance band of the time, so the pre-B3.4a private
        ``> 0.0`` outflow test — a second classifier that disagreed with
        the trace space on any quadrature carrying tangential ordinates
        — was gone. The law's declared ``axis`` / ``outward_sign`` was
@@ -7460,7 +7468,7 @@ off the trace) and nothing else. The trace stores the **signed
 projection** :math:`\Omega\cdot\hat n_f` once per face, as an ``(n_faces, N)``
 array, not two boolean masks: inflow and outflow are **selectors** over this one
 table, derived on demand by the sign of :math:`\Omega\cdot\hat n_f` against
-``TANGENTIAL_EPS`` (:ref:`bc-trace-structure`; the one-space-two-selectors design
+the half-range (:ref:`bc-trace-structure`; the one-space-two-selectors design
 of Issues #205 / #201). Whether an ordinate is incoming or outgoing at a face is a
 predicate evaluated against the same boundary data, not a property of two distinct
 domains; one space removes the class of bugs where the inflow and outflow
@@ -7496,10 +7504,10 @@ descriptions of one boundary drift apart.
 
 The printed projection has the ``xmin`` row :math:`-\mu_x` (outward normal
 :math:`-\hat x`) and the ``xmax`` row :math:`+\mu_x`; on ``xmin`` the inflow
-ordinates (:math:`\Omega\cdot\hat n < -\epsilon`, that is :math:`\mu_x > \epsilon`:
+ordinates (:math:`\Omega\cdot\hat n < 0`, that is :math:`\mu_x > 0`:
 rightward-pointing) are the indices ``[2 3]`` and the outflow ordinates ``[0 1]``,
 and each half-trace is a space named by its face and direction. Neither index set is
-the complement of the other: the tangential band belongs to neither
+the complement of the other: the tangential set belongs to neither
 (:ref:`the half-trace <bc-half-trace>`; on ``gauss_legendre(4)`` it is empty). The method space the
 realizer receives is
 :class:`~orpheus.sn.mesh.method_space.SNMethodSpace`: the quadrature and this trace,
@@ -7827,7 +7835,7 @@ The carve removed both gaps by construction and not by assertion: each transport
      - Where the invariant lives now, and what it asserts there
    * - ``assert_inflow_outflow_classification``
      - ERR-040
-     - **The trace ladder**, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`: the partition is a property of two SPACES and not an assertion. The inflow half-trace of a face holds exactly the ordinates with :math:`\Omega\cdot\hat n_f < -\epsilon`, the outflow half-trace those with :math:`\Omega\cdot\hat n_f > +\epsilon`, and a tangential ordinate (:math:`|\Omega\cdot\hat n_f| \le \epsilon`, with :math:`\epsilon` the one constant ``TANGENTIAL_EPS``) is in neither (:eq:`ordinate-partition-inflow-outflow`). The error class ``IncomingOutgoingTraceClassificationError`` had no production raise site and was not carried over: no class is minted for it. Catcher of ERR-040: ``tests/gates/numerics/test_angular_trace_space.py::test_axis_aligned_ordinates_excluded_from_both_selectors``.
+     - **The trace ladder**, :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`: the partition is a property of two SPACES and not an assertion. The inflow half-trace of a face holds exactly the ordinates with :math:`\Omega\cdot\hat n_f < 0`, the outflow half-trace those with :math:`\Omega\cdot\hat n_f > 0`, and a tangential ordinate (:math:`\Omega\cdot\hat n_f = 0`, decided by the exact half-range) is in neither (:eq:`ordinate-partition-inflow-outflow`). The error class ``IncomingOutgoingTraceClassificationError`` had no production raise site and was not carried over: no class is minted for it. Catcher of ERR-040: ``tests/gates/numerics/test_angular_trace_space.py::test_axis_aligned_ordinates_excluded_from_both_selectors``.
    * - ``assert_outgoing_leakage_unconstrained``
      - none
      - **Nowhere: the method retired, and its claim became unspellable.** It asserted that the BC does not constrain the outgoing trace flux, and asserted nothing. A realized face operator is a map :math:`\Gamma_+ \to \Gamma_-` that reads the outgoing trace as its input and writes only the inflow trace, so a constraint on the outgoing trace has no slot in its codomain. A future Dirichlet-outflow law would be a different codomain, hence a new type.
@@ -7887,7 +7895,7 @@ Per Grand Report v3 §26A.4 and the `vv-principles` skill's "Log every caught bu
      - Tangential ordinate at a face that requires strict partition.
      - #5 (index)
      - ``IncomingOutgoingTraceClassificationError``
-     - No class: it was never raised. The trace ladder's half-spaces exclude the tangential band from both halves (:ref:`bc-universal-invariants`).
+     - No class: it was never raised. The trace ladder's half-spaces exclude the tangential set from both halves (:ref:`bc-universal-invariants`).
    * - ERR-041
      - Vacuum law applied to an outgoing trace.
      - #6 (convention)
@@ -8367,10 +8375,10 @@ Decompose the angular ordinate set at a given face :math:`f` as
 
    \{1, \ldots, N\} \;=\; I_f \,\sqcup\, O_f \,\sqcup\, T_f,
 
-with :math:`I_f = \{n : \Omega_n \cdot \hat n_f < -\epsilon\}` the
-inflow set, :math:`O_f = \{n : \Omega_n \cdot \hat n_f > +\epsilon\}`
+with :math:`I_f = \{n : \Omega_n \cdot \hat n_f < 0\}` the
+inflow set, :math:`O_f = \{n : \Omega_n \cdot \hat n_f > 0\}`
 the outflow set, and :math:`T_f` the (measure-zero in the continuum,
-:math:`\epsilon`-band in the discretisation) tangential set. For
+exact-zero set in the discretisation) tangential set. For
 :math:`\psi_{\text{out}} \in \mathbb{R}^N` representing the trace
 ordinate values at face :math:`f`, the two vacuum representations
 are:
@@ -9277,7 +9285,7 @@ discovered that all three :class:`Mesh1D` coord systems
 outward normal and the ``GaussLegendre1D``
 adapter's :math:`\mu_x` as the direction cosine along that axis —
 identically to the slab case. The mask predicate
-:math:`\Omega \cdot \hat n < -\epsilon` therefore applies
+:math:`\Omega \cdot \hat n < 0` therefore applies
 unchanged. The factory's curvilinear guard was lifted; only 2-D
 cylindrical :class:`Mesh2D` (which has no SN sweep in ORPHEUS)
 continued to raise :class:`NotImplementedError` (C5.3 later made the

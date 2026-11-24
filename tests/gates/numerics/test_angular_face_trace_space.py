@@ -167,7 +167,7 @@ def test_the_full_tier_is_strictly_larger_than_the_two_halves(quad_name):
 
     If the full slot were the direct sum of the halves, it would be
     derivable and would not earn a tier. It is not: the tangential ordinates
-    (``|Ω·n| <= TANGENTIAL_EPS``) belong to neither half. This is the code-side
+    (``Ω·n == 0``) belong to neither half. This is the code-side
     statement of the THREE-way face partition, and it is the reason
     ``"not inflow"`` must never be spelled ``"outflow"``.
     """
@@ -492,7 +492,7 @@ def test_the_metric_null_space_IS_the_tangential_set(quad_name):
     separately, which reads as two independent coincidences. **They are the same
     fact**, and this gate is the identity that says so: the rows the halves
     exclude are *exactly* the rows the metric annihilates, because both are
-    ``|Ω·n| ≤ TANGENTIAL_EPS``.
+    ``Ω·n = 0``.
 
     Two consequences follow, and neither is derivable from either half alone:
 

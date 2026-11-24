@@ -93,6 +93,7 @@ import numpy as np
 from orpheus.numerics.measure import DiscreteMeasure, DiscreteMeasurePartition
 from orpheus.numerics.measure import WEIGHT_ATOL
 from orpheus.geometry.symmetry import SubgroupOfO3
+from orpheus.numerics.tangential import half_range
 
 if TYPE_CHECKING:
     from orpheus.geometry.transformation import Permutation, RigidMotion
@@ -101,12 +102,6 @@ from .rules_1d import gauss_legendre_on_mu, gauss_legendre_on_polar_orbit
 from .rules_circle import STAGGERED, periodic_trapezoid
 from .rules_product import product_mu_phi, spherical_product
 from .rules_sphere import LevelStructure, lebedev_sphere, level_symmetric_sn
-
-# Threshold below which a direction-cosine component is treated as
-# zero for octant labelling. Matches the pure-z degenerate-ordinate
-# threshold in ``orpheus.sn.sweep`` and ``orpheus.transport.spatial.diamond``
-# (``_DEGENERATE_ABS_MU_THRESHOLD``); keep in lockstep.
-_OCTANT_SIGN_EPS = 1e-15
 
 #: Ambient dimension of the direction space. Directions live on
 #: :math:`S^2 \subset \mathbb{R}^3`, so an axis index is meaningful for
@@ -118,33 +113,6 @@ _OCTANT_SIGN_EPS = 1e-15
 #: base's ambient space every orbit-space entry lifts into
 #: (:meth:`~orpheus.geometry.manifold.Quotient.orbit_barycentres`).
 _DIRECTION_AMBIENT_DIM = 3
-
-
-# ═══════════════════════════════════════════════════════════════════════
-# Internal helpers
-# ═══════════════════════════════════════════════════════════════════════
-
-
-def _octant_sign_predicate(nodes: np.ndarray) -> np.ndarray:
-    r"""Sign-of-direction labelling predicate for octant partitioning.
-
-    Returns ``+1`` for components ``> +eps``, ``-1`` for components
-    ``< -eps``, and ``0`` for ``|component| <= eps``. The result has
-    the same shape as ``nodes`` (``(N,)`` for 1-D slab quadratures,
-    ``(N, 3)`` for spherical cubatures), so it is consumed by both
-    branches of :meth:`DiscreteMeasure.partition_by`.
-
-    Pure-axis ordinates (e.g. Lebedev's :math:`(0, 0, \pm 1)`) get a
-    partition label with one or more zero components, separating them
-    from the eight full octants — this is exactly the structure the
-    2-D wavefront sweep relies on to short-circuit the streaming step
-    for ordinates with :math:`|\mu_x| < \epsilon \wedge |\mu_y| <
-    \epsilon`.
-    """
-    out = np.zeros(nodes.shape, dtype=int)
-    out[nodes > _OCTANT_SIGN_EPS] = 1
-    out[nodes < -_OCTANT_SIGN_EPS] = -1
-    return out
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -582,12 +550,15 @@ class Quadrature:  # concept: quadrature | role: head | kind: measure | welded: 
                               \mathrm{sign}\,\mu_y,
                               \mathrm{sign}\,\mu_z)
 
-        Pure-axis ordinates with :math:`|\mu_{axis}| < 10^{-15}`
-        carry a ``0`` component in their octant label and form their
-        own partition entry. Cached lazily — partitioning is
-        mesh-time work, paid once.
+        The sign of component :math:`i` is the half-range sign of axis
+        :math:`i` (:meth:`~orpheus.numerics.tangential.HalfRange.sign`): a
+        pure-axis ordinate, whose cosine is exactly ``0.0``, carries a ``0``
+        component in its octant label and forms its own partition entry.
+        Cached lazily — partitioning is mesh-time work, paid once.
         """
-        return self.measure.partition_by(_octant_sign_predicate)
+        signs = [half_range(self, i).sign() for i in range(self.dim)]
+        labels = signs[0] if self.dim == 1 else np.stack(signs, axis=1)
+        return self.measure.partition_by_labels(labels)
 
     # ────────────────────────────────────────────────────────────
     # Level-structure passthroughs (cylindrical SN)

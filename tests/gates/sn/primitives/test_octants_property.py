@@ -2,8 +2,9 @@ r"""Tests for the :attr:`Quadrature.octants
 <orpheus.numerics.quadrature.Quadrature.octants>` cached property.
 
 The property is a thin cached view over
-:meth:`orpheus.numerics.measure.DiscreteMeasure.partition_by` with the
-sign-of-direction predicate. It realises the direct-sum decomposition
+:meth:`orpheus.numerics.measure.DiscreteMeasure.partition_by_labels` with the
+half-range sign of each axis
+(:meth:`orpheus.numerics.tangential.HalfRange.sign`). It realises the direct-sum decomposition
 
 .. math::
 
@@ -37,29 +38,40 @@ import pytest
 
 from orpheus.numerics.measure import DiscreteMeasurePartition
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.quadrature.directional import (
-    _OCTANT_SIGN_EPS,
-    _octant_sign_predicate,
-)
+from orpheus.numerics.tangential import half_range
 
 
-# Threshold the property uses to label "pure-axis" ordinates.
-EPS = _OCTANT_SIGN_EPS
+class _Cosines:
+    """A quadrature that exposes only ``mean_axis_cosine``: one column of ``nodes`` per axis."""
+
+    def __init__(self, nodes):
+        self._nodes = np.asarray(nodes, dtype=float)
+
+    def mean_axis_cosine(self, axis_index):
+        return self._nodes if self._nodes.ndim == 1 else self._nodes[:, axis_index]
+
+
+def _signs(nodes):
+    """The half-range sign of every axis of ``nodes``: ``(N,)`` for 1-D input, ``(N, d)`` otherwise."""
+    stub = _Cosines(nodes)
+    if stub._nodes.ndim == 1:
+        return half_range(stub, 0).sign()
+    return np.stack([half_range(stub, i).sign() for i in range(stub._nodes.shape[1])], axis=1)
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Predicate-only tests — pure helper, no quadrature in the loop
+# Sign-only tests — the half-range sign, no quadrature in the loop
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.l0
-class TestSignPredicate:
-    """L0: ``_octant_sign_predicate`` returns the right shape and signs."""
+class TestHalfRangeSign:
+    """L0: ``HalfRange.sign()`` returns the right shape and exact signs."""
 
     def test_1d_input(self):
         nodes = np.array([0.7, -0.3, 0.0, 1e-16, -1e-16, -1.0])
-        labels = _octant_sign_predicate(nodes)
-        np.testing.assert_array_equal(labels, [+1, -1, 0, 0, 0, -1])
+        labels = _signs(nodes)
+        np.testing.assert_array_equal(labels, [+1, -1, 0, +1, -1, -1])
         assert labels.shape == nodes.shape
 
     def test_3d_input(self):
@@ -70,7 +82,7 @@ class TestSignPredicate:
             [0.0, 0.0, -1.0],
             [+0.7, +0.7, 0.0],
         ])
-        labels = _octant_sign_predicate(nodes)
+        labels = _signs(nodes)
         np.testing.assert_array_equal(labels, [
             [+1, -1, +1],
             [-1, +1, -1],
@@ -79,13 +91,6 @@ class TestSignPredicate:
             [+1, +1, 0],
         ])
         assert labels.shape == nodes.shape
-
-    def test_eps_threshold_is_strict(self):
-        """Components within `EPS` of zero get label 0; outside it, ±1."""
-        nodes = np.array([+EPS, -EPS, +EPS * 1.5, -EPS * 1.5])
-        labels = _octant_sign_predicate(nodes)
-        # |x| <= eps -> 0; |x| > eps -> sign(x)
-        np.testing.assert_array_equal(labels, [0, 0, +1, -1])
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -150,16 +155,14 @@ class TestOctantsInvariants:
             if len(label) == 3:
                 # Sphere cubature: label is (s_x, s_y, s_z).
                 actual = np.column_stack([
-                    _octant_sign_predicate(quad.mu_x[indices]),
-                    _octant_sign_predicate(quad.mu_y[indices]),
-                    _octant_sign_predicate(quad.mu_z[indices]),
+                    half_range(quad, axis).sign()[indices] for axis in range(3)
                 ])
                 expected = np.broadcast_to(
                     np.array(label, dtype=int), actual.shape,
                 )
             else:
                 # Slab quadrature: label is (s,) — only μ_x carries the sign.
-                actual = _octant_sign_predicate(quad.mu_x[indices])
+                actual = half_range(quad, 0).sign()[indices]
                 expected = np.full(actual.shape, label[0], dtype=int)
             np.testing.assert_array_equal(actual, expected)
 

@@ -827,6 +827,15 @@ language in which a dense form states its kernel
    :members:
    :show-inheritance:
 
+The half-range, :mod:`orpheus.numerics.tangential`: the one selector of the outflow, inflow and
+tangential ordinates of a face, which compares a direction cosine with exact zero
+(:func:`~orpheus.numerics.tangential.half_range`, :class:`~orpheus.numerics.tangential.HalfRange`,
+:class:`~orpheus.numerics.tangential.AxisCosineSource`). The theory is :ref:`bc-trace-structure`.
+
+.. automodule:: orpheus.numerics.tangential
+   :members:
+   :show-inheritance:
+
 The dense metric, :mod:`orpheus.numerics.metric`, whose rank is the
 declared kernel's complement, and the frame's one rank rule,
 :func:`~orpheus.numerics.frame_faces.frame_gram_kernel` with the constant

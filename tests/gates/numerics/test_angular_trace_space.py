@@ -21,7 +21,7 @@ import pytest
 from orpheus.geometry.coord import CoordSystem
 from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace, TANGENTIAL_EPS
+from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.quadrature import Quadrature
 
 
@@ -122,22 +122,21 @@ def test_identity_independent_of_leaf_data():
 def test_2d_cartesian_lebedev_inflow_selectors_per_face():
     """L1: per-face inflow indices match the hand-computed mu signs."""
     quad = Quadrature.lebedev(11)
-    eps = TANGENTIAL_EPS
     space = _trace_2d(quad)
-    # xmin: outward -x → inflow iff Ω·n = -mu_x < 0 iff mu_x > eps.
+    # xmin: outward -x → inflow iff Ω·n = -mu_x < 0 iff mu_x > 0.
     np.testing.assert_array_equal(
-        space.inflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x > eps),
+        space.inflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x > 0.0),
     )
-    # xmax: outward +x → inflow iff mu_x < -eps.
+    # xmax: outward +x → inflow iff mu_x < 0.
     np.testing.assert_array_equal(
-        space.inflow_indices_for_face("xmax"), np.flatnonzero(quad.mu_x < -eps),
+        space.inflow_indices_for_face("xmax"), np.flatnonzero(quad.mu_x < 0.0),
     )
     # ymin / ymax along the y-axis.
     np.testing.assert_array_equal(
-        space.inflow_indices_for_face("ymin"), np.flatnonzero(quad.mu_y > eps),
+        space.inflow_indices_for_face("ymin"), np.flatnonzero(quad.mu_y > 0.0),
     )
     np.testing.assert_array_equal(
-        space.inflow_indices_for_face("ymax"), np.flatnonzero(quad.mu_y < -eps),
+        space.inflow_indices_for_face("ymax"), np.flatnonzero(quad.mu_y < 0.0),
     )
 
 
@@ -146,13 +145,12 @@ def test_outflow_selectors_are_sign_flipped_inflow():
     """L1: outflow at a face is the +sign half (complement of inflow on
     a non-tangential quadrature)."""
     quad = Quadrature.lebedev(11)
-    eps = TANGENTIAL_EPS
     space = _trace_2d(quad)
     np.testing.assert_array_equal(
-        space.outflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x < -eps),
+        space.outflow_indices_for_face("xmin"), np.flatnonzero(quad.mu_x < 0.0),
     )
     np.testing.assert_array_equal(
-        space.outflow_indices_for_face("xmax"), np.flatnonzero(quad.mu_x > eps),
+        space.outflow_indices_for_face("xmax"), np.flatnonzero(quad.mu_x > 0.0),
     )
 
 
@@ -185,11 +183,11 @@ def test_1d_slab_inflow_bit_identical_to_mu_signs():
     assert space.face_names == ("xmin", "xmax")
     np.testing.assert_array_equal(
         space.inflow_indices_for_face("xmin"),
-        np.flatnonzero(quad.mu_x > TANGENTIAL_EPS),
+        np.flatnonzero(quad.mu_x > 0.0),
     )
     np.testing.assert_array_equal(
         space.inflow_indices_for_face("xmax"),
-        np.flatnonzero(quad.mu_x < -TANGENTIAL_EPS),
+        np.flatnonzero(quad.mu_x < 0.0),
     )
 
 
@@ -226,7 +224,7 @@ def test_curvilinear_has_only_outer_xmax_face(coord):
     # xmax inflow on curvilinear == the same predicate as slab's xmax.
     np.testing.assert_array_equal(
         space.inflow_indices_for_face("xmax"),
-        np.flatnonzero(quad.mu_x < -TANGENTIAL_EPS),
+        np.flatnonzero(quad.mu_x < 0.0),
     )
     with pytest.raises(ValueError, match="Unknown face"):
         space.inflow_indices_for_face("xmin")
@@ -292,25 +290,17 @@ def test_omega_dot_n_dtype_is_float():
 
 
 # ─────────────────────────────────────────────────────────────────────
-# Foundation — principled tangential tolerance (the eps-gap guard)
+# Foundation — the round-off gap that keeps the half-range exact
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.foundation
-def test_eps_is_four_machine_eps():
-    """The tangential tolerance is the principled 4·machine_eps, NOT a
-    hand-tuned magic number."""
-    assert TANGENTIAL_EPS == 4.0 * np.finfo(np.float64).eps
-
-
-@pytest.mark.foundation
 def test_eps_sits_in_the_round_off_to_genuine_gap():
-    r"""Across every shipped quadrature, the tangential eps must sit
-    strictly between the round-off cluster (nominally-tangential cosines,
-    which are EXACTLY 0.0) and the smallest GENUINE direction cosine.
-    This is the durable form of ``eps_probe.py``: a future quadrature
-    cannot silently violate the gap that makes the inflow/outflow masks
-    bit-identical to the legacy ``1e-15`` / ``1e-12`` tolerances.
+    r"""Across every shipped quadrature, every cosine is exactly ``0.0`` or genuine.
+
+    The nominally-tangential cosines are EXACTLY 0.0 and the smallest nonzero ``|cosine|`` is far above round-off: no cosine lies in
+    the band ``(0, 1e-10]``, so the exact comparisons of :func:`~orpheus.numerics.tangential.half_range` read the same classes a
+    round-off band would. A future quadrature cannot silently reopen the gap.
     """
     quads = [Quadrature.gauss_legendre(n) for n in (2, 3, 4, 5, 7, 8, 16, 32, 64)]
     for order in (3, 5, 7, 11, 17, 29, 53):
@@ -318,13 +308,9 @@ def test_eps_sits_in_the_round_off_to_genuine_gap():
             quads.append(Quadrature.lebedev(order))
         except Exception:  # noqa: BLE001 — order may be unavailable
             pass
-    # The family that MOTIVATED #325 — product rules carried the
-    # trig-round-off tangential cosines this eps existed to absorb.
-    # Post-E3 (roots-of-unity nodes) their tangential set is EXACTLY
-    # 0.0, so they must sit in the same empty-band regime as GL and
-    # Lebedev; enumerating them here is what makes this gate a claim
-    # about EVERY shipped rule rather than the two families that were
-    # never at risk. Odd n_phi exercises the quarter-point zeros.
+    # The family that motivated #325: product rules once carried trig-round-off tangential cosines. Since the roots-of-unity
+    # nodes their tangential set is exactly 0.0, so they sit in the same empty-band regime as GL and Lebedev; odd n_phi
+    # exercises the quarter-point zeros.
     quads += [
         Quadrature.product(4, 8),
         Quadrature.product(6, 12),
@@ -334,6 +320,7 @@ def test_eps_sits_in_the_round_off_to_genuine_gap():
     ]
     quads += [Quadrature.level_symmetric(n) for n in (2, 4, 8, 12)]
 
+    BAND = 1e-10
     min_genuine = np.inf
     for q in quads:
         for axis in ("mu_x", "mu_y", "mu_z"):
@@ -341,19 +328,15 @@ def test_eps_sits_in_the_round_off_to_genuine_gap():
             if mu is None:
                 continue
             amu = np.abs(np.asarray(mu, dtype=float))
-            # Nominally-tangential cosines are exactly 0.0 (quadrature
-            # symmetry) — never in the (0, eps] round-off band.
-            assert not np.any((amu > 0.0) & (amu <= TANGENTIAL_EPS)), (
-                f"{type(q).__name__} {axis} has a cosine in the round-off "
-                f"band (0, eps] — the exactly-zero assumption is violated"
+            # Nominally-tangential cosines are exactly 0.0 (quadrature symmetry), never in the round-off band.
+            assert not np.any((amu > 0.0) & (amu <= BAND)), (
+                f"{type(q).__name__} {axis} has a cosine in the round-off band (0, {BAND}]: the exactly-zero assumption is violated"
             )
-            genuine = amu[amu > TANGENTIAL_EPS]
+            genuine = amu[amu > BAND]
             if genuine.size:
                 min_genuine = min(min_genuine, float(genuine.min()))
 
-    # eps must be far below the smallest genuine cosine (empirically
-    # 2.44e-2, ~13 orders above eps).
-    assert TANGENTIAL_EPS < min_genuine
+    # The smallest genuine cosine is far above the band.
     assert min_genuine > 1e-3, (
         f"smallest genuine |cosine| = {min_genuine:.3e} is suspiciously "
         f"small — investigate before trusting the gap"
@@ -536,7 +519,7 @@ def test_z_face_on_two_cosine_quadrature_fails_loud():
 
 #: What a particle entering the domain through each face does, written out per face and not as a signed formula (a convention
 #: compressed into one expression is the thing this class exists to catch): through ``xmin`` it moves in +x, through ``xmax`` in -x,
-#: and so on. Independent of ``face_normal``, ``build_omega_dot_n`` and ``TANGENTIAL_EPS``: the reference reads only the quadrature's
+#: and so on. Independent of ``face_normal``, ``build_omega_dot_n`` and ``half_range``: the reference reads only the quadrature's
 #: own direction cosines and a strict sign, valid because the population control below measures that no cosine lies in (0, 1e-9].
 _ENTERS_THROUGH = {
     "xmin": lambda q: q.mu_x > 0.0, "xmax": lambda q: q.mu_x < 0.0,

@@ -307,10 +307,10 @@ def _axis_judged(tmp_path: Path, old: str, new: str) -> list[str]:
 
 
 def test_control_1_memo_the_read_constant_is_pinned(tmp_path: Path) -> None:
-    """Control 1 (recall leg, memo level). ``_OUTFLOW_COSINE_TOL`` is read by ``face_outflow_ordinates``: editing it
+    """Control 1 (recall leg, memo level). ``_OUTWARD_ENDPOINTS`` is read by ``face_outflow_ordinates``: editing it
     makes the manifest stale through a module or statement pin (the def's own digest names the constant, not its
     value). Green at B1 and after B2."""
-    reasons = _axis_judged(tmp_path, "_OUTFLOW_COSINE_TOL = 1e-15", "_OUTFLOW_COSINE_TOL = 2e-15")
+    reasons = _axis_judged(tmp_path, '_OUTWARD_ENDPOINTS = frozenset({"max", "outer"})', '_OUTWARD_ENDPOINTS = frozenset({"outer", "max"})')
     named = [r for r in reasons if _AXIS in r.replace("\\", "/")]
     assert not_by_def(named) and not [r for r in named if r.startswith("function ")], reasons
 
@@ -319,7 +319,7 @@ def test_control_1_memo_an_unread_constant_of_the_same_module_is_not_pinned(tmp_
     """Control 1 (precision leg, memo level). ``_ENDPOINT_SUFFIX`` (``axis.py`` line ~93) is bound at import and read
     by no code ``face_outflow_ordinates`` runs: editing its value leaves the manifest valid. Red at B1 (`e9df7ed9`) (the skeleton
     of ``axis.py`` moves). ``[M]`` ``ta/probe_axis_e.py`` (the first design's prototype): ``_ENDPOINT_SUFFIX`` is not in
-    the run's closure names (|E'| = 73), while ``_OUTFLOW_COSINE_TOL`` and ``_OUTWARD_ENDPOINTS`` are. Every reason
+    the run's closure names (|E'| = 73), while ``_OUTWARD_ENDPOINTS`` is. Every reason
     counts, so a misfiring import-outcome check (whose reason names no file) cannot pass the row."""
     reasons = _axis_judged(tmp_path, '_ENDPOINT_SUFFIX = {"min": "min", "max": "max", "outer": "max"}',
                          '_ENDPOINT_SUFFIX = {"min": "min", "max": "max", "outer": "outer"}')

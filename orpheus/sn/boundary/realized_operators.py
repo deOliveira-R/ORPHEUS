@@ -192,7 +192,7 @@ def _crossing(permutation: "Permutation", outflow: "AngularFaceTraceSpace", infl
     if inflow.shape[0] != outflow.shape[0]:
         raise ValueError(
             f"{owner}: |Gamma_-| = {inflow.shape[0]} but |Gamma_+| = {outflow.shape[0]}. A pairing is a BIJECTION between the two "
-            f"half-traces, so a pair that differs in size has no realization (the quadrature's tangential band swallowed ordinates asymmetrically)."
+            f"half-traces, so a pair that differs in size has no realization (the quadrature's tangential set holds ordinates asymmetrically)."
         )
     try:
         return outflow.to_local(permutation.inverse().indices[inflow.ordinate_indices])

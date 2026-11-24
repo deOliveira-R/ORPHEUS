@@ -63,7 +63,7 @@ import numpy as np
 from orpheus.geometry.faces import AXIS_NAMES
 from orpheus.geometry.manifold import Quotient
 from orpheus.geometry.symmetry import SubgroupOfO3
-from orpheus.numerics.tangential import TANGENTIAL_EPS
+from orpheus.numerics.tangential import half_range
 
 if TYPE_CHECKING:
     from orpheus.geometry.transformation import Permutation, RigidMotion
@@ -202,11 +202,10 @@ def ordinate_pairing(quadrature: "Quadrature", motion: "RigidMotion") -> "Permut
             f"the pairing about axis {axis!r} is not an involution (ERR-044)"
         )
 
-    partner_mu = mu[pi]
-    active = np.abs(mu) > TANGENTIAL_EPS
-    partner_opposite = (np.abs(partner_mu) > TANGENTIAL_EPS) & (
-        np.sign(partner_mu) != np.sign(mu)
-    )
+    half = half_range(quadrature, axis_index)
+    direction = half.sign()
+    active = direction != 0
+    partner_opposite = (direction[pi] != 0) & (direction[pi] != direction)
     bad = active & ~partner_opposite
     if bad.any():
         worst = int(np.flatnonzero(bad)[0])
@@ -229,7 +228,7 @@ def ordinate_pairing(quadrature: "Quadrature", motion: "RigidMotion") -> "Permut
         raise PairingDoesNotCrossError(
             f"the pairing about axis {axis!r} maps ordinate {worst} "
             f"(mu_{axis}={mu[worst]:+.6e}) to ordinate {int(pi[worst])} "
-            f"(mu_{axis}={partner_mu[worst]:+.6e}), the same sign class "
+            f"(mu_{axis}={mu[pi][worst]:+.6e}), the same sign class "
             f"instead of the outflow partner ({cause})"
         )
     return permutation

@@ -1256,12 +1256,9 @@ class DiscreteMeasure:  # concept: measure | role: head | kind: measure | welded
         mirrors is a corner reflector; a point on a rotation axis with no mirror
         through it is a cone point.  Membership is decided by
         :math:`\pi_M(i) = i` — an **integer identity**, exact, with no
-        tolerance. The three ad-hoc float comparisons the tree grew for this
-        question (``_OCTANT_SIGN_EPS``, ``_MU_DIRECTION_EPS``,
-        ``TANGENTIAL_EPS``) were all asking it numerically; measured across 29
-        production rules, the separation between "zero" and "nonzero" cosines
-        is a factor of :math:`2.7\times10^{13}`, so the tolerance was never
-        doing real work.
+        tolerance. The tree once asked this question of a direction cosine with three float cutoffs; it asks it now of the
+        half-range (:func:`~orpheus.numerics.tangential.half_range`), which compares a cosine with exact zero, and no
+        tolerance did any work on a shipped rule.
 
         Raises
         ------
@@ -1588,11 +1585,30 @@ class DiscreteMeasure:  # concept: measure | role: head | kind: measure | welded
         global invariance, and the polynomial-exactness of the parent
         rule does not survive restriction.
         """
-        labels = np.asarray(predicate(self.nodes))
-        if labels.shape[0] != self.n_points:
+        return self.partition_by_labels(predicate(self.nodes))
+
+    def partition_by_labels(
+        self,
+        labels: np.ndarray,
+    ) -> tuple["DiscreteMeasurePartition", ...]:
+        r"""Disjoint partition by a label array held for the nodes.
+
+        The labels are data: one per node, ``(N,)`` scalar labels or ``(N, k)`` compound labels, in the node order of
+        this measure. :meth:`partition_by` is this method applied to the labels its predicate computes from the nodes;
+        a caller that already holds the labels (the octant labels read from the half-range of each axis) passes them
+        here without a predicate that ignores its argument. The entries, their order and their tuple labels are those
+        documented on :meth:`partition_by`.
+
+        Raises
+        ------
+        ValueError
+            If ``labels`` does not have one row per node, or is neither 1-D nor 2-D.
+        """
+        labels = np.asarray(labels)
+        if labels.ndim == 0 or labels.shape[0] != self.n_points:
             raise ValueError(
                 f"predicate must return labels for all {self.n_points} "
-                f"nodes; got leading dimension {labels.shape[0]}."
+                f"nodes; got labels of shape {labels.shape}."
             )
         if labels.ndim == 1:
             unique_labels = np.unique(labels)
