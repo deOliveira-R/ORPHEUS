@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21387**
+Total tests collected: **21570**
 
 V&V level distribution
 ----------------------
@@ -18,12 +18,12 @@ V&V level distribution
    :header: Level, Count, Share
    :widths: 15, 10, 10
 
-   L0, 2254, 10.5%
-   L1, 2996, 14.0%
+   L0, 2254, 10.4%
+   L1, 2996, 13.9%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 15989, 74.8%
-   unmarked, 63, 0.3%
+   foundation, 16167, 75.0%
+   unmarked, 68, 0.3%
 
 Tagging source
 --------------
@@ -34,11 +34,11 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 21245
+   explicit, 21423
    class-name, 46
    func-name, 0
    case, 33
-   unmarked, 63
+   unmarked, 68
 
 Module × level grid
 -------------------
@@ -778,7 +778,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 7, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 13, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 582, 0
+   test_layer_imports, 0, 0, 0, 0, 583, 0
    test_memo_old_path, 0, 0, 0, 0, 8, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -852,6 +852,16 @@ Module × level grid
    values/test_content_identity_relocation, 0, 0, 0, 0, 14, 0
    values/test_digest_convention, 0, 0, 0, 0, 13, 0
    values/test_one_real_parser, 0, 0, 0, 0, 16, 0
+   w1/test_bare_path_takes_the_matrix_as_stored, 0, 0, 0, 0, 1, 0
+   w1/test_content_identity_declaration, 0, 0, 0, 0, 18, 0
+   w1/test_declaration_normal_form, 0, 0, 0, 0, 22, 0
+   w1/test_dense_inverse_admission, 0, 0, 0, 0, 25, 0
+   w1/test_dense_inverse_bytes, 0, 0, 0, 0, 43, 0
+   w1/test_dense_kernel_declared, 0, 0, 0, 0, 39, 0
+   w1/test_no_cutoff_in_metric, 0, 0, 0, 0, 5, 0
+   w1/test_signature_guarantee, 0, 0, 0, 0, 24, 0
+   w1/test_snapshot_controls, 0, 0, 0, 0, 0, 4
+   w1/test_snapshot_harness, 0, 0, 0, 0, 0, 1
 
 Equation coverage
 -----------------
@@ -1932,7 +1942,7 @@ uncaught first; the same table is generated into the
 Unmarked tests
 --------------
 
-**63 tests** have no V&V level marker.
+**68 tests** have no V&V level marker.
 This is a gap — every test in the tree should carry either
 a physics-ladder marker (``l0``..``l3``) or the orthogonal
 ``foundation`` marker (``@pytest.mark.foundation``) for
@@ -1949,11 +1959,13 @@ taxonomy.
    ``tests/gates/numerics/test_riesz_legs.py``, 8
    ``tests/gates/sn/operators/test_loss_kernel_gauge.py``, 7
    ``tests/gates/numerics/test_frame.py``, 5
+   ``tests/gates/cross_method/w1/test_snapshot_controls.py``, 4
    ``tests/gates/geometry/test_kernel_corroboration.py``, 4
    ``tests/gates/numerics/test_iteration_record.py``, 4
    ``tests/gates/numerics/test_full_field_space.py``, 3
    ``tests/gates/geometry/test_symmetry.py``, 2
    ``tests/gates/sn/sweep/core/test_cache.py``, 2
+   ``tests/gates/cross_method/w1/test_snapshot_harness.py``, 1
    ``tests/gates/derivations/test_characteristic_reference.py``, 1
    ``tests/gates/numerics/test_registry_rule_list.py``, 1
    ``tests/gates/sn/angular/test_redistribution.py``, 1
