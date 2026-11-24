@@ -376,9 +376,9 @@ def scope_cosine_compares(root: Path) -> list[tuple[str, int]]:
 
 
 #: The five cutoff names of G02c (i).
-CUTOFF_NAMES = ("TANGENTIAL_EPS", "_OUTFLOW_COSINE_TOL", "_TANGENTIAL_MU", "_MU_DIRECTION_EPS", "_OCTANT_SIGN_EPS")
+CUTOFF_NAMES = ("TANGENTIAL_EPS", "_OUTFLOW_COSINE_TOL", "_TANGENTIAL_MU", "_MU_DIRECTION_EPS", "_OCTANT_SIGN_EPS", "_DEGENERATE_ABS_ETA_THRESHOLD")
 
-#: The 8 edited production files that held a cutoff (G02c (ii)).
+#: The 9 edited production files that held a cutoff (G02c (ii)).
 CUTOFF_FILES = (
     "mesh/axis.py",
     "numerics/tangential.py",
@@ -387,6 +387,7 @@ CUTOFF_FILES = (
     "numerics/spaces/angular_trace_space.py",
     "sn/loss_representation/__init__.py",
     "sn/operators/loss_kernel_gauge.py",
+    "sn/problem.py",
     "sn/sweep/cache.py",
 )
 
@@ -460,5 +461,5 @@ def tolerance_compares(source: str) -> list[tuple[int, str]]:
     return sorted(out)
 
 
-#: The one comparison with a tolerance operand that survives in the 8 files: ``(file, source segment)``.
+#: The one comparison with a tolerance operand that survives in the 9 files: ``(file, source segment)``.
 TOLERANCE_ALLOW_LIST = frozenset({("sn/operators/loss_kernel_gauge.py", "reading <= _GAUGE_AUDIBLE_FLOOR")})

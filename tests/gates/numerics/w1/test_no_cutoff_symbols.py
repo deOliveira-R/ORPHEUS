@@ -2,8 +2,8 @@ r"""G02c: no cutoff on a direction cosine survives in ``orpheus/`` (N02, spec 7.
 
 Two ``ast`` arms over source files, with no import of the modules read (the arm reads ``sn/`` and ``mesh/`` sources by path):
 
-(i) none of the five cutoff names is defined, imported or read anywhere in ``orpheus/`` (``derivations/`` excluded);
-(ii) in the 8 production files that held a cutoff, the ``Compare`` nodes that carry a tolerance operand equal the allow-list (one
+(i) none of the six cutoff names is defined, imported or read anywhere in ``orpheus/`` (``derivations/`` excluded);
+(ii) in the 9 production files that held a cutoff, the ``Compare`` nodes that carry a tolerance operand equal the allow-list (one
 comparison, ``reading <= _GAUGE_AUDIBLE_FLOOR`` of ``loss_kernel_gauge.py``), keyed on the file and the source segment, never a line.
 
 What it cannot see: a cutoff under a new name in a file outside the eight, a cutoff held in a parameter or a local, a tolerance passed
@@ -34,7 +34,7 @@ def test_no_cutoff_symbols() -> None:
     assert len(sources) > 200, f"the census reads {len(sources)} files: the filter dropped the tree"
     assert any(rel == "mesh/axis.py" for rel, _ in sources), "mesh/axis.py is not in the population"
     hits = [(rel, name, line) for rel, src in sources for name, line in H.cutoff_name_hits(src)]
-    assert not hits, f"{len(hits)} occurrences of the five cutoff names in {len(sources)} files (file, name, line): {hits}"
+    assert not hits, f"{len(hits)} occurrences of the six cutoff names in {len(sources)} files (file, name, line): {hits}"
 
 
 def test_no_comparison_with_a_tolerance_survives_in_the_files_that_held_a_cutoff() -> None:

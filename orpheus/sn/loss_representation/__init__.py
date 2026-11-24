@@ -3476,7 +3476,7 @@ class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | weld
            — DD spatial closure.
 
         For the rare degenerate cylindrical pure-azimuthal ordinate
-        (``geom.is_degenerate[n] == True``, ``|η| < 10^{-15}``), the scan
+        (``geom.is_degenerate[n] == True``, ``η = 0`` exactly), the scan
         is meaningless and the slow per-cell ``scheme.update`` path
         runs instead.
 
@@ -4851,7 +4851,7 @@ class _OneDimScanWalk:  # concept: algorithm | role: weld | kind: element | weld
                     scalar_flux += w_n * psi_avg_p
 
                     # Persist outflow at the outer face for outward ordinates.
-                    if mu_n >= 0 and abs(mu_n) >= self.problem._DEGENERATE_ABS_ETA_THRESHOLD:
+                    if mu_n > 0:  # outward; the tangential ordinate (cosine exactly zero) has no radial face flow
                         bc_outer[global_n] = psi_face_chain[-1]      # (ng,)
 
         # ── Exit — PR-INDEX-5: caller consumes principled layout ──────────

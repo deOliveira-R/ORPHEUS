@@ -340,7 +340,7 @@ def test_f0_7_synthetic_3d_face_outflow_axis_beyond_quad_dim_is_empty() -> None:
     dim-agnostic shape primitive must handle it gracefully — for
     any axis index :math:`i > 0` on a 1-D measure (or :math:`i \ge
     d` on a d-dim measure), ``Quadrature.axis_cosines`` returns
-    zeros, and ``np.where(\pm 1 \cdot 0 > 10^{-15})[0]`` is empty.
+    zeros, and ``np.where(\pm 1 \cdot 0 > 0)[0]`` is empty.
 
     This is the Pattern 7 verification: the shape primitive reads
     ``quad.measure.nodes`` directly (the single source of truth);

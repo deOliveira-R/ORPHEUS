@@ -193,7 +193,7 @@ def test_dag_walk_cylindrical_per_level_matches():
             # ordinate-keyed dag_walk path always iterates forward (no
             # signed direction), which would NOT match the
             # direction-keyed sweep. The degenerate branch is the
-            # special case |η| < 1e-15.
+            # special case η = 0 exactly.
             if sign == +1:
                 matches = np.where(eta_at_level > 0.0)[0]
             else:

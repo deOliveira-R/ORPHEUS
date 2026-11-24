@@ -303,7 +303,7 @@ def test_cylinder_dag_walk_per_level() -> None:
         # bug 2 fix anchor.
         for v in visits:
             assert v.streaming_terms.abs_mu == abs(eta_n)
-        if abs(eta_n) < 1e-15:
+        if eta_n == 0.0:
             # Degenerate: no spatial flow, forward order.  Issue #196
             # Step 2.5: ``face_area_downstream == 0.0`` (geometric
             # truth) replaces the ``None`` sentinel.

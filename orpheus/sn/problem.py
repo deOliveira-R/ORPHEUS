@@ -51,6 +51,7 @@ from .mesh.reduced_operator import (
 )
 from orpheus.numerics.axis import Axis
 from orpheus.numerics.quadrature import Quadrature
+from orpheus.numerics.tangential import half_range
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, CellVisit
 from orpheus.transport.spatial.diamond import DiamondDifference
 from .angular.closure import (
@@ -1467,8 +1468,6 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
 
     # ── Sweep DAG traversal ───────────────────────────────────────────
 
-    _DEGENERATE_ABS_ETA_THRESHOLD: ClassVar[float] = 1e-15
-
     def dag_walk(
         self,
         *,
@@ -1629,7 +1628,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         * Slab, sphere, cylinder non-degenerate: ``range(nx)`` for
           :math:`\mu_n \ge 0`, ``range(nx-1, -1, -1)`` for :math:`\mu_n < 0`.
         * Cylindrical pure-azimuthal degenerate
-          (:math:`|\eta_n| < 10^{-15}`): ``range(nx)`` regardless of
+          (:math:`\eta_n = 0` exactly): ``range(nx)`` regardless of
           ``direction_sign`` — same as :meth:`dag_walk`.
         """
         if not self.is_1d:
@@ -1659,14 +1658,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         else:
             mu_n = float(self.quad.mu_x[ordinate_idx])
 
-        # Cylindrical degenerate ordinates iterate forward regardless of sign.
-        if (
-            coord is CoordSystem.CYLINDRICAL
-            and abs(mu_n) < self._DEGENERATE_ABS_ETA_THRESHOLD
-        ):
-            yield from range(self.nx)
-            return
-
+        # A tangential ordinate (radial cosine exactly zero) iterates forward with the outward ones.
         if mu_n >= 0:
             yield from range(self.nx)
         else:
@@ -1699,23 +1691,20 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         Cell ordering in :meth:`dag_walk` depends only on
         ``direction_sign`` (and the level for cylindrical), so any
         non-degenerate ordinate in the correct sign class produces
-        the same cell sequence.  The degenerate :math:`|\\eta| <
-        10^{-15}` ordinates are excluded because they iterate forward
-        regardless of sign and would not match the bulk direction's
-        signed iteration.
+        the same cell sequence.  The tangential ordinates (radial cosine
+        exactly zero, the ``tangential`` part of
+        :func:`~orpheus.numerics.tangential.half_range`) are excluded
+        because they iterate forward regardless of sign and would not
+        match the bulk direction's signed iteration.
         """
         assert self.reduced is not None
         coord = self.coord
-        eps = self._DEGENERATE_ABS_ETA_THRESHOLD
+        radial_sign = half_range(self.quad, 0).sign()
         if coord is CoordSystem.CYLINDRICAL:
             mu_level = self._require_mu_level(mu_level_idx)
             level_indices = self.quad.level_indices  # type: ignore[attr-defined]
             level_ords = np.asarray(level_indices[mu_level])
-            eta_at_level = self.quad.eta[level_ords]
-            if direction_sign == +1:
-                cand = np.where(eta_at_level > +eps)[0]
-            else:
-                cand = np.where(eta_at_level < -eps)[0]
+            cand = np.where(radial_sign[level_ords] == direction_sign)[0]
             if cand.size == 0:
                 raise ValueError(
                     f"No non-degenerate ordinate in cylindrical level "
@@ -1723,11 +1712,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
                     f"direction_sign={direction_sign}."
                 )
             return int(cand[0])
-        mu_x = self.quad.mu_x
-        if direction_sign == +1:
-            cand = np.where(mu_x > +eps)[0]
-        else:
-            cand = np.where(mu_x < -eps)[0]
+        cand = np.where(radial_sign == direction_sign)[0]
         if cand.size == 0:
             raise ValueError(
                 f"No non-degenerate ordinate satisfies "
@@ -1834,7 +1819,8 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
           face is the outer face.
         * :math:`\\eta_n < 0` inward: cell nx-1 → 0, downstream
           face is the inner face.
-        * :math:`|\\eta_n| < 10^{-15}` pure-azimuthal degenerate:
+        * :math:`\\eta_n = 0` exactly, pure-azimuthal degenerate (the
+          ``tangential`` part of the radial half-range):
           forward iteration (so the angular M-M closure runs in a
           natural order) but ``face_area_downstream`` is ``None`` —
           no spatial face flow.
@@ -1843,9 +1829,8 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         level_indices = self.quad.level_indices  # type: ignore[attr-defined]
         global_n = int(level_indices[mu_level_idx][ordinate_idx])
         eta_n = float(self.quad.eta[global_n])
-        abs_eta = abs(eta_n)
 
-        if abs_eta < self._DEGENERATE_ABS_ETA_THRESHOLD:
+        if global_n in half_range(self.quad, 0).tangential.indices:
             # Pure-azimuthal degenerate: no spatial flow.  Iterate
             # forward so the angular M-M closure runs in a natural
             # order; ``face_area_downstream = 0.0`` signals "no

@@ -692,11 +692,10 @@ def _outflow_at_boundary_for_sphere_from_bulk(
     quad = problem.quad
     nx = problem.nx
     ng = psi_bulk.shape[1]
-    eps = 1e-15
     # Mirror the matvec body's ``(ng, N, nx)`` ordering.
     psi_g_first = psi_bulk.transpose(1, 0, 2)
-    outgoing_mask = quad.mu_x > +eps
-    incoming_mask = quad.mu_x < -eps
+    outgoing_mask = quad.mu_x > 0.0
+    incoming_mask = quad.mu_x < 0.0
     outflow_at_boundary = np.zeros((ng, quad.n_ordinates))
     if not np.any(outgoing_mask):
         return outflow_at_boundary

@@ -4428,9 +4428,8 @@ operates on whole ordinate subsets via boolean masks:
 
 .. code-block:: python
 
-   eps = 1e-15
-   outgoing_mask = quad.mu_x > +eps   # μ > 0 ordinates
-   incoming_mask = quad.mu_x < -eps   # μ < 0 ordinates
+   outgoing_mask = quad.mu_x > 0.0   # μ > 0 ordinates
+   incoming_mask = quad.mu_x < 0.0   # μ < 0 ordinates
    mu_out = quad.mu_x[outgoing_mask]
    mu_in  = quad.mu_x[incoming_mask]
 

@@ -145,7 +145,6 @@ def _hand_reference_cyl_matvec(
     N = quad.n_ordinates
     ng = psi_view.shape[1]
     nx = problem.nx
-    eps = 1e-15
 
     reduced = problem.reduced
     assert reduced is not None  # 1-D mesh => minted by the ctor (narrowing)
@@ -206,7 +205,7 @@ def _hand_reference_cyl_matvec(
     for level_idx in level_indices:
         level_idx_arr = np.asarray(level_idx)
         eta_level = mu_x[level_idx_arr]
-        out_within = eta_level > +eps
+        out_within = eta_level > 0.0
         if not np.any(out_within):
             continue
         global_out = level_idx_arr[out_within]
@@ -232,7 +231,7 @@ def _hand_reference_cyl_matvec(
     for level_idx in level_indices:
         level_idx_arr = np.asarray(level_idx)
         eta_level = mu_x[level_idx_arr]
-        in_within = eta_level < -eps
+        in_within = eta_level < 0.0
         if not np.any(in_within):
             continue
         global_in = level_idx_arr[in_within]
@@ -250,8 +249,8 @@ def _hand_reference_cyl_matvec(
                 out[n_g, :, i] = streaming + redistribution + collision
                 psi_face_in = psi_face_out
 
-    # Degenerate (|μ_x| < eps) — no radial flow.
-    degenerate_mask = np.abs(mu_x) < eps
+    # Degenerate (μ_x = 0 exactly) — no radial flow.
+    degenerate_mask = mu_x == 0.0
     if np.any(degenerate_mask):
         global_deg = np.where(degenerate_mask)[0]
         for n_g in global_deg:
