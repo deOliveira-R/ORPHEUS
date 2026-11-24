@@ -2762,10 +2762,14 @@ index could disagree with them), and, in a build that keeps
 ``__debug__``, a kept direction whose eigenvalue is not positive. That
 last check is a misuse check on the raw constructor and not a guarantee, and
 it is not a rank detector: it sees the sign of a round-off eigenvalue only.
-`[M]` 2026-11-24 over the 14 deficient Grams of the bit-identity harness,
-each declared one dimension short, it refused 6 of 14 under ``__debug__``; the
-other 8 were accepted, and under ``python -O`` 13 of 14 were accepted, with
-:math:`\max|G^{+}|` up to :math:`2.5\times10^{15}`. A frame's Gram is positive
+`[M]` 2026-11-24 (macOS arm64, numpy 2.4.4, Accelerate; both construction
+doors read the same) over the 14 deficient Grams of the bit-identity harness,
+each declared one dimension short: with ``__debug__`` 6 of 14 are refused and
+8 of 14 accepted, the computed inverse reaching
+:math:`\max|G^{+}| = 3.3\times10^{15}`; under ``python -O`` 14 of 14 are
+accepted, 13 with a finite inverse up to :math:`1.6\times10^{32}` and 1 with
+non-finite entries. Which Grams are refused is the sign of a round-off
+residue and is a property of the host. A frame's Gram is positive
 semi-definite by construction and its declaration comes from
 ``frame_gram_kernel``, so the formal path does not rely on it; under
 ``python -O`` a kept exact zero divides by zero.

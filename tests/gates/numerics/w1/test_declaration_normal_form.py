@@ -46,9 +46,9 @@ def test_annihilator_normal_form() -> None:
 
 
 def test_ann_is_built_only_from_a_spanned_of_the_same_n() -> None:
-    with pytest.raises((ValueError, TypeError), match="annihilator of a Spanned"):
+    with pytest.raises(ValueError, match="annihilator of a Spanned"):
         Ann(N, C13)  # type: ignore[arg-type]
-    with pytest.raises((ValueError, TypeError), match="annihilator of a Spanned"):
+    with pytest.raises(ValueError, match="annihilator of a Spanned"):
         Ann(N + 1, S)
 
 
@@ -57,7 +57,7 @@ def test_spanned_refusals() -> None:
         Spanned(N, ("k",), 0)
     with pytest.raises(ValueError, match="a spanned subspace is not the whole space"):
         Spanned(N, ("k",), N)
-    with pytest.raises((ValueError, TypeError)):
+    with pytest.raises(ValueError, match="non-empty content key"):
         Spanned(N, (), 1)  # an empty key names nothing
     with pytest.raises((ValueError, TypeError)):
         Spanned(N, ([1],), 1)  # an unhashable key

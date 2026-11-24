@@ -185,9 +185,9 @@ def _exact_inverse(matrix: NDArray, kernel_dim: int) -> NDArray:
     kept directions, and a kept value that is not positive is refused: a kept exact zero contradicts the declared rank as surely as
     a negative one. This is a misuse check on the raw path, not a guarantee, and it is not a rank detector: it sees only the sign of a
     round-off eigenvalue, so an under-declared kernel whose smallest kept value is a round-off residue is caught only when that residue
-    happens to be negative or zero. `[M]` 2026-11-24 over the 14 deficient harness Grams declared one dimension short: accepted on 6 of
-    14 under ``__debug__`` and on 13 of 14 under ``python -O``, with ``max|G+|`` up to ``2.5e15`` when accepted. Under ``python -O`` a
-    kept exact zero divides by zero and the faces are NaN.
+    happens to be negative or zero (the measured rate over the deficient harness Grams is on the theory page, under the metric of a
+    function space). A kept value that is tiny and positive is accepted in every build, and the inverse carries its reciprocal. Under
+    ``python -O`` a kept exact zero divides by zero and the faces are NaN.
     """
     u, s, vt = np.linalg.svd(matrix, hermitian=True)
     kept = s.shape[0] - kernel_dim

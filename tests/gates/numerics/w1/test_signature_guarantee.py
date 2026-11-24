@@ -103,25 +103,21 @@ def test_the_formal_path_population() -> None:
     _require(len(frames) == 17, f"{len(frames)} frame-built Grams, expected 17")
 
 
-@pytest.mark.rests_on("tests/gates/numerics/w1/test_dense_kernel_declared.py::test_declared_kernel_is_exact_for_the_frames")
-def test_the_raw_path_check_is_not_a_rank_detector() -> None:
-    """The documented limit: a kernel declared ONE DIMENSION SHORT on a deficient Gram is accepted by the sign test on at least one of
-    the 14 deficient harness Grams (6 of 14 on the recording host, platform round-off), and the inverse face then reaches ``> 1e12``.
-    The raw-path check is a misuse check, not a guarantee, so an accepted under-declaration is the limit, not a defect to be read as
-    caught (ruling of 2026-10-30)."""
-    accepted: list[tuple[str, float]] = []
-    for family in sg.families():
-        e = sg.stored(family)
-        dim = sg.declared_for(e).dim
-        if dim < 1 or not kept_directions_have_positive_sign(e.g_sym, dim - 1):
-            continue
-        u, s, vt = np.linalg.svd(e.g_sym, hermitian=True)
-        kept = e.g_sym.shape[0] - (dim - 1)
-        with np.errstate(all="ignore"):
-            inv = vt.T @ (np.concatenate([1.0 / s[:kept], np.zeros(len(s) - kept)])[:, None] * u.T)
-        accepted.append((family, float(np.max(np.abs(inv)))))
-    _require(len(accepted) >= 1, "no under-declared deficient Gram was accepted by the sign test: the documented limit is not exercised")
-    _require(all(m > 1e12 or not np.isfinite(m) for _, m in accepted), f"an accepted under-declaration with a small inverse: {accepted}")
+@pytest.mark.parametrize("door", ["bare", "inverse_of"])
+def test_the_raw_path_check_is_not_a_rank_detector(door: str) -> None:
+    """The documented limit, read on production: ``diag([1, 1e-20])`` declared full rank keeps a direction that is zero to every
+    working precision, and both doors accept it in every build (the sign of the kept value is positive), with the inverse carrying
+    ``1e20``. The raw-path check is a misuse check, not a guarantee, so an accepted under-declaration is the limit and is not to be
+    read as caught (ruling of 2026-10-30). The witness is exact on any host: the matrix is diagonal with entries that are powers of
+    ten far apart, so the decomposition is the matrix itself."""
+    from orpheus.numerics.declaration import Coord
+    from orpheus.numerics.metric import DenseMetric
+
+    g = np.diag([1.0, 1e-20])
+    form = DenseMetric(g, kernel=Coord(2, ())) if door == "bare" else DenseMetric.inverse_of(g, kernel=Coord(2, ()))
+    inverse = form.inverse_matrix if door == "bare" else form.matrix
+    _require(form.rank((2,)) == 2, f"[{door}] the declared rank is 2, read {form.rank((2,))}")
+    _require(float(np.max(np.abs(inverse))) == 1.0 / 1e-20, f"[{door}] the inverse of the kept 1e-20 is not its reciprocal: {inverse}")
 
 
 def test_the_controls_read_non_positive() -> None:
