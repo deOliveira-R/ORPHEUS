@@ -62,7 +62,7 @@ def test_bare_path_equals_the_stored_metric(family: str) -> None:
 
 
 @pytest.mark.parametrize("family", sg.families())
-@pytest.mark.rests_on("tests/gates/numerics/w1/test_declared_kernel_is_exact.py::test_declared_kernel_is_exact_for_the_frames")
+@pytest.mark.rests_on("tests/gates/numerics/w1/test_dense_kernel_declared.py::test_declared_kernel_is_exact_for_the_frames")
 def test_declared_dim_is_the_nullity(family: str) -> None:
     """The declared dimension equals ``n - round(trace(G+ G))`` with ``G+`` the stored ``metric`` and ``G`` the symmetrised Gram.
 

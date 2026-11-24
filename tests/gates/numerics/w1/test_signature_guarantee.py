@@ -84,7 +84,7 @@ def kept_directions_have_positive_sign(g_sym: np.ndarray, dim: int) -> bool:
 
 
 @pytest.mark.parametrize("family", [f for f in sg.families() if sg.stored(f).frame_built])
-@pytest.mark.rests_on("tests/gates/numerics/w1/test_declared_kernel_is_exact.py::test_declared_kernel_is_exact_for_the_frames")
+@pytest.mark.rests_on("tests/gates/numerics/w1/test_dense_kernel_declared.py::test_declared_kernel_is_exact_for_the_frames")
 def test_formal_path_has_no_non_positive_kept_direction(family: str) -> None:
     e = sg.stored(family)
     dim = sg.declared_for(e).dim
