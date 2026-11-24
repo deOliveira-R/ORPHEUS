@@ -751,6 +751,15 @@ What passes 2 and 2b changed in the design:
 - **`Axis` stays declared a weld** until W8a (P2b-3), which adds 0 role rows; re-tagging it a component would have added 7.
 - **Two concept-table questions for the user under U8**, with the tool's own checks simulated: (a) a named closed sum for the space on a new concept `space` forces `tensor` and `dsum` to merge into it (0 new debt rows); (b) a new concept `pair` in `numerics` for the trial-and-test pair mints 2 role rows (`FieldRole`, `RolePair`) until W3.
 
+**The user's checkpoint on the design layer, first answers (2026-11-23).**
+
+- **Ruled: U7 accepted** (the Step A helper is re-spelled to pair importance with source) **and U8(b) accepted** (the new concept `pair` in `numerics`, head `TrialTest`).
+- **Not ruled: U1 (variance) and U2 (energy has no form).** On U1 the user does not object and asked for the explanation of why the flux is a measure and what that means for condensation and homogenisation. On U2 the user asked for a read of the NJOY2016 manual. No `build-units` until both are ruled.
+- **U8(a), the user's sentence: "this seems like it can be architecturally leveraged".** `[R]` the orchestrator reads it as leaning to the merge onto the concept `space` and not as a ruling; the leverage was stated back and the user asked once.
+- **The NJOY2016 manual (LA-UR-17-20093), section 8.1 and 10.9, read for U2** `[M]` 2026-11-23: the group flux is the integral of the flux over the group (its equation 248) and collapses by sum (435); a group cross section is the flux-weighted average (249, 250) and collapses by the average weighted by the group fluxes (434, 436). Those are L14's rules for a measure in the integrated chart and for a function. The manual defines no inner product on groups; its weight function `C(E)` is a guess of the flux made per application (section 8.4), so it is a partner of the cross section and not a reference measure. It changes nothing in the U2 default.
+- **A latent consumer of a form on energy** `[M]` 2026-11-23 (regex census of the 263 production files, `derivations/` excluded): `EnergyGrid.lethargy_widths` (`data/energy_grid.py:188`) and the three `flux_per_lethargy` readers (`homogeneous/solver.py:168`, `mc/solver.py:769`, `plotting.py`) divide a group flux by the lethargy width: the density chart of the energy factor under the form `Diag(Δu)`. A synthetic mixture has no grid (`lethargy_widths is None`), so the form cannot be required of every energy axis. W1 leaves these as they are; typing the display chart as the energy generator's optional form is W8a's question.
+- **Production condenses in two ways** (`data/macro_xs/mixture.py:425`): the flux-weighted collapse, and the bilinear collapse with the pair weight (importance times flux, Bell and Glasstone 6.135). The census found no collapse weighted by the flux on both sides.
+
 **The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
 
 ## Open questions for the user
