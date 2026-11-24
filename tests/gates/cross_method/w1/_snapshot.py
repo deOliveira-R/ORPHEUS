@@ -89,15 +89,22 @@ def _probe_vector(n: int) -> np.ndarray:
 
 
 def _apply(space: Any, verb: str, x_flat: np.ndarray) -> np.ndarray:
-    """Apply a metric verb to ``x_flat``, flat first and in ``space.shape`` when the flat form is refused.
+    """Apply a metric verb to ``x_flat``, flat first and in ``space.shape`` when the flat form is refused; return the flat C-order result.
 
-    The function-space arm refuses a flat vector with ``NotInCoordinateSpace``; any other error propagates.
+    The function-space arm refuses a flat vector with ``NotInCoordinateSpace``; any other error propagates. The result is stored as
+    its flat C-order bytes whichever arm accepted the input, so a later unit that moves a space to another arm changes no stored shape.
     """
     method = getattr(space, verb)
     try:
-        return np.asarray(method(x_flat))
+        out = method(x_flat)
     except NotInCoordinateSpace:
-        return np.asarray(method(x_flat.reshape(space.shape)))
+        out = method(x_flat.reshape(space.shape))
+    return _flat(out)
+
+
+def _flat(array: Any) -> np.ndarray:
+    """The flat C-order form of ``array``: the stored identity of every (b) and (d) array."""
+    return np.ascontiguousarray(array).reshape(-1)
 
 
 def _space_arrays(problem: Any, rows: tuple[Row, ...]) -> dict[str, np.ndarray]:
@@ -111,7 +118,7 @@ def _space_arrays(problem: Any, rows: tuple[Row, ...]) -> dict[str, np.ndarray]:
             arrays[f"b.{name}.apply_metric_ones"] = _apply(space, "apply_metric", np.ones(n))
             diagonal = space.metric_diagonal()
             if diagonal is not None:
-                arrays[f"b.{name}.metric_diagonal"] = np.asarray(diagonal)
+                arrays[f"b.{name}.metric_diagonal"] = _flat(diagonal)
         if PROBED in groups:
             v = _probe_vector(n)
             arrays[f"d.{name}.apply_metric"] = _apply(space, "apply_metric", v)
