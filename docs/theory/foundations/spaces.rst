@@ -2699,7 +2699,7 @@ not small: its singular vector, a combination of two :math:`\ell = 2`
 columns, annihilates the evaluation table on the rule's 8 nodes
 (:math:`\|Av\|_\infty = 2.8\times10^{-16}`), so the rule cannot tell those
 two harmonics apart. :func:`numpy.linalg.inv` raises there;
-:func:`numpy.linalg.pinv` returns the object Parseval needs. The other two
+:class:`~orpheus.numerics.metric.DenseMetric` returns the object Parseval needs, the exact inverse with the declared kernel zeroed. The other two
 dense heads are singular too: ``frame_faces.angular_frame(folded_product(4, 4), 4)``,
 :math:`45\times45` with 15 live slots and rank 8, and
 ``frame_faces.angular_frame(product(4, 8), 4)``, :math:`45\times45` with 25 live slots
@@ -2709,47 +2709,61 @@ ERR-080 repair of 2026-09-02 the example here was the slab
 ``frame_faces.angular_frame(gauss_legendre(8), 2)``, 5 live slots and rank 4; that
 frame's Gram is now diagonal, :math:`3\times3` and rank 3.)
 
-Two construction choices in
+Three construction choices in
 :class:`~orpheus.numerics.metric.DenseMetric` are worth their reasons:
 
-#. **The cutoff is PINNED, not left to the library default.** An
-   implicit default is a silent dependency on a NumPy version, and a
-   mutation arm that over-truncates is only meaningful against a fixed
-   value. The shipped ``rcond`` is :math:`10^{-12}`, and the cliff it
-   must sit below is computable rather than guessed: NumPy's ``rcond``
-   is relative to the largest singular value, so truncation begins at
-   :math:`\sigma_{\min}^{\rm live}/\sigma_{\max} = 2.513 / 12.566 = 0.2`.
-   `[M]` scanned on that Gram, the draw-free range of the Parseval ratio
-   over the band-limited subspace is :math:`[1, 1]` to nine digits at
-   every scanned ``rcond`` from :math:`10^{-15}` to :math:`0.19`, as it
-   must be, since no truncation can occur below the cliff. From
-   :math:`0.21` upward it is :math:`[0, 1]`: the genuine :math:`2.513`
-   pair is discarded and a field living in it reads zero.
-   :math:`10^{-12}` sits 11.3 decades below the cliff and 3.8 above the
-   largest round-off residue as ``eigh`` reports it
-   (:math:`1.67\times10^{-16}` relative), and that lower margin moves
-   with the LAPACK driver (the window and its census are the comment on
-   ``_DENSE_METRIC_RCOND`` in :mod:`orpheus.numerics.metric`).
-#. **The pseudo-inversion declares hermiticity.** `[M]` 2026-10-18 over
-   six dense frames (``scratch/metric_docstring/probe_hermitian.py``),
-   the same call *without* ``hermitian=True`` returns a matrix whose
-   asymmetry :math:`\max|M - M^{\mathsf T}|` ranges from
-   :math:`4.6\times10^{-17}` to :math:`1.75\times10^{-15}` (the largest
-   on ``frame_faces.angular_frame(product(4, 4), 2)``), against at most
-   :math:`6.9\times10^{-17}` with it: one to two orders, and far below
-   the type's symmetry admission of :math:`10^{-12}`. The declaration is
-   kept because it makes the pseudo-inverse cut on ``eigh``, the
-   decomposition the cutoff window is measured on. (On the pre-repair
-   slab Gram of 2026-08-30 the two read :math:`4.74\times10^{-14}` and
-   :math:`1.1\times10^{-16}`.)
+#. **The rank is declared, never read from a cutoff.** The constructor
+   takes a ``kernel`` declaration
+   (:class:`~orpheus.numerics.declaration.Coord`,
+   :class:`~orpheus.numerics.declaration.Spanned` or
+   :class:`~orpheus.numerics.declaration.Ann`): ``Coord(K, ())`` for a
+   full-rank form and a ``Spanned`` of the kernel's dimension otherwise,
+   and the rank is :math:`K` minus that dimension. The inverse face zeroes
+   exactly that many of the smallest singular values and reads no
+   tolerance, so a legal Gram whose smallest eigenvalue is
+   :math:`2\times10^{-12}` is inverted and the ``kernel`` it was declared
+   with is part of the form's identity. The only rank *rule* in the tree is
+   the frame's own, ``FRAME_GRAM_RANK_RTOL = 10^{-12}`` in
+   :mod:`orpheus.numerics.frame_faces`, which counts the singular values of
+   a frame's Gram at or below that fraction of the largest and declares
+   the count through ``frame_gram_kernel``. `[M]` on the frame-built Grams
+   the dropped singular values are at most :math:`2.3\times10^{-16}` of the
+   largest and the kept ones at least :math:`1.8\times10^{-2}`, four orders
+   from the rule on both sides, so the rule separates a structural kernel
+   from a genuine range with a wide margin.
+#. **The inverse is one hermitian decomposition.** The body
+   ``_exact_inverse`` reads :math:`G = U\Sigma V^{\mathsf T}` once through
+   ``numpy.linalg.svd(..., hermitian=True)`` and returns
+   :math:`V\Sigma^{+}U^{\mathsf T}`, with :math:`\Sigma^{+}` the
+   reciprocals of the kept values and zero on the declared kernel. The
+   decomposition is hermitian because it makes the factorisation cut on
+   the symmetric eigenproblem, which keeps the inverse symmetric to
+   round-off: `[M]` 2026-10-18 over six dense frames the same call
+   *without* the hermitian declaration returns a matrix whose asymmetry
+   :math:`\max|M - M^{\mathsf T}|` ranges from :math:`4.6\times10^{-17}` to
+   :math:`1.75\times10^{-15}`, against at most :math:`6.9\times10^{-17}`
+   with it. Both faces come from this one body: the Parseval constructor
+   ``inverse_of(gram, kernel=...)`` builds :math:`G^{+}` from the
+   symmetrised Gram and keeps the symmetrised Gram as the second face, and
+   the bare constructor derives the second face from the matrix as stored.
+#. **The Moore-Penrose identities are a property, not an admission.** No
+   supplied-inverse path exists, so an inconsistent :math:`(G, G^{+})`
+   pair cannot be built, and the identities
+   :math:`G G^{+} G = G`, :math:`G^{+} G G^{+} = G^{+}` and the symmetry of
+   :math:`G^{+}G` are asserted on the 21 Grams of the bit-identity harness
+   by a gate instead of being checked at run time.
 
-The type refuses two illegal states outright rather than repairing them:
-an **asymmetric** matrix (an asymmetric form is not an inner product —
-producers symmetrize, the type does not), and an explicitly supplied
-inverse face that fails the **Penrose identity** (an inconsistent
-:math:`(G, G^{+})` pair is not a representation choice). Both thresholds
-are module constants, so a gate on the type quotes the type's own
-number (``vv-principles`` #16).
+The type refuses an **asymmetric** matrix (an asymmetric form is not an
+inner product: producers symmetrise, the type does not; the threshold is
+the module constant ``_DENSE_METRIC_SYMMETRY_RTOL``, tagged as debt until
+a Gram producer returns an exactly symmetric type), a ``kernel`` declared
+on another dimension, a non-empty ``Coord`` or an ``Ann`` as the kernel
+(the decomposition drops the smallest singular directions, so a named
+index could disagree with them), and, in a build that keeps
+``__debug__``, a kept direction whose eigenvalue is not positive. That
+last check is a misuse check on the raw constructor and not a guarantee: a
+frame's Gram is positive semi-definite by construction, and under
+``python -O`` a kept exact zero divides by zero.
 
 .. _spaces-metric-parseval-theorem:
 
@@ -3775,9 +3789,9 @@ it is not diagonal at all: `[M]` 2026-09-22, a rank-2 symmetric
 column by column is symmetric, idempotent and of rank 2, and has
 off-diagonal entries of order :math:`10^{-1}` (the probe is
 ``scratch/_definitions/riesz_probe.py``). It also equals
-``pinv(G) @ G`` to the last bit, which is not an independent check:
+:math:`G^{+}G` to the last bit, which is not an independent check:
 :class:`~orpheus.numerics.metric.DenseMetric` stores
-``pinv(G, hermitian=True)`` as its inverse face. A gate asserting
+the exact hermitian-decomposition inverse as its inverse face. A gate asserting
 ``♯∘♭ == id`` would therefore be blind to a ``1/G`` raising leg on every
 strictly positive fixture and a false red on a legal trace space, which
 is why G-H1 carries a singular fixture beside the positive one: `[M]`
@@ -4053,7 +4067,7 @@ two faces swapped: its ``apply`` is the primal's ``apply_inverse`` and its
 ``apply_inverse`` the primal's ``apply``. Every realization already stores
 both faces (a :class:`~orpheus.numerics.metric.DiagonalMetric` its weights
 and their masked reciprocal, a :class:`~orpheus.numerics.metric.DenseMetric`
-:math:`G` and the stored ``pinv(G, hermitian=True)``), so the dual
+:math:`G` and its stored exact inverse), so the dual
 computes no new inverse and its arithmetic is the primal's, bit for bit.
 That is why the dual is one wrapper over every realization rather than a
 ``DiagonalMetric(1/w)``: the reciprocal re-inverted differs from the
@@ -4067,7 +4081,7 @@ product metric stays a positioned product whose entries are the blocks'
 :class:`~orpheus.numerics.metric.DualMetric`\ s. Gates:
 ``tests/gates/numerics/test_dual_metric.py`` M1, M1b (the face swap and
 its positioned block form, bitwise), M2 (the involution), M3 (a dense dual
-computes no inverse: a spy on ``pinv`` counts zero calls) and M4 (the
+computes no inverse: a spy on ``_exact_inverse`` counts zero calls) and M4 (the
 pairing keeps its one spelling, :ref:`spaces-metric-one-spelling`).
 
 **The dual of a leaf space.** :meth:`FunctionSpace.dual
@@ -4468,7 +4482,7 @@ to a plausible-looking value, with no error and no warning):
        entries across 11 SN runs (~450 product mints), because no factor
        reaching ``*`` on an SN path carried a metric OBJECT — the only
        production installs are the frame's
-       ``DenseMetric.inverse_of(discrete_gram)`` and the two ψ½ ray
+       ``DenseMetric.inverse_of(discrete_gram, kernel=frame_gram_kernel(discrete_gram))`` and the two ψ½ ray
        spaces, none of which enters a product. What 6.2a changed is the
        arm's REACHABILITY, not its existence: the dense arm it shared the
        dispatch with is gone, so every axes-less product now takes it
@@ -4548,8 +4562,9 @@ The dense dressing, and the only evidence that can adjudicate a metric
 The founding consumer installs it:
 :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` on a ``DENSE`` verdict
 now returns the basis's space dressed with
-``DenseMetric.inverse_of(discrete_gram)`` — the pseudo-inverse at the
-pinned cutoff, with the exact symmetrized Gram kept as the inverse face
+``DenseMetric.inverse_of(discrete_gram, kernel=frame_gram_kernel(discrete_gram))`` — the
+pseudo-inverse with the frame's declared kernel zeroed, and the exact
+symmetrized Gram kept as the inverse face
 (:math:`(G^{+})^{+} = G` for a symmetric PSD form, so this is exact and
 strictly better conditioned than a second pseudo-inversion) — and
 **strips** the basis's continuum weights, because the dressing
@@ -7978,8 +7993,9 @@ status.
        :class:`~orpheus.numerics.metric.DiagonalMetric` (the Hadamard
        realization, bit-identical to the arithmetic it replaces),
        :class:`~orpheus.numerics.metric.DenseMetric` (a symmetric matrix
-       on the flattened leading block, Moore–Penrose inverse face,
-       refusing an asymmetric matrix or a Penrose-inconsistent pair) and
+       on the flattened leading block with a declared kernel,
+       Moore–Penrose inverse face, refusing an asymmetric matrix or
+       a kernel declared on another dimension) and
        :class:`~orpheus.numerics.metric.FactoredMetric` (a lazy
        per-block tensor product; the Kronecker product is never
        materialized). The space gains a third metric SOURCE and a

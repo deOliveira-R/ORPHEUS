@@ -7262,7 +7262,11 @@ older entries classify against.
      so the public entry point raises. ``[M]`` verified end-to-end:
      ``solve_sn_fixed_source(gauss_legendre(16), scattering_order=4)`` →
      ``ValueError: DenseMetric was handed an inconsistent inverse face:
-     max|G G+ G - G| = 7.117e-04``. ``[M]`` census over **105 slab rows**
+     max|G G+ G - G| = 7.117e-04``. ``[REMEDIED 2026-11-24, N01 of wave
+     W1]`` the Penrose guard no longer exists: ``DenseMetric`` builds its
+     inverse face from a declared kernel and admits no inverse by a
+     tolerance, so this refusal cannot occur (issue 634 is closed by that
+     change). ``[M]`` census over **105 slab rows**
      (``gauss_legendre`` orders 2–33 × :math:`L \in \{0..5,7\}`): **20 RAISE,
      11 breach the Parseval gate — 31 affected (30 %), minimum affected
      `L = 3`**, and one of the raising rows is the DEFAULT order. Over **196

@@ -840,7 +840,16 @@ no-:math:`4\pi/(2\ell+1)`-prefactor convention are documented at
 :class:`~orpheus.numerics.metric.DenseMetric` /
 :class:`~orpheus.numerics.metric.FactoredMetric`) — a space's inner
 product as an object that is *applied* rather than an array that is
-multiplied — is documented at :ref:`spaces-metric-object`. The theory
+multiplied — is documented at :ref:`spaces-metric-object`. A dense
+metric states the dimension of its kernel with a declaration from
+:mod:`orpheus.numerics.declaration`
+(:class:`~orpheus.numerics.declaration.Coord`,
+:class:`~orpheus.numerics.declaration.Spanned` and
+:class:`~orpheus.numerics.declaration.Ann`, with the verbs
+:func:`~orpheus.numerics.declaration.contains` and
+:func:`~orpheus.numerics.declaration.intersect`), and the frame owns the
+one rank rule that produces it
+(:func:`~orpheus.numerics.frame_faces.frame_gram_kernel`). The theory
 pages contain the full
 mathematical narrative; per-symbol API docstrings live in the
 modules themselves and are accessible via the standard

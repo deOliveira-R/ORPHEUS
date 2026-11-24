@@ -778,7 +778,7 @@ measure of the basis's one coefficient axis. It equals
 
    ⚠ Consequently, campaign 1 P7's reading of the same measurement — one
    ``~1e-16`` *"noise mode"*, recorded in
-   :mod:`orpheus.numerics.metric` and used to pin ``_DENSE_METRIC_RCOND``
+   :mod:`orpheus.numerics.metric` and used to pin the retired ``_DENSE_METRIC_RCOND``
    — was a correct measurement with an inverted interpretation. The
    numbers in the paragraph above (including the :math:`1.806` diagonal
    candidate) all stand; what does not stand is the inference that a
