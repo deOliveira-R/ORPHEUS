@@ -1,0 +1,337 @@
+Darwin	macOS-27.2.1-arm64-arm-64bit-Mach-O	arm64	2.4.4	1.17.1	accelerate
+diff_slab_ng1	a.A	(10, 10)	float64	86ea05e6ded5e96ca798e228329650b57e34bb19
+diff_slab_ng1	a.B	(10, 10)	float64	3255e1a9047ca6289a50fa820fc9ca8706622c8b
+diff_slab_ng1	a.F	(10, 10)	float64	a2dc56504dbaf3a17464afe97b9145f06c2c6113
+diff_slab_ng1	b.full_field_space.trace_space.apply_metric_ones	(4,)	float64	4c26b435423089d46e5e40e0467b25b1baf9e2d1
+diff_slab_ng1	b.full_field_space.trace_space.metric_diagonal	(4,)	float64	4c26b435423089d46e5e40e0467b25b1baf9e2d1
+diff_slab_ng1	b.scalar_trace.apply_metric_ones	(4,)	float64	4c26b435423089d46e5e40e0467b25b1baf9e2d1
+diff_slab_ng1	b.scalar_trace.metric_diagonal	(4,)	float64	4c26b435423089d46e5e40e0467b25b1baf9e2d1
+diff_slab_ng1	d.bulk_space.apply_inverse_metric	(1, 6)	float64	ca7191b8c35eb250cf00ff51886c9d5ea4904e3f
+diff_slab_ng1	d.bulk_space.apply_metric	(1, 6)	float64	150f2f862f8a7fd30203a184321e21aee271fe3f
+diff_slab_ng1	d.full_field_space.apply_inverse_metric	(10,)	float64	6b041550ce25beeab77b9f420b1442944f2682e7
+diff_slab_ng1	d.full_field_space.apply_metric	(10,)	float64	b99934a20015194817dc0b4b06aa31cd9ebe37fe
+diff_slab_ng2	a.A	(20, 20)	float64	002d0e93a4798a9c22bdbb7a6d5e638443063be4
+diff_slab_ng2	a.B	(20, 20)	float64	7d3e99e443479a3a159c83543771a5251e0fc926
+diff_slab_ng2	a.F	(20, 20)	float64	6d89b05b8fa2e256adcbe7c542cd82e976ad75e5
+diff_slab_ng2	b.full_field_space.trace_space.apply_metric_ones	(8,)	float64	0982bda536da5b1736e1ef118638d1356685602c
+diff_slab_ng2	b.full_field_space.trace_space.metric_diagonal	(8,)	float64	0982bda536da5b1736e1ef118638d1356685602c
+diff_slab_ng2	b.scalar_trace.apply_metric_ones	(8,)	float64	0982bda536da5b1736e1ef118638d1356685602c
+diff_slab_ng2	b.scalar_trace.metric_diagonal	(8,)	float64	0982bda536da5b1736e1ef118638d1356685602c
+diff_slab_ng2	d.bulk_space.apply_inverse_metric	(2, 6)	float64	21059d752f4ea3d0f7d9bc1ed12316afa09d7524
+diff_slab_ng2	d.bulk_space.apply_metric	(2, 6)	float64	35147fbed995a12845b78728c368ae03963b34b8
+diff_slab_ng2	d.full_field_space.apply_inverse_metric	(20,)	float64	86ee02dadc8d4d2cd9ec1b49f634ad7fce0c7bec
+diff_slab_ng2	d.full_field_space.apply_metric	(20,)	float64	6431515ac278e3dae14cbec036c6a2e661f35788
+diff_slab_ng3	a.A	(30, 30)	float64	eb11760dd97a52d603b938da168241d51a1d36f5
+diff_slab_ng3	a.B	(30, 30)	float64	024df8f729da65e055d9d37cbc6ab8759da5637b
+diff_slab_ng3	a.F	(30, 30)	float64	86c97a7a3517ab6d7393c456508bbae22952054e
+diff_slab_ng3	b.full_field_space.trace_space.apply_metric_ones	(12,)	float64	021c76abaa396f15a600640b3b01a096a24a52ff
+diff_slab_ng3	b.full_field_space.trace_space.metric_diagonal	(12,)	float64	021c76abaa396f15a600640b3b01a096a24a52ff
+diff_slab_ng3	b.scalar_trace.apply_metric_ones	(12,)	float64	021c76abaa396f15a600640b3b01a096a24a52ff
+diff_slab_ng3	b.scalar_trace.metric_diagonal	(12,)	float64	021c76abaa396f15a600640b3b01a096a24a52ff
+diff_slab_ng3	d.bulk_space.apply_inverse_metric	(3, 6)	float64	b973866bf3cf1f6cc5c5a13448e3ad620633bc41
+diff_slab_ng3	d.bulk_space.apply_metric	(3, 6)	float64	db4902b77b093ce62580bc81f3b3713c35d57d26
+diff_slab_ng3	d.full_field_space.apply_inverse_metric	(30,)	float64	fafc90415c629cee6b064208dd1dcc7f9b8ef585
+diff_slab_ng3	d.full_field_space.apply_metric	(30,)	float64	f42b9f5f6d641812b03a25399aaf5040ec2ee219
+frames	c.Legendre.GL2.L2.gram	(3, 3)	float64	a91730ff00f0397381aa26b01b51d74d9a74b951
+frames	c.Legendre.GL2.L2.input_gram	(3, 3)	float64	a91730ff00f0397381aa26b01b51d74d9a74b951
+frames	c.Legendre.GL2.L2.metric	(3, 3)	float64	9867461a49d486dcdeced00b62d5ba2cd3cf3171
+frames	c.Legendre.LS4.L4.gram	(5, 5)	float64	77a963c908f13a9c79664b1f157ef1e1608ba8c0
+frames	c.Legendre.LS4.L4.input_gram	(5, 5)	float64	564e0b801761686e66cb942221b9e1f32436cd62
+frames	c.Legendre.LS4.L4.metric	(5, 5)	float64	05b5d651dc5ee80e2393f50a1ecaf50e5b3259db
+frames	c.Legendre.equi4.L2.gram	(3, 3)	float64	51faea46b0850b6e5c785aecf364f672147a579d
+frames	c.Legendre.equi4.L2.input_gram	(3, 3)	float64	51faea46b0850b6e5c785aecf364f672147a579d
+frames	c.Legendre.equi4.L2.metric	(3, 3)	float64	d147ceb91b95101e758f0edfb3b29b51d1cb69a6
+frames	c.Legendre.equi5.L3.gram	(4, 4)	float64	fee46c2e3c65335d6bcda9d62d84c24643f1678f
+frames	c.Legendre.equi5.L3.input_gram	(4, 4)	float64	0e82d741f445335ce0a2703a7365c24325da3c20
+frames	c.Legendre.equi5.L3.metric	(4, 4)	float64	5e9aa13874832dc7893cb1f585b0248a8ac6a473
+frames	c.Legendre.equi8.L3.gram	(4, 4)	float64	c1d77a302c61fda6a91ccf75cdb14bc427b723ca
+frames	c.Legendre.equi8.L3.input_gram	(4, 4)	float64	c1d77a302c61fda6a91ccf75cdb14bc427b723ca
+frames	c.Legendre.equi8.L3.metric	(4, 4)	float64	2fde5b6db674734cd3d5a7eab1c3102e04b9c15a
+frames	c.MirrorSH.fold2x4.L2.gram	(15, 15)	float64	93b2559512b6acb4f50e10e5c3f39e17c27df126
+frames	c.MirrorSH.fold2x4.L2.input_gram	(15, 15)	float64	2878fa02d3bfe77655f6a60de99aababa6701ad5
+frames	c.MirrorSH.fold2x4.L2.metric	(15, 15)	float64	5e457a66f11b8c3b4428b685559e7a013f229909
+frames	c.MirrorSH.fold2x4.L3.gram	(28, 28)	float64	cc5eac329205fc6f502c90ca678e3373534f7a02
+frames	c.MirrorSH.fold2x4.L3.input_gram	(28, 28)	float64	343f26ef1013842a397080e49b545ad6639be1ea
+frames	c.MirrorSH.fold2x4.L3.metric	(28, 28)	float64	41dcacd089fc8650b566b8566055e5f04867aa1b
+frames	c.MirrorSH.fold2x6.L2.gram	(15, 15)	float64	4fbb4536b716d65d96deae0e061ed042563e2eec
+frames	c.MirrorSH.fold2x6.L2.input_gram	(15, 15)	float64	00b60cda3b6dd64e376b0261b0666a2bb5f0c4c9
+frames	c.MirrorSH.fold2x6.L2.metric	(15, 15)	float64	ad330a9baeb6dc403e0dbe95bc2e87e0d57bfcbc
+frames	c.MirrorSH.fold4x4.L2.gram	(15, 15)	float64	06a32cd345116e2d7b4408b5bd8fc1f28b19f21b
+frames	c.MirrorSH.fold4x4.L2.input_gram	(15, 15)	float64	a110ac0a049102e6326be7f6cde330850cb12378
+frames	c.MirrorSH.fold4x4.L2.metric	(15, 15)	float64	14de0ceaaf5baf809e692ec7911e14d252310a63
+frames	c.MirrorSH.fold4x4.L4.gram	(45, 45)	float64	d66ae282e016be426d56ba312e289d38a8873e73
+frames	c.MirrorSH.fold4x4.L4.input_gram	(45, 45)	float64	af7c7b97eb7520754135365ed0f85899a52fc455
+frames	c.MirrorSH.fold4x4.L4.metric	(45, 45)	float64	83700fbfb482d9acbfd8808bf5fa2811c3f44f5a
+frames	c.Overlap.R1.gram	(2, 2)	float64	f99184c3c9bf64342d7a918b78a762771ff2720c
+frames	c.Overlap.R1.input_gram	(2, 2)	float64	f99184c3c9bf64342d7a918b78a762771ff2720c
+frames	c.Overlap.R1.metric	(2, 2)	float64	4ef172bbb0be6ca3aa63942c6acbe06fcf224095
+frames	c.SH.Dnh4.L2.gram	(15, 15)	float64	5d3b8bf5d90a5091fc0b43c9c1bacaf3a32aea52
+frames	c.SH.Dnh4.L2.input_gram	(15, 15)	float64	ffe31adcdb22c4979b9d02f74654f67ff1d44717
+frames	c.SH.Dnh4.L2.metric	(15, 15)	float64	377b3edd20e84e84737bdcc01948d98ecfb19f6c
+frames	c.SH.Dnh8.L4.gram	(45, 45)	float64	3581fbc08d55c09507dbdfad705319a5fc9a77e9
+frames	c.SH.Dnh8.L4.input_gram	(45, 45)	float64	97796d6b4a3c363f148a3f01b9f210233a86435d
+frames	c.SH.Dnh8.L4.metric	(45, 45)	float64	8caf3374e9a9e959353f2597a20f760af64b98e0
+frames	c.SH.Oh24.L3.gram	(28, 28)	float64	43fdd968f927d2091bc62d4bc61973718bf62e3d
+frames	c.SH.Oh24.L3.input_gram	(28, 28)	float64	19cda66a24f163348efc3fae2aa4fc0b87e88576
+frames	c.SH.Oh24.L3.metric	(28, 28)	float64	cdb7ad5e0fa0dfafb530e0f7e838cb92b0717edf
+frames	c.SH.Oh24.L4.gram	(45, 45)	float64	fc083a9d6c0328e9caf72527e7ecef000a571900
+frames	c.SH.Oh24.L4.input_gram	(45, 45)	float64	e8ede65731ba1956527e72fd7faf9f1b942bfd3e
+frames	c.SH.Oh24.L4.metric	(45, 45)	float64	e47877f4986604406a3c9db81e7309055ffe49f9
+frames	c.SH.Oh24.L5.gram	(66, 66)	float64	8e14ae43c2fcb217b0337e76702f03c39f693c1f
+frames	c.SH.Oh24.L5.input_gram	(66, 66)	float64	93925c089983f6db24a3f1dfad69191c5170f4b6
+frames	c.SH.Oh24.L5.metric	(66, 66)	float64	c50685b82cad9678ee801d9da43f405761be77b5
+frames	c.syn.equi8.L4_5x5.gram	(5, 5)	float64	ff18d46b524f09837364eaa5fea38c2109cec0ce
+frames	c.syn.equi8.L4_5x5.input_gram	(5, 5)	float64	ff18d46b524f09837364eaa5fea38c2109cec0ce
+frames	c.syn.equi8.L4_5x5.metric	(5, 5)	float64	dd7704e386641feea3f9a56b98a11d902b795dc7
+frames	c.syn.kappa1e4_8x8.gram	(8, 8)	float64	9c012f2f86733ee9b2c5fc3a6766bb64d6c729bf
+frames	c.syn.kappa1e4_8x8.input_gram	(8, 8)	float64	9c012f2f86733ee9b2c5fc3a6766bb64d6c729bf
+frames	c.syn.kappa1e4_8x8.metric	(8, 8)	float64	dec1963dc3b7807e43307375743c5a89384f4365
+frames	c.syn.near_cutoff_5x5.gram	(5, 5)	float64	de17ec4d3b3cd77981e2ae7fb6df5390a9de24e1
+frames	c.syn.near_cutoff_5x5.input_gram	(5, 5)	float64	de17ec4d3b3cd77981e2ae7fb6df5390a9de24e1
+frames	c.syn.near_cutoff_5x5.metric	(5, 5)	float64	8d760c240d05c24ce0b7b084a0c36320d2edb6a4
+frames	c.syn.pou_3x3.gram	(3, 3)	float64	95733c62e36e80454e5d37187ead19ab55046326
+frames	c.syn.pou_3x3.input_gram	(3, 3)	float64	95733c62e36e80454e5d37187ead19ab55046326
+frames	c.syn.pou_3x3.metric	(3, 3)	float64	e52e46c1b395afa468a5fe4a23cbe8ff23ffb09c
+frames	c.syn.rank2_3x3.gram	(3, 3)	float64	096d25eb114be0e44320a39fc3374c1473085421
+frames	c.syn.rank2_3x3.input_gram	(3, 3)	float64	096d25eb114be0e44320a39fc3374c1473085421
+frames	c.syn.rank2_3x3.metric	(3, 3)	float64	1718d24c52b70d563ab46e43578adb9e06e9a233
+sn_box_ng1	a.A	(96, 96)	float64	b79aa4ffb3a462860b89444a8dc3e7d60985dd6d
+sn_box_ng1	a.B	(96, 96)	float64	1be252bf2ccc043a992c8cbedca7647c03801daf
+sn_box_ng1	a.F	(96, 96)	float64	249d57130a8776c19200ba6d06f873e8ad1b720e
+sn_box_ng1	b.full_field_space.trace_space.apply_metric_ones	(64,)	float64	9b62952acef489cc7768888eb206a2b6aceee0f8
+sn_box_ng1	b.full_field_space.trace_space.metric_diagonal	(64,)	float64	9b62952acef489cc7768888eb206a2b6aceee0f8
+sn_box_ng1	d.angular_bulk_space.apply_inverse_metric	(8, 1, 2, 2)	float64	e0d19e769cba4e71e6feacb4ad8059eceb7d297c
+sn_box_ng1	d.angular_bulk_space.apply_metric	(8, 1, 2, 2)	float64	0571b94149ea6e07229b77f112a3607fd1a7eecf
+sn_box_ng1	d.angular_trial_space.apply_inverse_metric	(8, 1, 2, 2)	float64	e0d19e769cba4e71e6feacb4ad8059eceb7d297c
+sn_box_ng1	d.angular_trial_space.apply_metric	(8, 1, 2, 2)	float64	0571b94149ea6e07229b77f112a3607fd1a7eecf
+sn_box_ng1	d.bulk_space.apply_inverse_metric	(1, 2, 2)	float64	f31acca75053b334a1f286092826c1380a752327
+sn_box_ng1	d.bulk_space.apply_metric	(1, 2, 2)	float64	737127be6ab8d607610e6056a8449eb17db64a23
+sn_box_ng1	d.full_field_space.apply_inverse_metric	(96,)	float64	a3121c97dd4980473b15103476c49da1799c0617
+sn_box_ng1	d.full_field_space.apply_metric	(96,)	float64	9ad1ba9763c5e9f173a50b8264bb595dff961f94
+sn_box_ng1	d.moment_space(2).apply_inverse_metric	(3, 5, 1, 2, 2)	float64	0024ae0f67661243bef5a06f6ce5ecbb505d1627
+sn_box_ng1	d.moment_space(2).apply_metric	(3, 5, 1, 2, 2)	float64	5f3e8a402eadb5f20f4407967b3c7f7844bfa2b9
+sn_box_ng2	a.A	(192, 192)	float64	8be4019d5e1f1d93c59e6cdceb1afbb00accbbb0
+sn_box_ng2	a.B	(192, 192)	float64	8b784d224f9f94ea0c669f1ddb8ee69af5416200
+sn_box_ng2	a.F	(192, 192)	float64	2d1c729f7cb62a12dcb60db34e1a2f5389fc86f6
+sn_box_ng2	b.full_field_space.trace_space.apply_metric_ones	(128,)	float64	ed2d00edb03c60e1dc2766a9f1704d00c4beb70d
+sn_box_ng2	b.full_field_space.trace_space.metric_diagonal	(128,)	float64	ed2d00edb03c60e1dc2766a9f1704d00c4beb70d
+sn_box_ng2	d.angular_bulk_space.apply_inverse_metric	(8, 2, 2, 2)	float64	b870bb1bd4bc111bfe7133af61e49f89cb8646d3
+sn_box_ng2	d.angular_bulk_space.apply_metric	(8, 2, 2, 2)	float64	d853f0b699642a5f60ed906ce5778bef32b8a7f0
+sn_box_ng2	d.angular_trial_space.apply_inverse_metric	(8, 2, 2, 2)	float64	b870bb1bd4bc111bfe7133af61e49f89cb8646d3
+sn_box_ng2	d.angular_trial_space.apply_metric	(8, 2, 2, 2)	float64	d853f0b699642a5f60ed906ce5778bef32b8a7f0
+sn_box_ng2	d.bulk_space.apply_inverse_metric	(2, 2, 2)	float64	34ead0863622923c99bcfe318576b3f6ca37ba9f
+sn_box_ng2	d.bulk_space.apply_metric	(2, 2, 2)	float64	40503a3edf9952f84b93b631f30729871f68e15f
+sn_box_ng2	d.full_field_space.apply_inverse_metric	(192,)	float64	4799bc8dc81c7cd6716a83f95ccf3eed0c89d0aa
+sn_box_ng2	d.full_field_space.apply_metric	(192,)	float64	2edecdbc89ed9c57b28a54883193b3b7075e2d6c
+sn_box_ng2	d.moment_space(2).apply_inverse_metric	(3, 5, 2, 2, 2)	float64	11c04536acbe43952389be0351755dc7fa73504a
+sn_box_ng2	d.moment_space(2).apply_metric	(3, 5, 2, 2, 2)	float64	a3aa49209129b41a9e7cd2771638166f71f4212c
+sn_box_ng3	a.A	(288, 288)	float64	4d50563138f553f23cc9cba1ccad62527e50a309
+sn_box_ng3	a.B	(288, 288)	float64	ac4a43f9e5142b79b1211337a753fda398b4d91b
+sn_box_ng3	a.F	(288, 288)	float64	e6ec6c2602a88873a5c3315678bb1e9dfadbe7a9
+sn_box_ng3	b.full_field_space.trace_space.apply_metric_ones	(192,)	float64	15ee6eb851b948dff62835eea5c2d071698917cf
+sn_box_ng3	b.full_field_space.trace_space.metric_diagonal	(192,)	float64	15ee6eb851b948dff62835eea5c2d071698917cf
+sn_box_ng3	d.angular_bulk_space.apply_inverse_metric	(8, 3, 2, 2)	float64	c0f0de611fce1f0e73ebec2b84fac0eff9a674db
+sn_box_ng3	d.angular_bulk_space.apply_metric	(8, 3, 2, 2)	float64	9b5a769c155e087e9c21c3d81e9f8491d5f9330b
+sn_box_ng3	d.angular_trial_space.apply_inverse_metric	(8, 3, 2, 2)	float64	c0f0de611fce1f0e73ebec2b84fac0eff9a674db
+sn_box_ng3	d.angular_trial_space.apply_metric	(8, 3, 2, 2)	float64	9b5a769c155e087e9c21c3d81e9f8491d5f9330b
+sn_box_ng3	d.bulk_space.apply_inverse_metric	(3, 2, 2)	float64	0848b66636c602b3f41888769e268fcbcfe1ac8d
+sn_box_ng3	d.bulk_space.apply_metric	(3, 2, 2)	float64	94cb4d10fb63d8356d0ffd7a3f44ad2de114d018
+sn_box_ng3	d.full_field_space.apply_inverse_metric	(288,)	float64	7a6ebddd249f6de06408752c29f5e0c33a4ab06f
+sn_box_ng3	d.full_field_space.apply_metric	(288,)	float64	33542405bf06431a009f54f20b50d6e374e45597
+sn_box_ng3	d.moment_space(2).apply_inverse_metric	(3, 5, 3, 2, 2)	float64	22f909da93a3cd7ee6183b8ce3a0ad0d2c604da8
+sn_box_ng3	d.moment_space(2).apply_metric	(3, 5, 3, 2, 2)	float64	7db5514be3aa1f8905ffb42cecb0f0b5cad8eed5
+sn_cylinder_ng1	a.A	(56, 56)	float64	0b828bf2861c6cc58e472cf40299717b2d1f7a43
+sn_cylinder_ng1	a.B	(28, 28)	float64	f55658f98edb06069b0a08b97136de5becf9eaea
+sn_cylinder_ng1	a.F	(56, 56)	float64	32724cc4ae68addde18def7adfcd48517d26b060
+sn_cylinder_ng1	b.full_field_space.trace_space.apply_metric_ones	(4,)	float64	fcc1aed518cb681b5fe503f44c1b23c7dee55d7d
+sn_cylinder_ng1	b.full_field_space.trace_space.metric_diagonal	(4,)	float64	fcc1aed518cb681b5fe503f44c1b23c7dee55d7d
+sn_cylinder_ng1	b.radial_characteristic_boundary_space.apply_metric_ones	(4,)	float64	5585d747fcbd15ecd92323df429125f7e4b978c8
+sn_cylinder_ng1	b.radial_characteristic_boundary_space.metric_diagonal	(4,)	float64	5585d747fcbd15ecd92323df429125f7e4b978c8
+sn_cylinder_ng1	b.radial_characteristic_field_space.trace_space.apply_metric_ones	(4,)	float64	5585d747fcbd15ecd92323df429125f7e4b978c8
+sn_cylinder_ng1	b.radial_characteristic_field_space.trace_space.metric_diagonal	(4,)	float64	5585d747fcbd15ecd92323df429125f7e4b978c8
+sn_cylinder_ng1	d.angular_bulk_space.apply_inverse_metric	(4, 1, 6)	float64	c84be9c67f2b56c28fb1f7e765984fd676bd9491
+sn_cylinder_ng1	d.angular_bulk_space.apply_metric	(4, 1, 6)	float64	a214fbffbe92a852383229e3e1b8e2720f1a7103
+sn_cylinder_ng1	d.angular_trial_space.apply_inverse_metric	(4, 1, 6)	float64	c84be9c67f2b56c28fb1f7e765984fd676bd9491
+sn_cylinder_ng1	d.angular_trial_space.apply_metric	(4, 1, 6)	float64	a214fbffbe92a852383229e3e1b8e2720f1a7103
+sn_cylinder_ng1	d.bulk_space.apply_inverse_metric	(1, 6)	float64	9ee521f1492c0db6b7ed8c029da75661bb912122
+sn_cylinder_ng1	d.bulk_space.apply_metric	(1, 6)	float64	77129e78cea05326cae06580c03df49094ba43c3
+sn_cylinder_ng1	d.full_field_space.apply_inverse_metric	(28,)	float64	a509a3e94943fa359c5cd79cf0e6ca2c7b7accbd
+sn_cylinder_ng1	d.full_field_space.apply_metric	(28,)	float64	54686db029f090b876f2f424749a63ededef5224
+sn_cylinder_ng1	d.moment_space(2).apply_inverse_metric	(3, 5, 1, 6)	float64	c5ee540df042fea068e3d1d78b2794294e128f16
+sn_cylinder_ng1	d.moment_space(2).apply_metric	(3, 5, 1, 6)	float64	f30e260fc7355a144fc64db35df88fb44b869332
+sn_cylinder_ng1	d.radial_characteristic_boundary_space.apply_inverse_metric	(4,)	float64	93559132a16a1a545933e9cc216df5a88190fd0f
+sn_cylinder_ng1	d.radial_characteristic_boundary_space.apply_metric	(4,)	float64	8348959dbc1af8bc063be33e2751a49b7af243a2
+sn_cylinder_ng1	d.radial_characteristic_field_space.apply_inverse_metric	(28,)	float64	cdada8c1436582f09eebf1cb208f754b53411293
+sn_cylinder_ng1	d.radial_characteristic_field_space.apply_metric	(28,)	float64	c6a97efcfb37ca969c51265ec7d6c64c7ee310fd
+sn_cylinder_ng1	d.radial_characteristic_interior_space.apply_inverse_metric	(24,)	float64	67ffc85d093e86097257fc06178f2ddcad565a66
+sn_cylinder_ng1	d.radial_characteristic_interior_space.apply_metric	(24,)	float64	f9ec3d2884c171191da75601f2941f17bdd8c5a4
+sn_cylinder_ng2	a.A	(112, 112)	float64	8cee8aa1af642edaa0f48f0e68b318d036993dc0
+sn_cylinder_ng2	a.B	(56, 56)	float64	7a16b3a9f3619a46fac2705b7b45e325accb7a83
+sn_cylinder_ng2	a.F	(112, 112)	float64	0fd208a5ae2e9b0011c2338c2501a55162c66718
+sn_cylinder_ng2	b.full_field_space.trace_space.apply_metric_ones	(8,)	float64	008aef49df4f26df26a43ea4e78c445bc0ce77e4
+sn_cylinder_ng2	b.full_field_space.trace_space.metric_diagonal	(8,)	float64	008aef49df4f26df26a43ea4e78c445bc0ce77e4
+sn_cylinder_ng2	b.radial_characteristic_boundary_space.apply_metric_ones	(8,)	float64	ac3dfdeade71e9992ae1c3bc00e3de9d15adae65
+sn_cylinder_ng2	b.radial_characteristic_boundary_space.metric_diagonal	(8,)	float64	ac3dfdeade71e9992ae1c3bc00e3de9d15adae65
+sn_cylinder_ng2	b.radial_characteristic_field_space.trace_space.apply_metric_ones	(8,)	float64	ac3dfdeade71e9992ae1c3bc00e3de9d15adae65
+sn_cylinder_ng2	b.radial_characteristic_field_space.trace_space.metric_diagonal	(8,)	float64	ac3dfdeade71e9992ae1c3bc00e3de9d15adae65
+sn_cylinder_ng2	d.angular_bulk_space.apply_inverse_metric	(4, 2, 6)	float64	23aeb4b1f286c54c2df50df3eaa436b7badd4727
+sn_cylinder_ng2	d.angular_bulk_space.apply_metric	(4, 2, 6)	float64	bf41990e7405af09d1195ca52731b41cbdb1c3ed
+sn_cylinder_ng2	d.angular_trial_space.apply_inverse_metric	(4, 2, 6)	float64	23aeb4b1f286c54c2df50df3eaa436b7badd4727
+sn_cylinder_ng2	d.angular_trial_space.apply_metric	(4, 2, 6)	float64	bf41990e7405af09d1195ca52731b41cbdb1c3ed
+sn_cylinder_ng2	d.bulk_space.apply_inverse_metric	(2, 6)	float64	50f30c89abb90a5f126c73981f2033ab5bab09fc
+sn_cylinder_ng2	d.bulk_space.apply_metric	(2, 6)	float64	d938621b03f82beda39cec4913fc1fd40fd10908
+sn_cylinder_ng2	d.full_field_space.apply_inverse_metric	(56,)	float64	f19d3bcabb5df0f7fbcbf3ace163cca1e19c9c79
+sn_cylinder_ng2	d.full_field_space.apply_metric	(56,)	float64	fc772f78caff599668206f7333155471bb74d98b
+sn_cylinder_ng2	d.moment_space(2).apply_inverse_metric	(3, 5, 2, 6)	float64	b4539275e8a005004d37df0dd25637e42514a8fa
+sn_cylinder_ng2	d.moment_space(2).apply_metric	(3, 5, 2, 6)	float64	88274dc609d3ed7217f29a40d9cc3e5b738e8fa7
+sn_cylinder_ng2	d.radial_characteristic_boundary_space.apply_inverse_metric	(8,)	float64	6e659ea8cd6b4ca1915b52e03faa121422f094bc
+sn_cylinder_ng2	d.radial_characteristic_boundary_space.apply_metric	(8,)	float64	92a1314f2cdec0363c2dce2179f3d8e35e5bbffd
+sn_cylinder_ng2	d.radial_characteristic_field_space.apply_inverse_metric	(56,)	float64	461ec85cd24df916b6d06735aa9aed3688b6b42f
+sn_cylinder_ng2	d.radial_characteristic_field_space.apply_metric	(56,)	float64	92d41650f83706010fd03da82dc273f9a930d715
+sn_cylinder_ng2	d.radial_characteristic_interior_space.apply_inverse_metric	(48,)	float64	5c0c41add804ecd75b65b45b6aff83f2393420b4
+sn_cylinder_ng2	d.radial_characteristic_interior_space.apply_metric	(48,)	float64	7034b962ec9277bf7ee54866aab2307ae5cc24e0
+sn_cylinder_ng3	a.A	(168, 168)	float64	f9417dcbab8ab5c1452172a3f0f2da6198628e5b
+sn_cylinder_ng3	a.B	(84, 84)	float64	8ffdbf846e7a6823ee6ecac15a37a79898d90f35
+sn_cylinder_ng3	a.F	(168, 168)	float64	432699d1b6ae2eb687c8302a39f38e7702e9950d
+sn_cylinder_ng3	b.full_field_space.trace_space.apply_metric_ones	(12,)	float64	88210b6cb5bb5c837556ec72d2da08e1a2741dbe
+sn_cylinder_ng3	b.full_field_space.trace_space.metric_diagonal	(12,)	float64	88210b6cb5bb5c837556ec72d2da08e1a2741dbe
+sn_cylinder_ng3	b.radial_characteristic_boundary_space.apply_metric_ones	(12,)	float64	e447d6bdf618bb44ae350e6837b768e978193c9c
+sn_cylinder_ng3	b.radial_characteristic_boundary_space.metric_diagonal	(12,)	float64	e447d6bdf618bb44ae350e6837b768e978193c9c
+sn_cylinder_ng3	b.radial_characteristic_field_space.trace_space.apply_metric_ones	(12,)	float64	e447d6bdf618bb44ae350e6837b768e978193c9c
+sn_cylinder_ng3	b.radial_characteristic_field_space.trace_space.metric_diagonal	(12,)	float64	e447d6bdf618bb44ae350e6837b768e978193c9c
+sn_cylinder_ng3	d.angular_bulk_space.apply_inverse_metric	(4, 3, 6)	float64	1c22dc23a961719b2756e9113d97c259b3b63d1c
+sn_cylinder_ng3	d.angular_bulk_space.apply_metric	(4, 3, 6)	float64	54f8cb6c566fbb32c16f456747942fced27fe193
+sn_cylinder_ng3	d.angular_trial_space.apply_inverse_metric	(4, 3, 6)	float64	1c22dc23a961719b2756e9113d97c259b3b63d1c
+sn_cylinder_ng3	d.angular_trial_space.apply_metric	(4, 3, 6)	float64	54f8cb6c566fbb32c16f456747942fced27fe193
+sn_cylinder_ng3	d.bulk_space.apply_inverse_metric	(3, 6)	float64	5d4d7493e1af33d0c5d1c8d8fa07dc8970bcd157
+sn_cylinder_ng3	d.bulk_space.apply_metric	(3, 6)	float64	dda0736e7e5bd35d518ea10f2c1305174d553db5
+sn_cylinder_ng3	d.full_field_space.apply_inverse_metric	(84,)	float64	78c9d95348bb9feb4f9edc908c09c2f0b34f0ec4
+sn_cylinder_ng3	d.full_field_space.apply_metric	(84,)	float64	a51106aecc74616498b7280f0e87bf2abd7695c3
+sn_cylinder_ng3	d.moment_space(2).apply_inverse_metric	(3, 5, 3, 6)	float64	b85c514e2db06d775b314ad3bc35cad1591e86cf
+sn_cylinder_ng3	d.moment_space(2).apply_metric	(3, 5, 3, 6)	float64	439be149086871912bf6e4de9e833943683ae94e
+sn_cylinder_ng3	d.radial_characteristic_boundary_space.apply_inverse_metric	(12,)	float64	869e3ca0a8872d0faf4b5c33701e422404cf1ac3
+sn_cylinder_ng3	d.radial_characteristic_boundary_space.apply_metric	(12,)	float64	e91c218357b786338b86776a9ef2cc322580d7d5
+sn_cylinder_ng3	d.radial_characteristic_field_space.apply_inverse_metric	(84,)	float64	bd62ddc06e5ddcb2a6a97fc397362c2979fec33b
+sn_cylinder_ng3	d.radial_characteristic_field_space.apply_metric	(84,)	float64	d3e8ae93051025694102fdab82d1bca6dc84b230
+sn_cylinder_ng3	d.radial_characteristic_interior_space.apply_inverse_metric	(72,)	float64	a0ac382f9fbc0c8cfaa03245dd5657a3563353c3
+sn_cylinder_ng3	d.radial_characteristic_interior_space.apply_metric	(72,)	float64	3929e832243503759ec6cc63947d47591a45c4c3
+sn_slab_ng1	a.A	(32, 32)	float64	70552410b121c25e5add9df588002baae9c5ed4c
+sn_slab_ng1	a.B	(32, 32)	float64	6b16f8802d17fdf147c9b1e97ffa4dd755b763de
+sn_slab_ng1	a.F	(32, 32)	float64	9500d6cdeee9b182c63e64707c6968a659c56743
+sn_slab_ng1	b.full_field_space.trace_space.apply_metric_ones	(8,)	float64	bd91d2fbcdc865987f7a8bab0c70b6a7cf129a17
+sn_slab_ng1	b.full_field_space.trace_space.metric_diagonal	(8,)	float64	bd91d2fbcdc865987f7a8bab0c70b6a7cf129a17
+sn_slab_ng1	d.angular_bulk_space.apply_inverse_metric	(4, 1, 6)	float64	67a5aedca6bb52efcaaf049b536cefc367107b4a
+sn_slab_ng1	d.angular_bulk_space.apply_metric	(4, 1, 6)	float64	a342dcc726ee4dd8e13433f197c44c5858538f06
+sn_slab_ng1	d.angular_trial_space.apply_inverse_metric	(4, 1, 6)	float64	67a5aedca6bb52efcaaf049b536cefc367107b4a
+sn_slab_ng1	d.angular_trial_space.apply_metric	(4, 1, 6)	float64	a342dcc726ee4dd8e13433f197c44c5858538f06
+sn_slab_ng1	d.bulk_space.apply_inverse_metric	(1, 6)	float64	eae3b7a928e1ed39ba5e1c37298d14aef9d05b4a
+sn_slab_ng1	d.bulk_space.apply_metric	(1, 6)	float64	65d4817ee8136c485edc0661ce467fe841d2c512
+sn_slab_ng1	d.full_field_space.apply_inverse_metric	(32,)	float64	25472335ab7fd655946cbd474b2c7450d1854232
+sn_slab_ng1	d.full_field_space.apply_metric	(32,)	float64	154271b60dc8b13edbd779721ef428ba862de362
+sn_slab_ng1	d.moment_space(2).apply_inverse_metric	(3, 1, 6)	float64	26907c93b0e0c9b2690292f39617e8117522777e
+sn_slab_ng1	d.moment_space(2).apply_metric	(3, 1, 6)	float64	8e5971b3d586f8d6e20a62e584c8ead06af09aa5
+sn_slab_ng2	a.A	(64, 64)	float64	dcbcbf25f78b1e5457589a90fad471f030ac42c5
+sn_slab_ng2	a.B	(64, 64)	float64	e2ad056864c4b08e663c17507d5bc3cb41e46bca
+sn_slab_ng2	a.F	(64, 64)	float64	ba9a5318fa66f68042be881e6dbceb13c599c3a5
+sn_slab_ng2	b.full_field_space.trace_space.apply_metric_ones	(16,)	float64	e7d3a8162b0b74d08bc9a321a15d04d5acba34c7
+sn_slab_ng2	b.full_field_space.trace_space.metric_diagonal	(16,)	float64	e7d3a8162b0b74d08bc9a321a15d04d5acba34c7
+sn_slab_ng2	d.angular_bulk_space.apply_inverse_metric	(4, 2, 6)	float64	92f533af9564e81cfd71a5d04586a3561659c8d1
+sn_slab_ng2	d.angular_bulk_space.apply_metric	(4, 2, 6)	float64	6159f2075129bc6e07b53b40d0e018e99b94eb70
+sn_slab_ng2	d.angular_trial_space.apply_inverse_metric	(4, 2, 6)	float64	92f533af9564e81cfd71a5d04586a3561659c8d1
+sn_slab_ng2	d.angular_trial_space.apply_metric	(4, 2, 6)	float64	6159f2075129bc6e07b53b40d0e018e99b94eb70
+sn_slab_ng2	d.bulk_space.apply_inverse_metric	(2, 6)	float64	2c588bc9a6c126a4d487c889a502ed9dd2167834
+sn_slab_ng2	d.bulk_space.apply_metric	(2, 6)	float64	d4a94a95a4bab4e2297071dbcc63a93278b9e0a3
+sn_slab_ng2	d.full_field_space.apply_inverse_metric	(64,)	float64	0d2ffad8d7a0c135db384d83a86f4c13907d0612
+sn_slab_ng2	d.full_field_space.apply_metric	(64,)	float64	1d422801311c5d8aae4b8ee3654318a04532356f
+sn_slab_ng2	d.moment_space(2).apply_inverse_metric	(3, 2, 6)	float64	294695807f2313b056ba8c5ebd542a0cfa97beb4
+sn_slab_ng2	d.moment_space(2).apply_metric	(3, 2, 6)	float64	d6513da9f1d899121b1da2255d27d8a9e7be4f6f
+sn_slab_ng3	a.A	(96, 96)	float64	f9f2ce85fd7c26ff72eb3ba77044b42b84e2ede6
+sn_slab_ng3	a.B	(96, 96)	float64	8dc361d9b7e779e84bb9ec87f26eb29a370f3919
+sn_slab_ng3	a.F	(96, 96)	float64	ac25c2d6c829abc9ea297045cf48d97bee628782
+sn_slab_ng3	b.full_field_space.trace_space.apply_metric_ones	(24,)	float64	8ef83bb555b876948ee3e7a57978edfb9a77adde
+sn_slab_ng3	b.full_field_space.trace_space.metric_diagonal	(24,)	float64	8ef83bb555b876948ee3e7a57978edfb9a77adde
+sn_slab_ng3	d.angular_bulk_space.apply_inverse_metric	(4, 3, 6)	float64	5568c9290d6552da80ed8f5ceef91016ce3492f2
+sn_slab_ng3	d.angular_bulk_space.apply_metric	(4, 3, 6)	float64	870006fdad9994669297c7b2e372dc0bbf0f7181
+sn_slab_ng3	d.angular_trial_space.apply_inverse_metric	(4, 3, 6)	float64	5568c9290d6552da80ed8f5ceef91016ce3492f2
+sn_slab_ng3	d.angular_trial_space.apply_metric	(4, 3, 6)	float64	870006fdad9994669297c7b2e372dc0bbf0f7181
+sn_slab_ng3	d.bulk_space.apply_inverse_metric	(3, 6)	float64	5a162510f8c8f057fcdbcffb6a4c33ee09f087d8
+sn_slab_ng3	d.bulk_space.apply_metric	(3, 6)	float64	3c2ba65328f745a47af477618698c42ab5cdb297
+sn_slab_ng3	d.full_field_space.apply_inverse_metric	(96,)	float64	ebd978e918f6e6fdf6182f6a4c4cb81398f94987
+sn_slab_ng3	d.full_field_space.apply_metric	(96,)	float64	9b14d0af8d8772da04680174d10a910693660f68
+sn_slab_ng3	d.moment_space(2).apply_inverse_metric	(3, 3, 6)	float64	c5b0a0da835d16581b606ca9a5cb50ba124eea12
+sn_slab_ng3	d.moment_space(2).apply_metric	(3, 3, 6)	float64	2ac4f300d9dd3d32241a78e9f279634b8a66bf05
+sn_sphere_ng1	a.A	(42, 42)	float64	e9f318b09cefdd46ac830f12a64f472749e67458
+sn_sphere_ng1	a.B	(28, 28)	float64	2d61a44ebb161a126ab08bd3fd0fc8d074ca32e1
+sn_sphere_ng1	a.F	(42, 42)	float64	b1014fa443557e796e886df895a32e931d5fd232
+sn_sphere_ng1	b.full_field_space.trace_space.apply_metric_ones	(4,)	float64	1af8dc61135fdd690ee0b2ec60f2a39a286cdc76
+sn_sphere_ng1	b.full_field_space.trace_space.metric_diagonal	(4,)	float64	1af8dc61135fdd690ee0b2ec60f2a39a286cdc76
+sn_sphere_ng1	b.radial_characteristic_boundary_space.apply_metric_ones	(2,)	float64	e5e52ffe8ab0c40eada7e308a8890acc059eb663
+sn_sphere_ng1	b.radial_characteristic_boundary_space.metric_diagonal	(2,)	float64	e5e52ffe8ab0c40eada7e308a8890acc059eb663
+sn_sphere_ng1	b.radial_characteristic_field_space.trace_space.apply_metric_ones	(2,)	float64	e5e52ffe8ab0c40eada7e308a8890acc059eb663
+sn_sphere_ng1	b.radial_characteristic_field_space.trace_space.metric_diagonal	(2,)	float64	e5e52ffe8ab0c40eada7e308a8890acc059eb663
+sn_sphere_ng1	d.angular_bulk_space.apply_inverse_metric	(4, 1, 6)	float64	4c400dc5a9ab43a58f64a08eff2566ff6d9e2ecb
+sn_sphere_ng1	d.angular_bulk_space.apply_metric	(4, 1, 6)	float64	762e36dfccb28a6b715eeeef2aedd090de1ce72b
+sn_sphere_ng1	d.angular_trial_space.apply_inverse_metric	(4, 1, 6)	float64	4c400dc5a9ab43a58f64a08eff2566ff6d9e2ecb
+sn_sphere_ng1	d.angular_trial_space.apply_metric	(4, 1, 6)	float64	762e36dfccb28a6b715eeeef2aedd090de1ce72b
+sn_sphere_ng1	d.bulk_space.apply_inverse_metric	(1, 6)	float64	714c99c8b6f150a91f377772092d08f39d5fceaf
+sn_sphere_ng1	d.bulk_space.apply_metric	(1, 6)	float64	428d6dc2ed122ba846b9a875d0db09dd8a9d72e7
+sn_sphere_ng1	d.full_field_space.apply_inverse_metric	(28,)	float64	96b25348d51cbd19986cb2d7b7a8c88ce81cfc96
+sn_sphere_ng1	d.full_field_space.apply_metric	(28,)	float64	6dd11f32240fdd98899410d1730835ed1fff2793
+sn_sphere_ng1	d.moment_space(2).apply_inverse_metric	(3, 1, 6)	float64	056683f68a6b8e74c84fffa39f71d90c290291b4
+sn_sphere_ng1	d.moment_space(2).apply_metric	(3, 1, 6)	float64	15e12f3f27a6ae9103cfc183c39e8c69ab8745a8
+sn_sphere_ng1	d.radial_characteristic_boundary_space.apply_inverse_metric	(2,)	float64	dbe61ceeff27f16b25d4c3e1384b87011c813107
+sn_sphere_ng1	d.radial_characteristic_boundary_space.apply_metric	(2,)	float64	7f994163c5161e5f7b75d026e5f8af74aa99afc4
+sn_sphere_ng1	d.radial_characteristic_field_space.apply_inverse_metric	(14,)	float64	fe8c128db99c50622a94addcd9863da9bc80ac26
+sn_sphere_ng1	d.radial_characteristic_field_space.apply_metric	(14,)	float64	45554f0e97bcb0dbd20dab8f333a126355f5f794
+sn_sphere_ng1	d.radial_characteristic_interior_space.apply_inverse_metric	(12,)	float64	06b632719b665a371ad088a1921a674f83af1640
+sn_sphere_ng1	d.radial_characteristic_interior_space.apply_metric	(12,)	float64	7ad43022a821f84389fb4ed1b9cf6fb4e9b11336
+sn_sphere_ng2	a.A	(84, 84)	float64	89cbbd45f422a4a56a32033e7fc3bccd7ef2ee3a
+sn_sphere_ng2	a.B	(56, 56)	float64	877a8af1ae22de70f130e362e9917f0611f1df0f
+sn_sphere_ng2	a.F	(84, 84)	float64	259d1b944592700558797b65c04b83d1a112c467
+sn_sphere_ng2	b.full_field_space.trace_space.apply_metric_ones	(8,)	float64	f4adc1073ef4c6d8106fb09ae7a9121757ec82ea
+sn_sphere_ng2	b.full_field_space.trace_space.metric_diagonal	(8,)	float64	f4adc1073ef4c6d8106fb09ae7a9121757ec82ea
+sn_sphere_ng2	b.radial_characteristic_boundary_space.apply_metric_ones	(4,)	float64	c7d5d3469d85cd3697240ffb9c5d1011ac0ad33f
+sn_sphere_ng2	b.radial_characteristic_boundary_space.metric_diagonal	(4,)	float64	c7d5d3469d85cd3697240ffb9c5d1011ac0ad33f
+sn_sphere_ng2	b.radial_characteristic_field_space.trace_space.apply_metric_ones	(4,)	float64	c7d5d3469d85cd3697240ffb9c5d1011ac0ad33f
+sn_sphere_ng2	b.radial_characteristic_field_space.trace_space.metric_diagonal	(4,)	float64	c7d5d3469d85cd3697240ffb9c5d1011ac0ad33f
+sn_sphere_ng2	d.angular_bulk_space.apply_inverse_metric	(4, 2, 6)	float64	6febbdb444a4413bbe2c27c4bc7ac7dae48f5945
+sn_sphere_ng2	d.angular_bulk_space.apply_metric	(4, 2, 6)	float64	618e0c0a4abb5915d1b7fcc4c5cc1e0ccc5c864a
+sn_sphere_ng2	d.angular_trial_space.apply_inverse_metric	(4, 2, 6)	float64	6febbdb444a4413bbe2c27c4bc7ac7dae48f5945
+sn_sphere_ng2	d.angular_trial_space.apply_metric	(4, 2, 6)	float64	618e0c0a4abb5915d1b7fcc4c5cc1e0ccc5c864a
+sn_sphere_ng2	d.bulk_space.apply_inverse_metric	(2, 6)	float64	06b632719b665a371ad088a1921a674f83af1640
+sn_sphere_ng2	d.bulk_space.apply_metric	(2, 6)	float64	7ad43022a821f84389fb4ed1b9cf6fb4e9b11336
+sn_sphere_ng2	d.full_field_space.apply_inverse_metric	(56,)	float64	67e746e012fb06e61aa05a8aa7477a97ea0a145a
+sn_sphere_ng2	d.full_field_space.apply_metric	(56,)	float64	f79982c728a845480b806db3c7269f80a13f8926
+sn_sphere_ng2	d.moment_space(2).apply_inverse_metric	(3, 2, 6)	float64	630c481ba00c91b160c007bb8dba79c8662baa82
+sn_sphere_ng2	d.moment_space(2).apply_metric	(3, 2, 6)	float64	8e1ab80e46ad5d256939a15f3406825cc3b21a80
+sn_sphere_ng2	d.radial_characteristic_boundary_space.apply_inverse_metric	(4,)	float64	c20680139447140282d0d33884c1c7bd0e916867
+sn_sphere_ng2	d.radial_characteristic_boundary_space.apply_metric	(4,)	float64	dbf41054e99a8be125bf974cb3a0c6a3a826c8fd
+sn_sphere_ng2	d.radial_characteristic_field_space.apply_inverse_metric	(28,)	float64	a714b0fb01ddfea3b6028ec54bf081c996827362
+sn_sphere_ng2	d.radial_characteristic_field_space.apply_metric	(28,)	float64	02f2366ab7c7b63216890bbb5acbe63f547566b0
+sn_sphere_ng2	d.radial_characteristic_interior_space.apply_inverse_metric	(24,)	float64	8c09311705167e85d940b9b386114e2e205aa558
+sn_sphere_ng2	d.radial_characteristic_interior_space.apply_metric	(24,)	float64	b04529edf57d080a90c7110040ac31bc928fff7e
+sn_sphere_ng3	a.A	(126, 126)	float64	f0b72d8e22c4bf3504c2cb9fc14e19e8ce2b4ee5
+sn_sphere_ng3	a.B	(84, 84)	float64	783fbbc74703e26a98939dd5d844afd80dc1a9fa
+sn_sphere_ng3	a.F	(126, 126)	float64	1aee990e65039037c52c6147614c9b8b8e71846d
+sn_sphere_ng3	b.full_field_space.trace_space.apply_metric_ones	(12,)	float64	285f22bd81e8786807ee189dec6aa548879321c1
+sn_sphere_ng3	b.full_field_space.trace_space.metric_diagonal	(12,)	float64	285f22bd81e8786807ee189dec6aa548879321c1
+sn_sphere_ng3	b.radial_characteristic_boundary_space.apply_metric_ones	(6,)	float64	dbf4178acf7b420596ff53b24ca7c975816b9fa9
+sn_sphere_ng3	b.radial_characteristic_boundary_space.metric_diagonal	(6,)	float64	dbf4178acf7b420596ff53b24ca7c975816b9fa9
+sn_sphere_ng3	b.radial_characteristic_field_space.trace_space.apply_metric_ones	(6,)	float64	dbf4178acf7b420596ff53b24ca7c975816b9fa9
+sn_sphere_ng3	b.radial_characteristic_field_space.trace_space.metric_diagonal	(6,)	float64	dbf4178acf7b420596ff53b24ca7c975816b9fa9
+sn_sphere_ng3	d.angular_bulk_space.apply_inverse_metric	(4, 3, 6)	float64	9350182308b5715b26fa357b714b39b03fae01f2
+sn_sphere_ng3	d.angular_bulk_space.apply_metric	(4, 3, 6)	float64	e52f10088f6b6446eaf7c4143eac36f4d613fd89
+sn_sphere_ng3	d.angular_trial_space.apply_inverse_metric	(4, 3, 6)	float64	9350182308b5715b26fa357b714b39b03fae01f2
+sn_sphere_ng3	d.angular_trial_space.apply_metric	(4, 3, 6)	float64	e52f10088f6b6446eaf7c4143eac36f4d613fd89
+sn_sphere_ng3	d.bulk_space.apply_inverse_metric	(3, 6)	float64	22323b5a85d7948f5ccf104dc12c79300d5c5e69
+sn_sphere_ng3	d.bulk_space.apply_metric	(3, 6)	float64	98cbfb3bd1839fd21d30f49fe5141a431893be35
+sn_sphere_ng3	d.full_field_space.apply_inverse_metric	(84,)	float64	502f60dab8e2dbb960b3458e56cf8a7c9afc9f70
+sn_sphere_ng3	d.full_field_space.apply_metric	(84,)	float64	49ba150d6bf1349cabfe5720671e7d6da0084705
+sn_sphere_ng3	d.moment_space(2).apply_inverse_metric	(3, 3, 6)	float64	f7393b73029a1df0057c8fd654fc1850457b0be8
+sn_sphere_ng3	d.moment_space(2).apply_metric	(3, 3, 6)	float64	e7c41cf0bce96297943e8790cdb156958a5c3939
+sn_sphere_ng3	d.radial_characteristic_boundary_space.apply_inverse_metric	(6,)	float64	f2f22448308e80c0b24ed6e1a7d198c8f03f42ac
+sn_sphere_ng3	d.radial_characteristic_boundary_space.apply_metric	(6,)	float64	b6e0fed8b0f2f72a4571527590a5e825f7d0104e
+sn_sphere_ng3	d.radial_characteristic_field_space.apply_inverse_metric	(42,)	float64	dbf5a2ada83d8debd56cd35bff4e2005d57a1c45
+sn_sphere_ng3	d.radial_characteristic_field_space.apply_metric	(42,)	float64	2c97abc4a20f87f9f2254d4853e774b3f7d7bcfc
+sn_sphere_ng3	d.radial_characteristic_interior_space.apply_inverse_metric	(36,)	float64	6eea97e36f95a5a1434f3ce347585b9b8dbe829e
+sn_sphere_ng3	d.radial_characteristic_interior_space.apply_metric	(36,)	float64	ce61fbc2c983088ff6de0530b54de3cf452a06cc
