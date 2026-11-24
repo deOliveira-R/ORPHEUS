@@ -774,6 +774,17 @@ What passes 2 and 2b changed in the design:
 - **Carried to later openings** (untracked `opening_N01.md`, `opening_N04.md`, `opening_N05.md`, `opening_N06.md`, `opening_N07.md`, each under a heading "Added at N00's opening" or "build"): who re-points which getter, the 21 dense builders at N01, the slot-order control at N04, the fate of `NotInCoordinateSpace` at N07.
 - The stored-bytes gate is local to this host (macOS arm64, Accelerate, numpy 2.4.4, scipy 1.17.1); if the host changes, the orchestrator re-takes the snapshots at the last commit on which the harness was green, in a commit of its own.
 
+**N01 `dense-inverse` and N02 `half-range` opened (2026-11-24, tree `d909081a`); their sections 6.2, 7.2, 6.3 and 7.3 are final (specification at 1200 lines).** Records: the specification's amendment subsections "Opening of N01" and "Opening of N02", and `scratch/ontology/w1/open/N01/`, `N02/` (`opening_measurements.md`, `decisions.md`, `check/check_final_<unit>.md`).
+
+- **The user ruled (2026-11-24): the three subspace-declaration classes of N01 belong to a new concept `declaration`** (88 to 89 concepts). `[M]` in a simulated tree: 0 new debt rows and no reference cycle; under `subspace`, as first drafted, 3 debt rows and the metric concept joins the pinned cycle.
+- **The pair is serial, N01 then N02** (the orchestrator): the half-range's index sets are typed with `Coord`, which N01 creates, so that no type is built twice.
+- **N01, measured:** the exact-count inverse equals today's bytes on 21 of 21 harness Grams (both faces) and on 234 of 234 bare matrices of a 101-file sample; an Opus check re-ran the 21 and the tie sweep (201 of 201 when the count reads the body's own decomposition, 200 of 201 otherwise). #634 closes with the unit; the remaining symmetry tolerance is #753.
+- **N01, ruled by the orchestrator from the user's standing ruling of 2026-10-30:** the refusal of a kept eigenvalue that is not positive sits under `if __debug__:` on the raw constructor and is not a guarantee; the guarantee is on the formal path (a frame's Gram), gated under `-O`.
+- **N02, measured:** all six cutoffs decide the sign or the zero of a direction cosine; an exact comparison changes 0 of 999 (rule, axis) classifications and 0 of 336 harness arrays (re-run by an Opus check, which also ran 14 test files with the six cutoffs exact: 1590 passed).
+- **N02, ruled by the orchestrator and told to the user:** the half-range is an exact comparison with zero; the tolerance band of four machine epsilons and the gate that pinned it are retired, because the tangential set and the kernel of the trace form are one datum. Fifteen exact-sign sites stay outside the unit (#752).
+- **The reference-store snapshot before N01** `[M]` 2026-11-24: 2122 rows, stored equal to recomputed on 2122 of 2122 (`scratch/ontology/w1/open/memo_snapshot_before_N01_d909081a.json`). The script the specification named failed on a stale import path; the corrected variant is `scratch/ontology/w0/memo/w1_lookup_all_memo.py`.
+- **The two opening checks** (one Opus read each): 0 blocking findings, 23 and 17 text repairs. Of those, 6 were gate mutations that could not redden their gate as written.
+
 **The `[R]` note carried from W0** (a second structural check of the specification pays more than a third build review) rests on unreviewed labels; it changes nothing in the procedure O13 ruled until a checker has reviewed those labels.
 
 ## Open questions for the user
