@@ -2875,6 +2875,54 @@ from ``apply_metric``/``apply_inverse_metric`` while the pairing that
 (two spellings of one metric diverging silently) becomes unspellable
 rather than merely untested.
 
+.. _spaces-factor:
+
+The factor: the form an axis carries, the face a dense form is stated at, and the two variances
+-----------------------------------------------------------------------------------------------
+
+An :class:`~orpheus.numerics.axis.Axis` carries one **form**, derived from the origin that minted it
+(:attr:`Axis.form <orpheus.numerics.axis.Axis.form>`): a :class:`~orpheus.numerics.metric.DiagonalMetric` (the measure of a
+measure or quadrature axis, the coefficient weights of a basis, the diagonal of a diagonal frame's Gram), a
+:class:`~orpheus.numerics.metric.DenseMetric` (the Gram of a dense frame) or :class:`~orpheus.numerics.metric.NoForm` (the
+energy axes, and a basis family with no coefficient weights). The form is never passed: ``Axis(..., form=...)`` and
+``Axis(..., weights=...)`` are ``TypeError`` on every arm, so a form that disagrees with the measure that minted the axis
+cannot be spelled.
+
+**The stated face of a dense form is content.** A dense form is handed one matrix, ``stated``, and the face it is,
+:attr:`~orpheus.numerics.metric.Face.METRIC` (the matrix ``apply`` multiplies by) or
+:attr:`~orpheus.numerics.metric.Face.GRAM` (the matrix ``apply_inverse`` multiplies by). Both faces are functions of those two
+fields and the declared kernel: the stated matrix is one face and its exact-count inverse (the one hermitian decomposition of the
+module above) is the other. The content of the form is ``(stated, face, kernel)``, so the symmetrised Gram stated at ``GRAM``
+and the metric :math:`G^{+}` stated at ``METRIC`` are two values with equal ``metric`` faces, and
+:func:`dataclasses.replace` keeps both faces' bytes. The change of chart of a dense form is
+:meth:`~orpheus.numerics.metric.DenseMetric.flipped`: the same stated matrix at the other face, with nothing inverted again.
+
+**Signed diagonal weights and where positivity is required.** A diagonal form admits signed weights and reads its kernel (the
+exact zero weights) and its signature :math:`(n_+, n_0, n_-)` from the signs. Positivity is required where the Hilbert structure
+begins: the factor refuses an indefinite diagonal form when a weight on :math:`S \setminus K` of its density partner is
+negative. The refusal names the Krein arm, which is not built (issue #706).
+
+**The factor and its two variances.** A :class:`~orpheus.numerics.factor.Factor` is an axis, a variance and a subquotient
+:math:`S/K` of the axis's flattened coordinates. On a formed axis the variance is a
+:class:`~orpheus.numerics.factor.Variance`: the Klein four-group torsor of ``(kind, chart)`` with its two involutions,
+:math:`\mathrm{dual}` (both coordinates flipped) and :math:`\mathrm{riesz}` (the chart flipped). On a formless axis it is a
+:class:`~orpheus.numerics.factor.FormlessVariance`: two values and ``dual`` only, because a change of chart needs a form to pass
+through, so a function that is integrated on a formless axis is not a value of either type.
+
+The form a subquotient induces is the coset minimum of the axis form: on a diagonal form the weights on
+:math:`S \setminus K`, zero elsewhere; on a dense full-rank form the Schur complement :math:`G_{AA} - G_{AK} G_{KK}^{-1} G_{KA}`
+(with :math:`A = S \setminus K`), stored on the full index set with exactly zero rows and columns on :math:`K \cup (I \setminus S)`
+and stated at ``METRIC``. The integrated end is the density form with its face flipped. This is the inverse of the *restricted*
+form, :math:`(G_{SS})^{-1}`, and not the restriction of the inverse, :math:`(G^{-1})_{SS}`: the two differ by the coupling of
+:math:`S` to its complement.
+
+**Constructibility is refused at construction.** A density factor needs :math:`S \cap \ker G \subseteq K`, and an integrated
+factor needs its ``riesz`` image to satisfy it, so a slot on a singular form that is not quotiented by the form's kernel is
+refused with the kernel to quotient by, never at a later read. The meet of a coordinate subspace with a keyed subspace needs the
+key's basis, which the generator owns: that case is a declared scope boundary and refuses with "subspace intersection is
+undecided". The zero-dimensional quotient of a dense form is the zero form, which :class:`~orpheus.numerics.metric.DenseMetric`
+does not spell, and is refused at construction.
+
 .. _spaces-membership:
 
 Membership is a verb of the space: one parse, two legs

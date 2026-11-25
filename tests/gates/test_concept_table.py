@@ -33,7 +33,7 @@ from tools.concept_table.paths import DEBT_FILE, ROOT, SEED_FILE, TABLE_FILE
 
 pytestmark = pytest.mark.foundation
 
-EXPECTED_CONCEPTS = 89
+EXPECTED_CONCEPTS = 88
 
 
 class Uninstallable(Exception):
@@ -316,7 +316,7 @@ def test_g6_placement_equals_the_pinned_misplaced_rows():
 
 @pytest.mark.parametrize("file,qualname,moved", [
     ("orpheus/numerics/space.py", "TensorProductSpace", "orpheus/sn/space.py"),
-    ("orpheus/numerics/axis.py", "Axis", "orpheus/sn/axis.py"),
+    ("orpheus/numerics/factor.py", "Factor", "orpheus/sn/factor.py"),
     ("orpheus/numerics/space.py", "FunctionSpace", "orpheus/geometry/space.py"),
 ])
 def test_g6_mutation_moves_a_row_out_of_its_layer(file, qualname, moved):

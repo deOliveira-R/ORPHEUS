@@ -58,6 +58,7 @@ TIERS: tuple[tuple[str, ...], ...] = (
     ("frame", "generating_measure"),
     ("quadrature",),
     ("axis",),
+    ("factor",),
     ("space",),
     ("field",),
     ("functional",),

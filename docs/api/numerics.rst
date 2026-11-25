@@ -565,6 +565,14 @@ API Reference
    :undoc-members:
    :show-inheritance:
 
+The factor — :mod:`orpheus.numerics.factor`, an axis with its variance (:class:`~orpheus.numerics.factor.Variance` on a
+formed axis, :class:`~orpheus.numerics.factor.FormlessVariance` on a formless one) and the subquotient
+(:class:`~orpheus.numerics.factor.Subquotient`) it spans; the theory is :ref:`spaces-factor`.
+
+.. automodule:: orpheus.numerics.factor
+   :members:
+   :show-inheritance:
+
 The axis marginal — :mod:`orpheus.numerics.axis_marginal`, the three
 arrows of fibre integration over one axis of a product space: the
 retraction :math:`R = (G_k u)^{\mathsf T}\otimes\mathrm{id}`, its section

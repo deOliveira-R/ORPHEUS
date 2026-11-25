@@ -59,7 +59,7 @@ MODULE = "tools.concept_table.page"
 # The conservation counts over the tracked table (specification C 3.3): one theory entry per distinct carried target.
 # The 107 occurrences of the replaced table, 5 of them repeats, are conserved by the builder's one-time check.
 THEORY_TARGETS_CARRIED = 102
-FUNCTIONS_ENTRIES = 36
+FUNCTIONS_ENTRIES = 35
 BULLET = re.compile(r"^- ``(?P<qualname>[^`]+)`` \(``(?P<file>[^`]+\.py)``\) ``(?P<kind>[a-z.]+)``(?: \[welded: (?P<welded>[^\]]*)\])?$")
 PYTHON_ROLES = re.compile(r":(?:py:)?(?:class|func|meth|mod|attr|obj|data|exc):`")
 
@@ -268,11 +268,11 @@ def test_walk_control_finds_known_members() -> None:
     walked = ast_classes(ROOT)
     assert any(q == "TaskInfo" or q.endswith(".<locals>.TaskInfo") for _, q in walked)
     assert sum("<locals>" in q for _, q in walked) == 1
-    assert len(walked) == 684
+    assert len(walked) == 690
 
 
 def test_member_lists_equal_the_population() -> None:
-    """The ``(file, qualname)`` of the page's member bullets equal the classes walked by ``ast``: 684 of 684, none extra, none twice.
+    """The ``(file, qualname)`` of the page's member bullets equal the classes walked by ``ast``: 690 of 690, none extra, none twice.
 
     Reddens: a class missing from the page, a class listed that is not in the tree, a class listed under two concepts.
     """
@@ -324,7 +324,7 @@ def test_page_label_and_pointer_to_the_debt_heading() -> None:
 
 
 def test_classes_and_functions_carry_no_sphinx_role() -> None:
-    """Classes and ``functions`` entries are literal names with file paths; no Python-domain role appears (222 of 684 classes resolve, an unresolved role is a silent dead link).
+    """Classes and ``functions`` entries are literal names with file paths; no Python-domain role appears (222 of 690 classes resolve, an unresolved role is a silent dead link).
 
     Reddens: any ``:class:``, ``:func:``, ``:meth:``, ``:mod:`` ... role on the page.
     """

@@ -493,7 +493,7 @@ Origin = FromMeasure | FromQuadrature | FromBasis | FromFrame | Declared
 
 
 @dataclass(frozen=True, eq=False)
-class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | welded: factor, fmetric
+class Axis(ContentIdentity):  # concept: factor | role: weld | kind: space | welded: factor, fmetric
     r"""One tensor factor of a function space — a frozen value object.
 
     Parameters

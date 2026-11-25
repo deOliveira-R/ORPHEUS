@@ -312,7 +312,7 @@ theory = ["eq:galerkin-pair"]
 [[concept]]
 id = "factor"
 name = "Factor"
-definition = "a factor of a space with its variance"
+definition = "a factor of a space: an axis with its variance and its subquotient"
 kind = "space"
 phase = "structure"
 layer = "numerics"
@@ -696,18 +696,6 @@ wave = "W5"
 ruling = "O23"
 sum = "orpheus/numerics/question.py:Question"
 theory = ["ref:structured-geometry-question-values", "ref:structured-geometry-question-values-role"]
-
-[[concept]]
-id = "quotient"
-name = "Quotient space"
-definition = "the quotient by a metric kernel"
-kind = "space"
-phase = "structure"
-layer = "numerics"
-wave = "W1"
-ruling = "O23"
-missing = true
-functions = ["orpheus.numerics.space.FunctionSpace.rank"]
 
 [[concept]]
 id = "rate"

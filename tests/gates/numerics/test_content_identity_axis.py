@@ -256,17 +256,8 @@ _FROZEN_MAPPING = Entry(
     ),
 )
 
-_RESTRICTION = Entry(
-    cls=Restriction, base=lambda: Restriction(b"parent-digest", (0, 2)), parts=("parent_key", "indices"),
-    perturb={
-        "parent_key": (leg("another parent", lambda: Restriction(b"other-digest", (0, 2))),),
-        "indices": (leg("another index set", lambda: Restriction(b"parent-digest", (0, 3))),),
-    },
-    pairs=(("two builds", lambda: Restriction(b"parent-digest", (0, 2)), lambda: Restriction(b"parent-digest", (0, 2))),),
-)
-
 ROSTER: tuple[Entry, ...] = (
-    _AXIS, _ENERGY, _RESTRICTION, _MODAL, _HARMONIC_LAYOUT, _LEGENDRE_LAYOUT, _CELL_LAYOUT, _MODE_LAYOUT, _POLYNOMIAL_LAYOUT, _TENSOR_LAYOUT, _FROZEN_MAPPING,
+    _AXIS, _ENERGY, _MODAL, _HARMONIC_LAYOUT, _LEGENDRE_LAYOUT, _CELL_LAYOUT, _MODE_LAYOUT, _POLYNOMIAL_LAYOUT, _TENSOR_LAYOUT, _FROZEN_MAPPING,
 )
 
 

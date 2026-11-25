@@ -97,19 +97,19 @@ Summary
    * - quantity
      - count
    * - classes
-     - 684
+     - 690
    * - concepts
-     - 89
+     - 88
    * - classes by role: ``head``
      - 66
    * - classes by role: ``arm``
      - 120
    * - classes by role: ``weld``
-     - 81
+     - 82
    * - classes by role: ``part``
      - 133
    * - classes by role: ``component``
-     - 50
+     - 55
    * - classes by role: ``interface``
      - 34
    * - classes by role: ``twin``
@@ -117,11 +117,11 @@ Summary
    * - classes by role: ``annex``
      - 138
    * - classes by kind: ``set``
-     - 78
+     - 82
    * - classes by kind: ``measure``
      - 14
    * - classes by kind: ``space``
-     - 15
+     - 17
    * - classes by kind: ``element``
      - 195
    * - classes by kind: ``morphism``
@@ -137,7 +137,7 @@ Summary
    * - concepts with head status ``functions``
      - 1
    * - concepts with head status ``missing``
-     - 16
+     - 15
 
 The concepts
 ------------
@@ -518,14 +518,14 @@ The concepts
      - - :eq:`galerkin-pair`
    * - :ref:`factor <concept-factor>`
      - Factor
-     - a factor of a space with its variance
+     - a factor of a space: an axis with its variance and its subquotient
      - space
      - structure
      - numerics
      - W1
      - O23
-     - ``Axis`` (``orpheus/numerics/axis.py``)
-     - head 1, arm 1, part 2, component 6
+     - ``Factor`` (``orpheus/numerics/factor.py``)
+     - head 1, arm 1, weld 1, part 2, component 11
      - - ``orpheus.numerics.axis.Axis.unit`` (``orpheus/numerics/axis.py``)
        - :ref:`spaces-the-axis <spaces-the-axis>`
        - :ref:`spaces-axis-origin <spaces-axis-origin>`
@@ -953,17 +953,6 @@ The concepts
      - arm 3, part 2
      - - :ref:`structured-geometry-question-values <structured-geometry-question-values>`
        - :ref:`structured-geometry-question-values-role <structured-geometry-question-values-role>`
-   * - :ref:`quotient <concept-quotient>`
-     - Quotient space
-     - the quotient by a metric kernel
-     - space
-     - structure
-     - numerics
-     - W1
-     - O23
-     - missing
-     - 
-     - - ``orpheus.numerics.space.FunctionSpace.rank`` (``orpheus/numerics/space.py``)
    * - :ref:`rate <concept-rate>`
      - Rate
      - a reaction rate: the metric pairing with a weight
@@ -1790,11 +1779,15 @@ factor
 
 .. rubric:: head
 
-- ``Axis`` (``orpheus/numerics/axis.py``) ``space`` [welded: factor, fmetric]
+- ``Factor`` (``orpheus/numerics/factor.py``) ``space``
 
 .. rubric:: arm
 
 - ``EnergyAxis`` (``orpheus/numerics/axis.py``) ``space``
+
+.. rubric:: weld
+
+- ``Axis`` (``orpheus/numerics/axis.py``) ``space`` [welded: factor, fmetric]
 
 .. rubric:: part
 
@@ -1809,6 +1802,11 @@ factor
 - ``FromFrame`` (``orpheus/numerics/axis.py``) ``element``
 - ``FromQuadrature`` (``orpheus/numerics/axis.py``) ``element``
 - ``Modal`` (``orpheus/numerics/axis.py``) ``element``
+- ``FormlessVariance`` (``orpheus/numerics/factor.py``) ``set``
+- ``Kind`` (``orpheus/numerics/factor.py``) ``set``
+- ``Subquotient`` (``orpheus/numerics/factor.py``) ``space``
+- ``Variance`` (``orpheus/numerics/factor.py``) ``set``
+- ``VarianceChart`` (``orpheus/numerics/factor.py``) ``set``
 
 .. _concept-fission:
 
@@ -2635,11 +2633,6 @@ question
 
 - ``Fundamental`` (``orpheus/numerics/question.py``) ``element``
 - ``Nearest`` (``orpheus/numerics/question.py``) ``element``
-
-.. _concept-quotient:
-
-quotient
-~~~~~~~~
 
 .. _concept-rate:
 
