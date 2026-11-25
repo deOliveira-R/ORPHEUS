@@ -569,8 +569,16 @@ The factor — :mod:`orpheus.numerics.factor`, an axis with its variance (:class
 formed axis, :class:`~orpheus.numerics.factor.FormlessVariance` on a formless one) and the subquotient
 (:class:`~orpheus.numerics.factor.Subquotient`) it spans; the theory is :ref:`spaces-factor`.
 
+.. The member ``Subquotient.n`` (the dimension of the coordinate space) is
+   left off this page on purpose. A documented attribute named ``n`` is a
+   second target for the bare name ``n``, which Sphinx resolves by suffix
+   wherever a numpy-style type field spells a shape such as ``(n, n)``; with
+   two targets the strict build fails (the other is
+   ``orpheus.geometry.transformation.Permutation.n``).
+
 .. automodule:: orpheus.numerics.factor
    :members:
+   :exclude-members: n
    :show-inheritance:
 
 The axis marginal — :mod:`orpheus.numerics.axis_marginal`, the three
