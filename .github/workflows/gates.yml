@@ -47,6 +47,15 @@ jobs:
       # row spawns two interpreters. ~5 s.
       - name: The content digests are the same bytes on this platform, under -O
         run: .venv/bin/python -O -m pytest tests/gates/values/test_content_identity.py tests/gates/values/test_digest_convention.py tests/gates/test_content_identity_census.py tests/gates/numerics/test_content_identity_axis.py tests/gates/data/test_content_identity_data.py tests/gates/geometry/test_content_identity_geometry.py tests/gates/mesh/test_content_identity_mesh.py -q
+      # The gates of the space algebra (the ontology chart's wave W1), unit by
+      # unit; each unit adds its files here in the commit that lands them. Every
+      # file listed compares a computation with a computation, or reads a parse
+      # tree or an integer index set, so it reads the same on this platform.
+      # NOT listed, by design: tests/gates/cross_method/w1/test_snapshot_harness.py
+      # and test_dense_inverse_bytes.py, which compare bytes stored on the
+      # macOS arm64 host (Accelerate) and fail on any other host stamp.
+      - name: The space algebra gates (W1), under -O
+        run: .venv/bin/python -O -m pytest tests/gates/cross_method/w1/test_snapshot_controls.py tests/gates/numerics/w1/test_bare_path_takes_the_matrix_as_stored.py tests/gates/numerics/w1/test_content_identity_declaration.py tests/gates/numerics/w1/test_declaration_normal_form.py tests/gates/numerics/w1/test_dense_inverse_admission.py tests/gates/numerics/w1/test_dense_kernel_declared.py tests/gates/numerics/w1/test_no_cutoff_in_metric.py tests/gates/numerics/w1/test_signature_guarantee.py tests/gates/numerics/w1/test_half_range_one_owner.py tests/gates/numerics/w1/test_half_range_population.py tests/gates/numerics/w1/test_no_cutoff_symbols.py tests/gates/numerics/w1/test_trace_half_range_coherence.py tests/gates/mesh/w1/test_half_range_selectors.py tests/gates/sn/primitives/test_degenerate_ordinate_reads_the_owner.py -q
       # The tapes (orpheus/data/micro_xs/*.GXS, 13 files, 411 MB) are the
       # repository's Git LFS objects; the checkout above leaves their pointer
       # files, whose text carries each tape's object id, so hashing them keys
