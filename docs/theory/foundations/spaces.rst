@@ -560,11 +560,12 @@ enforced where the form is built or read
    weights.
 
 There is deliberately **no non-negativity guard** on the axis. CS2's quadrature axes
-legally carry signed weights (level-symmetric families with negative
-weights are real, shipped objects), and the axis is the wrong layer to
+legally carry signed weights (the Lebedev rules of orders 13, 25 and 27
+carry negative weights and are real, shipped objects: 3 of the 489 rules
+the factories build across their supported orders, `[M]` 2026-11-24), and the axis is the wrong layer to
 outlaw them. `[M]` ``Axis("x", (2,),
 origin=Declared(BasisKind.NODAL, DiagonalMetric([-1.0, 2.0])))`` constructs, and its form reads the signature
-``(1, 0, 1)`` exactly. :class:`~orpheus.numerics.metric.DiagonalMetric` admits signed weights and reads its signature; a factor on it is built where the induced form is invertible (a negative weight is admitted); of the 5 verbs that need positivity, 3 refuse a signed form (``norm`` on a space, the weighted orthonormalisation and the frame's formal door) (the list of the verbs, with the ones that do not refuse, is under :ref:`spaces-signed-weights`; the door refuses an under-resolved Gram).
+``(1, 0, 1)`` exactly. :class:`~orpheus.numerics.metric.DiagonalMetric` admits signed weights and reads its signature; a factor on it is built where the induced form is invertible (a negative weight is admitted); of the 5 verbs that need positivity, 3 refuse a signed form (``norm`` on a space, the weighted orthonormalisation and the frame's formal door) (the list of the verbs, with the ones that do not refuse, is in :ref:`the paragraph on signed diagonal weights <spaces-signed-weights>`; the door refuses an under-resolved Gram).
 
 .. _spaces-axis-identity:
 
