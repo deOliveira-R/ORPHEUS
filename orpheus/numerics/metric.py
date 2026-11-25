@@ -193,7 +193,9 @@ def _exact_inverse(matrix: NDArray, kernel_dim: int) -> NDArray:
     kept = s.shape[0] - kernel_dim
     if __debug__:
         signs = np.einsum("ji,ij->i", u, vt)[:kept]
-        if not np.all(signs > 0.0):
+        # A kept exact zero is read on the singular value itself: the sign the decomposition gives a zero eigenvalue is the
+        # library's convention (0 on one build of numpy, +1 on another), so it is not asked.
+        if not np.all(signs > 0.0) or np.any(s[:kept] == 0.0):
             raise ValueError(
                 f"DenseMetric: a kept eigenvalue is not positive (the matrix is not positive semi-definite of rank "
                 f"{kept}): the declared kernel of dimension {kernel_dim} does not contain every non-positive direction."

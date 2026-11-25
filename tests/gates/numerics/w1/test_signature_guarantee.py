@@ -84,10 +84,11 @@ def test_the_refusal_reading_reds_on_the_O_run() -> None:
 
 
 def kept_directions_have_positive_sign(g_sym: np.ndarray, dim: int) -> bool:
-    """True iff ``u_i . vt_i > 0`` on every kept direction of the hermitian SVD (the sign of the i-th eigenvalue)."""
-    u, _, vt = np.linalg.svd(g_sym, hermitian=True)
+    """True iff ``u_i . vt_i > 0`` on every kept direction of the hermitian SVD (the sign of the i-th eigenvalue) and no kept
+    singular value is exactly zero (the sign a library gives a zero eigenvalue is its convention, so the zero is read on the value)."""
+    u, s, vt = np.linalg.svd(g_sym, hermitian=True)
     kept = g_sym.shape[0] - dim
-    return bool(np.all(np.einsum("ji,ij->i", u, vt)[:kept] > 0))
+    return bool(np.all(np.einsum("ji,ij->i", u, vt)[:kept] > 0) and not np.any(s[:kept] == 0.0))
 
 
 @pytest.mark.parametrize("family", [f for f in sg.families() if sg.stored(f).frame_built])
