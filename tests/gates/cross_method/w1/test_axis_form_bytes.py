@@ -14,8 +14,8 @@ foreign stamp with both stamps in the message (a skip would be a silent green). 
 
 First red at the base tip: ``Axis.form`` does not exist (``AttributeError``), so the gate reads red where the spec said "none"; it is a
 bit-identity witness whose behaviour is read only after the unit. Mutations: the form built from ``float32`` weights reddens through
-``level_symmetric(4)``; dropping the ``-0.0`` canonicalisation of ``DiagonalMetric`` reddens through the synthetic measure's key and the
-direct leg.
+``level_symmetric(4)``; dropping the ``-0.0`` canonicalisation of ``DiagonalMetric`` reddens through the direct leg of the second test only (the
+measure's own constructor already stores ``+0.0``, so the synthetic measure's key reads green under that mutation: measured on the prototype).
 """
 
 from __future__ import annotations
@@ -77,10 +77,11 @@ def test_form_weights_bytes() -> None:
 def test_negative_zero_reads_as_positive_zero_in_the_form() -> None:
     r"""A ``-0.0`` weight is one value with one byte pattern: the form of the synthetic measure and a bare ``DiagonalMetric`` carry ``+0.0``."""
     from orpheus.numerics import metric as M
+    from orpheus.values.content import content_digest
 
     key, axis = [(k, a) for k, a in pop.population() if k == "measure/negative-zero weight"][0]
     w = np.asarray(axis.form.weights)
     _require(not bool(np.signbit(w).any()), f"[{key}] the axis form keeps a negative zero: {w.tobytes().hex()}")
     d = M.DiagonalMetric(np.array([1.0, -0.0, 2.0]))
     _require(not bool(np.signbit(np.asarray(d.weights)).any()), "DiagonalMetric keeps a negative zero")
-    _require(d == M.DiagonalMetric(np.array([1.0, 0.0, 2.0])), "-0.0 and +0.0 are two identities of one diagonal form")
+    _require(content_digest(d) == content_digest(M.DiagonalMetric(np.array([1.0, 0.0, 2.0]))), "-0.0 and +0.0 are two identities of one diagonal form")

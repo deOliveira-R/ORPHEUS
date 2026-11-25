@@ -1,0 +1,55 @@
+r"""G03e: a form reads its kernel and its signature exactly, and a factor refuses a negative weight where it matters (N03, spec 7.4).
+
+The kernel of ``Diag([1, 0, 2])`` is ``Coord(3, (1,))`` exactly and ``signature == (2, 1, 0)``; a signed ``Diag([1, -1, 2])`` is ADMITTED and reads
+``signature == (2, 0, 1)``; a ``Factor`` on it is refused with a message naming the Krein arm and #706 when the negative weight lies on ``S minus K``
+(``S = (0, 1, 2)``, ``K = ()``), and is ACCEPTED when it lies outside ``S`` (``S = (0, 2)``) or inside ``K`` (``S = (0, 1, 2)``, ``K = (1,)``).
+``DiagonalMetric.counting((2, 3))`` has weights ``ones((2, 3))``; a ``DenseMetric`` with a ``Spanned`` kernel of dimension 1 on 3 coordinates has
+``signature == (2, 1, 0)``.
+
+Exact on any host (signs, counts and index sets). First red at ``ff305e0f``: a negative weight is accepted and ``rank((3,))`` reads 3; ``kernel``,
+``signature`` and ``counting`` are ``AttributeError``s. Mutations: ``signature`` counts a negative weight as positive (reddens); ``Factor`` admits an
+indefinite form (reddens the refusal leg); the refusal read on the whole axis form instead of ``S minus K`` (reddens the two accepting cases).
+"""
+
+from __future__ import annotations
+
+import numpy as np
+import pytest
+
+from tests.gates.numerics.w1 import _factor_probe as P
+
+pytestmark = pytest.mark.foundation
+
+
+def _require(cond: object, msg: str) -> None:
+    if not cond:
+        pytest.fail(msg)
+
+
+def test_form_kernel_and_signature() -> None:
+    from orpheus.numerics import factor as F
+    from orpheus.numerics.declaration import Coord, Spanned
+    from orpheus.numerics.metric import DenseMetric, DiagonalMetric, Face
+
+    k = DiagonalMetric(np.array([1.0, 0.0, 2.0]))
+    _require(k.kernel == Coord(3, (1,)), f"kernel {k.kernel}")
+    _require(k.signature == (2, 1, 0), f"signature {k.signature}")
+    signed = DiagonalMetric(np.array([1.0, -1.0, 2.0]))
+    _require(signed.signature == (2, 0, 1), f"a signed diagonal form reads signature {signed.signature}, expected (2, 0, 1)")
+    _require(np.array_equal(DiagonalMetric.counting((2, 3)).weights, np.ones((2, 3))), "counting((2, 3)) is not ones((2, 3))")
+    g = np.diag([1.0, 1.0, 0.0])
+    dense = DenseMetric(g, kernel=Spanned(3, ("k", 1), 1), face=Face.METRIC)
+    _require(dense.signature == (2, 1, 0), f"a dense form with a Spanned kernel of dimension 1 reads signature {dense.signature}")
+    ax = P.diag_axis([1.0, -1.0, 2.0])
+    v = F.Variance(F.Kind.MEASURE, F.VarianceChart.DENSITY)
+    try:
+        F.Factor(ax, v, P.sk_of(3, (0, 1, 2), ()))
+    except ValueError as e:
+        _require("Krein" in str(e) and "706" in str(e), f"the refusal does not name the Krein arm and #706: {e}")
+    else:
+        pytest.fail("a factor with a negative weight on S minus K was constructed")
+    for S, K, where in (((0, 2), (), "outside S"), ((0, 1, 2), (1,), "inside K")):
+        try:
+            F.Factor(ax, v, P.sk_of(3, S, K))
+        except ValueError as e:
+            pytest.fail(f"a negative weight {where} was refused (S={S}, K={K}): {e}")
