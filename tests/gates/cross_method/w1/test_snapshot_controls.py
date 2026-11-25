@@ -16,7 +16,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.coordinate_space import leading_coordinates
-from orpheus.numerics.metric import FactoredMetric
+from orpheus.numerics.metric import FactoredMetric, NoForm
 from tests.gates.cross_method.w1 import _fixtures, _snapshot as snap
 
 MEGABYTE = 1_000_000
@@ -71,7 +71,7 @@ def _walk_in(order: Callable[[list], Iterable]) -> Callable:
             starts.append(start)
             start += len(block_shape)
         for (block_shape, factor), s in order(list(zip(self.entries, starts))):
-            if factor is not None:
+            if factor is not None and not isinstance(factor, NoForm):  # a NoForm entry applies nothing, as a None entry did
                 out = factor.apply_block(out, start=s, block_shape=block_shape, inverse=inverse)
         return out
     return walk
