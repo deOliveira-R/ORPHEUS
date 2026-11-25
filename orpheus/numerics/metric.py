@@ -159,6 +159,8 @@ import numpy as np
 from numpy.typing import NDArray
 
 from .coordinate_space import leading_coordinates
+from orpheus.values.content import ContentIdentity
+
 from .declaration import Ann, Coord, Declaration, Spanned
 
 __all__ = [
@@ -466,8 +468,8 @@ def _frozen_copy(array: NDArray) -> NDArray:
     return out
 
 
-@dataclass(frozen=True)
-class DiagonalMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
+@dataclass(frozen=True, eq=False)
+class DiagonalMetric(HilbertMetric, ContentIdentity):  # concept: fmetric | role: arm | kind: morphism
     r"""The Hadamard realization: a diagonal weight array, leading-aligned.
 
     The special case every pre-P7 metric was. ``apply`` broadcasts the
@@ -586,8 +588,8 @@ class Face(Enum):  # concept: fmetric | role: component | kind: set
     GRAM = "gram"
 
 
-@dataclass(frozen=True)
-class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
+@dataclass(frozen=True, eq=False)
+class DenseMetric(HilbertMetric, ContentIdentity):  # concept: fmetric | role: arm | kind: morphism
     r"""A dense symmetric matrix metric on the flattened leading block.
 
     ``stated`` is the matrix the form is handed and ``face`` says which face it is, ``(K, K)`` with ``K`` the row-major flattening
@@ -913,7 +915,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
             )
 
 
-class DualMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
+class DualMetric(HilbertMetric, ContentIdentity):  # concept: fmetric | role: arm | kind: morphism
     r"""The metric of a dual space :math:`V^*`: a primal metric with its two faces swapped.
 
     :math:`V^*`'s inner product is the inverse Riesz form,
@@ -937,6 +939,10 @@ class DualMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphis
     def __init__(self, primal: HilbertMetric) -> None:
         #: The metric of :math:`V` whose inverse form this is.
         self.primal = primal
+
+    def content_parts(self) -> tuple[tuple[str, object], ...]:
+        r"""The content of a dual form is its primal: ``==`` and ``hash`` read the digest of the primal."""
+        return (("primal", self.primal),)
 
     @property
     def kernel(self) -> Declaration:  # pyright: ignore[reportIncompatibleVariableOverride]
