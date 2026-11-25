@@ -108,7 +108,7 @@ def _leaf_spaces():
         "named_weights": FunctionSpace("s6a_V", (3,), inner_product_weights=_W_POS),
         "named_singular": FunctionSpace("s6a_Vs", (4,), inner_product_weights=_W_SING),
         "dense": FunctionSpace("s6a_VD", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC)),
-        "of_axes": FunctionSpace.of_axes(Axis("a", (2,), weights=w, origin=Declared(BasisKind.NODAL))),
+        "of_axes": FunctionSpace.of_axes(Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))),
         "basis_space_gl8_L2": frame_faces.basis_space(
             frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2)
         ),
@@ -731,8 +731,8 @@ def _r_factors(kind):
     if kind == "named":
         return (FunctionSpace("s6a_Ra", (2,), inner_product_weights=_RA),
                 FunctionSpace("s6a_Rb", (3,), inner_product_weights=_RB))
-    return (FunctionSpace.of_axes(Axis("ra", (2,), weights=_RA, origin=Declared(BasisKind.NODAL))),
-            FunctionSpace.of_axes(Axis("rb", (3,), weights=_RB, origin=Declared(BasisKind.NODAL))))
+    return (FunctionSpace.of_axes(Axis("ra", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_RA)))),
+            FunctionSpace.of_axes(Axis("rb", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_RB)))))
 
 
 @pytest.mark.parametrize("kind", ["named", "axes"])

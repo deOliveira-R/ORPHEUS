@@ -29,7 +29,7 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 from orpheus.numerics.declaration import Coord
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
-from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric, Face
 from orpheus.numerics.operator import AdjointOperator, RieszLowerOperator, RieszRaiseOperator, adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -300,8 +300,8 @@ def test_B5_the_retraction_closed_form_agrees_with_the_sandwich_modulo_the_kerne
     activation: a fixture without the dead slot cannot see the quotient), plus
     reciprocity of each against the forward. First red: a closed form that
     writes into the LIVE slots (a mis-weighted pullback)."""
-    spa = Axis("spatial", (5,), weights=np.array([1.0, 2.0, 0.5, 0.25, 3.0]), origin=Declared(BasisKind.NODAL))
-    ang = Axis("angular", (4,), weights=np.array([0.3, 0.0, 0.5, 0.3]), origin=Declared(BasisKind.NODAL))
+    spa = Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 0.5, 0.25, 3.0]))))
+    ang = Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.0, 0.5, 0.3]))))
     V = FunctionSpace.of_axes(ang, spa)
     R = AxisRetractionOperator.of(V, "angular")
     phi = _rng(1).standard_normal(R.codomain.shape)

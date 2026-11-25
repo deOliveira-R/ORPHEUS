@@ -28,6 +28,7 @@ import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.axis import Modal
+from orpheus.numerics.metric import DiagonalMetric, NoForm
 
 pytestmark = pytest.mark.foundation
 
@@ -55,23 +56,21 @@ def test_axis_is_frozen() -> None:
         ax.label = "y"  # type: ignore[misc]
 
 
-def test_weights_none_is_the_counting_measure() -> None:
-    """A2 — ``weights=None`` IS the counting measure, deliberately.
+def test_no_form_is_the_counting_form() -> None:
+    """A2 — a declared origin with no form IS the counting form, deliberately.
 
-    Sharpened per the Q-T3 ruling: the counting measure has ONE spelling,
-    enforced by CANONICALIZATION — an all-ones weight array collapses to
-    ``None`` at construction, so the None-spelled and ones-spelled
-    counting axes are not merely equivalent, they are EQUAL (one
+    The counting measure has ONE spelling: ``Declared(kind)`` with no form is
+    ``DiagonalMetric.counting(shape)``, so the no-form-spelled and the
+    ones-spelled counting axes are not merely equivalent, they are EQUAL (one
     identity), and no consumer can ever observe two spellings of the
     identity metric.
     """
     none_spelled = Axis("x", (3,), origin=Declared(BasisKind.NODAL))
-    ones_spelled = Axis("x", (3,), weights=np.ones(3), origin=Declared(BasisKind.NODAL))
-    _require(none_spelled.weights is None, "None spelling must store None")
+    ones_spelled = Axis("x", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(3))))
+    _require(np.array_equal(none_spelled.form.weights, np.ones(3)), "no form must read the counting form over the shape")
     _require(
-        ones_spelled.weights is None,
-        "Q-T3 canonicalization: all-ones weights must collapse to None at "
-        "construction (one spelling per measure)",
+        np.array_equal(ones_spelled.form.weights, np.ones(3)),
+        "an all-ones form is the counting form (one spelling per measure)",
     )
     _require(
         none_spelled == ones_spelled and hash(none_spelled) == hash(ones_spelled),
@@ -86,14 +85,14 @@ def test_weights_are_stored_canonically_and_read_only() -> None:
     name digest and the hash read these bytes), and the stored array
     refuses in-place writes.
     """
-    neg_zero = Axis("x", (2,), weights=np.array([-0.0, 2.0]), origin=Declared(BasisKind.NODAL))
-    pos_zero = Axis("x", (2,), weights=np.array([0.0, 2.0]), origin=Declared(BasisKind.NODAL))
+    neg_zero = Axis("x", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([-0.0, 2.0]))))
+    pos_zero = Axis("x", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.0, 2.0]))))
     _require(
         neg_zero == pos_zero and hash(neg_zero) == hash(pos_zero),
         "-0.0 and +0.0 spell ONE measure and must be ONE identity",
     )
-    w = neg_zero.weights
-    assert w is not None  # narrowing for the type checker
+    assert isinstance(neg_zero.form, DiagonalMetric)  # narrowing for the type checker
+    w = neg_zero.form.weights
     _require(
         w.tobytes() == np.array([0.0, 2.0]).tobytes(),
         "stored weights must be the canonical (+0.0) byte pattern",
@@ -111,11 +110,11 @@ def test_non_finite_weights_are_refused() -> None:
     """
     for bad in (np.array([np.nan, 1.0]), np.array([np.inf, 1.0])):
         with pytest.raises(ValueError, match="finite"):
-            Axis("x", (2,), weights=bad, origin=Declared(BasisKind.NODAL))
+            Axis("x", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(bad)))
     # The signed-weight door stays OPEN (the anti-claim of the guard):
-    signed = Axis("x", (2,), weights=np.array([-0.5, 1.5]), origin=Declared(BasisKind.NODAL))
-    w = signed.weights
-    assert w is not None
+    signed = Axis("x", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([-0.5, 1.5]))))
+    assert isinstance(signed.form, DiagonalMetric)
+    w = signed.form.weights
     _require(bool(w[0] == -0.5), "signed weights are legal (quadrature axes)")
 
 
@@ -201,8 +200,8 @@ def test_axis_is_immune_to_mutation_of_the_source_array() -> None:
     _require(axis_before == reference, "equality moved under source mutation")
 
     weights_src = np.array([2.0, 5.0])
-    weighted = Axis("x", (2,), weights=weights_src, origin=Declared(BasisKind.NODAL))
-    weighted_ref = Axis("x", (2,), weights=np.array([2.0, 5.0]), origin=Declared(BasisKind.NODAL))
+    weighted = Axis("x", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(weights_src)))
+    weighted_ref = Axis("x", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 5.0]))))
     weights_src[0] = 7.0
     _require(weighted == weighted_ref, "weights identity moved under source mutation")
 
@@ -236,17 +235,17 @@ def test_of_edges_refuses_fewer_than_two_edges_or_a_non_vector(edges: np.ndarray
         EnergyAxis.of_edges(edges)
 
 
-def test_rank_zero_shape_is_refused() -> None:
-    """A8 — rank >= 1 is a construction invariant, refused with a typed
-    error (not a bare ``assert`` — ``-O`` would strip that in production)."""
-    with pytest.raises(ValueError, match="rank"):
-        Axis("x", (), origin=Declared(BasisKind.NODAL))
+def test_rank_zero_shape_is_admitted() -> None:
+    """A8 — an axis may have index shape ``()``: one point, no array axis (the face-spatial
+    factor of a 1-D face), with the counting form of a single weight."""
+    point = Axis("x", (), origin=Declared(BasisKind.NODAL))
+    _require(point.shape == () and np.array_equal(point.form.weights, np.ones(())), "a rank-0 axis carries the counting form of one weight")
 
 
 def test_weights_shape_must_match_shape() -> None:
     """A9 — the factor measure lives over exactly ``shape``."""
     with pytest.raises(ValueError, match="shape"):
-        Axis("x", (3,), weights=np.ones(4) * 2.0, origin=Declared(BasisKind.NODAL))
+        Axis("x", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(4) * 2.0)))
 
 
 def test_basis_kind_participates_in_identity() -> None:
@@ -287,30 +286,27 @@ def test_weights_are_part_of_identity() -> None:
     identity is the only instrument that can carry it.
     """
     counting = Axis("spatial", (1,), origin=Declared(BasisKind.NODAL))  # quotient point, weight 1
-    one_cell = Axis("spatial", (1,), weights=np.array([2.0]), origin=Declared(BasisKind.NODAL))
-    other_cell = Axis("spatial", (1,), weights=np.array([3.0]), origin=Declared(BasisKind.NODAL))
+    one_cell = Axis("spatial", (1,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0]))))
+    other_cell = Axis("spatial", (1,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([3.0]))))
     _require(counting != one_cell, "V != 1 must differ from the quotient point")
     _require(one_cell != other_cell, "different measures must be different axes")
 
 
-def test_energy_axis_refuses_weights_and_modal_kind() -> None:
+def test_energy_axis_has_no_form_and_no_modal_kind() -> None:
     """The counting theorem and the faces reading, enforced at construction.
 
-    A weighted ``EnergyAxis`` would spell the non-physical state the
-    counting-measure theorem forbids (the deliberately non-physical D4b
-    control toy uses a generic ``Axis`` instead); a MODAL ``EnergyAxis``
-    would contradict the groups-are-cells reading. All-ONES weights are
-    accepted — canonicalization collapses them to ``None``, because ones
-    IS the counting measure.
+    An ``EnergyAxis`` carries no weights at all, so a weighted one is
+    unspellable (the deliberately non-physical D4b control toy uses a generic
+    ``Axis`` instead): its origin is fixed to ``Declared(NODAL, NoForm())``, and
+    a ``weights=`` or ``form=`` keyword is a ``TypeError``; a MODAL ``EnergyAxis``
+    would contradict the groups-are-cells reading.
     """
-    with pytest.raises(ValueError, match="[Cc]ounting|theorem"):
-        EnergyAxis("energy", (2,), weights=np.array([2.0, 5.0]))
+    for keyword in ("weights", "form"):
+        with pytest.raises(TypeError):
+            EnergyAxis("energy", (2,), **{keyword: np.array([2.0, 5.0])})  # pyright: ignore[reportCallIssue]
     # NODAL by construction: the kind is fixed by the class, so a modal
     # energy axis is not refused but unspellable (S7, ruling 82).
     with pytest.raises(TypeError, match="origin"):
         EnergyAxis("energy", (2,), origin=Declared(Modal(np.eye(2)[0])))  # pyright: ignore[reportCallIssue]
-    ones_spelled = EnergyAxis("energy", (2,), weights=np.ones(2))
-    _require(
-        ones_spelled == EnergyAxis.synthetic(2),
-        "ones-spelled counting EnergyAxis must canonicalize to the synthetic axis",
-    )
+    _require(isinstance(EnergyAxis("energy", (2,)).form, NoForm), "an EnergyAxis carries no form")
+    _require(EnergyAxis("energy", (2,)) == EnergyAxis.synthetic(2), "two spellings of the synthetic axis are one axis")

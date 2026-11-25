@@ -1,7 +1,9 @@
 r"""Hilbert metrics — a space's inner-product structure as an OBJECT.
 
 The metric of a discrete Hilbert space is a symmetric positive-semi-definite
-bilinear form :math:`G`: :math:`\langle x, y\rangle = y^{\mathsf T} G x`.
+bilinear form :math:`G`: :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
+:class:`DiagonalMetric` may carry signed weights and reads its signature exactly;
+positivity is required where the Hilbert structure begins, not on the form itself.
 Until P7 (campaign 1) the tree could spell exactly two realizations, both
 *multiplied* into the element: a broadcast diagonal weight array (the
 Hadamard product :math:`G \odot x`) and the per-axis factor measures of an
@@ -145,7 +147,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, unique
 from functools import cached_property
-from typing import Protocol, cast
+from typing import Protocol, TypeIs, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -158,6 +160,8 @@ __all__ = [
     "DiagonalMetric",
     "DenseMetric",
     "Face",
+    "Form",
+    "NoForm",
     "DualMetric",
     "FactoredMetric",
 ]
@@ -284,6 +288,9 @@ class PositionedMetric(Protocol):  # concept: fmetric | role: interface | kind: 
 class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
     r"""A symmetric positive-semi-definite bilinear form, as an object.
 
+    A :class:`DiagonalMetric` is the one realization that may carry signed weights (it reads its :attr:`signature` exactly from
+    the signs); positivity is required where the Hilbert structure begins, not on the form itself.
+
     The contract is three verbs and one derived pairing:
 
     * :meth:`apply` — :math:`x \mapsto Gx` (the forward face).
@@ -300,6 +307,23 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
       Riesz form :math:`G^{+}` (:class:`DualMetric`, numerics_untangling.md
       ruling 26), built once per metric object.
     """
+
+    #: The declared kernel of the form on the flattened index set: ``DiagonalMetric`` reads it from the exact zero weights,
+    #: ``DenseMetric.kernel`` is its field and ``DualMetric`` takes its primal's. A :class:`FactoredMetric` declares none. An
+    #: annotation and not an abstract property, because the dataclass field of ``DenseMetric`` is the implementation there.
+    kernel: Declaration
+
+    @property
+    def negative(self) -> int:
+        r"""The number of negative directions: 0 for a positive semi-definite form, the count of negative weights for a signed
+        :class:`DiagonalMetric`."""
+        return 0
+
+    @property
+    def signature(self) -> tuple[int, int, int]:
+        r"""``(n_+, n_0, n_-)``, read once over the form's declared :attr:`kernel` and its :attr:`negative` count."""
+        n, zero, minus = self.kernel.n, self.kernel.dim, self.negative
+        return (n - zero - minus, zero, minus)
 
     def dual(self) -> "HilbertMetric":
         r"""Return the metric of :math:`V^*`: this one with its two faces swapped.
@@ -409,7 +433,23 @@ class DiagonalMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
     weights: NDArray
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "weights", _frozen_copy(self.weights))
+        # ``+ 0.0`` maps ``-0.0`` to ``+0.0``: the two zeros are one weight, one identity and one byte pattern.
+        object.__setattr__(self, "weights", _frozen_copy(np.asarray(self.weights, dtype=float) + 0.0))
+
+    @classmethod
+    def counting(cls, shape: int | tuple[int, ...]) -> "DiagonalMetric":
+        r"""The counting form: all-ones weights over ``shape`` (an int ``n`` is the shape ``(n,)``)."""
+        return cls(np.ones((shape,) if isinstance(shape, int) else tuple(shape)))
+
+    @property
+    def kernel(self) -> Coord:  # pyright: ignore[reportIncompatibleVariableOverride]
+        r"""The exact zero set of the weights, a ``Coord`` on the flattened index set; read from the weights themselves, no cutoff."""
+        flat = np.asarray(self.weights).ravel()
+        return Coord(flat.size, tuple(int(i) for i in np.flatnonzero(flat == 0.0)))
+
+    @property
+    def negative(self) -> int:
+        return int(np.count_nonzero(np.asarray(self.weights) < 0.0))
 
     def apply(self, x: NDArray) -> NDArray:
         return _broadcast_leading(self.weights, np.ndim(x)) * x
@@ -638,6 +678,28 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
 
 
 @dataclass(frozen=True)
+class NoForm:  # concept: fmetric | role: component | kind: element
+    r"""The absence of a form on an axis: no weight, no inner product, no norm.
+
+    Not a :class:`HilbertMetric`: it has no ``apply``, ``inner_product``, ``norm`` or ``flat``, and each consumer matches on
+    :data:`Form` exhaustively. The body carries a ``__repr__`` because a field-less empty body is the fingerprint of an unrelated
+    class in the concept seed.
+    """
+
+    def __repr__(self) -> str:
+        return "NoForm()"
+
+
+#: The closed sum of what an axis carries as its form.
+Form = DiagonalMetric | DenseMetric | NoForm
+
+
+def _is_blank(entry: object) -> TypeIs[NoForm | None]:
+    r"""True for a block of a :class:`FactoredMetric` that carries no form (``None``, Euclidean, or :class:`NoForm`)."""
+    return entry is None or isinstance(entry, NoForm)
+
+
+@dataclass(frozen=True)
 class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
     r"""A lazy tensor product of per-block metrics — :math:`G = G_1 \otimes G_2 \otimes \cdots`.
 
@@ -664,7 +726,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
     """
 
     entries: tuple[
-        tuple[tuple[int, ...], "PositionedMetric | None"], ...
+        tuple[tuple[int, ...], "PositionedMetric | NoForm | None"], ...
     ]
 
     def __post_init__(self) -> None:
@@ -678,14 +740,20 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
                         f"{block_shape} ({size} slots)."
                     )
 
+    @property
+    def kernel(self) -> Declaration:  # pyright: ignore[reportIncompatibleVariableOverride]
+        r"""A tensor product declares no kernel on the flattened index set: the kernel of a Kronecker product is a coordinate
+        subspace only when every block's is, so the question has no one answer here and the read raises ``AttributeError``."""
+        raise AttributeError("a FactoredMetric declares no kernel: read the kernel of its blocks")
+
     def _walk(self, x: NDArray, *, inverse: bool) -> NDArray:
         # The product acts on the concatenation of its blocks: a Euclidean
-        # (``None``) block applies nothing, so no block alone sees its extent.
+        # (``None`` or :class:`NoForm`) block applies nothing, so no block alone sees its extent.
         verb = "apply_inverse" if inverse else "apply"
         out = leading_coordinates(np.asarray(x), self._block_shape, owner=f"FactoredMetric.{verb}")
         start = 0
         for block_shape, factor in self.entries:
-            if factor is not None:
+            if not _is_blank(factor):
                 out = factor.apply_block(
                     out, start=start, block_shape=block_shape, inverse=inverse
                 )
@@ -706,7 +774,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
     def diagonal(self, shape: tuple[int, ...]) -> NDArray | None:
         r"""Diagonal iff every block is Euclidean or diagonal; then :math:`G\mathbf 1`."""
         for block_shape, factor in self.entries:
-            if factor is not None and cast(HilbertMetric, factor).diagonal(block_shape) is None:
+            if not _is_blank(factor) and cast(HilbertMetric, factor).diagonal(block_shape) is None:
                 return None
         return self.apply(np.ones(shape))
 
@@ -724,7 +792,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
             (
                 block_shape,
                 # A positioned leaf's dual is a DualMetric, itself positioned.
-                None if factor is None
+                None if _is_blank(factor)
                 else cast(PositionedMetric, cast(HilbertMetric, factor).dual()),
             )
             for block_shape, factor in self.entries
@@ -740,7 +808,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
         for block_shape, factor in self.entries:
             size = int(np.prod(block_shape)) if block_shape else 1
             blocks *= size
-            rank *= size if factor is None else cast(HilbertMetric, factor).rank(block_shape)
+            rank *= size if _is_blank(factor) else cast(HilbertMetric, factor).rank(block_shape)
         # Trailing element axes beyond the blocks multiply the rank, as they
         # do for a leading-aligned diagonal or dense metric.
         size = int(np.prod(shape)) if shape else 1
@@ -756,7 +824,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
         kernel: NDArray = np.zeros((1, 0))
         for entry_shape, factor in self.entries:
             size = int(np.prod(entry_shape)) if entry_shape else 1
-            if factor is None:
+            if _is_blank(factor):
                 block_live, block_kernel = np.eye(size), np.zeros((size, 0))
             else:
                 block_live, block_kernel = cast(HilbertMetric, factor)._block_split(entry_shape)
@@ -802,6 +870,14 @@ class DualMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphis
     def __init__(self, primal: HilbertMetric) -> None:
         #: The metric of :math:`V` whose inverse form this is.
         self.primal = primal
+
+    @property
+    def kernel(self) -> Declaration:  # pyright: ignore[reportIncompatibleVariableOverride]
+        return self.primal.kernel  # G⁺ and G share their kernel
+
+    @property
+    def negative(self) -> int:
+        return self.primal.negative
 
     def dual(self) -> HilbertMetric:
         return self.primal  # (G⁺)⁺ = G, the involution by object identity

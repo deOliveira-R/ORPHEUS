@@ -62,6 +62,7 @@ from orpheus.numerics.axis import Modal
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.metric import DiagonalMetric
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -127,7 +128,7 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     expected = sn.scheme.moment_axis(sn.axes)
     assert tail == expected, "the tail IS the scheme's own moment axis"
     assert isinstance(tail.kind, Modal)
-    assert tail.weights is not None
+    assert isinstance(tail.form, DiagonalMetric)
     # The mass value is pinned in
     # test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse.
     # the cell-group factor is the carrier's WIDENED bulk — the same space the scalar family mints

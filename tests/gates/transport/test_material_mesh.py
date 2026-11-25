@@ -32,6 +32,7 @@ from orpheus.transport.mesh import (
 )
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.numerics.axis import Axis, BasisKind, Declared
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -193,8 +194,8 @@ def test_bulk_space_on_a_MESHED_carrier_is_the_honest_scalar_bulk() -> None:
     _require(space.shape == (2, 3), f"scalar bulk shape {space.shape} != (2, 3)")
     axes = space.axes
     assert axes is not None
-    spatial_weights = axes[1].weights
-    assert spatial_weights is not None
+    assert isinstance(axes[1].form, DiagonalMetric)
+    spatial_weights = axes[1].form.weights
     _require(
         bool(np.array_equal(spatial_weights, carrier.volumes)),
         "the spatial factor measure must BE the cell volumes",
@@ -247,8 +248,8 @@ def test_the_spatial_axis_is_minted_through_the_carriers_own_measure() -> None:
     npt.assert_array_equal(sp_ax.nodes, np.array([0.5, 2.0, 4.5]), err_msg="centres, hand-derived")
     _require(sp_ax.support == g.support, "the support is the measure's")
     literal = Axis(
-        "spatial", carrier.spatial_shape, weights=carrier.volumes,
-        origin=Declared(BasisKind.NODAL),
+        "spatial", carrier.spatial_shape,
+        origin=Declared(BasisKind.NODAL, DiagonalMetric(carrier.volumes)),
     )
     _require(not (sp_ax == literal), "an atomless literal must not pass for the sampled axis")
     # G8-spatial — the section law on the rank-1 arm (the law's domain):

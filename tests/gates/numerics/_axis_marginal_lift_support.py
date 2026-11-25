@@ -29,6 +29,7 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis, Modal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from tests.gates.numerics._phase_space_twins import spatial_axis_1d, spatial_axis_2d, twin
+from orpheus.numerics.metric import DiagonalMetric
 
 
 @cache
@@ -56,7 +57,7 @@ _W_SPA = np.array([0.2, 0.3, 0.4, 0.7, 1.4])
 
 
 def _cells():
-    return (EnergyAxis.synthetic(2), Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL)))
+    return (EnergyAxis.synthetic(2), Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))))
 
 
 def head_products():
@@ -77,12 +78,12 @@ def head_products():
 def synthetic():
     return {
         "synthetic nodal": FunctionSpace.of_axes(
-            Axis("angular", (4,), weights=np.array([0.3, 0.7, 0.5, 0.5]), origin=Declared(BasisKind.NODAL)),
+            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.7, 0.5, 0.5])))),
             Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL)),
+            Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))),
         ),
         "zero-mass signed": FunctionSpace.of_axes(
-            Axis("angular", (2,), weights=np.array([1.0, -1.0]), origin=Declared(BasisKind.NODAL)),
+            Axis("angular", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, -1.0])))),
             Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)),
         ),
     }
@@ -91,8 +92,8 @@ def synthetic():
 def zero_weight_nodal():
     """A nodal axis with one zero weight (legal: signed and zero weights are admitted)."""
     return FunctionSpace.of_axes(
-        Axis("angular", (3,), weights=np.array([0.5, 0.0, 1.5]), origin=Declared(BasisKind.NODAL)),
-        Axis("spatial", (4,), weights=np.array([1.0, 2.0, 0.5, 0.25]), origin=Declared(BasisKind.NODAL)),
+        Axis("angular", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 0.0, 1.5])))),
+        Axis("spatial", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 0.5, 0.25])))),
     )
 
 
@@ -106,8 +107,8 @@ def dense_form_spaces():
     from orpheus.numerics.declaration import Coord
     from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 
-    ang = Axis("angular", (4,), weights=np.array([0.3, 0.9, 0.5, 0.3]), origin=Declared(BasisKind.NODAL))
-    spa = Axis("spatial", (5,), weights=np.array([1.0, 2.0, 0.5, 0.25, 3.0]), origin=Declared(BasisKind.NODAL))
+    ang = Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.9, 0.5, 0.3]))))
+    spa = Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 0.5, 0.25, 3.0]))))
     mom = Axis("moment", (3,), origin=Declared(Modal(np.eye(3)[0])))
     d1 = FunctionSpace("d1", (4, 5, 3), axes=(ang, spa, mom),
                        metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1), kernel=Coord(3, ()), face=Face.METRIC)))))

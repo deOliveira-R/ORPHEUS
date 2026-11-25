@@ -31,7 +31,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.frame import GramStructure
-from orpheus.numerics.metric import FactoredMetric
+from orpheus.numerics.metric import DiagonalMetric, FactoredMetric
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.transport.frames import HarmonicFrame
 from tests.gates.sn.architecture.test_monomorphic_leaves import (
@@ -123,7 +123,10 @@ def test_P10_the_moment_space_is_axis_built_and_never_densified(geometry: str, L
     else:
         assert space.metric is None
     n = int(np.prod(space.shape))
-    reachable = [ax.weights for ax in space.axes if ax.weights is not None]
+    reachable = [
+        ax.form.weights for ax in space.axes
+        if isinstance(ax.form, DiagonalMetric) and not bool((ax.form.weights == 1.0).all())
+    ]
     assert all(w.size < n for w in reachable), "no reachable array is state-sized"
     assert sum(w.nbytes for w in reachable) < 8 * n
 

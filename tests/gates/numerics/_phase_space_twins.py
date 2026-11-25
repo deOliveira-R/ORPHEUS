@@ -24,6 +24,7 @@ from orpheus.numerics.basis.interval_legendre_basis import spatial_moment_basis
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 #: The literal edges of the monomorphic population (``tests/gates/transport/_phase_space_cases.py``'s
 #: ``NONUNIFORM_EDGES`` and two-region rectangle; a numerics file may not import that transport helper).
@@ -55,7 +56,7 @@ def spatial_axis_2d(edges_x: np.ndarray, edges_y: np.ndarray) -> Axis:
     """The rank-2 spatial axis a rectangle mints: the cell areas ``dx dy``, declared nodal (rank-d axes carry no
     measure generator)."""
     dx, dy = np.diff(np.asarray(edges_x, float)), np.diff(np.asarray(edges_y, float))
-    return Axis("spatial", (dx.size, dy.size), weights=np.outer(dx, dy), origin=Declared(BasisKind.NODAL))
+    return Axis("spatial", (dx.size, dy.size), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.outer(dx, dy))))
 
 
 class Twin(NamedTuple):

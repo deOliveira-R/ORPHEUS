@@ -67,6 +67,7 @@ from __future__ import annotations
 from orpheus.numerics.space import FunctionSpace
 
 import numpy as np
+from orpheus.numerics.metric import DenseMetric, NoForm
 import pytest
 
 from orpheus.numerics.frame import GramStructure
@@ -145,7 +146,8 @@ def _adjoint_gap(space, transfer: TransferMaterialField, L: int, x: np.ndarray) 
 def _head_measure(space) -> np.ndarray | None:
     """The head's diagonal metric where the axis doctrine put it — its single axis's measure."""
     assert space.axes is not None and len(space.axes) == 1
-    return space.axes[0].weights
+    form = space.axes[0].form
+    return None if isinstance(form, (NoForm, DenseMetric)) else np.asarray(space.apply_metric(np.ones(space.shape)))
 
 
 @pytest.mark.parametrize("label", sorted(_RULES))

@@ -107,7 +107,7 @@ problem, so it must be comparable by content for
 :class:`~orpheus.sn.problem.SNProblem` to be a save state
 (:ref:`sn-hub-identity-two-predicates`); it remains a **mutable**
 dataclass, so ``axis.generator``'s arrays are a live reference and the
-factor measure of record is the axis's own read-only ``weights`` copy
+factor measure of record is the axis's own read-only ``form.weights`` copy
 (:ref:`spaces-axis-generator`).
 
 Transport Sweep — the loss representations

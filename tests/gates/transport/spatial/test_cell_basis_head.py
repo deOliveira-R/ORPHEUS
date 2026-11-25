@@ -41,6 +41,7 @@ from orpheus.numerics.axis import Axis, Declared, FromBasis, Modal
 from orpheus.numerics.basis import IntervalLegendreBasis, TensorProductBasis, spatial_moment_basis
 from orpheus.transport.spatial import LinearDiscontinuous
 from orpheus.transport.spatial.diamond import DiamondDifference
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = [pytest.mark.foundation]
 
@@ -117,9 +118,9 @@ def test_the_moment_axis_metric_is_the_gram_not_its_inverse(d: int) -> None:
     the continuum Gram and no frame. Tooth: ``PROTO_ARM=inverse_gram``.
     """
     ax = LinearDiscontinuous().moment_axis(_cart(d))
-    assert ax.weights is not None
-    np.testing.assert_array_equal(ax.weights, _HAND_MASS[d])
-    assert not np.allclose(ax.weights, 1.0 / _HAND_MASS[d]), "the head carries the inverse Gram (the frame's covariant metric)"
+    assert isinstance(ax.form, DiagonalMetric)
+    np.testing.assert_array_equal(ax.form.weights, _HAND_MASS[d])
+    assert not np.allclose(ax.form.weights, 1.0 / _HAND_MASS[d]), "the head carries the inverse Gram (the frame's covariant metric)"
 
 
 @pytest.mark.rests_on("tests/gates/numerics/test_interval_legendre_basis.py::test_the_constant_mode_is_slot_zero")
@@ -171,7 +172,7 @@ def test_theta_and_the_mass_are_read_from_the_basis_gram(monkeypatch: pytest.Mon
         assembled = assemble_ubld(ones, ones, np.ones(()), LinearDiscontinuous.cell_basis(d))
         return np.diagonal(assembled["M"])
 
-    np.testing.assert_array_equal(LinearDiscontinuous().moment_axis(_cart(2)).weights, _HAND_MASS[2])
+    np.testing.assert_array_equal(LinearDiscontinuous().moment_axis(_cart(2)).form.weights, _HAND_MASS[2])
     np.testing.assert_array_equal(kernel_mass(2), _HAND_MASS[2])
     assert LinearDiscontinuous().theta == _T
 
@@ -180,7 +181,7 @@ def test_theta_and_the_mass_are_read_from_the_basis_gram(monkeypatch: pytest.Mon
     monkeypatch.setattr(IntervalLegendreBasis, "gram_per_degree", property(lambda self: decoy[: self.n]))
     assert IntervalLegendreBasis(2).coefficient_weights[1] == 0.25, "precondition: the decoy did not install"
     assert LinearDiscontinuous().theta == 0.25, "theta is not read from the interval basis's Gram"
-    np.testing.assert_array_equal(LinearDiscontinuous().moment_axis(_cart(2)).weights, np.kron(decoy, decoy))
+    np.testing.assert_array_equal(LinearDiscontinuous().moment_axis(_cart(2)).form.weights, np.kron(decoy, decoy))
     np.testing.assert_array_equal(kernel_mass(2), np.kron(decoy, decoy))
 
 

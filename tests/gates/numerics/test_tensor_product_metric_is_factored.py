@@ -61,7 +61,7 @@ import numpy as np
 import pytest
 
 import orpheus.numerics.space as _spacemod
-from orpheus.numerics.metric import FactoredMetric, _broadcast_leading
+from orpheus.numerics.metric import FactoredMetric, _broadcast_leading, DiagonalMetric, NoForm
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.numerics._phase_space_twins import (
@@ -72,6 +72,7 @@ from tests.gates.numerics._phase_space_twins import (
     twin,
 )
 from orpheus.numerics import frame_faces
+from orpheus.numerics.axis import FromFrame
 
 pytestmark = pytest.mark.foundation
 
@@ -122,6 +123,16 @@ def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSp
     return captured
 
 
+def _metric_weights(ax) -> np.ndarray:
+    """The diagonal metric block an axis supplies: its form's weights, except on a frame head, whose form is the Gram and whose
+    metric is the Moore-Penrose inverse of it (the masked reciprocal of the diagonal Gram)."""
+    w = np.asarray(ax.form.weights, dtype=float)
+    if isinstance(ax.origin, FromFrame):
+        live = w > 0.0
+        return np.where(live, 1.0 / np.where(live, w, 1.0), 0.0)
+    return w
+
+
 def _dense_arm(factors) -> "np.ndarray | None":
     """The RETIRED dense arm, hand-built: the outer product of every block's
     weights (ones for a counting-measure block), positioned exactly as the
@@ -135,7 +146,8 @@ def _dense_arm(factors) -> "np.ndarray | None":
         if f.axes is not None:
             for ax in f.axes:
                 blocks.append(
-                    None if ax.weights is None else np.asarray(ax.weights, dtype=float)
+                    None if isinstance(ax.form, NoForm) or (isinstance(ax.form, DiagonalMetric) and bool((ax.form.weights == 1.0).all()))
+                    else _metric_weights(ax)
                 )
                 shapes.append(tuple(ax.shape))
         else:

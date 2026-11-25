@@ -321,7 +321,6 @@ def _dressed(
     space: FunctionSpace,
     *,
     frame: FrameBase,
-    diagonal: NDArray | None = None,
     dense: DenseMetric | None = None,
 ) -> FunctionSpace:
     r"""Install a FRAME-owned metric on a basis's coefficient space — the
@@ -331,8 +330,8 @@ def _dressed(
     step 6 item 6.2c-ii, the indicator families' since S7:
     :meth:`FunctionSpace.of_basis <orpheus.numerics.space.FunctionSpace.of_basis>`),
     so the metric lives where the axis doctrine put it:
-    a diagonal dressing RE-WEIGHTS the head axis (the measure IS the
-    metric), a dense one empties the axis's measure and POSITIONS the form
+    the head axis's form is the frame's Gram (read off the origin: its diagonal on a diagonal Gram, a dense form on a dense one),
+    and a dense dressing also POSITIONS the Parseval form
     on the space's derived metric object (item 6.2c-i) — and in both the
     axis's origin becomes :class:`~orpheus.numerics.axis.FromFrame`, which
     holds the frame that dresses the head (a head at another order is the
@@ -344,8 +343,6 @@ def _dressed(
     cell masses, so the dressed head is ``Modal(masses)`` (ruling 83, until
     S6c moves the moments to the dual).
     """
-    if diagonal is None and dense is None:
-        raise ValueError("_dressed: a dressing installs a diagonal or a dense form")
     axes = space.axes
     if axes is None or len(axes) != 1:
         raise NotImplementedError(
@@ -356,16 +353,13 @@ def _dressed(
     if dense is not None:
         return replace(
             space,
-            axes=(replace(axis, weights=None, origin=FromFrame(frame)),),
+            axes=(replace(axis, origin=FromFrame(frame)),),
             inner_product_weights=None,
             metric=FactoredMetric(((axis.shape, dense),)),
         )
-    assert diagonal is not None  # narrowing only
     return replace(
         space,
-        axes=(replace(
-            axis, weights=np.asarray(diagonal).reshape(axis.shape), origin=FromFrame(frame),
-        ),),
+        axes=(replace(axis, origin=FromFrame(frame)),),
         inner_product_weights=None,
         metric=None,
     )
@@ -460,10 +454,7 @@ def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
         return _dressed(
             space, dense=DenseMetric(DenseMetric.symmetrised(gram), kernel=_frame_module.frame_gram_kernel(gram), face=Face.GRAM), frame=frame,
         )
-    diag = np.diagonal(frame.discrete_gram).reshape(space.shape)
-    live = diag > 0.0
-    inverse = np.where(live, 1.0 / np.where(live, diag, 1.0), 0.0)
-    return _dressed(space, diagonal=inverse, frame=frame)
+    return _dressed(space, frame=frame)
 
 
 def test_space(frame: FrameBase) -> FunctionSpace:

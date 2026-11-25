@@ -59,6 +59,7 @@ from orpheus.mesh import Mesh1D, Mesh2D
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.axis import Axis as SpaceFactorAxis
 from orpheus.numerics.axis import BasisKind, Declared
+from orpheus.numerics.metric import DiagonalMetric
 from orpheus.numerics.space import FunctionSpace
 from orpheus.mesh import (
     RadialAxisMesh,
@@ -606,8 +607,7 @@ class MaterialMesh:  # concept: mesh | role: weld | kind: set | welded: mesh, re
             spatial = SpaceFactorAxis(
                 "spatial",
                 self.spatial_shape,
-                weights=self.volumes,
-                origin=Declared(BasisKind.NODAL),
+                origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(self.volumes))),
             )
         return FunctionSpace.of_axes(energy, spatial)
 

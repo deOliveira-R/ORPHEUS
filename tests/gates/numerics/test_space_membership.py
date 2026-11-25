@@ -23,14 +23,15 @@ from dataclasses import dataclass
 
 from orpheus.numerics.field import Field
 from orpheus.numerics.units import SCALAR_FLUX_UNITS
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.l0
 
 
 _E = EnergyAxis.synthetic(2)
 #: Two spaces of EQUAL shape and DIFFERENT metric: no shape check can tell them apart (explorer map §1, the structural fact).
-V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(BasisKind.NODAL)))
-W = FunctionSpace.of_axes(_E, Axis("spatial", (3,), weights=np.array([3.0, 2.0, 1.0]), origin=Declared(BasisKind.NODAL)))
+V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))))
+W = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([3.0, 2.0, 1.0])))))
 X = np.arange(1.0, 7.0).reshape(2, 3)
 
 

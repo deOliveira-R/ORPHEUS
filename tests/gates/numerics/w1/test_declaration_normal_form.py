@@ -95,12 +95,13 @@ def test_contains_decides_exactly_where_it_can() -> None:
     _require(contains(S, S) is True and contains(A, A) is True and contains(C13, C13) is True, "d in d")
     _require(contains(EMPTY, EMPTY) is True and contains(WHOLE, WHOLE) is True, "the corners")
     _require(contains(EMPTY, C1) is False, "a non-empty Coord is not in the empty Coord")
+    _require(contains(C1, A) is False and A.dim > C1.dim, "a subspace of larger dimension is not inside a smaller one, with no basis needed: Ann(Spanned) against {1}")
 
 
 @pytest.mark.parametrize(
     "outer,inner",
-    [(S, S2), (S, A), (A, S), (S, C1), (C13, S), (A, C13), (C1, A)],
-    ids=["spanned_spanned", "spanned_ann", "ann_spanned", "spanned_coord", "coord_spanned", "ann_coord", "coord_ann"],
+    [(S, S2), (S, A), (A, S), (S, C1), (C13, S), (A, C13)],
+    ids=["spanned_spanned", "spanned_ann", "ann_spanned", "spanned_coord", "coord_spanned", "ann_coord"],
 )
 def test_contains_raises_where_it_cannot_decide(outer: Declaration, inner: Declaration) -> None:
     with pytest.raises(ValueError, match="subspace inclusion is undecided"):

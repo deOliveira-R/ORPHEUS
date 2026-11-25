@@ -45,6 +45,7 @@ from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, Kern
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = [pytest.mark.foundation]
 
@@ -65,7 +66,7 @@ _W_C = np.array([1.0, 4.0, 0.5, 2.0])
 
 
 def _axis(name: str, weights: np.ndarray) -> Axis:
-    return Axis(name, (weights.shape[0],), weights, origin=Declared(BasisKind.NODAL))
+    return Axis(name, (weights.shape[0],), origin=Declared(BasisKind.NODAL, DiagonalMetric(weights)))
 
 
 def energy_point() -> FunctionSpace:

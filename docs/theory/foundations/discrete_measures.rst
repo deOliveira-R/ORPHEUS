@@ -112,7 +112,7 @@ Key Facts
 - A measure **generates space factors, not only whole spaces**:
   :meth:`Axis.of_measure(μ, label) <orpheus.numerics.axis.Axis.of_measure>`
   is the axis-composed sibling of ``μ.space``, minting one
-  :class:`~orpheus.numerics.axis.Axis` that keeps the weights, drops
+  :class:`~orpheus.numerics.axis.Axis` that keeps the weights as its form, drops
   the nodes, and records ``μ`` itself as its generator so the
   forgetting is recoverable.
   :meth:`Axis.of_quadrature <orpheus.numerics.axis.Axis.of_quadrature>`
@@ -3409,7 +3409,7 @@ FromQuadrature(quad)`` recovers ``mu_x`` / ``eta`` / ``mu_z`` /
 is refused through :func:`~orpheus.numerics.axis.quadrature_refusal`.
 ⚠ The rule inside the origin is a **live reference** — a
 :class:`~orpheus.numerics.quadrature.directional.Quadrature` is a
-mutable dataclass — whereas the axis's own ``weights`` and ``nodes`` are
+mutable dataclass — whereas the axis's own ``form`` and ``nodes`` are
 read-only defensive copies. Read the origin for what the axis does not
 keep (the level fibration); read the axis for the factor measure and the
 atoms of record (:ref:`spaces-axis-origin`).

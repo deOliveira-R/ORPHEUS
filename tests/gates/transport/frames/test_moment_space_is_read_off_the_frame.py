@@ -66,7 +66,7 @@ import pytest
 
 from orpheus.numerics.basis.base import Basis, GramStructure, TruncatedBasis
 from orpheus.numerics.basis.indicator_basis import IndicatorBasis
-from orpheus.numerics.metric import DenseMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, FactoredMetric, NoForm
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.geometry.manifold import Manifold, RealSpace
@@ -185,7 +185,8 @@ _RULES = {
 def _head_measure(space: FunctionSpace) -> np.ndarray | None:
     """The head's diagonal metric where the axis doctrine put it — the single head axis's measure."""
     assert space.axes is not None and len(space.axes) == 1, "a moment head is a single-axis space"
-    return space.axes[0].weights
+    form = space.axes[0].form
+    return None if isinstance(form, (NoForm, DenseMetric)) else np.asarray(space.apply_metric(np.ones(space.shape)))
 
 
 @pytest.mark.parametrize("label", sorted(_RULES))

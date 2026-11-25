@@ -191,7 +191,7 @@ fingerprint = "blake2b:c855568ec601c635fc9098fbcf7a1916ec644aef6815947aa4749c7d4
 
 [[seed]]
 class = "orpheus/numerics/axis.py::Axis"
-fingerprint = "blake2b:779a6bb469dd7d0065783a907568e3fe76312f45b585c13563dad86303cbd995"
+fingerprint = "blake2b:51c482441d88e7f519b55b1ccae21ad491029a7d4cedd2cb7d97bd9246eb17b7"
 
 [[seed]]
 class = "orpheus/numerics/basis/base.py::Basis"
@@ -563,7 +563,7 @@ fingerprint = "blake2b:738c760c39258b0a363faf7b03f49f1e9af98c6349ff1c6093fcc0187
 
 [[seed]]
 class = "orpheus/transport/mesh/material_mesh.py::MaterialMesh"
-fingerprint = "blake2b:230700fbaff057f7b4ca958077346909ef33a6104ccaa79b4bfffae436c51ac7"
+fingerprint = "blake2b:0daf5ef49c2af27c7674e2bf1ef89d5cd70da3357c566ed7ee80e6f96be62089"
 
 [[seed]]
 class = "orpheus/transport/mesh/material_xs_field.py::MaterialXSField"

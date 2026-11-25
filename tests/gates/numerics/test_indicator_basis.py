@@ -23,17 +23,17 @@ flux/spectrum weighting lives on the TEST side, never on the measure).  These
 
 from __future__ import annotations
 
-import dataclasses
 
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis
+from orpheus.numerics.axis import Axis, Declared, BasisKind
 from orpheus.numerics.basis import IndicatorBasis
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = [pytest.mark.foundation]
 
@@ -105,7 +105,8 @@ def _projector(b, table, weights):
     """Π = R ∘ G⁻¹ ∘ M with the region-mass Gram (the homogenisation projector)."""
     region_mass = b.analyze(np.ones(table.shape[0]), table, weights)
     # axis-built since S7: the region masses are the coefficient axis's measure
-    space = FunctionSpace.of_axes(dataclasses.replace(Axis.of_basis(b), weights=region_mass))
+    head = Axis.of_basis(b)
+    space = FunctionSpace.of_axes(Axis(head.label, head.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(region_mass))))
 
     def project(fine_field):
         coeff = space.apply_inverse_metric(b.analyze(fine_field, table, weights))
@@ -154,7 +155,8 @@ def test_empty_region_normalises_to_zero_not_nan():
     region_mass = b.analyze(np.ones(mu.nodes.size), table, mu.weights)
     assert region_mass[0] == 0.0                       # the empty region
     # axis-built since S7: the region masses are the coefficient axis's measure
-    space = FunctionSpace.of_axes(dataclasses.replace(Axis.of_basis(b), weights=region_mass))
+    head = Axis.of_basis(b)
+    space = FunctionSpace.of_axes(Axis(head.label, head.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(region_mass))))
     rate = b.analyze(np.ones(mu.nodes.size), table, mu.weights)
     normalised = space.apply_inverse_metric(rate)
     assert np.isfinite(normalised).all()

@@ -29,6 +29,7 @@ from orpheus.numerics.kernel_projection_gauge import (
     KernelSummand,
 )
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.metric import DiagonalMetric, Face
 
 pytestmark = pytest.mark.l0
 
@@ -42,7 +43,7 @@ _SPACE_VERBS = f"{_COORDINATE_SPACE}::TestTheSpaceVerbsParseOnEveryRun"
 _EPS = np.finfo(float).eps
 _N = 9
 _G = np.array([0.5, 1.0, 2.0, 0.25, 3.0, 1.5, 0.75, 4.0, 1.25])
-SPACE = FunctionSpace.of_axes(Axis("dof", (_N,), weights=_G, origin=Declared(BasisKind.NODAL)))
+SPACE = FunctionSpace.of_axes(Axis("dof", (_N,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_G))))
 
 #: Coordinate-aligned kernel K = {2, 5, 7}: A = A_RR (+) 0_K, so A e_t == 0 is bitwise (L90: gate the object).
 _K = np.array([2, 5, 7])
@@ -388,7 +389,7 @@ class TestTheProtocolAndTheMetric:
     @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_non_diagonal_metric_is_a_declared_scope_boundary(self):
         from orpheus.numerics.declaration import Coord
-        from orpheus.numerics.metric import DenseMetric, Face
+        from orpheus.numerics.metric import DenseMetric
         dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC))
         with pytest.raises(ValueError, match="the metric is not diagonal"):
             KernelProjectionGauge.direct_sum(dense, ())
@@ -400,8 +401,8 @@ class TestTheProtocolAndTheMetric:
         rides through. First red: before U0 the space was refused ("must be one-dimensional"). Arm
         ``fortran_chart`` (the chart ravelled in F order) reddens the law against the C-order oracle."""
         plane = FunctionSpace.of_axes(
-            Axis("p", (2,), weights=np.array([1.0, 2.0]), origin=Declared(BasisKind.NODAL)),
-            Axis("q", (3,), weights=np.array([1.0, 1.0, 2.0]), origin=Declared(BasisKind.NODAL)))
+            Axis("p", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0])))),
+            Axis("q", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 1.0, 2.0])))))
         w = np.asarray(plane.metric_diagonal(), dtype=float).reshape(-1)
         support, generators = np.array([1, 2, 4]), np.array([[1.0], [-1.0], [2.0]])
         g = KernelProjectionGauge.direct_sum(plane, (KernelSummand(support, generators, "plane"),))
@@ -480,7 +481,7 @@ class TestTheMetricDiagonalVerb:
     def test_a_dense_metric_is_not_known_to_be_diagonal(self):
         """Arm ``dense_says_diagonal`` reddens it, and the scope-boundary row."""
         from orpheus.numerics.declaration import Coord
-        from orpheus.numerics.metric import DenseMetric, Face
+        from orpheus.numerics.metric import DenseMetric
         assert DenseMetric(np.diag(_G), kernel=Coord(_N, ()), face=Face.METRIC).diagonal((_N,)) is None
 
     @pytest.mark.rests_on(_PRIMITIVE)
@@ -513,8 +514,8 @@ class TestTheCompositeMetricDiagonal:
     each block's own ``apply_metric(ones)``. Arms ``full_field_reversed`` and ``coupled_reversed`` (the blocks
     concatenated in the wrong order) redden their rows."""
 
-    _A = FunctionSpace.of_axes(Axis("bulk", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(BasisKind.NODAL)))
-    _B = FunctionSpace.of_axes(Axis("trace", (2,), weights=np.array([0.5, 4.0]), origin=Declared(BasisKind.NODAL)))
+    _A = FunctionSpace.of_axes(Axis("bulk", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))))
+    _B = FunctionSpace.of_axes(Axis("trace", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 4.0])))))
 
     def _expected(self):
         return np.concatenate([self._A.apply_metric(np.ones(3)), self._B.apply_metric(np.ones(2))])

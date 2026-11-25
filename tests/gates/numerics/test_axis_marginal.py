@@ -53,6 +53,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.axis_marginal import AxisRetractionOperator, AxisSectionOperator
 from orpheus.numerics.space import FunctionSpace
 from tests.gates.numerics._phase_space_twins import Twin, spatial_axis_1d, twin
+from orpheus.numerics.metric import DiagonalMetric
 
 
 pytestmark = pytest.mark.foundation
@@ -67,9 +68,9 @@ _W_SPA = np.array([0.2, 0.3, 0.4, 0.7, 1.4])     # a genuine V vector
 def _product() -> FunctionSpace:
     """angular(w) ⊗ energy(counting) ⊗ spatial(V) — the synthetic carrier."""
     return FunctionSpace.of_axes(
-        Axis("angular", (4,), weights=_W_ANG, origin=Declared(BasisKind.NODAL)),
+        Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))),
         Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-        Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL)),
+        Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))),
     )
 
 
@@ -155,7 +156,7 @@ class TestAdjointPairing:
         Strip the spatial measure from the domain only: the pairing must
         break at O(1)."""
         stripped = FunctionSpace.of_axes(
-            Axis("angular", (4,), weights=_W_ANG, origin=Declared(BasisKind.NODAL)),
+            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))),
             Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
             Axis("spatial", (5,), origin=Declared(BasisKind.NODAL)),  # V dropped
         )
@@ -279,7 +280,7 @@ class TestAxisGeneric:
         Vw = np.outer(np.array([0.2, 0.5, 0.9]), np.array([1.0, 2.0]))
         V = FunctionSpace.of_axes(
             Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("spatial", (3, 2), weights=Vw, origin=Declared(BasisKind.NODAL)),
+            Axis("spatial", (3, 2), origin=Declared(BasisKind.NODAL, DiagonalMetric(Vw))),
         )
         R = AxisRetractionOperator.of(V, "spatial")
         x = _rand(V.shape, 10)
@@ -310,7 +311,7 @@ class TestAdmission:
 
     def test_single_axis_space_is_refused(self):
         lone = FunctionSpace.of_axes(
-            Axis("angular", (4,), weights=_W_ANG, origin=Declared(BasisKind.NODAL)),
+            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))),
         )
         with pytest.raises(ValueError, match="bare scalar"):
             AxisRetractionOperator.of(lone, "angular")
@@ -322,8 +323,8 @@ class TestAdmission:
         same axis is legal (a contraction needs no division); the
         asymmetry is the point."""
         signed = FunctionSpace.of_axes(
-            Axis("angular", (2,), weights=np.array([1.0, -1.0]),
-                 origin=Declared(BasisKind.NODAL)),
+            Axis("angular", (2,),
+                 origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, -1.0])))),
             Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)),
         )
         AxisRetractionOperator.of(signed, "angular")  # legal
@@ -470,7 +471,7 @@ class TestFrameInduction:
 
         V = FunctionSpace.of_axes(
             EnergyAxis.synthetic(2),
-            Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL)),
+            Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))),
         )
         with pytest.raises(TypeError, match="condensation"):
             AxisRetractionOperator.of(V, "energy")

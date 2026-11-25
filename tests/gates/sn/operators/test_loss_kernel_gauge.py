@@ -134,6 +134,7 @@ from orpheus.numerics import frame_faces
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.metric import NoForm
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -940,7 +941,7 @@ def test_the_kernel_modes_are_orthogonal_to_the_constants(label, cells, bcs, kwa
         axes = codomain.axes
         assert axes is not None
         table = block.basis.table
-        g = np.ones(table.shape[0]) if axes[0].weights is None else np.asarray(axes[0].weights)
+        g = np.ones(table.shape[0]) if isinstance(axes[0].form, NoForm) else np.asarray(axes[0].form.weights)
         moments = table.T @ g
         bound = 64.0 * eps * np.linalg.norm(table) * np.linalg.norm(g)
         assert np.all(np.abs(moments) <= bound), (

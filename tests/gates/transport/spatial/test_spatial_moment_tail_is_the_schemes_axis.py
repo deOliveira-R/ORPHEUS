@@ -53,6 +53,7 @@ from tests.gates.transport._phase_space_cases import Posed, moment_space
 from orpheus.transport.spatial import LinearDiscontinuous
 from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
+from orpheus.numerics.metric import DiagonalMetric
 
 
 pytestmark = pytest.mark.foundation
@@ -96,14 +97,14 @@ def test_the_moment_norm_carries_the_cell_mass_on_its_tail(label: str) -> None:
     space = moment_space(sn.mesh, sn.quadrature, 1, sn.scheme)
     assert isinstance(space, TensorProductSpace)
     (tail,) = _tail_axes(space)
-    assert tail.weights is not None
+    assert isinstance(tail.form, DiagonalMetric)
     rng = np.random.default_rng(3)
     x = rng.standard_normal(space.shape)
     got = space.inner_product(x, x)
     # oracle: the un-widened product's pairing per tail slot, weighted by the mass
     narrow = moment_space(sn.mesh, sn.quadrature, 1)
     per_slot = np.array([narrow.inner_product(x[..., k], x[..., k]) for k in range(space.shape[-1])])
-    np.testing.assert_allclose(got, float(per_slot @ tail.weights), rtol=1e-12)
+    np.testing.assert_allclose(got, float(per_slot @ tail.form.weights), rtol=1e-12)
     euclidean = float(per_slot.sum())
     assert not np.isclose(got, euclidean), "the mass must move the pairing, or the tail carries none"
 

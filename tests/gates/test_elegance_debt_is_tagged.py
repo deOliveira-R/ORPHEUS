@@ -200,7 +200,7 @@ def test_every_scope_boundary_names_its_machinery_ruling_and_revisit_condition()
 #: The issues of the W0 units that tag a refusal (``ontology_w0_spec.md`` 5.3, decision 9): each token line
 #: naming one carries ``#<issue> (W<digit>[ab]?)``, the wave that retires the refusal, written ONCE, in the tag.
 #: The wave that retires a refusal deletes the refusal and its tag in one diff and removes its issue from this set.
-_WAVE_TAGGED_ISSUES = frozenset({709, 710, 711, 725})
+_WAVE_TAGGED_ISSUES = frozenset({709, 711, 725})
 
 
 def _wave_violations(token_lines: list[tuple[str, str]]) -> list[str]:

@@ -52,7 +52,7 @@ from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
-from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.numerics.coefficient_layout import HarmonicLayout
@@ -193,7 +193,7 @@ def test_measure_space_carries_the_quadrature_weights_as_its_metric(sh_frame):
     assert ms.shape == (frame.measure.weights.shape[0],)
     # axis-built since S7 (ruling 63): the weights are the measure axis's own
     assert ms.axes is not None and ms.inner_product_weights is None
-    np.testing.assert_array_equal(ms.axes[0].weights, frame.measure.weights)
+    np.testing.assert_array_equal(ms.axes[0].form.weights, frame.measure.weights)
     # analysis domain / reconstruction codomain are that same space
     assert frame_faces.FrameAnalysis.of(frame).domain is ms
     assert frame_faces.FrameReconstruction.of(frame).codomain is ms
@@ -937,7 +937,10 @@ def test_indicator_frame_parseval_metric_is_the_inverse_region_mass():
     assert frame.discrete_gram_structure is GramStructure.DIAGONAL
     # axis-built since S7 (the indicator head, ruling 81): the measure is the head axis's
     np.testing.assert_allclose(
-        frame_faces.basis_space(frame).axes[0].weights, [0.5, 1.0 / 3.0, 0.0],
+        frame_faces.basis_space(frame).axes[0].form.weights, [2.0, 3.0, 0.0],
+    )  # the head's form is the Gram (its diagonal); the head's metric is the masked reciprocal, read below
+    np.testing.assert_allclose(
+        _dressed_measure(frame), [0.5, 1.0 / 3.0, 0.0],
     )
     f = np.array([10.0, 10.0, 30.0, 30.0])  # constant per region — band-limited
     phi = frame_faces.FrameAnalysis.of(frame).apply(f)
@@ -1052,20 +1055,20 @@ def test_dense_frames_are_dressed_with_the_pseudo_inverse_gram(make_frame):
 
 def _dressed_measure(frame) -> np.ndarray | None:
     """The dressed head's DIAGONAL metric where the axis doctrine put it (CS4c
-    step 6 item 6.2c-ii): the single head axis's measure on an axis-built
-    coefficient space, the legacy weights slot on an axes-less one (the
-    indicator bases, CS2)."""
+    step 6 item 6.2c-ii): the metric the space applies to the unit of its single
+    head axis on an axis-built coefficient space (the head's form is its Gram; the metric is the masked reciprocal), the legacy
+    weights slot on an axes-less one (the indicator bases, CS2)."""
     space = frame_faces.basis_space(frame)
     if space.axes is not None:
         assert len(space.axes) == 1, "a coefficient space is single-axis"
-        return space.axes[0].weights
+        return np.asarray(space.apply_metric(np.ones(space.shape)))
     return space.inner_product_weights
 
 
 def _continuum_measure(frame) -> np.ndarray:
     """The basis's own CONTINUUM Gram — the head axis's measure on ``basis.space`` (axis-built since item 6.2c-ii)."""
     space = FunctionSpace.of_basis(frame.basis)
-    measure = space.axes[0].weights if space.axes is not None else space.inner_product_weights
+    measure = space.axes[0].form.weights if space.axes is not None else space.inner_product_weights
     assert measure is not None
     return np.asarray(measure)
 

@@ -23,11 +23,12 @@ from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.l0
 
 _E = EnergyAxis.synthetic(2)
-_S = Axis("spatial", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(BasisKind.NODAL))
+_S = Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0]))))
 _GRAM = DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC)
 
 

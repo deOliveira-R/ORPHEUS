@@ -55,6 +55,7 @@ from tests.gates.sn._test_helpers import (
 )
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.metric import DiagonalMetric
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -769,7 +770,7 @@ class TestP4RemTheClosureMintReadsThroughTheAxis:
         assert reduced is not None
         bare = Axis(
             "angular", (sn.quad.n_ordinates,),
-            weights=np.asarray(sn.quad.weights, float), origin=Declared(BasisKind.NODAL),
+            origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(sn.quad.weights, float))),
         )
         with pytest.raises(ValueError, match="angular"):
             cls(reduced.angular, reduced.redistribution_pairing, bare)

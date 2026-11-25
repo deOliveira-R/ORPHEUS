@@ -126,13 +126,14 @@ the same space" is a claim this corpus has **overturned**.
      is how :ref:`ERR-080 <manifold-err-080>` survived). Level 1 was a
      bare ``str`` until 2026-08-31 and now has its own type and its own
      page: :doc:`/theory/foundations/manifolds`.
-   - **An axis is identified by its content** *(label, shape, weights,
-     kind, support, nodes, layout)*; the kind, the support, the atoms and
-     the layout are read off its origin, never passed
+   - **An axis is identified by its content** *(label, shape, restriction,
+     form, kind, support, nodes, layout)*; the kind, the support, the atoms,
+     the layout and the form are read off its origin, never passed
      (:ref:`spaces-axis-identity`).
-     ``weights=None`` **is** the counting measure; on a ``FromMeasure`` or
-     ``FromQuadrature`` axis the weights must be the origin's (``None`` only
-     when those are all ones), refused at construction (#710, W1). An axis
+     The form is the closed sum ``DiagonalMetric | DenseMetric | NoForm``; a
+     ``Declared`` origin with no form carries the counting form, and a
+     ``form=`` or ``weights=`` keyword is a ``TypeError`` on every arm, so a form
+     that disagrees with the measure that minted the axis is unspellable. An axis
      has no "unbound" state, so the legacy two-state
      ambiguity of ``inner_product_weights`` cannot arise on this type.
    - **The metric is an OBJECT, and a space has exactly ONE source for
@@ -294,14 +295,14 @@ read off the origin at construction (``kind``, ``support``, ``nodes``,
      - The factor's index set. Rank :math:`> 1` is admissible and
        deliberate: a spherical-harmonic head is :math:`(L+1, 2L+1)`, and
        a rank-:math:`d` spatial axis is a legal CS2 design choice. Rank
-       0 is refused — a factor with no index set has nothing to measure.
-   * - ``weights``
-     - ``NDArray | None`` over exactly ``shape``
-     - The **factor measure**. ``None`` IS the counting measure (on a
-       ``FromMeasure`` or ``FromQuadrature`` axis the weights must be the
-       origin's, refused at construction, #710, W1). This is
-       the slot the pairing consumes. A raw partition head carries
-       ``None`` because a partition is measure-free until a frame binds a
+       0 is one point (the face-spatial factor of a 1-D face).
+   * - ``form``
+     - ``DiagonalMetric | DenseMetric | NoForm``, derived from ``origin``
+     - The **form** of the factor, ``init=False`` on every arm. A
+       ``DiagonalMetric`` is the factor measure the pairing consumes (the
+       counting form is all ones); a ``DenseMetric`` is a Gram; ``NoForm``
+       is the absence of a form. A raw partition head carries
+       ``NoForm`` because a partition is measure-free until a frame binds a
        fine measure (ruling 88, :ref:`spaces-collapse-pair-frame`).
    * - ``origin``
      - ``FromMeasure | FromQuadrature | FromBasis | FromFrame | Declared``,
@@ -560,8 +561,9 @@ axis layer exists to prevent. Three construction rulings close it
 There is deliberately **no non-negativity guard**. CS2's quadrature axes
 legally carry signed weights (level-symmetric families with negative
 weights are real, shipped objects), and the axis is the wrong layer to
-outlaw them. `[M]` ``Axis("x", (2,), weights=[-1.0, 2.0],
-origin=Declared(BasisKind.NODAL))`` constructs.
+outlaw them. `[M]` ``Axis("x", (2,),
+origin=Declared(BasisKind.NODAL, DiagonalMetric([-1.0, 2.0])))`` constructs, and its form reads the signature
+``(1, 0, 1)`` exactly; the factor refuses an indefinite form where a negative weight lies on the quotient it spans.
 
 .. _spaces-axis-identity:
 
@@ -1978,9 +1980,9 @@ would still be excluded.
    **The origin's object is a LIVE REFERENCE; the axis's own copies are the
    authority.** A ``Quadrature`` is mutable, so the arrays of
    ``axis.origin.quadrature`` can in principle change after the axis was
-   minted. The axis's ``weights`` and ``nodes`` cannot: ``__post_init__``
-   stores ``w + 0.0`` and the atoms the same way, read-only and defensively
-   copied. The factor measure and the atoms of record are ``axis.weights``
+   minted. The axis's ``form`` and ``nodes`` cannot: the form's weights are
+   stored as ``w + 0.0`` and the atoms the same way, read-only and defensively
+   copied. The factor measure and the atoms of record are ``axis.form.weights``
    and ``axis.nodes``; read the origin for what the axis does not keep (the
    level fibration, the frame).
 
@@ -2198,8 +2200,8 @@ Three statements, each a direct consequence:
 
 #. **The energy metric is** :math:`G_E = I_{n_g}`. Not "defaults to",
    not "is conventionally taken as" — *is*, by the argument above. In
-   axis vocabulary: the energy factor's ``weights`` is ``None``, which
-   IS the counting measure.
+   axis vocabulary: the energy factor's ``form`` is ``NoForm``, which
+   supplies the counting measure.
 #. :math:`V \cong V^*` **isometrically along energy.** The Riesz map on
    that factor is the identity, so the distinction between a flux
    (:math:`V`) and a cross section (:math:`V^*`) is carried entirely by
@@ -2217,14 +2219,15 @@ Construction enforces it
 -------------------------
 
 The theorem is not left as prose for a future contributor to violate.
-:class:`~orpheus.numerics.axis.EnergyAxis` **refuses weights at
-construction**, with a message that states the reason; a deliberately
+:class:`~orpheus.numerics.axis.EnergyAxis` **carries no weights at
+construction**: its origin is fixed to ``Declared(NODAL, NoForm())``, so a
+``weights=`` or ``form=`` keyword is a ``TypeError``; a deliberately
 non-physical weighted toy must use a generic
 :class:`~orpheus.numerics.axis.Axis`, which is exactly what the
 ``.H``-sensitivity control in the CS1 battery does. Both constructors —
 :meth:`EnergyAxis.of_edges <orpheus.numerics.axis.EnergyAxis.of_edges>`
 and :meth:`EnergyAxis.synthetic
-<orpheus.numerics.axis.EnergyAxis.synthetic>` — mint ``weights=None``.
+<orpheus.numerics.axis.EnergyAxis.synthetic>` — mint the same ``NoForm`` origin.
 ``of_edges`` takes the boundary energies alone, so the numerics axis names
 nothing in the data layer; a group structure is read as an axis by its own
 view, :meth:`EnergyGrid.as_axis <orpheus.data.energy_grid.EnergyGrid.as_axis>`,
@@ -2248,7 +2251,7 @@ forms (:ref:`spaces-metric-three-sources`): one entry per axis, a dense
 Gram on a block whose axis carries no explicit weights. Until U2a the
 door, ``_require_positioned_over`` in ``orpheus/numerics/space.py``, read
 "carries no explicit weights" as "carries no measure", and the two are
-different statements: a NODAL axis with ``weights=None`` carries the
+different statements: a NODAL axis with the counting form carries the
 counting measure, :math:`w_i = 1`, which is exactly what the theorem
 above says the energy axis carries. A dense form beside it was a second
 metric source on one block, and nothing refused it.
@@ -2523,7 +2526,7 @@ metric can come from, and **exactly one of them may be occupied**:
        as the positioned OVERLAY of forms — a ``FactoredMetric`` with one
        entry per axis, a form only on a block whose axis is
        :class:`~orpheus.numerics.axis.Modal` and carries no explicit
-       weights, never on a NODAL axis (whose ``weights=None`` is the
+       weights, never on a NODAL axis (whose counting form is the
        counting measure, :ref:`spaces-form-only-on-a-modal-axis`), never
        a ``DiagonalMetric`` (a diagonal measure is the
        axis's own to carry) — and is MERGED into the axes-derived object,
@@ -4778,8 +4781,8 @@ Where the metric may NOT live, and what stays refused
 Three rulings bound the phase. Each is a decision with a reason, not a
 scheduling accident.
 
-**1. The axis keeps a MEASURE; it does not grow a form.**
-:attr:`Axis.weights <orpheus.numerics.axis.Axis.weights>` stays a 1-D
+**1. The axis holds one form from one home.**
+A diagonal :attr:`Axis.form <orpheus.numerics.axis.Axis.form>` is a 1-D
 weight vector, and :eq:`spaces-axis-product` stays literally true. The
 distinction is not notation: *a measure is diagonal by nature* — it
 assigns a number to each atom of an index set — whereas a Gram is a
@@ -5632,9 +5635,9 @@ axis label.
    w = np.array([0.3, 0.7, 0.5, 0.5])
    V_cell = np.array([0.2, 0.3, 0.4, 0.7, 1.4])
    V = FunctionSpace.of_axes(
-       Axis("angular", (4,), weights=w, kind=BasisKind.NODAL),
-       Axis("energy", (2,), kind=BasisKind.NODAL),
-       Axis("spatial", (5,), weights=V_cell, kind=BasisKind.NODAL),
+       Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w))),
+       Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
+       Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(V_cell))),
    )
    R = AxisRetractionOperator.of(V, "angular")  # V -> energy (x) spatial (fibre integration)
    E = AxisSectionOperator.of(V, "angular")     # energy (x) spatial -> V (the section)
@@ -5696,7 +5699,7 @@ every :math:`c`,
    :math:`m = G_k u` from the axis's metric block,
    ``FunctionSpace._axis_block(k)``, the same entry the space's derived
    metric composes (a positioned form on the space's overlay when the axis
-   is measure-less, else the axis's weights, else ``None``, the counting
+   is measure-less, else the axis's diagonal form, else ``None``, the counting
    measure), so the covector and the space's metric cannot disagree.
 
 .. implements:: spaces-axis-marginal-integral
@@ -6166,7 +6169,7 @@ relative.
    leaves that arm unminted, and :meth:`AxisSectionOperator.of
    <orpheus.numerics.axis_marginal.AxisSectionOperator.of>` refuses at
    access with a ``ValueError`` naming the cause (*"zero total weight"*).
-   Signed axis weights are deliberately legal on
+   Signed diagonal forms are deliberately legal on
    :class:`~orpheus.numerics.axis.Axis` (a :math:`\sigma`-folded
    quadrature can carry them, and three shipped Lebedev rules do), so
    this is a reachable state and not a theoretical one.
@@ -7960,8 +7963,7 @@ status.
        positioned **OVERLAY** of forms: one entry per axis, in order, a
        form ONLY on a block whose axis carries no measure, MERGED into
        the derived entries rather than substituted for them. That is the
-       home a dense Gram needs (*a Gram is a FORM, never on*
-       :attr:`Axis.weights <orpheus.numerics.axis.Axis.weights>`), and the
+       home a dense Gram needs (*a Gram is a FORM, positioned on the derived object*), and the
        guard refuses the three ways of spelling a second source: a bare
        object beside axes, blocks that do not follow the axes, a
        positioned ``DiagonalMetric``, and a form beside a weighted axis.
@@ -8028,7 +8030,7 @@ status.
        limitation is repaired, and `[M]` a production analysis adjoint
        moves by :math:`98\,\%` in Frobenius relative — a correctness
        repair, not plumbing. What did NOT change:
-       :attr:`Axis.weights <orpheus.numerics.axis.Axis.weights>` stays a
+       a diagonal :attr:`Axis.form <orpheus.numerics.axis.Axis.form>` stays a
        1-D measure (a measure is diagonal by nature; a Gram is a form),
        identity stays metric-blind, and the curvilinear moment mass
        stays refused on its VALUE alone

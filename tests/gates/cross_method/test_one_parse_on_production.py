@@ -351,8 +351,8 @@ def _site_calls(site, homog, sn, sn_solution, sphere):
     from orpheus.numerics.axis import Axis, BasisKind, Declared
     from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, KernelSummand
     from orpheus.numerics.space import FunctionSpace
-    kspace = FunctionSpace.of_axes(Axis("dof", (4,), weights=np.array([0.5, 1.0, 2.0, 4.0]),
-                                        origin=Declared(BasisKind.NODAL)))
+    kspace = FunctionSpace.of_axes(Axis("dof", (4,),
+                                        origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 1.0, 2.0, 4.0])))))
     kgauge = KernelProjectionGauge.direct_sum(kspace, (KernelSummand(
         support=np.array([0, 1, 2]), generators=np.array([[1.0], [-2.0], [0.5]]), label="routing_gate_kernel"),))
     table = {

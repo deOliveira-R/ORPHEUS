@@ -22,9 +22,10 @@ import pytest
 
 from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.homogeneous.solver import HomogeneousProblem
-from orpheus.numerics.axis import Axis
+from orpheus.numerics.axis import Axis, Declared
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.fields.scalar_flux import ScalarFlux
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.l0
 
@@ -37,7 +38,7 @@ def _pose():
     assert axes is not None, "the homogeneous pose is an axis product"
     energy, spatial = axes
     # Equal shape (2, 1), another spatial measure: the two spaces only content identity tells apart.
-    foreign = FunctionSpace.of_axes(energy, Axis("spatial", (1,), weights=np.array([2.0]), origin=spatial.origin))
+    foreign = FunctionSpace.of_axes(energy, Axis("spatial", (1,), origin=Declared(spatial.kind, DiagonalMetric(np.array([2.0])))))
     assert foreign != p.space and foreign.shape == p.space.shape       # the discriminator, asserted in-test
     return p, foreign
 

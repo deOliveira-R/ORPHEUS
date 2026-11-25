@@ -219,8 +219,7 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
     assert head.axes is not None and len(head.axes) == 1
     frame = frame_faces.angular_frame(problem.quad, _L)
     assert head.axes[0].origin.frame is frame
-    weights = head.axes[0].weights
-    assert weights is not None
+    weights = np.asarray(head.apply_metric(np.ones(head.shape)))  # the head's metric: the masked reciprocal of its Gram's diagonal
     live = np.asarray(weights) > 0.0
     expected = (2.0 * np.arange(_L + 1) + 1.0) / (4.0 * np.pi)
     np.testing.assert_allclose(

@@ -2,7 +2,7 @@ r"""Space-factor axes — the generators of axis-composed function spaces.
 
 An **axis** is one tensor factor of a function space: the value object
 recording what fixes that factor's coordinate space — its index shape, its
-measure, its kind, and the manifold and atoms it was sampled from — together
+form, its kind, and the manifold and atoms it was sampled from — together
 with its **origin**, the object that minted it, which is provenance and
 deliberately outside that identity.
 Spaces are ordered products of axes (``FunctionSpace.of_axes``); the axis is
@@ -16,28 +16,26 @@ The slots, precisely
 * ``label`` — the factor's role (``"angular"``, ``"spatial"``,
   ``"energy"``, …). Two factors that agree on everything else and play
   different roles are different axes.
-* ``shape`` — the index set of this factor, rank ≥ 1. Rank > 1 is
+* ``shape`` — the index set of this factor, rank ≥ 0. Rank > 1 is
   admissible (a spherical-harmonic axis is ``(L+1, 2L+1)``; a rank-``d``
-  spatial axis is a legal design choice for CS2).
-* ``weights`` — the **factor measure** over exactly ``shape``.
-  ``None`` **is the counting measure**: on a :class:`FromMeasure` /
-  :class:`FromQuadrature` axis the weights must be the origin's
-  (``None`` only when those are all ones), refused at construction
-  (#710, W1); on the other arms the axis carries its own weights. An axis
-  has no "unbound" state, so the two-state ambiguity of the legacy
-  ``FunctionSpace.inner_product_weights`` (``None`` = "no canonical
-  quadrature" *or* "Euclidean") cannot arise on this type.
+  spatial axis is a legal design choice for CS2), and rank 0 is one point (the face-spatial
+  factor of a 1-D face).
+* ``form`` — the factor's **form**, the closed sum ``DiagonalMetric | DenseMetric |``
+  :class:`~orpheus.numerics.metric.NoForm` over exactly ``shape``, derived from the origin and never passed:
+  ``Axis(..., form=...)`` is a ``TypeError`` on every arm, so a form that disagrees with the measure that minted the axis
+  is unspellable. A :class:`Declared` origin holds its form, and ``Declared(kind)`` with no form is the counting form over
+  the axis's shape. An axis has no "unbound" state: an axis with no form at all carries :class:`NoForm` (the energy axes).
 * ``origin`` — **provenance, never identity**: a closed sum of five arms
   (ruling 64 of the numerics untangling), read by exhaustive ``match``:
 
   ============================  =====================  ==================  ================= =====================
-  arm                           kind it implies        ``support``         ``nodes``         ``determined_weights``
+  arm                           kind it implies        ``support``         ``nodes``         ``form``
   ============================  =====================  ==================  ================= =====================
-  :class:`FromMeasure` (μ)      ``NODAL``              ``μ.support``       ``μ.nodes``       ``μ.weights``
-  :class:`FromQuadrature` (q)   ``NODAL``              ``q.measure``'s     ``q.measure``'s   ``q.measure.weights``
-  :class:`FromBasis` (b)        its layout's kind      ``b.domain``        none              none
-  :class:`FromFrame` (f)        ``Modal(Φᵀw)``         ``f.basis.domain``  none              none
-  :class:`Declared` (k)         ``k``                  none                none              none
+  :class:`FromMeasure` (μ)      ``NODAL``              ``μ.support``       ``μ.nodes``       ``Diag(μ.weights)``
+  :class:`FromQuadrature` (q)   ``NODAL``              ``q.measure``'s     ``q.measure``'s   ``Diag(q.measure.weights)``
+  :class:`FromBasis` (b)        its layout's kind      ``b.domain``        none              ``Diag(b.coefficient_weights)`` or none
+  :class:`FromFrame` (f)        ``Modal(Φᵀw)``         ``f.basis.domain``  none              the Gram of ``f``
+  :class:`Declared` (k)         ``k``                  none                none              the form it holds
   ============================  =====================  ==================  ================= =====================
 
   The generating object rides inside its arm so a consumer can recover
@@ -49,7 +47,7 @@ The slots, precisely
   homogeneous one-point axis and the rank-``d`` spatial arm (contract G6b;
   ruling 82). The LD scheme's spatial-moment axis is ``FromBasis``, the
   continuum head of its cell basis (#423).
-* ``kind``, ``support``, ``nodes``, ``layout`` — **derived from the origin**, never
+* ``kind``, ``support``, ``nodes``, ``layout``, ``form`` — **derived from the origin**, never
   passed: :attr:`Axis.kind` is the closed sum ``BasisKind.NODAL |``
   :class:`Modal` ``(unit)`` (ruling 41), so ``Axis(kind=NODAL,
   generator=basis)``, a nodal axis claiming a spectral generator, is
@@ -66,7 +64,7 @@ The slots, precisely
   subclasses, ``HarmonicAxis`` and ``LegendreAxis``, carried them).
 * :attr:`Axis.unit` (read from the kind) — the coordinates of the
   constant function :math:`1` in this factor's own representation (ruling
-  37: minted with the axis, by whatever mints it, like the weights). On a
+  37: minted with the axis, by whatever mints it, like the form). On a
   ``NODAL`` factor the coordinates are point values, so the unit is all
   ones. A modal factor is minted as ``Modal(unit)``: the coefficients of
   :math:`1` in the basis on a continuum head (:math:`e_0`, since
@@ -77,32 +75,23 @@ The slots, precisely
   covector :math:`m = G_k\,u` (the axis's metric block applied to the
   unit; :mod:`orpheus.numerics.axis_marginal`).
 
-Canonical storage — one spelling per measure (ruled 2026-08-20)
-===============================================================
+Canonical storage — one spelling per measure
+=============================================
 
-Two construction rulings make the measure's identity unambiguous:
+The counting measure has ONE spelling, the counting form: a :class:`Declared` origin handed no form is
+``DiagonalMetric.counting(shape)``, in the one line of :meth:`Axis.__post_init__` that spells the default. The weights of a
+:class:`~orpheus.numerics.metric.DiagonalMetric` are canonicalised as ``w + 0.0`` by that class and stored read-only, so ``-0.0``
+and ``+0.0`` are one weight and one byte pattern, and mutating the caller's array can never move an axis's hash after it has been
+used as a dict key. The atoms are stored the same way.
 
-* **All-ones weights collapse to ``None`` at construction.** The counting
-  measure has ONE spelling and therefore one identity; without this,
-  ``weights=None`` and ``weights=np.ones(shape)`` would be the same
-  measure with unequal identities — a twin exactly of the shape the
-  fresh-``EnergyGrid``-per-access trap takes at the grid layer.
-* **Weights are canonicalized as ``w + 0.0`` and stored read-only.**
-  ``-0.0`` and ``+0.0`` are one measure and must be one identity/byte
-  pattern; the addition also guarantees a defensive copy, so mutating the
-  caller's array can never move an axis's hash after it has been used as
-  a dict key. The atoms are stored the same way.
-
-Non-finite weights are **refused** (a measure's weights are finite
-numbers). There is deliberately **no non-negativity guard**: CS2's
-quadrature axes legally carry signed weights (e.g. level-symmetric
-families with negative weights), and the axis is the wrong layer to
-outlaw them.
+Non-finite weights are **refused** (a measure's weights are finite numbers). There is deliberately **no non-negativity guard**
+on the axis: a quadrature axis legally carries signed weights (level-symmetric families with negative weights), and the
+factor, where the Hilbert structure begins, refuses an indefinite form where it matters.
 
 Identity — what fixes the factor's space (ruling 71)
 ====================================================
 
-Equality and hash compare the content ``(type, label, shape, weights,
+Equality and hash compare the content ``(type, label, shape, restriction, form,
 kind, support, nodes, layout)`` plus each subclass's own fields, never object
 identity and never the origin. A nodal axis is therefore fixed by its
 support, its atoms, its measure and its label; a modal one by its domain,
@@ -138,6 +127,7 @@ concept order and are read only through their attributes.
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from functools import cached_property
 from enum import Enum, unique
 from typing import TYPE_CHECKING
 
@@ -146,6 +136,8 @@ from numpy.typing import NDArray
 
 from .coefficient_layout import CellLayout, CoefficientLayout, HarmonicLayout, LegendreLayout, ModeLayout, PolynomialLayout, TensorLayout
 from orpheus.values.content import ContentIdentity
+
+from .metric import DenseMetric, DiagonalMetric, Face, Form, NoForm
 
 if TYPE_CHECKING:
     from orpheus.numerics.basis.base import Basis, TruncatedBasis
@@ -166,6 +158,7 @@ __all__ = [
     "FromQuadrature",
     "Modal",
     "Origin",
+    "Restriction",
 ]
 
 
@@ -247,7 +240,7 @@ AxisKind = BasisKind | Modal
 # ---------------------------------------------------------------------------
 #
 # Each arm answers the reads an axis derives its content from (kind, support,
-# nodes, layout) and ``determined_weights``, the weights the arm fixes or
+# nodes, layout) and ``form``, the form the arm fixes or
 # ``None``.
 # An arm holding a generating object compares that object by IDENTITY
 # (``eq=False``): the arm is provenance, and the content it answers is
@@ -261,17 +254,19 @@ def _read_only(array: NDArray) -> NDArray:
     return out
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Declared:  # concept: factor | role: component | kind: element
-    r"""The origin of an axis no generating object minted: the kind is declared.
+    r"""The origin of an axis no generating object minted: the kind and the form are declared.
 
     Used where the content is complete without atoms — the energy axes
-    (their edges are their content), the homogeneous one-point axis and the
+    (their edges are their content, their form :class:`NoForm`), the homogeneous one-point axis and the
     rank-``d`` spatial arm (contract G6b: no rank-``d`` measure-to-axis
-    pairing exists yet; ruling 82).
+    pairing exists yet; ruling 82). ``form=None`` is the counting form over the axis's shape, resolved by
+    :class:`Axis` in the one line that spells the default.
     """
 
     declared: AxisKind
+    form: Form | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.declared, (BasisKind, Modal)):
@@ -279,6 +274,8 @@ class Declared:  # concept: factor | role: component | kind: element
                 f"Declared: the kind must be BasisKind.NODAL or Modal(unit), "
                 f"got {self.declared!r}"
             )
+        if self.form is not None and not isinstance(self.form, (DiagonalMetric, DenseMetric, NoForm)):
+            raise TypeError(f"Declared: the form must be a DiagonalMetric, a DenseMetric, a NoForm or None, got {type(self.form).__name__}")
 
     @property
     def kind(self) -> AxisKind:
@@ -296,9 +293,6 @@ class Declared:  # concept: factor | role: component | kind: element
     def layout(self) -> None:
         return None
 
-    @property
-    def determined_weights(self) -> None:
-        return None
 
 
 @dataclass(frozen=True, eq=False)
@@ -307,6 +301,11 @@ class FromMeasure:  # concept: factor | role: part | kind: element
     measure's support, at its atoms."""
 
     measure: DiscreteMeasure
+
+    @property
+    def form(self) -> Form:
+        r"""The measure's weights as a diagonal form."""
+        return DiagonalMetric(self.measure.weights)
 
     @property
     def kind(self) -> AxisKind:
@@ -324,9 +323,6 @@ class FromMeasure:  # concept: factor | role: part | kind: element
     def layout(self) -> None:
         return None
 
-    @property
-    def determined_weights(self) -> NDArray:
-        return self.measure.weights
 
 
 @dataclass(frozen=True, eq=False)
@@ -343,6 +339,18 @@ class FromQuadrature:  # concept: factor | role: component | kind: element
     """
 
     quadrature: Quadrature
+    #: When given, the form is the rule's weights times the absolute direction cosine along this axis (the weight of the half-range
+    #: face); exactly zero where the cosine is exactly zero. The constructor reads the cosine from the quadrature itself.
+    face_axis: int | None = None
+
+    @property
+    def form(self) -> Form:
+        r"""The rule's weights as a diagonal form, face-weighted when ``face_axis`` is given."""
+        weights = np.asarray(self.quadrature.measure.weights, dtype=float)
+        if self.face_axis is None:
+            return DiagonalMetric(weights)
+        cosine = np.asarray(self.quadrature.mean_axis_cosine(self.face_axis), dtype=float)
+        return DiagonalMetric(np.abs(cosine) * weights)
 
     @property
     def kind(self) -> AxisKind:
@@ -360,9 +368,6 @@ class FromQuadrature:  # concept: factor | role: component | kind: element
     def layout(self) -> None:
         return None
 
-    @property
-    def determined_weights(self) -> NDArray:
-        return self.quadrature.measure.weights
 
 
 @dataclass(frozen=True, eq=False)
@@ -377,6 +382,12 @@ class FromBasis:  # concept: factor | role: component | kind: element
     """
 
     basis: Basis | TruncatedBasis
+
+    @property
+    def form(self) -> Form:
+        r"""The basis's coefficient weights as a diagonal form over the layout's shape; :class:`NoForm` where the family has none."""
+        weights = self.basis.coefficient_weights
+        return NoForm() if weights is None else DiagonalMetric(np.reshape(weights, self.basis.layout.shape))
 
     @property
     def kind(self) -> AxisKind:
@@ -404,9 +415,6 @@ class FromBasis:  # concept: factor | role: component | kind: element
     def layout(self) -> CoefficientLayout:
         return self.basis.layout
 
-    @property
-    def determined_weights(self) -> None:
-        return None
 
 
 @dataclass(frozen=True, eq=False)
@@ -424,6 +432,20 @@ class FromFrame:  # concept: factor | role: component | kind: element
     """
 
     frame: FrameBase
+
+    @cached_property
+    def form(self) -> Form:
+        r"""The frame's Gram on the coefficient side: a :class:`DenseMetric` stating the symmetrised Gram at ``Face.METRIC`` with the
+        frame's declared kernel on the DENSE verdict, the diagonal of the Gram as a :class:`DiagonalMetric` on the DIAGONAL verdict.
+        The head's integrated metric is this form with its face flipped."""
+        from orpheus.numerics.basis.base import GramStructure
+        from orpheus.numerics.frame import frame_gram_kernel
+
+        frame = self.frame
+        gram = frame.discrete_gram
+        if frame.discrete_gram_structure is GramStructure.DIAGONAL:
+            return DiagonalMetric(np.diagonal(gram).reshape(frame.basis.layout.shape))
+        return DenseMetric(DenseMetric.symmetrised(gram), kernel=frame_gram_kernel(gram), face=Face.METRIC)
 
     @property
     def kind(self) -> AxisKind:
@@ -448,9 +470,22 @@ class FromFrame:  # concept: factor | role: component | kind: element
     def layout(self) -> CoefficientLayout:
         return self.frame.basis.layout
 
-    @property
-    def determined_weights(self) -> None:
-        return None
+
+
+@dataclass(frozen=True, eq=False)
+class Restriction(ContentIdentity):  # concept: factor | role: part | kind: set
+    r"""A restricted axis's record of its parent: the parent's content digest and the kept indices (sorted, unique, non-negative)."""
+
+    parent_key: bytes
+    indices: tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.parent_key, (bytes, str)) or len(self.parent_key) == 0:
+            raise ValueError(f"Restriction parent_key must be the parent's non-empty content digest, got {self.parent_key!r}")
+        kept = tuple(int(i) for i in self.indices)
+        if not kept or kept != tuple(sorted(set(kept))) or kept[0] < 0:
+            raise ValueError(f"Restriction indices must be sorted ascending and unique, non-negative and non-empty; got {self.indices!r}")
+        object.__setattr__(self, "indices", kept)
 
 
 #: What minted an axis, the closed sum of its five arms (ruling 64).
@@ -468,32 +503,25 @@ class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | wel
         the identity: two same-shaped factors with different roles are
         different axes.
     shape : tuple[int, ...]
-        The factor's index shape, rank ≥ 1 (refused otherwise).
-    weights : NDArray | None, default None
-        The factor measure over exactly ``shape``. ``None`` is the
-        counting measure (identity metric). On a ``FromMeasure`` /
-        ``FromQuadrature`` axis the weights must be the origin's (``None``
-        only when those are all ones), refused at construction (#710, W1);
-        on the other arms the axis carries its own weights. An
-        all-ones array is CANONICALIZED to ``None`` at construction so
-        the counting measure has one spelling and one identity. Stored
-        canonicalized (``w + 0.0``, killing ``-0.0``), defensively
-        copied, read-only. Non-finite entries are refused; signed
-        weights are legal (quadrature families need them).
+        The factor's index shape, rank ≥ 0 (rank 0 is one point).
+    restriction : Restriction | None, default None
+        Keyword-only. The record of the parent axis a restricted axis was cut from (:meth:`restricted`); part of the identity.
     origin : Origin
         Keyword-only, no default: what minted the axis (the module
         docstring's table). The kind, the support and the atoms are read
         from it, so the basis character is spelled at every mint and
         cannot disagree with the generator. NOT part of the identity.
         Prefer the generator mints (``Axis.of_measure(measure, label)`` /
-        ``Axis.of_quadrature(quad)``); spell ``origin=Declared(kind)`` only
-        where no generating object exists.
+        ``Axis.of_quadrature(quad)``); spell ``origin=Declared(kind, form)`` only
+        where no generating object exists. The :attr:`form` is not a parameter: it is derived from the origin (``init=False``),
+        so a form that disagrees with the measure that minted the axis is unspellable (a ``TypeError`` on every arm). Signed
+        diagonal weights are legal on an axis (quadrature families need them); non-finite weights are refused.
 
     Notes
     -----
     Frozen and hashable with **structural equality per subclass**:
     ``__eq__``/``__hash__`` read the content digest of ``(type, label,
-    shape, weights, kind, support, nodes)``
+    shape, restriction, form, kind, support, nodes)``
     (:class:`~orpheus.values.content.ContentIdentity`); subclasses extend
     the content by declaring fields. The class check keeps an
     ``EnergyAxis`` and a field-identical generic ``Axis`` unequal.
@@ -503,10 +531,11 @@ class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | wel
 
     label: str
     shape: tuple[int, ...]
-    weights: NDArray | None = field(default=None, repr=False)
     # Provenance is not identity: ``compare=False`` is the content encoder's
     # one spelling of "not content" (#405 P1 step 5).
     origin: Origin = field(kw_only=True, repr=False, compare=False)
+    restriction: Restriction | None = field(default=None, kw_only=True)
+    form: Form = field(init=False)
     kind: AxisKind = field(init=False)
     support: Manifold | None = field(init=False, repr=False)
     nodes: NDArray | None = field(init=False, repr=False)
@@ -531,11 +560,6 @@ class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | wel
                 f"{layout.shape}, not the axis shape {shape}"
             )
         object.__setattr__(self, "layout", layout)
-        if len(shape) < 1:
-            raise ValueError(
-                f"an Axis needs rank >= 1, got shape {shape!r} — a rank-0 "
-                f"factor has no index set to measure"
-            )
         nodes = self.origin.nodes
         if nodes is not None and np.shape(nodes)[0] != int(np.prod(shape)):
             raise ValueError(
@@ -543,36 +567,47 @@ class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | wel
                 f"{np.shape(nodes)[0]} atoms against shape {shape}"
             )
         object.__setattr__(self, "nodes", None if nodes is None else _read_only(nodes))
-        if self.weights is not None:
-            w = np.ascontiguousarray(self.weights, dtype=float)
-            if w.shape != shape:
+        form = self.origin.form
+        if form is None:  # the one line that spells the counting default: a Declared origin handed no form
+            form = DiagonalMetric.counting(shape)
+        if isinstance(form, DiagonalMetric):
+            if np.shape(form.weights) != shape:
                 raise ValueError(
-                    f"axis weights must live over exactly the axis shape: "
-                    f"weights shape {w.shape} != axis shape {shape}"
+                    f"axis form must live over exactly the axis shape: "
+                    f"weights shape {np.shape(form.weights)} != axis shape {shape}"
                 )
-            if not bool(np.isfinite(w).all()):
-                raise ValueError(
-                    f"axis weights must be finite (a factor measure has "
-                    f"finite weights); got {w!r}"
-                )
-            if bool((w == 1.0).all()):
-                # Canonicalization: the counting measure has ONE spelling.
-                object.__setattr__(self, "weights", None)
-            else:
-                # ``+ 0.0`` canonicalizes -0.0 -> +0.0 AND forces a fresh
-                # allocation (defensive copy even when the input was
-                # already a contiguous float array).
-                object.__setattr__(self, "weights", _read_only(w))
-        wanted = self.origin.determined_weights
-        if wanted is not None:
-            carried = np.ones(shape) if self.weights is None else self.weights
-            # ELEGANCE-DEBT[guard] #710 (W1): on a measure arm the weights must be the origin measure's. Retires when W1 gives the two determining arms (FromMeasure, FromQuadrature) a construction path that takes no weights (they are read from origin.determined_weights) and a passed value on those arms is unspellable; stopping the storage of Axis.weights alone does not retire it, and the constructions that carry weights on the other three arms are untouched.
-            if not np.array_equal(carried, np.reshape(np.asarray(wanted, dtype=float), shape)):
-                raise ValueError(
-                    f"axis '{self.label}': the weights disagree with the measure its "
-                    f"origin records, on the arm {type(self.origin).__name__}; "
-                    f"refused at construction (#710)"
-                )
+            if not bool(np.isfinite(form.weights).all()):
+                raise ValueError(f"axis form weights must be finite (a factor measure has finite weights); got {form.weights!r}")
+        if not isinstance(form, NoForm):
+            form.validate_for(shape)
+        object.__setattr__(self, "form", form)
+
+    def restricted(self, indices: tuple[int, ...]) -> "Axis":
+        r"""A NEW axis on the kept ``indices`` of this rank-1 axis: shape ``(len(indices),)``, origin ``Declared(NODAL, form)`` with
+        the principal sub-form, and the record of its parent in :attr:`restriction`.
+
+        Only a :class:`DiagonalMetric` parent is admitted. Refused on a rank other than 1, on a modal parent, on an unsorted,
+        repeated or empty index set.
+
+        SCOPE-BOUNDARY[guard] a dense parent is refused: the only consumer is the face-angular axis, which is diagonal.
+        machinery: a numerical kernel of a principal submatrix, which ``orpheus/`` may not compute
+        ruling: check 2 elegance N03 F6 (``scratch/ontology/w1/open/N03/rulings.md``)
+        revisit: W8a, which types the generators
+        """
+        kept = tuple(int(i) for i in indices)
+        if len(self.shape) != 1:
+            raise ValueError(f"Axis.restricted needs a rank-1 axis, got shape {self.shape}")
+        if isinstance(self.kind, Modal):
+            raise ValueError("Axis.restricted: a modal axis has no point subset to keep")
+        if not kept or kept != tuple(sorted(set(kept))) or kept[0] < 0 or kept[-1] >= self.shape[0]:
+            raise ValueError(f"Axis.restricted: indices must be sorted ascending and unique, non-empty and inside [0, {self.shape[0]}); got {kept}")
+        if not isinstance(self.form, DiagonalMetric):
+            raise ValueError(f"Axis.restricted admits a DiagonalMetric parent only, got {type(self.form).__name__}")
+        sub = DiagonalMetric(np.asarray(self.form.weights)[list(kept)])
+        return Axis(
+            self.label, (len(kept),), origin=Declared(BasisKind.NODAL, sub),
+            restriction=Restriction(self.content_digest, kept),
+        )
 
     @property
     def unit(self) -> NDArray:
@@ -597,10 +632,10 @@ class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | wel
         so the module takes no runtime import of
         :mod:`orpheus.numerics.measure`.
         """
-        return Axis(label, (measure.n_points,), weights=measure.weights, origin=FromMeasure(measure))
+        return Axis(label, (measure.n_points,), origin=FromMeasure(measure))
 
     @classmethod
-    def of_quadrature(cls, quadrature: Quadrature, label: str = "angular") -> Axis:
+    def of_quadrature(cls, quadrature: Quadrature, label: str = "angular", *, face_axis: int | None = None) -> Axis:
         r"""The angular space-factor axis a directional quadrature samples,
         with THAT rule as its origin.
 
@@ -621,7 +656,7 @@ class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | wel
         projection of it ([M] 2026-08-29, CS5 ground memo section L).
         """
         measure = quadrature.measure
-        return Axis(label, (measure.n_points,), weights=measure.weights, origin=FromQuadrature(quadrature))
+        return Axis(label, (measure.n_points,), origin=FromQuadrature(quadrature, face_axis))
 
 
     @classmethod
@@ -634,7 +669,7 @@ class Axis(ContentIdentity):  # concept: factor | role: head | kind: space | wel
         it with the discrete Parseval inverse
         (:func:`~orpheus.numerics.frame_faces.basis_space`)."""
         layout = basis.layout
-        return Axis(layout.label, layout.shape, weights=basis.coefficient_weights, origin=FromBasis(basis))
+        return Axis(layout.label, layout.shape, origin=FromBasis(basis))
 
 
 def quadrature_refusal(axis: Axis, consumer: str) -> ValueError:
@@ -678,10 +713,9 @@ class EnergyAxis(Axis):  # concept: factor | role: arm | kind: space
     EXACTLY — no group widths appear. The energy metric is therefore the
     COUNTING measure **as a theorem, not a default**: metric = I,
     :math:`V \cong V^*` isometrically, and the adjoint along energy is
-    the plain transpose. Construction enforces it: a weighted
-    ``EnergyAxis`` is refused (use a generic :class:`Axis` for
-    deliberately non-physical toys), and both constructors mint
-    ``weights=None``.
+    the plain transpose. Construction enforces it: the axis's origin is fixed to ``Declared(NODAL, NoForm())``, so an
+    ``EnergyAxis`` carries no weights at all (a ``weights=`` or ``form=`` keyword is a ``TypeError``; use a generic
+    :class:`Axis` for deliberately non-physical toys).
 
     **The V/V\* collapse hook (declared now, built at S7/Campaign 2).**
     Condensation acts as plain SUM on V (integrals add) and as
@@ -709,18 +743,10 @@ class EnergyAxis(Axis):  # concept: factor | role: arm | kind: space
     edges: NDArray | None = field(default=None, kw_only=True, repr=False)
     #: Fixed, not a parameter: groups are the CELLS of a 1-D energy mesh, so
     #: the factor is NODAL with no atoms (its edges are its content; ruling 82).
-    origin: Origin = field(default=Declared(BasisKind.NODAL), init=False, repr=False, compare=False)
+    origin: Origin = field(default=Declared(BasisKind.NODAL, NoForm()), init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         super().__post_init__()
-        if self.weights is not None:
-            raise ValueError(
-                "an EnergyAxis cannot carry weights: the multigroup "
-                "convention makes the energy measure COUNTING as a theorem "
-                "(group integrals x group averages pair without widths). "
-                "For a deliberately non-physical weighted toy, use a "
-                "generic Axis."
-            )
         if len(self.shape) != 1:
             raise ValueError(
                 f"an EnergyAxis is rank 1 (groups index a 1-D energy "

@@ -97,7 +97,7 @@ Summary
    * - quantity
      - count
    * - classes
-     - 682
+     - 684
    * - concepts
      - 89
    * - classes by role: ``head``
@@ -107,9 +107,9 @@ Summary
    * - classes by role: ``weld``
      - 81
    * - classes by role: ``part``
-     - 132
+     - 133
    * - classes by role: ``component``
-     - 49
+     - 50
    * - classes by role: ``interface``
      - 34
    * - classes by role: ``twin``
@@ -117,13 +117,13 @@ Summary
    * - classes by role: ``annex``
      - 138
    * - classes by kind: ``set``
-     - 77
+     - 78
    * - classes by kind: ``measure``
      - 14
    * - classes by kind: ``space``
      - 15
    * - classes by kind: ``element``
-     - 194
+     - 195
    * - classes by kind: ``morphism``
      - 198
    * - classes by kind: ``record``
@@ -525,7 +525,7 @@ The concepts
      - W1
      - O23
      - ``Axis`` (``orpheus/numerics/axis.py``)
-     - head 1, arm 1, part 1, component 6
+     - head 1, arm 1, part 2, component 6
      - - ``orpheus.numerics.axis.Axis.unit`` (``orpheus/numerics/axis.py``)
        - :ref:`spaces-the-axis <spaces-the-axis>`
        - :ref:`spaces-axis-origin <spaces-axis-origin>`
@@ -562,7 +562,7 @@ The concepts
      - W1
      - O23
      - ``HilbertMetric`` (``orpheus/numerics/metric.py``)
-     - head 1, arm 4, component 1, interface 1
+     - head 1, arm 4, component 2, interface 1
      - - :ref:`spaces-metric-object <spaces-metric-object>`
        - :ref:`spaces-metric-propagation <spaces-metric-propagation>`
    * - :ref:`four <concept-four>`
@@ -1799,6 +1799,7 @@ factor
 .. rubric:: part
 
 - ``FromMeasure`` (``orpheus/numerics/axis.py``) ``element``
+- ``Restriction`` (``orpheus/numerics/axis.py``) ``set``
 
 .. rubric:: component
 
@@ -1874,6 +1875,7 @@ fmetric
 .. rubric:: component
 
 - ``Face`` (``orpheus/numerics/metric.py``) ``set``
+- ``NoForm`` (``orpheus/numerics/metric.py``) ``element``
 
 .. rubric:: interface
 

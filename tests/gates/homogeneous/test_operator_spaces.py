@@ -42,6 +42,7 @@ from orpheus.transport.operators.isotropic_transfer import (
 from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
+from orpheus.numerics.metric import DiagonalMetric, NoForm
 
 pytestmark = pytest.mark.foundation
 
@@ -122,9 +123,9 @@ def test_every_homogeneous_operator_reports_the_same_space(
         f"for the {'eg-bearing' if with_eg else 'grid-less'} carrier",
     )
     _require(
-        axes[1].weights is None,
-        "the quotient point's unit volume must canonicalize to the counting "
-        "weight (the normalized density convention)",
+        np.array_equal(axes[1].form.weights, np.ones(axes[1].shape)),
+        "the quotient point's unit volume must be the counting form "
+        "(the normalized density convention)",
     )
 
     loss = HomogeneousProblem(mix).loss
@@ -251,7 +252,7 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
     mat_xs = hub.mat_xs
     w_energy = np.array([2.0, 5.0])
     weighted_space = FunctionSpace.of_axes(
-        Axis("energy", (2,), weights=w_energy, origin=Declared(BasisKind.NODAL)),
+        Axis("energy", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_energy))),
         Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
     )
     collision = MultiplicationOperator.from_mesh(
@@ -414,7 +415,7 @@ def test_minted_space_and_a_unit_cell_carriers_bulk_space_share_their_arms() -> 
         )
         point, cell = minted.axis("spatial"), carrier_space.axis("spatial")
         _require(
-            point.shape == cell.shape == (1,) and point.weights is None and cell.weights is None,
+            point.shape == cell.shape == (1,) and np.array_equal(point.form.weights, np.ones(1)) and np.array_equal(cell.form.weights, np.ones(1)),
             f"{name}: the quotient point and the unit cell must carry one "
             f"measure, the counting weight — a second spelling of the "
             f"quotient point's measure has appeared",
@@ -511,8 +512,8 @@ def test_the_space_measure_is_consulted(monkeypatch) -> None:
         return FunctionSpace.of_axes(
             energy_axis_of([m]),
             Axis(
-                "spatial", (1,), weights=np.array([2.0]),
-                origin=Declared(BasisKind.NODAL),
+                "spatial", (1,),
+                origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0]))),
             ),
         )
 
@@ -560,11 +561,11 @@ def test_minted_space_counting_premise() -> None:
         axes = space.axes
         assert axes is not None
         _require(
-            isinstance(axes[0], EnergyAxis) and axes[0].weights is None,
+            isinstance(axes[0], EnergyAxis) and isinstance(axes[0].form, NoForm),
             f"{groups}: the energy factor is not the counting EnergyAxis",
         )
         _require(
-            axes[1].weights is None,
+            np.array_equal(axes[1].form.weights, np.ones(axes[1].shape)),
             f"{groups}: the quotient point is not counting-weighted",
         )
 

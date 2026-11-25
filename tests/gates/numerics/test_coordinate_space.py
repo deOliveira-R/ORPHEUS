@@ -35,7 +35,7 @@ from orpheus.numerics.space import FunctionSpace, Member
 pytestmark = pytest.mark.l0
 
 _E = EnergyAxis.synthetic(2)
-V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(BasisKind.NODAL)))
+V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))))
 X = np.arange(1.0, 7.0).reshape(2, 3)
 
 #: The two fragments, disjoint (asserted below). Both are the vocabulary the tree already pins
@@ -310,8 +310,8 @@ class TestThePlacementIsReadByLabel:
     read off the bound spaces by axis label (ERR-119), never by position."""
 
     def test_the_positions_are_read_by_label(self):
-        ordinates = Axis("ordinate", (8,), weights=np.ones(8), origin=Declared(BasisKind.NODAL))
-        cells = Axis("spatial", (12,), weights=np.ones(12), origin=Declared(BasisKind.NODAL))
+        ordinates = Axis("ordinate", (8,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(8))))
+        cells = Axis("spatial", (12,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(12))))
         bulk = FunctionSpace.of_axes(ordinates, _E, cells)
         cross_section_space = FunctionSpace.of_axes(_E, cells)
         assert bulk.positions_spanned_by(cross_section_space) == (1, 2)
@@ -324,7 +324,7 @@ class TestThePlacementIsReadByLabel:
     def test_a_factor_out_of_order_is_not_a_sub_product(self):
         """The coefficient's axes map, in order, onto increasing positions, so a sub-space whose labels run in
         another order would place a transposed coefficient; it is refused."""
-        cells = Axis("spatial", (12,), weights=np.ones(12), origin=Declared(BasisKind.NODAL))
+        cells = Axis("spatial", (12,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(12))))
         bulk = FunctionSpace.of_axes(_E, cells)
         with pytest.raises(ValueError, match="not a sub-product"):
             bulk.positions_spanned_by(FunctionSpace.of_axes(cells, _E))

@@ -84,7 +84,7 @@ def _inline_per_axis(axes, x: np.ndarray, *, inverse: bool) -> np.ndarray:
     start = 0
     for ax in axes:
         rank = len(ax.shape)
-        w = ax.weights
+        w = ax.form.weights if isinstance(ax.form, DiagonalMetric) else None
         if w is not None:
             wb = np.asarray(w).reshape((1,) * start + tuple(ax.shape) + (1,) * (ndim - start - rank))
             if inverse:
@@ -102,9 +102,9 @@ def _synthetic_axes() -> tuple[Axis, ...]:
     spatial axis — every shape the realization must position."""
     head_w = np.array([[4.0 * np.pi, 0.0, 0.0], [4.0 * np.pi / 3.0] * 3])
     return (
-        Axis(label="harmonic_probe", shape=(2, 3), weights=head_w, origin=Declared(Modal(np.eye(1, 6)[0].reshape(2, 3)))),
+        Axis(label="harmonic_probe", shape=(2, 3), origin=Declared(Modal(np.eye(1, 6)[0].reshape(2, 3)), DiagonalMetric(head_w))),
         EnergyAxis(label="energy", shape=(2,)),
-        Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), origin=Declared(BasisKind.NODAL)),
+        Axis(label="spatial", shape=(4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 1.0, 1.5, 2.0])))),
     )
 
 
@@ -186,7 +186,7 @@ def _dense_gram_on_the_head() -> tuple[tuple[Axis, ...], np.ndarray]:
     none) plus a symmetric positive-definite 6×6 form for that block."""
     axes = (
         Axis(label="harmonic_probe", shape=(2, 3), origin=Declared(Modal(np.eye(1, 6)[0].reshape(2, 3)))),
-        Axis(label="spatial", shape=(4,), weights=np.array([0.5, 1.0, 1.5, 2.0]), origin=Declared(BasisKind.NODAL)),
+        Axis(label="spatial", shape=(4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 1.0, 1.5, 2.0])))),
     )
     rng = np.random.default_rng(11)
     a = rng.standard_normal((6, 6))
@@ -207,7 +207,7 @@ def test_a_positioned_dense_block_is_admitted_and_applied():
     the old short-circuit would have taken) differ at O(1)."""
     axes, gram = _dense_gram_on_the_head()
     dense = DenseMetric(gram, kernel=Coord(6, ()), face=Face.METRIC)
-    spatial_w = axes[1].weights
+    spatial_w = axes[1].form.weights
     assert spatial_w is not None
     positioned = FactoredMetric((((2, 3), dense), ((4,), None)))
     space = FunctionSpace(name="dense_head_probe", shape=(2, 3, 4), axes=axes, metric=positioned)
@@ -237,7 +237,7 @@ def test_a_product_of_axis_built_factors_carries_the_overlay_beside_its_axes():
     own block, identity on the counting energy block. Oracle: the explicit
     matmul on the reshaped array."""
     axes, gram = _dense_gram_on_the_head()
-    spatial_w = axes[1].weights
+    spatial_w = axes[1].form.weights
     assert spatial_w is not None
     head_axis = axes[0]
     head = FunctionSpace(

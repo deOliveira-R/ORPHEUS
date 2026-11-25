@@ -43,6 +43,7 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, FromBasis, FromFrame, Modal
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -69,8 +70,8 @@ def test_the_domain_is_part_of_the_legendre_heads_identity(L: int) -> None:
     assert ax1 == ax2 and hash(ax1) == hash(ax2) and x1 == x2
     # the measures agree bit-for-bit across the two poles — the family's Gram
     # does not know the axis — so the inequality below is the spent axis's alone
-    assert ax1.weights is not None and az.weights is not None
-    np.testing.assert_array_equal(ax1.weights, az.weights)
+    assert isinstance(ax1.form, DiagonalMetric) and isinstance(az.form, DiagonalMetric)
+    np.testing.assert_array_equal(ax1.form.weights, az.form.weights)
     assert ax1.shape == az.shape and ax1.kind == az.kind
     assert ax1 != az and x1 != z and hash(x1) != hash(z)
     assert len({x1, x2, z}) == 2
@@ -82,8 +83,8 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
     compare EQUAL across the two poles, and a space built on such axes cannot
     tell ``x`` from ``z``. The head axis's domain is what separates them."""
     ax_x, ax_z = _head_axis(FunctionSpace.of_basis(LegendreBasis(L=1, axis="x"))), _head_axis(FunctionSpace.of_basis(LegendreBasis(L=1, axis="z")))
-    plain_x = Axis(ax_x.label, ax_x.shape, ax_x.weights, origin=Declared(ax_x.kind))
-    plain_z = Axis(ax_z.label, ax_z.shape, ax_z.weights, origin=Declared(ax_z.kind))
+    plain_x = Axis(ax_x.label, ax_x.shape, origin=Declared(ax_x.kind, DiagonalMetric(ax_x.form.weights)))
+    plain_z = Axis(ax_z.label, ax_z.shape, origin=Declared(ax_z.kind, DiagonalMetric(ax_z.form.weights)))
     assert plain_x == plain_z, "the generic identity is blind to the spent axis — that is the collapse"
     assert ax_x != ax_z
     # and a head axis is never equal to a declared axis wearing its slots
@@ -103,8 +104,8 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
     ax = _head_axis(sh)
     assert ax.layout == HarmonicLayout(L) and isinstance(ax.kind, Modal)
     assert ax.shape == (L + 1, 2 * L + 1)
-    w = ax.weights
-    assert w is not None
+    assert isinstance(ax.form, DiagonalMetric)
+    w = ax.form.weights
     per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
     for ell in range(L + 1):
         np.testing.assert_allclose(w[ell, : 2 * ell + 1], per_ell[ell], rtol=1e-15)
@@ -117,8 +118,8 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
     leg = FunctionSpace.of_basis(LegendreBasis(L=L, axis="z"))
     lax = _head_axis(leg)
     assert lax.layout == LegendreLayout(L) and isinstance(lax.kind, Modal) and lax.shape == (L + 1,)
-    assert lax.weights is not None
-    np.testing.assert_allclose(lax.weights, per_ell, rtol=1e-15)
+    assert isinstance(lax.form, DiagonalMetric)
+    np.testing.assert_allclose(lax.form.weights, per_ell, rtol=1e-15)
     assert isinstance(lax.origin, FromBasis)
     lbasis = lax.origin.basis
     assert isinstance(lbasis, LegendreBasis) and lbasis.axis == "z" and lbasis.L == L
@@ -144,12 +145,15 @@ def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(
     cont = _head_axis(FunctionSpace.of_basis(frame.basis))
     assert ax.layout == cont.layout and isinstance(ax.kind, Modal) and ax.shape == cont.shape
     assert isinstance(ax.origin, FromFrame) and ax.origin.frame is frame
-    assert ax.weights is not None and cont.weights is not None
+    assert isinstance(ax.form, DiagonalMetric) and isinstance(cont.form, DiagonalMetric)
     diag = np.diagonal(frame.discrete_gram).reshape(ax.shape)
     live = diag > 0.0
-    np.testing.assert_allclose(ax.weights[live], 1.0 / diag[live], rtol=1e-15)
-    np.testing.assert_array_equal(ax.weights[~live], 0.0)
-    assert not np.array_equal(ax.weights, cont.weights)
+    # the dressed head's form is the frame's Gram (its diagonal); the head's metric is the masked reciprocal, read off the space
+    np.testing.assert_array_equal(ax.form.weights, diag)
+    metric = np.asarray(dressed.apply_metric(np.ones(dressed.shape)))
+    np.testing.assert_allclose(metric[live], 1.0 / diag[live], rtol=1e-15)
+    np.testing.assert_array_equal(metric[~live], 0.0)
+    assert not np.array_equal(ax.form.weights, cont.form.weights)
     assert ax != cont and dressed != FunctionSpace.of_basis(frame.basis)
 
 
@@ -158,6 +162,6 @@ def test_the_harmonic_head_axis_is_never_a_declared_axis_wearing_its_slots() -> 
     domain and no layout (ruling 71 and 81), so a hand-built head can never
     pass for the family's (until S7 the family was a subclass)."""
     ax = _head_axis(FunctionSpace.of_basis(SphericalHarmonicBasis(L=1)))
-    plain = Axis(ax.label, ax.shape, ax.weights, origin=Declared(ax.kind))
+    plain = Axis(ax.label, ax.shape, origin=Declared(ax.kind, DiagonalMetric(ax.form.weights)))
     assert ax != plain and plain != ax
     assert hash(ax) != hash(plain) or ax != plain

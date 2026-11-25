@@ -55,6 +55,7 @@ from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.metric import DiagonalMetric
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -91,8 +92,8 @@ class TestG11AxisTuple:
         assert angular.label == "angular"
         assert angular.shape == (sn.quad.n_ordinates,)
         assert angular.kind is BasisKind.NODAL
-        assert angular.weights is not None
-        assert np.array_equal(angular.weights, sn.quad.weights)
+        assert isinstance(angular.form, DiagonalMetric)
+        assert np.array_equal(angular.form.weights, sn.quad.weights)
 
         assert isinstance(energy, EnergyAxis)
         assert energy.shape == (sn.ng,)
@@ -100,8 +101,8 @@ class TestG11AxisTuple:
         assert spatial.label == "spatial"
         assert spatial.shape == sn.spatial_shape
         assert spatial.kind is BasisKind.NODAL
-        assert spatial.weights is not None
-        assert np.array_equal(spatial.weights, sn.volumes)
+        assert isinstance(spatial.form, DiagonalMetric)
+        assert np.array_equal(spatial.form.weights, sn.volumes)
 
         assert space.shape == (sn.quad.n_ordinates, sn.ng, *sn.spatial_shape)
 
@@ -400,8 +401,8 @@ class TestMomentAxisAdmission:
         assert axis.label == "spatial_moment"
         assert axis.shape == (2,)
         assert isinstance(axis.kind, Modal)
-        assert axis.weights is not None
-        assert np.array_equal(axis.weights, np.array([1.0, 1.0 / 3.0]))
+        assert isinstance(axis.form, DiagonalMetric)
+        assert np.array_equal(axis.form.weights, np.array([1.0, 1.0 / 3.0]))
 
     def test_slopeless_closure_refuses(self):
         with pytest.raises(NotImplementedError, match="no moment axis"):

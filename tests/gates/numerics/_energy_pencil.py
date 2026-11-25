@@ -63,6 +63,7 @@ from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.pencil import OperatorPencil
 from orpheus.numerics.posing import K_MAP, EigenPosing
 from orpheus.numerics.space import Covector, FunctionSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 @dataclass(frozen=True)
 class GroupData:
@@ -138,7 +139,7 @@ def weighted_space(weights: np.ndarray) -> FunctionSpace:
     """A deliberately non-physical toy: a WEIGHTED group axis, so ``.H`` must
     read a non-scalar Gram (the 0-D counting pose cannot see a metric error); ⊗ point, shape ``(ng, 1)``."""
     w = np.asarray(weights, dtype=float)
-    return FunctionSpace.of_axes(Axis("weighted-group", (w.shape[0],), w, origin=Declared(BasisKind.NODAL)), POINT)
+    return FunctionSpace.of_axes(Axis("weighted-group", (w.shape[0],), origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), POINT)
 
 
 def bound(matrix: np.ndarray, space: FunctionSpace) -> SparseAssembledOperator:

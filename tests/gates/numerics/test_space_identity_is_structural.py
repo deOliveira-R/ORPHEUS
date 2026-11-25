@@ -64,6 +64,7 @@ import pytest
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis, FromMeasure
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
 from orpheus.numerics.space import DualSpace, FunctionSpace, TensorProductSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -79,8 +80,7 @@ def _spatial(weights: "list[float] | None") -> Axis:
     return Axis(
         label="spatial",
         shape=(3,),
-        weights=None if weights is None else np.asarray(weights, dtype=float),
-        origin=Declared(BasisKind.NODAL),
+        origin=Declared(BasisKind.NODAL, None if weights is None else DiagonalMetric(np.asarray(weights, dtype=float))),
     )
 
 
@@ -172,8 +172,8 @@ def test_g1_1c_a_different_measure_on_one_axis_makes_a_different_space():
 def test_g1_1d_axis_ORDER_is_part_of_the_identity():
     """Two axes of the same shape, composed in the two orders, are different
     spaces — the total shape is identical, so only the ORDER discriminates."""
-    u = Axis(label="u", shape=(2,), weights=None, origin=Declared(BasisKind.NODAL))
-    v = Axis(label="v", shape=(2,), weights=None, origin=Declared(BasisKind.NODAL))
+    u = Axis(label="u", shape=(2,), origin=Declared(BasisKind.NODAL))
+    v = Axis(label="v", shape=(2,), origin=Declared(BasisKind.NODAL))
     a = FunctionSpace.of_axes(u, v)
     b = FunctionSpace.of_axes(v, u)
     if a.shape != b.shape:
@@ -301,11 +301,11 @@ def test_g1_5_a_discrete_measure_cannot_be_compared_but_an_axis_can():
         _ = measure == gauss_legendre_on_mu(4)
 
     a = Axis(
-        label="mu", shape=(4,), weights=measure.weights,
+        label="mu", shape=(4,),
         origin=FromMeasure(measure),
     )
     b = Axis(
-        label="mu", shape=(4,), weights=np.array(measure.weights, copy=True),
+        label="mu", shape=(4,),
         origin=FromMeasure(gauss_legendre_on_mu(4)),
     )
     if a.origin.measure is b.origin.measure:

@@ -33,11 +33,12 @@ from typing import Any
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis, FromMeasure, Modal
+from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis, FromMeasure, Modal, Restriction
 from orpheus.numerics.coefficient_layout import CellLayout, HarmonicLayout, LegendreLayout, ModeLayout, PolynomialLayout, TensorLayout
 from orpheus.values.content import FrozenMapping
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
+from orpheus.numerics.metric import DiagonalMetric
 from tests.gates._content_identity_helpers import (
     Entry,
     check_equal_pair,
@@ -62,8 +63,14 @@ def _measure(nodes=(0.25, 0.75)) -> DiscreteMeasure:
 
 
 def _axis(**kw) -> Axis:
+    """An axis whose form is the diagonal form of ``weights`` on a declared origin (``weights`` is this builder's keyword: the
+    axis has none, its form is derived from the origin); a generator origin supplies its own form and ``weights`` is dropped."""
     base: dict[str, Any] = dict(label="spatial", shape=(2,), weights=_W, origin=_NODAL)
-    return Axis(**(base | kw))
+    built = dict(base | kw)
+    weights = built.pop("weights")
+    if isinstance(built["origin"], Declared) and built["origin"].form is None:
+        built["origin"] = Declared(built["origin"].declared, DiagonalMetric(np.asarray(weights, dtype=float)))
+    return Axis(**built)
 
 
 def _energy(**kw) -> EnergyAxis:
@@ -108,29 +115,31 @@ def _base_legs(build) -> dict:
     if build().kind is BasisKind.NODAL:
         return {
             "label": (leg("another role", lambda: build(label="other")),),
-            "shape": (leg("another shape", lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0])), "weights"),),
+            "shape": (leg("another shape", lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0])), "form"),),
             "kind": (leg("the other kind", lambda: build(origin=Declared(Modal(_E0)))),),
-            "weights": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
+            "form": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
+            "restriction": (leg("a restriction", lambda: build(restriction=Restriction(b"parent", (0, 1)))),),
         } | _origin_legs(build)
     return {
         "label": (leg("another role", lambda: build(label="other")),),
         "shape": (leg(
             "another shape",
             lambda: build(shape=(3,), weights=np.array([0.5, 1.5, 2.0]), origin=Declared(Modal(np.array([1.0, 0.0, 0.0])))),
-            "weights", "kind",
+            "form", "kind",
         ),),
         "kind": (
             leg("the other kind", lambda: build(origin=_NODAL)),
             leg("the moments of one, not e0", lambda: build(origin=Declared(Modal(np.array([2.0, 0.0]))))),
         ),
-        "weights": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
+        "form": (leg("one weight", lambda: build(weights=np.array([0.5, 2.5]))),),
+        "restriction": (leg("a restriction", lambda: build(restriction=Restriction(b"parent", (0, 1)))),),
         "support": (leg("support forged", lambda: _forged(build(), "support", RealSpace(1))),),
         "nodes": (leg("atoms forged", lambda: _forged(build(), "nodes", _read_only(np.array([0.25, 0.75])))),),
         "layout": (leg("layout forged", lambda: _forged(build(), "layout", LegendreLayout(1))),),
     }
 
 
-_PARTS = ("label", "shape", "weights", "kind", "support", "nodes", "layout")
+_PARTS = ("label", "shape", "restriction", "form", "kind", "support", "nodes", "layout")
 
 _AXIS = Entry(
     cls=Axis, base=_axis, parts=_PARTS,
@@ -151,13 +160,14 @@ _ENERGY = Entry(
     perturb={
         "label": (leg("another role", lambda: _energy(label="other")),),
         "shape": (leg("another shape", lambda: _energy(shape=(3,), edges=np.array([1.0, 2.0, 3.0, 4.0])), "edges"),),
-        # An EnergyAxis is Declared(NODAL) with the counting measure BY
-        # CONSTRUCTION (it takes no origin), so no constructible instance
-        # differs in ``kind``, ``weights``, ``support`` or ``nodes``; the legs
+        # An EnergyAxis is Declared(NODAL, NoForm()) BY CONSTRUCTION (it takes
+        # no origin), so no constructible instance differs in ``kind``, ``form``,
+        # ``support`` or ``nodes``; the legs
         # forge the field on a built instance to witness that the encoder
         # still reads the part (it is content, inherited from Axis).
         "kind": (leg("kind forged", lambda: _forged(_energy(), "kind", Modal(np.array([1.0, 0.0])))),),
-        "weights": (leg("weights forged", lambda: _forged(_energy(), "weights", _read_only(np.array([0.5, 1.5])))),),
+        "form": (leg("form forged", lambda: _forged(_energy(), "form", DiagonalMetric(np.array([0.5, 1.5])))),),
+        "restriction": (leg("a restriction", lambda: _energy(restriction=Restriction(b"parent", (0, 1)))),),
         "support": (leg("support forged", lambda: _forged(_energy(), "support", RealSpace(1))),),
         "nodes": (leg("atoms forged", lambda: _forged(_energy(), "nodes", _read_only(np.array([0.25, 0.75])))),),
         "layout": (leg("layout forged", lambda: _forged(_energy(), "layout", LegendreLayout(1))),),
@@ -246,8 +256,17 @@ _FROZEN_MAPPING = Entry(
     ),
 )
 
+_RESTRICTION = Entry(
+    cls=Restriction, base=lambda: Restriction(b"parent-digest", (0, 2)), parts=("parent_key", "indices"),
+    perturb={
+        "parent_key": (leg("another parent", lambda: Restriction(b"other-digest", (0, 2))),),
+        "indices": (leg("another index set", lambda: Restriction(b"parent-digest", (0, 3))),),
+    },
+    pairs=(("two builds", lambda: Restriction(b"parent-digest", (0, 2)), lambda: Restriction(b"parent-digest", (0, 2))),),
+)
+
 ROSTER: tuple[Entry, ...] = (
-    _AXIS, _ENERGY, _MODAL, _HARMONIC_LAYOUT, _LEGENDRE_LAYOUT, _CELL_LAYOUT, _MODE_LAYOUT, _POLYNOMIAL_LAYOUT, _TENSOR_LAYOUT, _FROZEN_MAPPING,
+    _AXIS, _ENERGY, _RESTRICTION, _MODAL, _HARMONIC_LAYOUT, _LEGENDRE_LAYOUT, _CELL_LAYOUT, _MODE_LAYOUT, _POLYNOMIAL_LAYOUT, _TENSOR_LAYOUT, _FROZEN_MAPPING,
 )
 
 

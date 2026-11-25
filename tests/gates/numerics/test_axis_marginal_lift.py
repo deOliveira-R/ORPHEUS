@@ -29,7 +29,7 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics import frame_faces
-from orpheus.numerics.axis import Declared, Modal
+from orpheus.numerics.axis import Declared, FromFrame, Modal
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator, AxisSectionOperator
 from tests.gates.numerics._axis_marginal_lift_support import (
     COEFFICIENT_HEAD_ROWS,
@@ -43,6 +43,7 @@ from tests.gates.numerics._axis_marginal_lift_support import (
     resolve,
     sphere_rule,
 )
+from orpheus.numerics.metric import DiagonalMetric, NoForm
 
 pytestmark = pytest.mark.foundation
 
@@ -62,6 +63,16 @@ def _rng(seed):
     return np.random.default_rng(seed)
 
 
+def _metric_weights(ax):
+    """The diagonal metric block an axis supplies: its form's weights, except on a frame head, whose form is the Gram and whose
+    metric is the Moore-Penrose inverse of it (the Parseval metric: the masked reciprocal of the diagonal Gram)."""
+    w = np.asarray(ax.form.weights, float)
+    if isinstance(ax.origin, FromFrame):
+        live = w > 0.0
+        return np.where(live, 1.0 / np.where(live, w, 1.0), 0.0)
+    return w
+
+
 def _axis_block(V, k):
     """G_k from the RAW axis or its positioned form (never from the operator)."""
     ax = V.axes[k]
@@ -69,9 +80,9 @@ def _axis_block(V, k):
     form = V._overlay_forms()[k]
     if form is not None:
         return np.asarray(form.matrix, float)
-    if ax.weights is None:
+    if isinstance(ax.form, NoForm):
         return np.eye(nk)
-    return np.diag(np.asarray(ax.weights, float).ravel())
+    return np.diag(_metric_weights(ax).ravel())
 
 
 def _dims(V, k):
@@ -326,7 +337,7 @@ class TestG3Reciprocity:
         from orpheus.numerics.metric import DenseMetric, Face
         from orpheus.numerics.space import FunctionSpace
 
-        a = Axis("angular", (2,), weights=np.array([0.5, 1.5]), origin=Declared(BasisKind.NODAL))
+        a = Axis("angular", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 1.5]))))
         b = Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))
         with pytest.raises(ValueError, match="DERIVED from its axes"):
             FunctionSpace("np", (2, 3), axes=(a, b), metric=DenseMetric(np.eye(6) + 0.1, kernel=Coord(6, ()), face=Face.METRIC))
@@ -367,7 +378,7 @@ class TestG5NodalBitIdentity:
         k = V._axis_index(label)
         dims = _dims(V, k)
         ax = V.axes[k]
-        w = np.ones(int(np.prod(ax.shape))) if ax.weights is None else np.asarray(ax.weights, float).ravel()
+        w = np.ones(int(np.prod(ax.shape))) if isinstance(ax.form, NoForm) else _metric_weights(ax).ravel()
         R, E = AxisRetractionOperator.of(V, label), AxisSectionOperator.of(V, label)
         x = _rng(61).standard_normal(V.shape)
         npt.assert_array_equal(np.asarray(R.apply(x)), np.einsum("n,n...->...", w, _front(x, dims)))
@@ -410,7 +421,7 @@ def test_g5_the_nodal_mass_is_correctly_rounded(rule):
     from orpheus.numerics.space import FunctionSpace
 
     w = np.asarray(_RULES[rule]().weights, float)
-    V = FunctionSpace.of_axes(Axis("angular", w.shape, weights=w, origin=Declared(BasisKind.NODAL)), Axis("x", (3,), origin=Declared(BasisKind.NODAL)))
+    V = FunctionSpace.of_axes(Axis("angular", w.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), Axis("x", (3,), origin=Declared(BasisKind.NODAL)))
     npt.assert_array_equal(AxisSectionOperator.of(V, "angular").mass, math.fsum(w))
 
 
@@ -420,7 +431,7 @@ class TestG6Refusals:
     def _cells(self):
         from orpheus.numerics.axis import Axis, BasisKind
 
-        return Axis("spatial", (5,), weights=np.array([0.2, 0.3, 0.4, 0.7, 1.4]), origin=Declared(BasisKind.NODAL))
+        return Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.2, 0.3, 0.4, 0.7, 1.4]))))
 
     def test_the_energy_axis_refuses_toward_condensation(self):
         from orpheus.numerics.axis import EnergyAxis
@@ -450,7 +461,7 @@ class TestG6Refusals:
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.numerics.space import FunctionSpace
 
-        V = (FunctionSpace.of_axes(Axis("angular", (4,), weights=np.array([0.3, 0.7, 0.5, 0.5]), origin=Declared(BasisKind.NODAL)))
+        V = (FunctionSpace.of_axes(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.7, 0.5, 0.5])))))
              if which == "nodal" else frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)))
         assert V.axes is not None  # narrowing only: both members are axis-built
         with pytest.raises(ValueError, match="bare scalar"):
@@ -478,8 +489,9 @@ class TestG6Refusals:
         if which == "nodal signed":
             V, label = resolve("zero-mass signed", "angular")
         else:
-            head = Axis("legendre", (3,), weights=np.array([0.0, 1.0, 1.0]),
-                        origin=FromBasis(LegendreBasis(L=2, axis="z")))
+            # the Legendre head with a metric that vanishes on its constant coefficient: a declared modal axis, since a generator
+            # arm supplies its own form and a weights override is unspellable
+            head = Axis("legendre", (3,), origin=Declared(Modal(np.array([1.0, 0.0, 0.0])), DiagonalMetric(np.array([0.0, 1.0, 1.0]))))
             V, label = FunctionSpace.of_axes(head, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))), "legendre"
         AxisRetractionOperator.of(V, label)
         with pytest.raises(ValueError, match="zero total weight"):
@@ -507,7 +519,7 @@ class TestG6Refusals:
             with pytest.raises(ValueError, match="must be finite"):
                 Modal(np.array([np.nan, 0.0]))
         else:
-            nodal = Axis("moment", (2,), weights=np.array([1.0, 3.0]), origin=Declared(BasisKind.NODAL))
+            nodal = Axis("moment", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 3.0]))))
             with pytest.raises(ValueError, match="must live over exactly the axis shape"):
                 dataclasses.replace(nodal, origin=Declared(Modal(np.eye(3)[0])))
 

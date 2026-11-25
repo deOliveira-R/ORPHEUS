@@ -31,6 +31,7 @@ import pytest
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -102,7 +103,7 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
     tuples: list[tuple[Axis, ...]] = [
         (EnergyAxis.synthetic(2), _point()),
         (EnergyAxis.of_edges(_EDGES_2G), _point()),  # same shapes
-        (EnergyAxis.synthetic(2), Axis("spatial", (1,), weights=np.array([2.0]), origin=Declared(BasisKind.NODAL))),  # same shapes
+        (EnergyAxis.synthetic(2), Axis("spatial", (1,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0]))))),  # same shapes
         (EnergyAxis.synthetic(3), _point()),
         (EnergyAxis.synthetic(2),),
         (EnergyAxis.synthetic(2), Axis("spatial", (1,), origin=Declared(Modal(np.eye(1)[0])))),  # kind differs
@@ -218,8 +219,8 @@ def test_of_axes_never_densifies_the_metric() -> None:
     w_a = np.linspace(0.5, 4.0, n)
     w_b = np.linspace(0.25, 8.0, n)
     space = FunctionSpace.of_axes(
-        Axis("a", (n,), weights=w_a, origin=Declared(BasisKind.NODAL)),
-        Axis("b", (n,), weights=w_b, origin=Declared(BasisKind.NODAL)),
+        Axis("a", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))),
+        Axis("b", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))),
     )
     # Leg 1: structural.
     _require(space.inner_product_weights is None, "dense slot populated")
@@ -263,8 +264,8 @@ def test_per_axis_metric_equals_an_INDEPENDENT_broadcast_reference() -> None:
     w_a = np.array([2.0, 4.0, 8.0])
     w_b = np.array([0.5, 1.0, 2.0, 4.0])
     space = FunctionSpace.of_axes(
-        Axis("a", (3,), weights=w_a, origin=Declared(BasisKind.NODAL)),
-        Axis("b", (4,), weights=w_b, origin=Declared(BasisKind.NODAL)),
+        Axis("a", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))),
+        Axis("b", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))),
     )
     rng = np.random.default_rng(42)
     x = rng.standard_normal((3, 4))
@@ -305,8 +306,8 @@ def test_metric_and_inner_product_agree_on_a_NONSQUARE_axis_space() -> None:
     w_a = np.array([2.0, 4.0, 8.0])
     w_b = np.array([0.5, 1.0, 2.0, 4.0])
     space = FunctionSpace.of_axes(
-        Axis("a", (3,), weights=w_a, origin=Declared(BasisKind.NODAL)),
-        Axis("b", (4,), weights=w_b, origin=Declared(BasisKind.NODAL)),
+        Axis("a", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))),
+        Axis("b", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))),
     )
     rng = np.random.default_rng(3)
     x = rng.standard_normal((3, 4))
@@ -353,7 +354,7 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
     # FACTORED (CS4c step 6 item 6.2a): no dense slot, and the applied metric
     # is the outer product it never stores.
     weighted = FunctionSpace.of_axes(
-        Axis("w", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
+        Axis("w", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
     )
     mixed = weighted * legacy
     _require(mixed.axes is None, "mixed product must not carry a partial axes record")
@@ -412,7 +413,7 @@ def test_dual_of_an_axis_built_space_reads_the_measure_through_its_primal() -> N
     and applied G; that was the "dual carries G" this row pinned."""
     w = np.array([2.0, 4.0])
     space = FunctionSpace.of_axes(
-        Axis("a", (2,), weights=w, origin=Declared(BasisKind.NODAL))
+        Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
     )
     dual = space.dual()
     _require(dual.axes is None, "the dual must not copy the axes record")
@@ -432,7 +433,7 @@ def test_axis_built_construction_guards() -> None:
     shape must BE the axes' concatenation — both are construction bugs
     when violated, so both raise typed errors.
     """
-    ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
+    ax = Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
     with pytest.raises(ValueError, match="one metric source"):
         FunctionSpace(
             "bad", (2,), inner_product_weights=np.array([1.0, 2.0]), axes=(ax,)
@@ -460,7 +461,7 @@ class TestThreeSourceExclusivity:
         from orpheus.numerics.metric import DenseMetric, Face
 
         x = np.array([1.0, 2.0])
-        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
+        ax = Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
         by_axes = FunctionSpace.of_axes(ax)
         _require(
             bool(np.array_equal(by_axes.apply_metric(x), [2.0, 8.0])),
@@ -495,7 +496,7 @@ class TestThreeSourceExclusivity:
         from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 
-        ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
+        ax = Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
         dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC)
         with pytest.raises(ValueError, match="positioned over them"):
             FunctionSpace("bad", (2,), axes=(ax,), metric=dense)

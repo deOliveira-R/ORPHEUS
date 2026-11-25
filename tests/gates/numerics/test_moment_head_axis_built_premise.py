@@ -61,13 +61,14 @@ import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.declaration import Coord
-from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric, NoForm
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, TensorProductSpace
 from orpheus.numerics.coefficient_layout import HarmonicLayout, LegendreLayout
 from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Modal
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -93,8 +94,10 @@ def _dense_slot_twin[T: Head](head: T) -> T:
     bit-identity rows and the name-built partner for the identity rows.
     """
     assert head.axes is not None and len(head.axes) == 1, "a production head is single-axis"
-    w = head.axes[0].weights
-    return replace(head, axes=None, inner_product_weights=None if w is None else np.asarray(w))
+    form = head.axes[0].form
+    # a diagonal head's metric is what the space applies to the unit; a dense or formless head has no weight array
+    w = None if isinstance(form, (NoForm, DenseMetric)) else np.asarray(head.apply_metric(np.ones(head.shape)))
+    return replace(head, axes=None, inner_product_weights=w)
 
 
 def _axis_built[T: Head](head: T) -> T:
@@ -107,8 +110,8 @@ def _axis_built[T: Head](head: T) -> T:
 def _bulk(ng: int = 2, spatial: tuple[int, ...] = (4, 3)) -> FunctionSpace:
     """An axis-built cell group, as every SN carrier's ``bulk_space`` is."""
     return FunctionSpace.of_axes(
-        Axis("energy", (ng,), None, origin=Declared(BasisKind.NODAL)),
-        Axis("spatial", spatial, np.full(spatial, 0.5), origin=Declared(BasisKind.NODAL)),
+        Axis("energy", (ng,), origin=Declared(BasisKind.NODAL)),
+        Axis("spatial", spatial, origin=Declared(BasisKind.NODAL, DiagonalMetric(np.full(spatial, 0.5)))),
     )
 
 
@@ -220,7 +223,10 @@ def test_no_reachable_array_on_the_axis_product_is_state_sized() -> None:
     assert product.axes is not None
     n = int(np.prod(product.shape))
     assert n == 360
-    reachable = [ax.weights for ax in product.axes if ax.weights is not None]
+    reachable = [
+        ax.form.weights for ax in product.axes
+        if isinstance(ax.form, DiagonalMetric) and not bool((ax.form.weights == 1.0).all())
+    ]
     assert reachable, "the fixture must carry at least one non-counting axis"
     assert all(w.size < n for w in reachable)
     assert sum(w.nbytes for w in reachable) < 8 * n
@@ -234,12 +240,12 @@ def test_the_axis_route_never_densifies_a_large_product() -> None:
     weights (32 000 B), the outer product would be 4 000 000 entries (32 MB).
     """
     w = np.linspace(0.5, 1.5, 2000)
-    a = Axis("a", (2000,), w, origin=Declared(BasisKind.NODAL))
-    b = Axis("b", (2000,), w, origin=Declared(BasisKind.NODAL))
+    a = Axis("a", (2000,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
+    b = Axis("b", (2000,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
     space = FunctionSpace.of_axes(a, b)
     assert space.inner_product_weights is None and space.metric is None
-    assert a.weights is not None and b.weights is not None
-    stored = a.weights.nbytes + b.weights.nbytes
+    assert isinstance(a.form, DiagonalMetric) and isinstance(b.form, DiagonalMetric)
+    stored = a.form.weights.nbytes + b.form.weights.nbytes
     dense = 8 * int(np.prod(space.shape))
     assert dense // stored >= 100, f"separation {dense}/{stored} is too weak to be a keystone"
 
@@ -337,7 +343,7 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
     assert head_layout(continuum) == head_layout(dressed) == HarmonicLayout(L)
     assert continuum.axes is not None and dressed.axes is not None
     assert not np.array_equal(
-        np.asarray(continuum.axes[0].weights), np.asarray(dressed.axes[0].weights),
+        np.asarray(continuum.axes[0].form.weights), np.asarray(dressed.axes[0].form.weights),
     )
     assert continuum != dressed, "axis-built: the measure IS the identity — the two heads separate"
     assert _dense_slot_twin(continuum) != _dense_slot_twin(dressed), (
@@ -370,7 +376,7 @@ def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> N
 
     G = np.eye(3) + 0.25
     dense = DenseMetric(DenseMetric.symmetrised(G), kernel=Coord(3, ()), face=Face.GRAM)
-    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), None, origin=Declared(Modal(np.eye(3)[0])))
+    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), origin=Declared(Modal(np.eye(3)[0])))
     with pytest.raises(ValueError, match="positioned over them"):
         FunctionSpace(name="probe", shape=(3,), axes=(axis,), metric=dense)
     head = FunctionSpace(
@@ -454,7 +460,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
         assert head.axes is not None and head.inner_product_weights is None
         assert getattr(head.axes[0].origin, arm) is generator
         assert head_layout(head).L == L
-        if head.axes[0].weights is None:
+        if isinstance(head.axes[0].form, DenseMetric):
             assert frame.discrete_gram_structure is GramStructure.DENSE and head is frame_faces.basis_space(frame)
             assert isinstance(head.metric, FactoredMetric)
             continue

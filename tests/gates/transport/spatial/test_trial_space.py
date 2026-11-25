@@ -32,6 +32,7 @@ from orpheus.numerics.axis import Axis, BasisKind, Declared
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -63,7 +64,7 @@ def _space(axes) -> FunctionSpace:
     return FunctionSpace.of_axes(
         Axis.of_quadrature(Quadrature.gauss_legendre(4)),
         Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-        Axis("spatial", spatial, weights=w, origin=Declared(BasisKind.NODAL)),
+        Axis("spatial", spatial, origin=Declared(BasisKind.NODAL, DiagonalMetric(w))),
     )
 
 
@@ -99,7 +100,7 @@ def test_a_multi_moment_closure_appends_the_moment_axis_with_its_mass(chart: str
     tail = trial_axes[-1]
     if tail.label != "spatial_moment":
         pytest.fail(f"{chart}: the appended axis is labelled {tail.label!r}")
-    np.testing.assert_allclose(np.asarray(tail.weights, float).ravel(), _LD_MASS[chart], rtol=0, atol=4 * np.finfo(float).eps)
+    np.testing.assert_allclose(np.asarray(tail.form.weights, float).ravel(), _LD_MASS[chart], rtol=0, atol=4 * np.finfo(float).eps)
     if trial.shape != (*space.shape, _LD_MASS[chart].size):
         pytest.fail(f"{chart}: trial shape {trial.shape}")
     again = LinearDiscontinuous().trial_space(space, axes)

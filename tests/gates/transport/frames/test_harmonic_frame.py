@@ -62,6 +62,7 @@ from orpheus.geometry.deck import MirrorDeck
 from orpheus.numerics.axis import Axis
 from tests.gates.transport._phase_space_cases import posing_quadrature
 from tests.gates.transport._phase_space_cases import slab_mesh
+from orpheus.numerics.metric import DiagonalMetric
 
 
 pytestmark = pytest.mark.foundation
@@ -570,7 +571,7 @@ def test_O4_for_space_refuses_a_non_quadrature_axis_naming_itself(arm):
     test_frame_mints_refuse_a_moment_space.py, which builds the generator-less arm only)."""
     from orpheus.transport.frames import HarmonicFrame
     q = Quadrature.gauss_legendre(4)
-    ax = (Axis("angular", (q.n_ordinates,), np.asarray(q.weights, float), origin=Declared(BasisKind.NODAL))
+    ax = (Axis("angular", (q.n_ordinates,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(q.weights, float))))
           if arm == "declared" else Axis.of_measure(q.measure, "angular"))
     with pytest.raises(ValueError, match="HarmonicFrame.for_space needs the generating Quadrature"):
         HarmonicFrame.for_space(FunctionSpace.of_axes(ax), 1)

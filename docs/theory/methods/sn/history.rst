@@ -1257,7 +1257,7 @@ them.  Trust ``git``, not this column.
        dense-Gram head supplies a positioned*
        :class:`~orpheus.numerics.metric.DenseMetric` *on its block* — a
        Gram is a FORM, never a value of
-       :attr:`Axis.weights <orpheus.numerics.axis.Axis.weights>`.
+       the axis's weight array (the field ``Axis.weights`` until the axis took its ``form`` from its origin).
        **(3) The correction the carve made to its own design.**  The first
        spelling let an explicit object WIN wholesale.  That is a twin: a
        caller installing a form on ONE block would have had to restate

@@ -43,12 +43,13 @@ import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
 from orpheus.numerics.declaration import Coord
-from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric, NoForm
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator
 from orpheus.numerics.operator import AdjointOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from tests.gates.numerics._phase_space_twins import spatial_axis_1d, twin
+from orpheus.numerics.metric import DiagonalMetric
 
 
 pytestmark = pytest.mark.foundation
@@ -63,8 +64,8 @@ def _spd(n: int, seed: int) -> np.ndarray:
 
 _W_ANG = np.array([0.3, 0.9, 0.5, 0.3])
 _W_SPA = np.array([1.0, 2.0, 0.5, 0.25, 3.0])
-_ANG = Axis("angular", (4,), weights=_W_ANG, origin=Declared(BasisKind.NODAL))
-_SPA = Axis("spatial", (5,), weights=_W_SPA, origin=Declared(BasisKind.NODAL))
+_ANG = Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG)))
+_SPA = Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA)))
 _MOM = Axis("moment", (3,), origin=Declared(Modal(np.eye(3)[0])))
 
 
@@ -105,9 +106,9 @@ def _population() -> dict[str, FunctionSpace]:
     cyl = spatial_axis_1d("cylinder", np.concatenate([np.linspace(0.0, 1.0, 4), np.linspace(1.0, 2.5, 5)[1:]]))
     spaces = {
         "synthetic": FunctionSpace.of_axes(
-            Axis("angular", (4,), weights=np.array([0.2, 0.8, 0.8, 0.2]), origin=Declared(BasisKind.NODAL)),
+            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.2, 0.8, 0.8, 0.2])))),
             Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("spatial", (5,), weights=np.array([0.2, 0.3, 0.4, 0.7, 1.4]), origin=Declared(BasisKind.NODAL)),
+            Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.2, 0.3, 0.4, 0.7, 1.4])))),
         ),
     }
     for n in (5, 8, 16):
@@ -140,7 +141,7 @@ def _angular_block(space: FunctionSpace) -> np.ndarray:
         if isinstance(form, DenseMetric):
             return np.asarray(form.matrix, float)
     n = int(np.prod(axis.shape))
-    return np.eye(n) if axis.weights is None else np.diag(np.asarray(axis.weights, float).ravel())
+    return np.eye(n) if isinstance(axis.form, NoForm) else np.diag(np.asarray(axis.form.weights, float).ravel())
 
 
 def _angular_dim(space: FunctionSpace) -> int:

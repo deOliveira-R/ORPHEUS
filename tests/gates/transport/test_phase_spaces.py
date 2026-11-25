@@ -39,6 +39,7 @@ from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.transport.phase_spaces import angular_bulk_space, angular_face_layout, angular_trace_space, scalar_trace_space
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from tests.gates.transport import _phase_space_cases as cases
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -108,7 +109,7 @@ def test_the_angular_bulk_is_the_ordinate_axis_on_the_meshs_own_axes(geometry: s
     head = axes[0]
     if head.label != "angular" or head.shape != (quadrature.n_ordinates,):
         pytest.fail(f"{geometry}: the leading axis is {head.label!r} {head.shape}")
-    np.testing.assert_array_equal(np.asarray(head.weights, float), np.asarray(quadrature.weights, float))
+    np.testing.assert_array_equal(np.asarray(head.form.weights, float), np.asarray(quadrature.weights, float))
     if space.shape != (quadrature.n_ordinates, mesh.ng, *mesh.spatial_shape):
         pytest.fail(f"{geometry}: shape {space.shape}")
 
@@ -248,10 +249,10 @@ def test_the_numerics_twins_have_the_production_shapes(name: str) -> None:
         for a, b in zip(got_axes, expected_axes):
             if (a.label, a.shape, type(a.origin)) != (b.label, b.shape, type(b.origin)):
                 pytest.fail(f"{name}: axis {a.label} {a.shape} {type(a.origin).__name__} vs {b.label} {b.shape} {type(b.origin).__name__}")
-            if (a.weights is None) != (b.weights is None):
+            if isinstance(a.form, DiagonalMetric) != isinstance(b.form, DiagonalMetric):
                 pytest.fail(f"{name}: axis {a.label}: one side carries weights, the other none")
-            if a.weights is not None and b.weights is not None:
-                np.testing.assert_allclose(np.asarray(a.weights, float), np.asarray(b.weights, float), rtol=8 * np.finfo(float).eps, atol=0)
+            if isinstance(a.form, DiagonalMetric) and isinstance(b.form, DiagonalMetric):
+                np.testing.assert_allclose(np.asarray(a.form.weights, float), np.asarray(b.form.weights, float), rtol=8 * np.finfo(float).eps, atol=0)
     twin_axes, production_axes = twin.angular_bulk.axes, production.axes
     if twin_axes is None or production_axes is None or twin_axes[0] != production_axes[0]:
         pytest.fail(f"{name}: the ordinate axes differ")

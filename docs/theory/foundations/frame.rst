@@ -6571,7 +6571,7 @@ admitted beside the axes only as the positioned **overlay** of forms (one
 entry per axis, in order, a form only where the axis carries no measure),
 MERGED into the derived entries rather than substituted for them. That is
 the home a dense Gram needed (ruling R-6.2c-2: *a Gram is a FORM, never
-on* ``Axis.weights``); the inline ``_apply_axes_weights`` loop retired into
+a weight array of the axis*); the inline ``_apply_axes_weights`` loop retired into
 :meth:`DiagonalMetric.apply_block
 <orpheus.numerics.metric.DiagonalMetric.apply_block>`, bit-identically.
 **6.2c-ii** then made both harmonic heads axis-built — one

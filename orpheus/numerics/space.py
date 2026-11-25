@@ -75,11 +75,11 @@ from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, cas
 import numpy as np
 from numpy.typing import NDArray
 
-from .axis import Axis, BasisKind, Modal
+from .axis import Axis, BasisKind, FromFrame, Modal
 from .coordinate_space import coordinates, leading_coordinates
 from orpheus.values.content import content_digest, name_digest
 from .metric import (
-    DenseMetric,
+    NoForm,    DenseMetric,
     DiagonalMetric,
     DualMetric,
     FactoredMetric,
@@ -1190,10 +1190,33 @@ def _axis_entries(
         (
             ax.shape,
             form if form is not None
-            else (None if ax.weights is None else DiagonalMetric(ax.weights)),
+            else _entry_of_axis(ax),
         )
         for ax, form in zip(axes, forms)
     ]
+
+
+def _entry_of_axis(ax: Axis) -> DiagonalMetric | None:
+    r"""The positioned entry an axis supplies to the space's metric, read off its form; ``None`` is a block with no entry.
+
+    A :class:`NoForm` axis and a :class:`DenseMetric` axis supply none (a dense Gram is positioned on the derived object's
+    overlay); a counting diagonal form (every weight exactly 1) supplies none, so the counting measure has one spelling; any other
+    :class:`DiagonalMetric` supplies itself, except on a frame head, which stores moments, so its metric is the masked reciprocal
+    of the diagonal Gram that is its form.
+
+    ELEGANCE-DEBT[guard] #755 the frame-head branch is a read by origin; it retires when N04 replaces the overlay by a factor whose
+    integrated end reads the form, and the head's metric is no longer derived here.
+    """
+    form = ax.form
+    if isinstance(form, (NoForm, DenseMetric)):
+        return None
+    weights = np.asarray(form.weights)
+    if isinstance(ax.origin, FromFrame):
+        live = weights > 0.0
+        weights = np.where(live, 1.0 / np.where(live, weights, 1.0), 0.0)
+    if bool((weights == 1.0).all()):
+        return None
+    return form if weights is form.weights else DiagonalMetric(weights)
 
 
 def _axes_metric(
@@ -1229,7 +1252,7 @@ def _require_positioned_over(
     a dense Gram's :class:`~orpheus.numerics.metric.DenseMetric` on a
     moment head's block — lives beside per-axis measures without becoming
     a second metric source (ruling R-6.2c-2, 2026-09-08: *a Gram is a FORM,
-    never on* ``Axis.weights``; the space's metric is the derived object
+    never on* the axis's ``form`` as a diagonal weight; the space's metric is the derived object
     and a dense block is positioned ON it). Everything else is refused by
     name, each a second spelling of one measure: a diagonal array spanning
     the whole shape or a factored object whose blocks do not follow the
@@ -1270,15 +1293,15 @@ def _require_positioned_over(
             raise ValueError(
                 f"space {name!r}: entry {k} (axis {ax.label!r}) positions a "
                 f"DiagonalMetric — a diagonal measure is the axis's own to "
-                f"carry (Axis.weights); only a FORM no measure can spell (a "
+                f"carry (its ``form``); only a FORM no measure can spell (a "
                 f"dense Gram) is positioned on the derived object."
             )
-        if ax.weights is not None:
+        if _entry_of_axis(ax) is not None:
             raise ValueError(
                 f"space {name!r}: axis {ax.label!r} carries a measure AND "
                 f"entry {k} positions a {type(form).__name__} on its block — "
                 f"two metric sources on one block; a form REPLACES the "
-                f"measure (mint that axis with weights=None)."
+                f"measure (mint that axis with a counting or no form)."
             )
         if not isinstance(ax.kind, Modal):
             raise ValueError(
@@ -1355,7 +1378,7 @@ def _tensor_product_factored_metric(
     ``tests/gates/numerics/test_tensor_product_metric_is_factored.py``.
     """
     entries: list[
-        tuple[tuple[int, ...], "PositionedMetric | None"]
+        tuple[tuple[int, ...], "PositionedMetric | NoForm | None"]
     ] = []
     for f in factors:
         # ONE metric resolution: the factor's own (an axis-built factor's

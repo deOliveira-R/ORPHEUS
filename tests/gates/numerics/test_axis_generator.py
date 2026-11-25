@@ -33,6 +33,7 @@ from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.axis import Axis, BasisKind, Declared, FromMeasure, FromQuadrature, quadrature_refusal
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
 
@@ -114,8 +115,8 @@ class TestG1GeneratorIsProvenanceNotIdentity:
         )
         _require(len({minted, through_measure}) == 1, "one axis, one set member")
         bare = Axis(
-            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            origin=Declared(BasisKind.NODAL),
+            "angular", (q.n_ordinates,),
+            origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(q.weights, float))),
         )
         _require(not (minted == bare), "an atomless axis must not pass for the sampled one")
 
@@ -163,28 +164,26 @@ class TestG3MintFidelity:
         q = factory()
         minted = Axis.of_quadrature(q, "angular")
         literal = Axis(
-            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            origin=Declared(BasisKind.NODAL),
+            "angular", (q.n_ordinates,),
+            origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(q.weights, float))),
         )
         _require(minted.label == literal.label == "angular", f"{name}: label")
         _require(minted.shape == literal.shape == (q.n_ordinates,), f"{name}: shape")
         # the MODAL mutation's catcher:
         _require(minted.kind is BasisKind.NODAL, f"{name}: kind must be NODAL")
         _require(
-            (minted.weights is None) == (literal.weights is None),
-            f"{name}: canonicalization diverged between mint and literal",
+            isinstance(minted.form, DiagonalMetric) and isinstance(literal.form, DiagonalMetric),
+            f"{name}: a quadrature axis carries a diagonal form, minted and literal",
         )
-        if minted.weights is not None:
-            assert literal.weights is not None
-            _require(
-                minted.weights.tobytes() == literal.weights.tobytes(),
-                f"{name}: the weight BYTES feed the digest — array_equal "
-                f"is not enough",
-            )
-            _require(
-                not minted.weights.flags.writeable,
-                f"{name}: the read-only canonicalization must survive replace()",
-            )
+        assert isinstance(minted.form, DiagonalMetric) and isinstance(literal.form, DiagonalMetric)  # narrowing only
+        _require(
+            minted.form.weights.tobytes() == literal.form.weights.tobytes(),
+            f"{name}: the weight BYTES feed the digest — array_equal is not enough",
+        )
+        _require(
+            not minted.form.weights.flags.writeable,
+            f"{name}: the read-only canonicalization must survive replace()",
+        )
         # the drop-the-upgrade mutation's catcher:
         _require(
             isinstance(minted.origin, FromQuadrature) and minted.origin.quadrature is q,
@@ -340,8 +339,8 @@ class TestG5TheQuadratureRefusalIsOneSpelling:
     def test_a_declared_axis_is_refused_with_both_names(self):
         q = Quadrature.gauss_legendre(4)
         bare = Axis(
-            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            origin=Declared(BasisKind.NODAL),
+            "angular", (q.n_ordinates,),
+            origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(q.weights, float))),
         )
         message = str(quadrature_refusal(bare, "somebody"))
         for fragment in ("angular", "somebody", "minted through", "Declared"):
@@ -366,8 +365,8 @@ class TestG5TheQuadratureRefusalIsOneSpelling:
         either can never match the other's raise."""
         q = Quadrature.gauss_legendre(4)
         bare = Axis(
-            "angular", (q.n_ordinates,), weights=np.asarray(q.weights, float),
-            origin=Declared(BasisKind.NODAL),
+            "angular", (q.n_ordinates,),
+            origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(q.weights, float))),
         )
         _require("axis lookup:" not in str(quadrature_refusal(bare, "x")), "fragments must be disjoint")
 

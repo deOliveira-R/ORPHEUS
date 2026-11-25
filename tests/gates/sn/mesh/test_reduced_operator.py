@@ -111,6 +111,7 @@ from tests.gates.sn._test_helpers import placeholder_materials, reflective_role
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.metric import DiagonalMetric
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -881,7 +882,7 @@ class TestP4RemTheProducerBindsTheAxis:
         quad = Quadrature.gauss_legendre(4)
         bare = Axis(
             "angular", (quad.n_ordinates,),
-            weights=np.asarray(quad.weights, float), origin=Declared(BasisKind.NODAL),
+            origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(quad.weights, float))),
         )
         op = ReducedStreamingOperator(
             mesh=_slab_mesh(),

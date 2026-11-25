@@ -42,6 +42,7 @@ from orpheus.numerics.coefficient_layout import HarmonicLayout
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import head_layout
 from orpheus.numerics import frame_faces
+from orpheus.numerics.metric import DiagonalMetric
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -101,8 +102,8 @@ def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
     expected_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
     assert space.inner_product_weights is None and space.metric is None
     assert space.axes is not None and len(space.axes) == 1
-    weights = space.axes[0].weights
-    assert weights is not None
+    assert isinstance(space.axes[0].form, DiagonalMetric)
+    weights = space.axes[0].form.weights
     assert weights.shape == (L + 1, 2 * L + 1)
     for ell in range(L + 1):
         np.testing.assert_allclose(

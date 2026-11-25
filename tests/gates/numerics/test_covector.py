@@ -26,15 +26,16 @@ from orpheus.numerics.operator import RieszRaiseOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import Covector, FunctionSpace
 from orpheus.numerics.units import SCALAR_FLUX_UNITS
+from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.l0
 
 _EPS = np.finfo(float).eps
 _E = EnergyAxis.synthetic(2)
 _DV = (1.0, 2.0, 3.0)
-V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), weights=np.array(_DV), origin=Declared(BasisKind.NODAL)))
+V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array(_DV)))))
 #: Same shape as V, another spatial measure: no shape check tells the two apart.
-W = FunctionSpace.of_axes(_E, Axis("spatial", (3,), weights=np.array([3.0, 2.0, 1.0]), origin=Declared(BasisKind.NODAL)))
+W = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([3.0, 2.0, 1.0])))))
 SIGMA = np.array([[0.5, 1.0, 2.0], [3.0, 0.25, 4.0]])
 PHI = np.arange(1.0, 7.0).reshape(2, 3)
 #: By hand, independent of every production primitive: sum_g sum_i sigma_gi * phi_gi * dV_i.

@@ -135,7 +135,8 @@ def contains(outer: Declaration, inner: Declaration) -> bool:
     r"""Whether ``inner`` is a subspace of ``outer``.
 
     Decided exactly when both are ``Coord``, or ``inner`` is the empty ``Coord``, or ``outer`` is the ``Coord`` of every index, or
-    the two declarations are equal. Anywhere else the declarations cannot decide it and the call raises ``ValueError``
+    the two declarations are equal, or ``inner`` has a larger dimension than ``outer`` (then it is not inside: ``False``, exact
+    because no basis is needed). Anywhere else the declarations cannot decide it and the call raises ``ValueError``
     ("subspace inclusion is undecided"): the generator that knows the answer must declare it.
     """
     _same_n(outer, inner, "subspace inclusion")
@@ -143,6 +144,8 @@ def contains(outer: Declaration, inner: Declaration) -> bool:
         return True
     if _is_whole(outer):
         return True
+    if inner.dim > outer.dim:
+        return False
     if outer == inner:
         return True
     if isinstance(outer, Coord) and isinstance(inner, Coord):
@@ -168,4 +171,8 @@ def intersect(a: Declaration, b: Declaration) -> Declaration:
     for x, y in ((a, b), (b, a)):
         if isinstance(x, Spanned) and isinstance(y, Ann) and y.of == x:
             return Coord(a.n, ())
+    # SCOPE-BOUNDARY[guard]
+    # machinery: the meet of a coordinate subspace with a keyed subspace needs the key's basis, which the generator owns (W8a)
+    # ruling: SD-25 and scratch/ontology/w1/open/N03/rulings.md (R5), the orchestrator, 2026-11-24
+    # revisit: W8a, which types the generators
     raise ValueError(f"subspace intersection is undecided: {a!r} and {b!r}")

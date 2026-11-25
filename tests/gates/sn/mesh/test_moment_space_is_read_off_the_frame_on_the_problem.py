@@ -62,6 +62,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from orpheus.numerics.metric import DenseMetric, NoForm
 import pytest
 
 from orpheus.geometry import StructuredGeometry
@@ -284,7 +285,8 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
 def _head_measure(space: FunctionSpace) -> np.ndarray | None:
     """The head's diagonal metric where the axis doctrine put it — the single head axis's measure."""
     assert space.axes is not None and len(space.axes) == 1, "a moment head is a single-axis space"
-    return space.axes[0].weights
+    form = space.axes[0].form
+    return None if isinstance(form, (NoForm, DenseMetric)) else np.asarray(space.apply_metric(np.ones(space.shape)))
 
 
 def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one() -> None:
