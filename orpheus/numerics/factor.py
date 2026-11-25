@@ -246,6 +246,12 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         return self.sk if self.variance.chart is VarianceChart.DENSITY else self.sk.dual()
 
     def _require_constructible(self) -> None:
+        r"""Refuse a slot the form cannot induce: the negative-weight check on a diagonal form and the kernel quotient.
+
+        For a density partner whose ``S`` is not a :class:`Coord` the negativity check reads every weight of the axis, since ``S`` has no
+        enumerable coordinates. On a diagonal form no such state constructs today (the induced-form table refuses a non-``Coord`` ``S`` on a
+        diagonal form), so only the message differs: the Krein refusal comes before the table's.
+        """
         sk, form = self._density_partner(), self.axis.form
         assert not isinstance(form, NoForm)  # narrowing only: the formless case returned before
         if isinstance(form, DiagonalMetric):

@@ -2908,6 +2908,16 @@ Lebedev rule with a negative weight at an order its spherical-harmonic Gram does
 takes the dense verdict (the first test of the frame's diagonality verdict), so the diagonal arm of a frame never meets one. Both refusals name the Krein
 arm, which is not built (issue #706).
 
+A dense form's signature is declared by its kernel: :attr:`~orpheus.numerics.metric.HilbertMetric.signature` of a
+:class:`~orpheus.numerics.metric.DenseMetric` reads :math:`(n - \dim K, \dim K, 0)`, with no negative direction counted, and the
+check that the stated matrix is positive semi-definite on the complement of the kernel runs in the raw constructor under ``__debug__`` only, a
+misuse check and not a guarantee (the standing ruling of 2026-10-30). Measured on ``[[1, 2, 0], [2, 1, 0], [0, 0, 3]]`` (eigenvalues
+:math:`-1, 3, 3`) with ``kernel=Coord(3, ())``: the constructor refuses it without ``-O`` (a kept eigenvalue is not positive) and builds it
+under ``python -O``, where it reads ``signature == (3, 0, 0)``. The guarantee exists on the formal path only, the frame's door, which
+refuses an indefinite Gram on a measure with a negative weight. A ``Declared`` axis holding a ``DenseMetric`` is refused by the space readers
+(``_axis_entries`` in ``orpheus/numerics/space.py``, ``ELEGANCE-DEBT[guard]`` #755) until unit N04 positions a dense axis form by its
+factor, so no space reads a stated indefinite dense form today.
+
 **The factor and its two variances.** A :class:`~orpheus.numerics.factor.Factor` is an axis, a variance and a subquotient
 :math:`S/K` of the axis's flattened coordinates. On a formed axis the variance is a
 :class:`~orpheus.numerics.factor.Variance`: the Klein four-group torsor of ``(kind, chart)`` with its two involutions,

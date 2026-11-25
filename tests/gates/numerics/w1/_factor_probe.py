@@ -78,3 +78,13 @@ def sk_of(n: int, S: tuple[int, ...], K: tuple[int, ...]) -> Any:
     from orpheus.numerics.declaration import Coord
 
     return F.Subquotient(Coord(n, S), Coord(n, K))
+
+
+#: The weights of the signed-diagonal population: a positive, a negative, a positive and an exactly zero weight.
+SIGNED_WEIGHTS = (1.0, -1.0, 2.0, 0.0)
+
+
+def signed_diagonal_states() -> list[tuple[Any, Any]]:
+    """``(sk, axis)`` for every ``Coord`` pair ``K ⊆ S`` on the four indices of the signed diagonal axis ``SIGNED_WEIGHTS``: 81 states."""
+    axis = diag_axis(list(SIGNED_WEIGHTS))
+    return [(sk_of(4, S, K), axis) for S, K in pairs(4)]

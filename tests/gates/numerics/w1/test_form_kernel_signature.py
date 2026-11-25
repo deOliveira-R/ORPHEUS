@@ -10,7 +10,8 @@ infinity, so no induced form exists), and is ACCEPTED when it lies outside ``S``
 
 Exact on any host (signs, counts and index sets). First red at ``ff305e0f``: a negative weight is accepted and ``rank((3,))`` reads 3; ``kernel``,
 ``signature`` and ``counting`` are ``AttributeError``s. Mutations: ``signature`` counts a negative weight as positive (reddens); ``Factor`` admits an
-indefinite form (reddens the refusal leg); the refusal read on the whole axis form instead of ``S`` (reddens the accepting case); the refusal read on ``S minus K`` only (reddens the inside-``K`` case).
+indefinite form (reddens the refusal leg); the refusal read on the whole axis form instead of ``S`` (reddens the accepting case); the refusal read on ``S minus K`` only (reddens the inside-``K`` case); the refusal read on ``self.sk.S`` instead of the density partner's ``S``
+(reddens the signed-diagonal population below on the integrated variances only).
 """
 
 from __future__ import annotations
@@ -81,3 +82,40 @@ def test_a_factored_metric_reads_the_signature_of_its_blocks() -> None:
     zero = product(DiagonalMetric(np.array([1.0, 0.0])), None)
     _require(zero.signature == (3, 3, 0), f"a zero direction (x) a Euclidean 3-block reads {zero.signature}")
     _require(product(DiagonalMetric(np.array([1.0, 2.0])), DiagonalMetric(np.array([3.0, 4.0]))).negative == 0, "a positive product reads negative directions")
+
+
+def test_the_signed_diagonal_population_constructs_exactly_where_the_hand_rule_says() -> None:
+    """The signed-diagonal population, on both ends: the axis with weights ``[1, -1, 2, 0]``, every ``Coord`` pair ``K ⊆ S`` on its 4 indices (81
+    pairs) times the 4 variances (324 states), each compared with a rule written here from the definitions. The density partner's subquotient is
+    ``(S, K)`` for a density chart and ``(Ann K, Ann S)`` (complements on the index set) for an integrated chart. The state constructs iff the
+    partner is constructible (the zero-weight index 3 lies in the partner's ``S`` only inside its ``K``: ``S ∩ ker G ⊆ K``) and no weight on the
+    partner's ``S`` is negative (index 1 is not in the partner's ``S``). A refusal for the negative weight names the Krein arm and #706. Exact:
+    index sets and signs. Mutation: the refusal read on ``self.sk.S`` instead of the partner's ``S`` disagrees on the integrated states."""
+    from orpheus.numerics import factor as F
+
+    negative, zero = 1, 3
+    constructed = refused = agree = 0
+    for sk, axis in P.signed_diagonal_states():
+        S, K = set(sk.S.indices), set(sk.K.indices)
+        everything = set(range(4))
+        for v in P.variances():
+            pS, pK = (S, K) if v.chart is F.VarianceChart.DENSITY else (everything - K, everything - S)
+            neg_in_s = negative in pS
+            want = (zero not in pS or zero in pK) and not neg_in_s
+            try:
+                F.Factor(axis, v, sk)
+                got, why = True, ""
+            except ValueError as e:
+                got, why = False, str(e)
+            constructed += got
+            refused += not got
+            ok = got == want
+            if not got and neg_in_s:
+                ok = ok and "Krein" in why and "706" in why
+            agree += ok
+    _require(constructed + refused == 324, f"{constructed + refused} states, expected 324")
+    _require(
+        agree == 324,
+        f"{agree} of 324 states agree with the hand rule ({constructed} constructed, {refused} refused)",
+    )
+    _require(constructed > 0 and refused > 0, f"the population is one-sided ({constructed} constructed, {refused} refused)")

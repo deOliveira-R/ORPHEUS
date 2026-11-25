@@ -336,7 +336,12 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
 
     @property
     def signature(self) -> tuple[int, int, int]:
-        r"""``(n_+, n_0, n_-)``, read once over the form's declared :attr:`kernel` and its :attr:`negative` count."""
+        r"""``(n_+, n_0, n_-)``, read once over the form's declared :attr:`kernel` and its :attr:`negative` count.
+
+        A dense form's signature is DECLARED by its kernel (``negative`` is 0): the sign check of the raw constructor runs under
+        ``__debug__`` only, so under ``python -O`` a stated indefinite matrix reads ``(n - dim K, dim K, 0)``; the guarantee is the
+        frame's door, the formal path.
+        """
         n, zero, minus = self.kernel.n, self.kernel.dim, self.negative
         return (n - zero - minus, zero, minus)
 
