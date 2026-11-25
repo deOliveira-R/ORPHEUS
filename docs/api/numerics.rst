@@ -196,13 +196,19 @@ consumers landed May 2026):
   the parse is the shape leg only; :ref:`spaces-membership`). The transport
   :class:`~orpheus.transport.reaction_rate_functional.ReactionRateFunctional`
   specialises it. Exported from :mod:`orpheus.numerics`.
+* :class:`~orpheus.numerics.space.TensorSpace` — the tensor space of factors, the one product for every number of slots
+  and every mix of variances: its identity is its ordered :class:`~orpheus.numerics.factor.Factor` s, its metric the Kronecker
+  product of their forms applied in slot order by ``flat_on`` and ``sharp_on``, its verbs ``of_axes``, ``sub``, ``dual(on=)``,
+  ``riesz(on=)`` and ``completed``; :class:`~orpheus.numerics.space.CarrierSpec` is the pair of member classes it mints
+  (``Member``, and ``Covector`` on its dual). Exported from :mod:`orpheus.numerics` (``TensorSpace``); the theory is
+  :ref:`spaces-tensor-of-factors`.
 * :class:`~orpheus.numerics.space.Covector` — a member of the dual
   :math:`V^{*}`, minted only by
-  :meth:`FunctionSpace.flat <orpheus.numerics.space.FunctionSpace.flat>`
+  :meth:`TensorSpace.flat <orpheus.numerics.space.TensorSpace.flat>`
   (``V.flat(w)`` holds :math:`G w`), whose ``evaluate(x)`` is the
   metric-free pairing :math:`\sum_i c_i x_i` with a member :math:`x` of
-  :math:`V`. :attr:`FunctionSpace.integral
-  <orpheus.numerics.space.FunctionSpace.integral>` is
+  :math:`V`. :attr:`TensorSpace.integral
+  <orpheus.numerics.space.TensorSpace.integral>` is
   :math:`\flat_V 1`, minted from :attr:`FunctionSpace.unit
   <orpheus.numerics.space.FunctionSpace.unit>`. Both
   :class:`~orpheus.numerics.space.Covector` and

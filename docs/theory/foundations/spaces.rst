@@ -361,13 +361,65 @@ read off the origin at construction (``form``, ``kind``, ``support``, ``nodes``,
        one content encoder; never the origin. :ref:`spaces-axis-identity`
        states what each part decides and the collisions it removed.
 
+.. _spaces-tensor-of-factors:
+
+The tensor space of factors
+---------------------------
+
+A space is the ordered product :math:`V = F_1 \otimes \dots \otimes F_k` of its *factors*, and one
+class, :class:`~orpheus.numerics.space.TensorSpace`, is that product for every number of slots and every mix of
+variances. A :class:`~orpheus.numerics.factor.Factor` is an axis (the index set, its form and its origin), a *variance*
+(whether the slot holds the values of a function or the weights of a measure, and whether it is read in the density chart
+or the integrated chart) and a subquotient :math:`S/K`. The space's identity is its ordered factors, so the slot order,
+every variance and every subquotient are part of it, and two spaces over equal axes whose variances differ in one slot are
+two spaces. The constructor takes exactly the factors (and the keyword-only carrier below), so a stored shape or a second
+metric cannot be passed: the shape and the readable name are derived from the factors. The labels of the slots are unique.
+
+**The verbs.** ``of_axes(*factors)`` is the one composition, and ``of_measure``, ``of_basis`` and ``declared`` are one-factor
+constructors that take the variance as an argument, so no construction leaves a variance to a default. ``a * b`` is the
+concatenation of the slot lists, associative and not commutative. ``sub(*labels)`` is the sub-product on those labels in
+slot order, and ``tail(k)``, ``without_axis(label)`` and the head read are calls of it. ``dual(on=L)`` flips the kind and
+the chart of the slots in ``L`` and dualises their subquotients, ``riesz(on=L)`` flips the chart only, and they commute:
+``dual(on=L).dual(on=M)`` is ``dual(on=L symmetric-difference M)``. ``riesz`` is refused, "riesz is not defined: ", on a
+formless slot (an energy slot), whose form is ``NoForm``, because a change of chart needs a form to pass through.
+
+**The Kronecker metric and its slot order.** The metric of the space is the Kronecker product of its factors' forms,
+:math:`G = G_1 \otimes \dots \otimes G_k`, and it is applied one slot at a time in slot order, by ``flat_on(x, labels)``
+(and its inverse faces, ``sharp_on``): the one body that spells the walk, of which ``apply_metric``,
+``apply_inverse_metric``, ``flat``, ``integral`` and the pairing are calls. The order is observable. Two applications of
+diagonal factors in the two orders differ in the last bit on almost every draw (on the fixtures of the gate of the slot
+order, 200 seeded draws, the reversed walk differs from the slot-order walk on 200 draws of the positive triple and on 196 of the
+signed pair), so the stored bytes of the harness fix the order of the walk.
+A formless slot is skipped by the walk and counts in the inner product, and a counting form is applied, as a product
+with one. ``euclidean()`` and ``counting()`` are the two calls of one completion, ``completed(on=labels)``, which replaces
+the forms of the slots in ``labels`` by the counting form.
+
+**The form of a head.** A frame's moment head is a factor on an axis whose origin is the frame: ``(MEASURE, INTEGRATED)``
+over the subquotient whole modulo the kernel of the Gram. Its form on the integrated end is the inverse face of the Gram,
+the dense form with its face flipped on the dense verdict and the masked reciprocal of the diagonal on the diagonal verdict.
+The dual of a diagonal head reads the form of its density end, and that end is spelled by the dual metric of the masked
+reciprocal, which keeps the bytes the dual of that head has always had. These are the two spellings of the diagonal head's
+form (``ELEGANCE-DEBT[guard] #756``); they retire when the diagonal integrated end has one spelling.
+
+**The carrier boundary.** The class of a member follows from its space (issue #707): a member of :math:`V` is a
+:class:`~orpheus.numerics.space.Member` and a member of :math:`V^*` is a :class:`~orpheus.numerics.space.Covector`, the data
+side. A space holds that pair as a :class:`~orpheus.numerics.space.CarrierSpec`, a frozen pair of classes whose ``dual()``
+swaps them, in a field that is not part of the space's identity. It is a declared scope boundary: two equal spaces that carry
+different carriers mint different member classes, and the machinery that derives the class from the content is routed to W3.
+
+**What was tried and refused.** A flag on the space that records "this space is a dual" decides the member class by a stored
+tag outside the content, and ``replace(space, flag=None)`` then type-checks and changes the class; the carrier pair is the
+declared boundary that replaces it. Treating every ``TensorSpace.member`` as a plain member contradicts the standing ruling on
+#707 and reddens the tests that pin the class of a dual's member. A product of whole spaces, which carried two arms and a
+name joined from its operands' names, is the class this one replaced.
+
 Composition, and the metric that comes with it
 ----------------------------------------------
 
 A space is the ordered product of its axes. Two things are determined by
 that sentence alone, and both are what
-:meth:`FunctionSpace.of_axes
-<orpheus.numerics.space.FunctionSpace.of_axes>` implements:
+:meth:`TensorSpace.of_axes
+<orpheus.numerics.space.TensorSpace.of_axes>` implements:
 
 .. math::
    :label: spaces-axis-product
@@ -421,118 +473,14 @@ cached property is a specialised mint of the constructor, one call with the
 problem's own ingredients; the full table, and where the rule's pin is, is
 :ref:`indexing-carrier-cached-mints`.
 
-.. warning::
+.. note::
 
-   **The legacy twin survives; its DENSIFYING half retired 2026-09-07**
-   (CS4c step 6 item 6.2a). ``V * W`` (the ``*`` dunder →
-   :class:`~orpheus.numerics.space.TensorProductSpace`) is still the
-   PRE-axis composition mechanism — it takes whole *spaces* as factors
-   and derives its name by joining theirs — but it no longer builds a
-   dense weight array. It never populates ``inner_product_weights`` at
-   all. Two arms:
-
-   * **Every factor axis-built** → the product's ``axes`` is the
-     concatenation of the factors' axes, and there is no metric object:
-     the per-axis path of :eq:`spaces-axis-product` applies unchanged.
-     (This arm is untouched by 6.2a.)
-   * **Any factor axes-less** → the product's ``axes`` stays ``None``
-     (an axis is never fabricated for a space that did not declare one)
-     and the metric is a lazy
-     :class:`~orpheus.numerics.metric.FactoredMetric` carrying ONE
-     positioned entry per **axis** of an axis-built factor (a
-     :class:`~orpheus.numerics.metric.DiagonalMetric` on that axis's
-     block, or ``None`` for a counting-measure axis), one entry per
-     dense-slot leaf factor, and a factor's own metric object riding
-     verbatim — a nested ``FactoredMetric`` flattens, a
-     :class:`~orpheus.numerics.metric.DenseMetric` positions on its
-     block. Every block Euclidean ⟹ no metric at all.
-
-   ⛔ **This block read** *"The legacy twin is still live, and CS2
-   retires it … on all-diagonal factors it DENSIFIES the metric into an
-   outer-product* ``inner_product_weights`` *… CS1 keeps it — it threads
-   the* ``axes`` *record when both sides carry one, and bridges
-   axis-borne measures into its dense weights on mixed products … and
-   CS2 collapses the live mints onto axis concatenation and retires the
-   densifier"* **until 2026-09-07**, and that was an accurate
-   description of the tree until item 6.2a. The product formed
-   :math:`w_V \otimes w_W` once and stored it; a *mixed* product (one
-   axis-built factor, one not) therefore had to BRIDGE the axis-borne
-   measure into that dense slot, because a weighted axis-built factor
-   read through the dense slot alone would have been treated as
-   Euclidean — a value bug, not a representation choice. The bridge and
-   the outer-product builder retired together with the slot they fed.
-
-   What survives of the old rule is the half that was never about the
-   densifier: **new axis-aware code composes with** ``of_axes``, because
-   ``of_axes`` is the only ROOT producer of an ``axes`` record — ``*``
-   and :meth:`dual <orpheus.numerics.space.FunctionSpace.dual>` merely
-   thread one through, so both need an axis-built ancestor (the same
-   closure argument the nodal/modal refusal rests on, below).
-   ``*`` is for a product whose factors are **not** all
-   axis-built. `[M]` 2026-09-07, by AST over ``orpheus/**/*.py``, that is
-   the harmonic/moment family and nothing else — **four** production
-   sites: the angular head :math:`\otimes` the axis-built cell group, in
-   :meth:`HarmonicFrame.moment_space_on
-   <orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`
-   and in the SN carrier's content-equal field-side twin
-   :meth:`SNProblem.moment_space
-   <orpheus.sn.problem.SNProblem.moment_space>`, each of which
-   ALSO appended, for a widened angular space, a second ``*`` factor —
-   the Euclidean, axes-less ``SpatialMomentSpace`` (contributing a
-   ``None`` metric entry). Item **6.2c** axis-ifies the head; until then
-   see :ref:`spaces-metric-propagation`, where dropping a factor's
-   metric is measured as a value bug rather than a representation
-   choice.
-
-   ⚠ **The field-side member of those four MOVED later the same day
-   (2026-09-07, CS4c step 6 item 6.2b), and the count did not.** Until
-   that item the field-side twin was
-   :meth:`MomentField._space_for_mesh_and_L
-   <orpheus.transport.fields._bases.MomentField._space_for_mesh_and_L>`,
-   which formed the product on **every call**; the item gives the mint to
-   the carrier as a cache keyed on ``(L, spatial_moments)``, and the field
-   method survives as a pure READ of it. So the census was the same four —
-   the hub's head-:math:`\otimes`-cell and its tail, the frame's
-   head-:math:`\otimes`-cell and its tail — while the number of ``*``
-   *evaluations* per windowed solve falls from `[M]`
-   :math:`2\cdot\texttt{max\_inner} + 6` to a constant in the iteration
-   budget (gated in
-   ``tests/gates/sn/mesh/test_hub_owns_the_moment_space.py``).
-
-   ⛔ **The count is now TWO, not four (2026-09-08, CS4c step 6 item
-   6.2c-iii).** The two TAIL products are gone: a widened space no
-   longer appends a separate Euclidean class beside the head, it carries
-   the discretization scheme's own MODAL ``moment_axis`` as one more
-   axis of its axis-built cell group. The hub composes that tail through
-   the fields' own composer,
-   :meth:`BulkField.compose_spatial_moments
-   <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>`
-   (which returns :meth:`FunctionSpace.of_axes
-   <orpheus.numerics.space.FunctionSpace.of_axes>`, not a ``*``), and
-   the frame simply keeps the angular space's own axes. `[M]` 2026-09-08,
-   the same AST census over ``orpheus/**/*.py``: **two** production
-   ``*`` sites remain — ``head * bulk`` at
-   ``sn/problem.py:1313`` and ``self.basis_space *
-   FunctionSpace.of_axes(*axes[1:])`` at
-   ``transport/frames/harmonic_frame.py:499``.
-
-   ⭐ And with 6.2c-ii and 6.2c-iii both landed, **neither remaining
-   site is the mixed case the rule above describes any more**: the head
-   is axis-built, the cell group is axis-built, so ``*`` takes its
-   *every-factor-axis-built* arm and the product's ``axes`` are the
-   factors' concatenated. `[M]` 2026-09-08, on a 1-D LD carrier under
-   ``gauss_legendre(2)``, the moment product's axes read
-   ``[legendre, energy, spatial]`` at width 1 and
-   ``[legendre, energy, spatial, spatial_moment]`` at width 2, at
-   :math:`L = 1` (diagonal Gram) and :math:`L = 2` (DENSE Gram) alike —
-   four rows, all axis-built. So ``*`` here is no longer buying the
-   mixed-product bridge; it is spelling a concatenation ``of_axes``
-   would spell, and the two sites are a **retirement candidate** rather
-   than a live counter-example to the ``of_axes``-first rule.
-   The composer serves EVERY tailed mint now — angular, scalar and the
-   carrier's moment product alike — and its axes-less arm is a caller
-   error rather than a case, because a space that carries a tail is
-   axis-built by construction.
+   **One product, one type.** ``V * W`` (the ``*`` dunder) is the product
+   :class:`~orpheus.numerics.space.TensorSpace` over the concatenated factor lists: it takes
+   :class:`~orpheus.numerics.factor.Factor` s, never whole spaces, and builds no weight array. The
+   pre-axis product of whole spaces, which derived its name by joining theirs and carried two arms (a
+   densifying one, retired 2026-09-07, and a factored one), retired with the class that carried it at unit N04
+   of wave W1; :ref:`spaces-tensor-of-factors` states the one that replaced it.
 
 Canonical storage: one measure, one spelling, one identity
 -----------------------------------------------------------
@@ -662,9 +610,8 @@ family re-states equality. The key is a tagged tuple per kind of space:
    * - :class:`~orpheus.numerics.space.DualSpace`
      - ``("dual", primal.identity_key())``: covariance is identity (ruling
        75), so a dual never equals a primal.
-   * - :class:`~orpheus.numerics.space.TensorProductSpace` with an
-       axes-less factor
-     - ``("tensor", factor keys)``.
+   * - :class:`~orpheus.numerics.space.TensorSpace`
+     - ``("tensor", factors)``: the ordered factors, each with its axis, variance and subquotient.
    * - :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
      - ``("full_field", interior key, trace key)``.
    * - :class:`~orpheus.numerics.coupled_system.CoupledSpace`
@@ -955,7 +902,7 @@ coefficient space is axis-built.** `[M]` 2026-10-22
 ``Modal(masses)`` (unit :math:`[1, 2]`, cone ``False``; ruling 83). The
 production moment product reads ``False`` too: `[M]` 2026-09-22
 (``scratch/_definitions/round2/moment_space_probe.py``),
-``SNProblem.moment_space(1)`` is an axis-built ``TensorProductSpace``
+``SNProblem.moment_space(1)`` is a ``TensorSpace``
 with axes (``MODAL``, ``NODAL``, ``NODAL``) and cone ``False`` on a slab,
 a sphere and a 2-D Cartesian problem, where each problem's all-nodal
 ``bulk_space`` reads ``True`` as the control. The ``None`` arm now holds
@@ -4299,7 +4246,7 @@ no member metrics to read, and would pair Euclidean):
 its interior and trace blocks;
 :class:`~orpheus.numerics.coupled_system.CoupledSpace` duals its systems
 and swaps its two zero factories, since this space's cotangent zero is
-the zero of its dual; :class:`~orpheus.numerics.space.TensorProductSpace`
+the zero of its dual; :class:`~orpheus.numerics.space.TensorSpace`
 duals its factors. Each override is the one hook ``_make_dual``, and the
 memo and the involution are the base's. The composite's metric verbs then
 dispatch to the member duals' inverse forms. `[M]` 2026-10-21, the archivist's
@@ -4618,9 +4565,8 @@ to a plausible-looking value, with no error and no warning):
        the dual carries the inverse form :math:`G^{+}`
        (:ref:`spaces-dual-space`), so it reads
        :math:`x^{\mathsf T}G^{+}x`, never a copy and never Euclidean
-   * - :meth:`TensorProductSpace.from_factors
-       <orpheus.numerics.space.TensorProductSpace.from_factors>`
-       (the legacy ``*``)
+   * - ``TensorProductSpace.from_factors``, the product of whole spaces
+       that unit N04 retired (the legacy ``*``)
      - densified the factor measures into one outer-product weight
        array — which has no slot for a matrix factor, so the dense
        factor was **dropped** and its block went Euclidean
