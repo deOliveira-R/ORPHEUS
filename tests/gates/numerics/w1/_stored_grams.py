@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics import frame as FF
+from orpheus.numerics import frame as FR
 from orpheus.numerics.declaration import Declaration
 from tests.gates._dense import declared_kernel
 
@@ -65,5 +65,5 @@ def stored(family: str) -> StoredGram:
 def declared_for(entry: StoredGram) -> Declaration:
     """The kernel the harness builder declares for this Gram."""
     if entry.frame_built:
-        return FF.frame_gram_kernel(entry.gram)
+        return FR.frame_gram_kernel(entry.gram)
     return declared_kernel(entry.g_sym, HAND_DIMS[entry.family])

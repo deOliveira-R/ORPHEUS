@@ -452,7 +452,7 @@ def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
         # and the axis carries no measure, item 6.2c-i).
         gram = frame.discrete_gram
         return _dressed(
-            space, dense=DenseMetric(DenseMetric.symmetrised(gram), kernel=_frame_module.frame_gram_kernel(gram), face=Face.GRAM), frame=frame,
+            space, dense=DenseMetric(DenseMetric.symmetrised(gram), kernel=_frame_module.frame_kernel(frame), face=Face.GRAM), frame=frame,
         )
     return _dressed(space, frame=frame)
 

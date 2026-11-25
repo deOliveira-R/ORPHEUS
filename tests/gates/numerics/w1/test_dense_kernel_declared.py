@@ -37,7 +37,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.numerics import frame as FF
+from orpheus.numerics import frame as FR
 from orpheus.numerics.declaration import Ann, Coord, Spanned
 from orpheus.numerics.metric import DenseMetric, Face
 from tests.gates._dense import declared_kernel
@@ -138,7 +138,7 @@ def test_declared_kernel_is_exact_for_the_frames(family: str) -> None:
     g = e.g_sym
     dim = sg.declared_for(e).dim
     if dim:
-        tol = FF.FRAME_GRAM_RANK_RTOL if family == _NEAR_CUTOFF else _TIGHT
+        tol = FR.FRAME_GRAM_RANK_RTOL if family == _NEAR_CUTOFF else _TIGHT
         r = kernel_residual(g, dim)
         _require(r <= tol, f"[{family}] max|G K|/norm(G) = {r:.3e} over the declared {dim}-dimensional kernel, above {tol:g}")
     low = smallest_eigenvalue_over_norm(g)
@@ -206,8 +206,8 @@ def tag_window_has_the_ledger_fields(source: str, line: int) -> bool:
 
 
 def count_reads(source: str) -> dict[str, bool]:
-    """How ``frame_gram_kernel`` reads the spectrum: hermitian ``svd`` with the vectors, a ``compute_uv`` keyword, ``eigvalsh``."""
-    fn = next((n for n in ast.walk(ast.parse(source)) if isinstance(n, ast.FunctionDef) and n.name == "frame_gram_kernel"), None)
+    """How the frame's private body ``_rank_and_signs`` (the one decomposition ``frame_gram_kernel`` and ``frame_kernel`` share) reads the spectrum: hermitian ``svd`` with the vectors, a ``compute_uv`` keyword, ``eigvalsh``."""
+    fn = next((n for n in ast.walk(ast.parse(source)) if isinstance(n, ast.FunctionDef) and n.name == "_rank_and_signs"), None)
     out = {"found": fn is not None, "svd_with_vectors": False, "compute_uv_keyword": False, "eigvalsh": False}
     if fn is None:
         return out
@@ -229,15 +229,15 @@ def test_frame_tolerance_has_one_address() -> None:
     _require(len(lines) == 1, f"the literal 1e-12 appears {len(lines)} times in frame.py (lines {lines}), expected exactly 1")
     _require(literal_is_the_named_constant(source), "the one 1e-12 literal is not the value of FRAME_GRAM_RANK_RTOL")
     _require(tag_window_has_the_ledger_fields(source, lines[0]), "FRAME_GRAM_RANK_RTOL is not within three lines of machinery:, ruling: and revisit:")
-    _require(FF.FRAME_GRAM_RANK_RTOL == 1e-12, f"FRAME_GRAM_RANK_RTOL = {FF.FRAME_GRAM_RANK_RTOL!r}")
+    _require(FR.FRAME_GRAM_RANK_RTOL == 1e-12, f"FRAME_GRAM_RANK_RTOL = {FR.FRAME_GRAM_RANK_RTOL!r}")
 
 
 def test_the_count_reads_the_decomposition_the_body_reads() -> None:
     r = count_reads(frame_path().read_text())
-    _require(r["found"], "frame_gram_kernel is not defined in frame.py")
-    _require(r["svd_with_vectors"], "frame_gram_kernel must read np.linalg.svd(..., hermitian=True) with the vectors")
-    _require(not r["compute_uv_keyword"], "frame_gram_kernel passes compute_uv: the count must read the body's own call (with the vectors)")
-    _require(not r["eigvalsh"], "frame_gram_kernel calls eigvalsh: a different routine reads 1 of 201 tie Grams across the cutoff")
+    _require(r["found"], "_rank_and_signs is not defined in frame.py")
+    _require(r["svd_with_vectors"], "_rank_and_signs must read np.linalg.svd(..., hermitian=True) with the vectors")
+    _require(not r["compute_uv_keyword"], "_rank_and_signs passes compute_uv: the count must read the body's own call (with the vectors)")
+    _require(not r["eigvalsh"], "_rank_and_signs calls eigvalsh: a different routine reads 1 of 201 tie Grams across the cutoff")
 
 
 _EIGVALSH = (r"np\.linalg\.svd\(\s*(\w+)\s*,\s*hermitian=True\s*\)", r"np.linalg.eigvalsh(\1)")
@@ -265,9 +265,9 @@ def test_the_predicates_read_red_on_a_forbidden_form(mutate, predicate) -> None:
 def test_the_frame_count_equals_the_pinv_nullity_across_the_cutoff() -> None:
     bad, counts = [], set()
     for f in np.linspace(0.9, 1.1, 201):
-        g = _gram([1.0, 0.5, 0.3, 0.2, f * FF.FRAME_GRAM_RANK_RTOL])
-        declared = FF.frame_gram_kernel(g).dim
-        oracle = 5 - int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=FF.FRAME_GRAM_RANK_RTOL) @ g))))
+        g = _gram([1.0, 0.5, 0.3, 0.2, f * FR.FRAME_GRAM_RANK_RTOL])
+        declared = FR.frame_gram_kernel(g).dim
+        oracle = 5 - int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=FR.FRAME_GRAM_RANK_RTOL) @ g))))
         counts.add(declared)
         if declared != oracle:
             bad.append((round(float(f), 4), declared, oracle))
@@ -280,9 +280,9 @@ def test_the_rank_rule_counts_an_exact_tie_as_dropped() -> None:
 
     ``diag([1, 1e-12])`` is the exact tie (the product ``1e-12 * 1.0`` is the stored value). A mutation to ``<`` declares ``Coord(2, ())``.
     """
-    g = np.diag([1.0, FF.FRAME_GRAM_RANK_RTOL])
-    declared = FF.frame_gram_kernel(g)
-    oracle = 2 - int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=FF.FRAME_GRAM_RANK_RTOL) @ g))))
+    g = np.diag([1.0, FR.FRAME_GRAM_RANK_RTOL])
+    declared = FR.frame_gram_kernel(g)
+    oracle = 2 - int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=FR.FRAME_GRAM_RANK_RTOL) @ g))))
     _require(oracle == 1, f"the pinv oracle reads nullity {oracle} on the tie, expected 1 (the control that the tie is a tie)")
     _require(declared.dim == 1, f"the tie is declared with dimension {declared.dim}, expected 1 (a value at the cutoff is dropped)")
 
@@ -293,13 +293,13 @@ def test_the_frame_kernel_key_is_the_digest_of_the_symmetrised_gram() -> None:
 
     g1 = _gram([1.0, 0.5, 0.3, 0.0, 0.0])
     g2 = _gram([1.0, 0.5, 0.7, 0.0, 0.0])
-    k1, k2 = FF.frame_gram_kernel(g1), FF.frame_gram_kernel(g2)
+    k1, k2 = FR.frame_gram_kernel(g1), FR.frame_gram_kernel(g2)
     _require(isinstance(k1, Spanned) and isinstance(k2, Spanned) and k1.dim == k2.dim == 2 and k1.n == k2.n == 5, "the two Grams are not a same-(n, dim) pair")
     sym = DenseMetric.symmetrised(g1)
     sym.setflags(write=False)
     _require(k1.key == ("frame-gram-kernel", content_digest(sym)), f"the kernel key {k1.key} is not ('frame-gram-kernel', digest of the symmetrised Gram)")
     _require(k1 != k2, "two different deficient Grams of equal n and dim declared equal kernels")
-    _require(k1 == FF.frame_gram_kernel(g1.copy()), "one Gram declared twice must declare one kernel")
+    _require(k1 == FR.frame_gram_kernel(g1.copy()), "one Gram declared twice must declare one kernel")
 
 
 def test_a_gram_face_honours_a_declaration_that_differs_from_the_retired_count() -> None:
@@ -328,7 +328,7 @@ def test_both_doors_share_one_parse() -> None:
 
 def test_the_frame_refuses_the_zero_gram_in_its_own_words() -> None:
     with pytest.raises(ValueError, match="frame Gram has no value above"):
-        FF.frame_gram_kernel(np.zeros((3, 3)))
+        FR.frame_gram_kernel(np.zeros((3, 3)))
 
 
 def test_a_dense_form_runs_one_decomposition_per_mint(monkeypatch: pytest.MonkeyPatch) -> None:

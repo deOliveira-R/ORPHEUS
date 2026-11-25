@@ -2900,7 +2900,9 @@ and the metric :math:`G^{+}` stated at ``METRIC`` are two values with equal ``me
 **Signed diagonal weights and where positivity is required.** A diagonal form admits signed weights and reads its kernel (the
 exact zero weights) and its signature :math:`(n_+, n_0, n_-)` from the signs. Positivity is required where the Hilbert structure
 begins: the factor refuses an indefinite diagonal form when a weight on :math:`S \setminus K` of its density partner is
-negative. The refusal names the Krein arm, which is not built (issue #706).
+negative, and a frame's mint refuses a Gram that is indefinite on a measure with a negative weight (a
+Lebedev rule with a negative weight at an order its spherical-harmonic Gram does not resolve). Both refusals name the Krein
+arm, which is not built (issue #706).
 
 **The factor and its two variances.** A :class:`~orpheus.numerics.factor.Factor` is an axis, a variance and a subquotient
 :math:`S/K` of the axis's flattened coordinates. On a formed axis the variance is a

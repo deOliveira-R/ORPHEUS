@@ -439,13 +439,14 @@ class FromFrame:  # concept: factor | role: component | kind: element
         frame's declared kernel on the DENSE verdict, the diagonal of the Gram as a :class:`DiagonalMetric` on the DIAGONAL verdict.
         The head's integrated metric is this form with its face flipped."""
         from orpheus.numerics.basis.base import GramStructure
-        from orpheus.numerics.frame import frame_gram_kernel
+        from orpheus.numerics.frame import frame_kernel, require_hilbert_diagonal
 
         frame = self.frame
         gram = frame.discrete_gram
         if frame.discrete_gram_structure is GramStructure.DIAGONAL:
+            require_hilbert_diagonal(frame)
             return DiagonalMetric(np.diagonal(gram).reshape(frame.basis.layout.shape))
-        return DenseMetric(DenseMetric.symmetrised(gram), kernel=frame_gram_kernel(gram), face=Face.METRIC)
+        return DenseMetric(DenseMetric.symmetrised(gram), kernel=frame_kernel(frame), face=Face.METRIC)
 
     @property
     def kind(self) -> AxisKind:

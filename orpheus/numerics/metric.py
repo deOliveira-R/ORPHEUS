@@ -4,7 +4,8 @@ The metric of a discrete Hilbert space is a symmetric positive-semi-definite
 bilinear form :math:`G`: :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
 :class:`DiagonalMetric` may carry signed weights and reads its signature exactly;
 positivity is required where the Hilbert structure begins, by the factor
-(:class:`~orpheus.numerics.factor.Factor`), not on the form itself.
+(:class:`~orpheus.numerics.factor.Factor`) and by the frame's mint
+(:func:`~orpheus.numerics.frame.frame_kernel`).
 Until P7 (campaign 1) the tree could spell exactly two realizations, both
 *multiplied* into the element: a broadcast diagonal weight array (the
 Hadamard product :math:`G \odot x`) and the per-axis factor measures of an
@@ -290,7 +291,7 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
     r"""A symmetric positive-semi-definite bilinear form, as an object.
 
     A :class:`DiagonalMetric` is the one realization that may carry signed weights (it reads its :attr:`signature` exactly from
-    the signs); positivity is required by the factor, where the Hilbert structure begins, not on the form itself.
+    the signs); positivity is required by the factor and by the frame's mint, where the Hilbert structure begins.
 
     The contract is three verbs and one derived pairing:
 

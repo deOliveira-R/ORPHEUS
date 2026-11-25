@@ -393,26 +393,92 @@ class GalerkinFrame(PetrovGalerkinFrame):  # concept: frame | role: arm | kind: 
 FRAME_GRAM_RANK_RTOL: float = 1e-12
 
 
-def frame_gram_kernel(gram: NDArray) -> Declaration:
-    r"""The kernel a frame declares for its discrete Gram ``gram``.
+def _rank_and_signs(gram: NDArray) -> tuple[NDArray, int, NDArray]:
+    r"""``(g_sym, dim, signs)``: the symmetrised Gram, the count of its singular values at or below ``FRAME_GRAM_RANK_RTOL`` of the
+    largest, and the sign of each kept eigenvalue (``+1`` or ``-1``), all from the ONE ``svd(..., hermitian=True)`` of the
+    symmetrised Gram.
 
-    ``Coord(n, ())`` when no singular value of the symmetrised Gram is at or below ``FRAME_GRAM_RANK_RTOL`` of the largest,
-    else a ``Spanned`` of the number of such values, keyed on the digest of the symmetrised Gram. The count reads the
-    singular values of ``np.linalg.svd(g_sym, hermitian=True)`` with the vectors, the call :class:`DenseMetric` makes on the same
-    matrix, so the declared count and the inverse the metric builds split one decomposition at the cutoff.
+    The sign of the ``i``-th eigenvalue of a symmetric matrix is ``u_i . vt_i`` of its hermitian singular value decomposition;
+    the kept directions are the first ``n - dim`` (the singular values descend). A kept exact zero cannot occur (a kept value
+    exceeds the cutoff), so no sign is read on a zero.
     """
     g = np.asarray(gram, dtype=float)
     if g.ndim != 2 or g.shape[0] != g.shape[1]:
         raise ValueError(f"a frame Gram is a square 2-D matrix, got shape {g.shape}")
     g_sym = DenseMetric.symmetrised(g)
-    n = g_sym.shape[0]
-    if n == 0:
-        return Coord(0, ())
-    singular = np.linalg.svd(g_sym, hermitian=True)[1]
+    if g_sym.shape[0] == 0:
+        return g_sym, 0, np.ones(0)
+    u, singular, vt = np.linalg.svd(g_sym, hermitian=True)
     dim = int(np.sum(singular <= FRAME_GRAM_RANK_RTOL * singular.max()))
+    return g_sym, dim, np.einsum("ji,ij->i", u, vt)[: singular.shape[0] - dim]
+
+
+def _declared(g_sym: NDArray, dim: int) -> Declaration:
+    r"""The kernel of dimension ``dim`` that the symmetrised Gram ``g_sym`` declares."""
+    n = g_sym.shape[0]
     if dim == 0:
         return Coord(n, ())
     if dim == n:
         raise ValueError(f"a frame Gram has no value above {FRAME_GRAM_RANK_RTOL:.0e} of its largest: it is the zero form, which carries no inner product")
     g_sym.setflags(write=False)
     return Spanned(n, ("frame-gram-kernel", content_digest(g_sym)), dim)
+
+
+def frame_gram_kernel(gram: NDArray) -> Declaration:
+    r"""The kernel a frame declares for its discrete Gram ``gram``: the rank rule on a bare Gram.
+
+    ``Coord(n, ())`` when no singular value of the symmetrised Gram is at or below ``FRAME_GRAM_RANK_RTOL`` of the largest,
+    else a ``Spanned`` of the number of such values, keyed on the digest of the symmetrised Gram. The count reads the
+    singular values of ``np.linalg.svd(g_sym, hermitian=True)`` with the vectors, the call :class:`DenseMetric` makes on the same
+    matrix, so the declared count and the inverse the metric builds split one decomposition at the cutoff.
+    """
+    g_sym, dim, _ = _rank_and_signs(gram)
+    return _declared(g_sym, dim)
+
+
+def frame_kernel(frame: FrameBase) -> Declaration:
+    r"""The kernel a frame declares for its Gram, through the formal door: the same declaration as :func:`frame_gram_kernel`, and on
+    a measure with a negative weight (only then) the signs of the kept directions are read from the same decomposition and an
+    indefinite Gram is refused.
+
+    On a measure with no negative weight the Gram is positive semi-definite by construction and nothing is read. A negative
+    quadrature weight can make it indefinite (:math:`\sum_q w_q\,Y(\hat\Omega_q)Y(\hat\Omega_q)^{\mathsf T}`), and then no
+    Hilbert form of the dense arm exists; the refusal is a real ``raise``, so it holds under ``python -O``.
+
+    SCOPE-BOUNDARY[guard] a frame whose Gram is indefinite is refused at its mint.
+    machinery: an indefinite (Krein) form arm, and an exactness-degree certificate on the quadrature, which would decide this without reading the Gram (W8a)
+    ruling: the user's D3 of 2026-11-24, applied by the orchestrator as R1' (scratch/ontology/w1/open/N03/rulings.md)
+    revisit: issue #706, the Krein arm
+    """
+    g_sym, dim, signs = _rank_and_signs(frame.discrete_gram)
+    if _has_negative_weight(frame):
+        negative = int(np.count_nonzero(signs < 0.0))
+        if negative:
+            raise ValueError(
+                f"the Gram of this frame has {negative} negative kept direction(s) on a measure with a negative weight: it is "
+                f"indefinite, and the Krein arm of the form is not built (issue #706)"
+            )
+    return _declared(g_sym, dim)
+
+
+def require_hilbert_diagonal(frame: FrameBase) -> None:
+    r"""The diagonal verdict's counterpart of :func:`frame_kernel`: on a measure with a negative weight a negative entry of the
+    diagonal Gram is refused (a real ``raise``); on a measure with no negative weight nothing is read.
+
+    SCOPE-BOUNDARY[guard] a frame whose diagonal Gram has a negative entry is refused at its mint.
+    machinery: an indefinite (Krein) form arm, and an exactness-degree certificate on the quadrature (W8a)
+    ruling: the user's D3 of 2026-11-24, applied by the orchestrator as R1' (scratch/ontology/w1/open/N03/rulings.md)
+    revisit: issue #706, the Krein arm
+    """
+    if _has_negative_weight(frame):
+        negative = int(np.count_nonzero(np.diagonal(frame.discrete_gram) < 0.0))
+        if negative:
+            raise ValueError(
+                f"the diagonal Gram of this frame has {negative} negative entry(ies) on a measure with a negative weight: it is "
+                f"indefinite, and the Krein arm of the form is not built (issue #706)"
+            )
+
+
+def _has_negative_weight(frame: FrameBase) -> bool:
+    r"""True when the frame's measure carries a negative weight (read exactly from the signs)."""
+    return bool(np.any(np.asarray(frame.measure.weights) < 0.0))
