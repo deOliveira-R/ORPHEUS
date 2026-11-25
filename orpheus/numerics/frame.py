@@ -34,7 +34,7 @@ basis, which owns the weighted contractions; the frame caches the table ONCE
 (``frame.table``) and the faces delegate.
 
 Discipline IS a type — the Petrov-Galerkin base / Galerkin specialisation
-====================================================================
+=========================================================================
 
 Every Galerkin-style discretisation factors as an analysis/reconstruction pair
 :math:`(M, R)`. The **discipline** — whether the *test* functions equal the *trial*

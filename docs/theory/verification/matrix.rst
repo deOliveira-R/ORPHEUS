@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21646**
+Total tests collected: **21683**
 
 V&V level distribution
 ----------------------
@@ -22,7 +22,7 @@ V&V level distribution
    L1, 2996, 13.8%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 16244, 75.0%
+   foundation, 16281, 75.1%
    unmarked, 68, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 21499
+   explicit, 21536
    class-name, 46
    func-name, 0
    case, 33
@@ -492,10 +492,9 @@ Module × level grid
    numerics/test_axis_marginal, 0, 0, 0, 0, 22, 0
    numerics/test_axis_marginal_lift, 0, 0, 0, 0, 315, 0
    numerics/test_axis_metric_is_a_derived_object, 0, 0, 0, 0, 12, 0
-   numerics/test_axis_weights_agree_with_origin, 0, 0, 0, 0, 17, 0
    numerics/test_basis_domain, 0, 0, 0, 0, 24, 0
    numerics/test_concept_order, 0, 0, 0, 0, 0, 8
-   numerics/test_content_identity_axis, 0, 0, 0, 0, 66, 0
+   numerics/test_content_identity_axis, 0, 0, 0, 0, 68, 0
    numerics/test_content_identity_mesh_free, 0, 0, 0, 0, 14, 0
    numerics/test_content_identity_observable, 0, 0, 0, 0, 26, 0
    numerics/test_content_identity_question, 0, 0, 0, 0, 52, 0
@@ -779,7 +778,7 @@ Module × level grid
    test_elegance_debt_is_tagged, 0, 0, 0, 0, 7, 0
    test_error_catalogue_reconciles, 0, 0, 0, 0, 13, 0
    test_harness_generated, 0, 0, 0, 0, 2, 0
-   test_layer_imports, 0, 0, 0, 0, 583, 0
+   test_layer_imports, 0, 0, 0, 0, 584, 0
    test_memo_old_path, 0, 0, 0, 0, 8, 0
    test_one_real_parser_census, 0, 0, 0, 0, 4, 0
    test_pending_ports, 5, 0, 0, 0, 0, 0
@@ -853,12 +852,24 @@ Module × level grid
    values/test_content_identity_relocation, 0, 0, 0, 0, 14, 0
    values/test_digest_convention, 0, 0, 0, 0, 13, 0
    values/test_one_real_parser, 0, 0, 0, 0, 16, 0
+   w1/test_axis_form_bytes, 0, 0, 0, 0, 2, 0
+   w1/test_axis_form_derived, 0, 0, 0, 0, 6, 0
+   w1/test_axis_reader_mapping, 0, 0, 0, 0, 4, 0
    w1/test_bare_path_takes_the_matrix_as_stored, 0, 0, 0, 0, 1, 0
    w1/test_content_identity_declaration, 0, 0, 0, 0, 18, 0
-   w1/test_declaration_normal_form, 0, 0, 0, 0, 22, 0
+   w1/test_content_identity_factor, 0, 0, 0, 0, 18, 0
+   w1/test_declaration_normal_form, 0, 0, 0, 0, 21, 0
+   w1/test_dense_form_stated_face, 0, 0, 0, 0, 2, 0
    w1/test_dense_inverse_admission, 0, 0, 0, 0, 25, 0
    w1/test_dense_inverse_bytes, 0, 0, 0, 0, 43, 0
    w1/test_dense_kernel_declared, 0, 0, 0, 0, 39, 0
+   w1/test_factor_dense_admission_table, 0, 0, 0, 0, 1, 0
+   w1/test_factor_energy_law, 0, 0, 0, 0, 1, 0
+   w1/test_factor_induced_form, 0, 0, 0, 0, 5, 0
+   w1/test_factor_klein, 0, 0, 0, 0, 3, 0
+   w1/test_factor_singular_face, 0, 0, 0, 0, 1, 0
+   w1/test_form_kernel_signature, 0, 0, 0, 0, 2, 0
+   w1/test_frame_measure_sign, 0, 0, 0, 0, 4, 0
    w1/test_half_range_one_owner, 0, 0, 0, 0, 26, 0
    w1/test_half_range_population, 0, 0, 0, 0, 8, 0
    w1/test_half_range_selectors, 0, 0, 0, 0, 7, 0
@@ -868,6 +879,7 @@ Module × level grid
    w1/test_snapshot_controls, 0, 0, 0, 0, 0, 4
    w1/test_snapshot_harness, 0, 0, 0, 0, 0, 1
    w1/test_trace_half_range_coherence, 0, 0, 0, 0, 2, 0
+   w1/test_variance_literal, 0, 0, 0, 0, 3, 0
 
 Equation coverage
 -----------------
