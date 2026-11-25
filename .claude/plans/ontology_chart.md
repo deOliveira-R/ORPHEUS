@@ -795,6 +795,13 @@ What passes 2 and 2b changed in the design:
 - `[M]` the prototype carrying every ruling (`overlay4/`): 336 of 336 harness arrays byte-equal to the stored snapshots; the L3 counts are 216 of 324 on a formed axis and 162 of 162 on a formless one.
 - **Owed at each later opening:** the specification's later sections still carry bracket words other than `[guard]` after a debt tag (`legacy-leaf`, `energy-absent`, `pairing-chart`); each unit's opening re-spells its own under R4.
 
+**N03 `factor` built and integrated (2026-11-25).** `[LANDED a0cec8b0]` on `refactor/ontology` by fast-forward (eleven commits from `e970a75f`; 115 files, 10 under `orpheus/`: `numerics/factor.py` new; `axis.py`, `metric.py`, `frame.py`, `frame_faces.py`, `space.py`, `declaration.py`; the transport alias `Factor` renamed `ChainFactor`). Run `wf_f77e77a9-f8b`: Sonnet gates then build in five ordered commits, two Opus quality reviews and one Opus elegance review (16 distinct findings), a Sonnet amend, an Opus verify (16 of 16 answered); then two orchestrator rulings applied and reviewed on their own.
+
+- **Rulings at the build (the orchestrator):** a negative diagonal weight anywhere in `S` refuses a factor (amends R2: the coset minimum over `K` is minus infinity); `require_hilbert_diagonal` retires as unreachable; the reachability gate asserts that `riesz` and `dual` are total.
+- `[M]` on the merged tree: the whole gate tree without the slow tier 20943 passed, 0 failed; no stored harness array changed; G03g 71 of 71; `sphinx -W` clean; `dead_references` unchanged at 3; pyright 0 errors on the 10 production files. The record is the specification's 7.4 "As built".
+- **The first CI reading of the W1 gates** (ubuntu, numpy 2.5.5) found one host dependence, in N01's debug check on a kept exact zero; fixed at the root in `2cd5c0c2`. The step lists 26 files.
+- **Carried to N04's opening:** the reader branch tagged #755 and the refusal of a `Declared` dense axis retire there; the metric arms' `==`; a `Restricted` origin arm.
+
 **N01 `dense-inverse` and N02 `half-range` opened (2026-11-24, tree `d909081a`); their sections 6.2, 7.2, 6.3 and 7.3 are final (specification at 1200 lines).** Records: the specification's amendment subsections "Opening of N01" and "Opening of N02", and `scratch/ontology/w1/open/N01/`, `N02/` (`opening_measurements.md`, `decisions.md`, `check/check_final_<unit>.md`).
 
 - **The user ruled (2026-11-24): the three subspace-declaration classes of N01 belong to a new concept `declaration`** (88 to 89 concepts). `[M]` in a simulated tree: 0 new debt rows and no reference cycle; under `subspace`, as first drafted, 3 debt rows and the metric concept joins the pinned cycle.
