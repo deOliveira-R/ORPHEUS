@@ -32,7 +32,7 @@ from .basis import Basis, SphericalHarmonicBasis
 from .frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from .projection import AnalysisOperator, ReconstructionOperator
 from .metric import DenseMetric, DiagonalMetric, HilbertMetric
-from .space import DualSpace, FunctionSpace, TensorProductSpace
+from .space import DualSpace, FunctionSpace, TensorSpace
 from .vector import V, Vector
 
 __all__ = [
@@ -78,7 +78,7 @@ __all__ = [
     "SupportsInverse",
     "SystemField",
     "TensorProductOperator",
-    "TensorProductSpace",
+    "TensorSpace",
     "V",
     "V_contra",
     "Vector",

@@ -49,8 +49,8 @@ ordered product of its axes (:class:`~orpheus.numerics.axis.Axis`):
   quadrature's measure, which carries the invariance group.
 
 Of the compositional dunders anticipated with them, ``S * T`` (the tensor
-product, :class:`TensorProductSpace`) and ``S.dual()`` (the dual space,
-:class:`DualSpace`) ship on :class:`FunctionSpace`; the direct sum is not
+product, :class:`TensorSpace`, the space of factors) and ``S.dual()`` (the dual space)
+ship on :class:`TensorSpace`; the direct sum is not
 a dunder but the typed composites
 :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` and
 :class:`~orpheus.numerics.coupled_system.CoupledSpace`.
@@ -68,24 +68,26 @@ References
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from functools import cached_property
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, cast
 
 import numpy as np
 from numpy.typing import NDArray
 
-from .axis import Axis, BasisKind, FromFrame, Modal
+from .axis import Axis, BasisKind, Declared
 from .coordinate_space import coordinates, leading_coordinates
+from .factor import Factor, FormlessVariance, Kind, Subquotient, Variance, VarianceChart
 from orpheus.values.content import content_digest, name_digest
 from .metric import (
-    NoForm,    DenseMetric,
+    DenseMetric,
     DiagonalMetric,
     DualMetric,
     FactoredMetric,
     HilbertMetric,
-    PositionedMetric,
-    _masked_reciprocal,
+    NoForm,
     _require_positive,
 )
 
@@ -95,11 +97,12 @@ if TYPE_CHECKING:
 
 
 __all__ = [
+    "CarrierSpec",
     "Covector",
     "DualSpace",
     "FunctionSpace",
     "Member",
-    "TensorProductSpace",
+    "TensorSpace",
     "act_on_direct_sum_coordinates",
     "act_on_flat_coordinates",
     "admit_matrix",
@@ -193,184 +196,104 @@ class Covector(Member):  # concept: covector | role: head | kind: element.covect
         return f"Covector(shape={self.values.shape}, space={self.space.name!r})"
 
 
+#: The subclasses of :class:`FunctionSpace`: qualified class name to the unit that removes the arm. :class:`TensorSpace` is the arm that
+#: stays; the nine legacy arms leave with the unit named (N05 the direct sums, N06 the trace spaces, N07 the dual). The class-creation hook
+#: of :class:`FunctionSpace` refuses every other subclass at any depth. A module-level constant, so that the names it holds are data and
+#: not reference edges of the concept table.
+FUNCTION_SPACE_ARMS: Mapping[str, str | None] = MappingProxyType({
+    "TensorSpace": None,
+    "CoupledSpace": "N05",
+    "FullFieldSpace": "N05",
+    "AngularTraceSpace": "N06",
+    "AngularFaceTraceSpace": "N06",
+    "ScalarTraceSpace": "N06",
+    "_RadialCharacteristicSubSpace": "N06",
+    "RadialCharacteristicInteriorSpace": "N06",
+    "RadialCharacteristicBoundarySpace": "N06",
+    "DualSpace": "N07",
+})
+
+
+@dataclass(frozen=True)
+class CarrierSpec:  # concept: tensor | role: component | kind: set
+    r"""The element classes of a space and of its dual: the pair ``(member, dual_member)``, :class:`Member` and :class:`Covector` by default.
+
+    A space mints its members as ``carrier.member``; the dual of a space carries the swapped pair (:meth:`dual`), so the members of
+    ``V.dual()`` are covectors, the data side, and those of ``V.dual().dual()`` are members again.
+
+    SCOPE-BOUNDARY[guard]
+    machinery: members that follow their space by type, so that the member class is a function of the space's content (W3)
+    ruling: issue #707 (second comment, 2026-11-11, confirmed 2026-11-12) and section 6.5 of .claude/plans/ontology_w1_spec.md
+    revisit: W3, the known defect: two equal spaces carrying different carriers are equal and mint different member classes
+    """
+
+    member: type[Member] = Member
+    dual_member: type[Member] = Covector
+
+    def __post_init__(self) -> None:
+        for name, cls in (("member", self.member), ("dual_member", self.dual_member)):
+            if not (isinstance(cls, type) and issubclass(cls, Member)):
+                raise TypeError(f"CarrierSpec {name} must be a Member class, got {cls!r}")
+
+    def dual(self) -> "CarrierSpec":
+        r"""The pair of the dual space: the two classes swapped."""
+        return CarrierSpec(self.dual_member, self.member)
+
+
 @dataclass(frozen=True, eq=False)
 class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: space | welded: tensor, fmetric, factor
-    r"""A finite-dimensional vector space of discrete fields.
+    r"""The common type of the spaces of discrete fields: a :class:`TensorSpace` over factors, and the legacy leaves and sums that leave with N05 to N07.
+
+    A leaf is stored by its ``name``, its ``shape`` and its metric, which is either diagonal weights (``inner_product_weights``, broadcastable
+    to the shape, leading-aligned) or a metric object (``metric``), or neither, which is the Euclidean inner product. The axis-built arm is
+    :class:`TensorSpace`: a space is the ordered product of the factors of its slots, each with its form, its variance and its subquotient, and
+    the metric is the Kronecker product of the forms in slot order. The subclasses are an allow-list
+    (:data:`FUNCTION_SPACE_ARMS`): a class that is not on it is refused when it is defined.
+
+    A space encodes pure *geometry*: the degrees of freedom (``shape``), the inner product and the composition algebra (``*``, :meth:`dual`).
+    Units do NOT live on the space; they are a property of the quantity, carried by the :class:`~orpheus.numerics.field.Field` role leaf
+    (issues #205, #207, #208).
+
+    **Identity** is :meth:`identity_key`, the one definition from which ``==`` and ``hash`` derive: a leaf is its class, name, shape and the
+    content digests of its metric; a tensor space is its factors; a dual, a direct sum and a coupled system are their members' keys, tagged,
+    so covariance travels into a composite. Two spaces with the same ``name`` and ``shape`` need not be equal.
 
     Parameters
     ----------
     name : str
-        Human-readable identifier. Used by :meth:`__repr__` and by
-        :class:`IncompatibleOperatorComposition` error messages. Two
-        spaces with the same ``name`` and ``shape`` compare equal even
-        if they were constructed via different factory functions —
-        ``name`` is the **identity** of the space, not a description
-        of its contents.
+        Human-readable identifier, used by :meth:`__repr__` and by the composition guard's messages.
     shape : tuple[int, ...]
-        Tensor shape of the elements. A ``shape=(n_cells,
-        n_ordinates, n_groups)`` space contains 3-D arrays; a
-        ``shape=(n_cells,)`` space contains 1-D arrays.
+        Tensor shape of the elements.
     inner_product_weights : NDArray | None, default None
-        Diagonal weights for the L² inner product
-        :math:`\langle x, y \rangle = \sum_i w_i \, x_i \, y_i`. The
-        weights array MUST be broadcast-compatible with ``shape``;
-        most commonly a 1-D array along one axis (e.g. quadrature
-        weights along the ordinate axis of an angular-flux space).
-        ``None`` selects the Euclidean inner product
-        :math:`\sum_i x_i \, y_i` — unless a ``metric`` object is
-        installed (below), which this slot then does NOT describe: a
-        dense-metric space reads ``inner_product_weights is None``
-        while carrying a real, non-Euclidean metric.
+        Diagonal weights of the L² inner product :math:`\langle x, y \rangle = \sum_i w_i x_i y_i`, broadcast-compatible with ``shape``.
     metric : HilbertMetric | None, keyword-only, default None
-        The metric **object** (campaign 1, P7) — a
-        :class:`~orpheus.numerics.metric.HilbertMetric` realization for
-        forms no diagonal array can spell (a
-        :class:`~orpheus.numerics.metric.DenseMetric` Gram inverse being
-        the founding occupant). On an AXIS-BUILT space it is the
-        positioned OVERLAY of forms (CS4c step 6 item 6.2c-i, ruling
-        R-6.2c-2): a :class:`~orpheus.numerics.metric.FactoredMetric` with
-        one entry per axis, a form only on a block whose axis carries NO
-        measure (a dense-Gram head), ``None`` elsewhere — the space's
-        metric is DERIVED from its axes with that overlay merged in, so
-        every axis keeps supplying its own diagonal block. Resolution
-        order: the axes-derived object (overlay merged) > an explicit
-        object on an axes-less space > ``inner_product_weights`` >
-        Euclidean. Validated at construction via
-        :meth:`HilbertMetric.validate_for` and, beside axes, by the
-        positioning guard.
-    axes : tuple[Axis, ...] | None, default None
-        The generator record of an axis-composed space (campaign 1,
-        CS1): the ordered tensor factors this space is the product of.
-        ``None`` means *legacy / not axis-built* — every pre-CS1
-        construction path. Populated by :meth:`of_axes` (and threaded
-        through ``*``); when present, the factor measures live PER AXIS
-        (``inner_product_weights`` stays ``None`` — never both, enforced
-        at construction) and the metric is DERIVED from them as one
-        :class:`~orpheus.numerics.metric.FactoredMetric` (item 6.2c-i).
-        Since the identity flip (CS4c step 6,
-        2026-09-07) it IS the identity of an axis-built space —
-        ``__eq__``/``__hash__`` read it directly; the dataclass field
-        stays ``compare=False`` only so a subclass's generated ``__eq__``
-        never reaches an ndarray (see the identity paragraph below).
-
-    Notes
-    -----
-    The class is **frozen**. A :class:`FunctionSpace` encodes pure
-    *geometry* — the discrete degrees of freedom (``shape``), the
-    inner-product metric, and the composition algebra (``*`` /
-    :meth:`dual`). It is **role- and dimension-agnostic** (the
-    "View-G" decision, issues #205 / #207): a flux ``ψ`` and a
-    reaction-rate density ``Lψ`` live on the *same* geometric space
-    even though they carry different units. **Units do NOT live on the
-    space** — they are a property of the *quantity*, carried by the
-    :class:`~orpheus.numerics.field.Field` role-leaf (as a class
-    constant ``UNITS``) and, for maps, by the operator's unit-gain
-    (issue #208). This keeps one space per grid (no ``flux_space`` vs
-    ``ratedensity_space`` duplication) and lets ``L`` / ``L⁻¹`` type as
-    geometric endomorphisms on the bulk grid with a dimensional gain.
-
-    **Identity — the chartered doctrine, realized (campaign 1, item 0.8;
-    the identity flip landed at CS4c step 6, 2026-09-07).** The doctrine
-    (ruled 2026-08-19/20): a space's identity is the **structural content
-    of its axes** plus its tags — and since the metric lives on the axes,
-    *metric differences imply space differences* (a quotient point with
-    unit weight and a genuine one-cell mesh with :math:`V \neq 1` are
-    DIFFERENT spaces; the old reading "two copies of :math:`\mathbb{R}^n`
-    are 'the same' space regardless of which inner product is installed"
-    is OVERTURNED). The realization is ONE key, :meth:`identity_key`, from
-    which ``==`` and ``hash`` derive in this class only (S7 of the numerics
-    untangling, #631; until then twelve subclasses carried their own pair):
-
-    * an **axis-built** space is its ``axes`` tuple (``Axis.__eq__`` reads
-      the axis content, support and atoms included, and never the origin;
-      ruling 71) together with the dense forms POSITIONED over it, so an
-      all-axes ``*`` product and the :meth:`of_axes` mint of the same axes
-      are one space, a dense-dressed head and the same axes under another
-      Gram are two, and an axis-built space is never equal to a hand-named
-      one wearing its label;
-    * an **axes-less leaf** is its class, name and shape: the trace spaces
-      and the radial-characteristic sub-spaces fold their content into a
-      digest name (CS4b S3), so that triple IS content identity there, and
-      the class keeps a hand-built space wearing such a name from passing
-      for one; a hand-built legacy space carries whatever its author wrote;
-    * a **dual**, a non-axis **tensor product**, a **direct sum**
-      (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`) and
-      a **coupled system** are their members' keys, tagged, so covariance
-      travels into a composite (F7 of the S6a review: until S7 a composite
-      folded its members' NAMES, and ``from_blocks(a, b).dual()`` equalled
-      ``from_blocks(a*, b*)``).
-
-    Until the identity flip (CS4c step 6) the doctrine flowed through a
-    BRIDGE: identity was ``(name, shape)`` for every space and
-    :meth:`of_axes` derived the name injectively from the axes' content. The
-    derived name survives as the readable label and as what keeps ``repr``
-    and guard messages content-distinguishing.
+        A metric object for a form no diagonal array can spell; validated by :meth:`HilbertMetric.validate_for`. One metric source only.
     """
 
     name: str
     shape: tuple[int, ...]
-    # Metadata, NOT identity (see class docstring): on an axes-less leaf the
-    # key is (class, name, shape), so two such spaces are equal regardless of
-    # the installed dense weights (the leaf classes derive their names from
-    # content); on an axis-built space the measures live ON the axes, so they
-    # enter the identity through ``axes`` and this slot is ``None``.
-    # ``compare=False`` keeps an array out of the content of any dataclass
-    # that would read the fields.
+    # Metadata, NOT identity: ``compare=False`` keeps an array out of the content of any dataclass that would read the fields (a compared
+    # array makes the generated ``__eq__`` of a subclass return an ndarray and ``hash`` raise).
     inner_product_weights: Optional[NDArray] = field(
         default=None, repr=False, compare=False,
     )
-    # The axis-composition record (campaign 1, CS1) — the identity of an
-    # axis-built space (with the positioned overlay; :meth:`identity_key`)
-    # since the identity flip (CS4c step 6) — and
-    # LOAD-BEARING for the metric: when present, the factor measures live
-    # per axis and the metric is DERIVED from them as one FactoredMetric
-    # (never densified; item 6.2c-i retired the inline per-axis loop).
-    axes: Optional[tuple[Axis, ...]] = field(
-        default=None, repr=False, compare=False,
-    )
-    # The metric OBJECT (campaign 1, P7): the third metric source — a
-    # first-class HilbertMetric realization (today: DenseMetric, the
-    # non-Hadamard case no array-or-axes source can spell). Resolution
-    # order in _resolved_metric: axes-derived (with this object merged in
-    # as the positioned OVERLAY of forms) > an object on an axes-less
-    # space > dense weights > None; beside axes the object must be
-    # POSITIONED over them (one entry per axis, a form only where the
-    # axis carries no measure) — the guard checks it.
-    # ``compare=False`` is structurally MANDATORY, not taste: [M] a
-    # compared metric field makes the dataclass-generated ``__eq__`` of
-    # subclasses return an ndarray and ``hash()`` raise — the same
-    # mechanism recorded for the weights above, re-measured for P7.
-    # ``kw_only`` so subclass positional fields keep their order.
     metric: Optional[HilbertMetric] = field(
         default=None, repr=False, compare=False, kw_only=True,
     )
 
-    def __post_init__(self) -> None:
-        if self.metric is not None:
-            # The object knows its own admission (a DenseMetric must span
-            # the flattened leading block; a DiagonalMetric is as
-            # permissive as the legacy array slot).
-            self.metric.validate_for(self.shape)
-        # ONE metric source, enforced pairwise over all three (P7 S2 —
-        # illegal states unrepresentable; these are construction bugs,
-        # not user input). ⚠ Until P7 the check lived under the
-        # axes-early-return below, so the (dense, metric) arm was
-        # structurally unreachable; each arm now has its own witness
-        # (battery arms M10a/b/c).
-        if self.axes is not None and self.inner_product_weights is not None:
-            raise ValueError(
-                f"space {self.name!r} carries BOTH per-axis measures and "
-                f"dense inner_product_weights — one metric source only "
-                f"(the axes own the measure on an axis-built space)"
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if cls.__qualname__ not in FUNCTION_SPACE_ARMS:
+            raise TypeError(
+                f"{cls.__qualname__}: arm is not on the FunctionSpace allow-list; a space is a TensorSpace over factors "
+                f"(the legacy arms are {sorted(FUNCTION_SPACE_ARMS)})"
             )
-        if self.axes is not None and self.metric is not None:
-            # CS4c step 6 item 6.2c-i: an axis-built space's metric is a
-            # DERIVED object over its axes; an explicit object is admitted
-            # only as the positioned OVERLAY of forms (one entry per axis,
-            # in order, a form only on a measure-less axis's block) — the
-            # home of a dense Gram on an axis-built head (ruling
-            # R-6.2c-2). Anything else is two metric sources.
-            _require_positioned_over(self.metric, self.axes, name=self.name)
+
+    def __post_init__(self) -> None:
+        # ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf arm validates its stored metric; retires at N07, when the leaf fields leave the base.
+        if self.metric is not None:
+            # The object knows its own admission (a DenseMetric must span the flattened leading block).
+            self.metric.validate_for(self.shape)
         if self.inner_product_weights is not None and self.metric is not None:
             raise ValueError(
                 f"space {self.name!r} carries BOTH dense "
@@ -378,50 +301,20 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
                 f"source only (install the object OR the array, never both)"
             )
         if self.inner_product_weights is not None:
-            # The legacy weights slot is the same admission as an installed
-            # DiagonalMetric: checked once, here, against the element shape
-            # (after the one-metric-source refusals, which outrank it).
             DiagonalMetric(self.inner_product_weights).validate_for(self.shape)
-        if self.axes is None:
-            return
-        # The remaining axis-built guard: a shape that IS the axes'
-        # concatenation.
-        concat: tuple[int, ...] = ()
-        for ax in self.axes:
-            concat = concat + ax.shape
-        if concat != self.shape:
-            raise ValueError(
-                f"space {self.name!r} shape {self.shape} does not equal "
-                f"the concatenation {concat} of its axes' shapes"
-            )
 
     def identity_key(self) -> tuple[Any, ...]:
         r"""The content that IS this space: the one definition of its identity.
 
-        ``==`` and ``hash`` derive from it here, in the base class only, so no
-        member of the family re-states equality (#631, finding F7 of the S6a
-        review). A tagged tuple per kind of space:
+        ``==`` and ``hash`` derive from it here, in the base class only (#631, finding F7 of the S6a review). A tagged tuple per kind of space:
 
-        * axis-built — ``("axes", axes, overlay)``: the axis tuple (its
-          content, ruling 71) and the content digests of the dense forms
-          POSITIONED over it (``None`` where an axis carries none), so a
-          dense-dressed head and the same axes with another Gram are two
-          spaces;
-        * axes-less leaf — ``("named", class, name, shape, weights, metric)``:
-          the class keeps a hand-built space wearing a factory leaf's name
-          from passing for one, and the content digests of the diagonal
-          weights and of the metric object keep two spaces of one name and
-          shape with different metrics apart (`[M]` 2026-10-30, the U1 qa
-          review: without them two ``AngularFaceTraceSpace`` tiers with
-          different weights compared equal, so a member of one was admitted
-          by the other);
-        * a dual, a non-axis tensor product, a direct sum and a coupled
-          system override this with their members' keys, tagged.
+        * a leaf: ``("named", class, name, shape, weights, metric)``, the class keeping a hand-built space wearing a factory leaf's name
+          from passing for one, and the content digests of the weights and of the metric keeping two spaces of one name and shape with
+          different metrics apart;
+        * a tensor space, a dual, a direct sum and a coupled system override this with their members' keys, tagged.
+
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf key is the identity of the five legacy leaves; retires at N07, when they are tensor spaces.
         """
-        if self.axes is not None:
-            return ("axes", self.axes, tuple(
-                None if form is None else content_digest(form) for form in self._overlay_forms()
-            ))
         return (
             "named", type(self), self.name, self.shape,
             None if self.inner_product_weights is None else content_digest(np.asarray(self.inner_product_weights)),
@@ -444,266 +337,68 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         return f"FunctionSpace({self.name!r}, shape={self.shape})"
 
     # ------------------------------------------------------------------
-    # Axis composition (campaign 1, CS1)
+    # The leaf arm of the axis verbs: a leaf has no named factors
     # ------------------------------------------------------------------
-
-    @classmethod
-    def of_measure(cls, measure: DiscreteMeasure, label: str) -> "FunctionSpace":
-        r"""The discrete :math:`L^2(\mu)` space a measure samples: one axis.
-
-        A discrete measure :math:`\mu = \sum_n w_n \delta_{x_n}` induces the
-        space of its sampled values, per-node arrays under
-        :math:`\langle f, g\rangle_\mu = \sum_n w_n f_n g_n` (the weights ARE
-        the metric). It is the space over :meth:`Axis.of_measure
-        <orpheus.numerics.axis.Axis.of_measure>`, so its identity is the
-        axis's content (support, atoms, weights, label; ruling 71) and the
-        measure space of a frame over a quadrature IS the SN angular space
-        over the same rule (ruling 63). The label is the caller's: the role
-        the factor plays, which a caller holding only the measure reads off
-        :attr:`~orpheus.numerics.measure.DiscreteMeasure.axis_label`.
-        """
-        return cls.of_axes(Axis.of_measure(measure, label))
-
-    @classmethod
-    def of_basis(cls, basis: Basis | TruncatedBasis) -> "FunctionSpace":
-        r"""The coefficient space a basis spans: one axis, indexed by its layout.
-
-        The space over :meth:`Axis.of_basis <orpheus.numerics.axis.Axis.of_basis>`
-        (ruling 81): the layout, the continuum Gram and the domain are the
-        basis's, read with no space import on the basis side. Its identity is
-        that axis's content, so two families on two domains (the harmonics on
-        :math:`S^2` and their σ-even restriction on :math:`S^2/\sigma_y`) and
-        two partitions with different edges span two spaces (#631 pairs 3
-        and 4). Replaced each basis's own ``space`` property at S7.
-        """
-        return cls.of_axes(Axis.of_basis(basis))
-
-    @classmethod
-    def of_axes(cls, *axes: Axis) -> "FunctionSpace":
-        r"""Compose a space as the ordered product of its axes.
-
-        The ONE composition mechanism of the axis doctrine: a space IS
-        its axis tuple. Shape is the concatenation of the axes' shapes;
-        the factor measures stay PER AXIS (``inner_product_weights`` is
-        never populated — **no densification**, structurally: composing
-        two 2000-point weighted axes stores 2 × 2000 weights, never the
-        4 000 000-entry outer product); the metric machinery routes
-        through the per-axis path.
-
-        **The derived name — the readable label, and the carrier the
-        axes-less composites fold.** The name is derived
-        DETERMINISTICALLY and INJECTIVELY from the axes' structural
-        content (label, shape, kind, measure bytes, subclass identity —
-        via a content digest, never ``hash()``, so it is stable across
-        processes). Until the identity flip (CS4c step 6, 2026-09-07)
-        that injectivity was the identity BRIDGE: space identity was
-        ``(name, shape)`` for every space, so different axis tuples had
-        to mint different names to be different spaces. Since the flip
-        an axis-built space compares by its ``axes`` tuple directly
-        (:meth:`__eq__`), and the digest's injectivity is load-bearing
-        only where a derived name is folded into an axes-less composite's
-        own digest
-        (:meth:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace.from_blocks`)
-        and for what ``repr`` and the guard messages can tell apart. Two
-        same-``ng`` energy axes with different partitions, or two
-        same-shape spatial axes with different measures, compose into
-        UNEQUAL spaces either way — the chartered "metric differences
-        imply space differences" doctrine, now directly.
-
-        Always returns a plain :class:`FunctionSpace` — an axis product
-        is not a different *kind* of space (ruled Q-T4); invoking
-        through a subclass does not change the return type.
-
-        **The second composition, ``V * W``** (the ``*`` dunder →
-        :class:`TensorProductSpace`), threads ``axes`` when every factor
-        is axis-built — then it IS this composition, with ``factors``
-        metadata on top — and otherwise positions the factor measures in
-        a lazy :class:`~orpheus.numerics.metric.FactoredMetric`, per
-        axis for an axis-built factor. ⚠ Until CS4c step 6 item 6.2a
-        (2026-09-07) that second arm DENSIFIED the metric into an
-        outer-product ``inner_product_weights`` tensor, bridging
-        axis-borne measures through a densifier so no value was lost —
-        `[M]` 18 state-sized tensors per 2-D windowed solve. The
-        densifier retired with the dense arm; what keeps ``*`` alive is
-        the axes-less angular head of the moment products, which item
-        6.2c makes axis-built. New axis-aware code composes with
-        ``of_axes``.
-        """
-        if not axes:
-            raise ValueError(
-                "of_axes needs at least one axis — a space with no "
-                "factors has no index set"
-            )
-        shape: tuple[int, ...] = ()
-        for ax in axes:
-            shape = shape + ax.shape
-        digest = name_digest(tuple(axes))
-        readable = "*".join(f"{ax.label}{ax.shape}" for ax in axes)
-        return FunctionSpace(
-            name=f"{readable}#{digest}",
-            shape=shape,
-            inner_product_weights=None,
-            axes=tuple(axes),
-        )
 
     @property
     def has_coordinate_cone(self) -> bool | None:
         r"""Whether per-component positivity is meaningful on this space.
 
-        Three-valued, deliberately:
+        Three-valued: ``True`` on a tensor space whose factors are all ``NODAL`` (components are point or cell values, the coordinate cone
+        :math:`K = \{x \ge 0\}` is the physical positive cone); ``False`` where any factor is ``MODAL`` (components are expansion coefficients,
+        so a per-component sign test is meaningless and is refused, not answered); ``None`` on a leaf, whose structure cannot answer.
 
-        * ``True`` — axis-built, ALL factors ``NODAL``: components are
-          point/cell values, the coordinate cone :math:`K = \{x \ge 0\}`
-          is the physical positive cone, and per-component sign tests
-          (``Field.cone_violations``) are meaningful.
-        * ``False`` — axis-built, ANY factor ``MODAL``: components are
-          expansion coefficients; a positive function may have negative
-          coefficients, so a per-component sign test is MEANINGLESS and
-          must be refused, not answered.
-        * ``None`` — ``axes is None`` (legacy / not migrated): the
-          question cannot be answered structurally; consumers keep their
-          pre-CS1 behavior. Collapsing ``None`` into ``False`` would
-          make the cone refusal fire on every legacy space in the tree.
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: a leaf answers ``None``; retires at N07, when no space is a leaf.
         """
-        if self.axes is None:
-            return None
-        return all(ax.kind is BasisKind.NODAL for ax in self.axes)
-
-    # ------------------------------------------------------------------
-    # Axis lookup — the public by-label accessor (un-weld arc S-1)
-    # ------------------------------------------------------------------
+        return None
 
     def _axis_index(self, label: str) -> int:
-        """Position of the unique axis labeled ``label`` in :attr:`axes`.
+        r"""Position of the unique factor labeled ``label``: the one by-label resolver, which a leaf refuses (it has no named factors).
 
-        The one home of by-label axis resolution: the public
-        :meth:`axis` accessor and the axis-marginal mint
-        (:mod:`orpheus.numerics.axis_marginal`) both route through here,
-        so the refusal vocabulary cannot drift between them.
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
         """
-        if self.axes is None:
-            raise TypeError(
-                f"axis lookup {label!r}: {self!r} is not axis-built "
-                f"(axes is None) — no named factors to look up. Compose "
-                f"the space with FunctionSpace.of_axes."
-            )
-        hits = [i for i, ax in enumerate(self.axes) if ax.label == label]
-        if len(hits) != 1:
-            raise ValueError(
-                f"axis lookup: label {label!r} names {len(hits)} axes "
-                f"of {self!r} (have {[ax.label for ax in self.axes]}) — "
-                f"need exactly one."
-            )
-        return hits[0]
-
-    def axis(self, label: str) -> Axis:
-        r"""The unique axis labeled ``label`` — by-label factor access.
-
-        The public spelling of reads that used to route through carrier
-        shape metadata: the space carries its axes, so the axis IS the
-        metadata's home — ``space.axis("energy").shape[0]`` is the group
-        count, ``space.axis("spatial").shape`` the spatial shape.
-        Refuses a legacy name-built space (``axes is None``, TypeError)
-        and a label naming zero or several axes (ValueError, naming the
-        inventory) — the same vocabulary the axis marginal refuses in
-        (shared resolver).
-        """
-        k = self._axis_index(label)
-        axes = self.axes
-        assert axes is not None  # narrowing only: _axis_index refused the None case
-        return axes[k]
-
-    def _overlay_forms(self) -> tuple[DiagonalMetric | DenseMetric | None, ...]:
-        r"""The positioned overlay of forms, one entry per axis (``None`` where
-        the axis carries no form, and on every axis of a space with no overlay).
-
-        The one reader of the overlay for the product composition
-        (:func:`_positioned_forms`) and the axis verbs :meth:`without_axis` and
-        :meth:`with_axis`; :func:`_axis_entries` reads the factored metric's
-        ``entries`` directly instead.
-        """
-        assert self.axes is not None  # narrowing only: callers are axis-built
-        if isinstance(self.metric, FactoredMetric):
-            return _overlay_leaf_forms(self.metric)
-        return (None,) * len(self.axes)
-
-    def _axis_block(self, k: int) -> DiagonalMetric | DenseMetric | None:
-        r"""The metric block :math:`G_k` of axis ``k``: the positioned form on
-        its block if there is one, else its measure, else ``None`` (the
-        counting measure). The same entry the space's derived metric
-        composes (:func:`_axis_entries`), so the axis marginal's covector
-        :math:`m = G_k u` and the space's metric cannot disagree.
-        """
-        assert self.axes is not None  # narrowing only: callers are axis-built
-        return _axis_entries(self.axes, self.metric)[k][1]
-
-    def _with_overlay(
-        self, forms: tuple[DiagonalMetric | DenseMetric | None, ...],
-    ) -> "FunctionSpace":
-        """This axis-built space with ``forms`` positioned over its axes (none: no object)."""
-        assert self.axes is not None  # narrowing only: callers are axis-built
-        if all(form is None for form in forms):
-            return self
-        return replace(self, metric=FactoredMetric(tuple(
-            (ax.shape, form) for ax, form in zip(self.axes, forms)
-        )))
-
-    def without_axis(self, label: str) -> "FunctionSpace":
-        r"""The product of the OTHER axes, each keeping its positioned form.
-
-        The marginal space of a fibre integration over ``label``: its metric
-        is this space's metric with the axis's block removed, so the full
-        metric is exactly (the axis measure) ⊗ (this marginal's metric)
-        whenever the dropped axis carries no form itself.
-        """
-        k = self._axis_index(label)
-        assert self.axes is not None  # narrowing only: _axis_index refused the None case
-        forms = self._overlay_forms()
-        others = tuple(ax for i, ax in enumerate(self.axes) if i != k)
-        return FunctionSpace.of_axes(*others)._with_overlay(
-            tuple(form for i, form in enumerate(forms) if i != k)
+        raise TypeError(
+            f"axis lookup {label!r}: {self!r} is a leaf space with no named factors. Compose the space with TensorSpace.of_axes."
         )
 
-    def with_axis(self, axis: Axis) -> "FunctionSpace":
-        r"""This product with ``axis`` appended last, every positioned form kept."""
-        if self.axes is None:
-            raise TypeError(f"with_axis: {self!r} is not axis-built (axes is None)")
-        return FunctionSpace.of_axes(*self.axes, axis)._with_overlay(self._overlay_forms() + (None,))
+    def axis(self, label: str) -> Axis:
+        r"""The axis of the factor labeled ``label``: :class:`TensorSpace` answers; a leaf has no named factors and refuses it."""
+        raise TypeError(
+            f"axis lookup {label!r}: {self!r} is a leaf space with no named factors. Compose the space with TensorSpace.of_axes."
+        )
+
+    def _axis_block(self, k: int) -> DiagonalMetric | DenseMetric | DualMetric | None:
+        r"""The metric block of factor ``k``, which a leaf refuses (it has no named factors).
+
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        """
+        raise TypeError(f"{self!r} is a leaf space with no named factors, so it has no metric block {k}.")
+
+    def without_axis(self, label: str) -> "FunctionSpace":
+        r"""The product of the OTHER factors; a leaf refuses it (it has no named factors).
+
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        """
+        raise TypeError(f"without_axis {label!r}: {self!r} is a leaf space with no named factors.")
+
+    def with_axis(self, factor: Factor) -> "FunctionSpace":
+        r"""This product with ``factor`` appended last; a leaf refuses it (it has no named factors).
+
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        """
+        raise TypeError(f"with_axis: {self!r} is a leaf space with no named factors.")
 
     def positions_spanned_by(self, sub: "FunctionSpace") -> tuple[int, ...]:
-        r"""The array positions of this space that the factors of ``sub`` occupy, read by axis label.
+        r"""The array positions of this space that the factors of ``sub`` occupy, read by factor label.
 
-        ``sub`` is a sub-product of this space's axes, in this space's order;
-        an operator acting on it acts on this space as :math:`A \otimes I`
-        on the other positions, and these are the positions :math:`A` acts
-        on. An axis may span several array positions (a 2-D spatial mesh),
-        so the answer is in array positions, not axis indices. Read BY LABEL
-        (ERR-119), never by position: a space built without labelled axes
-        cannot say which of its positions a factor occupies, and is refused
-        rather than guessed (the user's ruling, 2026-10-20).
+        A leaf cannot say which of its positions a factor occupies, and is refused rather than guessed (the user's ruling, 2026-10-20).
+
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
         """
-        if self.axes is None or sub.axes is None:
-            unlabelled = self if self.axes is None else sub
-            raise TypeError(
-                f"positions_spanned_by: the space {unlabelled!r} is not built from "
-                f"labelled axes, so the positions {sub!r} spans cannot be read off "
-                f"{self!r}. Compose the space with FunctionSpace.of_axes."
-            )
-        labels = tuple(axis.label for axis in sub.axes)
-        ordered = tuple(axis.label for axis in self.axes if axis.label in labels)
-        if ordered != labels:
-            raise ValueError(
-                f"positions_spanned_by: {sub!r} (axes {labels}) is not a sub-product, "
-                f"in order, of {self!r} (axes {tuple(a.label for a in self.axes)})."
-            )
-        positions: list[int] = []
-        dimension = 0
-        for axis in self.axes:
-            rank = len(axis.shape)
-            if axis.label in labels:
-                positions.extend(range(dimension, dimension + rank))
-            dimension += rank
-        return tuple(positions)
+        raise TypeError(
+            f"positions_spanned_by: the space {self!r} is not built from "
+            f"labelled factors, so the positions {sub!r} spans cannot be read off it. Compose the space with TensorSpace.of_axes."
+        )
 
     # ------------------------------------------------------------------
     # Inner product / norm
@@ -876,23 +571,14 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
 
     @property
     def unit(self) -> NDArray:
-        r"""The coordinates of the constant function :math:`1` on this space.
+        r"""The coordinates of the constant function :math:`1` on this space: ones on a leaf, whose coordinates are nodal by construction.
 
-        On an axis-built space it is the tensor product of the axes' units,
-        :math:`u = u_1 \otimes \dots \otimes u_n`
-        (:attr:`~orpheus.numerics.axis.Axis.unit`: ones on a nodal axis, the
-        carried unit on a modal one, which on a frame-dressed head is the
-        moments :math:`\Phi^{\mathsf T} w` and not all ones). An axes-less
-        space has nodal coordinates by construction, so its unit is ones.
-        The integration co-vector :math:`\langle 1, \cdot\rangle_V` is
-        :attr:`integral`.
+        :class:`TensorSpace` overrides it with the tensor product of its axes' units. The integration co-vector
+        :math:`\langle 1, \cdot\rangle_V` is :attr:`integral`.
+
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf unit is ones; retires at N07, when no space is a leaf.
         """
-        if self.axes is None:
-            return np.ones(self.shape)
-        unit = np.ones(())
-        for ax in self.axes:
-            unit = np.multiply.outer(unit, np.asarray(ax.unit))
-        return unit.reshape(self.shape)
+        return np.ones(self.shape)
 
     @property
     def integral(self) -> Covector:
@@ -1024,83 +710,20 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
 
     @property
     def _resolved_metric(self) -> Optional[HilbertMetric]:
-        r"""The metric SOURCE resolved to its realization, PER CALL.
+        r"""The metric SOURCE of a leaf resolved to its realization, PER CALL: an explicit ``metric`` object, else the ``inner_product_weights``
+        array as a :class:`~orpheus.numerics.metric.DiagonalMetric`, else ``None`` (Euclidean: the verbs short-circuit without an object).
 
-        Resolution order (CS4c step 6 item 6.2c-i, ruling R-6.2c-2): an
-        axis-built space's metric is DERIVED from its axes as a
-        :class:`~orpheus.numerics.metric.FactoredMetric` — one
-        :class:`~orpheus.numerics.metric.DiagonalMetric` per weighted axis
-        on that axis's block, ``None`` on a counting-measure axis — with
-        the space's positioned OVERLAY of forms merged in (a dense Gram's
-        :class:`~orpheus.numerics.metric.DenseMetric` on the block of an
-        axis that carries no measure; the guard admitted it), no object at
-        all when every block is Euclidean (:func:`_axes_metric`); else an
-        explicit ``metric`` object on an axes-less space; else a legacy
-        ``inner_product_weights`` array resolves to a ``DiagonalMetric``;
-        ``None`` means Euclidean and the verbs short-circuit without an
-        object. ONE realization for every source:
-        :meth:`DiagonalMetric.apply_block` is operation-for-operation the
-        per-axis reshape-and-multiply the retired ``_apply_axes_weights``
-        performed inline (`[M]` bit-identical on every axis-built space —
-        gated in ``tests/gates/numerics/test_axis_metric_is_a_derived_object.py``),
-        and the legacy diagonal arm is operation-for-operation the arms
-        that used to live inline in the three ``_diagonal_*`` realizations.
+        ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf resolution; retires at N07, when the leaf fields leave the base.
 
-        ⛔ Deliberately NOT a ``cached_property``, and the reason is a
-        measured red: the mutation-battery idiom mutates a frozen
-        space's weight FIELD in place (``object.__setattr__``), and the
-        adjoint-certification propagation probes assert the mutation
-        reaches the metric surface at the next read. `[M]` 2026-08-30
-        (P7 exit gate): a cached resolution served the stale
-        ``DiagonalMetric`` and
-        ``test_gsd_metric_drop_is_k_blind_but_vector_red``'s own
-        ``after == before`` probe reddened — the pre-P7 semantics read
-        the field per call, and every such battery relies on it. The
-        wrapper is a tiny frozen object; the numpy work dominates.
+        ⛔ Deliberately NOT a ``cached_property``: the mutation-battery idiom mutates a frozen space's weight FIELD in place
+        (``object.__setattr__``), and the adjoint-certification propagation probes assert the mutation reaches the metric surface at the
+        next read (`[M]` 2026-08-30, P7 exit gate).
         """
-        if self.axes is not None:
-            return _axes_metric(self.axes, self.metric)
         if self.metric is not None:
             return self.metric
         if self.inner_product_weights is not None:
             return DiagonalMetric(self.inner_product_weights)
         return None
-
-    # ------------------------------------------------------------------
-    # Space algebra (Depth B step D-B)
-    # ------------------------------------------------------------------
-
-    def __mul__(self, other: "FunctionSpace") -> "TensorProductSpace":
-        r"""Return the tensor product :math:`V \otimes W` of this space
-        with ``other``.
-
-        Implements ``V * W`` per grand-report §6.1: the resulting
-        :class:`TensorProductSpace` carries the concatenated shape
-        ``self.shape + other.shape``, the factor measures positioned per
-        block (concatenated axes when every factor is axis-built, a lazy
-        :class:`~orpheus.numerics.metric.FactoredMetric` otherwise —
-        never a stored outer product, since CS4c step 6 item 6.2a), and
-        the multiplied units. Associative on its inputs:
-        ``(A * B) * C`` and ``A * (B * C)`` both produce a flat
-        3-factor :class:`TensorProductSpace`.
-
-        Loadbearing for the Wave T tensor-network rewires per the
-        grand report §15.1 (streaming as
-        :math:`L = \sum_{\text{axis}} D_{\text{axis}} \otimes \Omega_{\text{axis}} \otimes I_g`)
-        and §16A.10 (boundary as
-        :math:`B = G_{\text{patch}} \otimes K_\omega \otimes K_g`).
-        See ``.claude/plans/depth_b_field_on_function_space.md`` §6
-        step D-B for the design.
-        """
-        if not isinstance(other, FunctionSpace):
-            return NotImplemented
-        self_factors = (
-            self.factors if isinstance(self, TensorProductSpace) else (self,)
-        )
-        other_factors = (
-            other.factors if isinstance(other, TensorProductSpace) else (other,)
-        )
-        return TensorProductSpace.from_factors(self_factors + other_factors)
 
     def dual(self) -> "FunctionSpace":
         r"""Return the dual space :math:`V^*`, the space of covectors on this one.
@@ -1139,415 +762,6 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         r"""Build :math:`V^*` (called once per space, by :meth:`dual`)."""
         return DualSpace(name=f"{self.name}*", shape=self.shape, primal=self)
 
-
-# ---------------------------------------------------------------------------
-# Tensor-product and dual space (Depth B step D-B)
-# ---------------------------------------------------------------------------
-
-
-def _overlay_leaf_forms(
-    overlay: FactoredMetric,
-) -> tuple[DiagonalMetric | DenseMetric | None, ...]:
-    r"""The forms of an axis-built space's positioned OVERLAY: leaf metrics
-    only (the overlay guard admits a diagonal or dense form per axis, never a
-    dual's inverse form, which lives on a :class:`DualSpace` that has no
-    axes)."""
-    forms: list[DiagonalMetric | DenseMetric | None] = []
-    for _, form in overlay.entries:
-        if form is None or isinstance(form, (DiagonalMetric, DenseMetric)):
-            forms.append(form)
-        else:
-            raise TypeError(
-                f"an axis-built space's overlay holds diagonal or dense forms "
-                f"only, got {type(form).__name__}"
-            )
-    return tuple(forms)
-
-
-def _axis_entries(
-    axes: tuple[Axis, ...],
-    positioned: Optional[HilbertMetric] = None,
-) -> list[tuple[tuple[int, ...], DiagonalMetric | DenseMetric | None]]:
-    r"""One positioned metric entry per AXIS — the block form of the axis
-    doctrine's "the measure lives per axis" — with the space's positioned
-    OVERLAY of forms merged in.
-
-    A weighted axis contributes a
-    :class:`~orpheus.numerics.metric.DiagonalMetric` carrying its measure on
-    its own index block; a counting-measure axis (``weights is None``, the
-    canonical spelling) contributes ``None`` — no pass over that block —
-    unless ``positioned`` (the space's admitted overlay: one entry per
-    axis, a form only where the axis carries no measure) places a FORM on
-    that block, which then IS the entry: the dense Gram no diagonal
-    measure can spell (ruling R-6.2c-2, 2026-09-08 — *each axis supplies
-    its diagonal block from its measure; a dense-Gram head supplies a
-    positioned DenseMetric on its block*). The guard makes shadowing
-    unspellable, so the merge never has to choose.
-    :meth:`DiagonalMetric.apply_block` performs exactly the explicit
-    reshape-and-multiply (leading 1s for the preceding axes' ranks, the
-    axis shape, trailing 1s for the rest — exact for interior axes, never
-    materializing the outer product; the ERR-067-family divergence is
-    unspellable here) that ``FunctionSpace._apply_axes_weights`` performed
-    inline until CS4c step 6 item 6.2c-i retired it into this one
-    realization.
-    """
-    forms: tuple[DiagonalMetric | DenseMetric | None, ...] = (
-        (None,) * len(axes)
-        if not isinstance(positioned, FactoredMetric)
-        else _overlay_leaf_forms(positioned)
-    )
-    for ax, form in zip(axes, forms):
-        if form is None and isinstance(ax.form, DenseMetric):
-            # ELEGANCE-DEBT[guard] #755 a dense axis form has no entry of its own until N04 replaces the overlay by a factor; the
-            # space would pair its block by the Euclidean form silently, so it refuses; retires with the overlay.
-            raise ValueError(
-                f"axis {ax.label!r} carries a DenseMetric form and the space's overlay positions none on its block: the space "
-                f"would pair it by the Euclidean form silently; a dense axis form is positioned by the factor of unit N04"
-            )
-    return [
-        (
-            ax.shape,
-            form if form is not None
-            else _entry_of_axis(ax),
-        )
-        for ax, form in zip(axes, forms)
-    ]
-
-
-def _entry_of_axis(ax: Axis) -> DiagonalMetric | None:
-    r"""The positioned entry an axis supplies to the space's metric, read off its form; ``None`` is a block with no entry.
-
-    A :class:`NoForm` axis and a :class:`DenseMetric` axis supply none (a dense Gram is positioned on the derived object's
-    overlay); a counting diagonal form (every weight exactly 1) supplies none, so the counting measure has one spelling; any other
-    :class:`DiagonalMetric` supplies itself, except on a frame head, which stores moments, so its metric is the masked reciprocal
-    of the diagonal Gram that is its form.
-
-    ELEGANCE-DEBT[guard] #755 the frame-head branch is a read by origin; it retires when N04 replaces the overlay by a factor whose
-    integrated end reads the form, and the head's metric is no longer derived here.
-    """
-    form = ax.form
-    if isinstance(form, (NoForm, DenseMetric)):
-        return None
-    weights = np.asarray(form.weights)
-    if isinstance(ax.origin, FromFrame):
-        weights = _masked_reciprocal(weights)
-    if bool((weights == 1.0).all()):
-        return None
-    return form if weights is form.weights else DiagonalMetric(weights)
-
-
-def _axes_metric(
-    axes: tuple[Axis, ...], positioned: Optional[HilbertMetric] = None,
-) -> Optional[FactoredMetric]:
-    r"""The metric an axis-built space DERIVES from its axes (CS4c step 6
-    item 6.2c-i): a lazy :class:`~orpheus.numerics.metric.FactoredMetric`
-    over :func:`_axis_entries` (the positioned overlay merged in), or
-    ``None`` when every block is Euclidean (the default — no object, no
-    allocation).
-    Rebuilt per resolution (a handful of frozen wrappers around the axes'
-    own arrays; nothing is copied), so an in-place weight mutation reaches
-    the metric surface at the next read exactly as the dense-slot arm's
-    does.
-    """
-    entries = _axis_entries(axes, positioned)
-    if all(entry is None for _, entry in entries):
-        return None
-    return FactoredMetric(tuple(entries))
-
-
-def _require_positioned_over(
-    metric: HilbertMetric, axes: tuple[Axis, ...], *, name: str,
-) -> None:
-    r"""Admit an explicit metric object on an AXIS-BUILT space only as the
-    positioned OVERLAY of forms — a
-    :class:`~orpheus.numerics.metric.FactoredMetric` with exactly one entry
-    per axis, in order, each on that axis's block, a form ONLY on a block
-    whose axis is MODAL and carries no explicit weights, and never a
-    diagonal one.
-
-    That is the one shape in which a form no diagonal measure can spell —
-    a dense Gram's :class:`~orpheus.numerics.metric.DenseMetric` on a
-    moment head's block — lives beside per-axis measures without becoming
-    a second metric source (ruling R-6.2c-2, 2026-09-08: *a Gram is a FORM,
-    never on* the axis's ``form`` as a diagonal weight; the space's metric is the derived object
-    and a dense block is positioned ON it). Everything else is refused by
-    name, each a second spelling of one measure: a diagonal array spanning
-    the whole shape or a factored object whose blocks do not follow the
-    axes (the derived object would silently disagree with it — `[M]` a
-    relaxed guard alone left the per-axis short-circuit reading the axes
-    and ignoring the object by ``max|Δ| = 14.6`` on a dense-Gram head); a
-    positioned :class:`~orpheus.numerics.metric.DiagonalMetric` (a diagonal
-    measure is the axis's own to carry); a form on an axis that ALSO
-    carries a measure (two sources on one block — the overlay merge would
-    have to pick one and the loser would be dead data); a form on a NODAL
-    axis, whose ``weights=None`` is the COUNTING measure and not the absence
-    of one (the same two sources; `[M]` 2026-10-30, the space-membership
-    plan's U2: a form on a cross-section space's counting energy axis read
-    83 in the space's pairing where the reaction rate, which counts groups,
-    read 46). A form is a Gram on expansion coefficients, so its axis is
-    :class:`~orpheus.numerics.axis.Modal`; production dresses a head through
-    the frame, whose origin makes it so.
-    """
-    if not isinstance(metric, FactoredMetric):
-        raise ValueError(
-            f"space {name!r} carries per-axis measures and a "
-            f"{type(metric).__name__} — an axis-built space's metric is "
-            f"DERIVED from its axes; an explicit object must be a "
-            f"FactoredMetric positioned over them (one entry per axis)."
-        )
-    blocks = tuple(block for block, _ in metric.entries)
-    axis_blocks = tuple(ax.shape for ax in axes)
-    if blocks != axis_blocks:
-        raise ValueError(
-            f"space {name!r}: the metric object's blocks {blocks} do not "
-            f"follow the axes' blocks {axis_blocks} — a positioned object "
-            f"carries exactly one entry per axis, in order."
-        )
-    for k, ((_, form), ax) in enumerate(zip(metric.entries, axes)):
-        if form is None:
-            continue
-        if isinstance(form, DiagonalMetric):
-            raise ValueError(
-                f"space {name!r}: entry {k} (axis {ax.label!r}) positions a "
-                f"DiagonalMetric — a diagonal measure is the axis's own to "
-                f"carry (its ``form``); only a FORM no measure can spell (a "
-                f"dense Gram) is positioned on the derived object."
-            )
-        if _entry_of_axis(ax) is not None:
-            raise ValueError(
-                f"space {name!r}: axis {ax.label!r} carries a measure AND "
-                f"entry {k} positions a {type(form).__name__} on its block — "
-                f"two metric sources on one block; a form REPLACES the "
-                f"measure (mint that axis with a counting or no form)."
-            )
-        if not isinstance(ax.kind, Modal):
-            raise ValueError(
-                f"space {name!r}: axis {ax.label!r} is NODAL, and a nodal "
-                f"axis with no weights carries the counting measure, so entry "
-                f"{k}'s {type(form).__name__} would be a second metric source "
-                f"on its block. A form is a Gram on COEFFICIENTS: it is "
-                f"positioned only on a Modal axis."
-            )
-
-
-def _positioned_forms(
-    factors: tuple["FunctionSpace", ...],
-) -> Optional[FactoredMetric]:
-    r"""The positioned OVERLAY an all-axis-built product carries beside its
-    concatenated axes: each factor's admitted overlay (one entry per axis)
-    in order, ``None`` on every axis of a factor that carries none — or no
-    object at all when no factor carries a form. The product then derives
-    exactly the entries its factors derive (item 6.2c-i).
-    """
-    entries: list[
-        tuple[tuple[int, ...], PositionedMetric | None]
-    ] = []
-    for f in factors:
-        assert f.axes is not None  # narrowing only: the caller's arm
-        entries.extend((ax.shape, form) for ax, form in zip(f.axes, f._overlay_forms()))
-    if all(form is None for _, form in entries):
-        return None
-    return FactoredMetric(tuple(entries))
-
-
-def _tensor_product_factored_metric(
-    factors: tuple["FunctionSpace", ...],
-) -> Optional[FactoredMetric]:
-    r"""Assemble a tensor product's metric as a lazy per-BLOCK product —
-    the one non-axis arm of ``*`` (CS4c step 6 item 6.2a, 2026-09-07).
-
-    One positioned entry per block, and the Kronecker product is never
-    materialized:
-
-    * an **axis-built** factor contributes one entry per AXIS — a
-      :class:`~orpheus.numerics.metric.DiagonalMetric` carrying the
-      axis measure on that axis's block, ``None`` for a counting-measure
-      axis — so the product applies exactly the entries the factor
-      DERIVES for itself (:func:`_axis_entries`, CS4c step 6 item 6.2c-i;
-      until then the factor's inline ``_apply_axes_weights`` loop spelled
-      the same arithmetic — :meth:`~orpheus.numerics.metric.DiagonalMetric.apply_block`
-      is operation-for-operation that reshape-and-multiply: bit-identical
-      on an axis block by construction);
-    * a factor carrying a metric **object** rides verbatim — a nested
-      :class:`~orpheus.numerics.metric.FactoredMetric` flattens (a
-      product of products is one product), a
-      :class:`~orpheus.numerics.metric.DenseMetric` positions on the
-      factor's block (the Parseval-dressed head of a dense-Gram frame);
-    * a **dense-slot leaf** (``inner_product_weights`` set, no axes — the
-      spherical-harmonic / Legendre heads, the trace spaces, hand-built
-      legacy spaces) becomes a ``DiagonalMetric`` on its block;
-    * a **Euclidean** factor contributes ``None`` (no pass over its block).
-
-    Returns ``None`` when every block is Euclidean, preserving the
-    Euclidean default (no object, no allocation).
-
-    **History.** Until 6.2a ``*`` had a DENSE arm that formed
-    :math:`w_1 \otimes w_2 \otimes \cdots` as one weights tensor on every
-    mint with an axes-less factor — `[M]` 18 ``(L+1, 2L+1, ng, nx, ny)``
-    tensors per 2-D windowed solve at ``max_inner = 6``,
-    ``2·max_inner + 6`` in general — and this builder (the P7
-    dense-factor arm) was unreachable on every SN path (no shipped factor
-    carried a metric object) *and* itself densified an axis-built factor's
-    measure. The factored application agrees with the retired outer
-    product to `[M]` 2 ULP worst over 1600 draws (200 seeds × 8
-    (geometry × L) rows — one extra rounding, reduction depth +1; the
-    ``vv-principles`` bit-identity criterion 3), gated at ``nulp = 4`` in
-    ``tests/gates/numerics/test_tensor_product_metric_is_factored.py``.
-    """
-    entries: list[
-        tuple[tuple[int, ...], "PositionedMetric | NoForm | None"]
-    ] = []
-    for f in factors:
-        # ONE metric resolution: the factor's own (an axis-built factor's
-        # per-axis entries with its overlay; a metric object; a dense-slot
-        # leaf's DiagonalMetric; a dual space's inverse form), never its raw
-        # fields read a second time here (Pattern 7: until 2026-10-21 this
-        # loop re-read ``axes``/``metric``/``inner_product_weights`` and so
-        # read a dual factor, which carries none of them, as Euclidean).
-        m = f._resolved_metric
-        if m is None:
-            entries.append((f.shape, None))
-        elif isinstance(m, FactoredMetric):
-            # A product of products is one product.
-            entries.extend(m.entries)
-        elif isinstance(m, (DiagonalMetric, DenseMetric, DualMetric)):
-            entries.append((f.shape, m))
-        else:
-            # Type-narrowing refusal: the positioned application is
-            # defined on the leaf realizations; anything else would
-            # die one call later with a worse message.
-            raise TypeError(
-                f"a tensor product can position only diagonal/dense "
-                f"factor metrics or their duals, got {type(m).__name__}"
-            )
-    if all(entry is None for _, entry in entries):
-        return None
-    return FactoredMetric(tuple(entries))
-
-
-@dataclass(frozen=True, eq=False)
-class TensorProductSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
-    r"""A function space that decomposes as
-    :math:`V = V_1 \otimes V_2 \otimes \cdots \otimes V_k`.
-
-    The tensor-product structure makes algebraic identities of operators
-    on this space (adjoint distributivity, composition distributivity,
-    representation polymorphism) checkable at the type level. See grand-
-    report §5.3, §15, §32.4 for the L1 motivation; see
-    ``.claude/plans/archive/wave_t_tensor_network.md`` for the Wave T
-    plan that wired the production consumers.
-
-    Construction
-    ------------
-    Two equivalent paths:
-
-    * **Operator-algebra dispatch** — ``A * B`` where ``A`` and ``B``
-      are :class:`FunctionSpace` instances returns a
-      :class:`TensorProductSpace`. The dunder is associative on its
-      inputs (``(A * B) * C`` flattens to a 3-factor product, never
-      nests).
-    * **Explicit factory** — :meth:`from_factors` with a tuple of
-      factor spaces.
-
-    Notes
-    -----
-    The class is **frozen**. Identity is :meth:`identity_key`: an
-    all-axes product is its axes (one space with the :meth:`of_axes` mint of
-    them); otherwise it is the ordered keys of its ``factors``. Two
-    :class:`TensorProductSpace` instances with the same factor sequence
-    compare equal even if reached via different composition paths.
-
-    The ``factors`` field also supports introspection (e.g.,
-    operator-algebra factor matching for ``(A & B) ∘ (C & D)`` rewriting).
-
-    Parameters
-    ----------
-    factors : tuple[FunctionSpace, ...]
-        The factor spaces, in order. Should have ``len >= 2`` for a
-        meaningful tensor product; trivial 1-factor TensorProductSpaces
-        are permitted by the dataclass but produced only via the
-        :meth:`__mul__` flattening edge cases.
-    """
-
-    # Required (a non-axis product IS its factors' keys; S7): kw_only for the field order.
-    factors: tuple["FunctionSpace", ...] = field(kw_only=True, compare=False, repr=False)
-
-    def identity_key(self) -> tuple[Any, ...]:
-        """An axis-built product is its axes (the ``of_axes`` mint of them is
-        one space); otherwise the ordered keys of its factors."""
-        if self.axes is not None:
-            return super().identity_key()
-        return ("tensor", tuple(f.identity_key() for f in self.factors))
-
-    @classmethod
-    def from_factors(
-        cls, factors: tuple["FunctionSpace", ...],
-    ) -> "TensorProductSpace":
-        r"""Construct a :class:`TensorProductSpace` from a tuple of factor
-        spaces.
-
-        Derives:
-        * ``name`` from ``" ⊗ ".join(f.name for f in factors)``
-        * ``shape`` from concatenated factor shapes
-        * the metric: concatenated ``axes`` when every factor is
-          axis-built, else a lazy
-          :class:`~orpheus.numerics.metric.FactoredMetric` positioned
-          per block (``None`` if every block is Euclidean) —
-          ``inner_product_weights`` is never populated by a product
-        """
-        if len(factors) < 2:
-            raise ValueError(
-                f"TensorProductSpace.from_factors requires at least 2 "
-                f"factors; got {len(factors)}"
-            )
-        name = " ⊗ ".join(f.name for f in factors)
-        shape: tuple[int, ...] = ()
-        for f in factors:
-            shape = shape + f.shape
-        # Two arms, and neither materializes a weights tensor (CS4c step
-        # 6 item 6.2a retired the dense arm and its densifier bridge):
-        # * axis threading (CS1, gate B7) — when EVERY factor carries an
-        #   axes record, the product's record is the concatenation and
-        #   the measure rides the per-axis path; a factor's positioned
-        #   OVERLAY of forms (a dense-Gram head, 6.2c-i) rides beside it,
-        #   concatenated per axis, so the product derives the same
-        #   entries its factors do;
-        # * the factored arm — an axes-less factor on either side leaves
-        #   ``axes=None`` (never fabricate an axis for a space that did
-        #   not declare one) and the product carries a lazy
-        #   FactoredMetric positioned per block: per AXIS for an
-        #   axis-built factor, per factor for a dense-slot leaf, verbatim
-        #   for a metric object (P7 S2: dropping an object would silently
-        #   revert the product to Euclidean on that factor, a VALUE bug —
-        #   [M] 33.0 where G ⊗ w gives 109.0, on the harmonic-frame mint
-        #   path).
-        factor_axes = [f.axes for f in factors]
-        metric: Optional[HilbertMetric] = None
-        if all(fa is not None for fa in factor_axes):
-            axes: Optional[tuple[Axis, ...]] = tuple(
-                ax for fa in factor_axes if fa is not None for ax in fa
-            )
-            metric = _positioned_forms(factors)
-        else:
-            axes = None
-            metric = _tensor_product_factored_metric(factors)
-        return cls(
-            name=name,
-            shape=shape,
-            inner_product_weights=None,
-            axes=axes,
-            metric=metric,
-            factors=factors,
-        )
-
-    def _make_dual(self) -> "FunctionSpace":
-        r"""The dual of a tensor product is the product of the duals,
-        :math:`(V \otimes W)^* = V^* \otimes W^*`, each factor carrying its
-        own inverse form (numerics_untangling.md rulings 26 and 75)."""
-        return TensorProductSpace.from_factors(tuple(f.dual() for f in self.factors))
-
-    def __repr__(self) -> str:
-        return f"TensorProductSpace({self.name!r}, shape={self.shape})"
 
 
 @dataclass(frozen=True, eq=False)
@@ -1593,11 +807,7 @@ class DualSpace(FunctionSpace):  # concept: dual | role: head | kind: space
                 f"DualSpace {self.name!r}: shape {self.shape} is not its "
                 f"primal's {self.primal.shape}."
             )
-        if (
-            self.axes is not None
-            or self.metric is not None
-            or self.inner_product_weights is not None
-        ):
+        if self.metric is not None or self.inner_product_weights is not None:
             raise ValueError(
                 f"DualSpace {self.name!r} carries a metric source of its own; "
                 f"a dual's metric is its primal's inverse form, read through "
@@ -1637,6 +847,369 @@ class DualSpace(FunctionSpace):  # concept: dual | role: head | kind: space
     def __repr__(self) -> str:
         return f"DualSpace({self.name!r}, shape={self.shape})"
 
+
+
+@dataclass(frozen=True, eq=False)
+class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
+    r"""The tensor space of factors :math:`V = F_1 \otimes \dots \otimes F_k`: one value of one type, for every product of slots.
+
+    A slot is a :class:`~orpheus.numerics.factor.Factor`: an axis (the index set, its form and its origin), a variance (a function or a
+    measure, a density or an integrated chart) and a subquotient :math:`S/K`. The space is its ordered tuple of factors, so ``of_axes(a, b)``
+    puts ``a`` first, the shape is the concatenation of the axes' shapes, and the metric is the Kronecker product of the factors' forms in
+    slot order (:meth:`flat_on`, :meth:`sharp_on`): the one place the order of the application is spelled. A slot whose form is
+    :class:`~orpheus.numerics.metric.NoForm` is skipped by the walk and counts in :meth:`inner_product` and :meth:`norm` (the energy slot
+    of a flux until N11); a counting form is applied, as a product with one.
+
+    **The Klein action per slot.** :meth:`dual` flips the variance of every slot (kind and chart, and dualises the subquotient), :meth:`riesz`
+    flips the chart only, and each takes ``on=`` a set of labels, so a space may be dual on one slot and primal on another: the two
+    involutions commute and ``dual(on=L).dual(on=M) == dual(on=L ^ M)``. ``riesz`` is refused on a formless slot: a change of chart needs a
+    form to pass through.
+
+    **The member class** follows the space (issue #707): a member of ``V`` is a :class:`Member`, a member of ``V.dual()`` a :class:`Covector`
+    (the data side). The pair is the space's :class:`CarrierSpec`, not part of its identity.
+
+    **Constructors.** ``of_axes(*factors)`` takes factors, so every call states its variances; ``of_measure``, ``of_basis`` and ``declared``
+    are one-factor constructors whose body is ``of_axes(Factor(axis, variance, Subquotient.whole(n)))``; ``a * b`` concatenates the slot
+    lists; ``sub(*labels)`` is the sub-product on those labels in slot order, of which ``tail``, ``without_axis`` and the head read are calls.
+    The labels are unique (``ValueError``), and the empty product is refused.
+
+    Parameters
+    ----------
+    factors : tuple[Factor, ...]
+        The slots, in order.
+    carrier : CarrierSpec | None, keyword-only, default None
+        The member classes; ``None`` is the default pair ``(Member, Covector)``.
+    """
+
+    # The leaf fields of the base are fixed here, so that a stored shape or a second metric cannot be passed: ``name`` and ``shape`` are
+    # derived from the factors and the other two stay ``None``.
+    # ELEGANCE-DEBT[guard] #707 legacy-leaf: the four leaf fields are re-declared closed until N07 removes them from the base.
+    name: str = field(init=False)
+    shape: tuple[int, ...] = field(init=False)
+    inner_product_weights: Optional[NDArray] = field(init=False, default=None, repr=False, compare=False)
+    metric: Optional[HilbertMetric] = field(init=False, default=None, repr=False, compare=False, kw_only=True)
+    factors: tuple[Factor, ...]
+    carrier: Optional[CarrierSpec] = field(default=None, repr=False, compare=False, kw_only=True)
+
+    def __post_init__(self) -> None:
+        factors = tuple(self.factors)
+        if not factors:
+            raise ValueError("a tensor space needs at least one factor: the empty product has no index set")
+        for f in factors:
+            if not isinstance(f, Factor):
+                raise TypeError(
+                    f"a tensor space is built from Factors (state the variance of each slot), got {type(f).__name__}"
+                )
+        if self.carrier is not None and not isinstance(self.carrier, CarrierSpec):
+            raise TypeError(f"carrier must be a CarrierSpec or None, got {type(self.carrier).__name__}")
+        labels = [f.axis.label for f in factors]
+        repeated = sorted({l for l in labels if labels.count(l) > 1})
+        if repeated:
+            raise ValueError(f"a tensor space has unique labels; {repeated} repeat in {labels}")
+        shape: tuple[int, ...] = ()
+        for f in factors:
+            shape = shape + f.axis.shape
+        readable = "*".join(f"{f.axis.label}{f.axis.shape}" for f in factors)
+        object.__setattr__(self, "factors", factors)
+        object.__setattr__(self, "shape", shape)
+        object.__setattr__(self, "name", f"{readable}#{name_digest(factors)}")
+
+    def identity_key(self) -> tuple[Any, ...]:
+        r"""The space is its ordered factors: ``("tensor", factors)``, so the variance, the subquotient and the slot order are identity."""
+        return ("tensor", self.factors)
+
+    def __repr__(self) -> str:
+        return f"TensorSpace({self.name!r}, shape={self.shape})"
+
+    # ------------------------------------------------------------------
+    # Constructors
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def of_axes(cls, *factors: Factor) -> "TensorSpace":
+        r"""The ordered product of ``factors``: the one composition. It takes :class:`Factor` s (an :class:`Axis` is a ``TypeError``)."""
+        return cls(factors=tuple(factors))
+
+    @classmethod
+    def of_measure(cls, measure: "DiscreteMeasure", label: str, variance: FormlessVariance | Variance) -> "TensorSpace":
+        r"""The discrete :math:`L^2(\mu)` space a measure samples: one factor over :meth:`Axis.of_measure
+        <orpheus.numerics.axis.Axis.of_measure>`, whole, in the stated variance."""
+        axis = Axis.of_measure(measure, label)
+        return cls.of_axes(Factor(axis, variance, Subquotient.whole(int(np.prod(axis.shape)))))
+
+    @classmethod
+    def of_basis(cls, basis: "Basis | TruncatedBasis", variance: FormlessVariance | Variance) -> "TensorSpace":
+        r"""The coefficient space a basis spans: one factor over :meth:`Axis.of_basis <orpheus.numerics.axis.Axis.of_basis>`, whole, in the
+        stated variance."""
+        axis = Axis.of_basis(basis)
+        return cls.of_axes(Factor(axis, variance, Subquotient.whole(int(np.prod(axis.shape)))))
+
+    @classmethod
+    def declared(
+        cls, name: str, shape: tuple[int, ...], variance: FormlessVariance | Variance, *, form: DiagonalMetric | DenseMetric | NoForm | None = None,
+    ) -> "TensorSpace":
+        r"""The space of a declared index set no generating object minted: one nodal factor, whole, in the stated variance.
+
+        ``form`` is the factor's form, carried by the axis's ``Declared`` origin; ``None`` is the counting form over ``shape``.
+        """
+        axis = Axis(name, tuple(int(d) for d in shape), origin=Declared(BasisKind.NODAL, form))
+        return cls.of_axes(Factor(axis, variance, Subquotient.whole(int(np.prod(axis.shape)))))
+
+    # ------------------------------------------------------------------
+    # The slots
+    # ------------------------------------------------------------------
+
+    @property
+    def labels(self) -> tuple[str, ...]:
+        r"""The labels of the slots, in slot order."""
+        return tuple(f.axis.label for f in self.factors)
+
+    @property
+    def axes(self) -> tuple[Axis, ...]:
+        r"""The factors' axes, in slot order (a restricted axis is returned only where the space was built with one)."""
+        return tuple(f.axis for f in self.factors)
+
+    @property
+    def formed_labels(self) -> tuple[str, ...]:
+        r"""The labels of the slots that carry a form (every slot but the formless ones), in slot order."""
+        return tuple(f.axis.label for f in self.factors if not isinstance(f.variance, FormlessVariance))
+
+    def _axis_index(self, label: str) -> int:
+        labels = self.labels
+        hits = [i for i, l in enumerate(labels) if l == label]
+        if len(hits) != 1:
+            raise ValueError(f"axis lookup: label {label!r} names {len(hits)} axes of {self!r} (have {list(labels)}) — need exactly one.")
+        return hits[0]
+
+    def position(self, label: str) -> int:
+        r"""The slot index of the factor labeled ``label``."""
+        return self._axis_index(label)
+
+    def factor(self, label: str) -> Factor:
+        r"""The factor labeled ``label``."""
+        return self.factors[self._axis_index(label)]
+
+    def axis(self, label: str) -> Axis:
+        r"""The axis of the factor labeled ``label``: ``space.axis("energy").shape[0]`` is the group count."""
+        return self.factor(label).axis
+
+    def _axis_block(self, k: int) -> DiagonalMetric | DenseMetric | DualMetric | None:
+        form = self.factors[k].form
+        return None if isinstance(form, NoForm) else cast("DiagonalMetric | DenseMetric | DualMetric", form)
+
+    def _labels(self, on: Any) -> frozenset[str]:
+        r"""``on`` parsed as a collection of labels of this space (a ``str`` is refused: it would read as its characters)."""
+        if isinstance(on, str):
+            raise TypeError(f"on= takes a collection of labels, not the string {on!r}")
+        labels = frozenset(on)
+        unknown = sorted(labels - set(self.labels))
+        if unknown:
+            raise KeyError(f"unknown labels {unknown}; the space has {list(self.labels)}")
+        return labels
+
+    def _again(self, factors: tuple[Factor, ...], carrier: Optional[CarrierSpec]) -> "TensorSpace":
+        return TensorSpace(factors=factors, carrier=carrier)
+
+    def with_axis(self, factor: Factor) -> "TensorSpace":
+        r"""This product with ``factor`` appended last, every other factor unchanged. It takes a :class:`Factor`, so a variance is stated."""
+        return self._again(self.factors + (factor,), self.carrier)
+
+    def sub(self, *labels: str) -> "TensorSpace":
+        r"""The sub-product on ``labels``, in slot order: the one verb of which ``tail``, ``without_axis`` and the head read are calls.
+
+        An unknown label is a ``KeyError``, a label list not in slot order (or repeating a label, or empty) a ``ValueError``.
+        """
+        known = self._labels(labels)
+        positions = [self._axis_index(l) for l in labels]
+        if not labels or positions != sorted(set(positions)) or len(known) != len(labels):
+            raise ValueError(f"sub: the labels {list(labels)} are not a non-empty sub-product, in slot order, of {list(self.labels)}")
+        return self._again(tuple(self.factors[i] for i in positions), self.carrier)
+
+    def tail(self, k: int) -> "TensorSpace":
+        r"""The tensor space of the last ``k`` factors, with their variances."""
+        if isinstance(k, bool) or not isinstance(k, int) or not 1 <= k <= len(self.factors):
+            raise ValueError(f"tail takes 1 <= k <= {len(self.factors)} (an int), got {k!r}")
+        return self.sub(*self.labels[len(self.factors) - k:])
+
+    def without_axis(self, label: str) -> "TensorSpace":
+        r"""The product of the OTHER factors, each keeping its variance, form and subquotient."""
+        self._axis_index(label)
+        return self.sub(*(l for l in self.labels if l != label))
+
+    def __mul__(self, other: "FunctionSpace") -> "TensorSpace":
+        r"""The product :math:`V \otimes W`: the concatenation of the slot lists, associative; ``NotImplemented`` against a leaf.
+
+        The product's carrier is the factors' when they agree and the default pair when they differ.
+        """
+        if not isinstance(other, TensorSpace):
+            return NotImplemented
+        return self._again(self.factors + other.factors, self.carrier if self.carrier == other.carrier else None)
+
+    def positions_spanned_by(self, sub: "FunctionSpace") -> tuple[int, ...]:
+        r"""The array positions of this space that the factors of ``sub`` occupy, read by label.
+
+        ``sub`` is a sub-product of this space's factors, in this space's order; an operator acting on it acts on this space as
+        :math:`A \otimes I` on the other positions, and these are the positions :math:`A` acts on. A factor may span several array
+        positions (a 2-D spatial mesh), so the answer is in array positions, not factor indices.
+        """
+        if not isinstance(sub, TensorSpace):
+            raise TypeError(
+                f"positions_spanned_by: the space {sub!r} is not built from labelled factors, so the positions it spans cannot be read off {self!r}."
+            )
+        labels = sub.labels
+        ordered = tuple(l for l in self.labels if l in labels)
+        if ordered != labels:
+            raise ValueError(
+                f"positions_spanned_by: {sub!r} (axes {labels}) is not a sub-product, in order, of {self!r} (axes {self.labels})."
+            )
+        positions: list[int] = []
+        dimension = 0
+        for axis in self.axes:
+            rank = len(axis.shape)
+            if axis.label in labels:
+                positions.extend(range(dimension, dimension + rank))
+            dimension += rank
+        return tuple(positions)
+
+    @property
+    def has_coordinate_cone(self) -> bool:
+        return all(ax.kind is BasisKind.NODAL for ax in self.axes)
+
+    @property
+    def unit(self) -> NDArray:
+        r"""The coordinates of the constant function :math:`1`: the tensor product of the axes' units, :math:`u = u_1 \otimes \dots \otimes u_k`
+        (ones on a nodal axis, the carried unit on a modal one, which on a frame head is the moments :math:`\Phi^{\mathsf T} w`)."""
+        unit = np.ones(())
+        for ax in self.axes:
+            unit = np.multiply.outer(unit, np.asarray(ax.unit))
+        return unit.reshape(self.shape)
+
+    # ------------------------------------------------------------------
+    # The metric: the Kronecker product of the forms, in slot order
+    # ------------------------------------------------------------------
+
+    @cached_property
+    def _metrics(self) -> dict[frozenset[str], FactoredMetric]:
+        return {}
+
+    def _metric_on(self, labels: frozenset[str]) -> FactoredMetric:
+        r"""The Kronecker product of the forms of the slots in ``labels``, in slot order; the other slots carry no form (``NoForm``)."""
+        metric = self._metrics.get(labels)
+        if metric is None:
+            metric = FactoredMetric(tuple(
+                (f.axis.shape, f.form if f.axis.label in labels else NoForm()) for f in self.factors
+            ))
+            self._metrics[labels] = metric
+        return metric
+
+    def flat_on(self, x: Any, labels: Any) -> Any:
+        r"""The product of the forms of the slots in ``labels`` applied to ``x``, one slot at a time in slot order (2.4); a ``NoForm`` slot is skipped.
+
+        The one body of the forward walk: ``flat``, ``apply_metric``, ``integral`` and the pairing are calls of it.
+        """
+        return self._metric_on(self._labels(labels)).apply(x)
+
+    def sharp_on(self, x: Any, labels: Any) -> Any:
+        r"""The inverse of :meth:`flat_on`: the inverse faces of the forms of the slots in ``labels``, in slot order (the masked reciprocal on a
+        diagonal form)."""
+        return self._metric_on(self._labels(labels)).apply_inverse(x)
+
+    @property
+    def _resolved_metric(self) -> HilbertMetric:
+        return self._metric_on(frozenset(self.labels))
+
+    def apply_metric(self, x: Any) -> Any:
+        r"""The metric :math:`G x`: :meth:`flat_on` over the formed slots."""
+        return self.flat_on(self.leading_coordinates_of(x), self.formed_labels)
+
+    def apply_inverse_metric(self, x: Any) -> Any:
+        r"""The pseudo-inverse metric :math:`G^{+} x`: :meth:`sharp_on` over the formed slots."""
+        return self.sharp_on(self.leading_coordinates_of(x), self.formed_labels)
+
+    def flat(self, density: Any) -> Covector:
+        r"""The covector :math:`\flat_V w = G w`: :meth:`flat_on` over every slot, a member of the dual space."""
+        return Covector(values=np.asarray(self.flat_on(self.coordinates_of(density), self.labels)), space=self.dual())
+
+    @property
+    def integral(self) -> Covector:
+        r"""The integration covector :math:`\langle 1, \cdot\rangle_V = \flat_V 1`, minted through :meth:`flat` from the constant function."""
+        return self.flat(Member(values=self.unit, space=self))
+
+    # ------------------------------------------------------------------
+    # The two involutions, per slot
+    # ------------------------------------------------------------------
+
+    def dual(self, on: Any = None) -> "TensorSpace":
+        r"""The dual on the slots ``on`` (every slot by default): each of those factors dualised, the others unchanged.
+
+        ``dual(on=L).dual(on=M) == dual(on=L ^ M)`` (law L4) and ``dual(on=all) is dual()``, memoised (so ``V.dual().dual() is V``);
+        ``on=()`` is the space itself; an unknown label is a ``KeyError``. The member class follows the space: the all-slot dual carries the
+        swapped carrier, a partial dual the carrier of its source.
+        """
+        if on is None:
+            return cast("TensorSpace", self._dual)
+        labels = self._labels(on)
+        if not labels:
+            return self
+        if labels == frozenset(self.labels):
+            return cast("TensorSpace", self._dual)
+        return self._again(tuple(f.dual() if f.axis.label in labels else f for f in self.factors), self.carrier)
+
+    def riesz(self, on: Any = None) -> "TensorSpace":
+        r"""The Riesz image on the slots ``on`` (every slot by default): the chart of each flipped through its form (law L5).
+
+        Refused, "riesz is not defined: ", where a slot of ``on`` is formless: a change of chart needs a form to pass through.
+        """
+        labels = frozenset(self.labels) if on is None else self._labels(on)
+        formless = [f.axis.label for f in self.factors if f.axis.label in labels and isinstance(f.variance, FormlessVariance)]
+        if formless:
+            raise ValueError(f"riesz is not defined: the slots {formless} have no form to change the chart through")
+        return self._again(tuple(f.riesz() if f.axis.label in labels else f for f in self.factors), self.carrier)
+
+    def _make_dual(self) -> "TensorSpace":
+        carrier = (self.carrier if self.carrier is not None else CarrierSpec()).dual()
+        return self._again(tuple(f.dual() for f in self.factors), carrier)
+
+    def member(self, coordinates: NDArray) -> Any:
+        r"""The member whose coordinates are ``coordinates``, of the class its carrier names (a :class:`Member` on a primal, a
+        :class:`Covector` on the all-slot dual)."""
+        carrier = self.carrier if self.carrier is not None else CarrierSpec()
+        return carrier.member(values=self._chart_values(coordinates), space=self)
+
+    # ------------------------------------------------------------------
+    # The completions
+    # ------------------------------------------------------------------
+
+    def completed(self, on: Any) -> "TensorSpace":
+        r"""This space with the forms of the slots ``on`` replaced by the counting form: the one core of :meth:`euclidean` and :meth:`counting`.
+
+        A replaced slot is the counting axis over the same shape, whole, and keeps its kind and chart (a formless slot takes the
+        :class:`Variance` its :class:`FormlessVariance` implies); the counting form is applied by the walk, as a product with one.
+        """
+        labels = self._labels(on)
+        if not labels:
+            return self
+        return self._again(tuple(_counting_factor(f) if f.axis.label in labels else f for f in self.factors), self.carrier)
+
+    def euclidean(self) -> "TensorSpace":
+        r"""The completion of the formless slots by the counting form (the energy slot); the angular and spatial forms are kept."""
+        return self.completed(on=frozenset(l for l in self.labels if l not in self.formed_labels))
+
+    def counting(self) -> "TensorSpace":
+        r"""The completion of every slot by the counting form."""
+        return self.completed(on=self.labels)
+
+
+def _counting_factor(f: Factor) -> Factor:
+    r"""The slot ``f`` with its axis replaced by the counting axis over the same shape, whole, in the variance it had."""
+    shape = f.axis.shape
+    axis = Axis(f.axis.label, shape, origin=Declared(BasisKind.NODAL, DiagonalMetric.counting(shape)))
+    whole = Subquotient.whole(int(np.prod(shape)))
+    if isinstance(f.variance, FormlessVariance):
+        if f.variance is FormlessVariance.FUNCTION:
+            return Factor(axis, Variance(Kind.FUNCTION, VarianceChart.DENSITY), whole)
+        return Factor(axis, Variance(Kind.MEASURE, VarianceChart.INTEGRATED), whole)
+    return Factor(axis, f.variance, whole)
 
 # ---------------------------------------------------------------------------
 # Pre-populated common-space factories
@@ -1690,7 +1263,9 @@ def coordinate_space_of(shape: tuple[int, ...]) -> FunctionSpace:
     that space, so a posed and an unposed carrier go through one
     :func:`act_on_flat_coordinates`. Minted only by :func:`admit_matrix`.
     """
-    return FunctionSpace("R^" + "x".join(str(d) for d in shape), tuple(int(d) for d in shape))
+    return TensorSpace.declared(
+        "R^" + "x".join(str(d) for d in shape), tuple(int(d) for d in shape), Variance(Kind.FUNCTION, VarianceChart.DENSITY),
+    )
 
 
 def act_on_flat_coordinates(

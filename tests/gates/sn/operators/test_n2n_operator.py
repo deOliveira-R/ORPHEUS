@@ -70,6 +70,8 @@ from orpheus.numerics import frame_faces
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
 from tests.gates.transport._transfer_oracles import on_frame
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -406,7 +408,7 @@ class TestAdmission:
             N2NOperator.from_solver_data(
                 mat_xs=solver.problem.mat_xs,
                 scattering_order=_L,
-                space=FunctionSpace("bare", (2, 4, 1)),
+                space=TensorSpace.declared("bare", (2, 4, 1), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
             )
 
     def test_the_two_terms_share_one_interned_frame(self):

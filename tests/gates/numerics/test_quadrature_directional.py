@@ -40,6 +40,10 @@ from orpheus.numerics.quadrature import LevelStructure, Quadrature
 from orpheus.numerics import frame_faces
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
 from tests.gates.geometry._lattice_fixtures import _g22b_AXES, _g22b_mirror
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = [pytest.mark.foundation]
 
@@ -622,7 +626,7 @@ def test_q8_4_the_1d_rule_ROUTES_its_own_measure_and_binds_the_legendre_basis(
 
     # 3 — the flat table: the fabricated slots are UNSPELLABLE
     assert frame.table.shape == (q.n_ordinates, 3)
-    assert FunctionSpace.of_basis(frame.basis).shape == (3,)
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)).shape == (3,)
 
     # …and the forged construction the fiction used is GONE from production:
     # no shipped call rebuilds a padded (mu, 0, 0) measure on S^2.

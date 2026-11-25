@@ -36,16 +36,21 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis
 from orpheus.numerics.coupled_system import CoupledSpace
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.declaration import Coord
 from tests.gates._dense import declared_kernel
 from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
 from orpheus.numerics.space import Covector, FunctionSpace, Member
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from tests.gates.numerics._axis_marginal_lift_support import zero_weight_nodal
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from tests.gates.numerics._declared_support import declared_mod_kernel, factor_mod_kernel
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from orpheus.numerics.axis import Declared
+from orpheus.numerics.axis import BasisKind
+from orpheus.numerics.declaration import Coord
 
 pytestmark = pytest.mark.foundation
 
@@ -66,15 +71,15 @@ def _axis(label: str, weights) -> Axis:
 
 def _two_axis() -> FunctionSpace:
     """NM-1's fixture: weights 0.5, 2, 4 on one axis, 1 and 3 on the other (a stray metric factor is visible)."""
-    return FunctionSpace.of_axes(_axis("a", [0.5, 2.0, 4.0]), _axis("b", [1.0, 3.0]))
+    return TensorSpace.of_axes(Factor.whole_on(_axis("a", [0.5, 2.0, 4.0]), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_axis("b", [1.0, 3.0]), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def _diag(name: str, weights) -> FunctionSpace:
-    return FunctionSpace(name, (len(weights),), inner_product_weights=np.asarray(weights, dtype=float))
+    return declared_mod_kernel(name, (len(weights),), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.asarray(weights, dtype=float)))
 
 
 def _dense_singular(name: str) -> FunctionSpace:
-    return FunctionSpace(name, (3,), metric=DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1), face=Face.METRIC))
+    return declared_mod_kernel(name, (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1), face=Face.METRIC))
 
 
 def _dense_near_cutoff(name: str) -> FunctionSpace:
@@ -84,11 +89,11 @@ def _dense_near_cutoff(name: str) -> FunctionSpace:
     of :math:`G` stay at rounding."""
     q, _ = np.linalg.qr(np.random.default_rng(29).standard_normal((6, 6)))
     gram = q @ np.diag([1.0, 0.5, 0.2, 0.1, 1e-8, 0.0]) @ q.T
-    return FunctionSpace(name, (6,), metric=DenseMetric((gram + gram.T) / 2.0, kernel=declared_kernel((gram + gram.T) / 2.0, 1), face=Face.METRIC))
+    return declared_mod_kernel(name, (6,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric((gram + gram.T) / 2.0, kernel=declared_kernel((gram + gram.T) / 2.0, 1), face=Face.METRIC))
 
 
 def _dense_full(name: str) -> FunctionSpace:
-    return FunctionSpace(name, (3,), metric=DenseMetric(np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]]), kernel=Coord(3, ()), face=Face.METRIC))
+    return TensorSpace.declared(name, (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]]), kernel=Coord(3, ()), face=Face.METRIC))
 
 
 def _mixed_factored() -> FunctionSpace:
@@ -98,10 +103,9 @@ def _mixed_factored() -> FunctionSpace:
     are active (3 + 2 columns of 9), which no other fixture in the tree activates (``zero_weight_nodal`` is
     diagonal ⊗ diagonal, where the second term is a set of unit vectors like the first).
     """
-    return FunctionSpace(
-        "kb_mixed", (3, 3),
-        metric=FactoredMetric((((3,), DiagonalMetric(np.array([1.0, 0.0, 2.0]))), ((3,), DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1), face=Face.METRIC)))),
-    )
+    diagonal = Axis("kb_mixed_diag", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 0.0, 2.0]))))
+    dense = Axis("kb_mixed_dense", (3,), origin=Declared(BasisKind.NODAL, DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1), face=Face.METRIC)))
+    return TensorSpace.of_axes(factor_mod_kernel(diagonal, Variance(Kind.FUNCTION, VarianceChart.DENSITY)), factor_mod_kernel(dense, Variance(Kind.FUNCTION, VarianceChart.DENSITY)))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -166,9 +170,10 @@ def test_m2_member_of_coordinates_is_the_identity(case: str) -> None:
 def _two_axis_block_factored() -> FunctionSpace:
     """A factored metric whose first block is a leading-aligned diagonal over a two-axis ``(3, 2)`` block (the
     elegance review's probe 4, 2026-11-12), tensored with a full-rank diagonal on ``(2,)``."""
-    block = DiagonalMetric(np.array([1.0, 0.0, 2.0]))
-    metric = FactoredMetric((((3, 2), block), ((2,), DiagonalMetric(np.array([1.0, 3.0])))))
-    return FunctionSpace("kb_fb", (3, 2, 2), metric=metric)
+    block = DiagonalMetric(np.broadcast_to(np.array([1.0, 0.0, 2.0]).reshape(3, 1), (3, 2)))
+    first = factor_mod_kernel(Axis("kb_fb_block", (3, 2), origin=Declared(BasisKind.NODAL, block)), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    second = Factor.whole_on(Axis("kb_fb_tail", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 3.0])))), Kind.FUNCTION, VarianceChart.DENSITY)
+    return TensorSpace.of_axes(first, second)
 
 
 #: name -> (space builder, the kernel dimension counted by hand from the construction).
@@ -192,7 +197,7 @@ _KB_SPACES: dict[str, tuple[Callable[[], FunctionSpace], int]] = {
     "full rank diag": (lambda: _diag("kb_f", [1.0, 2.0, 0.5]), 0),
     "full rank dense": (lambda: _dense_full("kb_fd"), 0),
     "full rank two axes": (_two_axis, 0),
-    "Euclidean": (lambda: FunctionSpace("kb_e", (4,)), 0),
+    "Euclidean": (lambda: TensorSpace.declared("kb_e", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), 0),
 }
 
 

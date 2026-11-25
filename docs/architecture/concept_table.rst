@@ -109,15 +109,15 @@ Summary
    * - classes by role: ``part``
      - 133
    * - classes by role: ``component``
-     - 55
+     - 56
    * - classes by role: ``interface``
-     - 34
+     - 33
    * - classes by role: ``twin``
      - 62
    * - classes by role: ``annex``
      - 138
    * - classes by kind: ``set``
-     - 82
+     - 83
    * - classes by kind: ``measure``
      - 14
    * - classes by kind: ``space``
@@ -125,7 +125,7 @@ Summary
    * - classes by kind: ``element``
      - 195
    * - classes by kind: ``morphism``
-     - 198
+     - 197
    * - classes by kind: ``record``
      - 161
    * - classes by kind: ``apparatus``
@@ -418,8 +418,8 @@ The concepts
      - O23
      - ``Covector`` (``orpheus/numerics/space.py``)
      - head 1, interface 1
-     - - ``orpheus.numerics.space.FunctionSpace.flat`` (``orpheus/numerics/space.py``)
-       - ``orpheus.numerics.space.FunctionSpace.integral`` (``orpheus/numerics/space.py``)
+     - - ``orpheus.numerics.space.TensorSpace.flat`` (``orpheus/numerics/space.py``)
+       - ``orpheus.numerics.space.TensorSpace.integral`` (``orpheus/numerics/space.py``)
        - ``orpheus.numerics.space.FunctionSpace.unit`` (``orpheus/numerics/space.py``)
        - :ref:`spaces-covector <spaces-covector>`
    * - :ref:`declaration <concept-declaration>`
@@ -562,7 +562,7 @@ The concepts
      - W1
      - O23
      - ``HilbertMetric`` (``orpheus/numerics/metric.py``)
-     - head 1, arm 4, component 2, interface 1
+     - head 1, arm 4, component 2
      - - :ref:`spaces-metric-object <spaces-metric-object>`
        - :ref:`spaces-metric-propagation <spaces-metric-propagation>`
    * - :ref:`four <concept-four>`
@@ -1150,11 +1150,11 @@ The concepts
      - numerics
      - W1
      - O23
-     - ``TensorProductSpace`` (``orpheus/numerics/space.py``)
-     - head 1, weld 1
+     - ``TensorSpace`` (``orpheus/numerics/space.py``)
+     - head 1, weld 1, component 1
      - - ``orpheus.numerics.space.FunctionSpace.identity_key`` (``orpheus/numerics/space.py``)
-       - ``orpheus.numerics.space.FunctionSpace.of_measure`` (``orpheus/numerics/space.py``)
-       - ``orpheus.numerics.space.FunctionSpace.of_basis`` (``orpheus/numerics/space.py``)
+       - ``orpheus.numerics.space.TensorSpace.of_measure`` (``orpheus/numerics/space.py``)
+       - ``orpheus.numerics.space.TensorSpace.of_basis`` (``orpheus/numerics/space.py``)
        - :eq:`spaces-axis-product`
        - :ref:`spaces-identity-key <spaces-identity-key>`
    * - :ref:`trace <concept-trace>`
@@ -1874,10 +1874,6 @@ fmetric
 
 - ``Face`` (``orpheus/numerics/metric.py``) ``set``
 - ``NoForm`` (``orpheus/numerics/metric.py``) ``element``
-
-.. rubric:: interface
-
-- ``PositionedMetric`` (``orpheus/numerics/metric.py``) ``morphism``
 
 .. _concept-four:
 
@@ -3020,11 +3016,15 @@ tensor
 
 .. rubric:: head
 
-- ``TensorProductSpace`` (``orpheus/numerics/space.py``) ``space``
+- ``TensorSpace`` (``orpheus/numerics/space.py``) ``space``
 
 .. rubric:: weld
 
 - ``FunctionSpace`` (``orpheus/numerics/space.py``) ``space`` [welded: tensor, fmetric, factor]
+
+.. rubric:: component
+
+- ``CarrierSpec`` (``orpheus/numerics/space.py``) ``set``
 
 .. _concept-trace:
 

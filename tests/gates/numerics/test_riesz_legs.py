@@ -67,6 +67,10 @@ from orpheus.numerics.face_layout import FaceLayout
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import DualSpace, FunctionSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 
 # ── fixtures ──────────────────────────────────────────────────────────────
@@ -77,15 +81,15 @@ _W_SINGULAR = np.array([2.0, 0.0, 3.0, 0.0])     # two null slots (the
 
 
 def _v() -> FunctionSpace:
-    return FunctionSpace("V_pos", (3,), inner_product_weights=_W_POSITIVE)
+    return TensorSpace.declared("V_pos", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POSITIVE))
 
 
 def _vs() -> FunctionSpace:
-    return FunctionSpace("V_sing", (4,), inner_product_weights=_W_SINGULAR)
+    return declared_mod_kernel("V_sing", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_SINGULAR))
 
 
 def _w() -> FunctionSpace:
-    return FunctionSpace("W_pos", (2,), inner_product_weights=np.array([3.0, 0.25]))
+    return TensorSpace.declared("W_pos", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([3.0, 0.25])))
 
 
 class _Rect(LinearOperator):
@@ -220,8 +224,8 @@ def test_the_dual_arrow_carries_the_swapped_duals():
     code, per the R2 ruling's articulation)."""
     A = _Rect()
     D = A.dual()
-    assert isinstance(D.domain, DualSpace) and D.domain.primal == A.codomain
-    assert isinstance(D.codomain, DualSpace) and D.codomain.primal == A.domain
+    assert D.domain == A.codomain.dual() and D.domain.dual() == A.codomain
+    assert D.codomain == A.domain.dual() and D.codomain.dual() == A.domain
 
 
 def test_dagger_and_dual_involutions_are_object_identities():
@@ -264,8 +268,8 @@ def test_the_legs_admit_a_dual_space():
     np.testing.assert_array_equal(low_d.apply(RieszLowerOperator(V).apply(x)), x)
     # positive leg (vv #11): the primal constructs both, ends correct.
     low, high = RieszLowerOperator(V), RieszRaiseOperator(V)
-    assert low.domain == V and isinstance(low.codomain, DualSpace)
-    assert high.codomain == V and isinstance(high.domain, DualSpace)
+    assert low.domain == V and low.codomain == V.dual()
+    assert high.codomain == V and high.domain == V.dual()
 
 
 def test_dual_refuses_a_transposeless_operator():

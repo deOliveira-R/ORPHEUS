@@ -45,6 +45,8 @@ from orpheus.numerics.kernel_projection_gauge import KernelProjectionGauge, Kern
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = [pytest.mark.foundation]
@@ -71,27 +73,27 @@ def _axis(name: str, weights: np.ndarray) -> Axis:
 
 def energy_point() -> FunctionSpace:
     """Energy ⊗ point under the counting metric, shape ``(2, 1)`` (#683's own fixture)."""
-    return FunctionSpace.of_axes(EnergyAxis.synthetic(2), _POINT)
+    return TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_POINT, Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def weighted_group_point() -> FunctionSpace:
     """A weighted group axis ⊗ point, shape ``(2, 1)``, Gram ``diag(1, 3)``."""
-    return FunctionSpace.of_axes(_axis("weighted-group", _W_GROUP), _POINT)
+    return TensorSpace.of_axes(Factor.whole_on(_axis("weighted-group", _W_GROUP), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_POINT, Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def weighted_group() -> FunctionSpace:
     """The same weighted group axis alone, shape ``(2,)``: equal ``n_coordinates``, different shape."""
-    return FunctionSpace.of_axes(_axis("weighted-group", _W_GROUP))
+    return TensorSpace.of_axes(Factor.whole_on(_axis("weighted-group", _W_GROUP), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def v32() -> FunctionSpace:
     """Shape ``(3, 2)``, Gram ``outer(_W_A, _W_B)`` raveled."""
-    return FunctionSpace.of_axes(_axis("a", _W_A), _axis("b", _W_B))
+    return TensorSpace.of_axes(Factor.whole_on(_axis("a", _W_A), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_axis("b", _W_B), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def w4() -> FunctionSpace:
     """Shape ``(4,)``, Gram ``diag(_W_C)``."""
-    return FunctionSpace.of_axes(_axis("c", _W_C))
+    return TensorSpace.of_axes(Factor.whole_on(_axis("c", _W_C), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 _M22 = np.array([[2.0, -1.0], [0.5, 4.0]])
@@ -232,7 +234,7 @@ class TestAdmission:
         ],
     )
     def test_a_mismatched_matrix_is_refused_naming_its_owner(self, case, matrix, domain, codomain, needs) -> None:
-        spaces = {"v32": v32, "w4": w4, "r4": lambda: FunctionSpace("r4", (4,)), "r2": lambda: FunctionSpace("r2", (2,))}
+        spaces = {"v32": v32, "w4": w4, "r4": lambda: TensorSpace.declared("r4", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), "r2": lambda: TensorSpace.declared("r2", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))}
         with pytest.raises(ValueError, match=rf"SparseAssembledOperator\(.*needs {needs}"):
             _sao(matrix, spaces[domain](), spaces[codomain]())
 
@@ -377,7 +379,7 @@ class TestTheDisplacementParsesExactly:
     def test_a_payload_operand_is_refused_by_the_parse(self) -> None:
         """``displacement`` has no payload: ``(2, 3, 4)`` on a ``(2, 3)`` space is
         refused by ``coordinates_of`` ("exact shape"), never by a numpy broadcast."""
-        plane = FunctionSpace.of_axes(_axis("p", np.array([1.0, 2.0])), _axis("q", np.array([1.0, 1.0, 2.0])))
+        plane = TensorSpace.of_axes(Factor.whole_on(_axis("p", np.array([1.0, 2.0])), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_axis("q", np.array([1.0, 1.0, 2.0])), Kind.MEASURE, VarianceChart.DENSITY))
         g = KernelProjectionGauge.direct_sum(plane, (KernelSummand(np.array([1, 2, 4]), np.array([[1.0], [-1.0], [2.0]]), "plane"),))
         x = np.random.default_rng(29).standard_normal((2, 3))
         assert 0.0 < g.displacement(x) <= 1.0  # the positive leg: a member is read

@@ -27,15 +27,19 @@ from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics import frame_faces
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, Member
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.declaration import Coord
+from tests.gates.numerics._declared_support import leading_aligned
+from tests.gates.numerics._declared_support import legacy_leaf
 
 pytestmark = pytest.mark.l0
 
 _E = EnergyAxis.synthetic(2)
-V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))))
+V = TensorSpace.of_axes(Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))), Kind.MEASURE, VarianceChart.DENSITY))
 X = np.arange(1.0, 7.0).reshape(2, 3)
 
 #: The two fragments, disjoint (asserted below). Both are the vocabulary the tree already pins
@@ -184,10 +188,10 @@ class TestBelowTheSpaceEachObjectParsesItsDomain:
         ``(3, 1)``, ``(1, 4)`` on a ``(3, 4, 2)`` space are legal (`[M]` each pairs ones with ones to 24.0). So the
         weights do not own a domain shape: the space parses each element, and the weights are checked against the
         space ONCE, when it is built. Before U1b, weights ``(2,)`` built and failed only at first use."""
-        with pytest.raises(ValueError, match="cannot serve a space"):
-            FunctionSpace(name="p", shape=(3, 4, 2), inner_product_weights=np.ones(2))
+        with pytest.raises(ValueError, match="axis form must live over exactly the axis shape"):
+            TensorSpace.declared("p", (3, 4, 2), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.ones(2)))
         for legal in [(1, 4, 1), (3,), (3, 1), (1, 4)]:
-            space = FunctionSpace(name="p", shape=(3, 4, 2), inner_product_weights=np.ones(legal))
+            space = TensorSpace.declared("p", (3, 4, 2), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=leading_aligned(np.ones(legal), (3, 4, 2)))
             assert space.inner_product(np.ones((3, 4, 2)), np.ones((3, 4, 2))) == 24.0
 
     def test_a_measure_parses_its_nodes(self):
@@ -256,7 +260,7 @@ class TestABoundFaceParsesAtItsEnds:
         coefficients = np.arange(1.0, 4.0)
         own = Member(values=coefficients, space=op.domain)
         np.testing.assert_array_equal(op.apply(own), op.apply(coefficients))
-        other = FunctionSpace(name="other", shape=op.domain.shape)
+        other = TensorSpace.declared("other", op.domain.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         with pytest.raises(ValueError, match="not a member of"):
             op.apply(Member(values=coefficients, space=other))
 
@@ -312,19 +316,19 @@ class TestThePlacementIsReadByLabel:
     def test_the_positions_are_read_by_label(self):
         ordinates = Axis("ordinate", (8,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(8))))
         cells = Axis("spatial", (12,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(12))))
-        bulk = FunctionSpace.of_axes(ordinates, _E, cells)
-        cross_section_space = FunctionSpace.of_axes(_E, cells)
+        bulk = TensorSpace.of_axes(Factor.whole_on(ordinates, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(cells, Kind.MEASURE, VarianceChart.DENSITY))
+        cross_section_space = TensorSpace.of_axes(Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(cells, Kind.MEASURE, VarianceChart.DENSITY))
         assert bulk.positions_spanned_by(cross_section_space) == (1, 2)
         assert bulk.positions_spanned_by(bulk) == (0, 1, 2)
 
     def test_an_unlabelled_space_cannot_say_which_positions(self):
-        with pytest.raises(TypeError, match="not built from labelled axes"):
-            FunctionSpace(name="x", shape=(2, 12)).positions_spanned_by(V)
+        with pytest.raises(TypeError, match="not built from labelled"):
+            legacy_leaf("x", (2, 12)).positions_spanned_by(V)
 
     def test_a_factor_out_of_order_is_not_a_sub_product(self):
         """The coefficient's axes map, in order, onto increasing positions, so a sub-space whose labels run in
         another order would place a transposed coefficient; it is refused."""
         cells = Axis("spatial", (12,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(12))))
-        bulk = FunctionSpace.of_axes(_E, cells)
+        bulk = TensorSpace.of_axes(Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(cells, Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises(ValueError, match="not a sub-product"):
-            bulk.positions_spanned_by(FunctionSpace.of_axes(cells, _E))
+            bulk.positions_spanned_by(TensorSpace.of_axes(Factor.whole_on(cells, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY)))

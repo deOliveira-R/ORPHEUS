@@ -33,6 +33,8 @@ from tests.gates._content_identity_helpers import require
 
 import orpheus as _orpheus
 import orpheus.transport.boundary_conditions as bc
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 #: The tree being tested, read from the imported ``orpheus`` (not from this file's path, which a symlinked or
 #: copied test tree would resolve elsewhere).
@@ -211,7 +213,7 @@ def function_space(n: int = 3) -> Any:
     from orpheus.numerics.axis import EnergyAxis
     from orpheus.numerics.space import FunctionSpace
 
-    return FunctionSpace.of_axes(EnergyAxis.synthetic(n))
+    return TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(n), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def no_orpheus_frame(error: BaseException) -> bool:

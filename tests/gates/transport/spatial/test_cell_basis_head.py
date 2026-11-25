@@ -41,7 +41,10 @@ from orpheus.numerics.axis import Axis, Declared, FromBasis, Modal
 from orpheus.numerics.basis import IntervalLegendreBasis, TensorProductBasis, spatial_moment_basis
 from orpheus.transport.spatial import LinearDiscontinuous
 from orpheus.transport.spatial.diamond import DiamondDifference
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = [pytest.mark.foundation]
 
@@ -203,7 +206,7 @@ def test_a_moment_basis_of_the_wrong_dimension_is_refused(d: int) -> None:
              1: TensorProductBasis((IntervalLegendreBasis(2),) * 2, "spatial_moment")}[d]
     assert wrong.layout.shape == (4,) and len(wrong.factors) != d
     assert sn.bulk_space.axes is not None
-    space = FunctionSpace.of_axes(*sn.bulk_space.axes, Axis.of_basis(wrong))
+    space = TensorSpace.of_axes(*sn.bulk_space.factors, whole_on_mod_kernel(Axis.of_basis(wrong), Kind.MEASURE, VarianceChart.DENSITY))
     with pytest.raises(ValueError, match="factor"):
         BulkField.spatial_moments_per_axis_of(space)
 

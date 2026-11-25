@@ -43,6 +43,8 @@ from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
 from orpheus.numerics.metric import DiagonalMetric, NoForm
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -251,10 +253,7 @@ def test_H_MOVES_under_a_per_group_weighted_axis() -> None:
     hub = _carrier("2g")
     mat_xs = hub.mat_xs
     w_energy = np.array([2.0, 5.0])
-    weighted_space = FunctionSpace.of_axes(
-        Axis("energy", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_energy))),
-        Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
-    )
+    weighted_space = TensorSpace.of_axes(Factor.whole_on(Axis("energy", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_energy))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
     collision = MultiplicationOperator.from_mesh(
         CrossSectionField.total_of(mat_xs), hub, space=weighted_space,
     )
@@ -509,13 +508,10 @@ def test_the_space_measure_is_consulted(monkeypatch) -> None:
     baseline = solve_homogeneous_infinite(mix)
 
     def weighted_pose(m):
-        return FunctionSpace.of_axes(
-            energy_axis_of([m]),
-            Axis(
+        return TensorSpace.of_axes(Factor.whole_on(energy_axis_of([m]), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis(
                 "spatial", (1,),
                 origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0]))),
-            ),
-        )
+            ), Kind.MEASURE, VarianceChart.DENSITY))
 
     monkeypatch.setattr(solver_module, "_pose_space", weighted_pose)
     weighted = solve_homogeneous_infinite(mix)

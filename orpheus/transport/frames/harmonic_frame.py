@@ -429,14 +429,15 @@ class HarmonicFrame(GalerkinFrame):  # concept: frame | role: arm | kind: morphi
             The spherical-harmonic truncation order of the wanted frame.
         """
         from orpheus.numerics.axis import FromQuadrature, quadrature_refusal
+        from orpheus.numerics.space import TensorSpace
 
-        axes = angular_space.axes
-        if axes is None:
+        if not isinstance(angular_space, TensorSpace):
             raise TypeError(
                 "HarmonicFrame.for_space: the angular field space must be "
                 "axis-built (an S2 per-ordinate space); a shape-only space "
                 "carries no origin to reach the quadrature."
             )
+        axes = angular_space.axes
         match axes[0].origin:
             case FromQuadrature(quadrature):
                 return cls.from_galerkin(frame_faces.angular_frame(quadrature, L))
@@ -465,16 +466,16 @@ class HarmonicFrame(GalerkinFrame):  # concept: frame | role: arm | kind: morphi
         L), never the reverse.
         """
         from orpheus.numerics.axis import FromQuadrature, quadrature_refusal
-        from orpheus.numerics.space import FunctionSpace
+        from orpheus.numerics.space import TensorSpace
 
-        axes = angular_space.axes
-        if axes is None:
+        if not isinstance(angular_space, TensorSpace):
             raise TypeError(
                 "HarmonicFrame mint: the angular field space must be "
                 "axis-built (an S2 per-ordinate space); a shape-only space "
                 "cannot name the cell axes the moment codomain is derived "
                 "from."
             )
+        axes = angular_space.axes
         # The leading axis must be the QUADRATURE's per-ordinate axis — a
         # moment space is axis-built too since CS4c step 6 item 6.2c-ii
         # (its leading axis is a MODAL head minted by a basis or a frame),
@@ -490,7 +491,7 @@ class HarmonicFrame(GalerkinFrame):  # concept: frame | role: arm | kind: morphi
         # moment axis (CS4c step 6 item 6.2c-iii: ONE spelling of the
         # tail; until then this dropped that axis and re-appended a
         # Euclidean ``SpatialMomentSpace`` class).
-        return frame_faces.basis_space(self) * FunctionSpace.of_axes(*axes[1:])
+        return frame_faces.basis_space(self) * angular_space.tail(len(axes) - 1)
 
     # ── the mint verbs (one per face-with-a-consumer) ─────────────────
 

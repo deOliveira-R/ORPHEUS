@@ -22,13 +22,15 @@ from orpheus.numerics.fredholm import (
 from orpheus.numerics.kernel_projection_gauge import KernelSummand
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = [pytest.mark.l0]
 
 _N = 9
 _G = np.array([0.5, 1.0, 2.0, 0.25, 3.0, 1.5, 0.75, 4.0, 1.25])
-SPACE = FunctionSpace.of_axes(Axis("dof", (_N,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_G))))
+SPACE = TensorSpace.of_axes(Factor.whole_on(Axis("dof", (_N,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_G))), Kind.MEASURE, VarianceChart.DENSITY))
 _K = np.array([2, 7])
 _R = np.setdiff1d(np.arange(_N), _K)
 _rng = np.random.default_rng(20261031)
@@ -172,7 +174,7 @@ def test_V7b_a_non_semisimple_kernel_is_refused_at_construction():
     e_1, L^T R = 0: A + Pi is singular. The SN DD kernel is of this kind [M] (L^T R DD columns 0), which is why SN keeps
     iterate-then-project. Fragment pinned at the carve."""
     A = np.eye(4); A[0, 0] = 0.0; A[1, 1] = 0.0; A[0, 1] = 1.0
-    sp = FunctionSpace.of_axes(Axis("dof", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(4)))))
+    sp = TensorSpace.of_axes(Factor.whole_on(Axis("dof", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.ones(4)))), Kind.MEASURE, VarianceChart.DENSITY))
     jordan = PredictedKernel(sp, (KernelSummand(np.array([0]), np.ones((1, 1)), "right"),),
                              (KernelSummand(np.array([1]), np.ones((1, 1)), "left"),), "a Jordan chain")
     with pytest.raises(ValueError, match="semisimple"):

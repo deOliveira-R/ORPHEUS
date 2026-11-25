@@ -50,7 +50,8 @@ from orpheus.data.macro_xs.mixture import Mixture
 from orpheus.data.materials import energy_axis_of
 from orpheus.numerics.axis import Axis, BasisKind, Declared
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, FormlessVariance, Kind, Subquotient, Variance, VarianceChart
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.kernels import FissionKernel, TransferKernel
@@ -180,7 +181,7 @@ class HomogeneousResult:  # concept: solution | role: weld | kind: record | weld
 # Solver — k∞ = λ_max(A⁻¹F) over the transport operator algebra
 # ---------------------------------------------------------------------------
 
-def _pose_space(mix: Mixture) -> FunctionSpace:
+def _pose_space(mix: Mixture) -> TensorSpace:
     r"""The space the infinite-medium problem poses on: Energy ⊗ the quotient point.
 
     Minted from the MIXTURE — the problem's own physics — never read off
@@ -211,12 +212,17 @@ def _pose_space(mix: Mixture) -> FunctionSpace:
     counting weight here is a convention this function states, not a
     contract those ratios depend on.
     """
-    return FunctionSpace.of_axes(
-        energy_axis_of([mix]),
+    energy = energy_axis_of([mix])
+    return TensorSpace.of_axes(
+        Factor(energy, FormlessVariance.MEASURE, Subquotient.whole(int(np.prod(energy.shape)))),
         # The one-cell counting axis is honestly generator-less (CS5):
         # the infinite-medium pose has no mesh, so no spatial measure
         # object exists to name — ``Declared`` IS the record (ruling 82).
-        Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
+        Factor(
+            Axis("spatial", (1,), origin=Declared(BasisKind.NODAL)),
+            Variance(Kind.MEASURE, VarianceChart.DENSITY),
+            Subquotient.whole(1),
+        ),
     )
 
 

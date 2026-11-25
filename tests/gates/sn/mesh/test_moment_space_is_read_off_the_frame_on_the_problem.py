@@ -73,7 +73,7 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.geometry.manifold import Manifold
 from orpheus.numerics.operator import IncompatibleOperatorComposition, OperatorProduct
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from orpheus.transport.frames import HarmonicFrame
@@ -86,6 +86,9 @@ from tests.gates.transport._materials import material_xs_from_raw, placeholder_m
 from orpheus.numerics import frame_faces
 from orpheus.geometry.deck import MirrorDeck
 from tests.gates.transport._transfer_oracles import on_basis
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -106,7 +109,7 @@ class _ForeignTruncatedBasis(Basis):
     analysis and its continuum Gram scaled by ``_MUTANT_SCALE``, and NOT a
     ``SphericalHarmonicBasis`` subclass. It carries a truncation order, which
     is the ONE thing the door asks for. Its coefficient spaces, the continuum
-    one (:meth:`FunctionSpace.of_basis`) and the frame-dressed one, are
+    one (:meth:`TensorSpace.of_basis`) and the frame-dressed one, are
     CONTENT-unequal to the honest ones (the weights, and the dressed head's
     unit, the moments of 1), which is what the route gate reads. Until S7 the
     twin renamed its space instead; since S7 a space is its content and a
@@ -255,21 +258,21 @@ def test_swapping_the_frames_basis_moves_every_operator_end_and_field_space() ->
     assert _inner_factor_domain(N.full_transfer_kernel) == head
 
     field = HarmonicMomentFlux.zeros_for_problem_and_L(sn, L)
-    assert isinstance(field.space, TensorProductSpace)
-    assert field.space.factors[0] == head
+    assert isinstance(field.space, TensorSpace)
+    assert field.space.sub(field.space.labels[0]) == head
 
     foreign = _ForeignTruncatedBasis.like(frame_faces.angular_frame(sn.quad, L).basis)
-    assert FunctionSpace.of_basis(foreign) != FunctionSpace.of_basis(foreign.parent)
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(foreign), Kind.MEASURE, VarianceChart.DENSITY)) != TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(foreign.parent), Kind.MEASURE, VarianceChart.DENSITY))
     assert on_basis(
             TransferMaterialField.scattering(mat), foreign,
-        ).domain == FunctionSpace.of_basis(foreign)
+        ).domain == TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(foreign), Kind.MEASURE, VarianceChart.DENSITY))
     assert on_basis(
             TransferMaterialField.n2n(mat), foreign, skip_l0=False,
-        ).codomain == FunctionSpace.of_basis(foreign)
+        ).codomain == TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(foreign), Kind.MEASURE, VarianceChart.DENSITY))
 
     # the negative leg: an end minted from L alone does NOT compose with the
     # foreign frame — this is the red every reverted producer produces
-    minted = FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
+    minted = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))
     stale = LegendreMomentTransfer(
         S.transfer, skip_l0=False, domain=minted, codomain=minted,
     )
@@ -304,10 +307,10 @@ def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one
     ends = S._moment_transfer(skip_l0=False).domain
     frame = frame_faces.angular_frame(sn.quad, L)
     assert ends == frame_faces.basis_space(frame)
-    assert ends != FunctionSpace.of_basis(frame.basis)
+    assert ends != TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY))
     hub_space = sn.moment_space(L)
-    assert isinstance(hub_space, TensorProductSpace)
-    hub_head = hub_space.factors[0]
+    assert isinstance(hub_space, TensorSpace)
+    hub_head = hub_space.sub(hub_space.labels[0])
     assert ends == hub_head, "the operator ends and the carrier's cached moment head are one space"
     measure = _head_measure(ends)
     assert measure is not None
@@ -315,7 +318,7 @@ def test_the_operator_ends_carry_the_frames_parseval_space_not_the_continuum_one
     # reciprocal of the discrete Gram's diagonal — (2l+1)/2 on a GL rule
     # exact through degree L, i.e. NOT the continuum 4π/(2l+1)
     np.testing.assert_allclose(measure, 1.0 / np.diagonal(frame.discrete_gram), rtol=1e-12)
-    cont = _head_measure(FunctionSpace.of_basis(frame.basis))
+    cont = _head_measure(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)))
     assert cont is not None
     np.testing.assert_array_equal(np.asarray(cont).reshape(-1), 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0))
     assert not np.array_equal(measure, cont)

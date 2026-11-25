@@ -36,6 +36,8 @@ from orpheus.transport.fields._bases import MomentField
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
 from tests.gates import _refusal_gates as rg
 from tests.gates.transport._phase_space_cases import moment_space, posing_quadrature, slab_mesh
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -111,7 +113,7 @@ def test_replace_re_runs_the_check(space):
 def test_a_space_that_is_not_a_tensor_product_is_now_refused_at_construction_with_TypeError():
     """The #709 refusal reads ``head_layout``, so a space with no head is refused at construction (``TypeError`` from
     ``MomentField.head``); before #709 such a field constructed. W3's retirement of the tag keeps or re-homes this."""
-    odd = FunctionSpace(name="moments", shape=(2, 3, 2, 4))
+    odd = TensorSpace.declared("moments", (2, 3, 2, 4), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     with pytest.raises(TypeError):
         HarmonicMomentFlux(values=np.zeros((2, 3, 2, 4)), space=odd, L=1)
 

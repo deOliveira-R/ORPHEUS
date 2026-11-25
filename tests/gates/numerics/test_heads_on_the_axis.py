@@ -18,6 +18,10 @@ import pytest
 from orpheus.numerics import frame_faces as ff
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -117,19 +121,19 @@ def test_H0c_the_origin_kind_is_one_match_on_the_layout():
 @pytest.mark.parametrize("L", [1, 2, 3])
 def test_H1_pair3_the_basis_domain_is_part_of_the_head(L):
     """#631 pair 3. SH(L) on S² vs mirror-even SH(L) on S²/σ_y: equal layout, different support."""
-    _separated(FunctionSpace.of_basis(_sh(L)), FunctionSpace.of_basis(_mirror(L)), f"SH vs mirror-even, L={L}")
-    _one(FunctionSpace.of_basis(_sh(L)), FunctionSpace.of_basis(_sh(L)), "control: two SH(L) mints")
+    _separated(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_sh(L)), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_mirror(L)), Kind.MEASURE, VarianceChart.DENSITY)), f"SH vs mirror-even, L={L}")
+    _one(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_sh(L)), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_sh(L)), Kind.MEASURE, VarianceChart.DENSITY)), "control: two SH(L) mints")
 
 
 def test_H2_pair4_indicator_edges_are_content():
     """#631 pair 4. Edges [0,1,2] vs [0,0.5,2] (they differ in edges AND masses), raw and dressed."""
     from orpheus.numerics.frame import GalerkinFrame
     a, b = _indicator([0.0, 1.0, 2.0]), _indicator([0.0, 0.5, 2.0])
-    _separated(FunctionSpace.of_basis(a), FunctionSpace.of_basis(b), "indicator heads")
+    _separated(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(a), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(b), Kind.MEASURE, VarianceChart.DENSITY)), "indicator heads")
     m = _cell_measure([0.0, 1.0, 2.0])
     da, db = ff.basis_space(GalerkinFrame(a, m)), ff.basis_space(GalerkinFrame(b, m))
     _separated(da, db, "dressed indicator heads")
-    (ax,) = FunctionSpace.of_basis(a).axes
+    (ax,) = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(a), Kind.MEASURE, VarianceChart.DENSITY)).axes
     np.testing.assert_array_equal(ax.unit, np.ones(2))       # NODAL, unit ones
     (dax,) = da.axes
     np.testing.assert_array_equal(dax.unit, np.array([1.0, 1.0]))  # ruling 83: Modal(masses), masses = cell widths
@@ -156,11 +160,11 @@ def test_H2d_a_raw_cell_head_is_measure_free_and_refuses_to_integrate():
     from orpheus.numerics.frame import GalerkinFrame
     edges = [0.0, 1.0, 3.0]
     other = Axis("energy", (2,), origin=Declared(BasisKind.NODAL))
-    raw = FunctionSpace.of_axes(Axis.of_basis(_indicator(edges)), other)
+    raw = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_indicator(edges)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(other, Kind.MEASURE, VarianceChart.DENSITY))
     with pytest.raises(TypeError, match="MEASURE-FREE"):
         AxisRetractionOperator.of(raw, "cells")
     dressed = ff.basis_space(GalerkinFrame(_indicator(edges), _cell_measure(edges)))
-    R = AxisRetractionOperator.of(FunctionSpace.of_axes(*dressed.axes, other), "cells")
+    R = AxisRetractionOperator.of(TensorSpace.of_axes(*dressed.factors, Factor.whole_on(other, Kind.MEASURE, VarianceChart.DENSITY)), "cells")
     # the constant function's coordinates on the dressed head are its moments, the unit [1, 2]
     one = np.broadcast_to(dressed.axes[0].unit[:, None], (2, 2))
     np.testing.assert_allclose(R.apply(one), np.array([3.0, 3.0]), rtol=0, atol=1e-14)
@@ -174,13 +178,13 @@ def test_H2b_equal_widths_shifted_edges_are_two_heads():
     agent's ruling, 2026-10-21: the cells are the partition's atoms, ruling 71)."""
     from orpheus.numerics.frame import GalerkinFrame
     a, b = _indicator([0.0, 1.0, 2.0]), _indicator([1.0, 2.0, 3.0])
-    ra, rb = FunctionSpace.of_basis(a), FunctionSpace.of_basis(b)
+    ra, rb = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(a), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(b), Kind.MEASURE, VarianceChart.DENSITY))
     np.testing.assert_array_equal(ra.apply_metric(np.ones(2)), rb.apply_metric(np.ones(2)))  # PREMISE: one metric
     _separated(ra, rb, "shifted-edge indicator heads")
     ma, mb = _cell_measure([0.0, 1.0, 2.0]), _cell_measure([1.0, 2.0, 3.0])
     _separated(ff.basis_space(GalerkinFrame(a, ma)), ff.basis_space(GalerkinFrame(b, mb)),
                "shifted-edge dressed heads")
-    _one(ra, FunctionSpace.of_basis(_indicator([0.0, 1.0, 2.0])), "control: two [0,1,2] mints")
+    _one(ra, TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_indicator([0.0, 1.0, 2.0])), Kind.MEASURE, VarianceChart.DENSITY)), "control: two [0,1,2] mints")
 
 
 def test_H3_the_retired_classes_are_gone():
@@ -203,8 +207,8 @@ def test_H4_the_door_reads_the_layout_off_the_head_axis(L):
     """moment_head_axis(space).layout is the basis's layout, on the continuum and on the dressed head."""
     from orpheus.numerics.coefficient_layout import HarmonicLayout, LegendreLayout
     from orpheus.numerics.spaces.moment_head import moment_head_axis
-    assert moment_head_axis(FunctionSpace.of_basis(_sh(L))).layout == HarmonicLayout(L)
-    assert moment_head_axis(FunctionSpace.of_basis(_legendre(L, "x"))).layout == LegendreLayout(L)
+    assert moment_head_axis(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_sh(L)), Kind.MEASURE, VarianceChart.DENSITY))).layout == HarmonicLayout(L)
+    assert moment_head_axis(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_legendre(L, "x")), Kind.MEASURE, VarianceChart.DENSITY))).layout == LegendreLayout(L)
     head = ff.basis_space(ff.angular_frame(Quadrature.product(4, 8), L))
     assert moment_head_axis(head).layout == HarmonicLayout(L)
 
@@ -214,13 +218,13 @@ def test_H5_the_door_refuses_a_non_head_with_the_shared_message():
     from orpheus.numerics.axis import Axis
     from orpheus.numerics.spaces.moment_head import moment_head_axis
     with pytest.raises(TypeError, match="is not a moment head"):
-        moment_head_axis(FunctionSpace.of_axes(Axis.of_quadrature(Quadrature.gauss_legendre(4))))
+        moment_head_axis(TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(Quadrature.gauss_legendre(4)), Kind.MEASURE, VarianceChart.DENSITY)))
     with pytest.raises(TypeError, match="is not a moment head"):
-        moment_head_axis(FunctionSpace.of_basis(_indicator([0.0, 1.0, 2.0])))
+        moment_head_axis(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_indicator([0.0, 1.0, 2.0])), Kind.MEASURE, VarianceChart.DENSITY)))
 
 
 def test_H6_legendre_about_two_axes_differ_by_domain_not_by_a_spent_axis_field():
-    a, b = FunctionSpace.of_basis(_legendre(1, "x")), FunctionSpace.of_basis(_legendre(1, "z"))
+    a, b = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_legendre(1, "x")), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(_legendre(1, "z")), Kind.MEASURE, VarianceChart.DENSITY))
     _separated(a, b, "Legendre about x vs about z")
     assert a.axes is not None and not hasattr(a.axes[0], "spent_axis")
     assert a.axes[0].layout == b.axes[0].layout, "PREMISE: one layout, so the support separates them"

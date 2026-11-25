@@ -26,6 +26,7 @@ from orpheus.numerics.operator import (
     OperatorProduct,
     OperatorSum,
 )
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
 
 pytestmark = pytest.mark.foundation
 
@@ -527,6 +528,8 @@ def test_transport_eigenvalue_algebra_smoke(matrix_full, matrix_apply_only, rng,
 
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 
 def test_call_aliases_apply(matrix_full, vector):
@@ -575,8 +578,8 @@ def test_H_aliases_adjoint(matrix_full, n_dim):
     ``.H`` is refused — the R2 closure)."""
     op = _SpacedMatrixOperator(
         matrix_full.matrix,
-        FunctionSpace("alias_dom", (n_dim,)),
-        FunctionSpace("alias_cod", (n_dim,)),
+        TensorSpace.declared("alias_dom", (n_dim,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
+        TensorSpace.declared("alias_cod", (n_dim,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
     )
     H1 = op.H
     H2 = op.adjoint()
@@ -597,8 +600,8 @@ def test_adjoint_euclidean_identity(matrix_full, rng, n_dim):
     """
     op = _SpacedMatrixOperator(
         matrix_full.matrix,
-        FunctionSpace("euclid_dom", (n_dim,)),
-        FunctionSpace("euclid_cod", (n_dim,)),
+        TensorSpace.declared("euclid_dom", (n_dim,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
+        TensorSpace.declared("euclid_cod", (n_dim,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
     )
     u = rng.standard_normal(n_dim)
     v = rng.standard_normal(n_dim)
@@ -659,10 +662,8 @@ def test_adjoint_weighted_identity(rng):
     n_cod = 4
     M = rng.standard_normal((n_cod, n_dom))
     w_W = np.array([1.0, 2.0, 3.0, 4.0])  # codomain weights (non-trivial)
-    domain = FunctionSpace(name="V", shape=(n_dom,))  # Euclidean
-    codomain = FunctionSpace(
-        name="W", shape=(n_cod,), inner_product_weights=w_W,
-    )
+    domain = TensorSpace.declared("V", (n_dom,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))  # Euclidean
+    codomain = TensorSpace.declared("W", (n_cod,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w_W))
     A = _SpacedMatrixOperator(M, domain, codomain)
     u = rng.standard_normal(n_dom)
     v = rng.standard_normal(n_cod)
@@ -679,8 +680,8 @@ def test_adjoint_swaps_domain_and_codomain():
     n_dom = 3
     n_cod = 4
     M = np.random.default_rng(0).standard_normal((n_cod, n_dom))
-    domain = FunctionSpace(name="V", shape=(n_dom,))
-    codomain = FunctionSpace(name="W", shape=(n_cod,))
+    domain = TensorSpace.declared("V", (n_dom,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    codomain = TensorSpace.declared("W", (n_cod,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     A = _SpacedMatrixOperator(M, domain, codomain)
     assert A.H.domain == codomain
     assert A.H.codomain == domain
@@ -690,9 +691,9 @@ def test_sum_rejects_incompatible_domains():
     """OperatorSum with mismatched domains raises IncompatibleOperatorComposition."""
     n = 3
     M = np.eye(n)
-    V1 = FunctionSpace(name="V1", shape=(n,))
-    V2 = FunctionSpace(name="V2", shape=(n,))
-    W = FunctionSpace(name="W", shape=(n,))
+    V1 = TensorSpace.declared("V1", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    V2 = TensorSpace.declared("V2", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    W = TensorSpace.declared("W", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     A = _SpacedMatrixOperator(M, V1, W)
     B = _SpacedMatrixOperator(M, V2, W)
     with pytest.raises(IncompatibleOperatorComposition, match="domain"):
@@ -702,9 +703,9 @@ def test_sum_rejects_incompatible_domains():
 def test_sum_rejects_incompatible_codomains():
     n = 3
     M = np.eye(n)
-    V = FunctionSpace(name="V", shape=(n,))
-    W1 = FunctionSpace(name="W1", shape=(n,))
-    W2 = FunctionSpace(name="W2", shape=(n,))
+    V = TensorSpace.declared("V", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    W1 = TensorSpace.declared("W1", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    W2 = TensorSpace.declared("W2", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     A = _SpacedMatrixOperator(M, V, W1)
     B = _SpacedMatrixOperator(M, V, W2)
     with pytest.raises(IncompatibleOperatorComposition, match="codomain"):
@@ -715,9 +716,9 @@ def test_product_rejects_incompatible_inner_space():
     """``A @ B`` requires ``A.domain == B.codomain``."""
     n = 3
     M = np.eye(n)
-    V = FunctionSpace(name="V", shape=(n,))
-    W = FunctionSpace(name="W", shape=(n,))
-    Z = FunctionSpace(name="Z", shape=(n,))
+    V = TensorSpace.declared("V", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    W = TensorSpace.declared("W", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    Z = TensorSpace.declared("Z", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     A = _SpacedMatrixOperator(M, W, V)  # A: W → V
     B = _SpacedMatrixOperator(M, V, Z)  # B: V → Z; codomain Z != A.domain W
     with pytest.raises(
@@ -730,8 +731,8 @@ def test_compatible_composition_succeeds_with_spaces():
     """Sum / product where the spaces match is accepted."""
     n = 3
     M = np.eye(n)
-    V = FunctionSpace(name="V", shape=(n,))
-    W = FunctionSpace(name="W", shape=(n,))
+    V = TensorSpace.declared("V", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    W = TensorSpace.declared("W", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     A = _SpacedMatrixOperator(M, V, W)
     B = _SpacedMatrixOperator(M, V, W)
     s = A + B  # same domain V, same codomain W: OK
@@ -769,12 +770,12 @@ def test_repr_format(matrix_full, matrix_apply_only):
 def test_repr_with_function_spaces_shows_names():
     n = 3
     M = np.eye(n)
-    V = FunctionSpace(name="phi", shape=(n,))
-    W = FunctionSpace(name="psi", shape=(n,))
+    V = TensorSpace.declared("phi", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    W = TensorSpace.declared("psi", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     A = _SpacedMatrixOperator(M, V, W)
     r = repr(A)
-    assert "'phi'" in r
-    assert "'psi'" in r
+    assert "'phi(3,)#" in r
+    assert "'psi(3,)#" in r
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -903,8 +904,8 @@ def test_the_adjoint_sandwich_takes_a_dense_metric_unmodified():
     g_v = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
     a_w = rng.standard_normal((n_cod, n_cod))
     g_w = a_w.T @ a_w + np.eye(n_cod)
-    domain = FunctionSpace(name="Vd", shape=(n_dom,), metric=DenseMetric(g_v, kernel=Coord(n_dom, ()), face=Face.METRIC))
-    codomain = FunctionSpace(name="Wd", shape=(n_cod,), metric=DenseMetric(g_w, kernel=Coord(n_cod, ()), face=Face.METRIC))
+    domain = TensorSpace.declared("Vd", (n_dom,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(g_v, kernel=Coord(n_dom, ()), face=Face.METRIC))
+    codomain = TensorSpace.declared("Wd", (n_cod,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(g_w, kernel=Coord(n_cod, ()), face=Face.METRIC))
     A = _SpacedMatrixOperator(M, domain, codomain)
     u = rng.standard_normal(n_dom)
     v = rng.standard_normal(n_cod)
@@ -918,9 +919,7 @@ def test_the_adjoint_sandwich_takes_a_dense_metric_unmodified():
     # The mismatched-metric control: judge the pairing under a DIFFERENT
     # codomain metric and the identity must break.
     a2 = rng.standard_normal((n_cod, n_cod))
-    wrong_codomain = FunctionSpace(
-        name="W2", shape=(n_cod,), metric=DenseMetric(a2.T @ a2 + 3.0 * np.eye(n_cod), kernel=Coord(n_cod, ()), face=Face.METRIC),
-    )
+    wrong_codomain = TensorSpace.declared("W2", (n_cod,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(a2.T @ a2 + 3.0 * np.eye(n_cod), kernel=Coord(n_cod, ()), face=Face.METRIC))
     lhs_wrong = wrong_codomain.inner_product(A.apply(u), v)
     assert not np.isclose(lhs_wrong, rhs, rtol=1e-3), (
         "the mismatched-metric control read the identity as holding — "

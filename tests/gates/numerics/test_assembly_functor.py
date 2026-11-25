@@ -63,6 +63,8 @@ from tests.gates.numerics._assembly_functor import (
     leaf,
     registry,
 )
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = [pytest.mark.foundation]
 
@@ -200,7 +202,7 @@ class TestTheArms:
     def test_g1e_a_leaf_emits_raw_and_the_functor_wraps_once_with_its_ends(
         self, monkeypatch,
     ) -> None:
-        space = FunctionSpace(name="g1e", shape=(4,))
+        space = TensorSpace.declared("g1e", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         m = integer(7)
 
         class _BoundLeaf(_Leaf):

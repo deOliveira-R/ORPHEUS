@@ -42,6 +42,9 @@ import pytest
 from orpheus.numerics.field import Field
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Declared, Modal
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -89,21 +92,21 @@ class _RichField(Field):
 @pytest.mark.foundation
 def test_field_is_abstract_direct_instantiation_rejected():
     """The ABC itself MUST refuse direct instantiation."""
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     with pytest.raises(TypeError, match="abstract"):
         Field(values=np.zeros(3), space=sp)
 
 
 @pytest.mark.foundation
 def test_field_post_init_validates_shape_mismatch():
-    sp = FunctionSpace(name="dummy", shape=(3, 2))
+    sp = TensorSpace.declared("dummy", (3, 2), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     with pytest.raises(ValueError, match="does not match space.shape"):
         _DummyField(values=np.zeros(5), space=sp)
 
 
 @pytest.mark.foundation
 def test_field_post_init_accepts_matching_shape():
-    sp = FunctionSpace(name="dummy", shape=(2, 3))
+    sp = TensorSpace.declared("dummy", (2, 3), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     f = _DummyField(values=np.zeros((2, 3)), space=sp)
     assert f.values.shape == (2, 3)
     assert f.space is sp
@@ -116,7 +119,7 @@ def test_field_post_init_accepts_matching_shape():
 
 @pytest.mark.foundation
 def test_addition_returns_same_class_and_space():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([1.0, 2.0, 3.0]), space=sp)
     b = _DummyField(values=np.array([10.0, 20.0, 30.0]), space=sp)
     c = a + b
@@ -127,7 +130,7 @@ def test_addition_returns_same_class_and_space():
 
 @pytest.mark.foundation
 def test_subtraction_returns_same_class_and_space():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([10.0, 20.0, 30.0]), space=sp)
     b = _DummyField(values=np.array([1.0, 2.0, 3.0]), space=sp)
     c = a - b
@@ -137,7 +140,7 @@ def test_subtraction_returns_same_class_and_space():
 
 @pytest.mark.foundation
 def test_negation_returns_same_class():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([1.0, -2.0, 3.0]), space=sp)
     c = -a
     assert type(c) is _DummyField
@@ -146,7 +149,7 @@ def test_negation_returns_same_class():
 
 @pytest.mark.foundation
 def test_scalar_multiplication_left_and_right():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([1.0, 2.0, 3.0]), space=sp)
     left = 2.5 * a
     right = a * 2.5
@@ -158,7 +161,7 @@ def test_scalar_multiplication_left_and_right():
 
 @pytest.mark.foundation
 def test_scalar_division():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([2.0, 4.0, 8.0]), space=sp)
     c = a / 2.0
     assert type(c) is _DummyField
@@ -179,7 +182,7 @@ def test_cross_class_addition_rejected():
     "Cross-class arithmetic (even with matching units) requires an
     explicit named composition."
     """
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.zeros(3), space=sp)
     b = _OtherDummyField(values=np.zeros(3), space=sp)
     with pytest.raises(TypeError, match="same-class partner"):
@@ -188,7 +191,7 @@ def test_cross_class_addition_rejected():
 
 @pytest.mark.foundation
 def test_cross_class_subtraction_rejected():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.zeros(3), space=sp)
     b = _OtherDummyField(values=np.zeros(3), space=sp)
     with pytest.raises(TypeError, match="same-class partner"):
@@ -206,7 +209,7 @@ def test_cross_class_addition_rejected_on_shared_space():
     carries the physical kind. (Units are a role-leaf class constant,
     not a space property — issues #205 / #207.)
     """
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.zeros(3), space=sp)
     b = _OtherDummyField(values=np.zeros(3), space=sp)
     with pytest.raises(TypeError, match="same-class partner"):
@@ -220,8 +223,8 @@ def test_cross_class_addition_rejected_on_shared_space():
 
 @pytest.mark.foundation
 def test_cross_space_addition_rejected_on_shape_mismatch():
-    sp_a = FunctionSpace(name="dummy", shape=(3,))
-    sp_b = FunctionSpace(name="dummy", shape=(4,))
+    sp_a = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    sp_b = TensorSpace.declared("dummy", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.zeros(3), space=sp_a)
     b = _DummyField(values=np.zeros(4), space=sp_b)
     with pytest.raises(ValueError, match="equal space"):
@@ -230,8 +233,8 @@ def test_cross_space_addition_rejected_on_shape_mismatch():
 
 @pytest.mark.foundation
 def test_cross_space_addition_rejected_on_name_mismatch():
-    sp_a = FunctionSpace(name="dummy_a", shape=(3,))
-    sp_b = FunctionSpace(name="dummy_b", shape=(3,))
+    sp_a = TensorSpace.declared("dummy_a", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    sp_b = TensorSpace.declared("dummy_b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.zeros(3), space=sp_a)
     b = _DummyField(values=np.zeros(3), space=sp_b)
     with pytest.raises(ValueError, match="equal space"):
@@ -245,14 +248,14 @@ def test_cross_space_addition_rejected_on_name_mismatch():
 
 @pytest.mark.foundation
 def test_linf_returns_max_absolute_value():
-    sp = FunctionSpace(name="dummy", shape=(4,))
+    sp = TensorSpace.declared("dummy", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([1.0, -3.0, 2.0, -0.5]), space=sp)
     assert a.linf == pytest.approx(3.0)
 
 
 @pytest.mark.foundation
 def test_l2_reads_space_metric_euclidean():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([1.0, 2.0, 2.0]), space=sp)
     # Euclidean ‖a‖₂ = √(1 + 4 + 4) = 3.
     assert a.l2 == pytest.approx(3.0)
@@ -261,7 +264,7 @@ def test_l2_reads_space_metric_euclidean():
 @pytest.mark.foundation
 def test_l2_reads_space_metric_weighted():
     w = np.array([1.0, 2.0, 3.0])
-    sp = FunctionSpace(name="dummy", shape=(3,), inner_product_weights=w)
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
     a = _DummyField(values=np.array([1.0, 1.0, 1.0]), space=sp)
     # ‖a‖_w = √(1·1 + 2·1 + 3·1) = √6.
     assert a.l2 == pytest.approx(np.sqrt(6.0))
@@ -269,7 +272,7 @@ def test_l2_reads_space_metric_weighted():
 
 @pytest.mark.foundation
 def test_inner_product_euclidean_default():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([1.0, 2.0, 3.0]), space=sp)
     b = _DummyField(values=np.array([4.0, 5.0, 6.0]), space=sp)
     # 1·4 + 2·5 + 3·6 = 32.
@@ -278,7 +281,7 @@ def test_inner_product_euclidean_default():
 
 @pytest.mark.foundation
 def test_inner_product_rejects_cross_class():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.zeros(3), space=sp)
     b = _OtherDummyField(values=np.zeros(3), space=sp)
     with pytest.raises(TypeError, match="same-class partner"):
@@ -287,7 +290,7 @@ def test_inner_product_rejects_cross_class():
 
 @pytest.mark.foundation
 def test_copy_returns_independent_ndarray():
-    sp = FunctionSpace(name="dummy", shape=(3,))
+    sp = TensorSpace.declared("dummy", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _DummyField(values=np.array([1.0, 2.0, 3.0]), space=sp)
     b = a.copy()
     assert type(b) is _DummyField
@@ -311,7 +314,7 @@ def test_subclass_with_extra_field_propagates_through_addition():
     without manual override. ``dataclasses.replace`` handles this
     automatically when ``kw_only=True``.
     """
-    sp = FunctionSpace(name="rich", shape=(3,))
+    sp = TensorSpace.declared("rich", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _RichField(values=np.array([1.0, 2.0, 3.0]), space=sp, tag="alpha")
     b = _RichField(values=np.array([10.0, 20.0, 30.0]), space=sp, tag="alpha")
     c = a + b
@@ -323,7 +326,7 @@ def test_subclass_with_extra_field_propagates_through_addition():
 
 @pytest.mark.foundation
 def test_subclass_with_extra_field_propagates_through_scalar_mul():
-    sp = FunctionSpace(name="rich", shape=(2,))
+    sp = TensorSpace.declared("rich", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _RichField(values=np.array([1.0, 2.0]), space=sp, tag="beta")
     c = 3.0 * a
     assert type(c) is _RichField
@@ -333,7 +336,7 @@ def test_subclass_with_extra_field_propagates_through_scalar_mul():
 
 @pytest.mark.foundation
 def test_subclass_with_extra_field_propagates_through_negation_and_copy():
-    sp = FunctionSpace(name="rich", shape=(2,))
+    sp = TensorSpace.declared("rich", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a = _RichField(values=np.array([1.0, 2.0]), space=sp, tag="gamma")
     neg = -a
     cp = a.copy()
@@ -351,7 +354,7 @@ def test_where_largest_locates_the_peak():
     rng = np.random.default_rng(7)
     values = rng.normal(size=(4, 3, 5))
     field = _DummyField(
-        values=values, space=FunctionSpace(name="map", shape=(4, 3, 5)),
+        values=values, space=TensorSpace.declared("map", (4, 3, 5), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
     )
     flat = np.abs(values)
     peak = tuple(int(i) for i in np.unravel_index(int(flat.argmax()), flat.shape))
@@ -373,7 +376,7 @@ def test_principal_bulk_leaf_of_a_leaf_is_itself():
     interior, a coupled block vector its first system's — so the iteration
     layer reads one property and no carrier anatomy)."""
     field = _DummyField(
-        values=np.ones((2, 3)), space=FunctionSpace(name="leaf", shape=(2, 3)),
+        values=np.ones((2, 3)), space=TensorSpace.declared("leaf", (2, 3), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
     )
     if field.principal_bulk_leaf is not field:
         raise AssertionError("a leaf field must be its own principal bulk leaf")
@@ -388,7 +391,7 @@ def test_principal_bulk_leaf_of_a_leaf_is_itself():
 
 def _cone_field(values):
     arr = np.asarray(values, dtype=float)
-    return _DummyField(values=arr, space=FunctionSpace(name="cone", shape=arr.shape))
+    return _DummyField(values=arr, space=TensorSpace.declared("cone", arr.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY)))
 
 
 @pytest.mark.foundation
@@ -458,7 +461,7 @@ def _axis_field(values, kind):
     arr = np.asarray(values, dtype=float)
     if kind == "modal":
         kind = Modal(np.eye(arr.size)[0].reshape(arr.shape))
-    space = FunctionSpace.of_axes(Axis("p", arr.shape, origin=Declared(kind)))
+    space = TensorSpace.of_axes(Factor.whole_on(Axis("p", arr.shape, origin=Declared(kind)), Kind.MEASURE, VarianceChart.DENSITY))
     return _DummyField(values=arr, space=space), BasisKind
 
 
@@ -503,7 +506,7 @@ def test_legacy_axes_none_space_keeps_legacy_behavior():
     collapsing ``None`` into ``False`` — which would refuse every legacy
     space in the tree — reds loudly)."""
     field = _cone_field([[1.0, -2.0]])
-    if field.space.has_coordinate_cone is not None:
-        raise AssertionError("a legacy space must answer None (not migrated)")
+    if field.space.has_coordinate_cone is not True:
+        raise AssertionError("a declared nodal space answers True (it answered None while a name-built space was a leaf)")
     if field.cone_violations() != [(0, 1)]:
         raise AssertionError("the legacy path no longer answers")

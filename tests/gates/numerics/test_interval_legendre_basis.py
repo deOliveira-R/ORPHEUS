@@ -38,6 +38,9 @@ import sympy as sp
 from orpheus.geometry.manifold import Interval, Product
 from orpheus.numerics.basis import IntervalLegendreBasis, TensorProductBasis, spatial_moment_basis
 from orpheus.numerics.coefficient_layout import PolynomialLayout, TensorLayout
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 def multi_index(tensor_layout: TensorLayout, flat: int, /) -> tuple[int, ...]:
@@ -180,7 +183,7 @@ def test_the_interval_layout_is_not_an_angular_moment_head() -> None:
     for basis in (IntervalLegendreBasis(2), spatial_moment_basis(2, 1)):
         assert not isinstance(basis.layout, DegreeLayout)
         with pytest.raises(TypeError, match="is not a moment head"):
-            head_layout(FunctionSpace.of_axes(Axis.of_basis(basis)))
+            head_layout(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(basis), Kind.MEASURE, VarianceChart.DENSITY)))
 
 
 def test_the_domain_is_the_reference_interval() -> None:

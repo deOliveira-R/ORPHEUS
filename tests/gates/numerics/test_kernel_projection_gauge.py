@@ -30,6 +30,9 @@ from orpheus.numerics.kernel_projection_gauge import (
 )
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.metric import DiagonalMetric, Face
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 pytestmark = pytest.mark.l0
 
@@ -43,7 +46,7 @@ _SPACE_VERBS = f"{_COORDINATE_SPACE}::TestTheSpaceVerbsParseOnEveryRun"
 _EPS = np.finfo(float).eps
 _N = 9
 _G = np.array([0.5, 1.0, 2.0, 0.25, 3.0, 1.5, 0.75, 4.0, 1.25])
-SPACE = FunctionSpace.of_axes(Axis("dof", (_N,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_G))))
+SPACE = TensorSpace.of_axes(Factor.whole_on(Axis("dof", (_N,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_G))), Kind.MEASURE, VarianceChart.DENSITY))
 
 #: Coordinate-aligned kernel K = {2, 5, 7}: A = A_RR (+) 0_K, so A e_t == 0 is bitwise (L90: gate the object).
 _K = np.array([2, 5, 7])
@@ -112,7 +115,7 @@ def test_premise_the_metric_is_not_uniform():
 @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
 def test_premise_the_axis_built_space_and_its_legacy_twin_apply_one_metric():
     """Localises a red of the twin row: green here and red there means the gauge reads the metric's SPELLING."""
-    twin = FunctionSpace("twin", (_N,), inner_product_weights=_G)
+    twin = TensorSpace.declared("twin", (_N,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_G))
     x = _x(1)
     assert np.array_equal(SPACE.apply_metric(x), twin.apply_metric(x))
 
@@ -243,7 +246,7 @@ class TestTheSummandBasis:
 
     @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_zero_metric_support_row_is_refused(self):
-        zero = FunctionSpace("zero_row", (3,), inner_product_weights=np.array([1.0, 0.0, 2.0]))
+        zero = declared_mod_kernel("zero_row", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([1.0, 0.0, 2.0])))
         with pytest.raises(ValueError, match="carry a vanishing metric"):
             KernelProjectionGauge.direct_sum(zero, (KernelSummand(np.array([0, 1]), np.eye(2), "z"),))
 
@@ -381,7 +384,7 @@ class TestTheProtocolAndTheMetric:
         """The metric is read through the space's metric leg. Arm ``weights_spelling`` (SN's predecessor read
         ``np.asarray(space.inner_product_weights, dtype=float)``, which is ``array(None, dtype=object)`` on an
         axis-built space) reddens it."""
-        twin = FunctionSpace("twin", (_N,), inner_product_weights=_G)
+        twin = TensorSpace.declared("twin", (_N,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_G))
         x = _x(14)
         for pairs in (_ROTATED, _OVERCOMPLETE):
             assert np.array_equal(_build(SPACE, pairs).gauge(x), _build(twin, pairs).gauge(x))
@@ -390,7 +393,7 @@ class TestTheProtocolAndTheMetric:
     def test_a_non_diagonal_metric_is_a_declared_scope_boundary(self):
         from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric
-        dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC))
+        dense = TensorSpace.declared("dense", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC))
         with pytest.raises(ValueError, match="the metric is not diagonal"):
             KernelProjectionGauge.direct_sum(dense, ())
 
@@ -400,9 +403,7 @@ class TestTheProtocolAndTheMetric:
         (the homogeneous pose is (ng, 1)); the projector laws hold there, an element keeps its shape, and a payload
         rides through. First red: before U0 the space was refused ("must be one-dimensional"). Arm
         ``fortran_chart`` (the chart ravelled in F order) reddens the law against the C-order oracle."""
-        plane = FunctionSpace.of_axes(
-            Axis("p", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0])))),
-            Axis("q", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 1.0, 2.0])))))
+        plane = TensorSpace.of_axes(Factor.whole_on(Axis("p", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0])))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("q", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 1.0, 2.0])))), Kind.MEASURE, VarianceChart.DENSITY))
         w = np.asarray(plane.metric_diagonal(), dtype=float).reshape(-1)
         support, generators = np.array([1, 2, 4]), np.array([[1.0], [-1.0], [2.0]])
         g = KernelProjectionGauge.direct_sum(plane, (KernelSummand(support, generators, "plane"),))
@@ -505,7 +506,7 @@ class TestTheMetricDiagonalVerb:
 
     @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_euclidean_space_reads_ones(self):
-        flat = FunctionSpace("euclid", (4,))
+        flat = TensorSpace.declared("euclid", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         np.testing.assert_array_equal(flat.metric_diagonal(), np.ones(4))
 
 
@@ -514,8 +515,8 @@ class TestTheCompositeMetricDiagonal:
     each block's own ``apply_metric(ones)``. Arms ``full_field_reversed`` and ``coupled_reversed`` (the blocks
     concatenated in the wrong order) redden their rows."""
 
-    _A = FunctionSpace.of_axes(Axis("bulk", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))))
-    _B = FunctionSpace.of_axes(Axis("trace", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 4.0])))))
+    _A = TensorSpace.of_axes(Factor.whole_on(Axis("bulk", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))), Kind.MEASURE, VarianceChart.DENSITY))
+    _B = TensorSpace.of_axes(Factor.whole_on(Axis("trace", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 4.0])))), Kind.MEASURE, VarianceChart.DENSITY))
 
     def _expected(self):
         return np.concatenate([self._A.apply_metric(np.ones(3)), self._B.apply_metric(np.ones(2))])
@@ -536,7 +537,7 @@ class TestTheCompositeMetricDiagonal:
         from orpheus.numerics.metric import DenseMetric, Face
         from orpheus.numerics.coupled_system import CoupledSpace
         from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-        dense = FunctionSpace("dense", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC))
+        dense = TensorSpace.declared("dense", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC))
         assert FullFieldSpace.from_blocks(self._A, dense).metric_diagonal() is None
         assert CoupledSpace.from_systems((self._A, dense)).metric_diagonal() is None
 

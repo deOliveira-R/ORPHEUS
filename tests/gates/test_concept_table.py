@@ -155,11 +155,11 @@ def test_g1_population_by_read_tree_equals_the_sources_walk():
 def test_g1_mutations():
     m, w = ct(), world()
     ids = frozenset(c.id for c in w.concepts)
-    k = key("orpheus/numerics/space.py", "TensorProductSpace")
+    k = key("orpheus/numerics/space.py", "TensorSpace")
     stripped = edit(w.sources, k.file, k.qualname, remove=True)
     pop, _ = _measure(stripped)
     found = m.checks.check_declarations(pop, ids)
-    assert len(found) == 1 and "TensorProductSpace" in str(next(iter(found)))
+    assert len(found) == 1 and "TensorSpace" in str(next(iter(found)))
     changed = edit(w.sources, "orpheus/cp/solver.py", "CPResult", concept="nosuch")
     assert _red(m.checks.check_declarations(_measure(changed)[0], ids), "nosuch")
 
@@ -174,7 +174,7 @@ def test_g2_every_concept_has_one_head():
 
 def test_g2_mutations():
     m, w = ct(), world()
-    flipped = edit(w.sources, "orpheus/numerics/space.py", "TensorProductSpace", role="arm")
+    flipped = edit(w.sources, "orpheus/numerics/space.py", "TensorSpace", role="arm")
     pop, _ = _measure(flipped)
     assert _red(m.checks.check_heads(pop, w.concepts, flipped), "tensor"), "the head of `tensor` flipped to arm"
     promoted = edit(w.sources, "orpheus/numerics/green_operator.py", "Richardson", role="head")
@@ -315,7 +315,7 @@ def test_g6_placement_equals_the_pinned_misplaced_rows():
 
 
 @pytest.mark.parametrize("file,qualname,moved", [
-    ("orpheus/numerics/space.py", "TensorProductSpace", "orpheus/sn/space.py"),
+    ("orpheus/numerics/space.py", "TensorSpace", "orpheus/sn/space.py"),
     ("orpheus/numerics/factor.py", "Factor", "orpheus/sn/factor.py"),
     ("orpheus/numerics/space.py", "FunctionSpace", "orpheus/geometry/space.py"),
 ])

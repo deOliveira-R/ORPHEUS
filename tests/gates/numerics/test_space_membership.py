@@ -23,6 +23,8 @@ from dataclasses import dataclass
 
 from orpheus.numerics.field import Field
 from orpheus.numerics.units import SCALAR_FLUX_UNITS
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.l0
@@ -30,8 +32,8 @@ pytestmark = pytest.mark.l0
 
 _E = EnergyAxis.synthetic(2)
 #: Two spaces of EQUAL shape and DIFFERENT metric: no shape check can tell them apart (explorer map §1, the structural fact).
-V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))))
-W = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([3.0, 2.0, 1.0])))))
+V = TensorSpace.of_axes(Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0])))), Kind.MEASURE, VarianceChart.DENSITY))
+W = TensorSpace.of_axes(Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([3.0, 2.0, 1.0])))), Kind.MEASURE, VarianceChart.DENSITY))
 X = np.arange(1.0, 7.0).reshape(2, 3)
 
 
@@ -68,7 +70,7 @@ class TestATypedMemberIsComparedByContent:
 
 # ── rung 2: the shape leg of a bare array — scalar verbs exact, actions leading ────────────────────────────
 
-_COLUMN_SPACE = FunctionSpace("g", (2, 1), inner_product_weights=np.array([[1.0], [2.0]]))
+_COLUMN_SPACE = TensorSpace.declared("g", (2, 1), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([[1.0], [2.0]])))
 _COL = np.array([[0.6], [0.4]])
 _FLAT = np.array([0.6, 0.4])
 
@@ -105,7 +107,7 @@ class TestTheRawActionsTakeALeadingMember:
 def test_the_payload_pairing_is_the_tensor_product_space_pairing():
     """The re-pose premise of the two direct payload callers [M] probes/u1_repose.py: on V (x) P with a counting P the
     pairing equals today's payload reading bit-for-bit (8 of 8 heads, and the derived-object file's synthetic axes)."""
-    P = FunctionSpace.of_axes(Axis("payload", (5,), origin=Declared(BasisKind.NODAL)))
+    P = TensorSpace.of_axes(Factor.whole_on(Axis("payload", (5,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
     x = np.random.default_rng(1).standard_normal(V.shape + (5,))
     expected = float(np.sum(V.apply_metric(x) * x))  # the action applied, then the counting contraction
     assert (V * P).inner_product(x, x) == expected
@@ -114,9 +116,9 @@ def test_the_payload_pairing_is_the_tensor_product_space_pairing():
 def test_two_axes_less_spaces_of_one_name_and_different_weights_are_two_spaces():
     """The identity of an axes-less space carries its metric (the U1 qa review, F2): before, two spaces of one name and
     shape with different weights compared equal, so a member of one was admitted by the other."""
-    a = FunctionSpace("tier", (3,), inner_product_weights=np.array([1.0, 2.0, 3.0]))
-    b = FunctionSpace("tier", (3,), inner_product_weights=np.array([3.0, 2.0, 1.0]))
+    a = TensorSpace.declared("tier", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([1.0, 2.0, 3.0])))
+    b = TensorSpace.declared("tier", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([3.0, 2.0, 1.0])))
     assert a != b
-    assert a == FunctionSpace("tier", (3,), inner_product_weights=np.array([1.0, 2.0, 3.0]))
+    assert a == TensorSpace.declared("tier", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([1.0, 2.0, 3.0])))
     with pytest.raises(ValueError, match="not a member of"):
         a.inner_product(_Member(values=np.ones(3), space=b), _Member(values=np.ones(3), space=b))

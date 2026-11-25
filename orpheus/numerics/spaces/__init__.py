@@ -8,7 +8,7 @@ subclasses that carry domain-specific metadata beyond
 * :mod:`~orpheus.numerics.spaces.moment_head` — the one door a moment
   head is read through, :func:`moment_head_axis` (its layout, since S7 a
   value the basis carries; the head space is the generic
-  :meth:`~orpheus.numerics.space.FunctionSpace.of_basis` space, and the
+  :meth:`~orpheus.numerics.space.TensorSpace.of_basis` space, and the
   ``SphericalHarmonicSpace`` / ``LegendreSpace`` classes retired).
 
 * :class:`AngularTraceSpace` (#205 / #201 unification) — the single

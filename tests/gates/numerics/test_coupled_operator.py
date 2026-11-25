@@ -79,7 +79,10 @@ from orpheus.numerics.operator import (
     NotInvertible,
     AdjointOperator,
 )
-from orpheus.numerics.space import DualSpace, FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import DualSpace, FunctionSpace, TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -163,36 +166,44 @@ class _DeltaField(_ToyAlgebra):
     values: np.ndarray
 
 
-@dataclass(frozen=True)
-class _ToySpace(FunctionSpace):
-    """A carrier-typed member space: the diagonal metric on ``field.values``."""
+class _ToySpace:
+    """A carrier-typed member space: a ``TensorSpace`` whose metric legs act on the VALUES of a typed field.
+
+    A delegating double, not a ``FunctionSpace`` subclass (the subclasses of ``FunctionSpace`` are an allow-list): every question about the space is the
+    declared space's, and the legs that take a typed field act on ``field.values`` and return a field of the same class.
+    """
+
+    def __init__(self, space: "TensorSpace") -> None:
+        self._space = space
+
+    def __getattr__(self, name: str):
+        return getattr(self._space, name)
 
     def apply_metric(self, x):
-        return replace(x, values=self._diagonal_apply_metric(x.values))
+        return replace(x, values=self._space.apply_metric(x.values))
 
     def apply_inverse_metric(self, x):
-        return replace(x, values=self._diagonal_apply_inverse_metric(x.values))
+        return replace(x, values=self._space.apply_inverse_metric(x.values))
 
     def inner_product(self, x, y) -> float:
-        return self._diagonal_inner_product(x.values, y.values)
+        return self._space.inner_product(x.values, y.values)
 
-    def _make_dual(self):
-        return _ToyDualSpace(name=f"{self.name}*", shape=self.shape, primal=self)
+    def dual(self) -> "_ToySpace":
+        return _ToySpace(self._space.dual())
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, _ToySpace) and self._space == other._space
+
+    def __hash__(self) -> int:
+        return hash(("_ToySpace", self._space))
+
+    def __repr__(self) -> str:
+        return f"_ToySpace({self._space!r})"
 
 
-class _ToyDualSpace(DualSpace):
-    """The dual of a carrier-typed member space types the same carrier: its
-    metric legs act on ``field.values`` as the primal's do (a test double
-    honours the contract of the space it stands in for)."""
-
-    def apply_metric(self, x):
-        return replace(x, values=self._diagonal_apply_metric(x.values))
-
-    def apply_inverse_metric(self, x):
-        return replace(x, values=self._diagonal_apply_inverse_metric(x.values))
-
-    def inner_product(self, x, y) -> float:
-        return self._diagonal_inner_product(x.values, y.values)
+def _toy_space(name: str, shape: tuple[int, ...], weights) -> _ToySpace:
+    """A member space of the toy coupled system: one declared factor, the diagonal metric ``weights`` on the values (the default carrier)."""
+    return _ToySpace(declared_mod_kernel(name, shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.asarray(weights, dtype=float))))
 
 
 class _Block(LinearOperator):
@@ -303,14 +314,8 @@ _RNG = np.random.default_rng(20260710)
 
 # The rectangular main fixture: alpha (3 DOF, nonuniform metric) ⊕ beta
 # (2 DOF, nonuniform metric) — distinct shapes activate the offsets.
-_SP_A = _ToySpace(
-    name="alpha", shape=(3,),
-    inner_product_weights=np.array([1.0, 2.0, 0.5]),
-)
-_SP_B = _ToySpace(
-    name="beta", shape=(2,),
-    inner_product_weights=np.array([3.0, 0.25]),
-)
+_SP_A = _toy_space("alpha", (3,), np.array([1.0, 2.0, 0.5]))
+_SP_B = _toy_space("beta", (2,), np.array([3.0, 0.25]))
 
 
 def _coupled_space() -> CoupledSpace:
@@ -498,7 +503,7 @@ class TestCoupledFieldIntrinsic:
 class TestCoupledSpace:
     def test_from_systems_derives_name_and_flat_shape(self) -> None:
         cs = _coupled_space()
-        if cs.name != "coupled(alpha ⊕ beta)":
+        if cs.name != f"coupled({_SP_A.name} ⊕ {_SP_B.name})":
             pytest.fail(f"derived name {cs.name!r}")
         if cs.shape != (5,):
             pytest.fail(f"flat direct-sum shape {cs.shape}")
@@ -665,14 +670,8 @@ class TestAssembleProbe:
         is shape-legal here, so the VALUE gate (not a shape error) is what
         must red — a symmetric grid would be offset-transpose-blind (Mode 12).
         """
-        sg = _ToySpace(
-            name="gamma", shape=(2,),
-            inner_product_weights=np.array([1.0, 4.0]),
-        )
-        sd = _ToySpace(
-            name="delta", shape=(2,),
-            inner_product_weights=np.array([0.5, 2.0]),
-        )
+        sg = _toy_space("gamma", (2,), np.array([1.0, 4.0]))
+        sd = _toy_space("delta", (2,), np.array([0.5, 2.0]))
         rng = np.random.default_rng(99)
         blocks = [
             [
@@ -1507,8 +1506,8 @@ _DUAL_CLS = (_GammaField, _DeltaField)
 
 def _law_space(fixture: str) -> CoupledSpace:
     wa, wb = (np.array(w) for w in _LAW_WEIGHTS[fixture])
-    member_a = _ToySpace(name="alpha", shape=(wa.size,), inner_product_weights=wa)
-    member_b = _ToySpace(name="beta", shape=(wb.size,), inner_product_weights=wb)
+    member_a = _toy_space("alpha", (wa.size,), wa)
+    member_b = _toy_space("beta", (wb.size,), wb)
     return CoupledSpace.from_systems(
         (member_a, member_b),
         zeros=lambda: CoupledField(

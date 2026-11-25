@@ -93,6 +93,8 @@ from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.transport._materials import placeholder_materials
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 from tests.gates.transport._phase_space_cases import slab_mesh
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from tests.gates.numerics._declared_support import legacy_leaf
 
 
 pytestmark = pytest.mark.foundation
@@ -934,8 +936,8 @@ class TestTheCoefficientBroadcastsOverTheAxesItDoesNotSpan:
         sigma = _positive_sigma(sn)
         cf = CrossSectionField(values=sigma, space=sn.bulk_space)
         MultiplicationOperator(coefficient=cf, domain=sn.bulk_space, codomain=sn.bulk_space)
-        unlabelled = FunctionSpace("s2_unlabelled_bulk", sn.bulk_space.shape)
-        with pytest.raises(TypeError, match="not built from labelled axes"):
+        unlabelled = legacy_leaf("s2_unlabelled_bulk", sn.bulk_space.shape)
+        with pytest.raises(TypeError, match="not built from labelled"):
             MultiplicationOperator(coefficient=cf, domain=unlabelled, codomain=unlabelled)
 
 

@@ -59,6 +59,10 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 pytestmark = pytest.mark.l0
 
@@ -84,18 +88,9 @@ def _spaces(g_intermediate: float) -> tuple[FunctionSpace, FunctionSpace, Functi
     point of the theorem is that the answer does not depend on it.
     """
     return (
-        FunctionSpace(
-            name="probe:gamma_plus", shape=(N_OUT,),
-            inner_product_weights=_METRIC_PLUS,
-        ),
-        FunctionSpace(
-            name="probe:S", shape=(1,),
-            inner_product_weights=np.array([g_intermediate]),
-        ),
-        FunctionSpace(
-            name="probe:gamma_minus", shape=(N_IN,),
-            inner_product_weights=_METRIC_MINUS,
-        ),
+        TensorSpace.declared("probe:gamma_plus", (N_OUT,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_METRIC_PLUS)),
+        declared_mod_kernel("probe:S", (1,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([g_intermediate]))),
+        TensorSpace.declared("probe:gamma_minus", (N_IN,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_METRIC_MINUS)),
     )
 
 
@@ -225,10 +220,7 @@ def _chain(dims: list[int]) -> tuple[list[np.ndarray], list[FunctionSpace]]:
     r"""A chain ``V0 → V1 → … → Vn`` with all-different dims and metrics."""
     rng = np.random.default_rng(_SEED + 7)
     spaces = [
-        FunctionSpace(
-            name=f"probe:chain:V{i}", shape=(d,),
-            inner_product_weights=rng.uniform(0.3, 2.0, d),
-        )
+        TensorSpace.declared(f"probe:chain:V{i}", (d,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(rng.uniform(0.3, 2.0, d)))
         for i, d in enumerate(dims)
     ]
     links = [
@@ -303,14 +295,8 @@ def test_the_telescoping_survives_wildly_scaled_interior_metrics():
 
     scaled = [
         spaces[0],
-        FunctionSpace(
-            name="probe:chain:V1", shape=(dims[1],),
-            inner_product_weights=np.asarray(spaces[1].inner_product_weights) * 1e-8,
-        ),
-        FunctionSpace(
-            name="probe:chain:V2", shape=(dims[2],),
-            inner_product_weights=np.asarray(spaces[2].inner_product_weights) * 4e7,
-        ),
+        TensorSpace.declared("probe:chain:V1", (dims[1],), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.asarray(spaces[1].axes[0].form.weights) * 1e-8)),
+        TensorSpace.declared("probe:chain:V2", (dims[2],), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.asarray(spaces[2].axes[0].form.weights) * 4e7)),
         spaces[-1],
     ]
     chained = _hilbert_adjoint(links[0], scaled[0], scaled[1])

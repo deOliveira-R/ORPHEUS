@@ -59,6 +59,8 @@ from orpheus.transport.operators.multiplication_operator import (
     MultiplicationOperator,
 )
 from tests.gates.transport._materials import anisotropic_mixture
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -759,7 +761,7 @@ def test_a_plain_space_whose_leading_axis_is_not_the_group_axis_is_refused(energ
     from orpheus.numerics.space import FunctionSpace
 
     _dm, mat_xs, _ffs = _diffusion_binding()
-    space = FunctionSpace(name="plain-wrong-leading-axis", shape=shape)
+    space = TensorSpace.declared("plain-wrong-leading-axis", shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     with pytest.raises(TypeError, match="ANGULAR binding"):
         energy_cls.from_material_xs(mat_xs, space=space)
 
@@ -824,7 +826,7 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
     energy = scattering.isotropic_energy
     interior = space.interior_space
     assert interior is not None and interior.axes is not None
-    expected = FunctionSpace.of_axes(*interior.axes[1:])
+    expected = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in interior.axes[1:]))
     assert energy.domain == expected and energy.codomain == expected, (
         "S.isotropic_energy must be bound to the scalar sub-space of "
         "the parent's OWN interior — the binding drifted from the "
@@ -929,7 +931,7 @@ def test_energy_conformity_guard_three_rows():
     composite = angular_full_field_space(
         MaterialMesh(mesh, {0: get_mixture("A", "2g")}), Quadrature.gauss_legendre(n_ordinates=4),
     )
-    assert composite.axes is None  # still true — the reach is the interior's
+    assert not hasattr(composite, "axes")  # still true — the reach is the interior's
     mat_4g = carrier_4g.mat_xs
     with pytest.raises(ValueError, match="energy extent"):
         FissionOperator.from_solver_data(mat_xs=mat_4g, space=composite)

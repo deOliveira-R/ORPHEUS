@@ -75,7 +75,7 @@ def canonical_reals(values: np.ndarray, where: str) -> np.ndarray:
             index = np.unravel_index(position, values.shape)
             exact_double(int(values[index]), f"{where}, the entry {tuple(int(i) for i in index)}")
     doubles = np.array(values, dtype=np.float64)
-    for index in zip(*np.nonzero(np.isnan(doubles))):
+    for index in np.argwhere(np.isnan(doubles)):  # argwhere, not nonzero: a rank-0 array has entries and no indices to ``nonzero``
         canonical_real(math.nan, f"{where}, the entry {tuple(int(i) for i in index)}")
     return doubles + 0.0  # -0.0 + 0.0 is +0.0
 

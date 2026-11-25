@@ -41,6 +41,8 @@ from orpheus.numerics.iteration import NATIVE
 from orpheus.sn.solver import _angular_representation
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics import frame_faces
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = [pytest.mark.foundation]
 
@@ -77,7 +79,7 @@ def _fake_mesh(*, is_cartesian: bool, ndim: int) -> SimpleNamespace:
     return SimpleNamespace(
         is_cartesian=is_cartesian, ndim=ndim,
         full_field_space=FullFieldSpace.from_blocks(
-            FunctionSpace("fake_bulk", (2,)), FunctionSpace("fake_trace", (2,)),
+            TensorSpace.declared("fake_bulk", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("fake_trace", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
         ),
     )
 
@@ -92,7 +94,7 @@ def _scattering_stub():
     # real mesh) per this module's cheap-gate-pin philosophy.
     return SimpleNamespace(
         flux_analysis=SimpleNamespace(
-            codomain=FunctionSpace("fake_moment_bulk", (3,)),
+            codomain=TensorSpace.declared("fake_moment_bulk", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
             frame=frame_faces.angular_frame(Quadrature.level_symmetric(sn_order=4), 0),
         ),
     )

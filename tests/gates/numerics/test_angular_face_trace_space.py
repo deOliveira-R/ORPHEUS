@@ -34,6 +34,9 @@ from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import AngularFaceTraceSpace, AngularTraceSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from tests.gates.numerics._declared_support import leading_aligned
 
 pytestmark = pytest.mark.foundation
 
@@ -475,7 +478,7 @@ def test_the_current_space_metric_is_EXPLICITLY_unit_not_None(quad_name):
     from itself — the reason a generic space was rejected for this campaign.
     """
     trace = _trace(quad_name, ng=3)
-    weights = trace.current_space("xmin").inner_product_weights
+    weights = trace.current_space("xmin").axes[0].form.weights
 
     assert weights is not None, "unit must be RECORDED, not left to the default"
     assert np.all(np.asarray(weights) == 1.0)
@@ -554,7 +557,7 @@ def test_the_current_space_is_ADMISSIBLE_as_a_chain_intermediate(quad_name):
     set of rows.
     """
     trace = _trace(quad_name, ng=2)
-    current = np.asarray(trace.current_space("xmin").inner_product_weights)
+    current = np.asarray(trace.current_space("xmin").axes[0].form.weights)
     full_tier = np.asarray(trace.face_space("xmin").inner_product_weights)
 
     assert (current > 0.0).all(), "S(f) must be admissible as an intermediate"
@@ -685,10 +688,7 @@ def test_a_restriction_bound_to_a_FOREIGN_metric_does_shift_its_adjoint(quad_nam
     codomain = gamma.codomain
     assert codomain is not None, "step 1 binds this"
 
-    foreign = FunctionSpace(
-        name="foreign", shape=codomain.shape,
-        inner_product_weights=np.asarray(codomain.inner_product_weights) * 3.0,
-    )
+    foreign = TensorSpace.declared("foreign", codomain.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=leading_aligned(np.asarray(codomain.inner_product_weights) * 3.0, codomain.shape))
     rebound = TraceRestrictionOperator(
         gamma.indices, n_total=gamma.n_total, axis=0,
         domain=gamma.domain, codomain=foreign,
@@ -1087,7 +1087,7 @@ def test_trace_role_names_the_ladder():
         )
         trace = AngularTraceSpace.from_quadrature_and_layout(quad, layout)
         for face in ("xmin", "xmax"):
-            assert trace.current_space(face).name == f"angular_trace[{face}:current]"
+            assert trace.current_space(face).name.startswith(f"angular_trace[{face}:current]")
             assert trace.outflow_space(face).name == f"angular_trace[{face}:outflow]"
             assert trace.inflow_space(face).name == f"angular_trace[{face}:inflow]"
             assert trace.outflow_space(face).role == "outflow"

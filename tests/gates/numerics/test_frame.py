@@ -62,6 +62,10 @@ from tests._harness.predicates import (
     assert_inverse_adjoint_contract,
 )
 from orpheus.numerics import frame_faces
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 @pytest.fixture
@@ -177,9 +181,9 @@ def test_basis_space_is_the_spherical_harmonic_space(sh_frame):
     # it and shares it across the faces.
     assert head_layout(frame_faces.basis_space(frame)) == HarmonicLayout(L)
     assert frame_faces.basis_space(frame).shape == (L + 1, 2 * L + 1)
-    assert frame_faces.basis_space(frame) != FunctionSpace.of_basis(frame.basis)
-    assert frame_faces.basis_space(frame) != FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
-    assert FunctionSpace.of_basis(frame.basis) == FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
+    assert frame_faces.basis_space(frame) != TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY))
+    assert frame_faces.basis_space(frame) != TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)) == TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))
     assert frame_faces.basis_space(frame).axes is not None and frame_faces.basis_space(frame).axes[0].origin.frame is frame
     # the analysis codomain / reconstruction domain are that same space
     assert frame_faces.FrameAnalysis.of(frame).codomain is frame_faces.basis_space(frame)
@@ -688,7 +692,7 @@ def test_parseval_dressing_installed_on_diagonal_frames(make_frame):
     """
     frame = make_frame()
     assert frame.discrete_gram_structure is GramStructure.DIAGONAL
-    diag = np.diagonal(frame.discrete_gram).reshape(FunctionSpace.of_basis(frame.basis).shape)
+    diag = np.diagonal(frame.discrete_gram).reshape(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)).shape)
     live = diag > 0.0
     metric = _dressed_measure(frame)
     assert metric is not None
@@ -794,7 +798,7 @@ def test_parseval_reds_under_the_pre_repair_continuum_metric():
     wrong-structure reading discriminates loaded from blind).
     """
     frame = frame_faces.angular_frame(Quadrature.level_symmetric(4), 1)
-    undressed = FunctionSpace.of_basis(SphericalHarmonicBasis(L=1))
+    undressed = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=1)), Kind.MEASURE, VarianceChart.DENSITY))
     # frame_faces builds each face once into the frame's private "_frame_faces"
     # slot — pre-seeding it IS the pre-repair frame; no production code is
     # touched and nothing needs undoing.
@@ -857,7 +861,7 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
     assert np.linalg.matrix_rank(gram) == 3
 
     # the fabricated slots are UNSPELLABLE — not zeroed, absent
-    assert FunctionSpace.of_basis(frame.basis).shape == (3,)
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)).shape == (3,)
     with pytest.raises(IndexError):
         _ = gram[2, 3]
 
@@ -966,7 +970,7 @@ def test_overlap_frame_measures_dense_while_declaring_partition_of_unity():
     frame = _overlap_frame()
     assert frame.basis.gram_structure is GramStructure.PARTITION_OF_UNITY  # declared
     assert frame.discrete_gram_structure is GramStructure.DENSE    # measured
-    assert isinstance(frame_faces.basis_space(frame)._overlay_forms()[0], DenseMetric)  # dressed (P7), positioned on the head axis (S7)
+    assert isinstance(frame_faces.basis_space(frame).factors[0].form, DenseMetric)  # dressed (P7), the form of the head's factor
     assert frame_faces.basis_space(frame).inner_product_weights is None         # ≠ Euclidean
     np.testing.assert_allclose(
         frame_faces.project(frame, np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
@@ -1010,12 +1014,9 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     # a form lives only on a Modal axis, and the dressing makes the head
     # FromFrame, whose kind is Modal(masses); a hand overlay on the nodal
     # basis axis is refused as a second source beside the counting measure)
-    dressed = frame_faces._dressed(
-        FunctionSpace.of_basis(frame.basis), frame=frame,
-        dense=DenseMetric(DenseMetric.symmetrised(frame.discrete_gram), kernel=frame_gram_kernel(frame.discrete_gram), face=Face.GRAM),
-    )
-    vars(frame)["_frame_faces"] = {"basis_space": dressed}  # pre-seed the frame_faces cache
-    assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds on the seed
+    dressed = frame_faces.basis_space(frame)  # the production mint dresses this overlap frame by its measured dense Gram
+    assert isinstance(dressed.factors[0].form, DenseMetric)
+    assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds
     probe = frame_faces.CrossGramInverse.of(frame)
     assert isinstance(probe, CrossGramInverse)
     assert probe.domain is frame_faces.test_space(frame) and probe.codomain is frame_faces.basis_space(frame)
@@ -1067,7 +1068,7 @@ def _dressed_measure(frame) -> np.ndarray | None:
 
 def _continuum_measure(frame) -> np.ndarray:
     """The basis's own CONTINUUM Gram — the head axis's measure on ``basis.space`` (axis-built since item 6.2c-ii)."""
-    space = FunctionSpace.of_basis(frame.basis)
+    space = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY))
     measure = space.axes[0].form.weights if space.axes is not None else space.inner_product_weights
     assert measure is not None
     return np.asarray(measure)
@@ -1077,10 +1078,9 @@ def _dense_metric_of(frame) -> DenseMetric:
     """The installed DenseMetric — POSITIONED on the derived object of an
     axis-built head (item 6.2c-i), bare on an axes-less coefficient space —
     narrowed, so a diagonal-dressed frame fails HERE, loudly."""
-    metric = frame_faces.basis_space(frame).metric
-    if isinstance(metric, FactoredMetric):
-        assert len(metric.entries) == 1, f"{frame}: a coefficient space is single-axis"
-        metric = metric.entries[0][1]
+    head = frame_faces.basis_space(frame)
+    assert len(head.factors) == 1, f"{frame}: a coefficient space is single-axis"
+    metric = head.factors[0].form
     assert isinstance(metric, DenseMetric), f"{frame} carries no DenseMetric (metric={metric!r})"
     return metric
 
@@ -1350,14 +1350,14 @@ def test_the_dressing_lands_parseval_on_the_production_anisotropic_frame():
     frame = frame_faces.angular_frame(Quadrature.product(4, 4), 2)
     assert frame.discrete_gram_structure is GramStructure.DENSE
     rng = np.random.default_rng(1234)
-    c = rng.standard_normal(FunctionSpace.of_basis(frame.basis).shape)
+    c = rng.standard_normal(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)).shape)
     psi = frame.basis.synthesize(c, frame.table)
     phi = frame_faces.FrameAnalysis.of(frame).apply(psi)
     norm_w = frame_faces.measure_space(frame).inner_product(psi, psi)
     assert frame_faces.basis_space(frame).inner_product(phi, phi) / norm_w == pytest.approx(
         1.0, rel=1e-12
     )
-    pre_repair = FunctionSpace.of_basis(frame.basis).inner_product(phi, phi) / norm_w
+    pre_repair = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)).inner_product(phi, phi) / norm_w
     assert pre_repair > 10.0, f"pre-repair metric read {pre_repair:.4f}"
 
 

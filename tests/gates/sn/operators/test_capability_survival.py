@@ -64,6 +64,8 @@ from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
 from tests.gates.transport._transfer_oracles import on_basis
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -281,7 +283,7 @@ class TestPredicateFaithfulness:
         # Optional-space ctor survives until CS4c's mandatory flip" until
         # 2026-09-07; the survey simply never exercises an unbound state
         # on adjointable rows).
-        survey_space = FunctionSpace("capability_survey", (2, 4, 1))
+        survey_space = TensorSpace.declared("capability_survey", (2, 4, 1), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         # S's tier-2 mint needs a real posed composite since CS4c step 3
         # (the faces bind the interior); the survey reads predicates
         # only, so a small slab composite serves the row.

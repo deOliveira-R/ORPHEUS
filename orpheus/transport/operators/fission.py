@@ -117,7 +117,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from orpheus.numerics.coordinate_space import leading_coordinates
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.transport.operators.angular_lift import AngularLift
 from orpheus.transport.operators.bound_operator import BoundOperator
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
@@ -266,7 +266,7 @@ class FissionOperator(AngularLift[IsotropicFission]):  # concept: fission | role
         from orpheus.transport.material_field import FissionMaterialField
 
         interior = interior_space_of(space, owner=f"{cls.__name__}.from_solver_data")
-        if interior.axes is None:
+        if not isinstance(interior, TensorSpace):
             raise TypeError(
                 "FissionOperator.from_solver_data requires an axis-built "
                 "composite FullFieldSpace (the angular interior names the "

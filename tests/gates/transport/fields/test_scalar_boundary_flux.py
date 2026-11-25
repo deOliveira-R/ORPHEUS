@@ -46,6 +46,8 @@ from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
 from orpheus.transport.fields import ScalarBoundaryFlux, ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = [pytest.mark.foundation]
 
@@ -108,7 +110,7 @@ class TestScalarTraceSpace:
         b = scalar_trace_space(_slab_mesh(nx=7))  # same boundary, different interior
         if a != b:
             pytest.fail("(name, shape)-identical scalar traces must be equal")
-        if a == FunctionSpace(name="scalar_flux", shape=a.shape):
+        if a == TensorSpace.declared("scalar_flux", a.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY)):
             pytest.fail("different-name space must not compare equal")
 
     def test_for_faces_rejects_bad_areas(self):
@@ -195,7 +197,7 @@ class TestPartialCurrentGuards:
         with pytest.raises(TypeError, match="ScalarTraceSpace"):
             ScalarBoundaryFlux(
                 values=np.zeros(8),
-                space=FunctionSpace(name="scalar_trace", shape=(8,)),
+                space=TensorSpace.declared("scalar_trace", (8,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
             )
 
     def test_space_content_guard(self):

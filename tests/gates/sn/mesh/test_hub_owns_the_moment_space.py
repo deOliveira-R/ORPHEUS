@@ -12,9 +12,9 @@ is ``is`` — not a content comparison — and nothing is re-minted per call.
 ``scratch/_step6/probes/p7_mintlaw.py`` / ``p19_mintlaw_post.py``):
 
 * ``space_on(mesh) is space_on(mesh)`` was ``False`` on every read (a fresh
-  ``TensorProductSpace`` per call; ``==`` was ``True`` — which is why an
+  ``TensorSpace`` per call; ``==`` was ``True`` — which is why an
   ``==`` gate here would be signature-tautological and is not written);
-* the ``FunctionSpace.__mul__`` count per 2-D windowed SI solve was
+* the ``TensorSpace.__mul__`` count per 2-D windowed SI solve was
   ``2·max_inner + 6`` — 12 at ``max_inner = 3``, 18 at 6, 30 at 12, 54 at
   24 — because the guard (``boundary.py``'s ``_apply_faces``) re-minted on
   every apply and the sweep re-minted on every iterate wrap (58 + 55 of 118
@@ -43,6 +43,7 @@ from tests.gates.sn.architecture.test_monomorphic_leaves import (
     _sphere,
     _two_region_fissile,
 )
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -222,10 +223,10 @@ def test_g2_4c_the_boundary_guard_sees_the_hubs_object_on_a_windowed_solve(monke
 # ═════════════════════════════════════════════════════════════════════════
 
 def _count_products(max_inner: int, monkeypatch) -> tuple[int, int]:
-    """``(FunctionSpace.__mul__ activations, products carrying a dense slot)``
+    """``(TensorSpace.__mul__ activations, products carrying a dense slot)``
     during one windowed solve at ``max_inner``."""
     counts = {"mul": 0, "dense": 0}
-    original = FunctionSpace.__mul__
+    original = TensorSpace.__mul__
 
     def counting(self, other):
         counts["mul"] += 1
@@ -234,11 +235,11 @@ def _count_products(max_inner: int, monkeypatch) -> tuple[int, int]:
             counts["dense"] += 1
         return out
 
-    monkeypatch.setattr(FunctionSpace, "__mul__", counting)
+    monkeypatch.setattr(TensorSpace, "__mul__", counting)
     try:
         _windowed_driver(max_inner=max_inner)
     finally:
-        monkeypatch.setattr(FunctionSpace, "__mul__", original)
+        monkeypatch.setattr(TensorSpace, "__mul__", original)
     return counts["mul"], counts["dense"]
 
 

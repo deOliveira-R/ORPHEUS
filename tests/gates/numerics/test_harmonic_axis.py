@@ -6,7 +6,7 @@ subclasses, ``HarmonicAxis`` and ``LegendreAxis``).
 A moment head is an axis-built space with ONE MODAL axis whose measure is the
 head's metric and whose origin is the object that minted it —
 ``FromBasis(basis)`` for the continuum head
-(:meth:`FunctionSpace.of_basis <orpheus.numerics.space.FunctionSpace.of_basis>`),
+(:meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>`),
 ``FromFrame(frame)`` for the Parseval-dressed one (``basis_space(frame)``). Two
 things this file pins:
 
@@ -34,7 +34,6 @@ from orpheus.numerics.space import FunctionSpace
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis
 from orpheus.numerics.basis.base import TruncatedBasis
 from orpheus.numerics.coefficient_layout import HarmonicLayout, LegendreLayout
 from orpheus.numerics.basis.legendre_basis import LegendreBasis
@@ -43,7 +42,11 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, FromBasis, FromFrame, Modal
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -63,7 +66,7 @@ def test_the_domain_is_part_of_the_legendre_heads_identity(L: int) -> None:
     Negative leg: two different poles are two axes and two spaces — with the
     measures ``array_equal`` on both sides (the separation is the domain's,
     not the measure's)."""
-    x1, x2, z = FunctionSpace.of_basis(LegendreBasis(L=L, axis="x")), FunctionSpace.of_basis(LegendreBasis(L=L, axis="x")), FunctionSpace.of_basis(LegendreBasis(L=L, axis="z"))
+    x1, x2, z = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=L, axis="x")), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=L, axis="x")), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=L, axis="z")), Kind.MEASURE, VarianceChart.DENSITY))
     ax1, ax2, az = _head_axis(x1), _head_axis(x2), _head_axis(z)
     assert ax1.layout == az.layout == LegendreLayout(L)
     assert ax1.support == LegendreBasis(L=L, axis="x").domain and az.support == LegendreBasis(L=L, axis="z").domain
@@ -82,7 +85,7 @@ def test_a_family_generic_axis_would_collapse_the_two_poles() -> None:
     :class:`Axis` — label, shape, kind, weights, with no domain and no layout —
     compare EQUAL across the two poles, and a space built on such axes cannot
     tell ``x`` from ``z``. The head axis's domain is what separates them."""
-    ax_x, ax_z = _head_axis(FunctionSpace.of_basis(LegendreBasis(L=1, axis="x"))), _head_axis(FunctionSpace.of_basis(LegendreBasis(L=1, axis="z")))
+    ax_x, ax_z = _head_axis(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=1, axis="x")), Kind.MEASURE, VarianceChart.DENSITY))), _head_axis(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=1, axis="z")), Kind.MEASURE, VarianceChart.DENSITY)))
     plain_x = Axis(ax_x.label, ax_x.shape, origin=Declared(ax_x.kind, DiagonalMetric(ax_x.form.weights)))
     plain_z = Axis(ax_z.label, ax_z.shape, origin=Declared(ax_z.kind, DiagonalMetric(ax_z.form.weights)))
     assert plain_x == plain_z, "the generic identity is blind to the spent axis — that is the collapse"
@@ -100,7 +103,7 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
     """``of_basis`` mints ONE MODAL axis: the SH head's measure is the padded
     ``4π/(2ℓ+1)`` (zero outside ``|m| ≤ ℓ``), the Legendre head's the flat
     ``4π/(2ℓ+1)``; the layout is the basis's and the origin holds the basis."""
-    sh = FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
+    sh = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))
     ax = _head_axis(sh)
     assert ax.layout == HarmonicLayout(L) and isinstance(ax.kind, Modal)
     assert ax.shape == (L + 1, 2 * L + 1)
@@ -115,7 +118,7 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
     assert isinstance(basis, SphericalHarmonicBasis) and isinstance(basis, TruncatedBasis) and basis.L == L
     assert ax.support == basis.domain
 
-    leg = FunctionSpace.of_basis(LegendreBasis(L=L, axis="z"))
+    leg = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=L, axis="z")), Kind.MEASURE, VarianceChart.DENSITY))
     lax = _head_axis(leg)
     assert lax.layout == LegendreLayout(L) and isinstance(lax.kind, Modal) and lax.shape == (L + 1,)
     assert isinstance(lax.form, DiagonalMetric)
@@ -142,7 +145,7 @@ def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(
     frame = frame_faces.angular_frame(rules[label](), 2)
     dressed = frame_faces.basis_space(frame)
     ax = _head_axis(dressed)
-    cont = _head_axis(FunctionSpace.of_basis(frame.basis))
+    cont = _head_axis(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)))
     assert ax.layout == cont.layout and isinstance(ax.kind, Modal) and ax.shape == cont.shape
     assert isinstance(ax.origin, FromFrame) and ax.origin.frame is frame
     assert isinstance(ax.form, DiagonalMetric) and isinstance(cont.form, DiagonalMetric)
@@ -154,14 +157,14 @@ def test_the_frame_dressed_head_axis_carries_the_parseval_measure_and_the_frame(
     np.testing.assert_allclose(metric[live], 1.0 / diag[live], rtol=1e-15)
     np.testing.assert_array_equal(metric[~live], 0.0)
     assert not np.array_equal(ax.form.weights, cont.form.weights)
-    assert ax != cont and dressed != FunctionSpace.of_basis(frame.basis)
+    assert ax != cont and dressed != TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def test_the_harmonic_head_axis_is_never_a_declared_axis_wearing_its_slots() -> None:
     """A declared ``Axis`` with identical slots is a different axis: it has no
     domain and no layout (ruling 71 and 81), so a hand-built head can never
     pass for the family's (until S7 the family was a subclass)."""
-    ax = _head_axis(FunctionSpace.of_basis(SphericalHarmonicBasis(L=1)))
+    ax = _head_axis(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=1)), Kind.MEASURE, VarianceChart.DENSITY)))
     plain = Axis(ax.label, ax.shape, origin=Declared(ax.kind, DiagonalMetric(ax.form.weights)))
     assert ax != plain and plain != ax
     assert hash(ax) != hash(plain) or ax != plain

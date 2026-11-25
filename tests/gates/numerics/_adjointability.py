@@ -73,6 +73,9 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.operator import RieszLowerOperator
 from orpheus.numerics.operator import RieszRaiseOperator
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 
 #: Sanity-leg reciprocity tolerance for a direct (non-iterative) operator:
@@ -168,10 +171,10 @@ class Posed:
         return _pairing(self.op.codomain, a, b)
 
 
-_V = FunctionSpace("V_honesty", (3,), inner_product_weights=np.array([0.5, 2.0, 4.0]))
+_V = TensorSpace.declared("V_honesty", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([0.5, 2.0, 4.0])))
 
 
-_W = FunctionSpace("W_honesty", (4,), inner_product_weights=np.array([3.0, 0.25, 1.5, 0.7]))
+_W = TensorSpace.declared("W_honesty", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([3.0, 0.25, 1.5, 0.7])))
 
 
 def _riesz_lower_primal() -> Posed:

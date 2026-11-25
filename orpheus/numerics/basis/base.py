@@ -134,7 +134,7 @@ class TruncatedBasis(Protocol):  # concept: basis | role: interface | kind: morp
     at a degree*, and every consumer that spells "the coefficient space of
     order :math:`L`" — an operator's endomorphic ends, a moment field's
     angular head, a frame's mint — reads it off such a basis
-    (:meth:`FunctionSpace.of_basis <orpheus.numerics.space.FunctionSpace.of_basis>`
+    (:meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>`
     over its :attr:`layout`), never mints it from the integer. The family the frame
     binds is DERIVED from the point set its measure lives on
     (``frame_faces._harmonic_basis``, behind
@@ -352,8 +352,8 @@ class Basis(ABC):  # concept: basis | role: head | kind: morphism | welded: basi
         level                                  named by
         =====================================  ==========================
         the manifold :math:`M`                 :attr:`domain` (here)
-        fields on :math:`M`, discretized       ``FunctionSpace.of_measure``
-        coefficients :math:`\mathbb R^K`       ``FunctionSpace.of_basis``
+        fields on :math:`M`, discretized       ``TensorSpace.of_measure``
+        coefficients :math:`\mathbb R^K`       ``TensorSpace.of_basis``
         =====================================  ==========================
 
         So the coefficient space answers *what do these live in*; :attr:`domain`
@@ -466,7 +466,7 @@ class Basis(ABC):  # concept: basis | role: head | kind: morphism | welded: basi
         :mod:`orpheus.numerics.coefficient_layout`.
 
         The coefficient space a basis spans is
-        :meth:`FunctionSpace.of_basis(basis) <orpheus.numerics.space.FunctionSpace.of_basis>`,
+        :meth:`TensorSpace.of_basis(basis) <orpheus.numerics.space.TensorSpace.of_basis>`,
         the space over the one generic coefficient axis
         (:meth:`Axis.of_basis <orpheus.numerics.axis.Axis.of_basis>`), which
         reads this layout, :attr:`coefficient_weights` and :attr:`domain`. The

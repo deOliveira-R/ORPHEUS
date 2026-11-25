@@ -459,7 +459,7 @@ class CoupledSpace(FunctionSpace["CoupledField"]):  # concept: dsum | role: head
     Identity is the ordered keys of the member systems
     (:meth:`CoupledSpace.identity_key`, since S7 of the numerics untangling);
     the name, derived from the members (``"coupled(a ⊕ b)"`` — the
-    :class:`~orpheus.numerics.space.TensorProductSpace` naming precedent), is
+    :class:`~orpheus.numerics.space.TensorSpace` naming precedent), is
     a readable label, and ``shape`` the flat direct-sum dimension.
 
     Parameters

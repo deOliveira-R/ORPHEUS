@@ -42,14 +42,16 @@ import numpy.testing as npt
 import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric, NoForm
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator
 from orpheus.numerics.operator import AdjointOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from tests.gates.numerics._phase_space_twins import spatial_axis_1d, twin
+from orpheus.numerics.factor import Factor, Kind, Subquotient, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.declaration import Coord
 
 
 pytestmark = pytest.mark.foundation
@@ -66,29 +68,32 @@ _W_ANG = np.array([0.3, 0.9, 0.5, 0.3])
 _W_SPA = np.array([1.0, 2.0, 0.5, 0.25, 3.0])
 _ANG = Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG)))
 _SPA = Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA)))
-_MOM = Axis("moment", (3,), origin=Declared(Modal(np.eye(3)[0])))
+_MD = Variance(Kind.MEASURE, VarianceChart.DENSITY)
+
+
+def _dense(n: int, seed: int, label: str) -> Axis:
+    """A coefficient (Modal, unit e_0) axis whose form is a dense SPD Gram."""
+    return Axis(label, (n,), origin=Declared(Modal(np.eye(n)[0]), DenseMetric(_spd(n, seed), kernel=Coord(n, ()), face=Face.METRIC)))
+
+
+def _whole(axis: Axis) -> Factor:
+    return Factor(axis, _MD, Subquotient.whole(int(np.prod(axis.shape))))
 
 
 def _d1() -> FunctionSpace:
     """A dense form on a NON-collapsed coefficient (Modal) axis."""
-    return FunctionSpace(
-        "d1", (4, 5, 3), axes=(_ANG, _SPA, _MOM),
-        metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1), kernel=Coord(3, ()), face=Face.METRIC)))),
-    )
+    return TensorSpace.of_axes(_whole(_ANG), _whole(_SPA), _whole(_dense(3, 1, "moment")))
 
 
 def _d2() -> FunctionSpace:
     """A dense form on the COLLAPSED axis itself (a coefficient axis, Modal with unit e_0: a form lives only there)."""
-    return FunctionSpace(
-        "d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(Modal(np.eye(4)[0]))), _SPA),
-        metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2), kernel=Coord(4, ()), face=Face.METRIC)), ((5,), None))),
-    )
+    return TensorSpace.of_axes(_whole(_dense(4, 2, "angular")), _whole(_SPA))
 
 
 def _d3() -> FunctionSpace:
     """The production composition route: ``(angular ⊗ spatial) * dense head``."""
-    head = FunctionSpace("h", (3,), axes=(_MOM,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3), kernel=Coord(3, ()), face=Face.METRIC)),)))
-    return FunctionSpace.of_axes(_ANG, _SPA) * head
+    head = TensorSpace.of_axes(_whole(_dense(3, 3, "moment")))
+    return TensorSpace.of_axes(Factor.whole_on(_ANG, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_SPA, Kind.MEASURE, VarianceChart.DENSITY)) * head
 
 
 @cache
@@ -105,11 +110,7 @@ def _population() -> dict[str, FunctionSpace]:
     ))
     cyl = spatial_axis_1d("cylinder", np.concatenate([np.linspace(0.0, 1.0, 4), np.linspace(1.0, 2.5, 5)[1:]]))
     spaces = {
-        "synthetic": FunctionSpace.of_axes(
-            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.2, 0.8, 0.8, 0.2])))),
-            Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.2, 0.3, 0.4, 0.7, 1.4])))),
-        ),
+        "synthetic": TensorSpace.of_axes(Factor.whole_on(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.2, 0.8, 0.8, 0.2])))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("energy", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.2, 0.3, 0.4, 0.7, 1.4])))), Kind.MEASURE, VarianceChart.DENSITY)),
     }
     for n in (5, 8, 16):
         spaces[f"slab GL{n} bulk"] = twin(Quadrature.gauss_legendre(n_ordinates=n), slab).angular_bulk
@@ -132,14 +133,12 @@ def _angular_block(space: FunctionSpace) -> np.ndarray:
     """The collapsed axis's metric block G_k as a matrix, read from the raw
     axis and the space's positioned forms (never from R): the form on the
     axis's block if there is one, else diag(weights), else the identity."""
-    assert space.axes is not None  # narrowing only: every member is axis-built
     labels = [ax.label for ax in space.axes]
     k = labels.index("angular")
     axis = space.axes[k]
-    if isinstance(space.metric, FactoredMetric):
-        form = space.metric.entries[k][1]
-        if isinstance(form, DenseMetric):
-            return np.asarray(form.matrix, float)
+    form = space.factors[k].form
+    if isinstance(form, DenseMetric):
+        return np.asarray(form.matrix, float)
     n = int(np.prod(axis.shape))
     return np.eye(n) if isinstance(axis.form, NoForm) else np.diag(np.asarray(axis.form.weights, float).ravel())
 
@@ -208,20 +207,16 @@ def test_s6_2_the_product_metric_licenses_the_closed_form(name: str) -> None:
 def test_s6_3_positive_leg_the_marginal_keeps_the_kept_forms() -> None:
     """The marginal of D1 carries D1's dense form on the moment block."""
     M = AxisRetractionOperator.of(_d1(), "angular").codomain
-    if not isinstance(M.metric, FactoredMetric):
-        pytest.fail("the marginal dropped the kept axes' positioned forms")
-    forms = [form for _, form in M.metric.entries]
-    if not (forms[0] is None and isinstance(forms[1], DenseMetric)):
-        pytest.fail(f"the marginal's forms are {forms}, not (None, DenseMetric)")
+    forms = [f.form for f in M.factors]
+    if not (isinstance(forms[0], DiagonalMetric) and isinstance(forms[1], DenseMetric)):
+        pytest.fail(f"the marginal's forms are {forms}, not (DiagonalMetric, DenseMetric)")
 
 
 def _dense_condition(space: FunctionSpace) -> float:
     """The worst condition number of the space's positioned dense forms, or
     1.0 when it carries none."""
-    if not isinstance(space.metric, FactoredMetric):
-        return 1.0
     return max(
-        (float(np.linalg.cond(form.matrix)) for _, form in space.metric.entries if isinstance(form, DenseMetric)),
+        (float(np.linalg.cond(f.form.matrix)) for f in space.factors if isinstance(f.form, DenseMetric)),
         default=1.0,
     )
 
@@ -267,12 +262,10 @@ def test_the_axis_verbs_keep_the_positioned_forms() -> None:
     the same axes drops the form, which is the defect they replace."""
     D1 = _d1()
     without = D1.without_axis("angular")
-    if not isinstance(without.metric, FactoredMetric) or not isinstance(without.metric.entries[1][1], DenseMetric):
+    if not isinstance(without.factor("moment").form, DenseMetric):
         pytest.fail("without_axis dropped the kept axis's dense form")
-    tail = Axis("tail", (2,), origin=Declared(BasisKind.NODAL))
+    tail = Factor.whole_on(Axis("tail", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY)
     widened = without.with_axis(tail)
-    forms = [form for _, form in widened.metric.entries] if isinstance(widened.metric, FactoredMetric) else []
-    if not (len(forms) == 3 and isinstance(forms[1], DenseMetric) and forms[2] is None):
+    forms = [f.form for f in widened.factors]
+    if not (len(forms) == 3 and isinstance(forms[1], DenseMetric) and isinstance(forms[2], DiagonalMetric)):
         pytest.fail(f"with_axis lost a form: {forms}")
-    if FunctionSpace.of_axes(*without.axes, tail).metric is not None:
-        pytest.fail("control: of_axes over the same axes now keeps the form, so this row tests nothing")

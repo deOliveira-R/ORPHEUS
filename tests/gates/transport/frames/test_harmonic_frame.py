@@ -59,10 +59,15 @@ from tests.gates.transport._materials import placeholder_materials
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, BasisKind
 from orpheus.geometry.deck import MirrorDeck
-from orpheus.numerics.axis import Axis
 from tests.gates.transport._phase_space_cases import posing_quadrature
 from tests.gates.transport._phase_space_cases import slab_mesh
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import legacy_leaf
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 pytestmark = pytest.mark.foundation
@@ -91,7 +96,7 @@ def _angular_values(m: MaterialMesh, seed: int) -> np.ndarray:
 
 def _head(m: MaterialMesh, L: int = _L):
     """The angular head this mesh's frame induces — the SINGLE source of the layout (#429)."""
-    return FunctionSpace.of_basis(frame_faces.angular_frame(posing_quadrature(m), L).basis)
+    return TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame_faces.angular_frame(posing_quadrature(m), L).basis), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def _moment_values(m: MaterialMesh, seed: int, L: int = _L) -> np.ndarray:
@@ -211,16 +216,16 @@ class TestMint:
         bulk = angular_bulk_space(m, posing_quadrature(m))
         frame = _frame(m)
         face = frame.flux_analysis_on(bulk)
-        from orpheus.numerics.space import TensorProductSpace
+        from orpheus.numerics.space import TensorSpace
 
-        assert isinstance(face.codomain, TensorProductSpace)
-        assert face.codomain.factors[0] is frame_faces.basis_space(frame)
+        assert isinstance(face.codomain, TensorSpace)
+        assert face.codomain.sub(face.codomain.labels[0]) == frame_faces.basis_space(frame)
 
     def test_mint_refuses_a_shape_only_angular_space(self) -> None:
         from orpheus.numerics.space import FunctionSpace
 
         m = slab_mesh()
-        shape_only = FunctionSpace("bare", (posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape))
+        shape_only = legacy_leaf("bare", (posing_quadrature(m).n_ordinates, m.ng, *m.spatial_shape))
         with pytest.raises(TypeError, match="axis-built"):
             _frame(m).flux_analysis_on(shape_only)
 
@@ -465,11 +470,11 @@ class TestP7DenseMetricRidesTheMint:
             is GramStructure.DIAGONAL
         ), "the ORDER is what makes this frame dense — state it, do not assume it"
         moment = frame.flux_analysis_on(bulk).codomain
-        assert moment.metric is not None, "the dense factor was dropped"
+        assert isinstance(moment.factors[0].form, DenseMetric), "the dense factor was dropped"
         sh = frame_faces.basis_space(frame)
         cell_axes = bulk.axes
         assert cell_axes is not None
-        cell = FunctionSpace.of_axes(*cell_axes[1:])
+        cell = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in cell_axes[1:]))
         rng = np.random.default_rng(5)
         xv = rng.standard_normal(sh.shape)
         yv = rng.standard_normal(sh.shape)
@@ -528,7 +533,7 @@ class TestHubInterning:
         from orpheus.numerics.space import FunctionSpace
 
         with pytest.raises(TypeError, match="axis-built"):
-            HarmonicFrame.for_space(FunctionSpace("bare", (4, 2)), _L)
+            HarmonicFrame.for_space(legacy_leaf("bare", (4, 2)), _L)
 
     def test_for_space_refuses_a_generator_less_axis(self) -> None:
         """The CS5 refusal names both parties (the axis and the asker):
@@ -537,10 +542,7 @@ class TestHubInterning:
         from orpheus.numerics.axis import Axis
         from orpheus.numerics.space import FunctionSpace
 
-        bare = FunctionSpace.of_axes(
-            Axis(label="angular", shape=(4,), origin=Declared(BasisKind.NODAL)),
-            Axis(label="energy", shape=(2,), origin=Declared(BasisKind.NODAL)),
-        )
+        bare = TensorSpace.of_axes(Factor.whole_on(Axis(label="angular", shape=(4,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis(label="energy", shape=(2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises(ValueError, match="HarmonicFrame.for_space"):
             HarmonicFrame.for_space(bare, _L)
 
@@ -574,4 +576,4 @@ def test_O4_for_space_refuses_a_non_quadrature_axis_naming_itself(arm):
     ax = (Axis("angular", (q.n_ordinates,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(q.weights, float))))
           if arm == "declared" else Axis.of_measure(q.measure, "angular"))
     with pytest.raises(ValueError, match="HarmonicFrame.for_space needs the generating Quadrature"):
-        HarmonicFrame.for_space(FunctionSpace.of_axes(ax), 1)
+        HarmonicFrame.for_space(TensorSpace.of_axes(Factor.whole_on(ax, Kind.MEASURE, VarianceChart.DENSITY)), 1)

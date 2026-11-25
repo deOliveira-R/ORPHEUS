@@ -32,7 +32,10 @@ from orpheus.numerics.axis import Axis, BasisKind, Declared
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import legacy_leaf
 
 pytestmark = pytest.mark.foundation
 
@@ -61,11 +64,7 @@ def _space(axes) -> FunctionSpace:
     """An axis-built angular bulk: ordinates x two groups x the spatial cells, with a non-uniform spatial weight."""
     spatial = tuple(a.n for a in axes)
     w = np.linspace(0.5, 2.0, int(np.prod(spatial))).reshape(spatial)
-    return FunctionSpace.of_axes(
-        Axis.of_quadrature(Quadrature.gauss_legendre(4)),
-        Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-        Axis("spatial", spatial, origin=Declared(BasisKind.NODAL, DiagonalMetric(w))),
-    )
+    return TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(Quadrature.gauss_legendre(4)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("energy", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", spatial, origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 #: The hand mass of the LD moment axis: prod over axes of 1/(2 o + 1), o in {0, 1}, slot order of the tensor basis.
@@ -81,7 +80,7 @@ def test_a_slopeless_closure_returns_the_space_itself(chart: str) -> None:
 
 
 def test_a_slopeless_closure_returns_an_axes_less_space_itself() -> None:
-    bare = FunctionSpace("p4_bare", (4, 2, 4))
+    bare = TensorSpace.declared("p4_bare", (4, 2, 4), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     if DiamondDifference().trial_space(bare, _slab_axes()) is not bare:
         pytest.fail("DD's trial space of an axes-less space is not its input object")
 
@@ -109,8 +108,8 @@ def test_a_multi_moment_closure_appends_the_moment_axis_with_its_mass(chart: str
 
 
 def test_a_multi_moment_closure_refuses_an_axes_less_space() -> None:
-    with pytest.raises(TypeError, match="is not axis-built"):
-        LinearDiscontinuous().trial_space(FunctionSpace("p4_bare", (4, 2, 4)), _slab_axes())
+    with pytest.raises(TypeError, match="no named factors"):
+        LinearDiscontinuous().trial_space(legacy_leaf("p4_bare", (4, 2, 4)), _slab_axes())
 
 
 @pytest.mark.rests_on("tests/gates/transport/spatial/test_cell_basis_head.py::test_the_ld_moment_axis_is_the_cell_basis_head")

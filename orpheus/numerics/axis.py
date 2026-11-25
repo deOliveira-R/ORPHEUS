@@ -5,7 +5,7 @@ recording what fixes that factor's coordinate space — its index shape, its
 form, its kind, and the manifold and atoms it was sampled from — together
 with its **origin**, the object that minted it, which is provenance and
 deliberately outside that identity.
-Spaces are ordered products of axes (``FunctionSpace.of_axes``); the axis is
+Spaces are ordered products of axes (``TensorSpace.of_axes``); the axis is
 the unit the composition machinery reasons about — partitions, collapses,
 frames, and (later) ⊕-lifts act **per axis**, never on an anonymous
 position of a monolithic shape tuple.
@@ -110,7 +110,7 @@ Two axes that differ only in measure are **different axes** (the collapse
 doctrine's "a genuine one-cell slab keeps its axis with weight V ≠ 1,
 distinguished from the quotient point by measure"); an
 :class:`EnergyAxis` never equals a generic :class:`Axis` carrying the same
-field tuple. This identity is what ``FunctionSpace.of_axes`` derives
+field tuple. This identity is what ``TensorSpace.of_axes`` derives
 *space names* from, and what a space's identity key reads on an
 axis-built space (``FunctionSpace.identity_key``).
 

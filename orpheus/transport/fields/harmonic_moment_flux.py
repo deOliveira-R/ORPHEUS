@@ -35,14 +35,14 @@ D-E Field-inheritance migration:
 * Drops the hand-coded dunder skeleton (Cardinal Rule 2 — the algebra
   is now inherited via :func:`dataclasses.replace`).
 * Adds the ``space: FunctionSpace`` field; the canonical space is a
-  :class:`~orpheus.numerics.space.TensorProductSpace` of the form
+  :class:`~orpheus.numerics.space.TensorSpace` of the form
   :math:`\mathrm{<angular\ head>}(L) \otimes
   \mathrm{CellGroupSpace}(ng, nx, ny)`, the head being the coefficient
   space of the basis the mesh's quadrature frame bound at :math:`L`
   (the spherical-harmonic head of order :math:`L` on a full-sphere rule;
   READ off the frame since #429 tracker 2.5, never minted from
   :math:`L`) — the **first
-  TensorProductSpace consumer in a typed Field** (D-B's L1 primitive
+  TensorSpace consumer in a typed Field** (D-B's L1 primitive
   is now load-bearing).
 * Arithmetic is refused by :meth:`Field._check_partner`'s class and
   space-content check; the space check is the one enforcement.
@@ -126,7 +126,7 @@ class HarmonicMomentFlux(MomentField):  # concept: fluxsrc | role: twin | kind: 
         Moment coefficients of shape ``(L+1, 2L+1, ng, nx, ny)``.
     space : FunctionSpace
         The function space this field lives on. Canonically a
-        :class:`TensorProductSpace` of the form
+        :class:`TensorSpace` of the form
         :math:`\mathrm{<angular\ head>}(L) \otimes
         \mathrm{CellGroupSpace}` — the head READ off the mesh's quadrature
         frame (the spherical-harmonic head of order :math:`L` on a
@@ -194,7 +194,7 @@ class HarmonicMomentFlux(MomentField):  # concept: fluxsrc | role: twin | kind: 
         ScalarFlux
             The :math:`(\ell=0, m=0)` slice ``values[0, 0]``.
         """
-        from orpheus.numerics.space import TensorProductSpace
+        from orpheus.numerics.space import TensorSpace
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         # CS4b S4: the scalar target space IS the product's cell-group
         # factor — the carrier's cached ``bulk_space`` instance the hub
@@ -206,8 +206,8 @@ class HarmonicMomentFlux(MomentField):  # concept: fluxsrc | role: twin | kind: 
         iso = self.head_layout.isotropic_slot
         if space is not None:
             return ScalarFlux(values=self.values[iso].copy(), space=space)
-        assert isinstance(self.space, TensorProductSpace)  # type-narrowing
+        assert isinstance(self.space, TensorSpace)  # type-narrowing
         return ScalarFlux(
             values=self.values[iso].copy(),
-            space=self.space.factors[1],
+            space=self.space.sub(*self.space.labels[1:]),
         )

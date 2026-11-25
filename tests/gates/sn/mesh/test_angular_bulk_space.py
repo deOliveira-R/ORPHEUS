@@ -55,7 +55,10 @@ from tests.gates.sn._test_helpers import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import leading_aligned
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -189,11 +192,7 @@ class TestG13GramEquivalenceDD:
         axis_built = sn.angular_bulk_space
         w = np.asarray(sn.quad.weights, dtype=float)
         V = np.asarray(sn.volumes, dtype=float)
-        dense = FunctionSpace(
-            name="dense_oracle",
-            shape=axis_built.shape,
-            inner_product_weights=w.reshape(-1, 1, 1) * V.reshape(1, 1, -1),
-        )
+        dense = TensorSpace.declared("dense_oracle", axis_built.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=leading_aligned(w.reshape(-1, 1, 1) * V.reshape(1, 1, -1), axis_built.shape))
 
         rng = np.random.default_rng(0)
         x = rng.standard_normal(dense.shape)
@@ -267,9 +266,7 @@ class TestG14GramEquivalenceLD:
         the cached base."""
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
-        widened = FunctionSpace.of_axes(
-            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.axes)
-        )
+        widened = TensorSpace.of_axes(*sn.angular_bulk_space.factors, Factor.whole_on(sn.scheme.moment_axis(sn.axes), Kind.MEASURE, VarianceChart.DENSITY))
         assert sn.full_field_space.interior_space == widened
         assert sn.full_field_space.interior_space is sn.angular_trial_space
 
@@ -308,9 +305,7 @@ class TestG14GramEquivalenceLD:
         sn = _slab(scheme=LinearDiscontinuous())
         base = sn.angular_bulk_space
         assert base.axes is not None
-        widened = FunctionSpace.of_axes(
-            *base.axes, sn.scheme.moment_axis(sn.axes)
-        )
+        widened = TensorSpace.of_axes(*base.factors, Factor.whole_on(sn.scheme.moment_axis(sn.axes), Kind.MEASURE, VarianceChart.DENSITY))
         # The oracle: G_bulk = V·w_n ⊗ moment_mass, densified BY HAND from
         # raw mesh + scheme data (the retired production spelling, now the
         # test-side fuller-view reference).
@@ -318,11 +313,7 @@ class TestG14GramEquivalenceLD:
         V = np.asarray(sn.volumes, dtype=float)
         mass = np.array([1.0, 1.0 / 3.0])  # LD's d = 1 moment mass, typed (LM-1989 Eq. 4.3b)
         g = (w.reshape(-1, 1, 1) * V.reshape(1, 1, -1))[..., None] * mass
-        dense = FunctionSpace(
-            name="dense_oracle_ld",
-            shape=widened.shape,
-            inner_product_weights=g,
-        )
+        dense = TensorSpace.declared("dense_oracle_ld", widened.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=leading_aligned(g, widened.shape))
         if widened.shape != dense.shape:
             pytest.fail(f"widened shape {widened.shape} != oracle shape {dense.shape}")
 
@@ -578,7 +569,5 @@ class TestG15ConePredicates:
         typed refusal. The exact modal test (the vertex theorem) is #400."""
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
-        widened = FunctionSpace.of_axes(
-            *sn.angular_bulk_space.axes, sn.scheme.moment_axis(sn.axes)
-        )
+        widened = TensorSpace.of_axes(*sn.angular_bulk_space.factors, Factor.whole_on(sn.scheme.moment_axis(sn.axes), Kind.MEASURE, VarianceChart.DENSITY))
         assert widened.has_coordinate_cone is False

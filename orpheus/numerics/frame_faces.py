@@ -47,18 +47,20 @@ from dataclasses import dataclass, replace
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics.axis import FromFrame
+from orpheus.numerics.axis import Axis, FromFrame
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.instance_cache import cached_on
 from orpheus.geometry.manifold import Manifold, Quotient, Sphere
-from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
+from orpheus.numerics.declaration import Coord
+from orpheus.numerics.factor import Factor, Kind, Subquotient, Variance, VarianceChart
+from orpheus.numerics.metric import DiagonalMetric, NoForm
 from orpheus.numerics.operator import LinearOperator, NotInvertible
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace, Member
+from orpheus.numerics.space import FunctionSpace, Member, TensorSpace
 
 
 #: This module's private slot on a frame or a quadrature (:func:`~orpheus.numerics.instance_cache.cached_on`).
@@ -316,58 +318,10 @@ class CrossGramInverse(LinearOperator):  # concept: faces | role: twin | kind: m
         return f"CrossGramInverse({self._domain!r} → {self._codomain!r})"
 
 
-def _dressed(
-    space: FunctionSpace,
-    *,
-    frame: FrameBase,
-    dense: DenseMetric | None = None,
-) -> FunctionSpace:
-    r"""Install a FRAME-owned metric on a basis's coefficient space — the
-    one spelling of the F-0 dressing (:func:`basis_space`).
-
-    Every coefficient space is AXIS-BUILT (the harmonic heads since CS4c
-    step 6 item 6.2c-ii, the indicator families' since S7:
-    :meth:`FunctionSpace.of_basis <orpheus.numerics.space.FunctionSpace.of_basis>`),
-    so the metric lives where the axis doctrine put it:
-    the head axis's form is the frame's Gram (read off the origin: its diagonal on a diagonal Gram, a dense form on a dense one),
-    and a dense dressing also POSITIONS the Parseval form
-    on the space's derived metric object (item 6.2c-i) — and in both the
-    axis's origin becomes :class:`~orpheus.numerics.axis.FromFrame`, which
-    holds the frame that dresses the head (a head at another order is the
-    head of the frame minted at that order) and re-derives
-    the head's :attr:`~orpheus.numerics.axis.Axis.unit`: a dressed head holds
-    COVARIANT moments, so the coordinates of the constant function there are
-    its moments :math:`u = \Phi^{\mathsf T} w`, not the basis's coefficient
-    :math:`e_0` (ruling 37). On a coarse indicator head those moments are the
-    cell masses, so the dressed head is ``Modal(masses)`` (ruling 83, until
-    S6c moves the moments to the dual).
-    """
-    axes = space.axes
-    if axes is None or len(axes) != 1:
-        raise NotImplementedError(
-            f"a frame dresses a single-axis coefficient space; "
-            f"{space.name!r} carries axes={axes!r}."
-        )
-    axis = axes[0]
-    if dense is not None:
-        return replace(
-            space,
-            axes=(replace(axis, origin=FromFrame(frame)),),
-            inner_product_weights=None,
-            metric=FactoredMetric(((axis.shape, dense),)),
-        )
-    return replace(
-        space,
-        axes=(replace(axis, origin=FromFrame(frame)),),
-        inner_product_weights=None,
-        metric=None,
-    )
-
-
-def basis_space(frame: FrameBase) -> FunctionSpace:
+def basis_space(frame: FrameBase) -> TensorSpace:
     r"""The codomain — the trial coefficient space, carrying the PARSEVAL metric.
 
-    ``FunctionSpace.of_basis(basis)`` dressed with the inverse of the discrete trial Gram's
+    ``TensorSpace.of_basis(basis)`` dressed with the inverse of the discrete trial Gram's
     diagonal (zero on dead slots). The analysis face's outputs are the
     COVARIANT moments :math:`\varphi = G c` of a band-limited field
     :math:`S_0 c`, so the inner product that makes analysis an isometry
@@ -428,7 +382,7 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
 
     ⭐ Since CS4c step 6 item 6.2c-ii (2026-09-08) the dressing is
     VISIBLE to equality: the head is axis-built and its measure enters
-    the identity, so ``basis_space(frame) != FunctionSpace.of_basis(basis)`` (`[M]` 0 of 33
+    the identity, so ``basis_space(frame) != TensorSpace.of_basis(basis)`` (`[M]` 0 of 33
     shipped (rule, L) rows equal), the frame becomes the head axis's
     generator, and the tree binds THIS space everywhere the moment
     space is spelled (ruling R-6.2c-1) — the metric-blind seam that
@@ -437,26 +391,21 @@ def basis_space(frame: FrameBase) -> FunctionSpace:
     return cached_on(frame, _SLOT, "basis_space", lambda: _parseval_dressed(frame))
 
 
-def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
-    r"""The trial coefficient space dressed with the Parseval metric (see :func:`basis_space`)."""
-    space = FunctionSpace.of_basis(frame.basis)
-    if frame.discrete_gram_structure is not GramStructure.DIAGONAL:
-        # DENSE verdict (P7): the Parseval metric exists — it is just
-        # not diagonal. Install the matrix pseudo-inverse of the
-        # measured Gram (the form states the exact
-        # symmetrized Gram at face GRAM, so the metric face is its inverse) and STRIP the basis's
-        # continuum measure — the dressing REPLACES the metric on
-        # this arm exactly as the diagonal arm overwrites it (on an
-        # axis-built head the form is POSITIONED on the derived object
-        # and the axis carries no measure, item 6.2c-i).
-        # The positioned form is the head axis's own form with its face flipped (one stated matrix, no second decomposition).
-        head_form = FromFrame(frame).form
-        assert isinstance(head_form, DenseMetric)  # the dense verdict's axis form is dense
-        return _dressed(space, dense=head_form.flipped(), frame=frame)
-    return _dressed(space, frame=frame)
+def _parseval_dressed(frame: FrameBase) -> TensorSpace:
+    r"""The trial coefficient space as one factor: the basis's axis whose origin is the frame, in the integrated chart.
+
+    The axis's form is the frame's Gram (the diagonal of the Gram on the DIAGONAL verdict, the symmetrised Gram on the DENSE verdict). The
+    factor is ``(MEASURE, INTEGRATED)`` on the subquotient whole over the form's kernel, so its form is the inverse face of the Gram: the dense
+    form with its face flipped on the DENSE verdict, the masked reciprocal of the diagonal on the DIAGONAL verdict (see :attr:`Factor.form`).
+    """
+    axis = replace(Axis.of_basis(frame.basis), origin=FromFrame(frame))
+    form = axis.form
+    assert not isinstance(form, NoForm)  # narrowing only: the origin is the frame, whose form is a Gram
+    sk = Subquotient(form.kernel.ann(), Coord(int(np.prod(axis.shape)), ()))
+    return TensorSpace.of_axes(Factor(axis, Variance(Kind.MEASURE, VarianceChart.INTEGRATED), sk))
 
 
-def test_space(frame: FrameBase) -> FunctionSpace:
+def test_space(frame: FrameBase) -> TensorSpace:
     r"""The analysis codomain — the test basis's coefficient space.
 
     The predicate is the frame's data, ``frame.test is frame.basis`` (ruling
@@ -467,25 +416,31 @@ def test_space(frame: FrameBase) -> FunctionSpace:
     the frame — a :class:`~orpheus.numerics.frame.GalerkinFrame` or a
     Petrov–Galerkin frame handed its own trial basis as its test. A distinct
     test basis reads its own coefficient space,
-    :meth:`FunctionSpace.of_basis(frame.test) <orpheus.numerics.space.FunctionSpace.of_basis>`.
+    :meth:`TensorSpace.of_basis(frame.test) <orpheus.numerics.space.TensorSpace.of_basis>`.
     """
     return cached_on(frame, _SLOT, "test_space",
-        lambda: basis_space(frame) if frame.test is frame.basis else FunctionSpace.of_basis(frame.test),
+        lambda: basis_space(frame) if frame.test is frame.basis else _test_space(frame),
     )
 
 
-def measure_space(frame: FrameBase) -> FunctionSpace:
+def _test_space(frame: FrameBase) -> TensorSpace:
+    r"""The coefficient space of a distinct test basis: one factor, whole, in the integrated measure variance (formless where the family has no Gram)."""
+    axis = Axis.of_basis(frame.test)
+    return TensorSpace.of_axes(Factor.whole_on(axis, Kind.MEASURE, VarianceChart.INTEGRATED))
+
+
+def measure_space(frame: FrameBase) -> TensorSpace:
     r"""The domain — the measure's induced discrete-:math:`L^2` space.
 
-    :meth:`FunctionSpace.of_measure
-    <orpheus.numerics.space.FunctionSpace.of_measure>` over the frame's
+    :meth:`TensorSpace.of_measure
+    <orpheus.numerics.space.TensorSpace.of_measure>` over the frame's
     measure, labelled with the measure's own
     :attr:`~orpheus.numerics.measure.DiscreteMeasure.axis_label` (per-node
     values with the quadrature weights as the metric). On a directional rule
     this IS the SN angular space over the same rule (rulings 63 and 71).
     """
     return cached_on(frame, _SLOT, "measure_space",
-        lambda: FunctionSpace.of_measure(frame.measure, frame.measure.axis_label),
+        lambda: TensorSpace.of_measure(frame.measure, frame.measure.axis_label, Variance(Kind.MEASURE, VarianceChart.DENSITY)),
     )
 
 

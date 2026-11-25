@@ -60,9 +60,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-import orpheus.numerics.space as _spacemod
-from orpheus.numerics.metric import FactoredMetric, _broadcast_leading, DiagonalMetric, NoForm
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.metric import DenseMetric, _broadcast_leading, DiagonalMetric, NoForm
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.numerics.quadrature import Quadrature
 from tests.gates.numerics._phase_space_twins import (
     MONOMORPHIC_EDGES,
@@ -73,6 +72,7 @@ from tests.gates.numerics._phase_space_twins import (
 )
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import FromFrame
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
 
 pytestmark = pytest.mark.foundation
 
@@ -94,21 +94,21 @@ _SEEDS = (0, 1, 2, 3, 4)
 
 
 def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSpace, ...]]":
-    """Every factor tuple handed to ``TensorProductSpace.from_factors`` while minting the moment space at order ``L``
+    """Every pair of operands handed to ``TensorSpace.__mul__`` while minting the moment space at order ``L``
     on the phase space ``problem`` (a ``_phase_space_twins.Twin``): the frame-dressed head times the cell group
     (``Twin.moment``, the product the SN hub's ``moment_space`` forms, ``tests/gates/sn/mesh/
     test_hub_and_frame_agree_on_the_moment_space.py``), and the frame's own ``moment_space_on`` where the rule's frame
     carries one. Layer DAG Phase 4: until then the hub's mint on an SN problem, which a numerics gate may not import;
-    the products are captured, not transcribed, so a change to ``from_factors``'s inputs still reaches the row.
+    the products are captured, not transcribed, so a change to the product's inputs still reaches the row.
     """
     captured: list[tuple[FunctionSpace, ...]] = []
-    original = TensorProductSpace.from_factors.__func__
+    original = TensorSpace.__mul__
 
-    def recording(cls, factors):
-        captured.append(tuple(factors))
-        return original(cls, factors)
+    def recording(self, other):
+        captured.append((self, other))
+        return original(self, other)
 
-    TensorProductSpace.from_factors = classmethod(recording)   # type: ignore[method-assign]
+    TensorSpace.__mul__ = recording   # type: ignore[method-assign]
     try:
         problem.moment(L)
         frame = frame_faces.angular_frame(problem.quadrature, L)
@@ -119,7 +119,7 @@ def _capture_production_factor_tuples(problem, L: int) -> "list[tuple[FunctionSp
         if mint is not None:
             mint(problem.angular_bulk)
     finally:
-        TensorProductSpace.from_factors = classmethod(original)  # type: ignore[method-assign]
+        TensorSpace.__mul__ = original  # type: ignore[method-assign]
     return captured
 
 
@@ -143,17 +143,12 @@ def _dense_arm(factors) -> "np.ndarray | None":
     blocks: "list[np.ndarray | None]" = []
     shapes: "list[tuple[int, ...]]" = []
     for f in factors:
-        if f.axes is not None:
-            for ax in f.axes:
-                blocks.append(
-                    None if isinstance(ax.form, NoForm) or (isinstance(ax.form, DiagonalMetric) and bool((ax.form.weights == 1.0).all()))
-                    else _metric_weights(ax)
-                )
-                shapes.append(tuple(ax.shape))
-        else:
-            w = f.inner_product_weights
-            blocks.append(None if w is None else np.asarray(w, dtype=float))
-            shapes.append(tuple(f.shape))
+        for ax in f.axes:
+            blocks.append(
+                None if isinstance(ax.form, NoForm) or (isinstance(ax.form, DiagonalMetric) and bool((ax.form.weights == 1.0).all()))
+                else _metric_weights(ax)
+            )
+            shapes.append(tuple(ax.shape))
     if all(b is None for b in blocks):
         return None
     result: "np.ndarray | None" = None
@@ -164,7 +159,10 @@ def _dense_arm(factors) -> "np.ndarray | None":
 
 
 def _factored_arm(factors):
-    return _spacemod._tensor_product_factored_metric(factors)
+    product = factors[0]
+    for f in factors[1:]:
+        product = product * f
+    return product._resolved_metric
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -207,12 +205,6 @@ def test_g2_1_dense_and_factored_metric_arms_agree_to_the_measured_band(geometry
         dense = _dense_arm(factors)
         assert dense is not None                       # narrowing; `weighted` filtered
         metric = _factored_arm(factors)
-        if metric is None:
-            pytest.fail(
-                f"[{geometry} L={L}] the factored builder returned None on a "
-                f"factor tuple whose hand-built oracle is weighted — the "
-                f"measure was DROPPED"
-            )
         shape = tuple(int(n) for f in factors for n in f.shape)
         for seed in _SEEDS:
             x = np.random.default_rng(seed).standard_normal(shape)
@@ -256,8 +248,7 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
             findings.append(
                 f"{geometry} L={L}: head.axes={head.axes is not None} "
                 f"product.axes={product.axes is not None} "
-                f"product.ipw={product.inner_product_weights is not None} "
-                f"product.metric={type(product.metric).__name__}"
+                f"product.ipw={product.inner_product_weights is not None}"
             )
             if head.axes is None or product.axes is None:
                 pytest.fail(
@@ -273,11 +264,9 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
                     + "\n  ".join(findings)
                 )
             if frame.discrete_gram_structure is GramStructure.DENSE:
-                assert isinstance(product.metric, FactoredMetric)
-                forms = [f for _, f in product.metric.entries]
-                assert forms[0] is not None and all(f is None for f in forms[1:])
+                assert isinstance(product.factors[0].form, DenseMetric)
             else:
-                assert product.metric is None
+                assert not isinstance(product.factors[0].form, DenseMetric)
             # the value leg: the product pairing factorises over the head and the bulk
             rng = np.random.default_rng(L + 7)
             x = rng.standard_normal(head.shape)
@@ -309,12 +298,12 @@ def test_g2_3_dense_versus_per_axis_storage_separates_by_three_orders():
     """
     n = 2000
     w = np.linspace(1.0, 2.0, n)
-    a = FunctionSpace(name="A", shape=(n,), inner_product_weights=w)
-    b = FunctionSpace(name="B", shape=(n,), inner_product_weights=w.copy())
+    a = TensorSpace.declared("A", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
+    b = TensorSpace.declared("B", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w.copy()))
 
     dense = _dense_arm((a, b))
     assert dense is not None, "CONTROL INVALID: the synthetic factors are Euclidean"
-    per_axis_bytes = a.inner_product_weights.nbytes + b.inner_product_weights.nbytes  # type: ignore[union-attr]
+    per_axis_bytes = a.axis("A").form.weights.nbytes + b.axis("B").form.weights.nbytes  # type: ignore[union-attr]
     ratio = dense.nbytes / per_axis_bytes
     if dense.nbytes != n * n * 8 or ratio < 100.0:
         pytest.fail(

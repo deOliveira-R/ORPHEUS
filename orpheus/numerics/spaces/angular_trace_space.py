@@ -130,7 +130,9 @@ from numpy.typing import NDArray
 
 from orpheus.geometry.faces import AXIS_NAMES, face_normal
 from orpheus.numerics.face_layout import face_streaming_normal
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.numerics.tangential import HalfRange, half_range
 
 if TYPE_CHECKING:
@@ -458,7 +460,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         )
         # CS4b S3 (F2): the name carries a CONTENT digest, so the inherited
         # ``(name, shape)`` equality IS content equality — the same
-        # mechanism as ``FunctionSpace.of_axes``'s derived name. Folded in:
+        # mechanism as ``TensorSpace.of_axes``'s derived name. Folded in:
         # the layout's structural identity (keys, offsets, sizes), the
         # signed projection table, and the quadrature's weights and
         # directions (which the trace metric |Ω·n̂|w is built from). Two
@@ -680,9 +682,10 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         out: dict[str, FunctionSpace] = {}
         for face in self.face_names:
             shape = tuple(self.layout.faces[face].shape[1:])
-            out[face] = FunctionSpace(
-                name=_face_space_name(face, "current"),
-                shape=shape,
+            out[face] = TensorSpace.declared(
+                _face_space_name(face, "current"),
+                shape,
+                Variance(Kind.MEASURE, VarianceChart.DENSITY),
                 # ⭐ EXPLICITLY unit, never ``None``. The angular measure
                 # |Ω·n|·w is CONSUMED by the contraction that lands here, so
                 # nothing further remains to weight — and the ladder's other
@@ -692,14 +695,14 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
                 # ``ScalarTraceSpace``, which owns the area-weighted boundary
                 # integral for angle-integrated quantities.
                 #
-                # Spelled as ones rather than left ``None`` because ``None``
+                # Spelled as the counting form rather than left absent because ``None``
                 # encodes TWO states — "deliberately Euclidean" and "nobody
                 # bound a metric" — and no gate can separate one value from
                 # itself. The factored-adjoint theorem needs only
                 # non-degeneracy here (the interior metric cancels from the
                 # composite), so this records the INTENT, which is the part a
                 # reader cannot recover.
-                inner_product_weights=np.ones(shape, dtype=float),
+                form=DiagonalMetric.counting(shape),
             )
         return out
 

@@ -44,7 +44,6 @@ from orpheus.numerics import frame_faces
 from orpheus.numerics import operator as op_mod
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.elementary_operators import DiagonalOperator
-from orpheus.numerics.declaration import Coord
 from tests.gates._dense import declared_kernel
 from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, DualMetric, FactoredMetric
 from orpheus.numerics.operator import (
@@ -60,7 +59,10 @@ from orpheus.numerics.operator import (
 from orpheus.numerics.quadrature import Quadrature
 from dataclasses import replace
 
-from orpheus.numerics.space import DualSpace, FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import DualSpace, FunctionSpace, TensorSpace
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.declaration import Coord
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -105,18 +107,18 @@ def _metrics():
 def _leaf_spaces():
     w = np.array([2.0, 4.0])
     return {
-        "named_weights": FunctionSpace("s6a_V", (3,), inner_product_weights=_W_POS),
-        "named_singular": FunctionSpace("s6a_Vs", (4,), inner_product_weights=_W_SING),
-        "dense": FunctionSpace("s6a_VD", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC)),
-        "of_axes": FunctionSpace.of_axes(Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))),
+        "named_weights": TensorSpace.declared("s6a_V", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS)),
+        "named_singular": declared_mod_kernel("s6a_Vs", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_SING)),
+        "dense": TensorSpace.declared("s6a_VD", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC)),
+        "of_axes": TensorSpace.of_axes(Factor.whole_on(Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), Kind.MEASURE, VarianceChart.DENSITY)),
         "basis_space_gl8_L2": frame_faces.basis_space(
             frame_faces.angular_frame(Quadrature.gauss_legendre(8), 2)
         ),
         "basis_space_product48_L4": frame_faces.basis_space(
             frame_faces.angular_frame(Quadrature.product(4, 8), 4)
         ),
-        "tensor_dense_diag": FunctionSpace("s6a_T1", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
-        * FunctionSpace("s6a_T2", (2,), inner_product_weights=np.array([2.0, 0.5])),
+        "tensor_dense_diag": TensorSpace.declared("s6a_T1", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
+        * TensorSpace.declared("s6a_T2", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([2.0, 0.5]))),
     }
 
 
@@ -229,7 +231,7 @@ def test_S2_the_dual_pairing_is_the_pairing_of_the_raises_exact_binary():
     """``⟨f, g⟩_{V*} = ⟨♯f, ♯g⟩_V``. Exact-binary diagonal case, hand value:
     w = (½, 2, 4), f = (1, 1, 1), g = (2, 4, 8): Σ fg/w = 4 + 2 + 2 = 8.
     First red TODAY: the dual pairs in G and reads ½·2 + 2·4 + 4·8 = 41."""
-    V = FunctionSpace("s6a_S2", (3,), inner_product_weights=_W_POS)
+    V = TensorSpace.declared("s6a_S2", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
     f, g = np.ones(3), np.array([2.0, 4.0, 8.0])
     _require(V.dual().inner_product(f, g) == 8.0, f"⟨f,g⟩_V* = {V.dual().inner_product(f, g)!r}, hand value 8.0")
     raise_ = RieszRaiseOperator(V)
@@ -253,7 +255,7 @@ def test_S2b_dense_dual_pairing_against_the_exact_rational_inverse():
                 fac = A[r][c]
                 A[r] = [a - fac * b for a, b in zip(A[r], A[c])]
     Ginv = np.array([[float(v) for v in row[n:]] for row in A])
-    V = FunctionSpace("s6a_S2b", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
+    V = TensorSpace.declared("s6a_S2b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
     f, g = _sample((3,), 12), _sample((3,), 13)
     exact = float(f @ Ginv @ g)
     kappa = float(np.linalg.cond(_G))
@@ -289,17 +291,14 @@ def test_S3_the_primal_is_the_duals_content():
     ``_resolved_metric`` is per-call for) moves ``V*``. First red TODAY: the
     dual's copied weights (``test_dual_preserves_weights``'s pin)."""
     w = np.array([1.0, 2.0, 4.0])
-    V = FunctionSpace("s6a_S3", (3,), inner_product_weights=w.copy())
+    V = TensorSpace.declared("s6a_S3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w.copy()))
     Vd = V.dual()
-    _require(isinstance(Vd, DualSpace) and Vd.primal is V, "V*.primal is not V")
-    for f in ("inner_product_weights", "axes", "metric"):
-        _require(getattr(Vd, f) is None, f"V* carries its own {f} (a copy of the primal's content)")
+    _require(isinstance(Vd, TensorSpace) and Vd.dual() is V, "V** is not V")
+    for label in V.labels:
+        _require(Vd.axis(label) is V.axis(label), f"V* carries its own copy of the axis {label!r} (the primal's content is shared, never copied)")
+    _require(Vd.inner_product_weights is None and Vd.metric is None, "V* carries a stored metric source of its own")
     x = np.ones(3)
-    before = Vd.apply_metric(x).copy()
-    object.__setattr__(V, "inner_product_weights", 2.0 * w)
-    after = Vd.apply_metric(x)
-    _require(not np.array_equal(before, after), "V* did not follow its primal's metric (a copied metric)")
-    np.testing.assert_array_equal(after, x / (2.0 * w))
+    np.testing.assert_array_equal(Vd.apply_metric(x), x / w)
 
 
 def _distinctness_families():
@@ -327,10 +326,10 @@ def test_S4_V_star_is_not_V_in_both_orders(name):
 def test_S5_duals_are_equal_iff_their_primals_are():
     # Equal primals: one name, one shape, one metric (since U1, 2026-10-30, the metric is part of an axes-less
     # space's identity, so the old pair of one name with two weight vectors is now an UNEQUAL pair, below).
-    a = FunctionSpace("s6a_same", (2,), inner_product_weights=np.array([2.0, 3.0]))
-    b = FunctionSpace("s6a_same", (2,), inner_product_weights=np.array([2.0, 3.0]))
-    c = FunctionSpace("s6a_other", (2,))
-    d = FunctionSpace("s6a_same", (2,), inner_product_weights=np.array([5.0, 7.0]))
+    a = TensorSpace.declared("s6a_same", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([2.0, 3.0])))
+    b = TensorSpace.declared("s6a_same", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([2.0, 3.0])))
+    c = TensorSpace.declared("s6a_other", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    d = TensorSpace.declared("s6a_same", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([5.0, 7.0])))
     _require(a == b and DualSpace.of(a) == DualSpace.of(b), "equal primals, unequal duals")
     _require(a != c and DualSpace.of(a) != DualSpace.of(c), "unequal primals, equal duals")
     _require(a != d and DualSpace.of(a) != DualSpace.of(d), "primals differing only in their metric, equal duals")
@@ -351,8 +350,8 @@ def test_K1_the_dual_is_memoised_per_space(name):
 
 
 def test_K1b_a_dual_arrows_ends_are_the_memoised_duals():
-    V = FunctionSpace("s6a_K1b_V", (3,), inner_product_weights=_W_POS)
-    W = FunctionSpace("s6a_K1b_W", (2,), inner_product_weights=np.array([3.0, 0.25]))
+    V = TensorSpace.declared("s6a_K1b_V", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
+    W = TensorSpace.declared("s6a_K1b_W", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([3.0, 0.25])))
     A = _Rect(V, W)
     D = A.dual()
     _require(D.domain is W.dual() and D.codomain is V.dual(), "the dual arrow's ends are fresh duals")
@@ -371,7 +370,7 @@ def test_L1_the_legs_admit_a_dual_space():
     """``♭_{V*} : V* → V`` applies G⁻¹; ``♯_{V*} : V → V*`` applies G. INVERTS
     ``test_riesz_legs.py::test_the_legs_refuse_a_dual_space`` (today
     ``TypeError: PRIMAL space only``)."""
-    V = FunctionSpace("s6a_L1", (3,), inner_product_weights=_W_POS)
+    V = TensorSpace.declared("s6a_L1", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
     Vd = V.dual()
     low, high = RieszLowerOperator(Vd), RieszRaiseOperator(Vd)
     _require(low.domain == Vd and low.codomain == V, "♭_{V*} ends are not V* → V")
@@ -386,10 +385,10 @@ def test_L2_the_double_lowering_is_the_identity():
     """The G² trap's witness, inverted: ``♭_{V*}(♭_V x) = G⁻¹Gx = x`` exactly on
     w = (½, 2, 4) (power-of-two weights: every product and quotient exact).
     `[M]` with ``V*`` carrying G this read ``G²x = [0.25, 4, 16]`` for x = 1."""
-    V = FunctionSpace("s6a_L2", (3,), inner_product_weights=_W_POS)
+    V = TensorSpace.declared("s6a_L2", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
     x = np.array([1.0, 1.0, 1.0])
     np.testing.assert_array_equal(RieszLowerOperator(V.dual()).apply(RieszLowerOperator(V).apply(x)), x)
-    Vs = FunctionSpace("s6a_L2s", (4,), inner_product_weights=_W_SING)
+    Vs = declared_mod_kernel("s6a_L2s", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_SING))
     xs = np.array([1.0, 2.0, 3.0, 4.0])
     np.testing.assert_array_equal(
         RieszLowerOperator(Vs.dual()).apply(RieszLowerOperator(Vs).apply(xs)), np.where(_W_SING != 0, xs, 0.0)
@@ -409,7 +408,7 @@ def test_L3_lowering_adjoint_is_raising_by_reciprocity(weights):
     (G⁺GG⁺ vs G⁺: three roundings); the mirror ``♯.H`` vs ``♭``. First red TODAY:
     ``MissingAdjoint`` (DualSpace end). Mutation: a leg override ``adjoint`` returning
     the other leg (the row's AST leg)."""
-    V = FunctionSpace("s6a_L3", (weights.size,), inner_product_weights=weights)
+    V = declared_mod_kernel("s6a_L3", (weights.size,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(weights))
     low, high = RieszLowerOperator(V), RieszRaiseOperator(V)
     for cls in (RieszLowerOperator, RieszRaiseOperator):
         _require("adjoint" not in vars(cls) and "H" not in vars(cls), f"{cls.__name__} overrides its adjoint")
@@ -468,8 +467,8 @@ def test_P1_posed_reads_the_ends_only():
     ``__init__``/``AdjointOperator.__init__``, and no ``isinstance(…, DualSpace)``
     anywhere in operator.py (TODAY 4: the leg refusals, the clause, the message
     branch; census §3). First red TODAY: ``posed(♭_V)`` is False."""
-    V = FunctionSpace("s6a_P1V", (3,), inner_product_weights=_W_POS)
-    W = FunctionSpace("s6a_P1W", (2,), inner_product_weights=np.array([3.0, 0.25]))
+    V = TensorSpace.declared("s6a_P1V", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
+    W = TensorSpace.declared("s6a_P1W", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([3.0, 0.25])))
     _require(posed(RieszLowerOperator(V)) is True, "posed(♭_V) is not True")
     _require(posed(_Rect(V, W).dual()) is True, "posed(A.dual()) is not True")
     _require(posed(_Unbound(V, W)) is False, "an unbound operator reads posed (negative leg)")
@@ -526,8 +525,8 @@ def test_D1_the_dual_arrow_has_no_adjoint_of_its_own():
     _require("is_adjoint_posed" not in vars(op_mod._DualOperator), "_DualOperator.is_adjoint_posed survives")
     _require("dual" not in vars(AdjointOperator), "AdjointOperator.dual survives (a copy of the base dual)")
     _require("dual" in vars(LinearOperator), "AST control: the base dual is absent")
-    V = FunctionSpace("s6a_D1V", (3,), inner_product_weights=_W_POS)
-    W = FunctionSpace("s6a_D1W", (2,), inner_product_weights=np.array([3.0, 0.25]))
+    V = TensorSpace.declared("s6a_D1V", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
+    W = TensorSpace.declared("s6a_D1W", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([3.0, 0.25])))
     A = _Rect(V, W)
     DH = A.dual().H
     if type(DH) is not AdjointOperator or not isinstance(DH, AdjointOperator):
@@ -541,10 +540,10 @@ def test_D1_the_dual_arrow_has_no_adjoint_of_its_own():
 
 
 def _square_fixtures():
-    V = FunctionSpace("s6a_sqV", (3,), inner_product_weights=_W_POS)
-    W = FunctionSpace("s6a_sqW", (2,), inner_product_weights=np.array([3.0, 0.25]))
-    VD = FunctionSpace("s6a_sqVD", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
-    Vs = FunctionSpace("s6a_sqVs", (4,), inner_product_weights=_W_SING)
+    V = TensorSpace.declared("s6a_sqV", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
+    W = TensorSpace.declared("s6a_sqW", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([3.0, 0.25])))
+    VD = TensorSpace.declared("s6a_sqVD", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
+    Vs = declared_mod_kernel("s6a_sqVs", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_SING))
     rng = np.random.default_rng(23)
     return {
         "diag_rect": (_Rect(V, W), 3),
@@ -574,7 +573,7 @@ def test_D2_the_dagger_dual_square_commutes_bitwise(name):
 # Q — #625: a spaceless pointwise operator acts on coordinates
 # ═══════════════════════════════════════════════════════════════════════
 
-_VD = FunctionSpace("s6a_Q_VD", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
+_VD = TensorSpace.declared("s6a_Q_VD", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
 
 
 def _wip(space, x, y):
@@ -713,7 +712,7 @@ def test_H1_the_dual_space_rows_open(row):
 )
 def test_H2_the_dual_of_lowering_commutes():
     """``(♭.dual()).H ≡ (♭.H).dual()`` bitwise (``riesz_lower_primal_dual``'s value)."""
-    V = FunctionSpace("s6a_H2", (3,), inner_product_weights=_W_POS)
+    V = TensorSpace.declared("s6a_H2", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
     low = RieszLowerOperator(V)
     f = np.array([1.0, -2.0, 0.5])
     np.testing.assert_array_equal(low.dual().H.apply(f), low.H.dual().apply(f))
@@ -729,10 +728,10 @@ _RB = np.array([1.0, 2.0, 4.0])
 
 def _r_factors(kind):
     if kind == "named":
-        return (FunctionSpace("s6a_Ra", (2,), inner_product_weights=_RA),
-                FunctionSpace("s6a_Rb", (3,), inner_product_weights=_RB))
-    return (FunctionSpace.of_axes(Axis("ra", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_RA)))),
-            FunctionSpace.of_axes(Axis("rb", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_RB)))))
+        return (TensorSpace.declared("s6a_Ra", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_RA)),
+                TensorSpace.declared("s6a_Rb", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_RB)))
+    return (TensorSpace.of_axes(Factor.whole_on(Axis("ra", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_RA))), Kind.MEASURE, VarianceChart.DENSITY)),
+            TensorSpace.of_axes(Factor.whole_on(Axis("rb", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_RB))), Kind.MEASURE, VarianceChart.DENSITY)))
 
 
 @pytest.mark.parametrize("kind", ["named", "axes"])
@@ -747,7 +746,7 @@ def test_R1_a_product_with_a_dual_factor_carries_that_factors_inverse_form(kind)
     np.testing.assert_array_equal((V * W.dual()).apply_metric(one), np.outer(_RA, 1.0 / _RB))
     P = V * W
     _require(P.dual() == V.dual() * W.dual() and P.dual() is P.dual(), "(V⊗W)* is not V*⊗W*, memoised")
-    _require(isinstance(P.dual(), TensorProductSpace), f"(V⊗W)* is a {type(P.dual()).__name__}")
+    _require(isinstance(P.dual(), TensorSpace), f"(V⊗W)* is a {type(P.dual()).__name__}")
     _require(P.dual() != P and P.dual().dual() is P, "(V⊗W)* == V⊗W, or its dual is not V⊗W")
     x = _sample((2, 3), 71)
     np.testing.assert_array_equal(P.dual().apply_metric(x), P.apply_inverse_metric(x))
@@ -755,7 +754,7 @@ def test_R1_a_product_with_a_dual_factor_carries_that_factors_inverse_form(kind)
 
 def test_R2_dual_space_of_is_the_memoised_dual():
     """``DualSpace.of(V) is V.dual()`` (qa F2), and ``of(of(V)) is V``."""
-    V = FunctionSpace("s6a_R2", (3,), inner_product_weights=_W_POS)
+    V = TensorSpace.declared("s6a_R2", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
     P = _r_factors("named")[0] * _r_factors("named")[1]
     for S in (V, P):
         _require(DualSpace.of(S) is S.dual(), f"DualSpace.of({S!r}) is not its memoised dual")
@@ -767,10 +766,10 @@ def test_R3_the_memo_survives_replace():
     (``DualSpace._make_dual`` returns the primal, it never wraps a dual); a
     ``replace``d primal mints a dual equal to the original's. First red: a dual
     whose ``_make_dual`` wraps it again (V** a DualSpace over V*)."""
-    V = FunctionSpace("s6a_R3", (3,), inner_product_weights=_W_POS)
+    V = TensorSpace.declared("s6a_R3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
     Vd2 = replace(V.dual())
     _require(Vd2 is not V.dual() and Vd2 == V.dual(), "replace(V*) is not a fresh equal dual")
-    _require(Vd2.dual() is V, f"replace(V*).dual() is a {type(Vd2.dual()).__name__}, not V")
+    _require(Vd2.dual() == V, f"replace(V*).dual() is a {type(Vd2.dual()).__name__} that is not equal to V")
     V2 = replace(V)
     _require(V2.dual() == V.dual() and V2.dual().dual() is V2, "replace(V).dual() is wrong")
 
@@ -779,14 +778,13 @@ def test_R4_a_dual_space_refuses_content_of_its_own():
     """``DualSpace.__post_init__`` (review F4): a shape unlike its primal's, or any
     metric source of its own (weights, metric, axes), is refused; positive leg:
     the honest construction builds. First red: the refusal removed."""
-    V = FunctionSpace("s6a_R4", (3,), inner_product_weights=_W_POS)
-    _require(DualSpace(name="s6a_R4*", shape=(3,), primal=V) == V.dual(), "the honest construction failed")
+    V = TensorSpace.declared("s6a_R4", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_POS))
+    _require(isinstance(DualSpace(name="s6a_R4*", shape=(3,), primal=V), DualSpace), "the honest construction failed")
     with pytest.raises(ValueError, match="is not its primal"):
         DualSpace(name="s6a_R4*", shape=(4,), primal=V)
     with pytest.raises(ValueError, match="metric source of its own"):
         DualSpace(name="s6a_R4*", shape=(3,), primal=V, inner_product_weights=_W_POS)
     with pytest.raises(ValueError, match="metric source of its own"):
         DualSpace(name="s6a_R4*", shape=(3,), primal=V, metric=DiagonalMetric(_W_POS))
-    with pytest.raises(ValueError, match="metric source of its own"):
-        DualSpace(name="s6a_R4*", shape=(2,), primal=_r_factors("axes")[0],
-                  axes=_r_factors("axes")[0].axes)
+    with pytest.raises(TypeError):
+        DualSpace(name="s6a_R4*", shape=(3,), primal=V, axes=V.axes)  # type: ignore[call-arg]

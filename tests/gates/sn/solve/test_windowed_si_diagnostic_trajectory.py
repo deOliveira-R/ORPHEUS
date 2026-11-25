@@ -4,7 +4,7 @@ r"""The WINDOWED arm's SI diagnostic trajectory — the pin the tree did not hav
 is the ONLY production consumer of the angular moment space's metric —
 `[M]` 2026-09-07, a vv#29 instance census over one 2-D windowed solve
 (``scratch/_step6_2c/p6_traffic.py``): **6 `norm` + 6 `inner_product` calls on
-the moment `TensorProductSpace`, and ZERO `apply_metric` calls**, reached from
+the moment `TensorSpace`, and ZERO `apply_metric` calls**, reached from
 ``solver.py:3823 ← iteration.py:801 ← field.py:379``.  And the tree's one pin of
 that diagnostic, ``tests/gates/sn/solve/test_si_diagnostic_trajectory.py``, REFUSES a
 windowed fixture by construction (its ``:245-247`` raises *"the 1-D slab
@@ -63,7 +63,7 @@ import pytest
 from orpheus.geometry import CoordSystem
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import solve_sn_fixed_source
@@ -73,6 +73,9 @@ from orpheus.numerics import frame_faces
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -133,9 +136,9 @@ def _mesh() -> Mesh2D:
 
 def _is_moment_space(space: object) -> bool:
     return (
-        isinstance(space, TensorProductSpace)
+        isinstance(space, TensorSpace)
         and bool(space.factors)
-        and _is_head(space.factors[0])
+        and _is_head(space.sub(space.labels[0]))
     )
 
 
@@ -212,8 +215,8 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
         (_carrier3 := _mesh()), Quadrature.level_symmetric(sn_order=_SN_ORDER), _two_region_fissile(), boundary_conditions=conditions_for(_carrier3, _CONDITIONS),
     )
     space = problem.moment_space(_L)
-    assert isinstance(space, TensorProductSpace) and _is_moment_space(space)
-    head = space.factors[0]
+    assert isinstance(space, TensorSpace) and _is_moment_space(space)
+    head = space.sub(space.labels[0])
     assert _is_head(head)
     assert head.inner_product_weights is None and head.metric is None
     assert head.axes is not None and len(head.axes) == 1
@@ -307,7 +310,7 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     assert dressed_space == frame_faces.basis_space(frame) * problem.bulk_space, (
         "the hub's space IS the frame's dressed product — one space, two owners (O-5)"
     )
-    continuum_space = FunctionSpace.of_basis(frame.basis) * problem.bulk_space   # the loser, as the negative control
+    continuum_space = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)) * problem.bulk_space   # the loser, as the negative control
     assert continuum_space.shape == dressed_space.shape
     assert continuum_space != dressed_space, (
         "the two candidates are two SPACES since 6.2c-ii — the metric-blind seam is gone"
@@ -316,8 +319,8 @@ def test_the_pin_discriminates_the_head_metric_choice() -> None:
     rng = np.random.default_rng(20260907)
     x = rng.standard_normal(dressed_space.shape)
     # zero the |m| > l padding, as every real moment field has
-    assert isinstance(dressed_space, TensorProductSpace)
-    head = head_layout(dressed_space.factors[0])
+    assert isinstance(dressed_space, TensorSpace)
+    head = head_layout(dressed_space.sub(dressed_space.labels[0]))
     mask = np.zeros(head.shape, dtype=bool)
     for l in range(_L + 1):
         mask[head.degree_block(l)] = True

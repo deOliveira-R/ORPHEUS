@@ -33,7 +33,10 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = [pytest.mark.foundation]
 
@@ -106,7 +109,7 @@ def _projector(b, table, weights):
     region_mass = b.analyze(np.ones(table.shape[0]), table, weights)
     # axis-built since S7: the region masses are the coefficient axis's measure
     head = Axis.of_basis(b)
-    space = FunctionSpace.of_axes(Axis(head.label, head.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(region_mass))))
+    space = TensorSpace.of_axes(Factor.whole_on(Axis(head.label, head.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(region_mass))), Kind.MEASURE, VarianceChart.DENSITY))
 
     def project(fine_field):
         coeff = space.apply_inverse_metric(b.analyze(fine_field, table, weights))
@@ -156,7 +159,7 @@ def test_empty_region_normalises_to_zero_not_nan():
     assert region_mass[0] == 0.0                       # the empty region
     # axis-built since S7: the region masses are the coefficient axis's measure
     head = Axis.of_basis(b)
-    space = FunctionSpace.of_axes(Axis(head.label, head.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(region_mass))))
+    space = TensorSpace.of_axes(whole_on_mod_kernel(Axis(head.label, head.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(region_mass))), Kind.MEASURE, VarianceChart.DENSITY))
     rate = b.analyze(np.ones(mu.nodes.size), table, mu.weights)
     normalised = space.apply_inverse_metric(rate)
     assert np.isfinite(normalised).all()

@@ -26,6 +26,8 @@ from orpheus.numerics.operator import RieszRaiseOperator
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import Covector, FunctionSpace
 from orpheus.numerics.units import SCALAR_FLUX_UNITS
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.l0
@@ -33,9 +35,9 @@ pytestmark = pytest.mark.l0
 _EPS = np.finfo(float).eps
 _E = EnergyAxis.synthetic(2)
 _DV = (1.0, 2.0, 3.0)
-V = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array(_DV)))))
+V = TensorSpace.of_axes(Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array(_DV)))), Kind.MEASURE, VarianceChart.DENSITY))
 #: Same shape as V, another spatial measure: no shape check tells the two apart.
-W = FunctionSpace.of_axes(_E, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([3.0, 2.0, 1.0])))))
+W = TensorSpace.of_axes(Factor.whole_on(_E, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([3.0, 2.0, 1.0])))), Kind.MEASURE, VarianceChart.DENSITY))
 SIGMA = np.array([[0.5, 1.0, 2.0], [3.0, 0.25, 4.0]])
 PHI = np.arange(1.0, 7.0).reshape(2, 3)
 #: By hand, independent of every production primitive: sum_g sum_i sigma_gi * phi_gi * dV_i.
@@ -117,7 +119,7 @@ class TestTheIntegrationCovectorReadsTheUnit:
         np.testing.assert_array_equal(V.integral.values, V.flat(V.unit).values)
 
     def test_an_axes_less_space_has_the_unit_ones(self):
-        np.testing.assert_array_equal(FunctionSpace("g", (2, 1)).unit, np.ones((2, 1)))
+        np.testing.assert_array_equal(TensorSpace.declared("g", (2, 1), Variance(Kind.FUNCTION, VarianceChart.DENSITY)).unit, np.ones((2, 1)))
 
     def test_on_a_frame_dressed_head_the_unit_is_NOT_ones(self):
         """On a dressed head the constant function's coordinates are its moments Φᵀw (ruling 37), so ``integral`` (the

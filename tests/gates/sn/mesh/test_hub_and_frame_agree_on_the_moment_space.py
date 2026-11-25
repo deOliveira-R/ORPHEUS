@@ -32,7 +32,7 @@ import pytest
 
 from orpheus.numerics.frame import GramStructure
 from orpheus.numerics.metric import DiagonalMetric, FactoredMetric
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.transport.frames import HarmonicFrame
 from tests.gates.sn.architecture.test_monomorphic_leaves import (
     _cart2d,
@@ -52,6 +52,10 @@ from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -74,9 +78,9 @@ def test_P5_the_hub_and_the_frame_derive_one_space_by_equality_and_each_owner_by
     assert problem.moment_space(L) is hub
     assert frame.flux_analysis_on(problem.angular_bulk_space).codomain == hub
     # the head both owners hold is the frame's Parseval-dressed one
-    assert isinstance(hub, TensorProductSpace)
-    assert hub.factors[0] == frame_faces.basis_space(frame)
-    assert hub.factors[0] != FunctionSpace.of_basis(frame.basis), "the continuum head is another space"
+    assert isinstance(hub, TensorSpace)
+    assert hub.sub(hub.labels[0]) == frame_faces.basis_space(frame)
+    assert hub.sub(hub.labels[0]) != TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)), "the continuum head is another space"
 
 
 @pytest.mark.parametrize("geometry", list(_GEOMETRIES), ids=list(_GEOMETRIES))
@@ -91,18 +95,18 @@ def test_P7_the_three_product_mechanisms_are_one_space_by_identity_not_by_name(
     bulk = problem.bulk_space
     assert head.axes is not None and bulk.axes is not None
     star = head * bulk
-    of_axes = FunctionSpace.of_axes(*head.axes, *bulk.axes)
+    of_axes = TensorSpace.of_axes(*head.factors, *bulk.factors)
     derived = HarmonicFrame.from_galerkin(frame).moment_space_on(problem.angular_bulk_space)
     assert hub == star == of_axes == derived
     assert len({hub, star, of_axes, derived}) == 1
-    # the names DIFFER — identity is structural, never nominal
+    # the name is derived from the factors, so one space reads one name whichever way it was spelled
     assert star.name == hub.name
-    assert of_axes.name != hub.name, "the of_axes mint is a pure digest; the * product keeps the head's tag"
+    assert of_axes.name == hub.name, "the name is derived from the factors: every spelling of one space reads one name"
     # the DENSE-Gram overlay (if any) rides both mechanisms alike
     if frame.discrete_gram_structure is GramStructure.DENSE:
-        assert isinstance(star.metric, FactoredMetric)
+        assert isinstance(star.factors[0].form, DenseMetric)
     else:
-        assert star.metric is None
+        assert not isinstance(star.factors[0].form, DenseMetric)
     x = np.random.default_rng(L).standard_normal(hub.shape)
     np.testing.assert_array_equal(star.apply_metric(x), of_axes.apply_metric(x))
     np.testing.assert_array_equal(star.apply_metric(x), derived.apply_metric(x))
@@ -117,11 +121,9 @@ def test_P10_the_moment_space_is_axis_built_and_never_densified(geometry: str, L
     assert space.axes is not None, "the moment space is axis-built"
     assert space.inner_product_weights is None
     if frame.discrete_gram_structure is GramStructure.DENSE:
-        assert isinstance(space.metric, FactoredMetric)
-        forms = [f for _, f in space.metric.entries]
-        assert forms[0] is not None and all(f is None for f in forms[1:])
+        assert isinstance(space.factors[0].form, DenseMetric)
     else:
-        assert space.metric is None
+        assert not isinstance(space.factors[0].form, DenseMetric)
     n = int(np.prod(space.shape))
     reachable = [
         ax.form.weights for ax in space.axes

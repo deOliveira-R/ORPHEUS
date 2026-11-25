@@ -96,7 +96,7 @@ class TestViews:
         f = _field(sn, 1, seed=37)
         s = f.scalar_flux()
         npt.assert_array_equal(s.values, f.values[_head(sn).isotropic_slot])
-        if s.space != f.space.factors[1]:  # type: ignore[union-attr]
+        if s.space != f.space.sub(*f.space.labels[1:]):  # type: ignore[union-attr]
             pytest.fail("scalar target must be the product's bulk factor")
 
     @pytest.mark.parametrize("family", _FAMILIES)
@@ -112,7 +112,7 @@ class TestViews:
         f = _field(sn, 2, seed=38)
         s = f.scalar_flux()
         npt.assert_array_equal(s.values, f.values[_head(sn).isotropic_slot])
-        if s.space != f.space.factors[1]:  # type: ignore[union-attr]
+        if s.space != f.space.sub(*f.space.labels[1:]):  # type: ignore[union-attr]
             pytest.fail("scalar target must be the product's widened bulk factor")
         from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
         assert s.space.axes is not None

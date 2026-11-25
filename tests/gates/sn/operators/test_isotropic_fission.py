@@ -38,6 +38,8 @@ from orpheus.mesh import Mesh2D
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.operators.isotropic_transfer import IsotropicFission
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.axis import Declared
 
 pytestmark = pytest.mark.foundation
@@ -272,11 +274,7 @@ class TestAdmission:
         from orpheus.numerics.space import FunctionSpace
 
         mat_xs = _mat_xs()
-        wrong = FunctionSpace.of_axes(
-            Axis("energy", (_NG + 1,), origin=Declared(BasisKind.NODAL)),
-            Axis("x", (_NX,), origin=Declared(BasisKind.NODAL)),
-            Axis("y", (1,), origin=Declared(BasisKind.NODAL)),
-        )
+        wrong = TensorSpace.of_axes(Factor.whole_on(Axis("energy", (_NG + 1,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("x", (_NX,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("y", (1,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises((TypeError, ValueError)):
             IsotropicFission.from_material_xs(mat_xs, space=wrong)
 
@@ -285,12 +283,7 @@ class TestAdmission:
         from orpheus.numerics.space import FunctionSpace
 
         mat_xs = _mat_xs()
-        angularish = FunctionSpace.of_axes(
-            Axis("angle", (8,), origin=Declared(BasisKind.NODAL)),
-            Axis("energy", (_NG,), origin=Declared(BasisKind.NODAL)),
-            Axis("x", (_NX,), origin=Declared(BasisKind.NODAL)),
-            Axis("y", (1,), origin=Declared(BasisKind.NODAL)),
-        )
+        angularish = TensorSpace.of_axes(Factor.whole_on(Axis("angle", (8,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("energy", (_NG,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("x", (_NX,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("y", (1,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises(TypeError, match="ANGULAR binding"):
             IsotropicFission.from_material_xs(mat_xs, space=angularish)
 

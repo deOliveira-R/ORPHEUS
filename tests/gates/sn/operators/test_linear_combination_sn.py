@@ -3,10 +3,13 @@
 from __future__ import annotations
 import numpy as np
 import pytest
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, Face
 from orpheus.numerics.operator import InverseOperator, LinearOperator, NotInvertible, OperatorProduct, OperatorSum
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.declaration import Coord
 
 
 pytestmark = pytest.mark.l0
@@ -28,7 +31,7 @@ def _terms(op) -> list[tuple[float, object]]:
 
 def _space(name: str, weights) -> FunctionSpace:
     w = np.asarray(weights, dtype=float)
-    return FunctionSpace(name, (w.size,), inner_product_weights=w)
+    return TensorSpace.declared(name, (w.size,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
 
 
 V1 = _space("s2_v1", [1.0, 2.0, 0.5])
@@ -46,7 +49,7 @@ V = V2
 _G = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
 
 
-VD = FunctionSpace("s2_dense3", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
+VD = TensorSpace.declared("s2_dense3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
 
 
 class Mat(LinearOperator):

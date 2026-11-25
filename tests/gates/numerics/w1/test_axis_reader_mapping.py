@@ -1,4 +1,4 @@
-r"""G03m and G03n: the one reader of the axis form in ``numerics/space.py`` gives today's entry (N03, spec 7.4).
+r"""G03m: the form of a frame head's factor is today's entry (N03, spec 7.4; re-pointed at N04 from the reader to ``Factor.form``).
 
 G03m. On five frames built by ``angular_frame`` (numerics only, verdicts read): DIAGONAL ``level_symmetric(4)`` L = 2 and ``folded_product(2, 4)`` L = 1;
 DENSE ``folded_product(2, 4)`` L = 2, ``product(4, 4)`` L = 2 and ``level_symmetric(4)`` L = 3. ``FromFrame.form`` is ``Diag(diag G)`` on the diagonal
@@ -7,10 +7,7 @@ entry of a diagonal head equals a hand-written masked reciprocal ``np.where(d > 
 independent expression, not the production body); a dense head gives no entry and its form with the face flipped equals the Gram stated with ``face=GRAM``
 in both faces and in content digest; ``origin.frame is frame``.
 
-G03n. ``_axes_metric`` over a space of a counting axis and a ``NoForm`` axis (an ``EnergyAxis``): every entry is ``None`` and the metric is ``None``; a
-weighted axis gives its ``DiagonalMetric`` entry. Green at the base tip (a refactor guard: the tip's ``_axes_metric`` returns ``None`` for an
-``EnergyAxis`` and a counting axis); the counting and ``NoForm`` rules move no byte and no public observable, so the private structure is their only
-witness, and it retires with ``_axis_entries`` at N04.
+(G03n, the reader's counting and ``NoForm`` entries, retired with ``_axis_entries`` at N04: a counting form is a form that is applied, a ``NoForm`` slot is skipped by the walk, gated by G04e and G04f. The refusal of a ``Declared`` dense axis, ELEGANCE-DEBT #755, retired with the overlay: a ``Declared`` axis holding a ``DenseMetric`` is a factor on a dense form like any other.)
 
 Exact on any host: byte comparisons of a computation with an independent expression, and structure. First red at ``ff305e0f`` (G03m): ``FromFrame`` has no
 ``form`` (``AttributeError``) and ``numerics.frame.frame_gram_kernel`` does not exist. Mutations (G03m): drop the reciprocal in the reader; return the dense
@@ -48,7 +45,7 @@ def _masked_reciprocal(d: np.ndarray) -> np.ndarray:
 
 def test_from_frame_form_and_its_entry() -> None:
     from orpheus.numerics import frame as FR
-    from orpheus.numerics import space as S
+    from orpheus.numerics.frame_faces import basis_space
     from orpheus.numerics.metric import DenseMetric, DiagonalMetric, Face
     from orpheus.values.content import content_digest
 
@@ -57,10 +54,10 @@ def test_from_frame_form_and_its_entry() -> None:
         g = DenseMetric.symmetrised(np.asarray(frame.discrete_gram, dtype=float))
         _require(isinstance(ax.form, DiagonalMetric), f"{factory}{args} L={L}: the form is {type(ax.form).__name__}, expected the diagonal verdict's Diag(diag G)")
         _require(ax.form.weights.tobytes() == np.ascontiguousarray(np.diag(g)).tobytes(), f"{factory}{args} L={L}: the form is not diag G")
-        entry = S._entry_of_axis(ax)
-        _require(isinstance(entry, DiagonalMetric), f"{factory}{args} L={L}: the reader's entry is {entry!r}")
+        entry = basis_space(frame).factors[0].form
+        _require(isinstance(entry, DiagonalMetric), f"{factory}{args} L={L}: the head factor's form is {entry!r}")
         want = np.ascontiguousarray(_masked_reciprocal(np.diag(g)))
-        _require(np.asarray(entry.weights).tobytes() == want.tobytes(), f"{factory}{args} L={L}: the entry is not the masked reciprocal of diag G")
+        _require(np.asarray(entry.weights).tobytes() == want.tobytes(), f"{factory}{args} L={L}: the form is not the masked reciprocal of diag G")
         _require(ax.origin.frame is frame, f"{factory}{args} L={L}: origin.frame is not the frame")
     for factory, args, L in _DENSE:
         frame, ax = _frame_head(factory, args, L)
@@ -69,7 +66,7 @@ def test_from_frame_form_and_its_entry() -> None:
         _require(isinstance(ax.form, DenseMetric), f"{factory}{args} L={L}: the form is {type(ax.form).__name__}, expected the dense verdict's DenseMetric")
         _require(ax.form.face is Face.METRIC and ax.form.stated.tobytes() == g.tobytes(), f"{factory}{args} L={L}: the axis form is not the symmetrised Gram stated as the metric")
         _require(ax.form.kernel == kernel, f"{factory}{args} L={L}: the declared kernel differs")
-        _require(S._entry_of_axis(ax) is None, f"{factory}{args} L={L}: a dense head gives an entry")
+        _require(isinstance(basis_space(frame).factors[0].form, DenseMetric), f"{factory}{args} L={L}: a dense head's factor has no dense form")
         head = DenseMetric(g, kernel=kernel, face=Face.GRAM)
         flipped = ax.form.flipped()
         _require(
@@ -78,24 +75,6 @@ def test_from_frame_form_and_its_entry() -> None:
         )
         _require(content_digest(flipped) == content_digest(head), f"{factory}{args} L={L}: the flipped axis form and the head have different content digests")
         _require(ax.origin.frame is frame, f"{factory}{args} L={L}: origin.frame is not the frame")
-
-
-def test_counting_and_noform_give_no_entry() -> None:
-    from orpheus.numerics import space as S
-    from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis
-    from orpheus.numerics.metric import DiagonalMetric
-    from orpheus.numerics.quadrature.directional import Quadrature
-
-    counting = Axis("s", (3,), origin=Declared(BasisKind.NODAL))
-    energy = EnergyAxis.synthetic(2)
-    entries = S._axis_entries((counting, energy))
-    _require(len(entries) == 2 and all(e is None for _, e in entries), f"a counting axis and an energy axis give entries {entries}")
-    _require(S._axes_metric((counting, energy)) is None, "the metric of a counting and an energy axis is not None")
-    q = Quadrature.gauss_legendre(4)
-    weighted = Axis.of_measure(q.measure, "x")
-    wentries = S._axis_entries((weighted, energy))
-    _require(isinstance(wentries[0][1], DiagonalMetric) and wentries[1][1] is None, f"a weighted axis gives {wentries}")
-    _require(np.array_equal(np.asarray(wentries[0][1].weights), np.asarray(q.measure.weights)), "the weighted axis's entry is not its measure")
 
 
 def test_a_diagonal_frame_head_factor_reads_the_space_metric_bytes() -> None:
@@ -124,24 +103,20 @@ def test_a_diagonal_frame_head_factor_reads_the_space_metric_bytes() -> None:
         )
 
 
-def test_a_dense_axis_form_with_no_positioned_entry_is_refused_by_the_space() -> None:
-    """A ``Declared`` axis holding a ``DenseMetric`` has no entry on the space's overlay until N04 (ELEGANCE-DEBT #755), and the space would pair
-    its block by the Euclidean form silently (the pairing of ``x = (1, 2, 3)`` with ``y = (1, -1, 2)`` read 5.0, against 22.0 under the Gram). The
-    space refuses it by name, naming N04. Control: a dense frame head, whose overlay positions its Gram, builds its metric. Exact on any host.
-    Mutation: the refusal removed reddens the first leg."""
+def test_a_declared_dense_axis_is_a_factor_on_a_dense_form() -> None:
+    """A ``Declared`` axis holding a ``DenseMetric`` is a factor like any other: the space pairs by the Gram (the pairing of ``x = (1, 2, 3)`` with
+    ``y = (1, -1, 2)`` reads ``x^T G y`` by hand, 22.0, where the Euclidean form reads 5.0). Control: a dense frame head's factor holds a dense form.
+    Exact on any host up to the last bit of a 3-term sum, compared within the relative tolerance of one hand product."""
     from orpheus.numerics.axis import Axis, BasisKind, Declared
     from orpheus.numerics.declaration import Coord
+    from orpheus.numerics.factor import Kind, Variance, VarianceChart
     from orpheus.numerics.metric import DenseMetric, Face
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.space import TensorSpace
 
     gram = np.array([[2.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 4.0]])
     axis = Axis("d", (3,), origin=Declared(BasisKind.NODAL, DenseMetric(gram, kernel=Coord(3, ()), face=Face.METRIC)))
-    space = FunctionSpace.of_axes(axis)
-    try:
-        space.apply_metric(np.ones(3))
-    except ValueError as e:
-        _require("N04" in str(e), f"the refusal does not name N04: {e}")
-    else:
-        pytest.fail("a dense axis form with no positioned entry was paired by the Euclidean form silently")
-    _, head = _frame_head("folded_product", (2, 4), 2)  # control: a dense frame head positions its Gram on the overlay
+    space = TensorSpace.declared("d", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=axis.form)
+    x, y = np.array([1.0, 2.0, 3.0]), np.array([1.0, -1.0, 2.0])
+    _require(abs(space.inner_product(x, y) - float(x @ gram @ y)) <= 1e-12 * 22.0, f"the pairing is {space.inner_product(x, y)}, by hand {float(x @ gram @ y)}")
+    _, head = _frame_head("folded_product", (2, 4), 2)
     _require(isinstance(head.form, DenseMetric), "the control head is not a dense form")

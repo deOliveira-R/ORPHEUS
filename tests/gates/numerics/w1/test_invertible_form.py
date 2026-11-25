@@ -39,6 +39,8 @@ import numpy as np
 import pytest
 
 from tests.gates.numerics.w1 import _factor_probe as P
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -113,11 +115,17 @@ def test_psd_dense_forms_have_no_singular_state() -> None:
         _require(r["not_positive"] == 0, f"{label}: {r['not_positive']} constructed states do not read positive")
 
 
-def _signed_measure_space(order: int) -> Any:
+def _signed_measure_space(order: int, label: str | None = None) -> Any:
+    """The frame's measure space over ``lebedev(order)``; ``label`` re-labels its one slot (a product needs distinct labels)."""
     from orpheus.numerics import frame_faces as ff
+    from orpheus.numerics.factor import Kind, Variance, VarianceChart
     from orpheus.numerics.quadrature import Quadrature
+    from orpheus.numerics.space import TensorSpace
 
-    return ff.measure_space(ff.angular_frame(Quadrature.lebedev(order), 2))
+    frame = ff.angular_frame(Quadrature.lebedev(order), 2)
+    if label is None:
+        return ff.measure_space(frame)
+    return TensorSpace.of_measure(frame.measure, label, Variance(Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def test_norm_raises_on_a_signed_diagonal_space() -> None:
@@ -137,20 +145,22 @@ def test_norm_raises_on_a_signed_diagonal_space() -> None:
         _require("Krein" in str(e) and "#706" in str(e), f"the norm refusal does not name the Krein arm and #706: {e}")
     else:
         pytest.fail("norm returned on a space whose metric has 8 negative weights")
-    positive = _signed_measure_space(11)
+    positive = _signed_measure_space(11, "positive")
+    other = _signed_measure_space(13, "other")
     _require(positive._resolved_metric.signature == (50, 0, 0), f"lebedev(11) reads signature {positive._resolved_metric.signature}")
     _require(np.isfinite(positive.norm(np.ones(positive.shape))), "norm on the positive lebedev(11) space is not finite")
-    counting = FunctionSpace("counting", (5,))
+    counting = TensorSpace.declared("counting", (5,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     _require(counting.norm(np.ones(5)) == float(np.sqrt(5.0)), "norm on a counting space is not sqrt(5)")
     # the other routes to the same refusal: the dual space and the products in both block orders
-    for label, space in (("dual", signed.dual()), ("signed*positive", signed * positive), ("positive*signed", positive * signed), ("signed*signed", signed * signed)):
+    for label, space in (("dual", signed.dual()), ("signed*positive", signed * positive), ("positive*signed", positive * signed), ("signed*signed", signed * other)):
         try:
             value = space.norm(np.ones(space.shape))
         except ValueError as e:
             _require("Krein" in str(e) and "#706" in str(e), f"{label}: the norm refusal does not name the Krein arm and #706: {e}")
         else:
             pytest.fail(f"{label}: norm returned {value} on a space with a negative direction")
-    _require(np.isfinite((positive * positive).norm(np.ones((positive * positive).shape))), "norm on the product of two positive spaces is not finite")
+    both = positive * _signed_measure_space(11, "positive_again")
+    _require(np.isfinite(both.norm(np.ones(both.shape))), "norm on the product of two positive spaces is not finite")
     # a real raise, not an assert: the helper's body holds a Raise node and no Assert
     tree = ast.parse(inspect.getsource(M))
     helpers = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_require_positive"]

@@ -76,6 +76,8 @@ from tests.gates.values.test_content_identity_relocation import (
     _no_synthetic_class_outlives_its_test,  # noqa: F401  (autouse: the synthetic pair's classes die with its test)
     _subclasses,
 )
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -273,8 +275,7 @@ def _space_names() -> dict[str, Callable[[], str]]:
 
     levels, cell_volumes = (0, 2, 5), np.array([1.5, 2.5, 3.5, 4.5])
     return {
-        "of_axes": lambda: FunctionSpace.of_axes(
-            EnergyAxis.synthetic(2), Axis("harmonic", (3,), origin=Declared(Modal(np.eye(3)[0])))).name,
+        "of_axes": lambda: TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("harmonic", (3,), origin=Declared(Modal(np.eye(3)[0]))), Kind.MEASURE, VarianceChart.DENSITY)).name,
         "angular trace": lambda: angular().name,
         "scalar trace": lambda: scalar().name,
         "radial interior": lambda: RadialCharacteristicInteriorSpace.for_levels(
@@ -282,9 +283,9 @@ def _space_names() -> dict[str, Callable[[], str]]:
         "radial boundary": lambda: RadialCharacteristicBoundarySpace.for_levels(
             levels, ng=2, nx=4, cell_volumes=cell_volumes).name,
         "full field over content-named blocks": lambda: FullFieldSpace.from_blocks(
-            FunctionSpace.of_axes(EnergyAxis.synthetic(2)), scalar()).name,
+            TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY)), scalar()).name,
         "full field over raw blocks": lambda: FullFieldSpace.from_blocks(
-            FunctionSpace(name="bulk", shape=(4,)), FunctionSpace(name="trace", shape=(2,))).name,
+            TensorSpace.declared("bulk", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("trace", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))).name,
     }
 
 

@@ -40,7 +40,7 @@ the flux side a torsor — the historical reason this section was titled
 All construction (the ``L`` / ``spatial_moments`` fields, the
 ``(<angular head>, ng, *spatial[, …])`` shape — ``(L+1, 2L+1, …)`` for the
 harmonic family — the ``<angular head>(L) ⊗ CellGroup``
-:class:`~orpheus.numerics.space.TensorProductSpace` whose head is READ off
+:class:`~orpheus.numerics.space.TensorSpace` whose head is READ off
 the mesh's quadrature frame (#429 tracker 2.5), the
 :meth:`~orpheus.transport.fields._bases.MomentField.from_problem_and_L` /
 :meth:`~orpheus.transport.fields._bases.MomentField.zeros_for_problem_and_L`
@@ -114,7 +114,7 @@ class HarmonicMomentSourceSink(MomentField, flux=HarmonicMomentFlux):  # concept
         encode the truncation order ``L``).
     space : FunctionSpace
         The function space — canonically a
-        :class:`~orpheus.numerics.space.TensorProductSpace`
+        :class:`~orpheus.numerics.space.TensorSpace`
         ``<angular head>(L) ⊗ CellGroup``, the head being the coefficient
         space of the basis the mesh's quadrature frame bound at ``L``
         (the spherical-harmonic head of order ``L`` on a full-sphere rule; READ off

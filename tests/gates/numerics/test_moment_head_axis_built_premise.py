@@ -60,15 +60,19 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric, NoForm
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.numerics.coefficient_layout import HarmonicLayout, LegendreLayout
 from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Modal
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.factor import Variance
 from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.declaration import Coord
+from tests.gates.numerics._declared_support import declared_mod_kernel
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -93,37 +97,36 @@ def _dense_slot_twin[T: Head](head: T) -> T:
     WHERE the measure lives — the twin is the independent oracle for the
     bit-identity rows and the name-built partner for the identity rows.
     """
-    assert head.axes is not None and len(head.axes) == 1, "a production head is single-axis"
+    assert len(head.axes) == 1, "a production head is single-axis"
     form = head.axes[0].form
     # a diagonal head's metric is what the space applies to the unit; a dense or formless head has no weight array
     w = None if isinstance(form, (NoForm, DenseMetric)) else np.asarray(head.apply_metric(np.ones(head.shape)))
-    return replace(head, axes=None, inner_product_weights=w)
+    if w is None:
+        return TensorSpace.declared(head.name, head.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    return declared_mod_kernel(head.name, head.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
 
 
 def _axis_built[T: Head](head: T) -> T:
     """The production head IS axis-built since item 6.2c-ii — identity, kept
     so the rows below read as they were written (the premise landed)."""
-    assert head.axes is not None
+    assert len(head.axes) >= 1
     return head
 
 
 def _bulk(ng: int = 2, spatial: tuple[int, ...] = (4, 3)) -> FunctionSpace:
     """An axis-built cell group, as every SN carrier's ``bulk_space`` is."""
-    return FunctionSpace.of_axes(
-        Axis("energy", (ng,), origin=Declared(BasisKind.NODAL)),
-        Axis("spatial", spatial, origin=Declared(BasisKind.NODAL, DiagonalMetric(np.full(spatial, 0.5)))),
-    )
+    return TensorSpace.of_axes(Factor.whole_on(Axis("energy", (ng,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", spatial, origin=Declared(BasisKind.NODAL, DiagonalMetric(np.full(spatial, 0.5)))), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 _HEADS: dict[str, Callable[[], Head]] = {
-    "sh_L0": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=0)),
-    "sh_L1": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=1)),
-    "sh_L2": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=2)),
-    "sh_L3": lambda: FunctionSpace.of_basis(SphericalHarmonicBasis(L=3)),
-    "legendre_L0": lambda: FunctionSpace.of_basis(LegendreBasis(L=0, axis="x")),
-    "legendre_L1": lambda: FunctionSpace.of_basis(LegendreBasis(L=1, axis="x")),
-    "legendre_L2": lambda: FunctionSpace.of_basis(LegendreBasis(L=2, axis="x")),
-    "legendre_L3_z": lambda: FunctionSpace.of_basis(LegendreBasis(L=3, axis="z")),
+    "sh_L0": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=0)), Kind.MEASURE, VarianceChart.DENSITY)),
+    "sh_L1": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=1)), Kind.MEASURE, VarianceChart.DENSITY)),
+    "sh_L2": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=2)), Kind.MEASURE, VarianceChart.DENSITY)),
+    "sh_L3": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=3)), Kind.MEASURE, VarianceChart.DENSITY)),
+    "legendre_L0": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=0, axis="x")), Kind.MEASURE, VarianceChart.DENSITY)),
+    "legendre_L1": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=1, axis="x")), Kind.MEASURE, VarianceChart.DENSITY)),
+    "legendre_L2": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=2, axis="x")), Kind.MEASURE, VarianceChart.DENSITY)),
+    "legendre_L3_z": lambda: TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=3, axis="z")), Kind.MEASURE, VarianceChart.DENSITY)),
 }
 
 
@@ -152,9 +155,7 @@ def test_the_head_metric_is_bit_identical_on_the_axis_route(label: str) -> None:
     axis_head = _HEADS[label]()
     head = _dense_slot_twin(axis_head)           # the retired spelling, the oracle
     assert axis_head.axes is not None
-    assert axis_head.inner_product_weights is None
-    assert axis_head.metric is None
-    assert head.axes is None and head.inner_product_weights is not None
+    assert axis_head.inner_product_weights is None and head.inner_product_weights is None
 
     rng = np.random.default_rng(20260907)
     x = rng.standard_normal(head.shape + (2, 4))
@@ -170,7 +171,7 @@ def test_the_head_metric_is_bit_identical_on_the_axis_route(label: str) -> None:
     # The (2, 4) tail is a payload: the pairing over it is posed on the explicit tensor product, and is pinned
     # against the dense-slot head's own metric leg contracted by hand (comparing the two tensor products with each
     # other was blind to a shared metric defect: the U1 qa review, F3).
-    payload = FunctionSpace.of_axes(Axis("payload", (2, 4), origin=Declared(BasisKind.NODAL)))
+    payload = TensorSpace.of_axes(Factor.whole_on(Axis("payload", (2, 4), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
     by_hand = float(np.sum(np.asarray(head.apply_metric(x)) * x))
     assert (axis_head * payload).inner_product(x, x) == by_hand
     assert (head * payload).inner_product(x, x) == by_hand
@@ -195,9 +196,7 @@ def test_the_product_metric_is_bit_identical_when_the_head_gains_axes(label: str
     today = _dense_slot_twin(axis_head) * bulk    # the retired spelling's product: the factored arm
     axis_product = axis_head * bulk
 
-    assert isinstance(today.metric, FactoredMetric) and today.axes is None
-    assert axis_product.metric is None
-    assert axis_product.axes is not None and len(axis_product.axes) == 3
+    assert len(axis_product.axes) == 3
     assert axis_product.inner_product_weights is None
     assert today.shape == axis_product.shape
 
@@ -218,7 +217,7 @@ def test_no_reachable_array_on_the_axis_product_is_state_sized() -> None:
     shapes ``(3, 5)``, ``(2,)``, ``(4, 3)`` the product's index set has 360
     entries and NO array the space can reach has that size.
     """
-    head = FunctionSpace.of_basis(SphericalHarmonicBasis(L=2))
+    head = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=2)), Kind.MEASURE, VarianceChart.DENSITY))
     product = head * _bulk()
     assert product.axes is not None
     n = int(np.prod(product.shape))
@@ -242,7 +241,7 @@ def test_the_axis_route_never_densifies_a_large_product() -> None:
     w = np.linspace(0.5, 1.5, 2000)
     a = Axis("a", (2000,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
     b = Axis("b", (2000,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
-    space = FunctionSpace.of_axes(a, b)
+    space = TensorSpace.of_axes(Factor.whole_on(a, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(b, Kind.MEASURE, VarianceChart.DENSITY))
     assert space.inner_product_weights is None and space.metric is None
     assert isinstance(a.form, DiagonalMetric) and isinstance(b.form, DiagonalMetric)
     stored = a.form.weights.nbytes + b.form.weights.nbytes
@@ -281,17 +280,17 @@ def test_the_moment_head_surface_survives(label: str) -> None:
 def test_the_product_still_exposes_its_head_as_factor_zero(label: str) -> None:
     r"""``factors[0]`` survives the axis-threading arm.
 
-    ``TensorProductSpace.from_factors`` stores ``factors`` on BOTH arms, so
-    the tree query the moment carriers rely on (``head_layout(space.factors[0])``)
-    is untouched — the head-shaped worry only arises if the mint moves from
-    ``head * bulk`` to ``of_axes(...)``. (``find_factor`` retired at S7 with
+    ``TensorSpace`` keeps the head as its first slot, so the tree query the
+    moment carriers rely on (``head_layout(space.sub(<first label>))``) reads
+    the head the product was built from. (``find_factor`` retired at S7 with
     the head classes it was the typed bridge to.)
     """
     axis_head = _axis_built(_HEADS[label]())
     product = axis_head * _bulk()
-    assert isinstance(product, TensorProductSpace)
-    assert product.factors[0] is axis_head
-    assert head_layout(product.factors[0]) == head_layout(axis_head)
+    assert isinstance(product, TensorSpace)
+    head = product.sub(product.labels[0])
+    assert head == axis_head
+    assert head_layout(head) == head_layout(axis_head)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -318,7 +317,7 @@ def test_an_axis_built_head_is_never_equal_to_its_name_built_twin(label: str) ->
     """
     axis_head = _HEADS[label]()
     head = _dense_slot_twin(axis_head)
-    assert axis_head.name == head.name and axis_head.shape == head.shape
+    assert axis_head.shape == head.shape
     assert axis_head != head
     assert head != axis_head
 
@@ -338,7 +337,7 @@ def test_the_metric_enters_the_identity_once_the_head_is_axis_built(L: int) -> N
     spellings. The tree binds the dressed one.
     """
     frame = frame_faces.angular_frame(Quadrature.lebedev(11), L)
-    continuum = FunctionSpace.of_basis(frame.basis)
+    continuum = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY))
     dressed = frame_faces.basis_space(frame)
     assert head_layout(continuum) == head_layout(dressed) == HarmonicLayout(L)
     assert continuum.axes is not None and dressed.axes is not None
@@ -372,31 +371,22 @@ def test_a_dense_gram_lives_positioned_on_the_axis_built_heads_own_object() -> N
     The control the old record carried survives with its teeth: dropping
     the object for a counting axis silently changes the value.
     """
-    from orpheus.numerics.metric import FactoredMetric
-
     G = np.eye(3) + 0.25
     dense = DenseMetric(DenseMetric.symmetrised(G), kernel=Coord(3, ()), face=Face.GRAM)
-    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), origin=Declared(Modal(np.eye(3)[0])))
-    with pytest.raises(ValueError, match="positioned over them"):
-        FunctionSpace(name="probe", shape=(3,), axes=(axis,), metric=dense)
-    head = FunctionSpace(
-        name="probe", shape=(3,), axes=(axis,),
-        metric=FactoredMetric((((3,), dense),)),
-    )
+    axis = Axis(_HARMONIC_AXIS_LABEL, (3,), origin=Declared(Modal(np.eye(3)[0]), dense))
+    head = TensorSpace.of_axes(Factor.whole_on(axis, Kind.MEASURE, VarianceChart.DENSITY))
     x = np.array([1.0, 2.0, 3.0])
-    # The positioned block applies through DenseMetric.apply_block (a
-    # reshape-and-matmul on the block) while the standalone object applies
-    # through DenseMetric.apply (the leading matmul): the SAME form, two
-    # associations — [M] 1 ULP apart on this probe, so the honest tier is
-    # a nulp band, not bit-equality (vv-principles §bit-identity criterion 3).
+    # The block applies through DenseMetric.apply_block (a reshape-and-matmul on the block) while the standalone object applies
+    # through DenseMetric.apply (the leading matmul): the SAME form, two associations — [M] 1 ULP apart on this probe, so the
+    # honest tier is a nulp band, not bit-equality (vv-principles §bit-identity criterion 3).
     np.testing.assert_array_almost_equal_nulp(
         head.apply_metric(x), np.asarray(dense.apply(x)), nulp=4,
     )
 
-    counting = FunctionSpace(name="probe", shape=(3,), axes=(axis,))
+    counting = TensorSpace.of_axes(Factor.whole_on(Axis(_HARMONIC_AXIS_LABEL, (3,), origin=Declared(Modal(np.eye(3)[0]))), Kind.MEASURE, VarianceChart.DENSITY))
     np.testing.assert_array_equal(counting.apply_metric(x), x)
     assert not np.allclose(np.asarray(dense.apply(x)), x), (
-        "the control must MOVE, or dropping the object would be inert"
+        "the control must MOVE, or dropping the form would be inert"
     )
 
 
@@ -410,12 +400,12 @@ def test_the_cone_answer_flips_from_unanswerable_to_refusing() -> None:
     ``orpheus/`` and 35 test calls, none on a moment field), so the flip is
     predicted inert — battery arm ``C1`` measures it rather than asserting it.
     """
-    axis_head = FunctionSpace.of_basis(SphericalHarmonicBasis(L=1))
-    head = _dense_slot_twin(axis_head)            # the retired spelling answered None
-    assert head.has_coordinate_cone is None
+    axis_head = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=1)), Kind.MEASURE, VarianceChart.DENSITY))
+    head = _dense_slot_twin(axis_head)            # the name-built twin is a declared nodal space: it answered None while it was a leaf
+    assert head.has_coordinate_cone is True
     assert axis_head.has_coordinate_cone is False
     assert (axis_head * _bulk()).has_coordinate_cone is False
-    assert (head * _bulk()).has_coordinate_cone is None
+    assert (head * _bulk()).has_coordinate_cone is True
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -453,7 +443,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
     # (rule, L) cases equal on both arms, layer DAG Phase 2 refresh, specs_2r/proto/probe_harmonic.py).
     frame = frame_faces.angular_frame(_RULES[label](), L)
     rng = np.random.default_rng(11)
-    for head, (arm, generator) in ((FunctionSpace.of_basis(frame.basis), ("basis", frame.basis)), (frame_faces.basis_space(frame), ("frame", frame))):
+    for head, (arm, generator) in ((TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)), ("basis", frame.basis)), (frame_faces.basis_space(frame), ("frame", frame))):
         assert head_layout(head) in (HarmonicLayout(L), LegendreLayout(L)), (
             "every shipped rule binds one of the two head families"
         )

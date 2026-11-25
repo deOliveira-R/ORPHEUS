@@ -60,7 +60,8 @@ from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.axis import Axis as SpaceFactorAxis
 from orpheus.numerics.axis import BasisKind, Declared
 from orpheus.numerics.metric import DiagonalMetric
-from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, FormlessVariance, Kind, Subquotient, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.mesh import (
     RadialAxisMesh,
     Axis1D,
@@ -535,7 +536,7 @@ class MaterialMesh:  # concept: mesh | role: weld | kind: set | welded: mesh, re
     # CS1.5 re-point: ``bulk_space`` moves to ``Medium`` (the carrier concept
     # that genuinely owns it); the property rides that carve unchanged.
     @cached_property
-    def bulk_space(self) -> FunctionSpace:
+    def bulk_space(self) -> TensorSpace:
         r"""The scalar-bulk function space of this carrier — axis-built (CS1).
 
         The UNIFORM formula, honest on EVERY member of the hierarchy
@@ -609,7 +610,10 @@ class MaterialMesh:  # concept: mesh | role: weld | kind: set | welded: mesh, re
                 self.spatial_shape,
                 origin=Declared(BasisKind.NODAL, DiagonalMetric(np.asarray(self.volumes))),
             )
-        return FunctionSpace.of_axes(energy, spatial)
+        return TensorSpace.of_axes(
+            Factor(energy, FormlessVariance.MEASURE, Subquotient.whole(int(np.prod(energy.shape)))),
+            Factor(spatial, Variance(Kind.MEASURE, VarianceChart.DENSITY), Subquotient.whole(int(np.prod(spatial.shape)))),
+        )
 
     def integrate_per_group(self, density: np.ndarray) -> np.ndarray:
         r"""Volume-integrate a per-group cell density into a per-group rate.

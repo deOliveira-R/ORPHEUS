@@ -46,6 +46,10 @@ from orpheus.numerics.axis_marginal import AxisSectionOperator
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
 from tests.gates.sn._test_helpers import realized_slab_faces
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -436,7 +440,7 @@ class TestApplyAdmission:
         L = 1
         # the angular head is READ off the frame (#429): the slab's is FLAT.
         shape = (
-            *FunctionSpace.of_basis(frame_faces.angular_frame(problem.quad, L).basis).shape,
+            *TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame_faces.angular_frame(problem.quad, L).basis), Kind.MEASURE, VarianceChart.DENSITY)).shape,
             problem.ng,
             *problem.spatial_shape,
         )

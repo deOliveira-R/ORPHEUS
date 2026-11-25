@@ -16,6 +16,10 @@ from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
 from orpheus.numerics.near_kernel import DENSE_LIMIT, NearKernel
 
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 pytestmark = [pytest.mark.l0]
 _EPS = np.finfo(float).eps
@@ -60,7 +64,7 @@ def _chosen(n=40, k=3, seed=5):
 
 
 def _space(n, g=None):
-    return FunctionSpace("w", (n,)) if g is None else FunctionSpace("w", (n,), inner_product_weights=g)
+    return TensorSpace.declared("w", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)) if g is None else declared_mod_kernel("w", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(g))
 
 
 def _span_residual(B, Z):

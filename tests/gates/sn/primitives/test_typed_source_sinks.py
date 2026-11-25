@@ -35,6 +35,10 @@ from orpheus.numerics import frame_faces
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -331,7 +335,7 @@ def _moment_shape(m: SNProblem, L: int) -> tuple[int, ...]:
     :math:`S^2/O(2)_x` — one coefficient per degree, because the trivial
     isotypic component of :math:`SO(2)` is one-dimensional in every degree.
     """
-    return (*FunctionSpace.of_basis(frame_faces.angular_frame(m.quad, L).basis).shape, m.ng, *m.spatial_shape)
+    return (*TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame_faces.angular_frame(m.quad, L).basis), Kind.MEASURE, VarianceChart.DENSITY)).shape, m.ng, *m.spatial_shape)
 
 
 class TestHarmonicMomentSourceSink:

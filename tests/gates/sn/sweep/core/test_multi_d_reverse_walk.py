@@ -117,6 +117,8 @@ from tests.gates.sn.operators.test_g_adjoint_reciprocity import (
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -1264,10 +1266,7 @@ def test_tail_mismatch_refuses_loudly():
         values=np.asarray(phi.interior.values)[..., None].repeat(4, axis=-1),
         # a hand-built OFF-SCHEME tail axis (the DD scheme mints none; since
         # CS4c step 6 item 6.2c-iii the tail is always an axis, never a class)
-        space=FunctionSpace.of_axes(
-            *sn.angular_bulk_space.axes,
-            Axis(SPATIAL_MOMENT_AXIS_LABEL, (4,), origin=Declared(Modal(np.eye(4)[0]))),
-        ),
+        space=TensorSpace.of_axes(*sn.angular_bulk_space.factors, Factor.whole_on(Axis(SPATIAL_MOMENT_AXIS_LABEL, (4,), origin=Declared(Modal(np.eye(4)[0]))), Kind.MEASURE, VarianceChart.DENSITY)),
     )
     bad = FullField(interior=bad_interior, boundary=phi.boundary)
     with pytest.raises(ValueError, match="spatial-moment tail"):

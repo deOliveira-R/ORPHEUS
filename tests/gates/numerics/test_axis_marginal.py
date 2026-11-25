@@ -53,7 +53,10 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.axis_marginal import AxisRetractionOperator, AxisSectionOperator
 from orpheus.numerics.space import FunctionSpace
 from tests.gates.numerics._phase_space_twins import Twin, spatial_axis_1d, twin
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import legacy_leaf
 
 
 pytestmark = pytest.mark.foundation
@@ -67,11 +70,7 @@ _W_SPA = np.array([0.2, 0.3, 0.4, 0.7, 1.4])     # a genuine V vector
 
 def _product() -> FunctionSpace:
     """angular(w) ⊗ energy(counting) ⊗ spatial(V) — the synthetic carrier."""
-    return FunctionSpace.of_axes(
-        Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))),
-        Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-        Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))),
-    )
+    return TensorSpace.of_axes(Factor.whole_on(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("energy", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 _EDGES = np.array([0.0, 0.2, 0.5, 0.9, 1.6, 3.0])
@@ -123,7 +122,7 @@ class TestSectionLaws:
         physical)."""
         V = _product()
         R, E = AxisRetractionOperator.of(V, "angular"), AxisSectionOperator.of(V, "angular")
-        marginal = FunctionSpace.of_axes(*V.axes[1:])
+        marginal = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in V.axes[1:]))
         if R.codomain != marginal or E.domain != marginal:
             pytest.fail("marginal space must be the remaining axes verbatim")
 
@@ -155,11 +154,7 @@ class TestAdjointPairing:
         blind — cite the reading under the DELIBERATELY-WRONG structure.
         Strip the spatial measure from the domain only: the pairing must
         break at O(1)."""
-        stripped = FunctionSpace.of_axes(
-            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))),
-            Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("spatial", (5,), origin=Declared(BasisKind.NODAL)),  # V dropped
-        )
+        stripped = TensorSpace.of_axes(Factor.whole_on(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("energy", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (5,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
         V = _product()
         R = AxisRetractionOperator.of(V, "angular")
         x, phi = _rand(V.shape, 3), _rand((2, 5), 4)
@@ -278,10 +273,7 @@ class TestAxisGeneric:
         contracted over BOTH dims with its own weights — the volume
         integral, checked against the hand einsum."""
         Vw = np.outer(np.array([0.2, 0.5, 0.9]), np.array([1.0, 2.0]))
-        V = FunctionSpace.of_axes(
-            Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("spatial", (3, 2), origin=Declared(BasisKind.NODAL, DiagonalMetric(Vw))),
-        )
+        V = TensorSpace.of_axes(Factor.whole_on(Axis("energy", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3, 2), origin=Declared(BasisKind.NODAL, DiagonalMetric(Vw))), Kind.MEASURE, VarianceChart.DENSITY))
         R = AxisRetractionOperator.of(V, "spatial")
         x = _rand(V.shape, 10)
         npt.assert_allclose(
@@ -305,14 +297,12 @@ class TestAdmission:
             AxisRetractionOperator.of(_product(), "azimuthal")
 
     def test_non_axis_built_space_is_refused(self):
-        bare = FunctionSpace(name="legacy", shape=(4, 2))
-        with pytest.raises(TypeError, match="not axis-built"):
+        bare = legacy_leaf("legacy", (4, 2))
+        with pytest.raises(TypeError, match="no named factors"):
             AxisRetractionOperator.of(bare, "angular")
 
     def test_single_axis_space_is_refused(self):
-        lone = FunctionSpace.of_axes(
-            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))),
-        )
+        lone = TensorSpace.of_axes(Factor.whole_on(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_ANG))), Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises(ValueError, match="bare scalar"):
             AxisRetractionOperator.of(lone, "angular")
 
@@ -322,11 +312,8 @@ class TestAdmission:
         arm is unminted and the verb refuses. The RETRACTION over the
         same axis is legal (a contraction needs no division); the
         asymmetry is the point."""
-        signed = FunctionSpace.of_axes(
-            Axis("angular", (2,),
-                 origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, -1.0])))),
-            Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)),
-        )
+        signed = TensorSpace.of_axes(Factor.whole_on(Axis("angular", (2,),
+                 origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, -1.0])))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
         AxisRetractionOperator.of(signed, "angular")  # legal
         with pytest.raises(ValueError, match="zero total weight"):
             AxisSectionOperator.of(signed, "angular")
@@ -469,10 +456,7 @@ class TestFrameInduction:
         is the other half of the clause gate."""
         from orpheus.numerics.axis import EnergyAxis
 
-        V = FunctionSpace.of_axes(
-            EnergyAxis.synthetic(2),
-            Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))),
-        )
+        V = TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))), Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises(TypeError, match="condensation"):
             AxisRetractionOperator.of(V, "energy")
         with pytest.raises(TypeError, match="condensation"):

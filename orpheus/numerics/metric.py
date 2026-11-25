@@ -153,7 +153,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, unique
 from functools import cached_property
-from typing import Protocol, TypeIs, cast
+from typing import TypeIs, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -171,6 +171,7 @@ __all__ = [
     "Form",
     "NoForm",
     "DualMetric",
+    "Entry",
     "FactoredMetric",
 ]
 
@@ -243,9 +244,9 @@ def _require_positive(form: "HilbertMetric", verb: str) -> None:
 def _masked_reciprocal(weights: NDArray) -> NDArray:
     r"""The reciprocal of the positive weights and exactly zero elsewhere: the diagonal integrated end of a frame head.
 
-    ELEGANCE-DEBT[guard] #756 the two tagged readers of a diagonal frame head (``Factor.form``, #756, and the space's
-    ``_entry_of_axis``, #755) spell this arithmetic once, here; it retires when N04 and N10 give the diagonal integrated end one
-    spelling. A diagonal-verdict Gram has no negative diagonal entry (``discrete_gram_structure`` routes one to the dense arm), so the
+    ELEGANCE-DEBT[guard] #756 the two spellings of the diagonal frame head's form in ``Factor.form`` (the masked reciprocal on the
+    integrated end, the dual metric of it on the density end) take this arithmetic from one place; they retire when N10 gives the
+    diagonal integrated end one spelling. A diagonal-verdict Gram has no negative diagonal entry (``discrete_gram_structure`` routes one to the dense arm), so the
     ``> 0.0`` here never meets a negative weight.
     """
     live = weights > 0.0
@@ -297,22 +298,6 @@ def _broadcast_leading(w: NDArray, target_ndim: int) -> NDArray:
     if w.ndim >= target_ndim:
         return w
     return w.reshape(w.shape + (1,) * (target_ndim - w.ndim))
-
-
-class PositionedMetric(Protocol):  # concept: fmetric | role: interface | kind: morphism
-    r"""A metric that applies to ONE interior index block of an element — the
-    positioned leaf form a :class:`FactoredMetric` composes
-    (:class:`DiagonalMetric`, :class:`DenseMetric`, and the
-    :class:`DualMetric` of either)."""
-
-    def apply_block(
-        self,
-        x: NDArray,
-        *,
-        start: int,
-        block_shape: tuple[int, ...],
-        inverse: bool,
-    ) -> NDArray: ...
 
 
 class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
@@ -777,9 +762,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
     representation costume).
     """
 
-    entries: tuple[
-        tuple[tuple[int, ...], "PositionedMetric | NoForm | None"], ...
-    ]
+    entries: tuple[tuple[tuple[int, ...], Entry | None], ...]
 
     def __post_init__(self) -> None:
         for block_shape, factor in self.entries:
@@ -862,7 +845,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
                 block_shape,
                 # A positioned leaf's dual is a DualMetric, itself positioned.
                 None if _is_blank(factor)
-                else cast(PositionedMetric, cast(HilbertMetric, factor).dual()),
+                else cast("Entry", cast(HilbertMetric, factor).dual()),
             )
             for block_shape, factor in self.entries
         ))
@@ -988,9 +971,14 @@ class DualMetric(HilbertMetric, ContentIdentity):  # concept: fmetric | role: ar
         block with its face flipped."""
         # A DualMetric sits in a factored entry only over a positioned leaf
         # (FactoredMetric.dual distributes over its blocks).
-        return cast(PositionedMetric, self.primal).apply_block(
+        return cast("DiagonalMetric | DenseMetric", self.primal).apply_block(
             x, start=start, block_shape=block_shape, inverse=not inverse,
         )
 
     def __repr__(self) -> str:
         return f"DualMetric({self.primal!r})"
+
+
+#: What a block of a :class:`FactoredMetric` holds: a form, or the dual of a form (the density end of a diagonal frame head, a block read
+#: by the other face; ELEGANCE-DEBT[guard] #756 retires when N10 gives the diagonal head one spelling, after which an entry is a :data:`Form`).
+Entry = Form | DualMetric

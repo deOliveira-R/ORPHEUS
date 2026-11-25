@@ -29,7 +29,11 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis, Modal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from tests.gates.numerics._phase_space_twins import spatial_axis_1d, spatial_axis_2d, twin
+from orpheus.numerics.factor import Factor, Kind, Subquotient, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import factor_mod_kernel
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 @cache
@@ -62,39 +66,29 @@ def _cells():
 
 def head_products():
     """Frame-dressed and continuum heads, each times energy(2) x spatial(5)."""
-    cells = FunctionSpace.of_axes(*_cells())
+    cells = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in _cells()))
     heads = {
         "folded(4,4) frame L2": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)),
         "folded(4,4) frame L4": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 4)),
         "product(4,8) frame L4": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.product(4, 8), 4)),
         "lebedev7 frame L3": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.lebedev(order=7), 3)),
         "GL8 frame L3": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.gauss_legendre(n_ordinates=8), 3)),
-        "continuum SH L3": FunctionSpace.of_basis(SphericalHarmonicBasis(L=3)),
-        "continuum Legendre L3 z": FunctionSpace.of_basis(LegendreBasis(L=3, axis="z")),
+        "continuum SH L3": TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=3)), Kind.MEASURE, VarianceChart.DENSITY)),
+        "continuum Legendre L3 z": TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=3, axis="z")), Kind.MEASURE, VarianceChart.DENSITY)),
     }
     return {k: h * cells for k, h in heads.items()} | {f"{k} [head alone]": h for k, h in heads.items()}
 
 
 def synthetic():
     return {
-        "synthetic nodal": FunctionSpace.of_axes(
-            Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.7, 0.5, 0.5])))),
-            Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))),
-        ),
-        "zero-mass signed": FunctionSpace.of_axes(
-            Axis("angular", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, -1.0])))),
-            Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)),
-        ),
+        "synthetic nodal": TensorSpace.of_axes(Factor.whole_on(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.7, 0.5, 0.5])))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("energy", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(_W_SPA))), Kind.MEASURE, VarianceChart.DENSITY)),
+        "zero-mass signed": TensorSpace.of_axes(Factor.whole_on(Axis("angular", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, -1.0])))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY)),
     }
 
 
 def zero_weight_nodal():
     """A nodal axis with one zero weight (legal: signed and zero weights are admitted)."""
-    return FunctionSpace.of_axes(
-        Axis("angular", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 0.0, 1.5])))),
-        Axis("spatial", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 0.5, 0.25])))),
-    )
+    return TensorSpace.of_axes(factor_mod_kernel(Axis("angular", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 0.0, 1.5]))))), Factor.whole_on(Axis("spatial", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 0.5, 0.25])))), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def _spd(n, seed):
@@ -105,17 +99,22 @@ def _spd(n, seed):
 def dense_form_spaces():
     """D1, D2, D3 of tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py, verbatim."""
     from orpheus.numerics.declaration import Coord
-    from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
+    from orpheus.numerics.metric import DenseMetric, Face
 
     ang = Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.9, 0.5, 0.3]))))
     spa = Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 0.5, 0.25, 3.0]))))
-    mom = Axis("moment", (3,), origin=Declared(Modal(np.eye(3)[0])))
-    d1 = FunctionSpace("d1", (4, 5, 3), axes=(ang, spa, mom),
-                       metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1), kernel=Coord(3, ()), face=Face.METRIC)))))
-    d2 = FunctionSpace("d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(Modal(np.eye(4)[0]))), spa),
-                       metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2), kernel=Coord(4, ()), face=Face.METRIC)), ((5,), None))))
-    head = FunctionSpace("h", (3,), axes=(mom,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3), kernel=Coord(3, ()), face=Face.METRIC)),)))
-    d3 = FunctionSpace.of_axes(ang, spa) * head
+    def dense(n: int, seed: int, label: str) -> Axis:
+        return Axis(label, (n,), origin=Declared(Modal(np.eye(n)[0]), DenseMetric(_spd(n, seed), kernel=Coord(n, ()), face=Face.METRIC)))
+
+    md = Variance(Kind.MEASURE, VarianceChart.DENSITY)
+
+    def whole(axis: Axis) -> Factor:
+        return Factor(axis, md, Subquotient.whole(int(np.prod(axis.shape))))
+
+    d1 = TensorSpace.of_axes(whole(ang), whole(spa), whole(dense(3, 1, "moment")))
+    d2 = TensorSpace.of_axes(whole(dense(4, 2, "angular")), whole(spa))
+    head = TensorSpace.of_axes(whole(dense(3, 3, "moment")))
+    d3 = TensorSpace.of_axes(Factor.whole_on(ang, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(spa, Kind.MEASURE, VarianceChart.DENSITY)) * head
     return {"D1": d1, "D2": d2, "D3": d3}
 
 

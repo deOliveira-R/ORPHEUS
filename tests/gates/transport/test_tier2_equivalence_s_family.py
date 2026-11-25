@@ -42,6 +42,10 @@ from tests.gates.transport._materials import material_xs_from_raw
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 from tests.gates.transport._transfer_oracles import on_basis
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 pytestmark = pytest.mark.foundation
@@ -118,7 +122,7 @@ class TestSFamilyTierTwoEquivalence:
 
     def test_moment_pair_from_material_xs_equals_the_exact_ctor(self):
         mat_xs = _mat_xs()
-        sh = FunctionSpace.of_basis(SphericalHarmonicBasis(L=1))
+        sh = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=1)), Kind.MEASURE, VarianceChart.DENSITY))
         rich = on_basis(
             TransferMaterialField.scattering(mat_xs), SphericalHarmonicBasis(L=1), skip_l0=False,
         )
@@ -265,7 +269,7 @@ def test_fission_operator_from_solver_data_equals_the_exact_ctor():
     rich = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
     interior = space.interior_space
     assert interior is not None and interior.axes is not None
-    scalar = FunctionSpace.of_axes(*interior.axes[1:])
+    scalar = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in interior.axes[1:]))
     frame = HarmonicFrame.for_space(interior, 0)
     exact = FissionOperator(
         FissionMaterialField.from_material_xs(mat_xs),

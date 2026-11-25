@@ -49,6 +49,8 @@ from orpheus.numerics.quadrature import (
 )
 from orpheus.numerics.quadrature.registry import GEOMETRY_ANGULAR_SYMMETRY
 from orpheus.geometry.symmetry import SubgroupOfO3
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 _AXES = ("x", "y", "z")
 
@@ -88,8 +90,8 @@ def test_a1_a_slab_angular_space_is_not_a_spatial_space_on_its_chart(
     # Since S7 (ruling 63) the sampled space is minted on the space side with
     # an explicit label: a bare Interval has no phase (``axis_label`` refuses
     # it, ``test_axis_identity.py`` LB-v), so the spatial rule's role is passed.
-    a_space = FunctionSpace.of_measure(angular, "angular")
-    s_space = FunctionSpace.of_measure(spatial, "spatial")
+    a_space = TensorSpace.of_measure(angular, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY))
+    s_space = TensorSpace.of_measure(spatial, "spatial", Variance(Kind.MEASURE, VarianceChart.DENSITY))
 
     assert a_space.shape == s_space.shape == (n,)
     assert a_space != s_space
@@ -99,8 +101,8 @@ def test_a1_a_slab_angular_space_is_not_a_spatial_space_on_its_chart(
 
     # positive control: two mints of one spatial rule are one space
     other_spatial = _spatial_rule_on(Interval(-1.0, 1.0), n)
-    assert s_space == FunctionSpace.of_measure(other_spatial, "spatial")
-    assert hash(s_space) == hash(FunctionSpace.of_measure(other_spatial, "spatial"))
+    assert s_space == TensorSpace.of_measure(other_spatial, "spatial", Variance(Kind.MEASURE, VarianceChart.DENSITY))
+    assert hash(s_space) == hash(TensorSpace.of_measure(other_spatial, "spatial", Variance(Kind.MEASURE, VarianceChart.DENSITY)))
 
 
 @pytest.mark.foundation
@@ -201,7 +203,7 @@ def test_b3_the_slab_rule_lives_on_the_slab_orbit_space() -> None:
     quadrature = Quadrature.gauss_legendre(4)
     measure = quadrature.measure
     assert measure.support == SPHERE.quotient(SubgroupOfO3.O2("x"))
-    space = FunctionSpace.of_measure(measure, measure.axis_label)
+    space = TensorSpace.of_measure(measure, measure.axis_label, Variance(Kind.MEASURE, VarianceChart.DENSITY))
     assert space.axes is not None and space.axes[0].label == "angular"
     assert space.axes[0].support == SPHERE.quotient(SubgroupOfO3.O2("x"))
     assert measure.exactness is not None

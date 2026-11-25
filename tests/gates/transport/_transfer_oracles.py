@@ -23,6 +23,10 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.operators.isotropic_transfer import IsotropicTransfer
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 def dense_per_material(isotropic_transfer: IsotropicTransfer) -> dict[int, np.ndarray]:
@@ -42,7 +46,7 @@ def on_basis(
     r"""Tier-2 mint: bring a channel's field to the basis's order and bind the endomorphic ends on the BASIS's own
     coefficient space (``FunctionSpace.of_basis(basis)`` supplying both). The basis names the FAMILY, so the ends are
     that basis's continuum-Gram space, never re-minted from ``L``."""
-    ends = FunctionSpace.of_basis(basis)
+    ends = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(basis), Kind.MEASURE, VarianceChart.DENSITY))
     return LegendreMomentTransfer(
         transfer.at_order(basis.L),
         skip_l0=skip_l0,

@@ -45,8 +45,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
-from orpheus.numerics.declaration import Coord
-from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric, NoForm
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
 from orpheus.numerics.quadrature import Quadrature
@@ -57,6 +56,10 @@ from tests.gates.numerics._phase_space_twins import (
     spatial_axis_2d,
     twin,
 )
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.declaration import Coord
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -114,7 +117,7 @@ def _synthetic_axes() -> tuple[Axis, ...]:
 # ═════════════════════════════════════════════════════════════════════════
 
 #: The counting payload axis a pairing over the trailing element axis is posed on.
-_COUNTING_PAYLOAD = FunctionSpace.of_axes(Axis("payload", (5,), origin=Declared(BasisKind.NODAL)))
+_COUNTING_PAYLOAD = TensorSpace.of_axes(Factor.whole_on(Axis("payload", (5,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 @pytest.mark.parametrize("seed", [0, 1, 2])
@@ -124,7 +127,7 @@ def test_the_derived_object_is_bit_identical_to_the_inline_loop_on_synthetic_axe
     a rank-2 axis with zero-padded weights (the pseudo-inverse's kernel) and
     an extra trailing element axis (the leading-aligned convention)."""
     axes = _synthetic_axes()
-    space = FunctionSpace.of_axes(*axes)
+    space = TensorSpace.of_axes(*(whole_on_mod_kernel(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in axes))
     if not isinstance(space._resolved_metric, FactoredMetric):
         pytest.fail("the axis-built space did not DERIVE a FactoredMetric from its axes")
     rng = np.random.default_rng(seed)
@@ -143,15 +146,14 @@ def test_the_derived_object_is_bit_identical_to_the_inline_loop_on_synthetic_axe
             pytest.fail(f"inner_product differs from the inline loop's reduction on shape {shape}")
 
 
-def test_an_all_counting_space_derives_no_object():
-    """Every axis counting ⟹ no metric object at all (the Euclidean default,
-    no allocation) and the verbs are the identity."""
-    space = FunctionSpace.of_axes(
-        EnergyAxis(label="energy", shape=(3,)),
-        Axis(label="spatial", shape=(2,), origin=Declared(BasisKind.NODAL)),
-    )
-    if space._resolved_metric is not None:
-        pytest.fail("an all-counting axis-built space derived a metric object")
+def test_an_all_counting_space_applies_the_identity():
+    """Every axis counting or formless ⟹ every form is a no-op (a ``NoForm`` slot, or a counting form applied as a product with one) and the
+    verbs are the identity."""
+    space = TensorSpace.of_axes(Factor.whole_on(EnergyAxis(label="energy", shape=(3,)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis(label="spatial", shape=(2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
+    for f in space.factors:
+        counting = isinstance(f.form, DiagonalMetric) and bool((f.form.weights == 1.0).all())
+        if not (isinstance(f.form, NoForm) or counting):
+            pytest.fail(f"the form of {f.axis.label!r} is neither NoForm nor counting: {f.form!r}")
     x = np.arange(6.0).reshape(3, 2)
     assert np.array_equal(space.apply_metric(x), x)
     assert space.inner_product(x, x) == float(np.sum(x * x))
@@ -184,14 +186,19 @@ def test_the_carriers_trial_space_reads_bit_identically(geometry):
 def _dense_gram_on_the_head() -> tuple[tuple[Axis, ...], np.ndarray]:
     """Axes whose head block carries NO diagonal measure (a dense Gram has
     none) plus a symmetric positive-definite 6×6 form for that block."""
+    rng = np.random.default_rng(11)
+    a = rng.standard_normal((6, 6))
+    gram = a @ a.T + 6.0 * np.eye(6)
     axes = (
         Axis(label="harmonic_probe", shape=(2, 3), origin=Declared(Modal(np.eye(1, 6)[0].reshape(2, 3)))),
         Axis(label="spatial", shape=(4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 1.0, 1.5, 2.0])))),
     )
-    rng = np.random.default_rng(11)
-    a = rng.standard_normal((6, 6))
-    gram = a @ a.T + 6.0 * np.eye(6)
     return axes, gram
+
+
+def _dense_head_axis(axes, gram):
+    """The head axis of ``axes`` re-minted with the dense form ``gram`` as its form (a coefficient axis, Modal)."""
+    return Axis(label=axes[0].label, shape=axes[0].shape, origin=Declared(axes[0].kind, DenseMetric(gram, kernel=Coord(6, ()), face=Face.METRIC)))
 
 
 def test_a_positioned_dense_block_is_admitted_and_applied():
@@ -206,11 +213,12 @@ def test_a_positioned_dense_block_is_admitted_and_applied():
     NEGATIVE CONTROL: the same axes with NO object (the counting-axis route
     the old short-circuit would have taken) differ at O(1)."""
     axes, gram = _dense_gram_on_the_head()
-    dense = DenseMetric(gram, kernel=Coord(6, ()), face=Face.METRIC)
     spatial_w = axes[1].form.weights
     assert spatial_w is not None
-    positioned = FactoredMetric((((2, 3), dense), ((4,), None)))
-    space = FunctionSpace(name="dense_head_probe", shape=(2, 3, 4), axes=axes, metric=positioned)
+    space = TensorSpace.of_axes(
+        Factor.whole_on(_dense_head_axis(axes, gram), Kind.MEASURE, VarianceChart.DENSITY),
+        Factor.whole_on(axes[1], Kind.MEASURE, VarianceChart.DENSITY),
+    )
 
     x = np.random.default_rng(3).standard_normal((2, 3, 4))
     got = space.apply_metric(x)
@@ -220,7 +228,7 @@ def test_a_positioned_dense_block_is_admitted_and_applied():
     inv = space.apply_inverse_metric(got)
     np.testing.assert_allclose(inv, x, rtol=1e-11, atol=1e-13)
 
-    counting_route = FunctionSpace.of_axes(*axes).apply_metric(x)
+    counting_route = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in axes)).apply_metric(x)
     separation = float(np.abs(got - counting_route).max()) / float(np.abs(got).max())
     if separation < 1e-2:
         pytest.fail(
@@ -229,7 +237,7 @@ def test_a_positioned_dense_block_is_admitted_and_applied():
         )
 
 
-def test_a_product_of_axis_built_factors_carries_the_overlay_beside_its_axes():
+def test_a_product_of_axis_built_factors_carries_the_head_form_beside_its_axes():
     """``head * bulk`` with a dense-Gram head (the 6.2c-ii occupant: the
     moment space of a DENSE-Gram frame): the product is axis-built (axes
     concatenated), carries the head's positioned form beside them, and
@@ -240,18 +248,12 @@ def test_a_product_of_axis_built_factors_carries_the_overlay_beside_its_axes():
     spatial_w = axes[1].form.weights
     assert spatial_w is not None
     head_axis = axes[0]
-    head = FunctionSpace(
-        name="dense_head", shape=(2, 3), axes=(head_axis,),
-        metric=FactoredMetric((((2, 3), DenseMetric(gram, kernel=Coord(6, ()), face=Face.METRIC)),)),
-    )
-    bulk = FunctionSpace.of_axes(
-        EnergyAxis(label="energy", shape=(2,)), axes[1],
-    )
+    head = TensorSpace.of_axes(Factor.whole_on(_dense_head_axis(axes, gram), Kind.MEASURE, VarianceChart.DENSITY))
+    bulk = TensorSpace.of_axes(Factor.whole_on(EnergyAxis(label="energy", shape=(2,)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(axes[1], Kind.MEASURE, VarianceChart.DENSITY))
     product = head * bulk
-    assert product.axes is not None and len(product.axes) == 3
-    if not isinstance(product.metric, FactoredMetric):
-        pytest.fail("the product dropped the head's positioned form")
-    assert [form is None for _, form in product.metric.entries] == [False, True, True]
+    assert len(product.axes) == 3
+    if not isinstance(product.factors[0].form, DenseMetric):
+        pytest.fail("the product dropped the head's dense form")
 
     y = np.random.default_rng(5).standard_normal((2, 3, 2, 4))
     got = product.apply_metric(y)
@@ -264,32 +266,3 @@ def test_a_product_of_axis_built_factors_carries_the_overlay_beside_its_axes():
         head.inner_product(x_head, x_head), float(x_head.ravel() @ gram @ x_head.ravel()),
         rtol=1e-13,
     )
-
-
-def test_the_guard_refuses_an_object_not_positioned_over_the_axes():
-    """``axes`` + a DiagonalMetric spanning the whole shape, a FactoredMetric
-    whose blocks do not follow the axes, a positioned DiagonalMetric (a
-    diagonal measure is the axis's own to carry), or a form on an axis
-    that also carries a measure (two sources on one block) — each refused
-    by name; the derived object would otherwise silently disagree with it
-    or shadow it."""
-    axes, gram = _dense_gram_on_the_head()
-    whole = DiagonalMetric(np.ones((2, 3, 4)))
-    with pytest.raises(ValueError, match="positioned over them"):
-        FunctionSpace(name="bad_whole", shape=(2, 3, 4), axes=axes, metric=whole)
-    # Blocks that concatenate to the SPACE shape (so the object's own
-    # validate_for passes) but do not follow the AXES' blocks.
-    misaligned = FactoredMetric((((2,), None), ((3, 4), DenseMetric(np.eye(12), kernel=Coord(12, ()), face=Face.METRIC))))
-    with pytest.raises(ValueError, match="do not follow the axes"):
-        FunctionSpace(name="bad_blocks", shape=(2, 3, 4), axes=axes, metric=misaligned)
-    # A diagonal measure spelled OFF its axis.
-    off_axis = FactoredMetric((((2, 3), DiagonalMetric(np.full((2, 3), 2.0))), ((4,), None)))
-    with pytest.raises(ValueError, match="the axis's own to carry"):
-        FunctionSpace(name="bad_diag", shape=(2, 3, 4), axes=axes, metric=off_axis)
-    # A form on the WEIGHTED spatial axis — two sources on one block.
-    shadowing = FactoredMetric((((2, 3), None), ((4,), DenseMetric(np.eye(4), kernel=Coord(4, ()), face=Face.METRIC))))
-    with pytest.raises(ValueError, match="two metric sources on one block"):
-        FunctionSpace(name="bad_shadow", shape=(2, 3, 4), axes=axes, metric=shadowing)
-    # The weights slot stays refused beside axes — unchanged.
-    with pytest.raises(ValueError, match="one metric source only"):
-        FunctionSpace(name="bad_weights", shape=(2, 3, 4), axes=axes, inner_product_weights=np.ones((2, 3, 4)))

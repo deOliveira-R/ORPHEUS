@@ -27,7 +27,6 @@ import scipy.special as sps
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric, Face
 from orpheus.numerics.operator import AdjointOperator, RieszLowerOperator, RieszRaiseOperator, adjointable
@@ -35,6 +34,10 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from tests.gates._dense import declared_kernel
 from tests.gates.numerics._space_oracles import project_live
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from tests.gates.numerics._declared_support import declared_mod_kernel, factor_mod_kernel
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.declaration import Coord
 
 pytestmark = pytest.mark.foundation
 
@@ -215,10 +218,10 @@ def test_B2_a_parseval_heads_rank_is_the_sampled_harmonic_rank(name):
 
 def _spaces():
     return {
-        "diag_singular": FunctionSpace("s6b_ds", (4,), inner_product_weights=_W_SING),
-        "dense_rank2": FunctionSpace("s6b_dr", (3,), metric=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1), face=Face.METRIC)),
-        "dense_spd": FunctionSpace("s6b_dp", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC)),
-        "diag_positive": FunctionSpace("s6b_dpos", (3,), inner_product_weights=np.array([0.3, 1.7, 2.9])),
+        "diag_singular": declared_mod_kernel("s6b_ds", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_SING)),
+        "dense_rank2": declared_mod_kernel("s6b_dr", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1), face=Face.METRIC)),
+        "dense_spd": TensorSpace.declared("s6b_dp", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC)),
+        "diag_positive": TensorSpace.declared("s6b_dpos", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([0.3, 1.7, 2.9]))),
         "head_product48_L4": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.product(4, 8), 4)),
         "head_folded26_L2": frame_faces.basis_space(
             frame_faces.angular_frame(Quadrature.folded_product(n_mu=2, n_phi=6), 2)),
@@ -264,10 +267,10 @@ def test_B3b_project_live_zeroes_exactly_the_hand_kernel():
     """Diagonal: the dead coordinates are zeroed and nothing else moves beyond
     rounding; dense rank-2: the hand kernel vector (1, −1, 0)/√2 maps to 0 and the
     live vector (1, 1, 0) to itself."""
-    V = FunctionSpace("s6b_k", (4,), inner_product_weights=_W_SING)
+    V = declared_mod_kernel("s6b_k", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_W_SING))
     x = np.array([1.0, 2.0, 3.0, 4.0])
     np.testing.assert_array_equal(project_live(V, x), np.where(_W_SING != 0, x, 0.0))
-    D = FunctionSpace("s6b_kd", (3,), metric=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1), face=Face.METRIC))
+    D = declared_mod_kernel("s6b_kd", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1), face=Face.METRIC))
     ker, live = np.array([1.0, -1.0, 0.0]) / np.sqrt(2.0), np.array([1.0, 1.0, 0.0])
     np.testing.assert_allclose(project_live(D, ker), 0.0, atol=8 * _EPS)
     np.testing.assert_allclose(project_live(D, live), live, rtol=8 * _EPS, atol=8 * _EPS)
@@ -302,7 +305,7 @@ def test_B5_the_retraction_closed_form_agrees_with_the_sandwich_modulo_the_kerne
     writes into the LIVE slots (a mis-weighted pullback)."""
     spa = Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 0.5, 0.25, 3.0]))))
     ang = Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.0, 0.5, 0.3]))))
-    V = FunctionSpace.of_axes(ang, spa)
+    V = TensorSpace.of_axes(factor_mod_kernel(ang), Factor.whole_on(spa, Kind.MEASURE, VarianceChart.DENSITY))
     R = AxisRetractionOperator.of(V, "angular")
     phi = _rng(1).standard_normal(R.codomain.shape)
     if not adjointable(R):

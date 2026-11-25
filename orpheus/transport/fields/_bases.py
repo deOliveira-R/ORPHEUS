@@ -101,7 +101,7 @@ from numpy.typing import NDArray
 from orpheus.numerics.field import Field
 from orpheus.numerics.axis import EnergyAxis, FromBasis
 from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL, TensorProductBasis, spatial_moment_basis
-from orpheus.numerics.space import FunctionSpace, factor_tail
+from orpheus.numerics.space import FunctionSpace, TensorSpace, factor_tail
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.spaces.radial_characteristic_space import (
@@ -433,7 +433,7 @@ class BulkField(RolePair, Field):  # concept: member | role: weld | kind: elemen
         # "append iff > 1" — single-sourced; () at n==1 → no factor, byte-id.
         if factor_tail(n_moments) == ():
             return space
-        if space.axes is not None:
+        if isinstance(space, TensorSpace):
             # The width thread behind space_on's admission re-mint (and,
             # until S6, the moment family's keyed factories). The public
             # sugar tier retired at S5 — call sites read the carrier
@@ -492,7 +492,7 @@ class BulkField(RolePair, Field):  # concept: member | role: weld | kind: elemen
         axis of an axis-built space (every tailed space is one since CS4c
         step 6 item 6.2c-iii; an axes-less space carries no tail).
         """
-        if space.axes is not None:
+        if isinstance(space, TensorSpace):
             for ax in space.axes:
                 if ax.label == SPATIAL_MOMENT_AXIS_LABEL:
                     return ax.shape
@@ -526,7 +526,7 @@ class BulkField(RolePair, Field):  # concept: member | role: weld | kind: elemen
         tail = BulkField._spatial_moment_tail_of(space)
         if tail == ():
             return 1
-        if space.axes is not None:
+        if isinstance(space, TensorSpace):
             # The moment axis is the cell basis's head: read its basis. ndim is
             # the spatial axis's rank (the ONE "spatial" axis carries the whole
             # spatial shape, CS4b S4).
@@ -600,9 +600,8 @@ class BulkField(RolePair, Field):  # concept: member | role: weld | kind: elemen
         S4 deleted. The moment family (axes-less TensorProduct until CS4c
         step 6 item 6.2c) overrides with its own read.
         """
-        axes = self.space.axes
-        if axes is not None:
-            for ax in axes:
+        if isinstance(self.space, TensorSpace):
+            for ax in self.space.axes:
                 if isinstance(ax, EnergyAxis):
                     return int(ax.shape[0])
         raise TypeError(
@@ -704,9 +703,8 @@ class AngularField(BulkField):  # concept: member | role: arm | kind: element.me
         CS4b S3: sizing is space data; the axis order convention
         (angular, energy, spatial[, moment]) makes this ``axes[0]``.
         """
-        axes = self.space.axes
-        if axes is not None:
-            return int(axes[0].shape[0])
+        if isinstance(self.space, TensorSpace):
+            return int(self.space.axes[0].shape[0])
         raise TypeError(
             f"{type(self).__name__}.N: no axes on this space — every "
             "shipped angular space is axis-built (S2)."
@@ -788,7 +786,7 @@ class MomentField(BulkField):  # concept: member | role: weld | kind: element.me
     ``(L+1, 2L+1, ng, *spatial[, …])`` shape contract (validated by
     Field's values-vs-space check, the pre-S4 ``_phase_space_shape``
     hook's successor), and the
-    :class:`~orpheus.numerics.space.TensorProductSpace`-building
+    :class:`~orpheus.numerics.space.TensorSpace`-building
     :meth:`from_problem_and_L` / :meth:`zeros_for_problem_and_L` factories
     (keyed, S6 re-home pending; the positional ``from_ndarray`` alias
     retired with the S5 sugar tier).
@@ -797,7 +795,7 @@ class MomentField(BulkField):  # concept: member | role: weld | kind: element.me
     scalar-bulk phase space, keyed on the truncation order ``L``; its
     space is the CARRIER's cached
     :meth:`~orpheus.sn.problem.SNProblem.moment_space` at
-    ``(L, width)`` — a TensorProductSpace whose angular head is read off
+    ``(L, width)`` — a TensorSpace whose angular head is read off
     the carrier's quadrature frame and whose cell-group factor IS the
     carrier's cached
     :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`
@@ -843,16 +841,15 @@ class MomentField(BulkField):  # concept: member | role: weld | kind: element.me
         ``(L+1, 2L+1)`` for the real harmonics, ``(L+1,)`` for the Legendre
         basis a 1-D rule binds). Every layout read on the carrier goes
         through :attr:`head_layout`; none assumes the rectangular family."""
-        from orpheus.numerics.space import TensorProductSpace
         from orpheus.numerics.spaces.moment_head import moment_head_axis
 
-        if not isinstance(self.space, TensorProductSpace):
+        if not isinstance(self.space, TensorSpace):
             raise TypeError(
                 f"{type(self).__name__}: a moment field's space is a tensor "
                 f"product <angular head> ⊗ cells; got "
                 f"{type(self.space).__name__}."
             )
-        head = self.space.factors[0]
+        head = self.space.sub(self.space.labels[0])
         moment_head_axis(head, owner=type(self).__name__)  # refuses a non-head, naming this field
         return head
 
@@ -869,7 +866,7 @@ class MomentField(BulkField):  # concept: member | role: weld | kind: element.me
     def ng(self) -> int:
         r"""Number of energy groups — the axis right after the angular head's.
 
-        The moment family's space is a TensorProductSpace (axes-less until
+        The moment family's space is a TensorSpace (axes-less until
         CS4c step 6 item 6.2c axis-ifies the angular factor), so the base's
         EnergyAxis read has
         nothing to find; the family's OWN shape contract

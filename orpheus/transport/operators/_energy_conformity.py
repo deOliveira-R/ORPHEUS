@@ -32,6 +32,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from orpheus.numerics.axis import EnergyAxis
+from orpheus.numerics.space import TensorSpace
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
@@ -51,10 +52,9 @@ def assert_energy_extent_conforms(
     """
     if space is None:
         return
-    axes = space.axes
-    if axes is None:
+    if not isinstance(space, TensorSpace):
         return
-    for axis in axes:
+    for axis in space.axes:
         if isinstance(axis, EnergyAxis):
             (extent,) = axis.shape
             if extent != int(ng):

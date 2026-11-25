@@ -31,6 +31,8 @@ from orpheus.numerics.axis import EnergyAxis
 from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.pencil import OperatorPencil
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -47,7 +49,7 @@ def _fissile(ng: int = 2) -> EnergyPencil:
 def _partitioned_space(ng: int) -> FunctionSpace:
     """Equal SHAPE to ``energy_space(ng)``, different CONTENT (a real group partition)."""
     edges = np.geomspace(2.0e7, 1.0e-5, ng + 1)
-    return FunctionSpace.of_axes(EnergyAxis.of_edges(edges), POINT)
+    return TensorSpace.of_axes(Factor.whole_on(EnergyAxis.of_edges(edges), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(POINT, Kind.MEASURE, VarianceChart.DENSITY))
 
 
 class TestLawTheEndsLaw:

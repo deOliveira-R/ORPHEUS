@@ -53,8 +53,9 @@ def moment_head_axis(head: FunctionSpace | None, *, owner: str | None = None) ->
     and, when given, the ``owner`` that asked.
     """
     from orpheus.numerics.coefficient_layout import DegreeLayout
+    from orpheus.numerics.space import TensorSpace
 
-    axes = None if head is None else head.axes
+    axes = head.axes if isinstance(head, TensorSpace) else None
     if axes is not None and len(axes) == 1 and isinstance(axes[0].layout, DegreeLayout):
         return axes[0]
     asker = f"{owner}: " if owner else ""

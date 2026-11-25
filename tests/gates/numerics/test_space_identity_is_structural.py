@@ -3,7 +3,7 @@ r"""Pre-carve anchors for the CS4c step-6 per-class space-identity carve (§7.2 
 **What this file is.** Campaign CS4c step 6 item 6.1 retires the *S3 identity
 bridge* on ``of_axes``-built spaces: today space identity is ``(name, shape)``
 and the name is a blake2b digest of the axes' structural content
-(:meth:`orpheus.numerics.space.FunctionSpace.of_axes`), so structural equality
+(:meth:`orpheus.numerics.space.TensorSpace.of_axes`), so structural equality
 holds *through* a nominal comparison.  After the carve the ``of_axes`` family
 compares its axes tuple directly and the axes-less classes keep their own
 digests.
@@ -46,7 +46,7 @@ is a law.
 MEASURED at the flip: a hand-built ``DualSpace(name="X", shape=(4,), primal=…)``
 compared EQUAL to ``FunctionSpace("X", (4,))`` (since S6a, ruling 75, a dual
 never equals a primal: ``tests/gates/numerics/test_dual_metric.py`` S4), and so
-does a ``TensorProductSpace`` with the same derived name.  That is a behaviour the
+does a ``TensorSpace`` with the same derived name.  That is a behaviour the
 carve *introduces*; asserting it here would ship a red. (The flip landed
 without that tightening — ruling O-3, 2026-09-07: 134 test sites mint by
 literal name and compare across classes — so it stays absent. What the flip
@@ -63,7 +63,8 @@ import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis, FromMeasure
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_mu
-from orpheus.numerics.space import DualSpace, FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import DualSpace, FunctionSpace, TensorSpace
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
@@ -121,8 +122,8 @@ def test_g1_1a_two_independent_mints_of_equal_axes_are_the_same_space(
     shared between the two sides but the CONTENT — the property the carve
     must preserve when the digest stops being the identity.
     """
-    a = FunctionSpace.of_axes(*axes_a)
-    b = FunctionSpace.of_axes(*axes_b)
+    a = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in axes_a))
+    b = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in axes_b))
     if a is b:
         pytest.fail("the two mints returned one object — the row compares a space with itself")
     if not (a == a and b == b):
@@ -140,8 +141,8 @@ def test_g1_1b_equality_implies_equal_hash(_label, axes_a, axes_b):
     on correct code (lesson L70a).  Separation is asserted through the
     container instead — see :func:`test_g1_2_distinct_spaces_survive_a_set`.
     """
-    a = FunctionSpace.of_axes(*axes_a)
-    b = FunctionSpace.of_axes(*axes_b)
+    a = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in axes_a))
+    b = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in axes_b))
     assert a == b, "precondition: the two mints must be equal for this law to apply"
     if hash(a) != hash(b):
         pytest.fail(f"equal spaces hash differently: {hash(a)} vs {hash(b)} ({a!r})")
@@ -158,8 +159,8 @@ def test_g1_1c_a_different_measure_on_one_axis_makes_a_different_space():
     ``Axis._identity_key`` drops-``weights`` arm reddens (20 reds tree-wide;
     the key is ``Axis.content_parts`` since #405 P1 step 5).
     """
-    a = FunctionSpace.of_axes(_energy(), _spatial(_W))
-    b = FunctionSpace.of_axes(_energy(), _spatial(_W_PERTURBED))
+    a = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
+    b = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W_PERTURBED), Kind.MEASURE, VarianceChart.DENSITY))
     if a.shape != b.shape:
         pytest.fail("CONTROL INVALID: the two spaces differ in shape, so the row is vacuous")
     if a == b:
@@ -174,8 +175,8 @@ def test_g1_1d_axis_ORDER_is_part_of_the_identity():
     spaces — the total shape is identical, so only the ORDER discriminates."""
     u = Axis(label="u", shape=(2,), origin=Declared(BasisKind.NODAL))
     v = Axis(label="v", shape=(2,), origin=Declared(BasisKind.NODAL))
-    a = FunctionSpace.of_axes(u, v)
-    b = FunctionSpace.of_axes(v, u)
+    a = TensorSpace.of_axes(Factor.whole_on(u, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(v, Kind.MEASURE, VarianceChart.DENSITY))
+    b = TensorSpace.of_axes(Factor.whole_on(v, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(u, Kind.MEASURE, VarianceChart.DENSITY))
     if a.shape != b.shape:
         pytest.fail("CONTROL INVALID: the shapes differ, so the row does not test ORDER")
     if a == b:
@@ -190,7 +191,7 @@ def test_g1_1e_comparison_against_a_non_space_is_notimplemented():
     ``__eq__`` that raises ``TypeError``, returns ``False``, or returns
     ``NotImplemented``, so the ``==`` reading alone cannot see the contract.
     """
-    space = FunctionSpace.of_axes(_energy(), _spatial(_W))
+    space = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
     if FunctionSpace.__eq__(space, 42) is not NotImplemented:
         pytest.fail(
             "FunctionSpace.__eq__ against a non-space did not return "
@@ -212,10 +213,10 @@ def test_g1_2_distinct_spaces_survive_a_set():
     ``__eq__`` on collision, so ``len({a, b}) == 2`` is a claim about
     equality, not about hashing.
     """
-    a = FunctionSpace.of_axes(_energy(), _spatial(_W))
-    a_twin = FunctionSpace.of_axes(_energy(), _spatial(_W))
-    b = FunctionSpace.of_axes(_energy(), _spatial(_W_PERTURBED))
-    c = FunctionSpace.of_axes(_energy(4), _spatial(_W))
+    a = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
+    a_twin = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
+    b = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W_PERTURBED), Kind.MEASURE, VarianceChart.DENSITY))
+    c = TensorSpace.of_axes(Factor.whole_on(_energy(4), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
     if len({a, a_twin}) != 1:
         pytest.fail("two content-equal spaces did not deduplicate in a set")
     if len({a, b, c}) != 3:
@@ -246,8 +247,8 @@ def test_g1_4_comparing_spaces_that_differ_only_in_dense_weights_does_not_raise(
     """
     weights_a = np.array([2.0, 3.0])
     weights_b = np.array([5.0, 7.0])
-    a = FunctionSpace(name="same", shape=(2,), inner_product_weights=weights_a)
-    b = FunctionSpace(name="same", shape=(2,), inner_product_weights=weights_b)
+    a = TensorSpace.declared("same", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(weights_a))
+    b = TensorSpace.declared("same", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(weights_b))
     try:
         verdict = a == b
     except Exception as exc:                       # noqa: BLE001 — the class IS the measurement
@@ -263,15 +264,11 @@ def test_g1_4_comparing_spaces_that_differ_only_in_dense_weights_does_not_raise(
     assert verdict is False, "the two spaces differ in weights; identity carries them"
 
     # The same claim on the two subclasses that carry their own delegation.
-    tp_a = TensorProductSpace.from_factors(
-        (FunctionSpace(name="A", shape=(2,), inner_product_weights=weights_a),
-         FunctionSpace(name="B", shape=(3,))),
-    )
-    tp_b = TensorProductSpace.from_factors(
-        (FunctionSpace(name="A", shape=(2,), inner_product_weights=weights_b),
-         FunctionSpace(name="B", shape=(3,))),
-    )
-    for pair, label in ((( tp_a, tp_b), "TensorProductSpace"),
+    tp_a = (TensorSpace.declared("A", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(weights_a))
+            * TensorSpace.declared("B", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)))
+    tp_b = (TensorSpace.declared("A", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(weights_b))
+            * TensorSpace.declared("B", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)))
+    for pair, label in ((( tp_a, tp_b), "TensorSpace"),
                         ((DualSpace.of(a), DualSpace.of(b)), "DualSpace")):
         try:
             same_content = pair[0] == pair[1]
@@ -333,8 +330,8 @@ def test_g1_6a_an_axis_built_space_is_not_a_hand_named_space_wearing_its_label()
     row was RED on the pre-carve tree, which is what makes it evidence
     (``vv`` #19: a reading that could not change is not evidence).
     """
-    built = FunctionSpace.of_axes(_energy(), _spatial(_W))
-    labelled = FunctionSpace(name=built.name, shape=built.shape)
+    built = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
+    labelled = TensorSpace.declared(built.name, built.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     if built == labelled or labelled == built:
         pytest.fail(
             "a hand-named space wearing an of_axes label compared equal to "
@@ -352,17 +349,14 @@ def test_g1_6b_an_all_axes_product_is_the_of_axes_mint_of_the_same_axes():
     ``__hash__`` rides the axes tuple too (``a == b ⟹ hash(a) == hash(b)``
     would otherwise fail across the two mints).
     """
-    a = FunctionSpace.of_axes(_energy())
-    b = FunctionSpace.of_axes(_spatial(_W))
+    a = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY))
+    b = TensorSpace.of_axes(Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
     product = a * b
-    mint = FunctionSpace.of_axes(_energy(), _spatial(_W))
+    mint = TensorSpace.of_axes(Factor.whole_on(_energy(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_spatial(_W), Kind.MEASURE, VarianceChart.DENSITY))
     if product.axes is None:
         pytest.fail("CONTROL INVALID: the all-axes product did not thread its axes")
-    if product.name == mint.name:
-        pytest.fail(
-            "CONTROL INVALID: the two mints share a name, so the row does not "
-            "test structure over label"
-        )
+    if product.name != mint.name:
+        pytest.fail("the name is derived from the factors, so the product and the mint of the same factors read one name")
     if not (product == mint and mint == product):
         pytest.fail(
             f"an all-axes product and the of_axes mint of its axes compared "

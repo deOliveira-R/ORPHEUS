@@ -37,6 +37,8 @@ from orpheus.numerics.fredholm import Solve
 from orpheus.numerics.outcome import EigenOutcome, ExitReport, SourceOutcome
 from orpheus.numerics.posing import ALPHA_MAP, EigenPosing, SourcePosing
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -200,7 +202,7 @@ class _Source(Field):
 def _partitioned_twin(space: FunctionSpace) -> FunctionSpace:
     """A space of EQUAL shape and different content (a real group partition)."""
     ng = space.shape[0]
-    return FunctionSpace.of_axes(EnergyAxis.of_edges(np.geomspace(2.0e7, 1.0e-5, ng + 1)), POINT)
+    return TensorSpace.of_axes(Factor.whole_on(EnergyAxis.of_edges(np.geomspace(2.0e7, 1.0e-5, ng + 1)), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(POINT, Kind.MEASURE, VarianceChart.DENSITY))
 
 
 class TestLawTheSourceLivesOnTheOperatorsEnds:

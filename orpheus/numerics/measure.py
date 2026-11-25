@@ -260,8 +260,8 @@ class DiscreteMeasure:  # concept: measure | role: head | kind: measure | welded
 
         NOTE: this is the *continuous support*, distinct from the induced
         *discrete function space*
-        :meth:`FunctionSpace.of_measure(self, label)
-        <orpheus.numerics.space.FunctionSpace.of_measure>` (the
+        :meth:`TensorSpace.of_measure(self, label)
+        <orpheus.numerics.space.TensorSpace.of_measure>` (the
         operator-algebra domain) and from the physical :attr:`phase`
         (angular/spatial/energy).
     invariance_group : SubgroupOfO3 | None, optional
@@ -405,8 +405,8 @@ class DiscreteMeasure:  # concept: measure | role: head | kind: measure | welded
         finite index set, the set's own name.
 
         The sampled space of a measure is
-        :meth:`FunctionSpace.of_measure(measure, label)
-        <orpheus.numerics.space.FunctionSpace.of_measure>`, one axis minted
+        :meth:`TensorSpace.of_measure(measure, label)
+        <orpheus.numerics.space.TensorSpace.of_measure>`, one axis minted
         from the measure (ruling 63); this is the label a caller that knows
         only the measure passes. A measure discretising a factor of phase
         space is labelled by that factor (:attr:`phase`: ``"angular"``,

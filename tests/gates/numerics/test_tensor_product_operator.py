@@ -34,6 +34,8 @@ from orpheus.numerics.operator import (
     TensorProductOperator,
 )
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -205,8 +207,8 @@ class TestTensorProductRequiresApply:
 # ─────────────────────────────────────────────────────────────────────
 
 
-_V = FunctionSpace(name="V", shape=(3,))
-_W = FunctionSpace(name="W", shape=(3,))
+_V = TensorSpace.declared("V", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+_W = TensorSpace.declared("W", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
 
 
 def _bound_swap(domain, codomain):

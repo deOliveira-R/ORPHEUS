@@ -53,6 +53,8 @@ from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 from tests.gates.transport._phase_space_cases import slab_mesh
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 
 pytestmark = [pytest.mark.foundation]
@@ -423,7 +425,7 @@ class TestConstruction:
         m = slab_mesh(nx=5)
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         from orpheus.numerics.space import FunctionSpace
-        plain = FunctionSpace(name="sn_boundary_flat", shape=(trace.shape[0],))
+        plain = TensorSpace.declared("sn_boundary_flat", (trace.shape[0],), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         with pytest.raises(TypeError, match="AngularTraceSpace"):
             AngularBoundaryFlux(values=np.zeros(trace.shape[0]), space=plain)
 

@@ -40,6 +40,8 @@ from orpheus.numerics.operator import (
     NotInvertible,
 )
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -89,7 +91,7 @@ class _SpaceCarrying(LinearOperator):
     """
 
     def __init__(self, shape: tuple[int, ...]) -> None:
-        self._space = FunctionSpace("test_space", shape)
+        self._space = TensorSpace.declared("test_space", shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))
 
     @property
     def domain(self):
@@ -567,7 +569,7 @@ def test_the_reciprocal_condition_is_an_estimate_from_above_within_a_factor_ten(
     leave it green); the definitional row below is the one that reads the norm.
     """
     A = _closed_scatterer(sigma_a, widths)
-    space = FunctionSpace("closed_scatterer", (widths.size,))
+    space = TensorSpace.declared("closed_scatterer", (widths.size,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     inverse = MatrixInverseOperator(SparseAssembledOperator(csr_matrix(A), domain=space, codomain=space))
     kappa = np.linalg.cond(A, 1)
     true, estimate = 1.0 / kappa, inverse.reciprocal_condition
@@ -578,7 +580,7 @@ def test_the_reciprocal_condition_is_an_estimate_from_above_within_a_factor_ten(
 
 
 def test_the_reciprocal_condition_of_the_identity_is_one():
-    space = FunctionSpace("identity", (5,))
+    space = TensorSpace.declared("identity", (5,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     inverse = MatrixInverseOperator(SparseAssembledOperator(csr_matrix(np.eye(5)), domain=space, codomain=space))
     assert inverse.reciprocal_condition == 1.0
 
@@ -594,7 +596,7 @@ def test_the_reciprocal_condition_is_gecon_on_the_factors_and_the_one_norm_of_A(
     A = rng.uniform(-1.0, 1.0, (7, 7)) + np.diag(np.arange(2.0, 9.0) * 3.0)
     A[0, :] *= 25.0                                       # a heavy row: the infinity-norm is not the 1-norm
     assert np.abs(A).sum(axis=0).max() != np.abs(A).sum(axis=1).max()
-    space = FunctionSpace("nonsymmetric", (7,))
+    space = TensorSpace.declared("nonsymmetric", (7,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     inverse = MatrixInverseOperator(SparseAssembledOperator(csr_matrix(A), domain=space, codomain=space))
     (gecon,) = lapack.get_lapack_funcs(("gecon",), (A,))
     expected = gecon(lu_factor(A)[0], float(np.abs(A).sum(axis=0).max()), norm="1")[0]

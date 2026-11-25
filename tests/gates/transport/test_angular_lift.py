@@ -63,6 +63,8 @@ from orpheus.transport.operators.scattering import ScatteringOperator
 from orpheus.transport.fields import AngularSourceSink
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 
 pytestmark = pytest.mark.foundation
@@ -209,7 +211,7 @@ def test_the_energy_binding_is_derived_from_the_datum_on_the_codomain_scalar_sub
     lifts = _lifts(sn)
     interior = ffs_sn.interior_space
     assert interior is not None and interior.axes is not None
-    scalar = FunctionSpace.of_axes(*interior.axes[1:])
+    scalar = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in interior.axes[1:]))
     F = lifts["F"]
     assert isinstance(F.isotropic_energy, IsotropicFission)
     assert F.isotropic_energy.fission is F.fission
@@ -243,7 +245,7 @@ def test_the_base_is_abstract_and_refuses_a_third_interior():
     from orpheus.transport.material_field import FissionMaterialField
 
     other = FullFieldSpace.from_blocks(
-        FunctionSpace(name="third", shape=tuple(interior.shape)), trace_sn,
+        TensorSpace.declared("third", tuple(interior.shape), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), trace_sn,
     )
     with pytest.raises(TypeError, match="neither end of the analysis face"):
         FissionOperator(
@@ -326,7 +328,7 @@ def test_a_composite_with_a_foreign_trace_is_refused():
     interior = ffs_sn.interior_space
     assert interior is not None
     foreign = FullFieldSpace.from_blocks(
-        interior, FunctionSpace(name="foreign-trace", shape=tuple(trace_sn.shape)),
+        interior, TensorSpace.declared("foreign-trace", tuple(trace_sn.shape), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
     )
     S_foreign = replace(S, domain=foreign, codomain=foreign)
     with pytest.raises(TypeError, match="trace"):

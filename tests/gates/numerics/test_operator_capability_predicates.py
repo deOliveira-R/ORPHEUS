@@ -38,6 +38,8 @@ from tests._harness.predicates import (
     VALUE_RAISE,
     assert_inverse_adjoint_contract as _assert_contract,
 )
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -68,7 +70,7 @@ class _BoundDiagonalLeaf(LinearOperator):
 
     def __init__(self, c: np.ndarray) -> None:
         self._c = np.asarray(c, dtype=float)
-        self._space = FunctionSpace("bound_leaf", self._c.shape)
+        self._space = TensorSpace.declared("bound_leaf", self._c.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))
 
     @property
     def domain(self):
@@ -105,7 +107,7 @@ _C = np.array([1.0, 2.0, 3.0])
 _CZ = np.array([1.0, 0.0, 3.0])  # a zero entry → singular
 #: One bound 3-space for the non-pointwise leaf fixtures (S4-amendment:
 #: their .H demands declared metrics; a bare space = Euclidean).
-_SP3 = FunctionSpace("p3", (3,))
+_SP3 = TensorSpace.declared("p3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
 
 # NOTE (B3.3): a ``_LEAVES`` inventory used to sit here, spanning the same
 # (invertible × adjointable) quadrants. It was deleted with
@@ -269,7 +271,7 @@ _CONTRACT_ROWS = [
     # transpose is the scatter, so it is always adjointable). The row still
     # MOVES: the two are independent implementations, and the successor
     # declares both predicates on its own.
-    ("TraceRestriction", TraceRestrictionOperator(np.array([0]), 3, domain=_SP3, codomain=FunctionSpace("p1", (1,))), False, True, STRUCTURAL_ABSENT),
+    ("TraceRestriction", TraceRestrictionOperator(np.array([0]), 3, domain=_SP3, codomain=TensorSpace.declared("p1", (1,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), False, True, STRUCTURAL_ABSENT),
     ("ApplyOnly", _ApplyOnly(), False, False, STRUCTURAL_ABSENT),
     # Composites — every arm of the recursive laws:
     # S2 (ruling 50): a sum of two terms is never invertible by itself, in

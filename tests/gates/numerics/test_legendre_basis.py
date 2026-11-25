@@ -59,6 +59,10 @@ from orpheus.numerics.frame import GalerkinFrame
 from orpheus.geometry.manifold import SPHERE
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.geometry.symmetry import SubgroupOfO3
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = [pytest.mark.foundation]
 
@@ -343,8 +347,8 @@ def test_the_basis_states_its_orbit_space_and_its_spent_group() -> None:
         basis = LegendreBasis(L=2, axis=axis)
         assert basis.domain == SPHERE.quotient(SubgroupOfO3.O2(axis))
         assert basis.invariance_group == SubgroupOfO3.O2(axis)
-        assert FunctionSpace.of_basis(basis) == FunctionSpace.of_basis(LegendreBasis(L=2, axis=axis))
-        assert FunctionSpace.of_basis(basis).shape == (3,)
+        assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(basis), Kind.MEASURE, VarianceChart.DENSITY)) == TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=2, axis=axis)), Kind.MEASURE, VarianceChart.DENSITY))
+        assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(basis), Kind.MEASURE, VarianceChart.DENSITY)).shape == (3,)
 
     with pytest.raises(ValueError, match="axis must be x/y/z"):
         LegendreBasis(L=1, axis="w")
@@ -649,17 +653,17 @@ def test_the_space_name_is_READ_off_the_basis_domain_not_spelled_a_second_time()
     for axis in ("x", "y", "z"):
         for L in (0, 2, 4):
             basis = LegendreBasis(L=L, axis=axis)
-            space = FunctionSpace.of_basis(LegendreBasis(L=L, axis=axis))
+            space = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=L, axis=axis)), Kind.MEASURE, VarianceChart.DENSITY))
             # since S7 the head axis carries the domain as its support
             # (ruling 71); until then the space's NAME carried it
             assert space.axes is not None and space.axes[0].support == basis.domain
             assert space.axes[0].support == SPHERE.quotient(SubgroupOfO3.O2(axis))
             assert space.shape == (L + 1,)
-            assert FunctionSpace.of_basis(basis) == space
+            assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(basis), Kind.MEASURE, VarianceChart.DENSITY)) == space
 
     # three axes, three DISTINCT spaces at one shape — the reason the head
     # carries the entry at all.
-    spaces = [FunctionSpace.of_basis(LegendreBasis(L=2, axis=a)) for a in ("x", "y", "z")]
+    spaces = [TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=2, axis=a)), Kind.MEASURE, VarianceChart.DENSITY)) for a in ("x", "y", "z")]
     assert len(set(spaces)) == 3
     assert len({s.shape for s in spaces}) == 1
 
@@ -682,7 +686,7 @@ def test_moving_the_basis_DOMAIN_moves_the_space_name(
     frozen dataclass and would read as "the name does not follow the
     domain".
     """
-    honest = FunctionSpace.of_basis(LegendreBasis(L=2, axis="x"))
+    honest = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=2, axis="x")), Kind.MEASURE, VarianceChart.DENSITY))
     assert honest.axes is not None and honest.axes[0].support == SPHERE.quotient(SubgroupOfO3.O2("x"))
 
     decoy = SPHERE.quotient(SubgroupOfO3.O2("z"))
@@ -691,7 +695,7 @@ def test_moving_the_basis_DOMAIN_moves_the_space_name(
         LegendreBasis, "domain", property(lambda self: decoy), raising=True
     )
     assert LegendreBasis(L=2, axis="x").domain is decoy   # the patch installed
-    moved = FunctionSpace.of_basis(LegendreBasis(L=2, axis="x"))
+    moved = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=2, axis="x")), Kind.MEASURE, VarianceChart.DENSITY))
     assert moved.axes is not None and moved.axes[0].support is decoy
     assert moved != honest
     # the shape and the layout are NOT read off the domain, so they must be

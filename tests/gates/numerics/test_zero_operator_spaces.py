@@ -46,6 +46,8 @@ import pytest
 from orpheus.numerics.operator import ZeroMorphism, ZeroOperator
 from orpheus.numerics.operator import PointwiseOperator
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -60,7 +62,7 @@ def _space(name: str, n: int) -> FunctionSpace:
     """A full-shape space — ``(name, shape)`` IS its identity. The trailing
     ``2`` mirrors the trace seam's group axis, so the bound-shape derivation
     is exercised on a genuinely multi-axis shape."""
-    return FunctionSpace(name, (n, 2))
+    return TensorSpace.declared(name, (n, 2), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
 
 
 def _bound_zero() -> ZeroMorphism:

@@ -45,6 +45,8 @@ from orpheus.numerics.axis import Modal
 
 from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 
 def _check(cond: bool, msg: str) -> None:
@@ -118,8 +120,8 @@ def test_angular_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_
     expected = (posed.quadrature.n_ordinates, posed.mesh.ng, *posed.mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
-    # the space is a bare FunctionSpace (no tensor-product factor at default)
-    _check(not hasattr(field.space, "factors"), "default space must be bare")
+    # the space is the three-slot product (angular, energy, spatial) with no moment slot at default
+    _check(field.space.labels == ("angular", "energy", "spatial"), "default space must append no moment slot")
 
 
 @pytest.mark.foundation
@@ -136,7 +138,7 @@ def test_scalar_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2
     expected = (posed.mesh.ng, *posed.mesh.spatial_shape)
     np.testing.assert_equal(field.space.shape, expected)
     np.testing.assert_equal(field.values.shape, expected)
-    _check(not hasattr(field.space, "factors"), "default space must be bare")
+    _check(field.space.labels == ("energy", "spatial"), "default space must append no moment slot")
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -158,9 +160,7 @@ def test_scalar_flux_default_byte_identical_all_schemes(scheme_name, dd_2d, ld_2
         # is the composed space (base axes + the scheme's moment axis).
         pytest.param(
             lambda m: ScalarFlux.zeros(
-                FunctionSpace.of_axes(
-                    *m.mesh.bulk_space.axes, m.scheme.moment_axis(m.mesh.axes),
-                )
+                TensorSpace.of_axes(*m.mesh.bulk_space.factors, Factor.whole_on(m.scheme.moment_axis(m.mesh.axes), Kind.MEASURE, VarianceChart.DENSITY))
             ),
             id="scalar_flux",
         ),

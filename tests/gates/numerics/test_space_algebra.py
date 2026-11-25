@@ -1,6 +1,6 @@
 r"""Foundation tests for :mod:`orpheus.numerics.space`'s algebraic
-constructions — :class:`TensorProductSpace`, :class:`DualSpace`, and
-the :meth:`FunctionSpace.__mul__` / :meth:`FunctionSpace.dual` dunders.
+constructions — :class:`TensorSpace`, :class:`DualSpace`, and
+the :meth:`TensorSpace.__mul__` / :meth:`TensorSpace.dual` verbs.
 
 Depth B step D-B (load-bearing). Pins the grand-report §6.1 / §15
 tensor-product algebra at the L1 layer; consumed by Wave T (see
@@ -23,82 +23,83 @@ from orpheus.numerics.metric import FactoredMetric
 from orpheus.numerics.space import (
     DualSpace,
     FunctionSpace,
-    TensorProductSpace,
+    TensorSpace,
 )
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.metric import DiagonalMetric
 
 
 # ─────────────────────────────────────────────────────────────────────
-# TensorProductSpace construction + identity
+# TensorSpace construction + identity
 # ─────────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.foundation
 def test_mul_returns_tensor_product_space():
-    a = FunctionSpace(name="X", shape=(4,))
-    b = FunctionSpace(name="G", shape=(2,))
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp = a * b
-    assert isinstance(tp, TensorProductSpace)
+    assert isinstance(tp, TensorSpace)
     assert tp.shape == (4, 2)
-    assert tp.factors == (a, b)
+    assert tp.factors == a.factors + b.factors
 
 
 @pytest.mark.foundation
 def test_mul_three_factors_associativity_left():
     """``(A * B) * C`` flattens to a 3-factor product (no nesting)."""
-    a = FunctionSpace(name="X", shape=(3,))
-    b = FunctionSpace(name="Omega", shape=(8,))
-    c = FunctionSpace(name="G", shape=(2,))
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("Omega", (8,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    c = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp = (a * b) * c
-    assert isinstance(tp, TensorProductSpace)
-    assert tp.factors == (a, b, c)
+    assert isinstance(tp, TensorSpace)
+    assert tp.factors == a.factors + b.factors + c.factors
     assert tp.shape == (3, 8, 2)
 
 
 @pytest.mark.foundation
 def test_mul_three_factors_associativity_right():
     """``A * (B * C)`` also flattens to a 3-factor product."""
-    a = FunctionSpace(name="X", shape=(3,))
-    b = FunctionSpace(name="Omega", shape=(8,))
-    c = FunctionSpace(name="G", shape=(2,))
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("Omega", (8,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    c = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp = a * (b * c)
-    assert isinstance(tp, TensorProductSpace)
-    assert tp.factors == (a, b, c)
+    assert isinstance(tp, TensorSpace)
+    assert tp.factors == a.factors + b.factors + c.factors
     assert tp.shape == (3, 8, 2)
 
 
 @pytest.mark.foundation
 def test_mul_associativity_produces_identical_results():
     """``(A*B)*C`` and ``A*(B*C)`` compare equal at the space level."""
-    a = FunctionSpace(name="X", shape=(3,))
-    b = FunctionSpace(name="Omega", shape=(8,))
-    c = FunctionSpace(name="G", shape=(2,))
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("Omega", (8,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    c = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     left = (a * b) * c
     right = a * (b * c)
     assert left == right
 
 
 @pytest.mark.foundation
-def test_mul_name_format_uses_otimes():
-    """The name reads as the math — ``X ⊗ G`` for ``X * G``."""
-    a = FunctionSpace(name="X", shape=(4,))
-    b = FunctionSpace(name="G", shape=(2,))
+def test_mul_name_format_joins_the_labels():
+    """The name reads the slots in order — ``X(4,)*G(2,)`` for ``X * G`` (a tensor space's derived display name)."""
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp = a * b
-    assert "X" in tp.name and "G" in tp.name
-    assert "⊗" in tp.name  # the actual U+2297 character
+    assert tp.name.startswith("X(4,)*G(2,)#")
 
 
 @pytest.mark.foundation
 def test_mul_rejects_non_function_space():
-    a = FunctionSpace(name="X", shape=(4,))
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     with pytest.raises(TypeError):
         _ = a * 5  # int is not FunctionSpace
 
 
 @pytest.mark.foundation
-def test_from_factors_requires_at_least_two_factors():
-    a = FunctionSpace(name="X", shape=(4,))
-    with pytest.raises(ValueError, match="at least 2 factors"):
-        TensorProductSpace.from_factors((a,))
+def test_the_empty_product_is_refused():
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    with pytest.raises(ValueError, match="at least one factor"):
+        TensorSpace.of_axes()
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -113,8 +114,8 @@ def test_inner_product_factorises_euclidean():
 
     With no inner-product weights, the TP space is Euclidean too.
     """
-    a = FunctionSpace(name="X", shape=(3,))
-    b = FunctionSpace(name="G", shape=(2,))
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp = a * b
     # Euclidean: TP weights stay None.
     assert tp.inner_product_weights is None
@@ -141,14 +142,14 @@ def test_inner_product_factorises_weighted():
     """
     w_a = np.array([1.0, 2.0, 3.0])
     w_b = np.array([0.5, 0.5])
-    a = FunctionSpace(name="X", shape=(3,), inner_product_weights=w_a)
-    b = FunctionSpace(name="G", shape=(2,), inner_product_weights=w_b)
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w_a))
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w_b))
     tp = a * b
     # The product carries its metric FACTORED (CS4c step 6 item 6.2a) —
     # never the outer product as a stored tensor; the VALUES it applies
     # are that outer product.
     assert tp.inner_product_weights is None
-    assert isinstance(tp.metric, FactoredMetric)
+    assert isinstance(tp._resolved_metric, FactoredMetric)
     np.testing.assert_array_almost_equal(
         tp.apply_metric(np.ones((3, 2))), np.outer(w_a, w_b),
     )
@@ -166,12 +167,12 @@ def test_inner_product_factorises_weighted():
 def test_inner_product_mixed_euclidean_and_weighted():
     """Mixing one Euclidean factor with one weighted factor produces a
     weighted TP (the Euclidean side contributes ones-of-shape)."""
-    a = FunctionSpace(name="X", shape=(3,))  # Euclidean
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))  # Euclidean
     w_b = np.array([1.0, 2.0])
-    b = FunctionSpace(name="G", shape=(2,), inner_product_weights=w_b)
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w_b))
     tp = a * b
     assert tp.inner_product_weights is None
-    assert isinstance(tp.metric, FactoredMetric)
+    assert isinstance(tp._resolved_metric, FactoredMetric)
     applied = tp.apply_metric(np.ones((3, 2)))
     # Each row equals w_b (since the Euclidean factor contributes 1).
     for i in range(3):
@@ -185,17 +186,17 @@ def test_inner_product_mixed_euclidean_and_weighted():
 
 @pytest.mark.foundation
 def test_two_tps_with_same_factors_compare_equal():
-    a = FunctionSpace(name="X", shape=(3,))
-    b = FunctionSpace(name="G", shape=(2,))
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp1 = a * b
-    tp2 = TensorProductSpace.from_factors((a, b))
+    tp2 = TensorSpace.of_axes(*a.factors, *b.factors)
     assert tp1 == tp2
 
 
 @pytest.mark.foundation
 def test_tp_usable_as_dict_key():
-    a = FunctionSpace(name="X", shape=(3,))
-    b = FunctionSpace(name="G", shape=(2,))
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp = a * b
     d = {tp: "value"}
     assert d[a * b] == "value"
@@ -208,24 +209,25 @@ def test_tp_usable_as_dict_key():
 
 @pytest.mark.foundation
 def test_dual_returns_dual_space():
-    a = FunctionSpace(name="X", shape=(4,))
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a_dual = a.dual()
-    assert isinstance(a_dual, DualSpace)
+    assert isinstance(a_dual, TensorSpace)
     assert a_dual.shape == a.shape
-    assert a_dual.primal is a
+    assert a_dual != a
+    assert a_dual.factors == tuple(f.dual() for f in a.factors)
 
 
 @pytest.mark.foundation
-def test_dual_name_appends_star():
-    a = FunctionSpace(name="X", shape=(4,))
-    assert "X" in a.dual().name
-    assert "*" in a.dual().name
+def test_dual_name_keeps_the_label_and_moves_the_digest():
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    assert a.dual().name.startswith("X(4,)#")
+    assert a.dual().name != a.name
 
 
 @pytest.mark.foundation
 def test_dual_idempotent():
     r""":math:`V^{**} = V` (Riesz identification, double-dual is the primal)."""
-    a = FunctionSpace(name="X", shape=(4,))
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     a_doubledual = a.dual().dual()
     assert a_doubledual is a  # exact identity, not just equal
 
@@ -243,7 +245,7 @@ def test_the_dual_carries_the_inverse_weights():
     dual to carry here.
     """
     w = np.array([1.0, 2.0, 3.0])
-    a = FunctionSpace(name="X", shape=(3,), inner_product_weights=w)
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
     a_dual = a.dual()
     assert a_dual.inner_product_weights is None
     x = np.array([1.0, 1.0, 1.0])
@@ -256,17 +258,17 @@ def test_the_dual_carries_the_inverse_weights():
 
 
 @pytest.mark.foundation
-def test_tp_repr_includes_otimes_name():
-    a = FunctionSpace(name="X", shape=(3,))
-    b = FunctionSpace(name="G", shape=(2,))
+def test_tp_repr_joins_the_factor_labels():
+    a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     r = repr(a * b)
-    assert "TensorProductSpace" in r
-    assert "⊗" in r
+    assert "TensorSpace" in r
+    assert "X(3,)*G(2,)" in r
 
 
 @pytest.mark.foundation
-def test_dual_repr_includes_star():
-    a = FunctionSpace(name="X", shape=(4,))
+def test_dual_repr_names_its_class_and_label():
+    a = TensorSpace.declared("X", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     r = repr(a.dual())
-    assert "DualSpace" in r
-    assert "X*" in r
+    assert "TensorSpace" in r
+    assert "X(4,)" in r

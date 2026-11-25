@@ -42,7 +42,11 @@ from orpheus.numerics.coefficient_layout import HarmonicLayout
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces import head_layout
 from orpheus.numerics import frame_faces
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -98,7 +102,7 @@ def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
     the :math:`|m|>\ell` padding).
     """
     L = 4
-    space = FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
+    space = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))
     expected_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
     assert space.inner_product_weights is None and space.metric is None
     assert space.axes is not None and len(space.axes) == 1
@@ -363,7 +367,7 @@ def test_moment_projection_codomain_is_spherical_harmonic_space():
     assert head_layout(cod) == HarmonicLayout(L)
     assert cod.shape == (L + 1, 2 * L + 1)
     assert cod == frame_faces.basis_space(GalerkinFrame(SphericalHarmonicBasis(L=L), measure))
-    assert cod != FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))   # the continuum head is another space
+    assert cod != TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))   # the continuum head is another space
 
     # Caching: repeated access returns the SAME object (not just an
     # equal one).  Pins the @cached_property contract — the Krylov
@@ -540,14 +544,14 @@ def test_spherical_harmonic_space_equality_is_structural():
     wearing the head's ``(name, shape)`` is NOT the head: an axis-built
     space is never equal to a name-built one.
     """
-    a = FunctionSpace.of_basis(SphericalHarmonicBasis(L=3))
-    b = FunctionSpace.of_basis(SphericalHarmonicBasis(L=3))
-    c = FunctionSpace.of_basis(SphericalHarmonicBasis(L=4))
+    a = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=3)), Kind.MEASURE, VarianceChart.DENSITY))
+    b = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=3)), Kind.MEASURE, VarianceChart.DENSITY))
+    c = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=4)), Kind.MEASURE, VarianceChart.DENSITY))
 
     assert a == b
     assert a != c
     assert hash(a) == hash(b)
     assert len({a, c}) == 2   # separation through the container
 
-    bare = FunctionSpace(name="spherical_harmonic_space", shape=(4, 7))
+    bare = TensorSpace.declared("spherical_harmonic_space", (4, 7), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     assert a != bare and bare != a

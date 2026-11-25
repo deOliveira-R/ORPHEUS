@@ -26,6 +26,8 @@ import pytest
 from orpheus.numerics.elementary_operators import PermutationOperator
 from orpheus.numerics.operator import IdentityOperator
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 
 @pytest.mark.l0
@@ -207,13 +209,13 @@ def test_a_bound_space_whose_extent_contradicts_the_perm_is_refused(end):
     lives in ``tests/gates/sn/operators/test_specular_deck_chain.py``.
     """
     perm = np.array([1, 0, 3, 2])
-    wrong = FunctionSpace(name="too-long", shape=(5,))
+    wrong = TensorSpace.declared("too-long", (5,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     with pytest.raises(ValueError, match="along axis 0"):
         PermutationOperator(perm, axis=0, **{end: wrong})
 
     # Positive leg: the matching extent constructs, so the row above is
     # about the DISAGREEMENT and not about binding being rejected at all.
-    right = FunctionSpace(name="matching", shape=(4,))
+    right = TensorSpace.declared("matching", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     bound = PermutationOperator(perm, axis=0, **{end: right})
     assert getattr(bound, end) is right
 

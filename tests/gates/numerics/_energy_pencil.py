@@ -63,6 +63,8 @@ from orpheus.numerics.operator import LinearOperator
 from orpheus.numerics.pencil import OperatorPencil
 from orpheus.numerics.posing import K_MAP, EigenPosing
 from orpheus.numerics.space import Covector, FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 
 @dataclass(frozen=True)
@@ -132,14 +134,14 @@ POINT = Axis("spatial", (1,), origin=Declared(BasisKind.NODAL))
 
 def energy_space(ng: int) -> FunctionSpace:
     """Energy ⊗ the quotient point under the counting metric (a synthetic group structure), shape ``(ng, 1)``."""
-    return FunctionSpace.of_axes(EnergyAxis.synthetic(ng), POINT)
+    return TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(ng), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(POINT, Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def weighted_space(weights: np.ndarray) -> FunctionSpace:
     """A deliberately non-physical toy: a WEIGHTED group axis, so ``.H`` must
     read a non-scalar Gram (the 0-D counting pose cannot see a metric error); ⊗ point, shape ``(ng, 1)``."""
     w = np.asarray(weights, dtype=float)
-    return FunctionSpace.of_axes(Axis("weighted-group", (w.shape[0],), origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), POINT)
+    return TensorSpace.of_axes(Factor.whole_on(Axis("weighted-group", (w.shape[0],), origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(POINT, Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def bound(matrix: np.ndarray, space: FunctionSpace) -> SparseAssembledOperator:

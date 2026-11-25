@@ -60,6 +60,8 @@ import numpy as np
 import pytest
 
 from tests.gates.sn.architecture import _realized_boundary_helpers as H
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 _THIS = "tests/gates/sn/architecture/test_realized_boundary.py"
 
@@ -444,7 +446,7 @@ def _split_pair_witness(trace, face: str, alpha: float, psi: np.ndarray) -> np.n
     def space_of(weights: np.ndarray) -> FunctionSpace:
         points = IndexSet(label="angular", n=weights.size)
         measure = DiscreteMeasure(nodes=np.arange(weights.size, dtype=float), weights=weights, support=points)
-        return FunctionSpace.of_axes(Axis.of_measure(measure, "angular"), EnergyAxis.synthetic(1))
+        return TensorSpace.of_axes(Factor.whole_on(Axis.of_measure(measure, "angular"), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(EnergyAxis.synthetic(1), Kind.MEASURE, VarianceChart.DENSITY))
 
     m_out, m_in = H.trace_weights(trace, face)
     retraction = AxisRetractionOperator.of(space_of(m_out), "angular")
@@ -550,7 +552,7 @@ def test_the_declared_and_the_realized_composition_meet(face: str) -> None:
         assert chain.factors[-1].codomain == inflow.role == image.inner.codomain.role, f"{chain.__name__}: the last factor does not end on the inflow tier"
     diffuse = B.DiffuseChain
     assert diffuse.factors[0].codomain == diffuse.factors[1].domain == "current"
-    assert current.name == f"angular_trace[{face}:current]", "the current space is named for its tier"
+    assert current.name.startswith(f"angular_trace[{face}:current]"), "the current space is named for its tier"
 
 
 # ═════════════════════════════════════════════════════════════════════════════

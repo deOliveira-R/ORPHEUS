@@ -54,15 +54,17 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, unique
 
+from typing import cast
+
 import numpy as np
 
 from orpheus.values.content import ContentIdentity
 
 from .axis import Axis, FromFrame
 from .declaration import Ann, Coord, Declaration, Spanned, contains, intersect
-from .metric import DenseMetric, DiagonalMetric, Face, HilbertMetric, NoForm, _masked_reciprocal
+from .metric import DenseMetric, DiagonalMetric, DualMetric, Entry, Face, HilbertMetric, NoForm, _masked_reciprocal
 
-__all__ = ["Factor", "FormlessVariance", "Kind", "Subquotient", "Variance", "VarianceChart"]
+__all__ = ["Factor", "FormlessVariance", "Kind", "Subquotient", "Variance", "VarianceChart", "variance_on"]
 
 
 @unique
@@ -269,13 +271,17 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
             raise ValueError(f"factor: a slot on a singular form needs the quotient by its kernel (quotient by {kernel!r})")
 
     @property
-    def form(self) -> HilbertMetric | NoForm:
+    def form(self) -> Entry:
         r"""The form of the slot: :class:`NoForm` on a formless axis; else the density form of the density partner, and on the
         integrated end its inverse face (the dense form with its ``face`` flipped, the dual metric of a diagonal form)."""
         density = self._induced
         if density is None:
             return self.axis.form  # a NoForm
         if self.variance.chart is VarianceChart.DENSITY:
+            if isinstance(density, DiagonalMetric) and isinstance(self.axis.origin, FromFrame):
+                # ELEGANCE-DEBT[guard] #756 the density end of a diagonal frame head (the dual of the head) is the dual metric of the masked
+                # reciprocal, the arithmetic the head's dual has always used; retires when N10 gives the diagonal head one spelling.
+                return DualMetric(DiagonalMetric(_masked_reciprocal(_flat_weights(density).reshape(self.axis.shape))))
             return density
         if isinstance(density, DenseMetric):
             return density.flipped()
@@ -283,7 +289,7 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
             # ELEGANCE-DEBT[guard] #756 the diagonal frame head's integrated form is the masked reciprocal of its Gram's diagonal,
             # the arithmetic the head has always used; retires when N10 gives the diagonal integrated end one spelling.
             return DiagonalMetric(_masked_reciprocal(_flat_weights(density).reshape(self.axis.shape)))
-        return density.dual()
+        return cast(Entry, density.dual())  # a diagonal form's dual is its dual metric
 
     def _density_form(self, sk: Subquotient, axis_form: DiagonalMetric | DenseMetric) -> DiagonalMetric | DenseMetric:
         r"""The Schur complement of ``axis_form`` on ``sk`` (a stationary value, not a minimum), stored on the axis's full index set."""
@@ -322,6 +328,16 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
                 raise ValueError("subquotient kernel is not the form's declared kernel")
             return axis_form
         raise ValueError("a declared subspace has no enumerable coordinates: the induced form of this (form, S, K) is not built")
+
+    @classmethod
+    def whole_on(cls, axis: Axis, kind: Kind, chart: VarianceChart) -> "Factor":
+        r"""The factor of ``axis``, whole, in ``kind`` and ``chart`` where the axis has a form and in the :class:`FormlessVariance` of ``kind`` where it has none.
+
+        The mint of the sites whose axis form is not known statically (a distinct test basis, the scheme's moment axis): one call of
+        :func:`variance_on`, the only branch on a form outside the factor (ELEGANCE-DEBT[guard] #757: the variance type must agree with the
+        axis's form at run time; it retires when the factor splits by the axis's form, so that the disagreement is unspellable).
+        """
+        return cls(axis, variance_on(axis, kind, chart), Subquotient.whole(int(np.prod(axis.shape))))
 
     @property
     def kind(self) -> Kind:
@@ -389,3 +405,16 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         """
         # a FormlessVariance has no riesz: the AttributeError of the formless case is raised by the variance (#757)
         return Factor(self.axis, self.variance.riesz(), self.sk.dual())  # pyright: ignore[reportAttributeAccessIssue]
+
+
+def variance_on(axis: Axis, kind: Kind, chart: VarianceChart) -> FormlessVariance | Variance:
+    r"""The variance of a factor of ``axis`` in ``kind`` and ``chart``: a :class:`FormlessVariance` when the axis's form is :class:`NoForm`, else the
+    :class:`Variance` of the pair.
+
+    The one branch on a form outside :class:`Factor`, for the mints whose axis form is not known statically (a distinct test basis, the
+    scheme's moment axis). ELEGANCE-DEBT[guard] #757 the variance type must agree with the axis's form at run time; retires when the factor
+    splits by the axis's form into a formless and a formed class, so that the disagreement is unspellable.
+    """
+    if isinstance(axis.form, NoForm):
+        return FormlessVariance.FUNCTION if kind is Kind.FUNCTION else FormlessVariance.MEASURE
+    return Variance(kind, chart)

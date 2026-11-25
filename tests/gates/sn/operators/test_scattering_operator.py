@@ -50,6 +50,8 @@ from tests.gates.sn.operators._composite_operand import (
 from dataclasses import replace
 from orpheus.numerics import frame_faces
 from orpheus.geometry.deck import MirrorDeck
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation  # software-invariant tier
 
@@ -86,10 +88,7 @@ def _widened_scalar_space(problem, trailing):
     bulk = problem.bulk_space
     if not trailing:
         return bulk
-    return FunctionSpace.of_axes(
-        *bulk.axes,
-        Axis("spatial_moments", tuple(trailing), origin=Declared(BasisKind.NODAL)),
-    )
+    return TensorSpace.of_axes(*bulk.factors, Factor.whole_on(Axis("spatial_moments", tuple(trailing), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 def _energy_pair_on(solver, trailing):

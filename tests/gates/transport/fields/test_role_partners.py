@@ -39,6 +39,8 @@ from orpheus.numerics.field import Field
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.units import SCALAR_FLUX_UNITS, SCALAR_RATE_UNITS, Unit
 from orpheus.transport.fields._bases import FieldRole, RolePair, ScalarField
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -179,7 +181,7 @@ class TestIntoRole:
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         from orpheus.transport.fields import ScalarSourceSink
 
-        space = FunctionSpace(name="scalar", shape=(2, 3))
+        space = TensorSpace.declared("scalar", (2, 3), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         phi = ScalarFlux(values=np.arange(6.0).reshape(2, 3), space=space)
         q = phi.into_role(FieldRole.SOURCE_SINK, phi.values * 2.0)
         assert type(q) is ScalarSourceSink
@@ -207,8 +209,8 @@ class TestIntoRole:
     def test_space_override_rebinds_the_output(self):
         from orpheus.transport.fields.scalar_flux import ScalarFlux
 
-        a = FunctionSpace(name="scalar", shape=(2, 3))
-        b = FunctionSpace(name="other", shape=(2, 3))
+        a = TensorSpace.declared("scalar", (2, 3), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+        b = TensorSpace.declared("other", (2, 3), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         phi = ScalarFlux(values=np.zeros((2, 3)), space=a)
         q = phi.into_role(FieldRole.SOURCE_SINK, np.zeros((2, 3)), space=b)
         assert q.space is b
@@ -216,7 +218,7 @@ class TestIntoRole:
     def test_an_unpaired_leaf_refuses(self):
         from orpheus.transport.fields.cross_section_field import CrossSectionField
 
-        space = FunctionSpace(name="xs", shape=(2, 3))
+        space = TensorSpace.declared("xs", (2, 3), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
         sig = CrossSectionField(values=np.ones((2, 3)), space=space)
         with pytest.raises(TypeError, match="no role partner"):
             sig.into_role(FieldRole.FLUX, sig.values)

@@ -47,7 +47,7 @@ from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+from orpheus.numerics.space import FunctionSpace, TensorSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from tests.gates.transport._phase_space_cases import Posed, moment_space
 from orpheus.transport.spatial import LinearDiscontinuous
@@ -95,7 +95,7 @@ def test_the_moment_norm_carries_the_cell_mass_on_its_tail(label: str) -> None:
     Euclidean tail (the retired spelling) differs by the mass ratio."""
     sn = _LD[label]()
     space = moment_space(sn.mesh, sn.quadrature, 1, sn.scheme)
-    assert isinstance(space, TensorProductSpace)
+    assert isinstance(space, TensorSpace)
     (tail,) = _tail_axes(space)
     assert isinstance(tail.form, DiagonalMetric)
     rng = np.random.default_rng(3)

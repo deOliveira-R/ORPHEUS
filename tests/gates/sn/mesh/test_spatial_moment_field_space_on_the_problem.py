@@ -127,7 +127,7 @@ def test_harmonic_moment_flux_default_byte_identical(scheme_name, dd_2d, ld_2d):
     np.testing.assert_equal(field.values.shape, expected)
     np.testing.assert_equal(field.spatial_moments, 1)
     # the angular factor is present; the spatial-moment axis is NOT (byte-id tree)
-    np.testing.assert_equal(head_layout(field.space.factors[0]).L, L)
+    np.testing.assert_equal(head_layout(field.space.sub(field.space.labels[0])).L, L)
     assert field.space.axes is not None
     np.testing.assert_equal(
         [ax.label for ax in field.space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL], [],
@@ -158,7 +158,7 @@ def test_harmonic_moment_flux_widened_2d_shape(ld_2d):
     np.testing.assert_equal(field.values.shape, expected)
     np.testing.assert_equal(field.spatial_moments, 2)
     # both moment factors coexist (orthogonal axes)
-    np.testing.assert_equal(head_layout(field.space.factors[0]).L, L)
+    np.testing.assert_equal(head_layout(field.space.sub(field.space.labels[0])).L, L)
     np.testing.assert_equal(BulkField.spatial_moments_per_axis_of(field.space), 2)
     assert field.space.axes is not None
     tail = [ax for ax in field.space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL]

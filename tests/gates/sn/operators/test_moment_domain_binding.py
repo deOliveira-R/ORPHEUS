@@ -77,6 +77,8 @@ from tests.gates.sn.operators._composite_operand import (
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -439,7 +441,7 @@ class TestAdmission:
         end.
         """
         S = solver.problem.system.factors.scattering
-        third = FunctionSpace.of_axes(*problem.bulk_space.axes)
+        third = TensorSpace.of_axes(*problem.bulk_space.factors)
         require(
             third != S.flux_analysis.domain and third != S.flux_analysis.codomain,
             "the 'third' space coincides with an admissible end — the negative "

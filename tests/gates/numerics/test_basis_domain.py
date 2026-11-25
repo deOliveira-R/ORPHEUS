@@ -87,6 +87,10 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.basis.orthonormal_span_basis import OrthonormalSpanBasis
 from orpheus.numerics import frame_faces
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 pytestmark = [pytest.mark.foundation]
@@ -152,8 +156,8 @@ def test_d1_an_energy_space_and_a_spatial_space_are_not_the_same_space() -> None
     first assertion would pass for the wrong reason and this file would
     certify nothing.
     """
-    energy = FunctionSpace.of_basis(IndicatorBasis(_TWO_GROUPS, EnergyGroups(2)))
-    spatial = FunctionSpace.of_basis(IndicatorBasis(_TWO_CELLS, RealSpace(1)))
+    energy = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(IndicatorBasis(_TWO_GROUPS, EnergyGroups(2))), Kind.MEASURE, VarianceChart.DENSITY))
+    spatial = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(IndicatorBasis(_TWO_CELLS, RealSpace(1))), Kind.MEASURE, VarianceChart.DENSITY))
 
     assert energy.shape == spatial.shape == (2,)     # the collision's precondition
     assert energy != spatial
@@ -161,9 +165,9 @@ def test_d1_an_energy_space_and_a_spatial_space_are_not_the_same_space() -> None
 
     # negative control: inequality is decided by the MANIFOLD, and shape still
     # separates two partitions of the SAME manifold.
-    three = FunctionSpace.of_basis(IndicatorBasis(_THREE_CELLS, RealSpace(1)))
+    three = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(IndicatorBasis(_THREE_CELLS, RealSpace(1))), Kind.MEASURE, VarianceChart.DENSITY))
     assert spatial != three
-    assert FunctionSpace.of_basis(IndicatorBasis(_TWO_CELLS, RealSpace(1))) == spatial
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(IndicatorBasis(_TWO_CELLS, RealSpace(1))), Kind.MEASURE, VarianceChart.DENSITY)) == spatial
 
 
 def test_d2_every_shipped_basis_answers_what_its_functions_eat() -> None:
@@ -365,7 +369,7 @@ def test_d7_a_wrapping_basis_cannot_drift_from_the_basis_it_wraps() -> None:
 
     weighted = WeightedIndicatorBasis(trial, np.ones(2))
     assert weighted.domain is trial.domain
-    assert FunctionSpace.of_basis(weighted) == FunctionSpace.of_basis(trial)
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(weighted), Kind.MEASURE, VarianceChart.DENSITY)) == TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(trial), Kind.MEASURE, VarianceChart.DENSITY))
 
     table = np.array([[1.0, 0.0], [0.0, 1.0]])
     overlap = OverlapBasis.from_indicator(trial, table, fine=EnergyGroups(2))
@@ -376,7 +380,7 @@ def test_d7_a_wrapping_basis_cannot_drift_from_the_basis_it_wraps() -> None:
     # cannot drift is the COARSE side it spans: the partition it decorates.
     assert overlap.domain == EnergyGroups(2)
     assert overlap.partition_of is trial.partition_of
-    assert FunctionSpace.of_basis(overlap) == FunctionSpace.of_basis(trial)
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(overlap), Kind.MEASURE, VarianceChart.DENSITY)) == TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(trial), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 # ═══════════════════════════════════════════════════════════════════════════

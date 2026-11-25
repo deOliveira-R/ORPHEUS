@@ -229,7 +229,7 @@ phase = "structure"
 layer = "numerics"
 wave = "W1"
 ruling = "O23"
-functions = ["orpheus.numerics.space.FunctionSpace.flat", "orpheus.numerics.space.FunctionSpace.integral", "orpheus.numerics.space.FunctionSpace.unit"]
+functions = ["orpheus.numerics.space.TensorSpace.flat", "orpheus.numerics.space.TensorSpace.integral", "orpheus.numerics.space.FunctionSpace.unit"]
 theory = ["ref:spaces-covector"]
 
 [[concept]]
@@ -892,7 +892,7 @@ phase = "structure"
 layer = "numerics"
 wave = "W1"
 ruling = "O23"
-functions = ["orpheus.numerics.space.FunctionSpace.identity_key", "orpheus.numerics.space.FunctionSpace.of_measure", "orpheus.numerics.space.FunctionSpace.of_basis"]
+functions = ["orpheus.numerics.space.FunctionSpace.identity_key", "orpheus.numerics.space.TensorSpace.of_measure", "orpheus.numerics.space.TensorSpace.of_basis"]
 theory = ["eq:spaces-axis-product", "ref:spaces-identity-key"]
 
 [[concept]]

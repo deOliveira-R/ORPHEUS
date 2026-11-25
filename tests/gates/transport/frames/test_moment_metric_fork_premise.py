@@ -77,6 +77,10 @@ from orpheus.transport.material_field import TransferMaterialField
 from orpheus.transport.operators.transfer import LegendreMomentTransfer
 from tests.gates.transport._materials import material_xs_from_raw
 from orpheus.numerics import frame_faces
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -167,20 +171,20 @@ def test_the_two_moment_heads_are_UNEQUAL_and_the_dressed_one_is_the_frames(labe
     handing back the continuum head where the dressed one is bound.
     """
     frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
-    continuum, dressed = FunctionSpace.of_basis(frame.basis), frame_faces.basis_space(frame)
+    continuum, dressed = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)), frame_faces.basis_space(frame)
 
     assert continuum != dressed and dressed != continuum, "the metric is the identity now"
-    assert continuum.name == dressed.name and continuum.shape == dressed.shape
+    assert continuum.name.split("#")[0] == dressed.name.split("#")[0] and continuum.shape == dressed.shape  # one label and shape, two digests
     assert continuum.axes is not None and dressed.axes is not None
     assert continuum.axes[0].origin.basis is frame.basis
     assert dressed.axes[0].origin.frame is frame
     assert continuum.inner_product_weights is None and dressed.inner_product_weights is None
 
     cont = _head_measure(continuum)
-    assert cont is not None and continuum.metric is None
+    assert cont is not None
     if (label, L) in _DENSE_ROWS:
         assert frame.discrete_gram_structure is GramStructure.DENSE
-        assert _head_measure(dressed) is None and dressed.metric is not None
+        assert _head_measure(dressed) is None and isinstance(dressed.factors[0].form, DenseMetric)
     else:
         assert frame.discrete_gram_structure is GramStructure.DIAGONAL
         dres = _head_measure(dressed)
@@ -262,7 +266,7 @@ def test_parseval_holds_under_the_dressed_metric_and_FAILS_under_the_continuum_o
         err_msg="the dressed (Parseval) metric must make analysis an isometry",
     )
     # the NEGATIVE control: the same pairing under the continuum Gram
-    ratio = float(FunctionSpace.of_basis(frame.basis).inner_product(phi, phi)) / float(energy)
+    ratio = float(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)).inner_product(phi, phi)) / float(energy)
     assert ratio > 3.0, (
         f"the continuum metric must be measurably NOT the Parseval one; "
         f"ratio={ratio:.4f}"
@@ -301,7 +305,7 @@ def test_the_lambda_adjoint_is_the_transpose_on_PHYSICAL_moments_under_both_metr
     psi = rng.standard_normal((n_nodes, _NG, _NX, 1))
     phi = np.asarray(frame_faces.FrameAnalysis.of(frame).apply(psi))
 
-    for name, space in (("continuum", FunctionSpace.of_basis(frame.basis)), ("dressed", frame_faces.basis_space(frame))):
+    for name, space in (("continuum", TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY))), ("dressed", frame_faces.basis_space(frame))):
         gap = _adjoint_gap(space, transfer, L, phi)
         assert gap < 1e-12, f"{name} end moved Λ.H off Λᵀ on a physical moment: {gap:.3e}"
 
@@ -330,8 +334,8 @@ def test_the_dressed_adjoint_moves_ONLY_off_the_range_of_analysis() -> None:
     for label, L in movers:
         frame = HarmonicFrame.from_galerkin(frame_faces.angular_frame(_RULES[label](), L))
         transfer = _transfer(L)
-        x = rng.standard_normal(FunctionSpace.of_basis(frame.basis).shape + (_NG, _NX, 1))
-        continuum_gap = _adjoint_gap(FunctionSpace.of_basis(frame.basis), transfer, L, x)
+        x = rng.standard_normal(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)).shape + (_NG, _NX, 1))
+        continuum_gap = _adjoint_gap(TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)), transfer, L, x)
         dressed_gap = _adjoint_gap(frame_faces.basis_space(frame), transfer, L, x)
         assert continuum_gap < 1e-12, (
             f"{label} L={L}: the continuum end must be transpose-exact off-range too"

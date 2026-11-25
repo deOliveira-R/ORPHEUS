@@ -44,6 +44,11 @@ from tests.gates.numerics._axis_marginal_lift_support import (
     sphere_rule,
 )
 from orpheus.numerics.metric import DiagonalMetric, NoForm
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DenseMetric
+from tests.gates.numerics._declared_support import factor_mod_kernel
+from tests.gates.numerics._declared_support import legacy_leaf
 
 pytestmark = pytest.mark.foundation
 
@@ -77,8 +82,8 @@ def _axis_block(V, k):
     """G_k from the RAW axis or its positioned form (never from the operator)."""
     ax = V.axes[k]
     nk = int(np.prod(ax.shape))
-    form = V._overlay_forms()[k]
-    if form is not None:
+    form = V.factors[k].form
+    if isinstance(form, DenseMetric):
         return np.asarray(form.matrix, float)
     if isinstance(ax.form, NoForm):
         return np.eye(nk)
@@ -339,8 +344,8 @@ class TestG3Reciprocity:
 
         a = Axis("angular", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.5, 1.5]))))
         b = Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))
-        with pytest.raises(ValueError, match="DERIVED from its axes"):
-            FunctionSpace("np", (2, 3), axes=(a, b), metric=DenseMetric(np.eye(6) + 0.1, kernel=Coord(6, ()), face=Face.METRIC))
+        with pytest.raises(TypeError):  # a metric object beside the factors is unspellable: the space is its factors
+            TensorSpace(factors=(Factor.whole_on(a, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(b, Kind.MEASURE, VarianceChart.DENSITY)), metric=DenseMetric(np.eye(6) + 0.1, kernel=Coord(6, ()), face=Face.METRIC))  # type: ignore[call-arg]
 
 
 # ═══ G4 — the section laws ════════════════════════════════════════════════════
@@ -421,7 +426,7 @@ def test_g5_the_nodal_mass_is_correctly_rounded(rule):
     from orpheus.numerics.space import FunctionSpace
 
     w = np.asarray(_RULES[rule]().weights, float)
-    V = FunctionSpace.of_axes(Axis("angular", w.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), Axis("x", (3,), origin=Declared(BasisKind.NODAL)))
+    V = TensorSpace.of_axes(Factor.whole_on(Axis("angular", w.shape, origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("x", (3,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
     npt.assert_array_equal(AxisSectionOperator.of(V, "angular").mass, math.fsum(w))
 
 
@@ -437,7 +442,7 @@ class TestG6Refusals:
         from orpheus.numerics.axis import EnergyAxis
         from orpheus.numerics.space import FunctionSpace
 
-        V = FunctionSpace.of_axes(EnergyAxis.synthetic(2), self._cells())
+        V = TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(self._cells(), Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises(TypeError, match="condensation"):
             AxisRetractionOperator.of(V, "energy")
         with pytest.raises(TypeError, match="condensation"):
@@ -449,7 +454,7 @@ class TestG6Refusals:
         from orpheus.numerics.space import FunctionSpace
 
         with pytest.raises(TypeError, match="condensation") as info:
-            AxisRetractionOperator.of(FunctionSpace.of_axes(EnergyAxis.synthetic(2)), "energy")
+            AxisRetractionOperator.of(TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY)), "energy")
         if "bare scalar" in str(info.value):
             pytest.fail("the energy refusal must not carry the single-axis reason")
 
@@ -461,17 +466,15 @@ class TestG6Refusals:
         from orpheus.numerics.quadrature import Quadrature
         from orpheus.numerics.space import FunctionSpace
 
-        V = (FunctionSpace.of_axes(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.7, 0.5, 0.5])))))
+        V = (TensorSpace.of_axes(Factor.whole_on(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([0.3, 0.7, 0.5, 0.5])))), Kind.MEASURE, VarianceChart.DENSITY))
              if which == "nodal" else frame_faces.basis_space(frame_faces.angular_frame(Quadrature.folded_product(4, 4), 2)))
         assert V.axes is not None  # narrowing only: both members are axis-built
         with pytest.raises(ValueError, match="bare scalar"):
             AxisRetractionOperator.of(V, V.axes[0].label)
 
     def test_an_axes_less_space_refuses(self):
-        from orpheus.numerics.space import FunctionSpace
-
-        with pytest.raises(TypeError, match="not axis-built"):
-            AxisRetractionOperator.of(FunctionSpace(name="legacy", shape=(4, 2)), "angular")
+        with pytest.raises(TypeError, match="no named factors"):
+            AxisRetractionOperator.of(legacy_leaf("legacy", (4, 2)), "angular")
 
     def test_an_unknown_label_refuses_naming_the_axes(self):
         V, _ = resolve("synthetic nodal", "angular")
@@ -492,7 +495,7 @@ class TestG6Refusals:
             # the Legendre head with a metric that vanishes on its constant coefficient: a declared modal axis, since a generator
             # arm supplies its own form and a weights override is unspellable
             head = Axis("legendre", (3,), origin=Declared(Modal(np.array([1.0, 0.0, 0.0])), DiagonalMetric(np.array([0.0, 1.0, 1.0]))))
-            V, label = FunctionSpace.of_axes(head, Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))), "legendre"
+            V, label = TensorSpace.of_axes(factor_mod_kernel(head), Factor.whole_on(Axis("spatial", (3,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY)), "legendre"
         AxisRetractionOperator.of(V, label)
         with pytest.raises(ValueError, match="zero total weight"):
             AxisSectionOperator.of(V, label)

@@ -54,6 +54,8 @@ from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
 
 from typing import TYPE_CHECKING
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from orpheus.numerics.coupled_system import CoupledField
@@ -316,7 +318,7 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
     # CLASS property in-process (auto-reverts; never a real edit / git checkout).
     # Since S7 a composite IS its blocks' keys, so a wrong space of the right
     # shape is spelled through a wrong block (a renamed bulk leaf).
-    wrong = FullFieldSpace.from_blocks(FunctionSpace("bulk_TYPO", ffs.interior_space.shape), ffs.trace_space)
+    wrong = FullFieldSpace.from_blocks(TensorSpace.declared("bulk_TYPO", ffs.interior_space.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY)), ffs.trace_space)
     with mock.patch.object(type(S), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(S), "codomain", property(lambda self: wrong)):
         with pytest.raises(
@@ -361,7 +363,7 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     ffs = problem.full_field_space
     # Since S7 a composite IS its blocks' keys, so a wrong space of the right
     # shape is spelled through a wrong block (a renamed bulk leaf).
-    wrong = FullFieldSpace.from_blocks(FunctionSpace("bulk_TYPO", ffs.interior_space.shape), ffs.trace_space)
+    wrong = FullFieldSpace.from_blocks(TensorSpace.declared("bulk_TYPO", ffs.interior_space.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY)), ffs.trace_space)
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(CrossSectionField.total_of(solver.problem.mat_xs), problem)
     # S2 (ruling 52): the production build is the EXPLICIT atom

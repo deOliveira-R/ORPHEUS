@@ -31,6 +31,8 @@ from orpheus.transport.operators.isotropic_transfer import (
     IsotropicN2N,
 )
 from tests.gates.transport._transfer_oracles import dense_per_material
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -82,10 +84,7 @@ def _space(mat, spatial_moments=0):
     bulk = mat.space
     if spatial_moments == 0:
         return bulk
-    return FunctionSpace.of_axes(
-        *bulk.axes,
-        Axis("spatial_moments", (spatial_moments,), origin=Declared(BasisKind.NODAL)),
-    )
+    return TensorSpace.of_axes(*bulk.factors, Factor.whole_on(Axis("spatial_moments", (spatial_moments,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 # ═══════════════════════════════════════════════════════════════════════

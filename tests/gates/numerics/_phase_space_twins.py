@@ -24,7 +24,10 @@ from orpheus.numerics.basis.interval_legendre_basis import spatial_moment_basis
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 #: The literal edges of the monomorphic population (``tests/gates/transport/_phase_space_cases.py``'s
 #: ``NONUNIFORM_EDGES`` and two-region rectangle; a numerics file may not import that transport helper).
@@ -69,7 +72,7 @@ class Twin(NamedTuple):
     def ld_trial(self) -> FunctionSpace:
         """The angular bulk widened by the linear-discontinuous cell basis (2 polynomials per spatial dimension)."""
         ndim = len(self.bulk.axis("spatial").shape)
-        return self.angular_bulk.with_axis(Axis.of_basis(spatial_moment_basis(2, ndim)))
+        return self.angular_bulk.with_axis(whole_on_mod_kernel(Axis.of_basis(spatial_moment_basis(2, ndim)), Kind.MEASURE, VarianceChart.DENSITY))
 
     def moment(self, L: int) -> FunctionSpace:
         """The harmonic moment space at order ``L``: the frame-dressed head times the scalar bulk."""
@@ -79,6 +82,6 @@ class Twin(NamedTuple):
 def twin(quadrature: Quadrature, spatial: Axis, ng: int = 2) -> Twin:
     return Twin(
         quadrature,
-        FunctionSpace.of_axes(EnergyAxis.synthetic(ng), spatial),
-        FunctionSpace.of_axes(Axis.of_quadrature(quadrature), EnergyAxis.synthetic(ng), spatial),
+        TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(ng), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(spatial, Kind.MEASURE, VarianceChart.DENSITY)),
+        TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(quadrature), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(EnergyAxis.synthetic(ng), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(spatial, Kind.MEASURE, VarianceChart.DENSITY)),
     )

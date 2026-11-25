@@ -63,7 +63,8 @@ from orpheus.numerics.elementary_operators import TraceRestrictionOperator
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import LinearOperator, ZeroMorphism
-from orpheus.numerics.space import FunctionSpace, act_on_flat_coordinates
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import FunctionSpace, TensorSpace, act_on_flat_coordinates
 
 __all__ = ["KernelProjectionGauge", "KernelSummand", "SUMMAND_ORTHOGONALITY_TOL", "diagonal_metric"]
 
@@ -168,8 +169,10 @@ def _flat_chart(space: FunctionSpace) -> FunctionSpace:
         return space
     from orpheus.numerics.metric import DiagonalMetric
 
-    return FunctionSpace(f"{space.name}#flat", (space.n_coordinates,),
-                         metric=DiagonalMetric(diagonal_metric(space)))
+    return TensorSpace.declared(
+        f"{space.name}#flat", (space.n_coordinates,), Variance(Kind.FUNCTION, VarianceChart.DENSITY),
+        form=DiagonalMetric(diagonal_metric(space)),
+    )
 
 
 class KernelProjectionGauge(LinearOperator):  # concept: nullspace | role: weld | kind: morphism.operator | welded: nullspace, gauge

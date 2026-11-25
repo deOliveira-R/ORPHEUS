@@ -1,4 +1,4 @@
-r"""``FunctionSpace.of_axes`` — composition, naming, per-axis metric, cone
+r"""``TensorSpace.of_axes`` — composition, naming, per-axis metric, cone
 (campaign 1, CS1 step 2).
 
 Gate ids B1–B8 refer to the CS1 battery of record
@@ -31,6 +31,8 @@ import pytest
 from orpheus.numerics.axis import Declared, Axis, BasisKind, EnergyAxis
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
@@ -71,11 +73,7 @@ def test_of_axes_shape_is_the_concatenation() -> None:
     ``Axis``) is what makes a ``shape + (n,)`` vs ``shape + axis.shape``
     slip visible; a battery of rank-1 axes only cannot see it.
     """
-    space = FunctionSpace.of_axes(
-        EnergyAxis.synthetic(2),
-        Axis("harmonic", (3, 5), origin=Declared(Modal(np.eye(1, 15)[0].reshape(3, 5)))),
-        _point(),
-    )
+    space = TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("harmonic", (3, 5), origin=Declared(Modal(np.eye(1, 15)[0].reshape(3, 5)))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY))
     _require(space.shape == (2, 3, 5, 1), f"shape {space.shape} != (2, 3, 5, 1)")
     axes = space.axes
     assert axes is not None
@@ -108,7 +106,7 @@ def test_of_axes_name_is_INJECTIVE_on_structural_content() -> None:
         (EnergyAxis.synthetic(2),),
         (EnergyAxis.synthetic(2), Axis("spatial", (1,), origin=Declared(Modal(np.eye(1)[0])))),  # kind differs
     ]
-    spaces = [FunctionSpace.of_axes(*t) for t in tuples]
+    spaces = [TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in t)) for t in tuples]
     names = {s.name for s in spaces}
     _require(
         len(names) == len(tuples),
@@ -152,13 +150,13 @@ def test_of_axes_name_is_BLIND_to_the_generator() -> None:
     q = Quadrature.gauss_legendre(4)
     minted = Axis.of_quadrature(q, "angular")
     literal = Axis.of_measure(q.measure, "angular")
-    s_m = FunctionSpace.of_axes(minted)
-    s_l = FunctionSpace.of_axes(literal)
+    s_m = TensorSpace.of_axes(Factor.whole_on(minted, Kind.MEASURE, VarianceChart.DENSITY))
+    s_l = TensorSpace.of_axes(Factor.whole_on(literal, Kind.MEASURE, VarianceChart.DENSITY))
     _require(s_m.name == s_l.name, f"digest moved: {s_m.name!r} != {s_l.name!r}")
     _require(s_m == s_l and hash(s_m) == hash(s_l), "space identity moved")
     _require(
-        FunctionSpace.of_axes(minted, _point()).name
-        == FunctionSpace.of_axes(literal, _point()).name,
+        TensorSpace.of_axes(Factor.whole_on(minted, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY)).name
+        == TensorSpace.of_axes(Factor.whole_on(literal, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY)).name,
         "the shipped composite's name moved",
     )
 
@@ -170,15 +168,16 @@ def test_of_axes_name_is_deterministic_across_processes() -> None:
     The in-process leg cannot see that; the subprocess leg can, and it is
     the only leg that can.
     """
-    space = FunctionSpace.of_axes(EnergyAxis.synthetic(2), _point())
-    twin = FunctionSpace.of_axes(EnergyAxis.synthetic(2), _point())
+    space = TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY))
+    twin = TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY))
     _require(space.name == twin.name, "same content, two constructions, one name")
 
     snippet = (
         "from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis\n"
-        "from orpheus.numerics.space import FunctionSpace\n"
-        "s = FunctionSpace.of_axes(EnergyAxis.synthetic(2), "
-        "Axis('spatial', (1,), origin=Declared(BasisKind.NODAL)))\n"
+        "from orpheus.numerics.factor import Factor, Kind, VarianceChart\n"
+        "from orpheus.numerics.space import TensorSpace\n"
+        "s = TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), "
+        "Factor.whole_on(Axis('spatial', (1,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))\n"
         "print(s.name)\n"
     )
     import os
@@ -218,10 +217,7 @@ def test_of_axes_never_densifies_the_metric() -> None:
     n = 2000
     w_a = np.linspace(0.5, 4.0, n)
     w_b = np.linspace(0.25, 8.0, n)
-    space = FunctionSpace.of_axes(
-        Axis("a", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))),
-        Axis("b", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))),
-    )
+    space = TensorSpace.of_axes(Factor.whole_on(Axis("a", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("b", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))), Kind.MEASURE, VarianceChart.DENSITY))
     # Leg 1: structural.
     _require(space.inner_product_weights is None, "dense slot populated")
     full = int(np.prod(space.shape))
@@ -263,10 +259,7 @@ def test_per_axis_metric_equals_an_INDEPENDENT_broadcast_reference() -> None:
     """
     w_a = np.array([2.0, 4.0, 8.0])
     w_b = np.array([0.5, 1.0, 2.0, 4.0])
-    space = FunctionSpace.of_axes(
-        Axis("a", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))),
-        Axis("b", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))),
-    )
+    space = TensorSpace.of_axes(Factor.whole_on(Axis("a", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("b", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))), Kind.MEASURE, VarianceChart.DENSITY))
     rng = np.random.default_rng(42)
     x = rng.standard_normal((3, 4))
     # Independent reference: explicit reshape, each weight on ITS axis.
@@ -305,10 +298,7 @@ def test_metric_and_inner_product_agree_on_a_NONSQUARE_axis_space() -> None:
     """
     w_a = np.array([2.0, 4.0, 8.0])
     w_b = np.array([0.5, 1.0, 2.0, 4.0])
-    space = FunctionSpace.of_axes(
-        Axis("a", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))),
-        Axis("b", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))),
-    )
+    space = TensorSpace.of_axes(Factor.whole_on(Axis("a", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("b", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))), Kind.MEASURE, VarianceChart.DENSITY))
     rng = np.random.default_rng(3)
     x = rng.standard_normal((3, 4))
     y = rng.standard_normal((3, 4))
@@ -335,8 +325,8 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
     be silently dropped (treating a weighted axis-built factor as
     Euclidean would be a value bug wearing a representation label).
     """
-    a = FunctionSpace.of_axes(EnergyAxis.synthetic(2), _point())
-    b = FunctionSpace.of_axes(Axis("x", (3,), origin=Declared(BasisKind.NODAL)))
+    a = TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY))
+    b = TensorSpace.of_axes(Factor.whole_on(Axis("x", (3,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
     product = a * b
     a_axes, b_axes = a.axes, b.axes
     assert a_axes is not None and b_axes is not None
@@ -346,21 +336,19 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
         "an all-axes product must not densify",
     )
 
-    legacy = FunctionSpace("legacy", (5,))
-    _require((a * legacy).axes is None, "axes fabricated for a legacy right factor")
-    _require((legacy * a).axes is None, "axes fabricated for a legacy left factor")
+    legacy = TensorSpace.declared("legacy", (5,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    _require((a * legacy).axes == a.axes + legacy.axes, "the declared right factor's axis is not threaded")
+    _require((legacy * a).axes == legacy.axes + a.axes, "the declared left factor's axis is not threaded")
 
     # The mixed product: weighted axis-built x legacy — the measure survives,
     # FACTORED (CS4c step 6 item 6.2a): no dense slot, and the applied metric
     # is the outer product it never stores.
-    weighted = FunctionSpace.of_axes(
-        Axis("w", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
-    )
+    weighted = TensorSpace.of_axes(Factor.whole_on(Axis("w", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0])))), Kind.MEASURE, VarianceChart.DENSITY))
     mixed = weighted * legacy
-    _require(mixed.axes is None, "mixed product must not carry a partial axes record")
+    _require(mixed.axes == weighted.axes + legacy.axes, "the mixed product carries every factor's axis")
     _require(mixed.inner_product_weights is None, "a mixed product must not densify")
     _require(
-        mixed.metric is not None,
+        isinstance(mixed.factors[0].form, DiagonalMetric),
         "the axis-borne measure was dropped by the mixed product",
     )
     expected = np.multiply.outer(np.array([2.0, 4.0]), np.ones(5))
@@ -382,10 +370,7 @@ def test_has_coordinate_cone_follows_the_basis_kinds(
     kinds: tuple[BasisKind, BasisKind], expected: bool
 ) -> None:
     """B8a — all-nodal ⟹ True, any-modal ⟹ False."""
-    space = FunctionSpace.of_axes(
-        Axis("p", (2,), origin=Declared(Modal(np.eye(2)[0]) if kinds[0] == "modal" else kinds[0])),
-        Axis("q", (3,), origin=Declared(Modal(np.eye(3)[0]) if kinds[1] == "modal" else kinds[1])),
-    )
+    space = TensorSpace.of_axes(Factor.whole_on(Axis("p", (2,), origin=Declared(Modal(np.eye(2)[0]) if kinds[0] == "modal" else kinds[0])), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("q", (3,), origin=Declared(Modal(np.eye(3)[0]) if kinds[1] == "modal" else kinds[1])), Kind.MEASURE, VarianceChart.DENSITY))
     _require(
         space.has_coordinate_cone is expected,
         f"kinds {kinds} => {space.has_coordinate_cone}, expected {expected}",
@@ -399,9 +384,14 @@ def test_has_coordinate_cone_is_None_on_a_legacy_space() -> None:
     cone", ``None`` means "not migrated". Collapsing them would make the
     step-4 refusal fire on every legacy space in the tree.
     """
+    from orpheus.numerics.space import DualSpace
+
+    primal = TensorSpace.declared("legacy", (5,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+    leaf = DualSpace(name="leaf", shape=(5,), primal=primal)  # a legacy leaf: the base arm answers
+    _require(leaf.has_coordinate_cone is None, "a legacy leaf must answer None (not migrated), never True/False")
     _require(
-        FunctionSpace("legacy", (5,)).has_coordinate_cone is None,
-        "a legacy space must answer None (not migrated), never True/False",
+        TensorSpace.declared("declared", (5,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)).has_coordinate_cone is True,
+        "a declared nodal space answers True (it was None while the name-built spaces were leaves)",
     )
 
 
@@ -412,12 +402,10 @@ def test_dual_of_an_axis_built_space_reads_the_measure_through_its_primal() -> N
     divides by the axis weights. Until S6a the dual threaded the axes record
     and applied G; that was the "dual carries G" this row pinned."""
     w = np.array([2.0, 4.0])
-    space = FunctionSpace.of_axes(
-        Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
-    )
+    space = TensorSpace.of_axes(Factor.whole_on(Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w))), Kind.MEASURE, VarianceChart.DENSITY))
     dual = space.dual()
-    _require(dual.axes is None, "the dual must not copy the axes record")
-    _require(getattr(dual, "primal", None) is space, "the dual's primal must be the space")
+    _require(dual.axes == space.axes, "the dual keeps the axes of its primal, slot by slot")
+    _require(dual.dual() is space, "the dual's dual is the space, by identity")
     x = np.array([1.0, 1.0])
     _require(
         bool(np.array_equal(dual.apply_metric(x), x / w)),
@@ -425,23 +413,17 @@ def test_dual_of_an_axis_built_space_reads_the_measure_through_its_primal() -> N
     )
 
 
-def test_axis_built_construction_guards() -> None:
-    """The two illegal states of an axis-built space are refused, and
-    ``of_axes`` refuses an empty factor list.
-
-    One metric source only (per-axis measures XOR dense weights), and the
-    shape must BE the axes' concatenation — both are construction bugs
-    when violated, so both raise typed errors.
-    """
+def test_axis_built_construction_states_are_unspellable() -> None:
+    """The illegal states of the retired axis-built arm cannot be built: a stored shape, dense weights or a metric object beside the factors
+    are ``TypeError`` (the constructor takes exactly ``factors`` and the keyword-only ``carrier``), and ``of_axes`` refuses an empty factor list."""
     ax = Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
-    with pytest.raises(ValueError, match="one metric source"):
-        FunctionSpace(
-            "bad", (2,), inner_product_weights=np.array([1.0, 2.0]), axes=(ax,)
-        )
-    with pytest.raises(ValueError, match="concatenation"):
-        FunctionSpace("bad", (3,), axes=(ax,))
-    with pytest.raises(ValueError, match="at least one axis"):
-        FunctionSpace.of_axes()
+    f = Factor.whole_on(ax, Kind.MEASURE, VarianceChart.DENSITY)
+    with pytest.raises(TypeError):
+        TensorSpace(factors=(f,), inner_product_weights=np.array([1.0, 2.0]))  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        TensorSpace(factors=(f,), shape=(3,))  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="at least one factor"):
+        TensorSpace.of_axes()
 
 
 class TestThreeSourceExclusivity:
@@ -462,74 +444,37 @@ class TestThreeSourceExclusivity:
 
         x = np.array([1.0, 2.0])
         ax = Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
-        by_axes = FunctionSpace.of_axes(ax)
+        by_axes = TensorSpace.of_axes(Factor.whole_on(ax, Kind.MEASURE, VarianceChart.DENSITY))
         _require(
             bool(np.array_equal(by_axes.apply_metric(x), [2.0, 8.0])),
             "the axes source must act per axis",
         )
-        by_weights = FunctionSpace(
-            "w", (2,), inner_product_weights=np.array([2.0, 4.0])
-        )
+        by_weights = TensorSpace.declared("w", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([2.0, 4.0])))
         _require(
             bool(np.array_equal(by_weights.apply_metric(x), [2.0, 8.0])),
             "the dense-weights source must act as the Hadamard metric",
         )
-        by_object = FunctionSpace(
-            "m", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 4.0]]), kernel=Coord(2, ()), face=Face.METRIC)
-        )
+        by_object = TensorSpace.declared("m", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(np.array([[2.0, 0.5], [0.5, 4.0]]), kernel=Coord(2, ()), face=Face.METRIC))
         _require(
             bool(np.array_equal(by_object.apply_metric(x), [3.0, 8.5])),
             "the metric object must act as the dense form",
         )
 
-    def test_axes_and_a_metric_object_are_refused(self) -> None:
-        """B2 — the (axes, metric) arm (battery arm M10b), re-posed at CS4c
-        step 6 item 6.2c-i (ruling R-6.2c-2, 2026-09-08): an axis-built
-        space's metric is DERIVED from its axes, so a bare object beside
-        them is still two sources and is refused by name — while an object
-        POSITIONED over the axes (a FactoredMetric with one entry per axis,
-        a form only on a MODAL axis that carries NO measure) is ADMITTED,
-        because that is where a dense Gram lives on an axis-built head; a
-        form beside an axis that also carries a measure is two sources on
-        one block and stays refused. Until then ANY object beside axes was
-        refused ("one metric source only")."""
-        from orpheus.numerics.declaration import Coord
-        from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
-
-        ax = Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
-        dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC)
-        with pytest.raises(ValueError, match="positioned over them"):
-            FunctionSpace("bad", (2,), axes=(ax,), metric=dense)
-        with pytest.raises(ValueError, match="two metric sources on one block"):
-            FunctionSpace("bad", (2,), axes=(ax,), metric=FactoredMetric((((2,), dense),)))
-        # A nodal axis with no weights carries the COUNTING measure, so a form
-        # there is a second source too (U2, plan
-        # space_membership_covector_gauge.md: a form is a Gram on
-        # coefficients, positioned only on a Modal axis). Until U2 this leg
-        # was admitted.
-        counting = Axis("a", (2,), origin=Declared(BasisKind.NODAL))
-        with pytest.raises(ValueError, match="counting measure"):
-            FunctionSpace("bad", (2,), axes=(counting,), metric=FactoredMetric((((2,), dense),)))
-        coefficients = Axis("a", (2,), origin=Declared(Modal(np.array([1.0, 0.0]))))
-        admitted = FunctionSpace(
-            "good", (2,), axes=(coefficients,), metric=FactoredMetric((((2,), dense),)),
-        )
-        _require(admitted.metric is not None, "the positioned object was dropped")
-
-    def test_dense_weights_and_a_metric_object_are_refused(self) -> None:
-        """B3 — the (dense, metric) arm: the one the pre-P7 structure
-        could not reach (``if self.axes is None: return`` short-circuited
-        before any check). Battery arm M10c is its teeth."""
+    def test_a_metric_object_beside_the_factors_is_unspellable(self) -> None:
+        """B2 and B3 — the two arms that refused a second metric source (``axes`` + object; weights + object) are closed by type: the space is its
+        factors, so an object, a weights array or a stored shape is a ``TypeError`` at construction; a dense form is carried by the axis (Modal or nodal) as
+        its form, and the factor on it is the one place the space reads it."""
         from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric, Face
 
-        with pytest.raises(ValueError, match="one metric source"):
-            FunctionSpace(
-                "bad",
-                (2,),
-                inner_product_weights=np.array([1.0, 2.0]),
-                metric=DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC),
-            )
+        dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC)
+        ax = Axis("a", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0]))))
+        f = Factor.whole_on(ax, Kind.MEASURE, VarianceChart.DENSITY)
+        with pytest.raises(TypeError):
+            TensorSpace(factors=(f,), metric=dense)  # type: ignore[call-arg]
+        carried = Axis("a", (2,), origin=Declared(Modal(np.array([1.0, 0.0])), dense))
+        space = TensorSpace.of_axes(Factor.whole_on(carried, Kind.MEASURE, VarianceChart.DENSITY))
+        _require(isinstance(space.factors[0].form, DenseMetric), "the dense form of the axis is the factor's form")
 
 
 class TestAxisAccessor:
@@ -545,26 +490,26 @@ class TestAxisAccessor:
     def test_returns_the_tuple_member_identically(self) -> None:
         eg = EnergyAxis("energy", (2,), edges=_EDGES_2G)
         sp = Axis("spatial", (3, 4), origin=Declared(BasisKind.NODAL))
-        space = FunctionSpace.of_axes(eg, sp)
+        space = TensorSpace.of_axes(Factor.whole_on(eg, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(sp, Kind.MEASURE, VarianceChart.DENSITY))
         _require(space.axis("energy") is eg, "energy axis must be the member itself")
         _require(space.axis("spatial") is sp, "spatial axis must be the member itself")
         _require(space.axis("energy").shape == (2,), "ng reads off the axis")
         _require(space.axis("spatial").shape == (3, 4), "spatial shape reads off the axis")
 
     def test_unknown_label_refuses_naming_the_inventory(self) -> None:
-        space = FunctionSpace.of_axes(_point(), Axis("angular", (4,), origin=Declared(BasisKind.NODAL)))
+        space = TensorSpace.of_axes(Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("angular", (4,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
         with pytest.raises(ValueError, match="names 0 axes"):
             space.axis("energy")
 
-    def test_duplicate_label_refuses(self) -> None:
-        space = FunctionSpace.of_axes(
-            Axis("a", (2,), origin=Declared(BasisKind.NODAL)),
-            Axis("a", (3,), origin=Declared(BasisKind.NODAL)),
-        )
-        with pytest.raises(ValueError, match="names 2 axes"):
-            space.axis("a")
+    def test_duplicate_label_is_unspellable(self) -> None:
+        one = Factor.whole_on(Axis("a", (2,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY)
+        two = Factor.whole_on(Axis("a", (3,), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY)
+        with pytest.raises(ValueError, match="unique labels"):
+            TensorSpace.of_axes(one, two)
 
-    def test_legacy_name_built_space_refuses(self) -> None:
-        legacy = FunctionSpace("legacy", (2, 3))
-        with pytest.raises(TypeError, match="not axis-built"):
-            legacy.axis("energy")
+    def test_a_leaf_space_refuses_the_by_label_resolver(self) -> None:
+        from orpheus.numerics.space import DualSpace
+
+        leaf = DualSpace(name="leaf", shape=(2,), primal=TensorSpace.declared("p", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)))
+        with pytest.raises(TypeError, match="no named factors"):
+            leaf._axis_index("energy")

@@ -27,13 +27,16 @@ from orpheus.numerics.metric import (
     DenseMetric, Face,
     DiagonalMetric,
 )
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
 from orpheus.numerics.quadrature.directional import Quadrature
 from tests.gates._dense import declared_kernel
 from orpheus.numerics.space import FunctionSpace
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics import frame_faces
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.declaration import Coord
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -87,7 +90,7 @@ class TestDenseMetricLaws:
             bool(np.array_equal(metric.apply(_X), [3.0, 3.25, 12.5])),
             f"G@x != hand literal: {metric.apply(_X)!r}",
         )
-        space = FunctionSpace("dense3", (3,), metric=metric)
+        space = TensorSpace.declared("dense3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=metric)
         got = space.inner_product(_X, _Y)
         _require(
             got == 23.25,
@@ -198,7 +201,7 @@ class TestDenseMetricLaws:
             rng = np.random.default_rng(20260830)
             x = rng.standard_normal(metric.dim)
             y = rng.standard_normal(metric.dim)
-            space = FunctionSpace(f"parseval_{label}", (metric.dim,), metric=metric)
+            space = declared_mod_kernel(f"parseval_{label}", (metric.dim,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=metric)
             _require(
                 space.inner_product(x, y)
                 == pytest.approx(space.inner_product(y, x), rel=1e-14),
@@ -222,7 +225,7 @@ class TestDenseMetricLaws:
         cannot serve a (4,)-shaped space (modelled on the axes' own shape
         refusal, so the vocabulary stays greppable)."""
         with pytest.raises(ValueError, match="cannot serve a space"):
-            FunctionSpace("wrong", (4,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
+            TensorSpace.declared("wrong", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
 
     def test_dense_inverse_metric_is_the_range_projector_not_the_identity(self):
         """A5 — the Moore–Penrose doctrine, hand-derived and exact.
@@ -282,12 +285,8 @@ class TestDenseMetricLaws:
             w = rng.standard_normal(n) ** 2 + 0.1
             x = rng.standard_normal(n)
             y = rng.standard_normal(n)
-            dense = FunctionSpace(
-                f"d{n}", (n,), metric=DenseMetric(np.diag(w), kernel=Coord(n, ()), face=Face.METRIC)
-            ).inner_product(x, y)
-            hadamard = FunctionSpace(
-                f"h{n}", (n,), inner_product_weights=w
-            ).inner_product(x, y)
+            dense = TensorSpace.declared(f"d{n}", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(np.diag(w), kernel=Coord(n, ()), face=Face.METRIC)).inner_product(x, y)
+            hadamard = TensorSpace.declared(f"h{n}", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w)).inner_product(x, y)
             _require(
                 dense == pytest.approx(hadamard, rel=1e-12),
                 f"n={n}: {dense!r} vs {hadamard!r}",
@@ -323,9 +322,9 @@ class TestDenseMetricLaws:
         ``hash()`` raise (battery arm M12), so the comparison runs through
         the content digest and never reaches the matrix.
         """
-        bare = FunctionSpace("same", (3,))
-        dressed = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
-        twin = FunctionSpace("same", (3,), metric=DenseMetric(_G_LITERAL.copy(), kernel=Coord(3, ()), face=Face.METRIC))
+        bare = TensorSpace.declared("same", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
+        dressed = TensorSpace.declared("same", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
+        twin = TensorSpace.declared("same", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G_LITERAL.copy(), kernel=Coord(3, ()), face=Face.METRIC))
         _require((bare == dressed) is False, "a metric did not move space equality")
         _require((dressed == twin) is True, "equal metric content compared unequal")
         _require(hash(dressed) == hash(twin), "equal metric content hashed apart")
@@ -346,10 +345,8 @@ class TestDenseMetricPropagation:
         ``==``. [M] the pre-repair behaviour dropped the dense factor
         entirely (Euclidean on that block); battery arm M8 is the revert.
         """
-        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
-        w = FunctionSpace(
-            "W", (2,), inner_product_weights=np.array([2.0, 0.5])
-        )
+        v = TensorSpace.declared("V", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
+        w = TensorSpace.declared("W", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([2.0, 0.5])))
         product = v * w
         x = np.multiply.outer(_X, np.array([1.0, 2.0]))
         y = np.multiply.outer(_Y, np.array([1.0, 0.5]))
@@ -368,12 +365,15 @@ class TestDenseMetricPropagation:
         EQUAL to the primal's (23.25): the dual carried G. (The pre-P7
         defect it was born from, a Euclidean dual reading 4.5, is a third
         state; both old states red here.)"""
-        v = FunctionSpace("V", (3,), metric=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
+        v = TensorSpace.declared("V", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G_LITERAL, kernel=Coord(3, ()), face=Face.METRIC))
         dual = v.dual()
         inv = np.linalg.pinv(_G_LITERAL, hermitian=True, rcond=1e-12)
         got = dual.inner_product(_X, _Y)
+        # The name-built dual is a factor whose form is the stored inverse face; the walk applies a dense block by a reshape-and-matmul where the
+        # standalone object applies a leading matmul: one association apart, 4e-16 on this probe (a value move of the one-ulp class of unit N04,
+        # listed in its commit message, never re-baselined silently), so the pin is a nulp band and not bit equality.
         _require(
-            got == float(np.sum((inv @ _X) * _Y)),
+            abs(got - float(np.sum((inv @ _X) * _Y))) <= 4 * np.finfo(float).eps * max(1.0, abs(got)),
             f"the dual's pairing {got!r} is not xᵀG⁺y off the stored inverse face",
         )
         raised = v.inner_product(inv @ _X, inv @ _Y)
@@ -403,7 +403,7 @@ class TestPairingSpelling:
         w = rng.standard_normal(n) ** 2 + 0.1
         x = rng.standard_normal(n)
         y = rng.standard_normal(n)
-        space = FunctionSpace("w15", (n,), inner_product_weights=w)
+        space = TensorSpace.declared("w15", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
         legacy = float(np.sum(w * x * y))
         _require(
             space.inner_product(x, y) == legacy,

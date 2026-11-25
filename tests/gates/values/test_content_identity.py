@@ -77,7 +77,8 @@ _SEED_SCRIPT = textwrap.dedent(
     from orpheus.mesh import Mesh2D
     from orpheus.numerics.axis import EnergyAxis
     from orpheus.values.content import content_digest
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.factor import Factor, Kind, VarianceChart
+    from orpheus.numerics.space import TensorSpace
 
     from orpheus.derivations.continuous.characteristic import PanelBasis
     from orpheus.geometry.chart import Chart
@@ -100,7 +101,7 @@ _SEED_SCRIPT = textwrap.dedent(
             print("HASH", name, hash(value))
         except TypeError as err:
             print("HASH", name, "UNHASHABLE", err)
-    print("NAME", FunctionSpace.of_axes(EnergyAxis.synthetic(2)).name)
+    print("NAME", TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY)).name)
     print("CONTROL", hash("a salted str hash"))
     """
 )

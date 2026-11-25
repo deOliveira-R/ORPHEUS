@@ -75,6 +75,10 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.frames import HarmonicFrame
 from orpheus.numerics import frame_faces
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -92,7 +96,7 @@ class _ForeignTruncatedBasis(Basis):
     analysis and its continuum Gram scaled by ``_MUTANT_SCALE``, and NOT a
     ``SphericalHarmonicBasis`` subclass. It carries a truncation order, which
     is the ONE thing the door asks for. Its coefficient spaces, the continuum
-    one (:meth:`FunctionSpace.of_basis`) and the frame-dressed one, are
+    one (:meth:`TensorSpace.of_basis`) and the frame-dressed one, are
     CONTENT-unequal to the honest ones (the weights, and the dressed head's
     unit, the moments of 1), which is what the route gate reads. Until S7 the
     twin renamed its space instead; since S7 a space is its content and a
@@ -219,13 +223,13 @@ def test_the_tree_binds_the_frames_parseval_space_and_not_the_continuum_head(lab
     from orpheus.numerics.basis.spherical_harmonic_basis import MirrorEvenSphericalHarmonicBasis
 
     if label.startswith("gauss_legendre"):
-        continuum = FunctionSpace.of_basis(LegendreBasis(L=L, axis="x"))
+        continuum = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(LegendreBasis(L=L, axis="x")), Kind.MEASURE, VarianceChart.DENSITY))
     elif label.startswith("folded_product"):
-        continuum = FunctionSpace.of_basis(MirrorEvenSphericalHarmonicBasis(L=L, mirror_axis=1))
+        continuum = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(MirrorEvenSphericalHarmonicBasis(L=L, mirror_axis=1)), Kind.MEASURE, VarianceChart.DENSITY))
     else:
-        continuum = FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))
-    assert FunctionSpace.of_basis(frame.basis) == continuum, "the basis's own space IS the continuum mint"
-    assert dressed.name == continuum.name and dressed.shape == continuum.shape
+        continuum = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))
+    assert TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame.basis), Kind.MEASURE, VarianceChart.DENSITY)) == continuum, "the basis's own space IS the continuum mint"
+    assert dressed.name.split("#")[0] == continuum.name.split("#")[0] and dressed.shape == continuum.shape
     assert dressed != continuum and continuum != dressed, (
         "the dressed head and the continuum head must be two spaces — the metric is the identity"
     )
@@ -237,10 +241,9 @@ def test_the_tree_binds_the_frames_parseval_space_and_not_the_continuum_head(lab
     if frame.discrete_gram_structure is GramStructure.DENSE:
         assert (label, L) in {("gauss_legendre(2)", 2), ("folded_product(2,4)", 2)}
         assert _head_measure(dressed) is None, "a dense Gram leaves the axis measure-less"
-        assert isinstance(dressed.metric, FactoredMetric) and len(dressed.metric.entries) == 1
-        assert isinstance(dressed.metric.entries[0][1], DenseMetric)
+        assert len(dressed.factors) == 1 and isinstance(dressed.factors[0].form, DenseMetric)
     else:
-        assert dressed.metric is None
+        assert not isinstance(dressed.factors[0].form, DenseMetric)
         measure = _head_measure(dressed)
         assert measure is not None
         np.testing.assert_allclose(measure[live], 1.0 / diag[live], rtol=1e-15)

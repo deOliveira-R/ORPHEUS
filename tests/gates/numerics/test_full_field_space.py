@@ -26,16 +26,19 @@ import pytest
 
 from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
 
 
 def _bulk(shape=(4, 2, 3, 1), weights=True) -> FunctionSpace:
     w = np.arange(1.0, float(np.prod(shape)) + 1.0).reshape(shape) if weights else None
-    return FunctionSpace(name="sn_bulk", shape=shape, inner_product_weights=w)
+    return TensorSpace.declared("sn_bulk", shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=None if w is None else DiagonalMetric(w))
 
 
 def _trace(n=8, weights=True) -> FunctionSpace:
     w = np.linspace(0.1, 1.0, n) if weights else None
-    return FunctionSpace(name="angular_trace", shape=(n,), inner_product_weights=w)
+    return TensorSpace.declared("angular_trace", (n,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=None if w is None else DiagonalMetric(w))
 
 
 @pytest.mark.foundation
@@ -109,10 +112,8 @@ def test_a_composite_block_carrying_a_dense_metric_delegates_it():
     from orpheus.numerics.metric import DenseMetric, Face
 
     g = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
-    interior = FunctionSpace("bulk3", (3,), metric=DenseMetric(g, kernel=Coord(3, ()), face=Face.METRIC))
-    trace = FunctionSpace(
-        "tr2", (2,), inner_product_weights=np.array([2.0, 0.5])
-    )
+    interior = TensorSpace.declared("bulk3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(g, kernel=Coord(3, ()), face=Face.METRIC))
+    trace = TensorSpace.declared("tr2", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([2.0, 0.5])))
     space = FullFieldSpace.from_blocks(interior, trace)
     x = SimpleNamespace(
         interior=SimpleNamespace(values=np.array([1.0, 2.0, 3.0])),

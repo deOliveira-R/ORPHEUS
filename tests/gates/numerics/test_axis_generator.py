@@ -33,6 +33,8 @@ from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.axis import Axis, BasisKind, Declared, FromMeasure, FromQuadrature, quadrature_refusal
 from orpheus.numerics.quadrature.directional import Quadrature
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 
 pytestmark = pytest.mark.foundation
@@ -218,7 +220,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
     @pytest.mark.parametrize("attr", ["mu_x", "eta", "mu_z"])
     def test_direction_cosines_answer_through_the_space(self, name, factory, attr):
         q = factory()
-        space = FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point())
+        space = TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(q, "angular"), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY))
         g = _quadrature_through(space)
         npt.assert_array_equal(
             getattr(g, attr), getattr(q, attr),
@@ -236,7 +238,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         is that ruling's witness.
         """
         q = factory()
-        g = _quadrature_through(FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point()))
+        g = _quadrature_through(TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(q, "angular"), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY)))
         got, want = g.level_indices, q.level_indices
         _require(len(got) == len(want), f"{name}: level count")
         for k, (a, b) in enumerate(zip(got, want)):
@@ -253,7 +255,7 @@ class TestG4TheFourNamesAnswerThroughTheSpace:
         P4-remainder re-point never finds a name this contract lacks.
         """
         q = factory()
-        g = _quadrature_through(FunctionSpace.of_axes(Axis.of_quadrature(q, "angular"), _point()))
+        g = _quadrature_through(TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(q, "angular"), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_point(), Kind.MEASURE, VarianceChart.DENSITY)))
         _require(g.n_ordinates == q.n_ordinates, f"{name}: N")
         npt.assert_array_equal(g.weights, q.weights, err_msg=f"{name}: weights")
         _require(
@@ -302,7 +304,7 @@ class TestG8TheMintIsASectionOfTheForgetfulMap:
     @pytest.mark.parametrize("name,factory", _RULES)
     def test_angular_round_trip(self, name, factory):
         a = Axis.of_quadrature(factory(), "angular")
-        g = _quadrature_through(FunctionSpace.of_axes(a))
+        g = _quadrature_through(TensorSpace.of_axes(Factor.whole_on(a, Kind.MEASURE, VarianceChart.DENSITY)))
         _require(Axis.of_quadrature(g, a.label) == a, f"{name}: not a section")
         again = Axis.of_quadrature(g, a.label).origin
         _require(

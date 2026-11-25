@@ -49,7 +49,7 @@ from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.numerics.basis import SPATIAL_MOMENT_AXIS_LABEL
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.space import FunctionSpace, TensorProductSpace, factor_tail
+from orpheus.numerics.space import FunctionSpace, TensorSpace, factor_tail
 from orpheus.numerics.coefficient_layout import HarmonicLayout
 from orpheus.numerics.spaces.moment_head import head_layout
 from orpheus.sn.problem import SNProblem
@@ -121,7 +121,7 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     per_axis = sn.scheme.spatial_basis_per_axis
     assert per_axis == 2
     space = sn.moment_space(L, spatial_moments=per_axis)
-    assert isinstance(space, TensorProductSpace)
+    assert isinstance(space, TensorSpace)
     assert space.axes is not None and space.inner_product_weights is None
     assert space.shape[-1] == per_axis ** sn.ndim
     (tail,) = _tail_axes(space)
@@ -132,8 +132,8 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     # The mass value is pinned in
     # test_cell_basis_head.py::test_the_moment_axis_metric_is_the_gram_not_its_inverse.
     # the cell-group factor is the carrier's WIDENED bulk — the same space the scalar family mints
-    assert space.factors[1] == BulkField.compose_spatial_moments(sn.bulk_space, sn, per_axis)
-    assert space.factors[0] == frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L))
+    assert space.sub(*space.labels[1:]) == BulkField.compose_spatial_moments(sn.bulk_space, sn, per_axis)
+    assert space.sub(space.labels[0]) == frame_faces.basis_space(frame_faces.angular_frame(sn.quad, L))
     # width reads
     assert BulkField.spatial_moments_per_axis_of(space) == per_axis
     assert BulkField._spatial_moment_tail_of(space) == (per_axis ** sn.ndim,)
@@ -154,10 +154,10 @@ def test_width_one_appends_nothing_and_the_tail_rule_is_space_composition() -> N
     # the sphere rule's head is the harmonic family (since S7 read off the
     # head axis's layout; until then ``find_factor`` on the family class),
     # and no other factor of the product is a moment head (the door refuses).
-    assert isinstance(space, TensorProductSpace)
-    assert isinstance(head_layout(space.factors[0]), HarmonicLayout)
+    assert isinstance(space, TensorSpace)
+    assert isinstance(head_layout(space.sub(space.labels[0])), HarmonicLayout)
     with pytest.raises(TypeError, match="is not a moment head"):
-        head_layout(space.factors[1])
+        head_layout(space.sub(*space.labels[1:]))
 
 
 @pytest.mark.parametrize("label", list(_LD), ids=list(_LD))

@@ -26,10 +26,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from orpheus.mesh import trace_face_shapes
 from orpheus.numerics.axis import Axis
 from orpheus.numerics.face_layout import FaceLayout
-from orpheus.numerics.space import FunctionSpace, factor_tail
+from orpheus.numerics.factor import Factor, Kind, Subquotient, Variance, VarianceChart
+from orpheus.numerics.space import FunctionSpace, TensorSpace, factor_tail
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 
@@ -41,7 +44,7 @@ if TYPE_CHECKING:
 __all__ = ["angular_bulk_space", "angular_face_layout", "angular_trace_space", "scalar_trace_space"]
 
 
-def angular_bulk_space(mesh: MaterialMesh, quadrature: Quadrature) -> FunctionSpace:
+def angular_bulk_space(mesh: MaterialMesh, quadrature: Quadrature) -> TensorSpace:
     r"""The per-ordinate bulk space :math:`V_\Omega \otimes V_E \otimes V_r`, axes ``(angular, energy, spatial)``.
 
     The ordinate axis is :meth:`Axis.of_quadrature <orpheus.numerics.axis.Axis.of_quadrature>` (the weights
@@ -54,10 +57,11 @@ def angular_bulk_space(mesh: MaterialMesh, quadrature: Quadrature) -> FunctionSp
     level structure. Whether suitability is a property of this space or of the streaming operator is not yet derived
     (#686).
     """
-    scalar = mesh.bulk_space
-    if scalar.axes is None:
-        raise ValueError(f"angular_bulk_space: the material mesh's bulk space is not axis-built: {scalar!r}.")
-    return FunctionSpace.of_axes(Axis.of_quadrature(quadrature), *scalar.axes)
+    angular = Axis.of_quadrature(quadrature)
+    return TensorSpace.of_axes(
+        Factor(angular, Variance(Kind.MEASURE, VarianceChart.DENSITY), Subquotient.whole(int(np.prod(angular.shape)))),
+        *mesh.bulk_space.factors,
+    )
 
 
 def angular_face_layout(

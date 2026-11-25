@@ -22,12 +22,15 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
 from orpheus.values.content import content_digest
 from orpheus.numerics.frame import GalerkinFrame, PetrovGalerkinFrame
 from orpheus.geometry.manifold import Quotient
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, Face
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
 from orpheus.numerics.space import DualSpace, FunctionSpace
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.declaration import Coord
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 pytestmark = pytest.mark.foundation
 
@@ -59,7 +62,7 @@ def test_I1_measure_spaces_with_different_weights_are_different_spaces():
     a, b = Quadrature.level_symmetric(4).measure, Quadrature.product(3, 8).measure
     assert a.n_points == b.n_points == 24
     assert not np.array_equal(np.sort(a.weights), np.sort(b.weights)), "PREMISE: the weights differ"
-    _separated(FunctionSpace.of_measure(a, "angular"), FunctionSpace.of_measure(b, "angular"), "LS(4) vs product(3,8) measure spaces")
+    _separated(TensorSpace.of_measure(a, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_measure(b, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY)), "LS(4) vs product(3,8) measure spaces")
 
 
 def test_I1b_equal_atoms_and_support_with_different_weights_are_different_spaces():
@@ -68,14 +71,14 @@ def test_I1b_equal_atoms_and_support_with_different_weights_are_different_spaces
     from orpheus.numerics.measure import DiscreteMeasure
     m = Quadrature.level_symmetric(4).measure
     m2 = DiscreteMeasure(nodes=m.nodes, weights=2.0 * m.weights, support=m.support)
-    _separated(FunctionSpace.of_measure(m, "angular"), FunctionSpace.of_measure(m2, "angular"), "one node set, weights x2")
+    _separated(TensorSpace.of_measure(m, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_measure(m2, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY)), "one node set, weights x2")
     _separated(Axis.of_measure(m, "angular"), Axis.of_measure(m2, "angular"), "one node set, weights x2 (axes)")
 
 
 def test_I1c_two_mints_of_one_measure_are_one_space():
     """Control for I1: a fresh mint of the same rule is the same space (content, not instance)."""
-    _one(FunctionSpace.of_measure(Quadrature.level_symmetric(4).measure, "angular"),
-         FunctionSpace.of_measure(Quadrature.level_symmetric(4).measure, "angular"), "two LS(4) mints")
+    _one(TensorSpace.of_measure(Quadrature.level_symmetric(4).measure, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY)),
+         TensorSpace.of_measure(Quadrature.level_symmetric(4).measure, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY)), "two LS(4) mints")
 
 
 def test_I1d_the_quadrature_axis_and_the_measure_axis_of_one_rule_are_one_axis():
@@ -83,7 +86,7 @@ def test_I1d_the_quadrature_axis_and_the_measure_axis_of_one_rule_are_one_axis()
     provenance; only support and atoms are content). Green today, must stay green."""
     q = Quadrature.product(4, 8)
     _one(Axis.of_quadrature(q), Axis.of_measure(q.measure, "angular"), "of_quadrature vs of_measure")
-    _one(FunctionSpace.of_axes(Axis.of_quadrature(q)), FunctionSpace.of_measure(q.measure, "angular"),
+    _one(TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(q), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_measure(q.measure, "angular", Variance(Kind.MEASURE, VarianceChart.DENSITY)),
          "the SN angular space vs the measure space of the same rule (design §6)")
 
 
@@ -95,7 +98,7 @@ def test_I2_angular_axes_with_different_directions_are_different_axes():
     assert not np.array_equal(np.sort(ls.measure.nodes, axis=0), np.sort(pr.measure.nodes, axis=0)), \
         "PREMISE: different direction sets"
     _separated(Axis.of_quadrature(ls), Axis.of_quadrature(pr), "LS(4) vs product(2,12) axes")
-    _separated(FunctionSpace.of_axes(Axis.of_quadrature(ls)), FunctionSpace.of_axes(Axis.of_quadrature(pr)),
+    _separated(TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(ls), Kind.MEASURE, VarianceChart.DENSITY)), TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(pr), Kind.MEASURE, VarianceChart.DENSITY)),
                "LS(4) vs product(2,12) spaces")
 
 
@@ -109,72 +112,70 @@ def test_I2b_the_same_mu_rule_about_two_poles_gives_two_axes():
          "control: two GL8-about-x mints")
 
 
-def _dense_pair():
-    unit = Modal(np.array([1.0, 0.0, 0.0]))
-    ax = Axis("head", (3,), origin=Declared(unit))
-    G = np.array([[2.0, 0.3, 0.0], [0.3, 1.0, 0.2], [0.0, 0.2, 3.0]])
-    base = FunctionSpace.of_axes(ax)
-    return base, G
+_G3 = np.array([[2.0, 0.3, 0.0], [0.3, 1.0, 0.2], [0.0, 0.2, 3.0]])
 
 
-def test_I5_a_dense_overlay_is_part_of_the_identity():
-    """Pair 5 (S7a, design §1.5). Equal axes, different positioned dense forms. TODAY equal (the overlay
-    lives outside the identity); the metric demonstrably differs (activation)."""
-    base, G = _dense_pair()
-    s1, s2 = base._with_overlay((DenseMetric(G, kernel=Coord(3, ()), face=Face.METRIC),)), base._with_overlay((DenseMetric(2.0 * G, kernel=Coord(3, ()), face=Face.METRIC),))
+def _dense_head(G, label="head"):
+    """The one-factor space whose axis is a coefficient (Modal) axis with the dense form ``G``."""
+    ax = Axis(label, (3,), origin=Declared(Modal(np.array([1.0, 0.0, 0.0])), DenseMetric(G, kernel=Coord(3, ()), face=Face.METRIC)))
+    return TensorSpace.of_axes(Factor.whole_on(ax, Kind.MEASURE, VarianceChart.DENSITY))
+
+
+def test_I5_a_dense_form_is_part_of_the_identity():
+    """Pair 5 (S7a, design §1.5). Equal axes but for the dense form they carry: two spaces. The metric demonstrably differs (activation)."""
+    G = _G3
+    s1, s2 = _dense_head(G), _dense_head(2.0 * G)
     x = np.ones(3)
     assert not np.array_equal(s1.apply_metric(x), s2.apply_metric(x)), "ACTIVATION: the metrics differ"
-    _separated(s1, s2, "two dense overlays on equal axes")
-    _one(s1, base._with_overlay((DenseMetric(G.copy(), kernel=Coord(3, ()), face=Face.METRIC),)), "control: one dense form, two mints")
-    _separated(s1, base, "a dense overlay vs the bare head")
+    _separated(s1, s2, "two dense forms on one axis")
+    _one(s1, _dense_head(G.copy()), "control: one dense form, two mints")
+    base = TensorSpace.of_axes(Factor.whole_on(Axis("head", (3,), origin=Declared(Modal(np.array([1.0, 0.0, 0.0])))), Kind.MEASURE, VarianceChart.DENSITY))
+    _separated(s1, base, "a dense form vs the counting form")
 
 
 def test_I5c_a_dense_form_is_its_stated_matrix_and_its_face():
-    """The stated matrix and its face are content: the production dense head (the symmetrised frame Gram stated at ``GRAM``) is
+    """The stated matrix and its face are content: the production dense head's form (the symmetrised frame Gram stated at ``GRAM``) is
     rebuilt equal through the same spelling and through ``dataclasses.replace``; the same form stated as ``G+`` at ``METRIC`` is a
-    different space whose ``metric`` face is byte-equal and whose ``gram`` face differs in round-off. [M] on the production head of
+    different form whose ``metric`` face is byte-equal and whose ``gram`` face differs in round-off. [M] on the production head of
     ``folded_product(2, 4)`` at ``L = 2`` (the S7 archivist, 2026-10-22: the two second faces differ in round-off)."""
     f = ff.angular_frame(Quadrature.folded_product(n_mu=2, n_phi=4), 2)
-    bs = ff.basis_space(f)
-    form = bs._overlay_forms()[0]
+    form = ff.basis_space(f).factors[0].form
     assert isinstance(form, DenseMetric)
     same = DenseMetric(DenseMetric.symmetrised(f.discrete_gram), kernel=form.kernel, face=Face.GRAM)
-    _one(bs, FunctionSpace.of_axes(*bs.axes)._with_overlay((same,)), "the head rebuilt through the same spelling")
-    _one(bs, FunctionSpace.of_axes(*bs.axes)._with_overlay((dataclasses.replace(form),)), "replace(form) in the head")
+    _one(form, same, "the head form rebuilt through the same spelling")
+    _one(form, dataclasses.replace(form), "replace(form) of the head form")
     metric_stated = DenseMetric(np.array(form.matrix), kernel=form.kernel, face=Face.METRIC)
-    rebuilt = FunctionSpace.of_axes(*bs.axes)._with_overlay((metric_stated,))
     assert np.asarray(form.matrix).tobytes() == np.asarray(metric_stated.matrix).tobytes(), "PREMISE: the metric faces are byte-equal"
     assert not np.array_equal(np.asarray(form.inverse_matrix), np.asarray(metric_stated.inverse_matrix)), \
         "PREMISE: the two gram faces differ in round-off"
-    _separated(bs, rebuilt, "the form stated as G+ vs the production form stated as the Gram")
+    _separated(form, metric_stated, "the form stated as G+ vs the production form stated as the Gram")
 
 
-def test_I5b_the_production_dense_head_carries_its_overlay_in_its_identity():
-    """Pair 5 on a production head: ``basis_space`` of a DENSE-Gram frame (folded_product(2, 4), L = 2),
-    re-dressed with twice its form, is a different space; re-dressed with its own form, the same."""
+def test_I5b_the_production_dense_head_carries_its_form_in_its_identity():
+    """Pair 5 on a production head: ``basis_space`` of a DENSE-Gram frame (folded_product(2, 4), L = 2) holds one dense form on its one
+    factor; a head over twice that form is a different space, over its own form the same."""
     f = ff.angular_frame(Quadrature.folded_product(n_mu=2, n_phi=4), 2)
     bs = ff.basis_space(f)
-    forms = bs._overlay_forms()
+    forms = [fac.form for fac in bs.factors]
     dense = [k for k, form in enumerate(forms) if isinstance(form, DenseMetric)]
-    assert dense == [0], f"PREMISE: the head carries one dense form on axis 0, got {forms}"
+    assert dense == [0], f"PREMISE: the head carries one dense form on slot 0, got {forms}"
     form = forms[0]
     assert isinstance(form, DenseMetric)
-    G = form.matrix
-    assert bs.axes is not None
-    twice = FunctionSpace.of_axes(*bs.axes)._with_overlay((DenseMetric(2.0 * np.asarray(G), kernel=form.kernel, face=Face.METRIC),))
-    _separated(bs, twice, "the dressed head vs the head with twice its Gram form")
+    twice = DenseMetric(2.0 * np.asarray(form.matrix), kernel=form.kernel, face=Face.METRIC)
+    _separated(form, twice, "the head's form vs twice its Gram form")
+    _one(form, dataclasses.replace(form), "the head's form vs its own")
 
 
 def test_I6_F7_a_composite_dual_is_not_a_composite_of_named_spaces():
     """Pair 6 (S7a, F7 of the S6a review). TODAY ``from_blocks(a, b).dual() == from_blocks(a*, b*)`` with
     equal hashes: the composite folds member NAMES, which carry no covariance."""
-    a, b = FunctionSpace("a", (2,)), FunctionSpace("b", (3,))
+    a, b = TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     lhs = FullFieldSpace.from_blocks(a, b).dual()
-    rhs = FullFieldSpace.from_blocks(FunctionSpace("a*", (2,)), FunctionSpace("b*", (3,)))
+    rhs = FullFieldSpace.from_blocks(TensorSpace.declared("a*", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("b*", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)))
     _separated(lhs, rhs, "F7: composite dual vs composite of starred names")
-    _one(lhs, FullFieldSpace.from_blocks(FunctionSpace("a", (2,)), FunctionSpace("b", (3,))).dual(),
+    _one(lhs, FullFieldSpace.from_blocks(TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))).dual(),
          "control: two composite duals of equal primals")
-    _one(DualSpace.of(a), DualSpace.of(FunctionSpace("a", (2,))), "control: DualSpace of equal primals")
+    _one(DualSpace.of(a), DualSpace.of(TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), "control: DualSpace of equal primals")
 
 
 # ═════════════════════════════════════════════════════════════════════════
@@ -183,7 +184,7 @@ def test_I6_F7_a_composite_dual_is_not_a_composite_of_named_spaces():
 
 def test_LB_ii_the_frame_measure_space_is_the_sn_angular_space():
     q = Quadrature.level_symmetric(6)
-    _one(ff.measure_space(ff.angular_frame(q, 2)), FunctionSpace.of_axes(Axis.of_quadrature(q)),
+    _one(ff.measure_space(ff.angular_frame(q, 2)), TensorSpace.of_axes(Factor.whole_on(Axis.of_quadrature(q), Kind.MEASURE, VarianceChart.DENSITY)),
          "measure_space(angular_frame(q, L)) vs of_axes(Axis.of_quadrature(q))")
 
 
@@ -338,6 +339,6 @@ def test_R58_a_petrov_galerkin_frame_whose_test_is_its_basis_gets_the_dressed_te
     b, m = SphericalHarmonicBasis(L=2), Quadrature.product(4, 8).measure
     pg = PetrovGalerkinFrame(b, m, b)
     _one(ff.test_space(pg), ff.basis_space(pg), "test_space(PG(b, m, b)) vs basis_space")
-    assert not (ff.test_space(pg) == FunctionSpace.of_basis(b)), "the pre-S7 undressed answer"
+    assert not (ff.test_space(pg) == TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(b), Kind.MEASURE, VarianceChart.DENSITY))), "the pre-S7 undressed answer"
     g = GalerkinFrame(b, m)
     _one(ff.test_space(g), ff.basis_space(g), "control: the Galerkin frame")

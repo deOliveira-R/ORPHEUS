@@ -92,6 +92,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol, runtime_checkable
 import numpy as np
 
 from orpheus.numerics.basis.interval_legendre_basis import spatial_moment_basis
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
 from orpheus.numerics.space import factor_tail
 from orpheus.numerics.registry import RegistryMixin
 
@@ -99,7 +100,7 @@ if TYPE_CHECKING:  # pragma: no cover
     from ._ubld import D1ClosedForm
     from orpheus.numerics.axis import Axis
     from orpheus.numerics.basis.interval_legendre_basis import TensorProductBasis
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.space import FunctionSpace, TensorSpace
     from orpheus.mesh import Axis1D
 
 
@@ -1798,7 +1799,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):  # concept: scheme | role: w
         self._assert_moment_mass_is_expressible(axes)
         return Axis.of_basis(self.cell_basis(len(axes)))
 
-    def trial_space(self, space: "FunctionSpace", axes: "tuple[Axis1D, ...]") -> "FunctionSpace":
+    def trial_space(self, space: "TensorSpace", axes: "tuple[Axis1D, ...]") -> "TensorSpace":
         r"""``space`` in this closure's within-cell basis: :math:`V \otimes V_{\rm moment}`, or ``space`` itself.
 
         The one spelling of the widening rule "append the scheme's :meth:`moment_axis`": a multi-moment closure (LD)
@@ -1824,7 +1825,7 @@ class DiscretizationSchemeBase(RegistryMixin, ABC):  # concept: scheme | role: w
                 f"{type(self).__name__}.trial_space: the space's spatial axis has shape {spatial}, but the axes "
                 f"describe a spatial shape {spatial_shape(axes)}; pass the axes the space was built over."
             )
-        return space.with_axis(self.moment_axis(axes))
+        return space.with_axis(Factor.whole_on(self.moment_axis(axes), Kind.MEASURE, VarianceChart.DENSITY))
 
     # ── Generic affine reconstruction ops (#158 Inc B / #240 D2) ─────────────
     #

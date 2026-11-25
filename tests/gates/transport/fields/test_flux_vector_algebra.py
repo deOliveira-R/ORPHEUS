@@ -65,6 +65,10 @@ from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.transport._materials import placeholder_materials
 from orpheus.numerics import frame_faces
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
+from tests.gates.numerics._declared_support import whole_on_mod_kernel
 
 
 pytestmark = pytest.mark.foundation
@@ -104,7 +108,7 @@ def rng() -> np.random.Generator:
 
 def _moment_shape(m: MaterialMesh, L: int) -> tuple[int, ...]:
     """``<angular head> ⊗ (ng, *spatial)`` — the head is read off the frame (#429)."""
-    return (*FunctionSpace.of_basis(frame_faces.angular_frame(posing_quadrature(m), L).basis).shape, m.ng, *m.spatial_shape)
+    return (*TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(frame_faces.angular_frame(posing_quadrature(m), L).basis), Kind.MEASURE, VarianceChart.DENSITY)).shape, m.ng, *m.spatial_shape)
 
 
 def _make_flux(leaf: str, m: MaterialMesh, rng: np.random.Generator) -> Field:

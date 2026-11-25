@@ -182,7 +182,7 @@ class TestHarmonicMomentFluxConstruction:
         a gate keyed on one family would certify the other by accident. Since
         S7 the family is the head axis's LAYOUT (ruling 81), not a space class.
         """
-        from orpheus.numerics.space import FunctionSpace, TensorProductSpace
+        from orpheus.numerics.space import FunctionSpace, TensorSpace
 
         L = 2
         for mesh, family in (
@@ -190,18 +190,18 @@ class TestHarmonicMomentFluxConstruction:
             (_2d_mesh(ng=1), HarmonicLayout(L)),
         ):
             phi = HarmonicMomentFlux.zeros_for_problem_and_L(mesh, L=L)
-            assert isinstance(phi.space, TensorProductSpace)
-            assert len(phi.space.factors) == 2
+            assert isinstance(phi.space, TensorSpace)
+            assert len(phi.space.factors) == 3  # the head, the energy and the spatial slots, flat
 
-            head = phi.space.factors[0]
+            head = phi.space.sub(phi.space.labels[0])
             assert head_layout(head) == family, (
                 f"{type(frame_faces.angular_frame(mesh.quad, L).basis).__name__} should induce "
                 f"the {family!r} head; got {head_layout(head)!r}"
             )
             assert head.shape == family.shape
-            assert head is phi.head
+            assert head == phi.head
 
-            cells = phi.space.factors[1]
+            cells = phi.space.sub(*phi.space.labels[1:])
             assert isinstance(cells, FunctionSpace)
             assert cells.shape == (mesh.ng, *mesh.spatial_shape)
             assert phi.space.shape == phi.values.shape
@@ -360,7 +360,7 @@ class TestHarmonicMomentFluxAlgebra:
         # Post-D-E: L mismatch surfaces as a space-equality error,
         # because different L values produce different
         # SphericalHarmonicSpace shapes, which propagates to different
-        # TensorProductSpace identities. Field._check_partner's space
+        # TensorSpace identities. Field._check_partner's space
         # check is the one refusal of the sum: the L agreement is
         # refused at construction (#709), so equal spaces imply equal L.
         #

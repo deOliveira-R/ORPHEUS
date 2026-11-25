@@ -13,13 +13,15 @@ import inspect
 import numpy as np
 import pytest
 
-from orpheus.numerics.axis import Axis
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.operator import LinearOperator, MissingAdjoint
 from orpheus.numerics.space import Covector, FunctionSpace
 from tests.gates._true_ends import H_REFUSAL_FRAGMENT
+from orpheus.numerics.factor import Factor, Kind, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.axis import Axis
 
 pytestmark = pytest.mark.foundation
 
@@ -31,7 +33,7 @@ def _axis(label: str, weights: np.ndarray) -> Axis:
 
 
 def _space() -> FunctionSpace:
-    return FunctionSpace.of_axes(_axis("a", np.array([0.5, 2.0, 4.0])), _axis("b", np.array([1.0, 3.0])))
+    return TensorSpace.of_axes(Factor.whole_on(_axis("a", np.array([0.5, 2.0, 4.0])), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(_axis("b", np.array([1.0, 3.0])), Kind.MEASURE, VarianceChart.DENSITY))
 
 
 class _CrossSide(LinearOperator):

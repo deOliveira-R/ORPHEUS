@@ -55,7 +55,6 @@ from typing import Any
 import numpy as np
 import pytest
 
-from orpheus.numerics.declaration import Coord
 from orpheus.numerics.metric import DenseMetric, Face
 from orpheus.numerics.operator import (
     IdentityOperator,
@@ -71,6 +70,11 @@ from orpheus.numerics.operator import (
 )
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from orpheus.numerics.space import FunctionSpace
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.declaration import Coord
+from tests.gates.numerics._declared_support import declared_mod_kernel
 
 pytestmark = pytest.mark.l0
 
@@ -104,7 +108,7 @@ def _factors(word) -> tuple:
 
 def _space(name: str, weights) -> FunctionSpace:
     w = np.asarray(weights, dtype=float)
-    return FunctionSpace(name, (w.size,), inner_product_weights=w)
+    return declared_mod_kernel(name, (w.size,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
 
 
 #: Distinct, non-uniform diagonal metrics on spaces of distinct dimension, so
@@ -119,7 +123,7 @@ V = V2
 #: multiple of 1/4): the Q1 witness space, where a pointwise term's own
 #: ``.H is self`` is not its adjoint.
 _G = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
-VD = FunctionSpace("s2_dense3", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
+VD = TensorSpace.declared("s2_dense3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC))
 
 
 class Mat(LinearOperator):
