@@ -6,9 +6,9 @@ from ``OrthonormalSpanBasis.of_generators`` (the gate reads the traceback's fram
 why N03b adds no raise there: a guard nothing reaches is not written. The message names a vanishing metric for what is a negative weight; the
 wording and the signed orthonormalisation are open under #706.
 
-Green at the base of N03b (the row pins a refusal that exists). Mutation: ``OrthonormalSpanBasis.of_generators`` with its weight check removed (a
-copy of the function that skips the ``metric > 0`` refusal, bound in every module that holds the class) must redden the gate: the solve on
-``lebedev(13)`` then raises something else or solves. Exact on any host (a refusal, not a value).
+Green at the base of N03b (``c18f156f``): the row pins a refusal that already exists. Mutation: ``OrthonormalSpanBasis.of_generators`` with its
+``metric > 0`` refusal removed must redden the gate: the solve on ``lebedev(13)`` then raises something else (the frame's own Gram door, behind it) or
+solves. Exact on any host (a refusal, not a value).
 """
 
 from __future__ import annotations

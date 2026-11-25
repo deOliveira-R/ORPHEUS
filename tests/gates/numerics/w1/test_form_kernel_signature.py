@@ -9,12 +9,13 @@ weights on ``S minus K`` and zero elsewhere, and ``Factor.positive`` is ``signat
 (``AttributeError``). ``DiagonalMetric.counting((2, 3))`` has weights ``ones((2, 3))``; a ``DenseMetric`` with a ``Spanned`` kernel of
 dimension 1 on 3 coordinates has ``signature == (2, 1, 0)``.
 
-Exact on any host (signs, counts and index sets). Every expected value is written here by hand from the definitions. First red at the base of
-N03b: the first three states are refused (a negative weight on ``S`` is refused by ``Factor``) and ``Factor.signature`` does not exist. Mutations:
-reinstalling the negative-weight refusal in ``Factor._require_constructible`` reddens the first state; ``signature`` counting a negative weight
-as positive reddens the ``(2, 0, 1)`` row; ``positive`` hard-wired to True reddens the first state; the zero weights read as nonzero in the
-count reddens the ``(2, 1, 0)`` rows; the density partner's ``S`` read from ``self.sk.S`` instead of the partner's reddens the signed diagonal
-population below on the integrated variances only.
+Exact on any host (signs, counts and index sets). Every expected value is written here by hand from the definitions. At the base of N03b
+(``c18f156f``) the first three states were refused (``Factor`` refused a negative weight on ``S``), ``Factor.signature`` did not exist, and the
+population read 72 constructed and 252 refused, 180 of 324 verdicts agreeing with the hand rule. Mutations: reinstalling the negative-weight refusal
+in ``Factor._require_constructible`` reddens the first state; ``signature`` counting a negative weight as positive reddens the ``(2, 0, 1)`` row;
+``positive`` hard-wired to True reddens the first state; the zero weights read as nonzero in the count reddens the ``(2, 1, 0)`` rows; ``dual``
+keeping the kind reddens the flips of the population; a formless ``signature`` whose contract is a bare ``assert`` (stripped under ``-O``, so the
+read falls through to an ``AttributeError`` on ``None``) reddens the formless row, which reads the message of the error.
 """
 
 from __future__ import annotations
@@ -72,8 +73,9 @@ def test_form_kernel_and_signature() -> None:
     formless = F.Factor(EnergyAxis.synthetic(3), F.FormlessVariance.MEASURE, F.Subquotient.whole(3))
     try:
         formless.signature
-    except AttributeError:
-        pass
+    except AttributeError as e:
+        # the contract is a raise that survives python -O, not a bare assert: a stripped assert falls through to `None.signature`
+        _require("NoneType" not in str(e), f"a formless factor has no signature by accident, not by contract: {e}")
     else:
         pytest.fail("a formless factor has a signature")
     formed = Axis("s", (3,), origin=Declared(BasisKind.NODAL))
@@ -131,7 +133,7 @@ def _population(weights: tuple[float, ...]) -> dict[str, int]:
     from orpheus.numerics import factor as F
 
     axis = P.diag_axis(list(weights))
-    out = dict.fromkeys(("states", "constructed", "refused", "hand", "verdict", "form", "signature", "positive", "dual_dual", "riesz_riesz", "flips"), 0)
+    out = dict.fromkeys(("states", "constructed", "refused", "hand", "verdict", "form", "signature", "positive", "dual_dual", "riesz_riesz", "flips", "commute"), 0)
     for S, K in P.pairs(len(weights)):
         sk = P.sk_of(len(weights), S, K)
         for v in P.variances():
@@ -154,6 +156,7 @@ def _population(weights: tuple[float, ...]) -> dict[str, int]:
             out["positive"] += getattr(f, "positive", None) is want_pos
             out["dual_dual"] += f.dual().dual() == f
             out["riesz_riesz"] += f.riesz().riesz() == f
+            out["commute"] += f.dual().riesz() == f.riesz().dual()
             # the flips by hand: dual reverses kind and chart, riesz reverses the chart only, and both carry the subquotient (Ann K, Ann S)
             d, r = f.dual(), f.riesz()
             everything = set(range(len(weights)))
@@ -172,9 +175,9 @@ def test_the_signed_diagonal_population_constructs_exactly_where_the_hand_rule_s
     """The signed-diagonal population on both ends: the axis with weights ``[1, -1, 2, 0]``, every ``Coord`` pair ``K ⊆ S`` on its 4 indices (81
     pairs) times the 4 variances (324 states), each compared with the hand rule above. The negative weight at index 1 refuses nothing: 216 states
     construct and 108 are refused, exactly the states a zero weight (index 3) lies in the partner's ``S`` outside its ``K``. On every constructed
-    state the induced form, the signature and the ``positive`` flag equal the hand rule, and ``dual`` and ``riesz`` are involutions that flip what the hand rule says (L3: ``dual`` reverses the kind and the chart, ``riesz`` the chart, both take the subquotient to ``(Ann K, Ann S)``). The
+    state the induced form, the signature and the ``positive`` flag equal the hand rule, and ``dual`` and ``riesz`` are involutions that commute and flip what the hand rule says (L3: ``dual`` reverses the kind and the chart, ``riesz`` the chart, both take the subquotient to ``(Ann K, Ann S)``). The
     positive control ``[1, 2, 3, 0]`` has the same zero index and reads the same 216 and 324 of 324. Exact: index sets, signs and the bytes of
-    reciprocals of small weights. Mutation: a negative-weight refusal on ``S`` of the density partner reads 180 of 324 verdicts (the tip) and a
+    reciprocals of small weights. Mutation: a negative-weight refusal on ``S`` of the density partner reads 180 of 324 verdicts (the base of N03b) and a
     refusal on ``self.sk.S`` disagrees on the integrated states."""
     for weights in ((1.0, -1.0, 2.0, 0.0), (1.0, 2.0, 3.0, 0.0)):
         c = _population(weights)
@@ -189,6 +192,7 @@ def test_the_signed_diagonal_population_constructs_exactly_where_the_hand_rule_s
         _require(c["signature"] == 216, f"{label}: the signature agrees on {c['signature']} of 216 constructed states")
         _require(c["positive"] == 216, f"{label}: the positive flag agrees on {c['positive']} of 216 constructed states")
         _require(
-            c["dual_dual"] == 216 and c["riesz_riesz"] == 216 and c["flips"] == 216,
-            f"{label}: dual o dual = id on {c['dual_dual']}, riesz o riesz = id on {c['riesz_riesz']} and the flips equal the hand rule on {c['flips']} of 216",
+            c["dual_dual"] == 216 and c["riesz_riesz"] == 216 and c["commute"] == 216 and c["flips"] == 216,
+            f"{label}: dual o dual = id on {c['dual_dual']}, riesz o riesz = id on {c['riesz_riesz']}, dual o riesz = riesz o dual on {c['commute']} "
+            f"and the flips equal the hand rule on {c['flips']} of 216",
         )

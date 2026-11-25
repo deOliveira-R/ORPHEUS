@@ -13,10 +13,12 @@ G03t. ``FunctionSpace.norm`` is the verb that needs a positive form. On the meas
 ``(66, 0, 8)``: 8 negative weights) it raises ``ValueError`` naming the Krein arm and ``#706``; on ``lebedev(11)`` and on a counting space it returns
 as before. The raise is a real ``raise`` that survives ``python -O`` (an ``ast`` leg reads the helper's body: a ``Raise`` node and no ``assert``).
 
-Exact on any host (counts, index sets, a raise). First red at the base of N03b: ``Factor.signature`` does not exist (G03s), and ``norm`` returns
-``3.5449077018110318`` on the signed space (G03t). Mutations: G03s, ``Factor._require_constructible`` made a no-op, which reddens the count
-(states with a kernel index in ``S`` outside ``K`` construct); G03t, the ``raise`` replaced by an ``assert`` (red under ``-O``) or the call deleted
-from ``norm`` (red on the signed space).
+Exact on any host (counts, index sets, a raise). At the base of N03b (``c18f156f``) ``Factor.signature`` did not exist (the signature leg of G03s
+read ``AttributeError``) and ``norm`` returned ``3.5449077018110318`` on the signed space for the vector of ones (what it reads depends on the
+vector: the inner product of other vectors can be negative and ``norm`` then reads ``nan``). Mutations: G03s, ``Factor._require_constructible``
+made a no-op, which reddens the count (260 of 324 states construct, 108 of them with a singular live block); G03t, the ``raise`` replaced by an
+``assert`` (the behavioural leg reddens under ``-O`` and the ``ast`` leg reddens on the source), or the call deleted from ``norm`` (the signed space
+then returns).
 """
 
 from __future__ import annotations
