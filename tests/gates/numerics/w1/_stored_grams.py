@@ -34,7 +34,7 @@ HAND_DIMS: dict[str, int] = {"syn.rank2_3x3": 1, "syn.pou_3x3": 0, "syn.kappa1e4
 class StoredGram:
     family: str
     gram: NDArray  # the raw input Gram of the builder
-    metric: NDArray  # the stored ``.matrix`` face of ``DenseMetric.inverse_of(gram)``: G+
+    metric: NDArray  # the stored ``.matrix`` face of the form stating the symmetrised Gram at ``GRAM``: G+
     gram_face: NDArray  # the stored ``.inverse_matrix`` face: the symmetrised Gram
 
     @property

@@ -32,7 +32,7 @@ import scipy
 
 from orpheus.numerics.coordinate_space import NotInCoordinateSpace
 from orpheus.numerics.flat_operator import FlattenedOperator
-from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.metric import DenseMetric, Face
 
 from . import _fixtures as fx
 
@@ -176,7 +176,7 @@ def capture_problems() -> tuple[dict[Key, np.ndarray], list[tuple[str, str]]]:
 
 
 def capture_frames(families: Families | None = None) -> tuple[dict[Key, np.ndarray], list[tuple[str, str]]]:
-    """Quantity group c: for each frame family, the input Gram and the two faces of ``DenseMetric.inverse_of(gram, kernel=...)``.
+    """Quantity group c: for each frame family, the input Gram and the two faces of the form that states the symmetrised Gram at ``Face.GRAM``.
 
     ``metric`` is ``.matrix`` (the pseudo-inverse of the Gram) and ``gram`` is ``.inverse_matrix`` (the symmetrised Gram).
     """
@@ -185,11 +185,11 @@ def capture_frames(families: Families | None = None) -> tuple[dict[Key, np.ndarr
     for family, text, build in (fx.frame_families() if families is None else families):
         gram = np.asarray(build(), float)
         kernel, kernel_text = fx.declared_kernel_of(family, gram)
-        dense = DenseMetric.inverse_of(gram, kernel=kernel)
+        dense = DenseMetric(DenseMetric.symmetrised(gram), kernel=kernel, face=Face.GRAM)
         arrays[("frames", f"c.{family}.input_gram")] = gram
         arrays[("frames", f"c.{family}.metric")] = np.asarray(dense.matrix)
         arrays[("frames", f"c.{family}.gram")] = np.asarray(dense.inverse_matrix)
-        builders.append((f"frames.{family}", f"{text}; metric = DenseMetric.inverse_of(gram, kernel={kernel_text})"))
+        builders.append((f"frames.{family}", f"{text}; metric = DenseMetric(DenseMetric.symmetrised(gram), kernel={kernel_text}, face=Face.GRAM)"))
     return arrays, builders
 
 

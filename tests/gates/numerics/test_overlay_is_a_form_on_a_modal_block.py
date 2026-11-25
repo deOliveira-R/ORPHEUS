@@ -20,7 +20,7 @@ import pytest
 from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Axis, BasisKind, Declared, EnergyAxis, Modal
 from orpheus.numerics.declaration import Coord
-from orpheus.numerics.metric import DenseMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
 
@@ -28,7 +28,7 @@ pytestmark = pytest.mark.l0
 
 _E = EnergyAxis.synthetic(2)
 _S = Axis("spatial", (3,), weights=np.array([1.0, 2.0, 3.0]), origin=Declared(BasisKind.NODAL))
-_GRAM = DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()))
+_GRAM = DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC)
 
 
 @pytest.mark.catches("ERR-121")

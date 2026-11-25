@@ -1,6 +1,6 @@
 r"""G01g and G01h. **G01g.** The subject of #634: the inverse face is derived, never supplied, never admitted by a tolerance (N01, spec 7.2).
 
-Defect 1 (too tight): ``DenseMetric.inverse_of`` REFUSED a legal Gram whose smallest eigenvalue is 2e-12 or 1e-10 (residuals 3.5e+05
+Defect 1 (too tight): the dense form built from a Gram REFUSED a legal Gram whose smallest eigenvalue is 2e-12 or 1e-10 (residuals 3.5e+05
 and 9.9e+02 of the retired Penrose admission). Defect 2 (too loose): a supplied inverse ``X = G+ + v w^T`` was ADMITTED
 (``|P - P^T| = 1.0``). After N01 the first Gram builds with rank 5 and the second spelling does not exist: there is no public
 supplied-inverse keyword, and the field has ``init=False`` so ``dataclasses.replace`` cannot supply it either.
@@ -23,7 +23,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.declaration import Coord, Declaration
-from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.metric import DenseMetric, Face
 from tests.gates._dense import declared_kernel
 from tests.gates.numerics.w1 import _stored_grams as sg
 
@@ -47,10 +47,10 @@ def _require(cond: object, msg: str) -> None:
 @pytest.mark.rests_on("tests/gates/numerics/w1/test_dense_kernel_declared.py::test_rank_is_declared")
 def test_a_legal_gram_with_a_small_eigenvalue_builds(smallest: float) -> None:
     g = _gram([1.0, 0.5, 0.3, 0.2, smallest])
-    m = DenseMetric.inverse_of(g, kernel=Coord(5, ()))
+    m = DenseMetric(DenseMetric.symmetrised(g), kernel=Coord(5, ()), face=Face.GRAM)
     _require(m.rank((5,)) == 5, f"rank {m.rank((5,))}, expected 5 for a declared full-rank Gram of smallest eigenvalue {smallest:g}")
     g_sym = (g + g.T) / 2.0
-    _require(np.asarray(m.inverse_matrix).tobytes() == g_sym.tobytes(), "the gram face of inverse_of is the exact symmetrisation of the Gram")
+    _require(np.asarray(m.inverse_matrix).tobytes() == g_sym.tobytes(), "the gram face of a form stated at GRAM is the exact symmetrisation of the Gram")
     # the faces are inverses to the conditioning of the Gram: a legal Gram is inverted, not refused and not zeroed.
     residual = float(np.linalg.norm(np.asarray(m.matrix) @ g_sym - np.eye(5)))
     _require(residual <= 1e-3, f"|G+ G - I| = {residual:.3e}: the face is not the inverse")
@@ -59,7 +59,7 @@ def test_a_legal_gram_with_a_small_eigenvalue_builds(smallest: float) -> None:
 @pytest.mark.rests_on("tests/gates/numerics/w1/test_dense_kernel_declared.py::test_rank_is_declared")
 def test_no_public_supplied_inverse() -> None:
     """A supplied inverse ``X = G+ + k w^T`` (``k`` in the kernel of ``G``) satisfied the retired admission ``G X G = G`` and is not the
-    Moore-Penrose inverse (``X G`` is not symmetric): it is unspellable, as a keyword and through ``dataclasses.replace``."""
+    Moore-Penrose inverse (``X G`` is not symmetric): it is unspellable, as a keyword and through ``dataclasses.replace``; neither face is a field to replace."""
     g = np.array([[1.0, 1.0, 0.0], [1.0, 1.0, 0.0], [0.0, 0.0, 2.0]])  # rank 2, kernel spanned by (1, -1, 0)
     kernel = declared_kernel(g, 1)
     k = np.array([1.0, -1.0, 0.0]) / np.sqrt(2.0)
@@ -67,13 +67,15 @@ def test_no_public_supplied_inverse() -> None:
     _require(float(np.max(np.abs(g @ x @ g - g))) <= 1e-14, "activation: X must satisfy the retired admission G X G = G")
     _require(float(np.max(np.abs(x @ g - (x @ g).T))) > 0.5, "activation: X G must be far from symmetric (X is not the Moore-Penrose inverse)")
     with pytest.raises(TypeError):
-        DenseMetric(g, kernel=kernel, inverse_matrix=x)  # type: ignore[call-arg]
-    m = DenseMetric(g, kernel=kernel)
+        DenseMetric(g, kernel=kernel, inverse_matrix=x, face=Face.METRIC)  # type: ignore[call-arg]
+    m = DenseMetric(g, kernel=kernel, face=Face.METRIC)
     with pytest.raises(TypeError):
         dataclasses.replace(m, inverse_matrix=x)
-    # control: replacing the matrix re-derives the second face (the field is derived data).
-    again = dataclasses.replace(m, matrix=2.0 * g)
-    _require(np.asarray(again.inverse_matrix).tobytes() != np.asarray(m.inverse_matrix).tobytes(), "replace(matrix=) must rebuild the second face")
+    with pytest.raises(TypeError):
+        dataclasses.replace(m, matrix=2.0 * g)  # the metric face is derived from the stated matrix, not a field to replace
+    # control: replacing the stated matrix re-derives both faces (the faces are functions of the fields).
+    again = dataclasses.replace(m, stated=2.0 * g)
+    _require(np.asarray(again.inverse_matrix).tobytes() != np.asarray(m.inverse_matrix).tobytes(), "replace(stated=) must rebuild the second face")
 
 
 # ============================================================
@@ -96,7 +98,7 @@ def penrose_residuals(g: np.ndarray, gp: np.ndarray) -> tuple[float, float, floa
 def reads_red(g: np.ndarray, kernel: Declaration) -> bool:
     """True iff the declaration is refused or its inverse breaks an identity at ``_TOL`` (NaN reads red)."""
     try:
-        gp = np.asarray(DenseMetric(g, kernel=kernel).inverse_matrix)
+        gp = np.asarray(DenseMetric(g, kernel=kernel, face=Face.METRIC).inverse_matrix)
     except ValueError:
         return True
     with np.errstate(all="ignore"):
@@ -109,7 +111,7 @@ def reads_red(g: np.ndarray, kernel: Declaration) -> bool:
 def test_moore_penrose_identities_on_the_harness(family: str) -> None:
     e = sg.stored(family)
     g = e.g_sym
-    gp = np.asarray(DenseMetric(g, kernel=sg.declared_for(e)).inverse_matrix)
+    gp = np.asarray(DenseMetric(g, kernel=sg.declared_for(e), face=Face.METRIC).inverse_matrix)
     r1, r2, r3 = penrose_residuals(g, gp)
     _require(r1 <= _TOL, f"[{family}] G G+ G = G: relative residual {r1:.3e}")
     _require(r2 <= _TOL, f"[{family}] G+ G G+ = G+: relative residual {r2:.3e}")

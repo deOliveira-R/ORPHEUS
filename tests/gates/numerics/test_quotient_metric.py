@@ -29,7 +29,7 @@ from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 from orpheus.numerics.declaration import Coord
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
-from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import AdjointOperator, RieszLowerOperator, RieszRaiseOperator, adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -60,17 +60,17 @@ def _rng(seed):
 
 
 def _metric_rows():
-    dense_sing = DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1))
+    dense_sing = DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1), face=Face.METRIC)
     diag_sing = DiagonalMetric(_W_SING)
     diag_rank3 = DiagonalMetric(np.array([2.0, 0.0, 3.0, 1.0]))
     return [
         ("diag_singular", diag_sing, (4,), 2),
         ("diag_singular_trailing", diag_sing, (4, 3), 6),  # leading-aligned: 2 live rows × 3
         ("diag_positive", DiagonalMetric(np.array([0.5, 2.0, 4.0])), (3,), 3),
-        ("dense_spd", DenseMetric(_G, kernel=Coord(3, ())), (3,), 3),
+        ("dense_spd", DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC), (3,), 3),
         ("dense_rank2", dense_sing, (3,), 2),
         ("dense_rank2_trailing", dense_sing, (3, 2), 4),
-        ("dense_inverse_of_rank2", DenseMetric.inverse_of(_G_SING, kernel=declared_kernel(_G_SING, 1)), (3,), 2),
+        ("dense_inverse_of_rank2", DenseMetric(DenseMetric.symmetrised(_G_SING), kernel=declared_kernel(_G_SING, 1), face=Face.GRAM), (3,), 2),
         # rank-3 diagonal block, so a product (6) and a sum (5) of block ranks differ
         # (`[M]` 2026-10-21: with two rank-2 blocks 2·2 = 2 + 2 hid a summed rank).
         ("factored_dense_x_diag", FactoredMetric((((3,), dense_sing), ((4,), diag_rank3))), (3, 4), 6),
@@ -122,7 +122,7 @@ def test_B1b_dense_rank_counts_the_directions_the_inverse_face_inverts(rel):
     g = _gram([1.0, 0.5, 0.3, 0.2, rel])
     hand = int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=1e-12) @ g))))
     _require(hand == (5 if rel > 1e-12 else 4), f"fixture: the pinv oracle reads rank {hand} at eigenvalue {rel:g}")
-    m = DenseMetric(g, kernel=declared_kernel(g, 5 - hand))
+    m = DenseMetric(g, kernel=declared_kernel(g, 5 - hand), face=Face.METRIC)
     _require(_inverted_directions(m, 5) == hand, f"fixture: the inverse face inverts {_inverted_directions(m, 5)}")
     _require(m.rank((5,)) == hand, f"rank {m.rank((5,))} vs the {hand} inverted directions (eigenvalue {rel:g})")
     _require(m.dual().rank((5,)) == hand, "the dual's rank differs")
@@ -139,7 +139,7 @@ def test_B1c_dense_rank_agrees_with_the_inverse_face_across_the_cutoff():
         g = _gram([1.0, 0.5, 0.3, 0.2, f * FRAME_GRAM_RANK_RTOL])
         kernel = frame_gram_kernel(g)
         oracle_rank = int(round(float(np.trace(np.linalg.pinv(g, hermitian=True, rcond=FRAME_GRAM_RANK_RTOL) @ g))))
-        m = DenseMetric(g, kernel=kernel)
+        m = DenseMetric(g, kernel=kernel, face=Face.METRIC)
         inv = _inverted_directions(m, 5)
         counts.add(oracle_rank)
         if 5 - kernel.dim != oracle_rank or m.rank((5,)) != oracle_rank or inv != oracle_rank:
@@ -148,11 +148,11 @@ def test_B1c_dense_rank_agrees_with_the_inverse_face_across_the_cutoff():
     _require(counts == {4, 5}, f"activation: the sweep did not straddle the cutoff ({counts})")
 
 
-def test_B1d_inverse_of_a_gram_with_a_near_cutoff_eigenvalue():
-    """``DenseMetric.inverse_of(g, kernel=...)`` with g's eigenvalue at 5e-13 (below the frame's rank cutoff, declared as
+def test_B1d_the_form_of_a_gram_with_a_near_cutoff_eigenvalue():
+    """The form stating the Gram ``g`` at ``GRAM``, with g's eigenvalue at 5e-13 (below the frame's rank cutoff, declared as
     kernel): rank 4, the inverted-direction count, and the dual's rank, agree."""
     g = _gram([1.0, 0.5, 0.3, 0.2, 5e-13])
-    m = DenseMetric.inverse_of(g, kernel=frame_gram_kernel(g))
+    m = DenseMetric(DenseMetric.symmetrised(g), kernel=frame_gram_kernel(g), face=Face.GRAM)
     inv = _inverted_directions(m, 5)
     _require(inv == 4 and m.rank((5,)) == 4 and m.dual().rank((5,)) == 4,
              f"rank {m.rank((5,))}, inverted {inv}, dual {m.dual().rank((5,))}")
@@ -216,8 +216,8 @@ def test_B2_a_parseval_heads_rank_is_the_sampled_harmonic_rank(name):
 def _spaces():
     return {
         "diag_singular": FunctionSpace("s6b_ds", (4,), inner_product_weights=_W_SING),
-        "dense_rank2": FunctionSpace("s6b_dr", (3,), metric=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1))),
-        "dense_spd": FunctionSpace("s6b_dp", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()))),
+        "dense_rank2": FunctionSpace("s6b_dr", (3,), metric=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1), face=Face.METRIC)),
+        "dense_spd": FunctionSpace("s6b_dp", (3,), metric=DenseMetric(_G, kernel=Coord(3, ()), face=Face.METRIC)),
         "diag_positive": FunctionSpace("s6b_dpos", (3,), inner_product_weights=np.array([0.3, 1.7, 2.9])),
         "head_product48_L4": frame_faces.basis_space(frame_faces.angular_frame(Quadrature.product(4, 8), 4)),
         "head_folded26_L2": frame_faces.basis_space(
@@ -267,7 +267,7 @@ def test_B3b_project_live_zeroes_exactly_the_hand_kernel():
     V = FunctionSpace("s6b_k", (4,), inner_product_weights=_W_SING)
     x = np.array([1.0, 2.0, 3.0, 4.0])
     np.testing.assert_array_equal(project_live(V, x), np.where(_W_SING != 0, x, 0.0))
-    D = FunctionSpace("s6b_kd", (3,), metric=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1)))
+    D = FunctionSpace("s6b_kd", (3,), metric=DenseMetric(_G_SING, kernel=declared_kernel(_G_SING, 1), face=Face.METRIC))
     ker, live = np.array([1.0, -1.0, 0.0]) / np.sqrt(2.0), np.array([1.0, 1.0, 0.0])
     np.testing.assert_allclose(project_live(D, ker), 0.0, atol=8 * _EPS)
     np.testing.assert_allclose(project_live(D, live), live, rtol=8 * _EPS, atol=8 * _EPS)

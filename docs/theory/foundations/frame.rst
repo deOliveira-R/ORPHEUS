@@ -6495,9 +6495,9 @@ which the Hadamard weight is the diagonal special case
 (:ref:`spaces-metric-object` on
 :doc:`/theory/foundations/spaces` is the doctrine's home). The frame is
 its founding consumer: ``basis_space``'s ``DENSE`` arm now installs
-``DenseMetric.inverse_of(discrete_gram, kernel=frame_gram_kernel(discrete_gram))`` — the
+``DenseMetric(DenseMetric.symmetrised(discrete_gram), kernel=frame_gram_kernel(discrete_gram), face=Face.GRAM)`` — the
 Moore–Penrose pseudo-inverse with the frame's declared kernel zeroed, with
-the exact symmetrized Gram kept as the inverse face — and strips the basis's continuum weights, so
+the exact symmetrized Gram kept as the stated matrix — and strips the basis's continuum weights, so
 **Parseval becomes a theorem on every frame** rather than a property of
 the diagonal ones (:eq:`spaces-pseudo-inverse-parseval`). The pseudo-inverse
 rather than the inverse was forced, not stylistic: `[M]` the then-flagship

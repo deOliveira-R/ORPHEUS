@@ -1,6 +1,6 @@
 r"""G01a: the bare constructor equals the stored bytes, and the declared dimension is the nullity (N01, spec 7.2).
 
-The harness' G00a compares the ``inverse_of`` path of the 21 dense Grams of group (c) with the stored bytes. This file reads the
+The harness' G00a compares the ``face = GRAM`` path (the symmetrised Gram stated, as the frame's mint states it) of the 21 dense Grams of group (c) with the stored bytes. This file reads the
 same stored bytes through the OTHER path (instrument doctrine X4: two spellings of one comparison agree tautologically): the bare
 constructor ``DenseMetric(g_sym, kernel=k)`` on the symmetrised stored input Gram, whose second face (``.inverse_matrix``) must
 equal the stored ``metric`` face (``G+``) byte for byte. After N01 both paths call the one body ``_exact_inverse``, so a body
@@ -17,7 +17,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.metric import DenseMetric, Face
 from tests.gates.cross_method.w1 import _snapshot as snap
 from tests.gates.numerics.w1 import _stored_grams as sg
 
@@ -51,7 +51,7 @@ def test_bare_path_equals_the_stored_metric(family: str) -> None:
     _require_stamped_host()
     e = sg.stored(family)
     kernel = sg.declared_for(e)
-    m = DenseMetric(e.g_sym, kernel=kernel)
+    m = DenseMetric(e.g_sym, kernel=kernel, face=Face.METRIC)
     live = np.asarray(m.inverse_matrix)
     _require(live.shape == e.metric.shape and live.dtype == e.metric.dtype, f"[{family}] shape/dtype {live.shape}/{live.dtype} against stored {e.metric.shape}/{e.metric.dtype}")
     _require(

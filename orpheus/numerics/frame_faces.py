@@ -55,7 +55,7 @@ from orpheus.numerics import frame as _frame_module
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.instance_cache import cached_on
 from orpheus.geometry.manifold import Manifold, Quotient, Sphere
-from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric, Face, FactoredMetric
 from orpheus.numerics.operator import LinearOperator, NotInvertible
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -450,15 +450,15 @@ def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
     if frame.discrete_gram_structure is not GramStructure.DIAGONAL:
         # DENSE verdict (P7): the Parseval metric exists — it is just
         # not diagonal. Install the matrix pseudo-inverse of the
-        # measured Gram (DenseMetric.inverse_of keeps the exact
-        # symmetrized Gram as the inverse face) and STRIP the basis's
+        # measured Gram (the form states the exact
+        # symmetrized Gram at face GRAM, so the metric face is its inverse) and STRIP the basis's
         # continuum measure — the dressing REPLACES the metric on
         # this arm exactly as the diagonal arm overwrites it (on an
         # axis-built head the form is POSITIONED on the derived object
         # and the axis carries no measure, item 6.2c-i).
         gram = frame.discrete_gram
         return _dressed(
-            space, dense=DenseMetric.inverse_of(gram, kernel=_frame_module.frame_gram_kernel(gram)), frame=frame,
+            space, dense=DenseMetric(DenseMetric.symmetrised(gram), kernel=_frame_module.frame_gram_kernel(gram), face=Face.GRAM), frame=frame,
         )
     diag = np.diagonal(frame.discrete_gram).reshape(space.shape)
     live = diag > 0.0

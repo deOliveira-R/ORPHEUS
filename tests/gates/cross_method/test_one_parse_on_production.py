@@ -320,7 +320,7 @@ def _site_calls(site, homog, sn, sn_solution, sphere):
     from orpheus.numerics.frame import GalerkinFrame
     from orpheus.numerics.frame_faces import CrossGramInverse, FrameAnalysis, FrameReconstruction
     from orpheus.numerics.declaration import Coord
-    from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
+    from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
     from orpheus.numerics.pencil import OperatorPencil
     from orpheus.numerics.posing import SourcePosing
     from orpheus.numerics.quadrature import Quadrature
@@ -332,7 +332,7 @@ def _site_calls(site, homog, sn, sn_solution, sphere):
     lb = LegendreBasis(2)
     gf = GalerkinFrame(lb, q4.measure)
     fr = prob.system.factors.fission.source_reconstruction.frame
-    diagonal, dense = DiagonalMetric(np.ones(12)), DenseMetric(np.eye(2), kernel=Coord(2, ()))
+    diagonal, dense = DiagonalMetric(np.ones(12)), DenseMetric(np.eye(2), kernel=Coord(2, ()), face=Face.METRIC)
     factored = FactoredMetric((((2,), None), ((12,), DiagonalMetric(np.ones(12)))))
     analysis, reconstruction, cross_gram = FrameAnalysis.of(fr), FrameReconstruction.of(fr), CrossGramInverse.of(gf)
     retraction = AxisRetractionOperator.of(prob.angular_bulk_space, "angular")

@@ -323,13 +323,13 @@ class TestG3Reciprocity:
         and refused by the by-label resolver."""
         from orpheus.numerics.axis import Axis, BasisKind
         from orpheus.numerics.declaration import Coord
-        from orpheus.numerics.metric import DenseMetric
+        from orpheus.numerics.metric import DenseMetric, Face
         from orpheus.numerics.space import FunctionSpace
 
         a = Axis("angular", (2,), weights=np.array([0.5, 1.5]), origin=Declared(BasisKind.NODAL))
         b = Axis("spatial", (3,), origin=Declared(BasisKind.NODAL))
         with pytest.raises(ValueError, match="DERIVED from its axes"):
-            FunctionSpace("np", (2, 3), axes=(a, b), metric=DenseMetric(np.eye(6) + 0.1, kernel=Coord(6, ())))
+            FunctionSpace("np", (2, 3), axes=(a, b), metric=DenseMetric(np.eye(6) + 0.1, kernel=Coord(6, ()), face=Face.METRIC))
 
 
 # ═══ G4 — the section laws ════════════════════════════════════════════════════

@@ -42,7 +42,7 @@ from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.declaration import Coord
 from tests.gates._dense import declared_kernel
-from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
 from orpheus.numerics.space import Covector, FunctionSpace, Member
 from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from tests.gates.numerics._axis_marginal_lift_support import zero_weight_nodal
@@ -74,7 +74,7 @@ def _diag(name: str, weights) -> FunctionSpace:
 
 
 def _dense_singular(name: str) -> FunctionSpace:
-    return FunctionSpace(name, (3,), metric=DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1)))
+    return FunctionSpace(name, (3,), metric=DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1), face=Face.METRIC))
 
 
 def _dense_near_cutoff(name: str) -> FunctionSpace:
@@ -84,11 +84,11 @@ def _dense_near_cutoff(name: str) -> FunctionSpace:
     of :math:`G` stay at rounding."""
     q, _ = np.linalg.qr(np.random.default_rng(29).standard_normal((6, 6)))
     gram = q @ np.diag([1.0, 0.5, 0.2, 0.1, 1e-8, 0.0]) @ q.T
-    return FunctionSpace(name, (6,), metric=DenseMetric((gram + gram.T) / 2.0, kernel=declared_kernel((gram + gram.T) / 2.0, 1)))
+    return FunctionSpace(name, (6,), metric=DenseMetric((gram + gram.T) / 2.0, kernel=declared_kernel((gram + gram.T) / 2.0, 1), face=Face.METRIC))
 
 
 def _dense_full(name: str) -> FunctionSpace:
-    return FunctionSpace(name, (3,), metric=DenseMetric(np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]]), kernel=Coord(3, ())))
+    return FunctionSpace(name, (3,), metric=DenseMetric(np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]]), kernel=Coord(3, ()), face=Face.METRIC))
 
 
 def _mixed_factored() -> FunctionSpace:
@@ -100,7 +100,7 @@ def _mixed_factored() -> FunctionSpace:
     """
     return FunctionSpace(
         "kb_mixed", (3, 3),
-        metric=FactoredMetric((((3,), DiagonalMetric(np.array([1.0, 0.0, 2.0]))), ((3,), DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1))))),
+        metric=FactoredMetric((((3,), DiagonalMetric(np.array([1.0, 0.0, 2.0]))), ((3,), DenseMetric(_B @ _B.T, kernel=declared_kernel(_B @ _B.T, 1), face=Face.METRIC)))),
     )
 
 

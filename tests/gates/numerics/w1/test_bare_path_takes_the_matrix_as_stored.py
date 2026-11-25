@@ -15,7 +15,7 @@ import pytest
 
 from orpheus.numerics import frame as FR
 from orpheus.numerics import frame_faces as FF
-from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.metric import DenseMetric, Face
 from orpheus.numerics.quadrature import Quadrature
 
 pytestmark = pytest.mark.foundation
@@ -35,7 +35,7 @@ def test_bare_path_takes_the_matrix_as_stored() -> None:
     if m[0, 1] == m[1, 0]:  # a host whose pinv returns this pair exactly symmetric: one ulp makes the matrix asymmetric
         m[0, 1] = np.nextafter(m[0, 1], np.inf)
     _require(float(np.max(np.abs(m - m.T))) > 0.0, "activation: G+ must be asymmetric for the symmetrisation to be a change")
-    face = np.asarray(DenseMetric(m, kernel=kernel).inverse_matrix)
+    face = np.asarray(DenseMetric(m, kernel=kernel, face=Face.METRIC).inverse_matrix)
     expected = np.linalg.pinv(m, hermitian=True, rcond=1e-12)
     _require(face.tobytes() == expected.tobytes(), f"the second face differs from pinv of the matrix as given: max|a-b|/max|b| = {float(np.max(np.abs(face - expected)) / np.max(np.abs(expected))):.3e}")
     sym = (m + m.T) / 2.0

@@ -143,6 +143,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from enum import Enum, unique
 from functools import cached_property
 from typing import Protocol, cast
 
@@ -156,6 +157,7 @@ __all__ = [
     "HilbertMetric",
     "DiagonalMetric",
     "DenseMetric",
+    "Face",
     "DualMetric",
     "FactoredMetric",
 ]
@@ -163,7 +165,7 @@ __all__ = [
 
 #: Symmetry admission threshold for :class:`DenseMetric`, relative to the matrix's own scale. An asymmetric form is not an inner
 #: product, so an asymmetric matrix is refused rather than silently symmetrised; the producer symmetrises, as
-#: :meth:`DenseMetric.inverse_of` does through :meth:`DenseMetric.symmetrised`. `[M]` 2026-10-18 over six dense frames: a
+#: :meth:`DenseMetric.symmetrised` does for the frame's Gram. `[M]` 2026-10-18 over six dense frames: a
 #: general-purpose inverse leaves ``max|M - M^T|`` up to ``1.75e-15`` (``frame_faces.angular_frame(product(4, 4), 2)``), so a
 #: producer's round-off sits more than two decades below this threshold and what is refused is a form that is asymmetric in fact.
 #:
@@ -205,6 +207,17 @@ def _exact_inverse(matrix: NDArray, kernel_dim: int) -> NDArray:
     return vt.T @ (sinv[:, None] * u.T)
 
 
+def _inverse_on_live_block(matrix: NDArray, kernel: Declaration) -> NDArray:
+    r"""The exact-count inverse of ``matrix`` under the declared ``kernel``: on a ``Coord`` kernel the inverse of the live block,
+    embedded with exactly zero rows and columns at the named indices; else :func:`_exact_inverse` of the whole matrix."""
+    if isinstance(kernel, Coord) and kernel.indices:
+        live = [i for i in range(matrix.shape[0]) if i not in kernel.indices]
+        out = np.zeros_like(matrix)
+        out[np.ix_(live, live)] = _exact_inverse(matrix[np.ix_(live, live)], 0)
+        return out
+    return _exact_inverse(matrix, kernel.dim)
+
+
 def _require_square(matrix: NDArray) -> None:
     r"""Refuse a matrix that is not square and 2-D: the one shape check of both construction doors of :class:`DenseMetric`."""
     shape = np.shape(matrix)
@@ -212,16 +225,22 @@ def _require_square(matrix: NDArray) -> None:
         raise ValueError(f"DenseMetric requires a square 2-D matrix, got shape {shape}")
 
 
-def _parse_kernel(kernel: object, n: int) -> Declaration:
+def _parse_kernel(kernel: object, n: int, matrix: NDArray) -> Declaration:
     r"""``kernel`` as the declared kernel of a dense form on :math:`\mathbb{R}^n`, else the refusal: the one parse of both doors.
 
-    A dense form's kernel is ``Coord(n, ())`` (full rank) or a :class:`~orpheus.numerics.declaration.Spanned`: the decomposition
-    drops the smallest singular directions, so a named index set or an annihilator could disagree with them.
+    A dense form's kernel is ``Coord(n, ())`` (full rank), a :class:`~orpheus.numerics.declaration.Spanned` (the decomposition
+    drops the smallest singular directions, so a named index set or an annihilator could disagree with them), or a non-empty
+    ``Coord`` exactly when ``matrix`` has exactly zero rows and columns at those indices: the named indices are then the kernel
+    by the entries themselves, and no decomposition decides them.
     """
     if not isinstance(kernel, Declaration):
         raise TypeError(f"DenseMetric kernel must be a Declaration, got {type(kernel).__name__}")
     if kernel.n != n:
         raise ValueError(f"kernel is declared on R^{kernel.n}, the matrix is {n} x {n}")
+    if isinstance(kernel, Coord) and kernel.indices and kernel.dim < n:
+        named = list(kernel.indices)
+        if not np.any(matrix[named, :]) and not np.any(matrix[:, named]):
+            return kernel
     if isinstance(kernel, Ann) or (isinstance(kernel, Coord) and kernel.indices):
         raise ValueError(
             f"kernel is not declared by a spanned subspace: got {kernel!r}; a dense form's kernel is "
@@ -468,38 +487,52 @@ class DiagonalMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
         return out * wb
 
 
+@unique
+class Face(Enum):  # concept: fmetric | role: component | kind: set
+    r"""Which face of a dense form its stated matrix is: the ``metric`` (the matrix ``apply`` multiplies by) or the ``gram``
+    (the matrix ``apply_inverse`` multiplies by, the inverse's role)."""
+
+    METRIC = "metric"
+    GRAM = "gram"
+
+
 @dataclass(frozen=True)
 class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphism
     r"""A dense symmetric matrix metric on the flattened leading block.
 
-    ``matrix`` is :math:`G^{+}` or :math:`G` as the caller states it, ``(K, K)`` with ``K`` the row-major flattening of the
-    metric's block, the same layout as :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` (``table.reshape(N, K)`` order), so
-    a frame's Gram algebra and this realization agree on what "slot :math:`k`" means by construction. Elements with extra
-    **trailing** axes are handled leading-aligned, like every metric in the tree: ``apply`` reshapes to ``(K, -1)``, matmuls, and
-    reshapes back.
+    ``stated`` is the matrix the form is handed and ``face`` says which face it is, ``(K, K)`` with ``K`` the row-major flattening
+    of the metric's block, the same layout as :attr:`~orpheus.numerics.frame.FrameBase.discrete_gram` (``table.reshape(N, K)``
+    order), so a frame's Gram algebra and this realization agree on what "slot :math:`k`" means by construction. Elements with
+    extra **trailing** axes are handled leading-aligned, like every metric in the tree: ``apply`` reshapes to ``(K, -1)``, matmuls,
+    and reshapes back.
+
+    The form has two faces, both functions of the fields: ``matrix`` (the ``metric`` face, what ``apply`` multiplies by) is
+    ``stated`` when ``face`` is :attr:`Face.METRIC` and the exact-count inverse of ``stated`` when it is :attr:`Face.GRAM`;
+    ``inverse_matrix`` (the ``gram`` face) is the other way. The content is ``(stated, face, kernel)``: a form stated as
+    :math:`G^{+}` at ``METRIC`` and the same form stated as :math:`G` at ``GRAM`` are two values, and
+    :func:`dataclasses.replace` keeps both faces' bytes. A raw, unsymmetrised matrix is taken as stored at either face;
+    :meth:`symmetrised` is the one spelling of the exact symmetrisation a producer hands in.
 
     The rank is declared, never read from a cutoff. ``kernel`` is the declared kernel of the matrix: ``Coord(K, ())`` for a
-    full-rank form, else a :class:`~orpheus.numerics.declaration.Spanned` of dimension :math:`\dim\ker`. A non-empty ``Coord``
-    and an ``Ann`` are refused, because the decomposition drops the smallest singular directions and a named index could disagree
-    with them. The signature of the form is then :math:`(K - \dim\ker,\ \dim\ker,\ 0)` by the declaration.
-
-    The second face, :attr:`inverse_matrix`, is derived data and not content: it is the exact-count inverse of ``matrix``
-    (:func:`_exact_inverse`) taken as stored, or, on the :meth:`inverse_of` path, the symmetrised Gram itself. No supplied-inverse
-    keyword exists and the field is not an initialiser argument.
-
-    The faces are named by role: ``metric`` is ``matrix`` (:math:`G^{+}` on the Parseval path) and ``gram`` is ``inverse_matrix``
-    (the symmetrised Gram). Prefer :meth:`inverse_of` when what you hold is the Gram whose inverse the metric should BE.
+    full-rank form, a :class:`~orpheus.numerics.declaration.Spanned` of dimension :math:`\dim\ker`, or a non-empty ``Coord``
+    when the matrix has exactly zero rows and columns at those indices (the inverse is then taken on the live block and embedded
+    with zero rows and columns). An ``Ann``, and a ``Coord`` whose rows are not zero, are refused. The signature of the form is
+    :math:`(K - \dim\ker,\ \dim\ker,\ 0)` by the declaration.
 
     Construction refuses an **asymmetric** matrix (an asymmetric form is not an inner product: producers symmetrise, this type
     does not), a ``kernel`` on another dimension, and, under ``if __debug__:``, a kept direction whose eigenvalue is not positive.
     """
 
-    matrix: NDArray
+    stated: NDArray
     kernel: Declaration = field(kw_only=True)
+    face: Face = field(kw_only=True)
+    matrix: NDArray = field(init=False, compare=False)
     inverse_matrix: NDArray = field(init=False, compare=False)
 
     def __post_init__(self) -> None:
-        m = np.asarray(self.matrix, dtype=float)
+        if not isinstance(self.face, Face):
+            raise TypeError(f"DenseMetric face must be a Face, got {type(self.face).__name__}")
+        m = np.asarray(self.stated, dtype=float)
         _require_square(m)
         scale = max(1.0, float(np.max(np.abs(m)))) if m.size else 1.0
         asym = float(np.max(np.abs(m - m.T))) if m.size else 0.0
@@ -511,35 +544,24 @@ class DenseMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: morphi
                 f"{scale:.3e}. An asymmetric form is not an inner product — "
                 f"symmetrize at the producer."
             )
-        kernel = _parse_kernel(self.kernel, m.shape[0])
-        object.__setattr__(self, "matrix", _frozen_copy(m))
-        if "inverse_matrix" not in self.__dict__:  # installed already by inverse_of, which holds the Gram itself
-            object.__setattr__(self, "inverse_matrix", _frozen_copy(_exact_inverse(m, kernel.dim)))
+        kernel = _parse_kernel(self.kernel, m.shape[0], m)
+        stated = _frozen_copy(m)
+        other = _frozen_copy(_inverse_on_live_block(m, kernel))
+        object.__setattr__(self, "stated", stated)
+        object.__setattr__(self, "matrix", stated if self.face is Face.METRIC else other)
+        object.__setattr__(self, "inverse_matrix", other if self.face is Face.METRIC else stated)
 
     @staticmethod
     def symmetrised(gram: NDArray) -> NDArray:
-        r"""The exact symmetrisation :math:`(G + G^{\mathsf T}) / 2`, spelled once."""
+        r"""The exact symmetrisation :math:`(G + G^{\mathsf T}) / 2`, spelled once; a matrix that is not square 2-D is refused."""
         g = np.asarray(gram, dtype=float)
+        _require_square(g)
         return (g + g.T) / 2.0
 
-    @classmethod
-    def inverse_of(cls, gram: NDArray, *, kernel: Declaration) -> "DenseMetric":
-        r"""The metric whose ``metric`` face (``matrix``) is the Moore-Penrose inverse of ``gram``.
-
-        The Parseval constructor: the frame's discrete Gram :math:`G` goes in with its declared ``kernel``, the metric
-        :math:`G^{+}` comes out, with the symmetrised Gram itself installed as the ``gram`` face (``inverse_matrix``), which
-        is exact for a symmetric positive semi-definite form (:math:`(G^{+})^{+} = G`) and better conditioned than a second
-        inversion.
-        """
-        _require_square(np.asarray(gram))
-        g_sym = cls.symmetrised(gram)
-        declared = _parse_kernel(kernel, g_sym.shape[0])
-        obj = object.__new__(cls)
-        object.__setattr__(obj, "matrix", _exact_inverse(g_sym, declared.dim))
-        object.__setattr__(obj, "kernel", declared)
-        object.__setattr__(obj, "inverse_matrix", _frozen_copy(g_sym))
-        obj.__post_init__()  # the one parse and admission of the bare door; it keeps the installed gram face
-        return obj
+    def flipped(self) -> "DenseMetric":
+        r"""The same stated matrix read as the other face: the chart change of a dense form. Exact, because ``stated`` is already
+        symmetric and nothing is inverted again by the caller."""
+        return DenseMetric(self.stated, kernel=self.kernel, face=Face.GRAM if self.face is Face.METRIC else Face.METRIC)
 
     @property
     def dim(self) -> int:

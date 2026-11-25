@@ -39,7 +39,7 @@ import pytest
 
 from orpheus.numerics import frame as FF
 from orpheus.numerics.declaration import Ann, Coord, Spanned
-from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.metric import DenseMetric, Face
 from tests.gates._dense import declared_kernel
 from tests.gates.numerics.w1 import _stored_grams as sg
 
@@ -55,11 +55,11 @@ def _require(cond: object, msg: str) -> None:
 
 @pytest.mark.rests_on("tests/gates/numerics/w1/test_declaration_normal_form.py::test_annihilator_normal_form")
 def test_rank_is_declared() -> None:
-    near = DenseMetric(np.diag([1.0, 5e-13]), kernel=Coord(2, ()))
+    near = DenseMetric(np.diag([1.0, 5e-13]), kernel=Coord(2, ()), face=Face.METRIC)
     _require(near.rank((2,)) == 2, f"a declared-full-rank form with a 5e-13 value has rank {near.rank((2,))}, expected 2 (no cutoff)")
     _require(near.rank((2, 3)) == 6, f"trailing multiplicity: rank((2, 3)) = {near.rank((2, 3))}, expected 6")
     _require(near.kernel_basis((2,)).shape == (2, 0), f"kernel basis shape {near.kernel_basis((2,)).shape}, expected (2, 0)")
-    deficient = DenseMetric(_RANK2_3X3, kernel=declared_kernel(_RANK2_3X3, 1))
+    deficient = DenseMetric(_RANK2_3X3, kernel=declared_kernel(_RANK2_3X3, 1), face=Face.METRIC)
     _require(deficient.rank((3,)) == 2, f"rank((3,)) = {deficient.rank((3,))}, expected 2")
     _require(deficient.rank((3, 2)) == 4, f"rank((3, 2)) = {deficient.rank((3, 2))}, expected (3 - 1) * (6 // 3) = 4")
     _require(deficient.kernel_basis((3,)).shape == (3, 1), f"kernel basis shape {deficient.kernel_basis((3,)).shape}, expected (3, 1)")
@@ -70,7 +70,7 @@ def test_rank_is_declared() -> None:
 
 def test_kept_direction_below_the_old_cutoff_is_inverted() -> None:
     """A kept ``5e-13`` is inverted byte for byte: ``inverse_matrix`` equals ``np.diag([1, 1 / 5e-13])`` (the #634 defect reversed)."""
-    m = DenseMetric(np.diag([1.0, 5e-13]), kernel=Coord(2, ()))
+    m = DenseMetric(np.diag([1.0, 5e-13]), kernel=Coord(2, ()), face=Face.METRIC)
     expected = np.diag([1.0, 1.0 / 5e-13])
     _require(np.asarray(m.inverse_matrix).tobytes() == expected.tobytes(), f"inverse face {np.asarray(m.inverse_matrix).tolist()} differs from {expected.tolist()}")
 
@@ -79,26 +79,26 @@ def test_kept_direction_below_the_old_cutoff_is_inverted() -> None:
 def test_kernel_declaration_refusals() -> None:
     d2 = np.diag([1.0, 2.0])
     with pytest.raises(ValueError, match="kernel is not declared by a spanned subspace"):
-        DenseMetric(d2, kernel=Coord(2, (1,)))
+        DenseMetric(d2, kernel=Coord(2, (1,)), face=Face.METRIC)
     with pytest.raises(ValueError, match="kernel is not declared by a spanned subspace"):
-        DenseMetric(d2, kernel=Coord(2, (0, 1)))  # the whole space: the zero form stays unspellable
+        DenseMetric(d2, kernel=Coord(2, (0, 1)), face=Face.METRIC)  # the whole space: the zero form stays unspellable
     with pytest.raises(ValueError, match="kernel is declared on"):
-        DenseMetric(d2, kernel=Coord(3, ()))
+        DenseMetric(d2, kernel=Coord(3, ()), face=Face.METRIC)
     with pytest.raises(ValueError, match="kernel is declared on"):
-        DenseMetric(d2, kernel=Spanned(3, ("k",), 1))
+        DenseMetric(d2, kernel=Spanned(3, ("k",), 1), face=Face.METRIC)
     with pytest.raises(ValueError, match="kernel is not declared by a spanned subspace"):
-        DenseMetric(d2, kernel=Ann(2, Spanned(2, ("k",), 1)))
+        DenseMetric(d2, kernel=Ann(2, Spanned(2, ("k",), 1)), face=Face.METRIC)
     with pytest.raises(TypeError):
-        DenseMetric(d2)  # type: ignore[call-arg]
+        DenseMetric(d2, face=Face.METRIC)  # type: ignore[call-arg]
 
 
 def test_a_declared_kernel_is_part_of_the_identity() -> None:
     """The kernel is a compare field (P2-6): equal matrices with different declared kernels are different forms."""
     from orpheus.values.content import content_digest
 
-    a = DenseMetric(_RANK2_3X3, kernel=declared_kernel(_RANK2_3X3, 1))
-    b = DenseMetric(_RANK2_3X3.copy(), kernel=declared_kernel(_RANK2_3X3, 1))
-    c = DenseMetric(_RANK2_3X3, kernel=Spanned(3, ("another-key",), 1))
+    a = DenseMetric(_RANK2_3X3, kernel=declared_kernel(_RANK2_3X3, 1), face=Face.METRIC)
+    b = DenseMetric(_RANK2_3X3.copy(), kernel=declared_kernel(_RANK2_3X3, 1), face=Face.METRIC)
+    c = DenseMetric(_RANK2_3X3, kernel=Spanned(3, ("another-key",), 1), face=Face.METRIC)
     _require(content_digest(a) == content_digest(b), "one form built twice must have one digest")
     _require(content_digest(a) != content_digest(c), "two kernels over one matrix must be two forms (two digests)")
 
@@ -302,9 +302,9 @@ def test_the_frame_kernel_key_is_the_digest_of_the_symmetrised_gram() -> None:
     _require(k1 == FF.frame_gram_kernel(g1.copy()), "one Gram declared twice must declare one kernel")
 
 
-def test_inverse_of_honours_a_declaration_that_differs_from_the_retired_count() -> None:
-    """The production door reads the declared count and no cutoff: ``inverse_of(diag([1, 5e-13]), kernel=Coord(2, ()))`` inverts ``5e-13`` (#634)."""
-    m = DenseMetric.inverse_of(np.diag([1.0, 5e-13]), kernel=Coord(2, ()))
+def test_a_gram_face_honours_a_declaration_that_differs_from_the_retired_count() -> None:
+    """The production door reads the declared count and no cutoff: the form stating ``diag([1, 5e-13])`` at ``GRAM`` with ``kernel=Coord(2, ())`` inverts ``5e-13`` (#634)."""
+    m = DenseMetric(DenseMetric.symmetrised(np.diag([1.0, 5e-13])), kernel=Coord(2, ()), face=Face.GRAM)
     expected = np.diag([1.0, 1.0 / 5e-13])
     _require(np.asarray(m.matrix).tobytes() == expected.tobytes(), f"the metric face {np.asarray(m.matrix).tolist()} differs from {expected.tolist()}")
     _require(m.rank((2,)) == 2, f"rank {m.rank((2,))}, expected 2")
@@ -321,9 +321,9 @@ def test_both_doors_share_one_parse() -> None:
     ]
     for matrix, kernel, exc, msg in cases:
         with pytest.raises(exc, match=msg):
-            DenseMetric(matrix, kernel=kernel)  # type: ignore[arg-type]
+            DenseMetric(matrix, kernel=kernel, face=Face.METRIC)  # type: ignore[arg-type]
         with pytest.raises(exc, match=msg):
-            DenseMetric.inverse_of(matrix, kernel=kernel)  # type: ignore[arg-type]
+            DenseMetric(DenseMetric.symmetrised(matrix), kernel=kernel, face=Face.GRAM)  # type: ignore[arg-type]
 
 
 def test_the_frame_refuses_the_zero_gram_in_its_own_words() -> None:
@@ -331,8 +331,8 @@ def test_the_frame_refuses_the_zero_gram_in_its_own_words() -> None:
         FF.frame_gram_kernel(np.zeros((3, 3)))
 
 
-def test_inverse_of_runs_two_decompositions_per_mint(monkeypatch: pytest.MonkeyPatch) -> None:
-    """3.3: ``inverse_of`` decomposes the Gram once, and the bare door's second face is not recomputed (a spy on ``np.linalg.svd``)."""
+def test_a_dense_form_runs_one_decomposition_per_mint(monkeypatch: pytest.MonkeyPatch) -> None:
+    """3.3: a form stated at ``GRAM`` decomposes the Gram once, and a form stated at ``METRIC`` does not recompute its second face twice (a spy on ``np.linalg.svd``)."""
     calls: list[int] = []
     real = np.linalg.svd
 
@@ -342,8 +342,8 @@ def test_inverse_of_runs_two_decompositions_per_mint(monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr(np.linalg, "svd", spy)
     g = _gram([1.0, 0.5, 0.3, 0.2, 0.1])
-    DenseMetric.inverse_of(g, kernel=Coord(5, ()))
-    _require(len(calls) == 1, f"inverse_of made {len(calls)} decompositions of the Gram, expected 1")
+    DenseMetric(DenseMetric.symmetrised(g), kernel=Coord(5, ()), face=Face.GRAM)
+    _require(len(calls) == 1, f"the GRAM-stated form made {len(calls)} decompositions of the Gram, expected 1")
     calls.clear()
-    DenseMetric(g, kernel=Coord(5, ()))
-    _require(len(calls) == 1, f"the bare door made {len(calls)} decompositions, expected 1")
+    DenseMetric(g, kernel=Coord(5, ()), face=Face.METRIC)
+    _require(len(calls) == 1, f"the METRIC-stated form made {len(calls)} decompositions, expected 1")

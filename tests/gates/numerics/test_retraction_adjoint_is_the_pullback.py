@@ -43,7 +43,7 @@ import pytest
 
 from orpheus.numerics.axis import Declared, Axis, BasisKind, Modal
 from orpheus.numerics.declaration import Coord
-from orpheus.numerics.metric import DenseMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 from orpheus.numerics.axis_marginal import AxisPullbackOperator, AxisRetractionOperator
 from orpheus.numerics.operator import AdjointOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -72,7 +72,7 @@ def _d1() -> FunctionSpace:
     """A dense form on a NON-collapsed coefficient (Modal) axis."""
     return FunctionSpace(
         "d1", (4, 5, 3), axes=(_ANG, _SPA, _MOM),
-        metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1), kernel=Coord(3, ()))))),
+        metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1), kernel=Coord(3, ()), face=Face.METRIC)))),
     )
 
 
@@ -80,13 +80,13 @@ def _d2() -> FunctionSpace:
     """A dense form on the COLLAPSED axis itself (a coefficient axis, Modal with unit e_0: a form lives only there)."""
     return FunctionSpace(
         "d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(Modal(np.eye(4)[0]))), _SPA),
-        metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2), kernel=Coord(4, ()))), ((5,), None))),
+        metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2), kernel=Coord(4, ()), face=Face.METRIC)), ((5,), None))),
     )
 
 
 def _d3() -> FunctionSpace:
     """The production composition route: ``(angular ⊗ spatial) * dense head``."""
-    head = FunctionSpace("h", (3,), axes=(_MOM,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3), kernel=Coord(3, ()))),)))
+    head = FunctionSpace("h", (3,), axes=(_MOM,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3), kernel=Coord(3, ()), face=Face.METRIC)),)))
     return FunctionSpace.of_axes(_ANG, _SPA) * head
 
 

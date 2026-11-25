@@ -457,7 +457,7 @@ class TestThreeSourceExclusivity:
         and its metric ACTS (the matching realization, read through the
         public verb rather than a private attribute)."""
         from orpheus.numerics.declaration import Coord
-        from orpheus.numerics.metric import DenseMetric
+        from orpheus.numerics.metric import DenseMetric, Face
 
         x = np.array([1.0, 2.0])
         ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
@@ -474,7 +474,7 @@ class TestThreeSourceExclusivity:
             "the dense-weights source must act as the Hadamard metric",
         )
         by_object = FunctionSpace(
-            "m", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 4.0]]), kernel=Coord(2, ()))
+            "m", (2,), metric=DenseMetric(np.array([[2.0, 0.5], [0.5, 4.0]]), kernel=Coord(2, ()), face=Face.METRIC)
         )
         _require(
             bool(np.array_equal(by_object.apply_metric(x), [3.0, 8.5])),
@@ -493,10 +493,10 @@ class TestThreeSourceExclusivity:
         one block and stays refused. Until then ANY object beside axes was
         refused ("one metric source only")."""
         from orpheus.numerics.declaration import Coord
-        from orpheus.numerics.metric import DenseMetric, FactoredMetric
+        from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 
         ax = Axis("a", (2,), weights=np.array([2.0, 4.0]), origin=Declared(BasisKind.NODAL))
-        dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()))
+        dense = DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC)
         with pytest.raises(ValueError, match="positioned over them"):
             FunctionSpace("bad", (2,), axes=(ax,), metric=dense)
         with pytest.raises(ValueError, match="two metric sources on one block"):
@@ -520,14 +520,14 @@ class TestThreeSourceExclusivity:
         could not reach (``if self.axes is None: return`` short-circuited
         before any check). Battery arm M10c is its teeth."""
         from orpheus.numerics.declaration import Coord
-        from orpheus.numerics.metric import DenseMetric
+        from orpheus.numerics.metric import DenseMetric, Face
 
         with pytest.raises(ValueError, match="one metric source"):
             FunctionSpace(
                 "bad",
                 (2,),
                 inner_product_weights=np.array([1.0, 2.0]),
-                metric=DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ())),
+                metric=DenseMetric(np.array([[1.0, 0.0], [0.0, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC),
             )
 
 

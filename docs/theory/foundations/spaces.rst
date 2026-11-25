@@ -2741,10 +2741,12 @@ Three construction choices in
    *without* the hermitian declaration returns a matrix whose asymmetry
    :math:`\max|M - M^{\mathsf T}|` ranges from :math:`4.6\times10^{-17}` to
    :math:`1.75\times10^{-15}`, against at most :math:`6.9\times10^{-17}`
-   with it. Both faces come from this one body: the Parseval constructor
-   ``inverse_of(gram, kernel=...)`` builds :math:`G^{+}` from the
-   symmetrised Gram and keeps the symmetrised Gram as the second face, and
-   the bare constructor derives the second face from the matrix as stored.
+   with it. Both faces come from this one body: a form that states the
+   symmetrised Gram at ``face = GRAM`` (the Parseval form of a frame) derives
+   :math:`G^{+}` from it and keeps the symmetrised Gram as the ``gram`` face,
+   and a form that states a matrix at ``face = METRIC`` derives the second
+   face from the matrix as stored. The stated matrix and its face are content,
+   so the same form stated as :math:`G^{+}` and stated as :math:`G` are two values.
 #. **The Moore-Penrose identities are a property, not an admission.** No
    supplied-inverse path exists, so an inconsistent :math:`(G, G^{+})`
    pair cannot be built, and the identities
@@ -4491,7 +4493,7 @@ to a plausible-looking value, with no error and no warning):
        entries across 11 SN runs (~450 product mints), because no factor
        reaching ``*`` on an SN path carried a metric OBJECT — the only
        production installs are the frame's
-       ``DenseMetric.inverse_of(discrete_gram, kernel=frame_gram_kernel(discrete_gram))`` and the two ψ½ ray
+       ``DenseMetric(DenseMetric.symmetrised(discrete_gram), kernel=frame_gram_kernel(discrete_gram), face=Face.GRAM)`` and the two ψ½ ray
        spaces, none of which enters a product. What 6.2a changed is the
        arm's REACHABILITY, not its existence: the dense arm it shared the
        dispatch with is gone, so every axes-less product now takes it
@@ -4571,9 +4573,9 @@ The dense dressing, and the only evidence that can adjudicate a metric
 The founding consumer installs it:
 :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` on a ``DENSE`` verdict
 now returns the basis's space dressed with
-``DenseMetric.inverse_of(discrete_gram, kernel=frame_gram_kernel(discrete_gram))`` — the
+``DenseMetric(DenseMetric.symmetrised(discrete_gram), kernel=frame_gram_kernel(discrete_gram), face=Face.GRAM)`` — the
 pseudo-inverse with the frame's declared kernel zeroed, and the exact
-symmetrized Gram kept as the inverse face
+symmetrized Gram kept as the stated matrix
 (:math:`(G^{+})^{+} = G` for a symmetric PSD form, so this is exact and
 strictly better conditioned than a second pseudo-inversion) — and
 **strips** the basis's continuum weights, because the dressing

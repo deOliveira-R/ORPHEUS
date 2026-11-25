@@ -31,14 +31,14 @@ _ROOT = Path(__file__).resolve().parents[4]
 CODE = r"""
 import numpy as np
 from orpheus.numerics.declaration import Coord, Spanned
-from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.metric import DenseMetric, Face
 for m, k in (
     (np.diag([1.0, -1.0]), Coord(2, ())),
     (np.diag([1.0, 0.0]), Coord(2, ())),
     (np.diag([1.0, 0.0]), Spanned(2, ("k",), 1)),
 ):
     try:
-        d = DenseMetric(m, kernel=k)
+        d = DenseMetric(m, kernel=k, face=Face.METRIC)
     except ValueError as e:
         print("refused: " + str(e))
     else:
@@ -104,18 +104,18 @@ def test_the_formal_path_population() -> None:
     _require(len(frames) == 17, f"{len(frames)} frame-built Grams, expected 17")
 
 
-@pytest.mark.parametrize("door", ["bare", "inverse_of"])
+@pytest.mark.parametrize("door", ["metric_face", "gram_face"])
 def test_the_raw_path_check_is_not_a_rank_detector(door: str) -> None:
     """The documented limit, read on production: ``diag([1, 1e-20])`` declared full rank keeps a direction that is zero to every
-    working precision, and both doors accept it in every build (the sign of the kept value is positive), with the inverse carrying
+    working precision, and both faces accept it in every build (the sign of the kept value is positive), with the inverse carrying
     ``1e20``. The raw-path check is a misuse check, not a guarantee, so an accepted under-declaration is the limit and is not to be
     read as caught (ruling of 2026-10-30). The witness is exact on any host: the matrix is diagonal with entries that are powers of
     ten far apart, so the decomposition is the matrix itself."""
     from orpheus.numerics.declaration import Coord
-    from orpheus.numerics.metric import DenseMetric
+    from orpheus.numerics.metric import DenseMetric, Face
 
     g = np.diag([1.0, 1e-20])
-    form = DenseMetric(g, kernel=Coord(2, ())) if door == "bare" else DenseMetric.inverse_of(g, kernel=Coord(2, ()))
+    form = DenseMetric(g, kernel=Coord(2, ()), face=Face.METRIC) if door == "bare" else DenseMetric(DenseMetric.symmetrised(g), kernel=Coord(2, ()), face=Face.GRAM)
     inverse = form.inverse_matrix if door == "bare" else form.matrix
     _require(form.rank((2,)) == 2, f"[{door}] the declared rank is 2, read {form.rank((2,))}")
     _require(float(np.max(np.abs(inverse))) == 1.0 / 1e-20, f"[{door}] the inverse of the kept 1e-20 is not its reciprocal: {inverse}")

@@ -97,7 +97,7 @@ Summary
    * - quantity
      - count
    * - classes
-     - 681
+     - 682
    * - concepts
      - 89
    * - classes by role: ``head``
@@ -109,7 +109,7 @@ Summary
    * - classes by role: ``part``
      - 132
    * - classes by role: ``component``
-     - 48
+     - 49
    * - classes by role: ``interface``
      - 34
    * - classes by role: ``twin``
@@ -117,7 +117,7 @@ Summary
    * - classes by role: ``annex``
      - 138
    * - classes by kind: ``set``
-     - 76
+     - 77
    * - classes by kind: ``measure``
      - 14
    * - classes by kind: ``space``
@@ -562,7 +562,7 @@ The concepts
      - W1
      - O23
      - ``HilbertMetric`` (``orpheus/numerics/metric.py``)
-     - head 1, arm 4, interface 1
+     - head 1, arm 4, component 1, interface 1
      - - :ref:`spaces-metric-object <spaces-metric-object>`
        - :ref:`spaces-metric-propagation <spaces-metric-propagation>`
    * - :ref:`four <concept-four>`
@@ -1870,6 +1870,10 @@ fmetric
 - ``DiagonalMetric`` (``orpheus/numerics/metric.py``) ``morphism``
 - ``DualMetric`` (``orpheus/numerics/metric.py``) ``morphism``
 - ``FactoredMetric`` (``orpheus/numerics/metric.py``) ``morphism``
+
+.. rubric:: component
+
+- ``Face`` (``orpheus/numerics/metric.py``) ``set``
 
 .. rubric:: interface
 

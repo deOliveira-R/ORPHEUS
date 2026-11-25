@@ -104,16 +104,16 @@ def _spd(n, seed):
 def dense_form_spaces():
     """D1, D2, D3 of tests/gates/numerics/test_retraction_adjoint_is_the_pullback.py, verbatim."""
     from orpheus.numerics.declaration import Coord
-    from orpheus.numerics.metric import DenseMetric, FactoredMetric
+    from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 
     ang = Axis("angular", (4,), weights=np.array([0.3, 0.9, 0.5, 0.3]), origin=Declared(BasisKind.NODAL))
     spa = Axis("spatial", (5,), weights=np.array([1.0, 2.0, 0.5, 0.25, 3.0]), origin=Declared(BasisKind.NODAL))
     mom = Axis("moment", (3,), origin=Declared(Modal(np.eye(3)[0])))
     d1 = FunctionSpace("d1", (4, 5, 3), axes=(ang, spa, mom),
-                       metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1), kernel=Coord(3, ()))))))
+                       metric=FactoredMetric((((4,), None), ((5,), None), ((3,), DenseMetric(_spd(3, 1), kernel=Coord(3, ()), face=Face.METRIC)))))
     d2 = FunctionSpace("d2", (4, 5), axes=(Axis("angular", (4,), origin=Declared(Modal(np.eye(4)[0]))), spa),
-                       metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2), kernel=Coord(4, ()))), ((5,), None))))
-    head = FunctionSpace("h", (3,), axes=(mom,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3), kernel=Coord(3, ()))),)))
+                       metric=FactoredMetric((((4,), DenseMetric(_spd(4, 2), kernel=Coord(4, ()), face=Face.METRIC)), ((5,), None))))
+    head = FunctionSpace("h", (3,), axes=(mom,), metric=FactoredMetric((((3,), DenseMetric(_spd(3, 3), kernel=Coord(3, ()), face=Face.METRIC)),)))
     d3 = FunctionSpace.of_axes(ang, spa) * head
     return {"D1": d1, "D2": d2, "D3": d3}
 

@@ -5,7 +5,7 @@ exemption. The symmetry admission ``_DENSE_METRIC_SYMMETRY_RTOL`` is a module co
 predicate does not see it. The predicate is also run on the module source with a forbidden construct appended (the positive
 control of the instrument): each of three forms must read red. The predicate reads calls and keywords only: a cutoff spelled as a
 comparison against a float literal is NOT seen here, and the behavioural gate that sees it is ``test_dense_kernel_declared.py::
-test_inverse_of_honours_a_declaration_that_differs_from_the_retired_count`` (G01c). First red today: ``pinv`` at two sites and ``rcond`` at two.
+test_a_gram_face_honours_a_declaration_that_differs_from_the_retired_count`` (G01c). First red today: ``pinv`` at two sites and ``rcond`` at two.
 """
 
 from __future__ import annotations

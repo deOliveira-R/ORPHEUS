@@ -52,7 +52,7 @@ from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
-from orpheus.numerics.metric import DenseMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, FactoredMetric
 from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.numerics.coefficient_layout import HarmonicLayout
@@ -580,7 +580,7 @@ _DIAGONAL_FRAME_CASES = [
 #: must handle) on two quadrature families. `[M]` 2026-10-18,
 #: ``scratch/parseval_gate/probe.py`` (seed 1234), live relative
 #: off-diagonal 1.000 on all three, and under a diagonal ``1/diag(G)``
-#: metric substituted for ``DenseMetric.inverse_of`` the Parseval ratio
+#: metric substituted for the dense Parseval form the Parseval ratio
 #: reads:
 #:
 #: * ``frame_faces.angular_frame(folded_product(4,4), 2)``: 15×15, rank 5, ratio 1.067;
@@ -717,7 +717,7 @@ def test_parseval_analysis_is_an_isometry_onto_its_image(make_frame, gram_struct
     pinning the Moore–Penrose dead-slot handling for free; the dense rows
     are all rank-deficient, so they pin it for the matrix pseudo-inverse.
 
-    First red (X1): replacing ``DenseMetric.inverse_of`` by the diagonal
+    First red (X1): replacing the dense Parseval form by the diagonal
     ``1/diag(G)`` reddens exactly the three dense rows (`[M]` 2026-10-18,
     ratios 1.067 / 1.709 / 1.045), and leaves the diagonal rows green.
     """
@@ -990,7 +990,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     """
 
     from orpheus.numerics.frame_faces import CrossGramInverse
-    from orpheus.numerics.metric import DenseMetric
+    from orpheus.numerics.metric import DenseMetric, Face
 
     ob = OverlapBasis(
         edges_per_axis=(np.array([-0.5, 0.5, 1.5]),),
@@ -1009,7 +1009,7 @@ def test_the_gram_row_sum_probe_survives_a_dense_dressed_test_space():
     # basis axis is refused as a second source beside the counting measure)
     dressed = frame_faces._dressed(
         FunctionSpace.of_basis(frame.basis), frame=frame,
-        dense=DenseMetric.inverse_of(frame.discrete_gram, kernel=frame_gram_kernel(frame.discrete_gram)),
+        dense=DenseMetric(DenseMetric.symmetrised(frame.discrete_gram), kernel=frame_gram_kernel(frame.discrete_gram), face=Face.GRAM),
     )
     vars(frame)["_frame_faces"] = {"basis_space": dressed}  # pre-seed the frame_faces cache
     assert frame_faces.test_space(frame) is dressed  # the Galerkin identity holds on the seed
