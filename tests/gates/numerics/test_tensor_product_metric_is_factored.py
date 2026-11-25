@@ -217,11 +217,12 @@ def test_g2_1_dense_and_factored_metric_arms_agree_to_the_measured_band(geometry
 
 def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
     r"""Item 6.2c-ii LANDED (2026-09-08): on every shipped SN mint the angular
-    head is AXIS-BUILT, so ``head * bulk`` takes ``from_factors``' axis arm —
+    head is AXIS-BUILT, so ``head * bulk`` (then ``from_factors``' axis arm) —
     the product's ``axes`` is the concatenation, ``inner_product_weights`` is
-    ``None``, and the metric is DERIVED from the axes (no object at all on a
-    DIAGONAL-Gram frame; on a DENSE-Gram frame the head's positioned
-    pseudo-inverse rides beside the axes as the product's overlay of forms,
+    ``None``, and the metric is DERIVED from the axes (since N04 the Kronecker
+    walk of the factors' forms; before it, no object at all on a
+    DIAGONAL-Gram frame, and on a DENSE-Gram frame the head's positioned
+    pseudo-inverse beside the axes as the product's overlay of forms,
     item 6.2c-i).
 
     History, kept apart so the suite says which claim moved: until 6.2a

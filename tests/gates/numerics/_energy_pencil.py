@@ -9,7 +9,7 @@ objects only; it imports nothing from ``data``, ``mesh``, ``transport``,
 The pencil :math:`(A, F)` is the infinite-medium multigroup pencil spelled in
 the operator algebra without the transport vocabulary:
 
-* the space is ``Energy ⊗ point``, ``FunctionSpace.of_axes(EnergyAxis.synthetic(ng), POINT)``
+* the space is ``Energy ⊗ point``, ``TensorSpace.of_axes(<the energy factor of ng groups>, <the point factor>)``
   (shape ``(ng, 1)``), the homogeneous pose's own spelling, or a deliberately
   WEIGHTED toy group axis ⊗ point where a law must see the metric. Until #683
   the fixture was posed on the energy axis alone, because

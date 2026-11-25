@@ -45,7 +45,7 @@ from orpheus.numerics import operator as op_mod
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.elementary_operators import DiagonalOperator
 from tests.gates._dense import declared_kernel
-from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, DualMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, DualMetric, FactoredMetric, NoForm
 from orpheus.numerics.operator import (
     AdjointOperator,
     IdentityOperator,
@@ -98,7 +98,7 @@ def _metrics():
             (3, 2),
         ),
         "factored_euclid_block": (
-            FactoredMetric((((2,), None), ((3,), DiagonalMetric(_W_POS)))),
+            FactoredMetric((((2,), NoForm()), ((3,), DiagonalMetric(_W_POS)))),
             (2, 3),
         ),
     }

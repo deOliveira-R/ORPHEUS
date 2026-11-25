@@ -153,7 +153,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum, unique
 from functools import cached_property
-from typing import TypeIs, cast
+from typing import Any, TypeIs, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -232,8 +232,9 @@ def _inverse_on_live_block(matrix: NDArray, kernel: Declaration) -> NDArray:
     return _exact_inverse(matrix, kernel.dim)
 
 
-def _require_positive(form: "HilbertMetric", verb: str) -> None:
-    r"""Refuse, for a verb that needs a positive form, a form with a negative direction: a real ``raise``, so it survives ``python -O``."""
+def _require_positive(form: Any, verb: str) -> None:
+    r"""Refuse, for a verb that needs a positive form, a form (or a space, which reads ``positive`` and ``negative`` the same way) with a
+    negative direction: a real ``raise``, so it survives ``python -O``."""
     if not form.positive:
         minus = form.negative
         raise ValueError(
@@ -731,9 +732,9 @@ class NoForm:  # concept: fmetric | role: component | kind: element
 Form = DiagonalMetric | DenseMetric | NoForm
 
 
-def _is_blank(entry: object) -> TypeIs[NoForm | None]:
-    r"""True for a block of a :class:`FactoredMetric` that carries no form (``None``, Euclidean, or :class:`NoForm`)."""
-    return entry is None or isinstance(entry, NoForm)
+def _is_blank(entry: object) -> TypeIs[NoForm]:
+    r"""True for a block of a :class:`FactoredMetric` that carries no form: :class:`NoForm`, the one spelling of a blank block."""
+    return isinstance(entry, NoForm)
 
 
 @dataclass(frozen=True)
@@ -742,7 +743,7 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
 
     Each entry is ``(block_shape, factor)``, the factor one of the
     POSITIONED leaf realizations (:class:`DiagonalMetric` /
-    :class:`DenseMetric`) or ``None`` for a Euclidean block; the blocks'
+    :class:`DenseMetric`) or :class:`NoForm` for a block without a form; the blocks'
     concatenation must equal the space shape (:meth:`validate_for`).
     Factors apply in sequence, each to its own index block — the
     Kronecker product is **never materialized**, the same discipline the
@@ -762,10 +763,12 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
     representation costume).
     """
 
-    entries: tuple[tuple[tuple[int, ...], Entry | None], ...]
+    entries: tuple[tuple[tuple[int, ...], Entry], ...]
 
     def __post_init__(self) -> None:
         for block_shape, factor in self.entries:
+            if factor is None:
+                raise TypeError(f"FactoredMetric entry on the block {block_shape}: a blank block is NoForm(), the one spelling, not None")
             if isinstance(factor, DenseMetric):
                 size = int(np.prod(block_shape)) if block_shape else 1
                 if size != factor.dim:
@@ -843,9 +846,8 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
         dual = FactoredMetric(tuple(
             (
                 block_shape,
-                # A positioned leaf's dual is a DualMetric, itself positioned.
-                None if _is_blank(factor)
-                else cast("Entry", cast(HilbertMetric, factor).dual()),
+                # A positioned leaf's dual is a DualMetric, itself positioned; a blank block stays NoForm.
+                factor if _is_blank(factor) else cast("Entry", cast(HilbertMetric, factor).dual()),
             )
             for block_shape, factor in self.entries
         ))

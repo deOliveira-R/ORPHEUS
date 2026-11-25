@@ -90,10 +90,10 @@ def test_a_factored_metric_reads_the_signature_of_its_blocks() -> None:
     a zero weight multiplies out as a zero direction (``Diag([1, 0]) (x)`` a Euclidean 3-block reads ``(3, 3, 0)``), and a positive product reads
     ``negative == 0``. Exact on any host (integer counts). First red at the opening of this gate: ``negative`` read 0 and ``signature`` raised
     ``AttributeError``. Mutation: ``negative`` left at the base default 0 reddens the first leg."""
-    from orpheus.numerics.metric import DiagonalMetric, FactoredMetric
+    from orpheus.numerics.metric import DiagonalMetric, FactoredMetric, NoForm
 
     def product(*blocks):
-        return FactoredMetric(tuple(((len(b.weights),), b) if b is not None else ((3,), None) for b in blocks))
+        return FactoredMetric(tuple(((len(b.weights),), b) if b is not None else ((3,), NoForm()) for b in blocks))
 
     mixed = product(DiagonalMetric(np.array([1.0, -1.0])), DiagonalMetric(np.array([1.0, 1.0])))
     _require(mixed.signature == (2, 0, 2) and mixed.negative == 2, f"signed (x) positive reads {mixed.signature}, negative {mixed.negative}")

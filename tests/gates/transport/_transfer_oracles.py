@@ -44,7 +44,7 @@ def on_basis(
     skip_l0: bool = True,
 ) -> LegendreMomentTransfer:
     r"""Tier-2 mint: bring a channel's field to the basis's order and bind the endomorphic ends on the BASIS's own
-    coefficient space (``FunctionSpace.of_basis(basis)`` supplying both). The basis names the FAMILY, so the ends are
+    coefficient space (``TensorSpace.of_basis(basis, variance)`` supplying both). The basis names the FAMILY, so the ends are
     that basis's continuum-Gram space, never re-minted from ``L``."""
     ends = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(basis), Kind.MEASURE, VarianceChart.DENSITY))
     return LegendreMomentTransfer(

@@ -720,6 +720,11 @@ class CoupledSpace(FunctionSpace["CoupledField"]):  # concept: dsum | role: head
             return np.asarray(x.to_flat(), dtype=float)
         return super().coordinates_of(x)
 
+    @property
+    def negative(self) -> int:
+        r"""The negative directions of the direct sum: the sum over its member systems, so that a signed block refuses :meth:`norm` (issue #706)."""
+        return sum(s.negative for s in self.systems)
+
     def inner_product(self, x: "CoupledField", y: "CoupledField") -> float:
         r"""The direct-sum inner product
         :math:`\langle x, y\rangle_G = \sum_i \langle x_i, y_i\rangle_{G_i}`."""

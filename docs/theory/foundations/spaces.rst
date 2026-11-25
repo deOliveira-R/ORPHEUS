@@ -110,12 +110,15 @@ the same space" is a claim this corpus has **overturned**.
 .. admonition:: Key Facts (the space layer)
    :class: tip
 
-   - **A space IS its axis tuple.** Shape is the concatenation of the
-     axes' shapes; the metric is the tensor product of the factor
-     measures, stored PER AXIS and never densified
+   - **A space IS its ordered tuple of factors.** Each factor is an axis, a
+     variance and a subquotient. Shape is the concatenation of the axes'
+     shapes; the metric is the Kronecker product of the factors' forms,
+     stored PER FACTOR and never densified
      (:eq:`spaces-axis-product`;
-     :meth:`FunctionSpace.of_axes
-     <orpheus.numerics.space.FunctionSpace.of_axes>`).
+     :meth:`TensorSpace.of_axes
+     <orpheus.numerics.space.TensorSpace.of_axes>`, which takes
+     :class:`~orpheus.numerics.factor.Factor` s, so every call states its
+     variances).
    - ⚠ **…and a space is NOT a domain.** There are three levels — the
      manifold :math:`M`, the fields on it :math:`L^2(M)`, and the
      coefficients :math:`\mathbb{R}^K` — and a
@@ -406,6 +409,13 @@ form (``ELEGANCE-DEBT[guard] #756``); they retire when the diagonal integrated e
 side. A space holds that pair as a :class:`~orpheus.numerics.space.CarrierSpec`, a frozen pair of classes whose ``dual()``
 swaps them, in a field that is not part of the space's identity. It is a declared scope boundary: two equal spaces that carry
 different carriers mint different member classes, and the machinery that derives the class from the content is routed to W3.
+The space's own verbs reach the boundary, not only a hand-passed carrier: a flip that lands on the space or on its all-slot dual
+returns that memoised object (so ``V.dual(on=L).dual(on=M)`` with ``L`` and ``M`` partitioning the slots is not ``V.dual()`` by identity
+when it passes through a partial dual, and is equal to it), a genuinely partial dual carries the default pair whichever route reached
+it, and partial duals composed to the all-slot dual therefore mint a :class:`~orpheus.numerics.space.Member` where ``V.dual()`` mints a
+:class:`~orpheus.numerics.space.Covector`. No production site passes a carrier or takes a partial dual (``git grep`` of
+``.dual(on=`` and ``.riesz(`` outside ``space.py`` and ``factor.py`` reads 0 sites), so the defect is latent. The witness is a strict
+expected failure in ``tests/gates/numerics/w1/test_n04_review_repairs.py``, which W3 turns into a pass.
 
 **What was tried and refused.** A flag on the space that records "this space is a dual" decides the member class by a stored
 tag outside the content, and ``replace(space, flag=None)`` then type-checks and changes the class; the carrier pair is the
@@ -434,7 +444,7 @@ that sentence alone, and both are what
    G_a = \operatorname{diag}(w_a) \ \text{ or } \ I,
 
 .. (vv-status rationale) Structural/representational identity: it STATES
-   what ``FunctionSpace.of_axes`` constructs (shape = concatenation of
+   what ``TensorSpace.of_axes`` constructs (shape = concatenation of
    the factors' shapes; metric = tensor product of the per-axis factor
    measures, applied factor-by-factor and never materialized). Not a
    solver claim — no flux, no eigenvalue, no discretization error. The
@@ -589,12 +599,9 @@ family re-states equality. The key is a tagged tuple per kind of space:
 
    * - space
      - key
-   * - axis-built (``axes`` is not ``None``), including an axis-built
-       tensor product
-     - ``("axes", axes, overlay)``: the axis tuple, and for each axis the
-       content digest of the dense form positioned over it (``None`` where
-       there is none). A dense form's content is its matrix; its inverse
-       face is derived from the matrix and is not compared.
+   * - tensor space (a product of factors, of one slot or of several)
+     - ``("tensor", factors)``: the ordered factors, each by content (its axis, its variance and its subquotient). A dense form's
+       content is its matrix and its stated face, and the form it carries is the axis's own, so no second form is listed beside the axes.
    * - axes-less leaf
      - ``("named", class, name, shape, weights, metric)``, the last two
        the content digests of the diagonal weights and of the metric
@@ -671,8 +678,7 @@ that must stay equal:
 
 Two consequences of the key are worth stating. The measure space of a
 frame over a quadrature IS the :math:`S_N` angular space over the same
-rule (one :math:`L^2(\mu)`, not two): :meth:`FunctionSpace.of_measure
-<orpheus.numerics.space.FunctionSpace.of_measure>` mints it through
+rule (one :math:`L^2(\mu)`, not two): :meth:`TensorSpace.of_measure <orpheus.numerics.space.TensorSpace.of_measure>` mints it through
 :meth:`Axis.of_measure <orpheus.numerics.axis.Axis.of_measure>` under the
 measure's :attr:`~orpheus.numerics.measure.DiscreteMeasure.axis_label`
 (its phase, ``"angular"`` for a rule on the sphere or an orbit space), and
@@ -696,7 +702,7 @@ true for axis-built spaces between CS1 (2026-08-20) and the flip, and
 because the name derivation it describes still ships — what changed is
 what that derivation is FOR.
 
-:meth:`of_axes <orpheus.numerics.space.FunctionSpace.of_axes>` computes
+:meth:`of_axes <orpheus.numerics.space.TensorSpace.of_axes>` computes
 the name deterministically and injectively from the axes' structural
 content — a length-prefixed, type-tagged content digest, never Python's
 ``hash()``, so it is stable across processes. The digest is
@@ -710,8 +716,8 @@ could carry *metric differences imply space differences* was to mint a
 different NAME for every different axis tuple: different axes → different
 names → different spaces, with no flag day. That is the bridge.
 
-**The identity reads the axes directly.** An axis-built space's identity
-key is its axes and their overlay (:ref:`spaces-identity-key`), so the
+**The identity reads the axes directly.** A tensor space's identity
+key is its factors (:ref:`spaces-identity-key`), so the
 doctrine holds without passing through a string. The derived name
 survives as two things: the readable LABEL a human reads in a traceback,
 and what keeps ``repr`` and the space-content guard messages
@@ -856,7 +862,7 @@ The arm becomes production-reachable when CS2 mints the harmonic axis"*
 that preceded it and was never reconciled here.
 
 `[M]` re-measured 2026-09-07, by AST over ``orpheus/**/*.py``:
-:meth:`of_axes <orpheus.numerics.space.FunctionSpace.of_axes>` has
+:meth:`of_axes <orpheus.numerics.space.TensorSpace.of_axes>` has
 **seven** production call sites, not one. And the ``False`` row now has
 a production occupant: :attr:`SNProblem.angular_trial_space
 <orpheus.sn.problem.SNProblem.angular_trial_space>` appends the
@@ -892,8 +898,7 @@ sentence said "CS2" until the 2026-09-07 ruling).
 
 ⛔ **The last reading above is dated 2026-09-07; since S7 every basis's
 coefficient space is axis-built.** `[M]` 2026-10-22
-(``archivist_probe.py``, :meth:`FunctionSpace.of_basis
-<orpheus.numerics.space.FunctionSpace.of_basis>` of each basis):
+(``archivist_probe.py``, :meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>` of each basis):
 ``SphericalHarmonicBasis(L=1)``, its mirror-even restriction and
 ``LegendreBasis(L=2, axis="x")`` each span one ``Modal`` head axis
 (``has_coordinate_cone`` ``False``), and an ``IndicatorBasis`` on edges
@@ -921,8 +926,7 @@ The manifold is what the functions **eat**
 direction on :math:`S^2`, an orbit of a stabiliser, a point of a
 partitioned spatial or energy domain, an index); the coefficients live
 in :math:`\mathbb R^K`, the basis's **coefficient space**
-(:meth:`FunctionSpace.of_basis(basis)
-<orpheus.numerics.space.FunctionSpace.of_basis>`). Those
+(:meth:`TensorSpace.of_basis(basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>`). Those
 are two different levels of the three-level picture, the manifold and
 the coefficients, with the fields on the manifold between them
 (:ref:`manifold-three-levels`). This section is the corpus's one
@@ -1042,7 +1046,7 @@ diagonal over that layout (:attr:`Basis.coefficient_weights
 <orpheus.numerics.basis.base.Basis.coefficient_weights>`; for the real
 harmonics :math:`g_C = \operatorname{diag}\bigl(4\pi/(2\ell+1)\bigr)`
 spread over each degree's live columns, zero on the padding).
-:meth:`FunctionSpace.of_basis <orpheus.numerics.space.FunctionSpace.of_basis>`
+:meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>`
 is the one coefficient-space mint: one generic axis over
 :meth:`Axis.of_basis <orpheus.numerics.axis.Axis.of_basis>`, labelled and
 shaped by the layout, measured by ``coefficient_weights``, on the basis's
@@ -2195,10 +2199,10 @@ measure and left another open until the space-membership unit U2a
 (``[LANDED 138f7d02]``, 2026-10-30; plan
 ``.claude/plans/space_membership_covector_gauge.md``, the test-architect's
 specification ``scratch/membership_covector/spec/spec.md`` §U2.1). An
-axis-built space admits, beside its axes, the positioned OVERLAY of dense
-forms (:ref:`spaces-metric-three-sources`): one entry per axis, a dense
+axis-built space then admitted, beside its axes, the positioned OVERLAY of dense
+forms (retired at N04, :ref:`spaces-metric-three-sources`): one entry per axis, a dense
 Gram on a block whose axis carries no explicit weights. Until U2a the
-door, ``_require_positioned_over`` in ``orpheus/numerics/space.py``, read
+door, ``_require_positioned_over`` (retired with the overlay), read
 "carries no explicit weights" as "carries no measure", and the two are
 different statements: a NODAL axis with the counting form carries the
 counting measure, :math:`w_i = 1`, which is exactly what the theorem
@@ -2237,7 +2241,7 @@ coordinates are values at nodes and the axis's measure (the counting
 measure when ``weights=None``) is their metric, so a form there is a
 second source. The predicate is read from ``Axis.kind``, a closed sum,
 and needs no new field. Production is unaffected: the production dressing
-of a dense-Gram frame (``frame_faces._dressed``, reached through
+of a dense-Gram frame (``frame_faces._parseval_dressed``, reached through
 :func:`~orpheus.numerics.frame_faces.basis_space`) makes the head axis
 ``FromFrame``, whose kind is Modal (:ref:`spaces-moment-head-axis-built`).
 On the U2 tip the leak's construction raises ``ValueError`` naming the
@@ -2444,8 +2448,11 @@ always was.
 Three sources, and the order that resolves them
 -----------------------------------------------
 
-A :class:`~orpheus.numerics.space.FunctionSpace` now has three places a
-metric can come from, and **exactly one of them may be occupied**:
+A :class:`~orpheus.numerics.space.TensorSpace` has ONE source of its metric: the Kronecker product of its factors' forms, applied one slot at
+a time in slot order and never materialised (:ref:`spaces-tensor-of-factors`). The legacy named leaf, which leaves with the unit that retires
+the leaf fields (N07), keeps two sources, and **at most one of them may be occupied**. Until N04 an axis-built space was a third source, with a
+positioned overlay of forms beside its axes; the factor now carries the stated form of its axis (a dense form on a ``Declared`` axis included), so
+the overlay, and the identity key that listed it, are gone.
 
 .. list-table:: The metric sources, in resolution order
    :header-rows: 1
@@ -2454,43 +2461,17 @@ metric can come from, and **exactly one of them may be occupied**:
    * - Source
      - Realization
      - When it is the right one
-   * - ``axes``
-     - the axes-DERIVED object — one
-       :class:`~orpheus.numerics.metric.FactoredMetric` with a
-       :class:`~orpheus.numerics.metric.DiagonalMetric` per weighted axis,
-       each factor's weight vector applied on its own index block (CS4c
-       step 6 item 6.2c-i, 2026-09-08; until then an inline per-axis loop,
-       ``FunctionSpace._apply_axes_weights``, spelled the same arithmetic a
-       second time)
-     - An axis-built space (:eq:`spaces-axis-product`). The axes **are**
-       the metric source; the space never consults the weights slot, and
-       consults ``metric`` only as the positioned OVERLAY of forms
-       described in the next row.
-   * - ``metric``
-     - the object itself —
-       :class:`~orpheus.numerics.metric.DiagonalMetric`,
-       :class:`~orpheus.numerics.metric.DenseMetric`, or a
-       :class:`~orpheus.numerics.metric.FactoredMetric` product of them.
-       Beside ``axes`` (item 6.2c-i, ruling R-6.2c-2) it is admitted only
-       as the positioned OVERLAY of forms — a ``FactoredMetric`` with one
-       entry per axis, a form only on a block whose axis is
-       :class:`~orpheus.numerics.axis.Modal` and carries no explicit
-       weights, never on a NODAL axis (whose counting form is the
-       counting measure, :ref:`spaces-form-only-on-a-modal-axis`), never
-       a ``DiagonalMetric`` (a diagonal measure is the
-       axis's own to carry) — and is MERGED into the axes-derived object,
-       never substituted for it: every other axis keeps supplying its
-       own block, and a product of axis-built factors carries its
-       factors' overlays concatenated beside its axes.
-     - A form no weight array can spell. The founding occupant is the
-       frame's matrix Parseval metric :math:`G^{+}`, and since item
-       6.2c-ii (2026-09-08) it rides an AXIS-BUILT space: on a
-       dense-Gram frame the dressing empties the head axis's measure and
-       positions :math:`G^{+}` on the space's derived object
-       (:ref:`spaces-moment-head-axis-built`). `[M]` **17 of 75** shipped
-       (rule, :math:`L`) rows measure ``DENSE``, **2 of them at**
-       :math:`L \le 2` (``gauss_legendre(2)`` and ``folded_product(2,4)``,
-       both at :math:`L = 2`) — so this is a shipped path, not a corner.
+   * - the factors (a tensor space)
+     - one :class:`~orpheus.numerics.metric.FactoredMetric` entry per slot: the factor's induced form
+       (:class:`~orpheus.numerics.metric.DiagonalMetric`, :class:`~orpheus.numerics.metric.DenseMetric`,
+       :class:`~orpheus.numerics.metric.DualMetric`, or :class:`~orpheus.numerics.metric.NoForm` on a formless slot, which the walk skips), each applied
+       on its own index block (CS4c step 6 item 6.2c-i, 2026-09-08, for the diagonal arm)
+     - Every space built from axes. A diagonal measure, a dense Gram (the frame's Parseval-dressed head on a dense-Gram frame,
+       :ref:`spaces-moment-head-axis-built`; `[M]` **17 of 75** shipped (rule, :math:`L`) rows measure ``DENSE``, **2 of them at**
+       :math:`L \le 2`, so this is a shipped path, not a corner) and the energy slot's absence of a form all live in the factor.
+   * - ``metric`` (a named leaf)
+     - the object itself, validated against the leaf's shape (:meth:`~orpheus.numerics.metric.HilbertMetric.validate_for`)
+     - A form no weight array can spell on a leaf with no axes; retires with the leaf fields at N07.
    * - ``inner_product_weights``
      - resolved to a
        :class:`~orpheus.numerics.metric.DiagonalMetric`, whose
@@ -2503,7 +2484,7 @@ metric can come from, and **exactly one of them may be occupied**:
      - Euclidean, :math:`\sum_i x_i y_i`.
 
 Resolution happens once per space, in
-``FunctionSpace._resolved_metric``, and the three metric verbs —
+``_resolved_metric``, and the three metric verbs —
 :meth:`~orpheus.numerics.space.FunctionSpace.apply_metric`,
 :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` and
 :meth:`~orpheus.numerics.space.FunctionSpace.inner_product` — delegate
@@ -2514,15 +2495,16 @@ three verbs to dispatch **per block** and therefore inherit the family
 for free: a dense-metric interior block flows through a composite with
 no composite-level change.
 
-**Exclusivity is a construction guard with three pairwise arms**
+**Exclusivity was a construction guard with three pairwise arms**
 (``axes``/``weights``, ``axes``/``metric``, ``weights``/``metric``), and
-the restructuring is not cosmetic. Before P7 the check sat *behind* an
+the restructuring was not cosmetic; the two arms that named ``axes`` left with N04 (a tensor space carries no weights and no metric field), and the
+last arm guards the leaf. Before P7 the check sat *behind* an
 ``if self.axes is None: return`` early exit, so the
 ``(weights, metric)`` arm was **structurally unreachable** — a guard arm
 with no possible witness (``vv-principles`` #17's granularity trap, in
 its purest form: the guard would have been mutated as a unit and
-certified by whichever arm the suite happened to reach). Each arm now
-carries its own gate in ``tests/gates/numerics/test_space_of_axes.py``.
+certified by whichever arm the suite happened to reach). Each arm
+carried its own gate when it was added.
 
 .. warning::
 
@@ -2936,9 +2918,10 @@ signature :math:`(n_+, 0, n_-)` of the induced form on :math:`S/K`, with :math:`
 induced form is invertible; the metric arms' own signature is on the stored index set, with the kernel in :math:`n_0`), exact on a diagonal form
 and declared as :math:`(\dim, 0, 0)` on a dense one, and ``Factor.positive`` is the induced form's ``HilbertMetric.positive``, the one predicate;
 both report the declared value as fact on every dense route (the whole space, a ``Spanned`` or ``Ann`` subspace, the
-``Coord``-pair Schur complement and a raw matrix under ``python -O``), and the scope-boundary tag stands there with issue #706. A ``Declared`` axis holding a ``DenseMetric`` is refused by the space readers
-(``_axis_entries`` in ``orpheus/numerics/space.py``, ``ELEGANCE-DEBT[guard]`` #755) until unit N04 positions a dense axis form by its
-factor, so no space reads a stated indefinite dense form today.
+``Coord``-pair Schur complement and a raw matrix under ``python -O``), and the scope-boundary tag stands there with issue #706. A ``Declared`` axis holding a ``DenseMetric`` is carried by its factor as the form of the slot (unit N04), so a space can now read a stated dense form.
+The scope boundary of the declared signature stands with issue #706: an indefinite dense form that reaches a factor under ``python -O`` (the formal path
+refuses it without ``-O``) constructs, reports its declared signature :math:`(\dim, 0, 0)`, and is caught by the one exact check left in
+:meth:`~orpheus.numerics.space.FunctionSpace.norm`, a negative :math:`\langle x, x\rangle`, which raises with the issue #706 message and never returns ``nan``.
 
 **The factor and its two variances.** A :class:`~orpheus.numerics.factor.Factor` is an axis, a variance and a subquotient
 :math:`S/K` of the axis's flattened coordinates. On a formed axis the variance is a
@@ -3415,8 +3398,8 @@ does not know about, contracted with unit weights. The pairing is now
 posed explicitly on ``V * P``, the axis-built tensor product
 (:eq:`spaces-axis-product`), with :math:`P` built from its own axes; for
 a bare batch,
-``FunctionSpace.of_axes(Axis("payload", shape, origin=Declared(BasisKind.NODAL)))``,
-whose ``weights=None`` is the counting measure. `[M]` 2026-10-30, the
+``TensorSpace.of_axes(Factor.whole_on(Axis("payload", shape, origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))``,
+whose form is the counting measure. `[M]` 2026-10-30, the
 probe above: on a :math:`(2, 3, 5)` element over :math:`V` and a counting
 :math:`P` of 5, ``(V * P).inner_product(x, x)`` equals
 ``np.sum(V.apply_metric(x) * x)`` bit for bit, so the re-pose moves no
@@ -4896,7 +4879,7 @@ Two later steps falsified both of its clauses, in opposite directions:
   flowing through the derived name and started being the definition; and
 * item **6.2c-ii** (2026-09-08) made the moment heads axis-built, so
   ``basis_space`` and the basis's own space (``basis.space`` until S7,
-  ``FunctionSpace.of_basis(basis)`` since) differ in their head axis's
+  ``FunctionSpace.of_basis(basis)`` from S7, ``TensorSpace.of_basis(basis, variance)`` now) differ in their head axis's
   measure and are therefore **different spaces**. `[M]` re-measured on the same
   33 shipped (rule, :math:`L`) rows: ``basis_space(frame) ==
   frame.basis.space`` is **0 of 33** where it was 33 of 33.
@@ -5078,7 +5061,7 @@ whole identity of the head:
    :widths: 22 39 39
 
    * -
-     - the basis's continuum head, ``FunctionSpace.of_basis(basis)``
+     - the basis's continuum head, ``TensorSpace.of_basis(basis, variance)``
      - the frame-dressed head, ``basis_space(frame)``
    * - origin
      - ``FromBasis(basis)``
@@ -5711,20 +5694,27 @@ axis label.
 
    import numpy as np
 
-   from orpheus.numerics.axis import Axis, BasisKind
+   from orpheus.numerics.axis import Axis, BasisKind, Declared
    from orpheus.numerics.axis_marginal import (
        AxisPullbackOperator,
        AxisRetractionOperator,
        AxisSectionOperator,
    )
-   from orpheus.numerics.space import FunctionSpace
+   from orpheus.numerics.factor import Factor, FormlessVariance, Kind, Subquotient, Variance, VarianceChart
+   from orpheus.numerics.metric import DiagonalMetric, NoForm
+   from orpheus.numerics.space import TensorSpace
+
+   def measure_factor(axis):
+       # a formed slot states its variance: the weights of a measure, read in the density chart
+       return Factor(axis, Variance(Kind.MEASURE, VarianceChart.DENSITY), Subquotient.whole(axis.shape[0]))
 
    w = np.array([0.3, 0.7, 0.5, 0.5])
    V_cell = np.array([0.2, 0.3, 0.4, 0.7, 1.4])
-   V = FunctionSpace.of_axes(
-       Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w))),
-       Axis("energy", (2,), origin=Declared(BasisKind.NODAL)),
-       Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(V_cell))),
+   energy = Axis("energy", (2,), origin=Declared(BasisKind.NODAL, NoForm()))
+   V = TensorSpace.of_axes(
+       measure_factor(Axis("angular", (4,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))),
+       Factor(energy, FormlessVariance.MEASURE, Subquotient.whole(2)),
+       measure_factor(Axis("spatial", (5,), origin=Declared(BasisKind.NODAL, DiagonalMetric(V_cell)))),
    )
    R = AxisRetractionOperator.of(V, "angular")  # V -> energy (x) spatial (fibre integration)
    E = AxisSectionOperator.of(V, "angular")     # energy (x) spatial -> V (the section)
@@ -5784,10 +5774,10 @@ every :math:`c`,
    **Implemented by** 2 sites. The retraction's ``apply`` is the pairing
    :math:`\langle m, c\rangle` along the axis; the mint forms the covector
    :math:`m = G_k u` from the axis's metric block,
-   ``FunctionSpace._axis_block(k)``, the same entry the space's derived
-   metric composes (a positioned form on the space's overlay when the axis
-   is measure-less, else the axis's diagonal form, else ``None``, the counting
-   measure), so the covector and the space's metric cannot disagree.
+   ``TensorSpace._axis_block(k)``, the same entry the space's metric walk
+   composes (the form of slot :math:`k`'s factor: the axis's diagonal or dense
+   form, or ``None`` on a ``NoForm`` slot, the counting measure), so the
+   covector and the space's metric cannot disagree.
 
 .. implements:: spaces-axis-marginal-integral
    :by: py:function:orpheus.numerics.axis_marginal._mint
@@ -5841,8 +5831,7 @@ unit is one of them (:ref:`spaces-collapse-pair-frame`).
      - :math:`\mathbf 1`
      - :math:`N_k`
    * - continuum Legendre head
-       (:meth:`FunctionSpace.of_basis
-       <orpheus.numerics.space.FunctionSpace.of_basis>` of a
+       (:meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>` of a
        ``LegendreBasis``)
      - coefficients :math:`c_\ell` of :math:`\sum_\ell c_\ell P_\ell`
      - :math:`\operatorname{diag}\bigl(4\pi/(2\ell+1)\bigr)`
@@ -5850,8 +5839,7 @@ unit is one of them (:ref:`spaces-collapse-pair-frame`).
      - :math:`4\pi\,e_0`
      - :math:`4\pi`
    * - continuum harmonic head
-       (:meth:`FunctionSpace.of_basis
-       <orpheus.numerics.space.FunctionSpace.of_basis>` of a
+       (:meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>` of a
        ``SphericalHarmonicBasis``)
      - coefficients :math:`c_{\ell m}` of :math:`\sum c_{\ell m} Y_{\ell m}`
      - :math:`4\pi/(2\ell+1)` per :math:`\ell`
@@ -5859,7 +5847,7 @@ unit is one of them (:ref:`spaces-collapse-pair-frame`).
      - :math:`4\pi\,e_0`
      - :math:`4\pi`
    * - a head a frame has dressed
-       (``frame_faces._dressed``; every ``SNProblem.moment_space(L)``)
+       (``frame_faces._parseval_dressed``; every ``SNProblem.moment_space(L)``)
      - moments :math:`\varphi = \Phi^{\mathsf T} W \psi`
      - :math:`B^{+}`, :math:`B = \Phi^{\mathsf T} W \Phi`
      - :math:`\Phi^{\mathsf T} w = B\,e_0`
@@ -6334,35 +6322,35 @@ nodal axis, every weight :math:`w_n\neq 0`); then
 Each hypothesis has a failure, and each failure is a different object:
 
 - **The full metric is not a product.** Then the third step fails, and
-  no closed form exists. The space layer cannot spell this state on an
-  axis-built space: :meth:`FunctionSpace.of_axes
-  <orpheus.numerics.space.FunctionSpace.of_axes>` derives the metric
-  from the axes, and a metric object is admitted only as a
-  ``FactoredMetric`` with one entry per axis, a positioned form only on
-  a measure-less axis's own block (:ref:`spaces-metric-object`). `[M]`
+  no closed form exists. The space layer cannot spell this state on a
+  tensor space: :meth:`TensorSpace.of_axes
+  <orpheus.numerics.space.TensorSpace.of_axes>` takes factors and the metric
+  is the Kronecker product of their forms, each on its own index block
+  (:ref:`spaces-tensor-of-factors`), so a form on the whole shape has no door. `[M]`
   2026-10-19, the S1 specification's census: on 112 (space, axis) pairs
   of 39 multi-axis spaces (the angular bulk, angular trial, bulk and
   moment spaces of six S\ :sub:`N` problems, seven heads ⊗ cells, two
   synthetic spaces), :math:`\lVert G - G_k\otimes G_{\rm rest}\rVert /
   \lVert G\rVert` is 0 on 110 and :math:`6.0\times10^{-17}` on the other
-  2; gate G3 builds a full-shape ``DenseMetric`` on an axis-built space
-  and requires the refusal (*"DERIVED from its axes"*). The non-product
+  2; gate G3 built a full-shape ``DenseMetric`` on an axis-built space
+  and required the refusal (*"DERIVED from its axes"*), the refusal the factor's own door replaced. The non-product
   spaces of the tree (``FullFieldSpace``, bulk ⊕ trace, and the coupled
   system's space) are axes-less, and the by-label resolver refuses them
   (*"not axis-built"*).
 - **The marginal metric is not the full metric with the block
-  removed.** The marginal is :meth:`FunctionSpace.without_axis
-  <orpheus.numerics.space.FunctionSpace.without_axis>`, which keeps every
-  other axis's measure and positioned form (its inverse is
-  :meth:`FunctionSpace.with_axis
-  <orpheus.numerics.space.FunctionSpace.with_axis>`, the product widened
+  removed.** The marginal is :meth:`TensorSpace.without_axis
+  <orpheus.numerics.space.TensorSpace.without_axis>`, a call of :meth:`TensorSpace.sub
+  <orpheus.numerics.space.TensorSpace.sub>` that keeps every
+  other factor's form, variance and subquotient (its inverse is
+  :meth:`TensorSpace.with_axis
+  <orpheus.numerics.space.TensorSpace.with_axis>`, the product widened
   by one axis, which the moment-tail composer
   :meth:`BulkField.compose_spatial_moments
   <orpheus.transport.fields._bases.BulkField.compose_spatial_moments>`
-  uses); both read the overlay through one private reader,
-  ``FunctionSpace._overlay_forms``. A marginal rebuilt with
-  ``FunctionSpace.of_axes(*other_axes)`` would drop the forms and make
-  :math:`G_{V'}` wrong whatever the adjoint is.
+  uses); both keep each factor as it is, so no form is re-stated. A marginal
+  rebuilt from the other axes alone would have to re-state their variances
+  and subquotients by hand, and a wrong one would make :math:`G_{V'}` wrong
+  whatever the adjoint is.
 - **The axis block is singular.** A zero weight, or a frame-dressed head
   of deficient rank (``folded_product(4, 4)`` at :math:`L = 2` has a
   form of rank 5 on 15 slots), makes :math:`G_V` singular. The adjoint
@@ -6728,11 +6716,10 @@ minted, by whatever mints it (ruling 37 of the numerics-untangling plan):
 - a **basis** spans a continuum head, and its layout carries the
   coefficients of :math:`1` in that basis, :math:`e_0` for the harmonic
   and Legendre layouts (``FromBasis(basis).kind`` is
-  ``Modal(basis.layout.unit)``; :meth:`FunctionSpace.of_basis
-  <orpheus.numerics.space.FunctionSpace.of_basis>`); a partition's cell
+  ``Modal(basis.layout.unit)``; :meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>`); a partition's cell
   layout is ``NODAL``, unit ones, and a mode basis declares its unit,
   zero for the loss-kernel gauge (rulings 86 and 87);
-- a **frame**, when it dresses a head (``frame_faces._dressed``), writes
+- a **frame**, when it dresses a head (``frame_faces._parseval_dressed``), writes
   the analysis of :math:`1` from its own data, :math:`u =
   \Phi^{\mathsf T} w`, as it writes the head's weights or its positioned
   form: the trial basis's ``analyze`` applied to the all-ones ordinate
@@ -7058,8 +7045,8 @@ divisor table and the unit table further down were measured on
 so the tables regenerate from this page.** The *synthetic* fixture is
 the three-axis product ``angular(4, w=[0.3, 0.7, 0.5, 0.5]) ⊗
 energy(2, counting) ⊗ spatial(5, V=[0.2, 0.3, 0.4, 0.7, 1.4])`` built
-with :meth:`FunctionSpace.of_axes
-<orpheus.numerics.space.FunctionSpace.of_axes>`; the weights are
+with :meth:`TensorSpace.of_axes
+<orpheus.numerics.space.TensorSpace.of_axes>`; the weights are
 non-uniform on purpose so that no cancellation flatters a law. The
 :math:`S_N` fixture is the shipped carrier —
 ``SNProblem(Mesh1D(edges=[0, 0.2, 0.5, 0.9, 1.6, 3.0], cartesian, vacuum),
@@ -8289,8 +8276,7 @@ status.
        (``from_grid`` / ``synthetic``, since layer_dag.md P2 ``of_edges`` /
        ``EnergyGrid.as_axis``; identity = :math:`n_g` + edges
        CONTENT; weighted axes refused by the counting-measure theorem).
-       :meth:`FunctionSpace.of_axes
-       <orpheus.numerics.space.FunctionSpace.of_axes>` composes a space
+       ``FunctionSpace.of_axes`` composes a space
        as the ordered product of its axes with a **per-axis metric
        path** (no densification) and a deterministic, injective
        **derived name** — the identity bridge that made "metric

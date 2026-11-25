@@ -59,8 +59,8 @@ means binding it to a space, a domain and a codomain
 concrete, and it is why the adjoint below is a composition and not a
 second implementation.
 
-Classes: :class:`~orpheus.numerics.space.FunctionSpace` and
-:meth:`~orpheus.numerics.space.FunctionSpace.of_axes`;
+Classes: :class:`~orpheus.numerics.space.FunctionSpace` and its tensor arm
+:class:`~orpheus.numerics.space.TensorSpace`, built by :meth:`~orpheus.numerics.space.TensorSpace.of_axes`;
 :class:`~orpheus.numerics.axis.Axis` with
 :class:`~orpheus.numerics.axis.BasisKind`;
 :class:`~orpheus.numerics.field.Field`;
@@ -172,11 +172,9 @@ and quotient are its verbs (:class:`~orpheus.numerics.measure.DiscreteMeasure`).
 A quadrature wraps one such measure and mints the angular axis and the
 angular frame from it (:class:`~orpheus.numerics.quadrature.directional.Quadrature`).
 The space a measure samples is :math:`L^2(\mu)`,
-:meth:`FunctionSpace.of_measure(measure, label)
-<orpheus.numerics.space.FunctionSpace.of_measure>`: one nodal axis that
+:meth:`TensorSpace.of_measure(measure, label, variance) <orpheus.numerics.space.TensorSpace.of_measure>`: one nodal axis that
 keeps the weights, the atoms and the manifold they lie on. A **basis**
-spans a coefficient space, :meth:`FunctionSpace.of_basis(basis)
-<orpheus.numerics.space.FunctionSpace.of_basis>`: one axis on the basis's
+spans a coefficient space, :meth:`TensorSpace.of_basis(basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>`: one axis on the basis's
 domain, indexed by the coefficient layout the basis carries
 (:mod:`orpheus.numerics.coefficient_layout`: the rectangular harmonic
 table, the flat Legendre row, one coefficient per cell of a partition, a

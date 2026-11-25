@@ -126,9 +126,6 @@ def test_the_basis_minted_head_axis_carries_the_continuum_gram_and_the_basis(L: 
     assert isinstance(lax.origin, FromBasis)
     lbasis = lax.origin.basis
     assert isinstance(lbasis, LegendreBasis) and lbasis.axis == "z" and lbasis.L == L
-    # the space's metric verbs read the axis's measure — the head has no other source
-    assert sh.inner_product_weights is None and sh.metric is None
-    assert leg.inner_product_weights is None and leg.metric is None
 
 
 @pytest.mark.parametrize("label", ["gauss_legendre(8)", "lebedev(11)", "level_symmetric(4)"])

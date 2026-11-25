@@ -28,7 +28,7 @@ from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
-from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric, Face
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric, Face, NoForm
 from orpheus.numerics.operator import AdjointOperator, RieszLowerOperator, RieszRaiseOperator, adjointable
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
@@ -77,7 +77,7 @@ def _metric_rows():
         # rank-3 diagonal block, so a product (6) and a sum (5) of block ranks differ
         # (`[M]` 2026-10-21: with two rank-2 blocks 2·2 = 2 + 2 hid a summed rank).
         ("factored_dense_x_diag", FactoredMetric((((3,), dense_sing), ((4,), diag_rank3))), (3, 4), 6),
-        ("factored_euclid_x_diag", FactoredMetric((((2,), None), ((4,), diag_rank3))), (2, 4), 6),
+        ("factored_euclid_x_diag", FactoredMetric((((2,), NoForm()), ((4,), diag_rank3))), (2, 4), 6),
         # a trailing axis beyond the factored blocks multiplies the rank (review (b):
         # `[M]` 2026-10-21 the pre-fix rank ignored it)
         ("factored_trailing", FactoredMetric((((3,), dense_sing), ((4,), diag_rank3))), (3, 4, 5), 30),

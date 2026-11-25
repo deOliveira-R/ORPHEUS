@@ -27,7 +27,7 @@ from orpheus.numerics.basis.legendre_basis import LegendreBasis
 from orpheus.numerics import frame_faces
 from orpheus.numerics.frame import GalerkinFrame
 from orpheus.numerics.functional import InnerProductFunctional
-from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric, NoForm
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace, Member
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
@@ -177,11 +177,11 @@ class TestBelowTheSpaceEachObjectParsesItsDomain:
     def test_a_factored_metric_parses_its_concatenated_blocks(self):
         """A Euclidean (``None``) block applies nothing, so no block alone sees its extent: the product parses."""
         # [M] before U1b: apply on (2, 1) returned (2, 3); pairing with y (2, 1) returned 12
-        fm = FactoredMetric((((2,), None), ((3,), DiagonalMetric(_W))))
+        fm = FactoredMetric((((2,), NoForm()), ((3,), DiagonalMetric(_W))))
         with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
             fm.apply(np.ones((2, 1)))
         with pytest.raises(cs.NotInCoordinateSpace, match=LEADING):
-            FactoredMetric((((2,), DiagonalMetric(np.ones(2))), ((3,), None))).apply(np.ones((2, 1)))
+            FactoredMetric((((2,), DiagonalMetric(np.ones(2))), ((3,), NoForm()))).apply(np.ones((2, 1)))
 
     def test_a_legacy_diagonal_metric_is_checked_against_its_space_once(self):
         """The legacy ``inner_product_weights`` may be broadcast-shaped: ``(1, 4, 1)`` and the leading-aligned ``(3,)``,

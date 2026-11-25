@@ -90,7 +90,7 @@ def _mask_non_existent_m(c: np.ndarray, L: int) -> np.ndarray:
 @pytest.mark.catches("ERR-039")
 @pytest.mark.verifies("sh-space-metric")
 def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
-    r"""The SH basis's coefficient head (``FunctionSpace.of_basis``) carries :math:`4\pi/(2\ell+1)` per degree.
+    r"""The SH basis's coefficient head (``TensorSpace.of_basis``) carries :math:`4\pi/(2\ell+1)` per degree.
 
     The Gram-matrix diagonal :math:`g_C` lives in exactly one place —
     on the space's single head axis (:meth:`~orpheus.numerics.axis.Axis.of_basis`) as its
@@ -536,7 +536,7 @@ def test_R_transpose_carries_d_ell_and_RH_carries_d_ell_squared(lebedev_L_pair):
 def test_spherical_harmonic_space_equality_is_structural():
     r"""The SH head's equality follows :class:`FunctionSpace`'s STRUCTURAL convention (CS4c step 6).
 
-    Two ``FunctionSpace.of_basis(SphericalHarmonicBasis(L=L))`` instances with the same
+    Two ``TensorSpace.of_basis(SphericalHarmonicBasis(L=L), variance)`` instances with the same
     :math:`L` produce equal objects — their head axes carry bit-identical
     measures (the same formula, the same arithmetic), so distinct
     ``ndarray`` allocations are one axis. A different order is a different

@@ -23,7 +23,7 @@ make, each gated here:
   installed on the hub's consumed surface moves the answer, with an
   activation leg (a hub over the decoy really differs) and an anti-dud leg.
 * **H6** is a grep obligation, not a gate: the pose is minted ONCE —
-  ``grep -c 'FunctionSpace.of_axes' orpheus/homogeneous/solver.py`` reads 1.
+  ``grep -c 'TensorSpace.of_axes' orpheus/homogeneous/solver.py`` reads 1.
 
 Foundation mark: software invariants of the hub; the values are D5's and
 the anchors' (bit-identical to the retired carrier route, 8 of 8).

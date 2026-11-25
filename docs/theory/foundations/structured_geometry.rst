@@ -3157,7 +3157,7 @@ this pass, 20 rows, 20 passed under ``-O``:
 What goes through the encoder, and what it replaced
 ---------------------------------------------------
 
-Every space-name digest goes through the encoder: ``FunctionSpace.of_axes``, the
+Every space-name digest goes through the encoder: ``TensorSpace.of_axes``, the
 angular and scalar trace spaces, the two radial characteristic spaces
 and ``FullFieldSpace.from_blocks`` each pass a tuple of their parts to
 :func:`~orpheus.values.content.name_digest`, the one 8-byte space-name
@@ -3203,8 +3203,8 @@ reference's transport block is memoised on them
       * - Encoder
         - What it encoded
         - What it lacked
-      * - ``Axis._structural_bytes``, read by ``FunctionSpace.of_axes``
-          for the space name
+      * - ``Axis._structural_bytes`` (retired: it was read
+          by ``FunctionSpace.of_axes`` for the space name until the tensor space of factors folded the factors by content)
         - the class's ``__qualname__``, then label, shape, kind and the
           weights' bytes (``EnergyAxis`` added the edges,
           ``LegendreAxis`` the spent axis)

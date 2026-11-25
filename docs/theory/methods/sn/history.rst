@@ -1548,7 +1548,7 @@ them.  Trust ``git``, not this column.
        CS4c step 6 item 6.2a).
        **(1) What the tree did until this change.**  ``V * W`` (the
        ``*`` dunder →
-       :class:`~orpheus.numerics.space.TensorProductSpace`) built the
+       ``TensorProductSpace``) built the
        product's metric by forming the outer product
        :math:`w_V \otimes w_W` ONCE and storing it as a dense
        ``inner_product_weights`` tensor.  That forced a *second*
@@ -1558,8 +1558,7 @@ them.  Trust ``git``, not this column.
        alone would have been treated as Euclidean, a value bug wearing a
        representation label.  So the axis doctrine's *"the measure lives
        per axis and is never densified"* held on
-       :meth:`FunctionSpace.of_axes
-       <orpheus.numerics.space.FunctionSpace.of_axes>` and was reversed
+       ``FunctionSpace.of_axes`` and was reversed
        by the very next composition — and the reversal was not
        hypothetical: ``[M]`` 2026-09-07, one 2-D Cartesian windowed SI
        solve (``level_symmetric(4)``, :math:`4\times3` cells,
@@ -1567,8 +1566,7 @@ them.  Trust ``git``, not this column.
        ``inner_schedule="jacobi"``) allocated **18** dense
        :math:`(L{+}1, 2L{+}1, n_g, n_x, n_y)` weight tensors, one per
        ``*`` mint, on the harmonic-moment path.
-       **(2) What landed.**  :meth:`TensorProductSpace.from_factors
-       <orpheus.numerics.space.TensorProductSpace.from_factors>` keeps
+       **(2) What landed.**  ``TensorProductSpace.from_factors`` keeps
        its axis-threading arm untouched (every factor axis-built ⟹ the
        product's ``axes`` is the concatenation, no metric object at all)
        and replaces BOTH other arms with ONE factored builder.  A
@@ -1620,7 +1618,7 @@ them.  Trust ``git``, not this column.
        called **zero** times on it.
        **(5) What did NOT change, and the half of the memory assertion
        this does not buy.**  ``*`` itself survives, and so do
-       :class:`~orpheus.numerics.space.TensorProductSpace`'s ``factors``
+       ``TensorProductSpace``'s ``factors``
        metadata and ``find_factor`` (item 6.2c re-poses those as axis
        queries).  ⚠ The charter's memory assertion — *"no state-sized
        weights tensor is allocated per windowed solve"* — has two legs,
@@ -1645,8 +1643,7 @@ them.  Trust ``git``, not this column.
        the axes — *metric differences imply space differences*.  Its
        realization was a **bridge**: identity was ``(name, shape)`` for
        every space, and
-       :meth:`FunctionSpace.of_axes
-       <orpheus.numerics.space.FunctionSpace.of_axes>` derived the name
+       ``FunctionSpace.of_axes`` derived the name
        injectively from the axes' content, so different axes minted
        different names and therefore different spaces.  That is what made
        the doctrine true with no flag day; it is also why the doctrine
@@ -2515,8 +2512,7 @@ them.  Trust ``git``, not this column.
        :class:`~orpheus.numerics.axis.Axis` (frozen, structural identity
        per subclass, canonical measure storage) and
        :class:`~orpheus.numerics.axis.EnergyAxis`, and
-       :meth:`FunctionSpace.of_axes
-       <orpheus.numerics.space.FunctionSpace.of_axes>` composes a space as
+       ``FunctionSpace.of_axes`` composes a space as
        the ordered product of its axes, with a per-axis metric path (no
        densification) and a deterministic, injective derived name — the
        **identity bridge** that made *"metric differences imply space

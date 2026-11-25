@@ -3483,8 +3483,7 @@ older entries classify against.
    S7 of the numerics untangling (2026-10-22) retired the class: :math:`g_C`
    is :attr:`SphericalHarmonicBasis.coefficient_weights
    <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights>`,
-   which :meth:`FunctionSpace.of_basis
-   <orpheus.numerics.space.FunctionSpace.of_basis>` installs as the measure
+   which ``FunctionSpace.of_basis`` installs as the measure
    of the basis's one coefficient axis.
 
    The Wave 0 test ``TestApplyTransposeIsWWeightedAdjoint`` was renamed to

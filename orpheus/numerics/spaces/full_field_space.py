@@ -420,6 +420,12 @@ class FullFieldSpace(FunctionSpace[CompositeField]):  # concept: dsum | role: tw
             )
         return np.asarray(cast(CompositeField, x).to_flat(), dtype=float)
 
+    @property
+    def negative(self) -> int:
+        r"""The negative directions of the direct sum: the interior block's and the trace block's, so that a signed block refuses :meth:`norm`
+        (issue #706)."""
+        return self.interior_space.negative + self.trace_space.negative
+
     def inner_product(self, x: CompositeField, y: CompositeField) -> float:
         r"""Return the direct-sum inner product
         :math:`\langle x, y\rangle_G = \langle x_{\rm bulk}, y_{\rm bulk}\rangle_{G_{\rm bulk}}

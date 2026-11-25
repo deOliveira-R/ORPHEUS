@@ -424,8 +424,7 @@ lives in exactly ONE place in the codebase.
         - :math:`\Pi^* = S_0` — the naked synthesis, no factor.
       * - **Continuum Gram** :math:`g_C = 4\pi/(2\ell+1)`
         - The basis's own coefficient space,
-          :meth:`FunctionSpace.of_basis(basis)
-          <orpheus.numerics.space.FunctionSpace.of_basis>`, whose one
+          :meth:`TensorSpace.of_basis(basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>`, whose one
           head axis carries
           :attr:`SphericalHarmonicBasis.coefficient_weights
           <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights>`
@@ -485,8 +484,7 @@ lives in exactly ONE place in the codebase.
   That codomain is a harmonic coefficient space — one axis indexed by
   the rectangular :class:`~orpheus.numerics.coefficient_layout.HarmonicLayout`
   — but the *frame-dressed* copy, not the basis's own
-  :meth:`FunctionSpace.of_basis(basis)
-  <orpheus.numerics.space.FunctionSpace.of_basis>`: the basis's space
+  :meth:`TensorSpace.of_basis(basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>`: the basis's space
   carries the CONTINUUM Gram :math:`g_C` (:eq:`sh-space-metric`) and
   :func:`basis_space <orpheus.numerics.frame_faces.basis_space>` REPLACES it with
   :math:`G^{-1}`. The space is AXIS-BUILT and the metric lives on its
@@ -636,8 +634,7 @@ The metric :math:`g_C` is the single source of truth for the SH
 harmonics, the basis carries it as
 :attr:`SphericalHarmonicBasis.coefficient_weights
 <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights>`,
-and :meth:`FunctionSpace.of_basis(basis)
-<orpheus.numerics.space.FunctionSpace.of_basis>` installs it as the
+and :meth:`TensorSpace.of_basis(basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>` installs it as the
 measure of the basis's one coefficient axis. It equals
 :math:`\mathrm{diag}(4\pi/(2\ell+1))` per :math:`\ell`:
 
@@ -655,7 +652,7 @@ measure of the basis's one coefficient axis. It equals
    (``SphericalHarmonicBasis.metric_per_ell``), its broadcast over each
    degree's live columns of the padded ``(L+1, 2L+1)`` table, zero on the
    padding (``HarmonicLayout.spread``), and the basis property that
-   composes the two and that ``FunctionSpace.of_basis`` installs as the
+   composes the two and that ``TensorSpace.of_basis`` installs as the
    head axis's measure (``SphericalHarmonicBasis.coefficient_weights``).
    Declared at F-0 (2026-08-23), when ``metric_per_ell`` left
    :eq:`hilbert-adjoint-equals-metric-times-S0`: the continuum Gram is

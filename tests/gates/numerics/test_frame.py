@@ -52,7 +52,7 @@ from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
 from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
-from orpheus.numerics.metric import DenseMetric, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere
 from orpheus.numerics.coefficient_layout import HarmonicLayout
@@ -866,8 +866,8 @@ def test_the_slab_frame_is_DIAGONAL_after_the_err080_repair():
         _ = gram[2, 3]
 
     # the DIAGONAL dressing is the plain reciprocal, and no DenseMetric is
-    # installed (the arm the old body asserted)
-    assert frame_faces.basis_space(frame).metric is None
+    # installed (the arm the old body asserted): the head's factor carries a diagonal form
+    assert isinstance(frame_faces.basis_space(frame).factors[0].form, DiagonalMetric)
     weights = _dressed_measure(frame)
     assert weights is not None
     np.testing.assert_allclose(weights, 1.0 / diag, rtol=1e-12)
@@ -921,7 +921,6 @@ def test_the_dense_matrix_parseval_dressing_rides_a_quotient_basis_frame():
         ),
         rtol=1e-12, atol=1e-15,
     )
-    assert frame_faces.basis_space(frame).inner_product_weights is None
     assert frame_faces.test_space(frame) is frame_faces.basis_space(frame)
 
 
@@ -971,7 +970,6 @@ def test_overlap_frame_measures_dense_while_declaring_partition_of_unity():
     assert frame.basis.gram_structure is GramStructure.PARTITION_OF_UNITY  # declared
     assert frame.discrete_gram_structure is GramStructure.DENSE    # measured
     assert isinstance(frame_faces.basis_space(frame).factors[0].form, DenseMetric)  # dressed (P7), the form of the head's factor
-    assert frame_faces.basis_space(frame).inner_product_weights is None         # ≠ Euclidean
     np.testing.assert_allclose(
         frame_faces.project(frame, np.array([2.0, 4.0, 6.0])), [8.0 / 3.0, 16.0 / 3.0],
     )

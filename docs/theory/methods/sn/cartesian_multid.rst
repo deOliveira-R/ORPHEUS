@@ -2395,8 +2395,7 @@ Where the rule has lived: until item 6.2c-iii the cell half beside the
 layout module; from 6.2c-iii both halves in that module,
 ``orpheus.numerics.moment_layout``, the cell half ``spatial_moment_tail``
 delegating to the face half; and since the moment-basis carve (2026-10-25)
-one function beside :meth:`FunctionSpace.of_axes
-<orpheus.numerics.space.FunctionSpace.of_axes>`, with the layout module
+one function beside :meth:`TensorSpace.of_axes <orpheus.numerics.space.TensorSpace.of_axes>`, with the layout module
 retired (:ref:`spaces-cell-basis`).
 
 Construct-general, select-narrow — what this step did and did NOT do

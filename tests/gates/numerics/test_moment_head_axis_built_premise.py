@@ -79,8 +79,8 @@ pytestmark = pytest.mark.foundation
 _HARMONIC_AXIS_LABEL = "harmonic"
 
 
-# ── the head's two spellings: the axis-built production one (since 6.2c-ii)
-#    and the RETIRED dense-slot twin, re-built here as the comparison oracle ──
+# ── the head's two spellings: the basis-built production one (since 6.2c-ii), the hand weights that are the oracle of the arithmetic rows,
+#    and the name-built partner of the identity rows ──
 
 
 #: A head is a plain axis-built space since S7 (ruling 81); its layout is read
@@ -88,14 +88,34 @@ _HARMONIC_AXIS_LABEL = "harmonic"
 Head = FunctionSpace
 
 
-def _dense_slot_twin[T: Head](head: T) -> T:
-    """The SAME head in its RETIRED spelling — the measure in the legacy
-    ``inner_product_weights`` slot, no axes (what ``from_L`` minted until CS4c
-    step 6 item 6.2c-ii, 2026-09-08).
+def _literal_weights(label: str) -> np.ndarray:
+    """The head's Parseval weights written from the definition, NOT read from the space under test: :math:`4\\pi/(2l+1)` on the live entries of
+    degree :math:`l` (the harmonic layout is ``(L+1, 2L+1)`` with the first :math:`2l+1` entries of row :math:`l` live and the rest zero, the
+    Legendre layout is ``(L+1,)``)."""
+    L = int(label.split("_")[1][1])
+    if label.startswith("sh_"):
+        w = np.zeros((L + 1, 2 * L + 1))
+        for l in range(L + 1):
+            w[l, : 2 * l + 1] = 4.0 * np.pi / (2 * l + 1)
+        return w
+    return np.array([4.0 * np.pi / (2 * l + 1) for l in range(L + 1)])
 
-    ``replace`` keeps the name and shape, so the only thing that moves is
-    WHERE the measure lives — the twin is the independent oracle for the
-    bit-identity rows and the name-built partner for the identity rows.
+
+def _hand_apply(w: np.ndarray, x: np.ndarray, *, inverse: bool) -> np.ndarray:
+    """A numpy oracle of the head's metric (or its pseudo-inverse): ``w`` broadcast on the leading axes of ``x``, and the masked division (exactly
+    zero where the weight is zero) written by hand. No form object and no space verb is called."""
+    tail = (1,) * (x.ndim - w.ndim)
+    wb = w.reshape(w.shape + tail)
+    if inverse:
+        return np.divide(x, wb, out=np.zeros_like(x), where=wb != 0.0)
+    return wb * x
+
+
+def _dense_slot_twin[T: Head](head: T) -> T:
+    """The name-built partner of ``head``: a declared nodal space of the same name and shape whose diagonal form is the weights ``head`` applies to
+    the unit (the head's own metric read back, so it is a PARTNER for the identity rows and is never an oracle for an arithmetic row: the arithmetic
+    rows use :func:`_literal_weights` and :func:`_hand_apply`). The retired spelling stored the measure in a dense ``inner_product_weights`` slot; that
+    slot is gone, and this partner differs from the head only in carrying no basis origin.
     """
     assert len(head.axes) == 1, "a production head is single-axis"
     form = head.axes[0].form
@@ -137,14 +157,11 @@ _HEADS: dict[str, Callable[[], Head]] = {
 
 @pytest.mark.parametrize("label", sorted(_HEADS))
 def test_the_head_metric_is_bit_identical_on_the_axis_route(label: str) -> None:
-    r"""Moving the head's measure from the dense slot onto ONE axis changes no bit.
+    r"""The head's measure, carried by ONE axis, applies exactly as the hand numpy product of its stated weights.
 
-    The axes-derived :class:`~orpheus.numerics.metric.FactoredMetric`'s
-    ``DiagonalMetric.apply_block`` (since CS4c step 6 item 6.2c-i; the
-    inline ``_apply_axes_weights`` loop before it) reshapes the axis's
-    weights to the head's own leading block and multiplies — the SAME
-    single elementwise product the dense-slot
-    :class:`~orpheus.numerics.metric.DiagonalMetric` performs, so
+    The head's metric is the walk of its one factor's form (``DiagonalMetric.apply_block``), which reshapes the axis's weights to the
+    head's own leading block and multiplies: the SAME single elementwise product a numpy broadcast of the stated weights performs
+    (the oracle here, written from the definition :math:`4\\pi/(2l+1)`, with the masked reciprocal on the inverse leg), so
     there is no re-association and ``array_equal`` is the honest assertion
     (``vv-principles`` §bit-identity criterion 3: zero reductions reordered).
 
@@ -153,60 +170,60 @@ def test_the_head_metric_is_bit_identical_on_the_axis_route(label: str) -> None:
     this file and 43 of the 4501-row battery scope.
     """
     axis_head = _HEADS[label]()
-    head = _dense_slot_twin(axis_head)           # the retired spelling, the oracle
+    w = _literal_weights(label)
     assert axis_head.axes is not None
-    assert axis_head.inner_product_weights is None and head.inner_product_weights is None
+    assert w.shape == axis_head.shape, "the hand weights span the head's own layout"
 
     rng = np.random.default_rng(20260907)
-    x = rng.standard_normal(head.shape + (2, 4))
+    x = rng.standard_normal(axis_head.shape + (2, 4))
     np.testing.assert_array_equal(
-        np.asarray(axis_head.apply_metric(x)), np.asarray(head.apply_metric(x)),
-        err_msg="the axis route must be bit-identical to the dense-slot route",
+        np.asarray(axis_head.apply_metric(x)), _hand_apply(w, x, inverse=False),
+        err_msg="the axis route must be bit-identical to the hand product of the stated weights",
     )
     np.testing.assert_array_equal(
-        np.asarray(axis_head.apply_inverse_metric(x)),
-        np.asarray(head.apply_inverse_metric(x)),
-        err_msg="the pseudo-inverse must agree bit-for-bit too (dead slots → 0)",
+        np.asarray(axis_head.apply_inverse_metric(x)), _hand_apply(w, x, inverse=True),
+        err_msg="the pseudo-inverse must agree bit-for-bit with the hand masked reciprocal (dead slots -> 0)",
     )
     # The (2, 4) tail is a payload: the pairing over it is posed on the explicit tensor product, and is pinned
-    # against the dense-slot head's own metric leg contracted by hand (comparing the two tensor products with each
+    # against the hand metric contracted by hand (comparing two tensor products with each
     # other was blind to a shared metric defect: the U1 qa review, F3).
     payload = TensorSpace.of_axes(Factor.whole_on(Axis("payload", (2, 4), origin=Declared(BasisKind.NODAL)), Kind.MEASURE, VarianceChart.DENSITY))
-    by_hand = float(np.sum(np.asarray(head.apply_metric(x)) * x))
+    by_hand = float(np.sum(_hand_apply(w, x, inverse=False) * x))
     assert (axis_head * payload).inner_product(x, x) == by_hand
-    assert (head * payload).inner_product(x, x) == by_hand
 
 
 @pytest.mark.parametrize("label", sorted(_HEADS))
 def test_the_product_metric_is_bit_identical_when_the_head_gains_axes(label: str) -> None:
-    r"""``head * bulk`` flips from the FactoredMetric arm to the AXIS arm — 0 ULP.
+    r"""``head * bulk`` applies the hand product of the stated weights, bit for bit.
 
-    With an axes-less head the product takes ``from_factors``' factored arm and
-    carries a :class:`~orpheus.numerics.metric.FactoredMetric`; with an
-    axis-built head EVERY factor is axis-built, so the product threads axes and
-    carries ``metric is None``.  The two apply the same per-block diagonals in
-    the same order, so the values are bit-identical — this is what makes 6.2c's
-    metric unification a re-expression rather than a re-baseline.
+    The product's metric is the Kronecker walk of the factors' forms in slot order (the one arm since N04). Before it, an axes-less
+    head took the factored arm of the retired ``from_factors`` and an axis-built head the axis arm; the two applied the same per-block
+    diagonals in the same order, so the values were bit-identical, which is what made 6.2c's metric unification a re-expression rather
+    than a re-baseline. The oracle is the hand product of the literal weights (:func:`_literal_weights`, :func:`_hand_apply`).
 
     Reddens under: the battery's ``A5`` arm (a per-axis measure dropped) —
     `[M]` all 8 rows of this gate.
     """
     axis_head = _HEADS[label]()
     bulk = _bulk()
-    today = _dense_slot_twin(axis_head) * bulk    # the retired spelling's product: the factored arm
     axis_product = axis_head * bulk
 
     assert len(axis_product.axes) == 3
     assert axis_product.inner_product_weights is None
-    assert today.shape == axis_product.shape
+    assert axis_product.shape == axis_head.shape + bulk.shape
 
+    # The oracle is the hand product of the stated weights: the head's (4 pi/(2l+1)) on its own leading block, then the bulk's cell measure
+    # (0.5 on every spatial node; the energy slot has no form), one broadcast product per formed slot in slot order.
+    w = _literal_weights(label)
     rng = np.random.default_rng(5)
-    x = rng.standard_normal(today.shape)
+    x = rng.standard_normal(axis_product.shape)
+    hand = _hand_apply(w, x, inverse=False)
+    hand = hand * 0.5
     np.testing.assert_array_equal(
-        np.asarray(axis_product.apply_metric(x)), np.asarray(today.apply_metric(x)),
-        err_msg="the axis-threaded product must reproduce the FactoredMetric bit-for-bit",
+        np.asarray(axis_product.apply_metric(x)), hand,
+        err_msg="the axis-threaded product must reproduce the hand product of the stated weights bit-for-bit",
     )
-    assert axis_product.inner_product(x, x) == today.inner_product(x, x)
+    assert axis_product.inner_product(x, x) == float(np.sum(hand * x))
 
 
 def test_no_reachable_array_on_the_axis_product_is_state_sized() -> None:
@@ -428,7 +445,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
     r"""The head a shipped rule's frame actually binds — built through the
     production chain, not hand-minted (``vv`` #28: build the operand).
 
-    Both heads are covered: the **continuum** head (``FunctionSpace.of_basis(frame.basis)``,
+    Both heads are covered: the **continuum** head (``TensorSpace.of_basis(frame.basis, variance)``,
     the basis its generator) and the frame's **dressed** head
     (``basis_space(frame)``, the frame its generator) — each axis-built, each
     bit-identical to its own retired dense-slot twin on the metric verbs; on

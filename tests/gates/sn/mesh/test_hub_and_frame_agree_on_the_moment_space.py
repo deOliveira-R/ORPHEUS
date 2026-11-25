@@ -13,7 +13,7 @@ ACROSS owners and ``is``-identity WITHIN each.
 
 * **P5** — hub ``==`` frame, ``is`` within each, on every ledger carrier;
 * **P7** — the three product mechanisms are ONE space by identity — the
-  hub's ``head * bulk``, ``FunctionSpace.of_axes(head_axis, *bulk.axes)``,
+  hub's ``head * bulk``, ``TensorSpace.of_axes(head_factor, *bulk.factors)``,
   and the frame's derivation — while their NAMES differ (`[M]` the ``*``
   product keeps the head's family tag, the ``of_axes`` mint is a pure
   digest), so the gate asserts identity and NOT the name;

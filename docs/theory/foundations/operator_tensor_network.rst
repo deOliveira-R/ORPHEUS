@@ -66,7 +66,7 @@ operator-algebra types documented in
 the consumer side of the Wave-0 + Depth B D-B infrastructure
 (:class:`~orpheus.numerics.operator.TensorProductOperator` shipped at
 commit ``bc1253e``, 2026-05-10;
-:class:`~orpheus.numerics.space.TensorProductSpace` shipped at commit
+:class:`~orpheus.numerics.space.TensorSpace` (then the concrete ``TensorProductSpace``, retired into it) shipped at commit
 ``c2f968a``, 2026-05-27; the first production consumer was the D-B+1
 specular BC at ``boundary_realizer.py:164-166``, a line of the SN
 realizer that retired in the wave-2 carve of 2026-10-24).

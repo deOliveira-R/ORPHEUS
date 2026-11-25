@@ -45,13 +45,11 @@ distinguishes its variants.
    untangling): ``test_space(frame)`` is the Parseval-dressed
    ``basis_space(frame)`` when ``frame.test is frame.basis``, whatever
    class spelled the frame, and the test basis's own coefficient space,
-   :meth:`FunctionSpace.of_basis(frame.test)
-   <orpheus.numerics.space.FunctionSpace.of_basis>`, otherwise. Until S7
+   :meth:`TensorSpace.of_basis(frame.test, variance) <orpheus.numerics.space.TensorSpace.of_basis>`, otherwise. Until S7
    the predicate was ``isinstance(frame, GalerkinFrame)``, so a
    Petrov-Galerkin frame handed its own trial basis as its test read the
    undressed space (gate ``tests/gates/numerics/test_axis_identity.py``
-   R58). ``measure_space(frame)`` is :meth:`FunctionSpace.of_measure
-   <orpheus.numerics.space.FunctionSpace.of_measure>` of the frame's
+   R58). ``measure_space(frame)`` is :meth:`TensorSpace.of_measure <orpheus.numerics.space.TensorSpace.of_measure>` of the frame's
    measure under the measure's own
    :attr:`~orpheus.numerics.measure.DiscreteMeasure.axis_label`, so on a
    directional rule it IS the :math:`S_N` angular space over the same rule
@@ -363,8 +361,7 @@ Key Facts
   `[M]` 2026-09-02 the angular moment space had **eight** homes (one
   basis + seven ``from_L(L)`` re-mints) and now has one. ⚠ Two spellings
   live on a frame and they are different objects:
-  :meth:`FunctionSpace.of_basis(frame.basis)
-  <orpheus.numerics.space.FunctionSpace.of_basis>` carries the CONTINUUM
+  :meth:`TensorSpace.of_basis(frame.basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>` carries the CONTINUUM
   Gram :math:`g_C` and is the basis's own coefficient space (spelled
   ``basis.space`` until S7 of the numerics untangling);
   ``basis_space`` carries the Parseval metric
@@ -4138,8 +4135,7 @@ orpheus/`` over the pre-step tree returns **13** lines, of which **8 are
 executable calls** and 5 are docstring mentions. So the angular
 coefficient space had **eight** homes. One was legitimate — the basis's
 own ``space`` property (``SphericalHarmonicBasis.space``, retired at S7 of
-the numerics untangling in favour of :meth:`FunctionSpace.of_basis
-<orpheus.numerics.space.FunctionSpace.of_basis>`), where a basis
+the numerics untangling in favour of :meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>`), where a basis
 answers *what do my coefficients live in?* — and **seven** were production
 consumers re-minting it from the integer :math:`L`:
 
@@ -4181,8 +4177,7 @@ The third column is the tracker-2.5 reading. Since item 6.2c-ii
 (2026-09-08) every row reads the frame's Parseval-dressed
 :func:`basis_space(frame) <orpheus.numerics.frame_faces.basis_space>`
 instead of the basis's continuum head (the next sub-subsection), and since
-S7 the basis's continuum head is spelled :meth:`FunctionSpace.of_basis(basis)
-<orpheus.numerics.space.FunctionSpace.of_basis>`; there is no ``basis.space``.
+S7 the basis's continuum head is spelled :meth:`TensorSpace.of_basis(basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>`; there is no ``basis.space``.
 
 .. note:: **2026-09-07, CS4c step 6 item 6.2b — the field row's "now reads"
    is one hop longer, because the PRODUCT moved to the hub.** Tracker 2.5
@@ -4257,8 +4252,7 @@ Which space, though — the basis's own head or ``basis_space``?
 
 A frame carries **two** spellings of the coefficient space and they are
 different objects. The basis's own head,
-:meth:`FunctionSpace.of_basis(basis)
-<orpheus.numerics.space.FunctionSpace.of_basis>` (spelled ``basis.space``
+:meth:`TensorSpace.of_basis(basis, variance) <orpheus.numerics.space.TensorSpace.of_basis>` (spelled ``basis.space``
 until S7 of the numerics untangling, and so in the dated records below),
 carries the
 **continuum** Gram :math:`g_C = 4\pi/(2\ell+1)`
@@ -4759,7 +4753,7 @@ What that changes, stated as the tree now reads:
        :class:`~orpheus.numerics.metric.DenseMetric` :math:`G^{+}` where
        the discrete Gram is dense
    * - who owns the head
-     - the basis (``basis.space``, today ``FunctionSpace.of_basis(basis)``)
+     - the basis (``basis.space`` until S7, ``TensorSpace.of_basis(basis, variance)`` now)
      - the FRAME (``basis_space``) — and the frame is the head axis's
        origin, ``FromFrame(frame)``, the object that can re-dress it at
        another order

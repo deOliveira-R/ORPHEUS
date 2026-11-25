@@ -3,7 +3,7 @@ r"""S7b gates: the moment heads live on the head axis, and every basis spans the
 Spec: ``scratch/numerics_untangling/packages/S7_gate_spec.md`` §3 rows H*, written by the test-architect
 against the names of ``S7_design_S7b.md``; rulings 72, 81, 83, 84. Names:
 :mod:`orpheus.numerics.coefficient_layout` (``HarmonicLayout``, ``LegendreLayout``, ``CellLayout``),
-``Basis.layout``, ``Axis.layout``, ``FromBasis(basis)``, ``Axis.of_basis`` / ``FunctionSpace.of_basis``,
+``Basis.layout``, ``Axis.layout``, ``FromBasis(basis)``, ``Axis.of_basis`` / ``TensorSpace.of_basis``,
 ``moment_head_axis(space).layout``. H2b's pair (equal widths, shifted edges) read EQUAL raw and dressed on
 the pre-carve and S7a trees (``S7_gates/probes/p4_h2b_shifted_edges.log``); the main agent ruled that the
 cell layout carries the edges.
@@ -198,7 +198,7 @@ def test_H3_the_retired_classes_are_gone():
     for module, name in ((moment_head, "MomentHead"), (axis, "HarmonicAxis"), (axis, "LegendreAxis")):
         assert not hasattr(module, name), f"{module.__name__}.{name} survives S7b (rulings 72, 81)"
     from orpheus.numerics.basis.base import Basis
-    assert "space" not in vars(Basis), "Basis.space retires (FunctionSpace.of_basis)"
+    assert "space" not in vars(Basis), "Basis.space retires (TensorSpace.of_basis)"
     assert importlib.util.find_spec("orpheus.numerics.coefficient_layout") is not None  # positive control
 
 

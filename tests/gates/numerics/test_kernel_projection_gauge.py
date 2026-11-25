@@ -29,7 +29,7 @@ from orpheus.numerics.kernel_projection_gauge import (
     KernelSummand,
 )
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.metric import DiagonalMetric, Face
+from orpheus.numerics.metric import DiagonalMetric, Face, NoForm
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
 from tests.gates.numerics._declared_support import declared_mod_kernel
@@ -380,14 +380,21 @@ class TestTheProtocolAndTheMetric:
             assert "trace" not in inspect.signature(cls.gauge).parameters, cls
 
     @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
-    def test_the_axis_built_space_and_its_legacy_twin_give_bit_identical_gauges(self):
-        """The metric is read through the space's metric leg. Arm ``weights_spelling`` (SN's predecessor read
-        ``np.asarray(space.inner_product_weights, dtype=float)``, which is ``array(None, dtype=object)`` on an
+    def test_the_axis_built_space_gives_the_gauge_of_the_stated_weights(self):
+        """The metric is read through the space's metric leg. The oracle is a numpy projection written by hand from the literal weights ``_G`` (the
+        G-orthogonal projector onto the span of each summand's generators, ``V (V' G V)^+ V' G``, the summands being mutually G-orthogonal in both
+        fixtures), never a second space built from the same stated weights: two spaces built from one stated form run one walk and agree whatever it
+        does. The agreement is to ``1e-13`` of the state's largest entry (a hand projection and an orthonormalised one differ in the last bits). Arm
+        ``weights_spelling`` (SN's predecessor read ``np.asarray(space.inner_product_weights, dtype=float)``, which is ``array(None, dtype=object)`` on an
         axis-built space) reddens it."""
-        twin = TensorSpace.declared("twin", (_N,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(_G))
         x = _x(14)
         for pairs in (_ROTATED, _OVERCOMPLETE):
-            assert np.array_equal(_build(SPACE, pairs).gauge(x), _build(twin, pairs).gauge(x))
+            hand = x.copy()
+            for idx, cols in pairs:
+                v = np.zeros((_N, cols.shape[1]))
+                v[idx] = cols
+                hand = hand - v @ np.linalg.pinv(v.T @ (_G[:, None] * v)) @ (v.T @ (_G * x))
+            assert np.abs(_build(SPACE, pairs).gauge(x) - hand).max() <= 1e-13 * np.abs(x).max()
 
     @pytest.mark.rests_on(_SPACE_VERBS)
     def test_a_non_diagonal_metric_is_a_declared_scope_boundary(self):
@@ -491,9 +498,9 @@ class TestTheMetricDiagonalVerb:
         from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
         w = np.array([1.0, 3.0])
-        diag = FactoredMetric((((2,), DiagonalMetric(w)), ((3,), None)))
+        diag = FactoredMetric((((2,), DiagonalMetric(w)), ((3,), NoForm())))
         np.testing.assert_array_equal(diag.diagonal((2, 3)), np.repeat(w[:, None], 3, axis=1))
-        assert FactoredMetric((((2,), DenseMetric(np.eye(2), kernel=Coord(2, ()), face=Face.METRIC)), ((3,), None))).diagonal((2, 3)) is None
+        assert FactoredMetric((((2,), DenseMetric(np.eye(2), kernel=Coord(2, ()), face=Face.METRIC)), ((3,), NoForm()))).diagonal((2, 3)) is None
 
     def test_a_dual_metric_is_diagonal_iff_its_primal_is(self):
         """Arm ``dual_is_primal`` reddens the diagonal leg."""

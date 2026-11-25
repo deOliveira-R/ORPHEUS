@@ -64,7 +64,7 @@ from .axis import Axis, FromFrame
 from .declaration import Ann, Coord, Declaration, Spanned, contains, intersect
 from .metric import DenseMetric, DiagonalMetric, DualMetric, Entry, Face, HilbertMetric, NoForm, _masked_reciprocal
 
-__all__ = ["Factor", "FormlessVariance", "Kind", "Subquotient", "Variance", "VarianceChart", "variance_on"]
+__all__ = ["Factor", "FormlessVariance", "Kind", "Subquotient", "Variance", "VarianceChart"]
 
 
 @unique
@@ -333,11 +333,16 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
     def whole_on(cls, axis: Axis, kind: Kind, chart: VarianceChart) -> "Factor":
         r"""The factor of ``axis``, whole, in ``kind`` and ``chart`` where the axis has a form and in the :class:`FormlessVariance` of ``kind`` where it has none.
 
-        The mint of the sites whose axis form is not known statically (a distinct test basis, the scheme's moment axis): one call of
-        :func:`variance_on`, the only branch on a form outside the factor (ELEGANCE-DEBT[guard] #757: the variance type must agree with the
-        axis's form at run time; it retires when the factor splits by the axis's form, so that the disagreement is unspellable).
+        The mint of the sites whose axis form is not known statically (a distinct test basis, the scheme's moment axis), and the one branch on a
+        form outside the factor (ELEGANCE-DEBT[guard] #757: the variance type must agree with the axis's form at run time; it retires when the
+        factor splits by the axis's form, so that the disagreement is unspellable).
         """
-        return cls(axis, variance_on(axis, kind, chart), Subquotient.whole(int(np.prod(axis.shape))))
+        variance: FormlessVariance | Variance = (
+            (FormlessVariance.FUNCTION if kind is Kind.FUNCTION else FormlessVariance.MEASURE)
+            if isinstance(axis.form, NoForm)
+            else Variance(kind, chart)
+        )
+        return cls(axis, variance, Subquotient.whole(int(np.prod(axis.shape))))
 
     @property
     def kind(self) -> Kind:
@@ -405,16 +410,3 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         """
         # a FormlessVariance has no riesz: the AttributeError of the formless case is raised by the variance (#757)
         return Factor(self.axis, self.variance.riesz(), self.sk.dual())  # pyright: ignore[reportAttributeAccessIssue]
-
-
-def variance_on(axis: Axis, kind: Kind, chart: VarianceChart) -> FormlessVariance | Variance:
-    r"""The variance of a factor of ``axis`` in ``kind`` and ``chart``: a :class:`FormlessVariance` when the axis's form is :class:`NoForm`, else the
-    :class:`Variance` of the pair.
-
-    The one branch on a form outside :class:`Factor`, for the mints whose axis form is not known statically (a distinct test basis, the
-    scheme's moment axis). ELEGANCE-DEBT[guard] #757 the variance type must agree with the axis's form at run time; retires when the factor
-    splits by the axis's form into a formless and a formed class, so that the disagreement is unspellable.
-    """
-    if isinstance(axis.form, NoForm):
-        return FormlessVariance.FUNCTION if kind is Kind.FUNCTION else FormlessVariance.MEASURE
-    return Variance(kind, chart)

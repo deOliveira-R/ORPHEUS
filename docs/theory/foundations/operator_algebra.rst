@@ -5587,8 +5587,8 @@ the carrier verbs.
    quadrature chooses propagates by construction. ⚠ Which of the frame's
    two coefficient spellings they read moved on 2026-09-08 (CS4c step 6
    item 6.2c-ii, ruling R-6.2c-1): tracker 2.5 bound the basis's continuum
-   head (``basis.space`` then, ``FunctionSpace.of_basis(basis)`` since
-   S7), and the tree now binds the frame's Parseval-dressed
+   head (``basis.space`` then, ``FunctionSpace.of_basis(basis)`` from
+   S7, ``TensorSpace.of_basis(basis, variance)`` since the tensor space of factors), and the tree now binds the frame's Parseval-dressed
    ``basis_space`` — ONE moment space, whose norm is the field's energy.
    See :ref:`frame-moment-space-single-home` for the eight-homes census
    and the ``basis.space``-vs-``basis_space`` fork with its measurements,
@@ -11282,8 +11282,7 @@ the cheapest tell.
        coefficient layout (:mod:`orpheus.numerics.coefficient_layout`:
        ``HarmonicLayout``, ``LegendreLayout``, ``CellLayout``,
        ``ModeLayout``) and its continuum Gram ``coefficient_weights``;
-       :meth:`FunctionSpace.of_basis
-       <orpheus.numerics.space.FunctionSpace.of_basis>` over the one
+       :meth:`TensorSpace.of_basis <orpheus.numerics.space.TensorSpace.of_basis>` over the one
        generic coefficient axis replaced ``Basis.space``, so
        ``SphericalHarmonicSpace``, ``LegendreSpace``, ``HarmonicAxis``,
        ``LegendreAxis`` (with ``spent_axis``), the ``MomentHead`` protocol,

@@ -196,21 +196,21 @@ class Covector(Member):  # concept: covector | role: head | kind: element.covect
         return f"Covector(shape={self.values.shape}, space={self.space.name!r})"
 
 
-#: The subclasses of :class:`FunctionSpace`: qualified class name to the unit that removes the arm. :class:`TensorSpace` is the arm that
+#: The subclasses of :class:`FunctionSpace`: module-qualified class name to the unit that removes the arm. :class:`TensorSpace` is the arm that
 #: stays; the nine legacy arms leave with the unit named (N05 the direct sums, N06 the trace spaces, N07 the dual). The class-creation hook
 #: of :class:`FunctionSpace` refuses every other subclass at any depth. A module-level constant, so that the names it holds are data and
 #: not reference edges of the concept table.
 FUNCTION_SPACE_ARMS: Mapping[str, str | None] = MappingProxyType({
-    "TensorSpace": None,
-    "CoupledSpace": "N05",
-    "FullFieldSpace": "N05",
-    "AngularTraceSpace": "N06",
-    "AngularFaceTraceSpace": "N06",
-    "ScalarTraceSpace": "N06",
-    "_RadialCharacteristicSubSpace": "N06",
-    "RadialCharacteristicInteriorSpace": "N06",
-    "RadialCharacteristicBoundarySpace": "N06",
-    "DualSpace": "N07",
+    "orpheus.numerics.space.TensorSpace": None,
+    "orpheus.numerics.coupled_system.CoupledSpace": "N05",
+    "orpheus.numerics.spaces.full_field_space.FullFieldSpace": "N05",
+    "orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace": "N06",
+    "orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace": "N06",
+    "orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace": "N06",
+    "orpheus.numerics.spaces.radial_characteristic_space._RadialCharacteristicSubSpace": "N06",
+    "orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicInteriorSpace": "N06",
+    "orpheus.numerics.spaces.radial_characteristic_space.RadialCharacteristicBoundarySpace": "N06",
+    "orpheus.numerics.space.DualSpace": "N07",
 })
 
 
@@ -224,7 +224,7 @@ class CarrierSpec:  # concept: tensor | role: component | kind: set
     SCOPE-BOUNDARY[guard]
     machinery: members that follow their space by type, so that the member class is a function of the space's content (W3)
     ruling: issue #707 (second comment, 2026-11-11, confirmed 2026-11-12) and section 6.5 of .claude/plans/ontology_w1_spec.md
-    revisit: W3, the known defect: two equal spaces carrying different carriers are equal and mint different member classes
+    revisit: W3, the known defect: two equal spaces carrying different carriers are equal and mint different member classes; the space's own verbs reach it, since partial duals composed to the all-slot dual carry the default pair (witness: the strict xfail in tests/gates/numerics/w1/test_n04_review_repairs.py)
     """
 
     member: type[Member] = Member
@@ -283,10 +283,11 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if cls.__qualname__ not in FUNCTION_SPACE_ARMS:
+        key = f"{cls.__module__}.{cls.__qualname__}"
+        if key not in FUNCTION_SPACE_ARMS:
             raise TypeError(
-                f"{cls.__qualname__}: arm is not on the FunctionSpace allow-list; a space is a TensorSpace over factors "
-                f"(the legacy arms are {sorted(FUNCTION_SPACE_ARMS)})"
+                f"{key}: arm is not on the FunctionSpace allow-list; a space is a TensorSpace over factors "
+                f"(the arms are {sorted(FUNCTION_SPACE_ARMS)})"
             )
 
     def __post_init__(self) -> None:
@@ -542,15 +543,31 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         Carrier-generic through :meth:`inner_product` — valid unchanged
         for a structured-carrier space that overrides the inner product.
 
-        Raises ``ValueError`` on a space whose resolved metric reads a negative direction, in every build: the square root of a signed
-        form is not a norm, and the Krein arm of the form is not built (issue #706). The reading is exact on a diagonal form (and on its
-        dual and its tensor products) and declared as 0 on a dense one, whose positivity rests on the formal path, so a raw indefinite
-        dense form under ``python -O`` is not refused here.
+        Raises ``ValueError`` on a space that reads a negative direction (:attr:`negative`, summed over the members of a composite), in every
+        build: the square root of a signed form is not a norm, and the Krein arm of the form is not built (issue #706). The reading is exact on a
+        diagonal form (and on its dual and its tensor products) and declared as 0 on a dense one, whose positivity rests on the formal path; a
+        raw indefinite dense form under ``python -O`` is caught by the one exact check left, a negative :math:`\langle x, x\rangle`, with the
+        same message.
         """
+        _require_positive(self, "FunctionSpace.norm")
+        square = self.inner_product(x, x)
+        if square < 0.0:
+            raise ValueError(
+                f"FunctionSpace.norm needs a positive form: <x, x> = {square} is negative, and the Krein arm of the form is not built (issue #706)"
+            )
+        return float(np.sqrt(square))
+
+    @property
+    def negative(self) -> int:
+        r"""The number of negative directions of the space's form: its resolved metric's, 0 on the Euclidean space; a composite sums its members'."""
         m = self._resolved_metric
-        if m is not None:
-            _require_positive(m, "FunctionSpace.norm")
-        return float(np.sqrt(self.inner_product(x, x)))
+        return 0 if m is None else m.negative
+
+    @property
+    def positive(self) -> bool:
+        r"""Whether the space's form has no negative direction: the predicate :func:`~orpheus.numerics.metric._require_positive` asks of a space
+        and of a form alike."""
+        return self.negative == 0
 
     def flat(self, density: Any) -> Covector:
         r"""Mint the co-vector :math:`\flat_V w = G\,w`, the functional :math:`\langle w, \cdot\rangle_V`.
@@ -1119,12 +1136,12 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
         return self._metric_on(frozenset(self.labels))
 
     def apply_metric(self, x: Any) -> Any:
-        r"""The metric :math:`G x`: :meth:`flat_on` over the formed slots."""
-        return self.flat_on(self.leading_coordinates_of(x), self.formed_labels)
+        r"""The metric :math:`G x`: :meth:`flat_on` over every slot (a ``NoForm`` slot is skipped by the walk)."""
+        return self.flat_on(self.leading_coordinates_of(x), self.labels)
 
     def apply_inverse_metric(self, x: Any) -> Any:
-        r"""The pseudo-inverse metric :math:`G^{+} x`: :meth:`sharp_on` over the formed slots."""
-        return self.sharp_on(self.leading_coordinates_of(x), self.formed_labels)
+        r"""The pseudo-inverse metric :math:`G^{+} x`: :meth:`sharp_on` over every slot (a ``NoForm`` slot is skipped by the walk)."""
+        return self.sharp_on(self.leading_coordinates_of(x), self.labels)
 
     def flat(self, density: Any) -> Covector:
         r"""The covector :math:`\flat_V w = G w`: :meth:`flat_on` over every slot, a member of the dual space."""
@@ -1143,28 +1160,33 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
         r"""The dual on the slots ``on`` (every slot by default): each of those factors dualised, the others unchanged.
 
         ``dual(on=L).dual(on=M) == dual(on=L ^ M)`` (law L4) and ``dual(on=all) is dual()``, memoised (so ``V.dual().dual() is V``);
-        ``on=()`` is the space itself; an unknown label is a ``KeyError``. The member class follows the space: the all-slot dual carries the
-        swapped carrier, a partial dual the carrier of its source.
+        ``on=()`` is the space itself; an unknown label is a ``KeyError``. The member class is a function of the factors: a flip that lands on the
+        space itself or on its all-slot dual returns that memoised object (so composed partial duals reach ``V.dual()`` with its carrier), and a
+        genuinely partial dual carries the default pair, whichever route reached it.
         """
-        if on is None:
-            return cast("TensorSpace", self._dual)
-        labels = self._labels(on)
-        if not labels:
-            return self
-        if labels == frozenset(self.labels):
-            return cast("TensorSpace", self._dual)
-        return self._again(tuple(f.dual() if f.axis.label in labels else f for f in self.factors), self.carrier)
+        return self._flip(on, Factor.dual)
 
     def riesz(self, on: Any = None) -> "TensorSpace":
         r"""The Riesz image on the slots ``on`` (every slot by default): the chart of each flipped through its form (law L5).
 
-        Refused, "riesz is not defined: ", where a slot of ``on`` is formless: a change of chart needs a form to pass through.
+        Refused, "riesz is not defined: ", where a slot of ``on`` is formless: a change of chart needs a form to pass through. The member class
+        follows the factors, as for :meth:`dual`.
         """
         labels = frozenset(self.labels) if on is None else self._labels(on)
         formless = [f.axis.label for f in self.factors if f.axis.label in labels and isinstance(f.variance, FormlessVariance)]
         if formless:
             raise ValueError(f"riesz is not defined: the slots {formless} have no form to change the chart through")
-        return self._again(tuple(f.riesz() if f.axis.label in labels else f for f in self.factors), self.carrier)
+        return self._flip(on, Factor.riesz)
+
+    def _flip(self, on: Any, per_factor: Callable[[Factor], Factor]) -> "TensorSpace":
+        r"""The one core of :meth:`dual` and :meth:`riesz`: ``per_factor`` on each slot of ``on``, the others unchanged, in the carrier that
+        the resulting factors name (the space itself, its memoised all-slot dual, or the default pair)."""
+        labels = frozenset(self.labels) if on is None else self._labels(on)
+        factors = tuple(per_factor(f) if f.axis.label in labels else f for f in self.factors)
+        if factors == self.factors:
+            return self
+        flipped = cast("TensorSpace", self._dual)
+        return flipped if factors == flipped.factors else self._again(factors, None)
 
     def _make_dual(self) -> "TensorSpace":
         carrier = (self.carrier if self.carrier is not None else CarrierSpec()).dual()
@@ -1201,7 +1223,11 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
 
 
 def _counting_factor(f: Factor) -> Factor:
-    r"""The slot ``f`` with its axis replaced by the counting axis over the same shape, whole, in the variance it had."""
+    r"""The slot ``f`` with its axis replaced by the counting axis over the same shape, whole, in the variance it had.
+
+    A formless variance is re-stated as the literal :class:`Variance` it implies (the production-mint gate requires every mint to state its variance
+    literally, so the map :attr:`FormlessVariance.kind` and :attr:`FormlessVariance.chart` define is written out here, not read).
+    """
     shape = f.axis.shape
     axis = Axis(f.axis.label, shape, origin=Declared(BasisKind.NODAL, DiagonalMetric.counting(shape)))
     whole = Subquotient.whole(int(np.prod(shape)))
