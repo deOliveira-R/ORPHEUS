@@ -20,9 +20,10 @@ not a value of either type. :attr:`Factor.kind` and :attr:`Factor.chart` read th
 The form a subquotient induces
 ==============================
 
-On the density end the form of :math:`S/K` is the coset minimum of the axis form: the quadratic form minimised over each coset
-of :math:`K`, the Schur complement of the Gram on the quotient; on a diagonal form it is the weights on :math:`S \setminus K` and
-zero elsewhere.
+On the density end the form of :math:`S/K` is the Schur complement of the axis form on the quotient, a STATIONARY value and not a
+minimum: the quadratic form made stationary over each coset of :math:`K`. A form that is indefinite on :math:`K` has no minimum, and
+the Schur complement is still defined; on a diagonal form it is the weights on :math:`S \setminus K`, whatever their signs, and zero
+elsewhere.
 The form is computed once, at construction, so a constructed factor always has its form. On the integrated end it is the inverse face of its density partner: the density form with its ``face`` flipped
 on a dense form (:meth:`~orpheus.numerics.metric.DenseMetric.flipped`, one stated matrix and no second inversion), the dual
 metric of the density form on a diagonal form.
@@ -30,13 +31,17 @@ metric of the density form on a diagonal form.
 Constructibility
 ================
 
-The factor refuses, at construction, a slot on a singular form that is not quotiented by the form's kernel: a density factor
-needs :math:`S \cap \ker G \subseteq K`, an integrated factor needs its density partner (its ``riesz`` image) to satisfy it. It
-refuses an indefinite diagonal form when a weight anywhere in :math:`S` of the density partner is negative, on :math:`S \setminus K`
-and on :math:`K` alike: the coset minimum :math:`\min_{k \in K} (x + k)^{\mathsf T} G (x + k)` of a diagonal form with a negative
-weight at an index of :math:`K` is minus infinity, so no induced form exists. A negative weight outside :math:`S` does not enter the
-restriction and does not refuse. Positivity is required here, where the Hilbert structure begins, and the Krein arm of the form is
-not built (issue #706).
+The factor requires an INVERTIBLE induced form on :math:`S/K`, and positivity is asked by the verbs that need it
+(:meth:`~orpheus.numerics.space.FunctionSpace.norm` is the one that refuses a form with a negative direction). It refuses, at
+construction, a slot on a singular form that is not quotiented by the form's kernel: a density factor needs
+:math:`S \cap \ker G \subseteq K`, an integrated factor needs its density partner (its ``riesz`` image) to satisfy it. On a diagonal
+form the kernel is the exact zero set of the weights, so the condition decides invertibility exactly and a negative weight at any
+index is admitted. On a dense form the kernel is the declared kernel, the form is positive semi-definite where the formal path built
+it, and on such a form the same condition implies an invertible induced form, so no further test is made.
+
+:attr:`Factor.signature` reads the signature of the induced form (exactly, from the signs of the weights, on a diagonal form;
+declared by the kernel on a dense form) and :attr:`Factor.positive` is true when it has no negative direction. A formless factor has
+neither. The Krein arm of the form, which would give a signed space a norm, is not built (issue #706).
 """
 
 from __future__ import annotations
@@ -194,8 +199,8 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
     r"""One slot of a tensor product: an axis, the variance the slot is read in and the subquotient it spans.
 
     Refused at construction: a subquotient on another number of coordinates than the axis (``ValueError``); a variance of the
-    wrong type for the axis's form (``TypeError``); a slot on a singular form that is not quotiented by its kernel; an indefinite
-    diagonal form when a weight anywhere in ``S`` of the density partner is negative (the Krein arm, issue #706); the
+    wrong type for the axis's form (``TypeError``); a slot on a singular form that is not quotiented by its kernel (a negative weight of a diagonal form is
+    admitted: the form is required invertible, not positive); the
     zero-dimensional state on a dense form; a state whose induced form the table of :meth:`_density_form` does not build (a ``Spanned``
     kernel not the form's own, an annihilator that is not the form's). The induced form is built once, here, so no read of a constructed
     factor refuses.
@@ -246,23 +251,13 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         return self.sk if self.variance.chart is VarianceChart.DENSITY else self.sk.dual()
 
     def _require_constructible(self) -> None:
-        r"""Refuse a slot the form cannot induce: the negative-weight check on a diagonal form and the kernel quotient.
+        r"""Refuse a slot the form cannot induce an invertible form on: the kernel quotient.
 
-        For a density partner whose ``S`` is not a :class:`Coord` the negativity check reads every weight of the axis, since ``S`` has no
-        enumerable coordinates. On a diagonal form no such state constructs today (the induced-form table refuses a non-``Coord`` ``S`` on a
-        diagonal form), so only the message differs: the Krein refusal comes before the table's.
+        The density partner's ``S`` meets the form's kernel inside its ``K``. On a diagonal form the kernel is the exact zero set of the
+        weights, so this is exactly the statement that every weight on ``S`` minus ``K`` is nonzero, whatever its sign.
         """
         sk, form = self._density_partner(), self.axis.form
         assert not isinstance(form, NoForm)  # narrowing only: the formless case returned before
-        if isinstance(form, DiagonalMetric):
-            weights = _flat_weights(form)
-            # the weights the restriction to S reads: S itself, K included (a coset minimum over K of a negative weight is minus infinity)
-            in_s = sk.S.indices if isinstance(sk.S, Coord) else range(weights.size)
-            if bool((weights[list(in_s)] < 0.0).any()):
-                raise ValueError(
-                    "factor: the form has a negative weight on the subspace the slot ranges over, so it has no Hilbert chart; the Krein "
-                    "arm of the form is not built (issue #706)"
-                )
         kernel = form.kernel
         meet = intersect(sk.S, kernel)  # an undecided meet raises "subspace intersection is undecided"
         if not contains(sk.K, meet):
@@ -286,7 +281,7 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         return density.dual()
 
     def _density_form(self, sk: Subquotient, axis_form: DiagonalMetric | DenseMetric) -> DiagonalMetric | DenseMetric:
-        r"""The coset minimum of ``axis_form`` on ``sk``, stored on the axis's full index set."""
+        r"""The Schur complement of ``axis_form`` on ``sk`` (a stationary value, not a minimum), stored on the axis's full index set."""
         if sk.is_whole:
             return axis_form
         if isinstance(axis_form, DenseMetric) and isinstance(sk.S, Coord) and sk.S.dim == sk.S.n and isinstance(sk.K, Spanned):
@@ -298,6 +293,10 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
             keep[list(sk.live or ())] = True
             return DiagonalMetric(np.where(keep, _flat_weights(axis_form), 0.0).reshape(self.axis.shape))
         if isinstance(axis_form, DenseMetric) and isinstance(sk.S, Coord) and isinstance(sk.K, Coord):
+            # SCOPE-BOUNDARY[guard] a dense form on a factor is positive semi-definite by the formal path and its induced block is not tested
+            # machinery: an indefinite dense form arm with an exact rank decision (rational arithmetic, or a certificate from the producer)
+            # ruling: scratch/ontology/w1/open/N04/rulings.md (C1), the orchestrator, 2026-11-25
+            # revisit: #706
             live = list(sk.live or ())
             # the form is exactly zero on its own Coord kernel and couples to nothing there: eliminate only the rest of K
             own_kernel = set(axis_form.kernel.indices) if isinstance(axis_form.kernel, Coord) else set()
@@ -330,6 +329,23 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
     def chart(self) -> VarianceChart:
         r"""The slot's :class:`VarianceChart`, read off the variance of either type."""
         return self.variance.chart
+
+    @property
+    def signature(self) -> tuple[int, int, int]:
+        r"""``(n_+, n_0, n_-)`` of the induced form of the density partner, read once.
+
+        On a diagonal form the signs of the weights on ``S`` minus ``K`` are read exactly (the coordinates outside it read as zero); on a
+        dense form the signature is the declared ``(n - dim ker, dim ker, 0)``. A formless factor has no form and so no signature: the
+        property raises ``AttributeError``.
+        """
+        if self._induced is None:
+            raise AttributeError(f"factor: axis {self.axis.label!r} is formless, so its factor has no signature")
+        return self._induced.signature
+
+    @property
+    def positive(self) -> bool:
+        r"""Whether the induced form has no negative direction (``signature[2] == 0``); a formless factor has none to ask."""
+        return self.signature[2] == 0
 
     @property
     def stored_shape(self) -> tuple[int, ...]:

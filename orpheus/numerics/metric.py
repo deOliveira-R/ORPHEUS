@@ -3,10 +3,9 @@ r"""Hilbert metrics — a space's inner-product structure as an OBJECT.
 The metric of a discrete Hilbert space is a symmetric positive-semi-definite
 bilinear form :math:`G`: :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
 :class:`DiagonalMetric` may carry signed weights and reads its signature exactly;
-positivity is required where the Hilbert structure begins, on the
-:class:`~orpheus.numerics.factor.Factor` path and at the frame's mint
-(:func:`~orpheus.numerics.frame.frame_kernel`); a :class:`~orpheus.numerics.space.FunctionSpace` over a signed axis does not refuse
-(its norm reads ``nan``), a gap the later units of the space algebra close.
+the :class:`~orpheus.numerics.factor.Factor` requires an invertible form, not a positive one, and the verbs that need
+positivity ask for it (:meth:`~orpheus.numerics.space.FunctionSpace.norm` refuses a form with a negative direction, through
+:func:`_require_positive`); the frame's mint refuses an under-resolved Gram (:func:`~orpheus.numerics.frame.frame_kernel`).
 Until P7 (campaign 1) the tree could spell exactly two realizations, both
 *multiplied* into the element: a broadcast diagonal weight array (the
 Hadamard product :math:`G \odot x`) and the per-axis factor measures of an
@@ -192,7 +191,8 @@ def _exact_inverse(matrix: NDArray, kernel_dim: int) -> NDArray:
 
     Under ``if __debug__:`` the sign of ``u_i . vt_i`` (the sign of the i-th eigenvalue of a symmetric matrix) is tested on the
     kept directions, and a kept value that is not positive is refused: a kept exact zero contradicts the declared rank as surely as
-    a negative one. This is a misuse check on the raw path, not a guarantee, and it is not a rank detector: it sees only the sign of a
+    a negative one. This is a misuse check on the raw path, not a guarantee (it stays, as ruled for the raw constructor, and a dense form on a
+    factor is positive semi-definite by the formal path), and it is not a rank detector: it sees only the sign of a
     round-off eigenvalue, so an under-declared kernel whose smallest kept value is a round-off residue is caught only when that residue
     happens to be negative or zero (the measured rate over the deficient harness Grams is on the theory page, under the metric of a
     function space). A kept value that is tiny and positive is accepted in every build, and the inverse carries its reciprocal. Under
@@ -225,12 +225,22 @@ def _inverse_on_live_block(matrix: NDArray, kernel: Declaration) -> NDArray:
     return _exact_inverse(matrix, kernel.dim)
 
 
+def _require_positive(form: "HilbertMetric", verb: str) -> None:
+    r"""Refuse, for a verb that needs a positive form, a form with a negative direction: a real ``raise``, so it survives ``python -O``."""
+    minus = form.negative
+    if minus:
+        raise ValueError(
+            f"{verb} needs a positive form: this form has {minus} negative direction(s), and the Krein arm of the form is not built (issue #706)"
+        )
+
+
 def _masked_reciprocal(weights: NDArray) -> NDArray:
     r"""The reciprocal of the positive weights and exactly zero elsewhere: the diagonal integrated end of a frame head.
 
     ELEGANCE-DEBT[guard] #756 the two tagged readers of a diagonal frame head (``Factor.form``, #756, and the space's
     ``_entry_of_axis``, #755) spell this arithmetic once, here; it retires when N04 and N10 give the diagonal integrated end one
-    spelling, and the Krein arm (#706) decides what a negative weight reads.
+    spelling. A diagonal-verdict Gram has no negative diagonal entry (``discrete_gram_structure`` routes one to the dense arm), so the
+    ``> 0.0`` here never meets a negative weight.
     """
     live = weights > 0.0
     return np.where(live, 1.0 / np.where(live, weights, 1.0), 0.0)
@@ -303,8 +313,8 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
     r"""A symmetric positive-semi-definite bilinear form, as an object.
 
     A :class:`DiagonalMetric` is the one realization that may carry signed weights (it reads its :attr:`signature` exactly from
-    the signs); positivity is required on the factor path and at the frame's mint, where the Hilbert structure begins. A function
-    space over a signed axis does not refuse it (its norm is ``nan``); the later units of the space algebra close that gap.
+    the signs). A factor requires an invertible form, and the verbs that need positivity refuse a form with a negative direction
+    (:meth:`~orpheus.numerics.space.FunctionSpace.norm`).
 
     The contract is three verbs and one derived pairing:
 
@@ -338,9 +348,9 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
     def signature(self) -> tuple[int, int, int]:
         r"""``(n_+, n_0, n_-)``, read once over the form's declared :attr:`kernel` and its :attr:`negative` count.
 
-        A dense form's signature is DECLARED by its kernel (``negative`` is 0): the sign check of the raw constructor runs under
-        ``__debug__`` only, so under ``python -O`` a stated indefinite matrix reads ``(n - dim K, dim K, 0)``; the guarantee is the
-        frame's door, the formal path.
+        A diagonal form's signature is exact, read from the signs of its weights. A dense form's signature is DECLARED by its kernel
+        (``negative`` is 0): the sign check of the raw constructor runs under ``__debug__`` only, so under ``python -O`` a stated
+        indefinite matrix reads ``(n - dim K, dim K, 0)``; the guarantee is the frame's door, the formal path.
         """
         n, zero, minus = self.kernel.n, self.kernel.dim, self.negative
         return (n - zero - minus, zero, minus)

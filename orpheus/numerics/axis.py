@@ -86,7 +86,8 @@ used as a dict key. The atoms are stored the same way.
 
 Non-finite weights are **refused** (a measure's weights are finite numbers). There is deliberately **no non-negativity guard**
 on the axis: a quadrature axis legally carries signed weights (level-symmetric families with negative weights), and the
-factor, where the Hilbert structure begins, refuses an indefinite form where it matters.
+factor requires an invertible form and not a positive one, so a verb that needs positivity (``FunctionSpace.norm``) is the one that
+refuses a signed form.
 
 Identity — what fixes the factor's space (ruling 71)
 ====================================================

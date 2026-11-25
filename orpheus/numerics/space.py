@@ -86,6 +86,7 @@ from .metric import (
     HilbertMetric,
     PositionedMetric,
     _masked_reciprocal,
+    _require_positive,
 )
 
 if TYPE_CHECKING:
@@ -845,7 +846,13 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
 
         Carrier-generic through :meth:`inner_product` — valid unchanged
         for a structured-carrier space that overrides the inner product.
+
+        Raises ``ValueError`` on a space whose resolved metric has a negative direction: the square root of a signed form is not a norm,
+        and the Krein arm of the form is not built (issue #706).
         """
+        m = self._resolved_metric
+        if m is not None:
+            _require_positive(m, "FunctionSpace.norm")
         return float(np.sqrt(self.inner_product(x, x)))
 
     def flat(self, density: Any) -> Covector:

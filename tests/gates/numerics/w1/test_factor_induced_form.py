@@ -16,7 +16,7 @@ accepts. A constructed factor always reads, and ``riesz`` and ``dual`` are total
 with their forms, raise nothing.
 
 Exact on any host (a tolerance of ``1e-12`` between computations, exact zeros by construction of the live-block embedding, message fragments).
-First red at ``ff305e0f``: import-only (``orpheus.numerics.factor``; ``Face`` and the ``face`` keyword do not exist). Mutations: replace the coset minimum by
+First red at ``ff305e0f``: import-only (``orpheus.numerics.factor``; ``Face`` and the ``face`` keyword do not exist). Mutations: replace the Schur complement by
 the coordinate section (reddens by 3.09), use ``(G^-1)_SS`` for the integrated form (by 2.0e-01), the full-matrix SVD route for the inverse face (the
 all-pairs leg), the exact ``Coord`` test dropped, the image form taken as the stated matrix with no flip (off the identity by 207).
 """
@@ -72,7 +72,7 @@ def test_subquotient_normal_form_and_induced_form() -> None:
     f = P.density(ax, F.Subquotient(whole, Coord(n, (0,))))
     schur = g[1:, 1:] - np.outer(g[1:, 0], g[0, 1:]) / g[0, 0]
     got = np.asarray(f.form.matrix)[1:, 1:]
-    _require(float(np.max(np.abs(got - schur))) <= 1e-12, f"the coset minimum differs from the Schur complement by {np.max(np.abs(got - schur)):.2e}")
+    _require(float(np.max(np.abs(got - schur))) <= 1e-12, f"the induced form differs from the Schur complement by {np.max(np.abs(got - schur)):.2e}")
     _require(float(np.max(np.abs(g[1:, 1:] - schur))) > 1e-1, "the contrast (coordinate restriction against the Schur complement) is inert")
     _require(f.form.kernel == Coord(n, (0,)), f"the kernel is {f.form.kernel}, not Coord(4, (0,))")
     # the integrated end: (G_SS)^-1 and not (G^-1)_SS; the density form with its face flipped
