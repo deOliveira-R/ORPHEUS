@@ -25,7 +25,7 @@ def _require(cond: object, msg: str) -> None:
         pytest.fail(msg)
 
 
-def test_a_constructor_without_a_variance_is_refused() -> None:
+def test_declared_requires_a_variance() -> None:
     from orpheus.numerics import factor as F
     from orpheus.numerics.space import TensorSpace
 

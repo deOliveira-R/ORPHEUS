@@ -22,7 +22,7 @@ def _require(cond: object, msg: str) -> None:
         pytest.fail(msg)
 
 
-def test_retraction_reads_the_restricted_axis() -> None:
+def test_retraction_reads_the_factor() -> None:
     from orpheus.numerics.axis_marginal import AxisRetractionOperator
 
     TS = P.tensor_space()

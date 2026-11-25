@@ -53,9 +53,18 @@ def _defined(tree: ast.AST) -> set[str]:
 
 
 def _class_members(tree: ast.AST, name: str) -> set[str]:
+    """The names bound by the DIRECT body statements of class ``name`` (a local of a method or a nested def is not a member)."""
     for n in ast.walk(tree):
         if isinstance(n, ast.ClassDef) and n.name == name:
-            return _defined(ast.Module(body=n.body, type_ignores=[])) - {n.name}
+            out: set[str] = set()
+            for s in n.body:
+                if isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    out.add(s.name)
+                elif isinstance(s, ast.AnnAssign) and isinstance(s.target, ast.Name):
+                    out.add(s.target.id)
+                elif isinstance(s, ast.Assign):
+                    out |= {t.id for t in s.targets if isinstance(t, ast.Name)}
+            return out
     return set()
 
 
@@ -77,9 +86,11 @@ def test_the_instrument_finds_each_planted_name() -> None:
     _require(_space_findings(clean) == [], "the predicate reads a clean synthetic source as dirty")
     _require(_space_findings(clean + "\ndef _axis_entries(): pass") == ["_axis_entries is defined"], "a planted _axis_entries is not found")
     _require("FunctionSpace.axes is defined" in _space_findings("class FunctionSpace:\n    axes: tuple = ()\n"), "a planted axes field is not found")
+    _require(_space_findings("class FunctionSpace:\n    def f(self):\n        axes = 1\n") == [], "a local named axes inside a method reads as a field")
+    _require(_requires_tensor_space_own("class TensorSpace:\n    def g(self):\n        def of_axes(): ...\n        def __mul__(): ...\n") != [], "a nested def satisfies the TensorSpace leg")
 
 
-def test_space_py_carries_no_axes_arm_and_no_overlay() -> None:
+def test_no_axes_arm_and_no_overlay() -> None:
     src = (ROOT / "orpheus/numerics/space.py").read_text()
     found = _space_findings(src) + _requires_tensor_space_own(src)
     _require(not found, f"{len(found)} findings in numerics/space.py: {found}")

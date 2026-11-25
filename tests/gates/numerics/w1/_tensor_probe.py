@@ -79,23 +79,19 @@ def signed_pair_space() -> Any:
     return tensor_space().of_axes(a, b)
 
 
-def slot_order_flat(space: Any, x: np.ndarray, labels: tuple[str, ...], *, reverse: bool = False) -> np.ndarray:
-    """A HAND spelling of ``flat_on`` for diagonal forms: one broadcast product per formed slot in slot order (or reversed), written from the definition.
+def slot_order_flat(space: Any, x: np.ndarray, labels: tuple[str, ...], stated: dict[str, tuple[float, ...]], *, reverse: bool = False) -> np.ndarray:
+    """A HAND spelling of ``flat_on`` for diagonal forms, independent of production's form objects: one broadcast product per formed slot in slot order (or reversed).
 
-    It reads each factor's form weights and applies ``y * w`` along the slot's array axis; a ``NoForm`` slot is skipped.
+    ``stated`` maps a slot label to the weights the FIXTURE stated for it (``ANGULAR_W``, ``SIGNED_A`` ...); a label with no entry (a ``NoForm`` slot) is skipped. Only
+    the slot order of ``space`` is read from the space.
     """
-    from orpheus.numerics.metric import DiagonalMetric
-
-    slots = [f for f in space.factors if f.axis.label in labels]
+    order = [f.axis.label for f in space.factors]
+    slots = [l for l in order if l in labels and l in stated]
     if reverse:
         slots = slots[::-1]
     y = np.array(x, dtype=float)
-    for f in slots:
-        form = f.form
-        if not isinstance(form, DiagonalMetric):
-            continue
-        position = [g.axis.label for g in space.factors].index(f.axis.label)
+    for l in slots:
         shape = [1] * y.ndim
-        shape[position] = -1
-        y = y * np.asarray(form.weights, dtype=float).reshape(shape)
+        shape[order.index(l)] = -1
+        y = y * np.asarray(stated[l], dtype=float).reshape(shape)
     return y

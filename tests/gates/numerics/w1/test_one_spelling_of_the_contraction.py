@@ -85,6 +85,6 @@ def test_the_instrument_reads_a_good_source_clean_and_each_mutation_red() -> Non
     _require(any("_again" in f for f in findings(helper)), "a second walk helper is not found")
 
 
-def test_the_metric_verbs_of_tensor_space_delegate() -> None:
+def test_one_spelling_of_the_contraction() -> None:
     found = findings((ROOT / "orpheus/numerics/space.py").read_text())
     _require(not found, f"{len(found)} findings in class TensorSpace: {found}")

@@ -2,7 +2,7 @@ r"""G04b, G04j, G04k, G04n: the Klein action of a factor lifts to the tensor spa
 
 G04b. On a fresh space ``V.dual().factor(l)`` is ``V.factor(l).dual()`` (flipped kind, chart and subquotient) and ``V.dual().axis(l) == V.axis(l)`` for every label, on a
 whole space, on a partial dual and on a quotient (the zero-weight slot of ``Diag(0.3, -1.1, 0.9, 0)`` taken modulo its kernel).
-G04j. Over a whole space, a ``Coord`` quotient of dimension 2 of 3 and a ``Spanned`` quotient, ``X.dual()`` and ``X.riesz()`` keep ``shape`` and each factor's ``stored_shape``.
+G04j. Over a whole formed space (angular and spatial; ``riesz`` is refused on a formless energy slot, L5), a ``Coord`` quotient of dimension 2 of 3 and a ``Spanned`` quotient, ``X.dual()`` and ``X.riesz()`` keep ``shape`` and each factor's ``stored_shape``.
 G04k. L2: ``(S (x) T).dual() == S.dual() (x) T.dual()`` slot-wise and is not ``T.dual() (x) S.dual()``; L4: ``dual(on=L).dual(on=M) == dual(on=L triangle M)`` over all 64
 label pairs of a three-slot space, ``dual(on=all) == dual()``, ``on=()`` is the identity (same object), ``KeyError`` on an unknown label; L5: ``riesz(on={"energy"})`` is
 refused with the message "riesz is not defined: ". Each law runs on a positive and on a signed angular diagonal form.
@@ -49,7 +49,8 @@ def _quotients() -> dict[str, object]:
     coord = P.density_factor(P.diag_axis((1.0, 2.0, 3.0), "c"), sk=F.Subquotient(Coord(3, (0, 1, 2)), Coord(3, (2,))))
     axis, kernel, _g = FP.dense_axis(4, 3, True)
     spanned = F.Factor(axis, F.Variance(F.Kind.MEASURE, F.VarianceChart.DENSITY), F.Subquotient(Coord(4, (0, 1, 2, 3)), kernel))
-    return {"whole": P.triple_space(), "coord 2 of 3": TS.of_axes(coord), "spanned": TS.of_axes(spanned)}
+    formed = TS.of_axes(P.density_factor(P.diag_axis(P.ANGULAR_W, "angular")), P.density_factor(P.diag_axis(P.SPATIAL_W, "spatial")))
+    return {"whole": formed, "coord 2 of 3": TS.of_axes(coord), "spanned": TS.of_axes(spanned)}
 
 
 def test_dual_keeps_the_factors() -> None:

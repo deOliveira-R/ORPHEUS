@@ -57,7 +57,7 @@ def test_the_flux_spaces_carry_the_declared_variance() -> None:
     _require(cells == {"energy": FormlessVariance.MEASURE, "spatial": measure_density}, f"diffusion slab bulk space variances: {cells}")
 
 
-def test_the_function_role_is_derived_from_the_bulk_space() -> None:
+def test_sd35b_function_role_is_derived() -> None:
     from orpheus.numerics.factor import Factor, FormlessVariance, Kind, Subquotient, Variance, VarianceChart
     from orpheus.numerics.space import TensorSpace
 

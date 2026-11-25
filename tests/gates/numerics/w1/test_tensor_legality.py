@@ -35,10 +35,11 @@ def _states(n: int) -> list[tuple[tuple[int, ...], tuple[int, ...]]]:
     return FP.pairs(n)
 
 
-def test_slotwise_constructibility_is_the_set_rule() -> None:
+@pytest.mark.parametrize("w3, w4", [((1.0, 2.0, 3.0), (1.0, 2.0, 3.0, 0.0)), ((1.0, -2.0, 3.0), (1.0, 2.0, -3.0, 0.0))], ids=["positive", "signed"])
+def test_slotwise_constructibility_is_the_set_rule(w3: tuple[float, ...], w4: tuple[float, ...]) -> None:
     from orpheus.numerics import factor as F
 
-    ax3, ax4 = P.diag_axis((1.0, 2.0, 3.0), "x"), P.diag_axis((1.0, 2.0, 3.0, 0.0), "y")
+    ax3, ax4 = P.diag_axis(w3, "x"), P.diag_axis(w4, "y")
     ker3, ker4 = set(), {3}
     TS = P.tensor_space()
     s3, s4 = _states(3), _states(4)

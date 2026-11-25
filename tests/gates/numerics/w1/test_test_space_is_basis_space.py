@@ -37,7 +37,7 @@ def _indicator(test_weight: np.ndarray | None):
     return PetrovGalerkinFrame(trial, measure, WeightedIndicatorBasis(trial, test_weight))
 
 
-def test_test_space_is_basis_space_on_a_galerkin_frame() -> None:
+def test_sd35a_test_space_is_basis_space() -> None:
     from orpheus.numerics.factor import Kind, Variance, VarianceChart
     from orpheus.numerics.frame_faces import angular_frame, basis_space, test_space
     from orpheus.numerics.quadrature.directional import Quadrature

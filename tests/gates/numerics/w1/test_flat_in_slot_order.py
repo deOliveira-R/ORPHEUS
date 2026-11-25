@@ -1,6 +1,6 @@
 r"""G04e and G04f: the Kronecker walk is in slot order, and the energy window reads today's norm (N04, spec 7.5; law L8; decision ``[ON04-5]``).
 
-G04e. On 200 seeded draws the gate spells the per-slot products itself (``_tensor_probe.slot_order_flat``: one broadcast product per formed slot, in slot order, or reversed), and
+G04e. On 200 seeded draws the gate spells the per-slot products itself (``_tensor_probe.slot_order_flat``: one broadcast product per formed slot, in slot order, or reversed, from the weights the FIXTURE stated and not from production's form objects), and
 ``flat_on(x, formed labels)`` is byte-equal to the slot-order spelling on 200 of 200 draws while the reversed spelling differs from it on at least 190 of the 200 (the opening measured
 200 of 200 on the SN slab angular bulk space; 197 of 200 on the signed pair; the bound 190 is the gate's positive control that the instrument sees order), over (a) a positive angular-energy-spatial
 space and (b) a signed pair ``Diag(1.3, -0.7, 2.1)`` and ``Diag(0.3, -1.1, 0.9, 0)`` (the second taken modulo its kernel). The harness' stored bytes (G00a) are the cross-check.
@@ -30,29 +30,34 @@ def _require(cond: object, msg: str) -> None:
         pytest.fail(msg)
 
 
-def _walk_rows(space: object, labels: tuple[str, ...]) -> tuple[int, int]:
+def _walk_rows(space: object, labels: tuple[str, ...], stated: dict[str, tuple[float, ...]]) -> tuple[int, int]:
     rng = np.random.default_rng(20261125)
     equal_slot = differs_reversed = 0
     for _ in range(N_DRAWS):
         x = rng.standard_normal(space.shape)
         live = space.flat_on(x, set(labels))
-        slot = P.slot_order_flat(space, x, labels)
-        rev = P.slot_order_flat(space, x, labels, reverse=True)
+        slot = P.slot_order_flat(space, x, labels, stated)
+        rev = P.slot_order_flat(space, x, labels, stated, reverse=True)
         equal_slot += int(live.tobytes() == slot.tobytes())
         differs_reversed += int(rev.tobytes() != slot.tobytes())
     return equal_slot, differs_reversed
 
 
-def test_flat_in_slot_order_positive() -> None:
+def test_flat_in_slot_order() -> None:
+    _flat_in_slot_order_positive()
+    _flat_in_slot_order_signed()
+
+
+def _flat_in_slot_order_positive() -> None:
     V = P.triple_space()
-    equal_slot, differs = _walk_rows(V, ("angular", "spatial"))
+    equal_slot, differs = _walk_rows(V, ("angular", "spatial"), {"angular": P.ANGULAR_W, "spatial": P.SPATIAL_W})
     _require(equal_slot == N_DRAWS, f"flat_on equals the slot-order spelling on {equal_slot} of {N_DRAWS} draws")
     _require(differs >= MIN_REVERSED_DIFFERS, f"the reversed spelling differs on {differs} of {N_DRAWS} draws: the instrument does not see slot order")
 
 
-def test_flat_in_slot_order_signed() -> None:
+def _flat_in_slot_order_signed() -> None:
     V = P.signed_pair_space()
-    equal_slot, differs = _walk_rows(V, ("a", "b"))
+    equal_slot, differs = _walk_rows(V, ("a", "b"), {"a": P.SIGNED_A, "b": P.SIGNED_B})
     _require(equal_slot == N_DRAWS, f"flat_on equals the slot-order spelling on {equal_slot} of {N_DRAWS} draws (signed blocks)")
     _require(differs >= MIN_REVERSED_DIFFERS, f"the reversed walk differs on {differs} of {N_DRAWS} draws on the signed pair")
 
