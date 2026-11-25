@@ -2,10 +2,12 @@ r"""G03e: a form reads its kernel and its signature exactly, and a factor admits
 
 The kernel of ``Diag([1, 0, 2])`` is ``Coord(3, (1,))`` exactly and ``signature == (2, 1, 0)``; a signed ``Diag([1, -1, 2])`` reads
 ``signature == (2, 0, 1)``. A ``Factor`` on the signed form is constructed for every ``Coord`` pair ``(S, K)`` whose kernel condition holds: the
-form's kernel is its exact zero set, and ``Diag([1, -1, 2])`` has none. ``Factor.signature`` is ``(n_+, n_0, n_-)`` read on the induced form, the
-weights on ``S minus K`` and zero elsewhere, and ``Factor.positive`` is ``signature[2] == 0``: ``S = (0, 1, 2)`` with ``K = ()`` reads
-``(2, 0, 1)`` and not positive; with ``K = (1,)`` it reads ``(2, 1, 0)`` and positive; ``S = (0, 1)`` with ``K = (1,)`` reads ``(1, 2, 0)``; and
-``S = (0, 2)`` with ``K = ()`` reads ``(2, 1, 0)`` and positive, its induced weights ``[1, 0, 2]``. A formless factor has no ``signature``
+form's kernel is its exact zero set, and ``Diag([1, -1, 2])`` has none. ``Factor.signature`` is ``(n_+, 0, n_-)`` of the induced form ON the quotient ``S/K`` (ruling Q2 of the orchestrator, 2026-11-25): the
+counts of the positive and the negative weights on ``S minus K`` of the density partner, with ``n_+ + n_- == dim`` and the middle zero the
+invariant that the induced form is invertible; ``Factor.positive`` is the induced form's ``HilbertMetric.positive`` (ruling Q1). ``S = (0, 1, 2)``
+with ``K = ()`` reads ``(2, 0, 1)`` and not positive; with ``K = (1,)`` it reads ``(2, 0, 0)`` and positive; ``S = (0, 1)`` with ``K = (1,)``
+reads ``(1, 0, 0)``, a one-dimensional quotient; and ``S = (0, 2)`` with ``K = ()`` reads ``(2, 0, 0)`` and positive, its induced weights
+``[1, 0, 2]``. A formless factor has no ``signature``
 (``AttributeError``). ``DiagonalMetric.counting((2, 3))`` has weights ``ones((2, 3))``; a ``DenseMetric`` with a ``Spanned`` kernel of
 dimension 1 on 3 coordinates has ``signature == (2, 1, 0)``.
 
@@ -13,7 +15,7 @@ Exact on any host (signs, counts and index sets). Every expected value is writte
 (``c18f156f``) the first three states were refused (``Factor`` refused a negative weight on ``S``), ``Factor.signature`` did not exist, and the
 population read 72 constructed and 252 refused, 180 of 324 verdicts agreeing with the hand rule. Mutations: reinstalling the negative-weight refusal
 in ``Factor._require_constructible`` reddens the first state; ``signature`` counting a negative weight as positive reddens the ``(2, 0, 1)`` row;
-``positive`` hard-wired to True reddens the first state; the zero weights read as nonzero in the count reddens the ``(2, 1, 0)`` rows; ``dual``
+``positive`` hard-wired to True reddens the first state; counting on the stored index set (the zero weights in ``n_0``) reddens the ``(2, 0, 0)`` and ``(1, 0, 0)`` rows; ``dual``
 keeping the kind reddens the flips of the population; a formless ``signature`` whose contract is a bare ``assert`` (stripped under ``-O``, so the
 read falls through to an ``AttributeError`` on ``None``) reddens the formless row, which reads the message of the error.
 """
@@ -52,12 +54,12 @@ def test_form_kernel_and_signature() -> None:
     _require(dense.signature == (2, 1, 0), f"a dense form with a Spanned kernel of dimension 1 reads signature {dense.signature}")
     ax = P.diag_axis([1.0, -1.0, 2.0])
     v = F.Variance(F.Kind.MEASURE, F.VarianceChart.DENSITY)
-    # (S, K, the signature and the positive flag by hand: n_+ and n_- count the signs of the weights on S minus K, n_0 the other indices)
+    # (S, K, the signature and the positive flag by hand: n_+ and n_- count the signs of the weights on S minus K, and n_0 is 0 on the quotient)
     rows = (
         ((0, 1, 2), (), (2, 0, 1), False),
-        ((0, 1, 2), (1,), (2, 1, 0), True),
-        ((0, 1), (1,), (1, 2, 0), True),
-        ((0, 2), (), (2, 1, 0), True),
+        ((0, 1, 2), (1,), (2, 0, 0), True),
+        ((0, 1), (1,), (1, 0, 0), True),
+        ((0, 2), (), (2, 0, 0), True),
     )
     for S, K, want_signature, want_positive in rows:
         try:
@@ -105,6 +107,8 @@ def test_a_factored_metric_reads_the_signature_of_its_blocks() -> None:
 def _hand_rule(weights: tuple[float, ...], sk: Any, variance: Any, F: Any) -> tuple[bool, np.ndarray | None, tuple[int, int, int] | None, bool | None]:
     r"""``(constructs, induced density weights, signature, positive)`` of one state, from the definitions and with no production predicate.
 
+    The signature is the one of the induced form on the quotient ``S/K``: ``(n_+, 0, n_-)`` over the indices of ``S minus K`` of the partner.
+
     The density partner of the state is ``(S, K)`` on a density chart and ``(Ann K, Ann S)`` on an integrated chart (complements on the index
     set). The state constructs iff no zero-weight index lies in the partner's ``S`` outside its ``K`` (``S ∩ ker G ⊆ K``, the kernel of a
     diagonal form being its exact zero set); the induced weights are the weights on ``S minus K`` and zero elsewhere.
@@ -119,7 +123,7 @@ def _hand_rule(weights: tuple[float, ...], sk: Any, variance: Any, F: Any) -> tu
     induced = np.array([weights[i] if i in live else 0.0 for i in range(n)])
     plus = sum(1 for i in live if weights[i] > 0.0)
     minus = sum(1 for i in live if weights[i] < 0.0)
-    return True, induced, (plus, n - plus - minus, minus), minus == 0
+    return True, induced, (plus, 0, minus), minus == 0
 
 
 def _population(weights: tuple[float, ...]) -> dict[str, int]:
@@ -133,7 +137,7 @@ def _population(weights: tuple[float, ...]) -> dict[str, int]:
     from orpheus.numerics import factor as F
 
     axis = P.diag_axis(list(weights))
-    out = dict.fromkeys(("states", "constructed", "refused", "hand", "verdict", "form", "signature", "positive", "dual_dual", "riesz_riesz", "flips", "commute"), 0)
+    out = dict.fromkeys(("states", "constructed", "refused", "hand", "verdict", "form", "signature", "quotient", "positive", "dual_dual", "riesz_riesz", "flips", "commute"), 0)
     for S, K in P.pairs(len(weights)):
         sk = P.sk_of(len(weights), S, K)
         for v in P.variances():
@@ -153,6 +157,9 @@ def _population(weights: tuple[float, ...]) -> dict[str, int]:
             hand_form = induced if v.chart is F.VarianceChart.DENSITY else np.array([1.0 / x if x != 0.0 else 0.0 for x in induced])
             out["form"] += bool(np.array_equal(np.asarray(f.form.apply(np.ones(len(weights)))), hand_form))
             out["signature"] += getattr(f, "signature", None) == want_sig
+            got = getattr(f, "signature", None)
+            # the unit's invariant, read from the value: no kernel on the quotient, and the counts add up to the dimension of S/K (by hand: |S| - |K|)
+            out["quotient"] += got is not None and got[1] == 0 and got[0] + got[2] == len(sk.S.indices) - len(sk.K.indices)
             out["positive"] += getattr(f, "positive", None) is want_pos
             out["dual_dual"] += f.dual().dual() == f
             out["riesz_riesz"] += f.riesz().riesz() == f
@@ -177,7 +184,8 @@ def test_the_signed_diagonal_population_constructs_exactly_where_the_hand_rule_s
     construct and 108 are refused, exactly the states a zero weight (index 3) lies in the partner's ``S`` outside its ``K``. On every constructed
     state the induced form, the signature and the ``positive`` flag equal the hand rule, and ``dual`` and ``riesz`` are involutions that commute and flip what the hand rule says (L3: ``dual`` reverses the kind and the chart, ``riesz`` the chart, both take the subquotient to ``(Ann K, Ann S)``). The
     positive control ``[1, 2, 3, 0]`` has the same zero index and reads the same 216 and 324 of 324. Exact: index sets, signs and the bytes of
-    reciprocals of small weights. Mutation: a negative-weight refusal on ``S`` of the density partner reads 180 of 324 verdicts (the base of N03b) and a
+    reciprocals of small weights. The ``quotient`` row (``signature[1] == 0`` and ``signature[0] + signature[2] == dim``) reddens when the factor counts on the stored index set.
+    Mutation: a negative-weight refusal on ``S`` of the density partner reads 180 of 324 verdicts (the base of N03b) and a
     refusal on ``self.sk.S`` disagrees on the integrated states."""
     for weights in ((1.0, -1.0, 2.0, 0.0), (1.0, 2.0, 3.0, 0.0)):
         c = _population(weights)
@@ -190,6 +198,7 @@ def test_the_signed_diagonal_population_constructs_exactly_where_the_hand_rule_s
         )
         _require(c["form"] == 216, f"{label}: the induced form agrees on {c['form']} of 216 constructed states")
         _require(c["signature"] == 216, f"{label}: the signature agrees on {c['signature']} of 216 constructed states")
+        _require(c["quotient"] == 216, f"{label}: the signature reads n_0 == 0 and n_+ + n_- == dim on {c['quotient']} of 216 constructed states")
         _require(c["positive"] == 216, f"{label}: the positive flag agrees on {c['positive']} of 216 constructed states")
         _require(
             c["dual_dual"] == 216 and c["riesz_riesz"] == 216 and c["commute"] == 216 and c["flips"] == 216,

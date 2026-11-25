@@ -4,11 +4,12 @@ The metric of a discrete Hilbert space is a symmetric bilinear form :math:`G`
 (positive semi-definite, except a signed :class:`DiagonalMetric`): :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
 :class:`DiagonalMetric` may carry signed weights and reads its signature exactly;
 the :class:`~orpheus.numerics.factor.Factor` requires an invertible form, not a positive one, and the verbs that need
-positivity ask for it. Of the verbs that need positivity two refuse a signed form:
-:meth:`~orpheus.numerics.space.FunctionSpace.norm` on a space whose metric reads a negative direction (through
-:func:`_require_positive`) and the weighted orthonormalisation (on a vanishing metric); the dense kernel basis, the kernel projection
-gauge's displacement and the norm of a composite space do not refuse (an indefinite dense form has no producer, the gauge path is refused
-upstream, and the composite norm is owed to issue #706); the frame's mint refuses an under-resolved Gram (:func:`~orpheus.numerics.frame.frame_kernel`).
+positivity ask for it, through the one predicate :attr:`HilbertMetric.positive`. Of the 5 verbs that need positivity, 3 refuse a form that
+reads a negative direction: :meth:`~orpheus.numerics.space.FunctionSpace.norm` and the weighted orthonormalisation
+(:meth:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators`), both through :func:`_require_positive`, and the
+frame's mint, which refuses an under-resolved Gram (:func:`~orpheus.numerics.frame.frame_kernel`). The other 2 of the 5, the dense kernel
+basis and the kernel projection gauge's displacement, do not refuse (an indefinite dense form has no producer, and the gauge path is refused
+upstream); the norm of a composite space, which also does not refuse, is owed to issue #706.
 Until P7 (campaign 1) the tree could spell exactly two realizations, both
 *multiplied* into the element: a broadcast diagonal weight array (the
 Hadamard product :math:`G \odot x`) and the per-axis factor measures of an
@@ -230,8 +231,8 @@ def _inverse_on_live_block(matrix: NDArray, kernel: Declaration) -> NDArray:
 
 def _require_positive(form: "HilbertMetric", verb: str) -> None:
     r"""Refuse, for a verb that needs a positive form, a form with a negative direction: a real ``raise``, so it survives ``python -O``."""
-    minus = form.negative
-    if minus:
+    if not form.positive:
+        minus = form.negative
         raise ValueError(
             f"{verb} needs a positive form: this form has {minus} negative direction(s), and the Krein arm of the form is not built (issue #706)"
         )
@@ -318,7 +319,8 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
     A :class:`DiagonalMetric` is the one realization that may carry signed weights (it reads its :attr:`signature` exactly from
     the signs); every other realization is positive semi-definite by the formal path. A factor requires an invertible form, and
     positivity is asked by the verbs that need it: :meth:`~orpheus.numerics.space.FunctionSpace.norm` refuses a form that reads a
-    negative direction (exact on a diagonal form, declared as 0 on a dense one), and not every verb that needs positivity does.
+    negative direction (exact on a diagonal form, declared as 0 on a dense one); 3 of the 5 verbs that need positivity refuse (the module
+    docstring names them).
 
     The contract is three verbs and one derived pairing:
 
@@ -349,8 +351,22 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
         return 0
 
     @property
+    def positive(self) -> bool:
+        r"""Whether the form has no negative direction: the one predicate of "this form is positive".
+
+        :func:`_require_positive`, :attr:`~orpheus.numerics.factor.Factor.positive` and the weighted orthonormalisation
+        (:meth:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators`) all ask it. Exact on a diagonal form
+        (the signs of the weights) and on its dual and tensor products; on a dense form it is the declared value (``negative`` is 0),
+        and the scope boundary of the declared signature (:attr:`~orpheus.numerics.factor.Factor.signature`, issue #706) covers it.
+        """
+        return self.negative == 0
+
+    @property
     def signature(self) -> tuple[int, int, int]:
-        r"""``(n_+, n_0, n_-)``, read once over the form's declared :attr:`kernel` and its :attr:`negative` count.
+        r"""``(n_+, n_0, n_-)`` on the form's stored index set, read once over the declared :attr:`kernel` and the :attr:`negative` count.
+
+        This is the signature of the form on its stored index set, with the kernel in ``n_0``; the signature of a factor's induced form
+        on the quotient ``S/K`` is :attr:`~orpheus.numerics.factor.Factor.signature`, whose ``n_0`` is 0.
 
         A diagonal form's signature is exact, read from the signs of its weights. A dense form's signature is DECLARED by its kernel
         (``negative`` is 0): the sign check of the raw constructor runs under ``__debug__`` only, so under ``python -O`` a stated

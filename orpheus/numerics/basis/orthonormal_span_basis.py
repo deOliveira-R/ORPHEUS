@@ -44,6 +44,7 @@ from orpheus.geometry.manifold import Manifold
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.coefficient_layout import ModeLayout
 from orpheus.numerics.index_set import IndexSet
+from orpheus.numerics.metric import DiagonalMetric, _require_positive
 
 __all__ = ["OrthonormalSpanBasis", "SPAN_RANK_RTOL"]
 
@@ -105,8 +106,10 @@ class OrthonormalSpanBasis(Basis):  # concept: basis | role: arm | kind: morphis
 
         ``generators`` is ``(n_support, n_generators)``; ``weights`` is the
         metric's diagonal on the support, ``(n_support,)``, every entry
-        positive (a zero-metric row has no minimum-norm representative to
-        choose, and the :math:`\sqrt G` division would fail). A rank-0 span
+        positive. A NEGATIVE weight is refused as a verb that needs a positive form
+        (:func:`~orpheus.numerics.metric._require_positive`, the helper of
+        :meth:`~orpheus.numerics.space.FunctionSpace.norm`, naming the Krein arm and issue #706); a ZERO weight is refused for its own
+        reason (a zero-metric row has no minimum-norm representative to choose, and the :math:`\sqrt G` division would fail). A rank-0 span
         returns a ``(n_support, 0)`` table.
         """
         columns = np.asarray(generators, dtype=float)
@@ -116,9 +119,10 @@ class OrthonormalSpanBasis(Basis):  # concept: basis | role: arm | kind: morphis
                 f"OrthonormalSpanBasis {label!r}: generators must be (n_support, n_generators) and weights "
                 f"(n_support,), got {columns.shape} and {metric.shape}."
             )
+        _require_positive(DiagonalMetric(metric), "OrthonormalSpanBasis.of_generators")
         if not np.all(metric > 0.0):
             raise ValueError(
-                f"OrthonormalSpanBasis {label!r}: {int(np.sum(metric <= 0.0))} support row(s) carry a vanishing "
+                f"OrthonormalSpanBasis {label!r}: {int(np.sum(~(metric > 0.0)))} support row(s) carry a vanishing "
                 f"metric. Every value on such a row has the same (zero) G-norm, so there is no minimum-norm "
                 f"member to choose, and the sqrt(G) orthonormalisation would divide by zero: exclude those rows "
                 f"from the support."

@@ -564,7 +564,7 @@ legally carry signed weights (level-symmetric families with negative
 weights are real, shipped objects), and the axis is the wrong layer to
 outlaw them. `[M]` ``Axis("x", (2,),
 origin=Declared(BasisKind.NODAL, DiagonalMetric([-1.0, 2.0])))`` constructs, and its form reads the signature
-``(1, 0, 1)`` exactly. :class:`~orpheus.numerics.metric.DiagonalMetric` admits signed weights and reads its signature; a factor on it is built where the induced form is invertible (a negative weight is admitted); of the verbs that need positivity, ``norm`` on a space and the weighted orthonormalisation refuse a signed form (the list of the verbs, with the ones that do not refuse, is under :ref:`spaces-signed-weights`), and the frame's formal door refuses an under-resolved Gram.
+``(1, 0, 1)`` exactly. :class:`~orpheus.numerics.metric.DiagonalMetric` admits signed weights and reads its signature; a factor on it is built where the induced form is invertible (a negative weight is admitted); of the 5 verbs that need positivity, 3 refuse a signed form (``norm`` on a space, the weighted orthonormalisation and the frame's formal door) (the list of the verbs, with the ones that do not refuse, is under :ref:`spaces-signed-weights`; the door refuses an under-resolved Gram).
 
 .. _spaces-axis-identity:
 
@@ -2903,10 +2903,12 @@ and the metric :math:`G^{+}` stated at ``METRIC`` are two values with equal ``me
 **Signed diagonal weights and where positivity is asked.** A diagonal form admits signed weights and reads its kernel (the
 exact zero weights) and its signature :math:`(n_+, n_0, n_-)` from the signs. The factor requires an *invertible* induced form
 on :math:`S/K` and does not require a positive one; positivity is asked by the verbs that need it. Two requirements are
-distinct. A verb is *invertible-needing* when it passes through the chart change (``flat``, ``sharp``, ``dual``, the adjoint):
-it needs :math:`G` nonsingular on the quotient. A verb is *positivity-needing* when it takes a square root or orthonormalises:
-:meth:`~orpheus.numerics.space.FunctionSpace.norm`, the dense kernel basis, the weighted orthonormalisation. The remaining verbs only
-move arrays, with the two exceptions of the table below. :meth:`~orpheus.numerics.space.FunctionSpace.norm` raises ``ValueError`` on a space whose
+distinct. A verb is *invertible-needing* when it passes through the chart change back from the density (``sharp``, ``dual``, the adjoint): it
+needs :math:`G` nonsingular on the quotient. ``flat`` is not one: its body applies the metric, :math:`w \mapsto G w`, which is a product and
+needs no inverse (it mints the co-vector through ``apply_metric``). A verb is *positivity-needing* when it takes a square root or
+orthonormalises: :meth:`~orpheus.numerics.space.FunctionSpace.norm`, the dense kernel basis, the frame's door, the kernel projection gauge's
+displacement and the weighted orthonormalisation (5 verbs). The remaining verbs only move arrays, with the two exceptions of the table below,
+which read a sign only incidentally: ``_masked_reciprocal`` (``weights > 0``) and the debug sign test of ``_exact_inverse``. :meth:`~orpheus.numerics.space.FunctionSpace.norm` raises ``ValueError`` on a space whose
 resolved metric reads a negative direction, naming the Krein arm, which is not built (issue #706). The reading is exact on a diagonal form, on
 its dual and on its tensor products, and it is declared as 0 on a dense form, whose positivity rests on the formal path, so the sentence "in
 every build" holds for a form that reads a negative direction and not for a raw indefinite dense form under ``python -O`` (the next paragraphs).
@@ -2934,8 +2936,9 @@ from the bodies and not re-run at this commit): 14 of 32 only move arrays, 10 of
    * - positivity needed
      - ``FunctionSpace.norm``, the dense ``kernel_basis`` (its eigenvalue split is read as the kernel), ``frame_kernel`` (the frame's door), the
        orthonormal span basis and the kernel projection gauge's displacement (a square root over the weights)
-     - ``norm`` was ``NaN`` for a vector of negative value and is now refused; the door and the orthonormalisation refuse; the dense kernel basis and
-       the displacement do not refuse (below)
+     - 3 of the 5 refuse a form that reads a negative direction, all through the one predicate ``HilbertMetric.positive``: ``norm`` and the
+       orthonormalisation through ``_require_positive``, and the door by its own message; the dense kernel basis and the displacement do not
+       refuse (below)
    * - positivity incidental
      - ``_masked_reciprocal`` (``weights > 0``), the ``_exact_inverse`` debug sign test
      - the first silently zeroes a negative weight (reached only through a diagonal-verdict frame head, which carries none); the second is a
@@ -2946,8 +2949,9 @@ from the bodies and not re-run at this commit): 14 of 32 only move arrays, 10 of
 
 *Where a positivity verb does not refuse.* The dense kernel basis does not refuse: an indefinite dense form has no producer on the formal path,
 so a raise there would guard no reachable input. The kernel projection gauge's displacement takes a square root over the weights and does not
-refuse: a signed rule on a reflective problem is refused upstream (the gate G03u pins it, with the refusal's message naming a "vanishing
-metric", which is a misleading phrase for what is a negative weight and is kept because it is the pre-existing text). The norm of a composite
+refuse: a signed rule on a reflective problem is refused upstream by the weighted orthonormalisation, which refuses a NEGATIVE weight as a verb
+that needs a positive form (the message of ``norm``, naming the Krein arm and issue #706, with the count of negative rows; the gate G03u pins
+the fragments) and a ZERO weight for its own reason (no minimum-norm member, a division by zero: "carry a vanishing metric"). The norm of a composite
 (direct-sum) space does not refuse yet, and is the next caller of the helper that ``norm`` uses (unit N05, issue #706). Three further sites
 spelled the Riesz pseudo-inverse with ``weights > 0`` (the helper that raises the left null vectors and the one that reduces a basis modulo
 :math:`\ker G` in ``near_kernel``, and the adjoint of a predicted kernel in ``fredholm``): they are verbs that need invertibility and not
@@ -2978,8 +2982,11 @@ check that the stated matrix is positive semi-definite on the complement of the 
 misuse check and not a guarantee (the standing ruling of 2026-10-30). Measured on ``[[1, 2, 0], [2, 1, 0], [0, 0, 3]]`` (eigenvalues
 :math:`-1, 3, 3`) with ``kernel=Coord(3, ())``: the constructor refuses it without ``-O`` (a kept eigenvalue is not positive) and builds it
 under ``python -O``, where it reads ``signature == (3, 0, 0)``. The guarantee exists on the formal path only, the frame's door, which
-refuses an under-resolved Gram on a measure with a negative weight. The declared reading is the one edge: ``Factor.signature`` and
-``Factor.positive`` report the declared value as fact on every dense route (the whole space, a ``Spanned`` or ``Ann`` subspace, the
+refuses an under-resolved Gram on a measure with a negative weight. The declared reading is the one edge: ``Factor.signature`` is the
+signature :math:`(n_+, 0, n_-)` of the induced form on :math:`S/K`, with :math:`n_+ + n_- = \dim S/K` (the middle zero is the invariant that the
+induced form is invertible; the metric arms' own signature is on the stored index set, with the kernel in :math:`n_0`), exact on a diagonal form
+and declared as :math:`(\dim, 0, 0)` on a dense one, and ``Factor.positive`` is the induced form's ``HilbertMetric.positive``, the one predicate;
+both report the declared value as fact on every dense route (the whole space, a ``Spanned`` or ``Ann`` subspace, the
 ``Coord``-pair Schur complement and a raw matrix under ``python -O``), and the scope-boundary tag stands there with issue #706. A ``Declared`` axis holding a ``DenseMetric`` is refused by the space readers
 (``_axis_entries`` in ``orpheus/numerics/space.py``, ``ELEGANCE-DEBT[guard]`` #755) until unit N04 positions a dense axis form by its
 factor, so no space reads a stated indefinite dense form today.

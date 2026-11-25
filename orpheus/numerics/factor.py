@@ -32,16 +32,19 @@ Constructibility
 ================
 
 The factor requires an INVERTIBLE induced form on :math:`S/K`, and positivity is asked by the verbs that need it
-(:meth:`~orpheus.numerics.space.FunctionSpace.norm` refuses a form that reads a negative direction; the other verbs that need
-positivity are not all guarded, see the metric module). It refuses, at
+(:meth:`~orpheus.numerics.space.FunctionSpace.norm` refuses a form that reads a negative direction, and so do 2 more of the 5 verbs that
+need positivity; the metric module names the five). It refuses, at
 construction, a slot on a singular form that is not quotiented by the form's kernel: a density factor needs
 :math:`S \cap \ker G \subseteq K`, an integrated factor needs its density partner (its ``riesz`` image) to satisfy it. On a diagonal
 form the kernel is the exact zero set of the weights, so the condition decides invertibility exactly and a negative weight at any
 index is admitted. On a dense form the kernel is the declared kernel, the form is positive semi-definite where the formal path built
 it, and on such a form the same condition implies an invertible induced form, so no further test is made.
 
-:attr:`Factor.signature` reads the signature of the induced form (exactly, from the signs of the weights, on a diagonal form;
-declared by the kernel on a dense form) and :attr:`Factor.positive` is true when it has no negative direction. A formless factor has
+:attr:`Factor.signature` is the signature :math:`(n_+, 0, n_-)` of the induced form ON :math:`S/K` (the middle zero is the invariant that the
+induced form is invertible, and :math:`n_+ + n_- = \dim S/K`; exact, from the signs of the weights on :math:`S \setminus K`, on a diagonal form;
+the declared :math:`(\dim, 0, 0)` on a dense form), a triple of the type the metric arms return (whose own signature is on the stored index
+set, the kernel in :math:`n_0`). :attr:`Factor.positive` is the induced form's
+:attr:`~orpheus.numerics.metric.HilbertMetric.positive`, the one predicate every verb that needs positivity asks. A formless factor has
 neither. The Krein arm of the form, which would give a signed space a norm, is not built (issue #706).
 """
 
@@ -329,29 +332,40 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         r"""The slot's :class:`VarianceChart`, read off the variance of either type."""
         return self.variance.chart
 
+    def _formed(self, what: str) -> DiagonalMetric | DenseMetric:
+        r"""The induced density form, or the ``AttributeError`` of a formless factor, which has no form to read ``what`` from."""
+        if self._induced is None:
+            raise AttributeError(f"factor: axis {self.axis.label!r} is formless, so its factor has no {what}")
+        return self._induced
+
     @property
     def signature(self) -> tuple[int, int, int]:
-        r"""``(n_+, n_0, n_-)`` of the induced form of the density partner, read once.
+        r"""``(n_+, 0, n_-)`` of the induced form on the quotient :math:`S/K`, with ``n_+ + n_- == dim``.
 
-        On a diagonal form the signs of the weights on ``S`` minus ``K`` are read exactly (the coordinates outside it read as zero); on a
-        dense form the signature is the declared ``(n - dim ker, dim ker, 0)``, which is the truth only where the form is positive
-        semi-definite by the formal path (a raw indefinite matrix under ``python -O`` reads it too, and is not refused). A formless factor has no form and so no signature: the
-        property raises ``AttributeError``.
+        The middle entry is the invariant of the unit: the induced form is invertible, so it has no kernel on :math:`S/K`. On a diagonal form
+        ``n_+`` and ``n_-`` count the positive and the negative weights on ``S`` minus ``K`` of the density partner, read exactly (the
+        induced form holds exactly zero off ``S`` minus ``K``, which the quotient does not see). On a dense form the signature is the declared
+        ``(dim, 0, 0)``, which is the truth only where the form is positive semi-definite by the formal path (a raw indefinite matrix under
+        ``python -O`` reads it too, and is not refused). The metric arms' own ``signature`` is on the stored index set with the kernel in
+        ``n_0``. A formless factor has no form and so no signature: the property raises ``AttributeError``.
         """
-        if self._induced is None:
-            raise AttributeError(f"factor: axis {self.axis.label!r} is formless, so its factor has no signature")
+        form = self._formed("signature")
         # The dense routes: the whole space, a Spanned or Ann subspace, the Coord-pair Schur complement, and a raw matrix under python -O
         # (whose sign test is a debug-build misuse check) all read their DECLARED signature here, as fact.
         # SCOPE-BOUNDARY[guard] a dense form's signature and positive flag are declared, not read from its eigenvalues
         # machinery: an indefinite dense form arm with an exact rank and sign decision (rational arithmetic, or a certificate from the producer)
         # ruling: section 6.4b (C1) of .claude/plans/ontology_w1_spec.md, the orchestrator, 2026-11-25
         # revisit: #706
-        return self._induced.signature
+        if isinstance(form, DiagonalMetric):
+            weights = _flat_weights(form)
+            return (int(np.count_nonzero(weights > 0.0)), 0, int(np.count_nonzero(weights < 0.0)))
+        return (self.dim, 0, 0)
 
     @property
     def positive(self) -> bool:
-        r"""Whether the induced form has no negative direction (``signature[2] == 0``); a formless factor has none to ask."""
-        return self.signature[2] == 0
+        r"""Whether the induced form has no negative direction: its :attr:`~orpheus.numerics.metric.HilbertMetric.positive`, the one
+        predicate. A formless factor has none to ask: the property raises ``AttributeError``."""
+        return self._formed("positivity").positive
 
     @property
     def stored_shape(self) -> tuple[int, ...]:

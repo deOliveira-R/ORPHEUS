@@ -5,13 +5,14 @@ exact and no tolerance decides structure): the form is positive semi-definite wh
 such a form the kernel condition ``S ∩ ker G ⊆ K`` implies an invertible induced form on ``S/K``. The gate states that implication as a law over
 two positive semi-definite dense forms with the declared kernel ``Coord(4, (3,))``, 324 states each (the 81 ``Coord`` pairs times the 4 variances):
 152 construct, on every constructed state the live block of the induced density form (the indices ``S minus K`` of the density partner) is an
-invertible symmetric matrix whose smallest eigenvalue magnitude is at least a quarter of its largest, and the factor reads ``signature[2] == 0`` and
-``positive``. The fixtures are integer matrices whose live-block eigenvalues are of integer scale (the measured margin is about 0.33), so the count
+invertible symmetric matrix whose smallest eigenvalue magnitude is at least a quarter of its largest, and the factor reads a signature ``(n_+, 0, 0)`` on the
+quotient ``S/K`` (ruling Q2 of the orchestrator, 2026-11-25: ``n_0 == 0`` and ``n_+ + n_- == dim``) and ``positive``. The fixtures are integer matrices whose live-block eigenvalues are of integer scale (the measured margin is about 0.33), so the count
 and the margin are exact on any host and no row reads an eigenvalue that can be zero to rounding.
 
 The ``negative`` and ``not_positive`` legs read the DECLARED signature of a dense form (its ``n_-`` is 0 by the declaration), so they can redden only by
 breaking ``Factor.positive`` or ``Factor.signature`` themselves, not the dense law; the law's teeth are the singular-block count, the margin leg, and the
-``n_+`` leg, which compares ``signature[0]`` with an eigenvalue count of the live block (exact on these forms).
+``n_+`` leg, which compares ``signature[0]`` with an eigenvalue count of the live block (exact on these forms), and the quotient leg, which reads
+``signature[1] == 0`` and ``sum(signature) == len(live)``.
 
 G03t. ``FunctionSpace.norm`` is the verb that needs a positive form. On the measure space of ``lebedev(13)`` at ``L = 2`` (the signature
 ``(66, 0, 8)``: 8 negative weights) it raises ``ValueError`` naming the Krein arm and ``#706``; on ``lebedev(11)`` and on a counting space it returns
@@ -68,7 +69,7 @@ def _readings(matrix: list[list[float]]) -> dict[str, Any]:
 
     axis = _dense_axis(matrix)
     everything = set(range(4))
-    out: dict[str, Any] = {"states": 0, "constructed": 0, "singular": 0, "worst_margin": np.inf, "negative": 0, "not_positive": 0, "hand_agree": 0, "plus_disagree": 0}
+    out: dict[str, Any] = {"states": 0, "constructed": 0, "singular": 0, "worst_margin": np.inf, "negative": 0, "not_positive": 0, "hand_agree": 0, "plus_disagree": 0, "kernel_on_quotient": 0}
     for S, K in P.pairs(4):
         sk = P.sk_of(4, S, K)
         for v in P.variances():
@@ -93,6 +94,7 @@ def _readings(matrix: list[list[float]]) -> dict[str, Any]:
             # the independent count: positive eigenvalues of the live block (exact on these integer-scale forms, no eigenvalue is near zero)
             out["plus_disagree"] += signature is None or signature[0] != int((eig > 0.0).sum())
             out["negative"] += signature is None or signature[2] != 0
+            out["kernel_on_quotient"] += signature is None or signature[1] != 0 or sum(signature) != len(live)
             out["not_positive"] += getattr(f, "positive", None) is not True
     return out
 
@@ -106,6 +108,7 @@ def test_psd_dense_forms_have_no_singular_state() -> None:
         _require(r["singular"] == 0, f"{label}: {r['singular']} of 152 constructed states have a singular live block")
         _require(r["worst_margin"] >= 0.25, f"{label}: the smallest eigenvalue magnitude is {r['worst_margin']:.3f} of the largest, expected at least 0.25")
         _require(r["plus_disagree"] == 0, f"{label}: {r['plus_disagree']} constructed states read an n_+ that is not the live block's count of positive eigenvalues")
+        _require(r["kernel_on_quotient"] == 0, f"{label}: {r['kernel_on_quotient']} constructed states read a signature with n_0 != 0 or whose entries do not add up to the dimension of S/K")
         _require(r["negative"] == 0, f"{label}: {r['negative']} constructed states read no signature or a negative direction")
         _require(r["not_positive"] == 0, f"{label}: {r['not_positive']} constructed states do not read positive")
 
