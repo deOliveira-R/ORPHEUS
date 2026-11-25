@@ -66,7 +66,7 @@ FORBIDDEN = (
 #: realization name check and the aliases the gates read.
 EXPORTS: dict[str, tuple[str, ...]] = {
     "condition": ("BoundaryCondition", "WallCondition", "WallDisplacement"),
-    "network": ("MirrorPermutation", "CurrentRetraction", "IsotropicSection", "Factor", "SpecularChain", "DiffuseChain", "Chain",
+    "network": ("MirrorPermutation", "CurrentRetraction", "IsotropicSection", "ChainFactor", "SpecularChain", "DiffuseChain", "Chain",
                 "CHAIN_ORDER", "chain_composes", "ZeroNetwork", "ResponseNetwork"),
     "inflow": ("InflowSampler", "FaceFrameInflow", "LabFrameInflow", "InflowTerms"),
     "errors": ("BoundaryError", "SubmarkovViolationError", "BoundaryResponseNotPositiveError", "BoundaryRefused", "UnboundTagError",

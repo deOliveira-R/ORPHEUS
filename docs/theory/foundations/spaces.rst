@@ -2723,7 +2723,7 @@ Three construction choices in
    :math:`2\times10^{-12}` is inverted and the ``kernel`` it was declared
    with is part of the form's identity. The only rank *rule* in the tree is
    the frame's own, ``FRAME_GRAM_RANK_RTOL = 10^{-12}`` in
-   :mod:`orpheus.numerics.frame_faces`, which counts the singular values of
+   :mod:`orpheus.numerics.frame`, which counts the singular values of
    a frame's Gram at or below that fraction of the largest and declares
    the count through ``frame_gram_kernel``. `[M]` on the frame-built Grams
    the dropped singular values are at most :math:`2.3\times10^{-16}` of the

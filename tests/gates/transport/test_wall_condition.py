@@ -140,7 +140,7 @@ def test_wall_condition_parse() -> None:
 def _population() -> list[type]:
     """The closed population gate 2 ranges over: the condition base and every subclass of it, the factors, the
     chains, the network."""
-    classes = walk_subclasses(bc.BoundaryCondition) + list(get_args(bc.Factor)) + list(get_args(bc.Chain))
+    classes = walk_subclasses(bc.BoundaryCondition) + list(get_args(bc.ChainFactor)) + list(get_args(bc.Chain))
     classes += [bc.ResponseNetwork, bc.InflowTerms, bc.WallDisplacement, bc.FaceFrameInflow, bc.LabFrameInflow, bc.ZeroNetwork]
     return list(dict.fromkeys(classes))
 

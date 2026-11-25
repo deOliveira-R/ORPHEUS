@@ -86,7 +86,7 @@ __all__ = [
     "Chain",
     "CurrentRetraction",
     "DiffuseChain",
-    "Factor",
+    "ChainFactor",
     "IsotropicSection",
     "MirrorPermutation",
     "ResponseNetwork",
@@ -123,14 +123,14 @@ class IsotropicSection:  # concept: walllaw | role: component | kind: element
     codomain: ClassVar[TraceRole] = "inflow"
 
 
-Factor: TypeAlias = MirrorPermutation | CurrentRetraction | IsotropicSection
+ChainFactor: TypeAlias = MirrorPermutation | CurrentRetraction | IsotropicSection
 
 
 @dataclass(frozen=True)
 class SpecularChain:  # concept: walllaw | role: twin | kind: element
     r""":math:`s\,P`, the specular chain; ``factors`` are listed in the order they are applied."""
 
-    factors: ClassVar[tuple[type[Factor], ...]] = (MirrorPermutation,)
+    factors: ClassVar[tuple[type[ChainFactor], ...]] = (MirrorPermutation,)
     unit_return: ClassVar[float] = 1.0
 
 
@@ -138,7 +138,7 @@ class SpecularChain:  # concept: walllaw | role: twin | kind: element
 class DiffuseChain:  # concept: walllaw | role: twin | kind: element
     r""":math:`d\,(E\circ Rt)`, the diffuse (Lambertian) chain; ``factors`` are listed in the order they are applied."""
 
-    factors: ClassVar[tuple[type[Factor], ...]] = (CurrentRetraction, IsotropicSection)
+    factors: ClassVar[tuple[type[ChainFactor], ...]] = (CurrentRetraction, IsotropicSection)
     unit_return: ClassVar[float] = 1.0
 
 
@@ -150,7 +150,7 @@ Chain: TypeAlias = SpecularChain | DiffuseChain
 CHAIN_ORDER: tuple[Chain, ...] = tuple(chain() for chain in get_args(Chain))
 
 
-def chain_composes(factors: tuple[type[Factor], ...]) -> bool:
+def chain_composes(factors: tuple[type[ChainFactor], ...]) -> bool:
     r"""Whether ``factors``, applied in order, compose from the ``"outflow"`` rung to the ``"inflow"`` rung.
 
     ``factors[0].domain == "outflow"``, ``factors[i].codomain == factors[i+1].domain`` and

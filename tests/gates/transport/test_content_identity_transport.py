@@ -308,7 +308,7 @@ def test_the_roster_covers_the_package() -> None:
     require(found <= rostered, f"content types with no roster entry: {sorted(c.__qualname__ for c in found - rostered)}")
     require(rostered <= found, f"roster entries that are not content types of the package: {sorted(c.__qualname__ for c in rostered - found)}")
     parts = {e.cls for e in ROSTER if not e.content_identity}
-    for family in (get_args(bc.Chain), get_args(bc.Factor)):
+    for family in (get_args(bc.Chain), get_args(bc.ChainFactor)):
         require(set(family) <= parts, f"chain or factor classes with no part entry: {sorted(c.__name__ for c in set(family) - parts)}")
     require(len(ROSTER) == 18, f"the roster holds {len(ROSTER)} entries, not the 18 it was written with (6 types, 12 parts)")
 

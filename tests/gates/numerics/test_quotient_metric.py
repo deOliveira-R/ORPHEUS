@@ -28,7 +28,7 @@ from orpheus.numerics import frame_faces
 from orpheus.numerics.axis import Declared, Axis, BasisKind
 from orpheus.numerics.axis_marginal import AxisRetractionOperator
 from orpheus.numerics.declaration import Coord
-from orpheus.numerics.frame_faces import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
+from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
 from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import AdjointOperator, RieszLowerOperator, RieszRaiseOperator, adjointable
 from orpheus.numerics.quadrature import Quadrature

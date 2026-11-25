@@ -51,7 +51,7 @@ from orpheus.geometry.manifold import COSINE_INTERVAL, SPHERE, RealSpace
 from orpheus.geometry.symmetry import SubgroupOfO3
 from orpheus.numerics.frame import FrameBase, GalerkinFrame, PetrovGalerkinFrame
 from orpheus.numerics.measure import DiscreteMeasure
-from orpheus.numerics.frame_faces import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
+from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
 from orpheus.numerics.metric import DenseMetric, FactoredMetric
 from orpheus.numerics.operator import NotInvertible
 from orpheus.numerics.quadrature import Quadrature, lebedev_sphere

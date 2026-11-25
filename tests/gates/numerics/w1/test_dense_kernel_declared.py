@@ -17,14 +17,14 @@ dimension must separate the singular spectrum, ``s[n - dim] < 1e-6 s_max`` (what
 ``diag([1, -1])`` reads red on the smallest-eigenvalue predicate. The declared kernel is read LIVE through ``frame_gram_kernel`` (and the
 harness' own declaration for the four hand-written Grams), so a production mutation of the frame's count reddens these rows.
 
-**G01e.** Structure (``ast`` over ``numerics/frame_faces.py``): the float literal ``1e-12`` appears exactly once, as the value assigned
+**G01e.** Structure (``ast`` over ``numerics/frame.py``): the float literal ``1e-12`` appears exactly once, as the value assigned
 to ``FRAME_GRAM_RANK_RTOL``, within three lines of ``machinery:``, ``ruling:`` and ``revisit:`` (the window of the ledger gate
 ``test_elegance_debt_is_tagged.py``); ``frame_gram_kernel`` reads ``np.linalg.svd(..., hermitian=True)`` WITH the vectors, never
 ``compute_uv=False`` and never ``eigvalsh``. The predicates are run on source copies with a forbidden form (the positive control).
 Behaviour: on 201 Grams with one eigenvalue at ``f * 1e-12`` (``f`` in ``[0.9, 1.1]``, the tie of ``test_quotient_metric.py::test_B1c``),
 ``frame_gram_kernel(g).dim`` equals the nullity ``5 - round(trace(pinv(g, hermitian=True, rcond=FRAME_GRAM_RANK_RTOL) @ g))`` of an oracle
 computed here (G01b scans ``metric.py`` only), not "the nullity of the inverse the body builds", which holds for any declared count; both
-nullities 0 and 1 occur. First red today: the literal appears 0 times in ``frame_faces.py`` and the rank cutoff lives in ``metric.py``.
+nullities 0 and 1 occur. First red today: the literal appears 0 times in ``frame.py`` and the rank cutoff lives in ``metric.py``.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from orpheus.numerics import frame_faces as FF
+from orpheus.numerics import frame as FF
 from orpheus.numerics.declaration import Ann, Coord, Spanned
 from orpheus.numerics.metric import DenseMetric
 from tests.gates._dense import declared_kernel
@@ -177,9 +177,9 @@ def _gram(eigs):
     return (G + G.T) / 2
 
 
-def frame_faces_path() -> Path:
-    spec = importlib.util.find_spec("orpheus.numerics.frame_faces")
-    _require(spec is not None and spec.origin is not None, "orpheus.numerics.frame_faces is not found")
+def frame_path() -> Path:
+    spec = importlib.util.find_spec("orpheus.numerics.frame")
+    _require(spec is not None and spec.origin is not None, "orpheus.numerics.frame is not found")
     assert spec is not None and spec.origin is not None
     return Path(spec.origin)
 
@@ -224,17 +224,17 @@ def count_reads(source: str) -> dict[str, bool]:
 
 
 def test_frame_tolerance_has_one_address() -> None:
-    source = frame_faces_path().read_text()
+    source = frame_path().read_text()
     lines = tolerance_literals(source)
-    _require(len(lines) == 1, f"the literal 1e-12 appears {len(lines)} times in frame_faces.py (lines {lines}), expected exactly 1")
+    _require(len(lines) == 1, f"the literal 1e-12 appears {len(lines)} times in frame.py (lines {lines}), expected exactly 1")
     _require(literal_is_the_named_constant(source), "the one 1e-12 literal is not the value of FRAME_GRAM_RANK_RTOL")
     _require(tag_window_has_the_ledger_fields(source, lines[0]), "FRAME_GRAM_RANK_RTOL is not within three lines of machinery:, ruling: and revisit:")
     _require(FF.FRAME_GRAM_RANK_RTOL == 1e-12, f"FRAME_GRAM_RANK_RTOL = {FF.FRAME_GRAM_RANK_RTOL!r}")
 
 
 def test_the_count_reads_the_decomposition_the_body_reads() -> None:
-    r = count_reads(frame_faces_path().read_text())
-    _require(r["found"], "frame_gram_kernel is not defined in frame_faces.py")
+    r = count_reads(frame_path().read_text())
+    _require(r["found"], "frame_gram_kernel is not defined in frame.py")
     _require(r["svd_with_vectors"], "frame_gram_kernel must read np.linalg.svd(..., hermitian=True) with the vectors")
     _require(not r["compute_uv_keyword"], "frame_gram_kernel passes compute_uv: the count must read the body's own call (with the vectors)")
     _require(not r["eigvalsh"], "frame_gram_kernel calls eigvalsh: a different routine reads 1 of 201 tie Grams across the cutoff")
@@ -255,7 +255,7 @@ _COMPUTE_UV = (r"hermitian=True\s*\)", "hermitian=True, compute_uv=False)")
 )
 def test_the_predicates_read_red_on_a_forbidden_form(mutate, predicate) -> None:
     """Positive control: each predicate reads True on the real source and False with its forbidden form introduced."""
-    source = frame_faces_path().read_text()
+    source = frame_path().read_text()
     _require(predicate(source), "the predicate must read True on the real source (so the control is a change of reading)")
     mutated = mutate(source)
     _require(mutated != source, "the mutation did not change the source: the control is a null control")

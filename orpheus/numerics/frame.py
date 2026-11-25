@@ -110,6 +110,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis, GramStructure
+from orpheus.numerics.declaration import Coord, Declaration, Spanned
+from orpheus.numerics.metric import DenseMetric
+from orpheus.values.content import content_digest
 from orpheus.geometry.manifold import ManifoldMap, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
 
@@ -382,3 +385,34 @@ class GalerkinFrame(PetrovGalerkinFrame):  # concept: frame | role: arm | kind: 
     def test_table(self) -> NDArray:
         # test is trial → reuse the trial table (same array; 0-ULP-identical analysis).
         return self.table
+
+
+#: The one rank rule of a frame's Gram: the count of its singular values at or below ``FRAME_GRAM_RANK_RTOL`` of the largest.
+#: SCOPE-BOUNDARY[guard] machinery: an exactness-degree certificate on the quadrature (W8a); consumer: the harmonic head on
+#: under-resolved rules; ruling: D9/U4, orchestrator, 2026-11-23; revisit: W8a's exactness certificate
+FRAME_GRAM_RANK_RTOL: float = 1e-12
+
+
+def frame_gram_kernel(gram: NDArray) -> Declaration:
+    r"""The kernel a frame declares for its discrete Gram ``gram``.
+
+    ``Coord(n, ())`` when no singular value of the symmetrised Gram is at or below ``FRAME_GRAM_RANK_RTOL`` of the largest,
+    else a ``Spanned`` of the number of such values, keyed on the digest of the symmetrised Gram. The count reads the
+    singular values of ``np.linalg.svd(g_sym, hermitian=True)`` with the vectors, the call :class:`DenseMetric` makes on the same
+    matrix, so the declared count and the inverse the metric builds split one decomposition at the cutoff.
+    """
+    g = np.asarray(gram, dtype=float)
+    if g.ndim != 2 or g.shape[0] != g.shape[1]:
+        raise ValueError(f"a frame Gram is a square 2-D matrix, got shape {g.shape}")
+    g_sym = DenseMetric.symmetrised(g)
+    n = g_sym.shape[0]
+    if n == 0:
+        return Coord(0, ())
+    singular = np.linalg.svd(g_sym, hermitian=True)[1]
+    dim = int(np.sum(singular <= FRAME_GRAM_RANK_RTOL * singular.max()))
+    if dim == 0:
+        return Coord(n, ())
+    if dim == n:
+        raise ValueError(f"a frame Gram has no value above {FRAME_GRAM_RANK_RTOL:.0e} of its largest: it is the zero form, which carries no inner product")
+    g_sym.setflags(write=False)
+    return Spanned(n, ("frame-gram-kernel", content_digest(g_sym)), dim)

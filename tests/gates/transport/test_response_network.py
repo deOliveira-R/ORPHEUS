@@ -182,7 +182,7 @@ def test_chains_compose_and_the_family_is_closed() -> None:
     require(set(get_args(bc.Chain)) == {spec, diff} and len(get_args(bc.Chain)) == 2, f"Chain is {get_args(bc.Chain)}")
     require(tuple(type(c) for c in bc.CHAIN_ORDER) == (spec, diff), f"CHAIN_ORDER is {bc.CHAIN_ORDER}")
     mirror, retraction, section = bc.MirrorPermutation, bc.CurrentRetraction, bc.IsotropicSection
-    require(set(get_args(bc.Factor)) == {mirror, retraction, section}, f"Factor is {get_args(bc.Factor)}")
+    require(set(get_args(bc.ChainFactor)) == {mirror, retraction, section}, f"ChainFactor is {get_args(bc.ChainFactor)}")
 
     for chain in get_args(bc.Chain):
         require(bc.chain_composes(chain.factors), f"{chain.__name__}.factors do not compose")
@@ -193,7 +193,7 @@ def test_chains_compose_and_the_family_is_closed() -> None:
 
     tiers = {"full", "outflow", "current", "inflow"}
     require(set(get_args(TraceRole)) == tiers, f"TraceRole has {get_args(TraceRole)}: the four tiers of one face's ladder")
-    for factor in get_args(bc.Factor):
+    for factor in get_args(bc.ChainFactor):
         require({factor.domain, factor.codomain} <= set(get_args(TraceRole)), f"{factor.__name__} names a tier TraceRole lacks")
     require((mirror.domain, mirror.codomain) == ("outflow", "inflow"), "P: outflow -> inflow")
     require((retraction.domain, retraction.codomain) == ("outflow", "current"), "Rt: outflow -> current")

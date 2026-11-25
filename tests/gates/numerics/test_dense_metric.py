@@ -28,7 +28,7 @@ from orpheus.numerics.metric import (
     DiagonalMetric,
 )
 from orpheus.numerics.declaration import Coord
-from orpheus.numerics.frame_faces import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
+from orpheus.numerics.frame import FRAME_GRAM_RANK_RTOL, frame_gram_kernel
 from orpheus.numerics.quadrature.directional import Quadrature
 from tests.gates._dense import declared_kernel
 from orpheus.numerics.space import FunctionSpace

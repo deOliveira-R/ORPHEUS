@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-from orpheus.numerics import frame_faces as FF
+from orpheus.numerics import frame as FF
 from orpheus.numerics.declaration import Declaration
 from tests.gates._dense import declared_kernel
 

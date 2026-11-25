@@ -13,6 +13,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from orpheus.numerics import frame as FR
 from orpheus.numerics import frame_faces as FF
 from orpheus.numerics.metric import DenseMetric
 from orpheus.numerics.quadrature import Quadrature
@@ -29,7 +30,7 @@ def _require(cond: object, msg: str) -> None:
 def test_bare_path_takes_the_matrix_as_stored() -> None:
     gram = np.asarray(FF.angular_frame(Quadrature.folded_product(2, 4), 2).discrete_gram, float)
     g_sym = (gram + gram.T) / 2.0
-    kernel = FF.frame_gram_kernel(gram)
+    kernel = FR.frame_gram_kernel(gram)
     m = np.linalg.pinv(g_sym, hermitian=True, rcond=1e-12)  # G+ of the frame head, as numpy builds it
     if m[0, 1] == m[1, 0]:  # a host whose pinv returns this pair exactly symmetric: one ulp makes the matrix asymmetric
         m[0, 1] = np.nextafter(m[0, 1], np.inf)

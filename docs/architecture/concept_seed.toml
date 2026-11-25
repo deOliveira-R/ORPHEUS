@@ -475,11 +475,11 @@ fingerprint = "blake2b:607586dfeecd15008647ff1a311dd5c07c072ce2f2f114278ebefa13f
 
 [[seed]]
 class = "orpheus/transport/boundary_conditions/network.py::DiffuseChain"
-fingerprint = "blake2b:49b8b0844a54d53fa44b138f3a9609be4024a13249545ac3a2c09ac4d1c57b49"
+fingerprint = "blake2b:d4fd775325c21d5068299eed4aee237e85810b70a01c74a338502d368bce1462"
 
 [[seed]]
 class = "orpheus/transport/boundary_conditions/network.py::SpecularChain"
-fingerprint = "blake2b:f4f932a81b54ebb83f2f684e60df4e08a48f31b7bd3465980f444316011a7c53"
+fingerprint = "blake2b:02c096fb73911028f82be39fcb0eb5a013c1d3de12e7502eb149466e1260e872"
 
 [[seed]]
 class = "orpheus/transport/boundary_conditions/network.py::ZeroNetwork"

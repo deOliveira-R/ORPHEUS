@@ -838,13 +838,13 @@ tangential ordinates of a face, which compares a direction cosine with exact zer
 
 The dense metric, :mod:`orpheus.numerics.metric`, whose rank is the
 declared kernel's complement, and the frame's one rank rule,
-:func:`~orpheus.numerics.frame_faces.frame_gram_kernel` with the constant
-:data:`~orpheus.numerics.frame_faces.FRAME_GRAM_RANK_RTOL`.
+:func:`~orpheus.numerics.frame.frame_gram_kernel` with the constant
+:data:`~orpheus.numerics.frame.FRAME_GRAM_RANK_RTOL`.
 
 .. automodule:: orpheus.numerics.metric
    :members: DenseMetric
 
-.. automodule:: orpheus.numerics.frame_faces
+.. automodule:: orpheus.numerics.frame
    :members: frame_gram_kernel, FRAME_GRAM_RANK_RTOL
 
 The :class:`~orpheus.numerics.operator.LinearOperator` Protocol,
@@ -882,7 +882,7 @@ metric states the dimension of its kernel with a declaration from
 :func:`~orpheus.numerics.declaration.contains` and
 :func:`~orpheus.numerics.declaration.intersect`), and the frame owns the
 one rank rule that produces it
-(:func:`~orpheus.numerics.frame_faces.frame_gram_kernel`). The theory
+(:func:`~orpheus.numerics.frame.frame_gram_kernel`). The theory
 pages contain the full
 mathematical narrative; per-symbol API docstrings live in the
 modules themselves and are accessible via the standard

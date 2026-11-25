@@ -1,7 +1,7 @@
 r"""The declaration a test makes for a dense form it builds (N01, spec 6.2): the kernel of a Gram, named by its dimension.
 
 Not a test module (no ``test_`` prefix). ``declared_kernel(matrix, dim)`` takes the dimension from its caller and holds no
-tolerance and no cutoff: it is not a second home of ``FRAME_GRAM_RANK_RTOL`` (``orpheus/numerics/frame_faces.py``), which is
+tolerance and no cutoff: it is not a second home of ``FRAME_GRAM_RANK_RTOL`` (``orpheus/numerics/frame.py``), which is
 the one rank rule, and a test that starts from a frame takes the frame's own declaration, ``frame_gram_kernel``, instead. It
 spells the content key of a test-owned declaration once, ``("test-gram-kernel", content_digest(matrix))``, so one form
 declared through the frame and through this helper has two digests: the key records provenance.

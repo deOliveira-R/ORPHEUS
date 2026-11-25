@@ -242,7 +242,7 @@ def diffusion_problem(ng: int) -> tuple[DiffusionMesh, DiffusionSolver, str]:
 
 
 #: The four hand-written families and the nullity each is declared with (the builder's own declaration: an independent witness of the
-#: frame's rank rule on those four). The other 17 families are built by a frame and declare through ``frame_faces.frame_gram_kernel``.
+#: frame's rank rule on those four). The other 17 families are built by a frame and declare through ``frame.frame_gram_kernel``.
 HAND_KERNEL_DIMS: dict[str, int] = {"syn.rank2_3x3": 1, "syn.pou_3x3": 0, "syn.kappa1e4_8x8": 0, "syn.near_cutoff_5x5": 1}
 
 
@@ -252,10 +252,10 @@ def declared_kernel_of(family: str, gram: np.ndarray) -> tuple[Declaration, str]
     A frame-built family declares through the frame's rule; a hand-written one by its own dimension, spelled inline here (this
     module imports no other test module), keyed ``("test-gram-kernel", content_digest(g_sym))``.
     """
-    from orpheus.numerics import frame_faces as FF
+    from orpheus.numerics import frame as FR
 
     if family not in HAND_KERNEL_DIMS:
-        return FF.frame_gram_kernel(gram), "frame_gram_kernel(gram)"
+        return FR.frame_gram_kernel(gram), "frame_gram_kernel(gram)"
     g_sym = (gram + gram.T) / 2.0
     n, dim = g_sym.shape[0], HAND_KERNEL_DIMS[family]
     if dim == 0:
