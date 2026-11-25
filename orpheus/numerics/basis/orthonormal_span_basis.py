@@ -119,10 +119,14 @@ class OrthonormalSpanBasis(Basis):  # concept: basis | role: arm | kind: morphis
                 f"OrthonormalSpanBasis {label!r}: generators must be (n_support, n_generators) and weights "
                 f"(n_support,), got {columns.shape} and {metric.shape}."
             )
-        _require_positive(DiagonalMetric(metric), "OrthonormalSpanBasis.of_generators")
-        if not np.all(metric > 0.0):
+        if not np.all(np.isfinite(metric)):
             raise ValueError(
-                f"OrthonormalSpanBasis {label!r}: {int(np.sum(~(metric > 0.0)))} support row(s) carry a vanishing "
+                f"OrthonormalSpanBasis {label!r}: {int(np.sum(~np.isfinite(metric)))} support row(s) carry a metric that is not finite."
+            )
+        _require_positive(DiagonalMetric(metric), f"OrthonormalSpanBasis {label!r}: the weighted orthonormalisation of its generators")
+        if np.any(metric == 0.0):
+            raise ValueError(
+                f"OrthonormalSpanBasis {label!r}: {int(np.sum(metric == 0.0))} support row(s) carry a vanishing "
                 f"metric. Every value on such a row has the same (zero) G-norm, so there is no minimum-norm "
                 f"member to choose, and the sqrt(G) orthonormalisation would divide by zero: exclude those rows "
                 f"from the support."

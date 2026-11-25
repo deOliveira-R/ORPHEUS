@@ -111,7 +111,7 @@ from numpy.typing import NDArray
 
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.declaration import Coord, Declaration, Spanned
-from orpheus.numerics.metric import DenseMetric
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric
 from orpheus.values.content import content_digest
 from orpheus.geometry.manifold import ManifoldMap, quotient_onto
 from orpheus.numerics.measure import DiscreteMeasure
@@ -468,5 +468,5 @@ def frame_kernel(frame: FrameBase) -> Declaration:
 
 
 def _has_negative_weight(frame: FrameBase) -> bool:
-    r"""True when the frame's measure carries a negative weight (read exactly from the signs)."""
-    return bool(np.any(np.asarray(frame.measure.weights) < 0.0))
+    r"""True when the frame's measure is not positive: the predicate every positivity verb asks, :attr:`HilbertMetric.positive`, of its weights."""
+    return not DiagonalMetric(np.asarray(frame.measure.weights, dtype=float)).positive

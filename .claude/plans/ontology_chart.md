@@ -809,6 +809,11 @@ What passes 2 and 2b changed in the design:
 - **The Opus check:** 0 BLOCK, 25 FIX, 5 NOTE over the two texts, applied with rulings C1 to C6.
 - **New for the builds:** the dual spaces, which the harness does not see, get a stored record of 147 arrays taken on the unchanged base before N04's first production edit; the docs check of a unit is the fresh strict build (`sphinx-build -E -W`), after N03's integration missed a red with an incremental one (#758).
 
+**N03b `invertible-form` built and integrated (2026-11-26).** `[LANDED]` on `refactor/ontology` by fast-forward (the unit's commits from `30825971`; 8 production files: `numerics/factor.py`, `metric.py`, `space.py`, `frame.py`, `axis.py`, `near_kernel.py`, `fredholm.py`, `basis/orthonormal_span_basis.py`). Run `wf_4d8625e2-4e4`: Sonnet gates then build, two Opus quality reviews and one Opus elegance review (18 findings, all answered), a Sonnet amend, an Opus verify; then two orchestrator rulings (one positivity predicate; a factor's signature read on the quotient) applied and reviewed alone.
+
+- `[M]` on the merged tree: the whole gate tree without the slow tier 20948 passed, 0 failed; no stored byte changed; the fresh strict docs build clean; pyright 0 errors; the `lebedev(13)` vacuum-faced solve reads k = 0.29309086. The record is the specification's 7.4b.
+- The reviews found three more sites that read a negative weight as kernel (`near_kernel`, `fredholm`), fixed in the unit.
+
 **N01 `dense-inverse` and N02 `half-range` opened (2026-11-24, tree `d909081a`); their sections 6.2, 7.2, 6.3 and 7.3 are final (specification at 1200 lines).** Records: the specification's amendment subsections "Opening of N01" and "Opening of N02", and `scratch/ontology/w1/open/N01/`, `N02/` (`opening_measurements.md`, `decisions.md`, `check/check_final_<unit>.md`).
 
 - **The user ruled (2026-11-24): the three subspace-declaration classes of N01 belong to a new concept `declaration`** (88 to 89 concepts). `[M]` in a simulated tree: 0 new debt rows and no reference cycle; under `subspace`, as first drafted, 3 debt rows and the metric concept joins the pinned cycle.

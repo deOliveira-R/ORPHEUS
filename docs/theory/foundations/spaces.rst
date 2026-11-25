@@ -2937,8 +2937,9 @@ from the bodies and not re-run at this commit): 14 of 32 only move arrays, 10 of
    * - positivity needed
      - ``FunctionSpace.norm``, the dense ``kernel_basis`` (its eigenvalue split is read as the kernel), ``frame_kernel`` (the frame's door), the
        orthonormal span basis and the kernel projection gauge's displacement (a square root over the weights)
-     - 3 of the 5 refuse a form that reads a negative direction, all through the one predicate ``HilbertMetric.positive``: ``norm`` and the
-       orthonormalisation through ``_require_positive``, and the door by its own message; the dense kernel basis and the displacement do not
+     - 3 of the 5 refuse a form that reads a negative direction: ``norm`` and the orthonormalisation ask ``HilbertMetric.positive`` of the
+       form through ``_require_positive``; the door asks the same predicate of its measure's weights and then reads the signs of the
+       Gram's kept directions itself, with its own message; the dense kernel basis and the displacement do not
        refuse (below)
    * - positivity incidental
      - ``_masked_reciprocal`` (``weights > 0``), the ``_exact_inverse`` debug sign test

@@ -4,7 +4,7 @@ The metric of a discrete Hilbert space is a symmetric bilinear form :math:`G`
 (positive semi-definite, except a signed :class:`DiagonalMetric`): :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
 :class:`DiagonalMetric` may carry signed weights and reads its signature exactly;
 the :class:`~orpheus.numerics.factor.Factor` requires an invertible form, not a positive one, and the verbs that need
-positivity ask for it, through the one predicate :attr:`HilbertMetric.positive`. Of the 5 verbs that need positivity, 3 refuse a form that
+positivity ask for it: the ones that refuse read :attr:`HilbertMetric.positive`. Of the 5 verbs that need positivity, 3 refuse a form that
 reads a negative direction: :meth:`~orpheus.numerics.space.FunctionSpace.norm` and the weighted orthonormalisation
 (:meth:`~orpheus.numerics.basis.orthonormal_span_basis.OrthonormalSpanBasis.of_generators`), both through :func:`_require_positive`, and the
 frame's mint, which refuses an under-resolved Gram (:func:`~orpheus.numerics.frame.frame_kernel`). The other 2 of the 5, the dense kernel

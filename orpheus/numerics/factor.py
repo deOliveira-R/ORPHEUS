@@ -44,7 +44,8 @@ it, and on such a form the same condition implies an invertible induced form, so
 induced form is invertible, and :math:`n_+ + n_- = \dim S/K`; exact, from the signs of the weights on :math:`S \setminus K`, on a diagonal form;
 the declared :math:`(\dim, 0, 0)` on a dense form), a triple of the type the metric arms return (whose own signature is on the stored index
 set, the kernel in :math:`n_0`). :attr:`Factor.positive` is the induced form's
-:attr:`~orpheus.numerics.metric.HilbertMetric.positive`, the one predicate every verb that needs positivity asks. A formless factor has
+:attr:`~orpheus.numerics.metric.HilbertMetric.positive`, the predicate the refusing verbs ask (``norm`` and the weighted
+orthonormalisation of the form itself; the frame's door of its measure's weights, before it reads the Gram's own signs). A formless factor has
 neither. The Krein arm of the form, which would give a signed space a norm, is not built (issue #706).
 """
 
