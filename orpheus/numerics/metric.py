@@ -1,11 +1,14 @@
 r"""Hilbert metrics — a space's inner-product structure as an OBJECT.
 
-The metric of a discrete Hilbert space is a symmetric positive-semi-definite
-bilinear form :math:`G`: :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
+The metric of a discrete Hilbert space is a symmetric bilinear form :math:`G`
+(positive semi-definite, except a signed :class:`DiagonalMetric`): :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
 :class:`DiagonalMetric` may carry signed weights and reads its signature exactly;
 the :class:`~orpheus.numerics.factor.Factor` requires an invertible form, not a positive one, and the verbs that need
-positivity ask for it (:meth:`~orpheus.numerics.space.FunctionSpace.norm` refuses a form with a negative direction, through
-:func:`_require_positive`); the frame's mint refuses an under-resolved Gram (:func:`~orpheus.numerics.frame.frame_kernel`).
+positivity ask for it. Of the verbs that need positivity two refuse a signed form:
+:meth:`~orpheus.numerics.space.FunctionSpace.norm` on a space whose metric reads a negative direction (through
+:func:`_require_positive`) and the weighted orthonormalisation (on a vanishing metric); the dense kernel basis, the kernel projection
+gauge's displacement and the norm of a composite space do not refuse (an indefinite dense form has no producer, the gauge path is refused
+upstream, and the composite norm is owed to issue #706); the frame's mint refuses an under-resolved Gram (:func:`~orpheus.numerics.frame.frame_kernel`).
 Until P7 (campaign 1) the tree could spell exactly two realizations, both
 *multiplied* into the element: a broadcast diagonal weight array (the
 Hadamard product :math:`G \odot x`) and the per-axis factor measures of an
@@ -310,11 +313,12 @@ class PositionedMetric(Protocol):  # concept: fmetric | role: interface | kind: 
 
 
 class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
-    r"""A symmetric positive-semi-definite bilinear form, as an object.
+    r"""A symmetric bilinear form, as an object: positive semi-definite, except a signed :class:`DiagonalMetric`.
 
     A :class:`DiagonalMetric` is the one realization that may carry signed weights (it reads its :attr:`signature` exactly from
-    the signs). A factor requires an invertible form, and the verbs that need positivity refuse a form with a negative direction
-    (:meth:`~orpheus.numerics.space.FunctionSpace.norm`).
+    the signs); every other realization is positive semi-definite by the formal path. A factor requires an invertible form, and
+    positivity is asked by the verbs that need it: :meth:`~orpheus.numerics.space.FunctionSpace.norm` refuses a form that reads a
+    negative direction (exact on a diagonal form, declared as 0 on a dense one), and not every verb that needs positivity does.
 
     The contract is three verbs and one derived pairing:
 

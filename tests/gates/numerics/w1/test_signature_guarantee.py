@@ -2,7 +2,7 @@ r"""G01i: the declared signature ``(n - kernel.dim, kernel.dim, 0)`` holds on th
 
 Leg 1, the raw path: ``DenseMetric(matrix, kernel=Coord(n, ()))`` on an indefinite matrix (``diag([1, -1])``) or one with a kept exact
 zero (``diag([1, 0])``) is refused with "kept eigenvalue is not positive" ONLY under ``if __debug__:``, so the refusal is read in a
-subprocess WITHOUT ``-O`` (the canonical ``python -O`` strips the block, so it cannot be asserted in the gate's own process). Run
+subprocess WITHOUT ``-O`` (the child prints its ``orpheus.__file__`` first and the gate asserts it lies under the tree under test) (the canonical ``python -O`` strips the block, so it cannot be asserted in the gate's own process). Run
 with ``-O`` the same code prints ``accepted`` for both, and the faces of the second are NaN (a kept exact zero divides by zero: the
 raw path's own business; the check is a misuse check, not a guarantee, ruling of 2026-10-30).
 
@@ -30,6 +30,8 @@ _ROOT = Path(__file__).resolve().parents[4]
 
 CODE = r"""
 import numpy as np
+import orpheus
+print("file: " + orpheus.__file__)
 from orpheus.numerics.declaration import Coord, Spanned
 from orpheus.numerics.metric import DenseMetric, Face
 for m, k in (
@@ -56,7 +58,10 @@ def _run(*flags: str) -> list[str]:
     env["PYTHONPATH"] = os.pathsep.join([str(_ROOT), *([env["PYTHONPATH"]] if env.get("PYTHONPATH") else [])])
     r = subprocess.run([sys.executable, *flags, "-c", CODE], env=env, cwd=_ROOT, capture_output=True, text=True, timeout=120)
     _require(r.returncode == 0, f"the subprocess ({flags}) exited {r.returncode}: {r.stderr[-400:]}")
-    return r.stdout.strip().splitlines()
+    lines = r.stdout.strip().splitlines()
+    # the child must import the tree under test: its first line is the path of its ``orpheus`` package
+    _require(bool(lines) and lines[0].startswith("file: " + str(_ROOT) + os.sep), f"the child did not import the tree under test ({_ROOT}): {lines[:1]}")
+    return lines[1:]
 
 
 def refusal_reads(lines: list[str]) -> None:

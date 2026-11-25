@@ -444,24 +444,25 @@ def frame_kernel(frame: FrameBase) -> Declaration:
     On a measure with no negative weight the Gram is positive semi-definite by construction and nothing is read. On a measure with a
     negative weight the Gram :math:`\sum_q w_q\,Y(\hat\Omega_q)Y(\hat\Omega_q)^{\mathsf T}` is the continuum Gram wherever the rule
     integrates a product of two basis functions exactly, and it can be indefinite where the rule does not: the basis is then
-    under-resolved (a Gram block of total degree :math:`2L` exceeds the rule's exactness degree) and no dense form of the positive arm
+    under-resolved (the rule does not integrate the products of two basis functions exactly) and no dense form of the positive arm
     exists; the refusal is a real ``raise``, so it holds under ``python -O``. The diagonal verdict
     needs no counterpart: :attr:`FrameBase.discrete_gram_structure` routes a Gram with a negative diagonal entry to DENSE, so a frame
     that reaches the diagonal arm has a non-negative diagonal and a diagonal Gram is positive semi-definite.
 
     SCOPE-BOUNDARY[guard] a frame whose Gram is indefinite is refused at its mint.
-    machinery: an exactness-degree certificate on the quadrature, which would decide this without reading the Gram (W8a)
+    machinery: an exactness-degree certificate on the quadrature, deciding this without reading the Gram (W8a), and refusing a superset
     ruling: the user's ruling of 2026-11-25 (D0) and R1' (the orchestrator, 2026-11-24) as re-read at the opening of N04
     revisit: issue #706, the Krein arm
+
+    The certificate would refuse every under-resolved pair, a superset of the pairs whose Gram turns negative, which are all the door refuses.
     """
     g_sym, dim, signs = _rank_and_signs(frame.discrete_gram)
     if _has_negative_weight(frame):
         negative = int(np.count_nonzero(signs < 0.0))
         if negative:
             raise ValueError(
-                f"the frame's Gram has {negative} negative kept direction(s): the quadrature rule does not resolve the basis at this "
-                f"order (a Gram block of total degree 2L exceeds the rule's exactness degree), and the Krein arm of the form is not "
-                f"built (issue #706)"
+                f"the frame's Gram has {negative} negative kept direction(s): the quadrature rule does not integrate the products of "
+                f"the basis functions exactly, so the basis is under-resolved on it, and the Krein arm of the form is not built (issue #706)"
             )
     return _declared(g_sym, dim)
 

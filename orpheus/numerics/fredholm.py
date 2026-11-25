@@ -316,7 +316,7 @@ class PredictedKernel:  # concept: nullspace | role: head | kind: space
         through the Riesz legs, read from the metric's diagonal on each support.
         """
         weights = diagonal_metric(self.space)
-        inverse = np.divide(1.0, weights, out=np.zeros_like(weights), where=weights > 0.0)  # the Riesz leg's pseudo-inverse
+        inverse = np.divide(1.0, weights, out=np.zeros_like(weights), where=weights != 0.0)  # the Riesz leg's pseudo-inverse (a signed weight is inverted, not zeroed)
         sharp = tuple(_reweighted(s, inverse[s.support], "sharp") for s in self.left)
         flat = tuple(_reweighted(s, weights[s.support], "flat") for s in self.right)
         return PredictedKernel(self.space, sharp, flat, f"the adjoint of: {self.because}")

@@ -32,7 +32,8 @@ Constructibility
 ================
 
 The factor requires an INVERTIBLE induced form on :math:`S/K`, and positivity is asked by the verbs that need it
-(:meth:`~orpheus.numerics.space.FunctionSpace.norm` is the one that refuses a form with a negative direction). It refuses, at
+(:meth:`~orpheus.numerics.space.FunctionSpace.norm` refuses a form that reads a negative direction; the other verbs that need
+positivity are not all guarded, see the metric module). It refuses, at
 construction, a slot on a singular form that is not quotiented by the form's kernel: a density factor needs
 :math:`S \cap \ker G \subseteq K`, an integrated factor needs its density partner (its ``riesz`` image) to satisfy it. On a diagonal
 form the kernel is the exact zero set of the weights, so the condition decides invertibility exactly and a negative weight at any
@@ -293,10 +294,8 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
             keep[list(sk.live or ())] = True
             return DiagonalMetric(np.where(keep, _flat_weights(axis_form), 0.0).reshape(self.axis.shape))
         if isinstance(axis_form, DenseMetric) and isinstance(sk.S, Coord) and isinstance(sk.K, Coord):
-            # SCOPE-BOUNDARY[guard] a dense form on a factor is positive semi-definite by the formal path and its induced block is not tested
-            # machinery: an indefinite dense form arm with an exact rank decision (rational arithmetic, or a certificate from the producer)
-            # ruling: scratch/ontology/w1/open/N04/rulings.md (C1), the orchestrator, 2026-11-25
-            # revisit: #706
+            # the Schur complement of a positive semi-definite form is positive semi-definite, and no sign is read here
+            # (the boundary of the dense arm is tagged at :attr:`Factor.signature`)
             live = list(sk.live or ())
             # the form is exactly zero on its own Coord kernel and couples to nothing there: eliminate only the rest of K
             own_kernel = set(axis_form.kernel.indices) if isinstance(axis_form.kernel, Coord) else set()
@@ -335,11 +334,18 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         r"""``(n_+, n_0, n_-)`` of the induced form of the density partner, read once.
 
         On a diagonal form the signs of the weights on ``S`` minus ``K`` are read exactly (the coordinates outside it read as zero); on a
-        dense form the signature is the declared ``(n - dim ker, dim ker, 0)``. A formless factor has no form and so no signature: the
+        dense form the signature is the declared ``(n - dim ker, dim ker, 0)``, which is the truth only where the form is positive
+        semi-definite by the formal path (a raw indefinite matrix under ``python -O`` reads it too, and is not refused). A formless factor has no form and so no signature: the
         property raises ``AttributeError``.
         """
         if self._induced is None:
             raise AttributeError(f"factor: axis {self.axis.label!r} is formless, so its factor has no signature")
+        # The dense routes: the whole space, a Spanned or Ann subspace, the Coord-pair Schur complement, and a raw matrix under python -O
+        # (whose sign test is a debug-build misuse check) all read their DECLARED signature here, as fact.
+        # SCOPE-BOUNDARY[guard] a dense form's signature and positive flag are declared, not read from its eigenvalues
+        # machinery: an indefinite dense form arm with an exact rank and sign decision (rational arithmetic, or a certificate from the producer)
+        # ruling: section 6.4b (C1) of .claude/plans/ontology_w1_spec.md, the orchestrator, 2026-11-25
+        # revisit: #706
         return self._induced.signature
 
     @property

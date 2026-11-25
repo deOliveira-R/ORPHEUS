@@ -241,21 +241,21 @@ def _flat(x: object) -> NDArray:
 
 def _raise(left: NDArray, weights: NDArray) -> NDArray:
     r"""The Riesz representatives :math:`G^{+}y` of left null vectors (zero on :math:`\ker G`)."""
-    inverse = np.divide(1.0, weights, out=np.zeros_like(weights), where=weights > 0.0)
+    inverse = np.divide(1.0, weights, out=np.zeros_like(weights), where=weights != 0.0)
     return inverse[:, None] * left
 
 
 def _modulo_ker_g(basis: NDArray, weights: NDArray) -> NDArray:
-    r"""The directions of an ORTHONORMAL ``basis`` with a component on the :math:`G > 0` coordinates, orthonormal.
+    r"""The directions of an ORTHONORMAL ``basis`` with a component on the :math:`G \ne 0` coordinates, orthonormal.
 
     Judged on the orthonormal basis, so the tolerance is absolute: a direction
-    whose :math:`G > 0` part is below :data:`_QUOTIENT_RTOL` lies in
+    whose :math:`G \ne 0` part is below :data:`_QUOTIENT_RTOL` lies in
     :math:`\ker G` (a near-null vector of round-off size there is not an
     element of the Hilbert space).
     """
     if basis.shape[1] == 0:
         return basis
-    _, sv, vt = np.linalg.svd(basis[weights > 0.0], full_matrices=False)
+    _, sv, vt = np.linalg.svd(basis[weights != 0.0], full_matrices=False)
     keep = sv > _QUOTIENT_RTOL
     return np.linalg.qr(basis @ vt[keep].T)[0] if np.any(keep) else basis[:, :0]
 

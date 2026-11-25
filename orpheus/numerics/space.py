@@ -847,8 +847,10 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         Carrier-generic through :meth:`inner_product` — valid unchanged
         for a structured-carrier space that overrides the inner product.
 
-        Raises ``ValueError`` on a space whose resolved metric has a negative direction: the square root of a signed form is not a norm,
-        and the Krein arm of the form is not built (issue #706).
+        Raises ``ValueError`` on a space whose resolved metric reads a negative direction, in every build: the square root of a signed
+        form is not a norm, and the Krein arm of the form is not built (issue #706). The reading is exact on a diagonal form (and on its
+        dual and its tensor products) and declared as 0 on a dense one, whose positivity rests on the formal path, so a raw indefinite
+        dense form under ``python -O`` is not refused here.
         """
         m = self._resolved_metric
         if m is not None:

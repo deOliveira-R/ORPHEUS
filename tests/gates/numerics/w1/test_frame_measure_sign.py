@@ -1,4 +1,4 @@
-r"""G03r: a frame refuses an indefinite Gram on a measure with a negative weight (N03, spec 7.4, R1').
+r"""G03r: a frame refuses an under-resolved basis, the Gram of which is indefinite on a measure with a negative weight (N03 R1', re-ruled by N03b, spec 7.4b).
 
 In this gate's own process, run under ``python -O`` (so that a bare ``assert`` could not carry it and a refusal under ``if __debug__:`` is not read):
 ``angular_frame(Quadrature.lebedev(13), 7)`` and ``lebedev(27), 14`` raise ``ValueError`` at the frame's mint (``basis_space``, which reads
