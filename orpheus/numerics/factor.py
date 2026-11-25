@@ -22,8 +22,7 @@ The form a subquotient induces
 
 On the density end the form of :math:`S/K` is the coset minimum of the axis form: the quadratic form minimised over each coset
 of :math:`K`, the Schur complement of the Gram on the quotient; on a diagonal form it is the weights on :math:`S \setminus K` and
-zero elsewhere (the coset minimum when the weights on :math:`K` are non-negative: the factor reads the weights on
-:math:`S \setminus K` for the refusal of a negative one, not those on :math:`K`).
+zero elsewhere.
 The form is computed once, at construction, so a constructed factor always has its form. On the integrated end it is the inverse face of its density partner: the density form with its ``face`` flipped
 on a dense form (:meth:`~orpheus.numerics.metric.DenseMetric.flipped`, one stated matrix and no second inversion), the dual
 metric of the density form on a diagonal form.
@@ -33,8 +32,11 @@ Constructibility
 
 The factor refuses, at construction, a slot on a singular form that is not quotiented by the form's kernel: a density factor
 needs :math:`S \cap \ker G \subseteq K`, an integrated factor needs its density partner (its ``riesz`` image) to satisfy it. It
-refuses an indefinite diagonal form when a weight on :math:`S \setminus K` of the density partner is negative: positivity is
-required here, where the Hilbert structure begins, and the Krein arm of the form is not built (issue #706).
+refuses an indefinite diagonal form when a weight anywhere in :math:`S` of the density partner is negative, on :math:`S \setminus K`
+and on :math:`K` alike: the coset minimum :math:`\min_{k \in K} (x + k)^{\mathsf T} G (x + k)` of a diagonal form with a negative
+weight at an index of :math:`K` is minus infinity, so no induced form exists. A negative weight outside :math:`S` does not enter the
+restriction and does not refuse. Positivity is required here, where the Hilbert structure begins, and the Krein arm of the form is
+not built (issue #706).
 """
 
 from __future__ import annotations
@@ -193,7 +195,7 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
 
     Refused at construction: a subquotient on another number of coordinates than the axis (``ValueError``); a variance of the
     wrong type for the axis's form (``TypeError``); a slot on a singular form that is not quotiented by its kernel; an indefinite
-    diagonal form when a weight on ``S`` minus ``K`` of the density partner is negative (the Krein arm, issue #706); the
+    diagonal form when a weight anywhere in ``S`` of the density partner is negative (the Krein arm, issue #706); the
     zero-dimensional state on a dense form; a state whose induced form the table of :meth:`_density_form` does not build (a ``Spanned``
     kernel not the form's own, an annihilator that is not the form's). The induced form is built once, here, so no read of a constructed
     factor refuses.
@@ -248,11 +250,12 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         assert not isinstance(form, NoForm)  # narrowing only: the formless case returned before
         if isinstance(form, DiagonalMetric):
             weights = _flat_weights(form)
-            induced = sk.live if sk.live is not None else range(weights.size)
-            if bool((weights[list(induced)] < 0.0).any()):
+            # the weights the restriction to S reads: S itself, K included (a coset minimum over K of a negative weight is minus infinity)
+            in_s = sk.S.indices if isinstance(sk.S, Coord) else range(weights.size)
+            if bool((weights[list(in_s)] < 0.0).any()):
                 raise ValueError(
-                    "factor: the induced form has a negative weight, so it has no Hilbert chart; the Krein arm of the form is "
-                    "not built (issue #706)"
+                    "factor: the form has a negative weight on the subspace the slot ranges over, so it has no Hilbert chart; the Krein "
+                    "arm of the form is not built (issue #706)"
                 )
         kernel = form.kernel
         meet = intersect(sk.S, kernel)  # an undecided meet raises "subspace intersection is undecided"

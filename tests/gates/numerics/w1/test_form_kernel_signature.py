@@ -2,13 +2,15 @@ r"""G03e: a form reads its kernel and its signature exactly, and a factor refuse
 
 The kernel of ``Diag([1, 0, 2])`` is ``Coord(3, (1,))`` exactly and ``signature == (2, 1, 0)``; a signed ``Diag([1, -1, 2])`` is ADMITTED and reads
 ``signature == (2, 0, 1)``; a ``Factor`` on it is refused with a message naming the Krein arm and #706 when the negative weight lies on ``S minus K``
-(``S = (0, 1, 2)``, ``K = ()``), and is ACCEPTED when it lies outside ``S`` (``S = (0, 2)``) or inside ``K`` (``S = (0, 1, 2)``, ``K = (1,)``).
+(``S = (0, 1, 2)``, ``K = ()``) and when it lies inside ``K`` (``S = (0, 1, 2)``, ``K = (1,)``: the coset minimum over ``K`` of a negative weight is minus
+infinity, so no induced form exists), and is ACCEPTED when it lies outside ``S`` (``S = (0, 2)``: the restriction does not read it; the orchestrator's P1 of
+2026-11-25, amending R2).
 ``DiagonalMetric.counting((2, 3))`` has weights ``ones((2, 3))``; a ``DenseMetric`` with a ``Spanned`` kernel of dimension 1 on 3 coordinates has
 ``signature == (2, 1, 0)``.
 
 Exact on any host (signs, counts and index sets). First red at ``ff305e0f``: a negative weight is accepted and ``rank((3,))`` reads 3; ``kernel``,
 ``signature`` and ``counting`` are ``AttributeError``s. Mutations: ``signature`` counts a negative weight as positive (reddens); ``Factor`` admits an
-indefinite form (reddens the refusal leg); the refusal read on the whole axis form instead of ``S minus K`` (reddens the two accepting cases).
+indefinite form (reddens the refusal leg); the refusal read on the whole axis form instead of ``S`` (reddens the accepting case); the refusal read on ``S minus K`` only (reddens the inside-``K`` case).
 """
 
 from __future__ import annotations
@@ -48,11 +50,17 @@ def test_form_kernel_and_signature() -> None:
         _require("Krein" in str(e) and "706" in str(e), f"the refusal does not name the Krein arm and #706: {e}")
     else:
         pytest.fail("a factor with a negative weight on S minus K was constructed")
-    for S, K, where in (((0, 2), (), "outside S"), ((0, 1, 2), (1,), "inside K")):
+    for S, K in (((0, 1, 2), (1,)), ((0, 1), (1,))):
         try:
             F.Factor(ax, v, P.sk_of(3, S, K))
         except ValueError as e:
-            pytest.fail(f"a negative weight {where} was refused (S={S}, K={K}): {e}")
+            _require("Krein" in str(e) and "706" in str(e), f"the refusal (S={S}, K={K}) does not name the Krein arm and #706: {e}")
+        else:
+            pytest.fail(f"a factor with the negative weight inside K was constructed (S={S}, K={K})")
+    try:
+        F.Factor(ax, v, P.sk_of(3, (0, 2), ()))
+    except ValueError as e:
+        pytest.fail(f"a negative weight outside S was refused: {e}")
 
 
 def test_a_factored_metric_reads_the_signature_of_its_blocks() -> None:

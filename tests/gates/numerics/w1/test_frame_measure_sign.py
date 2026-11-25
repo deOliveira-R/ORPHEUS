@@ -105,25 +105,32 @@ def test_the_site_is_tagged_and_reads_one_decomposition() -> None:
     _require(hasattr(FR, "frame_gram_kernel") and hasattr(FR, "frame_kernel"), "frame.py lacks the two verbs frame_gram_kernel and frame_kernel")
 
 
-def test_the_diagonal_door_refuses_a_negative_entry_on_a_signed_measure() -> None:
-    """``require_hilbert_diagonal`` has a witness: the frame's own verdict routes a negative diagonal entry to DENSE, so no built frame reaches the
-    diagonal door with one (0 of 23 diagonal-verdict Lebedev and level-symmetric frames measured at the opening); a synthetic frame states the
-    verdict and the Gram directly. Legs: a negative entry on a measure with a negative weight raises (a real ``raise``, read under ``-O``); the
-    same Gram on a positive measure is not read; a positive diagonal on a signed measure passes. Exact on any host (no decomposition). Mutation:
-    ``if negative:`` replaced by ``if False:`` reddens the first leg."""
-    from types import SimpleNamespace
+def test_a_negative_gram_diagonal_takes_the_dense_verdict_and_is_refused_by_the_kernel_door() -> None:
+    """The diagonal verdict needs no refusal of its own: ``FrameBase.discrete_gram_structure`` returns DENSE when any entry of the Gram's diagonal is
+    negative (its first test, ``np.any(diag < 0.0)``), so no frame with a negative diagonal reaches the diagonal arm of ``FromFrame.form``. Real
+    ``GalerkinFrame`` instances. Leg one: ``lebedev(13)`` at L = 7 to 15 and ``lebedev(27)`` at L = 14, 15 have a negative Gram diagonal entry (11 of the
+    48 frames of ``lebedev`` 13, 25, 27 at L = 0 to 15 with one; their off-diagonals are large, so the rank rule alone would also route them DENSE). Leg two
+    isolates the diagonal test: the negated ``lebedev(13)`` rule at L = 0 has the one-mode Gram ``[-4 pi]``, no off-diagonal at all, so only the negative
+    diagonal entry routes it DENSE. Every such frame is refused by ``frame_kernel`` naming the Krein arm and #706. Mutation: drop the diagonal test of the
+    verdict (leg two reads DIAGONAL and reddens)."""
+    from dataclasses import replace
 
-    from orpheus.numerics.frame import require_hilbert_diagonal
+    from orpheus.numerics.basis.base import GramStructure
+    from orpheus.numerics.frame import frame_kernel
+    from orpheus.numerics.frame_faces import angular_frame
+    from orpheus.numerics.quadrature.directional import Quadrature
 
-    def stub(diagonal: list[float], weights: list[float]) -> SimpleNamespace:
-        return SimpleNamespace(discrete_gram=np.diag(diagonal), measure=SimpleNamespace(weights=np.array(weights)))
-
-    _require(not __debug__, "this gate must run under python -O so that only a real raise can carry the refusal")
-    try:
-        require_hilbert_diagonal(stub([2.0, -1.0], [1.0, -1.0]))  # type: ignore[arg-type]
-    except ValueError as e:
-        _require("Krein" in str(e) and "#706" in str(e), f"the refusal does not name the Krein arm and #706: {e}")
-    else:
-        pytest.fail("a negative diagonal entry on a measure with a negative weight is accepted")
-    require_hilbert_diagonal(stub([2.0, -1.0], [1.0, 1.0]))  # type: ignore[arg-type]  # control: a positive measure is not read
-    require_hilbert_diagonal(stub([2.0, 1.0], [1.0, -1.0]))  # type: ignore[arg-type]  # control: a positive diagonal passes
+    negated = Quadrature(measure=replace(Quadrature.lebedev(13).measure, weights=-np.asarray(Quadrature.lebedev(13).measure.weights)))
+    cases = [(f"lebedev(13) L={L}", Quadrature.lebedev(13), L) for L in range(7, 16)]
+    cases += [(f"lebedev(27) L={L}", Quadrature.lebedev(27), L) for L in (14, 15)]
+    cases += [("negated lebedev(13) L=0", negated, 0)]
+    for label, rule, L in cases:
+        frame = angular_frame(rule, L)
+        _require(bool(np.any(np.diagonal(frame.discrete_gram) < 0.0)), f"{label}: no negative Gram diagonal entry")
+        _require(frame.discrete_gram_structure is GramStructure.DENSE, f"{label}: a negative Gram diagonal reads {frame.discrete_gram_structure}, not DENSE")
+        try:
+            frame_kernel(frame)
+        except ValueError as e:
+            _require("Krein" in str(e) and "#706" in str(e), f"{label}: the refusal does not name the Krein arm and #706: {e}")
+        else:
+            pytest.fail(f"{label}: frame_kernel accepted a Gram with a negative kept direction")

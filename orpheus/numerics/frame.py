@@ -443,7 +443,9 @@ def frame_kernel(frame: FrameBase) -> Declaration:
 
     On a measure with no negative weight the Gram is positive semi-definite by construction and nothing is read. A negative
     quadrature weight can make it indefinite (:math:`\sum_q w_q\,Y(\hat\Omega_q)Y(\hat\Omega_q)^{\mathsf T}`), and then no
-    Hilbert form of the dense arm exists; the refusal is a real ``raise``, so it holds under ``python -O``.
+    Hilbert form of the dense arm exists; the refusal is a real ``raise``, so it holds under ``python -O``. The diagonal verdict
+    needs no counterpart: :attr:`FrameBase.discrete_gram_structure` routes a Gram with a negative diagonal entry to DENSE, so a frame
+    that reaches the diagonal arm has a non-negative diagonal and a diagonal Gram is positive semi-definite.
 
     SCOPE-BOUNDARY[guard] a frame whose Gram is indefinite is refused at its mint.
     machinery: an indefinite (Krein) form arm, and an exactness-degree certificate on the quadrature, which would decide this without reading the Gram (W8a)
@@ -459,24 +461,6 @@ def frame_kernel(frame: FrameBase) -> Declaration:
                 f"indefinite, and the Krein arm of the form is not built (issue #706)"
             )
     return _declared(g_sym, dim)
-
-
-def require_hilbert_diagonal(frame: FrameBase) -> None:
-    r"""The diagonal verdict's counterpart of :func:`frame_kernel`: on a measure with a negative weight a negative entry of the
-    diagonal Gram is refused (a real ``raise``); on a measure with no negative weight nothing is read.
-
-    SCOPE-BOUNDARY[guard] a frame whose diagonal Gram has a negative entry is refused at its mint.
-    machinery: an indefinite (Krein) form arm, and an exactness-degree certificate on the quadrature (W8a)
-    ruling: the user's D3 of 2026-11-24, applied by the orchestrator as R1' (scratch/ontology/w1/open/N03/rulings.md)
-    revisit: issue #706, the Krein arm
-    """
-    if _has_negative_weight(frame):
-        negative = int(np.count_nonzero(np.diagonal(frame.discrete_gram) < 0.0))
-        if negative:
-            raise ValueError(
-                f"the diagonal Gram of this frame has {negative} negative entry(ies) on a measure with a negative weight: it is "
-                f"indefinite, and the Krein arm of the form is not built (issue #706)"
-            )
 
 
 def _has_negative_weight(frame: FrameBase) -> bool:

@@ -564,7 +564,7 @@ legally carry signed weights (level-symmetric families with negative
 weights are real, shipped objects), and the axis is the wrong layer to
 outlaw them. `[M]` ``Axis("x", (2,),
 origin=Declared(BasisKind.NODAL, DiagonalMetric([-1.0, 2.0])))`` constructs, and its form reads the signature
-``(1, 0, 1)`` exactly; the factor refuses an indefinite form where a negative weight lies on the quotient it spans.
+``(1, 0, 1)`` exactly. :class:`~orpheus.numerics.metric.DiagonalMetric` admits signed weights and reads its signature; the factor refuses an indefinite diagonal form when a negative weight lies anywhere in the subspace :math:`S` the slot ranges over; the frame's formal door refuses an indefinite Gram on a measure with a negative weight.
 
 .. _spaces-axis-identity:
 
@@ -2900,9 +2900,12 @@ and the metric :math:`G^{+}` stated at ``METRIC`` are two values with equal ``me
 
 **Signed diagonal weights and where positivity is required.** A diagonal form admits signed weights and reads its kernel (the
 exact zero weights) and its signature :math:`(n_+, n_0, n_-)` from the signs. Positivity is required where the Hilbert structure
-begins: the factor refuses an indefinite diagonal form when a weight on :math:`S \setminus K` of its density partner is
-negative, and a frame's mint refuses a Gram that is indefinite on a measure with a negative weight (a
-Lebedev rule with a negative weight at an order its spherical-harmonic Gram does not resolve). Both refusals name the Krein
+begins: the factor refuses an indefinite diagonal form when a weight anywhere in :math:`S` of its density partner is
+negative, on :math:`S \setminus K` and on :math:`K` alike (the coset minimum over :math:`K` of a negative weight is minus infinity, so no
+induced form exists; a negative weight outside :math:`S` is not read by the restriction and does not refuse), and a frame's mint
+refuses a Gram that is indefinite on a measure with a negative weight (a
+Lebedev rule with a negative weight at an order its spherical-harmonic Gram does not resolve). A Gram with a negative diagonal entry
+takes the dense verdict (the first test of the frame's diagonality verdict), so the diagonal arm of a frame never meets one. Both refusals name the Krein
 arm, which is not built (issue #706).
 
 **The factor and its two variances.** A :class:`~orpheus.numerics.factor.Factor` is an axis, a variance and a subquotient

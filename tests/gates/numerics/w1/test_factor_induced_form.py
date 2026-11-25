@@ -180,18 +180,33 @@ def test_dense_spanned_arm_and_the_declared_edges() -> None:
     _require(not ledger._boundary_violations_in(src, label="declaration.py"), "declaration.py has a boundary tag missing machinery, ruling or revisit")
 
 
+#: The refusals a partner construction (``riesz()``, ``dual()``) may legally raise, by message fragment; any other exception is a failure.
+_NAMED_REFUSALS = (
+    "needs the quotient by its kernel",
+    "the induced dense form is the zero form",
+    "subspace intersection is undecided",
+    "subspace inclusion is undecided",
+    "not the form's declared kernel",
+    "not the annihilator of the form's declared kernel",
+    "a declared subspace has no enumerable coordinates",
+    "Krein",
+)
+
+
 def _constructed(make):
-    """The factor ``make()`` builds, or ``None`` when construction refuses it (a ``ValueError`` or ``TypeError``); a ``LinAlgError`` is a ``ValueError``
-    and is NOT a refusal, so it is re-raised."""
+    """``(factor, refusal)``: the factor ``make()`` builds with ``None``, or ``None`` with the message of a ``ValueError`` or ``TypeError``. A
+    ``LinAlgError`` is a ``ValueError`` and is NOT a refusal, so it is re-raised."""
     try:
-        return make()
+        return make(), None
     except np.linalg.LinAlgError:
         raise
-    except (ValueError, TypeError):
-        return None
+    except (ValueError, TypeError) as e:
+        return None, str(e)
 
 
-def test_a_constructed_factor_always_reads_its_form() -> None:
+def _partner_constructions_checked() -> int:
+    """The number of ``riesz()`` and ``dual()`` constructions checked: each built and read, or refused by a named refusal; any other exception or
+    message fails. (A partner shares its density partner with the factor, so none refuses on today's populations: the table is the gate's teeth.)"""
     from orpheus.numerics import factor as F
     from orpheus.numerics.declaration import Coord
 
@@ -205,20 +220,34 @@ def test_a_constructed_factor_always_reads_its_form() -> None:
         "spanned-kernel": [(P.sk_of(n, S, K), ax) for S, K in pairs] + [(sk, ax) for sk in spanned_extra],
         "full-rank": [(P.sk_of(n, S, K), full) for S, K in pairs],
         "coord-kernel": [(P.sk_of(n, S, K), coord_ax) for S, K in pairs],
+        "signed-diagonal": [(P.sk_of(3, S, K), P.diag_axis([1.0, -1.0, 2.0])) for S, K in P.pairs(3)],
     }
+    checked = 0
     for name, states in populations.items():
         built = 0
         for sk, axis in states:
             for v in P.variances():
-                f = _constructed(lambda: F.Factor(axis, v, sk))
+                f, why = _constructed(lambda: F.Factor(axis, v, sk))
                 if f is None:
                     continue  # refused at construction: the only place a state may be refused
                 built += 1
-                for label, other in (("itself", f), ("riesz", _constructed(f.riesz)), ("dual", _constructed(f.dual))):
+                for label, partner in (("itself", (f, None)), ("riesz", _constructed(f.riesz)), ("dual", _constructed(f.dual))):
+                    other, why = partner
+                    checked += label != "itself"
                     if other is None:
-                        continue  # the construction of the partner refused: that is its own construction refusal
+                        if not any(frag in (why or "") for frag in _NAMED_REFUSALS):
+                            pytest.fail(f"{name} ({sk.S}, {sk.K}, {v}) {label}: refused with a message outside the table: {why}")
+                        continue
                     try:
                         _ = other.form
                     except Exception as e:  # noqa: BLE001  any exception at a read of a constructed factor is the failure, whatever its type
                         pytest.fail(f"{name} ({sk.S}, {sk.K}, {v}) {label}: a constructed factor's .form raised {type(e).__name__}: {e}")
-        _require(built > 0, f"no factor constructed on the {name} dense axis")
+        _require(built > 0, f"no factor constructed on the {name} axis")
+    return checked
+
+
+def test_a_constructed_factor_always_reads_its_form() -> None:
+    """Every factor that constructs reads its form, and when its ``riesz()`` or ``dual()`` refuses, the refusal is one of ``_NAMED_REFUSALS`` (a
+    ``LinAlgError`` or any other exception fails). Mutation: ``dual()`` raising an unexpected ``ValueError`` reddens the gate."""
+    checked = _partner_constructions_checked()
+    _require(checked > 0, "no riesz() or dual() construction was checked")
