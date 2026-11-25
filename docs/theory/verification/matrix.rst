@@ -9,7 +9,7 @@ Verification Matrix
    by ``tools/verification/generate_matrix.py``. Do not edit by
    hand — changes will be overwritten on the next rebuild.
 
-Total tests collected: **21614**
+Total tests collected: **21646**
 
 V&V level distribution
 ----------------------
@@ -19,10 +19,10 @@ V&V level distribution
    :widths: 15, 10, 10
 
    L0, 2253, 10.4%
-   L1, 2996, 13.9%
+   L1, 2996, 13.8%
    L2, 85, 0.4%
    L3, 0, 0.0%
-   foundation, 16212, 75.0%
+   foundation, 16244, 75.0%
    unmarked, 68, 0.3%
 
 Tagging source
@@ -34,7 +34,7 @@ How each test acquired its V&V level (see ``tests/conftest.py`` for the preceden
    :header: Source, Count
    :widths: 20, 10
 
-   explicit, 21467
+   explicit, 21499
    class-name, 46
    func-name, 0
    case, 33
@@ -674,6 +674,7 @@ Module × level grid
    primitives/test_boundary_face_layout, 0, 0, 0, 0, 5, 0
    primitives/test_cell_flattening_invariant, 0, 0, 0, 0, 3, 0
    primitives/test_dag_ownership, 0, 0, 0, 0, 18, 0
+   primitives/test_degenerate_ordinate_reads_the_owner, 0, 0, 0, 0, 30, 0
    primitives/test_face_name_crosswalk, 0, 0, 0, 0, 4, 0
    primitives/test_harmonic_moment_flux, 0, 0, 0, 0, 25, 0
    primitives/test_method_space, 3, 0, 0, 0, 0, 0
@@ -858,7 +859,7 @@ Module × level grid
    w1/test_dense_inverse_admission, 0, 0, 0, 0, 25, 0
    w1/test_dense_inverse_bytes, 0, 0, 0, 0, 43, 0
    w1/test_dense_kernel_declared, 0, 0, 0, 0, 39, 0
-   w1/test_half_range_one_owner, 0, 0, 0, 0, 24, 0
+   w1/test_half_range_one_owner, 0, 0, 0, 0, 26, 0
    w1/test_half_range_population, 0, 0, 0, 0, 8, 0
    w1/test_half_range_selectors, 0, 0, 0, 0, 7, 0
    w1/test_no_cutoff_in_metric, 0, 0, 0, 0, 5, 0
