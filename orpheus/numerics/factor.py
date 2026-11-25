@@ -22,7 +22,9 @@ The form a subquotient induces
 
 On the density end the form of :math:`S/K` is the coset minimum of the axis form: the quadratic form minimised over each coset
 of :math:`K`, the Schur complement of the Gram on the quotient; on a diagonal form it is the weights on :math:`S \setminus K` and
-zero elsewhere. On the integrated end it is the inverse face of its density partner: the density form with its ``face`` flipped
+zero elsewhere (the coset minimum when the weights on :math:`K` are non-negative: the factor reads the weights on
+:math:`S \setminus K` for the refusal of a negative one, not those on :math:`K`).
+The form is computed once, at construction, so a constructed factor always has its form. On the integrated end it is the inverse face of its density partner: the density form with its ``face`` flipped
 on a dense form (:meth:`~orpheus.numerics.metric.DenseMetric.flipped`, one stated matrix and no second inversion), the dual
 metric of the density form on a diagonal form.
 
@@ -37,7 +39,7 @@ required here, where the Hilbert structure begins, and the Krein arm of the form
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, unique
 
 import numpy as np
@@ -46,7 +48,7 @@ from orpheus.values.content import ContentIdentity
 
 from .axis import Axis, FromFrame
 from .declaration import Ann, Coord, Declaration, Spanned, contains, intersect
-from .metric import DenseMetric, DiagonalMetric, Face, HilbertMetric, NoForm
+from .metric import DenseMetric, DiagonalMetric, Face, HilbertMetric, NoForm, _masked_reciprocal
 
 __all__ = ["Factor", "FormlessVariance", "Kind", "Subquotient", "Variance", "VarianceChart"]
 
@@ -154,6 +156,18 @@ class Subquotient(ContentIdentity):  # concept: factor | role: component | kind:
         return self.S.n
 
     @property
+    def live(self) -> tuple[int, ...] | None:
+        r"""The live set ``S`` minus ``K`` as sorted coordinate indices when both are ``Coord``, else ``None`` (a declared
+        subspace has no enumerable coordinates).
+
+        The meet ``S`` with the annihilator of ``K``, spelled in coordinates: the one place the set difference is written, until a
+        non-``Coord`` arm of the declaration algebra enumerates its own.
+        """
+        if isinstance(self.S, Coord) and isinstance(self.K, Coord):
+            return tuple(sorted(set(self.S.indices) - set(self.K.indices)))
+        return None
+
+    @property
     def is_whole(self) -> bool:
         r"""True for the whole space modulo nothing."""
         return self == Subquotient.whole(self.n)
@@ -180,12 +194,17 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
     Refused at construction: a subquotient on another number of coordinates than the axis (``ValueError``); a variance of the
     wrong type for the axis's form (``TypeError``); a slot on a singular form that is not quotiented by its kernel; an indefinite
     diagonal form when a weight on ``S`` minus ``K`` of the density partner is negative (the Krein arm, issue #706); the
-    zero-dimensional state on a dense form.
+    zero-dimensional state on a dense form; a state whose induced form the table of :meth:`_density_form` does not build (a ``Spanned``
+    kernel not the form's own, an annihilator that is not the form's). The induced form is built once, here, so no read of a constructed
+    factor refuses.
     """
 
     axis: Axis
     variance: FormlessVariance | Variance
     sk: Subquotient
+    #: The density form of the density partner, computed once at construction (``None`` on a formless axis): a constructed factor has
+    #: its form, so construction refuses exactly the states the build cannot make.
+    _induced: DiagonalMetric | DenseMetric | None = field(init=False, compare=False, repr=False)
 
     def __post_init__(self) -> None:
         if not isinstance(self.axis, Axis):
@@ -206,6 +225,7 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
                 f"{'FormlessVariance' if formless else 'Variance'}, got {type(self.variance).__name__}"
             )
         if formless:
+            object.__setattr__(self, "_induced", None)
             return
         self._require_constructible()
         if isinstance(self.axis.form, DenseMetric) and self.sk.dim == 0:
@@ -214,6 +234,9 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
             # ruling: ON03-2 (scratch/ontology/w1/open/N03/rulings.md), the orchestrator, 2026-11-24
             # revisit: W8a
             raise ValueError("the induced dense form is the zero form, which DenseMetric does not spell")
+        axis_form = self.axis.form
+        assert not isinstance(axis_form, NoForm)  # narrowing only: the formless case returned above
+        object.__setattr__(self, "_induced", self._density_form(self._density_partner(), axis_form))
 
     def _density_partner(self) -> Subquotient:
         r"""The subquotient of the density chart this slot's form is induced from: this one on the density end, its dual on the
@@ -225,11 +248,8 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         assert not isinstance(form, NoForm)  # narrowing only: the formless case returned before
         if isinstance(form, DiagonalMetric):
             weights = _flat_weights(form)
-            if isinstance(sk.S, Coord) and isinstance(sk.K, Coord):
-                induced = sorted(set(sk.S.indices) - set(sk.K.indices))
-            else:
-                induced = list(range(weights.size))
-            if bool((weights[induced] < 0.0).any()):
+            induced = sk.live if sk.live is not None else range(weights.size)
+            if bool((weights[list(induced)] < 0.0).any()):
                 raise ValueError(
                     "factor: the induced form has a negative weight, so it has no Hilbert chart; the Krein arm of the form is "
                     "not built (issue #706)"
@@ -243,10 +263,9 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
     def form(self) -> HilbertMetric | NoForm:
         r"""The form of the slot: :class:`NoForm` on a formless axis; else the density form of the density partner, and on the
         integrated end its inverse face (the dense form with its ``face`` flipped, the dual metric of a diagonal form)."""
-        axis_form = self.axis.form
-        if isinstance(axis_form, NoForm):
-            return axis_form
-        density = self._density_form(self._density_partner(), axis_form)
+        density = self._induced
+        if density is None:
+            return self.axis.form  # a NoForm
         if self.variance.chart is VarianceChart.DENSITY:
             return density
         if isinstance(density, DenseMetric):
@@ -254,9 +273,7 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
         if isinstance(self.axis.origin, FromFrame):
             # ELEGANCE-DEBT[guard] #756 the diagonal frame head's integrated form is the masked reciprocal of its Gram's diagonal,
             # the arithmetic the head has always used; retires when N10 gives the diagonal integrated end one spelling.
-            weights = _flat_weights(density).reshape(self.axis.shape)
-            live = weights > 0.0
-            return DiagonalMetric(np.where(live, 1.0 / np.where(live, weights, 1.0), 0.0))
+            return DiagonalMetric(_masked_reciprocal(_flat_weights(density).reshape(self.axis.shape)))
         return density.dual()
 
     def _density_form(self, sk: Subquotient, axis_form: DiagonalMetric | DenseMetric) -> DiagonalMetric | DenseMetric:
@@ -269,11 +286,13 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
             return axis_form
         if isinstance(axis_form, DiagonalMetric) and isinstance(sk.S, Coord) and isinstance(sk.K, Coord):
             keep = np.zeros(sk.n, dtype=bool)
-            keep[sorted(set(sk.S.indices) - set(sk.K.indices))] = True
+            keep[list(sk.live or ())] = True
             return DiagonalMetric(np.where(keep, _flat_weights(axis_form), 0.0).reshape(self.axis.shape))
         if isinstance(axis_form, DenseMetric) and isinstance(sk.S, Coord) and isinstance(sk.K, Coord):
-            live = sorted(set(sk.S.indices) - set(sk.K.indices))
-            quotiented = list(sk.K.indices)
+            live = list(sk.live or ())
+            # the form is exactly zero on its own Coord kernel and couples to nothing there: eliminate only the rest of K
+            own_kernel = set(axis_form.kernel.indices) if isinstance(axis_form.kernel, Coord) else set()
+            quotiented = [i for i in sk.K.indices if i not in own_kernel]
             gram = np.asarray(axis_form.matrix)
             out = np.zeros_like(gram)
             if live:
@@ -282,7 +301,7 @@ class Factor(ContentIdentity):  # concept: factor | role: head | kind: space
                     coupling = gram[np.ix_(live, quotiented)]
                     block = block - coupling @ np.linalg.solve(gram[np.ix_(quotiented, quotiented)], coupling.T)
                 out[np.ix_(live, live)] = block
-            dead = tuple(sorted(set(quotiented) | (set(range(sk.n)) - set(sk.S.indices))))
+            dead = tuple(sorted(set(sk.K.indices) | (set(range(sk.n)) - set(sk.S.indices))))
             return DenseMetric(out, kernel=Coord(sk.n, dead), face=Face.METRIC)
         if isinstance(axis_form, DenseMetric) and isinstance(sk.S, Ann):
             kernel = axis_form.kernel

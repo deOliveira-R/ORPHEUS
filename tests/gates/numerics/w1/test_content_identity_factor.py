@@ -61,12 +61,12 @@ _FACTOR = Entry(
 )
 
 _RESTRICTION = Entry(
-    cls=Restriction, base=lambda: Restriction("parent-digest", (0, 2)), parts=("parent_key", "indices"),
+    cls=Restriction, base=lambda: Restriction(b"parent-digest", (0, 2)), parts=("parent_key", "indices"),
     perturb={
-        "parent_key": (leg("another parent", lambda: Restriction("other-digest", (0, 2))),),
-        "indices": (leg("another index set", lambda: Restriction("parent-digest", (0, 3))),),
+        "parent_key": (leg("another parent", lambda: Restriction(b"other-digest", (0, 2))),),
+        "indices": (leg("another index set", lambda: Restriction(b"parent-digest", (0, 3))),),
     },
-    pairs=(("two builds", lambda: Restriction("parent-digest", (0, 2)), lambda: Restriction("parent-digest", (0, 2))),),
+    pairs=(("two builds", lambda: Restriction(b"parent-digest", (0, 2)), lambda: Restriction(b"parent-digest", (0, 2))),),
 )
 
 ROSTER: tuple[Entry, ...] = (_FACTOR, _SUBQUOTIENT, _RESTRICTION)
@@ -103,3 +103,16 @@ def test_the_census_imports_this_roster() -> None:
     missing = [c.__name__ for c in (Factor, Subquotient, Restriction) if c not in classes]
     if missing:
         pytest.fail(f"tests/gates/test_content_identity_census.py ROSTER has no entry for {missing}: import ROSTER from this file")
+
+
+def test_a_restriction_is_consistent_with_the_axis_that_carries_it() -> None:
+    """An axis refuses a ``restriction`` whose kept-index count differs from its shape (a record of a cut that never happened), and a
+    ``Restriction`` takes its parent's digest as ``bytes`` only (the type ``content_digest`` returns). Legs: ``Restriction("parent", (0, 1))`` is a
+    ``TypeError``; an axis of shape ``(5,)`` with two kept indices is a ``ValueError``; the axis ``restricted((0, 2))`` of a three-point axis builds
+    (the control). Exact on any host. Mutation: the count check dropped reddens the second leg."""
+    parent = Axis("a", (3,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([1.0, 2.0, 3.0]))))
+    _ = parent.restricted((0, 2))
+    with pytest.raises(TypeError):
+        Restriction("parent", (0, 1))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="kept indices"):
+        Axis("a", (5,), origin=Declared(BasisKind.NODAL), restriction=Restriction(b"anything", (0, 1)))

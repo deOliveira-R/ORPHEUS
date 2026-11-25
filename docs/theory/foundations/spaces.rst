@@ -273,8 +273,8 @@ recording what fixes that factor's coordinate space, together with its
 machinery reasons about: partitions, collapses, frames and (later)
 :math:`\oplus`-lifts act **per axis**, never on an anonymous position of a
 monolithic shape tuple. Three slots are passed (``label``, ``shape``,
-``weights``), one is passed and is provenance (``origin``), and four are
-read off the origin at construction (``kind``, ``support``, ``nodes``,
+``restriction``), one is passed and is provenance (``origin``), and five are
+read off the origin at construction (``form``, ``kind``, ``support``, ``nodes``,
 ``layout``); the unit is a property of the kind.
 
 .. list-table:: The slots of :class:`~orpheus.numerics.axis.Axis`
@@ -291,7 +291,7 @@ read off the origin at construction (``kind``, ``support``, ``nodes``,
        factors that agree on everything else and play different roles are
        different axes.
    * - ``shape``
-     - ``tuple[int, ...]``, rank :math:`\ge 1`
+     - ``tuple[int, ...]``, rank :math:`\ge 0`
      - The factor's index set. Rank :math:`> 1` is admissible and
        deliberate: a spherical-harmonic head is :math:`(L+1, 2L+1)`, and
        a rank-:math:`d` spatial axis is a legal CS2 design choice. Rank
@@ -355,8 +355,8 @@ read off the origin at construction (``kind``, ``support``, ``nodes``,
        layout whose shape is not its own.
    * - identity
      - structural, **per subclass**
-     - :math:`(\text{type}, \text{label}, \text{shape}, \text{weights},
-       \text{kind}, \text{support}, \text{nodes}, \text{layout})` plus each
+     - :math:`(\text{type}, \text{label}, \text{shape}, \text{restriction},
+       \text{form}, \text{kind}, \text{support}, \text{nodes}, \text{layout})` plus each
        subclass's own fields (an ``EnergyAxis``'s edges), digested by the
        one content encoder; never the origin. :ref:`spaces-axis-identity`
        states what each part decides and the collisions it removed.
@@ -537,28 +537,29 @@ problem's own ingredients; the full table, and where the rule's pin is, is
 Canonical storage: one measure, one spelling, one identity
 -----------------------------------------------------------
 
-Because the measure is part of the identity, two spellings of the *same*
-measure would be two identities of the same space — the exact twin the
-axis layer exists to prevent. Three construction rulings close it
-(2026-08-20), and each is enforced in
-:meth:`Axis.__post_init__ <orpheus.numerics.axis.Axis>`:
+Because the form is part of the identity, two spellings of the *same*
+form would be two identities of the same space — the exact twin the
+axis layer exists to prevent. Three construction rules close it, and each is
+enforced where the form is built or read
+(:meth:`Axis.__post_init__ <orpheus.numerics.axis.Axis>` and
+:class:`~orpheus.numerics.metric.DiagonalMetric`):
 
-#. **All-ones weights collapse to** ``None`` **at construction.** The
-   counting measure has ONE spelling. Without this,
-   ``weights=None`` and ``weights=np.ones(shape)`` would be the same
-   measure with unequal identities. `[M]` the two axes compare equal and
-   hash equal after canonicalization.
+#. **The counting form has ONE spelling.** It is
+   :meth:`DiagonalMetric.counting <orpheus.numerics.metric.DiagonalMetric.counting>`
+   (all-ones weights over the shape), the form a ``Declared`` origin with no form
+   carries, and two axes with the counting form compare equal and hash equal by
+   digest, however it was spelled.
 #. **Weights are canonicalized as** ``w + 0.0`` **and stored
-   read-only.** :math:`-0.0` and :math:`+0.0` are one measure and must
-   be one byte pattern — the identity key reads ``weights.tobytes()``,
-   so an un-normalized :math:`-0.0` would mint a second name for one
-   measure. The addition also forces a fresh allocation, so mutating the
-   caller's array can never move an axis's hash after it has been used
-   as a dictionary key.
-#. **Non-finite weights are REFUSED.** A factor measure has finite
+   read-only, in** :class:`~orpheus.numerics.metric.DiagonalMetric`.
+   :math:`-0.0` and :math:`+0.0` are one weight and must be one byte
+   pattern — the identity digest reads the weights' bytes, so an
+   un-normalized :math:`-0.0` would mint a second name for one form. The
+   addition also forces a fresh allocation, so mutating the caller's array
+   can never move an axis's hash after it has been used as a dictionary key.
+#. **Non-finite weights are REFUSED.** A factor form has finite
    weights.
 
-There is deliberately **no non-negativity guard**. CS2's quadrature axes
+There is deliberately **no non-negativity guard** on the axis. CS2's quadrature axes
 legally carry signed weights (level-symmetric families with negative
 weights are real, shipped objects), and the axis is the wrong layer to
 outlaw them. `[M]` ``Axis("x", (2,),
@@ -572,7 +573,7 @@ An axis is identified by what fixes its space (ruling 71)
 
 Equality and hashing read the structural content, never object identity
 and never a subset of the fields: the digest of *(type, label, shape,
-weights, kind, support, nodes, layout)* plus each subclass's own fields,
+restriction, form, kind, support, nodes, layout)* plus each subclass's own fields,
 through the one content encoder
 (:class:`~orpheus.values.content.ContentIdentity`). Each part is there
 because some pair of factors differs in it and nothing else, and each such
@@ -613,7 +614,7 @@ mesh of unit width is a ``FromMeasure`` axis whose atom is its cell centre
 on :math:`\mathbb{R}`. `[M]` 2026-10-22 (``Axis("spatial", (1,),
 origin=Declared(NODAL))`` against ``Axis.of_measure`` of a one-atom
 measure at :math:`0.5` with weight :math:`1`): both carry the counting
-measure (``weights`` is ``None`` on both after canonicalization), and they
+form (``DiagonalMetric.counting((1,))``, one spelling by digest), and they
 compare unequal, through the atom. They are isometric, and the collapse
 :math:`\mathbb{R} \to \{*\}` that relates them is a pushforward, an
 operator, never an identity of spaces (:ref:`spaces-collapse-doctrine`).

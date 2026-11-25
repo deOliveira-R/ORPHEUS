@@ -54,6 +54,18 @@ def dense_axis(n: int = 4, seed: int = 3, deficient: bool = True) -> tuple[Any, 
     return axis, kernel, g
 
 
+def dense_coord_axis() -> tuple[Any, Any, np.ndarray]:
+    """``(axis, kernel, G)``: a dense symmetric positive semi-definite ``G`` on ``R^4`` with an exactly zero row and column at index 2, whose
+    declared kernel is the non-empty ``Coord(4, (2,))`` (the exact ``Coord`` admission)."""
+    from orpheus.numerics.axis import Axis, BasisKind, Declared
+    from orpheus.numerics.declaration import Coord
+    from orpheus.numerics.metric import DenseMetric, Face
+
+    g = np.array([[2.0, 0.5, 0.0, 1.0], [0.5, 3.0, 0.0, 0.25], [0.0, 0.0, 0.0, 0.0], [1.0, 0.25, 0.0, 4.0]])
+    kernel = Coord(4, (2,))
+    return Axis("h", (4,), origin=Declared(BasisKind.NODAL, DenseMetric(g, kernel=kernel, face=Face.METRIC))), kernel, g
+
+
 def density(axis: Any, sk: Any) -> Any:
     """The density factor ``(MEASURE, DENSITY)`` of ``sk`` on ``axis``."""
     from orpheus.numerics import factor as F

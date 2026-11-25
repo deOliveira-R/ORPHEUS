@@ -85,6 +85,7 @@ from .metric import (
     FactoredMetric,
     HilbertMetric,
     PositionedMetric,
+    _masked_reciprocal,
 )
 
 if TYPE_CHECKING:
@@ -1186,6 +1187,14 @@ def _axis_entries(
         if not isinstance(positioned, FactoredMetric)
         else _overlay_leaf_forms(positioned)
     )
+    for ax, form in zip(axes, forms):
+        if form is None and isinstance(ax.form, DenseMetric):
+            # ELEGANCE-DEBT[guard] #755 a dense axis form has no entry of its own until N04 replaces the overlay by a factor; the
+            # space would pair its block by the Euclidean form silently, so it refuses; retires with the overlay.
+            raise ValueError(
+                f"axis {ax.label!r} carries a DenseMetric form and the space's overlay positions none on its block: the space "
+                f"would pair it by the Euclidean form silently; a dense axis form is positioned by the factor of unit N04"
+            )
     return [
         (
             ax.shape,
@@ -1212,8 +1221,7 @@ def _entry_of_axis(ax: Axis) -> DiagonalMetric | None:
         return None
     weights = np.asarray(form.weights)
     if isinstance(ax.origin, FromFrame):
-        live = weights > 0.0
-        weights = np.where(live, 1.0 / np.where(live, weights, 1.0), 0.0)
+        weights = _masked_reciprocal(weights)
     if bool((weights == 1.0).all()):
         return None
     return form if weights is form.weights else DiagonalMetric(weights)

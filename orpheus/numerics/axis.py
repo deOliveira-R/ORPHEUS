@@ -481,8 +481,10 @@ class Restriction(ContentIdentity):  # concept: factor | role: part | kind: set
     indices: tuple[int, ...]
 
     def __post_init__(self) -> None:
-        if not isinstance(self.parent_key, (bytes, str)) or len(self.parent_key) == 0:
-            raise ValueError(f"Restriction parent_key must be the parent's non-empty content digest, got {self.parent_key!r}")
+        if not isinstance(self.parent_key, bytes):
+            raise TypeError(f"Restriction parent_key must be the parent's content digest (bytes), got {type(self.parent_key).__name__}")
+        if len(self.parent_key) == 0:
+            raise ValueError("Restriction parent_key must be the parent's non-empty content digest")
         kept = tuple(int(i) for i in self.indices)
         if not kept or kept != tuple(sorted(set(kept))) or kept[0] < 0:
             raise ValueError(f"Restriction indices must be sorted ascending and unique, non-negative and non-empty; got {self.indices!r}")
@@ -568,6 +570,11 @@ class Axis(ContentIdentity):  # concept: factor | role: weld | kind: space | wel
                 f"{np.shape(nodes)[0]} atoms against shape {shape}"
             )
         object.__setattr__(self, "nodes", None if nodes is None else _read_only(nodes))
+        if self.restriction is not None and (len(shape) != 1 or len(self.restriction.indices) != shape[0]):
+            raise ValueError(
+                f"axis '{self.label}': a restriction keeps one index per coordinate of the rank-1 axis; "
+                f"{len(self.restriction.indices)} kept indices against shape {shape}"
+            )
         form = self.origin.form
         if form is None:  # the one line that spells the counting default: a Declared origin handed no form
             form = DiagonalMetric.counting(shape)

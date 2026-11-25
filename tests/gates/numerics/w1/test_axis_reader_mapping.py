@@ -96,3 +96,52 @@ def test_counting_and_noform_give_no_entry() -> None:
     wentries = S._axis_entries((weighted, energy))
     _require(isinstance(wentries[0][1], DiagonalMetric) and wentries[1][1] is None, f"a weighted axis gives {wentries}")
     _require(np.array_equal(np.asarray(wentries[0][1].weights), np.asarray(q.measure.weights)), "the weighted axis's entry is not its measure")
+
+
+def test_a_diagonal_frame_head_factor_reads_the_space_metric_bytes() -> None:
+    """The factor's integrated form on a diagonal frame head (the masked reciprocal of the head's diagonal Gram, ELEGANCE-DEBT #756) is a
+    ``DiagonalMetric`` whose apply is byte-equal to the metric the dressed space applies (``basis_space(frame).apply_metric``), on
+    each of the two diagonal-verdict frames; the dual of the density form is NOT that metric on a dead slot (it divides by zero there). Exact on any host
+    (``.tobytes()`` of two reads of one arithmetic, no decomposition). Mutation: the factor's branch replaced by ``density.dual()`` reddens
+    the type leg on the first frame (a ``DualMetric``)."""
+    from orpheus.numerics.declaration import Coord
+    from orpheus.numerics.factor import Factor, Kind, Subquotient, Variance, VarianceChart
+    from orpheus.numerics.frame_faces import basis_space
+    from orpheus.numerics.metric import DiagonalMetric
+
+    for factory, args, L in _DIAGONAL:
+        frame, ax = _frame_head(factory, args, L)
+        n = int(np.prod(ax.shape))
+        dead = ax.form.kernel  # the head's dead slots: a density factor on the whole space must quotient by them
+        density = Factor(ax, Variance(Kind.MEASURE, VarianceChart.DENSITY), Subquotient(Coord(n, tuple(range(n))), dead))
+        form = density.riesz().form  # the integrated end: the form induced from its density partner
+        _require(isinstance(form, DiagonalMetric), f"{factory}{args} L={L}: the integrated form is {type(form).__name__}")
+        space = basis_space(frame)
+        x = np.random.default_rng(7).standard_normal(space.shape)
+        _require(
+            np.asarray(form.apply(x)).tobytes() == np.asarray(space.apply_metric(x)).tobytes(),
+            f"{factory}{args} L={L}: the factor's integrated form does not apply byte-equal to the space's metric",
+        )
+
+
+def test_a_dense_axis_form_with_no_positioned_entry_is_refused_by_the_space() -> None:
+    """A ``Declared`` axis holding a ``DenseMetric`` has no entry on the space's overlay until N04 (ELEGANCE-DEBT #755), and the space would pair
+    its block by the Euclidean form silently (the pairing of ``x = (1, 2, 3)`` with ``y = (1, -1, 2)`` read 5.0, against 22.0 under the Gram). The
+    space refuses it by name, naming N04. Control: a dense frame head, whose overlay positions its Gram, builds its metric. Exact on any host.
+    Mutation: the refusal removed reddens the first leg."""
+    from orpheus.numerics.axis import Axis, BasisKind, Declared
+    from orpheus.numerics.declaration import Coord
+    from orpheus.numerics.metric import DenseMetric, Face
+    from orpheus.numerics.space import FunctionSpace
+
+    gram = np.array([[2.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 4.0]])
+    axis = Axis("d", (3,), origin=Declared(BasisKind.NODAL, DenseMetric(gram, kernel=Coord(3, ()), face=Face.METRIC)))
+    space = FunctionSpace.of_axes(axis)
+    try:
+        space.apply_metric(np.ones(3))
+    except ValueError as e:
+        _require("N04" in str(e), f"the refusal does not name N04: {e}")
+    else:
+        pytest.fail("a dense axis form with no positioned entry was paired by the Euclidean form silently")
+    _, head = _frame_head("folded_product", (2, 4), 2)  # control: a dense frame head positions its Gram on the overlay
+    _require(isinstance(head.form, DenseMetric), "the control head is not a dense form")

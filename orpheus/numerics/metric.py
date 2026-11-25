@@ -3,9 +3,10 @@ r"""Hilbert metrics — a space's inner-product structure as an OBJECT.
 The metric of a discrete Hilbert space is a symmetric positive-semi-definite
 bilinear form :math:`G`: :math:`\langle x, y\rangle = y^{\mathsf T} G x`. A
 :class:`DiagonalMetric` may carry signed weights and reads its signature exactly;
-positivity is required where the Hilbert structure begins, by the factor
-(:class:`~orpheus.numerics.factor.Factor`) and by the frame's mint
-(:func:`~orpheus.numerics.frame.frame_kernel`).
+positivity is required where the Hilbert structure begins, on the
+:class:`~orpheus.numerics.factor.Factor` path and at the frame's mint
+(:func:`~orpheus.numerics.frame.frame_kernel`); a :class:`~orpheus.numerics.space.FunctionSpace` over a signed axis does not refuse
+(its norm reads ``nan``), a gap the later units of the space algebra close.
 Until P7 (campaign 1) the tree could spell exactly two realizations, both
 *multiplied* into the element: a broadcast diagonal weight array (the
 Hadamard product :math:`G \odot x`) and the per-axis factor measures of an
@@ -224,6 +225,17 @@ def _inverse_on_live_block(matrix: NDArray, kernel: Declaration) -> NDArray:
     return _exact_inverse(matrix, kernel.dim)
 
 
+def _masked_reciprocal(weights: NDArray) -> NDArray:
+    r"""The reciprocal of the positive weights and exactly zero elsewhere: the diagonal integrated end of a frame head.
+
+    ELEGANCE-DEBT[guard] #756 the two tagged readers of a diagonal frame head (``Factor.form``, #756, and the space's
+    ``_entry_of_axis``, #755) spell this arithmetic once, here; it retires when N04 and N10 give the diagonal integrated end one
+    spelling, and the Krein arm (#706) decides what a negative weight reads.
+    """
+    live = weights > 0.0
+    return np.where(live, 1.0 / np.where(live, weights, 1.0), 0.0)
+
+
 def _require_square(matrix: NDArray) -> None:
     r"""Refuse a matrix that is not square and 2-D: the one shape check of both construction doors of :class:`DenseMetric`."""
     shape = np.shape(matrix)
@@ -291,7 +303,8 @@ class HilbertMetric(ABC):  # concept: fmetric | role: head | kind: morphism
     r"""A symmetric positive-semi-definite bilinear form, as an object.
 
     A :class:`DiagonalMetric` is the one realization that may carry signed weights (it reads its :attr:`signature` exactly from
-    the signs); positivity is required by the factor and by the frame's mint, where the Hilbert structure begins.
+    the signs); positivity is required on the factor path and at the frame's mint, where the Hilbert structure begins. A function
+    space over a signed axis does not refuse it (its norm is ``nan``); the later units of the space algebra close that gap.
 
     The contract is three verbs and one derived pairing:
 
@@ -747,6 +760,23 @@ class FactoredMetric(HilbertMetric):  # concept: fmetric | role: arm | kind: mor
         r"""A tensor product declares no kernel on the flattened index set: the kernel of a Kronecker product is a coordinate
         subspace only when every block's is, so the question has no one answer here and the read raises ``AttributeError``."""
         raise AttributeError("a FactoredMetric declares no kernel: read the kernel of its blocks")
+
+    @property
+    def signature(self) -> tuple[int, int, int]:
+        r"""``(n_+, n_0, n_-)`` of the Kronecker product, derived from the blocks' signatures: a product of two directions is
+        positive when their signs agree and negative when they differ, and zero when either is zero. A Euclidean block is
+        all positive."""
+        total, pos, neg = 1, 1, 0
+        for block_shape, factor in self.entries:
+            size = int(np.prod(block_shape)) if block_shape else 1
+            p, _, m = (size, 0, 0) if _is_blank(factor) else cast(HilbertMetric, factor).signature
+            total, pos, neg = total * size, pos * p + neg * m, pos * m + neg * p
+        return (pos, total - pos - neg, neg)
+
+    @property
+    def negative(self) -> int:
+        r"""The number of negative directions of the product, read off :attr:`signature`."""
+        return self.signature[2]
 
     def _walk(self, x: NDArray, *, inverse: bool) -> NDArray:
         # The product acts on the concatenation of its blocks: a Euclidean

@@ -11,7 +11,8 @@ a spanned subspace") and ``DenseMetric(diag([1, 0]), kernel=Coord(2, (1,)), face
 ``form(image) * form(V/Spanned)`` is the identity on the quotient to ``1e-12``. The zero-dimensional state on a dense axis is refused AT CONSTRUCTION
 ("the induced dense form is the zero form, which DenseMetric does not spell"); a deficient dense axis with a proper ``Coord`` ``S`` is refused with
 "subspace intersection is undecided", and the raise in ``declaration.py::intersect`` carries a ``SCOPE-BOUNDARY[guard]`` tag the ledger's predicate
-accepts. No ``NotImplementedError`` is reachable from a constructed factor.
+accepts. A constructed factor always reads: for every factor that constructs, over the full-rank, the ``Spanned``-kernel and the non-empty
+``Coord``-kernel dense axes, ``.form`` of it, of its ``riesz`` and of its ``dual`` (each a construction that may refuse) raises nothing.
 
 Exact on any host (a tolerance of ``1e-12`` between computations, exact zeros by construction of the live-block embedding, message fragments).
 First red at ``ff305e0f``: import-only (``orpheus.numerics.factor``; ``Face`` and the ``face`` keyword do not exist). Mutations: replace the coset minimum by
@@ -27,13 +28,6 @@ import pytest
 from tests.gates.numerics.w1 import _factor_probe as P
 
 pytestmark = pytest.mark.foundation
-
-
-_TABLE_REFUSALS = (
-    "no enumerable coordinates",
-    "not the annihilator of the form's declared kernel",
-    "not the form's declared kernel",
-)
 
 
 def _require(cond: object, msg: str) -> None:
@@ -186,27 +180,45 @@ def test_dense_spanned_arm_and_the_declared_edges() -> None:
     _require(not ledger._boundary_violations_in(src, label="declaration.py"), "declaration.py has a boundary tag missing machinery, ruling or revisit")
 
 
-def test_no_not_implemented_error_is_reachable_from_a_constructed_factor() -> None:
-    ax, kernel, _ = P.dense_axis()
-    n = 4
+def _constructed(make):
+    """The factor ``make()`` builds, or ``None`` when construction refuses it (a ``ValueError`` or ``TypeError``); a ``LinAlgError`` is a ``ValueError``
+    and is NOT a refusal, so it is re-raised."""
+    try:
+        return make()
+    except np.linalg.LinAlgError:
+        raise
+    except (ValueError, TypeError):
+        return None
+
+
+def test_a_constructed_factor_always_reads_its_form() -> None:
     from orpheus.numerics import factor as F
     from orpheus.numerics.declaration import Coord
 
-    states = [(P.sk_of(n, S, K), ax) for S, K in P.pairs(n)] + [(F.Subquotient(Coord(n, tuple(range(n))), kernel), ax), (F.Subquotient(kernel.ann(), Coord(n, ())), ax)]
-    built = 0
-    for sk, axis in states:
-        for v in P.variances():
-            try:
-                f = F.Factor(axis, v, sk)
-            except (ValueError, TypeError):
-                continue
-            try:
-                _ = f.form
-                _ = f.riesz().form
-                _ = f.dual().form
-            except NotImplementedError as e:
-                pytest.fail(f"NotImplementedError reachable from a constructed factor ({sk.S}, {sk.K}, {v}): {e}")
-            except ValueError as e:  # the admission table's own refusals of an unenumerated subspace (3.1), nothing else
-                _require(any(frag in str(e) for frag in _TABLE_REFUSALS), f"({sk.S}, {sk.K}, {v}): a read refused outside the admission table: {e}")
-            built += 1
-    _require(built > 0, "no factor constructed on the dense axis")
+    ax, kernel, _ = P.dense_axis()
+    full = _dense_axis_of(_spd(4))
+    coord_ax, _, _ = P.dense_coord_axis()
+    n = 4
+    pairs = P.pairs(n)
+    spanned_extra = [F.Subquotient(Coord(n, tuple(range(n))), kernel), F.Subquotient(kernel.ann(), Coord(n, ()))]
+    populations = {
+        "spanned-kernel": [(P.sk_of(n, S, K), ax) for S, K in pairs] + [(sk, ax) for sk in spanned_extra],
+        "full-rank": [(P.sk_of(n, S, K), full) for S, K in pairs],
+        "coord-kernel": [(P.sk_of(n, S, K), coord_ax) for S, K in pairs],
+    }
+    for name, states in populations.items():
+        built = 0
+        for sk, axis in states:
+            for v in P.variances():
+                f = _constructed(lambda: F.Factor(axis, v, sk))
+                if f is None:
+                    continue  # refused at construction: the only place a state may be refused
+                built += 1
+                for label, other in (("itself", f), ("riesz", _constructed(f.riesz)), ("dual", _constructed(f.dual))):
+                    if other is None:
+                        continue  # the construction of the partner refused: that is its own construction refusal
+                    try:
+                        _ = other.form
+                    except Exception as e:  # noqa: BLE001  any exception at a read of a constructed factor is the failure, whatever its type
+                        pytest.fail(f"{name} ({sk.S}, {sk.K}, {v}) {label}: a constructed factor's .form raised {type(e).__name__}: {e}")
+        _require(built > 0, f"no factor constructed on the {name} dense axis")

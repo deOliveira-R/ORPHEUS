@@ -1,4 +1,4 @@
-r"""The machinery the three W0 refusal gates share (unit ``defects``, #709, #710, #711).
+r"""The machinery the W0 refusal gates share (unit ``defects``, #709 and #711; the gate of #710 retired with N03).
 
 A refusal gate has two instruments that an in-process ``pytest.raises`` cannot be:
 

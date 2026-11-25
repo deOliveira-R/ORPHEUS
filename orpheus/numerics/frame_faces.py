@@ -51,11 +51,10 @@ from orpheus.numerics.axis import FromFrame
 from orpheus.numerics.basis.base import Basis, GramStructure
 from orpheus.numerics.basis.descent import Descent
 from orpheus.numerics.basis.spherical_harmonic_basis import SphericalHarmonicBasis
-from orpheus.numerics import frame as _frame_module
 from orpheus.numerics.frame import FrameBase, GalerkinFrame
 from orpheus.numerics.instance_cache import cached_on
 from orpheus.geometry.manifold import Manifold, Quotient, Sphere
-from orpheus.numerics.metric import DenseMetric, DiagonalMetric, Face, FactoredMetric
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric, FactoredMetric
 from orpheus.numerics.operator import LinearOperator, NotInvertible
 from orpheus.numerics.projection import AnalysisOperator, ReconstructionOperator
 from orpheus.numerics.quadrature import Quadrature
@@ -450,10 +449,10 @@ def _parseval_dressed(frame: FrameBase) -> FunctionSpace:
         # this arm exactly as the diagonal arm overwrites it (on an
         # axis-built head the form is POSITIONED on the derived object
         # and the axis carries no measure, item 6.2c-i).
-        gram = frame.discrete_gram
-        return _dressed(
-            space, dense=DenseMetric(DenseMetric.symmetrised(gram), kernel=_frame_module.frame_kernel(frame), face=Face.GRAM), frame=frame,
-        )
+        # The positioned form is the head axis's own form with its face flipped (one stated matrix, no second decomposition).
+        head_form = FromFrame(frame).form
+        assert isinstance(head_form, DenseMetric)  # the dense verdict's axis form is dense
+        return _dressed(space, dense=head_form.flipped(), frame=frame)
     return _dressed(space, frame=frame)
 
 

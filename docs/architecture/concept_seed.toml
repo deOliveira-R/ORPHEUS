@@ -191,7 +191,7 @@ fingerprint = "blake2b:c855568ec601c635fc9098fbcf7a1916ec644aef6815947aa4749c7d4
 
 [[seed]]
 class = "orpheus/numerics/axis.py::Axis"
-fingerprint = "blake2b:51c482441d88e7f519b55b1ccae21ad491029a7d4cedd2cb7d97bd9246eb17b7"
+fingerprint = "blake2b:09203cd67a826b79e6874eb0cf0dc651cef11a69f43f4c5738af81873fab64bc"
 
 [[seed]]
 class = "orpheus/numerics/basis/base.py::Basis"

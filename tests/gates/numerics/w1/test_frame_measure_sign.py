@@ -103,3 +103,27 @@ def test_the_site_is_tagged_and_reads_one_decomposition() -> None:
     n_svd = sum(1 for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr == "svd")
     _require(n_svd == 1, f"numerics/frame.py has {n_svd} svd calls, expected the one decomposition that counts the rank and reads the signs")
     _require(hasattr(FR, "frame_gram_kernel") and hasattr(FR, "frame_kernel"), "frame.py lacks the two verbs frame_gram_kernel and frame_kernel")
+
+
+def test_the_diagonal_door_refuses_a_negative_entry_on_a_signed_measure() -> None:
+    """``require_hilbert_diagonal`` has a witness: the frame's own verdict routes a negative diagonal entry to DENSE, so no built frame reaches the
+    diagonal door with one (0 of 23 diagonal-verdict Lebedev and level-symmetric frames measured at the opening); a synthetic frame states the
+    verdict and the Gram directly. Legs: a negative entry on a measure with a negative weight raises (a real ``raise``, read under ``-O``); the
+    same Gram on a positive measure is not read; a positive diagonal on a signed measure passes. Exact on any host (no decomposition). Mutation:
+    ``if negative:`` replaced by ``if False:`` reddens the first leg."""
+    from types import SimpleNamespace
+
+    from orpheus.numerics.frame import require_hilbert_diagonal
+
+    def stub(diagonal: list[float], weights: list[float]) -> SimpleNamespace:
+        return SimpleNamespace(discrete_gram=np.diag(diagonal), measure=SimpleNamespace(weights=np.array(weights)))
+
+    _require(not __debug__, "this gate must run under python -O so that only a real raise can carry the refusal")
+    try:
+        require_hilbert_diagonal(stub([2.0, -1.0], [1.0, -1.0]))  # type: ignore[arg-type]
+    except ValueError as e:
+        _require("Krein" in str(e) and "#706" in str(e), f"the refusal does not name the Krein arm and #706: {e}")
+    else:
+        pytest.fail("a negative diagonal entry on a measure with a negative weight is accepted")
+    require_hilbert_diagonal(stub([2.0, -1.0], [1.0, 1.0]))  # type: ignore[arg-type]  # control: a positive measure is not read
+    require_hilbert_diagonal(stub([2.0, 1.0], [1.0, -1.0]))  # type: ignore[arg-type]  # control: a positive diagonal passes

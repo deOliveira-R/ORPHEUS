@@ -53,3 +53,23 @@ def test_form_kernel_and_signature() -> None:
             F.Factor(ax, v, P.sk_of(3, S, K))
         except ValueError as e:
             pytest.fail(f"a negative weight {where} was refused (S={S}, K={K}): {e}")
+
+
+def test_a_factored_metric_reads_the_signature_of_its_blocks() -> None:
+    """A tensor product of forms reads ``signature`` and ``negative`` from its blocks (a product of two directions is negative when their signs
+    differ): ``Diag([1, -1]) (x) Diag([1, 1])`` reads ``(2, 0, 2)`` and ``negative == 2``; ``Diag([1, -1]) (x) Diag([1, -1])`` reads ``(2, 0, 2)``;
+    a zero weight multiplies out as a zero direction (``Diag([1, 0]) (x)`` a Euclidean 3-block reads ``(3, 3, 0)``), and a positive product reads
+    ``negative == 0``. Exact on any host (integer counts). First red at the opening of this gate: ``negative`` read 0 and ``signature`` raised
+    ``AttributeError``. Mutation: ``negative`` left at the base default 0 reddens the first leg."""
+    from orpheus.numerics.metric import DiagonalMetric, FactoredMetric
+
+    def product(*blocks):
+        return FactoredMetric(tuple(((len(b.weights),), b) if b is not None else ((3,), None) for b in blocks))
+
+    mixed = product(DiagonalMetric(np.array([1.0, -1.0])), DiagonalMetric(np.array([1.0, 1.0])))
+    _require(mixed.signature == (2, 0, 2) and mixed.negative == 2, f"signed (x) positive reads {mixed.signature}, negative {mixed.negative}")
+    both = product(DiagonalMetric(np.array([1.0, -1.0])), DiagonalMetric(np.array([1.0, -1.0])))
+    _require(both.signature == (2, 0, 2), f"signed (x) signed reads {both.signature}")
+    zero = product(DiagonalMetric(np.array([1.0, 0.0])), None)
+    _require(zero.signature == (3, 3, 0), f"a zero direction (x) a Euclidean 3-block reads {zero.signature}")
+    _require(product(DiagonalMetric(np.array([1.0, 2.0])), DiagonalMetric(np.array([3.0, 4.0]))).negative == 0, "a positive product reads negative directions")
