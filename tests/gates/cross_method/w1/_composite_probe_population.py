@@ -131,8 +131,20 @@ def _timed_arrays(problem) -> dict[str, np.ndarray]:
     return out
 
 
+def _kernel_arrays(kernel, prefix: str) -> dict[str, np.ndarray]:
+    """The summands of a predicted kernel (``right`` and ``left``): the count, and each summand's support and generators as flat arrays."""
+    out: dict[str, np.ndarray] = {}
+    for side in ("right", "left"):
+        summands = getattr(kernel, side)
+        out[f"{prefix}.{side}.count"] = np.array([len(summands)])
+        for i, s in enumerate(summands):
+            out[f"{prefix}.{side}.{i}.support"] = _flat(s.support)
+            out[f"{prefix}.{side}.{i}.generators"] = _flat(s.generators)
+    return out
+
+
 def _gauge_arrays(problem) -> dict[str, np.ndarray]:
-    """The kernels the loss-kernel gauge predicts through its hand slices of the bulk size, where the fixture can call them."""
+    """The kernels the loss-kernel gauge predicts through its hand slices of the bulk size, where the problem can call them (the key set records which can)."""
     from orpheus.sn.operators.loss_kernel_gauge import predicted_discretization_kernel, predicted_physical_kernel
 
     out: dict[str, np.ndarray] = {}
@@ -141,12 +153,36 @@ def _gauge_arrays(problem) -> dict[str, np.ndarray]:
             kernel = fn(problem)
         except (TypeError, ValueError, AttributeError, NotImplementedError, RuntimeError, KeyError):
             continue
-        for side in ("right", "left"):
-            summands = getattr(kernel, side)
-            out[f"gauge.{name}.{side}.count"] = np.array([len(summands)])
-            for i, s in enumerate(summands):
-                out[f"gauge.{name}.{side}.{i}.support"] = _flat(s.support)
-                out[f"gauge.{name}.{side}.{i}.generators"] = _flat(s.generators)
+        out.update(_kernel_arrays(kernel, f"gauge.{name}"))
+    return out
+
+
+def gauge_problems() -> dict[str, object]:
+    """Two SN problems on which the gauge's predictors answer non-trivially: the harness's 12 SN fixtures all predict an EMPTY kernel (``[M]`` 0 summands at the base tip), because each has a wall that is not
+    all-reflective on a Cartesian mesh or is curvilinear, so these are built here through the public constructors, after ``tests/gates/sn/_singular_loss_box.py`` (``diamond_singular_box``,
+    ``diamond_scattering_box``): the harness's 2-cell by 3-cell non-dyadic 2-D box with all four faces specular, ``level_symmetric(sn_order=4)`` (no tangential ordinate), 2 groups; the first with a pure absorber
+    (the diamond-difference face modes), the second with a pure within-group scatterer with no capture (one absorption-free closed class per group: the physical modes too)."""
+    from orpheus.data.macro_xs.synthetic import make_mixture
+    from orpheus.mesh import Mesh2D
+    from orpheus.numerics.quadrature import Quadrature
+    from orpheus.sn.problem import SNProblem
+    from orpheus.transport.boundary_conditions import WallCondition
+
+    total = np.array([0.8, 1.6])
+    zero = np.zeros(2)
+    mixtures = {
+        "absorber": make_mixture(sig_t=total, sig_c=total.copy(), sig_f=zero, nu=zero, chi=zero, sig_s=np.zeros((2, 2))),
+        "scatterer": make_mixture(sig_t=total, sig_c=zero, sig_f=zero, nu=zero, chi=zero, sig_s=np.diag(total)),
+    }
+    out: dict[str, object] = {}
+    for name, mixture in mixtures.items():
+        nx, ny = fx.BOX_CELLS[0], 3
+        mesh = Mesh2D(
+            edges_x=np.linspace(0.0, fx.BOX_EXTENTS[0], nx + 1), edges_y=np.linspace(0.0, fx.BOX_EXTENTS[1], ny + 1), mat_map=np.zeros((nx, ny), dtype=int),
+            face_roles={"xmin": 0, "xmax": 0, "ymin": 0, "ymax": 0})
+        out[f"gauge_box_{name}"] = SNProblem(
+            mesh, Quadrature.level_symmetric(sn_order=4), {0: mixture}, scheme=None, scattering_order=0,
+            boundary_conditions=fx.conditions_for(mesh, {0: WallCondition.specular(fx.SPECULAR_ALBEDO)}))
     return out
 
 
@@ -170,10 +206,15 @@ def capture_composite_probes() -> dict[Key, np.ndarray]:
                 take(f"{name}.lifted_full_field", _lifted_full_field(problem), typed=False)
                 for quantity, array in _timed_arrays(problem).items():
                     arrays[(f"{name}.timed_full_field", quantity)] = array
+    for name, problem in gauge_problems().items():
+        for quantity, array in _gauge_arrays(problem).items():
+            arrays[(f"{name}.loss_kernel_gauge", quantity)] = array
     for ng in fx.GROUPS:
         mesh, solver, _ = fx.diffusion_problem(ng)
         name = snap.diffusion_fixture_name(ng)
         take(f"{name}.full_field_space", mesh.full_field_space)
+        for quantity, array in _kernel_arrays(solver.predicted_kernel, "predicted_kernel").items():
+            arrays[(f"{name}.solver", quantity)] = array
         arrays[(f"{name}.solver", "group_of_each_coordinate")] = _flat(solver._group_of_each_coordinate())
     return {k: np.ascontiguousarray(a) for k, a in arrays.items()}
 

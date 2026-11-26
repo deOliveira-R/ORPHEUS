@@ -1,12 +1,13 @@
 r"""G05m: the composite record keeps the base's bytes (N05, spec 7.6 row G05m, decision ON05-11, additions ON05-22).
 
-The record ``composite_probes/composite_probes.npz`` (1077 arrays) was taken on the UNCHANGED base ``ccecdc365`` by ``_composite_probe_population.write_record``,
+The record ``composite_probes/composite_probes.npz`` (1195 arrays) was taken on the UNCHANGED base ``ccecdc365`` by ``_composite_probe_population.write_record``,
 before any production edit of the unit, over the tracked population builder, which names neither class N05 retires. Its population: the 33 composites of the 15 harness
 fixtures (21 full fields, 12 coupled spaces, 6 of them System B ray instances reached through ``radial_characteristic_field_space``), each in both charts, primal and dual
 (``apply_metric``, ``apply_inverse_metric`` flat, through the typed carrier, and with a two-column payload), ``rank``, ``kernel_basis``, ``metric_diagonal``,
 ``inner_product``, ``norm``, the member round trip; and the additions of ON05-22: a lifted full field (the moment bulk of ``angular_lift.py``, the codomain of
 ``BulkAnalysisOperator``) on the slab and the box, a ``TimedFullField`` with one frame in its history, the kernels of the loss-kernel gauge through its hand slices of the
-bulk size, and ``_group_of_each_coordinate`` of the diffusion solver. It is re-taken by no one before N10.
+bulk size (the harness's 12 SN fixtures all predict an empty kernel, 0 summands, so two all-specular 2-D boxes are built by the population builder on which both predictors answer: 112 arrays), the
+diffusion solver's predicted kernel (0 summands on the 3 fixtures: the count rows only) and ``_group_of_each_coordinate`` of the diffusion solver. It is re-taken by no one before N10.
 
 Host-keyed: the arrays pass through LAPACK, so the stored bytes are compared on the stamped host and the gate FAILS on a foreign stamp with both stamps in the message
 (a skip would be a silent green); it is not in the CI step. GREEN at the base tip by construction (the record is the base's, two captures byte-equal); the input that
@@ -31,7 +32,7 @@ pytestmark = pytest.mark.foundation
 
 RECORD_DIR = Path(__file__).resolve().parent / "composite_probes"
 HARNESS_DIR = Path(__file__).resolve().parent / "snapshots"
-RECORD_COUNT = 1077
+RECORD_COUNT = 1195
 
 
 def _require(cond: object, msg: str) -> None:
