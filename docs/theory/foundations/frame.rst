@@ -4529,7 +4529,7 @@ the matrix difference:
        ``gauss_legendre`` (2, 8, 16) and ``folded_product`` (2,4) at
        :math:`L = 2`, where ``basis_space`` installs the matrix
        pseudo-inverse (:ref:`frame-parseval-dense-arm`) and
-       ``inner_product_weights`` is ``None`` altogether
+       a tensor space has no ``inner_product_weights`` slot (reading it raises ``AttributeError``) and the head's metric is its factor's dense form
 
 ⭐ **Read the third column by IDENTITY, not by size.** Every row on which
 the fork is observable is a ``gauss_legendre`` rule or a σ\ :sub:`y`-folded

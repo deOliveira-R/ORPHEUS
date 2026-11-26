@@ -67,7 +67,7 @@ from __future__ import annotations
 from orpheus.numerics.space import FunctionSpace
 
 import numpy as np
-from orpheus.numerics.metric import DenseMetric, NoForm
+from orpheus.numerics.metric import DenseMetric, DiagonalMetric, NoForm
 import pytest
 
 from orpheus.numerics.frame import GramStructure
@@ -178,7 +178,7 @@ def test_the_two_moment_heads_are_UNEQUAL_and_the_dressed_one_is_the_frames(labe
     assert continuum.axes is not None and dressed.axes is not None
     assert continuum.axes[0].origin.basis is frame.basis
     assert dressed.axes[0].origin.frame is frame
-    assert continuum.inner_product_weights is None and dressed.inner_product_weights is None
+    assert all(len(head.factors) == 1 and isinstance(head.factors[0].form, (DenseMetric, DiagonalMetric)) for head in (continuum, dressed)), "a head is one factor with a form"
 
     cont = _head_measure(continuum)
     assert cont is not None
@@ -188,7 +188,7 @@ def test_the_two_moment_heads_are_UNEQUAL_and_the_dressed_one_is_the_frames(labe
     else:
         assert frame.discrete_gram_structure is GramStructure.DIAGONAL
         dres = _head_measure(dressed)
-        assert dressed.metric is None and dres is not None
+        assert dres is not None
         assert not np.array_equal(np.asarray(cont), np.asarray(dres))
 
     # the movement, on the DRAW-FREE statistic (a per-element ratio, not an

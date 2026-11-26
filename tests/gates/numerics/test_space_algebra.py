@@ -117,8 +117,8 @@ def test_inner_product_factorises_euclidean():
     a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     tp = a * b
-    # Euclidean: TP weights stay None.
-    assert tp.inner_product_weights is None
+    # Euclidean: every factor carries the counting form, so the product's metric diagonal is ones.
+    np.testing.assert_array_equal(tp.metric_diagonal(), np.ones(tp.shape))
     # Element-level identity: <x⊗y, a⊗b> = (Σ x·a)(Σ y·b).
     x = np.array([1.0, 2.0, 3.0])
     y = np.array([4.0, 5.0])
@@ -148,8 +148,8 @@ def test_inner_product_factorises_weighted():
     # The product carries its metric FACTORED (CS4c step 6 item 6.2a) —
     # never the outer product as a stored tensor; the VALUES it applies
     # are that outer product.
-    assert tp.inner_product_weights is None
     assert isinstance(tp._resolved_metric, FactoredMetric)
+    assert [f.form for f in tp.factors] == [DiagonalMetric(w_a), DiagonalMetric(w_b)]
     np.testing.assert_array_almost_equal(
         tp.apply_metric(np.ones((3, 2))), np.outer(w_a, w_b),
     )
@@ -171,8 +171,8 @@ def test_inner_product_mixed_euclidean_and_weighted():
     w_b = np.array([1.0, 2.0])
     b = TensorSpace.declared("G", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w_b))
     tp = a * b
-    assert tp.inner_product_weights is None
     assert isinstance(tp._resolved_metric, FactoredMetric)
+    assert [f.form for f in tp.factors] == [DiagonalMetric.counting((3,)), DiagonalMetric(w_b)]
     applied = tp.apply_metric(np.ones((3, 2)))
     # Each row equals w_b (since the Euclidean factor contributes 1).
     for i in range(3):
@@ -247,7 +247,7 @@ def test_the_dual_carries_the_inverse_weights():
     w = np.array([1.0, 2.0, 3.0])
     a = TensorSpace.declared("X", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(w))
     a_dual = a.dual()
-    assert a_dual.inner_product_weights is None
+    assert a_dual.factors[0].form == DiagonalMetric(w).dual()
     x = np.array([1.0, 1.0, 1.0])
     np.testing.assert_array_equal(a_dual.apply_metric(x), x / w)
 

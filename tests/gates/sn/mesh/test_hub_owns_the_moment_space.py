@@ -223,7 +223,7 @@ def test_g2_4c_the_boundary_guard_sees_the_hubs_object_on_a_windowed_solve(monke
 # ═════════════════════════════════════════════════════════════════════════
 
 def _count_products(max_inner: int, monkeypatch) -> tuple[int, int]:
-    """``(TensorSpace.__mul__ activations, products carrying a dense slot)``
+    """``(TensorSpace.__mul__ activations, products storing one form of the product's full size)``
     during one windowed solve at ``max_inner``."""
     counts = {"mul": 0, "dense": 0}
     original = TensorSpace.__mul__
@@ -231,7 +231,8 @@ def _count_products(max_inner: int, monkeypatch) -> tuple[int, int]:
     def counting(self, other):
         counts["mul"] += 1
         out = original(self, other)
-        if out.inner_product_weights is not None:
+        # A densified product would store one form of the product's full size; a form stored per factor never does.
+        if len(out.factors) > 1 and any(np.size(getattr(f.form, "weights", getattr(f.form, "matrix", ()))) >= int(np.prod(out.shape)) for f in out.factors):
             counts["dense"] += 1
         return out
 

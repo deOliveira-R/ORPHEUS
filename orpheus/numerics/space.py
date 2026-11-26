@@ -72,7 +72,7 @@ from collections.abc import Mapping
 from functools import cached_property
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, Callable, Generic, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Generic, NoReturn, Optional, TypeVar, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -224,7 +224,7 @@ class CarrierSpec:  # concept: tensor | role: component | kind: set
     SCOPE-BOUNDARY[guard]
     machinery: members that follow their space by type, so that the member class is a function of the space's content (W3)
     ruling: issue #707 (second comment, 2026-11-11, confirmed 2026-11-12) and section 6.5 of .claude/plans/ontology_w1_spec.md
-    revisit: W3, the known defect: two equal spaces carrying different carriers are equal and mint different member classes, and the space's own verbs reach it by two producers: partial duals composed to the all-slot dual carry the default pair, so V.dual(on=[a]).dual(on=[b, c]) mints Member where V.dual() mints Covector; and the dual of such a space is equal to V and mints Covector where V mints Member (witnesses: the two strict xfails in tests/gates/numerics/w1/test_n04_review_repairs.py)
+    revisit: W3, the known defect: two equal spaces carrying different carriers are equal and mint different member classes, and the space's own verbs reach it by two producers: partial duals composed to the all-slot dual carry the default pair, so V.dual(on=[a]).dual(on=[b, c]) mints Member where V.dual() mints Covector; and the dual of such a space is equal to V and mints Covector where V mints Member (witnesses: the two strict xfails in tests/gates/numerics/w1/test_n04_review_repairs.py); and a product of two spaces whose carriers disagree (a dual times a primal, a mixed tensor) takes the default pair, a legitimate case that does not raise (witness: the row of that file that pins it)
     """
 
     member: type[Member] = Member
@@ -248,7 +248,8 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
     to the shape, leading-aligned) or a metric object (``metric``), or neither, which is the Euclidean inner product. The axis-built arm is
     :class:`TensorSpace`: a space is the ordered product of the factors of its slots, each with its form, its variance and its subquotient, and
     the metric is the Kronecker product of the forms in slot order. The subclasses are an allow-list
-    (:data:`FUNCTION_SPACE_ARMS`): a class that is not on it is refused when it is defined.
+    (:data:`FUNCTION_SPACE_ARMS`): a class that is not on it is refused when it is defined, and the class itself is refused when it is instantiated
+    (a ``TypeError``, in every build): a space is a :class:`TensorSpace` of factors or one of the listed arms.
 
     A space encodes pure *geometry*: the degrees of freedom (``shape``), the inner product and the composition algebra (``*``, :meth:`dual`).
     Units do NOT live on the space; they are a property of the quantity, carried by the :class:`~orpheus.numerics.field.Field` role leaf
@@ -291,7 +292,13 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
             )
 
     def __post_init__(self) -> None:
-        # ELEGANCE-DEBT[guard] #759 legacy-leaf: the leaf arm validates its stored metric; retires at N07, when the leaf fields leave the base.
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: the base refuses direct construction and the leaf arm validates its stored metric; retires at N07,
+        # when the leaf fields leave the base and the base is abstract.
+        if type(self) is FunctionSpace:
+            raise TypeError(
+                f"FunctionSpace is the common type of the spaces and is not constructed directly: a space is a TensorSpace of factors "
+                f"(TensorSpace.of_axes), or one of the legacy arms {sorted(FUNCTION_SPACE_ARMS)}"
+            )
         if self.metric is not None:
             # The object knows its own admission (a DenseMetric must span the flattened leading block).
             self.metric.validate_for(self.shape)
@@ -898,8 +905,8 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
         The member classes; ``None`` is the default pair ``(Member, Covector)``.
     """
 
-    # The leaf fields of the base are fixed here, so that a stored shape or a second metric cannot be passed: ``name`` and ``shape`` are
-    # derived from the factors and the other two stay ``None``.
+    # The leaf fields of the base are closed here, so that a stored shape or a metric source cannot be passed: ``name`` and ``shape`` are
+    # derived from the factors, and the two metric fields are refused on read (the properties installed after the class).
     # ELEGANCE-DEBT[guard] #759 legacy-leaf: the four leaf fields are re-declared closed until N07 removes them from the base.
     name: str = field(init=False)
     shape: tuple[int, ...] = field(init=False)
@@ -1056,7 +1063,10 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
     def __mul__(self, other: "FunctionSpace") -> "TensorSpace":
         r"""The product :math:`V \otimes W`: the concatenation of the slot lists, associative; ``NotImplemented`` against a leaf.
 
-        The product's carrier is the factors' when they agree and the default pair when they differ.
+        The product's carrier is the factors' when they agree and the default pair when they differ. A product whose carriers disagree is legitimate,
+        a dual times a primal is a mixed tensor (4 of 1143 products measured, all in ``tests/gates/numerics/test_dual_metric.py``), so it does not
+        raise: a mixed product takes the default carrier, and mints :class:`Member`. The ``isinstance`` test against a leaf is the binary-operator
+        protocol (``NotImplemented`` for any operand that is not a tensor space), which no space removes, so it is not a leaf door.
         """
         if not isinstance(other, TensorSpace):
             return NotImplemented
@@ -1069,6 +1079,7 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
         :math:`A \otimes I` on the other positions, and these are the positions :math:`A` acts on. A factor may span several array
         positions (a 2-D spatial mesh), so the answer is in array positions, not factor indices.
         """
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: a leaf ``sub`` has no labelled factors, so a leaf is refused; it retires at N07, when no space is a leaf.
         if not isinstance(sub, TensorSpace):
             raise TypeError(
                 f"positions_spanned_by: the space {sub!r} is not built from labelled factors, so the positions it spans cannot be read off {self!r}."
@@ -1224,6 +1235,29 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
     def counting(self) -> "TensorSpace":
         r"""The completion of every slot by the counting form."""
         return self.completed(on=self.labels)
+
+
+def _refused_legacy_metric_field(name: str) -> property:
+    r"""The read of a legacy metric field on a :class:`TensorSpace`: an ``AttributeError`` naming what to read instead.
+
+    A tensor space stores no metric source, so the two fields of the leaf arm (``inner_product_weights``, ``metric``) have no value on it; a reader
+    that has not been re-pointed to the factor's form fails here and does not read ``None`` as "Euclidean".
+    """
+    instead = (
+        f"TensorSpace.{name}: a tensor space stores no metric source; read the factor's form, space.factor(label).form, "
+        f"or the space's verbs (apply_metric, metric_diagonal, inner_product)"
+    )
+
+    def read(self: "TensorSpace") -> NoReturn:
+        raise AttributeError(instead)
+
+    return property(read)
+
+
+# ELEGANCE-DEBT[guard] #759 legacy-leaf: the two metric fields of the leaf arm are refused on a tensor space; retires at N07, when the fields leave the base.
+for _field_name in ("inner_product_weights", "metric"):
+    setattr(TensorSpace, _field_name, _refused_legacy_metric_field(_field_name))
+del _field_name
 
 
 def _counting_factor(f: Factor) -> Factor:

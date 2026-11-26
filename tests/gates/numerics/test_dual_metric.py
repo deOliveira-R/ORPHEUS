@@ -285,8 +285,8 @@ def test_S2c_the_dual_pairing_is_the_pairing_of_the_raises(name):
 
 
 def test_S3_the_primal_is_the_duals_content():
-    """``V*`` copies no metric source: its own ``inner_product_weights``, ``axes``
-    and ``metric`` are ``None``; ``V*.primal is V``; and the ROUTE: a metric
+    """``V*`` copies no metric source: its factors carry V's own axes, and its metric is the factored
+    product of those factors' forms; ``V*.primal is V``; and the ROUTE: a metric
     change on the primal (an in-place weight write, the battery idiom
     ``_resolved_metric`` is per-call for) moves ``V*``. First red TODAY: the
     dual's copied weights (``test_dual_preserves_weights``'s pin)."""
@@ -296,7 +296,7 @@ def test_S3_the_primal_is_the_duals_content():
     _require(isinstance(Vd, TensorSpace) and Vd.dual() is V, "V** is not V")
     for label in V.labels:
         _require(Vd.axis(label) is V.axis(label), f"V* carries its own copy of the axis {label!r} (the primal's content is shared, never copied)")
-    _require(Vd.inner_product_weights is None and Vd.metric is None, "V* carries a stored metric source of its own")
+        _require(Vd.factor(label).form == DiagonalMetric(w).dual(), f"the form of V* on {label!r} is not the dual of the diagonal form of V")
     x = np.ones(3)
     np.testing.assert_array_equal(Vd.apply_metric(x), x / w)
 

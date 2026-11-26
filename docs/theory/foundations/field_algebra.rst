@@ -1194,8 +1194,8 @@ and records nothing, as before.
    **The convention is load-bearing and it is measured.** `[M]` the
    interior-leaf *space* norm and the interior-leaf *flat* norm agree to
    :math:`2.29\times 10^{-16}` (0–1 ULP) on the pin fixture, because the
-   ``angular_flux`` space carries ``inner_product_weights is None``
-   *today*; but the interior-leaf norm and the **whole-composite** flat
+   ``angular_flux`` space carried ``inner_product_weights is None``
+   when this was measured (2026-08; a tensor space now has no such slot, and its factors' forms are its metric); but the interior-leaf norm and the **whole-composite** flat
    norm — which additionally ravels the boundary trace block — differ by
    :math:`4.71\times 10^{-3}`. That nine-order gap is what the capture
    gate ``tests/gates/sn/solve/test_si_diagnostic_trajectory.py`` exists to
@@ -1312,8 +1312,8 @@ sentence.
    :math:`\rho` **is defined on the SPACE norm** (user ruling,
    2026-08-19), and that is a forward commitment, not a description of
    today's arithmetic. Today the space norm and the Euclidean norm agree
-   to 0–1 ULP because the angular-flux space carries
-   ``inner_product_weights is None``. When a later phase installs the
+   to 0–1 ULP because the angular-flux space carried
+   ``inner_product_weights is None`` (as measured in 2026-08; a tensor space now has no such slot). When a later phase installs the
    physical :math:`V_{\rm cell} \times w_n` metric on the spaces, `[M]`
    the recorded trajectory moves by up to
    :math:`1.12\times 10^{-3}` relative — nine orders above the capture

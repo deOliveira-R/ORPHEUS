@@ -122,7 +122,7 @@ def test_the_widened_moment_product_is_axis_built_with_the_schemes_axis_as_its_t
     assert per_axis == 2
     space = sn.moment_space(L, spatial_moments=per_axis)
     assert isinstance(space, TensorSpace)
-    assert space.axes is not None and space.inner_product_weights is None
+    assert space.axes is not None
     assert space.shape[-1] == per_axis ** sn.ndim
     (tail,) = _tail_axes(space)
     expected = sn.scheme.moment_axis(sn.axes)

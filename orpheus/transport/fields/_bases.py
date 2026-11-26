@@ -492,6 +492,7 @@ class BulkField(RolePair, Field):  # concept: member | role: weld | kind: elemen
         axis of an axis-built space (every tailed space is one since CS4c
         step 6 item 6.2c-iii; an axes-less space carries no tail).
         """
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: a leaf space has no axes, so its tail is ``()``; it retires at N07, when no space is a leaf.
         if isinstance(space, TensorSpace):
             for ax in space.axes:
                 if ax.label == SPATIAL_MOMENT_AXIS_LABEL:
@@ -526,36 +527,30 @@ class BulkField(RolePair, Field):  # concept: member | role: weld | kind: elemen
         tail = BulkField._spatial_moment_tail_of(space)
         if tail == ():
             return 1
-        if isinstance(space, TensorSpace):
-            # The moment axis is the cell basis's head: read its basis. ndim is
-            # the spatial axis's rank (the ONE "spatial" axis carries the whole
-            # spatial shape, CS4b S4).
-            #
-            # ELEGANCE-DEBT[guard] #662: the refusal below exists because the
-            # width travels as the per-axis integer, so a hand-built axis whose
-            # basis is not one interval factor per spatial axis can reach here.
-            # Retires when the field layer threads the cell basis (or the axis)
-            # instead of the integer, making the mismatch unspellable.
-            moment_axis = next(
-                ax for ax in space.axes if ax.label == SPATIAL_MOMENT_AXIS_LABEL
-            )
-            ndim = next(
-                len(ax.shape)
-                for ax in space.axes
-                if ax.label == "spatial"
-            )
-            match moment_axis.origin:
-                case FromBasis(basis=TensorProductBasis() as basis) if (
-                    basis.ndim == ndim
-                    and len({f.n for f in basis.factors}) == 1
-                ):
-                    return basis.factors[0].n
-            raise ValueError(
-                f"the spatial-moment axis's origin {moment_axis.origin!r} is not "
-                f"a cell basis with one factor per axis of the {ndim}-D mesh, "
-                "all of one count"
-            )
-        return 1  # unreachable in practice: a tail rides an axis-built space
+        # A non-empty tail is read off a labelled factor, so the space is a tensor space and the by-label verb answers.
+        #
+        # The moment axis is the cell basis's head: read its basis. ndim is
+        # the spatial axis's rank (the ONE "spatial" axis carries the whole
+        # spatial shape, CS4b S4).
+        #
+        # ELEGANCE-DEBT[guard] #662: the refusal below exists because the
+        # width travels as the per-axis integer, so a hand-built axis whose
+        # basis is not one interval factor per spatial axis can reach here.
+        # Retires when the field layer threads the cell basis (or the axis)
+        # instead of the integer, making the mismatch unspellable.
+        moment_axis = space.axis(SPATIAL_MOMENT_AXIS_LABEL)
+        ndim = len(space.axis("spatial").shape)
+        match moment_axis.origin:
+            case FromBasis(basis=TensorProductBasis() as basis) if (
+                basis.ndim == ndim
+                and len({f.n for f in basis.factors}) == 1
+            ):
+                return basis.factors[0].n
+        raise ValueError(
+            f"the spatial-moment axis's origin {moment_axis.origin!r} is not "
+            f"a cell basis with one factor per axis of the {ndim}-D mesh, "
+            "all of one count"
+        )
 
     @classmethod
     def _space_for_problem(

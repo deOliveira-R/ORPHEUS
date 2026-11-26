@@ -473,7 +473,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
         assert head_layout(head).L == L
         if isinstance(head.axes[0].form, DenseMetric):
             assert frame.discrete_gram_structure is GramStructure.DENSE and head is frame_faces.basis_space(frame)
-            assert isinstance(head.metric, FactoredMetric)
+            assert isinstance(head.factors[0].form, DenseMetric)
             continue
         twin = _dense_slot_twin(head)
         x = rng.standard_normal(head.shape + (2, 3))

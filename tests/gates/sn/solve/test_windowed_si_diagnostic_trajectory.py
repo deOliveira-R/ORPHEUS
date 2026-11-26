@@ -218,8 +218,7 @@ def test_the_recorded_trajectory_was_taken_under_the_PARSEVAL_head_metric() -> N
     assert isinstance(space, TensorSpace) and _is_moment_space(space)
     head = space.sub(space.labels[0])
     assert _is_head(head)
-    assert head.inner_product_weights is None and head.metric is None
-    assert head.axes is not None and len(head.axes) == 1
+    assert len(head.factors) == 1 and head.axes is not None and len(head.axes) == 1
     frame = frame_faces.angular_frame(problem.quad, _L)
     assert head.axes[0].origin.frame is frame
     weights = np.asarray(head.apply_metric(np.ones(head.shape)))  # the head's metric: the masked reciprocal of its Gram's diagonal

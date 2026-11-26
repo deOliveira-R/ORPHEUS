@@ -369,9 +369,12 @@ class TestDenseMetricPropagation:
         dual = v.dual()
         inv = np.linalg.pinv(_G_LITERAL, hermitian=True, rcond=1e-12)
         got = dual.inner_product(_X, _Y)
-        # The name-built dual is a factor whose form is the stored inverse face; the walk applies a dense block by a reshape-and-matmul where the
-        # standalone object applies a leading matmul: one association apart, 4e-16 on this probe (a value move of the one-ulp class of unit N04,
-        # listed in its commit message, never re-baselined silently), so the pin is a nulp band and not bit equality.
+        # The name-built dual is a factor whose form is the stored inverse face. The factored walk applies a dense block by
+        # ``DenseMetric.apply_block``, an ``einsum``, the route production already took; the retired test-only route of a name-built dense form
+        # was ``DualMetric`` to ``DenseMetric.apply_inverse`` to ``_matmul_leading``, a matmul on a reshaped array. The two are one association
+        # apart, 4e-16 on this probe, so the pin is a nulp band and not bit equality. The same move holds for the primal ``apply_metric`` and
+        # ``inner_product`` of a name-built dense form (the measured counts are in the specification, 6.5, "Bit identity", and no production
+        # value moves).
         _require(
             abs(got - float(np.sum((inv @ _X) * _Y))) <= 4 * np.finfo(float).eps * max(1.0, abs(got)),
             f"the dual's pairing {got!r} is not xᵀG⁺y off the stored inverse face",

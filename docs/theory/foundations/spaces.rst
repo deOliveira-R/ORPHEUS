@@ -144,9 +144,14 @@ the same space" is a claim this corpus has **overturned**.
      :class:`~orpheus.numerics.metric.HilbertMetric` — the Hadamard
      weight is its diagonal special case — so a form with off-diagonal
      structure is expressible at last; resolution is
-     ``metric`` > ``inner_product_weights`` > Euclidean, with axis-built
-     spaces routing through their axes instead, and a construction guard
-     refuses any two sources at once. ⚠ Consequently
+     ``metric`` > ``inner_product_weights`` > Euclidean on a legacy leaf, a
+     tensor space has neither slot (reading either raises ``AttributeError``
+     naming ``factor(label).form``, so a reader not yet re-pointed fails
+     loudly and does not read ``None`` as Euclidean), and a construction guard
+     refuses any two sources at once on a leaf (gate
+     ``tests/gates/numerics/w1/test_base_and_legacy_fields_refuse.py``). The
+     abstract base ``FunctionSpace`` is not constructed directly: a space is a
+     ``TensorSpace`` of factors or one of the allow-listed legacy arms. ⚠ Consequently
      ``inner_product_weights is None`` **no longer implies Euclidean** —
      read a space's pairing through
      :meth:`~orpheus.numerics.space.FunctionSpace.inner_product`, never
@@ -413,7 +418,17 @@ The space's own verbs reach the boundary, not only a hand-passed carrier: a flip
 returns that memoised object (so ``V.dual(on=L).dual(on=M)`` with ``L`` and ``M`` partitioning the slots is not ``V.dual()`` by identity
 when it passes through a partial dual, and is equal to it), a genuinely partial dual carries the default pair whichever route reached
 it, and partial duals composed to the all-slot dual therefore mint a :class:`~orpheus.numerics.space.Member` where ``V.dual()`` mints a
-:class:`~orpheus.numerics.space.Covector`. No production site passes a carrier or takes a partial dual (``git grep`` of
+:class:`~orpheus.numerics.space.Covector`. There are two producers of the defect: partial duals composed to the all-slot dual
+(``V.dual(on=[a]).dual(on=[b, c])`` carries the default pair and equals ``V.dual()``), and the dual of an equal copy of the dual
+(that copy is equal to ``V.dual()``, its dual is equal to ``V``, and it mints a :class:`~orpheus.numerics.space.Covector` where ``V``
+mints a :class:`~orpheus.numerics.space.Member`). Measured on a three-slot space with one formless slot (the energy slot of the test
+triple, :math:`2^3 \times 2^3` pairs :math:`(L, M)` of subsets of the slots): law L4, ``V.dual(on=L).dual(on=M) == V.dual(on=L ^ M)``,
+holds on 64 of 64 pairs, and on 12 of those 64 the two equal spaces mint different member classes (``[M]`` 2026-11-25, the two sides
+compared on the member class of a constant column). A product of two spaces whose carriers disagree (a dual times a primal, a mixed
+tensor) is legitimate, so the product does not raise: it takes the default carrier and mints :class:`~orpheus.numerics.space.Member`
+(4 of 1143 products in the numerics, transport, ``sn/primitives``, homogeneous and ``cross_method/w1`` gates disagree, all in
+``tests/gates/numerics/test_dual_metric.py``; the row ``test_a_mixed_product_takes_the_default_carrier`` of
+``tests/gates/numerics/w1/test_base_and_legacy_fields_refuse.py`` pins it). No production site passes a carrier or takes a partial dual (``git grep`` of
 ``.dual(on=`` and ``.riesz(`` outside ``space.py`` and ``factor.py`` reads 0 sites), so the defect is latent. The witness is a strict
 expected failure in ``tests/gates/numerics/w1/test_n04_review_repairs.py``, which W3 turns into a pass.
 
@@ -2536,8 +2551,8 @@ carried its own gate when it was added.
 
    **⚠ An empty weights slot no longer means "Euclidean".**
    ``inner_product_weights is None`` describes the *diagonal source*
-   only; a dense-metric space reads ``None`` there while carrying a
-   real, non-Euclidean metric.
+   of a legacy leaf only; a tensor space has no such slot (the read
+   raises ``AttributeError``) and carries its metric as the forms of its factors.
    Read the space's behaviour through
    :meth:`~orpheus.numerics.space.FunctionSpace.inner_product`, never
    through the slot. `[M]` re-measured 2026-09-07 after item 6.2a, and

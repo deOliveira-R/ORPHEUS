@@ -104,7 +104,7 @@ def test_space_inner_product_weights_equal_4pi_over_2l_plus_1():
     L = 4
     space = TensorSpace.of_axes(whole_on_mod_kernel(Axis.of_basis(SphericalHarmonicBasis(L=L)), Kind.MEASURE, VarianceChart.DENSITY))
     expected_per_ell = 4.0 * np.pi / (2.0 * np.arange(L + 1) + 1.0)
-    assert space.inner_product_weights is None and space.metric is None
+    assert len(space.factors) == 1
     assert space.axes is not None and len(space.axes) == 1
     assert isinstance(space.axes[0].form, DiagonalMetric)
     weights = space.axes[0].form.weights

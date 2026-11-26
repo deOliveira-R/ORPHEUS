@@ -1,7 +1,7 @@
 r"""G04i: every space constructor states its variance, and the bare ``FunctionSpace(name, shape)`` call is gone (N04, spec 7.5).
 
 ``TensorSpace.declared(name, shape)`` (no variance), ``of_measure(measure, label)`` and ``of_basis(basis)`` raise ``TypeError``; the same with a variance builds.
-``ast`` over ``orpheus/`` and ``tests/``: 0 calls of the bare ``FunctionSpace(`` (a call whose callee is the name ``FunctionSpace`` or an attribute of that name).
+``ast`` over ``orpheus/`` and ``tests/``: 0 calls of the bare ``FunctionSpace(`` (a call whose callee is the name ``FunctionSpace`` or an attribute of that name), except the file of ``REFUSAL_ROW``, whose rows assert that the bare call raises.
 
 First red at the base tip: ``TensorSpace`` does not exist (import-only for the behavioural legs); the ``ast`` leg reads the 4 production and 291 test
 bare calls of the opening (re-measured here by the same parse). Mutation: give ``variance`` a default in ``declared`` reddens the first leg. Exact on any host.
@@ -50,6 +50,10 @@ def _bare_calls(source: str) -> int:
     return n
 
 
+#: The one file that calls the bare base on purpose: its row asserts the call raises (G04p, ruling W1 of the N04 post-review pass).
+REFUSAL_ROW = "tests/gates/numerics/w1/test_base_and_legacy_fields_refuse.py"
+
+
 def test_no_bare_function_space_call_remains() -> None:
     _require(_bare_calls("x = FunctionSpace('a', (3,))\ny = m.FunctionSpace('b', (2,))") == 2, "the census does not find a planted bare call of either spelling")
     per_file: dict[str, int] = {}
@@ -60,5 +64,6 @@ def test_no_bare_function_space_call_remains() -> None:
             n = _bare_calls(path.read_text())
             if n:
                 per_file[str(path.relative_to(ROOT))] = n
+    _require(per_file.pop(REFUSAL_ROW, 0) == 2, "the refusal row's file does not hold its two bare calls")
     _require(population > 1000, f"the census read {population} files")
     _require(not per_file, f"{sum(per_file.values())} bare FunctionSpace( calls in {len(per_file)} of {population} files: {sorted(per_file.items())[:8]}")

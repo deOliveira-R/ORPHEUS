@@ -164,6 +164,14 @@ def _flat_chart(space: FunctionSpace) -> FunctionSpace:
     C-order ravel is a vector of :math:`\mathbb R^n` with the ravelled
     diagonal metric. The projector is built on that chart and acts on an
     element by ravelling it in and reshaping it out (:meth:`KernelProjectionGauge.apply`).
+
+    The flat chart declares ``Variance(FUNCTION, DENSITY)`` with the source's diagonal form: it does not inherit a variance from ``space``, which for a
+    mixed-kind source (a flux space is a measure on every slot, a response a function) has none to give.
+
+    SCOPE-BOUNDARY[guard]
+    machinery: the operator kernel that types the gauge as the minimum-norm member of a coset, which would give this chart its variance from the kernel and not from a declaration
+    ruling: SD-27 of .claude/plans/ontology_w1_spec.md (the flattened space declares its variance and W1 leaves its coordinate space declared)
+    revisit: wave W2, when the operator kernel of the nullspace gauge is typed
     """
     if len(space.shape) == 1:
         return space

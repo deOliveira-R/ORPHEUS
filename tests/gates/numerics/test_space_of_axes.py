@@ -33,7 +33,7 @@ from orpheus.numerics.space import FunctionSpace
 from orpheus.numerics.axis import Modal
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
-from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.metric import DiagonalMetric, NoForm
 
 pytestmark = pytest.mark.foundation
 
@@ -200,8 +200,8 @@ def test_of_axes_never_densifies_the_metric() -> None:
 
     Three legs, because each is blind alone:
 
-    1. **exact/structural** — ``space.inner_product_weights is None`` (the
-       dense slot is not populated) and no ndarray reachable from the
+    1. **exact/structural** — the space's metric is the factored product of its
+       factors' forms (no dense slot) and no ndarray reachable from the
        space has ``size == prod(space.shape)``;
     2. **memory-shaped** — total reachable ndarray bytes <= the per-axis
        bytes + slack, at a shape with a ``[M]`` 1000x separation
@@ -219,7 +219,7 @@ def test_of_axes_never_densifies_the_metric() -> None:
     w_b = np.linspace(0.25, 8.0, n)
     space = TensorSpace.of_axes(Factor.whole_on(Axis("a", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_a))), Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(Axis("b", (n,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w_b))), Kind.MEASURE, VarianceChart.DENSITY))
     # Leg 1: structural.
-    _require(space.inner_product_weights is None, "dense slot populated")
+    _require([f.form for f in space.factors] == [DiagonalMetric(w_a), DiagonalMetric(w_b)], "the factors' forms are not the two per-axis diagonals")
     full = int(np.prod(space.shape))
     _require(
         all(arr.size != full for arr in _reachable_arrays(space)),
@@ -332,8 +332,8 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
     assert a_axes is not None and b_axes is not None
     _require(product.axes == a_axes + b_axes, "axes must thread through *")
     _require(
-        product.inner_product_weights is None,
-        "an all-axes product must not densify",
+        isinstance(product.factors[0].form, NoForm) and [f.form for f in product.factors[1:]] == [DiagonalMetric.counting((1,)), DiagonalMetric.counting((3,))],
+        "an all-axes product must not densify: its forms are the energy slot's none and the counting forms of its point and line axes",
     )
 
     legacy = TensorSpace.declared("legacy", (5,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
@@ -346,7 +346,7 @@ def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
     weighted = TensorSpace.of_axes(Factor.whole_on(Axis("w", (2,), origin=Declared(BasisKind.NODAL, DiagonalMetric(np.array([2.0, 4.0])))), Kind.MEASURE, VarianceChart.DENSITY))
     mixed = weighted * legacy
     _require(mixed.axes == weighted.axes + legacy.axes, "the mixed product carries every factor's axis")
-    _require(mixed.inner_product_weights is None, "a mixed product must not densify")
+    _require([f.form for f in mixed.factors] == [DiagonalMetric(np.array([2.0, 4.0])), DiagonalMetric.counting((5,))], "a mixed product must not densify: its forms are the weighted axis's diagonal and the legacy axis's counting form")
     _require(
         isinstance(mixed.factors[0].form, DiagonalMetric),
         "the axis-borne measure was dropped by the mixed product",

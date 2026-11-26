@@ -235,7 +235,7 @@ def test_the_tree_binds_the_frames_parseval_space_and_not_the_continuum_head(lab
     )
     assert dressed.axes is not None and len(dressed.axes) == 1
     assert dressed.axes[0].origin.frame is frame, "the frame dresses the head and becomes its origin"
-    assert dressed.inner_product_weights is None
+    assert len(dressed.factors) == 1 and not isinstance(dressed.factors[0].form, NoForm), "the dressed head is one factor carrying a form"
     diag = np.diagonal(frame.discrete_gram).reshape(dressed.shape)
     live = diag > 0.0
     if frame.discrete_gram_structure is GramStructure.DENSE:

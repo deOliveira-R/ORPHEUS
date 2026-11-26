@@ -165,6 +165,8 @@ def _parse_alpha(alpha: object, owner: str) -> float:
 
 def _space_content(space: "AngularFaceTraceSpace") -> tuple:
     r"""The content of a half-trace space: its name, shape, ordinate indices and metric weights, as bytes (a space's own ``==`` sees only ``(name, shape)``)."""
+    # ELEGANCE-DEBT[guard] #759 legacy-leaf: a half-trace space is a leaf arm that stores its weights (``None`` when it stores none), so this reader
+    # branches on the leaf field; it retires at N06, when the half-trace is a tensor space and its content is its factors' forms.
     weights = space.inner_product_weights
     return (space.name, space.shape, space.ordinate_indices.tobytes(), b"" if weights is None else np.asarray(weights).tobytes())
 
@@ -446,6 +448,8 @@ class ScaledOrdinatePermutation(RealizedBoundary):  # concept: realized | role: 
         owner = f"ScaledOrdinatePermutation({self.partner!r} -> {self.face!r})"
         outflow, inflow = self.trace.outflow_space(self.partner), self.trace.inflow_space(self.face)
         local = _crossing(self.permutation, outflow, inflow, owner)
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: the two half-traces are leaf arms whose weights may be absent, so the measure check is skipped on
+        # ``None``; it retires at N06, when the half-trace is a tensor space and its measure is its factors' forms, always present.
         if outflow.inner_product_weights is not None and inflow.inner_product_weights is not None:
             carried, wanted = np.asarray(outflow.inner_product_weights)[local], np.asarray(inflow.inner_product_weights)
             if not np.allclose(carried, wanted, rtol=MEASURE_RTOL, atol=0.0):

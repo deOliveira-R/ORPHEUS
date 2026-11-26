@@ -119,7 +119,6 @@ def test_P10_the_moment_space_is_axis_built_and_never_densified(geometry: str, L
     space = problem.moment_space(L)
     frame = frame_faces.angular_frame(problem.quad, L)
     assert space.axes is not None, "the moment space is axis-built"
-    assert space.inner_product_weights is None
     if frame.discrete_gram_structure is GramStructure.DENSE:
         assert isinstance(space.factors[0].form, DenseMetric)
     else:

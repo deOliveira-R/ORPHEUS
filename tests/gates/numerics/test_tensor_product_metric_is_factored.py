@@ -248,8 +248,7 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
             product = head * problem.bulk
             findings.append(
                 f"{geometry} L={L}: head.axes={head.axes is not None} "
-                f"product.axes={product.axes is not None} "
-                f"product.ipw={product.inner_product_weights is not None}"
+                f"product.axes={product.axes is not None}"
             )
             if head.axes is None or product.axes is None:
                 pytest.fail(
@@ -258,12 +257,7 @@ def test_g2_2_the_moment_product_carries_no_dense_slot_and_threads_its_axes():
                 )
             assert len(product.axes) == 1 + len(bulk_axes)
             assert product.axes[0] is head.axes[0]
-            if product.inner_product_weights is not None:
-                pytest.fail(
-                    f"[{geometry} L={L}] the moment product DENSIFIES "
-                    f"({product.inner_product_weights.nbytes} B).\n  "
-                    + "\n  ".join(findings)
-                )
+            # A product stores no metric of its own (it is its factors, and its forms are theirs): the form of its head slot is read below.
             if frame.discrete_gram_structure is GramStructure.DENSE:
                 assert isinstance(product.factors[0].form, DenseMetric)
             else:
