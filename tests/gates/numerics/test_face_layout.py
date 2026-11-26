@@ -34,37 +34,33 @@ pytestmark = [pytest.mark.foundation]
 # ───────────────────────────────────────────────────────────────────────
 
 
-class TestFaceSlotInvariants:
+class TestLayoutBlockInvariants:
     def test_flat_size_matches_prod_shape(self) -> None:
-        slot = LayoutBlock(key="xmin", offset=0, shape=(4, 3), flat_size=12)
-        assert slot.flat_size == 12
+        layout = CoproductLayout.from_named_shapes([("xmin", (4, 3))])
+        assert layout.blocks["xmin"].flat_size == 12
 
     def test_flat_size_mismatch_raises(self) -> None:
         with pytest.raises(ValueError, match="flat_size"):
-            LayoutBlock(key="xmin", offset=0, shape=(4, 3), flat_size=11)
-
-    def test_negative_offset_raises(self) -> None:
-        with pytest.raises(ValueError, match="offset"):
-            LayoutBlock(key="xmin", offset=-1, shape=(4,), flat_size=4)
+            LayoutBlock(key="xmin", shape=(4, 3), flat_size=11)
 
     def test_frozen(self) -> None:
         from dataclasses import FrozenInstanceError
-        slot = LayoutBlock(key="xmin", offset=0, shape=(4,), flat_size=4)
+        slot = CoproductLayout.from_named_shapes([("xmin", (4,))]).blocks["xmin"]
         with pytest.raises(FrozenInstanceError):
             slot.offset = 1  # type: ignore[misc]
 
 
-class TestFaceSlotSliceView:
+class TestLayoutBlockSliceView:
     def test_slice_view_round_trip(self) -> None:
         flat = np.arange(20, dtype=float)
-        slot = LayoutBlock(key="middle", offset=4, shape=(2, 3), flat_size=6)
+        slot = CoproductLayout.from_named_shapes([("lead", (4,)), ("middle", (2, 3))]).blocks["middle"]
         view = slot.slice_view(flat)
         assert view.shape == (2, 3)
         np.testing.assert_array_equal(view, flat[4:10].reshape(2, 3))
 
     def test_slice_view_is_memory_shared(self) -> None:
         flat = np.zeros(10, dtype=float)
-        slot = LayoutBlock(key="seg", offset=2, shape=(4,), flat_size=4)
+        slot = CoproductLayout.from_named_shapes([("lead", (2,)), ("seg", (4,))]).blocks["seg"]
         view = slot.slice_view(flat)
         view[:] = 5.0
         np.testing.assert_array_equal(flat[2:6], np.full(4, 5.0))
@@ -72,7 +68,7 @@ class TestFaceSlotSliceView:
 
     def test_slice_view_reshape_2d(self) -> None:
         flat = np.arange(24, dtype=float)
-        slot = LayoutBlock(key="square", offset=8, shape=(2, 2, 2), flat_size=8)
+        slot = CoproductLayout.from_named_shapes([("lead", (8,)), ("square", (2, 2, 2))]).blocks["square"]
         view = slot.slice_view(flat)
         assert view.shape == (2, 2, 2)
         np.testing.assert_array_equal(view.ravel(), flat[8:16])
@@ -83,43 +79,14 @@ class TestFaceSlotSliceView:
 # ───────────────────────────────────────────────────────────────────────
 
 
-class TestFaceLayoutInvariants:
-    def test_total_size_matches_sum(self) -> None:
-        faces = {
-            "a": LayoutBlock(key="a", offset=0, shape=(3,), flat_size=3),
-            "b": LayoutBlock(key="b", offset=3, shape=(4,), flat_size=4),
-        }
-        layout = CoproductLayout(blocks=faces, total_size=7)
+class TestCoproductLayoutInvariants:
+    def test_total_size_is_the_sum_of_the_sizes(self) -> None:
+        layout = CoproductLayout.from_named_shapes([("a", (3,)), ("b", (4,))])
         assert layout.total_size == 7
 
-    def test_total_size_mismatch_raises(self) -> None:
-        faces = {
-            "a": LayoutBlock(key="a", offset=0, shape=(3,), flat_size=3),
-        }
-        with pytest.raises(ValueError, match="total_size"):
-            CoproductLayout(blocks=faces, total_size=5)
-
-    def test_gap_raises(self) -> None:
-        """Gap detection: total_size matches sum, but slots leave a hole."""
-        faces = {
-            "a": LayoutBlock(key="a", offset=0, shape=(2,), flat_size=2),
-            "b": LayoutBlock(key="b", offset=5, shape=(3,), flat_size=3),  # GAP at 2..5
-        }
-        # Sum of flat_size = 5; pick total_size=5 so the sum check passes
-        # and the gap/overlap walker fires instead.
-        with pytest.raises(ValueError, match="gap or overlap"):
-            CoproductLayout(blocks=faces, total_size=5)
-
-    def test_overlap_raises(self) -> None:
-        """Overlap detection: total_size matches sum, but slots overlap."""
-        faces = {
-            "a": LayoutBlock(key="a", offset=0, shape=(4,), flat_size=4),
-            "b": LayoutBlock(key="b", offset=2, shape=(2,), flat_size=2),  # OVERLAP [2..4)
-        }
-        # Sum of flat_size = 6; pick total_size=6 so the sum check passes
-        # and the walker detects slot b starting at 2 while cursor is at 4.
-        with pytest.raises(ValueError, match="gap or overlap"):
-            CoproductLayout(blocks=faces, total_size=6)
+    def test_duplicate_keys_raise(self) -> None:
+        with pytest.raises(ValueError, match="distinct"):
+            CoproductLayout.from_named_shapes([("a", (3,)), ("a", (2,))])
 
 
 # ───────────────────────────────────────────────────────────────────────

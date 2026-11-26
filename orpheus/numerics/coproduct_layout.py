@@ -51,7 +51,7 @@ References
 from __future__ import annotations
 
 from collections.abc import Hashable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Generic, Mapping, Sequence, TypeVar
 
 import numpy as np
@@ -69,7 +69,7 @@ __all__ = [
 #: each ``(level, sign)`` leg's ``cells`` / ``corner`` slots by the
 #: structured tuple ``(level, sign, part)``
 #: (``CoproductLayout[tuple[int, int, str]]``). The flat-buffer discipline
-#: (offset assignment, slice views, gap/overlap validation) is identical
+#: (offset derivation, slice views) is identical
 #: across key regimes — only the key's *type* differs. Bounded by
 #: :class:`~collections.abc.Hashable`: the key is a mapping key, so an
 #: unhashable realization (``CoproductLayout[list[int]]``) is unspellable.
@@ -78,36 +78,39 @@ K = TypeVar("K", bound=Hashable)
 
 @dataclass(frozen=True)
 class LayoutBlock(Generic[K]):  # concept: layout | role: part | kind: set
-    r"""Per-face slot in a flat boundary buffer.
+    r"""One block of a :class:`CoproductLayout`: a key, a shape and the flat region it owns.
 
     Parameters
     ----------
     key : K
-        The slot's identity in the owning :class:`CoproductLayout`.
-        A ``str`` face name (``"xmin"`` / ``"xmax"`` / ``"ymin"`` / ``"ymax"``
-        for SN Cartesian spatial traces; arbitrary tokens for other methods)
-        in the ``CoproductLayout[str]`` case, or a structured key when the faces
-        are not stringly named — the ψ½ starting-direction space keys each
-        slot by ``(level, sign, part)`` (a ``CoproductLayout[tuple[int, int, str]]``).
-    offset : int
-        Start index of this face's flat region in the backing buffer.
+        The block's identity in the owning :class:`CoproductLayout`: a ``str``
+        face name (``"xmin"`` / ``"xmax"`` / ``"ymin"`` / ``"ymax"`` for SN
+        Cartesian spatial traces), a summand label of a direct sum, or a
+        structured key when the blocks are not stringly named (the ψ½
+        starting-direction space keys each slot by ``(level, sign, part)``).
     shape : tuple[int, ...]
-        Per-face shape. The flat region is reshaped to this shape when
-        sliced (e.g. ``(N, ng)`` for a 1-D slab face, ``(N, ng, ny)`` for
-        a 2-D Cartesian x-face).
+        The block's shape. The flat region is reshaped to this shape (plus the
+        trailing payload axes of the buffer) when sliced.
     flat_size : int
-        Size of this face's flat region. Must equal ``prod(shape)``.
+        Size of the block's flat region. Equals ``prod(shape)``.
+
+    Attributes
+    ----------
+    offset : int
+        Start index of the block's flat region in the backing buffer. It is
+        ``init=False``: the owning layout derives it as the sum of the sizes
+        of the blocks before this one, so a block whose offset disagrees with
+        its position is unspellable (law L13: offsets are computed once).
 
     Notes
     -----
-    The validity invariant ``flat_size == prod(shape)`` is enforced at
-    construction. Consumers may rely on this without re-checking.
+    The invariant ``flat_size == prod(shape)`` is enforced at construction.
     """
 
     key: K
-    offset: int
     shape: tuple[int, ...]
     flat_size: int
+    offset: int = field(init=False)
 
     def __post_init__(self) -> None:
         expected = int(np.prod(self.shape))
@@ -116,72 +119,101 @@ class LayoutBlock(Generic[K]):  # concept: layout | role: part | kind: set
                 f"LayoutBlock({self.key!r}): flat_size={self.flat_size} does "
                 f"not match prod(shape={self.shape!r}) = {expected}"
             )
-        if self.offset < 0:
-            raise ValueError(
-                f"LayoutBlock({self.key!r}): offset must be non-negative; "
-                f"got {self.offset}"
-            )
+
+    @property
+    def region(self) -> slice:
+        r"""The block's flat region of the leading axis."""
+        return slice(self.offset, self.offset + self.flat_size)
 
     def slice_view(self, flat_buf: NDArray) -> NDArray:
         r"""Return a shaped view into the flat buffer — no copy.
 
-        The returned array shares memory with ``flat_buf``; writes to
-        the view propagate to the backing buffer (the intended access
-        pattern for sweep-side face writes that must be visible to the
-        BC partner on the next iteration).
+        The buffer's leading axis is the layout's; its trailing axes (a payload,
+        ``flat_buf.shape[1:]``) are kept after the block's own shape. The
+        returned array shares memory with ``flat_buf``; writes to the view
+        propagate to the backing buffer (the intended access pattern for
+        sweep-side face writes that must be visible to the BC partner on the
+        next iteration).
         """
-        return flat_buf[self.offset : self.offset + self.flat_size].reshape(self.shape)
+        return flat_buf[self.region].reshape(self.shape + tuple(flat_buf.shape[1:]))
 
 
 @dataclass(frozen=True)
 class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
-    r"""Descriptor mapping face keys to slices in a flat backing buffer.
+    r"""The partition of one flat backing buffer into keyed blocks, in order.
 
     Parameters
     ----------
+    named_shapes : tuple[tuple[K, tuple[int, ...]], ...]
+        Ordered ``(key, shape)`` pairs. The order is the flat concatenation
+        order (which matters for reproducible serialization and snapshot
+        comparison) and the keys are pairwise distinct.
+
+    Attributes
+    ----------
     blocks : Mapping[K, LayoutBlock[K]]
-        Ordered mapping from face key to :class:`LayoutBlock`. Iteration
-        order determines flat-buffer concatenation order (which matters
-        for reproducible serialization and snapshot comparison).
+        The blocks by key, in buffer order; each block's offset is the sum of
+        the sizes before it (derived, so the blocks tile ``range(total_size)``
+        exactly).
     total_size : int
-        Total length of the flat backing buffer. Must equal the sum of
-        each face's :attr:`LayoutBlock.flat_size`.
+        Length of the flat backing buffer: the sum of the block sizes.
 
     Notes
     -----
-    The descriptor is IMMUTABLE; the backing buffer it describes is
-    owned elsewhere. A single :class:`CoproductLayout` can be shared across
-    arbitrarily many :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-    instances on the same mesh (validity invariant: same layout
-    identity ⟹ compatible algebra).
+    The descriptor is IMMUTABLE; the backing buffer it describes is owned
+    elsewhere. A single :class:`CoproductLayout` can be shared across
+    arbitrarily many fields on the same mesh. It is the one place the offsets
+    of a direct sum are computed (law L13): the summands of a
+    :class:`~orpheus.numerics.direct_sum.DirectSumSpace` read their slices
+    from here.
     """
 
-    blocks: Mapping[K, LayoutBlock[K]]
-    total_size: int
+    named_shapes: tuple[tuple[K, tuple[int, ...]], ...]
+    blocks: Mapping[K, LayoutBlock[K]] = field(init=False, compare=False, repr=False)
+    total_size: int = field(init=False)
 
     def __post_init__(self) -> None:
-        expected = sum(slot.flat_size for slot in self.blocks.values())
-        if self.total_size != expected:
+        pairs = tuple((key, tuple(int(n) for n in shape)) for key, shape in self.named_shapes)
+        object.__setattr__(self, "named_shapes", pairs)
+        keys = [key for key, _ in pairs]
+        if len(set(keys)) != len(keys):
             raise ValueError(
-                f"CoproductLayout: total_size={self.total_size} does not match "
-                f"sum(slot.flat_size for face slots) = {expected}"
+                f"CoproductLayout: block keys must be distinct; got {sorted(keys, key=repr)!r}"
             )
-        # Validate no slot overlap or gap.
-        sorted_slots = sorted(self.blocks.values(), key=lambda s: s.offset)
+        blocks: dict[K, LayoutBlock[K]] = {}
         cursor = 0
-        for slot in sorted_slots:
-            if slot.offset != cursor:
-                raise ValueError(
-                    f"CoproductLayout: slot {slot.key!r} starts at offset "
-                    f"{slot.offset} but cursor is at {cursor} "
-                    f"(gap or overlap with previous slot)"
-                )
-            cursor += slot.flat_size
-        if cursor != self.total_size:
-            raise ValueError(
-                f"CoproductLayout: cursor reached {cursor} after walking all "
-                f"slots but total_size={self.total_size}"
+        for key, shape in pairs:
+            size = int(np.prod(shape))
+            block = LayoutBlock(key=key, shape=shape, flat_size=size)
+            object.__setattr__(block, "offset", cursor)
+            blocks[key] = block
+            cursor += size
+        object.__setattr__(self, "blocks", blocks)
+        object.__setattr__(self, "total_size", cursor)
+
+    @property
+    def sizes(self) -> tuple[int, ...]:
+        r"""The flat size of each block, in buffer order."""
+        return tuple(block.flat_size for block in self.blocks.values())
+
+    @property
+    def offsets(self) -> tuple[int, ...]:
+        r"""The start of each block's flat region, in buffer order."""
+        return tuple(block.offset for block in self.blocks.values())
+
+    def slice_of(self, key: K) -> slice:
+        r"""The slice of the flat buffer's leading axis that holds block ``key``.
+
+        Raises
+        ------
+        KeyError
+            If ``key`` is not a block of this layout (the message lists the keys).
+        """
+        if key not in self.blocks:
+            raise KeyError(
+                f"CoproductLayout.slice_of: {key!r} is not a block; blocks are {list(self.blocks)!r}"
             )
+        return self.blocks[key].region
 
     @property
     def structure(self) -> tuple[tuple[K, int, int], ...]:
@@ -193,26 +225,27 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
         is content, where a mapping's order would not be.
         """
         return tuple(
-            (key, int(slot.offset), int(slot.flat_size))
-            for key, slot in self.blocks.items()
+            (key, int(block.offset), int(block.flat_size))
+            for key, block in self.blocks.items()
         )
 
     def pack(self, face_arrays: Mapping[K, NDArray]) -> NDArray:
-        r"""Pack per-face ndarrays into a fresh flat backing buffer.
+        r"""Pack per-block ndarrays into a fresh flat backing buffer.
 
-        ``face_arrays`` must cover EVERY face of this layout, each array
-        matching its slot's shape. The packing loop lives HERE because
-        every fact it reads — the face set, each slot's shape, the slice
-        map, the total size — is layout knowledge (native place, CS4b
-        S6.2); the field factories
+        ``face_arrays`` must cover EVERY block of this layout, each array
+        matching its block's shape followed by one common trailing payload
+        (none for a plain buffer; ``G (x) I_P`` on a payload of ``P`` columns).
+        The packing loop lives HERE because every fact it reads — the block
+        set, each block's shape, the slice map, the total size — is layout
+        knowledge (native place, CS4b S6.2); the field factories
         (:meth:`~orpheus.transport.fields._bases.BoundaryField.from_face_arrays`)
         are typed entries over this.
 
         Raises
         ------
         ValueError
-            If the keys differ from this layout's faces, or any per-face
-            array's shape mismatches its slot.
+            If the keys differ from this layout's blocks, any array's shape
+            mismatches its block, or the payloads of two blocks differ.
         """
         provided = set(face_arrays.keys())
         expected = set(self.blocks.keys())
@@ -220,19 +253,42 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
             raise ValueError(
                 f"CoproductLayout.pack: face_arrays keys "
                 f"{sorted(provided, key=repr)!r} do not match the "
-                f"layout's faces {sorted(expected, key=repr)!r}"
+                f"layout's blocks {sorted(expected, key=repr)!r}"
             )
-        flat = np.zeros(self.total_size)
-        for name, slot in self.blocks.items():
-            arr = np.asarray(face_arrays[name])
-            if arr.shape != slot.shape:
+        arrays = {key: np.asarray(face_arrays[key]) for key in self.blocks}
+        lead = next(iter(self.blocks.items()), None)
+        payload = () if lead is None else tuple(arrays[lead[0]].shape[len(lead[1].shape):])
+        flat = np.zeros((self.total_size,) + payload)
+        for name, block in self.blocks.items():
+            arr = arrays[name]
+            if arr.shape != block.shape + payload:
                 raise ValueError(
-                    f"CoproductLayout.pack: face {name!r} array shape "
-                    f"{arr.shape!r} does not match its slot shape "
-                    f"{slot.shape!r}"
+                    f"CoproductLayout.pack: block {name!r} array shape "
+                    f"{arr.shape!r} does not match its block shape "
+                    f"{block.shape!r} with the common payload {payload!r}"
                 )
-            slot.slice_view(flat)[:] = arr
+            block.slice_view(flat)[:] = arr
         return flat
+
+    def unpack(self, flat: NDArray) -> dict[K, NDArray]:
+        r"""The per-block views of a flat buffer: the inverse of :meth:`pack`.
+
+        ``flat`` has this layout's ``total_size`` on its leading axis and any
+        trailing payload; each block comes back with its own shape followed by
+        that payload, as a view that shares memory with ``flat``.
+
+        Raises
+        ------
+        ValueError
+            If ``flat`` is a scalar or its leading axis is not ``total_size``.
+        """
+        buf = np.asarray(flat)
+        if buf.ndim < 1 or buf.shape[0] != self.total_size:
+            raise ValueError(
+                f"CoproductLayout.unpack: the leading axis of the buffer must have "
+                f"total_size={self.total_size}; got shape {buf.shape!r}"
+            )
+        return {key: block.slice_view(buf) for key, block in self.blocks.items()}
 
     @classmethod
     def from_named_shapes(
@@ -241,22 +297,12 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
         r"""Build a :class:`CoproductLayout` from an ordered list of ``(key, shape)`` pairs.
 
         Iteration order of ``named_shapes`` determines the flat-buffer
-        offset assignment (first face gets offset 0, second face gets
-        offset = first face's flat_size, etc.). Use this constructor
+        offset assignment (first block gets offset 0, second block gets
+        offset = first block's flat_size, etc.). Use this constructor
         when the per-method mesh has a natural face ordering it wants
         to expose. Key-generic: the SN spatial trace passes ``str`` face
         names (``CoproductLayout[str]``); the ψ½ starting-direction space passes
         ``(level, sign, part)`` tuples (``CoproductLayout[tuple[int, int, str]]``).
-
-        Parameters
-        ----------
-        named_shapes : Sequence[tuple[K, tuple[int, ...]]]
-            Ordered list of ``(face_key, per_face_shape)`` pairs.
-
-        Returns
-        -------
-        CoproductLayout[K]
-            The constructed layout.
 
         Examples
         --------
@@ -271,12 +317,4 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
         >>> layout.blocks["xmax"].offset
         2
         """
-        faces: dict[K, LayoutBlock[K]] = {}
-        cursor = 0
-        for key, shape in named_shapes:
-            flat_size = int(np.prod(shape))
-            faces[key] = LayoutBlock(
-                key=key, offset=cursor, shape=shape, flat_size=flat_size,
-            )
-            cursor += flat_size
-        return cls(blocks=faces, total_size=cursor)
+        return cls(named_shapes=tuple((key, tuple(shape)) for key, shape in named_shapes))
