@@ -3522,7 +3522,7 @@ rather than a forced one.
    discipline instead of hand-copying it.  (Since 4e-e1b the name
    ``RadialCharacteristicField`` denotes the **composite** that binds those
    two leaves — System B's carrier — **not** a ``FaceField`` subclass.)  The
-   :func:`~orpheus.numerics.face_layout.face_streaming_normal` measure also
+   :func:`~orpheus.numerics.face_measure.face_streaming_normal` measure also
    exists, but as the spatial-trace partial-current metric **only** (see
    the refuted-unification note below).  The per-leaf **metrics are correct
    and landed**: the spatial trace carries
@@ -3577,7 +3577,7 @@ rather than a forced one.
    The through-flux equals the state metric only when the face's operator
    self-block is trivial — true for the spatial trace (a restriction map),
    false for ψ½ (a banded radial transport operator :math:`A_{\rm ss}`).
-   So :func:`~orpheus.numerics.face_layout.face_streaming_normal` stays the
+   So :func:`~orpheus.numerics.face_measure.face_streaming_normal` stays the
    spatial-trace measure **only**, and the ``FaceField`` unification is
    **structural** (flat layout + presence), **not** metric: the metric is
    a per-leaf property (spatial trace → partial current; pole →

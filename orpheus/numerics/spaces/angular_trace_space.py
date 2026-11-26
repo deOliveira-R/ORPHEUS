@@ -129,7 +129,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.geometry.faces import AXIS_NAMES, face_normal
-from orpheus.numerics.face_layout import face_streaming_normal
+from orpheus.numerics.face_measure import face_streaming_normal
 from orpheus.numerics.factor import Kind, Variance, VarianceChart
 from orpheus.numerics.metric import DiagonalMetric
 from orpheus.numerics.space import FunctionSpace, TensorSpace

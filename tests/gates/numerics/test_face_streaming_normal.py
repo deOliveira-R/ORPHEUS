@@ -28,7 +28,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.face_layout import FaceLayout, face_streaming_normal
+from orpheus.numerics.face_layout import FaceLayout
+from orpheus.numerics.face_measure import face_streaming_normal
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 import orpheus.numerics.spaces.angular_trace_space as ats_mod
