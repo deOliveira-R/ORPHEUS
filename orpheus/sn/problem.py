@@ -75,7 +75,7 @@ if TYPE_CHECKING:
 
     from orpheus.data.materials import Materials
     from orpheus.data.macro_xs.mixture import Mixture
-    from orpheus.numerics.space import FunctionSpace
+    from orpheus.numerics.space import FunctionSpace, TensorSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.transport.fields import AngularBoundarySourceSink
     from orpheus.numerics.spaces.full_field_space import FullFieldSpace
@@ -1215,7 +1215,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         )
 
     @cached_property
-    def angular_bulk_space(self) -> "FunctionSpace":
+    def angular_bulk_space(self) -> "TensorSpace":
         r"""The angular-bulk function space of this carrier — axis-built (CS4b).
 
         The per-ordinate bulk phase space ``(N, ng, *spatial)`` as the ordered

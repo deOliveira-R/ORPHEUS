@@ -429,9 +429,11 @@ def _lift(space: "FunctionSpace", axis_label: str) -> _AxisMarginal:
 def _mint(space: "FunctionSpace", axis_label: str) -> _AxisMarginal:
     # Axis-built, exactly one label hit: the space's by-label resolver, the
     # one home of that refusal vocabulary.
+    from orpheus.numerics.space import TensorSpace  # local: space.py builds on this module's operators
+
     k = space._axis_index(axis_label)
+    assert isinstance(space, TensorSpace)  # narrowing only: _axis_index refused, with a TypeError, every space that is not a tensor space
     axes = space.axes
-    assert axes is not None  # narrowing only: _axis_index refused the None case
     axis = axes[k]
     if isinstance(axis, EnergyAxis):
         raise TypeError(

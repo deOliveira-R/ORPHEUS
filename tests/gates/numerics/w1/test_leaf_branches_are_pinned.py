@@ -35,6 +35,7 @@ TAGGED_DOORS = frozenset({("orpheus/transport/fields/_bases.py", "BulkField._spa
 #: The doors that are not leaf debt, each with the reason it stays untagged. A tensor space is told from a direct sum (the second arm that stays at N07) or the
 #: function refuses what is not a tensor space with a ``TypeError``, so the door survives the leaves. A new door anywhere is untagged and not here, and reddens.
 UNTAGGED_DOORS = {
+    ("orpheus/numerics/axis_marginal.py", "_mint"): "an assert narrowing the type for the checker, not a guard: the by-label resolver on the line above refuses every space that is not a tensor space with a TypeError",
     ("orpheus/numerics/spaces/moment_head.py", "moment_head_axis"): "refuses a space that is not a one-axis moment head with a TypeError naming it; a direct sum is refused here after N07",
     ("orpheus/transport/fields/_bases.py", "BulkField.compose_spatial_moments"): "takes a tensor space and refuses anything else with a TypeError: a direct sum has no labelled factor to append a tail to",
     ("orpheus/transport/fields/_bases.py", "BulkField.ng"): "reads the energy axis off a labelled factor and raises a TypeError where there is none, which a direct sum has not",
