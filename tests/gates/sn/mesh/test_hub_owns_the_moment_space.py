@@ -33,6 +33,9 @@ from typing import Any
 import numpy as np
 import pytest
 
+from orpheus.numerics.declaration import Coord
+from orpheus.numerics.factor import Kind, Variance, VarianceChart
+from orpheus.numerics.metric import DenseMetric, Face
 from orpheus.numerics.space import FunctionSpace
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -222,6 +225,31 @@ def test_g2_4c_the_boundary_guard_sees_the_hubs_object_on_a_windowed_solve(monke
 #        with the iteration budget
 # ═════════════════════════════════════════════════════════════════════════
 
+def _densified(left, right, product) -> bool:
+    """A product is densified when one of its factors stores a ``DenseMetric`` although no operand factor stores one: the form of a factor is stored per factor, so a dense form the operands did not carry was minted by the product."""
+    operand_forms = [f.form for side in (left, right) for f in getattr(side, "factors", ())]
+    if any(isinstance(form, DenseMetric) for form in operand_forms):
+        return False
+    return any(isinstance(f.form, DenseMetric) for f in product.factors)
+
+
+def test_g2_5_the_densified_counter_measures_the_form_not_the_size() -> None:
+    """The counter of ``_count_products`` reads the form arm. Control: the correct product of a ``(4,)`` diagonal slot and a ``(1,)`` slot is quiet (a size comparison of the stored weights with the product's size
+    fires on it). Mutation (a planted product): a space whose factor stores a ``DenseMetric`` while both operands store diagonal forms is counted."""
+    four = TensorSpace.declared("four", (4,), Variance(Kind.MEASURE, VarianceChart.DENSITY))
+    one = TensorSpace.declared("one", (1,), Variance(Kind.MEASURE, VarianceChart.DENSITY))
+    if _densified(four, one, four * one):
+        pytest.fail("the counter fires on a correct (4,) x (1,) product of two diagonal slots")
+    dense = TensorSpace.declared(
+        "dense", (4,), Variance(Kind.MEASURE, VarianceChart.DENSITY),
+        form=DenseMetric(np.diag([1.0, 2.0, 3.0, 4.0]), kernel=Coord(4, ()), face=Face.METRIC),
+    )
+    if not _densified(four, one, dense):
+        pytest.fail("the counter misses a product that stores a DenseMetric although both operands are diagonal")
+    if _densified(dense, one, dense * one):
+        pytest.fail("the counter fires on a dense operand's own form carried through the product")
+
+
 def _count_products(max_inner: int, monkeypatch) -> tuple[int, int]:
     """``(TensorSpace.__mul__ activations, products storing one form of the product's full size)``
     during one windowed solve at ``max_inner``."""
@@ -231,8 +259,7 @@ def _count_products(max_inner: int, monkeypatch) -> tuple[int, int]:
     def counting(self, other):
         counts["mul"] += 1
         out = original(self, other)
-        # A densified product would store one form of the product's full size; a form stored per factor never does.
-        if len(out.factors) > 1 and any(np.size(getattr(f.form, "weights", getattr(f.form, "matrix", ()))) >= int(np.prod(out.shape)) for f in out.factors):
+        if _densified(self, other, out):
             counts["dense"] += 1
         return out
 

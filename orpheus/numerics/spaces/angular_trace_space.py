@@ -398,7 +398,7 @@ class AngularTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: s
         (``AngularBoundaryFlux.net_current`` reads THIS, not the generic
         ``inner_product_weights``).
         """
-        # ELEGANCE-DEBT[guard] #759 legacy-leaf: the leaf arm may store no weights, so the read is refused on ``None``; it retires at N06, when the
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: the leaf arm may store no weights, so the read is refused on ``None``; it retires at N07, when the
         # trace is a tensor space whose partial-current metric is its factors' forms, which every factor carries.
         weights = self.inner_product_weights
         if weights is None:

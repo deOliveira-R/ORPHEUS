@@ -311,13 +311,14 @@ def test_metric_and_inner_product_agree_on_a_NONSQUARE_axis_space() -> None:
 
 
 def test_mul_threads_axes_and_does_not_fabricate_them() -> None:
-    """B7 — ``(A * B).axes == A.axes + B.axes``; a legacy space on either
-    side leaves the product's ``axes`` ``None``.
+    """B7 — ``(A * B).axes == A.axes + B.axes``; a declared (formerly
+    legacy) space on either side contributes its one declared axis to the
+    product's ``axes``, as the body asserts below.
 
-    The negative half is the point: inventing an axis for a space that
-    never declared one would make ``has_coordinate_cone`` answer for
-    spaces that have not been migrated (a false True, in the direction
-    that silently ENABLES the step-4 cone consult).
+    The negative half is the point: a space that declared no axis must not
+    be given an invented one, which would make ``has_coordinate_cone``
+    answer for a space that never declared its coordinates (a false True,
+    in the direction that silently ENABLES the step-4 cone consult).
 
     Third leg — the mixed product: an axis-built factor's measure must
     survive, positioned in the product's factored metric (until CS4c step

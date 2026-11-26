@@ -99,6 +99,52 @@ def test_leaf_branches_are_pinned() -> None:
     _require(tagged == PINNED, f"the legacy-leaf tagged members differ from the pinned set: missing {sorted(PINNED - tagged)}, extra {sorted(tagged - PINNED)}")
 
 
+UNIT_RE = re.compile(r"\bN\d{2}\b")
+
+#: The unit that retires the legacy leaf, issue #759 ("FunctionSpace keeps a leaf branch for the arms that are not tensor spaces yet"): every tag names it.
+RETIRING_UNIT = "N07"
+
+
+def tag_units(source: str) -> list[tuple[int, str | None]]:
+    """``(line, first unit named)`` of every legacy-leaf tag of a module: the unit is read from the tag's line and the two lines after it, cut at the next tag; ``None`` when none is named."""
+    lines = source.splitlines()
+    found: list[tuple[int, str | None]] = []
+    for i, line in enumerate(lines):
+        if not TAG_RE.search(line):
+            continue
+        window = [line]
+        for follow in lines[i + 1 : i + 3]:
+            if TAG_RE.search(follow):
+                break
+            window.append(follow)
+        m = UNIT_RE.search("\n".join(window))
+        found.append((i + 1, m.group(0) if m else None))
+    return found
+
+
+def test_the_unit_instrument_reads_each_mutation() -> None:
+    ok = "# ELEGANCE-DEBT[guard] #759 legacy-leaf: a reason; retires at N07\n"
+    _require(tag_units(ok) == [(1, "N07")], f"a clean tag reads {tag_units(ok)}")
+    _require(tag_units(ok.replace("N07", "N06")) == [(1, "N06")], "the unit N06 is not read")
+    _require(tag_units(ok.replace("; retires at N07", ""))[0][1] is None, "a tag naming no unit is not read as None")
+    two = ok.replace("N07", "") + ok
+    _require(tag_units(two) == [(1, None), (2, "N07")], "the next tag's unit leaked into the previous one")
+    continued = ok.replace("; retires at N07", "; retires at\n# N06, when the trace is a tensor space.")
+    _require(tag_units(continued) == [(1, "N06")], "a unit on the continuation line is not read")
+
+
+def test_every_leaf_tag_names_the_retiring_unit() -> None:
+    wrong: list[str] = []
+    total = 0
+    for path in sorted((ROOT / "orpheus").rglob("*.py")):
+        for line, unit in tag_units(path.read_text()):
+            total += 1
+            if unit != RETIRING_UNIT:
+                wrong.append(f"{path.relative_to(ROOT)}:{line} names {unit}")
+    _require(total > 0, "INSTRUMENT DEAD: no legacy-leaf tag found under orpheus/")
+    _require(not wrong, f"{len(wrong)} of {total} legacy-leaf tags do not name {RETIRING_UNIT} (issue #759): {wrong}")
+
+
 def _names(node: ast.AST) -> list[str]:
     if isinstance(node, ast.Name):
         return [node.id]

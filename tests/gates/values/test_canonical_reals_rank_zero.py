@@ -1,11 +1,13 @@
-r"""G04q: ``canonical_reals`` is the entrywise canonical form of an array of any rank, rank 0 included (N04, ruling W5b).
+r"""G04y: ``canonical_reals`` is the entrywise canonical form of an array of any rank, rank 0 included (N04, ruling W5b).
 
 The law: for a ``bool``, integer or real array of rank 0 to 3 the result is the ``float64`` copy of its entries with ``-0.0`` made ``+0.0``; a NaN entry is a ``ValueError`` naming its index
 (``()`` at rank 0), and the content digest of an array is a function of its canonical entries (equal arrays of rank 0 digest equal, and ``-0.0`` digests as ``+0.0``).
 
-The rank-0 leg has a production consumer, measured: ``AngularTraceSpace._current_spaces`` declares an axis over the face's index shape after the ordinate axis is integrated out, which is ``()`` on a face layout
-with no group axis, and its counting form is a rank-0 weight array that the space's name digest reads through ``canonical_reals`` (13 tests of ``tests/gates/sn/operators/test_sn_boundary_realizer.py`` build one). The widening
-that admits it is ``np.argwhere`` for ``np.nonzero`` in the NaN scan, because ``np.nonzero`` refuses a rank-0 array (numpy 2.4).
+No production layout produces a rank-0 array today. ``AngularTraceSpace._current_spaces`` (production code) declares an axis over the face's index shape after the ordinate axis is integrated out, which is ``()`` on a face
+layout with no group axis, and its counting form is then a rank-0 weight array that the space's name digest reads through ``canonical_reals``; but the only producer of such a layout is the test helper
+``tests/gates/sn/_test_helpers.py`` (13 tests of ``tests/gates/sn/operators/test_sn_boundary_realizer.py`` build one), and the one production layout, ``orpheus/transport/phase_spaces.py:79``, always includes the group count, so a
+production current space has rank at least 1. The widening is nevertheless correct: the contract of ``canonical_reals`` is entrywise over an array with no rank clause, and the base crashed on rank 0 with numpy's own error
+(``np.nonzero`` refuses a rank-0 array, numpy 2.4) instead of refusing by design. The widening is ``np.argwhere`` for ``np.nonzero`` in the NaN scan. The gate stays because the contract holds at rank 0 whoever produces it.
 
 Mutation: the NaN scan as ``zip(*np.nonzero(np.isnan(doubles)))`` reddens the rank-0 rows (a ``ValueError`` from numpy, not the keyed refusal, and the digest rows); ranks 1 to 3 stay green. Exact on any host: values and a raise.
 """

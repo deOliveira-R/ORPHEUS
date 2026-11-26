@@ -50,7 +50,7 @@ def _bare_calls(source: str) -> int:
     return n
 
 
-#: The one file that calls the bare base on purpose: its row asserts the call raises (G04p, ruling W1 of the N04 post-review pass).
+#: The one file that calls the bare base on purpose: its row asserts the call raises (G04x, ruling W1 of the N04 post-review pass).
 REFUSAL_ROW = "tests/gates/numerics/w1/test_base_and_legacy_fields_refuse.py"
 
 

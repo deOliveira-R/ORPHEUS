@@ -1,4 +1,4 @@
-r"""G04p: the abstract base does not construct, a tensor space answers no legacy metric field, a leaf states one metric source, a mixed product keeps the default carrier (N04, rulings W1, W2, W5a, W6).
+r"""G04x: the abstract base does not construct, a tensor space answers no legacy metric field, a leaf states one metric source, a mixed product keeps the default carrier (N04, rulings W1, W2, W5a, W6).
 
 (i) ``FunctionSpace`` itself is refused with a ``TypeError`` (a real ``raise``: this file runs under ``-O``) whose message says a space is a ``TensorSpace`` of factors or one of the
 listed arms; each class of the allow-list ``FUNCTION_SPACE_ARMS`` still constructs, from the fixtures of ``tests/gates/test_content_identity_census.py`` (one instance per arm; the

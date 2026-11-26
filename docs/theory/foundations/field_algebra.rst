@@ -1310,18 +1310,19 @@ sentence.
 .. warning::
 
    :math:`\rho` **is defined on the SPACE norm** (user ruling,
-   2026-08-19), and that is a forward commitment, not a description of
-   today's arithmetic. Today the space norm and the Euclidean norm agree
-   to 0–1 ULP because the angular-flux space carried
-   ``inner_product_weights is None`` (as measured in 2026-08; a tensor space now has no such slot). When a later phase installs the
-   physical :math:`V_{\rm cell} \times w_n` metric on the spaces, `[M]`
-   the recorded trajectory moves by up to
-   :math:`1.12\times 10^{-3}` relative — nine orders above the capture
-   gate's ``rtol = 1e-12``, so **that phase will legitimately RED the
-   capture gate**. That is correct behaviour: the ruling makes the
-   diagnostic follow the space, so the phase that changes the space owns
-   re-deriving the frozen numbers, with a regeneration note. Do not
-   "fix" that red by pinning the diagnostic to the Euclidean norm.
+   2026-08-19). The space norm is the physical
+   :math:`V_{\rm cell} \times w_n` norm, and it is not the Euclidean
+   norm: `[M]` on the SN slab ``angular_bulk_space`` with two groups the
+   angular factor's form is ``[0.348, 0.652, 0.652, 0.348]``, the energy
+   factor is formless, the spatial factor's form is
+   ``[0.25, 0.25, 0.45, 0.45, 0.25, 0.25]``, and the metric diagonal
+   ranges from 0.087 to 0.293, not ones. The capture gate's frozen
+   trajectory is therefore derived on that metric (the gate's
+   ``rtol = 1e-12`` holds against numbers re-derived when the metric
+   arrived, CS4b S2, 2026-08-22), and a change of the space owns
+   re-deriving them with a regeneration note. Do not make the
+   diagnostic agree with the capture by pinning it to the Euclidean
+   norm: the ruling makes the diagnostic follow the space.
 
 
 .. _affine-typed-residual:
