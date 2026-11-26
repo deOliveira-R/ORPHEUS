@@ -12,8 +12,8 @@ package), the scheme's within-cell moment axis (:mod:`orpheus.transport.spatial`
 
 The angular TRIAL space is the scheme's verb,
 :meth:`~orpheus.transport.spatial.scheme.DiscretizationSchemeBase.trial_space`, applied to the angular bulk; the
-full-field space is :meth:`FullFieldSpace.from_blocks
-<orpheus.numerics.spaces.full_field_space.FullFieldSpace.from_blocks>` of an interior and a trace; the harmonic moment
+full-field space is :meth:`DirectSumSpace.of_pairs
+<orpheus.numerics.direct_sum.DirectSumSpace.of_pairs>` of a ``bulk`` and a ``trace`` summand; the harmonic moment
 space is :meth:`HarmonicFrame.moment_space_on
 <orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`. None of them needs a function here.
 

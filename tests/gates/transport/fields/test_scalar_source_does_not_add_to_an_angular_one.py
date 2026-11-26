@@ -80,7 +80,7 @@ from orpheus.transport.fields import ScalarSourceSink, AngularSourceSink
 from tests.gates.transport._phase_space_cases import angular_full_field_space, posing_quadrature, posing_scheme
 print('IMPORTED')
 sn = MaterialMesh(Mesher(StructuredGeometry.from_homogeneous(1.0, 0)).partition(CellsByCount.uniform_width(20)).mesh, {{0: get_mixture("A", "2g")}})
-interior = angular_full_field_space(sn, posing_quadrature(sn, 4), posing_scheme(sn)).interior_space
+interior = angular_full_field_space(sn, posing_quadrature(sn, 4), posing_scheme(sn)).summand("bulk")
 scalar_space = AxisRetractionOperator.of(interior, "angular").codomain
 iso = ScalarSourceSink(values=np.ones(scalar_space.shape), space=scalar_space)
 aniso = AngularSourceSink.zeros(interior)
@@ -159,7 +159,7 @@ def test_the_coherence_refusal_moved_into_the_section():
     stretched = _slab(2.0)
     stretched_interior = angular_full_field_space(
         stretched, posing_quadrature(stretched, 4), posing_scheme(stretched),
-    ).interior_space
+    ).summand("bulk")
     foreign = AxisRetractionOperator.of(stretched_interior, "angular").codomain
     assert foreign.shape == lift._scalar_interior_space.shape and foreign != lift._scalar_interior_space
     with pytest.raises(ValueError, match="is not a member"):

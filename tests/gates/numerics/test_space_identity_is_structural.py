@@ -373,7 +373,7 @@ def test_g1_6b_an_all_axes_product_is_the_of_axes_mint_of_the_same_axes():
 _SPACE_FAMILY = (
     "orpheus/numerics/space.py",
     "orpheus/numerics/axis.py",
-    "orpheus/numerics/spaces/full_field_space.py",
+    "orpheus/numerics/direct_sum.py",
     "orpheus/numerics/spaces/scalar_trace_space.py",
     "orpheus/numerics/spaces/radial_characteristic_space.py",
     "orpheus/numerics/spaces/angular_trace_space.py",

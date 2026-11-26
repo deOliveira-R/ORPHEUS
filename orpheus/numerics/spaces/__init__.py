@@ -34,11 +34,12 @@ subclasses that carry domain-specific metadata beyond
   partial-current pairs under the face-AREA metric, for methods whose
   boundary state is already angle-integrated (diffusion; CP / MoC
   scalar traces to follow).
-* :class:`FullFieldSpace` (Wave O / O.2b R5) — the composite direct sum
-  :math:`V_{\rm bulk} \oplus V_{\rm trace}` carrying the block-diagonal
-  G-adjoint metric (bulk :math:`V\,w_n` :math:`\oplus` trace
-  :math:`|\Omega\cdot\hat n|\,w_n`); the carrier of the FULL streaming
-  operator and every bulk :math:`\oplus` boundary composite.
+* The full field (Wave O / O.2b R5) is no class of this package: it is the
+  :class:`~orpheus.numerics.direct_sum.DirectSumSpace` of a ``bulk`` and a
+  ``trace`` summand carrying the block-diagonal G-adjoint metric (bulk
+  :math:`V\,w_n` :math:`\oplus` trace :math:`|\Omega\cdot\hat n|\,w_n`);
+  the carrier of the FULL streaming operator and every bulk :math:`\oplus`
+  boundary composite.
 * Future: ``MeshFunctionSpace``, ``EnergyGroupSpace``,
   ``DiscreteAngularSpace`` per Grand Report v3 §5.3.
 
@@ -51,7 +52,6 @@ References
 
 from __future__ import annotations
 
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
 from orpheus.numerics.spaces.moment_head import head_layout, moment_head_axis
 from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
 from orpheus.numerics.spaces.angular_trace_space import (
@@ -63,7 +63,6 @@ from orpheus.numerics.spaces.angular_trace_space import (
 __all__ = [
     "AngularFaceTraceSpace",
     "AngularTraceSpace",
-    "FullFieldSpace",
     "ScalarTraceSpace",
     "TraceRole",
     "head_layout",

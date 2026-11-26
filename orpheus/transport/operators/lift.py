@@ -82,7 +82,7 @@ from orpheus.numerics.operator import (
     adjointable,
 )
 from orpheus.numerics.space import Member, admit_matrix
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import bulk_and_trace
 from orpheus.transport.fields._bases import BoundaryField, BulkField, FieldRole
 from orpheus.transport.full_field import FullField
 from orpheus.transport.operators.bound_operator import BoundOperator
@@ -119,20 +119,14 @@ def _blocks_of(space: "FunctionSpace", *, owner: str) -> tuple["FunctionSpace", 
     r"""The ``(interior, trace)`` block pair of a composite end — the ONE
     composite-space parse of the operator tier.
 
-    A composite binding's end is a block-bearing
-    :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`; a
+    A composite binding's end is the full-field
+    :class:`~orpheus.numerics.direct_sum.DirectSumSpace` (summands ``bulk`` and
+    ``trace``), read by :func:`~orpheus.numerics.direct_sum.bulk_and_trace`; a
     plain space carries no blocks and refuses loudly, naming the owner.
-    (A composite always carries both blocks since S7: they are required
-    fields. This tier's refusal is a ``TypeError`` because the defect is a
-    binding on the WRONG KIND of space, and the message names the operator.)
+    This tier's refusal is a ``TypeError`` because the defect is a
+    binding on the WRONG KIND of space, and the message names the operator.
     """
-    if not isinstance(space, FullFieldSpace):
-        raise TypeError(
-            f"{owner} binds the composite FullFieldSpace (bulk ⊕ trace) — "
-            f"this end carries no block spaces to size the bulk action; got "
-            f"{type(space).__name__}."
-        )
-    return space.interior_space, space.trace_space
+    return bulk_and_trace(space, owner=owner)
 
 
 def interior_space_of(space: "FunctionSpace", *, owner: str) -> "FunctionSpace":
@@ -365,7 +359,7 @@ class BulkLift(CompositeBound):  # concept: restrict | role: arm | kind: morphis
     inner : LinearOperator
         The bulk operator — bare-array in, bare-array out on the interior
         spaces.
-    domain, codomain : FullFieldSpace
+    domain, codomain : DirectSumSpace
         The composite ends (kw-only, write-once — the base).
     """
 

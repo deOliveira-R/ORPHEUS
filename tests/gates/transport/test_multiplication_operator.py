@@ -79,7 +79,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from tests.gates.transport._phase_space_cases import angular_full_field_space
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
 from orpheus.mesh import CellEdges
 from orpheus.geometry.deck import MirrorDeck
@@ -821,9 +821,9 @@ def _dd_cart2d_case():
     return mesh, Quadrature.level_symmetric(4), DiamondDifference(), _group_sigma(mesh.spatial_shape, 1.0)
 
 
-def _random_composite(ffs: FullFieldSpace, rng: np.random.Generator) -> TimedFullField:
+def _random_composite(ffs: DirectSumSpace, rng: np.random.Generator) -> TimedFullField:
     """A random NON-FLAT 2-block state on ``ffs`` (bulk, with an LD bulk's slope moments, and trace both random)."""
-    interior, trace = ffs.interior_space, ffs.trace_space
+    interior, trace = ffs.summand("bulk"), ffs.summand("trace")
     if not isinstance(trace, AngularTraceSpace):
         pytest.fail(f"the SN full-field space's trace is {type(trace).__name__}, not an AngularTraceSpace")
     return TimedFullField(

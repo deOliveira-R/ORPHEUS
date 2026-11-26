@@ -19,7 +19,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.transport.boundary_conditions import WallCondition
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -29,6 +29,7 @@ from orpheus.transport.spatial import DiamondDifference, LinearDiscontinuous
 from tests.gates._exterior import conditions_for
 from tests.gates.transport import _phase_space_cases as cases
 from tests.gates.transport._materials import CURVED_REFLECTIVE
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -63,7 +64,7 @@ def test_the_problems_mints_are_the_constructors_on_its_own_ingredients(geometry
         ("angular_bulk_space", problem.angular_bulk_space, bulk),
         ("angular_trial_space", problem.angular_trial_space, trial),
         ("angular_trace", problem.angular_trace, trace),
-        ("full_field_space", problem.full_field_space, FullFieldSpace.from_blocks(trial, trace)),
+        ("full_field_space", problem.full_field_space, DirectSumSpace.of_pairs(((BULK, trial), (TRACE, trace)))),
     ):
         if mint != built or hash(mint) != hash(built):
             pytest.fail(f"{geometry}/{scheme}: SNProblem.{name} differs from the constructor on the problem's own ingredients")

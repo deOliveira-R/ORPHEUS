@@ -218,6 +218,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from orpheus.geometry.faces import face_normal
+from orpheus.numerics.direct_sum import BULK, TRACE
 from orpheus.numerics.fredholm import PredictedKernel
 from orpheus.numerics.kernel_projection_gauge import KernelSummand, diagonal_metric
 from orpheus.numerics.evidence import Evidence, measured_value
@@ -710,7 +711,7 @@ def _block_support(
     :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`
     buffer, which is the carrier
     :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` gathers from.
-    (⚠ Not full-field offsets: ``FullFieldSpace``'s carrier is the *typed
+    (⚠ Not full-field offsets: the full field's carrier is the *typed
     composite*, so a ``np.take`` operator declaring it as a domain would be a
     lie that the ``(name, shape)`` composability guard cannot catch.)
 
@@ -891,7 +892,7 @@ def _balance_weights(problem: "SNProblem") -> NDArray:
     to 1.5e-14. The bulk half is the bulk block's metric
     :math:`G_{\rm bulk} = V_{\rm cell}\,w_n`.
     """
-    bulk = problem.full_field_space.interior_space.metric_diagonal()
+    bulk = problem.full_field_space.summand(BULK).metric_diagonal()
     if bulk is None:
         raise ValueError("the SN bulk metric is not diagonal (it is V_cell * w_n by construction).")
     weights = np.asarray(problem.quad.weights, dtype=float)
@@ -938,7 +939,7 @@ def predicted_discretization_kernel(problem: "SNProblem") -> PredictedKernel:
     freedom = gauge_freedom(problem)
     if not freedom.present:
         return PredictedKernel.trivial(space, f"no diamond-difference kernel: {freedom.because}")
-    n_bulk = space.interior_space.n_coordinates
+    n_bulk = space.slice_of(TRACE).start
     balance = _balance_weights(problem)
     right: list[KernelSummand] = []
     left: list[KernelSummand] = []
@@ -967,7 +968,7 @@ def _physical_scope_entries(
     entries: list[str] = []
     if not problem.is_cartesian:
         entries.append("a non-Cartesian mesh")
-    interior = tuple(int(n) for n in problem.full_field_space.interior_space.shape)
+    interior = tuple(int(n) for n in problem.full_field_space.layout.blocks[BULK].shape)
     if len(interior) != 2 + int(problem.ndim):
         entries.append(f"a moment closure (bulk block {interior})")
     if np.any(diagonal_metric(problem.full_field_space)[on_class] == 0.0):
@@ -1027,7 +1028,7 @@ def predicted_physical_kernel(problem: "SNProblem") -> PredictedKernel:
     if not classes:
         return PredictedKernel.trivial(space, "no absorption-free closed class (every final energy class removes "
                                               "neutrons, or a face leaks)")
-    interior = tuple(int(n) for n in space.interior_space.shape)
+    interior = tuple(int(n) for n in space.layout.blocks[BULK].shape)
     bulk_group = np.broadcast_to(np.arange(interior[1]).reshape((1, -1) + (1,) * (len(interior) - 2)), interior).ravel()
     trace_group = np.zeros(problem.angular_trace.n_coordinates, dtype=np.intp)
     for slot in problem.angular_trace.layout.blocks.values():

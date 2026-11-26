@@ -65,6 +65,7 @@ from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -486,7 +487,7 @@ class TestSolve:
         state = grid.solve(CoupledField(systems=(
             q,
             radial_characteristic_source_from_angular(q_values, sn),
-        )))
+        ), labels=hub_labels(2)))
         psi = state.systems[0]
         assert isinstance(psi, TimedFullField)
         assert psi.interior.values.shape == q.interior.values.shape
@@ -1058,7 +1059,7 @@ class TestStreamingCollisionSolveBridgeRegression:
         def _joint_solve(rhs_a, q_seed, guess):
             if not carrying:
                 return LC.solve(rhs_a, initial_guess=guess), None
-            state = grid.solve(CoupledField(systems=(rhs_a, q_seed)))
+            state = grid.solve(CoupledField(systems=(rhs_a, q_seed), labels=hub_labels(2)))
             return state.systems[0], state.systems[1]
 
         psi_typed: TimedFullField | None = None

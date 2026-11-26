@@ -40,6 +40,7 @@ from orpheus.transport.radial_characteristic_field import RadialCharacteristicFi
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -188,7 +189,7 @@ def random_state(problem: SNProblem, lc, seed: int):
     template = CoupledField(systems=(
         zero_source_composite(problem),
         RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
-    ))
+    ), labels=hub_labels(2))
     flat = np.asarray(template.to_flat())
     rng = np.random.default_rng(seed + 1)
     return CoupledField.from_flat(rng.normal(size=flat.shape), template)

@@ -103,7 +103,7 @@ class TestSFamilyTierTwoEquivalence:
         rich = ScatteringOperator.from_solver_data(
             mat_xs=mat_xs, scattering_order=1, space=space,
         )
-        interior = space.interior_space
+        interior = space.summand("bulk")
         assert interior is not None
         frame = HarmonicFrame.for_space(interior, 1)
         exact = ScatteringOperator(
@@ -186,7 +186,7 @@ class TestSFamilyTierTwoEquivalence:
         rich = N2NOperator.from_solver_data(
             mat_xs=mat_xs, scattering_order=1, space=space,
         )
-        interior = space.interior_space
+        interior = space.summand("bulk")
         assert interior is not None
         frame = HarmonicFrame.for_space(interior, 1)
         exact = N2NOperator(
@@ -267,7 +267,7 @@ def test_fission_operator_from_solver_data_equals_the_exact_ctor():
     sn = _sn(mat_xs)
     space = angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn))
     rich = FissionOperator.from_solver_data(mat_xs=mat_xs, space=space)
-    interior = space.interior_space
+    interior = space.summand("bulk")
     assert interior is not None and interior.axes is not None
     scalar = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in interior.axes[1:]))
     frame = HarmonicFrame.for_space(interior, 0)

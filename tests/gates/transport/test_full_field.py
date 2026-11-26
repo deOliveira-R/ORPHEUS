@@ -28,7 +28,7 @@ concrete-base split makes it *nominal* (``isinstance`` against the
 5. The polymorphic-recombine teeth: ``FullField + FullField →
    FullField``; ``TimedFullField + TimedFullField → TimedFullField``
    (type preserved, empty history, ``history_depth`` preserved). This
-   pins the :meth:`_recombine` correctness — the load-bearing new
+   pins the :meth:`with_blocks` correctness — the load-bearing new
    guarantee of the extraction (the algebra is defined ONCE on the base
    yet returns the right concrete type per subclass).
 
@@ -229,10 +229,10 @@ class TestTimelessVsTimed:
 
 
 class TestPolymorphicRecombine:
-    """The inherited dunders return the RIGHT concrete type (the _recombine hook).
+    """The inherited dunders return the RIGHT concrete type (the with_blocks hook).
 
     The algebra is defined ONCE on :class:`FullField`, routed through the
-    polymorphic :meth:`FullField._recombine` hook. The teeth: a
+    polymorphic :meth:`FullField.with_blocks` hook. The teeth: a
     :class:`TimedFullField` operand must yield a :class:`TimedFullField`
     (type preserved, empty history, ``history_depth`` preserved) — NOT a
     bare :class:`FullField`. A plain :class:`FullField` operand must
@@ -305,7 +305,7 @@ class TestPolymorphicRecombine:
             type(out) is TimedFullField,
             f"TimedFullField + displacement must return a TimedFullField, "
             f"NOT a bare FullField; got {type(out).__name__}. This is the "
-            f"_recombine correctness tooth.",
+            f"with_blocks correctness tooth.",
         )
         _require(
             out._history == (),
@@ -351,7 +351,7 @@ class TestPolymorphicRecombine:
 
 
 # ═══════════════════════════════════════════════════════════════════════
-# G-d2.2 (B.2d d2) — FullField / TimedFullField / FullFieldSpace /
+# G-d2.2 (B.2d d2) — FullField / TimedFullField / DirectSumSpace /
 # CompositeField are PURE 2-BLOCK: the ray eviction's structural pins
 # ═══════════════════════════════════════════════════════════════════════
 
@@ -392,34 +392,28 @@ class TestFullFieldTwoBlock:
                 radial_characteristic=None,
             )
 
-    def test_protocol_declares_two_blocks_only(self):
-        from orpheus.numerics.spaces.full_field_space import CompositeField
+    def test_carrier_declares_two_blocks_only(self):
+        """The typed-element protocol of a composite carrier is two blocks: ``blocks`` of two elements, ``with_blocks`` of two."""
+        sn = slab_mesh()
+        composite = FullField.zeros(
+            interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
+        )
+        if len(composite.blocks) != 2 or hasattr(composite, "radial_characteristic"):
+            pytest.fail("the composite carrier does not declare exactly two blocks")
+        for required in ("interior", "boundary", "blocks", "with_blocks"):
+            if not hasattr(composite, required):
+                pytest.fail(f"the composite carrier lost {required!r}")
 
-        members = set(getattr(CompositeField, "__protocol_attrs__", set()))
-        if "radial_characteristic" in members:
-            pytest.fail("the CompositeField protocol still declares the "
-                        "retired ray member")
-        for required in ("interior", "boundary", "_recombine"):
-            if required not in members:
-                pytest.fail(f"the CompositeField protocol lost {required!r}")
-
-    def test_recombine_hook_is_two_kwarg(self):
-        # The G-d2.2 tooth: a caller that threads the retired seed kwarg
+    def test_with_blocks_hook_takes_exactly_two_blocks(self):
+        # The G-d2.2 tooth: a caller that threads a third block
         # (an eviction leftover) fails LOUDLY — the hook takes exactly the
         # two blocks.
         sn = slab_mesh()
         composite = FullField.zeros(
             interior=AngularFlux, boundary=AngularBoundaryFlux, space=angular_full_field_space(sn, posing_quadrature(sn), posing_scheme(sn)),
         )
-        with pytest.raises(TypeError):
-            composite._recombine(
-                interior=composite.interior,
-                boundary=composite.boundary,
-                radial_characteristic=None,
-            )
-        rebuilt = composite._recombine(
-            interior=composite.interior,
-            boundary=composite.boundary,
-        )
+        with pytest.raises(ValueError):
+            composite.with_blocks((composite.interior, composite.boundary, None))
+        rebuilt = composite.with_blocks((composite.interior, composite.boundary))
         if type(rebuilt) is not type(composite):
             pytest.fail("the 2-kwarg recombine changed the concrete type")

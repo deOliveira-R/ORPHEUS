@@ -109,7 +109,7 @@ class TestLawTheCoupledStateKnowsItsSpace:
         posing = hub.source_posing(q)
         _require(posing.source.space == hub.pencil.at(1.0).domain, "the lifted source's DERIVED space equals the pencil's domain (content identity)")
         _require(posing.source.space == hub.system.space, "…and the builder-minted coupled space")
-        _require(hub.system.space.zeros().space == hub.system.space, "the space's own zero element lives on it")
+        _require(hub.system.space.carrier.zeros().space == hub.system.space, "the space's own zero element lives on it")
 
     def test_negative_a_cross_hub_source_is_REFUSED_at_the_posing(self) -> None:
         """The ends check is LIVE now: a source built on another Problem's space

@@ -33,7 +33,7 @@ from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.operators.streaming import StreamingOperator
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -56,6 +56,8 @@ from tests.gates._exterior import conditions_for
 from typing import TYPE_CHECKING
 from orpheus.numerics.factor import Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
+from tests.gates._coupled_labels import hub_labels
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from orpheus.numerics.coupled_system import CoupledField
@@ -254,13 +256,13 @@ def test_within_group_operands_share_the_composite_space():
     ``(L+C) - S - B`` :class:`~orpheus.numerics.operator.OperatorSum` guard
     VALIDATES the build (equal domains AND codomains) instead of silently
     skipping the formerly ``None``-spaced ``C`` / ``S`` / ``F``. Also pins the
-    D5 de-SN-ified name (``"full_field"``, not ``"sn_full_field"``)."""
+    D5 de-SN-ified name (the labelled ``dsum(bulk ⊕ trace)``, no ``sn_`` prefix)."""
     solver, LC, S, B = _slab_2g_het_triple()
     ffs = solver.problem.full_field_space
     # D5: the cross-method composite-space name is method-agnostic — the
     # family prefix, with a member-content digest suffix (CS4b S4; R4:
     # substring pins survive suffixes).
-    if not ffs.name.startswith("full_field"):
+    if not ffs.name.startswith("dsum(bulk ⊕ trace)#") or "sn_" in ffs.name:
         raise AssertionError(f"composite space not de-SN-ified: {ffs.name!r}")
     # Every within-group operand reports the ONE composite space.  ``LC`` is
     # the production composite taken straight off the ``WithinGroupSystem``
@@ -318,7 +320,7 @@ def test_mis_spaced_scattering_reds_the_residual_composition():
     # CLASS property in-process (auto-reverts; never a real edit / git checkout).
     # Since S7 a composite IS its blocks' keys, so a wrong space of the right
     # shape is spelled through a wrong block (a renamed bulk leaf).
-    wrong = FullFieldSpace.from_blocks(TensorSpace.declared("bulk_TYPO", ffs.interior_space.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY)), ffs.trace_space)
+    wrong = DirectSumSpace.of_pairs(((BULK, TensorSpace.declared("bulk_TYPO", ffs.summand("bulk").shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))), (TRACE, ffs.summand("trace"))))
     with mock.patch.object(type(S), "domain", property(lambda self: wrong)), \
          mock.patch.object(type(S), "codomain", property(lambda self: wrong)):
         with pytest.raises(
@@ -363,7 +365,7 @@ def test_mis_spaced_collision_reds_the_production_loss_build():
     ffs = problem.full_field_space
     # Since S7 a composite IS its blocks' keys, so a wrong space of the right
     # shape is spelled through a wrong block (a renamed bulk leaf).
-    wrong = FullFieldSpace.from_blocks(TensorSpace.declared("bulk_TYPO", ffs.interior_space.shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY)), ffs.trace_space)
+    wrong = DirectSumSpace.of_pairs(((BULK, TensorSpace.declared("bulk_TYPO", ffs.summand("bulk").shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY))), (TRACE, ffs.summand("trace"))))
     L = StreamingOperator.pose(problem)
     C = MultiplicationOperator.from_mesh(CrossSectionField.total_of(solver.problem.mat_xs), problem)
     # S2 (ruling 52): the production build is the EXPLICIT atom
@@ -499,7 +501,7 @@ class TestSplitRayResidualMint:
         assert sol.radial_characteristic is not None  # narrowing (G-d2.5 pins)
         psi_pair = CoupledField(systems=(
             sol.angular_flux, sol.radial_characteristic,
-        ))
+        ), labels=hub_labels(2))
         r = evaluate_residual(system, psi_pair, q_pair)
         if not isinstance(r, CoupledField):
             pytest.fail(f"coupled residual is {type(r).__name__}")
@@ -559,7 +561,7 @@ class TestSplitRayResidualMint:
         bad_q = CoupledField(systems=(
             q_pair.systems[0],
             RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),   # FLUX pair — wrong role
-        ))
+        ), labels=hub_labels(2))
         with pytest.raises(TypeError):
             evaluate_residual(system, psi_pair, bad_q)
 
@@ -635,6 +637,6 @@ class TestSolutionRayMember:
             pytest.fail("a carrying Solution's state must carry System B as its second member")
         with pytest.raises(TypeError):
             _replace(sol_c, radial_characteristic=None)  # not a field — a reader of the state
-        one_system = CoupledField(systems=(sol_c.state.systems[0],))
+        one_system = CoupledField(systems=(sol_c.state.systems[0],), labels=hub_labels(1))
         with pytest.raises(ValueError, match="state-on-domain"):
             _replace(sol_c, outcome=_replace(sol_c.outcome, state=one_system))

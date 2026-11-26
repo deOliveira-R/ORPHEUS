@@ -51,9 +51,7 @@ ordered product of its axes (:class:`~orpheus.numerics.axis.Axis`):
 Of the compositional dunders anticipated with them, ``S * T`` (the tensor
 product, :class:`TensorSpace`, the space of factors) and ``S.dual()`` (the dual space)
 ship on :class:`TensorSpace`; the direct sum is not
-a dunder but the typed composites
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` and
-:class:`~orpheus.numerics.coupled_system.CoupledSpace`.
+a dunder but the labelled :class:`~orpheus.numerics.direct_sum.DirectSumSpace`.
 
 References
 ----------
@@ -103,7 +101,6 @@ __all__ = [
     "FunctionSpace",
     "Member",
     "TensorSpace",
-    "act_on_direct_sum_coordinates",
     "act_on_flat_coordinates",
     "admit_matrix",
     "coordinate_space_of",
@@ -112,7 +109,7 @@ __all__ = [
 
 #: The space's element type (what a member of :math:`V` IS): a bare
 #: ``NDArray`` for the leaf spaces, a bulk ⊕ boundary composite field for
-#: :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`. The
+#: :class:`~orpheus.numerics.direct_sum.DirectSumSpace`. The
 #: PEP-696 default is ``Any`` because a bare ``FunctionSpace`` annotation
 #: (the operator layer's ``domain`` / ``codomain`` slots) genuinely holds
 #: EITHER realization today — specializing those slots to the operator's
@@ -197,13 +194,12 @@ class Covector(Member):  # concept: covector | role: head | kind: element.covect
 
 
 #: The subclasses of :class:`FunctionSpace`: module-qualified class name to the unit that removes the arm. :class:`TensorSpace` is the arm that
-#: stays; the nine legacy arms leave with the unit named (N05 the direct sums, N06 the trace spaces, N07 the dual). The class-creation hook
+#: stays; the direct sum is the second arm that stays; the seven legacy arms leave with the unit named (N06 the trace spaces, N07 the dual). The class-creation hook
 #: of :class:`FunctionSpace` refuses every other subclass at any depth. A module-level constant, so that the names it holds are data and
 #: not reference edges of the concept table.
 FUNCTION_SPACE_ARMS: Mapping[str, str | None] = MappingProxyType({
     "orpheus.numerics.space.TensorSpace": None,
-    "orpheus.numerics.coupled_system.CoupledSpace": "N05",
-    "orpheus.numerics.spaces.full_field_space.FullFieldSpace": "N05",
+    "orpheus.numerics.direct_sum.DirectSumSpace": None,
     "orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace": "N06",
     "orpheus.numerics.spaces.angular_trace_space.AngularFaceTraceSpace": "N06",
     "orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace": "N06",
@@ -471,7 +467,7 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         (:meth:`_diagonal_inner_product`) is the diagonal-weight form for
         the bare-array carrier; a space with a structured carrier
         overrides this surface with its own realization
-        (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+        (:class:`~orpheus.numerics.direct_sum.DirectSumSpace`
         dispatches per direct-sum block).
 
         Parameters
@@ -1237,18 +1233,18 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
         return self.completed(on=self.labels)
 
 
-def _refused_legacy_metric_field(name: str) -> property:
-    r"""The read of a legacy metric field on a :class:`TensorSpace`: an ``AttributeError`` naming what to read instead.
+def _refused_legacy_metric_field(name: str, owner: str = "TensorSpace") -> property:
+    r"""The read of a legacy metric field on a :class:`TensorSpace` or a direct sum: an ``AttributeError`` naming what to read instead.
 
-    A tensor space stores no metric source, so the two fields of the leaf arm (``inner_product_weights``, ``metric``) have no value on it; a reader
-    that has not been re-pointed to the factor's form fails here and does not read ``None`` as "Euclidean".
+    A tensor space and a direct sum store no metric source, so the two fields of the leaf arm (``inner_product_weights``, ``metric``) have no value on
+    them; a reader that has not been re-pointed to the factor's form fails here and does not read ``None`` as "Euclidean".
     """
     instead = (
-        f"TensorSpace.{name}: a tensor space stores no metric source; read the factor's form, space.factor(label).form, "
+        f"{owner}.{name}: a {owner} stores no metric source; read the factor's form, space.factor(label).form, "
         f"or the space's verbs (apply_metric, metric_diagonal, inner_product)"
     )
 
-    def read(self: "TensorSpace") -> NoReturn:
+    def read(self: "FunctionSpace") -> NoReturn:
         raise AttributeError(instead)
 
     return property(read)
@@ -1284,40 +1280,6 @@ def _counting_factor(f: Factor) -> Factor:
 # every solver instance carries its own (n_cells, n_ordinates, n_groups)
 # triple. Factories give the caller named, well-typed construction
 # sites without forcing premature commitment to a global instance.
-
-
-def act_on_direct_sum_coordinates(
-    space: FunctionSpace,
-    members: "tuple[FunctionSpace, ...]",
-    x: Any,
-    leg: "Callable[[FunctionSpace, NDArray], NDArray]",
-) -> NDArray:
-    r"""A direct sum's action on its FLAT coordinates: each member's ``leg`` on its own slice.
-
-    The coordinates of :math:`V_1 \oplus \dots \oplus V_N` are the members'
-    coordinates concatenated in member order (the layout the composite carriers'
-    ``to_flat`` packs). An action that is block-diagonal on the sum (a metric
-    leg, :math:`G = \operatorname{diag}(G_1, \dots, G_N)`) acts on that chart by
-    cutting it at the member sizes, handing each member its slice in the
-    member's own shape, and concatenating the results.
-
-    The operand is parsed at ``space``'s ACTION verb
-    (:meth:`FunctionSpace.leading_coordinates_of`), so a trailing payload rides
-    through as :math:`G \otimes I_P`. This is the chart the operator algebra
-    hands a composite's metric legs (an operator's ``.H`` is
-    :math:`\sharp \circ \mathrm{dual} \circ \flat` on flat coordinates); the
-    composite's typed carrier is the other chart of the same element.
-    """
-    coordinates = np.asarray(space.leading_coordinates_of(x))
-    payload = coordinates.shape[1:]
-    pieces = []
-    start = 0
-    for member in members:
-        size = member.n_coordinates
-        block = coordinates[start:start + size].reshape(tuple(member.shape) + payload)
-        pieces.append(np.asarray(leg(member, block)).reshape((size,) + payload))
-        start += size
-    return np.concatenate(pieces, axis=0)
 
 
 def coordinate_space_of(shape: tuple[int, ...]) -> FunctionSpace:

@@ -32,6 +32,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from orpheus.numerics.axis import EnergyAxis
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.space import TensorSpace
 
 if TYPE_CHECKING:
@@ -46,12 +47,20 @@ def assert_energy_extent_conforms(
     """Refuse a binding whose space states a DIFFERENT group count than its data.
 
     Fires only when there is something to key on (module docstring): a
-    ``None`` space and an axes-less space both pass — presence is the
-    constructor's own signature contract, and the axes-less inertness is
-    declared, not accidental.
+    ``None`` space and a space with no energy axis both pass. A direct sum is
+    walked: each summand is checked, a nested sum recurses, and the refusal
+    names the summand label path.
+
+    ELEGANCE-DEBT[guard] #759 legacy-leaf: retires at N07, when no space is a legacy leaf; the walk skips a summand that is not a tensor space (a legacy leaf holds no energy axis until N06), and G04o pins it.
     """
     if space is None:
         return
+    if isinstance(space, DirectSumSpace):
+        for label, summand in space.summands:
+            assert_energy_extent_conforms(summand, ng, operator=f"{operator} (summand {label!r})")
+        return
+    # ELEGANCE-DEBT[guard] #759 legacy-leaf: the door tells a tensor space from a legacy leaf and nothing else;
+    # it retires at N07, when no space is a legacy leaf (G04o pins it).
     if not isinstance(space, TensorSpace):
         return
     for axis in space.axes:

@@ -54,6 +54,7 @@ from tests.gates.sn.operators.test_g_adjoint_reciprocity import (
     _random_composite,
 )
 from tests.gates.sn.regression._generate_snapshots import SNAPSHOT_DIR
+from tests.gates._coupled_labels import hub_labels
 
 
 @dataclass(frozen=True)
@@ -166,9 +167,9 @@ def run_case(case: WalkMatvecCase) -> dict[str, np.ndarray]:
         from tests.gates.sn._test_helpers import joint_m_grid
 
         grid, _space = joint_m_grid(sn, lc)
-        fwd = grid.apply(CoupledField(systems=(psi, psi_seed))).systems[0]
+        fwd = grid.apply(CoupledField(systems=(psi, psi_seed), labels=hub_labels(2))).systems[0]
         adj = grid.apply_transpose(
-            CoupledField(systems=(phi, phi_seed)),
+            CoupledField(systems=(phi, phi_seed), labels=hub_labels(2)),
         ).systems[0]
     return {
         "fwd_bulk": np.asarray(fwd.interior.values, dtype=np.float64),

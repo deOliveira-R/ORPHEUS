@@ -45,7 +45,7 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.space import FunctionSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -65,6 +65,7 @@ from orpheus.numerics.axis_marginal import AxisRetractionOperator
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 
 pytestmark = pytest.mark.foundation
@@ -83,12 +84,12 @@ def _sn() -> MaterialMesh:
 
 #: One full-field space per posed mesh, as the method problem's cached property kept one: the S6 row asserts the
 #: energy binding and the angular integral ride ONE memoised marginal, so every helper reads the same space object.
-_FFS: dict[int, tuple[MaterialMesh, FullFieldSpace]] = {}
+_FFS: dict[int, tuple[MaterialMesh, DirectSumSpace]] = {}
 
 
 #: GL8 is load-bearing here: the S_L1 / N2N_L1 lifts need an angular frame of order >= 1 on the slab rule, and the
 #: l >= 1 band (``_L1_ABS_BAND``) was measured at GL8.
-def _ffs(sn: MaterialMesh) -> FullFieldSpace:
+def _ffs(sn: MaterialMesh) -> DirectSumSpace:
     if id(sn) not in _FFS:
         _FFS[id(sn)] = (sn, angular_full_field_space(sn, posing_quadrature(sn, 8), posing_scheme(sn)))
     return _FFS[id(sn)][1]
@@ -100,9 +101,9 @@ def _mat_xs(sn: MaterialMesh):
 
 def _state(sn: MaterialMesh, seed: int) -> FullField:
     ffs_sn = _ffs(sn)
-    trace_sn = _ffs(sn).trace_space
+    trace_sn = _ffs(sn).summand("trace")
     rng = np.random.default_rng(seed)
-    interior = ffs_sn.interior_space
+    interior = ffs_sn.summand("bulk")
     assert interior is not None
     return FullField(
         interior=AngularFlux(values=rng.standard_normal(interior.shape), space=interior),
@@ -112,9 +113,9 @@ def _state(sn: MaterialMesh, seed: int) -> FullField:
 
 def _cotangent(sn: MaterialMesh, seed: int) -> FullField:
     ffs_sn = _ffs(sn)
-    trace_sn = _ffs(sn).trace_space
+    trace_sn = _ffs(sn).summand("trace")
     rng = np.random.default_rng(seed)
-    interior = ffs_sn.interior_space
+    interior = ffs_sn.summand("bulk")
     assert interior is not None
     return FullField(
         interior=AngularSourceSink(values=rng.standard_normal(interior.shape), space=interior),
@@ -209,7 +210,7 @@ def test_the_energy_binding_is_derived_from_the_datum_on_the_codomain_scalar_sub
     sn = _sn()
     ffs_sn = _ffs(sn)
     lifts = _lifts(sn)
-    interior = ffs_sn.interior_space
+    interior = ffs_sn.summand("bulk")
     assert interior is not None and interior.axes is not None
     scalar = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in interior.axes[1:]))
     F = lifts["F"]
@@ -229,8 +230,8 @@ def test_the_energy_binding_is_derived_from_the_datum_on_the_codomain_scalar_sub
 def test_the_base_is_abstract_and_refuses_a_third_interior():
     sn = _sn()
     ffs_sn = _ffs(sn)
-    trace_sn = _ffs(sn).trace_space
-    interior = ffs_sn.interior_space
+    trace_sn = _ffs(sn).summand("trace")
+    interior = ffs_sn.summand("bulk")
     assert interior is not None
     frame = HarmonicFrame.for_space(interior, 0)
     space = ffs_sn
@@ -241,12 +242,10 @@ def test_the_base_is_abstract_and_refuses_a_third_interior():
             domain=space, codomain=space,
         )
     # a THIRD interior: a composite whose bulk is neither face end
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.transport.material_field import FissionMaterialField
 
-    other = FullFieldSpace.from_blocks(
-        TensorSpace.declared("third", tuple(interior.shape), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), trace_sn,
-    )
+    other = DirectSumSpace.of_pairs(((BULK, TensorSpace.declared("third", tuple(interior.shape), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), (TRACE, trace_sn)))
     with pytest.raises(TypeError, match="neither end of the analysis face"):
         FissionOperator(
             FissionMaterialField.from_material_xs(_mat_xs(sn)),
@@ -299,9 +298,9 @@ def test_the_operand_role_is_admitted_not_cast():
     body)."""
     sn = _sn()
     ffs_sn = _ffs(sn)
-    trace_sn = _ffs(sn).trace_space
+    trace_sn = _ffs(sn).summand("trace")
     S = _lifts(sn)["S_L1"]
-    interior = ffs_sn.interior_space
+    interior = ffs_sn.summand("bulk")
     assert interior is not None
     wrong_role = FullField(
         interior=AngularSourceSink(values=np.ones(interior.shape), space=interior),
@@ -319,17 +318,15 @@ def test_a_composite_with_a_foreign_trace_is_refused():
     the trace, instead of echoing the operand's trace back as its own."""
     from dataclasses import replace
 
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
     sn = _sn()
     ffs_sn = _ffs(sn)
-    trace_sn = _ffs(sn).trace_space
+    trace_sn = _ffs(sn).summand("trace")
     S = _lifts(sn)["S_L0"]
-    interior = ffs_sn.interior_space
+    interior = ffs_sn.summand("bulk")
     assert interior is not None
-    foreign = FullFieldSpace.from_blocks(
-        interior, TensorSpace.declared("foreign-trace", tuple(trace_sn.shape), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
-    )
+    foreign = DirectSumSpace.of_pairs(((BULK, interior), (TRACE, TensorSpace.declared("foreign-trace", tuple(trace_sn.shape), Variance(Kind.FUNCTION, VarianceChart.DENSITY)))))
     S_foreign = replace(S, domain=foreign, codomain=foreign)
     with pytest.raises(TypeError, match="trace"):
         S_foreign.apply(_state(sn, 21))
@@ -344,7 +341,7 @@ def test_mixed_frame_faces_are_refused_at_construction():
 
     sn = _sn()
     ffs_sn = _ffs(sn)
-    interior = ffs_sn.interior_space
+    interior = ffs_sn.summand("bulk")
     assert interior is not None
     space = ffs_sn
     with pytest.raises(TypeError, match="do not meet"):
@@ -364,7 +361,7 @@ def test_the_scalar_subspace_is_the_codomains_memoised_angular_marginal():
     sn = _sn()
     ffs_sn = _ffs(sn)
     S = _lifts(sn)["S_L0"]
-    interior = ffs_sn.interior_space
+    interior = ffs_sn.summand("bulk")
     assert interior is not None
     marginal = AxisRetractionOperator.of(interior, "angular").codomain
     assert S._scalar_interior_space is marginal

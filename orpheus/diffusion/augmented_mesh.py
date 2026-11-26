@@ -110,7 +110,7 @@ if TYPE_CHECKING:
     from orpheus.geometry.deck import DeckTransformation
     from orpheus.numerics.operator import LinearOperator
     from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.mesh import Axis1D
     from orpheus.transport.boundary_conditions import Binding, BoundaryCondition, RealizerTable
 
@@ -343,7 +343,7 @@ class DiffusionMesh(MethodMesh):  # concept: hub | role: arm | kind: element
         return self._scalar_trace
 
     @cached_property
-    def full_field_space(self) -> "FullFieldSpace":
+    def full_field_space(self) -> "DirectSumSpace":
         r"""The scalar composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}`.
 
         The function space of the scalar-composite operator family —
@@ -374,15 +374,15 @@ class DiffusionMesh(MethodMesh):  # concept: hub | role: arm | kind: element
 
         Cached: immutable for a given mesh.
         """
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, SumCarrier
 
         from orpheus.transport.fields.scalar_boundary_flux import ScalarBoundaryFlux
         from orpheus.transport.fields.scalar_flux import ScalarFlux
         from orpheus.transport.full_field import FullField
 
-        return FullFieldSpace.from_blocks(
-            self.bulk_space, self.scalar_trace,
-            zeros_factory=lambda: FullField.zeros(
+        return DirectSumSpace.of_pairs(
+            ((BULK, self.bulk_space), (TRACE, self.scalar_trace)),
+            carrier=SumCarrier(zeros=lambda: FullField.zeros(
                 interior=ScalarFlux, boundary=ScalarBoundaryFlux, space=self.full_field_space,
-            ),
+            )),
         )

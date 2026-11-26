@@ -308,7 +308,7 @@ class TestCarrierArms:
         assert isinstance(moments, HarmonicMomentFlux)
         np.testing.assert_array_equal(
             n2n.on_moment_domain().apply(
-                zero_trace_composite(moments, n2n.domain.trace_space),
+                zero_trace_composite(moments, n2n.domain.summand("trace")),
             ).interior.values,
             bulk_apply(n2n, psi).values,
             err_msg="the moment-domain sibling drifted from the angular "
@@ -379,7 +379,7 @@ class TestAdmission:
         frame's ordinates as OPERATIVE state, and this is what enforces it."""
         solver, _ = _solver()
         other = SNProblem((_carrier2 := _mesh()), Quadrature.gauss_legendre(n_ordinates=2), solver.problem.mat_xs.materials, boundary_conditions=conditions_for(_carrier2, _CONDITIONS))
-        other_interior = other.full_field_space.interior_space
+        other_interior = other.full_field_space.summand("bulk")
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).flux_analysis_on(other_interior)
         with pytest.raises(TypeError, match="mint the faces"):
@@ -394,7 +394,7 @@ class TestAdmission:
         shared combine. Both faces are admitted now."""
         solver, _ = _solver()
         other = SNProblem((_carrier3 := _mesh()), Quadrature.gauss_legendre(n_ordinates=8), solver.problem.mat_xs.materials, boundary_conditions=conditions_for(_carrier3, _CONDITIONS))
-        other_interior = other.full_field_space.interior_space
+        other_interior = other.full_field_space.summand("bulk")
         assert other_interior is not None
         wrong_face = HarmonicFrame.for_space(other_interior, _L).source_reconstruction_on(other_interior)
         with pytest.raises(TypeError, match="mint the faces"):
@@ -404,7 +404,7 @@ class TestAdmission:
         solver, _ = _solver()
         from orpheus.numerics.space import FunctionSpace
 
-        with pytest.raises(TypeError, match="composite FullFieldSpace"):
+        with pytest.raises(TypeError, match="composite DirectSumSpace"):
             N2NOperator.from_solver_data(
                 mat_xs=solver.problem.mat_xs,
                 scattering_order=_L,

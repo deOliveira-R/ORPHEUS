@@ -3,7 +3,7 @@ r"""Intrinsic-property gate for the generic ``Composite[Interior, Boundary]`` ba
 :class:`~orpheus.transport.full_field.Composite` is the structural two-block
 carrier the transport operator algebra acts on; :class:`FullField` (SN + the ψ½
 block) is its specialization. Because ``FullField`` OVERRIDES every algebra hook
-(``_map_binary`` / ``_map_unary`` / ``_recombine`` / ``_flat_parts`` /
+(``_map_binary`` / ``_map_unary`` / ``with_blocks`` / ``_flat_parts`` /
 ``_from_flat``) to thread its third block, the base's OWN 2-block methods are
 exercised by no SN test — so this file pins them directly.
 
@@ -114,7 +114,17 @@ def test_pure_composite_has_no_ray_slot(mesh) -> None:
 
 
 def test_mesh_reads_off_either_leaf(mesh) -> None:
-    c = _scalar_composite(mesh, 0)
+    """The composite's space is derived from its blocks and the class constant ``LABELS`` of its concrete class: the generic base has no labels, so a class that names them does."""
+    from dataclasses import dataclass
+
+    from orpheus.numerics.direct_sum import BULK, TRACE
+
+    @dataclass(frozen=True, kw_only=True)
+    class _Labelled(Composite):
+        LABELS = (BULK, TRACE)
+
+    base = _scalar_composite(mesh, 0)
+    c = _Labelled(interior=base.interior, boundary=base.boundary)
     assert c.space == scalar_full_field_space(mesh)
 
 

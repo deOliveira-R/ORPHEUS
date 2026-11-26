@@ -86,6 +86,7 @@ from orpheus.transport.fields import (
 )
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -613,7 +614,7 @@ def _probe_augmented_matrix_one_group(problem: SNProblem, g: int) -> np.ndarray:
         from tests.gates.sn._test_helpers import joint_m_grid
 
         grid, _space = joint_m_grid(problem, A)
-        out = grid.apply(CoupledField(systems=(st, seed_leaf)))
+        out = grid.apply(CoupledField(systems=(st, seed_leaf), labels=hub_labels(2)))
         return _read(out.systems[0], out.systems[1])
 
     def _zero_seed():

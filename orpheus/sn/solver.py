@@ -71,6 +71,8 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 from orpheus.transport.fields.scalar_flux import ScalarFlux
 from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from .coupled_system import (
+    SYSTEM_A_LABEL,
+    SYSTEM_B_LABEL,
     WithinGroupSystem,
     _system_a_member,
     _system_b_member,
@@ -313,6 +315,7 @@ def _typed_balance(
         )
         return CoupledField(
             systems=(_system_a_residual(lhs_a, q_a), r_b),
+            labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
         )
     if not isinstance(q_ext, FullField):
         raise TypeError(
@@ -707,14 +710,16 @@ def _returned_state(
             interior=member.interior, boundary=member.boundary,
             _history=(), history_depth=2,
         )
-    return CoupledField(systems=(member,) if ray is None else (member, ray))
+    if ray is None:
+        return CoupledField(systems=(member,), labels=(SYSTEM_A_LABEL,))
+    return CoupledField(systems=(member, ray), labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL))
 
 
 def _as_coupled(field: "FullField | TimedFullField | CoupledField") -> "CoupledField":
     r"""A source or state on the hub's coupled carrier: a bare (seedless) composite
     is the ONE-system coupled field; a coupled one is itself.  The same lift the
     hub's ``source_posing`` applies — a posing lives on the pencil's ends."""
-    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,))
+    return field if isinstance(field, CoupledField) else CoupledField(systems=(field,), labels=(SYSTEM_A_LABEL,))
 
 
 #: Either flavour of the System-A composite — both carry a ``.boundary``.
@@ -1075,6 +1080,7 @@ def _coupled_flux_state(
     """
     return CoupledField(
         systems=(psi_a, RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space)),
+        labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
     )
 
 
@@ -1096,7 +1102,7 @@ def _coupled_source_state(
             f"{context}: a carrying mesh's coupled rhs requires the q½ fold "
             f"(got None) — the joint solve consumes System B's true source."
         )
-    return CoupledField(systems=(q_a, q_half))
+    return CoupledField(systems=(q_a, q_half), labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL))
 
 
 class InnerSolve(NamedTuple):  # concept: driver | role: annex | kind: record
@@ -2545,13 +2551,16 @@ def _adjoint_posing_parts(problem: SNProblem):
     # a bare full-field pair with the composite ``factors.fission``, and the
     # production site posed ``EigenPosing(OperatorPencil(M.H − N.H, F.H))``
     # per arm — two adjoint posings for one Problem.
+    zeros = system.space.carrier.zeros if system.space.carrier is not None else None
+    if zeros is None:
+        raise RuntimeError(f"the coupled space {system.space!r} carries no zero-element factory (the builder installs its SumCarrier)")
     if problem.radial_characteristic_field_space is None:
         def lift(operator: "LinearOperator") -> CoupledOperator:
             return CoupledOperator(
                 [[operator]], domain=system.space, codomain=system.space,
             )
-        return lift(splitting.implicit), lift(gain), system.production, system.space.zeros(), splitting
-    return splitting.implicit, gain, system.production, system.space.zeros(), splitting
+        return lift(splitting.implicit), lift(gain), system.production, zeros(), splitting
+    return splitting.implicit, gain, system.production, zeros(), splitting
 
 
 def solve_sn_adjoint(

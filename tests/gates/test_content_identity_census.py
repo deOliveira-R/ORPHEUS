@@ -78,6 +78,7 @@ from tests.gates.values.test_content_identity_relocation import (
 )
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -258,7 +259,7 @@ def _space_names() -> dict[str, Callable[[], str]]:
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import FunctionSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.numerics.spaces.radial_characteristic_space import (
         RadialCharacteristicBoundarySpace,
         RadialCharacteristicInteriorSpace,
@@ -282,10 +283,8 @@ def _space_names() -> dict[str, Callable[[], str]]:
             levels, ng=2, nx=4, cell_volumes=cell_volumes).name,
         "radial boundary": lambda: RadialCharacteristicBoundarySpace.for_levels(
             levels, ng=2, nx=4, cell_volumes=cell_volumes).name,
-        "full field over content-named blocks": lambda: FullFieldSpace.from_blocks(
-            TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY)), scalar()).name,
-        "full field over raw blocks": lambda: FullFieldSpace.from_blocks(
-            TensorSpace.declared("bulk", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("trace", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))).name,
+        "full field over content-named blocks": lambda: DirectSumSpace.of_pairs(((BULK, TensorSpace.of_axes(Factor.whole_on(EnergyAxis.synthetic(2), Kind.MEASURE, VarianceChart.DENSITY))), (TRACE, scalar()))).name,
+        "full field over raw blocks": lambda: DirectSumSpace.of_pairs(((BULK, TensorSpace.declared("bulk", (4,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), (TRACE, TensorSpace.declared("trace", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))))).name,
     }
 
 

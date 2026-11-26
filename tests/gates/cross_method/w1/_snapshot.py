@@ -54,7 +54,7 @@ TRACE, PROBED = "b", "d"  # quantity group b: ``apply_metric(ones)`` and ``metri
 
 def _trace_of_radial_field(problem: Any) -> Any:
     field = problem.radial_characteristic_field_space
-    return None if field is None else field.trace_space  # the radial system exists on curvilinear problems only
+    return None if field is None else field.summand("boundary")  # the radial system exists on curvilinear problems only
 
 
 #: One row per space of the SN problem: ``(name, getter(problem), groups)``. A getter returns ``None`` for a space the problem
@@ -65,7 +65,7 @@ SN_ROWS: tuple[Row, ...] = (
     ("angular_trial_space", lambda p: p.angular_trial_space, frozenset({PROBED})),
     ("moment_space(2)", lambda p: p.moment_space(2), frozenset({PROBED})),
     ("full_field_space", lambda p: p.full_field_space, frozenset({PROBED})),
-    ("full_field_space.trace_space", lambda p: p.full_field_space.trace_space, frozenset({TRACE})),
+    ("full_field_space.trace_space", lambda p: p.full_field_space.summand("trace"), frozenset({TRACE})),
     ("radial_characteristic_boundary_space", lambda p: p.radial_characteristic_boundary_space, frozenset({TRACE, PROBED})),
     ("radial_characteristic_interior_space", lambda p: p.radial_characteristic_interior_space, frozenset({PROBED})),
     ("radial_characteristic_field_space", lambda p: p.radial_characteristic_field_space, frozenset({PROBED})),
@@ -76,7 +76,7 @@ SN_ROWS: tuple[Row, ...] = (
 DIFFUSION_ROWS: tuple[Row, ...] = (
     ("bulk_space", lambda m: m.bulk_space, frozenset({PROBED})),
     ("full_field_space", lambda m: m.full_field_space, frozenset({PROBED})),
-    ("full_field_space.trace_space", lambda m: m.full_field_space.trace_space, frozenset({TRACE})),
+    ("full_field_space.trace_space", lambda m: m.full_field_space.summand("trace"), frozenset({TRACE})),
     ("scalar_trace", lambda m: m.scalar_trace, frozenset({TRACE})),
 )
 
@@ -152,15 +152,15 @@ def capture_problems() -> tuple[dict[Key, np.ndarray], list[tuple[str, str]]]:
             problem, text = fx.sn_problem(kind, ng)
             system = problem.system
             produced = _dense({
-                "A": (system.loss, system.space.zeros()),
-                "F": (system.production, system.space.zeros()),
+                "A": (system.loss, system.space.carrier.zeros()),
+                "F": (system.production, system.space.carrier.zeros()),
                 # B lives on the full-field space, not on the coupled space of the sphere and the cylinder.
-                "B": (system.factors.boundary, problem.full_field_space.zeros()),
+                "B": (system.factors.boundary, problem.full_field_space.carrier.zeros()),
             })
             produced.update(_space_arrays(problem, SN_ROWS))
             arrays.update({(name, key): value for key, value in produced.items()})
-            builders.append((name, text + " | densified by FlattenedOperator(problem.system.loss | production, system.space.zeros()) "
-                                          "and FlattenedOperator(problem.system.factors.boundary, problem.full_field_space.zeros())"))
+            builders.append((name, text + " | densified by FlattenedOperator(problem.system.loss | production, system.space.carrier.zeros()) "
+                                          "and FlattenedOperator(problem.system.factors.boundary, problem.full_field_space.carrier.zeros())"))
     for ng in fx.GROUPS:
         name = diffusion_fixture_name(ng)
         mesh, solver, text = fx.diffusion_problem(ng)

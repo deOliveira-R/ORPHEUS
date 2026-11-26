@@ -76,9 +76,6 @@ class = "orpheus/numerics/operator.py::_KeyedEquality"
 class = "orpheus/numerics/posing.py::SourcePosing"
 
 [[twin]]
-class = "orpheus/numerics/spaces/full_field_space.py::FullFieldSpace"
-
-[[twin]]
 class = "orpheus/reference/published.py::PublishedSolution"
 
 [[twin]]

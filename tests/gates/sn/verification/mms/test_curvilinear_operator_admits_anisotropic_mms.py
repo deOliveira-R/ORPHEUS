@@ -67,6 +67,7 @@ from tests.gates.sn._test_helpers import radial_characteristic_edge_seed
 from orpheus.derivations.common.continuous_reference import VACUUM_EXTERIOR
 from tests.gates._exterior import conditions_for
 from tests.gates._reference_pairing import conditions_of
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``). The manufactured cases' meshes carry the one tag
@@ -126,7 +127,7 @@ def _lc_apply_on_psi_ref(case, nc: int):
 
         grid, _space = joint_m_grid(problem, StreamingCollisionOperator(L, C))
         lc_psi = grid.apply(
-            CoupledField(systems=(psi_ref, seed_leg)),
+            CoupledField(systems=(psi_ref, seed_leg), labels=hub_labels(2)),
         ).systems[0].interior.values                        # (N, ng, nx)
 
     # ── Hand CONTINUOUS reference: [(L+C)ψ]_n(r) per ordinate, /W ──

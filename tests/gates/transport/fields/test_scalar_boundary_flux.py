@@ -10,7 +10,7 @@ standard): here the :class:`ScalarTraceSpace` space laws, the
 the albedo-family identities ``J⁻ = 𝒜·J⁺`` (vacuum 𝒜=0 / reflective
 𝒜=1 / zero-flux Dirichlet 𝒜=−1), the flat-buffer/view storage
 contract, the field-algebra guards inherited from ``BoundaryField``, and
-the widened ``FullField``/``FullFieldSpace`` composite admission.
+the widened ``FullField``/``DirectSumSpace`` composite admission.
 
 The carrier is the :class:`~orpheus.diffusion.augmented_mesh.MaterialMesh`
 phase space (#290 P7a): a boundary trace is method behavior, so the
@@ -42,12 +42,14 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellsByCount, Mesher
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces import FullFieldSpace, ScalarTraceSpace
+from orpheus.numerics.spaces import ScalarTraceSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.transport.fields import ScalarBoundaryFlux, ScalarFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.numerics.factor import Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = [pytest.mark.foundation]
 
@@ -253,7 +255,7 @@ class TestPartialCurrentGuards:
 
 
 # ─────────────────────────────────────────────────────────────────────
-# The widened composite — FullField / FullFieldSpace admission
+# The widened composite — FullField / DirectSumSpace admission
 # ─────────────────────────────────────────────────────────────────────
 
 
@@ -268,7 +270,7 @@ class TestScalarComposite:
         # the MEMBERS are the carrier's cached objects).
         if full.space != scalar_full_field_space(mm):
             pytest.fail("composite space must content-equal the carrier mint")
-        if full.space.interior_space is not scalar_full_field_space(mm).interior_space:
+        if full.space.summand("bulk") is not scalar_full_field_space(mm).summand("bulk"):
             pytest.fail("interior member must BE the carrier's cached mint")
 
     def test_twin_mesh_composite_blocks_mix(self):
@@ -298,7 +300,7 @@ class TestScalarComposite:
         pc.outflow_view("xmax")[:] = [3.0, 1.0]
         pc.inflow_view("xmax")[:] = [1.0, 0.25]
         full = FullField(interior=bulk, boundary=pc)
-        ffs = FullFieldSpace.from_blocks(bulk.space, scalar_trace_space(mm))
+        ffs = DirectSumSpace.of_pairs(((BULK, bulk.space), (TRACE, scalar_trace_space(mm))))
         np.testing.assert_array_equal(
             ffs.shape, (bulk.values.size + pc.values.size,)
         )

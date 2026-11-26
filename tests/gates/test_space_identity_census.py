@@ -5,7 +5,7 @@ import pytest
 from orpheus.numerics import frame_faces as ff
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import DualSpace, FunctionSpace
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.factor import Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
 
@@ -30,11 +30,11 @@ def _population():
     for c in (G._slab_3region("2g", 6), G._cylinder_3region("2g", 4, "folded_4x6")):
         p = _as_problem(c["mesh"], c["quadrature"], c["materials"], scattering_order=1, boundary_conditions=G.case_conditions(c))
         ffs = p.full_field_space
-        out += [ffs, ffs.dual(), ffs.interior_space, ffs.interior_space.dual(), getattr(ffs, "trace_space", None), p.system.space,
+        out += [ffs, ffs.dual(), ffs.summand("bulk"), ffs.summand("bulk").dual(), ffs.summand("trace"), p.system.space,
                 p.moment_space(1), p.angular_bulk_space]
         rc = getattr(p, "radial_characteristic_field_space", None)
         if rc is not None:
-            out += [rc, rc.interior_space]
+            out += [rc, rc.summand("interior")]
     q = Quadrature.folded_product(n_mu=2, n_phi=4)
     out += [ff.basis_space(ff.angular_frame(q, 2)), TensorSpace.declared("named", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))]
     return [s for s in out if isinstance(s, FunctionSpace)]
@@ -43,7 +43,7 @@ def _population():
 def test_K2_eq_and_hash_derive_from_the_identity_key():
     pop = _population()
     kinds = {type(s).__name__ for s in pop}
-    assert len(pop) >= 12 and {"FullFieldSpace", "CoupledSpace", "TensorSpace"} <= kinds, kinds
+    assert len(pop) >= 12 and {"DirectSumSpace", "TensorSpace"} <= kinds, kinds
     for s in pop:
         assert hash(s) == hash(s.identity_key()), f"{type(s).__name__}: hash is not hash(identity_key)"
     for a in pop:

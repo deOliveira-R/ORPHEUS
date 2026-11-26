@@ -145,12 +145,8 @@ from orpheus.sn.sweep.psi_half_angle_seed import (
     carlson_inward_sweep_transpose,
     radial_characteristic_forward_residual,
 )
-from orpheus.numerics.coupled_system import (
-    CoupledField,
-    CoupledOperator,
-    CoupledSpace,
-    CoupledSubstitutionOperator,
-)
+from orpheus.numerics.coupled_system import CoupledField, CoupledOperator, CoupledSubstitutionOperator
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.assembled_operator import MissingAssembly, assemble
 from orpheus.numerics.operator import IncompatibleOperatorComposition
 from orpheus.transport.operators.multiplication_operator import MultiplicationOperator
@@ -177,6 +173,7 @@ from tests.gates.sn.operators._composite_operand import bulk_apply
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -254,13 +251,13 @@ def _template(sn):
 def _coupled_template(sn):
     """A zero coupled pair ``[ψ_A 2-block, ψ_B]`` to seed JOINT dense probes."""
     return CoupledField(systems=(
-        _template(sn), RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)))
+        _template(sn), RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)), labels=hub_labels(2))
 
 
 def _pair(sn, psi_a, ray_values):
     """The coupled pair from a System-A composite + System-B ray values in the
     composite ``to_flat`` (interior ⊕ boundary) order (4e native)."""
-    return CoupledField(systems=(psi_a, _ray_composite(sn, ray_values)))
+    return CoupledField(systems=(psi_a, _ray_composite(sn, ray_values)), labels=hub_labels(2))
 
 
 def _joint_M(sn, LC):
@@ -3008,7 +3005,7 @@ class TestA_AB_SeedInjection:
 # ── B.2c helpers: the co-producing builder (G-c2.x) ─────────────────────────
 #
 # build_within_group_system(problem, mat_xs).loss / .space → (CoupledOperator,
-# CoupledSpace) — the ψ½ instance #1 of the numerics block machinery. The gates below realize
+# DirectSumSpace) — the ψ½ instance #1 of the numerics block machinery. The gates below realize
 # the test-architect delta memo coupled_operator_b2c_builder_verification
 # (G-c2.1–2.6): P1 alignment + the F2 runtime proof, P2 presence-structural,
 # THE grid≡fused centrepiece (per-row tolerances — the bulk row is the
@@ -3038,12 +3035,12 @@ def _m_minus_n_reference(sn, mat_xs, coupled):
     return CoupledField(systems=(
         y_m.systems[0] - y_n.systems[0],
         y_m.systems[1] - y_n.systems[1],
-    ))
+    ), labels=hub_labels(2))
 
 
 class TestCoupledBuilder:
     r"""B.2c — ``build_within_group_system``: the typed ψ½ 2×2 loss grid, co-produced
-    with its :class:`CoupledSpace` (campaign step 4d.2; SUBSUMES the step-6
+    with its :class:`DirectSumSpace` (campaign step 4d.2; SUBSUMES the step-6
     presence collapse for the grid arm).
 
     Gates G-c2.1–2.6 per the delta memo. Sphere-GL S4 is the carrying member
@@ -3069,15 +3066,15 @@ class TestCoupledBuilder:
         sn = _sphere()
         wg_system = build_within_group_system(sn, sn.mat_xs)
         grid, space = wg_system.loss, wg_system.space
-        if type(space) is not CoupledSpace:
-            pytest.fail(f"space is {type(space).__name__}, not CoupledSpace.")
+        if type(space) is not DirectSumSpace:
+            pytest.fail(f"space is {type(space).__name__}, not DirectSumSpace.")
         if grid.domain is not space or grid.codomain is not space:
             pytest.fail("the grid is not typed against the co-produced space "
                         "object (P1 alignment broken).")
-        if space.systems[0] is not sn.full_field_space:
+        if space.summand(space.labels[0]) is not sn.full_field_space:
             pytest.fail("System A's member space is not THE mesh's cached "
                         "full_field_space object.")
-        if space.systems[1] is not sn.radial_characteristic_field_space:
+        if space.summand(space.labels[1]) is not sn.radial_characteristic_field_space:
             pytest.fail("System B's member space is not THE mesh's cached "
                         "composite member-space object.")
         # Per-block declared spaces, asserted directly (F2).
@@ -3139,8 +3136,8 @@ class TestCoupledBuilder:
             if not (op1.n_rows == op1.n_cols == 1):
                 pytest.fail(f"non-carrying {label} built "
                             f"{op1.n_rows}×{op1.n_cols}, expected 1×1.")
-            if len(space1.systems) != 1 or (
-                    space1.systems[0] is not mesh.full_field_space):
+            if len(space1.labels) != 1 or (
+                    space1.summand(space1.labels[0]) is not mesh.full_field_space):
                 pytest.fail(f"{label}: the 1×1 space is not (full_field_space,).")
         # The four System-B ctor refusals (match= each guard's OWN message —
         # a downstream crash must not false-green these).
@@ -3252,7 +3249,7 @@ class TestCoupledBuilder:
     def test_m2_layout_coextensiveness_and_assemble_unavailable(self, monkeypatch):
         r"""The elegance-carried M2 re-pin on REAL members: the three offset
         spellings that CAN exist today agree — ``member.to_flat()`` sizes ==
-        ``prod(member_space.shape)``, the ``system_slices`` table extracts
+        ``prod(member_space.shape)``, the ``slice_of`` table extracts
         exactly each member's flat (multi-axis leaves included), the table
         COVERS the whole flat, and ``CoupledField.from_flat`` round-trips.
         The third spelling (``block_array`` inference) is UNAVAILABLE — the
@@ -3265,13 +3262,13 @@ class TestCoupledBuilder:
         grid, space = wg_system.loss, wg_system.space
         coupled = _random_pair(sn, np.random.default_rng(24))
         flat = coupled.to_flat()
-        slices = space.system_slices
+        slices = tuple(space.slice_of(label) for label in space.labels)
         if len(slices) != 2:
             pytest.fail(f"expected 2 system slices, got {len(slices)}.")
         if slices[-1].stop != flat.size:
             pytest.fail("the slice table does not COVER the coupled flat "
                         f"({slices[-1].stop} != {flat.size}).")
-        for i, (member, mspace) in enumerate(zip(coupled.systems, space.systems)):
+        for i, (member, mspace) in enumerate(zip(coupled.systems, (s for _, s in space.summands))):
             m_flat = np.asarray(member.to_flat(), dtype=float)
             if m_flat.size != int(np.prod(mspace.shape)):
                 pytest.fail(
@@ -3280,7 +3277,7 @@ class TestCoupledBuilder:
                     f"and the space layout are NOT coextensive.")
             np.testing.assert_array_equal(
                 flat[slices[i]], m_flat,
-                err_msg=f"system {i}: the system_slices extraction ≠ the "
+                err_msg=f"system {i}: the slice_of extraction ≠ the "
                         f"member's own to_flat — the offset spellings drifted.")
         rebuilt = CoupledField.from_flat(flat, coupled)
         np.testing.assert_array_equal(
@@ -3295,9 +3292,9 @@ class TestCoupledBuilder:
         # Tooth: drop System B's slice → the coverage pin reds.
         with monkeypatch.context() as m:
             first = slices[0]
-            m.setattr(type(space), "system_slices",
-                      property(lambda self: (first,)))
-            broken = space.system_slices
+            m.setattr(type(space), "labels",
+                      property(lambda self: self.summands[0][:1]))
+            broken = tuple(space.slice_of(label) for label in space.labels)
             if broken[-1].stop == flat.size:
                 pytest.fail("the dropped-slice tooth is mis-wired — coverage "
                             "still holds with System B dropped.")
@@ -3307,7 +3304,7 @@ class TestCoupledBuilder:
     def test_forward_block_adjoint_reciprocity(self, monkeypatch):
         r"""``⟨grid·ψ, x⟩_G = ⟨ψ, grid.H·x⟩_G`` on the REAL sphere 2×2 —
         the block Hilbert adjoint's FIRST real-curvilinear-member run (it is
-        FREE via the B.2a `AdjointOperator` + the member-wise CoupledSpace
+        FREE via the B.2a `AdjointOperator` + the member-wise DirectSumSpace
         metrics; a hand-rolled Euclidean block-.H is the ERR-067 reopening).
         Tooth M-ADJ-metric: stripping the metric conjugation (identity
         apply_metric / apply_inverse_metric) reds the defect O(1) — the
@@ -3326,8 +3323,8 @@ class TestCoupledBuilder:
             pytest.fail(f"block-.H reciprocity defect {defect:.3e} ≥ 1e-12 on "
                         f"the real 2×2 — the metric conjugation is broken.")
         with monkeypatch.context() as m:
-            m.setattr(CoupledSpace, "apply_metric", lambda self, f: f)
-            m.setattr(CoupledSpace, "apply_inverse_metric", lambda self, f: f)
+            m.setattr(DirectSumSpace, "apply_metric", lambda self, f: f)
+            m.setattr(DirectSumSpace, "apply_inverse_metric", lambda self, f: f)
             lhs2 = space.inner_product(grid.apply(psi), x)
             rhs2 = space.inner_product(psi, grid.H.apply(x))
             defect2 = abs(lhs2 - rhs2) / (abs(lhs2) + abs(rhs2) + 1e-300)
@@ -3458,7 +3455,7 @@ class TestWithinGroupSystem:
                         "(C3b: the cache seam retired into the hub's cached system)")
         if not isinstance(B_g, SNBoundaryOperator):
             pytest.fail(f"seedless boundary gain is {type(B_g).__name__}")
-        if s_system.space.n_systems != 1 or s_system.loss.n_rows != 1:
+        if len(s_system.space.labels) != 1 or s_system.loss.n_rows != 1:
             pytest.fail("seedless record is not the 1-system grid (P2)")
 
     # ── G-d1.1 — the W1 Mode-11 sentinel (+ the dead-slot rider) ─────────

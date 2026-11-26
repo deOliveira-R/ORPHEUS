@@ -103,6 +103,7 @@ from tests.gates.sn._test_helpers import (
 from tests.gates.sn.regression._regression_assert import assert_regression
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -344,7 +345,7 @@ class TestAffineCarveMatvecBaseline:
 
             grid, _space = joint_m_grid(problem, StreamingCollisionOperator(L, C))
             out = grid.apply(
-                CoupledField(systems=(psi, seed)),
+                CoupledField(systems=(psi, seed), labels=hub_labels(2)),
             ).systems[0]
 
         captured = _capture_or_assert(

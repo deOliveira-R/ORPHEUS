@@ -2,7 +2,7 @@ r"""The material meshes the transport gates pose their spaces on (layer DAG Phas
 
 A transport gate holds no method problem: it builds a :class:`MaterialMesh` here, picks a quadrature and a scheme
 itself, and builds every space it reads with :mod:`orpheus.transport.phase_spaces` (or the scheme's
-``trial_space``, ``FullFieldSpace.from_blocks``, ``HarmonicFrame.moment_space_on``). Nothing here owns a space: a
+``trial_space``, ``DirectSumSpace.from_blocks``, ``HarmonicFrame.moment_space_on``). Nothing here owns a space: a
 builder returns a mesh, and the gate spells each space at the call site, so a gate cannot read a space through a
 duck-typed carrier (the F1 entries refuse a ``MaterialMesh`` by name).
 
@@ -29,12 +29,13 @@ from orpheus.geometry import CoordSystem, StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellEdges, CellsByCount, Mesh1D, Mesh2D, Mesher
 from orpheus.numerics.quadrature import Quadrature
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.phase_spaces import angular_bulk_space, angular_trace_space, scalar_trace_space
 from orpheus.transport.spatial import DiamondDifference
 from orpheus.transport.spatial.scheme import DiscretizationSchemeBase, StreamingTerms
 from tests.gates.transport._materials import anisotropic_mixture, placeholder_materials
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 
 class Posed(NamedTuple):
@@ -53,11 +54,11 @@ class Posed(NamedTuple):
 
 def angular_full_field_space(
     mesh: MaterialMesh, quadrature: Quadrature, scheme: DiscretizationSchemeBase | None = None,
-) -> FullFieldSpace:
+) -> DirectSumSpace:
     """The SN full-field space ``trial (+) angular trace`` of ``mesh`` under ``quadrature`` and ``scheme`` (DD by default)."""
     closure = DiamondDifference() if scheme is None else scheme
     trial = closure.trial_space(angular_bulk_space(mesh, quadrature), mesh.axes)
-    return FullFieldSpace.from_blocks(trial, angular_trace_space(mesh, quadrature, closure))
+    return DirectSumSpace.of_pairs(((BULK, trial), (TRACE, angular_trace_space(mesh, quadrature, closure))))
 
 
 def moment_space(
@@ -76,9 +77,9 @@ def moment_space(
     return HarmonicFrame.for_space(space, L).moment_space_on(space)
 
 
-def scalar_full_field_space(mesh: MaterialMesh) -> FullFieldSpace:
+def scalar_full_field_space(mesh: MaterialMesh) -> DirectSumSpace:
     """The diffusion full-field space ``scalar bulk (+) scalar trace`` of ``mesh``."""
-    return FullFieldSpace.from_blocks(mesh.bulk_space, scalar_trace_space(mesh))
+    return DirectSumSpace.of_pairs(((BULK, mesh.bulk_space), (TRACE, scalar_trace_space(mesh))))
 
 
 def slab_streaming_terms(mesh: Mesh1D, quadrature: Quadrature, cell: int, ordinate: int) -> StreamingTerms:

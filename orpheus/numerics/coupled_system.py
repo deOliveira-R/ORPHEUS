@@ -1,4 +1,4 @@
-r"""The N-system coupled block machinery: ``CoupledField`` / ``CoupledSpace`` / ``CoupledOperator``.
+r"""The N-system coupled block machinery: ``CoupledField`` / ``CoupledOperator`` over :class:`~orpheus.numerics.direct_sum.DirectSumSpace`.
 
 A *coupled system* is N sub-systems solved together: the state is the direct
 sum of the systems' own fields, and the operator is the N × N grid of blocks
@@ -65,8 +65,9 @@ assembly       each block's emission scattered at its ``(row_i, col_j)``
 =============  ===========================================================
 
 **The offsets ARE the block structure.** The assembly needs a local→global
-DOF map, and :class:`CoupledSpace` provides it for free
-(:attr:`CoupledSpace.system_slices`): member ``i``'s flat DOFs occupy the
+DOF map, and the coupled space (a :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
+labelled by the coupled builder) provides it for free
+(:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.slice_of`): member ``i``'s flat DOFs occupy the
 contiguous slice at the cumulative offset of the members before it — the
 same layout :meth:`CoupledField.to_flat` packs. This is the **scoped
 realization of the deferred ``LocalToGlobalMap``** (the 2-P0 attacker ruling
@@ -79,8 +80,8 @@ The Hilbert adjoint comes FREE (Mode-12 closure by construction)
 
 ``CoupledOperator`` implements only the Euclidean :meth:`~CoupledOperator.
 apply_transpose` — the transposed grid ``(Aᵀ)_{ji} = (A_{ij})ᵀ`` — and
-carries :class:`CoupledSpace` domain/codomain whose metric methods dispatch
-member-wise. The metric adjoint ``A.H = G⁺ Aᵀ G`` is then realized ONCE by
+carries coupled-sum domain/codomain whose metric methods dispatch
+summand-wise. The metric adjoint ``A.H = G⁺ Aᵀ G`` is then realized ONCE by
 the existing :class:`~orpheus.numerics.operator.AdjointOperator` wrapper
 (which calls ``codomain.apply_metric`` before the transpose and
 ``domain.apply_inverse_metric`` after). No adjoint code lives here — which is
@@ -148,7 +149,9 @@ from orpheus.numerics.operator import (
     adjointable,
     transpose_invertible,
 )
-from orpheus.numerics.space import FunctionSpace, act_on_direct_sum_coordinates
+from orpheus.numerics.coproduct_layout import CoproductLayout
+from orpheus.numerics.direct_sum import DirectSumSpace, SumCarrier
+from orpheus.numerics.space import FunctionSpace
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -158,7 +161,6 @@ if TYPE_CHECKING:
 __all__ = [
     "CoupledField",
     "CoupledOperator",
-    "CoupledSpace",
     "CoupledSubstitutionOperator",
     "SystemField",
     "SystemRestrictionOperator",
@@ -257,14 +259,23 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
     ----------
     systems : tuple[SystemField, ...]
         The member fields, in system order (the order fixes the flat layout
-        and must match the paired :class:`CoupledSpace`). At least one member;
+        and must match the paired coupled sum). At least one member;
         a 1-tuple is the legitimate degenerate (an uncoupled system — e.g. a
         non-ray-carrying mesh has no System B, so its "coupled" state is the
         1-system vector, and a System-B slot simply does not exist to be
         filled wrongly).
+    labels : tuple[str, ...]
+        The summand labels of the coupled sum this field is an element of, one per
+        member, REQUIRED (no default: a default label is a positional guess). The
+        builder's constants name them; ``x.space == V`` holds because the space is
+        derived from the members and these labels. The length check is a raw
+        constructor's misuse check, under ``if __debug__:``, and is not a
+        guarantee: the formal paths (``V.member(c)``, ``V.carrier.zeros()``,
+        :meth:`with_blocks`, the restriction) cannot produce a mismatch.
     """
 
     systems: tuple[SystemField, ...]
+    labels: tuple[str, ...]
 
     def __post_init__(self) -> None:
         if not isinstance(self.systems, tuple):
@@ -277,6 +288,12 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
                 "CoupledField: at least one system is required — a 0-system "
                 "coupled field carries no state."
             )
+        if __debug__:
+            if not isinstance(self.labels, tuple) or len(self.labels) != len(self.systems):
+                raise ValueError(
+                    f"CoupledField: labels must be a tuple with one label per system; got {self.labels!r} "
+                    f"for {len(self.systems)} systems."
+                )
         for i, member in enumerate(self.systems):
             if not _is_system_field(member):
                 raise TypeError(
@@ -292,11 +309,20 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
         return len(self.systems)
 
     @property
-    def space(self) -> "CoupledSpace":
-        r"""The direct-sum space this block vector is an element of — DERIVED
-        from the members, never stored.
+    def blocks(self) -> tuple[SystemField, ...]:
+        r"""The summand elements in label order: the carrier's access that a direct sum reads (not the operator's ``blocks``)."""
+        return self.systems
 
-        ``CoupledSpace.from_systems(member.space, …)`` in system order: a
+    def with_blocks(self, blocks: "Sequence[SystemField]") -> "CoupledField":
+        r"""The same concrete class rebuilt with ``blocks`` as its members, the labels kept."""
+        return replace(self, systems=tuple(blocks))
+
+    @property
+    def space(self) -> DirectSumSpace:
+        r"""The direct-sum space this block vector is an element of — DERIVED
+        from the members and the labels, never stored.
+
+        ``DirectSumSpace.of_pairs(zip(labels, member spaces))`` in system order: a
         coupled field IS its member fields, each an element of its own
         composite space (``Composite.space``, CS4b S4 — the F4 ruling), so
         the coupled space is determined by theirs and compares by content
@@ -310,7 +336,7 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
         "source lives on the operator's codomain" law was INERT on every SN
         source, all of which are lifted to the one-system coupled state.
         """
-        return CoupledSpace.from_systems(tuple(member.space for member in self.systems))
+        return DirectSumSpace.of_pairs(tuple(zip(self.labels, (member.space for member in self.systems))))
 
     @property
     def principal_bulk_leaf(self) -> "Any | None":
@@ -393,8 +419,8 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
         r"""Pack the members into ONE flat vector, in system order.
 
         The layout is ``concat(system_0.to_flat(), …, system_{N−1}.to_flat())``
-        — the same member-offset table :attr:`CoupledSpace.system_slices`
-        exposes. Every ``n_dof = template.to_flat().size`` sizing site (GMRES
+        — the same member-offset table :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
+        derives. Every ``n_dof = template.to_flat().size`` sizing site (GMRES
         ``restart``, Krylov workspace — the ERR-053 family) therefore counts
         BOTH systems automatically.
         """
@@ -422,320 +448,14 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
                 f"match template total size "
                 f"{' + '.join(str(s) for s in sizes)} = {total}"
             )
-        members = []
-        start = 0
-        for member, size in zip(template.systems, sizes):
-            members.append(_member_from_flat(member, flat[start : start + size]))
-            start += size
+        layout = CoproductLayout(tuple((label, (size,)) for label, size in zip(template.labels, sizes)))
+        pieces = layout.unpack(flat)
+        members = [_member_from_flat(member, pieces[label]) for member, label in zip(template.systems, template.labels)]
         return replace(template, systems=tuple(members))
 
     def __repr__(self) -> str:
         names = ", ".join(type(m).__name__ for m in self.systems)
         return f"CoupledField[{names}]"
-
-
-# ───────────────────────────────────────────────────────────────────────
-# The block space
-# ───────────────────────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True, eq=False)
-class CoupledSpace(FunctionSpace["CoupledField"]):  # concept: dsum | role: head | kind: space
-    r"""The N-system direct sum :math:`V = V_1 \oplus \cdots \oplus V_N`.
-
-    The carrier space of a :class:`CoupledOperator`: one member
-    :class:`~orpheus.numerics.space.FunctionSpace` per system, in the SAME
-    system order as the paired :class:`CoupledField`. Like
-    :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` (the
-    2-block precedent one level down), this space owns ONLY the direct-sum
-    *structure*: every metric primitive (:meth:`apply_metric` /
-    :meth:`apply_inverse_metric` / :meth:`inner_product`) dispatches to the
-    member space on the member field — no new metric arithmetic. That is what
-    keeps the block Hilbert adjoint Mode-12-closed for free: the generic
-    :class:`~orpheus.numerics.operator.AdjointOperator` conjugates through
-    THESE methods, so the composite metric ``G = diag(G_1, …, G_N)`` is
-    applied per member by the spaces that own each ``G_i``.
-
-    Identity is the ordered keys of the member systems
-    (:meth:`CoupledSpace.identity_key`, since S7 of the numerics untangling);
-    the name, derived from the members (``"coupled(a ⊕ b)"`` — the
-    :class:`~orpheus.numerics.space.TensorSpace` naming precedent), is
-    a readable label, and ``shape`` the flat direct-sum dimension.
-
-    Parameters
-    ----------
-    name, shape, inner_product_weights
-        Inherited. The composite's own ``inner_product_weights`` stays
-        ``None`` — the metric is carried per member, and the member-wise
-        overrides never read the base slot.
-    systems : tuple[FunctionSpace, ...]
-        The member spaces (``compare=False`` leaf metadata, not part of the
-        identity). Each must be the space of the matching
-        :class:`CoupledField` member — its carrier-generic metric surface is
-        called ON that member field.
-    zeros_factory : Callable[[], CoupledField], optional
-        Mints this space's ZERO element — a fresh (owned-buffer)
-        :class:`CoupledField` of zeros per call. ``compare=False`` leaf
-        metadata like ``systems``; wired by the instance builder (which
-        holds the member classes/mesh the fields are minted from — a
-        FunctionSpace deliberately is not a field factory, so the zero
-        exemplar must be SUPPLIED). This is the typed-carrier
-        materialization seam (step 5): :meth:`CoupledOperator.as_matrix`'s
-        basis probe and
-        :class:`~orpheus.numerics.matrix_inverse_operator.MatrixInverseOperator`'s
-        typed return template both read it — a typed block operator whose
-        space carries no zero exemplar stays matrix-free (the base
-        ``as_matrix`` "honest scope" note).
-    """
-
-    # Required and non-empty (a coupled space without members is an illegal
-    # state, S7; refused in __post_init__); kw_only for the field order.
-    systems: tuple[FunctionSpace, ...] = field(kw_only=True, repr=False, compare=False)
-    zeros_factory: Optional[Callable[[], "CoupledField"]] = field(
-        default=None, repr=False, compare=False,
-    )
-    dual_zeros_factory: Optional[Callable[[], "CoupledField"]] = field(
-        default=None, repr=False, compare=False,
-    )
-
-    def identity_key(self) -> tuple[Any, ...]:
-        """A coupled system space is the ordered keys of its member systems
-        (F7: a member's NAME carries no covariance, its key does)."""
-        return ("coupled", tuple(s.identity_key() for s in self.systems))
-
-    def __repr__(self) -> str:
-        return f"CoupledSpace({self.name!r}, shape={self.shape})"
-
-    @classmethod
-    def from_systems(
-        cls,
-        systems: "Sequence[FunctionSpace]",
-        *,
-        zeros: "Callable[[], CoupledField] | None" = None,
-        dual_zeros: "Callable[[], CoupledField] | None" = None,
-    ) -> "CoupledSpace":
-        r"""Build the coupled space from the member spaces, in system order.
-
-        Derives ``name = "coupled(" + " ⊕ ".join(member names) + ")"`` and
-        ``shape = (Σ prod(member.shape),)`` (the flat direct-sum dimension —
-        ``prod`` per member so multi-axis member shapes flatten honestly).
-        A 1-member coupling is the legitimate degenerate (the uncoupled
-        system). ``zeros`` wires the optional zero-element factory (the
-        typed-carrier materialization seam — see the class docstring);
-        ``dual_zeros`` its COTANGENT-side twin — the dual-role zero
-        composite (#276 A4 duality typing: a transpose consumes the
-        codomain-cotangent and emits the domain-cotangent, whose member
-        classes are the primal members' dual roles, e.g. flux → source).
-        Consumed by extension-by-zero transposes
-        (:meth:`SystemRestrictionOperator.apply_transpose`); wired by the
-        same layer that wires ``zeros``, for the same reason — the member
-        classes live above this layer.
-        """
-        members = tuple(systems)
-        if len(members) == 0:
-            raise ValueError(
-                "CoupledSpace.from_systems: at least one member space is "
-                "required — a 0-system coupled space carries no DOFs."
-            )
-        name = "coupled(" + " ⊕ ".join(s.name for s in members) + ")"
-        total = sum(s.n_coordinates for s in members)
-        return cls(
-            name=name, shape=(total,), systems=members, zeros_factory=zeros,
-            dual_zeros_factory=dual_zeros,
-        )
-
-    def _make_dual(self) -> "CoupledSpace":
-        r"""The dual of a coupled space is the coupled space of the member
-        duals (biproduct duality; numerics_untangling.md rulings 26 and 75).
-
-        The zero factories swap: the cotangent zero of this space is the zero
-        of its dual, and this space's zero is its dual's cotangent zero.
-        """
-        return CoupledSpace.from_systems(
-            tuple(s.dual() for s in self.systems),
-            zeros=self.dual_zeros_factory,
-            dual_zeros=self.zeros_factory,
-        )
-
-    def zeros(self) -> "CoupledField":
-        r"""Mint this space's ZERO element — a fresh zero :class:`CoupledField`.
-
-        The space's distinguished element, realized through the
-        builder-wired :attr:`zeros_factory` (a FunctionSpace is not a field
-        factory — the member classes live above this layer, so the exemplar
-        is supplied at construction). Each call returns a FRESH field with
-        owned buffers (factory semantics — callers may write into it).
-        Arity-checked against the member spaces; loud when unwired.
-        """
-        if self.zeros_factory is None:
-            raise RuntimeError(
-                f"CoupledSpace {self.name!r} carries no zero-element "
-                f"factory — supply zeros= at from_systems (the "
-                f"typed-carrier materialization seam; without it a typed "
-                f"block operator over this space stays matrix-free)."
-            )
-        minted = self.zeros_factory()
-        self._check_arity(minted)
-        return minted
-
-    def dual_zeros(self) -> "CoupledField":
-        r"""Mint the COTANGENT-side zero — a fresh dual-role zero composite.
-
-        The dual twin of :meth:`zeros` (#276 A4 duality typing): member
-        classes are the primal members' dual roles (a flux member's
-        cotangent is source-classed). Realized through the builder-wired
-        :attr:`dual_zeros_factory`; loud when unwired, exactly as
-        :meth:`zeros` is — the member classes live above this layer.
-        """
-        if self.dual_zeros_factory is None:
-            raise RuntimeError(
-                f"CoupledSpace {self.name!r} carries no DUAL zero-element "
-                f"factory — supply dual_zeros= at from_systems (the "
-                f"cotangent-side typed-carrier materialization seam; "
-                f"without it an extension-by-zero transpose over this "
-                f"space cannot mint its dual-role zeros)."
-            )
-        minted = self.dual_zeros_factory()
-        self._check_arity(minted)
-        return minted
-
-    def __post_init__(self) -> None:
-        super().__post_init__()
-        if len(self.systems) == 0:
-            raise ValueError(
-                "CoupledSpace needs at least one member space; build it via "
-                "CoupledSpace.from_systems((space_1, …, space_N))."
-            )
-
-    @property
-    def n_systems(self) -> int:
-        r"""The number of coupled systems (the block arity)."""
-        return len(self.systems)
-
-    @property
-    def system_slices(self) -> tuple[slice, ...]:
-        r"""Member ``i``'s DOF range inside the flat direct-sum layout.
-
-        The cumulative-offset table ``(slice(0, n_1), slice(n_1, n_1+n_2),
-        …)`` — the SAME layout :meth:`CoupledField.to_flat` packs, so a flat
-        Krylov iterate, an assembled matrix row/column, and a member field
-        agree on where system ``i`` lives. **This IS the scoped
-        ``LocalToGlobalMap``** the assembly layer deferred until a structured
-        consumer arrived (2-P0 attacker ruling,
-        :mod:`orpheus.numerics.assembled_operator`): the block structure
-        provides the offsets, nothing more is reified.
-        """
-        members = self.systems
-        slices = []
-        start = 0
-        for s in members:
-            size = s.n_coordinates
-            slices.append(slice(start, start + size))
-            start += size
-        return tuple(slices)
-
-    # ── Direct-sum metric dispatch (member-wise, on a CoupledField) ────
-
-    def _check_arity(self, x: "CoupledField") -> tuple[FunctionSpace, ...]:
-        members = self.systems
-        if x.n_systems != len(members):
-            raise ValueError(
-                f"CoupledSpace: the coupled field carries {x.n_systems} "
-                f"systems but this space couples {len(members)} — the "
-                f"field/space pairing is inconsistent."
-            )
-        return members
-
-    def metric_diagonal(self) -> "np.ndarray | None":
-        r"""The members' diagonals in the flat layout (:attr:`system_slices`), or ``None`` if any is not diagonal."""
-        blocks = tuple(s.metric_diagonal() for s in self.systems)
-        if any(d is None for d in blocks):
-            return None
-        return np.concatenate([np.asarray(d).reshape(-1) for d in blocks])
-
-    def _member_wise(
-        self, x: "CoupledField | np.ndarray", leg: "Callable[[FunctionSpace, Any], Any]",
-    ) -> "CoupledField | np.ndarray":
-        r"""A member-wise action in the chart ``x`` arrives in, returned in the same chart.
-
-        The typed :class:`CoupledField` hands each member its own field; the
-        flat coordinates (the :attr:`system_slices` layout, which the operator
-        algebra hands the metric legs) hand each member its slice. A composite
-        member space recurses in the same chart.
-        """
-        if isinstance(x, np.ndarray):
-            return act_on_direct_sum_coordinates(self, self.systems, x, leg)
-        members = self._check_arity(x)
-        return replace(x, systems=tuple(leg(s, m) for s, m in zip(members, x.systems)))
-
-    @overload
-    def apply_metric(self, x: "CoupledField") -> "CoupledField": ...
-
-    @overload
-    def apply_metric(self, x: "np.ndarray") -> "np.ndarray": ...
-
-    def apply_metric(self, x: "CoupledField | np.ndarray") -> "CoupledField | np.ndarray":
-        r"""Apply the block-diagonal Hilbert metric ``G = diag(G_1, …, G_N)``.
-
-        Member ``i`` is weighted by ITS space's metric — delegated to
-        ``systems[i].apply_metric`` on the member field or its flat slice (the
-        carrier-generic surface: a composite member space applies its own
-        per-block metrics recursively). No metric arithmetic lives on the
-        coupling.
-        """
-        return self._member_wise(x, lambda space, member: space.apply_metric(member))
-
-    @overload
-    def apply_inverse_metric(self, x: "CoupledField") -> "CoupledField": ...
-
-    @overload
-    def apply_inverse_metric(self, x: "np.ndarray") -> "np.ndarray": ...
-
-    def apply_inverse_metric(self, x: "CoupledField | np.ndarray") -> "CoupledField | np.ndarray":
-        r"""Apply the block-diagonal pseudo-inverse metric ``G⁺`` member-wise, in either chart."""
-        return self._member_wise(x, lambda space, member: space.apply_inverse_metric(member))
-
-    @property
-    def rank(self) -> int:
-        r"""A coupled space's rank is the sum of its member systems' ranks."""
-        return sum(s.rank for s in self.systems)
-
-    def kernel_basis(self) -> "np.ndarray":
-        r"""The direct sum's kernel basis: the systems' bases block-diagonally,
-        in the flat chart's system order (:meth:`CoupledField.to_flat`)."""
-        return np.asarray(scipy_linalg.block_diag(*(s.kernel_basis() for s in self.systems)))
-
-    def member(self, coordinates: "np.ndarray") -> "CoupledField":
-        r"""The coupled field with these flat coordinates, on the builder-wired
-        zero element's member classes (:meth:`zeros`): the inverse of
-        :meth:`coordinates_of`."""
-        return CoupledField.from_flat(coordinates, self.zeros())
-
-    def coordinates_of(self, x: Any) -> Any:
-        r"""The flat coordinates of a coupled member (:meth:`CoupledField.to_flat`),
-        arity-checked against the member spaces; a bare array takes the base's
-        shape leg."""
-        if isinstance(x, CoupledField):
-            self._check_arity(x)
-            return np.asarray(x.to_flat(), dtype=float)
-        return super().coordinates_of(x)
-
-    @property
-    def negative(self) -> int:
-        r"""The negative directions of the direct sum: the sum over its member systems, so that a signed block refuses :meth:`norm` (issue #706)."""
-        return sum(s.negative for s in self.systems)
-
-    def inner_product(self, x: "CoupledField", y: "CoupledField") -> float:
-        r"""The direct-sum inner product
-        :math:`\langle x, y\rangle_G = \sum_i \langle x_i, y_i\rangle_{G_i}`."""
-        members = self._check_arity(x)
-        self._check_arity(y)
-        return float(
-            sum(
-                s.inner_product(mx, my)
-                for s, mx, my in zip(members, x.systems, y.systems)
-            )
-        )
 
 
 # ───────────────────────────────────────────────────────────────────────
@@ -762,7 +482,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
     ``A.H`` is realized by the generic
     :class:`~orpheus.numerics.operator.AdjointOperator` over THIS class's
     Euclidean :meth:`apply_transpose` (the transposed grid) and the
-    :class:`CoupledSpace` member-wise metrics — see the module docstring's
+    coupled sum's summand-wise metrics — see the module docstring's
     Mode-12 note. :attr:`is_invertible` is structure-keyed (step 5), two
     DIRECT routes: block-triangular grids with invertible ``solve``-bearing
     diagonals run the substitution (:meth:`solve` /
@@ -780,7 +500,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         and every column must carry at least one block — an all-``None`` row
         (or column) leaves that system's output (input) undefined; drop the
         system from the coupling instead of spelling a zero system.
-    domain, codomain : CoupledSpace
+    domain, codomain : DirectSumSpace
         The coupled member spaces the grid is typed against (REQUIRED — the
         offsets, metrics, and per-block checks all read them). A square
         coupling passes the same space twice; rectangular grids (restriction /
@@ -791,11 +511,11 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         self,
         blocks: "Sequence[Sequence[Optional[LinearOperator]]]",
         *,
-        domain: "CoupledSpace",
-        codomain: "CoupledSpace",
+        domain: DirectSumSpace,
+        codomain: DirectSumSpace,
     ) -> None:
-        domain_members = domain.systems
-        codomain_members = codomain.systems
+        domain_members = tuple(space for _, space in domain.summands)
+        codomain_members = tuple(space for _, space in codomain.summands)
         grid = tuple(tuple(row) for row in blocks)
         n_rows, n_cols = len(codomain_members), len(domain_members)
         if len(grid) != n_rows:
@@ -876,11 +596,11 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         return len(self._blocks[0])
 
     @property
-    def domain(self) -> "CoupledSpace":
+    def domain(self) -> DirectSumSpace:
         return self._domain
 
     @property
-    def codomain(self) -> "CoupledSpace":
+    def codomain(self) -> DirectSumSpace:
         return self._codomain
 
     def _present_blocks(self) -> list[LinearOperator]:
@@ -920,7 +640,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
             ]
             # Non-empty by the all-None-row construction guard.
             outs.append(reduce(lambda a, b: a + b, contributions))
-        return CoupledField(systems=tuple(outs))
+        return CoupledField(systems=tuple(outs), labels=self._codomain.labels)
 
     def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":
         r"""The Euclidean transposed grid :math:`(A^{\mathsf T})_{ji} = (A_{ij})^{\mathsf T}`.
@@ -928,7 +648,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         ``x_j = Σ_i (A_ij)ᵀ y_i`` — the representation transpose only; the
         metric conjugation that makes the Hilbert adjoint lives on
         :class:`~orpheus.numerics.operator.AdjointOperator` +
-        :class:`CoupledSpace` (see the module docstring). Reachable per the
+        :class:`~orpheus.numerics.direct_sum.DirectSumSpace` (see the module docstring). Reachable per the
         :attr:`is_adjointable` advertisement (all present blocks adjointable).
         """
         y = self._check_iterate(y, arity=self.n_rows, side="apply_transpose")
@@ -951,7 +671,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
                 contributions.append(block.apply_transpose(y.systems[i]))
             # Non-empty by the all-None-column construction guard.
             outs.append(reduce(lambda a, b: a + b, contributions))
-        return CoupledField(systems=tuple(outs))
+        return CoupledField(systems=tuple(outs), labels=self._domain.labels)
 
     @property
     def is_adjointable(self) -> bool:
@@ -1051,7 +771,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         r"""``True`` iff the dense direct route exists: a square grid whose
         matrix CAN be realized — a full structural assembly, or the typed
         basis probe through the domain's zero exemplar
-        (:meth:`CoupledSpace.zeros`). Squareness is arity AND flat
+        (the sum's ``carrier.zeros``). Squareness is arity AND flat
         dimension (a two-sided inverse needs both). Size is deliberately
         NOT consulted — the gate
         (:class:`~orpheus.numerics.operator.MatrixTooLarge`) is a loud
@@ -1063,7 +783,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
             return False
         if all(b.is_assemblable for b in self._present_blocks()):
             return True
-        return self._domain.zeros_factory is not None
+        return self._domain.carrier is not None and self._domain.carrier.zeros is not None
 
     @property
     def is_invertible(self) -> bool:
@@ -1205,7 +925,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
             else:
                 forward_verb = getattr(diagonal, "solve")
                 solved[i] = forward_verb(acc)
-        return CoupledField(systems=tuple(solved))
+        return CoupledField(systems=tuple(solved), labels=(self._codomain if transpose else self._domain).labels)
 
     def inverse(
         self,
@@ -1248,9 +968,9 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         block matvec refuses flat columns, the base ``as_matrix`` "honest
         scope" note), so the probe runs over TYPED basis elements minted
         from the domain's zero exemplar: column ``j`` is
-        ``apply(from_flat(δ_j, domain.zeros()))`` raveled — the same
+        ``apply(from_flat(δ_j, domain.carrier.zeros()))`` raveled — the same
         C-order column convention as the base. Requires the domain space's
-        zeros factory (:meth:`CoupledSpace.zeros`, wired by the instance
+        zeros factory (``carrier.zeros`` of the sum, wired by the instance
         builder); an explicit ``basis_shape`` must match the coupled flat
         dimension, and ``max_dimension`` gates as usual.
         """
@@ -1266,7 +986,13 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
                 f"as_matrix on CoupledOperator: dimension {n} exceeds "
                 f"max_dimension={max_dimension}."
             )
-        template = self._domain.zeros()
+        carrier = self._domain.carrier
+        if carrier is None or carrier.zeros is None:
+            raise RuntimeError(
+                f"as_matrix on CoupledOperator: the domain {self._domain!r} carries no zero-element factory "
+                f"(the builder installs its SumCarrier; without it a typed block operator stays matrix-free)."
+            )
+        template = carrier.zeros()
         columns = []
         for j in range(n):
             basis = np.zeros(n)
@@ -1288,7 +1014,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         r"""Scatter each block's emission at its ``(row_i, col_j)`` offset.
 
         The block grid → ONE flat sparse matrix over the coupled flat layout
-        (:attr:`CoupledSpace.system_slices` — the scoped ``LocalToGlobalMap``):
+        (:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.slice_of` — the scoped ``LocalToGlobalMap``):
         block ``(i, j)`` lands at row offset ``Σ_{k<i} n_k``, column offset
         ``Σ_{k<j} n_k``, realized by :func:`scipy.sparse.block_array` (the
         honest carrier — the same 2-P0 ruling that made
@@ -1421,7 +1147,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     The transpose is the **extension-by-zero**
     :math:`\iota_i = r_i^{\mathsf T}`: the input written into member
     ``i`` of a fresh zero of the FULL coupled space, minted through the
-    space's own :meth:`CoupledSpace.dual_zeros` seam (the builder-wired
+    space's own ``carrier.dual_zeros`` seam (the builder-wired
     COTANGENT-side typed-carrier materialization point — no per-operator
     zero closures; the S4-amendment's un-weld). It follows that the
     operator is usable in a daggered composition only on a space whose
@@ -1429,9 +1155,9 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     space's own loud refusal propagate otherwise.
 
     Born fully bound (the S4-amendment's base demand): ``domain`` is the
-    full :class:`CoupledSpace`, ``codomain`` the derived 1-member
+    full coupled sum, ``codomain`` the derived 1-member
     coupling ("a 1-member coupling is the legitimate degenerate" —
-    :meth:`CoupledSpace.from_systems`), whose zeros factory is DERIVED
+    :meth:`~orpheus.numerics.direct_sum.DirectSumSpace.of_pairs`), whose zeros factory is DERIVED
     from the parent's when wired.
 
     Why it exists — the first consumer
@@ -1449,51 +1175,47 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
     ``r† ∘ stack† = extension-by-zero ∘ [F†, E†]``.
     """
 
-    def __init__(self, space: "CoupledSpace", *, system: int) -> None:
-        members = space.systems
-        if not 0 <= system < len(members):
-            raise ValueError(
-                f"SystemRestrictionOperator: system index {system} out of "
-                f"range for a {len(members)}-member coupling."
-            )
+    def __init__(self, space: DirectSumSpace, *, label: str) -> None:
+        member = space.summand(label)
+        index = space.labels.index(label)
         self._space = space
-        self._system = int(system)
-        member = members[self._system]
-        idx = self._system
+        self._label = label
+        self._index = index
+        carrier = space.carrier
         derived_zeros: "Callable[[], CoupledField] | None" = None
         derived_dual: "Callable[[], CoupledField] | None" = None
-        if space.zeros_factory is not None:
+        if carrier is not None and carrier.zeros is not None:
+            mint_zeros = carrier.zeros
 
             def _mint_primal() -> "CoupledField":
-                return CoupledField(systems=(space.zeros().systems[idx],))
+                return CoupledField(systems=(mint_zeros().systems[index],), labels=(label,))
 
             derived_zeros = _mint_primal
-        if space.dual_zeros_factory is not None:
+        if carrier is not None and carrier.dual_zeros is not None:
+            mint_dual = carrier.dual_zeros
 
             def _mint_dual() -> "CoupledField":
-                return CoupledField(
-                    systems=(space.dual_zeros().systems[idx],),
-                )
+                return CoupledField(systems=(mint_dual().systems[index],), labels=(label,))
 
             derived_dual = _mint_dual
-        self._codomain = CoupledSpace.from_systems(
-            [member], zeros=derived_zeros, dual_zeros=derived_dual,
+        self._codomain = DirectSumSpace.of_pairs(
+            ((label, member),), carrier=SumCarrier(zeros=derived_zeros, dual_zeros=derived_dual),
         )
 
     @property
-    def domain(self) -> "CoupledSpace":
+    def domain(self) -> DirectSumSpace:
         r"""The full coupled space being restricted."""
         return self._space
 
     @property
-    def codomain(self) -> "CoupledSpace":
-        r"""The 1-member coupling of the selected system."""
+    def codomain(self) -> DirectSumSpace:
+        r"""The 1-summand coupling of the selected system, under the parent's label."""
         return self._codomain
 
     @property
-    def system(self) -> int:
-        r"""The selected member system's index."""
-        return self._system
+    def label(self) -> str:
+        r"""The selected summand's label."""
+        return self._label
 
     def apply(self, x: "CoupledField", /) -> "CoupledField":
         r"""``r_i x`` — select member ``i``, as a 1-member coupling."""
@@ -1502,13 +1224,13 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"SystemRestrictionOperator.apply expects a CoupledField; "
                 f"got {type(x).__name__}."
             )
-        n = len(self._space.systems)
+        n = len(self._space.labels)
         if len(x.systems) != n:
             raise ValueError(
                 f"SystemRestrictionOperator.apply: iterate couples "
                 f"{len(x.systems)} systems but the domain couples {n}."
             )
-        return CoupledField(systems=(x.systems[self._system],))
+        return CoupledField(systems=(x.systems[self._index],), labels=(self._label,))
 
     def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":
         r"""``\iota_i y`` — the extension-by-zero: member ``i`` carries the
@@ -1517,7 +1239,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
         Dual, because a transpose is the cotangent map (#276 A4 duality
         typing — it consumes the codomain-cotangent and emits the
         domain-cotangent), so the members it extends WITH are
-        cotangent-side zeros: :meth:`CoupledSpace.dual_zeros`, the seam's
+        cotangent-side zeros: ``carrier.dual_zeros``, the seam's
         cotangent twin. [M] 2026-08-22, the class question is
         load-bearing: extending with the PRIMAL mint put a flux-classed
         ray zero into the daggered fission chain, and the cross-class
@@ -1538,10 +1260,16 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"couples {len(y.systems)} systems but the codomain is the "
                 f"1-member coupling."
             )
-        minted = self._space.dual_zeros()
+        carrier = self._space.carrier
+        if carrier is None or carrier.dual_zeros is None:
+            raise RuntimeError(
+                f"{self._space!r} carries no DUAL zero-element factory: the extension-by-zero transpose "
+                f"mints the dual-role zeros of the full space (the builder installs its SumCarrier)."
+            )
+        minted = carrier.dual_zeros()
         systems = list(minted.systems)
-        systems[self._system] = y.systems[0]
-        return CoupledField(systems=tuple(systems))
+        systems[self._index] = y.systems[0]
+        return CoupledField(systems=tuple(systems), labels=self._space.labels)
 
     @property
     def is_adjointable(self) -> bool:

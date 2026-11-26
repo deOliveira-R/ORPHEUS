@@ -79,6 +79,7 @@ from orpheus.transport.fields import AngularSourceSink
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -383,7 +384,7 @@ class TestLawTheHubsFissionIsWhatBothFacesRead:
         state = _random_composite(hub, 11)[0]
         from orpheus.numerics.coupled_system import CoupledField
 
-        x = CoupledField(systems=(state, _template.systems[1]))
+        x = CoupledField(systems=(state, _template.systems[1]), labels=hub_labels(2))
         np.testing.assert_array_equal(
             adjoint_F.apply(x).to_flat(), record.production.apply(x).to_flat(),
         )

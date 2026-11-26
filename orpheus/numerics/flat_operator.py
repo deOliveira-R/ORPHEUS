@@ -37,7 +37,7 @@ Pattern 2), and the resolvent is spelled
     x      = type(template).from_flat(x_flat, template)
 
 ``domain`` / ``codomain`` need no re-derivation: a composite space
-(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`)
+(:class:`~orpheus.numerics.direct_sum.DirectSumSpace`)
 already carries the flat direct-sum dimension as its ``shape``
 identity, so the inner operator's spaces are reported verbatim and
 ``as_matrix`` derives ``basis_shape = (n_interior + n_trace,)`` for free.
@@ -124,7 +124,7 @@ class FlattenedOperator(LinearOperator):  # concept: ends | role: arm | kind: mo
     @property
     def domain(self) -> "Optional[FunctionSpace]":
         # The inner operator's space identity IS flat-compatible: a
-        # composite FullFieldSpace's ``shape`` is the direct-sum flat
+        # composite DirectSumSpace's ``shape`` is the direct-sum flat
         # dimension, so as_matrix derives basis_shape from it directly.
         return getattr(self.inner, "domain", None)
 

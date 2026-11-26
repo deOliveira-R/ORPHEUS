@@ -3,8 +3,8 @@ composite space mints its members.
 
 The numerics laws (leaf, dual, tensor product, the kernel basis) are
 ``tests/gates/numerics/test_member_seam_laws.py``. This file poses the composites that only a builder above the numerics
-layer can wire (``FullFieldSpace.zeros_factory`` in ``sn/problem.py``, ``transport/full_field.py`` and
-``diffusion/augmented_mesh.py``; ``CoupledSpace``'s ``zeros`` in ``sn/coupled_system.py``), on the smallest production
+layer can wire (``DirectSumSpace.zeros_factory`` in ``sn/problem.py``, ``transport/full_field.py`` and
+``diffusion/augmented_mesh.py``; ``DirectSumSpace``'s ``zeros`` in ``sn/coupled_system.py``), on the smallest production
 problems: a 3-cell 2-group slab (vacuum | mirror, LS4), the 2-cell reflective sphere (GL2, which carries System B,
 the ψ½ ray), and a 4-cell 2-group diffusion slab (vacuum | mirror). It lives in ``cross_method/`` because it imports SN
 and diffusion together.
@@ -41,7 +41,8 @@ from orpheus.diffusion import DiffusionMesh
 from orpheus.geometry import StructuredGeometry
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.mesh import CellsByCount, Mesher
-from orpheus.numerics.coupled_system import CoupledField, CoupledSpace
+from orpheus.numerics.coupled_system import CoupledField
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.sn.coupled_system import build_within_group_system
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.boundary_conditions import WallCondition
@@ -93,8 +94,8 @@ _DIFF_FULL = (FullField, ScalarFlux, ScalarBoundaryFlux)
 
 
 def _spaces() -> dict[str, tuple[Callable[[], Any], tuple]]:
-    """name -> (builder of the composite space, its carrier shape): a 3-tuple of classes for a ``FullFieldSpace``, a
-    tuple of such 3-tuples (system order) for a ``CoupledSpace``."""
+    """name -> (builder of the composite space, its carrier shape): a 3-tuple of classes for a ``DirectSumSpace``, a
+    tuple of such 3-tuples (system order) for a ``DirectSumSpace``."""
     return {
         "SN slab full_field_space": (lambda: _slab()[0].full_field_space, _SN_FULL),
         "SN sphere full_field_space": (lambda: _sphere()[0].full_field_space, _SN_FULL),
@@ -108,25 +109,30 @@ def _spaces() -> dict[str, tuple[Callable[[], Any], tuple]]:
 _CASES = list(_spaces())
 
 
+def _is_coupled(V: Any) -> bool:
+    """Whether ``V`` is a coupled sum: a sum whose labels are neither the full field's nor the ray instance's (a hand rule on the production labels)."""
+    return V.labels not in (('bulk', 'trace'), ('interior', 'boundary'))
+
+
 def _check_composite(case: str, V: Any, x: Any, classes: tuple) -> None:
-    """``x`` is a member of the FullFieldSpace ``V``: carrier and leaf classes, blocks ``is`` V's, space ``==`` V."""
+    """``x`` is a member of the DirectSumSpace ``V``: carrier and leaf classes, blocks ``is`` V's, space ``==`` V."""
     outer, interior_cls, boundary_cls = classes
     if (type(x), type(x.interior), type(x.boundary)) != (outer, interior_cls, boundary_cls):
         pytest.fail(
             f"[{case}] member classes {(type(x).__name__, type(x.interior).__name__, type(x.boundary).__name__)}, "
             f"the builder names {(outer.__name__, interior_cls.__name__, boundary_cls.__name__)}"
         )
-    if x.interior.space is not V.interior_space or x.boundary.space is not V.trace_space:
+    if x.interior.space is not V.summand(V.labels[0]) or x.boundary.space is not V.summand(V.labels[1]):
         pytest.fail(f"[{case}] the member's block spaces are not the composite's blocks")
     if not x.space == V:
         pytest.fail(f"[{case}] the member's derived space differs from V by content")
 
 
 def _check_member(case: str, V: Any, x: Any, classes: tuple) -> None:
-    if isinstance(V, CoupledSpace):
+    if _is_coupled(V):
         if type(x) is not CoupledField or len(x.systems) != len(classes):
             pytest.fail(f"[{case}] member is a {type(x).__name__} of arity {len(getattr(x, 'systems', ()))}")
-        for i, (member_space, member, member_classes) in enumerate(zip(V.systems, x.systems, classes)):
+        for i, (member_space, member, member_classes) in enumerate(zip((s for _, s in V.summands), x.systems, classes)):
             _check_composite(f"{case} system {i}", member_space, member, member_classes)
         if not x.space == V:
             pytest.fail(f"[{case}] the coupled member's derived space differs from V by content")
@@ -137,19 +143,19 @@ def _check_member(case: str, V: Any, x: Any, classes: tuple) -> None:
 def _build_composite(V: Any, classes: tuple, rng: np.random.Generator) -> tuple[Any, np.ndarray]:
     """``x`` from its classes' constructors on V's blocks, and its hand coordinates (interior then trace)."""
     outer, interior_cls, boundary_cls = classes
-    bulk = rng.standard_normal(V.interior_space.shape)
-    trace = rng.standard_normal(V.trace_space.shape)
+    bulk = rng.standard_normal(V.summand(V.labels[0]).shape)
+    trace = rng.standard_normal(V.summand(V.labels[1]).shape)
     x = outer(
-        interior=interior_cls(values=bulk, space=V.interior_space),
-        boundary=boundary_cls(values=trace, space=V.trace_space),
+        interior=interior_cls(values=bulk, space=V.summand(V.labels[0])),
+        boundary=boundary_cls(values=trace, space=V.summand(V.labels[1])),
     )
     return x, np.concatenate([bulk.ravel(), trace.ravel()])
 
 
 def _build(V: Any, classes: tuple, rng: np.random.Generator) -> tuple[Any, np.ndarray]:
-    if isinstance(V, CoupledSpace):
-        built = [_build_composite(s, c, rng) for s, c in zip(V.systems, classes)]
-        return CoupledField(systems=tuple(b[0] for b in built)), np.concatenate([b[1] for b in built])
+    if _is_coupled(V):
+        built = [_build_composite(s, c, rng) for s, c in zip((s for _, s in V.summands), classes)]
+        return CoupledField(systems=tuple(b[0] for b in built), labels=V.labels), np.concatenate([b[1] for b in built])
     return _build_composite(V, classes, rng)
 
 
@@ -157,7 +163,7 @@ def _build(V: Any, classes: tuple, rng: np.random.Generator) -> tuple[Any, np.nd
 @pytest.mark.parametrize("case", _CASES)
 def test_mb1_coordinates_of_member_is_the_identity(case: str) -> None:
     """MB1. ``coordinates_of(member(c)) == c`` bit-exactly, the member of the builder's carrier classes on V's blocks.
-    First reds: ``FullFieldSpace.member`` splitting ``c`` at the wrong index; ``CoupledSpace.member`` reversing the
+    First reds: ``DirectSumSpace.member`` splitting ``c`` at the wrong index; ``DirectSumSpace.member`` reversing the
     systems; an unwired ``zeros_factory`` (the loud refusal)."""
     builder, classes = _spaces()[case]
     V = builder()
@@ -189,7 +195,7 @@ _FULL_CASES = [case for case in _CASES if "coupled" not in case]
 @pytest.mark.rests_on(_NM1)
 @pytest.mark.parametrize("case", _FULL_CASES)
 def test_mb5_the_dual_refuses_a_primal_composite(case: str) -> None:
-    """MB5, the identity leg. A composite member of the ``FullFieldSpace`` V is not a member of ``V.dual()``, an
+    """MB5, the identity leg. A composite member of the ``DirectSumSpace`` V is not a member of ``V.dual()``, an
     equal-shape space with the inverse metric: ``coordinates_of`` compares the composite's derived space with its own,
     as the base does for a ``Member`` (``space.py``, the identity leg), and refuses with the base's message.
     First red: the composite override running only the shape leg (the A1 elegance review, finding 3: accepted on 4 of

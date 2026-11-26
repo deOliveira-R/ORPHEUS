@@ -60,6 +60,8 @@ TIERS: tuple[tuple[str, ...], ...] = (
     ("axis",),
     ("factor",),
     ("space",),
+    # the direct sum of spaces: summands are spaces, the layout is the partition (N05)
+    ("direct_sum",),
     ("field",),
     ("functional",),
     # the algebra, with the adjoint, the dual and the Riesz operators (rulings 25, 26)

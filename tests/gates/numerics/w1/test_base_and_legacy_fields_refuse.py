@@ -18,6 +18,7 @@ import numpy as np
 import pytest
 
 from tests.gates.numerics.w1 import _tensor_probe as T
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -35,10 +36,10 @@ def arm_instances() -> dict[str, object]:
     from orpheus.numerics.quadrature import Quadrature
     from orpheus.numerics.space import TensorSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.numerics.spaces.radial_characteristic_space import RadialCharacteristicBoundarySpace, RadialCharacteristicInteriorSpace
     from orpheus.numerics.spaces.scalar_trace_space import ScalarTraceSpace
-    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
     quad = Quadrature.gauss_legendre(4)
     layout = CoproductLayout.from_named_shapes([("xmin", (quad.n_ordinates, 1)), ("xmax", (quad.n_ordinates, 1))])
@@ -53,8 +54,8 @@ def arm_instances() -> dict[str, object]:
         scalar,
         RadialCharacteristicInteriorSpace.for_levels(levels, ng=2, nx=4, cell_volumes=volumes),
         RadialCharacteristicBoundarySpace.for_levels(levels, ng=2, nx=4, cell_volumes=volumes),
-        FullFieldSpace.from_blocks(bulk, scalar),
-        CoupledSpace.from_systems((bulk, bulk.dual())),
+        DirectSumSpace.of_pairs(((BULK, bulk), (TRACE, scalar))),
+        DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((bulk, bulk.dual())))),
         angular.dual(),
     ]
     return {f"{type(x).__module__}.{type(x).__qualname__}": x for x in instances}

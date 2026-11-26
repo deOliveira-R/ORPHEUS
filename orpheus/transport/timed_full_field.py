@@ -23,7 +23,7 @@ only the time-aware part:
   use them).
 * The ``history_depth >= 0`` validation (extends the base's
   bulk/boundary/mesh checks).
-* The :meth:`_recombine` override that carries ``history_depth`` and an
+* The :meth:`with_blocks` override that carries ``history_depth`` and an
   EMPTY history into algebra results, plus the ``zeros`` / ``from_flat``
   classmethod specialisations that thread ``history_depth``.
 
@@ -84,7 +84,7 @@ state):
                            history_depth=a.history_depth)
 
 This is realised via the inherited dunders routed through the
-overridden :meth:`_recombine`, so the algebra is written once on
+overridden :meth:`with_blocks`, so the algebra is written once on
 :class:`~orpheus.transport.full_field.FullField`. The
 ``advance(new_bulk, new_boundary)`` method is the canonical state-step
 verb that rotates the history shift-register; :meth:`at_lag` reads
@@ -132,8 +132,9 @@ References
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
+from orpheus.numerics.field import Field
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
@@ -141,7 +142,7 @@ from orpheus.transport.fields._bases import (
 from orpheus.transport.full_field import FullField
 
 if TYPE_CHECKING:
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
 __all__ = ["TimedFullField"]
 
@@ -178,7 +179,7 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
     ``from_flat``, ``copy``, ``zeros``, the bulk/boundary/mesh
     validation) lives on the
     :class:`~orpheus.transport.full_field.FullField` base. This class
-    overrides :meth:`_recombine` so algebra results are
+    overrides :meth:`with_blocks` so algebra results are
     ``TimedFullField`` with empty history + preserved ``history_depth``
     (#217), and specialises :meth:`zeros` / :meth:`from_flat` to thread
     ``history_depth``.
@@ -204,7 +205,7 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
         *,
         interior: type[BulkField],
         boundary: type[BoundaryField],
-        space: "FullFieldSpace",
+        space: "DirectSumSpace",
         history_depth: int = 2,
     ) -> "TimedFullField":
         r"""Allocate a zero composite from the leaf TYPES + composite SPACE (B.5.A).
@@ -225,7 +226,7 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
             The bulk leaf CLASS to instantiate.
         boundary : type[BoundaryField]
             The boundary leaf CLASS to instantiate.
-        space : FullFieldSpace
+        space : DirectSumSpace
             The composite carrier space — the carrier's cached
             ``full_field_space`` (both block spaces required).
         history_depth : int, optional
@@ -258,25 +259,24 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
 
     # ── Polymorphic recombine hook (carries history metadata) ────────
 
-    def _recombine(  # type: ignore[override]
+    def with_blocks(  # type: ignore[override]
         self,
-        *,
-        interior: BulkField,
-        boundary: BoundaryField,
+        blocks: "Sequence[Field]",
     ) -> "TimedFullField":
         r"""Rebuild a ``TimedFullField`` with empty history + preserved depth.
 
         Overrides
-        :meth:`~orpheus.transport.full_field.Composite._recombine` so the
+        :meth:`~orpheus.transport.full_field.Composite.with_blocks` so the
         inherited vector-space dunders (defined ONCE on the base) return
         a :class:`TimedFullField` for a ``TimedFullField`` operand —
         carrying ``history_depth`` and an EMPTY history (#217: algebra
         results carry empty history; history is iteration metadata, not
         algebraic state).
         """
+        interior, boundary = blocks
         return TimedFullField(
-            interior=interior,
-            boundary=boundary,
+            interior=interior,  # type: ignore[arg-type]
+            boundary=boundary,  # type: ignore[arg-type]
             _history=(),
             history_depth=self.history_depth,
         )
@@ -388,6 +388,6 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
     # ``from_flat`` is INHERITED from
     # :meth:`~orpheus.transport.full_field.FullField.from_flat`: the base
     # is generic over the template type and routes reconstruction through
-    # :meth:`_recombine`, so ``TimedFullField.from_flat`` already returns a
+    # :meth:`with_blocks`, so ``TimedFullField.from_flat`` already returns a
     # ``TimedFullField`` with the template's ``history_depth`` + empty
     # history. No override needed (and no Liskov param-narrowing ignore).

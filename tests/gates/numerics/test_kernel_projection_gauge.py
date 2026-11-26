@@ -33,6 +33,7 @@ from orpheus.numerics.metric import DiagonalMetric, Face, NoForm
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
 from tests.gates.numerics._declared_support import declared_mod_kernel
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.l0
 
@@ -530,23 +531,23 @@ class TestTheCompositeMetricDiagonal:
 
     @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_full_field_space_concatenates_interior_then_trace(self):
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-        np.testing.assert_array_equal(FullFieldSpace.from_blocks(self._A, self._B).metric_diagonal(), self._expected())
+        from orpheus.numerics.direct_sum import DirectSumSpace
+        np.testing.assert_array_equal(DirectSumSpace.of_pairs(((BULK, self._A), (TRACE, self._B))).metric_diagonal(), self._expected())
 
     @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_coupled_space_concatenates_its_systems_in_order(self):
-        from orpheus.numerics.coupled_system import CoupledSpace
-        np.testing.assert_array_equal(CoupledSpace.from_systems((self._A, self._B)).metric_diagonal(), self._expected())
+        from orpheus.numerics.direct_sum import DirectSumSpace
+        np.testing.assert_array_equal(DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((self._A, self._B)))).metric_diagonal(), self._expected())
 
     @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
     def test_a_composite_with_a_dense_block_is_not_diagonal(self):
         from orpheus.numerics.declaration import Coord
         from orpheus.numerics.metric import DenseMetric, Face
-        from orpheus.numerics.coupled_system import CoupledSpace
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        from orpheus.numerics.direct_sum import DirectSumSpace
+        from orpheus.numerics.direct_sum import DirectSumSpace
         dense = TensorSpace.declared("dense", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(np.array([[2.0, 0.5], [0.5, 1.0]]), kernel=Coord(2, ()), face=Face.METRIC))
-        assert FullFieldSpace.from_blocks(self._A, dense).metric_diagonal() is None
-        assert CoupledSpace.from_systems((self._A, dense)).metric_diagonal() is None
+        assert DirectSumSpace.of_pairs(((BULK, self._A), (TRACE, dense))).metric_diagonal() is None
+        assert DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((self._A, dense)))).metric_diagonal() is None
 
     @pytest.mark.parametrize("composite", ["full_field", "coupled"])
     @pytest.mark.rests_on(_PRIMITIVE, _SPACE_VERBS)
@@ -555,10 +556,10 @@ class TestTheCompositeMetricDiagonal:
         G-orthogonal projector in the composite's metric. First red: the composite metric legs took only the typed
         carrier, so gather.H (sharp . dual . flat) on the flat chart raised AttributeError (#666; a strict xfail until
         U0 gave the legs the flat chart)."""
-        from orpheus.numerics.coupled_system import CoupledSpace
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
-        space = (FullFieldSpace.from_blocks(self._A, self._B) if composite == "full_field"
-                 else CoupledSpace.from_systems((self._A, self._B)))
+        from orpheus.numerics.direct_sum import DirectSumSpace
+        from orpheus.numerics.direct_sum import DirectSumSpace
+        space = (DirectSumSpace.of_pairs(((BULK, self._A), (TRACE, self._B))) if composite == "full_field"
+                 else DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((self._A, self._B)))))
         g = KernelProjectionGauge.direct_sum(space, (KernelSummand(np.array([1, 2, 3]), np.array([[1.0], [-1.0], [2.0]]), "x"),))
         w = self._expected()
         x, y = np.random.default_rng(18).standard_normal((2, 5))

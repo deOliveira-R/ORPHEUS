@@ -108,6 +108,7 @@ from tests.gates.sn.operators.test_loss_transpose_solve import (
     _sphere,
     _slab,
 )
+from tests.gates._coupled_labels import hub_labels
 
 pytestmark = pytest.mark.foundation
 
@@ -473,8 +474,7 @@ def _coupled_bulk_b(sn, seed: int):
 
     b = _rand_bulk(sn, seed)
     return CoupledField(
-        systems=(b, RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)),
-    )
+        systems=(b, RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)), labels=hub_labels(2),)
 
 
 def _coupled_full_psi(sn, seed: int):
@@ -484,7 +484,7 @@ def _coupled_full_psi(sn, seed: int):
     )
 
     psi = _rand_full(sn, seed)
-    return CoupledField(systems=(psi, RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)))
+    return CoupledField(systems=(psi, RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space)), labels=hub_labels(2))
 
 
 def test_carrying_block_and_coupled_adjointability_coexist():
@@ -637,7 +637,7 @@ def _coupled_rand_pair(sn, seed: int):
         rng.standard_normal(ns),
         RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),
     )
-    return CoupledField(systems=(_rand_full(sn, seed + 1000), member))
+    return CoupledField(systems=(_rand_full(sn, seed + 1000), member), labels=hub_labels(2))
 
 
 def test_a2a_grid_forward_h_reciprocity(monkeypatch):
@@ -650,7 +650,7 @@ def test_a2a_grid_forward_h_reciprocity(monkeypatch):
     ``apply_inverse_metric``) reds the defect O(1) — a hand-rolled
     EUCLIDEAN block-.H would pass the stripped form, which is exactly the
     ERR-067 reopening this tooth exists to catch."""
-    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
     sn = _sphere()
     grid, space = _within_group_grid(sn)
@@ -664,8 +664,8 @@ def test_a2a_grid_forward_h_reciprocity(monkeypatch):
                     f"the carrying loss grid — the metric conjugation or a "
                     f"coupling-block transpose is broken (A2a forward arm)")
     with monkeypatch.context() as m:
-        m.setattr(CoupledSpace, "apply_metric", lambda self, f: f)
-        m.setattr(CoupledSpace, "apply_inverse_metric", lambda self, f: f)
+        m.setattr(DirectSumSpace, "apply_metric", lambda self, f: f)
+        m.setattr(DirectSumSpace, "apply_inverse_metric", lambda self, f: f)
         lhs2 = space.inner_product(grid.apply(psi), x)
         rhs2 = space.inner_product(psi, grid.H.apply(x))
         defect2 = abs(lhs2 - rhs2) / (abs(lhs2) + abs(rhs2) + 1e-300)

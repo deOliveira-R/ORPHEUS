@@ -88,6 +88,7 @@ from tests.gates.sn.architecture._config import (
     split_image,
     system_a,
 )
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -105,7 +106,7 @@ def _is_the_records_gain_rebound_on_the_iterate(driver_gain, record_gain) -> boo
     ``on_moment_domain()`` — the same datum, the same faces, the same
     codomain; the domain's interior is the analysis face's codomain). Not a
     second splitting: nothing but the end the operand arrives on differs."""
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.transport.operators.angular_lift import AngularLift
 
     if not isinstance(record_gain, AngularLift) or type(driver_gain) is not type(record_gain):
@@ -123,14 +124,12 @@ def _is_the_records_gain_rebound_on_the_iterate(driver_gain, record_gain) -> boo
     same_datum = all(
         getattr(driver_gain, f) is getattr(record_gain, f) for f in datum_fields
     )
-    trace = record_gain.domain.trace_space if isinstance(record_gain.domain, FullFieldSpace) else None
+    trace = record_gain.domain.summand("trace") if isinstance(record_gain.domain, DirectSumSpace) else None
     return (
         same_datum
         and driver_gain.codomain is record_gain.codomain
         and trace is not None
-        and driver_gain.domain == FullFieldSpace.from_blocks(
-            record_gain.flux_analysis.codomain, trace,
-        )
+        and driver_gain.domain == DirectSumSpace.of_pairs(((BULK, record_gain.flux_analysis.codomain), (TRACE, trace)))
     )
 
 

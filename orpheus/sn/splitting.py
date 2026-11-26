@@ -391,7 +391,7 @@ class Splitting:  # concept: splitting | role: head | kind: morphism
         order.  ``negate`` builds the GAIN grid (``N = M − A``: every lagged
         term enters with the sign that makes it a right-hand-side gain)."""
         space = self.system.space
-        members = space.systems
+        members = tuple(member for _, member in space.summands)
         slots: dict[tuple[int, int], LinearOperator] = {}
         order: list[tuple[int, int]] = []
         for term in terms:

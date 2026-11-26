@@ -55,6 +55,8 @@ from orpheus.transport.fields import (
 )
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from orpheus.numerics.direct_sum import DirectSumSpace
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -136,7 +138,7 @@ def _joint_solve(A, sn, b, q_half, *, initial_guess=None):
     from tests.gates.sn._test_helpers import joint_m_grid
 
     grid, _space = joint_m_grid(sn, A)
-    state = grid.solve(CoupledField(systems=(b, q_half)))
+    state = grid.solve(CoupledField(systems=(b, q_half), labels=hub_labels(2)))
     return state.systems[0], state.systems[1]
 
 
@@ -150,7 +152,7 @@ def _joint_apply(A, sn, psi, flux):
     from tests.gates.sn._test_helpers import joint_m_grid
 
     grid, _space = joint_m_grid(sn, A)
-    out = grid.apply(CoupledField(systems=(psi, flux)))
+    out = grid.apply(CoupledField(systems=(psi, flux), labels=hub_labels(2)))
     return out.systems[0], out.systems[1]
 
 
@@ -335,11 +337,9 @@ def test_4e_unweave_walk_source_has_no_carlson_reference():
 
 def _coupled_space(sn):
     """The mesh's coupled ψ½ space (System A ⊕ System B, member-wise metric)."""
-    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
-    return CoupledSpace.from_systems(
-        (sn.full_field_space, sn.radial_characteristic_field_space),
-    )
+    return DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((sn.full_field_space, sn.radial_characteristic_field_space))))
 
 
 @pytest.mark.foundation
@@ -397,7 +397,7 @@ def test_mode12_g_reciprocity_catches_a_seed_row_flip():
             rng.standard_normal(n_seed),
             RadialCharacteristicField.flux_zeros(sn.radial_characteristic_field_space),
         )
-        return CoupledField(systems=(psi_a, seed))
+        return CoupledField(systems=(psi_a, seed), labels=hub_labels(2))
 
     psi, phi = _random_pair(), _random_pair()
 

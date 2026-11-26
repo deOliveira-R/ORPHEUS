@@ -42,7 +42,7 @@ from orpheus.geometry import StructuredGeometry
 from orpheus.mesh import CellsByCount, Mesh2D, Mesher
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.phase_spaces import angular_bulk_space, angular_trace_space
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from tests.gates.transport._phase_space_cases import angular_full_field_space
 from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -53,6 +53,7 @@ from tests.gates.transport._materials import placeholder_materials
 from orpheus.geometry.deck import MirrorDeck
 from tests.gates.transport._phase_space_cases import posing_quadrature, posing_scheme
 from tests.gates.transport._phase_space_cases import slab_mesh
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 
 pytestmark = [pytest.mark.foundation]
@@ -92,7 +93,7 @@ class TestConstruction:
         m = slab_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bulk = angular_bulk_space(m, posing_quadrature(m))
-        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        ffs = DirectSumSpace.of_pairs(((BULK, bulk), (TRACE, trace)))
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         assert isinstance(state, TimedFullField)
         assert isinstance(state.interior, AngularFlux)
@@ -362,7 +363,7 @@ class TestHistoryShiftRegister:
         m = slab_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bulk = angular_bulk_space(m, posing_quadrature(m))
-        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        ffs = DirectSumSpace.of_pairs(((BULK, bulk), (TRACE, trace)))
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs, history_depth=2)
         for i in range(5):
             nb = AngularFlux.zeros(bulk)
@@ -477,7 +478,7 @@ class TestCopy:
         m = slab_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bulk = angular_bulk_space(m, posing_quadrature(m))
-        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        ffs = DirectSumSpace.of_pairs(((BULK, bulk), (TRACE, trace)))
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         nb = AngularFlux.zeros(bulk)
         nf = AngularBoundaryFlux.zeros(trace)
@@ -546,7 +547,7 @@ class TestFlatVectorProtocol:
         m = slab_mesh()
         trace = angular_trace_space(m, posing_quadrature(m), posing_scheme(m))
         bulk = angular_bulk_space(m, posing_quadrature(m))
-        ffs = FullFieldSpace.from_blocks(bulk, trace)
+        ffs = DirectSumSpace.of_pairs(((BULK, bulk), (TRACE, trace)))
         state = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=ffs)
         nb = AngularFlux.zeros(bulk)
         nf = AngularBoundaryFlux.zeros(trace)

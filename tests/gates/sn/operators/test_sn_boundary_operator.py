@@ -242,7 +242,7 @@ class TestContract:
         assert B.domain is sn.full_field_space
         assert B.codomain is sn.full_field_space
         # the composite trace block IS the mesh trace space (block identity)
-        assert B.domain.trace_space is sn.angular_trace
+        assert B.domain.summand("trace") is sn.angular_trace
 
 
 class TestApply:

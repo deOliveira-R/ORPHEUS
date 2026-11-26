@@ -34,7 +34,7 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.sn.operators.sweep_operator import SweepOperator
 from orpheus.sn.operators.windowing import WindowedSweep
 from orpheus.numerics.iteration import NATIVE
@@ -43,6 +43,7 @@ from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics import frame_faces
 from orpheus.numerics.factor import Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = [pytest.mark.foundation]
 
@@ -78,9 +79,7 @@ def _fake_mesh(*, is_cartesian: bool, ndim: int) -> SimpleNamespace:
     # trace block's existence is consumed.
     return SimpleNamespace(
         is_cartesian=is_cartesian, ndim=ndim,
-        full_field_space=FullFieldSpace.from_blocks(
-            TensorSpace.declared("fake_bulk", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("fake_trace", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)),
-        ),
+        full_field_space=DirectSumSpace.of_pairs(((BULK, TensorSpace.declared("fake_bulk", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), (TRACE, TensorSpace.declared("fake_trace", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))))),
     )
 
 

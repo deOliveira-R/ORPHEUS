@@ -94,11 +94,11 @@ The six vector-space dunders (``+``, ``-``, unary ``-``, scalar ``*``,
 ``scalar *``, ``/ scalar``) live ONCE on :class:`Composite` and route through two
 small per-shape hooks — :meth:`Composite._map_binary` (elementwise over two
 operands' blocks) and :meth:`Composite._map_unary` (elementwise over one
-operand's blocks) — then rebuild via the polymorphic :meth:`Composite._recombine`
+operand's blocks) — then rebuild via the polymorphic :meth:`Composite.with_blocks`
 hook. A subclass needing a different rebuild overrides ONLY the hooks; the
 dunders themselves are never duplicated.
 :class:`~orpheus.transport.timed_full_field.TimedFullField` overrides
-:meth:`_recombine` alone to rebuild a ``TimedFullField`` with empty history
+:meth:`with_blocks` alone to rebuild a ``TimedFullField`` with empty history
 (#217: "algebra results carry empty history"). One definition of the algebra, the
 correct concrete return type for each subclass.
 
@@ -127,7 +127,7 @@ References
 * ``.claude/plans/archive/coupled_block_operator_campaign.md`` — the ``Composite``
   generalization (Phase A2) + the ψ½ eviction into System B (Phase B.2d).
 * Grand Report v3 §5.5 (Field hierarchy), §5.3 (``DirectSumSpace`` /
-  :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`).
+  :class:`~orpheus.numerics.direct_sum.DirectSumSpace`).
 * ``coding-elegance`` Pattern 2 (the algebra lives ONCE in the base via the
   recombine + block-map hooks) + Pattern 5 (``Composite`` is the right primitive;
   ``FullField`` narrows its loci, ``TimedFullField`` composes it with history).
@@ -137,12 +137,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import TYPE_CHECKING, Callable, Generic, Self, TypeVar
+from typing import TYPE_CHECKING, Callable, ClassVar, Generic, Self, Sequence, TypeVar
 
 import numpy as np
 
 from orpheus.numerics.field import Field
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, SumCarrier
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
@@ -188,7 +188,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
     ``Composite[ScalarFlux, ScalarBoundaryFlux]`` = a diffusion / CP frame),
     while THIS type is method-agnostic. Holds the vector-space algebra ONCE (the
     six dunders route through the :meth:`_map_binary` / :meth:`_map_unary` /
-    :meth:`_recombine` hooks a subclass overrides to add extra blocks).
+    :meth:`with_blocks` hooks a subclass overrides to add extra blocks).
 
     Parameters
     ----------
@@ -207,10 +207,18 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
     -----
     NOT a :class:`~orpheus.numerics.field.Field` subclass at the typed-class
     level — its natural backing is a
-    :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+    :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
     (direct-sum) Field. Ships as a structured composite with delegate-style
     dunders that propagate to every block.
+
+    The two summand labels of the space a composite is an element of are the class
+    constant ``LABELS`` of each concrete member class (the builder's constants,
+    imported), with no field and no default argument: the pair is a function of the
+    concrete class.
     """
+
+    #: The summand labels of the sum this composite is an element of: declared by each concrete class.
+    LABELS: ClassVar[tuple[str, str]]
 
     interior: Interior
     boundary: Boundary
@@ -223,7 +231,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         *,
         interior: "type[Interior]",
         boundary: "type[Boundary]",
-        space: "FullFieldSpace",
+        space: DirectSumSpace,
     ) -> "Self":
         r"""Allocate a zero composite from the leaf TYPES + the composite SPACE.
 
@@ -232,7 +240,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux` /
         :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`;
         diffusion / CP pass their scalar leaves) and the carrier's cached
-        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+        :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
         (``sn.full_field_space`` / ``diffusion_mesh.full_field_space``);
         each block is zero-allocated on the matching block space via the one
         :meth:`~orpheus.numerics.field.Field.zeros` primitive. A composite is
@@ -241,8 +249,8 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         ``zeros_on`` delegation retired with the sugar tier). This keeps the
         cross-method-generic container free of any hard-wired leaf type.
         """
-        interior_space = space.interior_space
-        trace_space = space.trace_space
+        interior_space = space.summand(cls.LABELS[0])
+        trace_space = space.summand(cls.LABELS[1])
         return cls(
             interior=interior.zeros(interior_space),
             boundary=boundary.zeros(trace_space),
@@ -284,15 +292,15 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
     # ── The composite as a space element (CS4b S4 — the F4 ruling) ────
 
     @cached_property
-    def space(self) -> "FullFieldSpace":
+    def space(self) -> DirectSumSpace:
         r"""The direct-sum space this composite is an element of.
 
-        DERIVED from the blocks — ``FullFieldSpace.from_blocks(
-        interior.space, boundary.space)`` — never stored: a composite IS
+        DERIVED from the blocks and the class's labels — ``DirectSumSpace.of_pairs(
+        zip(LABELS, (interior.space, boundary.space)))`` — never stored: a composite IS
         its two block elements, so its space is determined by theirs, and
         a stored copy would be a twin datum needing a coherence gate that
-        checks bookkeeping instead of physics. ``from_blocks`` derives
-        the name from member content (the of_axes rule), so this property
+        checks bookkeeping instead of physics. The sum derives
+        its name from its labels and its summands, so this property
         compares ``==`` (content) with the carrier's cached mint
         (``SNProblem.full_field_space`` / ``DiffusionMesh.full_field_space``
         / ``SNProblem.radial_characteristic_field_space``) whenever the
@@ -300,9 +308,9 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         do. Not ``is``: the wrapper is minted per composite (cached per
         instance); the MEMBERS are the carrier's cached objects.
         """
-        return FullFieldSpace.from_blocks(
-            self.interior.space, self.boundary.space,
-            zeros_factory=lambda: self._from_flat(np.zeros(self.to_flat().size)),
+        return DirectSumSpace.of_pairs(
+            tuple(zip(self.LABELS, (self.interior.space, self.boundary.space))),
+            carrier=SumCarrier(zeros=lambda: self._from_flat(np.zeros(self.to_flat().size))),
         )
 
     @property
@@ -320,20 +328,24 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         """
         return self.interior
 
-    # ── Polymorphic recombine + block-map hooks (Pattern 2) ───────────
+    # ── The typed element's two accesses + block-map hooks (Pattern 2) ──
 
-    def _recombine(
-        self, *, interior: "Field", boundary: "Field",
-    ) -> "Self":
-        r"""Rebuild a composite of the SAME concrete type from recombined blocks.
+    @property
+    def blocks(self) -> "tuple[Interior, Boundary]":
+        r"""The summand elements in label order: the carrier's access that a direct sum reads."""
+        return (self.interior, self.boundary)
 
-        The polymorphic hook the block-map methods route their result through.
+    def with_blocks(self, blocks: "Sequence[Field]") -> "Self":
+        r"""Rebuild a composite of the SAME concrete type from recombined blocks, the labels kept.
+
+        The polymorphic hook the block-map methods and the direct sum route their result through.
         The base spelling is ``replace(self, ...)`` — provably ``Self`` (and
         ``replace`` re-runs ``__post_init__`` so the block invariants re-fire for
         free). A subclass needing a different rebuild OVERRIDES this;
         :class:`~orpheus.transport.timed_full_field.TimedFullField` overrides it to
         rebuild a ``TimedFullField`` with an EMPTY history (#217).
         """
+        interior, boundary = blocks
         return replace(self, interior=interior, boundary=boundary)  # type: ignore[arg-type]
 
     def _map_binary(
@@ -346,10 +358,10 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         propagation. A subclass with a different block structure overrides
         this to combine its blocks.
         """
-        return self._recombine(
-            interior=op(self.interior, other.interior),  # type: ignore[arg-type]
-            boundary=op(self.boundary, other.boundary),  # type: ignore[arg-type]
-        )
+        return self.with_blocks((
+            op(self.interior, other.interior),  # type: ignore[arg-type]
+            op(self.boundary, other.boundary),  # type: ignore[arg-type]
+        ))
 
     def _map_unary(
         self, op: "Callable[[object], object]",
@@ -361,10 +373,10 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         :meth:`copy`) spells its block propagation. A subclass with a different
         block structure overrides this to transform its blocks.
         """
-        return self._recombine(
-            interior=op(self.interior),  # type: ignore[arg-type]
-            boundary=op(self.boundary),  # type: ignore[arg-type]
-        )
+        return self.with_blocks((
+            op(self.interior),  # type: ignore[arg-type]
+            op(self.boundary),  # type: ignore[arg-type]
+        ))
 
     # ── Algebra (propagates to every block via the map hooks) ─────────
 
@@ -386,7 +398,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         ``state.at_lag(0) - state.at_lag(1)``: the current frame is a
         :class:`~orpheus.transport.timed_full_field.TimedFullField` while a
         historical frame is a timeless :class:`FullField` snapshot, and the two
-        must subtract. The CONCRETE result type is governed by :meth:`_recombine`,
+        must subtract. The CONCRETE result type is governed by :meth:`with_blocks`,
         so accepting a base partner does not weaken the "algebra results carry
         empty history" guarantee. ``state + 42`` (a non-``Composite`` partner) is
         still rejected here; the leaf gate then rejects any leaf/mesh/units
@@ -402,7 +414,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
     # ``other`` is deliberately the BASE ``Composite`` (not ``Self``): the partner
     # rule is "any Composite flavor" (see ``_check_partner`` — load-bearing for the
     # timed − timeless time-derivative stencil), and the RESULT flavor is governed
-    # by ``self``'s ``_recombine`` hook alone.
+    # by ``self``'s ``with_blocks`` hook alone.
     def __add__(self, other: "Composite") -> "Self":
         self._check_partner(other)
         return self._map_binary(other, lambda a, b: a + b)  # type: ignore[operator]
@@ -479,7 +491,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         The instance-hook inverse of :meth:`_flat_parts`: slices
         ``interior | boundary`` from the template layout, rebuilds each leaf with
         the template's ``space`` / ``mesh``, and routes the pair through
-        :meth:`_recombine`. Instance method (not classmethod) so the ``Self``
+        the :meth:`with_blocks` hook. Instance method (not classmethod) so the ``Self``
         override is Liskov-clean.
         """
         n_interior = self.interior.values.size
@@ -493,10 +505,10 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
             )
         interior_values = flat[:n_interior].reshape(self.interior.values.shape)
         boundary_values = flat[n_interior : n_interior + n_boundary]
-        return self._recombine(
-            interior=replace(self.interior, values=interior_values),
-            boundary=replace(self.boundary, values=boundary_values),
-        )
+        return self.with_blocks((
+            replace(self.interior, values=interior_values),
+            replace(self.boundary, values=boundary_values),
+        ))
 
     # ── Diagnostics ──────────────────────────────────────────────────
 
@@ -505,7 +517,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
 
         Snapshots every carried block with owned ndarrays (via :meth:`_map_unary`,
         so a subclass's extra block is copied too). Used by callers that need a
-        stable iterate without aliasing. Routes through :meth:`_recombine`, so a
+        stable iterate without aliasing. Routes through :meth:`with_blocks`, so a
         :class:`~orpheus.transport.timed_full_field.TimedFullField` copy is a
         ``TimedFullField`` with EMPTY history (the existing ``copy`` drops history
         — bit-identical behaviour).
@@ -538,6 +550,8 @@ class FullField(Composite[BulkField, BoundaryField]):  # concept: member | role:
     boundary : BoundaryField
         The boundary partner field on the trace of ``interior``'s domain.
     """
+
+    LABELS = (BULK, TRACE)
 
     # ── Construction validation (override — the SN locus narrows) ─────
 
@@ -603,7 +617,7 @@ class FullField(Composite[BulkField, BoundaryField]):  # concept: member | role:
         not the target state: it retires when every leaf is bound on the
         end it acts on (R18's ``B`` reshape — ``B`` bound on its own trace
         end, a moment-bound sibling for the windowed iterate, ``L``'s ends
-        typed ``FullFieldSpace``), at which point the admission is the
+        typed ``DirectSumSpace``), at which point the admission is the
         ordinary composability guard on the BOUND end and an alien carrier
         cannot be typed at all.
 

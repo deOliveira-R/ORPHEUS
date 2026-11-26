@@ -123,8 +123,8 @@ def test_T1_the_trace_rank_is_the_non_tangential_count(name):
     red: a rank counting the element size."""
     problem, quad, n_faces, M, *_ = _problem(name)
     ff = problem.full_field_space
-    tr = ff.trace_space if ff.trace_space is not None else pytest.fail("fixture: no trace block")
-    interior = ff.interior_space if ff.interior_space is not None else pytest.fail("fixture: no interior block")
+    tr = ff.summand("trace") if ff.summand("trace") is not None else pytest.fail("fixture: no trace block")
+    interior = ff.summand("bulk") if ff.summand("bulk") is not None else pytest.fail("fixture: no interior block")
     ng = problem.ng
     tangential = int(np.sum(np.asarray(quad.mu_x, dtype=float) == 0.0))
     size = int(np.prod(tr.shape))
@@ -137,7 +137,7 @@ def test_T1_the_trace_rank_is_the_non_tangential_count(name):
     V = M.domain
     if not isinstance(V, FunctionSpace):
         pytest.fail(f"[{name}] fixture: M has no domain space")
-    _require(V.rank == sum(s.rank for s in getattr(V, "systems", ())), f"[{name}] the coupled rank is not the system sum")
+    _require(V.rank == sum(s.rank for _, s in getattr(V, "summands", ())), f"[{name}] the coupled rank is not the system sum")
     _require(V.dual().rank == V.rank and tr.dual().rank == tr.rank, f"[{name}] a dual's rank differs")
 
 

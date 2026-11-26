@@ -208,7 +208,7 @@ def random_state(
     every ordinate, giving :math:`P_{\text{iso}}\psi = \psi` — the **Mode-9
     degenerate subspace**, shipped only as a control leg (§3.2).
     """
-    template = record.space.zeros()
+    template = record.space.carrier.zeros()
     rng = np.random.default_rng([seed, 7])
     state = CoupledField.from_flat(
         rng.standard_normal(template.to_flat().size), template,

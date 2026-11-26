@@ -58,6 +58,7 @@ from tests.gates.sn.sweep.test_assembly_mode import (
 )
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -274,7 +275,7 @@ def test_g1_round_trip_bulk(geom):
             sn, rng.random(sn.radial_characteristic_field_space.shape[0]),
         )
         back = grid.solve_transpose(
-            grid.apply_transpose(CoupledField(systems=(x, cot_in))),
+            grid.apply_transpose(CoupledField(systems=(x, cot_in), labels=hub_labels(2))),
         ).systems[0]
     else:
         x = _fresh(sn)
@@ -295,7 +296,7 @@ def test_g1_round_trip_bulk(geom):
         b.interior.values[:] = rng.random(b.interior.values.shape)
         z_cot = RadialCharacteristicField.source_zeros(sn.radial_characteristic_field_space)
         fwd = grid.apply_transpose(
-            grid.solve_transpose(CoupledField(systems=(b, z_cot))),
+            grid.solve_transpose(CoupledField(systems=(b, z_cot), labels=hub_labels(2))),
         ).systems[0]
     else:
         b = _fresh(sn)                        # bulk-only source-subspace b
@@ -339,7 +340,7 @@ def test_g2_dense_transpose_oracle(geom):
             from tests.gates.sn._test_helpers import joint_m_grid
 
             grid, _space = joint_m_grid(sn, A)
-            out = grid.solve_transpose(CoupledField(systems=(b, cot_in)))
+            out = grid.solve_transpose(CoupledField(systems=(b, cot_in), labels=hub_labels(2)))
             got = _read_augmented(out.systems[0], sn, g, out.systems[1])
         else:
             got = _read_augmented(A.solve_transpose(b), sn, g)

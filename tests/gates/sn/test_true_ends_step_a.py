@@ -27,6 +27,7 @@ from orpheus.numerics.coordinate_space import NotInCoordinateSpace
 from orpheus.numerics.operator import IncompatibleOperatorComposition, MissingAdjoint
 from tests.gates._true_ends import H_REFUSAL_FRAGMENT, pairing_of
 from tests.gates.cross_method import _source_chart_cases as cc
+from tests.gates._coupled_labels import hub_labels
 
 pytestmark = [pytest.mark.foundation, pytest.mark.filterwarnings("ignore::Warning")]
 
@@ -79,7 +80,7 @@ def test_sa1_codomain_is_the_data_side(name: str, atom: str) -> None:
     """
     op = _atom(name, atom)
     assert op.codomain != op.domain, f"{atom} on {name}: codomain == domain (the role lives in the class, not the space)"
-    interior = op.codomain.interior_space
+    interior = op.codomain.summand("bulk")
     got = np.asarray(interior.metric_diagonal(), dtype=float)
     want = _expected_data_metric(_problem(name), got.shape)
     np.testing.assert_allclose(got, want, rtol=4 * np.finfo(float).eps, atol=0,
@@ -89,7 +90,7 @@ def test_sa1_codomain_is_the_data_side(name: str, atom: str) -> None:
 @pytest.mark.parametrize("name", _PROBLEMS)
 def test_sa1_state_side_is_unchanged(name: str) -> None:
     """SA-1 GREEN control: the state side V keeps ``w_n ⊗ V θ^{|o|}`` (R6: no flux number moves)."""
-    interior = _problem(name).full_field_space.interior_space
+    interior = _problem(name).full_field_space.summand("bulk")
     got = np.asarray(interior.metric_diagonal(), dtype=float)
     np.testing.assert_allclose(got, _expected_state_metric(_problem(name), got.shape), rtol=4 * np.finfo(float).eps)
 
@@ -106,9 +107,9 @@ def test_sa2_the_member_lives_in_the_codomain(name: str, atom: str) -> None:
         out = op.apply(_psi(name))
     except ValueError as exc:  # FissionOperator on LD raises today (spec CL-LDF), outside Step A
         pytest.xfail(f"pre-existing LD fission defect: {exc}")
-    assert out.interior.space != _problem(name).full_field_space.interior_space, (
+    assert out.interior.space != _problem(name).full_field_space.summand("bulk"), (
         f"{atom} on {name}: the source member lives in the flux space")
-    assert out.interior.space == op.codomain.interior_space
+    assert out.interior.space == op.codomain.summand("bulk")
 
 
 # ── SA-3: the inverse runs V* → V, and refuses a flux (RED), admits a source (GREEN) ─────────────────────────────
@@ -218,7 +219,7 @@ def _pairing_weights(name: str) -> np.ndarray:
     psi = cc.state(problem, np.random.default_rng(0))
     shape = psi.interior.values.shape
     w = np.broadcast_to(np.asarray(problem.quad.weights, float).reshape((-1,) + (1,) * (len(shape) - 1)), shape)
-    trace = np.asarray(problem.full_field_space.trace_space.metric_diagonal(), dtype=float).ravel()
+    trace = np.asarray(problem.full_field_space.summand("trace").metric_diagonal(), dtype=float).ravel()
     return np.concatenate([w.ravel(), trace])
 
 
@@ -234,7 +235,7 @@ def test_sa6r_hilbert_adjoint_today_record(atom: str) -> None:
     psi = cc.state(problem, np.random.default_rng(0))
     shape = psi.interior.values.shape
     G = np.concatenate([_expected_state_metric(problem, shape).ravel(),
-                        np.asarray(problem.full_field_space.trace_space.metric_diagonal(), float).ravel()])
+                        np.asarray(problem.full_field_space.summand("trace").metric_diagonal(), float).ravel()])
     live = G != 0.0
     want = (A.T * G[None, :]) / np.where(live, G, 1.0)[:, None]
     got = _dense(op.H, name)
@@ -402,10 +403,10 @@ def test_sa8b_rayleigh_pairs_the_full_space() -> None:
     shape = a[f"{name}/state/bulk"].shape
     m = cc.sn_bulk_measure(problem, shape)
     w = np.asarray(problem.quad.weights, float).reshape((-1,) + (1,) * (len(shape) - 1))
-    current = np.asarray(problem.full_field_space.trace_space.metric_diagonal(), float).ravel()  # |Ω·n| w_n, A_f = 1
+    current = np.asarray(problem.full_field_space.summand("trace").metric_diagonal(), float).ravel()  # |Ω·n| w_n, A_f = 1
     num = np.sum(w * m * a[f"{name}/FissionOperator/bulk"]) + np.sum(current * a[f"{name}/FissionOperator/trace"])
     den = np.sum(w * m * _loss(a, name, "bulk")) + np.sum(current * _loss(a, name, "trace"))
-    got = problem.eigen_posing.rayleigh(CoupledField(systems=(psi,)), w=1.0)
+    got = problem.eigen_posing.rayleigh(CoupledField(systems=(psi,), labels=hub_labels(1)), w=1.0)
     assert abs(got - num / den) <= 1e-12 * abs(num / den), (got, num / den)
 
 
@@ -456,7 +457,7 @@ def test_ldf_the_ld_eigen_question_is_posable() -> None:
 
     problem = _problem("slab_ld_p1")
     try:
-        k = problem.eigen_posing.rayleigh(CoupledField(systems=(_psi("slab_ld_p1"),)), w=1.0)
+        k = problem.eigen_posing.rayleigh(CoupledField(systems=(_psi("slab_ld_p1"),), labels=hub_labels(1)), w=1.0)
     except ValueError as exc:
         pytest.fail(f"the LD eigen question raises: {exc}")
     assert np.isfinite(k)

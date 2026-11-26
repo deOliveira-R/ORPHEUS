@@ -831,7 +831,7 @@ class TestAnisoMomentSourcePath:
         moments = op.flux_analysis.apply(psi)
         op_w = op.on_moment_domain()
         src_moments = op_w.apply(
-            zero_trace_composite(moments, op_w.domain.trace_space),
+            zero_trace_composite(moments, op_w.domain.summand("trace")),
         ).interior
 
         np.testing.assert_array_equal(src_moments.values, src_angular.values)
@@ -875,7 +875,7 @@ class TestAnisoMomentSourcePath:
         psi = self._reproduce_psi(solver_2g_p1_n2n, seed=7)
         moments = op.flux_analysis.apply(psi)
         op_w = op.on_moment_domain()
-        _ = op_w.apply(zero_trace_composite(moments, op_w.domain.trace_space))
+        _ = op_w.apply(zero_trace_composite(moments, op_w.domain.summand("trace")))
 
         assert op.legendre_order >= 1
         assert calls["n"] >= 1, (

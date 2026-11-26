@@ -269,7 +269,7 @@ class FissionOperator(AngularLift[IsotropicFission]):  # concept: fission | role
         if not isinstance(interior, TensorSpace):
             raise TypeError(
                 "FissionOperator.from_solver_data requires an axis-built "
-                "composite FullFieldSpace (the angular interior names the "
+                "composite DirectSumSpace (the angular interior names the "
                 "quadrature the lift embeds over). A scalar consumer wants "
                 "the ENERGY binding — IsotropicFission.from_material_xs."
             )

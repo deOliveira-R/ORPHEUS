@@ -47,6 +47,7 @@ from orpheus.transport.fields import AngularSourceSink
 from tests.gates.sn._test_helpers import het_operands, placeholder_materials, sweep_once
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -89,7 +90,7 @@ def _run_one_matvec(problem: SNProblem) -> None:
         from tests.gates.sn._test_helpers import joint_m_grid
 
         grid, _space = joint_m_grid(problem, StreamingCollisionOperator(L, C))
-        grid.apply(CoupledField(systems=(psi, seed)))
+        grid.apply(CoupledField(systems=(psi, seed), labels=hub_labels(2)))
 
 
 def test_every_per_cell_consumer_reaches_the_mesh_closure(monkeypatch):

@@ -89,7 +89,7 @@ The ends select the body (CS4c step 5)
 
 :class:`MultiplicationOperator` stores ONLY the coefficient field and its
 two ends. Which body ``apply`` / ``solve`` run is decided ONCE, at
-construction, from the DOMAIN: a composite ``FullFieldSpace`` selects the
+construction, from the DOMAIN: a composite ``DirectSumSpace`` selects the
 lifted body (:func:`~orpheus.transport.operators.lift.lift_pointwise`, the
 family's ONE pointwise spelling — the multiply on the bulk block, the zero source/sink — or, for ``solve``,
 the zero flux — on the trace; the output leaf is the operand's role
@@ -140,7 +140,7 @@ from orpheus.numerics.operator import (
     LinearOperator,
     NotInvertible,
 )
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import bulk_and_trace
 from orpheus.transport.fields._bases import FieldRole
 from orpheus.transport.full_field import FullField
 
@@ -221,9 +221,10 @@ class MultiplicationOperator(BoundOperator):  # concept: multiplier | role: weld
         # a parse of the SPACE at construction, not of a carrier per call —
         # derived ONCE and read by apply / solve / assemble alike.
         domain = self.domain
-        self._interior = (
-            domain.interior_space if isinstance(domain, FullFieldSpace) else None
-        )
+        try:
+            self._interior = bulk_and_trace(domain, owner=type(self).__name__)[0]
+        except TypeError:
+            self._interior = None
         bulk = self._interior if self._interior is not None else domain
         # CS4a K2, first, so the refusal speaks the binding's vocabulary
         # before the engine's placement check: the binding refuses a space whose EnergyAxis states a

@@ -317,7 +317,7 @@ class TestRadialCharacteristicFieldSpace:
 
     The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
     System A uses, instantiated over the two split ψ½ spaces. The identity
-    name is the family rule (CS4b S4): ``full_field#<digest>`` folded from
+    name is the family rule (CS4b S4): ``dsum(interior ⊕ boundary)#<digest>`` folded from
     the MEMBER spaces' content — the pre-S4 ``"radial_characteristic"``
     role tag left the space name (G2.3: role is class identity; the role
     lives on ``RadialCharacteristicField``). The metric rows exercise the
@@ -336,12 +336,12 @@ class TestRadialCharacteristicFieldSpace:
         # ``is`` (the cached split spaces, one instance per mesh).
         sn = _sphere()
         space = sn.radial_characteristic_field_space
-        if space.interior_space is not sn.radial_characteristic_interior_space:
+        if space.summand("interior") is not sn.radial_characteristic_interior_space:
             pytest.fail("interior member is not THE cached interior split space")
-        if space.trace_space is not sn.radial_characteristic_boundary_space:
+        if space.summand("boundary") is not sn.radial_characteristic_boundary_space:
             pytest.fail("trace member is not THE cached boundary split space")
         if hasattr(space, "radial_characteristic_space"):
-            pytest.fail("FullFieldSpace still exposes a third-slot field — "
+            pytest.fail("the direct sum still exposes a third-slot field — "
                         "the B.2d eviction leaked into the space class")
 
     def test_presence_and_caching(self) -> None:

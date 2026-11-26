@@ -150,7 +150,7 @@ class TestG13GramEquivalenceDD:
 
     def test_composite_interior_is_the_cached_mint(self):
         sn = _slab()
-        assert sn.full_field_space.interior_space is sn.angular_bulk_space
+        assert sn.full_field_space.summand("bulk") is sn.angular_bulk_space
 
     @staticmethod
     def _exact(a) -> np.ndarray:
@@ -267,8 +267,8 @@ class TestG14GramEquivalenceLD:
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_bulk_space.axes is not None
         widened = TensorSpace.of_axes(*sn.angular_bulk_space.factors, Factor.whole_on(sn.scheme.moment_axis(sn.axes), Kind.MEASURE, VarianceChart.DENSITY))
-        assert sn.full_field_space.interior_space == widened
-        assert sn.full_field_space.interior_space is sn.angular_trial_space
+        assert sn.full_field_space.summand("bulk") == widened
+        assert sn.full_field_space.summand("bulk") is sn.angular_trial_space
 
     def test_all_three_metric_faces_agree_on_the_ld_interior(self):
         r"""G1.4 — every metric face of the LD interior is :math:`G = w_n V_i m_j`, within a DERIVED bound.
@@ -521,7 +521,7 @@ class TestAngularTrialSpace:
     def test_ld_trial_space_is_cached_and_single_sourced(self):
         sn = _slab(scheme=LinearDiscontinuous())
         assert sn.angular_trial_space is sn.angular_trial_space
-        assert sn.full_field_space.interior_space is sn.angular_trial_space
+        assert sn.full_field_space.summand("bulk") is sn.angular_trial_space
 
     def test_field_allocation_rides_the_trial_mint(self):
         """The S5 end-state, at both widths: a field allocated on the

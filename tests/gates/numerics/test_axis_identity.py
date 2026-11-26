@@ -26,11 +26,12 @@ from orpheus.numerics.metric import DenseMetric, Face
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.quadrature.rules_1d import gauss_legendre_on_polar_orbit
 from orpheus.numerics.space import DualSpace, FunctionSpace
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.declaration import Coord
 from tests.gates.numerics._declared_support import whole_on_mod_kernel
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -170,10 +171,10 @@ def test_I6_F7_a_composite_dual_is_not_a_composite_of_named_spaces():
     """Pair 6 (S7a, F7 of the S6a review). TODAY ``from_blocks(a, b).dual() == from_blocks(a*, b*)`` with
     equal hashes: the composite folds member NAMES, which carry no covariance."""
     a, b = TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
-    lhs = FullFieldSpace.from_blocks(a, b).dual()
-    rhs = FullFieldSpace.from_blocks(TensorSpace.declared("a*", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("b*", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)))
+    lhs = DirectSumSpace.of_pairs(((BULK, a), (TRACE, b))).dual()
+    rhs = DirectSumSpace.of_pairs(((BULK, TensorSpace.declared("a*", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), (TRACE, TensorSpace.declared("b*", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)))))
     _separated(lhs, rhs, "F7: composite dual vs composite of starred names")
-    _one(lhs, FullFieldSpace.from_blocks(TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))).dual(),
+    _one(lhs, DirectSumSpace.of_pairs(((BULK, TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), (TRACE, TensorSpace.declared("b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))))).dual(),
          "control: two composite duals of equal primals")
     _one(DualSpace.of(a), DualSpace.of(TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))), "control: DualSpace of equal primals")
 
@@ -314,12 +315,12 @@ def _all_space_classes():
 
 
 def test_K1_equality_and_hash_are_defined_once_on_the_base():
-    """TODAY 12 of 12 subclasses define their own __eq__/__hash__ (8 delegate, 4 dataclass-generated:
+    """At N04, 12 of 12 subclasses define their own __eq__/__hash__ (8 delegate, 4 dataclass-generated:
     AngularTraceSpace, AngularFaceTraceSpace, the two radial-characteristic spaces)."""
     # the production family only: a test module may define a toy subclass
     classes = [c for c in _all_space_classes() if c.__module__.startswith("orpheus.")]
     names = {c.__qualname__ for c in classes}
-    assert len(classes) >= 10 and {"AngularTraceSpace", "DualSpace", "FullFieldSpace"} <= names, \
+    assert len(classes) >= 9 and {"AngularTraceSpace", "DualSpace", "DirectSumSpace"} <= names, \
         f"CENSUS BROKEN: {sorted(names)}"
     own = sorted(c.__qualname__ for c in classes if "__eq__" in vars(c) or "__hash__" in vars(c))
     assert own == [], f"{len(own)} of {len(classes)} space classes define their own __eq__/__hash__: {own}"

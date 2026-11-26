@@ -36,6 +36,8 @@ from orpheus.sn import solve_sn_fixed_source
 from tests.gates._exterior import conditions_for
 from tests.gates._reference_pairing import conditions_of
 from tests.gates.transport._materials import CURVED_REFLECTIVE, material_xs_from_raw, placeholder_materials, reflective_role  # noqa: F401  (re-exported: re-homed in layer DAG Phase 4)
+from orpheus.numerics.direct_sum import DirectSumSpace
+from tests.gates._coupled_labels import hub_labels
 
 if TYPE_CHECKING:
     from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
@@ -531,7 +533,7 @@ def _LC_matvec(
 
     grid, _space = joint_m_grid(problem, LC)
     joint = grid.apply(
-        CoupledField(systems=(psi, radial_characteristic_flux)),
+        CoupledField(systems=(psi, radial_characteristic_flux), labels=hub_labels(2)),
     )
     return joint.systems[0]
 
@@ -689,7 +691,7 @@ def sweep_once(source, sig_t, problem, boundary_flux):
             np.asarray(source.values), problem,
         )
         grid, _space = joint_m_grid(problem, LC)
-        psi_a = grid.solve(CoupledField(systems=(rhs, q_half))).systems[0]
+        psi_a = grid.solve(CoupledField(systems=(rhs, q_half), labels=hub_labels(2))).systems[0]
     else:
         psi_a = LC.solve(rhs)
     boundary_flux.values[...] = psi_a.boundary.values
@@ -712,14 +714,13 @@ def joint_m_grid(problem: "SNProblem", LC):
     numerics block back-substitution, ``grid.inverse()`` the
     ``CoupledSubstitutionOperator``.
     """
-    from orpheus.numerics.coupled_system import CoupledOperator, CoupledSpace
+    from orpheus.numerics.coupled_system import CoupledOperator
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.sn.operators.radial_characteristic import (
         RadialCharacteristicSeeding,
     )
 
-    space = CoupledSpace.from_systems(
-        (problem.full_field_space, problem.radial_characteristic_field_space),
-    )
+    space = DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((problem.full_field_space, problem.radial_characteristic_field_space))))
     march = rc_march(problem, LC.diagonal.coefficient)
     grid = CoupledOperator(
         [[LC, RadialCharacteristicSeeding(problem)], [None, march]],

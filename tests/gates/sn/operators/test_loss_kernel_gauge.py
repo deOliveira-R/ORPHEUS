@@ -203,7 +203,7 @@ def _apply_loss(system, template, flat: np.ndarray) -> np.ndarray:
 
 
 def _n_bulk(problem) -> int:
-    return int(np.prod(problem.full_field_space.interior_space.shape))
+    return int(np.prod(problem.full_field_space.summand("bulk").shape))
 
 
 def _dd_gauge(problem):

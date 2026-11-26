@@ -176,7 +176,7 @@ class TestAdmission:
             BulkLift(wrong, domain=space, codomain=space)
 
     def test_a_plain_end_is_refused(self, mesh, inner):
-        with pytest.raises(TypeError, match="composite FullFieldSpace"):
+        with pytest.raises(TypeError, match="composite DirectSumSpace"):
             BulkLift(inner, domain=mesh.bulk_space, codomain=mesh.bulk_space)
 
     def test_a_bare_array_is_refused_naming_the_operator(self, mesh, lift):
@@ -213,7 +213,7 @@ class TestAdmission:
         psi = _flux(mesh, 10)
         assert admit_composite(lift, psi, end="domain") is psi
         assert admit_composite(lift, psi, end="codomain") is psi
-        with pytest.raises(TypeError, match="composite FullFieldSpace"):
+        with pytest.raises(TypeError, match="composite DirectSumSpace"):
             admit_composite(lift.inner, psi)  # a plain-bound operator has no interior
 
 

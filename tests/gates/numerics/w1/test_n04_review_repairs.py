@@ -1,7 +1,7 @@
 r"""The repairs of the N04 review (workflow W1, unit N04, phase Amend): six rows, each with the input that reddens it.
 
-(i) ``norm`` refuses a signed block of a composite space (``CoupledSpace``, ``FullFieldSpace``) with the issue #706 message, as it refuses a signed leaf.
-Mutation: ``CoupledSpace.negative`` left at the base default 0 reddens the first row; ``FullFieldSpace.negative`` the second.
+(i) ``norm`` refuses a signed block of a composite space (``DirectSumSpace``, ``DirectSumSpace``) with the issue #706 message, as it refuses a signed leaf.
+Mutation: ``DirectSumSpace.negative`` left at the base default 0 reddens the first row; ``DirectSumSpace.negative`` the second.
 (ii) an indefinite dense form has two refusals, one per build: without ``-O`` the constructor refuses it (a subprocess leg, whose ``orpheus`` is asserted to be this tree's);
 under ``-O`` the constructor accepts it and ``norm`` raises on the negative inner product, naming issue #706 (an in-process leg). Mutation: the ``square < 0.0`` check removed reddens the
 ``-O`` leg; the constructor's sign test removed reddens the subprocess leg.
@@ -28,6 +28,7 @@ import numpy as np
 import pytest
 
 from tests.gates.numerics.w1 import _tensor_probe as T
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -60,20 +61,20 @@ def _positive_leaf():
 
 
 def test_norm_refuses_a_signed_block_of_a_coupled_space() -> None:
-    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
     for members in ((_positive_leaf(), _signed_leaf()), (_signed_leaf(), _positive_leaf())):
-        space = CoupledSpace.from_systems(members)
+        space = DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate(members)))
         _require(space.negative == 1, f"the coupled space counts {space.negative} negative directions, 1 expected")
         with pytest.raises(ValueError, match="#706"):
             space.norm(np.ones(4))
-    _require(CoupledSpace.from_systems((_positive_leaf(), _positive_leaf())).negative == 0, "an all-positive coupled space counts a negative direction")
+    _require(DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_positive_leaf(), _positive_leaf())))).negative == 0, "an all-positive coupled space counts a negative direction")
 
 
 def test_norm_refuses_a_signed_block_of_a_full_field_space() -> None:
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
-    space = FullFieldSpace.from_blocks(_positive_leaf(), _signed_leaf())
+    space = DirectSumSpace.of_pairs(((BULK, _positive_leaf()), (TRACE, _signed_leaf())))
     _require(space.negative == 1, f"the composite counts {space.negative} negative directions, 1 expected")
     with pytest.raises(ValueError, match="#706"):
         space.norm(np.ones(4))

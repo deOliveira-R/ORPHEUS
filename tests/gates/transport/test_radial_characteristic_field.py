@@ -36,7 +36,7 @@ import pytest
 from orpheus.numerics.quadrature import Quadrature
 from typing import NamedTuple
 
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.spaces.radial_characteristic_space import (
     RadialCharacteristicBoundarySpace,
     RadialCharacteristicInteriorSpace,
@@ -59,6 +59,7 @@ from orpheus.transport.fields.radial_characteristic_boundary_source_sink import 
 from orpheus.transport.fields.radial_characteristic_interior_source_sink import (
     RadialCharacteristicInteriorSourceSink,
 )
+from orpheus.numerics.direct_sum import BOUNDARY, INTERIOR, DirectSumSpace
 
 pytestmark = pytest.mark.foundation
 
@@ -68,7 +69,7 @@ class _PsiHalfSpaces(NamedTuple):
 
     interior: RadialCharacteristicInteriorSpace
     boundary: RadialCharacteristicBoundarySpace
-    composite: FullFieldSpace
+    composite: DirectSumSpace
 
 
 def _sphere() -> _PsiHalfSpaces:
@@ -80,7 +81,7 @@ def _sphere() -> _PsiHalfSpaces:
     volumes = 4.0 * np.pi / 3.0 * np.diff(edges ** 3)
     interior = RadialCharacteristicInteriorSpace.for_levels((0,), ng=2, nx=4, cell_volumes=volumes)
     boundary = RadialCharacteristicBoundarySpace.for_levels((0,), ng=2, nx=4, cell_volumes=volumes)
-    return _PsiHalfSpaces(interior, boundary, FullFieldSpace.from_blocks(interior, boundary))
+    return _PsiHalfSpaces(interior, boundary, DirectSumSpace.of_pairs(((INTERIOR, interior), (BOUNDARY, boundary))))
 
 
 def _rand_composite(sn: _PsiHalfSpaces, seed: int) -> RadialCharacteristicField:
@@ -237,15 +238,15 @@ class TestCompositeAlgebra:
 # ── Presence = ray-carrying ──
 
 
-# ── System B's member space (B.2b b2 — the family-blind FullFieldSpace reuse) ──
+# ── System B's member space (B.2b b2 — the family-blind DirectSumSpace reuse) ──
 
 
 class TestRadialCharacteristicFieldSpace:
     r"""System B's member space (the SN problem's ``radial_characteristic_field_space``; here posed by hand).
 
-    The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
+    The DP1 ruling realized: the SAME family-blind ``DirectSumSpace`` class
     System A uses, instantiated over the two split ψ½ spaces. The identity
-    name is the family rule (CS4b S4): ``full_field#<digest>`` folded from
+    name is the family rule (CS4b S4): ``dsum(interior ⊕ boundary)#<digest>`` folded from
     the MEMBER spaces' content — the pre-S4 ``"radial_characteristic"``
     role tag left the space name (G2.3: role is class identity; the role
     lives on ``RadialCharacteristicField``). The metric rows exercise the
@@ -268,7 +269,7 @@ class TestRadialCharacteristicFieldSpace:
         # The family prefix + a member-content digest (never pin the full
         # literal — R4); System B is DISCRIMINATED from System A by member
         # content, not by a role tag.
-        if not space.name.startswith("full_field#"):
+        if not space.name.startswith("dsum(interior ⊕ boundary)#"):
             pytest.fail(f"space name is {space.name!r}")
         system_a = angular_full_field_space(cases.sphere(nx=4, ng=2), Quadrature.gauss_legendre(4))
         if space == system_a:

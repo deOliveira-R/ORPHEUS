@@ -78,7 +78,7 @@ if TYPE_CHECKING:
 
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.boundary.realized_operators import RealizedBoundary
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.sn.loss_representation.sweep_schedule import SweepSchedule
     from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields._bases import (
@@ -214,7 +214,7 @@ class SNBoundaryOperator(LinearOperator):  # concept: realized | role: weld | ki
 
     The domain and codomain are the
     mesh's composite carrier
-    :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+    :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
     (``problem.full_field_space``) — the SAME space ``L``/``C``/``S``/``F``
     report, so the :class:`~orpheus.numerics.operator.OperatorSum` composition
     guard accepts ``(L + C - S - F - B)`` (Wave O / O.2b R5). ``B`` acts on the
@@ -798,7 +798,7 @@ class RadialCharacteristicBoundaryOperator(LinearOperator):  # concept: realized
 
     def __init__(
         self,
-        field_space: "FullFieldSpace | None",
+        field_space: "DirectSumSpace | None",
         outer_face: "RealizedBoundary",
     ) -> None:
         if field_space is None:

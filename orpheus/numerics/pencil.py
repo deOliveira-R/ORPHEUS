@@ -47,7 +47,7 @@ class OperatorPencil(Generic[V]):  # concept: pencil | role: head | kind: morphi
 
     The ENDS LAW at construction: both operators must agree on domain and on
     codomain (the first witness — ``OperatorPencil(rec.loss, hub.fission)`` on
-    SN pairs a ``CoupledSpace`` with a ``FullFieldSpace`` and is REFUSED; the
+    SN pairs a coupled sum with the full-field sum and is REFUSED; the
     posed pair ``(loss, production)`` is admitted).  Ends an operator does not
     declare (``None``) are not compared — an OPAQUE pair (CP's) is admitted on
     the caller's word, which the docstring says rather than a flag.

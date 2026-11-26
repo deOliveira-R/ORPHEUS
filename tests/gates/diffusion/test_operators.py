@@ -630,11 +630,11 @@ class TestScalarCompositeSubstrate:
         # the bulk metric ACTION is cell volumes broadcast over groups
         # (asserted on the action — axis-built spaces store per-axis
         # weights, not one dense array).
-        assert ffs.interior_space is mesh.bulk_space
-        assert ffs.trace_space is mesh.scalar_trace
+        assert ffs.summand("bulk") is mesh.bulk_space
+        assert ffs.summand("trace") is mesh.scalar_trace
         x = np.arange(1.0, 1.0 + float(_NG * _NX)).reshape(_NG, _NX)
         np.testing.assert_array_equal(
-            ffs.interior_space.apply_metric(x),
+            ffs.summand("bulk").apply_metric(x),
             x * np.diff(_EDGES)[None, :],
         )
 

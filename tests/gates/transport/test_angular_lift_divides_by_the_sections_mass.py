@@ -148,7 +148,7 @@ def _read_transpose(lift, mesh, space):
     interior = AngularSourceSink(
         values=_rng(2).standard_normal(lift._codomain_interior.shape), space=lift._codomain_interior,
     )
-    cotangent = FullField(interior=interior, boundary=AngularBoundaryFlux.zeros(space.trace_space))
+    cotangent = FullField(interior=interior, boundary=AngularBoundaryFlux.zeros(space.summand("trace")))
     return np.asarray(lift.apply_transpose(cotangent).interior.values)
 
 

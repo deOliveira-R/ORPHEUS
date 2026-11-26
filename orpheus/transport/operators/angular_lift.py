@@ -87,7 +87,7 @@ from typing import TYPE_CHECKING, ClassVar, Generic, Self, TypeVar, cast
 import numpy as np
 
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, bulk_and_trace
 from orpheus.transport.fields._bases import (
     AngularField,
     BulkField,
@@ -375,15 +375,11 @@ class AngularLift(CompositeBound, Generic[EnergyT]):  # concept: natural | role:
         end.
         """
         domain = self.domain
-        if not isinstance(domain, FullFieldSpace):
-            raise TypeError(
-                f"{type(self).__name__}.on_moment_domain: the bound domain "
-                f"carries no trace block to pair with the moment interior."
-            )
+        _, trace = bulk_and_trace(domain, owner=f"{type(self).__name__}.on_moment_domain")
         return replace(
             self,
-            domain=FullFieldSpace.from_blocks(
-                self.flux_analysis.codomain, domain.trace_space,
+            domain=DirectSumSpace.of_pairs(
+                ((BULK, self.flux_analysis.codomain), (TRACE, trace)),
             ),
         )
 

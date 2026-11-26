@@ -169,7 +169,7 @@ def test_c37_the_adjoint_pencil_member_keeps_todays_bits():
     rhs = pencil.rhs
     if rhs.domain is None or rhs.codomain is None or not adjointable(rhs):
         pytest.fail("premise: the carrying sphere's fission word is bound and transposes")
-    zero = problem.system.space.zeros()
+    zero = problem.system.space.carrier.zeros()
     n = np.asarray(zero.to_flat()).size
     for seed in range(16):  # the moved bits are draw-dependent (anti-#31): sweep
         y = type(zero).from_flat(_rng(seed).random(n), zero)

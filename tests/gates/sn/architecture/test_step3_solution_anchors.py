@@ -105,6 +105,7 @@ from orpheus.transport.reaction_rate_functional import IntegratedReactionRate
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -619,9 +620,9 @@ class TestRecordThePureTransportPosingIsTheLOSS:
         )
         lifted_source = (
             source if isinstance(source, CoupledField)
-            else CoupledField(systems=(source,))
+            else CoupledField(systems=(source,), labels=hub_labels(1))
         )
-        template = problem.system.space.zeros()
+        template = problem.system.space.carrier.zeros()
         state = CoupledField.from_flat(
             np.ones(template.to_flat().size), template,
         )

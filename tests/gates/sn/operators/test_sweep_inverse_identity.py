@@ -44,6 +44,7 @@ from tests.gates.sn.operators._full_space_states import (
     system_a as _system_a,
     zero_source_composite as _zero_source_composite,
 )
+from tests.gates._coupled_labels import hub_labels
 
 pytestmark = [
     pytest.mark.foundation,
@@ -204,7 +205,7 @@ class TestSweepInverseIdentity:
                 )
             rhs = CoupledField(systems=(
                 rhs_a, RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
-            ))
+            ), labels=hub_labels(2))
         else:
             rhs_a = FullField(
                 interior=AngularFlux.zeros(problem.angular_bulk_space), boundary=boundary,

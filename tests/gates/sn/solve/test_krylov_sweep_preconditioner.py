@@ -72,6 +72,7 @@ from tests.gates.sn.verification.analytical._aba_reference import aba_materials,
 from tests.gates.sn.verification.analytical._case_slab_reference import case_slab_mesh
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -115,7 +116,7 @@ def _boundary_only(q: Any) -> Any:
     if not isinstance(q, CoupledField):
         return a_b
     system_b: tuple[Any, ...] = tuple(q.systems[1:])
-    return CoupledField(systems=(a_b, *(member * 0.0 for member in system_b)))
+    return CoupledField(systems=(a_b, *(member * 0.0 for member in system_b)), labels=hub_labels(2))
 
 
 def _flat(x: Any) -> np.ndarray:

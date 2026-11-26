@@ -62,6 +62,7 @@ from orpheus.transport.fields.angular_flux import AngularFlux
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -110,7 +111,7 @@ def _state(problem: SNProblem, fill: float = 1.0) -> CoupledField:
     member = TimedFullField.zeros(interior=AngularFlux, boundary=AngularBoundaryFlux, space=problem.full_field_space)
     member.interior.values[:] = fill
     member.boundary.values[:] = fill
-    return CoupledField(systems=(member,))
+    return CoupledField(systems=(member,), labels=hub_labels(1))
 
 
 def _member(state: CoupledField) -> TimedFullField:
@@ -165,7 +166,7 @@ def _eigen(problem: SNProblem, state: CoupledField | None = None, *, lam: float 
 
 def _source(problem: SNProblem, state: CoupledField | None = None) -> SourceOutcome:
     return SourceOutcome(
-        posing=SourcePosing.of_pencil(problem.pencil, 0.0, problem.system.space.zeros()),
+        posing=SourcePosing.of_pencil(problem.pencil, 0.0, problem.system.space.carrier.zeros()),
         state=_state(problem) if state is None else state,
     )
 
@@ -255,7 +256,7 @@ class TestSolutionKind:
     def test_an_eigen_outcome_refuses_a_source_question_at_the_sn_tier(self) -> None:
         m = _slab_mesh()
         with pytest.raises(TypeError, match="must be an EigenPosing"):
-            EigenOutcome(posing=SourcePosing(m.pencil.lhs, m.system.space.zeros()), state=_state(m), lam=1.0, trajectory=(1.0,), gauge=ScaleGauge(lambda s: 1.0, 1.0))  # type: ignore[arg-type]
+            EigenOutcome(posing=SourcePosing(m.pencil.lhs, m.system.space.carrier.zeros()), state=_state(m), lam=1.0, trajectory=(1.0,), gauge=ScaleGauge(lambda s: 1.0, 1.0))  # type: ignore[arg-type]
 
 
 # ════════════════════════════════════════════════════════════════════

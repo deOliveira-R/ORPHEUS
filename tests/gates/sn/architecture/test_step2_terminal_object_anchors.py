@@ -110,6 +110,7 @@ from tests.gates.sn.architecture._config import (
 from orpheus.geometry.deck import MirrorDeck
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -335,8 +336,8 @@ def _splitting_image(
         accumulated = image if accumulated is None else accumulated + image
     assert accumulated is not None
     return (
-        CoupledField(systems=(splitting.implicit.apply(interior),)).to_flat()
-        - CoupledField(systems=(accumulated,)).to_flat()
+        CoupledField(systems=(splitting.implicit.apply(interior),), labels=hub_labels(1)).to_flat()
+        - CoupledField(systems=(accumulated,), labels=hub_labels(1)).to_flat()
     )
 
 

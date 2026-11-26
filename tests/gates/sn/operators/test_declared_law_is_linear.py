@@ -344,7 +344,7 @@ def _full_matvec(sn: SNProblem):
 
 def _coupled(space, field: TimedFullField):
     """Lift a composite state into the 1-system coupled vector the grid takes."""
-    return replace(space.zeros(), systems=(field,))
+    return replace(space.carrier.zeros(), systems=(field,))
 
 
 # ═══════════════════════════════════════════════════════════════════════

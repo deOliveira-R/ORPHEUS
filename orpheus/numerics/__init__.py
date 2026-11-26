@@ -1,7 +1,7 @@
 """Model-independent numerical methods for reactor physics."""
 
 from .declaration import Ann, Coord, Declaration, Spanned
-from .coupled_system import CoupledField, CoupledOperator, CoupledSpace, SystemField
+from .coupled_system import CoupledField, CoupledOperator, SystemField
 from .eigenvalue import EigenvalueSolver, ProductionRateSolver, power_iteration
 from .field import Field
 from .functional import Functional, InnerProductFunctional, R_co, V_contra
@@ -42,7 +42,6 @@ __all__ = [
     "BundleMeasure",
     "CoupledField",
     "CoupledOperator",
-    "CoupledSpace",
     "Coord",
     "Declaration",
     "DiagonalOperator",

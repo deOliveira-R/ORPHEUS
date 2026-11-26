@@ -125,7 +125,7 @@ from orpheus.transport.fields.cross_section_field import CrossSectionField
 if TYPE_CHECKING:
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.numerics.space import FunctionSpace
     from orpheus.sn.boundary.realized_operators import RealizedBoundary
     from orpheus.sn.problem import SNProblem
@@ -556,7 +556,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):  # concept: EXT:c
         low_order: DSALowOrderSystem,
         quadrature: "Quadrature",
         *,
-        full_field_space: "FullFieldSpace",
+        full_field_space: "DirectSumSpace",
         angular_bulk_space: "FunctionSpace",
         angular_trace: "AngularTraceSpace",
         scattering_order: int = 0,
@@ -643,7 +643,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):  # concept: EXT:c
         :class:`~orpheus.transport.fields.angular_flux.AngularFlux`
         interior (signed values — flux lives in V, campaign 1 CS3), so
         the update step is the plain vector add ``ψ + Δψ_corr``. The
-        composite's concrete type is preserved (``_recombine``; a
+        composite's concrete type is preserved (``with_blocks``; a
         ``TimedFullField``'s history is reborn empty, correct for an
         addend).
 
@@ -719,7 +719,7 @@ class DSACorrection(LinearOperator["FullField", "FullField"]):  # concept: EXT:c
             }),
             space=self._angular_trace,
         )
-        return increment._recombine(
-            interior=AngularFlux(values=angular_values, space=self._angular_bulk_space),
-            boundary=trace,
-        )
+        return increment.with_blocks((
+            AngularFlux(values=angular_values, space=self._angular_bulk_space),
+            trace,
+        ))

@@ -2,7 +2,7 @@ r"""B.2a — the N-system coupled block machinery (M1–M4 gate suite).
 
 Intrinsic-property gates for
 :mod:`orpheus.numerics.coupled_system` — ``CoupledField`` (the block
-vector), ``CoupledSpace`` (the direct sum + the scoped local→global offsets),
+vector), ``DirectSumSpace`` (the direct sum + the scoped local→global offsets),
 ``CoupledOperator`` (the typed N×N block grid) — realizing the test-architect
 spec ``coupled_operator_step4_verification.md`` rows on SYNTHETIC toys (the
 machinery is semantics-agnostic; the ψ½ 2×2 is wired as instance #1 in
@@ -57,13 +57,8 @@ from orpheus.numerics.assembled_operator import (
     assemble,
     dense,
 )
-from orpheus.numerics.coupled_system import (
-    CoupledField,
-    CoupledOperator,
-    CoupledSpace,
-    CoupledSubstitutionOperator,
-    SystemRestrictionOperator,
-)
+from orpheus.numerics.coupled_system import CoupledField, CoupledOperator, CoupledSubstitutionOperator, SystemRestrictionOperator
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.iteration import (
     _is_ravellable,
     _ravel,
@@ -83,6 +78,8 @@ from orpheus.numerics.factor import Kind, Variance, VarianceChart
 from orpheus.numerics.space import DualSpace, FunctionSpace, TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
 from tests.gates.numerics._declared_support import declared_mod_kernel
+from orpheus.numerics.direct_sum import DirectSumSpace, SumCarrier
+from tests.gates._coupled_labels import labels_for
 
 pytestmark = pytest.mark.foundation
 
@@ -166,44 +163,13 @@ class _DeltaField(_ToyAlgebra):
     values: np.ndarray
 
 
-class _ToySpace:
-    """A carrier-typed member space: a ``TensorSpace`` whose metric legs act on the VALUES of a typed field.
+def _toy_space(name: str, shape: tuple[int, ...], weights) -> "TensorSpace":
+    """A member space of the toy coupled system: one declared factor, the diagonal metric ``weights`` on the values (the default carrier).
 
-    A delegating double, not a ``FunctionSpace`` subclass (the subclasses of ``FunctionSpace`` are an allow-list): every question about the space is the
-    declared space's, and the legs that take a typed field act on ``field.values`` and return a field of the same class.
+    The toy members are plain dataclasses carrying ``values``: the coupled sum acts on their values through its summands' own verbs and rebuilds them with
+    ``replace(block, values=...)``, so a summand is a tensor space and no delegating double is needed.
     """
-
-    def __init__(self, space: "TensorSpace") -> None:
-        self._space = space
-
-    def __getattr__(self, name: str):
-        return getattr(self._space, name)
-
-    def apply_metric(self, x):
-        return replace(x, values=self._space.apply_metric(x.values))
-
-    def apply_inverse_metric(self, x):
-        return replace(x, values=self._space.apply_inverse_metric(x.values))
-
-    def inner_product(self, x, y) -> float:
-        return self._space.inner_product(x.values, y.values)
-
-    def dual(self) -> "_ToySpace":
-        return _ToySpace(self._space.dual())
-
-    def __eq__(self, other: object) -> bool:
-        return isinstance(other, _ToySpace) and self._space == other._space
-
-    def __hash__(self) -> int:
-        return hash(("_ToySpace", self._space))
-
-    def __repr__(self) -> str:
-        return f"_ToySpace({self._space!r})"
-
-
-def _toy_space(name: str, shape: tuple[int, ...], weights) -> _ToySpace:
-    """A member space of the toy coupled system: one declared factor, the diagonal metric ``weights`` on the values (the default carrier)."""
-    return _ToySpace(declared_mod_kernel(name, shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.asarray(weights, dtype=float))))
+    return declared_mod_kernel(name, shape, Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.asarray(weights, dtype=float)))
 
 
 class _Block(LinearOperator):
@@ -318,8 +284,8 @@ _SP_A = _toy_space("alpha", (3,), np.array([1.0, 2.0, 0.5]))
 _SP_B = _toy_space("beta", (2,), np.array([3.0, 0.25]))
 
 
-def _coupled_space() -> CoupledSpace:
-    return CoupledSpace.from_systems((_SP_A, _SP_B))
+def _coupled_space() -> DirectSumSpace:
+    return DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_SP_A, _SP_B))))
 
 
 def _grid_blocks() -> dict[str, _Block]:
@@ -357,8 +323,7 @@ def _x(seed: int) -> CoupledField:
         systems=(
             _AlphaField(values=rng.random(3) + 0.5),
             _BetaField(values=rng.random(2) + 0.5),
-        ),
-    )
+        ), labels=labels_for(2),)
 
 
 def _probe_dense(op: CoupledOperator, template: CoupledField) -> np.ndarray:
@@ -381,20 +346,20 @@ def _probe_dense(op: CoupledOperator, template: CoupledField) -> np.ndarray:
 class TestCoupledFieldIntrinsic:
     def test_systems_must_be_a_nonempty_tuple(self) -> None:
         with pytest.raises(ValueError, match="at least one system"):
-            CoupledField(systems=())
+            CoupledField(systems=(), labels=labels_for(0))
         with pytest.raises(TypeError, match="must be a tuple"):
-            CoupledField(systems=[_x(1).systems[0]])  # type: ignore[arg-type]
+            CoupledField(systems=[_x(1).systems[0]], labels=labels_for([_x(1).systems[0]]))  # type: ignore[arg-type]
 
     def test_member_contract_guard_names_the_offender(self) -> None:
         good = _x(2).systems[0]
         with pytest.raises(TypeError, match="system 1"):
-            CoupledField(systems=(good, object()))  # type: ignore[arg-type]
+            CoupledField(systems=(good, object()), labels=labels_for(2))  # type: ignore[arg-type]
 
     def test_arithmetic_requires_a_same_class_arity_matched_partner(self) -> None:
         x = _x(3)
         with pytest.raises(TypeError, match="same-class partner"):
             _ = x + 42  # type: ignore[operator]
-        one = CoupledField(systems=(x.systems[0],))
+        one = CoupledField(systems=(x.systems[0],), labels=labels_for(1))
         with pytest.raises(ValueError, match="matching system arity"):
             _ = x + one
 
@@ -435,7 +400,7 @@ class TestCoupledFieldIntrinsic:
         # container but must raise from the MEMBER algebra (the machinery
         # adds no cross-member tolerance — role/type law lives on members).
         x = _x(6)
-        swapped = CoupledField(systems=(x.systems[1], x.systems[0]))
+        swapped = CoupledField(systems=(x.systems[1], x.systems[0]), labels=labels_for(2))
         with pytest.raises(TypeError, match="foreign member"):
             _ = x + swapped
 
@@ -497,40 +462,41 @@ class TestCoupledFieldIntrinsic:
         np.testing.assert_array_equal(u.to_flat(), x.to_flat())
 
 
-# ── CoupledSpace — the direct sum + the scoped local→global offsets ───
+# ── DirectSumSpace — the direct sum + the scoped local→global offsets ───
 
 
 class TestCoupledSpace:
     def test_from_systems_derives_name_and_flat_shape(self) -> None:
         cs = _coupled_space()
-        if cs.name != f"coupled({_SP_A.name} ⊕ {_SP_B.name})":
+        if not cs.name.startswith("dsum(s0 ⊕ s1)#"):
             pytest.fail(f"derived name {cs.name!r}")
         if cs.shape != (5,):
             pytest.fail(f"flat direct-sum shape {cs.shape}")
-        if cs.n_systems != 2:
-            pytest.fail(f"n_systems {cs.n_systems}")
+        if len(cs.labels) != 2:
+            pytest.fail(f"summand labels {cs.labels}")
 
     def test_from_systems_rejects_empty(self) -> None:
         with pytest.raises(ValueError, match="at least one member space"):
-            CoupledSpace.from_systems(())
+            DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate(())))
 
     def test_a_coupled_space_cannot_be_built_without_its_members(self) -> None:
         """Since S7 the members are a required field (the bare-constructor
         footgun guard retired): omitting them is a TypeError, an empty tuple
         is refused at construction."""
-        with pytest.raises(TypeError, match="systems"):
-            CoupledSpace(name="coupled(?)", shape=(5,))  # type: ignore[call-arg]
+        with pytest.raises(TypeError, match="summands"):
+            DirectSumSpace()  # type: ignore[call-arg]
         with pytest.raises(ValueError, match="at least one member space"):
-            CoupledSpace(name="coupled(?)", shape=(5,), systems=())
+            DirectSumSpace(summands=())
 
     def test_system_slices_are_the_local_to_global_offsets(self) -> None:
         # The scoped LocalToGlobalMap: the slice table IS the to_flat layout.
         cs = _coupled_space()
-        if cs.system_slices != (slice(0, 3), slice(3, 5)):
-            pytest.fail(f"offset table {cs.system_slices}")
+        slices = tuple(cs.slice_of(label) for label in cs.labels)
+        if slices != (slice(0, 3), slice(3, 5)):
+            pytest.fail(f"offset table {slices}")
         x = _x(12)
         flat = x.to_flat()
-        for member, sl in zip(x.systems, cs.system_slices):
+        for member, sl in zip(x.systems, slices):
             np.testing.assert_array_equal(flat[sl], member.to_flat())
 
     def test_apply_metric_dispatches_member_wise(self) -> None:
@@ -576,7 +542,7 @@ class TestCoupledSpace:
 
     def test_metric_arity_mismatch_raises(self) -> None:
         cs = _coupled_space()
-        one = CoupledField(systems=(_x(17).systems[0],))
+        one = CoupledField(systems=(_x(17).systems[0],), labels=labels_for(1))
         with pytest.raises(ValueError, match="pairing is inconsistent"):
             cs.apply_metric(one)
 
@@ -613,10 +579,10 @@ class TestBlockMatvec:
 
     def test_degenerate_single_system_grid(self) -> None:
         b = _grid_blocks()
-        cs1 = CoupledSpace.from_systems((_SP_A,))
+        cs1 = DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_SP_A,))))
         op = CoupledOperator([[b["AA"]]], domain=cs1, codomain=cs1)
         xa = _x(22).systems[0]
-        out = op.apply(CoupledField(systems=(xa,)))
+        out = op.apply(CoupledField(systems=(xa,), labels=labels_for(1)))
         np.testing.assert_array_equal(
             out.systems[0].values, b["AA"].matrix @ xa.values,
         )
@@ -625,7 +591,7 @@ class TestBlockMatvec:
         op = _operator()
         with pytest.raises(TypeError, match="expected a CoupledField"):
             op.apply(np.ones(5))  # type: ignore[arg-type]
-        one = CoupledField(systems=(_x(23).systems[0],))
+        one = CoupledField(systems=(_x(23).systems[0],), labels=labels_for(1))
         with pytest.raises(ValueError, match="carries 1 systems"):
             op.apply(one)
 
@@ -648,7 +614,7 @@ class TestAssembleProbe:
         op = _operator(b)
         cs = _coupled_space()
         assembled = dense(op)
-        rows, cols = cs.system_slices, cs.system_slices
+        rows = cols = tuple(cs.slice_of(label) for label in cs.labels)
         np.testing.assert_allclose(assembled[rows[0], cols[1]], b["AB"].matrix)
         np.testing.assert_allclose(assembled[rows[1], cols[0]], b["BA"].matrix)
 
@@ -660,12 +626,12 @@ class TestAssembleProbe:
         )
         assembled = dense(op)
         np.testing.assert_array_equal(
-            assembled[cs.system_slices[0], cs.system_slices[1]],
+            assembled[cs.slice_of(cs.labels[0]), cs.slice_of(cs.labels[1])],
             np.zeros((3, 2)),
         )
 
     @staticmethod
-    def _square_fixture() -> tuple[CoupledOperator, CoupledField, CoupledSpace]:
+    def _square_fixture() -> tuple[CoupledOperator, CoupledField, DirectSumSpace]:
         """Same-size (2 ⊕ 2) ASYMMETRIC grid: the transpose-placement mutant
         is shape-legal here, so the VALUE gate (not a shape error) is what
         must red — a symmetric grid would be offset-transpose-blind (Mode 12).
@@ -687,14 +653,13 @@ class TestAssembleProbe:
                        out_cls=_DeltaField, domain=sd, codomain=sd),
             ],
         ]
-        cs = CoupledSpace.from_systems((sg, sd))
+        cs = DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((sg, sd))))
         op = CoupledOperator(blocks, domain=cs, codomain=cs)
         template = CoupledField(
             systems=(
                 _GammaField(values=rng.random(2)),
                 _DeltaField(values=rng.random(2)),
-            ),
-        )
+            ), labels=labels_for(2),)
         return op, template, cs
 
     def test_offset_swap_tooth_reds_the_probe_gate(self, monkeypatch) -> None:
@@ -872,7 +837,7 @@ class TestBlockAdjoint:
         # The CONTROL leg (L18 both-legs discipline; the tooth below is the
         # mutated leg): ⟨A x, y⟩_G = ⟨x, A.H y⟩_G under the NONUNIFORM
         # member metrics — the metric conjugation is realized by the generic
-        # AdjointOperator over CoupledSpace.apply_metric/-inverse_metric.
+        # AdjointOperator over DirectSumSpace.apply_metric/-inverse_metric.
         op = _operator()
         cs = _coupled_space()
         x, y = _x(51), _x(52)
@@ -974,14 +939,11 @@ def _zeros_field() -> CoupledField:
         systems=(
             _AlphaField(values=np.zeros(3)),
             _BetaField(values=np.zeros(2)),
-        ),
-    )
+        ), labels=labels_for(2),)
 
 
-def _solvable_space(*, zeros: bool = True) -> CoupledSpace:
-    return CoupledSpace.from_systems(
-        (_SP_A, _SP_B), zeros=_zeros_field if zeros else None,
-    )
+def _solvable_space(*, zeros: bool = True) -> DirectSumSpace:
+    return DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_SP_A, _SP_B))), carrier=SumCarrier(zeros=_zeros_field if zeros else None))
 
 
 _PATTERNS: dict = {
@@ -1012,8 +974,7 @@ def _rhs(seed: int) -> CoupledField:
         systems=(
             _AlphaField(values=rng.random(3) + 0.5),
             _BetaField(values=rng.random(2) + 0.5),
-        ),
-    )
+        ), labels=labels_for(2),)
 
 
 class TestBlockSolve:
@@ -1111,7 +1072,7 @@ class TestBlockSolve:
                             )
                     diagonal = self.blocks[i][i]
                     solved[i] = diagonal.solve(acc)
-                return CoupledField(systems=tuple(solved))
+                return CoupledField(systems=tuple(solved), labels=labels_for(tuple(solved)))
 
             return _body
 
@@ -1302,16 +1263,16 @@ class TestBlockSolve:
 
 
 class TestCoupledSpaceZeros:
-    """The zero-element seam (:meth:`CoupledSpace.zeros`) — the
+    """The zero-element seam (``carrier.zeros`` of the sum) — the
     typed-carrier materialization's template source."""
 
     def test_unwired_zeros_raises_the_seam_message(self) -> None:
         with pytest.raises(RuntimeError, match="zero-element factory"):
-            _solvable_space(zeros=False).zeros()
+            _solvable_space(zeros=False).member(np.zeros(5))
 
     def test_wired_zeros_mints_fresh_owned_buffers(self) -> None:
         space = _solvable_space()
-        first, second = space.zeros(), space.zeros()
+        first, second = space.carrier.zeros(), space.carrier.zeros()
         if first is second:
             pytest.fail("zeros() must mint a FRESH field per call")
         np.asarray(first.systems[0].values)[...] = 7.0
@@ -1322,14 +1283,10 @@ class TestCoupledSpaceZeros:
         )
 
     def test_zeros_arity_is_checked(self) -> None:
-        lopsided = CoupledSpace.from_systems(
-            (_SP_A, _SP_B),
-            zeros=lambda: CoupledField(
-                systems=(_AlphaField(values=np.zeros(3)),),
-            ),
-        )
+        lopsided = DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_SP_A, _SP_B))), carrier=SumCarrier(zeros=lambda: CoupledField(
+                systems=(_AlphaField(values=np.zeros(3)),), labels=labels_for(1),)))
         with pytest.raises(ValueError, match="pairing is inconsistent"):
-            lopsided.zeros()
+            lopsided.member(np.zeros(5))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1346,27 +1303,21 @@ class TestCoupledSpaceZeros:
 # the daggered fission chain's cross-class arithmetic gate).
 
 
-def _restriction_space() -> CoupledSpace:
-    return CoupledSpace.from_systems(
-        (_SP_A, _SP_B),
-        zeros=lambda: CoupledField(
+def _restriction_space() -> DirectSumSpace:
+    return DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_SP_A, _SP_B))), carrier=SumCarrier(zeros=lambda: CoupledField(
             systems=(
                 _AlphaField(values=np.zeros(3)),
                 _BetaField(values=np.zeros(2)),
-            ),
-        ),
-        dual_zeros=lambda: CoupledField(
+            ), labels=labels_for(2),), dual_zeros=lambda: CoupledField(
             systems=(
                 _GammaField(values=np.zeros(3)),
                 _DeltaField(values=np.zeros(2)),
-            ),
-        ),
-    )
+            ), labels=labels_for(2),)))
 
 
 def _restriction_pair():
     space = _restriction_space()
-    return space, SystemRestrictionOperator(space, system=0)
+    return space, SystemRestrictionOperator(space, label=f"s{0}")
 
 
 class TestSystemRestriction:
@@ -1375,13 +1326,12 @@ class TestSystemRestriction:
         apply selects member i as the legitimate 1-member coupling."""
         space, r = _restriction_pair()
         assert r.domain is space
-        assert tuple(r.codomain.systems) == (_SP_A,)
+        assert tuple(s for _, s in r.codomain.summands) == (_SP_A,)
         x = CoupledField(
             systems=(
                 _AlphaField(values=np.array([1.0, 2.0, 3.0])),
                 _BetaField(values=np.array([4.0, 5.0])),
-            ),
-        )
+            ), labels=labels_for(2),)
         out = r.apply(x)
         assert len(out.systems) == 1
         assert isinstance(out.systems[0], _AlphaField)
@@ -1390,7 +1340,7 @@ class TestSystemRestriction:
     def test_retraction_after_extension_is_identity(self) -> None:
         """r ∘ ι = id on the member (the split-pair law), class preserved."""
         _, r = _restriction_pair()
-        y = CoupledField(systems=(_GammaField(values=np.array([7.0, -1.0, 2.5])),))
+        y = CoupledField(systems=(_GammaField(values=np.array([7.0, -1.0, 2.5])),), labels=labels_for(1))
         back = r.apply(r.apply_transpose(y))
         assert isinstance(back.systems[0], _GammaField)
         np.testing.assert_array_equal(back.systems[0].values, y.systems[0].values)
@@ -1401,7 +1351,7 @@ class TestSystemRestriction:
         class is load-bearing ([M] 2026-08-22: the primal mint reddened
         the daggered fission chain's cross-class gate)."""
         _, r = _restriction_pair()
-        y = CoupledField(systems=(_GammaField(values=np.ones(3)),))
+        y = CoupledField(systems=(_GammaField(values=np.ones(3)),), labels=labels_for(1))
         ext = r.apply_transpose(y)
         assert len(ext.systems) == 2
         assert isinstance(ext.systems[0], _GammaField)  # the input, placed
@@ -1417,9 +1367,8 @@ class TestSystemRestriction:
             systems=(
                 _AlphaField(values=rng.standard_normal(3)),
                 _BetaField(values=rng.standard_normal(2)),
-            ),
-        )
-        y = CoupledField(systems=(_GammaField(values=rng.standard_normal(3)),))
+            ), labels=labels_for(2),)
+        y = CoupledField(systems=(_GammaField(values=rng.standard_normal(3)),), labels=labels_for(1))
         lhs = float(np.dot(r.apply(x).systems[0].values, y.systems[0].values))
         ext = r.apply_transpose(y)
         rhs = float(
@@ -1432,7 +1381,7 @@ class TestSystemRestriction:
         """P = ι ∘ r is idempotent at the values level (P² x = P x)."""
         rng = np.random.default_rng(20260823)
         _, r = _restriction_pair()
-        y = CoupledField(systems=(_GammaField(values=rng.standard_normal(3)),))
+        y = CoupledField(systems=(_GammaField(values=rng.standard_normal(3)),), labels=labels_for(1))
         # Run the projector on the DUAL side, where both verbs compose:
         # P = ι ∘ r on the extended field.
         p1 = r.apply_transpose(r.apply(r.apply_transpose(y)))
@@ -1445,16 +1394,16 @@ class TestSystemRestriction:
     def test_unwired_dual_seam_refuses_loudly(self) -> None:
         """apply_transpose on a space with no dual factory: the space's own
         loud refusal names the seam (no silent primal fallback)."""
-        bare = CoupledSpace.from_systems((_SP_A, _SP_B))
-        r = SystemRestrictionOperator(bare, system=0)
-        y = CoupledField(systems=(_GammaField(values=np.zeros(3)),))
+        bare = DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_SP_A, _SP_B))))
+        r = SystemRestrictionOperator(bare, label=bare.labels[0])
+        y = CoupledField(systems=(_GammaField(values=np.zeros(3)),), labels=labels_for(1))
         with pytest.raises(RuntimeError, match="DUAL zero-element factory"):
             r.apply_transpose(y)
 
     def test_out_of_range_system_refuses(self) -> None:
         space = _restriction_space()
-        with pytest.raises(ValueError, match="out of range"):
-            SystemRestrictionOperator(space, system=2)
+        with pytest.raises(KeyError, match="not a summand label"):
+            SystemRestrictionOperator(space, label="s2")
 
     def test_is_adjointable(self) -> None:
         _, r = _restriction_pair()
@@ -1504,25 +1453,19 @@ _SEEDS = range(20)
 _DUAL_CLS = (_GammaField, _DeltaField)
 
 
-def _law_space(fixture: str) -> CoupledSpace:
+def _law_space(fixture: str) -> DirectSumSpace:
     wa, wb = (np.array(w) for w in _LAW_WEIGHTS[fixture])
     member_a = _toy_space("alpha", (wa.size,), wa)
     member_b = _toy_space("beta", (wb.size,), wb)
-    return CoupledSpace.from_systems(
-        (member_a, member_b),
-        zeros=lambda: CoupledField(
+    return DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((member_a, member_b))), carrier=SumCarrier(zeros=lambda: CoupledField(
             systems=(
                 _AlphaField(values=np.zeros(wa.size)),
                 _BetaField(values=np.zeros(wb.size)),
-            ),
-        ),
-        dual_zeros=lambda: CoupledField(
+            ), labels=labels_for(2),), dual_zeros=lambda: CoupledField(
             systems=(
                 _GammaField(values=np.zeros(wa.size)),
                 _DeltaField(values=np.zeros(wb.size)),
-            ),
-        ),
-    )
+            ), labels=labels_for(2),)))
 
 
 def _sizes(fixture: str) -> tuple[int, int]:
@@ -1533,8 +1476,7 @@ def _sizes(fixture: str) -> tuple[int, int]:
 def _member(fixture: str, i: int, rng: np.random.Generator) -> CoupledField:
     """A random cotangent-role field of member ``i`` (a 1-member coupling)."""
     return CoupledField(
-        systems=(_DUAL_CLS[i](values=rng.standard_normal(_sizes(fixture)[i])),),
-    )
+        systems=(_DUAL_CLS[i](values=rng.standard_normal(_sizes(fixture)[i])),), labels=labels_for(1),)
 
 
 def _whole(fixture: str, rng: np.random.Generator) -> CoupledField:
@@ -1544,8 +1486,7 @@ def _whole(fixture: str, rng: np.random.Generator) -> CoupledField:
         systems=(
             _GammaField(values=rng.standard_normal(na)),
             _DeltaField(values=rng.standard_normal(nb)),
-        ),
-    )
+        ), labels=labels_for(2),)
 
 
 def _projector(r: SystemRestrictionOperator, x: CoupledField) -> np.ndarray:
@@ -1555,7 +1496,7 @@ def _projector(r: SystemRestrictionOperator, x: CoupledField) -> np.ndarray:
 
 def _g_pairing(fixture: str, a: np.ndarray, b: np.ndarray) -> float:
     """``⟨a, b⟩_G`` on flat coupled vectors, from the raw member weights —
-    independent of the production ``CoupledSpace.inner_product``."""
+    independent of the production ``DirectSumSpace.inner_product``."""
     return float(np.sum(np.concatenate(_LAW_WEIGHTS[fixture]) * a * b))
 
 
@@ -1573,7 +1514,7 @@ class TestSystemRestrictionLaws:
         (the page's non-uniqueness argument); the cross law and the
         G-orthogonality of ``P_i`` catch that.
         """
-        r = SystemRestrictionOperator(_law_space(fixture), system=system)
+        r = SystemRestrictionOperator(_law_space(fixture), label=f"s{system}")
         for seed in _SEEDS:
             v = _member(fixture, system, np.random.default_rng(seed))
             back = r.apply(r.apply_transpose(v))
@@ -1595,8 +1536,8 @@ class TestSystemRestrictionLaws:
         restriction reads the wrong one.
         """
         space = _law_space(fixture)
-        r_i = SystemRestrictionOperator(space, system=system)
-        r_j = SystemRestrictionOperator(space, system=1 - system)
+        r_i = SystemRestrictionOperator(space, label=f"s{system}")
+        r_j = SystemRestrictionOperator(space, label=f"s{1 - system}")
         for seed in _SEEDS:
             v = _member(fixture, system, np.random.default_rng(seed))
             other = r_j.apply(r_i.apply_transpose(v)).to_flat()
@@ -1617,7 +1558,7 @@ class TestSystemRestrictionLaws:
         the wrong one (a slot moved).
         """
         space = _law_space(fixture)
-        restrictions = [SystemRestrictionOperator(space, system=i) for i in (0, 1)]
+        restrictions = [SystemRestrictionOperator(space, label=f"s{i}") for i in (0, 1)]
         for seed in _SEEDS:
             x = _whole(fixture, np.random.default_rng(seed))
             total = sum(_projector(r, x) for r in restrictions)
@@ -1639,7 +1580,7 @@ class TestSystemRestrictionLaws:
         :meth:`test_projector_is_G_orthogonal` catches.
         """
         space = _law_space(fixture)
-        r = SystemRestrictionOperator(space, system=system)
+        r = SystemRestrictionOperator(space, label=f"s{system}")
         for seed in _SEEDS:
             x = _whole(fixture, np.random.default_rng(seed))
             once = _projector(r, x)
@@ -1671,7 +1612,7 @@ class TestSystemRestrictionLaws:
         slot), and the cross law is its catcher.
         """
         space = _law_space(fixture)
-        r = SystemRestrictionOperator(space, system=system)
+        r = SystemRestrictionOperator(space, label=f"s{system}")
         eps = np.finfo(float).eps
         probe = _whole(fixture, np.random.default_rng(12345))
         np.testing.assert_allclose(
@@ -1741,7 +1682,7 @@ class TestSystemRestrictionLaws:
         (ERR-067 class), not this row's.
         """
         space = _law_space(fixture)
-        r = SystemRestrictionOperator(space, system=system)
+        r = SystemRestrictionOperator(space, label=f"s{system}")
         weights = np.array(_LAW_WEIGHTS[fixture][system])
         eps = np.finfo(float).eps
 
@@ -1767,8 +1708,7 @@ class TestSystemRestrictionLaws:
                     replace(v.systems[0], values=np.where(
                         weights != 0.0, v.systems[0].values, 0.0,
                     )),
-                ),
-            )
+                ), labels=labels_for(1),)
             expected = r.apply_transpose(projected).to_flat()
             got = adjoint.apply(v).to_flat()
             np.testing.assert_allclose(

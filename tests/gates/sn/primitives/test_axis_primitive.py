@@ -424,7 +424,7 @@ def _pose(axes: tuple[Axis1D, ...], quad: Quadrature) -> SNProblem:
 def _require_sizes(problem: SNProblem, *, interior: int, trace: int) -> None:
     """The interior block, the trace block and their direct sum, each against its closed-form count."""
     space = problem.full_field_space
-    got = (space.interior_space.n_coordinates, space.trace_space.n_coordinates, space.n_coordinates)
+    got = (space.summand("bulk").n_coordinates, space.summand("trace").n_coordinates, space.n_coordinates)
     if got != (interior, trace, interior + trace):
         pytest.fail(f"full field (interior, trace, sum) reads {got}; the closed form is {(interior, trace, interior + trace)}")
 

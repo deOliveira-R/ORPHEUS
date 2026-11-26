@@ -1,4 +1,4 @@
-r"""Identity + structure contract for :class:`FullFieldSpace` (Wave O / O.2b R5).
+r"""Identity + structure contract for :class:`DirectSumSpace` (Wave O / O.2b R5).
 
 The composite direct-sum space :math:`V_{\rm bulk}\oplus V_{\rm trace}`. These
 tests pin the **identity** semantics (the members' keys: a composite is its
@@ -25,10 +25,11 @@ import numpy as np
 import pytest
 
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.factor import Kind, Variance, VarianceChart
 from orpheus.numerics.space import TensorSpace
 from orpheus.numerics.metric import DiagonalMetric
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 
 def _bulk(shape=(4, 2, 3, 1), weights=True) -> FunctionSpace:
@@ -43,13 +44,13 @@ def _trace(n=8, weights=True) -> FunctionSpace:
 
 @pytest.mark.foundation
 def test_from_blocks_shape_is_flat_direct_sum():
-    space = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1)), _trace(8))
+    space = DirectSumSpace.of_pairs(((BULK, _bulk((4, 2, 3, 1))), (TRACE, _trace(8))))
     # Family prefix + a member-content digest (CS4b S4 — the of_axes rule
     # for direct sums); never pin the full literal (R4).
-    assert space.name.startswith("full_field#")
+    assert space.name.startswith("dsum(bulk ⊕ trace)#")
     assert space.shape == (4 * 2 * 3 * 1 + 8,)
-    assert space.interior_space.shape == (4, 2, 3, 1)
-    assert space.trace_space.shape == (8,)
+    assert space.summand("bulk").shape == (4, 2, 3, 1)
+    assert space.summand("trace").shape == (8,)
 
 
 @pytest.mark.foundation
@@ -57,42 +58,43 @@ def test_identity_is_the_members_content():
     # A composite's identity is its blocks' identities, and an axes-less block's identity carries its metric
     # (U1, 2026-10-30): equal blocks give equal composites; blocks that differ only in their metric give two
     # spaces. Until U1 this pair compared EQUAL, the metric-blind (name, shape) identity.
-    a = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1), weights=True), _trace(8, weights=True))
-    same = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1), weights=True), _trace(8, weights=True))
-    b = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1), weights=False), _trace(8, weights=False))
+    a = DirectSumSpace.of_pairs(((BULK, _bulk((4, 2, 3, 1), weights=True)), (TRACE, _trace(8, weights=True))))
+    same = DirectSumSpace.of_pairs(((BULK, _bulk((4, 2, 3, 1), weights=True)), (TRACE, _trace(8, weights=True))))
+    b = DirectSumSpace.of_pairs(((BULK, _bulk((4, 2, 3, 1), weights=False)), (TRACE, _trace(8, weights=False))))
     assert a == same and hash(a) == hash(same)
     assert a != b
 
 
 @pytest.mark.foundation
 def test_inequality_on_different_total_dimension():
-    a = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1)), _trace(8))
-    b = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1)), _trace(9))
+    a = DirectSumSpace.of_pairs(((BULK, _bulk((4, 2, 3, 1))), (TRACE, _trace(8))))
+    b = DirectSumSpace.of_pairs(((BULK, _bulk((4, 2, 3, 1))), (TRACE, _trace(9))))
     assert a != b
 
 
 @pytest.mark.foundation
 def test_usable_as_dict_key():
-    a = FullFieldSpace.from_blocks(_bulk(), _trace())
-    b = FullFieldSpace.from_blocks(_bulk(), _trace())  # equal identity
+    a = DirectSumSpace.of_pairs(((BULK, _bulk()), (TRACE, _trace())))
+    b = DirectSumSpace.of_pairs(((BULK, _bulk()), (TRACE, _trace())))  # equal identity
     d = {a: "composite"}
     assert d[b] == "composite"
 
 
 @pytest.mark.foundation
 def test_repr_names_the_space_and_shape():
-    space = FullFieldSpace.from_blocks(_bulk((4, 2, 3, 1)), _trace(8))
+    space = DirectSumSpace.of_pairs(((BULK, _bulk((4, 2, 3, 1))), (TRACE, _trace(8))))
     r = repr(space)
-    assert "FullFieldSpace" in r
-    assert "full_field" in r
+    assert "DirectSumSpace" in r
+    assert "dsum(bulk ⊕ trace)" in r
     assert str(space.shape) in r
 
 
 @pytest.mark.foundation
-def test_composite_own_inner_product_weights_stays_none():
-    # The composite carries no own diagonal metric — the metric lives per block.
-    space = FullFieldSpace.from_blocks(_bulk(), _trace())
-    assert space.inner_product_weights is None
+def test_composite_own_inner_product_weights_is_refused():
+    # The composite carries no own diagonal metric — the metric lives per block — and, as on a tensor space, reading the stored field is refused.
+    space = DirectSumSpace.of_pairs(((BULK, _bulk()), (TRACE, _trace())))
+    with pytest.raises(AttributeError, match="stores no metric source"):
+        space.inner_product_weights
 
 
 @pytest.mark.foundation
@@ -106,23 +108,15 @@ def test_a_composite_block_carrying_a_dense_metric_delegates_it():
     delegation line each (``<block>_space.<verb>(x.<block>.values)``),
     so the pairing face witnesses the delegation for all three.
     """
-    from types import SimpleNamespace
-
     from orpheus.numerics.declaration import Coord
     from orpheus.numerics.metric import DenseMetric, Face
 
     g = np.array([[2.0, 0.5, 0.0], [0.5, 1.0, 0.25], [0.0, 0.25, 4.0]])
     interior = TensorSpace.declared("bulk3", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DenseMetric(g, kernel=Coord(3, ()), face=Face.METRIC))
     trace = TensorSpace.declared("tr2", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY), form=DiagonalMetric(np.array([2.0, 0.5])))
-    space = FullFieldSpace.from_blocks(interior, trace)
-    x = SimpleNamespace(
-        interior=SimpleNamespace(values=np.array([1.0, 2.0, 3.0])),
-        boundary=SimpleNamespace(values=np.array([1.0, 2.0])),
-    )
-    y = SimpleNamespace(
-        interior=SimpleNamespace(values=np.array([0.5, -1.0, 2.0])),
-        boundary=SimpleNamespace(values=np.array([1.0, 0.5])),
-    )
+    space = DirectSumSpace.of_pairs(((BULK, interior), (TRACE, trace)))
+    x = _Composite(_Leaf(np.array([1.0, 2.0, 3.0])), _Leaf(np.array([1.0, 2.0])))
+    y = _Composite(_Leaf(np.array([0.5, -1.0, 2.0])), _Leaf(np.array([1.0, 0.5])))
     assert space.inner_product(x, y) == 23.25 + 2.5
 
 
@@ -133,13 +127,17 @@ class _Leaf:
 
 @dataclasses.dataclass(frozen=True)
 class _Composite:
-    """A minimal carrier double: two frozen leaves and the ``_recombine`` hook the composite's legs rebuild through."""
+    """A minimal carrier double: two frozen leaves and the ``blocks`` and ``with_blocks`` accesses the sum's legs read and rebuild through."""
 
     interior: _Leaf
     boundary: _Leaf
 
-    def _recombine(self, *, interior, boundary):
-        return _Composite(interior, boundary)
+    @property
+    def blocks(self):
+        return (self.interior, self.boundary)
+
+    def with_blocks(self, blocks):
+        return _Composite(*blocks)
 
 
 @pytest.mark.parametrize("leg", ["apply_metric", "apply_inverse_metric"])
@@ -151,7 +149,7 @@ def test_the_flat_chart_and_the_carrier_agree_bit_for_bit(leg):
 
     First red: before U0 the flat chart raised ``AttributeError: 'numpy.ndarray' object has no attribute
     'interior'``. Arm: the blocks concatenated trace-first reddens the agreement."""
-    space = FullFieldSpace.from_blocks(_bulk(), _trace())
+    space = DirectSumSpace.of_pairs(((BULK, _bulk()), (TRACE, _trace())))
     rng = np.random.default_rng(666)
     bulk, trace = rng.standard_normal((4, 2, 3, 1)), rng.standard_normal(8)
     typed = getattr(space, leg)(_Composite(_Leaf(bulk), _Leaf(trace)))
@@ -164,6 +162,6 @@ def test_the_flat_chart_and_the_carrier_agree_bit_for_bit(leg):
 
 def test_the_flat_chart_is_parsed_at_the_composite():
     """A flat operand of the wrong length is not a coordinate vector of the sum: refused, not sliced short."""
-    space = FullFieldSpace.from_blocks(_bulk(), _trace())
+    space = DirectSumSpace.of_pairs(((BULK, _bulk()), (TRACE, _trace())))
     with pytest.raises(ValueError, match="shape"):
         space.apply_metric(np.ones(space.shape[0] - 1))

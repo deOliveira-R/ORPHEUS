@@ -1,6 +1,6 @@
 r"""S6a on the S\ :sub:`N` carriers — the composite duals and the mint count.
 
-The production carriers are a ``CoupledSpace`` over ``FullFieldSpace`` members
+The production carriers are a ``DirectSumSpace`` over ``DirectSumSpace`` members
 (slab, sphere, cylinder, and a cylinder whose trace metric is exactly zero on
 its tangential ordinates). Their dual is the coupled space of the member duals
 (biproduct duality, rulings 26 and 75); the dagger–dual square commutes bit for
@@ -42,11 +42,11 @@ def _require(cond: object, msg: str) -> None:
 
 
 def _coupled_domain(M):
-    from orpheus.numerics.coupled_system import CoupledSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
     V = M.domain
-    if not isinstance(V, CoupledSpace):
-        pytest.fail(f"fixture: the implicit operator's domain is a {type(V).__name__}, not a CoupledSpace")
+    if not isinstance(V, DirectSumSpace):
+        pytest.fail(f"fixture: the implicit operator's domain is a {type(V).__name__}, not a DirectSumSpace")
     return V
 
 
@@ -78,7 +78,7 @@ _SN = ["slab3", "sphere3", "cyl3", "cyl_degenerate"]
 
 @pytest.mark.parametrize("name", _SN)
 def test_C1_a_composite_dual_reads_the_member_inverse_metrics(name):
-    """On the production carriers (``CoupledSpace`` over ``FullFieldSpace``
+    """On the production carriers (``DirectSumSpace`` over ``DirectSumSpace``
     members; the cylinder's trace degenerate): ``V*.apply_metric ≡
     V.apply_inverse_metric`` and the reverse, bitwise, and the dual metric MOVES
     the sample. First red TODAY (census §3(a)): ``V*`` is a ``DualSpace`` with no
@@ -100,28 +100,27 @@ def test_C1_a_composite_dual_reads_the_member_inverse_metrics(name):
 
 @pytest.mark.parametrize("name", _SN)
 def test_C2_the_composite_dual_is_the_biproduct_of_member_duals(name):
-    """``CoupledSpace.dual()`` is a ``CoupledSpace`` whose systems are the member
-    duals (each a ``FullFieldSpace`` over the interior and trace duals); it is not
+    """``DirectSumSpace.dual()`` is a ``DirectSumSpace`` whose systems are the member
+    duals (each a ``DirectSumSpace`` over the interior and trace duals); it is not
     a ``DualSpace``; ``V*.dual() is V`` through the memo; the zero factories swap
     (the cotangent zeros are V*'s zeros; accepted 2026-10-21); ``V* ≠ V``."""
-    from orpheus.numerics.coupled_system import CoupledSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
     _, M, _ = _sn_problem(name)
     V = _coupled_domain(M)
     Vd = V.dual()
-    if not isinstance(Vd, CoupledSpace) or type(Vd) is not CoupledSpace or isinstance(Vd, DualSpace):
-        pytest.fail(f"V* is a {type(Vd).__name__}, not the CoupledSpace of member duals")
-    for s, sd in zip(V.systems, Vd.systems, strict=True):
+    if not isinstance(Vd, DirectSumSpace) or type(Vd) is not DirectSumSpace or isinstance(Vd, DualSpace):
+        pytest.fail(f"V* is a {type(Vd).__name__}, not the DirectSumSpace of member duals")
+    for s, sd in zip((s for _, s in V.summands), (s for _, s in Vd.summands), strict=True):
         _require(sd == s.dual(), f"member dual mismatch on {s.name}")
-        if isinstance(s, FullFieldSpace):
-            si, st = s.interior_space, s.trace_space
-            if not isinstance(sd, FullFieldSpace):
+        if isinstance(s, DirectSumSpace):
+            si, st = s.summand(s.labels[0]), s.summand(s.labels[1])
+            if not isinstance(sd, DirectSumSpace):
                 pytest.fail(f"the full-field dual is a {type(sd).__name__}")
-            _require(sd.interior_space == si.dual() and sd.trace_space == st.dual(),
+            _require(sd.summand(sd.labels[0]) == si.dual() and sd.summand(sd.labels[1]) == st.dual(),
                      "the full-field dual is not interior* ⊕ trace*")
     _require(Vd.dual() is V, "V*.dual() is not V")
-    _require(Vd.zeros_factory is V.dual_zeros_factory and Vd.dual_zeros_factory is V.zeros_factory,
+    _require(Vd.carrier.zeros is V.carrier.dual_zeros and Vd.carrier.dual_zeros is V.carrier.zeros,
              "the zero factories did not swap")
     _require(Vd != V and V != Vd, "V* == V on a composite")
 
@@ -183,15 +182,14 @@ def test_R2b_dual_space_of_a_composite_is_its_composite_dual():
     """``DualSpace.of(V)`` on the coupled carrier and on its full-field member
     is the composite dual (qa F2), never a ``DualSpace`` over the composite.
     First red: ``of`` wrapping the composite (the pre-S6a member-less dual)."""
-    from orpheus.numerics.coupled_system import CoupledSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
     _, M, _ = _sn_problem("slab3")
     V = _coupled_domain(M)
-    _require(DualSpace.of(V) is V.dual() and type(V.dual()) is CoupledSpace, "of(coupled) is not its dual")
-    member = V.systems[0]
-    _require(isinstance(member, FullFieldSpace) and DualSpace.of(member) is member.dual()
-             and type(member.dual()) is FullFieldSpace, "of(full field) is not its dual")
+    _require(DualSpace.of(V) is V.dual() and type(V.dual()) is DirectSumSpace, "of(coupled) is not its dual")
+    member = V.summand(V.labels[0])
+    _require(isinstance(member, DirectSumSpace) and DualSpace.of(member) is member.dual()
+             and type(member.dual()) is DirectSumSpace, "of(full field) is not its dual")
 
 
 @pytest.mark.parametrize("name", ["slab3", "cyl_degenerate"])

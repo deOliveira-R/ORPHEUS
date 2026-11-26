@@ -227,7 +227,7 @@ def test_refs_control_1_inheritance_across_packages_on_the_tree():
     pop = m.population.read_tree(ROOT)
     sources = {str(r.key.file): (ROOT / r.key.file).read_text() for r in pop.rows}
     got = {(str(e.src), str(e.dst), e.kind) for e in m.refs.read_edges(sources, pop)}
-    assert any(s.endswith("::FullFieldSpace") and d.endswith("::FunctionSpace") and k == "inherits" for s, d, k in got)
+    assert any(s.endswith("::AngularTraceSpace") and d.endswith("::FunctionSpace") and k == "inherits" for s, d, k in got)
     assert any(s.endswith("::SNProblem") and d.endswith("::FunctionSpace") for s, d, k in got)
 
 

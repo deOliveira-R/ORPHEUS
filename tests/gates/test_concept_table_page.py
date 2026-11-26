@@ -268,11 +268,11 @@ def test_walk_control_finds_known_members() -> None:
     walked = ast_classes(ROOT)
     assert any(q == "TaskInfo" or q.endswith(".<locals>.TaskInfo") for _, q in walked)
     assert sum("<locals>" in q for _, q in walked) == 1
-    assert len(walked) == 690
+    assert len(walked) == 688
 
 
 def test_member_lists_equal_the_population() -> None:
-    """The ``(file, qualname)`` of the page's member bullets equal the classes walked by ``ast``: 690 of 690, none extra, none twice.
+    """The ``(file, qualname)`` of the page's member bullets equal the classes walked by ``ast``: 688 of 688, none extra, none twice.
 
     Reddens: a class missing from the page, a class listed that is not in the tree, a class listed under two concepts.
     """
@@ -324,7 +324,7 @@ def test_page_label_and_pointer_to_the_debt_heading() -> None:
 
 
 def test_classes_and_functions_carry_no_sphinx_role() -> None:
-    """Classes and ``functions`` entries are literal names with file paths; no Python-domain role appears (222 of 690 classes resolve, an unresolved role is a silent dead link).
+    """Classes and ``functions`` entries are literal names with file paths; no Python-domain role appears (222 of 688 classes resolve, an unresolved role is a silent dead link).
 
     Reddens: any ``:class:``, ``:func:``, ``:meth:``, ``:mod:`` ... role on the page.
     """

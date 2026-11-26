@@ -78,7 +78,7 @@ if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace, TensorSpace
     from orpheus.numerics.spaces.angular_trace_space import AngularTraceSpace
     from orpheus.transport.fields import AngularBoundarySourceSink
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.numerics.spaces.radial_characteristic_space import (
         RadialCharacteristicBoundarySpace,
         RadialCharacteristicInteriorSpace,
@@ -1135,7 +1135,9 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
 
         # The question lives on the pencil's ends — the coupled space; a bare
         # (seedless) full-field source is the ONE-system coupled state.
-        lifted = source if isinstance(source, CoupledField) else CoupledField(systems=(source,))
+        from orpheus.sn.coupled_system import SYSTEM_A_LABEL
+
+        lifted = source if isinstance(source, CoupledField) else CoupledField(systems=(source,), labels=(SYSTEM_A_LABEL,))
         return SourcePosing.of_pencil(self.pencil, 1.0, lifted)
 
     @cached_property
@@ -1171,7 +1173,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         )
 
     @cached_property
-    def radial_characteristic_field_space(self) -> "FullFieldSpace | None":
+    def radial_characteristic_field_space(self) -> "DirectSumSpace | None":
         r"""System B's member space — the ψ½ ``interior ⊕ boundary`` composite, or ``None``.
 
         The :class:`~orpheus.numerics.space.FunctionSpace` the re-typed
@@ -1179,8 +1181,8 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         domain/codomain — the carrier space of
         :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`.
         REUSES the family-blind
-        :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-        (the same direct-sum member-wise metric dispatch System A's
+        :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
+        (the same direct-sum summand-wise metric dispatch System A's
         :attr:`full_field_space` uses — zero new space classes; this IS the
         post-eviction end-state, one composite-space class with instances
         differing in members), instantiated over the two split ψ½ spaces:
@@ -1190,8 +1192,8 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         * **trace slot** — :attr:`radial_characteristic_boundary_space`
           (the ``G = V(r = R)`` corner gauge).
 
-        Identity is the family rule (CS4b S4): ``full_field#<digest>``
-        with the digest folded from the two ψ½ member spaces' content —
+        Identity is the family rule (CS4b S4): the labelled summands
+        ``interior`` and ``boundary``, each keyed by the two ψ½ member spaces' content —
         the role tag the pre-S4 mint carried (``"radial_characteristic"``)
         was role-flavoured space naming (G2.3: role is CLASS identity —
         the role lives on ``RadialCharacteristicField``, the field class).
@@ -1203,15 +1205,15 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         boundary = self.radial_characteristic_boundary_space
         if interior is None or boundary is None:
             return None
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        from orpheus.numerics.direct_sum import BOUNDARY, INTERIOR, DirectSumSpace, SumCarrier
 
         from orpheus.transport.radial_characteristic_field import RadialCharacteristicField
 
-        return FullFieldSpace.from_blocks(
-            interior, boundary,
-            zeros_factory=lambda: RadialCharacteristicField.flux_zeros(
+        return DirectSumSpace.of_pairs(
+            ((INTERIOR, interior), (BOUNDARY, boundary)),
+            carrier=SumCarrier(zeros=lambda: RadialCharacteristicField.flux_zeros(
                 self.radial_characteristic_field_space,
-            ),
+            )),
         )
 
     @cached_property
@@ -1401,7 +1403,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         return {}
 
     @cached_property
-    def full_field_space(self) -> "FullFieldSpace":
+    def full_field_space(self) -> "DirectSumSpace":
         r"""The composite carrier :math:`V_{\rm bulk} \oplus V_{\rm trace}` (Wave O / O.2b).
 
         The function space of the FULL streaming operator
@@ -1433,7 +1435,7 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         honest two-system sum). Cached: the composite is immutable for a
         given mesh + quadrature.
         """
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, SumCarrier
 
         # The interior IS the carrier's trial space (CS4b S5 — one mint,
         # ``is``-shared with :attr:`angular_trial_space` at every scheme
@@ -1448,10 +1450,9 @@ class SNProblem(MethodMesh):  # concept: hub | role: weld | kind: element | weld
         # ``tests/gates/sn/mesh/test_angular_bulk_space.py``.
         from orpheus.sn.coupled_system import _zero_full_field
 
-        return FullFieldSpace.from_blocks(
-            self.angular_trial_space,
-            self.angular_trace,
-            zeros_factory=lambda: _zero_full_field(self),
+        return DirectSumSpace.of_pairs(
+            ((BULK, self.angular_trial_space), (TRACE, self.angular_trace)),
+            carrier=SumCarrier(zeros=lambda: _zero_full_field(self)),
         )
 
     @property

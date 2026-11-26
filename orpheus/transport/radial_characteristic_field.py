@@ -69,6 +69,7 @@ from orpheus.transport.fields.radial_characteristic_boundary_flux import (
 from orpheus.transport.fields.radial_characteristic_interior_flux import (
     RadialCharacteristicInteriorFlux,
 )
+from orpheus.numerics.direct_sum import BOUNDARY, INTERIOR
 from orpheus.transport.full_field import Composite
 from orpheus.transport.fields.radial_characteristic_boundary_source_sink import (
     RadialCharacteristicBoundarySourceSink,
@@ -79,7 +80,7 @@ from orpheus.transport.fields.radial_characteristic_interior_source_sink import 
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
 
 __all__ = ["RadialCharacteristicField"]
 
@@ -101,6 +102,8 @@ class RadialCharacteristicField(
     arithmetic per block since campaign 1 CS3) is inherited whole from
     :class:`~orpheus.transport.full_field.Composite`.
     """
+
+    LABELS = (INTERIOR, BOUNDARY)
 
     def __post_init__(self) -> None:
         # System B narrows the generic slots to the ψ½ split loci (the concrete
@@ -126,7 +129,7 @@ class RadialCharacteristicField(
 
     @classmethod
     def flux_zeros(
-        cls, space: "FullFieldSpace | None",
+        cls, space: "DirectSumSpace | None",
     ) -> "RadialCharacteristicField":
         r"""A zero ψ½ FLUX composite on System B's member space (presence-gated).
 
@@ -151,7 +154,7 @@ class RadialCharacteristicField(
 
     @classmethod
     def _require_member_space(
-        cls, space: "FullFieldSpace | None", *, context: str,
+        cls, space: "DirectSumSpace | None", *, context: str,
     ) -> "tuple[FunctionSpace, FunctionSpace]":
         r"""Parse the member-space argument — the shared presence gate.
 
@@ -169,11 +172,11 @@ class RadialCharacteristicField(
                 f"System B's blocks are spelled absent, never zero-DOF "
                 f"fields."
             )
-        return space.interior_space, space.trace_space
+        return space.summand(INTERIOR), space.summand(BOUNDARY)
 
     @classmethod
     def require_member(
-        cls, x: object, *, space: "FullFieldSpace", context: str,
+        cls, x: object, *, space: "DirectSumSpace", context: str,
     ) -> "RadialCharacteristicField":
         r"""Parse ``x`` as a System-B member carrier on ``space`` — the shared
         block-boundary guard.
@@ -197,15 +200,15 @@ class RadialCharacteristicField(
                 f"(System B's member carrier); got {type(x).__name__}."
             )
         if (
-            x.interior.space != space.interior_space
-            or x.boundary.space != space.trace_space
+            x.interior.space != space.summand(INTERIOR)
+            or x.boundary.space != space.summand(BOUNDARY)
         ):
             raise ValueError(
                 f"{context}: the input field's block spaces must agree with "
                 f"the operator's ray member spaces in content (space-content "
                 f"invariant, per block — the composite's own ``==`` is "
                 f"name+shape and cannot see blocks); got interior "
-                f"{x.interior.space!r} vs {space.interior_space!r}."
+                f"{x.interior.space!r} vs {space.summand(INTERIOR)!r}."
             )
         return x
 
@@ -213,7 +216,7 @@ class RadialCharacteristicField(
 
     @classmethod
     def source_zeros(
-        cls, space: "FullFieldSpace | None",
+        cls, space: "DirectSumSpace | None",
     ) -> "RadialCharacteristicField":
         r"""A zero q½ SOURCE composite on System B's member space (presence-gated).
 

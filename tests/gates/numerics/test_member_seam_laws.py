@@ -36,13 +36,13 @@ from typing import Callable
 import numpy as np
 import pytest
 
-from orpheus.numerics.coupled_system import CoupledSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.geometry.manifold import RealSpace
 from orpheus.numerics.measure import DiscreteMeasure
 from tests.gates._dense import declared_kernel
 from orpheus.numerics.metric import DenseMetric, Face, DiagonalMetric, FactoredMetric
 from orpheus.numerics.space import Covector, FunctionSpace, Member
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from tests.gates.numerics._axis_marginal_lift_support import zero_weight_nodal
 from orpheus.numerics.factor import Factor, Kind, Variance, VarianceChart
 from tests.gates.numerics._declared_support import declared_mod_kernel, factor_mod_kernel
@@ -51,6 +51,7 @@ from orpheus.numerics.axis import Axis
 from orpheus.numerics.axis import Declared
 from orpheus.numerics.axis import BasisKind
 from orpheus.numerics.declaration import Coord
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -246,11 +247,11 @@ def _composites() -> dict[str, tuple[FunctionSpace, tuple[FunctionSpace, ...], t
     differ (3 with kernel e₁, 3 dense with kernel (1, −1, −1), 12 with 4), so a reversed or shifted order is visible."""
     diag, dense, nodal = _diag("kc_v", [1.0, 0.0, 2.0]), _dense_singular("kc_d"), zero_weight_nodal()
     return {
-        "FullFieldSpace (diag ⊕ dense)": (FullFieldSpace.from_blocks(diag, dense), (diag, dense), (1, 1)),
-        "FullFieldSpace (nodal ⊕ diag)": (FullFieldSpace.from_blocks(nodal, diag), (nodal, diag), (4, 1)),
-        "CoupledSpace (diag ⊕ dense ⊕ nodal)": (CoupledSpace.from_systems((diag, dense, nodal)), (diag, dense, nodal), (1, 1, 4)),
-        "CoupledSpace (full rank ⊕ diag)": (
-            CoupledSpace.from_systems((_dense_full("kc_f"), diag)), (_dense_full("kc_f2"), diag), (0, 1),
+        "DirectSumSpace (diag ⊕ dense)": (DirectSumSpace.of_pairs(((BULK, diag), (TRACE, dense))), (diag, dense), (1, 1)),
+        "DirectSumSpace (nodal ⊕ diag)": (DirectSumSpace.of_pairs(((BULK, nodal), (TRACE, diag))), (nodal, diag), (4, 1)),
+        "DirectSumSpace (diag ⊕ dense ⊕ nodal)": (DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((diag, dense, nodal)))), (diag, dense, nodal), (1, 1, 4)),
+        "DirectSumSpace (full rank ⊕ diag)": (
+            DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((_dense_full("kc_f"), diag)))), (_dense_full("kc_f2"), diag), (0, 1),
         ),
     }
 

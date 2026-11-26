@@ -172,7 +172,7 @@ class TestFusedAngularRouteEqualsTypedMomentRoute:
 
         via_angular = bulk_apply(op, psi).values
         via_moment = op.on_moment_domain().apply(
-            zero_trace_composite(moments, op.domain.trace_space),
+            zero_trace_composite(moments, op.domain.summand("trace")),
         ).interior.values
 
         np.testing.assert_array_equal(

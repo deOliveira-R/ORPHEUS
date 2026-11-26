@@ -10,11 +10,12 @@ from __future__ import annotations
 import pytest
 
 from orpheus.diffusion import DiffusionMesh
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.transport.mesh.material_mesh import MaterialMesh
 from orpheus.transport.phase_spaces import scalar_trace_space
 from tests.gates.transport import _phase_space_cases as cases
 from tests.gates.transport._materials import CURVED_REFLECTIVE
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 pytestmark = pytest.mark.foundation
 
@@ -30,6 +31,6 @@ def test_the_scalar_trace_and_the_composite_are_the_constructors_on_the_meshs_da
     trace = scalar_trace_space(standalone)
     if hub.scalar_trace != trace or hash(hub.scalar_trace) != hash(trace):
         pytest.fail(f"{geometry}: DiffusionMesh.scalar_trace differs from scalar_trace_space on the same mesh")
-    composite = FullFieldSpace.from_blocks(standalone.bulk_space, trace)
+    composite = DirectSumSpace.of_pairs(((BULK, standalone.bulk_space), (TRACE, trace)))
     if hub.full_field_space != composite:
         pytest.fail(f"{geometry}: DiffusionMesh.full_field_space differs from the composite of the constructors")

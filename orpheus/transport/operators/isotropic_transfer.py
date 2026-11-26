@@ -64,7 +64,7 @@ onto the machinery.
 The ends select the carrier (CS4c step 5, R-4): an array of the bound
 space's shape is admitted, a typed field or a composite is refused naming
 the carrier it wanted (``.values``; :class:`~orpheus.transport.operators.lift.BulkLift`),
-and a composite ``FullFieldSpace`` END is refused at construction — the
+and a composite ``DirectSumSpace`` END is refused at construction — the
 composite action of an energy binding is the lift's
 (``BulkLift(IsotropicScattering(...), domain=composite, codomain=composite)``,
 what the diffusion solver builds), never a second arm here. The einsum
@@ -100,7 +100,7 @@ from typing import TYPE_CHECKING, ClassVar, Self
 
 import numpy as np
 
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import bulk_and_trace
 from orpheus.transport.material_field import (
     FissionMaterialField,
     TransferMaterialField,
@@ -131,7 +131,7 @@ def _admit_plain_scalar_ends(op: "BoundOperator", ng: int) -> None:
     r"""The energy family's construction admission: PLAIN scalar ends
     whose leading axis is the group axis.
 
-    A composite ``FullFieldSpace`` end is refused naming the lift — the
+    A composite ``DirectSumSpace`` end is refused naming the lift — the
     composite action belongs to
     :class:`~orpheus.transport.operators.lift.BulkLift`, once, not to an
     arm on each energy operator (CS4c step 5, R-2/R-4). The gather and
@@ -142,7 +142,13 @@ def _admit_plain_scalar_ends(op: "BoundOperator", ng: int) -> None:
     owner = type(op).__name__
     for name in ("domain", "codomain"):
         space = getattr(op, name)
-        if isinstance(space, FullFieldSpace):
+        try:
+            bulk_and_trace(space, owner=owner)
+        except TypeError:
+            composite = False
+        else:
+            composite = True
+        if composite:
             raise TypeError(
                 f"{owner} binds the plain scalar space; its {name} is the "
                 f"composite {space!r}. The composite action of an energy "

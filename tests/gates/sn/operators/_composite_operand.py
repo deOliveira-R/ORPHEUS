@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.full_field import FullField
 from orpheus.transport.fields import AngularSourceSink
@@ -56,7 +57,7 @@ __all__ = [
 
 
 def _trace_space(space: "FunctionSpace", owner: str) -> "FunctionSpace":
-    trace = getattr(space, "trace_space", None)
+    trace = space.summand("trace") if isinstance(space, DirectSumSpace) and "trace" in space.labels else None
     if trace is None:
         raise TypeError(
             f"{owner}: {space!r} carries no trace block — the composite "
@@ -94,6 +95,6 @@ def transpose_values(op, values) -> np.ndarray:
     raw values, so a caller that only wants the arithmetic keeps its arithmetic.
     """
     interior = AngularSourceSink(
-        values=np.asarray(values), space=op.codomain.interior_space,
+        values=np.asarray(values), space=op.codomain.summand("bulk"),
     )
     return np.asarray(bulk_apply_transpose(op, interior).values)

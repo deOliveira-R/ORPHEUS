@@ -57,7 +57,7 @@ from .sweep_operator import SweepOperator
 
 if TYPE_CHECKING:
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.transport.fields.angular_flux import AngularFlux
     from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
     from orpheus.transport.frames import HarmonicAnalysisOperator
@@ -94,9 +94,9 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):  # co
     def __init__(
         self,
         face: "HarmonicAnalysisOperator[AngularFlux, HarmonicMomentFlux]",
-        full_field_space: "FullFieldSpace",
+        full_field_space: "DirectSumSpace",
     ) -> None:
-        from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+        from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace
 
         #: The minted flux-analysis face whose kernel reduces the bulk.
         self.face = face
@@ -107,9 +107,8 @@ class BulkAnalysisOperator(LinearOperator["FullField", "TimedFullField"]):  # co
         # codomain ⊕ the angular composite's trace block (the trace passes
         # through untouched). The pre-F-1 ``None`` ("not yet typed") debt
         # died with the mint — composition guards now check this end.
-        assert full_field_space.trace_space is not None  # SN composite; narrowing only
-        self._codomain = FullFieldSpace.from_blocks(
-            self.face.codomain, full_field_space.trace_space,
+        self._codomain = DirectSumSpace.of_pairs(
+            ((BULK, self.face.codomain), (TRACE, full_field_space.summand(TRACE))),
         )
 
     @property

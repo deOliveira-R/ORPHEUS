@@ -104,12 +104,12 @@ def test_the_composition_is_the_loss_minus_the_production() -> None:
     hub = SNProblem(mesh, quad, mats, boundary_conditions=conditions_for(mesh, _CONDITIONS))
     rec = hub.system
     rng = np.random.default_rng(0)
-    x = rec.space.zeros()
+    x = rec.space.carrier.zeros()
     for member in x.systems:  # a seeded coupled state: every member's interior and boundary
         for part in (member.interior, member.boundary):
             values = np.asarray(part.values)
             values[...] = rng.random(values.shape)
-    posing = hub.source_posing(rec.space.zeros())
+    posing = hub.source_posing(rec.space.carrier.zeros())
     lhs = np.asarray(posing.operator.apply(x).to_flat(), dtype=float)
     ref = np.asarray((rec.loss.apply(x) - rec.production.apply(x)).to_flat(), dtype=float)
     _require(np.any(lhs != 0.0), "POSITIVE CONTROL: the seeded state must be non-trivial")

@@ -39,11 +39,8 @@ from orpheus.numerics.assembled_operator import (
     assemblable,
     assemble,
 )
-from orpheus.numerics.coupled_system import (
-    CoupledField,
-    CoupledOperator,
-    CoupledSpace,
-)
+from orpheus.numerics.coupled_system import CoupledField, CoupledOperator
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.numerics.flat_operator import FlattenedOperator
 from orpheus.numerics.green_operator import GreenOperator
 from orpheus.numerics.matrix_inverse_operator import MatrixInverseOperator
@@ -51,6 +48,8 @@ from orpheus.numerics.operator import LinearOperator, TensorProductOperator, pos
 from orpheus.numerics.operator import RieszLowerOperator
 from orpheus.numerics.operator import RieszRaiseOperator
 from tests.gates.numerics._adjointability import NUMERICS_REGISTRY, Posed, assert_doors, flat, like, rel
+from orpheus.numerics.direct_sum import DirectSumSpace
+from tests.gates._coupled_labels import hub_labels
 
 pytestmark = [
     pytest.mark.foundation,
@@ -355,9 +354,9 @@ def _sn_coupled_substitution(case: str) -> Callable[[], Posed]:
 
     def build() -> Posed:
         sn, sig_t = _sn(case)
-        space = CoupledSpace.from_systems([sn.full_field_space])
+        space = DirectSumSpace.of_pairs(((hub_labels(1)[0], sn.full_field_space),))
         grid = CoupledOperator([[_lc(sn, sig_t)]], domain=space, codomain=space)
-        x = CoupledField(systems=(_source_like(sn, sig_t, 5),))
+        x = CoupledField(systems=(_source_like(sn, sig_t, 5),), labels=hub_labels(1))
         return Posed(grid.inverse(), x)
 
     return build
@@ -381,9 +380,14 @@ def _sn_inverse_of_leaf() -> Posed:
     sn, sig_t = _sn("slab_2g")
     C = MultiplicationOperator.from_mesh(sig_t, sn)
     for end in (C.domain, C.codomain):
-        m = getattr(end, "_resolved_metric", "absent")
-        blocks = [f for _, f in m.entries] if isinstance(m, FactoredMetric) else [m]
-        if not all(f is None or isinstance(f, DiagonalMetric) for f in blocks):
+        if isinstance(end, DirectSumSpace):
+            # a sum stores no metric source: its metric is diagonal when every summand's is (the diagonal exists)
+            diagonal = end.metric_diagonal() is not None
+        else:
+            m = getattr(end, "_resolved_metric", "absent")
+            blocks = [f for _, f in m.entries] if isinstance(m, FactoredMetric) else [m]
+            diagonal = all(f is None or isinstance(f, DiagonalMetric) for f in blocks)
+        if not diagonal:
             raise RuntimeError(f"fixture drift: C's end {end!r} is not diagonal-metric")
     op = C.inverse()
     if type(op) is not InverseOperator:

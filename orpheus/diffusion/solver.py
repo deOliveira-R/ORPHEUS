@@ -149,6 +149,7 @@ from orpheus.diffusion.operators import DiffusionBoundaryOperator, LeakageOperat
 from orpheus.numerics.assembled_operator import dense
 from orpheus.numerics.evidence import Measured, NotApplicable, NotYet
 from orpheus.numerics.fredholm import PredictedKernel, Solvable
+from orpheus.numerics.direct_sum import TRACE
 from orpheus.numerics.convergence import (
     IterationRecord,
     StoppingCriterion,
@@ -345,7 +346,7 @@ class DiffusionSolver:  # concept: driver | role: weld | kind: morphism | welded
         r"""The energy group of every coordinate of the full field's flat chart (bulk ``(ng, *cells)``, trace ``(2, ng, ...)`` per face)."""
         interior = self.template.interior.values.shape
         bulk = np.broadcast_to(np.arange(interior[0]).reshape((-1,) + (1,) * (len(interior) - 1)), interior).ravel()
-        trace_space = cast("ScalarTraceSpace", self.mesh.full_field_space.trace_space)
+        trace_space = cast("ScalarTraceSpace", self.mesh.full_field_space.summand(TRACE))
         trace = np.zeros(trace_space.n_coordinates, dtype=np.intp)
         for slot in _require_trace_layout(trace_space).blocks.values():
             groups = np.arange(slot.shape[1]).reshape((1, -1) + (1,) * (len(slot.shape) - 2))

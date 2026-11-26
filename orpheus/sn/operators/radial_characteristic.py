@@ -119,6 +119,7 @@ import numpy as np
 
 from orpheus.numerics.axis_marginal import AxisSectionOperator
 from orpheus.numerics.coordinate_space import coordinates
+from orpheus.numerics.direct_sum import INTERIOR
 from orpheus.numerics.operator import (
     InverseOperator,
     LinearOperator,
@@ -145,7 +146,7 @@ if TYPE_CHECKING:
     from orpheus.sn.mesh.reduced_operator import ReducedStreamingOperator
     from orpheus.numerics.quadrature.directional import Quadrature
     from orpheus.numerics.space import FunctionSpace
-    from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+    from orpheus.numerics.direct_sum import DirectSumSpace
     from orpheus.sn.problem import SNProblem
     from orpheus.transport.fields.cross_section_field import CrossSectionField
     from orpheus.transport.full_field import FullField
@@ -243,7 +244,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
     Parameters
     ----------
-    field_space : FullFieldSpace or None
+    field_space : DirectSumSpace or None
         System B's member composite (interior ⊕ boundary corner) — the
         endomorphic domain/codomain. ``None`` (a seedless pose, R12a — a
         Cartesian chart, or a curvilinear rule with no carrying level;
@@ -273,7 +274,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
 
     def __init__(
         self,
-        field_space: "FullFieldSpace | None",
+        field_space: "DirectSumSpace | None",
         total_cross_section: "CrossSectionField",
         *,
         bulk_space: "FunctionSpace",
@@ -329,7 +330,7 @@ class RadialCharacteristicOperator(LinearOperator["RadialCharacteristicField"]):
         #: |η_start| per carried level (see :func:`march_start_cosines`,
         #: the single-sourced producer the assembly calls).
         self._start_cosines = dict(start_cosines)
-        interior_space = field_space.interior_space
+        interior_space = field_space.summand(INTERIOR)
         assert isinstance(interior_space, RadialCharacteristicInteriorSpace)  # System-B mint; narrowing only
         #: The ψ½ interior split space (levels/ng/nx metadata for repr;
         #: non-None by the ctor guard — presence-coextensive with the
@@ -1053,7 +1054,7 @@ class RadialCharacteristicReconstruction(LinearOperator):  # concept: faces | ro
 
     Parameters
     ----------
-    field_space : FullFieldSpace or None
+    field_space : DirectSumSpace or None
         System B's member composite — the codomain (its interior IS the
         ψ½ split space with the cells-leg layout). ``None`` (a seedless
         pose) is REFUSED: no bulk→ray coupling to fold.
@@ -1075,7 +1076,7 @@ class RadialCharacteristicReconstruction(LinearOperator):  # concept: faces | ro
 
     def __init__(
         self,
-        field_space: "FullFieldSpace | None",
+        field_space: "DirectSumSpace | None",
         *,
         coord: "CoordSystem",
         angular_bulk_space: "FunctionSpace",
@@ -1091,7 +1092,7 @@ class RadialCharacteristicReconstruction(LinearOperator):  # concept: faces | ro
                 "start on an edge node or an η-tie, R12a) has no bulk→ray "
                 "coupling to fold."
             )
-        space = field_space.interior_space
+        space = field_space.summand(INTERIOR)
         assert isinstance(space, RadialCharacteristicInteriorSpace)  # System-B mint; narrowing only
         if n_moments < 1:
             raise ValueError(
@@ -1564,10 +1565,10 @@ class RadialCharacteristicEmission(LinearOperator):  # concept: natural | role: 
         ``q_ext`` seam as a direct ``Fold``, NOT through this operator (see
         the class docstring — routing it here would double-apply
         ``K ∘ integrate``).
-    field_space : FullFieldSpace or None
+    field_space : DirectSumSpace or None
         System B's member composite — the codomain. ``None`` (a seedless
         pose) is REFUSED: no System B, no bulk→ray emission coupling.
-    full_field_space : FullFieldSpace
+    full_field_space : DirectSumSpace
         System A's composite carrier — the domain (bulk ⊕ trace).
     angular_bulk_space, angular_trace : FunctionSpace
         The transpose's output spaces (per-ordinate bulk pullback over a
@@ -1584,8 +1585,8 @@ class RadialCharacteristicEmission(LinearOperator):  # concept: natural | role: 
         self,
         emission_kernel: "_EmissionKernel",
         *,
-        field_space: "FullFieldSpace | None",
-        full_field_space: "FullFieldSpace",
+        field_space: "DirectSumSpace | None",
+        full_field_space: "DirectSumSpace",
         angular_bulk_space: "FunctionSpace",
         angular_trace: "FunctionSpace",
         quadrature: "Quadrature",
@@ -1618,7 +1619,7 @@ class RadialCharacteristicEmission(LinearOperator):  # concept: natural | role: 
         self._fold = RadialCharacteristicReconstruction(
             field_space, coord=coord, angular_bulk_space=angular_bulk_space,
         )
-        space = field_space.interior_space
+        space = field_space.summand(INTERIOR)
         assert isinstance(space, RadialCharacteristicInteriorSpace)  # System-B mint; narrowing only
         #: The ψ½ interior split space (level metadata for repr; non-None by
         #: the ctor guard). The declared codomain is the composite space.

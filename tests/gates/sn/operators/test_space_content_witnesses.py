@@ -52,6 +52,7 @@ from orpheus.transport.fields import (
 )
 from orpheus.transport.timed_full_field import TimedFullField
 from tests.gates.sn._test_helpers import placeholder_materials
+from tests.gates._coupled_labels import hub_labels
 
 pytestmark = pytest.mark.foundation
 
@@ -158,12 +159,12 @@ class TestO8SolutionRayMember:
         from orpheus.numerics.outcome import ExitReport, SourceOutcome
         from orpheus.numerics.posing import SourcePosing
         from orpheus.sn.splitting import Splitting, resolve_schedule
-        foreign_state = CoupledField(systems=(psi, member))  # type: ignore[arg-type]
+        foreign_state = CoupledField(systems=(psi, member), labels=hub_labels(2))  # type: ignore[arg-type]
         with pytest.raises(ValueError, match="state-on-domain"):
             Solution(
                 problem=sn,
                 outcome=SourceOutcome(
-                    SourcePosing.of_pencil(sn.pencil, 0.0, sn.system.space.zeros()),
+                    SourcePosing.of_pencil(sn.pencil, 0.0, sn.system.space.carrier.zeros()),
                     foreign_state,
                 ),
                 strategy=Splitting.from_schedule(sn.system, resolve_schedule(sn, "jacobi")),

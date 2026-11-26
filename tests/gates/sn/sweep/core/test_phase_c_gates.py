@@ -71,6 +71,7 @@ from tests.gates.sn._test_helpers import (
 )
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -202,7 +203,7 @@ def _build_composite(
     # own native split composite member (no unified bridge).
     from orpheus.numerics.coupled_system import CoupledField
 
-    return CoupledField(systems=(psi_a, radial_characteristic))
+    return CoupledField(systems=(psi_a, radial_characteristic), labels=hub_labels(2))
 
 
 def _random_bulk(problem: SNProblem, rng: np.random.Generator) -> np.ndarray:

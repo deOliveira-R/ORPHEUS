@@ -77,7 +77,7 @@ class CompositionOverhead:
         )
         record = build_within_group_system(problem, problem.mat_xs)
         self.A = record.loss
-        template = record.space.zeros()
+        template = record.space.carrier.zeros()
         rng = np.random.default_rng([20260728, 7])
         self.x = type(template).from_flat(rng.standard_normal(template.to_flat().size), template)
         side = int(round(np.sqrt(self.flops_per_dof * self.x.to_flat().size)))

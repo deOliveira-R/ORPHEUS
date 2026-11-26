@@ -31,7 +31,11 @@ ROOT = Path(__file__).resolve().parents[4]
 TAG_RE = re.compile(r"ELEGANCE-DEBT\[guard\] #759 legacy-leaf")
 DOOR_RE = TAG_RE
 #: The doors outside ``space.py`` that tell a tensor space from a legacy leaf and nothing else: tagged, and asserted empty by N07's successor.
-TAGGED_DOORS = frozenset({("orpheus/transport/fields/_bases.py", "BulkField._spatial_moment_tail_of")})
+TAGGED_DOORS = frozenset({
+    ("orpheus/transport/fields/_bases.py", "BulkField._spatial_moment_tail_of"),
+    ("orpheus/numerics/direct_sum.py", "DirectSumSpace._held"),
+    ("orpheus/transport/operators/_energy_conformity.py", "assert_energy_extent_conforms"),
+})
 #: The doors that are not leaf debt, each with the reason it stays untagged. A tensor space is told from a direct sum (the second arm that stays at N07) or the
 #: function refuses what is not a tensor space with a ``TypeError``, so the door survives the leaves. A new door anywhere is untagged and not here, and reddens.
 UNTAGGED_DOORS = {
@@ -44,7 +48,6 @@ UNTAGGED_DOORS = {
     ("orpheus/transport/fields/harmonic_moment_flux.py", "HarmonicMomentFlux.scalar_flux"): "an assert narrowing the type for the checker, not a guard: a moment field's space is a tensor space; it goes when the field's space is typed",
     ("orpheus/transport/frames/harmonic_frame.py", "HarmonicFrame.for_space"): "takes an angular tensor space and refuses anything else with a TypeError: a direct sum names no quadrature",
     ("orpheus/transport/frames/harmonic_frame.py", "HarmonicFrame.moment_space_on"): "takes an angular tensor space and refuses anything else with a TypeError: a direct sum names no cell axes",
-    ("orpheus/transport/operators/_energy_conformity.py", "assert_energy_extent_conforms"): "the composite spaces (FullFieldSpace, CoupledSpace; the direct-sum arm from N05) land on the False side and pass unchecked, a measured inertness; it retires when the direct sum has its own energy check, not with the leaves",
     ("orpheus/transport/operators/fission.py", "FissionOperator.from_solver_data"): "takes a composite whose interior is a tensor space and refuses a non-tensor interior with a TypeError: a direct sum names no quadrature",
 }
 PINNED = frozenset(

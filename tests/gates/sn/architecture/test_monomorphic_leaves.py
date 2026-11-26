@@ -235,6 +235,7 @@ from tests.gates.transport._phase_space_cases import (  # the monomorphic meshes
     two_region_fissile as _two_region_fissile,
     two_region_mesh as _two_region_mesh,
 )
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -461,7 +462,7 @@ def _wrong_carrier(kind: str, problem: SNProblem) -> object:
     """
     if kind == "alien":
         return _AlienCarrier()
-    return CoupledField(systems=(_random_composite(problem, seed=_SEED_X),))
+    return CoupledField(systems=(_random_composite(problem, seed=_SEED_X),), labels=hub_labels(1))
 
 
 # ═════════════════════════════════════════════════════════════════════════

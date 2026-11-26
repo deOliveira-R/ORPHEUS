@@ -693,7 +693,7 @@ def test_the_ends_select_the_body(operator_key, binding, carrier_key):
     carriers = {
         "FullField": lambda: FullField(
             interior=ScalarFlux(values=interior_values, space=dm.bulk_space),
-            boundary=ScalarBoundaryFlux(values=rng.random(_ffs.trace_space.shape[0]) + 0.1, space=_ffs.trace_space),
+            boundary=ScalarBoundaryFlux(values=rng.random(_ffs.summand("trace").shape[0]) + 0.1, space=_ffs.summand("trace")),
         ),
         "ndarray": lambda: interior_values.copy(),
         "ScalarFlux": lambda: ScalarFlux(values=interior_values, space=dm.bulk_space),
@@ -726,7 +726,7 @@ def test_the_plain_row_and_the_lift_row_agree_on_the_values():
     rng = np.random.default_rng(7)
     psi = FullField(
         interior=ScalarFlux(values=rng.random((2, 6)) + 0.5, space=dm.bulk_space),
-        boundary=ScalarBoundaryFlux(values=rng.random(_ffs.trace_space.shape[0]), space=_ffs.trace_space),
+        boundary=ScalarBoundaryFlux(values=rng.random(_ffs.summand("trace").shape[0]), space=_ffs.summand("trace")),
     )
     for key in ("IsoS", "IsoN2N", "F"):
         plain = _bind(key, "plain")
@@ -824,7 +824,7 @@ def test_isotropic_energy_inherits_the_parent_binding_space():
         space=space,
     )
     energy = scattering.isotropic_energy
-    interior = space.interior_space
+    interior = space.summand("bulk")
     assert interior is not None and interior.axes is not None
     expected = TensorSpace.of_axes(*(Factor.whole_on(_a, Kind.MEASURE, VarianceChart.DENSITY) for _a in interior.axes[1:]))
     assert energy.domain == expected and energy.codomain == expected, (

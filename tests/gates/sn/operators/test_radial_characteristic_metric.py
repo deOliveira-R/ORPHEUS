@@ -69,6 +69,7 @@ from orpheus.transport.full_field import FullField
 from orpheus.data.macro_xs.synthetic import make_mixture
 from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
+from tests.gates._coupled_labels import hub_labels
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -166,7 +167,7 @@ def _composite(sn, *, bulk: bool, trace: bool, seed: bool, rng):
         system_b = RadialCharacteristicField.from_flat(
             rng.standard_normal(n_sd), system_b,
         )
-    return CoupledField(systems=(psi_a, system_b))
+    return CoupledField(systems=(psi_a, system_b), labels=hub_labels(2))
 
 
 def _template(sn):

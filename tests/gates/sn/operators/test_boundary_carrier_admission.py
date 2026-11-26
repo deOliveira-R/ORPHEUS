@@ -49,7 +49,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.sn.operators.boundary import SNBoundaryOperator
 from orpheus.transport.fields.angular_boundary_flux import AngularBoundaryFlux
 from orpheus.transport.fields.harmonic_moment_flux import HarmonicMomentFlux
@@ -68,20 +68,20 @@ _GEOMETRIES = {"slab": _slab, "sphere": _sphere, "cylinder": _cylinder, "cart2d"
 _ORDERS = (0, 1)
 
 
-def _bound_end_of(operator: SNBoundaryOperator) -> FullFieldSpace:
+def _bound_end_of(operator: SNBoundaryOperator) -> DirectSumSpace:
     """``B_a``'s bound domain, parsed as the BLOCK-BEARING composite it must be.
 
     The narrowing is a real precondition, not typing ceremony: the rows below
     read ``.interior_space`` off it, and a domain that is not a
-    ``FullFieldSpace`` carries no blocks — in which case the whole
+    ``DirectSumSpace`` carries no blocks — in which case the whole
     ``space_on``-vs-bound-end contrast this file measures is unreadable and
     the row must say so rather than crash one line later.
     """
     domain = operator.domain
-    if not isinstance(domain, FullFieldSpace):
+    if not isinstance(domain, DirectSumSpace):
         pytest.fail(
             f"B_a's domain is {type(domain).__name__}, not a block-bearing "
-            f"FullFieldSpace — the bound-end half of this file's contrast "
+            f"DirectSumSpace — the bound-end half of this file's contrast "
             f"cannot be read"
         )
     return domain
@@ -143,7 +143,7 @@ def test_g3_1a_b_a_accepts_a_moment_interior_composite(geometry, L):
             f"the refusal path, not the acceptance path"
         )
     bound_end = _bound_end_of(operator)
-    if interior_space == bound_end.interior_space:
+    if interior_space == bound_end.summand("bulk"):
         pytest.fail(
             f"[{geometry} L={L}] PRECONDITION 2 failed: the moment interior's "
             f"space EQUALS the bound end's interior, so `space_on` and "
@@ -181,7 +181,7 @@ def test_g3_1b_b_a_accepts_the_angular_interior_composite(geometry):
     composite = _random_composite(problem, seed=3)
 
     bound_end = _bound_end_of(operator)
-    if composite.interior.space != bound_end.interior_space:
+    if composite.interior.space != bound_end.summand("bulk"):
         pytest.fail(
             f"[{geometry}] CONTROL INVALID: the angular interior's space does "
             f"NOT equal the bound end's interior, so this row no longer "

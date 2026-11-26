@@ -58,7 +58,7 @@ from orpheus.data.macro_xs.synthetic import get_mixture
 from orpheus.mesh import Mesh2D
 from orpheus.numerics.quadrature import Quadrature
 from orpheus.numerics.space import FunctionSpace
-from orpheus.numerics.spaces.full_field_space import FullFieldSpace
+from orpheus.numerics.direct_sum import DirectSumSpace
 from orpheus.sn.problem import SNProblem
 from orpheus.sn.solver import SNSolver
 from orpheus.transport.fields.angular_flux import AngularFlux
@@ -79,6 +79,7 @@ from orpheus.transport.boundary_conditions import WallCondition
 from tests.gates._exterior import conditions_for
 from orpheus.numerics.factor import Factor, Kind, VarianceChart
 from orpheus.numerics.space import TensorSpace
+from orpheus.numerics.direct_sum import BULK, DirectSumSpace, TRACE
 
 #: Exterior conditions of the tags this file's meshes carry (wave 2: a face's role is a deck or an int tag; the condition a tag
 #: stands for is declared at the solve, keyword ``boundary_conditions``).
@@ -161,9 +162,7 @@ class TestEnds:
         S = solver.problem.system.factors.scattering
         S_w = S.on_moment_domain()
 
-        expected_domain = FullFieldSpace.from_blocks(
-            S.flux_analysis.codomain, S.domain.trace_space,
-        )
+        expected_domain = DirectSumSpace.of_pairs(((BULK, S.flux_analysis.codomain), (TRACE, S.domain.summand("trace"))))
         require(
             S_w.domain == expected_domain,
             f"the moment sibling's domain is {S_w.domain!r}, expected the "
@@ -235,7 +234,7 @@ class TestBitIdentity:
 
         via_angular = bulk_apply(S, psi)
         via_moment = S_w.apply(
-            zero_trace_composite(moments, S_w.domain.trace_space),
+            zero_trace_composite(moments, S_w.domain.summand("trace")),
         ).interior
 
         np.testing.assert_array_equal(
@@ -326,15 +325,15 @@ class TestTransposeReciprocity:
         psi = _psi(problem, seed)
         moments = S.flux_analysis.apply(psi)
         rng = np.random.default_rng(seed + 1)
-        chi_values = rng.standard_normal(S_w.codomain.interior_space.shape)
+        chi_values = rng.standard_normal(S_w.codomain.summand("bulk").shape)
         chi = AngularSourceSink(
-            values=chi_values, space=S_w.codomain.interior_space,
+            values=chi_values, space=S_w.codomain.summand("bulk"),
         )
         forward = S_w.apply(
-            zero_trace_composite(moments, S_w.domain.trace_space),
+            zero_trace_composite(moments, S_w.domain.summand("trace")),
         )
         back = S_w.apply_transpose(
-            zero_trace_composite(chi, S_w.codomain.trace_space),
+            zero_trace_composite(chi, S_w.codomain.summand("trace")),
         )
         return moments, chi_values, forward, back
 
@@ -411,7 +410,7 @@ class TestTransposeReciprocity:
             f"{type(back.interior).__name__}, not a HarmonicMomentSourceSink.",
         )
         require(
-            back.interior.space == S_w.domain.interior_space,
+            back.interior.space == S_w.domain.summand("bulk"),
             "the cotangent does not ride the moment binding's own domain "
             "interior.",
         )
@@ -450,7 +449,7 @@ class TestAdmission:
         with pytest.raises(TypeError, match="neither end of the analysis face"):
             replace(
                 S,
-                domain=FullFieldSpace.from_blocks(third, S.domain.trace_space),
+                domain=DirectSumSpace.of_pairs(((BULK, third), (TRACE, S.domain.summand("trace")))),
             )
 
     def test_the_reconstruction_face_is_admitted_against_the_CODOMAIN(
@@ -479,12 +478,12 @@ class TestAdmission:
         S_w = S.on_moment_domain()          # positive leg: it constructs
 
         require(
-            S_w.source_reconstruction.codomain == S_w.codomain.interior_space,
+            S_w.source_reconstruction.codomain == S_w.codomain.summand("bulk"),
             "the sibling's reconstruction face does not land on its codomain "
             "interior — the guard is being read against the wrong end.",
         )
         require(
-            S_w.source_reconstruction.codomain != S_w.domain.interior_space,
+            S_w.source_reconstruction.codomain != S_w.domain.summand("bulk"),
             "the sibling's domain and codomain interiors coincide, so this "
             "row cannot discriminate a domain-keyed guard from a "
             "codomain-keyed one.",
@@ -494,7 +493,7 @@ class TestAdmission:
             problem.mesh, Quadrature.level_symmetric(sn_order=6),
             problem.materials, boundary_conditions=conditions_for(problem.mesh, _CONDITIONS),
         )
-        other_interior = other.full_field_space.interior_space
+        other_interior = other.full_field_space.summand("bulk")
         assert other_interior is not None
         wrong = HarmonicFrame.for_space(
             other_interior, _L,
@@ -515,7 +514,7 @@ class TestAdmission:
         S_w = solver.problem.system.factors.scattering.on_moment_domain()
         psi = _psi(problem, seed=11)
         with pytest.raises(TypeError, match="body its ends select"):
-            S_w.apply(zero_trace_composite(psi, S_w.domain.trace_space))
+            S_w.apply(zero_trace_composite(psi, S_w.domain.summand("trace")))
 
     def test_the_angular_binding_refuses_the_moment_composite(
         self, solver, problem,
@@ -531,7 +530,7 @@ class TestAdmission:
         moments = S.flux_analysis.apply(_psi(problem, seed=11))
         assert isinstance(moments, HarmonicMomentFlux)
         with pytest.raises(TypeError, match="body its ends select"):
-            S.apply(zero_trace_composite(moments, S.domain.trace_space))
+            S.apply(zero_trace_composite(moments, S.domain.summand("trace")))
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -599,7 +598,7 @@ class TestTheOtherLifts:
         np.testing.assert_array_equal(
             np.asarray(
                 N_w.apply(
-                    zero_trace_composite(moments, N_w.domain.trace_space),
+                    zero_trace_composite(moments, N_w.domain.summand("trace")),
                 ).interior.values,
             ),
             angular,
@@ -622,7 +621,7 @@ class TestTheOtherLifts:
         )
         F_w = F.on_moment_domain()
         require(
-            F_w.domain.interior_space == F.flux_analysis.codomain,
+            F_w.domain.summand("bulk") == F.flux_analysis.codomain,
             "the fission sibling's domain interior is not the analysis face's "
             "codomain — the base's on_moment_domain body is not one body.",
         )
@@ -635,7 +634,7 @@ class TestTheOtherLifts:
         np.testing.assert_array_equal(
             np.asarray(
                 F_w.apply(
-                    zero_trace_composite(moments, F_w.domain.trace_space),
+                    zero_trace_composite(moments, F_w.domain.summand("trace")),
                 ).interior.values,
             ),
             np.asarray(bulk_apply(F, psi).values),

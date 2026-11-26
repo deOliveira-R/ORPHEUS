@@ -38,7 +38,6 @@ ROWS: tuple[Row, ...] = (
 )
 
 KEPT: tuple[Kept, ...] = (  # Kept(file, qualname, keeper): the keeper is the wave or the consumer that keeps the row; asserted still defined
-    Kept('orpheus/numerics/spaces/full_field_space.py', 'FullFieldSpace.kernel_basis', 'as row 48'),  # row 78
     Kept('orpheus/transport/boundary_conditions/realization.py', 'RealizerTable.catalogue', "door: the method tables' admission matrix, asserted through it by 13 test files (5 methods); nothing in W0 opens the realizer-table cycle (3.4)"),  # row 104
     Kept('orpheus/transport/operators/multiplication_operator.py', 'MultiplicationOperator.from_mesh', 'a documented survivor pinned by a design gate (transport/fields/test_meshless_construction.py:245)'),  # row 120
     Kept('orpheus/transport/residuals/angular_residual.py', 'AngularResidual.relative_to', "W5, concept row 'Iteration record' (one estimator, one norm)"),  # row 127

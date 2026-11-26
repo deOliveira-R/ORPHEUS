@@ -14,7 +14,7 @@ block grid over its two systems,
 with System A = the SN transport composite (``problem.full_field_space``)
 and System B = the ψ½ radial-characteristic closure
 (``problem.radial_characteristic_field_space``). The grid and its
-:class:`~orpheus.numerics.coupled_system.CoupledSpace` are emitted TOGETHER,
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` are emitted TOGETHER,
 aligned by construction (RULING P1: a mismatched operator/space pairing is
 unconstructable — this builder is the ψ½ instance's only constructor). The
 machinery itself is semantics-agnostic and N-general
@@ -178,9 +178,9 @@ from typing import TYPE_CHECKING
 from orpheus.numerics.coupled_system import (
     CoupledField,
     CoupledOperator,
-    CoupledSpace,
     SystemRestrictionOperator,
 )
+from orpheus.numerics.direct_sum import DirectSumSpace, SumCarrier
 from orpheus.numerics.operator import LinearOperator, MissingAdjoint, adjointable
 from orpheus.sn.operators.boundary import (
     RadialCharacteristicBoundaryOperator,
@@ -209,7 +209,13 @@ if TYPE_CHECKING:
     from orpheus.transport.operators.fission import FissionOperator
     from orpheus.transport.mesh.material_xs_field import MaterialXSField
 
+#: The summand labels of the coupled sum, declared once by this builder: System A (the full field) and System B (the ψ½ ray).
+SYSTEM_A_LABEL = "full_field"
+SYSTEM_B_LABEL = "radial_characteristic"
+
 __all__ = [
+    "SYSTEM_A_LABEL",
+    "SYSTEM_B_LABEL",
     "RadialCharacteristicFactors",
     "SNLossFactors",
     "WithinGroupSystem",
@@ -385,9 +391,9 @@ class WithinGroupSystem:  # concept: pencil | role: twin | kind: morphism
         ``A`` — the typed loss grid (2×2 carrying / 1×1 seedless; the
         B.2c presence-structural P2 shape). Since step 5 it is
         DIRECT-invertible via the materialize/LU route
-        (``CoupledSpace.zeros`` is wired), the EXTRACT the swap-law
+        (the coupled sum's ``carrier.zeros`` is wired), the EXTRACT the swap-law
         gates ride — production solves stay the splitting iteration.
-    space : CoupledSpace
+    space : DirectSumSpace
         The coupled carrier space ``loss`` is typed against (P1
         co-production), carrying the zero-exemplar factory (step 5 —
         the typed-carrier materialization seam).
@@ -412,7 +418,7 @@ class WithinGroupSystem:  # concept: pencil | role: twin | kind: morphism
     """
 
     loss: "CoupledOperator"
-    space: "CoupledSpace"
+    space: "DirectSumSpace"
     factors: "SNLossFactors"
     production: "LinearOperator[CoupledField, CoupledField]"
 
@@ -428,7 +434,7 @@ def _zero_full_field(problem: "SNProblem") -> "FullField":
     Flux-role by construction (``AngularFlux`` bulk ⊕ ``AngularBoundaryFlux``
     trace — the DOMAIN of the within-group operators), spatial-moment-aware
     (a multi-moment closure's φ̂ tail rides the carrier's
-    ``angular_trial_space`` mint, CS4b S5).  Consumed by :meth:`CoupledSpace.zeros` — the
+    ``angular_trial_space`` mint, CS4b S5).  Consumed by the coupled sum's ``carrier.zeros`` — the
     typed-carrier materialization seam (the loss grid's ``as_matrix``
     basis probe and ``MatrixInverseOperator``'s typed return template),
     which is what flips ``loss.is_invertible`` True (the step-5 EXTRACT
@@ -452,7 +458,7 @@ def _zero_full_field_dual(problem: "SNProblem") -> "FullField":
     ``AngularBoundarySourceSink`` trace): under #276 A4 duality typing a
     flux member's cotangent is source-classed, so this is what an
     extension-by-zero transpose extends WITH.  Consumed by
-    :meth:`CoupledSpace.dual_zeros` — the cotangent twin of the
+    :attr:`SumCarrier.dual_zeros` — the cotangent twin of the
     :func:`_zero_full_field` seam.
     """
     from orpheus.transport.fields.angular_boundary_source_sink import (
@@ -595,13 +601,15 @@ def build_within_group_system(
         # The non-carrying degenerate: System B does not exist — the loss
         # is the 1-system grid and the factors the bare (L+C, S, N2N, B_a)
         # the seedless Strategy labels zero-touch (DP-seedless).
-        space = CoupledSpace.from_systems(
-            (full_field_space,),
-            zeros=lambda: CoupledField(
-                systems=(_zero_full_field(problem),),
-            ),
-            dual_zeros=lambda: CoupledField(
-                systems=(_zero_full_field_dual(problem),),
+        space = DirectSumSpace.of_pairs(
+            ((SYSTEM_A_LABEL, full_field_space),),
+            carrier=SumCarrier(
+                zeros=lambda: CoupledField(
+                    systems=(_zero_full_field(problem),), labels=(SYSTEM_A_LABEL,),
+                ),
+                dual_zeros=lambda: CoupledField(
+                    systems=(_zero_full_field_dual(problem),), labels=(SYSTEM_A_LABEL,),
+                ),
             ),
         )
         return WithinGroupSystem(
@@ -654,18 +662,22 @@ def build_within_group_system(
         ),
     )
     A_BB = march - B_b
-    space = CoupledSpace.from_systems(
-        (full_field_space, member_space),
-        zeros=lambda: CoupledField(
-            systems=(
-                _zero_full_field(problem),
-                RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space),
+    space = DirectSumSpace.of_pairs(
+        ((SYSTEM_A_LABEL, full_field_space), (SYSTEM_B_LABEL, member_space)),
+        carrier=SumCarrier(
+            zeros=lambda: CoupledField(
+                systems=(
+                    _zero_full_field(problem),
+                    RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space),
+                ),
+                labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
             ),
-        ),
-        dual_zeros=lambda: CoupledField(
-            systems=(
-                _zero_full_field_dual(problem),
-                RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
+            dual_zeros=lambda: CoupledField(
+                systems=(
+                    _zero_full_field_dual(problem),
+                    RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
+                ),
+                labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
             ),
         ),
     )
@@ -679,7 +691,7 @@ def build_within_group_system(
     # — fission annihilates the ray system, and the honest spelling is the
     # composition ``[[F], [E_F]] ∘ r_bulk`` (moved here from the adjoint
     # entry at step 2 — the ONE site).
-    restrict_bulk = SystemRestrictionOperator(space, system=0)
+    restrict_bulk = SystemRestrictionOperator(space, label=SYSTEM_A_LABEL)
     production = CoupledOperator(
         [
             [F],

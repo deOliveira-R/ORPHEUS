@@ -97,7 +97,7 @@ Summary
    * - quantity
      - count
    * - classes
-     - 690
+     - 688
    * - concepts
      - 88
    * - classes by role: ``head``
@@ -109,21 +109,21 @@ Summary
    * - classes by role: ``part``
      - 133
    * - classes by role: ``component``
-     - 56
+     - 57
    * - classes by role: ``interface``
-     - 33
+     - 31
    * - classes by role: ``twin``
-     - 62
+     - 61
    * - classes by role: ``annex``
      - 138
    * - classes by kind: ``set``
-     - 83
+     - 84
    * - classes by kind: ``measure``
      - 14
    * - classes by kind: ``space``
-     - 17
+     - 16
    * - classes by kind: ``element``
-     - 195
+     - 193
    * - classes by kind: ``morphism``
      - 197
    * - classes by kind: ``record``
@@ -467,8 +467,8 @@ The concepts
      - numerics
      - W1
      - O23
-     - ``CoupledSpace`` (``orpheus/numerics/coupled_system.py``)
-     - head 1, twin 1
+     - ``DirectSumSpace`` (``orpheus/numerics/direct_sum.py``)
+     - head 1, component 1
      - - :ref:`coupled-block-n-general-machinery <coupled-block-n-general-machinery>`
    * - :ref:`dual <concept-dual>`
      - Dual
@@ -748,7 +748,7 @@ The concepts
      - W3
      - O23
      - ``Member`` (``orpheus/numerics/space.py``)
-     - head 1, arm 11, weld 4, interface 4, twin 1, annex 1
+     - head 1, arm 11, weld 4, interface 2, twin 1, annex 1
      - - ``orpheus.numerics.space.FunctionSpace.coordinates_of`` (``orpheus/numerics/space.py``)
        - :ref:`cone-ordered-vector-space <cone-ordered-vector-space>`
        - :eq:`positive-cone-definition`
@@ -1689,11 +1689,11 @@ dsum
 
 .. rubric:: head
 
-- ``CoupledSpace`` (``orpheus/numerics/coupled_system.py``) ``space``
+- ``DirectSumSpace`` (``orpheus/numerics/direct_sum.py``) ``space``
 
-.. rubric:: twin
+.. rubric:: component
 
-- ``FullFieldSpace`` (``orpheus/numerics/spaces/full_field_space.py``) ``space``
+- ``SumCarrier`` (``orpheus/numerics/direct_sum.py``) ``set``
 
 .. _concept-dual:
 
@@ -2218,8 +2218,6 @@ member
 .. rubric:: interface
 
 - ``SystemField`` (``orpheus/numerics/coupled_system.py``) ``element.member``
-- ``CompositeField`` (``orpheus/numerics/spaces/full_field_space.py``) ``element.member``
-- ``_CompositeLeaf`` (``orpheus/numerics/spaces/full_field_space.py``) ``element.member``
 - ``Vector`` (``orpheus/numerics/vector.py``) ``element.member``
 
 .. rubric:: twin
@@ -3200,8 +3198,8 @@ The pending entries are the exceptions the gates pin by equality; the hand-writt
      - total
      - per wave
    * - ``twin``
-     - 62
-     - W1 1, W2 7, W3 20, W4 1, W5 15, W6 6, W7 5, W8a 3, W9 4
+     - 61
+     - W2 7, W3 20, W4 1, W5 15, W6 6, W7 5, W8a 3, W9 4
    * - ``weld``
      - 93
      - W1 5, W2 20, W3 9, W4 15, W5 19, W6 14, W7 5, W8a 6

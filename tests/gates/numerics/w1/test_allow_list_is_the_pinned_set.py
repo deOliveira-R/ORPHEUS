@@ -27,8 +27,7 @@ pytestmark = pytest.mark.foundation
 
 ROOT = Path(__file__).resolve().parents[4]
 EXPECTED = {
-    "CoupledSpace": "N05",
-    "FullFieldSpace": "N05",
+    "DirectSumSpace": None,
     "AngularTraceSpace": "N06",
     "AngularFaceTraceSpace": "N06",
     "ScalarTraceSpace": "N06",
@@ -64,7 +63,10 @@ def test_allow_list_is_the_pinned_set() -> None:
     mapping = _mapping()
     _require(set(mapping) == set(EXPECTED) | {"TensorSpace"}, f"the mapping's classes differ from the pinned set: {sorted(set(mapping) ^ (set(EXPECTED) | {'TensorSpace'}))}")
     for cls, unit in EXPECTED.items():
-        _require(unit in str(mapping[cls]), f"the legacy entry {cls} does not name its removing unit {unit}: {mapping[cls]!r}")
+        if unit is None:
+            _require(mapping[cls] is None, f"the arm {cls} that stays at N07 names a removing unit: {mapping[cls]!r}")
+        else:
+            _require(unit in str(mapping[cls]), f"the legacy entry {cls} does not name its removing unit {unit}: {mapping[cls]!r}")
 
 
 def test_allow_list_equals_the_runtime_closure() -> None:
@@ -96,7 +98,7 @@ def test_a_stranger_is_refused_at_any_depth() -> None:
 
 
 def test_no_test_double_subclasses_a_space() -> None:
-    names = {"FunctionSpace", "TensorSpace", "DualSpace", "CoupledSpace", "FullFieldSpace"}
+    names = {"FunctionSpace", "TensorSpace", "DualSpace", "DirectSumSpace"}
 
     def doubles(source: str) -> list[str]:
         return [

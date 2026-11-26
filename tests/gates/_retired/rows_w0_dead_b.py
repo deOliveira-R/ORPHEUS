@@ -33,8 +33,8 @@ ROWS: tuple[Row, ...] = (
 
 KEPT: tuple[Kept, ...] = (  # Kept(file, qualname, keeper): the keeper is the wave or the consumer that keeps the row; asserted still defined
     Kept('orpheus/numerics/basis/base.py', 'Basis.synthesize', "W8a, concept row 'Basis' (one table contraction)"),  # row 38
-    Kept('orpheus/numerics/coupled_system.py', 'CoupledSpace.system_slices', "W1, concept row 'Direct sum of spaces' (4 offset loops become one)"),  # row 47
-    Kept('orpheus/numerics/coupled_system.py', 'CoupledSpace.kernel_basis', "W1/W2: the metric-kernel family (concept 'Quotient by a metric kernel', A3)"),  # row 48
+    Kept('orpheus/numerics/direct_sum.py', 'DirectSumSpace.slice_of', "W1, concept row 'Direct sum of spaces' (4 offset loops become one)"),  # row 47
+    Kept('orpheus/numerics/direct_sum.py', 'DirectSumSpace.kernel_basis', "W1/W2: the metric-kernel family (concept 'Quotient by a metric kernel', A3)"),  # row 48
     Kept('orpheus/numerics/field.py', 'Field.cone_violations', "concept row 'Positive cone' (one, landed); W7 'Wall law on its cone'"),  # row 53
     Kept('orpheus/numerics/metric.py', 'HilbertMetric.kernel_basis', 'as row 48'),  # row 62
     Kept('orpheus/numerics/posing.py', 'ALPHA_MAP', "W5, concept row 'Question bound to a system' (spectral map derived from the parameter)"),  # row 71

@@ -177,7 +177,7 @@ def test_S16a_the_DD_left_basis_spans_the_dense_left_null_space(label, kw):
     A = _dense(problem)
     L, R = _dense_kernels(A)
     kernel = predicted_discretization_kernel(problem)
-    n, nb = A.shape[0], int(np.prod(problem.full_field_space.interior_space.shape))
+    n, nb = A.shape[0], int(np.prod(problem.full_field_space.summand("bulk").shape))
     left, right = _columns(kernel.left, n), _columns(kernel.right, n)
     assert L.shape[1] == R.shape[1] == predicted_kernel_dimension(problem) > 0
     _assert_spans_agree(f"{label} left", left, L)
@@ -211,7 +211,7 @@ def test_S16b_the_DD_left_generators_are_J_times_the_right_ones(label, kw):
     rebuilt here. Arms ``left_is_right`` and ``trace_weights_zeroed`` red it."""
     problem = _mesh((3, 4), [(_R, _R)] * 2, c=0.9, **kw)
     kernel = predicted_discretization_kernel(problem)
-    nb = int(np.prod(problem.full_field_space.interior_space.shape))
+    nb = int(np.prod(problem.full_field_space.summand("bulk").shape))
     J = _independent_trace_weights(problem)
     assert len(kernel.left) == len(kernel.right) > 0
     for right, left in zip(kernel.right, kernel.left):

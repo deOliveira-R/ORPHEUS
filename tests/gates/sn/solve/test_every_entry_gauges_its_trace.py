@@ -386,7 +386,7 @@ def test_every_MIRROR_EVEN_functional_is_blind_to_the_gauge():
     # functional that distinguishes them is one the equation does not determine.
     # Since U0 the gauge acts on the full field (bulk then trace): a trace vector enters as [0_bulk, x], and the
     # absorber's kernel is the diamond-difference one alone, which lives on the trace.
-    n_bulk = int(np.prod(problem.full_field_space.interior_space.shape))
+    n_bulk = int(np.prod(problem.full_field_space.summand("bulk").shape))
     kernel_member = np.asarray(gauge.apply(np.concatenate([
         np.zeros(n_bulk), np.random.default_rng(7).standard_normal(metric.size)])))
     np.testing.assert_array_equal(kernel_member[:n_bulk], 0.0)
@@ -522,7 +522,7 @@ def test_the_repair_is_AUDIBLE_and_names_the_root_fix():
     g = np.asarray(solution.problem.full_field_space.metric_diagonal(), dtype=float)
     psi_out = np.asarray(solution.angular_flux.to_flat(), dtype=float)
     assert psi_out.size == g.size, (psi_out.size, g.size)
-    n_bulk = int(np.prod(solution.problem.full_field_space.interior_space.shape))
+    n_bulk = int(np.prod(solution.problem.full_field_space.summand("bulk").shape))
     total = float(np.sum(g * psi_out * psi_out)) / (1.0 - c * c)
     moved = c * c * total
     trace_before = float(np.sum(g[n_bulk:] * psi_out[n_bulk:] ** 2)) + moved

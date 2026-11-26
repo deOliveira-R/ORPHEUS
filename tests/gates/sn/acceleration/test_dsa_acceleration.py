@@ -211,9 +211,7 @@ class TestTeeth:
 
         def bulk_only(self, displacement):
             out = original(self, displacement)
-            return out._recombine(
-                interior=out.interior, boundary=out.boundary * 0.0,
-            )
+            return out.with_blocks((out.interior, out.boundary * 0.0))
 
         monkeypatch.setattr(DSACorrection, "apply", bulk_only)
         mutated = _solve(("reflective", "vacuum"), acceleration="dsa",
