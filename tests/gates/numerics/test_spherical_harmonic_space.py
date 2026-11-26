@@ -187,7 +187,10 @@ def test_R_equals_2l_plus_1_times_S0(lebedev_L_pair):
     actual = R.apply(c)
     # (2ℓ+1) · S_0(c) per the addition-theorem formula.
     expected = basis.synthesize(c * basis.addition_theorem_factor[:, None], Y)
-    np.testing.assert_allclose(actual, expected, rtol=1e-14)
+    # The two sides sum the same terms in two orders, so they differ by rounding at the scale of the TERMS, not of each entry: an entry that is small
+    # by cancellation carries the absolute error of the large ones ([M] 2026-11-26, ubuntu, numpy 2.5.5: 1 of 74 entries, value 6.4e-3 beside entries
+    # of 15, differs by 3.3e-16, which is 5.2e-14 relative to itself). The absolute floor is 64 eps at the scale of the largest entry.
+    np.testing.assert_allclose(actual, expected, rtol=1e-14, atol=64 * np.finfo(float).eps * float(np.max(np.abs(expected))))
 
     # Structurally-independent cross-check on unit vectors: for
     # c = e_{ℓ₀, m_off₀} (single nonzero entry at one (ℓ, m) slot),
