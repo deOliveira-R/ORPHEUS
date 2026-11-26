@@ -14,7 +14,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-pytestmark = pytest.mark.foundation
+pytestmark = [pytest.mark.foundation, pytest.mark.rests_on("tests/gates/numerics/w1/test_face_measure_home.py")]
 
 #: Ordered ``(key, shape)`` sequences; sizes include 1 (a block of one coordinate is where an off-by-one start hides).
 SEQUENCES = (

@@ -23,7 +23,14 @@ import pytest
 from tests.gates.numerics.w1 import _direct_sum_probe as dp
 from tests.gates.numerics.w1 import _tensor_probe as tp
 
-pytestmark = pytest.mark.foundation
+pytestmark = [
+    pytest.mark.foundation,
+    pytest.mark.rests_on(
+        "tests/gates/numerics/w1/test_tensor_legality.py",
+        "tests/gates/numerics/w1/test_one_tensor_type.py",
+        "tests/gates/numerics/w1/test_coproduct_layout.py",
+    ),
+]
 
 RETIRED_CLASSES = frozenset({"FullFieldSpace", "CoupledSpace"})
 RETIRED_CONSTRUCTORS = frozenset({"FullFieldSpace", "CoupledSpace", "from_blocks", "from_systems"})
@@ -205,10 +212,10 @@ def test_biproduct_laws() -> None:
 
 
 def hand_slices(source: str) -> list[int]:
-    """The line of every read of ``n_coordinates`` on a summand taken by name (``x.interior_space``, ``x.trace_space`` or ``x.summand(..)``): the hand cut of a flat chart at a summand's size."""
+    """The line of every read of ``n_coordinates`` or ``shape`` on a summand taken by name (``x.interior_space``, ``x.trace_space`` or ``x.summand(..)``): the size a hand cut of a flat chart at a summand reads."""
     hits = []
     for n in ast.walk(ast.parse(source)):
-        if isinstance(n, ast.Attribute) and n.attr == "n_coordinates":
+        if isinstance(n, ast.Attribute) and n.attr in {"n_coordinates", "shape"}:
             v = n.value
             if (isinstance(v, ast.Attribute) and v.attr in {"interior_space", "trace_space"}) or (isinstance(v, ast.Call) and isinstance(v.func, ast.Attribute) and v.func.attr == "summand"):
                 hits.append(n.lineno)

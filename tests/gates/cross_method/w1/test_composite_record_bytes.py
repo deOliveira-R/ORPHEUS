@@ -28,7 +28,7 @@ import pytest
 from tests.gates.cross_method.w1 import _composite_probe_population as pop
 from tests.gates.cross_method.w1 import _snapshot as snap
 
-pytestmark = pytest.mark.foundation
+pytestmark = [pytest.mark.foundation, pytest.mark.rests_on("tests/gates/cross_method/w1/test_snapshot_harness.py")]
 
 RECORD_DIR = Path(__file__).resolve().parent / "composite_probes"
 HARNESS_DIR = Path(__file__).resolve().parent / "snapshots"

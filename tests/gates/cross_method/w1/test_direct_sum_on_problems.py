@@ -9,8 +9,7 @@ Each name that exists only after the unit is read at call time, so on the base t
 
 Host exactness (CI: ubuntu with numpy 2.5.5; this host: macOS arm64 with Accelerate and numpy 2.4.4): every row is exact on any host, or compares a computation with a closed form within a stated
 tolerance. The two charts are compared byte for byte within one process (two computations through one code path on one host; the comparison with stored bytes is G05m's and is host-keyed). The payload chart
-is compared with the column-by-column flat chart within a relative 1e-13 of the largest entry (a dense block applies a matrix-matrix product where the flat chart applies a matrix-vector one, which differ in
-the last ulps and not in the structure). Mutations are written for the reviewers and run on a copy; none is run by this file. Every row of this file is listed in the CI step "The space algebra gates (W1)".
+is compared with the column-by-column flat chart within a relative 1e-13 of the largest entry (measured 0.0 on this host: 132 of 132 columns byte-equal at the base tip; the tolerance is kept because a host whose BLAS applies a matrix-matrix product where the flat chart applies a matrix-vector one differs in the last ulps). Mutations are written for the reviewers and run on a copy; none is run by this file. Every row of this file is listed in the CI step "The space algebra gates (W1)".
 """
 
 from __future__ import annotations
@@ -28,7 +27,14 @@ from tests.gates.cross_method.w1 import _snapshot as snap
 from tests.gates.numerics.w1 import _direct_sum_probe as dp
 from tests.gates.numerics.w1 import _tensor_probe as tp
 
-pytestmark = pytest.mark.foundation
+pytestmark = [
+    pytest.mark.foundation,
+    pytest.mark.rests_on(
+        "tests/gates/cross_method/w1/test_snapshot_harness.py",
+        "tests/gates/numerics/w1/test_direct_sum.py",
+        "tests/gates/numerics/w1/test_coproduct_layout.py",
+    ),
+]
 
 ROOT = Path(__file__).resolve().parents[4]
 PAYLOAD_RTOL = 1e-13
@@ -283,6 +289,34 @@ def test_carrier_space_equals_builder_space() -> None:
         _require(mesh.full_field_space.carrier.zeros().space == mesh.full_field_space, f"{name}: the diffusion full field's zero does not live on its space")
         checks += 1
     _require(checks == 15, f"G05g ran on {checks} fixtures, expected 15")
+
+
+def test_biproduct_laws_on_the_coupled_space() -> None:
+    """G05h, the operator form on the production coupled spaces, which nest the full field (and, on the sphere and the cylinder, the ray instance): the projection ``pi_l`` is
+    ``SystemRestrictionOperator(V, label=l)`` and the injection ``iota_l`` is its transpose, the extension by zero. (a) ``pi_l iota_l = id`` on the summand's field and ``pi_m iota_l = 0`` across summands
+    (byte-equal: a copy and a zero); (b) ``sum_l iota_l pi_l = id`` on a seeded member of ``V`` (byte-equal: adding exact zeros). 12 coupled spaces: 6 with one summand and 6 with two. The same three laws
+    hold on today's classes with ``system=`` in place of ``label=`` (measured on the slab, the sphere and the cylinder), so the row is red at the base tip for the keyword only and its first red under a
+    mutation is: let the extension write the member into the wrong summand (``iota`` of summand 0 lands in summand 1; arm (a) reddens), or drop one summand from the sum (arm (b)). Exact on any host: copies."""
+    from orpheus.numerics.coupled_system import SystemRestrictionOperator
+
+    seen = two = 0
+    for name, problem in sn_fixtures():
+        V = problem.system.space
+        x = V.member(snap._probe_vector(int(V.n_coordinates)))
+        operators = [SystemRestrictionOperator(V, label=label) for label in V.labels]
+        total = np.zeros(int(V.n_coordinates))
+        for i, R in enumerate(operators):
+            r = R.apply(x)
+            extended = R.apply_transpose(r)
+            total = total + np.ascontiguousarray(extended.to_flat()).reshape(-1)
+            _require(R.apply(extended).to_flat().tobytes() == r.to_flat().tobytes(), f"{name}: pi_l iota_l is not the identity on summand {V.labels[i]!r}")
+            for j, other in enumerate(operators):
+                if j != i:
+                    _require(not np.any(other.apply(extended).to_flat()), f"{name}: pi_m iota_l is not zero for l={V.labels[i]!r}, m={V.labels[j]!r}")
+        _require(total.tobytes() == np.ascontiguousarray(x.to_flat()).reshape(-1).tobytes(), f"{name}: the sum of iota_l pi_l is not the identity")
+        seen += 1
+        two += len(V.labels) == 2
+    _require((seen, two) == (12, 6), f"the operator form ran on {seen} coupled spaces, {two} with two summands, expected 12 and 6")
 
 
 # ──────────────────────────────── G05j ────────────────────────────────
