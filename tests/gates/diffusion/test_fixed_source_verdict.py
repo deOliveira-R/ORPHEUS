@@ -133,7 +133,7 @@ def test_D2_a_balanced_source_is_gauged_to_the_minimum_G_norm_member():
 
 
 def test_D3_the_gauge_summand_spans_bulk_and_trace():
-    """The #666 composite-gauge xfail's production replacement: the class's summand crosses the FullFieldSpace block
+    """The #666 composite-gauge xfail's production replacement: the class's summand crosses the DirectSumSpace block
     boundary, and its projector is idempotent and G-self-adjoint on the full field."""
     dm = _dm({0: PURE_1G})
     s = DiffusionSolver(dm)

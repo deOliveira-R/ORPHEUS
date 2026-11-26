@@ -20,8 +20,8 @@ when ``F`` does not exist as one object.
 route            object                                     space
 ==============  =========================================  ================================
 forward          ``IsotropicFission`` (``solver.py:1544``)   ``bulk_space`` ``(ng, *spatial)``
-adjoint SEEDLESS ``FissionOperator``  (``solver.py:2772``)   ``FullFieldSpace``
-adjoint CARRYING ``OperatorProduct``  (``solver.py:2821``)   ``CoupledSpace``
+adjoint SEEDLESS ``FissionOperator``  (``solver.py:2772``)   ``DirectSumSpace``
+adjoint CARRYING ``OperatorProduct``  (``solver.py:2821``)   ``DirectSumSpace``
 ==============  =========================================  ================================
 
 ⛔⛔ The brief's *"adopt the adjoint path's posed F spelling forward"* therefore

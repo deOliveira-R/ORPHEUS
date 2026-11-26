@@ -1983,8 +1983,8 @@ An unposed carrier acts between its matrix's own coordinate spaces, so its
 members are 1-D: an operand of shape ``(3, 2)`` on
 :math:`\mathbb R^{6}` is refused with ``NotInCoordinateSpace`` (the
 retired carrier ravelled it and accepted it). A composite space
-(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
-:class:`~orpheus.numerics.coupled_system.CoupledSpace`) has a 1-D shape
+(:class:`~orpheus.numerics.direct_sum.DirectSumSpace`,
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace`) has a 1-D shape
 that is already its flat chart, so its members are the flat vectors: the
 carriers posed on composites (the diffusion resolvent's, the flattened
 views) act on flat vectors because those ARE the members. The S\ :sub:`N`

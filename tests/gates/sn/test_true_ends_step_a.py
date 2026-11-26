@@ -76,7 +76,7 @@ def _expected_state_metric(problem, shape: tuple[int, ...]) -> np.ndarray:
 def test_sa1_codomain_is_the_data_side(name: str, atom: str) -> None:
     """SA-1 RED. A flux → source atom's codomain is not its domain, and its bulk block carries the data-side metric.
 
-    First red today: ``codomain == domain`` (census verdict c: one cached ``FullFieldSpace`` at both ends).
+    First red today: ``codomain == domain`` (census verdict c: one cached ``DirectSumSpace`` at both ends).
     """
     op = _atom(name, atom)
     assert op.codomain != op.domain, f"{atom} on {name}: codomain == domain (the role lives in the class, not the space)"

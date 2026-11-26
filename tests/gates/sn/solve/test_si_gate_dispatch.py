@@ -73,7 +73,7 @@ class _BaseResolvent:
 
 def _fake_mesh(*, is_cartesian: bool, ndim: int) -> SimpleNamespace:
     # F-1: BulkAnalysisOperator POSES its codomain at construction
-    # (``from_blocks(face moment bulk, trace)`` — the pre-F-1 ``None``
+    # (``of_pairs(face moment bulk, trace)`` — the pre-F-1 ``None``
     # codomain debt died), so the fake carries a minimal posed composite
     # rather than ``None``. Content is irrelevant to the gate — only the
     # trace block's existence is consumed.

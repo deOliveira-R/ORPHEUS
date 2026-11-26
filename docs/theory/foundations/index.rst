@@ -57,7 +57,7 @@ represented — not what collision, scattering, and fission *are*.
    * - :doc:`/theory/foundations/operator_adjoint`
      - The **composite metric adjoint** of that algebra: the Hilbert
        adjoint :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G` (``op.H``) over
-       the block-diagonal ``FullFieldSpace`` metric, its singular-trace
+       the block-diagonal ``DirectSumSpace`` metric, its singular-trace
        Moore–Penrose pseudo-inverse — the **operator's** adjoint, distinct
        from the **frame's** Petrov–Galerkin test-space adjoint.
    * - :doc:`/theory/foundations/field_algebra`

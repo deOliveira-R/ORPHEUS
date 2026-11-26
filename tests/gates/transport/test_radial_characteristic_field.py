@@ -351,7 +351,7 @@ class TestRadialCharacteristicFieldSpace:
         r"""The elegance-carried B.2a reminder, pinned on the REAL members:
         ``to_flat().size == prod(space.shape)`` AND the flat ORDER is
         ``concat(interior, boundary)`` — the three offset spellings
-        (``to_flat``, the space shape, the future ``system_slices``) name
+        (``to_flat``, the space shape, the future ``slice_of``) name
         ONE layout."""
         sn = _sphere()
         space = sn.composite

@@ -2,7 +2,7 @@ r"""§16.A — the starting-direction PRESENCE + space intrinsic gates (post-B.2
 
 The 2.5d-era §16.A carrier-law suite pinned the ψ½ block's life ON the
 3-block augmented composite (presence-keyed ``zeros``, the mixed-presence
-law, the flat seed tail, the seed metric arms of ``FullFieldSpace``). The
+law, the flat seed tail, the seed metric arms of ``DirectSumSpace``). The
 B.2d ray eviction dissolved that carrier: ``FullField`` is a pure 2-block
 composite and System B is its own
 :class:`~orpheus.transport.radial_characteristic_field.RadialCharacteristicField`,
@@ -38,7 +38,7 @@ Retirement ledger (B.2d d2 — where each retired class's claim went):
   ``tests/gates/transport/test_radial_characteristic_field.py``; the
   mixed-presence and advance presence LAWS retired with the block (their
   raise sites are gone — presence is System-B existence, G-c2.2).
-* **A4's FullFieldSpace seed arms** (apply_metric/apply_inverse_metric/
+* **A4's DirectSumSpace seed arms** (apply_metric/apply_inverse_metric/
   inner_product seed terms + the mixed-presence raise + the illegal
   pairing) — the space is 2-block; System B's metric rides its OWN
   composite-space instance (gated here) and the coupled G-reciprocity is

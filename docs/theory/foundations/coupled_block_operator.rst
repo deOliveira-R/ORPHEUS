@@ -399,7 +399,7 @@ machinery in :mod:`orpheus.numerics.coupled_system` — nothing there knows
 transport, rays, or meshes. A coupled system is N sub-systems solved
 together: the state is the direct sum of the systems' fields
 (:class:`~orpheus.numerics.coupled_system.CoupledField`), the space is
-their product (:class:`~orpheus.numerics.coupled_system.CoupledSpace`),
+their product (:class:`~orpheus.numerics.direct_sum.DirectSumSpace`),
 and the operator is the N×N grid of blocks
 (:class:`~orpheus.numerics.coupled_system.CoupledOperator`) with the block
 matvec
@@ -439,8 +439,8 @@ wraps the result in a
 :class:`~orpheus.numerics.assembled_operator.SparseAssembledOperator` —
 :ref:`operator-algebra-assembly-axis`), and ``solve``
 (the structure-keyed direct solve, below). The offsets ARE the block
-structure — :attr:`CoupledSpace.system_slices
-<orpheus.numerics.coupled_system.CoupledSpace.system_slices>` is the
+structure — :attr:`DirectSumSpace.slice_of
+<orpheus.numerics.direct_sum.DirectSumSpace.slice_of>` is the
 scoped local→global DOF map the block law needs, the same layout
 :meth:`CoupledField.to_flat` packs. Because :class:`CoupledField` itself
 satisfies the ravellable ``to_flat``/``from_flat`` protocol, every
@@ -451,7 +451,7 @@ closed by conformance, not per-site edits).
 **The Hilbert adjoint comes free — Mode-12 closure by construction.**
 :class:`CoupledOperator` implements only the Euclidean
 :meth:`apply_transpose` — the transposed grid :math:`(A^{\mathsf T})_{ji}
-= (A_{ij})^{\mathsf T}` — and carries a :class:`CoupledSpace` whose metric
+= (A_{ij})^{\mathsf T}` — and carries a :class:`DirectSumSpace` whose metric
 methods dispatch member-wise. The metric adjoint :math:`A.H = G^{+}
 A^{\mathsf T} G` is then realised ONCE by the existing
 :class:`~orpheus.numerics.operator.AdjointOperator` wrapper. No adjoint
@@ -495,7 +495,7 @@ consecutive seeds per reading; the probes are
 **The definition.** Let :math:`V = V_1 \oplus \cdots \oplus V_N` be the
 coupled space, carrying the block-diagonal metric
 :math:`G = \operatorname{diag}(G_1, \dots, G_N)` that
-:class:`~orpheus.numerics.coupled_system.CoupledSpace` applies member by
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` applies member by
 member, each :math:`G_j` being the metric of the member space :math:`V_j`.
 For each member :math:`i`:
 
@@ -532,14 +532,14 @@ For each member :math:`i`:
    zero of the whole coupled space.
 
 On the flat layout a coupled field packs (the member offsets
-:attr:`CoupledSpace.system_slices
-<orpheus.numerics.coupled_system.CoupledSpace.system_slices>`), :math:`r_i`
+:attr:`DirectSumSpace.slice_of
+<orpheus.numerics.direct_sum.DirectSumSpace.slice_of>`), :math:`r_i`
 is the gather over the contiguous index block :math:`S_i` of member
 :math:`i`, and :math:`\iota_i` is its scatter: the trace restriction pair
 :eq:`bc-trace-restriction-pair` with :math:`S = S_i`. `[M]` on the fixture,
 the production restriction and a
 :class:`~orpheus.numerics.elementary_operators.TraceRestrictionOperator` built on
-``system_slices[i]`` agree under ``np.array_equal`` in 200 of 200 draws, for
+``slice_of[i]`` agree under ``np.array_equal`` in 200 of 200 draws, for
 both members and in both directions, while the gather over the block
 shifted by one row disagrees (``sysres_probe4.py``). What the coupled class
 adds over the flat gather is typing: its ends are coupled spaces and its
@@ -672,8 +672,8 @@ deliberately wrong reading that must fail
    * - :math:`\langle P_i a, (I - P_i) b\rangle_G = 0`
      - largest absolute value ``0.0`` over 200 draws and both members, with
        :math:`G` materialised column by column from
-       :meth:`CoupledSpace.apply_metric
-       <orpheus.numerics.coupled_system.CoupledSpace.apply_metric>` and its
+       :meth:`DirectSumSpace.apply_metric
+       <orpheus.numerics.direct_sum.DirectSumSpace.apply_metric>` and its
        off-member blocks exactly zero
    * - :math:`r_i^{*} = \iota_i`
      - both member metrics nonsingular (diagonal; smallest eigenvalue
@@ -720,12 +720,12 @@ that is the restriction's adjoint. The pair is named by what each arrow
 does, restriction and extension by zero.
 
 **The class.** ``SystemRestrictionOperator(space, system=i)`` realizes the
-pair on a :class:`~orpheus.numerics.coupled_system.CoupledSpace` (the code
+pair on a :class:`~orpheus.numerics.direct_sum.DirectSumSpace` (the code
 counts members from 0, so the code's ``system=0`` is :math:`r_1`):
 
 - **Born bound, onto a one-member coupling.** Its domain is the whole
   coupled space; its codomain is the one-member coupled space
-  ``CoupledSpace.from_systems([V_i])`` built at construction, not the
+  ``DirectSumSpace.of_pairs([V_i])`` built at construction, not the
   member space :math:`V_i` itself, so :math:`r_i x` is a one-member
   :class:`~orpheus.numerics.coupled_system.CoupledField` and
   :math:`\iota_i` consumes one. `[M]` on the fixture, for both members, the
@@ -739,8 +739,8 @@ counts members from 0, so the code's ``system=0`` is :math:`r_1`):
   (``ValueError``, "out of range").
 - **The extension is the cotangent map.** ``apply_transpose`` mints the
   zeros it extends with through the space's cotangent seam,
-  :meth:`CoupledSpace.dual_zeros
-  <orpheus.numerics.coupled_system.CoupledSpace.dual_zeros>`, so they carry
+  :meth:`DirectSumSpace.dual_zeros
+  <orpheus.numerics.direct_sum.DirectSumSpace.dual_zeros>`, so they carry
   the source role, the dual of the flux role: a transpose consumes the
   codomain's cotangent and emits the domain's. `[M]` on the fixture,
   extending System A leaves System B as a
@@ -822,7 +822,7 @@ The joint system has exactly ONE construction site:
 :func:`~orpheus.sn.coupled_system.build_within_group_system`, which
 returns the frozen :class:`~orpheus.sn.coupled_system.WithinGroupSystem`
 record — **four** members: the loss grid, the
-:class:`~orpheus.numerics.coupled_system.CoupledSpace` it is typed
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` it is typed
 against, the bound LEAVES the grid is the signed sum of
 (:class:`~orpheus.sn.coupled_system.SNLossFactors`, by role), and — since
 2026-09-13 — the posed production
@@ -855,7 +855,7 @@ those members: a posing does not choose which leaf is inverted, so since
 that value derives on a carrying mesh.
 This builder is what retired the former ``_within_group_triple`` /
 ``_lagged_gains`` construction pair. The grid and its
-:class:`CoupledSpace` are emitted **together**, aligned by construction
+:class:`DirectSumSpace` are emitted **together**, aligned by construction
 (RULING P1: a mismatched operator/space pairing is unconstructable).
 
 The **loss grid** carries the loss-sign convention, and the two

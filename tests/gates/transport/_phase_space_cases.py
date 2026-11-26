@@ -2,7 +2,7 @@ r"""The material meshes the transport gates pose their spaces on (layer DAG Phas
 
 A transport gate holds no method problem: it builds a :class:`MaterialMesh` here, picks a quadrature and a scheme
 itself, and builds every space it reads with :mod:`orpheus.transport.phase_spaces` (or the scheme's
-``trial_space``, ``DirectSumSpace.from_blocks``, ``HarmonicFrame.moment_space_on``). Nothing here owns a space: a
+``trial_space``, ``DirectSumSpace.of_pairs``, ``HarmonicFrame.moment_space_on``). Nothing here owns a space: a
 builder returns a mesh, and the gate spells each space at the call site, so a gate cannot read a space through a
 duck-typed carrier (the F1 entries refuse a ``MaterialMesh`` by name).
 

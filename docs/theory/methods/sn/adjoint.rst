@@ -2158,15 +2158,15 @@ rather than a physics error:
 The hub's :attr:`~orpheus.sn.problem.SNProblem.pencil`, by
 contrast, is the **coupled-space** object on *both* arms: ``[M]`` on a
 seedless two-region slab ``system.space`` is a ONE-system
-``CoupledSpace`` and ``pencil.rhs`` is a ``CoupledOperator`` on it, while
-``factors.fission`` lives on the bare ``FullFieldSpace``.  So handing the
+``DirectSumSpace`` and ``pencil.rhs`` is a ``CoupledOperator`` on it, while
+``factors.fission`` lives on the bare ``DirectSumSpace``.  So handing the
 hub's daggered pencil to the seedless adjoint paired a coupled
 :math:`F^{\dagger}` with a full-field iterate — ``[M]`` 15
 adjoint-certification rows plus 2 architecture anchors went red.
 
 That was recorded here as a **deferral, not a workaround**, and U2
 discharged it in the direction the deferral named.  The asymmetry was
-never in the physics: a one-system ``CoupledSpace`` **is** the full field
+never in the physics: a one-system ``DirectSumSpace`` **is** the full field
 wrapped, so the repair is to lift the Strategy pair into the
 :math:`1\times1` grid rather than to reduce the question.  What moves is
 arithmetic at the last digit — the pairing now reduces over the coupled

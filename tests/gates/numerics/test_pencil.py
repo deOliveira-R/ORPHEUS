@@ -8,7 +8,7 @@ objects alone.
 The ends law's SHARP pair is reproduced in numerics: two spaces of EQUAL shape
 and different content (a synthetic and a partitioned energy axis), so a
 shape-keyed ends check still admits it and this gate still refuses it. The SN
-instance (``CoupledSpace(160,)`` vs ``FullFieldSpace(160,)``) and the hub
+instance (``DirectSumSpace(160,)`` vs ``DirectSumSpace(160,)``) and the hub
 identity ``hub.pencil.lhs is hub.system.loss`` are SN claims, asserted at
 ``tests/gates/sn/architecture/test_posing.py``.
 

@@ -315,7 +315,7 @@ class TestPresence:
 class TestRadialCharacteristicFieldSpace:
     r"""``SNProblem.radial_characteristic_field_space`` — System B's member space.
 
-    The DP1 ruling realized: the SAME family-blind ``FullFieldSpace`` class
+    The DP1 ruling realized: the SAME family-blind ``DirectSumSpace`` class
     System A uses, instantiated over the two split ψ½ spaces. The identity
     name is the family rule (CS4b S4): ``dsum(interior ⊕ boundary)#<digest>`` folded from
     the MEMBER spaces' content — the pre-S4 ``"radial_characteristic"``

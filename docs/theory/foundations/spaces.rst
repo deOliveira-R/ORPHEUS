@@ -634,9 +634,9 @@ family re-states equality. The key is a tagged tuple per kind of space:
        75), so a dual never equals a primal.
    * - :class:`~orpheus.numerics.space.TensorSpace`
      - ``("tensor", factors)``: the ordered factors, each with its axis, variance and subquotient.
-   * - :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+   * - :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
      - ``("full_field", interior key, trace key)``.
-   * - :class:`~orpheus.numerics.coupled_system.CoupledSpace`
+   * - :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
      - ``("coupled", member keys)``.
 
 The members of a composite are required fields: a full-field space without
@@ -685,7 +685,7 @@ that must stay equal:
        their metrics
      - unequal, by the overlay; I5, I5b, and I5c for one matrix with its
        inverse supplied against derived
-   * - 6. ``from_blocks(a, b).dual()`` against ``from_blocks(a*, b*)``,
+   * - 6. ``of_pairs(a, b).dual()`` against ``of_pairs(a*, b*)``,
        hand-named ``a*``, ``b*``
      - covariance
      - equal, with equal hashes (the composite folded member NAMES)
@@ -739,8 +739,8 @@ and what keeps ``repr`` and the space-content guard messages
 content-distinguishing. It no longer carries any composite's identity: a
 full-field or coupled composite is keyed by its members' keys, because a
 member's name does not carry covariance (#631 pair 6, finding F7 of the
-S6a review; until S7 :meth:`FullFieldSpace.from_blocks
-<orpheus.numerics.spaces.full_field_space.FullFieldSpace.from_blocks>`'s
+S6a review; until S7 :meth:`DirectSumSpace.of_pairs
+<orpheus.numerics.direct_sum.DirectSumSpace.of_pairs>`'s
 digest of its members' names was that identity).
 
 The mechanism is visible in one construction. The homogeneous problem's
@@ -2504,8 +2504,8 @@ Resolution happens once per space, in
 :meth:`~orpheus.numerics.space.FunctionSpace.apply_inverse_metric` and
 :meth:`~orpheus.numerics.space.FunctionSpace.inner_product` — delegate
 to whatever it returns. Composite spaces
-(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
-:class:`~orpheus.numerics.coupled_system.CoupledSpace`) override the
+(:class:`~orpheus.numerics.direct_sum.DirectSumSpace`,
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace`) override the
 three verbs to dispatch **per block** and therefore inherit the family
 for free: a dense-metric interior block flows through a composite with
 no composite-level change.
@@ -2537,7 +2537,7 @@ carried its own gate when it was added.
    changed. `[M]` 2026-10-22, a runtime walk of
    ``FunctionSpace.__subclasses__`` after importing every ``orpheus``
    module: 3 of the 10 subclasses define ``__post_init__``
-   (``DualSpace``, ``CoupledSpace``, ``AngularFaceTraceSpace``), and all
+   (``DualSpace``, ``DirectSumSpace``, ``AngularFaceTraceSpace``), and all
    3 call ``super().__post_init__()``. It surfaced only because the
    first dressing attempt left the
    spherical-harmonic basis's continuum weights in the field *beside*
@@ -2615,9 +2615,9 @@ it:
 <orpheus.numerics.space.FunctionSpace.metric_diagonal>` forwards the
 question to the space's resolved metric over the space's ``shape``, and
 reads all ones on a Euclidean space.  The two composite spaces override
-it: :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+it: :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
 concatenates the interior's and the trace's diagonals, and
-:class:`~orpheus.numerics.coupled_system.CoupledSpace` its members', each
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` its members', each
 in its flat layout, and each returns ``None`` if any block does.  The
 kernel gauge reads its metric only through this verb, so a dual space,
 whose metric is a :class:`~orpheus.numerics.metric.DualMetric` over a
@@ -2898,7 +2898,8 @@ so a raise there would guard no reachable input. The kernel projection gauge's d
 refuse: a signed rule on a reflective problem is refused upstream by the weighted orthonormalisation, which refuses a NEGATIVE weight as a verb
 that needs a positive form (the message of ``norm``, naming the Krein arm and issue #706, with the count of negative rows; the gate G03u pins
 the fragments) and a ZERO weight for its own reason (no minimum-norm member, a division by zero: "carry a vanishing metric"). The norm of a composite
-(direct-sum) space does not refuse yet, and is the next caller of the helper that ``norm`` uses (unit N05, issue #706). Three further sites
+(direct-sum) space refuses a signed summand by the same message: a direct sum answers ``negative`` as the sum of its summands' and
+``norm`` is the base body over its ``inner_product`` (unit N05, issue #706). Three further sites
 spelled the Riesz pseudo-inverse with ``weights > 0`` (the helper that raises the left null vectors and the one that reduces a basis modulo
 :math:`\ker G` in ``near_kernel``, and the adjoint of a predicted kernel in ``fredholm``): they are verbs that need invertibility and not
 positivity, so they read ``weights != 0``, bit-identical wherever no weight is negative.
@@ -3447,8 +3448,8 @@ Who passes what today
 - **Typed:** :meth:`Field.l2 <orpheus.numerics.field.Field.l2>` and
   :meth:`Field.inner_product <orpheus.numerics.field.Field.inner_product>`
   hand the space the field itself;
-  :meth:`CoupledSpace.inner_product
-  <orpheus.numerics.coupled_system.CoupledSpace.inner_product>` hands each
+  :meth:`DirectSumSpace.inner_product
+  <orpheus.numerics.direct_sum.DirectSumSpace.inner_product>` hands each
   member space its member field. Since U2c (``[LANDED 36dbac9d]``) the
   reaction rates of the three sharp methods are paired with typed fluxes:
   S\ :sub:`N` types its power-iteration vector as a
@@ -3460,7 +3461,7 @@ Who passes what today
   :attr:`~orpheus.numerics.space.FunctionSpace.integral` mints from a
   typed member too (:ref:`spaces-covector`).
 - **Bare, so the shape leg only:** the full-field composite
-  (:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`)
+  (:class:`~orpheus.numerics.direct_sum.DirectSumSpace`)
   hands its block spaces their coordinates, in its inner product and in
   both metric legs (#666, below); the action sites of the operator
   algebra pass bare arrays, because the iterate of ``power_iteration``
@@ -3515,8 +3516,8 @@ end of :ref:`spaces-dual-space`,
 `#633 <https://github.com/deOliveira-R/ORPHEUS/issues/633>`_).
 :math:`V^{*} \ne V` by content identity, so the typed tier refuses the
 block. The composite therefore passes coordinates, and a comment in
-:meth:`FullFieldSpace.inner_product
-<orpheus.numerics.spaces.full_field_space.FullFieldSpace.inner_product>`
+:meth:`DirectSumSpace.inner_product
+<orpheus.numerics.direct_sum.DirectSumSpace.inner_product>`
 records why, tagged ``ELEGANCE-DEBT[guard] #666``: the composite's inner
 product asks no membership of its arguments
 (`#666 <https://github.com/deOliveira-R/ORPHEUS/issues/666>`_). The leaf
@@ -3618,13 +3619,13 @@ coordinate dimension, the length of the chart. It is not
 :math:`V / \ker G` on which the inner product is definite
 (:ref:`spaces-quotient`); the two agree on a space with no metric, where
 ``rank`` now reads ``n_coordinates``. A composite space
-(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
-:class:`~orpheus.numerics.coupled_system.CoupledSpace`) has a 1-D shape,
-the sum of its blocks' ``n_coordinates``, so its shape is already its
-flat chart and its members are flat vectors; the block slicing of both
-composites, the direct-sum action
-:func:`~orpheus.numerics.space.act_on_direct_sum_coordinates` and the
-predicted kernel's chart length read the blocks' ``n_coordinates``.
+(:class:`~orpheus.numerics.direct_sum.DirectSumSpace`) has a 1-D shape,
+the sum of its summands' ``n_coordinates``, so its shape is already its
+flat chart and its members are flat vectors; the slicing of the flat chart,
+the direct-sum action (:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.pack` and
+:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.unpack`, through the one
+:class:`~orpheus.numerics.coproduct_layout.CoproductLayout`) and the
+predicted kernel's chart length read the summands' ``n_coordinates``.
 
 **The matrix of a map.** A linear map :math:`A : V \to W` is, in the two
 flat charts, a matrix
@@ -4240,9 +4241,9 @@ no member metrics to read, and would pair Euclidean):
    \qquad
    (V \otimes W)^{*} = V^{*} \otimes W^{*} .
 
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` duals
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` duals
 its interior and trace blocks;
-:class:`~orpheus.numerics.coupled_system.CoupledSpace` duals its systems
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` duals its systems
 and swaps its two zero factories, since this space's cotangent zero is
 the zero of its dual; :class:`~orpheus.numerics.space.TensorSpace`
 duals its factors. Each override is the one hook ``_make_dual``, and the
@@ -6352,7 +6353,7 @@ Each hypothesis has a failure, and each failure is a different object:
   \lVert G\rVert` is 0 on 110 and :math:`6.0\times10^{-17}` on the other
   2; gate G3 built a full-shape ``DenseMetric`` on an axis-built space
   and required the refusal (*"DERIVED from its axes"*), the refusal the factor's own door replaced. The non-product
-  spaces of the tree (``FullFieldSpace``, bulk ⊕ trace, and the coupled
+  spaces of the tree (``DirectSumSpace``, bulk ⊕ trace, and the coupled
   system's space) are axes-less, and the by-label resolver refuses them
   (*"not axis-built"*).
 - **The marginal metric is not the full metric with the block
@@ -7559,6 +7560,60 @@ and its gate table below the two lifts), and the two axis verbs.
        1-ULP bound; the clause-2 energy refusal; and the one-mint memo.
 
 
+.. _spaces-direct-sum:
+
+The direct sum: one biproduct, labelled and typed
+=================================================
+
+The full field :math:`V_{\rm bulk} \oplus V_{\rm trace}` and the coupled system :math:`V_{\rm A} \oplus V_{\rm B}` are one object, the
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace`: the biproduct :math:`V = \bigoplus_l V_l` of summand spaces named by labels. A summand
+is any space, including a sum, so the production coupled system nests the full field and the ray instance of System B.
+
+**The biproduct laws.** The injection :math:`\iota_l` is :meth:`~orpheus.numerics.direct_sum.DirectSumSpace.pack` of one part and zeros, the
+projection :math:`\pi_l` is :meth:`~orpheus.numerics.direct_sum.DirectSumSpace.unpack` read at the label, and
+
+.. math::
+
+   \pi_l \iota_m = \delta_{lm}\,\mathrm{id}, \qquad \sum_l \iota_l \pi_l = \mathrm{id}, \qquad
+   \langle \pi_l x, y\rangle_{V_l} = \langle x, \iota_l y\rangle_V,
+
+the last under the block-diagonal metric :math:`G = \mathrm{diag}(G_l)`: the extension by zero is the transpose of the restriction, which is what
+makes :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator` (addressed by label) the projection onto a named summand and its
+transpose the injection. ``pack`` and ``unpack`` are inverse, with or without a trailing payload (:math:`G \otimes I_P`).
+
+**The layout.** The offsets of the flat chart are computed once, by :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
+(:class:`~orpheus.numerics.coproduct_layout.LayoutBlock` per summand): the layout takes ordered ``(key, shape)`` pairs and derives every offset as the
+sum of the sizes before it, so the blocks tile ``range(n)`` exactly and a layout whose offsets disagree with its sizes cannot be spelled. The layout
+is the partition: ``slice_of(label)`` is the slice of the flat chart, and no second type holds the same index sets.
+
+**Identity.** A sum is its ordered ``(label, summand key)`` pairs. Two sums over isomorphic summands with different labels are unequal, so are
+two sums over the same labelled summands in two orders (the offsets differ), and a nested sum is not equal to its flattening. The carrier is no part
+of the identity.
+
+**The typed chart.** An element of a sum has two charts, the flat coordinates and the typed carrier. The carrier classes of the layer above
+(``FullField``, ``TimedFullField``, ``RadialCharacteristicField``, ``CoupledField``) implement two accesses, ``blocks`` (the summand elements in
+label order) and ``with_blocks`` (the same concrete class rebuilt, labels kept), and the sum reads and rebuilds its typed element through those two and
+nothing else: a block whose summand is a sum is handed to that summand's verb; any other block is a ``Member`` whose values the summand's verb acts on,
+rebuilt in one place. ``with_blocks`` on a ``TimedFullField`` keeps its history depth and returns an empty history (a metric application is algebra,
+not a state step). The two charts agree byte for byte. The labels are a class constant of each carrier class (``bulk`` and ``trace``; ``interior`` and
+``boundary`` for the ray instance) and a required tuple of ``CoupledField``, declared once by the builder (``numerics/direct_sum.py`` and
+``sn/coupled_system.py``): a default label would be a positional guess. The declared boundary is that a leaf summand cannot yet mint its own typed
+member, so the helper that rebuilds a leaf block, and the pair of zero factories of the carrier (:class:`~orpheus.numerics.direct_sum.SumCarrier`, swapped
+by ``dual``), wait for members typed by their space (issue #707).
+
+**The verbs.** ``apply_metric`` and ``apply_inverse_metric`` act summand by summand through each summand's own verb; ``inner_product`` and ``norm`` take the
+typed carrier only; ``rank`` and ``negative`` are sums, ``kernel_basis`` is block diagonal, ``metric_diagonal`` the concatenation (``None`` if any
+summand is not diagonal). Three answers changed with the one sum, and none is a value production computes: ``unit`` is the concatenation of the summands'
+units (the retired classes answered all ones, which differs from it on a modal bulk), ``integral`` is the integral of that function (it raised on a full
+field), and ``has_coordinate_cone`` is the three-valued conjunction, False before None. The flip by label, ``dual(on=)`` and ``riesz(on=)``, applies to
+the summands that hold the labels; it refuses whole a sum with a legacy leaf summand, which holds no factor labels.
+
+**What was tried and refused.** A second partition type beside the layout (the layout is the partition); the sum stored in its carriers (a twin
+datum: the carrier derives its space from its blocks and labels); the label stored on the carrier with a class default (a positional guess); a flat-only
+sum (it deletes the typed chart production uses); the typed element read by the space (it welds the space to the member classes); a zero derived from the
+summands' (the element class of a full field is not a function of its summand spaces); one four-field carrier pair shared with the tensor space (a tensor
+space cannot hold a factory and a sum cannot hold a member class).
+
 .. _spaces-fences:
 
 What is NOT built (the standing seams)
@@ -7594,7 +7649,7 @@ taken.
        ``angular_trial_space`` are ALL axis-built and all report
        ``has_coordinate_cone is True``. What is still legacy
        (``axes is None``, ``has_coordinate_cone is None``) is the
-       **composite** :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+       **composite** :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
        and the flat **trace** buffers — the block/direct-sum structure
        the axis layer does not yet compose (see the
        :math:`\oplus` row below). This is also why the axis collapse
@@ -7603,7 +7658,7 @@ taken.
    * - :math:`\oplus` composition (direct sums of spaces)
      - **CS2's opener.** The axis layer composes with :math:`\otimes`
        only; block/composite structure still rides
-       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+       :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
        and the coupled-block machinery.
    * - The rank-:math:`d` measure-to-axis pairing
      - **CS2.** A :class:`~orpheus.numerics.measure.DiscreteMeasure` is
@@ -7750,7 +7805,7 @@ taken.
        already enforced.  ⚠ One deliberate exception survives, and it
        is not an oversight:
        :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`\ 's
-       CONSTRUCTOR parameter stays ``FullFieldSpace | None``, because
+       CONSTRUCTOR parameter stays ``DirectSumSpace | None``, because
        the constructor **is** the narrow — its guard ("the pose carries
        no ψ½ ray") has two witnesses that pass a runtime ``None`` on
        the slab, and flipping the parameter would make a
@@ -8009,7 +8064,7 @@ status.
        ``_structural_bytes`` encoder (which encoded a scalar by its
        ``repr``, so ``1`` and ``1.0`` differed, and tagged the class
        without its module). ``FunctionSpace.of_axes``, the three trace
-       spaces' name mints and ``FullFieldSpace.from_blocks``, four
+       spaces' name mints and ``DirectSumSpace.of_pairs``, four
        encoders with no type tags or length prefixes, call
        :func:`~orpheus.values.content.name_digest`, the one 8-byte
        space-name digest, and the trace spaces read their layout's

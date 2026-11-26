@@ -352,7 +352,7 @@ class TestPolymorphicRecombine:
 
 # ═══════════════════════════════════════════════════════════════════════
 # G-d2.2 (B.2d d2) — FullField / TimedFullField / DirectSumSpace /
-# CompositeField are PURE 2-BLOCK: the ray eviction's structural pins
+# composite carrier are PURE 2-BLOCK: the ray eviction's structural pins
 # ═══════════════════════════════════════════════════════════════════════
 
 
@@ -361,7 +361,7 @@ class TestFullFieldTwoBlock:
     r"""The B.2d eviction end-state, pinned structurally (G-d2.2): the ψ½
     ray is System B's own composite — ``FullField`` carries NO
     ``radial_characteristic`` slot, the factories reject the retired
-    kwarg, the ``CompositeField`` protocol declares only the two blocks,
+    kwarg, the ``composite carrier`` protocol declares only the two blocks,
     and the recombine hook is 2-kwarg (a stray seed arm — the eviction's
     leftover bug class — TypeErrors instead of silently threading)."""
 

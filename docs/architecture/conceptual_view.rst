@@ -293,11 +293,11 @@ coupled field and its transpose is extension by zero
 :class:`~orpheus.numerics.coupled_system.SystemRestrictionOperator`), on
 the coupled space, the direct sum of the members
 (:ref:`coupled-block-n-general-machinery`;
-:class:`~orpheus.numerics.coupled_system.CoupledSpace`). Into the composite, the **lift**
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace`). Into the composite, the **lift**
 carries a bulk action onto :math:`\text{bulk} \oplus \text{trace}` by
 extension by zero on the trace (:ref:`cs4c-ends-select-the-body`;
 :class:`~orpheus.transport.operators.lift.BulkLift`;
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`).
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace`).
 
 A face of the boundary has one **role**: a *deck*, which says the domain
 continues across the face (a rigid motion that glues it to a partner face,
@@ -662,7 +662,7 @@ guard is the same debt in another spelling. Measured 2026-09-21 on
   The sites: the full-field carrier (#457); the full-field composite's
   inner product, which hands its blocks bare coordinates and so asks no
   membership of its arguments, in
-  ``orpheus/numerics/spaces/full_field_space.py`` (#666, retired when a
+  ``orpheus/numerics/direct_sum.py`` (#666, retired when a
   composite member is compared with its space by content and hands the
   leaf verbs typed blocks, :ref:`spaces-membership`); the field layer's refusal of a
   spatial-moment axis whose basis is not one interval factor per spatial

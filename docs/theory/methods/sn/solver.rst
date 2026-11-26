@@ -1447,7 +1447,7 @@ single hub (a two-region 2-group slab, ``gauss_legendre(8)``):
    * - adjoint, **carrying** mesh
      - an :class:`~orpheus.numerics.operator.OperatorProduct`
        (``_adjoint_posing_parts``, again)
-     - the :class:`~orpheus.numerics.coupled_system.CoupledSpace`
+     - the :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
 
 Three spellings, two mints per solve, and — the part that matters —
 **no object that both faces read**.  So
@@ -2714,8 +2714,8 @@ algebra already states.
 One thing the implementation had to learn, and it is worth carrying: the
 posing's **ends law** refused the first attempt.  ``[M]`` at the probe, a
 bare fixed-source right-hand side is a ``TimedFullField`` on the
-``FullFieldSpace`` while ``pencil.at(1)``'s ends are the ONE-system
-``CoupledSpace`` — equal in content, different as spaces — so
+``DirectSumSpace`` while ``pencil.at(1)``'s ends are the ONE-system
+``DirectSumSpace`` — equal in content, different as spaces — so
 :class:`~orpheus.numerics.posing.SourcePosing`'s ``__post_init__``
 rejected the pair.  That is the guard working, not a nuisance: the fix is
 to **lift**, not to loosen.  ``source_posing`` wraps a bare member as

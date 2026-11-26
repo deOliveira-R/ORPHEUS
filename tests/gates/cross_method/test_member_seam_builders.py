@@ -3,7 +3,7 @@ composite space mints its members.
 
 The numerics laws (leaf, dual, tensor product, the kernel basis) are
 ``tests/gates/numerics/test_member_seam_laws.py``. This file poses the composites that only a builder above the numerics
-layer can wire (``DirectSumSpace.zeros_factory`` in ``sn/problem.py``, ``transport/full_field.py`` and
+layer can wire (``DirectSumSpace.carrier.zeros`` in ``sn/problem.py``, ``transport/full_field.py`` and
 ``diffusion/augmented_mesh.py``; ``DirectSumSpace``'s ``zeros`` in ``sn/coupled_system.py``), on the smallest production
 problems: a 3-cell 2-group slab (vacuum | mirror, LS4), the 2-cell reflective sphere (GL2, which carries System B,
 the ψ½ ray), and a 4-cell 2-group diffusion slab (vacuum | mirror). It lives in ``cross_method/`` because it imports SN
@@ -164,7 +164,7 @@ def _build(V: Any, classes: tuple, rng: np.random.Generator) -> tuple[Any, np.nd
 def test_mb1_coordinates_of_member_is_the_identity(case: str) -> None:
     """MB1. ``coordinates_of(member(c)) == c`` bit-exactly, the member of the builder's carrier classes on V's blocks.
     First reds: ``DirectSumSpace.member`` splitting ``c`` at the wrong index; ``DirectSumSpace.member`` reversing the
-    systems; an unwired ``zeros_factory`` (the loud refusal)."""
+    systems; an unwired ``carrier.zeros`` (the loud refusal)."""
     builder, classes = _spaces()[case]
     V = builder()
     c = np.random.default_rng(3).standard_normal(V.n_coordinates)

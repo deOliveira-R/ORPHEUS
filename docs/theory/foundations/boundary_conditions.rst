@@ -5354,7 +5354,7 @@ trace-typed :math:`B` summed silently with the bulk :math:`S`. The
 structural reason the fold stays gone is the **variadic-driver
 redesign** below — :math:`B` is a lagged *gain*, never a resolvent
 summand — not a typing tripwire: P4.5 W-D gave :math:`S` the
-**composite** :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+**composite** :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
 (the *same* instance :math:`L`/:math:`C`/:math:`B` carry, so the
 within-group ``(L+C) - S`` guard *validates* the ``- S`` arm), NOT a
 bulk-only :math:`V_{\rm bulk}` domain, so an ``OperatorSum`` of the
@@ -5628,7 +5628,7 @@ summed with a trace :math:`B`).
 
 W-D closed the seam, but with a **different and stronger** choice: the
 bulk leaves :math:`C`/:math:`S`/:math:`F` carry the **composite**
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` — the
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` — the
 *same* instance :math:`L`/:math:`B` advertise — not a bulk-only
 :math:`V_{\rm bulk}` space. The motivation shifted from the negative
 "reject :math:`S + B`" tripwire to the positive **within-group

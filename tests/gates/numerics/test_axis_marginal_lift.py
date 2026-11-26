@@ -335,7 +335,7 @@ class TestG3Reciprocity:
         """The product condition is a CONSTRUCTION invariant: an axis-built space with a
         full-shape metric object is refused, so no non-product space reaches the lift.
         [M] 2026-10-19: 0 of 51 axis-built census spaces fail the product (p1_census.py);
-        the non-product spaces of the tree (FullFieldSpace, 6 of 6 problems) are axes-less
+        the non-product spaces of the tree (DirectSumSpace, 6 of 6 problems) are axes-less
         and refused by the by-label resolver."""
         from orpheus.numerics.axis import Axis, BasisKind
         from orpheus.numerics.declaration import Coord

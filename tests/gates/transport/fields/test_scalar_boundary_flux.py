@@ -292,7 +292,7 @@ class TestScalarComposite:
             pytest.fail("twin-carrier composite must content-equal either mint")
 
     def test_direct_sum_space_metric_and_inner_product(self):
-        """from_blocks admits the scalar trace; the direct-sum inner
+        """of_pairs admits the scalar trace; the direct-sum inner
         product is the bulk + trace block sum (hand value)."""
         mm = _slab_mesh()
         bulk = ScalarFlux.zeros(mm.bulk_space)

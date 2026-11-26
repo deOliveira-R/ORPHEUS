@@ -17,7 +17,7 @@ package, not the verbs alone):
   :func:`~orpheus.transport.operators.lift.admit_composite` (the
   composite admission), :func:`~orpheus.transport.operators.lift.admit_array`
   (the plain admission), and the constructors' SPACE parse
-  (``isinstance(space, FullFieldSpace)`` — a space, not a carrier; not
+  (``isinstance(space, DirectSumSpace)`` — a space, not a carrier; not
   counted). `[M]` 12 carrier ``isinstance`` inside the verbs + 3 in
   helpers they call at ``f90f7914``;
 * **the composite is assembled in ONE place** — every ``FullField(...)``

@@ -145,7 +145,7 @@ class TestEnds:
     def test_the_sibling_swaps_the_domain_interior_and_keeps_everything_else(
         self, solver,
     ):
-        r"""``S_w.domain == from_blocks(flux_analysis.codomain, trace)`` and
+        r"""``S_w.domain == of_pairs(flux_analysis.codomain, trace)`` and
         ``S_w.codomain == S.codomain``.
 
         The sibling is the SAME datum, the SAME two faces, the SAME codomain;
@@ -154,10 +154,10 @@ class TestEnds:
         re-runs and the selection lands on the moment end.
 
         ⚠ ``==``, **never** ``is``: `[M]` the rebuilt composite is
-        value-equal to a freshly-composed ``from_blocks`` and NOT the same
+        value-equal to a freshly-composed ``of_pairs`` and NOT the same
         object (space identity here is ``(name, shape)``, content-derived).
         An identity assertion would be a false red the first time
-        ``from_blocks`` stops interning.
+        ``of_pairs`` stops interning.
         """
         S = solver.problem.system.factors.scattering
         S_w = S.on_moment_domain()

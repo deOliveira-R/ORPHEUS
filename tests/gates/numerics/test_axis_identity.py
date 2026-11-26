@@ -168,7 +168,7 @@ def test_I5b_the_production_dense_head_carries_its_form_in_its_identity():
 
 
 def test_I6_F7_a_composite_dual_is_not_a_composite_of_named_spaces():
-    """Pair 6 (S7a, F7 of the S6a review). TODAY ``from_blocks(a, b).dual() == from_blocks(a*, b*)`` with
+    """Pair 6 (S7a, F7 of the S6a review). TODAY ``of_pairs(a, b).dual() == of_pairs(a*, b*)`` with
     equal hashes: the composite folds member NAMES, which carry no covariance."""
     a, b = TensorSpace.declared("a", (2,), Variance(Kind.FUNCTION, VarianceChart.DENSITY)), TensorSpace.declared("b", (3,), Variance(Kind.FUNCTION, VarianceChart.DENSITY))
     lhs = DirectSumSpace.of_pairs(((BULK, a), (TRACE, b))).dual()

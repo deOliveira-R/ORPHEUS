@@ -3,7 +3,7 @@ r"""Identity + structure contract for :class:`DirectSumSpace` (Wave O / O.2b R5)
 The composite direct-sum space :math:`V_{\rm bulk}\oplus V_{\rm trace}`. These
 tests pin the **identity** semantics (the members' keys: a composite is its
 blocks, and an axes-less block's identity carries its metric) and the
-:meth:`from_blocks` shape derivation —
+:meth:`of_pairs` shape derivation —
 the contract the :class:`~orpheus.numerics.operator.OperatorSum` composition
 guard relies on (every SN composite operand reports the SAME composite domain).
 

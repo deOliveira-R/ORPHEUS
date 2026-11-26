@@ -20,7 +20,7 @@ The Composite Metric Adjoint
 
       module: transport
       concept: operator_adjoint
-      role: "the operator algebra's metric-correct Hilbert adjoint op.H = G⁻¹AᵀG over FullFieldSpace (block-diagonal metric; singular-trace pseudo-inverse)"
+      role: "the operator algebra's metric-correct Hilbert adjoint op.H = G⁻¹AᵀG over DirectSumSpace (block-diagonal metric; singular-trace pseudo-inverse)"
       depends_on: [operator_algebra]
       related: [frame]
       status: "extracted from operator_algebra.rst; content verbatim, provisional header"
@@ -31,7 +31,7 @@ composed S\ :sub:`N` transport operator — the **G-adjoint**
 :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G`, defined by the reciprocity
 identity :math:`\langle A\psi, \varphi\rangle_G = \langle \psi,
 A^{\dagger}\varphi\rangle_G` over the block-diagonal
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` metric
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` metric
 (bulk block :math:`V_{\rm cell}\,w_n`; singular trace block
 :math:`|\Omega\cdot\hat n_f|\,w_n`, inverted by its Moore–Penrose
 pseudo-inverse). It is the adjoint face of the operator algebra developed
@@ -52,7 +52,7 @@ in :doc:`/theory/foundations/operator_algebra`.
 
 .. _g-adjoint:
 
-The composite metric-correct G-adjoint — ``op.H`` over ``FullFieldSpace``
+The composite metric-correct G-adjoint — ``op.H`` over ``DirectSumSpace``
 =========================================================================
 
 This section completes the boundary-condition extraction narrative
@@ -115,7 +115,7 @@ where the Riesz legs :math:`\flat` and :math:`\sharp` are defined).
      trace block :math:`G_{\rm trace} = |\Omega\cdot\hat n_f|\,w_n` (the
      partial-current surface measure). Both carry :math:`w_n`; they
      differ only in the spatial measure (cell volume vs. oriented face).
-   - **The carrier is** :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+   - **The carrier is** :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
      — a direct sum that dispatches the metric **per block** to its
      leaf spaces (a pure composition, no new metric arithmetic).
    - **The metric-blind adjoint is unrepresentable — the metric lives
@@ -343,12 +343,12 @@ freedom that live *in* a cell, a 2-D **oriented surface**
 that live *on* a face.
 
 
-The carrier — :class:`FullFieldSpace`, a per-block metric dispatcher
+The carrier — :class:`DirectSumSpace`, a per-block metric dispatcher
 --------------------------------------------------------------------
 
 The metric :eq:`g-adjoint-block-metric` is carried by a new function
-space :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
-(``orpheus/numerics/spaces/full_field_space.py``). It holds the two leaf
+space :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
+(``orpheus/numerics/direct_sum.py``). It holds the two leaf
 spaces — a bulk :class:`~orpheus.numerics.space.FunctionSpace` whose
 ``inner_product_weights`` is :math:`G_{\rm bulk}`, and the existing
 :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace` whose
@@ -361,7 +361,7 @@ the three metric primitives to dispatch **per block**:
        return self._rebuild(
            x,
            self.bulk_space.apply_metric(x.bulk.values),
-           self.trace_space.apply_metric(x.boundary.values),
+           self.summand("trace").apply_metric(x.boundary.values),
        )
 
 Each override splits the composite field into its ``.bulk`` /
@@ -387,8 +387,8 @@ domain-agnostic. The identity is the members' keys,
 since S7, 2026-10-22), with ``shape = (n_bulk + n_trace,)``, so two
 composites are equal iff their blocks are, metrics included. Until S7 the
 identity was the inherited ``(name, shape)`` tuple, made content-bearing
-by :meth:`FullFieldSpace.from_blocks
-<orpheus.numerics.spaces.full_field_space.FullFieldSpace.from_blocks>`
+by :meth:`DirectSumSpace.of_pairs
+<orpheus.numerics.direct_sum.DirectSumSpace.of_pairs>`
 deriving ``name = "full_field#<digest>"`` from each member's
 ``(name, shape)`` pair. ⛔ This sentence read *"``name = "full_field"``
 … so two composites over meshes of the same total dimension compare
@@ -833,7 +833,7 @@ second route of the code.
    Nothing then computed the commutation's left side independently, so the
    gate that compared the two sides compared one route with itself. The
    composite duals were worse than wrong-metric: a ``DualSpace`` over a
-   ``FullFieldSpace`` carried no member metrics and paired Euclidean (`[M]`
+   ``DirectSumSpace`` carried no member metrics and paired Euclidean (`[M]`
    the S6 census, a probe the full-field metric moved by 20.0 moved its
    dual by 0.0), and an axis-built space compared equal to its dual, so
    the composition guard accepted ``R @ R.dual()``. S6a gave the dual its
@@ -1297,8 +1297,8 @@ The defining ground is the dense-probe oracle
 operator's dense matrix by probing :math:`op.\text{apply}` on unit
 vectors, builds the diagonal metric :math:`G` **explicitly** from
 :math:`V`, :math:`w_n`, and ``trace.inner_product_weights`` (it never
-calls :meth:`FullFieldSpace.apply_metric
-<orpheus.numerics.spaces.full_field_space.FullFieldSpace>`), and
+calls :meth:`DirectSumSpace.apply_metric
+<orpheus.numerics.direct_sum.DirectSumSpace>`), and
 compares ``op.H.apply(φ)`` against the explicit fold :math:`G^{+}\bigl(
 op_{\rm dense}^{\mathsf T}\,(G\cdot\varphi)\bigr)` for
 :math:`op = (L + C - B)`.
@@ -1328,7 +1328,7 @@ Both blocks match the explicit fold to round-off, and the defining
 reciprocity holds to :math:`\le 1.6\times10^{-15}` across all three
 geometries. Because the oracle's :math:`G` is built from raw mesh
 quantities while production's :math:`G` is built by
-:class:`FullFieldSpace`, the agreement also cross-validates the **metric
+:class:`DirectSumSpace`, the agreement also cross-validates the **metric
 population** (a wrong :math:`V` or a transposed :math:`w_n` would shift
 the bulk residual off round-off).
 
@@ -1376,7 +1376,7 @@ These results are pinned by two foundation-tagged test files:
   products are evaluated with an **independent** Gram fold so a wrong
   *metric* cannot mask a wrong *adjoint*.
 * ``tests/gates/numerics/test_full_field_space.py`` — pins the
-  :class:`FullFieldSpace` structure (flat direct-sum ``shape``,
+  :class:`DirectSumSpace` structure (flat direct-sum ``shape``,
   inequality on a different total dimension, dict-key usability, the
   composite's own ``inner_product_weights`` staying ``None``), and its
   identity: ``test_identity_is_the_members_content`` asserts that

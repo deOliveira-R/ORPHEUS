@@ -401,7 +401,7 @@ Key Facts
   measure) :math:`\oplus` trace :math:`|\Omega\cdot\hat n_f|\,w_n`
   (partial-current surface measure, pseudo-inverted on the singular
   tangential ordinates). The carrier is
-  :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`;
+  :class:`~orpheus.numerics.direct_sum.DirectSumSpace`;
   ``L``/``C``/``S``/``N2n``/``F``/``B`` all carry it so the
   within-group :class:`~orpheus.numerics.operator.OperatorSum` guard
   VALIDATES the composition, and — because every loss leaf carries the
@@ -901,7 +901,7 @@ The two admissions, and what they refuse
      - Carrier
      - What is refused, naming the operator
    * - **composite** — both ends are
-       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+       :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
      - the :class:`~orpheus.transport.full_field.FullField` whose
        interior rides the bound end's interior space (content equality,
        never object identity)
@@ -4638,7 +4638,7 @@ through one body, at one order, into one interned frame.  The blessed chain is o
 
 .. code-block:: text
 
-   composite space → .interior_space → axes[0]
+   composite space → .summand("bulk") → axes[0]
                    → case FromQuadrature(quad): axis.origin  (the origin channel)
                    → frame_faces.angular_frame(Quadrature, L)        (interned per (rule, L))
                    → HarmonicFrame.from_galerkin(...)   (interned on the upstream frame)
@@ -6666,7 +6666,7 @@ The composite metric adjoint
 The **metric-correct Hilbert adjoint** ``op.H`` of the composed loss
 operator :math:`A = L + C - S - N_{2n} - B` — the **G-adjoint**
 :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G` over the block-diagonal
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` metric,
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` metric,
 with the singular trace block inverted by a Moore–Penrose pseudo-inverse
 — is developed on its own page, :doc:`/theory/foundations/operator_adjoint`.
 That page derives it from the reciprocity identity :math:`\langle A\psi,
@@ -10240,7 +10240,7 @@ read ``None`` and the check was skipped, on the whole of the traffic.
 This is the ``vv-principles`` #28 shape exactly: a guard that is loaded
 where fixtures are hand-built and inert where production runs.  U1 gives
 :class:`~orpheus.numerics.coupled_system.CoupledField` a **derived**
-``space`` — ``CoupledSpace.from_systems(member.space, …)`` in system
+``space`` — ``DirectSumSpace.of_pairs(member.space, …)`` in system
 order, computed from the members and never stored, because a coupled
 field *is* its member fields — and the law now refuses a cross-hub
 source.  The member contract
@@ -10704,7 +10704,7 @@ composite :math:`V_{\rm bulk}\oplus V_{\rm trace}` space (step O.2b R5,
 bulk phase-space block :math:`V_{\rm cell}\,w_n` and a partial-current
 trace block :math:`|\Omega\cdot\hat n|\,w_n`. It is **intrinsic to the
 streaming leaf** — :math:`L` carries its ``domain`` / ``codomain``
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` with
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` with
 the per-block ``inner_product_weights``, and the ``.H`` adjoint reads
 them via the unchanged
 :class:`~orpheus.numerics.operator.AdjointOperator` wrapper. It is
@@ -11209,7 +11209,7 @@ the cheapest tell.
        (:eq:`fredholm-deflated-loss`, nonsingular iff the kernel is
        semisimple). A composite space's metric acts on its flat
        coordinates (``5ce66815``, #666's flat half), so a kernel gauge on
-       a ``FullFieldSpace`` works; the gauge admits a multi-axis leaf
+       a ``DirectSumSpace`` works; the gauge admits a multi-axis leaf
        space on its flat chart. S\ :sub:`N`'s
        ``build_loss_kernel_gauge`` and ``_exit_gauge_trace`` retired for
        the predictors of :ref:`sn-loss-kernel-predicted` and the
@@ -11648,7 +11648,7 @@ the cheapest tell.
      - **The Hilbert adjoint** ``op.H`` **is the metric-correct
        G-adjoint** :math:`A^{\dagger} = G^{-1} A^{\mathsf T} G` over the
        block-diagonal
-       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`
+       :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
        metric (:math:`V_{\rm bulk} \oplus V_{\rm trace}`; singular trace
        block pseudo-inverted) — NOT the Euclidean transpose; applied
        **once at the operator level** and raising

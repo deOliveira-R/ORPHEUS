@@ -646,7 +646,7 @@ def test_a2a_grid_forward_h_reciprocity(monkeypatch):
     home (all four coupling blocks enter through the random members).
 
     Tooth M-ADJ-metric (mirroring psi_half G-c2.5): stripping the
-    CoupledSpace metric conjugation (identity ``apply_metric`` /
+    DirectSumSpace metric conjugation (identity ``apply_metric`` /
     ``apply_inverse_metric``) reds the defect O(1) — a hand-rolled
     EUCLIDEAN block-.H would pass the stripped form, which is exactly the
     ERR-067 reopening this tooth exists to catch."""

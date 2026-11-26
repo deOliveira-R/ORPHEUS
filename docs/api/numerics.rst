@@ -816,6 +816,18 @@ near-kernel witness reaches SN's sweep. The laws are
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: orpheus.numerics.direct_sum
+   :members:
+   :show-inheritance:
+
+.. automodule:: orpheus.numerics.coproduct_layout
+   :members:
+   :show-inheritance:
+
+.. automodule:: orpheus.numerics.face_measure
+   :members:
+   :show-inheritance:
+
 .. automodule:: orpheus.numerics.coupled_system
    :members:
    :undoc-members:

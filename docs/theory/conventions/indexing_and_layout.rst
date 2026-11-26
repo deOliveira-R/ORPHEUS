@@ -1243,7 +1243,7 @@ retired at package S2, 2026-10-20).
      - :class:`~orpheus.sn.operators.boundary.SNBoundaryOperator`
      - The realized boundary operator — a first-class **sibling** operator, *not*
        folded into :math:`L`.  Reports the same
-       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` as
+       :class:`~orpheus.numerics.direct_sum.DirectSumSpace` as
        :math:`L`/:math:`C`/:math:`S`/:math:`N_{2n}`/:math:`F`, so the
        ``OperatorSum``
        composition guard accepts :math:`(L + C - S - N_{2n} - B - F/k)`.
@@ -1647,7 +1647,7 @@ one instance.
 
 The scalar bulk :attr:`~orpheus.transport.mesh.material_mesh.MaterialMesh.bulk_space`,
 the full-field space
-(:meth:`FullFieldSpace.from_blocks <orpheus.numerics.spaces.full_field_space.FullFieldSpace.from_blocks>`
+(:meth:`DirectSumSpace.of_pairs <orpheus.numerics.direct_sum.DirectSumSpace.of_pairs>`
 of an interior and a trace) and the harmonic moment space
 (:meth:`HarmonicFrame.moment_space_on <orpheus.transport.frames.harmonic_frame.HarmonicFrame.moment_space_on>`)
 needed no new function. A consumer that holds a material mesh and a quadrature
@@ -1861,7 +1861,7 @@ allocator is space-keyed exactly like a leaf's.
 and
 :meth:`TimedFullField.zeros <orpheus.transport.timed_full_field.TimedFullField.zeros>`
 take the two leaf **classes** plus the carrier's cached
-:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` (and,
+:class:`~orpheus.numerics.direct_sum.DirectSumSpace` (and,
 for the timed carrier, a ``history_depth``), and zero-allocate each
 block on the matching block space through the one
 :meth:`Field.zeros <orpheus.numerics.field.Field.zeros>` primitive::

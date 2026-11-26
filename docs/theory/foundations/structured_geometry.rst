@@ -3159,7 +3159,7 @@ What goes through the encoder, and what it replaced
 
 Every space-name digest goes through the encoder: ``TensorSpace.of_axes``, the
 angular and scalar trace spaces, the two radial characteristic spaces
-and ``FullFieldSpace.from_blocks`` each pass a tuple of their parts to
+and ``DirectSumSpace.of_pairs`` each pass a tuple of their parts to
 :func:`~orpheus.values.content.name_digest`, the one 8-byte space-name
 digest (the first 8 bytes of ``content_digest``, in hexadecimal), and the
 three trace spaces read their face layout's content through
@@ -3224,7 +3224,7 @@ reference's transport block is memoised on them
           bytes
         - the same; the three trace mints were one encoder written three
           times
-      * - ``FullFieldSpace.from_blocks``
+      * - ``DirectSumSpace.of_pairs``
         - the text ``"<name>:<shape>|<name>:<shape>"`` of its two blocks
         - a text join with no tags
 

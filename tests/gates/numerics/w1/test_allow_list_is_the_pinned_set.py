@@ -1,7 +1,7 @@
 r"""G04c: the subclasses of ``FunctionSpace`` are a pinned allow-list, refused at class creation (N04, spec 7.5, 6.5 "The allow-list").
 
 A module-level mapping in ``numerics/space.py`` (the one whose keys include ``TensorSpace``; the spec names its shape, "qualified class name to the removing unit", and not its identifier)
-(i) equals ``TensorSpace`` and the 9 legacy entries with their removing units (``CoupledSpace`` and ``FullFieldSpace`` N05; ``AngularTraceSpace``, ``AngularFaceTraceSpace``,
+(i) equals ``TensorSpace`` and the 9 legacy entries with their removing units (``DirectSumSpace`` and ``DirectSumSpace`` N05; ``AngularTraceSpace``, ``AngularFaceTraceSpace``,
 ``ScalarTraceSpace``, ``_RadialCharacteristicSubSpace``, ``RadialCharacteristicInteriorSpace``, ``RadialCharacteristicBoundarySpace`` N06; ``DualSpace`` N07), and (ii) equals the runtime closure of
 ``FunctionSpace`` after importing every ``orpheus`` module outside ``derivations`` (the closure is read by walking ``__subclasses__`` and the import count is stated in the failure message);
 (iii) a stranger subclass of ``FunctionSpace`` and a stranger subclass of an allow-listed class (a grandchild) each raise ``TypeError`` "arm is not on the FunctionSpace allow-list" at class creation;

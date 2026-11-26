@@ -6,7 +6,7 @@ The Hilbert adjoint ``A.H`` is the **G-adjoint** :math:`A^\dagger = G^{-1}
 A^{\mathsf T} G`, NOT the plain Euclidean transpose. For the SN within-group
 loss operator :math:`A = L + C - B` acting on the composite carrier
 :math:`V_{\rm bulk} \oplus V_{\rm trace}`
-(:class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`), the metric
+(:class:`~orpheus.numerics.spaces.full_field_space.DirectSumSpace`), the metric
 :math:`G` is block-diagonal:
 
 * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}\,w_n` (phase-space measure
@@ -458,7 +458,7 @@ _BUILDERS = {
 
 # ═══════════════════════════════════════════════════════════════════════
 # Independent G inner product + random composite (structurally independent
-# of the production FullFieldSpace metric — anti-R1).  The oracle trio
+# of the production DirectSumSpace metric — anti-R1).  The oracle trio
 # g_bulk_measure / g_trace_cosine_weight / g_inner is SHARED with the
 # tests/gates/sn/solve adjoint batteries — single-sourced in
 # tests/gates/sn/_test_helpers.py (#276 A4 sweep).
@@ -562,7 +562,7 @@ def test_full_field_space_metric_matches_independent_reference(case):
     r"""The production composite metric == the independent ``g_inner``.
 
     Cross-check that ``op.codomain.inner_product`` (the
-    :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace` metric
+    :class:`~orpheus.numerics.spaces.full_field_space.DirectSumSpace` metric
     built from ``sn.full_field_space``) reproduces the reference built from raw
     ``omega_dot_n`` / ``volumes`` — catches a wrong metric *population* (a
     dropped factor, a double-count, a mis-broadcast over the group axis).
@@ -577,7 +577,7 @@ def test_full_field_space_metric_matches_independent_reference(case):
     rel = abs(ref - prod) / (abs(ref) + abs(prod) + 1e-300)
     if not rel < 1e-13:
         pytest.fail(
-            f"[{case}] FullFieldSpace.inner_product {prod:.6e} != independent "
+            f"[{case}] DirectSumSpace.inner_product {prod:.6e} != independent "
             f"reference {ref:.6e} (rel={rel:.2e}) — wrong metric population"
         )
 

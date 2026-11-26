@@ -54,7 +54,7 @@ Measured state of the tree (``main`` @ ``b0a003b4``, host ``.venv``)
 gate         today                           measurement
 ===========  ==============================  ===================================
 G1.1 value   **GREEN** on the SN ladder       all 5 leaves × 4 geometries declare
-             **RED** off it (**R1**)          a concrete ``FullFieldSpace``; the
+             **RED** off it (**R1**)          a concrete ``DirectSumSpace``; the
                                               model-generic construction
                                               (``homogeneous/solver.py:193``)
                                               reports ``domain is None``

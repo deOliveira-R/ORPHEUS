@@ -821,7 +821,7 @@ them.  Trust ``git``, not this column.
        :attr:`~orpheus.sn.problem.SNProblem.full_field_space`,
        and the carrying adjoint's
        :class:`~orpheus.numerics.operator.OperatorProduct` on the
-       :class:`~orpheus.numerics.coupled_system.CoupledSpace`.  So
+       :class:`~orpheus.numerics.direct_sum.DirectSumSpace`.  So
        :math:`F_{\rm adjoint} = F^{\dagger}` was not unasserted but
        **unstatable** — the :math:`F` on the right existed nowhere the
        forward solve could name.  ⚠ No value gate could see it: both
@@ -1392,7 +1392,7 @@ them.  Trust ``git``, not this column.
        behaviour change and go looking for its gate.
        **(3) The deliberate exception.**
        :class:`~orpheus.sn.operators.boundary.RadialCharacteristicBoundaryOperator`\ 's
-       CONSTRUCTOR parameter stays ``FullFieldSpace | None``: the
+       CONSTRUCTOR parameter stays ``DirectSumSpace | None``: the
        constructor **is** the narrow, and its guard ("the pose carries no
        ψ½ ray") has exactly two witnesses, both passing a runtime
        ``None`` on the slab.  Flipping the parameter would have bought
@@ -1448,7 +1448,7 @@ them.  Trust ``git``, not this column.
        sentence naming the structural change that retires it: ``B``
        bound on its own trace end (R18), a moment-bound sibling for the
        windowed iterate, and :math:`L`'s ends typed
-       ``FullFieldSpace`` — after which the admission is the ordinary
+       ``DirectSumSpace`` — after which the admission is the ordinary
        composability guard on the bound end and an alien carrier cannot
        be typed at all.  The ledger of such tokens is itself a gate
        (``tests/gates/test_elegance_debt_is_tagged.py``): it requires the issue
@@ -1676,7 +1676,7 @@ them.  Trust ``git``, not this column.
        **(4) What did NOT change — and why the moment-path seam
        survives.**  Every axes-less space keeps ``(name, shape)``.  For
        the content-digest-named classes —
-       :class:`~orpheus.numerics.spaces.full_field_space.FullFieldSpace`,
+       :class:`~orpheus.numerics.direct_sum.DirectSumSpace`,
        :class:`~orpheus.numerics.spaces.angular_trace_space.AngularTraceSpace`,
        :class:`~orpheus.numerics.spaces.scalar_trace_space.ScalarTraceSpace`
        and the two radial-characteristic sub-spaces (``[M]`` five
