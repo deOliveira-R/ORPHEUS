@@ -1,0 +1,1 @@
+Darwin	macOS-27.2.1-arm64-arm-64bit-Mach-O	arm64	2.4.4	1.17.1	accelerate
