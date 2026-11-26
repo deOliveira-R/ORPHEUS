@@ -2,15 +2,15 @@ r"""G04h and G04v: production mints each factor with its variance stated, and th
 
 G04h cell check: the flux space of the SN slab, the SN sphere and the diffusion slab have angular ``Variance(MEASURE, DENSITY)``, energy ``FormlessVariance.MEASURE`` and spatial
 ``Variance(MEASURE, DENSITY)`` (the diffusion space has no angular slot). ``ast`` leg: every CALL in ``orpheus/`` of a ``TensorSpace``/``FunctionSpace`` ``of_measure``, ``of_basis`` or ``declared``, of
-``Factor(`` and of ``variance_on(``, outside ``numerics/factor.py`` and outside the bodies of the constructors ``of_axes``, ``of_measure``, ``of_basis``, ``declared`` in ``numerics/space.py`` (which mint
+``Factor(`` and of ``Factor.whole_on(``, outside ``numerics/factor.py`` and outside the bodies of the constructors ``of_axes``, ``of_measure``, ``of_basis``, ``declared`` in ``numerics/space.py`` (which mint
 ``Factor(axis, variance, ...)`` with their parameter), states its variance as ``Variance(Kind.<member>, VarianceChart.<member>)``, ``FormlessVariance.<member>``, a module-level constant bound to
-one, ``<factor>.variance``, or ``<factor>.variance.dual()`` / ``.riesz()`` (the re-mints of ``dual``, ``riesz`` and ``completed``); ``variance_on`` takes a literal ``Kind.<member>`` and a literal
-``VarianceChart.<member>`` (decision ``[ON04-4]``); a call with no variance argument is a red. G04v: ``bulk_space.dual().riesz(on={"spatial"})`` has energy ``FormlessVariance.FUNCTION`` and spatial
+one, ``<factor>.variance``, or ``<factor>.variance.dual()`` / ``.riesz()`` (the re-mints of ``dual``, ``riesz`` and ``completed``); ``Factor.whole_on`` (the one branch on a form outside the factor's own invariants, ``ELEGANCE-DEBT[guard] #757``; decision ``[ON04-4]``, amended) takes a literal ``Kind.<member>`` and a literal
+``VarianceChart.<member>``; a call with no variance argument is a red. G04v: ``bulk_space.dual().riesz(on={"spatial"})`` has energy ``FormlessVariance.FUNCTION`` and spatial
 ``(FUNCTION, DENSITY)`` and equals the importance row built from the bulk space's own axes; ``riesz(on={"energy"})`` is refused.
 
 First red at the base tip ``cf924aaa``: the cell check is import-/attribute-only (``FunctionSpace`` has no ``factor``), G04v likewise (no ``riesz``); the ``ast`` leg is behavioural: it reads 3 builder calls
 in ``numerics/frame_faces.py`` that state no variance (``of_basis`` at line 442, ``of_measure`` at 488 and a third; the opening's "0 builder calls" counted calls with a non-literal variance argument). Mutations: the angular mint with ``Variance(FUNCTION, DENSITY)`` reddens the cell check;
-the gate's own planted ``Factor(`` call passing a variable, a ``variance_on(`` call passing a variable kind and ``Variance(kind_variable, chart)`` at a builder each redden the ``ast`` predicate
+the gate's own planted ``Factor(`` call passing a variable, a ``Factor.whole_on(`` call passing a variable kind, a ``Factor.whole_on(`` call with no kind, a ``Factor(`` call passing ``Variance(f.kind, f.chart)`` and ``Variance(kind_variable, chart)`` at a builder each redden the ``ast`` predicate
 (positive controls inside the file); ``dual`` as the identity and ``riesz`` as the identity each redden G04v. Exact on any host (the cells are variances and identities, the ``ast`` leg a parse).
 """
 
@@ -126,10 +126,10 @@ def violations(source: str, *, skip_constructor_bodies: bool = False) -> list[st
             a = _arg(c, BUILDERS[name], "variance")
         elif name == "Factor":
             a = _arg(c, 1, "variance")
-        elif name == "variance_on":
+        elif name == "whole_on" and owner == "Factor":
             kind, chart = _arg(c, 1, "kind"), _arg(c, 2, "chart")
             if kind is None or chart is None or not (_is_member(kind, "Kind") and _is_member(chart, "VarianceChart")):
-                out.append(f"line {c.lineno}: variance_on with a non-literal kind or chart")
+                out.append(f"line {c.lineno}: whole_on with a non-literal or missing kind or chart")
             continue
         else:
             continue
@@ -141,10 +141,13 @@ def violations(source: str, *, skip_constructor_bodies: bool = False) -> list[st
 
 
 def test_the_ast_predicate_finds_each_planted_violation() -> None:
-    ok = "Factor(axis, Variance(Kind.MEASURE, VarianceChart.DENSITY), sk)\nFactor(a, f.variance, sk)\nFactor(a, FormlessVariance.MEASURE, sk)\nvariance_on(axis, Kind.MEASURE, VarianceChart.DENSITY)\nFactor(a, g.variance.dual(), sk)"
+    ok = "Factor(axis, Variance(Kind.MEASURE, VarianceChart.DENSITY), sk)\nFactor(a, f.variance, sk)\nFactor(a, FormlessVariance.MEASURE, sk)\nFactor.whole_on(axis, Kind.MEASURE, VarianceChart.DENSITY)\nFactor(a, g.variance.dual(), sk)"
     _require(violations(ok) == [], f"a clean source reads {violations(ok)}")
     _require(len(violations("Factor(axis, v, sk)")) == 1, "a Factor( call passing a variable is not found")
-    _require(len(violations("variance_on(axis, k, VarianceChart.DENSITY)")) == 1, "a variance_on( call passing a variable kind is not found")
+    _require(len(violations("Factor.whole_on(axis, k, VarianceChart.DENSITY)")) == 1, "a Factor.whole_on( call passing a variable kind is not found")
+    _require(len(violations("Factor.whole_on(axis)")) == 1, "a Factor.whole_on( call with no kind is not found")
+    _require(len(violations("Factor(axis, Variance(f.kind, f.chart), sk)")) == 1, "a mint passing Variance(f.kind, f.chart) is not found")
+    _require(len(violations("Factor(axis)")) == 1, "a Factor( mint with no variance is not found")
     _require(len(violations("Factor(axis, Variance(kind_var, VarianceChart.DENSITY), sk)")) == 1, "Variance(kind_variable, chart) at a builder is not found")
     _require(len(violations("TensorSpace.of_measure(m, 'x')")) == 1, "an of_measure( call with no variance is not found")
 

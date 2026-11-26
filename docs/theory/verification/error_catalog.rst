@@ -3483,8 +3483,8 @@ older entries classify against.
    S7 of the numerics untangling (2026-10-22) retired the class: :math:`g_C`
    is :attr:`SphericalHarmonicBasis.coefficient_weights
    <orpheus.numerics.basis.spherical_harmonic_basis.SphericalHarmonicBasis.coefficient_weights>`,
-   which ``FunctionSpace.of_basis`` installs as the measure
-   of the basis's one coefficient axis.
+   which ``TensorSpace.of_basis`` installs (``FunctionSpace.of_basis`` until the tensor space of
+   factors replaced it) as the measure of the basis's one coefficient axis.
 
    The Wave 0 test ``TestApplyTransposeIsWWeightedAdjoint`` was renamed to
    ``TestApplyTransposeIsRepresentationTranspose`` (still
@@ -11866,7 +11866,7 @@ older entries classify against.
    merged @ ``1c1d8d1c``). Latent: no production space carried such a form.
 
    **Module:** ``numerics`` (``orpheus/numerics/space.py``, ``_require_positioned_over``, the door every axis-built
-   space's explicit metric object passes).
+   space's explicit metric object passed; retired with the overlay at N04).
 
    **Failure mode:** **#6 (convention drift).** The definition site, the counting-measure theorem
    (:ref:`spaces-counting-measure-theorem`), says a nodal axis with ``weights=None`` carries the counting measure,

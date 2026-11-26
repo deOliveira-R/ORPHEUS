@@ -4553,12 +4553,13 @@ to a plausible-looking value, with no error and no warning):
      - densified the factor measures into one outer-product weight
        array — which has no slot for a matrix factor, so the dense
        factor was **dropped** and its block went Euclidean
-     - **since 2026-09-07 (CS4c step 6 item 6.2a) the factored arm is
-       the ONLY non-axis arm**: a lazy
-       :class:`~orpheus.numerics.metric.FactoredMetric` positioned per
-       **axis** of an axis-built factor and per dense-slot leaf factor,
-       Kronecker never materialized, and ``inner_product_weights`` never
-       populated by a product at all.
+     - **from 2026-09-07 (CS4c step 6 item 6.2a) the factored arm was
+       the ONLY non-axis arm, and since N04 the product is a**
+       :class:`~orpheus.numerics.space.TensorSpace` **whose metric is that
+       arm alone**: a lazy
+       :class:`~orpheus.numerics.metric.FactoredMetric` with one entry per
+       slot, Kronecker never materialized, and ``inner_product_weights``
+       never populated by a product at all.
        ⛔ This cell read *"grows a dense-factor arm: a lazy*
        ``FactoredMetric``\ *, one positioned entry per factor"* until
        then. That was true of P7 and it described an arm that was
@@ -4569,7 +4570,7 @@ to a plausible-looking value, with no error and no warning):
        ``DenseMetric(DenseMetric.symmetrised(discrete_gram), kernel=frame_gram_kernel(discrete_gram), face=Face.GRAM)`` and the two ψ½ ray
        spaces, none of which enters a product. What 6.2a changed is the
        arm's REACHABILITY, not its existence: the dense arm it shared the
-       dispatch with is gone, so every axes-less product now takes it
+       dispatch with was gone, so every axes-less product took it from then on
    * - ``FrameBase.gram`` (retired 2026-09-08 → :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>`)
      - ``replace(test_space, inner_product_weights=diagonal)`` on a
        dressed test space handed the **row-sum probe** a space whose
@@ -5482,8 +5483,10 @@ The fourth row is the one worth pausing on, because it is where the
 doctrine becomes *mechanically* enforced rather than merely stated. A
 quotient point and a genuine one-cell mesh have the same shape and
 differ only in measure — the measure is part of axis identity, and since
-the identity flip (structural ``__eq__``, CS4c step 6, 2026-09-07) an
-axis-built space IS its axis tuple, so they are **unequal spaces**.
+the identity flip (structural ``__eq__``, CS4c step 6, 2026-09-07) a
+space has been its content, and a tensor space is now its tuple of
+factors (each factor an axis, a variance and a subquotient), so they are
+**unequal spaces**.
 Until the flip the same conclusion arrived one step later, through the
 axis-derived name (:ref:`spaces-identity-bridge`). Nothing else in the
 tree can see the difference: `[M]` a scalar metric commutes with every
@@ -8091,7 +8094,7 @@ status.
        the three propagation sites that used to copy a weight array are
        taught: :meth:`DualSpace.of
        <orpheus.numerics.space.DualSpace.of>` threads the object,
-       ``TensorProductSpace.from_factors`` grows a dense-factor arm, and
+       ``TensorProductSpace.from_factors`` (retired at N04 into ``TensorSpace.__mul__``) grew a dense-factor arm, and
        ``FrameBase.gram`` (retired at item 6.2c-ii in favour of the
        :meth:`gram_inverse <orpheus.numerics.frame_faces.CrossGramInverse.of>` arrow)
        **strips** it while installing the row-sum probe (`[M]` the

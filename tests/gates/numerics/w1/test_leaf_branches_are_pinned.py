@@ -1,9 +1,9 @@
 r"""G04o: the legacy-leaf arm of ``FunctionSpace`` is a pinned set of members and no member reads ``self.axes`` (N04, spec 7.5).
 
 ``ast`` over class ``FunctionSpace`` in ``numerics/space.py``. (1) No member reads ``self.axes`` (13 members on the base tip: the 12 that compare it with ``None``
-and ``axis``, which reads it into a local). (2) The members carrying the legacy-leaf tag ``ELEGANCE-DEBT[legacy-leaf]`` in their source segment are exactly ``PINNED``:
+and ``axis``, which reads it into a local). (2) The members carrying the legacy-leaf tag ``ELEGANCE-DEBT[guard] #759 legacy-leaf`` in their source segment are exactly ``PINNED``:
 the 12 members the base tip tests ``self.axes is None`` in, measured here by the same parse on ``cf924aaa`` (``[M]``, 12 of 41 members); the unit keeps each as its
-leaf arm with no branch and the tag. A 13th tagged member, a pinned member that loses its tag, or any read of ``self.axes`` reddens. G07c (N07) asserts the set empty. ``_overlay_forms`` and ``_with_overlay`` were among the base's 12 and are deleted by the unit (G04g), so ``PINNED`` holds the 10 that survive. The tag's bracket word and issue are N07's opening ruling (C5: ``ELEGANCE-DEBT[guard] #<issue>``), not this gate's: it accepts either spelling of a tag that names ``legacy-leaf``.
+leaf arm with no branch and the tag. A 13th tagged member, a pinned member that loses its tag, or any read of ``self.axes`` reddens. G07c (N07) asserts the set empty. ``_overlay_forms`` and ``_with_overlay`` were among the base's 12 and are deleted by the unit (G04g), so ``PINNED`` holds the 10 that survive. The tag has one spelling, ``ELEGANCE-DEBT[guard] #759 legacy-leaf`` (issue #759, "FunctionSpace keeps a leaf branch for the arms that are not tensor spaces yet", retiring at N07); the earlier spelling ``ELEGANCE-DEBT[legacy-leaf]`` and a tag citing another issue are not tags of this set and a member carrying only one of them reddens as a lost tag.
 
 Not a measurement of the final set: the spec reads the pinned set "at the unit's last commit"; the builder may amend ``PINNED`` only by a ruling stated in the
 commit (a member that the carve turns into a pure abstract method is removed from the set). First red at the base tip: 13 reads of ``self.axes`` and 0 tagged members.
@@ -21,7 +21,7 @@ import pytest
 pytestmark = pytest.mark.foundation
 
 ROOT = Path(__file__).resolve().parents[4]
-TAG_RE = re.compile(r"ELEGANCE-DEBT\[legacy-leaf\]|ELEGANCE-DEBT\[[a-z-]+\][^\n]*legacy-leaf")
+TAG_RE = re.compile(r"ELEGANCE-DEBT\[guard\] #759 legacy-leaf")
 PINNED = frozenset(
     {
         "__post_init__",
@@ -61,10 +61,12 @@ def read(source: str) -> tuple[set[str], set[str]]:
 
 
 def test_the_instrument_reads_each_mutation() -> None:
-    base = f"class FunctionSpace:\n    def unit(self):\n        # ELEGANCE-DEBT[legacy-leaf] N07\n        return 1\n    def other(self):\n        return 2\n"
+    base = f"class FunctionSpace:\n    def unit(self):\n        # ELEGANCE-DEBT[guard] #759 legacy-leaf: retires at N07\n        return 1\n    def other(self):\n        return 2\n"
     _require(read(base) == (set(), {"unit"}), f"a clean synthetic source reads {read(base)}")
     _require(read(base.replace("return 2", "return self.axes"))[0] == {"other"}, "a read of self.axes is not found")
-    _require(read(base.replace("return 2", "return 2  # ELEGANCE-DEBT[legacy-leaf] N07"))[1] == {"unit", "other"}, "a 13th tagged member is not found")
+    _require(read(base.replace("return 2", "return 2  # ELEGANCE-DEBT[guard] #759 legacy-leaf: retires at N07"))[1] == {"unit", "other"}, "a 13th tagged member is not found")
+    for other in ("ELEGANCE-DEBT[legacy-leaf] N07", "ELEGANCE-DEBT[guard] #707 legacy-leaf: retires at N07"):
+        _require(read(base.replace("ELEGANCE-DEBT[guard] #759 legacy-leaf: retires at N07", other))[1] == set(), f"the spelling {other!r} is accepted as the tag")
 
 
 def test_leaf_branches_are_pinned() -> None:

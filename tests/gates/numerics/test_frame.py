@@ -196,7 +196,7 @@ def test_measure_space_carries_the_quadrature_weights_as_its_metric(sh_frame):
     ms = frame_faces.measure_space(frame)
     assert ms.shape == (frame.measure.weights.shape[0],)
     # axis-built since S7 (ruling 63): the weights are the measure axis's own
-    assert ms.axes is not None and ms.inner_product_weights is None
+    assert len(ms.factors) == 1 and isinstance(ms.factors[0].form, DiagonalMetric), "the measure space is one factor on a diagonal form"
     np.testing.assert_array_equal(ms.axes[0].form.weights, frame.measure.weights)
     # analysis domain / reconstruction codomain are that same space
     assert frame_faces.FrameAnalysis.of(frame).domain is ms

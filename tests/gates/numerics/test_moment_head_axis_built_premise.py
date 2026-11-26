@@ -1,5 +1,9 @@
 r"""Pre-carve anchors for CS4c step 6 item 6.2c — the angular moment HEAD becomes axis-built.
 
+This docstring is written in the tense of 2026-09-07, before the carve: its present tense describes ``main`` @ ``79d2944a``. The carve landed, and the
+tensor space of factors (N04) has since replaced the axes-less arm, the ``axes`` field and ``inner_product_weights`` on a head; the rows below are read as the
+record of what the heads were at that date.
+
 **What this file is.** Item 6.2c makes the angular head of every moment space
 an AXIS-BUILT space: one rank-``r`` :class:`~orpheus.numerics.axis.Axis`
 (``(L+1, 2L+1)`` for the rectangular harmonics, ``(L+1,)`` for the flat
@@ -209,7 +213,7 @@ def test_the_product_metric_is_bit_identical_when_the_head_gains_axes(label: str
     axis_product = axis_head * bulk
 
     assert len(axis_product.axes) == 3
-    assert axis_product.inner_product_weights is None
+    assert axis_product.factors == axis_head.factors + bulk.factors, "the product is not the concatenation of the slots' factors"
     assert axis_product.shape == axis_head.shape + bulk.shape
 
     # The oracle is the hand product of the stated weights: the head's (4 pi/(2l+1)) on its own leading block, then the bulk's cell measure
@@ -259,7 +263,7 @@ def test_the_axis_route_never_densifies_a_large_product() -> None:
     a = Axis("a", (2000,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
     b = Axis("b", (2000,), origin=Declared(BasisKind.NODAL, DiagonalMetric(w)))
     space = TensorSpace.of_axes(Factor.whole_on(a, Kind.MEASURE, VarianceChart.DENSITY), Factor.whole_on(b, Kind.MEASURE, VarianceChart.DENSITY))
-    assert space.inner_product_weights is None and space.metric is None
+    assert len(space.factors) == 2 and all(isinstance(f.form, DiagonalMetric) for f in space.factors), "the product does not carry one diagonal form per slot"
     assert isinstance(a.form, DiagonalMetric) and isinstance(b.form, DiagonalMetric)
     stored = a.form.weights.nbytes + b.form.weights.nbytes
     dense = 8 * int(np.prod(space.shape))
@@ -464,7 +468,7 @@ def test_the_production_head_of_every_family_is_axis_buildable(label: str, L: in
         assert head_layout(head) in (HarmonicLayout(L), LegendreLayout(L)), (
             "every shipped rule binds one of the two head families"
         )
-        assert head.axes is not None and head.inner_product_weights is None
+        assert len(head.factors) == 1 and isinstance(head.factors[0].form, (DenseMetric, DiagonalMetric)), "a head is one factor with a form"
         assert getattr(head.axes[0].origin, arm) is generator
         assert head_layout(head).L == L
         if isinstance(head.axes[0].form, DenseMetric):

@@ -11,7 +11,7 @@ fuel | moderator slab (DD, P1), a two-region sphere (DD), a non-uniform 2-D box 
 The side of a space is read through its metric, never through a class or a name (R8, the ruling of 2026-11-12): a
 data-side bulk space carries the angular weight ``w_n`` on its angular factor (primal: angle is a function variable)
 and the inverse spatial form ``1 / (V θ^{|o|})`` on energy ⊗ space ⊗ in-cell moments (dual). Whatever object the
-carve spells it with (a ``TensorProductSpace`` of the angular factor and the dual of the rest, or a new type), that is
+carve spells it with (a ``TensorSpace`` of the angular factor and the dual of the rest, or a new type), that is
 the metric it must carry, so the row is spelling-independent.
 """
 

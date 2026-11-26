@@ -224,7 +224,7 @@ class CarrierSpec:  # concept: tensor | role: component | kind: set
     SCOPE-BOUNDARY[guard]
     machinery: members that follow their space by type, so that the member class is a function of the space's content (W3)
     ruling: issue #707 (second comment, 2026-11-11, confirmed 2026-11-12) and section 6.5 of .claude/plans/ontology_w1_spec.md
-    revisit: W3, the known defect: two equal spaces carrying different carriers are equal and mint different member classes; the space's own verbs reach it, since partial duals composed to the all-slot dual carry the default pair (witness: the strict xfail in tests/gates/numerics/w1/test_n04_review_repairs.py)
+    revisit: W3, the known defect: two equal spaces carrying different carriers are equal and mint different member classes, and the space's own verbs reach it by two producers: partial duals composed to the all-slot dual carry the default pair, so V.dual(on=[a]).dual(on=[b, c]) mints Member where V.dual() mints Covector; and the dual of such a space is equal to V and mints Covector where V mints Member (witnesses: the two strict xfails in tests/gates/numerics/w1/test_n04_review_repairs.py)
     """
 
     member: type[Member] = Member
@@ -291,7 +291,7 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
             )
 
     def __post_init__(self) -> None:
-        # ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf arm validates its stored metric; retires at N07, when the leaf fields leave the base.
+        # ELEGANCE-DEBT[guard] #759 legacy-leaf: the leaf arm validates its stored metric; retires at N07, when the leaf fields leave the base.
         if self.metric is not None:
             # The object knows its own admission (a DenseMetric must span the flattened leading block).
             self.metric.validate_for(self.shape)
@@ -314,7 +314,7 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
           different metrics apart;
         * a tensor space, a dual, a direct sum and a coupled system override this with their members' keys, tagged.
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf key is the identity of the five legacy leaves; retires at N07, when they are tensor spaces.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the leaf key is the identity of the five legacy leaves; retires at N07, when they are tensor spaces.
         """
         return (
             "named", type(self), self.name, self.shape,
@@ -349,14 +349,14 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         :math:`K = \{x \ge 0\}` is the physical positive cone); ``False`` where any factor is ``MODAL`` (components are expansion coefficients,
         so a per-component sign test is meaningless and is refused, not answered); ``None`` on a leaf, whose structure cannot answer.
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: a leaf answers ``None``; retires at N07, when no space is a leaf.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: a leaf answers ``None``; retires at N07, when no space is a leaf.
         """
         return None
 
     def _axis_index(self, label: str) -> int:
         r"""Position of the unique factor labeled ``label``: the one by-label resolver, which a leaf refuses (it has no named factors).
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
         """
         raise TypeError(
             f"axis lookup {label!r}: {self!r} is a leaf space with no named factors. Compose the space with TensorSpace.of_axes."
@@ -371,21 +371,21 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
     def _axis_block(self, k: int) -> DiagonalMetric | DenseMetric | DualMetric | None:
         r"""The metric block of factor ``k``, which a leaf refuses (it has no named factors).
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
         """
         raise TypeError(f"{self!r} is a leaf space with no named factors, so it has no metric block {k}.")
 
     def without_axis(self, label: str) -> "FunctionSpace":
         r"""The product of the OTHER factors; a leaf refuses it (it has no named factors).
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
         """
         raise TypeError(f"without_axis {label!r}: {self!r} is a leaf space with no named factors.")
 
     def with_axis(self, factor: Factor) -> "FunctionSpace":
         r"""This product with ``factor`` appended last; a leaf refuses it (it has no named factors).
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
         """
         raise TypeError(f"with_axis: {self!r} is a leaf space with no named factors.")
 
@@ -394,7 +394,7 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
 
         A leaf cannot say which of its positions a factor occupies, and is refused rather than guessed (the user's ruling, 2026-10-20).
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the refusal of a space that is not a tensor space; retires at N07.
         """
         raise TypeError(
             f"positions_spanned_by: the space {self!r} is not built from "
@@ -593,7 +593,7 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         :class:`TensorSpace` overrides it with the tensor product of its axes' units. The integration co-vector
         :math:`\langle 1, \cdot\rangle_V` is :attr:`integral`.
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf unit is ones; retires at N07, when no space is a leaf.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the leaf unit is ones; retires at N07, when no space is a leaf.
         """
         return np.ones(self.shape)
 
@@ -730,7 +730,7 @@ class FunctionSpace(Generic[Carrier]):  # concept: tensor | role: weld | kind: s
         r"""The metric SOURCE of a leaf resolved to its realization, PER CALL: an explicit ``metric`` object, else the ``inner_product_weights``
         array as a :class:`~orpheus.numerics.metric.DiagonalMetric`, else ``None`` (Euclidean: the verbs short-circuit without an object).
 
-        ELEGANCE-DEBT[guard] #707 legacy-leaf: the leaf resolution; retires at N07, when the leaf fields leave the base.
+        ELEGANCE-DEBT[guard] #759 legacy-leaf: the leaf resolution; retires at N07, when the leaf fields leave the base.
 
         ⛔ Deliberately NOT a ``cached_property``: the mutation-battery idiom mutates a frozen space's weight FIELD in place
         (``object.__setattr__``), and the adjoint-certification propagation probes assert the mutation reaches the metric surface at the
@@ -900,7 +900,7 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
 
     # The leaf fields of the base are fixed here, so that a stored shape or a second metric cannot be passed: ``name`` and ``shape`` are
     # derived from the factors and the other two stay ``None``.
-    # ELEGANCE-DEBT[guard] #707 legacy-leaf: the four leaf fields are re-declared closed until N07 removes them from the base.
+    # ELEGANCE-DEBT[guard] #759 legacy-leaf: the four leaf fields are re-declared closed until N07 removes them from the base.
     name: str = field(init=False)
     shape: tuple[int, ...] = field(init=False)
     inner_product_weights: Optional[NDArray] = field(init=False, default=None, repr=False, compare=False)
@@ -1160,9 +1160,13 @@ class TensorSpace(FunctionSpace):  # concept: tensor | role: head | kind: space
         r"""The dual on the slots ``on`` (every slot by default): each of those factors dualised, the others unchanged.
 
         ``dual(on=L).dual(on=M) == dual(on=L ^ M)`` (law L4) and ``dual(on=all) is dual()``, memoised (so ``V.dual().dual() is V``);
-        ``on=()`` is the space itself; an unknown label is a ``KeyError``. The member class is a function of the factors: a flip that lands on the
-        space itself or on its all-slot dual returns that memoised object (so composed partial duals reach ``V.dual()`` with its carrier), and a
-        genuinely partial dual carries the default pair, whichever route reached it.
+        ``on=()`` is the space itself; an unknown label is a ``KeyError``.
+
+        The member class follows the construction path, not the space's content (the declared boundary of :class:`CarrierSpec`, W3, issue
+        #707). A flip that lands on the space itself or on its all-slot dual returns that memoised object, with its carrier; any other flip
+        carries the default pair. Two measured consequences, both equal spaces minting different member classes: ``V.dual(on=[a]).dual(on=[b, c])``
+        equals ``V.dual()`` and mints :class:`Member` where ``V.dual()`` mints :class:`Covector`; and ``X = W.dual()`` of such a ``W`` (equal to
+        ``V.dual()``) equals ``V`` and mints :class:`Covector` where ``V`` mints :class:`Member`.
         """
         return self._flip(on, Factor.dual)
 
