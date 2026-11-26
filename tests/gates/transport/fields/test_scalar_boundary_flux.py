@@ -250,7 +250,7 @@ class TestPartialCurrentGuards:
 
     def test_from_face_arrays_rejects_wrong_faces(self):
         mm = _slab_mesh()
-        with pytest.raises(ValueError, match="face_arrays keys"):
+        with pytest.raises(ValueError, match="parts keys"):
             ScalarBoundaryFlux.from_face_arrays_on(scalar_trace_space(mm), {"xmax": np.zeros((2, 2))})
 
 

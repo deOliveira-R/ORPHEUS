@@ -605,10 +605,10 @@ def build_within_group_system(
             ((SYSTEM_A_LABEL, full_field_space),),
             carrier=SumCarrier(
                 zeros=lambda: CoupledField(
-                    systems=(_zero_full_field(problem),), labels=(SYSTEM_A_LABEL,),
+                    systems=(_zero_full_field(problem),), labels=space.labels,
                 ),
                 dual_zeros=lambda: CoupledField(
-                    systems=(_zero_full_field_dual(problem),), labels=(SYSTEM_A_LABEL,),
+                    systems=(_zero_full_field_dual(problem),), labels=space.labels,
                 ),
             ),
         )
@@ -670,14 +670,14 @@ def build_within_group_system(
                     _zero_full_field(problem),
                     RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space),
                 ),
-                labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
+                labels=space.labels,
             ),
             dual_zeros=lambda: CoupledField(
                 systems=(
                     _zero_full_field_dual(problem),
                     RadialCharacteristicField.source_zeros(problem.radial_characteristic_field_space),
                 ),
-                labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
+                labels=space.labels,
             ),
         ),
     )

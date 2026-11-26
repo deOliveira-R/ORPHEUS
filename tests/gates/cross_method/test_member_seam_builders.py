@@ -189,17 +189,15 @@ def test_mb2_member_of_coordinates_is_the_identity(case: str) -> None:
     np.testing.assert_array_equal(np.asarray(V.coordinates_of(y)).ravel(), hand, err_msg=f"[{case}] member(coordinates_of(x)) != x")
 
 
-_FULL_CASES = [case for case in _CASES if "coupled" not in case]
-
-
 @pytest.mark.rests_on(_NM1)
-@pytest.mark.parametrize("case", _FULL_CASES)
+@pytest.mark.parametrize("case", _CASES)
 def test_mb5_the_dual_refuses_a_primal_composite(case: str) -> None:
     """MB5, the identity leg. A composite member of the ``DirectSumSpace`` V is not a member of ``V.dual()``, an
     equal-shape space with the inverse metric: ``coordinates_of`` compares the composite's derived space with its own,
     as the base does for a ``Member`` (``space.py``, the identity leg), and refuses with the base's message.
+    The coupled sums are in the population (``CoupledField`` carries blocks and labels, and the sum's identity leg serves it too).
     First red: the composite override running only the shape leg (the A1 elegance review, finding 3: accepted on 4 of
-    4 composites before the leg was restored)."""
+    4 composites before the leg was restored; with the identity leg removed from ``DirectSumSpace.coordinates_of``, 6 of 6 cases accept)."""
     builder, classes = _spaces()[case]
     V = builder()
     x, _ = _build(V, classes, np.random.default_rng(7))

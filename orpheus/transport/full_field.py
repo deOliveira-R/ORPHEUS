@@ -142,7 +142,8 @@ from typing import TYPE_CHECKING, Callable, ClassVar, Generic, Self, Sequence, T
 import numpy as np
 
 from orpheus.numerics.field import Field
-from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, SumCarrier
+from orpheus.numerics.coproduct_layout import CoproductLayout
+from orpheus.numerics.direct_sum import BULK, TRACE, DirectSumSpace, SumCarrier, with_values
 from orpheus.transport.fields._bases import (
     BulkField,
     BoundaryField,
@@ -331,11 +332,16 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
     # ── The typed element's two accesses + block-map hooks (Pattern 2) ──
 
     @property
+    def labels(self) -> tuple[str, str]:
+        r"""The summand labels of the sum this composite is an element of, in block order: the class constant ``LABELS``."""
+        return self.LABELS
+
+    @property
     def blocks(self) -> "tuple[Interior, Boundary]":
         r"""The summand elements in label order: the carrier's access that a direct sum reads."""
         return (self.interior, self.boundary)
 
-    def with_blocks(self, blocks: "Sequence[Field]") -> "Self":
+    def with_blocks(self, blocks: "tuple[Interior, Boundary]") -> "Self":
         r"""Rebuild a composite of the SAME concrete type from recombined blocks, the labels kept.
 
         The polymorphic hook the block-map methods and the direct sum route their result through.
@@ -346,7 +352,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         rebuild a ``TimedFullField`` with an EMPTY history (#217).
         """
         interior, boundary = blocks
-        return replace(self, interior=interior, boundary=boundary)  # type: ignore[arg-type]
+        return replace(self, interior=interior, boundary=boundary)
 
     def _map_binary(
         self, other: "Composite", op: "Callable[[object, object], object]",
@@ -360,7 +366,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         """
         return self.with_blocks((
             op(self.interior, other.interior),  # type: ignore[arg-type]
-            op(self.boundary, other.boundary),  # type: ignore[arg-type]
+            op(self.boundary, other.boundary),
         ))
 
     def _map_unary(
@@ -375,7 +381,7 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
         """
         return self.with_blocks((
             op(self.interior),  # type: ignore[arg-type]
-            op(self.boundary),  # type: ignore[arg-type]
+            op(self.boundary),
         ))
 
     # ── Algebra (propagates to every block via the map hooks) ─────────
@@ -488,27 +494,22 @@ class Composite(Generic[Interior, Boundary]):  # concept: member | role: twin | 
     def _from_flat(self, flat: "NDArray") -> "Self":
         r"""Rebuild a composite of ``self``'s type from a flat vector (self = template).
 
-        The instance-hook inverse of :meth:`_flat_parts`: slices
-        ``interior | boundary`` from the template layout, rebuilds each leaf with
-        the template's ``space`` / ``mesh``, and routes the pair through
-        the :meth:`with_blocks` hook. Instance method (not classmethod) so the ``Self``
+        The instance-hook inverse of :meth:`_flat_parts`: a
+        :class:`~orpheus.numerics.coproduct_layout.CoproductLayout` over the two
+        blocks cuts the flat chart, each leaf is rebuilt by
+        :func:`~orpheus.numerics.direct_sum.with_values`, and the pair routes
+        through the :meth:`with_blocks` hook. Instance method (not classmethod) so the ``Self``
         override is Liskov-clean.
         """
-        n_interior = self.interior.values.size
-        n_boundary = self.boundary.values.size
-        expected_total = n_interior + n_boundary
-        if flat.size != expected_total:
+        # The blocks of a composite are keyed by position here: the base class names no labels (its subclasses' ``LABELS`` do), and the cut is the layout's.
+        layout = CoproductLayout(((0, tuple(self.interior.values.shape)), (1, tuple(self.boundary.values.shape))))
+        if flat.size != layout.total_size:
             raise ValueError(
                 f"{type(self).__name__}.from_flat: flat.size = {flat.size} does "
-                f"not match template total size {n_interior} + {n_boundary} = "
-                f"{expected_total}"
+                f"not match template total size {layout.total_size} (the blocks' sizes {layout.sizes})"
             )
-        interior_values = flat[:n_interior].reshape(self.interior.values.shape)
-        boundary_values = flat[n_interior : n_interior + n_boundary]
-        return self.with_blocks((
-            replace(self.interior, values=interior_values),
-            replace(self.boundary, values=boundary_values),
-        ))
+        parts = layout.unpack(flat)
+        return self.with_blocks((with_values(self.interior, parts[0]), with_values(self.boundary, parts[1])))
 
     # ── Diagnostics ──────────────────────────────────────────────────
 

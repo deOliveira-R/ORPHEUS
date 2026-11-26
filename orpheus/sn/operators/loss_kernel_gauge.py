@@ -871,7 +871,7 @@ def _trace_flux_weights(problem: "SNProblem") -> NDArray:
             )
         cosine = sign * mu[:, axis]
         values = cosine[:, None, *([None] * area.ndim)] * area[None, None]
-        weights[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(values, slot.shape).ravel()
+        weights[slot.region] = np.broadcast_to(values, slot.shape).ravel()
     return weights
 
 
@@ -899,7 +899,7 @@ def _balance_weights(problem: "SNProblem") -> NDArray:
     layout = problem.angular_trace.layout
     ordinate_weight = np.zeros(problem.angular_trace.n_coordinates)
     for slot in layout.blocks.values():
-        ordinate_weight[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
+        ordinate_weight[slot.region] = np.broadcast_to(
             weights[:, *([None] * (len(slot.shape) - 1))], slot.shape).ravel()
     return np.concatenate([np.ravel(bulk), -ordinate_weight * _trace_flux_weights(problem)])
 
@@ -1030,10 +1030,7 @@ def predicted_physical_kernel(problem: "SNProblem") -> PredictedKernel:
                                               "neutrons, or a face leaks)")
     interior = tuple(int(n) for n in space.layout.blocks[BULK].shape)
     bulk_group = np.broadcast_to(np.arange(interior[1]).reshape((1, -1) + (1,) * (len(interior) - 2)), interior).ravel()
-    trace_group = np.zeros(problem.angular_trace.n_coordinates, dtype=np.intp)
-    for slot in problem.angular_trace.layout.blocks.values():
-        trace_group[slot.offset:slot.offset + int(np.prod(slot.shape))] = np.broadcast_to(
-            np.arange(slot.shape[1])[None, :, *([None] * (len(slot.shape) - 2))], slot.shape).ravel()
+    trace_group = problem.angular_trace.layout.axis_index(1)
     group = np.concatenate([bulk_group, trace_group])
     right: list[KernelSummand] = []
     left: list[KernelSummand] = []

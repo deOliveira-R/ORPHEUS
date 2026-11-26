@@ -150,7 +150,7 @@ class ScalarTraceSpace(FunctionSpace):  # concept: trace | role: weld | kind: sp
                     f"face_areas[{name!r}] = {area:g} must be positive — a "
                     f"boundary face with non-positive area is degenerate."
                 )
-            weights[slot.offset : slot.offset + slot.flat_size] = area
+            weights[slot.region] = area
         # CS4b S3 (F2): the name carries a CONTENT digest — layout identity
         # + the per-slot area weights — so ``(name, shape)`` equality IS
         # content equality (same-boundary carriers mint EQUAL spaces

@@ -12,7 +12,7 @@ sums over the same labelled summands in two orders (the offsets differ). A neste
 **The typed element.** A sum reads and rebuilds its typed element through two accesses of the carrier class and nothing else: ``blocks``, the tuple
 of the summand elements in label order, and ``with_blocks(blocks)``, the same concrete class rebuilt with those blocks. A block whose summand is a
 sum is handed to that summand's verb, which returns the block's own class; a block whose summand is not a sum is a
-:class:`~orpheus.numerics.space.Member` whose values the summand's verb acts on and which :func:`_with_values` rebuilds, in one place.
+:class:`~orpheus.numerics.space.Member` whose values the summand's verb acts on and which :func:`with_values` rebuilds, in one place.
 
 **The carrier.** A sum cannot mint its own typed element (the element class above ``numerics`` is not a function of the summand spaces), so the
 layer that builds the sum installs the zero factories in its :class:`SumCarrier`; the dual of a sum carries the swapped pair.
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
 from functools import cached_property
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, TypeIs
 
 import numpy as np
 from numpy.typing import NDArray
@@ -57,6 +57,7 @@ __all__ = [
     "DirectSumSpace",
     "SumCarrier",
     "bulk_and_trace",
+    "with_values",
 ]
 
 #: The summand labels of the full field: the bulk (volumetric) summand and the trace summand.
@@ -88,8 +89,9 @@ class SumCarrier:  # concept: dsum | role: component | kind: set
         return SumCarrier(zeros=self.dual_zeros, dual_zeros=self.zeros)
 
 
-def _with_values(block: Any, values: NDArray) -> Any:
-    r"""The leaf block ``block`` rebuilt with new ``values``: the one place a sum rebuilds a block that is not itself a sum.
+def with_values(block: Any, values: NDArray) -> Any:
+    r"""The leaf block ``block`` rebuilt with new ``values``: the one place a block that is not itself a sum is rebuilt, whether by a sum's verb or by a
+    composite's ``from_flat`` (law L13: the leaf rebuild is spelled once).
 
     SCOPE-BOUNDARY[guard]
     machinery: members typed by their space, so that a leaf summand mints its own typed member (W3, #707)
@@ -99,7 +101,7 @@ def _with_values(block: Any, values: NDArray) -> Any:
     return replace(block, values=values)
 
 
-def _is_sum(space: Any) -> bool:
+def _is_sum(space: Any) -> TypeIs["DirectSumSpace"]:
     return isinstance(space, DirectSumSpace)
 
 
@@ -113,8 +115,9 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         The ordered ``(label, space)`` pairs. At least one; the labels are non-empty strings, pairwise distinct. A summand that is itself a sum
         nests. The summands are typed :class:`~orpheus.numerics.space.FunctionSpace`; no runtime check refuses another object (a misuse is the
         caller's, and the formal path is :meth:`of_pairs`).
-    carrier : SumCarrier | None, keyword-only, default None
-        The zero factories (``compare=False``, no part of the identity).
+    carrier : SumCarrier, keyword-only, default ``SumCarrier()``
+        The zero factories (``compare=False``, no part of the identity). The default installs none, and the doors :meth:`zero` and :meth:`dual_zero`
+        are the one refusal of a sum that carries none; a consumer asks :attr:`has_zero` and calls the door, and never reads the carrier's fields.
 
     Attributes
     ----------
@@ -130,7 +133,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
     metric: Optional[HilbertMetric] = field(init=False, default=None, repr=False, compare=False, kw_only=True)
     summands: tuple[tuple[str, FunctionSpace], ...]
     layout: CoproductLayout[str] = field(init=False, repr=False, compare=False)
-    carrier: Optional[SumCarrier] = field(default=None, repr=False, compare=False, kw_only=True)
+    carrier: SumCarrier = field(default_factory=SumCarrier, repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
         pairs = tuple(self.summands)
@@ -145,8 +148,8 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         repeated = sorted({l for l in labels if labels.count(l) > 1})
         if repeated:
             raise ValueError(f"the labels of a direct sum are pairwise distinct; {repeated} repeat in {labels}")
-        if self.carrier is not None and not isinstance(self.carrier, SumCarrier):
-            raise TypeError(f"carrier must be a SumCarrier or None, got {type(self.carrier).__name__}")
+        if not isinstance(self.carrier, SumCarrier):
+            raise TypeError(f"carrier must be a SumCarrier, got {type(self.carrier).__name__}")
         layout = CoproductLayout(tuple((label, tuple(s.shape)) for label, s in pairs))
         if layout.sizes != tuple(int(s.n_coordinates) for _, s in pairs):
             raise ValueError(
@@ -172,7 +175,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         cls, pairs: "tuple[tuple[str, FunctionSpace], ...]", *, carrier: Optional[SumCarrier] = None,
     ) -> "DirectSumSpace":
         r"""The sum of ``(label, space)`` pairs, in order. The carrier is keyword-only on this door alone, so no summand label can collide with it."""
-        return cls(summands=tuple(pairs), carrier=carrier)
+        return cls(summands=tuple(pairs), carrier=SumCarrier() if carrier is None else carrier)
 
     def identity_key(self) -> tuple[Any, ...]:
         r"""The ordered ``(label, summand key)`` pairs, tagged: the labels and the order are identity."""
@@ -203,7 +206,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         for label in path:
             if not _is_sum(found):
                 raise TypeError(f"leaf{path}: {found!r} is not a direct sum, so it has no summand {label!r}")
-            found = found.summand(label)  # type: ignore[attr-defined]
+            found = found.summand(label)
         return found
 
     def with_summand(self, label: str, space: FunctionSpace) -> "DirectSumSpace":
@@ -229,8 +232,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
     # ------------------------------------------------------------------
 
     def _make_dual(self) -> "DirectSumSpace":
-        carrier = None if self.carrier is None else self.carrier.dual()
-        return DirectSumSpace.of_pairs(tuple((label, s.dual()) for label, s in self.summands), carrier=carrier)
+        return DirectSumSpace.of_pairs(tuple((label, s.dual()) for label, s in self.summands), carrier=self.carrier.dual())
 
     def _held(self) -> frozenset[str]:
         r"""The factor labels held by the summands of this sum, or a refusal where a summand is a legacy leaf.
@@ -244,7 +246,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
             if isinstance(s, TensorSpace):
                 held |= set(s.labels)
             elif _is_sum(s):
-                held |= s._held()  # type: ignore[attr-defined]
+                held |= s._held()
             else:
                 raise TypeError(
                     f"a legacy leaf holds no factor labels: the summand {label!r} ({s!r}) is not built from factors, so a flip addressed to factor labels "
@@ -275,9 +277,11 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
             pairs.append((label, verb(s, mine) if mine else s))
         return DirectSumSpace.of_pairs(tuple(pairs))
 
-    def dual(self, on: Any = None) -> "DirectSumSpace":  # type: ignore[override]
+    def dual(self, on: Any = None) -> "DirectSumSpace":
         r"""The dual: summand-wise, memoised (``V.dual().dual() is V``); with ``on=`` a set of factor labels, the flip of the factors with those labels
-        in the summands that hold them (law L6). An unknown label is a ``KeyError``; a sum with a legacy-leaf summand refuses a non-empty ``on=``."""
+        in the summands that hold them (law L6). An unknown label is a ``KeyError``; a sum with a legacy-leaf summand refuses a non-empty ``on=``.
+        The partial flip (``on=``), like :meth:`riesz`, returns a sum with no carrier: the swapped carrier pair of the whole dual does not mint the
+        elements of a half-flipped space, as :meth:`with_summand` also drops it."""
         if on is None:
             return self._dual  # type: ignore[return-value]
         return self._flip(on, lambda s, mine: s.dual(on=mine))  # type: ignore[call-arg]
@@ -286,6 +290,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         r"""The Riesz image: summand-wise (the chart flipped through each form), or with ``on=`` the factors with those labels (law L6).
 
         Refused where a flipped slot is formless (the summand's own refusal) and where a summand is a legacy leaf, whole: nothing half applied is returned.
+        The result carries no carrier (a Riesz image is neither the dual nor the primal space, so no installed pair mints its elements).
         """
         if on is None:
             self._held()
@@ -308,6 +313,12 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
                 f"DirectSumSpace.{verb}: the element carries {len(blocks)} blocks but the sum has {len(self.summands)} summands {list(self.labels)} — "
                 f"the field/space pairing is inconsistent."
             )
+        labels = getattr(x, "labels", None)
+        if labels is not None and tuple(labels) != self.labels:
+            raise ValueError(
+                f"DirectSumSpace.{verb}: the element is labelled {list(labels)} but the sum's summands are {list(self.labels)}; "
+                f"the blocks are admitted by label, never by position."
+            )
         return blocks
 
     def _on_blocks(self, x: Any, verb: str, leg: Callable[[FunctionSpace, Any], Any]) -> Any:
@@ -315,7 +326,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         blocks = self._blocks_of(x, verb)
         out = []
         for (_, s), block in zip(self.summands, blocks):
-            out.append(leg(s, block) if _is_sum(s) else _with_values(block, np.asarray(leg(s, block.values))))
+            out.append(leg(s, block) if _is_sum(s) else with_values(block, np.asarray(leg(s, block.values))))
         return x.with_blocks(tuple(out))
 
     def _on_flat(self, x: Any, leg: Callable[[FunctionSpace, Any], Any]) -> NDArray:
@@ -337,7 +348,7 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
         leg = lambda s, v: s.apply_inverse_metric(v)  # noqa: E731
         return self._on_flat(x, leg) if _is_flat(x) else self._on_blocks(x, "apply_inverse_metric", leg)
 
-    def inner_product(self, x: Any, y: Any) -> float:  # type: ignore[override]
+    def inner_product(self, x: Any, y: Any) -> float:
         r"""The direct-sum inner product :math:`\sum_l \langle x_l, y_l\rangle_{G_l}` of two typed elements.
 
         ELEGANCE-DEBT[guard] #666: the blocks pass their bare coordinates, so this verb asks no membership of x or y. A composite on a DUAL space
@@ -398,31 +409,66 @@ class DirectSumSpace(FunctionSpace):  # concept: dsum | role: head | kind: space
     # The element: the inverse of the coordinate chart
     # ------------------------------------------------------------------
 
-    def _zero(self) -> Any:
-        if self.carrier is None or self.carrier.zeros is None:
+    @property
+    def has_zero(self) -> bool:
+        r"""Whether the layer that built this sum installed its zero-element factory."""
+        return self.carrier.zeros is not None
+
+    @property
+    def has_dual_zero(self) -> bool:
+        r"""Whether the layer that built this sum installed the zero-element factory of its dual."""
+        return self.carrier.dual_zeros is not None
+
+    def zero(self) -> Any:
+        r"""The zero typed element of the sum, minted by the factory its builder installed; the one refusal of a sum that carries none.
+
+        SCOPE-BOUNDARY[guard]
+        machinery: member classes that follow their space by type, so that the element class of a sum is a function of its space's content (W3)
+        ruling: issue #707 (second comment, 2026-11-11) and [ON05-4] of the amendment record in .claude/plans/ontology_w1_spec.md
+        revisit: W3, when the zero element is derived from the summands and no factory is installed
+        """
+        if self.carrier.zeros is None:
             raise RuntimeError(
                 f"{self!r} carries no zero-element factory: the layer that builds the sum installs its SumCarrier "
                 f"(the member seam, #705; the typed elements live above the numerics layer)."
             )
         return self.carrier.zeros()
 
-    def member(self, coordinates: NDArray) -> Any:
-        r"""The typed element with these flat coordinates, on the zero element's class: the inverse of :meth:`coordinates_of`.
+    def dual_zero(self) -> Any:
+        r"""The zero typed element of the dual of the sum (the cotangent-side zero), minted by the factory its builder installed; refused where none is.
 
-        The zero element is rebuilt block by block from the parts of the coordinates: a block whose summand is a sum is minted by that summand's own
-        ``member``, any other block through :func:`_with_values`.
+        SCOPE-BOUNDARY[guard]
+        machinery: member classes that follow their space by type, so that the element class of a sum is a function of its space's content (W3)
+        ruling: issue #707 (second comment, 2026-11-11) and [ON05-4] of the amendment record in .claude/plans/ontology_w1_spec.md
+        revisit: W3, when the zero element of the dual is derived from the summands and no factory is installed
+        """
+        if self.carrier.dual_zeros is None:
+            raise RuntimeError(
+                f"{self!r} carries no DUAL zero-element factory: the layer that builds the sum installs its SumCarrier "
+                f"(the member seam, #705; the typed elements live above the numerics layer)."
+            )
+        return self.carrier.dual_zeros()
+
+    def member(self, coordinates: NDArray) -> Any:
+        r"""The typed element with these flat coordinates, on the zero element's class: the inverse of :meth:`coordinates_of`."""
+        return self.with_coordinates(self.zero(), coordinates)
+
+    def with_coordinates(self, x: Any, coordinates: NDArray) -> Any:
+        r"""The typed element ``x``, its class and everything it carries kept, rebuilt with these flat coordinates.
+
+        Each block is rebuilt from its part of the coordinates: a block whose summand is a sum by that summand's own :meth:`with_coordinates`, any other
+        block through :func:`with_values`. This is the one place a flat chart is cut into blocks (law L13): the cut is the layout's.
         """
         flat = np.asarray(coordinates, dtype=float).ravel()
         if flat.size != self.n_coordinates:
             raise ValueError(
-                f"DirectSumSpace.member: {flat.size} coordinates given, the sum has {self.n_coordinates} ({list(self.labels)} of sizes {self.layout.sizes})"
+                f"DirectSumSpace.with_coordinates: {flat.size} coordinates given, the sum has {self.n_coordinates} ({list(self.labels)} of sizes {self.layout.sizes})"
             )
-        zero = self._zero()
         parts = self.layout.unpack(flat)
         blocks = []
-        for (label, s), block in zip(self.summands, self._blocks_of(zero, "member")):
-            blocks.append(s.member(parts[label]) if _is_sum(s) else _with_values(block, parts[label]))
-        return zero.with_blocks(tuple(blocks))
+        for (label, s), block in zip(self.summands, self._blocks_of(x, "with_coordinates")):
+            blocks.append(s.with_coordinates(block, parts[label]) if _is_sum(s) else with_values(block, parts[label]))
+        return x.with_blocks(tuple(blocks))
 
     def coordinates_of(self, x: Any) -> Any:
         r"""The flat coordinates of ``x``: a typed element (its ``to_flat``, summands in label order) after the identity leg (its space equals this one),
@@ -493,3 +539,4 @@ def bulk_and_trace(space: Any, *, owner: str) -> tuple[FunctionSpace, FunctionSp
         f"{owner} needs a composite DirectSumSpace labelled ({BULK!r}, {TRACE!r}) (the full field); got {space!r}"
         + ("" if labels is None else f" with labels {labels}")
     )
+

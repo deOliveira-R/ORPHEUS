@@ -315,7 +315,7 @@ def _typed_balance(
         )
         return CoupledField(
             systems=(_system_a_residual(lhs_a, q_a), r_b),
-            labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
+            labels=psi.labels,
         )
     if not isinstance(q_ext, FullField):
         raise TypeError(
@@ -786,12 +786,9 @@ def _exit_gauge(
             f"{flat.size} coordinates; a carrying mesh has no predicted kernel."
         )
     gauged_flat = gauge.gauge(flat)
-    n_bulk = psi.interior.values.size
-    gauged = replace(
-        psi,
-        interior=replace(psi.interior, values=gauged_flat[:n_bulk].reshape(psi.interior.values.shape)),
-        boundary=replace(psi.boundary, values=gauged_flat[n_bulk:].reshape(psi.boundary.values.shape)),
-    )
+    # The sum cuts its own flat chart (law L13); ``psi`` keeps its timed history, which ``with_blocks`` empties (#217).
+    interior, boundary = psi.space.with_coordinates(psi, gauged_flat).blocks
+    gauged = replace(psi, interior=interior, boundary=boundary)
     return gauged, gauge.displacement(flat)
 
 
@@ -1080,7 +1077,7 @@ def _coupled_flux_state(
     """
     return CoupledField(
         systems=(psi_a, RadialCharacteristicField.flux_zeros(problem.radial_characteristic_field_space)),
-        labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL),
+        labels=problem.system.space.labels,
     )
 
 
@@ -1102,7 +1099,7 @@ def _coupled_source_state(
             f"{context}: a carrying mesh's coupled rhs requires the q½ fold "
             f"(got None) — the joint solve consumes System B's true source."
         )
-    return CoupledField(systems=(q_a, q_half), labels=(SYSTEM_A_LABEL, SYSTEM_B_LABEL))
+    return CoupledField(systems=(q_a, q_half), labels=problem.system.space.labels)
 
 
 class InnerSolve(NamedTuple):  # concept: driver | role: annex | kind: record
@@ -2551,16 +2548,13 @@ def _adjoint_posing_parts(problem: SNProblem):
     # a bare full-field pair with the composite ``factors.fission``, and the
     # production site posed ``EigenPosing(OperatorPencil(M.H − N.H, F.H))``
     # per arm — two adjoint posings for one Problem.
-    zeros = system.space.carrier.zeros if system.space.carrier is not None else None
-    if zeros is None:
-        raise RuntimeError(f"the coupled space {system.space!r} carries no zero-element factory (the builder installs its SumCarrier)")
     if problem.radial_characteristic_field_space is None:
         def lift(operator: "LinearOperator") -> CoupledOperator:
             return CoupledOperator(
                 [[operator]], domain=system.space, codomain=system.space,
             )
-        return lift(splitting.implicit), lift(gain), system.production, zeros(), splitting
-    return splitting.implicit, gain, system.production, zeros(), splitting
+        return lift(splitting.implicit), lift(gain), system.production, system.space.zero(), splitting
+    return splitting.implicit, gain, system.production, system.space.zero(), splitting
 
 
 def solve_sn_adjoint(

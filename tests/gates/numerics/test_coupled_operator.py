@@ -1474,9 +1474,9 @@ def _sizes(fixture: str) -> tuple[int, int]:
 
 
 def _member(fixture: str, i: int, rng: np.random.Generator) -> CoupledField:
-    """A random cotangent-role field of member ``i`` (a 1-member coupling)."""
+    """A random cotangent-role field of member ``i`` (a 1-member coupling, labelled ``s<i>`` as the restriction's codomain is)."""
     return CoupledField(
-        systems=(_DUAL_CLS[i](values=rng.standard_normal(_sizes(fixture)[i])),), labels=labels_for(1),)
+        systems=(_DUAL_CLS[i](values=rng.standard_normal(_sizes(fixture)[i])),), labels=(f"s{i}",),)
 
 
 def _whole(fixture: str, rng: np.random.Generator) -> CoupledField:

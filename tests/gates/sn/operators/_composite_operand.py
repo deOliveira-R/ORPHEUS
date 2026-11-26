@@ -4,7 +4,7 @@ CS4c step 5 (*each binding acts through the body its ends select*): every
 angular gain — :class:`~orpheus.transport.operators.scattering.ScatteringOperator`,
 :class:`~orpheus.transport.operators.n2n.N2NOperator`,
 :class:`~orpheus.transport.operators.fission.FissionOperator` — is bound on the
-composite ``bulk ⊕ trace`` :class:`~orpheus.numerics.spaces.full_field_space.DirectSumSpace`
+composite ``bulk ⊕ trace`` :class:`~orpheus.numerics.direct_sum.DirectSumSpace`
 and admits exactly the :class:`~orpheus.transport.full_field.FullField` whose
 interior rides its bound end's interior
 (:func:`~orpheus.transport.operators.lift.admit_composite`). A bare bulk field

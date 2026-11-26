@@ -157,9 +157,7 @@ class AngularBoundaryFlux(AngularBoundaryField):  # concept: fluxsrc | role: twi
         space = self.space
         row = space.omega_dot_n[space.face_names.index(face)]
         slot = space.layout.blocks[face]
-        metric = space.partial_current_metric[
-            slot.offset : slot.offset + slot.flat_size
-        ].reshape(slot.shape)
+        metric = space.partial_current_metric[slot.region].reshape(slot.shape)
         sign_axis0 = np.sign(row).reshape(
             (row.shape[0],) + (1,) * (len(slot.shape) - 1)
         )

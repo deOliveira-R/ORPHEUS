@@ -297,7 +297,7 @@ def _build_trace_metric_weights(
         # (group, and — in 2-D — the cells along the boundary edge).
         face_w_axis0 = face_w.reshape((face_w.shape[0],) + (1,) * (len(slot.shape) - 1))
         flat_face = np.broadcast_to(face_w_axis0, slot.shape).reshape(-1)
-        weights_flat[slot.offset : slot.offset + slot.flat_size] = flat_face
+        weights_flat[slot.region] = flat_face
     return weights_flat
 
 

@@ -7584,7 +7584,11 @@ transpose the injection. ``pack`` and ``unpack`` are inverse, with or without a 
 **The layout.** The offsets of the flat chart are computed once, by :class:`~orpheus.numerics.coproduct_layout.CoproductLayout`
 (:class:`~orpheus.numerics.coproduct_layout.LayoutBlock` per summand): the layout takes ordered ``(key, shape)`` pairs and derives every offset as the
 sum of the sizes before it, so the blocks tile ``range(n)`` exactly and a layout whose offsets disagree with its sizes cannot be spelled. The layout
-is the partition: ``slice_of(label)`` is the slice of the flat chart, and no second type holds the same index sets.
+is the partition: ``slice_of(label)`` is the slice of the flat chart, and no second type holds the same index sets. No consumer cuts a block by its offset: it
+reads ``LayoutBlock.region`` or ``slice_of``, and a quantity defined per coordinate along a block axis (the energy group of every coordinate of a trace) is
+:meth:`~orpheus.numerics.coproduct_layout.CoproductLayout.axis_index`, computed once by the layout. The sum's own
+:meth:`~orpheus.numerics.direct_sum.DirectSumSpace.with_coordinates` is the one place a flat chart is cut into the blocks of a typed element, and ``member`` and the
+composites' ``from_flat`` are written over it.
 
 **Identity.** A sum is its ordered ``(label, summand key)`` pairs. Two sums over isomorphic summands with different labels are unequal, so are
 two sums over the same labelled summands in two orders (the offsets differ), and a nested sum is not equal to its flattening. The carrier is no part
@@ -7599,14 +7603,22 @@ not a state step). The two charts agree byte for byte. The labels are a class co
 ``boundary`` for the ray instance) and a required tuple of ``CoupledField``, declared once by the builder (``numerics/direct_sum.py`` and
 ``sn/coupled_system.py``): a default label would be a positional guess. The declared boundary is that a leaf summand cannot yet mint its own typed
 member, so the helper that rebuilds a leaf block, and the pair of zero factories of the carrier (:class:`~orpheus.numerics.direct_sum.SumCarrier`, swapped
-by ``dual``), wait for members typed by their space (issue #707).
+by ``dual``), wait for members typed by their space (issue #707). The carrier of a sum is always a ``SumCarrier`` (the default installs no factory), and the one
+refusal of a sum that mints no zero is its door: ``has_zero`` and ``has_dual_zero`` ask, ``zero()`` and ``dual_zero()`` mint or refuse, and no consumer reads the
+carrier's fields.
+
+**Admission by label.** A typed element is admitted by its labels, never by the position of its blocks: a verb of the sum, the coupled operator's block matvec and the
+restriction onto a summand each compare the element's ``labels`` with the sum's before reading a block, so a coupled field labelled ``(B, A)`` over the blocks
+``(a, b)`` is refused where a positional read would answer on the wrong metric. The coupled states the solver mints take their labels from the sum the hub
+built (``problem.system.space.labels``) and never re-spell them.
 
 **The verbs.** ``apply_metric`` and ``apply_inverse_metric`` act summand by summand through each summand's own verb; ``inner_product`` and ``norm`` take the
 typed carrier only; ``rank`` and ``negative`` are sums, ``kernel_basis`` is block diagonal, ``metric_diagonal`` the concatenation (``None`` if any
 summand is not diagonal). Three answers changed with the one sum, and none is a value production computes: ``unit`` is the concatenation of the summands'
 units (the retired classes answered all ones, which differs from it on a modal bulk), ``integral`` is the integral of that function (it raised on a full
 field), and ``has_coordinate_cone`` is the three-valued conjunction, False before None. The flip by label, ``dual(on=)`` and ``riesz(on=)``, applies to
-the summands that hold the labels; it refuses whole a sum with a legacy leaf summand, which holds no factor labels.
+the summands that hold the labels; it refuses whole a sum with a legacy leaf summand, which holds no factor labels. A partial flip and ``riesz()`` return a sum with
+no carrier, as ``with_summand`` does: the swapped pair of the whole dual does not mint the elements of a half-flipped space.
 
 **What was tried and refused.** A second partition type beside the layout (the layout is the partition); the sum stored in its carriers (a twin
 datum: the carrier derives its space from its blocks and labels); the label stored on the carrier with a class default (a positional guess); a flat-only

@@ -444,7 +444,7 @@ def test_face_normals_z_derived_from_axis_names():
     :mod:`orpheus.numerics.coproduct_layout`. The CLAIM is unchanged and is
     asserted here against the primitive this module now reads (the bijection's
     own laws — round-trip, involution — live in ``tests/gates/numerics/
-    test_face_layout.py``); what moved is where the answer comes from.
+    test_layout_blocks.py``); what moved is where the answer comes from.
     """
     from orpheus.geometry.faces import face_normal
 

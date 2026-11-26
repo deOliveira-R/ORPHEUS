@@ -720,7 +720,7 @@ def joint_m_grid(problem: "SNProblem", LC):
         RadialCharacteristicSeeding,
     )
 
-    space = DirectSumSpace.of_pairs(tuple((f's{i}', m) for i, m in enumerate((problem.full_field_space, problem.radial_characteristic_field_space))))
+    space = DirectSumSpace.of_pairs(tuple(zip(hub_labels(2), (problem.full_field_space, problem.radial_characteristic_field_space))))
     march = rc_march(problem, LC.diagonal.coefficient)
     grid = CoupledOperator(
         [[LC, RadialCharacteristicSeeding(problem)], [None, march]],

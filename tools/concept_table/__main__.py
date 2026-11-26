@@ -44,13 +44,13 @@ def report(root: Path = ROOT) -> list[str]:
 
 
 def reseed(root: Path = ROOT) -> str:
-    """The seed file's text for the tree at ``root``: listed classes at today's fingerprint, every other entry kept."""
+    """The seed file's text for the tree at ``root``: listed classes at today's fingerprint, every other entry kept unless its file left the tree."""
     sources, skipped = read_sources(root)
     population = Population.from_sources(sources, skipped)
     path = root / SEED_FILE
     header = "".join(line for line in path.read_text().splitlines(keepends=True) if line.startswith("#"))
     listed = {d.key for d in measure_twin(population) | measure_weld(population)}
-    kept = [e for e in load_seed(path) if e.key not in listed]
+    kept = [e for e in load_seed(path) if e.key not in listed and e.key.file in sources]
     return dumps_seed([*kept, *(SeedEntry(k, fingerprint(sources[k.file], k.qualname)) for k in listed)], header)
 
 

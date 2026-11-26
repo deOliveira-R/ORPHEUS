@@ -51,7 +51,7 @@ fingerprint = "blake2b:9adbbb7db7c35860165ea82d2805ab8161eef6a2ba13b2d1fcf69cb6a
 
 [[seed]]
 class = "orpheus/diffusion/solver.py::DiffusionSolver"
-fingerprint = "blake2b:6bc700ddf502e0fe4b4f22efa2dd7401d6913e4a6eec1b8d8de80b4bfc05253c"
+fingerprint = "blake2b:42d054eaa679ad372616b2296f32faca3e5d6d0f77f17a2d2ae86192b4e69d45"
 
 [[seed]]
 class = "orpheus/diffusion/solver.py::DiffusionSourceSolution"
@@ -203,11 +203,11 @@ fingerprint = "blake2b:52a4037d208911be10749c3ae6dcaccb9776bc9eef2930d3e2c36b562
 
 [[seed]]
 class = "orpheus/numerics/coupled_system.py::CoupledField"
-fingerprint = "blake2b:5de3e11747690e848def5306b32650c99a7f7f580111129b7b219a702c16e61c"
+fingerprint = "blake2b:6ecabcd48e7178d5434b637762d3a3f91b3b7b0bddb0e8830fd911cb9fcaaa06"
 
 [[seed]]
 class = "orpheus/numerics/coupled_system.py::CoupledOperator"
-fingerprint = "blake2b:67528bfbc7976c46de0f18a3f3f7843d58710c90bffbef9752ec6935c7dff08e"
+fingerprint = "blake2b:a922ab9b432e812931ef9b3a774d53d4625dfe3bcb2c1d496eb7ebe5f7c96f5c"
 
 [[seed]]
 class = "orpheus/numerics/coupled_system.py::CoupledSubstitutionOperator"
@@ -306,16 +306,12 @@ class = "orpheus/numerics/spaces/angular_trace_space.py::AngularTraceSpace"
 fingerprint = "blake2b:23ac7985c7269162b088890134b54ab33dd1cf7cfaa719dc92ca1e0eaca1042f"
 
 [[seed]]
-class = "orpheus/numerics/spaces/full_field_space.py::FullFieldSpace"
-fingerprint = "blake2b:723d73a8eb49a83cda54db971ab30140ca83d42ed9229ed9a76ec294db435b30"
-
-[[seed]]
 class = "orpheus/numerics/spaces/radial_characteristic_space.py::RadialCharacteristicBoundarySpace"
 fingerprint = "blake2b:7b41b059999993f167c5b05421c058cb750c48063e01c7d480a290b4e5bbc0d9"
 
 [[seed]]
 class = "orpheus/numerics/spaces/scalar_trace_space.py::ScalarTraceSpace"
-fingerprint = "blake2b:d85f66726a642defe028787d1b56a11d7f3906e4c0a5e1952c7b7cfd0ba3b8c2"
+fingerprint = "blake2b:0dfe21473f6d3cf02ce044c39e0c0d3a53adda704c8da8cd00b2c19514c22b1f"
 
 [[seed]]
 class = "orpheus/reference/published.py::PublishedSolution"
@@ -495,7 +491,7 @@ fingerprint = "blake2b:996f3ba6fc2fd42ac0fa9edad3f930cd127b4a37952a37131d998d3ea
 
 [[seed]]
 class = "orpheus/transport/fields/angular_boundary_flux.py::AngularBoundaryFlux"
-fingerprint = "blake2b:7536d0bc02edc7f596b0551f2c7bdefbb54dbe50da1cd8cad7dc0697b747a4c1"
+fingerprint = "blake2b:83f467f270469cccc0dd429a757e2484fcb4d700ee14fec8677a70352c1eb409"
 
 [[seed]]
 class = "orpheus/transport/fields/angular_boundary_source_sink.py::AngularBoundarySourceSink"
@@ -551,7 +547,7 @@ fingerprint = "blake2b:abcbf58e90851b7c43ddf684a4c49ae3451cdc759254367f2c95c813b
 
 [[seed]]
 class = "orpheus/transport/full_field.py::Composite"
-fingerprint = "blake2b:9857ae80bc322d15e81bfcbb321bab26308f5eb34a6afa7285a78da91b31624e"
+fingerprint = "blake2b:02137ce58e9f40b0069bbe6be61ce62fdbdc8ac1ac1f13ab83232927c308d262"
 
 [[seed]]
 class = "orpheus/transport/material_field.py::MaterialField"

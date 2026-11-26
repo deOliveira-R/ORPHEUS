@@ -6,7 +6,7 @@ The Hilbert adjoint ``A.H`` is the **G-adjoint** :math:`A^\dagger = G^{-1}
 A^{\mathsf T} G`, NOT the plain Euclidean transpose. For the SN within-group
 loss operator :math:`A = L + C - B` acting on the composite carrier
 :math:`V_{\rm bulk} \oplus V_{\rm trace}`
-(:class:`~orpheus.numerics.spaces.full_field_space.DirectSumSpace`), the metric
+(:class:`~orpheus.numerics.direct_sum.DirectSumSpace`), the metric
 :math:`G` is block-diagonal:
 
 * **bulk** :math:`G_{\rm bulk} = V_{\rm cell}\,w_n` (phase-space measure
@@ -562,7 +562,7 @@ def test_full_field_space_metric_matches_independent_reference(case):
     r"""The production composite metric == the independent ``g_inner``.
 
     Cross-check that ``op.codomain.inner_product`` (the
-    :class:`~orpheus.numerics.spaces.full_field_space.DirectSumSpace` metric
+    :class:`~orpheus.numerics.direct_sum.DirectSumSpace` metric
     built from ``sn.full_field_space``) reproduces the reference built from raw
     ``omega_dot_n`` / ``volumes`` — catches a wrong metric *population* (a
     dropped factor, a double-count, a mis-broadcast over the group axis).

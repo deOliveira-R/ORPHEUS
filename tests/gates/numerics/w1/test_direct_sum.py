@@ -113,6 +113,17 @@ def offset_loops(sources: list[tuple[str, str]]) -> dict[str, list[int]]:
     return {p: lines for p, s in sources if (lines := dp.accumulator_loops(s, ACCUMULATORS))}
 
 
+def offset_slices(source: str) -> list[int]:
+    """The line of every subscript slice one of whose bounds reads an ``.offset`` attribute (a hand cut of a block's region: ``buf[slot.offset:slot.offset + size]``)."""
+    hits = []
+    for n in ast.walk(ast.parse(source)):
+        if isinstance(n, ast.Slice):
+            bounds = [b for b in (n.lower, n.upper) if b is not None]
+            if any(isinstance(m, ast.Attribute) and m.attr == "offset" for b in bounds for m in ast.walk(b)):
+                hits.append(n.lineno)
+    return hits
+
+
 def test_offsets_once() -> None:
     """G05e. ``ast`` over ``orpheus/`` (derivations excluded): the accumulator pattern ``NAME += <expr>``, ``NAME`` in {cursor, start, offset}, inside a ``for`` appears in no file but the layout
     (``numerics/coproduct_layout.py``) and ``numerics/metric.py`` (``FactoredMetric``'s slot walk, exempt by name: a tensor slot offset). The predicate reads this spelling only: a ``np.cumsum`` or
@@ -126,6 +137,12 @@ def test_offsets_once() -> None:
     _require("orpheus/numerics/metric.py" in found, "the predicate does not read the known slot walk of orpheus/numerics/metric.py")
     stray = {p: v for p, v in found.items() if p not in OFFSET_HOMES}
     _require(not stray, f"{sum(len(v) for v in stray.values())} offset accumulator loops outside the layout and the slot walk: {stray}")
+    # The second half of law L13: no consumer slices a block by its offset; it reads ``slot.region``, ``layout.slice_of`` or ``slot.slice_view``.
+    planted_slice = "def f(buf, slot):\n    buf[slot.offset : slot.offset + slot.flat_size] = 0\n"
+    _require(offset_slices(planted_slice) == [2], "the offset-slice predicate does not read a planted hand cut")
+    _require(offset_slices("def f(buf, slot):\n    buf[slot.region] = 0\n") == [], "the offset-slice predicate reads slot.region as a hand cut")
+    cuts = {p: v for p, s in dp.orpheus_sources() if (v := offset_slices(s))}
+    _require(not cuts, f"{sum(len(v) for v in cuts.values())} slices bounded by a block's .offset: {cuts}")
 
 
 # ──────────────────────────────── G05f ────────────────────────────────
@@ -222,6 +239,21 @@ def hand_slices(source: str) -> list[int]:
     return hits
 
 
+def size_cuts(source: str) -> list[int]:
+    """The line of every subscript slice bounded by a ``.values.size`` read, directly or through a name assigned from one in the same function: a flat chart cut at a carrier block's size."""
+    hits = []
+    for fn in (n for n in ast.walk(ast.parse(source)) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))):
+        def is_size(e: ast.AST) -> bool:
+            return isinstance(e, ast.Attribute) and e.attr == "size" and isinstance(e.value, ast.Attribute) and e.value.attr == "values"
+        sizes = {t.id for a in ast.walk(fn) if isinstance(a, ast.Assign) and is_size(a.value) for t in a.targets if isinstance(t, ast.Name)}
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Slice):
+                for b in (x for x in (n.lower, n.upper) if x is not None):
+                    if any(is_size(m) or (isinstance(m, ast.Name) and m.id in sizes) for m in ast.walk(b)):
+                        hits.append(n.lineno)
+    return sorted(set(hits))
+
+
 def test_retired_members_have_successors() -> None:
     """G05i. ``ast`` over ``orpheus/`` (derivations excluded): no attribute read named ``interior_space``, ``trace_space``, ``system_slices``, ``zeros_factory`` or ``dual_zeros_factory`` (the five names with one
     defining class each; they cannot collide with the carrier pair's field names ``zeros`` and ``dual_zeros``); ``act_on_direct_sum_coordinates`` is not defined; no hand cut of a flat chart by a
@@ -240,6 +272,11 @@ def test_retired_members_have_successors() -> None:
     _require(not defined, f"act_on_direct_sum_coordinates is still defined in {defined}")
     cuts = {p: v for p, s in sources if p != "orpheus/numerics/coproduct_layout.py" and (v := hand_slices(s))}
     _require(not cuts, f"hand cuts of a flat chart at a summand's size: {cuts}")
+    planted_cut = "def f(psi, flat):\n    n = psi.interior.values.size\n    return flat[:n], flat[n:]\n"
+    _require(size_cuts(planted_cut) == [3], "the size-cut predicate does not read a planted cut at a block's .values.size")
+    _require(size_cuts("def f(psi, flat):\n    n = psi.interior.values.shape\n    return flat[:3]\n") == [], "the size-cut predicate reads a constant slice as a cut")
+    size_hits = {p: v for p, s in sources if (v := size_cuts(s))}
+    _require(not size_hits, f"{sum(len(v) for v in size_hits.values())} flat-chart cuts bounded by a block's .values.size: {size_hits}")
     stray = []
     for p, s in sources:
         for n in ast.walk(ast.parse(s)):

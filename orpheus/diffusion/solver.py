@@ -347,10 +347,7 @@ class DiffusionSolver:  # concept: driver | role: weld | kind: morphism | welded
         interior = self.template.interior.values.shape
         bulk = np.broadcast_to(np.arange(interior[0]).reshape((-1,) + (1,) * (len(interior) - 1)), interior).ravel()
         trace_space = cast("ScalarTraceSpace", self.mesh.full_field_space.summand(TRACE))
-        trace = np.zeros(trace_space.n_coordinates, dtype=np.intp)
-        for slot in _require_trace_layout(trace_space).blocks.values():
-            groups = np.arange(slot.shape[1]).reshape((1, -1) + (1,) * (len(slot.shape) - 2))
-            trace[slot.offset:slot.offset + slot.flat_size] = np.broadcast_to(groups, slot.shape).ravel()
+        trace = _require_trace_layout(trace_space).axis_index(1)
         return np.concatenate([bulk, trace])
 
     # ── Flat ↔ typed conversion ────────────────────────────────────────

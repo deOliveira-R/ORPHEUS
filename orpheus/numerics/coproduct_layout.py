@@ -1,51 +1,28 @@
-r"""Codim-1 face primitives: the flat-buffer layout.
+r"""The coproduct layout: how the blocks of a direct sum, or the faces of a boundary trace, sit in one flat backing buffer.
 
-L1 primitive (mathematics, knows no neutrons) shared by every codim-1
-(face / edge) function space: :class:`LayoutBlock` / :class:`CoproductLayout` — how a
-structured collection of faces is laid out in a single flat backing buffer:
-each named face is mapped to a contiguous slice + per-face reshape. The
-streaming-normal measure lives in :mod:`orpheus.numerics.face_measure`.
+L1 primitive (mathematics, knows no neutrons). :class:`CoproductLayout` partitions one flat buffer into keyed blocks in order: each key owns a
+contiguous region of the leading axis and a shape that region is reshaped to. The coproduct reading is that the buffer is the direct sum of the blocks,
+:meth:`~CoproductLayout.pack` is the sum of the injections, :meth:`~CoproductLayout.unpack` the projections (views, no copies), and the offsets are
+derived once, here, from the sizes (law L13), so no consumer slices a block by hand: it reads :attr:`LayoutBlock.region`,
+:meth:`~CoproductLayout.slice_of` or :meth:`LayoutBlock.slice_view`.
 
-The face NAMES these slots are keyed by (the axis letters and the bijection
-``(axis, outward sign) <-> "{axis}{min|max}"``) are geometry and live in
-:mod:`orpheus.geometry.faces`; until layer DAG WP-B (2026-10-22) they were the
-first half of this module. Neither concept here reads them: a layout is
-key-generic, and the measure takes the normal as an argument.
+Two families of consumers share it. The summands of a :class:`~orpheus.numerics.direct_sum.DirectSumSpace` are keyed by their labels. The faces
+of a boundary trace space are keyed by name (the axis letters and the bijection ``(axis, outward sign) <-> "{axis}{min|max}"`` are geometry and live in
+:mod:`orpheus.geometry.faces`; a layout is key-generic and reads none of it) or, for the ψ½ starting-direction space, by ``(level, sign, part)``.
+The streaming-normal measure lives in :mod:`orpheus.numerics.face_measure`.
 
-Motivation (Depth B step D-G)
-==============================
-
-Pre-D-G ``orpheus.sn.boundary_flux.AngularBoundaryFlux`` carried a
-dict-like collection of per-geometry-conditional ndarray attributes
-(``xmin_face`` / ``xmax_face`` for 1-D, ``xmin_xmax_buf`` /
-``ymin_ymax_buf`` for 2-D). Arithmetic dispatched per-attribute with
-None-check branches. Cross-method generality (MoC's per-track-family
-"faces" in the thousands) would have made this dispatch quadratic in
-Python overhead.
-
-Post-D-G :class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux`
-inherits :class:`~orpheus.numerics.field.Field` and stores values in a
-SINGLE flat backing buffer. :class:`CoproductLayout` is the descriptor that
-recovers per-face access via O(1) slice views (memory-shared with the
-backing buffer; no copies). Field-inherited algebra operates on the
-flat buffer in ONE numpy call regardless of face count — O(1) Python
-overhead per arithmetic operation.
-
-The descriptor is geometry-agnostic. The transport angular trace's
-:func:`~orpheus.transport.phase_spaces.angular_face_layout` (which SN's
-:attr:`~orpheus.sn.problem.SNProblem.angular_trace` carries as its ``layout``) is the
-Cartesian-face layout (1-4 faces). A future MoC mesh would return a
-per-track-family layout (thousands of faces). The same flat-buffer
-arithmetic works for both.
+Why one flat buffer. A boundary field stores its values in a single flat backing buffer
+(:class:`~orpheus.transport.fields.angular_boundary_flux.AngularBoundaryFlux` inherits :class:`~orpheus.numerics.field.Field`), so the field algebra
+is one numpy call whatever the number of blocks, where a per-face attribute dispatch grew quadratic with the face count. The layout is the descriptor that
+recovers per-block access as views. It is geometry-agnostic: the Cartesian layout has one to four faces and a method-of-characteristics mesh would
+have thousands.
 
 References
 ==========
 
-* Depth B plan §3.4 (Option Ω flat-buffer storage).
-* Plan §6 step D-G (AngularBoundaryFlux as pure Field + SweepScratch carve).
-* ``coding-elegance`` Pattern 5 (build the right primitive, not the
-  right product) — CoproductLayout is the primitive; the per-method
-  AngularBoundaryFlux constructions are the products.
+* Depth B plan 3.4 (option Omega, flat-buffer storage) and plan 6 step D-G (the boundary flux as a pure ``Field``).
+* ``coding-elegance`` Pattern 5 (build the right primitive, not the right product): the layout is the primitive and the per-method boundary fields are
+  the products.
 """
 
 from __future__ import annotations
@@ -229,10 +206,10 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
             for key, block in self.blocks.items()
         )
 
-    def pack(self, face_arrays: Mapping[K, NDArray]) -> NDArray:
-        r"""Pack per-block ndarrays into a fresh flat backing buffer.
+    def pack(self, parts: Mapping[K, NDArray]) -> NDArray:
+        r"""Pack per-block ndarrays into a fresh flat backing buffer: the injections summed.
 
-        ``face_arrays`` must cover EVERY block of this layout, each array
+        ``parts`` must cover EVERY block of this layout, each array
         matching its block's shape followed by one common trailing payload
         (none for a plain buffer; ``G (x) I_P`` on a payload of ``P`` columns).
         The packing loop lives HERE because every fact it reads — the block
@@ -247,15 +224,15 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
             If the keys differ from this layout's blocks, any array's shape
             mismatches its block, or the payloads of two blocks differ.
         """
-        provided = set(face_arrays.keys())
+        provided = set(parts.keys())
         expected = set(self.blocks.keys())
         if provided != expected:
             raise ValueError(
-                f"CoproductLayout.pack: face_arrays keys "
+                f"CoproductLayout.pack: parts keys "
                 f"{sorted(provided, key=repr)!r} do not match the "
                 f"layout's blocks {sorted(expected, key=repr)!r}"
             )
-        arrays = {key: np.asarray(face_arrays[key]) for key in self.blocks}
+        arrays = {key: np.asarray(parts[key]) for key in self.blocks}
         lead = next(iter(self.blocks.items()), None)
         payload = () if lead is None else tuple(arrays[lead[0]].shape[len(lead[1].shape):])
         flat = np.zeros((self.total_size,) + payload)
@@ -290,11 +267,30 @@ class CoproductLayout(Generic[K]):  # concept: layout | role: arm | kind: set
             )
         return {key: block.slice_view(buf) for key, block in self.blocks.items()}
 
+    def axis_index(self, axis: int) -> NDArray:
+        r"""The index along block axis ``axis`` of every flat coordinate, in the flat chart's order (an integer array of ``total_size``).
+
+        For each block the index runs along that axis of the block's shape and is constant along the others, so a block ``(2, ng, n)`` with
+        ``axis=1`` gives the group of each of its coordinates. Every block must have that axis. The layout computes this because the flat region of
+        each block is its own knowledge (law L13); a consumer reads it and never slices a block by hand.
+        """
+        out = np.zeros(self.total_size, dtype=np.intp)
+        for block in self.blocks.values():
+            if not -len(block.shape) <= axis < len(block.shape):
+                raise ValueError(f"CoproductLayout.axis_index: block {block.key!r} of shape {block.shape} has no axis {axis}")
+            ax = axis % len(block.shape)
+            index = np.arange(block.shape[ax]).reshape(tuple(-1 if i == ax else 1 for i in range(len(block.shape))))
+            out[block.region] = np.broadcast_to(index, block.shape).ravel()
+        return out
+
     @classmethod
     def from_named_shapes(
         cls, named_shapes: "Sequence[tuple[K, tuple[int, ...]]]",
     ) -> "CoproductLayout[K]":
         r"""Build a :class:`CoproductLayout` from an ordered list of ``(key, shape)`` pairs.
+
+        The constructor takes the same pairs as ``named_shapes=``; this door stays because its 56 callers read it as a named construction of a layout
+        from an ordered list, and a second spelling of the constructor's one argument carries no second behaviour.
 
         Iteration order of ``named_shapes`` determines the flat-buffer
         offset assignment (first block gets offset 0, second block gets

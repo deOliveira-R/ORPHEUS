@@ -270,7 +270,7 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
         builder's constants name them; ``x.space == V`` holds because the space is
         derived from the members and these labels. The length check is a raw
         constructor's misuse check, under ``if __debug__:``, and is not a
-        guarantee: the formal paths (``V.member(c)``, ``V.carrier.zeros()``,
+        guarantee: the formal paths (``V.member(c)``, ``V.zero()``,
         :meth:`with_blocks`, the restriction) cannot produce a mismatch.
     """
 
@@ -336,7 +336,7 @@ class CoupledField:  # concept: member | role: weld | kind: element.member | wel
         "source lives on the operator's codomain" law was INERT on every SN
         source, all of which are lifted to the one-system coupled state.
         """
-        return DirectSumSpace.of_pairs(tuple(zip(self.labels, (member.space for member in self.systems))))
+        return DirectSumSpace.of_pairs(tuple(zip(self.labels, (member.space for member in self.systems), strict=True)))
 
     @property
     def principal_bulk_leaf(self) -> "Any | None":
@@ -608,7 +608,8 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
 
     # ── The block matvec (apply) and its Euclidean transpose ───────────
 
-    def _check_iterate(self, x: object, *, arity: int, side: str) -> "CoupledField":
+    def _check_iterate(self, x: object, *, space: DirectSumSpace, side: str) -> "CoupledField":
+        arity = len(space.labels)
         if not isinstance(x, CoupledField):
             raise TypeError(
                 f"CoupledOperator.{side}: the block matvec is the only "
@@ -620,6 +621,11 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
                 f"CoupledOperator.{side}: the coupled field carries "
                 f"{x.n_systems} systems but this grid expects {arity}."
             )
+        if tuple(x.labels) != space.labels:
+            raise ValueError(
+                f"CoupledOperator.{side}: the coupled field is labelled {list(x.labels)} but the space's summands are "
+                f"{list(space.labels)}; the systems are admitted by label, never by position."
+            )
         return x
 
     def apply(self, x: "CoupledField", /) -> "CoupledField":
@@ -630,7 +636,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         family). ``None`` blocks contribute nothing — structurally, not as a
         computed zero.
         """
-        x = self._check_iterate(x, arity=self.n_cols, side="apply")
+        x = self._check_iterate(x, space=self._domain, side="apply")
         outs = []
         for row in self._blocks:
             contributions = [
@@ -651,7 +657,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         :class:`~orpheus.numerics.direct_sum.DirectSumSpace` (see the module docstring). Reachable per the
         :attr:`is_adjointable` advertisement (all present blocks adjointable).
         """
-        y = self._check_iterate(y, arity=self.n_rows, side="apply_transpose")
+        y = self._check_iterate(y, space=self._codomain, side="apply_transpose")
         outs = []
         for j in range(self.n_cols):
             contributions = []
@@ -783,7 +789,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
             return False
         if all(b.is_assemblable for b in self._present_blocks()):
             return True
-        return self._domain.carrier is not None and self._domain.carrier.zeros is not None
+        return self._domain.has_zero
 
     @property
     def is_invertible(self) -> bool:
@@ -814,7 +820,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         per call — a ONE-SHOT convenience (hold :meth:`inverse` for
         repeated solves; the factorization is the expensive half).
         """
-        rhs = self._check_iterate(rhs, arity=self.n_rows, side="solve")
+        rhs = self._check_iterate(rhs, space=self._codomain, side="solve")
         orientation = self._triangular_orientation()
         if orientation is not None and self._substitution_ready():
             return self._solve_triangular(rhs, orientation, transpose=False)
@@ -844,7 +850,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
         :class:`~orpheus.numerics.operator.MissingAdjoint` naming the
         offending block.
         """
-        b = self._check_iterate(b, arity=self.n_cols, side="solve_transpose")
+        b = self._check_iterate(b, space=self._domain, side="solve_transpose")
         orientation = self._triangular_orientation()
         if orientation is not None and self._substitution_ready():
             return self._solve_triangular(b, orientation, transpose=True)
@@ -986,13 +992,7 @@ class CoupledOperator(LinearOperator["CoupledField", "CoupledField"]):  # concep
                 f"as_matrix on CoupledOperator: dimension {n} exceeds "
                 f"max_dimension={max_dimension}."
             )
-        carrier = self._domain.carrier
-        if carrier is None or carrier.zeros is None:
-            raise RuntimeError(
-                f"as_matrix on CoupledOperator: the domain {self._domain!r} carries no zero-element factory "
-                f"(the builder installs its SumCarrier; without it a typed block operator stays matrix-free)."
-            )
-        template = carrier.zeros()
+        template = self._domain.zero()
         columns = []
         for j in range(n):
             basis = np.zeros(n)
@@ -1181,21 +1181,18 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
         self._space = space
         self._label = label
         self._index = index
-        carrier = space.carrier
         derived_zeros: "Callable[[], CoupledField] | None" = None
         derived_dual: "Callable[[], CoupledField] | None" = None
-        if carrier is not None and carrier.zeros is not None:
-            mint_zeros = carrier.zeros
+        if space.has_zero:
 
             def _mint_primal() -> "CoupledField":
-                return CoupledField(systems=(mint_zeros().systems[index],), labels=(label,))
+                return CoupledField(systems=(space.zero().systems[index],), labels=(label,))
 
             derived_zeros = _mint_primal
-        if carrier is not None and carrier.dual_zeros is not None:
-            mint_dual = carrier.dual_zeros
+        if space.has_dual_zero:
 
             def _mint_dual() -> "CoupledField":
-                return CoupledField(systems=(mint_dual().systems[index],), labels=(label,))
+                return CoupledField(systems=(space.dual_zero().systems[index],), labels=(label,))
 
             derived_dual = _mint_dual
         self._codomain = DirectSumSpace.of_pairs(
@@ -1230,6 +1227,11 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"SystemRestrictionOperator.apply: iterate couples "
                 f"{len(x.systems)} systems but the domain couples {n}."
             )
+        if tuple(x.labels) != self._space.labels:
+            raise ValueError(
+                f"SystemRestrictionOperator.apply: the iterate is labelled {list(x.labels)} but the domain's summands are "
+                f"{list(self._space.labels)}; the system {self._label!r} is selected by label, never by position."
+            )
         return CoupledField(systems=(x.systems[self._index],), labels=(self._label,))
 
     def apply_transpose(self, y: "CoupledField", /) -> "CoupledField":
@@ -1260,13 +1262,7 @@ class SystemRestrictionOperator(LinearOperator["CoupledField", "CoupledField"]):
                 f"couples {len(y.systems)} systems but the codomain is the "
                 f"1-member coupling."
             )
-        carrier = self._space.carrier
-        if carrier is None or carrier.dual_zeros is None:
-            raise RuntimeError(
-                f"{self._space!r} carries no DUAL zero-element factory: the extension-by-zero transpose "
-                f"mints the dual-role zeros of the full space (the builder installs its SumCarrier)."
-            )
-        minted = carrier.dual_zeros()
+        minted = self._space.dual_zero()
         systems = list(minted.systems)
         systems[self._index] = y.systems[0]
         return CoupledField(systems=tuple(systems), labels=self._space.labels)

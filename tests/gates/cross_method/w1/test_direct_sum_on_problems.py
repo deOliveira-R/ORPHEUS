@@ -291,6 +291,44 @@ def test_carrier_space_equals_builder_space() -> None:
     _require(checks == 15, f"G05g ran on {checks} fixtures, expected 15")
 
 
+def test_coupled_births_take_the_hubs_labels() -> None:
+    """G05g, the births. On the six carrying fixtures (the sphere and the cylinder at three group counts), the three coupled states the solver mints beyond ``_returned_state`` and ``_as_coupled``
+    live on the hub's sum: ``_coupled_flux_state``, ``_coupled_source_state`` and ``_typed_balance`` each return a ``CoupledField`` with ``.space == problem.system.space`` (the labels are read from
+    the hub's sum, never re-spelled at the birth). A coupled element labelled in the other order (``(B, A)`` over the blocks ``(b, a)``, and over the blocks ``(a, b)``) is refused by label, never read by position: ``apply_metric``,
+    ``inner_product``, ``SystemRestrictionOperator.apply`` and ``CoupledOperator.apply`` each raise ``ValueError`` (8 refusals on each of the 6 fixtures). Mutation: spell the two builder constants swapped in
+    ``_coupled_flux_state`` (the equality reddens), or compare the labels by position in ``_blocks_of`` (the reordered rows accept). Exact on any host: spaces and refusals."""
+    from orpheus.numerics.coupled_system import CoupledField, SystemRestrictionOperator
+    from orpheus.sn.solver import _coupled_flux_state, _coupled_source_state, _typed_balance
+
+    seen = 0
+    for name, problem in sn_fixtures():
+        V = problem.system.space
+        if len(V.labels) != 2:
+            continue
+        z, d = V.zero(), V.dual_zero()
+        _require(_coupled_flux_state(z.systems[0], problem).space == V, f"{name}: _coupled_flux_state is born on another space than the hub's")
+        _require(_coupled_source_state(d.systems[0], d.systems[1], problem, context=name).space == V, f"{name}: _coupled_source_state is born on another space than the hub's")
+        _require(_typed_balance(problem.system.loss, z, d).space == V, f"{name}: _typed_balance returns a residual on another space than the hub's")
+        # Two wrong elements: the blocks and labels both reordered, and the blocks in order under swapped labels (a positional read accepts the second).
+        reordered = CoupledField(systems=(z.systems[1], z.systems[0]), labels=(z.labels[1], z.labels[0]))
+        mislabelled = CoupledField(systems=z.systems, labels=(z.labels[1], z.labels[0]))
+        for kind, bad in (("reordered", reordered), ("mislabelled", mislabelled)):
+            refusals = {
+                "apply_metric": lambda: V.apply_metric(bad),
+                "inner_product": lambda: V.inner_product(bad, bad),
+                "restriction": lambda: SystemRestrictionOperator(V, label=V.labels[0]).apply(bad),
+                "loss.apply": lambda: problem.system.loss.apply(bad),
+            }
+            for verb, call in refusals.items():
+                try:
+                    call()
+                except ValueError:
+                    continue
+                pytest.fail(f"{name}: {verb} accepted the {kind} element labelled {list(bad.labels)} on the sum {list(V.labels)}")
+        seen += 1
+    _require(seen == 6, f"the birth rows ran on {seen} carrying fixtures, expected 6")
+
+
 def test_biproduct_laws_on_the_coupled_space() -> None:
     """G05h, the operator form on the production coupled spaces, which nest the full field (and, on the sphere and the cylinder, the ray instance): the projection ``pi_l`` is
     ``SystemRestrictionOperator(V, label=l)`` and the injection ``iota_l`` is its transpose, the extension by zero. (a) ``pi_l iota_l = id`` on the summand's field and ``pi_m iota_l = 0`` across summands

@@ -200,7 +200,7 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
     # ── Construction ─────────────────────────────────────────────────
 
     @classmethod
-    def zeros(  # type: ignore[override]
+    def zeros(
         cls,
         *,
         interior: type[BulkField],
@@ -259,9 +259,9 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
 
     # ── Polymorphic recombine hook (carries history metadata) ────────
 
-    def with_blocks(  # type: ignore[override]
+    def with_blocks(
         self,
-        blocks: "Sequence[Field]",
+        blocks: "tuple[BulkField, BoundaryField]",
     ) -> "TimedFullField":
         r"""Rebuild a ``TimedFullField`` with empty history + preserved depth.
 
@@ -275,8 +275,8 @@ class TimedFullField(FullField):  # concept: member | role: arm | kind: element.
         """
         interior, boundary = blocks
         return TimedFullField(
-            interior=interior,  # type: ignore[arg-type]
-            boundary=boundary,  # type: ignore[arg-type]
+            interior=interior,
+            boundary=boundary,
             _history=(),
             history_depth=self.history_depth,
         )
