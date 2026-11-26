@@ -813,7 +813,7 @@ What passes 2 and 2b changed in the design:
 
 - `[M]` on the merged tree: the whole gate tree without the slow tier 21046 passed, 0 failed; the harness (336 arrays), the axis forms (71 axes) and the dual record (147 arrays) byte-equal; the fresh strict docs build clean; pyright 0 errors on the 27 touched production files; `dead_references` the same 3 targets.
 - One pinned value moved, and it is not one production computes: the bytes of a dense form built by a test-only route that N04 retired (specification 6.5 "Bit identity").
-- Three reviews ran after the workflow's verify stage. They found the abstract base still constructible, the legacy metric fields answering `None` on a tensor space, and 14 `isinstance(..., TensorSpace)` doors; all three are fixed and gated in the unit.
+- Two independent reviews ran after the workflow's verify stage (the last repair commit was read by the orchestrator only). They found the abstract base still constructible, the legacy metric fields answering `None` on a tensor space, and 14 `isinstance(..., TensorSpace)` doors; all three are fixed and gated in the unit.
 - **Departure from the specification (SD-27), ruled by the orchestrator:** `current_space` stays a leaf. Built of two factors on the generic labels of 3.6, the current spaces of two faces compare equal. N06 owns the build and first decides where the face lives.
 - **Carried to later openings** (untracked `opening_N05.md`, `opening_N06.md`): the energy-extent check passes a direct sum unchecked (inherited); the face of `current(face)`; the 17 `#759` tags retire at N07.
 
